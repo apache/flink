@@ -24,8 +24,6 @@ import eu.stratosphere.pact.compiler.plan.EstimateProvider;
  * the typical estimate of <code>(n - 1) / n</code> (with <i>n</i> being the number of nodes), because for a parallelism
  * of 1, that would yield a shipping of zero bytes. While this is usually correct, the runtime scheduling may still
  * choose to move tasks to different nodes, so that we do not know that no data is shipped.
- * 
- * @author Stephan Ewen
  */
 public class DefaultCostEstimator extends CostEstimator
 {

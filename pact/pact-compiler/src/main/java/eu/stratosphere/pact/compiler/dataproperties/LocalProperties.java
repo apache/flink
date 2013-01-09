@@ -26,10 +26,8 @@ import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 /**
  * This class represents local properties of the data. A local property is a property that exists
  * within the data of a single partition.
- * 
- * @author Stephan Ewen
  */
-public final class LocalProperties implements Cloneable
+public class LocalProperties implements Cloneable
 {
 	private Ordering ordering;			// order inside a partition, null if not ordered
 
@@ -213,11 +211,11 @@ public final class LocalProperties implements Cloneable
 		}
 		
 		return (no == this.ordering && ngf == this.groupedFields && nuf == this.uniqueFields) ? this :
-			   (no == null && ngf == null && nuf == null) ? null :
+			   (no == null && ngf == null && nuf == null) ? new LocalProperties() :
 					new LocalProperties(no, ngf, nuf);
 	}
 
-	// ------------------------------------------------------------------------
+	// --------------------------------------------------------------------------------------------
 
 	/*
 	 * (non-Javadoc)
@@ -267,5 +265,25 @@ public final class LocalProperties implements Cloneable
 	public LocalProperties clone() {
 		return new LocalProperties(this.ordering, this.groupedFields,
 			this.uniqueFields == null ? null : new HashSet<FieldSet>(this.uniqueFields));
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	public static LocalProperties combine(LocalProperties lp1, LocalProperties lp2) {
+		if (lp1.ordering != null) {
+			return lp1;
+		} else if (lp2.ordering != null) {
+			return lp2;
+		} else if (lp1.groupedFields != null) {
+			return lp1;
+		} else if (lp2.groupedFields != null) {
+			return lp2;
+		} else if (lp1.uniqueFields != null && !lp1.uniqueFields.isEmpty()) {
+			return lp1;
+		} else if (lp2.uniqueFields != null && !lp2.uniqueFields.isEmpty()) {
+			return lp2;
+		} else {
+			return lp1;
+		}
 	}
 }

@@ -18,6 +18,7 @@ package eu.stratosphere.pact.compiler.operators;
 import java.util.List;
 
 import eu.stratosphere.pact.common.util.FieldList;
+import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.RequestedGlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.RequestedLocalProperties;
 import eu.stratosphere.pact.compiler.plan.TwoInputNode;
@@ -60,6 +61,8 @@ public abstract class OperatorDescriptorDual implements AbstractOperatorDescript
 	
 	public abstract DualInputPlanNode instantiate(Channel in1, Channel in2, TwoInputNode node);
 	
+	public abstract LocalProperties computeLocalProperties(LocalProperties in1, LocalProperties in2);
+	
 	// --------------------------------------------------------------------------------------------
 	
 	public static final class GlobalPropertiesPair
@@ -79,6 +82,36 @@ public abstract class OperatorDescriptorDual implements AbstractOperatorDescript
 		public RequestedGlobalProperties getProperties2() {
 			return this.props2;
 		}
+		
+		/* (non-Javadoc)
+		 * @see java.lang.Object#hashCode()
+		 */
+		@Override
+		public int hashCode() {
+			return (this.props1 == null ? 0 : this.props1.hashCode()) ^ (this.props2 == null ? 0 : this.props2.hashCode());
+		}
+
+		/* (non-Javadoc)
+		 * @see java.lang.Object#equals(java.lang.Object)
+		 */
+		@Override
+		public boolean equals(Object obj) {
+			if (obj.getClass() == GlobalPropertiesPair.class) {
+				final GlobalPropertiesPair other = (GlobalPropertiesPair) obj;
+				
+				return (this.props1 == null ? other.props1 == null : this.props1.equals(other.props1)) &&
+						(this.props2 == null ? other.props2 == null : this.props2.equals(other.props2));
+			}
+			return false;
+		}
+		
+		/* (non-Javadoc)
+		 * @see java.lang.Object#toString()
+		 */
+		@Override
+		public String toString() {
+			return "{" + this.props1 + " / " + this.props2 + "}";
+		}
 	}
 	
 	public static final class LocalPropertiesPair
@@ -97,6 +130,36 @@ public abstract class OperatorDescriptorDual implements AbstractOperatorDescript
 		
 		public RequestedLocalProperties getProperties2() {
 			return this.props2;
+		}
+		
+		/* (non-Javadoc)
+		 * @see java.lang.Object#hashCode()
+		 */
+		@Override
+		public int hashCode() {
+			return (this.props1 == null ? 0 : this.props1.hashCode()) ^ (this.props2 == null ? 0 : this.props2.hashCode());
+		}
+
+		/* (non-Javadoc)
+		 * @see java.lang.Object#equals(java.lang.Object)
+		 */
+		@Override
+		public boolean equals(Object obj) {
+			if (obj.getClass() == LocalPropertiesPair.class) {
+				final LocalPropertiesPair other = (LocalPropertiesPair) obj;
+				
+				return (this.props1 == null ? other.props1 == null : this.props1.equals(other.props1)) &&
+						(this.props2 == null ? other.props2 == null : this.props2.equals(other.props2));
+			}
+			return false;
+		}
+
+		/* (non-Javadoc)
+		 * @see java.lang.Object#toString()
+		 */
+		@Override
+		public String toString() {
+			return "{" + this.props1 + " / " + this.props2 + "}";
 		}
 	}
 }

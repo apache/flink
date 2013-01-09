@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.compiler.jobgen;
+package eu.stratosphere.pact.compiler.plandump;
 
 import java.io.File;
 import java.io.FileWriter;

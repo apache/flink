@@ -20,7 +20,6 @@ import java.util.NoSuchElementException;
 
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.util.FieldList;
-import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.costs.Costs;
 import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
@@ -83,43 +82,14 @@ public class DualInputPlanNode extends PlanNode
 		}
 		
 		mergeBranchPlanMaps();
-		computePropertiesAfterStrategies();
-		
-		// add the new unique information
-		updatePropertiesWithUniqueSets(template.getUniqueFields());
 	}
 	
-	private void computePropertiesAfterStrategies() {
-		// adjust the global properties
-		final GlobalProperties gp1 = this.input1.getGlobalProperties().clone().filterByNodesConstantSet(this.template, 0);
-		final GlobalProperties gp2 = this.input2.getGlobalProperties().clone().filterByNodesConstantSet(this.template, 1);
-		this.globalProps = GlobalProperties.combine(gp1, gp2);
-		
-		// adjust the local properties
-		final LocalProperties lp1 = this.input1.getLocalProperties().clone().filterByNodesConstantSet(this.template, 0);
-		final LocalProperties lp2 = this.input2.getLocalProperties().clone().filterByNodesConstantSet(this.template, 1);
-		
-		switch (getDriverStrategy()) {
-		case HYBRIDHASH_BUILD_FIRST:
-		case HYBRIDHASH_BUILD_SECOND:
-		case NESTEDLOOP_BLOCKED_OUTER_FIRST:
-		case NESTEDLOOP_BLOCKED_OUTER_SECOND:
-			lp1.reset();
-			this.localProps = lp1;
-			break;
-		case MERGE:
-			this.localProps = lp1;
-			break;
-		case NESTEDLOOP_STREAMED_OUTER_FIRST:
-			this.localProps = lp1;
-			lp1.clearUniqueFieldSets();
-			break;
-		case NESTEDLOOP_STREAMED_OUTER_SECOND:
-			this.localProps = lp2;
-			lp2.clearUniqueFieldSets();
-		default:
-			throw new CompilerException("Unrecognized Driver Strategy for two-input plan node: " + getDriverStrategy());
+	public void initProperties(GlobalProperties globals, LocalProperties locals) {
+		if (this.globalProps != null || this.localProps != null) {
+			throw new IllegalStateException();
 		}
+		this.globalProps = globals;
+		this.localProps = locals;
 	}
 	
 	private void mergeBranchPlanMaps() {

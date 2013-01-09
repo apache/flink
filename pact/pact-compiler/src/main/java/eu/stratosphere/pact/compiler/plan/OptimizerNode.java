@@ -858,10 +858,12 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		}
 		
 		// for each interesting property, which plans are cheapest
-		final RequestedGlobalProperties[] gps = (RequestedGlobalProperties[]) this.intProps.getGlobalProperties().toArray(new RequestedGlobalProperties[plans.size()]);
-		final RequestedLocalProperties[] lps = (RequestedLocalProperties[]) this.intProps.getLocalProperties().toArray(new RequestedLocalProperties[plans.size()]);
+		final RequestedGlobalProperties[] gps = (RequestedGlobalProperties[]) this.intProps.getGlobalProperties().toArray(new RequestedGlobalProperties[this.intProps.getGlobalProperties().size()]);
+		final RequestedLocalProperties[] lps = (RequestedLocalProperties[]) this.intProps.getLocalProperties().toArray(new RequestedLocalProperties[this.intProps.getLocalProperties().size()]);
 		
 		final PlanNode[][] toKeep = new PlanNode[gps.length][];
+		final PlanNode[] cheapestForGlobal = new PlanNode[gps.length];
+		
 		
 		PlanNode cheapest = null; // the overall cheapest plan
 
@@ -878,6 +880,11 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 					// the candidate meets the global property requirements. That means
 					// it has a chance that its local properties are re-used (they would be
 					// destroyed if global properties need to be established)
+					
+					if (cheapestForGlobal[i] == null || (cheapestForGlobal[i].getCumulativeCosts().compareTo(candidate.getCumulativeCosts()) > 0)) {
+						cheapestForGlobal[i] = candidate;
+					}
+					
 					final PlanNode[] localMatches;
 					if (toKeep[i] == null) {
 						localMatches = new PlanNode[lps.length];
@@ -910,7 +917,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		
 		// skip the top down delta cost check for now (TODO: implement this)
 		// add all others, which are optimal for some interesting properties
-		for (int i = 0; i < toKeep.length; i++) {
+		for (int i = 0; i < gps.length; i++) {
 			if (toKeep[i] != null) {
 				final PlanNode[] localMatches = toKeep[i];
 				for (int k = 0; k < localMatches.length; k++) {
@@ -919,6 +926,13 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 						n.setPruningMarker();
 						plans.add(n);
 					}
+				}
+			}
+			if (cheapestForGlobal[i] != null) {
+				final PlanNode n = cheapestForGlobal[i];
+				if (!n.isPruneMarkerSet()) {
+					n.setPruningMarker();
+					plans.add(n);
 				}
 			}
 		}

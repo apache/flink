@@ -18,6 +18,7 @@ package eu.stratosphere.pact.compiler.dataproperties;
 import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.common.util.FieldSet;
+import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
 import eu.stratosphere.pact.compiler.costs.Costs;
 import eu.stratosphere.pact.compiler.plan.EstimateProvider;
@@ -200,6 +201,44 @@ public final class RequestedLocalProperties implements Cloneable
 			estimator.addLocalSortCost(estimate, memory, to);
 		} else if (this.groupedFields != null) {
 			estimator.addLocalSortCost(estimate, memory, to);
+		}
+	}
+	
+	// ------------------------------------------------------------------------
+	
+	/**
+	 * @param requested1
+	 * @param requested2
+	 * @param produced1
+	 * @param produced2
+	 * @return
+	 */
+	public static boolean doCoFulfill(RequestedLocalProperties requested1, RequestedLocalProperties requested2,
+			LocalProperties produced1, LocalProperties produced2)
+	{
+		if (requested1.isTrivial() && requested2.isTrivial()) {
+			return true;
+		} else if (!(requested1.isMetBy(produced1) && requested2.isMetBy(produced2))) {
+			return false;
+		} else if (requested1.ordering != null && requested2.ordering != null
+				&& requested1.ordering.getNumberOfFields() > 0 && requested2.ordering.getNumberOfFields() > 0)
+		{
+			if (requested1.ordering.getNumberOfFields() != requested2.ordering.getNumberOfFields()) {
+				throw new CompilerException("Bug: Co-Compatibility not defined for two orderings with different number of fields.");
+			}
+			Ordering prod1 = produced1.getOrdering();
+			Ordering prod2 = produced2.getOrdering();
+			int numRelevantFields = requested1.ordering.getNumberOfFields();
+			
+			for (int i = 0; i < numRelevantFields; i++) {
+				if (prod1.getOrder(i) != prod2.getOrder(i)) {
+					return false;
+				}
+			}
+			return true;
+		} else {
+			throw new CompilerException("Co-Compatibility not defined for requested properties (" +
+					requested1 + ") and (" + requested2 + ").");
 		}
 	}
 

@@ -22,9 +22,12 @@ import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.contract.RecordContract;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.util.FieldList;
+import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.CompilerPostPassException;
 import eu.stratosphere.pact.compiler.plan.SingleInputNode;
+import eu.stratosphere.pact.compiler.plan.TwoInputNode;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
+import eu.stratosphere.pact.compiler.plan.candidate.DualInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
@@ -34,12 +37,14 @@ import eu.stratosphere.pact.compiler.postpass.ConflictingFieldTypeInfoException;
 import eu.stratosphere.pact.compiler.postpass.KeySchema;
 import eu.stratosphere.pact.compiler.postpass.MissingFieldTypeInfoException;
 import eu.stratosphere.pact.compiler.postpass.OptimizerPostPass;
+import eu.stratosphere.pact.generic.contract.DualInputContract;
 import eu.stratosphere.pact.generic.contract.SingleInputContract;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
+import eu.stratosphere.pact.runtime.plugable.PactRecordPairComparatorFactory;
 import eu.stratosphere.pact.runtime.plugable.PactRecordSerializerFactory;
 
 /**
- * @author Stephan Ewen
+ * 
  */
 public class PactRecordPostPass implements OptimizerPostPass
 {
@@ -84,6 +89,10 @@ public class PactRecordPostPass implements OptimizerPostPass
 				throw new CompilerPostPassException("BUG: Missing key type infomation for input to to data sink.");
 			}
 		}
+		else if (node instanceof SourcePlanNode) {
+			((SourcePlanNode) node).setSerializer(PactRecordSerializerFactory.get());
+			// nothing else to be done here. the source has no input and no strategy itself
+		}
 		else if (node instanceof SingleInputPlanNode) {
 			final SingleInputPlanNode sn = (SingleInputPlanNode) node;
 			
@@ -110,7 +119,7 @@ public class PactRecordPostPass implements OptimizerPostPass
 				throw new CompilerPostPassException("Conflicting key type information for field " + ex.getFieldNumber()
 					+ " in node '" + optNode.getPactContract().getName() + "' propagated from successor node. " +
 					"Conflicting types: " + ex.getPreviousType().getName() + " and " + ex.getNewType().getName() +
-					". Most probably cause: Invalid constant field annotations.");
+					". Most probable cause: Invalid constant field annotations.");
 					
 			}
 			
@@ -136,7 +145,7 @@ public class PactRecordPostPass implements OptimizerPostPass
 					+ " in node '" + optNode.getPactContract().getName() + "' between types declared in the node's "
 					+ "contract and types inferred from successor contracts. Conflicting types: "
 					+ ex.getPreviousType().getName() + " and " + ex.getNewType().getName()
-					+ ". Most probably cause: Invalid constant field annotations.");
+					+ ". Most probable cause: Invalid constant field annotations.");
 					
 			}
 			
@@ -159,9 +168,115 @@ public class PactRecordPostPass implements OptimizerPostPass
 			}
 
 		}
-		else if (node instanceof SourcePlanNode) {
-			((SourcePlanNode) node).setSerializer(PactRecordSerializerFactory.get());
-			// nothing else to be done here. the source has no input and no strategy itself
+		else if (node instanceof DualInputPlanNode) {
+			final DualInputPlanNode dn = (DualInputPlanNode) node;
+			
+			// get the nodes current schema
+			final KeySchema schema1;
+			final KeySchema schema2;
+			if (dn.postPassHelper1 == null) {
+				schema1 = new KeySchema();
+				schema2 = new KeySchema();
+				dn.postPassHelper1 = schema1;
+				dn.postPassHelper2 = schema2;
+			} else {
+				schema1 = (KeySchema) dn.postPassHelper1;
+				schema2 = (KeySchema) dn.postPassHelper2;
+			}
+
+			schema1.increaseNumConnectionsThatContributed();
+			schema2.increaseNumConnectionsThatContributed();
+			
+			// add the parent schema to the schema
+			final TwoInputNode optNode = dn.getTwoInputNode();
+			try {
+				for (Map.Entry<Integer, Class<? extends Key>> entry : parentSchema) {
+					final Integer pos = entry.getKey();
+					if (optNode.isFieldConstant(0, pos)) {
+						schema1.addKeyType(pos, entry.getValue());
+					}
+					if (optNode.isFieldConstant(1, pos)) {
+						schema2.addKeyType(pos, entry.getValue());
+					}
+				}
+			} catch (ConflictingFieldTypeInfoException ex) {
+				throw new CompilerPostPassException("Conflicting key type information for field " + ex.getFieldNumber()
+					+ " in node '" + optNode.getPactContract().getName() + "' propagated from successor node. " +
+					"Conflicting types: " + ex.getPreviousType().getName() + " and " + ex.getNewType().getName() +
+					". Most probably cause: Invalid constant field annotations.");
+					
+			}
+			
+			// check whether all outgoing channels have not yet contributed. come back later if not.
+			if (schema1.getNumConnectionsThatContributed() < dn.getOutgoingChannels().size()) {
+				return;
+			}
+			
+			// add the nodes local information. this automatically consistency checks
+			final DualInputContract<?> contract = optNode.getPactContract();
+			if (! (contract instanceof RecordContract)) {
+				throw new CompilerPostPassException("Error: Contract is not a Pact Record based contract. Wrong compiler invokation.");
+			}
+			final RecordContract recContract = (RecordContract) contract;
+			final int[] localPositions1 = contract.getKeyColumns(0);
+			final int[] localPositions2 = contract.getKeyColumns(1);
+			final Class<? extends Key>[] types = recContract.getKeyClasses();
+			
+			if (localPositions1.length != localPositions2.length) {
+				throw new CompilerException("Error: The keys for the first and second input have a different number of fields.");
+			}
+			
+			try {
+				for (int i = 0; i < localPositions1.length; i++) {
+					schema1.addKeyType(localPositions1[i], types[i]);
+				}
+			} catch (ConflictingFieldTypeInfoException ex) {
+				throw new CompilerPostPassException("Conflicting key type information for field " + ex.getFieldNumber()
+					+ " in the first input of node '" + optNode.getPactContract().getName() + 
+					"' between types declared in the node's contract and types inferred from successor contracts. " +
+					"Conflicting types: " + ex.getPreviousType().getName() + " and " + ex.getNewType().getName()
+					+ ". Most probable cause: Invalid constant field annotations.");
+			}
+			try {
+				for (int i = 0; i < localPositions2.length; i++) {
+					schema2.addKeyType(localPositions2[i], types[i]);
+				}
+			} catch (ConflictingFieldTypeInfoException ex) {
+				throw new CompilerPostPassException("Conflicting key type information for field " + ex.getFieldNumber()
+					+ " in the second input of node '" + optNode.getPactContract().getName() + 
+					"' between types declared in the node's contract and types inferred from successor contracts. " +
+					"Conflicting types: " + ex.getPreviousType().getName() + " and " + ex.getNewType().getName()
+					+ ". Most probable cause: Invalid constant field annotations.");
+			}
+			
+			// parameterize the node's driver strategy
+			if (dn.getDriverStrategy().requiresComparator()) {
+				// set the individual comparators
+				try {
+					dn.setComparator1(createComparator(dn.getKeysForInput1(), dn.getSortOrders(), schema1));
+					dn.setComparator2(createComparator(dn.getKeysForInput2(), dn.getSortOrders(), schema2));
+				} catch (MissingFieldTypeInfoException ex) {
+					throw new CompilerPostPassException("Could not set up runtime strategy for node '" + 
+						contract.getName() + "'. Missing type information for key field " + ex.getFieldNumber());
+				}
+				
+				// set the pair comparator
+				dn.setPairComparator(PactRecordPairComparatorFactory.get());
+			}
+			
+			// done, we can now propagate our info down
+			try {
+				propagateToChannel(schema1, dn.getInput1());
+			} catch (MissingFieldTypeInfoException ex) {
+				throw new CompilerPostPassException("Could not set up runtime strategy for the first input channel to node '"
+					+ contract.getName() + "'. Missing type information for key field " + ex.getFieldNumber());
+			}
+			try {
+				propagateToChannel(schema2, dn.getInput2());
+			} catch (MissingFieldTypeInfoException ex) {
+				throw new CompilerPostPassException("Could not set up runtime strategy for the second input channel to node '"
+					+ contract.getName() + "'. Missing type information for key field " + ex.getFieldNumber());
+			}
 		}
 		else {
 			throw new CompilerPostPassException("Unknown node type encountered: " + node.getClass().getName());

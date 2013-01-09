@@ -18,6 +18,7 @@ package eu.stratosphere.pact.compiler.operators;
 import java.util.Collections;
 import java.util.List;
 
+import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.RequestedGlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.RequestedLocalProperties;
 import eu.stratosphere.pact.compiler.plan.TwoInputNode;
@@ -64,5 +65,13 @@ public class UtilSinkJoinOpDescriptor extends OperatorDescriptorDual
 	@Override
 	public DualInputPlanNode instantiate(Channel in1, Channel in2, TwoInputNode node) {
 		return null;
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.operators.OperatorDescriptorDual#computeLocalProperties(eu.stratosphere.pact.compiler.dataproperties.LocalProperties, eu.stratosphere.pact.compiler.dataproperties.LocalProperties)
+	 */
+	@Override
+	public LocalProperties computeLocalProperties(LocalProperties in1, LocalProperties in2) {
+		return new LocalProperties();
 	}
 }

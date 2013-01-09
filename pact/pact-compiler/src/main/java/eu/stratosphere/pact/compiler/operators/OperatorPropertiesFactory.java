@@ -174,7 +174,7 @@ public class OperatorPropertiesFactory
 					if (!in.getLocalStrategyKeys().isValidUnorderedPrefix(this.keys)) {
 						throw new RuntimeException("Bug: Inconsistent sort for group strategy.");
 					}
-					in.setLocalStrategy(LocalStrategy.COMBININGSORT);
+					in.setLocalStrategy(LocalStrategy.COMBININGSORT, in.getLocalStrategyKeys(), in.getLocalStrategySortOrder());
 				}
 				return new SingleInputPlanNode(node, in, DriverStrategy.GROUP_OVER_ORDERED, this.keyList);
 			} else {

@@ -321,16 +321,18 @@ public abstract class SingleInputNode extends OptimizerNode
 		return outputPlans;
 	}
 	
-	private void addLocalCandidates(Channel in, List<PlanNode> target)
+	private void addLocalCandidates(Channel template, List<PlanNode> target)
 	{
-		final LocalProperties lp = in.getLocalPropertiesAfterShippingOnly();
+		final LocalProperties lp = template.getLocalPropertiesAfterShippingOnly();
 		for (RequestedLocalProperties ilp : this.inConn.getInterestingProperties().getLocalProperties()) {
+			final Channel in = template.clone();
 			if (ilp.isMetBy(lp)) {
 				in.setLocalStrategy(LocalStrategy.NONE);
 			} else {
 				ilp.parameterizeChannel(in);
 			}
 			
+			// instantiate a candidate, if the instantiated local properties meet one possible local property set
 			for (OperatorDescriptorSingle dps: this.possibleProperties) {
 				for (RequestedLocalProperties ilps : dps.getPossibleLocalProperties()) {
 					if (ilps.isMetBy(in.getLocalProperties())) {

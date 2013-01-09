@@ -42,9 +42,6 @@ import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
 /**
  * An implementation of the {@link MatchTaskIterator} that realizes the
  * matching through a sort-merge join strategy.
- *
- * @author Stephan Ewen
- * @author Fabian Hueske
  */
 public class MergeMatchIterator<T1, T2, O> implements MatchTaskIterator<T1, T2, O>
 {

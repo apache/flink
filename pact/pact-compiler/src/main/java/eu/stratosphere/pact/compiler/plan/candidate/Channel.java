@@ -33,7 +33,7 @@ import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 /**
  * 
  */
-public class Channel implements EstimateProvider
+public class Channel implements EstimateProvider, Cloneable
 {
 	/**
 	 * Enumeration to indicate the mode of temporarily materializing the data that flows across a connection.
@@ -420,5 +420,13 @@ public class Channel implements EstimateProvider
 					") -> (" + this.target + ')') +
 				'[' + this.shipStrategy + "] [" + this.localStrategy + ']' +
 				(this.tempMode == null || this.tempMode == TempMode.NONE ? "{NO-TEMP}" : this.tempMode);
+	}
+	
+	public Channel clone() {
+		try {
+			return (Channel) super.clone();
+		} catch (CloneNotSupportedException cnsex) {
+			throw new Error(cnsex);
+		}
 	}
 }

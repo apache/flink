@@ -197,6 +197,7 @@ public final class RequestedGlobalProperties implements Cloneable
 		} else switch (this.partitioning) {
 			case FULL_REPLICATION:
 				channel.setShipStrategy(ShipStrategyType.BROADCAST);
+				break;
 			case ANY_PARTITIONING:
 			case HASH_PARTITIONED:
 				channel.setShipStrategy(ShipStrategyType.PARTITION_HASH, Utils.createOrderedFromSet(this.partitioningFields));
@@ -237,7 +238,7 @@ public final class RequestedGlobalProperties implements Cloneable
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-		result = prime * result + ((partitioning == null) ? 0 : partitioning.hashCode());
+		result = prime * result + ((partitioning == null) ? 0 : partitioning.ordinal());
 		result = prime * result + ((partitioningFields == null) ? 0 : partitioningFields.hashCode());
 		result = prime * result + ((ordering == null) ? 0 : ordering.hashCode());
 		return result;

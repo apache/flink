@@ -24,10 +24,6 @@ import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
  * The collection of access methods that can be used to retrieve statistical information about the
  * data processed in a job. Currently this method acts as an entry point only for obtaining cached
  * statistics.
- * <p>
- * This class is thread safe.
- * 
- * @author Stephan Ewen
  */
 public class DataStatistics
 {

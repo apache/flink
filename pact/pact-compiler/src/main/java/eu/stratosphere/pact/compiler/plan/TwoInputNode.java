@@ -43,6 +43,7 @@ import eu.stratosphere.pact.compiler.operators.OperatorDescriptorDual;
 import eu.stratosphere.pact.compiler.operators.OperatorDescriptorDual.GlobalPropertiesPair;
 import eu.stratosphere.pact.compiler.operators.OperatorDescriptorDual.LocalPropertiesPair;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
+import eu.stratosphere.pact.compiler.plan.candidate.DualInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.generic.contract.Contract;
 import eu.stratosphere.pact.generic.contract.DualInputContract;
@@ -100,6 +101,13 @@ public abstract class TwoInputNode extends OptimizerNode
 
 	// ------------------------------------------------------------------------
 	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getPactContract()
+	 */
+	@Override
+	public DualInputContract<?> getPactContract() {
+		return (DualInputContract<?>) super.getPactContract();
+	}
 
 	/**
 	 * Gets the <tt>PactConnection</tt> through which this node receives its <i>first</i> input.
@@ -435,11 +443,12 @@ public abstract class TwoInputNode extends OptimizerNode
 		return outputPlans;
 	}
 	
-	private void addLocalCandidates(Channel in1, Channel in2, List<PlanNode> target, LocalPropertiesPair[] validLocalCombinations) {
-		final LocalProperties lp1 = in1.getLocalPropertiesAfterShippingOnly();
-		final LocalProperties lp2 = in2.getLocalPropertiesAfterShippingOnly();
+	private void addLocalCandidates(Channel template1, Channel template2, List<PlanNode> target, LocalPropertiesPair[] validLocalCombinations) {
+		final LocalProperties lp1 = template1.getLocalPropertiesAfterShippingOnly();
+		final LocalProperties lp2 = template1.getLocalPropertiesAfterShippingOnly();
 		
 		for (RequestedLocalProperties ilp1 : this.input1.getInterestingProperties().getLocalProperties()) {
+			final Channel in1 = template1.clone();
 			if (ilp1.isMetBy(lp1)) {
 				in1.setLocalStrategy(LocalStrategy.NONE);
 			} else {
@@ -447,32 +456,59 @@ public abstract class TwoInputNode extends OptimizerNode
 			}
 			
 			for (RequestedLocalProperties ilp2 : this.input2.getInterestingProperties().getLocalProperties()) {
+				final Channel in2 = template2.clone();
 				if (ilp2.isMetBy(lp2)) {
 					in2.setLocalStrategy(LocalStrategy.NONE);
 				} else {
 					ilp2.parameterizeChannel(in2);
 				}
 				
-				for (LocalPropertiesPair lpp : validLocalCombinations) {
-					if (lpp.getProperties1().isMetBy(in1.getLocalProperties()) &&
-						lpp.getProperties2().isMetBy(in2.getLocalProperties()) )
-					{
-						// valid combination
-						// --- Compatibility Check !!! ---
-						
-						// add a candidate
+				for (OperatorDescriptorDual dps: this.possibleProperties) {
+					for (LocalPropertiesPair lpp : dps.getPossibleLocalProperties()) {
+						if (lpp.getProperties1().isMetBy(in1.getLocalProperties()) &&
+							lpp.getProperties2().isMetBy(in2.getLocalProperties()) )
+						{
+							// valid combination
+							// for non trivial local properties, we need to check that they are co compatible
+							// (such as when some sort order is requested, that both are the same sort order
+							if (RequestedLocalProperties.doCoFulfill(lpp.getProperties1(), lpp.getProperties2(), 
+								in1.getLocalProperties(), in2.getLocalProperties()))
+							{
+								// all right, co compatible
+								target.add(instantiate(dps, in1, in2));
+							} else {
+								// meet, but not co-compatible
+								throw new CompilerException("Implements to adjust one side to the other!");
+							}
+						}
 					}
 				}
 			}
 		}
 	}
 	
+	private DualInputPlanNode instantiate(OperatorDescriptorDual operator, Channel in1, Channel in2) {
+		DualInputPlanNode node = operator.instantiate(in1, in2, this);
+		
+		GlobalProperties gp1 = in1.getGlobalProperties().clone().filterByNodesConstantSet(this, 0);
+		GlobalProperties gp2 = in2.getGlobalProperties().clone().filterByNodesConstantSet(this, 1);
+		GlobalProperties combined = GlobalProperties.combine(gp1, gp2);
+
+		LocalProperties lp1 = in1.getLocalProperties().clone().filterByNodesConstantSet(this, 0);
+		LocalProperties lp2 = in2.getLocalProperties().clone().filterByNodesConstantSet(this, 1);
+		LocalProperties locals = operator.computeLocalProperties(lp1, lp2);
+		
+		node.initProperties(combined, locals);
+		node.updatePropertiesWithUniqueSets(getUniqueFields());
+		return node;
+	}
+	
 	/**
 	 * Checks if the subPlan has a valid outputSize estimation.
 	 * 
-	 * @param subPlan		the subPlan to check
+	 * @param subPlan The subPlan to check.
 	 * 
-	 * @return	{@code true} if all values are valid, {@code false} otherwise
+	 * @return {@code True}, if all values are valid, {@code false} otherwise
 	 */
 	protected boolean haveValidOutputEstimates(OptimizerNode subPlan) {
 		return subPlan.getEstimatedOutputSize() != -1;

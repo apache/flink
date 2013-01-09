@@ -31,7 +31,7 @@ import eu.stratosphere.pact.compiler.plan.OptimizerNode;
  * Currently, the properties are the following: A partitioning type (ANY, HASH, RANGE), and EITHER an ordering (for range partitioning)
  * or an FieldSet with the hash partitioning columns.
  */
-public final class GlobalProperties implements Cloneable
+public class GlobalProperties implements Cloneable
 {
 	private PartitioningProperty partitioning;	// the type partitioning
 	
@@ -186,20 +186,17 @@ public final class GlobalProperties implements Cloneable
 	 * @return True, if any non-default value is preserved, false otherwise.
 	 */
 	public GlobalProperties filterByNodesConstantSet(OptimizerNode node, int input) {
-		if (this.partitioning == PartitioningProperty.FULL_REPLICATION) {
-			return null;
-		}
 		// check if partitioning survives
 		if (this.ordering != null) {
 			for (int col : this.ordering.getInvolvedIndexes()) {
 				if (!node.isFieldConstant(input, col)) {
-					return null;
+					return new GlobalProperties();
 				}
 			}
 		} else if (this.partitioningFields != null) {
 			for (int colIndex : this.partitioningFields) {
 				if (!node.isFieldConstant(input, colIndex)) {
-					return null;
+					return new GlobalProperties();
 				}
 			}
 		}
@@ -216,7 +213,7 @@ public final class GlobalProperties implements Cloneable
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-		result = prime * result + ((partitioning == null) ? 0 : partitioning.hashCode());
+		result = prime * result + ((partitioning == null) ? 0 : partitioning.ordinal());
 		result = prime * result + ((partitioningFields == null) ? 0 : partitioningFields.hashCode());
 		result = prime * result + ((ordering == null) ? 0 : ordering.hashCode());
 		return result;

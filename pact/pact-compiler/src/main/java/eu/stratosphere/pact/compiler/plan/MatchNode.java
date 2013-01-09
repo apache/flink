@@ -34,38 +34,13 @@ import eu.stratosphere.pact.generic.contract.GenericMatchContract;
  */
 public class MatchNode extends TwoInputNode
 {
-	private final OperatorDescriptorDual fixedDriverStrat;
-	
 	/**
 	 * Creates a new MatchNode for the given contract.
 	 * 
-	 * @param pactContract
-	 *        The match contract object.
+	 * @param pactContract The match contract object.
 	 */
 	public MatchNode(GenericMatchContract<?> pactContract) {
 		super(pactContract);
-
-		// see if an internal hint dictates the strategy to use
-		Configuration conf = getPactContract().getParameters();
-		String localStrategy = conf.getString(PactCompiler.HINT_LOCAL_STRATEGY, null);
-
-		if (localStrategy != null) {
-			if (PactCompiler.HINT_LOCAL_STRATEGY_SORT_BOTH_MERGE.equals(localStrategy) ||
-				PactCompiler.HINT_LOCAL_STRATEGY_SORT_FIRST_MERGE.equals(localStrategy) ||
-				PactCompiler.HINT_LOCAL_STRATEGY_SORT_SECOND_MERGE.equals(localStrategy) ||
-				PactCompiler.HINT_LOCAL_STRATEGY_MERGE.equals(localStrategy) )
-			{
-				this.fixedDriverStrat = new SortMergeJoinDescriptor(this.keys1, this.keys2);
-			} else if (PactCompiler.HINT_LOCAL_STRATEGY_HASH_BUILD_FIRST.equals(localStrategy)) {
-				this.fixedDriverStrat = new HashJoinBuildFirstProperties(this.keys1, this.keys2);
-			} else if (PactCompiler.HINT_LOCAL_STRATEGY_HASH_BUILD_SECOND.equals(localStrategy)) {
-				this.fixedDriverStrat = new HashJoinBuildSecondProperties(this.keys1, this.keys2);
-			} else {
-				throw new CompilerException("Invalid local strategy hint for match contract: " + localStrategy);
-			}
-		} else {
-			this.fixedDriverStrat = null;
-		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -94,8 +69,26 @@ public class MatchNode extends TwoInputNode
 	 */
 	@Override
 	protected List<OperatorDescriptorDual> getPossibleProperties() {
-		if (this.fixedDriverStrat != null) {
-			return Collections.singletonList(this.fixedDriverStrat);
+		// see if an internal hint dictates the strategy to use
+		Configuration conf = getPactContract().getParameters();
+		String localStrategy = conf.getString(PactCompiler.HINT_LOCAL_STRATEGY, null);
+
+		if (localStrategy != null) {
+			final OperatorDescriptorDual fixedDriverStrat;
+			if (PactCompiler.HINT_LOCAL_STRATEGY_SORT_BOTH_MERGE.equals(localStrategy) ||
+				PactCompiler.HINT_LOCAL_STRATEGY_SORT_FIRST_MERGE.equals(localStrategy) ||
+				PactCompiler.HINT_LOCAL_STRATEGY_SORT_SECOND_MERGE.equals(localStrategy) ||
+				PactCompiler.HINT_LOCAL_STRATEGY_MERGE.equals(localStrategy) )
+			{
+				fixedDriverStrat = new SortMergeJoinDescriptor(this.keys1, this.keys2);
+			} else if (PactCompiler.HINT_LOCAL_STRATEGY_HASH_BUILD_FIRST.equals(localStrategy)) {
+				fixedDriverStrat = new HashJoinBuildFirstProperties(this.keys1, this.keys2);
+			} else if (PactCompiler.HINT_LOCAL_STRATEGY_HASH_BUILD_SECOND.equals(localStrategy)) {
+				fixedDriverStrat = new HashJoinBuildSecondProperties(this.keys1, this.keys2);
+			} else {
+				throw new CompilerException("Invalid local strategy hint for match contract: " + localStrategy);
+			}
+			return Collections.singletonList(fixedDriverStrat);
 		} else {
 			ArrayList<OperatorDescriptorDual> list = new ArrayList<OperatorDescriptorDual>();
 			list.add(new SortMergeJoinDescriptor(this.keys1, this.keys2));

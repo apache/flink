@@ -36,8 +36,8 @@ public enum DriverStrategy
 	PARTIAL_GROUP(CombineDriver.class, ChainedCombineDriver.class, MATERIALIZING, true),
 	// already grouped input, within a key values are crossed in a nested loop fashion
 	GROUP_SELF_NESTEDLOOP(null, null, PIPELINED, true),	// Note: Self-Match currently inactive
-	// both inputs are merged
-	MERGE(MatchDriver.class, null, PIPELINED, PIPELINED, true),
+	// both inputs are merged, but materialized to the side for block-nested-loop-join among values with equal key
+	MERGE(MatchDriver.class, null, MATERIALIZING, MATERIALIZING, true),
 	// co-grouping inputs
 	CO_GROUP(CoGroupDriver.class, null, PIPELINED, PIPELINED, true),
 	// the first input is build side, the second side is probe side of a hybrid hash table

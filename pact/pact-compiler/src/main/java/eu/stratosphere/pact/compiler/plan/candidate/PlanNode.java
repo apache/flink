@@ -57,8 +57,7 @@ public abstract class PlanNode implements Visitable<PlanNode>
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public PlanNode(OptimizerNode template, DriverStrategy strategy)
-	{
+	public PlanNode(OptimizerNode template, DriverStrategy strategy) {
 		this.outChannels = new ArrayList<Channel>(2);
 		this.template = template;
 		this.driverStrategy = strategy; 
@@ -315,6 +314,7 @@ public abstract class PlanNode implements Visitable<PlanNode>
 	
 	@Override
 	public String toString() {
-		return this.template.getName() + '"' + getPactContract().getName() + "\" : " + this.driverStrategy;
+		return this.template.getName() + '"' + getPactContract().getName() + "\" : " + this.driverStrategy +
+				" [[ " + this.globalProps + " ]] [[ " + this.localProps + " ]]";
 	}
 }

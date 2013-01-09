@@ -16,7 +16,7 @@
 package eu.stratosphere.pact.compiler.plan;
 
 import java.util.Collections;
-import java.util.LinkedList;
+import java.util.ArrayList;
 import java.util.List;
 
 import eu.stratosphere.pact.common.contract.CompilerHints;
@@ -166,7 +166,7 @@ public class CoGroupNode extends TwoInputNode
 			}
 			
 			if (isKept) {
-				uniqueFields = new LinkedList<FieldSet>();
+				uniqueFields = new ArrayList<FieldSet>();
 				uniqueFields.add(new FieldSet(keys1));
 			}
 		}
@@ -182,7 +182,7 @@ public class CoGroupNode extends TwoInputNode
 			
 			if (isKept) {
 				if (uniqueFields == null) {
-					uniqueFields = new LinkedList<FieldSet>();	
+					uniqueFields = new ArrayList<FieldSet>();	
 				}
 				uniqueFields.add(new FieldSet(keys2));
 			}
