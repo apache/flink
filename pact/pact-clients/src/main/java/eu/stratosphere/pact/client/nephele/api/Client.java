@@ -34,7 +34,7 @@ import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.costs.DefaultCostEstimator;
 import eu.stratosphere.pact.compiler.jobgen.JobGraphGenerator;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
-import eu.stratosphere.pact.compiler.plandump.JSONGenerator;
+import eu.stratosphere.pact.compiler.plandump.PlanJSONDumpGenerator;
 
 /**
  * Encapsulates the functionality necessary to compile and submit a pact program to a nephele cluster.
@@ -119,7 +119,7 @@ public class Client {
 	 * @throws ErrorInPlanAssemblerException Thrown, if the plan assembler function causes an exception.
 	 */
 	public String getJSONPlan(PactProgram prog) throws CompilerException, ProgramInvocationException, ErrorInPlanAssemblerException {
-		JSONGenerator jsonGen = new JSONGenerator();
+		PlanJSONDumpGenerator jsonGen = new PlanJSONDumpGenerator();
 		return jsonGen.compilePlanToJSON(this.getOptimizedPlan(prog));
 	}
 	

@@ -102,6 +102,14 @@ public class GlobalProperties implements Cloneable
 		}
 	}
 	
+	public FieldList getPartitioningFields() {
+		return this.partitioningFields;
+	}
+	
+	public Ordering getPartitioningOrdering() {
+		return this.ordering;
+	}
+	
 	// --------------------------------------------------------------------------------------------
 	
 	public PartitioningProperty getPartitioning() {

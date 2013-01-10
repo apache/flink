@@ -12,32 +12,28 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
+package eu.stratosphere.pact.compiler.plandump;
 
-package eu.stratosphere.pact.compiler.plan.candidate;
+import java.util.Iterator;
 
-import eu.stratosphere.pact.compiler.plan.DataSinkNode;
-import eu.stratosphere.pact.runtime.task.DriverStrategy;
+import eu.stratosphere.pact.compiler.plan.OptimizerNode;
+import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 
 /**
- * Plan candidate node for data flow sinks.
+ *
  */
-public class SinkPlanNode extends SingleInputPlanNode
+public interface DumpableNode<T extends DumpableNode<T>>
 {
 	/**
-	 * Constructs a new sink candidate node that uses <i>NONE</i> as its local strategy. Note that
-	 * local sorting and range partitioning are handled by the incoming channel already.
+	 * Gets an iterator over the predecessors.
 	 * 
-	 * @param template The template optimizer node that this candidate is created for.
+	 * @return An iterator over the predecessors.
 	 */
-	public SinkPlanNode(DataSinkNode template, Channel input) {
-		super(template, input, DriverStrategy.NONE);
-	}
+	Iterator<T> getPredecessors();
 	
-	public DataSinkNode getSinkNode() {
-		if (this.template instanceof DataSinkNode) {
-			return (DataSinkNode) this.template;
-		} else {
-			throw new RuntimeException();
-		}
-	}
+	Iterator<DumpableConnection<T>> getDumpableInputs();
+	
+	OptimizerNode getOptimizerNode();
+	
+	PlanNode getPlanNode();
 }

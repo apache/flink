@@ -38,6 +38,8 @@ import eu.stratosphere.pact.compiler.dataproperties.RequestedGlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.RequestedLocalProperties;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
+import eu.stratosphere.pact.compiler.plandump.DumpableConnection;
+import eu.stratosphere.pact.compiler.plandump.DumpableNode;
 import eu.stratosphere.pact.compiler.util.PactType;
 import eu.stratosphere.pact.generic.contract.AbstractPact;
 import eu.stratosphere.pact.generic.contract.Contract;
@@ -46,7 +48,7 @@ import eu.stratosphere.pact.generic.contract.Contract;
  * This class represents a node in the optimizer's internal representation of the PACT plan. It contains
  * extra information about estimates, hints and data properties.
  */
-public abstract class OptimizerNode implements Visitable<OptimizerNode>, EstimateProvider
+public abstract class OptimizerNode implements Visitable<OptimizerNode>, EstimateProvider, DumpableNode<OptimizerNode>
 {
 	// --------------------------------------------------------------------------------------------
 	//                                      Members
@@ -255,7 +257,31 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	// ------------------------------------------------------------------------
 	//                          Getters / Setters
 	// ------------------------------------------------------------------------
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.util.NodeWithInputs#getPredecessors()
+	 */
+	@Override
+	public Iterator<OptimizerNode> getPredecessors() {
+		final Iterator<PactConnection> inputs = getIncomingConnections().iterator();
+		return new Iterator<OptimizerNode>() {
+			@Override
+			public boolean hasNext() {
+				return inputs.hasNext();
+			}
 
+			@Override
+			public OptimizerNode next() {
+				return inputs.next().getSourcePact();
+			}
+
+			@Override
+			public void remove() {
+				throw new UnsupportedOperationException();
+			}
+		};
+	}
+	
 	/**
 	 * Gets the ID of this node. If the id has not yet been set, this method returns -1;
 	 * 
@@ -1150,5 +1176,30 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		public long getJoinedPathsVector() {
 			return this.joinedPathsVector;
 		}
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plandump.DumpableNode#getOptimizerNode()
+	 */
+	@Override
+	public OptimizerNode getOptimizerNode() {
+		return this;
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plandump.DumpableNode#getPlanNode()
+	 */
+	@Override
+	public PlanNode getPlanNode() {
+		return null;
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plandump.DumpableNode#getDumpableInputs()
+	 */
+	@Override
+	@SuppressWarnings("unchecked")
+	public Iterator<DumpableConnection<OptimizerNode>> getDumpableInputs() {
+		return (Iterator<DumpableConnection<OptimizerNode>>) (Iterator<?>) getIncomingConnections().iterator();
 	}
 }

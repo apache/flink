@@ -26,7 +26,7 @@ import javax.servlet.http.HttpServletResponse;
 
 import eu.stratosphere.pact.client.nephele.api.PactProgram;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
-import eu.stratosphere.pact.compiler.plandump.JSONGenerator;
+import eu.stratosphere.pact.compiler.plandump.PlanJSONDumpGenerator;
 
 /**
  * @author Stephan Ewen (stephan.ewen@tu-berlin.com)
@@ -87,7 +87,7 @@ public class PactJobJSONServlet extends HttpServlet {
 		
 		try {
 			OptimizedPlan optPlan = pactProgram.getPreviewPlan();
-			jsonPlan = new JSONGenerator().compilePlanToJSON(optPlan);
+			jsonPlan = new PlanJSONDumpGenerator().compilePlanToJSON(optPlan);
 		}
 		catch (Throwable t) {}
 		

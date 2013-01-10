@@ -25,9 +25,6 @@ import eu.stratosphere.pact.common.plan.Visitor;
  * The optimizer representation of a plan. The optimizer creates this from the user defined PACT job plan.
  * It works on this representation during its optimization. Finally, this plan is translated to a schedule
  * for the nephele runtime system.
- * 
- * @author Stephan Ewen
- * @author Fabian Hüske
  */
 public class OptimizedPlan implements Visitable<PlanNode>
 {

@@ -27,13 +27,15 @@ import eu.stratosphere.pact.compiler.costs.Costs;
 import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
+import eu.stratosphere.pact.compiler.plandump.DumpableConnection;
+import eu.stratosphere.pact.compiler.plandump.DumpableNode;
 import eu.stratosphere.pact.generic.contract.Contract;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**
  * 
  */
-public abstract class PlanNode implements Visitable<PlanNode>
+public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<PlanNode>
 {
 	protected final OptimizerNode template;
 	
@@ -312,9 +314,39 @@ public abstract class PlanNode implements Visitable<PlanNode>
 	
 	// --------------------------------------------------------------------------------------------
 	
+	/* (non-Javadoc)
+	 * @see java.lang.Object#toString()
+	 */
 	@Override
 	public String toString() {
 		return this.template.getName() + '"' + getPactContract().getName() + "\" : " + this.driverStrategy +
 				" [[ " + this.globalProps + " ]] [[ " + this.localProps + " ]]";
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plandump.DumpableNode#getOptimizerNode()
+	 */
+	@Override
+	public OptimizerNode getOptimizerNode() {
+		return this.template;
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plandump.DumpableNode#getPlanNode()
+	 */
+	@Override
+	public PlanNode getPlanNode() {
+		return this;
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plandump.DumpableNode#getDumpableInputs()
+	 */
+	@Override
+	@SuppressWarnings("unchecked")
+	public Iterator<DumpableConnection<PlanNode>> getDumpableInputs() {
+		return (Iterator<DumpableConnection<PlanNode>>) (Iterator<?>) getInputs();
 	}
 }

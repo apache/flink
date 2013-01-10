@@ -19,6 +19,8 @@ import java.util.Map;
 
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.dataproperties.InterestingProperties;
+import eu.stratosphere.pact.compiler.plandump.DumpableConnection;
+import eu.stratosphere.pact.compiler.plandump.DumpableNode;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 
 /**
@@ -29,7 +31,7 @@ import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
  * The connections are also used by the optimization algorithm to propagate interesting properties from the sinks in the
  * direction of the sources.
  */
-public class PactConnection implements EstimateProvider
+public class PactConnection implements EstimateProvider, DumpableConnection<OptimizerNode>
 {
 	private final OptimizerNode sourcePact; // The source node of the connection
 
@@ -200,5 +202,13 @@ public class PactConnection implements EstimateProvider
 		}
 
 		return buf.toString();
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plandump.DumpableConnection#getSource()
+	 */
+	@Override
+	public DumpableNode<OptimizerNode> getSource() {
+		return this.sourcePact;
 	}
 }

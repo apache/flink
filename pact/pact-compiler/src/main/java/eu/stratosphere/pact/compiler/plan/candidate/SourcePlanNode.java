@@ -92,4 +92,9 @@ public class SourcePlanNode extends PlanNode
 	public Iterator<Channel> getInputs() {
 		return Collections.<Channel>emptyList().iterator();
 	}
+	
+	// --------------------------------------------------------------------------------------------
+	//                               Textual Dump for Visualization
+	// --------------------------------------------------------------------------------------------
+	
 }

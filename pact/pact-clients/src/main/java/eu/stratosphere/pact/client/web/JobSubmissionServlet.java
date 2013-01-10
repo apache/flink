@@ -42,7 +42,7 @@ import eu.stratosphere.pact.client.nephele.api.PactProgram;
 import eu.stratosphere.pact.client.nephele.api.ProgramInvocationException;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
-import eu.stratosphere.pact.compiler.plandump.JSONGenerator;
+import eu.stratosphere.pact.compiler.plandump.PlanJSONDumpGenerator;
 
 /**
  * @author Stephan Ewen (stephan.ewen@tu-berlin.com)
@@ -218,7 +218,7 @@ public class JobSubmissionServlet extends HttpServlet {
 				// dump the job to a JSON file
 				String planName = uid + ".json";
 				File jsonFile = new File(planDumpDirectory, planName);
-				new JSONGenerator().writeJSONFile(optPlan, jsonFile);
+				new PlanJSONDumpGenerator().writeJSONFile(optPlan, jsonFile);
 
 				// submit the job only, if it should not be suspended
 				if (!suspend) {

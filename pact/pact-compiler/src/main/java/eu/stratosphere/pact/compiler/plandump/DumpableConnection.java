@@ -12,32 +12,17 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
+package eu.stratosphere.pact.compiler.plandump;
 
-package eu.stratosphere.pact.compiler.plan.candidate;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 
-import eu.stratosphere.pact.compiler.plan.DataSinkNode;
-import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**
- * Plan candidate node for data flow sinks.
+ *
  */
-public class SinkPlanNode extends SingleInputPlanNode
-{
-	/**
-	 * Constructs a new sink candidate node that uses <i>NONE</i> as its local strategy. Note that
-	 * local sorting and range partitioning are handled by the incoming channel already.
-	 * 
-	 * @param template The template optimizer node that this candidate is created for.
-	 */
-	public SinkPlanNode(DataSinkNode template, Channel input) {
-		super(template, input, DriverStrategy.NONE);
-	}
+public interface DumpableConnection<T extends DumpableNode<T>> {
+
+	public DumpableNode<T> getSource();
 	
-	public DataSinkNode getSinkNode() {
-		if (this.template instanceof DataSinkNode) {
-			return (DataSinkNode) this.template;
-		} else {
-			throw new RuntimeException();
-		}
-	}
+	public ShipStrategyType getShipStrategy();
 }

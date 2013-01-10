@@ -24,6 +24,7 @@ import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.pact.compiler.plan.EstimateProvider;
+import eu.stratosphere.pact.compiler.plandump.DumpableConnection;
 import eu.stratosphere.pact.compiler.util.Utils;
 import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
 import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
@@ -33,7 +34,7 @@ import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 /**
  * 
  */
-public class Channel implements EstimateProvider, Cloneable
+public class Channel implements EstimateProvider, Cloneable, DumpableConnection<PlanNode>
 {
 	/**
 	 * Enumeration to indicate the mode of temporarily materializing the data that flows across a connection.
@@ -408,6 +409,10 @@ public class Channel implements EstimateProvider, Cloneable
 	public void setMemoryLocalStrategy(long memoryLocalStrategy) {
 		this.memoryLocalStrategy = memoryLocalStrategy;
 	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	
 	
 	// --------------------------------------------------------------------------------------------
 	

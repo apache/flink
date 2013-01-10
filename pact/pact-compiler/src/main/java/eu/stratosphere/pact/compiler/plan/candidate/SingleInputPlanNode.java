@@ -37,8 +37,6 @@ public class SingleInputPlanNode extends PlanNode
 	
 	protected final boolean[] sortOrders;
 	
-//	private TypeSerializerFactory<?> serializer;
-	
 	private TypeComparatorFactory<?> comparator;
 	
 	public Object postPassHelper;
