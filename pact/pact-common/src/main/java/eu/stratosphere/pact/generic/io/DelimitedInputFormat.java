@@ -38,9 +38,6 @@ import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
  * Base implementation for delimiter based input formats. By default it splits
  * by line breaks. The record generation is done in the readLine function
  * which needs to be implemented for specific formats.
- * 
- * @author Moritz Kaufmann
- * @author Stephan Ewen
  */
 public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT>
 {

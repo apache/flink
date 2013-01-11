@@ -20,6 +20,9 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.nio.CharBuffer;
 
+import eu.stratosphere.nephele.services.memorymanager.DataInputView;
+import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
+import eu.stratosphere.pact.common.type.CopyableValue;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.NormalizableKey;
 
@@ -36,11 +39,8 @@ import eu.stratosphere.pact.common.type.NormalizableKey;
  * @see eu.stratosphere.pact.common.type.NormalizableKey
  * @see java.lang.String
  * @see java.lang.CharSequence
- * 
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
- * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  */
-public class PactString implements Key, NormalizableKey, CharSequence
+public class PactString implements Key, NormalizableKey, CharSequence, CopyableValue<PactString>
 {
 	private static final char[] EMPTY_STRING = new char[0];
 	
@@ -408,8 +408,7 @@ public class PactString implements Key, NormalizableKey, CharSequence
 	 * @see eu.stratosphere.nephele.io.IOReadableWritable#read(java.io.DataInput)
 	 */
 	@Override
-	public void read(final DataInput in) throws IOException
-	{
+	public void read(final DataInput in) throws IOException {
 		int len = in.readUnsignedByte();
 
 		if (len >= HIGH_BIT) {
@@ -451,8 +450,7 @@ public class PactString implements Key, NormalizableKey, CharSequence
 	 * @see eu.stratosphere.nephele.io.IOReadableWritable#write(java.io.DataOutput)
 	 */
 	@Override
-	public void write(final DataOutput out) throws IOException
-	{
+	public void write(final DataOutput out) throws IOException {
 		int len = this.len;
 
 		// write the length, variable-length encoded
@@ -481,8 +479,7 @@ public class PactString implements Key, NormalizableKey, CharSequence
 	 * @see java.lang.Object#toString()
 	 */
 	@Override
-	public String toString()
-	{
+	public String toString() {
 		return new String(this.value, 0, this.len);
 	}
 
@@ -491,8 +488,7 @@ public class PactString implements Key, NormalizableKey, CharSequence
 	 * @see java.lang.Comparable#compareTo(java.lang.Object)
 	 */
 	@Override
-	public int compareTo(final Key o)
-	{
+	public int compareTo(final Key o) {
 		if (o instanceof PactString) {
 			PactString other = (PactString) o;
 
@@ -519,8 +515,7 @@ public class PactString implements Key, NormalizableKey, CharSequence
 	 * @see java.lang.Object#hashCode()
 	 */
 	@Override
-	public int hashCode()
-	{
+	public int hashCode() {
 		int h = this.hashCode;
 		if (h == 0 && this.len > 0) {
 			int off = 0;
@@ -539,8 +534,7 @@ public class PactString implements Key, NormalizableKey, CharSequence
 	 * @see java.lang.Object#equals(java.lang.Object)
 	 */
 	@Override
-	public boolean equals(final Object obj)
-	{
+	public boolean equals(final Object obj) {
 		if (this == obj) {
 			return true;
 		}
@@ -571,8 +565,7 @@ public class PactString implements Key, NormalizableKey, CharSequence
 	 * @see java.lang.CharSequence#length()
 	 */
 	@Override
-	public int length()
-	{
+	public int length() {
 		return this.len;
 	}
 	
@@ -580,8 +573,7 @@ public class PactString implements Key, NormalizableKey, CharSequence
 	 * @see java.lang.CharSequence#charAt(int)
 	 */
 	@Override
-	public char charAt(int index)
-	{
+	public char charAt(int index) {
 		if (index < len) {
 			return this.value[index];	
 		}
@@ -594,8 +586,7 @@ public class PactString implements Key, NormalizableKey, CharSequence
 	 * @see java.lang.CharSequence#subSequence(int, int)
 	 */
 	@Override
-	public CharSequence subSequence(int start, int end)
-	{
+	public CharSequence subSequence(int start, int end) {
 		return new PactString(this, start, end - start);
 	}
 	
@@ -642,6 +633,59 @@ public class PactString implements Key, NormalizableKey, CharSequence
 		}
 		while (offset < limit) {
 			target[offset++] = 0;
+		}
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.type.CopyableValue#getBinaryLength()
+	 */
+	@Override
+	public int getBinaryLength() {
+		return -1;
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.type.Copyable#copyTo(java.lang.Object)
+	 */
+	@Override
+	public void copyTo(PactString target) {
+		target.len = this.len;
+		target.hashCode = this.hashCode;
+		target.ensureSize(this.len);
+		System.arraycopy(this.value, 0, target.value, 0, this.len);
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.type.CopyableValue#copy(eu.stratosphere.nephele.services.memorymanager.DataInputView, eu.stratosphere.nephele.services.memorymanager.DataOutputView)
+	 */
+	@Override
+	public void copy(DataInputView in, DataOutputView target) throws IOException {
+		int len = in.readUnsignedByte();
+		target.writeByte(len);
+
+		if (len >= HIGH_BIT) {
+			int shift = 7;
+			int curr;
+			len = len & 0x7f;
+			while ((curr = in.readUnsignedByte()) >= HIGH_BIT) {
+				len |= (curr & 0x7f) << shift;
+				shift += 7;
+				target.writeByte(curr);
+			}
+			len |= curr << shift;
+		}
+
+		for (int i = 0; i < len; i++) {
+			int c = in.readUnsignedByte();
+			target.writeByte(c);
+			if (c >= HIGH_BIT) {
+				int curr;
+				while ((curr = in.readUnsignedByte()) >= HIGH_BIT) {
+					target.writeByte(curr);
+				}
+			}
 		}
 	}
 	

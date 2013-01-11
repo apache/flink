@@ -15,49 +15,10 @@
 
 package eu.stratosphere.pact.compiler.postpass;
 
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Map.Entry;
-
 import eu.stratosphere.pact.common.type.Key;
 
 /**
  * Class encapsulating a schema map (int column position -> column type) and a reference counter.
  */
-public class KeySchema implements Iterable<Map.Entry<Integer, Class<? extends Key>>>
-{
-	private final Map<Integer, Class<? extends Key>> schema;
-	
-	private int numConnectionsThatContributed;
-	
-	
-	public KeySchema() {
-		this.schema = new HashMap<Integer, Class<? extends Key>>();
-	}
-	
-	
-	public void addKeyType(Integer key, Class<? extends Key> type) throws ConflictingFieldTypeInfoException 
-	{
-		Class<? extends Key> previous = this.schema.put(key, type);
-		if (previous != null && previous != type) {
-			throw new ConflictingFieldTypeInfoException(key, previous, type);
-		}
-	}
-	
-	public Class<? extends Key> getType(Integer field) {
-		return this.schema.get(field);
-	}
-	
-	public Iterator<Entry<Integer, Class<? extends Key>>> iterator() {
-		return this.schema.entrySet().iterator();
-	}
-	
-	public int getNumConnectionsThatContributed() {
-		return this.numConnectionsThatContributed;
-	}
-	
-	public void increaseNumConnectionsThatContributed() {
-		this.numConnectionsThatContributed++;
-	}
-}
+public class KeySchema extends AbstractTypeSchema<Key>
+{}

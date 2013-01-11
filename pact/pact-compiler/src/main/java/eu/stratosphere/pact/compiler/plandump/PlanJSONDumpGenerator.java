@@ -22,9 +22,10 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Hashtable;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 
 import eu.stratosphere.pact.common.contract.CompilerHints;
@@ -47,43 +48,23 @@ import eu.stratosphere.pact.compiler.util.Utils;
  */
 public class PlanJSONDumpGenerator
 {
-	private Hashtable<DumpableNode<?>, Integer> nodeIds; // resolves pact nodes to ids
+	private Map<DumpableNode<?>, Integer> nodeIds; // resolves pact nodes to ids
 
 	private int nodeCnt; // resolves pact nodes to ids
 
 	// --------------------------------------------------------------------------------------------
 	
-	public void dumpPactPlanAsJSON(List<DataSinkNode> nodes, File toFile) throws IOException {
+	public void dumpPactPlanAsJSON(List<DataSinkNode> nodes, PrintWriter writer) {
 		@SuppressWarnings("unchecked")
 		List<DumpableNode<?>> n = (List<DumpableNode<?>>) (List<?>) nodes;
-		dump(n, toFile);
+		compilePlanToJSON(n, writer);
 	}
 	
 	public void dumpOptimizerPlanAsJSON(OptimizedPlan plan, File toFile) throws IOException {
-		Collection<SinkPlanNode> sinks = plan.getDataSinks();
-		if (sinks instanceof List) {
-			dumpOptimizerPlanAsJSON((List<SinkPlanNode>) sinks, toFile);
-		} else {
-			List<SinkPlanNode> n = new ArrayList<SinkPlanNode>();
-			n.addAll(sinks);
-			dumpOptimizerPlanAsJSON(n, toFile);
-		}
-	}
-	
-	public void dumpOptimizerPlanAsJSON(List<SinkPlanNode> nodes, File toFile) throws IOException {
-		@SuppressWarnings("unchecked")
-		List<DumpableNode<?>> n = (List<DumpableNode<?>>) (List<?>) nodes;
-		dump(n, toFile);
-	}
-	
-	// --------------------------------------------------------------------------------------------
-	
-	private void dump(List<DumpableNode<?>> nodes, File toFile) throws IOException {
 		PrintWriter pw = null;
 		try {
-			FileOutputStream fos = new FileOutputStream(toFile);
-			pw = new PrintWriter(fos, false);
-			compilePlanToJSON(nodes, pw);
+			pw = new PrintWriter(new FileOutputStream(toFile), false);
+			dumpOptimizerPlanAsJSON(plan, pw);
 			pw.flush();
 		} finally {
 			if (pw != null) {
@@ -92,9 +73,28 @@ public class PlanJSONDumpGenerator
 		}
 	}
 	
+	public void dumpOptimizerPlanAsJSON(OptimizedPlan plan, PrintWriter writer) {
+		Collection<SinkPlanNode> sinks = plan.getDataSinks();
+		if (sinks instanceof List) {
+			dumpOptimizerPlanAsJSON((List<SinkPlanNode>) sinks, writer);
+		} else {
+			List<SinkPlanNode> n = new ArrayList<SinkPlanNode>();
+			n.addAll(sinks);
+			dumpOptimizerPlanAsJSON(n, writer);
+		}
+	}
+	
+	public void dumpOptimizerPlanAsJSON(List<SinkPlanNode> nodes, PrintWriter writer) {
+		@SuppressWarnings("unchecked")
+		List<DumpableNode<?>> n = (List<DumpableNode<?>>) (List<?>) nodes;
+		compilePlanToJSON(n, writer);
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
 	private void compilePlanToJSON(List<DumpableNode<?>> nodes, PrintWriter writer) {
 		// initialization to assign node ids
-		this.nodeIds = new Hashtable<DumpableNode<?>, Integer>();
+		this.nodeIds = new HashMap<DumpableNode<?>, Integer>();
 		this.nodeCnt = 0;
 		
 		// JSON header

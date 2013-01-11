@@ -97,7 +97,7 @@ public class DataSourceNode extends OptimizerNode
 	 */
 	@Override
 	public void setInputs(Map<Contract, OptimizerNode> contractToNode) {
-		throw new UnsupportedOperationException("A DataSourceNode does not have any input.");
+		// do nothing
 	}
 
 	/**

@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.plugable;
+package eu.stratosphere.pact.runtime.plugable.pactrecord;
 
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.NullKeyFieldException;
@@ -25,8 +25,6 @@ import eu.stratosphere.pact.generic.types.TypePairComparator;
 /**
  * Implementation of the {@link TypePairComparator} interface for Pact Records. The equality is established on a set of
  * key fields. The indices of the key fields may be different on the reference and candidate side.
- *
- * @author Stephan Ewen
  */
 public class PactRecordPairComparator implements TypePairComparator<PactRecord, PactRecord>
 {

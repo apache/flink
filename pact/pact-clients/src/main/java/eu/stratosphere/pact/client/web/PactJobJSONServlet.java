@@ -24,12 +24,11 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import eu.stratosphere.pact.client.nephele.api.Client;
 import eu.stratosphere.pact.client.nephele.api.PactProgram;
-import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
-import eu.stratosphere.pact.compiler.plandump.PlanJSONDumpGenerator;
 
 /**
- * @author Stephan Ewen (stephan.ewen@tu-berlin.com)
+ * 
  */
 public class PactJobJSONServlet extends HttpServlet {
 	/**
@@ -86,8 +85,7 @@ public class PactJobJSONServlet extends HttpServlet {
 		String programDescription = null;
 		
 		try {
-			OptimizedPlan optPlan = pactProgram.getPreviewPlan();
-			jsonPlan = new PlanJSONDumpGenerator().compilePlanToJSON(optPlan);
+			jsonPlan = Client.getPreviewAsJSON(pactProgram);
 		}
 		catch (Throwable t) {}
 		

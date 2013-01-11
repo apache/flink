@@ -27,8 +27,8 @@ import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.generic.stub.GenericCoGrouper;
-import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
-import eu.stratosphere.pact.runtime.plugable.PactRecordPairComparatorFactory;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparator;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordPairComparatorFactory;
 import eu.stratosphere.pact.runtime.test.util.DriverTestBase;
 import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
 

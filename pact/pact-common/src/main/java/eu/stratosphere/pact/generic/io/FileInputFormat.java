@@ -67,10 +67,6 @@ import eu.stratosphere.pact.generic.io.InputFormat;
  *   <li>All records are read from the input</li>
  *   <li>The input format is closed</li>
  * </ol>
- * 
- * 
- * @author Moritz Kaufmann
- * @author Stephan Ewen
  */
 public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSplit>
 {

@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.plugable;
+package eu.stratosphere.pact.runtime.plugable.pactrecord;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.type.PactRecord;
@@ -22,8 +22,6 @@ import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
 
 /**
  * A factory that create a serializer for the {@link PactRecord} data type.
- * 
- * @author Stephan Ewen
  */
 public class PactRecordSerializerFactory implements TypeSerializerFactory<PactRecord>
 {

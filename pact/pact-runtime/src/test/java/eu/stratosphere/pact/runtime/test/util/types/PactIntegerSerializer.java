@@ -63,9 +63,8 @@ public class PactIntegerSerializer implements TypeSerializer<PactInteger> {
 	 * @see eu.stratosphere.pact.runtime.plugable.TypeSerializer#serialize(java.lang.Object, eu.stratosphere.nephele.services.memorymanager.DataOutputViewV2)
 	 */
 	@Override
-	public long serialize(PactInteger record, DataOutputView target) throws IOException {
+	public void serialize(PactInteger record, DataOutputView target) throws IOException {
 		target.writeInt(record.getValue());
-		return 4;
 	}
 
 	/* (non-Javadoc)

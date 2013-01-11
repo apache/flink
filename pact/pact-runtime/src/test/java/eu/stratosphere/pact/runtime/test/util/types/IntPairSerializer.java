@@ -65,11 +65,10 @@ public class IntPairSerializer implements TypeSerializer<IntPair>
 	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#serialize(java.lang.Object, eu.stratosphere.nephele.services.memorymanager.DataOutputView)
 	 */
 	@Override
-	public long serialize(IntPair record, DataOutputView target) throws IOException
+	public void serialize(IntPair record, DataOutputView target) throws IOException
 	{
 		target.writeInt(record.getKey());
 		target.writeInt(record.getValue());
-		return 8;
 	}
 
 	/* (non-Javadoc)

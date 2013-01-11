@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.plugable;
+package eu.stratosphere.pact.runtime.plugable.pactrecord;
 
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
@@ -25,8 +25,6 @@ import eu.stratosphere.pact.generic.types.TypePairComparatorFactory;
  * A factory for a {@link TypePairComparator} for {@link PactRecord}. The comparator uses a subset of
  * the fields for the comparison. That subset of fields (positions and types) is read from the
  * supplied configuration.
- *
- * @author Stephan Ewen
  */
 public class PactRecordPairComparatorFactory implements TypePairComparatorFactory<PactRecord, PactRecord>
 {

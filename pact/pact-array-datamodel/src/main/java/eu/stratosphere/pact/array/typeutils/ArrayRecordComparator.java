@@ -13,16 +13,17 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.plugable;
+package eu.stratosphere.pact.array.typeutils;
 
 import java.io.IOException;
 
 import eu.stratosphere.nephele.services.memorymanager.DataInputView;
+import eu.stratosphere.pact.common.type.CopyableValue;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyFieldOutOfBoundsException;
 import eu.stratosphere.pact.common.type.NormalizableKey;
 import eu.stratosphere.pact.common.type.NullKeyFieldException;
-import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.generic.types.TypeComparator;
 
@@ -30,16 +31,16 @@ import eu.stratosphere.pact.generic.types.TypeComparator;
 /**
  * Implementation of the {@link TypeComparator} interface for the pact record. Instances of this class
  * are parameterized with which fields are relevant to the comparison. 
- *
- * @author Stephan Ewen
  */
-public final class PactRecordComparator implements TypeComparator<PactRecord>
-{	
+public final class ArrayRecordComparator implements TypeComparator<Value[]>
+{
+	private final ArrayRecordSerializer serializer;
+	
 	private final int[] keyFields;
 	
-	private final Key[] keyHolders, transientKeyHolders;
+	private final Key[] keyHolders;
 	
-	private final PactRecord temp1, temp2;
+	private final Value[] temp1, temp2;
 	
 	private final boolean[] ascending;
 	
@@ -51,18 +52,18 @@ public final class PactRecordComparator implements TypeComparator<PactRecord>
 	
 
 	/**
-	 * Creates a new comparator that compares Pact Records by the subset of fields as described
+	 * Creates a new comparator that compares array records by the subset of fields as described
 	 * by the given key positions and types. All order comparisons will assume ascending order on all fields.
 	 * 
 	 * @param keyFields The positions of the key fields.
 	 * @param keyTypes The types (classes) of the key fields.
 	 */
-	public PactRecordComparator(int[] keyFields, Class<? extends Key>[] keyTypes) {
+	public ArrayRecordComparator(int[] keyFields, Class<? extends Key>[] keyTypes) {
 		this(keyFields, keyTypes, null);
 	}
 	
 	/**
-	 * Creates a new comparator that compares Pact Records by the subset of fields as described
+	 * Creates a new comparator that compares records by the subset of fields as described
 	 * by the given key positions and types.
 	 * 
 	 * @param keyFields The positions of the key fields.
@@ -71,19 +72,17 @@ public final class PactRecordComparator implements TypeComparator<PactRecord>
 	 *                  a value of <i>false</i> indicated descending. If the parameter is <i>null</i>, then
 	 *                  all order comparisons will assume ascending order on all fields.
 	 */
-	public PactRecordComparator(int[] keyFields, Class<? extends Key>[] keyTypes, boolean[] sortDirection)
-	{
+	public ArrayRecordComparator(int[] keyFields, Class<? extends Key>[] keyTypes, boolean[] sortDirection) {
+		this.serializer = new ArrayRecordSerializer(keyTypes);
 		this.keyFields = keyFields;
 		
 		// instantiate fields to extract keys into
 		this.keyHolders = new Key[keyTypes.length];
-		this.transientKeyHolders = new Key[keyTypes.length];
 		for (int i = 0; i < keyTypes.length; i++) {
 			if (keyTypes[i] == null) {
 				throw new NullPointerException("Key type " + i + " is null.");
 			}
 			this.keyHolders[i] = InstantiationUtil.instantiate(keyTypes[i], Key.class);
-			this.transientKeyHolders[i] = InstantiationUtil.instantiate(keyTypes[i], Key.class);
 		}
 		
 		// set up auxiliary fields for normalized key support
@@ -119,8 +118,8 @@ public final class PactRecordComparator implements TypeComparator<PactRecord>
 		this.numLeadingNormalizableKeys = nKeys;
 		this.normalizableKeyPrefixLen = nKeyLen;
 		
-		this.temp1 = new PactRecord();
-		this.temp2 = new PactRecord();
+		this.temp1 = this.serializer.createInstance();
+		this.temp2 = this.serializer.createInstance();
 		
 		if (sortDirection != null) {
 			this.ascending = sortDirection;
@@ -141,16 +140,14 @@ public final class PactRecordComparator implements TypeComparator<PactRecord>
 	 * @param leadingNormalKeys
 	 * @param normalKeyPrefixLen
 	 */
-	private PactRecordComparator(PactRecordComparator toCopy)
-	{
+	private ArrayRecordComparator(ArrayRecordComparator toCopy) {
+		this.serializer = toCopy.serializer;
 		this.keyFields = toCopy.keyFields;
 		this.keyHolders = new Key[toCopy.keyHolders.length];
-		this.transientKeyHolders = new Key[toCopy.keyHolders.length];
 		
 		try {
 			for (int i = 0; i < this.keyHolders.length; i++) {
 				this.keyHolders[i] = toCopy.keyHolders[i].getClass().newInstance();
-				this.transientKeyHolders[i] = toCopy.keyHolders[i].getClass().newInstance();
 			}
 		} catch (Exception ex) {
 			// this should never happen, because the classes have been instantiated before. Report for debugging.
@@ -162,8 +159,8 @@ public final class PactRecordComparator implements TypeComparator<PactRecord>
 		this.normalizableKeyPrefixLen = toCopy.normalizableKeyPrefixLen;
 		this.ascending = toCopy.ascending;
 		
-		this.temp1 = new PactRecord();
-		this.temp2 = new PactRecord();
+		this.temp1 = this.serializer.createInstance();
+		this.temp2 = this.serializer.createInstance();
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -172,13 +169,12 @@ public final class PactRecordComparator implements TypeComparator<PactRecord>
 	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#hash(java.lang.Object)
 	 */
 	@Override
-	public int hash(PactRecord object)
-	{
+	public int hash(Value[] object) {
 		int i = 0;
 		try {
 			int code = 0;
 			for (; i < this.keyFields.length; i++) {
-				code ^= object.getField(this.keyFields[i], this.transientKeyHolders[i]).hashCode();
+				code ^= object[this.keyFields[i]].hashCode();
 			}
 			return code;
 		}
@@ -191,26 +187,23 @@ public final class PactRecordComparator implements TypeComparator<PactRecord>
 	}
 
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#setReferenceForEquality(java.lang.Object)
+	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#setReferenceForEquality(java.lang.Object)
 	 */
+	@SuppressWarnings("unchecked")
 	@Override
-	public void setReference(PactRecord toCompare)
-	{
+	public void setReference(Value[] toCompare) {
 		for (int i = 0; i < this.keyFields.length; i++) {
-			if (!toCompare.getFieldInto(this.keyFields[i], this.keyHolders[i])) {
-				throw new NullKeyFieldException(this.keyFields[i]);
-			}
+			((CopyableValue<Value>) toCompare[this.keyFields[i]]).copyTo(this.keyHolders[i]);
 		}
 	}
 
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#equalToReference(java.lang.Object)
+	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#equalToReference(java.lang.Object)
 	 */
 	@Override
-	public boolean equalToReference(PactRecord candidate)
-	{
+	public boolean equalToReference(Value[] candidate) {
 		for (int i = 0; i < this.keyFields.length; i++) {
-			final Key k = candidate.getField(this.keyFields[i], this.transientKeyHolders[i]);
+			final Value k = candidate[this.keyFields[i]];
 			if (k == null)
 				throw new NullKeyFieldException(this.keyFields[i]);
 			else if (!k.equals(this.keyHolders[i]))
@@ -223,9 +216,8 @@ public final class PactRecordComparator implements TypeComparator<PactRecord>
 	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#compareToReference(eu.stratosphere.pact.runtime.plugable.TypeAccessors)
 	 */
 	@Override
-	public int compareToReference(TypeComparator<PactRecord> referencedAccessors)
-	{
-		final PactRecordComparator pra = (PactRecordComparator) referencedAccessors;
+	public int compareToReference(TypeComparator<Value[]> referencedAccessors) {
+		final ArrayRecordComparator pra = (ArrayRecordComparator) referencedAccessors;
 		
 		for (int i = 0; i < this.keyFields.length; i++) {
 			final int comp = pra.keyHolders[i].compareTo(this.keyHolders[i]);
@@ -236,17 +228,16 @@ public final class PactRecordComparator implements TypeComparator<PactRecord>
 	}
 	
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#compare(eu.stratosphere.nephele.services.memorymanager.DataInputViewV2, eu.stratosphere.nephele.services.memorymanager.DataInputViewV2)
+	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#compare(eu.stratosphere.nephele.services.memorymanager.DataInputView, eu.stratosphere.nephele.services.memorymanager.DataInputView)
 	 */
 	@Override
-	public int compare(DataInputView source1, DataInputView source2) throws IOException
-	{
-		this.temp1.read(source1);
-		this.temp2.read(source2);
+	public int compare(DataInputView source1, DataInputView source2) throws IOException {
+		this.serializer.deserialize(this.temp1, source1);
+		this.serializer.deserialize(this.temp2, source2);
 		
 		for (int i = 0; i < this.keyFields.length; i++) {
-			final Key k1 = this.temp1.getField(this.keyFields[i], this.keyHolders[i]);
-			final Key k2 = this.temp2.getField(this.keyFields[i], this.transientKeyHolders[i]);
+			final Key k1 = (Key) this.temp1[this.keyFields[i]];
+			final Key k2 = (Key) this.temp2[this.keyFields[i]];
 			
 			if (k1 == null || k2 == null)
 				throw new NullKeyFieldException(this.keyFields[i]);
@@ -264,8 +255,7 @@ public final class PactRecordComparator implements TypeComparator<PactRecord>
 	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#supportsNormalizedKey()
 	 */
 	@Override
-	public boolean supportsNormalizedKey()
-	{
+	public boolean supportsNormalizedKey() {
 		return this.numLeadingNormalizableKeys > 0;
 	}
 
@@ -273,8 +263,7 @@ public final class PactRecordComparator implements TypeComparator<PactRecord>
 	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#getNormalizeKeyLen()
 	 */
 	@Override
-	public int getNormalizeKeyLen()
-	{
+	public int getNormalizeKeyLen() {
 		return this.normalizableKeyPrefixLen;
 	}
 	
@@ -282,8 +271,7 @@ public final class PactRecordComparator implements TypeComparator<PactRecord>
 	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#isNormalizedKeyPrefixOnly()
 	 */
 	@Override
-	public boolean isNormalizedKeyPrefixOnly(int keyBytes)
-	{
+	public boolean isNormalizedKeyPrefixOnly(int keyBytes) {
 		return this.numLeadingNormalizableKeys < this.keyFields.length ||
 				this.normalizableKeyPrefixLen == Integer.MAX_VALUE ||
 				this.normalizableKeyPrefixLen > keyBytes;
@@ -293,15 +281,14 @@ public final class PactRecordComparator implements TypeComparator<PactRecord>
 	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#putNormalizedKey(java.lang.Object, byte[], int, int)
 	 */
 	@Override
-	public void putNormalizedKey(PactRecord record, byte[] target, int offset, int numBytes)
-	{
+	public void putNormalizedKey(Value[] record, byte[] target, int offset, int numBytes) {
 		int i = 0;
 		try {
 			for (; i < this.numLeadingNormalizableKeys & numBytes > 0; i++)
 			{
 				int len = this.normalizedKeyLengths[i]; 
 				len = numBytes >= len ? len : numBytes;
-				((NormalizableKey) record.getField(this.keyFields[i], this.transientKeyHolders[i])).copyNormalizedKey(target, offset, len);
+				((NormalizableKey) record[this.keyFields[i]]).copyNormalizedKey(target, offset, len);
 				numBytes -= len;
 				offset += len;
 			}
@@ -322,55 +309,27 @@ public final class PactRecordComparator implements TypeComparator<PactRecord>
 	}
 
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#duplicate()
+	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#duplicate()
 	 */
 	@Override
-	public PactRecordComparator duplicate() {
-		return new PactRecordComparator(this);
+	public ArrayRecordComparator duplicate() {
+		return new ArrayRecordComparator(this);
 	}
 	
 	// --------------------------------------------------------------------------------------------
 	//                           Non Standard Comparator Methods
 	// --------------------------------------------------------------------------------------------
 	
-	public final int[] getKeyPositions()
-	{
+	public final int[] getKeyPositions() {
 		return this.keyFields;
 	}
 	
-	public final Class<? extends Key>[] getKeyTypes()
-	{
+	public final Class<? extends Key>[] getKeyTypes() {
 		@SuppressWarnings("unchecked")
 		final Class<? extends Key>[] keyTypes = new Class[this.keyHolders.length];
 		for (int i = 0; i < keyTypes.length; i++) {
 			keyTypes[i] = this.keyHolders[i].getClass();
 		}
 		return keyTypes;
-	}
-	
-	public final Key[] getKeysAsCopy(PactRecord record)
-	{
-		try {
-			final Key[] keys = new Key[this.keyFields.length];
-			for (int i = 0; i < keys.length; i++) {
-				keys[i] = this.keyHolders[i].getClass().newInstance();
-			}
-			record.getFieldsInto(this.keyFields, keys);
-			return keys;
-		} catch (Exception ex) {
-			// this should never happen, because the classes have been instantiated before. Report for debugging.
-			throw new RuntimeException("Could not instantiate key classes when duplicating PactRecordComparator.", ex);
-		}
-	}
-	
-	public final int compareAgainstReference(Key[] keys)
-	{
-		for (int i = 0; i < this.keyFields.length; i++)
-		{
-			final int comp = keys[i].compareTo(this.keyHolders[i]);
-			if (comp != 0)
-				return this.ascending[i] ? comp : -comp;
-		}
-		return 0;
 	}
 }

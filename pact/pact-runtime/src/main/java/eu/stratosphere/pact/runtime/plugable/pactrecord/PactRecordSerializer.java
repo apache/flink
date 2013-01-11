@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.plugable;
+package eu.stratosphere.pact.runtime.plugable.pactrecord;
 
 import java.io.IOException;
 
@@ -25,8 +25,6 @@ import eu.stratosphere.pact.generic.types.TypeSerializer;
 
 /**
  * Implementation of the (de)serialization and copying logic for the {@link PactRecord}.
- *
- * @author Stephan Ewen
  */
 public final class PactRecordSerializer implements TypeSerializer<PactRecord>
 {
@@ -86,8 +84,7 @@ public final class PactRecordSerializer implements TypeSerializer<PactRecord>
 	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#serialize(java.lang.Object, eu.stratosphere.nephele.services.memorymanager.DataOutputViewV2)
 	 */
 	@Override
-	public long serialize(PactRecord record, DataOutputView target) throws IOException
-	{
+	public long serialize(PactRecord record, DataOutputView target) throws IOException {
 		return record.serialize(target);
 	}
 
@@ -95,8 +92,7 @@ public final class PactRecordSerializer implements TypeSerializer<PactRecord>
 	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#deserialize(java.lang.Object, eu.stratosphere.nephele.services.memorymanager.DataInputViewV2)
 	 */
 	@Override
-	public void deserialize(PactRecord target, DataInputView source) throws IOException
-	{
+	public void deserialize(PactRecord target, DataInputView source) throws IOException {
 		target.deserialize(source);
 	}
 	
@@ -104,8 +100,7 @@ public final class PactRecordSerializer implements TypeSerializer<PactRecord>
 	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#copy(eu.stratosphere.nephele.services.memorymanager.DataInputViewV2, eu.stratosphere.nephele.services.memorymanager.DataOutputViewV2)
 	 */
 	@Override
-	public void copy(DataInputView source, DataOutputView target) throws IOException
-	{
+	public void copy(DataInputView source, DataOutputView target) throws IOException {
 		int val = source.readUnsignedByte();
 		target.writeByte(val);
 		

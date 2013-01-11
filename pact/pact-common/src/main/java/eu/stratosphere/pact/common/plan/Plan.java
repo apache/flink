@@ -196,7 +196,16 @@ public class Plan implements Visitable<Contract>
 	public void setDefaultParallelism(int defaultParallelism) {
 		this.defaultParallelism = defaultParallelism;
 	}
-
+	
+	/**
+	 * Gets the postPassClassName from this Plan.
+	 *
+	 * @return The postPassClassName.
+	 */
+	public String getPostPassClassName() {
+		return "eu.stratosphere.pact.compiler.postpass.PactRecordPostPass";
+	}
+	
 	// ------------------------------------------------------------------------
 
 	/**

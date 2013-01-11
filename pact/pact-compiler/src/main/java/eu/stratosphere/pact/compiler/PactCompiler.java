@@ -40,10 +40,10 @@ import eu.stratosphere.pact.common.contract.GenericDataSink;
 import eu.stratosphere.pact.common.contract.GenericDataSource;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.Visitor;
+import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.common.util.PactConfigConstants;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
 import eu.stratosphere.pact.compiler.costs.DefaultCostEstimator;
-import eu.stratosphere.pact.compiler.pactrecord.PactRecordPostPass;
 import eu.stratosphere.pact.compiler.plan.CoGroupNode;
 import eu.stratosphere.pact.compiler.plan.CrossNode;
 import eu.stratosphere.pact.compiler.plan.DataSinkNode;
@@ -468,7 +468,8 @@ public class PactCompiler {
 	public OptimizedPlan compile(Plan pactPlan) throws CompilerException {
 		// -------------------- try to get the connection to the job manager ----------------------
 		// --------------------------to obtain instance information --------------------------------
-		return compile(pactPlan, getInstanceTypeInfo(), new PactRecordPostPass());
+		final OptimizerPostPass postPasser = getPostPassFromPlan(pactPlan);
+		return compile(pactPlan, getInstanceTypeInfo(), postPasser);
 	}
 	
 	public OptimizedPlan compile(Plan pactPlan, OptimizerPostPass postPasser) throws CompilerException {
@@ -478,7 +479,8 @@ public class PactCompiler {
 	}
 	
 	public OptimizedPlan compile(Plan pactPlan, InstanceTypeDescription type) throws CompilerException {
-		return compile(pactPlan, type, new PactRecordPostPass());
+		final OptimizerPostPass postPasser = getPostPassFromPlan(pactPlan);
+		return compile(pactPlan, type, postPasser);
 	}
 	
 	/**
@@ -659,19 +661,14 @@ public class PactCompiler {
 	 * This function performs only the first step to the compilation process - the creation of the optimizer
 	 * representation of the plan. No estimations or enumerations of alternatives are done here.
 	 * 
-	 * @param pactPlan
-	 *        The plan to generate the optimizer representation for.
-	 * @return The optimizer representation of the plan.
+	 * @param pactPlan The plan to generate the optimizer representation for.
+	 * @return The optimizer representation of the plan, as a collection of all data sinks
+	 *         from the plan can be traversed.
 	 */
-	public static OptimizedPlan createPreOptimizedPlan(Plan pactPlan)
-	{
-//		GraphCreatingVisitor graphCreator = new GraphCreatingVisitor(null, -1, 1, false);
-//		pactPlan.accept(graphCreator);
-//		OptimizedPlan optPlan = new OptimizedPlan(graphCreator.sources, graphCreator.sinks, graphCreator.con2node.values(),
-//				pactPlan.getJobName());
-//		optPlan.setPlanConfiguration(pactPlan.getPlanConfiguration());
-//		return optPlan;
-		return null;
+	public static List<DataSinkNode> createPreOptimizedPlan(Plan pactPlan) {
+		GraphCreatingVisitor graphCreator = new GraphCreatingVisitor(null, -1, 1, false);
+		pactPlan.accept(graphCreator);
+		return graphCreator.sinks;
 	}
 	
 	// ------------------------------------------------------------------------
@@ -803,8 +800,7 @@ public class PactCompiler {
 			n.SetId(this.id);
 
 			// first connect to the predecessors
-			if(!(c instanceof GenericDataSource))
-				n.setInputs(this.con2node);
+			n.setInputs(this.con2node);
 
 			//read id again as it might have been incremented for newly created union nodes
 			this.id = n.getId() + 1;
@@ -1071,6 +1067,30 @@ public class PactCompiler {
 	// ------------------------------------------------------------------------
 	// Miscellaneous
 	// ------------------------------------------------------------------------
+	
+	private OptimizerPostPass getPostPassFromPlan(Plan pactPlan) {
+		final String className =  pactPlan.getPostPassClassName();
+		if (className == null) {
+			throw new CompilerException("Optimizer Post Pass class description is null");
+		}
+		try {
+			Class<? extends OptimizerPostPass> clazz = Class.forName(className).asSubclass(OptimizerPostPass.class);
+			try {
+				return InstantiationUtil.instantiate(clazz, OptimizerPostPass.class);
+			} catch (RuntimeException rtex) {
+				// unwrap the source exception
+				if (rtex.getCause() != null) {
+					throw new CompilerException("Cannot instantiate optimizer post pass: " + rtex.getMessage(), rtex.getCause());
+				} else {
+					throw rtex;
+				}
+			}
+		} catch (ClassNotFoundException cnfex) {
+			throw new CompilerException("Cannot load Optimizer post-pass class '" + className + "'.", cnfex);
+		} catch (ClassCastException ccex) {
+			throw new CompilerException("Class '" + className + "' is not an optimizer post passer.", ccex);
+		}
+	}
 
 	private InstanceTypeDescription getInstanceTypeInfo() {
 		if (LOG.isDebugEnabled()) {

@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.compiler.pactrecord;
+package eu.stratosphere.pact.compiler.postpass;
 
 import java.util.Map;
 
@@ -33,15 +33,11 @@ import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SourcePlanNode;
-import eu.stratosphere.pact.compiler.postpass.ConflictingFieldTypeInfoException;
-import eu.stratosphere.pact.compiler.postpass.KeySchema;
-import eu.stratosphere.pact.compiler.postpass.MissingFieldTypeInfoException;
-import eu.stratosphere.pact.compiler.postpass.OptimizerPostPass;
 import eu.stratosphere.pact.generic.contract.DualInputContract;
 import eu.stratosphere.pact.generic.contract.SingleInputContract;
-import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
-import eu.stratosphere.pact.runtime.plugable.PactRecordPairComparatorFactory;
-import eu.stratosphere.pact.runtime.plugable.PactRecordSerializerFactory;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparatorFactory;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordPairComparatorFactory;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordSerializerFactory;
 
 /**
  * 
@@ -112,7 +108,7 @@ public class PactRecordPostPass implements OptimizerPostPass
 				for (Map.Entry<Integer, Class<? extends Key>> entry : parentSchema) {
 					final Integer pos = entry.getKey();
 					if (optNode.isFieldConstant(0, pos)) {
-						schema.addKeyType(pos, entry.getValue());
+						schema.addType(pos, entry.getValue());
 					}
 				}
 			} catch (ConflictingFieldTypeInfoException ex) {
@@ -138,7 +134,7 @@ public class PactRecordPostPass implements OptimizerPostPass
 			final Class<? extends Key>[] types = recContract.getKeyClasses();
 			try {
 				for (int i = 0; i < localPositions.length; i++) {
-					schema.addKeyType(localPositions[i], types[i]);
+					schema.addType(localPositions[i], types[i]);
 				}
 			} catch (ConflictingFieldTypeInfoException ex) {
 				throw new CompilerPostPassException("Conflicting key type information for field " + ex.getFieldNumber()
@@ -193,10 +189,10 @@ public class PactRecordPostPass implements OptimizerPostPass
 				for (Map.Entry<Integer, Class<? extends Key>> entry : parentSchema) {
 					final Integer pos = entry.getKey();
 					if (optNode.isFieldConstant(0, pos)) {
-						schema1.addKeyType(pos, entry.getValue());
+						schema1.addType(pos, entry.getValue());
 					}
 					if (optNode.isFieldConstant(1, pos)) {
-						schema2.addKeyType(pos, entry.getValue());
+						schema2.addType(pos, entry.getValue());
 					}
 				}
 			} catch (ConflictingFieldTypeInfoException ex) {
@@ -228,7 +224,7 @@ public class PactRecordPostPass implements OptimizerPostPass
 			
 			try {
 				for (int i = 0; i < localPositions1.length; i++) {
-					schema1.addKeyType(localPositions1[i], types[i]);
+					schema1.addType(localPositions1[i], types[i]);
 				}
 			} catch (ConflictingFieldTypeInfoException ex) {
 				throw new CompilerPostPassException("Conflicting key type information for field " + ex.getFieldNumber()
@@ -239,7 +235,7 @@ public class PactRecordPostPass implements OptimizerPostPass
 			}
 			try {
 				for (int i = 0; i < localPositions2.length; i++) {
-					schema2.addKeyType(localPositions2[i], types[i]);
+					schema2.addType(localPositions2[i], types[i]);
 				}
 			} catch (ConflictingFieldTypeInfoException ex) {
 				throw new CompilerPostPassException("Conflicting key type information for field " + ex.getFieldNumber()
@@ -307,7 +303,7 @@ public class PactRecordPostPass implements OptimizerPostPass
 		for (int i = 0; i < o.getNumberOfFields(); i++) {
 			Integer pos = o.getFieldNumber(i);
 			Class<? extends Key> type = o.getType(i);
-			schema.addKeyType(pos, type);
+			schema.addType(pos, type);
 		}
 	}
 	

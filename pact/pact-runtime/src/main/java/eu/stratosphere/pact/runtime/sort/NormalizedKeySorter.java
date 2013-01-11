@@ -31,11 +31,9 @@ import eu.stratosphere.pact.runtime.io.SimpleCollectingOutputView;
 
 /**
  * 
- * @author Stephan Ewen
  */
 public final class NormalizedKeySorter<T> implements IndexedSortable
 {
-	
 	private static final int OFFSET_LEN = 8;
 	
 	private static final int DEFAULT_MAX_NORMALIZED_KEY_LEN = 8;
@@ -270,7 +268,7 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 		try {
 			long bytes = this.serializer.serialize(record, this.recordCollector);
 			this.currentSortIndexOffset += this.indexEntrySize;
-			this.currentDataBufferOffset += bytes;
+			this.currentDataBufferOffset += bytes; //this.recordCollector.getCurrentOffset();
 			this.numRecords++;
 			return true;
 		} catch (EOFException eofex) {

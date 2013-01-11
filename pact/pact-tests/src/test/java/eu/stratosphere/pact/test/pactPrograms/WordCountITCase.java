@@ -37,9 +37,9 @@ import eu.stratosphere.pact.test.util.TestBase;
 @RunWith(Parameterized.class)
 public class WordCountITCase extends TestBase {
 
-	private static final Log LOG = LogFactory.getLog(WordCountITCase.class);
+	protected static final Log LOG = LogFactory.getLog(WordCountITCase.class);
 
-	private final String TEXT = "Goethe - Faust: Der Tragoedie erster Teil\n" + "Prolog im Himmel.\n"
+	protected static final String TEXT = "Goethe - Faust: Der Tragoedie erster Teil\n" + "Prolog im Himmel.\n"
 			+ "Der Herr. Die himmlischen Heerscharen. Nachher Mephistopheles. Die drei\n" + "Erzengel treten vor.\n"
 			+ "RAPHAEL: Die Sonne toent, nach alter Weise, In Brudersphaeren Wettgesang,\n"
 			+ "Und ihre vorgeschriebne Reise Vollendet sie mit Donnergang. Ihr Anblick\n"
@@ -111,7 +111,7 @@ public class WordCountITCase extends TestBase {
 			+ "huete mich, mit ihm zu brechen. Es ist gar huebsch von einem grossen Herrn,\n"
 			+ "So menschlich mit dem Teufel selbst zu sprechen.";
 
-	private final String COUNTS = "machen 1\n" + "zeit 2\n" + "heerscharen 1\n" + "keiner 2\n" + "meine 3\n"
+	protected static final String COUNTS = "machen 1\n" + "zeit 2\n" + "heerscharen 1\n" + "keiner 2\n" + "meine 3\n"
 			+ "fuehr 1\n" + "triumph 1\n" + "kommst 1\n" + "frei 1\n" + "schaffen 1\n" + "gesinde 1\n"
 			+ "langbeinigen 1\n" + "schalk 1\n" + "besser 1\n" + "solang 1\n" + "meer 4\n" + "fragst 1\n"
 			+ "gabriel 1\n" + "selbst 2\n" + "bin 1\n" + "sich 7\n" + "du 11\n" + "sogar 1\n" + "geht 1\n"
@@ -175,8 +175,8 @@ public class WordCountITCase extends TestBase {
 			+ "verheeren 1\n" + "fliegend 1\n" + "aus 1\n" + "staub 1\n" + "fluessen 1\n" + "haus 1\n" + "auf 5\n"
 			+ "dient 2\n" + "tiefer 1\n" + "naeh 1\n" + "zieren 1\n";
 
-	private String textPath = null;
-	private String resultPath = null;
+	protected String textPath = null;
+	protected String resultPath = null;
 
 	public WordCountITCase(Configuration config) {
 		super(config);

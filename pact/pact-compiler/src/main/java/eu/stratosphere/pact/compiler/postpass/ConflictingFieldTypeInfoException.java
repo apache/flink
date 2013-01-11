@@ -15,17 +15,17 @@
 
 package eu.stratosphere.pact.compiler.postpass;
 
-import eu.stratosphere.pact.common.type.Key;
+import eu.stratosphere.pact.common.type.Value;
 
 @SuppressWarnings("serial")
 public final class ConflictingFieldTypeInfoException extends Exception
 {
 	private final int fieldNumber;
 	
-	private final Class<? extends Key> previousType, newType;
+	private final Class<? extends Value> previousType, newType;
 
 	
-	public ConflictingFieldTypeInfoException(int fieldNumber, Class<? extends Key> previousType, Class<? extends Key> newType) {
+	public ConflictingFieldTypeInfoException(int fieldNumber, Class<? extends Value> previousType, Class<? extends Value> newType) {
 		this.fieldNumber = fieldNumber;
 		this.previousType = previousType;
 		this.newType = newType;
@@ -36,11 +36,11 @@ public final class ConflictingFieldTypeInfoException extends Exception
 		return fieldNumber;
 	}
 
-	public Class<? extends Key> getPreviousType() {
+	public Class<? extends Value> getPreviousType() {
 		return this.previousType;
 	}
 
-	public Class<? extends Key> getNewType() {
+	public Class<? extends Value> getNewType() {
 		return this.newType;
 	}
 }

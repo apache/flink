@@ -21,7 +21,7 @@ import java.util.Iterator;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
-import eu.stratosphere.pact.compiler.plan.OptimizerNode;
+import eu.stratosphere.pact.compiler.plan.DataSourceNode;
 import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
@@ -37,7 +37,7 @@ public class SourcePlanNode extends PlanNode
 	 * 
 	 * @param template The template optimizer node that this candidate is created for.
 	 */
-	public SourcePlanNode(OptimizerNode template) {
+	public SourcePlanNode(DataSourceNode template) {
 		super(template, DriverStrategy.NONE);
 		
 		this.globalProps = new GlobalProperties();
@@ -46,6 +46,10 @@ public class SourcePlanNode extends PlanNode
 	}
 	
 	// --------------------------------------------------------------------------------------------
+	
+	public DataSourceNode getDataSourceNode() {
+		return (DataSourceNode) this.template;
+	}
 	
 	/**
 	 * Gets the serializer from this PlanNode.

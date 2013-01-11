@@ -54,9 +54,6 @@ import eu.stratosphere.pact.client.nephele.api.ProgramInvocationException;
 
 /**
  * Implementation of a simple command line fronted for executing PACT programs.
- * 
- * @author Moritz Kaufmann
- * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  */
 public class CliFrontend {
 
@@ -393,7 +390,7 @@ public class CliFrontend {
 			Configuration configuration = getConfiguration();
 			Client client = new Client(configuration);
 			try {
-				jsonPlan = client.getJSONPlan(program);
+				jsonPlan = client.getOptimizerPlanAsJSON(program);
 			} catch (ProgramInvocationException e) {
 				handleError(e);
 			} catch (ErrorInPlanAssemblerException e) {

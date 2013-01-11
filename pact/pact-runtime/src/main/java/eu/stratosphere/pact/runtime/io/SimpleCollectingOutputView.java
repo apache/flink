@@ -22,6 +22,7 @@ import java.util.List;
 import eu.stratosphere.nephele.services.memorymanager.AbstractPagedOutputView;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegmentSource;
+import eu.stratosphere.pact.runtime.util.MathUtils;
 
 
 /**
@@ -36,12 +37,17 @@ public class SimpleCollectingOutputView extends AbstractPagedOutputView
 	private final List<MemorySegment> fullSegments;
 	
 	private final MemorySegmentSource memorySource;
+	
+	private final int segmentSizeBits;
+	
+	private int segmentNum;
 
 
 	public SimpleCollectingOutputView(List<MemorySegment> fullSegmentTarget, 
 									MemorySegmentSource memSource, int segmentSize)
 	{
 		super(memSource.nextSegment(), segmentSize, 0);
+		this.segmentSizeBits = MathUtils.log2strict(segmentSize);
 		this.fullSegments = fullSegmentTarget;
 		this.memorySource = memSource;
 		this.fullSegments.add(getCurrentSegment());
@@ -60,6 +66,7 @@ public class SimpleCollectingOutputView extends AbstractPagedOutputView
 		} catch (IOException ioex) {
 			throw new RuntimeException("Error getting first segment for record collector.", ioex);
 		}
+		this.segmentNum = 0;
 	}
 	
 	/* (non-Javadoc)
@@ -71,9 +78,14 @@ public class SimpleCollectingOutputView extends AbstractPagedOutputView
 		final MemorySegment next = this.memorySource.nextSegment();
 		if (next != null) {
 			this.fullSegments.add(next);
+			this.segmentNum++;
 			return next;
 		} else {
 			throw new EOFException();
 		}
+	}
+	
+	public long getCurrentOffset() {
+		return (((long) this.segmentNum) << this.segmentSizeBits) + getCurrentPositionInSegment();
 	}
 }

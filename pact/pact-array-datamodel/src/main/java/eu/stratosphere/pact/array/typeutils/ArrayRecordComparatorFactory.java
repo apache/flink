@@ -13,13 +13,14 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.plugable;
+package eu.stratosphere.pact.array.typeutils;
 
 import java.util.Arrays;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.generic.types.TypeComparator;
 import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
 import eu.stratosphere.pact.runtime.task.util.CorruptConfigurationException;
@@ -28,10 +29,8 @@ import eu.stratosphere.pact.runtime.task.util.CorruptConfigurationException;
  * A factory for a {@link TypeComparator} for {@link PactRecord}. The comparator uses a subset of
  * the fields for the comparison. That subset of fields (positions and types) is read from the
  * supplied configuration.
- *
- * @author Stephan Ewen
  */
-public class PactRecordComparatorFactory implements TypeComparatorFactory<PactRecord>
+public class ArrayRecordComparatorFactory implements TypeComparatorFactory<Value[]>
 {
 	private static final String NUM_KEYS = "numkeys";
 	
@@ -51,15 +50,15 @@ public class PactRecordComparatorFactory implements TypeComparatorFactory<PactRe
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public PactRecordComparatorFactory() {
+	public ArrayRecordComparatorFactory() {
 		// do nothing, allow to be configured via config
 	}
 	
-	public PactRecordComparatorFactory(int[] positions, Class<? extends Key>[] types) {
+	public ArrayRecordComparatorFactory(int[] positions, Class<? extends Key>[] types) {
 		this(positions, types, null);
 	}
 	
-	public PactRecordComparatorFactory(int[] positions, Class<? extends Key>[] types, boolean[] sortDirections) {
+	public ArrayRecordComparatorFactory(int[] positions, Class<? extends Key>[] types, boolean[] sortDirections) {
 		if (positions == null || types == null)
 			throw new NullPointerException();
 		if (positions.length != types.length)
@@ -150,7 +149,7 @@ public class PactRecordComparatorFactory implements TypeComparatorFactory<PactRe
 	 * @see eu.stratosphere.pact.common.generic.types.TypeComparatorFactory#createComparator()
 	 */
 	@Override
-	public PactRecordComparator createComparator() {
-		return new PactRecordComparator(this.positions, this.types, this.sortDirections);
+	public ArrayRecordComparator createComparator() {
+		return new ArrayRecordComparator(this.positions, this.types, this.sortDirections);
 	}
 }

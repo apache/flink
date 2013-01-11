@@ -19,6 +19,9 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
+import eu.stratosphere.nephele.services.memorymanager.DataInputView;
+import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
+import eu.stratosphere.pact.common.type.CopyableValue;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.NormalizableKey;
 
@@ -27,11 +30,8 @@ import eu.stratosphere.pact.common.type.NormalizableKey;
  * PactLong encapsulates a Java primitive long.
  * 
  * @see eu.stratosphere.pact.common.type.Key
- * 
- * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
- *
  */
-public class PactLong implements Key, NormalizableKey
+public class PactLong implements Key, NormalizableKey, CopyableValue<PactLong>
 {
 
 	private long value;
@@ -80,6 +80,8 @@ public class PactLong implements Key, NormalizableKey
 		return String.valueOf(this.value);
 	}
 
+	// --------------------------------------------------------------------------------------------
+	
 	/*
 	 * (non-Javadoc)
 	 * @see eu.stratosphere.nephele.io.IOReadableWritable#read(java.io.DataInput)
@@ -98,6 +100,8 @@ public class PactLong implements Key, NormalizableKey
 		out.writeLong(this.value);
 	}
 
+	// --------------------------------------------------------------------------------------------
+	
 	/*
 	 * (non-Javadoc)
 	 * @see java.lang.Comparable#compareTo(java.lang.Object)
@@ -117,8 +121,7 @@ public class PactLong implements Key, NormalizableKey
 	 * @see java.lang.Object#hashCode()
 	 */
 	@Override
-	public int hashCode()
-	{
+	public int hashCode() {
 		return 43 + (int) (this.value ^ this.value >>> 32);
 	}
 
@@ -127,13 +130,14 @@ public class PactLong implements Key, NormalizableKey
 	 * @see java.lang.Object#equals(java.lang.Object)
 	 */
 	@Override
-	public boolean equals(final Object obj)
-	{
+	public boolean equals(final Object obj) {
 		if (obj != null & obj instanceof PactLong) {
 			return this.value == ((PactLong) obj).value;
 		}
 		return false;
 	}
+	
+	// --------------------------------------------------------------------------------------------
 	
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.common.type.NormalizableKey#getNormalizedKeyLen()
@@ -189,5 +193,31 @@ public class PactLong implements Key, NormalizableKey
 				target[offset + i] = 0;
 			}
 		}
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.type.CopyableValue#getBinaryLength()
+	 */
+	@Override
+	public int getBinaryLength() {
+		return 8;
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.type.Copyable#copyTo(java.lang.Object)
+	 */
+	@Override
+	public void copyTo(PactLong target) {
+		target.value = this.value;
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.type.CopyableValue#copy(eu.stratosphere.nephele.services.memorymanager.DataInputView, eu.stratosphere.nephele.services.memorymanager.DataOutputView)
+	 */
+	@Override
+	public void copy(DataInputView source, DataOutputView target) throws IOException {
+		target.write(source, 8);
 	}
 }
