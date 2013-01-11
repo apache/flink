@@ -317,7 +317,16 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 					// path points to an existing file. delete it to be able to replace the
 					// file with a directory
 					fs.delete(path, false);
-					return -1;
+					int dop = getTaskConfiguration().getInteger(DEGREE_OF_PARALLELISM_KEY, -1);
+					if (dop == 1) {
+						// a none existing file and a degree of parallelism that is one
+						return 1;
+					} else {
+						// a degree of parallelism greater one, or an unspecified one. in all cases, create a directory
+						// the output
+						fs.mkdirs(path);
+						return -1;
+					}
 				}
 			}
 			catch (FileNotFoundException fnfex) {
