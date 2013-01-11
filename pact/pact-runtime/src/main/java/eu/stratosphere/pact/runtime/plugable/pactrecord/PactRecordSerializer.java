@@ -84,8 +84,8 @@ public final class PactRecordSerializer implements TypeSerializer<PactRecord>
 	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#serialize(java.lang.Object, eu.stratosphere.nephele.services.memorymanager.DataOutputViewV2)
 	 */
 	@Override
-	public long serialize(PactRecord record, DataOutputView target) throws IOException {
-		return record.serialize(target);
+	public void serialize(PactRecord record, DataOutputView target) throws IOException {
+		record.serialize(target);
 	}
 
 	/* (non-Javadoc)

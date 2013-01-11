@@ -105,8 +105,8 @@ public class WordCountArrayTuples implements PlanAssembler, PlanAssemblerDescrip
 			}
 
 			this.cnt.setValue(sum);
-			result[0] = element[0];
-			out.collect(element);
+			this.result[0] = element[0];
+			out.collect(this.result);
 		}
 		
 		@Override

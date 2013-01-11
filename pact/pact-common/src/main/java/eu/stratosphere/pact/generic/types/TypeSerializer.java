@@ -76,7 +76,7 @@ public interface TypeSerializer<T>
 	 * @throws IOException Thrown, if the serialization encountered an I/O related error. Typically raised by the
 	 *                     output view, which may have an underlying I/O channel to which it delegates.
 	 */
-	public long serialize(T record, DataOutputView target) throws IOException;
+	public void serialize(T record, DataOutputView target) throws IOException;
 
 	/**
 	 * De-serializes a record from the given source input view into the given target record instance.

@@ -266,9 +266,9 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 		
 		// serialize the record into the data buffers
 		try {
-			long bytes = this.serializer.serialize(record, this.recordCollector);
+			this.serializer.serialize(record, this.recordCollector);
 			this.currentSortIndexOffset += this.indexEntrySize;
-			this.currentDataBufferOffset += bytes; //this.recordCollector.getCurrentOffset();
+			this.currentDataBufferOffset = this.recordCollector.getCurrentOffset();
 			this.numRecords++;
 			return true;
 		} catch (EOFException eofex) {

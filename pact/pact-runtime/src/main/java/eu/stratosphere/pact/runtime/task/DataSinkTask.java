@@ -27,10 +27,10 @@ import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.io.MutableRecordReader;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
-import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.pact.generic.io.FileOutputFormat;
 import eu.stratosphere.pact.generic.io.OutputFormat;
 import eu.stratosphere.pact.generic.types.TypeSerializer;
 import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
@@ -124,14 +124,12 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 				@SuppressWarnings("unchecked")
 				final MutableObjectIterator<PactRecord> pi = (MutableObjectIterator<PactRecord>) reader;
 				final PactRecord pr = (PactRecord) record;
-				final FileOutputFormat pf = (FileOutputFormat) format;
-				while (!this.taskCanceled && pi.next(pr))
-				{
+				final eu.stratosphere.pact.common.io.FileOutputFormat pf = (eu.stratosphere.pact.common.io.FileOutputFormat) format;
+				while (!this.taskCanceled && pi.next(pr)) {
 					pf.writeRecord(pr);
-				}				
+				}
 			} else {
-				while (!this.taskCanceled && reader.next(record))
-				{
+				while (!this.taskCanceled && reader.next(record)) {
 					format.writeRecord(record);
 				}
 			}
@@ -281,7 +279,7 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 	@Override
 	public int getMaximumNumberOfSubtasks()
 	{
-		if (!(this.format instanceof FileOutputFormat)) {
+		if (!(this.format instanceof FileOutputFormat<?>)) {
 			return -1;
 		}
 		
