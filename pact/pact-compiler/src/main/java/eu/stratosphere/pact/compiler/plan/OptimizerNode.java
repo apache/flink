@@ -17,6 +17,7 @@ package eu.stratosphere.pact.compiler.plan;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -36,7 +37,6 @@ import eu.stratosphere.pact.compiler.costs.CostEstimator;
 import eu.stratosphere.pact.compiler.dataproperties.InterestingProperties;
 import eu.stratosphere.pact.compiler.dataproperties.RequestedGlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.RequestedLocalProperties;
-import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.plandump.DumpableConnection;
 import eu.stratosphere.pact.compiler.plandump.DumpableNode;
@@ -64,10 +64,10 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 
 	protected List<UnclosedBranchDescriptor> openBranches; // stack of branches in the sub-graph that are not joined
 	
-	protected Set<OptimizerNode> closedBranchingNodes; // stack of branching nodes which have already been closed
+//	protected Set<OptimizerNode> closedBranchingNodes; // stack of branching nodes which have already been closed
 	
 	protected OptimizerNode lastJoinedBranchNode;	// the node with latest branch (node with multiple outputs)
-												// that both children share and that is at least partially joined
+													// that both children share and that is at least partially joined
 
 	// ---------------------------- Estimates and Annotations -------------------------------------
 	
@@ -106,57 +106,6 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		this.pactContract = pactContract;
 		readStubAnnotations();
 	}
-
-//	/**
-//	 * This is an internal copy-constructor that is used to create copies of the nodes
-//	 * for plan enumeration. This constructor copies all properties (deep, if objects)
-//	 * except the outgoing connections and the costs. The connections are omitted,
-//	 * because the copied nodes are used in different enumerated trees/graphs. The
-//	 * costs are only computed for the actual alternative plan, so they are not
-//	 * copied themselves.
-//	 * 
-//	 * @param toClone
-//	 *        The node to clone.
-//	 * @param globalProps
-//	 *        The global properties of this copy.
-//	 * @param localProps
-//	 *        The local properties of this copy.
-//	 */
-//	protected OptimizerNode(OptimizerNode toClone, GlobalProperties globalProps, LocalProperties localProps) {
-//		this.pactContract = toClone.pactContract;
-//		this.localStrategy = toClone.localStrategy;
-//
-//		this.localProps = localProps;
-//		this.globalProps = globalProps;
-//
-//		this.estimatedOutputSize = toClone.estimatedOutputSize;
-//		
-//		this.estimatedCardinality.putAll(toClone.estimatedCardinality);
-//		this.estimatedNumRecords = toClone.estimatedNumRecords;
-//
-//		this.stubOutCardLB = toClone.stubOutCardLB;
-//		this.stubOutCardUB = toClone.stubOutCardUB;
-//		
-//		this.id = toClone.id;
-//		this.degreeOfParallelism = toClone.degreeOfParallelism;
-//		this.instancesPerMachine = toClone.instancesPerMachine;
-//		
-//		if (toClone.uniqueFields != null && toClone.uniqueFields.size() > 0) {
-//			for (FieldSet uniqueField : toClone.uniqueFields) {
-//				this.uniqueFields.add((FieldSet)uniqueField.clone());
-//			}
-//		}
-//		
-//		// check, if this node branches. if yes, this candidate must be associated with
-//		// the branching template node.
-//		if (toClone.isBranching()) {
-//			this.branchPlan = new HashMap<OptimizerNode, OptimizerNode>(6);
-//			this.branchPlan.put(toClone, this);
-//		}
-//
-//		// remember the highest node in our sub-plan that branched.
-//		this.lastJoinedBranchNode = toClone.lastJoinedBranchNode;
-//	}
 
 	// ------------------------------------------------------------------------
 	//      Abstract methods that implement node specific behavior
@@ -873,10 +822,83 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	//                                    Pruning
 	// --------------------------------------------------------------------------------------------
 	
-	protected void prunePlanAlternatives(List<PlanNode> plans)
-	{
+	protected void prunePlanAlternatives(List<PlanNode> plans) {
+		// we can only compare plan candidates that made equal choices
+		// at the branching points. for each choice at a branching point,
+		// we need to keep the cheapest (wrt. interesting properties).
+		// if we do not keep candidates for each branch choice, we might not
+		// find branch compatible candidates when joining the branches back.
+		
+		// for pruning, we are quasi AFTER the node, so in the presence of
+		// branches, we need form the per-branch-choice groups by the choice
+		// they made at the latest unjoined branching node. Note that this is
+		// different from the check for branch compatibility of candidates, as
+		// this happens on the input sub-plans and hence BEFORE the node (therefore
+		// it is relevant to find the latest (partially) joined branch point.
+		
+		if (this.openBranches == null || this.openBranches.isEmpty()) {
+			prunePlanAlternativesWithCommonBranching(plans);
+		} else {
+			// partition the candidates into groups that made the same sub-plan candidate
+			// choice at the latest unclosed branch point
+			
+			final OptimizerNode branchDeterminer = openBranches.get(this.openBranches.size() - 1).getBranchingNode();
+			
+			// this sorter sorts by the candidate choice at the branch point
+			Comparator<PlanNode> sorter = new Comparator<PlanNode>() {
+				
+				@Override
+				public int compare(PlanNode o1, PlanNode o2) {
+					PlanNode n1 = o1.getCandidateAtBranchPoint(branchDeterminer);
+					PlanNode n2 = o2.getCandidateAtBranchPoint(branchDeterminer);
+					return System.identityHashCode(n1) - System.identityHashCode(n2);
+				}
+			};
+			Collections.sort(plans, sorter);
+			
+			List<PlanNode> result = new ArrayList<PlanNode>();
+			List<PlanNode> turn = new ArrayList<PlanNode>();
+
+			while (!plans.isEmpty()) {
+				// take one as the determiner
+				turn.clear();
+				PlanNode determiner = plans.remove(plans.size() - 1);
+				turn.add(determiner);
+				
+				PlanNode determinerChoice = determiner.getCandidateAtBranchPoint(branchDeterminer);
+
+				// go backwards through the plans and find all that are equal
+				for (int k = plans.size() - 1; k >= 0; k--) {
+					PlanNode toCheck = plans.get(k);
+					PlanNode checkerChoice = toCheck.getCandidateAtBranchPoint(branchDeterminer);
+					
+					if (checkerChoice == determinerChoice) {
+						plans.remove(k);
+						turn.add(toCheck);
+						
+					} else {
+						break;
+					}
+				}
+
+				// now that we have only plans with the same branch alternatives, prune!
+				if (turn.size() > 1) {
+					prunePlanAlternativesWithCommonBranching(turn);
+				} else {
+					throw new CompilerException();
+				}
+				result.addAll(turn);
+			}
+
+			// after all turns are complete
+			plans.clear();
+			plans.addAll(result);
+		}
+	}
+	
+	protected void prunePlanAlternativesWithCommonBranching(List<PlanNode> plans) {
 		if (plans.isEmpty()) {
-			throw new CompilerException("No plan meeting the requirements could be created.");
+			throw new CompilerException("No plan meeting the requirements could be created. Most likely reason: Too restrictive plan hints.");
 		}
 		// shortcut for the simple case
 		if (plans.size() == 1) {
@@ -977,6 +999,10 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		return this.lastJoinedBranchNode;
 	}
 	
+	public List<UnclosedBranchDescriptor> getOpenBranches() {
+		return this.openBranches;
+	}
+	
 	/**
 	 * Checks whether to candidate plans for the sub-plan of this node are comparable. The two
 	 * alternative plans are comparable, if
@@ -988,7 +1014,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 * @param subPlan2
 	 * @return
 	 */
-	protected boolean areBranchCompatible(Channel plan1, Channel plan2) {
+	protected boolean areBranchCompatible(PlanNode plan1, PlanNode plan2) {
 		if (plan1 == null || plan2 == null)
 			throw new NullPointerException();
 		
@@ -998,15 +1024,19 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 			return true;
 		}
 
-		final PlanNode branch1Cand = plan1.getSource().getCandidateAtBranchPoint(this.lastJoinedBranchNode);
-		final PlanNode branch2Cand = plan2.getSource().getCandidateAtBranchPoint(this.lastJoinedBranchNode);
+		final PlanNode branch1Cand = plan1.getCandidateAtBranchPoint(this.lastJoinedBranchNode);
+		final PlanNode branch2Cand = plan2.getCandidateAtBranchPoint(this.lastJoinedBranchNode);
 		return branch1Cand == branch2Cand;
 	}
 
-	protected List<UnclosedBranchDescriptor> getBranchesForParent(OptimizerNode parent) {
+	/**
+	 * @param toParent
+	 * @return
+	 */
+	protected List<UnclosedBranchDescriptor> getBranchesForParent(PactConnection toParent) {
 		if (this.outgoingConnections.size() == 1) {
 			// return our own stack of open branches, because nothing is added
-			if (this.openBranches == null)
+			if (this.openBranches == null || this.openBranches.isEmpty())
 				return null;
 			else
 				return new ArrayList<UnclosedBranchDescriptor>(this.openBranches);
@@ -1021,7 +1051,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 			// find out, which output number the connection to the parent
 			int num;
 			for (num = 0; num < this.outgoingConnections.size(); num++) {
-				if (this.outgoingConnections.get(num).getTargetPact() == parent) {
+				if (this.outgoingConnections.get(num) == toParent) {
 					break;
 				}
 			}
@@ -1042,33 +1072,33 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	}
 
 	
-	protected void removeClosedBranches(List<UnclosedBranchDescriptor> openList) {
-		if (openList == null || openList.isEmpty() || this.closedBranchingNodes == null || this.closedBranchingNodes.isEmpty())
-			return;
-		
-		Iterator<UnclosedBranchDescriptor> it = openList.iterator();
-		while (it.hasNext()) {
-			if (this.closedBranchingNodes.contains(it.next().getBranchingNode())) {
-				//this branch was already closed --> remove it from the list
-				it.remove();
-			}
-		}
-	}
+//	protected void removeClosedBranches(List<UnclosedBranchDescriptor> openList) {
+//		if (openList == null || openList.isEmpty() || this.closedBranchingNodes == null || this.closedBranchingNodes.isEmpty())
+//			return;
+//		
+//		Iterator<UnclosedBranchDescriptor> it = openList.iterator();
+//		while (it.hasNext()) {
+//			if (this.closedBranchingNodes.contains(it.next().getBranchingNode())) {
+//				//this branch was already closed --> remove it from the list
+//				it.remove();
+//			}
+//		}
+//	}
 	
-	protected void addClosedBranches(Set<OptimizerNode> alreadyClosed) {
-		if (alreadyClosed == null || alreadyClosed.isEmpty()) 
-			return;
-		if (this.closedBranchingNodes == null) 
-			this.closedBranchingNodes = new HashSet<OptimizerNode>(alreadyClosed);
-		else 
-			this.closedBranchingNodes.addAll(alreadyClosed);
-	}
-	
-	protected void addClosedBranch(OptimizerNode alreadyClosed) {
-		if (this.closedBranchingNodes == null) 
-			this.closedBranchingNodes = new HashSet<OptimizerNode>();
-		this.closedBranchingNodes.add(alreadyClosed);
-	}
+//	protected void addClosedBranches(Set<OptimizerNode> alreadyClosed) {
+//		if (alreadyClosed == null || alreadyClosed.isEmpty()) 
+//			return;
+//		if (this.closedBranchingNodes == null) 
+//			this.closedBranchingNodes = new HashSet<OptimizerNode>(alreadyClosed);
+//		else 
+//			this.closedBranchingNodes.addAll(alreadyClosed);
+//	}
+//	
+//	protected void addClosedBranch(OptimizerNode alreadyClosed) {
+//		if (this.closedBranchingNodes == null) 
+//			this.closedBranchingNodes = new HashSet<OptimizerNode>();
+//		this.closedBranchingNodes.add(alreadyClosed);
+//	}
 	/*
 	 * node IDs are assigned in graph-traversal order (pre-order)
 	 * hence, each list is sorted by ID in ascending order and all consecutive lists start with IDs in ascending order
@@ -1076,8 +1106,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	protected List<UnclosedBranchDescriptor> mergeLists(List<UnclosedBranchDescriptor> child1open, List<UnclosedBranchDescriptor> child2open) {
 
 		//remove branches which have already been closed
-		removeClosedBranches(child1open);
-		removeClosedBranches(child2open);
+//		removeClosedBranches(child1open);
+//		removeClosedBranches(child2open);
 		
 		// check how many open branches we have. the cases:
 		// 1) if both are null or empty, the result is null
@@ -1118,10 +1148,10 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 			if (id1 == id2) {
 				// if this is the latest common child, remember it
 				OptimizerNode currBanchingNode = child1open.get(index1).getBranchingNode();
-
-//				if (this.lastJoinedBranchNode == null) {
-//					this.lastJoinedBranchNode = currBanchingNode;
-//				}
+				
+				if (this.lastJoinedBranchNode == null) {
+					this.lastJoinedBranchNode = currBanchingNode;
+				}
 
 				// see, if this node closes the branch
 				long joinedInputs = child1open.get(index1).getJoinedPathsVector()
@@ -1132,7 +1162,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 
 				if (joinedInputs == allInputs) {
 					// closed - we can remove it from the stack
-					addClosedBranch(currBanchingNode);
+//					addClosedBranch(currBanchingNode);
 				} else {
 					// not quite closed
 					result.add(new UnclosedBranchDescriptor(currBanchingNode, joinedInputs));
@@ -1146,8 +1176,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 
 		// merged. now we need to reverse the list, because we added the elements in reverse order
 		Collections.reverse(result);
-		
-		return result;
+		return result.isEmpty() ? null : result;
 	}
 	
 	/**

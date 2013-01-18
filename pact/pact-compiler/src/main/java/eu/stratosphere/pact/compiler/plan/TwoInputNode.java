@@ -33,7 +33,6 @@ import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
-import eu.stratosphere.pact.compiler.costs.Costs;
 import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.RequestedGlobalProperties;
@@ -213,6 +212,9 @@ public abstract class TwoInputNode extends OptimizerNode
 			} else if (PactCompiler.HINT_SHIP_STRATEGY_REPARTITION_RANGE.equals(shipStrategy)) {
 				this.input1.setShipStrategy(ShipStrategyType.PARTITION_RANGE);
 				this.input2.setShipStrategy(ShipStrategyType.PARTITION_RANGE);
+			} else if (shipStrategy.equalsIgnoreCase(PactCompiler.HINT_SHIP_STRATEGY_REPARTITION)) {
+				this.input1.setShipStrategy(ShipStrategyType.PARTITION_RANDOM);
+				this.input2.setShipStrategy(ShipStrategyType.PARTITION_RANDOM);
 			} else {
 				throw new CompilerException("Unknown hint for shipping strategy: " + shipStrategy);
 			}
@@ -229,6 +231,8 @@ public abstract class TwoInputNode extends OptimizerNode
 				this.input1.setShipStrategy(ShipStrategyType.PARTITION_HASH);
 			} else if (PactCompiler.HINT_SHIP_STRATEGY_REPARTITION_RANGE.equals(shipStrategy)) {
 				this.input1.setShipStrategy(ShipStrategyType.PARTITION_RANGE);
+			} else if (shipStrategy.equalsIgnoreCase(PactCompiler.HINT_SHIP_STRATEGY_REPARTITION)) {
+				this.input1.setShipStrategy(ShipStrategyType.PARTITION_RANDOM);
 			} else {
 				throw new CompilerException("Unknown hint for shipping strategy of input one: " + shipStrategy);
 			}
@@ -245,6 +249,8 @@ public abstract class TwoInputNode extends OptimizerNode
 				this.input2.setShipStrategy(ShipStrategyType.PARTITION_HASH);
 			} else if (PactCompiler.HINT_SHIP_STRATEGY_REPARTITION_RANGE.equals(shipStrategy)) {
 				this.input2.setShipStrategy(ShipStrategyType.PARTITION_RANGE);
+			} else if (shipStrategy.equalsIgnoreCase(PactCompiler.HINT_SHIP_STRATEGY_REPARTITION)) {
+				this.input2.setShipStrategy(ShipStrategyType.PARTITION_RANDOM);
 			} else {
 				throw new CompilerException("Unknown hint for shipping strategy of input two: " + shipStrategy);
 			}
@@ -280,33 +286,22 @@ public abstract class TwoInputNode extends OptimizerNode
 		// get what we inherit and what is preserved by our user code 
 		final InterestingProperties props1 = getInterestingProperties().filterByCodeAnnotations(this, 0);
 		final InterestingProperties props2 = getInterestingProperties().filterByCodeAnnotations(this, 1);
-
-		final OptimizerNode pred1 = getFirstPredecessorNode();
-		final OptimizerNode pred2 = getSecondPredecessorNode();
 		
 		// add all properties relevant to this node
 		for (OperatorDescriptorDual dpd : this.possibleProperties) {
 			for (GlobalPropertiesPair gp : dpd.getPossibleGlobalProperties()) {
 				// input 1
-				Costs max1 = new Costs();
-				gp.getProperties1().addMinimalRequiredCosts(max1, estimator, pred1, this);
-				props1.addGlobalProperties(gp.getProperties1(), max1);
+				props1.addGlobalProperties(gp.getProperties1());
 				
 				// input 2
-				Costs max2 = new Costs();
-				gp.getProperties2().addMinimalRequiredCosts(max2, estimator, pred2, this);
-				props2.addGlobalProperties(gp.getProperties2(), max2);
+				props2.addGlobalProperties(gp.getProperties2());
 			}
 			for (LocalPropertiesPair lp : dpd.getPossibleLocalProperties()) {
 				// input 1
-				Costs max1 = new Costs();
-				lp.getProperties1().addMinimalRequiredCosts(max1, estimator, pred1, getMinimalMemoryAcrossAllSubTasks());
-				props1.addLocalProperties(lp.getProperties1(), max1);
+				props1.addLocalProperties(lp.getProperties1());
 				
 				// input 2
-				Costs max2 = new Costs();
-				lp.getProperties2().addMinimalRequiredCosts(max2, estimator, pred2, getMinimalMemoryAcrossAllSubTasks());
-				props2.addLocalProperties(lp.getProperties2(), max2);
+				props2.addLocalProperties(lp.getProperties2());
 			}
 		}
 		this.input1.setInterestingProperties(props1);
@@ -347,27 +342,48 @@ public abstract class TwoInputNode extends OptimizerNode
 		
 		final List<PlanNode> outputPlans = new ArrayList<PlanNode>();
 		
+		final int dop = getDegreeOfParallelism();
+		final int subPerInstance = getSubtasksPerInstance();
+		final int numInstances = dop / subPerInstance + (dop % subPerInstance == 0 ? 0 : 1);
+		final int inDop1 = getFirstPredecessorNode().getDegreeOfParallelism();
+		final int inSubPerInstance1 = getFirstPredecessorNode().getSubtasksPerInstance();
+		final int inNumInstances1 = inDop1 / inSubPerInstance1 + (inDop1 % inSubPerInstance1 == 0 ? 0 : 1);
+		final int inDop2 = getSecondPredecessorNode().getDegreeOfParallelism();
+		final int inSubPerInstance2 = getSecondPredecessorNode().getSubtasksPerInstance();
+		final int inNumInstances2 = inDop2 / inSubPerInstance2 + (inDop2 % inSubPerInstance2 == 0 ? 0 : 1);
+		
+		final boolean globalDopChange1 = numInstances != inNumInstances1;
+		final boolean globalDopChange2 = numInstances != inNumInstances2;
+		final boolean localDopChange1 = numInstances == inNumInstances1 & subPerInstance != inSubPerInstance1;
+		final boolean localDopChange2 = numInstances == inNumInstances2 & subPerInstance != inSubPerInstance2;
+		
 		// enumerate all pairwise combination of the children's plans together with
 		// all possible operator strategy combination
 		
 		// create all candidates
 		for (PlanNode child1 : subPlans1) {
 			for (PlanNode child2 : subPlans2) {
-				// pick the strategy ourselves
-				final GlobalProperties gp1 = child1.getGlobalProperties();
-				final GlobalProperties gp2 = child2.getGlobalProperties();
-					
-				// check if the child meets the global properties
+				
+				// check that the children go together. that is the case if they build upon the same
+				// candidate at the joined branch plan. 
+				if (!areBranchCompatible(child1, child2)) {
+					continue;
+				}
+				
 				for (RequestedGlobalProperties igps1: intGlobal1) {
 					final Channel c1 = new Channel(child1);
 					if (this.input1.getShipStrategy() == null) {
 						// free to choose the ship strategy
-						if (igps1.isMetBy(gp1)) {
-							// take the current properties
-							c1.setShipStrategy(ShipStrategyType.FORWARD);
-						} else {
-							// create an instantiation of the global properties
-							igps1.parameterizeChannel(c1);
+						igps1.parameterizeChannel(c1, globalDopChange1, localDopChange1);
+						
+						// if the DOP changed, make sure that we cancel out properties, unless the
+						// ship strategy preserves/establishes them even under changing DOPs
+						if (globalDopChange1 && !c1.getShipStrategy().isNetworkStrategy()) {
+							c1.getGlobalProperties().reset();
+						}
+						if (localDopChange1 && !(c1.getShipStrategy().isNetworkStrategy() || 
+									c1.getShipStrategy().compensatesForLocalDOPChanges())) {
+							c1.getGlobalProperties().reset();
 						}
 					} else {
 						// ship strategy fixed by compiler hint
@@ -376,18 +392,28 @@ public abstract class TwoInputNode extends OptimizerNode
 						} else {
 							c1.setShipStrategy(this.input1.getShipStrategy());
 						}
+						
+						if (globalDopChange1) {
+							c1.adjustGlobalPropertiesForFullParallelismChange();
+						} else if (localDopChange1) {
+							c1.adjustGlobalPropertiesForLocalParallelismChange();
+						}
 					}
 					
 					for (RequestedGlobalProperties igps2: intGlobal2) {
 						final Channel c2 = new Channel(child2);
 						if (this.input2.getShipStrategy() == null) {
 							// free to choose the ship strategy
-							if (igps2.isMetBy(gp2)) {
-								// take the current properties
-								c2.setShipStrategy(ShipStrategyType.FORWARD);
-							} else {
-								// create an instantiation of the global properties
-								igps2.parameterizeChannel(c2);
+							igps2.parameterizeChannel(c2, globalDopChange2, localDopChange2);
+							
+							// if the DOP changed, make sure that we cancel out properties, unless the
+							// ship strategy preserves/establishes them even under changing DOPs
+							if (globalDopChange2 && !c2.getShipStrategy().isNetworkStrategy()) {
+								c2.getGlobalProperties().reset();
+							}
+							if (localDopChange2 && !(c2.getShipStrategy().isNetworkStrategy() || 
+										c2.getShipStrategy().compensatesForLocalDOPChanges())) {
+								c2.getGlobalProperties().reset();
 							}
 						} else {
 							// ship strategy fixed by compiler hint
@@ -395,6 +421,12 @@ public abstract class TwoInputNode extends OptimizerNode
 								c2.setShipStrategy(this.input2.getShipStrategy(), this.keys2.toFieldList());
 							} else {
 								c2.setShipStrategy(this.input2.getShipStrategy());
+							}
+							
+							if (globalDopChange2) {
+								c2.adjustGlobalPropertiesForFullParallelismChange();
+							} else if (localDopChange2) {
+								c2.adjustGlobalPropertiesForLocalParallelismChange();
 							}
 						}
 						
@@ -524,16 +556,19 @@ public abstract class TwoInputNode extends OptimizerNode
 			return;
 		}
 
-		addClosedBranches(this.getFirstPredecessorNode().closedBranchingNodes);
-		addClosedBranches(this.getSecondPredecessorNode().closedBranchingNodes);
+//		addClosedBranches(this.getFirstPredecessorNode().closedBranchingNodes);
+//		addClosedBranches(this.getSecondPredecessorNode().closedBranchingNodes);
 		
-		List<UnclosedBranchDescriptor> result1 = new ArrayList<UnclosedBranchDescriptor>();
-		// TODO: check if merge is really necessary
-		result1 = mergeLists(result1, this.getFirstPredecessorNode().getBranchesForParent(this));
+//		List<UnclosedBranchDescriptor> result1 = new ArrayList<UnclosedBranchDescriptor>();
+//		// TODO: check if merge is really necessary
+//		result1 = mergeLists(result1, this.getFirstPredecessorNode().getBranchesForParent(this));
+//		
+//		List<UnclosedBranchDescriptor> result2 = new ArrayList<UnclosedBranchDescriptor>();
+//		// TODO: check if merge is really necessary
+//		result2 = mergeLists(result2, this.getSecondPredecessorNode().getBranchesForParent(this));
 		
-		List<UnclosedBranchDescriptor> result2 = new ArrayList<UnclosedBranchDescriptor>();
-		// TODO: check if merge is really necessary
-		result2 = mergeLists(result2, this.getSecondPredecessorNode().getBranchesForParent(this));
+		List<UnclosedBranchDescriptor> result1 = getFirstPredecessorNode().getBranchesForParent(getFirstIncomingConnection());
+		List<UnclosedBranchDescriptor> result2 = getSecondPredecessorNode().getBranchesForParent(getSecondIncomingConnection());
 
 		this.openBranches = mergeLists(result1, result2);
 	}

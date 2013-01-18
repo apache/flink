@@ -31,7 +31,6 @@ import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
-import eu.stratosphere.pact.compiler.costs.Costs;
 import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.RequestedGlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.RequestedLocalProperties;
@@ -186,6 +185,8 @@ public abstract class SingleInputNode extends OptimizerNode
 				conn.setShipStrategy(ShipStrategyType.PARTITION_RANGE);
 			} else if (shipStrategy.equalsIgnoreCase(PactCompiler.HINT_SHIP_STRATEGY_FORWARD)) {
 				conn.setShipStrategy(ShipStrategyType.FORWARD);
+			} else if (shipStrategy.equalsIgnoreCase(PactCompiler.HINT_SHIP_STRATEGY_REPARTITION)) {
+				conn.setShipStrategy(ShipStrategyType.PARTITION_RANDOM);
 			} else {
 				throw new CompilerException("Unrecognized ship strategy hint: " + shipStrategy);
 			}
@@ -225,19 +226,14 @@ public abstract class SingleInputNode extends OptimizerNode
 	public void computeInterestingPropertiesForInputs(CostEstimator estimator) {
 		// get what we inherit and what is preserved by our user code 
 		final InterestingProperties props = getInterestingProperties().filterByCodeAnnotations(this, 0);
-		final OptimizerNode pred = getPredecessorNode();
 		
 		// add all properties relevant to this node
 		for (OperatorDescriptorSingle dps : this.possibleProperties) {
 			for (RequestedGlobalProperties gp : dps.getPossibleGlobalProperties()) {
-				Costs max = new Costs();
-				gp.addMinimalRequiredCosts(max, estimator, pred, this);
-				props.addGlobalProperties(gp, max);
+				props.addGlobalProperties(gp);
 			}
 			for (RequestedLocalProperties lp : dps.getPossibleLocalProperties()) {
-				Costs max = new Costs();
-				lp.addMinimalRequiredCosts(max, estimator, pred, getMinimalMemoryAcrossAllSubTasks());
-				props.addLocalProperties(lp, max);
+				props.addLocalProperties(lp);
 			}
 		}
 		this.inConn.setInterestingProperties(props);
@@ -267,24 +263,38 @@ public abstract class SingleInputNode extends OptimizerNode
 		}
 		final List<PlanNode> outputPlans = new ArrayList<PlanNode>();
 		
+		final int dop = getDegreeOfParallelism();
+		final int subPerInstance = getSubtasksPerInstance();
+		final int inDop = getPredecessorNode().getDegreeOfParallelism();
+		final int inSubPerInstance = getPredecessorNode().getSubtasksPerInstance();
+		final int numInstances = dop / subPerInstance + (dop % subPerInstance == 0 ? 0 : 1);
+		final int inNumInstances = inDop / inSubPerInstance + (inDop % inSubPerInstance == 0 ? 0 : 1);
+		
+		final boolean globalDopChange = numInstances != inNumInstances;
+		final boolean localDopChange = numInstances == inNumInstances & subPerInstance != inSubPerInstance;
+		
 		// create all candidates
 		for (PlanNode child : subPlans) {
 			if (this.inConn.getShipStrategy() == null) {
 				// pick the strategy ourselves
-				final GlobalProperties gp = child.getGlobalProperties();
-				// check if the child meets the global properties
 				for (RequestedGlobalProperties igps: intGlobal) {
 					final Channel c = new Channel(child);
-					if (igps.isMetBy(gp)) {
-						// take the current properties
-						c.setShipStrategy(ShipStrategyType.FORWARD);
-					} else {
-						// create an instantiation of the global properties
-						igps.parameterizeChannel(c);
+					igps.parameterizeChannel(c, globalDopChange, localDopChange);
+					
+					// if the DOP changed, make sure that we cancel out properties, unless the
+					// ship strategy preserves/establishes them even under changing DOPs
+					if (globalDopChange && !c.getShipStrategy().isNetworkStrategy()) {
+						c.getGlobalProperties().reset();
+					}
+					if (localDopChange && !(c.getShipStrategy().isNetworkStrategy() || 
+								c.getShipStrategy().compensatesForLocalDOPChanges())) {
+						c.getGlobalProperties().reset();
 					}
 					
-					// check whether this meets any accepted global property
 					// check whether we meet any of the accepted properties
+					// we may remove this check, when we do a check to not inherit
+					// requested global properties that are incompatible with all possible
+					// requested properties
 					for (RequestedGlobalProperties rgps: allValidGlobals) {
 						if (rgps.isMetBy(c.getGlobalProperties())) {
 							addLocalCandidates(c, outputPlans);
@@ -299,6 +309,12 @@ public abstract class SingleInputNode extends OptimizerNode
 					c.setShipStrategy(this.inConn.getShipStrategy(), this.keys.toFieldList());
 				} else {
 					c.setShipStrategy(this.inConn.getShipStrategy());
+				}
+				
+				if (globalDopChange) {
+					c.adjustGlobalPropertiesForFullParallelismChange();
+				} else if (localDopChange) {
+					c.adjustGlobalPropertiesForLocalParallelismChange();
 				}
 				
 				// check whether we meet any of the accepted properties
@@ -365,8 +381,8 @@ public abstract class SingleInputNode extends OptimizerNode
 			return;
 		}
 
-		addClosedBranches(getPredecessorNode().closedBranchingNodes);
-		this.openBranches = getPredecessorNode().getBranchesForParent(this);
+//		addClosedBranches(getPredecessorNode().closedBranchingNodes);
+		this.openBranches = getPredecessorNode().getBranchesForParent(this.inConn);
 	}
 	
 	// --------------------------------------------------------------------------------------------

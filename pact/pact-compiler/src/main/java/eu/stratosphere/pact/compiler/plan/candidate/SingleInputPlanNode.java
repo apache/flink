@@ -66,6 +66,13 @@ public class SingleInputPlanNode extends PlanNode
 			this.input.setReplicationFactor(getDegreeOfParallelism());
 		}
 		
+		final PlanNode predNode = input.getSource();
+		if (this.branchPlan == null) {
+			this.branchPlan = predNode.branchPlan;
+		} else if (predNode.branchPlan != null) {
+			this.branchPlan.putAll(predNode.branchPlan);
+		}
+		
 		this.globalProps = input.getGlobalProperties().clone();
 		this.localProps = input.getLocalProperties().clone();
 	}
@@ -87,6 +94,15 @@ public class SingleInputPlanNode extends PlanNode
 	 */
 	public Channel getInput() {
 		return this.input;
+	}
+	
+	/**
+	 * Gets the predecessor of this node, i.e. the source of the input channel.
+	 * 
+	 * @return The predecessor of this node.
+	 */
+	public PlanNode getPredecessor() {
+		return this.input.getSource();
 	}
 	
 	public FieldList getKeys() {

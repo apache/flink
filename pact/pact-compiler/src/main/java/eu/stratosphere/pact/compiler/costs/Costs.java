@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -16,40 +16,71 @@
 package eu.stratosphere.pact.compiler.costs;
 
 /**
- * Simple class to represent the costs of an operation.
- * The costs may frequently be unknown, which is represented by a -1 as a value for the unknown
- * components of the cost.
+ * Simple class to represent the costs of an operation. The costs are currently tracking, network, I/O and CPU costs.
+ * 
+ * Costs are composed of two parts of cost contributors:
+ * <ol>
+ *   <li>Quantifiable costs. Those costs are used when estimates are available and track a quantifiable
+ *       measure, such as the number of bytes for network or I/O</li>
+ *   <li>Heuristic costs. Those costs are used when no estimates are available. They can be used to track that
+ *       an operator used a special operation which is heuristically considered more expensive than another
+ *       operation.</li>
+ * </ol>
  * <p>
- * If an unknown cost is added with a known cost, the result is unknown. If an unknown cost is compared with a known
- * cost, it is always larger.
+ * The quantifiable costs may frequently be unknown, which is represented by a {@code -1} as a value for the unknown
+ * components of the cost. In that case, all operations' costs are unknown and hence it is not decidable which
+ * operation to favor during pruning. In that case, the heuristic costs should contain a value to make sure that
+ * operators with different strategies are comparable, even in the absence of estimates. The heuristic
+ * costs are hence the system's mechanism of realizing pruning heuristics that favor some operations over others.
  */
 public class Costs implements Comparable<Costs>, Cloneable {
 
-	private long networkCost; // network cost, in transferred bytes
+	private long networkCost;				// network cost, in transferred bytes
 
-	private long secondaryStorageCost; // bytes to be written and read, in bytes
+	private long diskCost;		// bytes to be written and read, in bytes
+	
+	private long cpuCost;					// CPU costs
+	
+	private long heuristicNetworkCost;
+	
+	private long heuristicDiskCost;
+	
+	private long heuristicCpuCost;
+	
+	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Default constructor. Initialized the costs to 0;
+	 * Default constructor. Initializes all costs to 0;
 	 */
 	public Costs() {
-		this.networkCost = 0;
-		this.secondaryStorageCost = 0;
 	}
 
 	/**
 	 * Creates a new costs object using the given values for the network and storage cost.
 	 * 
-	 * @param networkCost
-	 *        The network cost, in bytes to be transferred.
-	 * @param secondaryStorageCost
-	 *        The cost for secondary storage, in bytes to be written and read.
+	 * @param networkCost The network cost, in bytes to be transferred.
+	 * @param secondaryStorageCost The cost for disk, in bytes to be written and read.
 	 */
 	public Costs(long networkCost, long secondaryStorageCost) {
 		this.networkCost = networkCost;
-		this.secondaryStorageCost = secondaryStorageCost;
+		this.diskCost = secondaryStorageCost;
+	}
+	
+	/**
+	 * Creates a new costs object using the given values for the network and storage cost.
+	 * 
+	 * @param networkCost The network cost, in bytes to be transferred.
+	 * @param secondaryStorageCost The cost for disk, in bytes to be written and read.
+	 * @param cpuCost The cost for CPU operations.
+	 */
+	public Costs(long networkCost, long secondaryStorageCost, long cpuCost) {
+		this.networkCost = networkCost;
+		this.diskCost = secondaryStorageCost;
+		this.cpuCost = cpuCost;
 	}
 
+	// --------------------------------------------------------------------------------------------
+	
 	/**
 	 * Gets the network cost.
 	 * 
@@ -73,63 +104,217 @@ public class Costs implements Comparable<Costs>, Cloneable {
 	 * Adds the costs for network to the current network costs
 	 * for this Costs object.
 	 * 
-	 * @param bytes
-	 *        The network cost to add, in bytes to be transferred.
+	 * @param bytes The network cost to add, in bytes to be transferred.
 	 */
 	public void addNetworkCost(long bytes) {
-		this.networkCost = 
-			(this.networkCost < 0 || bytes < 0) ? -1 : this.networkCost + bytes;
+		this.networkCost = (this.networkCost < 0 || bytes < 0) ? -1 : this.networkCost + bytes;
 	}
 
 	/**
-	 * Gets the costs for secondary storage.
+	 * Gets the costs for disk.
 	 * 
-	 * @return The secondary storage cost, in bytes to be written and read.
+	 * @return The disk cost, in bytes to be written and read.
 	 */
 	public long getSecondaryStorageCost() {
-		return secondaryStorageCost;
+		return diskCost;
 	}
 
 	/**
-	 * Sets the costs for secondary storage for this Costs object.
+	 * Sets the costs for disk for this Costs object.
 	 * 
-	 * @param bytes
-	 *        The secondary storage cost to set, in bytes to be written and read.
+	 * @param bytes The disk cost to set, in bytes to be written and read.
 	 */
 	public void setSecondaryStorageCost(long bytes) {
-		this.secondaryStorageCost = bytes;
+		this.diskCost = bytes;
 	}
 	
 	/**
-	 * Adds the costs for secondary storage to the current secondary storage costs
+	 * Adds the costs for disk to the current disk costs
 	 * for this Costs object.
 	 * 
-	 * @param bytes
-	 *        The secondary storage cost to add, in bytes to be written and read.
+	 * @param bytes The disk cost to add, in bytes to be written and read.
 	 */
 	public void addSecondaryStorageCost(long bytes) {
-		this.secondaryStorageCost = 
-			(this.secondaryStorageCost < 0 || bytes < 0) ? -1 : this.secondaryStorageCost + bytes;
+		this.diskCost = 
+			(this.diskCost < 0 || bytes < 0) ? -1 : this.diskCost + bytes;
+	}
+	
+	/**
+	 * Gets the cost for the CPU.
+	 * 
+	 * @return The CPU Cost.
+	 */
+	public long getCpuCost() {
+		return this.cpuCost;
 	}
 
 	/**
-	 * Adds the given costs to these costs. If for one of the different cost components (network, secondary storage),
+	 * Sets the cost for the CPU.
+	 * 
+	 * @param cost The CPU Cost.
+	 */
+	public void setCpuCost(long cost) {
+		this.cpuCost = cost;
+	}
+	
+	/**
+	 * Adds the given CPU cost to the current CPU cost for this Costs object.
+	 * 
+	 * @param cost The CPU cost to add.
+	 */
+	public void addCpuCost(long cost) {
+		this.cpuCost = 
+			(this.cpuCost < 0 || cost < 0) ? -1 : this.cpuCost + cost;
+	}
+
+	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * Gets the heuristic network cost.
+	 * 
+	 * @return The heuristic network cost, in bytes to be transferred.
+	 */
+	public long getHeuristicNetworkCost() {
+		return this.heuristicNetworkCost;
+	}
+
+	/**
+	 * Sets the heuristic network cost for this Costs object.
+	 * 
+	 * @param cost The heuristic network cost to set, in bytes to be transferred.
+	 */
+	public void setHeuristicNetworkCost(long cost) {
+		if (cost <= 0) {
+			throw new IllegalArgumentException("Heuristic costs must be positive.");
+		}
+		this.heuristicNetworkCost = cost;
+	}
+	
+	/**
+	 * Adds the heuristic costs for network to the current heuristic network costs
+	 * for this Costs object.
+	 * 
+	 * @param cost The heuristic network cost to add.
+	 */
+	public void addHeuristicNetworkCost(long cost) {
+		if (cost <= 0) {
+			throw new IllegalArgumentException("Heuristic costs must be positive.");
+		}
+		this.heuristicNetworkCost += cost;
+		// check for overflow
+		if (this.heuristicNetworkCost < 0) {
+			this.heuristicNetworkCost = Long.MAX_VALUE;
+		}
+	}
+
+	/**
+	 * Gets the heuristic costs for disk.
+	 * 
+	 * @return The heuristic disk cost.
+	 */
+	public long getHeuristicDiskCost() {
+		return this.heuristicDiskCost;
+	}
+
+	/**
+	 * Sets the heuristic costs for disk for this Costs object.
+	 * 
+	 * @param cost The heuristic disk cost to set.
+	 */
+	public void setHeuristicDiskCost(long cost) {
+		if (cost <= 0) {
+			throw new IllegalArgumentException("Heuristic costs must be positive.");
+		}
+		this.heuristicDiskCost = cost;
+	}
+	
+	/**
+	 * Adds the heuristic costs for disk to the current heuristic disk costs
+	 * for this Costs object.
+	 * 
+	 * @param cost The heuristic disk cost to add.
+	 */
+	public void addHeuristicDiskCost(long cost) {
+		if (cost <= 0) {
+			throw new IllegalArgumentException("Heuristic costs must be positive.");
+		}
+		this.heuristicDiskCost += cost;
+		// check for overflow
+		if (this.heuristicDiskCost < 0) {
+			this.heuristicDiskCost = Long.MAX_VALUE;
+		}
+	}
+	
+	/**
+	 * Gets the heuristic cost for the CPU.
+	 * 
+	 * @return The heuristic CPU Cost.
+	 */
+	public long getHeuristicCpuCost() {
+		return this.heuristicCpuCost;
+	}
+
+	/**
+	 * Sets the heuristic cost for the CPU.
+	 * 
+	 * @param cost The heuristic CPU Cost.
+	 */
+	public void setHeuristicCpuCost(long cost) {
+		if (cost <= 0) {
+			throw new IllegalArgumentException("Heuristic costs must be positive.");
+		}
+		this.heuristicCpuCost = cost;
+	}
+	
+	/**
+	 * Adds the given heuristic CPU cost to the current heuristic CPU cost for this Costs object.
+	 * 
+	 * @param cost The heuristic CPU cost to add.
+	 */
+	public void addHeuristicCpuCost(long cost) {
+		if (cost <= 0) {
+			throw new IllegalArgumentException("Heuristic costs must be positive.");
+		}
+		this.heuristicCpuCost += cost;
+		// check for overflow
+		if (this.heuristicCpuCost < 0) {
+			this.heuristicCpuCost = Long.MAX_VALUE;
+		}
+	}
+
+	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * Adds the given costs to these costs. If for one of the different cost components (network, disk),
 	 * the costs are unknown, the resulting costs will be unknown.
 	 * 
 	 * @param other The costs to add.
 	 */
 	public void addCosts(Costs other) {
-		if (this.secondaryStorageCost == -1 || other.secondaryStorageCost == -1) {
-			this.secondaryStorageCost = -1;
-		} else {
-			this.secondaryStorageCost += other.secondaryStorageCost;
-		}
-
+		// ---------- quantifiable costs ----------
 		if (this.networkCost == -1 || other.networkCost == -1) {
 			this.networkCost = -1;
 		} else {
 			this.networkCost += other.networkCost;
 		}
+		
+		if (this.diskCost == -1 || other.diskCost == -1) {
+			this.diskCost = -1;
+		} else {
+			this.diskCost += other.diskCost;
+		}
+		
+		if (this.cpuCost == -1 || other.cpuCost == -1) {
+			this.cpuCost = -1;
+		} else {
+			this.cpuCost += other.cpuCost;
+		}
+		
+		// ---------- relative costs ----------
+		
+		this.heuristicNetworkCost += other.heuristicNetworkCost;
+		this.heuristicDiskCost += other.heuristicDiskCost;
+		this.heuristicCpuCost += other.heuristicCpuCost;
 	}
 	
 	/**
@@ -137,62 +322,69 @@ public class Costs implements Comparable<Costs>, Cloneable {
 	 *  
 	 * @param other The costs to subtract.
 	 */
-	public void subtractCosts(Costs other)
-	{
-		if (this.secondaryStorageCost != -1 && other.secondaryStorageCost != -1) {
-			this.secondaryStorageCost -= other.secondaryStorageCost;
-			if (this.secondaryStorageCost < 0) {
-				this.secondaryStorageCost = -1;
-			}
-		}
-		
+	public void subtractCosts(Costs other) {
 		if (this.networkCost != -1 && other.networkCost != -1) {
 			this.networkCost -= other.networkCost;
 			if (this.networkCost < 0) {
-				this.networkCost = -1;
+				throw new IllegalArgumentException("Cannot subtract more cost then there is.");
 			}
 		}
+		if (this.diskCost != -1 && other.diskCost != -1) {
+			this.diskCost -= other.diskCost;
+			if (this.diskCost < 0) {
+				throw new IllegalArgumentException("Cannot subtract more cost then there is.");
+			}
+		}
+		if (this.cpuCost != -1 && other.cpuCost != -1) {
+			this.cpuCost -= other.cpuCost;
+			if (this.cpuCost < 0) {
+				throw new IllegalArgumentException("Cannot subtract more cost then there is.");
+			}
+		}
+		
+		// ---------- relative costs ----------
+		
+		this.heuristicNetworkCost -= other.heuristicNetworkCost;
+		if (this.heuristicNetworkCost < 0) {
+			throw new IllegalArgumentException("Cannot subtract more cost then there is.");
+		}
+		this.heuristicDiskCost -= other.heuristicDiskCost;
+		if (this.heuristicDiskCost < 0) {
+			throw new IllegalArgumentException("Cannot subtract more cost then there is.");
+		}
+		this.heuristicCpuCost -= other.heuristicCpuCost;
+		if (this.heuristicCpuCost < 0) {
+			throw new IllegalArgumentException("Cannot subtract more cost then there is.");
+		}
 	}
+
+	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Checks, if the given other costs are by more than the given delta larger that these costs.
-	 * As in comparisons, the network cost is weighted more than the secondary storage cost.
-	 * <p>
-	 * If during a comparison, any value is undefined (-1), the result of the comparison is false.
+	 * The comparison here happens primarily after the heuristic costs, then after the quantifiable costs.
+	 * Within the heuristic and quantifiable costs, the order of comparison is: network first, then disk,
+	 * then CPU.
 	 * 
-	 * @param other
-	 *        The costs for which to check whether they are too large.
-	 * @param delta
-	 *        The delta costs.
-	 * @return True, if the given costs are by more than a delta larger. False, if not or if unknown.
-	 */
-	public boolean isOtherMoreThanDeltaAbove(Costs other, Costs delta) {
-		if (this.networkCost == -1 || other.networkCost == -1 || delta.networkCost == -1) {
-			return false;
-		} else if (other.networkCost > this.networkCost + delta.networkCost) {
-			return true;
-		} else if (other.networkCost == this.networkCost + delta.networkCost) {
-			// net costs match, so determine by secondary storage cost
-			if (this.secondaryStorageCost == -1 || other.secondaryStorageCost == -1 || delta.secondaryStorageCost == -1) {
-				return false;
-			} else if (other.secondaryStorageCost > this.secondaryStorageCost + delta.secondaryStorageCost) {
-				return true;
-			} else {
-				return false;
-			}
-		} else {
-			return false;
-		}
-	}
-
-	// ------------------------------------------------------------------------
-
-	/*
-	 * (non-Javadoc)
 	 * @see java.lang.Comparable#compareTo(java.lang.Object)
 	 */
 	@Override
 	public int compareTo(Costs o) {
+		// check the heuristics first
+		if (this.heuristicNetworkCost < o.heuristicNetworkCost) {
+			return -1;
+		} else if (this.heuristicNetworkCost > o.heuristicNetworkCost) {
+			return 1;
+		} else if (this.heuristicDiskCost < o.heuristicDiskCost) {
+			return -1;
+		} else if (this.heuristicDiskCost > o.heuristicDiskCost) {
+			return 1;
+		}  else if (this.heuristicCpuCost < o.heuristicCpuCost) {
+			return -1;
+		} else if (this.heuristicCpuCost > o.heuristicCpuCost) {
+			return 1;
+		}
+		
+		// now check the quantifiable costs
 		if (this.networkCost != -1 && (this.networkCost < o.networkCost || o.networkCost == -1)) {
 			return -1;
 		} else if (o.networkCost != -1 && (this.networkCost > o.networkCost || this.networkCost == -1)) {
@@ -200,27 +392,35 @@ public class Costs implements Comparable<Costs>, Cloneable {
 		} else if (this.networkCost == -1 && o.networkCost == -1) {
 			// if both have unknown network costs, they are equal
 			return 0;
-		} else if (this.secondaryStorageCost != -1
-			&& (this.secondaryStorageCost < o.secondaryStorageCost || o.secondaryStorageCost == -1)) {
+		} else if (this.diskCost != -1 && (this.diskCost < o.diskCost || o.diskCost == -1)) {
 			return -1;
-		} else if (o.secondaryStorageCost != -1
-			&& (this.secondaryStorageCost > o.secondaryStorageCost || this.secondaryStorageCost == -1)) {
+		} else if (o.diskCost != -1 && (this.diskCost > o.diskCost || this.diskCost == -1)) {
+			return 1;
+		} else if (this.diskCost == -1 && o.diskCost == -1) {
+			// if both have unknown disk costs, they are equal
+			return 0;
+		} else if (this.cpuCost != -1 && (this.cpuCost < o.cpuCost || o.cpuCost == -1)) {
+			return -1;
+		} else if (o.cpuCost != -1 && (this.cpuCost > o.cpuCost || this.cpuCost == -1)) {
 			return 1;
 		} else {
 			return 0;
 		}
 	}
 
-	/*
-	 * (non-Javadoc)
+	/* (non-Javadoc)
 	 * @see java.lang.Object#hashCode()
 	 */
 	@Override
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
+		result = prime * result + (int) (cpuCost ^ (cpuCost >>> 32));
+		result = prime * result + (int) (heuristicCpuCost ^ (heuristicCpuCost >>> 32));
+		result = prime * result + (int) (heuristicNetworkCost ^ (heuristicNetworkCost >>> 32));
+		result = prime * result + (int) (heuristicDiskCost ^ (heuristicDiskCost >>> 32));
 		result = prime * result + (int) (networkCost ^ (networkCost >>> 32));
-		result = prime * result + (int) (secondaryStorageCost ^ (secondaryStorageCost >>> 32));
+		result = prime * result + (int) (diskCost ^ (diskCost >>> 32));
 		return result;
 	}
 
@@ -230,18 +430,17 @@ public class Costs implements Comparable<Costs>, Cloneable {
 	 */
 	@Override
 	public boolean equals(Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
+		if (obj.getClass() == getClass()) {
+			final Costs other = (Costs) obj;
+			return this.networkCost == other.networkCost &
+					this.diskCost == other.diskCost &
+					this.cpuCost == other.cpuCost &
+					this.heuristicNetworkCost == other.heuristicNetworkCost &
+					this.heuristicDiskCost == other.heuristicDiskCost &
+					this.heuristicCpuCost == other.heuristicCpuCost;
+		} else {
 			return false;
-		if (getClass() != obj.getClass())
-			return false;
-		Costs other = (Costs) obj;
-		if (networkCost != other.networkCost)
-			return false;
-		if (secondaryStorageCost != other.secondaryStorageCost)
-			return false;
-		return true;
+		}
 	}
 
 	/*
@@ -250,7 +449,9 @@ public class Costs implements Comparable<Costs>, Cloneable {
 	 */
 	@Override
 	public String toString() {
-		return "Costs [networkCost=" + networkCost + ", secondaryStorageCost=" + secondaryStorageCost + "]";
+		return "Costs [networkCost=" + networkCost + ", diskCost=" + diskCost + 
+				", cpuCost=" + cpuCost + ", heuristicNetworkCost=" + heuristicNetworkCost + 
+				", heuristicDiskCost=" + heuristicDiskCost + ", heuristicCpuCost=" + heuristicCpuCost + "]";
 	}
 
 	/*
@@ -259,6 +460,10 @@ public class Costs implements Comparable<Costs>, Cloneable {
 	 */
 	@Override
 	public Costs clone() {
-		return new Costs(this.networkCost, this.secondaryStorageCost);
+		try {
+			return (Costs) super.clone();
+		} catch (CloneNotSupportedException e) {
+			throw new RuntimeException(e);	// should never happen
+		}
 	}
 }

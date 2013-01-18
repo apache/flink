@@ -15,15 +15,18 @@
 
 package eu.stratosphere.pact.compiler.plan.candidate;
 
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.util.FieldList;
+import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.costs.Costs;
 import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
+import eu.stratosphere.pact.compiler.plan.OptimizerNode.UnclosedBranchDescriptor;
 import eu.stratosphere.pact.compiler.plan.TwoInputNode;
 import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
 import eu.stratosphere.pact.generic.types.TypePairComparatorFactory;
@@ -93,37 +96,37 @@ public class DualInputPlanNode extends PlanNode
 	}
 	
 	private void mergeBranchPlanMaps() {
-//		// merge the branchPlan maps according the the template's uncloseBranchesStack
-//		if (this.template.hasUnclosedBranches()) {
-//			if (this.branchPlan == null) {
-//				this.branchPlan = new HashMap<OptimizerNode, PlanNode>(8);
-//			}
-//			
-//			final PlanNode pred1 = this.input1.getSource();
-//			final PlanNode pred2 = this.input2.getSource();
-//	
-//			for (UnclosedBranchDescriptor uc : template.openBranches) {
-//				OptimizerNode brancher = uc.branchingNode;
-//				OptimizerNode selectedCandidate = null;
-//	
-//				if(pred1.branchPlan != null) {
-//					// predecessor 1 has branching children, see if it got the branch we are looking for
-//					selectedCandidate = pred1.branchPlan.get(brancher);
-//					this.branchPlan.put(brancher, selectedCandidate);
-//				}
-//				
-//				if (selectedCandidate == null && pred2.branchPlan != null) {
-//					// predecessor 2 has branching children, see if it got the branch we are looking for
-//					selectedCandidate = pred2.branchPlan.get(brancher);
-//					this.branchPlan.put(brancher, selectedCandidate);
-//				}
-//	
-//				if (selectedCandidate == null) {
-//					throw new CompilerException(
-//						"Candidates for a node with open branches are missing information about the selected candidate ");
-//				}
-//			}
-//		}
+		// merge the branchPlan maps according the the template's uncloseBranchesStack
+		if (this.template.hasUnclosedBranches()) {
+			if (this.branchPlan == null) {
+				this.branchPlan = new HashMap<OptimizerNode, PlanNode>(8);
+			}
+			
+			final PlanNode pred1 = this.input1.getSource();
+			final PlanNode pred2 = this.input2.getSource();
+	
+			for (UnclosedBranchDescriptor uc : this.template.getOpenBranches()) {
+				OptimizerNode brancher = uc.getBranchingNode();
+				PlanNode selectedCandidate = null;
+	
+				if (pred1.branchPlan != null) {
+					// predecessor 1 has branching children, see if it got the branch we are looking for
+					selectedCandidate = pred1.branchPlan.get(brancher);
+					this.branchPlan.put(brancher, selectedCandidate);
+				}
+				
+				if (selectedCandidate == null && pred2.branchPlan != null) {
+					// predecessor 2 has branching children, see if it got the branch we are looking for
+					selectedCandidate = pred2.branchPlan.get(brancher);
+					this.branchPlan.put(brancher, selectedCandidate);
+				}
+	
+				if (selectedCandidate == null) {
+					throw new CompilerException(
+						"Candidates for a node with open branches are missing information about the selected candidate ");
+				}
+			}
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------

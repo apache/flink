@@ -79,7 +79,7 @@ public class SinkJoiner extends TwoInputNode
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getBranchesForParent(eu.stratosphere.pact.compiler.plan.OptimizerNode)
 	 */
 	@Override
-	protected List<UnclosedBranchDescriptor> getBranchesForParent(OptimizerNode parent) {
+	protected List<UnclosedBranchDescriptor> getBranchesForParent(PactConnection parent) {
 		// return our own stack of open branches, because nothing is added
 		return this.openBranches;
 	}

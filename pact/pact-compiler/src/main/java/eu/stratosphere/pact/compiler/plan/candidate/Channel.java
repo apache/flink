@@ -224,120 +224,6 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 	public int getReplicationFactor() {
 		return this.replicationFactor;
 	}
-
-	// --------------------------------------------------------------------------------------------
-	//                                Statistic Estimates
-	// --------------------------------------------------------------------------------------------
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.EstimateProvider#getEstimatedOutputSize()
-	 */
-	@Override
-	public long getEstimatedOutputSize() {
-		return this.source.template.getEstimatedOutputSize() * this.replicationFactor;
-	}
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.EstimateProvider#getEstimatedNumRecords()
-	 */
-	@Override
-	public long getEstimatedNumRecords() {
-		return this.source.template.getEstimatedNumRecords() * this.replicationFactor;
-	}
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.EstimateProvider#getEstimatedCardinalities()
-	 */
-	@Override
-	public Map<FieldSet, Long> getEstimatedCardinalities() {
-		final Map<FieldSet, Long> m = this.source.template.getEstimatedCardinalities();
-		final Map<FieldSet, Long> res = new HashMap<FieldSet, Long>();
-		for (Map.Entry<FieldSet, Long> entry : m.entrySet()) {
-			res.put(entry.getKey(), entry.getValue() * this.replicationFactor);
-		}
-		return res;
-	}
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.EstimateProvider#getEstimatedCardinality(eu.stratosphere.pact.common.util.FieldSet)
-	 */
-	@Override
-	public long getEstimatedCardinality(FieldSet cP) {
-		return this.source.template.getEstimatedCardinality(cP) * this.replicationFactor;
-	}
-	
-	// --------------------------------------------------------------------------------------------
-	//                                Data Property Handling
-	// --------------------------------------------------------------------------------------------
-	
-
-	public GlobalProperties getGlobalProperties() {
-		if (this.globalProps == null) {
-			this.globalProps = this.source.getGlobalProperties().clone();
-			switch (this.shipStrategy) {
-				case BROADCAST:
-					this.globalProps.setFullyReplicated();
-					break;
-				case PARTITION_HASH:
-				case PARTITION_LOCAL_HASH:
-					this.globalProps.setHashPartitioned(this.shipKeys);
-					break;
-				case PARTITION_RANGE:
-				case PARTITION_LOCAL_RANGE:
-					this.globalProps.setRangePartitioned(Utils.createOrdering(this.shipKeys, this.shipSortOrder));
-					break;
-				case FORWARD:
-					break;
-				case NONE:
-					throw new CompilerException("Cannot produce GlobalProperties before ship strategy is set.");
-				default:
-					throw new CompilerException("Unrecognized ship strategy: " + this.shipStrategy);
-			}
-		}
-		
-		return this.globalProps;
-	}
-	
-	public LocalProperties getLocalProperties() {
-		if (this.localProps == null) {
-			this.localProps = getLocalPropertiesAfterShippingOnly().clone();
-			switch (this.localStrategy) {
-				case NONE:
-					break;
-				case SORT:
-				case COMBININGSORT:
-					this.localProps.setOrdering(Utils.createOrdering(this.localKeys, this.localSortOrder));
-					break;
-				default:
-					throw new CompilerException("Unsupported local strategy for channel.");
-			}
-		}
-		
-		return this.localProps;
-	}
-	
-	public LocalProperties getLocalPropertiesAfterShippingOnly() {
-		if (this.shipStrategy == ShipStrategyType.FORWARD) {
-			return this.source.getLocalProperties();
-		} else {
-			final LocalProperties props = this.source.getLocalProperties().clone();
-			switch (this.shipStrategy) {
-				case BROADCAST:
-				case PARTITION_HASH:
-				case PARTITION_RANGE:
-				case PARTITION_LOCAL_HASH:
-				case PARTITION_LOCAL_RANGE:
-					props.reset();
-					break;
-				case NONE:
-					throw new CompilerException("ShipStrategy has not yet been set.");
-				default:
-					throw new CompilerException();
-			}
-			return props;
-		}
-	}
-
 	
 	/**
 	 * Gets the serializer from this Channel.
@@ -409,12 +295,189 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 	public void setMemoryLocalStrategy(long memoryLocalStrategy) {
 		this.memoryLocalStrategy = memoryLocalStrategy;
 	}
-	
+
+	// --------------------------------------------------------------------------------------------
+	//                                Statistic Estimates
 	// --------------------------------------------------------------------------------------------
 	
-	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.EstimateProvider#getEstimatedOutputSize()
+	 */
+	@Override
+	public long getEstimatedOutputSize() {
+		return this.source.template.getEstimatedOutputSize() * this.replicationFactor;
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.EstimateProvider#getEstimatedNumRecords()
+	 */
+	@Override
+	public long getEstimatedNumRecords() {
+		return this.source.template.getEstimatedNumRecords() * this.replicationFactor;
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.EstimateProvider#getEstimatedCardinalities()
+	 */
+	@Override
+	public Map<FieldSet, Long> getEstimatedCardinalities() {
+		final Map<FieldSet, Long> m = this.source.template.getEstimatedCardinalities();
+		final Map<FieldSet, Long> res = new HashMap<FieldSet, Long>();
+		for (Map.Entry<FieldSet, Long> entry : m.entrySet()) {
+			res.put(entry.getKey(), entry.getValue() * this.replicationFactor);
+		}
+		return res;
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.EstimateProvider#getEstimatedCardinality(eu.stratosphere.pact.common.util.FieldSet)
+	 */
+	@Override
+	public long getEstimatedCardinality(FieldSet cP) {
+		return this.source.template.getEstimatedCardinality(cP) * this.replicationFactor;
+	}
 	
 	// --------------------------------------------------------------------------------------------
+	//                                Data Property Handling
+	// --------------------------------------------------------------------------------------------
+	
+
+	public GlobalProperties getGlobalProperties() {
+		if (this.globalProps == null) {
+			this.globalProps = this.source.getGlobalProperties().clone();
+			switch (this.shipStrategy) {
+				case BROADCAST:
+					this.globalProps.setFullyReplicated();
+					break;
+				case PARTITION_HASH:
+					this.globalProps.setHashPartitioned(this.shipKeys);
+					break;
+				case PARTITION_RANGE:
+					this.globalProps.setRangePartitioned(Utils.createOrdering(this.shipKeys, this.shipSortOrder));
+					break;
+				case FORWARD:
+					break;
+				case PARTITION_RANDOM:
+					this.globalProps.reset();
+					break;
+				case PARTITION_LOCAL_HASH:
+					if (getSource().getGlobalProperties().isPartitionedOnFields(this.shipKeys)) {
+						// after a local hash partitioning, we can only state that the data is somehow
+						// partitioned. even if we had a hash partitioning before over 8 partitions,
+						// locally rehashing that onto 16 partitions (each one partition into two) gives you
+						// a different result than directly hashing to 16 partitions. the hash-partitioning
+						// property is only valid, if the assumed built in hash function is directly used.
+						// hence, we can only state that this is some form of partitioning.
+						this.globalProps.setAnyPartitioning(this.shipKeys);
+					} else {
+						this.globalProps.reset();
+					}
+					break;
+				case NONE:
+					throw new CompilerException("Cannot produce GlobalProperties before ship strategy is set.");
+			}
+		}
+		
+		return this.globalProps;
+	}
+	
+	public LocalProperties getLocalProperties() {
+		if (this.localProps == null) {
+			this.localProps = getLocalPropertiesAfterShippingOnly().clone();
+			switch (this.localStrategy) {
+				case NONE:
+					break;
+				case SORT:
+				case COMBININGSORT:
+					this.localProps.setOrdering(Utils.createOrdering(this.localKeys, this.localSortOrder));
+					break;
+				default:
+					throw new CompilerException("Unsupported local strategy for channel.");
+			}
+		}
+		
+		return this.localProps;
+	}
+	
+	public LocalProperties getLocalPropertiesAfterShippingOnly() {
+		if (this.shipStrategy == ShipStrategyType.FORWARD) {
+			return this.source.getLocalProperties();
+		} else {
+			final LocalProperties props = this.source.getLocalProperties().clone();
+			switch (this.shipStrategy) {
+				case BROADCAST:
+				case PARTITION_HASH:
+				case PARTITION_RANGE:
+				case PARTITION_RANDOM:
+					props.reset();
+					break;
+				case PARTITION_LOCAL_HASH:
+				case FORWARD:
+					break;
+				case NONE:
+					throw new CompilerException("ShipStrategy has not yet been set.");
+			}
+			return props;
+		}
+	}
+	
+	public void adjustGlobalPropertiesForFullParallelismChange() {
+		if (this.shipStrategy == null || this.shipStrategy == ShipStrategyType.NONE) {
+			throw new IllegalStateException("Cannot adjust channel for degree of parallelism " +
+					"change before the ship strategy is set.");
+		}
+		
+		// make sure the properties are acquired
+		if (this.globalProps == null) {
+			getGlobalProperties();
+		}
+		
+		// some strategies globally reestablish properties
+		switch (this.shipStrategy) {
+		case FORWARD:
+		case PARTITION_LOCAL_HASH:
+			throw new CompilerException("Cannot use FORWARD or LOCAL_HASH strategy between operations " +
+					"with different number of parallel instances.");
+		case NONE: // excluded by sanity check. lust here for verification check completion
+		case BROADCAST:
+		case PARTITION_HASH:
+		case PARTITION_RANGE:
+		case PARTITION_RANDOM:
+			return;
+		}
+		throw new CompilerException("Unrecognized Ship Strategy Type: " + this.shipStrategy);
+	}
+	
+	public void adjustGlobalPropertiesForLocalParallelismChange() {
+		if (this.shipStrategy == null || this.shipStrategy == ShipStrategyType.NONE) {
+			throw new IllegalStateException("Cannot adjust channel for degree of parallelism " +
+					"change before the ship strategy is set.");
+		}
+		
+		// make sure the properties are acquired
+		if (this.globalProps == null) {
+			getGlobalProperties();
+		}
+		
+		// some strategies globally reestablish properties
+		switch (this.shipStrategy) {
+		case FORWARD:
+			this.globalProps.reset();
+			return;
+		case NONE: // excluded by sanity check. lust here for verification check completion
+		case PARTITION_LOCAL_HASH:
+		case BROADCAST:
+		case PARTITION_HASH:
+		case PARTITION_RANGE:
+		case PARTITION_RANDOM:
+			return;
+		}
+		
+		throw new CompilerException("Unrecognized Ship Strategy Type: " + this.shipStrategy);
+	}
+	
+	// --------------------------------------------------------------------------------------------
+
 	
 	/* (non-Javadoc)
 	 * @see java.lang.Object#toString()

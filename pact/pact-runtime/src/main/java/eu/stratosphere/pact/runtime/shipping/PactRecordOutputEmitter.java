@@ -104,7 +104,7 @@ public class PactRecordOutputEmitter implements ChannelSelector<PactRecord>
 			throw new IllegalArgumentException("Invalid shipping strategy for OutputEmitter: " + strategy.name());
 		}
 		
-		if ((strategy == ShipStrategyType.PARTITION_LOCAL_RANGE || strategy == ShipStrategyType.PARTITION_RANGE) && distr == null)
+		if ((strategy == ShipStrategyType.PARTITION_RANGE) && distr == null)
 			throw new NullPointerException("Data distribution must not be null when the ship strategy is range partitioning.");
 	}
 
@@ -121,6 +121,7 @@ public class PactRecordOutputEmitter implements ChannelSelector<PactRecord>
 	{
 		switch (strategy) {
 		case FORWARD:
+		case PARTITION_RANDOM:
 			return robin(numberOfChannels);
 		case PARTITION_HASH:
 		case PARTITION_LOCAL_HASH:

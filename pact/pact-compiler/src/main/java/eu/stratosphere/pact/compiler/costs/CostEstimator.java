@@ -22,15 +22,18 @@ import eu.stratosphere.pact.compiler.plan.EstimateProvider;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 
-
 /**
- * @author Stephan Ewen
+ * Abstract base class for a cost estimator. Defines cost estimation methods and implements the basic work
+ * method that computes the cost of an operator by adding input shipping cost, input local cost, and
+ * driver cost.
  */
 public abstract class CostEstimator {
 
-	public abstract void addRangePartitionCost(EstimateProvider estimates, Costs costs);
-
+	public abstract void addRandomPartitioningCost(EstimateProvider estimates, Costs costs);
+	
 	public abstract void addHashPartitioningCost(EstimateProvider estimates, Costs costs);
+	
+	public abstract void addRangePartitionCost(EstimateProvider estimates, Costs costs);
 
 	public abstract void addBroadcastCost(EstimateProvider estimates, int replicationFactor, Costs costs);
 
@@ -51,15 +54,17 @@ public abstract class CostEstimator {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * This method computes the costs for an operator. It requires that all inputs are set and have a proper
-	 * <tt>ShipStrategy</tt> set, which is not equal to <tt>NONE</tt>.
+	 * This method computes the cost of an operator. The cost is composed of cost for input shipping,
+	 * locally processing an input, and running the operator.
+	 * 
+	 * It requires at least that all inputs are set and have a proper ship strategy set,
+	 * which is not equal to <tt>NONE</tt>.
 	 * 
 	 * @param n The node to compute the costs for.
 	 */
-	public void costOperator(PlanNode n)
-	{
-		// initialize costs objects with currently unknown costs
-		final Costs costs = new Costs(0, 0);
+	public void costOperator(PlanNode n) {
+		// initialize costs objects with no costs
+		final Costs costs = new Costs();
 		final long availableMemory = n.getGuaranteedAvailableMemory();
 		
 		// add the shipping strategy costs
@@ -72,6 +77,9 @@ public abstract class CostEstimator {
 					"Cannot determine costs: Shipping strategy has not been set for an input.");
 			case FORWARD:
 			case PARTITION_LOCAL_HASH:
+				break;
+			case PARTITION_RANDOM:
+				addRandomPartitioningCost(channel, costs);
 				break;
 			case PARTITION_HASH:
 				addHashPartitioningCost(channel, costs);

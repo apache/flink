@@ -50,8 +50,7 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription
 	 * The string is tokenized by whitespaces. For each token a new record is emitted,
 	 * where the token is the first field and an Integer(1) is the second field.
 	 */
-	@ConstantFields(fields={})
-	@OutCardBounds(lowerBound=0, upperBound=OutCardBounds.UNBOUNDED)
+	@OutCardBounds(lowerBound=1, upperBound=OutCardBounds.UNBOUNDED)
 	public static class TokenizeLine extends MapStub
 	{
 		// initialize reusable mutable objects

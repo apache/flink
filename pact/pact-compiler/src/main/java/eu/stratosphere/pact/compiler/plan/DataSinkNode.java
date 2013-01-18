@@ -26,7 +26,6 @@ import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
-import eu.stratosphere.pact.compiler.costs.Costs;
 import eu.stratosphere.pact.compiler.dataproperties.InterestingProperties;
 import eu.stratosphere.pact.compiler.dataproperties.RequestedGlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.RequestedLocalProperties;
@@ -34,7 +33,6 @@ import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
 import eu.stratosphere.pact.generic.contract.Contract;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 
 /**
@@ -192,24 +190,20 @@ public class DataSinkNode extends OptimizerNode
 		{
 			final Ordering partitioning = getPactContract().getPartitionOrdering();
 			final RequestedGlobalProperties partitioningProps = new RequestedGlobalProperties();
-			final Costs maxCosts = new Costs();
 			if (partitioning != null) {
 				partitioningProps.setRangePartitioned(partitioning);
-				estimator.addRangePartitionCost(this.input, maxCosts);
-				iProps.addGlobalProperties(partitioningProps, maxCosts);
+				iProps.addGlobalProperties(partitioningProps);
 			}
-			iProps.addGlobalProperties(partitioningProps, maxCosts);
+			iProps.addGlobalProperties(partitioningProps);
 		}
 		
 		{
 			final Ordering localOrder = getPactContract().getLocalOrder();
 			final RequestedLocalProperties orderProps = new RequestedLocalProperties();
-			Costs maxCosts = new Costs();
 			if (localOrder != null) {
 				orderProps.setOrdering(localOrder);
-				estimator.addLocalSortCost(this.input, getMinimalMemoryAcrossAllSubTasks(), maxCosts);
 			}
-			iProps.addLocalProperties(orderProps, maxCosts);
+			iProps.addLocalProperties(orderProps);
 		}
 		
 		this.input.setInterestingProperties(iProps);
@@ -229,15 +223,15 @@ public class DataSinkNode extends OptimizerNode
 			return;
 		}
 
-		addClosedBranches(getPredecessorNode().closedBranchingNodes);
-		this.openBranches = getPredecessorNode().getBranchesForParent(this);
+//		addClosedBranches(getPredecessorNode().closedBranchingNodes);
+		this.openBranches = getPredecessorNode().getBranchesForParent(this.input);
 	}
 	
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getBranchesForParent(eu.stratosphere.pact.compiler.plan.OptimizerNode)
 	 */
 	@Override
-	protected List<UnclosedBranchDescriptor> getBranchesForParent(OptimizerNode parent) {
+	protected List<UnclosedBranchDescriptor> getBranchesForParent(PactConnection parent) {
 		// return our own stack of open branches, because nothing is added
 		return this.openBranches;
 	}
@@ -262,16 +256,23 @@ public class DataSinkNode extends OptimizerNode
 		List<? extends PlanNode> subPlans = getPredecessorNode().getAlternativePlans(estimator);
 		List<PlanNode> outputPlans = new ArrayList<PlanNode>();
 		
+		final int dop = getDegreeOfParallelism();
+		final int subPerInstance = getSubtasksPerInstance();
+		final int inDop = getPredecessorNode().getDegreeOfParallelism();
+		final int inSubPerInstance = getPredecessorNode().getSubtasksPerInstance();
+		final int numInstances = dop / subPerInstance + (dop % subPerInstance == 0 ? 0 : 1);
+		final int inNumInstances = inDop / inSubPerInstance + (inDop % inSubPerInstance == 0 ? 0 : 1);
+		
+		final boolean globalDopChange = numInstances != inNumInstances;
+		final boolean localDopChange = numInstances == inNumInstances & subPerInstance != inSubPerInstance;
+		
 		InterestingProperties ips = this.input.getInterestingProperties();
 		for (PlanNode p : subPlans) {
 			for (RequestedGlobalProperties gp : ips.getGlobalProperties()) {
 				for (RequestedLocalProperties lp : ips.getLocalProperties()) {
 					Channel c = new Channel(p);
-					if (gp.isMetBy(p.getGlobalProperties())) {
-						c.setShipStrategy(ShipStrategyType.FORWARD);
-					} else {
-						gp.parameterizeChannel(c);
-					}
+					gp.parameterizeChannel(c, globalDopChange, localDopChange);
+
 					if (lp.isMetBy(c.getLocalPropertiesAfterShippingOnly())) {
 						c.setLocalStrategy(LocalStrategy.NONE);
 					} else {

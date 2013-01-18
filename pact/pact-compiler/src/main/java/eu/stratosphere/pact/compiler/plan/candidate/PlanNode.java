@@ -16,6 +16,7 @@
 package eu.stratosphere.pact.compiler.plan.candidate;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -62,7 +63,14 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 	public PlanNode(OptimizerNode template, DriverStrategy strategy) {
 		this.outChannels = new ArrayList<Channel>(2);
 		this.template = template;
-		this.driverStrategy = strategy; 
+		this.driverStrategy = strategy;
+		
+		// check, if there is branch at this node. if yes, this candidate must be associated with
+		// the branching template node.
+		if (template.isBranching()) {
+			this.branchPlan = new HashMap<OptimizerNode, PlanNode>(6);
+			this.branchPlan.put(template, this);
+		}
 	}
 	
 	// --------------------------------------------------------------------------------------------

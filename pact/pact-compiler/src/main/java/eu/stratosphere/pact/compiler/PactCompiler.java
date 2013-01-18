@@ -108,6 +108,25 @@ public class PactCompiler {
 	public static final String HINT_SHIP_STRATEGY_SECOND_INPUT = "INPUT_RIGHT_SHIP_STRATEGY";
 
 	/**
+	 * Value for the shipping strategy compiler hint that enforces a <b>Forward</b> strategy on the
+	 * input channel, i.e. no redistribution of any kind.
+	 * 
+	 * @see #HINT_SHIP_STRATEGY
+	 * @see #HINT_SHIP_STRATEGY_FIRST_INPUT
+	 * @see #HINT_SHIP_STRATEGY_SECOND_INPUT
+	 */
+	public static final String HINT_SHIP_STRATEGY_FORWARD = "SHIP_FORWARD";
+	
+	/**
+	 * Value for the shipping strategy compiler hint that enforces a random repartition strategy.
+	 * 
+	 * @see #HINT_SHIP_STRATEGY
+	 * @see #HINT_SHIP_STRATEGY_FIRST_INPUT
+	 * @see #HINT_SHIP_STRATEGY_SECOND_INPUT
+	 */
+	public static final String HINT_SHIP_STRATEGY_REPARTITION= "SHIP_REPARTITION";
+	
+	/**
 	 * Value for the shipping strategy compiler hint that enforces a hash-partition strategy.
 	 * 
 	 * @see #HINT_SHIP_STRATEGY
@@ -134,16 +153,6 @@ public class PactCompiler {
 	 * @see #HINT_SHIP_STRATEGY_SECOND_INPUT
 	 */
 	public static final String HINT_SHIP_STRATEGY_BROADCAST = "SHIP_BROADCAST";
-
-	/**
-	 * Value for the shipping strategy compiler hint that enforces a <b>Forward</b> strategy on the
-	 * input channel, i.e. no redistribution of any kind.
-	 * 
-	 * @see #HINT_SHIP_STRATEGY
-	 * @see #HINT_SHIP_STRATEGY_FIRST_INPUT
-	 * @see #HINT_SHIP_STRATEGY_SECOND_INPUT
-	 */
-	public static final String HINT_SHIP_STRATEGY_FORWARD = "SHIP_FORWARD";
 
 	/**
 	 * Compiler hint key for the contract's local strategy. This String is a key to the contract's stub
@@ -606,7 +615,7 @@ public class PactCompiler {
 				rootNode.SetId(id++);
 			}
 		} else {
-			throw new CompilerException("The plan encountered when generating alternatives has no sinks.");
+			throw new CompilerException("Bug: The optimizer plan representation has no sinks.");
 		}
 
 		// now that we have all nodes created and recorded which ones consume memory, tell the nodes their minimal

@@ -207,6 +207,8 @@ public class Ordering
 	
 	// --------------------------------------------------------------------------------------------
 	
+	
+	
 	/* (non-Javadoc)
 	 * @see java.lang.Object#clone()
 	 */
@@ -219,6 +221,49 @@ public class Ordering
 		return newOrdering;
 	}
 	
+	/* (non-Javadoc)
+	 * @see java.lang.Object#hashCode()
+	 */
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + ((indexes == null) ? 0 : indexes.hashCode());
+		result = prime * result + ((orders == null) ? 0 : orders.hashCode());
+		result = prime * result + ((types == null) ? 0 : types.hashCode());
+		return result;
+	}
+
+	/* (non-Javadoc)
+	 * @see java.lang.Object#equals(java.lang.Object)
+	 */
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		Ordering other = (Ordering) obj;
+		if (indexes == null) {
+			if (other.indexes != null)
+				return false;
+		} else if (!indexes.equals(other.indexes))
+			return false;
+		if (orders == null) {
+			if (other.orders != null)
+				return false;
+		} else if (!orders.equals(other.orders))
+			return false;
+		if (types == null) {
+			if (other.types != null)
+				return false;
+		} else if (!types.equals(other.types))
+			return false;
+		return true;
+	}
+
 	/* (non-Javadoc)
 	 * @see java.lang.Object#toString()
 	 */

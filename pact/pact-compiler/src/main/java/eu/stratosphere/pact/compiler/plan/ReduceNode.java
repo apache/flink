@@ -24,7 +24,8 @@ import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.PactCompiler;
-import eu.stratosphere.pact.compiler.operators.OperatorPropertiesFactory;
+import eu.stratosphere.pact.compiler.operators.GroupProperties;
+import eu.stratosphere.pact.compiler.operators.GroupWithPartialPreGroupProperties;
 import eu.stratosphere.pact.compiler.operators.OperatorDescriptorSingle;
 import eu.stratosphere.pact.generic.contract.GenericReduceContract;
 
@@ -103,8 +104,8 @@ public class ReduceNode extends SingleInputNode
 		}
 		
 		OperatorDescriptorSingle props = useCombiner ?
-			new OperatorPropertiesFactory.GroupWithPartialPreGroupProperties(this.keys) :
-			new OperatorPropertiesFactory.GroupProperties(this.keys);
+			new GroupWithPartialPreGroupProperties(this.keys) :
+			new GroupProperties(this.keys);
 				
 		return Collections.singletonList(props);
 	}

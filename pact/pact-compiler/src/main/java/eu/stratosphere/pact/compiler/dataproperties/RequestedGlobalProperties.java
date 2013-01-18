@@ -119,7 +119,7 @@ public final class RequestedGlobalProperties implements Cloneable
 	 * Checks, if the properties in this object are trivial, i.e. only standard values.
 	 */
 	public boolean isTrivial() {
-		return partitioning == PartitioningProperty.RANDOM;
+		return this.partitioning == null || this.partitioning == PartitioningProperty.RANDOM;
 	}
 
 	/**
@@ -190,11 +190,37 @@ public final class RequestedGlobalProperties implements Cloneable
 	 * Parameterizes the ship strategy fields of a channel such that the channel produces the desired global properties.
 	 * 
 	 * @param channel The channel to parameterize.
+	 * @param globalDopChange
+	 * @param localDopChange
 	 */
-	public void parameterizeChannel(Channel channel) {
-		if (this.partitioning == null || this.partitioning == PartitioningProperty.RANDOM) {
-			channel.setShipStrategy(ShipStrategyType.FORWARD);
-		} else switch (this.partitioning) {
+	public void parameterizeChannel(Channel channel, boolean globalDopChange, boolean localDopChange) {
+		// if we request nothing, then we need no special strategy. forward, if the number of instances remains
+		// the same, randomly repartition otherwise
+		if (isTrivial()) {
+			channel.setShipStrategy(globalDopChange ? ShipStrategyType.PARTITION_RANDOM : ShipStrategyType.FORWARD);
+			return;
+		}
+		
+		final GlobalProperties inGlobals = channel.getSource().getGlobalProperties();
+		// if we have no global parallelism change, check if we have already compatible global properties
+		if (!globalDopChange && isMetBy(inGlobals)) {
+			if (localDopChange) {
+				// if the local degree of parallelism changes, we need to adjust
+				if (inGlobals.getPartitioning() == PartitioningProperty.HASH_PARTITIONED) {
+					// to preserve the hash partitioning, we need to locally hash re-partition
+					channel.setShipStrategy(ShipStrategyType.PARTITION_LOCAL_HASH, inGlobals.getPartitioningFields());
+					return;
+				}
+				// else fall though
+			} else {
+				// we meet already everything, so go forward
+				channel.setShipStrategy(ShipStrategyType.FORWARD);
+				return;
+			}
+		}
+		
+		// if we fall through the conditions until here, we need to re-establish
+		switch (this.partitioning) {
 			case FULL_REPLICATION:
 				channel.setShipStrategy(ShipStrategyType.BROADCAST);
 				break;

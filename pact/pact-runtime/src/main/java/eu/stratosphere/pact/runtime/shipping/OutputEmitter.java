@@ -104,6 +104,7 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 	{
 		switch (strategy) {
 		case FORWARD:
+		case PARTITION_RANDOM:
 			return robin(numberOfChannels);
 		case PARTITION_HASH:
 		case PARTITION_LOCAL_HASH:

@@ -510,10 +510,10 @@ public class JobGraphGenerator implements Visitor<PlanNode>
 		switch (connection.getShipStrategy()) {
 			case FORWARD:
 			case PARTITION_LOCAL_HASH:
-			case PARTITION_LOCAL_RANGE:
 				distributionPattern = DistributionPattern.POINTWISE;
 				channelType = ChannelType.INMEMORY;
 				break;
+			case PARTITION_RANDOM:
 			case BROADCAST:
 			case PARTITION_HASH:
 			case PARTITION_RANGE:
