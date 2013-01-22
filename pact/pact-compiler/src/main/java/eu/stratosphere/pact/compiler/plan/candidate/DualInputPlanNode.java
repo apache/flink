@@ -27,10 +27,12 @@ import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode.UnclosedBranchDescriptor;
+import eu.stratosphere.pact.compiler.plan.candidate.Channel.TempMode;
 import eu.stratosphere.pact.compiler.plan.TwoInputNode;
 import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
 import eu.stratosphere.pact.generic.types.TypePairComparatorFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
+import eu.stratosphere.pact.runtime.task.DamBehavior;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**
@@ -205,14 +207,16 @@ public class DualInputPlanNode extends PlanNode
 		super.setCosts(nodeCosts);
 		
 		// check, if this node has no branch beneath it, no double-counted cost then
-		if (this.template.getLastJoinedBranchNode() == null) {
+		if (this.template.getJoinedBranchers() == null || this.template.getJoinedBranchers().isEmpty()) {
 			return;
 		}
 
 		// get the cumulative costs of the last joined branching node
-		PlanNode lastCommonChild = this.input1.getSource().branchPlan.get(this.template.getLastJoinedBranchNode());
-		Costs douleCounted = lastCommonChild.getCumulativeCosts();
-		getCumulativeCosts().subtractCosts(douleCounted);
+		for (OptimizerNode joinedBrancher : this.template.getJoinedBranchers()) {
+			PlanNode lastCommonChild = this.input1.getSource().branchPlan.get(joinedBrancher);
+			Costs douleCounted = lastCommonChild.getCumulativeCosts();
+			getCumulativeCosts().subtractCosts(douleCounted);
+		}
 		
 	}
 	
@@ -286,5 +290,42 @@ public class DualInputPlanNode extends PlanNode
 				throw new UnsupportedOperationException();
 			}
 		};
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.candidate.PlanNode#hasDamOnPathDownTo(eu.stratosphere.pact.compiler.plan.candidate.PlanNode)
+	 */
+	@Override
+	public int hasDamOnPathDownTo(PlanNode source) {
+		if (source == this) {
+			return FOUND_SOURCE;
+		}
+		
+		// check first input
+		int res1 = this.input1.getSource().hasDamOnPathDownTo(source);
+		if (res1 == FOUND_SOURCE_AND_DAM) {
+			return FOUND_SOURCE_AND_DAM;
+		} else if (res1 == FOUND_SOURCE) {
+			if (this.input1.getLocalStrategy().dams() || this.input1.getTempMode() == TempMode.MATERIALIZE ||
+					getDriverStrategy().firstDam() == DamBehavior.FULL_DAM) {
+				return FOUND_SOURCE_AND_DAM;
+			} else {
+				return FOUND_SOURCE;
+			}
+		} else {
+			int res2 = this.input2.getSource().hasDamOnPathDownTo(source);
+			if (res2 == FOUND_SOURCE_AND_DAM) {
+				return FOUND_SOURCE_AND_DAM;
+			} else if (res2 == FOUND_SOURCE) {
+				if (this.input2.getLocalStrategy().dams() || this.input2.getTempMode() == TempMode.MATERIALIZE ||
+						getDriverStrategy().secondDam() == DamBehavior.FULL_DAM) {
+					return FOUND_SOURCE_AND_DAM;
+				} else {
+					return FOUND_SOURCE;
+				}
+			} else {
+				return 0;
+			}
+		}
 	}
 }

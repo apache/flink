@@ -221,70 +221,6 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 		return this.outChannels;
 	}
 	
-	// --------------------------------------------------------------------------------------------
-	//                                Branching and Pruning
-	// --------------------------------------------------------------------------------------------
-	
-//	/**
-//	 * Takes the given list of plans that are candidates for this node in the final plan and retains for each distinct
-//	 * set of interesting properties only the cheapest plan.
-//	 * 
-//	 * @param plans
-//	 *        The plans to prune.
-//	 */
-//	public <T extends OptimizerNode> void prunePlanAlternatives(List<T> plans) {
-//		// shortcut for the case that there is only one plan
-//		if (plans.size() == 1) {
-//			return;
-//		}
-//
-//		// if we have unjoined branches, split the list of plans such that only those
-//		// with the same candidates at the branch points are compared
-//		// otherwise, we may end up with the case that no compatible plans are found at
-//		// nodes that join
-//		if (this.openBranches == null) {
-//			prunePlansWithCommonBranchAlternatives(plans);
-//		} else {
-//			// TODO brute force still
-//			List<T> result = new ArrayList<T>();
-//			List<T> turn = new ArrayList<T>();
-//
-//			while (!plans.isEmpty()) {
-//				turn.clear();
-//				T determiner = plans.remove(plans.size() - 1);
-//				turn.add(determiner);
-//
-//				for (int k = plans.size() - 1; k >= 0; k--) {
-//					boolean equal = true;
-//					T toCheck = plans.get(k);
-//
-//					for (int b = 0; b < this.openBranches.size(); b++) {
-//						OptimizerNode brancher = this.openBranches.get(b).branchingNode;
-//						OptimizerNode cand1 = determiner.branchPlan.get(brancher);
-//						OptimizerNode cand2 = toCheck.branchPlan.get(brancher);
-//						if (cand1 != cand2) {
-//							equal = false;
-//							break;
-//						}
-//					}
-//
-//					if (equal) {
-//						turn.add(plans.remove(k));
-//					}
-//				}
-//
-//				// now that we have only plans with the same branch alternatives, prune!
-//				if (turn.size() > 1) {
-//					prunePlansWithCommonBranchAlternatives(turn);
-//				}
-//				result.addAll(turn);
-//			}
-//
-//			// after all turns are complete
-//			plans.clear();
-//			plans.addAll(result);
-//		}
-//	}
 	
 	// --------------------------------------------------------------------------------------------
 	//                                Miscellaneous
@@ -319,6 +255,13 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 	public boolean isPruneMarkerSet() {
 		return this.pFlag;
 	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	public static final int FOUND_SOURCE = 1;
+	public static final int FOUND_SOURCE_AND_DAM = 2;
+	
+	public abstract int hasDamOnPathDownTo(PlanNode source);
 	
 	// --------------------------------------------------------------------------------------------
 	

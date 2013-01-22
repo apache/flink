@@ -361,9 +361,8 @@ public class Costs implements Comparable<Costs>, Cloneable {
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * The comparison here happens primarily after the heuristic costs, then after the quantifiable costs.
-	 * Within the heuristic and quantifiable costs, the order of comparison is: network first, then disk,
-	 * then CPU.
+	 * The order of comparison is: network first, then disk, then CPU. The comparison here happens each time
+	 * primarily after the heuristic costs, then after the quantifiable costs.
 	 * 
 	 * @see java.lang.Comparable#compareTo(java.lang.Object)
 	 */

@@ -18,12 +18,16 @@ package eu.stratosphere.pact.compiler.operators;
 import java.util.Collections;
 import java.util.List;
 
+import eu.stratosphere.pact.compiler.CompilerException;
+import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.RequestedGlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.RequestedLocalProperties;
+import eu.stratosphere.pact.compiler.plan.SinkJoiner;
 import eu.stratosphere.pact.compiler.plan.TwoInputNode;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.DualInputPlanNode;
+import eu.stratosphere.pact.compiler.plan.candidate.SinkJoinerPlanNode;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**
@@ -64,7 +68,11 @@ public class UtilSinkJoinOpDescriptor extends OperatorDescriptorDual
 	 */
 	@Override
 	public DualInputPlanNode instantiate(Channel in1, Channel in2, TwoInputNode node) {
-		return null;
+		if (node instanceof SinkJoiner) {
+			return new SinkJoinerPlanNode((SinkJoiner) node, in1, in2);
+		} else {
+			throw new CompilerException();
+		}
 	}
 
 	/* (non-Javadoc)
@@ -73,5 +81,13 @@ public class UtilSinkJoinOpDescriptor extends OperatorDescriptorDual
 	@Override
 	public LocalProperties computeLocalProperties(LocalProperties in1, LocalProperties in2) {
 		return new LocalProperties();
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.operators.OperatorDescriptorDual#computeGlobalProperties(eu.stratosphere.pact.compiler.dataproperties.GlobalProperties, eu.stratosphere.pact.compiler.dataproperties.GlobalProperties)
+	 */
+	@Override
+	public GlobalProperties computeGlobalProperties(GlobalProperties in1, GlobalProperties in2) {
+		return GlobalProperties.combine(in1, in2);
 	}
 }

@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.RequestedGlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.RequestedLocalProperties;
 import eu.stratosphere.pact.compiler.plan.TwoInputNode;
@@ -67,5 +68,13 @@ public abstract class CartesianProductDescriptor extends OperatorDescriptorDual
 	@Override
 	public DualInputPlanNode instantiate(Channel in1, Channel in2, TwoInputNode node) {
 		return new DualInputPlanNode(node, in1, in2, getStrategy());
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.operators.OperatorDescriptorDual#computeGlobalProperties(eu.stratosphere.pact.compiler.dataproperties.GlobalProperties, eu.stratosphere.pact.compiler.dataproperties.GlobalProperties)
+	 */
+	@Override
+	public GlobalProperties computeGlobalProperties(GlobalProperties in1, GlobalProperties in2) {
+		return GlobalProperties.combine(in1, in2);
 	}
 }

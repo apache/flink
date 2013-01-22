@@ -165,4 +165,14 @@ public abstract class Contract implements Visitable<Contract>
 	 * @return The class with the user code.
 	 */
 	public abstract Class<?> getUserCodeClass();
+	
+	// --------------------------------------------------------------------------------------------
+	
+	/* (non-Javadoc)
+	 * @see java.lang.Object#toString()
+	 */
+	@Override
+	public String toString() {
+		return getClass().getSimpleName() + " - " + getName();
+	}
 }

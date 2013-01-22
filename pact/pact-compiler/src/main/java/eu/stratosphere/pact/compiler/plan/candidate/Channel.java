@@ -47,7 +47,7 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 	
 	// --------------------------------------------------------------------------------------------
 	
-	private final PlanNode source;
+	private PlanNode source;
 	
 	private PlanNode target;
 	
@@ -475,6 +475,21 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 		
 		throw new CompilerException("Unrecognized Ship Strategy Type: " + this.shipStrategy);
 	}
+
+	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * Utility method used while swapping binary union nodes for n-ary union nodes.
+	 * 
+	 * @param newUnionNode
+	 */
+	public void swapUnionNodes(UnionPlanNode newUnionNode) {
+		if (!(this.source instanceof BinaryUnionPlanNode)) {
+			throw new IllegalStateException();
+		} else {
+			this.source = newUnionNode;
+		}
+	}
 	
 	// --------------------------------------------------------------------------------------------
 
@@ -486,7 +501,7 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 		return "Channel (" + this.source + 
 				(this.target == null ? ')' :
 					") -> (" + this.target + ')') +
-				'[' + this.shipStrategy + "] [" + this.localStrategy + ']' +
+				'[' + this.shipStrategy + "] [" + this.localStrategy + "] " +
 				(this.tempMode == null || this.tempMode == TempMode.NONE ? "{NO-TEMP}" : this.tempMode);
 	}
 	

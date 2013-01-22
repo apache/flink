@@ -27,13 +27,15 @@ import static eu.stratosphere.pact.runtime.task.DamBehavior.*;
 public enum DriverStrategy
 {
 	// no local strategy, as for sources and sinks
-	NONE(null, null, PIPELINED, false),
+	NONE(null, null, PIPELINED, PIPELINED, false),
 	// no special local strategy is applied
 	MAP(MapDriver.class, ChainedMapDriver.class, PIPELINED, false),
 	// grouping the inputs
 	GROUP_OVER_ORDERED(ReduceDriver.class, null, PIPELINED, true),
 	// partially grouping inputs (best effort resulting possibly in duplicates --> combiner)
 	PARTIAL_GROUP(CombineDriver.class, ChainedCombineDriver.class, MATERIALIZING, true),
+	// group everything together into one group
+	ALL_GROUP(null, null, PIPELINED, false),
 	// already grouped input, within a key values are crossed in a nested loop fashion
 	GROUP_SELF_NESTEDLOOP(null, null, PIPELINED, true),	// Note: Self-Match currently inactive
 	// both inputs are merged, but materialized to the side for block-nested-loop-join among values with equal key

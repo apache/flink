@@ -173,7 +173,9 @@ public class FieldSet implements Iterable<Integer>
 			bld.append(',');
 			bld.append(' ');
 		}
-		bld.setLength(bld.length() - 2);
+		if (this.collection.size() > 0) {
+			bld.setLength(bld.length() - 2);
+		}
 		bld.append(']');
 		return bld.toString();
 	}

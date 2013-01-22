@@ -352,13 +352,7 @@ public class JobGraphGenerator implements Visitor<PlanNode>
 	private List<Channel> getConnectionsOfInput(Channel connection) {
 		final PlanNode input = connection.getSource();
 		if (input instanceof UnionPlanNode) {
-			List<Channel> inConnOfInput = new ArrayList<Channel>();
-			//create new connections between union inputs and target with properties of 
-			//connection between target and union
-			for (Iterator<Channel> inConns = input.getInputs(); inConns.hasNext();) {
-				inConnOfInput.add(inConns.next());
-			}
-			return inConnOfInput;
+			return ((UnionPlanNode) input).getListOfInputs();
 		}
 		else {
 			return Collections.singletonList(connection);
@@ -498,7 +492,22 @@ public class JobGraphGenerator implements Visitor<PlanNode>
 	// Connecting Vertices
 	// ------------------------------------------------------------------------
 
-	private void connectJobVertices(Channel connection, int inputNumber,
+	/**
+	 * NOTE: The channel for global and local strategies are different if we connect a union. The global strategy
+	 * channel is then the channel into the union node, the local strategy channel the one from the union to the
+	 * actual target operator.
+	 * 
+	 * @param channelForGlobalStrategy
+	 * @param channelForLocalStrategy
+	 * @param inputNumber
+	 * @param sourceVertex
+	 * @param sourceConfig
+	 * @param targetVertex
+	 * @param targetConfig
+	 * @throws JobGraphDefinitionException
+	 * @throws CompilerException
+	 */
+	private void connectJobVertices(Channel channel, int inputNumber,
 			final AbstractJobVertex sourceVertex, final TaskConfig sourceConfig,
 			final AbstractJobVertex targetVertex, final TaskConfig targetConfig)
 	throws JobGraphDefinitionException, CompilerException
@@ -507,7 +516,7 @@ public class JobGraphGenerator implements Visitor<PlanNode>
 		final ChannelType channelType;
 		final DistributionPattern distributionPattern;
 
-		switch (connection.getShipStrategy()) {
+		switch (channel.getShipStrategy()) {
 			case FORWARD:
 			case PARTITION_LOCAL_HASH:
 				distributionPattern = DistributionPattern.POINTWISE;
@@ -521,22 +530,25 @@ public class JobGraphGenerator implements Visitor<PlanNode>
 				channelType = ChannelType.NETWORK;
 				break;
 			default:
-				throw new RuntimeException("Unknown runtime ship strategy: " + connection.getShipStrategy());
+				throw new RuntimeException("Unknown runtime ship strategy: " + channel.getShipStrategy());
 		}
 		
 		sourceVertex.connectTo(targetVertex, channelType, CompressionLevel.NO_COMPRESSION, distributionPattern);
 
 		// -------------- configure the source task's ship strategy strategies in task config --------------
 		final int outputIndex = sourceConfig.getNumOutputs();
-		sourceConfig.addOutputShipStrategy(connection.getShipStrategy());
+		sourceConfig.addOutputShipStrategy(channel.getShipStrategy());
 		if (outputIndex == 0) {
-			sourceConfig.setOutputSerializer(connection.getSerializer());
+			sourceConfig.setOutputSerializer(channel.getSerializer());
 		}
-		if (connection.getShipStrategyComparator() != null) {
-			sourceConfig.setOutputComparator(connection.getShipStrategyComparator(), outputIndex);
+		if (channel.getShipStrategyComparator() != null) {
+			sourceConfig.setOutputComparator(channel.getShipStrategyComparator(), outputIndex);
 		}
 		
 		// TODO: Re-enable range partitioner distribution
+		if (channel.getShipStrategy() == ShipStrategyType.PARTITION_RANGE) {
+			throw new CompilerException("Range Partitioner is currently not enabled.");
+		}
 //		if (targetContract instanceof GenericDataSink) {
 //			final DataDistribution distri = ((GenericDataSink) targetContract).getDataDistribution();
 //			if (distri != null) {

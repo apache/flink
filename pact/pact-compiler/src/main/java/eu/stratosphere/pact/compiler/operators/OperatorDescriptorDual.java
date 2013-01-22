@@ -18,6 +18,7 @@ package eu.stratosphere.pact.compiler.operators;
 import java.util.List;
 
 import eu.stratosphere.pact.common.util.FieldList;
+import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.RequestedGlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.RequestedLocalProperties;
@@ -60,6 +61,8 @@ public abstract class OperatorDescriptorDual implements AbstractOperatorDescript
 	protected abstract List<LocalPropertiesPair> createPossibleLocalProperties();
 	
 	public abstract DualInputPlanNode instantiate(Channel in1, Channel in2, TwoInputNode node);
+	
+	public abstract GlobalProperties computeGlobalProperties(GlobalProperties in1, GlobalProperties in2);
 	
 	public abstract LocalProperties computeLocalProperties(LocalProperties in1, LocalProperties in2);
 	

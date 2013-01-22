@@ -33,6 +33,7 @@ import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
 import eu.stratosphere.pact.generic.contract.Contract;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 
 /**
@@ -137,20 +138,18 @@ public class DataSinkNode extends OptimizerNode
 	public void setInputs(Map<Contract, OptimizerNode> contractToNode) {
 		List<Contract> children = getPactContract().getInputs();
 
-		OptimizerNode pred;
+		final OptimizerNode pred;
+		final PactConnection conn;
 		if (children.size() == 1) {
 			pred = contractToNode.get(children.get(0));
+			conn = new PactConnection(pred, this);
 		} else {
-			pred = new UnionNode(getPactContract(), children, contractToNode);
-			pred.setDegreeOfParallelism(this.getDegreeOfParallelism());
-			//push id down to newly created union node
-			pred.SetId(this.id);
-			pred.setSubtasksPerInstance(getSubtasksPerInstance());
-			this.id++;
+			pred = createdUnionCascade(children, contractToNode, null);
+			conn = new PactConnection(pred, this);
+			conn.setShipStrategy(ShipStrategyType.FORWARD);
 		}
 		// create the connection and add it
-		PactConnection conn = new PactConnection(pred, this);
-		this.setInputConnection(conn);
+		setInputConnection(conn);
 		pred.addOutgoingConnection(conn);
 	}
 
@@ -223,7 +222,7 @@ public class DataSinkNode extends OptimizerNode
 			return;
 		}
 
-//		addClosedBranches(getPredecessorNode().closedBranchingNodes);
+		addClosedBranches(getPredecessorNode().closedBranchingNodes);
 		this.openBranches = getPredecessorNode().getBranchesForParent(this.input);
 	}
 	

@@ -34,8 +34,6 @@ import eu.stratosphere.nephele.configuration.Configuration;
  *   <li>The output format is closed</li>
  * </ol>
  * 
- * @author Stephan Ewen
- * 
  * @param <IT> The type of the consumed records. 
  */
 public interface OutputFormat<IT>

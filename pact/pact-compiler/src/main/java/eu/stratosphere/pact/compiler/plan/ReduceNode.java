@@ -24,6 +24,8 @@ import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.PactCompiler;
+import eu.stratosphere.pact.compiler.operators.AllGroupProperties;
+import eu.stratosphere.pact.compiler.operators.AllGroupWithPartialPreGroupProperties;
 import eu.stratosphere.pact.compiler.operators.GroupProperties;
 import eu.stratosphere.pact.compiler.operators.GroupWithPartialPreGroupProperties;
 import eu.stratosphere.pact.compiler.operators.OperatorDescriptorSingle;
@@ -44,6 +46,12 @@ public class ReduceNode extends SingleInputNode
 	 */
 	public ReduceNode(GenericReduceContract<?> pactContract) {
 		super(pactContract);
+		
+		if (this.keys == null) {
+			// case of a key-less reducer. force a parallelism of 1
+			setDegreeOfParallelism(1);
+			setSubtasksPerInstance(1);
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -104,8 +112,8 @@ public class ReduceNode extends SingleInputNode
 		}
 		
 		OperatorDescriptorSingle props = useCombiner ?
-			new GroupWithPartialPreGroupProperties(this.keys) :
-			new GroupProperties(this.keys);
+			(this.keys == null ? new AllGroupWithPartialPreGroupProperties() : new GroupWithPartialPreGroupProperties(this.keys)) :
+			(this.keys == null ? new AllGroupProperties() : new GroupProperties(this.keys));
 				
 		return Collections.singletonList(props);
 	}

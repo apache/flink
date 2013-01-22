@@ -37,7 +37,7 @@ public abstract class CompilerTestBase {
 
 	protected static final String IN_FILE_1 = "file:///test/file";
 	
-	protected static final String OUT_FILE_1 = "file///test/output";
+	protected static final String OUT_FILE_1 = "file:///test/output";
 	
 	protected static final String CACHE_KEY = "cachekey";
 	

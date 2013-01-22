@@ -53,12 +53,15 @@ import eu.stratosphere.pact.compiler.plan.MatchNode;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.ReduceNode;
 import eu.stratosphere.pact.compiler.plan.SinkJoiner;
+import eu.stratosphere.pact.compiler.plan.candidate.BinaryUnionPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel.TempMode;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
+import eu.stratosphere.pact.compiler.plan.candidate.SinkJoinerPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SourcePlanNode;
+import eu.stratosphere.pact.compiler.plan.candidate.UnionPlanNode;
 import eu.stratosphere.pact.compiler.postpass.OptimizerPostPass;
 import eu.stratosphere.pact.generic.contract.Contract;
 import eu.stratosphere.pact.generic.contract.GenericCoGroupContract;
@@ -66,6 +69,8 @@ import eu.stratosphere.pact.generic.contract.GenericCrossContract;
 import eu.stratosphere.pact.generic.contract.GenericMapContract;
 import eu.stratosphere.pact.generic.contract.GenericMatchContract;
 import eu.stratosphere.pact.generic.contract.GenericReduceContract;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
+import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 
 /**
  * The optimizer that takes the user specified pact plan and creates an optimized plan that contains
@@ -636,6 +641,12 @@ public class PactCompiler {
 		
 		BranchesVisitor branchingVisitor = new BranchesVisitor();
 		rootNode.accept(branchingVisitor);
+		
+		// perform a sanity check: the root may not have any unclosed branches
+		if (rootNode.getOpenBranches() != null && rootNode.getOpenBranches().size() > 0) {
+			throw new CompilerException("Bug: Logic for branching plans (non-tree plans) has an error, and does not " +
+					"track the re-joining of branches correctly.");
+		}
 
 		// the final step is now to generate the actual plan alternatives
 		List<PlanNode> bestPlan = rootNode.getAlternativePlans(this.costEstimator);
@@ -651,14 +662,18 @@ public class PactCompiler {
 
 		if (bestPlanRoot instanceof SinkPlanNode) {
 			bestPlanSinks.add((SinkPlanNode) bestPlanRoot);
-//		} else if (bestPlanRoot instanceof SinkJoiner) {
-//			((SinkJoiner) bestPlanRoot).getDataSinks(bestPlanSinks);
+		} else if (bestPlanRoot instanceof SinkJoinerPlanNode) {
+			((SinkJoinerPlanNode) bestPlanRoot).getDataSinks(bestPlanSinks);
 		}
 
 		// finalize the plan
 		OptimizedPlan plan = new PlanFinalizer().createFinalPlan(bestPlanSinks, pactPlan.getJobName(), memoryPerInstance);
 		plan.setInstanceTypeName(instanceName);
 		plan.setPlanConfiguration(pactPlan.getPlanConfiguration());
+		
+		// swap the binary unions for n-ary unions. this changes no strategies or memory consumers whatsoever, so
+		// we can do this after the plan finalization
+		plan.accept(new BinaryUnionReplacer());
 		
 		// post pass the plan. this is the phase where the serialization and comparator code is set
 		postPasser.postPass(plan);
@@ -939,6 +954,62 @@ public class PactCompiler {
 			node.computeUnclosedBranchStack();
 		}
 	};
+	
+	private static final class BinaryUnionReplacer implements Visitor<PlanNode>
+	{
+		private final Set<PlanNode> seenBefore = new HashSet<PlanNode>();
+		
+		/* (non-Javadoc)
+		 * @see eu.stratosphere.pact.common.plan.Visitor#preVisit(eu.stratosphere.pact.common.plan.Visitable)
+		 */
+		@Override
+		public boolean preVisit(PlanNode visitable) {
+			return this.seenBefore.add(visitable);
+		}
+
+		/* (non-Javadoc)
+		 * @see eu.stratosphere.pact.common.plan.Visitor#postVisit(eu.stratosphere.pact.common.plan.Visitable)
+		 */
+		@Override
+		public void postVisit(PlanNode visitable) {
+			if (visitable instanceof BinaryUnionPlanNode) {
+				BinaryUnionPlanNode unionNode = (BinaryUnionPlanNode) visitable;
+				
+				Channel in1 = unionNode.getInput1();
+				Channel in2 = unionNode.getInput2();
+				
+				List<Channel> inputs = new ArrayList<Channel>();
+				
+				collect(in1, inputs);
+				collect(in2, inputs);
+				
+				UnionPlanNode newUnion = new UnionPlanNode(unionNode.getOptimizerNode(), inputs, unionNode.getGlobalProperties());
+				// adjust the input channels to have their target point to the new union node
+				for (Channel c : inputs) {
+					c.setTarget(newUnion);
+				}
+				
+				unionNode.getOutgoingChannels().get(0).swapUnionNodes(newUnion);
+			}
+		}
+		
+		private void collect(Channel in, List<Channel> inputs) {
+			if (in.getSource() instanceof UnionPlanNode) {
+				// sanity check
+				if (in.getShipStrategy() != ShipStrategyType.FORWARD) {
+					throw new CompilerException("Bug: Plan generation for Unions picked a ship strategy between binary plan operators.");
+				}
+				if (!(in.getLocalStrategy() == null || in.getLocalStrategy() == LocalStrategy.NONE)) {
+					throw new CompilerException("Bug: Plan generation for Unions picked a local strategy between binary plan operators.");
+				}
+				
+				inputs.addAll(((UnionPlanNode) in.getSource()).getListOfInputs());
+			} else {
+				// is not a union node, so we take teh channel directly
+				inputs.add(in);
+			}
+		}
+	}
 	
 	/**
 	 * Utility class that traverses a plan to collect all nodes and add them to the OptimizedPlan.

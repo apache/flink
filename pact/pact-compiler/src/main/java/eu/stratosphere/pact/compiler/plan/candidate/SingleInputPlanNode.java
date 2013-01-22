@@ -22,8 +22,10 @@ import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.SingleInputNode;
+import eu.stratosphere.pact.compiler.plan.candidate.Channel.TempMode;
 import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
+import eu.stratosphere.pact.runtime.task.DamBehavior;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**
@@ -194,5 +196,26 @@ public class SingleInputPlanNode extends PlanNode
 				throw new UnsupportedOperationException();
 			}
 		};
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.candidate.PlanNode#hasDamOnPathDownTo(eu.stratosphere.pact.compiler.plan.candidate.PlanNode)
+	 */
+	@Override
+	public int hasDamOnPathDownTo(PlanNode source) {
+		if (source == this) {
+			return FOUND_SOURCE;
+		}
+		int res = this.input.getSource().hasDamOnPathDownTo(source);
+		if (res == FOUND_SOURCE_AND_DAM) {
+			return FOUND_SOURCE_AND_DAM;
+		} else if (res == FOUND_SOURCE &&
+				(this.input.getLocalStrategy().dams() || this.input.getTempMode() == TempMode.MATERIALIZE ||
+					getDriverStrategy().firstDam() == DamBehavior.FULL_DAM))
+		{
+			return FOUND_SOURCE_AND_DAM;
+		} else {
+			return res;
+		}
 	}
 }

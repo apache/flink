@@ -35,7 +35,6 @@ import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.pact.compiler.plan.DataSinkNode;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
-import eu.stratosphere.pact.compiler.plan.UnionNode;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel.TempMode;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;

@@ -15,6 +15,7 @@
 
 package eu.stratosphere.pact.compiler.postpass;
 
+import java.util.Iterator;
 import java.util.Map;
 
 import eu.stratosphere.pact.common.contract.GenericDataSink;
@@ -33,6 +34,7 @@ import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SourcePlanNode;
+import eu.stratosphere.pact.compiler.plan.candidate.UnionPlanNode;
 import eu.stratosphere.pact.generic.contract.DualInputContract;
 import eu.stratosphere.pact.generic.contract.SingleInputContract;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparatorFactory;
@@ -274,7 +276,17 @@ public class PactRecordPostPass implements OptimizerPostPass
 					+ contract.getName() + "'. Missing type information for key field " + ex.getFieldNumber());
 			}
 		}
-		else {
+		else if (node instanceof UnionPlanNode) {
+			// only propagate the info down
+			try {
+				for (Iterator<Channel> channels = node.getInputs(); channels.hasNext(); ) {
+					propagateToChannel(parentSchema, channels.next());
+				}
+			} catch (MissingFieldTypeInfoException ex) {
+				throw new CompilerPostPassException("Could not set up runtime strategy for the input channel to " +
+						" a union node. Missing type information for key field " + ex.getFieldNumber());
+			}
+		} else {
 			throw new CompilerPostPassException("Unknown node type encountered: " + node.getClass().getName());
 		}
 	}

@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import eu.stratosphere.pact.common.util.FieldList;
+import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.RequestedGlobalProperties;
 
 /**
@@ -57,5 +58,13 @@ public abstract class AbstractJoinDescriptor extends OperatorDescriptorDual
 			pairs.add(new GlobalPropertiesPair(replicated1, any2));
 		}
 		return pairs;
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.operators.OperatorDescriptorDual#computeGlobalProperties(eu.stratosphere.pact.compiler.dataproperties.GlobalProperties, eu.stratosphere.pact.compiler.dataproperties.GlobalProperties)
+	 */
+	@Override
+	public GlobalProperties computeGlobalProperties(GlobalProperties in1, GlobalProperties in2) {
+		return GlobalProperties.combine(in1, in2);
 	}
 }

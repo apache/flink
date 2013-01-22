@@ -15,14 +15,14 @@
 
 package eu.stratosphere.pact.compiler.plan.candidate;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
-import eu.stratosphere.pact.compiler.plan.UnionNode;
+import eu.stratosphere.pact.compiler.plan.BinaryUnionNode;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**
@@ -30,17 +30,16 @@ import eu.stratosphere.pact.runtime.task.DriverStrategy;
  */
 public class UnionPlanNode extends PlanNode
 {
-	private final ArrayList<Channel> inputs;
+	private final List<Channel> inputs;
 	
 	/**
 	 * @param template
 	 */
-	public UnionPlanNode(UnionNode template) {
+	public UnionPlanNode(BinaryUnionNode template, List<Channel> inputs, GlobalProperties gProps) {
 		super(template, DriverStrategy.NONE);
 		
-		this.inputs = new ArrayList<Channel>(4);
-		
-		this.globalProps = new GlobalProperties();
+		this.inputs = inputs;
+		this.globalProps = gProps;
 		this.localProps = new LocalProperties();
 	}
 
@@ -54,6 +53,10 @@ public class UnionPlanNode extends PlanNode
 			c.getSource().accept(visitor);
 		}
 		visitor.postVisit(this);
+	}
+	
+	public List<Channel> getListOfInputs() {
+		return this.inputs;
 	}
 
 	/* (non-Javadoc)
@@ -87,5 +90,13 @@ public class UnionPlanNode extends PlanNode
 				throw new UnsupportedOperationException();
 			}
 		};
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.candidate.PlanNode#hasDamOnPathDownTo(eu.stratosphere.pact.compiler.plan.candidate.PlanNode)
+	 */
+	@Override
+	public int hasDamOnPathDownTo(PlanNode source) {
+		throw new UnsupportedOperationException();
 	}
 }

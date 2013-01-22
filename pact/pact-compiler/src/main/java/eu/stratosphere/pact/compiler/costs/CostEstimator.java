@@ -20,6 +20,7 @@ import java.util.Iterator;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.plan.EstimateProvider;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
+import eu.stratosphere.pact.compiler.plan.candidate.Channel.TempMode;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 
 /**
@@ -28,7 +29,7 @@ import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
  * driver cost.
  */
 public abstract class CostEstimator {
-
+	
 	public abstract void addRandomPartitioningCost(EstimateProvider estimates, Costs costs);
 	
 	public abstract void addHashPartitioningCost(EstimateProvider estimates, Costs costs);
@@ -52,6 +53,10 @@ public abstract class CostEstimator {
 	public abstract void addBlockNestedLoopsCosts(EstimateProvider outerSide, EstimateProvider innerSide, long blockSize, Costs costs);
 
 	// ------------------------------------------------------------------------
+	
+	public abstract void addArtificialDamCost(EstimateProvider estimates, long bufferSize, Costs costs);
+	
+	// ------------------------------------------------------------------------	
 
 	/**
 	 * This method computes the cost of an operator. The cost is composed of cost for input shipping,
@@ -103,6 +108,10 @@ public abstract class CostEstimator {
 				break;
 			default:
 				throw new CompilerException("Unsupported local strategy for input: " + channel.getLocalStrategy());
+			}
+			
+			if (channel.getTempMode() != null && channel.getTempMode() != TempMode.NONE) {
+				addArtificialDamCost(channel, 0, costs);
 			}
 		} 
 		

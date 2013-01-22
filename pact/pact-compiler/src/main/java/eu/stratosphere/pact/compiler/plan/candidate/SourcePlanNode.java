@@ -96,9 +96,17 @@ public class SourcePlanNode extends PlanNode
 	public Iterator<Channel> getInputs() {
 		return Collections.<Channel>emptyList().iterator();
 	}
-	
-	// --------------------------------------------------------------------------------------------
-	//                               Textual Dump for Visualization
-	// --------------------------------------------------------------------------------------------
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.candidate.PlanNode#hasDamOnPathDownTo(eu.stratosphere.pact.compiler.plan.candidate.PlanNode)
+	 */
+	@Override
+	public int hasDamOnPathDownTo(PlanNode source) {
+		if (source == this) {
+			return FOUND_SOURCE;
+		} else {
+			return 0;
+		}
+	}
 	
 }

@@ -44,9 +44,11 @@ import eu.stratosphere.pact.compiler.operators.OperatorDescriptorDual.LocalPrope
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.DualInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
+import eu.stratosphere.pact.compiler.plan.candidate.Channel.TempMode;
 import eu.stratosphere.pact.generic.contract.Contract;
 import eu.stratosphere.pact.generic.contract.DualInputContract;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
+import eu.stratosphere.pact.runtime.task.DamBehavior;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 
 /**
@@ -88,11 +90,22 @@ public abstract class TwoInputNode extends OptimizerNode
 	public TwoInputNode(DualInputContract<?> pactContract) {
 		super(pactContract);
 
-		this.keys1 = new FieldList(pactContract.getKeyColumns(0));
-		this.keys2 = new FieldList(pactContract.getKeyColumns(1));
+		int[] k1 = pactContract.getKeyColumns(0);
+		int[] k2 = pactContract.getKeyColumns(1);
 		
-		if (this.keys1.size() != this.keys2.size()) {
-			throw new CompilerException("Unequal number of key fields on the two inputs.");
+		this.keys1 = k1 == null || k1.length == 0 ? null : new FieldList(k1);
+		this.keys2 = k2 == null || k2.length == 0 ? null : new FieldList(k2);
+		
+		if (this.keys1 != null) {
+			if (this.keys2 != null) {
+				if (this.keys1.size() != this.keys2.size()) {
+					throw new CompilerException("Unequal number of key fields on the two inputs.");
+				}
+			} else {
+				throw new CompilerException("Keys are set on first input, but not on second.");
+			}
+		} else if (this.keys2 != null) {
+			throw new CompilerException("Keys are set on second input, but not on first.");
 		}
 		
 		this.possibleProperties = getPossibleProperties();
@@ -158,63 +171,23 @@ public abstract class TwoInputNode extends OptimizerNode
 	 */
 	@Override
 	public void setInputs(Map<Contract, OptimizerNode> contractToNode) {
-		// get the predecessors
-		DualInputContract<?> contr = (DualInputContract<?>) getPactContract();
-		
-		List<Contract> leftPreds = contr.getFirstInputs();
-		List<Contract> rightPreds = contr.getSecondInputs();
-		
-		OptimizerNode pred1;
-		if (leftPreds.size() == 1) {
-			pred1 = contractToNode.get(leftPreds.get(0));
-		} else {
-			pred1 = new UnionNode(getPactContract(), leftPreds, contractToNode);
-			pred1.setDegreeOfParallelism(getDegreeOfParallelism());
-			//push id down to newly created union node
-			pred1.SetId(this.id);
-			pred1.setSubtasksPerInstance(getSubtasksPerInstance());
-			this.id++;
-		}
-		// create the connection and add it
-		PactConnection conn1 = new PactConnection(pred1, this);
-		this.input1 = conn1;
-		pred1.addOutgoingConnection(conn1);
-		
-		OptimizerNode pred2;
-		if (rightPreds.size() == 1) {
-			pred2 = contractToNode.get(rightPreds.get(0));
-		} else {
-			pred2 = new UnionNode(getPactContract(), rightPreds, contractToNode);
-			pred2.setDegreeOfParallelism(this.getDegreeOfParallelism());
-			//push id down to newly created union node
-			pred2.SetId(this.id);
-			pred2.setSubtasksPerInstance(getSubtasksPerInstance());
-			this.id++;
-		}
-		// create the connection and add it
-		PactConnection conn2 = new PactConnection(pred2, this);
-		this.input2 = conn2;
-		pred2.addOutgoingConnection(conn2);
-
 		// see if there is a hint that dictates which shipping strategy to use for BOTH inputs
-		Configuration conf = getPactContract().getParameters();
+		final Configuration conf = getPactContract().getParameters();
+		ShipStrategyType preSet1 = null;
+		ShipStrategyType preSet2 = null;
+		
 		String shipStrategy = conf.getString(PactCompiler.HINT_SHIP_STRATEGY, null);
 		if (shipStrategy != null) {
 			if (PactCompiler.HINT_SHIP_STRATEGY_FORWARD.equals(shipStrategy)) {
-				this.input1.setShipStrategy(ShipStrategyType.FORWARD);
-				this.input2.setShipStrategy(ShipStrategyType.FORWARD);
+				preSet1 = preSet2 = ShipStrategyType.FORWARD;
 			} else if (PactCompiler.HINT_SHIP_STRATEGY_BROADCAST.equals(shipStrategy)) {
-				this.input1.setShipStrategy(ShipStrategyType.BROADCAST);
-				this.input2.setShipStrategy(ShipStrategyType.BROADCAST);
+				preSet1 = preSet2 = ShipStrategyType.BROADCAST;
 			} else if (PactCompiler.HINT_SHIP_STRATEGY_REPARTITION_HASH.equals(shipStrategy)) {
-				this.input1.setShipStrategy(ShipStrategyType.PARTITION_HASH);
-				this.input2.setShipStrategy(ShipStrategyType.PARTITION_HASH);
+				preSet1 = preSet2 = ShipStrategyType.PARTITION_HASH;
 			} else if (PactCompiler.HINT_SHIP_STRATEGY_REPARTITION_RANGE.equals(shipStrategy)) {
-				this.input1.setShipStrategy(ShipStrategyType.PARTITION_RANGE);
-				this.input2.setShipStrategy(ShipStrategyType.PARTITION_RANGE);
+				preSet1 = preSet2 = ShipStrategyType.PARTITION_RANGE;
 			} else if (shipStrategy.equalsIgnoreCase(PactCompiler.HINT_SHIP_STRATEGY_REPARTITION)) {
-				this.input1.setShipStrategy(ShipStrategyType.PARTITION_RANDOM);
-				this.input2.setShipStrategy(ShipStrategyType.PARTITION_RANDOM);
+				preSet1 = preSet2 = ShipStrategyType.PARTITION_RANDOM;
 			} else {
 				throw new CompilerException("Unknown hint for shipping strategy: " + shipStrategy);
 			}
@@ -224,15 +197,15 @@ public abstract class TwoInputNode extends OptimizerNode
 		shipStrategy = conf.getString(PactCompiler.HINT_SHIP_STRATEGY_FIRST_INPUT, null);
 		if (shipStrategy != null) {
 			if (PactCompiler.HINT_SHIP_STRATEGY_FORWARD.equals(shipStrategy)) {
-				this.input1.setShipStrategy(ShipStrategyType.FORWARD);
+				preSet1 = ShipStrategyType.FORWARD;
 			} else if (PactCompiler.HINT_SHIP_STRATEGY_BROADCAST.equals(shipStrategy)) {
-				this.input1.setShipStrategy(ShipStrategyType.BROADCAST);
+				preSet1 = ShipStrategyType.BROADCAST;
 			} else if (PactCompiler.HINT_SHIP_STRATEGY_REPARTITION_HASH.equals(shipStrategy)) {
-				this.input1.setShipStrategy(ShipStrategyType.PARTITION_HASH);
+				preSet1 = ShipStrategyType.PARTITION_HASH;
 			} else if (PactCompiler.HINT_SHIP_STRATEGY_REPARTITION_RANGE.equals(shipStrategy)) {
-				this.input1.setShipStrategy(ShipStrategyType.PARTITION_RANGE);
+				preSet1 = ShipStrategyType.PARTITION_RANGE;
 			} else if (shipStrategy.equalsIgnoreCase(PactCompiler.HINT_SHIP_STRATEGY_REPARTITION)) {
-				this.input1.setShipStrategy(ShipStrategyType.PARTITION_RANDOM);
+				preSet1 = ShipStrategyType.PARTITION_RANDOM;
 			} else {
 				throw new CompilerException("Unknown hint for shipping strategy of input one: " + shipStrategy);
 			}
@@ -242,19 +215,61 @@ public abstract class TwoInputNode extends OptimizerNode
 		shipStrategy = conf.getString(PactCompiler.HINT_SHIP_STRATEGY_SECOND_INPUT, null);
 		if (shipStrategy != null) {
 			if (PactCompiler.HINT_SHIP_STRATEGY_FORWARD.equals(shipStrategy)) {
-				this.input2.setShipStrategy(ShipStrategyType.FORWARD);
+				preSet1 = ShipStrategyType.FORWARD;
 			} else if (PactCompiler.HINT_SHIP_STRATEGY_BROADCAST.equals(shipStrategy)) {
-				this.input2.setShipStrategy(ShipStrategyType.BROADCAST);
+				preSet1 = ShipStrategyType.BROADCAST;
 			} else if (PactCompiler.HINT_SHIP_STRATEGY_REPARTITION_HASH.equals(shipStrategy)) {
-				this.input2.setShipStrategy(ShipStrategyType.PARTITION_HASH);
+				preSet1 = ShipStrategyType.PARTITION_HASH;
 			} else if (PactCompiler.HINT_SHIP_STRATEGY_REPARTITION_RANGE.equals(shipStrategy)) {
-				this.input2.setShipStrategy(ShipStrategyType.PARTITION_RANGE);
+				preSet1 = ShipStrategyType.PARTITION_RANGE;
 			} else if (shipStrategy.equalsIgnoreCase(PactCompiler.HINT_SHIP_STRATEGY_REPARTITION)) {
-				this.input2.setShipStrategy(ShipStrategyType.PARTITION_RANDOM);
+				preSet1 = ShipStrategyType.PARTITION_RANDOM;
 			} else {
 				throw new CompilerException("Unknown hint for shipping strategy of input two: " + shipStrategy);
 			}
 		}
+		
+		// get the predecessors
+		DualInputContract<?> contr = (DualInputContract<?>) getPactContract();
+		
+		List<Contract> leftPreds = contr.getFirstInputs();
+		List<Contract> rightPreds = contr.getSecondInputs();
+		
+		OptimizerNode pred1;
+		PactConnection conn1;
+		if (leftPreds.size() == 1) {
+			pred1 = contractToNode.get(leftPreds.get(0));
+			conn1 = new PactConnection(pred1, this);
+			if (preSet1 != null) {
+				conn1.setShipStrategy(preSet1);
+			}
+		} else {
+			pred1 = createdUnionCascade(leftPreds, contractToNode, preSet1);
+			conn1 = new PactConnection(pred1, this);
+			conn1.setShipStrategy(ShipStrategyType.FORWARD);
+		}
+		// create the connection and add it
+		this.input1 = conn1;
+		pred1.addOutgoingConnection(conn1);
+		
+		OptimizerNode pred2;
+		PactConnection conn2;
+		if (rightPreds.size() == 1) {
+			pred2 = contractToNode.get(rightPreds.get(0));
+			conn2 = new PactConnection(pred2, this);
+			if (preSet2 != null) {
+				conn2.setShipStrategy(preSet2);
+			}
+		} else {
+			pred2 = createdUnionCascade(rightPreds, contractToNode, preSet1);
+			conn2 = new PactConnection(pred2, this);
+			conn2.setShipStrategy(ShipStrategyType.FORWARD);
+		}
+		// create the connection and add it
+		this.input2 = conn2;
+		pred2.addOutgoingConnection(conn2);
+
+
 	}
 	
 	protected abstract List<OperatorDescriptorDual> getPossibleProperties();
@@ -340,7 +355,7 @@ public abstract class TwoInputNode extends OptimizerNode
 			allLocalPairs = (LocalPropertiesPair[]) pairsLoc.toArray(new LocalPropertiesPair[pairsLoc.size()]);
 		}
 		
-		final List<PlanNode> outputPlans = new ArrayList<PlanNode>();
+		final ArrayList<PlanNode> outputPlans = new ArrayList<PlanNode>();
 		
 		final int dop = getDegreeOfParallelism();
 		final int subPerInstance = getSubtasksPerInstance();
@@ -470,6 +485,7 @@ public abstract class TwoInputNode extends OptimizerNode
 			estimator.costOperator(node);
 		}
 		prunePlanAlternatives(outputPlans);
+		outputPlans.trimToSize();
 
 		this.cachedPlans = outputPlans;
 		return outputPlans;
@@ -477,7 +493,7 @@ public abstract class TwoInputNode extends OptimizerNode
 	
 	private void addLocalCandidates(Channel template1, Channel template2, List<PlanNode> target, LocalPropertiesPair[] validLocalCombinations) {
 		final LocalProperties lp1 = template1.getLocalPropertiesAfterShippingOnly();
-		final LocalProperties lp2 = template1.getLocalPropertiesAfterShippingOnly();
+		final LocalProperties lp2 = template2.getLocalPropertiesAfterShippingOnly();
 		
 		for (RequestedLocalProperties ilp1 : this.input1.getInterestingProperties().getLocalProperties()) {
 			final Channel in1 = template1.clone();
@@ -520,11 +536,72 @@ public abstract class TwoInputNode extends OptimizerNode
 	}
 	
 	private DualInputPlanNode instantiate(OperatorDescriptorDual operator, Channel in1, Channel in2) {
+		
+		// before we instantiate, check for deadlocks by tracing back to the open branches and checking
+		// whether either no input, or all of them have a dam
+		if (this.hereJoinedBranchers != null && this.hereJoinedBranchers.size() > 0) {
+			boolean someDamOnLeftPaths = false;
+			boolean damOnAllLeftPaths = true;
+			boolean someDamOnRightPaths = false;
+			boolean damOnAllRightPaths = true;
+			
+			if (operator.getStrategy().firstDam() == DamBehavior.FULL_DAM || in1.getLocalStrategy().dams()) {
+				someDamOnLeftPaths = true;
+			} else {
+				for (OptimizerNode brancher : this.hereJoinedBranchers) {
+					PlanNode candAtBrancher = in1.getSource().getCandidateAtBranchPoint(brancher);
+					int res = in1.getSource().hasDamOnPathDownTo(candAtBrancher);
+					if (res == 0) {
+						throw new CompilerException("Bug: Tracing dams for deadlock detection is broken.");
+					} else if (res == PlanNode.FOUND_SOURCE) {
+						damOnAllLeftPaths = false;
+					} else if (res == PlanNode.FOUND_SOURCE_AND_DAM) {
+						someDamOnLeftPaths = true;
+					} else {
+						throw new CompilerException();
+					}
+				}
+			}
+			
+			if (operator.getStrategy().secondDam() == DamBehavior.FULL_DAM || in2.getLocalStrategy().dams()) {
+				someDamOnRightPaths = true;
+			} else {
+				for (OptimizerNode brancher : this.hereJoinedBranchers) {
+					PlanNode candAtBrancher = in2.getSource().getCandidateAtBranchPoint(brancher);
+					int res = in2.getSource().hasDamOnPathDownTo(candAtBrancher);
+					if (res == 0) {
+						throw new CompilerException("Bug: Tracing dams for deadlock detection is broken.");
+					} else if (res == PlanNode.FOUND_SOURCE) {
+						damOnAllRightPaths = false;
+					} else if (res == PlanNode.FOUND_SOURCE_AND_DAM) {
+						someDamOnRightPaths = true;
+					} else {
+						throw new CompilerException();
+					}
+				}
+			}
+			
+			// okay combinations are both all dam or both no dam
+			if ( (damOnAllLeftPaths & damOnAllRightPaths) | (!someDamOnLeftPaths & !someDamOnRightPaths) ) {
+				// good, either both materialize already on the way, or both fully pipeline
+			} else {
+				if (someDamOnLeftPaths & !damOnAllRightPaths) {
+					// right needs a pipeline breaker
+					in2.setTempMode(TempMode.MATERIALIZE);
+				}
+				
+				if (someDamOnRightPaths & !damOnAllLeftPaths) {
+					// right needs a pipeline breaker
+					in1.setTempMode(TempMode.MATERIALIZE);
+				}
+			}
+		}
+		
 		DualInputPlanNode node = operator.instantiate(in1, in2, this);
 		
 		GlobalProperties gp1 = in1.getGlobalProperties().clone().filterByNodesConstantSet(this, 0);
 		GlobalProperties gp2 = in2.getGlobalProperties().clone().filterByNodesConstantSet(this, 1);
-		GlobalProperties combined = GlobalProperties.combine(gp1, gp2);
+		GlobalProperties combined = operator.computeGlobalProperties(gp1, gp2);
 
 		LocalProperties lp1 = in1.getLocalProperties().clone().filterByNodesConstantSet(this, 0);
 		LocalProperties lp2 = in2.getLocalProperties().clone().filterByNodesConstantSet(this, 1);
@@ -556,16 +633,8 @@ public abstract class TwoInputNode extends OptimizerNode
 			return;
 		}
 
-//		addClosedBranches(this.getFirstPredecessorNode().closedBranchingNodes);
-//		addClosedBranches(this.getSecondPredecessorNode().closedBranchingNodes);
-		
-//		List<UnclosedBranchDescriptor> result1 = new ArrayList<UnclosedBranchDescriptor>();
-//		// TODO: check if merge is really necessary
-//		result1 = mergeLists(result1, this.getFirstPredecessorNode().getBranchesForParent(this));
-//		
-//		List<UnclosedBranchDescriptor> result2 = new ArrayList<UnclosedBranchDescriptor>();
-//		// TODO: check if merge is really necessary
-//		result2 = mergeLists(result2, this.getSecondPredecessorNode().getBranchesForParent(this));
+		addClosedBranches(getFirstPredecessorNode().closedBranchingNodes);
+		addClosedBranches(getSecondPredecessorNode().closedBranchingNodes);
 		
 		List<UnclosedBranchDescriptor> result1 = getFirstPredecessorNode().getBranchesForParent(getFirstIncomingConnection());
 		List<UnclosedBranchDescriptor> result2 = getSecondPredecessorNode().getBranchesForParent(getSecondIncomingConnection());

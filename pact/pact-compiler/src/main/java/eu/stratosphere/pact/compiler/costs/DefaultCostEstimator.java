@@ -167,4 +167,22 @@ public class DefaultCostEstimator extends CostEstimator
 			costs.addHeuristicDiskCost(HEURISTIC_COST_BASE * 1000);
 		}
 	}
+
+	// --------------------------------------------------------------------------------------------
+	// Damming Cost
+	// --------------------------------------------------------------------------------------------
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.costs.CostEstimator#addArtificialDamCost(eu.stratosphere.pact.compiler.plan.EstimateProvider, long, eu.stratosphere.pact.compiler.costs.Costs)
+	 */
+	@Override
+	public void addArtificialDamCost(EstimateProvider estimates, long bufferSize, Costs costs) {
+		final long s = estimates.getEstimatedOutputSize();
+		// we assume spilling and re-reading
+		if (s <= 0) {
+			costs.addHeuristicDiskCost(2 * HEURISTIC_COST_BASE);
+		} else {
+			costs.addSecondaryStorageCost(2 * s);
+		}
+	}
 }

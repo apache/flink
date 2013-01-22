@@ -15,27 +15,17 @@
 
 package eu.stratosphere.pact.compiler;
 
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-
-import junit.framework.Assert;
-
-import org.junit.Before;
 import org.junit.Test;
 
-import eu.stratosphere.nephele.instance.HardwareDescription;
-import eu.stratosphere.nephele.instance.HardwareDescriptionFactory;
-import eu.stratosphere.nephele.instance.InstanceType;
-import eu.stratosphere.nephele.instance.InstanceTypeDescription;
-import eu.stratosphere.nephele.instance.InstanceTypeDescriptionFactory;
-import eu.stratosphere.nephele.instance.InstanceTypeFactory;
 import eu.stratosphere.pact.common.contract.CrossContract;
+import eu.stratosphere.pact.common.contract.FileDataSink;
+import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.compiler.jobgen.JobGraphGenerator;
+import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
 import eu.stratosphere.pact.compiler.util.DummyCrossStub;
 import eu.stratosphere.pact.compiler.util.DummyInputFormat;
 import eu.stratosphere.pact.compiler.util.DummyOutputFormat;
@@ -48,47 +38,9 @@ import eu.stratosphere.pact.compiler.util.IdentityReduce;
  *   <li> Ticket 158
  * </ul>
  */
-public class HardPlansCompilationTest
+public class HardPlansCompilationTest extends CompilerTestBase
 {
-	private static final String IN_FILE_1 = "file:///test/file";
 	
-	private static final String OUT_FILE_1 = "file///test/output";
-	
-	private static final int defaultParallelism = 8;
-	
-	// ------------------------------------------------------------------------
-	
-	private PactCompiler compiler;
-	
-	private InstanceTypeDescription instanceType;
-	
-	// ------------------------------------------------------------------------	
-	
-	@Before
-	public void setup()
-	{
-		try {
-			InetSocketAddress dummyAddress = new InetSocketAddress(InetAddress.getLocalHost(), 12345);
-			
-			// prepare the statistics
-			DataStatistics dataStats = new DataStatistics();
-			dataStats.cacheBaseStatistics(new TextInputFormat.FileBaseStatistics(1000, 128 * 1024 * 1024, 8.0f),
-				FileDataSourceContract.getInputIdentifier(DummyInputFormat.class, IN_FILE_1));
-			
-			this.compiler = new PactCompiler(dataStats, new FixedSizeClusterCostEstimator(), dummyAddress);
-		}
-		catch (Exception ex) {
-			ex.printStackTrace();
-			Assert.fail("Test setup failed.");
-		}
-		
-		// create the instance type description
-		InstanceType iType = InstanceTypeFactory.construct("standard", 6, 2, 4096, 100, 0);
-		HardwareDescription hDesc = HardwareDescriptionFactory.construct(2, 4096 * 1024 * 1024, 2000 * 1024 * 1024);
-		this.instanceType = InstanceTypeDescriptionFactory.construct(iType, hDesc, defaultParallelism * 2);
-	}
-
-	@Test
 	/**
 	 * Source -> Map -> Reduce -> Cross -> Reduce -> Cross -> Reduce ->
      * |--------------------------/                  /
@@ -96,46 +48,31 @@ public class HardPlansCompilationTest
      * 
      * First cross has SameKeyFirst output contract
 	 */
+	@Test
 	public void testTicket158()
 	{
 		// construct the plan
-		FileDataSourceContract<PactInteger, PactInteger> source = new FileDataSourceContract<PactInteger, PactInteger>(DummyInputFormat.class, IN_FILE_1, "Source");
-		source.setDegreeOfParallelism(defaultParallelism);
+		FileDataSource source = new FileDataSource(DummyInputFormat.class, IN_FILE_1, "Source");
 		
-		MapContract<PactInteger, PactInteger, PactInteger, PactInteger> map = new MapContract<PactInteger, PactInteger, PactInteger, PactInteger>(IdentityMap.class, "Map1");
-		map.setDegreeOfParallelism(defaultParallelism);
-		map.setInput(source);
+		MapContract map = MapContract.builder(IdentityMap.class).name("Map1").input(source).build();
 		
-		ReduceContract<PactInteger, PactInteger, PactInteger, PactInteger> reduce1 = new ReduceContract<PactInteger, PactInteger, PactInteger, PactInteger>(IdentityReduce.class, "Reduce1");
-		reduce1.setDegreeOfParallelism(defaultParallelism);
-		reduce1.setInput(map);
+		ReduceContract reduce1 = ReduceContract.builder(IdentityReduce.class, PactInteger.class, 0).name("Reduce1").input(map).build();
 		
-		CrossContract<PactInteger, PactInteger, PactInteger, PactInteger, PactInteger, PactInteger> cross1 = new CrossContract<PactInteger, PactInteger, PactInteger, PactInteger, PactInteger, PactInteger>(DummyCrossStub.class, "Cross1");
-		cross1.setDegreeOfParallelism(defaultParallelism);
-		cross1.setFirstInput(reduce1);
-		cross1.setSecondInput(source);
-		cross1.setOutputContract(SameKeyFirst.class);
+		CrossContract cross1 = CrossContract.builder(DummyCrossStub.class).name("Cross1").input1(reduce1).input2(source).build();
 		
-		ReduceContract<PactInteger, PactInteger, PactInteger, PactInteger> reduce2 = new ReduceContract<PactInteger, PactInteger, PactInteger, PactInteger>(IdentityReduce.class, "Reduce2");
-		reduce2.setDegreeOfParallelism(defaultParallelism);
-		reduce2.setInput(cross1);
+		ReduceContract reduce2 = ReduceContract.builder(IdentityReduce.class, PactInteger.class, 0).name("Reduce2").input(cross1).build();
 		
-		CrossContract<PactInteger, PactInteger, PactInteger, PactInteger, PactInteger, PactInteger> cross2 = new CrossContract<PactInteger, PactInteger, PactInteger, PactInteger, PactInteger, PactInteger>(DummyCrossStub.class, "Cross2");
-		cross2.setDegreeOfParallelism(defaultParallelism);
-		cross2.setFirstInput(reduce2);
-		cross2.setSecondInput(source);
+		CrossContract cross2 = CrossContract.builder(DummyCrossStub.class).name("Cross2").input1(reduce2).input2(source).build();
 		
-		ReduceContract<PactInteger, PactInteger, PactInteger, PactInteger> reduce3 = new ReduceContract<PactInteger, PactInteger, PactInteger, PactInteger>(IdentityReduce.class, "Reduce3");
-		reduce3.setDegreeOfParallelism(defaultParallelism);
-		reduce3.setInput(cross2);
+		ReduceContract reduce3 = ReduceContract.builder(IdentityReduce.class, PactInteger.class, 0).name("Reduce3").input(cross2).build();
 		
-		FileDataSinkContract<PactInteger, PactInteger> sink = new FileDataSinkContract<PactInteger, PactInteger>(DummyOutputFormat.class, OUT_FILE_1, "Sink");
-		sink.setDegreeOfParallelism(defaultParallelism);
+		FileDataSink sink = new FileDataSink(DummyOutputFormat.class, OUT_FILE_1, "Sink");
 		sink.setInput(reduce3);
 		
 		Plan plan = new Plan(sink, "Test Temp Task");
+		plan.setDefaultParallelism(defaultParallelism);
 		
-		OptimizedPlan oPlan = this.compiler.compile(plan, this.instanceType);
+		OptimizedPlan oPlan = compile(plan);
 		JobGraphGenerator jobGen = new JobGraphGenerator();
 		jobGen.compileJobGraph(oPlan);
 	}

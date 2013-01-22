@@ -74,7 +74,9 @@ public abstract class SingleInputNode extends OptimizerNode
 	 */
 	public SingleInputNode(SingleInputContract<?> pactContract) {
 		super(pactContract);
-		this.keys = new FieldSet(pactContract.getKeyColumns(0));
+		
+		int[] k = pactContract.getKeyColumns(0);
+		this.keys = k == null || k.length == 0 ? null : new FieldSet(k);
 		
 		this.possibleProperties = getPossibleProperties();
 	}
@@ -155,42 +157,46 @@ public abstract class SingleInputNode extends OptimizerNode
 	 */
 	@Override
 	public void setInputs(Map<Contract, OptimizerNode> contractToNode) throws CompilerException {
+		// see if an internal hint dictates the strategy to use
+		final Configuration conf = getPactContract().getParameters();
+		final String shipStrategy = conf.getString(PactCompiler.HINT_SHIP_STRATEGY, null);
+		final ShipStrategyType preSet;
+		
+		if (shipStrategy != null) {
+			if (shipStrategy.equalsIgnoreCase(PactCompiler.HINT_SHIP_STRATEGY_REPARTITION_HASH)) {
+				preSet = ShipStrategyType.PARTITION_HASH;
+			} else if (shipStrategy.equalsIgnoreCase(PactCompiler.HINT_SHIP_STRATEGY_REPARTITION_RANGE)) {
+				preSet = ShipStrategyType.PARTITION_RANGE;
+			} else if (shipStrategy.equalsIgnoreCase(PactCompiler.HINT_SHIP_STRATEGY_FORWARD)) {
+				preSet = ShipStrategyType.FORWARD;
+			} else if (shipStrategy.equalsIgnoreCase(PactCompiler.HINT_SHIP_STRATEGY_REPARTITION)) {
+				preSet = ShipStrategyType.PARTITION_RANDOM;
+			} else {
+				throw new CompilerException("Unrecognized ship strategy hint: " + shipStrategy);
+			}
+		} else {
+			preSet = null;
+		}
+		
 		// get the predecessor node
 		List<Contract> children = ((SingleInputContract<?>) getPactContract()).getInputs();
 		
 		OptimizerNode pred;
+		PactConnection conn;
 		if (children.size() == 1) {
 			pred = contractToNode.get(children.get(0));
+			conn = new PactConnection(pred, this);
+			if (preSet != null) {
+				conn.setShipStrategy(preSet);
+			}
 		} else {
-			pred = new UnionNode(null, children, contractToNode);
-			pred.setDegreeOfParallelism(getDegreeOfParallelism());
-			//push id down to newly created union node
-			pred.SetId(this.id);
-			pred.setSubtasksPerInstance(getSubtasksPerInstance());
-			this.id++;
+			pred = createdUnionCascade(children, contractToNode, preSet);
+			conn = new PactConnection(pred, this);
+			conn.setShipStrategy(ShipStrategyType.FORWARD);
 		}
 		// create the connection and add it
-		PactConnection conn = new PactConnection(pred, this);
 		setIncomingConnection(conn);
 		pred.addOutgoingConnection(conn);
-		
-		// see if an internal hint dictates the strategy to use
-		Configuration conf = getPactContract().getParameters();
-		
-		String shipStrategy = conf.getString(PactCompiler.HINT_SHIP_STRATEGY, null);
-		if (shipStrategy != null) {
-			if (shipStrategy.equalsIgnoreCase(PactCompiler.HINT_SHIP_STRATEGY_REPARTITION_HASH)) {
-				conn.setShipStrategy(ShipStrategyType.PARTITION_HASH);
-			} else if (shipStrategy.equalsIgnoreCase(PactCompiler.HINT_SHIP_STRATEGY_REPARTITION_RANGE)) {
-				conn.setShipStrategy(ShipStrategyType.PARTITION_RANGE);
-			} else if (shipStrategy.equalsIgnoreCase(PactCompiler.HINT_SHIP_STRATEGY_FORWARD)) {
-				conn.setShipStrategy(ShipStrategyType.FORWARD);
-			} else if (shipStrategy.equalsIgnoreCase(PactCompiler.HINT_SHIP_STRATEGY_REPARTITION)) {
-				conn.setShipStrategy(ShipStrategyType.PARTITION_RANDOM);
-			} else {
-				throw new CompilerException("Unrecognized ship strategy hint: " + shipStrategy);
-			}
-		}
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -261,7 +267,7 @@ public abstract class SingleInputNode extends OptimizerNode
 			}
 			allValidGlobals = (RequestedGlobalProperties[]) pairs.toArray(new RequestedGlobalProperties[pairs.size()]);
 		}
-		final List<PlanNode> outputPlans = new ArrayList<PlanNode>();
+		final ArrayList<PlanNode> outputPlans = new ArrayList<PlanNode>();
 		
 		final int dop = getDegreeOfParallelism();
 		final int subPerInstance = getSubtasksPerInstance();
@@ -332,6 +338,7 @@ public abstract class SingleInputNode extends OptimizerNode
 			estimator.costOperator(node);
 		}
 		prunePlanAlternatives(outputPlans);
+		outputPlans.trimToSize();
 
 		this.cachedPlans = outputPlans;
 		return outputPlans;
@@ -381,7 +388,7 @@ public abstract class SingleInputNode extends OptimizerNode
 			return;
 		}
 
-//		addClosedBranches(getPredecessorNode().closedBranchingNodes);
+		addClosedBranches(getPredecessorNode().closedBranchingNodes);
 		this.openBranches = getPredecessorNode().getBranchesForParent(this.inConn);
 	}
 	
