@@ -28,7 +28,6 @@ import eu.stratosphere.pact.common.contract.CrossContract;
 import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.pact.common.io.DelimitedInputFormat;
 import eu.stratosphere.pact.common.io.DelimitedOutputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
@@ -386,7 +385,7 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 	 */
 	@ConstantFields(fields={1})
 	@OutCardBounds(lowerBound=1, upperBound=1)
-	@Combinable
+	@ReduceContract.Combinable
 	public static class FindNearestCenter extends ReduceStub
 	{
 		private final PactInteger centerId = new PactInteger();
@@ -480,7 +479,7 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 	
 	@ConstantFields(fields={0})
 	@OutCardBounds(lowerBound=1, upperBound=1)
-	@Combinable
+	@ReduceContract.Combinable
 	public static class RecomputeClusterCenter extends ReduceStub
 	{
 		private final PactInteger count = new PactInteger();

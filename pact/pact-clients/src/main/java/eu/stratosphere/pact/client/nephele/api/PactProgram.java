@@ -39,15 +39,13 @@ import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
 import eu.stratosphere.pact.compiler.PactCompiler;
-import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
+import eu.stratosphere.pact.compiler.plan.DataSinkNode;
 import eu.stratosphere.pact.contextcheck.ContextChecker;
 
 /**
  * This class encapsulates most of the plan related functions. Based on the given jar file,
  * pact assembler class and arguments it can create the plans necessary for execution, or
  * also provide a description of the plan if available.
- * 
- * @author Moritz Kaufmann
  */
 public class PactProgram {
 
@@ -80,8 +78,7 @@ public class PactProgram {
 	 *         This invocation is thrown if the PlanAssembler can't be properly loaded. Causes
 	 *         may be a missing / wrong class or manifest files.
 	 */
-	public PactProgram(File jarFile, String... args) throws ProgramInvocationException
-	{
+	public PactProgram(File jarFile, String... args) throws ProgramInvocationException {
 		this.jarFile = jarFile;
 		this.args = args == null ? new String[0] : args;
 		this.assemblerClass = getPactAssemblerFromJar(jarFile);
@@ -104,8 +101,7 @@ public class PactProgram {
 	 *         This invocation is thrown if the PlanAssembler can't be properly loaded. Causes
 	 *         may be a missing / wrong class or manifest files.
 	 */
-	public PactProgram(File jarFile, String className, String... args) throws ProgramInvocationException
-	{
+	public PactProgram(File jarFile, String className, String... args) throws ProgramInvocationException {
 		this.jarFile = jarFile;
 		this.args = args == null ? new String[0] : args;
 		this.assemblerClass = getPactAssemblerFromJar(jarFile, className);
@@ -155,7 +151,7 @@ public class PactProgram {
 	 *         Thrown if an error occurred in the user-provided pact assembler. This may indicate
 	 *         missing parameters for generation.
 	 */
-	public OptimizedPlan getPreviewPlan() throws ProgramInvocationException, ErrorInPlanAssemblerException {
+	public List<DataSinkNode> getPreviewPlan() throws ProgramInvocationException, ErrorInPlanAssemblerException {
 		Plan plan = getPlan();
 		if (plan != null) {
 			return PactCompiler.createPreOptimizedPlan(plan);
@@ -230,9 +226,7 @@ public class PactProgram {
 	 * @return The file names of the extracted temporary files.
 	 * @throws IOException Thrown, if the extraction process failed.
 	 */
-	public File[] extractContainedLibaries()
-	throws IOException
-	{
+	public File[] extractContainedLibaries() throws IOException {
 		if (this.extractedTempLibraries != null) {
 			return this.extractedTempLibraries;
 			
@@ -306,8 +300,7 @@ public class PactProgram {
 	/**
 	 * Deletes all temporary files created for contained packaged libraries.
 	 */
-	public void deleteExtractedLibraries()
-	{
+	public void deleteExtractedLibraries() {
 		if (this.extractedTempLibraries != null) {
 			for (int i = 0; i < this.extractedTempLibraries.length; i++) {
 				this.extractedTempLibraries[i].delete();
@@ -336,7 +329,8 @@ public class PactProgram {
 	 *         Thrown, if an error occurred in the user-provided pact assembler.
 	 */
 	protected Plan createPlanFromJar(Class<? extends PlanAssembler> clazz, String[] options)
-			throws ProgramInvocationException, ErrorInPlanAssemblerException {
+			throws ProgramInvocationException, ErrorInPlanAssemblerException
+	{
 		PlanAssembler assembler = createAssemblerFromJar(clazz);
 
 		// run the user-provided assembler class
@@ -381,7 +375,8 @@ public class PactProgram {
 	}
 
 	private Class<? extends PlanAssembler> getPactAssemblerFromJar(File jarFile)
-			throws ProgramInvocationException {
+			throws ProgramInvocationException
+	{
 		JarFile jar = null;
 		Manifest manifest = null;
 		String className = null;

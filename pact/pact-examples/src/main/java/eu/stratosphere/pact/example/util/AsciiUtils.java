@@ -24,7 +24,7 @@ import eu.stratosphere.pact.common.util.MutableObjectIterator;
  * efficient, because they use a very simple encoding logic and operate on mutable objects, sparing object allocation
  * and garbage collection overhead. 
  */
-public class AsciiUtils
+public final class AsciiUtils
 {
 	/**
 	 * Converts the given <code>PactString</code> into a lower case variant.

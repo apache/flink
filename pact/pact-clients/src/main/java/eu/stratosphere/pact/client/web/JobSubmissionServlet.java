@@ -41,11 +41,11 @@ import eu.stratosphere.pact.client.nephele.api.ErrorInPlanAssemblerException;
 import eu.stratosphere.pact.client.nephele.api.PactProgram;
 import eu.stratosphere.pact.client.nephele.api.ProgramInvocationException;
 import eu.stratosphere.pact.compiler.CompilerException;
-import eu.stratosphere.pact.compiler.jobgen.JSONGenerator;
-import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
+import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
+import eu.stratosphere.pact.compiler.plandump.PlanJSONDumpGenerator;
 
 /**
- * @author Stephan Ewen (stephan.ewen@tu-berlin.com)
+ * 
  */
 public class JobSubmissionServlet extends HttpServlet {
 	/**
@@ -212,18 +212,18 @@ public class JobSubmissionServlet extends HttpServlet {
 				// create a UID for the job
 				Long uid = null;
 				do {
-					uid = Math.abs(rand.nextLong());
-				} while (submittedJobs.containsKey(uid));
+					uid = Math.abs(this.rand.nextLong());
+				} while (this.submittedJobs.containsKey(uid));
 
 				// dump the job to a JSON file
 				String planName = uid + ".json";
-				File jsonFile = new File(planDumpDirectory, planName);
-				new JSONGenerator().writeJSONFile(optPlan, jsonFile);
+				File jsonFile = new File(this.planDumpDirectory, planName);
+				new PlanJSONDumpGenerator().dumpOptimizerPlanAsJSON(optPlan, jsonFile);
 
 				// submit the job only, if it should not be suspended
 				if (!suspend) {
 					try {
-						client.run(pactProgram, optPlan);
+						this.client.run(pactProgram, optPlan);
 					} catch (Throwable t) {
 						LOG.error("Error submitting job to the job-manager.", t);
 						showErrorPage(resp, t.getMessage());
@@ -231,8 +231,8 @@ public class JobSubmissionServlet extends HttpServlet {
 					}
 				} else {
 					try {
-						submittedJobs.put(uid, 
-							new ProgramJobGraphPair(pactProgram, client.getJobGraph(pactProgram, optPlan)));
+						this.submittedJobs.put(uid, 
+							new ProgramJobGraphPair(pactProgram, this.client.getJobGraph(pactProgram, optPlan)));
 					}
 					catch (ProgramInvocationException piex) {
 						LOG.error("Error creating JobGraph from optimized plan.", piex);

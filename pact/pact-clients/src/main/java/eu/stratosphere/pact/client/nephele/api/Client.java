@@ -17,6 +17,8 @@ package eu.stratosphere.pact.client.nephele.api;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.net.InetSocketAddress;
 
 import eu.stratosphere.nephele.client.JobClient;
@@ -31,10 +33,10 @@ import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.PactCompiler;
-import eu.stratosphere.pact.compiler.costs.FixedSizeClusterCostEstimator;
-import eu.stratosphere.pact.compiler.jobgen.JSONGenerator;
+import eu.stratosphere.pact.compiler.costs.DefaultCostEstimator;
 import eu.stratosphere.pact.compiler.jobgen.JobGraphGenerator;
-import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
+import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
+import eu.stratosphere.pact.compiler.plandump.PlanJSONDumpGenerator;
 
 /**
  * Encapsulates the functionality necessary to compile and submit a pact program to a nephele cluster.
@@ -63,7 +65,7 @@ public class Client {
 		nepheleConfig.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, jobManagerAddress.getAddress().getHostAddress());
 		nepheleConfig.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerAddress.getPort());
 		
-		this.compiler = new PactCompiler(new DataStatistics(), new FixedSizeClusterCostEstimator(), jobManagerAddress);
+		this.compiler = new PactCompiler(new DataStatistics(), new DefaultCostEstimator(), jobManagerAddress);
 	}
 
 	/**
@@ -87,7 +89,7 @@ public class Client {
 		}
 
 		final InetSocketAddress jobManagerAddress = new InetSocketAddress(address, port);
-		this.compiler = new PactCompiler(new DataStatistics(), new FixedSizeClusterCostEstimator(), jobManagerAddress);
+		this.compiler = new PactCompiler(new DataStatistics(), new DefaultCostEstimator(), jobManagerAddress);
 	}
 
 	
@@ -106,7 +108,7 @@ public class Client {
 	 */
 	public OptimizedPlan getOptimizedPlan(PactProgram prog) throws CompilerException, ProgramInvocationException, ErrorInPlanAssemblerException {
 		prog.checkPlan();
-		return compiler.compile(prog.getPlan());
+		return this.compiler.compile(prog.getPlan());
 	}
 	
 	/**
@@ -118,10 +120,67 @@ public class Client {
 	 * @throws ProgramInvocationException Thrown, if the pact program could not be instantiated from its jar file.
 	 * @throws ErrorInPlanAssemblerException Thrown, if the plan assembler function causes an exception.
 	 */
-	public String getJSONPlan(PactProgram prog) throws CompilerException, ProgramInvocationException, ErrorInPlanAssemblerException {
-		JSONGenerator jsonGen = new JSONGenerator();
-		return jsonGen.compilePlanToJSON(this.getOptimizedPlan(prog));
+	public static String getPreviewAsJSON(PactProgram prog) throws CompilerException, ProgramInvocationException, ErrorInPlanAssemblerException {
+		StringWriter string = new StringWriter(1024);
+		PrintWriter pw = null;
+		try {
+			pw = new PrintWriter(string);
+			dumpPreviewAsJSON(prog, pw);
+		} finally {
+			pw.close();
+		}
+		return string.toString();
 	}
+	
+	/**
+	 * Optimizes a given PACT program and returns the optimized plan as JSON string.
+	 * 
+	 * @param prog The PACT program to be compiled to JSON.
+	 * @return A JSON string representation of the optimized input plan.
+	 * @throws CompilerException Thrown, if the compiler encounters an illegal situation.
+	 * @throws ProgramInvocationException Thrown, if the pact program could not be instantiated from its jar file.
+	 * @throws ErrorInPlanAssemblerException Thrown, if the plan assembler function causes an exception.
+	 */
+	public static void dumpPreviewAsJSON(PactProgram prog, PrintWriter out) throws CompilerException, ProgramInvocationException, ErrorInPlanAssemblerException {
+		PlanJSONDumpGenerator jsonGen = new PlanJSONDumpGenerator();
+		jsonGen.dumpPactPlanAsJSON(prog.getPreviewPlan(), out);
+	}
+	
+	/**
+	 * Optimizes a given PACT program and returns the optimized plan as JSON string.
+	 * 
+	 * @param prog The PACT program to be compiled to JSON.
+	 * @return A JSON string representation of the optimized input plan.
+	 * @throws CompilerException Thrown, if the compiler encounters an illegal situation.
+	 * @throws ProgramInvocationException Thrown, if the pact program could not be instantiated from its jar file.
+	 * @throws ErrorInPlanAssemblerException Thrown, if the plan assembler function causes an exception.
+	 */
+	public String getOptimizerPlanAsJSON(PactProgram prog) throws CompilerException, ProgramInvocationException, ErrorInPlanAssemblerException {
+		StringWriter string = new StringWriter(1024);
+		PrintWriter pw = null;
+		try {
+			pw = new PrintWriter(string);
+			dumpOptimizerPlanAsJSON(prog, pw);
+		} finally {
+			pw.close();
+		}
+		return string.toString();
+	}
+	
+	/**
+	 * Optimizes a given PACT program and returns the optimized plan as JSON string.
+	 * 
+	 * @param prog The PACT program to be compiled to JSON.
+	 * @return A JSON string representation of the optimized input plan.
+	 * @throws CompilerException Thrown, if the compiler encounters an illegal situation.
+	 * @throws ProgramInvocationException Thrown, if the pact program could not be instantiated from its jar file.
+	 * @throws ErrorInPlanAssemblerException Thrown, if the plan assembler function causes an exception.
+	 */
+	public void dumpOptimizerPlanAsJSON(PactProgram prog, PrintWriter out) throws CompilerException, ProgramInvocationException, ErrorInPlanAssemblerException {
+		PlanJSONDumpGenerator jsonGen = new PlanJSONDumpGenerator();
+		jsonGen.dumpOptimizerPlanAsJSON(getOptimizedPlan(prog), out);
+	}
+	
 	
 	/**
 	 * Creates the job-graph, which is ready for submission, from a compiled and optimized pact program.

@@ -21,7 +21,6 @@ import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.pact.common.io.RecordOutputFormat;
 import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
@@ -51,8 +50,7 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription
 	 * The string is tokenized by whitespaces. For each token a new record is emitted,
 	 * where the token is the first field and an Integer(1) is the second field.
 	 */
-	@ConstantFields(fields={})
-	@OutCardBounds(lowerBound=0, upperBound=OutCardBounds.UNBOUNDED)
+	@OutCardBounds(lowerBound=1, upperBound=OutCardBounds.UNBOUNDED)
 	public static class TokenizeLine extends MapStub
 	{
 		// initialize reusable mutable objects
@@ -90,8 +88,7 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription
 	 * in the record. The other fields are not modified.
 	 */
 	@ConstantFields(fields={0})
-	@OutCardBounds(lowerBound=1, upperBound=1)
-	@Combinable
+	@ReduceContract.Combinable
 	public static class CountWords extends ReduceStub
 	{
 		private final PactInteger cnt = new PactInteger();

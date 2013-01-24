@@ -62,7 +62,6 @@ import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobmanager.JobManager;
 import eu.stratosphere.nephele.jobmanager.scheduler.local.LocalScheduler;
 import eu.stratosphere.nephele.util.StringUtils;
-import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.GenericDataSink;
@@ -77,12 +76,13 @@ import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.util.PactConfigConstants;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.PactCompiler;
-import eu.stratosphere.pact.compiler.costs.FixedSizeClusterCostEstimator;
+import eu.stratosphere.pact.compiler.costs.DefaultCostEstimator;
 import eu.stratosphere.pact.compiler.jobgen.JobGraphGenerator;
-import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.PactConnection;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ForwardSS;
+import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
+import eu.stratosphere.pact.generic.contract.Contract;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 
 /**
  * The primary resource to test one or more implemented PACT stubs. It is
@@ -966,10 +966,10 @@ public class TestPlan implements Closeable {
 		// declaredField.setAccessible(true);
 		for (final OptimizerNode node : optimizedPlan.getAllNodes()) {
 			for (final PactConnection pactConnection : node.getIncomingConnections())
-				pactConnection.setShipStrategy(new ForwardSS());
-			for (final PactConnection pactConnection : node.getOutConns())
+				pactConnection.setShipStrategy(ShipStrategyType.FORWARD);
+			for (final PactConnection pactConnection : node.getOutgoingConnections())
 				// declaredField.set(pactConnection, ShipStrategy.FORWARD);
-				pactConnection.setShipStrategy(new ForwardSS());
+				pactConnection.setShipStrategy(ShipStrategyType.FORWARD);
 		}
 	}
 
@@ -1075,7 +1075,7 @@ public class TestPlan implements Closeable {
 		}
 	}
 
-	private static final class CostEstimator extends FixedSizeClusterCostEstimator {
+	private static final class CostEstimator extends DefaultCostEstimator {
 		private CostEstimator() {
 			super();
 		}
