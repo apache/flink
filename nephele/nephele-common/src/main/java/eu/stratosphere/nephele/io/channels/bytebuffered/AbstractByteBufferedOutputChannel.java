@@ -26,6 +26,7 @@ import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.channels.SerializationBuffer;
 import eu.stratosphere.nephele.io.compression.CompressionEvent;
 import eu.stratosphere.nephele.io.compression.CompressionException;
@@ -116,7 +117,7 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 				flush();
 			}
 
-			if (!isBroadcastChannel() || getChannelIndex() == 0) {
+			if (getType() == ChannelType.INMEMORY || !isBroadcastChannel() || getChannelIndex() == 0) {
 				transferEvent(new ByteBufferedChannelCloseEvent());
 				flush();
 			}
