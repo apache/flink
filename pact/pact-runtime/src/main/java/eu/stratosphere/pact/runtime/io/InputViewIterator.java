@@ -42,4 +42,3 @@ public class InputViewIterator<E> implements MutableObjectIterator<E>
 			return false;
 		}
 	}
-}

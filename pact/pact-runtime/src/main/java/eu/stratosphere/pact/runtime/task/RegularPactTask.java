@@ -562,10 +562,12 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 	
 	/**
 	 * Gets the default behavior that readers should use on interrupts.
-	 * 
-	 * @return The default behavior that readers should use on interrupts.
+	 *
+   * @param inputGateIndex
+   *
+   * @return The default behavior that readers should use on interrupts.
 	 */
-	protected ReaderInterruptionBehavior readerInterruptionBehavior() {
+	protected ReaderInterruptionBehavior readerInterruptionBehavior(int inputGateIndex) {
 		return ReaderInterruptionBehaviors.EXCEPTION_ON_INTERRUPT;
 	}
 	/**
@@ -863,19 +865,19 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 					}
 				}
 
-				if (strategy == ShipStrategyType.BROADCAST) {
-					if (task instanceof AbstractTask) {
-						writers.add(new BroadcastRecordWriter<PactRecord>((AbstractTask) task, PactRecord.class));
-					} else if (task instanceof AbstractInputTask<?>) {
-						writers.add(new BroadcastRecordWriter<PactRecord>((AbstractInputTask<?>) task, PactRecord.class));
-					}
-				} else {
+//				if (strategy == ShipStrategyType.BROADCAST) {
+//					if (task instanceof AbstractTask) {
+//						writers.add(new BroadcastRecordWriter<PactRecord>((AbstractTask) task, PactRecord.class));
+//					} else if (task instanceof AbstractInputTask<?>) {
+//						writers.add(new BroadcastRecordWriter<PactRecord>((AbstractInputTask<?>) task, PactRecord.class));
+//					}
+//				} else {
 					if (task instanceof AbstractTask) {
 						writers.add(new RecordWriter<PactRecord>((AbstractTask) task, PactRecord.class, oe));
 					} else if (task instanceof AbstractInputTask<?>) {
 						writers.add(new RecordWriter<PactRecord>((AbstractInputTask<?>) task, PactRecord.class, oe));
 					}
-				}
+//				}
 			}
 			if (eventualOutputs != null) {
 				eventualOutputs.addAll(writers);
@@ -906,19 +908,19 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 					oe = new OutputEmitter<T>(strategy, comparator);
 				}
 
-				if (strategy == ShipStrategyType.BROADCAST) {
-					if (task instanceof AbstractTask) {
-						writers.add(new BroadcastRecordWriter<SerializationDelegate<T>>((AbstractTask) task, delegateClazz));
-					} else if (task instanceof AbstractInputTask<?>) {
-						writers.add(new BroadcastRecordWriter<SerializationDelegate<T>>((AbstractInputTask<?>) task, delegateClazz));
-					}
-				} else {
+//				if (strategy == ShipStrategyType.BROADCAST) {
+//					if (task instanceof AbstractTask) {
+//						writers.add(new BroadcastRecordWriter<SerializationDelegate<T>>((AbstractTask) task, delegateClazz));
+//					} else if (task instanceof AbstractInputTask<?>) {
+//						writers.add(new BroadcastRecordWriter<SerializationDelegate<T>>((AbstractInputTask<?>) task, delegateClazz));
+//					}
+//				} else {
 					if (task instanceof AbstractTask) {
 						writers.add(new RecordWriter<SerializationDelegate<T>>((AbstractTask) task, delegateClazz, oe));
 					} else if (task instanceof AbstractInputTask<?>) {
 						writers.add(new RecordWriter<SerializationDelegate<T>>((AbstractInputTask<?>) task, delegateClazz, oe));
 					}
-				}
+//				}
 			}
 			if (eventualOutputs != null) {
 				eventualOutputs.addAll(writers);

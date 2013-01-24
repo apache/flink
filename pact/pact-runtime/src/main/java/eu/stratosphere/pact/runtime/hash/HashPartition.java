@@ -46,7 +46,7 @@ import eu.stratosphere.pact.runtime.util.MathUtils;
  * @param BT The type of the build side records.
  * @param PT The type of the probe side records.
  */
-class HashPartition<BT, PT> extends AbstractPagedInputView implements SeekableDataInputView
+public class HashPartition<BT, PT> extends AbstractPagedInputView implements SeekableDataInputView
 {
 	// --------------------------------- Table Structure Auxiliaries ------------------------------------
 	

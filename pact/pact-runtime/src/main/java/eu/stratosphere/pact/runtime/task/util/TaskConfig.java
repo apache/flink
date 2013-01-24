@@ -25,10 +25,13 @@ import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
 
+import com.google.common.base.Preconditions;
+
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.DataDistribution;
 import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
+import eu.stratosphere.pact.runtime.iterative.convergence.ConvergenceCriterion;
 import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
 import eu.stratosphere.pact.generic.types.TypePairComparatorFactory;
 import eu.stratosphere.pact.generic.types.TypeSerializerFactory;

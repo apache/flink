@@ -1,0 +1,333 @@
+/***********************************************************************************************************************
+ *
+ * Copyright (C) 2012 by the Stratosphere project (http://stratosphere.eu)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ **********************************************************************************************************************/
+
+package eu.stratosphere.pact.runtime.iterative.task;
+
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
+import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
+import eu.stratosphere.nephele.io.AbstractRecordWriter;
+import eu.stratosphere.nephele.io.Writer;
+import eu.stratosphere.nephele.services.memorymanager.DataInputView;
+import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
+import eu.stratosphere.pact.common.generic.types.TypeComparator;
+import eu.stratosphere.pact.common.generic.types.TypePairComparatorFactory;
+import eu.stratosphere.pact.common.generic.types.TypeSerializer;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.Stub;
+import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.pact.runtime.hash.MutableHashTable;
+import eu.stratosphere.pact.runtime.io.InputViewIterator;
+import eu.stratosphere.pact.runtime.iterative.TypeUtils;
+import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannel;
+import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannelBroker;
+import eu.stratosphere.pact.runtime.iterative.concurrent.Broker;
+import eu.stratosphere.pact.runtime.iterative.concurrent.IterationContext;
+import eu.stratosphere.pact.runtime.iterative.concurrent.SolutionsetBroker;
+import eu.stratosphere.pact.runtime.iterative.concurrent.SuperstepBarrier;
+import eu.stratosphere.pact.runtime.iterative.event.AllWorkersDoneEvent;
+import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
+import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
+import eu.stratosphere.pact.runtime.iterative.event.WorkerDoneEvent;
+import eu.stratosphere.pact.runtime.iterative.io.SerializedUpdateBuffer;
+import eu.stratosphere.pact.runtime.iterative.monitoring.IterationMonitoring;
+import eu.stratosphere.pact.runtime.shipping.PactRecordOutputCollector;
+import eu.stratosphere.pact.runtime.task.PactTaskContext;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
+import java.io.IOException;
+import java.util.List;
+
+/**
+ * The head is responsible for coordinating an iteration and can run a {@link eu.stratosphere.pact.runtime.task.PactDriver} inside. It will read
+ * the initial input and establish a {@link BlockingBackChannel} to the iteration's tail. After successfully processing the input, it will send
+ * {@link EndOfSuperstepEvent} events to its outputs. It must also be connected to a synchronization task and after each superstep, it will wait
+ * until it receives an {@link AllWorkersDoneEvent} from the sync, which signals that all other heads have also finished their iteration. Starting with
+ * the second iteration, the input for the head is the output of the tail, transmitted through the backchannel. Once the iteration is done, the head
+ * will send a {@link TerminationEvent} to all it's connected tasks, signalling them to shutdown.
+ *
+ * Contracts for this class:
+ *
+ * The final output of the iteration must be connected as last task, the sync right before that.
+ *
+ * The input for the iteration must arrive in the first gate
+ */
+public class IterationHeadPactTask<S extends Stub, OT> extends AbstractIterativePactTask<S, OT>
+    implements PactTaskContext<S, OT> {
+
+  private static final Log log = LogFactory.getLog(IterationHeadPactTask.class);
+
+  /**
+   * the iteration head prepares the backchannel: it allocates memory, instantiates a {@link BlockingBackChannel} and
+   * hands it to the iteration tail via a {@link Broker} singleton
+   **/
+  private BlockingBackChannel initBackChannel() throws Exception {
+
+    /* compute the size of the memory available to the backchannel */
+    long completeMemorySize = config.getMemorySize();
+    long backChannelMemorySize = (long) (completeMemorySize * config.getBackChannelMemoryFraction());
+    config.setMemorySize(completeMemorySize - backChannelMemorySize);
+
+    /* allocate the memory available to the backchannel */
+    List<MemorySegment> segments = Lists.newArrayList();
+    int segmentSize = getMemoryManager().getPageSize();
+    getMemoryManager().allocatePages(this, segments, backChannelMemorySize);
+
+    /* instantiate the backchannel */
+    BlockingBackChannel backChannel = new BlockingBackChannel(new SerializedUpdateBuffer(segments, segmentSize,
+        getIOManager()));
+
+    /* hand the backchannel over to the iteration tail */
+    Broker<BlockingBackChannel> broker = BlockingBackChannelBroker.instance();
+    broker.handIn(brokerKey(), backChannel);
+
+    return backChannel;
+  }
+
+  //TODO type safety
+  private <IT1, IT2> MutableHashTable initHashJoin() throws Exception {
+
+    /* steal some memory */
+    long completeMemorySize = config.getMemorySize();
+    long hashjoinMemorySize = (long) (completeMemorySize * config.getWorksetHashjoinMemoryFraction());
+    config.setMemorySize(completeMemorySize - hashjoinMemorySize);
+
+    TypeSerializer<IT1> probesideSerializer = TypeUtils.instantiateTypeSerializer(
+        config.getWorksetHashjoinProbesideSerializerFactoryClass(userCodeClassLoader));
+    TypeSerializer<IT2> buildsideSerializer = TypeUtils.instantiateTypeSerializer(
+        config.getWorksetHashjoinBuildsideSerializerFactoryClass(userCodeClassLoader));
+
+    TypeComparator<IT1> probesideComparator = TypeUtils.instantiateTypeComparator(config.getConfiguration(),
+        userCodeClassLoader, config.getWorksetHashJoinProbeSideComparatorFactoryClass(userCodeClassLoader),
+        config.getWorksetHashjoinProbesideComparatorPrefix());
+
+    TypeComparator<IT2> buildSideComparator = TypeUtils.instantiateTypeComparator(config.getConfiguration(),
+        userCodeClassLoader, config.getWorksetHashJoinBuildSideComparatorFactoryClass(userCodeClassLoader),
+        config.getWorksetHashjoinBuildsideComparatorPrefix());
+
+    TypePairComparatorFactory<IT1, IT2> pairComparatorFactory = TypeUtils.instantiateTypePairComparator(
+        (Class<? extends TypePairComparatorFactory<IT1,IT2>>)
+        config.getWorksetHashJoinTypePairComparatorFactoryClass(userCodeClassLoader));
+
+    List<MemorySegment> memSegments = getMemoryManager().allocatePages(getOwningNepheleTask(), hashjoinMemorySize);
+
+    MutableHashTable hashJoin = new MutableHashTable(buildsideSerializer, probesideSerializer, buildSideComparator,
+        probesideComparator, pairComparatorFactory.createComparator12(probesideComparator, buildSideComparator),
+        memSegments, getIOManager());
+
+    Broker<MutableHashTable> solutionsetBroker = SolutionsetBroker.instance();
+    solutionsetBroker.handIn(brokerKey(), hashJoin);
+
+    return hashJoin;
+  }
+
+  private SuperstepBarrier initSuperstepBarrier() {
+    SuperstepBarrier barrier = new SuperstepBarrier();
+
+    getSyncOutput().subscribeToEvent(barrier, AllWorkersDoneEvent.class);
+    getSyncOutput().subscribeToEvent(barrier, TerminationEvent.class);
+
+    return barrier;
+  }
+
+  //TODO should positions be configured?
+
+  private AbstractRecordWriter<?> getSyncOutput() {
+    return eventualOutputs.get(eventualOutputs.size() - 2);
+  }
+
+  private AbstractRecordWriter<?> getFinalOutput() {
+    return eventualOutputs.get(eventualOutputs.size() - 1);
+  }
+
+  private int getIterationInputIndex() {
+    return 0;
+  }
+
+  //TODO type safety
+  @Override
+  public void invoke() throws Exception {
+
+    int workerIndex = getEnvironment().getIndexInSubtaskGroup();
+
+    IterationContext iterationContext = IterationContext.instance();
+
+    /** used for receiving the current iteration result from iteration tail */
+    BlockingBackChannel backChannel = initBackChannel();
+
+    SuperstepBarrier barrier = initSuperstepBarrier();
+
+    MutableHashTable hashJoin = config.usesWorkset() ? initHashJoin() : null;
+
+    TypeSerializer serializer = getInputSerializer(getIterationInputIndex());
+    output = (Collector<OT>) iterationCollector();
+
+    while (!terminationRequested()) {
+
+      notifyMonitor(IterationMonitoring.Event.HEAD_STARTING);
+      if (log.isInfoEnabled()) {
+        log.info(formatLogString("starting iteration [" + currentIteration() + "]"));
+      }
+
+      barrier.setup();
+
+      notifyMonitor(IterationMonitoring.Event.HEAD_PACT_STARTING);
+      if (!inFirstIteration()) {
+        reinstantiateDriver();
+      }
+
+      super.invoke();
+      notifyMonitor(IterationMonitoring.Event.HEAD_PACT_FINISHED);
+
+      EndOfSuperstepEvent endOfSuperstepEvent = new EndOfSuperstepEvent();
+
+      // signal to connected tasks that we are done with the superstep
+      sendEventToAllIterationOutputs(endOfSuperstepEvent);
+
+      // blocking call to wait for the result
+      DataInputView superstepResult = backChannel.getReadEndAfterSuperstepEnded();
+      if (log.isInfoEnabled()) {
+        log.info(formatLogString("finishing iteration [" + currentIteration() + "]"));
+      }
+
+      Value aggregate = iterationContext.getAggregateAndReset(workerIndex);
+
+      if (aggregate != null && log.isInfoEnabled()) {
+        log.info(formatLogString("sending aggregate [" + aggregate + "] to sync in iteration [" +
+            currentIteration() + "]"));
+      }
+
+      sendEventToSync(new WorkerDoneEvent(workerIndex, aggregate));
+
+      notifyMonitor(IterationMonitoring.Event.HEAD_FINISHED);
+
+      notifyMonitor(IterationMonitoring.Event.HEAD_WAITING_FOR_OTHERS);
+      if (log.isInfoEnabled()) {
+        log.info(formatLogString("waiting for other workers in iteration [" + currentIteration() + "]"));
+      }
+
+      barrier.waitForOtherWorkers();
+
+      if (barrier.terminationSignaled()) {
+        if (log.isInfoEnabled()) {
+          log.info(formatLogString("head received termination request in iteration [" + currentIteration() + "]"));
+        }
+        requestTermination();
+        sendEventToAllIterationOutputs(new TerminationEvent());
+      } else {
+        incrementIterationCounter();
+
+        Value globalAggregate = barrier.aggregate();
+        if (globalAggregate != null) {
+          if (log.isInfoEnabled()) {
+            log.info(formatLogString("head received global aggregate [" + globalAggregate +"] in iteration [" +
+                currentIteration() + "]"));
+          }
+          IterationContext.instance().setGlobalAggregate(workerIndex, globalAggregate);
+        }
+      }
+
+      feedBackSuperstepResult(superstepResult, serializer);
+    }
+
+    if (log.isInfoEnabled()) {
+      log.info(formatLogString("streaming out final result after [" + currentIteration() + "] iterations"));
+    }
+
+    if (config.usesWorkset()) {
+      streamOutFinalOutputWorkset(hashJoin);
+    } else {
+      streamOutFinalOutputBulk();
+    }
+  }
+
+  // send output to all but the last two connected tasks while iterating
+  private Collector<PactRecord> iterationCollector() {
+    int numOutputs = eventualOutputs.size();
+    Preconditions.checkState(numOutputs > 2);
+    List<AbstractRecordWriter<PactRecord>> writers = Lists.newArrayListWithCapacity(numOutputs - 2);
+    //TODO remove implicit assumption
+    for (int outputIndex = 0; outputIndex < numOutputs - 2; outputIndex++) {
+      //TODO type safety
+      writers.add((AbstractRecordWriter<PactRecord>) eventualOutputs.get(outputIndex));
+    }
+    return new PactRecordOutputCollector(writers);
+  }
+
+  private void streamOutFinalOutputBulk() throws IOException, InterruptedException {
+    //TODO type safety
+    Writer<PactRecord> writer = (Writer<PactRecord>) getFinalOutput();
+
+    MutableObjectIterator<PactRecord> results = (MutableObjectIterator<PactRecord>) inputs[getIterationInputIndex()];
+
+    int recordsPut = 0;
+    PactRecord record = new PactRecord();
+    while (results.next(record)) {
+      writer.emit(record);
+      recordsPut++;
+    }
+
+    if (log.isInfoEnabled()) {
+      log.info(formatLogString("Sent [" + recordsPut +"] records to final output"));
+    }
+  }
+
+  private void streamOutFinalOutputWorkset(MutableHashTable hashJoin) throws IOException, InterruptedException {
+    //TODO type safety
+    Writer<PactRecord> writer = (Writer<PactRecord>) getFinalOutput();
+
+    //TODO implement an iterator over MutableHashTable.partitionsBeingBuilt
+    MutableObjectIterator<PactRecord> results = hashJoin.getPartitionEntryIterator();
+
+    int recordsPut = 0;
+    PactRecord record = new PactRecord();
+    while (results.next(record)) {
+      writer.emit(record);
+      recordsPut++;
+    }
+
+    hashJoin.close();
+
+    if (log.isInfoEnabled()) {
+      log.info(formatLogString("Sent [" + recordsPut +"] records to final output"));
+    }
+  }
+
+  private void feedBackSuperstepResult(DataInputView superstepResult, TypeSerializer serializer) {
+    inputs[getIterationInputIndex()] = new InputViewIterator(superstepResult, serializer);
+  }
+
+  private void sendEventToAllIterationOutputs(AbstractTaskEvent event) throws IOException, InterruptedException {
+    if (log.isInfoEnabled()) {
+      log.info(formatLogString("sending " + event.getClass().getSimpleName() + " to all iteration outputs"));
+    }
+    //TODO remove implicit assumption
+    for (int outputIndex = 0; outputIndex < eventualOutputs.size() - 2; outputIndex++) {
+      eventualOutputs.get(outputIndex).publishEvent(event);
+    }
+  }
+
+  private void sendEventToSync(WorkerDoneEvent event) throws IOException, InterruptedException {
+    if (log.isInfoEnabled()) {
+      log.info(formatLogString("sending " + WorkerDoneEvent.class.getSimpleName() + " to sync"));
+    }
+    getSyncOutput().publishEvent(event);
+  }
+
+}
