@@ -95,6 +95,6 @@
         <module>pact-clients</module>
       	<module>pact-examples</module>
       	<module>pact-tests</module>
-
+      	<module>pact-array-datamodel</module>
     </modules>
 </project>

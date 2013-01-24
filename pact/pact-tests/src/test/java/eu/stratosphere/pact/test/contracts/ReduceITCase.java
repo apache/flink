@@ -32,7 +32,6 @@ import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.pact.common.io.DelimitedInputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.stubs.Collector;
@@ -42,7 +41,7 @@ import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.jobgen.JobGraphGenerator;
-import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
+import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
 import eu.stratosphere.pact.test.contracts.io.ContractITCaseIOFormats.ContractITCaseInputFormat;
 import eu.stratosphere.pact.test.contracts.io.ContractITCaseIOFormats.ContractITCaseOutputFormat;
 import eu.stratosphere.pact.test.util.TestBase;
@@ -83,7 +82,7 @@ public class ReduceITCase extends TestBase
 		this.getFilesystemProvider().createFile(tempDir + "/reduceInput/reduceTest_4.txt", REDUCE_IN_4);
 	}
 
-	@Combinable
+	@ReduceContract.Combinable
 	public static class TestReducer extends ReduceStub {
 
 		private PactString reduceValue = new PactString();
@@ -177,7 +176,7 @@ public class ReduceITCase extends TestBase
 		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
 
 		String[] localStrategies = { PactCompiler.HINT_LOCAL_STRATEGY_SORT };
-		String[] shipStrategies = { PactCompiler.HINT_SHIP_STRATEGY_REPARTITION };
+		String[] shipStrategies = { PactCompiler.HINT_SHIP_STRATEGY_REPARTITION_HASH };
 
 		for (String localStrategy : localStrategies) {
 			for (String shipStrategy : shipStrategies) {

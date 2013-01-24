@@ -42,7 +42,7 @@ import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.jobgen.JobGraphGenerator;
-import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
+import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
 import eu.stratosphere.pact.test.util.TestBase;
 
 /**
@@ -233,7 +233,7 @@ public class CoGroupITCase extends TestBase
 
 		String[] localStrategies = { PactCompiler.HINT_LOCAL_STRATEGY_SORT_BOTH_MERGE};
 
-		String[] shipStrategies = { PactCompiler.HINT_SHIP_STRATEGY_REPARTITION, };
+		String[] shipStrategies = { PactCompiler.HINT_SHIP_STRATEGY_REPARTITION_HASH, };
 
 		for (String localStrategy : localStrategies) {
 			for (String shipStrategy : shipStrategies) {

@@ -89,6 +89,7 @@ public class DistClusterProvider extends ClusterProvider {
 		if (nepheleMasterFile.exists()) {
 			BufferedReader fr = new BufferedReader(new FileReader(nepheleMasterFile));
 			this.jobManagerHostName = fr.readLine();
+			fr.close();
 		} else {
 			throw new Exception("Nephele Master File not found");
 		}

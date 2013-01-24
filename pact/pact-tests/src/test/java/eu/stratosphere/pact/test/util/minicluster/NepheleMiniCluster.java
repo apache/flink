@@ -186,9 +186,9 @@ public class NepheleMiniCluster {
 		this.runner.start();
 
 		waitForJobManagerToBeAvailable("localhost", jobManagerRpcPort, 60 * 1000);
-		try {
-			Thread.sleep(10000);
-		} catch (InterruptedException iex) {}
+//		try {
+//			Thread.sleep(10000);
+//		} catch (InterruptedException iex) {}
 	}
 
 	public void stop() throws Exception {

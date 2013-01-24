@@ -51,6 +51,12 @@
       <artifactId>pact-examples</artifactId>
       <version>${version}</version>
     </dependency>
+ 
+    <dependency>
+      <groupId>eu.stratosphere</groupId>
+      <artifactId>pact-array-datamodel</artifactId>
+      <version>${version}</version>
+    </dependency>
 
 	<dependency>
 		<groupId>junit</groupId>

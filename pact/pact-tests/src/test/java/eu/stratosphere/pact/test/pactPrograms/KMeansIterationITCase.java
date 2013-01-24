@@ -33,7 +33,7 @@ import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.jobgen.JobGraphGenerator;
-import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
+import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
 import eu.stratosphere.pact.example.datamining.KMeansIteration;
 import eu.stratosphere.pact.test.util.TestBase;
 

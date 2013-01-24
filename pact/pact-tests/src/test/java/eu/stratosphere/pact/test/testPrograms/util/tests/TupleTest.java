@@ -21,7 +21,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 
-import org.eclipse.jdt.internal.core.Assert;
+import org.junit.Assert;
 import org.junit.Test;
 
 import eu.stratosphere.pact.test.testPrograms.util.Tuple;
@@ -35,16 +35,16 @@ public class TupleTest {
 		short[] offsets = {0,6,12,14,16,22};
 		Tuple t1 = new Tuple(tupleStr.getBytes(),offsets,5);
 		
-		Assert.isTrue(t1.getBytes().length == tupleStr.getBytes().length);
+		Assert.assertTrue(t1.getBytes().length == tupleStr.getBytes().length);
 		for(int i=0;i<t1.getBytes().length;i++) {
-			Assert.isTrue(t1.getBytes()[i] == tupleStr.getBytes()[i]);
+			Assert.assertTrue(t1.getBytes()[i] == tupleStr.getBytes()[i]);
 		}
-		Assert.isTrue(t1.getNumberOfColumns() == 5);
-		Assert.isTrue(t1.getStringValueAt(0).equals("attr1"));
-		Assert.isTrue(t1.getStringValueAt(1).equals("attr2"));
-		Assert.isTrue(t1.getLongValueAt(2) == 3);
-		Assert.isTrue(t1.getLongValueAt(3) == 4);
-		Assert.isTrue(t1.getStringValueAt(4).equals("attr5"));
+		Assert.assertTrue(t1.getNumberOfColumns() == 5);
+		Assert.assertTrue(t1.getStringValueAt(0).equals("attr1"));
+		Assert.assertTrue(t1.getStringValueAt(1).equals("attr2"));
+		Assert.assertTrue(t1.getLongValueAt(2) == 3);
+		Assert.assertTrue(t1.getLongValueAt(3) == 4);
+		Assert.assertTrue(t1.getStringValueAt(4).equals("attr5"));
 		
 	}
 
@@ -53,22 +53,22 @@ public class TupleTest {
 		
 		Tuple t = new Tuple();
 		
-		Assert.isTrue(t.getNumberOfColumns() == 0);
+		Assert.assertTrue(t.getNumberOfColumns() == 0);
 		
 		t.addAttribute("a");
-		Assert.isTrue(t.getNumberOfColumns() == 1);
+		Assert.assertTrue(t.getNumberOfColumns() == 1);
 		
 		t.addAttribute("b");
-		Assert.isTrue(t.getNumberOfColumns() == 2);
+		Assert.assertTrue(t.getNumberOfColumns() == 2);
 		
 		t.addAttribute("aasdfasd|fasdf");
-		Assert.isTrue(t.getNumberOfColumns() == 3);
+		Assert.assertTrue(t.getNumberOfColumns() == 3);
 		
 		String tupleStr = "attr1|attr2|3|4|attr5|";
 		short[] offsets = {0,6,12,14,16,22};
 		t = new Tuple(tupleStr.getBytes(),offsets,5);
 		
-		Assert.isTrue(t.getNumberOfColumns() == 5);
+		Assert.assertTrue(t.getNumberOfColumns() == 5);
 	}
 
 	@Test
@@ -90,9 +90,9 @@ public class TupleTest {
 		byte[] ret1 = t1.getBytes();
 		
 		for(int i=0;i<exp1.getBytes().length;i++) {
-			Assert.isTrue(ret1[i] == exp1.getBytes()[i]);
+			Assert.assertTrue(ret1[i] == exp1.getBytes()[i]);
 		}
-		Assert.isTrue(ret1[exp1.getBytes().length+1] == 0);
+		Assert.assertTrue(ret1[exp1.getBytes().length+1] == 0);
 		
 		String tupleStr = "attr1|attr2|3|4|attr5|";
 		short[] offsets = {0,6,12,14,16,22};
@@ -100,9 +100,9 @@ public class TupleTest {
 		
 		byte[] ret2 = t2.getBytes();
 		
-		Assert.isTrue(ret2.length == tupleStr.getBytes().length);
+		Assert.assertTrue(ret2.length == tupleStr.getBytes().length);
 		for(int i=0;i<tupleStr.getBytes().length;i++) {
-			Assert.isTrue(ret2[i] == tupleStr.getBytes()[i]);
+			Assert.assertTrue(ret2[i] == tupleStr.getBytes()[i]);
 		}
 	}
 
@@ -110,28 +110,28 @@ public class TupleTest {
 	public void testGetColumnLength() {
 		Tuple t = new Tuple();
 		
-		Assert.isTrue(t.getColumnLength(1) == -1);
-		Assert.isTrue(t.getColumnLength(0) == -1);
-		Assert.isTrue(t.getColumnLength(-1) == -1);
+		Assert.assertTrue(t.getColumnLength(1) == -1);
+		Assert.assertTrue(t.getColumnLength(0) == -1);
+		Assert.assertTrue(t.getColumnLength(-1) == -1);
 		
 		t.addAttribute("a");
-		Assert.isTrue(t.getColumnLength(0) == 1);
+		Assert.assertTrue(t.getColumnLength(0) == 1);
 		
 		t.addAttribute("b");
-		Assert.isTrue(t.getColumnLength(1) == 1);
+		Assert.assertTrue(t.getColumnLength(1) == 1);
 		
 		t.addAttribute("aasdfasd|fasdf");
-		Assert.isTrue(t.getColumnLength(2) == 14);
+		Assert.assertTrue(t.getColumnLength(2) == 14);
 		
 		String tupleStr = "attr1|attr2|3|4|attr5|";
 		short[] offsets = {0,6,12,14,16,22};
 		t = new Tuple(tupleStr.getBytes(),offsets,5);
 		
-		Assert.isTrue(t.getColumnLength(0) == 5);
-		Assert.isTrue(t.getColumnLength(1) == 5);
-		Assert.isTrue(t.getColumnLength(2) == 1);
-		Assert.isTrue(t.getColumnLength(3) == 1);
-		Assert.isTrue(t.getColumnLength(4) == 5);
+		Assert.assertTrue(t.getColumnLength(0) == 5);
+		Assert.assertTrue(t.getColumnLength(1) == 5);
+		Assert.assertTrue(t.getColumnLength(2) == 1);
+		Assert.assertTrue(t.getColumnLength(3) == 1);
+		Assert.assertTrue(t.getColumnLength(4) == 5);
 		
 	}
 
@@ -143,16 +143,16 @@ public class TupleTest {
 		
 		// check handling of empty tuples
 		t0.concatenate(t1);
-		Assert.isTrue(t0.getNumberOfColumns() == 0);
+		Assert.assertTrue(t0.getNumberOfColumns() == 0);
 		
 		t1.addAttribute("a");
 		t1.concatenate(t0);
-		Assert.isTrue(t1.getNumberOfColumns() == 1);
-		Assert.isTrue(t1.getStringValueAt(0).equals("a"));
+		Assert.assertTrue(t1.getNumberOfColumns() == 1);
+		Assert.assertTrue(t1.getStringValueAt(0).equals("a"));
 		
 		t0.concatenate(t1);
-		Assert.isTrue(t0.getNumberOfColumns() == 1);
-		Assert.isTrue(t0.getStringValueAt(0).equals("a"));
+		Assert.assertTrue(t0.getNumberOfColumns() == 1);
+		Assert.assertTrue(t0.getStringValueAt(0).equals("a"));
 		
 		t1.addAttribute("b");
 		t1.addAttribute("c");
@@ -161,34 +161,34 @@ public class TupleTest {
 		t2.addAttribute("x");
 		t2.concatenate(t1);
 		// check tuple t2
-		Assert.isTrue(t2.getNumberOfColumns() == 6);
-		Assert.isTrue(t2.getStringValueAt(0).equals("z"));
-		Assert.isTrue(t2.getStringValueAt(1).equals("y"));
-		Assert.isTrue(t2.getStringValueAt(2).equals("x"));
-		Assert.isTrue(t2.getStringValueAt(3).equals("a"));
-		Assert.isTrue(t2.getStringValueAt(4).equals("b"));
-		Assert.isTrue(t2.getStringValueAt(5).equals("c"));
+		Assert.assertTrue(t2.getNumberOfColumns() == 6);
+		Assert.assertTrue(t2.getStringValueAt(0).equals("z"));
+		Assert.assertTrue(t2.getStringValueAt(1).equals("y"));
+		Assert.assertTrue(t2.getStringValueAt(2).equals("x"));
+		Assert.assertTrue(t2.getStringValueAt(3).equals("a"));
+		Assert.assertTrue(t2.getStringValueAt(4).equals("b"));
+		Assert.assertTrue(t2.getStringValueAt(5).equals("c"));
 		
 		t1.concatenate(t2);
 		// check tuple t1
-		Assert.isTrue(t1.getNumberOfColumns() == 9);
-		Assert.isTrue(t1.getStringValueAt(0).equals("a"));
-		Assert.isTrue(t1.getStringValueAt(1).equals("b"));
-		Assert.isTrue(t1.getStringValueAt(2).equals("c"));
-		Assert.isTrue(t1.getStringValueAt(3).equals("z"));
-		Assert.isTrue(t1.getStringValueAt(4).equals("y"));
-		Assert.isTrue(t1.getStringValueAt(5).equals("x"));
-		Assert.isTrue(t1.getStringValueAt(6).equals("a"));
-		Assert.isTrue(t1.getStringValueAt(7).equals("b"));
-		Assert.isTrue(t1.getStringValueAt(8).equals("c"));
+		Assert.assertTrue(t1.getNumberOfColumns() == 9);
+		Assert.assertTrue(t1.getStringValueAt(0).equals("a"));
+		Assert.assertTrue(t1.getStringValueAt(1).equals("b"));
+		Assert.assertTrue(t1.getStringValueAt(2).equals("c"));
+		Assert.assertTrue(t1.getStringValueAt(3).equals("z"));
+		Assert.assertTrue(t1.getStringValueAt(4).equals("y"));
+		Assert.assertTrue(t1.getStringValueAt(5).equals("x"));
+		Assert.assertTrue(t1.getStringValueAt(6).equals("a"));
+		Assert.assertTrue(t1.getStringValueAt(7).equals("b"));
+		Assert.assertTrue(t1.getStringValueAt(8).equals("c"));
 		// check tuple t2
-		Assert.isTrue(t2.getNumberOfColumns() == 6);
-		Assert.isTrue(t2.getStringValueAt(0).equals("z"));
-		Assert.isTrue(t2.getStringValueAt(1).equals("y"));
-		Assert.isTrue(t2.getStringValueAt(2).equals("x"));
-		Assert.isTrue(t2.getStringValueAt(3).equals("a"));
-		Assert.isTrue(t2.getStringValueAt(4).equals("b"));
-		Assert.isTrue(t2.getStringValueAt(5).equals("c"));
+		Assert.assertTrue(t2.getNumberOfColumns() == 6);
+		Assert.assertTrue(t2.getStringValueAt(0).equals("z"));
+		Assert.assertTrue(t2.getStringValueAt(1).equals("y"));
+		Assert.assertTrue(t2.getStringValueAt(2).equals("x"));
+		Assert.assertTrue(t2.getStringValueAt(3).equals("a"));
+		Assert.assertTrue(t2.getStringValueAt(4).equals("b"));
+		Assert.assertTrue(t2.getStringValueAt(5).equals("c"));
 		
 	}
 
@@ -198,47 +198,47 @@ public class TupleTest {
 		Tuple t = new Tuple();
 		
 		t.project(1);
-		Assert.isTrue(t.getNumberOfColumns() == 0);
+		Assert.assertTrue(t.getNumberOfColumns() == 0);
 		
 		t.addAttribute("a");
 		t.project(0);
-		Assert.isTrue(t.getNumberOfColumns() == 0);
+		Assert.assertTrue(t.getNumberOfColumns() == 0);
 
 		t.addAttribute("a");
 		t.addAttribute("b");
 		t.project(2);
-		Assert.isTrue(t.getNumberOfColumns() == 1);
-		Assert.isTrue(t.getStringValueAt(0).equals("b"));
+		Assert.assertTrue(t.getNumberOfColumns() == 1);
+		Assert.assertTrue(t.getStringValueAt(0).equals("b"));
 		
 		t.addAttribute("c");
 		t.addAttribute("d");
 		t.project(5);
-		Assert.isTrue(t.getNumberOfColumns() == 2);
-		Assert.isTrue(t.getStringValueAt(0).equals("b"));
-		Assert.isTrue(t.getStringValueAt(1).equals("d"));
+		Assert.assertTrue(t.getNumberOfColumns() == 2);
+		Assert.assertTrue(t.getStringValueAt(0).equals("b"));
+		Assert.assertTrue(t.getStringValueAt(1).equals("d"));
 		
 		t.project(0);
-		Assert.isTrue(t.getNumberOfColumns() == 0);
+		Assert.assertTrue(t.getNumberOfColumns() == 0);
 		
 		t.addAttribute("a");
 		t.addAttribute("b");
 		t.addAttribute("c");
 		t.addAttribute("d");
 		t.project(11);
-		Assert.isTrue(t.getNumberOfColumns() == 3);
-		Assert.isTrue(t.getStringValueAt(2).equals("d"));
+		Assert.assertTrue(t.getNumberOfColumns() == 3);
+		Assert.assertTrue(t.getStringValueAt(2).equals("d"));
 		
 		t.project(23);
-		Assert.isTrue(t.getNumberOfColumns() == 3);
-		Assert.isTrue(t.getStringValueAt(0).equals("a"));
-		Assert.isTrue(t.getStringValueAt(1).equals("b"));
-		Assert.isTrue(t.getStringValueAt(2).equals("d"));
+		Assert.assertTrue(t.getNumberOfColumns() == 3);
+		Assert.assertTrue(t.getStringValueAt(0).equals("a"));
+		Assert.assertTrue(t.getStringValueAt(1).equals("b"));
+		Assert.assertTrue(t.getStringValueAt(2).equals("d"));
 		
 		t.project(-1);
-		Assert.isTrue(t.getNumberOfColumns() == 3);
-		Assert.isTrue(t.getStringValueAt(0).equals("a"));
-		Assert.isTrue(t.getStringValueAt(1).equals("b"));
-		Assert.isTrue(t.getStringValueAt(2).equals("d"));
+		Assert.assertTrue(t.getNumberOfColumns() == 3);
+		Assert.assertTrue(t.getStringValueAt(0).equals("a"));
+		Assert.assertTrue(t.getStringValueAt(1).equals("b"));
+		Assert.assertTrue(t.getStringValueAt(2).equals("d"));
 	}
 
 	@Test
@@ -255,23 +255,23 @@ public class TupleTest {
 		t2.addAttribute("ccccc");
 		t2.addAttribute("z");
 		
-		Assert.isTrue(t1.compareStringAttribute(t2, 0, 0) == 0);
-		Assert.isTrue(t1.compareStringAttribute(t2, 0, 1) < 0);
-		Assert.isTrue(t1.compareStringAttribute(t2, 1, 1) < 0);
-		Assert.isTrue(t1.compareStringAttribute(t2, 2, 2) == 0);
-		Assert.isTrue(t1.compareStringAttribute(t2, 2, 3) < 0);
+		Assert.assertTrue(t1.compareStringAttribute(t2, 0, 0) == 0);
+		Assert.assertTrue(t1.compareStringAttribute(t2, 0, 1) < 0);
+		Assert.assertTrue(t1.compareStringAttribute(t2, 1, 1) < 0);
+		Assert.assertTrue(t1.compareStringAttribute(t2, 2, 2) == 0);
+		Assert.assertTrue(t1.compareStringAttribute(t2, 2, 3) < 0);
 		
-		Assert.isTrue(t2.compareStringAttribute(t1, 0, 0) == 0);
-		Assert.isTrue(t2.compareStringAttribute(t1, 1, 0) > 0);
-		Assert.isTrue(t2.compareStringAttribute(t1, 1, 1) > 0);
-		Assert.isTrue(t2.compareStringAttribute(t1, 2, 2) == 0);
-		Assert.isTrue(t2.compareStringAttribute(t1, 3, 2) > 0);
+		Assert.assertTrue(t2.compareStringAttribute(t1, 0, 0) == 0);
+		Assert.assertTrue(t2.compareStringAttribute(t1, 1, 0) > 0);
+		Assert.assertTrue(t2.compareStringAttribute(t1, 1, 1) > 0);
+		Assert.assertTrue(t2.compareStringAttribute(t1, 2, 2) == 0);
+		Assert.assertTrue(t2.compareStringAttribute(t1, 3, 2) > 0);
 		
-		Assert.isTrue(t1.compareStringAttribute(t1, 0, 0) == 0);
-		Assert.isTrue(t1.compareStringAttribute(t1, 1, 1) == 0);
-		Assert.isTrue(t1.compareStringAttribute(t1, 2, 2) == 0);
-		Assert.isTrue(t1.compareStringAttribute(t1, 0, 1) < 0);
-		Assert.isTrue(t1.compareStringAttribute(t1, 2, 1) > 0);
+		Assert.assertTrue(t1.compareStringAttribute(t1, 0, 0) == 0);
+		Assert.assertTrue(t1.compareStringAttribute(t1, 1, 1) == 0);
+		Assert.assertTrue(t1.compareStringAttribute(t1, 2, 2) == 0);
+		Assert.assertTrue(t1.compareStringAttribute(t1, 0, 1) < 0);
+		Assert.assertTrue(t1.compareStringAttribute(t1, 2, 1) > 0);
 		
 		// check for out-of-bounds values
 		boolean exceptionThrown = false;
@@ -280,7 +280,7 @@ public class TupleTest {
 		} catch(IndexOutOfBoundsException ioobe) {
 			exceptionThrown = true;
 		}
-		Assert.isTrue(exceptionThrown);
+		Assert.assertTrue(exceptionThrown);
 		
 		exceptionThrown = false;
 		try {
@@ -288,7 +288,7 @@ public class TupleTest {
 		} catch(IndexOutOfBoundsException ioobe) {
 			exceptionThrown = true;
 		}
-		Assert.isTrue(exceptionThrown);
+		Assert.assertTrue(exceptionThrown);
 	}
 
 	@Test
@@ -303,25 +303,25 @@ public class TupleTest {
 		t1.addAttribute(Integer.MIN_VALUE+"");
 		
 		// check identical values
-		Assert.isTrue(t1.compareIntAttribute(t1, 0, 0) == 0);
-		Assert.isTrue(t1.compareIntAttribute(t1, 1, 1) == 0);
-		Assert.isTrue(t1.compareIntAttribute(t1, 2, 2) == 0);
-		Assert.isTrue(t1.compareIntAttribute(t1, 3, 3) == 0);
-		Assert.isTrue(t1.compareIntAttribute(t1, 4, 4) == 0);
-		Assert.isTrue(t1.compareIntAttribute(t1, 5, 5) == 0);
+		Assert.assertTrue(t1.compareIntAttribute(t1, 0, 0) == 0);
+		Assert.assertTrue(t1.compareIntAttribute(t1, 1, 1) == 0);
+		Assert.assertTrue(t1.compareIntAttribute(t1, 2, 2) == 0);
+		Assert.assertTrue(t1.compareIntAttribute(t1, 3, 3) == 0);
+		Assert.assertTrue(t1.compareIntAttribute(t1, 4, 4) == 0);
+		Assert.assertTrue(t1.compareIntAttribute(t1, 5, 5) == 0);
 		
 		// check unequal values
-		Assert.isTrue(t1.compareIntAttribute(t1, 0, 1) < 0);
-		Assert.isTrue(t1.compareIntAttribute(t1, 1, 0) > 0);
-		Assert.isTrue(t1.compareIntAttribute(t1, 1, 2) < 0);
-		Assert.isTrue(t1.compareIntAttribute(t1, 2, 1) > 0);
-		Assert.isTrue(t1.compareIntAttribute(t1, 2, 3) < 0);
+		Assert.assertTrue(t1.compareIntAttribute(t1, 0, 1) < 0);
+		Assert.assertTrue(t1.compareIntAttribute(t1, 1, 0) > 0);
+		Assert.assertTrue(t1.compareIntAttribute(t1, 1, 2) < 0);
+		Assert.assertTrue(t1.compareIntAttribute(t1, 2, 1) > 0);
+		Assert.assertTrue(t1.compareIntAttribute(t1, 2, 3) < 0);
 		
 		// check negative values
-		Assert.isTrue(t1.compareIntAttribute(t1, 0, 4) > 0);
-		Assert.isTrue(t1.compareIntAttribute(t1, 4, 0) < 0);
-		Assert.isTrue(t1.compareIntAttribute(t1, 4, 5) > 0);
-		Assert.isTrue(t1.compareIntAttribute(t1, 5, 4) < 0);
+		Assert.assertTrue(t1.compareIntAttribute(t1, 0, 4) > 0);
+		Assert.assertTrue(t1.compareIntAttribute(t1, 4, 0) < 0);
+		Assert.assertTrue(t1.compareIntAttribute(t1, 4, 5) > 0);
+		Assert.assertTrue(t1.compareIntAttribute(t1, 5, 4) < 0);
 		
 		// check for non-existing attributes
 		boolean exceptionThrown = false;
@@ -330,7 +330,7 @@ public class TupleTest {
 		} catch(IndexOutOfBoundsException ioobe) {
 			exceptionThrown = true;
 		}
-		Assert.isTrue(exceptionThrown);
+		Assert.assertTrue(exceptionThrown);
 		
 		exceptionThrown = false;
 		try {
@@ -338,7 +338,7 @@ public class TupleTest {
 		} catch(IndexOutOfBoundsException ioobe) {
 			exceptionThrown = true;
 		}
-		Assert.isTrue(exceptionThrown);
+		Assert.assertTrue(exceptionThrown);
 	}
 
 	@Test
@@ -354,7 +354,7 @@ public class TupleTest {
 		
 		// check for same value
 		for(int i=0;i<testStrings.length;i++) {
-			Assert.isTrue(t.getStringValueAt(i).equals(testStrings[i]));
+			Assert.assertTrue(t.getStringValueAt(i).equals(testStrings[i]));
 		}
 		
 		// check for out-of-bounds values
@@ -364,7 +364,7 @@ public class TupleTest {
 		} catch(IndexOutOfBoundsException ioobe) {
 			exceptionThrown = true;
 		}
-		Assert.isTrue(exceptionThrown);
+		Assert.assertTrue(exceptionThrown);
 		
 		exceptionThrown = false;
 		try {
@@ -372,7 +372,7 @@ public class TupleTest {
 		} catch(IndexOutOfBoundsException ioobe) {
 			exceptionThrown = true;
 		}
-		Assert.isTrue(exceptionThrown);
+		Assert.assertTrue(exceptionThrown);
 		
 		exceptionThrown = false;
 		try {
@@ -380,7 +380,7 @@ public class TupleTest {
 		} catch(IndexOutOfBoundsException ioobe) {
 			exceptionThrown = true;
 		}
-		Assert.isTrue(exceptionThrown);
+		Assert.assertTrue(exceptionThrown);
 		
 	}
 
@@ -397,7 +397,7 @@ public class TupleTest {
 		
 		// check for same value
 		for(int i=0;i<testVals.length;i++) {
-			Assert.isTrue(t.getLongValueAt(i) == testVals[i]);
+			Assert.assertTrue(t.getLongValueAt(i) == testVals[i]);
 		}
 		
 		// check for out-of-bounds values
@@ -407,7 +407,7 @@ public class TupleTest {
 		} catch(IndexOutOfBoundsException ioobe) {
 			exceptionThrown = true;
 		}
-		Assert.isTrue(exceptionThrown);
+		Assert.assertTrue(exceptionThrown);
 		
 		exceptionThrown = false;
 		try {
@@ -415,7 +415,7 @@ public class TupleTest {
 		} catch(IndexOutOfBoundsException ioobe) {
 			exceptionThrown = true;
 		}
-		Assert.isTrue(exceptionThrown);
+		Assert.assertTrue(exceptionThrown);
 		
 		exceptionThrown = false;
 		try {
@@ -423,7 +423,7 @@ public class TupleTest {
 		} catch(IndexOutOfBoundsException ioobe) {
 			exceptionThrown = true;
 		}
-		Assert.isTrue(exceptionThrown);
+		Assert.assertTrue(exceptionThrown);
 		
 		// check for invalid format exception
 		t.addAttribute("abc");
@@ -433,7 +433,7 @@ public class TupleTest {
 		} catch(NumberFormatException nfe) {
 			exceptionThrown = true;
 		}
-		Assert.isTrue(exceptionThrown);
+		Assert.assertTrue(exceptionThrown);
 		
 	}
 
@@ -451,9 +451,9 @@ public class TupleTest {
 		// check for same value
 		for(int i=0;i<testStrings.length;i++) {
 			byte[] att = t.getByteArrayValueAt(i);
-			Assert.isTrue(att.length == (testStrings[i]).getBytes().length);
+			Assert.assertTrue(att.length == (testStrings[i]).getBytes().length);
 			for(int j=0;j<att.length;j++) {
-				Assert.isTrue(att[j] == testStrings[i].getBytes()[j]);
+				Assert.assertTrue(att[j] == testStrings[i].getBytes()[j]);
 			}
 		}
 		
@@ -464,7 +464,7 @@ public class TupleTest {
 		} catch(IndexOutOfBoundsException ioobe) {
 			exceptionThrown = true;
 		}
-		Assert.isTrue(exceptionThrown);
+		Assert.assertTrue(exceptionThrown);
 		
 		exceptionThrown = false;
 		try {
@@ -472,7 +472,7 @@ public class TupleTest {
 		} catch(IndexOutOfBoundsException ioobe) {
 			exceptionThrown = true;
 		}
-		Assert.isTrue(exceptionThrown);
+		Assert.assertTrue(exceptionThrown);
 		
 		exceptionThrown = false;
 		try {
@@ -480,7 +480,7 @@ public class TupleTest {
 		} catch(IndexOutOfBoundsException ioobe) {
 			exceptionThrown = true;
 		}
-		Assert.isTrue(exceptionThrown);
+		Assert.assertTrue(exceptionThrown);
 		
 	}
 
@@ -494,19 +494,19 @@ public class TupleTest {
 		
 		t.reserveSpace(512);
 		
-		Assert.isTrue(t.getNumberOfColumns() == 3);
-		Assert.isTrue(t.getStringValueAt(0).equals("a"));
-		Assert.isTrue(t.getStringValueAt(1).equals("b"));
-		Assert.isTrue(t.getStringValueAt(2).equals("cde"));
-		Assert.isTrue(t.getBytes().length == 512);
+		Assert.assertTrue(t.getNumberOfColumns() == 3);
+		Assert.assertTrue(t.getStringValueAt(0).equals("a"));
+		Assert.assertTrue(t.getStringValueAt(1).equals("b"));
+		Assert.assertTrue(t.getStringValueAt(2).equals("cde"));
+		Assert.assertTrue(t.getBytes().length == 512);
 		
 		t.reserveSpace(20);
 		
-		Assert.isTrue(t.getNumberOfColumns() == 3);
-		Assert.isTrue(t.getStringValueAt(0).equals("a"));
-		Assert.isTrue(t.getStringValueAt(1).equals("b"));
-		Assert.isTrue(t.getStringValueAt(2).equals("cde"));
-		Assert.isTrue(t.getBytes().length == 512);
+		Assert.assertTrue(t.getNumberOfColumns() == 3);
+		Assert.assertTrue(t.getStringValueAt(0).equals("a"));
+		Assert.assertTrue(t.getStringValueAt(1).equals("b"));
+		Assert.assertTrue(t.getStringValueAt(2).equals("cde"));
+		Assert.assertTrue(t.getBytes().length == 512);
 		
 	}
 
@@ -516,25 +516,25 @@ public class TupleTest {
 		Tuple t = new Tuple();
 		t.addAttribute("Hello world!");
 		
-		Assert.isTrue(t.getBytes().length == 256);
+		Assert.assertTrue(t.getBytes().length == 256);
 		t.compact();
-		Assert.isTrue(t.getBytes().length == 13);
+		Assert.assertTrue(t.getBytes().length == 13);
 		
 		byte[] ba = new byte[1024];
 		short[] of = {0};
 		t = new Tuple(ba, of, 0);
 		
-		Assert.isTrue(t.getBytes().length == 1024);
+		Assert.assertTrue(t.getBytes().length == 1024);
 		t.compact();
-		Assert.isTrue(t.getBytes().length == 0);
+		Assert.assertTrue(t.getBytes().length == 0);
 		
 		ba = "attr1|attr2|3|4|attr5|thisdoesnotbelongtothetuple".getBytes();
 		short[] of2 = {0,6,12,14,16,22};
 		t = new Tuple(ba, of2, 5);
 		
-		Assert.isTrue(t.getBytes().length == ba.length);
+		Assert.assertTrue(t.getBytes().length == ba.length);
 		t.compact();
-		Assert.isTrue(t.getBytes().length == 22);
+		Assert.assertTrue(t.getBytes().length == 22);
 		
 	}
 
@@ -542,27 +542,27 @@ public class TupleTest {
 	public void testAddAttributeByteArray() {
 		Tuple t = new Tuple();
 		
-		Assert.isTrue(t.getNumberOfColumns() == 0);
+		Assert.assertTrue(t.getNumberOfColumns() == 0);
 		
 		t.addAttribute("a".getBytes());
-		Assert.isTrue(t.getNumberOfColumns() == 1);
-		Assert.isTrue(t.getStringValueAt(0).equals("a"));
-		Assert.isTrue(t.getBytes().length == 256);
+		Assert.assertTrue(t.getNumberOfColumns() == 1);
+		Assert.assertTrue(t.getStringValueAt(0).equals("a"));
+		Assert.assertTrue(t.getBytes().length == 256);
 		
 		t.compact();
 		t.addAttribute("123345".getBytes());
-		Assert.isTrue(t.getNumberOfColumns() == 2);
-		Assert.isTrue(t.getLongValueAt(1) == 123345);
-		Assert.isTrue(t.getBytes().length == 9);
+		Assert.assertTrue(t.getNumberOfColumns() == 2);
+		Assert.assertTrue(t.getLongValueAt(1) == 123345);
+		Assert.assertTrue(t.getBytes().length == 9);
 		
 		t.addAttribute("adfasdfg".getBytes());
-		Assert.isTrue(t.getNumberOfColumns() == 3);
+		Assert.assertTrue(t.getNumberOfColumns() == 3);
 		byte[] ret = t.getByteArrayValueAt(2);
-		Assert.isTrue(ret.length == "adfasdfg".getBytes().length);
+		Assert.assertTrue(ret.length == "adfasdfg".getBytes().length);
 		for(int i=0;i<ret.length;i++) {
-			Assert.isTrue(ret[i] == "adfasdfg".getBytes()[i]);
+			Assert.assertTrue(ret[i] == "adfasdfg".getBytes()[i]);
 		}
-		Assert.isTrue(t.getBytes().length == 18);
+		Assert.assertTrue(t.getBytes().length == 18);
 		
 	}
 
@@ -576,28 +576,28 @@ public class TupleTest {
 		
 		Tuple t2 = new Tuple();
 		
-		Assert.isTrue(t2.getNumberOfColumns() == 0);
+		Assert.assertTrue(t2.getNumberOfColumns() == 0);
 		
 		t2.addAttributeFromKVRecord(t1, 1);
-		Assert.isTrue(t2.getNumberOfColumns() == 1);
-		Assert.isTrue(t2.getLongValueAt(0) == 123345);
-		Assert.isTrue(t2.getBytes().length == 256);
+		Assert.assertTrue(t2.getNumberOfColumns() == 1);
+		Assert.assertTrue(t2.getLongValueAt(0) == 123345);
+		Assert.assertTrue(t2.getBytes().length == 256);
 		
 		t2.compact();
 
 		t2.addAttributeFromKVRecord(t1, 2);
-		Assert.isTrue(t2.getNumberOfColumns() == 2);
+		Assert.assertTrue(t2.getNumberOfColumns() == 2);
 		byte[] ret = t2.getByteArrayValueAt(1);
-		Assert.isTrue(ret.length == "adfasdfg".getBytes().length);
+		Assert.assertTrue(ret.length == "adfasdfg".getBytes().length);
 		for(int i=0;i<ret.length;i++) {
-			Assert.isTrue(ret[i] == "adfasdfg".getBytes()[i]);
+			Assert.assertTrue(ret[i] == "adfasdfg".getBytes()[i]);
 		}
-		Assert.isTrue(t2.getBytes().length == 16);
+		Assert.assertTrue(t2.getBytes().length == 16);
 		
 		t2.addAttributeFromKVRecord(t1, 0);
-		Assert.isTrue(t2.getNumberOfColumns() == 3);
-		Assert.isTrue(t2.getStringValueAt(2).equals("a"));
-		Assert.isTrue(t2.getBytes().length == 18);
+		Assert.assertTrue(t2.getNumberOfColumns() == 3);
+		Assert.assertTrue(t2.getStringValueAt(2).equals("a"));
+		Assert.assertTrue(t2.getBytes().length == 18);
 		
 	}
 
@@ -606,27 +606,27 @@ public class TupleTest {
 		
 		Tuple t = new Tuple();
 		
-		Assert.isTrue(t.getNumberOfColumns() == 0);
+		Assert.assertTrue(t.getNumberOfColumns() == 0);
 		
 		t.addAttribute("a");
-		Assert.isTrue(t.getNumberOfColumns() == 1);
-		Assert.isTrue(t.getStringValueAt(0).equals("a"));
-		Assert.isTrue(t.getBytes().length == 256);
+		Assert.assertTrue(t.getNumberOfColumns() == 1);
+		Assert.assertTrue(t.getStringValueAt(0).equals("a"));
+		Assert.assertTrue(t.getBytes().length == 256);
 		
 		t.compact();
 		t.addAttribute(123345+"");
-		Assert.isTrue(t.getNumberOfColumns() == 2);
-		Assert.isTrue(t.getLongValueAt(1) == 123345);
-		Assert.isTrue(t.getBytes().length == 9);
+		Assert.assertTrue(t.getNumberOfColumns() == 2);
+		Assert.assertTrue(t.getLongValueAt(1) == 123345);
+		Assert.assertTrue(t.getBytes().length == 9);
 		
 		t.addAttribute("adfasdfg");
-		Assert.isTrue(t.getNumberOfColumns() == 3);
+		Assert.assertTrue(t.getNumberOfColumns() == 3);
 		byte[] ret = t.getByteArrayValueAt(2);
-		Assert.isTrue(ret.length == "adfasdfg".getBytes().length);
+		Assert.assertTrue(ret.length == "adfasdfg".getBytes().length);
 		for(int i=0;i<ret.length;i++) {
-			Assert.isTrue(ret[i] == "adfasdfg".getBytes()[i]);
+			Assert.assertTrue(ret[i] == "adfasdfg".getBytes()[i]);
 		}
-		Assert.isTrue(t.getBytes().length == 18);
+		Assert.assertTrue(t.getBytes().length == 18);
 		
 	}
 
@@ -682,9 +682,9 @@ public class TupleTest {
 		try {
 			t.read(dis);
 			
-			Assert.isTrue(t.getNumberOfColumns() == 1);
-			Assert.isTrue(t.getStringValueAt(0).equals("Hello world!"));
-			Assert.isTrue(t.toString().equals("Hello world!|"));
+			Assert.assertTrue(t.getNumberOfColumns() == 1);
+			Assert.assertTrue(t.getStringValueAt(0).equals("Hello world!"));
+			Assert.assertTrue(t.toString().equals("Hello world!|"));
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -693,10 +693,10 @@ public class TupleTest {
 		try {
 			t.read(dis);
 			
-			Assert.isTrue(t.getNumberOfColumns() == 2);
-			Assert.isTrue(t.getStringValueAt(0).equals("Hello world!"));
-			Assert.isTrue(t.getStringValueAt(1).equals("2ndAttribute"));
-			Assert.isTrue(t.toString().equals("Hello world!|2ndAttribute|"));
+			Assert.assertTrue(t.getNumberOfColumns() == 2);
+			Assert.assertTrue(t.getStringValueAt(0).equals("Hello world!"));
+			Assert.assertTrue(t.getStringValueAt(1).equals("2ndAttribute"));
+			Assert.assertTrue(t.toString().equals("Hello world!|2ndAttribute|"));
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -705,13 +705,13 @@ public class TupleTest {
 		try {
 			t.read(dis);
 			
-			Assert.isTrue(t.getNumberOfColumns() == 5);
-			Assert.isTrue(t.getStringValueAt(0).equals("attr1"));
-			Assert.isTrue(t.getStringValueAt(1).equals("attr2"));
-			Assert.isTrue(t.getLongValueAt(2) == 3);
-			Assert.isTrue(t.getLongValueAt(3) == 4);
-			Assert.isTrue(t.getStringValueAt(4).equals("attr5"));
-			Assert.isTrue(t.toString().equals("attr1|attr2|3|4|attr5|"));
+			Assert.assertTrue(t.getNumberOfColumns() == 5);
+			Assert.assertTrue(t.getStringValueAt(0).equals("attr1"));
+			Assert.assertTrue(t.getStringValueAt(1).equals("attr2"));
+			Assert.assertTrue(t.getLongValueAt(2) == 3);
+			Assert.assertTrue(t.getLongValueAt(3) == 4);
+			Assert.assertTrue(t.getStringValueAt(4).equals("attr5"));
+			Assert.assertTrue(t.toString().equals("attr1|attr2|3|4|attr5|"));
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -731,15 +731,15 @@ public class TupleTest {
 		Tuple t = new Tuple();
 
 		t.addAttribute("Hello world!");
-		Assert.isTrue(t.toString().equals("Hello world!|"));
+		Assert.assertTrue(t.toString().equals("Hello world!|"));
 		t.addAttribute("2ndValue");
-		Assert.isTrue(t.toString().equals("Hello world!|2ndValue|"));
+		Assert.assertTrue(t.toString().equals("Hello world!|2ndValue|"));
 		
 		byte[] ba = "attr1|attr2|3|4|attr5|thisdoesnotbelongtothetuple".getBytes();
 		short[] of2 = {0,6,12,14,16,22};
 		t = new Tuple(ba, of2, 5);
 		
-		Assert.isTrue(t.toString().equals("attr1|attr2|3|4|attr5|"));
+		Assert.assertTrue(t.toString().equals("attr1|attr2|3|4|attr5|"));
 		
 	}
 
