@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -16,27 +16,102 @@
 package eu.stratosphere.pact.common.util;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 
-public class FieldList  extends ArrayList<Integer>{
 
-	private static final long serialVersionUID = -6333143284628275141L;
-
+/**
+ *
+ */
+public class FieldList extends FieldSet
+{
 	public FieldList() {
+		super();
 	}
 	
 	public FieldList(int columnIndex) {
-		super(1);
-		this.add(columnIndex);
+		this();
+		add(columnIndex);
 	}
 	
 	public FieldList(int[] columnIndexes) {
-		super(columnIndexes.length);
-		for(int i=0;i<columnIndexes.length;i++) {
-			if(this.contains(columnIndexes[i])) {
-				throw new IllegalArgumentException("Fields must be unique");
-			}
-			this.add(columnIndexes[i]);
+		this();
+		addAll(columnIndexes);
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	public Integer get(int pos) {
+		return get().get(pos);
+	}
+	
+	public FieldList toFieldList() {
+		return this;
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.util.FieldSet#isValidSubset(eu.stratosphere.pact.common.util.FieldSet)
+	 */
+	@Override
+	public boolean isValidSubset(FieldSet set) {
+		if (set instanceof FieldList) {
+			return (isValidSubset((FieldList) set));
+		} else {
+			return false;
 		}
 	}
 	
+	public boolean isValidSubset(FieldList list) {
+		if (list.size() > size()) {
+			return false;
+		}
+		final List<Integer> myList = get();
+		final List<Integer> theirList = list.get();
+		for (int i = 0; i < theirList.size(); i++) {
+			Integer myInt = myList.get(i);
+			Integer theirInt = theirList.get(i);
+			if (myInt.intValue() != theirInt.intValue()) {
+				return false;
+			}
+		}
+		return true;
+	}
+	
+	public boolean isValidUnorderedPrefix(FieldSet set) {
+		if (set.size() > size()) {
+			return false;
+		}
+		
+		List<Integer> list = get();
+		for (int i = 0; i < set.size(); i++) {
+			if (!set.contains(list.get(i))) {
+				return false;
+			}
+		}
+		return true;
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.util.AbstractFieldSet#initCollection()
+	 */
+	@Override
+	protected Collection<Integer> initCollection() {
+		return new ArrayList<Integer>();
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.util.FieldSet#getDescriptionPrefix()
+	 */
+	@Override
+	protected String getDescriptionPrefix() {
+		return "Field List";
+	}
+
+	private List<Integer> get() {
+		return (List<Integer>) this.collection;
+	}
 }

@@ -234,7 +234,7 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 						if (!s.isDir()) {
 							files.add(s);
 							if (s.getModificationTime() > stats.getLastModificationTime()) {
-								stats.fileModTime = s.getModificationTime();
+								stats.setLastModificationTime(s.getModificationTime());
 								unmodified = false;
 							}
 						}
@@ -251,24 +251,25 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 						return stats;
 					}
 
-					stats.fileModTime = modTime;
+					stats.setLastModificationTime(modTime);
 					
 					files = new ArrayList<FileStatus>(1);
 					files.add(status);
 				}
 			}
 
-			stats.avgBytesPerRecord = -1.0f;
-			stats.fileSize = 0;
+			stats.setAverageRecordWidth(-1.0f);
 			
 			// calculate the whole length
+			long len = 0;
 			for (FileStatus s : files) {
-				stats.fileSize += s.getLen();
+				len += s.getLen();
 			}
+			stats.setTotalInputSize(len);
 			
 			// sanity check
-			if (stats.fileSize <= 0) {
-				stats.fileSize = BaseStatistics.UNKNOWN;
+			if (stats.getTotalInputSize() <= 0) {
+				stats.setTotalInputSize(BaseStatistics.UNKNOWN);
 				return stats;
 			}
 			
@@ -282,14 +283,14 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 			}
 						
 			// make the samples small for very small files
-			int numSamples = Math.min(this.numLineSamples, (int) (stats.fileSize / 1024));
+			int numSamples = Math.min(this.numLineSamples, (int) (stats.getTotalInputSize() / 1024));
 			if (numSamples < 2) {
 				numSamples = 2;
 			}
 
 			long offset = 0;
 			long bytes = 0; // one byte for the line-break
-			long stepSize = stats.fileSize / numSamples;
+			long stepSize = stats.getTotalInputSize() / numSamples;
 
 			int fileNum = 0;
 			int samplesTaken = 0;
@@ -328,7 +329,7 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 				}
 			}
 
-			stats.avgBytesPerRecord = bytes / (float) samplesTaken;
+			stats.setAverageRecordWidth(bytes / (float) samplesTaken);
 		}
 		catch (IOException ioex) {
 			if (LOG.isWarnEnabled())

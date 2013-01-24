@@ -15,86 +15,13 @@
 
 package eu.stratosphere.pact.common.io;
 
-import java.io.IOException;
-
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.template.GenericInputSplit;
-import eu.stratosphere.pact.common.generic.io.InputFormat;
-import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
 import eu.stratosphere.pact.common.type.PactRecord;
 
 /**
- * Generic base class for all inputs that are not based on files. 
+ * Generic base class for all inputs that are not based on files, specific to PactRecord.
  *
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
+ * @author Stephan Ewen
  */
-public abstract class GenericInputFormat implements InputFormat<PactRecord, GenericInputSplit>
-{	
-	/**
-	 * The partition of this split.
-	 */
-	protected int partitionNumber;
-
-	// --------------------------------------------------------------------------------------------
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.io.InputFormat#configure(eu.stratosphere.nephele.configuration.Configuration)
-	 */
-	@Override
-	public void configure(Configuration parameters)
-	{
-		//	nothing by default
-	}
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.io.InputFormat#getStatistics()
-	 */
-	@Override
-	public BaseStatistics getStatistics(BaseStatistics cachedStatistics)
-	{
-		// no statistics available, by default.
-		return cachedStatistics;
-	}
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.io.InputFormat#createInputSplits(int)
-	 */
-	@Override
-	public GenericInputSplit[] createInputSplits(int minNumSplits) throws IOException
-	{
-		GenericInputSplit[] splits = new GenericInputSplit[minNumSplits];
-		for (int i = 0; i < splits.length; i++) {
-			splits[i] = new GenericInputSplit(i);
-		}
-		return splits;
-	}
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.io.InputFormat#getInputSplitType()
-	 */
-	@Override
-	public Class<? extends GenericInputSplit> getInputSplitType()
-	{
-		return GenericInputSplit.class;
-	}
-
-	// --------------------------------------------------------------------------------------------
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.io.InputFormat#open(eu.stratosphere.nephele.template.InputSplit)
-	 */
-	@Override
-	public void open(GenericInputSplit split) throws IOException
-	{
-		this.partitionNumber = split.getSplitNumber();
-	}
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.io.InputFormat#close()
-	 */
-	@Override
-	public void close() throws IOException
-	{
-		// nothing by default 	
-	}
+public abstract class GenericInputFormat extends eu.stratosphere.pact.generic.io.GenericInputFormat<PactRecord>
+{
 }

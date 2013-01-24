@@ -18,8 +18,9 @@ package eu.stratosphere.pact.common.contract;
 import java.util.ArrayList;
 import java.util.List;
 
-import eu.stratosphere.pact.common.generic.io.OutputFormat;
 import eu.stratosphere.pact.common.plan.Visitor;
+import eu.stratosphere.pact.generic.contract.Contract;
+import eu.stratosphere.pact.generic.io.OutputFormat;
 
 /**
  * Contract for nodes which act as data sinks, storing the data they receive somewhere instead of sending it to another
@@ -272,7 +273,7 @@ public class GenericDataSink extends Contract
 	 * 
 	 * @return The class describing the output format.
 	 * 
-	 * @see eu.stratosphere.pact.common.contract.Contract#getUserCodeClass()
+	 * @see eu.stratosphere.pact.generic.contract.Contract#getUserCodeClass()
 	 */
 	@Override
 	public Class<? extends OutputFormat<?>> getUserCodeClass()

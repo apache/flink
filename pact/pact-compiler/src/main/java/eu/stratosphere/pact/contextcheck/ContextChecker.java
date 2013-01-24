@@ -19,14 +19,14 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import eu.stratosphere.pact.common.contract.Contract;
-import eu.stratosphere.pact.common.contract.DualInputContract;
 import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.GenericDataSink;
-import eu.stratosphere.pact.common.contract.SingleInputContract;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.Visitor;
+import eu.stratosphere.pact.generic.contract.Contract;
+import eu.stratosphere.pact.generic.contract.DualInputContract;
+import eu.stratosphere.pact.generic.contract.SingleInputContract;
 
 /**
  * Traverses a plan and checks whether all Contracts are correctly connected to

@@ -19,6 +19,9 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
+import eu.stratosphere.nephele.services.memorymanager.DataInputView;
+import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
+import eu.stratosphere.pact.common.type.CopyableValue;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.NormalizableKey;
 
@@ -28,11 +31,8 @@ import eu.stratosphere.pact.common.type.NormalizableKey;
  * So no data is shipped or stored using this type.
  * 
  * @see eu.stratosphere.pact.common.type.Key
- * 
- * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
- *
  */
-public final class PactNull implements Key, NormalizableKey
+public final class PactNull implements Key, NormalizableKey, CopyableValue<PactNull>
 {	
 	/**
 	 * The PactNull singleton instance.
@@ -55,7 +55,18 @@ public final class PactNull implements Key, NormalizableKey
 	 */
 	public PactNull() {
 	}
+	
+	// --------------------------------------------------------------------------------------------
 
+	/*
+	 * (non-Javadoc)
+	 * @see java.lang.Object#toString()
+	 */
+	@Override
+	public String toString() {
+		return "(null)";
+	}
+	
 	// --------------------------------------------------------------------------------------------
 	
 	/*
@@ -75,17 +86,8 @@ public final class PactNull implements Key, NormalizableKey
 	public void write(DataOutput out) throws IOException {
 		out.writeBoolean(false);
 	}
-
-	// --------------------------------------------------------------------------------------------
 	
-	/*
-	 * (non-Javadoc)
-	 * @see java.lang.Object#toString()
-	 */
-	@Override
-	public String toString() {
-		return "(null)";
-	}
+	// --------------------------------------------------------------------------------------------
 
 	/*
 	 * (non-Javadoc)
@@ -117,13 +119,14 @@ public final class PactNull implements Key, NormalizableKey
 	public int hashCode() {
 		return 53;
 	}
+	
+	// --------------------------------------------------------------------------------------------
 
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.common.type.NormalizableKey#getNormalizedKeyLen()
 	 */
 	@Override
-	public int getMaxNormalizedKeyLen()
-	{
+	public int getMaxNormalizedKeyLen() {
 		return 0;
 	}
 
@@ -135,5 +138,31 @@ public final class PactNull implements Key, NormalizableKey
 		for (int i = offset; i < offset + len; i++) {
 			target[i] = 0;
 		}
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.type.CopyableValue#getBinaryLength()
+	 */
+	@Override
+	public int getBinaryLength() {
+		return 1;
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.type.Copyable#copyTo(java.lang.Object)
+	 */
+	@Override
+	public void copyTo(PactNull target) {
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.type.CopyableValue#copy(eu.stratosphere.nephele.services.memorymanager.DataInputView, eu.stratosphere.nephele.services.memorymanager.DataOutputView)
+	 */
+	@Override
+	public void copy(DataInputView source, DataOutputView target) throws IOException {
+		source.readBoolean();
+		target.writeBoolean(false);
 	}
 }

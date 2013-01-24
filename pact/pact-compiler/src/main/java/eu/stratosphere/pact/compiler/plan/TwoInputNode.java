@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -16,14 +16,13 @@
 package eu.stratosphere.pact.compiler.plan;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.CompilerHints;
-import eu.stratosphere.pact.common.contract.Contract;
-import eu.stratosphere.pact.common.contract.DualInputContract;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsFirst;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsFirstExcept;
@@ -32,32 +31,41 @@ import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsSecondExce
 import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
-import eu.stratosphere.pact.compiler.Costs;
-import eu.stratosphere.pact.compiler.GlobalProperties;
-import eu.stratosphere.pact.compiler.LocalProperties;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy.BroadcastSS;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ForwardSS;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy.PartitionHashSS;
+import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
+import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
+import eu.stratosphere.pact.compiler.dataproperties.RequestedGlobalProperties;
+import eu.stratosphere.pact.compiler.dataproperties.InterestingProperties;
+import eu.stratosphere.pact.compiler.dataproperties.RequestedLocalProperties;
+import eu.stratosphere.pact.compiler.operators.OperatorDescriptorDual;
+import eu.stratosphere.pact.compiler.operators.OperatorDescriptorDual.GlobalPropertiesPair;
+import eu.stratosphere.pact.compiler.operators.OperatorDescriptorDual.LocalPropertiesPair;
+import eu.stratosphere.pact.compiler.plan.candidate.Channel;
+import eu.stratosphere.pact.compiler.plan.candidate.DualInputPlanNode;
+import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
+import eu.stratosphere.pact.compiler.plan.candidate.Channel.TempMode;
+import eu.stratosphere.pact.generic.contract.Contract;
+import eu.stratosphere.pact.generic.contract.DualInputContract;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
+import eu.stratosphere.pact.runtime.task.DamBehavior;
+import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 
 /**
  * A node in the optimizer plan that represents a PACT with a two different inputs, such as MATCH or CROSS.
  * The two inputs are not substitutable in their sides.
- * 
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
 public abstract class TwoInputNode extends OptimizerNode
 {
-	private List<OptimizerNode> cachedPlans; // a cache for the computed alternative plans
-
-	protected PactConnection input1 = null; // The first input edge
-
-	protected PactConnection input2 = null; // The second input edge
-
-	protected FieldList keySet1; // The set of key fields for the first input (order is relevant!)
+	protected final FieldList keys1; // The set of key fields for the first input
 	
-	protected FieldList keySet2; // The set of key fields for the second input (order is relevant!)
+	protected final FieldList keys2; // The set of key fields for the second input
+	
+	private final List<OperatorDescriptorDual> possibleProperties;
+	
+	protected PactConnection input1; // The first input edge
+
+	protected PactConnection input2; // The second input edge
 	
 	// ------------- Stub Annotations
 	
@@ -69,6 +77,10 @@ public abstract class TwoInputNode extends OptimizerNode
 	
 	protected FieldSet notConstant2; // set of fields that are changed by the stub
 	
+	// --------------------------------------------------------------------------------------------
+	
+	private List<PlanNode> cachedPlans; // a cache for the computed alternative plans
+	
 	/**
 	 * Creates a new node with a single input for the optimizer plan.
 	 * 
@@ -78,93 +90,43 @@ public abstract class TwoInputNode extends OptimizerNode
 	public TwoInputNode(DualInputContract<?> pactContract) {
 		super(pactContract);
 
-		this.keySet1 = new FieldList(pactContract.getKeyColumnNumbers(0));
-		this.keySet2 = new FieldList(pactContract.getKeyColumnNumbers(1));
+		int[] k1 = pactContract.getKeyColumns(0);
+		int[] k2 = pactContract.getKeyColumns(1);
 		
-	}
-
-	/**
-	 * Copy constructor to create a copy of a node with different predecessors. The predecessors
-	 * is assumed to be of the same type as in the template node and merely copies with different
-	 * strategies, as they are created in the process of the plan enumeration.
-	 * 
-	 * @param template
-	 *        The node to create a copy of.
-	 * @param pred1
-	 *        The new predecessor for the first input.
-	 * @param pred2
-	 *        The new predecessor for the second input.
-	 * @param conn1
-	 *        The old connection of the first input to copy properties from.
-	 * @param conn2
-	 *        The old connection of the second input to copy properties from.
-	 * @param globalProps
-	 *        The global properties of this copy.
-	 * @param localProps
-	 *        The local properties of this copy.
-	 */
-	protected TwoInputNode(TwoInputNode template, OptimizerNode pred1, OptimizerNode pred2, PactConnection conn1,
-			PactConnection conn2, GlobalProperties globalProps, LocalProperties localProps)
-	{
-		super(template, globalProps, localProps);
+		this.keys1 = k1 == null || k1.length == 0 ? null : new FieldList(k1);
+		this.keys2 = k2 == null || k2.length == 0 ? null : new FieldList(k2);
 		
-		this.constant1 = template.constant1;
-		this.constant2 = template.constant2;
-		this.keySet1 = template.keySet1;
-		this.keySet2 = template.keySet2;
-
-		if(pred1 != null) {
-			this.input1 = new PactConnection(conn1, pred1, this);
-		}
-		
-		if(pred2 != null) {
-			this.input2 = new PactConnection(conn2, pred2, this);
-		}
-
-		// merge the branchPlan maps according the the template's uncloseBranchesStack
-		if (template.openBranches != null)
-		{
-			if (this.branchPlan == null) {
-				this.branchPlan = new HashMap<OptimizerNode, OptimizerNode>(8);
+		if (this.keys1 != null) {
+			if (this.keys2 != null) {
+				if (this.keys1.size() != this.keys2.size()) {
+					throw new CompilerException("Unequal number of key fields on the two inputs.");
+				}
+			} else {
+				throw new CompilerException("Keys are set on first input, but not on second.");
 			}
-
-			for (UnclosedBranchDescriptor uc : template.openBranches) {
-				OptimizerNode brancher = uc.branchingNode;
-				OptimizerNode selectedCandidate = null;
-
-				if(pred1 != null) {
-					if(pred1.branchPlan != null) {
-						// predecessor 1 has branching children, see if it got the branch we are looking for
-						selectedCandidate = pred1.branchPlan.get(brancher);
-						this.branchPlan.put(brancher, selectedCandidate);
-					}
-				}
-				
-				if(selectedCandidate == null && pred2 != null) {
-					if(pred2.branchPlan != null) {
-						// predecessor 2 has branching children, see if it got the branch we are looking for
-						selectedCandidate = pred2.branchPlan.get(brancher);
-						this.branchPlan.put(brancher, selectedCandidate);
-					}
-				}
-
-				if (selectedCandidate == null) {
-					throw new CompilerException(
-						"Candidates for a node with open branches are missing information about the selected candidate ");
-				}
-			}
+		} else if (this.keys2 != null) {
+			throw new CompilerException("Keys are set on second input, but not on first.");
 		}
+		
+		this.possibleProperties = getPossibleProperties();
 	}
 
 	// ------------------------------------------------------------------------
 	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getPactContract()
+	 */
+	@Override
+	public DualInputContract<?> getPactContract() {
+		return (DualInputContract<?>) super.getPactContract();
+	}
 
 	/**
 	 * Gets the <tt>PactConnection</tt> through which this node receives its <i>first</i> input.
 	 * 
 	 * @return The first input connection.
 	 */
-	public PactConnection getFirstInConn() {
+	public PactConnection getFirstIncomingConnection() {
 		return this.input1;
 	}
 
@@ -173,44 +135,18 @@ public abstract class TwoInputNode extends OptimizerNode
 	 * 
 	 * @return The second input connection.
 	 */
-	public PactConnection getSecondInConn() {
+	public PactConnection getSecondIncomingConnection() {
 		return this.input2;
 	}
-
-	/**
-	 * Sets the <tt>PactConnection</tt> through which this node receives its <i>first</i> input.
-	 * 
-	 * @param conn
-	 *        The first input connection.
-	 */
-	public void setFirstInConn(PactConnection conn) {
-		this.input1 = conn;
-	}
-
-	/**
-	 * Sets the <tt>PactConnection</tt> through which this node receives its <i>second</i> input.
-	 * 
-	 * @param conn
-	 *        The second input connection.
-	 */
-	public void setSecondInConn(PactConnection conn) {
-		this.input2 = conn;
-	}
 	
-	/**
-	 * TODO
-	 */
-	public OptimizerNode getFirstPredNode() {
+	public OptimizerNode getFirstPredecessorNode() {
 		if(this.input1 != null)
 			return this.input1.getSourcePact();
 		else
 			return null;
 	}
-	
-	/**
-	 * TODO
-	 */
-	public OptimizerNode getSecondPredNode() {
+
+	public OptimizerNode getSecondPredecessorNode() {
 		if(this.input2 != null)
 			return this.input2.getSourcePact();
 		else
@@ -235,57 +171,23 @@ public abstract class TwoInputNode extends OptimizerNode
 	 */
 	@Override
 	public void setInputs(Map<Contract, OptimizerNode> contractToNode) {
-		// get the predecessors
-		DualInputContract<?> contr = (DualInputContract<?>) getPactContract();
-		
-		List<Contract> leftPreds = contr.getFirstInputs();
-		List<Contract> rightPreds = contr.getSecondInputs();
-		
-		OptimizerNode pred1;
-		if (leftPreds.size() == 1) {
-			pred1 = contractToNode.get(leftPreds.get(0));
-		} else {
-			pred1 = new UnionNode(getPactContract(), leftPreds, contractToNode);
-			pred1.setDegreeOfParallelism(this.getDegreeOfParallelism());
-			//push id down to newly created union node
-			pred1.SetId(this.id);
-			pred1.setInstancesPerMachine(instancesPerMachine);
-			this.id++;
-		}
-		// create the connection and add it
-		PactConnection conn1 = new PactConnection(pred1, this);
-		this.input1 = conn1;
-		pred1.addOutConn(conn1);
-		
-		OptimizerNode pred2;
-		if (rightPreds.size() == 1) {
-			pred2 = contractToNode.get(rightPreds.get(0));
-		} else {
-			pred2 = new UnionNode(getPactContract(), rightPreds, contractToNode);
-			pred2.setDegreeOfParallelism(this.getDegreeOfParallelism());
-			//push id down to newly created union node
-			pred2.SetId(this.id);
-			pred2.setInstancesPerMachine(instancesPerMachine);
-			this.id++;
-		}
-		// create the connection and add it
-		PactConnection conn2 = new PactConnection(pred2, this);
-		this.input2 = conn2;
-		pred2.addOutConn(conn2);
-
 		// see if there is a hint that dictates which shipping strategy to use for BOTH inputs
-		Configuration conf = getPactContract().getParameters();
+		final Configuration conf = getPactContract().getParameters();
+		ShipStrategyType preSet1 = null;
+		ShipStrategyType preSet2 = null;
+		
 		String shipStrategy = conf.getString(PactCompiler.HINT_SHIP_STRATEGY, null);
 		if (shipStrategy != null) {
 			if (PactCompiler.HINT_SHIP_STRATEGY_FORWARD.equals(shipStrategy)) {
-				this.input1.setShipStrategy(new ForwardSS());
-				this.input2.setShipStrategy(new ForwardSS());
+				preSet1 = preSet2 = ShipStrategyType.FORWARD;
 			} else if (PactCompiler.HINT_SHIP_STRATEGY_BROADCAST.equals(shipStrategy)) {
-				this.input1.setShipStrategy(new BroadcastSS());
-				this.input2.setShipStrategy(new BroadcastSS());
-			} else if (PactCompiler.HINT_SHIP_STRATEGY_REPARTITION.equals(shipStrategy)) {
-				this.input1.setShipStrategy(new PartitionHashSS(this.keySet1));
-				this.input2.setShipStrategy(new PartitionHashSS(this.keySet2));
+				preSet1 = preSet2 = ShipStrategyType.BROADCAST;
+			} else if (PactCompiler.HINT_SHIP_STRATEGY_REPARTITION_HASH.equals(shipStrategy)) {
+				preSet1 = preSet2 = ShipStrategyType.PARTITION_HASH;
+			} else if (PactCompiler.HINT_SHIP_STRATEGY_REPARTITION_RANGE.equals(shipStrategy)) {
+				preSet1 = preSet2 = ShipStrategyType.PARTITION_RANGE;
+			} else if (shipStrategy.equalsIgnoreCase(PactCompiler.HINT_SHIP_STRATEGY_REPARTITION)) {
+				preSet1 = preSet2 = ShipStrategyType.PARTITION_RANDOM;
 			} else {
 				throw new CompilerException("Unknown hint for shipping strategy: " + shipStrategy);
 			}
@@ -295,11 +197,15 @@ public abstract class TwoInputNode extends OptimizerNode
 		shipStrategy = conf.getString(PactCompiler.HINT_SHIP_STRATEGY_FIRST_INPUT, null);
 		if (shipStrategy != null) {
 			if (PactCompiler.HINT_SHIP_STRATEGY_FORWARD.equals(shipStrategy)) {
-				this.input1.setShipStrategy(new ForwardSS());
+				preSet1 = ShipStrategyType.FORWARD;
 			} else if (PactCompiler.HINT_SHIP_STRATEGY_BROADCAST.equals(shipStrategy)) {
-				this.input1.setShipStrategy(new BroadcastSS());
-			} else if (PactCompiler.HINT_SHIP_STRATEGY_REPARTITION.equals(shipStrategy)) {
-				this.input1.setShipStrategy(new PartitionHashSS(this.keySet1));
+				preSet1 = ShipStrategyType.BROADCAST;
+			} else if (PactCompiler.HINT_SHIP_STRATEGY_REPARTITION_HASH.equals(shipStrategy)) {
+				preSet1 = ShipStrategyType.PARTITION_HASH;
+			} else if (PactCompiler.HINT_SHIP_STRATEGY_REPARTITION_RANGE.equals(shipStrategy)) {
+				preSet1 = ShipStrategyType.PARTITION_RANGE;
+			} else if (shipStrategy.equalsIgnoreCase(PactCompiler.HINT_SHIP_STRATEGY_REPARTITION)) {
+				preSet1 = ShipStrategyType.PARTITION_RANDOM;
 			} else {
 				throw new CompilerException("Unknown hint for shipping strategy of input one: " + shipStrategy);
 			}
@@ -309,15 +215,112 @@ public abstract class TwoInputNode extends OptimizerNode
 		shipStrategy = conf.getString(PactCompiler.HINT_SHIP_STRATEGY_SECOND_INPUT, null);
 		if (shipStrategy != null) {
 			if (PactCompiler.HINT_SHIP_STRATEGY_FORWARD.equals(shipStrategy)) {
-				this.input2.setShipStrategy(new ForwardSS());
+				preSet1 = ShipStrategyType.FORWARD;
 			} else if (PactCompiler.HINT_SHIP_STRATEGY_BROADCAST.equals(shipStrategy)) {
-				this.input2.setShipStrategy(new BroadcastSS());
-			} else if (PactCompiler.HINT_SHIP_STRATEGY_REPARTITION.equals(shipStrategy)) {
-				this.input2.setShipStrategy(new PartitionHashSS(this.keySet2));
+				preSet1 = ShipStrategyType.BROADCAST;
+			} else if (PactCompiler.HINT_SHIP_STRATEGY_REPARTITION_HASH.equals(shipStrategy)) {
+				preSet1 = ShipStrategyType.PARTITION_HASH;
+			} else if (PactCompiler.HINT_SHIP_STRATEGY_REPARTITION_RANGE.equals(shipStrategy)) {
+				preSet1 = ShipStrategyType.PARTITION_RANGE;
+			} else if (shipStrategy.equalsIgnoreCase(PactCompiler.HINT_SHIP_STRATEGY_REPARTITION)) {
+				preSet1 = ShipStrategyType.PARTITION_RANDOM;
 			} else {
 				throw new CompilerException("Unknown hint for shipping strategy of input two: " + shipStrategy);
 			}
 		}
+		
+		// get the predecessors
+		DualInputContract<?> contr = (DualInputContract<?>) getPactContract();
+		
+		List<Contract> leftPreds = contr.getFirstInputs();
+		List<Contract> rightPreds = contr.getSecondInputs();
+		
+		OptimizerNode pred1;
+		PactConnection conn1;
+		if (leftPreds.size() == 1) {
+			pred1 = contractToNode.get(leftPreds.get(0));
+			conn1 = new PactConnection(pred1, this);
+			if (preSet1 != null) {
+				conn1.setShipStrategy(preSet1);
+			}
+		} else {
+			pred1 = createdUnionCascade(leftPreds, contractToNode, preSet1);
+			conn1 = new PactConnection(pred1, this);
+			conn1.setShipStrategy(ShipStrategyType.FORWARD);
+		}
+		// create the connection and add it
+		this.input1 = conn1;
+		pred1.addOutgoingConnection(conn1);
+		
+		OptimizerNode pred2;
+		PactConnection conn2;
+		if (rightPreds.size() == 1) {
+			pred2 = contractToNode.get(rightPreds.get(0));
+			conn2 = new PactConnection(pred2, this);
+			if (preSet2 != null) {
+				conn2.setShipStrategy(preSet2);
+			}
+		} else {
+			pred2 = createdUnionCascade(rightPreds, contractToNode, preSet1);
+			conn2 = new PactConnection(pred2, this);
+			conn2.setShipStrategy(ShipStrategyType.FORWARD);
+		}
+		// create the connection and add it
+		this.input2 = conn2;
+		pred2.addOutgoingConnection(conn2);
+
+
+	}
+	
+	protected abstract List<OperatorDescriptorDual> getPossibleProperties();
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isMemoryConsumer()
+	 */
+	@Override
+	public boolean isMemoryConsumer() {
+		for (OperatorDescriptorDual dpd : this.possibleProperties) {
+			if (dpd.getStrategy().firstDam().isMaterializing() ||
+				dpd.getStrategy().secondDam().isMaterializing()) {
+				return true;
+			}
+			for (LocalPropertiesPair prp : dpd.getPossibleLocalProperties()) {
+				if (!(prp.getProperties1().isTrivial() && prp.getProperties2().isTrivial())) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeInterestingPropertiesForInputs(eu.stratosphere.pact.compiler.costs.CostEstimator)
+	 */
+	@Override
+	public void computeInterestingPropertiesForInputs(CostEstimator estimator) {
+		// get what we inherit and what is preserved by our user code 
+		final InterestingProperties props1 = getInterestingProperties().filterByCodeAnnotations(this, 0);
+		final InterestingProperties props2 = getInterestingProperties().filterByCodeAnnotations(this, 1);
+		
+		// add all properties relevant to this node
+		for (OperatorDescriptorDual dpd : this.possibleProperties) {
+			for (GlobalPropertiesPair gp : dpd.getPossibleGlobalProperties()) {
+				// input 1
+				props1.addGlobalProperties(gp.getProperties1());
+				
+				// input 2
+				props2.addGlobalProperties(gp.getProperties2());
+			}
+			for (LocalPropertiesPair lp : dpd.getPossibleLocalProperties()) {
+				// input 1
+				props1.addLocalProperties(lp.getProperties1());
+				
+				// input 2
+				props2.addLocalProperties(lp.getProperties2());
+			}
+		}
+		this.input1.setInterestingProperties(props1);
+		this.input2.setInterestingProperties(props2);
 	}
 
 	/*
@@ -325,57 +328,299 @@ public abstract class TwoInputNode extends OptimizerNode
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getAlternativePlans()
 	 */
 	@Override
-	final public List<OptimizerNode> getAlternativePlans(CostEstimator estimator) {
+	final public List<PlanNode> getAlternativePlans(CostEstimator estimator) {
 		// check if we have a cached version
 		if (this.cachedPlans != null) {
 			return this.cachedPlans;
 		}
 
-		// step down to all producer nodes for first input and calculate alternative plans
-		List<? extends OptimizerNode> subPlans1 = this.getFirstPredNode().getAlternativePlans(estimator);
-		
-		// step down to all producer nodes for second input and calculate alternative plans
-		List<? extends OptimizerNode> subPlans2 = this.getSecondPredNode().getAlternativePlans(estimator);
+		// step down to all producer nodes and calculate alternative plans
+		final List<? extends PlanNode> subPlans1 = getFirstPredecessorNode().getAlternativePlans(estimator);
+		final List<? extends PlanNode> subPlans2 = getSecondPredecessorNode().getAlternativePlans(estimator);
 
-		List<OptimizerNode> outputPlans = new ArrayList<OptimizerNode>();
-		computeValidPlanAlternatives(subPlans1, subPlans2, estimator,  outputPlans);
+		// calculate alternative sub-plans for predecessor
+		final Set<RequestedGlobalProperties> intGlobal1 = this.input1.getInterestingProperties().getGlobalProperties();
+		final Set<RequestedGlobalProperties> intGlobal2 = this.input2.getInterestingProperties().getGlobalProperties();
 		
-		// prune the plans
-		prunePlanAlternatives(outputPlans);
-
-		// cache the result only if we have multiple outputs --> this function gets invoked multiple times
-		if (this.getOutConns() != null && this.getOutConns().size() > 1) {
-			this.cachedPlans = outputPlans;
+		final GlobalPropertiesPair[] allGlobalPairs;
+		final LocalPropertiesPair[] allLocalPairs;
+		{
+			Set<GlobalPropertiesPair> pairsGlob = new HashSet<GlobalPropertiesPair>();
+			Set<LocalPropertiesPair> pairsLoc = new HashSet<LocalPropertiesPair>();
+			for (OperatorDescriptorDual ods : this.possibleProperties) {
+				pairsGlob.addAll(ods.getPossibleGlobalProperties());
+				pairsLoc.addAll(ods.getPossibleLocalProperties());
+			}
+			allGlobalPairs = (GlobalPropertiesPair[]) pairsGlob.toArray(new GlobalPropertiesPair[pairsGlob.size()]);
+			allLocalPairs = (LocalPropertiesPair[]) pairsLoc.toArray(new LocalPropertiesPair[pairsLoc.size()]);
+		}
+		
+		final ArrayList<PlanNode> outputPlans = new ArrayList<PlanNode>();
+		
+		final int dop = getDegreeOfParallelism();
+		final int subPerInstance = getSubtasksPerInstance();
+		final int numInstances = dop / subPerInstance + (dop % subPerInstance == 0 ? 0 : 1);
+		final int inDop1 = getFirstPredecessorNode().getDegreeOfParallelism();
+		final int inSubPerInstance1 = getFirstPredecessorNode().getSubtasksPerInstance();
+		final int inNumInstances1 = inDop1 / inSubPerInstance1 + (inDop1 % inSubPerInstance1 == 0 ? 0 : 1);
+		final int inDop2 = getSecondPredecessorNode().getDegreeOfParallelism();
+		final int inSubPerInstance2 = getSecondPredecessorNode().getSubtasksPerInstance();
+		final int inNumInstances2 = inDop2 / inSubPerInstance2 + (inDop2 % inSubPerInstance2 == 0 ? 0 : 1);
+		
+		final boolean globalDopChange1 = numInstances != inNumInstances1;
+		final boolean globalDopChange2 = numInstances != inNumInstances2;
+		final boolean localDopChange1 = numInstances == inNumInstances1 & subPerInstance != inSubPerInstance1;
+		final boolean localDopChange2 = numInstances == inNumInstances2 & subPerInstance != inSubPerInstance2;
+		
+		// enumerate all pairwise combination of the children's plans together with
+		// all possible operator strategy combination
+		
+		// create all candidates
+		for (PlanNode child1 : subPlans1) {
+			for (PlanNode child2 : subPlans2) {
+				
+				// check that the children go together. that is the case if they build upon the same
+				// candidate at the joined branch plan. 
+				if (!areBranchCompatible(child1, child2)) {
+					continue;
+				}
+				
+				for (RequestedGlobalProperties igps1: intGlobal1) {
+					final Channel c1 = new Channel(child1);
+					if (this.input1.getShipStrategy() == null) {
+						// free to choose the ship strategy
+						igps1.parameterizeChannel(c1, globalDopChange1, localDopChange1);
+						
+						// if the DOP changed, make sure that we cancel out properties, unless the
+						// ship strategy preserves/establishes them even under changing DOPs
+						if (globalDopChange1 && !c1.getShipStrategy().isNetworkStrategy()) {
+							c1.getGlobalProperties().reset();
+						}
+						if (localDopChange1 && !(c1.getShipStrategy().isNetworkStrategy() || 
+									c1.getShipStrategy().compensatesForLocalDOPChanges())) {
+							c1.getGlobalProperties().reset();
+						}
+					} else {
+						// ship strategy fixed by compiler hint
+						if (this.keys1 != null) {
+							c1.setShipStrategy(this.input1.getShipStrategy(), this.keys1.toFieldList());
+						} else {
+							c1.setShipStrategy(this.input1.getShipStrategy());
+						}
+						
+						if (globalDopChange1) {
+							c1.adjustGlobalPropertiesForFullParallelismChange();
+						} else if (localDopChange1) {
+							c1.adjustGlobalPropertiesForLocalParallelismChange();
+						}
+					}
+					
+					for (RequestedGlobalProperties igps2: intGlobal2) {
+						final Channel c2 = new Channel(child2);
+						if (this.input2.getShipStrategy() == null) {
+							// free to choose the ship strategy
+							igps2.parameterizeChannel(c2, globalDopChange2, localDopChange2);
+							
+							// if the DOP changed, make sure that we cancel out properties, unless the
+							// ship strategy preserves/establishes them even under changing DOPs
+							if (globalDopChange2 && !c2.getShipStrategy().isNetworkStrategy()) {
+								c2.getGlobalProperties().reset();
+							}
+							if (localDopChange2 && !(c2.getShipStrategy().isNetworkStrategy() || 
+										c2.getShipStrategy().compensatesForLocalDOPChanges())) {
+								c2.getGlobalProperties().reset();
+							}
+						} else {
+							// ship strategy fixed by compiler hint
+							if (this.keys2 != null) {
+								c2.setShipStrategy(this.input2.getShipStrategy(), this.keys2.toFieldList());
+							} else {
+								c2.setShipStrategy(this.input2.getShipStrategy());
+							}
+							
+							if (globalDopChange2) {
+								c2.adjustGlobalPropertiesForFullParallelismChange();
+							} else if (localDopChange2) {
+								c2.adjustGlobalPropertiesForLocalParallelismChange();
+							}
+						}
+						
+						/* ********************************************************************
+						 * NOTE: Depending on how we proceed with different partitionings,
+						 *       we might at some point need a compatibility check between
+						 *       the pairs of global properties.
+						 * *******************************************************************/
+						
+						for (GlobalPropertiesPair gpp : allGlobalPairs) {
+							if (gpp.getProperties1().isMetBy(c1.getGlobalProperties()) && 
+								gpp.getProperties2().isMetBy(c2.getGlobalProperties()) )
+							{
+								// we form a valid combination, so create the local candidates
+								// for this
+								addLocalCandidates(c1, c2, outputPlans, allLocalPairs);
+								break;
+							}
+						}
+						
+						// break the loop over input2's possible global properties, if the property
+						// is fixed via a hint. All the properties are overridden by the hint anyways,
+						// so we can stop after the first
+						if (this.input2.getShipStrategy() != null) {
+							break;
+						}
+					}
+					
+					// break the loop over input1's possible global properties, if the property
+					// is fixed via a hint. All the properties are overridden by the hint anyways,
+					// so we can stop after the first
+					if (this.input1.getShipStrategy() != null) {
+						break;
+					}
+				}
+			}
 		}
 
+		// cost and prune the plans
+		for (PlanNode node : outputPlans) {
+			estimator.costOperator(node);
+		}
+		prunePlanAlternatives(outputPlans);
+		outputPlans.trimToSize();
+
+		this.cachedPlans = outputPlans;
 		return outputPlans;
 	}
 	
-	/**
-	 * Takes a list with all sub-plan-combinations (each is a list by itself) and produces alternative
-	 * plans for the current node using the single sub-plans-combinations.
-	 *  
-	 * @param altSubPlans1	 	All subplans of the first input
-	 * @param altSubPlans2	 	All subplans of the second input
-	 * @param estimator			Cost estimator to be used
-	 * @param outputPlans		The generated output plans
-	 */
-	protected abstract void computeValidPlanAlternatives(List<? extends OptimizerNode> altSubPlans1,
-			List<? extends OptimizerNode> altSubPlans2, CostEstimator estimator, List<OptimizerNode> outputPlans);
+	private void addLocalCandidates(Channel template1, Channel template2, List<PlanNode> target, LocalPropertiesPair[] validLocalCombinations) {
+		final LocalProperties lp1 = template1.getLocalPropertiesAfterShippingOnly();
+		final LocalProperties lp2 = template2.getLocalPropertiesAfterShippingOnly();
 		
+		for (RequestedLocalProperties ilp1 : this.input1.getInterestingProperties().getLocalProperties()) {
+			final Channel in1 = template1.clone();
+			if (ilp1.isMetBy(lp1)) {
+				in1.setLocalStrategy(LocalStrategy.NONE);
+			} else {
+				ilp1.parameterizeChannel(in1);
+			}
+			
+			for (RequestedLocalProperties ilp2 : this.input2.getInterestingProperties().getLocalProperties()) {
+				final Channel in2 = template2.clone();
+				if (ilp2.isMetBy(lp2)) {
+					in2.setLocalStrategy(LocalStrategy.NONE);
+				} else {
+					ilp2.parameterizeChannel(in2);
+				}
+				
+				for (OperatorDescriptorDual dps: this.possibleProperties) {
+					for (LocalPropertiesPair lpp : dps.getPossibleLocalProperties()) {
+						if (lpp.getProperties1().isMetBy(in1.getLocalProperties()) &&
+							lpp.getProperties2().isMetBy(in2.getLocalProperties()) )
+						{
+							// valid combination
+							// for non trivial local properties, we need to check that they are co compatible
+							// (such as when some sort order is requested, that both are the same sort order
+							if (RequestedLocalProperties.doCoFulfill(lpp.getProperties1(), lpp.getProperties2(), 
+								in1.getLocalProperties(), in2.getLocalProperties()))
+							{
+								// all right, co compatible
+								target.add(instantiate(dps, in1, in2));
+							} else {
+								// meet, but not co-compatible
+								throw new CompilerException("Implements to adjust one side to the other!");
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	private DualInputPlanNode instantiate(OperatorDescriptorDual operator, Channel in1, Channel in2) {
+		
+		// before we instantiate, check for deadlocks by tracing back to the open branches and checking
+		// whether either no input, or all of them have a dam
+		if (this.hereJoinedBranchers != null && this.hereJoinedBranchers.size() > 0) {
+			boolean someDamOnLeftPaths = false;
+			boolean damOnAllLeftPaths = true;
+			boolean someDamOnRightPaths = false;
+			boolean damOnAllRightPaths = true;
+			
+			if (operator.getStrategy().firstDam() == DamBehavior.FULL_DAM || in1.getLocalStrategy().dams()) {
+				someDamOnLeftPaths = true;
+			} else {
+				for (OptimizerNode brancher : this.hereJoinedBranchers) {
+					PlanNode candAtBrancher = in1.getSource().getCandidateAtBranchPoint(brancher);
+					int res = in1.getSource().hasDamOnPathDownTo(candAtBrancher);
+					if (res == 0) {
+						throw new CompilerException("Bug: Tracing dams for deadlock detection is broken.");
+					} else if (res == PlanNode.FOUND_SOURCE) {
+						damOnAllLeftPaths = false;
+					} else if (res == PlanNode.FOUND_SOURCE_AND_DAM) {
+						someDamOnLeftPaths = true;
+					} else {
+						throw new CompilerException();
+					}
+				}
+			}
+			
+			if (operator.getStrategy().secondDam() == DamBehavior.FULL_DAM || in2.getLocalStrategy().dams()) {
+				someDamOnRightPaths = true;
+			} else {
+				for (OptimizerNode brancher : this.hereJoinedBranchers) {
+					PlanNode candAtBrancher = in2.getSource().getCandidateAtBranchPoint(brancher);
+					int res = in2.getSource().hasDamOnPathDownTo(candAtBrancher);
+					if (res == 0) {
+						throw new CompilerException("Bug: Tracing dams for deadlock detection is broken.");
+					} else if (res == PlanNode.FOUND_SOURCE) {
+						damOnAllRightPaths = false;
+					} else if (res == PlanNode.FOUND_SOURCE_AND_DAM) {
+						someDamOnRightPaths = true;
+					} else {
+						throw new CompilerException();
+					}
+				}
+			}
+			
+			// okay combinations are both all dam or both no dam
+			if ( (damOnAllLeftPaths & damOnAllRightPaths) | (!someDamOnLeftPaths & !someDamOnRightPaths) ) {
+				// good, either both materialize already on the way, or both fully pipeline
+			} else {
+				if (someDamOnLeftPaths & !damOnAllRightPaths) {
+					// right needs a pipeline breaker
+					in2.setTempMode(TempMode.MATERIALIZE);
+				}
+				
+				if (someDamOnRightPaths & !damOnAllLeftPaths) {
+					// right needs a pipeline breaker
+					in1.setTempMode(TempMode.MATERIALIZE);
+				}
+			}
+		}
+		
+		DualInputPlanNode node = operator.instantiate(in1, in2, this);
+		
+		GlobalProperties gp1 = in1.getGlobalProperties().clone().filterByNodesConstantSet(this, 0);
+		GlobalProperties gp2 = in2.getGlobalProperties().clone().filterByNodesConstantSet(this, 1);
+		GlobalProperties combined = operator.computeGlobalProperties(gp1, gp2);
+
+		LocalProperties lp1 = in1.getLocalProperties().clone().filterByNodesConstantSet(this, 0);
+		LocalProperties lp2 = in2.getLocalProperties().clone().filterByNodesConstantSet(this, 1);
+		LocalProperties locals = operator.computeLocalProperties(lp1, lp2);
+		
+		node.initProperties(combined, locals);
+		node.updatePropertiesWithUniqueSets(getUniqueFields());
+		return node;
+	}
+	
 	/**
 	 * Checks if the subPlan has a valid outputSize estimation.
 	 * 
-	 * @param subPlan		the subPlan to check
+	 * @param subPlan The subPlan to check.
 	 * 
-	 * @return	{@code true} if all values are valid, {@code false} otherwise
+	 * @return {@code True}, if all values are valid, {@code false} otherwise
 	 */
 	protected boolean haveValidOutputEstimates(OptimizerNode subPlan) {
-	
-		if(subPlan.getEstimatedOutputSize() == -1)
-			return false;
-		else
-			return true;
+		return subPlan.getEstimatedOutputSize() != -1;
 	}
 
 	/*
@@ -388,69 +633,18 @@ public abstract class TwoInputNode extends OptimizerNode
 			return;
 		}
 
-		addClosedBranches(this.getFirstPredNode().closedBranchingNodes);
-		addClosedBranches(this.getSecondPredNode().closedBranchingNodes);
+		addClosedBranches(getFirstPredecessorNode().closedBranchingNodes);
+		addClosedBranches(getSecondPredecessorNode().closedBranchingNodes);
 		
-		List<UnclosedBranchDescriptor> result1 = new ArrayList<UnclosedBranchDescriptor>();
-		// TODO: check if merge is really necessary
-		result1 = mergeLists(result1, this.getFirstPredNode().getBranchesForParent(this));
-		
-		List<UnclosedBranchDescriptor> result2 = new ArrayList<UnclosedBranchDescriptor>();
-		// TODO: check if merge is really necessary
-		result2 = mergeLists(result2, this.getSecondPredNode().getBranchesForParent(this));
+		List<UnclosedBranchDescriptor> result1 = getFirstPredecessorNode().getBranchesForParent(getFirstIncomingConnection());
+		List<UnclosedBranchDescriptor> result2 = getSecondPredecessorNode().getBranchesForParent(getSecondIncomingConnection());
 
 		this.openBranches = mergeLists(result1, result2);
 	}
 
-	// ------------------------------------------------------------------------
-
-	/*
-	 * (non-Javadoc)
-	 * @see
-	 * eu.stratosphere.pact.compiler.plan.OptimizerNode#accept(eu.stratosphere.pact.common.plan.Visitor
-	 * )
-	 */
-	@Override
-	public void accept(Visitor<OptimizerNode> visitor) {
-		boolean descend = visitor.preVisit(this);
-
-		if (descend) {
-			if (this.getFirstPredNode() != null) {
-				this.getFirstPredNode().accept(visitor);
-			}
-			if (this.getSecondPredNode() != null) {
-				this.getSecondPredNode().accept(visitor);
-			}
-
-			visitor.postVisit(this);
-		}
-	}
-
-	/**
-	 * This function overrides the standard behavior of computing costs in the {@link eu.stratosphere.pact.compiler.plan.OptimizerNode}.
-	 * Since nodes with multiple inputs may join branched plans, care must be taken not to double-count the costs of the subtree rooted
-	 * at the last unjoined branch.
-	 * 
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#setCosts(eu.stratosphere.pact.compiler.Costs)
-	 */
-	@Override
-	public void setCosts(Costs nodeCosts) {
-		super.setCosts(nodeCosts);
-		
-		// check, if this node has no branch beneath it, no double-counted cost then
-		if (this.lastJoinedBranchNode == null) {
-			return;
-		}
-
-		// TODO: Check this!
-		// get the cumulative costs of the last joined branching node
-		OptimizerNode lastCommonChild = this.getFirstPredNode().branchPlan.get(this.lastJoinedBranchNode);
-		Costs douleCounted = lastCommonChild.getCumulativeCosts();
-		getCumulativeCosts().subtractCosts(douleCounted);
-		
-	}
-	
-	// ---------------------- Stub Annotation Handling
+	// --------------------------------------------------------------------------------------------
+	//                                 Stub Annotation Handling
+	// --------------------------------------------------------------------------------------------
 	
 	/*
 	 * (non-Javadoc)
@@ -520,20 +714,20 @@ public abstract class TwoInputNode extends OptimizerNode
 	
 		double avgRecordWidth = -1;
 		
-		if(this.getFirstPredNode() != null && 
-				this.getFirstPredNode().estimatedOutputSize != -1 &&
-				this.getFirstPredNode().estimatedNumRecords != -1) {
-			avgRecordWidth = (this.getFirstPredNode().estimatedOutputSize / this.getFirstPredNode().estimatedNumRecords);
+		if(this.getFirstPredecessorNode() != null && 
+				this.getFirstPredecessorNode().estimatedOutputSize != -1 &&
+				this.getFirstPredecessorNode().estimatedNumRecords != -1) {
+			avgRecordWidth = (this.getFirstPredecessorNode().estimatedOutputSize / this.getFirstPredecessorNode().estimatedNumRecords);
 			
 		} else {
 			return -1;
 		}
 		
-		if(this.getSecondPredNode() != null && 
-				this.getSecondPredNode().estimatedOutputSize != -1 &&
-				this.getSecondPredNode().estimatedNumRecords != -1) {
+		if(this.getSecondPredecessorNode() != null && 
+				this.getSecondPredecessorNode().estimatedOutputSize != -1 &&
+				this.getSecondPredecessorNode().estimatedNumRecords != -1) {
 			
-			avgRecordWidth += (this.getSecondPredNode().estimatedOutputSize / this.getSecondPredNode().estimatedNumRecords);
+			avgRecordWidth += (this.getSecondPredecessorNode().estimatedOutputSize / this.getSecondPredecessorNode().estimatedNumRecords);
 			
 		} else {
 			return -1;
@@ -550,36 +744,61 @@ public abstract class TwoInputNode extends OptimizerNode
 	 */
 	public FieldList getInputKeySet(int input) {
 		switch(input) {
-		case 0: return keySet1;
-		case 1: return keySet2;
-		default: throw new IndexOutOfBoundsException();
+			case 0: return keys1;
+			case 1: return keys2;
+			default: throw new IndexOutOfBoundsException();
 		}
 	}
 	
-	public boolean isFieldKept(int input, int fieldNumber) {
-		
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isFieldConstant(int, int)
+	 */
+	@Override
+	public boolean isFieldConstant(int input, int fieldNumber) {
 		switch(input) {
 		case 0:
 			if (this.constant1 == null) {
 				if (this.notConstant1 == null) {
 					return false;
+				} else {
+					return !this.notConstant1.contains(fieldNumber);
 				}
-				return this.notConstant1.contains(fieldNumber) == false;
+			} else {
+				return this.constant1.contains(fieldNumber);
 			}
-			
-			return this.constant1.contains(fieldNumber);
 		case 1:
 			if (this.constant2 == null) {
 				if (this.notConstant2 == null) {
 					return false;
+				} else {
+					return !this.notConstant2.contains(fieldNumber);
 				}
-				return this.notConstant2.contains(fieldNumber) == false;
+			} else {
+				return this.constant2.contains(fieldNumber);
 			}
-			
-			return this.constant2.contains(fieldNumber);
 		default:
 			throw new IndexOutOfBoundsException();
 		}
 	}
 	
+	// --------------------------------------------------------------------------------------------
+	//                                     Miscellaneous
+	// --------------------------------------------------------------------------------------------
+	
+	/*
+	 * (non-Javadoc)
+	 * @see
+	 * eu.stratosphere.pact.compiler.plan.OptimizerNode#accept(eu.stratosphere.pact.common.plan.Visitor
+	 * )
+	 */
+	@Override
+	public void accept(Visitor<OptimizerNode> visitor) {
+		if (visitor.preVisit(this)) {
+			if (this.input1 == null || this.input2 == null)
+				throw new CompilerException();
+			getFirstPredecessorNode().accept(visitor);
+			getSecondPredecessorNode().accept(visitor);
+			visitor.postVisit(this);
+		}
+	}
 }

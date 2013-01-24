@@ -19,6 +19,9 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
+import eu.stratosphere.nephele.services.memorymanager.DataInputView;
+import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
+import eu.stratosphere.pact.common.type.CopyableValue;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.NormalizableKey;
 
@@ -27,12 +30,8 @@ import eu.stratosphere.pact.common.type.NormalizableKey;
  * PactInteger encapsulates a Java primitive int.
  * 
  * @see eu.stratosphere.pact.common.type.Key
- * 
- * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
- * @author Stephan Ewen
- *
  */
-public class PactInteger implements Key, NormalizableKey
+public class PactInteger implements Key, NormalizableKey, CopyableValue<PactInteger>
 {
 	private int value;
 
@@ -80,6 +79,8 @@ public class PactInteger implements Key, NormalizableKey
 		return String.valueOf(this.value);
 	}
 
+	// --------------------------------------------------------------------------------------------
+	
 	/*
 	 * (non-Javadoc)
 	 * @see eu.stratosphere.nephele.io.IOReadableWritable#read(java.io.DataInput)
@@ -98,6 +99,8 @@ public class PactInteger implements Key, NormalizableKey
 		out.writeInt(this.value);
 	}
 
+	// --------------------------------------------------------------------------------------------
+	
 	/*
 	 * (non-Javadoc)
 	 * @see java.lang.Comparable#compareTo(java.lang.Object)
@@ -132,6 +135,8 @@ public class PactInteger implements Key, NormalizableKey
 		}
 		return false;
 	}
+	
+	// --------------------------------------------------------------------------------------------
 
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.common.type.NormalizableKey#getNormalizedKeyLen()
@@ -179,5 +184,31 @@ public class PactInteger implements Key, NormalizableKey
 				target[offset + i] = 0;
 			}
 		}
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.type.CopyableValue#getBinaryLength()
+	 */
+	@Override
+	public int getBinaryLength() {
+		return 4;
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.type.Copyable#copyTo(java.lang.Object)
+	 */
+	@Override
+	public void copyTo(PactInteger target) {
+		target.value = this.value;
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.type.CopyableValue#copy(eu.stratosphere.nephele.services.memorymanager.DataInputView, eu.stratosphere.nephele.services.memorymanager.DataOutputView)
+	 */
+	@Override
+	public void copy(DataInputView source, DataOutputView target) throws IOException {
+		target.write(source, 4);
 	}
 }

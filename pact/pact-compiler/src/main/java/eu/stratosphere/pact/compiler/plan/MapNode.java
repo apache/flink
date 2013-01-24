@@ -15,58 +15,25 @@
 
 package eu.stratosphere.pact.compiler.plan;
 
+import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
-import eu.stratosphere.pact.common.contract.Contract;
-import eu.stratosphere.pact.common.contract.MapContract;
-import eu.stratosphere.pact.compiler.GlobalProperties;
-import eu.stratosphere.pact.compiler.LocalProperties;
-import eu.stratosphere.pact.compiler.costs.CostEstimator;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ForwardSS;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy.NoneSS;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ShipStrategyType;
-import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
+import eu.stratosphere.pact.compiler.operators.MapDescriptor;
+import eu.stratosphere.pact.compiler.operators.OperatorDescriptorSingle;
+import eu.stratosphere.pact.generic.contract.GenericMapContract;
 
 /**
- * The Optimizer representation of a <i>Map</i> contract node.
- * 
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
+ * The optimizer's internal representation of a <i>Map</i> contract node.
  */
-public class MapNode extends SingleInputNode {
-
+public class MapNode extends SingleInputNode
+{
 	/**
 	 * Creates a new MapNode for the given contract.
 	 * 
-	 * @param pactContract
-	 *        The map contract object.
+	 * @param pactContract The map contract object.
 	 */
-	public MapNode(MapContract pactContract) {
+	public MapNode(GenericMapContract<?> pactContract) {
 		super(pactContract);
-		setLocalStrategy(LocalStrategy.NONE);
-	}
-
-	/**
-	 * Copy constructor to create a copy a MapNode with a different predecessor. The predecessor
-	 * is assumed to be of the same type and merely a copy with different strategies, as they
-	 * are created in the process of the plan enumeration.
-	 * 
-	 * @param template
-	 *        The node to create a copy of.
-	 * @param pred
-	 *        The new predecessor.
-	 * @param conn
-	 *        The old connection to copy properties from.
-	 * @param globalProps
-	 *        The global properties of this copy.
-	 * @param localProps
-	 *        The local properties of this copy.
-	 */
-	protected MapNode(MapNode template, OptimizerNode pred, PactConnection conn, GlobalProperties globalProps,
-			LocalProperties localProps) {
-		super(template, pred, conn, globalProps, localProps);
-		setLocalStrategy(LocalStrategy.NONE);
 	}
 
 	/**
@@ -75,8 +42,8 @@ public class MapNode extends SingleInputNode {
 	 * @return The contract.
 	 */
 	@Override
-	public MapContract getPactContract() {
-		return (MapContract) super.getPactContract();
+	public GenericMapContract<?> getPactContract() {
+		return (GenericMapContract<?>) super.getPactContract();
 	}
 
 	/*
@@ -88,99 +55,23 @@ public class MapNode extends SingleInputNode {
 		return "Map";
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isMemoryConsumer()
-	 */
-	@Override
-	public int getMemoryConsumerCount() {
-		return 0;
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#setInputs(java.util.Map)
-	 */
-	@Override
-	public void setInputs(Map<Contract, OptimizerNode> contractToNode) {
-		super.setInputs(contractToNode);
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeInterestingProperties()
-	 */
-	@Override
-	public void computeInterestingPropertiesForInputs(CostEstimator estimator) {
-		// the map itself has no interesting properties.
-		// check, if there is an output contract that tells us that certain properties are preserved.
-		// if so, propagate to the child.
-		
-		List<InterestingProperties> thisNodesIntProps = getInterestingProperties();
-		List<InterestingProperties> props = InterestingProperties.createInterestingPropertiesForInput(thisNodesIntProps,
-			this, 0);
-		
-		if (!props.isEmpty()) {
-			this.inConn.addAllInterestingProperties(props);
-		} else {
-			this.inConn.setNoInterestingProperties();
-		} 
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.SingleInputNode#computeValidPlanAlternatives(java.util.List, eu.stratosphere.pact.compiler.costs.CostEstimator, java.util.List)
-	 */
-	@Override
-	protected void computeValidPlanAlternatives(List<? extends OptimizerNode> altSubPlans, CostEstimator estimator, List<OptimizerNode> outputPlans) {
-		
-		// we have to check if all input ShipStrategies are the same or at least compatible
-		ShipStrategy ss = new NoneSS();
-
-		// check hint shipping strategy
-		ShipStrategy hintSS = this.inConn.getShipStrategy();
-		if(hintSS.type() == ShipStrategyType.BROADCAST || hintSS.type() == ShipStrategyType.SFR)
-			// invalid strategy: we do not produce an alternative node
-			return;
-		else
-			ss = hintSS;
-	
-		// if no hint for a strategy was provided, we use the default
-		if(ss.type() == ShipStrategyType.NONE)
-			ss = new ForwardSS();
-		
-		for(OptimizerNode subPlan : altSubPlans) {
-		
-			GlobalProperties gp = PactConnection.getGlobalPropertiesAfterConnection(subPlan, this, 0, ss);
-			LocalProperties lp = PactConnection.getLocalPropertiesAfterConnection(subPlan, this, ss);
-			
-			MapNode nMap = new MapNode(this, subPlan, this.inConn, gp, lp);
-			nMap.inConn.setShipStrategy(ss);
-					
-			// now, the properties (copied from the inputs) are filtered by the output contracts
-			nMap.getGlobalProperties().filterByNodesConstantSet(this, 0);
-			nMap.getLocalProperties().filterByNodesConstantSet(this, 0);
-	
-			// copy the cumulative costs and set the costs of the map itself to zero
-			estimator.costOperator(nMap);
-		
-			outputPlans.add(nMap);
-		}
-	}
-
-	
 	/**
 	 * Computes the number of stub calls.
 	 * 
 	 * @return the number of stub calls.
 	 */
 	protected long computeNumberOfStubCalls() {
-				
-		if(this.getPredNode() != null)
-			return this.getPredNode().estimatedNumRecords;
+		if (getPredecessorNode() != null)
+			return getPredecessorNode().estimatedNumRecords;
 		else
 			return -1;
-		
 	}
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.SingleInputNode#getPossibleProperties()
+	 */
+	@Override
+	protected List<OperatorDescriptorSingle> getPossibleProperties() {
+		return Collections.<OperatorDescriptorSingle>singletonList(new MapDescriptor());
+	}
 }

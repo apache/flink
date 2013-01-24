@@ -24,7 +24,8 @@ import java.util.List;
 
 import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.type.Key;
-
+import eu.stratosphere.pact.generic.contract.Contract;
+import eu.stratosphere.pact.generic.contract.GenericReduceContract;
 
 /**
  * MapContract represents a Pact with a Map Input Contract.
@@ -36,9 +37,14 @@ import eu.stratosphere.pact.common.type.Key;
  * 
  * @see ReduceStub
  */
-public class ReduceContract extends SingleInputContract<ReduceStub>
+public class ReduceContract extends GenericReduceContract<ReduceStub> implements RecordContract
 {	
-	private static final String DEFAULT_NAME = "<Unnamed Reducer>";	// the default name for contracts
+	private static final String DEFAULT_NAME = "<Unnamed Reducer>";		// the default name for contracts
+	
+	/**
+	 * The types of the keys that the contract operates on.
+	 */
+	private final Class<? extends Key>[] keyTypes;
 	
 	/**
 	 * The ordering for the order inside a reduce group.
@@ -72,12 +78,21 @@ public class ReduceContract extends SingleInputContract<ReduceStub>
 	 * @param builder
 	 */
 	private ReduceContract(Builder builder) {
-		super(builder.udf, builder.getKeyClassesArray(), builder.getKeyColumnsArray(), builder.name);
+		super(builder.udf, builder.getKeyColumnsArray(), builder.name);
+		this.keyTypes = builder.getKeyClassesArray();
 		setInputs(builder.inputs);
 		setGroupOrder(builder.secondaryOrder);
 	}
 	
 	// --------------------------------------------------------------------------------------------
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.contract.RecordContract#getKeyClasses()
+	 */
+	@Override
+	public Class<? extends Key>[] getKeyClasses() {
+		return this.keyTypes;
+	}
 	
 	/**
 	 * Sets the order of the elements within a reduce group.
@@ -87,7 +102,7 @@ public class ReduceContract extends SingleInputContract<ReduceStub>
 	public void setGroupOrder(Ordering order) {
 		this.groupOrder = order;
 	}
-	
+
 	/**
 	 * Gets the order of elements within a reduce group. If no such order has been
 	 * set, this method returns null.
@@ -97,20 +112,15 @@ public class ReduceContract extends SingleInputContract<ReduceStub>
 	public Ordering getGroupOrder() {
 		return this.groupOrder;
 	}
-
+	
 	// --------------------------------------------------------------------------------------------
 	
-	/**
-	 * Returns true if the ReduceContract is annotated with a Combinable annotation.
-	 * The annotation indicates that the contract's {@link ReduceStub} implements the 
-	 * {@link ReduceStub#combine(eu.stratosphere.pact.common.type.Key, java.util.Iterator, eu.stratosphere.pact.common.stubs.Collector)}
-	 * method.
-	 * 
-	 * @return True, if the ReduceContract is combinable, false otherwise.
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.generic.contract.GenericReduceContract#isCombinable()
 	 */
-	public boolean isCombinable()
-	{
-		return getUserCodeClass().getAnnotation(Combinable.class) != null;
+	@Override
+	public boolean isCombinable() {
+		return super.isCombinable() || getUserCodeClass().getAnnotation(Combinable.class) != null;
 	}
 	
 	/**
@@ -151,7 +161,7 @@ public class ReduceContract extends SingleInputContract<ReduceStub>
 	 */
 	@Retention(RetentionPolicy.RUNTIME)
 	@Target(ElementType.TYPE)
-	public @interface Combinable {};
+	public static @interface Combinable {};
 	
 	// --------------------------------------------------------------------------------------------
 	

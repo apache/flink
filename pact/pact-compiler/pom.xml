@@ -29,6 +29,12 @@
       <version>${version}</version>
     </dependency>
 
+    <dependency>
+    	<groupId>eu.stratosphere</groupId>
+    	<artifactId>pact-examples</artifactId>
+    	<version>${version}</version>
+    	<scope>test</scope>
+    </dependency>
   </dependencies>
 
   <reporting>

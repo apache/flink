@@ -20,9 +20,9 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.MockitoAnnotations.initMocks;
 
-import java.io.DataInputStream;
+import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
+import java.io.FileReader;
 import java.io.IOException;
 
 import junit.framework.Assert;
@@ -158,7 +158,6 @@ public class RecordOutputFormatTest {
 		}
 	}
 	
-	@SuppressWarnings("deprecation")
 	@Test
 	public void testWriteNoRecPosNoLenient()
 	{
@@ -191,10 +190,12 @@ public class RecordOutputFormatTest {
 				
 				format.close();
 				
-				DataInputStream dis = new DataInputStream(new FileInputStream(tempFile));
+				BufferedReader dis = new BufferedReader(new FileReader(tempFile));
 				
 				assertTrue((dis.readLine()+"\n").equals("Hello World|42\n"));
 				assertTrue((dis.readLine()+"\n").equals("AbCdE|13\n"));
+				
+				dis.close();
 				
 			} catch (IOException e) {
 				fail(e.getMessage());
@@ -252,7 +253,6 @@ public class RecordOutputFormatTest {
 		}
 	}
 	
-	@SuppressWarnings("deprecation")
 	@Test
 	public void testWriteNoRecPosLenient()
 	{
@@ -286,10 +286,12 @@ public class RecordOutputFormatTest {
 				
 				format.close();
 				
-				DataInputStream dis = new DataInputStream(new FileInputStream(tempFile));
+				BufferedReader dis = new BufferedReader(new FileReader(tempFile));
 				
 				assertTrue((dis.readLine()+"\n").equals("Hello World|42\n"));
 				assertTrue((dis.readLine()+"\n").equals("|13\n"));
+				
+				dis.close();
 				
 			} catch (IOException e) {
 				fail(e.getMessage());
@@ -300,7 +302,6 @@ public class RecordOutputFormatTest {
 		}
 	}
 	
-	@SuppressWarnings("deprecation")
 	@Test
 	public void testWriteRecPosNoLenient()
 	{
@@ -337,10 +338,12 @@ public class RecordOutputFormatTest {
 				
 				format.close();
 				
-				DataInputStream dis = new DataInputStream(new FileInputStream(tempFile));
+				BufferedReader dis = new BufferedReader(new FileReader(tempFile));
 				
 				assertTrue((dis.readLine()+"\n").equals("Hello User|Hello World\n"));
 				assertTrue((dis.readLine()+"\n").equals("ZyXvW|AbCdE\n"));
+				
+				dis.close();
 				
 			} catch (IOException e) {
 				fail(e.getMessage());
@@ -403,7 +406,6 @@ public class RecordOutputFormatTest {
 		}
 	}
 	
-	@SuppressWarnings("deprecation")
 	@Test
 	public void testWriteRecPosLenient()
 	{
@@ -442,10 +444,12 @@ public class RecordOutputFormatTest {
 				
 				format.close();
 				
-				DataInputStream dis = new DataInputStream(new FileInputStream(tempFile));
+				BufferedReader dis = new BufferedReader(new FileReader(tempFile));
 				
 				assertTrue((dis.readLine()+"\n").equals("Hello User|Hello World\n"));
 				assertTrue((dis.readLine()+"\n").equals("|AbCdE\n"));
+				
+				dis.close();
 				
 			} catch (IOException e) {
 				fail(e.getMessage());

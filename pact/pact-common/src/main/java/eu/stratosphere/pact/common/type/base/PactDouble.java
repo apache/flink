@@ -19,6 +19,9 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
+import eu.stratosphere.nephele.services.memorymanager.DataInputView;
+import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
+import eu.stratosphere.pact.common.type.CopyableValue;
 import eu.stratosphere.pact.common.type.Key;
 
 /**
@@ -26,9 +29,8 @@ import eu.stratosphere.pact.common.type.Key;
  * PactDouble encapsulates a Java primitive double.
  * 
  * @see eu.stratosphere.pact.common.type.Key
- * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  */
-public class PactDouble implements Key {
+public class PactDouble implements Key, CopyableValue<PactDouble> {
 
 	private double value;
 
@@ -139,4 +141,29 @@ public class PactDouble implements Key {
 		return false;
 	}
 
+	// --------------------------------------------------------------------------------------------
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.type.CopyableValue#getBinaryLength()
+	 */
+	@Override
+	public int getBinaryLength() {
+		return 8;
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.type.Copyable#copyTo(java.lang.Object)
+	 */
+	@Override
+	public void copyTo(PactDouble target) {
+		target.value = this.value;
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.type.CopyableValue#copy(eu.stratosphere.nephele.services.memorymanager.DataInputView, eu.stratosphere.nephele.services.memorymanager.DataOutputView)
+	 */
+	@Override
+	public void copy(DataInputView source, DataOutputView target) throws IOException {
+		target.write(source, 8);
+	}
 }

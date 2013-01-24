@@ -15,44 +15,31 @@
 
 package eu.stratosphere.pact.compiler.plan;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
-import eu.stratosphere.pact.common.contract.DualInputContract;
-import eu.stratosphere.pact.common.generic.AbstractStub;
 import eu.stratosphere.pact.compiler.DataStatistics;
-import eu.stratosphere.pact.compiler.costs.CostEstimator;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ForwardSS;
-import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
-
+import eu.stratosphere.pact.compiler.operators.OperatorDescriptorDual;
+import eu.stratosphere.pact.compiler.operators.UtilSinkJoinOpDescriptor;
+import eu.stratosphere.pact.generic.contract.DualInputContract;
+import eu.stratosphere.pact.generic.stub.AbstractStub;
 
 /**
  * This class represents a utility node that is not part of the actual plan. It is used for plans with multiple data sinks to
  * transform it into a plan with a single root node. That way, the code that makes sure no costs are double-counted and that 
  * candidate selection works correctly with nodes that have multiple outputs is transparently reused.
- *
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
 public class SinkJoiner extends TwoInputNode
-{	
-	
-	public SinkJoiner(OptimizerNode input1, OptimizerNode input2)
-	{
+{
+	public SinkJoiner(OptimizerNode input1, OptimizerNode input2) {
 		super(new NoContract());
-		setLocalStrategy(LocalStrategy.NONE);
 		
 		PactConnection conn1 = new PactConnection(input1, this);
 		PactConnection conn2 = new PactConnection(input2, this);
 		
-		conn1.setShipStrategy(new ForwardSS());
-		conn2.setShipStrategy(new ForwardSS());
-		
-		setFirstInConn(conn1);
-		setSecondInConn(conn2);
-	}
-	
-	private SinkJoiner(SinkJoiner template, OptimizerNode input1, OptimizerNode input2) {
-		super(template, input1, input2, template.getFirstInConn(), template.getSecondInConn(),
-			template.getGlobalProperties(), template.getLocalProperties());
+		this.input1 = conn1;
+		this.input2 = conn2;
 	}
 	
 	/* (non-Javadoc)
@@ -62,6 +49,42 @@ public class SinkJoiner extends TwoInputNode
 	public String getName() {
 		return "Internal Utility Node";
 	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getOutgoingConnections()
+	 */
+	public List<PactConnection> getOutgoingConnections() {
+		return Collections.emptyList();
+	}
+	
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeUnclosedBranchStack()
+	 */
+	@Override
+	public void computeUnclosedBranchStack() {
+		if (this.openBranches != null) {
+			return;
+		}
+		
+		addClosedBranches(getFirstPredecessorNode().closedBranchingNodes);
+		addClosedBranches(getSecondPredecessorNode().closedBranchingNodes);
+		
+		List<UnclosedBranchDescriptor> result1 = new ArrayList<UnclosedBranchDescriptor>();
+		List<UnclosedBranchDescriptor> result2 = new ArrayList<UnclosedBranchDescriptor>();
+		result1.addAll(getFirstPredecessorNode().openBranches);
+		result2.addAll(getSecondPredecessorNode().openBranches);
+
+		this.openBranches = mergeLists(result1, result2);
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.TwoInputNode#getPossibleProperties()
+	 */
+	@Override
+	protected List<OperatorDescriptorDual> getPossibleProperties() {
+		return Collections.<OperatorDescriptorDual>singletonList(new UtilSinkJoinOpDescriptor());
+	}
 
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeOutputEstimates(eu.stratosphere.pact.compiler.DataStatistics)
@@ -69,70 +92,6 @@ public class SinkJoiner extends TwoInputNode
 	@Override
 	public void computeOutputEstimates(DataStatistics statistics) {
 		// nothing to be done here
-	}
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeInterestingPropertiesForInputs(eu.stratosphere.pact.compiler.costs.CostEstimator)
-	 */
-	@Override
-	public void computeInterestingPropertiesForInputs(CostEstimator estimator) {
-		// nothing to be done here
-	}
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getBranchesForParent(eu.stratosphere.pact.compiler.plan.OptimizerNode)
-	 */
-	@Override
-	protected List<UnclosedBranchDescriptor> getBranchesForParent(OptimizerNode parent)
-	{
-		// return our own stack of open branches, because nothing is added
-		return this.openBranches;
-	}
-
-	@Override
-	protected void computeValidPlanAlternatives(List<? extends OptimizerNode> altSubPlans1,
-			List<? extends OptimizerNode> altSubPlans2, CostEstimator estimator, List<OptimizerNode> outputPlans)
-	{
-
-		for(OptimizerNode subPlan1 : altSubPlans1) {
-			for(OptimizerNode subPlan2 : altSubPlans2) {
-				// check, whether the two children have the same
-				// sub-plan in the common part before the branches
-				if (!areBranchCompatible(subPlan1, subPlan2)) {
-					continue;
-				}
-				
-				SinkJoiner n = new SinkJoiner(this, subPlan1, subPlan2);
-				estimator.costOperator(n);
-				
-				outputPlans.add(n);
-			}
-		}
-	}
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isMemoryConsumer()
-	 */
-	@Override
-	public int getMemoryConsumerCount() {
-		return 0;
-	}
-	
-	public void getDataSinks(List<DataSinkNode> target)
-	{
-		
-		if(this.getFirstPredNode() instanceof DataSinkNode) {
-			target.add((DataSinkNode)this.getFirstPredNode());
-		} else {
-			((SinkJoiner) this.getFirstPredNode()).getDataSinks(target);
-		}
-		
-		if(this.getSecondPredNode() instanceof DataSinkNode) {
-			target.add((DataSinkNode)this.getSecondPredNode());
-		} else {
-			((SinkJoiner) this.getSecondPredNode()).getDataSinks(target);
-		}
-		
 	}
 
 	// ------------------------------------------------------------------------
@@ -147,5 +106,4 @@ public class SinkJoiner extends TwoInputNode
 			super(MockStub.class, "NoContract");
 		}
 	}
-
 }

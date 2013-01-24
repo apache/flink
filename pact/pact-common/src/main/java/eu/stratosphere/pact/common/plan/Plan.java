@@ -19,8 +19,8 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collection;
 
-import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.GenericDataSink;
+import eu.stratosphere.pact.generic.contract.Contract;
 
 
 /**
@@ -71,7 +71,7 @@ public class Plan implements Visitable<Contract>
 	 */
 	public Plan(Collection<GenericDataSink> sinks, String jobName)
 	{
-		this.sinks = new ArrayList<GenericDataSink>(sinks);
+		this.sinks = sinks;
 		this.jobName = jobName;
 		this.planConfiguration = new PlanConfiguration();
 	}
@@ -196,7 +196,16 @@ public class Plan implements Visitable<Contract>
 	public void setDefaultParallelism(int defaultParallelism) {
 		this.defaultParallelism = defaultParallelism;
 	}
-
+	
+	/**
+	 * Gets the postPassClassName from this Plan.
+	 *
+	 * @return The postPassClassName.
+	 */
+	public String getPostPassClassName() {
+		return "eu.stratosphere.pact.compiler.postpass.PactRecordPostPass";
+	}
+	
 	// ------------------------------------------------------------------------
 
 	/**

@@ -17,8 +17,10 @@ package eu.stratosphere.pact.compiler.util;
 
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MapStub;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsExcept;
 import eu.stratosphere.pact.common.type.PactRecord;
 
+@ConstantFieldsExcept(fields={})
 public final class IdentityMap extends MapStub
 {
 	/* (non-Javadoc)

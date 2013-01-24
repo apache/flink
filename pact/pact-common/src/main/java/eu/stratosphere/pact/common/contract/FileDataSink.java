@@ -17,7 +17,8 @@ package eu.stratosphere.pact.common.contract;
 
 import java.util.List;
 
-import eu.stratosphere.pact.common.io.FileOutputFormat;
+import eu.stratosphere.pact.generic.contract.Contract;
+import eu.stratosphere.pact.generic.io.FileOutputFormat;
 
 /**
  * Contract for nodes which act as data sinks, storing the data they receive in a file instead of sending it to another
@@ -40,7 +41,7 @@ public class FileDataSink extends GenericDataSink
 	 * @param c The {@link FileOutputFormat} implementation used to encode the data.
 	 * @param filePath The path to the file to write the contents to.
 	 */
-	public FileDataSink(Class<? extends FileOutputFormat> c, String filePath) {
+	public FileDataSink(Class<? extends FileOutputFormat<?>> c, String filePath) {
 		this(c, filePath, DEFAULT_NAME);
 	}
 	
@@ -52,7 +53,7 @@ public class FileDataSink extends GenericDataSink
 	 * @param filePath The path to the file to write the contents to.
 	 * @param name The given name for the sink, used in plans, logs and progress messages.
 	 */
-	public FileDataSink(Class<? extends FileOutputFormat> c, String filePath, String name) {
+	public FileDataSink(Class<? extends FileOutputFormat<?>> c, String filePath, String name) {
 		super(c, name);
 		this.filePath = filePath;
 		this.parameters.setString(FileOutputFormat.FILE_PARAMETER_KEY, filePath);
@@ -66,7 +67,7 @@ public class FileDataSink extends GenericDataSink
 	 * @param filePath The path to the file to write the contents to.
 	 * @param input The contract to use as the input.
 	 */
-	public FileDataSink(Class<? extends FileOutputFormat> c, String filePath, Contract input) {
+	public FileDataSink(Class<? extends FileOutputFormat<?>> c, String filePath, Contract input) {
 		this(c, filePath, input, DEFAULT_NAME);
 	}
 	
@@ -78,7 +79,7 @@ public class FileDataSink extends GenericDataSink
 	 * @param filePath The path to the file to write the contents to.
 	 * @param input The contracts to use as the input.
 	 */
-	public FileDataSink(Class<? extends FileOutputFormat> c, String filePath, List<Contract> input) {
+	public FileDataSink(Class<? extends FileOutputFormat<?>> c, String filePath, List<Contract> input) {
 		this(c, filePath, input, DEFAULT_NAME);
 	}
 
@@ -91,7 +92,7 @@ public class FileDataSink extends GenericDataSink
 	 * @param input The contract to use as the input.
 	 * @param name The given name for the sink, used in plans, logs and progress messages.
 	 */
-	public FileDataSink(Class<? extends FileOutputFormat> c, String filePath, Contract input, String name) {
+	public FileDataSink(Class<? extends FileOutputFormat<?>> c, String filePath, Contract input, String name) {
 		this(c, filePath, name);
 		addInput(input);
 	}
@@ -105,7 +106,7 @@ public class FileDataSink extends GenericDataSink
 	 * @param input The contracts to use as the input.
 	 * @param name The given name for the sink, used in plans, logs and progress messages.
 	 */
-	public FileDataSink(Class<? extends FileOutputFormat> c, String filePath, List<Contract> input, String name) {
+	public FileDataSink(Class<? extends FileOutputFormat<?>> c, String filePath, List<Contract> input, String name) {
 		this(c, filePath, name);
 		addInputs(input);
 	}

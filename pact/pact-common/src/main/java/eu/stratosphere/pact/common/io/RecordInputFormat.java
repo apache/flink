@@ -155,7 +155,6 @@ public class RecordInputFormat extends DelimitedInputFormat implements OutputSch
 			recordPositions[j] = -1;
 		}
 		
-		// instantiate parsers
 		for (int i = 0; i < numFields; i++)
 		{
 			int pos = textPosIdx[i];
@@ -169,7 +168,6 @@ public class RecordInputFormat extends DelimitedInputFormat implements OutputSch
 			
 			try {
 				fieldParsers[pos] = clazz.newInstance();
-				fieldParsers[pos].configure(config);
 			} catch(InstantiationException ie) {
 				throw new IllegalArgumentException("Invalid configuration for RecordInputFormat: " +
 						"No field parser could not be instanciated for parameter " + i);

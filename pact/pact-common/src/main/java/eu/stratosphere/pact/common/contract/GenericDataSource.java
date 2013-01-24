@@ -17,9 +17,10 @@ package eu.stratosphere.pact.common.contract;
 
 import java.lang.annotation.Annotation;
 
-import eu.stratosphere.pact.common.generic.io.InputFormat;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.stubs.StubAnnotation;
+import eu.stratosphere.pact.generic.contract.Contract;
+import eu.stratosphere.pact.generic.io.InputFormat;
 
 
 /**
@@ -99,7 +100,7 @@ public class GenericDataSource<T extends InputFormat<?, ?>> extends Contract
 	 * 
 	 * @return The class describing the input format.
 	 * 
-	 * @see eu.stratosphere.pact.common.contract.Contract#getUserCodeClass()
+	 * @see eu.stratosphere.pact.generic.contract.Contract#getUserCodeClass()
 	 */
 	@Override
 	public Class<?> getUserCodeClass()

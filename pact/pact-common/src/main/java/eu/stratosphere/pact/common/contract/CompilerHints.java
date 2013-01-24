@@ -47,7 +47,6 @@ import eu.stratosphere.pact.common.util.FieldSet;
  * <li>The average number of bytes per record. <code>-1.0</code> by default, indicating that this value is unknown.</li>
  * </ul>
  * 
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  * @author Matthias Ringwald
  * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  */
@@ -214,7 +213,4 @@ public class CompilerHints {
 	public void setUniqueField(Set<FieldSet> uniqueFieldSets) {
 		this.uniqueFields = uniqueFieldSets;
 	}
-	
-	
-
 }

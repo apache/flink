@@ -36,34 +36,41 @@ import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.net.NetUtils;
 import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
-import eu.stratosphere.pact.common.contract.CoGroupContract;
-import eu.stratosphere.pact.common.contract.Contract;
-import eu.stratosphere.pact.common.contract.CrossContract;
 import eu.stratosphere.pact.common.contract.GenericDataSink;
 import eu.stratosphere.pact.common.contract.GenericDataSource;
-import eu.stratosphere.pact.common.contract.MapContract;
-import eu.stratosphere.pact.common.contract.MatchContract;
-import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.Visitor;
+import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.common.util.PactConfigConstants;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
-import eu.stratosphere.pact.compiler.costs.FixedSizeClusterCostEstimator;
+import eu.stratosphere.pact.compiler.costs.DefaultCostEstimator;
 import eu.stratosphere.pact.compiler.plan.CoGroupNode;
 import eu.stratosphere.pact.compiler.plan.CrossNode;
 import eu.stratosphere.pact.compiler.plan.DataSinkNode;
 import eu.stratosphere.pact.compiler.plan.DataSourceNode;
 import eu.stratosphere.pact.compiler.plan.MapNode;
 import eu.stratosphere.pact.compiler.plan.MatchNode;
-import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
-import eu.stratosphere.pact.compiler.plan.PactConnection;
-import eu.stratosphere.pact.compiler.plan.PactConnection.TempMode;
 import eu.stratosphere.pact.compiler.plan.ReduceNode;
-import eu.stratosphere.pact.compiler.plan.SingleInputNode;
 import eu.stratosphere.pact.compiler.plan.SinkJoiner;
-import eu.stratosphere.pact.compiler.plan.TwoInputNode;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ShipStrategyType;
+import eu.stratosphere.pact.compiler.plan.candidate.BinaryUnionPlanNode;
+import eu.stratosphere.pact.compiler.plan.candidate.Channel;
+import eu.stratosphere.pact.compiler.plan.candidate.Channel.TempMode;
+import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
+import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
+import eu.stratosphere.pact.compiler.plan.candidate.SinkJoinerPlanNode;
+import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
+import eu.stratosphere.pact.compiler.plan.candidate.SourcePlanNode;
+import eu.stratosphere.pact.compiler.plan.candidate.UnionPlanNode;
+import eu.stratosphere.pact.compiler.postpass.OptimizerPostPass;
+import eu.stratosphere.pact.generic.contract.Contract;
+import eu.stratosphere.pact.generic.contract.GenericCoGroupContract;
+import eu.stratosphere.pact.generic.contract.GenericCrossContract;
+import eu.stratosphere.pact.generic.contract.GenericMapContract;
+import eu.stratosphere.pact.generic.contract.GenericMatchContract;
+import eu.stratosphere.pact.generic.contract.GenericReduceContract;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
+import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 
 /**
  * The optimizer that takes the user specified pact plan and creates an optimized plan that contains
@@ -77,8 +84,6 @@ import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ShipStrategyType;
  * <p>
  * The optimizer also assigns the memory to the individual tasks. This is currently done in a very simple fashion: All
  * sub-tasks that need memory (e.g. reduce or match) are given an equal share of memory.
- * 
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
 public class PactCompiler {
 
@@ -108,14 +113,41 @@ public class PactCompiler {
 	public static final String HINT_SHIP_STRATEGY_SECOND_INPUT = "INPUT_RIGHT_SHIP_STRATEGY";
 
 	/**
-	 * Value for the shipping strategy compiler hint that enforces a <b>repartition</b> strategy on the
-	 * input channel.
+	 * Value for the shipping strategy compiler hint that enforces a <b>Forward</b> strategy on the
+	 * input channel, i.e. no redistribution of any kind.
 	 * 
 	 * @see #HINT_SHIP_STRATEGY
 	 * @see #HINT_SHIP_STRATEGY_FIRST_INPUT
 	 * @see #HINT_SHIP_STRATEGY_SECOND_INPUT
 	 */
-	public static final String HINT_SHIP_STRATEGY_REPARTITION = "SHIP_REPARTITION";
+	public static final String HINT_SHIP_STRATEGY_FORWARD = "SHIP_FORWARD";
+	
+	/**
+	 * Value for the shipping strategy compiler hint that enforces a random repartition strategy.
+	 * 
+	 * @see #HINT_SHIP_STRATEGY
+	 * @see #HINT_SHIP_STRATEGY_FIRST_INPUT
+	 * @see #HINT_SHIP_STRATEGY_SECOND_INPUT
+	 */
+	public static final String HINT_SHIP_STRATEGY_REPARTITION= "SHIP_REPARTITION";
+	
+	/**
+	 * Value for the shipping strategy compiler hint that enforces a hash-partition strategy.
+	 * 
+	 * @see #HINT_SHIP_STRATEGY
+	 * @see #HINT_SHIP_STRATEGY_FIRST_INPUT
+	 * @see #HINT_SHIP_STRATEGY_SECOND_INPUT
+	 */
+	public static final String HINT_SHIP_STRATEGY_REPARTITION_HASH = "SHIP_REPARTITION_HASH";
+	
+	/**
+	 * Value for the shipping strategy compiler hint that enforces a range-partition strategy.
+	 * 
+	 * @see #HINT_SHIP_STRATEGY
+	 * @see #HINT_SHIP_STRATEGY_FIRST_INPUT
+	 * @see #HINT_SHIP_STRATEGY_SECOND_INPUT
+	 */
+	public static final String HINT_SHIP_STRATEGY_REPARTITION_RANGE = "SHIP_REPARTITION_RANGE";
 
 	/**
 	 * Value for the shipping strategy compiler hint that enforces a <b>broadcast</b> strategy on the
@@ -126,16 +158,6 @@ public class PactCompiler {
 	 * @see #HINT_SHIP_STRATEGY_SECOND_INPUT
 	 */
 	public static final String HINT_SHIP_STRATEGY_BROADCAST = "SHIP_BROADCAST";
-
-	/**
-	 * Value for the shipping strategy compiler hint that enforces a <b>Forward</b> strategy on the
-	 * input channel, i.e. no redistribution of any kind.
-	 * 
-	 * @see #HINT_SHIP_STRATEGY
-	 * @see #HINT_SHIP_STRATEGY_FIRST_INPUT
-	 * @see #HINT_SHIP_STRATEGY_SECOND_INPUT
-	 */
-	public static final String HINT_SHIP_STRATEGY_FORWARD = "SHIP_FORWARD";
 
 	/**
 	 * Compiler hint key for the contract's local strategy. This String is a key to the contract's stub
@@ -204,24 +226,6 @@ public class PactCompiler {
 	 */
 	public static final String HINT_LOCAL_STRATEGY_MERGE = "LOCAL_STRATEGY_MERGE";
 
-	/**
-	 * Value for the local strategy compiler hint that enforces a <b>sort based</b> local strategy with self crossing.
-	 * For example, a <i>Match</i> contract whose inputs are identical will use this strategy to find pairs 
-	 * of matching keys.
-	 * 
-	 * @see #HINT_LOCAL_STRATEGY
-	 */
-	public static final String HINT_LOCAL_STRATEGY_SORT_SELF_NESTEDLOOP = "LOCAL_STRATEGY_SORT_SELF_NESTEDLOOP";
-	
-	/**
-	 * Value for the local strategy compiler hint that enforces a self crossing local strategy.
-	 * For example, a <i>Match</i> contract whose inputs are identical and already grouped will use this strategy to find pairs 
-	 * of matching keys.
-	 * 
-	 * @see #HINT_LOCAL_STRATEGY
-	 */
-	public static final String HINT_LOCAL_STRATEGY_SELF_NESTEDLOOP = "LOCAL_STRATEGY_SELF_NESTEDLOOP";
-
 	
 	/**
 	 * Value for the local strategy compiler hint that enforces a <b>hash based</b> local strategy.
@@ -242,30 +246,6 @@ public class PactCompiler {
 	 * @see #HINT_LOCAL_STRATEGY
 	 */
 	public static final String HINT_LOCAL_STRATEGY_HASH_BUILD_SECOND = "LOCAL_STRATEGY_HASH_BUILD_SECOND";
-
-	/**
-	 * Value for the local strategy compiler hint that enforces a <b>in-memory hash based</b> local strategy.
-	 * For example, a <i>Match</i> contract will use a hash-join strategy where the hash-table is kept entirely
-	 * in main memory. The <b>first</b> input will be used to build the hash table, the second input will be
-	 * used to probe the table.
-	 * <p>
-	 * NOTE: Tasks with this this local strategy may fail, if there is not enough main memory for the hash-table.
-	 * 
-	 * @see #HINT_LOCAL_STRATEGY
-	 */
-	public static final String HINT_LOCAL_STRATEGY_INMEM_HASH_BUILD_FIRST = "LOCAL_STRATEGY_INMEM_HASH_BUILD_FIRST";
-
-	/**
-	 * Value for the local strategy compiler hint that enforces a <b>in-memory hash based</b> local strategy.
-	 * For example, a <i>Match</i> contract will use a hash-join strategy where the hash-table is kept entirely
-	 * in main memory. The <b>second</b> input will be used to build the hash table, the first input will be
-	 * used to probe the table.
-	 * <p>
-	 * NOTE: Tasks with this this local strategy may fail, if there is not enough main memory for the hash-table.
-	 * 
-	 * @see #HINT_LOCAL_STRATEGY
-	 */
-	public static final String HINT_LOCAL_STRATEGY_INMEM_HASH_BUILD_SECOND = "LOCAL_STRATEGY_INMEM_HASH_BUILD_SECOND";
 
 	/**
 	 * Value for the local strategy compiler hint that chooses the outer side of the <b>nested-loop</b> local strategy.
@@ -310,8 +290,6 @@ public class PactCompiler {
 	 * @see #HINT_LOCAL_STRATEGY
 	 */
 	public static final String HINT_LOCAL_STRATEGY_NESTEDLOOP_BLOCKED_OUTER_SECOND = "LOCAL_STRATEGY_NESTEDLOOP_BLOCKED_OUTER_SECOND";
-
-	public static final int DEFAULT_TEMP_TASK_MEMORY = 4; // the amount of memory for TempTasks in MB
 	
 	/**
 	 * The log handle that is used by the compiler to log messages.
@@ -367,7 +345,7 @@ public class PactCompiler {
 	 * The address of the job manager (to obtain system characteristics) is determined via the global configuration.
 	 */
 	public PactCompiler() {
-		this(null, new FixedSizeClusterCostEstimator());
+		this(null, new DefaultCostEstimator());
 	}
 
 	/**
@@ -382,7 +360,7 @@ public class PactCompiler {
 	 *        The statistics to be used to determine the input properties.
 	 */
 	public PactCompiler(DataStatistics stats) {
-		this(stats, new FixedSizeClusterCostEstimator());
+		this(stats, new DefaultCostEstimator());
 	}
 
 	/**
@@ -501,42 +479,24 @@ public class PactCompiler {
 	 *         Thrown, if the plan is invalid or the optimizer encountered an inconsistent
 	 *         situation during the compilation process.
 	 */
-	public OptimizedPlan compile(Plan pactPlan) throws CompilerException
-	{
+	public OptimizedPlan compile(Plan pactPlan) throws CompilerException {
 		// -------------------- try to get the connection to the job manager ----------------------
 		// --------------------------to obtain instance information --------------------------------
-
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("Connecting compiler to JobManager to dertermine instance information.");
-		}
-		
-		// create the connection in a separate thread, such that this thread
-		// can abort, if an unsuccessful connection occurs.
-		Map<InstanceType, InstanceTypeDescription> instances = null;
-		
-		JobManagerConnector jmc = new JobManagerConnector(this.jobManagerAddress);
-		Thread connectorThread = new Thread(jmc, "Compiler - JobManager connector.");
-		connectorThread.setDaemon(true);
-		connectorThread.start();
-
-		// connect and get the result
-		try {
-			jmc.waitForCompletion();
-			instances = jmc.instances;
-			if (instances == null) {
-				throw new NullPointerException("Returned instance map is <null>");
-			}
-		}
-		catch (Throwable t) {
-			throw new CompilerException("Available instances could not be determined from job manager: " + 
-				t.getMessage(), t);
-		}
-
-		// determine which type to run on
-		InstanceTypeDescription type = getType(instances);
-		
-		return compile(pactPlan, type);
+		final OptimizerPostPass postPasser = getPostPassFromPlan(pactPlan);
+		return compile(pactPlan, getInstanceTypeInfo(), postPasser);
 	}
+	
+	public OptimizedPlan compile(Plan pactPlan, OptimizerPostPass postPasser) throws CompilerException {
+		// -------------------- try to get the connection to the job manager ----------------------
+		// --------------------------to obtain instance information --------------------------------
+		return compile(pactPlan, getInstanceTypeInfo(), postPasser);
+	}
+	
+	public OptimizedPlan compile(Plan pactPlan, InstanceTypeDescription type) throws CompilerException {
+		final OptimizerPostPass postPasser = getPostPassFromPlan(pactPlan);
+		return compile(pactPlan, type, postPasser);
+	}
+	
 	/**
 	 * Translates the given pact plan in to an OptimizedPlan, where all nodes have their local strategy assigned
 	 * and all channels have a shipping strategy assigned. The process goes through several phases:
@@ -550,12 +510,15 @@ public class PactCompiler {
 	 * @param pactPlan The PACT plan to be translated.
 	 * @param type The instance type to schedule the execution on. Used also to determine the amount of memory
 	 *             available to the tasks.
+	 * @param postPasser The function to be used for post passing the optimizer's plan and setting the
+	 *                   data type specific serialization routines.
 	 * @return The optimized plan.
+	 * 
 	 * @throws CompilerException
 	 *         Thrown, if the plan is invalid or the optimizer encountered an inconsistent
 	 *         situation during the compilation process.
 	 */
-	public OptimizedPlan compile(Plan pactPlan, InstanceTypeDescription type) throws CompilerException
+	public OptimizedPlan compile(Plan pactPlan, InstanceTypeDescription type, OptimizerPostPass postPasser) throws CompilerException
 	{
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Beginning compilation of PACT program '" + pactPlan.getJobName() + '\'');
@@ -563,10 +526,9 @@ public class PactCompiler {
 		
 		final String instanceName = type.getInstanceType().getIdentifier();
 		
-		// we subtract some percentage of the memory to accommodate for rounding errors and fragmentation
+		// we subtract some percentage of the memory to accommodate for rounding errors
 		final long memoryPerInstance = (long) (type.getHardwareDescription().getSizeOfFreeMemory() * 0.96f);
-		int memoryMegabytes = (int) (memoryPerInstance >>> 20);
-		int numInstances = type.getMaximumNumberOfAvailableInstances();
+		final int numInstances = type.getMaximumNumberOfAvailableInstances();
 		
 		// determine the maximum number of machines to use
 		int maxMachinesJob = pactPlan.getMaxNumberMachines();
@@ -645,8 +607,7 @@ public class PactCompiler {
 		// if we have a plan with multiple data sinks, add logical optimizer nodes that have two data-sinks as children
 		// each until we have only a single root node. This allows to transparently deal with the nodes with
 		// multiple outputs
-		OptimizerNode rootNode = null;
-
+		OptimizerNode rootNode;
 		if (graphCreator.sinks.size() == 1) {
 			rootNode = graphCreator.sinks.get(0);
 		} else if (graphCreator.sinks.size() > 1) {
@@ -659,9 +620,15 @@ public class PactCompiler {
 				rootNode.SetId(id++);
 			}
 		} else {
-			throw new CompilerException("The plan encountered when generating alternatives has no sinks.");
+			throw new CompilerException("Bug: The optimizer plan representation has no sinks.");
 		}
 
+		// now that we have all nodes created and recorded which ones consume memory, tell the nodes their minimal
+		// guaranteed memory, for further cost estimations. we assume an equal distribution of memory among consumer tasks
+		
+		rootNode.accept(new MemoryDistributer(
+			graphCreator.getMemoryConsumerCount() == 0 ? 0 : memoryPerInstance / graphCreator.getMemoryConsumerCount()));
+		
 		// Now that the previous step is done, the next step is to traverse the graph again for the two
 		// steps that cannot directly be performed during the plan enumeration, because we are dealing with DAGs
 		// rather than a trees. That requires us to deviate at some points from the classical DB optimizer algorithms.
@@ -669,12 +636,20 @@ public class PactCompiler {
 		// 1) propagate the interesting properties top-down through the graph
 		// 2) Track information about nodes with multiple outputs that are later on reconnected in a node with
 		// multiple inputs.
-		InterestingPropertyAndBranchesVisitor propsVisitor = new InterestingPropertyAndBranchesVisitor(
-			this.costEstimator);
+		InterestingPropertyVisitor propsVisitor = new InterestingPropertyVisitor(this.costEstimator);
 		rootNode.accept(propsVisitor);
+		
+		BranchesVisitor branchingVisitor = new BranchesVisitor();
+		rootNode.accept(branchingVisitor);
+		
+		// perform a sanity check: the root may not have any unclosed branches
+		if (rootNode.getOpenBranches() != null && rootNode.getOpenBranches().size() > 0) {
+			throw new CompilerException("Bug: Logic for branching plans (non-tree plans) has an error, and does not " +
+					"track the re-joining of branches correctly.");
+		}
 
 		// the final step is now to generate the actual plan alternatives
-		List<? extends OptimizerNode> bestPlan = rootNode.getAlternativePlans(this.costEstimator);
+		List<PlanNode> bestPlan = rootNode.getAlternativePlans(this.costEstimator);
 
 		if (bestPlan.size() != 1) {
 			throw new CompilerException("Error in compiler: more than one best plan was created!");
@@ -682,26 +657,26 @@ public class PactCompiler {
 
 		// check if the best plan's root is a data sink (single sink plan)
 		// if so, directly take it. if it is a sink joiner node, get its contained sinks
-		OptimizerNode bestPlanRoot = bestPlan.get(0);
-		List<DataSinkNode> bestPlanSinks = new ArrayList<DataSinkNode>(4);
+		PlanNode bestPlanRoot = bestPlan.get(0);
+		List<SinkPlanNode> bestPlanSinks = new ArrayList<SinkPlanNode>(4);
 
-		if (bestPlanRoot instanceof DataSinkNode) {
-			bestPlanSinks.add((DataSinkNode) bestPlanRoot);
-		} else if (bestPlanRoot instanceof SinkJoiner) {
-			((SinkJoiner) bestPlanRoot).getDataSinks(bestPlanSinks);
+		if (bestPlanRoot instanceof SinkPlanNode) {
+			bestPlanSinks.add((SinkPlanNode) bestPlanRoot);
+		} else if (bestPlanRoot instanceof SinkJoinerPlanNode) {
+			((SinkJoinerPlanNode) bestPlanRoot).getDataSinks(bestPlanSinks);
 		}
-		
-		// connect nodes bidirectional
-		new NodeConnector().connectNodes(bestPlanSinks);
-
-		// insert temporary dams, as they may be necessary in non-tree graphs to prevent deadlocks
-		// Configuration config = GlobalConfiguration.getConfiguration();
-		new DeadlockResolver(false).resolveDeadlocks(bestPlanSinks);
 
 		// finalize the plan
-		OptimizedPlan plan = new PlanFinalizer().createFinalPlan(bestPlanSinks, pactPlan.getJobName(), memoryMegabytes);
+		OptimizedPlan plan = new PlanFinalizer().createFinalPlan(bestPlanSinks, pactPlan.getJobName(), memoryPerInstance);
 		plan.setInstanceTypeName(instanceName);
 		plan.setPlanConfiguration(pactPlan.getPlanConfiguration());
+		
+		// swap the binary unions for n-ary unions. this changes no strategies or memory consumers whatsoever, so
+		// we can do this after the plan finalization
+		plan.accept(new BinaryUnionReplacer());
+		
+		// post pass the plan. this is the phase where the serialization and comparator code is set
+		postPasser.postPass(plan);
 		
 		return plan;
 	}
@@ -710,20 +685,20 @@ public class PactCompiler {
 	 * This function performs only the first step to the compilation process - the creation of the optimizer
 	 * representation of the plan. No estimations or enumerations of alternatives are done here.
 	 * 
-	 * @param pactPlan
-	 *        The plan to generate the optimizer representation for.
-	 * @return The optimizer representation of the plan.
+	 * @param pactPlan The plan to generate the optimizer representation for.
+	 * @return The optimizer representation of the plan, as a collection of all data sinks
+	 *         from the plan can be traversed.
 	 */
-	public static OptimizedPlan createPreOptimizedPlan(Plan pactPlan)
-	{
+	public static List<DataSinkNode> createPreOptimizedPlan(Plan pactPlan) {
 		GraphCreatingVisitor graphCreator = new GraphCreatingVisitor(null, -1, 1, false);
 		pactPlan.accept(graphCreator);
-		OptimizedPlan optPlan = new OptimizedPlan(graphCreator.sources, graphCreator.sinks, graphCreator.con2node.values(),
-				pactPlan.getJobName());
-		optPlan.setPlanConfiguration(pactPlan.getPlanConfiguration());
-		return optPlan;
+		return graphCreator.sinks;
 	}
-
+	
+	// ------------------------------------------------------------------------
+	//                 Visitors for Compilation Traversals
+	// ------------------------------------------------------------------------
+	
 	/**
 	 * This utility class performs the translation from the user specified PACT job to the optimizer plan.
 	 * It works as a visitor that walks the user's job in a depth-first fashion. During the descend, it creates
@@ -750,25 +725,21 @@ public class PactCompiler {
 		private final int defaultParallelism; // the default degree of parallelism
 
 		private int id; // the incrementing id for the nodes.
+		
+		private int numMemoryConsumers;
 
 		private final boolean computeEstimates; // flag indicating whether to compute additional info
 
-		/**
-		 * Creates a new node creating visitor.
-		 */
-		private GraphCreatingVisitor(DataStatistics statistics, int maxMachines, int defaultParallelism, boolean computeEstimates)
+
+		GraphCreatingVisitor(DataStatistics statistics, int maxMachines, int defaultParallelism, boolean computeEstimates)
 		{
 			this.con2node = new HashMap<Contract, OptimizerNode>();
 			this.sources = new ArrayList<DataSourceNode>(4);
 			this.sinks = new ArrayList<DataSinkNode>(2);
-
 			this.statistics = statistics;
-
 			this.maxMachines = maxMachines;
 			this.defaultParallelism = defaultParallelism;
-
 			this.id = 1;
-
 			this.computeEstimates = computeEstimates;
 		}
 
@@ -784,7 +755,7 @@ public class PactCompiler {
 				return false;
 			}
 
-			OptimizerNode n = null;
+			final OptimizerNode n;
 
 			// create a node for the pact (or sink or source) if we have not been here before
 			if (c instanceof GenericDataSink) {
@@ -795,21 +766,24 @@ public class PactCompiler {
 				DataSourceNode dsn = new DataSourceNode((GenericDataSource<?>) c);
 				this.sources.add(dsn);
 				n = dsn;
-			} else if (c instanceof MapContract) {
-				n = new MapNode((MapContract) c);
-			} else if (c instanceof ReduceContract) {
-				n = new ReduceNode((ReduceContract) c);
-			} else if (c instanceof MatchContract) {
-				n = new MatchNode((MatchContract) c);
-			} else if (c instanceof CoGroupContract) {
-				n = new CoGroupNode((CoGroupContract) c);
-			} else if (c instanceof CrossContract) {
-				n = new CrossNode((CrossContract) c);
+			} else if (c instanceof GenericMapContract) {
+				n = new MapNode((GenericMapContract<?>) c);
+			} else if (c instanceof GenericReduceContract) {
+				n = new ReduceNode((GenericReduceContract<?>) c);
+			} else if (c instanceof GenericMatchContract) {
+				n = new MatchNode((GenericMatchContract<?>) c);
+			} else if (c instanceof GenericCoGroupContract) {
+				n = new CoGroupNode((GenericCoGroupContract<?>) c);
+			} else if (c instanceof GenericCrossContract) {
+				n = new CrossNode((GenericCrossContract<?>) c);
 			} else {
 				throw new IllegalArgumentException("Unknown contract type.");
 			}
 
 			this.con2node.put(c, n);
+			
+			// record the potential memory consumption
+			this.numMemoryConsumers += n.isMemoryConsumer() ? 1 : 0;
 
 			// set the degree of parallelism
 			int par = c.getDegreeOfParallelism();
@@ -830,8 +804,7 @@ public class PactCompiler {
 
 			// we group together n tasks per machine, depending on config and the above computed
 			// value required to obey the maximum number of machines
-			n.setInstancesPerMachine(tasksPerInstance);
-
+			n.setSubtasksPerInstance(tasksPerInstance);
 			return true;
 		}
 
@@ -848,12 +821,10 @@ public class PactCompiler {
 			if (n.getId() > 0) {
 				return;
 			}
-
 			n.SetId(this.id);
 
 			// first connect to the predecessors
-			if(!(c instanceof GenericDataSource))
-				n.setInputs(this.con2node);
+			n.setInputs(this.con2node);
 
 			//read id again as it might have been incremented for newly created union nodes
 			this.id = n.getId() + 1;
@@ -864,24 +835,56 @@ public class PactCompiler {
 			}
 		}
 
-		public int getId() {
+		int getId() {
 			return this.id;
 		}
-
+		
+		int getMemoryConsumerCount() {
+			return this.numMemoryConsumers;
+		}
 	};
+	
+	/**
+	 * Simple visitor that sets the minimal guaranteed memory per task based on the amount of available memory,
+	 * the number of memory consumers, and on the task's degree of parallelism.
+	 */
+	private static final class MemoryDistributer implements Visitor<OptimizerNode>
+	{
+		private final long memoryPerTaskPerInstance;
+		
+		MemoryDistributer(long memoryPerTaskPerInstance) {
+			this.memoryPerTaskPerInstance = memoryPerTaskPerInstance;
+		}
 
+		/* (non-Javadoc)
+		 * @see eu.stratosphere.pact.common.plan.Visitor#preVisit(eu.stratosphere.pact.common.plan.Visitable)
+		 */
+		@Override
+		public boolean preVisit(OptimizerNode visitable) {
+			if (visitable.getMinimalMemoryPerSubTask() == -1) {
+				final long mem = visitable.isMemoryConsumer() ? 
+					this.memoryPerTaskPerInstance / visitable.getSubtasksPerInstance() : 0;
+				visitable.setMinimalMemoryPerSubTask(mem);
+				return true;
+			} else {
+				return false;
+			}
+		}
+
+		/* (non-Javadoc)
+		 * @see eu.stratosphere.pact.common.plan.Visitor#postVisit(eu.stratosphere.pact.common.plan.Visitable)
+		 */
+		@Override
+		public void postVisit(OptimizerNode visitable) {}
+	}
+	
 	/**
 	 * Visitor that computes the interesting properties for each node in the plan. On its recursive
-	 * depth-first descend, it propagates all interesting properties top-down. On its re-ascend,
-	 * it computes auxiliary maps that are needed to support plans that are not a minimally connected
-	 * DAG (Such plans are not trees, but at least one node feeds its output into more than one other
-	 * node).
+	 * depth-first descend, it propagates all interesting properties top-down.
 	 */
-	private static final class InterestingPropertyAndBranchesVisitor implements Visitor<OptimizerNode> {
-
-		private CostEstimator estimator; // the cost estimator used to compute the
-
-		// maximal costs for an interesting property
+	private static final class InterestingPropertyVisitor implements Visitor<OptimizerNode>
+	{
+		private CostEstimator estimator; // the cost estimator for maximal costs of an interesting property
 
 		/**
 		 * Creates a new visitor that computes the interesting properties for all nodes in the plan.
@@ -890,10 +893,10 @@ public class PactCompiler {
 		 * @param estimator
 		 *        The cost estimator to estimate the maximal costs for interesting properties.
 		 */
-		InterestingPropertyAndBranchesVisitor(CostEstimator estimator) {
+		InterestingPropertyVisitor(CostEstimator estimator) {
 			this.estimator = estimator;
 		}
-
+		
 		/*
 		 * (non-Javadoc)
 		 * @see
@@ -905,10 +908,37 @@ public class PactCompiler {
 			// that computation must happen during the last descend.
 
 			if (node.haveAllOutputConnectionInterestingProperties() && node.getInterestingProperties() == null) {
-				node.computeInterestingProperties();
+				node.computeUnionOfInterestingPropertiesFromSuccessors();
 				node.computeInterestingPropertiesForInputs(this.estimator);
+				return true;
+			} else {
+				return false;
 			}
+		}
 
+		/* (non-Javadoc)
+		 * @see eu.stratosphere.pact.common.plan.Visitor#postVisit(eu.stratosphere.pact.common.plan.Visitable)
+		 */
+		@Override
+		public void postVisit(OptimizerNode visitable) {}
+	}
+
+	/**
+	 * Visitor that computes the interesting properties for each node in the plan. On its recursive
+	 * depth-first descend, it propagates all interesting properties top-down. On its re-ascend,
+	 * it computes auxiliary maps that are needed to support plans that are not a minimally connected
+	 * DAG (Such plans are not trees, but at least one node feeds its output into more than one other
+	 * node).
+	 */
+	private static final class BranchesVisitor implements Visitor<OptimizerNode>
+	{
+		/*
+		 * (non-Javadoc)
+		 * @see
+		 * eu.stratosphere.pact.common.plan.Visitor#preVisit(eu.stratosphere.pact.common.plan.Visitable)
+		 */
+		@Override
+		public boolean preVisit(OptimizerNode node) {
 			// make sure we descend in any case (even if it causes redundant descends), because the branch propagation
 			// during the post visit needs to happen during the first re-ascend
 			return true;
@@ -924,55 +954,60 @@ public class PactCompiler {
 			node.computeUnclosedBranchStack();
 		}
 	};
-
-	/**
-	 * Utility class that traverses a plan to connect all nodes.
-	 */
-	private static final class NodeConnector implements Visitor<OptimizerNode> {
-		private final Set<OptimizerNode> allNodes; // a set of all nodes in the optimizer plan
-
-		/**
-		 * Creates a new node connector.
-		 */
-		private NodeConnector() {
-			this.allNodes = new HashSet<OptimizerNode>();
-		}
-
-		private void connectNodes(List<DataSinkNode> sinks) {
-			
-			// traverse the graph
-			for (DataSinkNode node : sinks) {
-				node.accept(this);
-			}
-		}
-
-		/*
-		 * (non-Javadoc)
-		 * @see
-		 * eu.stratosphere.pact.common.plan.Visitor#preVisit(eu.stratosphere.pact.common.plan.Visitable)
+	
+	private static final class BinaryUnionReplacer implements Visitor<PlanNode>
+	{
+		private final Set<PlanNode> seenBefore = new HashSet<PlanNode>();
+		
+		/* (non-Javadoc)
+		 * @see eu.stratosphere.pact.common.plan.Visitor#preVisit(eu.stratosphere.pact.common.plan.Visitable)
 		 */
 		@Override
-		public boolean preVisit(OptimizerNode visitable) {
-			// if we come here again, prevent a further descend
-			if (!this.allNodes.add(visitable)) {
-				return false;
-			}
-
-			for (PactConnection conn : visitable.getIncomingConnections()) {
-				conn.getSourcePact().addOutConn(conn);
-			}
-
-			return true;
+		public boolean preVisit(PlanNode visitable) {
+			return this.seenBefore.add(visitable);
 		}
 
-		/*
-		 * (non-Javadoc)
-		 * @see
-		 * eu.stratosphere.pact.common.plan.Visitor#postVisit(eu.stratosphere.pact.common.plan.Visitable)
+		/* (non-Javadoc)
+		 * @see eu.stratosphere.pact.common.plan.Visitor#postVisit(eu.stratosphere.pact.common.plan.Visitable)
 		 */
 		@Override
-		public void postVisit(OptimizerNode visitable) {
-			// do nothing
+		public void postVisit(PlanNode visitable) {
+			if (visitable instanceof BinaryUnionPlanNode) {
+				BinaryUnionPlanNode unionNode = (BinaryUnionPlanNode) visitable;
+				
+				Channel in1 = unionNode.getInput1();
+				Channel in2 = unionNode.getInput2();
+				
+				List<Channel> inputs = new ArrayList<Channel>();
+				
+				collect(in1, inputs);
+				collect(in2, inputs);
+				
+				UnionPlanNode newUnion = new UnionPlanNode(unionNode.getOptimizerNode(), inputs, unionNode.getGlobalProperties());
+				// adjust the input channels to have their target point to the new union node
+				for (Channel c : inputs) {
+					c.setTarget(newUnion);
+				}
+				
+				unionNode.getOutgoingChannels().get(0).swapUnionNodes(newUnion);
+			}
+		}
+		
+		private void collect(Channel in, List<Channel> inputs) {
+			if (in.getSource() instanceof UnionPlanNode) {
+				// sanity check
+				if (in.getShipStrategy() != ShipStrategyType.FORWARD) {
+					throw new CompilerException("Bug: Plan generation for Unions picked a ship strategy between binary plan operators.");
+				}
+				if (!(in.getLocalStrategy() == null || in.getLocalStrategy() == LocalStrategy.NONE)) {
+					throw new CompilerException("Bug: Plan generation for Unions picked a local strategy between binary plan operators.");
+				}
+				
+				inputs.addAll(((UnionPlanNode) in.getSource()).getListOfInputs());
+			} else {
+				// is not a union node, so we take teh channel directly
+				inputs.add(in);
+			}
 		}
 	}
 	
@@ -980,58 +1015,85 @@ public class PactCompiler {
 	 * Utility class that traverses a plan to collect all nodes and add them to the OptimizedPlan.
 	 * Besides collecting all nodes, this traversal assigns the memory to the nodes.
 	 */
-	private static final class PlanFinalizer implements Visitor<OptimizerNode>
+	private static final class PlanFinalizer implements Visitor<PlanNode>
 	{
-		private final Set<OptimizerNode> allNodes; // a set of all nodes in the optimizer plan
+		private final Set<PlanNode> allNodes; // a set of all nodes in the optimizer plan
 
-		private final List<DataSourceNode> sources; // all data source nodes in the optimizer plan
+		private final List<SourcePlanNode> sources; // all data source nodes in the optimizer plan
 
-		private final List<DataSinkNode> sinks; // all data sink nodes in the optimizer plan
+		private final List<SinkPlanNode> sinks; // all data sink nodes in the optimizer plan
 
-		private int memoryConsumers; // a counter of all memory consumers
+		private long memoryPerInstance; // the amount of memory per instance
 		
-		private int memoryPerInstance; // the amount of memory per instance
+		private int memoryConsumerWeights; // a counter of all memory consumers
 
 		/**
 		 * Creates a new plan finalizer.
 		 */
 		private PlanFinalizer() {
-			this.allNodes = new HashSet<OptimizerNode>();
-			this.sources = new ArrayList<DataSourceNode>();
-			this.sinks = new ArrayList<DataSinkNode>();
+			this.allNodes = new HashSet<PlanNode>();
+			this.sources = new ArrayList<SourcePlanNode>();
+			this.sinks = new ArrayList<SinkPlanNode>();
 		}
 
-		private OptimizedPlan createFinalPlan(List<DataSinkNode> sinks, String jobName, int memoryPerInstance)
+		private OptimizedPlan createFinalPlan(List<SinkPlanNode> sinks, String jobName, long memPerInstance)
 		{
 			if (LOG.isDebugEnabled())
-				LOG.debug("Available memory per instance: " + memoryPerInstance);
+				LOG.debug("Available memory per instance: " + this.memoryPerInstance);
 			
-			this.memoryPerInstance = memoryPerInstance;
-			this.memoryConsumers = 0;
+			this.memoryPerInstance = memPerInstance;
+			this.memoryConsumerWeights = 0;
 			
 			// traverse the graph
-			for (DataSinkNode node : sinks) {
+			for (SinkPlanNode node : sinks) {
 				node.accept(this);
 			}
 
 			// assign the memory to each node
-			if (this.memoryConsumers > 0) {
-				final int memoryPerTask = this.memoryPerInstance / this.memoryConsumers;
+			if (this.memoryConsumerWeights > 0) {
+				final long memoryPerInstanceAndWeight = this.memoryPerInstance / this.memoryConsumerWeights;
 				
 				if (LOG.isDebugEnabled())
-					LOG.debug("Memory per consumer: "+memoryPerTask);
+					LOG.debug("Memory per consumer weight: " + memoryPerInstanceAndWeight);
 				
-				for (OptimizerNode node : this.allNodes) {
-					final int consumerCount = node.getMemoryConsumerCount(); 
-					if (consumerCount > 0) {
-						node.setMemoryPerTask(memoryPerTask * consumerCount);
-						if (LOG.isDebugEnabled())
-							LOG.debug("Assigned " + (memoryPerTask * consumerCount) + " MB to " + 
-									node.getPactContract().getName());
+				for (PlanNode node : this.allNodes) {
+					// assign memory to the driver strategy of the node
+					final int consumerWeight = node.getMemoryConsumerWeight();
+					if (consumerWeight > 0) {
+						final long mem = memoryPerInstanceAndWeight * consumerWeight / node.getSubtasksPerInstance();
+						node.setMemoryPerSubTask(mem);
+						if (LOG.isDebugEnabled()) {
+							final long mib = mem >> 20;
+							LOG.debug("Assigned " + mib + " MiBytes memory to each subtask of " + 
+								node.getPactContract().getName() + " (" + mib * node.getDegreeOfParallelism() +
+								" MiBytes total.)"); 
+						}
+					}
+					
+					// assign memory to the local and global strategies of the channels
+					for (Iterator<Channel> channels = node.getInputs(); channels.hasNext();) {
+						final Channel c = channels.next();
+						if (c.getLocalStrategy().dams()) {
+							final long mem = memoryPerInstanceAndWeight / node.getSubtasksPerInstance();
+							c.setMemoryLocalStrategy(mem);
+							if (LOG.isDebugEnabled()) {
+								final long mib = mem >> 20;
+								LOG.debug("Assigned " + mib + " MiBytes memory to each local strategy instance of " + 
+									c + " (" + mib * node.getDegreeOfParallelism() + " MiBytes total.)"); 
+							}
+						}
+						if (c.getTempMode() != TempMode.NONE) {
+							final long mem = memoryPerInstanceAndWeight / node.getSubtasksPerInstance();
+							c.setTempMemory(mem);
+							if (LOG.isDebugEnabled()) {
+								final long mib = mem >> 20;
+								LOG.debug("Assigned " + mib + " MiBytes memory to each instance of the temp table for " + 
+									c + " (" + mib * node.getDegreeOfParallelism() + " MiBytes total.)"); 
+							}
+						}
 					}
 				}
 			}
-
 			return new OptimizedPlan(this.sources, this.sinks, this.allNodes, jobName);
 		}
 
@@ -1041,56 +1103,35 @@ public class PactCompiler {
 		 * eu.stratosphere.pact.common.plan.Visitor#preVisit(eu.stratosphere.pact.common.plan.Visitable)
 		 */
 		@Override
-		public boolean preVisit(OptimizerNode visitable) {
+		public boolean preVisit(PlanNode visitable) {
 			// if we come here again, prevent a further descend
 			if (!this.allNodes.add(visitable)) {
 				return false;
 			}
-
-			for (PactConnection conn : visitable.getIncomingConnections()) {
-				
-				// check for memory consuming temp connection
-				switch(conn.getTempMode()) {
-					case NONE:
-						// do nothing
-						break;
-					case TEMP_SENDER_SIDE:
-						// reduce available memory
-						this.memoryPerInstance -= PactCompiler.DEFAULT_TEMP_TASK_MEMORY * 
-													conn.getSourcePact().getDegreeOfParallelism();
-						LOG.debug("Memory reduced to "+this.memoryPerInstance+ " due to TempTask");
-						break;
-					case TEMP_RECEIVER_SIDE:
-						// reduce available memory
-						this.memoryPerInstance -= PactCompiler.DEFAULT_TEMP_TASK_MEMORY * 
-													conn.getTargetPact().getDegreeOfParallelism();
-						LOG.debug("Memory reduced to "+this.memoryPerInstance+ " due to TempTask");
-						break;
-				}
+			
+			if (visitable instanceof SinkPlanNode) {
+				this.sinks.add((SinkPlanNode) visitable);
+			} else if (visitable instanceof SourcePlanNode) {
+				this.sources.add((SourcePlanNode) visitable);
 			}
 			
-			for (PactConnection conn : visitable.getOutConns()) {
-				if(conn.getShipStrategy().type() == ShipStrategyType.PARTITION_RANGE) {
-					// One memory consumer for the histogram
-					this.memoryConsumers += visitable.getInstancesPerMachine();
-					//Reduce available memory because of temp task to avoid spilling
-					this.memoryPerInstance -= PactCompiler.DEFAULT_TEMP_TASK_MEMORY *
-					conn.getSourcePact().getDegreeOfParallelism();
-					//TODO: is this correct reducing memory per INSTANCE by multiplying required
-					//memory * the TOTAL DoP?
-					LOG.debug("Memory reduced to "+this.memoryPerInstance+ " due to TempTask");
-				}
-			}
-
-			if (visitable instanceof DataSinkNode) {
-				this.sinks.add((DataSinkNode) visitable);
-			} else if (visitable instanceof DataSourceNode) {
-				this.sources.add((DataSourceNode) visitable);
+			for (Iterator<Channel> iter = visitable.getInputs(); iter.hasNext();) {
+				final Channel conn = iter.next();
+				conn.setTarget(visitable);
+				conn.getSource().addOutgoingChannel(conn);
 			}
 
 			// count the memory consumption
-			this.memoryConsumers += visitable.getMemoryConsumerCount() * visitable.getInstancesPerMachine();
-			
+			this.memoryConsumerWeights += visitable.getMemoryConsumerWeight();
+			for (Iterator<Channel> channels = visitable.getInputs(); channels.hasNext();) {
+				final Channel c = channels.next();
+				if (c.getLocalStrategy().dams()) {
+					this.memoryConsumerWeights++;
+				}
+				if (c.getTempMode() != TempMode.NONE) {
+					this.memoryConsumerWeights++;
+				}
+			}
 			return true;
 		}
 
@@ -1100,451 +1141,68 @@ public class PactCompiler {
 		 * eu.stratosphere.pact.common.plan.Visitor#postVisit(eu.stratosphere.pact.common.plan.Visitable)
 		 */
 		@Override
-		public void postVisit(OptimizerNode visitable) {
-			// do nothing
-		}
-	}
-
-	/**
-	 * Utility class to resolve pipeline deadlocks in non-tree graphs.
-	 * Deadlocks can be resolved by inserting artificial dams (temping connections) or duplicating parts of the program.
-	 * 
-	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
-	 */
-	private static final class DeadlockResolver implements Visitor<OptimizerNode> {
-		
-		// TODO: deadlock resolving should be integrated into the optimization and not done as a postprocessing
-		
-		private final boolean spillingActivated;
-		private final HashSet<OptimizerNode> visitedNodes;
-		
-		private final List<PactConnection> deadlockConnection;
-		
-		public DeadlockResolver(boolean spillingActivated) {
-			this.spillingActivated = spillingActivated;
-			this.visitedNodes = new HashSet<OptimizerNode>();
-			
-			this.deadlockConnection = new ArrayList<PactConnection>();
-		}
-		
-		public void resolveDeadlocks(List<DataSinkNode> sinks) {
-			
-			// traverse the graph
-			for (DataSinkNode node : sinks) {
-				node.accept(this);
-			}
-
-			for(PactConnection conn : this.deadlockConnection) {
-				// unmark connection
-				conn.setTempMode(TempMode.NONE);
-				// resolve deadlock for connection
-				resolveDeadlock(conn);
-			}
-			
-		}
-
-		/**
-		 * Inserts temping connections where it is necessary.
-		 * 
-		 */
-		@Override
-		public boolean preVisit(OptimizerNode node) {
-			
-			if(this.visitedNodes.contains(node)) 
-				return false; 
-			
-			// mark that we have been here
-			this.visitedNodes.add(node);
-			
-			// check if temp task is required
-			for (PactConnection conn : node.getIncomingConnections()) {
-				// check if inConn is a blocked connection
-				if (isBlockedConnection(conn)) {
-					// check if inConn needs to be temped
-					if (mayCauseDeadlock(conn)) {
-						// mark connection as temped
-						conn.setTempMode(TempMode.TEMP_RECEIVER_SIDE);
-						// insert connection into temp connection list
-						this.deadlockConnection.add(conn);
-					}
-				}
-			}
-			
-			return true;
-		}
-
-		@Override
-		public void postVisit(OptimizerNode visitable) {
-			// do nothing
-		}
-
-		/**
-		 * Checks whether a connection is blocked (waiting for other connection to be fully read).
-		 * Blocked connections are:
-		 * - Connection to Match PACTs that probe a HashTable
-		 * - Connection to Match PACTs that provide sorted input
-		 * - Connection to CoGroup PACTs that provide sorted input
-		 * - Connection to Cross PACTs that are the outer loop of the nested-loop strategy
-		 * Connections that are explicitly temping are never blocked!
-		 * If the Nephele system was started with activated network spilling, data that cannot be forwarded to 
-		 * the task is written to disk and later forwarded. 
-		 * Hence, network channels are never blocking if network spilling is activated. 
-		 * 
-		 * @param conn
-		 *        Connection that is checked for being a blocked connection.
-		 * @return True if the connection is blocked, False otherwise.
-		 */
-		private boolean isBlockedConnection(PactConnection conn) {
-			if (conn.getTempMode() != TempMode.NONE) {
-				return false;
-			}
-			
-			if (this.spillingActivated &&
-					(
-					conn.getShipStrategy().type() == ShipStrategyType.BROADCAST ||
-					conn.getShipStrategy().type() == ShipStrategyType.PARTITION_HASH || 
-					conn.getShipStrategy().type() == ShipStrategyType.PARTITION_RANGE || 
-					conn.getShipStrategy().type() == ShipStrategyType.SFR
-					)
-				) {
-				// network spilling is activated and shipping strategy will use network channels
-				return false;
-			}
-
-			switch (conn.getTargetPact().getPactType()) {
-			case Match:
-				// test if hash strategy is used
-				int inConnIdx = conn.getTargetPact().getIncomingConnections().indexOf(conn);
-				switch (conn.getTargetPact().getLocalStrategy()) {
-				case HYBRIDHASH_FIRST:
-					// first input is build side
-					if (inConnIdx == 1)
-						return true;
-					
-					return false;
-				case HYBRIDHASH_SECOND:
-					// second input is build side
-					if (inConnIdx == 0)
-						return true;
-
-					return false;
-				case MMHASH_FIRST:
-					// first input is build side
-					if (inConnIdx == 1)
-						return true;
-
-					return false;
-				case MMHASH_SECOND:
-					// second input is build side
-					if (inConnIdx == 0)
-						return true;
-
-					return false;
-				case SORT_FIRST_MERGE:
-					// first input is sorted
-					if (inConnIdx == 1)
-						return true;
-
-					return false;
-				case SORT_SECOND_MERGE:
-					// second input is sorted
-					if (inConnIdx == 0)
-						return true;
-
-					return false;
-				default:
-					return false;
-				}
-			case Cogroup:
-				inConnIdx = conn.getTargetPact().getIncomingConnections().indexOf(conn);
-				switch (conn.getTargetPact().getLocalStrategy()) {
-				case SORT_FIRST_MERGE:
-					// first input is sorted
-					if (inConnIdx == 1)
-						return true;
-
-					return false;
-				case SORT_SECOND_MERGE:
-					// second input is sorted
-					if (inConnIdx == 0)
-						return true;
-
-					return false;
-				default:
-					return false;
-				}
-			case Cross:
-				inConnIdx = conn.getTargetPact().getIncomingConnections().indexOf(conn);
-				switch (conn.getTargetPact().getLocalStrategy()) {
-				case NESTEDLOOP_BLOCKED_OUTER_SECOND:
-					// first input is fully read before processing (inner side)
-					if (inConnIdx == 1)
-						return true;
-
-					return false;
-				case NESTEDLOOP_STREAMED_OUTER_SECOND:
-					// first input is fully read before processing (inner side)
-					if (inConnIdx == 1)
-						return true;
-
-					return false;
-				case NESTEDLOOP_BLOCKED_OUTER_FIRST:
-					// second input is fully read before processing (inner side)
-					if (inConnIdx == 0)
-						return true;
-
-					return false;
-				case NESTEDLOOP_STREAMED_OUTER_FIRST:
-					// second input is fully read before processing (inner side)
-					if (inConnIdx == 0)
-						return true;
-
-					return false;
-				default:
-					return false;
-				}
-			default:
-				return false;
-			}
-		}
-
-		/**
-		 * Checks whether a connection is temping (consuming all records before processing).
-		 * Temping connections are:
-		 * - Connections to Reduce PACTs
-		 * - Connections to CoGroup PACTs
-		 * - Connections to Match PACTs with MergeSort LocalStrategy
-		 * - Connections to Match PACTs that build a HashTable
-		 * - Connections to Cross PACTs that are read into the resetable iterator
-		 * - Connections that are explicitly tempings
-		 * 
-		 * @param conn
-		 *        Connection that is checked for temping
-		 * @return True if the connection is temping, False otherwise
-		 */
-		private boolean isTempingConnection(PactConnection conn) {
-			if (conn.getTempMode() != TempMode.NONE) {
-				return true;
-			}
-
-			switch (conn.getTargetPact().getPactType()) {
-			case Reduce:
-				switch (conn.getTargetPact().getLocalStrategy()) {
-				case SORT: 
-					// sort reads everything before processing
-					return true;
-				}
-				return true;
-			case Match:
-				int inConnIdx = conn.getTargetPact().getIncomingConnections().indexOf(conn);
-				switch (conn.getTargetPact().getLocalStrategy()) {
-				case SORT_BOTH_MERGE:
-					// sort reads everything before processing
-					return true;
-				case SORT_FIRST_MERGE:
-					if (inConnIdx == 0)
-						// input is sorted
-						return true;
-	
-					// input is NOT sorted
-					return false;
-				case SORT_SECOND_MERGE:
-					if (inConnIdx == 1)
-						// input is sorted
-						return true;
-
-					// input is NOT sorted
-					return false;
-				case HYBRIDHASH_FIRST:
-					if (inConnIdx == 0)
-						// input is put into hashtable
-						return true;
-
-					// input is NOT put into hashtable
-					return false;
-				case HYBRIDHASH_SECOND:
-					if (inConnIdx == 1)
-						// input is put into hashtable
-						return true;
-
-					// input is NOT put into hashtable
-					return false;
-				case MMHASH_FIRST:
-					if (inConnIdx == 0)
-						// input is put into hashtable
-						return true;
-
-					// input is NOT put into hashtable
-					return false;
-				case MMHASH_SECOND:
-					if (inConnIdx == 1)
-						// input is put into hashtable
-						return true;
-
-					// input is NOT put into hashtable
-					return false;
-				default:
-					return false;
-				}
-			case Cross:
-				inConnIdx = conn.getTargetPact().getIncomingConnections().indexOf(conn);
-				switch (conn.getTargetPact().getLocalStrategy()) {
-				case NESTEDLOOP_BLOCKED_OUTER_SECOND:
-					if (inConnIdx == 0)
-						// input is put read into resettable iterator
-						return true;
-
-					// input is put block-wise streamed over resettable iterator
-					return false;
-				case NESTEDLOOP_STREAMED_OUTER_SECOND:
-					if (inConnIdx == 0)
-						// input is put read into resettable iterator
-						return true;
-
-					// input is put block-wise streamed over resettable iterator
-					return false;
-				case NESTEDLOOP_BLOCKED_OUTER_FIRST:
-					if (inConnIdx == 1)
-						// input is put read into resettable iterator
-						return true;
-
-					// input is put block-wise streamed over resettable iterator
-					return false;
-				case NESTEDLOOP_STREAMED_OUTER_FIRST:
-					if (inConnIdx == 1)
-						// input is put read into resettable iterator
-						return true;
-
-					// input is put block-wise streamed over resettable iterator
-					return false;
-				}
-			case Cogroup:
-				inConnIdx = conn.getTargetPact().getIncomingConnections().indexOf(conn);
-				switch (conn.getTargetPact().getLocalStrategy()) {
-				case SORT_BOTH_MERGE:
-					// sort reads everything before processing
-					return true;
-				case SORT_FIRST_MERGE:
-					if (inConnIdx == 0)
-						// input is sorted
-						return true;
-
-					// input is NOT sorted
-					return false;
-				case SORT_SECOND_MERGE:
-					if (inConnIdx == 1)
-						// input is sorted
-						return true;
-					// input is NOT sorted
-					return false;
-				}
-			default:
-				return false;
-			}
-		}
-
-		/**
-		 * Checks whether a blocked connection may cause a deadlock.
-		 * A blocked connection is a dam since it has to wait until the input of the other connection is fully read
-		 * (probe-side for hash strategies, streaming-side for nested-loop strategy, etc.).
-		 * The dam becomes critical if the blocking connection is fed by a node, that has multiple outputs.
-		 * Since the other targets of the multi-output-node have to wait for the blocked connection to flow.
-		 * This might cause following problems:
-		 * 1) Deadlocks
-		 * 2) Performance decrease due to time to wait for blocking connections
-		 * The problem vanishes if a temping node (a node that consumes all tuples before processing) lies on the path
-		 * from the multi-output-node to the blocked connection.
-		 * This method checks if a blocked connection is fed by a multi-output-node and whether a temping node exists on the
-		 * path.
-		 * If the blocked connection is not fed by a multi-output node it does not need be be temped.
-		 * Otherwise, it needs to be temped if there are no temping nodes on the path.
-		 * 
-		 * @param conn
-		 *        Blocked connection that should be checked for deadlock potential
-		 * @return True if the blocked connection may cause a deadlock, False otherwise.
-		 */
-		private boolean mayCauseDeadlock(PactConnection conn) {
-			if (isTempingConnection(conn)) {
-				return false;
-			}
-
-			if (conn.getSourcePact().getOutConns().size() > 1) {
-				return true;
-			}
-			
-			
-			for (PactConnection inConn : conn.getSourcePact().getIncomingConnections()) {
-				if (mayCauseDeadlock(inConn) == true) {
-					return true;
-				}
-			}
-		
-			return false;
-		}
-
-		private void resolveDeadlock(PactConnection conn) {
-			// TODO: decide smarter where to put temp (sender/receiver, connection)
-			
-			OptimizerNode sourcePact = conn.getSourcePact();
-			OptimizerNode targetPact = conn.getTargetPact();
-			
-			if(sourcePact instanceof DataSourceNode) {
-				// instead of temping connection duplicate DataSourceNode
-				
-				// duplicate DataSourceNode
-				DataSourceNode duplicateDataSource = new DataSourceNode((GenericDataSource<?>)sourcePact.getPactContract());
-				duplicateDataSource.setDegreeOfParallelism(sourcePact.getDegreeOfParallelism());
-				duplicateDataSource.setInstancesPerMachine(sourcePact.getInstancesPerMachine());
-				// create new connection
-				PactConnection newConn = new PactConnection(conn, duplicateDataSource, targetPact);
-				
-				// remove connection from original DataSourceNode
-				sourcePact.getOutConns().remove(conn);
-				// add new connection to new DataSourceNode
-				duplicateDataSource.addOutConn(newConn);
-				// replace old connection with new connection
-				if(targetPact instanceof SingleInputNode) {
-					((SingleInputNode)targetPact).setInConn(newConn);
-				} else if(targetPact instanceof TwoInputNode) {
-					if(((TwoInputNode)targetPact).getFirstInConn() == conn) {
-						((TwoInputNode)targetPact).setFirstInConn(newConn);
-					} else {
-						((TwoInputNode)targetPact).setSecondInConn(newConn);
-					}
-				}
-				
-			} else if(sourcePact.getIncomingConnections().size() > 1) {
-				// node has more than one incoming connection
-				// can't push temp further down, insert temping here
-				conn.setTempMode(TempMode.TEMP_RECEIVER_SIDE);
-			} else if(sourcePact.getOutConns().size() > 1) {
-				// node has more than one outgoing connection
-				// this is the reason for the temp, insert temping here
-				conn.setTempMode(TempMode.TEMP_RECEIVER_SIDE);
-			} else {
-				PactConnection predConn = sourcePact.getIncomingConnections().get(0);
-				
-				long curSize = sourcePact.getEstimatedOutputSize();
-				long predSize = predConn.getSourcePact().getEstimatedOutputSize();
-			
-				if(curSize < predSize) {
-					// this conn will ship less data than the preceding conn
-					// insert temping here
-					conn.setTempMode(TempMode.TEMP_RECEIVER_SIDE);
-				} else {
-					// this conn ships same or more data than preceding conn
-					// insert temp further ahead
-					resolveDeadlock(predConn);
-				}
-			}
-		}
-		
+		public void postVisit(PlanNode visitable) {}
 	}
 
 	// ------------------------------------------------------------------------
 	// Miscellaneous
 	// ------------------------------------------------------------------------
+	
+	private OptimizerPostPass getPostPassFromPlan(Plan pactPlan) {
+		final String className =  pactPlan.getPostPassClassName();
+		if (className == null) {
+			throw new CompilerException("Optimizer Post Pass class description is null");
+		}
+		try {
+			Class<? extends OptimizerPostPass> clazz = Class.forName(className).asSubclass(OptimizerPostPass.class);
+			try {
+				return InstantiationUtil.instantiate(clazz, OptimizerPostPass.class);
+			} catch (RuntimeException rtex) {
+				// unwrap the source exception
+				if (rtex.getCause() != null) {
+					throw new CompilerException("Cannot instantiate optimizer post pass: " + rtex.getMessage(), rtex.getCause());
+				} else {
+					throw rtex;
+				}
+			}
+		} catch (ClassNotFoundException cnfex) {
+			throw new CompilerException("Cannot load Optimizer post-pass class '" + className + "'.", cnfex);
+		} catch (ClassCastException ccex) {
+			throw new CompilerException("Class '" + className + "' is not an optimizer post passer.", ccex);
+		}
+	}
 
+	private InstanceTypeDescription getInstanceTypeInfo() {
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Connecting compiler to JobManager to dertermine instance information.");
+		}
+		
+		// create the connection in a separate thread, such that this thread
+		// can abort, if an unsuccessful connection occurs.
+		Map<InstanceType, InstanceTypeDescription> instances = null;
+		
+		JobManagerConnector jmc = new JobManagerConnector(this.jobManagerAddress);
+		Thread connectorThread = new Thread(jmc, "Compiler - JobManager connector.");
+		connectorThread.setDaemon(true);
+		connectorThread.start();
+
+		// connect and get the result
+		try {
+			jmc.waitForCompletion();
+			instances = jmc.instances;
+			if (instances == null) {
+				throw new NullPointerException("Returned instance map is <null>");
+			}
+		}
+		catch (Throwable t) {
+			throw new CompilerException("Available instances could not be determined from job manager: " + 
+				t.getMessage(), t);
+		}
+
+		// determine which type to run on
+		return getType(instances);
+	}
+	
 	/**
 	 * This utility method picks the instance type to be used for scheduling PACT processor
 	 * instances.

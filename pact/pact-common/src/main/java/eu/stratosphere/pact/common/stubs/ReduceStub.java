@@ -17,9 +17,9 @@ package eu.stratosphere.pact.common.stubs;
 
 import java.util.Iterator;
 
-import eu.stratosphere.pact.common.generic.AbstractStub;
-import eu.stratosphere.pact.common.generic.GenericReducer;
 import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.generic.stub.AbstractStub;
+import eu.stratosphere.pact.generic.stub.GenericReducer;
 
 /**
  * The ReduceStub must be extended to provide a reducer implementation which is called by a Reduce PACT.

@@ -20,6 +20,8 @@ import java.util.List;
 
 import eu.stratosphere.pact.common.stubs.CoGroupStub;
 import eu.stratosphere.pact.common.type.Key;
+import eu.stratosphere.pact.generic.contract.Contract;
+import eu.stratosphere.pact.generic.contract.GenericCoGroupContract;
 
 
 /**
@@ -32,9 +34,14 @@ import eu.stratosphere.pact.common.type.Key;
  * 
  * @see CoGroupStub
  */
-public class CoGroupContract extends DualInputContract<CoGroupStub>
+public class CoGroupContract extends GenericCoGroupContract<CoGroupStub> implements RecordContract
 {	
 	private static String DEFAULT_NAME = "<Unnamed CoGrouper>";		// the default name for contracts
+	
+	/**
+	 * The types of the keys that the contract operates on.
+	 */
+	private final Class<? extends Key>[] keyTypes;
 	
 	/**
 	 * The ordering for the order inside a group from input one.
@@ -66,8 +73,8 @@ public class CoGroupContract extends DualInputContract<CoGroupStub>
 	 * @param builder
 	 */
 	private CoGroupContract(Builder builder) {
-		super(builder.udf, builder.getKeyClassesArray(), builder.getKeyColumnsArray1(),
-				builder.getKeyColumnsArray2(), builder.name);
+		super(builder.udf, builder.getKeyColumnsArray1(), builder.getKeyColumnsArray2(), builder.name);
+		this.keyTypes = builder.getKeyClassesArray();
 		setFirstInputs(builder.inputs1);
 		setSecondInputs(builder.inputs2);
 		setGroupOrderForInputOne(builder.secondaryOrder1);
@@ -75,6 +82,14 @@ public class CoGroupContract extends DualInputContract<CoGroupStub>
 	}
 
 	// --------------------------------------------------------------------------------------------
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.contract.RecordContract#getKeyClasses()
+	 */
+	@Override
+	public Class<? extends Key>[] getKeyClasses() {
+		return this.keyTypes;
+	}
 	
 	/**
 	 * Sets the order of the elements within a group for the given input.

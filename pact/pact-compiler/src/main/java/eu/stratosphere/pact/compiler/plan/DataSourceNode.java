@@ -22,30 +22,28 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import eu.stratosphere.pact.common.contract.CompilerHints;
-import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.GenericDataSource;
-import eu.stratosphere.pact.common.generic.io.InputFormat;
+import eu.stratosphere.pact.common.io.FileInputFormat;
 import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.util.FieldSet;
-import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.DataStatistics;
-import eu.stratosphere.pact.compiler.GlobalProperties;
-import eu.stratosphere.pact.compiler.LocalProperties;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
-import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
+import eu.stratosphere.pact.compiler.costs.Costs;
+import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
+import eu.stratosphere.pact.compiler.plan.candidate.SourcePlanNode;
+import eu.stratosphere.pact.generic.contract.Contract;
+import eu.stratosphere.pact.generic.io.InputFormat;
 
 /**
- * The Optimizer representation of a data source.
- * 
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
+ * The optimizer's internal representation of a data source.
  */
 public class DataSourceNode extends OptimizerNode
 {
-	private List<OptimizerNode> cachedPlans; // the cache in case there are multiple outputs;
+	private List<PlanNode> candidate;		// the candidate (there can only be one) for this node
 	
-	private long inputSize; //the size of the input in bytes
+	private long inputSize;			//the size of the input in bytes
 
 	/**
 	 * Creates a new DataSourceNode for the given contract.
@@ -55,21 +53,6 @@ public class DataSourceNode extends OptimizerNode
 	 */
 	public DataSourceNode(GenericDataSource<?> pactContract) {
 		super(pactContract);
-		setLocalStrategy(LocalStrategy.NONE);
-	}
-
-	/**
-	 * Copy constructor to create a copy of the data-source object for the process of plan enumeration.
-	 * 
-	 * @param template
-	 *        The node to create a copy of.
-	 * @param gp
-	 *        The global properties of this copy.
-	 * @param lp
-	 *        The local properties of this copy.
-	 */
-	protected DataSourceNode(DataSourceNode template, GlobalProperties gp, LocalProperties lp) {
-		super(template, gp, lp);
 	}
 
 	/**
@@ -91,13 +74,12 @@ public class DataSourceNode extends OptimizerNode
 		return "Data Source";
 	}
 
-	/*
-	 * (non-Javadoc)
+	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isMemoryConsumer()
 	 */
 	@Override
-	public int getMemoryConsumerCount() {
-		return 0;
+	public boolean isMemoryConsumer() {
+		return false;
 	}
 
 	/*
@@ -115,7 +97,7 @@ public class DataSourceNode extends OptimizerNode
 	 */
 	@Override
 	public void setInputs(Map<Contract, OptimizerNode> contractToNode) {
-		throw new UnsupportedOperationException("A DataSourceNode does not have any input.");
+		// do nothing
 	}
 
 	/**
@@ -269,37 +251,43 @@ public class DataSourceNode extends OptimizerNode
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeAlternativePlans()
 	 */
 	@Override
-	public List<OptimizerNode> getAlternativePlans(CostEstimator estimator) {
-		if (this.cachedPlans != null) {
-			return this.cachedPlans;
+	public List<PlanNode> getAlternativePlans(CostEstimator estimator) {
+		if (this.candidate != null) {
+			return this.candidate;
 		}
-
-		GlobalProperties gp = new GlobalProperties();
-		LocalProperties lp = new LocalProperties();
-
-		// first, compute the properties of the output
-//		if (getOutputContract() == OutputContract.UniqueKey) {
-//			gp.setKeyUnique(true);
-//			gp.setPartitioning(PartitionProperty.ANY);
-//
-//			lp.setKeyUnique(true);
-//			lp.setKeysGrouped(true);
-//		}
-
-		DataSourceNode candidate = new DataSourceNode(this, gp, lp);
-
-		// compute the costs
-		candidate.setCosts(new Costs(0, this.inputSize));
+		
+		SourcePlanNode candidate = new SourcePlanNode(this);
+		
+		final Costs costs = new Costs(0, 0);
+		if (FileInputFormat.class.isAssignableFrom(getPactContract().getFormatClass())) {
+			costs.addSecondaryStorageCost(this.inputSize);
+		}
+		candidate.setCosts(costs);
 
 		// since there is only a single plan for the data-source, return a list with that element only
-		List<OptimizerNode> plans = new ArrayList<OptimizerNode>(1);
+		List<PlanNode> plans = new ArrayList<PlanNode>(1);
 		plans.add(candidate);
 
 		if (isBranching()) {
-			this.cachedPlans = plans;
+			this.candidate = plans;
 		}
-
 		return plans;
+	}
+
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isFieldConstant(int, int)
+	 */
+	public boolean isFieldConstant(int input, int fieldNumber) {
+		return false;
+	}
+	
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#readReadsAnnotation()
+	 */
+	@Override
+	protected void readConstantAnnotation() {
 	}
 
 	/*
@@ -313,20 +301,4 @@ public class DataSourceNode extends OptimizerNode
 			visitor.postVisit(this);
 		}
 	}
-
-	
-	public boolean isFieldKept(int input, int fieldNumber) {
-		return false;
-	}
-	
-
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#readReadsAnnotation()
-	 */
-	@Override
-	protected void readConstantAnnotation() {
-		// DO NOTHING
-	}
-	
 }
