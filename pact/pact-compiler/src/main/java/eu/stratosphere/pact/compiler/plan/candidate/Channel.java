@@ -36,14 +36,7 @@ import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
  */
 public class Channel implements EstimateProvider, Cloneable, DumpableConnection<PlanNode>
 {
-	/**
-	 * Enumeration to indicate the mode of temporarily materializing the data that flows across a connection.
-	 * Introducing such an artificial dam is sometimes necessary to avoid that a certain data flows deadlock
-	 * themselves, or as a cache to replay an intermediate result.
-	 */
-	public enum TempMode {
-		NONE, MATERIALIZE, MATERIALIZE_REPLAYABLE
-	}
+	
 	
 	// --------------------------------------------------------------------------------------------
 	

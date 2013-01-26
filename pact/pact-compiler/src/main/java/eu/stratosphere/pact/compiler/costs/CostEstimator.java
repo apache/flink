@@ -20,8 +20,8 @@ import java.util.Iterator;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.plan.EstimateProvider;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
-import eu.stratosphere.pact.compiler.plan.candidate.Channel.TempMode;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
+import eu.stratosphere.pact.compiler.plan.candidate.TempMode;
 
 /**
  * Abstract base class for a cost estimator. Defines cost estimation methods and implements the basic work

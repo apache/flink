@@ -27,7 +27,6 @@ import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode.UnclosedBranchDescriptor;
-import eu.stratosphere.pact.compiler.plan.candidate.Channel.TempMode;
 import eu.stratosphere.pact.compiler.plan.TwoInputNode;
 import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
 import eu.stratosphere.pact.generic.types.TypePairComparatorFactory;
@@ -306,7 +305,7 @@ public class DualInputPlanNode extends PlanNode
 		if (res1 == FOUND_SOURCE_AND_DAM) {
 			return FOUND_SOURCE_AND_DAM;
 		} else if (res1 == FOUND_SOURCE) {
-			if (this.input1.getLocalStrategy().dams() || this.input1.getTempMode() == TempMode.MATERIALIZE ||
+			if (this.input1.getLocalStrategy().dams() || this.input1.getTempMode().breaksPipeline() ||
 					getDriverStrategy().firstDam() == DamBehavior.FULL_DAM) {
 				return FOUND_SOURCE_AND_DAM;
 			} else {
@@ -317,7 +316,7 @@ public class DualInputPlanNode extends PlanNode
 			if (res2 == FOUND_SOURCE_AND_DAM) {
 				return FOUND_SOURCE_AND_DAM;
 			} else if (res2 == FOUND_SOURCE) {
-				if (this.input2.getLocalStrategy().dams() || this.input2.getTempMode() == TempMode.MATERIALIZE ||
+				if (this.input2.getLocalStrategy().dams() || this.input2.getTempMode().breaksPipeline() ||
 						getDriverStrategy().secondDam() == DamBehavior.FULL_DAM) {
 					return FOUND_SOURCE_AND_DAM;
 				} else {

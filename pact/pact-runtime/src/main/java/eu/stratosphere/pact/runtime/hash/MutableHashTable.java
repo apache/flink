@@ -582,23 +582,20 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 	/**
 	 * @return
 	 */
-	public PT getCurrentProbeRecord()
-	{
+	public PT getCurrentProbeRecord() {
 		return this.probeIterator.getCurrent();
 	}
 	
 	/**
 	 * @return
 	 */
-	public HashBucketIterator<BT, PT> getBuildSideIterator()
-	{
+	public HashBucketIterator<BT, PT> getBuildSideIterator() {
 		return this.bucketIterator;
 	}
 
-  public MutableObjectIterator<BT> getPartitionEntryIterator()
-  {
-    return new HashPartitionIterator<BT, PT>(this.partitionsBeingBuilt.iterator(), this.buildSideSerializer);
-  }
+	public MutableObjectIterator<BT> getPartitionEntryIterator() {
+		return new HashPartitionIterator<BT, PT>(this.partitionsBeingBuilt.iterator(), this.buildSideSerializer);
+	}
 	
 	/**
 	 * Closes the hash table. This effectively releases all internal structures and closes all

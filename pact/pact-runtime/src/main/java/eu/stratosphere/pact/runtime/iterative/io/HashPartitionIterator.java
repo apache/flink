@@ -15,7 +15,7 @@
 
 package eu.stratosphere.pact.runtime.iterative.io;
 
-import eu.stratosphere.pact.common.generic.types.TypeSerializer;
+import eu.stratosphere.pact.generic.types.TypeSerializer;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.hash.HashPartition;
 
@@ -25,55 +25,56 @@ import java.util.Iterator;
 
 /**
  * {@link Iterator} over the buildside entries of a {@link HashPartition}
- *
+ * 
  * @param <BT>
  */
 public class HashPartitionIterator<BT, PT> implements MutableObjectIterator<BT> {
 
-  private final Iterator<HashPartition<BT, PT>> partitions;
-  private final TypeSerializer<BT> serializer;
+	private final Iterator<HashPartition<BT, PT>> partitions;
 
-  private HashPartition<BT, PT> currentPartition;
+	private final TypeSerializer<BT> serializer;
 
-  public HashPartitionIterator(Iterator<HashPartition<BT, PT>> partitions, TypeSerializer<BT> serializer) {
-    this.partitions = partitions;
-    this.serializer = serializer;
-    currentPartition = null;
-  }
+	private HashPartition<BT, PT> currentPartition;
 
-  @Override
-  public boolean next(BT record) throws IOException {
-    if (currentPartition == null) {
-      if (!partitions.hasNext()) {
-        return false;
-      }
-      currentPartition = partitions.next();
-      currentPartition.setReadPosition(0);
-    }
+	public HashPartitionIterator(Iterator<HashPartition<BT, PT>> partitions, TypeSerializer<BT> serializer) {
+		this.partitions = partitions;
+		this.serializer = serializer;
+		currentPartition = null;
+	}
 
-    try {
-      serializer.deserialize(record, currentPartition);
-    } catch (EOFException e) {
-      return advanceAndRead(record);
-    }
+	@Override
+	public boolean next(BT record) throws IOException {
+		if (currentPartition == null) {
+			if (!partitions.hasNext()) {
+				return false;
+			}
+			currentPartition = partitions.next();
+			currentPartition.setReadPosition(0);
+		}
 
-    return true;
-  }
+		try {
+			serializer.deserialize(record, currentPartition);
+		} catch (EOFException e) {
+			return advanceAndRead(record);
+		}
 
-  /* jump to the next partition and continue reading from that */
-  private boolean advanceAndRead(BT record) throws IOException {
-    if (!partitions.hasNext()) {
-      return false;
-    }
-    currentPartition = partitions.next();
-    currentPartition.setReadPosition(0);
+		return true;
+	}
 
-    try {
-      serializer.deserialize(record, currentPartition);
-    } catch (EOFException e) {
-      return advanceAndRead(record);
-    }
-    return true;
-  }
+	/* jump to the next partition and continue reading from that */
+	private boolean advanceAndRead(BT record) throws IOException {
+		if (!partitions.hasNext()) {
+			return false;
+		}
+		currentPartition = partitions.next();
+		currentPartition.setReadPosition(0);
+
+		try {
+			serializer.deserialize(record, currentPartition);
+		} catch (EOFException e) {
+			return advanceAndRead(record);
+		}
+		return true;
+	}
 
 }

@@ -22,7 +22,6 @@ import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.SingleInputNode;
-import eu.stratosphere.pact.compiler.plan.candidate.Channel.TempMode;
 import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DamBehavior;
@@ -210,7 +209,7 @@ public class SingleInputPlanNode extends PlanNode
 		if (res == FOUND_SOURCE_AND_DAM) {
 			return FOUND_SOURCE_AND_DAM;
 		} else if (res == FOUND_SOURCE &&
-				(this.input.getLocalStrategy().dams() || this.input.getTempMode() == TempMode.MATERIALIZE ||
+				(this.input.getLocalStrategy().dams() || this.input.getTempMode().breaksPipeline() ||
 					getDriverStrategy().firstDam() == DamBehavior.FULL_DAM))
 		{
 			return FOUND_SOURCE_AND_DAM;

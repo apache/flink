@@ -47,8 +47,8 @@ import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SourcePlanNode;
+import eu.stratosphere.pact.compiler.plan.candidate.TempMode;
 import eu.stratosphere.pact.compiler.plan.candidate.UnionPlanNode;
-import eu.stratosphere.pact.compiler.plan.candidate.Channel.TempMode;
 import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DataSinkTask;
@@ -575,11 +575,17 @@ public class JobGraphGenerator implements Visitor<PlanNode>
 		assignLocalStrategyResources(channel, config, inputNum);
 		
 		// temping / caching
-		if (channel.getTempMode() != null && channel.getTempMode() != TempMode.NONE) {
-			config.setInputDammed(inputNum, true);
-			config.setInputDamMemory(inputNum, channel.getTempMemory());
-			if (channel.getTempMode() == TempMode.MATERIALIZE_REPLAYABLE) {
+		if (channel.getTempMode() != null) {
+			final TempMode tm = channel.getTempMode();
+
+			if (tm.breaksPipeline()) {
+				config.setInputDammed(inputNum, true);
+			}
+			if (tm.isReplayable()) {
 				config.setInputReplayable(inputNum, true);
+			}
+			if (tm != TempMode.NONE) {
+				config.setInputDamMemory(inputNum, channel.getTempMemory());
 			}
 		}
 	}

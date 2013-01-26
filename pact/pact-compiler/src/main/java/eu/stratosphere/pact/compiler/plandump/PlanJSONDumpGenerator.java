@@ -36,10 +36,11 @@ import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.pact.compiler.plan.DataSinkNode;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
-import eu.stratosphere.pact.compiler.plan.candidate.Channel.TempMode;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
+import eu.stratosphere.pact.compiler.plan.candidate.TempMode;
+import eu.stratosphere.pact.compiler.plan.candidate.UnionPlanNode;
 import eu.stratosphere.pact.compiler.util.Utils;
 
 /**
@@ -125,9 +126,6 @@ public class PlanJSONDumpGenerator
 		
 		// check if this node should be skipped from the dump
 		final OptimizerNode n = node.getOptimizerNode();
-		if (n instanceof UnionNode) {
-			return;
-		}
 		
 		// ------------------ dump after the ascend ---------------------
 		// start a new node and output node id
@@ -143,7 +141,8 @@ public class PlanJSONDumpGenerator
 			type = "source";
 			break;
 		case Union:
-			return;
+			type = "pact";
+			break;
 		default:
 			type = "pact";
 			break;
@@ -161,6 +160,9 @@ public class PlanJSONDumpGenerator
 			break;
 		case DataSource:
 			contents = n.getPactContract().toString();
+			break;
+		case Union:
+			contents = "";
 			break;
 		default:
 			contents = n.getPactContract().getName();
@@ -187,7 +189,7 @@ public class PlanJSONDumpGenerator
 				final DumpableConnection<?> conn = inConns.next();
 				
 				final Collection<DumpableConnection<?>> inConnsForInput;
-				if (conn.getSource().getOptimizerNode() instanceof UnionNode) {
+				if (conn.getSource() instanceof UnionPlanNode) {
 					inConnsForInput = new ArrayList<DumpableConnection<?>>();
 					
 					for (Iterator<? extends DumpableConnection<?>> inputOfUnion = conn.getSource().getDumpableInputs(); inputOfUnion.hasNext();) {
