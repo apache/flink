@@ -34,7 +34,13 @@ import eu.stratosphere.pact.generic.contract.Contract;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**
- * 
+ * The representation of a data exchange between to operators. The data exchange can realize a shipping strategy, 
+ * which established global properties, and a local strategy, which establishes local properties.
+ * <p>
+ * Because we currently deal only with plans where the operator order is fixed, many properties are equal
+ * among candidates and are determined prior to the enumeration (such as for example constant/dynamic path membership).
+ * Hence, many methods will delegate to the {@code OptimizerNode} that represents the node this candidate was
+ * created for.
  */
 public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<PlanNode>
 {
@@ -125,6 +131,14 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 	 */
 	public DriverStrategy getDriverStrategy() {
 		return this.driverStrategy;
+	}
+	
+	public void initProperties(GlobalProperties globals, LocalProperties locals) {
+		if (this.globalProps != null || this.localProps != null) {
+			throw new IllegalStateException();
+		}
+		this.globalProps = globals;
+		this.localProps = locals;
 	}
 	
 	/**
@@ -256,12 +270,17 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 		return this.pFlag;
 	}
 	
+	public boolean isOnDynamicPath() {
+		return this.template.isOnDynamicPath();
+	}
+	
+	public int getCostWeight() {
+		return this.template.getCostWeight();
+	}
+	
 	// --------------------------------------------------------------------------------------------
 	
-	public static final int FOUND_SOURCE = 1;
-	public static final int FOUND_SOURCE_AND_DAM = 2;
-	
-	public abstract int hasDamOnPathDownTo(PlanNode source);
+	public abstract SourceAndDamReport hasDamOnPathDownTo(PlanNode source);
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -270,7 +289,7 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 	 */
 	@Override
 	public String toString() {
-		return this.template.getName() + '"' + getPactContract().getName() + "\" : " + this.driverStrategy +
+		return this.template.getName() + " \"" + getPactContract().getName() + "\" : " + this.driverStrategy +
 				" [[ " + this.globalProps + " ]] [[ " + this.localProps + " ]]";
 	}
 	
@@ -299,5 +318,9 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 	@SuppressWarnings("unchecked")
 	public Iterator<DumpableConnection<PlanNode>> getDumpableInputs() {
 		return (Iterator<DumpableConnection<PlanNode>>) (Iterator<?>) getInputs();
+	}
+	
+	public static enum SourceAndDamReport {
+		NOT_FOUND, FOUND_SOURCE, FOUND_SOURCE_AND_DAM;
 	}
 }

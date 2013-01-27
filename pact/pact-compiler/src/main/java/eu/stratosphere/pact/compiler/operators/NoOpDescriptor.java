@@ -63,11 +63,20 @@ public class NoOpDescriptor extends OperatorDescriptorSingle
 	protected List<RequestedLocalProperties> createPossibleLocalProperties() {
 		return Collections.singletonList(new RequestedLocalProperties());
 	}
-
+	
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.dataproperties.DriverPropertiesSingle#processPropertiesByStrategy(eu.stratosphere.pact.compiler.dataproperties.GlobalProperties, eu.stratosphere.pact.compiler.dataproperties.LocalProperties)
+	 * @see eu.stratosphere.pact.compiler.operators.OperatorDescriptorSingle#computeGlobalProperties(eu.stratosphere.pact.compiler.dataproperties.GlobalProperties)
 	 */
 	@Override
-	public void processPropertiesByStrategy(GlobalProperties gProps, LocalProperties lProps) {
+	public GlobalProperties computeGlobalProperties(GlobalProperties gProps) {
+		return gProps;
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.operators.OperatorDescriptorSingle#computeLocalProperties(eu.stratosphere.pact.compiler.dataproperties.LocalProperties)
+	 */
+	@Override
+	public LocalProperties computeLocalProperties(LocalProperties lProps) {
+		return lProps;
 	}
 }

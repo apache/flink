@@ -75,7 +75,7 @@ public class DefaultCostEstimator extends CostEstimator
 			// set shipping costs
 			costs.addNetworkCost(dataSize + sampled);
 			// we assume a two phase merge sort, so all in all 2 I/O operations per block
-			costs.addSecondaryStorageCost(2 * sampled);
+			costs.addDiskCost(2 * sampled);
 		} else {
 			// no costs known. use the same assumption as above on the heuristic costs
 			final long sampled = (long) (HEURISTIC_COST_BASE * 0.1f);
@@ -100,13 +100,22 @@ public class DefaultCostEstimator extends CostEstimator
 	// --------------------------------------------------------------------------------------------
 
 	@Override
+	public void addFileInputCost(long fileSizeInBytes, Costs costs) {
+		if (fileSizeInBytes >= 0) {
+			costs.addDiskCost(fileSizeInBytes);
+		} else {
+			costs.addHeuristicDiskCost(HEURISTIC_COST_BASE);
+		}
+	}
+	
+	@Override
 	public void addLocalSortCost(EstimateProvider estimates, long availableMemory, Costs costs) {
 		final long s = estimates.getEstimatedOutputSize();
 		// we assume a two phase merge sort, so all in all 2 I/O operations per block
 		if (s <= 0) {
 			costs.addHeuristicDiskCost(2 * HEURISTIC_COST_BASE);
 		} else {
-			costs.addSecondaryStorageCost(2 * s);
+			costs.addDiskCost(2 * s);
 		}
 	}
 
@@ -132,7 +141,7 @@ public class DefaultCostEstimator extends CostEstimator
 		long ps = probeSideInput.getEstimatedOutputSize();
 		// heuristic: half the table has to spill, times 2 I/O
 		if (bs > 0 && ps > 0) {
-			costs.addSecondaryStorageCost(bs + ps);
+			costs.addDiskCost(bs + ps);
 		} else {
 			costs.addHeuristicDiskCost(2 * HEURISTIC_COST_BASE);
 		}
@@ -146,7 +155,7 @@ public class DefaultCostEstimator extends CostEstimator
 		if (is > 0 && oc >= 0) {
 			// costs, if the inner side cannot be cached
 			if (is > bufferSize) {
-				costs.addSecondaryStorageCost(oc * is);
+				costs.addDiskCost(oc * is);
 			}
 		} else {
 			// hack: assume 100k loops (should be expensive enough)
@@ -161,7 +170,7 @@ public class DefaultCostEstimator extends CostEstimator
 		
 		if (is > 0 && os > 0) {
 			long loops = Math.max(os / blockSize, 1);
-			costs.addSecondaryStorageCost(loops * is);
+			costs.addDiskCost(loops * is);
 		} else {
 			// hack: assume 1k loops (much cheaper than the streamed variant!)
 			costs.addHeuristicDiskCost(HEURISTIC_COST_BASE * 1000);
@@ -182,7 +191,7 @@ public class DefaultCostEstimator extends CostEstimator
 		if (s <= 0) {
 			costs.addHeuristicDiskCost(2 * HEURISTIC_COST_BASE);
 		} else {
-			costs.addSecondaryStorageCost(2 * s);
+			costs.addDiskCost(2 * s);
 		}
 	}
 }

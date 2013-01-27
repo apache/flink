@@ -27,6 +27,8 @@ import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DamBehavior;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
+import static eu.stratosphere.pact.compiler.plan.candidate.PlanNode.SourceAndDamReport.*;
+
 /**
  * 
  */
@@ -44,8 +46,7 @@ public class SingleInputPlanNode extends PlanNode
 	
 	// --------------------------------------------------------------------------------------------
 
-	public SingleInputPlanNode(OptimizerNode template, Channel input, DriverStrategy driverStrategy)
-	{
+	public SingleInputPlanNode(OptimizerNode template, Channel input, DriverStrategy driverStrategy) {
 		this(template, input, driverStrategy, null);
 	}
 	
@@ -73,9 +74,6 @@ public class SingleInputPlanNode extends PlanNode
 		} else if (predNode.branchPlan != null) {
 			this.branchPlan.putAll(predNode.branchPlan);
 		}
-		
-		this.globalProps = input.getGlobalProperties().clone();
-		this.localProps = input.getLocalProperties().clone();
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -201,11 +199,11 @@ public class SingleInputPlanNode extends PlanNode
 	 * @see eu.stratosphere.pact.compiler.plan.candidate.PlanNode#hasDamOnPathDownTo(eu.stratosphere.pact.compiler.plan.candidate.PlanNode)
 	 */
 	@Override
-	public int hasDamOnPathDownTo(PlanNode source) {
+	public SourceAndDamReport hasDamOnPathDownTo(PlanNode source) {
 		if (source == this) {
 			return FOUND_SOURCE;
 		}
-		int res = this.input.getSource().hasDamOnPathDownTo(source);
+		SourceAndDamReport res = this.input.getSource().hasDamOnPathDownTo(source);
 		if (res == FOUND_SOURCE_AND_DAM) {
 			return FOUND_SOURCE_AND_DAM;
 		} else if (res == FOUND_SOURCE &&

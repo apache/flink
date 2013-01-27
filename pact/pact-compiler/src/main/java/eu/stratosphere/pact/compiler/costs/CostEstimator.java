@@ -40,6 +40,8 @@ public abstract class CostEstimator {
 
 	// ------------------------------------------------------------------------
 
+	public abstract void addFileInputCost(long fileSizeInBytes, Costs costs);
+	
 	public abstract void addLocalSortCost(EstimateProvider estimates, long memorySize, Costs costs);
 	
 	public abstract void addLocalMergeCost(EstimateProvider estimates1, EstimateProvider estimates2, long memorySize, Costs costs);
@@ -69,12 +71,13 @@ public abstract class CostEstimator {
 	 */
 	public void costOperator(PlanNode n) {
 		// initialize costs objects with no costs
-		final Costs costs = new Costs();
+		final Costs totalCosts = new Costs();
 		final long availableMemory = n.getGuaranteedAvailableMemory();
 		
 		// add the shipping strategy costs
 		for (Iterator<Channel> channels = n.getInputs(); channels.hasNext(); ) {
 			final Channel channel = channels.next();
+			final Costs costs = new Costs();
 			
 			switch (channel.getShipStrategy()) {
 			case NONE:
@@ -113,10 +116,18 @@ public abstract class CostEstimator {
 			if (channel.getTempMode() != null && channel.getTempMode() != TempMode.NONE) {
 				addArtificialDamCost(channel, 0, costs);
 			}
+			
+			// adjust with the cost weight factor
+			if (channel.isOnDynamicPath()) {
+				costs.multiplyWith(channel.getCostWeight());
+			}
+			
+			totalCosts.addCosts(costs);
 		} 
 		
 		Channel firstInput = null;
 		Channel secondInput = null;
+		Costs driverCosts = new Costs();
 		
 		// get the inputs, if we have some
 		{
@@ -136,31 +147,37 @@ public abstract class CostEstimator {
 		case CO_GROUP:
 			break;
 		case MERGE:
-			addLocalMergeCost(firstInput, secondInput, availableMemory, costs);
+			addLocalMergeCost(firstInput, secondInput, availableMemory, driverCosts);
 			break;
 		case HYBRIDHASH_BUILD_FIRST:
-			addHybridHashCosts(firstInput, secondInput, availableMemory, costs);
+			addHybridHashCosts(firstInput, secondInput, availableMemory, driverCosts);
 			break;
 		case HYBRIDHASH_BUILD_SECOND:
-			addHybridHashCosts(secondInput, firstInput, availableMemory, costs);
+			addHybridHashCosts(secondInput, firstInput, availableMemory, driverCosts);
 			break;
 		case NESTEDLOOP_BLOCKED_OUTER_FIRST:
-			addBlockNestedLoopsCosts(firstInput, secondInput, availableMemory, costs);
+			addBlockNestedLoopsCosts(firstInput, secondInput, availableMemory, driverCosts);
 			break;
 		case NESTEDLOOP_BLOCKED_OUTER_SECOND:
-			addBlockNestedLoopsCosts(secondInput, firstInput, availableMemory, costs);
+			addBlockNestedLoopsCosts(secondInput, firstInput, availableMemory, driverCosts);
 			break;
 		case NESTEDLOOP_STREAMED_OUTER_FIRST:
-			addStreamedNestedLoopsCosts(firstInput, secondInput, availableMemory, costs);
+			addStreamedNestedLoopsCosts(firstInput, secondInput, availableMemory, driverCosts);
 			break;
 		case NESTEDLOOP_STREAMED_OUTER_SECOND:
-			addStreamedNestedLoopsCosts(secondInput, firstInput, availableMemory, costs);
+			addStreamedNestedLoopsCosts(secondInput, firstInput, availableMemory, driverCosts);
 			break;
 		case GROUP_SELF_NESTEDLOOP:
 		default:
 			throw new CompilerException("Unknown local strategy: " + n.getDriverStrategy().name());
 		}
-
-		n.setCosts(costs);
+		
+		// adjust with the cost weight factor
+		if (n.isOnDynamicPath()) {
+			driverCosts.multiplyWith(n.getCostWeight());
+		}
+		
+		totalCosts.addCosts(driverCosts);
+		n.setCosts(totalCosts);
 	}
 }

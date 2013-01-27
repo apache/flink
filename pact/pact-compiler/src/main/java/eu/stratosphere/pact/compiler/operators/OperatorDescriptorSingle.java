@@ -63,5 +63,7 @@ public abstract class OperatorDescriptorSingle implements AbstractOperatorDescri
 	
 	public abstract SingleInputPlanNode instantiate(Channel in, SingleInputNode node);
 	
-	public abstract void processPropertiesByStrategy(GlobalProperties gProps, LocalProperties lProps);
+	public abstract GlobalProperties computeGlobalProperties(GlobalProperties in);
+	
+	public abstract LocalProperties computeLocalProperties(LocalProperties in);
 }

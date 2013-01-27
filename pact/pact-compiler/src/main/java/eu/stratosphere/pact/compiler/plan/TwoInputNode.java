@@ -44,11 +44,14 @@ import eu.stratosphere.pact.compiler.operators.OperatorDescriptorDual.LocalPrope
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.DualInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
+import eu.stratosphere.pact.compiler.plan.candidate.PlanNode.SourceAndDamReport;
 import eu.stratosphere.pact.generic.contract.Contract;
 import eu.stratosphere.pact.generic.contract.DualInputContract;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DamBehavior;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
+
+import static eu.stratosphere.pact.compiler.plan.candidate.PlanNode.SourceAndDamReport.*;
 
 /**
  * A node in the optimizer plan that represents a PACT with a two different inputs, such as MATCH or CROSS.
@@ -140,14 +143,14 @@ public abstract class TwoInputNode extends OptimizerNode
 	
 	public OptimizerNode getFirstPredecessorNode() {
 		if(this.input1 != null)
-			return this.input1.getSourcePact();
+			return this.input1.getSource();
 		else
 			return null;
 	}
 
 	public OptimizerNode getSecondPredecessorNode() {
 		if(this.input2 != null)
-			return this.input2.getSourcePact();
+			return this.input2.getSource();
 		else
 			return null;
 	}
@@ -385,7 +388,8 @@ public abstract class TwoInputNode extends OptimizerNode
 				}
 				
 				for (RequestedGlobalProperties igps1: intGlobal1) {
-					final Channel c1 = new Channel(child1);
+					// create a candidate channel for the first input. mark it cached, if the connection says so
+					final Channel c1 = new Channel(child1, this.input1.getMaterializationMode());
 					if (this.input1.getShipStrategy() == null) {
 						// free to choose the ship strategy
 						igps1.parameterizeChannel(c1, globalDopChange1, localDopChange1);
@@ -415,7 +419,8 @@ public abstract class TwoInputNode extends OptimizerNode
 					}
 					
 					for (RequestedGlobalProperties igps2: intGlobal2) {
-						final Channel c2 = new Channel(child2);
+						// create a candidate channel for the first input. mark it cached, if the connection says so
+						final Channel c2 = new Channel(child2, this.input2.getMaterializationMode());
 						if (this.input2.getShipStrategy() == null) {
 							// free to choose the ship strategy
 							igps2.parameterizeChannel(c2, globalDopChange2, localDopChange2);
@@ -549,12 +554,12 @@ public abstract class TwoInputNode extends OptimizerNode
 			} else {
 				for (OptimizerNode brancher : this.hereJoinedBranchers) {
 					PlanNode candAtBrancher = in1.getSource().getCandidateAtBranchPoint(brancher);
-					int res = in1.getSource().hasDamOnPathDownTo(candAtBrancher);
-					if (res == 0) {
+					SourceAndDamReport res = in1.getSource().hasDamOnPathDownTo(candAtBrancher);
+					if (res == NOT_FOUND) {
 						throw new CompilerException("Bug: Tracing dams for deadlock detection is broken.");
-					} else if (res == PlanNode.FOUND_SOURCE) {
+					} else if (res == FOUND_SOURCE) {
 						damOnAllLeftPaths = false;
-					} else if (res == PlanNode.FOUND_SOURCE_AND_DAM) {
+					} else if (res == FOUND_SOURCE_AND_DAM) {
 						someDamOnLeftPaths = true;
 					} else {
 						throw new CompilerException();
@@ -567,12 +572,12 @@ public abstract class TwoInputNode extends OptimizerNode
 			} else {
 				for (OptimizerNode brancher : this.hereJoinedBranchers) {
 					PlanNode candAtBrancher = in2.getSource().getCandidateAtBranchPoint(brancher);
-					int res = in2.getSource().hasDamOnPathDownTo(candAtBrancher);
-					if (res == 0) {
+					SourceAndDamReport res = in2.getSource().hasDamOnPathDownTo(candAtBrancher);
+					if (res == NOT_FOUND) {
 						throw new CompilerException("Bug: Tracing dams for deadlock detection is broken.");
-					} else if (res == PlanNode.FOUND_SOURCE) {
+					} else if (res == FOUND_SOURCE) {
 						damOnAllRightPaths = false;
-					} else if (res == PlanNode.FOUND_SOURCE_AND_DAM) {
+					} else if (res == FOUND_SOURCE_AND_DAM) {
 						someDamOnRightPaths = true;
 					} else {
 						throw new CompilerException();
@@ -586,12 +591,12 @@ public abstract class TwoInputNode extends OptimizerNode
 			} else {
 				if (someDamOnLeftPaths & !damOnAllRightPaths) {
 					// right needs a pipeline breaker
-					in2.setTempMode(TempMode.PIPELINE_BREAKER);
+					in2.setTempMode(in2.getTempMode().makePipelineBreaker());
 				}
 				
 				if (someDamOnRightPaths & !damOnAllLeftPaths) {
 					// right needs a pipeline breaker
-					in1.setTempMode(TempMode.PIPELINE_BREAKER);
+					in1.setTempMode(in1.getTempMode().makePipelineBreaker());
 				}
 			}
 		}

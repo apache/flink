@@ -60,6 +60,7 @@ import eu.stratosphere.pact.compiler.plan.SinkJoiner;
 import eu.stratosphere.pact.compiler.plan.TempMode;
 import eu.stratosphere.pact.compiler.plan.candidate.BinaryUnionPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
+import eu.stratosphere.pact.compiler.plan.candidate.IterationPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkJoinerPlanNode;
@@ -1048,62 +1049,6 @@ public class PactCompiler {
 		}
 	};
 	
-	private static final class BinaryUnionReplacer implements Visitor<PlanNode>
-	{
-		private final Set<PlanNode> seenBefore = new HashSet<PlanNode>();
-		
-		/* (non-Javadoc)
-		 * @see eu.stratosphere.pact.common.plan.Visitor#preVisit(eu.stratosphere.pact.common.plan.Visitable)
-		 */
-		@Override
-		public boolean preVisit(PlanNode visitable) {
-			return this.seenBefore.add(visitable);
-		}
-
-		/* (non-Javadoc)
-		 * @see eu.stratosphere.pact.common.plan.Visitor#postVisit(eu.stratosphere.pact.common.plan.Visitable)
-		 */
-		@Override
-		public void postVisit(PlanNode visitable) {
-			if (visitable instanceof BinaryUnionPlanNode) {
-				final BinaryUnionPlanNode unionNode = (BinaryUnionPlanNode) visitable;
-				final Channel in1 = unionNode.getInput1();
-				final Channel in2 = unionNode.getInput2();
-
-				List<Channel> inputs = new ArrayList<Channel>();
-				collect(in1, inputs);
-				collect(in2, inputs);
-				
-				UnionPlanNode newUnion = new UnionPlanNode(unionNode.getOptimizerNode(), inputs, 
-					unionNode.getGlobalProperties());
-				
-				// adjust the input channels to have their target point to the new union node
-				for (Channel c : inputs) {
-					c.setTarget(newUnion);
-				}
-				
-				unionNode.getOutgoingChannels().get(0).swapUnionNodes(newUnion);
-			}
-		}
-		
-		private void collect(Channel in, List<Channel> inputs) {
-			if (in.getSource() instanceof UnionPlanNode) {
-				// sanity check
-				if (in.getShipStrategy() != ShipStrategyType.FORWARD) {
-					throw new CompilerException("Bug: Plan generation for Unions picked a ship strategy between binary plan operators.");
-				}
-				if (!(in.getLocalStrategy() == null || in.getLocalStrategy() == LocalStrategy.NONE)) {
-					throw new CompilerException("Bug: Plan generation for Unions picked a local strategy between binary plan operators.");
-				}
-				
-				inputs.addAll(((UnionPlanNode) in.getSource()).getListOfInputs());
-			} else {
-				// is not a union node, so we take teh channel directly
-				inputs.add(in);
-			}
-		}
-	}
-	
 	/**
 	 * Utility class that traverses a plan to collect all nodes and add them to the OptimizedPlan.
 	 * Besides collecting all nodes, this traversal assigns the memory to the nodes.
@@ -1132,7 +1077,7 @@ public class PactCompiler {
 		private OptimizedPlan createFinalPlan(List<SinkPlanNode> sinks, String jobName, long memPerInstance)
 		{
 			if (LOG.isDebugEnabled())
-				LOG.debug("Available memory per instance: " + this.memoryPerInstance);
+				LOG.debug("Available memory per instance: " + memPerInstance);
 			
 			this.memoryPerInstance = memPerInstance;
 			this.memoryConsumerWeights = 0;
@@ -1225,6 +1170,11 @@ public class PactCompiler {
 					this.memoryConsumerWeights++;
 				}
 			}
+			
+			// pass the visitor to the iteraton's step function
+			if (visitable instanceof IterationPlanNode) {
+				((IterationPlanNode) visitable).acceptForStepFunction(this);
+			}
 			return true;
 		}
 
@@ -1235,6 +1185,69 @@ public class PactCompiler {
 		 */
 		@Override
 		public void postVisit(PlanNode visitable) {}
+	}
+	
+	private static final class BinaryUnionReplacer implements Visitor<PlanNode>
+	{
+		private final Set<PlanNode> seenBefore = new HashSet<PlanNode>();
+		
+		/* (non-Javadoc)
+		 * @see eu.stratosphere.pact.common.plan.Visitor#preVisit(eu.stratosphere.pact.common.plan.Visitable)
+		 */
+		@Override
+		public boolean preVisit(PlanNode visitable) {
+			if (this.seenBefore.add(visitable)) {
+				if (visitable instanceof IterationPlanNode) {
+					((IterationPlanNode) visitable).acceptForStepFunction(this);
+				}
+				return true;
+			} else {
+				return false;
+			}
+		}
+
+		/* (non-Javadoc)
+		 * @see eu.stratosphere.pact.common.plan.Visitor#postVisit(eu.stratosphere.pact.common.plan.Visitable)
+		 */
+		@Override
+		public void postVisit(PlanNode visitable) {
+			if (visitable instanceof BinaryUnionPlanNode) {
+				final BinaryUnionPlanNode unionNode = (BinaryUnionPlanNode) visitable;
+				final Channel in1 = unionNode.getInput1();
+				final Channel in2 = unionNode.getInput2();
+
+				List<Channel> inputs = new ArrayList<Channel>();
+				collect(in1, inputs);
+				collect(in2, inputs);
+				
+				UnionPlanNode newUnion = new UnionPlanNode(unionNode.getOptimizerNode(), inputs, 
+					unionNode.getGlobalProperties());
+				
+				// adjust the input channels to have their target point to the new union node
+				for (Channel c : inputs) {
+					c.setTarget(newUnion);
+				}
+				
+				unionNode.getOutgoingChannels().get(0).swapUnionNodes(newUnion);
+			}
+		}
+		
+		private void collect(Channel in, List<Channel> inputs) {
+			if (in.getSource() instanceof UnionPlanNode) {
+				// sanity check
+				if (in.getShipStrategy() != ShipStrategyType.FORWARD) {
+					throw new CompilerException("Bug: Plan generation for Unions picked a ship strategy between binary plan operators.");
+				}
+				if (!(in.getLocalStrategy() == null || in.getLocalStrategy() == LocalStrategy.NONE)) {
+					throw new CompilerException("Bug: Plan generation for Unions picked a local strategy between binary plan operators.");
+				}
+				
+				inputs.addAll(((UnionPlanNode) in.getSource()).getListOfInputs());
+			} else {
+				// is not a union node, so we take the channel directly
+				inputs.add(in);
+			}
+		}
 	}
 
 	// ------------------------------------------------------------------------

@@ -36,6 +36,12 @@ public class CrossStreamOuterSecondDescriptor extends CartesianProductDescriptor
 	 */
 	@Override
 	public LocalProperties computeLocalProperties(LocalProperties in1, LocalProperties in2) {
+		// uniqueness becomes grouping with streamed nested loops
+		if ((in2.getGroupedFields() == null || in2.getGroupedFields().size() == 0) &&
+				in2.getUniqueFields() != null && in2.getUniqueFields().size() > 0)
+		{
+			in2.setGroupedFields(in2.getUniqueFields().iterator().next().toFieldList());
+		}
 		in2.clearUniqueFieldSets();
 		return in2;
 	}

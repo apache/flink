@@ -96,7 +96,7 @@ public class UnionPlanNode extends PlanNode
 	 * @see eu.stratosphere.pact.compiler.plan.candidate.PlanNode#hasDamOnPathDownTo(eu.stratosphere.pact.compiler.plan.candidate.PlanNode)
 	 */
 	@Override
-	public int hasDamOnPathDownTo(PlanNode source) {
+	public SourceAndDamReport hasDamOnPathDownTo(PlanNode source) {
 		throw new UnsupportedOperationException();
 	}
 }

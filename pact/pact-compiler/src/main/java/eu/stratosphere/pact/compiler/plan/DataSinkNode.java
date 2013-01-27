@@ -80,7 +80,7 @@ public class DataSinkNode extends OptimizerNode
 	 */
 	public OptimizerNode getPredecessorNode() {
 		if(this.input != null) {
-			return input.getSourcePact();
+			return input.getSource();
 		} else {
 			return null;
 		}

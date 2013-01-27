@@ -22,6 +22,9 @@ import java.util.Map;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
+import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
+import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
+import eu.stratosphere.pact.compiler.plan.candidate.PartialSolutionPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.generic.contract.BulkIteration.PartialSolutionPlaceHolder;
 import eu.stratosphere.pact.generic.contract.Contract;
@@ -31,23 +34,32 @@ import eu.stratosphere.pact.generic.contract.Contract;
  */
 public class PartialSolutionNode extends OptimizerNode
 {
-	private OptimizerNode initialPartialSolutionNode;
-	
-	
 	public PartialSolutionNode(PartialSolutionPlaceHolder psph) {
 		super(psph);
 	}
 
 	// --------------------------------------------------------------------------------------------
 	
-	public void setInitialPartialSolutionNode(OptimizerNode node) {
-		this.initialPartialSolutionNode = node;
-	}
-	
 	public void copyEstimates(OptimizerNode node) {
 		this.estimatedCardinality = node.estimatedCardinality;
 		this.estimatedNumRecords = node.estimatedNumRecords;
 		this.estimatedOutputSize = node.estimatedOutputSize;
+	}
+	
+	public void setCandidateProperties(GlobalProperties gProps, LocalProperties lProps) {
+		if (this.cachedPlans != null) {
+			throw new IllegalStateException();
+		} else {
+			this.cachedPlans = Collections.<PlanNode>singletonList(new PartialSolutionPlanNode(this, gProps, lProps));
+		}
+	}
+	
+	public PartialSolutionPlanNode getCurrentPartialSolutionPlanNode() {
+		if (this.cachedPlans != null) {
+			return (PartialSolutionPlanNode) this.cachedPlans.get(0);
+		} else {
+			throw new IllegalStateException();
+		}
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -82,6 +94,11 @@ public class PartialSolutionNode extends OptimizerNode
 	public boolean isOnDynamicPath() {
 		return true;
 	}
+	
+	public void identifyDynamicPath(int costWeight) {
+		this.onDynamicPath = true;
+		this.costWeight = costWeight;
+	}
 
 	/*
 	 * (non-Javadoc)
@@ -100,10 +117,8 @@ public class PartialSolutionNode extends OptimizerNode
 	public void setInputs(Map<Contract, OptimizerNode> contractToNode) {
 	}
 
-	/**
-	 * Causes this node to compute its output estimates (such as number of rows, size in bytes)
-	 * based on the file size and the compiler hints. The compiler hints are instantiated with
-	 * conservative default values which are used if no other values are provided.
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeOutputEstimates(eu.stratosphere.pact.compiler.DataStatistics)
 	 */
 	@Override
 	public void computeOutputEstimates(DataStatistics statistics) {
@@ -134,7 +149,11 @@ public class PartialSolutionNode extends OptimizerNode
 	 */
 	@Override
 	public List<PlanNode> getAlternativePlans(CostEstimator estimator) {
-		return null;
+		if (this.cachedPlans != null) {
+			return this.cachedPlans;
+		} else {
+			throw new IllegalStateException();
+		}
 	}
 
 

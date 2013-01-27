@@ -96,10 +96,14 @@ public class GlobalProperties implements Cloneable
 		this.uniqueFieldCombinations.add(fields);
 	}
 	
-	public void clearUniqueFieldSets() {
+	public void clearUniqueFieldCombinations() {
 		if (this.uniqueFieldCombinations != null) {
 			this.uniqueFieldCombinations = null;
 		}
+	}
+	
+	public Set<FieldSet> getUniqueFieldCombination() {
+		return this.uniqueFieldCombinations;
 	}
 	
 	public FieldList getPartitioningFields() {
@@ -117,10 +121,7 @@ public class GlobalProperties implements Cloneable
 	}
 	
 	public boolean isPartitionedOnFields(FieldSet fields) {
-		if (!this.partitioning.isPartitionedOnKey()) {
-			return false;
-		}
-		if (fields.isValidSubset(this.partitioningFields)) {
+		if (this.partitioning.isPartitionedOnKey() && fields.isValidSubset(this.partitioningFields)) {
 			return true;
 		} else if (this.uniqueFieldCombinations != null) {
 			for (FieldSet set : this.uniqueFieldCombinations) {

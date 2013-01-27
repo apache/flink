@@ -63,7 +63,7 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 	
 	private TypeComparatorFactory<?> localStrategyComparator;
 	
-	private TempMode tempMode = TempMode.NONE;
+	private TempMode tempMode;
 	
 	private long tempMemory;
 	
@@ -76,7 +76,12 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 	// --------------------------------------------------------------------------------------------
 	
 	public Channel(PlanNode sourceNode) {
+		this(sourceNode, null);
+	}
+	
+	public Channel(PlanNode sourceNode, TempMode tempMode) {
 		this.source = sourceNode;
+		this.tempMode = (tempMode == null ? TempMode.NONE : tempMode);
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -285,6 +290,14 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 	public void setMemoryLocalStrategy(long memoryLocalStrategy) {
 		this.memoryLocalStrategy = memoryLocalStrategy;
 	}
+	
+	public boolean isOnDynamicPath() {
+		return this.source.isOnDynamicPath();
+	}
+	
+	public int getCostWeight() {
+		return this.source.getCostWeight();
+	}
 
 	// --------------------------------------------------------------------------------------------
 	//                                Statistic Estimates
@@ -337,6 +350,7 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 			this.globalProps = this.source.getGlobalProperties().clone();
 			switch (this.shipStrategy) {
 				case BROADCAST:
+					this.globalProps.clearUniqueFieldCombinations();
 					this.globalProps.setFullyReplicated();
 					break;
 				case PARTITION_HASH:
@@ -499,7 +513,7 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 		try {
 			return (Channel) super.clone();
 		} catch (CloneNotSupportedException cnsex) {
-			throw new Error(cnsex);
+			throw new RuntimeException(cnsex);
 		}
 	}
 }

@@ -40,7 +40,6 @@ import eu.stratosphere.pact.compiler.dataproperties.RequestedLocalProperties;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.plandump.DumpableConnection;
 import eu.stratosphere.pact.compiler.plandump.DumpableNode;
-import eu.stratosphere.pact.compiler.util.PactType;
 import eu.stratosphere.pact.generic.contract.AbstractPact;
 import eu.stratosphere.pact.generic.contract.Contract;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
@@ -72,7 +71,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 
 	// ---------------------------- Estimates and Annotations -------------------------------------
 	
-	protected Set<FieldSet> uniqueFields = new HashSet<FieldSet>(); // set of attributes that will always be unique after this node
+	protected Set<FieldSet> uniqueFields; // set of attributes that will always be unique after this node
 	
 	protected Map<FieldSet, Long> estimatedCardinality = new HashMap<FieldSet, Long>(); // the estimated number of distinct keys in the output
 	
@@ -92,11 +91,13 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	
 	private long minimalMemoryPerSubTask = -1;
 
-	protected int id = -1; 			// the id for this node.
+	protected int id = -1; 				// the id for this node.
 	
-	private int costWeight = 1;		// factor to weight the costs for dynamic paths
+	protected int costWeight = 1;		// factor to weight the costs for dynamic paths
 	
-	private boolean onDynamicPath;
+	protected boolean onDynamicPath;
+	
+	protected List<PlanNode> cachedPlans;	// cache candidates, because the may be accessed repeatedly
 
 	// ------------------------------------------------------------------------
 	//                      Constructor / Setup
@@ -226,7 +227,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 
 			@Override
 			public OptimizerNode next() {
-				return inputs.next().getSourcePact();
+				return inputs.next().getSource();
 			}
 
 			@Override
@@ -289,15 +290,6 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 */
 	public Contract getPactContract() {
 		return this.pactContract;
-	}
-
-	/**
-	 * Gets the type of the PACT as a <tt>PactType</tt> enumeration constant for this node.
-	 * 
-	 * @return The type of the PACT.
-	 */
-	public PactType getPactType() {
-		return PactType.getType(this.pactContract.getClass());
 	}
 
 	/**
@@ -390,7 +382,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		boolean allDynamic = true;
 		
 		for (PactConnection conn : getIncomingConnections()) {
-			boolean dynamicIn = conn.getSourcePact().isOnDynamicPath();
+			boolean dynamicIn = conn.isOnDynamicPath();
 			anyDynamic |= dynamicIn;
 			allDynamic &= dynamicIn;
 		}
@@ -402,7 +394,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 				// this node joins static and dynamic path.
 				// mark the connections where the source is not dynamic as cached
 				for (PactConnection conn : getIncomingConnections()) {
-					if (!conn.getSourcePact().isOnDynamicPath()) {
+					if (!conn.getSource().isOnDynamicPath()) {
 						conn.setMaterializationMode(conn.getMaterializationMode().makeCached());
 					}
 				}
@@ -522,7 +514,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	public void computeOutputEstimates(DataStatistics statistics) {
 		// sanity checking
 		for (PactConnection c : getIncomingConnections()) {
-			if (c.getSourcePact() == null) {
+			if (c.getSource() == null) {
 				throw new CompilerException("Bug: Estimate computation called before inputs have been set.");
 			}
 		}
@@ -572,14 +564,11 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		this.estimatedCardinality.putAll(hints.getDistinctCounts());	
 
 		
-		if (this.getUniqueFields() != null) {
-			for (FieldSet uniqueFieldSet : this.uniqueFields) {
-				if (this.estimatedCardinality.get(uniqueFieldSet) == null) {
-					this.estimatedCardinality.put(uniqueFieldSet, this.estimatedNumRecords);
-				}
+		for (FieldSet uniqueFieldSet : getUniqueFields()) {
+			if (this.estimatedCardinality.get(uniqueFieldSet) == null) {
+				this.estimatedCardinality.put(uniqueFieldSet, this.estimatedNumRecords);
 			}
 		}
-		
 		
 		for (int input = 0; input < getIncomingConnections().size(); input++) {
 			int[] keyColumns;
@@ -704,6 +693,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	protected void readStubAnnotations() {
 		readConstantAnnotation();
 		readOutputCardBoundAnnotation();
+		readUniqueFieldsAnnotation();
 	}
 
 	/**
@@ -726,9 +716,12 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	
 	
 	protected void readUniqueFieldsAnnotation() {
-		if (pactContract.getCompilerHints() != null) {
+		if (this.pactContract.getCompilerHints() != null) {
 			Set<FieldSet> uniqueFieldSets = pactContract.getCompilerHints().getUniqueFields();
 			if (uniqueFieldSets != null) {
+				if (this.uniqueFields == null) {
+					this.uniqueFields = new HashSet<FieldSet>();
+				}
 				this.uniqueFields.addAll(uniqueFieldSets);
 			}
 		}
@@ -793,7 +786,10 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		
 		//check which uniqueness properties are created by this node
 		List<FieldSet> uniqueFields = createUniqueFieldsForNode();
-		if (uniqueFields != null ) {
+		if (uniqueFields != null) {
+			if (this.uniqueFields == null) {
+				this.uniqueFields = new HashSet<FieldSet>();
+			}
 			this.uniqueFields.addAll(uniqueFields);
 		}
 	}
@@ -812,30 +808,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 * @return
 	 */
 	public Set<FieldSet> getUniqueFields() {
-		return this.uniqueFields;
+		return this.uniqueFields == null ? Collections.<FieldSet>emptySet() : this.uniqueFields;
 	}
-	
-	
-//	/**
-//	 * Checks whether the FieldSet is unique in the input of the node
-//	 * 
-//	 * @param fieldSet
-//	 * @param input
-//	 * @return
-//	 */
-//	public boolean isFieldSetUnique(FieldSet fieldSet, int input) {
-//
-//		if (fieldSet == null || fieldSet.size() == 0) {
-//			return true;
-//		}
-//		
-//		for (FieldSet uniqueField : this.getUniqueFieldsForInput(input)) {
-//			if (fieldSet.containsAll(uniqueField)) {
-//				return true;
-//			}
-//		}
-//		return false;
-//	}
 	
 	// --------------------------------------------------------------------------------------------
 	//  Miscellaneous
@@ -1344,7 +1318,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		bld.append(" (").append(getPactContract().getName()).append(") ");
 
 		int i = 1; 
-		for(PactConnection conn : getIncomingConnections()) {
+		for (PactConnection conn : getIncomingConnections()) {
 			bld.append('(').append(i++).append(":").append(conn.getShipStrategy() == null ? "null" : conn.getShipStrategy().name()).append(')');
 		}
 

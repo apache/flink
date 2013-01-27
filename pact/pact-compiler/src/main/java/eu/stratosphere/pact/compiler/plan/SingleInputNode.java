@@ -62,8 +62,6 @@ public abstract class SingleInputNode extends OptimizerNode
 	
 	private FieldSet constantSet; 			// set of fields that are left unchanged by the stub
 	private FieldSet notConstantSet;		// set of fields that are changed by the stub
-	
-	private List<PlanNode> cachedPlans;
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -116,7 +114,7 @@ public abstract class SingleInputNode extends OptimizerNode
 	 */
 	public OptimizerNode getPredecessorNode() {
 		if (this.inConn != null) {
-			return this.inConn.getSourcePact();
+			return this.inConn.getSource();
 		} else {
 			return null;
 		}
@@ -305,7 +303,7 @@ public abstract class SingleInputNode extends OptimizerNode
 					// requested properties
 					for (RequestedGlobalProperties rgps: allValidGlobals) {
 						if (rgps.isMetBy(c.getGlobalProperties())) {
-							addLocalCandidates(c, outputPlans);
+							addLocalCandidates(c, rgps, outputPlans, estimator);
 							break;
 						}
 					}
@@ -328,7 +326,7 @@ public abstract class SingleInputNode extends OptimizerNode
 				// check whether we meet any of the accepted properties
 				for (RequestedGlobalProperties rgps: allValidGlobals) {
 					if (rgps.isMetBy(c.getGlobalProperties())) {
-						addLocalCandidates(c, outputPlans);
+						addLocalCandidates(c, rgps, outputPlans, estimator);
 						break;
 					}
 				}
@@ -346,7 +344,8 @@ public abstract class SingleInputNode extends OptimizerNode
 		return outputPlans;
 	}
 	
-	private void addLocalCandidates(Channel template, List<PlanNode> target)
+	protected void addLocalCandidates(Channel template, RequestedGlobalProperties rgps,
+			List<PlanNode> target, CostEstimator estimator)
 	{
 		final LocalProperties lp = template.getLocalPropertiesAfterShippingOnly();
 		for (RequestedLocalProperties ilp : this.inConn.getInterestingProperties().getLocalProperties()) {
@@ -361,19 +360,33 @@ public abstract class SingleInputNode extends OptimizerNode
 			for (OperatorDescriptorSingle dps: this.possibleProperties) {
 				for (RequestedLocalProperties ilps : dps.getPossibleLocalProperties()) {
 					if (ilps.isMetBy(in.getLocalProperties())) {
-						final SingleInputPlanNode node = dps.instantiate(in, this);
-						final GlobalProperties gProps = node.getGlobalProperties();
-						final LocalProperties lProps = node.getLocalProperties();
-						dps.processPropertiesByStrategy(gProps, lProps);
-						gProps.filterByNodesConstantSet(this, 0);
-						lProps.filterByNodesConstantSet(this, 0);
-						node.updatePropertiesWithUniqueSets(getUniqueFields());
-						target.add(node);
+						instantiateCandidate(dps, in, target, estimator, rgps, ilp);
 						break;
 					}
 				}
 			}
 		}
+	}
+	
+	protected void instantiateCandidate(OperatorDescriptorSingle dps, Channel in, List<PlanNode> target,
+			CostEstimator estimator, RequestedGlobalProperties globPropsReq, RequestedLocalProperties locPropsReq)
+	{
+		final SingleInputPlanNode node = dps.instantiate(in, this);
+		
+		// compute how the strategy affects the properties
+		GlobalProperties gProps = in.getGlobalProperties().clone();
+		LocalProperties lProps = in.getLocalProperties().clone();
+		gProps = dps.computeGlobalProperties(gProps);
+		lProps = dps.computeLocalProperties(lProps);
+		
+		// filter by the user code field copies
+		gProps = gProps.filterByNodesConstantSet(this, 0);
+		lProps = lProps.filterByNodesConstantSet(this, 0);
+		
+		// apply
+		node.initProperties(gProps, lProps);
+		node.updatePropertiesWithUniqueSets(getUniqueFields());
+		target.add(node);
 	}
 	
 	// --------------------------------------------------------------------------------------------

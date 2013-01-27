@@ -15,60 +15,34 @@
 
 package eu.stratosphere.pact.compiler.plan.candidate;
 
+import static eu.stratosphere.pact.compiler.plan.candidate.PlanNode.SourceAndDamReport.FOUND_SOURCE;
+import static eu.stratosphere.pact.compiler.plan.candidate.PlanNode.SourceAndDamReport.NOT_FOUND;
+
 import java.util.Collections;
 import java.util.Iterator;
 
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
-import eu.stratosphere.pact.compiler.plan.DataSourceNode;
-import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
+import eu.stratosphere.pact.compiler.plan.PartialSolutionNode;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
-import static eu.stratosphere.pact.compiler.plan.candidate.PlanNode.SourceAndDamReport.*;
-
 /**
- * Plan candidate node for data flow sources that have no input and no special strategies.
+ * Plan candidate node for partial solution of a bulk iteration.
  */
-public class SourcePlanNode extends PlanNode
+public class PartialSolutionPlanNode extends PlanNode
 {
-	private TypeSerializerFactory<?> serializer;
-	
-	/**
-	 * Constructs a new source candidate node that uses <i>NONE</i> as its local strategy.
-	 * 
-	 * @param template The template optimizer node that this candidate is created for.
-	 */
-	public SourcePlanNode(DataSourceNode template) {
+	public PartialSolutionPlanNode(PartialSolutionNode template, GlobalProperties gProps, LocalProperties lProps) {
 		super(template, DriverStrategy.NONE);
 		
-		this.globalProps = new GlobalProperties();
-		this.localProps = new LocalProperties();
-		updatePropertiesWithUniqueSets(template.getUniqueFields());
+		this.globalProps = gProps;
+		this.localProps = lProps;
 	}
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public DataSourceNode getDataSourceNode() {
-		return (DataSourceNode) this.template;
-	}
-	
-	/**
-	 * Gets the serializer from this PlanNode.
-	 *
-	 * @return The serializer.
-	 */
-	public TypeSerializerFactory<?> getSerializer() {
-		return serializer;
-	}
-	
-	/**
-	 * Sets the serializer for this PlanNode.
-	 *
-	 * @param serializer The serializer to set.
-	 */
-	public void setSerializer(TypeSerializerFactory<?> serializer) {
-		this.serializer = serializer;
+	public PartialSolutionNode getPartialSolutionNode() {
+		return (PartialSolutionNode) this.template;
 	}
 
 	// --------------------------------------------------------------------------------------------

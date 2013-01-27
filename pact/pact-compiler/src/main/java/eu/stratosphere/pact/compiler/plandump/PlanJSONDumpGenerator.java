@@ -33,7 +33,9 @@ import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
+import eu.stratosphere.pact.compiler.plan.BinaryUnionNode;
 import eu.stratosphere.pact.compiler.plan.DataSinkNode;
+import eu.stratosphere.pact.compiler.plan.DataSourceNode;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.TempMode;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
@@ -131,44 +133,29 @@ public class PlanJSONDumpGenerator
 		// start a new node and output node id
 		writer.print("\t{\n\t\t\"id\": " + this.nodeIds.get(node));
 		
-		// output the type identifier
 		final String type;
-		switch (n.getPactType()) {
-		case DataSink:
+		final String contents;
+		if (n instanceof DataSinkNode) {
 			type = "sink";
-			break;
-		case DataSource:
+			contents = n.getPactContract().toString();
+		} else if (n instanceof DataSourceNode) {
 			type = "source";
-			break;
-		case Union:
+			contents = n.getPactContract().toString();
+		} else if (n instanceof BinaryUnionNode) {
 			type = "pact";
-			break;
-		default:
+			contents = "";
+		} else {
 			type = "pact";
-			break;
+			contents = n.getPactContract().getName();
 		}
+		
+		// output the type identifier
 		writer.print(",\n\t\t\"type\": \"" + type + "\"");
 		
 		// output node name
 		writer.print(",\n\t\t\"pact\": \"" + n.getName() + "\"");
 		
 		// output node contents
-		final String contents;
-		switch (n.getPactType()) {
-		case DataSink:
-			contents = n.getPactContract().toString();
-			break;
-		case DataSource:
-			contents = n.getPactContract().toString();
-			break;
-		case Union:
-			contents = "";
-			break;
-		default:
-			contents = n.getPactContract().getName();
-			break;
-		}
-		
 		writer.print(",\n\t\t\"contents\": \"" + contents + "\"");
 
 		// degree of parallelism
@@ -432,15 +419,15 @@ public class PlanJSONDumpGenerator
 
 			addProperty(writer, "Network", p.getNodeCosts().getNetworkCost() == -1 ? "(unknown)"
 				: formatNumber(p.getNodeCosts().getNetworkCost(), "B"), true);
-			addProperty(writer, "Disk I/O", p.getNodeCosts().getSecondaryStorageCost() == -1 ? "(unknown)"
-				: formatNumber(p.getNodeCosts().getSecondaryStorageCost(), "B"), false);
+			addProperty(writer, "Disk I/O", p.getNodeCosts().getDiskCost() == -1 ? "(unknown)"
+				: formatNumber(p.getNodeCosts().getDiskCost(), "B"), false);
 
 			addProperty(writer, "Cumulative Network",
 				p.getCumulativeCosts().getNetworkCost() == -1 ? "(unknown)" : formatNumber(p
 					.getCumulativeCosts().getNetworkCost(), "B"), false);
 			addProperty(writer, "Cumulative Disk I/O",
-				p.getCumulativeCosts().getSecondaryStorageCost() == -1 ? "(unknown)" : formatNumber(p
-					.getCumulativeCosts().getSecondaryStorageCost(), "B"), false);
+				p.getCumulativeCosts().getDiskCost() == -1 ? "(unknown)" : formatNumber(p
+					.getCumulativeCosts().getDiskCost(), "B"), false);
 
 			writer.print("\n\t\t]");
 		}

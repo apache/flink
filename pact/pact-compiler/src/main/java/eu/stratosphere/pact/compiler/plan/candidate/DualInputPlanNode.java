@@ -23,8 +23,6 @@ import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.costs.Costs;
-import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
-import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode.UnclosedBranchDescriptor;
 import eu.stratosphere.pact.compiler.plan.TwoInputNode;
@@ -33,6 +31,8 @@ import eu.stratosphere.pact.generic.types.TypePairComparatorFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DamBehavior;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
+
+import static eu.stratosphere.pact.compiler.plan.candidate.PlanNode.SourceAndDamReport.*;
 
 /**
  *
@@ -86,14 +86,6 @@ public class DualInputPlanNode extends PlanNode
 		}
 		
 		mergeBranchPlanMaps();
-	}
-	
-	public void initProperties(GlobalProperties globals, LocalProperties locals) {
-		if (this.globalProps != null || this.localProps != null) {
-			throw new IllegalStateException();
-		}
-		this.globalProps = globals;
-		this.localProps = locals;
 	}
 	
 	private void mergeBranchPlanMaps() {
@@ -295,13 +287,13 @@ public class DualInputPlanNode extends PlanNode
 	 * @see eu.stratosphere.pact.compiler.plan.candidate.PlanNode#hasDamOnPathDownTo(eu.stratosphere.pact.compiler.plan.candidate.PlanNode)
 	 */
 	@Override
-	public int hasDamOnPathDownTo(PlanNode source) {
+	public SourceAndDamReport hasDamOnPathDownTo(PlanNode source) {
 		if (source == this) {
 			return FOUND_SOURCE;
 		}
 		
 		// check first input
-		int res1 = this.input1.getSource().hasDamOnPathDownTo(source);
+		SourceAndDamReport res1 = this.input1.getSource().hasDamOnPathDownTo(source);
 		if (res1 == FOUND_SOURCE_AND_DAM) {
 			return FOUND_SOURCE_AND_DAM;
 		} else if (res1 == FOUND_SOURCE) {
@@ -312,7 +304,7 @@ public class DualInputPlanNode extends PlanNode
 				return FOUND_SOURCE;
 			}
 		} else {
-			int res2 = this.input2.getSource().hasDamOnPathDownTo(source);
+			SourceAndDamReport res2 = this.input2.getSource().hasDamOnPathDownTo(source);
 			if (res2 == FOUND_SOURCE_AND_DAM) {
 				return FOUND_SOURCE_AND_DAM;
 			} else if (res2 == FOUND_SOURCE) {
@@ -323,7 +315,7 @@ public class DualInputPlanNode extends PlanNode
 					return FOUND_SOURCE;
 				}
 			} else {
-				return 0;
+				return NOT_FOUND;
 			}
 		}
 	}

@@ -22,6 +22,7 @@ import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
+import eu.stratosphere.pact.compiler.dataproperties.PartitioningProperty;
 import eu.stratosphere.pact.compiler.dataproperties.RequestedGlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.RequestedLocalProperties;
 import eu.stratosphere.pact.compiler.plan.TwoInputNode;
@@ -92,7 +93,14 @@ public class CoGroupDescriptor extends OperatorDescriptorDual
 	 */
 	@Override
 	public GlobalProperties computeGlobalProperties(GlobalProperties in1, GlobalProperties in2) {
-		return GlobalProperties.combine(in1, in2);
+		GlobalProperties gp = GlobalProperties.combine(in1, in2);
+		if (gp.getUniqueFieldCombination() != null && gp.getUniqueFieldCombination().size() > 0 &&
+					gp.getPartitioning() == PartitioningProperty.RANDOM)
+		{
+			gp.setAnyPartitioning(gp.getUniqueFieldCombination().iterator().next().toFieldList());
+		}
+		gp.clearUniqueFieldCombinations();
+		return gp;
 	}
 
 	/* (non-Javadoc)

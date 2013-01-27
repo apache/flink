@@ -19,6 +19,7 @@ import java.util.List;
 
 import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
+import eu.stratosphere.pact.compiler.dataproperties.PartitioningProperty;
 import eu.stratosphere.pact.compiler.dataproperties.RequestedGlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.RequestedLocalProperties;
 import eu.stratosphere.pact.compiler.plan.SingleInputNode;
@@ -61,11 +62,25 @@ public final class AllGroupProperties extends OperatorDescriptorSingle
 	}
 	
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.dataproperties.DriverPropertiesSingle#processPropertiesByStrategy(eu.stratosphere.pact.compiler.dataproperties.GlobalProperties, eu.stratosphere.pact.compiler.dataproperties.LocalProperties)
+	 * @see eu.stratosphere.pact.compiler.operators.OperatorDescriptorSingle#computeGlobalProperties(eu.stratosphere.pact.compiler.dataproperties.GlobalProperties)
 	 */
 	@Override
-	public void processPropertiesByStrategy(GlobalProperties gProps, LocalProperties lProps) {
-		gProps.clearUniqueFieldSets();
+	public GlobalProperties computeGlobalProperties(GlobalProperties gProps) {
+		if (gProps.getUniqueFieldCombination() != null && gProps.getUniqueFieldCombination().size() > 0 &&
+				gProps.getPartitioning() == PartitioningProperty.RANDOM)
+		{
+			gProps.setAnyPartitioning(gProps.getUniqueFieldCombination().iterator().next().toFieldList());
+		}
+		gProps.clearUniqueFieldCombinations();
+		return gProps;
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.operators.OperatorDescriptorSingle#computeLocalProperties(eu.stratosphere.pact.compiler.dataproperties.LocalProperties)
+	 */
+	@Override
+	public LocalProperties computeLocalProperties(LocalProperties lProps) {
 		lProps.clearUniqueFieldSets();
+		return lProps;
 	}
 }

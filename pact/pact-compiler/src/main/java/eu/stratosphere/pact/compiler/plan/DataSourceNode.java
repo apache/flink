@@ -257,10 +257,11 @@ public class DataSourceNode extends OptimizerNode
 		}
 		
 		SourcePlanNode candidate = new SourcePlanNode(this);
+		candidate.updatePropertiesWithUniqueSets(getUniqueFields());
 		
-		final Costs costs = new Costs(0, 0);
+		final Costs costs = new Costs();
 		if (FileInputFormat.class.isAssignableFrom(getPactContract().getFormatClass())) {
-			costs.addSecondaryStorageCost(this.inputSize);
+			estimator.addFileInputCost(this.inputSize, costs);
 		}
 		candidate.setCosts(costs);
 
@@ -268,9 +269,7 @@ public class DataSourceNode extends OptimizerNode
 		List<PlanNode> plans = new ArrayList<PlanNode>(1);
 		plans.add(candidate);
 
-		if (isBranching()) {
-			this.candidate = plans;
-		}
+		this.candidate = plans;
 		return plans;
 	}
 

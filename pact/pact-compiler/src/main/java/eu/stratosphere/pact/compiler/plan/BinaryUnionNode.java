@@ -26,7 +26,6 @@ import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.operators.BinaryUnionOpDescriptor;
 import eu.stratosphere.pact.compiler.operators.OperatorDescriptorDual;
-import eu.stratosphere.pact.compiler.util.PactType;
 import eu.stratosphere.pact.generic.contract.Contract;
 import eu.stratosphere.pact.generic.contract.DualInputContract;
 import eu.stratosphere.pact.generic.stub.AbstractStub;
@@ -65,14 +64,6 @@ public class BinaryUnionNode extends TwoInputNode {
 	@Override
 	public String getName() {
 		return "Union";
-	}
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getPactType()
-	 */
-	@Override
-	public PactType getPactType() {
-		return PactType.Union;
 	}
 
 	/* (non-Javadoc)
@@ -135,14 +126,14 @@ public class BinaryUnionNode extends TwoInputNode {
 		
 		// init estimated cardinalities with the fields of the first input
 		// remove the field which are unknown for other inputs later on
-		for (FieldSet fieldSet : getIncomingConnections().get(0).getSourcePact().getEstimatedCardinalities().keySet()) {
+		for (FieldSet fieldSet : getIncomingConnections().get(0).getSource().getEstimatedCardinalities().keySet()) {
 			this.estimatedCardinality.put(fieldSet, -1L);
 		}
 		
 		
 		for (PactConnection inConn : getIncomingConnections()) {
 			
-			OptimizerNode inputPact = inConn.getSourcePact();
+			OptimizerNode inputPact = inConn.getSource();
 			
 			// sum up estimatedNumRecords for inputs
 			long estimatedNumRecordForInput = inputPact.estimatedNumRecords;

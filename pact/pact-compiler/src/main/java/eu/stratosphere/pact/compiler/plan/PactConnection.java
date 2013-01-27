@@ -20,7 +20,6 @@ import java.util.Map;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.dataproperties.InterestingProperties;
 import eu.stratosphere.pact.compiler.plandump.DumpableConnection;
-import eu.stratosphere.pact.compiler.plandump.DumpableNode;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 
 /**
@@ -33,9 +32,9 @@ import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
  */
 public class PactConnection implements EstimateProvider, DumpableConnection<OptimizerNode>
 {
-	private final OptimizerNode sourcePact; // The source node of the connection
+	private final OptimizerNode source; // The source node of the connection
 
-	private final OptimizerNode targetPact; // The target node of the connection.
+	private final OptimizerNode target; // The target node of the connection.
 
 	private InterestingProperties interestingProps; // local properties that succeeding nodes are interested in
 
@@ -71,8 +70,8 @@ public class PactConnection implements EstimateProvider, DumpableConnection<Opti
 			throw new NullPointerException("Source must not be null.");
 		}
 
-		this.sourcePact = source;
-		this.targetPact = target;
+		this.source = source;
+		this.target = target;
 		this.shipStrategy = shipStrategy;
 	}
 
@@ -81,8 +80,8 @@ public class PactConnection implements EstimateProvider, DumpableConnection<Opti
 	 * 
 	 * @return The source Node.
 	 */
-	public OptimizerNode getSourcePact() {
-		return this.sourcePact;
+	public OptimizerNode getSource() {
+		return this.source;
 	}
 
 	/**
@@ -90,8 +89,8 @@ public class PactConnection implements EstimateProvider, DumpableConnection<Opti
 	 * 
 	 * @return The target node.
 	 */
-	public OptimizerNode getTargetPact() {
-		return this.targetPact;
+	public OptimizerNode getTarget() {
+		return this.target;
 	}
 
 	/**
@@ -148,7 +147,7 @@ public class PactConnection implements EstimateProvider, DumpableConnection<Opti
 	 */
 	@Override
 	public long getEstimatedOutputSize() {
-		return this.sourcePact.getEstimatedOutputSize();
+		return this.source.getEstimatedOutputSize();
 	}
 
 	/* (non-Javadoc)
@@ -156,7 +155,7 @@ public class PactConnection implements EstimateProvider, DumpableConnection<Opti
 	 */
 	@Override
 	public long getEstimatedNumRecords() {
-		return this.sourcePact.getEstimatedNumRecords();
+		return this.source.getEstimatedNumRecords();
 	}
 
 	/* (non-Javadoc)
@@ -164,7 +163,7 @@ public class PactConnection implements EstimateProvider, DumpableConnection<Opti
 	 */
 	@Override
 	public Map<FieldSet, Long> getEstimatedCardinalities() {
-		return this.sourcePact.getEstimatedCardinalities();
+		return this.source.getEstimatedCardinalities();
 	}
 
 	/* (non-Javadoc)
@@ -172,7 +171,7 @@ public class PactConnection implements EstimateProvider, DumpableConnection<Opti
 	 */
 	@Override
 	public long getEstimatedCardinality(FieldSet cP) {
-		return this.sourcePact.getEstimatedCardinality(cP);
+		return this.source.getEstimatedCardinality(cP);
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -185,7 +184,17 @@ public class PactConnection implements EstimateProvider, DumpableConnection<Opti
 	public void setMaterializationMode(TempMode materializationMode) {
 		this.materializationMode = materializationMode;
 	}
+	
+	public boolean isOnDynamicPath() {
+		return this.source.isOnDynamicPath();
+	}
+	
+	public int getCostWeight() {
+		return this.source.getCostWeight();
+	}
 
+	// --------------------------------------------------------------------------------------------
+	
 	/*
 	 * (non-Javadoc)
 	 * @see java.lang.Object#toString()
@@ -194,11 +203,11 @@ public class PactConnection implements EstimateProvider, DumpableConnection<Opti
 		StringBuilder buf = new StringBuilder(50);
 		buf.append("Connection: ");
 
-		if (this.sourcePact == null) {
+		if (this.source == null) {
 			buf.append("null");
 		} else {
-			buf.append(this.sourcePact.getPactContract().getName());
-			buf.append('(').append(this.sourcePact.getPactType().name()).append(')');
+			buf.append(this.source.getPactContract().getName());
+			buf.append('(').append(this.source.getName()).append(')');
 		}
 
 		buf.append(" -> ");
@@ -209,21 +218,13 @@ public class PactConnection implements EstimateProvider, DumpableConnection<Opti
 			buf.append(']').append(' ');
 		}
 
-		if (this.targetPact == null) {
+		if (this.target == null) {
 			buf.append("null");
 		} else {
-			buf.append(this.targetPact.getPactContract().getName());
-			buf.append('(').append(this.targetPact.getPactType().name()).append(')');
+			buf.append(this.target.getPactContract().getName());
+			buf.append('(').append(this.target.getName()).append(')');
 		}
 
 		return buf.toString();
-	}
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plandump.DumpableConnection#getSource()
-	 */
-	@Override
-	public DumpableNode<OptimizerNode> getSource() {
-		return this.sourcePact;
 	}
 }
