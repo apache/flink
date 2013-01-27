@@ -46,8 +46,7 @@ public class DataStatistics
 	 * @param inputIdentifier The identifier for the input.
 	 * @return The statistics that were cached for this input.
 	 */
-	public BaseStatistics getBaseStatistics(String inputIdentifier)
-	{
+	public BaseStatistics getBaseStatistics(String inputIdentifier) {
 		synchronized (this.baseStatisticsCache) {
 			return this.baseStatisticsCache.get(inputIdentifier);
 		}
@@ -59,8 +58,7 @@ public class DataStatistics
 	 * @param statistics The statistics to cache.
 	 * @param identifyer The identifier which may be later used to retrieve the statistics.
 	 */
-	public void cacheBaseStatistics(BaseStatistics statistics, String identifyer)
-	{
+	public void cacheBaseStatistics(BaseStatistics statistics, String identifyer) {
 		synchronized (this.baseStatisticsCache) {
 			this.baseStatisticsCache.put(identifyer, statistics);
 		}

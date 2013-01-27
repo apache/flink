@@ -127,7 +127,7 @@ public class PactRecordPostPass implements OptimizerPostPass
 			}
 			
 			// add the nodes local information. this automatically consistency checks
-			final SingleInputContract<?> contract = optNode.getPactContract();
+			final SingleInputContract<?> contract = (SingleInputContract<?>) optNode.getPactContract();
 			if (! (contract instanceof RecordContract)) {
 				throw new CompilerPostPassException("Error: Contract is not a Pact Record based contract. Wrong compiler invokation.");
 			}

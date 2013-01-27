@@ -156,7 +156,7 @@ public class ArrayModelPostPass implements OptimizerPostPass
 			}
 			
 			// add the nodes local information. this automatically consistency checks
-			final SingleInputContract<?> contract = optNode.getPactContract();
+			final SingleInputContract<?> contract = (SingleInputContract<?>) optNode.getPactContract();
 			final int numFieldsInInput;
 			
 			// add the local schema annotation information

@@ -44,15 +44,20 @@ import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.common.util.PactConfigConstants;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
 import eu.stratosphere.pact.compiler.costs.DefaultCostEstimator;
+import eu.stratosphere.pact.compiler.plan.BulkIterationNode;
 import eu.stratosphere.pact.compiler.plan.CoGroupNode;
 import eu.stratosphere.pact.compiler.plan.CrossNode;
 import eu.stratosphere.pact.compiler.plan.DataSinkNode;
 import eu.stratosphere.pact.compiler.plan.DataSourceNode;
+import eu.stratosphere.pact.compiler.plan.IterationNode;
 import eu.stratosphere.pact.compiler.plan.MapNode;
 import eu.stratosphere.pact.compiler.plan.MatchNode;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
+import eu.stratosphere.pact.compiler.plan.PactConnection;
+import eu.stratosphere.pact.compiler.plan.PartialSolutionNode;
 import eu.stratosphere.pact.compiler.plan.ReduceNode;
 import eu.stratosphere.pact.compiler.plan.SinkJoiner;
+import eu.stratosphere.pact.compiler.plan.TempMode;
 import eu.stratosphere.pact.compiler.plan.candidate.BinaryUnionPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
@@ -60,9 +65,10 @@ import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkJoinerPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SourcePlanNode;
-import eu.stratosphere.pact.compiler.plan.candidate.TempMode;
 import eu.stratosphere.pact.compiler.plan.candidate.UnionPlanNode;
 import eu.stratosphere.pact.compiler.postpass.OptimizerPostPass;
+import eu.stratosphere.pact.generic.contract.BulkIteration;
+import eu.stratosphere.pact.generic.contract.BulkIteration.PartialSolutionPlaceHolder;
 import eu.stratosphere.pact.generic.contract.Contract;
 import eu.stratosphere.pact.generic.contract.GenericCoGroupContract;
 import eu.stratosphere.pact.generic.contract.GenericCrossContract;
@@ -729,9 +735,17 @@ public class PactCompiler {
 		private int numMemoryConsumers;
 
 		private final boolean computeEstimates; // flag indicating whether to compute additional info
+		
+		private final GraphCreatingVisitor parent;	// reference to enclosing creator, in case of a recursive translation
 
-
+		
 		GraphCreatingVisitor(DataStatistics statistics, int maxMachines, int defaultParallelism, boolean computeEstimates)
+		{
+			this(null, statistics, maxMachines, defaultParallelism, computeEstimates);
+		}
+		
+		GraphCreatingVisitor(GraphCreatingVisitor parent,
+			DataStatistics statistics, int maxMachines, int defaultParallelism, boolean computeEstimates)
 		{
 			this.con2node = new HashMap<Contract, OptimizerNode>();
 			this.sources = new ArrayList<DataSourceNode>(4);
@@ -741,6 +755,7 @@ public class PactCompiler {
 			this.defaultParallelism = defaultParallelism;
 			this.id = 1;
 			this.computeEstimates = computeEstimates;
+			this.parent = parent;
 		}
 
 		/*
@@ -776,7 +791,24 @@ public class PactCompiler {
 				n = new CoGroupNode((GenericCoGroupContract<?>) c);
 			} else if (c instanceof GenericCrossContract) {
 				n = new CrossNode((GenericCrossContract<?>) c);
-			} else {
+			}
+			else if (c instanceof BulkIteration) {
+				BulkIteration iter = (BulkIteration) c;
+				n = new BulkIterationNode(iter);
+			}
+			else if (c instanceof PartialSolutionPlaceHolder) {
+				final PartialSolutionPlaceHolder holder = (PartialSolutionPlaceHolder) c;
+				final BulkIteration enclosingIteration = holder.getContainingBulkIteration();
+				
+				// catch this for the recursive translation of step functions
+				PartialSolutionNode p = new PartialSolutionNode(holder);
+				
+				// we need to manually set the estimates to the estimates from the initial partial solution
+				// we need to do this now, such that all successor nodes can compute their estimates properly
+				p.copyEstimates(this.parent.con2node.get(enclosingIteration));
+				n = p;
+			}
+			else {
 				throw new IllegalArgumentException("Unknown contract type.");
 			}
 
@@ -833,6 +865,34 @@ public class PactCompiler {
 			if (this.computeEstimates) {
 				n.computeOutputEstimates(this.statistics);
 			}
+			
+			// if the node represents a bulk iteration, we recursively translate the data flow now
+			if (n instanceof BulkIterationNode) {
+				final BulkIterationNode iterNode = (BulkIterationNode) n;
+				final BulkIteration iter = iterNode.getIterationContract();
+				
+				// first, recursively build the data flow for the step function
+				final GraphCreatingVisitor recursiveCreator = new GraphCreatingVisitor(this,
+					this.statistics, this.maxMachines, this.defaultParallelism, this.computeEstimates);
+				iter.getNextPartialSolution().accept(recursiveCreator);
+				
+				OptimizerNode rootOfStepFunction = recursiveCreator.con2node.get(iter.getNextPartialSolution());
+				PartialSolutionNode partialSolution = 
+						(PartialSolutionNode) recursiveCreator.con2node.get(iter.getPartialSolution());
+				
+				// add an outgoing connection to the root of the step function
+				PactConnection rootConn = new PactConnection(rootOfStepFunction, null);
+				rootOfStepFunction.addOutgoingConnection(rootConn);
+				
+				iterNode.setNextPartialSolution(rootOfStepFunction, rootConn);
+				iterNode.setPartialSolution(partialSolution);
+				
+				// account for the nested memory consumers
+				this.numMemoryConsumers += recursiveCreator.numMemoryConsumers;
+				
+				// go over the contained data flow and mark the dynamic path nodes
+				rootOfStepFunction.accept(new StaticDynamicPathIdentifier(iterNode.getCostWeight()));
+			}
 		}
 
 		int getId() {
@@ -843,6 +903,34 @@ public class PactCompiler {
 			return this.numMemoryConsumers;
 		}
 	};
+	
+	private static final class StaticDynamicPathIdentifier implements Visitor<OptimizerNode>
+	{
+		private final Set<OptimizerNode> seenBefore = new HashSet<OptimizerNode>();
+		
+		private final int costWeight;
+		
+		StaticDynamicPathIdentifier(int costWeight) {
+			this.costWeight = costWeight;
+		}
+		
+		/* (non-Javadoc)
+		 * @see eu.stratosphere.pact.common.plan.Visitor#preVisit(eu.stratosphere.pact.common.plan.Visitable)
+		 */
+		@Override
+		public boolean preVisit(OptimizerNode visitable) {
+			return this.seenBefore.add(visitable);
+		}
+
+		/* (non-Javadoc)
+		 * @see eu.stratosphere.pact.common.plan.Visitor#postVisit(eu.stratosphere.pact.common.plan.Visitable)
+		 */
+		@Override
+		public void postVisit(OptimizerNode visitable) {
+			visitable.identifyDynamicPath(this.costWeight);
+		}
+		
+	}
 	
 	/**
 	 * Simple visitor that sets the minimal guaranteed memory per task based on the amount of available memory,
@@ -861,6 +949,11 @@ public class PactCompiler {
 		 */
 		@Override
 		public boolean preVisit(OptimizerNode visitable) {
+			// if required, recurse into the step function
+			if (visitable instanceof IterationNode) {
+				((IterationNode) visitable).acceptForStepFunction(this);
+			}
+			
 			if (visitable.getMinimalMemoryPerSubTask() == -1) {
 				final long mem = visitable.isMemoryConsumer() ? 
 					this.memoryPerTaskPerInstance / visitable.getSubtasksPerInstance() : 0;
@@ -882,7 +975,7 @@ public class PactCompiler {
 	 * Visitor that computes the interesting properties for each node in the plan. On its recursive
 	 * depth-first descend, it propagates all interesting properties top-down.
 	 */
-	private static final class InterestingPropertyVisitor implements Visitor<OptimizerNode>
+	public static final class InterestingPropertyVisitor implements Visitor<OptimizerNode>
 	{
 		private CostEstimator estimator; // the cost estimator for maximal costs of an interesting property
 
@@ -893,7 +986,7 @@ public class PactCompiler {
 		 * @param estimator
 		 *        The cost estimator to estimate the maximal costs for interesting properties.
 		 */
-		InterestingPropertyVisitor(CostEstimator estimator) {
+		public InterestingPropertyVisitor(CostEstimator estimator) {
 			this.estimator = estimator;
 		}
 		
@@ -907,7 +1000,7 @@ public class PactCompiler {
 			// The interesting properties must be computed on the descend. In case a node has multiple outputs,
 			// that computation must happen during the last descend.
 
-			if (node.haveAllOutputConnectionInterestingProperties() && node.getInterestingProperties() == null) {
+			if (node.getInterestingProperties() == null && node.haveAllOutputConnectionInterestingProperties()) {
 				node.computeUnionOfInterestingPropertiesFromSuccessors();
 				node.computeInterestingPropertiesForInputs(this.estimator);
 				return true;
@@ -973,17 +1066,17 @@ public class PactCompiler {
 		@Override
 		public void postVisit(PlanNode visitable) {
 			if (visitable instanceof BinaryUnionPlanNode) {
-				BinaryUnionPlanNode unionNode = (BinaryUnionPlanNode) visitable;
-				
-				Channel in1 = unionNode.getInput1();
-				Channel in2 = unionNode.getInput2();
-				
+				final BinaryUnionPlanNode unionNode = (BinaryUnionPlanNode) visitable;
+				final Channel in1 = unionNode.getInput1();
+				final Channel in2 = unionNode.getInput2();
+
 				List<Channel> inputs = new ArrayList<Channel>();
-				
 				collect(in1, inputs);
 				collect(in2, inputs);
 				
-				UnionPlanNode newUnion = new UnionPlanNode(unionNode.getOptimizerNode(), inputs, unionNode.getGlobalProperties());
+				UnionPlanNode newUnion = new UnionPlanNode(unionNode.getOptimizerNode(), inputs, 
+					unionNode.getGlobalProperties());
+				
 				// adjust the input channels to have their target point to the new union node
 				for (Channel c : inputs) {
 					c.setTarget(newUnion);

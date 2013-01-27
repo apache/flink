@@ -44,7 +44,6 @@ import eu.stratosphere.pact.compiler.operators.OperatorDescriptorDual.LocalPrope
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.DualInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
-import eu.stratosphere.pact.compiler.plan.candidate.TempMode;
 import eu.stratosphere.pact.generic.contract.Contract;
 import eu.stratosphere.pact.generic.contract.DualInputContract;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;

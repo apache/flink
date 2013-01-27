@@ -19,8 +19,6 @@ package eu.stratosphere.pact.compiler;
  * An exception that is thrown by the pact compiler when encountering
  * a problem during the optimizer post pass. This is a dedicated exception
  * because it is thrown by user-specified optimizer extensions.
- * 
- * @author Stephan Ewen
  */
 public class CompilerPostPassException extends CompilerException
 {

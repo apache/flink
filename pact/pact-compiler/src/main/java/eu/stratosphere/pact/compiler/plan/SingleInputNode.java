@@ -72,7 +72,7 @@ public abstract class SingleInputNode extends OptimizerNode
 	 * 
 	 * @param pactContract The PACT that the node represents.
 	 */
-	public SingleInputNode(SingleInputContract<?> pactContract) {
+	protected SingleInputNode(SingleInputContract<?> pactContract) {
 		super(pactContract);
 		
 		int[] k = pactContract.getKeyColumns(0);
@@ -80,7 +80,17 @@ public abstract class SingleInputNode extends OptimizerNode
 		
 		this.possibleProperties = getPossibleProperties();
 	}
+	
+	// --------------------------------------------------------------------------------------------
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getPactContract()
+	 */
+	@Override
+	public SingleInputContract<?> getPactContract() {
+		return (SingleInputContract<?>) super.getPactContract();
+	}
+	
 	/**
 	 * Gets the <tt>PactConnection</tt> through which this node receives its input.
 	 * 
@@ -110,14 +120,6 @@ public abstract class SingleInputNode extends OptimizerNode
 		} else {
 			return null;
 		}
-	}
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getPactContract()
-	 */
-	@Override
-	public SingleInputContract<?> getPactContract() {
-		return (SingleInputContract<?>) super.getPactContract();
 	}
 
 	/*

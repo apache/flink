@@ -17,8 +17,6 @@ package eu.stratosphere.pact.compiler;
 
 /**
  * An exception that is thrown by the pact compiler when encountering an illegal condition.
- * 
- * @author Stephan Ewen
  */
 public class CompilerException extends RuntimeException {
 

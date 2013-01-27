@@ -368,36 +368,39 @@ public class Costs implements Comparable<Costs>, Cloneable {
 	 */
 	@Override
 	public int compareTo(Costs o) {
-		// check the heuristics first
+		// check the network cost. first heuristic, then quantifiable
 		if (this.heuristicNetworkCost < o.heuristicNetworkCost) {
 			return -1;
 		} else if (this.heuristicNetworkCost > o.heuristicNetworkCost) {
 			return 1;
-		} else if (this.heuristicDiskCost < o.heuristicDiskCost) {
-			return -1;
-		} else if (this.heuristicDiskCost > o.heuristicDiskCost) {
-			return 1;
-		}  else if (this.heuristicCpuCost < o.heuristicCpuCost) {
-			return -1;
-		} else if (this.heuristicCpuCost > o.heuristicCpuCost) {
-			return 1;
-		}
-		
-		// now check the quantifiable costs
-		if (this.networkCost != -1 && (this.networkCost < o.networkCost || o.networkCost == -1)) {
+		} else if (this.networkCost != -1 && (this.networkCost < o.networkCost || o.networkCost == -1)) {
 			return -1;
 		} else if (o.networkCost != -1 && (this.networkCost > o.networkCost || this.networkCost == -1)) {
 			return 1;
 		} else if (this.networkCost == -1 && o.networkCost == -1) {
-			// if both have unknown network costs, they are equal
+			// both have unknown network cost (and equal or no heuristic net cost). treat the costs as equal
 			return 0;
+		}
+		
+		// next, check the disk cost. again heuristic before quantifiable
+		if (this.heuristicDiskCost < o.heuristicDiskCost) {
+			return -1;
+		} else if (this.heuristicDiskCost > o.heuristicDiskCost) {
+			return 1;
 		} else if (this.diskCost != -1 && (this.diskCost < o.diskCost || o.diskCost == -1)) {
 			return -1;
 		} else if (o.diskCost != -1 && (this.diskCost > o.diskCost || this.diskCost == -1)) {
 			return 1;
 		} else if (this.diskCost == -1 && o.diskCost == -1) {
-			// if both have unknown disk costs, they are equal
+			// both have unknown disk cost (and equal or no heuristic net cost). treat the costs as equal
 			return 0;
+		}
+		
+		// finally, check the CPU cost. heuristic before quantifiable
+		if (this.heuristicCpuCost < o.heuristicCpuCost) {
+			return -1;
+		} else if (this.heuristicCpuCost > o.heuristicCpuCost) {
+			return 1;
 		} else if (this.cpuCost != -1 && (this.cpuCost < o.cpuCost || o.cpuCost == -1)) {
 			return -1;
 		} else if (o.cpuCost != -1 && (this.cpuCost > o.cpuCost || this.cpuCost == -1)) {

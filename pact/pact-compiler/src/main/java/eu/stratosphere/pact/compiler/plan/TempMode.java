@@ -12,7 +12,7 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.pact.compiler.plan.candidate;
+package eu.stratosphere.pact.compiler.plan;
 
 /**
  * Enumeration to indicate the mode of temporarily materializing the data that flows across a connection.
@@ -23,26 +23,46 @@ public enum TempMode {
 	
 	NONE(false, false),
 	PIPELINE_BREAKER(false, true),
-	REPLAYABLE(true, false),
-	REPLAYABLE_PIPELINE_BREAKER(true, true);
+	CACHED(true, false),
+	CACHING_PIPELINE_BREAKER(true, true);
 	
 	// --------------------------------------------------------------------------------------------
 	
-	private final boolean replayable;
+	private final boolean cached;
 	
 	private final boolean breaksPipeline;
 	
 	
-	private TempMode(boolean replayable, boolean breaksPipeline) {
-		this.replayable = replayable;
+	private TempMode(boolean cached, boolean breaksPipeline) {
+		this.cached = cached;
 		this.breaksPipeline = breaksPipeline;
 	}
 
-	public boolean isReplayable() {
-		return replayable;
+	public boolean isCached() {
+		return cached;
 	}
 
 	public boolean breaksPipeline() {
 		return breaksPipeline;
+	}
+	
+	public TempMode makePipelineBreaker() {
+		if (this == NONE) {
+			return PIPELINE_BREAKER;
+		} else if (this == CACHED) {
+			return CACHING_PIPELINE_BREAKER;
+		} else {
+			return this;
+		}
+	}
+	
+	public TempMode makeCached() {
+		if (this == NONE) {
+			return CACHED;
+		} else if (this == PIPELINE_BREAKER) {
+			return CACHING_PIPELINE_BREAKER;
+		} else {
+			return this;
+		}
 	}
 }

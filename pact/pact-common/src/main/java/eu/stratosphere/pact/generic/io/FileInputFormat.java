@@ -481,8 +481,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 		 *
 		 * @param modificationTime The timestamp of the last modification
 		 */
-		public void setLastModificationTime(long modificationTime) 
-		{
+		public void setLastModificationTime(long modificationTime) {
 			this.fileModTime = modificationTime;
 		}
 
@@ -493,8 +492,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 		 * @see eu.stratosphere.pact.common.io.statistics.BaseStatistics#getTotalInputSize()
 		 */
 		@Override
-		public long getTotalInputSize()
-		{
+		public long getTotalInputSize() {
 			return this.fileSize;
 		}
 		
@@ -503,8 +501,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 		 *
 		 * @param fileSize the fileSize to set
 		 */
-		public void setTotalInputSize(long fileSize) 
-		{
+		public void setTotalInputSize(long fileSize)  {
 			this.fileSize = fileSize;
 		}
 
@@ -516,9 +513,9 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 		 * @see eu.stratosphere.pact.common.io.statistics.BaseStatistics#getNumberOfRecords()
 		 */
 		@Override
-		public long getNumberOfRecords()
-		{
-			return (long) Math.ceil(this.fileSize / this.avgBytesPerRecord);
+		public long getNumberOfRecords() {
+			return (this.fileSize == UNKNOWN || this.avgBytesPerRecord == UNKNOWN) ? UNKNOWN :
+						(long) Math.ceil(this.fileSize / this.avgBytesPerRecord);
 		}
 		
 		/**
@@ -526,8 +523,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 		 *
 		 * @param avgBytesPerRecord the average number of bytes per record
 		 */
-		public void setAverageRecordWidth(float avgBytesPerRecord) 
-		{
+		public void setAverageRecordWidth(float avgBytesPerRecord) {
 			this.avgBytesPerRecord = avgBytesPerRecord;
 		}
 
@@ -538,8 +534,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 		 * @see eu.stratosphere.pact.common.io.statistics.BaseStatistics#getAverageRecordWidth()
 		 */
 		@Override
-		public float getAverageRecordWidth()
-		{
+		public float getAverageRecordWidth() {
 			return this.avgBytesPerRecord;
 		}
 	}

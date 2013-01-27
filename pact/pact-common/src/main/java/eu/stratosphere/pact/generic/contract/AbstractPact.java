@@ -19,8 +19,6 @@ import eu.stratosphere.pact.common.stubs.Stub;
 
 /**
  * Abstract superclass for all contracts that represent actual Pacts.
- *
- * @author Stephan Ewen, Aljoscha Krettek
  */
 public abstract class AbstractPact<T extends Stub> extends Contract
 {

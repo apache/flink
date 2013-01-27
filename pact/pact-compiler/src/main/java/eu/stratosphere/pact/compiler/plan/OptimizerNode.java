@@ -92,7 +92,11 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	
 	private long minimalMemoryPerSubTask = -1;
 
-	protected int id = -1; // the id for this node.
+	protected int id = -1; 			// the id for this node.
+	
+	private int costWeight = 1;		// factor to weight the costs for dynamic paths
+	
+	private boolean onDynamicPath;
 
 	// ------------------------------------------------------------------------
 	//                      Constructor / Setup
@@ -376,6 +380,39 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	public long getMinimalMemoryAcrossAllSubTasks() {
 		return this.minimalMemoryPerSubTask == -1 ? -1 : this.minimalMemoryPerSubTask * this.degreeOfParallelism;
 	}
+	
+	public boolean isOnDynamicPath() {
+		return this.onDynamicPath;
+	}
+	
+	public void identifyDynamicPath(int costWeight) {
+		boolean anyDynamic = false;
+		boolean allDynamic = true;
+		
+		for (PactConnection conn : getIncomingConnections()) {
+			boolean dynamicIn = conn.getSourcePact().isOnDynamicPath();
+			anyDynamic |= dynamicIn;
+			allDynamic &= dynamicIn;
+		}
+		
+		if (anyDynamic) {
+			this.onDynamicPath = true;
+			this.costWeight = costWeight;
+			if (!allDynamic) {
+				// this node joins static and dynamic path.
+				// mark the connections where the source is not dynamic as cached
+				for (PactConnection conn : getIncomingConnections()) {
+					if (!conn.getSourcePact().isOnDynamicPath()) {
+						conn.setMaterializationMode(conn.getMaterializationMode().makeCached());
+					}
+				}
+			}
+		}
+	}
+	
+	public int getCostWeight() {
+		return this.costWeight;
+	}
 
 	/**
 	 * Gets the properties that are interesting for this node to produce.
@@ -463,6 +500,13 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 			}
 		}
 		this.intProps.dropTrivials();
+	}
+	
+	public void clearInterestingProperties() {
+		this.intProps = null;
+		for (PactConnection conn : getIncomingConnections()) {
+			conn.clearInterestingProperties();
+		}
 	}
 	
 	/**

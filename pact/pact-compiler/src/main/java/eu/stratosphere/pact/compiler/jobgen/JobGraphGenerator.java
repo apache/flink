@@ -40,6 +40,7 @@ import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.util.PactConfigConstants;
 import eu.stratosphere.pact.compiler.CompilerException;
+import eu.stratosphere.pact.compiler.plan.TempMode;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.DualInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
@@ -47,7 +48,6 @@ import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SourcePlanNode;
-import eu.stratosphere.pact.compiler.plan.candidate.TempMode;
 import eu.stratosphere.pact.compiler.plan.candidate.UnionPlanNode;
 import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
@@ -581,7 +581,7 @@ public class JobGraphGenerator implements Visitor<PlanNode>
 			if (tm.breaksPipeline()) {
 				config.setInputDammed(inputNum, true);
 			}
-			if (tm.isReplayable()) {
+			if (tm.isCached()) {
 				config.setInputReplayable(inputNum, true);
 			}
 			if (tm != TempMode.NONE) {

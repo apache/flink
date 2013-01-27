@@ -40,6 +40,8 @@ public class PactConnection implements EstimateProvider, DumpableConnection<Opti
 	private InterestingProperties interestingProps; // local properties that succeeding nodes are interested in
 
 	private ShipStrategyType shipStrategy; // The data distribution strategy, if preset
+	
+	private TempMode materializationMode = TempMode.NONE;
 
 	/**
 	 * Creates a new Connection between two nodes. The shipping strategy is by default <tt>NONE</tt>.
@@ -65,8 +67,8 @@ public class PactConnection implements EstimateProvider, DumpableConnection<Opti
 	 *        The shipping strategy.
 	 */
 	public PactConnection(OptimizerNode source, OptimizerNode target, ShipStrategyType shipStrategy) {
-		if (source == null || target == null) {
-			throw new NullPointerException("Source and target must not be null.");
+		if (source == null) {
+			throw new NullPointerException("Source must not be null.");
 		}
 
 		this.sourcePact = source;
@@ -134,6 +136,10 @@ public class PactConnection implements EstimateProvider, DumpableConnection<Opti
 			throw new IllegalStateException("Interesting Properties have already been set.");
 		}
 	}
+	
+	public void clearInterestingProperties() {
+		this.interestingProps = null;
+	}
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -170,6 +176,15 @@ public class PactConnection implements EstimateProvider, DumpableConnection<Opti
 	}
 	
 	// --------------------------------------------------------------------------------------------
+
+	
+	public TempMode getMaterializationMode() {
+		return this.materializationMode;
+	}
+	
+	public void setMaterializationMode(TempMode materializationMode) {
+		this.materializationMode = materializationMode;
+	}
 
 	/*
 	 * (non-Javadoc)

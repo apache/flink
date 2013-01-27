@@ -16,21 +16,20 @@
 package eu.stratosphere.pact.generic.contract;
 
 import eu.stratosphere.pact.common.plan.Visitor;
+import eu.stratosphere.pact.common.util.IterationPlaceHolderStub;
 
 /**
  * 
  */
-public class BulkIteration extends Contract
+public class BulkIteration extends SingleInputContract<IterationPlaceHolderStub>
 {
-	private Contract initialPartialSolution;
+	private static String DEFAULT_NAME = "<Unnamed Bulk Iteration>";
 	
 	private Contract iterationResult;
 	
-	private Contract terminationCriterion;
+	private final Contract inputPlaceHolder = new PartialSolutionPlaceHolder(this);
 	
-	private final Contract inputPlaceHolder;
-	
-	private int numberOfIterations;
+	private int numberOfIterations = -1;
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -38,15 +37,14 @@ public class BulkIteration extends Contract
 	 * 
 	 */
 	public BulkIteration() {
-		this("Unnamed Iteration");
+		this(DEFAULT_NAME);
 	}
 	
 	/**
 	 * @param name
 	 */
 	public BulkIteration(String name) {
-		super(name);
-		this.inputPlaceHolder = new InputPlaceHolder();
+		super(IterationPlaceHolderStub.class, name);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -56,23 +54,6 @@ public class BulkIteration extends Contract
 	 */
 	public Contract getPartialSolution() {
 		return this.inputPlaceHolder;
-	}
-	
-	/**
-	 * @param input
-	 */
-	public void setInitialPartialSolution(Contract input) {
-		if (input == null) {
-			throw new NullPointerException("Contract for initial partial solution must not be null.");
-		}
-		this.initialPartialSolution = input;
-	}
-	
-	/**
-	 * @return
-	 */
-	public Contract getInitialPartialSolution() {
-		return this.initialPartialSolution;
 	}
 	
 	/**
@@ -109,46 +90,29 @@ public class BulkIteration extends Contract
 		this.numberOfIterations = num;
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.plan.Visitable#accept(eu.stratosphere.pact.common.plan.Visitor)
-	 */
-	@Override
-	public void accept(Visitor<Contract> visitor) {
-		if (visitor.preVisit(this)) {
-			if (this.initialPartialSolution != null) {
-				this.initialPartialSolution.accept(visitor);
-			}
-			visitor.postVisit(this);
-		}
-	}
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.contract.Contract#getUserCodeClass()
-	 */
-	@Override
-	public Class<?> getUserCodeClass() {
-		return null;
+	public int getNumberOfIterations() {
+		return this.numberOfIterations;
 	}
 	
 	/**
 	 * @throws Exception
 	 */
 	public void validate() throws Exception {
-		if (this.initialPartialSolution == null) {
+		if (this.input == null || this.input.isEmpty()) {
 			throw new Exception("Contract for initial partial solution is not set.");
 		}
 		if (this.iterationResult == null) {
 			throw new Exception("Contract producing the next version of the partial " +
 					"solution (iteration result) is not set.");
 		}
-		if (this.terminationCriterion == null && this.numberOfIterations == 0) {
+		if (this.numberOfIterations == 0) {
 			throw new Exception("No termination condition is set " +
 					"(neither fix number of iteration nor termination criterion).");
 		}
-		if (this.terminationCriterion != null && this.numberOfIterations > 0) {
-			throw new Exception("Termination condition is ambiguous. " +
-				"Both a fix number of iteration and a termination criterion are set.");
-		}
+//		if (this.terminationCriterion != null && this.numberOfIterations > 0) {
+//			throw new Exception("Termination condition is ambiguous. " +
+//				"Both a fix number of iteration and a termination criterion are set.");
+//		}
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -157,15 +121,23 @@ public class BulkIteration extends Contract
 	 * Specialized contract to use as a recognizable place-holder for the input to the
 	 * iteration when composing the nested data flow.
 	 */
-	private static final class InputPlaceHolder extends Contract
+	public static final class PartialSolutionPlaceHolder extends Contract
 	{
-		private InputPlaceHolder() {
+		private final BulkIteration containingIteration;
+		
+		private PartialSolutionPlaceHolder(BulkIteration container) {
 			super("Iteration Input Place Holder");
+			this.containingIteration = container;
+		}
+		
+		public BulkIteration getContainingBulkIteration() {
+			return this.containingIteration;
 		}
 		
 		@Override
 		public void accept(Visitor<Contract> visitor) {
-			throw new RuntimeException();
+			visitor.preVisit(this);
+			visitor.postVisit(this);
 		}
 
 		@Override
