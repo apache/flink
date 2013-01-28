@@ -42,8 +42,8 @@ import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
-import eu.stratosphere.pact.compiler.jobgen.JobGraphGenerator;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
+import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
 
 
 
@@ -73,7 +73,7 @@ public class ClientTest {
 	OptimizedPlan optimizedPlanMock;
 	
 	@Mock
-	JobGraphGenerator generatorMock;
+	NepheleJobGraphGenerator generatorMock;
 	@Mock
 	JobGraph jobGraphMock;
 
@@ -99,7 +99,7 @@ public class ClientTest {
 		whenNew(PactCompiler.class).withArguments(any(DataStatistics.class), any(CostEstimator.class), any(InetSocketAddress.class)).thenReturn(this.compilerMock);
 		when(compilerMock.compile(planMock)).thenReturn(optimizedPlanMock);
 		
-		whenNew(JobGraphGenerator.class).withNoArguments().thenReturn(generatorMock);
+		whenNew(NepheleJobGraphGenerator.class).withNoArguments().thenReturn(generatorMock);
 		when(generatorMock.compileJobGraph(optimizedPlanMock)).thenReturn(jobGraphMock);
 		
 		whenNew(JobClient.class).withArguments(any(JobGraph.class), any(Configuration.class)).thenReturn(this.jobClientMock);

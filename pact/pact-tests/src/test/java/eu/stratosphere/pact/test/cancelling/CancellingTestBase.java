@@ -39,8 +39,8 @@ import eu.stratosphere.nephele.jobgraph.JobStatus;
 import eu.stratosphere.nephele.util.StringUtils;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.compiler.PactCompiler;
-import eu.stratosphere.pact.compiler.jobgen.JobGraphGenerator;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
+import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.pact.test.util.Constants;
 import eu.stratosphere.pact.test.util.minicluster.ClusterProvider;
 import eu.stratosphere.pact.test.util.minicluster.ClusterProviderPool;
@@ -224,7 +224,7 @@ public abstract class CancellingTestBase
 	{
 		final PactCompiler pc = new PactCompiler();
 		final OptimizedPlan op = pc.compile(plan);
-		final JobGraphGenerator jgg = new JobGraphGenerator();
+		final NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
 		return jgg.compileJobGraph(op);
 	}
 }

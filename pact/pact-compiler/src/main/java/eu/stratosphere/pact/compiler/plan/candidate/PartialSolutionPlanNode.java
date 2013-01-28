@@ -32,6 +32,9 @@ import eu.stratosphere.pact.runtime.task.DriverStrategy;
  */
 public class PartialSolutionPlanNode extends PlanNode
 {
+	public Object postPassHelper;
+	
+	
 	public PartialSolutionPlanNode(PartialSolutionNode template, GlobalProperties gProps, LocalProperties lProps) {
 		super(template, DriverStrategy.NONE);
 		

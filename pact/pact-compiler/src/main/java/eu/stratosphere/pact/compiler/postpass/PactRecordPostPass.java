@@ -27,9 +27,11 @@ import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.CompilerPostPassException;
 import eu.stratosphere.pact.compiler.plan.SingleInputNode;
 import eu.stratosphere.pact.compiler.plan.TwoInputNode;
+import eu.stratosphere.pact.compiler.plan.candidate.BulkIterationPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.DualInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
+import eu.stratosphere.pact.compiler.plan.candidate.PartialSolutionPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
@@ -90,6 +92,67 @@ public class PactRecordPostPass implements OptimizerPostPass
 		else if (node instanceof SourcePlanNode) {
 			((SourcePlanNode) node).setSerializer(PactRecordSerializerFactory.get());
 			// nothing else to be done here. the source has no input and no strategy itself
+		}
+		else if (node instanceof BulkIterationPlanNode) {
+			BulkIterationPlanNode iterationNode = (BulkIterationPlanNode) node;
+			
+			// get the nodes current schema
+			final KeySchema schema;
+			if (iterationNode.postPassHelper == null) {
+				schema = new KeySchema();
+				iterationNode.postPassHelper = schema;
+			} else {
+				schema = (KeySchema) iterationNode.postPassHelper;
+			}
+			schema.increaseNumConnectionsThatContributed();
+			
+			// add the parent schema to the schema
+			try {
+				for (Map.Entry<Integer, Class<? extends Key>> entry : parentSchema) {
+					final Integer pos = entry.getKey();
+					schema.addType(pos, entry.getValue());
+				}
+			} catch (ConflictingFieldTypeInfoException ex) {
+				throw new CompilerPostPassException("Conflicting key type information for field " + ex.getFieldNumber()
+					+ " in node '" + iterationNode.getPactContract().getName() + "' propagated from successor node. " +
+					"Conflicting types: " + ex.getPreviousType().getName() + " and " + ex.getNewType().getName() +
+					". Most probable cause: Invalid constant field annotations.");
+			}
+			
+			// check whether all outgoing channels have not yet contributed. come back later if not.
+			if (schema.getNumConnectionsThatContributed() < iterationNode.getOutgoingChannels().size()) {
+				return;
+			}
+			
+			// set the serializer
+			iterationNode.setSerializerForIterationChannel(PactRecordSerializerFactory.get());
+			// traverse the step function
+			traverse(iterationNode.getRootOfStepFunction(), schema);
+			
+			// take the schema from the partial solution node and add its fields to the iteration result schema.
+			// input and output schema need to be identical, so this is essentially a sanity check
+			KeySchema pss = (KeySchema) iterationNode.getPartialSolutionPlanNode().postPassHelper;
+			try {
+				for (Map.Entry<Integer, Class<? extends Key>> entry : pss) {
+					final Integer pos = entry.getKey();
+					schema.addType(pos, entry.getValue());
+				}
+			} catch (ConflictingFieldTypeInfoException ex) {
+				throw new CompilerPostPassException("Conflicting key type information for field " + ex.getFieldNumber()
+					+ " in node '" + iterationNode.getPactContract().getName() + "'. Contradicting types between the " +
+					"result of the iteration and the partial solution schema: " + ex.getPreviousType().getName() + 
+					" and " + ex.getNewType().getName() + 
+					". Most probable cause: Invalid constant field annotations.");
+			}
+			
+			// done, we can now propagate our info down
+			try {
+				propagateToChannel(schema, iterationNode.getInput());
+			} catch (MissingFieldTypeInfoException ex) {
+				throw new CompilerPostPassException("Could not set up runtime strategy for input channel to node '"
+					+ iterationNode.getPactContract().getName() + "'. Missing type information for key field " + 
+					ex.getFieldNumber());
+			}
 		}
 		else if (node instanceof SingleInputPlanNode) {
 			final SingleInputPlanNode sn = (SingleInputPlanNode) node;
@@ -164,7 +227,6 @@ public class PactRecordPostPass implements OptimizerPostPass
 				throw new CompilerPostPassException("Could not set up runtime strategy for input channel to node '"
 					+ contract.getName() + "'. Missing type information for key field " + ex.getFieldNumber());
 			}
-
 		}
 		else if (node instanceof DualInputPlanNode) {
 			final DualInputPlanNode dn = (DualInputPlanNode) node;
@@ -285,6 +347,34 @@ public class PactRecordPostPass implements OptimizerPostPass
 			} catch (MissingFieldTypeInfoException ex) {
 				throw new CompilerPostPassException("Could not set up runtime strategy for the input channel to " +
 						" a union node. Missing type information for key field " + ex.getFieldNumber());
+			}
+		}
+		else if (node instanceof PartialSolutionPlanNode) {
+			PartialSolutionPlanNode psn = (PartialSolutionPlanNode) node;
+			
+			// get the nodes current schema
+			final KeySchema schema;
+			if (psn.postPassHelper == null) {
+				schema = new KeySchema();
+				psn.postPassHelper = schema;
+			} else {
+				schema = (KeySchema) psn.postPassHelper;
+			}
+			schema.increaseNumConnectionsThatContributed();
+			
+			// add the parent schema to the schema
+			try {
+				for (Map.Entry<Integer, Class<? extends Key>> entry : parentSchema) {
+					final Integer pos = entry.getKey();
+					schema.addType(pos, entry.getValue());
+				}
+			} catch (ConflictingFieldTypeInfoException ex) {
+				throw new CompilerPostPassException("Conflicting key type information for field " + ex.getFieldNumber()
+					+ " in the partial solution of iteration '" + 
+					psn.getPartialSolutionNode().getIterationNode().getPactContract().getName() +
+					"', as propagated from the successor nodes. Conflicting types: " + ex.getPreviousType().getName() + 
+					" and " + ex.getNewType().getName() + 
+					". Most probable cause: Invalid constant field annotations.");
 			}
 		} else {
 			throw new CompilerPostPassException("Unknown node type encountered: " + node.getClass().getName());

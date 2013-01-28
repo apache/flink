@@ -34,9 +34,9 @@ import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.compiler.jobgen.JobGraphGenerator;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
+import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.pact.compiler.util.DummyCoGroupStub;
 import eu.stratosphere.pact.compiler.util.DummyCrossStub;
 import eu.stratosphere.pact.compiler.util.DummyInputFormat;
@@ -134,7 +134,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 		
 		OptimizedPlan oPlan = compile(plan);
 		
-		JobGraphGenerator jobGen = new JobGraphGenerator();
+		NepheleJobGraphGenerator jobGen = new NepheleJobGraphGenerator();
 		
 		//Compile plan to verify that no error is thrown
 		jobGen.compileJobGraph(oPlan);
@@ -223,7 +223,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 		
 		// ---------- compile plan to nephele job graph to verify that no error is thrown ----------
 		
-		JobGraphGenerator jobGen = new JobGraphGenerator();
+		NepheleJobGraphGenerator jobGen = new NepheleJobGraphGenerator();
 		jobGen.compileJobGraph(oPlan);
 	}
 	
@@ -311,7 +311,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 		
 		OptimizedPlan oPlan = this.compiler.compile(plan, this.instanceType);
 		
-		JobGraphGenerator jobGen = new JobGraphGenerator();
+		NepheleJobGraphGenerator jobGen = new NepheleJobGraphGenerator();
 		
 		//Compile plan to verify that no error is thrown
 		jobGen.compileJobGraph(oPlan);
@@ -362,7 +362,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 		
 		OptimizedPlan oPlan = this.compiler.compile(plan, this.instanceType);
 		
-		JobGraphGenerator jobGen = new JobGraphGenerator();
+		NepheleJobGraphGenerator jobGen = new NepheleJobGraphGenerator();
 		
 		//Compile plan to verify that no error is thrown
 		jobGen.compileJobGraph(oPlan);

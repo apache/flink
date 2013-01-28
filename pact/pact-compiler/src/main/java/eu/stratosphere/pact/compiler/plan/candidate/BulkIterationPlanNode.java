@@ -21,6 +21,7 @@ import static eu.stratosphere.pact.compiler.plan.candidate.PlanNode.SourceAndDam
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.compiler.costs.Costs;
 import eu.stratosphere.pact.compiler.plan.BulkIterationNode;
+import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**
@@ -31,6 +32,8 @@ public class BulkIterationPlanNode extends SingleInputPlanNode implements Iterat
 	private final PartialSolutionPlanNode partialSolutionPlanNode;
 	
 	private final PlanNode rootOfStepFunction;
+	
+	private TypeSerializerFactory<?> serializerForIterationChannel;
 	
 	// --------------------------------------------------------------------------------------------
 
@@ -60,6 +63,15 @@ public class BulkIterationPlanNode extends SingleInputPlanNode implements Iterat
 	}
 	
 	// --------------------------------------------------------------------------------------------
+
+	
+	public TypeSerializerFactory<?> getSerializerForIterationChannel() {
+		return serializerForIterationChannel;
+	}
+	
+	public void setSerializerForIterationChannel(TypeSerializerFactory<?> serializerForIterationChannel) {
+		this.serializerForIterationChannel = serializerForIterationChannel;
+	}
 
 	public void setCosts(Costs nodeCosts) {
 		// add the costs from the step function

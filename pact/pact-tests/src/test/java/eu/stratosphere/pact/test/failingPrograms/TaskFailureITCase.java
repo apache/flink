@@ -39,8 +39,8 @@ import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.pact.compiler.PactCompiler;
-import eu.stratosphere.pact.compiler.jobgen.JobGraphGenerator;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
+import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.pact.test.contracts.io.ContractITCaseIOFormats.ContractITCaseInputFormat;
 import eu.stratosphere.pact.test.contracts.io.ContractITCaseIOFormats.ContractITCaseOutputFormat;
 import eu.stratosphere.pact.test.util.FailingTestBase;
@@ -128,7 +128,7 @@ public class TaskFailureITCase extends FailingTestBase {
 		OptimizedPlan op = pc.compile(plan);
 		
 		// return job graph of failing job
-		JobGraphGenerator jgg = new JobGraphGenerator();
+		NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
 		return jgg.compileJobGraph(op);
 	}
 
@@ -169,7 +169,7 @@ public class TaskFailureITCase extends FailingTestBase {
 		OptimizedPlan op = pc.compile(plan);
 
 		// return job graph of working job
-		JobGraphGenerator jgg = new JobGraphGenerator();
+		NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
 		return jgg.compileJobGraph(op);
 	}
 

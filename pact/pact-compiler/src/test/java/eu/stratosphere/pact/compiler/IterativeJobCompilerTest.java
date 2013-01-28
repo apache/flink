@@ -17,8 +17,8 @@ package eu.stratosphere.pact.compiler;
 import org.junit.Test;
 
 import eu.stratosphere.pact.common.plan.Plan;
-import eu.stratosphere.pact.compiler.jobgen.JobGraphGenerator;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
+import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.pact.example.iterative.IterativeKMeans;
 
 
@@ -36,7 +36,7 @@ public class IterativeJobCompilerTest extends CompilerTestBase
 
 		OptimizedPlan op = compile(plan);
 
-		JobGraphGenerator jgg = new JobGraphGenerator();
+		NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
 		jgg.compileJobGraph(op);
 	}
 

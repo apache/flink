@@ -24,8 +24,8 @@ import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.compiler.jobgen.JobGraphGenerator;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
+import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.pact.compiler.util.DummyCrossStub;
 import eu.stratosphere.pact.compiler.util.DummyInputFormat;
 import eu.stratosphere.pact.compiler.util.DummyOutputFormat;
@@ -73,7 +73,7 @@ public class HardPlansCompilationTest extends CompilerTestBase
 		plan.setDefaultParallelism(defaultParallelism);
 		
 		OptimizedPlan oPlan = compile(plan);
-		JobGraphGenerator jobGen = new JobGraphGenerator();
+		NepheleJobGraphGenerator jobGen = new NepheleJobGraphGenerator();
 		jobGen.compileJobGraph(oPlan);
 	}
 }

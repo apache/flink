@@ -60,4 +60,28 @@ abstract class AbstractTypeSchema<T extends Value> implements Iterable<Map.Entry
 	public void increaseNumConnectionsThatContributed() {
 		this.numConnectionsThatContributed++;
 	}
+
+
+	@Override
+	public int hashCode() {
+		return this.schema.hashCode() ^ this.numConnectionsThatContributed;
+	}
+
+
+	@Override
+	public boolean equals(Object obj) {
+		if (obj instanceof AbstractTypeSchema) {
+			AbstractTypeSchema<?> other = (AbstractTypeSchema<?>) obj;
+			return this.schema.equals(other.schema) && 
+					this.numConnectionsThatContributed == other.numConnectionsThatContributed;
+		} else {
+			return false;
+		}
+	}
+
+
+	@Override
+	public String toString() {
+		return "<" + this.numConnectionsThatContributed + "> : " + this.schema.toString();
+	}
 }

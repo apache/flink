@@ -26,11 +26,11 @@ import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.compiler.jobgen.JobGraphGenerator;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.DualInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
+import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.pact.compiler.util.DummyInputFormat;
 import eu.stratosphere.pact.compiler.util.DummyMatchStub;
 import eu.stratosphere.pact.compiler.util.DummyOutputFormat;
@@ -77,7 +77,7 @@ public class DOPChangeDoubleTest extends CompilerTestBase {
 		
 		OptimizedPlan oPlan = compile(plan);
 		
-		JobGraphGenerator jobGen = new JobGraphGenerator();
+		NepheleJobGraphGenerator jobGen = new NepheleJobGraphGenerator();
 		
 		//Compile plan to verify that no error is thrown
 		jobGen.compileJobGraph(oPlan);

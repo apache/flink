@@ -28,8 +28,8 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.compiler.PactCompiler;
-import eu.stratosphere.pact.compiler.jobgen.JobGraphGenerator;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
+import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.pact.test.testPrograms.tpch10.TPCHQuery10;
 import eu.stratosphere.pact.test.util.TestBase;
 
@@ -203,7 +203,7 @@ public class TPCHQuery10ITCase extends TestBase {
 		PactCompiler pc = new PactCompiler();
 		OptimizedPlan op = pc.compile(plan);
 
-		JobGraphGenerator jgg = new JobGraphGenerator();
+		NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
 		return jgg.compileJobGraph(op);
 	}
 

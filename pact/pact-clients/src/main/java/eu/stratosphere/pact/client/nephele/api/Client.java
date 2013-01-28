@@ -34,9 +34,9 @@ import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.costs.DefaultCostEstimator;
-import eu.stratosphere.pact.compiler.jobgen.JobGraphGenerator;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plandump.PlanJSONDumpGenerator;
+import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
 
 /**
  * Encapsulates the functionality necessary to compile and submit a pact program to a nephele cluster.
@@ -191,7 +191,7 @@ public class Client {
 	 * @return The nephele job graph, generated from the optimized plan.
 	 */
 	public JobGraph getJobGraph(PactProgram prog, OptimizedPlan optPlan) throws ProgramInvocationException {
-		JobGraphGenerator gen = new JobGraphGenerator();
+		NepheleJobGraphGenerator gen = new NepheleJobGraphGenerator();
 		JobGraph job = gen.compileJobGraph(optPlan);
 		job.addJar(new Path(prog.getJarFile().getAbsolutePath()));
 		

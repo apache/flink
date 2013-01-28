@@ -34,8 +34,8 @@ import eu.stratosphere.pact.common.io.GenericInputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.compiler.PactCompiler;
-import eu.stratosphere.pact.compiler.jobgen.JobGraphGenerator;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
+import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.pact.generic.io.OutputFormat;
 import eu.stratosphere.pact.test.util.TestBase;
 
@@ -79,7 +79,7 @@ public class CustomDataTypeTest extends TestBase
 		PactCompiler pc = new PactCompiler();
 		OptimizedPlan op = pc.compile(plan);
 
-		JobGraphGenerator jgg = new JobGraphGenerator();
+		NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
 		JobGraph jobGraph = jgg.compileJobGraph(op);
 		
 		URL jarFileURL = getClass().getResource(EXTERNAL_JAR_RESOURCE);

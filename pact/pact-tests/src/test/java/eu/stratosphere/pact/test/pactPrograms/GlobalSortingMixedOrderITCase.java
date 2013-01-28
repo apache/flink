@@ -45,8 +45,8 @@ import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.parser.DecimalTextIntParser;
 import eu.stratosphere.pact.compiler.PactCompiler;
-import eu.stratosphere.pact.compiler.jobgen.JobGraphGenerator;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
+import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.pact.test.util.TestBase;
 
 @RunWith(Parameterized.class)
@@ -110,7 +110,7 @@ public class GlobalSortingMixedOrderITCase extends TestBase {
 		PactCompiler pc = new PactCompiler();
 		OptimizedPlan op = pc.compile(plan);
 
-		JobGraphGenerator jgg = new JobGraphGenerator();
+		NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
 		return jgg.compileJobGraph(op);
 	}
 

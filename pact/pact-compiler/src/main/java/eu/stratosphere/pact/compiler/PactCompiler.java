@@ -800,13 +800,15 @@ public class PactCompiler {
 			else if (c instanceof PartialSolutionPlaceHolder) {
 				final PartialSolutionPlaceHolder holder = (PartialSolutionPlaceHolder) c;
 				final BulkIteration enclosingIteration = holder.getContainingBulkIteration();
+				final BulkIterationNode containingIterationNode =
+							(BulkIterationNode) this.parent.con2node.get(enclosingIteration);
 				
 				// catch this for the recursive translation of step functions
-				PartialSolutionNode p = new PartialSolutionNode(holder);
+				PartialSolutionNode p = new PartialSolutionNode(holder, containingIterationNode);
 				
 				// we need to manually set the estimates to the estimates from the initial partial solution
 				// we need to do this now, such that all successor nodes can compute their estimates properly
-				p.copyEstimates(this.parent.con2node.get(enclosingIteration));
+				p.copyEstimates(containingIterationNode);
 				n = p;
 			}
 			else {

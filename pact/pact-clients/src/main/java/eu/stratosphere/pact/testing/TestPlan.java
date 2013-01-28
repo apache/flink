@@ -77,10 +77,10 @@ import eu.stratosphere.pact.common.util.PactConfigConstants;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.costs.DefaultCostEstimator;
-import eu.stratosphere.pact.compiler.jobgen.JobGraphGenerator;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.PactConnection;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
+import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.pact.generic.contract.Contract;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 
@@ -666,7 +666,7 @@ public class TestPlan implements Closeable {
 			Plan plan = this.buildPlanWithReadableSinks();
 			OptimizedPlan op = pc.compile(plan);
 
-			JobGraphGenerator jgg = new JobGraphGenerator();
+			NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
 			JobGraph jobGraph = jgg.compileJobGraph(op);
 
 			jobManager.submitJob(jobGraph);
@@ -873,7 +873,7 @@ public class TestPlan implements Closeable {
 
 		final OptimizedPlan optimizedPlan = this.compile(plan);
 		this.replaceShippingStrategy(optimizedPlan);
-		final JobGraph jobGraph = new JobGraphGenerator().compileJobGraph(optimizedPlan);
+		final JobGraph jobGraph = new NepheleJobGraphGenerator().compileJobGraph(optimizedPlan);
 		for (AbstractJobVertex vertex : jobGraph.getAllJobVertices())
 			vertex.setNumberOfExecutionRetries(0);
 		LibraryCacheManager.register(jobGraph.getJobID(), new String[0]);

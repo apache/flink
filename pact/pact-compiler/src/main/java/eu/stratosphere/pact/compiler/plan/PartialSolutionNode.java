@@ -34,8 +34,11 @@ import eu.stratosphere.pact.generic.contract.Contract;
  */
 public class PartialSolutionNode extends OptimizerNode
 {
-	public PartialSolutionNode(PartialSolutionPlaceHolder psph) {
+	private final BulkIterationNode iterationNode;
+	
+	public PartialSolutionNode(PartialSolutionPlaceHolder psph, BulkIterationNode iterationNode) {
 		super(psph);
+		this.iterationNode = iterationNode;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -60,6 +63,10 @@ public class PartialSolutionNode extends OptimizerNode
 		} else {
 			throw new IllegalStateException();
 		}
+	}
+	
+	public BulkIterationNode getIterationNode() {
+		return this.iterationNode;
 	}
 	
 	// --------------------------------------------------------------------------------------------
