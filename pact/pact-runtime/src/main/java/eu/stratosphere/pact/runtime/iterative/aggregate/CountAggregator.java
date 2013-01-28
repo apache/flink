@@ -19,21 +19,21 @@ import eu.stratosphere.pact.common.type.base.PactLong;
 
 public class CountAggregator implements Aggregator<PactLong> {
 
-  private long count = 0;
+	private long count = 0;
 
-  @Override
-  public void aggregate(PactLong element) {
-    count += element.getValue();
-  }
+	@Override
+	public void aggregate(PactLong element) {
+		count += element.getValue();
+	}
 
-  @Override
-  public void reset() {
-    count = 0;
-  }
+	@Override
+	public void reset() {
+		count = 0;
+	}
 
-  @Override
-  public PactLong getAggregate() {
-    return new PactLong(count);
-  }
+	@Override
+	public PactLong getAggregate() {
+		return new PactLong(count);
+	}
 
 }

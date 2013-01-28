@@ -25,16 +25,15 @@ import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
 
-import com.google.common.base.Preconditions;
-
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.DataDistribution;
 import eu.stratosphere.pact.common.stubs.Stub;
+import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
-import eu.stratosphere.pact.runtime.iterative.convergence.ConvergenceCriterion;
 import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
 import eu.stratosphere.pact.generic.types.TypePairComparatorFactory;
 import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
+import eu.stratosphere.pact.runtime.iterative.convergence.ConvergenceCriterion;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.PactDriver;
@@ -138,6 +137,16 @@ public class TaskConfig
 	private static final String SORT_SPILLING_THRESHOLD_DRIVER = "pact.sort-spill-threshold.driver";
 	
 	private static final String SORT_SPILLING_THRESHOLD_INPUT_PREFIX = "pact.sort-spill-threshold.input.";
+	
+	// ----------------------------------- Iterations ---------------------------------------------
+	
+	private static final String NUMBER_OF_EOS_EVENTS_UNTIL_EOS = "pact.iterative.num-eos-events.";
+
+	private static final String NUMBER_OF_ITERATIONS = "pact.iterative.num-iterations";
+	
+	private static final String BACKCHANNEL_MEMORY = "pact.memory.backChannel";
+	
+	private static final String CONVERGENCE_CRITERION = "pact.iterative.terminationCriterion";
 	
 	// ---------------------------------- Miscellaneous -------------------------------------------
 	
@@ -566,6 +575,79 @@ public class TaskConfig
 	
 	public String getChainedTaskName(int chainPos) {
 		return this.config.getString(CHAINING_TASKNAME_PREFIX + chainPos, null);
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	//                                      Iterations
+	// --------------------------------------------------------------------------------------------
+
+	public void setBackChannelMemory(long memory) {
+		if (memory < 0) {
+			throw new IllegalArgumentException();
+		}
+		this.config.setLong(BACKCHANNEL_MEMORY, memory);
+	}
+
+	public long getBackChannelMemory() {
+		long backChannelMemory = this.config.getLong(BACKCHANNEL_MEMORY, 0);
+		if (backChannelMemory <= 0) {
+			throw new IllegalArgumentException();
+		}
+		return backChannelMemory;
+	}
+
+	public void setNumberOfIterations(int numberOfIterations) {
+		if (numberOfIterations <= 0) {
+			throw new IllegalArgumentException();
+		}
+		this.config.setInteger(NUMBER_OF_ITERATIONS, numberOfIterations);
+	}
+
+	public int getNumberOfIterations() {
+		int numberOfIterations = this.config.getInteger(NUMBER_OF_ITERATIONS, 0);
+		if (numberOfIterations <= 0) {
+			throw new IllegalArgumentException();
+		}
+		return numberOfIterations;
+	}
+
+	public boolean isIterativeInputGate(int inputGateIndex) {
+		return getNumberOfEventsUntilInterruptInIterativeGate(inputGateIndex) > 0;
+	}
+
+	public void setGateIterativeWithNumberOfEventsUntilInterrupt(int inputGateIndex, int numEvents) {
+		if (inputGateIndex < 0) {
+			throw new IllegalArgumentException();
+		}
+		if (numEvents <= 0) {
+			throw new IllegalArgumentException();
+		}
+		this.config.setInteger(NUMBER_OF_EOS_EVENTS_UNTIL_EOS + inputGateIndex, numEvents);
+	}
+
+	public int getNumberOfEventsUntilInterruptInIterativeGate(int inputGateIndex) {
+		if (inputGateIndex < 0) {
+			throw new IllegalArgumentException();
+		}
+		return this.config.getInteger(NUMBER_OF_EOS_EVENTS_UNTIL_EOS + inputGateIndex, 0);
+	}
+	
+	public void setConvergenceCriterion(Class<? extends ConvergenceCriterion<?>> convergenceCriterionClass) {
+		this.config.setClass(CONVERGENCE_CRITERION, convergenceCriterionClass);
+	}
+
+	public <T extends Value> Class<? extends ConvergenceCriterion<T>> getConvergenceCriterion() {
+		@SuppressWarnings("unchecked")
+		Class<? extends ConvergenceCriterion<T>> clazz = (Class<? extends ConvergenceCriterion<T>>) 
+							this.config.getClass(CONVERGENCE_CRITERION, null, ConvergenceCriterion.class);
+		if (clazz == null) {
+			throw new NullPointerException();
+		}
+		return clazz;
+	}
+
+	public boolean usesConvergenceCriterion() {
+		return config.getClass(CONVERGENCE_CRITERION, null) != null;
 	}
 
 	// --------------------------------------------------------------------------------------------

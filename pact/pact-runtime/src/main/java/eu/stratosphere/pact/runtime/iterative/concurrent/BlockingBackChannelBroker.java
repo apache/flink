@@ -15,16 +15,22 @@
 
 package eu.stratosphere.pact.runtime.iterative.concurrent;
 
-/** Singleton class for the threadsafe handover of {@link BlockingBackChannel}s from iteration heads to iteration tails */
+/**
+ * Singleton class for the threadsafe handover of {@link BlockingBackChannel}s from iteration heads to iteration tails
+ */
 public class BlockingBackChannelBroker extends Broker<BlockingBackChannel> {
 
-  /** single instance */
-  private static final BlockingBackChannelBroker INSTANCE = new BlockingBackChannelBroker();
+	/**
+	 * Singleton instance
+	 */
+	private static final BlockingBackChannelBroker INSTANCE = new BlockingBackChannelBroker();
 
-  private BlockingBackChannelBroker() {}
+	private BlockingBackChannelBroker() {}
 
-  /** retrieve singleton instance */
-  public static Broker<BlockingBackChannel> instance() {
-    return INSTANCE;
-  }
+	/**
+	 * retrieve singleton instance
+	 */
+	public static Broker<BlockingBackChannel> instance() {
+		return INSTANCE;
+	}
 }

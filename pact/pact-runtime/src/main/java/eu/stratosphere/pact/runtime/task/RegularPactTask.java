@@ -23,6 +23,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.io.AbstractRecordWriter;
 import eu.stratosphere.nephele.io.BroadcastRecordWriter;
@@ -43,6 +44,7 @@ import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.pact.common.util.PactConfigConstants;
 import eu.stratosphere.pact.generic.stub.GenericReducer;
 import eu.stratosphere.pact.generic.types.TypeComparator;
 import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
@@ -77,6 +79,9 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements PactTaskContext<S, OT>
 {
 	protected static final Log LOG = LogFactory.getLog(RegularPactTask.class);
+	
+	private static final boolean USE_BROARDCAST_WRITERS = GlobalConfiguration.getBoolean(
+		PactConfigConstants.USE_MULTICAST_FOR_BROADCAST, PactConfigConstants.DEFAULT_USE_MULTICAST_FOR_BROADCAST);
 	
 	// --------------------------------------------------------------------------------------------
 
@@ -466,7 +471,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 				// pact record specific deserialization
 				@SuppressWarnings("unchecked")
 				MutableRecordReader<PactRecord> reader = (MutableRecordReader<PactRecord>) this.inputReaders[i];
-				inputIter = new PactRecordNepheleReaderIterator(reader, readerInterruptionBehavior());
+				inputIter = new PactRecordNepheleReaderIterator(reader, readerInterruptionBehavior(i));
 			} else {
 				// generic data type serialization
 				@SuppressWarnings("unchecked")
@@ -474,7 +479,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 									(MutableRecordReader<DeserializationDelegate<?>>) this.inputReaders[i];
 				@SuppressWarnings({ "unchecked", "rawtypes" })
 				final MutableObjectIterator<?> iter = new NepheleReaderIterator(reader, inputSerializers[i],
-						readerInterruptionBehavior());
+						readerInterruptionBehavior(i));
 				inputIter = iter;
 			}
 			
@@ -562,10 +567,9 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 	
 	/**
 	 * Gets the default behavior that readers should use on interrupts.
-	 *
-   * @param inputGateIndex
-   *
-   * @return The default behavior that readers should use on interrupts.
+	 * 
+	 * @param inputGateIndex
+	 * @return The default behavior that readers should use on interrupts.
 	 */
 	protected ReaderInterruptionBehavior readerInterruptionBehavior(int inputGateIndex) {
 		return ReaderInterruptionBehaviors.EXCEPTION_ON_INTERRUPT;
@@ -865,19 +869,19 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 					}
 				}
 
-//				if (strategy == ShipStrategyType.BROADCAST) {
-//					if (task instanceof AbstractTask) {
-//						writers.add(new BroadcastRecordWriter<PactRecord>((AbstractTask) task, PactRecord.class));
-//					} else if (task instanceof AbstractInputTask<?>) {
-//						writers.add(new BroadcastRecordWriter<PactRecord>((AbstractInputTask<?>) task, PactRecord.class));
-//					}
-//				} else {
+				if (strategy == ShipStrategyType.BROADCAST && USE_BROARDCAST_WRITERS) {
+					if (task instanceof AbstractTask) {
+						writers.add(new BroadcastRecordWriter<PactRecord>((AbstractTask) task, PactRecord.class));
+					} else if (task instanceof AbstractInputTask<?>) {
+						writers.add(new BroadcastRecordWriter<PactRecord>((AbstractInputTask<?>) task, PactRecord.class));
+					}
+				} else {
 					if (task instanceof AbstractTask) {
 						writers.add(new RecordWriter<PactRecord>((AbstractTask) task, PactRecord.class, oe));
 					} else if (task instanceof AbstractInputTask<?>) {
 						writers.add(new RecordWriter<PactRecord>((AbstractInputTask<?>) task, PactRecord.class, oe));
 					}
-//				}
+				}
 			}
 			if (eventualOutputs != null) {
 				eventualOutputs.addAll(writers);
@@ -908,19 +912,19 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 					oe = new OutputEmitter<T>(strategy, comparator);
 				}
 
-//				if (strategy == ShipStrategyType.BROADCAST) {
-//					if (task instanceof AbstractTask) {
-//						writers.add(new BroadcastRecordWriter<SerializationDelegate<T>>((AbstractTask) task, delegateClazz));
-//					} else if (task instanceof AbstractInputTask<?>) {
-//						writers.add(new BroadcastRecordWriter<SerializationDelegate<T>>((AbstractInputTask<?>) task, delegateClazz));
-//					}
-//				} else {
+				if (strategy == ShipStrategyType.BROADCAST && USE_BROARDCAST_WRITERS) {
+					if (task instanceof AbstractTask) {
+						writers.add(new BroadcastRecordWriter<SerializationDelegate<T>>((AbstractTask) task, delegateClazz));
+					} else if (task instanceof AbstractInputTask<?>) {
+						writers.add(new BroadcastRecordWriter<SerializationDelegate<T>>((AbstractInputTask<?>) task, delegateClazz));
+					}
+				} else {
 					if (task instanceof AbstractTask) {
 						writers.add(new RecordWriter<SerializationDelegate<T>>((AbstractTask) task, delegateClazz, oe));
 					} else if (task instanceof AbstractInputTask<?>) {
 						writers.add(new RecordWriter<SerializationDelegate<T>>((AbstractInputTask<?>) task, delegateClazz, oe));
 					}
-//				}
+				}
 			}
 			if (eventualOutputs != null) {
 				eventualOutputs.addAll(writers);

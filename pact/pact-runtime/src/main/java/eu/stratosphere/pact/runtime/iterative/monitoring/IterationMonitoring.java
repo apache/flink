@@ -19,38 +19,38 @@ import eu.stratosphere.nephele.jobgraph.JobID;
 
 public class IterationMonitoring {
 
-  public enum Event {
-    HEAD_STARTING,
-    HEAD_WAITING_FOR_OTHERS,
-    HEAD_FINISHED,
-    HEAD_PACT_STARTING,
-    HEAD_PACT_FINISHED,
-    TAIL_STARTING,
-    TAIL_FINISHED,
-    TAIL_PACT_STARTING,
-    TAIL_PACT_FINISHED,
-    INTERMEDIATE_STARTING,
-    INTERMEDIATE_FINISHED,
-    INTERMEDIATE_PACT_STARTING,
-    INTERMEDIATE_PACT_FINISHED,
-    SYNC_STARTING,
-    SYNC_FINISHED
-  }
+	public enum Event {
+		HEAD_STARTING,
+		HEAD_WAITING_FOR_OTHERS,
+		HEAD_FINISHED,
+		HEAD_PACT_STARTING,
+		HEAD_PACT_FINISHED,
+		TAIL_STARTING,
+		TAIL_FINISHED,
+		TAIL_PACT_STARTING,
+		TAIL_PACT_FINISHED,
+		INTERMEDIATE_STARTING,
+		INTERMEDIATE_FINISHED,
+		INTERMEDIATE_PACT_STARTING,
+		INTERMEDIATE_PACT_FINISHED,
+		SYNC_STARTING,
+		SYNC_FINISHED
+	}
 
-  public static String logLine(JobID jobID, Event event, int iteration, int indexInSubtaskGroup) {
-    StringBuilder line = new StringBuilder();
-    line.append("[ITERATION-LOG]");
-    line.append(jobID.toString());
-    line.append('-');
-    line.append(event.name());
-    line.append('-');
-    line.append(iteration);
-    line.append('-');
-    line.append(indexInSubtaskGroup);
-    line.append('-');
-    line.append(System.currentTimeMillis());
-    line.append("[/ITERATION-LOG]");
-    return line.toString();
-  }
+	public static String logLine(JobID jobID, Event event, int iteration, int indexInSubtaskGroup) {
+		StringBuilder line = new StringBuilder();
+		line.append("[ITERATION-LOG]");
+		line.append(jobID.toString());
+		line.append('-');
+		line.append(event.name());
+		line.append('-');
+		line.append(iteration);
+		line.append('-');
+		line.append(indexInSubtaskGroup);
+		line.append('-');
+		line.append(System.currentTimeMillis());
+		line.append("[/ITERATION-LOG]");
+		return line.toString();
+	}
 
 }

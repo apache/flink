@@ -41,164 +41,169 @@ import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- *  The task responsible for synchronizing all iteration heads, implemented as an {@link AbstractOutputTask}. This task will never see any data.
- *  In each superstep, it simply waits until it has receiced a {@link WorkerDoneEvent} from each head and will send back an
- *  {@link AllWorkersDoneEvent} to signal that the next superstep can begin.
+ * The task responsible for synchronizing all iteration heads, implemented as an {@link AbstractOutputTask}. This task
+ * will never see any data.
+ * In each superstep, it simply waits until it has receiced a {@link WorkerDoneEvent} from each head and will send back
+ * an {@link AllWorkersDoneEvent} to signal that the next superstep can begin.
  */
 public class IterationSynchronizationSinkTask extends AbstractOutputTask implements Terminable {
 
-  private TaskConfig taskConfig;
+	private static final Log log = LogFactory.getLog(IterationSynchronizationSinkTask.class);
+	
+	private TaskConfig taskConfig;
 
-  private InterruptingMutableObjectIterator<PactRecord> headEventRecordIterator;
-  private MutableRecordReader<PactRecord> headEventReader;
+	private InterruptingMutableObjectIterator<PactRecord> headEventRecordIterator;
 
-  //TODO typesafety
-  private ConvergenceCriterion convergenceCriterion;
-  private Aggregator aggregator;
+	private MutableRecordReader<PactRecord> headEventReader;
 
-  private int currentIteration = 1;
+	// TODO typesafety
+	private ConvergenceCriterion convergenceCriterion;
 
-  private final AtomicBoolean terminated = new AtomicBoolean(false);
+	private Aggregator aggregator;
 
-  private final PactRecord headEventRecord = new PactRecord();
+	private int currentIteration = 1;
 
-  private static final Log log = LogFactory.getLog(IterationSynchronizationSinkTask.class);
+	private final AtomicBoolean terminated = new AtomicBoolean(false);
 
-  //TODO this duplicates code from AbstractIterativePactTask
-  @Override
-  public void registerInputOutput() {
+	private final PactRecord headEventRecord = new PactRecord();
 
-    taskConfig = new TaskConfig(getTaskConfiguration());
+	// TODO this duplicates code from AbstractIterativePactTask
+	@Override
+	public void registerInputOutput() {
 
-    String name = getEnvironment().getTaskName() + " (" + (getEnvironment().getIndexInSubtaskGroup() + 1) + '/' +
-        getEnvironment().getCurrentNumberOfSubtasks() + ")";
+		taskConfig = new TaskConfig(getTaskConfiguration());
 
-    int numberOfEventsUntilInterrupt = taskConfig.getNumberOfEventsUntilInterruptInIterativeGate(0);
+		String name = getEnvironment().getTaskName() + " (" + (getEnvironment().getIndexInSubtaskGroup() + 1) + '/' +
+			getEnvironment().getCurrentNumberOfSubtasks() + ")";
 
-    if (log.isInfoEnabled()) {
-      log.info(formatLogString("wrapping input [0] with an interrupting iterator that waits " +
-          "for [" + numberOfEventsUntilInterrupt + "] event(s)"));
-    }
+		int numberOfEventsUntilInterrupt = taskConfig.getNumberOfEventsUntilInterruptInIterativeGate(0);
 
-    if (taskConfig.usesConvergenceCriterion()) {
-      convergenceCriterion = InstantiationUtil.instantiate(taskConfig.getConvergenceCriterion(),
-          ConvergenceCriterion.class);
-      aggregator = convergenceCriterion.createAggregator();
-    }
+		if (log.isInfoEnabled()) {
+			log.info(formatLogString("wrapping input [0] with an interrupting iterator that waits " +
+				"for [" + numberOfEventsUntilInterrupt + "] event(s)"));
+		}
 
-    headEventReader = new MutableRecordReader<PactRecord>(this, 0);
-    headEventRecordIterator = new InterruptingMutableObjectIterator<PactRecord>(
-        new PactRecordNepheleReaderIterator(headEventReader, ReaderInterruptionBehaviors.RELEASE_ON_INTERRUPT),
-        numberOfEventsUntilInterrupt, name, this, 0, aggregator);
+		if (taskConfig.usesConvergenceCriterion()) {
+			convergenceCriterion = InstantiationUtil.instantiate(taskConfig.getConvergenceCriterion(),
+				ConvergenceCriterion.class);
+			aggregator = convergenceCriterion.createAggregator();
+		}
 
-    headEventReader.subscribeToEvent(headEventRecordIterator, WorkerDoneEvent.class);
-  }
+		headEventReader = new MutableRecordReader<PactRecord>(this, 0);
+		headEventRecordIterator = new InterruptingMutableObjectIterator<PactRecord>(
+			new PactRecordNepheleReaderIterator(headEventReader, ReaderInterruptionBehaviors.RELEASE_ON_INTERRUPT),
+			numberOfEventsUntilInterrupt, name, this, 0, aggregator);
 
-  @Override
-  public boolean terminationRequested() {
-    return terminated.get();
-  }
+		headEventReader.subscribeToEvent(headEventRecordIterator, WorkerDoneEvent.class);
+	}
 
-  @Override
-  public void requestTermination() {
-    if (log.isInfoEnabled()) {
-      log.info(formatLogString("marked as terminated."));
-    }
-    terminated.set(true);
-  }
+	@Override
+	public boolean terminationRequested() {
+		return terminated.get();
+	}
 
-  @Override
-  public void invoke() throws Exception {
+	@Override
+	public void requestTermination() {
+		if (log.isInfoEnabled()) {
+			log.info(formatLogString("marked as terminated."));
+		}
+		terminated.set(true);
+	}
 
-    while (!terminationRequested()) {
+	@Override
+	public void invoke() throws Exception {
 
-      notifyMonitor(IterationMonitoring.Event.SYNC_STARTING, currentIteration);
-      if (log.isInfoEnabled()) {
-        log.info(formatLogString("starting iteration [" + currentIteration + "]"));
-      }
+		while (!terminationRequested()) {
 
-      readHeadEventChannel();
+			notifyMonitor(IterationMonitoring.Event.SYNC_STARTING, currentIteration);
+			if (log.isInfoEnabled()) {
+				log.info(formatLogString("starting iteration [" + currentIteration + "]"));
+			}
 
-      if (log.isInfoEnabled()) {
-        log.info(formatLogString("finishing iteration [" + currentIteration + "]"));
-      }
+			readHeadEventChannel();
 
-      if (checkForConvergence()) {
+			if (log.isInfoEnabled()) {
+				log.info(formatLogString("finishing iteration [" + currentIteration + "]"));
+			}
 
-        if (log.isInfoEnabled()) {
-          log.info(formatLogString("signaling that all workers are to terminate in iteration [" + currentIteration +
-              "]"));
-        }
+			if (checkForConvergence()) {
 
-        requestTermination();
-        sendToAllWorkers(new TerminationEvent());
-        notifyMonitor(IterationMonitoring.Event.SYNC_FINISHED, currentIteration);
-      } else {
+				if (log.isInfoEnabled()) {
+					log.info(formatLogString("signaling that all workers are to terminate in iteration ["
+						+ currentIteration +
+						"]"));
+				}
 
-        if (log.isInfoEnabled()) {
-          log.info(formatLogString("signaling that all workers are done in iteration [" + currentIteration + "]"));
-        }
+				requestTermination();
+				sendToAllWorkers(new TerminationEvent());
+				notifyMonitor(IterationMonitoring.Event.SYNC_FINISHED, currentIteration);
+			} else {
 
-        AllWorkersDoneEvent allWorkersDoneEvent = taskConfig.usesConvergenceCriterion() ?
-            new AllWorkersDoneEvent(aggregator.getAggregate()) :
-            new AllWorkersDoneEvent();
+				if (log.isInfoEnabled()) {
+					log.info(formatLogString("signaling that all workers are done in iteration [" + currentIteration
+						+ "]"));
+				}
 
-        if (taskConfig.usesConvergenceCriterion()) {
-          aggregator.reset();
-        }
+				AllWorkersDoneEvent allWorkersDoneEvent = taskConfig.usesConvergenceCriterion() ?
+					new AllWorkersDoneEvent(aggregator.getAggregate()) :
+					new AllWorkersDoneEvent();
 
-        sendToAllWorkers(allWorkersDoneEvent);
-        notifyMonitor(IterationMonitoring.Event.SYNC_FINISHED, currentIteration);
-        currentIteration++;
-      }
+				if (taskConfig.usesConvergenceCriterion()) {
+					aggregator.reset();
+				}
 
-    }
-  }
+				sendToAllWorkers(allWorkersDoneEvent);
+				notifyMonitor(IterationMonitoring.Event.SYNC_FINISHED, currentIteration);
+				currentIteration++;
+			}
 
-  protected void notifyMonitor(IterationMonitoring.Event event, int currentIteration) {
-    if (log.isInfoEnabled()) {
-      log.info(IterationMonitoring.logLine(getEnvironment().getJobID(), event, currentIteration, 1));
-    }
-  }
+		}
+	}
 
-  private boolean checkForConvergence() throws IOException, InterruptedException {
-    Preconditions.checkState(taskConfig.getNumberOfIterations() > 0);
+	protected void notifyMonitor(IterationMonitoring.Event event, int currentIteration) {
+		if (log.isInfoEnabled()) {
+			log.info(IterationMonitoring.logLine(getEnvironment().getJobID(), event, currentIteration, 1));
+		}
+	}
 
-    if (taskConfig.usesConvergenceCriterion()) {
+	private boolean checkForConvergence() throws IOException, InterruptedException {
+		Preconditions.checkState(taskConfig.getNumberOfIterations() > 0);
 
-      Value aggregate = aggregator.getAggregate();
+		if (taskConfig.usesConvergenceCriterion()) {
 
-      if (convergenceCriterion.isConverged(currentIteration, aggregate)) {
-        if (log.isInfoEnabled()) {
-          log.info(formatLogString("convergence reached after [" + currentIteration + "] iterations, terminating..."));
-        }
-        return true;
-      }
-    }
+			Value aggregate = aggregator.getAggregate();
 
-    if (taskConfig.getNumberOfIterations() == currentIteration) {
-      if (log.isInfoEnabled()) {
-        log.info(formatLogString("maximum number of iterations [" + currentIteration + "] reached, terminating..."));
-      }
-      return true;
-    }
+			if (convergenceCriterion.isConverged(currentIteration, aggregate)) {
+				if (log.isInfoEnabled()) {
+					log.info(formatLogString("convergence reached after [" + currentIteration
+						+ "] iterations, terminating..."));
+				}
+				return true;
+			}
+		}
 
-    return false;
-  }
+		if (taskConfig.getNumberOfIterations() == currentIteration) {
+			if (log.isInfoEnabled()) {
+				log.info(formatLogString("maximum number of iterations [" + currentIteration
+					+ "] reached, terminating..."));
+			}
+			return true;
+		}
 
-  private void readHeadEventChannel() throws IOException {
-    while (headEventRecordIterator.next(headEventRecord)) {
-      throw new IllegalStateException("Synchronization task must not see any records!");
-    }
-  }
+		return false;
+	}
 
-  private void sendToAllWorkers(AbstractTaskEvent event) throws IOException, InterruptedException {
-    headEventReader.publishEvent(event);
-  }
+	private void readHeadEventChannel() throws IOException {
+		while (headEventRecordIterator.next(headEventRecord)) {
+			throw new IllegalStateException("Synchronization task must not see any records!");
+		}
+	}
 
-  //TODO remove duplicated code
-  public String formatLogString(String message) {
-    return RegularPactTask.constructLogString(message, getEnvironment().getTaskName(), this);
-  }
+	private void sendToAllWorkers(AbstractTaskEvent event) throws IOException, InterruptedException {
+		headEventReader.publishEvent(event);
+	}
 
+	private String formatLogString(String message) {
+		return RegularPactTask.constructLogString(message, getEnvironment().getTaskName(), this);
+	}
 }

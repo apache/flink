@@ -21,38 +21,41 @@ import eu.stratosphere.pact.runtime.hash.MutableHashTable;
 import java.io.IOException;
 
 public class UpdateSolutionsetOutputCollector<T> implements Collector<T> {
-  
-  private final Collector<T> delegate;
-  //TODO type safety
-  private MutableHashTable.HashBucketIterator hashBucket;
-  private long numUpdatedElements;
 
-  public UpdateSolutionsetOutputCollector(Collector<T> delegate) {
-    this.delegate = delegate;
-    numUpdatedElements = 0;
-  }
+	private final Collector<T> delegate;
 
-  public void setHashBucket(MutableHashTable.HashBucketIterator hashBucket) {
-    this.hashBucket = hashBucket;
-  }
+	// TODO type safety
+	private MutableHashTable.HashBucketIterator hashBucket;
 
-  @Override
-  public void collect(T record) {
-    try {
-      hashBucket.writeBack(record);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-    delegate.collect(record);
-    numUpdatedElements++;
-  }
+	private long numUpdatedElements;
 
-  public long getNumUpdatedElementsAndReset() {
-    long numUpdatedElementsToReturn = numUpdatedElements;
-    numUpdatedElements = 0;
-    return numUpdatedElementsToReturn;
-  }
+	public UpdateSolutionsetOutputCollector(Collector<T> delegate) {
+		this.delegate = delegate;
+		numUpdatedElements = 0;
+	}
 
-  @Override
-  public void close() {}
+	public void setHashBucket(MutableHashTable.HashBucketIterator hashBucket) {
+		this.hashBucket = hashBucket;
+	}
+
+	@Override
+	public void collect(T record) {
+		try {
+			hashBucket.writeBack(record);
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+		delegate.collect(record);
+		numUpdatedElements++;
+	}
+
+	public long getNumUpdatedElementsAndReset() {
+		long numUpdatedElementsToReturn = numUpdatedElements;
+		numUpdatedElements = 0;
+		return numUpdatedElementsToReturn;
+	}
+
+	@Override
+	public void close() {
+	}
 }

@@ -24,50 +24,52 @@ import java.io.IOException;
 
 public class WorkerDoneEvent extends AbstractTaskEvent {
 
-  private int workerIndex;
-  private Value aggregate;
+	private int workerIndex;
 
-  public WorkerDoneEvent() {}
+	private Value aggregate;
 
-  public WorkerDoneEvent(int workerIndex, Value aggregate) {
-    this.workerIndex = workerIndex;
-    this.aggregate = aggregate;
-  }
+	public WorkerDoneEvent() {
+	}
 
-  public int workerIndex() {
-    return workerIndex;
-  }
+	public WorkerDoneEvent(int workerIndex, Value aggregate) {
+		this.workerIndex = workerIndex;
+		this.aggregate = aggregate;
+	}
 
-  public Value aggregate() {
-    return aggregate;
-  }
+	public int workerIndex() {
+		return workerIndex;
+	}
 
-  @Override
-  public void write(DataOutput out) throws IOException {
-    out.writeInt(workerIndex);
-    boolean hasAggregate = aggregate != null;
-    out.writeBoolean(hasAggregate);
-    if (hasAggregate) {
-      out.writeUTF(aggregate.getClass().getName());
-      aggregate.write(out);
-    }
-  }
+	public Value aggregate() {
+		return aggregate;
+	}
 
-  @Override
-  public void read(DataInput in) throws IOException {
-    workerIndex = in.readInt();
+	@Override
+	public void write(DataOutput out) throws IOException {
+		out.writeInt(workerIndex);
+		boolean hasAggregate = aggregate != null;
+		out.writeBoolean(hasAggregate);
+		if (hasAggregate) {
+			out.writeUTF(aggregate.getClass().getName());
+			aggregate.write(out);
+		}
+	}
 
-    boolean hasAggregate = in.readBoolean();
-    if (hasAggregate) {
-      String classname = in.readUTF();
-      try {
-        aggregate = Class.forName(classname).asSubclass(Value.class).newInstance();
-      } catch (Exception e) {
-        throw new IOException(e);
-      }
-      aggregate.read(in);
-    } else {
-      aggregate = null;
-    }
-  }
+	@Override
+	public void read(DataInput in) throws IOException {
+		workerIndex = in.readInt();
+
+		boolean hasAggregate = in.readBoolean();
+		if (hasAggregate) {
+			String classname = in.readUTF();
+			try {
+				aggregate = Class.forName(classname).asSubclass(Value.class).newInstance();
+			} catch (Exception e) {
+				throw new IOException(e);
+			}
+			aggregate.read(in);
+		} else {
+			aggregate = null;
+		}
+	}
 }

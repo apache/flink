@@ -15,37 +15,42 @@
 
 package eu.stratosphere.pact.runtime.iterative.concurrent;
 
-import com.google.common.collect.Maps;
-
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-/** A concurrent datastructure that allows the handover of an object between a pair of threads*/
+/**
+ * A concurrent datastructure that allows the handover of an object between a pair of threads
+ */
 public class Broker<V> {
 
-  private final ConcurrentMap<String, BlockingQueue<V>> mediations = Maps.newConcurrentMap();
+	private final ConcurrentMap<String, BlockingQueue<V>> mediations = new ConcurrentHashMap<String, BlockingQueue<V>>();
 
-  /** hand in the object to share */
-  public void handIn(String key, V obj) {
-    retrieveSharedQueue(key).offer(obj);
-  }
+	/**
+	 * hand in the object to share
+	 */
+	public void handIn(String key, V obj) {
+		retrieveSharedQueue(key).offer(obj);
+	}
 
-  /** blocking retrieval of the object to share */
-  public V get(String key) {
-    try {
-      V objToShare = retrieveSharedQueue(key).take();
-      mediations.remove(key);
-      return objToShare;
-    } catch (InterruptedException e) {
-      throw new RuntimeException(e);
-    }
-  }
+	/** blocking retrieval of the object to share */
+	public V get(String key) {
+		try {
+			V objToShare = retrieveSharedQueue(key).take();
+			mediations.remove(key);
+			return objToShare;
+		} catch (InterruptedException e) {
+			throw new RuntimeException(e);
+		}
+	}
 
-  /** threadsafe call to get a shared {@link BlockingQueue} */
-  private BlockingQueue<V> retrieveSharedQueue(String key) {
-    BlockingQueue<V> queue = new ArrayBlockingQueue<V>(1);
-    BlockingQueue<V> commonQueue = mediations.putIfAbsent(key, queue);
-    return commonQueue != null ? commonQueue : queue;
-  }
+	/**
+	 * threadsafe call to get a shared {@link BlockingQueue}
+	 */
+	private BlockingQueue<V> retrieveSharedQueue(String key) {
+		BlockingQueue<V> queue = new ArrayBlockingQueue<V>(1);
+		BlockingQueue<V> commonQueue = mediations.putIfAbsent(key, queue);
+		return commonQueue != null ? commonQueue : queue;
+	}
 }

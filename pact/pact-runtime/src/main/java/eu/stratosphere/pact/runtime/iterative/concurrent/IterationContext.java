@@ -15,44 +15,44 @@
 
 package eu.stratosphere.pact.runtime.iterative.concurrent;
 
-import com.google.common.collect.Maps;
 import eu.stratosphere.pact.common.type.Value;
 
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 //TODO generify
 public class IterationContext {
 
-  private ConcurrentMap<Integer, Value> aggregates;
-  private ConcurrentMap<Integer, Value> globalAggregates;
+	private ConcurrentMap<Integer, Value> aggregates;
 
-  /** single instance */
-  private static final IterationContext INSTANCE = new IterationContext();
+	private ConcurrentMap<Integer, Value> globalAggregates;
 
-  private IterationContext() {
-    aggregates = Maps.newConcurrentMap();
-    globalAggregates = Maps.newConcurrentMap();
-  }
+	/** single instance */
+	private static final IterationContext INSTANCE = new IterationContext();
 
-  /** retrieve singleton instance */
-  public static IterationContext instance() {
-    return INSTANCE;
-  }
+	private IterationContext() {
+		aggregates = new ConcurrentHashMap<Integer, Value>();
+		globalAggregates = new ConcurrentHashMap<Integer, Value>();
+	}
 
-  public void setAggregate(int index, Value aggregate) {
-    aggregates.put(index, aggregate);
-  }
+	/** retrieve singleton instance */
+	public static IterationContext instance() {
+		return INSTANCE;
+	}
 
-  public Value getAggregateAndReset(int index) {
-    return aggregates.remove(index);
-  }
+	public void setAggregate(int index, Value aggregate) {
+		aggregates.put(index, aggregate);
+	}
 
-  public void setGlobalAggregate(int index, Value aggregate) {
-    globalAggregates.put(index, aggregate);
-  }
+	public Value getAggregateAndReset(int index) {
+		return aggregates.remove(index);
+	}
 
-  public Value getGlobalAggregate(int index) {
-    return globalAggregates.get(index);
-  }
+	public void setGlobalAggregate(int index, Value aggregate) {
+		globalAggregates.put(index, aggregate);
+	}
 
+	public Value getGlobalAggregate(int index) {
+		return globalAggregates.get(index);
+	}
 }

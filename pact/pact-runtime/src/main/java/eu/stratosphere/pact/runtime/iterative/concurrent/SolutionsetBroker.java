@@ -20,14 +20,15 @@ import eu.stratosphere.pact.runtime.hash.MutableHashTable;
 /** Used to hand over the hash-join from the iteration head to the solutionset match */
 public class SolutionsetBroker extends Broker<MutableHashTable> {
 
-  /** single instance */
-  private static final SolutionsetBroker INSTANCE = new SolutionsetBroker();
+	/** single instance */
+	private static final SolutionsetBroker INSTANCE = new SolutionsetBroker();
 
-  private SolutionsetBroker() {}
+	private SolutionsetBroker() {
+	}
 
-  /** retrieve singleton instance */
-  public static Broker<MutableHashTable> instance() {
-    return INSTANCE;
-  }
+	/** retrieve singleton instance */
+	public static Broker<MutableHashTable> instance() {
+		return INSTANCE;
+	}
 
 }

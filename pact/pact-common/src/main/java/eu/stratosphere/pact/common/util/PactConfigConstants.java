@@ -69,6 +69,12 @@ public final class PactConfigConstants {
 	 */
 	public static final String FS_STREAM_OPENING_TIMEOUT_KEY = "pact.runtime.fs_timeout";
 	
+	/**
+	 * The key for the config parameter defining whether to use the special multicast logic
+	 * for broadcasts.
+	 */
+	public static final String USE_MULTICAST_FOR_BROADCAST = "pact.runtime.multicast-for-broadcast";
+	
 	// ----------------------------- Web Frontend -----------------------------
 
 	/**
@@ -149,6 +155,12 @@ public final class PactConfigConstants {
 	 * The default timeout for filesystem stream opening: 10 seconds.
 	 */
 	public static final int DEFAULT_FS_STREAM_OPENING_TIMEOUT = 10000;
+	
+	/**
+	 * The key for the config parameter defining whether to use the special multicast logic
+	 * for broadcasts.
+	 */
+	public static final boolean DEFAULT_USE_MULTICAST_FOR_BROADCAST = false;
 	
 	// ----------------------------- Web Frontend -----------------------------
 

@@ -24,23 +24,23 @@ import org.apache.commons.logging.LogFactory;
 /** A workset iteration is by definition converged if no records have been updated in the solutionset */
 public class SolutionsetEmptyConvergenceCriterion implements ConvergenceCriterion<PactLong> {
 
-  private static final Log log = LogFactory.getLog(SolutionsetEmptyConvergenceCriterion.class);
+	private static final Log log = LogFactory.getLog(SolutionsetEmptyConvergenceCriterion.class);
 
-  @Override
-  public Aggregator<PactLong> createAggregator() {
-    return new CountAggregator();
-  }
+	@Override
+	public Aggregator<PactLong> createAggregator() {
+		return new CountAggregator();
+	}
 
-  @Override
-  public boolean isConverged(int iteration, PactLong value) {
+	@Override
+	public boolean isConverged(int iteration, PactLong value) {
 
-    long updatedElements = value.getValue();
+		long updatedElements = value.getValue();
 
-    if (log.isInfoEnabled()) {
-      log.info("[" + updatedElements + "] elements updated in the solutionset in iteration [" + iteration + "]");
-    }
+		if (log.isInfoEnabled()) {
+			log.info("[" + updatedElements + "] elements updated in the solutionset in iteration [" + iteration + "]");
+		}
 
-    return updatedElements == 0;
-  }
+		return updatedElements == 0;
+	}
 
 }

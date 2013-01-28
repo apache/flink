@@ -41,14 +41,10 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  * matching records is handed to the <code>match()</code> method of the MatchStub.
  * 
  * @see MatchStub
- * 
- * @author Fabian Hueske
- * @author Stephan Ewen
  */
 public class MatchDriver<IT1, IT2, OT> implements PactDriver<GenericMatcher<IT1, IT2, OT>, OT>
 {
 	private static final Log LOG = LogFactory.getLog(MatchDriver.class);
-	
 	
 	protected PactTaskContext<GenericMatcher<IT1, IT2, OT>, OT> taskContext;
 	
@@ -155,30 +151,6 @@ public class MatchDriver<IT1, IT2, OT> implements PactDriver<GenericMatcher<IT1,
 		if (LOG.isDebugEnabled())
 			LOG.debug(this.taskContext.formatLogString("Match task iterator ready."));
 	}
-
-  protected TypePairComparatorFactory<IT1, IT2> instantiateTypeComparatorFactory() throws Exception {
-    final TypePairComparatorFactory<IT1, IT2> pairComparatorFactory;
-    try {
-
-      final Class<? extends TypePairComparatorFactory<IT1, IT2>> factoryClass =
-          this.taskContext.getTaskConfig().getPairComparatorFactory(this.taskContext.getUserCodeClassLoader());
-
-      if (factoryClass == null) {
-        @SuppressWarnings("unchecked")
-        TypePairComparatorFactory<IT1, IT2> pactRecordFactory =
-            (TypePairComparatorFactory<IT1, IT2>) PactRecordPairComparatorFactory.get();
-        pairComparatorFactory = pactRecordFactory;
-      } else {
-        @SuppressWarnings("unchecked")
-        final Class<TypePairComparatorFactory<IT1, IT2>> clazz = (Class<TypePairComparatorFactory<IT1, IT2>>)
-            (Class<?>) TypePairComparatorFactory.class;
-        pairComparatorFactory = InstantiationUtil.instantiate(factoryClass, clazz);
-      }
-    } catch (ClassNotFoundException cnfex) {
-      throw new Exception("The class registered as TypePairComparatorFactory cloud not be loaded.", cnfex);
-    }
-    return pairComparatorFactory;
-  }
 
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#run()

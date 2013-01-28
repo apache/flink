@@ -15,10 +15,12 @@
 
 package eu.stratosphere.pact.runtime.iterative.task;
 
-/** Models the functionality that the termination of an iterative task can be requested from outside */
+/**
+ * Models the functionality that the termination of an iterative task can be requested from outside
+ */
 public interface Terminable {
 
-  boolean terminationRequested();
+	boolean terminationRequested();
 
-  void requestTermination();
+	void requestTermination();
 }
