@@ -33,129 +33,142 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * a delegating {@link MutableObjectIterator} that interrupts the current thread when a given number of events occured.
- * This is necessary to repetitively read channels when executing iterative data flows. The wrapped iterator must return false
+ * This is necessary to repetitively read channels when executing iterative data flows. The wrapped iterator must return
+ * false
  * on interruption, see {@link eu.stratosphere.pact.runtime.task.util.ReaderInterruptionBehaviors}
  */
 public class InterruptingMutableObjectIterator<E> implements MutableObjectIterator<E>, EventListener {
 
-  private final MutableObjectIterator<E> delegate;
-  private final String name;
-  private final int numberOfEventsUntilInterrupt;
-  private final AtomicInteger endOfSuperstepEventCounter;
-  private final AtomicInteger terminationEventCounter;
-  private final Terminable owningIterativeTask;
-  private final int gateIndex;
+	private final MutableObjectIterator<E> delegate;
 
-  private final AtomicInteger workerDoneEventCounter;
-  // TODO factor out!
-  private Aggregator aggregator;
+	private final String name;
 
-  private static final Log log = LogFactory.getLog(InterruptingMutableObjectIterator.class);
+	private final int numberOfEventsUntilInterrupt;
 
-  public InterruptingMutableObjectIterator(MutableObjectIterator<E> delegate, int numberOfEventsUntilInterrupt,
-                                           String name, Terminable owningIterativeTask, int gateIndex) {
-    this(delegate, numberOfEventsUntilInterrupt, name, owningIterativeTask, gateIndex, null);
-  }
-  public InterruptingMutableObjectIterator(MutableObjectIterator<E> delegate, int numberOfEventsUntilInterrupt,
-      String name, Terminable owningIterativeTask, int gateIndex, Aggregator aggregator) {
-    Preconditions.checkArgument(numberOfEventsUntilInterrupt > 0);
-    this.delegate = delegate;
-    this.numberOfEventsUntilInterrupt = numberOfEventsUntilInterrupt;
-    this.name = name;
-    this.owningIterativeTask = owningIterativeTask;
-    this.gateIndex = gateIndex;
-    this.aggregator = aggregator;
+	private final AtomicInteger endOfSuperstepEventCounter;
 
-    endOfSuperstepEventCounter = new AtomicInteger(0);
-    workerDoneEventCounter = new AtomicInteger(0);
-    terminationEventCounter = new AtomicInteger(0);
-  }
+	private final AtomicInteger terminationEventCounter;
 
-  @Override
-  public void eventOccurred(AbstractTaskEvent event) {
+	private final Terminable owningIterativeTask;
 
-    if (EndOfSuperstepEvent.class.equals(event.getClass())) {
-      onEndOfSuperstep();
-      return;
-    }
+	private final int gateIndex;
 
-    if (WorkerDoneEvent.class.equals(event.getClass())) {
-      onWorkerDoneEvent((WorkerDoneEvent) event);
-      return;
-    }
+	private final AtomicInteger workerDoneEventCounter;
 
-    if (TerminationEvent.class.equals(event.getClass())) {
-      onTermination();
-      return;
-    }
+	// TODO factor out!
+	private Aggregator aggregator;
 
-    throw new IllegalStateException("Unable to handle event " + event.getClass().getName());
-  }
+	private static final Log log = LogFactory.getLog(InterruptingMutableObjectIterator.class);
 
-  private void onTermination() {
-    int numberOfEventsSeen = terminationEventCounter.incrementAndGet();
-    if (log.isInfoEnabled()) {
-      log.info("InterruptibleIterator of " + name + " on gate [" + gateIndex +"] received Termination event (" +
-          numberOfEventsSeen +")");
-    }
+	public InterruptingMutableObjectIterator(MutableObjectIterator<E> delegate, int numberOfEventsUntilInterrupt,
+			String name, Terminable owningIterativeTask, int gateIndex)
+	{
+		this(delegate, numberOfEventsUntilInterrupt, name, owningIterativeTask, gateIndex, null);
+	}
 
-    Preconditions.checkState(numberOfEventsSeen <= numberOfEventsUntilInterrupt);
+	public InterruptingMutableObjectIterator(MutableObjectIterator<E> delegate, int numberOfEventsUntilInterrupt,
+			String name, Terminable owningIterativeTask, int gateIndex, Aggregator aggregator)
+	{
+		Preconditions.checkArgument(numberOfEventsUntilInterrupt > 0);
+		this.delegate = delegate;
+		this.numberOfEventsUntilInterrupt = numberOfEventsUntilInterrupt;
+		this.name = name;
+		this.owningIterativeTask = owningIterativeTask;
+		this.gateIndex = gateIndex;
+		this.aggregator = aggregator;
 
-    if (numberOfEventsSeen == numberOfEventsUntilInterrupt) {
-      owningIterativeTask.requestTermination();
-    }
-  }
+		endOfSuperstepEventCounter = new AtomicInteger(0);
+		workerDoneEventCounter = new AtomicInteger(0);
+		terminationEventCounter = new AtomicInteger(0);
+	}
 
-  private void onEndOfSuperstep() {
-    int numberOfEventsSeen = endOfSuperstepEventCounter.incrementAndGet();
-    if (log.isInfoEnabled()) {
-      log.info("InterruptibleIterator of " + name + " on gate [" + gateIndex + "] received EndOfSuperstep event (" +
-          numberOfEventsSeen +")");
-    }
+	@Override
+	public void eventOccurred(AbstractTaskEvent event) {
 
-    if (numberOfEventsSeen % numberOfEventsUntilInterrupt == 0) {
-      Thread.currentThread().interrupt();
-    }
-  }
+		if (EndOfSuperstepEvent.class.equals(event.getClass())) {
+			onEndOfSuperstep();
+			return;
+		}
 
-  private void onWorkerDoneEvent(WorkerDoneEvent workerDoneEvent) {
-    int numberOfEventsSeen = workerDoneEventCounter.incrementAndGet();
-    if (log.isInfoEnabled()) {
-      log.info("InterruptibleIterator of " + name + " on gate [" + gateIndex + "] received WorkerDoneEvent event (" +
-          numberOfEventsSeen +")");
-    }
+		if (WorkerDoneEvent.class.equals(event.getClass())) {
+			onWorkerDoneEvent((WorkerDoneEvent) event);
+			return;
+		}
 
-    if (aggregator != null) {
-      //int workerIndex = workerDoneEvent.workerIndex();
-      //long aggregate = workerDoneEvent.aggregate();
-      Value aggregate = workerDoneEvent.aggregate();
-      aggregator.aggregate(aggregate);
-      //analyze(workerIndex, aggregate);
-    }
+		if (TerminationEvent.class.equals(event.getClass())) {
+			onTermination();
+			return;
+		}
 
-    if (numberOfEventsSeen % numberOfEventsUntilInterrupt == 0) {
-      Thread.currentThread().interrupt();
-    }
-  }
+		throw new IllegalStateException("Unable to handle event " + event.getClass().getName());
+	}
 
-//  private int recordsRead = 0;
+	private void onTermination() {
+		int numberOfEventsSeen = terminationEventCounter.incrementAndGet();
+		if (log.isInfoEnabled()) {
+			log.info("InterruptibleIterator of " + name + " on gate [" + gateIndex + "] received Termination event (" +
+				numberOfEventsSeen + ")");
+		}
 
-  @Override
-  public boolean next(E target) throws IOException {
+		Preconditions.checkState(numberOfEventsSeen <= numberOfEventsUntilInterrupt);
 
-//    log.info("InterruptibleIterator of " + name + " waiting for record("+ (recordsRead) +")");
+		if (numberOfEventsSeen == numberOfEventsUntilInterrupt) {
+			owningIterativeTask.requestTermination();
+		}
+	}
 
-    boolean recordFound = delegate.next(target);
+	private void onEndOfSuperstep() {
+		int numberOfEventsSeen = endOfSuperstepEventCounter.incrementAndGet();
+		if (log.isInfoEnabled()) {
+			log.info("InterruptibleIterator of " + name + " on gate [" + gateIndex
+				+ "] received EndOfSuperstep event (" +
+				numberOfEventsSeen + ")");
+		}
 
-//    if (recordFound) {
-//      log.info("InterruptibleIterator of " + name + " read record("+ (recordsRead) +")");
-//      recordsRead++;
-//    } else {
+		if (numberOfEventsSeen % numberOfEventsUntilInterrupt == 0) {
+			Thread.currentThread().interrupt();
+		}
+	}
 
-    if (!recordFound && log.isInfoEnabled()) {
-      log.info("InterruptibleIterator of " + name + " on gate [" + gateIndex + "] releases input");
-    }
-    return recordFound;
-  }
+	private void onWorkerDoneEvent(WorkerDoneEvent workerDoneEvent) {
+		int numberOfEventsSeen = workerDoneEventCounter.incrementAndGet();
+		if (log.isInfoEnabled()) {
+			log.info("InterruptibleIterator of " + name + " on gate [" + gateIndex
+				+ "] received WorkerDoneEvent event (" +
+				numberOfEventsSeen + ")");
+		}
+
+		if (aggregator != null) {
+			// int workerIndex = workerDoneEvent.workerIndex();
+			// long aggregate = workerDoneEvent.aggregate();
+			Value aggregate = workerDoneEvent.aggregate();
+			aggregator.aggregate(aggregate);
+			// analyze(workerIndex, aggregate);
+		}
+
+		if (numberOfEventsSeen % numberOfEventsUntilInterrupt == 0) {
+			Thread.currentThread().interrupt();
+		}
+	}
+
+	// private int recordsRead = 0;
+
+	@Override
+	public boolean next(E target) throws IOException {
+
+		// log.info("InterruptibleIterator of " + name + " waiting for record("+ (recordsRead) +")");
+
+		boolean recordFound = delegate.next(target);
+
+		// if (recordFound) {
+		// log.info("InterruptibleIterator of " + name + " read record("+ (recordsRead) +")");
+		// recordsRead++;
+		// } else {
+
+		if (!recordFound && log.isInfoEnabled()) {
+			log.info("InterruptibleIterator of " + name + " on gate [" + gateIndex + "] releases input");
+		}
+		return recordFound;
+	}
 
 }

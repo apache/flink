@@ -17,7 +17,7 @@ package eu.stratosphere.pact.runtime.iterative.aggregate;
 
 import eu.stratosphere.pact.common.type.base.PactDouble;
 
-public class SumAggregator implements Aggregator<PactDouble> {
+public class SumDoubleAggregator implements Aggregator<PactDouble> {
 
   private double sum = 0;
 

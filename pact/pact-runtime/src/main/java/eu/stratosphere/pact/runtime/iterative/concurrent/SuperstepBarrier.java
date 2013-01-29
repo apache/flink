@@ -26,44 +26,44 @@ import java.util.concurrent.CountDownLatch;
 /** a resettable one-shot latch */
 public class SuperstepBarrier implements EventListener {
 
-  private boolean terminationSignaled = false;
+	private boolean terminationSignaled = false;
 
-  private CountDownLatch latch;
+	private CountDownLatch latch;
 
-  private Value aggregate = null;
+	private Value aggregate = null;
 
-  /** setup the barrier, has to be called at the beginning of each superstep */
-  public void setup() {
-    latch = new CountDownLatch(1);
-  }
+	/** setup the barrier, has to be called at the beginning of each superstep */
+	public void setup() {
+		latch = new CountDownLatch(1);
+	}
 
-  /** wait on the barrier */
-  public void waitForOtherWorkers() throws InterruptedException {
-    latch.await();
-  }
+	/** wait on the barrier */
+	public void waitForOtherWorkers() throws InterruptedException {
+		latch.await();
+	}
 
-  public Value aggregate() {
-    return aggregate;
-  }
+	public Value aggregate() {
+		return aggregate;
+	}
 
-  /** barrier will release the waiting thread if an event occurs*/
-  @Override
-  public void eventOccurred(AbstractTaskEvent event) {
+	/** barrier will release the waiting thread if an event occurs */
+	@Override
+	public void eventOccurred(AbstractTaskEvent event) {
 
-    if (event instanceof TerminationEvent) {
-      terminationSignaled = true;
-      aggregate = null;
-    }
+		if (event instanceof TerminationEvent) {
+			terminationSignaled = true;
+			aggregate = null;
+		}
 
-    if (event instanceof AllWorkersDoneEvent) {
-      aggregate = ((AllWorkersDoneEvent) event).aggregate();
-    }
+		if (event instanceof AllWorkersDoneEvent) {
+			aggregate = ((AllWorkersDoneEvent) event).aggregate();
+		}
 
-    latch.countDown();
-  }
+		latch.countDown();
+	}
 
-  public boolean terminationSignaled() {
-    return terminationSignaled;
-  }
+	public boolean terminationSignaled() {
+		return terminationSignaled;
+	}
 
 }

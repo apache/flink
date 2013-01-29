@@ -17,7 +17,7 @@ package eu.stratosphere.pact.runtime.iterative.convergence;
 
 import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.runtime.iterative.aggregate.Aggregator;
-import eu.stratosphere.pact.runtime.iterative.aggregate.CountAggregator;
+import eu.stratosphere.pact.runtime.iterative.aggregate.SumLongAggregator;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -28,7 +28,7 @@ public class SolutionsetEmptyConvergenceCriterion implements ConvergenceCriterio
 
 	@Override
 	public Aggregator<PactLong> createAggregator() {
-		return new CountAggregator();
+		return new SumLongAggregator();
 	}
 
 	@Override

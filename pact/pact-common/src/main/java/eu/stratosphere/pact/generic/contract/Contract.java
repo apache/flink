@@ -35,7 +35,6 @@ public abstract class Contract implements Visitable<Contract>
 	protected final Configuration parameters;		// the parameters that allow to parameterize the stub function
 
 	protected final CompilerHints compilerHints;	// hints to the pact compiler
-
 	
 	protected List<Class<? extends Annotation>> ocs;	// the output contract classes
 	
@@ -49,8 +48,7 @@ public abstract class Contract implements Visitable<Contract>
 	 * 
 	 * @param name The name that is used to describe the contract.
 	 */
-	protected Contract(String name)
-	{
+	protected Contract(String name) {
 		this.name = name;
 		this.parameters = new Configuration();
 		this.compilerHints = new CompilerHints();

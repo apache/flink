@@ -24,6 +24,8 @@ import java.io.IOException;
 /** signals that the iteration is completely executed, participating tasks must terminate now */
 public class TerminationEvent extends AbstractTaskEvent {
 
+	public static final TerminationEvent INSTANCE = new TerminationEvent();
+	
 	@Override
 	public void write(DataOutput out) throws IOException {}
 

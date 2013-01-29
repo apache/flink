@@ -32,6 +32,8 @@ import eu.stratosphere.pact.runtime.task.DriverStrategy;
  */
 public class PartialSolutionPlanNode extends PlanNode
 {
+	private BulkIterationPlanNode containingIterationNode;
+	
 	public Object postPassHelper;
 	
 	
@@ -46,6 +48,14 @@ public class PartialSolutionPlanNode extends PlanNode
 	
 	public PartialSolutionNode getPartialSolutionNode() {
 		return (PartialSolutionNode) this.template;
+	}
+	
+	public BulkIterationPlanNode getContainingIterationNode() {
+		return this.containingIterationNode;
+	}
+	
+	public void setContainingIterationNode(BulkIterationPlanNode containingIterationNode) {
+		this.containingIterationNode = containingIterationNode;
 	}
 
 	// --------------------------------------------------------------------------------------------

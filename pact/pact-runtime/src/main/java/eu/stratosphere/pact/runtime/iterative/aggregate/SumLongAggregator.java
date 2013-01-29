@@ -17,7 +17,7 @@ package eu.stratosphere.pact.runtime.iterative.aggregate;
 
 import eu.stratosphere.pact.common.type.base.PactLong;
 
-public class CountAggregator implements Aggregator<PactLong> {
+public class SumLongAggregator implements Aggregator<PactLong> {
 
 	private long count = 0;
 

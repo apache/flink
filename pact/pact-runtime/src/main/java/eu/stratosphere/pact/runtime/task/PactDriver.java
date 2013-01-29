@@ -24,8 +24,6 @@ import eu.stratosphere.pact.common.stubs.Stub;
  * <i>map</i> or <i>reduce</i> specific code.
  *
  * @see PactTaskContext
- *
- * @author Stephan Ewen
  * 
  * @param <S> The type of stub driven by this driver.
  * @param <OT> The data type of the records produced by this driver.

@@ -28,8 +28,6 @@ import eu.stratosphere.pact.runtime.plugable.SerializationDelegate;
 /**
  * The OutputCollector collects records, and emits the pair to a set of Nephele {@link RecordWriter}s.
  * The OutputCollector tracks to which writers a deep-copy must be given and which not.
- * 
- * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  */
 public class OutputCollector<T> implements Collector<T>
 {	

@@ -140,13 +140,19 @@ public class TaskConfig
 	
 	// ----------------------------------- Iterations ---------------------------------------------
 	
-	private static final String NUMBER_OF_EOS_EVENTS_UNTIL_EOS = "pact.iterative.num-eos-events.";
-
 	private static final String NUMBER_OF_ITERATIONS = "pact.iterative.num-iterations";
 	
-	private static final String BACKCHANNEL_MEMORY = "pact.memory.backChannel";
+	private static final String NUMBER_OF_EOS_EVENTS_PREFIX = "pact.iterative.num-eos-events.";
 	
-	private static final String CONVERGENCE_CRITERION = "pact.iterative.terminationCriterion";
+	private static final String ITERATION_HEAD_INDEX_OF_PARTIAL_SOLUTION = "pact.iterative.head.ps-input-index";
+	
+	private static final String ITERATION_HEAD_BACKCHANNEL_MEMORY = "pact.iterative.head.backchannel-memory";
+	
+	private static final String ITERATION_HEAD_FINAL_OUT_CONFIG_PREFIX = "pact.iterative.head.out.";
+	
+	private static final String ITERATION_HEAD_SYNC_OUT_INDEX = "pact.iterative.head.sync-index.";
+	
+	private static final String ITERATION_CONVERGENCE_CRITERION = "pact.iterative.terminationCriterion";
 	
 	// ---------------------------------- Miscellaneous -------------------------------------------
 	
@@ -581,21 +587,6 @@ public class TaskConfig
 	//                                      Iterations
 	// --------------------------------------------------------------------------------------------
 
-	public void setBackChannelMemory(long memory) {
-		if (memory < 0) {
-			throw new IllegalArgumentException();
-		}
-		this.config.setLong(BACKCHANNEL_MEMORY, memory);
-	}
-
-	public long getBackChannelMemory() {
-		long backChannelMemory = this.config.getLong(BACKCHANNEL_MEMORY, 0);
-		if (backChannelMemory <= 0) {
-			throw new IllegalArgumentException();
-		}
-		return backChannelMemory;
-	}
-
 	public void setNumberOfIterations(int numberOfIterations) {
 		if (numberOfIterations <= 0) {
 			throw new IllegalArgumentException();
@@ -610,6 +601,36 @@ public class TaskConfig
 		}
 		return numberOfIterations;
 	}
+	
+	public void setIterationHeadPartialSolutionInputIndex(int inputIndex) {
+		if (inputIndex < 0) {
+			throw new IllegalArgumentException();
+		}
+		this.config.setInteger(ITERATION_HEAD_INDEX_OF_PARTIAL_SOLUTION, inputIndex);
+	}
+	
+	public int getIterationHeadPartialSolutionInputIndex() {
+		int index = this.config.getInteger(ITERATION_HEAD_INDEX_OF_PARTIAL_SOLUTION, -1);
+		if (index < 0) {
+			throw new IllegalArgumentException();
+		}
+		return index;
+	}
+	
+	public void setBackChannelMemory(long memory) {
+		if (memory < 0) {
+			throw new IllegalArgumentException();
+		}
+		this.config.setLong(ITERATION_HEAD_BACKCHANNEL_MEMORY, memory);
+	}
+
+	public long getBackChannelMemory() {
+		long backChannelMemory = this.config.getLong(ITERATION_HEAD_BACKCHANNEL_MEMORY, 0);
+		if (backChannelMemory <= 0) {
+			throw new IllegalArgumentException();
+		}
+		return backChannelMemory;
+	}
 
 	public boolean isIterativeInputGate(int inputGateIndex) {
 		return getNumberOfEventsUntilInterruptInIterativeGate(inputGateIndex) > 0;
@@ -622,24 +643,24 @@ public class TaskConfig
 		if (numEvents <= 0) {
 			throw new IllegalArgumentException();
 		}
-		this.config.setInteger(NUMBER_OF_EOS_EVENTS_UNTIL_EOS + inputGateIndex, numEvents);
+		this.config.setInteger(NUMBER_OF_EOS_EVENTS_PREFIX + inputGateIndex, numEvents);
 	}
 
 	public int getNumberOfEventsUntilInterruptInIterativeGate(int inputGateIndex) {
 		if (inputGateIndex < 0) {
 			throw new IllegalArgumentException();
 		}
-		return this.config.getInteger(NUMBER_OF_EOS_EVENTS_UNTIL_EOS + inputGateIndex, 0);
+		return this.config.getInteger(NUMBER_OF_EOS_EVENTS_PREFIX + inputGateIndex, 0);
 	}
 	
 	public void setConvergenceCriterion(Class<? extends ConvergenceCriterion<?>> convergenceCriterionClass) {
-		this.config.setClass(CONVERGENCE_CRITERION, convergenceCriterionClass);
+		this.config.setClass(ITERATION_CONVERGENCE_CRITERION, convergenceCriterionClass);
 	}
 
 	public <T extends Value> Class<? extends ConvergenceCriterion<T>> getConvergenceCriterion() {
 		@SuppressWarnings("unchecked")
 		Class<? extends ConvergenceCriterion<T>> clazz = (Class<? extends ConvergenceCriterion<T>>) 
-							this.config.getClass(CONVERGENCE_CRITERION, null, ConvergenceCriterion.class);
+							this.config.getClass(ITERATION_CONVERGENCE_CRITERION, null, ConvergenceCriterion.class);
 		if (clazz == null) {
 			throw new NullPointerException();
 		}
@@ -647,7 +668,30 @@ public class TaskConfig
 	}
 
 	public boolean usesConvergenceCriterion() {
-		return config.getClass(CONVERGENCE_CRITERION, null) != null;
+		return config.getString(ITERATION_CONVERGENCE_CRITERION, null) != null;
+	}
+	
+	public void setIterationHeadIndexOfSyncOutput(int outputIndex) {
+		if (outputIndex < 0) {
+			throw new IllegalArgumentException();
+		}
+		this.config.setInteger(ITERATION_HEAD_SYNC_OUT_INDEX, outputIndex);
+	}
+	
+	public int getIterationHeadIndexOfSyncOutput() {
+		int outputIndex = this.config.getInteger(ITERATION_HEAD_SYNC_OUT_INDEX, -1);
+		if (outputIndex < 0) {
+			throw new IllegalArgumentException();
+		}
+		return outputIndex;
+	}
+	
+	public void setIterationHeadFinalOutputConfig(TaskConfig conf) {
+		this.config.addAll(conf.config, ITERATION_HEAD_FINAL_OUT_CONFIG_PREFIX);
+	}
+	
+	public TaskConfig getIterationHeadFinalOutputConfig() {
+		return new TaskConfig(new DelegatingConfiguration(this.config, ITERATION_HEAD_FINAL_OUT_CONFIG_PREFIX));
 	}
 
 	// --------------------------------------------------------------------------------------------

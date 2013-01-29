@@ -17,7 +17,9 @@ package eu.stratosphere.pact.compiler;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -59,9 +61,11 @@ import eu.stratosphere.pact.compiler.plan.ReduceNode;
 import eu.stratosphere.pact.compiler.plan.SinkJoiner;
 import eu.stratosphere.pact.compiler.plan.TempMode;
 import eu.stratosphere.pact.compiler.plan.candidate.BinaryUnionPlanNode;
+import eu.stratosphere.pact.compiler.plan.candidate.BulkIterationPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.IterationPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
+import eu.stratosphere.pact.compiler.plan.candidate.PartialSolutionPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkJoinerPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
@@ -805,6 +809,7 @@ public class PactCompiler {
 				
 				// catch this for the recursive translation of step functions
 				PartialSolutionNode p = new PartialSolutionNode(holder, containingIterationNode);
+				p.setDegreeOfParallelism(containingIterationNode.getDegreeOfParallelism());
 				
 				// we need to manually set the estimates to the estimates from the initial partial solution
 				// we need to do this now, such that all successor nodes can compute their estimates properly
@@ -1062,6 +1067,8 @@ public class PactCompiler {
 		private final List<SourcePlanNode> sources; // all data source nodes in the optimizer plan
 
 		private final List<SinkPlanNode> sinks; // all data sink nodes in the optimizer plan
+		
+		private final Deque<IterationPlanNode> stackOfIterationNodes;
 
 		private long memoryPerInstance; // the amount of memory per instance
 		
@@ -1074,6 +1081,7 @@ public class PactCompiler {
 			this.allNodes = new HashSet<PlanNode>();
 			this.sources = new ArrayList<SourcePlanNode>();
 			this.sinks = new ArrayList<SinkPlanNode>();
+			this.stackOfIterationNodes = new ArrayDeque<IterationPlanNode>();
 		}
 
 		private OptimizedPlan createFinalPlan(List<SinkPlanNode> sinks, String jobName, long memPerInstance)
@@ -1153,6 +1161,17 @@ public class PactCompiler {
 				this.sinks.add((SinkPlanNode) visitable);
 			} else if (visitable instanceof SourcePlanNode) {
 				this.sources.add((SourcePlanNode) visitable);
+			} else if (visitable instanceof PartialSolutionPlanNode) {
+				// tell the partial solution about the iteration node that contains it
+				final PartialSolutionPlanNode pspn = (PartialSolutionPlanNode) visitable;
+				final IterationPlanNode iteration = this.stackOfIterationNodes.peekLast();
+				
+				// sanity check!
+				if (iteration == null || !(iteration instanceof BulkIterationPlanNode)) {
+					throw new CompilerException("Bug: Error finalizing the plan. " +
+							"Cannot associate the node for a partial solutions with its containing iteration.");
+				}
+				pspn.setContainingIterationNode((BulkIterationPlanNode) iteration);
 			}
 			
 			for (Iterator<Channel> iter = visitable.getInputs(); iter.hasNext();) {
@@ -1175,7 +1194,15 @@ public class PactCompiler {
 			
 			// pass the visitor to the iteraton's step function
 			if (visitable instanceof IterationPlanNode) {
+				// push the iteration node onto the stack
+				final IterationPlanNode iterNode = (IterationPlanNode) visitable;
+				this.stackOfIterationNodes.addLast(iterNode);
+				
+				// recurse
 				((IterationPlanNode) visitable).acceptForStepFunction(this);
+				
+				// pop the iteration node from the stack
+				this.stackOfIterationNodes.removeLast();
 			}
 			return true;
 		}

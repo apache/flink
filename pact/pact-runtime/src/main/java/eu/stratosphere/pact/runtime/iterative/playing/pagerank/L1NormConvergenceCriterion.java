@@ -17,7 +17,7 @@ package eu.stratosphere.pact.runtime.iterative.playing.pagerank;
 
 import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.runtime.iterative.aggregate.Aggregator;
-import eu.stratosphere.pact.runtime.iterative.aggregate.SumAggregator;
+import eu.stratosphere.pact.runtime.iterative.aggregate.SumDoubleAggregator;
 import eu.stratosphere.pact.runtime.iterative.convergence.ConvergenceCriterion;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -30,7 +30,7 @@ public class L1NormConvergenceCriterion implements ConvergenceCriterion<PactDoub
 
   @Override
   public Aggregator<PactDouble> createAggregator() {
-    return new SumAggregator();
+    return new SumDoubleAggregator();
   }
 
   @Override

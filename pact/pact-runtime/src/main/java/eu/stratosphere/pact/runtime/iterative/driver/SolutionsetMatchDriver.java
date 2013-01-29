@@ -21,7 +21,7 @@ import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.hash.MutableHashTable;
 import eu.stratosphere.pact.runtime.iterative.aggregate.Aggregator;
-import eu.stratosphere.pact.runtime.iterative.aggregate.CountAggregator;
+import eu.stratosphere.pact.runtime.iterative.aggregate.SumLongAggregator;
 import eu.stratosphere.pact.runtime.iterative.concurrent.IterationContext;
 import eu.stratosphere.pact.runtime.iterative.convergence.SolutionsetEmptyConvergenceCriterion;
 import eu.stratosphere.pact.runtime.iterative.io.UpdateSolutionsetOutputCollector;

@@ -578,8 +578,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 	 * Creates a writer for each output. Creates an OutputCollector which forwards its input to all writers.
 	 * The output collector applies the configured shipping strategies for each writer.
 	 */
-	protected void initOutputs() throws Exception
-	{
+	protected void initOutputs() throws Exception {
 		this.chainedTasks = new ArrayList<ChainedDriver<?, ?>>();
 		this.eventualOutputs = new ArrayList<AbstractRecordWriter<?>>();
 		this.output = initOutputs(this, this.userCodeClassLoader, this.config, this.chainedTasks, this.eventualOutputs);
@@ -715,10 +714,6 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 	 * @return
 	 */
 	public <X extends Record> MutableReader<X> getReader(int index) {
-		if (index < 0 || index > this.driver.getNumberOfInputs()) {
-			throw new IndexOutOfBoundsException();
-		}
-
 		@SuppressWarnings("unchecked")
 		final MutableReader<X> in = (MutableReader<X>) this.inputReaders[index];
 		return in;
@@ -754,6 +749,16 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 		@SuppressWarnings("unchecked")
 		final TypeComparator<X> comparator = (TypeComparator<X>) this.inputComparators[index];
 		return comparator;
+	}
+	
+	/**
+	 * Gets the serializer for the output data type of the main (i.e. the non-chained) driver.
+	 * 
+	 * @return The serializer for the output data type of the main driver.
+	 */
+	public <T> TypeSerializer<T> getOutputTypeSerializer() {
+		TypeSerializerFactory<T> factory = this.config.getOutputSerializer(this.userCodeClassLoader);
+		return factory.getSerializer();
 	}
 
 	// ============================================================================================
