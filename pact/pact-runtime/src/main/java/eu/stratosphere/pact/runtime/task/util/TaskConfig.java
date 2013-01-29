@@ -659,7 +659,7 @@ public class TaskConfig
 
 	public <T extends Value> Class<? extends ConvergenceCriterion<T>> getConvergenceCriterion() {
 		@SuppressWarnings("unchecked")
-		Class<? extends ConvergenceCriterion<T>> clazz = (Class<? extends ConvergenceCriterion<T>>) 
+		Class<? extends ConvergenceCriterion<T>> clazz = (Class<? extends ConvergenceCriterion<T>>) (Class<?>) 
 							this.config.getClass(ITERATION_CONVERGENCE_CRITERION, null, ConvergenceCriterion.class);
 		if (clazz == null) {
 			throw new NullPointerException();
