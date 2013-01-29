@@ -854,8 +854,8 @@ public class TestPlan implements Closeable {
 				}
 			});
 
-		for (FileDataSource source : this.sources)
-			this.getInput(source).fromFile(source.getFormatClass(), source.getFilePath(), source.getParameters());
+//		for (FileDataSource source : this.sources)
+//			this.getInput(source).fromFile(source.getFormatClass(), source.getFilePath(), source.getParameters());
 	}
 
 	private List<FileDataSink> getDataSinks() {
@@ -964,13 +964,13 @@ public class TestPlan implements Closeable {
 		// final Field declaredField =
 		// PactConnection.class.getDeclaredField("shipStrategy");
 		// declaredField.setAccessible(true);
-		for (final OptimizerNode node : optimizedPlan.getAllNodes()) {
-			for (final PactConnection pactConnection : node.getIncomingConnections())
-				pactConnection.setShipStrategy(ShipStrategyType.FORWARD);
-			for (final PactConnection pactConnection : node.getOutgoingConnections())
-				// declaredField.set(pactConnection, ShipStrategy.FORWARD);
-				pactConnection.setShipStrategy(ShipStrategyType.FORWARD);
-		}
+//		for (final OptimizerNode node : optimizedPlan.getAllNodes()) {
+//			for (final PactConnection pactConnection : node.getIncomingConnections())
+//				pactConnection.setShipStrategy(ShipStrategyType.FORWARD);
+//			for (final PactConnection pactConnection : node.getOutgoingConnections())
+//				// declaredField.set(pactConnection, ShipStrategy.FORWARD);
+//				pactConnection.setShipStrategy(ShipStrategyType.FORWARD);
+//		}
 	}
 
 	/**

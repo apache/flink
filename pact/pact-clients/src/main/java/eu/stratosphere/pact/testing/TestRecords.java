@@ -265,8 +265,8 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 
 	private void assignMemory(final TaskConfig config, final int memSize) {
 		// set the config
-		config.setMemorySize(memSize * 1024L * 1024L);
-		config.setNumFilehandles(DEFAUTL_MERGE_FACTOR);
+//		config.setMemorySize(memSize * 1024L * 1024L);
+//		config.setNumFilehandles(DEFAUTL_MERGE_FACTOR);
 	}
 
 	/**
@@ -277,8 +277,8 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 		this.assignMemory(config, 10);
 
 		// set up memory and io parameters
-		final long totalMemory = config.getMemorySize();
-		final int numFileHandles = config.getNumFilehandles();
+//		final long totalMemory = config.getMemorySize();
+//		final int numFileHandles = config.getNumFilehandles();
 
 		try {
 			final StringBuilder testName = new StringBuilder();
@@ -304,9 +304,12 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 			final PactRecordComparator pactRecordComparator = new PactRecordComparator(info.sortKeys.toIntArray(),
 				info.keyClasses.toArray(new Class[0]));
 			final UnilateralSortMerger<PactRecord> sortMerger =
-				new UnilateralSortMerger<PactRecord>(MockTaskManager.INSTANCE.getMemoryManager(),
-					MockTaskManager.INSTANCE.getIoManager(), new TestPairsReader(inputFileIterator), parentTask,
-					PactRecordSerializer.get(), pactRecordComparator, totalMemory, numFileHandles, 0.7f);
+//				new UnilateralSortMerger<PactRecord>(MockTaskManager.INSTANCE.getMemoryManager(),
+//					MockTaskManager.INSTANCE.getIoManager(), new TestPairsReader(inputFileIterator), parentTask,
+//					PactRecordSerializer.get(), pactRecordComparator, totalMemory, numFileHandles, 0.7f);
+					new UnilateralSortMerger<PactRecord>(MockTaskManager.INSTANCE.getMemoryManager(),
+							MockTaskManager.INSTANCE.getIoManager(), new TestPairsReader(inputFileIterator), parentTask,
+							PactRecordSerializer.get(), pactRecordComparator, 0, 0, 0.7f);
 			this.closableManager.add(sortMerger);
 
 			// obtain and return a grouped iterator from the sort-merger
