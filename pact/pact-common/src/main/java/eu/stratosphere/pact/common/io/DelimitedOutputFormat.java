@@ -122,9 +122,10 @@ public abstract class DelimitedOutputFormat extends FileOutputFormat
 	 * @see eu.stratosphere.pact.common.io.FileOutputFormat#close()
 	 */
 	@Override
-	public void close() throws IOException
-	{
-		this.stream.write(this.buffer, 0, this.pos);
+	public void close() throws IOException {
+		if (this.stream != null) {
+			this.stream.write(this.buffer, 0, this.pos);
+		}
 		
 		// close file stream
 		super.close();
