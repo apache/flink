@@ -55,6 +55,7 @@ import eu.stratosphere.pact.compiler.plan.candidate.UnionPlanNode;
 import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.runtime.iterative.io.FakeOutputTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationHeadPactTask;
+import eu.stratosphere.pact.runtime.iterative.task.IterationIntermediatePactTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationSynchronizationSinkTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationTailPactTask;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
@@ -370,7 +371,9 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode>
 					this.chainedTasksInSequence.add(chainedTask);
 					return;
 				}
-				else if ((this.iterations.get(node)) != null) {
+				else if (node instanceof PartialSolutionPlanNode) {
+					@SuppressWarnings("unused")
+					final IterationDescriptor descr = this.iterations.get(node);
 					// merged iteration head task
 					throw new CompilerException("Merged partial solution task not yet supported.");
 				}
@@ -457,7 +460,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode>
 				// for the iterations, check that the number of dynamic channels is the same as the number
 				// of channels for this logical input. this condition is violated at the moment, if there
 				// is a union between nodes on the static and nodes on the dynamic path
-				if (numChannelsTotal != numChannelsDynamicPath) {
+				if (numChannelsDynamicPath > 0 && numChannelsTotal != numChannelsDynamicPath) {
 					throw new CompilerException("Error: It is currently not supported to union between dynamic and static path in an iteration.");
 				}
 				if (numDynamicSenderTasksTotal > 0) {
@@ -531,7 +534,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode>
 		} else {
 			// create task vertex
 			vertex = new JobTaskVertex(taskName, this.jobGraph);
-			vertex.setTaskClass(RegularPactTask.class);
+			vertex.setTaskClass(this.inIteration ? IterationIntermediatePactTask.class : RegularPactTask.class);
 			config = new TaskConfig(vertex.getConfiguration());
 			config.setDriver(ds.getDriverClass());
 		}
@@ -556,7 +559,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode>
 		final DriverStrategy ds = node.getDriverStrategy();
 		final JobTaskVertex vertex = new JobTaskVertex(taskName, this.jobGraph);
 		final TaskConfig config = new TaskConfig(vertex.getConfiguration());
-		vertex.setTaskClass(RegularPactTask.class);
+		vertex.setTaskClass(this.inIteration ? IterationIntermediatePactTask.class : RegularPactTask.class);
 		
 		// set user code
 		config.setStubClass(node.getPactContract().getUserCodeClass());
@@ -657,7 +660,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode>
 			// instantiate the head vertex and give it a no-op driver as the driver strategy.
 			// everything else happens in the post visit, after the input (the initial partial solution)
 			// is connected.
-			headVertex = new JobTaskVertex(iteration.getPactContract().getName(), this.jobGraph);
+			headVertex = new JobTaskVertex(iteration.getPactContract().getName() + " - Partial Solution", this.jobGraph);
 			headVertex.setTaskClass(IterationHeadPactTask.class);
 			new TaskConfig(headVertex.getConfiguration()).setDriver(NoOpDriver.class);
 			toReturn = headVertex;
@@ -802,6 +805,11 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode>
 		final int numFinalOuts = headFinalOutputConfig.getNumOutputs();
 		headConfig.setIterationHeadFinalOutputConfig(headFinalOutputConfig);
 		headConfig.setIterationHeadIndexOfSyncOutput(numStepFunctionOuts + numFinalOuts);
+		final long memForBackChannel = bulkNode.getMemoryPerSubTask();
+		if (memForBackChannel <= 0) {
+			throw new CompilerException("Bug: No memory has been assigned to the iteration back channel.");
+		}
+		headConfig.setBackChannelMemory(memForBackChannel);
 		
 		// --------------------------- create the sync task ---------------------------
 		final JobOutputVertex sync = new JobOutputVertex("Bulk-Iteration Sync (" +

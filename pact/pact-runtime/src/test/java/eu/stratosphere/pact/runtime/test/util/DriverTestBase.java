@@ -15,7 +15,6 @@
 
 package eu.stratosphere.pact.runtime.test.util;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -253,14 +252,6 @@ public class DriverTestBase<S extends Stub> implements PactTaskContext<S, PactRe
 		@SuppressWarnings("unchecked")
 		MutableObjectIterator<X> input = (MutableObjectIterator<X>) this.inputs.get(index);
 		return input;
-	}
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.PactTaskContext#resetInput(int)
-	 */
-	@Override
-	public void resetInput(int index) throws IOException, UnsupportedOperationException {
-		throw new UnsupportedOperationException();
 	}
 
 	/* (non-Javadoc)

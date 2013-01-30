@@ -181,17 +181,20 @@ public class IterationHeadPactTask<X, S extends Stub, OT> extends AbstractIterat
 	}
 
 	@Override
-	public void invoke() throws Exception {
+	public void run() throws Exception {
 
 		final int workerIndex = getEnvironment().getIndexInSubtaskGroup();
 		final IterationContext iterationContext = IterationContext.instance();
 
-		/** used for receiving the current iteration result from iteration tail */
+		/* used for receiving the current iteration result from iteration tail */
 		BlockingBackChannel backChannel = initBackChannel();
 		SuperstepBarrier barrier = initSuperstepBarrier();
 		
 		this.partialSolutionInput = this.config.getIterationHeadPartialSolutionInputIndex();
 		this.solutionTypeSerializer = getInputSerializer(this.partialSolutionInput);
+		
+		// when we reset the inputs, do not reset this particular input!
+		excludeFromReset(this.partialSolutionInput);
 
 //		MutableHashTable hashJoin = config.usesWorkset() ? initHashJoin() : null;
 
@@ -207,9 +210,10 @@ public class IterationHeadPactTask<X, S extends Stub, OT> extends AbstractIterat
 			notifyMonitor(IterationMonitoring.Event.HEAD_PACT_STARTING);
 			if (!inFirstIteration()) {
 				reinstantiateDriver();
+				resetAllInputs();
 			}
 
-			super.invoke();
+			super.run();
 			notifyMonitor(IterationMonitoring.Event.HEAD_PACT_FINISHED);
 
 			EndOfSuperstepEvent endOfSuperstepEvent = new EndOfSuperstepEvent();

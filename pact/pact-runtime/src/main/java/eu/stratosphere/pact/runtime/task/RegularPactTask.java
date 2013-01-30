@@ -54,6 +54,7 @@ import eu.stratosphere.pact.runtime.plugable.DeserializationDelegate;
 import eu.stratosphere.pact.runtime.plugable.SerializationDelegate;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparator;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparatorFactory;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordSerializer;
 import eu.stratosphere.pact.runtime.resettable.SpillingResettableMutableObjectIterator;
 import eu.stratosphere.pact.runtime.shipping.OutputCollector;
 import eu.stratosphere.pact.runtime.shipping.OutputEmitter;
@@ -114,6 +115,11 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 	protected MutableReader<?>[] inputReaders;
 	
 	/**
+	 * The inputs reader, wrapped in an iterator. Prior to the local strategies, etc...
+	 */
+	protected MutableObjectIterator<?>[] inputIterators;
+	
+	/**
 	 * The local strategies that are applied on the inputs.
 	 */
 	protected volatile CloseableInputProvider<?>[] localStrategies;
@@ -128,6 +134,13 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 	 * The resettable inputs in the case where no temp barrier is needed.
 	 */
 	protected volatile SpillingResettableMutableObjectIterator<?>[] resettableInputs;
+	
+	/**
+	 * Certain inputs may be excluded from resetting. For example, the initial partial solution
+	 * in an iteration head must not be reseted (it is read through the back channel), when all
+	 * others are reseted.
+	 */
+	private boolean excludeFromReset[];
 	
 	/**
 	 * The inputs to the driver. Return the readers' data after the application of the local strategy
@@ -173,8 +186,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 	 * @see eu.stratosphere.nephele.template.AbstractInvokable#registerInputOutput()
 	 */
 	@Override
-	public void registerInputOutput()
-	{
+	public void registerInputOutput() {
 		if (LOG.isDebugEnabled()) {
 			LOG.debug(formatLogString("Start registering input and output."));
 		}
@@ -196,6 +208,8 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 		final Class<? extends PactDriver<S, OT>> driverClass = this.config.getDriver();
 		this.driver = InstantiationUtil.instantiate(driverClass, PactDriver.class);
 
+		// initialize the readers. this is necessary for nephele to create the input gates
+		// however, this does not trigger any local processing.
 		try {
 			initInputReaders();
 		} catch (Exception e) {
@@ -203,6 +217,10 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 				e.getMessage() == null ? "." : ": " + e.getMessage(), e);
 		}
 
+		// initialize the writers. this is necessary for nephele to create the output gates.
+		// because in the presence of chained tasks, the tasks writers depend on the last task in the chain,
+		// we need to initialize the chained tasks as well. the chained tasks are only set up, but no work
+		// (such as setting up a sorter, etc.) starts
 		try {
 			initOutputs();
 		} catch (Exception e) {
@@ -219,73 +237,105 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 	 * @see eu.stratosphere.nephele.template.AbstractInvokable#invoke()
 	 */
 	@Override
-	public void invoke() throws Exception
-	{
-		if (!this.running) {
-			if (LOG.isDebugEnabled())
-				LOG.info(formatLogString("Task cancelled before PACT code was started."));
-			return;
-		}
+	public void invoke() throws Exception {
 		
 		if (LOG.isInfoEnabled())
 			LOG.info(formatLogString("Start PACT code."));
-
-		// ------------------- Initialization of Inputs and Outputs from the Config ---------------
-		// initialize the user code
-		try {
-			initStub(this.driver.getStubType());
-		} catch (Exception e) {
-			throw new RuntimeException("Initializing the user code and the configuration failed" +
-				e.getMessage() == null ? "." : ": " + e.getMessage(), e);
+		
+		// sanity check the input setup
+		final int numInputs = this.config.getNumInputs();
+		if (numInputs != this.driver.getNumberOfInputs()) {
+			throw new Exception("Inconsistent config data: Number of inputs inconsistent with the driver requirements.");
 		}
 		
+		// whatever happens in this scope, make sure that the local strategies are cleaned up!
+		// note that the initialization of the local strategies is in the try-finally block as well,
+		// so that the thread that creates them catches its own errors that may happen in that process.
+		// this is especially important, since there may be asynchronous closes (such as through canceling).
 		try {
-			// initialize the input serializers and comparators
+			// initialize the remaining data structures on the input and trigger the local processing
+			// the local processing includes building the dams / caches
 			try {
-				initInputStrategies();
+				initInputsSerializersAndComparators(numInputs);
+				initLocalStrategies(numInputs);
 			} catch (Exception e) {
 				throw new RuntimeException("Initializing the input processing failed" +
 					e.getMessage() == null ? "." : ": " + e.getMessage(), e);
 			}
 			
-			// check for asynchronous canceling
+			if (!this.running) {
+				if (LOG.isDebugEnabled())
+					LOG.info(formatLogString("Task cancelled before PACT code was started."));
+				return;
+			}
+	
+			// the work goes here
+			run();
+		}
+		finally {
+			closeLocalStrategiesAndCaches();
+		}
+		
+		if (this.running) {
+			if (LOG.isInfoEnabled())
+				LOG.info(formatLogString("Finished PACT code."));
+		} else {
+			if (LOG.isWarnEnabled())
+				LOG.warn(formatLogString("PACT code cancelled."));
+		}
+	}
+	
+	public void run() throws Exception {
+		// ---------------------------- Now, the actual processing starts ------------------------
+		try {
+			final Class<? super S> userCodeFunctionType = this.driver.getStubType();
+			// if the class is null, the driver has no user code 
+			if (userCodeFunctionType != null) {
+				this.stub = initStub(userCodeFunctionType);
+			}
+		} catch (Exception e) {
+			throw new RuntimeException("Initializing the user code and the configuration failed" +
+				e.getMessage() == null ? "." : ": " + e.getMessage(), e);
+		}
+
+		// check for asynchronous canceling
+		if (!this.running) {
+			return;
+		}
+		
+		// setup the driver
+		try {
+			this.driver.setup(this);
+		}
+		catch (Throwable t) {
+			throw new Exception("The pact driver setup for '" + this.getEnvironment().getTaskName() +
+				"' , caused an error: " + t.getMessage(), t);
+		}
+
+		boolean stubOpen = false;
+
+		try {
+			// run the data preparation
+			try {
+				this.driver.prepare();
+			}
+			catch (Throwable t) {
+				// if the preparation caused an error, clean up
+				// errors during clean-up are swallowed, because we have already a root exception
+				throw new Exception("The data preparation for task '" + this.getEnvironment().getTaskName() +
+					"' , caused an error: " + t.getMessage(), t);
+			}
+			
+			// check for canceling
 			if (!this.running) {
 				return;
 			}
-			
-			// ---------------------------- Now, the actual processing starts ------------------------
-			// setup the driver
-			try {
-				this.driver.setup(this);
-			}
-			catch (Throwable t) {
-				throw new Exception("The pact driver setup for '" + this.getEnvironment().getTaskName() +
-					"' , caused an error: " + t.getMessage(), t);
-			}
-	
-			boolean stubOpen = false;
-	
-			try {
-				// run the data preparation
-				try {
-					this.driver.prepare();
-				}
-				catch (Throwable t) {
-					// if the preparation caused an error, clean up
-					// errors during clean-up are swallowed, because we have already a root exception
-					throw new Exception("The data preparation for task '" + this.getEnvironment().getTaskName() +
-						"' , caused an error: " + t.getMessage(), t);
-				}
-				
-				// check for canceling
-				if (!this.running) {
-					return;
-				}
-	
-				// start all chained tasks
-				RegularPactTask.openChainedTasks(this.chainedTasks, this);
-	
-				// open stub implementation
+
+			// start all chained tasks
+			RegularPactTask.openChainedTasks(this.chainedTasks, this);
+
+			// open stub implementation
+			if (this.stub != null) {
 				try {
 					Configuration stubConfig = this.config.getStubParameters();
 					stubConfig.setInteger("pact.parallel.task.id", this.getEnvironment().getIndexInSubtaskGroup());
@@ -299,52 +349,40 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 				catch (Throwable t) {
 					throw new Exception("The user defined 'open()' method caused an exception: " + t.getMessage(), t);
 				}
-	
-				// run the user code
-				this.driver.run();
-	
-				// close. We close here such that a regular close throwing an exception marks a task as failed.
-				if (this.running) {
+			}
+
+			// run the user code
+			this.driver.run();
+
+			// close. We close here such that a regular close throwing an exception marks a task as failed.
+			if (this.running && this.stub != null) {
+				this.stub.close();
+				stubOpen = false;
+			}
+
+			this.output.close();
+
+			// close all chained tasks letting them report failure
+			RegularPactTask.closeChainedTasks(this.chainedTasks, this);
+		}
+		catch (Exception ex) {
+			// close the input, but do not report any exceptions, since we already have another root cause
+			if (stubOpen) {
+				try {
 					this.stub.close();
-					stubOpen = false;
 				}
-	
-				this.output.close();
-	
-				// close all chained tasks letting them report failure
-				RegularPactTask.closeChainedTasks(this.chainedTasks, this);
+				catch (Throwable t) {}
 			}
-			catch (Exception ex) {
-				// close the input, but do not report any exceptions, since we already have another root cause
-				if (stubOpen) {
-					try {
-						this.stub.close();
-					}
-					catch (Throwable t) {}
-				}
-	
-				RegularPactTask.cancelChainedTasks(this.chainedTasks);
-	
-				// drop exception, if the task was canceled
-				if (this.running) {
-					RegularPactTask.logAndThrowException(ex, this);
-				}
-			}
-			finally {
-				this.driver.cleanup();
+
+			RegularPactTask.cancelChainedTasks(this.chainedTasks);
+
+			// drop exception, if the task was canceled
+			if (this.running) {
+				RegularPactTask.logAndThrowException(ex, this);
 			}
 		}
 		finally {
-			closeLocalStrategies();
-		}
-
-		if (this.running) {
-			if (LOG.isInfoEnabled())
-				LOG.info(formatLogString("Finished PACT code."));
-		}
-		else {
-			if (LOG.isWarnEnabled())
-				LOG.warn(formatLogString("PACT code cancelled."));
+			this.driver.cleanup();
 		}
 	}
 
@@ -357,14 +395,14 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 		if (LOG.isWarnEnabled())
 			LOG.warn(formatLogString("Cancelling PACT code"));
 		
-		closeLocalStrategies();
+		closeLocalStrategiesAndCaches();
 		
 		if (this.driver != null) {
 			this.driver.cancel();
 		}
 	}
 	
-	private void closeLocalStrategies() {
+	private void closeLocalStrategiesAndCaches() {
 		if (this.localStrategies != null) {
 			for (int i = 0; i < this.localStrategies.length; i++) {
 				if (this.localStrategies[i] != null) {
@@ -372,6 +410,28 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 						this.localStrategies[i].close();
 					} catch (Throwable t) {
 						LOG.error("Error closing local strategy for input " + i, t);
+					}
+				}
+			}
+		}
+		if (this.tempBarriers != null) {
+			for (int i = 0; i < this.tempBarriers.length; i++) {
+				if (this.tempBarriers[i] != null) {
+					try {
+						this.tempBarriers[i].close();
+					} catch (Throwable t) {
+						LOG.error("Error closing temp barrier for input " + i, t);
+					}
+				}
+			}
+		}
+		if (this.resettableInputs != null) {
+			for (int i = 0; i < this.resettableInputs.length; i++) {
+				if (this.resettableInputs[i] != null) {
+					try {
+						this.resettableInputs[i].close();
+					} catch (Throwable t) {
+						LOG.error("Error closing cache for input " + i, t);
 					}
 				}
 			}
@@ -397,13 +457,12 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 	 * @throws RuntimeException Thrown, if the stub class could not be loaded, instantiated,
 	 *                          or caused an exception while being configured.
 	 */
-	protected void initStub(Class<? super S> stubSuperClass) throws Exception
-	{
+	protected S initStub(Class<? super S> stubSuperClass) throws Exception {
 		// obtain stub implementation class
 		try {
 			@SuppressWarnings("unchecked")
 			Class<S> stubClass = (Class<S>) this.config.getStubClass(stubSuperClass, this.userCodeClassLoader);
-			this.stub = InstantiationUtil.instantiate(stubClass, stubSuperClass);
+			return InstantiationUtil.instantiate(stubClass, stubSuperClass);
 		}
 		catch (ClassNotFoundException cnfe) {
 			throw new Exception("The stub implementation class was not found.", cnfe);
@@ -418,8 +477,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 	 *
 	 * This method requires that the task configuration, the driver, and the user-code class loader are set.
 	 */
-	protected void initInputReaders() throws Exception
-	{
+	protected void initInputReaders() throws Exception {
 		final int numInputs = this.driver.getNumberOfInputs();
 		final MutableReader<?>[] inputReaders = new MutableReader[numInputs];
 		
@@ -444,95 +502,57 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 	}
 	
 	/**
-	 * Creates all the serializers and comparators for the input and kicks off the local strategies.
-	 * This method requires a prior invocation of {@code #initInputReaders()}
+	 * Creates all the serializers and comparators.
 	 */
-	protected void initInputStrategies() throws Exception
-	{
-		final int numInputs = this.driver.getNumberOfInputs();
-		
-		final TypeSerializer<?>[] inputSerializers = new TypeSerializer[numInputs];
-		final CloseableInputProvider<?>[] inputProviders = new CloseableInputProvider[numInputs];
-		final MutableObjectIterator<?>[] inputs = new MutableObjectIterator[numInputs];
-		final TypeComparator<?>[] driverComparators = this.driver.requiresComparatorOnInput() ?
-			new TypeComparator[numInputs] : null;
-			
-		final MemoryManager memMan = getMemoryManager();
-		final IOManager ioMan = getIOManager();
+	protected void initInputsSerializersAndComparators(int numInputs) throws Exception {
+		this.inputSerializers = new TypeSerializer[numInputs];
+		this.inputComparators = this.driver.requiresComparatorOnInput() ? new TypeComparator[numInputs] : null;
+		this.inputIterators = new MutableObjectIterator[numInputs];
 
 		for (int i = 0; i < numInputs; i++) {
 			//  ---------------- create the serializer first ---------------------
 			final TypeSerializerFactory<?> serializerFactory = this.config.getInputSerializer(i, this.userCodeClassLoader);
-			inputSerializers[i] = serializerFactory.getSerializer();
-
-			//  ---------------- wrap the readers in iterators ---------------------
-			final MutableObjectIterator<?> inputIter;
-			if (serializerFactory.getDataType() == PactRecord.class) {
-				// pact record specific deserialization
-				@SuppressWarnings("unchecked")
-				MutableRecordReader<PactRecord> reader = (MutableRecordReader<PactRecord>) this.inputReaders[i];
-				inputIter = new PactRecordNepheleReaderIterator(reader, readerInterruptionBehavior(i));
-			} else {
-				// generic data type serialization
-				@SuppressWarnings("unchecked")
-				MutableRecordReader<DeserializationDelegate<?>> reader =
-									(MutableRecordReader<DeserializationDelegate<?>>) this.inputReaders[i];
-				@SuppressWarnings({ "unchecked", "rawtypes" })
-				final MutableObjectIterator<?> iter = new NepheleReaderIterator(reader, inputSerializers[i],
-						readerInterruptionBehavior(i));
-				inputIter = iter;
-			}
-			
-			final LocalStrategy localStrategy = this.config.getInputLocalStrategy(i);
-			if (localStrategy == null) {
-				inputs[i] = inputIter;
-			} else {
-				switch (localStrategy) {
-				case NONE:
-					inputs[i] = inputIter;
-					break;
-				case SORT:
-					@SuppressWarnings({ "rawtypes", "unchecked" })
-					UnilateralSortMerger<?> sorter = new UnilateralSortMerger(memMan, ioMan,
-						inputIter, this, inputSerializers[i], getLocalStrategyComparator(i),
-						this.config.getMemoryInput(i), this.config.getFilehandlesInput(i),
-						this.config.getSpillingThresholdInput(i));
-					inputProviders[i] = sorter;
-					break;
-				case COMBININGSORT:
-					// sanity check this special case!
-					// this still breaks a bit of the abstraction!
-					// we should have nested configurations for the local strategies to solve that
-					if (i != 0 || !(this.stub instanceof GenericReducer)) {
-						throw new IllegalStateException("Performing combining sort outside a reduce task!");
-					}
-					@SuppressWarnings({ "rawtypes", "unchecked" })
-					CombiningUnilateralSortMerger<?> cSorter = new CombiningUnilateralSortMerger(
-						(GenericReducer) this.stub, memMan, ioMan, inputIter, this,
-						inputSerializers[i], getLocalStrategyComparator(i),
-						this.config.getMemoryInput(i), this.config.getFilehandlesInput(i),
-						this.config.getSpillingThresholdInput(i), false);
-					inputProviders[i] = cSorter;
-					break;
-				default:
-					throw new Exception("Unrecognized local strategy provided: " + localStrategy.name());
-				}
-			}
+			this.inputSerializers[i] = serializerFactory.getSerializer();
 			
 			//  ---------------- create the driver's comparator ---------------------
-			if (driverComparators != null) {
+			if (this.inputComparators != null) {
 				final TypeComparatorFactory<?> comparatorFactory = this.config.getDriverComparator(i, this.userCodeClassLoader);
-				driverComparators[i] = comparatorFactory.createComparator();
+				this.inputComparators[i] = comparatorFactory.createComparator();
 			}
+			
+			this.inputIterators[i] = createInputIterator(i, this.inputReaders[i], this.inputSerializers[i]);
 		}
+	}
+	
+	/**
+	 * 
+	 * NOTE: This method must be invoked after the invocation of {@code #initInputReaders()} and
+	 * {@code #initInputSerializersAndComparators(int)}!
+	 * 
+	 * @param numInputs
+	 */
+	protected void initLocalStrategies(int numInputs) throws Exception {
 		
-		this.inputSerializers = inputSerializers;
-		this.localStrategies = inputProviders;
-		this.inputs = inputs;
-		this.inputComparators = driverComparators;
+		final MemoryManager memMan = getMemoryManager();
+		final IOManager ioMan = getIOManager();
+		
+		this.localStrategies = new CloseableInputProvider[numInputs];
+		this.inputs = new MutableObjectIterator[numInputs];
+		this.excludeFromReset = new boolean[numInputs];
+		
+		// set up the local strategies first, such that the can work before any temp barrier is created
+		for (int i = 0; i < numInputs; i++) {
+			initInputLocalStrategy(i);
+		}
 		
 		// we do another loop over the inputs, because we want to instantiate all
 		// sorters, etc before requesting the first input (as this call may block)
+		
+		// we have two types of materialized inputs, and both are replayable (can act as a cache)
+		// The first variant materializes in a different thread and hence
+		// acts as a pipeline breaker. this one should only be there, if a pipeline breaker is needed.
+		// the second variant spills to the side and will not read unless the result is also consumed
+		// in a pipelined fashion.
 		this.resettableInputs = new SpillingResettableMutableObjectIterator[numInputs];
 		this.tempBarriers = new TempBarrier[numInputs];
 		
@@ -542,7 +562,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 				final int pages = memMan.computeNumberOfPages(memory);
 				
 				@SuppressWarnings({ "unchecked", "rawtypes" })
-				TempBarrier<?> barrier = new TempBarrier(this, getInput(i), inputSerializers[i], memMan, ioMan, pages);
+				TempBarrier<?> barrier = new TempBarrier(this, getInput(i), this.inputSerializers[i], memMan, ioMan, pages);
 				barrier.startReading();
 				this.tempBarriers[i] = barrier;
 				this.inputs[i] = null;
@@ -550,10 +570,120 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 				final long memory = this.config.getInputDamMemory(i);
 				@SuppressWarnings({ "unchecked", "rawtypes" })
 				SpillingResettableMutableObjectIterator<?> iter = new SpillingResettableMutableObjectIterator(
-					getInput(i), inputSerializers[i], getMemoryManager(), getIOManager(), memory, this);
+					getInput(i), this.inputSerializers[i], getMemoryManager(), getIOManager(), memory, this);
 				this.resettableInputs[i] = iter;
 				this.inputs[i] = iter;
 			}
+		}
+	}
+	
+	protected void resetAllInputs() throws Exception {
+		// make sure the inputs are not available directly, but are lazily fetched again
+		for (int i = 0; i < this.inputs.length; i++) {
+			this.inputs[i] = null;
+		}
+		
+		// close all local-strategies. they will either get re-initialized, or we have
+		// read them now and their data is cached
+		for (int i = 0; i < this.localStrategies.length; i++) {
+			if (this.localStrategies[i] != null) {
+				this.localStrategies[i].close();
+				this.localStrategies[i] = null;
+			}
+		}
+		
+		// reset the caches, or re-run the input local strategy
+		for (int i = 0; i < this.inputs.length; i++) {
+			if (this.excludeFromReset[i]) {
+				if (this.tempBarriers[i] != null) {
+					this.tempBarriers[i].close();
+					this.tempBarriers[i] = null;
+				} else if (this.resettableInputs[i] != null) {
+					this.resettableInputs[i].close();
+					this.resettableInputs[i] = null;
+				}
+			} else {
+				if (this.tempBarriers[i] != null) {
+					this.inputs[i] = this.tempBarriers[i].getIterator();
+				} else if (this.resettableInputs[i] != null) {
+					this.resettableInputs[i].reset();
+					this.inputs[i] = this.resettableInputs[i];
+				} else {
+					// setup the local strategy
+					initInputLocalStrategy(i);
+				}
+			}
+		}
+	}
+	
+	protected void excludeFromReset(int inputNum) {
+		this.excludeFromReset[inputNum] = true;
+	}
+	
+	private void initInputLocalStrategy(int inputNum) throws Exception {
+		// check if there is already a strategy
+		if (this.localStrategies[inputNum] != null) {
+			throw new IllegalStateException();
+		}
+		
+		// now set up the local strategy
+		final LocalStrategy localStrategy = this.config.getInputLocalStrategy(inputNum);
+		if (localStrategy != null) {
+			switch (localStrategy) {
+			case NONE:
+				// the input is as it is
+				this.inputs[inputNum] = this.inputIterators[inputNum];
+				break;
+			case SORT:
+				@SuppressWarnings({ "rawtypes", "unchecked" })
+				UnilateralSortMerger<?> sorter = new UnilateralSortMerger(getMemoryManager(), getIOManager(),
+					this.inputIterators[inputNum], this, this.inputSerializers[inputNum], getLocalStrategyComparator(inputNum),
+					this.config.getMemoryInput(inputNum), this.config.getFilehandlesInput(inputNum),
+					this.config.getSpillingThresholdInput(inputNum));
+				// set the input to null such that it will be lazily fetched from the input strategy
+				this.inputs[inputNum] = null;
+				this.localStrategies[inputNum] = sorter;
+				break;
+			case COMBININGSORT:
+				// sanity check this special case!
+				// this still breaks a bit of the abstraction!
+				// we should have nested configurations for the local strategies to solve that
+				if (inputNum != 0) {
+					throw new IllegalStateException("Performing combining sort outside a reduce task!");
+				}
+				
+				// instantiate ourselves a combiner. we should not use the stub, because the sort and the
+				// subsequent reduce would otherwise share it multithreaded
+				final S localStub;
+				try {
+					final Class<S> userCodeFunctionType = this.driver.getStubType();
+					// if the class is null, the driver has no user code 
+					if (userCodeFunctionType != null && GenericReducer.class.isAssignableFrom(userCodeFunctionType)) {
+						localStub = initStub(userCodeFunctionType);
+					} else {
+						throw new IllegalStateException("Performing combining sort outside a reduce task!");
+					}
+				} catch (Exception e) {
+					throw new RuntimeException("Initializing the user code and the configuration failed" +
+						e.getMessage() == null ? "." : ": " + e.getMessage(), e);
+				}
+
+				@SuppressWarnings({ "rawtypes", "unchecked" })
+				CombiningUnilateralSortMerger<?> cSorter = new CombiningUnilateralSortMerger(
+					(GenericReducer) localStub, getMemoryManager(), getIOManager(), this.inputIterators[inputNum], 
+					this, this.inputSerializers[inputNum], getLocalStrategyComparator(inputNum),
+					this.config.getMemoryInput(inputNum), this.config.getFilehandlesInput(inputNum),
+					this.config.getSpillingThresholdInput(inputNum), false);
+				// set the input to null such that it will be lazily fetched from the input strategy
+				this.inputs[inputNum] = null;
+				this.localStrategies[inputNum] = cSorter;
+				break;
+			default:
+				throw new Exception("Unrecognized local strategy provided: " + localStrategy.name());
+			}
+		} else {
+			// no local strategy in the config
+			this.inputs[inputNum] = this.inputIterators[inputNum];
 		}
 	}
 	
@@ -565,6 +695,25 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 		return compFact.createComparator();
 	}
 	
+	protected MutableObjectIterator<?> createInputIterator(int inputIndex, 
+		MutableReader<?> inputReader, TypeSerializer<?> serializer)
+	{
+		if (serializer.getClass() == PactRecordSerializer.class) {
+			// pact record specific deserialization
+			@SuppressWarnings("unchecked")
+			MutableRecordReader<PactRecord> reader = (MutableRecordReader<PactRecord>) inputReader;
+			return new PactRecordNepheleReaderIterator(reader, readerInterruptionBehavior(inputIndex));
+		} else {
+			// generic data type serialization
+			@SuppressWarnings("unchecked")
+			MutableRecordReader<DeserializationDelegate<?>> reader =
+								(MutableRecordReader<DeserializationDelegate<?>>) inputReader;
+			@SuppressWarnings({ "unchecked", "rawtypes" })
+			final MutableObjectIterator<?> iter = new NepheleReaderIterator(reader, serializer,
+					readerInterruptionBehavior(inputIndex));
+			return iter;
+		}
+	}
 	/**
 	 * Gets the default behavior that readers should use on interrupts.
 	 * 
@@ -688,35 +837,6 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 				throw new RuntimeException("An I/O Exception occurred whily obaining input " + index + ".");
 			}
 		}
-	}
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.PactTaskContext#resetInput(int)
-	 */
-	@Override
-	public void resetInput(int index) throws IOException, UnsupportedOperationException {
-		if (this.tempBarriers[index] != null) {
-			try {
-				this.inputs[index] = this.tempBarriers[index].getIterator();
-			} catch (InterruptedException iex) {
-				throw new RuntimeException(iex);
-			}
-		} else if (this.resettableInputs != null) {
-			this.resettableInputs[index].reset();
-		} else {
-			throw new UnsupportedOperationException("Input " + index + " was not configured to be resettable.");
-		}
-	}
-	
-	/**
-	 * @param <X>
-	 * @param index
-	 * @return
-	 */
-	public <X extends Record> MutableReader<X> getReader(int index) {
-		@SuppressWarnings("unchecked")
-		final MutableReader<X> in = (MutableReader<X>) this.inputReaders[index];
-		return in;
 	}
 
 	/* (non-Javadoc)

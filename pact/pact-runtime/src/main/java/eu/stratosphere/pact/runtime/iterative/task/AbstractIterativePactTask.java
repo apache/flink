@@ -19,6 +19,7 @@ import eu.stratosphere.nephele.io.MutableReader;
 import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.pact.generic.types.TypeSerializer;
 import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
 import eu.stratosphere.pact.runtime.iterative.io.InterruptingMutableObjectIterator;
@@ -39,8 +40,6 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
 	implements Terminable
 {
 	private static final Log log = LogFactory.getLog(AbstractIterativePactTask.class);
-	
-	private MutableObjectIterator<?>[] wrappedInputs;
 
 	private final AtomicBoolean terminationRequested = new AtomicBoolean(false);
 
@@ -51,15 +50,9 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
 	// --------------------------------------------------------------------------------------------
 	
 	@Override
-	public void invoke() throws Exception {
+	public void run() throws Exception {
 		getTaskConfig().setStubParameter("pact.iterations.currentIteration", String.valueOf(currentIteration()));
-		super.invoke();
-	}
-	
-	@Override
-	protected void initInputStrategies() throws Exception {
-		super.initInputStrategies();
-		this.wrappedInputs = new MutableObjectIterator<?>[this.inputs.length];
+		super.run();
 	}
 
 	@Override
@@ -67,44 +60,30 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
 		return getTaskConfig().isIterativeInputGate(inputGateIndex) ?
 			ReaderInterruptionBehaviors.RELEASE_ON_INTERRUPT : ReaderInterruptionBehaviors.EXCEPTION_ON_INTERRUPT;
 	}
-
+	
 	@Override
-	@SuppressWarnings("unchecked")
-	public <X> MutableObjectIterator<X> getInput(int inputIndex) {
-		if (this.wrappedInputs[inputIndex] != null) {
-			return (MutableObjectIterator<X>) this.wrappedInputs[inputIndex];
+	protected MutableObjectIterator<?> createInputIterator(int i, 
+		MutableReader<?> inputReader, TypeSerializer<?> serializer)
+	{
+		final MutableObjectIterator<?> inIter = super.createInputIterator(i, inputReader, serializer);
+		final int numberOfEventsUntilInterrupt = getTaskConfig().getNumberOfEventsUntilInterruptInIterativeGate(i);
+		
+		if (numberOfEventsUntilInterrupt == 0) {
+			// non iterative gate
+			return inIter;
 		}
-
-		if (this.config.isIterativeInputGate(inputIndex)) {
-			return wrapWithInterruptingIterator(inputIndex);
-		} else {
-			// cache the input to avoid repeated config lookups
-			MutableObjectIterator<X> input = super.getInput(inputIndex);
-			this.wrappedInputs[inputIndex] = input;
-			return input;
-		}
-	}
-
-	private <X> MutableObjectIterator<X> wrapWithInterruptingIterator(int inputIndex) {
-		int numberOfEventsUntilInterrupt = getTaskConfig().getNumberOfEventsUntilInterruptInIterativeGate(
-			inputIndex);
-
-		InterruptingMutableObjectIterator<X> interruptingIterator = new InterruptingMutableObjectIterator<X>(
-			super.<X>getInput(inputIndex), numberOfEventsUntilInterrupt, identifier(),
-			this, inputIndex);
-
-		MutableReader<?> inputReader = getReader(inputIndex);
+	
+		@SuppressWarnings({ "unchecked", "rawtypes" })
+		InterruptingMutableObjectIterator<?> interruptingIterator = new InterruptingMutableObjectIterator(
+			inIter, numberOfEventsUntilInterrupt, identifier(), this, i);
+	
 		inputReader.subscribeToEvent(interruptingIterator, EndOfSuperstepEvent.class);
 		inputReader.subscribeToEvent(interruptingIterator, TerminationEvent.class);
-
+	
 		if (log.isInfoEnabled()) {
-			log.info(formatLogString("wrapping input [" + inputIndex + 
-				"] with an interrupting iterator that waits " +
+			log.info(formatLogString("wrapping input [" + i + "] with an interrupting iterator that waits " +
 				"for [" + numberOfEventsUntilInterrupt + "] event(s)"));
 		}
-
-		this.wrappedInputs[inputIndex] = interruptingIterator;
-
 		return interruptingIterator;
 	}
 	

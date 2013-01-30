@@ -79,6 +79,10 @@ public class BulkIterationPlanNode extends SingleInputPlanNode implements Iterat
 		super.setCosts(nodeCosts);
 	}
 	
+	public int getMemoryConsumerWeight() {
+		return 1;
+	}
+	
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.compiler.plan.candidate.PlanNode#hasDamOnPathDownTo(eu.stratosphere.pact.compiler.plan.candidate.PlanNode)
 	 */

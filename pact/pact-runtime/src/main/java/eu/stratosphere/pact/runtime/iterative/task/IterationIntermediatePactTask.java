@@ -35,7 +35,7 @@ public class IterationIntermediatePactTask<S extends Stub, OT> extends AbstractI
 	private static final Log log = LogFactory.getLog(IterationIntermediatePactTask.class);
 
 	@Override
-	public void invoke() throws Exception {
+	public void run() throws Exception {
 
 		while (!terminationRequested()) {
 
@@ -45,11 +45,13 @@ public class IterationIntermediatePactTask<S extends Stub, OT> extends AbstractI
 			}
 
 			notifyMonitor(IterationMonitoring.Event.INTERMEDIATE_PACT_STARTING);
+			
 			if (!inFirstIteration()) {
 				reinstantiateDriver();
+				resetAllInputs();
 			}
 
-			super.invoke();
+			super.run();
 
 			notifyMonitor(IterationMonitoring.Event.INTERMEDIATE_PACT_FINISHED);
 			if (log.isInfoEnabled()) {

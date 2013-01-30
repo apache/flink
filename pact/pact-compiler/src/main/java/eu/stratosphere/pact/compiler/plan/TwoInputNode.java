@@ -217,15 +217,15 @@ public abstract class TwoInputNode extends OptimizerNode
 		shipStrategy = conf.getString(PactCompiler.HINT_SHIP_STRATEGY_SECOND_INPUT, null);
 		if (shipStrategy != null) {
 			if (PactCompiler.HINT_SHIP_STRATEGY_FORWARD.equals(shipStrategy)) {
-				preSet1 = ShipStrategyType.FORWARD;
+				preSet2 = ShipStrategyType.FORWARD;
 			} else if (PactCompiler.HINT_SHIP_STRATEGY_BROADCAST.equals(shipStrategy)) {
-				preSet1 = ShipStrategyType.BROADCAST;
+				preSet2 = ShipStrategyType.BROADCAST;
 			} else if (PactCompiler.HINT_SHIP_STRATEGY_REPARTITION_HASH.equals(shipStrategy)) {
-				preSet1 = ShipStrategyType.PARTITION_HASH;
+				preSet2 = ShipStrategyType.PARTITION_HASH;
 			} else if (PactCompiler.HINT_SHIP_STRATEGY_REPARTITION_RANGE.equals(shipStrategy)) {
-				preSet1 = ShipStrategyType.PARTITION_RANGE;
+				preSet2 = ShipStrategyType.PARTITION_RANGE;
 			} else if (shipStrategy.equalsIgnoreCase(PactCompiler.HINT_SHIP_STRATEGY_REPARTITION)) {
-				preSet1 = ShipStrategyType.PARTITION_RANDOM;
+				preSet2 = ShipStrategyType.PARTITION_RANDOM;
 			} else {
 				throw new CompilerException("Unknown hint for shipping strategy of input two: " + shipStrategy);
 			}

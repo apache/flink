@@ -31,8 +31,6 @@ import eu.stratosphere.nephele.services.memorymanager.MemorySegmentSource;
 
 /**
  * An output view that buffers written data in memory pages and spills them when they are full.
- *
- * @author Stephan Ewen
  */
 public class SpillingBuffer extends AbstractPagedOutputView
 {	
@@ -139,7 +137,7 @@ public class SpillingBuffer extends AbstractPagedOutputView
 			}
 			
 			final BlockChannelReader reader = this.ioManager.createBlockChannelReader(this.writer.getChannelID());
-			this.externalInView = new HeaderlessChannelReaderInputView(reader, this.fullSegments, this.blockCount, this.numBytesInLastSegment, false);			
+			this.externalInView = new HeaderlessChannelReaderInputView(reader, this.fullSegments, this.blockCount, this.numBytesInLastSegment, false);
 			return this.externalInView;
 		}
 	}
@@ -192,8 +190,7 @@ public class SpillingBuffer extends AbstractPagedOutputView
 	 * @param source
 	 * @param target
 	 */
-	private static final <E> void moveAll(ArrayList<E> source, ArrayList<E> target)
-	{
+	private static final <E> void moveAll(ArrayList<E> source, ArrayList<E> target) {
 		target.ensureCapacity(target.size() + source.size());
 		for (int i = source.size() - 1; i >= 0; i--) {
 			target.add(source.remove(i));

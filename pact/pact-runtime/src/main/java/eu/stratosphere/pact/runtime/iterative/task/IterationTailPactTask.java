@@ -48,7 +48,7 @@ public class IterationTailPactTask<S extends Stub, OT> extends AbstractIterative
 	}
 
 	@Override
-	public void invoke() throws Exception {
+	public void run() throws Exception {
 
 		// Initially retrieve the backchannel from the iteration head
 		final BlockingBackChannel backChannel = retrieveBackChannel();
@@ -74,9 +74,10 @@ public class IterationTailPactTask<S extends Stub, OT> extends AbstractIterative
 			notifyMonitor(IterationMonitoring.Event.TAIL_PACT_STARTING);
 			if (!inFirstIteration()) {
 				reinstantiateDriver();
+				resetAllInputs();
 			}
 
-			super.invoke();
+			super.run();
 			notifyMonitor(IterationMonitoring.Event.TAIL_PACT_FINISHED);
 
 			long elementsCollected = outputCollector.getElementsCollectedAndReset();

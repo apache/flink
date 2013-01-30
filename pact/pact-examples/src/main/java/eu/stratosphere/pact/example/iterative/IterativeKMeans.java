@@ -40,7 +40,7 @@ public class IterativeKMeans extends KMeansIteration
 		
 		// create DataSourceContract for data point input
 		FileDataSource dataPoints = new FileDataSource(PointInFormat.class, dataPointInput, "Data Points");
-		dataPoints.setParameter(DelimitedInputFormat.RECORD_DELIMITER, "\n");
+		PointInFormat.configureDelimitedFormat(dataPoints).recordDelimiter('\n');
 		dataPoints.getCompilerHints().setUniqueField(new FieldSet(0));
 
 		// create CrossContract for distance computation

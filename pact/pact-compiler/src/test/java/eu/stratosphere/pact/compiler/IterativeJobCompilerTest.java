@@ -16,10 +16,14 @@ package eu.stratosphere.pact.compiler;
 
 import org.junit.Test;
 
+import eu.stratosphere.pact.common.contract.CrossContract;
+import eu.stratosphere.pact.common.contract.GenericDataSink;
+import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.pact.example.iterative.IterativeKMeans;
+import eu.stratosphere.pact.generic.contract.BulkIteration;
 
 
 /**
@@ -28,16 +32,39 @@ import eu.stratosphere.pact.example.iterative.IterativeKMeans;
 public class IterativeJobCompilerTest extends CompilerTestBase
 {
 	@Test
-	public void testCompileKMeansIteration() {
+	public void testCompileKMeansIteration1() {
 		IterativeKMeans kmi = new IterativeKMeans();
 
 		Plan plan = kmi.getPlan(String.valueOf(defaultParallelism),
 				IN_FILE_1, IN_FILE_1, OUT_FILE_1, String.valueOf(20));
+		setParameterToCross(plan, "INPUT_LEFT_SHIP_STRATEGY", "SHIP_FORWARD");
 
 		OptimizedPlan op = compile(plan);
 
 		NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
 		jgg.compileJobGraph(op);
 	}
+	
+	@Test
+	public void testCompileKMeansIteration2() {
+		IterativeKMeans kmi = new IterativeKMeans();
 
+		Plan plan = kmi.getPlan(String.valueOf(defaultParallelism),
+				IN_FILE_1, IN_FILE_1, OUT_FILE_1, String.valueOf(20));
+		setParameterToCross(plan, "INPUT_RIGHT_SHIP_STRATEGY", "SHIP_FORWARD");
+
+		OptimizedPlan op = compile(plan);
+
+		NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
+		jgg.compileJobGraph(op);
+	}
+	
+	public static void setParameterToCross(Plan p, String key, String value) {
+		GenericDataSink sink = p.getDataSinks().iterator().next();
+		BulkIteration iter = (BulkIteration) sink.getInputs().get(0);
+		ReduceContract reduce2 = (ReduceContract) iter.getNextPartialSolution();
+		ReduceContract reduce1 = (ReduceContract) reduce2.getInputs().get(0);
+		CrossContract cross = (CrossContract) reduce1.getInputs().get(0);
+		cross.getParameters().setString(key, value);
+	}
 }

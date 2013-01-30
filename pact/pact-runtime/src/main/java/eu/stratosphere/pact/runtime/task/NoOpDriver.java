@@ -57,7 +57,7 @@ public class NoOpDriver<T> implements PactDriver<AbstractStub, T>// extends Abst
 	 */
 	@Override
 	public Class<AbstractStub> getStubType() {
-		return AbstractStub.class;
+		return null;
 	}
 
 	/*

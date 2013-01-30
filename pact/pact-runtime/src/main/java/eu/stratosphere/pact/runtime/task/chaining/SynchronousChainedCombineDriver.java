@@ -103,11 +103,11 @@ public class SynchronousChainedCombineDriver<T> implements ChainedDriver<T, T>
 		// ----------------- Set up the asynchronous sorter -------------------------
 		
 		this.memManager = this.parent.getEnvironment().getMemoryManager();
-		final long availableMemory = this.config.getMemoryInput(0);
+		final long availableMemory = this.config.getMemoryDriver();
 		
 		// instantiate the serializer / comparator
 		final TypeSerializerFactory<T> serializerFactory = this.config.getInputSerializer(0, this.userCodeClassLoader);
-		final TypeComparatorFactory<T> comparatorFactory = this.config.getInputComparator(0, this.userCodeClassLoader);
+		final TypeComparatorFactory<T> comparatorFactory = this.config.getDriverComparator(0, this.userCodeClassLoader);
 		this.serializer = serializerFactory.getSerializer();
 		this.comparator = comparatorFactory.createComparator();
 

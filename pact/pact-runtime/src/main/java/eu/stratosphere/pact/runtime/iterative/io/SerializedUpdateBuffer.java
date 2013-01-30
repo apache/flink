@@ -80,7 +80,7 @@ public class SerializedUpdateBuffer extends AbstractPagedOutputView {
 		super(memSegments.remove(memSegments.size() - 1), segmentSize, HEADER_LENGTH);
 
 		totalNumBuffers = memSegments.size() + 1;
-		if (totalNumBuffers >= 3) {
+		if (totalNumBuffers < 3) {
 			throw new IllegalArgumentException("SerializedUpdateBuffer needs at least 3 memory segments.");
 		}
 

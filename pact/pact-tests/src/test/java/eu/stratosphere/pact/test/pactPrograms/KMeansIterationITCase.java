@@ -85,9 +85,9 @@ public class KMeansIterationITCase extends TestBase {
 			+ "2|83.92|60.45|25.17|\n" + "3|70.73|20.18|67.06|\n" + "4|22.51|47.19|86.23|\n" + "5|82.70|53.79|68.68|\n"
 			+ "6|29.74|19.17|59.16|";
 
-	String dataPath = null;
-	String clusterPath = null;
-	String resultPath = null;
+	protected String dataPath = null;
+	protected String clusterPath = null;
+	protected String resultPath = null;
 
 	public KMeansIterationITCase(Configuration config) {
 		super(config);

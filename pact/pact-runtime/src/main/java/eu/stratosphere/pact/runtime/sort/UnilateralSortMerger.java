@@ -983,13 +983,14 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 				
 				// we have two distinct code paths, depending on whether the spilling
 				// threshold will be crossed in the current buffer, or not.
+				boolean available = true;
 				if (bytesUntilSpilling > 0 && buffer.getCapacity() >= bytesUntilSpilling)
 				{
 					boolean fullBuffer = false;
 					
 					// spilling will be triggered while this buffer is filled
 					// loop until the buffer is full or the reader is exhausted
-					while (isRunning() && reader.next(current))
+					while (isRunning() && (available = reader.next(current)))
 					{
 						if (!buffer.write(current)) {
 							leftoverRecord = current;
@@ -1045,10 +1046,12 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 				
 				// no spilling will be triggered (any more) while this buffer is being processed
 				// loop until the buffer is full or the reader is exhausted
-				while (isRunning() && reader.next(current)) {
-					if (!buffer.write(current)) {
-						leftoverRecord = current;
-						break;
+				if (available) {
+					while (isRunning() && reader.next(current)) {
+						if (!buffer.write(current)) {
+							leftoverRecord = current;
+							break;
+						}
 					}
 				}
 				
