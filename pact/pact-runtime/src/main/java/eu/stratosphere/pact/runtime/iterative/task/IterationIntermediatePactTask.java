@@ -37,7 +37,7 @@ public class IterationIntermediatePactTask<S extends Stub, OT> extends AbstractI
 	@Override
 	public void run() throws Exception {
 
-		while (!terminationRequested()) {
+		while (this.running && !terminationRequested()) {
 
 			notifyMonitor(IterationMonitoring.Event.INTERMEDIATE_STARTING);
 			if (log.isInfoEnabled()) {

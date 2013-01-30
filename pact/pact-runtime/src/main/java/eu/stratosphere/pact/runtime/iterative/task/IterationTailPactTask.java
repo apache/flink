@@ -64,7 +64,7 @@ public class IterationTailPactTask<S extends Stub, OT> extends AbstractIterative
 				backChannel.getWriteEnd(), serializer);
 		this.output = outputCollector;
 
-		while (!terminationRequested()) {
+		while (this.running && !terminationRequested()) {
 
 			notifyMonitor(IterationMonitoring.Event.TAIL_STARTING);
 			if (log.isInfoEnabled()) {

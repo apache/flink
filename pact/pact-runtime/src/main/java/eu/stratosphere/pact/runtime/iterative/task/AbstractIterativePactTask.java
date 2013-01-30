@@ -136,4 +136,10 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
 		}
 		this.terminationRequested.set(true);
 	}
+	
+	@Override
+	public void cancel() throws Exception {
+		requestTermination();
+		super.cancel();
+	}
 }

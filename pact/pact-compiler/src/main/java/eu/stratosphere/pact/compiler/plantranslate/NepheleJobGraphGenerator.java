@@ -73,6 +73,9 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  * translation is a one to one mapping. All decisions are made by the optimizer, this class
  * simply creates nephele data structures and descriptions corresponding to the optimizer's
  * result.
+ * <p>
+ * The basic method of operation is a top down traversal over the plan graph. On the way down, tasks are created
+ * for the plan nodes, on the way back up, the nodes connect their predecessor.
  */
 public class NepheleJobGraphGenerator implements Visitor<PlanNode>
 {	
@@ -372,10 +375,9 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode>
 					return;
 				}
 				else if (node instanceof PartialSolutionPlanNode) {
-					@SuppressWarnings("unused")
-					final IterationDescriptor descr = this.iterations.get(node);
-					// merged iteration head task
-					throw new CompilerException("Merged partial solution task not yet supported.");
+					// merged iteration head task. the task that the head is merged with will take care of it
+					// collect all channels, in case we have a union as the input
+					return;
 				}
 				else {
 					throw new CompilerException("Bug: Unrecognized merged task vertex.");
@@ -404,15 +406,48 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode>
 			
 			for (int inputIndex = 0; inConns.hasNext(); inputIndex++) {
 				final Channel input = inConns.next();
+				final PlanNode inputPlanNode = input.getSource();
+				final Iterator<Channel> allInChannels;
+				
+				if (inputPlanNode instanceof UnionPlanNode) {
+					allInChannels = ((UnionPlanNode) inputPlanNode).getListOfInputs().iterator();
+				}
+				else if (inputPlanNode instanceof PartialSolutionPlanNode) {
+					if (this.vertices.get(inputPlanNode) == null) {
+						// merged iteration head
+						final PartialSolutionPlanNode pspn = (PartialSolutionPlanNode) inputPlanNode;
+						final BulkIterationPlanNode iterationNode = pspn.getContainingIterationNode();
+						
+						// check if the iteration's input is a union
+						if (iterationNode.getInput().getSource() instanceof UnionPlanNode) {
+							allInChannels = ((UnionPlanNode) iterationNode.getInput().getSource()).getInputs();
+						} else {
+							allInChannels = Collections.singletonList(iterationNode.getInput()).iterator();
+						}
+						
+						// also, set the index of the gate with the partial solution
+						targetVertexConfig.setIterationHeadPartialSolutionInputIndex(inputIndex);
+					} else {
+						// standalone iteration head
+						allInChannels = Collections.singletonList(input).iterator();
+					}
+				} else {
+					allInChannels = Collections.singletonList(input).iterator();
+				}
 				
 				// check that the type serializer is consistent
 				TypeSerializerFactory<?> typeSerFact = null;
+				
+				// accounting for channels on the dynamic path
 				int numChannelsTotal = 0;
 				int numChannelsDynamicPath = 0;
 				int numDynamicSenderTasksTotal = 0;
 				
+
 				// expand the channel to all the union channels, in case there is a union operator at its source
-				for (Channel inConn : getConnectionsOfInput(input)) {
+				while (allInChannels.hasNext()) {
+					final Channel inConn = allInChannels.next();
+					
 					// sanity check the common serializer
 					if (typeSerFact == null) {
 						typeSerFact = inConn.getSerializer();
@@ -477,16 +512,6 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode>
 		}
 	}
 	
-	private List<Channel> getConnectionsOfInput(Channel connection) {
-		final PlanNode input = connection.getSource();
-		if (input instanceof UnionPlanNode) {
-			return ((UnionPlanNode) input).getListOfInputs();
-		}
-		else {
-			return Collections.singletonList(connection);
-		}
-	}
-	
 	private int getNumberOfSendersPerReceiver(DistributionPattern pattern, int numSenders, int numReceivers) {
 		if (pattern == DistributionPattern.BIPARTITE) {
 			return numSenders;
@@ -516,7 +541,8 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode>
 			Channel inConn = node.getInput();
 			PlanNode pred = inConn.getSource();
 			chaining = ds.getPushChainDriverClass() != null &&
-					!(pred instanceof UnionPlanNode) &&
+					!(pred instanceof UnionPlanNode) &&	// union requires a union gate
+					!(pred instanceof PartialSolutionPlanNode) &&	// partial solution merges anyways
 					inConn.getShipStrategy() == ShipStrategyType.FORWARD &&
 					inConn.getLocalStrategy() == LocalStrategy.NONE &&
 					pred.getOutgoingChannels().size() == 1 &&
@@ -628,18 +654,18 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode>
 		// 4) That successor is not itself the last node of the step function
 		
 		final boolean merge;
-		if (pspn.getOutgoingChannels().size() == 1) {
-			final Channel c = pspn.getOutgoingChannels().get(0);
-			final PlanNode successor = c.getTarget();
-			merge = c.getShipStrategy() == ShipStrategyType.FORWARD &&
-					c.getLocalStrategy() == LocalStrategy.NONE &&
-					successor.getDegreeOfParallelism() == pspn.getDegreeOfParallelism() &&
-					successor.getSubtasksPerInstance() == pspn.getSubtasksPerInstance() &&
-					!(successor instanceof UnionPlanNode) &&
-					successor != iteration.getRootOfStepFunction();
-		} else {
+//		if (pspn.getOutgoingChannels().size() == 1) {
+//			final Channel c = pspn.getOutgoingChannels().get(0);
+//			final PlanNode successor = c.getTarget();
+//			merge = c.getShipStrategy() == ShipStrategyType.FORWARD &&
+//					c.getLocalStrategy() == LocalStrategy.NONE &&
+//					successor.getDegreeOfParallelism() == pspn.getDegreeOfParallelism() &&
+//					successor.getSubtasksPerInstance() == pspn.getSubtasksPerInstance() &&
+//					!(successor instanceof UnionPlanNode) &&
+//					successor != iteration.getRootOfStepFunction();
+//		} else {
 			merge = false;
-		}
+//		}
 		
 		// create or adopt the head vertex
 		final JobTaskVertex toReturn;
