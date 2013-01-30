@@ -16,6 +16,7 @@
 package eu.stratosphere.pact.compiler.dataproperties;
 
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Set;
 
 import eu.stratosphere.pact.common.contract.Order;
@@ -202,11 +203,32 @@ public class GlobalProperties implements Cloneable
 					return new GlobalProperties();
 				}
 			}
-		} else if (this.partitioningFields != null) {
+		}
+		if (this.partitioningFields != null) {
 			for (int colIndex : this.partitioningFields) {
 				if (!node.isFieldConstant(input, colIndex)) {
 					return new GlobalProperties();
 				}
+			}
+		}
+		if (this.uniqueFieldCombinations != null) {
+			HashSet<FieldSet> newSet = new HashSet<FieldSet>();
+			newSet.addAll(this.uniqueFieldCombinations);
+			
+			for (Iterator<FieldSet> combos = newSet.iterator(); combos.hasNext(); ){
+				FieldSet current = combos.next();
+				for (Integer field : current) {
+					if (!node.isFieldConstant(input, field)) {
+						combos.remove();
+						break;
+					}
+				}
+			}
+			
+			if (newSet.size() != this.uniqueFieldCombinations.size()) {
+				GlobalProperties gp = clone();
+				gp.uniqueFieldCombinations = newSet.isEmpty() ? null : newSet;
+				return gp;
 			}
 		}
 		return this;
