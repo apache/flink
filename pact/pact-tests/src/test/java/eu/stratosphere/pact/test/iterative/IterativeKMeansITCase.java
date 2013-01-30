@@ -47,13 +47,16 @@ public class IterativeKMeansITCase extends KMeansIterationITCase {
 
 		IterativeKMeans kmi = new IterativeKMeans();
 
-		Plan plan = kmi.getPlan("1", // config.getString("IterativeKMeansITCase#NoSubtasks", "1"), 
+		Plan plan = kmi.getPlan(config.getString("IterativeKMeansITCase#NoSubtasks", "1"), 
 				getFilesystemProvider().getURIPrefix()	+ dataPath, 
 				getFilesystemProvider().getURIPrefix() + clusterPath,  
 				getFilesystemProvider().getURIPrefix()	+ resultPath,
-				"10");
+				config.getString("IterativeKMeansITCase#NumIterations", "1"));
 		
-		setParameterToCross(plan, "INPUT_LEFT_SHIP_STRATEGY", "SHIP_FORWARD");
+		final String presetShipStrat = config.getString("IterativeKMeansITCase#ShipStrategyDataPoints", null);
+		if (presetShipStrat != null) {
+			setParameterToCross(plan, "INPUT_LEFT_SHIP_STRATEGY", presetShipStrat);
+		}
 
 		PactCompiler pc = new PactCompiler();
 		OptimizedPlan op = pc.compile(plan);
@@ -67,9 +70,29 @@ public class IterativeKMeansITCase extends KMeansIterationITCase {
 	public static Collection<Object[]> getConfigurations() {
 		ArrayList<Configuration> tConfigs = new ArrayList<Configuration>();
 
-		Configuration config = new Configuration();
-		config.setInteger("IterativeKMeansITCase#NoSubtasks", 4);
-		tConfigs.add(config);
+		Configuration config1 = new Configuration();
+		config1.setInteger("IterativeKMeansITCase#NoSubtasks", 4);
+		config1.setString("IterativeKMeansITCase#ShipStrategyDataPoints", "SHIP_FORWARD");
+		config1.setString("IterativeKMeansITCase#NumIterations", "1");
+		tConfigs.add(config1);
+		
+		Configuration config2 = new Configuration();
+		config2.setInteger("IterativeKMeansITCase#NoSubtasks", 4);
+		config2.setString("IterativeKMeansITCase#ShipStrategyDataPoints", "SHIP_BROADCAST");
+		config2.setString("IterativeKMeansITCase#NumIterations", "1");
+		tConfigs.add(config2);
+		
+		Configuration config3 = new Configuration();
+		config3.setInteger("IterativeKMeansITCase#NoSubtasks", 4);
+		config3.setString("IterativeKMeansITCase#ShipStrategyDataPoints", "SHIP_FORWARD");
+		config3.setString("IterativeKMeansITCase#NumIterations", "10");
+		tConfigs.add(config3);
+		
+		Configuration config4 = new Configuration();
+		config4.setInteger("IterativeKMeansITCase#NoSubtasks", 4);
+		config4.setString("IterativeKMeansITCase#ShipStrategyDataPoints", "SHIP_BROADCAST");
+		config4.setString("IterativeKMeansITCase#NumIterations", "10");
+		tConfigs.add(config4);
 
 		return toParameterList(tConfigs);
 	}

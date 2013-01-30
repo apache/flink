@@ -41,9 +41,9 @@ import eu.stratosphere.pact.example.datamining.KMeansIteration;
 import eu.stratosphere.pact.test.util.TestBase;
 
 @RunWith(Parameterized.class)
-public class KMeansIterationITCase extends TestBase {
+public class KMeansIteration2ITCase extends TestBase {
 
-	private static final Log LOG = LogFactory.getLog(KMeansIterationITCase.class);
+	private static final Log LOG = LogFactory.getLog(KMeansIteration2ITCase.class);
 
 	private final String DATAPOINTS = "0|50.90|16.20|72.08|\n" + "1|73.65|61.76|62.89|\n" + "2|61.73|49.95|92.74|\n"
 			+ "3|1.60|70.11|16.32|\n" + "4|2.43|19.81|89.56|\n" + "5|67.99|9.00|14.48|\n" + "6|87.80|84.49|55.83|\n"
@@ -90,7 +90,7 @@ public class KMeansIterationITCase extends TestBase {
 	protected String clusterPath = null;
 	protected String resultPath = null;
 
-	public KMeansIterationITCase(Configuration config) {
+	public KMeansIteration2ITCase(Configuration config) {
 		super(config);
 	}
 
@@ -131,7 +131,7 @@ public class KMeansIterationITCase extends TestBase {
 				getFilesystemProvider().getURIPrefix() + clusterPath,  
 				getFilesystemProvider().getURIPrefix()	+ resultPath);
 		
-		setParameterToCross(plan, "INPUT_RIGHT_SHIP_STRATEGY", "SHIP_FORWARD");
+		setParameterToCross(plan, "INPUT_LEFT_SHIP_STRATEGY", "SHIP_FORWARD");
 
 		PactCompiler pc = new PactCompiler();
 		OptimizedPlan op = pc.compile(plan);
