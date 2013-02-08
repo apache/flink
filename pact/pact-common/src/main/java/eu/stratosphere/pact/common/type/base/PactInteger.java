@@ -23,7 +23,7 @@ import eu.stratosphere.nephele.services.memorymanager.DataInputView;
 import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
 import eu.stratosphere.pact.common.type.CopyableValue;
 import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.NormalizableKey;
+import eu.stratosphere.pact.common.type.DeNormalizableKey;
 
 /**
  * Integer base type for PACT programs that implements the Key interface.
@@ -31,7 +31,7 @@ import eu.stratosphere.pact.common.type.NormalizableKey;
  * 
  * @see eu.stratosphere.pact.common.type.Key
  */
-public class PactInteger implements Key, NormalizableKey, CopyableValue<PactInteger>
+public class PactInteger implements Key, DeNormalizableKey, CopyableValue<PactInteger>
 {
 	private int value;
 
@@ -186,6 +186,25 @@ public class PactInteger implements Key, NormalizableKey, CopyableValue<PactInte
 		}
 	}
 	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.type.ReNormalizableKey#readNormalizedKey(byte[], int, int)
+	 */
+	@Override
+	public void readFromNormalizedKey(byte[] source, int offset, int len)
+	{
+		if (len == 4) {
+			// the only allowed case
+			value = 0;
+			value |= (((source[offset    ] - Byte.MIN_VALUE) & 0xFF) << 24);
+			value |= ((source[offset + 1] & 0xFF) << 16);
+			value |= ((source[offset + 2] & 0xFF) <<  8);
+			value |= ((source[offset + 3] & 0xFF)      );
+		}
+		else {
+			throw new IllegalArgumentException("We can only read from normalized keys if the have full length.");
+		}
+	}
+
 	// --------------------------------------------------------------------------------------------
 	
 	/* (non-Javadoc)

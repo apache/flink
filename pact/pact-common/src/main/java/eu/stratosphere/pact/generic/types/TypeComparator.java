@@ -204,6 +204,19 @@ public interface TypeComparator<T>
 	public void putNormalizedKey(T record, byte[] target, int offset, int numBytes);
 	
 	/**
+	 * Reads the normalized keys of the record back while denormalizing them. This must only be used when
+	 * for all the key fields the full normalized key is used.
+	 *
+	 * @param record The record into which to read the normalized keys.
+	 * @param source The byte array from which to read the normalized key bytes.
+	 * @param offset The offset in the byte array, where to start reading the normalized key bytes.
+	 * @param numBytes The number of bytes to be read exactly.
+	 *
+	 * @see NormalizableKey#copyNormalizedKey(byte[], int, int)
+	 */
+	public void readFromNormalizedKey(T record, byte[] source, int offset, int numBytes);
+
+	/**
 	 * Flag whether normalized key comparisons should be inverted key should be interpreted
 	 * inverted, i.e. descending.
 	 * 

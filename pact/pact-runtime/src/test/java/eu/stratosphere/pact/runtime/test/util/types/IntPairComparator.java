@@ -131,6 +131,9 @@ public class IntPairComparator implements TypeComparator<IntPair>
 			}
 		}
 	}
+	public void readFromNormalizedKey(IntPair record, byte[] target, int offset, int numBytes) {
+
+	}
 
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.common.generic.types.TypeComparator#invertNormalizedKey()
