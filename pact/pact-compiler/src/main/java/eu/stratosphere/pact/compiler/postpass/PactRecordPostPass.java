@@ -31,7 +31,7 @@ import eu.stratosphere.pact.compiler.plan.candidate.BulkIterationPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.DualInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
-import eu.stratosphere.pact.compiler.plan.candidate.PartialSolutionPlanNode;
+import eu.stratosphere.pact.compiler.plan.candidate.BulkPartialSolutionPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
@@ -349,8 +349,8 @@ public class PactRecordPostPass implements OptimizerPostPass
 						" a union node. Missing type information for key field " + ex.getFieldNumber());
 			}
 		}
-		else if (node instanceof PartialSolutionPlanNode) {
-			PartialSolutionPlanNode psn = (PartialSolutionPlanNode) node;
+		else if (node instanceof BulkPartialSolutionPlanNode) {
+			BulkPartialSolutionPlanNode psn = (BulkPartialSolutionPlanNode) node;
 			
 			// get the nodes current schema
 			final KeySchema schema;

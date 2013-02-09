@@ -24,8 +24,8 @@ import eu.stratosphere.pact.common.stubs.Stub;
 /**
  * Abstract contract superclass for for all contracts that have two inputs, like "match" or "cross".
  */
-public abstract class DualInputContract<T extends Stub> extends AbstractPact<T>
-{
+public abstract class DualInputContract<T extends Stub> extends AbstractPact<T> {
+	
 	/**
 	 * The contract producing the first input.
 	 */
@@ -53,8 +53,7 @@ public abstract class DualInputContract<T extends Stub> extends AbstractPact<T>
 	 * @param name The given name for the Pact, used in plans, logs and progress messages.
 	 * @param stubClass The class containing the user function.
 	 */
-	protected DualInputContract(Class<? extends T> stubClass, String name)
-	{
+	protected DualInputContract(Class<? extends T> stubClass, String name) {
 		super(stubClass, name);
 		this.keyFields1 = this.keyFields2 = new int[0];
 	}
@@ -67,8 +66,7 @@ public abstract class DualInputContract<T extends Stub> extends AbstractPact<T>
 	 * @param keyTypes The classes of the data types that act as keys in this stub.
 	 * @param stubClass The class containing the user function.
 	 */
-	protected DualInputContract(Class<? extends T> stubClass, int[] keyPositions1, int[] keyPositions2, String name)
-	{
+	protected DualInputContract(Class<? extends T> stubClass, int[] keyPositions1, int[] keyPositions2, String name) {
 		super(stubClass, name);
 		this.keyFields1 = keyPositions1;
 		this.keyFields2 = keyPositions2;
@@ -99,8 +97,10 @@ public abstract class DualInputContract<T extends Stub> extends AbstractPact<T>
 	 * 
 	 * @param input The contract will be set as the first input.
 	 */
-	public void addFirstInput(Contract input) {
-		this.input1.add(input);
+	public void addFirstInput(Contract ... input) {
+		for (Contract c : input) {
+			this.input1.add(c);
+		}
 	}
 	
 	/**
@@ -108,8 +108,10 @@ public abstract class DualInputContract<T extends Stub> extends AbstractPact<T>
 	 * 
 	 * @param input The contract will be set as the second input.
 	 */
-	public void addSecondInput(Contract input) {
-		this.input2.add(input);
+	public void addSecondInput(Contract ... input) {
+		for (Contract c : input) {
+			this.input2.add(c);
+		}
 	}
 
 	/**
@@ -135,9 +137,11 @@ public abstract class DualInputContract<T extends Stub> extends AbstractPact<T>
 	 * 
 	 * @param firstInput The contract that is connected as the first input.
 	 */
-	public void setFirstInput(Contract inputs) {
+	public void setFirstInput(Contract ... input) {
 		this.input1.clear();
-		this.input1.add(inputs);
+		for (Contract c : input) {
+			this.input1.add(c);
+		}
 	}
 
 	/**
@@ -145,9 +149,31 @@ public abstract class DualInputContract<T extends Stub> extends AbstractPact<T>
 	 * 
 	 * @param secondInput The contract that is connected as the second input.
 	 */
-	public void setSecondInput(Contract inputs) {
+	public void setSecondInput(Contract ... input) {
 		this.input2.clear();
-		this.input2.add(inputs);
+		for (Contract c : input) {
+			this.input2.add(c);
+		}
+	}
+	
+	/**
+	 * Clears all previous connections and connects the first inputs to the task wrapped in this contract
+	 * 
+	 * @param inputs The contracts that is connected as the first inputs.
+	 */
+	public void setFirstInputs(List<Contract> inputs) {
+		this.input1.clear();
+		this.input1.addAll(inputs);
+	}
+
+	/**
+	 * Clears all previous connections and connects the second inputs to the task wrapped in this contract
+	 * 
+	 * @param secondInput The contracts that is connected as the second inputs.
+	 */
+	public void setSecondInputs(List<Contract> inputs) {
+		this.input2.clear();
+		this.input2.addAll(inputs);
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -177,31 +203,11 @@ public abstract class DualInputContract<T extends Stub> extends AbstractPact<T>
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * Clears all previous connections and connects the first inputs to the task wrapped in this contract
-	 * 
-	 * @param inputs The contracts that is connected as the first inputs.
-	 */
-	public void setFirstInputs(List<Contract> inputs) {
-		this.input1.clear();
-		this.input1.addAll(inputs);
-	}
-
-	/**
-	 * Clears all previous connections and connects the second inputs to the task wrapped in this contract
-	 * 
-	 * @param secondInput The contracts that is connected as the second inputs.
-	 */
-	public void setSecondInputs(List<Contract> inputs) {
-		this.input2.clear();
-		this.input2.addAll(inputs);
-	}
-	
-	/**
 	 * {@inheritDoc}
 	 */
 	@Override
 	public void accept(Visitor<Contract> visitor) {
-		boolean descend = visitor.preVisit(this);	
+		boolean descend = visitor.preVisit(this);
 		if (descend) {
 			for(Contract c : this.input1) {
 				c.accept(visitor);

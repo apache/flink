@@ -244,6 +244,7 @@ public class DataSourceNode extends OptimizerNode
 	@Override
 	public void computeUnclosedBranchStack() {
 		// because there are no inputs, there are no unclosed branches.
+		this.openBranches = Collections.emptyList();
 	}
 
 	/*

@@ -29,7 +29,7 @@ import eu.stratosphere.pact.runtime.task.DriverStrategy;
  */
 public class BulkIterationPlanNode extends SingleInputPlanNode implements IterationPlanNode
 {
-	private final PartialSolutionPlanNode partialSolutionPlanNode;
+	private final BulkPartialSolutionPlanNode partialSolutionPlanNode;
 	
 	private final PlanNode rootOfStepFunction;
 	
@@ -38,7 +38,7 @@ public class BulkIterationPlanNode extends SingleInputPlanNode implements Iterat
 	// --------------------------------------------------------------------------------------------
 
 	public BulkIterationPlanNode(BulkIterationNode template, Channel input,
-			PartialSolutionPlanNode pspn, PlanNode rootOfStepFunction) {
+			BulkPartialSolutionPlanNode pspn, PlanNode rootOfStepFunction) {
 		super(template, input, DriverStrategy.NONE);
 		this.partialSolutionPlanNode = pspn;
 		this.rootOfStepFunction = rootOfStepFunction;
@@ -54,7 +54,7 @@ public class BulkIterationPlanNode extends SingleInputPlanNode implements Iterat
 		}
 	}
 	
-	public PartialSolutionPlanNode getPartialSolutionPlanNode() {
+	public BulkPartialSolutionPlanNode getPartialSolutionPlanNode() {
 		return this.partialSolutionPlanNode;
 	}
 	

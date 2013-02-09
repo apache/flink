@@ -24,8 +24,7 @@ import eu.stratosphere.pact.common.stubs.Stub;
 /**
  * Abstract contract superclass for for all contracts that have one input like "map" or "reduce".
  */
-public abstract class SingleInputContract<T extends Stub> extends AbstractPact<T>
-{
+public abstract class SingleInputContract<T extends Stub> extends AbstractPact<T> {
 	/**
 	 * The input which produces the data consumed by this Pact.
 	 */
@@ -45,8 +44,7 @@ public abstract class SingleInputContract<T extends Stub> extends AbstractPact<T
 	 * @param keyTypes The classes of the data types that act as keys in this stub.
 	 * @param name The given name for the Pact, used in plans, logs and progress messages.
 	 */
-	protected SingleInputContract(Class<? extends T> stubClass, int[] keyPositions, String name)
-	{
+	protected SingleInputContract(Class<? extends T> stubClass, int[] keyPositions, String name) {
 		super(stubClass, name);
 		this.keyFields = keyPositions;
 	}
@@ -58,8 +56,7 @@ public abstract class SingleInputContract<T extends Stub> extends AbstractPact<T
 	 * @param stubClass The class containing the user function.
 	 * @param name The given name for the Pact, used in plans, logs and progress messages.
 	 */
-	protected SingleInputContract(Class<? extends T> stubClass, String name)
-	{
+	protected SingleInputContract(Class<? extends T> stubClass, String name) {
 		super(stubClass, name);
 		this.keyFields = new int[0];
 	}

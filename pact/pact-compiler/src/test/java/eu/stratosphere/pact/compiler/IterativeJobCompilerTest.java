@@ -23,6 +23,7 @@ import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.pact.example.iterative.IterativeKMeans;
+import eu.stratosphere.pact.example.iterative.WorksetConnectedComponents;
 import eu.stratosphere.pact.generic.contract.BulkIteration;
 
 
@@ -31,7 +32,11 @@ import eu.stratosphere.pact.generic.contract.BulkIteration;
  */
 public class IterativeJobCompilerTest extends CompilerTestBase
 {
-	@Test
+	// --------------------------------------------------------------------------------------------
+	//  K-Means (Bulk Iteration)
+	// --------------------------------------------------------------------------------------------
+	
+//	@Test
 	public void testCompileKMeansIteration1() {
 		IterativeKMeans kmi = new IterativeKMeans();
 
@@ -45,7 +50,7 @@ public class IterativeJobCompilerTest extends CompilerTestBase
 		jgg.compileJobGraph(op);
 	}
 	
-	@Test
+//	@Test
 	public void testCompileKMeansIteration2() {
 		IterativeKMeans kmi = new IterativeKMeans();
 
@@ -66,5 +71,21 @@ public class IterativeJobCompilerTest extends CompilerTestBase
 		ReduceContract reduce1 = (ReduceContract) reduce2.getInputs().get(0);
 		CrossContract cross = (CrossContract) reduce1.getInputs().get(0);
 		cross.getParameters().setString(key, value);
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	//  Connected Components (Workset Iteration)
+	// --------------------------------------------------------------------------------------------
+	
+	@Test
+	public void testCompileConnectedComponents() {
+		WorksetConnectedComponents cc = new WorksetConnectedComponents();
+
+		Plan plan = cc.getPlan(String.valueOf(defaultParallelism),
+				IN_FILE_1, IN_FILE_1, OUT_FILE_1, String.valueOf(100));
+
+		OptimizedPlan op = compile(plan);
+		NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
+		jgg.compileJobGraph(op);
 	}
 }

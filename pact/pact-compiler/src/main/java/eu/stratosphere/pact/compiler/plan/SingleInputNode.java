@@ -303,7 +303,7 @@ public abstract class SingleInputNode extends OptimizerNode
 					// requested properties
 					for (RequestedGlobalProperties rgps: allValidGlobals) {
 						if (rgps.isMetBy(c.getGlobalProperties())) {
-							addLocalCandidates(c, rgps, outputPlans, estimator);
+							addLocalCandidates(c, igps, outputPlans, estimator);
 							break;
 						}
 					}

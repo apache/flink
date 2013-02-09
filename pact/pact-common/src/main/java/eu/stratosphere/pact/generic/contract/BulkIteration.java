@@ -16,12 +16,12 @@
 package eu.stratosphere.pact.generic.contract;
 
 import eu.stratosphere.pact.common.plan.Visitor;
-import eu.stratosphere.pact.common.util.IterationPlaceHolderStub;
+import eu.stratosphere.pact.generic.stub.AbstractStub;
 
 /**
  * 
  */
-public class BulkIteration extends SingleInputContract<IterationPlaceHolderStub>
+public class BulkIteration extends SingleInputContract<AbstractStub>
 {
 	private static String DEFAULT_NAME = "<Unnamed Bulk Iteration>";
 	
@@ -44,7 +44,7 @@ public class BulkIteration extends SingleInputContract<IterationPlaceHolderStub>
 	 * @param name
 	 */
 	public BulkIteration(String name) {
-		super(IterationPlaceHolderStub.class, name);
+		super(AbstractStub.class, name);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -119,14 +119,14 @@ public class BulkIteration extends SingleInputContract<IterationPlaceHolderStub>
 	
 	/**
 	 * Specialized contract to use as a recognizable place-holder for the input to the
-	 * iteration when composing the nested data flow.
+	 * step function when composing the nested data flow.
 	 */
 	public static final class PartialSolutionPlaceHolder extends Contract
 	{
 		private final BulkIteration containingIteration;
 		
 		private PartialSolutionPlaceHolder(BulkIteration container) {
-			super("Iteration Input Place Holder");
+			super("Partial Solution Place Holder");
 			this.containingIteration = container;
 		}
 		

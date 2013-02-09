@@ -32,7 +32,7 @@ import eu.stratosphere.pact.compiler.operators.NoOpDescriptor;
 import eu.stratosphere.pact.compiler.operators.OperatorDescriptorSingle;
 import eu.stratosphere.pact.compiler.plan.candidate.BulkIterationPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
-import eu.stratosphere.pact.compiler.plan.candidate.PartialSolutionPlanNode;
+import eu.stratosphere.pact.compiler.plan.candidate.BulkPartialSolutionPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.generic.contract.BulkIteration;
 
@@ -43,7 +43,7 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode
 {
 	private static final int DEFAULT_COST_WEIGHT = 50;
 	
-	private PartialSolutionNode partialSolution;
+	private BulkPartialSolutionNode partialSolution;
 	
 	private OptimizerNode nextPartialSolution;
 	
@@ -76,7 +76,7 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode
 	 *
 	 * @return The partialSolution.
 	 */
-	public PartialSolutionNode getPartialSolution() {
+	public BulkPartialSolutionNode getPartialSolution() {
 		return partialSolution;
 	}
 	
@@ -85,7 +85,7 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode
 	 *
 	 * @param partialSolution The partialSolution to set.
 	 */
-	public void setPartialSolution(PartialSolutionNode partialSolution) {
+	public void setPartialSolution(BulkPartialSolutionNode partialSolution) {
 		this.partialSolution = partialSolution;
 	}
 
@@ -202,12 +202,9 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode
 		this.inConn.setInterestingProperties(inProps);
 	}
 	
-	
-	
-	// --------------------------------------------------------------------------------------------
-	//                      Iteration Specific Traversals
-	// --------------------------------------------------------------------------------------------
-	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.SingleInputNode#instantiateCandidate(eu.stratosphere.pact.compiler.operators.OperatorDescriptorSingle, eu.stratosphere.pact.compiler.plan.candidate.Channel, java.util.List, eu.stratosphere.pact.compiler.costs.CostEstimator, eu.stratosphere.pact.compiler.dataproperties.RequestedGlobalProperties, eu.stratosphere.pact.compiler.dataproperties.RequestedLocalProperties)
+	 */
 	@Override
 	protected void instantiateCandidate(OperatorDescriptorSingle dps, Channel in, List<PlanNode> target,
 			CostEstimator estimator, RequestedGlobalProperties globPropsReq, RequestedLocalProperties locPropsReq)
@@ -218,7 +215,7 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode
 		// we have a fitting candidate for the step function (often, work is pushed out of the step function).
 		// Among the candidates of the step function, we keep only those that meet the requested properties of the
 		// current candidate initial partial solution. That makes sure these properties exist at the beginning of
-		// every iteration.
+		// the successive iteration.
 		
 		// 1) Because we enumerate multiple times, we may need to clean the cached plans
 		//    before starting another enumeration
@@ -228,7 +225,7 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode
 		
 		// 2) Give the partial solution the properties of the current candidate for the initial partial solution
 		this.partialSolution.setCandidateProperties(in.getGlobalProperties(), in.getLocalProperties());
-		final PartialSolutionPlanNode pspn = this.partialSolution.getCurrentPartialSolutionPlanNode();
+		final BulkPartialSolutionPlanNode pspn = this.partialSolution.getCurrentPartialSolutionPlanNode();
 		
 		// 3) Get the alternative plans
 		List<PlanNode> candidates = this.nextPartialSolution.getAlternativePlans(estimator);
@@ -251,44 +248,15 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode
 			target.add(node);
 		}
 	}
+	
+	// --------------------------------------------------------------------------------------------
+	//                      Iteration Specific Traversals
+	// --------------------------------------------------------------------------------------------
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.IterationNode#acceptForStepFunction(eu.stratosphere.pact.common.plan.Visitor)
+	 */
 	public void acceptForStepFunction(Visitor<OptimizerNode> visitor) {
 		this.nextPartialSolution.accept(visitor);
-	}
-	
-	private static final class InterestingPropertiesClearer implements Visitor<OptimizerNode> {
-		
-		private static final InterestingPropertiesClearer INSTANCE = new InterestingPropertiesClearer();
-
-		@Override
-		public boolean preVisit(OptimizerNode visitable) {
-			if (visitable.getInterestingProperties() != null) {
-				visitable.clearInterestingProperties();
-				return true;
-			} else {
-				return false;
-			}
-		}
-
-		@Override
-		public void postVisit(OptimizerNode visitable) {}
-	}
-	
-	private static final class PlanCacheCleaner implements Visitor<OptimizerNode> {
-		
-		private static final PlanCacheCleaner INSTANCE = new PlanCacheCleaner();
-
-		@Override
-		public boolean preVisit(OptimizerNode visitable) {
-			if (visitable.cachedPlans != null) {
-				visitable.cachedPlans = null;
-				return true;
-			} else {
-				return false;
-			}
-		}
-
-		@Override
-		public void postVisit(OptimizerNode visitable) {}
 	}
 }

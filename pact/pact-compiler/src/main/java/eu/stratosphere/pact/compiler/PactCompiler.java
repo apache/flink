@@ -56,16 +56,19 @@ import eu.stratosphere.pact.compiler.plan.MapNode;
 import eu.stratosphere.pact.compiler.plan.MatchNode;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.PactConnection;
-import eu.stratosphere.pact.compiler.plan.PartialSolutionNode;
+import eu.stratosphere.pact.compiler.plan.BulkPartialSolutionNode;
 import eu.stratosphere.pact.compiler.plan.ReduceNode;
 import eu.stratosphere.pact.compiler.plan.SinkJoiner;
+import eu.stratosphere.pact.compiler.plan.SolutionSetNode;
 import eu.stratosphere.pact.compiler.plan.TempMode;
+import eu.stratosphere.pact.compiler.plan.WorksetIterationNode;
+import eu.stratosphere.pact.compiler.plan.WorksetNode;
 import eu.stratosphere.pact.compiler.plan.candidate.BinaryUnionPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.BulkIterationPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.IterationPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
-import eu.stratosphere.pact.compiler.plan.candidate.PartialSolutionPlanNode;
+import eu.stratosphere.pact.compiler.plan.candidate.BulkPartialSolutionPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkJoinerPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
@@ -74,12 +77,15 @@ import eu.stratosphere.pact.compiler.plan.candidate.UnionPlanNode;
 import eu.stratosphere.pact.compiler.postpass.OptimizerPostPass;
 import eu.stratosphere.pact.generic.contract.BulkIteration;
 import eu.stratosphere.pact.generic.contract.BulkIteration.PartialSolutionPlaceHolder;
+import eu.stratosphere.pact.generic.contract.WorksetIteration.SolutionSetPlaceHolder;
+import eu.stratosphere.pact.generic.contract.WorksetIteration.WorksetPlaceHolder;
 import eu.stratosphere.pact.generic.contract.Contract;
 import eu.stratosphere.pact.generic.contract.GenericCoGroupContract;
 import eu.stratosphere.pact.generic.contract.GenericCrossContract;
 import eu.stratosphere.pact.generic.contract.GenericMapContract;
 import eu.stratosphere.pact.generic.contract.GenericMatchContract;
 import eu.stratosphere.pact.generic.contract.GenericReduceContract;
+import eu.stratosphere.pact.generic.contract.WorksetIteration;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 
@@ -742,14 +748,15 @@ public class PactCompiler {
 		private final boolean computeEstimates; // flag indicating whether to compute additional info
 		
 		private final GraphCreatingVisitor parent;	// reference to enclosing creator, in case of a recursive translation
+		
+		private final boolean forceDOP;
 
 		
-		GraphCreatingVisitor(DataStatistics statistics, int maxMachines, int defaultParallelism, boolean computeEstimates)
-		{
-			this(null, statistics, maxMachines, defaultParallelism, computeEstimates);
+		GraphCreatingVisitor(DataStatistics statistics, int maxMachines, int defaultParallelism, boolean computeEstimates) {
+			this(null, false, statistics, maxMachines, defaultParallelism, computeEstimates);
 		}
 		
-		GraphCreatingVisitor(GraphCreatingVisitor parent,
+		GraphCreatingVisitor(GraphCreatingVisitor parent, boolean forceDOP,
 			DataStatistics statistics, int maxMachines, int defaultParallelism, boolean computeEstimates)
 		{
 			this.con2node = new HashMap<Contract, OptimizerNode>();
@@ -761,6 +768,7 @@ public class PactCompiler {
 			this.id = 1;
 			this.computeEstimates = computeEstimates;
 			this.parent = parent;
+			this.forceDOP = forceDOP;
 		}
 
 		/*
@@ -782,24 +790,32 @@ public class PactCompiler {
 				DataSinkNode dsn = new DataSinkNode((GenericDataSink) c);
 				this.sinks.add(dsn);
 				n = dsn;
-			} else if (c instanceof GenericDataSource) {
+			}
+			else if (c instanceof GenericDataSource) {
 				DataSourceNode dsn = new DataSourceNode((GenericDataSource<?>) c);
 				this.sources.add(dsn);
 				n = dsn;
-			} else if (c instanceof GenericMapContract) {
+			}
+			else if (c instanceof GenericMapContract) {
 				n = new MapNode((GenericMapContract<?>) c);
-			} else if (c instanceof GenericReduceContract) {
+			}
+			else if (c instanceof GenericReduceContract) {
 				n = new ReduceNode((GenericReduceContract<?>) c);
-			} else if (c instanceof GenericMatchContract) {
+			}
+			else if (c instanceof GenericMatchContract) {
 				n = new MatchNode((GenericMatchContract<?>) c);
-			} else if (c instanceof GenericCoGroupContract) {
+			}
+			else if (c instanceof GenericCoGroupContract) {
 				n = new CoGroupNode((GenericCoGroupContract<?>) c);
-			} else if (c instanceof GenericCrossContract) {
+			}
+			else if (c instanceof GenericCrossContract) {
 				n = new CrossNode((GenericCrossContract<?>) c);
 			}
 			else if (c instanceof BulkIteration) {
-				BulkIteration iter = (BulkIteration) c;
-				n = new BulkIterationNode(iter);
+				n = new BulkIterationNode((BulkIteration) c);
+			}
+			else if (c instanceof WorksetIteration) {
+				n = new WorksetIterationNode((WorksetIteration) c);
 			}
 			else if (c instanceof PartialSolutionPlaceHolder) {
 				final PartialSolutionPlaceHolder holder = (PartialSolutionPlaceHolder) c;
@@ -808,8 +824,41 @@ public class PactCompiler {
 							(BulkIterationNode) this.parent.con2node.get(enclosingIteration);
 				
 				// catch this for the recursive translation of step functions
-				PartialSolutionNode p = new PartialSolutionNode(holder, containingIterationNode);
+				BulkPartialSolutionNode p = new BulkPartialSolutionNode(holder, containingIterationNode);
 				p.setDegreeOfParallelism(containingIterationNode.getDegreeOfParallelism());
+				p.setSubtasksPerInstance(containingIterationNode.getSubtasksPerInstance());
+				
+				// we need to manually set the estimates to the estimates from the initial partial solution
+				// we need to do this now, such that all successor nodes can compute their estimates properly
+				p.copyEstimates(containingIterationNode);
+				n = p;
+			}
+			else if (c instanceof WorksetPlaceHolder) {
+				final WorksetPlaceHolder holder = (WorksetPlaceHolder) c;
+				final WorksetIteration enclosingIteration = holder.getContainingWorksetIteration();
+				final WorksetIterationNode containingIterationNode =
+							(WorksetIterationNode) this.parent.con2node.get(enclosingIteration);
+				
+				// catch this for the recursive translation of step functions
+				WorksetNode p = new WorksetNode(holder, containingIterationNode);
+				p.setDegreeOfParallelism(containingIterationNode.getDegreeOfParallelism());
+				p.setSubtasksPerInstance(containingIterationNode.getSubtasksPerInstance());
+				
+				// we need to manually set the estimates to the estimates from the initial partial solution
+				// we need to do this now, such that all successor nodes can compute their estimates properly
+				p.copyEstimates(containingIterationNode);
+				n = p;
+			}
+			else if (c instanceof SolutionSetPlaceHolder) {
+				final SolutionSetPlaceHolder holder = (SolutionSetPlaceHolder) c;
+				final WorksetIteration enclosingIteration = holder.getContainingWorksetIteration();
+				final WorksetIterationNode containingIterationNode =
+							(WorksetIterationNode) this.parent.con2node.get(enclosingIteration);
+				
+				// catch this for the recursive translation of step functions
+				SolutionSetNode p = new SolutionSetNode(holder, containingIterationNode);
+				p.setDegreeOfParallelism(containingIterationNode.getDegreeOfParallelism());
+				p.setSubtasksPerInstance(containingIterationNode.getSubtasksPerInstance());
 				
 				// we need to manually set the estimates to the estimates from the initial partial solution
 				// we need to do this now, such that all successor nodes can compute their estimates properly
@@ -825,26 +874,36 @@ public class PactCompiler {
 			// record the potential memory consumption
 			this.numMemoryConsumers += n.isMemoryConsumer() ? 1 : 0;
 
-			// set the degree of parallelism
-			int par = c.getDegreeOfParallelism();
-			par = par >= 1 ? par : this.defaultParallelism;
-
-			// set the parallelism only if it has not been set before
+			// set the parallelism only if it has not been set before. some nodes have a fixed DOP, such as the
+			// key-less reducer (all-reduce)
 			if (n.getDegreeOfParallelism() < 1) {
+				// set the degree of parallelism
+				int par = c.getDegreeOfParallelism();
+				if (par > 0) {
+					if (this.forceDOP && par != this.defaultParallelism) {
+						par = this.defaultParallelism;
+						LOG.warn("The degree-of-parallelism of nested Dataflows (such as step functions in iterations) is " +
+							"currently fixed to the degree-of-parallelism of the surrounding operator (the iteration).");
+					}
+				} else {
+					par = this.defaultParallelism;
+				}
 				n.setDegreeOfParallelism(par);
 			}
 
 			// check if we need to set the instance sharing accordingly such that
 			// the maximum number of machines is not exceeded
-			int tasksPerInstance = 1;
-			if (this.maxMachines > 0) {
-				int p = n.getDegreeOfParallelism();
-				tasksPerInstance = (p / this.maxMachines) + (p % this.maxMachines == 0 ? 0 : 1);
+			if (n.getSubtasksPerInstance() < 1) {
+				int tasksPerInstance = 1;
+				if (this.maxMachines > 0) {
+					int p = n.getDegreeOfParallelism();
+					tasksPerInstance = (p / this.maxMachines) + (p % this.maxMachines == 0 ? 0 : 1);
+				}
+	
+				// we group together n tasks per machine, depending on config and the above computed
+				// value required to obey the maximum number of machines
+				n.setSubtasksPerInstance(tasksPerInstance);
 			}
-
-			// we group together n tasks per machine, depending on config and the above computed
-			// value required to obey the maximum number of machines
-			n.setSubtasksPerInstance(tasksPerInstance);
 			return true;
 		}
 
@@ -880,13 +939,16 @@ public class PactCompiler {
 				final BulkIteration iter = iterNode.getIterationContract();
 				
 				// first, recursively build the data flow for the step function
-				final GraphCreatingVisitor recursiveCreator = new GraphCreatingVisitor(this,
-					this.statistics, this.maxMachines, this.defaultParallelism, this.computeEstimates);
+				final GraphCreatingVisitor recursiveCreator = new GraphCreatingVisitor(this, true,
+					this.statistics, this.maxMachines, iterNode.getDegreeOfParallelism(), this.computeEstimates);
 				iter.getNextPartialSolution().accept(recursiveCreator);
 				
 				OptimizerNode rootOfStepFunction = recursiveCreator.con2node.get(iter.getNextPartialSolution());
-				PartialSolutionNode partialSolution = 
-						(PartialSolutionNode) recursiveCreator.con2node.get(iter.getPartialSolution());
+				BulkPartialSolutionNode partialSolution = 
+						(BulkPartialSolutionNode) recursiveCreator.con2node.get(iter.getPartialSolution());
+				if (partialSolution == null) {
+					throw new CompilerException("Error: The step functions result does not depend on the partial solution.");
+				}
 				
 				// add an outgoing connection to the root of the step function
 				PactConnection rootConn = new PactConnection(rootOfStepFunction, null);
@@ -900,6 +962,64 @@ public class PactCompiler {
 				
 				// go over the contained data flow and mark the dynamic path nodes
 				rootOfStepFunction.accept(new StaticDynamicPathIdentifier(iterNode.getCostWeight()));
+			}
+			else if (n instanceof WorksetIterationNode) {
+				final WorksetIterationNode iterNode = (WorksetIterationNode) n;
+				final WorksetIteration iter = iterNode.getIterationContract();
+				
+				// first, recursively build the data flow for the step function
+				final GraphCreatingVisitor recursiveCreator = new GraphCreatingVisitor(this, true,
+					this.statistics, this.maxMachines, iterNode.getDegreeOfParallelism(), this.computeEstimates);
+				// first, descend form the solution set delta. check that it depends on both the workset
+				// and the solution set
+				iter.getSolutionSetDelta().accept(recursiveCreator);
+				
+				final WorksetNode worksetNode = (WorksetNode) recursiveCreator.con2node.get(iter.getWorkset());
+				if (worksetNode == null) {
+					throw new CompilerException("The solution set delta does not depend on the workset.");
+				}
+				
+				iter.getNextWorkset().accept(recursiveCreator);
+
+				final SolutionSetNode solutionSetNode = (SolutionSetNode) recursiveCreator.con2node.get(iter.getSolutionSet());
+				final OptimizerNode nextWorksetNode = recursiveCreator.con2node.get(iter.getNextWorkset());
+				final OptimizerNode solutionSetDeltaNode = recursiveCreator.con2node.get(iter.getSolutionSetDelta());
+				
+				// for now, check that the solution set it joined with only once. we want to allow multiple joins
+				// with the solution set later when we can share data structures among operators. also, the join
+				// must be a match which is at the same time the solution set delta
+				if (solutionSetNode != null) {
+					if (solutionSetNode.getOutgoingConnections().size() > 1) {
+						throw new CompilerException("Error: The solution set may currently be joined with only once.");
+					} else {
+						OptimizerNode successor = solutionSetNode.getOutgoingConnections().get(0).getTarget();
+						if (successor.getClass() != MatchNode.class) {
+							throw new CompilerException("Error: The solution set may currently only be joined with through a Match.!");
+						}
+						if (successor != solutionSetDeltaNode) {
+							throw new CompilerException("Error: The solution set delta must currently be the" +
+									"	same node that joins with the solution set.");
+						}
+					}
+				}
+				
+				// add an outgoing connection to the root of the step function
+				PactConnection worksetRootConn = new PactConnection(nextWorksetNode, null);
+				nextWorksetNode.addOutgoingConnection(worksetRootConn);
+				PactConnection solutionSetDeltaRootConn = new PactConnection(solutionSetDeltaNode, null);
+				solutionSetDeltaNode.addOutgoingConnection(solutionSetDeltaRootConn);
+				
+				iterNode.setPartialSolution(solutionSetNode, worksetNode);
+				iterNode.setNextPartialSolution(solutionSetDeltaNode, nextWorksetNode, 
+						solutionSetDeltaRootConn,worksetRootConn);
+				
+				// account for the nested memory consumers
+				this.numMemoryConsumers += recursiveCreator.numMemoryConsumers;
+				
+				// go over the contained data flow and mark the dynamic path nodes
+				StaticDynamicPathIdentifier pathIdentifier = new StaticDynamicPathIdentifier(iterNode.getCostWeight());
+				nextWorksetNode.accept(pathIdentifier);
+				solutionSetDeltaNode.accept(pathIdentifier);
 			}
 		}
 
@@ -983,8 +1103,8 @@ public class PactCompiler {
 	 * Visitor that computes the interesting properties for each node in the plan. On its recursive
 	 * depth-first descend, it propagates all interesting properties top-down.
 	 */
-	public static final class InterestingPropertyVisitor implements Visitor<OptimizerNode>
-	{
+	public static final class InterestingPropertyVisitor implements Visitor<OptimizerNode> {
+		
 		private CostEstimator estimator; // the cost estimator for maximal costs of an interesting property
 
 		/**
@@ -1031,8 +1151,8 @@ public class PactCompiler {
 	 * DAG (Such plans are not trees, but at least one node feeds its output into more than one other
 	 * node).
 	 */
-	private static final class BranchesVisitor implements Visitor<OptimizerNode>
-	{
+	private static final class BranchesVisitor implements Visitor<OptimizerNode> {
+		
 		/*
 		 * (non-Javadoc)
 		 * @see
@@ -1040,9 +1160,7 @@ public class PactCompiler {
 		 */
 		@Override
 		public boolean preVisit(OptimizerNode node) {
-			// make sure we descend in any case (even if it causes redundant descends), because the branch propagation
-			// during the post visit needs to happen during the first re-ascend
-			return true;
+			return node.getOpenBranches() == null;
 		}
 
 		/*
@@ -1053,6 +1171,10 @@ public class PactCompiler {
 		@Override
 		public void postVisit(OptimizerNode node) {
 			node.computeUnclosedBranchStack();
+			
+			if (node instanceof IterationNode) {
+				((IterationNode) node).acceptForStepFunction(this);
+			}
 		}
 	};
 	
@@ -1060,8 +1182,8 @@ public class PactCompiler {
 	 * Utility class that traverses a plan to collect all nodes and add them to the OptimizedPlan.
 	 * Besides collecting all nodes, this traversal assigns the memory to the nodes.
 	 */
-	private static final class PlanFinalizer implements Visitor<PlanNode>
-	{
+	private static final class PlanFinalizer implements Visitor<PlanNode> {
+		
 		private final Set<PlanNode> allNodes; // a set of all nodes in the optimizer plan
 
 		private final List<SourcePlanNode> sources; // all data source nodes in the optimizer plan
@@ -1161,9 +1283,9 @@ public class PactCompiler {
 				this.sinks.add((SinkPlanNode) visitable);
 			} else if (visitable instanceof SourcePlanNode) {
 				this.sources.add((SourcePlanNode) visitable);
-			} else if (visitable instanceof PartialSolutionPlanNode) {
+			} else if (visitable instanceof BulkPartialSolutionPlanNode) {
 				// tell the partial solution about the iteration node that contains it
-				final PartialSolutionPlanNode pspn = (PartialSolutionPlanNode) visitable;
+				final BulkPartialSolutionPlanNode pspn = (BulkPartialSolutionPlanNode) visitable;
 				final IterationPlanNode iteration = this.stackOfIterationNodes.peekLast();
 				
 				// sanity check!

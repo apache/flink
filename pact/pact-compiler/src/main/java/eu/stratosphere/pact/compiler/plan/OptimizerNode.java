@@ -1094,7 +1094,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		if (this.outgoingConnections.size() == 1) {
 			// return our own stack of open branches, because nothing is added
 			if (this.openBranches == null || this.openBranches.isEmpty())
-				return null;
+				return Collections.emptyList();
 			else
 				return new ArrayList<UnclosedBranchDescriptor>(this.openBranches);
 		}

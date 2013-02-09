@@ -24,20 +24,20 @@ import java.util.Iterator;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
-import eu.stratosphere.pact.compiler.plan.PartialSolutionNode;
+import eu.stratosphere.pact.compiler.plan.BulkPartialSolutionNode;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**
  * Plan candidate node for partial solution of a bulk iteration.
  */
-public class PartialSolutionPlanNode extends PlanNode
+public class BulkPartialSolutionPlanNode extends PlanNode
 {
 	private BulkIterationPlanNode containingIterationNode;
 	
 	public Object postPassHelper;
 	
 	
-	public PartialSolutionPlanNode(PartialSolutionNode template, GlobalProperties gProps, LocalProperties lProps) {
+	public BulkPartialSolutionPlanNode(BulkPartialSolutionNode template, GlobalProperties gProps, LocalProperties lProps) {
 		super(template, DriverStrategy.NONE);
 		
 		this.globalProps = gProps;
@@ -46,8 +46,8 @@ public class PartialSolutionPlanNode extends PlanNode
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public PartialSolutionNode getPartialSolutionNode() {
-		return (PartialSolutionNode) this.template;
+	public BulkPartialSolutionNode getPartialSolutionNode() {
+		return (BulkPartialSolutionNode) this.template;
 	}
 	
 	public BulkIterationPlanNode getContainingIterationNode() {

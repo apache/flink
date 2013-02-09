@@ -22,7 +22,7 @@ import eu.stratosphere.pact.common.type.base.PactInteger;
 
 
 /**
- * @author Stephan Ewen
+ * 
  */
 public final class EdgeInputFormat extends DelimitedInputFormat
 {
@@ -39,8 +39,7 @@ public final class EdgeInputFormat extends DelimitedInputFormat
 	 * @see eu.stratosphere.pact.common.io.DelimitedInputFormat#readRecord(eu.stratosphere.pact.common.type.PactRecord, byte[], int)
 	 */
 	@Override
-	public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes)
-	{
+	public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes) {
 		final int limit = offset + numBytes;
 		int first = 0, second = 0;
 		final char delimiter = this.delimiter;
@@ -70,8 +69,7 @@ public final class EdgeInputFormat extends DelimitedInputFormat
 	 * @see eu.stratosphere.pact.common.io.DelimitedInputFormat#configure(eu.stratosphere.nephele.configuration.Configuration)
 	 */
 	@Override
-	public void configure(Configuration parameters)
-	{
+	public void configure(Configuration parameters) {
 		super.configure(parameters);
 		this.delimiter = (char) parameters.getInteger(ID_DELIMITER_CHAR, ',');
 	}

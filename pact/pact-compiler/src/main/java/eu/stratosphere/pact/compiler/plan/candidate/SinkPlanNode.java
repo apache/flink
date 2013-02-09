@@ -31,6 +31,9 @@ public class SinkPlanNode extends SingleInputPlanNode
 	 */
 	public SinkPlanNode(DataSinkNode template, Channel input) {
 		super(template, input, DriverStrategy.NONE);
+		
+		this.globalProps = input.getGlobalProperties().clone();
+		this.localProps = input.getLocalProperties().clone();
 	}
 	
 	public DataSinkNode getSinkNode() {

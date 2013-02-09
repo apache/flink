@@ -22,23 +22,17 @@ import java.util.Map;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
-import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
-import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
-import eu.stratosphere.pact.compiler.plan.candidate.PartialSolutionPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
-import eu.stratosphere.pact.generic.contract.BulkIteration.PartialSolutionPlaceHolder;
 import eu.stratosphere.pact.generic.contract.Contract;
 
 /**
  * The optimizer's internal representation of the partial solution that is input to a bulk iteration.
  */
-public class PartialSolutionNode extends OptimizerNode
+public abstract class AbstractPartialSolutionNode extends OptimizerNode
 {
-	private final BulkIterationNode iterationNode;
 	
-	public PartialSolutionNode(PartialSolutionPlaceHolder psph, BulkIterationNode iterationNode) {
-		super(psph);
-		this.iterationNode = iterationNode;
+	protected AbstractPartialSolutionNode(Contract contract) {
+		super(contract);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -49,46 +43,9 @@ public class PartialSolutionNode extends OptimizerNode
 		this.estimatedOutputSize = node.estimatedOutputSize;
 	}
 	
-	public void setCandidateProperties(GlobalProperties gProps, LocalProperties lProps) {
-		if (this.cachedPlans != null) {
-			throw new IllegalStateException();
-		} else {
-			this.cachedPlans = Collections.<PlanNode>singletonList(new PartialSolutionPlanNode(this, gProps, lProps));
-		}
-	}
-	
-	public PartialSolutionPlanNode getCurrentPartialSolutionPlanNode() {
-		if (this.cachedPlans != null) {
-			return (PartialSolutionPlanNode) this.cachedPlans.get(0);
-		} else {
-			throw new IllegalStateException();
-		}
-	}
-	
-	public BulkIterationNode getIterationNode() {
-		return this.iterationNode;
-	}
+	public abstract IterationNode getIterationNode();
 	
 	// --------------------------------------------------------------------------------------------
-
-	/**
-	 * Gets the contract object for this data source node.
-	 * 
-	 * @return The contract.
-	 */
-	@Override
-	public PartialSolutionPlaceHolder getPactContract() {
-		return (PartialSolutionPlaceHolder) super.getPactContract();
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getName()
-	 */
-	@Override
-	public String getName() {
-		return "Partial Solution";
-	}
 
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isMemoryConsumer()
@@ -150,10 +107,6 @@ public class PartialSolutionNode extends OptimizerNode
 		// because there are no inputs, there are no unclosed branches.
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeAlternativePlans()
-	 */
 	@Override
 	public List<PlanNode> getAlternativePlans(CostEstimator estimator) {
 		if (this.cachedPlans != null) {
@@ -163,32 +116,17 @@ public class PartialSolutionNode extends OptimizerNode
 		}
 	}
 
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isFieldConstant(int, int)
-	 */
 	@Override
 	public boolean isFieldConstant(int input, int fieldNumber) {
 		return false;
 	}
 	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#readReadsAnnotation()
-	 */
 	@Override
-	protected void readConstantAnnotation() {
-	}
+	protected void readConstantAnnotation() {}
 	
 	@Override
-	protected void readStubAnnotations() {
-	}
+	protected void readStubAnnotations() {}
 
-	/*
-	 * (non-Javadoc)
-	 * @see
-	 * eu.stratosphere.pact.compiler.plan.OptimizerNode#accept(eu.stratosphere.pact.common.plan.Visitor)
-	 */
 	@Override
 	public void accept(Visitor<OptimizerNode> visitor) {
 		if (visitor.preVisit(this)) {

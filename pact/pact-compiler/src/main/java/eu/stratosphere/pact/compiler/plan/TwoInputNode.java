@@ -63,7 +63,7 @@ public abstract class TwoInputNode extends OptimizerNode
 	
 	protected final FieldList keys2; // The set of key fields for the second input
 	
-	private final List<OperatorDescriptorDual> possibleProperties;
+	protected final List<OperatorDescriptorDual> possibleProperties;
 	
 	protected PactConnection input1; // The first input edge
 
@@ -461,7 +461,7 @@ public abstract class TwoInputNode extends OptimizerNode
 							{
 								// we form a valid combination, so create the local candidates
 								// for this
-								addLocalCandidates(c1, c2, outputPlans, allLocalPairs);
+								addLocalCandidates(c1, c2, igps1, igps2, outputPlans, allLocalPairs, estimator);
 								break;
 							}
 						}
@@ -495,7 +495,10 @@ public abstract class TwoInputNode extends OptimizerNode
 		return outputPlans;
 	}
 	
-	private void addLocalCandidates(Channel template1, Channel template2, List<PlanNode> target, LocalPropertiesPair[] validLocalCombinations) {
+	protected void addLocalCandidates(Channel template1, Channel template2, 
+			RequestedGlobalProperties rgps1, RequestedGlobalProperties rgps2,
+			List<PlanNode> target, LocalPropertiesPair[] validLocalCombinations, CostEstimator estimator)
+	{
 		final LocalProperties lp1 = template1.getLocalPropertiesAfterShippingOnly();
 		final LocalProperties lp2 = template2.getLocalPropertiesAfterShippingOnly();
 		
@@ -527,7 +530,7 @@ public abstract class TwoInputNode extends OptimizerNode
 								in1.getLocalProperties(), in2.getLocalProperties()))
 							{
 								// all right, co compatible
-								target.add(instantiate(dps, in1, in2));
+								instantiate(dps, in1, in2, target, estimator, rgps1, rgps2, ilp1, ilp2);
 							} else {
 								// meet, but not co-compatible
 								throw new CompilerException("Implements to adjust one side to the other!");
@@ -539,7 +542,11 @@ public abstract class TwoInputNode extends OptimizerNode
 		}
 	}
 	
-	private DualInputPlanNode instantiate(OperatorDescriptorDual operator, Channel in1, Channel in2) {
+	protected void instantiate(OperatorDescriptorDual operator, Channel in1, Channel in2,
+			List<PlanNode> target, CostEstimator estimator,
+			RequestedGlobalProperties globPropsReq1,RequestedGlobalProperties globPropsReq2,
+			RequestedLocalProperties locPropsReq1, RequestedLocalProperties locPropsReq2)
+	{
 		
 		// before we instantiate, check for deadlocks by tracing back to the open branches and checking
 		// whether either no input, or all of them have a dam
@@ -613,7 +620,7 @@ public abstract class TwoInputNode extends OptimizerNode
 		
 		node.initProperties(combined, locals);
 		node.updatePropertiesWithUniqueSets(getUniqueFields());
-		return node;
+		target.add(node);
 	}
 	
 	/**

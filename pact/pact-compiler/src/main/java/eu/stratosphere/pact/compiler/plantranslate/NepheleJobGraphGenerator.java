@@ -46,7 +46,7 @@ import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.DualInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.IterationPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
-import eu.stratosphere.pact.compiler.plan.candidate.PartialSolutionPlanNode;
+import eu.stratosphere.pact.compiler.plan.candidate.BulkPartialSolutionPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
@@ -249,9 +249,9 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode>
 				// skip the union for now
 				vertex = null;
 			}
-			else if (node instanceof PartialSolutionPlanNode) {
+			else if (node instanceof BulkPartialSolutionPlanNode) {
 				// create a head node (or not, if it is merged into its successor)
-				vertex = createBulkIterationHead((PartialSolutionPlanNode) node);
+				vertex = createBulkIterationHead((BulkPartialSolutionPlanNode) node);
 			}
 			else {
 				throw new CompilerException("Unrecognized node type: " + node.getClass().getName());
@@ -374,7 +374,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode>
 					this.chainedTasksInSequence.add(chainedTask);
 					return;
 				}
-				else if (node instanceof PartialSolutionPlanNode) {
+				else if (node instanceof BulkPartialSolutionPlanNode) {
 					// merged iteration head task. the task that the head is merged with will take care of it
 					// collect all channels, in case we have a union as the input
 					return;
@@ -392,8 +392,8 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode>
 			// get the inputs. if this node is the head of an iteration, we obtain the inputs from the
 			// enclosing iteration node, because the inputs are the initial inputs to the iteration.
 			final Iterator<Channel> inConns;
-			if (node instanceof PartialSolutionPlanNode) {
-				inConns = ((PartialSolutionPlanNode) node).getContainingIterationNode().getInputs();
+			if (node instanceof BulkPartialSolutionPlanNode) {
+				inConns = ((BulkPartialSolutionPlanNode) node).getContainingIterationNode().getInputs();
 				// because the partial solution has its own vertex, is has only one (logical) input.
 				// note this in the task configuration
 				targetVertexConfig.setIterationHeadPartialSolutionInputIndex(0);
@@ -412,10 +412,10 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode>
 				if (inputPlanNode instanceof UnionPlanNode) {
 					allInChannels = ((UnionPlanNode) inputPlanNode).getListOfInputs().iterator();
 				}
-				else if (inputPlanNode instanceof PartialSolutionPlanNode) {
+				else if (inputPlanNode instanceof BulkPartialSolutionPlanNode) {
 					if (this.vertices.get(inputPlanNode) == null) {
 						// merged iteration head
-						final PartialSolutionPlanNode pspn = (PartialSolutionPlanNode) inputPlanNode;
+						final BulkPartialSolutionPlanNode pspn = (BulkPartialSolutionPlanNode) inputPlanNode;
 						final BulkIterationPlanNode iterationNode = pspn.getContainingIterationNode();
 						
 						// check if the iteration's input is a union
@@ -542,7 +542,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode>
 			PlanNode pred = inConn.getSource();
 			chaining = ds.getPushChainDriverClass() != null &&
 					!(pred instanceof UnionPlanNode) &&	// union requires a union gate
-					!(pred instanceof PartialSolutionPlanNode) &&	// partial solution merges anyways
+					!(pred instanceof BulkPartialSolutionPlanNode) &&	// partial solution merges anyways
 					inConn.getShipStrategy() == ShipStrategyType.FORWARD &&
 					inConn.getLocalStrategy() == LocalStrategy.NONE &&
 					pred.getOutgoingChannels().size() == 1 &&
@@ -640,7 +640,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode>
 		return vertex;
 	}
 	
-	private JobTaskVertex createBulkIterationHead(PartialSolutionPlanNode pspn) {
+	private JobTaskVertex createBulkIterationHead(BulkPartialSolutionPlanNode pspn) {
 		// get the bulk iteration that corresponds to this partial solution node
 		final BulkIterationPlanNode iteration = pspn.getContainingIterationNode();
 		
