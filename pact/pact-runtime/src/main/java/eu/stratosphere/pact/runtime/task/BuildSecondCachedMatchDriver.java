@@ -12,39 +12,18 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.pact.array.plan;
 
-import java.util.Collection;
+package eu.stratosphere.pact.runtime.task;
 
-import eu.stratosphere.pact.common.contract.GenericDataSink;
+public class BuildSecondCachedMatchDriver<IT1, IT2, OT> extends AbstractCachedBuildSideMatchDriver<IT1, IT2, OT> {
 
-
-/**
- *
- */
-public class Plan extends eu.stratosphere.pact.common.plan.Plan {
-
-	public Plan(Collection<GenericDataSink> sinks, String jobName) {
-		super(sinks, jobName);
-	}
-
-	public Plan(Collection<GenericDataSink> sinks) {
-		super(sinks);
-	}
-
-	public Plan(GenericDataSink sink, String jobName) {
-		super(sink, jobName);
-	}
-
-	public Plan(GenericDataSink sink) {
-		super(sink);
-	}
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.plan.Plan#getPostPassClassName()
-	 */
 	@Override
-	public String getPostPassClassName() {
-		return "eu.stratosphere.pact.compiler.postpass.ArrayModelPostPass";
+	protected int getBuildSideIndex() {
+		return 1;
+	}
+
+	@Override
+	protected int getProbeSideIndex() {
+		return 0;
 	}
 }

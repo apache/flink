@@ -45,11 +45,6 @@ public class IterationIntermediatePactTask<S extends Stub, OT> extends AbstractI
 			}
 
 			notifyMonitor(IterationMonitoring.Event.INTERMEDIATE_PACT_STARTING);
-			
-			if (!inFirstIteration()) {
-				reinstantiateDriver();
-				resetAllInputs();
-			}
 
 			super.run();
 
@@ -65,7 +60,7 @@ public class IterationIntermediatePactTask<S extends Stub, OT> extends AbstractI
 				propagateEvent(TerminationEvent.INSTANCE);
 			}
 			notifyMonitor(IterationMonitoring.Event.INTERMEDIATE_FINISHED);
-		}
+		};
 	}
 
 	private void propagateEvent(AbstractTaskEvent event) throws IOException, InterruptedException {

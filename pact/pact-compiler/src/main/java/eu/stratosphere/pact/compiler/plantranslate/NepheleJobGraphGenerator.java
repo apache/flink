@@ -803,18 +803,26 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode>
 		
 		assignLocalStrategyResources(channel, config, inputNum);
 		
-		// temping / caching
+		// materialization / caching
 		if (channel.getTempMode() != null) {
 			final TempMode tm = channel.getTempMode();
 
+			boolean needsMemory = false;
 			if (tm.breaksPipeline()) {
-				config.setInputDammed(inputNum, true);
+				config.setInputAsynchronouslyMaterialized(inputNum, true);
+				needsMemory = true;
 			}
 			if (tm.isCached()) {
-				config.setInputReplayable(inputNum, true);
+				config.setInputCached(inputNum, true);
+				needsMemory = true;
 			}
-			if (tm != TempMode.NONE) {
-				config.setInputDamMemory(inputNum, channel.getTempMemory());
+			
+			if (needsMemory) {
+				// sanity check
+				if (tm == null || tm == TempMode.NONE || channel.getTempMemory() < 1) {
+					throw new CompilerException("Bug in compiler: Inconsistent description of input materialization.");
+				}
+				config.setInputMaterializationMemory(inputNum, channel.getTempMemory());
 			}
 		}
 	}

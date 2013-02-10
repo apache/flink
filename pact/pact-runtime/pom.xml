@@ -35,6 +35,11 @@
 			<version>r09</version>
 		</dependency>
 
+		<dependency>
+			<groupId>eu.stratosphere</groupId>
+			<artifactId>pact-array-datamodel</artifactId>
+			<version>0.2</version>
+		</dependency>
 	</dependencies>
 
 	<reporting>

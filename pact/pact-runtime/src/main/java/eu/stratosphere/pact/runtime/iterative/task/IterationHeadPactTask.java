@@ -211,8 +211,6 @@ public class IterationHeadPactTask<X, S extends Stub, OT> extends AbstractIterat
 
 			notifyMonitor(IterationMonitoring.Event.HEAD_PACT_STARTING);
 			if (!inFirstIteration()) {
-				reinstantiateDriver();
-				resetAllInputs();
 				feedBackSuperstepResult(superstepResult);
 			}
 

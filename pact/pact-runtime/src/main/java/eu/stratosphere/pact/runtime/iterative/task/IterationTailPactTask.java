@@ -72,10 +72,6 @@ public class IterationTailPactTask<S extends Stub, OT> extends AbstractIterative
 			}
 
 			notifyMonitor(IterationMonitoring.Event.TAIL_PACT_STARTING);
-			if (!inFirstIteration()) {
-				reinstantiateDriver();
-				resetAllInputs();
-			}
 
 			super.run();
 			notifyMonitor(IterationMonitoring.Event.TAIL_PACT_FINISHED);
@@ -93,7 +89,6 @@ public class IterationTailPactTask<S extends Stub, OT> extends AbstractIterative
 			if (!terminationRequested()) {
 				backChannel.notifyOfEndOfSuperstep();
 				incrementIterationCounter();
-			} else {
 			}
 			notifyMonitor(IterationMonitoring.Event.TAIL_FINISHED);
 		}

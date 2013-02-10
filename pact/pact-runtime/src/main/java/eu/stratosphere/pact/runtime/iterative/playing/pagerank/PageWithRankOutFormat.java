@@ -12,39 +12,30 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.pact.array.plan;
 
-import java.util.Collection;
+package eu.stratosphere.pact.runtime.iterative.playing.pagerank;
 
-import eu.stratosphere.pact.common.contract.GenericDataSink;
+import com.google.common.base.Charsets;
+import eu.stratosphere.pact.common.io.FileOutputFormat;
+import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.type.base.PactDouble;
+import eu.stratosphere.pact.common.type.base.PactLong;
 
+import java.io.IOException;
 
-/**
- *
- */
-public class Plan extends eu.stratosphere.pact.common.plan.Plan {
+public class PageWithRankOutFormat extends FileOutputFormat {
 
-	public Plan(Collection<GenericDataSink> sinks, String jobName) {
-		super(sinks, jobName);
-	}
+  private final StringBuilder buffer = new StringBuilder();
 
-	public Plan(Collection<GenericDataSink> sinks) {
-		super(sinks);
-	}
+  @Override
+  public void writeRecord(PactRecord record) throws IOException {
+    buffer.setLength(0);
+    buffer.append(record.getField(0, PactLong.class).toString());
+    buffer.append('\t');
+    buffer.append(record.getField(1, PactDouble.class).toString());
+    buffer.append('\n');
 
-	public Plan(GenericDataSink sink, String jobName) {
-		super(sink, jobName);
-	}
-
-	public Plan(GenericDataSink sink) {
-		super(sink);
-	}
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.plan.Plan#getPostPassClassName()
-	 */
-	@Override
-	public String getPostPassClassName() {
-		return "eu.stratosphere.pact.compiler.postpass.ArrayModelPostPass";
-	}
+    byte[] bytes = buffer.toString().getBytes(Charsets.UTF_8);
+    stream.write(bytes);
+  }
 }

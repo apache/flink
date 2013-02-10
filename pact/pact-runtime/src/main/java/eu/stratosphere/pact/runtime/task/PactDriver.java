@@ -79,5 +79,10 @@ public interface PactDriver<S extends Stub, OT>
 	 */
 	void cleanup() throws Exception;
 	
+	/**
+	 * This method is invoked when the driver must aborted in mid processing. It is invoked asynchronously by a different thread.
+	 * 
+	 * @throws Exception Exceptions may be forwarded.
+	 */
 	void cancel() throws Exception;
 }

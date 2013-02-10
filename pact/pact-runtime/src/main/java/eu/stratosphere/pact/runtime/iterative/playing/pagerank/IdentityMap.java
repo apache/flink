@@ -12,39 +12,17 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.pact.array.plan;
 
-import java.util.Collection;
+package eu.stratosphere.pact.runtime.iterative.playing.pagerank;
 
-import eu.stratosphere.pact.common.contract.GenericDataSink;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.MapStub;
+import eu.stratosphere.pact.common.type.PactRecord;
 
+public class IdentityMap extends MapStub {
 
-/**
- *
- */
-public class Plan extends eu.stratosphere.pact.common.plan.Plan {
-
-	public Plan(Collection<GenericDataSink> sinks, String jobName) {
-		super(sinks, jobName);
-	}
-
-	public Plan(Collection<GenericDataSink> sinks) {
-		super(sinks);
-	}
-
-	public Plan(GenericDataSink sink, String jobName) {
-		super(sink, jobName);
-	}
-
-	public Plan(GenericDataSink sink) {
-		super(sink);
-	}
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.plan.Plan#getPostPassClassName()
-	 */
-	@Override
-	public String getPostPassClassName() {
-		return "eu.stratosphere.pact.compiler.postpass.ArrayModelPostPass";
-	}
+  @Override
+  public void map(PactRecord record, Collector<PactRecord> collector) throws Exception {
+    collector.collect(record);
+  }
 }

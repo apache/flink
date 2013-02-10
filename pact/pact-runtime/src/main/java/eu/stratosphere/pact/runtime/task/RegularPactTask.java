@@ -136,13 +136,6 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 	protected volatile SpillingResettableMutableObjectIterator<?>[] resettableInputs;
 	
 	/**
-	 * Certain inputs may be excluded from resetting. For example, the initial partial solution
-	 * in an iteration head must not be reseted (it is read through the back channel), when all
-	 * others are reseted.
-	 */
-	private boolean excludeFromReset[];
-	
-	/**
 	 * The inputs to the driver. Return the readers' data after the application of the local strategy
 	 * and the temp-table barrier.
 	 */
@@ -172,6 +165,28 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 	 * A list of chained drivers, if there are any.
 	 */
 	protected ArrayList<ChainedDriver<?, ?>> chainedTasks;
+	
+	/**
+	 * Certain inputs may be excluded from resetting. For example, the initial partial solution
+	 * in an iteration head must not be reseted (it is read through the back channel), when all
+	 * others are reseted.
+	 */
+	private boolean[] excludeFromReset;
+	
+	/**
+	 * Flag indicating for each input whether it is cached and can be reseted.
+	 */
+	private boolean[] inputIsCached;
+			
+	/**
+	 * flag indicating for each input whether it must be asynchronously materialized.
+	 */
+	private boolean[] inputIsAsyncMaterialized;
+	
+	/**
+	 * The amount of memory per input that is dedicated to the materialization.
+	 */
+	private long[] materializationMemory;
 
 	/**
 	 * The flag that tags the task as still running. Checked periodically to abort processing.
@@ -268,11 +283,15 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 					LOG.info(formatLogString("Task cancelled before PACT code was started."));
 				return;
 			}
+			
+			// pre main-function initialization
+			initialize();
 	
 			// the work goes here
 			run();
 		}
 		finally {
+			// clean up in any case!
 			closeLocalStrategiesAndCaches();
 		}
 		
@@ -285,8 +304,15 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 		}
 	}
 	
-	public void run() throws Exception {
-		// ---------------------------- Now, the actual processing starts ------------------------
+	protected void initialize() throws Exception {
+		try {
+			this.driver.setup(this);
+		}
+		catch (Throwable t) {
+			throw new Exception("The pact driver setup for '" + this.getEnvironment().getTaskName() +
+				"' , caused an error: " + t.getMessage(), t);
+		}
+		
 		try {
 			final Class<? super S> userCodeFunctionType = this.driver.getStubType();
 			// if the class is null, the driver has no user code 
@@ -297,19 +323,13 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 			throw new RuntimeException("Initializing the user code and the configuration failed" +
 				e.getMessage() == null ? "." : ": " + e.getMessage(), e);
 		}
-
+	}
+	
+	protected void run() throws Exception {
+		// ---------------------------- Now, the actual processing starts ------------------------
 		// check for asynchronous canceling
 		if (!this.running) {
 			return;
-		}
-		
-		// setup the driver
-		try {
-			this.driver.setup(this);
-		}
-		catch (Throwable t) {
-			throw new Exception("The pact driver setup for '" + this.getEnvironment().getTaskName() +
-				"' , caused an error: " + t.getMessage(), t);
 		}
 
 		boolean stubOpen = false;
@@ -402,7 +422,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 		}
 	}
 	
-	private void closeLocalStrategiesAndCaches() {
+	protected void closeLocalStrategiesAndCaches() {
 		if (this.localStrategies != null) {
 			for (int i = 0; i < this.localStrategies.length; i++) {
 				if (this.localStrategies[i] != null) {
@@ -539,6 +559,9 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 		this.localStrategies = new CloseableInputProvider[numInputs];
 		this.inputs = new MutableObjectIterator[numInputs];
 		this.excludeFromReset = new boolean[numInputs];
+		this.inputIsCached = new boolean[numInputs];
+		this.inputIsAsyncMaterialized = new boolean[numInputs];
+		this.materializationMemory = new long[numInputs];
 		
 		// set up the local strategies first, such that the can work before any temp barrier is created
 		for (int i = 0; i < numInputs; i++) {
@@ -557,17 +580,28 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 		this.tempBarriers = new TempBarrier[numInputs];
 		
 		for (int i = 0; i < numInputs; i++) {
-			if (this.config.isInputDammed(i)) {
-				final long memory = this.config.getInputDamMemory(i);
+			final long memory;
+			final boolean async = this.config.isInputAsynchronouslyMaterialized(i);
+			final boolean cached =  this.config.isInputCached(i);
+			
+			this.inputIsAsyncMaterialized[i] = async;
+			this.inputIsCached[i] = cached;
+			
+			if (async || cached) {
+				memory = this.config.getInputMaterializationMemory(i);
+				this.materializationMemory[i] = memory;
+			} else {
+				memory = 0;
+			}
+			
+			if (async) {
 				final int pages = memMan.computeNumberOfPages(memory);
-				
 				@SuppressWarnings({ "unchecked", "rawtypes" })
 				TempBarrier<?> barrier = new TempBarrier(this, getInput(i), this.inputSerializers[i], memMan, ioMan, pages);
 				barrier.startReading();
 				this.tempBarriers[i] = barrier;
 				this.inputs[i] = null;
-			} else if (this.config.isInputReplayable(i)) {
-				final long memory = this.config.getInputDamMemory(i);
+			} else if (cached) {
 				@SuppressWarnings({ "unchecked", "rawtypes" })
 				SpillingResettableMutableObjectIterator<?> iter = new SpillingResettableMutableObjectIterator(
 					getInput(i), this.inputSerializers[i], getMemoryManager(), getIOManager(), memory, this);
@@ -578,11 +612,6 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 	}
 	
 	protected void resetAllInputs() throws Exception {
-		// make sure the inputs are not available directly, but are lazily fetched again
-		for (int i = 0; i < this.inputs.length; i++) {
-			this.inputs[i] = null;
-		}
-		
 		// close all local-strategies. they will either get re-initialized, or we have
 		// read them now and their data is cached
 		for (int i = 0; i < this.localStrategies.length; i++) {
@@ -591,6 +620,9 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 				this.localStrategies[i] = null;
 			}
 		}
+		
+		final MemoryManager memMan = getMemoryManager();
+		final IOManager ioMan = getIOManager();
 		
 		// reset the caches, or re-run the input local strategy
 		for (int i = 0; i < this.inputs.length; i++) {
@@ -603,14 +635,36 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 					this.resettableInputs[i] = null;
 				}
 			} else {
-				if (this.tempBarriers[i] != null) {
-					this.inputs[i] = this.tempBarriers[i].getIterator();
-				} else if (this.resettableInputs[i] != null) {
-					this.resettableInputs[i].reset();
-					this.inputs[i] = this.resettableInputs[i];
+				// make sure the input is not available directly, but are lazily fetched again
+				this.inputs[i] = null;
+				
+				if (this.inputIsCached[i]) {
+					if (this.tempBarriers[i] != null) {
+						this.inputs[i] = this.tempBarriers[i].getIterator();
+					} else if (this.resettableInputs[i] != null) {
+						this.resettableInputs[i].reset();
+						this.inputs[i] = this.resettableInputs[i];
+					} else {
+						throw new RuntimeException("Found a resettable input, but no temp barrier and no resettable iterator.");
+					}
 				} else {
-					// setup the local strategy
+					// close the async barrier if there is one
+					if (this.tempBarriers[i] != null) {
+						this.tempBarriers[i].close();
+					}
+					
+					// recreate the local strategy
 					initInputLocalStrategy(i);
+					
+					if (this.inputIsAsyncMaterialized[i]) {
+						final long memory = this.materializationMemory[i];
+						final int pages = memMan.computeNumberOfPages(memory);
+						@SuppressWarnings({ "unchecked", "rawtypes" })
+						TempBarrier<?> barrier = new TempBarrier(this, getInput(i), this.inputSerializers[i], memMan, ioMan, pages);
+						barrier.startReading();
+						this.tempBarriers[i] = barrier;
+						this.inputs[i] = null;
+					}
 				}
 			}
 		}
@@ -820,7 +874,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 			try {
 				if (this.tempBarriers[index] != null) {
 					@SuppressWarnings("unchecked")
-					MutableObjectIterator<X> iter = (MutableObjectIterator<X>) tempBarriers[index].getIterator();
+					MutableObjectIterator<X> iter = (MutableObjectIterator<X>) this.tempBarriers[index].getIterator();
 					in = iter;
 				} else if (this.localStrategies[index] != null) {
 					@SuppressWarnings("unchecked")

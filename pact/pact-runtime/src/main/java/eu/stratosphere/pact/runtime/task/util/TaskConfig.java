@@ -347,27 +347,27 @@ public class TaskConfig
 		this.config.setInteger(NUM_INPUTS, this.config.getInteger(NUM_INPUTS, 0) + 1);
 	}
 	
-	public void setInputDammed(int inputNum, boolean temp) {
+	public void setInputAsynchronouslyMaterialized(int inputNum, boolean temp) {
 		this.config.setBoolean(INPUT_DAM_PREFIX + inputNum, temp);
 	}
 	
-	public boolean isInputDammed(int inputNum) {
+	public boolean isInputAsynchronouslyMaterialized(int inputNum) {
 		return this.config.getBoolean(INPUT_DAM_PREFIX + inputNum, false);
 	}
 	
-	public void setInputReplayable(int inputNum, boolean persistent) {
+	public void setInputCached(int inputNum, boolean persistent) {
 		this.config.setBoolean(INPUT_REPLAYABLE_PREFIX + inputNum, persistent);
 	}
 	
-	public boolean isInputReplayable(int inputNum) {
+	public boolean isInputCached(int inputNum) {
 		return this.config.getBoolean(INPUT_REPLAYABLE_PREFIX + inputNum, false);
 	}
 	
-	public void setInputDamMemory(int inputNum, long memory) {
+	public void setInputMaterializationMemory(int inputNum, long memory) {
 		this.config.setLong(INPUT_DAM_MEMORY_PREFIX + inputNum, memory);
 	}
 	
-	public long getInputDamMemory(int inputNum) {
+	public long getInputMaterializationMemory(int inputNum) {
 		return this.config.getLong(INPUT_DAM_MEMORY_PREFIX + inputNum, -1);
 	}
 	

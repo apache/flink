@@ -48,9 +48,9 @@ public class IterativeKMeansITCase extends KMeansIterationITCase {
 		IterativeKMeans kmi = new IterativeKMeans();
 
 		Plan plan = kmi.getPlan(config.getString("IterativeKMeansITCase#NoSubtasks", "1"), 
-				getFilesystemProvider().getURIPrefix()	+ dataPath, 
+				getFilesystemProvider().getURIPrefix() + dataPath, 
 				getFilesystemProvider().getURIPrefix() + clusterPath,  
-				getFilesystemProvider().getURIPrefix()	+ resultPath,
+				getFilesystemProvider().getURIPrefix() + resultPath,
 				config.getString("IterativeKMeansITCase#NumIterations", "1"));
 		
 		final String presetShipStrat = config.getString("IterativeKMeansITCase#ShipStrategyDataPoints", null);

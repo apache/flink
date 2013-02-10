@@ -13,35 +13,35 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.iterative.convergence;
+package eu.stratosphere.pact.runtime.iterative.playing.pagerank;
 
-import eu.stratosphere.pact.common.type.base.PactLong;
+import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.runtime.iterative.aggregate.Aggregator;
-import eu.stratosphere.pact.runtime.iterative.aggregate.SumLongAggregator;
+import eu.stratosphere.pact.runtime.iterative.aggregate.SumDoubleAggregator;
+import eu.stratosphere.pact.runtime.iterative.convergence.ConvergenceCriterion;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-/**
- * A workset iteration is by definition converged if no records have been updated in the solutionset
- */
-public class SolutionsetEmptyConvergenceCriterion implements ConvergenceCriterion<PactLong> {
+public class L1NormConvergenceCriterion implements ConvergenceCriterion<PactDouble> {
 
-	private static final Log log = LogFactory.getLog(SolutionsetEmptyConvergenceCriterion.class);
+  private static final double EPSILON = 0.0001;
 
-	@Override
-	public Aggregator<PactLong> createAggregator() {
-		return new SumLongAggregator();
-	}
+  private static final Log log = LogFactory.getLog(L1NormConvergenceCriterion.class);
 
-	@Override
-	public boolean isConverged(int iteration, PactLong value) {
+  @Override
+  public Aggregator<PactDouble> createAggregator() {
+    return new SumDoubleAggregator();
+  }
 
-		long updatedElements = value.getValue();
+  @Override
+  public boolean isConverged(int iteration, PactDouble value) {
 
-		if (log.isInfoEnabled()) {
-			log.info("[" + updatedElements + "] elements updated in the solutionset in iteration [" + iteration + "]");
-		}
+    double diff = value.getValue();
 
-		return updatedElements == 0;
-	}
+    if (log.isInfoEnabled()) {
+      log.info("L1 norm of the vector difference is [" + diff + "] in iteration [" + iteration + "]");
+    }
+
+    return diff < EPSILON;
+  }
 }

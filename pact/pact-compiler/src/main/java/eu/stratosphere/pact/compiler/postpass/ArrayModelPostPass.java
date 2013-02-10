@@ -13,14 +13,12 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.array.optimizer;
+package eu.stratosphere.pact.compiler.postpass;
 
 import java.util.Map;
 
 import eu.stratosphere.pact.array.io.ArrayModelOutputFormat;
 import eu.stratosphere.pact.array.stubs.AbstractArrayModelStub;
-import eu.stratosphere.pact.array.typeutils.ArrayRecordComparatorFactory;
-import eu.stratosphere.pact.array.typeutils.ArrayRecordSerializerFactory;
 import eu.stratosphere.pact.common.contract.GenericDataSink;
 import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.stubs.Stub;
@@ -37,12 +35,10 @@ import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SourcePlanNode;
-import eu.stratosphere.pact.compiler.postpass.ConflictingFieldTypeInfoException;
-import eu.stratosphere.pact.compiler.postpass.MissingFieldTypeInfoException;
-import eu.stratosphere.pact.compiler.postpass.OptimizerPostPass;
-import eu.stratosphere.pact.compiler.postpass.TypeSchema;
 import eu.stratosphere.pact.generic.contract.SingleInputContract;
 import eu.stratosphere.pact.generic.io.OutputFormat;
+import eu.stratosphere.pact.runtime.plugable.arrayrecord.ArrayRecordComparatorFactory;
+import eu.stratosphere.pact.runtime.plugable.arrayrecord.ArrayRecordSerializerFactory;
 
 /**
  * 

@@ -25,7 +25,6 @@ import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.runtime.iterative.aggregate.Aggregator;
 import eu.stratosphere.pact.runtime.iterative.convergence.ConvergenceCriterion;
 import eu.stratosphere.pact.runtime.iterative.event.AllWorkersDoneEvent;
-import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
 import eu.stratosphere.pact.runtime.iterative.event.WorkerDoneEvent;
 import eu.stratosphere.pact.runtime.iterative.io.InterruptingMutableObjectIterator;
@@ -45,8 +44,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * will never see any data.
  * In each superstep, it simply waits until it has receiced a {@link WorkerDoneEvent} from each head and will send back
  * an {@link AllWorkersDoneEvent} to signal that the next superstep can begin.
+ * 
+ * @param <T> The type in the aggregator that determines the convergence.
  */
-public class IterationSynchronizationSinkTask extends AbstractOutputTask implements Terminable {
+public class IterationSynchronizationSinkTask<T extends Value> extends AbstractOutputTask implements Terminable {
 
 	private static final Log log = LogFactory.getLog(IterationSynchronizationSinkTask.class);
 	
@@ -56,10 +57,9 @@ public class IterationSynchronizationSinkTask extends AbstractOutputTask impleme
 
 	private MutableRecordReader<PactRecord> headEventReader;
 
-	// TODO typesafety
-	private ConvergenceCriterion convergenceCriterion;
+	private ConvergenceCriterion<T> convergenceCriterion;
 
-	private Aggregator aggregator;
+	private Aggregator<T> aggregator;
 
 	private int currentIteration = 1;
 
@@ -71,7 +71,7 @@ public class IterationSynchronizationSinkTask extends AbstractOutputTask impleme
 	@Override
 	public void registerInputOutput() {
 
-		taskConfig = new TaskConfig(getTaskConfiguration());
+		this.taskConfig = new TaskConfig(getTaskConfiguration());
 
 		String name = getEnvironment().getTaskName() + " (" + (getEnvironment().getIndexInSubtaskGroup() + 1) + '/' +
 			getEnvironment().getCurrentNumberOfSubtasks() + ")";
@@ -84,7 +84,7 @@ public class IterationSynchronizationSinkTask extends AbstractOutputTask impleme
 		}
 
 		if (taskConfig.usesConvergenceCriterion()) {
-			convergenceCriterion = InstantiationUtil.instantiate(taskConfig.getConvergenceCriterion(),
+			convergenceCriterion = InstantiationUtil.instantiate(taskConfig.<T>getConvergenceCriterion(),
 				ConvergenceCriterion.class);
 			aggregator = convergenceCriterion.createAggregator();
 		}
@@ -171,7 +171,7 @@ public class IterationSynchronizationSinkTask extends AbstractOutputTask impleme
 
 		if (taskConfig.usesConvergenceCriterion()) {
 
-			Value aggregate = aggregator.getAggregate();
+			T aggregate = aggregator.getAggregate();
 
 			if (convergenceCriterion.isConverged(currentIteration, aggregate)) {
 				if (log.isInfoEnabled()) {

@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.array.typeutils;
+package eu.stratosphere.pact.runtime.plugable.arrayrecord;
 
 import java.util.Arrays;
 
