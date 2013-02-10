@@ -86,15 +86,15 @@ public class DanglingPageRankITCase extends TestBase {
 	protected JobGraph getJobGraph() throws Exception {
 		
 		String[] parameters = new String[] {
-			"1",
-			"1",
+			"4",
+			"4",
 			getFilesystemProvider().getURIPrefix() + pagesWithRankPath,
 			getFilesystemProvider().getURIPrefix() + edgesPath,
 			getFilesystemProvider().getURIPrefix() + resultPath,
 			"<none>",
-			"10",
-			"20",
-			"20",
+			"5",
+			"25",
+			"25",
 			"10",
 			"5",
 			"1",

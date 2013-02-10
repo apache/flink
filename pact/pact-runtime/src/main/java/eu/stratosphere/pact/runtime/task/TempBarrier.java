@@ -49,6 +49,8 @@ public class TempBarrier<T> implements CloseableInputProvider<T>
 	
 	private volatile Throwable exception;
 	
+	private final ArrayList<MemorySegment> memory;
+	
 	private volatile boolean writingDone;
 	
 	private volatile boolean closed;
@@ -61,10 +63,10 @@ public class TempBarrier<T> implements CloseableInputProvider<T>
 		this.serializer = serializer;
 		this.memManager = memManager;
 		
-		ArrayList<MemorySegment> mem = new ArrayList<MemorySegment>(numPages);
-		memManager.allocatePages(owner, mem, numPages);
+		this.memory = new ArrayList<MemorySegment>(numPages);
+		memManager.allocatePages(owner, this.memory, numPages);
 		
-		this.buffer = new SpillingBuffer(ioManager, new ListMemorySegmentSource(mem), memManager.getPageSize());
+		this.buffer = new SpillingBuffer(ioManager, new ListMemorySegmentSource(this.memory), memManager.getPageSize());
 		this.tempWriter = new TempWritingThread(input, serializer, this.buffer);
 	}
 	
@@ -119,6 +121,7 @@ public class TempBarrier<T> implements CloseableInputProvider<T>
 		} catch (InterruptedException iex) {}
 		
 		this.memManager.release(this.buffer.close());
+		this.memManager.release(this.memory);
 	}
 	
 	private void setException(Throwable t) {
