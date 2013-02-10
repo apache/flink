@@ -11,14 +11,15 @@ public class PageRankStatsAggregator implements Aggregator<PageRankStats> {
   private long numVertices = 0;
   private long edges = 0;
   private double summedRank = 0;
+  private double finalDiff = 0;
 
   @Override
   public PageRankStats getAggregate() {
-    return new PageRankStats(diff, rank, danglingRank, numDanglingVertices, numVertices, edges, summedRank);
+    return new PageRankStats(diff, rank, danglingRank, numDanglingVertices, numVertices, edges, summedRank, finalDiff);
   }
 
   public void aggregate(double diffDelta, double rankDelta, double danglingRankDelta, long danglingVerticesDelta,
-      long verticesDelta, long edgesDelta, double summedRankDelta) {
+      long verticesDelta, long edgesDelta, double summedRankDelta, double finalDiffDelta) {
     diff += diffDelta;
     rank += rankDelta;
     danglingRank += danglingRankDelta;
@@ -26,6 +27,7 @@ public class PageRankStatsAggregator implements Aggregator<PageRankStats> {
     numVertices += verticesDelta;
     edges += edgesDelta;
     summedRank += summedRankDelta;
+    finalDiff += finalDiffDelta;
   }
 
   @Override
@@ -37,6 +39,7 @@ public class PageRankStatsAggregator implements Aggregator<PageRankStats> {
     numVertices += pageRankStats.numVertices();
     edges += pageRankStats.edges();
     summedRank += pageRankStats.summedRank();
+    finalDiff += pageRankStats.finalDiff();
   }
 
   @Override
@@ -48,5 +51,6 @@ public class PageRankStatsAggregator implements Aggregator<PageRankStats> {
     numVertices = 0;
     edges = 0;
     summedRank = 0;
+    finalDiff = 0;
   }
 }

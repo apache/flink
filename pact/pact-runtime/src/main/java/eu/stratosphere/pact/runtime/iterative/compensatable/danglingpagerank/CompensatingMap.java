@@ -23,6 +23,8 @@ public class CompensatingMap extends MapStub {
   private double uniformRank;
   private double rescaleFactor;
 
+  private PactDouble rank = new PactDouble();
+
   @Override
   public void open(Configuration parameters) throws Exception {
 
@@ -46,14 +48,14 @@ public class CompensatingMap extends MapStub {
 
     if (currentIteration == failingIteration + 1) {
 
-      double rank = pageWithRank.getField(1, PactDouble.class).getValue();
+      rank = pageWithRank.getField(1, rank);
 
       if (failingWorkers.contains(workerIndex)) {
-         rank = uniformRank;
+         rank.setValue(uniformRank);
        } else {
-        rank *= rescaleFactor;
+        rank.setValue(rank.getValue() * rescaleFactor);
        }
-      pageWithRank.setField(1, new PactDouble(rank));
+      pageWithRank.setField(1, rank);
     }
 
     out.collect(pageWithRank);

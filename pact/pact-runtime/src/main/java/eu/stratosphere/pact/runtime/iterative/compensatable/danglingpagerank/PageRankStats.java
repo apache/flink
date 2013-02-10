@@ -15,11 +15,12 @@ public class PageRankStats implements Value {
   private long numVertices;
   private long edges;
   private double summedRank;
+  private double finalDiff;
 
   public PageRankStats() {}
 
   public PageRankStats(double diff, double rank, double danglingRank, long numDanglingVertices, long numVertices,
-      long edges, double summedRank) {
+      long edges, double summedRank, double finalDiff) {
     this.diff = diff;
     this.rank = rank;
     this.danglingRank = danglingRank;
@@ -27,6 +28,7 @@ public class PageRankStats implements Value {
     this.numVertices = numVertices;
     this.edges = edges;
     this.summedRank = summedRank;
+    this.finalDiff = finalDiff;
   }
 
   public double diff() {
@@ -57,6 +59,10 @@ public class PageRankStats implements Value {
     return summedRank;
   }
 
+  public double finalDiff() {
+    return finalDiff;
+  }
+
   @Override
   public void write(DataOutput out) throws IOException {
     out.writeDouble(diff);
@@ -66,6 +72,7 @@ public class PageRankStats implements Value {
     out.writeLong(numVertices);
     out.writeLong(edges);
     out.writeDouble(summedRank);
+    out.writeDouble(finalDiff);
   }
 
   @Override
@@ -77,12 +84,13 @@ public class PageRankStats implements Value {
     numVertices = in.readLong();
     edges = in.readLong();
     summedRank = in.readDouble();
+    finalDiff = in.readDouble();
   }
 
   @Override
   public String toString() {
     return "PageRankStats: diff [" + diff +"], rank [" + rank + "], danglingRank [" + danglingRank +
         "], numDanglingVertices [" + numDanglingVertices +"], numVertices [" + numVertices + "], edges [" + edges +
-        "], summedRank [" + summedRank + "]";
+        "], summedRank [" + summedRank + "], finalDiff [" + finalDiff +"]";
   }
 }

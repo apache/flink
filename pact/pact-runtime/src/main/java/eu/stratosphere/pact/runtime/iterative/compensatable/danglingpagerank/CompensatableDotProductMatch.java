@@ -32,6 +32,9 @@ public class CompensatableDotProductMatch extends MatchStub {
   private PactLong vertexID;
   private PactDouble partialRank;
 
+  private PactDouble rank = new PactDouble();
+  private LongArrayView adjacentNeighbors = new LongArrayView();
+
   private int workerIndex;
   private int currentIteration;
   private int failingIteration;
@@ -60,18 +63,19 @@ public class CompensatableDotProductMatch extends MatchStub {
   public void match(PactRecord pageWithRank, PactRecord adjacencyList, Collector<PactRecord> collector)
       throws Exception {
 
-    double rank = pageWithRank.getField(1, PactDouble.class).getValue();
-    long[] adjacentNeighbors = adjacencyList.getField(1, PactLongArray.class).values();
+    rank = pageWithRank.getField(1, rank);
+    adjacentNeighbors = adjacencyList.getField(1, adjacentNeighbors);
+    int numNeighbors = adjacentNeighbors.size();
 
-    double rankToDistribute = rank / (double) adjacentNeighbors.length;
+    double rankToDistribute = rank.getValue() / (double) numNeighbors;
 
     partialRank.setValue(rankToDistribute);
     record.setField(1, partialRank);
 
     boolean isFailure = currentIteration == failingIteration && failingWorkers.contains(workerIndex);
 
-    for (int n = 0; n < adjacentNeighbors.length; n++) {
-      vertexID.setValue(adjacentNeighbors[n]);
+    for (int n = 0; n < numNeighbors; n++) {
+      vertexID.setValue(adjacentNeighbors.getQuick(n));
       record.setField(0, vertexID);
 
       if (isFailure) {

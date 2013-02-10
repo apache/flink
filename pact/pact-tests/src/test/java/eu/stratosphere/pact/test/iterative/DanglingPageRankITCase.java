@@ -24,7 +24,6 @@ import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.CompensatableDanglingPageRank;
 import eu.stratosphere.pact.test.util.TestBase;
 
 @RunWith(Parameterized.class)
