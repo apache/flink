@@ -288,7 +288,7 @@ public final class PactRecordComparator implements TypeComparator<PactRecord>
 	}
 
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#putNormalizedKey(java.lang.Object, byte[], int, int)
+	 * @see eu.stratosphere.pact.generic.types.TypeComparator#putNormalizedKey(java.lang.Object, byte[], int, int)
 	 */
 	@Override
 	public void putNormalizedKey(PactRecord record, byte[] target, int offset, int numBytes)
@@ -309,6 +309,14 @@ public final class PactRecordComparator implements TypeComparator<PactRecord>
 		}
 	}
 	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.generic.types.TypeComparator#readFromNormalizedKey(java.lang.Object, byte[], int, int)
+	 */
+	@Override
+	public void readFromNormalizedKey(PactRecord record, byte[] target, int offset, int numBytes) {
+		throw new UnsupportedOperationException("PactRecords do not support denormalizable keys.");
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 	/* (non-Javadoc)

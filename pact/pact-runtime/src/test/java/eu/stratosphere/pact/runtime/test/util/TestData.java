@@ -176,6 +176,14 @@ public final class TestData {
 			return true;
 		}
 
+		public boolean next(eu.stratosphere.pact.common.type.Value[] target) {
+			this.key.setKey(keyMode == KeyMode.SORTED ? ++counter : Math.abs(random.nextInt() % keyMax) + 1);
+			// TODO change this to something proper
+			((PactInteger)target[0]).setValue(this.key.getValue());
+			((PactInteger)target[1]).setValue(random.nextInt());
+			return true;
+		}
+
 		public int sizeOf(PactRecord rec) {
 			// key
 			int valueLength = Integer.SIZE / 8;

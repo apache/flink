@@ -23,6 +23,7 @@ import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyFieldOutOfBoundsException;
 import eu.stratosphere.pact.common.type.NormalizableKey;
 import eu.stratosphere.pact.common.type.NullKeyFieldException;
+import eu.stratosphere.pact.common.type.DeNormalizableKey;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.generic.types.TypeComparator;
@@ -278,7 +279,7 @@ public final class ArrayRecordComparator implements TypeComparator<Value[]>
 	}
 
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#putNormalizedKey(java.lang.Object, byte[], int, int)
+	 * @see eu.stratosphere.pact.generic.types.TypeComparator#putNormalizedKey(java.lang.Object, byte[], int, int)
 	 */
 	@Override
 	public void putNormalizedKey(Value[] record, byte[] target, int offset, int numBytes) {
@@ -298,6 +299,30 @@ public final class ArrayRecordComparator implements TypeComparator<Value[]>
 		}
 	}
 	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.generic.types.TypeComparator#readFromNormalizedKey(java.lang.Object, byte[], int, int)
+	 */
+	@Override
+	public void readFromNormalizedKey(Value[] record, byte[] source, int offset, int numBytes) {
+		if (numBytes < this.normalizableKeyPrefixLen) {
+			throw new IllegalArgumentException("We can only restore keys from full-length normalized keys.");
+		}
+		int i = 0;
+		try {
+			for (; i < this.numLeadingNormalizableKeys & numBytes > 0; i++)
+			{
+				int len = this.normalizedKeyLengths[i];
+				len = numBytes >= len ? len : numBytes;
+				((DeNormalizableKey) record[this.keyFields[i]]).readFromNormalizedKey(source, offset, len);
+				numBytes -= len;
+				offset += len;
+			}
+		}
+		catch (NullPointerException npex) {
+			throw new NullKeyFieldException(this.keyFields[i]);
+		}
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 	/* (non-Javadoc)
