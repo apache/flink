@@ -1175,8 +1175,8 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 	 * The thread that handles the spilling of intermediate results and sets up the merging. It also merges the 
 	 * channels until sufficiently few channels remain to perform the final streamed merge. 
 	 */
-	protected class SpillingThread extends ThreadBase<E>
-	{		
+	protected class SpillingThread extends ThreadBase<E> {
+		
 		protected final MemoryManager memManager;			// memory manager to release memory
 		
 		protected final IOManager ioManager;				// I/O manager to create channels
@@ -1226,14 +1226,13 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 		/**
 		 * Entry point of the thread.
 		 */
-		public void go() throws IOException
-		{
-			// ------------------- In-Memory Cache ------------------------
+		public void go() throws IOException {
 			
 			final Queue<CircularElement<E>> cache = new ArrayDeque<CircularElement<E>>();
 			CircularElement<E> element = null;
 			boolean cacheOnly = false;
 			
+			// ------------------- In-Memory Cache ------------------------
 			// fill cache
 			while (isRunning()) {
 				// take next element from queue

@@ -36,11 +36,15 @@ import eu.stratosphere.pact.generic.types.TypeSerializer;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparator;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordSerializer;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
+import eu.stratosphere.pact.runtime.test.util.RandomIntPairGenerator;
 import eu.stratosphere.pact.runtime.test.util.TestData;
 import eu.stratosphere.pact.runtime.test.util.TestData.Key;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.KeyMode;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.ValueMode;
 import eu.stratosphere.pact.runtime.test.util.TestData.Value;
+import eu.stratosphere.pact.runtime.test.util.types.IntPair;
+import eu.stratosphere.pact.runtime.test.util.types.IntPairComparator;
+import eu.stratosphere.pact.runtime.test.util.types.IntPairSerializer;
 
 /**
  * @author Erik Nijkamp
@@ -292,6 +296,58 @@ public class UnilateralSortMergerITCase
 				nextStep += PAIRS / 20;
 			}
 			
+		}
+		Assert.assertEquals("Not all pairs were read back in.", PAIRS, pairsRead);
+		merger.close();
+	}
+	
+	@Test
+	public void testSpillingSortWithIntermediateMergeIntPair() throws Exception {
+		// amount of pairs
+		final int PAIRS = 50000000;
+
+		// comparator
+		final RandomIntPairGenerator generator = new RandomIntPairGenerator(12345678, PAIRS);
+		
+		final TypeSerializer<IntPair> serializer = new IntPairSerializer();
+		final TypeComparator<IntPair> comparator = new IntPairComparator();
+		
+		// merge iterator
+		LOG.debug("Initializing sortmerger...");
+		
+		Sorter<IntPair> merger = new UnilateralSortMerger<IntPair>(this.memoryManager, this.ioManager, 
+				generator, this.parentTask, serializer, comparator, 64 * 1024 * 1024, 4, 0.7f);
+
+		// emit data
+		LOG.debug("Emitting data...");
+		
+		// check order
+		MutableObjectIterator<IntPair> iterator = merger.getIterator();
+		
+		LOG.debug("Checking results...");
+		int pairsRead = 1;
+		int nextStep = PAIRS / 20;
+
+		IntPair rec1 = new IntPair();
+		IntPair rec2 = new IntPair();
+		
+		Assert.assertTrue(iterator.next(rec1));
+		
+		while (iterator.next(rec2)) {
+			final int k1 = rec1.getKey();
+			final int k2 = rec2.getKey();
+			pairsRead++;
+			
+			Assert.assertTrue(k1 - k2 <= 0); 
+			
+			IntPair tmp = rec1;
+			rec1 = rec2;
+			rec2 = tmp;
+			
+			// log
+			if (pairsRead == nextStep) {
+				nextStep += PAIRS / 20;
+			}
 		}
 		Assert.assertEquals("Not all pairs were read back in.", PAIRS, pairsRead);
 		merger.close();

@@ -75,6 +75,8 @@ public final class FixedLengthRecordSorter<T> implements InMemorySorter<T> {
 	
 	private final boolean useNormKeyUninverted;
 	
+	private final T recordInstance;
+	
 	
 	// -------------------------------------------------------------------------
 	// Constructors / Destructors
@@ -129,6 +131,8 @@ public final class FixedLengthRecordSorter<T> implements InMemorySorter<T> {
 		this.currentSortBufferSegment = nextMemorySegment();
 		this.sortBuffer.add(this.currentSortBufferSegment);
 		this.outView.set(this.currentSortBufferSegment);
+		
+		this.recordInstance = this.serializer.createInstance();
 	}
 
 	// -------------------------------------------------------------------------
@@ -372,33 +376,36 @@ public final class FixedLengthRecordSorter<T> implements InMemorySorter<T> {
 	 */
 	@Override
 	public void writeToOutput(final ChannelWriterOutputView output) throws IOException {
-		throw new UnsupportedOperationException();
-//		int recordsLeft = this.numRecords;
-//		int currentMemSeg = 0;
-//		while (recordsLeft > 0)
-//		{
-//			final MemorySegment currentIndexSegment = this.sortBuffer.get(currentMemSeg++);
-//			int offset = 0;
-//			// check whether we have a full or partially full segment
-//			if (recordsLeft >= this.recordsPerSegment) {
-//				// full segment
-//				for (;offset <= this.lastEntryOffset; offset += this.recordSize) {
-//					final long pointer = currentIndexSegment.getLong(offset);
-//					this.recordBuffer.setReadPosition(pointer);
-//					this.serializer.copy(this.recordBuffer, output);
-//					
-//				}
-//				recordsLeft -= this.recordsPerSegment;
-//			} else {
-//				// partially filled segment
-//				for (; recordsLeft > 0; recordsLeft--, offset += this.recordSize)
-//				{
-//					final long pointer = currentIndexSegment.getLong(offset);
-//					this.recordBuffer.setReadPosition(pointer);
-//					this.serializer.copy(this.recordBuffer, output);
-//				}
-//			}
-//		}
+		final TypeComparator<T> comparator = this.comparator;
+		final TypeSerializer<T> serializer = this.serializer;
+		final T record = this.recordInstance;
+		
+		final SingleSegmentInputView inView = this.inView;
+		
+		final int recordsPerSegment = this.recordsPerSegment;
+		int recordsLeft = this.numRecords;
+		int currentMemSeg = 0;
+		
+		while (recordsLeft > 0) {
+			final MemorySegment currentIndexSegment = this.sortBuffer.get(currentMemSeg++);
+			inView.set(currentIndexSegment, 0);
+			
+			// check whether we have a full or partially full segment
+			if (recordsLeft >= recordsPerSegment) {
+				// full segment
+				for (int numInMemSeg = 0; numInMemSeg < recordsPerSegment; numInMemSeg++) {
+					comparator.readWithKeyDenormalization(record, inView);
+					serializer.serialize(record, output);
+				}
+				recordsLeft -= recordsPerSegment;
+			} else {
+				// partially filled segment
+				for (; recordsLeft > 0; recordsLeft--) {
+					comparator.readWithKeyDenormalization(record, inView);
+					serializer.serialize(record, output);
+				}
+			}
+		}
 	}
 	
 	/**
@@ -411,33 +418,36 @@ public final class FixedLengthRecordSorter<T> implements InMemorySorter<T> {
 	 */
 	@Override
 	public void writeToOutput(final ChannelWriterOutputView output, final int start, int num) throws IOException {
-		throw new UnsupportedOperationException();
-//		int currentMemSeg = start / this.recordsPerSegment;
-//		int offset = (start % this.recordsPerSegment) * this.recordSize;
-//		
-//		while (num > 0)
-//		{
-//			final MemorySegment currentIndexSegment = this.sortBuffer.get(currentMemSeg++);
-//			// check whether we have a full or partially full segment
-//			if (num >= this.recordsPerSegment && offset == 0) {
-//				// full segment
-//				for (;offset <= this.lastEntryOffset; offset += this.recordSize) {
-//					final long pointer = currentIndexSegment.getLong(offset);
-//					this.recordBuffer.setReadPosition(pointer);
-//					this.serializer.copy(this.recordBuffer, output);
-//				}
-//				num -= this.recordsPerSegment;
-//			} else {
-//				// partially filled segment
-//				for (; num > 0 && offset <= this.lastEntryOffset; num--, offset += this.recordSize)
-//				{
-//					final long pointer = currentIndexSegment.getLong(offset);
-//					this.recordBuffer.setReadPosition(pointer);
-//					this.serializer.copy(this.recordBuffer, output);
-//				}
-//			}
-//			offset = 0;
-//		}
+		final TypeComparator<T> comparator = this.comparator;
+		final TypeSerializer<T> serializer = this.serializer;
+		final T record = this.recordInstance;
+		
+		final SingleSegmentInputView inView = this.inView;
+		
+		final int recordsPerSegment = this.recordsPerSegment;
+		int currentMemSeg = start / recordsPerSegment;
+		int offset = (start % recordsPerSegment) * this.recordSize;
+		
+		while (num > 0) {
+			final MemorySegment currentIndexSegment = this.sortBuffer.get(currentMemSeg++);
+			inView.set(currentIndexSegment, offset);
+			
+			// check whether we have a full or partially full segment
+			if (num >= recordsPerSegment && offset == 0) {
+				// full segment
+				for (int numInMemSeg = 0; numInMemSeg < recordsPerSegment; numInMemSeg++) {
+					comparator.readWithKeyDenormalization(record, inView);
+					serializer.serialize(record, output);
+				}
+				num -= recordsPerSegment;
+			} else {
+				// partially filled segment
+				for (; num > 0; num--) {
+					comparator.readWithKeyDenormalization(record, inView);
+					serializer.serialize(record, output);
+				}
+			}
+		}
 	}
 	
 	private static final class SingleSegmentOutputView extends AbstractPagedOutputView {

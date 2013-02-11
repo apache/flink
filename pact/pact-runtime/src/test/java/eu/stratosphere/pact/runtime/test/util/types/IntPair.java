@@ -46,4 +46,9 @@ public class IntPair
 	public void setValue(int value) {
 		this.value = value;
 	}
+	
+	@Override
+	public String toString() {
+		return "(" + this.key + "/" + this.value + ")";
+	}
 }

@@ -23,21 +23,38 @@ import eu.stratosphere.pact.runtime.test.util.types.IntPair;
 public class RandomIntPairGenerator implements MutableObjectIterator<IntPair>
 {
 	private final long seed;
+	
+	private final long numRecords;
+	
 	private Random rnd;
 	
+	private long count;
+	
+	
 	public RandomIntPairGenerator(long seed) {
+		this(seed, Long.MAX_VALUE);
+	}
+	
+	public RandomIntPairGenerator(long seed, long numRecords) {
 		this.seed = seed;
+		this.numRecords = numRecords;
 		this.rnd = new Random(seed);
 	}
 
+	
 	@Override
 	public boolean next(IntPair target) {
-		target.setKey(this.rnd.nextInt());
-		target.setValue(this.rnd.nextInt());
-		return true;
+		if (this.count++ < this.numRecords) {
+			target.setKey(this.rnd.nextInt());
+			target.setValue(this.rnd.nextInt());
+			return true;
+		} else {
+			return false;
+		}
 	}
 	
 	public void reset() {
 		this.rnd = new Random(this.seed);
+		this.count = 0;
 	}
 }
