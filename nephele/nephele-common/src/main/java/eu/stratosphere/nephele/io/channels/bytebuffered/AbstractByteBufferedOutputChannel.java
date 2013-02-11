@@ -133,7 +133,9 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	 *         thrown if an I/O error occurs while waiting for the buffer
 	 */
 	private void requestWriteBufferFromBroker() throws InterruptedException, IOException {
-
+		if (Thread.interrupted()) {
+			throw new InterruptedException();
+		}
 		this.dataBuffer = this.outputChannelBroker.requestEmptyWriteBuffer();
 	}
 

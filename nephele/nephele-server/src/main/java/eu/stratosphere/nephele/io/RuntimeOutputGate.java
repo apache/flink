@@ -70,11 +70,6 @@ public class RuntimeOutputGate<T extends Record> extends AbstractGate<T> impleme
 	private final Class<T> type;
 
 	/**
-	 * The thread which executes the task connected to the output gate.
-	 */
-	private Thread executingThread = null;
-
-	/**
 	 * Stores whether all records passed to this output gate shall be transmitted through all connected output channels.
 	 */
 	private final boolean isBroadcast;
@@ -277,14 +272,6 @@ public class RuntimeOutputGate<T extends Record> extends AbstractGate<T> impleme
 	 */
 	@Override
 	public void writeRecord(final T record) throws IOException, InterruptedException {
-
-		if (this.executingThread == null) {
-			this.executingThread = Thread.currentThread();
-		}
-
-		if (this.executingThread.isInterrupted()) {
-			throw new InterruptedException();
-		}
 
 		if (this.isBroadcast) {
 
