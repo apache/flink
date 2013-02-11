@@ -372,6 +372,7 @@ public final class FixedLengthRecordSorter<T> implements InMemorySorter<T> {
 	 */
 	@Override
 	public void writeToOutput(final ChannelWriterOutputView output) throws IOException {
+		throw new UnsupportedOperationException();
 //		int recordsLeft = this.numRecords;
 //		int currentMemSeg = 0;
 //		while (recordsLeft > 0)
@@ -410,6 +411,7 @@ public final class FixedLengthRecordSorter<T> implements InMemorySorter<T> {
 	 */
 	@Override
 	public void writeToOutput(final ChannelWriterOutputView output, final int start, int num) throws IOException {
+		throw new UnsupportedOperationException();
 //		int currentMemSeg = start / this.recordsPerSegment;
 //		int offset = (start % this.recordsPerSegment) * this.recordSize;
 //		
