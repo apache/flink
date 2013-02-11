@@ -38,9 +38,9 @@ public class WordCountArrayModelITCase extends WordCountITCase {
 	protected JobGraph getJobGraph() throws Exception {
 
 		WordCountArrayTuples wc = new WordCountArrayTuples();
-		Plan plan = wc.getPlan(config.getString("WordCountTest#NoSubtasks", "1"), getFilesystemProvider()
-				.getURIPrefix()
-				+ textPath, getFilesystemProvider().getURIPrefix() + resultPath);
+		Plan plan = wc.getPlan(config.getString("WordCountTest#NoSubtasks", "1"),
+			getFilesystemProvider().getURIPrefix() + textPath,
+			getFilesystemProvider().getURIPrefix() + resultPath);
 
 		PactCompiler pc = new PactCompiler(new DataStatistics());
 		OptimizedPlan op = pc.compile(plan);

@@ -1125,8 +1125,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 
 		// check whether we got any chained tasks
 		final int numChained = config.getNumberOfChainedStubs();
-		if (numChained > 0)
-		{
+		if (numChained > 0) {
 			// got chained stubs. that means that this one may only have a single forward connection
 			if (numOutputs != 1 || config.getOutputShipStrategy(0) != ShipStrategyType.FORWARD) {
 				throw new RuntimeException("Plan Generation Bug: Found a chained stub that is not connected via an only forward connection.");
@@ -1184,12 +1183,10 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 	 * 
 	 * @throws Exception Thrown, if the user code's open method produces an exception.
 	 */
-	public static void openUserCode(Stub stub, Configuration parameters) throws Exception
-	{
+	public static void openUserCode(Stub stub, Configuration parameters) throws Exception {
 		try {
 			stub.open(parameters);
-		}
-		catch (Throwable t) {
+		} catch (Throwable t) {
 			throw new Exception("The user defined 'open(Configuration)' method caused an exception: " + t.getMessage(), t);
 		}
 	}
@@ -1203,12 +1200,10 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 	 * 
 	 * @throws Exception Thrown, if the user code's close method produces an exception.
 	 */
-	public static void closeUserCode(Stub stub) throws Exception
-	{
+	public static void closeUserCode(Stub stub) throws Exception {
 		try {
 			stub.close();
-		}
-		catch (Throwable t) {
+		} catch (Throwable t) {
 			throw new Exception("The user defined 'close()' method caused an exception: " + t.getMessage(), t);
 		}
 	}
@@ -1225,8 +1220,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 	 * @param parent The parent task, used to obtain parameters to include in the log message.
 	 * @throws Exception Thrown, if the opening encounters an exception.
 	 */
-	public static void openChainedTasks(List<ChainedDriver<?, ?>> tasks, AbstractInvokable parent) throws Exception
-	{
+	public static void openChainedTasks(List<ChainedDriver<?, ?>> tasks, AbstractInvokable parent) throws Exception {
 		// start all chained tasks
 		for (int i = 0; i < tasks.size(); i++) {
 			final ChainedDriver<?, ?> task = tasks.get(i);
@@ -1244,15 +1238,13 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 	 * @param parent The parent task, used to obtain parameters to include in the log message.
 	 * @throws Exception Thrown, if the closing encounters an exception.
 	 */
-	public static void closeChainedTasks(List<ChainedDriver<?, ?>> tasks, AbstractInvokable parent) throws Exception
-	{
+	public static void closeChainedTasks(List<ChainedDriver<?, ?>> tasks, AbstractInvokable parent) throws Exception {
 		for (int i = 0; i < tasks.size(); i++) {
 			final ChainedDriver<?, ?> task = tasks.get(i);
 			task.closeTask();
 			
 			if (LOG.isInfoEnabled())
 				LOG.info(constructLogString("Finished PACT code", task.getTaskName(), parent));
-			
 		}
 	}
 	
@@ -1262,8 +1254,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 	 * 
 	 * @param tasks The tasks to be canceled.
 	 */
-	public static void cancelChainedTasks(List<ChainedDriver<?, ?>> tasks)
-	{
+	public static void cancelChainedTasks(List<ChainedDriver<?, ?>> tasks) {
 		for (int i = 0; i < tasks.size(); i++) {
 			try {
 				tasks.get(i).cancelTask();
@@ -1287,8 +1278,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 	 * 
 	 * @return An instance of the user code class.
 	 */
-	public static <T> T instantiateUserCode(TaskConfig config, ClassLoader cl, Class<? super T> superClass)
-	{
+	public static <T> T instantiateUserCode(TaskConfig config, ClassLoader cl, Class<? super T> superClass) {
 		// obtain stub implementation class
 		try {
 			@SuppressWarnings("unchecked")

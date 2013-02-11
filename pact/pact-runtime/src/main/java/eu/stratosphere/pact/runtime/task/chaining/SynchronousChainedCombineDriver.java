@@ -29,6 +29,8 @@ import eu.stratosphere.pact.generic.types.TypeComparator;
 import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
 import eu.stratosphere.pact.generic.types.TypeSerializer;
 import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
+import eu.stratosphere.pact.runtime.sort.FixedLengthRecordSorter;
+import eu.stratosphere.pact.runtime.sort.InMemorySorter;
 import eu.stratosphere.pact.runtime.sort.NormalizedKeySorter;
 import eu.stratosphere.pact.runtime.sort.QuickSort;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
@@ -40,7 +42,14 @@ import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
  */
 public class SynchronousChainedCombineDriver<T> implements ChainedDriver<T, T>
 {
-	private NormalizedKeySorter<T> sorter;
+	/**
+	 * Fix length records with a length below this threshold will be in-place sorted, if possible.
+	 */
+	private static final int THRESHOLD_FOR_IN_PLACE_SORTING = 32;
+	
+	// --------------------------------------------------------------------------------------------
+	
+	private InMemorySorter<T> sorter;
 	
 	private GenericReducer<T, ?> combiner;
 	
@@ -88,8 +97,7 @@ public class SynchronousChainedCombineDriver<T> implements ChainedDriver<T, T>
 	 * @see eu.stratosphere.pact.runtime.task.chaining.ChainedTask#open()
 	 */
 	@Override
-	public void openTask() throws Exception
-	{
+	public void openTask() throws Exception {
 		// open the stub first
 		final Configuration stubConfig = this.config.getStubParameters();
 		stubConfig.setInteger("pact.parallel.task.id", this.parent.getEnvironment().getIndexInSubtaskGroup());
@@ -111,8 +119,16 @@ public class SynchronousChainedCombineDriver<T> implements ChainedDriver<T, T>
 		this.serializer = serializerFactory.getSerializer();
 		this.comparator = comparatorFactory.createComparator();
 
-		List<MemorySegment> memory = this.memManager.allocatePages(this.parent, availableMemory);
-		this.sorter = new NormalizedKeySorter<T>(this.serializer, this.comparator.duplicate(), memory);
+		final List<MemorySegment> memory = this.memManager.allocatePages(this.parent, availableMemory);
+		
+		// instantiate a fix-length in-place sorter, if possible, otherwise the out-of-place sorter
+		if (this.comparator.supportsSerializationWithKeyNormalization() &&
+				this.serializer.getLength() > 0 && this.serializer.getLength() <= THRESHOLD_FOR_IN_PLACE_SORTING)
+		{
+			this.sorter = new FixedLengthRecordSorter<T>(this.serializer, this.comparator, memory);
+		} else {
+			this.sorter = new NormalizedKeySorter<T>(this.serializer, this.comparator.duplicate(), memory);
+		}
 	}
 	
 	/* (non-Javadoc)
@@ -199,19 +215,21 @@ public class SynchronousChainedCombineDriver<T> implements ChainedDriver<T, T>
 	}
 	
 	private void sortAndCombine() throws Exception {
-		final NormalizedKeySorter<T> sorter = this.sorter;
-		this.sortAlgo.sort(sorter);
+		final InMemorySorter<T> sorter = this.sorter;
 		
-		// run the combiner
-		final KeyGroupedIterator<T> keyIter = new KeyGroupedIterator<T>(sorter.getIterator(), this.serializer, this.comparator);
-		
-		// cache references on the stack
-		final GenericReducer<T, ?> stub = this.combiner;
-		final Collector<T> output = this.outputCollector;
-
-		// run stub implementation
-		while (this.running && keyIter.nextKey()) {
-			stub.combine(keyIter.getValues(), output);
+		if (!sorter.isEmpty()) {
+			this.sortAlgo.sort(sorter);
+			// run the combiner
+			final KeyGroupedIterator<T> keyIter = new KeyGroupedIterator<T>(sorter.getIterator(), this.serializer, this.comparator);
+			
+			// cache references on the stack
+			final GenericReducer<T, ?> stub = this.combiner;
+			final Collector<T> output = this.outputCollector;
+	
+			// run stub implementation
+			while (this.running && keyIter.nextKey()) {
+				stub.combine(keyIter.getValues(), output);
+			}
 		}
 	}
 }

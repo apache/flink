@@ -15,9 +15,9 @@
 
 package eu.stratosphere.pact.runtime.task;
 
-import eu.stratosphere.pact.runtime.task.chaining.ChainedCombineDriver;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedDriver;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedMapDriver;
+import eu.stratosphere.pact.runtime.task.chaining.SynchronousChainedCombineDriver;
 
 import static eu.stratosphere.pact.runtime.task.DamBehavior.*;
 
@@ -33,7 +33,7 @@ public enum DriverStrategy
 	// grouping the inputs
 	GROUP_OVER_ORDERED(ReduceDriver.class, null, PIPELINED, true),
 	// partially grouping inputs (best effort resulting possibly in duplicates --> combiner)
-	PARTIAL_GROUP(CombineDriver.class, ChainedCombineDriver.class, MATERIALIZING, true),
+	PARTIAL_GROUP(CombineDriver.class, SynchronousChainedCombineDriver.class, MATERIALIZING, true),
 	// group everything together into one group
 	ALL_GROUP(null, null, PIPELINED, false),
 	// already grouped input, within a key values are crossed in a nested loop fashion
