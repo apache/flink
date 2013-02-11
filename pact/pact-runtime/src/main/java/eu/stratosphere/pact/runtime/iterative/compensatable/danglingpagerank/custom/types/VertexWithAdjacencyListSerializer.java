@@ -12,7 +12,7 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.types;
+package eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.custom.types;
 
 import java.io.IOException;
 
@@ -24,32 +24,32 @@ import eu.stratosphere.pact.generic.types.TypeSerializer;
 /**
  *
  */
-public final class NodeWithAdjacencyListSerializer implements TypeSerializer<NodeWithAdjacencyList> {
+public final class VertexWithAdjacencyListSerializer implements TypeSerializer<VertexWithAdjacencyList> {
 
 	@Override
-	public NodeWithAdjacencyList createInstance() {
-		return new NodeWithAdjacencyList();
+	public VertexWithAdjacencyList createInstance() {
+		return new VertexWithAdjacencyList();
 	}
 
 	@Override
-	public NodeWithAdjacencyList createCopy(NodeWithAdjacencyList from) {
+	public VertexWithAdjacencyList createCopy(VertexWithAdjacencyList from) {
 		long[] targets = new long[from.getTargets().length];
 		System.arraycopy(from.getTargets(), 0, targets, 0, targets.length);
 		
-		NodeWithAdjacencyList copy = new NodeWithAdjacencyList();
-		copy.setNodeId(from.getNodeId());
+		VertexWithAdjacencyList copy = new VertexWithAdjacencyList();
+		copy.setVertexID(from.getVertexID());
 		copy.setNumTargets(from.getNumTargets());
 		copy.setTargets(targets);
 		return copy;
 	}
 
 	@Override
-	public void copyTo(NodeWithAdjacencyList from, NodeWithAdjacencyList to) {
+	public void copyTo(VertexWithAdjacencyList from, VertexWithAdjacencyList to) {
 		if (to.getTargets().length < from.getTargets().length) {
 			to.setTargets(new long[from.getTargets().length]);
 		}
 		
-		to.setNodeId(from.getNodeId());
+		to.setVertexID(from.getVertexID());
 		to.setNumTargets(from.getNumTargets());
 		System.arraycopy(from.getTargets(), 0, to.getTargets(), 0, from.getNumTargets());
 	}
@@ -60,8 +60,8 @@ public final class NodeWithAdjacencyListSerializer implements TypeSerializer<Nod
 	}
 
 	@Override
-	public void serialize(NodeWithAdjacencyList record, DataOutputView target) throws IOException {
-		target.writeLong(record.getNodeId());
+	public void serialize(VertexWithAdjacencyList record, DataOutputView target) throws IOException {
+		target.writeLong(record.getVertexID());
 		
 		final long[] targets = record.getTargets();
 		final int numTargets = record.getNumTargets();
@@ -73,8 +73,8 @@ public final class NodeWithAdjacencyListSerializer implements TypeSerializer<Nod
 	}
 
 	@Override
-	public void deserialize(NodeWithAdjacencyList target, DataInputView source) throws IOException {
-		target.setNodeId(source.readLong());
+	public void deserialize(VertexWithAdjacencyList target, DataInputView source) throws IOException {
+		target.setVertexID(source.readLong());
 		
 		final int numTargets = source.readInt();
 		long[] targets = target.getTargets();

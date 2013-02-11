@@ -12,41 +12,31 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.types;
+package eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.custom.types;
 
+import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
 
 /**
  *
  */
-public final class NodeWithRank {
+public final class VertexWithAdjacencyListSerializerFactory implements TypeSerializerFactory<VertexWithAdjacencyList> {
 
-	private long nodeId;
+	private static final VertexWithAdjacencyListSerializer INSTANCE = new VertexWithAdjacencyListSerializer();
 	
-	private double rank;
+	@Override
+	public void writeParametersToConfig(Configuration config) {}
 
-	
-	public NodeWithRank() {
-	}
-	
-	public NodeWithRank(long nodeId, double rank) {
-		this.nodeId = nodeId;
-		this.rank = rank;
+	@Override
+	public void readParametersFromConfig(Configuration config, ClassLoader cl) throws ClassNotFoundException {}
+
+	@Override
+	public VertexWithAdjacencyListSerializer getSerializer() {
+		return INSTANCE;
 	}
 
-	
-	public long getNodeId() {
-		return nodeId;
-	}
-	
-	public void setNodeId(long nodeId) {
-		this.nodeId = nodeId;
-	}
-	
-	public double getRank() {
-		return rank;
-	}
-	
-	public void setRank(double rank) {
-		this.rank = rank;
+	@Override
+	public Class<VertexWithAdjacencyList> getDataType() {
+		return VertexWithAdjacencyList.class;
 	}
 }

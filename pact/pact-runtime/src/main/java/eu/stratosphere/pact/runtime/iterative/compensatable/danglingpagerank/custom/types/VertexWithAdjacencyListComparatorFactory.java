@@ -12,17 +12,15 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.types;
+package eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.custom.types;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
+import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
 
 /**
  *
  */
-public final class NodeWithAdjacencyListSerializerFactory implements TypeSerializerFactory<NodeWithAdjacencyList> {
-
-	private static final NodeWithAdjacencyListSerializer INSTANCE = new NodeWithAdjacencyListSerializer();
+public final class VertexWithAdjacencyListComparatorFactory implements TypeComparatorFactory<VertexWithAdjacencyList> {
 	
 	@Override
 	public void writeParametersToConfig(Configuration config) {}
@@ -31,12 +29,7 @@ public final class NodeWithAdjacencyListSerializerFactory implements TypeSeriali
 	public void readParametersFromConfig(Configuration config, ClassLoader cl) throws ClassNotFoundException {}
 
 	@Override
-	public NodeWithAdjacencyListSerializer getSerializer() {
-		return INSTANCE;
-	}
-
-	@Override
-	public Class<NodeWithAdjacencyList> getDataType() {
-		return NodeWithAdjacencyList.class;
+	public VertexWithAdjacencyListComparator createComparator() {
+		return new VertexWithAdjacencyListComparator();
 	}
 }

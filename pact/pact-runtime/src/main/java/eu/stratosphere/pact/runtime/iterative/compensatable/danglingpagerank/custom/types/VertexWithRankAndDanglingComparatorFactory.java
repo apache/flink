@@ -12,53 +12,24 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.types;
+package eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.custom.types;
 
+import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
 
 /**
  *
  */
-public final class NodeWithAdjacencyList {
+public final class VertexWithRankAndDanglingComparatorFactory implements TypeComparatorFactory<VertexWithRankAndDangling> {
 	
-	private static final long[] EMPTY = new long[0];
-	
-	private long nodeId;
-	
-	private long[] targets;
-	
-	private int numTargets;
-	
-	public NodeWithAdjacencyList() {
-		this.targets = EMPTY;
-	}
-	
-	public NodeWithAdjacencyList(long nodeId, long[] targets) {
-		this.nodeId = nodeId;
-		this.targets = targets;
-	}
+	@Override
+	public void writeParametersToConfig(Configuration config) {}
 
-	
-	public long getNodeId() {
-		return nodeId;
-	}
-	
-	public void setNodeId(long nodeId) {
-		this.nodeId = nodeId;
-	}
-	
-	public long[] getTargets() {
-		return targets;
-	}
-	
-	public void setTargets(long[] targets) {
-		this.targets = targets;
-	}
-	
-	public int getNumTargets() {
-		return numTargets;
-	}
-	
-	public void setNumTargets(int numTargets) {
-		this.numTargets = numTargets;
+	@Override
+	public void readParametersFromConfig(Configuration config, ClassLoader cl) throws ClassNotFoundException {}
+
+	@Override
+	public VertexWithRankAndDanglingComparator createComparator() {
+		return new VertexWithRankAndDanglingComparator();
 	}
 }

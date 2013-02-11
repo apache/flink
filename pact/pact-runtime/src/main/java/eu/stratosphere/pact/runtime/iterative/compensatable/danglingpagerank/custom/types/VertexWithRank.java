@@ -12,31 +12,41 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.types;
+package eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.custom.types;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
 
 /**
  *
  */
-public final class NodeWithRankSerializerFactory implements TypeSerializerFactory<NodeWithRank> {
+public final class VertexWithRank {
 
-	private static final NodeWithRankSerializer INSTANCE = new NodeWithRankSerializer();
+	private long vertexID;
 	
-	@Override
-	public void writeParametersToConfig(Configuration config) {}
+	private double rank;
 
-	@Override
-	public void readParametersFromConfig(Configuration config, ClassLoader cl) throws ClassNotFoundException {}
-
-	@Override
-	public NodeWithRankSerializer getSerializer() {
-		return INSTANCE;
+	
+	public VertexWithRank() {
+	}
+	
+	public VertexWithRank(long vertexID, double rank) {
+		this.vertexID = vertexID;
+		this.rank = rank;
 	}
 
-	@Override
-	public Class<NodeWithRank> getDataType() {
-		return NodeWithRank.class;
+	
+	public long getVertexID() {
+		return vertexID;
+	}
+	
+	public void setVertexID(long vertexID) {
+		this.vertexID = vertexID;
+	}
+	
+	public double getRank() {
+		return rank;
+	}
+	
+	public void setRank(double rank) {
+		this.rank = rank;
 	}
 }

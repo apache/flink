@@ -12,7 +12,7 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.types;
+package eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.custom.types;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
@@ -20,7 +20,7 @@ import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
 /**
  *
  */
-public final class NodeWithAdjacencyListComparatorFactory implements TypeComparatorFactory<NodeWithAdjacencyList> {
+public final class VertexWithRankComparatorFactory implements TypeComparatorFactory<VertexWithRank> {
 	
 	@Override
 	public void writeParametersToConfig(Configuration config) {}
@@ -29,7 +29,7 @@ public final class NodeWithAdjacencyListComparatorFactory implements TypeCompara
 	public void readParametersFromConfig(Configuration config, ClassLoader cl) throws ClassNotFoundException {}
 
 	@Override
-	public NodeWithAdjacencyListComparator createComparator() {
-		return new NodeWithAdjacencyListComparator();
+	public VertexWithRankComparator createComparator() {
+		return new VertexWithRankComparator();
 	}
 }

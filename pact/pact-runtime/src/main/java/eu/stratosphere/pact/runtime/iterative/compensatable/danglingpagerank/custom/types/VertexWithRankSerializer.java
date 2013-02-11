@@ -12,7 +12,7 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.types;
+package eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.custom.types;
 
 import java.io.IOException;
 
@@ -24,16 +24,16 @@ import eu.stratosphere.pact.generic.types.TypeSerializer;
 /**
  *
  */
-public final class NodeWithRankAndDanglingSerializer implements TypeSerializer<NodeWithRankAndDangling> {
+public final class VertexWithRankSerializer implements TypeSerializer<VertexWithRank> {
 
 	@Override
-	public NodeWithRankAndDangling createInstance() {
-		return new NodeWithRankAndDangling();
+	public VertexWithRank createInstance() {
+		return new VertexWithRank();
 	}
 
 	@Override
-	public NodeWithRankAndDangling createCopy(NodeWithRankAndDangling from) {
-		NodeWithRankAndDangling n = new NodeWithRankAndDangling();
+	public VertexWithRank createCopy(VertexWithRank from) {
+		VertexWithRank n = new VertexWithRank();
 		copyTo(from, n);
 		return n;
 	}
@@ -42,33 +42,30 @@ public final class NodeWithRankAndDanglingSerializer implements TypeSerializer<N
 	 * @see eu.stratosphere.pact.generic.types.TypeSerializer#copyTo(java.lang.Object, java.lang.Object)
 	 */
 	@Override
-	public void copyTo(NodeWithRankAndDangling from, NodeWithRankAndDangling to) {
-		to.setNodeId(from.getNodeId());
+	public void copyTo(VertexWithRank from, VertexWithRank to) {
+		to.setVertexID(from.getVertexID());
 		to.setRank(from.getRank());
-		to.setDangling(from.isDangling());
 	}
 
 	@Override
 	public int getLength() {
-		return 17;
+		return 16;
 	}
 
 	@Override
-	public void serialize(NodeWithRankAndDangling record, DataOutputView target) throws IOException {
-		target.writeLong(record.getNodeId());
+	public void serialize(VertexWithRank record, DataOutputView target) throws IOException {
+		target.writeLong(record.getVertexID());
 		target.writeDouble(record.getRank());
-		target.writeBoolean(record.isDangling());
 	}
 
 	@Override
-	public void deserialize(NodeWithRankAndDangling target, DataInputView source) throws IOException {
-		target.setNodeId(source.readLong());
+	public void deserialize(VertexWithRank target, DataInputView source) throws IOException {
+		target.setVertexID(source.readLong());
 		target.setRank(source.readDouble());
-		target.setDangling(source.readBoolean());
 	}
 
 	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		target.write(source, 17);
+		target.write(source, 16);
 	}
 }

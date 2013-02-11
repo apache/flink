@@ -129,10 +129,10 @@ public class AsciiLongArrayView {
     }
   }
 
-  public double elementAsDouble() {
-    String token = new String(buffer, tokenOffset, tokenNumBytes, Charsets.US_ASCII);
-    return Double.valueOf(token);
-  }
+//  public double elementAsDouble() {
+//    String token = new String(buffer, tokenOffset, tokenNumBytes, Charsets.US_ASCII);
+//    return Double.valueOf(token);
+//  }
 
 
   @Override

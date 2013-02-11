@@ -12,24 +12,52 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.types;
+package eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.custom.types;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
 
 /**
  *
  */
-public final class NodeWithRankComparatorFactory implements TypeComparatorFactory<NodeWithRank> {
+public final class VertexWithRankAndDangling {
+
+	private long vertexID;
 	
-	@Override
-	public void writeParametersToConfig(Configuration config) {}
+	private double rank;
 
-	@Override
-	public void readParametersFromConfig(Configuration config, ClassLoader cl) throws ClassNotFoundException {}
+	private boolean dangling;
+	
 
-	@Override
-	public NodeWithRankComparator createComparator() {
-		return new NodeWithRankComparator();
+	public VertexWithRankAndDangling() {
+	}
+	
+	public VertexWithRankAndDangling(long vertexID, double rank, boolean dangling) {
+		this.vertexID = vertexID;
+		this.rank = rank;
+		this.dangling = dangling;
+	}
+
+	
+	public long getVertexID() {
+		return vertexID;
+	}
+	
+	public void setVertexID(long vertexID) {
+		this.vertexID = vertexID;
+	}
+	
+	public double getRank() {
+		return rank;
+	}
+	
+	public void setRank(double rank) {
+		this.rank = rank;
+	}
+	
+	public boolean isDangling() {
+		return dangling;
+	}
+	
+	public void setDangling(boolean dangling) {
+		this.dangling = dangling;
 	}
 }

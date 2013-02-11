@@ -12,52 +12,53 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.types;
+package eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.custom.types;
 
 
 /**
  *
  */
-public final class NodeWithRankAndDangling {
+public final class VertexWithAdjacencyList {
+	
+	private static final long[] EMPTY = new long[0];
+	
+	private long vertexID;
+	
+	private long[] targets;
+	
+	private int numTargets;
+	
+	public VertexWithAdjacencyList() {
+		this.targets = EMPTY;
+	}
+	
+	public VertexWithAdjacencyList(long vertexID, long[] targets) {
+		this.vertexID = vertexID;
+		this.targets = targets;
+	}
 
-	private long nodeId;
 	
-	private double rank;
-
-	private boolean dangling;
-	
-
-	public NodeWithRankAndDangling() {
+	public long getVertexID() {
+		return vertexID;
 	}
 	
-	public NodeWithRankAndDangling(long nodeId, double rank, boolean dangling) {
-		this.nodeId = nodeId;
-		this.rank = rank;
-		this.dangling = dangling;
-	}
-
-	
-	public long getNodeId() {
-		return nodeId;
+	public void setVertexID(long vertexID) {
+		this.vertexID = vertexID;
 	}
 	
-	public void setNodeId(long nodeId) {
-		this.nodeId = nodeId;
+	public long[] getTargets() {
+		return targets;
 	}
 	
-	public double getRank() {
-		return rank;
+	public void setTargets(long[] targets) {
+		this.targets = targets;
 	}
 	
-	public void setRank(double rank) {
-		this.rank = rank;
+	public int getNumTargets() {
+		return numTargets;
 	}
 	
-	public boolean isDangling() {
-		return dangling;
-	}
-	
-	public void setDangling(boolean dangling) {
-		this.dangling = dangling;
+	public void setNumTargets(int numTargets) {
+		this.numTargets = numTargets;
 	}
 }

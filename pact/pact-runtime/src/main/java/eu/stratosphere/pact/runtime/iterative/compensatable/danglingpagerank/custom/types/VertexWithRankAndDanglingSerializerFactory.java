@@ -12,15 +12,17 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.types;
+package eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.custom.types;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
+import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
 
 /**
  *
  */
-public final class NodeWithRankAndDanglingComparatorFactory implements TypeComparatorFactory<NodeWithRankAndDangling> {
+public final class VertexWithRankAndDanglingSerializerFactory implements TypeSerializerFactory<VertexWithRankAndDangling> {
+
+	private static final VertexWithRankAndDanglingSerializer INSTANCE = new VertexWithRankAndDanglingSerializer();
 	
 	@Override
 	public void writeParametersToConfig(Configuration config) {}
@@ -29,7 +31,12 @@ public final class NodeWithRankAndDanglingComparatorFactory implements TypeCompa
 	public void readParametersFromConfig(Configuration config, ClassLoader cl) throws ClassNotFoundException {}
 
 	@Override
-	public NodeWithRankAndDanglingComparator createComparator() {
-		return new NodeWithRankAndDanglingComparator();
+	public VertexWithRankAndDanglingSerializer getSerializer() {
+		return INSTANCE;
+	}
+
+	@Override
+	public Class<VertexWithRankAndDangling> getDataType() {
+		return VertexWithRankAndDangling.class;
 	}
 }

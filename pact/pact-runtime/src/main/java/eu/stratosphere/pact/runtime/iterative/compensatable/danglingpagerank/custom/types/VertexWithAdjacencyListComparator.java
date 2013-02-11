@@ -12,7 +12,7 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.types;
+package eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.custom.types;
 
 import java.io.IOException;
 
@@ -23,29 +23,29 @@ import eu.stratosphere.pact.generic.types.TypeComparator;
 /**
  *
  */
-public final class NodeWithAdjacencyListComparator implements TypeComparator<NodeWithAdjacencyList> {
+public final class VertexWithAdjacencyListComparator implements TypeComparator<VertexWithAdjacencyList> {
 
 	private long reference;
 	
 	@Override
-	public int hash(NodeWithAdjacencyList record) {
-		final long value = record.getNodeId();
+	public int hash(VertexWithAdjacencyList record) {
+		final long value = record.getVertexID();
 		return 43 + (int) (value ^ value >>> 32);
 	}
 
 	@Override
-	public void setReference(NodeWithAdjacencyList toCompare) {
-		this.reference = toCompare.getNodeId();
+	public void setReference(VertexWithAdjacencyList toCompare) {
+		this.reference = toCompare.getVertexID();
 	}
 
 	@Override
-	public boolean equalToReference(NodeWithAdjacencyList candidate) {
-		return candidate.getNodeId() == this.reference;
+	public boolean equalToReference(VertexWithAdjacencyList candidate) {
+		return candidate.getVertexID() == this.reference;
 	}
 
 	@Override
-	public int compareToReference(TypeComparator<NodeWithAdjacencyList> referencedComparator) {
-		NodeWithAdjacencyListComparator comp = (NodeWithAdjacencyListComparator) referencedComparator;
+	public int compareToReference(TypeComparator<VertexWithAdjacencyList> referencedComparator) {
+		VertexWithAdjacencyListComparator comp = (VertexWithAdjacencyListComparator) referencedComparator;
 		final long diff = comp.reference - this.reference;
 		return diff < 0 ? -1 : diff > 0 ? 1 : 0;
 	}
@@ -72,8 +72,8 @@ public final class NodeWithAdjacencyListComparator implements TypeComparator<Nod
 	}
 
 	@Override
-	public void putNormalizedKey(NodeWithAdjacencyList record, byte[] target, int offset, int len) {
-		final long value = record.getNodeId();
+	public void putNormalizedKey(VertexWithAdjacencyList record, byte[] target, int offset, int len) {
+		final long value = record.getVertexID();
 		
 		if (len == 8) {
 			// default case, full normalized key
@@ -122,7 +122,7 @@ public final class NodeWithAdjacencyListComparator implements TypeComparator<Nod
 	}
 
 	@Override
-	public NodeWithAdjacencyListComparator duplicate() {
-		return new NodeWithAdjacencyListComparator();
+	public VertexWithAdjacencyListComparator duplicate() {
+		return new VertexWithAdjacencyListComparator();
 	}
 }

@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank;
+package eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.custom;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
@@ -24,19 +24,26 @@ import eu.stratosphere.nephele.jobgraph.JobInputVertex;
 import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
-import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
 import eu.stratosphere.pact.generic.types.TypePairComparatorFactory;
 import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
+import eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.DiffL1NormConvergenceCriterion;
+import eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.custom.types.VertexWithAdjacencyList;
+import eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.custom.types.VertexWithAdjacencyListComparatorFactory;
+import eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.custom.types.VertexWithAdjacencyListSerializerFactory;
+import eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.custom.types.VertexWithRank;
+import eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.custom.types.VertexWithRankAndDangling;
+import eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.custom.types.VertexWithRankAndDanglingComparatorFactory;
+import eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.custom.types.VertexWithRankAndDanglingSerializerFactory;
+import eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.custom.types.VertexWithRankComparatorFactory;
+import eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.custom.types.VertexWithRankDanglingToVertexWithAdjacencyListPairComparatorFactory;
+import eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.custom.types.VertexWithRankDanglingToVertexWithRankPairComparatorFactory;
+import eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.custom.types.VertexWithRankSerializerFactory;
 import eu.stratosphere.pact.runtime.iterative.playing.JobGraphUtils;
 import eu.stratosphere.pact.runtime.iterative.playing.PlayConstants;
-import eu.stratosphere.pact.runtime.iterative.playing.pagerank.PageWithRankOutFormat;
 import eu.stratosphere.pact.runtime.iterative.task.IterationHeadPactTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationIntermediatePactTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationTailPactTask;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparatorFactory;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordPairComparatorFactory;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordSerializerFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.BuildSecondCachedMatchDriver;
 import eu.stratosphere.pact.runtime.task.CoGroupDriver;
@@ -45,18 +52,31 @@ import eu.stratosphere.pact.runtime.task.MapDriver;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
-public class CompensatableDanglingPageRank {
-	
-	private static final TypeSerializerFactory<?> recSerializer = PactRecordSerializerFactory.get();
-	
-	@SuppressWarnings("unchecked")
-	private static final TypeComparatorFactory<?> fieldZeroComparator = new PactRecordComparatorFactory(new int[] {0}, new Class[] {PactLong.class}, new boolean[] {true});
-	
-	private static final TypePairComparatorFactory<?, ?> pairComparatorFactory = new PactRecordPairComparatorFactory();
+public class CustomCompensatableDanglingPageRank {
 	
 	private static final int NUM_FILE_HANDLES_PER_SORT = 64;
 	
 	private static final float SORT_SPILL_THRESHOLD = 0.85f;
+	
+	
+	private static TypeSerializerFactory<VertexWithRank> vertexWithRankSerializer = new VertexWithRankSerializerFactory();
+	
+	private static TypeSerializerFactory<VertexWithRankAndDangling> vertexWithRankAndDanglingSerializer = new VertexWithRankAndDanglingSerializerFactory();
+	
+	private static TypeSerializerFactory<VertexWithAdjacencyList> vertexWithAdjacencyListSerializer = new VertexWithAdjacencyListSerializerFactory();
+	
+	private static TypeComparatorFactory<VertexWithRank> vertexWithRankComparator = new VertexWithRankComparatorFactory();
+	
+	private static TypeComparatorFactory<VertexWithRankAndDangling> vertexWithRankAndDanglingComparator = new VertexWithRankAndDanglingComparatorFactory();
+	
+	private static TypeComparatorFactory<VertexWithAdjacencyList> vertexWithAdjacencyListComparator = new VertexWithAdjacencyListComparatorFactory();
+	
+	private static TypePairComparatorFactory<VertexWithRankAndDangling, VertexWithAdjacencyList> matchComparator =
+			new VertexWithRankDanglingToVertexWithAdjacencyListPairComparatorFactory();
+	
+	private static TypePairComparatorFactory<VertexWithRankAndDangling, VertexWithRank> coGroupComparator =
+			new VertexWithRankDanglingToVertexWithRankPairComparatorFactory();
+	
 
 	public static void main(String[] args) throws Exception {
 		String confPath = args.length >= 6 ? confPath = args[5] : PlayConstants.PLAY_DIR + "local-conf";
@@ -111,21 +131,21 @@ public class CompensatableDanglingPageRank {
 		// --------------- the inputs ---------------------
 
 		// page rank input
-		JobInputVertex pageWithRankInput = JobGraphUtils.createInput(ImprovedDanglingPageRankInputFormat.class,
+		JobInputVertex pageWithRankInput = JobGraphUtils.createInput(CustomImprovedDanglingPageRankInputFormat.class,
 			pageWithRankInputPath, "DanglingPageWithRankInput", jobGraph, degreeOfParallelism, numSubTasksPerInstance);
 		TaskConfig pageWithRankInputConfig = new TaskConfig(pageWithRankInput.getConfiguration());
 		pageWithRankInputConfig.addOutputShipStrategy(ShipStrategyType.PARTITION_HASH);
-		pageWithRankInputConfig.setOutputComparator(fieldZeroComparator, 0);
-		pageWithRankInputConfig.setOutputSerializer(recSerializer);
+		pageWithRankInputConfig.setOutputComparator(vertexWithRankAndDanglingComparator, 0);
+		pageWithRankInputConfig.setOutputSerializer(vertexWithRankAndDanglingSerializer);
 		pageWithRankInputConfig.setStubParameter("pageRank.numVertices", String.valueOf(numVertices));
 
 		// edges as adjacency list
-		JobInputVertex adjacencyListInput = JobGraphUtils.createInput(ImprovedAdjacencyListInputFormat.class,
+		JobInputVertex adjacencyListInput = JobGraphUtils.createInput(CustomImprovedAdjacencyListInputFormat.class,
 			adjacencyListInputPath, "AdjancencyListInput", jobGraph, degreeOfParallelism, numSubTasksPerInstance);
 		TaskConfig adjacencyListInputConfig = new TaskConfig(adjacencyListInput.getConfiguration());
 		adjacencyListInputConfig.addOutputShipStrategy(ShipStrategyType.PARTITION_HASH);
-		adjacencyListInputConfig.setOutputSerializer(recSerializer);
-		adjacencyListInputConfig.setOutputComparator(fieldZeroComparator, 0);
+		adjacencyListInputConfig.setOutputSerializer(vertexWithAdjacencyListSerializer);
+		adjacencyListInputConfig.setOutputComparator(vertexWithAdjacencyListComparator, 0);
 
 		// --------------- the head ---------------------
 		JobTaskVertex head = JobGraphUtils.createTask(IterationHeadPactTask.class, "IterationHead", jobGraph,
@@ -135,8 +155,8 @@ public class CompensatableDanglingPageRank {
 		// initial input / partial solution
 		headConfig.addInputToGroup(0);
 		headConfig.setIterationHeadPartialSolutionInputIndex(0);
-		headConfig.setInputSerializer(recSerializer, 0);
-		headConfig.setInputComparator(fieldZeroComparator, 0);
+		headConfig.setInputSerializer(vertexWithRankAndDanglingSerializer, 0);
+		headConfig.setInputComparator(vertexWithRankAndDanglingComparator, 0);
 		headConfig.setInputLocalStrategy(0, LocalStrategy.SORT);
 		headConfig.setMemoryInput(0, minorConsumer * JobGraphUtils.MEGABYTE);
 		headConfig.setFilehandlesInput(0, NUM_FILE_HANDLES_PER_SORT);
@@ -146,13 +166,13 @@ public class CompensatableDanglingPageRank {
 		headConfig.setBackChannelMemory(minorConsumer * JobGraphUtils.MEGABYTE);
 		
 		// output into iteration
-		headConfig.setOutputSerializer(recSerializer);
+		headConfig.setOutputSerializer(vertexWithRankAndDanglingSerializer);
 		headConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
 		headConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
 		
 		// final output
 		TaskConfig headFinalOutConfig = new TaskConfig(new Configuration());
-		headFinalOutConfig.setOutputSerializer(recSerializer);
+		headFinalOutConfig.setOutputSerializer(vertexWithRankAndDanglingSerializer);
 		headFinalOutConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
 		headConfig.setIterationHeadFinalOutputConfig(headFinalOutConfig);
 		
@@ -163,7 +183,7 @@ public class CompensatableDanglingPageRank {
 		// the driver 
 		headConfig.setDriver(MapDriver.class);
 		headConfig.setDriverStrategy(DriverStrategy.MAP);
-		headConfig.setStubClass(CompensatingMap.class);
+		headConfig.setStubClass(CustomCompensatingMap.class);
 		headConfig.setStubParameter("pageRank.numVertices", String.valueOf(numVertices));
 		headConfig.setStubParameter("compensation.failingWorker", failingWorkers);
 		headConfig.setStubParameter("compensation.failingIteration", String.valueOf(failingIteration));
@@ -180,17 +200,17 @@ public class CompensatableDanglingPageRank {
 		intermediateConfig.setMemoryDriver(matchMemory * JobGraphUtils.MEGABYTE);
 		intermediateConfig.addInputToGroup(0);
 		intermediateConfig.addInputToGroup(1);
-		intermediateConfig.setInputSerializer(recSerializer, 0);
-		intermediateConfig.setInputSerializer(recSerializer, 1);
-		intermediateConfig.setDriverComparator(fieldZeroComparator, 0);
-		intermediateConfig.setDriverComparator(fieldZeroComparator, 1);
-		intermediateConfig.setDriverPairComparator(pairComparatorFactory);
+		intermediateConfig.setInputSerializer(vertexWithRankAndDanglingSerializer, 0);
+		intermediateConfig.setInputSerializer(vertexWithAdjacencyListSerializer, 1);
+		intermediateConfig.setDriverComparator(vertexWithRankAndDanglingComparator, 0);
+		intermediateConfig.setDriverComparator(vertexWithAdjacencyListComparator, 1);
+		intermediateConfig.setDriverPairComparator(matchComparator);
 		
-		intermediateConfig.setOutputSerializer(recSerializer);
+		intermediateConfig.setOutputSerializer(vertexWithRankSerializer);
 		intermediateConfig.addOutputShipStrategy(ShipStrategyType.PARTITION_HASH);
-		intermediateConfig.setOutputComparator(fieldZeroComparator, 0);
+		intermediateConfig.setOutputComparator(vertexWithRankComparator, 0);
 		
-		intermediateConfig.setStubClass(CompensatableDotProductMatch.class);
+		intermediateConfig.setStubClass(CustomCompensatableDotProductMatch.class);
 		intermediateConfig.setStubParameter("pageRank.numVertices", String.valueOf(numVertices));
 		intermediateConfig.setStubParameter("compensation.failingWorker", failingWorkers);
 		intermediateConfig.setStubParameter("compensation.failingIteration", String.valueOf(failingIteration));
@@ -208,25 +228,25 @@ public class CompensatableDanglingPageRank {
 		tailConfig.setDriverStrategy(DriverStrategy.CO_GROUP);
 		tailConfig.addInputToGroup(0);
 		tailConfig.addInputToGroup(1);
-		tailConfig.setInputSerializer(recSerializer, 0);
-		tailConfig.setInputSerializer(recSerializer, 1);
-		tailConfig.setDriverComparator(fieldZeroComparator, 0);
-		tailConfig.setDriverComparator(fieldZeroComparator, 1);
-		tailConfig.setDriverPairComparator(pairComparatorFactory);
+		tailConfig.setInputSerializer(vertexWithRankAndDanglingSerializer, 0);
+		tailConfig.setInputSerializer(vertexWithRankSerializer, 1);
+		tailConfig.setDriverComparator(vertexWithRankAndDanglingComparator, 0);
+		tailConfig.setDriverComparator(vertexWithRankComparator, 1);
+		tailConfig.setDriverPairComparator(coGroupComparator);
 		tailConfig.setInputAsynchronouslyMaterialized(0, true);
 		tailConfig.setInputMaterializationMemory(0, minorConsumer * JobGraphUtils.MEGABYTE);
 		tailConfig.setInputLocalStrategy(1, LocalStrategy.SORT);
-		tailConfig.setInputComparator(fieldZeroComparator, 1);
+		tailConfig.setInputComparator(vertexWithRankComparator, 1);
 		tailConfig.setMemoryInput(1, coGroupSortMemory * JobGraphUtils.MEGABYTE);
 		tailConfig.setFilehandlesInput(1, NUM_FILE_HANDLES_PER_SORT);
 		tailConfig.setSpillingThresholdInput(1, SORT_SPILL_THRESHOLD);
 		
 		// output
 		tailConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
-		tailConfig.setOutputSerializer(recSerializer);
+		tailConfig.setOutputSerializer(vertexWithRankAndDanglingSerializer);
 		
 		// the stub
-		tailConfig.setStubClass(CompensatableDotProductCoGroup.class);
+		tailConfig.setStubClass(CustomCompensatableDotProductCoGroup.class);
 		tailConfig.setStubParameter("pageRank.numVertices", String.valueOf(numVertices));
 		tailConfig.setStubParameter("pageRank.numDanglingVertices", String.valueOf(numDanglingVertices));
 		tailConfig.setStubParameter("compensation.failingWorker", failingWorkers);
@@ -239,8 +259,8 @@ public class CompensatableDanglingPageRank {
 			numSubTasksPerInstance);
 		TaskConfig outputConfig = new TaskConfig(output.getConfiguration());
 		outputConfig.addInputToGroup(0);
-		outputConfig.setInputSerializer(recSerializer, 0);
-		outputConfig.setStubClass(PageWithRankOutFormat.class);
+		outputConfig.setInputSerializer(vertexWithRankAndDanglingSerializer, 0);
+		outputConfig.setStubClass(CustomPageWithRankOutFormat.class);
 		outputConfig.setStubParameter(FileOutputFormat.FILE_PARAMETER_KEY, outputPath);
 		
 		// --------------- the auxiliaries ---------------------

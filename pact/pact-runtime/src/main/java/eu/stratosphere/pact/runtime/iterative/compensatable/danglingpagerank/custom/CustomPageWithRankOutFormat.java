@@ -12,31 +12,29 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.types;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
+package eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.custom;
 
-/**
- *
- */
-public final class NodeWithRankAndDanglingSerializerFactory implements TypeSerializerFactory<NodeWithRankAndDangling> {
+import com.google.common.base.Charsets;
 
-	private static final NodeWithRankAndDanglingSerializer INSTANCE = new NodeWithRankAndDanglingSerializer();
-	
-	@Override
-	public void writeParametersToConfig(Configuration config) {}
+import eu.stratosphere.pact.generic.io.FileOutputFormat;
+import eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.custom.types.VertexWithRankAndDangling;
 
-	@Override
-	public void readParametersFromConfig(Configuration config, ClassLoader cl) throws ClassNotFoundException {}
+import java.io.IOException;
+
+public class CustomPageWithRankOutFormat extends FileOutputFormat<VertexWithRankAndDangling> {
+
+	private final StringBuilder buffer = new StringBuilder();
 
 	@Override
-	public NodeWithRankAndDanglingSerializer getSerializer() {
-		return INSTANCE;
-	}
+	public void writeRecord(VertexWithRankAndDangling record) throws IOException {
+		buffer.setLength(0);
+		buffer.append(record.getVertexID());
+		buffer.append('\t');
+		buffer.append(record.getRank());
+		buffer.append('\n');
 
-	@Override
-	public Class<NodeWithRankAndDangling> getDataType() {
-		return NodeWithRankAndDangling.class;
+		byte[] bytes = buffer.toString().getBytes(Charsets.UTF_8);
+		stream.write(bytes);
 	}
 }

@@ -12,7 +12,7 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.types;
+package eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.custom.types;
 
 import java.io.IOException;
 
@@ -23,29 +23,29 @@ import eu.stratosphere.pact.generic.types.TypeComparator;
 /**
  *
  */
-public final class NodeWithRankComparator implements TypeComparator<NodeWithRank> {
+public final class VertexWithRankAndDanglingComparator implements TypeComparator<VertexWithRankAndDangling> {
 
 	private long reference;
 	
 	@Override
-	public int hash(NodeWithRank record) {
-		final long value = record.getNodeId();
+	public int hash(VertexWithRankAndDangling record) {
+		final long value = record.getVertexID();
 		return 43 + (int) (value ^ value >>> 32);
 	}
 
 	@Override
-	public void setReference(NodeWithRank toCompare) {
-		this.reference = toCompare.getNodeId();
+	public void setReference(VertexWithRankAndDangling toCompare) {
+		this.reference = toCompare.getVertexID();
 	}
 
 	@Override
-	public boolean equalToReference(NodeWithRank candidate) {
-		return candidate.getNodeId() == this.reference;
+	public boolean equalToReference(VertexWithRankAndDangling candidate) {
+		return candidate.getVertexID() == this.reference;
 	}
 
 	@Override
-	public int compareToReference(TypeComparator<NodeWithRank> referencedComparator) {
-		NodeWithRankComparator comp = (NodeWithRankComparator) referencedComparator;
+	public int compareToReference(TypeComparator<VertexWithRankAndDangling> referencedComparator) {
+		VertexWithRankAndDanglingComparator comp = (VertexWithRankAndDanglingComparator) referencedComparator;
 		final long diff = comp.reference - this.reference;
 		return diff < 0 ? -1 : diff > 0 ? 1 : 0;
 	}
@@ -72,8 +72,8 @@ public final class NodeWithRankComparator implements TypeComparator<NodeWithRank
 	}
 
 	@Override
-	public void putNormalizedKey(NodeWithRank record, byte[] target, int offset, int len) {
-		final long value = record.getNodeId();
+	public void putNormalizedKey(VertexWithRankAndDangling record, byte[] target, int offset, int len) {
+		final long value = record.getVertexID();
 		
 		if (len == 8) {
 			// default case, full normalized key
@@ -122,7 +122,7 @@ public final class NodeWithRankComparator implements TypeComparator<NodeWithRank
 	}
 
 	@Override
-	public NodeWithRankComparator duplicate() {
-		return new NodeWithRankComparator();
+	public VertexWithRankAndDanglingComparator duplicate() {
+		return new VertexWithRankAndDanglingComparator();
 	}
 }
