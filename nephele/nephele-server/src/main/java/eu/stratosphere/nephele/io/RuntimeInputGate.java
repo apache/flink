@@ -90,11 +90,6 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	private int channelToReadFrom = -1;
 
 	/**
-	 * The thread which executes the task connected to the input gate.
-	 */
-	private Thread executingThread = null;
-
-	/**
 	 * Constructs a new runtime input gate.
 	 * 
 	 * @param jobID
@@ -235,24 +230,21 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 
 		T record = null;
 
-		if (this.executingThread == null) {
-			this.executingThread = Thread.currentThread();
-		}
-
-		if (this.executingThread.isInterrupted()) {
-			throw new InterruptedException();
-		}
-
 		while (true) {
-
+			
 			if (this.channelToReadFrom == -1) {
-
+				
 				if (this.isClosed()) {
 					return null;
 				}
-
+				
+				if (Thread.interrupted()) {
+					throw new InterruptedException();
+				}
+				
 				this.channelToReadFrom = waitForAnyChannelToBecomeAvailable();
 			}
+			
 			try {
 				record = this.getInputChannel(this.channelToReadFrom).readRecord(target);
 			} catch (EOFException e) {

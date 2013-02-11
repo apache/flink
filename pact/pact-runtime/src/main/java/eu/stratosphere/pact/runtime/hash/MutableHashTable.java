@@ -117,7 +117,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 	 * used to determine the ratio of the number of memory segments intended for partition
 	 * buffers and the number of memory segments in the hash-table structure. 
 	 */
-	private static final int DEFAULT_RECORD_LEN = 12;
+	private static final int DEFAULT_RECORD_LEN = 24;
 	
 	/**
 	 * The length of the hash code stored in the bucket.

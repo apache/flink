@@ -29,12 +29,12 @@ import eu.stratosphere.nephele.types.Record;
  * @author warneke
  * @param <T> The type of the record that can be read from this record reader.
  */
-public abstract class AbstractRecordReader<T extends Record>
-{
+public abstract class AbstractRecordReader<T extends Record> {
+	
 	/**
 	 * The input gate associated with the record reader.
 	 */
-	private InputGate<T> inputGate = null;
+	protected final InputGate<T> inputGate;
 
 	/**
 	 * The environment the associated task runs in.
@@ -43,23 +43,8 @@ public abstract class AbstractRecordReader<T extends Record>
 	
 	// --------------------------------------------------------------------------------------------
 
-	protected AbstractRecordReader(final AbstractInvokable invokable, 
-				final RecordDeserializerFactory<T> deserializerFactory, final int inputGateID)
-	{
+	protected AbstractRecordReader(AbstractInvokable invokable, RecordDeserializerFactory<T> deserializerFactory, int inputGateID) {
 		this.environment = invokable.getEnvironment();
-		connectInputGate(deserializerFactory, inputGateID);
-	}
-
-	/**
-	 * Connects a record reader to an input gate.
-	 * 
-	 * @param deserializerFactory
-	 *        A factory to instantiate the record deserializer.
-	 * @param inputGateID
-	 *        The ID of the input gate that the reader reads from.
-	 */
-	private void connectInputGate(final RecordDeserializerFactory<T> deserializerFactory, final int inputGateID)
-	{
 		GateID gateID = this.environment.getNextUnboundInputGateID();
 		if (gateID == null) {
 			gateID = new GateID();
@@ -89,8 +74,7 @@ public abstract class AbstractRecordReader<T extends Record>
 	 * @throws InterruptedException
 	 *         thrown if the channel is interrupted while processing this call
 	 */
-	public final boolean isInputChannelClosed(final int index) throws IOException, InterruptedException
-	{
+	public final boolean isInputChannelClosed(final int index) throws IOException, InterruptedException {
 		if (index < this.inputGate.getNumberOfInputChannels()) {
 			return this.inputGate.getInputChannel(index).isClosed();
 		}
@@ -106,9 +90,7 @@ public abstract class AbstractRecordReader<T extends Record>
 	 * @param eventType
 	 *        the type of event to register the listener for
 	 */
-	public final void subscribeToEvent(final EventListener eventListener,
-			final Class<? extends AbstractTaskEvent> eventType)
-	{
+	public final void subscribeToEvent(EventListener eventListener, Class<? extends AbstractTaskEvent> eventType) {
 		// Delegate call to input gate
 		this.inputGate.subscribeToEvent(eventListener, eventType);
 	}
@@ -121,9 +103,7 @@ public abstract class AbstractRecordReader<T extends Record>
 	 * @param eventType
 	 *        the type of the event to cancel the subscription for
 	 */
-	public final void unsubscribeFromEvent(final EventListener eventListener,
-			final Class<? extends AbstractTaskEvent> eventType)
-	{
+	public final void unsubscribeFromEvent(EventListener eventListener, Class<? extends AbstractTaskEvent> eventType) {
 		// Delegate call to input gate
 		this.inputGate.unsubscribeFromEvent(eventListener, eventType);
 	}
@@ -138,8 +118,7 @@ public abstract class AbstractRecordReader<T extends Record>
 	 * @throws InterruptedException
 	 *         thrown if the thread is interrupted while waiting for the event to be published
 	 */
-	public final void publishEvent(final AbstractTaskEvent event) throws IOException, InterruptedException
-	{
+	public final void publishEvent(final AbstractTaskEvent event) throws IOException, InterruptedException {
 		// Delegate call to input gate
 		this.inputGate.publishEvent(event);
 	}
@@ -150,7 +129,6 @@ public abstract class AbstractRecordReader<T extends Record>
 	 * @return the input gate
 	 */
 	protected InputGate<T> getInputGate() {
-
 		return this.inputGate;
 	}
 }

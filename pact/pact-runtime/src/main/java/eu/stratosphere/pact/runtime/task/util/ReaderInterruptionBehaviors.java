@@ -29,6 +29,7 @@ public class ReaderInterruptionBehaviors {
 	public static final ReaderInterruptionBehavior RELEASE_ON_INTERRUPT = new ReaderInterruptionBehavior() {
 		@Override
 		public boolean onInterrupt(InterruptedException e) throws IOException {
+//			Thread.interrupted();
 			return false;
 		}
 	};

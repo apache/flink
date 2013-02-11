@@ -41,8 +41,7 @@ public final class NepheleReaderIterator<T> implements MutableObjectIterator<T>
 	 * 
 	 * @param reader The reader to wrap.
 	 */
-	public NepheleReaderIterator(MutableReader<DeserializationDelegate<T>> reader, TypeSerializer<T> serializer)
-	{
+	public NepheleReaderIterator(MutableReader<DeserializationDelegate<T>> reader, TypeSerializer<T> serializer) {
 		this(reader, serializer, ReaderInterruptionBehaviors.EXCEPTION_ON_INTERRUPT);
 	}
 
@@ -67,8 +66,7 @@ public final class NepheleReaderIterator<T> implements MutableObjectIterator<T>
 	 * @see eu.stratosphere.pact.runtime.util.MutableObjectIterator#next(java.lang.Object)
 	 */
 	@Override
-	public boolean next(T target) throws IOException
-	{
+	public boolean next(T target) throws IOException {
 		this.delegate.setInstance(target);
 		try {
 			return this.reader.next(this.delegate);
