@@ -17,6 +17,7 @@ package eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.cu
 import java.io.IOException;
 
 import eu.stratosphere.nephele.services.memorymanager.DataInputView;
+import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
 import eu.stratosphere.pact.generic.types.TypeComparator;
 
 
@@ -119,6 +120,21 @@ public final class VertexWithAdjacencyListComparator implements TypeComparator<V
 	@Override
 	public boolean invertNormalizedKey() {
 		return false;
+	}
+	
+	@Override
+	public boolean supportsSerializationWithKeyNormalization() {
+		return false;
+	}
+
+	@Override
+	public void writeWithKeyNormalization(VertexWithAdjacencyList record, DataOutputView target) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public void readWithKeyDenormalization(VertexWithAdjacencyList record, DataInputView source) {
+		throw new UnsupportedOperationException();
 	}
 
 	@Override

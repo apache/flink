@@ -32,7 +32,7 @@ import eu.stratosphere.pact.runtime.io.SimpleCollectingOutputView;
 /**
  * 
  */
-public final class NormalizedKeySorter<T> implements IndexedSortable
+public final class NormalizedKeySorter<T> implements InMemorySorter<T>
 {
 	private static final int OFFSET_LEN = 8;
 	
@@ -163,6 +163,7 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 	/**
 	 * Resets the sort buffer back to the state where it is empty. All contained data is discarded.
 	 */
+	@Override
 	public void reset() {
 		// reset all offsets
 		this.numRecords = 0;
@@ -187,6 +188,7 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 	 * 
 	 * @return True, if no record is contained, false otherwise.
 	 */
+	@Override
 	public boolean isEmpty() {
 		return this.numRecords == 0;
 	}
@@ -196,6 +198,7 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 	 * 
 	 * @return All memory segments from this sorter.
 	 */
+	@Override
 	public List<MemorySegment> dispose() {
 		this.freeMemory.addAll(this.sortIndex);
 		this.freeMemory.addAll(this.recordBufferSegments);
@@ -211,6 +214,7 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 	 * 
 	 * @return The sorter's total capacity.
 	 */
+	@Override
 	public long getCapacity() {
 		return ((long) this.totalNumBuffers) * this.segmentSize;
 	}
@@ -220,6 +224,7 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 	 * 
 	 * @return The number of bytes occupied.
 	 */
+	@Override
 	public long getOccupancy() {
 		return this.currentDataBufferOffset + this.sortIndexBytes;
 	}
@@ -235,6 +240,7 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 	 * @param logicalPosition The logical position of the record.
 	 * @throws IOException Thrown, if an exception occurred during deserialization.
 	 */
+	@Override
 	public void getRecord(T target, int logicalPosition) throws IOException {
 		getRecordFromBuffer(target, readPointer(logicalPosition));
 	}
@@ -247,8 +253,8 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 	 * @return True, if the record was successfully written, false, if the sort buffer was full.
 	 * @throws IOException Thrown, if an error occurred while serializing the record into the buffers.
 	 */
-	public boolean write(T record) throws IOException
-	{
+	@Override
+	public boolean write(T record) throws IOException {
 		//check whether we need a new memory segment for the sort index
 		if (this.currentSortIndexOffset > this.lastIndexEntryOffset) {
 			if (memoryAvailable()) {
@@ -280,8 +286,7 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 	//                           Access Utilities
 	// ------------------------------------------------------------------------
 	
-	private final long readPointer(int logicalPosition)
-	{
+	private final long readPointer(int logicalPosition) {
 		if (logicalPosition < 0 | logicalPosition >= this.numRecords) {
 			throw new IndexOutOfBoundsException();
 		}
@@ -292,14 +297,12 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 		return this.sortIndex.get(bufferNum).getLong(segmentOffset * this.indexEntrySize);
 	}
 	
-	private final void getRecordFromBuffer(T target, long pointer) throws IOException
-	{
+	private final void getRecordFromBuffer(T target, long pointer) throws IOException {
 		this.recordBuffer.setReadPosition(pointer);
 		this.serializer.deserialize(target, this.recordBuffer);
 	}
 	
-	private final int compareRecords(long pointer1, long pointer2)
-	{
+	private final int compareRecords(long pointer1, long pointer2) {
 		this.recordBuffer.setReadPosition(pointer1);
 		this.recordBufferForComparison.setReadPosition(pointer2);
 		
@@ -325,8 +328,8 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.runtime.sort.IndexedSortable#compare(int, int)
 	 */
-	public int compare(int i, int j)
-	{
+	@Override
+	public int compare(int i, int j) {
 		final int bufferNumI = i / this.indexEntriesPerSegment;
 		final int segmentOffsetI = (i % this.indexEntriesPerSegment) * this.indexEntrySize;
 		
@@ -356,8 +359,7 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 	 * @see eu.stratosphere.pact.runtime.sort.IndexedSortable#swap(int, int)
 	 */
 	@Override
-	public void swap(int i, int j)
-	{
+	public void swap(int i, int j) {
 		final int bufferNumI = i / this.indexEntriesPerSegment;
 		final int segmentOffsetI = (i % this.indexEntriesPerSegment) * this.indexEntrySize;
 		
@@ -376,8 +378,7 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 	 * @see eu.stratosphere.pact.runtime.sort.IndexedSortable#size()
 	 */
 	@Override
-	public int size()
-	{
+	public int size() {
 		return this.numRecords;
 	}
 
@@ -388,8 +389,8 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 	 * 
 	 * @return An iterator returning the records in their logical order.
 	 */
-	public final MutableObjectIterator<T> getIterator()
-	{
+	@Override
+	public final MutableObjectIterator<T> getIterator() {
 		return new MutableObjectIterator<T>()
 		{
 			private final int size = size();
@@ -438,8 +439,8 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 	 * @param output The output view to write the records to.
 	 * @throws IOException Thrown, if an I/O exception occurred writing to the output view.
 	 */
-	public void writeToOutput(final ChannelWriterOutputView output) throws IOException
-	{
+	@Override
+	public void writeToOutput(final ChannelWriterOutputView output) throws IOException {
 		int recordsLeft = this.numRecords;
 		int currentMemSeg = 0;
 		while (recordsLeft > 0)
@@ -476,8 +477,8 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 	 * @param len The number of elements to write.
 	 * @throws IOException Thrown, if an I/O exception occurred writing to the output view.
 	 */
-	public void writeToOutput(final ChannelWriterOutputView output, final int start, int num) throws IOException
-	{
+	@Override
+	public void writeToOutput(final ChannelWriterOutputView output, final int start, int num) throws IOException {
 		int currentMemSeg = start / this.indexEntriesPerSegment;
 		int offset = (start % this.indexEntriesPerSegment) * this.indexEntrySize;
 		

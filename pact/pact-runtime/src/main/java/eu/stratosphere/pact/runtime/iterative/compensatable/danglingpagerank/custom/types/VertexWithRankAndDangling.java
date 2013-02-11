@@ -60,4 +60,12 @@ public final class VertexWithRankAndDangling {
 	public void setDangling(boolean dangling) {
 		this.dangling = dangling;
 	}
+	
+	/* (non-Javadoc)
+	 * @see java.lang.Object#toString()
+	 */
+	@Override
+	public String toString() {
+		return this.vertexID + " - " + this.rank + (this.isDangling() ? " (dangling)" : "");
+	}
 }

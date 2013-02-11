@@ -18,6 +18,7 @@ package eu.stratosphere.pact.generic.types;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.services.memorymanager.DataInputView;
+import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
 import eu.stratosphere.pact.common.type.NormalizableKey;
 
 /**
@@ -160,6 +161,14 @@ public interface TypeComparator<T>
 	 * @return True, if the data type supports the creation of a normalized key for comparison, false otherwise.
 	 */
 	public boolean supportsNormalizedKey();
+	
+	/**
+	 * Check whether this comparator supports to serialize the record in a format that replaces its keys by a normalized
+	 * key.
+	 * 
+	 * @return True, if the comparator supports that specific form of serialization, false if not.
+	 */
+	public boolean supportsSerializationWithKeyNormalization();
 
 	/**
 	 * Gets the number of bytes that the normalized key would maximally take. A value of
@@ -202,19 +211,34 @@ public interface TypeComparator<T>
 	 * @see NormalizableKey#copyNormalizedKey(byte[], int, int)
 	 */
 	public void putNormalizedKey(T record, byte[] target, int offset, int numBytes);
-	
+
 	/**
-	 * Reads the normalized keys of the record back while denormalizing them. This must only be used when
-	 * for all the key fields the full normalized key is used.
+	 * Writes the record in such a fashion that all keys are normalizing and at the beginning of the serialized data.
+	 * This must only be used when for all the key fields the full normalized key is used. The method
+	 * {@code #supportsSerializationWithKeyNormalization()} allows to check that.
 	 *
-	 * @param record The record into which to read the normalized keys.
-	 * @param source The byte array from which to read the normalized key bytes.
-	 * @param offset The offset in the byte array, where to start reading the normalized key bytes.
-	 * @param numBytes The number of bytes to be read exactly.
+	 * @param record The record object into which to read the record data.
+	 * @param source The stream from which to read the data,
 	 *
+	 * @see #supportsSerializationWithKeyNormalization()
+	 * @see #readWithKeyDenormalization(Object, DataInputView)
 	 * @see NormalizableKey#copyNormalizedKey(byte[], int, int)
 	 */
-	public void readFromNormalizedKey(T record, byte[] source, int offset, int numBytes);
+	public void writeWithKeyNormalization(T record, DataOutputView target) throws IOException;
+	
+	/**
+	 * Reads the record back while de-normalizing the key fields. This must only be used when
+	 * for all the key fields the full normalized key is used, which is hinted by the
+	 * {@code #supportsSerializationWithKeyNormalization()} method.
+	 *
+	 * @param record The record object into which to read the record data.
+	 * @param source The stream from which to read the data,
+	 *
+	 * @see #supportsSerializationWithKeyNormalization()
+	 * @see #writeWithKeyNormalization(Object, DataOutputView)
+	 * @see NormalizableKey#copyNormalizedKey(byte[], int, int)
+	 */
+	public void readWithKeyDenormalization(T record, DataInputView source) throws IOException;
 
 	/**
 	 * Flag whether normalized key comparisons should be inverted key should be interpreted

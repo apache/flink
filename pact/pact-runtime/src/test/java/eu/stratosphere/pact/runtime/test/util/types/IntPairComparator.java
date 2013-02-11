@@ -18,6 +18,7 @@ package eu.stratosphere.pact.runtime.test.util.types;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.services.memorymanager.DataInputView;
+import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
 import eu.stratosphere.pact.generic.types.TypeComparator;
 
 
@@ -25,75 +26,47 @@ public class IntPairComparator implements TypeComparator<IntPair>
 {
 	private int reference;
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#hash(java.lang.Object)
-	 */
 	@Override
 	public int hash(IntPair object) {
 		return object.getKey();
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeComparator#setReference(java.lang.Object)
-	 */
 	@Override
 	public void setReference(IntPair toCompare) {
 		this.reference = toCompare.getKey();
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeComparator#equalToReference(java.lang.Object)
-	 */
 	@Override
 	public boolean equalToReference(IntPair candidate) {
 		return candidate.getKey() == this.reference;
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeComparator#compareToReference(eu.stratosphere.pact.runtime.plugable.TypeComparator)
-	 */
 	@Override
-	public int compareToReference(TypeComparator<IntPair> referencedAccessors)
-	{
+	public int compareToReference(TypeComparator<IntPair> referencedAccessors) {
 		final IntPairComparator comp = (IntPairComparator) referencedAccessors;
 		return comp.reference - this.reference;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#compare(eu.stratosphere.nephele.services.memorymanager.DataInputView, eu.stratosphere.nephele.services.memorymanager.DataInputView)
-	 */
 	@Override
 	public int compare(DataInputView source1, DataInputView source2) throws IOException {
 		return source1.readInt() - source2.readInt();
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#supportsNormalizedKey()
-	 */
 	@Override
 	public boolean supportsNormalizedKey() {
 		return true;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#getNormalizeKeyLen()
-	 */
 	@Override
 	public int getNormalizeKeyLen() {
 		return 4;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#isNormalizedKeyPrefixOnly(int)
-	 */
 	@Override
 	public boolean isNormalizedKeyPrefixOnly(int keyBytes) {
 		return keyBytes < 4;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#putNormalizedKey(java.lang.Object, byte[], int, int)
-	 */
 	@Override
 	public void putNormalizedKey(IntPair record, byte[] target, int offset, int numBytes)
 	{
@@ -131,23 +104,31 @@ public class IntPairComparator implements TypeComparator<IntPair>
 			}
 		}
 	}
-	public void readFromNormalizedKey(IntPair record, byte[] target, int offset, int numBytes) {
 
-	}
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.generic.types.TypeComparator#invertNormalizedKey()
-	 */
 	@Override
 	public boolean invertNormalizedKey() {
 		return false;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#duplicate()
-	 */
 	@Override
 	public IntPairComparator duplicate() {
 		return new IntPairComparator();
+	}
+
+	@Override
+	public boolean supportsSerializationWithKeyNormalization() {
+		return true;
+	}
+	
+	@Override
+	public void writeWithKeyNormalization(IntPair record, DataOutputView target) throws IOException {
+		target.writeInt(record.getKey() - Integer.MIN_VALUE);
+		target.writeInt(record.getValue());
+	}
+
+	@Override
+	public void readWithKeyDenormalization(IntPair record, DataInputView source) throws IOException {
+		record.setKey(source.readInt() + Integer.MIN_VALUE);
+		record.setValue(source.readInt());
 	}
 }

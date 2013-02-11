@@ -61,4 +61,21 @@ public final class VertexWithAdjacencyList {
 	public void setNumTargets(int numTargets) {
 		this.numTargets = numTargets;
 	}
+	
+	/* (non-Javadoc)
+	 * @see java.lang.Object#toString()
+	 */
+	@Override
+	public String toString() {
+		StringBuilder bld = new StringBuilder(32);
+		bld.append(this.vertexID);
+		bld.append(" : ");
+		for (int i = 0; i < this.numTargets; i++) {
+			if (i != 0) {
+				bld.append(',');
+			}
+			bld.append(this.targets[i]);
+		}
+		return bld.toString();
+	}
 }

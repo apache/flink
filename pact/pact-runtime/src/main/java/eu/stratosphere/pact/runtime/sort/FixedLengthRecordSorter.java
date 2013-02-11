@@ -21,19 +21,17 @@ import java.util.ArrayList;
 import java.util.List;
 
 import eu.stratosphere.nephele.services.iomanager.ChannelWriterOutputView;
+import eu.stratosphere.nephele.services.memorymanager.AbstractPagedInputView;
+import eu.stratosphere.nephele.services.memorymanager.AbstractPagedOutputView;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.generic.types.TypeComparator;
 import eu.stratosphere.pact.generic.types.TypeSerializer;
-import eu.stratosphere.pact.runtime.io.RandomAccessInputView;
-import eu.stratosphere.pact.runtime.io.RandomAccessOutputView;
 
 /**
  * 
  */
-public final class FixedLengthRecordSorter<T> implements IndexedSortable
-{
-	private static final int DEFAULT_MAX_NORMALIZED_KEY_LEN = 8;
+public final class FixedLengthRecordSorter<T> implements InMemorySorter<T> {
 	
 	private static final int MIN_REQUIRED_BUFFERS = 3;
 
@@ -47,6 +45,10 @@ public final class FixedLengthRecordSorter<T> implements IndexedSortable
 	
 	private final TypeComparator<T> comparator;
 	
+	private final SingleSegmentOutputView outView;
+	
+	private final SingleSegmentInputView inView;
+	
 	private MemorySegment currentSortBufferSegment;
 	
 	private int currentSortBufferOffset;
@@ -54,10 +56,6 @@ public final class FixedLengthRecordSorter<T> implements IndexedSortable
 	private final ArrayList<MemorySegment> freeMemory;
 	
 	private final ArrayList<MemorySegment> sortBuffer;
-	
-	private RandomAccessOutputView sortBufferOutputView;
-	
-	private RandomAccessInputView sortBufferInputView;
 	
 	private long sortBufferBytes;
 	
@@ -75,26 +73,18 @@ public final class FixedLengthRecordSorter<T> implements IndexedSortable
 	
 	private final int totalNumBuffers;
 	
-	private final boolean normalizedKeyFullyDetermines;
-	
 	private final boolean useNormKeyUninverted;
 	
 	
 	// -------------------------------------------------------------------------
 	// Constructors / Destructors
 	// -------------------------------------------------------------------------
-
-	public FixedLengthRecordSorter(TypeSerializer<T> serializer, TypeComparator<T> comparator, List<MemorySegment> memory) {
-		this(serializer, comparator, memory, DEFAULT_MAX_NORMALIZED_KEY_LEN);
-	}
 	
 	public FixedLengthRecordSorter(TypeSerializer<T> serializer, TypeComparator<T> comparator, 
-			List<MemorySegment> memory, int maxNormalizedKeyBytes)
+			List<MemorySegment> memory)
 	{
 		if (serializer == null || comparator == null || memory == null)
 			throw new NullPointerException();
-		if (maxNormalizedKeyBytes < 0)
-			throw new IllegalArgumentException("Maximal number of normalized key bytes must not be negative.");
 		
 		this.serializer = serializer;
 		this.comparator = comparator;
@@ -107,6 +97,22 @@ public final class FixedLengthRecordSorter<T> implements IndexedSortable
 			throw new IllegalArgumentException("Normalized-Key sorter requires at least " + MIN_REQUIRED_BUFFERS + " memory buffers.");
 		}
 		this.segmentSize = memory.get(0).size();
+		this.recordSize = serializer.getLength();
+		this.numKeyBytes = this.comparator.getNormalizeKeyLen();
+		
+		// check that the serializer and comparator allow our operations
+		if (this.recordSize <= 0) {
+			throw new IllegalArgumentException("This sorter works only for fixed-length data types.");
+		} else if (this.recordSize > this.segmentSize) {
+			throw new IllegalArgumentException("This sorter works only for record lengths below the memory segment size.");
+		} else if (!comparator.supportsSerializationWithKeyNormalization()) {
+			throw new IllegalArgumentException("This sorter requires a comparator that supports serialization with key normalization.");
+		}
+		
+		// compute the entry size and limits
+		this.recordsPerSegment = segmentSize / this.recordSize;
+		this.lastEntryOffset = (this.recordsPerSegment - 1) * this.recordSize;
+		this.swapBuffer = new byte[this.recordSize];
 		
 		if (memory instanceof ArrayList<?>) {
 			this.freeMemory = (ArrayList<MemorySegment>) memory;
@@ -118,30 +124,11 @@ public final class FixedLengthRecordSorter<T> implements IndexedSortable
 		
 		// create the buffer collections
 		this.sortBuffer = new ArrayList<MemorySegment>(16);
-		// set to initial state
+		this.outView = new SingleSegmentOutputView(this.segmentSize);
+		this.inView = new SingleSegmentInputView(this.lastEntryOffset + this.recordSize);
 		this.currentSortBufferSegment = nextMemorySegment();
 		this.sortBuffer.add(this.currentSortBufferSegment);
-		this.sortBufferOutputView = new RandomAccessOutputView(this.sortBuffer.toArray(new MemorySegment[this.sortBuffer.size()]), this.segmentSize);
-		this.sortBufferInputView = new RandomAccessInputView(this.sortBuffer, this.segmentSize);
-		
-		// set up normalized key characteristics
-		if (this.comparator.supportsNormalizedKey()) {
-			this.numKeyBytes = Math.min(this.comparator.getNormalizeKeyLen(), maxNormalizedKeyBytes);
-			this.normalizedKeyFullyDetermines = !this.comparator.isNormalizedKeyPrefixOnly(this.numKeyBytes);
-		}
-		else {
-			this.numKeyBytes = 0;
-			this.normalizedKeyFullyDetermines = false;
-		}
-		
-		// compute the entry size and limits
-		this.recordSize = serializer.getLength();
-		if (this.recordSize == -1) {
-			throw new IllegalArgumentException("We only accept fixed length records.");
-		}
-		this.recordsPerSegment = segmentSize / this.recordSize;
-		this.lastEntryOffset = (this.recordsPerSegment - 1) * this.recordSize;
-		this.swapBuffer = new byte[this.recordSize];
+		this.outView.set(this.currentSortBufferSegment);
 	}
 
 	// -------------------------------------------------------------------------
@@ -151,6 +138,7 @@ public final class FixedLengthRecordSorter<T> implements IndexedSortable
 	/**
 	 * Resets the sort buffer back to the state where it is empty. All contained data is discarded.
 	 */
+	@Override
 	public void reset() {
 		// reset all offsets
 		this.numRecords = 0;
@@ -164,8 +152,7 @@ public final class FixedLengthRecordSorter<T> implements IndexedSortable
 		// grab first buffers
 		this.currentSortBufferSegment = nextMemorySegment();
 		this.sortBuffer.add(this.currentSortBufferSegment);
-		this.sortBufferOutputView = new RandomAccessOutputView(this.sortBuffer.toArray(new MemorySegment[this.sortBuffer.size()]), this.segmentSize);
-		this.sortBufferInputView = new RandomAccessInputView(this.sortBuffer, this.segmentSize);
+		this.outView.set(this.currentSortBufferSegment);
 	}
 
 	/**
@@ -173,6 +160,7 @@ public final class FixedLengthRecordSorter<T> implements IndexedSortable
 	 * 
 	 * @return True, if no record is contained, false otherwise.
 	 */
+	@Override
 	public boolean isEmpty() {
 		return this.numRecords == 0;
 	}
@@ -182,11 +170,10 @@ public final class FixedLengthRecordSorter<T> implements IndexedSortable
 	 * 
 	 * @return All memory segments from this sorter.
 	 */
+	@Override
 	public List<MemorySegment> dispose() {
 		this.freeMemory.addAll(this.sortBuffer);
-		
 		this.sortBuffer.clear();
-		
 		return this.freeMemory;
 	}
 	
@@ -195,6 +182,7 @@ public final class FixedLengthRecordSorter<T> implements IndexedSortable
 	 * 
 	 * @return The sorter's total capacity.
 	 */
+	@Override
 	public long getCapacity() {
 		return ((long) this.totalNumBuffers) * this.segmentSize;
 	}
@@ -204,6 +192,7 @@ public final class FixedLengthRecordSorter<T> implements IndexedSortable
 	 * 
 	 * @return The number of bytes occupied.
 	 */
+	@Override
 	public long getOccupancy() {
 		return this.sortBufferBytes;
 	}
@@ -219,8 +208,12 @@ public final class FixedLengthRecordSorter<T> implements IndexedSortable
 	 * @param logicalPosition The logical position of the record.
 	 * @throws IOException Thrown, if an exception occurred during deserialization.
 	 */
+	@Override
 	public void getRecord(T target, int logicalPosition) throws IOException {
-		getRecordFromBuffer(target, logicalPosition * this.recordSize);
+		final int buffer = logicalPosition / this.recordsPerSegment;
+		final int inBuffer = (logicalPosition % this.recordsPerSegment) * this.recordSize;
+		this.inView.set(this.sortBuffer.get(buffer), inBuffer);
+		this.comparator.readWithKeyDenormalization(target, this.inView);
 	}
 
 	/**
@@ -231,15 +224,14 @@ public final class FixedLengthRecordSorter<T> implements IndexedSortable
 	 * @return True, if the record was successfully written, false, if the sort buffer was full.
 	 * @throws IOException Thrown, if an error occurred while serializing the record into the buffers.
 	 */
-	public boolean write(T record) throws IOException
-	{
-		//check whether we need a new memory segment for the sort index
+	@Override
+	public boolean write(T record) throws IOException {
+		// check whether we need a new memory segment for the sort index
 		if (this.currentSortBufferOffset > this.lastEntryOffset) {
 			if (memoryAvailable()) {
 				this.currentSortBufferSegment = nextMemorySegment();
 				this.sortBuffer.add(this.currentSortBufferSegment);
-				this.sortBufferOutputView = new RandomAccessOutputView(this.sortBuffer.toArray(new MemorySegment[this.sortBuffer.size()]), this.segmentSize);
-				this.sortBufferOutputView.setWritePosition((sortBuffer.size()-1)*this.segmentSize);
+				this.outView.set(this.currentSortBufferSegment);
 				this.currentSortBufferOffset = 0;
 				this.sortBufferBytes += this.segmentSize;
 			}
@@ -250,32 +242,18 @@ public final class FixedLengthRecordSorter<T> implements IndexedSortable
 		
 		// serialize the record into the data buffers
 		try {
-			this.serializer.serialize(record, this.sortBufferOutputView);
+			this.comparator.writeWithKeyNormalization(record, this.outView);
 			this.numRecords++;
-			// add the normalized key, overwriting the already written proper key
-			this.comparator.putNormalizedKey(record, this.currentSortBufferSegment.getBackingArray(), this.currentSortBufferSegment.translateOffset(this.currentSortBufferOffset), this.numKeyBytes);
-			
 			this.currentSortBufferOffset += this.recordSize;
-		
 			return true;
 		} catch (EOFException eofex) {
-			
-			return false;
+			throw new IOException("Error: Serialization consumes more bytes than announced by the serializer.");
 		}
 	}
 	
 	// ------------------------------------------------------------------------
 	//                           Access Utilities
 	// ------------------------------------------------------------------------
-	private final void getRecordFromBuffer(T target, long pointer) throws IOException
-	{
-		this.sortBufferInputView.setReadPosition(pointer);
-		this.serializer.deserialize(target, this.sortBufferInputView);
-		this.sortBufferInputView.setReadPosition(pointer);
-		this.comparator.readFromNormalizedKey(target,
-	    		this.sortBufferInputView.getCurrentSegment().getBackingArray(),
-				this.sortBufferInputView.getCurrentPositionInSegment(), this.numKeyBytes);
-	}
 	
 	private final boolean memoryAvailable() {
 		return !this.freeMemory.isEmpty();
@@ -289,11 +267,8 @@ public final class FixedLengthRecordSorter<T> implements IndexedSortable
 	// Sorting
 	// -------------------------------------------------------------------------
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.sort.IndexedSortable#compare(int, int)
-	 */
-	public int compare(int i, int j)
-	{
+	@Override
+	public int compare(int i, int j) {
 		final int bufferNumI = i / this.recordsPerSegment;
 		final int segmentOffsetI = (i % this.recordsPerSegment) * this.recordSize;
 		
@@ -309,19 +284,11 @@ public final class FixedLengthRecordSorter<T> implements IndexedSortable
 		for (int pos = 0, posI = segI.translateOffset(segmentOffsetI), posJ = segJ.translateOffset(segmentOffsetJ);
 			pos < this.numKeyBytes && (val = (bI[posI] & 0xff) - (bJ[posJ] & 0xff)) == 0; pos++, posI++, posJ++);
 		
-		if (val != 0 || this.normalizedKeyFullyDetermines) {
-			return this.useNormKeyUninverted ? val : -val;
-		}
-		
-		throw new IllegalStateException("We do not support directly comparing records here.");
+		return this.useNormKeyUninverted ? val : -val;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.sort.IndexedSortable#swap(int, int)
-	 */
 	@Override
-	public void swap(int i, int j)
-	{
+	public void swap(int i, int j) {
 		final int bufferNumI = i / this.recordsPerSegment;
 		final int segmentOffsetI = (i % this.recordsPerSegment) * this.recordSize;
 		
@@ -336,12 +303,8 @@ public final class FixedLengthRecordSorter<T> implements IndexedSortable
 		segJ.put(segmentOffsetJ, this.swapBuffer, 0, this.recordSize);
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.sort.IndexedSortable#size()
-	 */
 	@Override
-	public int size()
-	{
+	public int size() {
 		return this.numRecords;
 	}
 
@@ -352,31 +315,38 @@ public final class FixedLengthRecordSorter<T> implements IndexedSortable
 	 * 
 	 * @return An iterator returning the records in their logical order.
 	 */
-	public final MutableObjectIterator<T> getIterator()
-	{
-		return new MutableObjectIterator<T>()
-		{
-			private final int size = size();
-			private int current = 0;
+	@Override
+	public final MutableObjectIterator<T> getIterator() {
+		final SingleSegmentInputView startIn = new SingleSegmentInputView(this.recordsPerSegment * this.recordSize);
+		startIn.set(this.sortBuffer.get(0), 0);
+		
+		return new MutableObjectIterator<T>() {
 			
+			private final SingleSegmentInputView in = startIn;
+			private final TypeComparator<T> comp = comparator;
+			
+			private final int numTotal = size();
+			private final int numPerSegment = recordsPerSegment;
+			
+			private int currentTotal = 0;
+			private int currentInSegment = 0;
 			private int currentSegmentIndex = 0;
-			private int currentOffset = 0;
 
 			@Override
-			public boolean next(T target)
-			{
-				if (this.current < this.size) {
-					this.current++;
-					if ((this.currentOffset % segmentSize) > lastEntryOffset) {
-						++this.currentSegmentIndex;
-						this.currentOffset = this.currentSegmentIndex * segmentSize;
+			public boolean next(T target) {
+				if (this.currentTotal < this.numTotal) {
+					
+					if (this.currentInSegment >= this.numPerSegment) {
+						this.currentInSegment = 0;
+						this.currentSegmentIndex++;
+						this.in.set(sortBuffer.get(this.currentSegmentIndex), 0);
 					}
 					
-					int pointer = this.currentOffset;
-					this.currentOffset += recordSize;
+					this.currentTotal++;
+					this.currentInSegment++;
 					
 					try {
-						getRecordFromBuffer(target, pointer);
+						this.comp.readWithKeyDenormalization(target, this.in);
 						return true;
 					}
 					catch (IOException ioe) {
@@ -400,8 +370,8 @@ public final class FixedLengthRecordSorter<T> implements IndexedSortable
 	 * @param output The output view to write the records to.
 	 * @throws IOException Thrown, if an I/O exception occurred writing to the output view.
 	 */
-	public void writeToOutput(final ChannelWriterOutputView output) throws IOException
-	{
+	@Override
+	public void writeToOutput(final ChannelWriterOutputView output) throws IOException {
 //		int recordsLeft = this.numRecords;
 //		int currentMemSeg = 0;
 //		while (recordsLeft > 0)
@@ -438,8 +408,8 @@ public final class FixedLengthRecordSorter<T> implements IndexedSortable
 	 * @param len The number of elements to write.
 	 * @throws IOException Thrown, if an I/O exception occurred writing to the output view.
 	 */
-	public void writeToOutput(final ChannelWriterOutputView output, final int start, int num) throws IOException
-	{
+	@Override
+	public void writeToOutput(final ChannelWriterOutputView output, final int start, int num) throws IOException {
 //		int currentMemSeg = start / this.recordsPerSegment;
 //		int offset = (start % this.recordsPerSegment) * this.recordSize;
 //		
@@ -466,5 +436,45 @@ public final class FixedLengthRecordSorter<T> implements IndexedSortable
 //			}
 //			offset = 0;
 //		}
+	}
+	
+	private static final class SingleSegmentOutputView extends AbstractPagedOutputView {
+		
+		SingleSegmentOutputView(int segmentSize) {
+			super(segmentSize, 0);
+		}
+		
+		void set(MemorySegment segment) {
+			seekOutput(segment, 0);
+		}
+		
+		@Override
+		protected MemorySegment nextSegment(MemorySegment current, int positionInCurrent) throws IOException {
+			throw new EOFException();
+		}
+	}
+	
+	private static final class SingleSegmentInputView extends AbstractPagedInputView {
+		
+		private final int limit;
+		
+		SingleSegmentInputView(int limit) {
+			super(0);
+			this.limit = limit;
+		}
+		
+		protected void set(MemorySegment segment, int offset) {
+			seekInput(segment, offset, this.limit);
+		}
+		
+		@Override
+		protected MemorySegment nextSegment(MemorySegment current) throws EOFException {
+			throw new EOFException();
+		}
+
+		@Override
+		protected int getLimitForSegment(MemorySegment segment) {
+			return this.limit;
+		}
 	}
 }

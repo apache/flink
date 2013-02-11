@@ -76,8 +76,7 @@ public class AsynchronousPartialSorter<E> extends UnilateralSortMerger<E>
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.runtime.sort.UnilateralSortMerger#close()
 	 */
-	public void close()
-	{		
+	public void close() {
 		// make a best effort to close the buffer iterator
 		try {
 			if (this.bufferIterator != null) {
@@ -134,8 +133,7 @@ public class AsynchronousPartialSorter<E> extends UnilateralSortMerger<E>
 		 * @see eu.stratosphere.pact.common.util.MutableObjectIterator#next(java.lang.Object)
 		 */
 		@Override
-		public boolean next(E target) throws IOException
-		{
+		public boolean next(E target) throws IOException {
 			if (this.currentIterator != null && this.currentIterator.next(target)) {
 				return true;
 			}
@@ -191,8 +189,7 @@ public class AsynchronousPartialSorter<E> extends UnilateralSortMerger<E>
 			}
 		}
 		
-		public void close()
-		{
+		public void close() {
 			synchronized (this) {
 				if (this.closed) {
 					return;
@@ -209,12 +206,11 @@ public class AsynchronousPartialSorter<E> extends UnilateralSortMerger<E>
 			}
 		}
 		
-		private final void releaseSortBuffers()
-		{
+		private final void releaseSortBuffers() 	{
 			while (!this.queues.empty.isEmpty()) {
 				final CircularElement<E> elem = this.queues.empty.poll();
 				if (elem != null) {
-					final NormalizedKeySorter<E> sorter = elem.buffer;
+					final InMemorySorter<E> sorter = elem.buffer;
 					final List<MemorySegment> segments = sorter.dispose();
 					AsynchronousPartialSorter.this.memoryManager.release(segments);
 				}

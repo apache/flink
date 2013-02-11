@@ -71,6 +71,11 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 	private static final Log LOG = LogFactory.getLog(UnilateralSortMerger.class);
 	
 	/**
+	 * Fix length records with a length below this threshold will be in-place sorted, if possible.
+	 */
+	private static final int THRESHOLD_FOR_IN_PLACE_SORTING = 32;
+	
+	/**
 	 * The minimal number of buffers to use by the writers.
 	 */
 	protected static final int MIN_NUM_WRITE_BUFFERS = 2;
@@ -354,7 +359,16 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 			}
 			
 			final TypeComparator<E> comp = comparator.duplicate();
-			final NormalizedKeySorter<E> buffer = new NormalizedKeySorter<E>(serializer, comp, sortSegments);
+			final InMemorySorter<E> buffer;
+			
+			// instantiate a fix-length in-place sorter, if possible, otherwise the out-of-place sorter
+			if (comp.supportsSerializationWithKeyNormalization() &&
+					serializer.getLength() > 0 && serializer.getLength() <= THRESHOLD_FOR_IN_PLACE_SORTING)
+			{
+				buffer = new FixedLengthRecordSorter<E>(serializer, comp, sortSegments);
+			} else {
+				buffer = new NormalizedKeySorter<E>(serializer, comp, sortSegments);
+			}
 
 			// add to empty queue
 			CircularElement<E> element = new CircularElement<E>(i, buffer);
@@ -394,8 +408,7 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 	/**
 	 * Starts all the threads that are used by this sort-merger.
 	 */
-	protected void startThreads()
-	{
+	protected void startThreads() {
 		if (this.readThread != null)
 			this.readThread.start();
 		if (this.sortThread != null)
@@ -417,8 +430,7 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 	 * @see java.io.Closeable#close()
 	 */
 	@Override
-	public void close()
-	{
+	public void close() {
 		// check if the sorter has been closed before
 		synchronized (this) {
 			if (this.closed) {
@@ -712,14 +724,14 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 	protected static final class CircularElement<E>
 	{
 		final int id;
-		final NormalizedKeySorter<E> buffer;
+		final InMemorySorter<E> buffer;
 
 		public CircularElement() {
 			this.buffer = null;
 			this.id = -1;
 		}
 
-		public CircularElement(int id, NormalizedKeySorter<E> buffer) {
+		public CircularElement(int id, InMemorySorter<E> buffer) {
 			this.id = id;
 			this.buffer = buffer;
 		}
@@ -964,7 +976,7 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 				}
 				
 				// get the new buffer and check it
-				final NormalizedKeySorter<E> buffer = element.buffer;
+				final InMemorySorter<E> buffer = element.buffer;
 				if (!buffer.isEmpty()) {
 					throw new IOException("New buffer is not empty.");
 				}
@@ -1261,8 +1273,7 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 				List<MutableObjectIterator<E>> iterators = new ArrayList<MutableObjectIterator<E>>(cache.size());
 								
 				// iterate buffers and collect a set of iterators
-				for (CircularElement<E> cached : cache)
-				{
+				for (CircularElement<E> cached : cache) {
 					// note: the yielded iterator only operates on the buffer heap (and disregards the stack)
 					iterators.add(cached.buffer.getIterator());
 				}
@@ -1386,7 +1397,7 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 		{
 			while (!this.queues.empty.isEmpty()) {
 				try {
-					final NormalizedKeySorter<?> sorter = this.queues.empty.take().buffer;
+					final InMemorySorter<?> sorter = this.queues.empty.take().buffer;
 					final List<MemorySegment> sorterMem = sorter.dispose();
 					if (releaseMemory) {
 						this.memManager.release(sorterMem);
@@ -1405,8 +1416,7 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 		}
 		
 		protected final CircularElement<E> takeNext(BlockingQueue<CircularElement<E>> queue, Queue<CircularElement<E>> cache)
-		throws InterruptedException
-		{
+				throws InterruptedException {
 			return cache.isEmpty() ? queue.take() : cache.poll();
 		}
 		
@@ -1425,8 +1435,8 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 		 * @throws IOException Thrown, if the readers encounter an I/O problem.
 		 */
 		protected final MergeIterator<E> getMergingIterator(final List<ChannelWithBlockCount> channelIDs,
-			final List<List<MemorySegment>> inputSegments, List<BlockChannelAccess<?, ?>> readerList)
-		throws IOException
+				final List<List<MemorySegment>> inputSegments, List<BlockChannelAccess<?, ?>> readerList)
+			throws IOException
 		{
 			// create one iterator per channel id
 			if (LOG.isDebugEnabled())
@@ -1639,7 +1649,7 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 	{
 		private final CircularQueues<E> queues;		// the queues used to pass buffers
 		
-		private NormalizedKeySorter<E> currentBuffer;
+		private InMemorySorter<E> currentBuffer;
 		
 		private CircularElement<E> currentElement;
 		

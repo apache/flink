@@ -13,21 +13,31 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.common.type;
+package eu.stratosphere.pact.runtime.test.util;
 
-/**
- * The base interface for (de)normalizable keys. De-Normalizable keys have all
- * the properties of normalizable keys. In addition one can also retrieve the
- * original value from the normalized value.
- */
-public interface DeNormalizableKey extends NormalizableKey {
-	/**
-	 * Reads a normalized key from the source byte array into this record while
-	 * de-normalizing it.
-	 * 
-	 * @param source The byte array to read the normalized key bytes from.
-	 * @param offset The offset in the byte array where the normalized key's bytes start.
-	 * @param len The number of bytes to read.
-	 */
-	void readFromNormalizedKey(byte[] source, int offset, int len);
+import java.util.Random;
+
+import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.pact.runtime.test.util.types.IntPair;
+
+public class RandomIntPairGenerator implements MutableObjectIterator<IntPair>
+{
+	private final long seed;
+	private Random rnd;
+	
+	public RandomIntPairGenerator(long seed) {
+		this.seed = seed;
+		this.rnd = new Random(seed);
+	}
+
+	@Override
+	public boolean next(IntPair target) {
+		target.setKey(this.rnd.nextInt());
+		target.setValue(this.rnd.nextInt());
+		return true;
+	}
+	
+	public void reset() {
+		this.rnd = new Random(this.seed);
+	}
 }

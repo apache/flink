@@ -315,7 +315,7 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E>
 					LOG.debug("Combining buffer " + element.id + '.');
 
 				// set up the combining helpers
-				final NormalizedKeySorter<E> buffer = element.buffer;
+				final InMemorySorter<E> buffer = element.buffer;
 				final CombineValueIterator<E> iter = new CombineValueIterator<E>(buffer, this.serializer.createInstance());
 				final WriterCollector<E> collector = new WriterCollector<E>(output, this.serializer);
 				
@@ -492,7 +492,7 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E>
 	 */
 	private static final class CombineValueIterator<E> implements Iterator<E>
 	{
-		private final NormalizedKeySorter<E> buffer; // the buffer from which values are returned
+		private final InMemorySorter<E> buffer; // the buffer from which values are returned
 		
 		private final E record;
 
@@ -506,8 +506,7 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E>
 		 * @param buffer
 		 *        The buffer to get the values from.
 		 */
-		public CombineValueIterator(NormalizedKeySorter<E> buffer, E instance)
-		{
+		public CombineValueIterator(InMemorySorter<E> buffer, E instance) {
 			this.buffer = buffer;
 			this.record = instance;
 		}

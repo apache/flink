@@ -17,8 +17,8 @@ package eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.cu
 import java.io.IOException;
 
 import eu.stratosphere.nephele.services.memorymanager.DataInputView;
+import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
 import eu.stratosphere.pact.generic.types.TypeComparator;
-
 
 /**
  *
@@ -119,6 +119,25 @@ public final class VertexWithRankAndDanglingComparator implements TypeComparator
 	@Override
 	public boolean invertNormalizedKey() {
 		return false;
+	}
+	
+	@Override
+	public boolean supportsSerializationWithKeyNormalization() {
+		return true;
+	}
+
+	@Override
+	public void writeWithKeyNormalization(VertexWithRankAndDangling record, DataOutputView target) throws IOException {
+		target.writeLong(record.getVertexID() - Long.MIN_VALUE);
+		target.writeDouble(record.getRank());
+		target.writeBoolean(record.isDangling());
+	}
+
+	@Override
+	public void readWithKeyDenormalization(VertexWithRankAndDangling record, DataInputView source) throws IOException {
+		record.setVertexID(source.readLong() + Long.MIN_VALUE);
+		record.setRank(source.readDouble());
+		record.setDangling(source.readBoolean());
 	}
 
 	@Override

@@ -317,6 +317,8 @@ public class NormalizedKeySorterTest
 	@Test
 	public void testSort() throws Exception
 	{
+		final int NUM_RECORDS = 559273;
+		
 		final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
 		final List<MemorySegment> memory = this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
 		
@@ -326,10 +328,12 @@ public class NormalizedKeySorterTest
 		
 		// write the records
 		PactRecord record = new PactRecord();
+		int num = 0;
 		do {
 			generator.next(record);
+			num++;
 		}
-		while (sorter.write(record));
+		while (sorter.write(record) && num < NUM_RECORDS);
 		
 		QuickSort qs = new QuickSort();
 		qs.sort(sorter);

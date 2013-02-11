@@ -18,12 +18,12 @@ package eu.stratosphere.pact.runtime.plugable.arrayrecord;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.services.memorymanager.DataInputView;
+import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
 import eu.stratosphere.pact.common.type.CopyableValue;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyFieldOutOfBoundsException;
 import eu.stratosphere.pact.common.type.NormalizableKey;
 import eu.stratosphere.pact.common.type.NullKeyFieldException;
-import eu.stratosphere.pact.common.type.DeNormalizableKey;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.generic.types.TypeComparator;
@@ -33,8 +33,8 @@ import eu.stratosphere.pact.generic.types.TypeComparator;
  * Implementation of the {@link TypeComparator} interface for the pact record. Instances of this class
  * are parameterized with which fields are relevant to the comparison. 
  */
-public final class ArrayRecordComparator implements TypeComparator<Value[]>
-{
+public final class ArrayRecordComparator implements TypeComparator<Value[]> {
+	
 	private final ArrayRecordSerializer serializer;
 	
 	private final int[] keyFields;
@@ -299,31 +299,29 @@ public final class ArrayRecordComparator implements TypeComparator<Value[]>
 		}
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.generic.types.TypeComparator#readFromNormalizedKey(java.lang.Object, byte[], int, int)
-	 */
-	@Override
-	public void readFromNormalizedKey(Value[] record, byte[] source, int offset, int numBytes) {
-		if (numBytes < this.normalizableKeyPrefixLen) {
-			throw new IllegalArgumentException("We can only restore keys from full-length normalized keys.");
-		}
-		int i = 0;
-		try {
-			for (; i < this.numLeadingNormalizableKeys & numBytes > 0; i++)
-			{
-				int len = this.normalizedKeyLengths[i];
-				len = numBytes >= len ? len : numBytes;
-				((DeNormalizableKey) record[this.keyFields[i]]).readFromNormalizedKey(source, offset, len);
-				numBytes -= len;
-				offset += len;
-			}
-		}
-		catch (NullPointerException npex) {
-			throw new NullKeyFieldException(this.keyFields[i]);
-		}
-	}
-
-	// --------------------------------------------------------------------------------------------
+//	/* (non-Javadoc)
+//	 * @see eu.stratosphere.pact.generic.types.TypeComparator#readFromNormalizedKey(java.lang.Object, byte[], int, int)
+//	 */
+//	@Override
+//	public void readFromNormalizedKey(Value[] record, byte[] source, int offset, int numBytes) {
+//		if (numBytes < this.normalizableKeyPrefixLen) {
+//			throw new IllegalArgumentException("We can only restore keys from full-length normalized keys.");
+//		}
+//		int i = 0;
+//		try {
+//			for (; i < this.numLeadingNormalizableKeys & numBytes > 0; i++)
+//			{
+//				int len = this.normalizedKeyLengths[i];
+//				len = numBytes >= len ? len : numBytes;
+//				((DeNormalizableKey) record[this.keyFields[i]]).readFromNormalizedKey(source, offset, len);
+//				numBytes -= len;
+//				offset += len;
+//			}
+//		}
+//		catch (NullPointerException npex) {
+//			throw new NullKeyFieldException(this.keyFields[i]);
+//		}
+//	}
 
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.common.generic.types.TypeComparator#invertNormalizedKey()
@@ -332,6 +330,34 @@ public final class ArrayRecordComparator implements TypeComparator<Value[]>
 	public boolean invertNormalizedKey() {
 		return !this.ascending[0];
 	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.generic.types.TypeComparator#supportsSerializationWithKeyNormalization()
+	 */
+	@Override
+	public boolean supportsSerializationWithKeyNormalization() {
+		return false;
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.generic.types.TypeComparator#writeWithKeyNormalization(java.lang.Object, eu.stratosphere.nephele.services.memorymanager.DataOutputView)
+	 */
+	@Override
+	public void writeWithKeyNormalization(Value[] record, DataOutputView target) {
+		throw new UnsupportedOperationException();
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.generic.types.TypeComparator#readWithKeyDenormalization(java.lang.Object, eu.stratosphere.nephele.services.memorymanager.DataInputView)
+	 */
+	@Override
+	public void readWithKeyDenormalization(Value[] record, DataInputView source) {
+		throw new UnsupportedOperationException();
+	}
+	
+	// --------------------------------------------------------------------------------------------
 
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#duplicate()

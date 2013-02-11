@@ -49,4 +49,12 @@ public final class VertexWithRank {
 	public void setRank(double rank) {
 		this.rank = rank;
 	}
+	
+	/* (non-Javadoc)
+	 * @see java.lang.Object#toString()
+	 */
+	@Override
+	public String toString() {
+		return this.vertexID + " - " + this.rank;
+	}
 }
