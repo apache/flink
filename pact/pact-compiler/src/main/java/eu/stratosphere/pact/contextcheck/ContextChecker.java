@@ -31,9 +31,6 @@ import eu.stratosphere.pact.generic.contract.SingleInputContract;
 /**
  * Traverses a plan and checks whether all Contracts are correctly connected to
  * their input contracts.
- * 
- * @author Max Heimel
- * @author Fabian Hueske
  */
 public class ContextChecker implements Visitor<Contract> {
 
@@ -41,19 +38,12 @@ public class ContextChecker implements Visitor<Contract> {
 	 * A set of all already visited nodes during DAG traversal. Is used
 	 * to avoid processing one node multiple times.
 	 */
-	public Set<Contract> visitedNodes = new HashSet<Contract>();
-	
-	/**
-	 * Used for checking whether a contract does not have any children.
-	 */
-	//private Map<Contract, Set<Contract>> contractChildren =
-	//		new HashMap<Contract, Set<Contract>>();
+	private final Set<Contract> visitedNodes = new HashSet<Contract>();
 
 	/**
 	 * Default constructor
 	 */
-	public ContextChecker() {
-	}
+	public ContextChecker() {}
 
 	/**
 	 * Checks whether the given plan is valid. In particular it is checked that
@@ -74,13 +64,10 @@ public class ContextChecker implements Visitor<Contract> {
 	 */
 	@Override
 	public boolean preVisit(Contract node) {
-
 		// check if node was already visited
-		if (this.visitedNodes.contains(node)) {
+		if (!this.visitedNodes.add(node)) {
 			return false;
 		}
-		
-		//contractChildren.put(node, new HashSet<Contract>());
 
 		// apply the appropriate check method
 		if (node instanceof FileDataSink) {
@@ -94,24 +81,11 @@ public class ContextChecker implements Visitor<Contract> {
 		} else if (node instanceof DualInputContract<?>) {
 			checkDualInputContract((DualInputContract<?>) node);
 		}
-		// Data sources must not be checked, since correctness of input type is
-		// checked.
-
-		// mark node as visited
-		this.visitedNodes.add(node);
-
 		return true;
 	}
 
 	@Override
-	public void postVisit(Contract node) {
-/*		if (contractChildren.get(node).size() == 0) {
-			// we did not visit any node that had this node
-			// as input
-			throw new MissingChildException("Node " +
-					node.getName() + " does not have any childern.");
-		}*/
-	}
+	public void postVisit(Contract node) {}
 
 	/**
 	 * Checks if DataSinkContract is correctly connected. In case that the
@@ -127,8 +101,6 @@ public class ContextChecker implements Visitor<Contract> {
 		if (input == null) {
 			throw new MissingChildException();
 		}
-		
-		//contractChildren.get(input).add(dataSinkContract);
 	}
 	
 	/**
@@ -189,9 +161,6 @@ public class ContextChecker implements Visitor<Contract> {
 		if (input.size() == 0) {
 			throw new MissingChildException();
 		}
-/*		for (Contract in : input) {
-			contractChildren.get(in).add(singleInputContract);
-		}*/
 	}
 
 	/**
@@ -209,12 +178,5 @@ public class ContextChecker implements Visitor<Contract> {
 		if (input1.size() == 0 || input2.size() == 0) {
 			throw new MissingChildException();
 		}
-/*		for (Contract in : input1) {
-			contractChildren.get(in).add(dualInputContract);
-		}
-		for (Contract in : input2) {
-			contractChildren.get(in).add(dualInputContract);
-		}*/
 	}
-
 }

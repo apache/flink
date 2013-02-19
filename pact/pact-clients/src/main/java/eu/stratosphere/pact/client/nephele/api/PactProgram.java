@@ -53,6 +53,9 @@ public class PactProgram {
 	 * Property name of the pact assembler definition in the JAR manifest file.
 	 */
 	public static final String MANIFEST_ATTRIBUTE_ASSEMBLER_CLASS = "Pact-Assembler-Class";
+	
+	private static final Pattern BREAK_TAGS = Pattern.compile("<(b|B)(r|R) */?>");
+	private static final Pattern REMOVE_TAGS = Pattern.compile("<.+?>");
 
 	// --------------------------------------------------------------------------------------------
 
@@ -63,6 +66,8 @@ public class PactProgram {
 	private final String[] args;
 	
 	private File[] extractedTempLibraries;
+	
+	private Plan plan;
 
 	/**
 	 * Creates an instance that wraps the plan defined in the jar file using the given
@@ -120,7 +125,10 @@ public class PactProgram {
 	 *         missing parameters for generation.
 	 */
 	public Plan getPlan() throws ProgramInvocationException, ErrorInPlanAssemblerException {
-		return createPlanFromJar(assemblerClass, args);
+		if (this.plan == null) {
+			this.plan = createPlanFromJar(this.assemblerClass, this.args);
+		}
+		return this.plan;
 	}
 
 	/**
@@ -167,7 +175,7 @@ public class PactProgram {
 	 * @return The jar-file of the PactProgram.
 	 */
 	public File getJarFile() {
-		return jarFile;
+		return this.jarFile;
 	}
 
 	/**
@@ -183,7 +191,7 @@ public class PactProgram {
 	 *         missing parameters for generation.
 	 */
 	public String getDescription() throws ProgramInvocationException {
-		PlanAssembler assembler = createAssemblerFromJar(assemblerClass);
+		PlanAssembler assembler = instantiateAssemblerFromClass(this.assemblerClass);
 		if (assembler instanceof PlanAssemblerDescription) {
 			return ((PlanAssemblerDescription) assembler).getDescription();
 		} else {
@@ -209,8 +217,7 @@ public class PactProgram {
 		if (descr == null || descr.length() == 0) {
 			return null;
 		} else {
-			final Pattern BREAK_TAGS = Pattern.compile("<(b|B)(r|R) */?>");
-			final Pattern REMOVE_TAGS = Pattern.compile("<.+?>");
+			
 			Matcher m = BREAK_TAGS.matcher(descr);
 			descr = m.replaceAll("\n");
 			m = REMOVE_TAGS.matcher(descr);
@@ -328,12 +335,10 @@ public class PactProgram {
 	 * @throws ErrorInPlanAssemblerException
 	 *         Thrown, if an error occurred in the user-provided pact assembler.
 	 */
-	protected Plan createPlanFromJar(Class<? extends PlanAssembler> clazz, String[] options)
+	protected static Plan createPlanFromJar(Class<? extends PlanAssembler> clazz, String[] options)
 			throws ProgramInvocationException, ErrorInPlanAssemblerException
 	{
-		PlanAssembler assembler = createAssemblerFromJar(clazz);
-
-		// run the user-provided assembler class
+		PlanAssembler assembler = instantiateAssemblerFromClass(clazz);
 		try {
 			return assembler.getPlan(options);
 		} catch (Throwable t) {
@@ -351,27 +356,22 @@ public class PactProgram {
 	 * @throws ProgramInvocationException
 	 *         is thrown if class can't be found or instantiated
 	 */
-	protected PlanAssembler createAssemblerFromJar(Class<? extends PlanAssembler> clazz)
+	protected static PlanAssembler instantiateAssemblerFromClass(Class<? extends PlanAssembler> clazz)
 			throws ProgramInvocationException
 	{
-		// we have the class. now create a classloader that can load the
-		// contents of the jar
-		PlanAssembler assembler = null;
 		try {
-			assembler = clazz.newInstance();
+			return clazz.newInstance();
 		} catch (InstantiationException e) {
 			throw new ProgramInvocationException("ERROR: The pact plan assembler class could not be instantiated. "
-				+ "Make sure that the class is a proper class (not abstract) and has a "
+				+ "Make sure that the class is a proper class (not abstract/interface) and has a "
 				+ "public constructor with no arguments.", e);
 		} catch (IllegalAccessException e) {
 			throw new ProgramInvocationException("ERROR: The pact plan assembler class could not be instantiated. "
 				+ "Make sure that the class has a public constructor with no arguments.", e);
 		} catch (Throwable t) {
-			throw new ProgramInvocationException("An unknown problem ocurred during the instantiation of the "
+			throw new ProgramInvocationException("An error ocurred during the instantiation of the "
 				+ "program assembler: " + t.getMessage(), t);
 		}
-
-		return assembler;
 	}
 
 	private Class<? extends PlanAssembler> getPactAssemblerFromJar(File jarFile)
@@ -467,12 +467,10 @@ public class PactProgram {
 	private void checkJarFile(File jar) throws ProgramInvocationException {
 		if (!jar.exists()) {
 			throw new ProgramInvocationException("JAR file does not exist '" + jarFile.getPath() + "'");
-
 		}
 		if (!jar.canRead()) {
 			throw new ProgramInvocationException("JAR file can't be read '" + jarFile.getPath() + "'");
 		}
-
 		// TODO: Check if proper JAR file
 	}
 }
