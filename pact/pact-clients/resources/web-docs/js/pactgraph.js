@@ -113,8 +113,9 @@ function showProperties(target)
   cont += '<div class="propertyCanvasSection">';
   cont += '<h4>PACT Properties</h4>';
   cont += '<p class="propItem"><span class="propLabel">Output Contract: </span><span class="propValue">' + (node.outputcontract == undefined ? "None" : node.outputcontract) + '</span></p>';
-  cont += '<p class="propItem"><span class="propLabel">Local Strategy: </span><span class="propValue">' + (node.local_strategy == undefined ? "None" : node.local_strategy) + '</span></p>';
+  cont += '<p class="propItem"><span class="propLabel">Driver Strategy: </span><span class="propValue">' + (node.driver_strategy == undefined ? "None" : node.driver_strategy) + '</span></p>';
   cont += '<p class="propItem"><span class="propLabel">Parallelism: </span><span class="propValue">' + (node.parallelism == undefined ? "None" : node.parallelism) + '</span></p>';
+  cont += '<p class="propItem"><span class="propLabel">Subtasks/Instance: </span><span class="propValue">' + (node.subtasks_per_instance == undefined ? "None" : node.subtasks_per_instance) + '</span></p>';
   cont += '</div>';
 
   // column 2: global properties
@@ -465,11 +466,17 @@ function drawPactPlan(plan, propEvents, imageFile)
           // create the markup string for the edge
           edgesStr += '<div class="connector pactNode_' + pre.link.id + ' pactNode_' + node.id + ' right_start">' +
                         '<img src="img/arrows/' + imageFile + '" class="connector-end">';
-          if (pre.channelType != undefined && pre.shippingStrategy != undefined) {
-            edgesStr += '<label class="middle-label"><span class="channelType">' + pre.channelType + '</span><br/>' +
-                                                    '<span class="shippingStrategy">(' + pre.shippingStrategy + ')</span>';
-            if (pre.tempMode != undefined && pre.tempMode != null) {
-              edgesStr += '<br/><span class="shippingStrategy">' + pre.tempMode + '</span>';
+          if (pre.ship_strategy != undefined || pre.local_strategy != undefined || pre.temp_mode != undefined) {
+            // add a lable for one or more of ship strategy, local strategy, temp mode
+            edgesStr += '<label class="middle-label">';
+            if (pre.ship_strategy != undefined && pre.ship_strategy != null) {
+              edgesStr += '<span class="shippingStrategy">' + pre.ship_strategy + '</span><br/>';
+            }
+            if (pre.local_strategy != undefined && pre.local_strategy != null) {
+              edgesStr += '<span class="localStrategy">' + pre.local_strategy + '</span><br/>';
+            }
+            if (pre.temp_mode != undefined && pre.temp_mode != null) {
+              edgesStr += '<br/><span class="tempMode">' + pre.temp_mode + '</span>';
             }
             edgesStr += '</label>';
           }

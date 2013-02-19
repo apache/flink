@@ -172,6 +172,9 @@ public class PlanJSONDumpGenerator
 		// degree of parallelism
 		writer.print(",\n\t\t\"parallelism\": \""
 			+ (n.getDegreeOfParallelism() >= 1 ? n.getDegreeOfParallelism() : "default") + "\"");
+		
+		writer.print(",\n\t\t\"subtasks_per_instance\": \""
+				+ (n.getSubtasksPerInstance() >= 1 ? n.getSubtasksPerInstance() : "default") + "\"");
 
 		// output node predecessors
 		Iterator<? extends DumpableConnection<?>> inConns = node.getDumpableInputs();
@@ -255,7 +258,7 @@ public class PlanJSONDumpGenerator
 					}
 	
 					if (shipStrategy != null) {
-						writer.print(", \"shippingStrategy\": \"" + shipStrategy + "\"");
+						writer.print(", \"ship_strategy\": \"" + shipStrategy + "\"");
 					}
 					
 					if (channel != null) {
@@ -280,12 +283,12 @@ public class PlanJSONDumpGenerator
 						}
 						
 						if (localStrategy != null) {
-							writer.print(", \"localStrategy\": \"" + localStrategy + "\"");
+							writer.print(", \"local_strategy\": \"" + localStrategy + "\"");
 						}
 						
 						if (channel != null && channel.getTempMode() != TempMode.NONE) {
 							String tempMode = channel.getTempMode().toString();
-							writer.print(", \"tempMode\": \"" + tempMode + "\"");
+							writer.print(", \"temp_mode\": \"" + tempMode + "\"");
 						}
 					}
 					
@@ -354,7 +357,7 @@ public class PlanJSONDumpGenerator
 			}
 
 			if (locString != null) {
-				writer.print(",\n\t\t\"local_strategy\": \"");
+				writer.print(",\n\t\t\"driver_strategy\": \"");
 				writer.print(locString);
 				writer.print("\"");
 			}

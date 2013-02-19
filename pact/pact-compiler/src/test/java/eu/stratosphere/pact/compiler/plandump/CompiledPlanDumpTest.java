@@ -17,7 +17,6 @@ package eu.stratosphere.pact.compiler.plandump;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.io.StringWriter;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -57,10 +56,10 @@ public class CompiledPlanDumpTest extends CompilerTestBase {
 		try {
 			OptimizedPlan op = compile(p);
 			PlanJSONDumpGenerator dumper = new PlanJSONDumpGenerator();
-//			PrintWriter writer = new PrintWriter(getNullOrTempFile());
+			PrintWriter writer = new PrintWriter(getNullOrTempFile());
 			
-			StringWriter sw = new StringWriter(512);
-			PrintWriter writer = new PrintWriter(sw, true);
+//			StringWriter sw = new StringWriter(512);
+//			PrintWriter writer = new PrintWriter(sw, true);
 			dumper.dumpOptimizerPlanAsJSON(op, writer);
 		} catch (Exception e) {
 			e.printStackTrace();

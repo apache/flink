@@ -36,7 +36,20 @@ div.canvas
 
 span.shippingStrategy
 {
+	font-style: normal;
+	font-weight: normal;
+}
+
+span.localStrategy
+{
 	font-style: italic;
+	font-weight: normal;
+}
+
+span.tempMode
+{
+	font-style: normal;
+	font-weight: bold;
 }
 
 .datasource, .datasink, .pact
