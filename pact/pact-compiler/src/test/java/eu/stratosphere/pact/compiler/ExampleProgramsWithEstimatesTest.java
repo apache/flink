@@ -54,7 +54,7 @@ public class ExampleProgramsWithEstimatesTest extends CompilerTestBase {
 	@Test
 	public void testWordCount() {
 		WordCount wc = new WordCount();
-		Plan p = wc.getPlan(String.valueOf(defaultParallelism), IN_FILE_1, OUT_FILE_1);
+		Plan p = wc.getPlan(String.valueOf(DEFAULT_PARALLELISM), IN_FILE_1, OUT_FILE_1);
 		
 		OptimizedPlan plan = compile(p);
 		
@@ -100,7 +100,7 @@ public class ExampleProgramsWithEstimatesTest extends CompilerTestBase {
 		out.setGlobalOrder(new Ordering(0, PactString.class, Order.DESCENDING), new MockDataDistribution());
 		
 		Plan p = new Plan(out, "WordCount Example");
-		p.setDefaultParallelism(defaultParallelism);
+		p.setDefaultParallelism(DEFAULT_PARALLELISM);
 
 		OptimizedPlan plan = compile(p);
 		

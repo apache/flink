@@ -37,6 +37,7 @@ import eu.stratosphere.pact.compiler.plan.BinaryUnionNode;
 import eu.stratosphere.pact.compiler.plan.DataSinkNode;
 import eu.stratosphere.pact.compiler.plan.DataSourceNode;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
+import eu.stratosphere.pact.compiler.plan.PactConnection;
 import eu.stratosphere.pact.compiler.plan.TempMode;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
@@ -44,6 +45,7 @@ import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.UnionPlanNode;
 import eu.stratosphere.pact.compiler.util.Utils;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 
 /**
  * 
@@ -53,6 +55,8 @@ public class PlanJSONDumpGenerator
 	private Map<DumpableNode<?>, Integer> nodeIds; // resolves pact nodes to ids
 
 	private int nodeCnt; // resolves pact nodes to ids
+	
+	private boolean firstInList = true;
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -104,14 +108,14 @@ public class PlanJSONDumpGenerator
 
 		// Generate JSON for plan
 		for (int i = 0; i < nodes.size(); i++) {
-			visit(nodes.get(i), writer, i == 0);
+			visit(nodes.get(i), writer);
 		}
 		
 		// JSON Footer
-		writer.println("\t]\n}");
+		writer.println("\n\t]\n}");
 	}
 
-	private void visit(DumpableNode<?> node, PrintWriter writer, boolean first) {
+	private void visit(DumpableNode<?> node, PrintWriter writer) {
 		// check for duplicate traversal
 		if (this.nodeIds.containsKey(node)) {
 			return;
@@ -123,7 +127,7 @@ public class PlanJSONDumpGenerator
 		// then recurse
 		for (Iterator<? extends DumpableNode<?>> children = node.getPredecessors(); children.hasNext(); ) {
 			final DumpableNode<?> child = children.next();
-			visit(child, writer, false);
+			visit(child, writer);
 		}
 		
 		// check if this node should be skipped from the dump
@@ -131,7 +135,14 @@ public class PlanJSONDumpGenerator
 		
 		// ------------------ dump after the ascend ---------------------
 		// start a new node and output node id
+		if (this.firstInList) {
+			// the first does not need to add a comma after the previous node
+			firstInList = false;
+		} else {
+			writer.print(",\n");
+		}
 		writer.print("\t{\n\t\t\"id\": " + this.nodeIds.get(node));
+
 		
 		final String type;
 		final String contents;
@@ -202,34 +213,39 @@ public class PlanJSONDumpGenerator
 					writer.print("\t\t\t{\"id\": " + this.nodeIds.get(source));
 	
 					// output connection side
-					if (inConns.hasNext()) {
+					if (inConns.hasNext() || inputNum > 0) {
 						writer.print(", \"side\": \"" + (inputNum == 0 ? "first" : "second") + "\"");
 					}
 					// output shipping strategy and channel type
 					final Channel channel = (inConn instanceof Channel) ? (Channel) inConn : null; 
+					final ShipStrategyType shipType = channel != null ? channel.getShipStrategy() :
+							((PactConnection) inConn).getShipStrategy();
+						
 					String shipStrategy = null;
-					switch (conn.getShipStrategy()) {
-					case NONE:
-						// nothing
-						break;
-					case FORWARD:
-						shipStrategy = "Forward";
-						break;
-					case BROADCAST:
-						shipStrategy = "Broadcast";
-						break;
-					case PARTITION_HASH:
-						shipStrategy = "Hash Partition";
-						break;
-					case PARTITION_RANGE:
-						shipStrategy = "Range Partition";
-						break;
-					case PARTITION_LOCAL_HASH:
-						shipStrategy = "Hash Partition (local)";
-						break;
-					default:
-						throw new CompilerException("Unknown ship strategy '" + conn.getShipStrategy().name()
-							+ "' in JSON generator.");
+					if (shipType != null) {
+						switch (shipType) {
+						case NONE:
+							// nothing
+							break;
+						case FORWARD:
+							shipStrategy = "Forward";
+							break;
+						case BROADCAST:
+							shipStrategy = "Broadcast";
+							break;
+						case PARTITION_HASH:
+							shipStrategy = "Hash Partition";
+							break;
+						case PARTITION_RANGE:
+							shipStrategy = "Range Partition";
+							break;
+						case PARTITION_LOCAL_HASH:
+							shipStrategy = "Hash Partition (local)";
+							break;
+						default:
+							throw new CompilerException("Unknown ship strategy '" + conn.getShipStrategy().name()
+								+ "' in JSON generator.");
+						}
 					}
 					
 					if (channel != null && channel.getShipStrategyKeys() != null && channel.getShipStrategyKeys().size() > 0) {
@@ -257,7 +273,7 @@ public class PlanJSONDumpGenerator
 							throw new CompilerException("Unknown local strategy " + channel.getLocalStrategy().name());
 						}
 						
-						if (channel.getLocalStrategyKeys() != null && channel.getLocalStrategyKeys().size() > 0) {
+						if (channel != null && channel.getLocalStrategyKeys() != null && channel.getLocalStrategyKeys().size() > 0) {
 							localStrategy += " on " + (channel.getLocalStrategySortOrder() == null ?
 									channel.getLocalStrategyKeys().toString() :
 									Utils.createOrdering(channel.getLocalStrategyKeys(), channel.getLocalStrategySortOrder()).toString());
@@ -267,7 +283,7 @@ public class PlanJSONDumpGenerator
 							writer.print(", \"localStrategy\": \"" + localStrategy + "\"");
 						}
 						
-						if (channel.getTempMode() != TempMode.NONE) {
+						if (channel != null && channel.getTempMode() != TempMode.NONE) {
 							String tempMode = channel.getTempMode().toString();
 							writer.print(", \"tempMode\": \"" + tempMode + "\"");
 						}
@@ -279,7 +295,7 @@ public class PlanJSONDumpGenerator
 				inputNum++;
 			}
 			// finish predecessors
-			writer.print("\t\t]");
+			writer.print("\n\t\t]");
 		}
 		
 		//---------------------------------------------------------------------------------------
@@ -288,6 +304,8 @@ public class PlanJSONDumpGenerator
 
 		final PlanNode p = node.getPlanNode();
 		if (p == null) {
+			// finish node and done
+			writer.print("\n\t}");
 			return ;
 		}
 		
@@ -471,7 +489,7 @@ public class PlanJSONDumpGenerator
 		}
 
 		// finish node
-		writer.print("\n\t},\n");
+		writer.print("\n\t}");
 	}
 
 	private void addProperty(PrintWriter writer, String name, String value, boolean first) {

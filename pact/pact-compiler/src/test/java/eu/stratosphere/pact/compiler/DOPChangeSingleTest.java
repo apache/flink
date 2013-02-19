@@ -52,7 +52,7 @@ public class DOPChangeSingleTest extends CompilerTestBase {
 	 */
 	@Test
 	public void checkPropertyHandlingWithIncreasingGlobalParallelism1() {
-		final int degOfPar = defaultParallelism;
+		final int degOfPar = DEFAULT_PARALLELISM;
 		
 		// construct the plan
 		FileDataSource source = new FileDataSource(DummyInputFormat.class, IN_FILE_1, "Source");
@@ -106,7 +106,7 @@ public class DOPChangeSingleTest extends CompilerTestBase {
 	 */
 	@Test
 	public void checkPropertyHandlingWithIncreasingGlobalParallelism2() {
-		final int degOfPar = defaultParallelism;
+		final int degOfPar = DEFAULT_PARALLELISM;
 		
 		// construct the plan
 		FileDataSource source = new FileDataSource(DummyInputFormat.class, IN_FILE_1, "Source");
@@ -160,7 +160,7 @@ public class DOPChangeSingleTest extends CompilerTestBase {
 	 */
 	@Test
 	public void checkPropertyHandlingWithIncreasingLocalParallelism() {
-		final int degOfPar = 2 * defaultParallelism;
+		final int degOfPar = 2 * DEFAULT_PARALLELISM;
 		
 		// construct the plan
 		FileDataSource source = new FileDataSource(DummyInputFormat.class, IN_FILE_1, "Source");

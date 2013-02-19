@@ -40,7 +40,7 @@ public class IterativeJobCompilerTest extends CompilerTestBase
 	public void testCompileKMeansIteration1() {
 		IterativeKMeans kmi = new IterativeKMeans();
 
-		Plan plan = kmi.getPlan(String.valueOf(defaultParallelism),
+		Plan plan = kmi.getPlan(String.valueOf(DEFAULT_PARALLELISM),
 				IN_FILE_1, IN_FILE_1, OUT_FILE_1, String.valueOf(20));
 		setParameterToCross(plan, "INPUT_LEFT_SHIP_STRATEGY", "SHIP_FORWARD");
 
@@ -54,7 +54,7 @@ public class IterativeJobCompilerTest extends CompilerTestBase
 	public void testCompileKMeansIteration2() {
 		IterativeKMeans kmi = new IterativeKMeans();
 
-		Plan plan = kmi.getPlan(String.valueOf(defaultParallelism),
+		Plan plan = kmi.getPlan(String.valueOf(DEFAULT_PARALLELISM),
 				IN_FILE_1, IN_FILE_1, OUT_FILE_1, String.valueOf(20));
 		setParameterToCross(plan, "INPUT_RIGHT_SHIP_STRATEGY", "SHIP_FORWARD");
 
@@ -81,7 +81,7 @@ public class IterativeJobCompilerTest extends CompilerTestBase
 	public void testCompileConnectedComponents() {
 		WorksetConnectedComponents cc = new WorksetConnectedComponents();
 
-		Plan plan = cc.getPlan(String.valueOf(defaultParallelism),
+		Plan plan = cc.getPlan(String.valueOf(DEFAULT_PARALLELISM),
 				IN_FILE_1, IN_FILE_1, OUT_FILE_1, String.valueOf(100));
 
 		OptimizedPlan op = compile(plan);

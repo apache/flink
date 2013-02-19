@@ -70,7 +70,7 @@ public class HardPlansCompilationTest extends CompilerTestBase
 		sink.setInput(reduce3);
 		
 		Plan plan = new Plan(sink, "Test Temp Task");
-		plan.setDefaultParallelism(defaultParallelism);
+		plan.setDefaultParallelism(DEFAULT_PARALLELISM);
 		
 		OptimizedPlan oPlan = compile(plan);
 		NepheleJobGraphGenerator jobGen = new NepheleJobGraphGenerator();

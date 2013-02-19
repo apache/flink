@@ -41,7 +41,9 @@ public abstract class CompilerTestBase {
 	
 	protected static final String CACHE_KEY = "cachekey";
 	
-	protected static final int defaultParallelism = 8;
+	protected static final int DEFAULT_PARALLELISM = 8;
+	
+	protected static final String DEFAULT_PARALLELISM_STRING = String.valueOf(DEFAULT_PARALLELISM);
 	
 	// ------------------------------------------------------------------------
 	
@@ -63,7 +65,7 @@ public abstract class CompilerTestBase {
 		// create the instance type description
 		InstanceType iType = InstanceTypeFactory.construct("standard", 6, 2, 4096, 100, 0);
 		HardwareDescription hDesc = HardwareDescriptionFactory.construct(2, 4096 * 1024 * 1024, 2000 * 1024 * 1024);
-		this.instanceType = InstanceTypeDescriptionFactory.construct(iType, hDesc, defaultParallelism * 2);
+		this.instanceType = InstanceTypeDescriptionFactory.construct(iType, hDesc, DEFAULT_PARALLELISM * 2);
 	}
 	
 	public OptimizedPlan compile(Plan p) {
