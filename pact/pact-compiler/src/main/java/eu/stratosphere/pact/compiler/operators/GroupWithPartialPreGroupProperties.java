@@ -65,6 +65,7 @@ public final class GroupWithPartialPreGroupProperties extends OperatorDescriptor
 			toCombiner.setShipStrategy(ShipStrategyType.FORWARD);
 			SingleInputPlanNode combiner = new SingleInputPlanNode(node, toCombiner, DriverStrategy.PARTIAL_GROUP, this.keyList);
 			combiner.setCosts(new Costs(0, 0));
+			combiner.initProperties(toCombiner.getGlobalProperties(), toCombiner.getLocalProperties());
 			
 			Channel toReducer = new Channel(combiner);
 			toReducer.setShipStrategy(in.getShipStrategy(), in.getShipStrategyKeys(), in.getShipStrategySortOrder());
