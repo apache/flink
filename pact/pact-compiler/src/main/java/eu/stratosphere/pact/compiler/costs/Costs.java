@@ -35,6 +35,8 @@ package eu.stratosphere.pact.compiler.costs;
  */
 public class Costs implements Comparable<Costs>, Cloneable {
 
+	public static final long UNKNOWN = -1;
+	
 	private long networkCost;				// network cost, in transferred bytes
 
 	private long diskCost;		// bytes to be written and read, in bytes
@@ -322,7 +324,7 @@ public class Costs implements Comparable<Costs>, Cloneable {
 			this.cpuCost += other.cpuCost;
 		}
 		
-		// ---------- relative costs ----------
+		// ---------- heuristic costs ----------
 		
 		this.heuristicNetworkCost += other.heuristicNetworkCost;
 		this.heuristicDiskCost += other.heuristicDiskCost;
@@ -389,42 +391,30 @@ public class Costs implements Comparable<Costs>, Cloneable {
 	 */
 	@Override
 	public int compareTo(Costs o) {
-		// check the network cost. first heuristic, then quantifiable
-		if (this.heuristicNetworkCost < o.heuristicNetworkCost) {
+		// check the network cost. if we have actual costs on both, use them, otherwise use the heuristic costs.
+		if (this.networkCost > -1 && o.networkCost > -1) {
+			return this.networkCost < o.networkCost ? -1 : this.networkCost > o.networkCost ? 1 : 0;
+		} else if (this.heuristicNetworkCost < o.heuristicNetworkCost) {
 			return -1;
 		} else if (this.heuristicNetworkCost > o.heuristicNetworkCost) {
 			return 1;
-		} else if (this.networkCost != -1 && (this.networkCost < o.networkCost || o.networkCost == -1)) {
-			return -1;
-		} else if (o.networkCost != -1 && (this.networkCost > o.networkCost || this.networkCost == -1)) {
-			return 1;
-		} else if (this.networkCost == -1 && o.networkCost == -1) {
-			// both have unknown network cost (and equal or no heuristic net cost). treat the costs as equal
-			return 0;
 		}
 		
-		// next, check the disk cost. again heuristic before quantifiable
-		if (this.heuristicDiskCost < o.heuristicDiskCost) {
+		// next, check the disk cost. again, if we have actual costs on both, use them, otherwise use the heuristic costs.
+		if (this.diskCost > -1 && o.diskCost > -1) {
+			return this.diskCost < o.diskCost ? -1 : this.diskCost > o.diskCost ? 1 : 0;
+		} else if (this.heuristicDiskCost < o.heuristicDiskCost) {
 			return -1;
 		} else if (this.heuristicDiskCost > o.heuristicDiskCost) {
 			return 1;
-		} else if (this.diskCost != -1 && (this.diskCost < o.diskCost || o.diskCost == -1)) {
-			return -1;
-		} else if (o.diskCost != -1 && (this.diskCost > o.diskCost || this.diskCost == -1)) {
-			return 1;
-		} else if (this.diskCost == -1 && o.diskCost == -1) {
-			// both have unknown disk cost (and equal or no heuristic net cost). treat the costs as equal
-			return 0;
 		}
 		
-		// finally, check the CPU cost. heuristic before quantifiable
-		if (this.heuristicCpuCost < o.heuristicCpuCost) {
+		// next, check the disk cost. again, if we have actual costs on both, use them, otherwise use the heuristic costs.
+		if (this.cpuCost > -1 && o.cpuCost > -1) {
+			return this.cpuCost < o.cpuCost ? -1 : this.cpuCost > o.cpuCost ? 1 : 0;
+		} else if (this.heuristicCpuCost < o.heuristicCpuCost) {
 			return -1;
 		} else if (this.heuristicCpuCost > o.heuristicCpuCost) {
-			return 1;
-		} else if (this.cpuCost != -1 && (this.cpuCost < o.cpuCost || o.cpuCost == -1)) {
-			return -1;
-		} else if (o.cpuCost != -1 && (this.cpuCost > o.cpuCost || this.cpuCost == -1)) {
 			return 1;
 		} else {
 			return 0;

@@ -48,10 +48,11 @@ public class DefaultCostEstimator extends CostEstimator
 		// partitioning. no disk costs.
 		final long estOutShipSize = estimates.getEstimatedOutputSize();
 		if (estOutShipSize <= 0) {
-			costs.addHeuristicNetworkCost(HEURISTIC_COST_BASE);
+			costs.setNetworkCost(Costs.UNKNOWN);
 		} else {
 			costs.addNetworkCost(estOutShipSize);
 		}
+		costs.addHeuristicNetworkCost(HEURISTIC_COST_BASE);
 	}
 	
 	@Override
@@ -60,10 +61,11 @@ public class DefaultCostEstimator extends CostEstimator
 		// partitioning. no disk costs.
 		final long estOutShipSize = estimates.getEstimatedOutputSize();
 		if (estOutShipSize <= 0) {
-			costs.addHeuristicNetworkCost(HEURISTIC_COST_BASE);
+			costs.setNetworkCost(Costs.UNKNOWN);
 		} else {
 			costs.addNetworkCost(estOutShipSize);
 		}
+		costs.addHeuristicNetworkCost(HEURISTIC_COST_BASE);
 	}
 	
 	@Override
@@ -74,14 +76,14 @@ public class DefaultCostEstimator extends CostEstimator
 			final long sampled = (long) (dataSize * 0.1f);
 			// set shipping costs
 			costs.addNetworkCost(dataSize + sampled);
-			// we assume a two phase merge sort, so all in all 2 I/O operations per block
-			costs.addDiskCost(2 * sampled);
 		} else {
-			// no costs known. use the same assumption as above on the heuristic costs
-			final long sampled = (long) (HEURISTIC_COST_BASE * 0.1f);
-			costs.addHeuristicNetworkCost(HEURISTIC_COST_BASE + sampled);
-			costs.addHeuristicDiskCost(2 * sampled);
+			costs.setNetworkCost(Costs.UNKNOWN);
 		}
+		
+		// no costs known. use the same assumption as above on the heuristic costs
+		final long sampled = (long) (HEURISTIC_COST_BASE * 0.1f);
+		costs.addHeuristicNetworkCost(HEURISTIC_COST_BASE + sampled);
+		costs.addHeuristicDiskCost(2 * sampled);
 	}
 
 	@Override
@@ -89,10 +91,11 @@ public class DefaultCostEstimator extends CostEstimator
 		// assumption: we need ship the whole data over the network to each node.
 		final long estOutShipSize = estimates.getEstimatedOutputSize();
 		if (estOutShipSize <= 0) {
-			costs.addHeuristicNetworkCost(HEURISTIC_COST_BASE * replicationFactor);
+			costs.setNetworkCost(Costs.UNKNOWN);
 		} else {
 			costs.addNetworkCost(replicationFactor * estOutShipSize);
 		}
+		costs.addHeuristicNetworkCost(HEURISTIC_COST_BASE * replicationFactor);
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -104,8 +107,9 @@ public class DefaultCostEstimator extends CostEstimator
 		if (fileSizeInBytes >= 0) {
 			costs.addDiskCost(fileSizeInBytes);
 		} else {
-			costs.addHeuristicDiskCost(HEURISTIC_COST_BASE);
+			costs.setDiskCost(Costs.UNKNOWN);
 		}
+		costs.addHeuristicDiskCost(HEURISTIC_COST_BASE);
 	}
 	
 	@Override
@@ -113,10 +117,11 @@ public class DefaultCostEstimator extends CostEstimator
 		final long s = estimates.getEstimatedOutputSize();
 		// we assume a two phase merge sort, so all in all 2 I/O operations per block
 		if (s <= 0) {
-			costs.addHeuristicDiskCost(2 * HEURISTIC_COST_BASE);
+			costs.setDiskCost(Costs.UNKNOWN);
 		} else {
 			costs.addDiskCost(2 * s);
 		}
+		costs.addHeuristicDiskCost(2 * HEURISTIC_COST_BASE);
 	}
 
 	@Override
@@ -143,8 +148,9 @@ public class DefaultCostEstimator extends CostEstimator
 		if (bs > 0 && ps > 0) {
 			costs.addDiskCost(bs + ps);
 		} else {
-			costs.addHeuristicDiskCost(2 * HEURISTIC_COST_BASE);
+			costs.setDiskCost(Costs.UNKNOWN);
 		}
+		costs.addHeuristicDiskCost(2 * HEURISTIC_COST_BASE);
 	}
 
 	@Override
@@ -158,9 +164,11 @@ public class DefaultCostEstimator extends CostEstimator
 				costs.addDiskCost(oc * is);
 			}
 		} else {
-			// hack: assume 100k loops (should be expensive enough)
-			costs.addHeuristicDiskCost(HEURISTIC_COST_BASE * 100000);
+			costs.setDiskCost(Costs.UNKNOWN);
 		}
+		
+		// hack: assume 100k loops (should be expensive enough)
+		costs.addHeuristicDiskCost(HEURISTIC_COST_BASE * 100000);
 	}
 
 	@Override
@@ -172,9 +180,11 @@ public class DefaultCostEstimator extends CostEstimator
 			long loops = Math.max(os / blockSize, 1);
 			costs.addDiskCost(loops * is);
 		} else {
-			// hack: assume 1k loops (much cheaper than the streamed variant!)
-			costs.addHeuristicDiskCost(HEURISTIC_COST_BASE * 1000);
+			costs.setDiskCost(Costs.UNKNOWN);
 		}
+		
+		// hack: assume 1k loops (much cheaper than the streamed variant!)
+		costs.addHeuristicDiskCost(HEURISTIC_COST_BASE * 1000);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -189,9 +199,10 @@ public class DefaultCostEstimator extends CostEstimator
 		final long s = estimates.getEstimatedOutputSize();
 		// we assume spilling and re-reading
 		if (s <= 0) {
-			costs.addHeuristicDiskCost(2 * HEURISTIC_COST_BASE);
+			costs.setDiskCost(Costs.UNKNOWN);
 		} else {
 			costs.addDiskCost(2 * s);
 		}
+		costs.addHeuristicDiskCost(2 * HEURISTIC_COST_BASE);
 	}
 }
