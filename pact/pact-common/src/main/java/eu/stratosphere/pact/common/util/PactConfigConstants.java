@@ -17,8 +17,6 @@ package eu.stratosphere.pact.common.util;
 
 /**
  * A collection of all configuration constants, such as config keys and default values.
- * 
- * @author Stephan Ewen
  */
 public final class PactConfigConstants {
 	
@@ -48,6 +46,20 @@ public final class PactConfigConstants {
 	 * The key for the config parameter defining the instance that are booked for pact tasks.
 	 */
 	public static final String DEFAULT_INSTANCE_TYPE_KEY = "pact.parallelization.default-instance-type";
+	
+	// ---------------------------- Compiler -------------------------------
+
+	/**
+	 * The key for the maximum number of line samples to be taken by the delimited input format, if no
+	 * other value is specified for the data source.
+	 */
+	public static final String DELIMITED_FORMAT_MAX_LINE_SAMPLES_KEY = "pact.delimited-informat.max-line-samples";
+
+	/**
+	 * The key for the minimum number of line samples to be taken by the delimited input format, if no
+	 * other value is specified for the data source.
+	 */
+	public static final String DELIMITED_FORMAT_MIN_LINE_SAMPLES_KEY = "pact.delimited-informat.min-line-samples";
 	
 	// ------------------------------- Runtime --------------------------------
 	
@@ -138,6 +150,18 @@ public final class PactConfigConstants {
 	 * The description of the default instance type that is booked for the execution of PACT tasks.
 	 */
 	public static final String DEFAULT_INSTANCE_TYPE_DESCRIPTION = "standard,2,1,300,10,0";
+	
+	// ---------------------------- Compiler -------------------------------
+
+	/**
+	 * The default maximum number of line samples taken by the delimited input format.
+	 */
+	public static final int DEFAULT_DELIMITED_FORMAT_MAX_LINE_SAMPLES = 10;
+	
+	/**
+	 * The default minimum number of line samples taken by the delimited input format.
+	 */
+	public static final int DEFAULT_DELIMITED_FORMAT_MIN_LINE_SAMPLES = 2;
 
 	// ------------------------------- Runtime --------------------------------
 	
@@ -152,9 +176,9 @@ public final class PactConfigConstants {
 	public static final float DEFAULT_SORT_SPILLING_THRESHOLD = 0.75f;
 	
 	/**
-	 * The default timeout for filesystem stream opening: 10 seconds.
+	 * The default timeout for filesystem stream opening: infinite (means max long milliseconds).
 	 */
-	public static final int DEFAULT_FS_STREAM_OPENING_TIMEOUT = 10000;
+	public static final int DEFAULT_FS_STREAM_OPENING_TIMEOUT = 0;
 	
 	/**
 	 * The key for the config parameter defining whether to use the special multicast logic

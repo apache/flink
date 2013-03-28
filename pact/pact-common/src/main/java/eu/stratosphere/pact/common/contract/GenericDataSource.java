@@ -22,18 +22,18 @@ import eu.stratosphere.pact.common.stubs.StubAnnotation;
 import eu.stratosphere.pact.generic.contract.Contract;
 import eu.stratosphere.pact.generic.io.InputFormat;
 
-
 /**
  * Abstract superclass for data sources in a Pact plan.
  * 
  * @param T The type of input format invoked by instances of this data source.
  */
-public class GenericDataSource<T extends InputFormat<?, ?>> extends Contract 
-	implements StubAnnotationConfigurable
-{
-	private static String DEFAULT_NAME = "<Unnamed Generic Data Source>";
+public class GenericDataSource<T extends InputFormat<?, ?>> extends Contract implements StubAnnotationConfigurable {
+	
+	private static final String DEFAULT_NAME = "<Unnamed Generic Data Source>";
 	
 	protected final Class<? extends T> clazz;
+	
+	protected String statisticsKey;
 
 	/**
 	 * Creates a new instance for the given file using the given input format.
@@ -41,8 +41,7 @@ public class GenericDataSource<T extends InputFormat<?, ?>> extends Contract
 	 * @param clazz The Class for the specific input format
 	 * @param name The given name for the Pact, used in plans, logs and progress messages.
 	 */
-	public GenericDataSource(Class<? extends T> clazz, String name)
-	{
+	public GenericDataSource(Class<? extends T> clazz, String name) {
 		super(name);
 		this.clazz = clazz;
 	}
@@ -52,8 +51,7 @@ public class GenericDataSource<T extends InputFormat<?, ?>> extends Contract
 	 * 
 	 * @param clazz The Class for the specific input format
 	 */
-	public GenericDataSource(Class<? extends T> clazz)
-	{
+	public GenericDataSource(Class<? extends T> clazz) {
 		super(DEFAULT_NAME);
 		this.clazz = clazz;
 	}
@@ -64,8 +62,7 @@ public class GenericDataSource<T extends InputFormat<?, ?>> extends Contract
 	 * @see eu.stratosphere.pact.common.recordcontract.OutputContractConfigurable#addOutputContract(java.lang.Class)
 	 */
 	@Override
-	public void addStubAnnotation(Class<? extends Annotation> oc)
-	{
+	public void addStubAnnotation(Class<? extends Annotation> oc) {
 		if (!oc.getEnclosingClass().equals(StubAnnotation.class)) {
 			throw new IllegalArgumentException("The given annotation does not describe an output contract.");
 		}
@@ -88,8 +85,7 @@ public class GenericDataSource<T extends InputFormat<?, ?>> extends Contract
 	 * 
 	 * @return The class describing the input format.
 	 */
-	public Class<? extends T> getFormatClass()
-	{
+	public Class<? extends T> getFormatClass() {
 		return this.clazz;
 	}
 	
@@ -103,11 +99,32 @@ public class GenericDataSource<T extends InputFormat<?, ?>> extends Contract
 	 * @see eu.stratosphere.pact.generic.contract.Contract#getUserCodeClass()
 	 */
 	@Override
-	public Class<?> getUserCodeClass()
-	{
+	public Class<?> getUserCodeClass() {
 		return this.clazz;
 	}
-
+	
+	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * Gets the key under which statistics about this data source may be obtained from the
+	 * statistics cache.
+	 * 
+	 * @return The statistics cache key.
+	 */
+	public String getStatisticsKey() {
+		return this.statisticsKey;
+	}
+	
+	/**
+	 * Sets the key under which statistics about this data source may be obtained from the
+	 * statistics cache. Useful for testing purposes, when providing mock statistics.
+	 * 
+	 * @param statisticsKey The key for the statistics object.
+	 */
+	public void setStatisticsKey(String statisticsKey) {
+		this.statisticsKey = statisticsKey;
+	}
+	
 	// --------------------------------------------------------------------------------------------
 	
 	/**
@@ -128,8 +145,7 @@ public class GenericDataSource<T extends InputFormat<?, ?>> extends Contract
 	/* (non-Javadoc)
 	 * @see java.lang.Object#toString()
 	 */
-	public String toString()
-	{
+	public String toString() {
 		return this.name;
 	}
 }

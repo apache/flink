@@ -33,8 +33,8 @@ import eu.stratosphere.pact.generic.io.OutputFormat;
  * The abstract base class for all output formats that are file based. Contains the logic to open/close the target
  * file streams.
  */
-public abstract class FileOutputFormat<IT> implements OutputFormat<IT>
-{
+public abstract class FileOutputFormat<IT> implements OutputFormat<IT> {
+	
 	/**
 	 * The LOG for logging messages in this class.
 	 */
@@ -71,8 +71,7 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT>
 	 * @see eu.stratosphere.pact.common.recordio.OutputFormat#configure(eu.stratosphere.nephele.configuration.Configuration)
 	 */
 	@Override
-	public void configure(Configuration parameters)
-	{
+	public void configure(Configuration parameters) {
 		// get the file parameter
 		String filePath = parameters.getString(FILE_PARAMETER_KEY, null);
 		if (filePath == null) {
@@ -102,8 +101,7 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT>
 	 * @see eu.stratosphere.pact.common.recordio.OutputFormat#open()
 	 */
 	@Override
-	public void open(int taskNumber) throws IOException
-	{
+	public void open(int taskNumber) throws IOException {
 		// obtain FSDataOutputStream asynchronously, since HDFS client can not handle InterruptedExceptions
 		OutputPathOpenThread opot = new OutputPathOpenThread(this.outputFilePath, taskNumber, this.openTimeout);
 		opot.start();
@@ -122,8 +120,7 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT>
 	 * @see eu.stratosphere.pact.common.recordio.OutputFormat#close()
 	 */
 	@Override
-	public void close() throws IOException
-	{
+	public void close() throws IOException {
 		final FSDataOutputStream s = this.stream;
 		if (s != null) {
 			this.stream = null;
@@ -133,8 +130,8 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT>
 	
 	// ============================================================================================
 	
-	private static final class OutputPathOpenThread extends Thread
-	{
+	private static final class OutputPathOpenThread extends Thread {
+		
 		private final Path path;
 		
 		private final int taskIndex;
@@ -155,8 +152,7 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT>
 		}
 
 		@Override
-		public void run()
-		{
+		public void run() {
 			try {
 				Path p = this.path;
 				final FileSystem fs = p.getFileSystem();
@@ -185,8 +181,7 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT>
 			}
 		}
 		
-		public FSDataOutputStream waitForCompletion() throws Exception
-		{
+		public FSDataOutputStream waitForCompletion() throws Exception {
 			final long start = System.currentTimeMillis();
 			long remaining = this.timeoutMillies;
 			
@@ -256,8 +251,8 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT>
 	/**
 	 * A builder used to set parameters to the output format's configuration in a fluent way.
 	 */
-	public static abstract class AbstractConfigBuilder<T>
-	{
+	public static abstract class AbstractConfigBuilder<T> {
+		
 		/**
 		 * The configuration into which the parameters will be written.
 		 */
@@ -294,8 +289,8 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT>
 	/**
 	 * A builder used to set parameters to the input format's configuration in a fluent way.
 	 */
-	public static class ConfigBuilder extends AbstractConfigBuilder<ConfigBuilder>
-	{
+	public static class ConfigBuilder extends AbstractConfigBuilder<ConfigBuilder> {
+		
 		/**
 		 * Creates a new builder for the given configuration.
 		 * 
@@ -304,6 +299,5 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT>
 		protected ConfigBuilder(Configuration targetConfig) {
 			super(targetConfig);
 		}
-		
 	}
 }

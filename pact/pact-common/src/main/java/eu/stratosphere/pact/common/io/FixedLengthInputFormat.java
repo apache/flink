@@ -17,36 +17,21 @@ package eu.stratosphere.pact.common.io;
 
 
 import java.io.IOException;
-import java.net.URI;
-import java.util.ArrayList;
-import java.util.List;
-
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.fs.FileInputSplit;
-import eu.stratosphere.nephele.fs.FileStatus;
-import eu.stratosphere.nephele.fs.FileSystem;
-import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
 import eu.stratosphere.pact.common.type.PactRecord;
-
 
 /**
  * 
  */
-public abstract class FixedLengthInputFormat extends FileInputFormat 
-{
+public abstract class FixedLengthInputFormat extends FileInputFormat {
+	
 	/**
 	 * The config parameter which defines the fixed length of a record.
 	 */
-	public static final String RECORDLENGTH_PARAMETER_KEY = "pact.input.recordLength";
-	
-	/**
-	 * The log.
-	 */
-	private static final Log LOG = LogFactory.getLog(FixedLengthInputFormat.class);
+	public static final String RECORDLENGTH_PARAMETER_KEY = "pact.fix-input.record-length";
 	
 	/**
 	 * The default read buffer size = 1MB.
@@ -98,8 +83,7 @@ public abstract class FixedLengthInputFormat extends FileInputFormat
 	/**
 	 * Constructor only sets the key and value classes
 	 */
-	protected FixedLengthInputFormat()
-	{}
+	protected FixedLengthInputFormat() {}
 	
 	/**
 	 * Reads a record out of the given buffer. This operation always consumes the standard number of
@@ -126,8 +110,7 @@ public abstract class FixedLengthInputFormat extends FileInputFormat
 	 * 
 	 * @return The size of the parsing buffer.
 	 */
-	public int getReadBufferSize()
-	{
+	public int getReadBufferSize() {
 		return this.readBuffer.length;
 	}
 	
@@ -137,8 +120,7 @@ public abstract class FixedLengthInputFormat extends FileInputFormat
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void configure(Configuration parameters)
-	{
+	public void configure(Configuration parameters) {
 		// pass parameters to FileInputFormat
 		super.configure(parameters);
 
@@ -155,8 +137,7 @@ public abstract class FixedLengthInputFormat extends FileInputFormat
 	 * @throws IOException
 	 */
 	@Override
-	public void open(FileInputSplit split) throws IOException
-	{
+	public void open(FileInputSplit split) throws IOException {
 		// open input split using FileInputFormat
 		super.open(split);
 		
@@ -164,14 +145,14 @@ public abstract class FixedLengthInputFormat extends FileInputFormat
 		int recordOffset = (int) (this.splitStart % this.recordLength);
 		if(recordOffset != 0) {
 			// move start to next boundary
-			super.stream.seek(this.splitStart + recordOffset);			
+			super.stream.seek(this.splitStart + recordOffset);
 		}
 		this.streamPos = this.splitStart + recordOffset;
 		this.streamEnd = this.splitStart + this.splitLength;
 		this.streamEnd += this.streamEnd % this.recordLength;
 		
 		// adjust readBufferSize
-		this.readBufferSize += (this.recordLength - (this.readBufferSize % this.recordLength));
+		this.readBufferSize += this.recordLength - (this.readBufferSize % this.recordLength);
 		
 		if (this.readBuffer == null || this.readBuffer.length != this.readBufferSize) {
 			this.readBuffer = new byte[this.readBufferSize];
@@ -185,92 +166,13 @@ public abstract class FixedLengthInputFormat extends FileInputFormat
 
 	/**
 	 * {@inheritDoc}
+	 * @throws IOException 
 	 */
 	@Override
-	public BaseStatistics getStatistics(BaseStatistics cachedStatistics) {
-		
-		// check the cache
-		FileBaseStatistics stats = null;
-		
-		if (cachedStatistics != null && cachedStatistics instanceof FileBaseStatistics) {
-			stats = (FileBaseStatistics) cachedStatistics;
-		}
-		else {
-			stats = new FileBaseStatistics(-1, BaseStatistics.UNKNOWN, BaseStatistics.UNKNOWN);
-		}
-		
-		try {
-			final Path file = this.filePath;
-			final URI uri = file.toUri();
-
-			// get the filesystem
-			final FileSystem fs = FileSystem.get(uri);
-			List<FileStatus> files = null;
-
-			// get the file info and check whether the cached statistics are still valid.
-			{
-				FileStatus status = fs.getFileStatus(file);
-
-				if (status.isDir()) {
-					FileStatus[] fss = fs.listStatus(file);
-					files = new ArrayList<FileStatus>(fss.length);
-					boolean unmodified = stats.getAverageRecordWidth() == (float) this.recordLength;
-
-					for (FileStatus s : fss) {
-						if (!s.isDir()) {
-							files.add(s);
-							if (s.getModificationTime() > stats.getLastModificationTime()) {
-								stats.setLastModificationTime(s.getModificationTime());
-								unmodified = false;
-							}
-						}
-					}
-
-					if (unmodified) {
-						return stats;
-					}
-				}
-				else {
-					// check if the statistics are up to date
-					long modTime = status.getModificationTime();	
-					if (stats.getLastModificationTime() == modTime) {
-						return stats;
-					}
-
-					stats.setLastModificationTime(modTime);
-					
-					files = new ArrayList<FileStatus>(1);
-					files.add(status);
-				}
-			}
-
-			stats.setAverageRecordWidth(this.recordLength);
-			
-			// calculate the whole length
-			long len = 0;
-			for (FileStatus s : files) {
-				len += s.getLen();
-			}
-			stats.setTotalInputSize(len);
-			
-			// sanity check
-			if (stats.getTotalInputSize() <= 0) {
-				stats.setLastModificationTime(BaseStatistics.UNKNOWN);
-				return stats;
-			}
-		}
-		catch (IOException ioex) {
-			if (LOG.isWarnEnabled())
-				LOG.warn("Could not determine complete statistics for file '" + filePath + "' due to an io error: "
-						+ ioex.getMessage());
-		}
-		catch (Throwable t) {
-			if (LOG.isErrorEnabled())
-				LOG.error("Unexpected problen while getting the file statistics for file '" + filePath + "': "
-						+ t.getMessage(), t);
-		}
-
-		return stats;
+	public FileBaseStatistics getStatistics(BaseStatistics cachedStats) throws IOException {
+		final FileBaseStatistics stats = super.getStatistics(cachedStats);
+		return stats == null ? null : 
+			new FileBaseStatistics(stats.getLastModificationTime(), stats.getTotalInputSize(), this.recordLength);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -279,8 +181,7 @@ public abstract class FixedLengthInputFormat extends FileInputFormat
 	 * {@inheritDoc}
 	 */
 	@Override
-	public boolean reachedEnd() 
-	{
+	public boolean reachedEnd() {
 		return this.exhausted;
 	}
 	
@@ -290,16 +191,15 @@ public abstract class FixedLengthInputFormat extends FileInputFormat
 	 * @throws IOException
 	 */
 	@Override
-	public boolean nextRecord(PactRecord record) throws IOException
-	{
+	public boolean nextRecord(PactRecord record) throws IOException {
 		// check if read buffer contains another full record
-		if((this.readBufferLimit - this.readBufferPos) == 0) {
+		if (this.readBufferLimit - this.readBufferPos <= 0) {
 			// get another buffer
 			fillReadBuffer();
 			// check if source is exhausted
-			if(this.exhausted)
+			if (this.exhausted)
 				return false;
-		} else if((this.readBufferLimit - this.readBufferPos) < this.recordLength) {
+		} else if (this.readBufferLimit - this.readBufferPos < this.recordLength) {
 			throw new IOException("Unable to read full record");
 		}
 		
@@ -317,8 +217,7 @@ public abstract class FixedLengthInputFormat extends FileInputFormat
 	 * 
 	 * @throws IOException
 	 */
-	private void fillReadBuffer() throws IOException
-	{
+	private void fillReadBuffer() throws IOException {
 		
 		int toRead = (int) Math.min(this.streamEnd - this.streamPos, this.readBufferSize);
 		if (toRead <= 0) {
@@ -331,12 +230,10 @@ public abstract class FixedLengthInputFormat extends FileInputFormat
 		
 		if (read <= 0) {
 			this.exhausted = true;
-		}
-		else {
+		} else {
 			this.streamPos += read;
 			this.readBufferPos = 0;
 			this.readBufferLimit = read;
 		}
 	}
-	
 }

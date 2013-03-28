@@ -31,6 +31,7 @@ import eu.stratosphere.nephele.fs.FSDataInputStream;
 import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.nephele.fs.FileStatus;
 import eu.stratosphere.nephele.fs.FileSystem;
+import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.util.StringUtils;
 import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
 import eu.stratosphere.pact.common.type.PactRecord;
@@ -150,37 +151,30 @@ public abstract class BinaryInputFormat extends FileInputFormat {
 	 * )
 	 */
 	@Override
-	public BaseStatistics getStatistics(BaseStatistics cachedStatistics) {
-
-		// check the cache
-		SequentialStatistics stats = null;
-
-		if (cachedStatistics != null && cachedStatistics instanceof SequentialStatistics)
-			stats = (SequentialStatistics) cachedStatistics;
-		else
-			stats = new SequentialStatistics(-1, BaseStatistics.UNKNOWN, BaseStatistics.UNKNOWN);
-
+	public SequentialStatistics getStatistics(BaseStatistics cachedStats) {
+		
+		final FileBaseStatistics cachedFileStats = (cachedStats != null && cachedStats instanceof FileBaseStatistics) ?
+				(FileBaseStatistics) cachedStats : null;
+		
 		try {
-			boolean modified = false;
-			List<FileStatus> files = this.getFiles();
-			for (FileStatus fileStatus : files)
-				if (fileStatus.getModificationTime() > stats.getLastModificationTime()) {
-					stats.setLastModificationTime(fileStatus.getModificationTime());
-					modified = true;
-				}
-
-			if (!modified)
-				return stats;
-
-			int totalLength = 0;
-			// calculate the whole length
-			for (FileStatus fileStatus : files)
-				totalLength += fileStatus.getLen();
-
-			stats.setTotalInputSize(totalLength);
-			stats.setAverageRecordWidth(BaseStatistics.UNKNOWN);
-			this.fillStatistics(files, stats);
-
+			final Path filePath = this.filePath;
+		
+			// get the filesystem
+			final FileSystem fs = FileSystem.get(filePath.toUri());
+			final ArrayList<FileStatus> allFiles = new ArrayList<FileStatus>(1);
+			
+			// let the file input format deal with the up-to-date check and the basic size
+			final FileBaseStatistics stats = getFileStats(cachedFileStats, filePath, fs, allFiles);
+			if (stats == null) {
+				return null;
+			}
+			
+			// check whether the file stats are still sequential stats (in that case they are still valid)
+			if (stats instanceof SequentialStatistics) {
+				return (SequentialStatistics) stats;
+			} else {
+				return createStatistics(allFiles, stats);
+			}
 		} catch (IOException ioex) {
 			if (LOG.isWarnEnabled())
 				LOG.warn(String.format("Could not determine complete statistics for file '%s' due to an I/O error: %s",
@@ -190,11 +184,8 @@ public abstract class BinaryInputFormat extends FileInputFormat {
 				LOG.error(String.format("Unexpected problem while getting the file statistics for file '%s' due to %s",
 					this.filePath, StringUtils.stringifyException(t)));
 		}
-		// sanity check
-		if (stats.getTotalInputSize() <= 0)
-			stats.setLastModificationTime(BaseStatistics.UNKNOWN);
-
-		return stats;
+		// no stats available
+		return null;
 	}
 
 	protected FileInputSplit[] getInputSplits() throws IOException {
@@ -213,9 +204,9 @@ public abstract class BinaryInputFormat extends FileInputFormat {
 	 * @param stats
 	 *        The pre-filled statistics.
 	 */
-	protected void fillStatistics(List<FileStatus> files, SequentialStatistics stats) throws IOException {
+	protected SequentialStatistics createStatistics(List<FileStatus> files, FileBaseStatistics stats) throws IOException {
 		if (files.isEmpty())
-			return;
+			return null;
 
 		BlockInfo blockInfo = this.createBlockInfo();
 
@@ -233,15 +224,17 @@ public abstract class BinaryInputFormat extends FileInputFormat {
 			totalCount += blockInfo.getAccumulatedRecordCount();
 		}
 
-		stats.setNumberOfRecords(totalCount);
-		stats.setAverageRecordWidth(totalCount == 0 ? 0 : ((float) stats.getTotalInputSize() / totalCount));
+		final float avgWidth = totalCount == 0 ? 0 : ((float) stats.getTotalInputSize() / totalCount);
+		return new SequentialStatistics(stats.getLastModificationTime(), stats.getTotalInputSize(), avgWidth, totalCount);
 	}
 
 	private static class SequentialStatistics extends FileBaseStatistics {
-		private long numberOfRecords = UNKNOWN;
+		
+		private final long numberOfRecords;
 
-		public SequentialStatistics(long fileModTime, long fileSize, float avgBytesPerRecord) {
+		public SequentialStatistics(long fileModTime, long fileSize, float avgBytesPerRecord, long numberOfRecords) {
 			super(fileModTime, fileSize, avgBytesPerRecord);
+			this.numberOfRecords = numberOfRecords;
 		}
 
 		/*
@@ -250,17 +243,7 @@ public abstract class BinaryInputFormat extends FileInputFormat {
 		 */
 		@Override
 		public long getNumberOfRecords() {
-			return numberOfRecords;
-		}
-
-		/**
-		 * Sets the numberOfRecords to the specified value.
-		 * 
-		 * @param numberOfRecords
-		 *        the numberOfRecords to set
-		 */
-		public void setNumberOfRecords(long numberOfRecords) {
-			this.numberOfRecords = numberOfRecords;
+			return this.numberOfRecords;
 		}
 	}
 
@@ -269,8 +252,7 @@ public abstract class BinaryInputFormat extends FileInputFormat {
 	 * @see eu.stratosphere.pact.common.io.FileInputFormat#open(eu.stratosphere.nephele.fs.FileInputSplit)
 	 */
 	@Override
-	public void open(FileInputSplit split) throws IOException
-	{
+	public void open(FileInputSplit split) throws IOException {
 		super.open(split);
 
 		final long blockSize = this.blockSize == NATIVE_BLOCK_SIZE ?

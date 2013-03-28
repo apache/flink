@@ -36,6 +36,6 @@ public final class DummyInputFormat extends DelimitedInputFormat
 
 	@Override
 	public FileBaseStatistics getStatistics(BaseStatistics cachedStatistics) {
-		return new FileBaseStatistics(123456l, 10000l, 100);
+		return (cachedStatistics instanceof FileBaseStatistics) ? (FileBaseStatistics) cachedStatistics : null;
 	}
 }

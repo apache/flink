@@ -44,6 +44,7 @@ import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
+import eu.stratosphere.pact.common.io.DelimitedInputFormat;
 import eu.stratosphere.pact.common.io.FileInputFormat;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.io.SequentialOutputFormat;
@@ -201,7 +202,7 @@ public class TestPlanTest {
 	/**
 	 * Converts a input string (a line) into a PactRecord.
 	 */
-	public static class IntegerInFormat extends TextInputFormat {
+	public static class IntegerInFormat extends DelimitedInputFormat {
 		@Override
 		public boolean reachedEnd() {
 			return super.reachedEnd();

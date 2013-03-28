@@ -36,8 +36,8 @@ import eu.stratosphere.nephele.configuration.Configuration;
  * 
  * @param <IT> The type of the consumed records. 
  */
-public interface OutputFormat<IT>
-{
+public interface OutputFormat<IT> {
+	
 	/**
 	 * Configures this output format. Since output formats are instantiated generically and hence parameterless, 
 	 * this method is the place where the output formats set their basic fields based on configuration values.

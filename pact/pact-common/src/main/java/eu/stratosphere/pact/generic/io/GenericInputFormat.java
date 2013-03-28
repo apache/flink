@@ -23,12 +23,10 @@ import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
 import eu.stratosphere.pact.generic.io.InputFormat;
 
 /**
- * Generic base class for all inputs that are not based on files. 
- *
- * @author Stephan Ewen
+ * Generic base class for all inputs that are not based on files.
  */
-public abstract class GenericInputFormat<OT> implements InputFormat<OT, GenericInputSplit>
-{	
+public abstract class GenericInputFormat<OT> implements InputFormat<OT, GenericInputSplit> {
+	
 	/**
 	 * The partition of this split.
 	 */

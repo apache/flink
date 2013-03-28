@@ -68,8 +68,8 @@ import eu.stratosphere.pact.generic.io.InputFormat;
  *   <li>The input format is closed</li>
  * </ol>
  */
-public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSplit>
-{
+public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSplit> {
+	
 	// -------------------------------------- Constants -------------------------------------------
 	
 	/**
@@ -158,7 +158,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	/**
 	 * Stream opening timeout.
 	 */
-	private long openTimeout;
+	protected long openTimeout;
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -178,8 +178,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	 * @see eu.stratosphere.pact.generic.io.InputFormat#configure(eu.stratosphere.nephele.configuration.Configuration)
 	 */
 	@Override
-	public void configure(Configuration parameters)
-	{
+	public void configure(Configuration parameters) {
 		// get the file path
 		final String filePath = parameters.getString(FILE_PARAMETER_KEY, null);
 		if (filePath == null) {
@@ -220,6 +219,77 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	}
 	
 	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.io.InputFormat#getStatistics()
+	 */
+	@Override
+	public FileBaseStatistics getStatistics(BaseStatistics cachedStats) throws IOException {
+		
+		final FileBaseStatistics cachedFileStats = (cachedStats != null && cachedStats instanceof FileBaseStatistics) ?
+			(FileBaseStatistics) cachedStats : null;
+				
+		try {
+			final Path path = this.filePath;
+			final FileSystem fs = FileSystem.get(path.toUri());
+			
+			return getFileStats(cachedFileStats, path, fs, new ArrayList<FileStatus>(1));
+		} catch (IOException ioex) {
+			if (LOG.isWarnEnabled())
+				LOG.warn("Could not determine statistics for file '" + this.filePath + "' due to an io error: "
+						+ ioex.getMessage());
+		}
+		catch (Throwable t) {
+			if (LOG.isErrorEnabled())
+				LOG.error("Unexpected problen while getting the file statistics for file '" + this.filePath + "': "
+						+ t.getMessage(), t);
+		}
+		
+		// no statistics available
+		return null;
+	}
+	
+	protected FileBaseStatistics getFileStats(FileBaseStatistics cachedStats, Path filePath, FileSystem fs,
+			ArrayList<FileStatus> files) throws IOException {
+		
+		// get the file info and check whether the cached statistics are still valid.
+		final FileStatus file = fs.getFileStatus(filePath);
+		long latestModTime = file.getModificationTime();
+
+		// enumerate all files and check their modification time stamp.
+		if (file.isDir()) {
+			FileStatus[] fss = fs.listStatus(filePath);
+			files.ensureCapacity(fss.length);
+			
+			for (FileStatus s : fss) {
+				if (!s.isDir()) {
+					files.add(s);
+					latestModTime = Math.max(s.getModificationTime(), latestModTime);
+				}
+			}
+		} else {
+			files.add(file);
+		}
+
+		// check whether the cached statistics are still valid, if we have any
+		if (cachedStats != null && latestModTime <= cachedStats.getLastModificationTime()) {
+			return cachedStats;
+		}
+		
+		// calculate the whole length
+		long len = 0;
+		for (FileStatus s : files) {
+			len += s.getLen();
+		}
+
+		// sanity check
+		if (len <= 0) {
+			len = BaseStatistics.SIZE_UNKNOWN;
+		}
+		
+		return new FileBaseStatistics(latestModTime, len, BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
+	}
+
+	
+	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.common.io.InputFormat#getInputSplitType()
 	 */
 	@Override
@@ -237,8 +307,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	 * @see eu.stratosphere.pact.generic.io.InputFormat#createInputSplits(int)
 	 */
 	@Override
-	public FileInputSplit[] createInputSplits(int minNumSplits) throws IOException
-	{
+	public FileInputSplit[] createInputSplits(int minNumSplits) throws IOException {
 		// take the desired number of splits into account
 		minNumSplits = Math.max(minNumSplits, this.numSplits);
 		
@@ -349,8 +418,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	 * @param startIndex The earliest index to look at.
 	 * @return The index of the block containing the given position.
 	 */
-	private final int getBlockIndexForPosition(BlockLocation[] blocks, long offset, long halfSplitSize, int startIndex)
-	{
+	private final int getBlockIndexForPosition(BlockLocation[] blocks, long offset, long halfSplitSize, int startIndex) {
 		// go over all indexes after the startIndex
 		for (int i = startIndex; i < blocks.length; i++) {
 			long blockStart = blocks[i].getOffset();
@@ -381,8 +449,8 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	 * @see eu.stratosphere.pact.generic.io.InputFormat#open(eu.stratosphere.nephele.template.InputSplit)
 	 */
 	@Override
-	public void open(FileInputSplit split) throws IOException
-	{
+	public void open(FileInputSplit split) throws IOException {
+		
 		if (!(split instanceof FileInputSplit)) {
 			throw new IllegalArgumentException("File Input Formats can only be used with FileInputSplits.");
 		}
@@ -416,8 +484,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	 * Closes the file input stream of the input format.
 	 */
 	@Override
-	public void close() throws IOException
-	{
+	public void close() throws IOException {
 		if (this.stream != null) {
 			// close input stream
 			this.stream.close();
@@ -427,8 +494,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	/* (non-Javadoc)
 	 * @see java.lang.Object#toString()
 	 */
-	public String toString()
-	{
+	public String toString() {
 		return this.filePath == null ? 
 			"File Input (unknown file)" :
 			"File Input (" + this.filePath.toString() + ')';
@@ -440,16 +506,14 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	 * Encapsulation of the basic statistics the optimizer obtains about a file. Contained are the size of the file
 	 * and the average bytes of a single record. The statistics also have a time-stamp that records the modification
 	 * time of the file and indicates as such for which time the statistics were valid.
-	 *
-	 * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
 	 */
-	public static class FileBaseStatistics implements BaseStatistics
-	{
-		protected long fileModTime; // timestamp of the last modification
+	public static class FileBaseStatistics implements BaseStatistics {
+		
+		protected final long fileModTime; // timestamp of the last modification
 
-		protected long fileSize; // size of the file(s) in bytes
+		protected final long fileSize; // size of the file(s) in bytes
 
-		protected float avgBytesPerRecord; // the average number of bytes for a record
+		protected final float avgBytesPerRecord; // the average number of bytes for a record
 
 		/**
 		 * Creates a new statistics object.
@@ -475,15 +539,6 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 		public long getLastModificationTime() {
 			return fileModTime;
 		}
-		
-		/**
-		 * Sets the timestamp of the last modification.
-		 *
-		 * @param modificationTime The timestamp of the last modification
-		 */
-		public void setLastModificationTime(long modificationTime) {
-			this.fileModTime = modificationTime;
-		}
 
 		/**
 		 * Gets the file size.
@@ -495,15 +550,6 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 		public long getTotalInputSize() {
 			return this.fileSize;
 		}
-		
-		/**
-		 * Sets the file size to the specified value.
-		 *
-		 * @param fileSize the fileSize to set
-		 */
-		public void setTotalInputSize(long fileSize)  {
-			this.fileSize = fileSize;
-		}
 
 		/**
 		 * Gets the estimates number of records in the file, computed as the file size divided by the
@@ -514,17 +560,8 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 		 */
 		@Override
 		public long getNumberOfRecords() {
-			return (this.fileSize == UNKNOWN || this.avgBytesPerRecord == UNKNOWN) ? UNKNOWN :
-						(long) Math.ceil(this.fileSize / this.avgBytesPerRecord);
-		}
-		
-		/**
-		 * Sets the estimated average number of bytes per record.
-		 *
-		 * @param avgBytesPerRecord the average number of bytes per record
-		 */
-		public void setAverageRecordWidth(float avgBytesPerRecord) {
-			this.avgBytesPerRecord = avgBytesPerRecord;
+			return (this.fileSize == SIZE_UNKNOWN || this.avgBytesPerRecord == AVG_RECORD_BYTES_UNKNOWN) ? 
+				NUM_RECORDS_UNKNOWN : (long) Math.ceil(this.fileSize / this.avgBytesPerRecord);
 		}
 
 		/**
@@ -537,6 +574,14 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 		public float getAverageRecordWidth() {
 			return this.avgBytesPerRecord;
 		}
+		
+		/* (non-Javadoc)
+		 * @see java.lang.Object#toString()
+		 */
+		@Override
+		public String toString() {
+			return "size=" + this.fileSize + ", recWidth=" + this.avgBytesPerRecord + ", modAt=" + this.fileModTime;
+		}
 	}
 	
 	// ============================================================================================
@@ -545,8 +590,8 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	 * Obtains a DataInputStream in an thread that is not interrupted.
 	 * This is a necessary hack around the problem that the HDFS client is very sensitive to InterruptedExceptions.
 	 */
-	public static class InputSplitOpenThread extends Thread
-	{	
+	public static class InputSplitOpenThread extends Thread {
+		
 		private final FileInputSplit split;
 		
 		private final long timeout;
@@ -557,8 +602,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 		
 		private volatile boolean aborted;
 
-		public InputSplitOpenThread(FileInputSplit split, long timeout)
-		{
+		public InputSplitOpenThread(FileInputSplit split, long timeout) {
 			super("Transient InputSplit Opener");
 			setDaemon(true);
 			
@@ -567,8 +611,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 		}
 
 		@Override
-		public void run()
-		{
+		public void run() {
 			try {
 				final FileSystem fs = FileSystem.get(this.split.getPath().toUri());
 				this.fdis = fs.open(this.split.getPath());
@@ -585,8 +628,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 			}
 		}
 		
-		public FSDataInputStream waitForCompletion() throws Throwable
-		{
+		public FSDataInputStream waitForCompletion() throws Throwable {
 			final long start = System.currentTimeMillis();
 			long remaining = this.timeout;
 			
@@ -657,8 +699,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	/**
 	 * Abstract builder used to set parameters to the input format's configuration in a fluent way.
 	 */
-	protected static abstract class AbstractConfigBuilder<T>
-	{
+	protected static abstract class AbstractConfigBuilder<T> {
 		/**
 		 * The configuration into which the parameters will be written.
 		 */

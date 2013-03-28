@@ -17,30 +17,26 @@ package eu.stratosphere.pact.generic.io;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
-import java.net.URI;
 import java.util.ArrayList;
-import java.util.List;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.fs.FSDataInputStream;
+import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.nephele.fs.FileStatus;
 import eu.stratosphere.nephele.fs.FileSystem;
-import eu.stratosphere.nephele.fs.LineReader;
 import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
+import eu.stratosphere.pact.common.util.PactConfigConstants;
 
 /**
- * Base implementation for delimiter based input formats. By default it splits
- * by line breaks. The record generation is done in the readLine function
- * which needs to be implemented for specific formats.
+ * Base implementation for delimiter based input formats.
  */
-public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT>
-{
+public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
+	
 	// -------------------------------------- Constants -------------------------------------------
 	
 	/**
@@ -54,9 +50,48 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT>
 	private static final int DEFAULT_READ_BUFFER_SIZE = 1024 * 1024;
 	
 	/**
-	 * The default number of sample lines to consider when calculating the line width.
+	 * Indication that the number of samples has not been set by the configuration.
 	 */
-	private static final int DEFAULT_NUM_SAMPLES = 10;
+	private static final int NUM_SAMPLES_UNDEFINED = -1;
+	
+	/**
+	 * The maximum number of line samples to be taken.
+	 */
+	private static final int DEFAULT_MAX_NUM_SAMPLES;
+	
+	/**
+	 * The minimum number of line samples to be taken.
+	 */
+	private static final int DEFAULT_MIN_NUM_SAMPLES;
+	
+	static {
+		int maxSamples = GlobalConfiguration.getInteger(PactConfigConstants.DELIMITED_FORMAT_MAX_LINE_SAMPLES_KEY,
+				PactConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_LINE_SAMPLES);
+		int minSamples = GlobalConfiguration.getInteger(PactConfigConstants.DELIMITED_FORMAT_MIN_LINE_SAMPLES_KEY,
+			PactConfigConstants.DEFAULT_DELIMITED_FORMAT_MIN_LINE_SAMPLES);
+		
+		if (maxSamples < 0) {
+			LOG.error("Invalid default maximum number of line samples: " + maxSamples + ". Using default value of " +
+				PactConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_LINE_SAMPLES);
+			maxSamples = PactConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_LINE_SAMPLES;
+		}
+		if (minSamples < 0) {
+			LOG.error("Invalid default minimum number of line samples: " + minSamples + ". Using default value of " +
+				PactConfigConstants.DEFAULT_DELIMITED_FORMAT_MIN_LINE_SAMPLES);
+			minSamples = PactConfigConstants.DEFAULT_DELIMITED_FORMAT_MIN_LINE_SAMPLES;
+		}
+		
+		DEFAULT_MAX_NUM_SAMPLES = maxSamples;
+		
+		if (minSamples > maxSamples) {
+			LOG.error("Defaul minimum number of line samples cannot be greater the default maximum number " +
+					"of line samples: min=" + minSamples + ", max=" + maxSamples + ". Defaulting minumum to maximum.");
+			DEFAULT_MIN_NUM_SAMPLES = maxSamples;
+		} else {
+			DEFAULT_MIN_NUM_SAMPLES = minSamples;
+		}
+	}
+	
 	
 	// ------------------------------------- Config Keys ------------------------------------------
 	
@@ -97,7 +132,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT>
 	
 	protected int bufferSize = -1;
 	
-	protected int numLineSamples;										// the number of lines to sample for statistics
+	protected int numLineSamples;
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -119,8 +154,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT>
 	 * 
 	 * @return The delimiter, as bytes.
 	 */
-	public byte[] getDelimiter()
-	{
+	public byte[] getDelimiter() {
 		return this.delimiter;
 	}
 	
@@ -130,8 +164,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT>
 	 * 
 	 * @param bufferSize The buffer size to use.
 	 */
-	public void setBufferSize(int bufferSize)
-	{
+	public void setBufferSize(int bufferSize) {
 		this.bufferSize = bufferSize;
 	}
 	
@@ -140,8 +173,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT>
 	 * 
 	 * @return The size of the parsing buffer.
 	 */
-	public int getBufferSize()
-	{
+	public int getBufferSize() {
 		return this.readBuffer == null ? 0: this.readBuffer.length;
 	}
 	
@@ -154,8 +186,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT>
 	 * @param parameters The configuration object to read the parameters from.
 	 */
 	@Override
-	public void configure(Configuration parameters)
-	{
+	public void configure(Configuration parameters) {
 		super.configure(parameters);
 		
 		final String delimString = parameters.getString(RECORD_DELIMITER, AbstractConfigBuilder.NEWLINE_DELIMITER);
@@ -172,22 +203,22 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT>
 		}
 		
 		// set the number of samples
-		this.numLineSamples = DEFAULT_NUM_SAMPLES;
+		this.numLineSamples = NUM_SAMPLES_UNDEFINED;
 		final String samplesString = parameters.getString(NUM_STATISTICS_SAMPLES, null);
-		
 		if (samplesString != null) {
 			try {
 				this.numLineSamples = Integer.parseInt(samplesString);
+				if (this.numLineSamples < 0) {
+					throw new NumberFormatException();
+				}
 			}
 			catch (NumberFormatException nfex) {
 				if (LOG.isWarnEnabled())
-					LOG.warn("Invalid value for number of samples to take: " + samplesString +
-							". Using default value of " + DEFAULT_NUM_SAMPLES);
+					LOG.warn("Invalid value for number of samples to take: " + samplesString + ". Skipping sampling.");
+				this.numLineSamples = 0;
 			}
 		}
 	}
-	
-	
 	
 	// --------------------------------------------------------------------------------------------
 
@@ -195,150 +226,104 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT>
 	 * @see eu.stratosphere.pact.common.io.InputFormat#getStatistics()
 	 */
 	@Override
-	public FileBaseStatistics getStatistics(BaseStatistics cachedStatistics)
-	{
-		// check the cache
-		FileBaseStatistics stats = null;
+	public FileBaseStatistics getStatistics(BaseStatistics cachedStats) throws IOException {
 		
-		if (cachedStatistics != null && cachedStatistics instanceof FileBaseStatistics) {
-			stats = (FileBaseStatistics) cachedStatistics;
-		}
-		else {
-			stats = new FileBaseStatistics(-1, BaseStatistics.UNKNOWN, BaseStatistics.UNKNOWN);
-		}
+		final FileBaseStatistics cachedFileStats = (cachedStats != null && cachedStats instanceof FileBaseStatistics) ?
+				(FileBaseStatistics) cachedStats : null;
 		
-
 		try {
-			final Path file = this.filePath;
-			final URI uri = file.toUri();
-
+			final Path filePath = this.filePath;
+		
 			// get the filesystem
-			final FileSystem fs = FileSystem.get(uri);
-			List<FileStatus> files = null;
-
-			// get the file info and check whether the cached statistics are still
-			// valid.
-			{
-				FileStatus status = fs.getFileStatus(file);
-
-				if (status.isDir()) {
-					FileStatus[] fss = fs.listStatus(file);
-					files = new ArrayList<FileStatus>(fss.length);
-					boolean unmodified = true;
-
-					for (FileStatus s : fss) {
-						if (!s.isDir()) {
-							files.add(s);
-							if (s.getModificationTime() > stats.getLastModificationTime()) {
-								stats.setLastModificationTime(s.getModificationTime());
-								unmodified = false;
-							}
-						}
-					}
-
-					if (unmodified) {
-						return stats;
-					}
-				}
-				else {
-					// check if the statistics are up to date
-					long modTime = status.getModificationTime();	
-					if (stats.getLastModificationTime() == modTime) {
-						return stats;
-					}
-
-					stats.setLastModificationTime(modTime);
-					
-					files = new ArrayList<FileStatus>(1);
-					files.add(status);
-				}
-			}
-
-			stats.setAverageRecordWidth(-1.0f);
+			final FileSystem fs = FileSystem.get(filePath.toUri());
+			final ArrayList<FileStatus> allFiles = new ArrayList<FileStatus>(1);
 			
-			// calculate the whole length
-			long len = 0;
-			for (FileStatus s : files) {
-				len += s.getLen();
+			// let the file input format deal with the up-to-date check and the basic size
+			final FileBaseStatistics stats = getFileStats(cachedFileStats, filePath, fs, allFiles);
+			if (stats == null) {
+				return null;
 			}
-			stats.setTotalInputSize(len);
 			
-			// sanity check
-			if (stats.getTotalInputSize() <= 0) {
-				stats.setTotalInputSize(BaseStatistics.UNKNOWN);
+			// check whether the width per record is already known or the total size is unknown as well
+			// in both cases, we return the stats as they are
+			if (stats.getAverageRecordWidth() != FileBaseStatistics.AVG_RECORD_BYTES_UNKNOWN ||
+					stats.getTotalInputSize() == FileBaseStatistics.SIZE_UNKNOWN) {
 				return stats;
 			}
 			
-
-			// currently, the sampling only works on line separated data
-			final byte[] delimiter = getDelimiter();
-			if (! ((delimiter.length == 1 && delimiter[0] == '\n') ||
-				   (delimiter.length == 2 && delimiter[0] == '\r' && delimiter[1] == '\n')) )
-			{
+			// compute how many samples to take, depending on the defined upper and lower bound
+			final int numSamples;
+			if (this.numLineSamples != NUM_SAMPLES_UNDEFINED) {
+				numSamples = this.numLineSamples;
+			} else {
+				// make the samples small for very small files
+				final int calcSamples = (int) (stats.getTotalInputSize() / 1024);
+				numSamples = Math.min(DEFAULT_MAX_NUM_SAMPLES, Math.max(DEFAULT_MIN_NUM_SAMPLES, calcSamples));
+			}
+			
+			// check if sampling is disabled.
+			if (numSamples == 0) {
 				return stats;
 			}
-						
-			// make the samples small for very small files
-			int numSamples = Math.min(this.numLineSamples, (int) (stats.getTotalInputSize() / 1024));
-			if (numSamples < 2) {
-				numSamples = 2;
+			if (numSamples < 0) {
+				throw new RuntimeException("Error: Invalid number of samples: " + numSamples);
 			}
+			
+			
+			final int delimiterLength = getDelimiter().length;
+			
+			// set a small read buffer size
+			this.bufferSize = 1024;
 
 			long offset = 0;
-			long bytes = 0; // one byte for the line-break
+			long totalNumBytes = 0;
 			long stepSize = stats.getTotalInputSize() / numSamples;
 
 			int fileNum = 0;
 			int samplesTaken = 0;
 
 			// take the samples
-			for (int sampleNum = 0; sampleNum < numSamples && fileNum < files.size(); sampleNum++) {
-				FileStatus currentFile = files.get(fileNum);
-				FSDataInputStream inStream = null;
+			for (int sampleNum = 0; sampleNum < numSamples && fileNum < allFiles.size(); sampleNum++) {
+				// make a split for the sample and use it to read a record
+				FileStatus file = allFiles.get(fileNum);
+				FileInputSplit split = new FileInputSplit(sampleNum, file.getPath(), offset, file.getLen() - offset, null);
 
+				// we open the split, read one line, and take its length
 				try {
-					inStream = fs.open(currentFile.getPath());
-					LineReader lineReader = new LineReader(inStream, offset, currentFile.getLen() - offset, 1024);
-					byte[] line = lineReader.readLine();
-					lineReader.close();
-
-					if (line != null && line.length > 0) {
-						samplesTaken++;
-						bytes += line.length + 1; // one for the linebreak
-					}
-				}
-				finally {
-					// make a best effort to close
-					if (inStream != null) {
-						try {
-							inStream.close();
-						} catch (Throwable t) {}
-					}
+					open(split);
+					readLine();
+					totalNumBytes += this.currLen + delimiterLength;
+				} finally {
+					// close the file stream, do not release the buffers
+					super.close();
 				}
 
 				offset += stepSize;
 
 				// skip to the next file, if necessary
-				while (fileNum < files.size() && offset >= (currentFile = files.get(fileNum)).getLen()) {
-					offset -= currentFile.getLen();
+				while (fileNum < allFiles.size() && offset >= (file = allFiles.get(fileNum)).getLen()) {
+					offset -= file.getLen();
 					fileNum++;
 				}
 			}
-
-			stats.setAverageRecordWidth(bytes / (float) samplesTaken);
-		}
-		catch (IOException ioex) {
+			
+			// we have the width, store it
+			return new FileBaseStatistics(stats.getLastModificationTime(),
+				stats.getTotalInputSize(), totalNumBytes / (float) samplesTaken);
+			
+		} catch (IOException ioex) {
 			if (LOG.isWarnEnabled())
-				LOG.warn("Could not determine complete statistics for file '" + filePath + "' due to an io error: "
+				LOG.warn("Could not determine statistics for file '" + this.filePath + "' due to an io error: "
 						+ ioex.getMessage());
 		}
 		catch (Throwable t) {
 			if (LOG.isErrorEnabled())
-				LOG.error("Unexpected problen while getting the file statistics for file '" + filePath + "': "
+				LOG.error("Unexpected problen while getting the file statistics for file '" + this.filePath + "': "
 						+ t.getMessage(), t);
 		}
-
-		return stats;
+		
+		// no statistics possible
+		return null;
 	}
 
 	/**
@@ -350,13 +335,17 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT>
 	 * @see eu.stratosphere.pact.common.io.FileInputFormat#open(eu.stratosphere.nephele.fs.FileInputSplit)
 	 */
 	@Override
-	public void open(FileInputSplit split) throws IOException
-	{
+	public void open(FileInputSplit split) throws IOException {
 		super.open(split);
 		
 		this.bufferSize = this.bufferSize <= 0 ? DEFAULT_READ_BUFFER_SIZE : this.bufferSize;
-		this.readBuffer = new byte[this.bufferSize];
-		this.wrapBuffer = new byte[256];
+		
+		if (this.readBuffer == null || this.readBuffer.length != this.bufferSize) {
+			this.readBuffer = new byte[this.bufferSize];
+		}
+		if (this.wrapBuffer == null || this.wrapBuffer.length < 256) {
+			this.wrapBuffer = new byte[256];
+		}
 
 		this.readPos = 0;
 		this.overLimit = false;
@@ -371,8 +360,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT>
 			if (this.overLimit) {
 				this.end = true;
 			}
-		}
-		else {
+		} else {
 			fillBuffer();
 		}
 	}
@@ -383,8 +371,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT>
 	 * @return True, if the split is at its end, false otherwise.
 	 */
 	@Override
-	public boolean reachedEnd()
-	{
+	public boolean reachedEnd() {
 		return this.end;
 	}
 	
@@ -392,8 +379,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT>
 	 * @see eu.stratosphere.pact.common.generic.io.InputFormat#nextRecord(java.lang.Object)
 	 */
 	@Override
-	public boolean nextRecord(OT record) throws IOException
-	{
+	public boolean nextRecord(OT record) throws IOException {
 		if (readLine()) {
 			return readRecord(record, this.currBuffer, this.currOffset, this.currLen);
 		} else {
@@ -408,8 +394,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT>
 	 * @throws IOException Thrown, if the closing of the file stream causes an I/O error.
 	 */
 	@Override
-	public void close() throws IOException
-	{
+	public void close() throws IOException {
 		this.wrapBuffer = null;
 		this.readBuffer = null;
 		
@@ -418,8 +403,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT>
 
 	// --------------------------------------------------------------------------------------------
 
-	private boolean readLine() throws IOException
-	{
+	private boolean readLine() throws IOException {
 		if (this.stream == null || this.overLimit) {
 			return false;
 		}
@@ -534,8 +518,8 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT>
 	/**
 	 * Abstract builder used to set parameters to the input format's configuration in a fluent way.
 	 */
-	protected static class AbstractConfigBuilder<T> extends FileInputFormat.AbstractConfigBuilder<T>
-	{
+	protected static class AbstractConfigBuilder<T> extends FileInputFormat.AbstractConfigBuilder<T> {
+		
 		private static final String NEWLINE_DELIMITER = "\n";
 		
 		// --------------------------------------------------------------------
@@ -619,8 +603,8 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT>
 	/**
 	 * A builder used to set parameters to the input format's configuration in a fluent way.
 	 */
-	public static class ConfigBuilder extends AbstractConfigBuilder<ConfigBuilder>
-	{
+	public static class ConfigBuilder extends AbstractConfigBuilder<ConfigBuilder> {
+		
 		/**
 		 * Creates a new builder for the given configuration.
 		 * 
@@ -629,6 +613,5 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT>
 		protected ConfigBuilder(Configuration targetConfig) {
 			super(targetConfig);
 		}
-		
 	}
 }

@@ -17,15 +17,23 @@ package eu.stratosphere.pact.common.io.statistics;
 
 /**
  * Interface describing the basic statistics that can be obtained from the input.
- *
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
-public interface BaseStatistics
-{
+public interface BaseStatistics {
+	
 	/**
-	 * A constant indicating a value is unknown.
+	 * Constant indicating that the input size is unknown.
 	 */
-	public static final int UNKNOWN = -1;
+	public static final long SIZE_UNKNOWN = -1;
+	
+	/**
+	 * Constant indicating that the number of records is unknown;
+	 */
+	public static final long NUM_RECORDS_UNKNOWN = -1;
+	
+	/**
+	 * Constant indicating that average record width is unknown.
+	 */
+	public static final float AVG_RECORD_BYTES_UNKNOWN = -1.0f;
 	
 	// --------------------------------------------------------------------------------------------
 	

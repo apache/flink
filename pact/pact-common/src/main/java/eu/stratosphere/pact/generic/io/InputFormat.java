@@ -52,18 +52,10 @@ import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
  * @see InputSplit
  * @see BaseStatistics
  * 
- * @author Stephan Ewen
- * 
  * @param <OT> The type of the produced records.
  * @param <T> The type of input split.
  */
-public interface InputFormat<OT, T extends InputSplit>
-{
-	/**
-	 * The key by which the identifier to retrieve cached statistics can be obtained. 
-	 */
-	public static final String STATISTICS_CACHE_KEY = "input.statistics.cache";
-	
+public interface InputFormat<OT, T extends InputSplit> {
 	
 	/**
 	 * Configures this input format. Since input formats are instantiated generically and hence parameterless, 
@@ -86,7 +78,7 @@ public interface InputFormat<OT, T extends InputSplit>
 	 * @param cachedStatistics The statistics that were cached. May be null.
 	 * @return The base statistics for the input, or null, if not available.
 	 */
-	public BaseStatistics getStatistics(BaseStatistics cachedStatistics);
+	public BaseStatistics getStatistics(BaseStatistics cachedStatistics) throws IOException;
 	
 	/**
 	 * Creates the different splits of the input that can be processed in parallel.
@@ -154,5 +146,4 @@ public interface InputFormat<OT, T extends InputSplit>
 	 * @throws IOException Thrown, if the input could not be closed properly.
 	 */
 	public void close() throws IOException;
-	
 }
