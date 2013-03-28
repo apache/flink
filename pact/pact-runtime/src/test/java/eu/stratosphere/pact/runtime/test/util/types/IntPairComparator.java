@@ -22,7 +22,7 @@ import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
 import eu.stratosphere.pact.generic.types.TypeComparator;
 
 
-public class IntPairComparator implements TypeComparator<IntPair>
+public class IntPairComparator extends TypeComparator<IntPair>
 {
 	private int reference;
 	

@@ -24,7 +24,7 @@ import eu.stratosphere.pact.generic.types.TypeSerializer;
 /**
  *
  */
-public final class VertexWithRankSerializer implements TypeSerializer<VertexWithRank> {
+public final class VertexWithRankSerializer extends TypeSerializer<VertexWithRank> {
 
 	@Override
 	public VertexWithRank createInstance() {

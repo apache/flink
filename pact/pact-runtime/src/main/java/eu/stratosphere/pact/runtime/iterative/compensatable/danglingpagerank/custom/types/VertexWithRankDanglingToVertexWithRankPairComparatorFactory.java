@@ -42,7 +42,7 @@ public class VertexWithRankDanglingToVertexWithRankPairComparatorFactory
 	
 
 	public static final class VertexWithRankDanglingToVertexWithRankComparator
-		implements TypePairComparator<VertexWithRankAndDangling, VertexWithRank>
+		extends TypePairComparator<VertexWithRankAndDangling, VertexWithRank>
 	{
 		private long reference;
 		
@@ -64,7 +64,7 @@ public class VertexWithRankDanglingToVertexWithRankPairComparatorFactory
 	}
 	
 	public static final class VertexWithRankToVertexWithRankDanglingPairComparator
-		implements TypePairComparator<VertexWithRank, VertexWithRankAndDangling>
+		extends TypePairComparator<VertexWithRank, VertexWithRankAndDangling>
 	{
 		private long reference;
 		

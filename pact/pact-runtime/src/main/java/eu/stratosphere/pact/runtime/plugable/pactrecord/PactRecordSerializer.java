@@ -26,7 +26,7 @@ import eu.stratosphere.pact.generic.types.TypeSerializer;
 /**
  * Implementation of the (de)serialization and copying logic for the {@link PactRecord}.
  */
-public final class PactRecordSerializer implements TypeSerializer<PactRecord>
+public final class PactRecordSerializer extends TypeSerializer<PactRecord>
 {
 	private static final PactRecordSerializer INSTANCE = new PactRecordSerializer(); // singleton instance
 	

@@ -25,7 +25,7 @@ import eu.stratosphere.pact.generic.types.TypeSerializer;
 /**
  * @author Stephan Ewen
  */
-public class PactIntegerSerializer implements TypeSerializer<PactInteger> {
+public class PactIntegerSerializer extends TypeSerializer<PactInteger> {
 
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.runtime.plugable.TypeSerializer#createInstance()

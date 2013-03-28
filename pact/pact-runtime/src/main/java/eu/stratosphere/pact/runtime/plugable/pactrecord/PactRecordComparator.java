@@ -32,7 +32,7 @@ import eu.stratosphere.pact.generic.types.TypeComparator;
  * Implementation of the {@link TypeComparator} interface for the pact record. Instances of this class
  * are parameterized with which fields are relevant to the comparison. 
  */
-public final class PactRecordComparator implements TypeComparator<PactRecord>
+public final class PactRecordComparator extends TypeComparator<PactRecord>
 {	
 	private final int[] keyFields;
 	

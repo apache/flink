@@ -24,7 +24,7 @@ import eu.stratosphere.pact.generic.types.TypeSerializer;
 /**
  *
  */
-public final class VertexWithAdjacencyListSerializer implements TypeSerializer<VertexWithAdjacencyList> {
+public final class VertexWithAdjacencyListSerializer extends TypeSerializer<VertexWithAdjacencyList> {
 
 	@Override
 	public VertexWithAdjacencyList createInstance() {

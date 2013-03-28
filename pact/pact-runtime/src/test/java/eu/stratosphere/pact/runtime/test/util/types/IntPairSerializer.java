@@ -22,7 +22,7 @@ import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
 import eu.stratosphere.pact.generic.types.TypeSerializer;
 
 
-public class IntPairSerializer implements TypeSerializer<IntPair>
+public class IntPairSerializer extends TypeSerializer<IntPair>
 {	
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#createInstance()

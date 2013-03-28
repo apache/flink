@@ -23,7 +23,7 @@ import eu.stratosphere.pact.generic.types.TypeComparator;
 /**
  *
  */
-public final class VertexWithRankAndDanglingComparator implements TypeComparator<VertexWithRankAndDangling> {
+public final class VertexWithRankAndDanglingComparator extends TypeComparator<VertexWithRankAndDangling> {
 
 	private long reference;
 	

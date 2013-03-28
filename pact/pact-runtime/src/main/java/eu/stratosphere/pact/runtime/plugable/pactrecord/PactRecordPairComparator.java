@@ -26,7 +26,7 @@ import eu.stratosphere.pact.generic.types.TypePairComparator;
  * Implementation of the {@link TypePairComparator} interface for Pact Records. The equality is established on a set of
  * key fields. The indices of the key fields may be different on the reference and candidate side.
  */
-public class PactRecordPairComparator implements TypePairComparator<PactRecord, PactRecord>
+public class PactRecordPairComparator extends TypePairComparator<PactRecord, PactRecord>
 {
 	private final int[] keyFields1, keyFields2;			// arrays with the positions of the keys in the records
 	

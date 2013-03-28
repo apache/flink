@@ -718,7 +718,7 @@ public class HashMatchIteratorITCase
 		}
 	}
 	
-	private static final class IntPairRecordPairComparator implements TypePairComparator<IntPair, PactRecord>
+	private static final class IntPairRecordPairComparator extends TypePairComparator<IntPair, PactRecord>
 	{
 		private int reference;
 		
@@ -748,7 +748,7 @@ public class HashMatchIteratorITCase
 		}
 	}
 	
-	private static final class RecordIntPairPairComparator implements TypePairComparator<PactRecord, IntPair>
+	private static final class RecordIntPairPairComparator extends TypePairComparator<PactRecord, IntPair>
 	{
 		private int reference;
 		

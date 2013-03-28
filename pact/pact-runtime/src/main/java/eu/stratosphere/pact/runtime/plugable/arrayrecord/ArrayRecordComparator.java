@@ -33,7 +33,7 @@ import eu.stratosphere.pact.generic.types.TypeComparator;
  * Implementation of the {@link TypeComparator} interface for the pact record. Instances of this class
  * are parameterized with which fields are relevant to the comparison. 
  */
-public final class ArrayRecordComparator implements TypeComparator<Value[]> {
+public final class ArrayRecordComparator extends TypeComparator<Value[]> {
 	
 	private final ArrayRecordSerializer serializer;
 	

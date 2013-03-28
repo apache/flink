@@ -21,7 +21,7 @@ import eu.stratosphere.pact.generic.types.TypePairComparator;
 /**
  * @author Stephan Ewen
  */
-public class IntPairPairComparator implements TypePairComparator<IntPair, IntPair>
+public class IntPairPairComparator extends TypePairComparator<IntPair, IntPair>
 {
 	private int key;
 	

@@ -1466,7 +1466,7 @@ public class HashTableITCase
 	
 	// ============================================================================================
 	
-	private static final class PactRecordPairComparatorFirstInt implements TypePairComparator<PactRecord, PactRecord>
+	private static final class PactRecordPairComparatorFirstInt extends TypePairComparator<PactRecord, PactRecord>
 	{
 		private int key;
 

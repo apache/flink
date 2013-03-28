@@ -24,7 +24,7 @@ import eu.stratosphere.pact.generic.types.TypeComparator;
 /**
  *
  */
-public final class VertexWithRankComparator implements TypeComparator<VertexWithRank> {
+public final class VertexWithRankComparator extends TypeComparator<VertexWithRank> {
 
 	private long reference;
 	

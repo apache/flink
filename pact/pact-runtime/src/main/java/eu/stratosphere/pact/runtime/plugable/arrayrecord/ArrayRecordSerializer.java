@@ -28,7 +28,7 @@ import eu.stratosphere.pact.generic.types.TypeSerializer;
 /**
  * Implementation of the (de)serialization and copying logic for the {@link PactRecord}.
  */
-public final class ArrayRecordSerializer implements TypeSerializer<Value[]>
+public final class ArrayRecordSerializer extends TypeSerializer<Value[]>
 {
 	private final Class<? extends CopyableValue<Value>>[] types;
 	
