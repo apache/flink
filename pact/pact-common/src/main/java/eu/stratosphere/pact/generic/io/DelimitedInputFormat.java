@@ -103,12 +103,12 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 	/**
 	 * The configuration key to set the record delimiter encoding.
 	 */
-	private static final String RECORD_DELIMITER_ENCODING = "delimited-format.delimiter-encoding";
+	public static final String RECORD_DELIMITER_ENCODING = "delimited-format.delimiter-encoding";
 	
 	/**
 	 * The configuration key to set the number of samples to take for the statistics.
 	 */
-	private static final String NUM_STATISTICS_SAMPLES = "delimited-format.numSamples";
+	public static final String NUM_STATISTICS_SAMPLES = "delimited-format.numSamples";
 	
 	// --------------------------------------------------------------------------------------------
 	

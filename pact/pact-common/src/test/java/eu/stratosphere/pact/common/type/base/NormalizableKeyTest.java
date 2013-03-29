@@ -82,7 +82,7 @@ public class NormalizableKeyTest {
 		PactString string4 = new PactString("Ünlaut ßtring µ avec é y ¢");
 		
 		for (int length = 5; length <= 15; length+=10) {
-			assertNormalizableKey(string0, string1, length);			
+			assertNormalizableKey(string0, string1, length);
 			assertNormalizableKey(string0, string2, length);
 			assertNormalizableKey(string0, string3, length);
 			assertNormalizableKey(string0, string4, length);
@@ -121,7 +121,6 @@ public class NormalizableKeyTest {
 			Assert.fail("Normalized key was not able to distinguish keys, " +
 					"although it should as the length of it sufficies to uniquely identify them");
 		}
-		
 	}
 
 }

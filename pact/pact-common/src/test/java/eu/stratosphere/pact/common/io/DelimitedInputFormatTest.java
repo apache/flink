@@ -92,8 +92,7 @@ public class DelimitedInputFormatTest
 	}
 
 	@Test
-	public void testOpen() throws IOException
-	{
+	public void testOpen() throws IOException {
 		final String myString = "my mocked line 1\nmy mocked line 2\n";
 		final FileInputSplit split = createTempFile(myString);	
 		
@@ -106,8 +105,7 @@ public class DelimitedInputFormatTest
 	}
 
 	@Test
-	public void testRead() throws IOException
-	{
+	public void testRead() throws IOException {
 		final String myString = "my key|my val$$$my key2\n$$ctd.$$|my value2";
 		final FileInputSplit split = createTempFile(myString);
 		
@@ -133,8 +131,7 @@ public class DelimitedInputFormatTest
 	}
 	
 	@Test
-	public void testRead2() throws IOException
-	{
+	public void testRead2() throws IOException {
 		// 2. test case
 		final String myString = "my key|my val$$$my key2\n$$ctd.$$|my value2";
 		final FileInputSplit split = createTempFile(myString);
@@ -161,8 +158,7 @@ public class DelimitedInputFormatTest
 		assertTrue(format.reachedEnd());
 	}
 	
-	private FileInputSplit createTempFile(String contents) throws IOException
-	{
+	private FileInputSplit createTempFile(String contents) throws IOException {
 		this.tempFile = File.createTempFile("test_contents", "tmp");
 		OutputStreamWriter wrt = new OutputStreamWriter(new FileOutputStream(this.tempFile));
 		wrt.write(contents);
@@ -171,8 +167,8 @@ public class DelimitedInputFormatTest
 		return new FileInputSplit(0, new Path("file://" + this.tempFile.getAbsolutePath()), 0, this.tempFile.length(), new String[] {"localhost"});
 	}
 	
-	private final class MyTextInputFormat extends DelimitedInputFormat
-	{
+	protected static final class MyTextInputFormat extends DelimitedInputFormat {
+		
 		private final PactString str1 = new PactString();
 		private final PactString str2 = new PactString();
 		
@@ -180,8 +176,7 @@ public class DelimitedInputFormatTest
 		 * @see eu.stratosphere.pact.common.io.DelimitedInputFormat#readRecord(eu.stratosphere.pact.common.type.PactRecord, byte[], int)
 		 */
 		@Override
-		public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes)
-		{
+		public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes) {
 			String theRecord = new String(bytes, offset, numBytes);
 			
 			str1.setValue(theRecord.substring(0, theRecord.indexOf('|')));

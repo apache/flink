@@ -12,11 +12,13 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.pact.common.io;
+package eu.stratosphere.pact.common.testutils;
 
 import java.io.BufferedOutputStream;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.configuration.Configuration;
@@ -36,7 +38,7 @@ public class TestFileUtils {
 	public static Configuration getConfigForFile(long bytes) throws IOException {
 		final String filePath = createTempFile(bytes);
 		final Configuration config = new Configuration();
-		config.setString(FileInputFormat.FILE_PARAMETER_KEY, filePath);
+		config.setString(FileInputFormat.FILE_PARAMETER_KEY, "file://" + filePath);
 		return config;
 	}
 
@@ -52,8 +54,20 @@ public class TestFileUtils {
 		} finally {
 			out.close();
 		}
+		return f.getAbsolutePath();
+	}
+	
+	public static String createTempFile(String contents) throws IOException {
+		File f = File.createTempFile(FILE_PREFIX, FILE_SUFFIX);
+		f.deleteOnExit();
 		
-		return "file://" + f.getAbsolutePath();
+		BufferedWriter out = new BufferedWriter(new FileWriter(f));
+		try { 
+			out.write(contents);
+		} finally {
+			out.close();
+		}
+		return f.getAbsolutePath();
 	}
 	
 	// ------------------------------------------------------------------------
@@ -61,12 +75,11 @@ public class TestFileUtils {
 	public static Configuration getConfigForDir(long ... bytes) throws IOException {
 		final String filePath = createTempFileDir(bytes);
 		final Configuration config = new Configuration();
-		config.setString(FileInputFormat.FILE_PARAMETER_KEY, filePath);
+		config.setString(FileInputFormat.FILE_PARAMETER_KEY, "file://" + filePath);
 		return config;
 	}
 
 	public static String createTempFileDir(long ... bytes) throws IOException {
-		
 		File tempDir = new File(System.getProperty("java.io.tmpdir"));
 		File f = null;
 		do {
@@ -88,8 +101,30 @@ public class TestFileUtils {
 				out.close();
 			}
 		}
+		return f.getAbsolutePath();
+	}
+	
+	public static String createTempFileDir(String ... contents) throws IOException {
+		File tempDir = new File(System.getProperty("java.io.tmpdir"));
+		File f = null;
+		do {
+			f = new File(tempDir, randomFileName());
+		} while (f.exists());
+		f.mkdirs();
+		f.deleteOnExit();
 		
-		return "file://" + f.getAbsolutePath();
+		for (String s : contents) {
+			File child = new File(f, randomFileName());
+			child.deleteOnExit();
+		
+			BufferedWriter out = new BufferedWriter(new FileWriter(child));
+			try { 
+				out.write(s);
+			} finally {
+				out.close();
+			}
+		}
+		return f.getAbsolutePath();
 	}
 	
 	public static String randomFileName() {
@@ -99,5 +134,4 @@ public class TestFileUtils {
 	// ------------------------------------------------------------------------
 	
 	private TestFileUtils() {}
-
 }

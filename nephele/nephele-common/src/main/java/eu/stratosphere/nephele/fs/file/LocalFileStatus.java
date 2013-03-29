@@ -32,12 +32,12 @@ public class LocalFileStatus implements FileStatus {
 	/**
 	 * The file this file status belongs to.
 	 */
-	private File file = null;
+	private final File file;
 
 	/**
 	 * The path of this file this file status belongs to.
 	 */
-	private Path path = null;
+	private final Path path;
 
 	/**
 	 * Creates a <code>LocalFileStatus</code> object from a given {@link File} object.
@@ -57,7 +57,6 @@ public class LocalFileStatus implements FileStatus {
 	 */
 	@Override
 	public long getAccessTime() {
-
 		return 0; // We don't have access files for local files
 	}
 
@@ -66,7 +65,6 @@ public class LocalFileStatus implements FileStatus {
 	 */
 	@Override
 	public long getBlockSize() {
-
 		return this.file.length();
 	}
 
@@ -75,7 +73,6 @@ public class LocalFileStatus implements FileStatus {
 	 */
 	@Override
 	public long getLen() {
-
 		return this.file.length();
 	}
 
@@ -84,7 +81,6 @@ public class LocalFileStatus implements FileStatus {
 	 */
 	@Override
 	public long getModificationTime() {
-
 		return this.file.lastModified();
 	}
 
@@ -93,7 +89,6 @@ public class LocalFileStatus implements FileStatus {
 	 */
 	@Override
 	public short getReplication() {
-
 		return 1; // For local files replication is always 1
 	}
 
@@ -102,7 +97,6 @@ public class LocalFileStatus implements FileStatus {
 	 */
 	@Override
 	public boolean isDir() {
-
 		return this.file.isDirectory();
 	}
 
@@ -111,7 +105,10 @@ public class LocalFileStatus implements FileStatus {
 	 */
 	@Override
 	public Path getPath() {
-
 		return this.path;
+	}
+	
+	public File getFile() {
+		return this.file;
 	}
 }

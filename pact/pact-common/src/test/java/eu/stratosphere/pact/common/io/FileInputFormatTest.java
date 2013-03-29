@@ -22,6 +22,7 @@ import org.junit.Test;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
+import eu.stratosphere.pact.common.testutils.TestFileUtils;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.generic.io.FileInputFormat;
 import eu.stratosphere.pact.generic.io.FileInputFormat.FileBaseStatistics;
