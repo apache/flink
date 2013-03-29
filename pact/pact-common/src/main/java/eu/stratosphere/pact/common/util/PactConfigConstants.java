@@ -60,6 +60,11 @@ public final class PactConfigConstants {
 	 * other value is specified for the data source.
 	 */
 	public static final String DELIMITED_FORMAT_MIN_LINE_SAMPLES_KEY = "pact.delimited-informat.min-line-samples";
+
+	/**
+	 * The key for the maximum length of a single sampled record before the sampling is aborted.
+	 */
+	public static final String DELIMITED_FORMAT_MAX_SAMPLE_LENGTH_KEY = "pact.delimited-informat.max-sample-len";
 	
 	// ------------------------------- Runtime --------------------------------
 	
@@ -162,6 +167,11 @@ public final class PactConfigConstants {
 	 * The default minimum number of line samples taken by the delimited input format.
 	 */
 	public static final int DEFAULT_DELIMITED_FORMAT_MIN_LINE_SAMPLES = 2;
+	
+	/**
+	 * The default maximum sample length before sampling is aborted (2 MiBytes).
+	 */
+	public static final int DEFAULT_DELIMITED_FORMAT_MAX_SAMPLE_LEN = 2 * 1024 * 1024;
 
 	// ------------------------------- Runtime --------------------------------
 	

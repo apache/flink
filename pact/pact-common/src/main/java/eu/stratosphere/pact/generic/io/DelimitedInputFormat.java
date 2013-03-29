@@ -64,6 +64,11 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 	 */
 	private static final int DEFAULT_MIN_NUM_SAMPLES;
 	
+	/**
+	 * The maximum size of a sample record before sampling is aborted. To catch cases where a wrong delimiter is given.
+	 */
+	private static final int MAX_SAMPLE_LEN;
+	
 	static {
 		int maxSamples = GlobalConfiguration.getInteger(PactConfigConstants.DELIMITED_FORMAT_MAX_LINE_SAMPLES_KEY,
 				PactConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_LINE_SAMPLES);
@@ -90,8 +95,18 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 		} else {
 			DEFAULT_MIN_NUM_SAMPLES = minSamples;
 		}
+		
+		int maxLen = GlobalConfiguration.getInteger(PactConfigConstants.DELIMITED_FORMAT_MAX_SAMPLE_LENGTH_KEY,
+				PactConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_SAMPLE_LEN);
+		if (maxLen <= 0) {
+			maxLen = PactConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_SAMPLE_LEN;
+			LOG.error("Invalid value for the maximum sample record length. Using defailt value of " + maxLen + '.');
+		} else if (maxLen < DEFAULT_READ_BUFFER_SIZE) {
+			maxLen = DEFAULT_READ_BUFFER_SIZE;
+			LOG.warn("Increasing maximum sample record length to size of the read buffer (" + maxLen + ").");
+		}
+		MAX_SAMPLE_LEN = maxLen;
 	}
-	
 	
 	// ------------------------------------- Config Keys ------------------------------------------
 	
@@ -125,6 +140,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 	private byte[] currBuffer;
 	private int currOffset;
 	private int currLen;
+	private int lineLengthLimit = Integer.MAX_VALUE;
 
 	protected boolean overLimit;
 
@@ -146,36 +162,6 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 	 * @return returns whether the record was successfully deserialized
 	 */
 	public abstract boolean readRecord(OT target, byte[] bytes, int offset, int numBytes);
-
-	// --------------------------------------------------------------------------------------------
-
-	/**
-	 * Gets the delimiter that defines the record boundaries.
-	 * 
-	 * @return The delimiter, as bytes.
-	 */
-	public byte[] getDelimiter() {
-		return this.delimiter;
-	}
-	
-	/**
-	 * Sets the size of the buffer to be used to find record boundaries. This method has only an effect, if it is called
-	 * before the input format is opened.
-	 * 
-	 * @param bufferSize The buffer size to use.
-	 */
-	public void setBufferSize(int bufferSize) {
-		this.bufferSize = bufferSize;
-	}
-	
-	/**
-	 * Gets the size of the buffer internally used to parse record boundaries.
-	 * 
-	 * @return The size of the parsing buffer.
-	 */
-	public int getBufferSize() {
-		return this.readBuffer == null ? 0: this.readBuffer.length;
-	}
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -269,12 +255,13 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 				throw new RuntimeException("Error: Invalid number of samples: " + numSamples);
 			}
 			
-			
-			final int delimiterLength = getDelimiter().length;
-			
+			// make sure that the sampling times out after a while if the file system does not answer in time
+			this.openTimeout = 10000;
 			// set a small read buffer size
-			this.bufferSize = 1024;
-
+			this.bufferSize = 4 * 1024;
+			// prevent overly large records, for example if we have an incorrectly configured delimiter
+			this.lineLengthLimit = MAX_SAMPLE_LEN;
+			
 			long offset = 0;
 			long totalNumBytes = 0;
 			long stepSize = stats.getTotalInputSize() / numSamples;
@@ -283,16 +270,18 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 			int samplesTaken = 0;
 
 			// take the samples
-			for (int sampleNum = 0; sampleNum < numSamples && fileNum < allFiles.size(); sampleNum++) {
+			while (samplesTaken < numSamples && fileNum < allFiles.size()) {
 				// make a split for the sample and use it to read a record
 				FileStatus file = allFiles.get(fileNum);
-				FileInputSplit split = new FileInputSplit(sampleNum, file.getPath(), offset, file.getLen() - offset, null);
+				FileInputSplit split = new FileInputSplit(0, file.getPath(), offset, file.getLen() - offset, null);
 
 				// we open the split, read one line, and take its length
 				try {
 					open(split);
-					readLine();
-					totalNumBytes += this.currLen + delimiterLength;
+					if (readLine()) {
+						totalNumBytes += this.currLen + this.delimiter.length;
+						samplesTaken++;
+					}
 				} finally {
 					// close the file stream, do not release the buffers
 					super.close();
@@ -348,6 +337,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 		}
 
 		this.readPos = 0;
+		this.limit = 0;
 		this.overLimit = false;
 		this.end = false;
 
@@ -397,7 +387,6 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 	public void close() throws IOException {
 		this.wrapBuffer = null;
 		this.readBuffer = null;
-		
 		super.close();
 	}
 
@@ -461,11 +450,17 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 				}
 			} else {
 				count = this.limit - startPos;
+				
+				// check against the maximum record length
+				if ( ((long) countInWrapBuffer) + count > this.lineLengthLimit) {
+					throw new IOException("The record length exceeded the maximum record length (" + 
+							this.lineLengthLimit + ").");
+				}
 
 				// buffer exhausted
-				while (this.wrapBuffer.length - countInWrapBuffer < count) {
+				if (this.wrapBuffer.length - countInWrapBuffer < count) {
 					// reallocate
-					byte[] tmp = new byte[this.wrapBuffer.length * 2];
+					byte[] tmp = new byte[Math.max(this.wrapBuffer.length * 2, countInWrapBuffer + count)];
 					System.arraycopy(this.wrapBuffer, 0, tmp, 0, countInWrapBuffer);
 					this.wrapBuffer = tmp;
 				}

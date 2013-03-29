@@ -20,40 +20,48 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
 import eu.stratosphere.pact.common.testutils.TestConfigUtils;
 import eu.stratosphere.pact.common.testutils.TestFileSystem;
 import eu.stratosphere.pact.common.testutils.TestFileUtils;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.util.PactConfigConstants;
 
-
 public class DelimitedInputFormatSamplingTest {
-
+	
 	private static final String TEST_DATA1 = 
-			"1234567890\n" +
-			"1234567890\n" +
-			"1234567890\n" +
-			"1234567890\n" +
-			"1234567890\n" +
-			"1234567890\n" +
-			"1234567890\n" +
-			"1234567890\n" +
-			"1234567890\n" +
-			"1234567890\n" +
-			"1234567890\n" +
-			"1234567890\n" +
-			"1234567890\n" +
-			"1234567890\n" +
-			"1234567890\n" +
-			"1234567890\n" +
-			"1234567890\n" +
-			"1234567890\n" +
-			"1234567890\n" +
-			"1234567890\n" +
-			"1234567890\n" +
-			"1234567890\n";
+			"123456789\n" +
+			"123456789\n" +
+			"123456789\n" +
+			"123456789\n" +
+			"123456789\n" +
+			"123456789\n" +
+			"123456789\n" +
+			"123456789\n" +
+			"123456789\n" +
+			"123456789\n";
+	
+	private static final String TEST_DATA2 = 
+			"12345\n" +
+			"12345\n" +
+			"12345\n" +
+			"12345\n" +
+			"12345\n" +
+			"12345\n" +
+			"12345\n" +
+			"12345\n" +
+			"12345\n" +
+			"12345\n";
+			
+	private static final int TEST_DATA_1_LINES = TEST_DATA1.split("\n").length;
+	
+	private static final int TEST_DATA_2_LINES = TEST_DATA2.split("\n").length;
 	
 	private static final int DEFAULT_NUM_SAMPLES = 4;
+	
+	// ========================================================================
+	//  Setup
+	// ========================================================================
 	
 	@BeforeClass
 	public static void initialize() {
@@ -73,6 +81,10 @@ public class DelimitedInputFormatSamplingTest {
 			Assert.fail("Could not load the global configuration.");
 		}
 	}
+	
+	// ========================================================================
+	//  Tests
+	// ========================================================================
 	
 	@Test
 	public void testNumSamplesOneFile() {
@@ -130,6 +142,121 @@ public class DelimitedInputFormatSamplingTest {
 		}
 	}
 	
+	@Test
+	public void testSamplingOneFile() {
+		try {
+			final String tempFile = TestFileUtils.createTempFile(TEST_DATA1);
+			final Configuration conf = new Configuration();
+			conf.setString(FileInputFormat.FILE_PARAMETER_KEY, "file://" + tempFile);
+			
+			final TestDelimitedInputFormat format = new TestDelimitedInputFormat();
+			format.configure(conf);
+			BaseStatistics stats = format.getStatistics(null);
+			
+			final int numLines = TEST_DATA_1_LINES;
+			final float avgWidth = ((float) TEST_DATA1.length()) / TEST_DATA_1_LINES;
+			Assert.assertTrue("Wrong record count.", stats.getNumberOfRecords() < numLines + 1 & stats.getNumberOfRecords() > numLines - 1);
+			Assert.assertTrue("Wrong avg record size.", stats.getAverageRecordWidth() < avgWidth + 1 & stats.getAverageRecordWidth() > avgWidth - 1);
+		} catch (Exception e) {
+			e.printStackTrace();
+			Assert.fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testSamplingDirectory() {
+		try {
+			final String tempFile = TestFileUtils.createTempFileDir(TEST_DATA1, TEST_DATA2);
+			final Configuration conf = new Configuration();
+			conf.setString(FileInputFormat.FILE_PARAMETER_KEY, "file://" + tempFile);
+			
+			final TestDelimitedInputFormat format = new TestDelimitedInputFormat();
+			format.configure(conf);
+			BaseStatistics stats = format.getStatistics(null);
+			
+			final int numLines = TEST_DATA_1_LINES + TEST_DATA_2_LINES;
+			final float avgWidth = ((float) (TEST_DATA1.length() + TEST_DATA2.length())) / numLines;
+			Assert.assertTrue("Wrong record count.", stats.getNumberOfRecords() < numLines + 2 & stats.getNumberOfRecords() > numLines - 2);
+			Assert.assertTrue("Wrong avg record size.", stats.getAverageRecordWidth() < avgWidth + 1 & stats.getAverageRecordWidth() > avgWidth - 1);
+		} catch (Exception e) {
+			e.printStackTrace();
+			Assert.fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testDifferentDelimiter() {
+		try {
+			final String DELIMITER = "12345678-";
+			String testData = TEST_DATA1.replace("\n", DELIMITER);
+			
+			final String tempFile = TestFileUtils.createTempFile(testData);
+			final Configuration conf = new Configuration();
+			conf.setString(FileInputFormat.FILE_PARAMETER_KEY, "file://" + tempFile);
+			conf.setString(TestDelimitedInputFormat.RECORD_DELIMITER, DELIMITER);
+			
+			final TestDelimitedInputFormat format = new TestDelimitedInputFormat();
+			format.configure(conf);
+			
+			BaseStatistics stats = format.getStatistics(null);
+			final int numLines = TEST_DATA_1_LINES;
+			final float avgWidth = ((float) testData.length()) / TEST_DATA_1_LINES;
+			
+			Assert.assertTrue("Wrong record count.", stats.getNumberOfRecords() < numLines + 1 & stats.getNumberOfRecords() > numLines - 1);
+			Assert.assertTrue("Wrong avg record size.", stats.getAverageRecordWidth() < avgWidth + 1 & stats.getAverageRecordWidth() > avgWidth - 1);
+		} catch (Exception e) {
+			e.printStackTrace();
+			Assert.fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testSamplingOverlyLongRecord() {
+		try {
+			final String tempFile = TestFileUtils.createTempFile(2 * PactConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_SAMPLE_LEN);
+			final Configuration conf = new Configuration();
+			conf.setString(FileInputFormat.FILE_PARAMETER_KEY, "file://" + tempFile);
+			
+			final TestDelimitedInputFormat format = new TestDelimitedInputFormat();
+			format.configure(conf);
+			
+			Assert.assertNull("Expected exception due to overly long record.", format.getStatistics(null));
+		} catch (Exception e) {
+			e.printStackTrace();
+			Assert.fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testCachedStatistics() {
+		try {
+			final String tempFile = TestFileUtils.createTempFile(TEST_DATA1);
+			final Configuration conf = new Configuration();
+			conf.setString(FileInputFormat.FILE_PARAMETER_KEY, "test://" + tempFile);
+			
+			final TestDelimitedInputFormat format = new TestDelimitedInputFormat();
+			format.configure(conf);
+			
+			TestFileSystem.resetStreamOpenCounter();
+			BaseStatistics stats = format.getStatistics(null);
+			Assert.assertEquals("Wrong number of samples taken.", DEFAULT_NUM_SAMPLES, TestFileSystem.getNumtimeStreamOpened());
+			
+			final TestDelimitedInputFormat format2 = new TestDelimitedInputFormat();
+			format2.configure(conf);
+			
+			TestFileSystem.resetStreamOpenCounter();
+			BaseStatistics stats2 = format2.getStatistics(stats);
+			Assert.assertTrue("Using cached statistics should cicumvent sampling.", 0 == TestFileSystem.getNumtimeStreamOpened());
+			Assert.assertTrue("Using cached statistics should cicumvent sampling.", stats == stats2);
+			
+		} catch (Exception e) {
+			e.printStackTrace();
+			Assert.fail(e.getMessage());
+		}
+	}
+	
+	// ========================================================================
+	//  Mocks
 	// ========================================================================
 	
 	private static final class TestDelimitedInputFormat extends eu.stratosphere.pact.generic.io.DelimitedInputFormat<PactInteger> {
