@@ -42,7 +42,7 @@ public final class GroupWithPartialPreGroupProperties extends OperatorDescriptor
 	 */
 	@Override
 	public DriverStrategy getStrategy() {
-		return DriverStrategy.GROUP_OVER_ORDERED;
+		return DriverStrategy.SORTED_GROUP;
 	}
 
 	/* (non-Javadoc)
@@ -58,7 +58,7 @@ public final class GroupWithPartialPreGroupProperties extends OperatorDescriptor
 				}
 				in.setLocalStrategy(LocalStrategy.COMBININGSORT, in.getLocalStrategyKeys(), in.getLocalStrategySortOrder());
 			}
-			return new SingleInputPlanNode(node, in, DriverStrategy.GROUP_OVER_ORDERED, this.keyList);
+			return new SingleInputPlanNode(node, in, DriverStrategy.SORTED_GROUP, this.keyList);
 		} else {
 			// non forward case. all local properties are killed anyways, so we can safely plug in a combiner
 			Channel toCombiner = new Channel(in.getSource());
@@ -70,7 +70,7 @@ public final class GroupWithPartialPreGroupProperties extends OperatorDescriptor
 			Channel toReducer = new Channel(combiner);
 			toReducer.setShipStrategy(in.getShipStrategy(), in.getShipStrategyKeys(), in.getShipStrategySortOrder());
 			toReducer.setLocalStrategy(LocalStrategy.COMBININGSORT, in.getLocalStrategyKeys(), in.getLocalStrategySortOrder());
-			return new SingleInputPlanNode(node, toReducer, DriverStrategy.GROUP_OVER_ORDERED, this.keyList);
+			return new SingleInputPlanNode(node, toReducer, DriverStrategy.SORTED_GROUP, this.keyList);
 		}
 	}
 

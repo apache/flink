@@ -23,18 +23,12 @@ import eu.stratosphere.pact.common.type.PactRecord;
 
 public class DummyCoGroupStub extends CoGroupStub {
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.stubs.CrossStub#cross(eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.stubs.Collector)
-	 */
 	@Override
-	public void coGroup(Iterator<PactRecord> records1,
-			Iterator<PactRecord> records2, Collector<PactRecord> out) {
-		while (records1.hasNext()) {
+	public void coGroup(Iterator<PactRecord> records1, Iterator<PactRecord> records2, Collector<PactRecord> out) {
+		while (records1.hasNext())
 			out.collect(records1.next());
-		}
-		while (records2.hasNext()) {
-			out.collect(records2.next());
-		}
-	}
 
+		while (records2.hasNext())
+			out.collect(records2.next());
+	}
 }

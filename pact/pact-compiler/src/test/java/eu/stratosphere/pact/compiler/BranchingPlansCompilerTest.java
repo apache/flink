@@ -76,7 +76,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 	public void testBranchingSourceMultipleTimes() {
 		// construct the plan
 
-		FileDataSource sourceA = new FileDataSource(DummyInputFormat.class, IN_FILE_1);
+		FileDataSource sourceA = new FileDataSource(DummyInputFormat.class, IN_FILE);
 		
 		MatchContract mat1 = MatchContract.builder(DummyMatchStub.class, PactInteger.class, 0, 0)
 			.input1(sourceA)
@@ -127,12 +127,12 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 			.input2(mat10)
 			.build();
 
-		FileDataSink sink = new FileDataSink(DummyOutputFormat.class, OUT_FILE_1, co);
+		FileDataSink sink = new FileDataSink(DummyOutputFormat.class, OUT_FILE, co);
 		
 		// return the PACT plan
 		Plan plan = new Plan(sink, "Branching Source Multiple Times");
 		
-		OptimizedPlan oPlan = compile(plan);
+		OptimizedPlan oPlan = compileNoStats(plan);
 		
 		NepheleJobGraphGenerator jobGen = new NepheleJobGraphGenerator();
 		
@@ -166,9 +166,9 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 		final String out2Path = "file:///test/2";
 		final String out3Path = "file:///test/3";
 
-		FileDataSource sourceA = new FileDataSource(DummyInputFormat.class, IN_FILE_1);
-		FileDataSource sourceB = new FileDataSource(DummyInputFormat.class, IN_FILE_1);
-		FileDataSource sourceC = new FileDataSource(DummyInputFormat.class, IN_FILE_1);
+		FileDataSource sourceA = new FileDataSource(DummyInputFormat.class, IN_FILE);
+		FileDataSource sourceB = new FileDataSource(DummyInputFormat.class, IN_FILE);
+		FileDataSource sourceC = new FileDataSource(DummyInputFormat.class, IN_FILE);
 		
 		CoGroupContract co = CoGroupContract.builder(DummyCoGroupStub.class, PactInteger.class, 0,0)
 			.input1(sourceA)
@@ -203,7 +203,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 		// return the PACT plan
 		Plan plan = new Plan(sinks, "Branching Plans With Multiple Data Sinks");
 		
-		OptimizedPlan oPlan = this.compiler.compile(plan, this.instanceType);
+		OptimizedPlan oPlan = compileNoStats(plan);
 		
 		// ---------- check the optimizer plan ----------
 		
@@ -300,7 +300,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 			.name("CoGroup 7")
 			.build();
 		
-		FileDataSink sink = new FileDataSink(DummyOutputFormat.class, OUT_FILE_1, cogroup7);
+		FileDataSink sink = new FileDataSink(DummyOutputFormat.class, OUT_FILE, cogroup7);
 //		sink.addInput(sourceA);
 //		sink.addInput(co3);
 //		sink.addInput(co4);
@@ -309,7 +309,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 		// return the PACT plan
 		Plan plan = new Plan(sink, "Branching of each contract type");
 		
-		OptimizedPlan oPlan = this.compiler.compile(plan, this.instanceType);
+		OptimizedPlan oPlan = compileNoStats(plan);
 		
 		NepheleJobGraphGenerator jobGen = new NepheleJobGraphGenerator();
 		
@@ -322,8 +322,8 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 	public void testBranchingUnion() {
 		// construct the plan
 
-		FileDataSource source1 = new FileDataSource(DummyInputFormat.class, IN_FILE_1);
-		FileDataSource source2 = new FileDataSource(DummyInputFormat.class, IN_FILE_1);
+		FileDataSource source1 = new FileDataSource(DummyInputFormat.class, IN_FILE);
+		FileDataSource source2 = new FileDataSource(DummyInputFormat.class, IN_FILE);
 		
 		MatchContract mat1 = MatchContract.builder(DummyMatchStub.class, PactInteger.class, 0, 0)
 			.input1(source1)
@@ -354,13 +354,13 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 			.build();
 		mat2.setParameter(PactCompiler.HINT_LOCAL_STRATEGY, PactCompiler.HINT_LOCAL_STRATEGY_MERGE);
 		
-		FileDataSink sink = new FileDataSink(DummyOutputFormat.class, OUT_FILE_1, mat2);
+		FileDataSink sink = new FileDataSink(DummyOutputFormat.class, OUT_FILE, mat2);
 		
 		
 		// return the PACT plan
 		Plan plan = new Plan(sink, "Branching Union");
 		
-		OptimizedPlan oPlan = this.compiler.compile(plan, this.instanceType);
+		OptimizedPlan oPlan = compileNoStats(plan);
 		
 		NepheleJobGraphGenerator jobGen = new NepheleJobGraphGenerator();
 		

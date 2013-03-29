@@ -39,11 +39,8 @@ import eu.stratosphere.pact.example.util.AsciiUtils;
 /**
  * Implements a word count which takes the input file and counts the number of
  * the occurrences of each word in the file.
- * 
- * @author Larysa, Moritz Kaufmann, Stephan Ewen
  */
-public class WordCount implements PlanAssembler, PlanAssemblerDescription
-{
+public class WordCount implements PlanAssembler, PlanAssemblerDescription {
 	
 	/**
 	 * Converts a PactRecord containing one string in to multiple string/integer pairs.
@@ -51,8 +48,7 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription
 	 * where the token is the first field and an Integer(1) is the second field.
 	 */
 	@OutCardBounds(lowerBound=1, upperBound=OutCardBounds.UNBOUNDED)
-	public static class TokenizeLine extends MapStub
-	{
+	public static class TokenizeLine extends MapStub {
 		// initialize reusable mutable objects
 		private final PactRecord outputRecord = new PactRecord();
 		private final PactString word = new PactString();
@@ -62,8 +58,7 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription
 						new AsciiUtils.WhitespaceTokenizer();
 		
 		@Override
-		public void map(PactRecord record, Collector<PactRecord> collector)
-		{
+		public void map(PactRecord record, Collector<PactRecord> collector) {
 			// get the first field (as type PactString) from the record
 			PactString line = record.getField(0, PactString.class);
 			
@@ -89,13 +84,12 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription
 	 */
 	@ConstantFields(fields={0})
 	@ReduceContract.Combinable
-	public static class CountWords extends ReduceStub
-	{
+	public static class CountWords extends ReduceStub {
+		
 		private final PactInteger cnt = new PactInteger();
 		
 		@Override
-		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception
-		{
+		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {
 			PactRecord element = null;
 			int sum = 0;
 			while (records.hasNext()) {
@@ -113,8 +107,7 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription
 		 * @see eu.stratosphere.pact.common.stubs.ReduceStub#combine(java.util.Iterator, eu.stratosphere.pact.common.stubs.Collector)
 		 */
 		@Override
-		public void combine(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception
-		{
+		public void combine(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {
 			// the logic is the same as in the reduce function, so simply call the reduce method
 			this.reduce(records, out);
 		}
@@ -124,8 +117,7 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Plan getPlan(String... args)
-	{
+	public Plan getPlan(String... args) {
 		// parse job parameters
 		int noSubTasks   = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		String dataInput = (args.length > 1 ? args[1] : "");
@@ -145,7 +137,6 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription
 		RecordOutputFormat.configureRecordFormat(out)
 			.recordDelimiter('\n')
 			.fieldDelimiter(' ')
-			.lenient(true)
 			.field(PactString.class, 0)
 			.field(PactInteger.class, 1);
 		

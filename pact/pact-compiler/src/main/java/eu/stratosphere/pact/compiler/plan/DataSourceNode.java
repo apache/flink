@@ -106,9 +106,8 @@ public class DataSourceNode extends OptimizerNode
 	 * conservative default values which are used if no other values are provided.
 	 */
 	@Override
-	public void computeOutputEstimates(DataStatistics statistics)
-	{
-		CompilerHints hints = getPactContract().getCompilerHints();
+	public void computeOutputEstimates(DataStatistics statistics) {
+		final CompilerHints hints = getPactContract().getCompilerHints();
 		
 		// initialize basic estimates to unknown
 		this.estimatedOutputSize = -1;
@@ -116,8 +115,7 @@ public class DataSourceNode extends OptimizerNode
 		this.estimatedNumRecords = -1;
 
 		// see, if we have a statistics object that can tell us a bit about the file
-		if (statistics != null)
-		{
+		if (statistics != null) {
 			// instantiate the input format, as this is needed by the statistics 
 			InputFormat<?, ?> format = null;
 			String inFormatDescription = "<unknown>";
@@ -139,7 +137,7 @@ public class DataSourceNode extends OptimizerNode
 			catch (Throwable t) {}
 			
 			// first of all, get the statistics from the cache
-			final String statisticsKey = getPactContract().getParameters().getString(InputFormat.STATISTICS_CACHE_KEY, null);
+			final String statisticsKey = getPactContract().getStatisticsKey();
 			final BaseStatistics cachedStatistics = statistics.getBaseStatistics(statisticsKey);
 			
 			BaseStatistics bs = null;
@@ -153,22 +151,21 @@ public class DataSourceNode extends OptimizerNode
 			
 			if (bs != null) {
 				final long len = bs.getTotalInputSize();
-				if (len == BaseStatistics.UNKNOWN) {
+				if (len == BaseStatistics.SIZE_UNKNOWN) {
 					if (PactCompiler.LOG.isWarnEnabled())
 						PactCompiler.LOG.warn("Pact compiler could not determine the size of input '" + inFormatDescription + "'.");
 				}
 				else if (len >= 0) {
 					this.inputSize = len;
 				}
-
 				
 				final float avgBytes = bs.getAverageRecordWidth();
-				if (avgBytes > 0.0f && hints.getAvgBytesPerRecord() < 1.0f) {
+				if (avgBytes != BaseStatistics.AVG_RECORD_BYTES_UNKNOWN && hints.getAvgBytesPerRecord() <= 0.0f) {
 					hints.setAvgBytesPerRecord(avgBytes);
 				}
 				
 				final long card = bs.getNumberOfRecords();
-				if (card != BaseStatistics.UNKNOWN) {
+				if (card != BaseStatistics.NUM_RECORDS_UNKNOWN) {
 					this.estimatedNumRecords = card;
 				}
 			}
@@ -222,8 +219,7 @@ public class DataSourceNode extends OptimizerNode
 		if (this.estimatedNumRecords != -1 && hints.getAvgBytesPerRecord() != -1.0f) {
 			this.estimatedOutputSize = (this.estimatedNumRecords * hints.getAvgBytesPerRecord()) >= 1 ? 
 				(long) (this.estimatedNumRecords * hints.getAvgBytesPerRecord()) : 1;
-		}
-		else {
+		} else {
 			this.estimatedOutputSize = this.inputSize;
 		}
 	}

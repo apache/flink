@@ -21,11 +21,8 @@ import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsExcept;
 import eu.stratosphere.pact.common.type.PactRecord;
 
 @ConstantFieldsExcept(fields={})
-public final class IdentityMap extends MapStub
-{
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.stubs.MapStub#map(eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.stubs.Collector)
-	 */
+public final class IdentityMap extends MapStub {
+	
 	@Override
 	public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
 		out.collect(record);

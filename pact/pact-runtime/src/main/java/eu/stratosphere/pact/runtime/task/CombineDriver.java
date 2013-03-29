@@ -125,7 +125,7 @@ public class CombineDriver<T> implements PactDriver<GenericReducer<T, ?>, T>
 		// The Input is combined using a sort-merge strategy. Before spilling on disk, the data volume is reduced using
 		// the combine() method of the ReduceStub.
 		// An iterator on the sorted, grouped, and combined pairs is created and returned
-		case GROUP_OVER_ORDERED:
+		case SORTED_GROUP:
 			this.input = new AsynchronousPartialSorter<T>(memoryManager, in, this.taskContext.getOwningNepheleTask(),
 						this.serializer, this.comparator.duplicate(), availableMemory);
 			break;

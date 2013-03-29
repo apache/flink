@@ -43,8 +43,8 @@ public class UnionPropertyPropagationTest extends CompilerTestBase {
 	public void testUnionPropertyPropagation() {
 		// construct the plan
 
-		FileDataSource sourceA = new FileDataSource(DummyInputFormat.class, IN_FILE_1);
-		FileDataSource sourceB = new FileDataSource(DummyInputFormat.class, IN_FILE_1);
+		FileDataSource sourceA = new FileDataSource(DummyInputFormat.class, IN_FILE);
+		FileDataSource sourceB = new FileDataSource(DummyInputFormat.class, IN_FILE);
 		
 		ReduceContract redA = new ReduceContract.Builder(IdentityReduce.class, PactInteger.class, 0)
 			.input(sourceA)
@@ -57,12 +57,12 @@ public class UnionPropertyPropagationTest extends CompilerTestBase {
 		globalRed.addInput(redA);
 		globalRed.addInput(redB);
 		
-		FileDataSink sink = new FileDataSink(DummyOutputFormat.class, OUT_FILE_1, globalRed);
+		FileDataSink sink = new FileDataSink(DummyOutputFormat.class, OUT_FILE, globalRed);
 		
 		// return the PACT plan
 		Plan plan = new Plan(sink, "Union Property Propagation");
 		
-		OptimizedPlan oPlan = this.compiler.compile(plan, this.instanceType);
+		OptimizedPlan oPlan = compileNoStats(plan);
 		
 		NepheleJobGraphGenerator jobGen = new NepheleJobGraphGenerator();
 		

@@ -64,7 +64,7 @@ public class ReduceTaskTest extends DriverTestBase<GenericReducer<PactRecord, Pa
 		
 		addInputComparator(this.comparator);
 		setOutput(this.outList);
-		getTaskConfig().setDriverStrategy(DriverStrategy.GROUP_OVER_ORDERED);
+		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP);
 		
 		try {
 			addInputSorted(new UniformPactRecordGenerator(keyCnt, valCnt, false), this.comparator.duplicate());
@@ -94,7 +94,7 @@ public class ReduceTaskTest extends DriverTestBase<GenericReducer<PactRecord, Pa
 		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, true));
 		addInputComparator(this.comparator);
 		setOutput(this.outList);
-		getTaskConfig().setDriverStrategy(DriverStrategy.GROUP_OVER_ORDERED);
+		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP);
 		
 		ReduceDriver<PactRecord, PactRecord> testTask = new ReduceDriver<PactRecord, PactRecord>();
 		
@@ -121,7 +121,7 @@ public class ReduceTaskTest extends DriverTestBase<GenericReducer<PactRecord, Pa
 		
 		addInputComparator(this.comparator);
 		setOutput(this.outList);
-		getTaskConfig().setDriverStrategy(DriverStrategy.GROUP_OVER_ORDERED);
+		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP);
 		
 		CombiningUnilateralSortMerger<PactRecord> sorter = null;
 		try {
@@ -165,7 +165,7 @@ public class ReduceTaskTest extends DriverTestBase<GenericReducer<PactRecord, Pa
 		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, true));
 		addInputComparator(this.comparator);
 		setOutput(this.outList);
-		getTaskConfig().setDriverStrategy(DriverStrategy.GROUP_OVER_ORDERED);
+		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP);
 		
 		ReduceDriver<PactRecord, PactRecord> testTask = new ReduceDriver<PactRecord, PactRecord>();
 		
@@ -187,7 +187,7 @@ public class ReduceTaskTest extends DriverTestBase<GenericReducer<PactRecord, Pa
 	{
 		addInputComparator(this.comparator);
 		setOutput(new NirvanaOutputList());
-		getTaskConfig().setDriverStrategy(DriverStrategy.GROUP_OVER_ORDERED);
+		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP);
 		
 		final ReduceDriver<PactRecord, PactRecord> testTask = new ReduceDriver<PactRecord, PactRecord>();
 		
@@ -235,7 +235,7 @@ public class ReduceTaskTest extends DriverTestBase<GenericReducer<PactRecord, Pa
 		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, true));
 		addInputComparator(this.comparator);
 		setOutput(new NirvanaOutputList());
-		getTaskConfig().setDriverStrategy(DriverStrategy.GROUP_OVER_ORDERED);
+		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP);
 		
 		final ReduceDriver<PactRecord, PactRecord> testTask = new ReduceDriver<PactRecord, PactRecord>();
 		

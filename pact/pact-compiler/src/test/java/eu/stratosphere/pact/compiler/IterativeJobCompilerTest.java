@@ -41,10 +41,10 @@ public class IterativeJobCompilerTest extends CompilerTestBase
 		IterativeKMeans kmi = new IterativeKMeans();
 
 		Plan plan = kmi.getPlan(String.valueOf(DEFAULT_PARALLELISM),
-				IN_FILE_1, IN_FILE_1, OUT_FILE_1, String.valueOf(20));
+				IN_FILE, IN_FILE, OUT_FILE, String.valueOf(20));
 		setParameterToCross(plan, "INPUT_LEFT_SHIP_STRATEGY", "SHIP_FORWARD");
 
-		OptimizedPlan op = compile(plan);
+		OptimizedPlan op = compileNoStats(plan);
 
 		NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
 		jgg.compileJobGraph(op);
@@ -55,10 +55,10 @@ public class IterativeJobCompilerTest extends CompilerTestBase
 		IterativeKMeans kmi = new IterativeKMeans();
 
 		Plan plan = kmi.getPlan(String.valueOf(DEFAULT_PARALLELISM),
-				IN_FILE_1, IN_FILE_1, OUT_FILE_1, String.valueOf(20));
+				IN_FILE, IN_FILE, OUT_FILE, String.valueOf(20));
 		setParameterToCross(plan, "INPUT_RIGHT_SHIP_STRATEGY", "SHIP_FORWARD");
 
-		OptimizedPlan op = compile(plan);
+		OptimizedPlan op = compileNoStats(plan);
 
 		NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
 		jgg.compileJobGraph(op);
@@ -82,9 +82,9 @@ public class IterativeJobCompilerTest extends CompilerTestBase
 		WorksetConnectedComponents cc = new WorksetConnectedComponents();
 
 		Plan plan = cc.getPlan(String.valueOf(DEFAULT_PARALLELISM),
-				IN_FILE_1, IN_FILE_1, OUT_FILE_1, String.valueOf(100));
+				IN_FILE, IN_FILE, OUT_FILE, String.valueOf(100));
 
-		OptimizedPlan op = compile(plan);
+		OptimizedPlan op = compileNoStats(plan);
 		NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
 		jgg.compileJobGraph(op);
 	}

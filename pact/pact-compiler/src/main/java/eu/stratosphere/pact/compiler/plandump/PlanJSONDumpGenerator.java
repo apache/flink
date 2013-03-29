@@ -324,7 +324,7 @@ public class PlanJSONDumpGenerator
 			case PARTIAL_GROUP:
 				locString = "Ordered Partial Grouping";
 				break;
-			case GROUP_OVER_ORDERED:
+			case SORTED_GROUP:
 				locString = "Ordered Grouping";
 				break;
 			case HYBRIDHASH_BUILD_FIRST:

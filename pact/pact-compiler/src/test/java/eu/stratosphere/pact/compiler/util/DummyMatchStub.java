@@ -23,14 +23,8 @@ import eu.stratosphere.pact.common.type.PactRecord;
 @ConstantFieldsFirstExcept(fields={})
 public class DummyMatchStub extends MatchStub {
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.stubs.CrossStub#cross(eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.stubs.Collector)
-	 */
 	@Override
-	public void match(PactRecord value1, PactRecord value2,
-			Collector<PactRecord> out) throws Exception {
+	public void match(PactRecord value1, PactRecord value2, Collector<PactRecord> out) throws Exception {
 		out.collect(value1);
-		
 	}
-
 }

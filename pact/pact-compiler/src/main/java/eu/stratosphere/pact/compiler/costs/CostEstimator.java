@@ -143,7 +143,7 @@ public abstract class CostEstimator {
 		case NONE:
 		case MAP:
 		case PARTIAL_GROUP:
-		case GROUP_OVER_ORDERED:
+		case SORTED_GROUP:
 		case CO_GROUP:
 			break;
 		case MERGE:

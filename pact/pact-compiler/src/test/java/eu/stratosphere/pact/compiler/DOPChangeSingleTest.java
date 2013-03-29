@@ -33,6 +33,7 @@ import eu.stratosphere.pact.compiler.util.DummyOutputFormat;
 import eu.stratosphere.pact.compiler.util.IdentityMap;
 import eu.stratosphere.pact.compiler.util.IdentityReduce;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
+import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 
 /**
  * Tests in this class:
@@ -55,7 +56,7 @@ public class DOPChangeSingleTest extends CompilerTestBase {
 		final int degOfPar = DEFAULT_PARALLELISM;
 		
 		// construct the plan
-		FileDataSource source = new FileDataSource(DummyInputFormat.class, IN_FILE_1, "Source");
+		FileDataSource source = new FileDataSource(DummyInputFormat.class, IN_FILE, "Source");
 		source.setDegreeOfParallelism(degOfPar);
 		
 		MapContract map1 = MapContract.builder(IdentityMap.class).name("Map1").build();
@@ -74,14 +75,14 @@ public class DOPChangeSingleTest extends CompilerTestBase {
 		reduce2.setDegreeOfParallelism(degOfPar * 2);
 		reduce2.setInput(map2);
 		
-		FileDataSink sink = new FileDataSink(DummyOutputFormat.class, OUT_FILE_1, "Sink");
+		FileDataSink sink = new FileDataSink(DummyOutputFormat.class, OUT_FILE, "Sink");
 		sink.setDegreeOfParallelism(degOfPar * 2);
 		sink.setInput(reduce2);
 		
 		Plan plan = new Plan(sink, "Test Increasing Degree Of Parallelism");
 		
 		// submit the plan to the compiler
-		OptimizedPlan oPlan = compile(plan);
+		OptimizedPlan oPlan = compileNoStats(plan);
 		
 		// check the optimized Plan
 		// when reducer 1 distributes its data across the instances of map2, it needs to employ a local hash method,
@@ -109,7 +110,7 @@ public class DOPChangeSingleTest extends CompilerTestBase {
 		final int degOfPar = DEFAULT_PARALLELISM;
 		
 		// construct the plan
-		FileDataSource source = new FileDataSource(DummyInputFormat.class, IN_FILE_1, "Source");
+		FileDataSource source = new FileDataSource(DummyInputFormat.class, IN_FILE, "Source");
 		source.setDegreeOfParallelism(degOfPar);
 		
 		MapContract map1 = MapContract.builder(IdentityMap.class).name("Map1").build();
@@ -128,14 +129,14 @@ public class DOPChangeSingleTest extends CompilerTestBase {
 		reduce2.setDegreeOfParallelism(degOfPar * 2);
 		reduce2.setInput(map2);
 		
-		FileDataSink sink = new FileDataSink(DummyOutputFormat.class, OUT_FILE_1, "Sink");
+		FileDataSink sink = new FileDataSink(DummyOutputFormat.class, OUT_FILE, "Sink");
 		sink.setDegreeOfParallelism(degOfPar * 2);
 		sink.setInput(reduce2);
 		
 		Plan plan = new Plan(sink, "Test Increasing Degree Of Parallelism");
 		
 		// submit the plan to the compiler
-		OptimizedPlan oPlan = compile(plan);
+		OptimizedPlan oPlan = compileNoStats(plan);
 		
 		// check the optimized Plan
 		// when reducer 1 distributes its data across the instances of map2, it needs to employ a local hash method,
@@ -163,7 +164,7 @@ public class DOPChangeSingleTest extends CompilerTestBase {
 		final int degOfPar = 2 * DEFAULT_PARALLELISM;
 		
 		// construct the plan
-		FileDataSource source = new FileDataSource(DummyInputFormat.class, IN_FILE_1, "Source");
+		FileDataSource source = new FileDataSource(DummyInputFormat.class, IN_FILE, "Source");
 		source.setDegreeOfParallelism(degOfPar);
 		
 		MapContract map1 = MapContract.builder(IdentityMap.class).name("Map1").build();
@@ -182,14 +183,14 @@ public class DOPChangeSingleTest extends CompilerTestBase {
 		reduce2.setDegreeOfParallelism(degOfPar * 2);
 		reduce2.setInput(map2);
 		
-		FileDataSink sink = new FileDataSink(DummyOutputFormat.class, OUT_FILE_1, "Sink");
+		FileDataSink sink = new FileDataSink(DummyOutputFormat.class, OUT_FILE, "Sink");
 		sink.setDegreeOfParallelism(degOfPar * 2);
 		sink.setInput(reduce2);
 		
 		Plan plan = new Plan(sink, "Test Increasing Degree Of Parallelism");
 		
 		// submit the plan to the compiler
-		OptimizedPlan oPlan = compile(plan);
+		OptimizedPlan oPlan = compileNoStats(plan);
 		
 		// check the optimized Plan
 		// when reducer 1 distributes its data across the instances of map2, it needs to employ a local hash method,
@@ -208,48 +209,48 @@ public class DOPChangeSingleTest extends CompilerTestBase {
 	
 	
 	
-//	@Test
-//	public void checkPropertyHandlingWithDecreasingDegreeOfParallelism()
-//	{
-//		final int degOfPar = defaultParallelism;
-//		
-//		// construct the plan
-//		FileDataSourceContract<PactInteger, PactInteger> source = new FileDataSourceContract<PactInteger, PactInteger>(DummyInputFormat.class, IN_FILE_1, "Source");
-//		source.setDegreeOfParallelism(degOfPar * 2);
-//		
-//		MapContract<PactInteger, PactInteger, PactInteger, PactInteger> map1 = new MapContract<PactInteger, PactInteger, PactInteger, PactInteger>(IdentityMap.class, "Map1");
-//		map1.setDegreeOfParallelism(degOfPar * 2);
-//		map1.setInput(source);
-//		
-//		ReduceContract<PactInteger, PactInteger, PactInteger, PactInteger> reduce1 = new ReduceContract<PactInteger, PactInteger, PactInteger, PactInteger>(IdentityReduce.class, "Reduce 1");
-//		reduce1.setDegreeOfParallelism(degOfPar * 2);
-//		reduce1.setInput(map1);
-//		
-//		MapContract<PactInteger, PactInteger, PactInteger, PactInteger> map2 = new MapContract<PactInteger, PactInteger, PactInteger, PactInteger>(IdentityMap.class, "Map2");
-//		map2.setDegreeOfParallelism(degOfPar);
-//		map2.setInput(reduce1);
-//		
-//		ReduceContract<PactInteger, PactInteger, PactInteger, PactInteger> reduce2 = new ReduceContract<PactInteger, PactInteger, PactInteger, PactInteger>(IdentityReduce.class, "Reduce 2");
-//		reduce2.setDegreeOfParallelism(degOfPar);
-//		reduce2.setInput(map2);
-//		
-//		FileDataSinkContract<PactInteger, PactInteger> sink = new FileDataSinkContract<PactInteger, PactInteger>(DummyOutputFormat.class, OUT_FILE_1, "Sink");
-//		sink.setDegreeOfParallelism(degOfPar);
-//		sink.setInput(reduce2);
-//		
-//		Plan plan = new Plan(sink, "Test Increasing Degree Of Parallelism");
-//		
-//		// submit the plan to the compiler
-//		OptimizedPlan oPlan = this.compiler.compile(plan, this.instanceType);
-//		
-//		// check the optimized Plan
-//		// when reducer 1 distributes its data across the instances of map2, it needs to employ a local hash method,
-//		// because map2 has twice as many instances and key/value pairs with the same key need to be processed by the same
-//		// mapper respectively reducer
-//		DataSinkNode sinkNode = oPlan.getDataSinks().iterator().next();
-//		ReduceNode red2Node = (ReduceNode) sinkNode.getInputConnection().getSourcePact();
-//		
-//		Assert.assertEquals("The Reduce 2 Node has an invalid local strategy.", LocalStrategy.SORT, red2Node.getLocalStrategy());
-//	}
+	@Test
+	public void checkPropertyHandlingWithDecreasingDegreeOfParallelism()
+	{
+		final int degOfPar = DEFAULT_PARALLELISM;
+		
+		// construct the plan
+		FileDataSource source = new FileDataSource(DummyInputFormat.class, IN_FILE, "Source");
+		source.setDegreeOfParallelism(degOfPar * 2);
+		
+		MapContract map1 = MapContract.builder(IdentityMap.class).name("Map1").build();
+		map1.setDegreeOfParallelism(degOfPar * 2);
+		map1.setInput(source);
+		
+		ReduceContract reduce1 = ReduceContract.builder(IdentityReduce.class, PactInteger.class, 0).name("Reduce 1").build();
+		reduce1.setDegreeOfParallelism(degOfPar * 2);
+		reduce1.setInput(map1);
+		
+		MapContract map2 = MapContract.builder(IdentityMap.class).name("Map2").build();
+		map2.setDegreeOfParallelism(degOfPar);
+		map2.setInput(reduce1);
+		
+		ReduceContract reduce2 = ReduceContract.builder(IdentityReduce.class, PactInteger.class, 0).name("Reduce 2").build();
+		reduce2.setDegreeOfParallelism(degOfPar);
+		reduce2.setInput(map2);
+		
+		FileDataSink sink = new FileDataSink(DummyOutputFormat.class, OUT_FILE, "Sink");
+		sink.setDegreeOfParallelism(degOfPar);
+		sink.setInput(reduce2);
+		
+		Plan plan = new Plan(sink, "Test Increasing Degree Of Parallelism");
+		
+		// submit the plan to the compiler
+		OptimizedPlan oPlan = compileNoStats(plan);
+		
+		// check the optimized Plan
+		// when reducer 1 distributes its data across the instances of map2, it needs to employ a local hash method,
+		// because map2 has twice as many instances and key/value pairs with the same key need to be processed by the same
+		// mapper respectively reducer
+		SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
+		SingleInputPlanNode red2Node = (SingleInputPlanNode) sinkNode.getPredecessor();
+		
+		Assert.assertEquals("The Reduce 2 Node has an invalid local strategy.", LocalStrategy.SORT, red2Node.getInput().getLocalStrategy());
+	}
 
 }

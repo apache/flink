@@ -31,6 +31,9 @@ import eu.stratosphere.pact.example.relational.WebLogAnalysis;
 import eu.stratosphere.pact.example.wordcount.WordCount;
 
 
+/*
+ * The tests in this class simply invokes the JSON dump code for the original plan.
+ */
 public class PreviewPlanDumpTest {
 	
 	protected static final String IN_FILE = "file:///test/file";

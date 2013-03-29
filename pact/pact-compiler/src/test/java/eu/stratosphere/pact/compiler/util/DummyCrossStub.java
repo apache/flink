@@ -29,5 +29,4 @@ public class DummyCrossStub extends CrossStub {
 		out.collect(record1);
 		out.collect(record2);
 	}
-
 }

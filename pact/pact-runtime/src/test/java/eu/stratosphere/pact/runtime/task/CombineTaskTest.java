@@ -61,7 +61,7 @@ public class CombineTaskTest extends DriverTestBase<GenericReducer<PactRecord, ?
 		addInputComparator(this.comparator);
 		setOutput(this.outList);
 		
-		getTaskConfig().setDriverStrategy(DriverStrategy.GROUP_OVER_ORDERED);
+		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP);
 		getTaskConfig().setMemoryDriver(COMBINE_MEM);
 		getTaskConfig().setFilehandlesDriver(2);
 		
@@ -97,7 +97,7 @@ public class CombineTaskTest extends DriverTestBase<GenericReducer<PactRecord, ?
 		addInputComparator(this.comparator);
 		setOutput(new DiscardingOutputCollector());
 		
-		getTaskConfig().setDriverStrategy(DriverStrategy.GROUP_OVER_ORDERED);
+		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP);
 		getTaskConfig().setMemoryDriver(COMBINE_MEM);
 		getTaskConfig().setFilehandlesDriver(2);
 		
@@ -121,7 +121,7 @@ public class CombineTaskTest extends DriverTestBase<GenericReducer<PactRecord, ?
 		addInputComparator(this.comparator);
 		setOutput(new DiscardingOutputCollector());
 		
-		getTaskConfig().setDriverStrategy(DriverStrategy.GROUP_OVER_ORDERED);
+		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP);
 		getTaskConfig().setMemoryDriver(COMBINE_MEM);
 		getTaskConfig().setFilehandlesDriver(2);
 		

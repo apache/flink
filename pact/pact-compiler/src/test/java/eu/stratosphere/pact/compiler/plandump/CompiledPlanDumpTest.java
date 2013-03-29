@@ -30,31 +30,34 @@ import eu.stratosphere.pact.example.relational.WebLogAnalysis;
 import eu.stratosphere.pact.example.wordcount.WordCount;
 
 
+/*
+ * The tests in this class simply invokes the JSON dump code for the optimized plan.
+ */
 public class CompiledPlanDumpTest extends CompilerTestBase {
 	
 	@Test
 	public void dumpWordCount() {
-		dump(new WordCount().getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE_1, OUT_FILE_1));
+		dump(new WordCount().getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, OUT_FILE));
 	}
 	
 	@Test
 	public void dumpTPCH3() {
-		dump(new TPCHQuery3().getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE_1, IN_FILE_1, OUT_FILE_1));
+		dump(new TPCHQuery3().getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE));
 	}
 	
 	@Test
 	public void dumpKMeans() {
-		dump(new KMeansIteration().getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE_1, IN_FILE_1, OUT_FILE_1));
+		dump(new KMeansIteration().getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE));
 	}
 	
 	@Test
 	public void dumpWebLogAnalysis() {
-		dump(new WebLogAnalysis().getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE_1, IN_FILE_1, IN_FILE_1, OUT_FILE_1));
+		dump(new WebLogAnalysis().getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, IN_FILE, OUT_FILE));
 	}
 	
 	private void dump(Plan p) {
 		try {
-			OptimizedPlan op = compile(p);
+			OptimizedPlan op = compileNoStats(p);
 			PlanJSONDumpGenerator dumper = new PlanJSONDumpGenerator();
 			PrintWriter writer = new PrintWriter(getNullOrTempFile());
 			

@@ -336,17 +336,17 @@ public class PactCompiler {
 	/**
 	 * The maximum number of machines (instances) to use, per the configuration.
 	 */
-	private final int maxMachines;
+	private int maxMachines;
 
 	/**
 	 * The default degree of parallelism for jobs compiled by this compiler.
 	 */
-	private final int defaultDegreeOfParallelism;
+	private int defaultDegreeOfParallelism;
 
 	/**
 	 * The maximum number of subtasks that should share an instance.
 	 */
-	private final int maxIntraNodeParallelism;
+	private int maxIntraNodeParallelism;
 
 	// ------------------------------------------------------------------------
 	// Constructor & Setup
@@ -472,7 +472,47 @@ public class PactCompiler {
 			this.jobManagerAddress = new InetSocketAddress(address, port);
 		}
 	}
-
+	
+	// ------------------------------------------------------------------------
+	//                             Getters / Setters
+	// ------------------------------------------------------------------------
+	
+	public int getMaxMachines() {
+		return maxMachines;
+	}
+	
+	public void setMaxMachines(int maxMachines) {
+		if (maxMachines == -1 || maxMachines > 0) {
+			this.maxMachines = maxMachines;
+		} else {
+			throw new IllegalArgumentException();
+		}
+	}
+	
+	public int getDefaultDegreeOfParallelism() {
+		return defaultDegreeOfParallelism;
+	}
+	
+	public void setDefaultDegreeOfParallelism(int defaultDegreeOfParallelism) {
+		if (defaultDegreeOfParallelism == -1 || defaultDegreeOfParallelism > 0) {
+			this.defaultDegreeOfParallelism = defaultDegreeOfParallelism;
+		} else {
+			throw new IllegalArgumentException();
+		}
+	}
+	
+	public int getMaxIntraNodeParallelism() {
+		return maxIntraNodeParallelism;
+	}
+	
+	public void setMaxIntraNodeParallelism(int maxIntraNodeParallelism) {
+		if (maxIntraNodeParallelism == -1 || maxIntraNodeParallelism > 0) {
+			this.maxIntraNodeParallelism = maxIntraNodeParallelism;
+		} else {
+			throw new IllegalArgumentException();
+		}
+	}
+	
 	// ------------------------------------------------------------------------
 	//                               Compilation
 	// ------------------------------------------------------------------------

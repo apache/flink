@@ -31,7 +31,7 @@ public enum DriverStrategy
 	// no special local strategy is applied
 	MAP(MapDriver.class, ChainedMapDriver.class, PIPELINED, false),
 	// grouping the inputs
-	GROUP_OVER_ORDERED(ReduceDriver.class, null, PIPELINED, true),
+	SORTED_GROUP(ReduceDriver.class, null, PIPELINED, true),
 	// partially grouping inputs (best effort resulting possibly in duplicates --> combiner)
 	PARTIAL_GROUP(CombineDriver.class, SynchronousChainedCombineDriver.class, MATERIALIZING, true),
 	// group everything together into one group

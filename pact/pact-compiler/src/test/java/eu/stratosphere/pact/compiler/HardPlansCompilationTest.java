@@ -52,7 +52,7 @@ public class HardPlansCompilationTest extends CompilerTestBase
 	public void testTicket158()
 	{
 		// construct the plan
-		FileDataSource source = new FileDataSource(DummyInputFormat.class, IN_FILE_1, "Source");
+		FileDataSource source = new FileDataSource(DummyInputFormat.class, IN_FILE, "Source");
 		
 		MapContract map = MapContract.builder(IdentityMap.class).name("Map1").input(source).build();
 		
@@ -66,13 +66,13 @@ public class HardPlansCompilationTest extends CompilerTestBase
 		
 		ReduceContract reduce3 = ReduceContract.builder(IdentityReduce.class, PactInteger.class, 0).name("Reduce3").input(cross2).build();
 		
-		FileDataSink sink = new FileDataSink(DummyOutputFormat.class, OUT_FILE_1, "Sink");
+		FileDataSink sink = new FileDataSink(DummyOutputFormat.class, OUT_FILE, "Sink");
 		sink.setInput(reduce3);
 		
 		Plan plan = new Plan(sink, "Test Temp Task");
 		plan.setDefaultParallelism(DEFAULT_PARALLELISM);
 		
-		OptimizedPlan oPlan = compile(plan);
+		OptimizedPlan oPlan = compileNoStats(plan);
 		NepheleJobGraphGenerator jobGen = new NepheleJobGraphGenerator();
 		jobGen.compileJobGraph(oPlan);
 	}

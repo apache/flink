@@ -45,8 +45,8 @@ public class DOPChangeDoubleTest extends CompilerTestBase {
 	public void testPartitionDoPChange() {
 		// construct the plan
 
-		FileDataSource sourceA = new FileDataSource(DummyInputFormat.class, IN_FILE_1);
-		FileDataSource sourceB = new FileDataSource(DummyInputFormat.class, IN_FILE_1);
+		FileDataSource sourceA = new FileDataSource(DummyInputFormat.class, IN_FILE);
+		FileDataSource sourceB = new FileDataSource(DummyInputFormat.class, IN_FILE);
 		
 		ReduceContract redA = new ReduceContract.Builder(IdentityReduce.class, PactInteger.class, 0)
 			.input(sourceA)
@@ -60,7 +60,7 @@ public class DOPChangeDoubleTest extends CompilerTestBase {
 			.input2(redB)
 			.build();
 		
-		FileDataSink sink = new FileDataSink(DummyOutputFormat.class, OUT_FILE_1, mat);
+		FileDataSink sink = new FileDataSink(DummyOutputFormat.class, OUT_FILE, mat);
 		
 		sourceA.setDegreeOfParallelism(5);
 		sourceB.setDegreeOfParallelism(7);
@@ -75,7 +75,7 @@ public class DOPChangeDoubleTest extends CompilerTestBase {
 		// return the PACT plan
 		Plan plan = new Plan(sink, "Partition on DoP Change");
 		
-		OptimizedPlan oPlan = compile(plan);
+		OptimizedPlan oPlan = compileNoStats(plan);
 		
 		NepheleJobGraphGenerator jobGen = new NepheleJobGraphGenerator();
 		

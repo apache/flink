@@ -40,7 +40,7 @@ public final class GroupProperties extends OperatorDescriptorSingle
 	 */
 	@Override
 	public DriverStrategy getStrategy() {
-		return DriverStrategy.GROUP_OVER_ORDERED;
+		return DriverStrategy.SORTED_GROUP;
 	}
 
 	/* (non-Javadoc)
@@ -48,7 +48,7 @@ public final class GroupProperties extends OperatorDescriptorSingle
 	 */
 	@Override
 	public SingleInputPlanNode instantiate(Channel in, SingleInputNode node) {
-		return new SingleInputPlanNode(node, in, DriverStrategy.GROUP_OVER_ORDERED, this.keyList);
+		return new SingleInputPlanNode(node, in, DriverStrategy.SORTED_GROUP, this.keyList);
 	}
 
 	/* (non-Javadoc)

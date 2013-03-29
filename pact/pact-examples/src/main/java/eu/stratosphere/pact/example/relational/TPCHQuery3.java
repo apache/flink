@@ -33,8 +33,7 @@ import eu.stratosphere.pact.common.stubs.MapStub;
 import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFields;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsExcept;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsFirstExcept;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsFirst;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.OutCardBounds;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactDouble;
@@ -72,10 +71,10 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	/**
 	 * Map PACT implements the selection and projection on the orders table.
 	 */
-	@ConstantFieldsExcept(fields={2,3,4})
+	@ConstantFields(fields={0,1})
 	@OutCardBounds(upperBound=1, lowerBound=0)
-	public static class FilterO extends MapStub
-	{
+	public static class FilterO extends MapStub {
+		
 		private String prioFilter;		// filter literal for the order priority
 		private int yearFilter;			// filter literal for the year
 		
@@ -107,9 +106,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	 	 *   1:SHIPPRIORITY
 		 */
 		@Override
-		public void map(final PactRecord record, final Collector<PactRecord> out)
-		{
-			
+		public void map(final PactRecord record, final Collector<PactRecord> out) {
 			orderStatus = record.getField(2, PactString.class);
 			if (!orderStatus.getValue().equals("F"))
 				return;
@@ -122,10 +119,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 			if (!(Integer.parseInt(orderDate.getValue().substring(0, 4)) > this.yearFilter))
 				return;
 			
-			record.setNull(2);
-			record.setNull(3);
-			record.setNull(4);
-	
+			record.setNumFields(2);
 			out.collect(record);
 		}
 	}
@@ -134,22 +128,21 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	 * Match PACT realizes the join between LineItem and Order table.
 	 *
 	 */
-	@ConstantFieldsFirstExcept(fields={5})
+	@ConstantFieldsFirst(fields={0,1})
 	@OutCardBounds(lowerBound=1, upperBound=1)
-	public static class JoinLiO extends MatchStub
-	{
+	public static class JoinLiO extends MatchStub {
+		
 		/**
 		 * Implements the join between LineItem and Order table on the order key.
 		 * 
 		 * Output Schema:
 		 *   0:ORDERKEY
 		 *   1:SHIPPRIORITY
-		 *   5:EXTENDEDPRICE
+		 *   2:EXTENDEDPRICE
 		 */
 		@Override
-		public void match(PactRecord order, PactRecord lineitem, Collector<PactRecord> out)
-		{
-			order.setField(5, lineitem.getField(1, PactDouble.class));
+		public void match(PactRecord order, PactRecord lineitem, Collector<PactRecord> out) {
+			order.setField(2, lineitem.getField(1, PactDouble.class));
 			out.collect(order);
 		}
 	}
@@ -163,8 +156,8 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	@ReduceContract.Combinable
 	@ConstantFields(fields={0,1})
 	@OutCardBounds(upperBound=1, lowerBound=1)
-	public static class AggLiO extends ReduceStub
-	{
+	public static class AggLiO extends ReduceStub {
+		
 		private final PactDouble extendedPrice = new PactDouble();
 		
 		/**
@@ -173,21 +166,20 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		 * Output Schema:
 		 *   0:ORDERKEY
 		 *   1:SHIPPRIORITY
-		 *   5:SUM(EXTENDEDPRICE)
+		 *   2:SUM(EXTENDEDPRICE)
 		 */
 		@Override
-		public void reduce(Iterator<PactRecord> values, Collector<PactRecord> out)
-		{
+		public void reduce(Iterator<PactRecord> values, Collector<PactRecord> out) {
 			PactRecord rec = null;
 			double partExtendedPriceSum = 0;
 
 			while (values.hasNext()) {
 				rec = values.next();
-				partExtendedPriceSum += rec.getField(5, PactDouble.class).getValue();
+				partExtendedPriceSum += rec.getField(2, PactDouble.class).getValue();
 			}
 
 			this.extendedPrice.setValue(partExtendedPriceSum);
-			rec.setField(5, this.extendedPrice);
+			rec.setField(2, this.extendedPrice);
 			out.collect(rec);
 		}
 
@@ -195,8 +187,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		 * Creates partial sums on the price attribute for each data batch.
 		 */
 		@Override
-		public void combine(Iterator<PactRecord> values, Collector<PactRecord> out)
-		{
+		public void combine(Iterator<PactRecord> values, Collector<PactRecord> out) {
 			reduce(values, out);
 		}
 	}
@@ -205,8 +196,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Plan getPlan(final String... args) 
-	{
+	public Plan getPlan(final String... args) {
 		// parse program parameters
 		final int noSubtasks       = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		final String ordersPath    = (args.length > 1 ? args[1] : "");
@@ -223,10 +213,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 			.field(VarLengthStringParser.class, 2)		// order status
 			.field(VarLengthStringParser.class, 4)		// order date
 			.field(VarLengthStringParser.class, 5);		// order prio
-		// compiler hints
-		orders.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(0), 1);
 		orders.getCompilerHints().setAvgBytesPerRecord(16);
-		orders.getCompilerHints().setUniqueField(new FieldSet(0));
 
 		// create DataSourceContract for LineItems input
 		FileDataSource lineitems = new FileDataSource(RecordInputFormat.class, lineitemsPath, "LineItems");
@@ -248,9 +235,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		filterO.setParameter(YEAR_FILTER, 1993);
 		filterO.setParameter(PRIO_FILTER, "5");
 		// compiler hints
-		filterO.getCompilerHints().setAvgBytesPerRecord(16);
 		filterO.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.05f);
-		filterO.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(0), 1);
 
 		// create MatchContract for joining Orders and LineItems
 		MatchContract joinLiO = MatchContract.builder(JoinLiO.class, PactLong.class, 0, 0)
@@ -283,7 +268,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 			.lenient(true)
 			.field(PactLong.class, 0)
 			.field(PactInteger.class, 1)
-			.field(PactDouble.class, 5);
+			.field(PactDouble.class, 2);
 		
 		// assemble the PACT plan
 		Plan plan = new Plan(result, "TPCH Q3");
@@ -298,5 +283,4 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	public String getDescription() {
 		return "Parameters: [noSubStasks], [orders], [lineitem], [output]";
 	}
-
 }
