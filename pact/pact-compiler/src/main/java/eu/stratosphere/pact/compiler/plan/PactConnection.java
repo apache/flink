@@ -30,8 +30,8 @@ import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
  * The connections are also used by the optimization algorithm to propagate interesting properties from the sinks in the
  * direction of the sources.
  */
-public class PactConnection implements EstimateProvider, DumpableConnection<OptimizerNode>
-{
+public class PactConnection implements EstimateProvider, DumpableConnection<OptimizerNode> {
+	
 	private final OptimizerNode source; // The source node of the connection
 
 	private final OptimizerNode target; // The target node of the connection.
@@ -41,6 +41,8 @@ public class PactConnection implements EstimateProvider, DumpableConnection<Opti
 	private ShipStrategyType shipStrategy; // The data distribution strategy, if preset
 	
 	private TempMode materializationMode = TempMode.NONE;
+	
+	private final int maxDepth;
 
 	/**
 	 * Creates a new Connection between two nodes. The shipping strategy is by default <tt>NONE</tt>.
@@ -51,8 +53,8 @@ public class PactConnection implements EstimateProvider, DumpableConnection<Opti
 	 * @param target
 	 *        The target node.
 	 */
-	public PactConnection(OptimizerNode source, OptimizerNode target) {
-		this(source, target, null);
+	public PactConnection(OptimizerNode source, OptimizerNode target, int maxDepth) {
+		this(source, target, null, maxDepth);
 	}
 
 	/**
@@ -65,14 +67,14 @@ public class PactConnection implements EstimateProvider, DumpableConnection<Opti
 	 * @param shipStrategy
 	 *        The shipping strategy.
 	 */
-	public PactConnection(OptimizerNode source, OptimizerNode target, ShipStrategyType shipStrategy) {
+	public PactConnection(OptimizerNode source, OptimizerNode target, ShipStrategyType shipStrategy, int maxDepth) {
 		if (source == null) {
 			throw new NullPointerException("Source must not be null.");
 		}
-
 		this.source = source;
 		this.target = target;
 		this.shipStrategy = shipStrategy;
+		this.maxDepth = maxDepth;
 	}
 
 	/**
@@ -138,6 +140,10 @@ public class PactConnection implements EstimateProvider, DumpableConnection<Opti
 	
 	public void clearInterestingProperties() {
 		this.interestingProps = null;
+	}
+	
+	public int getMaxDepth() {
+		return this.maxDepth;
 	}
 
 	// --------------------------------------------------------------------------------------------

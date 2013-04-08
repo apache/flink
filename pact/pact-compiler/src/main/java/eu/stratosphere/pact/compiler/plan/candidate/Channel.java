@@ -35,8 +35,8 @@ import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 /**
  * 
  */
-public class Channel implements EstimateProvider, Cloneable, DumpableConnection<PlanNode>
-{
+public class Channel implements EstimateProvider, Cloneable, DumpableConnection<PlanNode> {
+	
 	private PlanNode source;
 	
 	private PlanNode target;
@@ -495,6 +495,11 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 		}
 	}
 	
+	// --------------------------------------------------------------------------------------------
+	
+	public int getMaxDepth() {
+		return this.source.getOptimizerNode().getMaxDepth() + 1;
+	}
 	// --------------------------------------------------------------------------------------------
 
 	

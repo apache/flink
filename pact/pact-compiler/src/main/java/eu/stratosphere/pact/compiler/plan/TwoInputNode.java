@@ -241,13 +241,13 @@ public abstract class TwoInputNode extends OptimizerNode
 		PactConnection conn1;
 		if (leftPreds.size() == 1) {
 			pred1 = contractToNode.get(leftPreds.get(0));
-			conn1 = new PactConnection(pred1, this);
+			conn1 = new PactConnection(pred1, this, pred1.getMaxDepth() + 1);
 			if (preSet1 != null) {
 				conn1.setShipStrategy(preSet1);
 			}
 		} else {
 			pred1 = createdUnionCascade(leftPreds, contractToNode, preSet1);
-			conn1 = new PactConnection(pred1, this);
+			conn1 = new PactConnection(pred1, this, pred1.getMaxDepth() + 1);
 			conn1.setShipStrategy(ShipStrategyType.FORWARD);
 		}
 		// create the connection and add it
@@ -258,13 +258,13 @@ public abstract class TwoInputNode extends OptimizerNode
 		PactConnection conn2;
 		if (rightPreds.size() == 1) {
 			pred2 = contractToNode.get(rightPreds.get(0));
-			conn2 = new PactConnection(pred2, this);
+			conn2 = new PactConnection(pred2, this, pred2.getMaxDepth() + 1);
 			if (preSet2 != null) {
 				conn2.setShipStrategy(preSet2);
 			}
 		} else {
 			pred2 = createdUnionCascade(rightPreds, contractToNode, preSet1);
-			conn2 = new PactConnection(pred2, this);
+			conn2 = new PactConnection(pred2, this, pred2.getMaxDepth() + 1);
 			conn2.setShipStrategy(ShipStrategyType.FORWARD);
 		}
 		// create the connection and add it

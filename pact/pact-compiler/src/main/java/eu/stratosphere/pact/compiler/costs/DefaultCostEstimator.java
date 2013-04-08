@@ -30,8 +30,8 @@ import eu.stratosphere.pact.compiler.plan.EstimateProvider;
  * of 1, that would yield a shipping of zero bytes. While this is usually correct, the runtime scheduling may still
  * choose to move tasks to different nodes, so that we do not know that no data is shipped.
  */
-public class DefaultCostEstimator extends CostEstimator
-{
+public class DefaultCostEstimator extends CostEstimator {
+	
 	/**
 	 * The case of the estimation for all relative costs. We heuristically pick a very large data volume, which
 	 * will favor strategies that are less expensive on large data volumes. This is robust and 
@@ -144,9 +144,9 @@ public class DefaultCostEstimator extends CostEstimator
 	public void addHybridHashCosts(EstimateProvider buildSideInput, EstimateProvider probeSideInput, long availableMemory, Costs costs) {
 		long bs = buildSideInput.getEstimatedOutputSize();
 		long ps = probeSideInput.getEstimatedOutputSize();
-		// heuristic: half the table has to spill, times 2 I/O
+		
 		if (bs > 0 && ps > 0) {
-			costs.addDiskCost(bs + ps);
+			costs.addDiskCost(2*bs + ps);
 		} else {
 			costs.setDiskCost(Costs.UNKNOWN);
 		}

@@ -37,8 +37,8 @@ import static eu.stratosphere.pact.compiler.plan.candidate.PlanNode.SourceAndDam
 /**
  *
  */
-public class DualInputPlanNode extends PlanNode
-{
+public class DualInputPlanNode extends PlanNode {
+	
 	protected final Channel input1;
 	protected final Channel input2;
 	
@@ -56,21 +56,18 @@ public class DualInputPlanNode extends PlanNode
 	
 	// --------------------------------------------------------------------------------------------
 
-	public DualInputPlanNode(OptimizerNode template, Channel input1, Channel input2, DriverStrategy localStrategy)
-	{
-		this(template, input1, input2, localStrategy, null, null);
+	public DualInputPlanNode(OptimizerNode template, Channel input1, Channel input2, DriverStrategy localStrategy) {
+		this(template, input1, input2, localStrategy, null, null, null);
 	}
 	
 	public DualInputPlanNode(OptimizerNode template, Channel input1, Channel input2,
-			DriverStrategy localStrategy, FieldList driverKeyFields1, FieldList driverKeyFields2)
-	{
-		this(template, input1, input2, localStrategy, driverKeyFields1, driverKeyFields2, null);
+			DriverStrategy localStrategy, FieldList driverKeyFields1, FieldList driverKeyFields2) {
+		this(template, input1, input2, localStrategy, driverKeyFields1, driverKeyFields2,
+									SingleInputPlanNode.getTrueArray(driverKeyFields1.size()));
 	}
 	
-	public DualInputPlanNode(OptimizerNode template, Channel input1, Channel input2, 
-			DriverStrategy localStrategy, FieldList driverKeyFields1, FieldList driverKeyFields2, 
-			boolean[] driverSortOrders)
-	{
+	public DualInputPlanNode(OptimizerNode template, Channel input1, Channel input2, DriverStrategy localStrategy,
+			FieldList driverKeyFields1, FieldList driverKeyFields2, boolean[] driverSortOrders) {
 		super(template, localStrategy);
 		this.input1 = input1;
 		this.input2 = input2;

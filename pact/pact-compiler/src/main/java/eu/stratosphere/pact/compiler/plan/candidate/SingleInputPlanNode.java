@@ -47,13 +47,13 @@ public class SingleInputPlanNode extends PlanNode
 	// --------------------------------------------------------------------------------------------
 
 	public SingleInputPlanNode(OptimizerNode template, Channel input, DriverStrategy driverStrategy) {
-		this(template, input, driverStrategy, null);
+		this(template, input, driverStrategy, null, null);
 	}
 	
 	public SingleInputPlanNode(OptimizerNode template, Channel input, 
 			DriverStrategy driverStrategy, FieldList driverKeyFields)
 	{
-		this(template, input, driverStrategy, driverKeyFields, null);
+		this(template, input, driverStrategy, driverKeyFields, getTrueArray(driverKeyFields.size()));
 	}
 	
 	public SingleInputPlanNode(OptimizerNode template, Channel input, 
@@ -214,5 +214,15 @@ public class SingleInputPlanNode extends PlanNode
 		} else {
 			return res;
 		}
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	protected static boolean[] getTrueArray(int length) {
+		final boolean[] a = new boolean[length];
+		for (int i = 0; i < length; i++) {
+			a[i] = true;
+		}
+		return a;
 	}
 }

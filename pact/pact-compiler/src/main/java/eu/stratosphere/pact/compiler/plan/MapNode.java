@@ -25,8 +25,8 @@ import eu.stratosphere.pact.generic.contract.GenericMapContract;
 /**
  * The optimizer's internal representation of a <i>Map</i> contract node.
  */
-public class MapNode extends SingleInputNode
-{
+public class MapNode extends SingleInputNode {
+	
 	/**
 	 * Creates a new MapNode for the given contract.
 	 * 

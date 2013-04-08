@@ -575,8 +575,7 @@ public class PactCompiler {
 	 *         Thrown, if the plan is invalid or the optimizer encountered an inconsistent
 	 *         situation during the compilation process.
 	 */
-	public OptimizedPlan compile(Plan pactPlan, InstanceTypeDescription type, OptimizerPostPass postPasser) throws CompilerException
-	{
+	public OptimizedPlan compile(Plan pactPlan, InstanceTypeDescription type, OptimizerPostPass postPasser) throws CompilerException {
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Beginning compilation of PACT program '" + pactPlan.getJobName() + '\'');
 		}
@@ -991,7 +990,7 @@ public class PactCompiler {
 				}
 				
 				// add an outgoing connection to the root of the step function
-				PactConnection rootConn = new PactConnection(rootOfStepFunction, null);
+				PactConnection rootConn = new PactConnection(rootOfStepFunction, null, -1);
 				rootOfStepFunction.addOutgoingConnection(rootConn);
 				
 				iterNode.setNextPartialSolution(rootOfStepFunction, rootConn);
@@ -1044,9 +1043,9 @@ public class PactCompiler {
 				}
 				
 				// add an outgoing connection to the root of the step function
-				PactConnection worksetRootConn = new PactConnection(nextWorksetNode, null);
+				PactConnection worksetRootConn = new PactConnection(nextWorksetNode, null, -1);
 				nextWorksetNode.addOutgoingConnection(worksetRootConn);
-				PactConnection solutionSetDeltaRootConn = new PactConnection(solutionSetDeltaNode, null);
+				PactConnection solutionSetDeltaRootConn = new PactConnection(solutionSetDeltaNode, null, -1);
 				solutionSetDeltaNode.addOutgoingConnection(solutionSetDeltaRootConn);
 				
 				iterNode.setPartialSolution(solutionSetNode, worksetNode);

@@ -78,12 +78,26 @@ public abstract class CostEstimator {
 		for (Iterator<Channel> channels = n.getInputs(); channels.hasNext(); ) {
 			final Channel channel = channels.next();
 			final Costs costs = new Costs();
+			 
+			// Plans that apply the same strategies, but at different points
+			// are equally expensive. For example, if a partitioning can be
+			// pushed below a Map function there is often no difference in plan
+			// costs between the pushed down version and the version that partitions
+			// after the Mapper. However, in those cases, we want the expensive
+			// strategy to appear later in the plan, as data reduction often occurs
+			// by large factors, while blowup is rare and typically by smaller fractions.
+			// We achieve this by adding a penalty to small penalty to the FORWARD strategy,
+			// weighted by the current plan depth (steps to the earliest data source).
+			// that way, later FORWARDS are more expensive than earlier forwards.
+			// Note that this only applies to the heuristic costs.
 			
 			switch (channel.getShipStrategy()) {
 			case NONE:
 				throw new CompilerException(
 					"Cannot determine costs: Shipping strategy has not been set for an input.");
 			case FORWARD:
+//				costs.addHeuristicNetworkCost(channel.getMaxDepth());
+				break;
 			case PARTITION_LOCAL_HASH:
 				break;
 			case PARTITION_RANDOM:

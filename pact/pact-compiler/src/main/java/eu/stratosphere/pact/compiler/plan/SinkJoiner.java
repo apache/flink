@@ -35,8 +35,8 @@ public class SinkJoiner extends TwoInputNode
 	public SinkJoiner(OptimizerNode input1, OptimizerNode input2) {
 		super(new NoContract());
 		
-		PactConnection conn1 = new PactConnection(input1, this);
-		PactConnection conn2 = new PactConnection(input2, this);
+		PactConnection conn1 = new PactConnection(input1, this, -1);
+		PactConnection conn2 = new PactConnection(input2, this, -1);
 		
 		this.input1 = conn1;
 		this.input2 = conn2;

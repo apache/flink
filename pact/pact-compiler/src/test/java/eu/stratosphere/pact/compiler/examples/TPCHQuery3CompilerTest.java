@@ -70,7 +70,7 @@ public class TPCHQuery3CompilerTest extends CompilerTestBase {
 			// verify the optimizer choices
 			checkStandardStrategies(filteringMapper, join, combiner, reducer, sink);
 			Assert.assertTrue(checkRepartitionShipStrategies(join, reducer, combiner));
-			Assert.assertTrue(checkHashJoinStrategies(join, reducer, true) || checkHashJoinStrategies(join, reducer, true));
+			Assert.assertTrue(checkHashJoinStrategies(join, reducer, true) || checkHashJoinStrategies(join, reducer, false));
 		} catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail(e.getMessage());
@@ -91,7 +91,7 @@ public class TPCHQuery3CompilerTest extends CompilerTestBase {
 	 */
 	@Test
 	public void testQueryWithStatsForBroadcastHash() {
-		testQueryGeneric(1024*1024*1024*1024L, 100*1024*1024*1024*1024L, true, false, true, false, false);
+		testQueryGeneric(1024l*1024*1024*1024, 100l*1024*1024*1024*1024, true, false, true, false, false);
 	}
 	
 	/**
@@ -99,7 +99,7 @@ public class TPCHQuery3CompilerTest extends CompilerTestBase {
 	 */
 	@Test
 	public void testQueryWithStatsForRepartition() {
-		testQueryGeneric(100*1024*1024*1024*1024L, 100*1024*1024*1024*1024L, false, true, true, true, true);
+		testQueryGeneric(100l*1024*1024*1024*1024, 100l*1024*1024*1024*1024, false, true, true, true, true);
 	}
 	
 	// ------------------------------------------------------------------------

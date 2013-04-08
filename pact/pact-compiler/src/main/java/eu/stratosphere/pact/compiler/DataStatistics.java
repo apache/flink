@@ -25,8 +25,8 @@ import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
  * data processed in a job. Currently this method acts as an entry point only for obtaining cached
  * statistics.
  */
-public class DataStatistics
-{
+public class DataStatistics {
+	
 	private final Map<String, BaseStatistics> baseStatisticsCache;
 	
 	// --------------------------------------------------------------------------------------------

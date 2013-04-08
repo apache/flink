@@ -405,6 +405,14 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	public int getCostWeight() {
 		return this.costWeight;
 	}
+	
+	public int getMaxDepth() {
+		int maxDepth = 0;
+		for (PactConnection conn : getIncomingConnections()) {
+			maxDepth = Math.max(maxDepth, conn.getMaxDepth());
+		}
+		return maxDepth;
+	}
 
 	/**
 	 * Gets the properties that are interesting for this node to produce.

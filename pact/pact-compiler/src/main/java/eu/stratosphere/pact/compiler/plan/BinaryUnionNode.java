@@ -42,8 +42,8 @@ public class BinaryUnionNode extends TwoInputNode {
 	public BinaryUnionNode(OptimizerNode pred1, OptimizerNode pred2) {
 		super(new UnionPlaceholderContract());
 		
-		this.input1 = new PactConnection(pred1, this);
-		this.input2 = new PactConnection(pred2, this);
+		this.input1 = new PactConnection(pred1, this, pred1.getMaxDepth() + 1);
+		this.input2 = new PactConnection(pred2, this, pred2.getMaxDepth() + 1);
 		
 		pred1.addOutgoingConnection(this.input1);
 		pred2.addOutgoingConnection(this.input2);

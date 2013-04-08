@@ -99,7 +99,7 @@ public class Costs implements Comparable<Costs>, Cloneable {
 	 *        The network cost to set, in bytes to be transferred.
 	 */
 	public void setNetworkCost(long bytes) {
-		if (bytes >= -1) {
+		if (bytes == UNKNOWN || bytes >= 0) {
 			this.networkCost = bytes;
 		} else {
 			throw new IllegalArgumentException();
@@ -113,7 +113,7 @@ public class Costs implements Comparable<Costs>, Cloneable {
 	 * @param bytes The network cost to add, in bytes to be transferred.
 	 */
 	public void addNetworkCost(long bytes) {
-		this.networkCost = (this.networkCost < 0 || bytes < 0) ? -1 : this.networkCost + bytes;
+		this.networkCost = (this.networkCost < 0 || bytes < 0) ? UNKNOWN : this.networkCost + bytes;
 	}
 
 	/**
@@ -131,7 +131,7 @@ public class Costs implements Comparable<Costs>, Cloneable {
 	 * @param bytes The disk cost to set, in bytes to be written and read.
 	 */
 	public void setDiskCost(long bytes) {
-		if (bytes >= -1) {
+		if (bytes == UNKNOWN || bytes >= 0) {
 			this.diskCost = bytes;
 		} else {
 			throw new IllegalArgumentException();
@@ -146,7 +146,7 @@ public class Costs implements Comparable<Costs>, Cloneable {
 	 */
 	public void addDiskCost(long bytes) {
 		this.diskCost = 
-			(this.diskCost < 0 || bytes < 0) ? -1 : this.diskCost + bytes;
+			(this.diskCost < 0 || bytes < 0) ? UNKNOWN : this.diskCost + bytes;
 	}
 	
 	/**
@@ -164,7 +164,7 @@ public class Costs implements Comparable<Costs>, Cloneable {
 	 * @param cost The CPU Cost.
 	 */
 	public void setCpuCost(long cost) {
-		if (cost >= -1) {
+		if (cost == UNKNOWN || cost >= 0) {
 			this.cpuCost = cost;
 		} else {
 			throw new IllegalArgumentException();
@@ -178,7 +178,7 @@ public class Costs implements Comparable<Costs>, Cloneable {
 	 */
 	public void addCpuCost(long cost) {
 		this.cpuCost = 
-			(this.cpuCost < 0 || cost < 0) ? -1 : this.cpuCost + cost;
+			(this.cpuCost < 0 || cost < 0) ? UNKNOWN : this.cpuCost + cost;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -306,20 +306,20 @@ public class Costs implements Comparable<Costs>, Cloneable {
 	 */
 	public void addCosts(Costs other) {
 		// ---------- quantifiable costs ----------
-		if (this.networkCost == -1 || other.networkCost == -1) {
-			this.networkCost = -1;
+		if (this.networkCost == UNKNOWN || other.networkCost == UNKNOWN) {
+			this.networkCost = UNKNOWN;
 		} else {
 			this.networkCost += other.networkCost;
 		}
 		
-		if (this.diskCost == -1 || other.diskCost == -1) {
-			this.diskCost = -1;
+		if (this.diskCost == UNKNOWN || other.diskCost == UNKNOWN) {
+			this.diskCost = UNKNOWN;
 		} else {
 			this.diskCost += other.diskCost;
 		}
 		
-		if (this.cpuCost == -1 || other.cpuCost == -1) {
-			this.cpuCost = -1;
+		if (this.cpuCost == UNKNOWN || other.cpuCost == UNKNOWN) {
+			this.cpuCost = UNKNOWN;
 		} else {
 			this.cpuCost += other.cpuCost;
 		}
@@ -337,19 +337,19 @@ public class Costs implements Comparable<Costs>, Cloneable {
 	 * @param other The costs to subtract.
 	 */
 	public void subtractCosts(Costs other) {
-		if (this.networkCost != -1 && other.networkCost != -1) {
+		if (this.networkCost != UNKNOWN && other.networkCost != UNKNOWN) {
 			this.networkCost -= other.networkCost;
 			if (this.networkCost < 0) {
 				throw new IllegalArgumentException("Cannot subtract more cost then there is.");
 			}
 		}
-		if (this.diskCost != -1 && other.diskCost != -1) {
+		if (this.diskCost != UNKNOWN && other.diskCost != UNKNOWN) {
 			this.diskCost -= other.diskCost;
 			if (this.diskCost < 0) {
 				throw new IllegalArgumentException("Cannot subtract more cost then there is.");
 			}
 		}
-		if (this.cpuCost != -1 && other.cpuCost != -1) {
+		if (this.cpuCost != UNKNOWN && other.cpuCost != UNKNOWN) {
 			this.cpuCost -= other.cpuCost;
 			if (this.cpuCost < 0) {
 				throw new IllegalArgumentException("Cannot subtract more cost then there is.");
@@ -392,8 +392,10 @@ public class Costs implements Comparable<Costs>, Cloneable {
 	@Override
 	public int compareTo(Costs o) {
 		// check the network cost. if we have actual costs on both, use them, otherwise use the heuristic costs.
-		if (this.networkCost > -1 && o.networkCost > -1) {
-			return this.networkCost < o.networkCost ? -1 : this.networkCost > o.networkCost ? 1 : 0;
+		if (this.networkCost != UNKNOWN && o.networkCost != UNKNOWN) {
+			if (this.networkCost != o.networkCost) {
+				return this.networkCost < o.networkCost ? -1 : 1;
+			}
 		} else if (this.heuristicNetworkCost < o.heuristicNetworkCost) {
 			return -1;
 		} else if (this.heuristicNetworkCost > o.heuristicNetworkCost) {
@@ -401,8 +403,10 @@ public class Costs implements Comparable<Costs>, Cloneable {
 		}
 		
 		// next, check the disk cost. again, if we have actual costs on both, use them, otherwise use the heuristic costs.
-		if (this.diskCost > -1 && o.diskCost > -1) {
-			return this.diskCost < o.diskCost ? -1 : this.diskCost > o.diskCost ? 1 : 0;
+		if (this.diskCost != UNKNOWN && o.diskCost != UNKNOWN) {
+			if (this.diskCost != o.diskCost) {
+				return this.diskCost < o.diskCost ? -1 : 1;
+			}
 		} else if (this.heuristicDiskCost < o.heuristicDiskCost) {
 			return -1;
 		} else if (this.heuristicDiskCost > o.heuristicDiskCost) {
@@ -410,7 +414,7 @@ public class Costs implements Comparable<Costs>, Cloneable {
 		}
 		
 		// next, check the disk cost. again, if we have actual costs on both, use them, otherwise use the heuristic costs.
-		if (this.cpuCost > -1 && o.cpuCost > -1) {
+		if (this.cpuCost != UNKNOWN && o.cpuCost != UNKNOWN) {
 			return this.cpuCost < o.cpuCost ? -1 : this.cpuCost > o.cpuCost ? 1 : 0;
 		} else if (this.heuristicCpuCost < o.heuristicCpuCost) {
 			return -1;

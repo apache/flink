@@ -142,10 +142,10 @@ public class DataSinkNode extends OptimizerNode
 		final PactConnection conn;
 		if (children.size() == 1) {
 			pred = contractToNode.get(children.get(0));
-			conn = new PactConnection(pred, this);
+			conn = new PactConnection(pred, this, pred.getMaxDepth() + 1);
 		} else {
 			pred = createdUnionCascade(children, contractToNode, null);
-			conn = new PactConnection(pred, this);
+			conn = new PactConnection(pred, this, pred.getMaxDepth() + 1);
 			conn.setShipStrategy(ShipStrategyType.FORWARD);
 		}
 		// create the connection and add it

@@ -15,6 +15,8 @@
 
 package eu.stratosphere.pact.compiler.dataproperties;
 
+import java.util.Arrays;
+
 import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.common.util.FieldSet;
@@ -192,7 +194,9 @@ public final class RequestedLocalProperties implements Cloneable
 		if (this.ordering != null) {
 			channel.setLocalStrategy(LocalStrategy.SORT, this.ordering.getInvolvedIndexes(), this.ordering.getFieldSortDirections());
 		} else if (this.groupedFields != null) {
-			channel.setLocalStrategy(LocalStrategy.SORT, Utils.createOrderedFromSet(this.groupedFields));
+			boolean[] dirs = new boolean[this.groupedFields.size()];
+			Arrays.fill(dirs, true);
+			channel.setLocalStrategy(LocalStrategy.SORT, Utils.createOrderedFromSet(this.groupedFields), dirs);
 		}
 	}
 	

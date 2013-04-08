@@ -42,8 +42,8 @@ import eu.stratosphere.pact.runtime.task.DriverStrategy;
  * Hence, many methods will delegate to the {@code OptimizerNode} that represents the node this candidate was
  * created for.
  */
-public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<PlanNode>
-{
+public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<PlanNode> {
+	
 	protected final OptimizerNode template;
 	
 	protected final List<Channel> outChannels;
