@@ -20,6 +20,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import eu.stratosphere.pact.common.contract.FileDataSource;
+import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.compiler.CompilerTestBase;
@@ -78,7 +79,7 @@ public class TPCHQuery3CompilerTest extends CompilerTestBase {
 	}
 	
 	/**
-	 * Checks if any valid plan is produced. Hash joins are expected to build teh orders side, as the statistics
+	 * Checks if any valid plan is produced. Hash joins are expected to build the orders side, as the statistics
 	 * indicate this to be the smaller one.
 	 */
 	@Test
@@ -98,8 +99,25 @@ public class TPCHQuery3CompilerTest extends CompilerTestBase {
 	 * Statistics that push towards a broadcast join.
 	 */
 	@Test
-	public void testQueryWithStatsForRepartition() {
+	public void testQueryWithStatsForRepartitionAny() {
 		testQueryGeneric(100l*1024*1024*1024*1024, 100l*1024*1024*1024*1024, false, true, true, true, true);
+	}
+	
+	/**
+	 * Statistics that push towards a repartition merge join. If the join blows the data volume up significantly,
+	 * re-exploiting the sorted order is cheaper.
+	 */
+	@Test
+	public void testQueryWithStatsForRepartitionMerge() {
+		TPCHQuery3 query = new TPCHQuery3();
+		Plan p = query.getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE);
+		
+		// set compiler hints
+		ContractResolver cr = getContractResolver(p);
+		MatchContract match = cr.getNode("JoinLiO");
+		match.getCompilerHints().setAvgRecordsEmittedPerStubCall(100f);
+		
+		testQueryGeneric(100l*1024*1024*1024*1024, 100l*1024*1024*1024*1024, false, true, false, false, true);
 	}
 	
 	// ------------------------------------------------------------------------

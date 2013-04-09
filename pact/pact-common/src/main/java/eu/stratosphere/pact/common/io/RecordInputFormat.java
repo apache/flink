@@ -15,16 +15,19 @@
 
 package eu.stratosphere.pact.common.io;
 
-import java.util.Arrays;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.pact.common.contract.CompilerHints;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.common.type.base.parser.DecimalTextDoubleParser;
+import eu.stratosphere.pact.common.type.base.parser.DecimalTextIntParser;
+import eu.stratosphere.pact.common.type.base.parser.DecimalTextLongParser;
 import eu.stratosphere.pact.common.type.base.parser.FieldParser;
+import eu.stratosphere.pact.generic.contract.Contract;
 
 /**
  * Inputformat to parse ASCII text files and generate PactRecords. 
@@ -46,12 +49,9 @@ import eu.stratosphere.pact.common.type.base.parser.FieldParser;
  * @see FieldParser
  * @see Configuration
  * @see PactRecord
- * 
- * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
- *
  */
-public class RecordInputFormat extends DelimitedInputFormat implements OutputSchemaProvider
-{
+public class RecordInputFormat extends DelimitedInputFormat {
+
 	// -------------------------------------- Constants -------------------------------------------
 	
 	@SuppressWarnings("unused")
@@ -235,8 +235,7 @@ public class RecordInputFormat extends DelimitedInputFormat implements OutputSch
 		return true;
 	}
 	
-	protected int skipFields(byte[] bytes, int startPos, int limit, char delim, int skipCnt)
-	{	
+	protected int skipFields(byte[] bytes, int startPos, int limit, char delim, int skipCnt) {
 		int i = startPos;
 		
 		while (i < limit && skipCnt > 0) {
@@ -251,24 +250,6 @@ public class RecordInputFormat extends DelimitedInputFormat implements OutputSch
 			return -1;
 		}
 	}
-
-	@Override
-	public int[] getOutputSchema()
-	{
-		if (this.recordPositions == null) 
-			throw new RuntimeException("RecordInputFormat must be configured before output schema is available");
-		
-		final int[] outputSchema = new int[this.numFields];
-		int j = 0;
-		
-		for(int i = 0; i < this.recordPositions.length; i++) {
-			if (this.recordPositions[i] > 0) {
-				outputSchema[j++] = this.recordPositions[i];
-			}
-		}
-		Arrays.sort(outputSchema);
-		return outputSchema;
-	}
 	
 	// ============================================================================================
 	
@@ -279,23 +260,28 @@ public class RecordInputFormat extends DelimitedInputFormat implements OutputSch
 	 * @return A config builder for setting parameters.
 	 */
 	public static ConfigBuilder configureRecordFormat(FileDataSource target) {
-		return new ConfigBuilder(target.getParameters());
+		return new ConfigBuilder(target, target.getParameters());
 	}
 	
 	/**
 	 * An abstract builder used to set parameters to the input format's configuration in a fluent way.
 	 */
-	protected static class AbstractConfigBuilder<T> extends DelimitedInputFormat.AbstractConfigBuilder<T>
-	{
-		// --------------------------------------------------------------------
+	protected static class AbstractConfigBuilder<T> extends DelimitedInputFormat.AbstractConfigBuilder<T> {
+		
+		protected final RecordFormatCompilerHints hints;
 		
 		/**
 		 * Creates a new builder for the given configuration.
 		 * 
 		 * @param targetConfig The configuration into which the parameters will be written.
 		 */
-		protected AbstractConfigBuilder(Configuration config) {
+		protected AbstractConfigBuilder(Contract contract, Configuration config) {
 			super(config);
+			this.hints = new RecordFormatCompilerHints(contract.getCompilerHints());
+			contract.swapCompilerHints(this.hints);
+			
+			// initialize with 2 bytes length for the header (its actually 3, but one is skipped on the first field
+			this.hints.addWidthRecordFormat(2);
 		}
 		
 		// --------------------------------------------------------------------
@@ -314,10 +300,31 @@ public class RecordInputFormat extends DelimitedInputFormat implements OutputSch
 		}
 		
 		public T field(Class<? extends FieldParser<?>> parser, int textPosition) {
+			return field(parser, textPosition, Float.NEGATIVE_INFINITY);
+
+		}
+		
+		public T field(Class<? extends FieldParser<?>> parser, int textPosition, float avgLen) {
+			// register field
 			final int numYet = this.config.getInteger(NUM_FIELDS_PARAMETER, 0);
 			this.config.setClass(FIELD_PARSER_PARAMETER_PREFIX + numYet, parser);
 			this.config.setInteger(TEXT_POSITION_PARAMETER_PREFIX + numYet, textPosition);
 			this.config.setInteger(NUM_FIELDS_PARAMETER, numYet + 1);
+			
+			// register length
+			if (avgLen == Float.NEGATIVE_INFINITY) {
+				if (parser == DecimalTextIntParser.class) {
+					avgLen = 4f;
+				} else if (parser == DecimalTextDoubleParser.class || parser == DecimalTextLongParser.class) {
+					avgLen = 8f;
+				}
+			}
+			
+			if (avgLen != Float.NEGATIVE_INFINITY) {
+				// add the len, plus one byte for the offset coding
+				this.hints.addWidthRecordFormat(avgLen + 1);
+			}
+			
 			@SuppressWarnings("unchecked")
 			T ret = (T) this;
 			return ret;
@@ -327,16 +334,33 @@ public class RecordInputFormat extends DelimitedInputFormat implements OutputSch
 	/**
 	 * A builder used to set parameters to the input format's configuration in a fluent way.
 	 */
-	public static class ConfigBuilder extends AbstractConfigBuilder<ConfigBuilder>
-	{
-		/**
-		 * Creates a new builder for the given configuration.
-		 * 
-		 * @param targetConfig The configuration into which the parameters will be written.
-		 */
-		protected ConfigBuilder(Configuration targetConfig) {
-			super(targetConfig);
-		}
+	public static class ConfigBuilder extends AbstractConfigBuilder<ConfigBuilder> {
 		
+		protected ConfigBuilder(Contract target, Configuration targetConfig) {
+			super(target, targetConfig);
+		}
+	}
+	
+	private static final class RecordFormatCompilerHints extends CompilerHints {
+		
+		private float width = 0.0f;
+		
+		private RecordFormatCompilerHints(CompilerHints parent) {
+			copyFrom(parent);
+		}
+
+		@Override
+		public float getAvgBytesPerRecord() {
+			float superWidth = super.getAvgBytesPerRecord();
+			if (superWidth > 0.0f || this.width <= 0.0f) {
+				return superWidth;
+			} else {
+				return this.width;
+			}
+		}
+
+		private void addWidthRecordFormat(float width) {
+			this.width += width;
+		}
 	}
 }

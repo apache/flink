@@ -50,11 +50,11 @@ import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 /**
  * 
  */
-public class PlanJSONDumpGenerator
-{
+public class PlanJSONDumpGenerator {
+	
 	private Map<DumpableNode<?>, Integer> nodeIds; // resolves pact nodes to ids
 
-	private int nodeCnt; // resolves pact nodes to ids
+	private int nodeCnt;
 	
 	private boolean firstInList = true;
 

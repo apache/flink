@@ -15,8 +15,8 @@
 
 package eu.stratosphere.pact.common.contract;
 
-import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -46,9 +46,6 @@ import eu.stratosphere.pact.common.util.FieldSet;
  * unknown.</li>
  * <li>The average number of bytes per record. <code>-1.0</code> by default, indicating that this value is unknown.</li>
  * </ul>
- * 
- * @author Matthias Ringwald
- * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  */
 public class CompilerHints {
 
@@ -60,15 +57,62 @@ public class CompilerHints {
 
 	private Map<FieldSet, Float> avgNumRecordsPerDistinctFields = new HashMap<FieldSet, Float>();
 
-	private Set<FieldSet> uniqueFields = null;
+	private Set<FieldSet> uniqueFields;
 
+	// --------------------------------------------------------------------------------------------
+	//  Basic Record Statistics
+	// --------------------------------------------------------------------------------------------
+	
 	/**
-	 * Default constructor. Creates a new <tt>CompilerHints</tt> object
-	 * with the default values for the encapsulated fields.
+	 * Gets the average number of bytes per record (key/value pair) for the
+	 * contract containing these hints.
+	 * 
+	 * @return The average number of bytes per record, or -1.0, if unknown.
 	 */
-	public CompilerHints() {
+	public float getAvgBytesPerRecord() {
+		return avgBytesPerRecord;
 	}
 
+	/**
+	 * Sets the average number of bytes per record (key/value pair) for the
+	 * contract containing these hints.
+	 * 
+	 * @param avgBytes
+	 *        The average number of bytes per record.
+	 */
+	public void setAvgBytesPerRecord(float avgBytes) {
+		if(avgBytes < 0) {
+			throw new IllegalArgumentException("Average Bytes per Record must be  >= 0!");
+		}
+		this.avgBytesPerRecord = avgBytes;
+	}
+
+	/**
+	 * Gets the average number of emitted records per stub call.
+	 * 
+	 * @return The average number of emitted records per stub call.
+	 */
+	public float getAvgRecordsEmittedPerStubCall() {
+		return avgRecordsEmittedPerStubCall;
+	}
+
+	/**
+	 * Sets the average number of emitted records per stub call. 
+	 * 
+	 * @param avgRecordsEmittedPerStubCall
+	 *        The average number of emitted records per stub call to set.
+	 */
+	public void setAvgRecordsEmittedPerStubCall(float avgRecordsEmittedPerStubCall) {
+		if(avgRecordsEmittedPerStubCall < 0) {
+			throw new IllegalArgumentException("Average Number of Emitted Records per Stub Call must be >= 0!");
+		}
+		this.avgRecordsEmittedPerStubCall = avgRecordsEmittedPerStubCall;
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	//  Column (Group) Statistics
+	// --------------------------------------------------------------------------------------------
+	
 	/**
 	 * Gets the count of distinct values for the given set of fields.
 	 * 
@@ -139,53 +183,10 @@ public class CompilerHints {
 		}
 		this.avgNumRecordsPerDistinctFields.put(fieldSet, avgNumRecords);
 	}
-
-	/**
-	 * Gets the average number of bytes per record (key/value pair) for the
-	 * contract containing these hints.
-	 * 
-	 * @return The average number of bytes per record, or -1.0, if unknown.
-	 */
-	public float getAvgBytesPerRecord() {
-		return avgBytesPerRecord;
-	}
-
-	/**
-	 * Sets the average number of bytes per record (key/value pair) for the
-	 * contract containing these hints.
-	 * 
-	 * @param avgBytes
-	 *        The average number of bytes per record.
-	 */
-	public void setAvgBytesPerRecord(float avgBytes) {
-		if(avgBytes < 0) {
-			throw new IllegalArgumentException("Average Bytes per Record must be  >= 0!");
-		}
-		this.avgBytesPerRecord = avgBytes;
-	}
-
-	/**
-	 * Gets the average number of emitted records per stub call.
-	 * 
-	 * @return The average number of emitted records per stub call.
-	 */
-	public float getAvgRecordsEmittedPerStubCall() {
-		return avgRecordsEmittedPerStubCall;
-	}
-
-	/**
-	 * Sets the average number of emitted records per stub call. 
-	 * 
-	 * @param avgRecordsEmittedPerStubCall
-	 *        The average number of emitted records per stub call to set.
-	 */
-	public void setAvgRecordsEmittedPerStubCall(float avgRecordsEmittedPerStubCall) {
-		if(avgRecordsEmittedPerStubCall < 0) {
-			throw new IllegalArgumentException("Average Number of Emitted Records per Stub Call must be >= 0!");
-		}
-		this.avgRecordsEmittedPerStubCall = avgRecordsEmittedPerStubCall;
-	}
 	
+	// --------------------------------------------------------------------------------------------
+	//  Uniqueness
+	// --------------------------------------------------------------------------------------------
 
 	/**
 	 * Gets the FieldSets that are unique
@@ -197,20 +198,62 @@ public class CompilerHints {
 	}
 	
 	/**
-	 * Sets a FieldSet to be unique
+	 * Adds a FieldSet to be unique
 	 * 
 	 * @param uniqueFieldSet The unique FieldSet
 	 */
-	public void setUniqueField(FieldSet uniqueFieldSet) {
-		this.uniqueFields = Collections.singleton(uniqueFieldSet);
+	public void addUniqueField(FieldSet uniqueFieldSet) {
+		if (this.uniqueFields == null) {
+			this.uniqueFields = new HashSet<FieldSet>();
+		}
+		this.uniqueFields.add(uniqueFieldSet);
 	}
 	
 	/**
-	 * Sets multiple FieldSets to be unique
+	 * Adds a field as having only unique values.
+	 * 
+	 * @param field The field with unique values.
+	 */
+	public void addUniqueField(int field) {
+		if (this.uniqueFields == null) {
+			this.uniqueFields = new HashSet<FieldSet>();
+		}
+		this.uniqueFields.add(new FieldSet(field));
+	}
+	
+	/**
+	 * Adds multiple FieldSets to be unique
 	 * 
 	 * @param uniqueFieldSets A set of unique FieldSet
 	 */
-	public void setUniqueField(Set<FieldSet> uniqueFieldSets) {
-		this.uniqueFields = uniqueFieldSets;
+	public void addUniqueFields(Set<FieldSet> uniqueFieldSets) {
+		if (this.uniqueFields == null) {
+			this.uniqueFields = new HashSet<FieldSet>();
+		}
+		this.uniqueFields.addAll(uniqueFieldSets);
+	}
+	
+	public void clearUniqueFields() {
+		this.uniqueFields = null;
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	//  Miscellaneous
+	// --------------------------------------------------------------------------------------------
+	
+	protected void copyFrom(CompilerHints source) {
+		this.avgRecordsEmittedPerStubCall = source.avgRecordsEmittedPerStubCall;
+		this.avgBytesPerRecord = source.avgBytesPerRecord;
+		this.distinctCounts.putAll(source.distinctCounts);
+		this.avgNumRecordsPerDistinctFields.putAll(source.avgNumRecordsPerDistinctFields);
+		
+		if (source.uniqueFields != null && source.uniqueFields.size() > 0) {
+			if (this.uniqueFields == null) {
+				this.uniqueFields = new HashSet<FieldSet>();
+			} else {
+				this.uniqueFields.clear();
+			}
+			this.uniqueFields.addAll(source.uniqueFields);
+		}
 	}
 }

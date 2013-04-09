@@ -4,18 +4,16 @@ import eu.stratosphere.pact.common.contract.CrossContract;
 import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.common.io.DelimitedInputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.example.datamining.KMeansIteration;
 import eu.stratosphere.pact.generic.contract.BulkIteration;
 
 /**
  *
  */
-public class IterativeKMeans extends KMeansIteration
-{
+public class IterativeKMeans extends KMeansIteration {
+	
 	/**
 	 * {@inheritDoc}
 	 */
@@ -30,9 +28,7 @@ public class IterativeKMeans extends KMeansIteration
 
 		// create DataSourceContract for cluster center input
 		FileDataSource initialClusterPoints = new FileDataSource(PointInFormat.class, clusterInput, "Centers");
-		initialClusterPoints.setParameter(DelimitedInputFormat.RECORD_DELIMITER, "\n");
 		initialClusterPoints.setDegreeOfParallelism(1);
-		initialClusterPoints.getCompilerHints().setUniqueField(new FieldSet(0));
 		
 		BulkIteration iteration = new BulkIteration("K-Means Loop");
 		iteration.setInput(initialClusterPoints);
@@ -40,8 +36,6 @@ public class IterativeKMeans extends KMeansIteration
 		
 		// create DataSourceContract for data point input
 		FileDataSource dataPoints = new FileDataSource(PointInFormat.class, dataPointInput, "Data Points");
-		PointInFormat.configureDelimitedFormat(dataPoints).recordDelimiter('\n');
-		dataPoints.getCompilerHints().setUniqueField(new FieldSet(0));
 
 		// create CrossContract for distance computation
 		CrossContract computeDistance = CrossContract.builder(ComputeDistance.class)
@@ -49,21 +43,18 @@ public class IterativeKMeans extends KMeansIteration
 				.input2(iteration.getPartialSolution())
 				.name("Compute Distances")
 				.build();
-		computeDistance.getCompilerHints().setAvgBytesPerRecord(48);
 
 		// create ReduceContract for finding the nearest cluster centers
 		ReduceContract findNearestClusterCenters = ReduceContract.builder(FindNearestCenter.class, PactInteger.class, 0)
 				.input(computeDistance)
 				.name("Find Nearest Centers")
 				.build();
-		findNearestClusterCenters.getCompilerHints().setAvgBytesPerRecord(48);
 
 		// create ReduceContract for computing new cluster positions
 		ReduceContract recomputeClusterCenter = ReduceContract.builder(RecomputeClusterCenter.class, PactInteger.class, 0)
 				.input(findNearestClusterCenters)
 				.name("Recompute Center Positions")
 				.build();
-		recomputeClusterCenter.getCompilerHints().setAvgBytesPerRecord(36);
 		iteration.setNextPartialSolution(recomputeClusterCenter);
 
 		// create DataSinkContract for writing the new cluster positions

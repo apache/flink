@@ -30,13 +30,13 @@ import eu.stratosphere.pact.generic.contract.BulkIteration;
 /**
  *
  */
-public class IterativeJobCompilerTest extends CompilerTestBase
-{
+public class IterativeJobCompilerTest extends CompilerTestBase {
+	
 	// --------------------------------------------------------------------------------------------
 	//  K-Means (Bulk Iteration)
 	// --------------------------------------------------------------------------------------------
 	
-//	@Test
+	@Test
 	public void testCompileKMeansIteration1() {
 		IterativeKMeans kmi = new IterativeKMeans();
 
@@ -50,7 +50,7 @@ public class IterativeJobCompilerTest extends CompilerTestBase
 		jgg.compileJobGraph(op);
 	}
 	
-//	@Test
+	@Test
 	public void testCompileKMeansIteration2() {
 		IterativeKMeans kmi = new IterativeKMeans();
 

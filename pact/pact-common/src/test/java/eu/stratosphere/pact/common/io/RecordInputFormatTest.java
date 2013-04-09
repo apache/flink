@@ -24,7 +24,6 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.Arrays;
 
 import junit.framework.Assert;
 
@@ -67,8 +66,7 @@ public class RecordInputFormatTest {
 	}
 
 	@Test
-	public void testConfigure() 
-	{
+	public void testConfigure() {
 		try {
 			Configuration config = new Configuration();
 			config.setString(RecordInputFormat.FILE_PARAMETER_KEY, "file:///some/file/that/will/not/be/read");
@@ -182,8 +180,7 @@ public class RecordInputFormatTest {
 	}
 	
 	@Test
-	public void testReadNoPosAll() throws IOException
-	{
+	public void testReadNoPosAll() throws IOException {
 		try {
 			final String fileContent = "111|222|333|444|555\n666|777|888|999|000|";
 			final FileInputSplit split = createTempFile(fileContent);	
@@ -227,8 +224,7 @@ public class RecordInputFormatTest {
 	}
 	
 	@Test
-	public void testReadNoPosFirstN() throws IOException
-	{
+	public void testReadNoPosFirstN() throws IOException {
 		try {
 			final String fileContent = "111|222|333|444|555|\n666|777|888|999|000|";
 			final FileInputSplit split = createTempFile(fileContent);	
@@ -278,8 +274,7 @@ public class RecordInputFormatTest {
 	}
 	
 	@Test
-	public void testReadTextPos() throws IOException
-	{
+	public void testReadTextPos() throws IOException {
 		try {
 			final String fileContent = "111|222|333|444|555|666|777|888|999|000|\n000|999|888|777|666|555|444|333|222|111|";
 			final FileInputSplit split = createTempFile(fileContent);	
@@ -342,8 +337,7 @@ public class RecordInputFormatTest {
 	}
 	
 	@Test
-	public void testReadRecPos() throws IOException
-	{
+	public void testReadRecPos() throws IOException {
 		try {
 			final String fileContent = "111|222|333|\n444|555|666|";
 			final FileInputSplit split = createTempFile(fileContent);	
@@ -406,8 +400,7 @@ public class RecordInputFormatTest {
 	}
 	
 	@Test
-	public void testReadTextPosRecPos() throws IOException
-	{
+	public void testReadTextPosRecPos() throws IOException {
 		try {
 			final String fileContent = "111|222|333|444|555|666|777|888|999|000|\n000|999|888|777|666|555|444|333|222|111|";
 			final FileInputSplit split = createTempFile(fileContent);	
@@ -462,8 +455,7 @@ public class RecordInputFormatTest {
 	}
 	
 	@Test
-	public void testReadTooShortInput() throws IOException
-	{
+	public void testReadTooShortInput() throws IOException {
 		try {
 			final String fileContent = "111|222|333|444\n666|777|888|999";
 			final FileInputSplit split = createTempFile(fileContent);	
@@ -491,41 +483,12 @@ public class RecordInputFormatTest {
 		}
 	}
 	
-	@Test
-	public void testGetOutputSchema()
-	{
-		try {
-			final Configuration parameters = new Configuration();
-			parameters.setString(RecordInputFormat.FILE_PARAMETER_KEY, "file:///some/file/that/will/not/be/read");
-			parameters.setInteger(RecordInputFormat.NUM_FIELDS_PARAMETER, 5);
-			parameters.setString(RecordInputFormat.RECORD_DELIMITER_PARAMETER, "\n");
-			parameters.setString(RecordInputFormat.FIELD_DELIMITER_PARAMETER, "|");
-			parameters.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 0, DecimalTextIntParser.class);
-			parameters.setInteger(RecordInputFormat.RECORD_POSITION_PARAMETER_PREFIX + 0, 2);
-			parameters.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 1, DecimalTextIntParser.class);
-			parameters.setInteger(RecordInputFormat.RECORD_POSITION_PARAMETER_PREFIX + 1, 7);
-			parameters.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 2, DecimalTextIntParser.class);
-			parameters.setInteger(RecordInputFormat.RECORD_POSITION_PARAMETER_PREFIX + 2, 1);
-			parameters.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 3, DecimalTextIntParser.class);
-			parameters.setInteger(RecordInputFormat.RECORD_POSITION_PARAMETER_PREFIX + 3, 3);
-			parameters.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 4, DecimalTextIntParser.class);
-			parameters.setInteger(RecordInputFormat.RECORD_POSITION_PARAMETER_PREFIX + 4, 6);
-			
-			format.configure(parameters);
-			assertTrue(Arrays.equals(format.getOutputSchema(), new int[]{1,2,3,6,7}));
-		}
-		catch (Exception ex) {
-			Assert.fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
-		}
-	}
-	
-	private FileInputSplit createTempFile(String content) throws IOException
-	{
+	private FileInputSplit createTempFile(String content) throws IOException {
 		this.tempFile = File.createTempFile("test_contents", "tmp");
+		this.tempFile.deleteOnExit();
+		
 		DataOutputStream dos = new DataOutputStream(new FileOutputStream(tempFile));
-		
 		dos.writeBytes(content);
-		
 		dos.close();
 			
 		return new FileInputSplit(0, new Path("file://" + this.tempFile.getAbsolutePath()), 0, this.tempFile.length(), new String[] {"localhost"});

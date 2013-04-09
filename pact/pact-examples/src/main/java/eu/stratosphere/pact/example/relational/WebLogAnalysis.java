@@ -269,7 +269,6 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 		// Create DataSourceContract for documents relation
 		FileDataSource docs = new FileDataSource(RecordInputFormat.class, docsInput, "Docs Input");
 		docs.setDegreeOfParallelism(noSubTasks);
-		docs.getCompilerHints().setUniqueField(new FieldSet(0));
 		RecordInputFormat.configureRecordFormat(docs)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')

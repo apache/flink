@@ -28,17 +28,17 @@ import eu.stratosphere.pact.common.type.PactRecord;
 * A Pact receives one or multiple input sets of records (see {@link PactRecord}). It partitions and combines them
 * into independent sets which are processed by user functions.
 */
-public abstract class Contract implements Visitable<Contract>
-{
-	protected final String name;					// the name of the contract instance. optional.
+public abstract class Contract implements Visitable<Contract> {
+	
+	protected final String name;						// the name of the contract instance. optional.
 
-	protected final Configuration parameters;		// the parameters that allow to parameterize the stub function
+	protected final Configuration parameters;			// the parameters to parameterize the UDF
 
-	protected final CompilerHints compilerHints;	// hints to the pact compiler
+	protected CompilerHints compilerHints;				// hints to the pact compiler
 	
 	protected List<Class<? extends Annotation>> ocs;	// the output contract classes
 	
-	private int degreeOfParallelism = -1;			// the number of parallel instances to use. -1, if unknown
+	private int degreeOfParallelism = -1;				// the number of parallel instances to use. -1, if unknown
 
 	// --------------------------------------------------------------------------------------------	
 
@@ -142,7 +142,7 @@ public abstract class Contract implements Visitable<Contract>
 	 * @return The degree of parallelism.
 	 */
 	public int getDegreeOfParallelism() {
-		return degreeOfParallelism;
+		return this.degreeOfParallelism;
 	}
 
 	/**
@@ -172,5 +172,17 @@ public abstract class Contract implements Visitable<Contract>
 	@Override
 	public String toString() {
 		return getClass().getSimpleName() + " - " + getName();
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * Auxiliary Method to swap compiler hints with customized versions. Should not be called by the
+	 * instantiating code.
+	 * 
+	 * @param hints The hints to swap in.
+	 */
+	public void swapCompilerHints(CompilerHints hints) {
+		this.compilerHints = hints;
 	}
 }

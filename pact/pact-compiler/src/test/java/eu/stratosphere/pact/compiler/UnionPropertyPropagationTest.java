@@ -17,7 +17,8 @@ package eu.stratosphere.pact.compiler;
 
 import java.util.Iterator;
 
-import junit.framework.Assert;
+import org.junit.Assert;
+import org.junit.Test;
 
 import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
@@ -39,7 +40,7 @@ import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
  */
 public class UnionPropertyPropagationTest extends CompilerTestBase {
 
-//	@Test
+	@Test
 	public void testUnionPropertyPropagation() {
 		// construct the plan
 

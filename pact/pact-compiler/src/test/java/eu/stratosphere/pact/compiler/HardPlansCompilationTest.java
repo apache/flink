@@ -49,8 +49,7 @@ public class HardPlansCompilationTest extends CompilerTestBase
      * First cross has SameKeyFirst output contract
 	 */
 	@Test
-	public void testTicket158()
-	{
+	public void testTicket158() {
 		// construct the plan
 		FileDataSource source = new FileDataSource(DummyInputFormat.class, IN_FILE, "Source");
 		

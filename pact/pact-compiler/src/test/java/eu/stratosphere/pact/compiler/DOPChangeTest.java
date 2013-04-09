@@ -22,13 +22,20 @@ import org.junit.Test;
 import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
+import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.plan.Plan;
+import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.compiler.plan.candidate.Channel;
+import eu.stratosphere.pact.compiler.plan.candidate.DualInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
+import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
+import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.pact.compiler.util.DummyInputFormat;
+import eu.stratosphere.pact.compiler.util.DummyMatchStub;
 import eu.stratosphere.pact.compiler.util.DummyOutputFormat;
 import eu.stratosphere.pact.compiler.util.IdentityMap;
 import eu.stratosphere.pact.compiler.util.IdentityReduce;
@@ -42,7 +49,7 @@ import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
  *       parallelism between tasks is increased or decreased.
  * </ul>
  */
-public class DOPChangeSingleTest extends CompilerTestBase {
+public class DOPChangeTest extends CompilerTestBase {
 	
 	/**
 	 * Simple Job: Map -> Reduce -> Map -> Reduce. All functions preserve all fields (hence all properties).
@@ -253,4 +260,80 @@ public class DOPChangeSingleTest extends CompilerTestBase {
 		Assert.assertEquals("The Reduce 2 Node has an invalid local strategy.", LocalStrategy.SORT, red2Node.getInput().getLocalStrategy());
 	}
 
+	/**
+	 * Checks that re-partitioning happens when the inputs of a two-input contract have different DOPs.
+	 * 
+	 * Test Plan:
+	 * <pre>
+	 * 
+	 * (source) -> reduce -\
+	 *                      Match -> (sink)
+	 * (source) -> reduce -/
+	 * 
+	 * </pre>
+	 * 
+	 */
+	@Test
+	public void checkPropertyHandlingWithTwoInputs() {
+		// construct the plan
+
+		FileDataSource sourceA = new FileDataSource(DummyInputFormat.class, IN_FILE);
+		FileDataSource sourceB = new FileDataSource(DummyInputFormat.class, IN_FILE);
+		
+		ReduceContract redA = new ReduceContract.Builder(IdentityReduce.class, PactInteger.class, 0)
+			.input(sourceA)
+			.build();
+		ReduceContract redB = new ReduceContract.Builder(IdentityReduce.class, PactInteger.class, 0)
+			.input(sourceB)
+			.build();
+		
+		MatchContract mat = MatchContract.builder(DummyMatchStub.class, PactInteger.class, 0, 0)
+			.input1(redA)
+			.input2(redB)
+			.build();
+		
+		FileDataSink sink = new FileDataSink(DummyOutputFormat.class, OUT_FILE, mat);
+		
+		sourceA.setDegreeOfParallelism(5);
+		sourceB.setDegreeOfParallelism(7);
+		redA.setDegreeOfParallelism(5);
+		redB.setDegreeOfParallelism(7);
+		
+		mat.setDegreeOfParallelism(5);
+		
+		sink.setDegreeOfParallelism(5);
+		
+		
+		// return the PACT plan
+		Plan plan = new Plan(sink, "Partition on DoP Change");
+		
+		OptimizedPlan oPlan = compileNoStats(plan);
+		
+		NepheleJobGraphGenerator jobGen = new NepheleJobGraphGenerator();
+		
+		//Compile plan to verify that no error is thrown
+		jobGen.compileJobGraph(oPlan);
+		
+		oPlan.accept(new Visitor<PlanNode>() {
+			
+			@Override
+			public boolean preVisit(PlanNode visitable) {
+				if (visitable instanceof DualInputPlanNode) {
+					DualInputPlanNode node = (DualInputPlanNode) visitable;
+					Channel c1 = node.getInput1();
+					Channel c2 = node.getInput2();
+					
+					Assert.assertEquals("Incompatible shipping strategy chosen for match", ShipStrategyType.FORWARD, c1.getShipStrategy());
+					Assert.assertEquals("Incompatible shipping strategy chosen for match", ShipStrategyType.PARTITION_HASH, c2.getShipStrategy());
+					return false;
+				}
+				return true;
+			}
+			
+			@Override
+			public void postVisit(PlanNode visitable) {
+				// DO NOTHING
+			}
+		});
+	}
 }

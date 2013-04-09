@@ -34,7 +34,6 @@ import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFields;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsFirst;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.OutCardBounds;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.common.type.base.PactInteger;
@@ -44,7 +43,6 @@ import eu.stratosphere.pact.common.type.base.parser.DecimalTextDoubleParser;
 import eu.stratosphere.pact.common.type.base.parser.DecimalTextIntParser;
 import eu.stratosphere.pact.common.type.base.parser.DecimalTextLongParser;
 import eu.stratosphere.pact.common.type.base.parser.VarLengthStringParser;
-import eu.stratosphere.pact.common.util.FieldSet;
 
 /**
  * The TPC-H is a decision support benchmark on relational data.
@@ -72,7 +70,6 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	 * Map PACT implements the selection and projection on the orders table.
 	 */
 	@ConstantFields(fields={0,1})
-	@OutCardBounds(upperBound=1, lowerBound=0)
 	public static class FilterO extends MapStub {
 		
 		private String prioFilter;		// filter literal for the order priority
@@ -95,7 +92,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		}
 	
 		/**
-		 * Filters the orders table by year, orderstatus and orderpriority.
+		 * Filters the orders table by year, order status and order priority.
 		 *
 		 *  o_orderstatus = "X" 
 		 *  AND YEAR(o_orderdate) > Y
@@ -129,7 +126,6 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	 *
 	 */
 	@ConstantFieldsFirst(fields={0,1})
-	@OutCardBounds(lowerBound=1, upperBound=1)
 	public static class JoinLiO extends MatchStub {
 		
 		/**
@@ -155,7 +151,6 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	 */
 	@ReduceContract.Combinable
 	@ConstantFields(fields={0,1})
-	@OutCardBounds(upperBound=1, lowerBound=1)
 	public static class AggLiO extends ReduceStub {
 		
 		private final PactDouble extendedPrice = new PactDouble();
@@ -210,10 +205,9 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 			.fieldDelimiter('|')
 			.field(DecimalTextLongParser.class, 0)		// order id
 			.field(DecimalTextIntParser.class, 7) 		// ship prio
-			.field(VarLengthStringParser.class, 2)		// order status
-			.field(VarLengthStringParser.class, 4)		// order date
-			.field(VarLengthStringParser.class, 5);		// order prio
-		orders.getCompilerHints().setAvgBytesPerRecord(16);
+			.field(VarLengthStringParser.class, 2, 2)	// order status
+			.field(VarLengthStringParser.class, 4, 10)	// order date
+			.field(VarLengthStringParser.class, 5, 8);	// order prio
 
 		// create DataSourceContract for LineItems input
 		FileDataSource lineitems = new FileDataSource(RecordInputFormat.class, lineitemsPath, "LineItems");
@@ -222,9 +216,6 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 			.fieldDelimiter('|')
 			.field(DecimalTextLongParser.class, 0)		// order id
 			.field(DecimalTextDoubleParser.class, 5);	// extended price
-		// compiler hints	
-		lineitems.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(0), 4);
-		lineitems.getCompilerHints().setAvgBytesPerRecord(20);
 
 		// create MapContract for filtering Orders tuples
 		MapContract filterO = MapContract.builder(FilterO.class)
@@ -243,9 +234,6 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 			.input2(lineitems)
 			.name("JoinLiO")
 			.build();
-		// compiler hints
-		joinLiO.getCompilerHints().setAvgBytesPerRecord(24);
-		joinLiO.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(new int[]{0, 1}), 4);
 
 		// create ReduceContract for aggregating the result
 		// the reducer has a composite key, consisting of the fields 0 and 1
@@ -255,10 +243,6 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 			.input(joinLiO)
 			.name("AggLio")
 			.build();
-		// compiler hints
-		aggLiO.getCompilerHints().setAvgBytesPerRecord(30);
-		aggLiO.getCompilerHints().setAvgRecordsEmittedPerStubCall(1.0f);
-		aggLiO.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(new int[]{0, 1}), 1);
 
 		// create DataSinkContract for writing the result
 		FileDataSink result = new FileDataSink(RecordOutputFormat.class, output, aggLiO, "Output");

@@ -298,7 +298,7 @@ public class GenericDataSink extends Contract
 	{
 		boolean descend = visitor.preVisit(this);
 		if (descend) {
-			for(Contract c : this.input) {
+			for (Contract c : this.input) {
 				c.accept(visitor);
 			}
 			visitor.postVisit(this);
