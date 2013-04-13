@@ -20,135 +20,83 @@
     	<dependency>
     		<groupId>eu.stratosphere</groupId>
     		<artifactId>nephele-common</artifactId>
-    		<version>${version}</version>
+    		<version>${project.version}</version>
     	</dependency>
     	<dependency>
     		<groupId>eu.stratosphere</groupId>
     		<artifactId>nephele-clustermanager</artifactId>
-    		<version>${version}</version>
+    		<version>${project.version}</version>
     	</dependency>
     	<dependency>
     		<groupId>eu.stratosphere</groupId>
     		<artifactId>nephele-ec2cloudmanager</artifactId>
-    		<version>${version}</version>
+    		<version>${project.version}</version>
     	</dependency>
       <dependency>
     		<groupId>eu.stratosphere</groupId>
     		<artifactId>nephele-examples</artifactId>
-    		<version>${version}</version>
+    		<version>${project.version}</version>
     	</dependency>
     	<dependency>
     		<groupId>eu.stratosphere</groupId>
     		<artifactId>nephele-hdfs</artifactId>
-    		<version>${version}</version>
+    		<version>${project.version}</version>
     	</dependency>
         <dependency>
                 <groupId>eu.stratosphere</groupId>
                 <artifactId>nephele-s3</artifactId>
-                <version>${version}</version>
+                <version>${project.version}</version>
         </dependency>
     	<dependency>
     		<groupId>eu.stratosphere</groupId>
     		<artifactId>nephele-management</artifactId>
-    		<version>${version}</version>
+    		<version>${project.version}</version>
     	</dependency>
     	<dependency>
     		<groupId>eu.stratosphere</groupId>
     		<artifactId>nephele-profiling</artifactId>
-    		<version>${version}</version>
+    		<version>${project.version}</version>
     	</dependency>
     	<dependency>
     		<groupId>eu.stratosphere</groupId>
     		<artifactId>nephele-queuescheduler</artifactId>
-    		<version>${version}</version>
+    		<version>${project.version}</version>
     	</dependency>
     	<dependency>
     		<groupId>eu.stratosphere</groupId>
     		<artifactId>nephele-server</artifactId>
-    		<version>${version}</version>
+    		<version>${project.version}</version>
     	</dependency>
 	<dependency>
     		<groupId>eu.stratosphere</groupId>
     		<artifactId>nephele-visualization</artifactId>
-    		<version>${version}</version>
+    		<version>${project.version}</version>
     	</dependency>
     	<dependency>
     		<groupId>eu.stratosphere</groupId>
     		<artifactId>pact-common</artifactId>
-    		<version>${version}</version>
+    		<version>${project.version}</version>
     	</dependency>
     	<dependency>
     		<groupId>eu.stratosphere</groupId>
     		<artifactId>pact-compiler</artifactId>
-    		<version>${version}</version>
+    		<version>${project.version}</version>
     	</dependency>
       <dependency>
     		<groupId>eu.stratosphere</groupId>
     		<artifactId>pact-clients</artifactId>
-    		<version>${version}</version>
+    		<version>${project.version}</version>
     	</dependency>
       <dependency>
     		<groupId>eu.stratosphere</groupId>
     		<artifactId>pact-examples</artifactId>
-    		<version>${version}</version>
+    		<version>${project.version}</version>
     	</dependency>
     	<dependency>
     		<groupId>eu.stratosphere</groupId>
     		<artifactId>pact-runtime</artifactId>
-    		<version>${version}</version>
+    		<version>${project.version}</version>
     	</dependency>
-    	<dependency>
-    		<groupId>eu.stratosphere</groupId>
-    		<artifactId>sopremo-common</artifactId>
-    		<version>${version}</version>
-    	</dependency>
-    	<dependency>
-    		<groupId>eu.stratosphere</groupId>
-    		<artifactId>sopremo-base</artifactId>
-    		<version>${version}</version>
-    	</dependency>		
-    	<dependency>
-    		<groupId>eu.stratosphere</groupId>
-    		<artifactId>sopremo-query</artifactId>
-    		<version>${version}</version>
-    	</dependency>
-    	<dependency>
-    		<groupId>eu.stratosphere</groupId>
-    		<artifactId>sopremo-server</artifactId>
-    		<version>${version}</version>
-    	</dependency>	
-    	<dependency>
-    		<groupId>eu.stratosphere</groupId>
-    		<artifactId>sopremo-client</artifactId>
-    		<version>${version}</version>
-    	</dependency>			
-    	<dependency>
-    		<groupId>eu.stratosphere</groupId>
-    		<artifactId>meteor-meteor</artifactId>
-    		<version>${version}</version>
-    	</dependency>	
-    	<dependency>
-    		<groupId>eu.stratosphere</groupId>
-    		<artifactId>meteor-client</artifactId>
-    		<version>${version}</version>
-    	</dependency>
-    	
-    	<!--  SOURCES -->
-    	<!--
-    	<dependency>
-          <groupId>eu.stratosphere</groupId>
-          <artifactId>pact</artifactId>
-          <version>${version}</version>
-		  <classifier>sources</classifier>
-        </dependency>
-        
-        <dependency>
-          <groupId>eu.stratosphere</groupId>
-          <artifactId>nephele</artifactId>
-          <version>${version}</version>
-		  <classifier>sources</classifier>
-        </dependency>
-        -->
     </dependencies>
 
     <build>
@@ -167,9 +115,6 @@
                 <configuration>
                     <descriptors>
                         <descriptor>src/main/assemblies/bin.xml</descriptor>
-                        <!--
-                        <descriptor>src/main/assemblies/src.xml</descriptor>
-                        -->
 	            </descriptors>
                 </configuration>
             </plugin>

@@ -45,6 +45,24 @@
 		<key>pact.parallelization.maxmachines</key>
 		<value>-1</value>
 	</property>
+
+	<!--  ========================================================================
+	                          Common Runtime Options
+	      ======================================================================== -->
+
+	<!-- Introduces a timeout after which HDFS file open calls time out. This can be useful
+             for tracing unexpectedly long query delays. -->	     
+	<property>
+		<key>pact.runtime.fs_timeout</key>
+		<value>0</value>
+	</property>
+
+	<!-- Flag indicating whether to use the experimental multicast feature for broadcasting buffers.
+             USE AT OWN RISK!!! -->
+	<property>
+		<key>pact.runtime.multicast-for-broadcast</key>
+		<value>false</value>
+	</property>
 	
 	<!--  ========================================================================
 	                                    Web Frontend

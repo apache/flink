@@ -39,11 +39,29 @@
                 <value>6122</value>
         </property>
 
+
+        <!--  ========================================================================
+	                           Client Configuration   
+	      ======================================================================== -->
+
+	<!-- The interval, in seconds, in which the job client polls the job manager for status updates -->
+        <property>
+                <key>jobclient.polling.internval</key>
+                <value>2</value>
+        </property>
+
+	<!-- Configuration used when writing into the hadoop distributed file system. unless specified, hdfs file creation will use
+             HDFS default settings with respect to block-size, replication factor, etc. -->
+        <!--<property>
+                <key>fs.hdfs.hdfsdefault</key>
+                <value>/share/nephele/hadoop/conf/hdfs-site.xml</value>
+        </property> -->
+
         <!--  ========================================================================
 	                               Memory, Buffers and Directories
 	      ======================================================================== -->
 
-        <!--  The directories for temporary files. Add a colon (:) separated list for multiple directories -->
+        <!--  The directories for temporary files. Add a separated list for multiple directories, using system directory, delimiter (colon ':' on unix) -->
         <property>
                 <key>taskmanager.tmp.dirs</key>
                 <value>/tmp</value>
@@ -53,6 +71,22 @@
         <property>
                 <key>channel.network.numberOfBuffers</key>
                 <value>2048</value>
+        </property>
+
+	<!-- The size of the network buffers. -->
+        <property>
+                <key>channel.network.bufferSizeInBytes</key>
+                <value>32768</value>
+        </property>
+
+        <property>
+                <key>jobmanager.rpc.numhandler</key>
+                <value>8</value>
+        </property>
+
+        <property>
+                <key>multicast.enable</key>
+                <value>false</value>
         </property>
 
         <!--  ========================================================================
@@ -71,36 +105,10 @@
 	</property>
 	
 	<property>
-		<key>instancemanager.cluster.type.2</key>
-		<value>medium,4,2,2048,40,0</value>
-	</property>
-	
-	<property>
 		<key>instancemanager.cluster.defaulttype</key>
 		<value>1</value>
 	</property>
 
-	<!-- Definition of 64-bit standard instance types on Amazon EC2 -->
-	<property>
-		<key>instancemanager.ec2.type.1</key>
-		<value>t1.micro,2,1,613,8,3</value>
-	</property>
-	
-	<property>
-		<key>instancemanager.ec2.type.2</key>
-		<value>m1.large,4,2,7680,850,38</value>
-	</property>
-
-	<property>
-		<key>instancemanager.ec2.type.3</key>
-		<value>m1.xlarge,8,4,15360,1690,76</value>
-	</property>
-	
-	<property>
-		<key>instancemanager.ec2.defaulttype</key>
-		<value>1</value>
-	</property>
-	
 	<!--  ========================================================================
 	                   Scheduler and Instance Manager Classes 
 	      ======================================================================== -->
@@ -129,18 +137,6 @@
 		<value>eu.stratosphere.nephele.instance.cluster.ClusterManager</value>
 	</property>
 	
-	<!--the default scheduler for cloud execution mode -->
-	<property>
-		<key>jobmanager.scheduler.cloud.classname</key>
-		<value>eu.stratosphere.nephele.jobmanager.scheduler.queue.QueueScheduler</value>
-	</property>
-	
-	<!-- the default instance manager for cloud execution mode -->
-	<property>
-		<key>jobmanager.instancemanager.cloud.classname</key>
-		<value>eu.stratosphere.nephele.instance.ec2.EC2CloudManager</value>
-	</property>
-	
 	<property>
 		<key>jobmanager.instancemanager.cluster.cleanupinterval</key>
 		<value>120</value>
@@ -166,23 +162,4 @@
 		<value>eu.stratosphere.nephele.profiling.impl.TaskManagerProfilerImpl</value>
 	 </property>
 	 
-	 	<!--  ========================================================================
-	                                  Compression
-	      ======================================================================== -->
-	<property>
-		<key>channel.compression.lightClass</key> 
-		<value>eu.stratosphere.nephele.io.compression.library.quicklz.QuicklzLibrary</value> 
-	</property>
-	<property>
-		<key>channel.compression.mediumClass</key> 
-		<value>eu.stratosphere.nephele.io.compression.library.zlib.ZlibLibrary</value> 
-	</property>
-	<property>
-		<key>channel.compression.heavyClass</key> 
-		<value>eu.stratosphere.nephele.io.compression.library.lzma.LzmaLibrary</value> 
-	</property>
-	<property>
-		<key>channel.compression.dynamicClass</key> 
-		<value>eu.stratosphere.nephele.io.compression.library.dynamic.DynamicLibrary</value> 
-	</property>
 </configuration>

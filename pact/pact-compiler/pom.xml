@@ -20,19 +20,19 @@
     <dependency>
       <groupId>eu.stratosphere</groupId>
       <artifactId>pact-common</artifactId>
-      <version>${version}</version>
+      <version>${project.version}</version>
     </dependency>
 
     <dependency>
       <groupId>eu.stratosphere</groupId>
       <artifactId>pact-runtime</artifactId>
-      <version>${version}</version>
+      <version>${project.version}</version>
     </dependency>
 
     <dependency>
     	<groupId>eu.stratosphere</groupId>
     	<artifactId>pact-examples</artifactId>
-    	<version>${version}</version>
+    	<version>${project.version}</version>
     	<scope>test</scope>
     </dependency>
   </dependencies>

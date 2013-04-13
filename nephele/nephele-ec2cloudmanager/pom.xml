@@ -18,7 +18,7 @@
       <dependency>
         <artifactId>nephele-server</artifactId>
         <groupId>eu.stratosphere</groupId>
-        <version>${version}</version>
+        <version>${project.version}</version>
       </dependency>
         
         

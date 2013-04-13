@@ -183,7 +183,7 @@ public final class PactConfigConstants {
 	/**
 	 * The default percentage of the sort memory to be full before data is spilled.
 	 */
-	public static final float DEFAULT_SORT_SPILLING_THRESHOLD = 0.75f;
+	public static final float DEFAULT_SORT_SPILLING_THRESHOLD = 0.8f;
 	
 	/**
 	 * The default timeout for filesystem stream opening: infinite (means max long milliseconds).

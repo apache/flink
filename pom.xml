@@ -472,7 +472,7 @@
 				</property>
 			</activation>
 			<build>
-				<finalName>${artifactId}-${version}-nightly-${BUILD_NUMBER}</finalName>
+				<finalName>${artifactId}-${project.version}-nightly-${BUILD_NUMBER}</finalName>
 			<plugins>
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
@@ -495,13 +495,9 @@
 		</profile>
 	</profiles>
 
-
 	<modules>
 		<module>nephele</module>
 		<module>pact</module>
-		<module>build-tools</module>
 		<module>stratosphere-dist</module>
-		<module>sopremo</module>
-		<module>meteor</module>
 	</modules>
 </project>
