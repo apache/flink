@@ -117,7 +117,7 @@ public class LocalInstanceManager implements InstanceManager {
 	 * @param configDir
 	 *        the path to the configuration directory
 	 */
-	public LocalInstanceManager(final String configDir) {
+	public LocalInstanceManager() {
 
 		final Configuration config = GlobalConfiguration.getConfiguration();
 
@@ -140,7 +140,7 @@ public class LocalInstanceManager implements InstanceManager {
 
 		this.instanceTypeDescriptionMap = new SerializableHashMap<InstanceType, InstanceTypeDescription>();
 
-		this.localTaskManagerThread = new LocalTaskManagerThread(configDir);
+		this.localTaskManagerThread = new LocalTaskManagerThread();
 		this.localTaskManagerThread.start();
 	}
 

@@ -37,6 +37,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -139,6 +140,10 @@ import eu.stratosphere.nephele.util.StringUtils;
  */
 public class JobManager implements DeploymentManager, ExtendedManagementProtocol, InputSplitProviderProtocol,
 		JobManagerProtocol, ChannelLookupProtocol, JobStatusListener, PluginCommunicationProtocol {
+	
+	public static enum ExecutionMode { LOCAL, CLUSTER, CLOUD }
+	
+	// --------------------------------------------------------------------------------------------
 
 	private static final Log LOG = LogFactory.getLog(JobManager.class);
 
@@ -164,19 +169,18 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 	private final static int SLEEPINTERVAL = 1000;
 
-	private final static int FAILURERETURNCODE = -1;
+	private final static int FAILURERETURNCODE = 1;
 
 	private final AtomicBoolean isShutdownInProgress = new AtomicBoolean(false);
 
 	private volatile boolean isShutDown = false;
 
-	/**
-	 * Constructs a new job manager, starts its discovery service and its IPC service.
-	 */
-	public JobManager(final String configDir, final String executionMode) {
-
-		// First, try to load global configuration
-		GlobalConfiguration.loadConfiguration(configDir);
+	
+	public JobManager(ExecutionMode executionMode) {
+		this(executionMode, null);
+	}
+	
+	public JobManager(ExecutionMode executionMode, final String pluginsDir) {
 
 		final String ipcAddressString = GlobalConfiguration
 			.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
@@ -229,13 +233,17 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		LOG.info("Starting job manager in " + executionMode + " mode");
 
 		// Load the plugins
-		this.jobManagerPlugins = PluginManager.getJobManagerPlugins(this, configDir);
+		if (pluginsDir != null) {
+			this.jobManagerPlugins = PluginManager.getJobManagerPlugins(this, pluginsDir);
+		} else {
+			this.jobManagerPlugins = Collections.emptyMap();
+		}
 
 		// Try to load the instance manager for the given execution mode
 		// Try to load the scheduler for the given execution mode
-		if ("local".equals(executionMode)) {
+		if (executionMode == ExecutionMode.LOCAL) {
 			try {
-				this.instanceManager = new LocalInstanceManager(configDir);
+				this.instanceManager = new LocalInstanceManager();
 			} catch (RuntimeException rte) {
 				LOG.fatal("Cannot instantiate local instance manager: " + StringUtils.stringifyException(rte));
 				System.exit(FAILURERETURNCODE);
@@ -390,10 +398,26 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		}
 
 		final String configDir = line.getOptionValue(configDirOpt.getOpt(), null);
-		final String executionMode = line.getOptionValue(executionModeOpt.getOpt(), "local");
+		final String executionModeName = line.getOptionValue(executionModeOpt.getOpt(), "local");
+		
+		final ExecutionMode executionMode;
+		if ("local".equals(executionModeName)) {
+			executionMode = ExecutionMode.LOCAL;
+		} else if ("local".equals(executionModeName)) {
+			executionMode = ExecutionMode.CLUSTER;
+		} else if ("local".equals(executionModeName)) {
+			executionMode = ExecutionMode.CLOUD;
+		} else {
+			System.err.println("Unrecognized execution mode: " + executionModeName);
+			System.exit(FAILURERETURNCODE);
+			return;
+		}
+		
+		// First, try to load global configuration
+		GlobalConfiguration.loadConfiguration(configDir);
 
 		// Create a new job manager object
-		JobManager jobManager = new JobManager(configDir, executionMode);
+		JobManager jobManager = new JobManager(executionMode, configDir);
 
 		// Run the main task loop
 		jobManager.runTaskLoop();

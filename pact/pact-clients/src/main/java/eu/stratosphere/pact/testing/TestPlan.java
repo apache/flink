@@ -60,6 +60,7 @@ import eu.stratosphere.nephele.jobgraph.AbstractJobVertex;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobmanager.JobManager;
+import eu.stratosphere.nephele.jobmanager.JobManager.ExecutionMode;
 import eu.stratosphere.nephele.jobmanager.scheduler.local.LocalScheduler;
 import eu.stratosphere.nephele.util.StringUtils;
 import eu.stratosphere.pact.common.contract.FileDataSink;
@@ -660,7 +661,7 @@ public class TestPlan implements Closeable {
 
 			// local ip as job manager (localhost or 127.0.0.1 does not work)
 			config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost");
-			JobManager jobManager = new JobManager(this.getNepheleConf(), "local");
+			JobManager jobManager = new JobManager(ExecutionMode.LOCAL);
 
 			PactCompiler pc = new PactCompiler();
 			Plan plan = this.buildPlanWithReadableSinks();

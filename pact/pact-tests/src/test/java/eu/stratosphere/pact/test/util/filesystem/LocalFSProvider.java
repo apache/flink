@@ -134,6 +134,4 @@ public class LocalFSProvider implements FilesystemProvider {
 	public String getURIPrefix() {
 		return "file://";
 	}
-
-	
 }

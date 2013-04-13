@@ -21,9 +21,10 @@ import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.template.IllegalConfigurationException;
+import eu.stratosphere.pact.client.minicluster.NepheleMiniCluster;
 import eu.stratosphere.pact.test.util.Constants;
-import eu.stratosphere.pact.test.util.filesystem.HDFSProvider;
 import eu.stratosphere.pact.test.util.filesystem.LocalFSProvider;
+
 
 public class LocalClusterProvider extends ClusterProvider {
 
@@ -32,12 +33,10 @@ public class LocalClusterProvider extends ClusterProvider {
 
 	private NepheleMiniCluster nephele;
 
-	public LocalClusterProvider(Configuration config)
-														throws Exception {
+	public LocalClusterProvider(Configuration config) throws Exception {
 		super(config);
 
-		this.numTaskTrackers = Integer.parseInt(config.getString(
-			Constants.CLUSTER_NUM_TASKTRACKER, "-1"));
+		this.numTaskTrackers = config.getInteger(Constants.CLUSTER_NUM_TASKTRACKER, -1);
 		if (numTaskTrackers == -1) {
 			throw new Exception("Number of task trackers was not specified");
 		}
@@ -65,16 +64,13 @@ public class LocalClusterProvider extends ClusterProvider {
 			return;
 		}
 
-		String nepheleConfigDir = System.getProperty("java.io.tmpdir") + "/minicluster/nephele/config";
 		if (filesystemProvider == null) {
 			startFS();
 		}
-		String hdfsConfigDir = "";
-		if(this.config.getString(Constants.FILESYSTEM_TYPE, "").equals("mini_hdfs")) {
-			hdfsConfigDir = ((HDFSProvider)filesystemProvider).getConfigDir();
-		}
-		nephele = new NepheleMiniCluster(nepheleConfigDir, hdfsConfigDir);
-		nepheleRunning = true;
+
+		this.nephele = new NepheleMiniCluster();
+		this.nephele.start();
+		this.nepheleRunning = true;
 	}
 
 	@Override
@@ -104,8 +100,7 @@ public class LocalClusterProvider extends ClusterProvider {
 	 * @see eu.stratosphere.pact.test.util.minicluster.ClusterProvider#getJobClient(eu.stratosphere.nephele.jobgraph.JobGraph, java.lang.String)
 	 */
 	@Override
-	public JobClient getJobClient(JobGraph jobGraph, String jarFilePath) throws Exception
-	{
+	public JobClient getJobClient(JobGraph jobGraph, String jarFilePath) throws Exception {
 		return this.nephele.getJobClient(jobGraph);
 	}
 }

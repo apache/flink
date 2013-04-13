@@ -116,11 +116,6 @@ public final class ConfigConstants {
 	 */
 	public static final boolean DEFAULT_JOBCLIENT_SHUTDOWN_TERMINATEJOB = true;
 
-	/**
-	 * The default scheduler to be used when Nephele is started in local mode.
-	 */
-	public static final String DEFAULT_LOCAL_MODE_SCHEDULER = "eu.stratosphere.nephele.jobmanager.scheduler.local.LocalScheduler";
-
 	// ----------------------------- Instances --------------------------------
 
 	/**

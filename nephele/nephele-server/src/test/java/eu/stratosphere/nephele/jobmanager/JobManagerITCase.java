@@ -22,8 +22,6 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -49,6 +47,7 @@ import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobGraphDefinitionException;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.nephele.jobmanager.JobManager;
+import eu.stratosphere.nephele.jobmanager.JobManager.ExecutionMode;
 import eu.stratosphere.nephele.util.JarFileCreator;
 import eu.stratosphere.nephele.util.ServerTestUtils;
 import eu.stratosphere.nephele.util.StringUtils;
@@ -124,31 +123,19 @@ public class JobManagerITCase {
 	@BeforeClass
 	public static void startNephele() {
 
+		GlobalConfiguration.loadConfiguration(ServerTestUtils.getConfigDir());
+
 		if (jobManagerThread == null) {
 
 			// create the job manager
-			JobManager jobManager = null;
+			JobManager jobManager;
 
 			try {
-
-				Constructor<JobManager> c = JobManager.class.getDeclaredConstructor(new Class[] { String.class,
-					String.class });
-				c.setAccessible(true);
-				jobManager = c.newInstance(new Object[] { ServerTestUtils.getConfigDir(), new String("local") });
-
-			} catch (SecurityException e) {
-				fail(e.getMessage());
-			} catch (NoSuchMethodException e) {
-				fail(e.getMessage());
-			} catch (IllegalArgumentException e) {
-				fail(e.getMessage());
-			} catch (InstantiationException e) {
-				fail(e.getMessage());
-			} catch (IllegalAccessException e) {
-				fail(e.getMessage());
-			} catch (InvocationTargetException e) {
+				jobManager = new JobManager(ExecutionMode.LOCAL);
+			} catch (Exception e) {
 				e.printStackTrace();
 				fail(e.getMessage());
+				return;
 			}
 
 			configuration = GlobalConfiguration

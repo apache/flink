@@ -21,9 +21,8 @@ import java.lang.reflect.InvocationTargetException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.configuration.ConfigConstants;
-import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.instance.InstanceManager;
+import eu.stratosphere.nephele.jobmanager.JobManager.ExecutionMode;
 import eu.stratosphere.nephele.jobmanager.scheduler.AbstractScheduler;
 import eu.stratosphere.nephele.util.StringUtils;
 
@@ -142,35 +141,53 @@ public class JobManagerUtils {
 	 * Tries to read the class name of the {@link AbstractScheduler} implementation from the global configuration which
 	 * is set to be used for the provided execution mode.
 	 * 
-	 * @param executionMode
-	 *        the name of the Nephele execution mode
+	 * @param executionMode The Nephele execution mode.
 	 * @return the class name of the {@link AbstractScheduler} implementation to be used or <code>null</code> if no
 	 *         implementation is configured for the given execution mode
 	 */
-	static String getSchedulerClassName(final String executionMode) {
-
-		final String instanceManagerClassNameKey = "jobmanager.scheduler." + executionMode + ".classname";
-		String schedulerClassName = GlobalConfiguration.getString(instanceManagerClassNameKey, null);
-
-		if ("local".equals(executionMode) && schedulerClassName == null) {
-			schedulerClassName = ConfigConstants.DEFAULT_LOCAL_MODE_SCHEDULER;
+	static String getSchedulerClassName(ExecutionMode executionMode) {
+		switch (executionMode) {
+		case LOCAL:
+			return "eu.stratosphere.nephele.jobmanager.scheduler.local.LocalScheduler";
+		case CLUSTER:
+			return "eu.stratosphere.nephele.jobmanager.scheduler.queue.QueueScheduler";
+		case CLOUD:
+			return "eu.stratosphere.nephele.jobmanager.scheduler.queue.QueueScheduler";
+		default:
+			throw new RuntimeException("Unrecognized Execution Mode.");
 		}
-
-		return schedulerClassName;
+//		String modeClass = getClassStringForMode(executionMode);
+//		String instanceManagerClassNameKey = "jobmanager.scheduler." + modeClass + ".classname";
+//		String schedulerClassName = GlobalConfiguration.getString(instanceManagerClassNameKey, null);
+//
+//		if (executionMode == ExecutionMode.LOCAL && schedulerClassName == null) {
+//			schedulerClassName = ConfigConstants.DEFAULT_LOCAL_MODE_SCHEDULER;
+//		}
+//		return schedulerClassName;
 	}
 
 	/**
 	 * Tries to read the class name of the {@link InstanceManager} implementation from the global configuration which is
 	 * set to be used for the provided execution mode.
 	 * 
-	 * @param executionMode
-	 *        the name of the Nephele execution mode
+	 * @param executionMode The Nephele execution mode.
 	 * @return the class name of the {@link InstanceManager} implementation to be used or <code>null</code> if no
 	 *         implementation is configured for the given execution mode
 	 */
-	static String getInstanceManagerClassName(final String executionMode) {
-
-		final String instanceManagerClassNameKey = "jobmanager.instancemanager." + executionMode + ".classname";
-		return GlobalConfiguration.getString(instanceManagerClassNameKey, null);
+	static String getInstanceManagerClassName(ExecutionMode executionMode) {
+		switch (executionMode) {
+		case LOCAL:
+			return "eu.stratosphere.nephele.instance.local.LocalInstanceManager";
+		case CLUSTER:
+			return "eu.stratosphere.nephele.instance.cluster.ClusterManager";
+		case CLOUD:
+			return "eu.stratosphere.nephele.instance.ec2.EC2CloudManager";
+		default:
+			throw new RuntimeException("Unrecognized Execution Mode.");
+		}
+//		
+//		final String modeClass = getClassStringForMode(executionMode);
+//		final String instanceManagerClassNameKey = "jobmanager.instancemanager." + modeClass + ".classname";
+//		return GlobalConfiguration.getString(instanceManagerClassNameKey, null);
 	}
 }

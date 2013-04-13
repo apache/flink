@@ -15,11 +15,8 @@
 
 package eu.stratosphere.pact.test.util;
 
-/**
- * @author Erik Nijkamp
- */
-public interface Constants
-{
+public interface Constants {
+	
 	String CLUSTER_CONFIGS = "./src/test/resources/ClusterConfigs/";
 
 	String TEST_CONFIGS = "./src/test/resources/TestConfigs/";

@@ -108,40 +108,6 @@
 		<key>instancemanager.cluster.defaulttype</key>
 		<value>1</value>
 	</property>
-
-	<!--  ========================================================================
-	                   Scheduler and Instance Manager Classes 
-	      ======================================================================== -->
-	
-	<!--the default scheduler for local execution mode -->
-	<property>
-		<key>jobmanager.scheduler.local.classname</key>
-		<value>eu.stratosphere.nephele.jobmanager.scheduler.local.LocalScheduler</value>
-	</property>
-	
-	<!-- the default instance manager for local execution mode -->
-	<property>
-		<key>>jobmanager.instancemanager.local.classname</key>
-		<value>eu.stratosphere.nephele.instance.local.LocalInstanceManager</value>
-	</property>
-	
-	<!--the default scheduler for cluster execution mode -->
-	<property>
-		<key>jobmanager.scheduler.cluster.classname</key>
-		<value>eu.stratosphere.nephele.jobmanager.scheduler.queue.QueueScheduler</value>
-	</property>
-	
-	<!-- the default instance manager for cluster execution mode -->
-	<property>
-		<key>jobmanager.instancemanager.cluster.classname</key>
-		<value>eu.stratosphere.nephele.instance.cluster.ClusterManager</value>
-	</property>
-	
-	<property>
-		<key>jobmanager.instancemanager.cluster.cleanupinterval</key>
-		<value>120</value>
-	</property>
-	
 	
 	<!--  ========================================================================
 	                       Job / Instance Profiling 

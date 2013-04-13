@@ -444,14 +444,13 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 	 * @return
 	 * @throws IOException
 	 */
-	public boolean nextRecord() throws IOException
-	{
+	public boolean nextRecord() throws IOException {
+		
 		final ProbeIterator<PT> probeIter = this.probeIterator;
 		final TypeComparator<PT> probeAccessors = this.probeSideComparator;
 		
 		PT next;
-		while ((next = probeIter.next()) != null)
-		{
+		while ((next = probeIter.next()) != null) {
 			final int hash = hash(probeAccessors.hash(next), this.currentRecursionDepth);
 			final int posHashCode = hash % this.numBuckets;
 			
@@ -685,12 +684,9 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 		final BT record = this.buildSideSerializer.createInstance();
 		
 		// go over the complete input and insert every element into the hash table
-    long recordsInserted = 0;
-		while (input.next(record))
-		{
+		while (input.next(record)) {
 			final int hashCode = hash(buildTypeComparator.hash(record), 0);
 			insertIntoTable(record, hashCode);
-      recordsInserted++;
 		}
 
 		// finalize the partitions
@@ -698,19 +694,14 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 			HashPartition<BT, PT> p = this.partitionsBeingBuilt.get(i);
 			p.finalizeBuildPhase(this.ioManager, this.currentEnumerator, this.writeBehindBuffers);
 		}
-
-    if (LOG.isInfoEnabled()) {
-      LOG.info("inserted " + recordsInserted + " records into build side of HybridHashJoin");
-    }
 	}
 	
 	/**
 	 * @param p
 	 * @throws IOException
 	 */
-	protected void buildTableFromSpilledPartition(final HashPartition<BT, PT> p)
-	throws IOException
-	{
+	protected void buildTableFromSpilledPartition(final HashPartition<BT, PT> p) throws IOException {
+		
 		final int nextRecursionLevel = p.getRecursionLevel() + 1;
 		if (nextRecursionLevel > MAX_RECURSION_DEPTH) {
 			throw new RuntimeException("Hash join exceeded maximum number of recursions, without reducing "
@@ -736,8 +727,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 		// number of total buckets again.
 		final long totalBuffersNeeded = (numBuckets * 2) / (this.bucketsPerSegmentMask + 1) + p.getBuildSideBlockCount() + 1;
 		
-		if (totalBuffersNeeded < totalBuffersAvailable)
-		{
+		if (totalBuffersNeeded < totalBuffersAvailable) {
 			// we are guaranteed to stay in memory
 			ensureNumBuffersReturned(p.getBuildSideBlockCount());
 			
@@ -821,9 +811,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 	 * @param hashCode
 	 * @throws IOException
 	 */
-	protected final void insertIntoTable(final BT record, final int hashCode)
-	throws IOException
-	{
+	protected final void insertIntoTable(final BT record, final int hashCode) throws IOException {
 		final int posHashCode = hashCode % this.numBuckets;
 		
 		// get the bucket for the given hash code
@@ -971,8 +959,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 	/**
 	 * @param numPartitions
 	 */
-	protected void createPartitions(int numPartitions, int recursionLevel)
-	{
+	protected void createPartitions(int numPartitions, int recursionLevel) {
 		// sanity check
 		ensureNumBuffersReturned(numPartitions);
 		
@@ -993,10 +980,8 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 	 * <p>
 	 * This method is intended for a hard cleanup in the case that the join is aborted.
 	 */
-	protected void clearPartitions()
-	{
-		for (int i = this.partitionsBeingBuilt.size() - 1; i >= 0; --i)
-		{
+	protected void clearPartitions() {
+		for (int i = this.partitionsBeingBuilt.size() - 1; i >= 0; --i) {
 			final HashPartition<BT, PT> p = this.partitionsBeingBuilt.get(i);
 			try {
 				p.clearAllMemory(this.availableMemory);
@@ -1012,8 +997,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 	 * @param numPartitions
 	 * @return
 	 */
-	protected void initTable(int numBuckets, byte numPartitions)
-	{
+	protected void initTable(int numBuckets, byte numPartitions) {
 		final int bucketsPerSegment = this.bucketsPerSegmentMask + 1;
 		final int numSegs = (numBuckets >>> this.bucketsPerSegmentBits) + ( (numBuckets & this.bucketsPerSegmentMask) == 0 ? 0 : 1);
 		final MemorySegment[] table = new MemorySegment[numSegs];
@@ -1048,8 +1032,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 	/**
 	 * Releases the table (the array of buckets) and returns the occupied memory segments to the list of free segments.
 	 */
-	protected void releaseTable()
-	{
+	protected void releaseTable() {
 		// set the counters back
 		this.numBuckets = 0;
 		
@@ -1070,8 +1053,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 	 * 
 	 * @return The number of the spilled partition.
 	 */
-	protected int spillPartition() throws IOException
-	{	
+	protected int spillPartition() throws IOException {
 		// find the largest partition
 		ArrayList<HashPartition<BT, PT>> partitions = this.partitionsBeingBuilt;
 		int largestNumBlocks = 0;
@@ -1109,8 +1091,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 	 *  
 	 * @param minRequiredAvailable The minimum number of buffers that needs to be reclaimed.
 	 */
-	private final void ensureNumBuffersReturned(final int minRequiredAvailable)
-	{
+	private final void ensureNumBuffersReturned(final int minRequiredAvailable) {
 		if (minRequiredAvailable > this.availableMemory.size() + this.writeBehindBuffersAvailable) {
 			throw new IllegalArgumentException("More buffers requested available than totally available.");
 		}
@@ -1136,8 +1117,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 	 *                     exception replaces the <tt>InterruptedException</tt> to consolidate the exception
 	 *                     signatures.
 	 */
-	private final MemorySegment getNextBuffer()
-	{
+	private final MemorySegment getNextBuffer() {
 		// check if the list directly offers memory
 		int s = this.availableMemory.size();
 		if (s > 0) {
@@ -1145,8 +1125,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 		}
 		
 		// check if there are write behind buffers that actually are to be used for the hash table
-		if (this.writeBehindBuffersAvailable > 0)
-		{
+		if (this.writeBehindBuffersAvailable > 0) {
 			// grab at least one, no matter what
 			MemorySegment toReturn;
 			try {
@@ -1165,8 +1144,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 			}
 			
 			return toReturn;
-		}
-		else {
+		} else {
 			// no memory available
 			return null;
 		}
@@ -1176,8 +1154,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 	 * @see eu.stratosphere.pact.runtime.io.MemorySegmentSource#nextSegment()
 	 */
 	@Override
-	public MemorySegment nextSegment()
-	{
+	public MemorySegment nextSegment() {
 		final MemorySegment seg = getNextBuffer();
 		if (seg == null) {
 			try {
@@ -1210,8 +1187,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 	 * @param numBuffers The number of available buffers.
 	 * @return The number 
 	 */
-	public static final int getNumWriteBehindBuffers(int numBuffers)
-	{
+	public static final int getNumWriteBehindBuffers(int numBuffers) {
 		int numIOBufs = (int) (Math.log(numBuffers) / Math.log(4) - 1.5);
 		return numIOBufs > 6 ? 6 : numIOBufs;
 	}
@@ -1226,13 +1202,11 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 	 * @param numBuffers The number of buffers available.
 	 * @return The number of partitions to use.
 	 */
-	public static final int getPartitioningFanOutNoEstimates(int numBuffers)
-	{
+	public static final int getPartitioningFanOutNoEstimates(int numBuffers) {
 		return Math.max(10, Math.min(numBuffers / 10, MAX_NUM_PARTITIONS));
 	}
 	
-	public static final int getInitialTableSize(int numBuffers, int bufferSize, int numPartitions, int recordLenBytes)
-	{
+	public static final int getInitialTableSize(int numBuffers, int bufferSize, int numPartitions, int recordLenBytes) {
 		// ----------------------------------------------------------------------------------------
 		// the following observations hold:
 		// 1) If the records are assumed to be very large, then many buffers need to go to the partitions
@@ -1261,13 +1235,12 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 	/**
 	 * Assigns a partition to a bucket.
 	 * 
-	 * @param bucket T
-   *  @param maxParts
+	 * @param bucket
+	 * @param maxParts
 	 * @return The hash code for the integer.
 	 */
-	public static final byte assignPartition(int bucket, byte maxParts)
-	{
-		return (byte) (bucket % maxParts);
+	public static final byte assignPartition(int bucket, byte numPartitions) {
+		return (byte) (bucket % numPartitions);
 	}
 	
 	/**
@@ -1279,8 +1252,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 	 * @param code The integer to be hashed.
 	 * @return The hash code for the integer.
 	 */
-	public static final int hash(int code, int level)
-	{
+	public static final int hash(int code, int level) {
 		final int rotation = level * 11;
 		
 		code = (code << rotation) | (code >>> -rotation);
@@ -1299,8 +1271,8 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 	/**
 	 *
 	 */
-	public static class HashBucketIterator<BT, PT> implements MutableObjectIterator<BT>
-	{
+	public static class HashBucketIterator<BT, PT> implements MutableObjectIterator<BT> {
+		
 		private final TypeSerializer<BT> accessor;
 		
 		private final TypePairComparator<PT, BT> comparator;
@@ -1328,8 +1300,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 		private long lastPointer;
 		
 		
-		HashBucketIterator(TypeSerializer<BT> accessor, TypePairComparator<PT, BT> comparator)
-		{
+		HashBucketIterator(TypeSerializer<BT> accessor, TypePairComparator<PT, BT> comparator) {
 			this.accessor = accessor;
 			this.comparator = comparator;
 		}
@@ -1352,13 +1323,12 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 		}
 		
 
-		public boolean next(BT target)
-		{
+		public boolean next(BT target) {
 			// loop over all segments that are involved in the bucket (original bucket plus overflow buckets)
-			while (true)
-			{
-				while (this.numInSegment < this.countInSegment)
-				{
+			while (true) {
+				
+				while (this.numInSegment < this.countInSegment) {
+					
 					final int thisCode = this.bucket.getInt(this.posInSegment);
 					this.posInSegment += HASH_CODE_LEN;
 						
@@ -1403,15 +1373,13 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 			}
 		}
 		
-		public void writeBack(BT value) throws IOException
-		{
+		public void writeBack(BT value) throws IOException {
 			final SeekableDataOutputView outView = this.partition.getWriteView();
 			outView.setWritePosition(this.lastPointer);
 			this.accessor.serialize(value, outView);
 		}
 		
-		public void reset()
-		{
+		public void reset() {
 			this.bucket = this.originalBucket;
 			this.bucketInSegmentOffset = this.originalBucketInSegmentOffset;
 			
@@ -1428,8 +1396,8 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 	/**
 	 *
 	 */
-	public static final class LazyHashBucketIterator<BT, PT>
-	{
+	public static final class LazyHashBucketIterator<BT, PT> {
+		
 		private final TypePairComparator<PT, BT> comparator;
 		
 		private MemorySegment bucket;
@@ -1448,15 +1416,14 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 		
 		private int numInSegment;
 		
-		private LazyHashBucketIterator(TypePairComparator<PT, BT> comparator)
-		{
+		private LazyHashBucketIterator(TypePairComparator<PT, BT> comparator) {
 			this.comparator = comparator;
 		}
 		
 		
 		void set(MemorySegment bucket, MemorySegment[] overflowSegments, HashPartition<BT, PT> partition,
-				int searchHashCode, int bucketInSegmentOffset)
-		{
+				int searchHashCode, int bucketInSegmentOffset) {
+			
 			this.bucket = bucket;
 			this.overflowSegments = overflowSegments;
 			this.partition = partition;
@@ -1468,13 +1435,12 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 			this.numInSegment = 0;
 		}
 
-		public boolean next(BT target)
-		{
+		public boolean next(BT target) {
 			// loop over all segments that are involved in the bucket (original bucket plus overflow buckets)
-			while (true)
-			{
-				while (this.numInSegment < this.countInSegment)
-				{
+			while (true) {
+				
+				while (this.numInSegment < this.countInSegment) {
+					
 					final int thisCode = this.bucket.getInt(this.posInSegment);
 					this.posInSegment += HASH_CODE_LEN;
 						
@@ -1516,8 +1482,8 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 
 	// ======================================================================================================
 	
-	public static final class ProbeIterator<PT>
-	{
+	public static final class ProbeIterator<PT> {
+		
 		private MutableObjectIterator<PT> source;
 		
 		private final PT instance;
@@ -1525,33 +1491,28 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 		private PT current;
 		
 		
-		ProbeIterator(MutableObjectIterator<PT> source, PT instance)
-		{
+		ProbeIterator(MutableObjectIterator<PT> source, PT instance) {
 			this.instance = instance;
 			set(source);
 		}
 		
-		void set(MutableObjectIterator<PT> source) 
-		{
+		void set(MutableObjectIterator<PT> source) {
 			this.source = source;
 			if (this.current == null) {
 				this.current = this.instance;
 			}
 		}
 		
-		public PT next() throws IOException
-		{
+		public PT next() throws IOException {
 			if (this.source.next(this.instance)) {
 				this.current = this.instance;
 				return this.current;
-			}
-			else {
+			} else {
 				return null;
 			}
 		}
 		
-		public PT getCurrent()
-		{
+		public PT getCurrent() {
 			return this.current;
 		}
 	}

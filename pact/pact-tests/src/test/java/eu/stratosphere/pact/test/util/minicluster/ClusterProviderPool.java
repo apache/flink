@@ -53,8 +53,6 @@ public class ClusterProviderPool {
 			String clusterProviderType = config.getString(Constants.CLUSTER_PROVIDER_TYPE, "");
 			if (clusterProviderType.equals("LocalClusterProvider")) {
 				instance = new LocalClusterProvider(config);
-			} else if (clusterProviderType.equals("DistClusterProvider")) {
-				instance = new DistClusterProvider(config);
 			} else {
 				throw new Exception("No or unknown cluster provider type configured");
 			}

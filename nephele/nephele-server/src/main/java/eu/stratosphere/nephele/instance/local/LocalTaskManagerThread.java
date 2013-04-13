@@ -35,11 +35,11 @@ public class LocalTaskManagerThread extends Thread {
 	 * @param configDir
 	 *        the configuration directory to pass on to the task manager instance
 	 */
-	public LocalTaskManagerThread(String configDir) {
+	public LocalTaskManagerThread() {
 
 		TaskManager tmpTaskManager = null;
 		try {
-			tmpTaskManager = new TaskManager(configDir);
+			tmpTaskManager = new TaskManager();
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
@@ -73,15 +73,4 @@ public class LocalTaskManagerThread extends Thread {
 
 		return this.taskManager.isShutDown();
 	}
-
-	/**
-	 * Returns true if the TaskManager was successfully initialized.
-	 * 
-	 * @return true if the TaskManager was successfully initialized, false otherwise.
-	 */
-	/*
-	 * public boolean isTaskManagerInitialized() {
-	 * return this.taskManagerSuccessfullyInitialized;
-	 * }
-	 */
 }

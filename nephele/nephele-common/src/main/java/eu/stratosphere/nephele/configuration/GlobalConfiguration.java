@@ -273,7 +273,7 @@ public final class GlobalConfiguration {
 		final File[] files = confDirFile.listFiles(new FilenameFilter() {
 			@Override
 			public boolean accept(final File dir, final String name) {
-				return dir == confDirFile && name != null && name.endsWith(".xml");
+				return dir.equals(confDirFile) && name != null && name.endsWith(".xml");
 			}
 
 		});

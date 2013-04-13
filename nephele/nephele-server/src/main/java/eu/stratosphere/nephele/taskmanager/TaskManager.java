@@ -154,15 +154,23 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 
 	/**
 	 * Constructs a new task manager, starts its IPC service and attempts to discover the job manager to
-	 * receive an initial configuration.
-	 * 
-	 * @param configDir
-	 *        the directory containing the configuration files for the task manager
+	 * receive an initial configuration. All parameters are obtained from the 
+	 * {@link GlobalConfiguration}, which must be loaded prior to instantiating the task manager.
 	 */
-	public TaskManager(String configDir) throws Exception {
-
-		// First, try to load global configuration
-		GlobalConfiguration.loadConfiguration(configDir);
+	public TaskManager() throws Exception {
+		this(null);
+	}
+	
+	/**
+	 * Constructs a new task manager, starts its IPC service and attempts to discover the job manager to
+	 * receive an initial configuration. All parameters are obtained from the 
+	 * {@link GlobalConfiguration}, which must be loaded prior to instantiating the task manager.
+	 *  
+	 * @param pluginDir The directory to load plug-ins from.
+	 */
+	public TaskManager(String pluginDir) throws Exception {
+		
+		// IMPORTANT! At this point, the GlobalConfiguration must have been read!
 
 		// Use discovery service to find the job manager in the network?
 		final String address = GlobalConfiguration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
@@ -325,7 +333,11 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 		this.ioManager = new IOManager(tmpDirPaths);
 
 		// Load the plugins
-		this.taskManagerPlugins = PluginManager.getTaskManagerPlugins(this, configDir);
+		if (pluginDir != null) {
+			this.taskManagerPlugins = PluginManager.getTaskManagerPlugins(this, pluginDir);
+		} else {
+			this.taskManagerPlugins = Collections.emptyMap();
+		}
 
 		// Add shutdown hook for clean up tasks
 		Runtime.getRuntime().addShutdownHook(new TaskManagerCleanUp(this));
@@ -356,6 +368,9 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 		}
 
 		String configDir = line.getOptionValue(configDirOpt.getOpt(), null);
+		
+		// First, try to load global configuration
+		GlobalConfiguration.loadConfiguration(configDir);
 
 		// Create a new task manager object
 		TaskManager taskManager = null;
