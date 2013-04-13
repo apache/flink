@@ -17,11 +17,11 @@ package eu.stratosphere.pact.runtime.task;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import junit.framework.Assert;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+
 import org.junit.Test;
+import org.junit.Assert;
 
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MapStub;
@@ -34,8 +34,8 @@ import eu.stratosphere.pact.runtime.test.util.InfiniteInputIterator;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
 import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
 
-public class MapTaskTest extends DriverTestBase<GenericMapper<PactRecord, PactRecord>>
-{
+public class MapTaskTest extends DriverTestBase<GenericMapper<PactRecord, PactRecord>> {
+	
 	private static final Log LOG = LogFactory.getLog(MapTaskTest.class);
 	
 	private final CountingOutputCollector output = new CountingOutputCollector();
@@ -46,8 +46,7 @@ public class MapTaskTest extends DriverTestBase<GenericMapper<PactRecord, PactRe
 	}
 	
 	@Test
-	public void testMapTask()
-	{
+	public void testMapTask() {
 		final int keyCnt = 100;
 		final int valCnt = 20;
 		
@@ -67,8 +66,7 @@ public class MapTaskTest extends DriverTestBase<GenericMapper<PactRecord, PactRe
 	}
 	
 	@Test
-	public void testFailingMapTask()
-	{
+	public void testFailingMapTask() {
 		final int keyCnt = 100;
 		final int valCnt = 20;
 		
@@ -88,8 +86,7 @@ public class MapTaskTest extends DriverTestBase<GenericMapper<PactRecord, PactRe
 	}
 	
 	@Test
-	public void testCancelMapTask()
-	{
+	public void testCancelMapTask() {
 		addInput(new InfiniteInputIterator());
 		setOutput(new DiscardingOutputCollector());
 		
@@ -123,8 +120,7 @@ public class MapTaskTest extends DriverTestBase<GenericMapper<PactRecord, PactRe
 		Assert.assertTrue("Test threw an exception even though it was properly canceled.", success.get());
 	}
 	
-	public static class MockMapStub extends MapStub
-	{
+	public static class MockMapStub extends MapStub {
 		@Override
 		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
 			out.collect(record);

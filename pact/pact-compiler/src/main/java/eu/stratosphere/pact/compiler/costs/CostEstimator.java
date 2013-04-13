@@ -46,8 +46,6 @@ public abstract class CostEstimator {
 	
 	public abstract void addLocalMergeCost(EstimateProvider estimates1, EstimateProvider estimates2, long memorySize, Costs costs);
 	
-	public abstract void addLocalSelfNestedLoopCost(EstimateProvider estimates, long bufferSize, Costs costs);
-	
 	public abstract void addHybridHashCosts(EstimateProvider buildSide, EstimateProvider probeSide, long memorySize, Costs costs);
 
 	public abstract void addStreamedNestedLoopsCosts(EstimateProvider outerSide, EstimateProvider innerSide, long bufferSize, Costs costs);

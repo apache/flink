@@ -397,13 +397,13 @@
 				</dependencies> </plugin> -->
 		</plugins>
 	</build>
-	<distributionManagement>
+<!--	<distributionManagement>
 		<repository>
 			<id>stratosphere.eu</id>
 			<name>Stratosphere Repository</name>
 			<url>scp://stratosphere.eu/var/projects/stratosphere/maven2</url>
 		</repository>
-	</distributionManagement>
+	</distributionManagement> -->
 
 	<profiles>
 		<!-- Hudson by default defines a property BUILD_NUMBER which is used to 
@@ -491,8 +491,8 @@
 				</plugin>
 			</plugins>
 			</build>
-		</profile>
-	</profiles> -->
+		</profile> -->
+	</profiles>
 
 	<modules>
 		<module>nephele</module>

@@ -19,8 +19,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import junit.framework.Assert;
-
+import org.junit.Assert;
 import org.junit.Test;
 
 import eu.stratosphere.nephele.configuration.Configuration;
@@ -30,23 +29,26 @@ import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.generic.stub.GenericMapper;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparatorFactory;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordSerializerFactory;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
+import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.MapDriver;
 import eu.stratosphere.pact.runtime.task.MapTaskTest.MockMapStub;
 import eu.stratosphere.pact.runtime.task.ReduceTaskTest.MockReduceStub;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
-import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
-/**
- * @author enijkamp
- */
-public class ChainTaskTest extends TaskTestBase
-{
+
+public class ChainTaskTest extends TaskTestBase {
+	
 	private final List<PactRecord> outList = new ArrayList<PactRecord>();
-		
+	
 	@SuppressWarnings("unchecked")
+	private final PactRecordComparatorFactory compFact = new PactRecordComparatorFactory(new int[]{0}, new Class[]{PactInteger.class}, new boolean[] {true});
+	private final PactRecordSerializerFactory serFact = PactRecordSerializerFactory.get();
+	
 	@Test
 	public void testMapTask() {
 		final int keyCnt = 100;
@@ -59,27 +61,32 @@ public class ChainTaskTest extends TaskTestBase
 		
 		// chained combine config
 		{
-			final Configuration config = new Configuration();
-			config.addAll(super.getConfiguration(), "");
-			final TaskConfig combineConfig = new TaskConfig(config);
+			final TaskConfig combineConfig = new TaskConfig(new Configuration());
+
+			// input
+			combineConfig.addInputToGroup(0);
+			combineConfig.setInputSerializer(serFact, 0);
 			
+			// output
+			combineConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
+			combineConfig.setOutputSerializer(serFact);
+			
+			// driver
+			combineConfig.setDriverStrategy(DriverStrategy.PARTIAL_GROUP);
+			combineConfig.setDriverComparator(compFact, 0);
+			combineConfig.setMemoryDriver(3 * 1024 * 1024);
+			
+			// udf
 			combineConfig.setStubClass(MockReduceStub.class);
-			combineConfig.setInputLocalStrategy(0, LocalStrategy.COMBININGSORT);
-			combineConfig.setMemoryInput(0, 3 * 1024 * 1024);
-			combineConfig.setFilehandlesInput(0, 2);
 			
-			PactRecordComparatorFactory fact = new PactRecordComparatorFactory(new int[]{0}, new Class[]{PactInteger.class}, new boolean[] {true});
-			combineConfig.setInputComparator(fact, 0);
-			
-			super.getTaskConfig().addChainedTask(ChainedCombineDriver.class, combineConfig, "combine");
+			getTaskConfig().addChainedTask(ChainedCombineDriver.class, combineConfig, "combine");
 		}
 		
 		// chained map+combine
 		{
-			final RegularPactTask<GenericMapper<PactRecord, PactRecord>, PactRecord> testTask = 
+			RegularPactTask<GenericMapper<PactRecord, PactRecord>, PactRecord> testTask = 
 										new RegularPactTask<GenericMapper<PactRecord, PactRecord>, PactRecord>();
-			
-			super.registerTask(testTask, MapDriver.class, MockMapStub.class);
+			registerTask(testTask, MapDriver.class, MockMapStub.class);
 			
 			try {
 				testTask.invoke();
@@ -90,11 +97,8 @@ public class ChainTaskTest extends TaskTestBase
 		}
 		
 		Assert.assertEquals(keyCnt, this.outList.size());
-		
 	}
 	
-
-	@SuppressWarnings("unchecked")
 	@Test
 	public void testFailingMapTask() {
 		
@@ -108,19 +112,25 @@ public class ChainTaskTest extends TaskTestBase
 
 		// chained combine config
 		{
-			Configuration config = new Configuration();
-			config.addAll(super.getConfiguration(), "");
-			TaskConfig combineConfig = new TaskConfig(config);
+			final TaskConfig combineConfig = new TaskConfig(new Configuration());
+
+			// input
+			combineConfig.addInputToGroup(0);
+			combineConfig.setInputSerializer(serFact, 0);
 			
+			// output
+			combineConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
+			combineConfig.setOutputSerializer(serFact);
+			
+			// driver
+			combineConfig.setDriverStrategy(DriverStrategy.PARTIAL_GROUP);
+			combineConfig.setDriverComparator(compFact, 0);
+			combineConfig.setMemoryDriver(3 * 1024 * 1024);
+			
+			// udf
 			combineConfig.setStubClass(MockFailingCombineStub.class);
-			combineConfig.setInputLocalStrategy(0, LocalStrategy.COMBININGSORT);
-			combineConfig.setMemoryInput(0, 3 * 1024 * 1024);
-			combineConfig.setFilehandlesInput(0, 2);
 			
-			PactRecordComparatorFactory fact = new PactRecordComparatorFactory(new int[]{0}, new Class[]{PactInteger.class}, new boolean[] {true});
-			combineConfig.setInputComparator(fact, 0);
-			
-			super.getTaskConfig().addChainedTask(ChainedCombineDriver.class, combineConfig, "combine");
+			getTaskConfig().addChainedTask(ChainedCombineDriver.class, combineConfig, "combine");
 		}
 		
 		// chained map+combine
@@ -142,13 +152,12 @@ public class ChainTaskTest extends TaskTestBase
 		}		
 	}
 	
-	public static final class MockFailingCombineStub extends ReduceStub
-	{
+	public static final class MockFailingCombineStub extends ReduceStub {
+		
 		private int cnt = 0;
 
 		@Override
-		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception
-		{
+		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {
 			if (++this.cnt >= 5) {
 				throw new RuntimeException("Expected Test Exception");
 			}

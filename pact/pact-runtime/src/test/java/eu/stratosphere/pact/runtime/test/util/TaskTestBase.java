@@ -17,9 +17,8 @@ package eu.stratosphere.pact.runtime.test.util;
 
 import java.util.List;
 
-import junit.framework.Assert;
-
 import org.junit.After;
+import org.junit.Assert;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
@@ -40,16 +39,15 @@ import eu.stratosphere.pact.runtime.task.PactDriver;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
-public abstract class TaskTestBase
-{
+public abstract class TaskTestBase {
+	
 	protected long memorySize = 0;
 
 	protected MockInputSplitProvider inputSplitProvider;
 
 	protected MockEnvironment mockEnv;
 
-	public void initEnvironment(long memorySize)
-	{
+	public void initEnvironment(long memorySize) {
 		this.memorySize = memorySize;
 		this.inputSplitProvider = new MockInputSplitProvider();
 		this.mockEnv = new MockEnvironment(this.memorySize, this.inputSplitProvider);
@@ -58,6 +56,7 @@ public abstract class TaskTestBase
 	public void addInput(MutableObjectIterator<PactRecord> input, int groupId) {
 		this.mockEnv.addInput(input);
 		TaskConfig conf = new TaskConfig(this.mockEnv.getTaskConfiguration());
+		conf.addInputToGroup(groupId);
 		conf.setInputSerializer(PactRecordSerializerFactory.get(), groupId);
 	}
 
@@ -76,8 +75,7 @@ public abstract class TaskTestBase
 		return this.mockEnv.getTaskConfiguration();
 	}
 
-	public void registerTask(AbstractTask task, @SuppressWarnings("rawtypes") Class<? extends PactDriver> driver, Class<? extends Stub> stubClass)
-	{
+	public void registerTask(AbstractTask task, @SuppressWarnings("rawtypes") Class<? extends PactDriver> driver, Class<? extends Stub> stubClass) {
 		final TaskConfig config = new TaskConfig(this.mockEnv.getTaskConfiguration());
 		config.setDriver(driver);
 		config.setStubClass(stubClass);
@@ -136,15 +134,13 @@ public abstract class TaskTestBase
 	}
 
 	@After
-	public void shutdownIOManager() throws Exception
-	{
+	public void shutdownIOManager() throws Exception {
 		this.mockEnv.getIOManager().shutdown();
 		Assert.assertTrue("IO Manager has not properly shut down.", this.mockEnv.getIOManager().isProperlyShutDown());
 	}
 
 	@After
-	public void shutdownMemoryManager() throws Exception
-	{
+	public void shutdownMemoryManager() throws Exception {
 		if (this.memorySize > 0) {
 			MemoryManager memMan = getMemoryManager();
 			if (memMan != null) {

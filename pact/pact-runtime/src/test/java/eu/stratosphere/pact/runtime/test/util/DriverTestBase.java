@@ -78,8 +78,7 @@ public class DriverTestBase<S extends Stub> implements PactTaskContext<S, PactRe
 		this(memory, maxNumSorters, DEFAULT_PER_SORT_MEM);
 	}
 	
-	protected DriverTestBase(long memory, int maxNumSorters, long perSortMemory)
-	{
+	protected DriverTestBase(long memory, int maxNumSorters, long perSortMemory) {
 		if (memory < 0 || maxNumSorters < 0 || perSortMemory < 0) {
 			throw new IllegalArgumentException();
 		}

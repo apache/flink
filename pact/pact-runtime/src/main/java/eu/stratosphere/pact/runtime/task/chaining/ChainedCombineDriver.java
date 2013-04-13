@@ -36,8 +36,8 @@ import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
 /**
  * 
  */
-public class ChainedCombineDriver<T> implements ChainedDriver<T, T>
-{
+public class ChainedCombineDriver<T> implements ChainedDriver<T, T> {
+	
 	private InputDataCollector<T> inputCollector;
 	
 	private volatile Exception exception;
@@ -85,8 +85,7 @@ public class ChainedCombineDriver<T> implements ChainedDriver<T, T>
 	 * @see eu.stratosphere.pact.runtime.task.chaining.ChainedTask#open()
 	 */
 	@Override
-	public void openTask() throws Exception
-	{
+	public void openTask() throws Exception {
 		// open the stub first
 		final Configuration stubConfig = this.config.getStubParameters();
 		stubConfig.setInteger("pact.parallel.task.id", this.parent.getEnvironment().getIndexInSubtaskGroup());
@@ -137,8 +136,7 @@ public class ChainedCombineDriver<T> implements ChainedDriver<T, T>
 	 * @see eu.stratosphere.pact.runtime.task.chaining.ChainedTask#closeTask()
 	 */
 	@Override
-	public void closeTask() throws Exception
-	{
+	public void closeTask() throws Exception {
 		// wait for the thread that runs the combiner to finish
 		while (!this.canceled && this.combinerThread.isAlive()) {
 			try {
@@ -170,8 +168,7 @@ public class ChainedCombineDriver<T> implements ChainedDriver<T, T>
 	 * @see eu.stratosphere.pact.runtime.task.chaining.ChainedTask#cancelTask()
 	 */
 	@Override
-	public void cancelTask()
-	{
+	public void cancelTask() {
 		this.canceled = true;
 		this.exception = new Exception("Task has been canceled");
 		
@@ -212,8 +209,7 @@ public class ChainedCombineDriver<T> implements ChainedDriver<T, T>
 	 * @see eu.stratosphere.pact.common.stubs.Collector#collect(eu.stratosphere.pact.common.type.PactRecord)
 	 */
 	@Override
-	public void collect(T record)
-	{
+	public void collect(T record) {
 		if (this.exception != null)
 			throw new RuntimeException("The combiner failed due to an exception.", 
 				this.exception.getCause() == null ? this.exception : this.exception.getCause());
@@ -235,8 +231,8 @@ public class ChainedCombineDriver<T> implements ChainedDriver<T, T>
 	
 	// --------------------------------------------------------------------------------------------
 	
-	private final class CombinerThread extends Thread
-	{
+	private final class CombinerThread extends Thread {
+		
 		private final AsynchronousPartialSorterCollector<T> sorter;
 		
 		private final TypeSerializer<T> serializer;
@@ -265,8 +261,7 @@ public class ChainedCombineDriver<T> implements ChainedDriver<T, T>
 			this.running = true;
 		}
 
-		public void run()
-		{
+		public void run() {
 			try {
 				MutableObjectIterator<T> iterator = null;
 				while (iterator == null) {

@@ -141,16 +141,6 @@ public class DefaultCostEstimator extends CostEstimator {
 		// costs nothing. the very rarely incurred cost for a spilling block nested loops join in the
 		// presence of massively re-occurring duplicate keys is ignored, because not accessible.
 	}
-	
-	@Override
-	public void addLocalSelfNestedLoopCost(EstimateProvider estimates, long bufferSize, Costs costs) {
-		// this formula is broken
-//		long is = estimates.getEstimatedOutputSize();
-//		long ic = estimates.getEstimatedNumRecords();
-//		long loops = ic < 0 ? 10 : ic / bufferSize;
-//		costs.addSecondaryStorageCost(is == -1 ? -1 : (loops + 2) * is);
-		throw new UnsupportedOperationException("Self-Nested-Loops is currently not enabled.");
-	}
 
 	@Override
 	public void addHybridHashCosts(EstimateProvider buildSideInput, EstimateProvider probeSideInput, long availableMemory, Costs costs) {
