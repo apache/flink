@@ -38,6 +38,15 @@ public class DefaultCostEstimator extends CostEstimator {
 	 */
 	private static final long HEURISTIC_COST_BASE = 10000000000l;
 	
+	// The numbers for the CPU effort are rather magic at the moment and should be seen rather ordinal
+	
+	private static final float MATERIALIZATION_CPU_FACTOR = 1;
+	
+	private static final float HASHING_CPU_FACTOR = 4;
+	
+	private static final float SORTING_CPU_FACTOR = 7;
+	
+	
 	// --------------------------------------------------------------------------------------------
 	// Shipping Strategy Cost
 	// --------------------------------------------------------------------------------------------
@@ -118,10 +127,13 @@ public class DefaultCostEstimator extends CostEstimator {
 		// we assume a two phase merge sort, so all in all 2 I/O operations per block
 		if (s <= 0) {
 			costs.setDiskCost(Costs.UNKNOWN);
+			costs.setCpuCost(Costs.UNKNOWN);
 		} else {
 			costs.addDiskCost(2 * s);
+			costs.addCpuCost((long) (s * SORTING_CPU_FACTOR));
 		}
 		costs.addHeuristicDiskCost(2 * HEURISTIC_COST_BASE);
+		costs.addHeuristicCpuCost((long) (HEURISTIC_COST_BASE * SORTING_CPU_FACTOR));
 	}
 
 	@Override
@@ -147,10 +159,13 @@ public class DefaultCostEstimator extends CostEstimator {
 		
 		if (bs > 0 && ps > 0) {
 			costs.addDiskCost(2*bs + ps);
+			costs.addCpuCost((long) ((2*bs + ps) * HASHING_CPU_FACTOR));
 		} else {
 			costs.setDiskCost(Costs.UNKNOWN);
+			costs.setCpuCost(Costs.UNKNOWN);
 		}
 		costs.addHeuristicDiskCost(2 * HEURISTIC_COST_BASE);
+		costs.addHeuristicCpuCost((long) (HEURISTIC_COST_BASE * HASHING_CPU_FACTOR));
 	}
 
 	@Override
@@ -163,12 +178,15 @@ public class DefaultCostEstimator extends CostEstimator {
 			if (is > bufferSize) {
 				costs.addDiskCost(oc * is);
 			}
+			costs.addCpuCost((long) (oc * is * MATERIALIZATION_CPU_FACTOR));
 		} else {
 			costs.setDiskCost(Costs.UNKNOWN);
+			costs.setCpuCost(Costs.UNKNOWN);
 		}
 		
 		// hack: assume 100k loops (should be expensive enough)
 		costs.addHeuristicDiskCost(HEURISTIC_COST_BASE * 100000);
+		costs.addHeuristicCpuCost((long) (HEURISTIC_COST_BASE * 100000 * MATERIALIZATION_CPU_FACTOR));
 	}
 
 	@Override
@@ -179,12 +197,15 @@ public class DefaultCostEstimator extends CostEstimator {
 		if (is > 0 && os > 0) {
 			long loops = Math.max(os / blockSize, 1);
 			costs.addDiskCost(loops * is);
+			costs.addCpuCost((long) (loops * is * MATERIALIZATION_CPU_FACTOR));
 		} else {
 			costs.setDiskCost(Costs.UNKNOWN);
+			costs.setCpuCost(Costs.UNKNOWN);
 		}
 		
 		// hack: assume 1k loops (much cheaper than the streamed variant!)
 		costs.addHeuristicDiskCost(HEURISTIC_COST_BASE * 1000);
+		costs.addHeuristicCpuCost((long) (HEURISTIC_COST_BASE * 1000 * MATERIALIZATION_CPU_FACTOR));
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -200,9 +221,12 @@ public class DefaultCostEstimator extends CostEstimator {
 		// we assume spilling and re-reading
 		if (s <= 0) {
 			costs.setDiskCost(Costs.UNKNOWN);
+			costs.setCpuCost(Costs.UNKNOWN);
 		} else {
 			costs.addDiskCost(2 * s);
+			costs.setCpuCost((long) (s * MATERIALIZATION_CPU_FACTOR));
 		}
 		costs.addHeuristicDiskCost(2 * HEURISTIC_COST_BASE);
+		costs.addHeuristicCpuCost((long) (HEURISTIC_COST_BASE * MATERIALIZATION_CPU_FACTOR));
 	}
 }

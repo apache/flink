@@ -55,7 +55,11 @@ public class DelimitedInputFormatSamplingTest {
 			
 	private static final int TEST_DATA_1_LINES = TEST_DATA1.split("\n").length;
 	
-	private static final int TEST_DATA_2_LINES = TEST_DATA2.split("\n").length;
+	private static final int TEST_DATA_1_LINEWIDTH = TEST_DATA1.split("\n")[0].length();
+	
+	private static final int TEST_DATA_2_LINEWIDTH = TEST_DATA2.split("\n")[0].length();
+	
+	private static final int TOTAL_SIZE = TEST_DATA1.length() + TEST_DATA2.length();
 	
 	private static final int DEFAULT_NUM_SAMPLES = 4;
 	
@@ -174,10 +178,18 @@ public class DelimitedInputFormatSamplingTest {
 			format.configure(conf);
 			BaseStatistics stats = format.getStatistics(null);
 			
-			final int numLines = TEST_DATA_1_LINES + TEST_DATA_2_LINES;
-			final float avgWidth = ((float) (TEST_DATA1.length() + TEST_DATA2.length())) / numLines;
-			Assert.assertTrue("Wrong record count.", stats.getNumberOfRecords() < numLines + 2 & stats.getNumberOfRecords() > numLines - 2);
-			Assert.assertTrue("Wrong avg record size.", stats.getAverageRecordWidth() < avgWidth + 1 & stats.getAverageRecordWidth() > avgWidth - 1);
+			final int maxNumLines = (int) Math.ceil(TOTAL_SIZE / ((double) Math.min(TEST_DATA_1_LINEWIDTH, TEST_DATA_2_LINEWIDTH)));
+			final int minNumLines = (int) (TOTAL_SIZE / ((double) Math.max(TEST_DATA_1_LINEWIDTH, TEST_DATA_2_LINEWIDTH)));
+			final float maxAvgWidth = ((float) (TOTAL_SIZE)) / minNumLines;
+			final float minAvgWidth = ((float) (TOTAL_SIZE)) / maxNumLines;
+			
+			if (!(stats.getNumberOfRecords() <= maxNumLines  & stats.getNumberOfRecords() >= minNumLines)) {
+				System.err.println("Records: " + stats.getNumberOfRecords() + " out of (" + minNumLines + ", " + maxNumLines + ").");
+				Assert.fail("Wrong record count.");
+			}
+			if (!(stats.getAverageRecordWidth() <= maxAvgWidth & stats.getAverageRecordWidth() >= minAvgWidth)) {
+				Assert.fail("Wrong avg record size.");
+			}
 		} catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail(e.getMessage());

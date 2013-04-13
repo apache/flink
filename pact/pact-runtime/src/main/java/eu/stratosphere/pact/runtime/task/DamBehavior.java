@@ -22,8 +22,8 @@ package eu.stratosphere.pact.runtime.task;
  * is returned (full dam) or whether a certain large amount is collected before
  * the algorithm returns records. 
  */
-public enum DamBehavior
-{
+public enum DamBehavior {
+	
 	/**
 	 * Constant indicating that the algorithm does not come with any form of dam
 	 * and records pass through in a pipelined fashion.

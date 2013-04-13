@@ -19,6 +19,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -77,6 +78,13 @@ public class PlanJSONDumpGenerator {
 				pw.close();
 			}
 		}
+	}
+	
+	public String getOptimizerPlanAsJSON(OptimizedPlan plan) {
+		StringWriter sw = new StringWriter();
+		PrintWriter pw = new PrintWriter(sw);
+		dumpOptimizerPlanAsJSON(plan, pw);
+		return sw.toString();
 	}
 	
 	public void dumpOptimizerPlanAsJSON(OptimizedPlan plan, PrintWriter writer) {
