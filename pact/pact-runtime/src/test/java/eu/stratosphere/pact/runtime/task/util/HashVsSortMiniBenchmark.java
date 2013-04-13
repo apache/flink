@@ -46,7 +46,8 @@ import eu.stratosphere.pact.runtime.test.util.TestData.Generator.KeyMode;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.ValueMode;
 
 
-public class HashVsSortTest {
+public class HashVsSortMiniBenchmark {
+	
 	// total memory
 	private static final int MEMORY_SIZE = 1024 * 1024 * 32;
 	
@@ -83,8 +84,7 @@ public class HashVsSortTest {
 
 	@SuppressWarnings("unchecked")
 	@Before
-	public void beforeTest()
-	{
+	public void beforeTest() {
 		this.serializer1 = PactRecordSerializer.get();
 		this.serializer2 = PactRecordSerializer.get();
 		this.comparator1 = new PactRecordComparator(new int[] {0}, new Class[] {TestData.Key.class});
@@ -96,8 +96,7 @@ public class HashVsSortTest {
 	}
 
 	@After
-	public void afterTest()
-	{
+	public void afterTest() {
 		if (this.memoryManager != null) {
 			Assert.assertTrue("Memory Leak: Not all memory has been returned to the memory manager.",
 				this.memoryManager.verifyEmpty());
@@ -244,10 +243,8 @@ public class HashVsSortTest {
 	}
 	
 	
-	private static final class NoOpMatcher extends MatchStub
-	{
+	private static final class NoOpMatcher extends MatchStub {
 		@Override
 		public void match(PactRecord rec1, PactRecord rec2, Collector<PactRecord> out) {}
-		
 	}
 }

@@ -160,28 +160,29 @@
 				</configuration>
 			</plugin>
 
-			<plugin>
-				<!-- measure and report source code complexity -->
+			<!-- measure and report source code complexity -->
+<!--			<plugin>
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>javancss-maven-plugin</artifactId>
 				<version>2.0</version>
-			</plugin>
+			</plugin> -->
 
-			<plugin>
-				<!-- analyze dependencies in source code -->
+			<!-- analyze dependencies in source code -->
+<!--			<plugin>
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>jdepend-maven-plugin</artifactId>
-			</plugin>
+				<version></version>
+			</plugin> -->
 
 			<!-- disabled because currently no SCM defined generates changelog <plugin> 
 				<groupId>org.apache.maven.plugins</groupId> <artifactId>maven-changelog-plugin</artifactId> 
 				<version>2.2-SNAPSHOT</version> </plugin> -->
 
-			<plugin>
-				<!-- report occurrences of various todo markers in code -->
+			<!-- report occurrences of various todo markers in code -->
+<!--			<plugin>
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>taglist-maven-plugin</artifactId>
-				<!-- <version>2.3</version> -->
+				<version>2.3</version>
 				<configuration>
 					<tags>
 						<tag>TODO</tag>
@@ -190,7 +191,7 @@
 						<tag>@deprecated</tag>
 					</tags>
 				</configuration>
-			</plugin>
+			</plugin> -->
 
 			<!-- todo: reenable when SCM is available <plugin> <groupId>org.codehaus.mojo</groupId> 
 				<artifactId>scmchangelog-maven-plugin</artifactId> <version>1.2</version> 
@@ -198,33 +199,32 @@
 				<tagBase>https://projekte.itmc.tu-dortmund.de/svn/sla4dgrid/tags/</tagBase> 
 				<filter>.*</filter> </configuration> </plugin> -->
 
-			<plugin>
-				<!-- generates cross references in code so that you can click in the 
-					reports and jump to the respective lines -->
+			<!-- generates cross references in code so that you can click in the reports and jump to the respective lines -->
+<!--			<plugin>
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>jxr-maven-plugin</artifactId>
 				<configuration>
 					<linkJavadoc>true</linkJavadoc>
 				</configuration>
-			</plugin>
+			</plugin> -->
 
-			<plugin>
-				<!-- discovers frequent bugs in programs -->
+			<!-- discovers frequent bugs in programs -->
+<!--			<plugin>
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>findbugs-maven-plugin</artifactId>
-				<!-- <version>2.0.1</version> -->
+				<version>2.0.1</version>
 				<configuration>
 					<effort>Max</effort>
 					<threshold>Medium</threshold>
 					<findbugsXmlOutput>true</findbugsXmlOutput>
 					<xmlOutput>true</xmlOutput>
 				</configuration>
-			</plugin>
+			</plugin> -->
 
-			<plugin>
-				<!-- maven source code analysis for frequent bugs -->
+			<!-- maven source code analysis for frequent bugs -->
+<!--			<plugin>
 				<artifactId>maven-pmd-plugin</artifactId>
-				<!-- <version>2.5</version> -->
+				<version>2.5</version>
 				<configuration>
 					<targetJdk>1.6</targetJdk>
 				</configuration>
@@ -236,18 +236,17 @@
 						</reports>
 					</reportSet>
 				</reportSets>
-			</plugin>
+			</plugin> -->
 
-			<!-- TEST ME -->
+			<!-- generation of JavaDoc -->
 			<plugin>
-				<!-- generation of JavaDoc -->
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-javadoc-plugin</artifactId>
 				<version>2.5</version>
 			</plugin>
 
+			<!-- style checker -->
 			<plugin>
-				<!-- style checker -->
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-checkstyle-plugin</artifactId>
 				<version>2.6</version>
@@ -256,15 +255,15 @@
 				</configuration>
 			</plugin>
 
+			<!-- execution of Unit Tests -->
 			<plugin>
-				<!-- execution of Unit Tests -->
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-report-plugin</artifactId>
 				<version>2.7</version>
 			</plugin>
 
-			<plugin>
-				<!-- check coverage of tests -->
+			<!-- check coverage of tests -->
+<!--			<plugin>
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>cobertura-maven-plugin</artifactId>
 				<configuration>
@@ -273,7 +272,7 @@
 						<format>xml</format>
 					</formats>
 				</configuration>
-			</plugin>
+			</plugin> -->
 
 			<!-- Generator for QA reports, summarizes various inputs and draws diagrams 
 				indicating improvements/deterioration <plugin> <groupId>net.objectlab</groupId> 
@@ -282,10 +281,10 @@
 				<report>report-movers-all</report> </reports> </reportSet> </reportSets> 
 				</plugin> -->
 
-			<plugin>
+<!--			<plugin>
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>dashboard-maven-plugin</artifactId>
-			</plugin>
+			</plugin> -->
 
 		</plugins>
 	</reporting>
@@ -409,7 +408,7 @@
 	<profiles>
 		<!-- Hudson by default defines a property BUILD_NUMBER which is used to 
 			enable the profile. -->
-		<profile>
+<!--		<profile>
 			<id>hudson</id>
 			<activation>
 				<property>
@@ -463,8 +462,8 @@
 					</plugin>
 				</plugins>
 			</build>
-		</profile>
-		<profile>
+		</profile> -->
+<!--		<profile>
 			<id>nightly</id>
 			<activation>
 				<property>
@@ -472,7 +471,7 @@
 				</property>
 			</activation>
 			<build>
-				<finalName>${artifactId}-${project.version}-nightly-${BUILD_NUMBER}</finalName>
+				<finalName>${project.artifactId}-${project.version}-nightly-${BUILD_NUMBER}</finalName>
 			<plugins>
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
@@ -493,7 +492,7 @@
 			</plugins>
 			</build>
 		</profile>
-	</profiles>
+	</profiles> -->
 
 	<modules>
 		<module>nephele</module>

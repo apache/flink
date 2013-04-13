@@ -27,107 +27,111 @@ import static org.junit.Assert.assertTrue;
 
 public class SuperstepBarrierTest {
 
-  @Test
-  public void syncEndOfSuperstep() throws InterruptedException {
-    for (int n = 0; n < 20; n++) {
-      sync(new EndOfSuperstepEvent());
-    }
-  }
+	@Test
+	public void syncEndOfSuperstep() throws InterruptedException {
+		for (int n = 0; n < 20; n++) {
+			sync(new EndOfSuperstepEvent());
+		}
+	}
 
-  @Test
-  public void syncTermination() throws InterruptedException {
-    for (int n = 0; n < 20; n++) {
-      sync(new TerminationEvent());
-    }
-  }
+	@Test
+	public void syncTermination() throws InterruptedException {
+		for (int n = 0; n < 20; n++) {
+			sync(new TerminationEvent());
+		}
+	}
 
-  private void sync(AbstractTaskEvent event) throws InterruptedException {
+	private void sync(AbstractTaskEvent event) throws InterruptedException {
 
-    TerminationSignaled terminationSignaled = new TerminationSignaled();
+		TerminationSignaled terminationSignaled = new TerminationSignaled();
 
-    SuperstepBarrier barrier = new SuperstepBarrier();
-    barrier.setup();
+		SuperstepBarrier barrier = new SuperstepBarrier();
+		barrier.setup();
 
-    Thread headThread = new Thread(new IterationHead(barrier, terminationSignaled));
-    Thread syncThread = new Thread(new IterationSync(barrier, event));
+		Thread headThread = new Thread(new IterationHead(barrier, terminationSignaled));
+		Thread syncThread = new Thread(new IterationSync(barrier, event));
 
-    headThread.start();
-    syncThread.start();
+		headThread.start();
+		syncThread.start();
 
-    headThread.join();
-    syncThread.join();
+		headThread.join();
+		syncThread.join();
 
-    if (event instanceof TerminationEvent) {
-      assertTrue(terminationSignaled.isTerminationSignaled());
-    } else {
-      assertFalse(terminationSignaled.isTerminationSignaled());
-    }
-  }
+		if (event instanceof TerminationEvent) {
+			assertTrue(terminationSignaled.isTerminationSignaled());
+		} else {
+			assertFalse(terminationSignaled.isTerminationSignaled());
+		}
+	}
 
-  class IterationHead implements Runnable {
+	class IterationHead implements Runnable {
 
-    private final SuperstepBarrier barrier;
-    private final TerminationSignaled terminationSignaled;
-    private final Random random;
+		private final SuperstepBarrier barrier;
 
-    IterationHead(SuperstepBarrier barrier, TerminationSignaled terminationSignaled) {
-      this.barrier = barrier;
-      this.terminationSignaled = terminationSignaled;
-      random = new Random();
-    }
+		private final TerminationSignaled terminationSignaled;
 
-    @Override
-    public void run() {
-      try {
-        Thread.sleep(random.nextInt(10));
+		private final Random random;
 
-        barrier.waitForOtherWorkers();
+		IterationHead(SuperstepBarrier barrier, TerminationSignaled terminationSignaled) {
+			this.barrier = barrier;
+			this.terminationSignaled = terminationSignaled;
+			random = new Random();
+		}
 
-        if (barrier.terminationSignaled()) {
-          terminationSignaled.setTerminationSignaled();
-        }
+		@Override
+		public void run() {
+			try {
+				Thread.sleep(random.nextInt(10));
 
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
-    }
-  }
+				barrier.waitForOtherWorkers();
 
-  class IterationSync implements Runnable {
+				if (barrier.terminationSignaled()) {
+					terminationSignaled.setTerminationSignaled();
+				}
 
-    private final SuperstepBarrier barrier;
-    private final AbstractTaskEvent event;
-    private final Random random;
+			} catch (Exception e) {
+				throw new RuntimeException(e);
+			}
+		}
+	}
 
-    IterationSync(SuperstepBarrier barrier, AbstractTaskEvent event) {
-      this.barrier = barrier;
-      this.event = event;
-      random = new Random();
-    }
+	class IterationSync implements Runnable {
 
-    @Override
-    public void run() {
-      try {
-        Thread.sleep(random.nextInt(10));
+		private final SuperstepBarrier barrier;
 
-        barrier.eventOccurred(event);
+		private final AbstractTaskEvent event;
 
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
-    }
-  }
+		private final Random random;
 
-  class TerminationSignaled {
+		IterationSync(SuperstepBarrier barrier, AbstractTaskEvent event) {
+			this.barrier = barrier;
+			this.event = event;
+			random = new Random();
+		}
 
-    private volatile boolean terminationSignaled;
+		@Override
+		public void run() {
+			try {
+				Thread.sleep(random.nextInt(10));
 
-    public boolean isTerminationSignaled() {
-      return terminationSignaled;
-    }
+				barrier.eventOccurred(event);
 
-    public void setTerminationSignaled() {
-      terminationSignaled = true;
-    }
-  }
+			} catch (Exception e) {
+				throw new RuntimeException(e);
+			}
+		}
+	}
+
+	class TerminationSignaled {
+
+		private volatile boolean terminationSignaled;
+
+		public boolean isTerminationSignaled() {
+			return terminationSignaled;
+		}
+
+		public void setTerminationSignaled() {
+			terminationSignaled = true;
+		}
+	}
 }

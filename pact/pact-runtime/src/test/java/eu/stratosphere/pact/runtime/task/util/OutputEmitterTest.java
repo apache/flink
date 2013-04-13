@@ -42,13 +42,12 @@ import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparator;
 import eu.stratosphere.pact.runtime.shipping.PactRecordOutputEmitter;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 
-public class OutputEmitterTest extends TestCase
-{
+public class OutputEmitterTest extends TestCase {
+	
 	private static final long SEED = 485213591485399L;
 	
 	@Test
-	public void testPartitionHash()
-	{
+	public void testPartitionHash() {
 		// Test for PactInteger
 		@SuppressWarnings("unchecked")
 		final PactRecordComparator intComp = new PactRecordComparator(new int[] {0}, new Class[] {PactInteger.class});
@@ -105,8 +104,7 @@ public class OutputEmitterTest extends TestCase
 	}
 	
 	@Test
-	public void testForward()
-	{
+	public void testForward() {
 		// Test for PactInteger
 		@SuppressWarnings("unchecked")
 		final PactRecordComparator intComp = new PactRecordComparator(new int[] {0}, new Class[] {PactInteger.class});
@@ -164,8 +162,7 @@ public class OutputEmitterTest extends TestCase
 	}
 	
 	@Test
-	public void testBroadcast()
-	{
+	public void testBroadcast() {
 		// Test for PactInteger
 		@SuppressWarnings("unchecked")
 		final PactRecordComparator intComp = new PactRecordComparator(new int[] {0}, new Class[] {PactInteger.class});
@@ -216,8 +213,7 @@ public class OutputEmitterTest extends TestCase
 	}
 	
 	@Test
-	public void testMultiKeys()
-	{	
+	public void testMultiKeys() {
 		@SuppressWarnings("unchecked")
 		final PactRecordComparator multiComp = new PactRecordComparator(new int[] {0,1,3}, new Class[] {PactInteger.class, PactString.class, PactDouble.class});
 		final ChannelSelector<PactRecord> oe1 = new PactRecordOutputEmitter(ShipStrategyType.PARTITION_HASH, multiComp);
@@ -249,8 +245,7 @@ public class OutputEmitterTest extends TestCase
 	}
 	
 	@Test
-	public void testMissingKey()
-	{
+	public void testMissingKey() {
 		// Test for PactInteger
 		@SuppressWarnings("unchecked")
 		final PactRecordComparator intComp = new PactRecordComparator(new int[] {1}, new Class[] {PactInteger.class});
@@ -269,8 +264,7 @@ public class OutputEmitterTest extends TestCase
 	}
 	
 	@Test
-	public void testNullKey()
-	{
+	public void testNullKey() {
 		// Test for PactInteger
 		@SuppressWarnings("unchecked")
 		final PactRecordComparator intComp = new PactRecordComparator(new int[] {0}, new Class[] {PactInteger.class});
@@ -324,8 +318,7 @@ public class OutputEmitterTest extends TestCase
 	}
 	
 	@Test
-	public void testPartitionRange()
-	{
+	public void testPartitionRange() {
 		final Random rnd = new Random(SEED);
 		
 		final int DISTR_MIN = 0;
@@ -370,28 +363,30 @@ public class OutputEmitterTest extends TestCase
 		}
 	}
 	
-	private static final class IntegerUniformDistribution implements DataDistribution
-	{
+	private static final class IntegerUniformDistribution implements DataDistribution {
+		
 		private int min;	
 		private int max;
 		
-		public IntegerUniformDistribution(int min, int max)
-		{
+		public IntegerUniformDistribution(int min, int max) {
 			this.min = min;
 			this.max = max;
 		}
 
 		@Override
-		public void write(DataOutput out)
-		{}
+		public void write(DataOutput out) throws IOException {
+			out.writeInt(this.min);
+			out.writeInt(this.max);
+		}
 
 		@Override
-		public void read(DataInput in)
-		{}
+		public void read(DataInput in) throws IOException {
+			this.min = in.readInt();
+			this.max = in.readInt();
+		}
 
 		@Override
-		public PactRecord getBucketBoundary(int splitNum, int totalSplits)
-		{
+		public PactRecord getBucketBoundary(int splitNum, int totalSplits) {
 			final int range = this.max - this.min + 1;
 			final float bucketWidth = ((float) range) / totalSplits;
 			final int upperBoundary = this.min + (int) ((splitNum + 1) * bucketWidth);

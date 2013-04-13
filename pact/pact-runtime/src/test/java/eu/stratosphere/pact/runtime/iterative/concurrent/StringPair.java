@@ -17,19 +17,20 @@ package eu.stratosphere.pact.runtime.iterative.concurrent;
 
 class StringPair {
 
-  private final String first;
-  private final String second;
+	private final String first;
 
-  StringPair(String first, String second) {
-    this.first = first;
-    this.second = second;
-  }
+	private final String second;
 
-  public String getFirst() {
-    return first;
-  }
+	StringPair(String first, String second) {
+		this.first = first;
+		this.second = second;
+	}
 
-  public String getSecond() {
-    return second;
-  }
+	public String getFirst() {
+		return first;
+	}
+
+	public String getSecond() {
+		return second;
+	}
 }
