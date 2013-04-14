@@ -33,13 +33,11 @@ import java.util.PriorityQueue;
 import java.util.Properties;
 import java.util.StringTokenizer;
 
-import junit.framework.Assert;
-import junit.framework.TestCase;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.fs.FileSystem;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -54,8 +52,8 @@ import eu.stratosphere.pact.test.util.minicluster.ClusterProviderPool;
  * @author Erik Nijkamp
  * @author Fabian Hueske
  */
-public abstract class TestBase extends TestCase
-{
+public abstract class TestBase {
+	
 	private static final int MINIMUM_HEAP_SIZE_MB = 192;
 
 	private static final Log LOG = LogFactory.getLog(TestBase.class);
@@ -80,8 +78,6 @@ public abstract class TestBase extends TestCase
 		long heap = Runtime.getRuntime().maxMemory() >> 20;
 		Assert.assertTrue("Insufficient java heap space " + heap + "mb - set JVM option: -Xmx" + MINIMUM_HEAP_SIZE_MB
 				+ "m", heap > MINIMUM_HEAP_SIZE_MB - 50);
-		Assert.assertTrue("IPv4 stack required - set JVM option: -Djava.net.preferIPv4Stack=true", "true".equals(System
-				.getProperty("java.net.preferIPv4Stack")));
 	}
 
 	@Before
@@ -130,7 +126,7 @@ public abstract class TestBase extends TestCase
 	 * Returns the FilesystemProvider of the cluster setup
 	 * 
 	 * @see eu.stratosphere.pact.test.util.filesystem.FilesystemProvider
-	 * 
+	 * Assert.
 	 * @return The FilesystemProvider of the cluster setup
 	 */
 	public FilesystemProvider getFilesystemProvider() {
@@ -255,7 +251,7 @@ public abstract class TestBase extends TestCase
 			while ((line = reader.readLine()) != null) {
 				Assert.assertTrue("More lines in result than expected lines.", expectedLines.hasNext());
 				String nextExpected = expectedLines.next().toString();
-				assertEquals("Expected result and obtained result do not match.", nextExpected, line);
+				Assert.assertEquals("Expected result and obtained result do not match.", nextExpected, line);
 			}
 			reader.close();
 		}

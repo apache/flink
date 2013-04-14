@@ -15,15 +15,22 @@
 
 package eu.stratosphere.pact.test.pactPrograms;
 
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.text.DecimalFormat;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
-import java.util.LinkedList;
+import java.util.List;
+
 import java.util.Random;
 import java.util.StringTokenizer;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.junit.Assert;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
@@ -34,6 +41,7 @@ import eu.stratosphere.pact.common.contract.CrossContract;
 import eu.stratosphere.pact.common.contract.GenericDataSink;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.plan.Plan;
+import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
@@ -45,7 +53,7 @@ public class KMeansIterationITCase extends TestBase {
 
 	private static final Log LOG = LogFactory.getLog(KMeansIterationITCase.class);
 
-	private final String DATAPOINTS = "0|50.90|16.20|72.08|\n" + "1|73.65|61.76|62.89|\n" + "2|61.73|49.95|92.74|\n"
+	public final String DATAPOINTS = "0|50.90|16.20|72.08|\n" + "1|73.65|61.76|62.89|\n" + "2|61.73|49.95|92.74|\n"
 			+ "3|1.60|70.11|16.32|\n" + "4|2.43|19.81|89.56|\n" + "5|67.99|9.00|14.48|\n" + "6|87.80|84.49|55.83|\n"
 			+ "7|90.26|42.99|53.29|\n" + "8|51.36|6.16|9.35|\n" + "9|12.43|9.52|12.54|\n" + "10|80.01|8.78|29.74|\n"
 			+ "11|92.76|2.93|80.07|\n" + "12|46.32|100.00|22.98|\n" + "13|34.11|45.61|58.60|\n"
@@ -79,7 +87,7 @@ public class KMeansIterationITCase extends TestBase {
 			+ "95|76.31|52.50|95.43|\n" + "96|7.71|85.85|36.26|\n" + "97|9.32|72.21|42.17|\n"
 			+ "98|71.29|51.88|57.62|\n" + "99|31.39|7.27|88.74|";
 
-	private final String CLUSTERCENTERS = "0|1.96|65.04|20.82|\n" + "1|53.99|84.23|81.59|\n" + "2|97.28|74.50|40.32|\n"
+	public final String CLUSTERCENTERS = "0|1.96|65.04|20.82|\n" + "1|53.99|84.23|81.59|\n" + "2|97.28|74.50|40.32|\n"
 			+ "3|63.57|24.53|87.07|\n" + "4|28.10|43.27|86.53|\n" + "5|99.51|62.70|64.48|\n" + "6|30.31|30.36|80.46|";
 
 	private final String NEWCLUSTERCENTERS = "0|28.47|54.80|21.88|\n" + "1|52.74|80.10|73.03|\n"
@@ -90,8 +98,13 @@ public class KMeansIterationITCase extends TestBase {
 	protected String clusterPath = null;
 	protected String resultPath = null;
 
+	
 	public KMeansIterationITCase(Configuration config) {
 		super(config);
+	}
+	
+	protected String getNewCenters() {
+		return NEWCLUSTERCENTERS;
 	}
 
 	@Override
@@ -109,15 +122,18 @@ public class KMeansIterationITCase extends TestBase {
 		String[] splits = splitInputString(DATAPOINTS, '\n', noPartitions);
 
 		int i = 0;
-		for(String split : splits) {
+		for (String split : splits) {
 			getFilesystemProvider().createFile(dataPath + "/part_" + i++ + ".txt", split);
-			LOG.debug("DATAPOINT split "+i+": \n>" + split + "<");
+			if (LOG.isDebugEnabled())
+				LOG.debug("DATAPOINT split "+i+": \n>" + split + "<");
 		}
 		
 		// create cluster path and copy data
 		getFilesystemProvider().createDir(clusterPath);
 		getFilesystemProvider().createFile(clusterPath+"/1", CLUSTERCENTERS);
-		LOG.debug("Clusters: \n>" + CLUSTERCENTERS + "<");
+		
+		if (LOG.isDebugEnabled())
+			LOG.debug("Clusters: \n>" + CLUSTERCENTERS + "<");
 
 	}
 
@@ -131,9 +147,9 @@ public class KMeansIterationITCase extends TestBase {
 				getFilesystemProvider().getURIPrefix() + clusterPath,  
 				getFilesystemProvider().getURIPrefix()	+ resultPath);
 		
-		setParameterToCross(plan, "INPUT_RIGHT_SHIP_STRATEGY", "SHIP_FORWARD");
+		setParameterToCross(plan, config.getString("KMeansIterationTest#ForwardSide", null), PactCompiler.HINT_SHIP_STRATEGY_FORWARD);
 
-		PactCompiler pc = new PactCompiler();
+		PactCompiler pc = new PactCompiler(new DataStatistics());
 		OptimizedPlan op = pc.compile(plan);
 
 		NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
@@ -144,10 +160,10 @@ public class KMeansIterationITCase extends TestBase {
 	@Override
 	protected void postSubmit() throws Exception {
 
+		final double MAX_DELTA = 0.1;
+		
 		Comparator<String> deltaComp = new Comparator<String>() {
 
-			private final double DELTA = 0.1;
-			
 			@Override
 			public int compare(String o1, String o2) {
 				
@@ -172,7 +188,7 @@ public class KMeansIterationITCase extends TestBase {
 					double d1 = Double.parseDouble(t1);
 					double d2 = Double.parseDouble(t2);
 					
-					if(Math.abs(d1-d2) > DELTA) {
+					if (Math.abs(d1-d2) > MAX_DELTA) {
 						return d1 < d2 ? -1 : 1;
 					}
 				}
@@ -181,9 +197,66 @@ public class KMeansIterationITCase extends TestBase {
 			}
 		};
 		
-		// Test results
-		compareResultsByLinesInMemory(NEWCLUSTERCENTERS, resultPath, deltaComp);
+		// ------- Test results -----------
+		
+		// Determine all result files
+		ArrayList<String> resultFiles = new ArrayList<String>();
+		if (getFilesystemProvider().isDir(resultPath)) {
+			for (String file : getFilesystemProvider().listFiles(resultPath)) {
+				if (!getFilesystemProvider().isDir(file)) {
+					resultFiles.add(resultPath+"/"+file);
+				}
+			}
+		} else {
+			resultFiles.add(resultPath);
+		}
 
+		// collect lines of all result files
+		ArrayList<String> resultLines = new ArrayList<String>();
+		for (String resultFile : resultFiles) {
+			// read each result file
+			InputStream is = getFilesystemProvider().getInputStream(resultFile);
+			BufferedReader reader = new BufferedReader(new InputStreamReader(is));
+			String line = reader.readLine();
+
+			// collect lines
+			while (line != null) {
+				resultLines.add(line);
+				line = reader.readLine();
+			}
+			reader.close();
+		}
+		
+		Collections.sort(resultLines, deltaComp);
+		
+		final String[] should = getNewCenters().split("\n");
+		final String[] is = (String[]) resultLines.toArray(new String[resultLines.size()]);
+		
+		Assert.assertEquals("Wrong number of result lines.", should.length, is.length);
+		
+		for (int i = 0; i < should.length; i++) {
+			StringTokenizer shouldRecord = new StringTokenizer(should[i], "|");
+			StringTokenizer isRecord = new StringTokenizer(is[i], "|");
+			
+			Assert.assertEquals("Records don't match.", shouldRecord.countTokens(), isRecord.countTokens());
+			
+			// first token is ID
+			String shouldToken = shouldRecord.nextToken();
+			String isToken = isRecord.nextToken();
+			
+			Assert.assertEquals("Records don't match.", shouldToken, isToken);
+
+			while (shouldRecord.hasMoreTokens()) {
+				shouldToken = shouldRecord.nextToken();
+				isToken = isRecord.nextToken();
+				
+				double shouldDouble = Double.parseDouble(shouldToken);
+				double isDouble = Double.parseDouble(isToken);
+				
+				Assert.assertTrue(shouldDouble - MAX_DELTA < isDouble && shouldDouble + MAX_DELTA > isDouble);
+			}
+		}
+		
 		// clean up file
 		getFilesystemProvider().delete(dataPath, true);
 		getFilesystemProvider().delete(clusterPath, true);
@@ -194,10 +267,16 @@ public class KMeansIterationITCase extends TestBase {
 	@Parameters
 	public static Collection<Object[]> getConfigurations() {
 
-		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
+		List<Configuration> tConfigs = new ArrayList<Configuration>();
 
 		Configuration config = new Configuration();
 		config.setInteger("KMeansIterationTest#NoSubtasks", 4);
+		config.setString("KMeansIterationTest#ForwardSide", PactCompiler.HINT_SHIP_STRATEGY_FIRST_INPUT);
+		tConfigs.add(config);
+		
+		config = new Configuration();
+		config.setInteger("KMeansIterationTest#NoSubtasks", 4);
+		config.setString("KMeansIterationTest#ForwardSide", PactCompiler.HINT_SHIP_STRATEGY_SECOND_INPUT);
 		tConfigs.add(config);
 
 		return toParameterList(tConfigs);

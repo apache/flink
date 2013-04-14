@@ -40,6 +40,7 @@ import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
+import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
@@ -95,8 +96,8 @@ public class CoGroupITCase extends TestBase
 		getFilesystemProvider().createFile(tempPath + "/cogroup_right/cogroupTest_4.txt", COGROUP_RIGHT_IN_4);
 	}
 
-	public static class CoGroupTestInFormat extends DelimitedInputFormat
-	{
+	public static class CoGroupTestInFormat extends DelimitedInputFormat {
+		
 		private final PactString keyString = new PactString();
 		private final PactString valueString = new PactString();
 		
@@ -114,8 +115,8 @@ public class CoGroupITCase extends TestBase
 
 	}
 
-	public static class CoGroupOutFormat extends FileOutputFormat
-	{
+	public static class CoGroupOutFormat extends FileOutputFormat {
+		
 		private final StringBuilder buffer = new StringBuilder();
 		private final PactString keyString = new PactString();
 		private final PactInteger valueInteger = new PactInteger();
@@ -137,15 +138,13 @@ public class CoGroupITCase extends TestBase
 	}
 
 	public static class TestCoGrouper extends CoGroupStub {
-	//CoGroupStub<PactString, PactString, PactString, PactString, PactInteger> {
 
 		private PactString keyString = new PactString();
 		private PactString valueString = new PactString();
 		private PactRecord record = new PactRecord();
 		
 		@Override
-		public void coGroup(Iterator<PactRecord> records1,
-				Iterator<PactRecord> records2, Collector<PactRecord> out) {
+		public void coGroup(Iterator<PactRecord> records1, Iterator<PactRecord> records2, Collector<PactRecord> out) {
 			// TODO Auto-generated method stub
 			
 			int sum = 0;
@@ -207,7 +206,7 @@ public class CoGroupITCase extends TestBase
 
 		Plan plan = new Plan(output);
 
-		PactCompiler pc = new PactCompiler();
+		PactCompiler pc = new PactCompiler(new DataStatistics());
 		OptimizedPlan op = pc.compile(plan);
 
 		NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();

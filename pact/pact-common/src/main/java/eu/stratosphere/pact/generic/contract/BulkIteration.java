@@ -21,8 +21,8 @@ import eu.stratosphere.pact.generic.stub.AbstractStub;
 /**
  * 
  */
-public class BulkIteration extends SingleInputContract<AbstractStub>
-{
+public class BulkIteration extends SingleInputContract<AbstractStub> {
+	
 	private static String DEFAULT_NAME = "<Unnamed Bulk Iteration>";
 	
 	private Contract iterationResult;
@@ -121,8 +121,8 @@ public class BulkIteration extends SingleInputContract<AbstractStub>
 	 * Specialized contract to use as a recognizable place-holder for the input to the
 	 * step function when composing the nested data flow.
 	 */
-	public static final class PartialSolutionPlaceHolder extends Contract
-	{
+	public static final class PartialSolutionPlaceHolder extends Contract {
+		
 		private final BulkIteration containingIteration;
 		
 		private PartialSolutionPlaceHolder(BulkIteration container) {

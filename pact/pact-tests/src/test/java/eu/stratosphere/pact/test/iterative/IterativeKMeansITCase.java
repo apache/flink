@@ -24,15 +24,12 @@ import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.pact.common.contract.CrossContract;
-import eu.stratosphere.pact.common.contract.GenericDataSink;
-import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.plan.Plan;
+import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.pact.example.iterative.IterativeKMeans;
-import eu.stratosphere.pact.generic.contract.BulkIteration;
 import eu.stratosphere.pact.test.pactPrograms.KMeansIterationITCase;
 
 @RunWith(Parameterized.class)
@@ -52,13 +49,8 @@ public class IterativeKMeansITCase extends KMeansIterationITCase {
 				getFilesystemProvider().getURIPrefix() + clusterPath,  
 				getFilesystemProvider().getURIPrefix() + resultPath,
 				config.getString("IterativeKMeansITCase#NumIterations", "1"));
-		
-		final String presetShipStrat = config.getString("IterativeKMeansITCase#ShipStrategyDataPoints", null);
-		if (presetShipStrat != null) {
-			setParameterToCross(plan, "INPUT_LEFT_SHIP_STRATEGY", presetShipStrat);
-		}
 
-		PactCompiler pc = new PactCompiler();
+		PactCompiler pc = new PactCompiler(new DataStatistics());
 		OptimizedPlan op = pc.compile(plan);
 
 		NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
@@ -72,37 +64,25 @@ public class IterativeKMeansITCase extends KMeansIterationITCase {
 
 		Configuration config1 = new Configuration();
 		config1.setInteger("IterativeKMeansITCase#NoSubtasks", 4);
-		config1.setString("IterativeKMeansITCase#ShipStrategyDataPoints", "SHIP_FORWARD");
-		config1.setString("IterativeKMeansITCase#NumIterations", "1");
+		config1.setString("IterativeKMeansITCase#NumIterations", "20");
 		tConfigs.add(config1);
-		
-		Configuration config2 = new Configuration();
-		config2.setInteger("IterativeKMeansITCase#NoSubtasks", 4);
-		config2.setString("IterativeKMeansITCase#ShipStrategyDataPoints", "SHIP_BROADCAST");
-		config2.setString("IterativeKMeansITCase#NumIterations", "1");
-		tConfigs.add(config2);
-		
-		Configuration config3 = new Configuration();
-		config3.setInteger("IterativeKMeansITCase#NoSubtasks", 4);
-		config3.setString("IterativeKMeansITCase#ShipStrategyDataPoints", "SHIP_FORWARD");
-		config3.setString("IterativeKMeansITCase#NumIterations", "10");
-		tConfigs.add(config3);
-		
-		Configuration config4 = new Configuration();
-		config4.setInteger("IterativeKMeansITCase#NoSubtasks", 4);
-		config4.setString("IterativeKMeansITCase#ShipStrategyDataPoints", "SHIP_BROADCAST");
-		config4.setString("IterativeKMeansITCase#NumIterations", "10");
-		tConfigs.add(config4);
 
 		return toParameterList(tConfigs);
 	}
 	
-	public static void setParameterToCross(Plan p, String key, String value) {
-		GenericDataSink sink = p.getDataSinks().iterator().next();
-		BulkIteration iter = (BulkIteration) sink.getInputs().get(0);
-		ReduceContract reduce2 = (ReduceContract) iter.getNextPartialSolution();
-		ReduceContract reduce1 = (ReduceContract) reduce2.getInputs().get(0);
-		CrossContract cross = (CrossContract) reduce1.getInputs().get(0);
-		cross.getParameters().setString(key, value);
+
+	@Override
+	protected String getNewCenters() {
+		return CENTERS_AFTER_20_ITERATIONS;
 	}
+	
+	private static final String CENTERS_AFTER_20_ITERATIONS =
+			"0|38.25|54.52|19.34|\n" +
+			"1|32.14|83.04|50.35|\n" +
+			"2|87.48|56.57|20.27|\n" +
+			"3|75.40|18.65|67.49|\n" +
+			"4|24.93|29.25|77.56|\n" +
+			"5|78.67|66.07|70.82|\n" +
+			"6|39.51|14.04|18.74|\n";
+	
 }

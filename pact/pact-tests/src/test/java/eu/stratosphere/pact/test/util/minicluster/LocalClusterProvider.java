@@ -15,8 +15,6 @@
 
 package eu.stratosphere.pact.test.util.minicluster;
 
-import java.io.File;
-
 import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
@@ -88,12 +86,8 @@ public class LocalClusterProvider extends ClusterProvider {
 		if (!nepheleIsRunning()) {
 			return;
 		}
-
-		nephele.stop();
-		nepheleRunning = false;
-		
-		File f = new File(System.getProperty("java.io.tmpdir") + "/minicluster");
-		f.delete();
+		this.nephele.stop();
+		this.nepheleRunning = false;
 	}
 
 	/* (non-Javadoc)

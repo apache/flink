@@ -134,9 +134,22 @@ public class NepheleMiniCluster {
 				GlobalConfiguration.includeConfiguration(conf);
 			}
 			
+			// before we start the jobmanager, we need to make sure that there are no lingering IPC threads from before
+			// check that all threads are done before we return
+			Thread[] allThreads = new Thread[Thread.activeCount()];
+			int numThreads = Thread.enumerate(allThreads);
+			
+			for (int i = 0; i < numThreads; i++) {
+				Thread t = allThreads[i];
+				String name = t.getName();
+				if (name.equals("Local Taskmanager IO Loop") || name.equals("Discovery Service") || name.startsWith("IPC")) {
+					t.join();
+				}
+			}
+			
 			// start the job manager
 			jobManager = new JobManager(ExecutionMode.LOCAL);
-			runner = new Thread() {
+			runner = new Thread("JobManager Task Loop") {
 				@Override
 				public void run() {
 					// run the main task loop
@@ -186,6 +199,9 @@ public class NepheleMiniCluster {
 		config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerRpcPort);
 		config.setInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, taskManagerRpcPort);
 		config.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, taskManagerDataPort);
+		
+		// polling interval
+		config.setInteger(ConfigConstants.JOBCLIENT_POLLING_INTERVAL_KEY, 2);
 		
 		// enable / disable features
 		config.setInteger(ConfigConstants.JOB_EXECUTION_RETRIES_KEY, 0);

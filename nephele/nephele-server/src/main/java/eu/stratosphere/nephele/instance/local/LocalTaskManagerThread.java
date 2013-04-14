@@ -31,11 +31,9 @@ public class LocalTaskManagerThread extends Thread {
 
 	/**
 	 * Constructs a new thread to run the task manager in Nephele's local mode.
-	 * 
-	 * @param configDir
-	 *        the configuration directory to pass on to the task manager instance
 	 */
 	public LocalTaskManagerThread() {
+		super("Local Taskmanager IO Loop");
 
 		TaskManager tmpTaskManager = null;
 		try {
@@ -70,7 +68,6 @@ public class LocalTaskManagerThread extends Thread {
 	 * @return <code>true</code> if the task manager is completely shut down, <code>false</code> otherwise
 	 */
 	public boolean isTaskManagerShutDown() {
-
 		return this.taskManager.isShutDown();
 	}
 }

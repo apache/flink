@@ -15,53 +15,58 @@ import java.io.IOException;
 
 public class DanglingPageRankHdfsCheckpointWriter extends HdfsCheckpointWriter {
 
-  private LongWritable key;
-  private DanglingRankWritable value;
+	private LongWritable key;
 
-  public DanglingPageRankHdfsCheckpointWriter() throws IOException {
-    key = new LongWritable();
-    value = new DanglingRankWritable();
-  }
+	private DanglingRankWritable value;
 
-  @Override
-  protected Class<? extends WritableComparable> keyClass() {
-    return key.getClass();
-  }
+	public DanglingPageRankHdfsCheckpointWriter()
+		throws IOException {
+		key = new LongWritable();
+		value = new DanglingRankWritable();
+	}
 
-  @Override
-  protected Class<? extends Writable> valueClass() {
-    return value.getClass();
-  }
+	@SuppressWarnings("rawtypes")
+	@Override
+	protected Class<? extends WritableComparable> keyClass() {
+		return key.getClass();
+	}
 
-  @Override
-  protected void add(SequenceFile.Writer writer, PactRecord record) throws IOException {
-    key.set(record.getField(0, PactLong.class).getValue());
-    value.set(record.getField(1, PactDouble.class).getValue(), record.getField(2, BooleanValue.class).get());
-    writer.append(key, value);
-  }
+	@Override
+	protected Class<? extends Writable> valueClass() {
+		return value.getClass();
+	}
 
-  public static class DanglingRankWritable implements Writable {
+	@Override
+	protected void add(SequenceFile.Writer writer, PactRecord record) throws IOException {
+		key.set(record.getField(0, PactLong.class).getValue());
+		value.set(record.getField(1, PactDouble.class).getValue(), record.getField(2, BooleanValue.class).get());
+		writer.append(key, value);
+	}
 
-    private double rank;
-    private boolean dangling;
+	public static class DanglingRankWritable implements Writable {
 
-    public DanglingRankWritable() {}
+		private double rank;
 
-    public void set(double rank, boolean dangling) {
-      this.rank = rank;
-      this.dangling = dangling;
-    }
+		private boolean dangling;
 
-    @Override
-    public void write(DataOutput out) throws IOException {
-      out.writeDouble(rank);
-      out.writeBoolean(dangling);
-    }
+		public DanglingRankWritable() {
+		}
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
-      rank = in.readDouble();
-      dangling = in.readBoolean();
-    }
-  }
+		public void set(double rank, boolean dangling) {
+			this.rank = rank;
+			this.dangling = dangling;
+		}
+
+		@Override
+		public void write(DataOutput out) throws IOException {
+			out.writeDouble(rank);
+			out.writeBoolean(dangling);
+		}
+
+		@Override
+		public void readFields(DataInput in) throws IOException {
+			rank = in.readDouble();
+			dangling = in.readBoolean();
+		}
+	}
 }

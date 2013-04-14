@@ -725,11 +725,10 @@ public abstract class TwoInputNode extends OptimizerNode
 	
 		double avgRecordWidth = -1;
 		
-		if(this.getFirstPredecessorNode() != null && 
-				this.getFirstPredecessorNode().estimatedOutputSize != -1 &&
-				this.getFirstPredecessorNode().estimatedNumRecords != -1) {
+		if (this.getFirstPredecessorNode() != null && this.getFirstPredecessorNode().estimatedOutputSize != -1 &&
+				this.getFirstPredecessorNode().estimatedNumRecords > 0)
+		{
 			avgRecordWidth = (this.getFirstPredecessorNode().estimatedOutputSize / this.getFirstPredecessorNode().estimatedNumRecords);
-			
 		} else {
 			return -1;
 		}

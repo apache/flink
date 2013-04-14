@@ -38,6 +38,7 @@ import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobStatus;
 import eu.stratosphere.nephele.util.StringUtils;
 import eu.stratosphere.pact.common.plan.Plan;
+import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
@@ -220,9 +221,8 @@ public abstract class CancellingTestBase
 		}
 	}
 
-	private JobGraph getJobGraph(final Plan plan) throws Exception
-	{
-		final PactCompiler pc = new PactCompiler();
+	private JobGraph getJobGraph(final Plan plan) throws Exception {
+		final PactCompiler pc = new PactCompiler(new DataStatistics());
 		final OptimizedPlan op = pc.compile(plan);
 		final NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
 		return jgg.compileJobGraph(op);

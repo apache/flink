@@ -270,7 +270,7 @@ public class DiscoveryService implements Runnable {
 
 		this.isRunning = true;
 
-		this.listeningThread = new Thread(this);
+		this.listeningThread = new Thread(this, "Discovery Service Thread");
 		this.listeningThread.start();
 	}
 

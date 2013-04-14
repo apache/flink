@@ -44,6 +44,7 @@ import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.parser.DecimalTextIntParser;
+import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
@@ -102,7 +103,7 @@ public class GlobalSortingITCase extends TestBase {
 				getFilesystemProvider().getURIPrefix()+recordsPath,
 				getFilesystemProvider().getURIPrefix()+resultPath);
 
-		PactCompiler pc = new PactCompiler();
+		PactCompiler pc = new PactCompiler(new DataStatistics());
 		OptimizedPlan op = pc.compile(plan);
 
 		NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();

@@ -152,6 +152,20 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 	
 	// --------------------------------------------------------------------------------------------
 	
+	byte[] getDelimiter() {
+		return this.delimiter;
+	}
+	
+	void setBufferSize(int size) {
+		this.bufferSize = size;
+	}
+	
+	int getBufferSize() {
+		return this.bufferSize;
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
 	/**
 	 * This function parses the given byte array which represents a serialized key/value
 	 * pair. The parsed content is then returned by setting the pair variables. If the

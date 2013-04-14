@@ -40,36 +40,30 @@ public class MergeOnlyJoin implements PlanAssembler, PlanAssemblerDescription {
 
 	@ConstantFieldsFirstExcept(fields={2})
 	@OutCardBounds(upperBound=1, lowerBound=1)
-	public static class JoinInputs extends MatchStub
-	{
+	public static class JoinInputs extends MatchStub {
 		@Override
-		public void match(PactRecord input1, PactRecord input2, Collector<PactRecord> out)
-		{
+		public void match(PactRecord input1, PactRecord input2, Collector<PactRecord> out) {
 			input1.setField(2, input2.getField(1, PactInteger.class));
 			out.collect(input1);
 		}
 	}
 
 	@ConstantFieldsExcept(fields={})
-	public static class DummyReduce extends ReduceStub
-	{
+	public static class DummyReduce extends ReduceStub {
 		
 		@Override
-		public void reduce(Iterator<PactRecord> values, Collector<PactRecord> out)
-		{
+		public void reduce(Iterator<PactRecord> values, Collector<PactRecord> out) {
 			while (values.hasNext()) {
 				out.collect(values.next());
 			}
 		}
-
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Plan getPlan(final String... args) 
-	{
+	public Plan getPlan(final String... args) {
 		// parse program parameters
 		int noSubtasks       = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		String input1Path    = (args.length > 1 ? args[1] : "");

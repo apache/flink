@@ -33,6 +33,7 @@ import eu.stratosphere.pact.common.contract.GenericDataSource;
 import eu.stratosphere.pact.common.io.GenericInputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
@@ -61,13 +62,10 @@ public class CustomDataTypeTest extends TestBase
 	}
 	
 	@Override
-	protected void postSubmit() throws Exception
-	{
-	}
+	protected void postSubmit() throws Exception {}
 	
 	@Override
-	protected JobGraph getJobGraph() throws Exception
-	{
+	protected JobGraph getJobGraph() throws Exception {
 		GenericDataSource<EmptyInputFormat> datasource = 
 				new GenericDataSource<EmptyInputFormat>(EmptyInputFormat.class, "Source");
 		datasource.getParameters().setString(CLASS_TO_INSTANTIATE_KEY, CLASS_TO_INSTANTIATE_NAME);
@@ -76,7 +74,7 @@ public class CustomDataTypeTest extends TestBase
 		sink.getParameters().setString(CLASS_TO_INSTANTIATE_KEY, CLASS_TO_INSTANTIATE_NAME);
 		
 		Plan plan = new Plan(sink);
-		PactCompiler pc = new PactCompiler();
+		PactCompiler pc = new PactCompiler(new DataStatistics());
 		OptimizedPlan op = pc.compile(plan);
 
 		NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
@@ -90,8 +88,8 @@ public class CustomDataTypeTest extends TestBase
 		return jobGraph;
 	}
 	
-	public static final class EmptyInputFormat extends GenericInputFormat
-	{
+	public static final class EmptyInputFormat extends GenericInputFormat {
+		
 		@Override
 		public void configure(Configuration parameters)	{
 			super.configure(parameters);
@@ -110,8 +108,8 @@ public class CustomDataTypeTest extends TestBase
 		}
 	}
 	
-	public static final class BlackholeOutputFormat implements OutputFormat<PactRecord>
-	{
+	public static final class BlackholeOutputFormat implements OutputFormat<PactRecord> {
+		
 		@Override
 		public void configure(Configuration parameters) {
 			// instantiate some user defined class
@@ -130,8 +128,7 @@ public class CustomDataTypeTest extends TestBase
 	}
 	
 	@Parameters
-	public static Collection<Object[]> getConfigurations()
-	{
+	public static Collection<Object[]> getConfigurations() {
 		List<Object[]> tConfigs = new ArrayList<Object[]>(1);
 		Configuration config = new Configuration();
 		config.setInteger("EnumTrianglesTest#NoSubtasks", 4);

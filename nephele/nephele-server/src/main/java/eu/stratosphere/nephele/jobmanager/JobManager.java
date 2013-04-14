@@ -208,7 +208,8 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		}
 
 		// Read the suggested client polling interval
-		this.recommendedClientPollingInterval = GlobalConfiguration.getInteger("jobclient.polling.internval", 5);
+		this.recommendedClientPollingInterval = GlobalConfiguration.getInteger(
+			ConfigConstants.JOBCLIENT_POLLING_INTERVAL_KEY, ConfigConstants.DEFAULT_JOBCLIENT_POLLING_INTERVAL);
 
 		// Load the job progress collector
 		this.eventCollector = new EventCollector(this.recommendedClientPollingInterval);
@@ -430,7 +431,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	 */
 	@Override
 	public JobSubmissionResult submitJob(JobGraph job) throws IOException {
-
 		// First check if job is null
 		if (job == null) {
 			JobSubmissionResult result = new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR,

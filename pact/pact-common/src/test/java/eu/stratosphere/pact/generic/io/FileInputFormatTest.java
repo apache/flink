@@ -12,19 +12,17 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.pact.common.io;
+package eu.stratosphere.pact.generic.io;
 
 import java.io.IOException;
 
-import junit.framework.Assert;
-
+import org.junit.Assert;
 import org.junit.Test;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
 import eu.stratosphere.pact.common.testutils.TestFileUtils;
 import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.generic.io.FileInputFormat;
 import eu.stratosphere.pact.generic.io.FileInputFormat.FileBaseStatistics;
 
 public class FileInputFormatTest { 

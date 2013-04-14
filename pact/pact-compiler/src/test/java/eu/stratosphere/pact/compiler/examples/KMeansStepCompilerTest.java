@@ -32,7 +32,6 @@ import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
-import eu.stratosphere.pact.compiler.plandump.PlanJSONDumpGenerator;
 import eu.stratosphere.pact.example.datamining.KMeansIteration;
 import eu.stratosphere.pact.example.datamining.KMeansIteration.ComputeDistance;
 import eu.stratosphere.pact.example.datamining.KMeansIteration.FindNearestCenter;
@@ -58,7 +57,7 @@ public class KMeansStepCompilerTest extends CompilerTestBase {
 	
 	private static final String SINK = "New Center Positions";
 	
-	private final FieldList set0 = new FieldList(0);
+	private static final FieldList set0 = new FieldList(0);
 
 	// ------------------------------------------------------------------------
 	//  Check that the optimizer chooses valid plans
@@ -115,7 +114,6 @@ public class KMeansStepCompilerTest extends CompilerTestBase {
 	private void testQueryRolledOut(int numSteps, boolean unique) {
 		final Plan p = getRolledOutPlan(numSteps, unique);
 		final OptimizedPlan plan = compileNoStats(p);
-		System.out.println(new PlanJSONDumpGenerator().getOptimizerPlanAsJSON(plan));
 		
 		// get the nodes from the final plan
 		final OptimizerPlanNodeResolver or = getOptimizerPlanNodeResolver(plan);

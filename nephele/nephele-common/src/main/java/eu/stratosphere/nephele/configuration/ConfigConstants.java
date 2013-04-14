@@ -68,6 +68,11 @@ public final class ConfigConstants {
 	public static final String MEMORY_MANAGER_AVAILABLE_MEMORY_SIZE_KEY = "taskmanager.memory.size";
 
 	/**
+	 * The key defining the amount polling interval (in seconds) for the JobClient.
+	 */
+	public static final String JOBCLIENT_POLLING_INTERVAL_KEY = "jobclient.polling.internval";
+	
+	/**
 	 * The key for the config parameter defining flag to terminate a job at job-client shutdown.
 	 */
 	public static final String JOBCLIENT_SHUTDOWN_TERMINATEJOB_KEY = "jobclient.shutdown.terminatejob";
@@ -111,6 +116,11 @@ public final class ConfigConstants {
 	 */
 	public static final String DEFAULT_TASK_MANAGER_TMP_PATH = System.getProperty("java.io.tmpdir");
 
+	/**
+	 * The default value for the JobClient's polling interval. 5 Seconds.
+	 */
+	public static final int DEFAULT_JOBCLIENT_POLLING_INTERVAL = 5;
+	
 	/**
 	 * The default value for the flag to terminate a job on job-client shutdown.
 	 */

@@ -39,7 +39,9 @@ import eu.stratosphere.pact.compiler.costs.DefaultCostEstimator;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
+import eu.stratosphere.pact.generic.contract.BulkIteration;
 import eu.stratosphere.pact.generic.contract.Contract;
+import eu.stratosphere.pact.generic.contract.WorksetIteration;
 import eu.stratosphere.pact.generic.io.FileInputFormat.FileBaseStatistics;
 
 /**
@@ -276,6 +278,7 @@ public abstract class CompilerTestBase {
 		@Override
 		public boolean preVisit(Contract visitable) {
 			if (this.seen.add(visitable)) {
+				// add to  the map
 				final String name = visitable.getName();
 				List<Contract> list = this.map.get(name);
 				if (list == null) {
@@ -283,6 +286,15 @@ public abstract class CompilerTestBase {
 					this.map.put(name, list);
 				}
 				list.add(visitable);
+				
+				// recurse into bulk iterations
+				if (visitable instanceof BulkIteration) {
+					((BulkIteration) visitable).getNextPartialSolution().accept(this);
+				} else if (visitable instanceof WorksetIteration) {
+					((WorksetIteration) visitable).getSolutionSetDelta().accept(this);
+					((WorksetIteration) visitable).getNextWorkset().accept(this);
+				}
+				
 				return true;
 			} else {
 				return false;

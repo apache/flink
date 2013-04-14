@@ -40,11 +40,13 @@ import eu.stratosphere.pact.compiler.plan.DataSourceNode;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.PactConnection;
 import eu.stratosphere.pact.compiler.plan.TempMode;
+import eu.stratosphere.pact.compiler.plan.candidate.BulkIterationPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.UnionPlanNode;
+import eu.stratosphere.pact.compiler.plan.candidate.WorksetIterationPlanNode;
 import eu.stratosphere.pact.compiler.util.Utils;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 
@@ -56,8 +58,6 @@ public class PlanJSONDumpGenerator {
 	private Map<DumpableNode<?>, Integer> nodeIds; // resolves pact nodes to ids
 
 	private int nodeCnt;
-	
-	private boolean firstInList = true;
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -116,14 +116,14 @@ public class PlanJSONDumpGenerator {
 
 		// Generate JSON for plan
 		for (int i = 0; i < nodes.size(); i++) {
-			visit(nodes.get(i), writer);
+			visit(nodes.get(i), writer, i == 0);
 		}
 		
 		// JSON Footer
 		writer.println("\n\t]\n}");
 	}
 
-	private void visit(DumpableNode<?> node, PrintWriter writer) {
+	private void visit(DumpableNode<?> node, PrintWriter writer, boolean first) {
 		// check for duplicate traversal
 		if (this.nodeIds.containsKey(node)) {
 			return;
@@ -135,7 +135,8 @@ public class PlanJSONDumpGenerator {
 		// then recurse
 		for (Iterator<? extends DumpableNode<?>> children = node.getPredecessors(); children.hasNext(); ) {
 			final DumpableNode<?> child = children.next();
-			visit(child, writer);
+			visit(child, writer, first);
+			first = false;
 		}
 		
 		// check if this node should be skipped from the dump
@@ -143,13 +144,37 @@ public class PlanJSONDumpGenerator {
 		
 		// ------------------ dump after the ascend ---------------------
 		// start a new node and output node id
-		if (this.firstInList) {
-			// the first does not need to add a comma after the previous node
-			firstInList = false;
-		} else {
+		if (!first) {
 			writer.print(",\n");
 		}
-		writer.print("\t{\n\t\t\"id\": " + this.nodeIds.get(node));
+		// open the node
+		writer.print("\t{\n");
+		
+		// recurse, it is is an iteration node
+		if (node instanceof BulkIterationPlanNode) {
+			BulkIterationPlanNode bipn = (BulkIterationPlanNode) node;
+			
+			writer.print("\t\t\"step_function\": [\n");
+			
+			visit(bipn.getRootOfStepFunction(), writer, true);
+			
+			writer.print("\n\t\t],\n");
+			writer.print("\t\t\"next_partial_solution\": " + this.nodeIds.get(bipn.getRootOfStepFunction()) + ",\n");
+		} else if (node instanceof WorksetIterationPlanNode) {
+			WorksetIterationPlanNode wipn = (WorksetIterationPlanNode) node;
+			
+			writer.print("\t\t\"step_function\": [\n");
+			
+			visit(wipn.getNextWorkSetPlanNode(), writer, true);
+			visit(wipn.getSolutionSetDeltaPlanNode(), writer, false);
+			
+			writer.print("\n\t\t],\n");
+			writer.print("\t\t\"next_workset\": " + this.nodeIds.get(wipn.getNextWorkSetPlanNode()) + ",\n");
+			writer.print("\t\t\"solution_delta\": " + this.nodeIds.get(wipn.getSolutionSetDeltaPlanNode()) + ",\n");
+		}
+		
+		// print the id
+		writer.print("\t\t\"id\": " + this.nodeIds.get(node));
 
 		
 		final String type;
@@ -253,6 +278,9 @@ public class PlanJSONDumpGenerator {
 						case PARTITION_LOCAL_HASH:
 							shipStrategy = "Hash Partition (local)";
 							break;
+						case PARTITION_RANDOM:
+							shipStrategy = "Redistribute";
+							break;
 						default:
 							throw new CompilerException("Unknown ship strategy '" + conn.getShipStrategy().name()
 								+ "' in JSON generator.");
@@ -315,11 +343,10 @@ public class PlanJSONDumpGenerator {
 
 		final PlanNode p = node.getPlanNode();
 		if (p == null) {
-			// finish node and done
+			// finish node
 			writer.print("\n\t}");
-			return ;
+			return;
 		}
-		
 		// local strategy
 		String locString = null;
 		if (p.getDriverStrategy() != null) {

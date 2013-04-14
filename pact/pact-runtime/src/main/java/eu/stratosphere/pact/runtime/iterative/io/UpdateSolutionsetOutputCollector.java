@@ -25,7 +25,7 @@ public class UpdateSolutionsetOutputCollector<T> implements Collector<T> {
 	private final Collector<T> delegate;
 
 	// TODO type safety
-	private MutableHashTable.HashBucketIterator hashBucket;
+	private MutableHashTable.HashBucketIterator<T, ?> hashBucket;
 
 	private long numUpdatedElements;
 
@@ -34,7 +34,7 @@ public class UpdateSolutionsetOutputCollector<T> implements Collector<T> {
 		numUpdatedElements = 0;
 	}
 
-	public void setHashBucket(MutableHashTable.HashBucketIterator hashBucket) {
+	public void setHashBucket(MutableHashTable.HashBucketIterator<T, ?> hashBucket) {
 		this.hashBucket = hashBucket;
 	}
 

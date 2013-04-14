@@ -26,8 +26,8 @@ import eu.stratosphere.pact.generic.stub.AbstractStub;
  * This class is a subclass of {@code DualInputContract}. The solution set is considered the first input, the
  * workset is considered the second input.
  */
-public class WorksetIteration extends DualInputContract<AbstractStub>
-{
+public class WorksetIteration extends DualInputContract<AbstractStub> {
+	
 	private final Contract solutionSetPlaceholder = new SolutionSetPlaceHolder(this);
 
 	private final Contract worksetPlaceholder = new WorksetPlaceHolder(this);

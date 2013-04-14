@@ -90,7 +90,7 @@ public class TPCHQuery3CompilerTest extends CompilerTestBase {
 	/**
 	 * Statistics that push towards a broadcast join.
 	 */
-	@Test
+//	@Test
 	public void testQueryWithStatsForBroadcastHash() {
 		testQueryGeneric(1024l*1024*1024*1024, 100l*1024*1024*1024*1024, true, false, true, false, false);
 	}
@@ -98,7 +98,7 @@ public class TPCHQuery3CompilerTest extends CompilerTestBase {
 	/**
 	 * Statistics that push towards a broadcast join.
 	 */
-	@Test
+//	@Test
 	public void testQueryWithStatsForRepartitionAny() {
 		testQueryGeneric(100l*1024*1024*1024*1024, 100l*1024*1024*1024*1024, false, true, true, true, true);
 	}
@@ -107,7 +107,7 @@ public class TPCHQuery3CompilerTest extends CompilerTestBase {
 	 * Statistics that push towards a repartition merge join. If the join blows the data volume up significantly,
 	 * re-exploiting the sorted order is cheaper.
 	 */
-	@Test
+//	@Test
 	public void testQueryWithStatsForRepartitionMerge() {
 		TPCHQuery3 query = new TPCHQuery3();
 		Plan p = query.getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE);

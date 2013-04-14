@@ -28,6 +28,13 @@
       <artifactId>pact-compiler</artifactId>
       <version>${project.version}</version>
     </dependency>
+    
+    <dependency>
+      <groupId>eu.stratosphere</groupId>
+      <artifactId>pact-examples</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
 
     <dependency>
     	<groupId>commons-cli</groupId>

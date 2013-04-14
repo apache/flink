@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.common.io;
+package eu.stratosphere.pact.generic.io;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -45,14 +45,14 @@ import eu.stratosphere.pact.common.type.base.PactString;
 
 @RunWith(PowerMockRunner.class)
 @PowerMockIgnore("org.apache.log4j.*")
-public class DelimitedInputFormatTest
-{
+public class DelimitedInputFormatTest {
+	
 	@Mock
 	protected Configuration config;
 	
 	protected File tempFile;
 	
-	private final DelimitedInputFormat format = new MyTextInputFormat();
+	private final DelimitedInputFormat<PactRecord> format = new MyTextInputFormat();
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -167,7 +167,7 @@ public class DelimitedInputFormatTest
 		return new FileInputSplit(0, new Path("file://" + this.tempFile.getAbsolutePath()), 0, this.tempFile.length(), new String[] {"localhost"});
 	}
 	
-	protected static final class MyTextInputFormat extends DelimitedInputFormat {
+	protected static final class MyTextInputFormat extends eu.stratosphere.pact.generic.io.DelimitedInputFormat<PactRecord> {
 		
 		private final PactString str1 = new PactString();
 		private final PactString str2 = new PactString();

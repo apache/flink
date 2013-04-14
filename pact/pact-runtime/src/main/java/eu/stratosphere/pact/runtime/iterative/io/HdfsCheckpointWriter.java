@@ -14,28 +14,30 @@ import java.io.IOException;
 
 public abstract class HdfsCheckpointWriter implements Closeable {
 
-  private SequenceFile.Writer writer;
+	private SequenceFile.Writer writer;
 
-  public HdfsCheckpointWriter() {}
+	public HdfsCheckpointWriter() {}
 
-  protected abstract Class<? extends WritableComparable> keyClass();
-  protected abstract Class<? extends Writable> valueClass();
+	@SuppressWarnings("rawtypes")
+	protected abstract Class<? extends WritableComparable> keyClass();
 
-  public void open(String path) throws IOException {
-    Path hdfsPath = new Path(path);
-    Configuration conf = new Configuration();
-    FileSystem fs = FileSystem.get(hdfsPath.toUri(), conf);
-    writer = new SequenceFile.Writer(fs, conf, hdfsPath, keyClass(), valueClass());
-  }
+	protected abstract Class<? extends Writable> valueClass();
 
-  public void addToCheckpoint(PactRecord record) throws IOException {
-    add(writer, record);
-  }
+	public void open(String path) throws IOException {
+		Path hdfsPath = new Path(path);
+		Configuration conf = new Configuration();
+		FileSystem fs = FileSystem.get(hdfsPath.toUri(), conf);
+		writer = new SequenceFile.Writer(fs, conf, hdfsPath, keyClass(), valueClass());
+	}
 
-  protected abstract void add(SequenceFile.Writer writer, PactRecord record) throws IOException;
+	public void addToCheckpoint(PactRecord record) throws IOException {
+		add(writer, record);
+	}
 
-  @Override
-  public void close() throws IOException {
-    Closeables.closeQuietly(writer);
-  }
+	protected abstract void add(SequenceFile.Writer writer, PactRecord record) throws IOException;
+
+	@Override
+	public void close() throws IOException {
+		Closeables.closeQuietly(writer);
+	}
 }
