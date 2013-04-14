@@ -44,9 +44,9 @@ import eu.stratosphere.pact.runtime.task.DriverStrategy;
 /**
  * A node in the optimizer's program representation for a workset iteration.
  */
-public class WorksetIterationNode extends TwoInputNode implements IterationNode
-{
-	private static final int DEFAULT_COST_WEIGHT = 50;
+public class WorksetIterationNode extends TwoInputNode implements IterationNode {
+	
+	private static final int DEFAULT_COST_WEIGHT = 20;
 	
 	
 	private final FieldList solutionSetKeyFields;

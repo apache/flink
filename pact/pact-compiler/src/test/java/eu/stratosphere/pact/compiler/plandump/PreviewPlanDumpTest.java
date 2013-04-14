@@ -14,8 +14,6 @@
  **********************************************************************************************************************/
 package eu.stratosphere.pact.compiler.plandump;
 
-import java.io.File;
-import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.List;
 
@@ -26,6 +24,8 @@ import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.plan.DataSinkNode;
 import eu.stratosphere.pact.example.datamining.KMeansIteration;
+import eu.stratosphere.pact.example.iterative.IterativeKMeans;
+import eu.stratosphere.pact.example.iterative.WorksetConnectedComponents;
 import eu.stratosphere.pact.example.relational.TPCHQuery3;
 import eu.stratosphere.pact.example.relational.WebLogAnalysis;
 import eu.stratosphere.pact.example.wordcount.WordCount;
@@ -60,28 +60,27 @@ public class PreviewPlanDumpTest {
 		dump(new WebLogAnalysis().getPlan("4", IN_FILE, IN_FILE, IN_FILE, OUT_FILE));
 	}
 	
+	@Test
+	public void dumpBulkIterationKMeans() {
+		dump(new IterativeKMeans().getPlan("4", IN_FILE, OUT_FILE));
+	}
+	
+	@Test
+	public void dumpWorksetConnectedComponents() {
+		dump(new WorksetConnectedComponents().getPlan("4", IN_FILE, IN_FILE, OUT_FILE));
+	}
+	
 	private void dump(Plan p) {
 		try {
 			List<DataSinkNode> sinks = PactCompiler.createPreOptimizedPlan(p);
 			PlanJSONDumpGenerator dumper = new PlanJSONDumpGenerator();
-			PrintWriter writer = new PrintWriter(getNullOrTempFile());
+			PrintWriter writer = new PrintWriter(new BlackHoleWriter());
 			
 //			StringWriter sw = new StringWriter(512);
 //			PrintWriter writer = new PrintWriter(sw, true);
 			dumper.dumpPactPlanAsJSON(sinks, writer);
 		} catch (Exception e) {
 			Assert.fail("An error occurred in the test: " + e.getMessage());
-		}
-	}
-	
-	private File getNullOrTempFile() throws IOException {
-		File f = new File("/dev/null");
-		if (f.exists() && f.canWrite()) {
-			return f;
-		} else {
-			File tmp = File.createTempFile("dump", ".json");
-			tmp.deleteOnExit();
-			return tmp;
 		}
 	}
 }

@@ -35,11 +35,13 @@ import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.pact.compiler.plan.BinaryUnionNode;
+import eu.stratosphere.pact.compiler.plan.BulkIterationNode;
 import eu.stratosphere.pact.compiler.plan.DataSinkNode;
 import eu.stratosphere.pact.compiler.plan.DataSourceNode;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.PactConnection;
 import eu.stratosphere.pact.compiler.plan.TempMode;
+import eu.stratosphere.pact.compiler.plan.WorksetIterationNode;
 import eu.stratosphere.pact.compiler.plan.candidate.BulkIterationPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
@@ -151,26 +153,35 @@ public class PlanJSONDumpGenerator {
 		writer.print("\t{\n");
 		
 		// recurse, it is is an iteration node
-		if (node instanceof BulkIterationPlanNode) {
-			BulkIterationPlanNode bipn = (BulkIterationPlanNode) node;
+		if (node instanceof BulkIterationNode || node instanceof BulkIterationPlanNode) {
+			
+			DumpableNode<?> innerChild = node instanceof BulkIterationNode ?
+					((BulkIterationNode) node).getNextPartialSolution() :
+					((BulkIterationPlanNode) node).getRootOfStepFunction();
 			
 			writer.print("\t\t\"step_function\": [\n");
 			
-			visit(bipn.getRootOfStepFunction(), writer, true);
+			visit(innerChild, writer, true);
 			
 			writer.print("\n\t\t],\n");
-			writer.print("\t\t\"next_partial_solution\": " + this.nodeIds.get(bipn.getRootOfStepFunction()) + ",\n");
-		} else if (node instanceof WorksetIterationPlanNode) {
-			WorksetIterationPlanNode wipn = (WorksetIterationPlanNode) node;
+			writer.print("\t\t\"next_partial_solution\": " + this.nodeIds.get(innerChild) + ",\n");
+		} else if (node instanceof WorksetIterationNode || node instanceof WorksetIterationPlanNode) {
+			
+			DumpableNode<?> worksetRoot = node instanceof WorksetIterationNode ?
+					((WorksetIterationNode) node).getNextWorkset() :
+					((WorksetIterationPlanNode) node).getNextWorkSetPlanNode();
+			DumpableNode<?> solutionDelta = node instanceof WorksetIterationNode ?
+					((WorksetIterationNode) node).getSolutionSetDelta() :
+					((WorksetIterationPlanNode) node).getSolutionSetDeltaPlanNode();
 			
 			writer.print("\t\t\"step_function\": [\n");
 			
-			visit(wipn.getNextWorkSetPlanNode(), writer, true);
-			visit(wipn.getSolutionSetDeltaPlanNode(), writer, false);
+			visit(worksetRoot, writer, true);
+			visit(solutionDelta, writer, false);
 			
 			writer.print("\n\t\t],\n");
-			writer.print("\t\t\"next_workset\": " + this.nodeIds.get(wipn.getNextWorkSetPlanNode()) + ",\n");
-			writer.print("\t\t\"solution_delta\": " + this.nodeIds.get(wipn.getSolutionSetDeltaPlanNode()) + ",\n");
+			writer.print("\t\t\"next_workset\": " + this.nodeIds.get(worksetRoot) + ",\n");
+			writer.print("\t\t\"solution_delta\": " + this.nodeIds.get(solutionDelta) + ",\n");
 		}
 		
 		// print the id

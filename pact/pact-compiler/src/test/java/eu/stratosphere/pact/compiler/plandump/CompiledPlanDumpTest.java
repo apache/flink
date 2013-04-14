@@ -14,8 +14,6 @@
  **********************************************************************************************************************/
 package eu.stratosphere.pact.compiler.plandump;
 
-import java.io.File;
-import java.io.IOException;
 import java.io.PrintWriter;
 
 import org.junit.Assert;
@@ -25,6 +23,8 @@ import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.compiler.CompilerTestBase;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
 import eu.stratosphere.pact.example.datamining.KMeansIteration;
+import eu.stratosphere.pact.example.iterative.IterativeKMeans;
+import eu.stratosphere.pact.example.iterative.WorksetConnectedComponents;
 import eu.stratosphere.pact.example.relational.TPCHQuery3;
 import eu.stratosphere.pact.example.relational.WebLogAnalysis;
 import eu.stratosphere.pact.example.wordcount.WordCount;
@@ -54,12 +54,22 @@ public class CompiledPlanDumpTest extends CompilerTestBase {
 	public void dumpWebLogAnalysis() {
 		dump(new WebLogAnalysis().getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, IN_FILE, OUT_FILE));
 	}
+
+	@Test
+	public void dumpBulkIterationKMeans() {
+		dump(new IterativeKMeans().getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, OUT_FILE));
+	}
+	
+	@Test
+	public void dumpWorksetConnectedComponents() {
+		dump(new WorksetConnectedComponents().getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE));
+	}
 	
 	private void dump(Plan p) {
 		try {
 			OptimizedPlan op = compileNoStats(p);
 			PlanJSONDumpGenerator dumper = new PlanJSONDumpGenerator();
-			PrintWriter writer = new PrintWriter(getNullOrTempFile());
+			PrintWriter writer = new PrintWriter(new BlackHoleWriter());
 			
 //			StringWriter sw = new StringWriter(512);
 //			PrintWriter writer = new PrintWriter(sw, true);
@@ -67,17 +77,6 @@ public class CompiledPlanDumpTest extends CompilerTestBase {
 		} catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail("An error occurred in the test: " + e.getMessage());
-		}
-	}
-	
-	private File getNullOrTempFile() throws IOException {
-		File f = new File("/dev/null");
-		if (f.exists() && f.canWrite()) {
-			return f;
-		} else {
-			File tmp = File.createTempFile("dump", ".json");
-			tmp.deleteOnExit();
-			return tmp;
 		}
 	}
 }
