@@ -507,9 +507,7 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 	 * @see java.lang.Object#toString()
 	 */
 	public String toString() {
-		return "Channel (" + this.source + 
-				(this.target == null ? ')' :
-					") -> (" + this.target + ')') +
+		return "Channel (" + this.source + (this.target == null ? ')' : ") -> (" + this.target + ')') +
 				'[' + this.shipStrategy + "] [" + this.localStrategy + "] " +
 				(this.tempMode == null || this.tempMode == TempMode.NONE ? "{NO-TEMP}" : this.tempMode);
 	}

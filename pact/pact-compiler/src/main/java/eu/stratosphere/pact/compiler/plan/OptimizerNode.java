@@ -29,7 +29,6 @@ import java.util.Map.Entry;
 import eu.stratosphere.pact.common.contract.CompilerHints;
 import eu.stratosphere.pact.common.plan.Visitable;
 import eu.stratosphere.pact.common.plan.Visitor;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.OutCardBounds;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.DataStatistics;
@@ -48,8 +47,8 @@ import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
  * This class represents a node in the optimizer's internal representation of the PACT plan. It contains
  * extra information about estimates, hints and data properties.
  */
-public abstract class OptimizerNode implements Visitable<OptimizerNode>, EstimateProvider, DumpableNode<OptimizerNode>
-{
+public abstract class OptimizerNode implements Visitable<OptimizerNode>, EstimateProvider, DumpableNode<OptimizerNode> {
+	
 	// --------------------------------------------------------------------------------------------
 	//                                      Members
 	// --------------------------------------------------------------------------------------------
@@ -78,10 +77,6 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	protected long estimatedOutputSize = -1; // the estimated size of the output (bytes)
 
 	protected long estimatedNumRecords = -1; // the estimated number of key/value pairs in the output
-
-	protected int stubOutCardLB; // The lower bound of the stubs output cardinality
-	
-	protected int stubOutCardUB; // The upper bound of the stubs output cardinality
 
 	// --------------------------------- General Parameters ---------------------------------------
 	
@@ -700,28 +695,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 */
 	protected void readStubAnnotations() {
 		readConstantAnnotation();
-		readOutputCardBoundAnnotation();
 		readUniqueFieldsAnnotation();
 	}
-
-	/**
-	* Reads the output cardinality stub annotations
-	*/
-	protected void readOutputCardBoundAnnotation() {
-	
-		// get readSet annotation from stub
-		OutCardBounds outCardAnnotation = pactContract.getUserCodeClass().getAnnotation(OutCardBounds.class);
-	
-		// extract addSet from annotation
-		if(outCardAnnotation == null) {
-			this.stubOutCardLB = OutCardBounds.UNKNOWN;
-			this.stubOutCardUB = OutCardBounds.UNKNOWN;
-		} else {
-			this.stubOutCardLB = outCardAnnotation.lowerBound();
-			this.stubOutCardUB = outCardAnnotation.upperBound();
-		}
-	}
-	
 	
 	protected void readUniqueFieldsAnnotation() {
 		if (this.pactContract.getCompilerHints() != null) {
@@ -738,24 +713,6 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	// ------------------------------------------------------------------------
 	// Access of stub annotations
 	// ------------------------------------------------------------------------
-	
-	/**
-	 * Returns the lower output cardinality bound of the node.
-	 * 
-	 * @return the lower output cardinality bound of the node.
-	 */
-	public int getStubOutCardLowerBound() {
-		return this.stubOutCardLB;
-	}
-	
-	/**
-	 * Returns the upper output cardinality bound of the node.
-	 * 
-	 * @return the upper output cardinality bound of the node.
-	 */
-	public int getStubOutCardUpperBound() {
-		return this.stubOutCardUB;
-	}
 	
 	/**
 	 * Returns the key columns for the specific input, if all keys are preserved
@@ -788,18 +745,18 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 * 
 	 */
 	private void computeUniqueFields() {
-		if (this.stubOutCardUB > 1 || this.stubOutCardUB < 0) {
-			return;
-		}
-		
-		//check which uniqueness properties are created by this node
-		List<FieldSet> uniqueFields = createUniqueFieldsForNode();
-		if (uniqueFields != null) {
-			if (this.uniqueFields == null) {
-				this.uniqueFields = new HashSet<FieldSet>();
-			}
-			this.uniqueFields.addAll(uniqueFields);
-		}
+//		if (this.stubOutCardUB > 1 || this.stubOutCardUB < 0) {
+//			return;
+//		}
+//		
+//		//check which uniqueness properties are created by this node
+//		List<FieldSet> uniqueFields = createUniqueFieldsForNode();
+//		if (uniqueFields != null) {
+//			if (this.uniqueFields == null) {
+//				this.uniqueFields = new HashSet<FieldSet>();
+//			}
+//			this.uniqueFields.addAll(uniqueFields);
+//		}
 	}
 	
 	/**

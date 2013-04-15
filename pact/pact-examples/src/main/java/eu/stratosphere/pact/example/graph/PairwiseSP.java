@@ -37,7 +37,6 @@ import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsFirst;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsSecond;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.OutCardBounds;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
@@ -73,9 +72,6 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
      * - to-node being the RDF object at field position 1,
      * - length being 1 at field position 2, and 
      * - hopList being an empty string at field position 3. 
-	 * 
-	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
-	 * @author Moritz Kaufmann (moritz.kaufmann@campus.tu-berlin.de)
 	 *
 	 */
 	public static class RDFTripleInFormat extends DelimitedInputFormat {
@@ -87,8 +83,7 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 		private final PactString hopList = new PactString(" ");
 		
 		@Override
-		public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes)
-		{	
+		public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes) {
 			String lineStr = new String(bytes, offset, numBytes);
 			// replace reduce whitespaces and trim
 			lineStr = lineStr.replaceAll("\\s+", " ").trim();
@@ -118,7 +113,6 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 			target.setField(4, hopList);
 
 			return true;
-			
 		}
 	}
 	
@@ -131,12 +125,9 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 	 * - to-node at field position 1,
 	 * - length at field position 2,
 	 * - hop list at field position 3. 
-	 * 
-	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
-	 * @author Moritz Kaufmann (moritz.kaufmann@campus.tu-berlin.de)
 	 */
-	public static class PathInFormat extends DelimitedInputFormat
-	{
+	public static class PathInFormat extends DelimitedInputFormat {
+		
 		private final PactString fromNode = new PactString();
 		private final PactString toNode = new PactString();
 		private final PactInteger length = new PactInteger();
@@ -144,8 +135,7 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 		private final PactString hopList = new PactString();
 
 		@Override
-		public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes)
-		{
+		public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes) {
 			String lineStr = new String(bytes, offset, numBytes);
 			StringTokenizer st = new StringTokenizer(lineStr, "|");
 			
@@ -201,7 +191,6 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 			
 			stream.write(line.toString().getBytes());
 		}
-
 	}
 
 	/**
@@ -209,14 +198,9 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 	 * The second input path becomes the first part and the first input path the second part of the output path.
 	 * The length of the output path is the sum of both input paths. 
 	 * The output path's hops list is built from both path's hops lists and the common node.  
-	 * 
-	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
-	 * @author Moritz Kaufmann (moritz.kaufmann@campus.tu-berlin.de)
-	 *
 	 */
-	@ConstantFieldsFirst(fields={1})
-	@ConstantFieldsSecond(fields={0})
-	@OutCardBounds(lowerBound=0, upperBound=1)
+	@ConstantFieldsFirst(1)
+	@ConstantFieldsSecond(0)
 	public static class ConcatPaths extends MatchStub {
 
 		private final PactRecord outputRecord = new PactRecord();
@@ -277,9 +261,8 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
 	 *
 	 */
-	@ConstantFieldsFirst(fields={0,1})
-	@ConstantFieldsSecond(fields={0,1})
-	@OutCardBounds(lowerBound=1, upperBound=OutCardBounds.UNBOUNDED)
+	@ConstantFieldsFirst({0,1})
+	@ConstantFieldsSecond({0,1})
 	public static class FindShortestPath extends CoGroupStub {
 
 		private final PactRecord outputRecord = new PactRecord();
@@ -441,5 +424,4 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 	public String getDescription() {
 		return "Parameters: [noSubStasks], [inputPaths], [outputPaths], [RDFInputFlag]";
 	}
-
 }

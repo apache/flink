@@ -26,8 +26,8 @@ import eu.stratosphere.pact.generic.contract.WorksetIteration.WorksetPlaceHolder
 /**
  * The optimizer's internal representation of the partial solution that is input to a bulk iteration.
  */
-public class WorksetNode extends AbstractPartialSolutionNode
-{
+public class WorksetNode extends AbstractPartialSolutionNode {
+	
 	private final WorksetIterationNode iterationNode;
 	
 	

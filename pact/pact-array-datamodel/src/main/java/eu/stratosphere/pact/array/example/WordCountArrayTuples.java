@@ -31,7 +31,6 @@ import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFields;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.OutCardBounds;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
@@ -51,9 +50,7 @@ public class WordCountArrayTuples implements PlanAssembler, PlanAssemblerDescrip
 	 * where the token is the first field and an Integer(1) is the second field.
 	 */
 	
-	@OutCardBounds(lowerBound=0, upperBound=OutCardBounds.UNBOUNDED)
-	public static class TokenizeLine extends MapStub
-	{
+	public static class TokenizeLine extends MapStub {
 		// initialize reusable mutable objects
 		private final PactString word = new PactString();
 		private final PactInteger one = new PactInteger(1);
@@ -64,8 +61,7 @@ public class WordCountArrayTuples implements PlanAssembler, PlanAssemblerDescrip
 		
 		@Override
 		@DataTypes({PactString.class})
-		public void map(Value[] record, Collector<Value[]> collector)
-		{
+		public void map(Value[] record, Collector<Value[]> collector) {
 			// get the first field (as type PactString) from the record
 			PactString line = (PactString) record[0];
 			
@@ -86,11 +82,10 @@ public class WordCountArrayTuples implements PlanAssembler, PlanAssemblerDescrip
 	 * Sums up the counts for a certain given key. The counts are assumed to be at position <code>1</code>
 	 * in the record. The other fields are not modified.
 	 */
-	@ConstantFields(fields={0})
-	@OutCardBounds(lowerBound=1, upperBound=1)
 	@Combinable
-	public static class CountWords extends ReduceStub
-	{
+	@ConstantFields(0)
+	public static class CountWords extends ReduceStub {
+		
 		private final PactInteger cnt = new PactInteger();
 		private final Value[] result = new Value[] { null, cnt };
 		
@@ -120,8 +115,7 @@ public class WordCountArrayTuples implements PlanAssembler, PlanAssemblerDescrip
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Plan getPlan(String... args)
-	{
+	public Plan getPlan(String... args) {
 		// parse job parameters
 		int noSubTasks   = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		String dataInput = (args.length > 1 ? args[1] : "");
@@ -154,5 +148,4 @@ public class WordCountArrayTuples implements PlanAssembler, PlanAssemblerDescrip
 	public String getDescription() {
 		return "Parameters: [noSubStasks] [input] [output]";
 	}
-
 }

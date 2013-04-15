@@ -30,7 +30,6 @@ import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsExcept;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.OutCardBounds;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.parser.DecimalTextIntParser;
@@ -51,8 +50,7 @@ public class ReduceGroupSort implements PlanAssembler, PlanAssemblerDescription 
 	 * @author Fabian Hueske
 	 *
 	 */
-	@ConstantFieldsExcept(fields={0})
-	@OutCardBounds(lowerBound=OutCardBounds.INPUTCARD, upperBound=OutCardBounds.INPUTCARD)
+	@ConstantFieldsExcept(0)
 	public static class IdentityReducer extends ReduceStub {
 		
 		@Override

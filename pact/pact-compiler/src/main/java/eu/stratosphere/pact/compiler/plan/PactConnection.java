@@ -68,8 +68,8 @@ public class PactConnection implements EstimateProvider, DumpableConnection<Opti
 	 *        The shipping strategy.
 	 */
 	public PactConnection(OptimizerNode source, OptimizerNode target, ShipStrategyType shipStrategy, int maxDepth) {
-		if (source == null) {
-			throw new NullPointerException("Source must not be null.");
+		if (source == null || target == null) {
+			throw new NullPointerException("Source and target must not be null.");
 		}
 		this.source = source;
 		this.target = target;

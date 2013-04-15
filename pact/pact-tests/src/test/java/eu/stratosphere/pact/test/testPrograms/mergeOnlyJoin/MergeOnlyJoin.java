@@ -31,15 +31,13 @@ import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsExcept;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsFirstExcept;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.OutCardBounds;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.parser.DecimalTextIntParser;
 
 public class MergeOnlyJoin implements PlanAssembler, PlanAssemblerDescription {
 
-	@ConstantFieldsFirstExcept(fields={2})
-	@OutCardBounds(upperBound=1, lowerBound=1)
+	@ConstantFieldsFirstExcept(2)
 	public static class JoinInputs extends MatchStub {
 		@Override
 		public void match(PactRecord input1, PactRecord input2, Collector<PactRecord> out) {
@@ -48,7 +46,7 @@ public class MergeOnlyJoin implements PlanAssembler, PlanAssemblerDescription {
 		}
 	}
 
-	@ConstantFieldsExcept(fields={})
+	@ConstantFieldsExcept({})
 	public static class DummyReduce extends ReduceStub {
 		
 		@Override
@@ -129,12 +127,8 @@ public class MergeOnlyJoin implements PlanAssembler, PlanAssemblerDescription {
 		return plan;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public String getDescription() {
 		return "Parameters: [noSubTasks], [input], [input2], [output], [noSubTasksInput2]";
 	}
-
 }

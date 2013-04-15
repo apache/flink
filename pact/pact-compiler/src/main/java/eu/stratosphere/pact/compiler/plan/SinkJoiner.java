@@ -22,16 +22,15 @@ import java.util.List;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.operators.OperatorDescriptorDual;
 import eu.stratosphere.pact.compiler.operators.UtilSinkJoinOpDescriptor;
-import eu.stratosphere.pact.generic.contract.DualInputContract;
-import eu.stratosphere.pact.generic.stub.AbstractStub;
+import eu.stratosphere.pact.compiler.util.NoContract;
 
 /**
  * This class represents a utility node that is not part of the actual plan. It is used for plans with multiple data sinks to
  * transform it into a plan with a single root node. That way, the code that makes sure no costs are double-counted and that 
  * candidate selection works correctly with nodes that have multiple outputs is transparently reused.
  */
-public class SinkJoiner extends TwoInputNode
-{
+public class SinkJoiner extends TwoInputNode {
+	
 	public SinkJoiner(OptimizerNode input1, OptimizerNode input2) {
 		super(new NoContract());
 		
@@ -95,18 +94,5 @@ public class SinkJoiner extends TwoInputNode
 	@Override
 	public void computeOutputEstimates(DataStatistics statistics) {
 		// nothing to be done here
-	}
-
-	// ------------------------------------------------------------------------
-	//  Mock classes that represents a contract without behavior.
-	// ------------------------------------------------------------------------
-	
-	private static final class MockStub extends AbstractStub {}
-	
-	private static final class NoContract extends DualInputContract<MockStub>
-	{
-		private NoContract() {
-			super(MockStub.class, "NoContract");
-		}
 	}
 }

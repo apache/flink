@@ -33,8 +33,8 @@ import eu.stratosphere.pact.runtime.task.DriverStrategy;
 /**
  *
  */
-public class UtilSinkJoinOpDescriptor extends OperatorDescriptorDual
-{
+public class UtilSinkJoinOpDescriptor extends OperatorDescriptorDual {
+	
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.compiler.dataproperties.DriverProperties#getStrategy()
 	 */

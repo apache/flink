@@ -39,9 +39,9 @@ import eu.stratosphere.pact.generic.contract.BulkIteration;
 /**
  * A node in the optimizer's program representation for a bulk iteration.
  */
-public class BulkIterationNode extends SingleInputNode implements IterationNode
-{
-	private static final int DEFAULT_COST_WEIGHT = 50;
+public class BulkIterationNode extends SingleInputNode implements IterationNode {
+	
+	private static final int DEFAULT_COST_WEIGHT = 20;
 	
 	private BulkPartialSolutionNode partialSolution;
 	
@@ -219,9 +219,7 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode
 		
 		// 1) Because we enumerate multiple times, we may need to clean the cached plans
 		//    before starting another enumeration
-		if (this.nextPartialSolution.cachedPlans != null) {
-			this.nextPartialSolution.accept(PlanCacheCleaner.INSTANCE);
-		}
+		this.nextPartialSolution.accept(PlanCacheCleaner.INSTANCE);
 		
 		// 2) Give the partial solution the properties of the current candidate for the initial partial solution
 		this.partialSolution.setCandidateProperties(in.getGlobalProperties(), in.getLocalProperties());

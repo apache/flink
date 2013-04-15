@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -12,23 +12,17 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-
 package eu.stratosphere.pact.compiler.util;
 
-import java.util.Iterator;
+import eu.stratosphere.pact.generic.contract.DualInputContract;
+import eu.stratosphere.pact.generic.stub.AbstractStub;
 
-import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.common.stubs.ReduceStub;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsExcept;
-import eu.stratosphere.pact.common.type.PactRecord;
 
-@ConstantFieldsExcept({})
-public final class IdentityReduce extends ReduceStub {
+public class NoContract extends DualInputContract<MockStub> {
 	
-	@Override
-	public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {
-		while (records.hasNext()) {
-			out.collect(records.next());
-		}
+	public NoContract() {
+		super(MockStub.class, "NoContract");
 	}
 }
+
+class MockStub extends AbstractStub {}

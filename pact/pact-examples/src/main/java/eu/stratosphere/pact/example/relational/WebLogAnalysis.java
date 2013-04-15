@@ -34,7 +34,6 @@ import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsExcept;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsFirstExcept;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsSecondExcept;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.OutCardBounds;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
@@ -87,12 +86,8 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 	/**
 	 * MapStub that filters for documents that contain a certain set of
 	 * keywords. 
-	 * 
-	 * @author Fabian Hueske
-	 * @author Christoph Bruecke
 	 */
-	@ConstantFieldsExcept(fields={1})
-	@OutCardBounds(lowerBound=0, upperBound=1)
+	@ConstantFieldsExcept(1)
 	public static class FilterDocs extends MapStub {
 		
 		private static final String[] KEYWORDS = { " editors ", " oscillations ", " convection " };
@@ -105,7 +100,6 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 		 */
 		@Override
 		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
-			
 			// FILTER
 			// Only collect the document if all keywords are contained
 			String docText = record.getField(1, PactString.class).toString();
@@ -126,12 +120,8 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 
 	/**
 	 * MapStub that filters for records where the rank exceeds a certain threshold.
-	 * 
-	 * @author Fabian Hueske
-	 * @author Christoph Bruecke
 	 */
-	@ConstantFieldsExcept(fields={})
-	@OutCardBounds(lowerBound=0, upperBound=1)
+	@ConstantFieldsExcept({})
 	public static class FilterRanks extends MapStub {
 		
 		private static final int RANKFILTER = 50;
@@ -157,17 +147,12 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 	/**
 	 * MapStub that filters for records of the visits relation where the year
 	 * (from the date string) is equal to a certain value.
-	 * 
-	 * @author Fabian Hueske
-	 * @author Christoph Bruecke
 	 */
-	@ConstantFieldsExcept(fields={1})
-	@OutCardBounds(lowerBound=0, upperBound=1)
+	@ConstantFieldsExcept(1)
 	public static class FilterVisits extends MapStub {
 
 		private static final int YEARFILTER = 2010;
 		
-
 		/**
 		 * Filters for records of the visits relation where the year of visit is equal to a
 		 * specified value. The URL of all visit records passing the filter is emitted.
@@ -177,7 +162,6 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 		 */
 		@Override
 		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
-			
 			// Parse date string with the format YYYY-MM-DD and extract the year
 			String dateString = record.getField(1, PactString.class).getValue();
 			int year = Integer.parseInt(dateString.substring(0,4)); 
@@ -193,12 +177,8 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 	/**
 	 * MatchStub that joins the filtered entries from the documents and the
 	 * ranks relation.
-	 * 
-	 * @author Fabian Hueske
-	 * @author Christoph Bruecke
 	 */
-	@ConstantFieldsSecondExcept(fields={})
-	@OutCardBounds(lowerBound=1, upperBound=1)
+	@ConstantFieldsSecondExcept({})
 	public static class JoinDocRanks extends MatchStub {
 
 		/**
@@ -219,12 +199,8 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 	 * CoGroupStub that realizes an anti-join.
 	 * If the first input does not provide any pairs, all pairs of the second input are emitted.
 	 * Otherwise, no pair is emitted.
-	 * 
-	 * @author Fabian Hueske
-	 * @author Christoph Bruecke
 	 */
-	@ConstantFieldsFirstExcept(fields={})
-	@OutCardBounds(lowerBound=0, upperBound=OutCardBounds.FIRSTINPUTCARD)
+	@ConstantFieldsFirstExcept({})
 	public static class AntiJoinVisits extends CoGroupStub {
 
 		/**
@@ -375,5 +351,4 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 	public String getDescription() {
 		return "Parameters: [noSubTasks], [docs], [ranks], [visits], [output]";
 	}
-
 }

@@ -167,7 +167,7 @@ public class FieldSet implements Iterable<Integer>
 	@Override
 	public String toString() {
 		StringBuilder bld = new StringBuilder();
-		bld.append(getDescriptionPrefix()).append(' ').append('[');
+		bld.append(getDescriptionPrefix());
 		for (Integer i : this.collection) {
 			bld.append(i);
 			bld.append(',');
@@ -176,7 +176,7 @@ public class FieldSet implements Iterable<Integer>
 		if (this.collection.size() > 0) {
 			bld.setLength(bld.length() - 2);
 		}
-		bld.append(']');
+		bld.append(getDescriptionSuffix());
 		return bld.toString();
 	}
 	
@@ -196,6 +196,10 @@ public class FieldSet implements Iterable<Integer>
 	}
 	
 	protected String getDescriptionPrefix() {
-		return "FieldSet";
+		return "(";
+	}
+	
+	protected String getDescriptionSuffix() {
+		return ")";
 	}
 }

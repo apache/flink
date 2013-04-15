@@ -20,7 +20,7 @@ import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsFirstExcept;
 import eu.stratosphere.pact.common.type.PactRecord;
 
-@ConstantFieldsFirstExcept(fields={})
+@ConstantFieldsFirstExcept({})
 public class DummyMatchStub extends MatchStub {
 
 	@Override

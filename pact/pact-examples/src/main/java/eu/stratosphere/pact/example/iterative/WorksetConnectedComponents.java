@@ -22,7 +22,6 @@ import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
-import eu.stratosphere.pact.common.io.DelimitedInputFormat;
 import eu.stratosphere.pact.common.io.RecordOutputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.PlanAssembler;
@@ -30,6 +29,8 @@ import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFields;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsFirstExcept;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.generic.contract.WorksetIteration;
@@ -52,6 +53,7 @@ public class WorksetConnectedComponents implements PlanAssembler, PlanAssemblerD
 	}
 	
 	@Combinable
+	@ConstantFields(0)
 	public class MinimumComponentIDReduce extends ReduceStub {
 
 		private final PactRecord result = new PactRecord();
@@ -81,6 +83,7 @@ public class WorksetConnectedComponents implements PlanAssembler, PlanAssemblerD
 		}
 	}
 	
+	@ConstantFieldsFirstExcept({})
 	public class UpdateComponentIdMatch extends MatchStub {
 
 		@Override
@@ -109,7 +112,6 @@ public class WorksetConnectedComponents implements PlanAssembler, PlanAssemblerD
 
 		// create DataSourceContract for the vertices
 		FileDataSource initialVertices = new FileDataSource(DuplicateLongInputFormat.class, verticesInput, "Vertices");
-		DelimitedInputFormat.configureDelimitedFormat(initialVertices).recordDelimiter('\n');
 		
 		WorksetIteration iteration = new WorksetIteration(0, "Connected Components Iteration");
 		iteration.setInitialSolutionSet(initialVertices);
@@ -118,7 +120,6 @@ public class WorksetConnectedComponents implements PlanAssembler, PlanAssemblerD
 		
 		// create DataSourceContract for the edges
 		FileDataSource edges = new FileDataSource(LongLongInputFormat.class, edgeInput, "Edges");
-		DelimitedInputFormat.configureDelimitedFormat(edges).recordDelimiter('\n');
 
 		// create CrossContract for distance computation
 		MatchContract joinWithNeighbors = MatchContract.builder(NeighborWithComponentIDJoin.class, PactLong.class, 0, 0)
@@ -147,7 +148,7 @@ public class WorksetConnectedComponents implements PlanAssembler, PlanAssemblerD
 		FileDataSink result = new FileDataSink(RecordOutputFormat.class, output, iteration, "Result");
 
 		// return the PACT plan
-		Plan plan = new Plan(result, "Iterative KMeans");
+		Plan plan = new Plan(result, "Workset Connected Components");
 		plan.setDefaultParallelism(numSubTasks);
 		return plan;
 	}

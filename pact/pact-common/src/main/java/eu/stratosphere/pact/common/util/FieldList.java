@@ -95,20 +95,19 @@ public class FieldList extends FieldSet
 	
 	// --------------------------------------------------------------------------------------------
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.util.AbstractFieldSet#initCollection()
-	 */
 	@Override
 	protected Collection<Integer> initCollection() {
 		return new ArrayList<Integer>();
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.util.FieldSet#getDescriptionPrefix()
-	 */
 	@Override
 	protected String getDescriptionPrefix() {
-		return "Field List";
+		return "[";
+	}
+	
+	@Override
+	protected String getDescriptionSuffix() {
+		return "]";
 	}
 
 	private List<Integer> get() {

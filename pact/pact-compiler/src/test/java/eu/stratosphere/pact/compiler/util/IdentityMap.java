@@ -20,7 +20,7 @@ import eu.stratosphere.pact.common.stubs.MapStub;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsExcept;
 import eu.stratosphere.pact.common.type.PactRecord;
 
-@ConstantFieldsExcept(fields={})
+@ConstantFieldsExcept({})
 public final class IdentityMap extends MapStub {
 	
 	@Override

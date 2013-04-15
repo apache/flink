@@ -23,6 +23,7 @@ import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
+import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.pact.common.io.RecordInputFormat;
 import eu.stratosphere.pact.common.io.RecordOutputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
@@ -69,7 +70,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	/**
 	 * Map PACT implements the selection and projection on the orders table.
 	 */
-	@ConstantFields(fields={0,1})
+	@ConstantFields({0,1})
 	public static class FilterO extends MapStub {
 		
 		private String prioFilter;		// filter literal for the order priority
@@ -125,7 +126,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	 * Match PACT realizes the join between LineItem and Order table.
 	 *
 	 */
-	@ConstantFieldsFirst(fields={0,1})
+	@ConstantFieldsFirst({0,1})
 	public static class JoinLiO extends MatchStub {
 		
 		/**
@@ -149,8 +150,8 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	 * already in the combiner
 	 *
 	 */
-	@ReduceContract.Combinable
-	@ConstantFields(fields={0,1})
+	@Combinable
+	@ConstantFields({0,1})
 	public static class AggLiO extends ReduceStub {
 		
 		private final PactDouble extendedPrice = new PactDouble();

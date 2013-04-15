@@ -56,19 +56,21 @@ public class DualInputPlanNode extends PlanNode {
 	
 	// --------------------------------------------------------------------------------------------
 
-	public DualInputPlanNode(OptimizerNode template, Channel input1, Channel input2, DriverStrategy localStrategy) {
-		this(template, input1, input2, localStrategy, null, null, null);
+	public DualInputPlanNode(OptimizerNode template, Channel input1, Channel input2, DriverStrategy diverStrategy) {
+		this(template, input1, input2, diverStrategy, null, null, null);
 	}
 	
 	public DualInputPlanNode(OptimizerNode template, Channel input1, Channel input2,
-			DriverStrategy localStrategy, FieldList driverKeyFields1, FieldList driverKeyFields2) {
-		this(template, input1, input2, localStrategy, driverKeyFields1, driverKeyFields2,
+			DriverStrategy diverStrategy, FieldList driverKeyFields1, FieldList driverKeyFields2)
+	{
+		this(template, input1, input2, diverStrategy, driverKeyFields1, driverKeyFields2,
 									SingleInputPlanNode.getTrueArray(driverKeyFields1.size()));
 	}
 	
-	public DualInputPlanNode(OptimizerNode template, Channel input1, Channel input2, DriverStrategy localStrategy,
-			FieldList driverKeyFields1, FieldList driverKeyFields2, boolean[] driverSortOrders) {
-		super(template, localStrategy);
+	public DualInputPlanNode(OptimizerNode template, Channel input1, Channel input2, DriverStrategy diverStrategy,
+			FieldList driverKeyFields1, FieldList driverKeyFields2, boolean[] driverSortOrders)
+	{
+		super(template, diverStrategy);
 		this.input1 = input1;
 		this.input2 = input2;
 		this.keys1 = driverKeyFields1;
@@ -205,7 +207,6 @@ public class DualInputPlanNode extends PlanNode {
 			Costs douleCounted = lastCommonChild.getCumulativeCosts();
 			getCumulativeCosts().subtractCosts(douleCounted);
 		}
-		
 	}
 	
 	// --------------------------------------------------------------------------------------------

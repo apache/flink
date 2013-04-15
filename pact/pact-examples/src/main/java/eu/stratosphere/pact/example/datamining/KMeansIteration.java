@@ -28,6 +28,7 @@ import eu.stratosphere.pact.common.contract.CrossContract;
 import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.ReduceContract;
+import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.pact.common.io.DelimitedInputFormat;
 import eu.stratosphere.pact.common.io.DelimitedOutputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
@@ -327,7 +328,7 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription 
 	 * Cross PACT computes the distance of all data points to all cluster
 	 * centers.
 	 */
-	@ConstantFieldsFirst(fields={0,1})
+	@ConstantFieldsFirst({0,1})
 	public static class ComputeDistance extends	CrossStub {
 		
 		private final PactDouble distance = new PactDouble();
@@ -363,8 +364,8 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription 
 	 * Reduce PACT determines the closes cluster center for a data point. This
 	 * is a minimum aggregation. Hence, a Combiner can be easily implemented.
 	 */
-	@ConstantFields(fields=1)
-	@ReduceContract.Combinable
+	@Combinable
+	@ConstantFields(1)
 	public static class FindNearestCenter extends ReduceStub {
 		
 		private final PactInteger centerId = new PactInteger();
@@ -452,9 +453,8 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription 
 	 * 
 	 * @author Fabian Hueske
 	 */
-	
-	@ConstantFields(fields=0)
-	@ReduceContract.Combinable
+	@Combinable
+	@ConstantFields(0)
 	public static class RecomputeClusterCenter extends ReduceStub {
 		
 		private final PactInteger count = new PactInteger();

@@ -765,8 +765,8 @@ public class PactCompiler {
 	 * estimation and the awareness for optimizer hints, the sizes will be properly estimated and the translated plan
 	 * already respects all optimizer hints.
 	 */
-	private static final class GraphCreatingVisitor implements Visitor<Contract>
-	{
+	private static final class GraphCreatingVisitor implements Visitor<Contract> {
+		
 		private final Map<Contract, OptimizerNode> con2node; // map from the contract objects to their
 																// corresponding optimizer nodes
 
@@ -964,7 +964,7 @@ public class PactCompiler {
 			// first connect to the predecessors
 			n.setInputs(this.con2node);
 
-			//read id again as it might have been incremented for newly created union nodes
+			// read id again as it might have been incremented for newly created union nodes
 			this.id = n.getId() + 1;
 			
 			// now compute the output estimates
@@ -1042,15 +1042,11 @@ public class PactCompiler {
 					}
 				}
 				
-				// add an outgoing connection to the root of the step function
-				PactConnection worksetRootConn = new PactConnection(nextWorksetNode, null, -1);
-				nextWorksetNode.addOutgoingConnection(worksetRootConn);
-				PactConnection solutionSetDeltaRootConn = new PactConnection(solutionSetDeltaNode, null, -1);
-				solutionSetDeltaNode.addOutgoingConnection(solutionSetDeltaRootConn);
+
 				
+				// set the step function nodes to the iteration node
 				iterNode.setPartialSolution(solutionSetNode, worksetNode);
-				iterNode.setNextPartialSolution(solutionSetDeltaNode, nextWorksetNode, 
-						solutionSetDeltaRootConn,worksetRootConn);
+				iterNode.setNextPartialSolution(solutionSetDeltaNode, nextWorksetNode);
 				
 				// account for the nested memory consumers
 				this.numMemoryConsumers += recursiveCreator.numMemoryConsumers;
@@ -1071,8 +1067,8 @@ public class PactCompiler {
 		}
 	};
 	
-	private static final class StaticDynamicPathIdentifier implements Visitor<OptimizerNode>
-	{
+	private static final class StaticDynamicPathIdentifier implements Visitor<OptimizerNode> {
+		
 		private final Set<OptimizerNode> seenBefore = new HashSet<OptimizerNode>();
 		
 		private final int costWeight;
@@ -1096,15 +1092,14 @@ public class PactCompiler {
 		public void postVisit(OptimizerNode visitable) {
 			visitable.identifyDynamicPath(this.costWeight);
 		}
-		
 	}
 	
 	/**
 	 * Simple visitor that sets the minimal guaranteed memory per task based on the amount of available memory,
 	 * the number of memory consumers, and on the task's degree of parallelism.
 	 */
-	private static final class MemoryDistributer implements Visitor<OptimizerNode>
-	{
+	private static final class MemoryDistributer implements Visitor<OptimizerNode> {
+		
 		private final long memoryPerTaskPerInstance;
 		
 		MemoryDistributer(long memoryPerTaskPerInstance) {

@@ -57,8 +57,8 @@ import static eu.stratosphere.pact.compiler.plan.candidate.PlanNode.SourceAndDam
  * A node in the optimizer plan that represents a PACT with a two different inputs, such as MATCH or CROSS.
  * The two inputs are not substitutable in their sides.
  */
-public abstract class TwoInputNode extends OptimizerNode
-{
+public abstract class TwoInputNode extends OptimizerNode {
+	
 	protected final FieldList keys1; // The set of key fields for the first input
 	
 	protected final FieldList keys2; // The set of key fields for the second input
@@ -80,8 +80,6 @@ public abstract class TwoInputNode extends OptimizerNode
 	protected FieldSet notConstant2; // set of fields that are changed by the stub
 	
 	// --------------------------------------------------------------------------------------------
-	
-	private List<PlanNode> cachedPlans; // a cache for the computed alternative plans
 	
 	/**
 	 * Creates a new node with a single input for the optimizer plan.
@@ -673,13 +671,13 @@ public abstract class TwoInputNode extends OptimizerNode
 		if(constantSet1Annotation == null) {
 			this.constant1 = null;
 		} else {
-			this.constant1 = new FieldSet(constantSet1Annotation.fields());
+			this.constant1 = new FieldSet(constantSet1Annotation.value());
 		}
 		
 		if(constantSet2Annotation == null) {
 			this.constant2 = null;
 		} else {
-			this.constant2 = new FieldSet(constantSet2Annotation.fields());
+			this.constant2 = new FieldSet(constantSet2Annotation.value());
 		}
 		
 		
@@ -691,13 +689,13 @@ public abstract class TwoInputNode extends OptimizerNode
 		if(notConstantSet1Annotation == null) {
 			this.notConstant1 = null;
 		} else {
-			this.notConstant1 = new FieldSet(notConstantSet1Annotation.fields());
+			this.notConstant1 = new FieldSet(notConstantSet1Annotation.value());
 		}
 		
 		if(notConstantSet2Annotation == null) {
 			this.notConstant2 = null;
 		} else {
-			this.notConstant2 = new FieldSet(notConstantSet2Annotation.fields());
+			this.notConstant2 = new FieldSet(notConstantSet2Annotation.value());
 		}
 		
 		

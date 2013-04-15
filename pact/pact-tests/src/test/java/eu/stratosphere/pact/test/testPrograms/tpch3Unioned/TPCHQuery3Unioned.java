@@ -23,6 +23,7 @@ import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
+import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.pact.common.io.RecordInputFormat;
 import eu.stratosphere.pact.common.io.RecordOutputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
@@ -34,7 +35,6 @@ import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFields;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsFirstExcept;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.OutCardBounds;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.common.type.base.PactInteger;
@@ -71,10 +71,9 @@ public class TPCHQuery3Unioned implements PlanAssembler, PlanAssemblerDescriptio
 	/**
 	 * Map PACT implements the selection and projection on the orders table.
 	 */
-	@ConstantFields(fields={0,1})
-	@OutCardBounds(upperBound=1, lowerBound=0)
-	public static class FilterO extends MapStub
-	{
+	@ConstantFields({0,1})
+	public static class FilterO extends MapStub {
+		
 		private String prioFilter;		// filter literal for the order priority
 		private int yearFilter;			// filter literal for the year
 		
@@ -104,8 +103,7 @@ public class TPCHQuery3Unioned implements PlanAssembler, PlanAssemblerDescriptio
 	 	 * Output Schema - 0:ORDERKEY, 1:SHIPPRIORITY
 		 */
 		@Override
-		public void map(final PactRecord record, final Collector<PactRecord> out)
-		{
+		public void map(final PactRecord record, final Collector<PactRecord> out) {
 			
 			orderStatus = record.getField(2, PactString.class);
 			if (!orderStatus.getValue().equals("F"))
@@ -129,10 +127,9 @@ public class TPCHQuery3Unioned implements PlanAssembler, PlanAssemblerDescriptio
 	 * built of the keys of the inputs.
 	 *
 	 */
-	@ConstantFieldsFirstExcept(fields={2})
-	@OutCardBounds(upperBound=1, lowerBound=1)
-	public static class JoinLiO extends MatchStub
-	{
+	@ConstantFieldsFirstExcept(2)
+	public static class JoinLiO extends MatchStub {
+		
 		/**
 		 * Implements the join between LineItem and Order table on the order key.
 		 * 
@@ -157,16 +154,14 @@ public class TPCHQuery3Unioned implements PlanAssembler, PlanAssemblerDescriptio
 	 *
 	 * Output Schema - 0:ORDERKEY, 1:SHIPPRIORITY, 2:SUM(EXTENDEDPRICE)
 	 */
-	@ReduceContract.Combinable
-	@ConstantFields(fields={0,1})
-	@OutCardBounds(upperBound=1, lowerBound=1)
-	public static class AggLiO extends ReduceStub
-	{
+	@Combinable
+	@ConstantFields({0,1})
+	public static class AggLiO extends ReduceStub {
+		
 		private final PactDouble extendedPrice = new PactDouble();
 		
 		@Override
-		public void reduce(Iterator<PactRecord> values, Collector<PactRecord> out)
-		{
+		public void reduce(Iterator<PactRecord> values, Collector<PactRecord> out) {
 			PactRecord rec = null;
 			double partExtendedPriceSum = 0;
 
@@ -184,8 +179,7 @@ public class TPCHQuery3Unioned implements PlanAssembler, PlanAssemblerDescriptio
 		 * Creates partial sums on the price attribute for each data batch.
 		 */
 		@Override
-		public void combine(Iterator<PactRecord> values, Collector<PactRecord> out)
-		{
+		public void combine(Iterator<PactRecord> values, Collector<PactRecord> out) {
 			reduce(values, out);
 		}
 	}
@@ -194,8 +188,7 @@ public class TPCHQuery3Unioned implements PlanAssembler, PlanAssemblerDescriptio
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Plan getPlan(final String... args) 
-	{
+	public Plan getPlan(final String... args) {
 		// parse program parameters
 		int noSubtasks       = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		String orders1Path    = (args.length > 1 ? args[1] : "");
@@ -353,5 +346,4 @@ public class TPCHQuery3Unioned implements PlanAssembler, PlanAssemblerDescriptio
 	public String getDescription() {
 		return "Parameters: [noSubStasks], [orders1], [orders2], [partJoin1], [partJoin2], [lineitem], [output]";
 	}
-
 }

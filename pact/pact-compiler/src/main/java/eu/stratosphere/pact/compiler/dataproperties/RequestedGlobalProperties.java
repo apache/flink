@@ -58,6 +58,9 @@ public final class RequestedGlobalProperties implements Cloneable
 	 * @param partitionedFields 
 	 */
 	public void setHashPartitioned(FieldSet partitionedFields) {
+		if (partitionedFields == null) {
+			throw new NullPointerException();
+		}
 		this.partitioning = PartitioningProperty.HASH_PARTITIONED;
 		this.partitioningFields = partitionedFields;
 		this.ordering = null;
@@ -65,12 +68,18 @@ public final class RequestedGlobalProperties implements Cloneable
 	
 
 	public void setRangePartitioned(Ordering ordering) {
+		if (ordering == null) {
+			throw new NullPointerException();
+		}
 		this.partitioning = PartitioningProperty.RANGE_PARTITIONED;
 		this.ordering = ordering;
 		this.partitioningFields = null;
 	}
 	
 	public void setAnyPartitioning(FieldSet partitionedFields) {
+		if (partitionedFields == null) {
+			throw new NullPointerException();
+		}
 		this.partitioning = PartitioningProperty.ANY_PARTITIONING;
 		this.partitioningFields = partitionedFields;
 		this.ordering = null;
@@ -165,8 +174,7 @@ public final class RequestedGlobalProperties implements Cloneable
 	 * @param props The properties for which to check whether they meet these properties.
 	 * @return True, if the properties are met, false otherwise.
 	 */
-	public boolean isMetBy(GlobalProperties props)
-	{
+	public boolean isMetBy(GlobalProperties props) {
 		if (this.partitioning == PartitioningProperty.FULL_REPLICATION) {
 			return props.isFullyReplicated();
 		} else if (props.isFullyReplicated()) {

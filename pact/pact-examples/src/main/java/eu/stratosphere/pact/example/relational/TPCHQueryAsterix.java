@@ -21,6 +21,7 @@ import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
+import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.pact.common.io.RecordInputFormat;
 import eu.stratosphere.pact.common.io.RecordOutputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
@@ -31,7 +32,6 @@ import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFields;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsSecondExcept;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.OutCardBounds;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
@@ -63,8 +63,7 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 	/**
 	 * Realizes the join between Customers and Order table.
 	 */
-	@ConstantFieldsSecondExcept(fields={0})
-	@OutCardBounds(lowerBound=1, upperBound=1)
+	@ConstantFieldsSecondExcept(0)
 	public static class JoinCO extends MatchStub {
 
 		private final PactInteger one = new PactInteger(1);
@@ -88,9 +87,8 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 	 * already in the combiner
 	 *
 	 */
-	@ReduceContract.Combinable
-	@ConstantFields(fields={1})
-	@OutCardBounds(lowerBound=1, upperBound=1)
+	@Combinable
+	@ConstantFields(1)
 	public static class AggCO extends ReduceStub {
 
 		private final PactInteger integer = new PactInteger();
@@ -218,5 +216,4 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 	public String getDescription() {
 		return "Parameters: [noSubStasks], [orders], [customer], [output]";
 	}
-
 }

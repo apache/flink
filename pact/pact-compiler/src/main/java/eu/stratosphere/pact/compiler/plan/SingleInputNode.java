@@ -465,7 +465,7 @@ public abstract class SingleInputNode extends OptimizerNode
 		if(constantSet == null) {
 			this.constantSet = null;
 		} else {
-			this.constantSet = new FieldSet(constantSet.fields());
+			this.constantSet = new FieldSet(constantSet.value());
 		}
 		
 		ConstantFieldsExcept notConstantSet = c.getUserCodeClass().getAnnotation(ConstantFieldsExcept.class);
@@ -474,7 +474,7 @@ public abstract class SingleInputNode extends OptimizerNode
 		if(notConstantSet == null) {
 			this.notConstantSet = null;
 		} else {
-			this.notConstantSet = new FieldSet(notConstantSet.fields());
+			this.notConstantSet = new FieldSet(notConstantSet.value());
 		}
 		
 		if (this.notConstantSet != null && this.constantSet != null) {

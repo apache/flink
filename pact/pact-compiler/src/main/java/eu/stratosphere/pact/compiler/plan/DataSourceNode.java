@@ -39,9 +39,7 @@ import eu.stratosphere.pact.generic.io.InputFormat;
 /**
  * The optimizer's internal representation of a data source.
  */
-public class DataSourceNode extends OptimizerNode
-{
-	private List<PlanNode> candidate;		// the candidate (there can only be one) for this node
+public class DataSourceNode extends OptimizerNode {
 	
 	private long inputSize;			//the size of the input in bytes
 
@@ -249,8 +247,8 @@ public class DataSourceNode extends OptimizerNode
 	 */
 	@Override
 	public List<PlanNode> getAlternativePlans(CostEstimator estimator) {
-		if (this.candidate != null) {
-			return this.candidate;
+		if (this.cachedPlans != null) {
+			return this.cachedPlans;
 		}
 		
 		SourcePlanNode candidate = new SourcePlanNode(this);
@@ -266,7 +264,7 @@ public class DataSourceNode extends OptimizerNode
 		List<PlanNode> plans = new ArrayList<PlanNode>(1);
 		plans.add(candidate);
 
-		this.candidate = plans;
+		this.cachedPlans = plans;
 		return plans;
 	}
 

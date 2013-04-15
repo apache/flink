@@ -37,7 +37,9 @@ import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.DualInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SolutionSetPlanNode;
+import eu.stratosphere.pact.compiler.plan.candidate.WorksetIterationPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.WorksetPlanNode;
+import eu.stratosphere.pact.compiler.util.NoContract;
 import eu.stratosphere.pact.generic.contract.WorksetIteration;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
@@ -64,6 +66,8 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 	private PactConnection solutionSetDeltaRootConnection;
 	
 	private PactConnection nextWorksetRootConnection;
+	
+	private SingleRootJoiner singleRoot;
 	
 	private int costWeight;
 
@@ -121,16 +125,25 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 		this.worksetNode = worksetNode;
 	}
 	
-	public void setNextPartialSolution(OptimizerNode solutionSetDelta, OptimizerNode nextWorkset, 
-			PactConnection solutionSetDeltaRootConnection, PactConnection nextWorksetRoot) {
+	public void setNextPartialSolution(OptimizerNode solutionSetDelta, OptimizerNode nextWorkset) {
 		this.solutionSetDelta = solutionSetDelta;
 		this.nextWorkset = nextWorkset;
-		this.solutionSetDeltaRootConnection = solutionSetDeltaRootConnection;
-		this.nextWorksetRootConnection = nextWorksetRoot;
+		
+		this.singleRoot = new SingleRootJoiner();
+		this.solutionSetDeltaRootConnection = new PactConnection(solutionSetDelta, this.singleRoot, -1);
+		this.nextWorksetRootConnection = new PactConnection(nextWorkset, this.singleRoot, -1);
+		this.singleRoot.setInputs(this.solutionSetDeltaRootConnection, this.nextWorksetRootConnection);
+		
+		solutionSetDelta.addOutgoingConnection(this.solutionSetDeltaRootConnection);
+		nextWorkset.addOutgoingConnection(this.nextWorksetRootConnection);
 	}
 	
 	public int getCostWeight() {
 		return this.costWeight;
+	}
+	
+	public TwoInputNode getSingleRootOfStepFunction() {
+		return this.singleRoot;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -167,10 +180,6 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 	//                             Properties and Optimization
 	// --------------------------------------------------------------------------------------------
 	
-//	protected List<OperatorDescriptorSingle> getPossibleProperties() {
-//		return Collections.<OperatorDescriptorSingle>singletonList(new NoOpDescriptor());
-//	}
-	
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isMemoryConsumer()
 	 */
@@ -206,6 +215,7 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 		partitionedProperties.setHashPartitioned(this.solutionSetKeyFields);
 		InterestingProperties partitionedIP = new InterestingProperties();
 		partitionedIP.addGlobalProperties(partitionedProperties);
+		partitionedIP.addLocalProperties(new RequestedLocalProperties());
 		
 		this.nextWorksetRootConnection.setInterestingProperties(new InterestingProperties());
 		this.solutionSetDeltaRootConnection.setInterestingProperties(partitionedIP.clone());
@@ -255,12 +265,8 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 		
 		// 1) Because we enumerate multiple times, we may need to clean the cached plans
 		//    before starting another enumeration
-		if (this.nextWorkset.cachedPlans != null) {
-			this.nextWorkset.accept(PlanCacheCleaner.INSTANCE);
-		}
-		if (this.solutionSetDelta.cachedPlans != null) {
-			this.solutionSetDelta.accept(PlanCacheCleaner.INSTANCE);
-		}
+		this.nextWorkset.accept(PlanCacheCleaner.INSTANCE);
+		this.solutionSetDelta.accept(PlanCacheCleaner.INSTANCE);
 		
 		// 2) Give the partial solution the properties of the current candidate for the initial partial solution
 		//    This concerns currently only the workset.
@@ -311,14 +317,18 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 		final LocalProperties lp = new LocalProperties();
 		lp.addUniqueFields(this.solutionSetKeyFields);
 		
-//		for (PlanNode solutionSetCandidate : solutionSetDeltaCandidates) {
-//			for (PlanNode worksetCandidate : worksetCandidates) {
-//				areBranchCompatible(plan1, plan2)
-//				BulkIterationPlanNode node = new BulkIterationPlanNode(this, in, pspn, candidate);
-//				node.initProperties(gp, lp);
-//				target.add(node);
-//			}
-//		}
+		// take all combinations of solution set delta and workset plans
+		for (PlanNode solutionSetCandidate : solutionSetDeltaCandidates) {
+			for (PlanNode worksetCandidate : worksetCandidates) {
+				// check whether they have the same operator at their latest branching point
+				if (this.singleRoot.areBranchCompatible(solutionSetCandidate, worksetCandidate)) {
+					WorksetIterationPlanNode wsNode = new WorksetIterationPlanNode(
+						this, solutionSetIn, worksetIn, sspn, wspn, worksetCandidate, solutionSetCandidate);
+					wsNode.initProperties(gp, lp);
+					target.add(wsNode);
+				}
+			}
+		}
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -326,16 +336,17 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 	// --------------------------------------------------------------------------------------------
 
 	public void acceptForStepFunction(Visitor<OptimizerNode> visitor) {
-		this.nextWorkset.accept(visitor);
-		this.solutionSetDelta.accept(visitor);
+		this.singleRoot.accept(visitor);
 	}
+	
+	// --------------------------------------------------------------------------------------------
+	//                             Utility Classes
+	// --------------------------------------------------------------------------------------------
 	
 	private static final class WorksetOpDescriptor extends OperatorDescriptorDual {
 		
-		private final FieldList solutionSetKeys;
-		
 		private WorksetOpDescriptor(FieldList solutionSetKeys) {
-			this.solutionSetKeys = solutionSetKeys;
+			super(solutionSetKeys, null);
 		}
 
 		@Override
@@ -346,7 +357,7 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 		@Override
 		protected List<GlobalPropertiesPair> createPossibleGlobalProperties() {
 			RequestedGlobalProperties partitionedGp = new RequestedGlobalProperties();
-			partitionedGp.setHashPartitioned(this.solutionSetKeys);
+			partitionedGp.setHashPartitioned(this.keys1);
 			return Collections.singletonList(new GlobalPropertiesPair(partitionedGp, new RequestedGlobalProperties()));
 		}
 
@@ -370,6 +381,31 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 		@Override
 		public LocalProperties computeLocalProperties(LocalProperties in1, LocalProperties in2) {
 			throw new UnsupportedOperationException();
+		}
+	}
+	
+	private static class SingleRootJoiner extends TwoInputNode {
+		
+		SingleRootJoiner() {
+			super(new NoContract());
+			
+			setDegreeOfParallelism(1);
+			setSubtasksPerInstance(1);
+		}
+		
+		public void setInputs(PactConnection input1, PactConnection input2) {
+			this.input1 = input1;
+			this.input2 = input2;
+		}
+		
+		@Override
+		public String getName() {
+			return "Internal Utility Node";
+		}
+
+		@Override
+		protected List<OperatorDescriptorDual> getPossibleProperties() {
+			return Collections.emptyList();
 		}
 	}
 }

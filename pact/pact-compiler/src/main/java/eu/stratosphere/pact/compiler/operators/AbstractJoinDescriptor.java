@@ -26,8 +26,8 @@ import eu.stratosphere.pact.compiler.dataproperties.RequestedGlobalProperties;
 /**
  * 
  */
-public abstract class AbstractJoinDescriptor extends OperatorDescriptorDual
-{
+public abstract class AbstractJoinDescriptor extends OperatorDescriptorDual {
+	
 	protected AbstractJoinDescriptor(FieldList keys1, FieldList keys2) {
 		super(keys1, keys2);
 	}

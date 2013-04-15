@@ -21,6 +21,7 @@ import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
+import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.pact.common.io.RecordOutputFormat;
 import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
@@ -30,7 +31,6 @@ import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MapStub;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFields;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.OutCardBounds;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
@@ -47,7 +47,6 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription {
 	 * The string is tokenized by whitespaces. For each token a new record is emitted,
 	 * where the token is the first field and an Integer(1) is the second field.
 	 */
-	@OutCardBounds(lowerBound=1, upperBound=OutCardBounds.UNBOUNDED)
 	public static class TokenizeLine extends MapStub {
 		// initialize reusable mutable objects
 		private final PactRecord outputRecord = new PactRecord();
@@ -82,8 +81,8 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription {
 	 * Sums up the counts for a certain given key. The counts are assumed to be at position <code>1</code>
 	 * in the record. The other fields are not modified.
 	 */
-	@ConstantFields(fields={0})
-	@ReduceContract.Combinable
+	@Combinable
+	@ConstantFields(0)
 	public static class CountWords extends ReduceStub {
 		
 		private final PactInteger cnt = new PactInteger();
@@ -152,5 +151,4 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription {
 	public String getDescription() {
 		return "Parameters: [noSubStasks] [input] [output]";
 	}
-
 }

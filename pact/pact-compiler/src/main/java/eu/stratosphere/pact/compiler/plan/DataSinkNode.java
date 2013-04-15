@@ -39,12 +39,9 @@ import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 /**
  * The Optimizer representation of a data sink.
  */
-public class DataSinkNode extends OptimizerNode
-{
-	protected PactConnection input;			// The input edge
+public class DataSinkNode extends OptimizerNode {
 	
-	private List<PlanNode> cachedPlans;		// plan candidate cache
-
+	protected PactConnection input;			// The input edge
 	
 	/**
 	 * Creates a new DataSinkNode for the given contract.
@@ -244,8 +241,7 @@ public class DataSinkNode extends OptimizerNode
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getAlternativePlans(eu.stratosphere.pact.compiler.costs.CostEstimator)
 	 */
 	@Override
-	public List<PlanNode> getAlternativePlans(CostEstimator estimator)
-	{
+	public List<PlanNode> getAlternativePlans(CostEstimator estimator) {
 		// check if we have a cached version
 		if (this.cachedPlans != null) {
 			return this.cachedPlans;
@@ -292,11 +288,7 @@ public class DataSinkNode extends OptimizerNode
 		}
 		prunePlanAlternatives(outputPlans);
 
-		// cache the result only if we have multiple outputs --> this function gets invoked multiple times
-		if (isBranching()) {
-			this.cachedPlans = outputPlans;
-		}
-
+		this.cachedPlans = outputPlans;
 		return outputPlans;
 	}
 	

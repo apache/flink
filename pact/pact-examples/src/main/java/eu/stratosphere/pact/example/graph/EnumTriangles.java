@@ -72,8 +72,7 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 		private final PactString rdfObj = new PactString();
 		
 		@Override
-		public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes)
-		{
+		public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes) {
 			final int limit = offset + numBytes;
 			int startPos = offset;
 			
@@ -152,11 +151,8 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 	/**
 	 * Builds triads (open triangle) from all two edges that share a vertex.
 	 * The common vertex is 
-	 *  
-	 * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
-	 *
 	 */
-	@ConstantFields(fields={0})
+	@ConstantFields(0)
 	public static class BuildTriads extends ReduceStub {
 		
 		// list of non-matching vertices
@@ -172,9 +168,7 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 		}
 
 		@Override
-		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out)
-			throws Exception
-		{
+		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {
 			// read the first edge
 			final PactRecord rec = records.next();
 			// read the matching vertex
@@ -230,20 +224,15 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 	/**
 	 * Matches all missing edges with existing edges from input.
 	 * If the missing edge for a triad is found, the triad is transformed to a triangle by adding the missing edge.
-	 * 
-	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
-	 * @author Moritz Kaufmann (moritz.kaufmann@campus.tu-berlin.de)
 	 */
-	@ConstantFieldsFirstExcept(fields={})
+	@ConstantFieldsFirstExcept({})
 	public static class CloseTriads extends MatchStub {
 
 		@Override
 		public void match(PactRecord triad, PactRecord missingEdge, Collector<PactRecord> out) throws Exception {
-			
 			// emit triangle (already contains missing edge at field 0
 			out.collect(triad);
 		}
-
 	}
 
 	/**
@@ -297,5 +286,4 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 	public String getDescription() {
 		return "Parameters: [noSubStasks] [inputRDFTriples] [outputTriangles]";
 	}
-
 }

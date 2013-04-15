@@ -20,7 +20,7 @@ import eu.stratosphere.pact.runtime.task.DriverStrategy;
 /**
  * 
  */
-public interface AbstractOperatorDescriptor
-{
+public interface AbstractOperatorDescriptor {
+	
 	DriverStrategy getStrategy();
 }
