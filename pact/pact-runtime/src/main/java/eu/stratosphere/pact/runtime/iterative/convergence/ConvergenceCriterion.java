@@ -15,16 +15,18 @@
 
 package eu.stratosphere.pact.runtime.iterative.convergence;
 
+import eu.stratosphere.pact.common.stubs.aggregators.Aggregator;
 import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.runtime.iterative.aggregate.Aggregator;
 
 /**
- * Used to check for convergence
+ * Used to check for convergence.
  */
 public interface ConvergenceCriterion<T extends Value> {
 
 	Aggregator<T> createAggregator();
 
-	/** Decide whether the iterative algorithm has converged */
+	/**
+	 * Decide whether the iterative algorithm has converged
+	 */
 	boolean isConverged(int iteration, T value);
 }

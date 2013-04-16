@@ -16,24 +16,36 @@
 package eu.stratosphere.pact.generic.stub;
 
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.pact.common.stubs.RuntimeContext;
 import eu.stratosphere.pact.common.stubs.Stub;
 
 /**
  * An abstract stub implementation that does nothing when opened or closed.
  */
-public abstract class AbstractStub implements Stub
-{
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.stubs.Stub#open(eu.stratosphere.nephele.configuration.Configuration)
-	 */
-	@Override
-	public void open(Configuration parameters) throws Exception
-	{}
+public abstract class AbstractStub implements Stub {
+	
+	private RuntimeContext runtimeContext;
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.stubs.Stub#close()
-	 */
+	public final void setRuntimeContext(RuntimeContext t) {
+		if (this.runtimeContext == null) {
+			this.runtimeContext = t;
+		} else {
+			throw new IllegalStateException("Error: The runtime context has already been set.");
+		}
+	}
+	
+	public final RuntimeContext getRuntimeContext() {
+		if (this.runtimeContext != null) {
+			return this.runtimeContext;
+		} else {
+			throw new IllegalStateException("The runtime context has not been initialized.");
+		}
+	}
+	
+	
 	@Override
-	public void close() throws Exception
-	{}
+	public void open(Configuration parameters) throws Exception {}
+
+	@Override
+	public void close() throws Exception {}
 }

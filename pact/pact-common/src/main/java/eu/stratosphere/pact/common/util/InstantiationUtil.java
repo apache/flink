@@ -21,11 +21,9 @@ import java.lang.reflect.Modifier;
 
 /**
  * Utility class to create instances from class objects and checking failure reasons.
- *
- * @author Stephan Ewen
  */
-public class InstantiationUtil
-{
+public class InstantiationUtil {
+	
 	/**
 	 * Creates a new instance of the given class.
 	 * 
@@ -38,8 +36,7 @@ public class InstantiationUtil
 	 * @throws RuntimeException Thrown, if the class could not be instantiated. The exception contains a detailed
 	 *                          message about the reason why the instantiation failed.
 	 */
-	public static <T> T instantiate(Class<T> clazz, Class<? super T> castTo)
-	{
+	public static <T> T instantiate(Class<T> clazz, Class<? super T> castTo) {
 		if (clazz == null) {
 			throw new NullPointerException();
 		}

@@ -1,6 +1,6 @@
 package eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank;
 
-import eu.stratosphere.pact.runtime.iterative.aggregate.Aggregator;
+import eu.stratosphere.pact.common.stubs.aggregators.Aggregator;
 
 public class PageRankStatsAggregator implements Aggregator<PageRankStats> {
 

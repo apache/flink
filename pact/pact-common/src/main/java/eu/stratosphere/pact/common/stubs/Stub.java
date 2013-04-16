@@ -21,8 +21,8 @@ import eu.stratosphere.nephele.configuration.Configuration;
  * Abstract stub class for all PACT stubs. PACT stubs must be overwritten to provide user implementations
  * for PACT programs.
  */
-public interface Stub
-{
+public interface Stub {
+	
 	/**
 	 * Initialization method for the stub. It is called before the actual working methods 
 	 * (like <i>map</i> or <i>match</i>). This method should be used for configuration and 
@@ -84,4 +84,14 @@ public interface Stub
 	 *                   decide whether to retry the task execution.
 	 */
 	void close() throws Exception;
+	
+	
+	/**
+	 * Gets the context that contains information about the UDF's runtime.
+	 * 
+	 * @return The UDF's runtime context.
+	 */
+	RuntimeContext getRuntimeContext();
+	
+	void setRuntimeContext(RuntimeContext t);
 }

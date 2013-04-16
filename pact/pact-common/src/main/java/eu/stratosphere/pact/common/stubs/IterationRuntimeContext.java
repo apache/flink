@@ -12,24 +12,17 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.pact.compiler.plan;
+package eu.stratosphere.pact.common.stubs;
 
-import eu.stratosphere.pact.common.util.Visitor;
+import eu.stratosphere.pact.common.stubs.aggregators.Aggregator;
+import eu.stratosphere.pact.common.type.Value;
 
-final class InterestingPropertiesClearer implements Visitor<OptimizerNode> {
+/**
+ *
+ */
+public interface IterationRuntimeContext extends RuntimeContext {
 	
-	static final InterestingPropertiesClearer INSTANCE = new InterestingPropertiesClearer();
-
-	@Override
-	public boolean preVisit(OptimizerNode visitable) {
-		if (visitable.getInterestingProperties() != null) {
-			visitable.clearInterestingProperties();
-			return true;
-		} else {
-			return false;
-		}
-	}
-
-	@Override
-	public void postVisit(OptimizerNode visitable) {}
+	<T extends Value> Aggregator<T> getIterationAggregator(String name);
+	
+	<T extends Value> T getPreviousAggregate(String name);
 }

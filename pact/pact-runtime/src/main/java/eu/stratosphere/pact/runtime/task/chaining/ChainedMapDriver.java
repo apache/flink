@@ -23,12 +23,11 @@ import eu.stratosphere.pact.generic.stub.GenericMapper;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
-
 /**
- * @author Stephan Ewen
+ * 
  */
-public class ChainedMapDriver<IT, OT> implements ChainedDriver<IT, OT>
-{
+public class ChainedMapDriver<IT, OT> extends ChainedDriver<IT, OT> {
+	
 	private GenericMapper<IT, OT> mapper;
 	
 	private Collector<OT> collector;
@@ -36,8 +35,6 @@ public class ChainedMapDriver<IT, OT> implements ChainedDriver<IT, OT>
 	private TaskConfig config;
 	
 	private String taskName;
-	
-	private AbstractInvokable parent;
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -50,26 +47,20 @@ public class ChainedMapDriver<IT, OT> implements ChainedDriver<IT, OT>
 	{
 		this.config = config;
 		this.taskName = taskName;
-		this.parent = parent;
 		this.collector = output;
 		
 		@SuppressWarnings("unchecked")
 		final GenericMapper<IT, OT> mapper = RegularPactTask.instantiateUserCode(config, userCodeClassLoader, GenericMapper.class);
 		this.mapper = mapper;
+		mapper.setRuntimeContext(getRuntimeContext(parent, taskName));
 	}
 	
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.runtime.task.chaining.ChainedTask#open()
 	 */
 	@Override
-	public void openTask() throws Exception
-	{
+	public void openTask() throws Exception {
 		Configuration stubConfig = this.config.getStubParameters();
-		stubConfig.setInteger("pact.parallel.task.id", this.parent.getEnvironment().getIndexInSubtaskGroup());
-		stubConfig.setInteger("pact.parallel.task.count", this.parent.getEnvironment().getCurrentNumberOfSubtasks());
-		if(this.parent.getEnvironment().getTaskName() != null) {
-			stubConfig.setString("pact.parallel.task.name", this.parent.getEnvironment().getTaskName());
-		}
 		RegularPactTask.openUserCode(this.mapper, stubConfig);
 	}
 	
@@ -77,8 +68,7 @@ public class ChainedMapDriver<IT, OT> implements ChainedDriver<IT, OT>
 	 * @see eu.stratosphere.pact.runtime.task.chaining.ChainedTask#closeTask()
 	 */
 	@Override
-	public void closeTask() throws Exception
-	{
+	public void closeTask() throws Exception {
 		RegularPactTask.closeUserCode(this.mapper);
 	}
 	
@@ -86,8 +76,7 @@ public class ChainedMapDriver<IT, OT> implements ChainedDriver<IT, OT>
 	 * @see eu.stratosphere.pact.runtime.task.chaining.ChainedTask#cancelTask()
 	 */
 	@Override
-	public void cancelTask()
-	{
+	public void cancelTask() {
 		try {
 			this.mapper.close();
 		} catch (Throwable t) {}
@@ -115,8 +104,7 @@ public class ChainedMapDriver<IT, OT> implements ChainedDriver<IT, OT>
 	 * @see eu.stratosphere.pact.common.stubs.Collector#collect(eu.stratosphere.pact.common.type.PactRecord)
 	 */
 	@Override
-	public void collect(IT record)
-	{
+	public void collect(IT record) {
 		try {
 			this.mapper.map(record, this.collector);
 		}
@@ -129,8 +117,7 @@ public class ChainedMapDriver<IT, OT> implements ChainedDriver<IT, OT>
 	 * @see eu.stratosphere.pact.common.stubs.Collector#close()
 	 */
 	@Override
-	public void close()
-	{
+	public void close() {
 		this.collector.close();
 	}
 }

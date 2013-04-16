@@ -14,7 +14,7 @@
  **********************************************************************************************************************/
 package eu.stratosphere.pact.compiler.plan.candidate;
 
-import eu.stratosphere.pact.common.plan.Visitor;
+import eu.stratosphere.pact.common.util.Visitor;
 
 /**
  *

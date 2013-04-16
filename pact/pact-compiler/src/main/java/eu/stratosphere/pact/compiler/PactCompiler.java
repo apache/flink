@@ -41,9 +41,9 @@ import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
 import eu.stratosphere.pact.common.contract.GenericDataSink;
 import eu.stratosphere.pact.common.contract.GenericDataSource;
 import eu.stratosphere.pact.common.plan.Plan;
-import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.common.util.PactConfigConstants;
+import eu.stratosphere.pact.common.util.Visitor;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
 import eu.stratosphere.pact.compiler.costs.DefaultCostEstimator;
 import eu.stratosphere.pact.compiler.plan.BulkIterationNode;
@@ -725,7 +725,6 @@ public class PactCompiler {
 		// finalize the plan
 		OptimizedPlan plan = new PlanFinalizer().createFinalPlan(bestPlanSinks, pactPlan.getJobName(), memoryPerInstance);
 		plan.setInstanceTypeName(instanceName);
-		plan.setPlanConfiguration(pactPlan.getPlanConfiguration());
 		
 		// swap the binary unions for n-ary unions. this changes no strategies or memory consumers whatsoever, so
 		// we can do this after the plan finalization

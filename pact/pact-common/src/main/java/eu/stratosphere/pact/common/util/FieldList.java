@@ -23,8 +23,8 @@ import java.util.List;
 /**
  *
  */
-public class FieldList extends FieldSet
-{
+public class FieldList extends FieldSet {
+	
 	public FieldList() {
 		super();
 	}

@@ -22,8 +22,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import eu.stratosphere.pact.common.plan.Visitable;
 import eu.stratosphere.pact.common.util.FieldSet;
+import eu.stratosphere.pact.common.util.Visitable;
 import eu.stratosphere.pact.compiler.costs.Costs;
 import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;

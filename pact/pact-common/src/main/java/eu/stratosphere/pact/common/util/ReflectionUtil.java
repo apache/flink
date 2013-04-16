@@ -89,8 +89,7 @@ public class ReflectionUtil {
 		}
 	}
 	
-	public static Class<?>[] getSuperTemplateTypes(Class<?> clazz, Class<?> searchedSuperClass)
-	{
+	public static Class<?>[] getSuperTemplateTypes(Class<?> clazz, Class<?> searchedSuperClass) {
 		if (clazz == null || searchedSuperClass == null) {
 			throw new NullPointerException();
 		}

@@ -18,8 +18,8 @@ package eu.stratosphere.pact.generic.contract;
 import java.util.ArrayList;
 import java.util.List;
 
-import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.stubs.Stub;
+import eu.stratosphere.pact.common.util.Visitor;
 
 /**
  * Abstract contract superclass for for all contracts that have one input like "map" or "reduce".
@@ -142,7 +142,7 @@ public abstract class SingleInputContract<T extends Stub> extends AbstractPact<T
 	 * 
 	 * @param visitor The visitor.
 	 *  
-	 * @see eu.stratosphere.pact.common.plan.Visitable#accept(eu.stratosphere.pact.common.plan.Visitor)
+	 * @see eu.stratosphere.pact.common.util.Visitable#accept(eu.stratosphere.pact.common.util.Visitor)
 	 */
 	@Override
 	public void accept(Visitor<Contract> visitor) {

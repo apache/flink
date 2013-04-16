@@ -27,9 +27,9 @@ import java.util.Set;
 import java.util.Map.Entry;
 
 import eu.stratosphere.pact.common.contract.CompilerHints;
-import eu.stratosphere.pact.common.plan.Visitable;
-import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.util.FieldSet;
+import eu.stratosphere.pact.common.util.Visitable;
+import eu.stratosphere.pact.common.util.Visitor;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
@@ -177,7 +177,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 * 
 	 * @param visitor
 	 *        The graph traversing visitor.
-	 * @see eu.stratosphere.pact.common.plan.Visitable#accept(eu.stratosphere.pact.common.plan.Visitor)
+	 * @see eu.stratosphere.pact.common.util.Visitable#accept(eu.stratosphere.pact.common.util.Visitor)
 	 */
 	@Override
 	public abstract void accept(Visitor<OptimizerNode> visitor);

@@ -17,8 +17,8 @@ package eu.stratosphere.pact.common.contract;
 
 import java.lang.annotation.Annotation;
 
-import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.stubs.StubAnnotation;
+import eu.stratosphere.pact.common.util.Visitor;
 import eu.stratosphere.pact.generic.contract.Contract;
 import eu.stratosphere.pact.generic.io.InputFormat;
 
@@ -133,7 +133,7 @@ public class GenericDataSource<T extends InputFormat<?, ?>> extends Contract imp
 	 * 
 	 * @param visitor The visitor.
 	 *  
-	 * @see eu.stratosphere.pact.common.plan.Visitable#accept(eu.stratosphere.pact.common.plan.Visitor)
+	 * @see eu.stratosphere.pact.common.util.Visitable#accept(eu.stratosphere.pact.common.util.Visitor)
 	 */
 	@Override
 	public void accept(Visitor<Contract> visitor) {

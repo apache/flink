@@ -19,7 +19,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
-import eu.stratosphere.pact.common.plan.Visitor;
+import eu.stratosphere.pact.common.util.Visitor;
 import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.pact.compiler.plan.BinaryUnionNode;

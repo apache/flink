@@ -23,7 +23,7 @@ import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.GenericDataSink;
 import eu.stratosphere.pact.common.plan.Plan;
-import eu.stratosphere.pact.common.plan.Visitor;
+import eu.stratosphere.pact.common.util.Visitor;
 import eu.stratosphere.pact.generic.contract.Contract;
 import eu.stratosphere.pact.generic.contract.DualInputContract;
 import eu.stratosphere.pact.generic.contract.SingleInputContract;

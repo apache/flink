@@ -15,6 +15,10 @@
 
 package eu.stratosphere.pact.common.contract;
 
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -22,7 +26,6 @@ import eu.stratosphere.pact.common.stubs.CoGroupStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.generic.contract.Contract;
 import eu.stratosphere.pact.generic.contract.GenericCoGroupContract;
-
 
 /**
  * CrossContract represents a Match InputContract of the PACT Programming Model.
@@ -34,8 +37,8 @@ import eu.stratosphere.pact.generic.contract.GenericCoGroupContract;
  * 
  * @see CoGroupStub
  */
-public class CoGroupContract extends GenericCoGroupContract<CoGroupStub> implements RecordContract
-{	
+public class CoGroupContract extends GenericCoGroupContract<CoGroupStub> implements RecordContract {
+	
 	private static String DEFAULT_NAME = "<Unnamed CoGrouper>";		// the default name for contracts
 	
 	/**
@@ -159,11 +162,31 @@ public class CoGroupContract extends GenericCoGroupContract<CoGroupStub> impleme
 	public Ordering getGroupOrderForInputTwo() {
 		return getGroupOrder(1);
 	}
+	
+	// ---------------------------------------------------------------------------------------
+	
+	@Override
+	public boolean isCombinableFirst() {
+		return super.isCombinableFirst() || getUserCodeClass().getAnnotation(CombinableFirst.class) != null;
+	}
+	
+	@Override
+	public boolean isCombinableSecond() {
+		return super.isCombinableSecond() || getUserCodeClass().getAnnotation(CombinableSecond.class) != null;
+	}
+	
+	@Retention(RetentionPolicy.RUNTIME)
+	@Target(ElementType.TYPE)
+	public static @interface CombinableFirst {};
+	
+	@Retention(RetentionPolicy.RUNTIME)
+	@Target(ElementType.TYPE)
+	public static @interface CombinableSecond {};
+	
+	// --------------------------------------------------------------------------------------------
 
 	/**
 	 * Builder pattern, straight from Joshua Bloch's Effective Java (2nd Edition).
-	 * 
-	 * @author Aljoscha Krettek
 	 */
 	public static class Builder {
 		

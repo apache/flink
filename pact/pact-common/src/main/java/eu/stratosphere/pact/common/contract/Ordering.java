@@ -24,8 +24,8 @@ import eu.stratosphere.pact.common.util.FieldSet;
 /**
  *
  */
-public class Ordering
-{	
+public class Ordering {
+	
 	protected final FieldList indexes = new FieldList();
 	
 	protected final ArrayList<Class<? extends Key>> types = new ArrayList<Class<? extends Key>>();
@@ -37,8 +37,7 @@ public class Ordering
 	/**
 	 * 
 	 */
-	public Ordering() {
-	}
+	public Ordering() {}
 	
 	/**
 	 * @param index
@@ -55,8 +54,7 @@ public class Ordering
 	 * @param order
 	 * @return
 	 */
-	public Ordering appendOrdering(Integer index, Class<? extends Key> type, Order order)
-	{
+	public Ordering appendOrdering(Integer index, Class<? extends Key> type, Order order) {
 		if (index.intValue() < 0) {
 			throw new IllegalArgumentException("The key index must not be negative.");
 		}

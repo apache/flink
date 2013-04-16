@@ -19,11 +19,8 @@ import eu.stratosphere.nephele.services.memorymanager.SeekableDataInputView;
 import eu.stratosphere.nephele.services.memorymanager.SeekableDataOutputView;
 
 /**
- *
- *
- * @author Stephan Ewen
+ * 
  */
-public interface LazyDeSerializable
-{
+public interface LazyDeSerializable {
 	public void setDeSerializer(SeekableDataInputView inView, SeekableDataOutputView outView, long startPosition);
 }

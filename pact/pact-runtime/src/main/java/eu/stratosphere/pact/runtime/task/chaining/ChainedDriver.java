@@ -15,30 +15,39 @@
 
 package eu.stratosphere.pact.runtime.task.chaining;
 
+import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.RuntimeContext;
 import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
+import eu.stratosphere.pact.runtime.udf.RuntimeUDFContext;
 
 
 /**
  * The interface to be implemented by drivers that do not run in an own pact task context, but are chained to other tasks.
- *
- * @author Stephan Ewen
  */
-public interface ChainedDriver<IT, OT> extends Collector<IT>
-{
-	public void setup(TaskConfig config, String taskName, AbstractInvokable parent, ClassLoader userCodeClassLoader, Collector<OT> output);
+public abstract class ChainedDriver<IT, OT> implements Collector<IT> {
+	
+	public abstract void setup(TaskConfig config, String taskName, AbstractInvokable parent, ClassLoader userCodeClassLoader, Collector<OT> output);
 	
 	
-	public void openTask() throws Exception;
+	public abstract void openTask() throws Exception;
 	
-	public void closeTask() throws Exception;
+	public abstract void closeTask() throws Exception;
 	
-	public void cancelTask();
+	public abstract void cancelTask();
 	
 	
-	public Stub getStub();
+	public abstract Stub getStub();
 	
-	public String getTaskName();
+	public abstract String getTaskName();
+	
+	@Override
+	public abstract void collect(IT record);
+	
+	protected RuntimeContext getRuntimeContext(AbstractInvokable parent, String name) {
+		Environment env = parent.getEnvironment();
+		return new RuntimeUDFContext(name, env.getCurrentNumberOfSubtasks(), env.getIndexInSubtaskGroup());
+	}
 }

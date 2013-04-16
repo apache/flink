@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -12,24 +12,16 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-
-package eu.stratosphere.pact.common.plan;
+package eu.stratosphere.pact.common.stubs;
 
 /**
- * A visitor encapsulates functionality that is applied to each node in the process of a traversal of a tree or DAD. 
+ *
  */
-public interface Visitor<T extends Visitable<T>>
-{
-	/**
-	 * 
-	 * @param visitable
-	 * 
-	 * @return True, if the traversal should continue, false otherwise.
-	 */
-	boolean preVisit(T visitable);
-
-	/**
-	 * @param visitable
-	 */
-	void postVisit(T visitable);
+public interface RuntimeContext {
+	
+	String getTaskName();
+	
+	int getNumberOfParallelSubtasks();
+	
+	int getIndexOfThisSubtask();
 }

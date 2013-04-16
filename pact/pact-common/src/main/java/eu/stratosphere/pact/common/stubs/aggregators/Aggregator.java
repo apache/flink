@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.iterative.aggregate;
+package eu.stratosphere.pact.common.stubs.aggregators;
 
 import eu.stratosphere.pact.common.type.Value;
 

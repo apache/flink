@@ -107,4 +107,10 @@ public class CustomCompensatableDotProductCoGroup extends AbstractStub implement
 		}
 		IterationContext.instance().setAggregate(workerIndex, aggregator.getAggregate());
 	}
+
+	@Override
+	public void combineFirst(Iterator<VertexWithRankAndDangling> records, Collector<VertexWithRankAndDangling> out) {}
+
+	@Override
+	public void combineSecond(Iterator<VertexWithRank> records, Collector<VertexWithRank> out) {}
 }

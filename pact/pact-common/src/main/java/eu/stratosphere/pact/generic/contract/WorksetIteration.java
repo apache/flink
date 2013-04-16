@@ -17,7 +17,7 @@ package eu.stratosphere.pact.generic.contract;
 
 import java.util.List;
 
-import eu.stratosphere.pact.common.plan.Visitor;
+import eu.stratosphere.pact.common.util.Visitor;
 import eu.stratosphere.pact.generic.stub.AbstractStub;
 
 /**

@@ -42,8 +42,10 @@ import eu.stratosphere.pact.runtime.task.chaining.ChainedDriver;
 /**
  * Configuration class which stores all relevant parameters required to set up the Pact tasks.
  */
-public class TaskConfig
-{	
+public class TaskConfig {
+	
+	private static final String TASK_NAME = "pact.task.name";
+	
 	// ------------------------------------ User Code ---------------------------------------------
 	
 	private static final String STUB_CLASS = "pact.stub.class";
@@ -144,6 +146,8 @@ public class TaskConfig
 	
 	private static final String NUMBER_OF_EOS_EVENTS_PREFIX = "pact.iterative.num-eos-events.";
 	
+	private static final String ITERATION_HEAD_ID = "pact.iterative.head.id";
+	
 	private static final String ITERATION_HEAD_INDEX_OF_PARTIAL_SOLUTION = "pact.iterative.head.ps-input-index";
 	
 	private static final String ITERATION_HEAD_BACKCHANNEL_MEMORY = "pact.iterative.head.backchannel-memory";
@@ -185,7 +189,18 @@ public class TaskConfig
 	// --------------------------------------------------------------------------------------------
 	//                                       User Code
 	// --------------------------------------------------------------------------------------------
-
+	
+	public void setTaskName(String name) {
+		if (name != null) {
+			this.config.setString(TASK_NAME, name);
+		}
+	}
+	
+	public String getTaskName() {
+		return this.config.getString(TASK_NAME, null);
+	}
+	
+	
 	public void setStubClass(Class<?> stubClass) {
 		this.config.setString(STUB_CLASS, stubClass.getName());
 	}
@@ -669,6 +684,21 @@ public class TaskConfig
 
 	public boolean usesConvergenceCriterion() {
 		return config.getString(ITERATION_CONVERGENCE_CRITERION, null) != null;
+	}
+	
+	public void setIterationHeadId(int id) {
+		if (id < 0) {
+			throw new IllegalArgumentException();
+		}
+		this.config.setInteger(ITERATION_HEAD_ID, id);
+	}
+	
+	public int getIterationHeadId() {
+		int id = this.config.getInteger(ITERATION_HEAD_ID, -1);
+		if (id == -1) {
+			throw new CorruptConfigurationException("Iteration head ID is missing.");
+		}
+		return id;
 	}
 	
 	public void setIterationHeadIndexOfSyncOutput(int outputIndex) {

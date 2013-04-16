@@ -23,8 +23,8 @@ import java.util.Iterator;
 /**
  *
  */
-public class FieldSet implements Iterable<Integer>
-{
+public class FieldSet implements Iterable<Integer> {
+	
 	protected final Collection<Integer> collection;
 
 	// --------------------------------------------------------------------------------------------

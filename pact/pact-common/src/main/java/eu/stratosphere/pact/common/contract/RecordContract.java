@@ -21,8 +21,8 @@ import eu.stratosphere.pact.common.type.PactRecord;
 /**
  * Interface marking contract classes to be referring to the {@link PactRecord} data model.
  */
-public interface RecordContract
-{
+public interface RecordContract {
+	
 	/**
 	 * Gets the key classes that this record works on.
 	 * 

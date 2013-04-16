@@ -18,8 +18,8 @@ package eu.stratosphere.pact.compiler.plan.candidate;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.util.FieldList;
+import eu.stratosphere.pact.common.util.Visitor;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.SingleInputNode;
 import eu.stratosphere.pact.generic.types.TypeComparatorFactory;

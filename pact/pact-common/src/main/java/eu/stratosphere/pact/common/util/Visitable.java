@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.common.plan;
+package eu.stratosphere.pact.common.util;
 
 /**
  * This interface marks types as visitable during a traversal. The central method <i>accept(...)</i> contains the logic

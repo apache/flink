@@ -1,6 +1,6 @@
 package eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank;
 
-import eu.stratosphere.pact.runtime.iterative.aggregate.Aggregator;
+import eu.stratosphere.pact.common.stubs.aggregators.Aggregator;
 import eu.stratosphere.pact.runtime.iterative.convergence.ConvergenceCriterion;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;

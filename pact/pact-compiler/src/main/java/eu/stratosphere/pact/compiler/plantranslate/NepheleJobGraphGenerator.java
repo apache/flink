@@ -37,8 +37,8 @@ import eu.stratosphere.nephele.jobgraph.JobInputVertex;
 import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.nephele.template.AbstractInputTask;
-import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.util.PactConfigConstants;
+import eu.stratosphere.pact.common.util.Visitor;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.plan.TempMode;
 import eu.stratosphere.pact.compiler.plan.candidate.BulkIterationPlanNode;
@@ -77,8 +77,8 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  * The basic method of operation is a top down traversal over the plan graph. On the way down, tasks are created
  * for the plan nodes, on the way back up, the nodes connect their predecessor.
  */
-public class NepheleJobGraphGenerator implements Visitor<PlanNode>
-{	
+public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
+	
 	private static final Log LOG = LogFactory.getLog(NepheleJobGraphGenerator.class);
 	
 	// ------------------------------------------------------------------------
@@ -100,6 +100,8 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode>
 	private final int defaultMaxFan;
 	
 	private final float defaultSortSpillingThreshold;
+	
+	private int iterationHeadId = 1;
 	
 	private boolean inIteration; // flag to check that no iterations are nested at the moment!
 	
@@ -129,8 +131,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode>
 	 *        Optimized PACT plan that is translated into a JobGraph.
 	 * @return JobGraph generated from PACT plan.
 	 */
-	public JobGraph compileJobGraph(OptimizedPlan pactPlan)
-	{
+	public JobGraph compileJobGraph(OptimizedPlan pactPlan) {
 		this.jobGraph = new JobGraph(pactPlan.getJobName());
 		this.vertices = new HashMap<PlanNode, AbstractJobVertex>();
 		this.chainedTasks = new HashMap<PlanNode, TaskInChain>();
@@ -138,9 +139,6 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode>
 		this.auxVertices = new ArrayList<AbstractJobVertex>();
 		this.iterations = new HashMap<PlanNode, IterationDescriptor>();
 		this.maxDegreeVertex = null;
-		
-		// set Nephele JobGraph config
-		pactPlan.getPlanConfiguration().extractNepheleConfiguration(this.jobGraph.getJobConfiguration());
 		
 		// generate Nephele job graph
 		pactPlan.accept(this);
@@ -203,7 +201,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode>
 	 * @param node
 	 *        The node that is currently processed.
 	 * @return True, if the visitor should descend to the node's children, false if not.
-	 * @see eu.stratosphere.pact.common.plan.Visitor#preVisit(eu.stratosphere.pact.common.plan.Visitable)
+	 * @see eu.stratosphere.pact.common.util.Visitor#preVisit(eu.stratosphere.pact.common.plan.Visitable)
 	 */
 	@Override
 	public boolean preVisit(PlanNode node) {
@@ -292,7 +290,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode>
 	 * 
 	 * @param node
 	 *        The node currently processed during the post-visit.
-	 * @see eu.stratosphere.pact.common.plan.Visitor#postVisit(eu.stratosphere.pact.common.plan.Visitable)
+	 * @see eu.stratosphere.pact.common.util.Visitor#postVisit(eu.stratosphere.pact.common.plan.Visitable)
 	 */
 	@Override
 	public void postVisit(PlanNode node) {
@@ -654,18 +652,18 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode>
 		// 4) That successor is not itself the last node of the step function
 		
 		final boolean merge;
-//		if (pspn.getOutgoingChannels().size() == 1) {
-//			final Channel c = pspn.getOutgoingChannels().get(0);
-//			final PlanNode successor = c.getTarget();
-//			merge = c.getShipStrategy() == ShipStrategyType.FORWARD &&
-//					c.getLocalStrategy() == LocalStrategy.NONE &&
-//					successor.getDegreeOfParallelism() == pspn.getDegreeOfParallelism() &&
-//					successor.getSubtasksPerInstance() == pspn.getSubtasksPerInstance() &&
-//					!(successor instanceof UnionPlanNode) &&
-//					successor != iteration.getRootOfStepFunction();
-//		} else {
+		if (pspn.getOutgoingChannels().size() == 1) {
+			final Channel c = pspn.getOutgoingChannels().get(0);
+			final PlanNode successor = c.getTarget();
+			merge = c.getShipStrategy() == ShipStrategyType.FORWARD &&
+					c.getLocalStrategy() == LocalStrategy.NONE &&
+					successor.getDegreeOfParallelism() == pspn.getDegreeOfParallelism() &&
+					successor.getSubtasksPerInstance() == pspn.getSubtasksPerInstance() &&
+					!(successor instanceof UnionPlanNode) &&
+					successor != iteration.getRootOfStepFunction();
+		} else {
 			merge = false;
-//		}
+		}
 		
 		// create or adopt the head vertex
 		final JobTaskVertex toReturn;
@@ -844,6 +842,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode>
 			throw new CompilerException("Bug: No memory has been assigned to the iteration back channel.");
 		}
 		headConfig.setBackChannelMemory(memForBackChannel);
+		headConfig.setIterationHeadId(this.iterationHeadId++);
 		
 		// --------------------------- create the sync task ---------------------------
 		final JobOutputVertex sync = new JobOutputVertex("Bulk-Iteration Sync (" +
@@ -914,8 +913,8 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode>
 	 * Utility class that describes a task in a sequence of chained tasks. Chained tasks are tasks that run
 	 * together in one thread.
 	 */
-	private static final class TaskInChain
-	{
+	private static final class TaskInChain {
+		
 		private final Class<? extends ChainedDriver<?, ?>> chainedTask;
 		
 		private final TaskConfig taskConfig;
@@ -952,16 +951,15 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode>
 		}
 	}
 	
-	private static final class IterationDescriptor
-	{
+	private static final class IterationDescriptor {
+		
 		private final IterationPlanNode iterationNode;
 		
 		private final JobTaskVertex headTask;
 		
 		private final TaskConfig  headFinalResultConfig;
 
-		public IterationDescriptor(IterationPlanNode iterationNode, JobTaskVertex headTask)
-		{
+		public IterationDescriptor(IterationPlanNode iterationNode, JobTaskVertex headTask) {
 			this.iterationNode = iterationNode;
 			this.headTask = headTask;
 			this.headFinalResultConfig = new TaskConfig(new Configuration());

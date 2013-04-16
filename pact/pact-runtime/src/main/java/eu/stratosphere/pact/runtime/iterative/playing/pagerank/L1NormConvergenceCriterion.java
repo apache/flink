@@ -15,8 +15,8 @@
 
 package eu.stratosphere.pact.runtime.iterative.playing.pagerank;
 
+import eu.stratosphere.pact.common.stubs.aggregators.Aggregator;
 import eu.stratosphere.pact.common.type.base.PactDouble;
-import eu.stratosphere.pact.runtime.iterative.aggregate.Aggregator;
 import eu.stratosphere.pact.runtime.iterative.aggregate.SumDoubleAggregator;
 import eu.stratosphere.pact.runtime.iterative.convergence.ConvergenceCriterion;
 import org.apache.commons.logging.Log;

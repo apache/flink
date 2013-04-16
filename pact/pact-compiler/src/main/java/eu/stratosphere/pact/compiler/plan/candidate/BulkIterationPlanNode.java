@@ -18,7 +18,7 @@ package eu.stratosphere.pact.compiler.plan.candidate;
 import static eu.stratosphere.pact.compiler.plan.candidate.PlanNode.SourceAndDamReport.FOUND_SOURCE;
 import static eu.stratosphere.pact.compiler.plan.candidate.PlanNode.SourceAndDamReport.FOUND_SOURCE_AND_DAM;
 
-import eu.stratosphere.pact.common.plan.Visitor;
+import eu.stratosphere.pact.common.util.Visitor;
 import eu.stratosphere.pact.compiler.costs.Costs;
 import eu.stratosphere.pact.compiler.plan.BulkIterationNode;
 import eu.stratosphere.pact.generic.types.TypeSerializerFactory;

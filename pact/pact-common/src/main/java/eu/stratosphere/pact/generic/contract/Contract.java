@@ -20,8 +20,8 @@ import java.util.List;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.CompilerHints;
-import eu.stratosphere.pact.common.plan.Visitable;
 import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.util.Visitable;
 
 /**
 * Abstract base class for all Parallelization Contracts (PACTs).

@@ -36,7 +36,7 @@ import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
 /**
  * 
  */
-public class ChainedCombineDriver<T> implements ChainedDriver<T, T> {
+public class ChainedCombineDriver<T> extends ChainedDriver<T, T> {
 	
 	private InputDataCollector<T> inputCollector;
 	
@@ -79,6 +79,7 @@ public class ChainedCombineDriver<T> implements ChainedDriver<T, T> {
 		@SuppressWarnings("unchecked")
 		final GenericReducer<T, ?> combiner = RegularPactTask.instantiateUserCode(config, userCodeClassLoader, GenericReducer.class);
 		this.combiner = combiner;
+		combiner.setRuntimeContext(getRuntimeContext(parent, taskName));
 	}
 	
 	/* (non-Javadoc)
@@ -88,12 +89,6 @@ public class ChainedCombineDriver<T> implements ChainedDriver<T, T> {
 	public void openTask() throws Exception {
 		// open the stub first
 		final Configuration stubConfig = this.config.getStubParameters();
-		stubConfig.setInteger("pact.parallel.task.id", this.parent.getEnvironment().getIndexInSubtaskGroup());
-		stubConfig.setInteger("pact.parallel.task.count", this.parent.getEnvironment().getCurrentNumberOfSubtasks());
-		
-		if (this.parent.getEnvironment().getTaskName() != null) {
-			stubConfig.setString("pact.parallel.task.name", this.parent.getEnvironment().getTaskName());
-		}
 		RegularPactTask.openUserCode(this.combiner, stubConfig);
 		
 		// ----------------- Set up the asynchronous sorter -------------------------

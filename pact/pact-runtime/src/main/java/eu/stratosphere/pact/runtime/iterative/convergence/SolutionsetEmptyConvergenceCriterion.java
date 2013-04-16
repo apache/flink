@@ -15,8 +15,8 @@
 
 package eu.stratosphere.pact.runtime.iterative.convergence;
 
+import eu.stratosphere.pact.common.stubs.aggregators.Aggregator;
 import eu.stratosphere.pact.common.type.base.PactLong;
-import eu.stratosphere.pact.runtime.iterative.aggregate.Aggregator;
 import eu.stratosphere.pact.runtime.iterative.aggregate.SumLongAggregator;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;

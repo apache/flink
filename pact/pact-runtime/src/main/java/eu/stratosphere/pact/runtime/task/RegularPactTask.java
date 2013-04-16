@@ -24,6 +24,7 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
+import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.io.AbstractRecordWriter;
 import eu.stratosphere.nephele.io.BroadcastRecordWriter;
@@ -40,6 +41,7 @@ import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.pact.common.contract.DataDistribution;
 import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.RuntimeContext;
 import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
@@ -72,13 +74,14 @@ import eu.stratosphere.pact.runtime.task.util.PactRecordNepheleReaderIterator;
 import eu.stratosphere.pact.runtime.task.util.ReaderInterruptionBehavior;
 import eu.stratosphere.pact.runtime.task.util.ReaderInterruptionBehaviors;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
+import eu.stratosphere.pact.runtime.udf.RuntimeUDFContext;
 
 /**
  * The abstract base class for all Pact tasks. Encapsulated common behavior and implements the main life-cycle
  * of the user code.
  */
-public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements PactTaskContext<S, OT>
-{
+public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements PactTaskContext<S, OT> {
+	
 	protected static final Log LOG = LogFactory.getLog(RegularPactTask.class);
 	
 	private static final boolean USE_BROARDCAST_WRITERS = GlobalConfiguration.getBoolean(
@@ -318,6 +321,8 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 			// if the class is null, the driver has no user code 
 			if (userCodeFunctionType != null) {
 				this.stub = initStub(userCodeFunctionType);
+				this.stub.setRuntimeContext(getRuntimeContext());
+				
 			}
 		} catch (Exception e) {
 			throw new RuntimeException("Initializing the user code and the configuration failed" +
@@ -358,11 +363,6 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 			if (this.stub != null) {
 				try {
 					Configuration stubConfig = this.config.getStubParameters();
-					stubConfig.setInteger("pact.parallel.task.id", this.getEnvironment().getIndexInSubtaskGroup());
-					stubConfig.setInteger("pact.parallel.task.count", this.getEnvironment().getCurrentNumberOfSubtasks());
-					if (this.getEnvironment().getTaskName() != null) {
-						stubConfig.setString("pact.parallel.task.name", this.getEnvironment().getTaskName());
-					}
 					this.stub.open(stubConfig);
 					stubOpen = true;
 				}
@@ -777,6 +777,12 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 	protected ReaderInterruptionBehavior readerInterruptionBehavior(int inputGateIndex) {
 		return ReaderInterruptionBehaviors.EXCEPTION_ON_INTERRUPT;
 	}
+	
+	protected RuntimeContext getRuntimeContext() {
+		Environment env = getEnvironment();
+		return new RuntimeUDFContext(env.getTaskName(), env.getCurrentNumberOfSubtasks(), env.getIndexInSubtaskGroup());
+	}
+	
 	/**
 	 * Creates a writer for each output. Creates an OutputCollector which forwards its input to all writers.
 	 * The output collector applies the configured shipping strategies for each writer.

@@ -18,7 +18,7 @@ package eu.stratosphere.pact.common.contract;
 import java.util.ArrayList;
 import java.util.List;
 
-import eu.stratosphere.pact.common.plan.Visitor;
+import eu.stratosphere.pact.common.util.Visitor;
 import eu.stratosphere.pact.generic.contract.Contract;
 import eu.stratosphere.pact.generic.io.OutputFormat;
 
@@ -291,7 +291,7 @@ public class GenericDataSink extends Contract
 	 * 
 	 * @param visitor The visitor.
 	 *  
-	 * @see eu.stratosphere.pact.common.plan.Visitable#accept(eu.stratosphere.pact.common.plan.Visitor)
+	 * @see eu.stratosphere.pact.common.util.Visitable#accept(eu.stratosphere.pact.common.util.Visitor)
 	 */
 	@Override
 	public void accept(Visitor<Contract> visitor)

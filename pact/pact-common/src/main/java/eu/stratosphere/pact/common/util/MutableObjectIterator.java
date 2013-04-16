@@ -22,13 +22,11 @@ import java.io.IOException;
  * iterator accepts an object into which it places the content, and that is consolidates the logic
  * in a single <code>next()</code> function, rather than in two different functions such as
  * <code>hasNext()</code> and <code>next()</code>. 
- *
- * @author Stephan Ewen
  * 
  * @param <E> The element type of the collection iterated over.
  */
-public interface MutableObjectIterator<E>
-{
+public interface MutableObjectIterator<E> {
+	
 	/**
 	 * Gets the next element from the collection. The contents of that next element is put into the given target object.
 	 * 

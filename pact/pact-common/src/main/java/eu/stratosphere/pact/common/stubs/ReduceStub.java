@@ -29,11 +29,9 @@ import eu.stratosphere.pact.generic.stub.GenericReducer;
  * The ReduceStub extension must be parameterized with the types of its input keys.
  * <p>
  * For a reduce implementation, the <code>reduce()</code> method must be implemented.
- * 
- * @author Fabian Hueske
  */
-public abstract class ReduceStub extends AbstractStub implements GenericReducer<PactRecord, PactRecord>
-{
+public abstract class ReduceStub extends AbstractStub implements GenericReducer<PactRecord, PactRecord> {
+	
 	/**
 	 * The central function to be implemented for a reducer. The function receives per call one
 	 * key and all the values that belong to that key. Each key is guaranteed to be processed by exactly
@@ -71,8 +69,7 @@ public abstract class ReduceStub extends AbstractStub implements GenericReducer<
 	 *                   decide whether to retry the combiner execution.
 	 */
 	@Override
-	public void combine(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception
-	{
+	public void combine(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {
 		// to be implemented, if the reducer should use a combiner. Note that the combining method
 		// is only used, if the stub class is further annotated with the annotation
 		// @ReduceContract.Combinable

@@ -15,6 +15,11 @@
 
 package eu.stratosphere.pact.generic.contract;
 
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+
 import eu.stratosphere.pact.common.stubs.CoGroupStub;
 import eu.stratosphere.pact.generic.contract.DualInputContract;
 import eu.stratosphere.pact.generic.stub.GenericCoGrouper;
@@ -29,9 +34,27 @@ import eu.stratosphere.pact.generic.stub.GenericCoGrouper;
  * 
  * @see CoGroupStub
  */
-public class GenericCoGroupContract<T extends GenericCoGrouper<?, ?, ?>> extends DualInputContract<T>
-{
+public class GenericCoGroupContract<T extends GenericCoGrouper<?, ?, ?>> extends DualInputContract<T> {
+	
 	public GenericCoGroupContract(Class<? extends T> udf, int[] keyPositions1, int[] keyPositions2, String name) {
 		super(udf, keyPositions1, keyPositions2, name);
 	}
+	
+
+	public boolean isCombinableFirst() {
+		return getUserCodeClass().getAnnotation(CombinableFirst.class) != null;
+	}
+	
+	public boolean isCombinableSecond() {
+		return getUserCodeClass().getAnnotation(CombinableSecond.class) != null;
+	}
+	
+
+	@Retention(RetentionPolicy.RUNTIME)
+	@Target(ElementType.TYPE)
+	public static @interface CombinableFirst {};
+	
+	@Retention(RetentionPolicy.RUNTIME)
+	@Target(ElementType.TYPE)
+	public static @interface CombinableSecond {};
 }

@@ -35,8 +35,8 @@ import eu.stratosphere.pact.generic.stub.GenericReducer;
  * 
  * @see ReduceStub
  */
-public class GenericReduceContract<T extends GenericReducer<?, ?>> extends SingleInputContract<T>
-{
+public class GenericReduceContract<T extends GenericReducer<?, ?>> extends SingleInputContract<T> {
+	
 	public GenericReduceContract(Class <? extends T> udf, int[] keyPositions, String name) {
 		super(udf, keyPositions, name);
 	}

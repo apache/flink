@@ -31,11 +31,9 @@ import eu.stratosphere.pact.generic.stub.GenericCoGrouper;
  * The CoGroupStub extension must be parameterized with the type of the key of its input.
  * <p>
  * For a coGroup implementation, the <code>coGroup()</code> method must be implemented.
- * 
- * @author Fabian Hueske
  */
-public abstract class CoGroupStub extends AbstractStub implements GenericCoGrouper<PactRecord, PactRecord, PactRecord>
-{
+public abstract class CoGroupStub extends AbstractStub implements GenericCoGrouper<PactRecord, PactRecord, PactRecord> {
+	
 	/**
 	 * This method must be implemented to provide a user implementation of a
 	 * matcher. It is called for each two key-value pairs that share the same
@@ -51,4 +49,40 @@ public abstract class CoGroupStub extends AbstractStub implements GenericCoGroup
 	 */
 	@Override
 	public abstract void coGroup(Iterator<PactRecord> records1, Iterator<PactRecord> records2, Collector<PactRecord> out);
+	
+	/**
+	 * This method must be overridden by CoGoup UDFs that want to make use of the combining feature
+	 * on their first input. In addition, the extending class must be annotated as CombinableFirst.
+	 * <p>
+	 * The use of the combiner is typically a pre-reduction of the data.
+	 * 
+	 * @param records The records to be combined.
+	 * @param out The collector to write the result to.
+	 * 
+	 * @throws Exception Implementations may forward exceptions, which are caught by the runtime. When the
+	 *                   runtime catches an exception, it aborts the combine task and lets the fail-over logic
+	 *                   decide whether to retry the combiner execution.
+	 */
+	@Override
+	public void combineFirst(Iterator<PactRecord> records, Collector<PactRecord> out) {
+		throw new UnsupportedOperationException();
+	}
+	
+	/**
+	 * This method must be overridden by CoGoup UDFs that want to make use of the combining feature
+	 * on their second input. In addition, the extending class must be annotated as CombinableSecond.
+	 * <p>
+	 * The use of the combiner is typically a pre-reduction of the data.
+	 * 
+	 * @param records The records to be combined.
+	 * @param out The collector to write the result to.
+	 * 
+	 * @throws Exception Implementations may forward exceptions, which are caught by the runtime. When the
+	 *                   runtime catches an exception, it aborts the combine task and lets the fail-over logic
+	 *                   decide whether to retry the combiner execution.
+	 */
+	@Override
+	public void combineSecond(Iterator<PactRecord> records, Collector<PactRecord> out) {
+		throw new UnsupportedOperationException();
+	}
 }

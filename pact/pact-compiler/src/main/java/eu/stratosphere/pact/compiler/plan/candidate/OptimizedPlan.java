@@ -17,17 +17,16 @@ package eu.stratosphere.pact.compiler.plan.candidate;
 
 import java.util.Collection;
 
-import eu.stratosphere.pact.common.plan.PlanConfiguration;
-import eu.stratosphere.pact.common.plan.Visitable;
-import eu.stratosphere.pact.common.plan.Visitor;
+import eu.stratosphere.pact.common.util.Visitable;
+import eu.stratosphere.pact.common.util.Visitor;
 
 /**
  * The optimizer representation of a plan. The optimizer creates this from the user defined PACT job plan.
  * It works on this representation during its optimization. Finally, this plan is translated to a schedule
  * for the nephele runtime system.
  */
-public class OptimizedPlan implements Visitable<PlanNode>
-{
+public class OptimizedPlan implements Visitable<PlanNode> {
+	
 	/**
 	 * The data sources in the plan.
 	 */
@@ -47,16 +46,12 @@ public class OptimizedPlan implements Visitable<PlanNode>
 	 * Name of the PACT job
 	 */
 	private final String jobName;
-	
-	/**
-	 * Configuration of the PACT job
-	 */
-	private PlanConfiguration planConfig;
 
 	/**
 	 * The name of the instance type that is to be used.
 	 */
 	private String instanceTypeName;
+	
 	
 	/**
 	 * Creates a new instance of this optimizer plan container. The plan is given and fully
@@ -115,25 +110,7 @@ public class OptimizedPlan implements Visitable<PlanNode>
 	public String getJobName() {
 		return this.jobName;
 	}
-	
-	/**
-	 * Returns the configuration of the PACT job.
-	 * 
-	 * @return The configuration of the PACT job.
-	 */
-	public PlanConfiguration getPlanConfiguration() {
-		return this.planConfig;
-	}
-	
-	/**
-	 * Sets the configuration of the PACT job.
-	 * 
-	 * @param planConfig The configuration of the PACT job.
-	 */
-	public void setPlanConfiguration(PlanConfiguration planConfig) {
-		this.planConfig = planConfig;
-	}
-	
+
 	/**
 	 * Gets the name of the instance type that should be used for this PACT job.
 	 * 
@@ -160,7 +137,7 @@ public class OptimizedPlan implements Visitable<PlanNode>
 	 * 
 	 * @param visitor
 	 *        The visitor to apply to the nodes in this plan.
-	 * @see eu.stratosphere.pact.common.plan.Visitable#accept(eu.stratosphere.pact.common.plan.Visitor)
+	 * @see eu.stratosphere.pact.common.util.Visitable#accept(eu.stratosphere.pact.common.util.Visitor)
 	 */
 	@Override
 	public void accept(Visitor<PlanNode> visitor) {

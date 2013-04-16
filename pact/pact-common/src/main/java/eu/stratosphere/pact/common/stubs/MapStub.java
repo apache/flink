@@ -28,8 +28,8 @@ import eu.stratosphere.pact.generic.stub.GenericMapper;
  * 
  * @author Fabian Hueske
  */
-public abstract class MapStub extends AbstractStub implements GenericMapper<PactRecord, PactRecord>
-{
+public abstract class MapStub extends AbstractStub implements GenericMapper<PactRecord, PactRecord> {
+	
 	/**
 	 * This method must be implemented to provide a user implementation of a mapper.
 	 * It is called for each individual record.

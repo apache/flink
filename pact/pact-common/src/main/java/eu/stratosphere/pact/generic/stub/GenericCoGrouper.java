@@ -20,7 +20,11 @@ import java.util.Iterator;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.Stub;
 
-public interface GenericCoGrouper<V1, V2, O> extends Stub
-{
+public interface GenericCoGrouper<V1, V2, O> extends Stub {
+	
 	public abstract void coGroup(Iterator<V1> records1, Iterator<V2> records2, Collector<O> out);
+	
+	public abstract void combineFirst(Iterator<V1> records, Collector<V1> out);
+	
+	public abstract void combineSecond(Iterator<V2> records, Collector<V2> out);
 }

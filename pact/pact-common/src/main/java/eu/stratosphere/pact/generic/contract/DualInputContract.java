@@ -18,8 +18,8 @@ package eu.stratosphere.pact.generic.contract;
 import java.util.ArrayList;
 import java.util.List;
 
-import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.stubs.Stub;
+import eu.stratosphere.pact.common.util.Visitor;
 
 /**
  * Abstract contract superclass for for all contracts that have two inputs, like "match" or "cross".

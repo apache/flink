@@ -12,24 +12,40 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.pact.compiler.plan;
+package eu.stratosphere.pact.runtime.udf;
 
-import eu.stratosphere.pact.common.util.Visitor;
+import eu.stratosphere.pact.common.stubs.RuntimeContext;
 
-final class InterestingPropertiesClearer implements Visitor<OptimizerNode> {
+/**
+ *
+ */
+public class RuntimeUDFContext implements RuntimeContext {
 	
-	static final InterestingPropertiesClearer INSTANCE = new InterestingPropertiesClearer();
-
+	private final String name;
+	
+	private final int numParallelSubtasks;
+	
+	private final int subtaskIndex;
+	
+	
+	public RuntimeUDFContext(String name, int numParallelSubtasks, int subtaskIndex) {
+		this.name = name;
+		this.numParallelSubtasks = numParallelSubtasks;
+		this.subtaskIndex = subtaskIndex;
+	}
+	
 	@Override
-	public boolean preVisit(OptimizerNode visitable) {
-		if (visitable.getInterestingProperties() != null) {
-			visitable.clearInterestingProperties();
-			return true;
-		} else {
-			return false;
-		}
+	public String getTaskName() {
+		return this.name;
 	}
 
 	@Override
-	public void postVisit(OptimizerNode visitable) {}
+	public int getNumberOfParallelSubtasks() {
+		return this.numParallelSubtasks;
+	}
+
+	@Override
+	public int getIndexOfThisSubtask() {
+		return this.subtaskIndex;
+	}
 }

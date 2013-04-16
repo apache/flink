@@ -20,6 +20,8 @@ import java.util.Calendar;
 import java.util.Collection;
 
 import eu.stratosphere.pact.common.contract.GenericDataSink;
+import eu.stratosphere.pact.common.util.Visitable;
+import eu.stratosphere.pact.common.util.Visitor;
 import eu.stratosphere.pact.generic.contract.Contract;
 
 
@@ -29,8 +31,8 @@ import eu.stratosphere.pact.generic.contract.Contract;
  * The program (data flow) is references by this plan by holding it sinks, from which a traversal reaches all connected
  * nodes. 
  */
-public class Plan implements Visitable<Contract>
-{
+public class Plan implements Visitable<Contract> {
+	
 	/**
 	 * A collection of all sinks in the plan. Since the plan is traversed from the sinks to the sources, this
 	 * collection must contain all the sinks.
@@ -50,12 +52,7 @@ public class Plan implements Visitable<Contract>
 	/**
 	 * The maximal number of machines to use in the job.
 	 */
-	protected int maxNumberMachines;
-	
-	/**
-	 * The plan's configuration 
-	 */
-	protected PlanConfiguration planConfiguration;
+	protected int maxNumberMachines;;
 
 	// ------------------------------------------------------------------------
 
@@ -69,11 +66,9 @@ public class Plan implements Visitable<Contract>
 	 * @param sinks The collection will the sinks of the plan.
 	 * @param jobName The name to display for the job.
 	 */
-	public Plan(Collection<GenericDataSink> sinks, String jobName)
-	{
+	public Plan(Collection<GenericDataSink> sinks, String jobName) {
 		this.sinks = sinks;
 		this.jobName = jobName;
-		this.planConfiguration = new PlanConfiguration();
 	}
 
 	/**
@@ -85,12 +80,10 @@ public class Plan implements Visitable<Contract>
 	 * @param sink The data sink of the data flow.
 	 * @param jobName The name to display for the job.
 	 */
-	public Plan(GenericDataSink sink, String jobName)
-	{
+	public Plan(GenericDataSink sink, String jobName) {
 		this.sinks = new ArrayList<GenericDataSink>();
 		this.sinks.add(sink);
 		this.jobName = jobName;
-		this.planConfiguration = new PlanConfiguration();
 	}
 
 	/**
@@ -102,8 +95,7 @@ public class Plan implements Visitable<Contract>
 	 *  
 	 * @param sinks The collection will the sinks of the plan.
 	 */
-	public Plan(Collection<GenericDataSink> sinks)
-	{
+	public Plan(Collection<GenericDataSink> sinks) {
 		this(sinks, "PACT Job at " + Calendar.getInstance().getTime());
 	}
 
@@ -116,8 +108,7 @@ public class Plan implements Visitable<Contract>
 	 * 
 	 * @param sink The data sink of the data flow.
 	 */
-	public Plan(GenericDataSink sink)
-	{
+	public Plan(GenericDataSink sink) {
 		this(sink, "PACT Job at " + Calendar.getInstance().getTime());
 	}
 
@@ -150,13 +141,6 @@ public class Plan implements Visitable<Contract>
 	 */
 	public String getJobName() {
 		return this.jobName;
-	}
-	
-	/**
-	 * Gets the plans configuration
-	 */
-	public PlanConfiguration getPlanConfiguration() {
-		return this.planConfiguration;
 	}
 
 	/**
