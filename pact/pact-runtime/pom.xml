@@ -9,7 +9,7 @@
 		<groupId>eu.stratosphere</groupId>
 		<version>0.2</version>
 	</parent>
-	
+
 	<artifactId>pact-runtime</artifactId>
 	<name>pact-runtime</name>
 
@@ -22,17 +22,11 @@
 			<artifactId>pact-common</artifactId>
 			<version>${project.version}</version>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
 			<artifactId>nephele-server</artifactId>
 			<version>${project.version}</version>
-		</dependency>
-		
-		<dependency>
-			<groupId>com.google.guava</groupId>
-			<artifactId>guava</artifactId>
-			<version>r09</version>
 		</dependency>
 
 		<dependency>
@@ -41,12 +35,12 @@
 			<version>0.2</version>
 		</dependency>
 
-    <dependency>
-      <groupId>org.apache.hadoop</groupId>
-      <artifactId>hadoop-core</artifactId>
-    </dependency>
+		<dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-core</artifactId>
+		</dependency>
 
-  </dependencies>
+	</dependencies>
 
 	<reporting>
 		<plugins>
@@ -63,8 +57,6 @@
 				<configuration>
 					<excludes>
 						<exclude>**/TestData.java</exclude>
-						<!--  Performance Tests are excluded -->
-						<exclude>**/HashVsSortTest.java</exclude>
 					</excludes>
 					<forkMode>once</forkMode>
 					<argLine>-Xms512m -Xmx1024m</argLine>

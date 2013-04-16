@@ -1,38 +1,36 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 
-  <modelVersion>4.0.0</modelVersion>
+	<modelVersion>4.0.0</modelVersion>
 
-  <parent>
-    <artifactId>pact</artifactId>
-    <groupId>eu.stratosphere</groupId>
-    <version>0.2</version>
-  </parent>
+	<parent>
+		<artifactId>pact</artifactId>
+		<groupId>eu.stratosphere</groupId>
+		<version>0.2</version>
+	</parent>
 
-  <artifactId>pact-common</artifactId>
-  <name>pact-common</name>
+	<artifactId>pact-common</artifactId>
+	<name>pact-common</name>
 
-  <packaging>jar</packaging>
+	<packaging>jar</packaging>
 
-  <dependencies>
+	<dependencies>
+		<dependency>
+			<groupId>eu.stratosphere</groupId>
+			<artifactId>nephele-common</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+	</dependencies>
 
-    <dependency>
-      <groupId>eu.stratosphere</groupId>
-      <artifactId>nephele-common</artifactId>
-      <version>${project.version}</version>
-    </dependency>
+	<reporting>
+		<plugins>
+		</plugins>
+	</reporting>
 
+	<build>
+		<plugins>
+		</plugins>
+	</build>
 
-  </dependencies>
-
-  <reporting>
-    <plugins>
-    </plugins>
-  </reporting>
-
-  <build>
-    <plugins>
-    </plugins>
-  </build>
-  
 </project>

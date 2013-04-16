@@ -1,107 +1,88 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 
-  <modelVersion>4.0.0</modelVersion>
+	<modelVersion>4.0.0</modelVersion>
 
-  <parent>
-    <artifactId>pact</artifactId>
-    <groupId>eu.stratosphere</groupId>
-    <version>0.2</version>
-  </parent>
+	<parent>
+		<artifactId>pact</artifactId>
+		<groupId>eu.stratosphere</groupId>
+		<version>0.2</version>
+	</parent>
 
-  <artifactId>pact-tests</artifactId>
-  <name>pact-tests</name>
+	<artifactId>pact-tests</artifactId>
+	<name>pact-tests</name>
 
-  <packaging>jar</packaging>
+	<packaging>jar</packaging>
 
-  <dependencies>
-    
-	<dependency>
-      <groupId>eu.stratosphere</groupId>
-      <artifactId>nephele-common</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-    
-    <dependency>
-      <groupId>eu.stratosphere</groupId>
-      <artifactId>nephele-hdfs</artifactId>
-      <version>${project.version}</version>
-    </dependency>
+	<dependencies>
 
-    <dependency>
-      <groupId>eu.stratosphere</groupId>
-      <artifactId>pact-common</artifactId>
-      <version>${project.version}</version>
-    </dependency>
+		<dependency>
+			<groupId>eu.stratosphere</groupId>
+			<artifactId>nephele-common</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
 
-    <dependency>
-      <groupId>eu.stratosphere</groupId>
-      <artifactId>pact-runtime</artifactId>
-      <version>${project.version}</version>
-    </dependency>
+		<dependency>
+			<groupId>eu.stratosphere</groupId>
+			<artifactId>nephele-hdfs</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
 
-    <dependency>
-      <groupId>eu.stratosphere</groupId>
-      <artifactId>pact-compiler</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-    
-    <dependency>
-      <groupId>eu.stratosphere</groupId>
-      <artifactId>pact-clients</artifactId>
-      <version>${project.version}</version>
-    </dependency>
+		<dependency>
+			<groupId>eu.stratosphere</groupId>
+			<artifactId>pact-common</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
 
-    <dependency>
-      <groupId>eu.stratosphere</groupId>
-      <artifactId>pact-examples</artifactId>
-      <version>${project.version}</version>
-    </dependency>
- 
-    <dependency>
-      <groupId>eu.stratosphere</groupId>
-      <artifactId>pact-array-datamodel</artifactId>
-      <version>${project.version}</version>
-    </dependency>
+		<dependency>
+			<groupId>eu.stratosphere</groupId>
+			<artifactId>pact-runtime</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
 
-	<dependency>
-		<groupId>junit</groupId>
-		<artifactId>junit</artifactId>
-		<version>4.7</version>
-		<type>jar</type>
-	</dependency>
-	
-	<dependency>
-		<groupId>org.mockito</groupId>
-		<artifactId>mockito-all</artifactId>
-		<version>1.8.5</version>
-		<type>jar</type>
-	</dependency>
-	
-	<dependency>
-		<groupId>org.powermock</groupId>
-		<artifactId>powermock-module-junit4</artifactId>
-		<version>1.4.9</version>
-		<type>jar</type>
-	</dependency>
-	
-	<dependency>
-		<groupId>org.powermock</groupId>
-		<artifactId>powermock-api-mockito</artifactId>
-		<version>1.4.9</version>
-		<type>jar</type>
-	</dependency>
+		<dependency>
+			<groupId>eu.stratosphere</groupId>
+			<artifactId>pact-compiler</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
 
-  </dependencies>
-	
-  <reporting>
-    <plugins>
-    </plugins>
-  </reporting>
+		<dependency>
+			<groupId>eu.stratosphere</groupId>
+			<artifactId>pact-clients</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
 
-  <build>
-    <plugins>            
-     		 <plugin>
+		<dependency>
+			<groupId>eu.stratosphere</groupId>
+			<artifactId>pact-examples</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>eu.stratosphere</groupId>
+			<artifactId>pact-array-datamodel</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+	</dependencies>
+
+	<reporting>
+		<plugins>
+		</plugins>
+	</reporting>
+
+	<build>
+		<plugins>
+			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
 				<version>2.7</version>
@@ -116,7 +97,7 @@
 					<forkMode>once</forkMode>
 				</configuration>
 			</plugin>
-			
+
 			<plugin>
 				<artifactId>maven-failsafe-plugin</artifactId>
 				<version>2.7</version>
@@ -130,18 +111,18 @@
 				</configuration>
 			</plugin>
 
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-jar-plugin</artifactId>
-        <executions>
-          <execution>
-            <goals>
-              <goal>test-jar</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
-      
-    </plugins>
-  </build>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<executions>
+					<execution>
+						<goals>
+							<goal>test-jar</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+
+		</plugins>
+	</build>
 </project>

@@ -1,21 +1,20 @@
 <assembly>
-    <id>exectuable</id>
-    <formats>
-        <format>dir</format>
-    </formats>
-    <files>
-        <file>
-            <source>src/main/bin/startGrep.sh</source>
-            <outputDirectory>bin</outputDirectory>
-            <fileMode>0755</fileMode>
-        </file>
-    </files>
-    <dependencySets>
-        <dependencySet>
-            <outputDirectory>lib</outputDirectory>
-            <unpack>false</unpack>
-            <scope>runtime</scope>
-        </dependencySet>
-    </dependencySets>
+	<id>exectuable</id>
+	<formats>
+		<format>dir</format>
+	</formats>
+	<files>
+		<file>
+			<source>src/main/bin/startGrep.sh</source>
+			<outputDirectory>bin</outputDirectory>
+			<fileMode>0755</fileMode>
+		</file>
+	</files>
+	<dependencySets>
+		<dependencySet>
+			<outputDirectory>lib</outputDirectory>
+			<unpack>false</unpack>
+			<scope>runtime</scope>
+		</dependencySet>
+	</dependencySets>
 </assembly>
-

@@ -1,39 +1,40 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
-  <parent>
-    <groupId>eu.stratosphere</groupId>
-    <artifactId>nephele</artifactId>
-    <version>0.2</version>
-  </parent>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+	<parent>
+		<groupId>eu.stratosphere</groupId>
+		<artifactId>nephele</artifactId>
+		<version>0.2</version>
+	</parent>
 
-  <modelVersion>4.0.0</modelVersion>
+	<modelVersion>4.0.0</modelVersion>
 
-  <artifactId>nephele-clustermanager</artifactId>
-  <name>nephele-clustermanager</name>
-  <url>http://maven.apache.org</url>
+	<artifactId>nephele-clustermanager</artifactId>
+	<name>nephele-clustermanager</name>
 
-   <dependencies>
-    <dependency>
-      <groupId>eu.stratosphere</groupId>
-      <artifactId>nephele-server</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-  </dependencies>
-  
-   <build>
-  	<plugins>
-  	  <plugin>
-      <groupId>org.apache.maven.plugins</groupId>
-      <artifactId>maven-surefire-plugin</artifactId>
-      <configuration>
-        <!-- we need to execute tests in target/test-classes so that the config files are found -->
-        <workingDirectory>${project.build.testOutputDirectory}</workingDirectory>
-        <excludes>
-          <exclude>**/TestInstanceListener.java</exclude>
-        </excludes>
-      </configuration>
-  	  </plugin>
-  	</plugins>
-  </build>
-  
+	<dependencies>
+		<dependency>
+			<groupId>eu.stratosphere</groupId>
+			<artifactId>nephele-server</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<!-- we need to execute tests in target/test-classes so that the config 
+						files are found -->
+					<workingDirectory>${project.build.testOutputDirectory}</workingDirectory>
+					<excludes>
+						<exclude>**/TestInstanceListener.java</exclude>
+					</excludes>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
+
 </project>

@@ -49,9 +49,13 @@ constructTaskManagerClassPath() {
 			add=1
 		elif [[ "$jarfile" =~ 'nephele-profiling' ]]; then
 			add=1
-		elif [[ "$jarfile" =~ 'nephele-streaming' ]]; then
+		elif [[ "$jarfile" =~ 'nephele-queuescheduler' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'nephele-clustermanager' ]]; then
 			add=1
 		elif [[ "$jarfile" =~ 'pact-common' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'pact-array-datamodel' ]]; then
 			add=1
 		elif [[ "$jarfile" =~ 'pact-runtime' ]]; then
 			add=1
@@ -59,26 +63,16 @@ constructTaskManagerClassPath() {
 			add=1
 		elif [[ "$jarfile" =~ 'commons-logging' ]]; then
 			add=1
+		elif [[ "$jarfile" =~ 'commons-codec' ]]; then
+			add=1
 		elif [[ "$jarfile" =~ 'log4j' ]]; then
 			add=1
 		elif [[ "$jarfile" =~ 'hadoop-core' ]]; then
-			add=1
-		elif [[ "$jarfile" =~ 'httpcore' ]]; then
-			add=1
-		elif [[ "$jarfile" =~ 'httpclient' ]]; then
-			add=1
-		elif [[ "$jarfile" =~ 'commons-codec' ]]; then
 			add=1
 		elif [[ "$jarfile" =~ 'aws-java-sdk' ]]; then
 			add=1
 		elif [[ "$jarfile" =~ 'guava' ]]; then
 			add=1
-		elif [[ "$jarfile" =~ 'sopremo-common' ]]; then
-			add=1
-		elif [[ "$jarfile" =~ 'fastutil' ]]; then
-			add=1
-		 elif [[ "$jarfile" =~ 'commons' ]]; then
-                        add=1
 		fi
 
 		if [[ "$add" = "1" ]]; then
@@ -88,6 +82,10 @@ constructTaskManagerClassPath() {
 				NEPHELE_TM_CLASSPATH=$NEPHELE_TM_CLASSPATH:$jarfile
 			fi
 		fi
+	done
+
+	for jarfile in $NEPHELE_LIB_DIR/dropins/*.jar ; do
+		NEPHELE_JM_CLASSPATH=$NEPHELE_JM_CLASSPATH:$jarfile
 	done
 
 	echo $NEPHELE_TM_CLASSPATH

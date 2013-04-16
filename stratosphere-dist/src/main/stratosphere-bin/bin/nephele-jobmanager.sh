@@ -60,44 +60,26 @@ constructJobManagerClassPath() {
 			add=1
 		elif [[ "$jarfile" =~ 'nephele-clustermanager' ]]; then
 			add=1
-		elif [[ "$jarfile" =~ 'nephele-ec2cloudmanager' ]]; then
-			add=1
-		elif [[ "$jarfile" =~ 'nephele-streaming' ]]; then
-			add=1
-		elif [[ "$jarfile" =~ 'commons-codec' ]]; then
-			add=1
-		elif [[ "$jarfile" =~ 'commons-httpclient' ]]; then
-			add=1
 		elif [[ "$jarfile" =~ 'pact-common' ]]; then
 			add=1
-		elif [[ "$jarfile" =~ 'pact-runtime' ]]; then
+		elif [[ "$jarfile" =~ 'pact-array-datamodel' ]]; then
 			add=1
-		elif [[ "$jarfile" =~ 'jackson' ]]; then
+		elif [[ "$jarfile" =~ 'pact-runtime' ]]; then
 			add=1
 		elif [[ "$jarfile" =~ 'commons-cli' ]]; then
 			add=1
 		elif [[ "$jarfile" =~ 'commons-logging' ]]; then
 			add=1
+		elif [[ "$jarfile" =~ 'commons-codec' ]]; then
+			add=1
 		elif [[ "$jarfile" =~ 'log4j' ]]; then
 			add=1
 		elif [[ "$jarfile" =~ 'hadoop-core' ]]; then
-			add=1
-		elif [[ "$jarfile" =~ 'httpcore' ]]; then
-			add=1
-		elif [[ "$jarfile" =~ 'httpclient' ]]; then
-			add=1
-		elif [[ "$jarfile" =~ 'commons-codec' ]]; then
 			add=1
 		elif [[ "$jarfile" =~ 'aws-java-sdk' ]]; then
 			add=1
 		elif [[ "$jarfile" =~ 'guava' ]]; then
 			add=1
-		elif [[ "$jarfile" =~ 'sopremo-common' ]]; then
-			add=1
-		elif [[ "$jarfile" =~ 'fastutil' ]]; then
-			add=1
-		 elif [[ "$jarfile" =~ 'commons' ]]; then
-                        add=1
 		fi
 
 		if [[ "$add" = "1" ]]; then
@@ -107,6 +89,10 @@ constructJobManagerClassPath() {
 				NEPHELE_JM_CLASSPATH=$NEPHELE_JM_CLASSPATH:$jarfile
 			fi
 		fi
+	done
+
+	for jarfile in $NEPHELE_LIB_DIR/dropins/*.jar ; do
+		NEPHELE_JM_CLASSPATH=$NEPHELE_JM_CLASSPATH:$jarfile
 	done
 
 	echo $NEPHELE_JM_CLASSPATH

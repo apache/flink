@@ -42,25 +42,31 @@ constructPactCLIClientClassPath() {
 			add=1
 		elif [[ "$jarfile" =~ 'nephele-hdfs' ]]; then
 			add=1
+		elif [[ "$jarfile" =~ 'nephele-s3' ]]; then
+			add=1
 		elif [[ "$jarfile" =~ 'pact-clients' ]]; then
 			add=1
 		elif [[ "$jarfile" =~ 'pact-common' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'pact-array-datamodel' ]]; then
 			add=1
 		elif [[ "$jarfile" =~ 'pact-runtime' ]]; then
 			add=1
 		elif [[ "$jarfile" =~ 'pact-compiler' ]]; then
 			add=1
+		elif [[ "$jarfile" =~ 'commons-cli' ]]; then
+			add=1
 		elif [[ "$jarfile" =~ 'commons-logging' ]]; then
 			add=1
-		elif [[ "$jarfile" =~ 'commons-cli' ]]; then
+		elif [[ "$jarfile" =~ 'commons-codec' ]]; then
 			add=1
 		elif [[ "$jarfile" =~ 'log4j' ]]; then
 			add=1
 		elif [[ "$jarfile" =~ 'hadoop-core' ]]; then
 			add=1
-		elif [[ "$jarfile" =~ 'jackson-core-asl' ]]; then
+		elif [[ "$jarfile" =~ 'aws-java-sdk' ]]; then
 			add=1
-		elif [[ "$jarfile" =~ 'jackson-mapper-asl' ]]; then
+		elif [[ "$jarfile" =~ 'guava' ]]; then
 			add=1
 		fi
 
@@ -71,6 +77,10 @@ constructPactCLIClientClassPath() {
 				PACT_CC_CLASSPATH=$PACT_CC_CLASSPATH:$jarfile
 			fi
 		fi
+	done
+
+	for jarfile in $NEPHELE_LIB_DIR/dropins/*.jar ; do
+		NEPHELE_JM_CLASSPATH=$NEPHELE_JM_CLASSPATH:$jarfile
 	done
 
 	echo $PACT_CC_CLASSPATH
