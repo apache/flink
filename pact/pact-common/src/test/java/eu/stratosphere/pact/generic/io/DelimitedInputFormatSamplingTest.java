@@ -82,6 +82,8 @@ public class DelimitedInputFormatSamplingTest {
 				new String[] { PactConfigConstants.DELIMITED_FORMAT_MIN_LINE_SAMPLES_KEY,
 								PactConfigConstants.DELIMITED_FORMAT_MAX_LINE_SAMPLES_KEY },
 				new String[] { "4", "4" });
+			
+			TestDelimitedInputFormat.prepare();
 		} catch (Throwable t) {
 			Assert.fail("Could not load the global configuration.");
 		}
@@ -272,10 +274,14 @@ public class DelimitedInputFormatSamplingTest {
 	//  Mocks
 	// ========================================================================
 	
-	private static final class TestDelimitedInputFormat extends eu.stratosphere.pact.generic.io.DelimitedInputFormat<PactInteger> {
+	private static final class TestDelimitedInputFormat extends DelimitedInputFormat<PactInteger> {
 		@Override
 		public boolean readRecord(PactInteger target, byte[] bytes, int offset, int numBytes) {
 			throw new UnsupportedOperationException();
+		}
+		
+		public static void prepare() {
+			DelimitedInputFormat.loadGloablConfigParams();
 		}
 	}
 }

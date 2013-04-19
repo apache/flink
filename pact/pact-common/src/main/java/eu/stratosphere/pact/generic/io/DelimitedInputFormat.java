@@ -57,19 +57,19 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 	/**
 	 * The maximum number of line samples to be taken.
 	 */
-	private static final int DEFAULT_MAX_NUM_SAMPLES;
+	private static int DEFAULT_MAX_NUM_SAMPLES;
 	
 	/**
 	 * The minimum number of line samples to be taken.
 	 */
-	private static final int DEFAULT_MIN_NUM_SAMPLES;
+	private static int DEFAULT_MIN_NUM_SAMPLES;
 	
 	/**
 	 * The maximum size of a sample record before sampling is aborted. To catch cases where a wrong delimiter is given.
 	 */
-	private static final int MAX_SAMPLE_LEN;
+	private static int MAX_SAMPLE_LEN;
 	
-	static {
+	protected static final void loadGloablConfigParams() {
 		int maxSamples = GlobalConfiguration.getInteger(PactConfigConstants.DELIMITED_FORMAT_MAX_LINE_SAMPLES_KEY,
 				PactConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_LINE_SAMPLES);
 		int minSamples = GlobalConfiguration.getInteger(PactConfigConstants.DELIMITED_FORMAT_MIN_LINE_SAMPLES_KEY,
@@ -107,6 +107,8 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 		}
 		MAX_SAMPLE_LEN = maxLen;
 	}
+	
+	static { loadGloablConfigParams(); }
 	
 	// ------------------------------------- Config Keys ------------------------------------------
 	
