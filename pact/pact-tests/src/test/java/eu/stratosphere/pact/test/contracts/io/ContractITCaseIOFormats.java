@@ -47,11 +47,9 @@ public class ContractITCaseIOFormats {
 			
 			return true;
 		}
-
 	}
 
-	public static class ContractITCaseOutputFormat extends FileOutputFormat
-	{
+	public static class ContractITCaseOutputFormat extends FileOutputFormat {
 		private final StringBuilder buffer = new StringBuilder();
 		private final PactString keyString = new PactString();
 		private final PactInteger valueInteger = new PactInteger();

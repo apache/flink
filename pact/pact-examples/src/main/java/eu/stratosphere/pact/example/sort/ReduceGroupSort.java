@@ -79,7 +79,7 @@ public class ReduceGroupSort implements PlanAssembler, PlanAssemblerDescription 
 	public Plan getPlan(String... args) {
 		
 		// parse job parameters
-		int noSubTasks = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
+		int numSubTasks = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		String dataInput = (args.length > 1 ? args[1] : "");
 		String output = (args.length > 2 ? args[2] : "");
 
@@ -107,7 +107,7 @@ public class ReduceGroupSort implements PlanAssembler, PlanAssemblerDescription 
 			.field(PactInteger.class, 1);
 		
 		Plan plan = new Plan(out, "SecondarySort Example");
-		plan.setDefaultParallelism(noSubTasks);
+		plan.setDefaultParallelism(numSubTasks);
 		return plan;
 	}
 
@@ -116,7 +116,7 @@ public class ReduceGroupSort implements PlanAssembler, PlanAssemblerDescription 
 	 */
 	@Override
 	public String getDescription() {
-		return "Parameters: [noSubStasks] [input] [output]";
+		return "Parameters: [numSubStasks] [input] [output]";
 	}
 
 }

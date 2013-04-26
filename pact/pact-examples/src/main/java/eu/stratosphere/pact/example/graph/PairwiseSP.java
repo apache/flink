@@ -375,7 +375,7 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 	public Plan getPlan(String... args) {
 
 		// parse job parameters
-		int noSubTasks   = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
+		int numSubTasks   = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		String paths     = (args.length > 1 ? args[1] : "");
 		String output    = (args.length > 2 ? args[2] : "");
 		boolean rdfInput = (args.length > 3 ? Boolean.parseBoolean(args[3]) : false);
@@ -387,24 +387,24 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 		} else {
 			pathsInput = new FileDataSource(PathInFormat.class, paths, "Paths");
 		}
-		pathsInput.setDegreeOfParallelism(noSubTasks);
+		pathsInput.setDegreeOfParallelism(numSubTasks);
 
 		MatchContract concatPaths = 
 				MatchContract.builder(ConcatPaths.class, PactString.class, 0, 1)
 			.name("Concat Paths")
 			.build();
 
-		concatPaths.setDegreeOfParallelism(noSubTasks);
+		concatPaths.setDegreeOfParallelism(numSubTasks);
 
 		CoGroupContract findShortestPaths = 
 				CoGroupContract.builder(FindShortestPath.class, PactString.class, 0, 0)
 			.keyField(PactString.class, 1, 1)
 			.name("Find Shortest Paths")
 			.build();
-		findShortestPaths.setDegreeOfParallelism(noSubTasks);
+		findShortestPaths.setDegreeOfParallelism(numSubTasks);
 
 		FileDataSink result = new FileDataSink(PathOutFormat.class,output, "New Paths");
-		result.setDegreeOfParallelism(noSubTasks);
+		result.setDegreeOfParallelism(numSubTasks);
 
 		result.addInput(findShortestPaths);
 		findShortestPaths.addFirstInput(pathsInput);
@@ -422,6 +422,6 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 	 */
 	@Override
 	public String getDescription() {
-		return "Parameters: [noSubStasks], [inputPaths], [outputPaths], [RDFInputFlag]";
+		return "Parameters: [numSubStasks], [inputPaths], [outputPaths], [RDFInputFlag]";
 	}
 }

@@ -37,6 +37,7 @@ import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SourcePlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.UnionPlanNode;
+import eu.stratosphere.pact.compiler.plan.candidate.WorksetIterationPlanNode;
 import eu.stratosphere.pact.generic.contract.DualInputContract;
 import eu.stratosphere.pact.generic.contract.SingleInputContract;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparatorFactory;
@@ -153,6 +154,9 @@ public class PactRecordPostPass implements OptimizerPostPass
 					+ iterationNode.getPactContract().getName() + "'. Missing type information for key field " + 
 					ex.getFieldNumber());
 			}
+		}
+		else if (node instanceof WorksetIterationPlanNode) {
+			// todo
 		}
 		else if (node instanceof SingleInputPlanNode) {
 			final SingleInputPlanNode sn = (SingleInputPlanNode) node;

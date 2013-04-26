@@ -49,8 +49,8 @@ import eu.stratosphere.pact.test.util.minicluster.ClusterProviderPool;
 /**
  * 
  */
-public abstract class CancellingTestBase
-{
+public abstract class CancellingTestBase {
+	
 	private static final Log LOG = LogFactory.getLog(CancellingTestBase.class);
 
 	private static final int MINIMUM_HEAP_SIZE_MB = 192;
@@ -67,26 +67,21 @@ public abstract class CancellingTestBase
 	
 	// --------------------------------------------------------------------------------------------
 	
-	private void verifyJvmOptions()
-	{
+	private void verifyJvmOptions() {
 		final long heap = Runtime.getRuntime().maxMemory() >> 20;
 		Assert.assertTrue("Insufficient java heap space " + heap + "mb - set JVM option: -Xmx" + MINIMUM_HEAP_SIZE_MB
 				+ "m", heap > MINIMUM_HEAP_SIZE_MB - 50);
-		Assert.assertTrue("IPv4 stack required - set JVM option: -Djava.net.preferIPv4Stack=true", "true".equals(System
-				.getProperty("java.net.preferIPv4Stack")));
 	}
 
 	@Before
-	public void startCluster() throws Exception
-	{
+	public void startCluster() throws Exception {
 		verifyJvmOptions();
 		LOG.info("######################### starting cluster #########################");
 		this.cluster = ClusterProviderPool.getInstance(Constants.DEFAULT_TEST_CONFIG);
 	}
 
 	@After
-	public void stopCluster() throws Exception
-	{
+	public void stopCluster() throws Exception {
 		LOG.info("######################### stopping cluster config #########################");
 		cluster.stopCluster();
 		ClusterProviderPool.removeInstance(Constants.DEFAULT_TEST_CONFIG);
@@ -96,13 +91,11 @@ public abstract class CancellingTestBase
 
 	// --------------------------------------------------------------------------------------------
 
-	public void runAndCancelJob(Plan plan, int msecsTillCanceling) throws Exception
-	{
+	public void runAndCancelJob(Plan plan, int msecsTillCanceling) throws Exception {
 		runAndCancelJob(plan, msecsTillCanceling, DEFAULT_CANCEL_FINISHED_INTERVAL);
 	}
 		
-	public void runAndCancelJob(Plan plan, int msecsTillCanceling, int maxTimeTillCanceled) throws Exception
-	{
+	public void runAndCancelJob(Plan plan, int msecsTillCanceling, int maxTimeTillCanceled) throws Exception {
 		try {
 			// submit job
 			final JobGraph jobGraph = getJobGraph(plan);

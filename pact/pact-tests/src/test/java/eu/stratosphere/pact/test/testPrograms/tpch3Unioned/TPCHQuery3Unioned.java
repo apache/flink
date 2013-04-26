@@ -15,27 +15,16 @@
 
 package eu.stratosphere.pact.test.testPrograms.tpch3Unioned;
 
-import java.util.Iterator;
-
-import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.pact.common.io.RecordInputFormat;
 import eu.stratosphere.pact.common.io.RecordOutputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
-import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.common.stubs.MapStub;
-import eu.stratosphere.pact.common.stubs.MatchStub;
-import eu.stratosphere.pact.common.stubs.ReduceStub;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFields;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsFirstExcept;
-import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactLong;
@@ -44,7 +33,10 @@ import eu.stratosphere.pact.common.type.base.parser.DecimalTextDoubleParser;
 import eu.stratosphere.pact.common.type.base.parser.DecimalTextIntParser;
 import eu.stratosphere.pact.common.type.base.parser.DecimalTextLongParser;
 import eu.stratosphere.pact.common.type.base.parser.VarLengthStringParser;
-import eu.stratosphere.pact.common.util.FieldSet;
+import eu.stratosphere.pact.example.relational.TPCHQuery3;
+import eu.stratosphere.pact.example.relational.TPCHQuery3.AggLiO;
+import eu.stratosphere.pact.example.relational.TPCHQuery3.FilterO;
+import eu.stratosphere.pact.example.relational.TPCHQuery3.JoinLiO;
 
 /**
  * The TPC-H is a decision support benchmark on relational data.
@@ -65,132 +57,13 @@ import eu.stratosphere.pact.common.util.FieldSet;
  */
 public class TPCHQuery3Unioned implements PlanAssembler, PlanAssemblerDescription {
 
-	public static final String YEAR_FILTER = "parameter.YEAR_FILTER";
-	public static final String PRIO_FILTER = "parameter.PRIO_FILTER";
-
-	/**
-	 * Map PACT implements the selection and projection on the orders table.
-	 */
-	@ConstantFields({0,1})
-	public static class FilterO extends MapStub {
-		
-		private String prioFilter;		// filter literal for the order priority
-		private int yearFilter;			// filter literal for the year
-		
-		// reusable variables for the fields touched in the mapper
-		private PactString orderStatus;
-		private PactString orderDate;
-		private PactString orderPrio;
-		
-		/**
-		 * Reads the filter literals from the configuration.
-		 * 
-		 * @see eu.stratosphere.pact.common.stubs.Stub#open(eu.stratosphere.nephele.configuration.Configuration)
-		 */
-		@Override
-		public void open(Configuration parameters) {
-			this.yearFilter = parameters.getInteger(YEAR_FILTER, 1990);
-			this.prioFilter = parameters.getString(PRIO_FILTER, "0");
-		}
-	
-		/**
-		 * Filters the orders table by year, orderstatus and orderpriority.
-		 *
-		 *  o_orderstatus = "X" 
-		 *  AND YEAR(o_orderdate) > Y
-		 *  AND o_orderpriority LIKE "Z"
-	 	 *  
-	 	 * Output Schema - 0:ORDERKEY, 1:SHIPPRIORITY
-		 */
-		@Override
-		public void map(final PactRecord record, final Collector<PactRecord> out) {
-			
-			orderStatus = record.getField(2, PactString.class);
-			if (!orderStatus.getValue().equals("F"))
-				return;
-			
-			orderPrio = record.getField(4, PactString.class);
-			if(!orderPrio.getValue().startsWith(this.prioFilter))
-				return;
-			
-			orderDate = record.getField(3, PactString.class);
-			if (!(Integer.parseInt(orderDate.getValue().substring(0, 4)) > this.yearFilter))
-				return;
-	
-			out.collect(record);
-		}
-	}
-
-	/**
-	 * Match PACT realizes the join between LineItem and Order table. The 
-	 * SuperKey OutputContract is annotated because the new key is
-	 * built of the keys of the inputs.
-	 *
-	 */
-	@ConstantFieldsFirstExcept(2)
-	public static class JoinLiO extends MatchStub {
-		
-		/**
-		 * Implements the join between LineItem and Order table on the order key.
-		 * 
-		 * Output Schema - 0:ORDERKEY, 1:SHIPPRIORITY, 2:EXTENDEDPRICE
-		 */
-		@Override
-		public void match(PactRecord order, PactRecord lineitem, Collector<PactRecord> out)
-		{
-			order.setField(2, lineitem.getField(1, PactDouble.class));
-			out.collect(order);
-			
-			System.out.println("ID: " + order.getField(0, PactLong.class).getValue());
-			System.out.println("Prio: " + order.getField(1, PactInteger.class).getValue());
-			System.out.println("ExtPrice: " + order.getField(2, PactDouble.class).getValue());
-		}
-	}
-
-	/**
-	 * Reduce PACT implements the sum aggregation. 
-	 * The Combinable annotation is set as the partial sums can be calculated
-	 * already in the combiner
-	 *
-	 * Output Schema - 0:ORDERKEY, 1:SHIPPRIORITY, 2:SUM(EXTENDEDPRICE)
-	 */
-	@Combinable
-	@ConstantFields({0,1})
-	public static class AggLiO extends ReduceStub {
-		
-		private final PactDouble extendedPrice = new PactDouble();
-		
-		@Override
-		public void reduce(Iterator<PactRecord> values, Collector<PactRecord> out) {
-			PactRecord rec = null;
-			double partExtendedPriceSum = 0;
-
-			while (values.hasNext()) {
-				rec = values.next();
-				partExtendedPriceSum += rec.getField(2, PactDouble.class).getValue();
-			}
-
-			this.extendedPrice.setValue(partExtendedPriceSum);
-			rec.setField(2, this.extendedPrice);
-			out.collect(rec);
-		}
-
-		/**
-		 * Creates partial sums on the price attribute for each data batch.
-		 */
-		@Override
-		public void combine(Iterator<PactRecord> values, Collector<PactRecord> out) {
-			reduce(values, out);
-		}
-	}
-
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
 	public Plan getPlan(final String... args) {
 		// parse program parameters
-		int noSubtasks       = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
+		final int numSubtasks       = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		String orders1Path    = (args.length > 1 ? args[1] : "");
 		String orders2Path    = (args.length > 2 ? args[2] : "");
 		String partJoin1Path    = (args.length > 3 ? args[3] : "");
@@ -201,95 +74,61 @@ public class TPCHQuery3Unioned implements PlanAssembler, PlanAssemblerDescriptio
 
 		// create DataSourceContract for Orders input
 		FileDataSource orders1 = new FileDataSource(RecordInputFormat.class, orders1Path, "Orders 1");
-		orders1.setDegreeOfParallelism(noSubtasks);
 		RecordInputFormat.configureRecordFormat(orders1)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
-			.field(DecimalTextLongParser.class, 0)
-			.field(DecimalTextIntParser.class, 7)
-			.field(VarLengthStringParser.class, 2)
-			.field(VarLengthStringParser.class, 4)
-			.field(VarLengthStringParser.class, 5);
-			
-		// compiler hints
-		orders1.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(0), 1);
-		orders1.getCompilerHints().setAvgBytesPerRecord(16);
-		orders1.getCompilerHints().addUniqueField(0);
-
+			.field(DecimalTextLongParser.class, 0)		// order id
+			.field(DecimalTextIntParser.class, 7) 		// ship prio
+			.field(VarLengthStringParser.class, 2, 2)	// order status
+			.field(VarLengthStringParser.class, 4, 10)	// order date
+			.field(VarLengthStringParser.class, 5, 8);	// order prio
 		
 		FileDataSource orders2 = new FileDataSource(RecordInputFormat.class, orders2Path, "Orders 2");
-		orders2.setDegreeOfParallelism(noSubtasks);
 		RecordInputFormat.configureRecordFormat(orders2)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
-			.field(DecimalTextLongParser.class, 0)
-			.field(DecimalTextIntParser.class, 7)
-			.field(VarLengthStringParser.class, 2)
-			.field(VarLengthStringParser.class, 4)
-			.field(VarLengthStringParser.class, 5);
-		
-		// compiler hints
-		orders2.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(0), 1);
-		orders2.getCompilerHints().setAvgBytesPerRecord(16);
-		orders2.getCompilerHints().addUniqueField(0);
-		
+			.field(DecimalTextLongParser.class, 0)		// order id
+			.field(DecimalTextIntParser.class, 7) 		// ship prio
+			.field(VarLengthStringParser.class, 2, 2)	// order status
+			.field(VarLengthStringParser.class, 4, 10)	// order date
+			.field(VarLengthStringParser.class, 5, 8);	// order prio
 		
 		// create DataSourceContract for LineItems input
 		FileDataSource lineitems = new FileDataSource(RecordInputFormat.class, lineitemsPath, "LineItems");
-		lineitems.setDegreeOfParallelism(noSubtasks);
 		RecordInputFormat.configureRecordFormat(lineitems)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
 			.field(DecimalTextLongParser.class, 0)
 			.field(DecimalTextDoubleParser.class, 5);
-		
-		// compiler hints	
-		lineitems.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(0), 4);
-		lineitems.getCompilerHints().setAvgBytesPerRecord(20);
 
 		// create MapContract for filtering Orders tuples
 		MapContract filterO1 = MapContract.builder(FilterO.class)
 			.name("FilterO")
+			.input(orders1)
 			.build();
-		filterO1.addInput(orders1);
-		filterO1.setDegreeOfParallelism(noSubtasks);
 		// filter configuration
-		filterO1.setParameter(YEAR_FILTER, 1993);
-		filterO1.setParameter(PRIO_FILTER, "5");
-		// compiler hints
-		filterO1.getCompilerHints().setAvgBytesPerRecord(16);
+		filterO1.setParameter(TPCHQuery3.YEAR_FILTER, 1993);
+		filterO1.setParameter(TPCHQuery3.PRIO_FILTER, "5");
 		filterO1.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.05f);
-		filterO1.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(0), 1);
 		
 		// create MapContract for filtering Orders tuples
 		MapContract filterO2 = MapContract.builder(FilterO.class)
 			.name("FilterO")
+			.input(orders2)
 			.build();
-		filterO2.addInput(orders2);
-		filterO2.setDegreeOfParallelism(noSubtasks);
 		// filter configuration
-		filterO2.setParameter(YEAR_FILTER, 1993);
-		filterO2.setParameter(PRIO_FILTER, "5");
-		// compiler hints
-		filterO2.getCompilerHints().setAvgBytesPerRecord(16);
+		filterO2.setParameter(TPCHQuery3.YEAR_FILTER, 1993);
+		filterO2.setParameter(TPCHQuery3.PRIO_FILTER, "5");
 		filterO2.getCompilerHints().setAvgRecordsEmittedPerStubCall(1.0f);
-		filterO2.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(0), 1);
 
 		// create MatchContract for joining Orders and LineItems
 		MatchContract joinLiO = MatchContract.builder(JoinLiO.class, PactLong.class, 0, 0)
-			.input1(filterO2)
+			.input1(filterO2, filterO1)
 			.input2(lineitems)
 			.name("JoinLiO")
 			.build();
-		joinLiO.addFirstInput(filterO1);
-		joinLiO.setDegreeOfParallelism(noSubtasks);
-		// compiler hints
-		joinLiO.getCompilerHints().setAvgBytesPerRecord(24);
-		joinLiO.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(new int[]{0, 1}), 4);
-
 		
 		FileDataSource partJoin1 = new FileDataSource(RecordInputFormat.class, partJoin1Path, "Part Join 1");
-		partJoin1.setDegreeOfParallelism(noSubtasks);
 		RecordInputFormat.configureRecordFormat(partJoin1)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
@@ -298,7 +137,6 @@ public class TPCHQuery3Unioned implements PlanAssembler, PlanAssemblerDescriptio
 			.field(DecimalTextDoubleParser.class, 2);
 		
 		FileDataSource partJoin2 = new FileDataSource(RecordInputFormat.class, partJoin2Path, "Part Join 2");
-		partJoin2.setDegreeOfParallelism(noSubtasks);
 		RecordInputFormat.configureRecordFormat(partJoin2)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
@@ -311,20 +149,12 @@ public class TPCHQuery3Unioned implements PlanAssembler, PlanAssemblerDescriptio
 		ReduceContract aggLiO = ReduceContract.builder(AggLiO.class)
 			.keyField(PactLong.class, 0)
 			.keyField(PactString.class, 1)
-			.input(joinLiO)
+			.input(joinLiO, partJoin2, partJoin1)
 			.name("AggLio")
 			.build();
-		aggLiO.addInput(partJoin2);
-		aggLiO.addInput(partJoin1);
-		aggLiO.setDegreeOfParallelism(noSubtasks);
-		// compiler hints
-		aggLiO.getCompilerHints().setAvgBytesPerRecord(30);
-		aggLiO.getCompilerHints().setAvgRecordsEmittedPerStubCall(1.0f);
-		aggLiO.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(new int[]{0, 1}), 1);
 
 		// create DataSinkContract for writing the result
 		FileDataSink result = new FileDataSink(RecordOutputFormat.class, output, aggLiO, "Output");
-		result.setDegreeOfParallelism(noSubtasks);
 		RecordOutputFormat.configureRecordFormat(result)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
@@ -335,15 +165,12 @@ public class TPCHQuery3Unioned implements PlanAssembler, PlanAssemblerDescriptio
 		
 		// assemble the PACT plan
 		Plan plan = new Plan(result, "TPCH Q3 Unioned");
-		plan.setDefaultParallelism(noSubtasks);
+		plan.setDefaultParallelism(numSubtasks);
 		return plan;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public String getDescription() {
-		return "Parameters: [noSubStasks], [orders1], [orders2], [partJoin1], [partJoin2], [lineitem], [output]";
+		return "Parameters: [numSubStasks], [orders1], [orders2], [partJoin1], [partJoin2], [lineitem], [output]";
 	}
 }

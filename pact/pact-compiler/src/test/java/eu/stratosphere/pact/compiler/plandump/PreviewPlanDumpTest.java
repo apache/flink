@@ -30,7 +30,6 @@ import eu.stratosphere.pact.example.relational.TPCHQuery3;
 import eu.stratosphere.pact.example.relational.WebLogAnalysis;
 import eu.stratosphere.pact.example.wordcount.WordCount;
 
-
 /*
  * The tests in this class simply invokes the JSON dump code for the original plan.
  */
@@ -80,6 +79,7 @@ public class PreviewPlanDumpTest {
 //			PrintWriter writer = new PrintWriter(sw, true);
 			dumper.dumpPactPlanAsJSON(sinks, writer);
 		} catch (Exception e) {
+			e.printStackTrace();
 			Assert.fail("An error occurred in the test: " + e.getMessage());
 		}
 	}

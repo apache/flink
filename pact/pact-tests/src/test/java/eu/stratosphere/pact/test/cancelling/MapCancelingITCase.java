@@ -28,11 +28,10 @@ import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.test.testPrograms.util.DiscardingOutputFormat;
 import eu.stratosphere.pact.test.testPrograms.util.InfiniteIntegerInputFormat;
 
-public class MapCancelingITCase extends CancellingTestBase
-{
+public class MapCancelingITCase extends CancellingTestBase {
+	
 	@Test
-	public void testMapCancelling() throws Exception
-	{
+	public void testMapCancelling() throws Exception {
 		GenericDataSource<InfiniteIntegerInputFormat> source = new GenericDataSource<InfiniteIntegerInputFormat>(
 																		InfiniteIntegerInputFormat.class, "Source");
 		MapContract mapper = MapContract.builder(IdentityMapper.class)
@@ -49,8 +48,7 @@ public class MapCancelingITCase extends CancellingTestBase
 	}
 	
 	@Test
-	public void testSlowMapCancelling() throws Exception
-	{
+	public void testSlowMapCancelling() throws Exception {
 		GenericDataSource<InfiniteIntegerInputFormat> source = new GenericDataSource<InfiniteIntegerInputFormat>(
 																		InfiniteIntegerInputFormat.class, "Source");
 		MapContract mapper = MapContract.builder(DelayingIdentityMapper.class)
@@ -67,8 +65,7 @@ public class MapCancelingITCase extends CancellingTestBase
 	}
 	
 	@Test
-	public void testMapWithLongCancellingResponse() throws Exception
-	{
+	public void testMapWithLongCancellingResponse() throws Exception {
 		GenericDataSource<InfiniteIntegerInputFormat> source = new GenericDataSource<InfiniteIntegerInputFormat>(
 																		InfiniteIntegerInputFormat.class, "Source");
 		MapContract mapper = MapContract.builder(LongCancelTimeIdentityMapper.class)
@@ -85,8 +82,7 @@ public class MapCancelingITCase extends CancellingTestBase
 	}
 	
 	@Test
-	public void testMapPriorToFirstRecordReading() throws Exception
-	{
+	public void testMapPriorToFirstRecordReading() throws Exception {
 		GenericDataSource<InfiniteIntegerInputFormat> source = new GenericDataSource<InfiniteIntegerInputFormat>(
 																		InfiniteIntegerInputFormat.class, "Source");
 		MapContract mapper = MapContract.builder(StuckInOpenIdentityMapper.class)
@@ -104,41 +100,30 @@ public class MapCancelingITCase extends CancellingTestBase
 
 	// --------------------------------------------------------------------------------------------
 	
-	public static final class IdentityMapper extends MapStub
-	{
-		/* (non-Javadoc)
-		 * @see eu.stratosphere.pact.common.stubs.MapStub#map(eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.stubs.Collector)
-		 */
+	public static final class IdentityMapper extends MapStub {
 		@Override
-		public void map(PactRecord record, Collector<PactRecord> out) throws Exception
-		{
+		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
 			out.collect(record);
 		}
 	}
 	
-	public static final class DelayingIdentityMapper extends MapStub
-	{
+	public static final class DelayingIdentityMapper extends MapStub {
+		
 		private static final int WAIT_TIME_PER_RECORD = 10 * 1000; // 10 sec.
-		/* (non-Javadoc)
-		 * @see eu.stratosphere.pact.common.stubs.MapStub#map(eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.stubs.Collector)
-		 */
+
 		@Override
-		public void map(PactRecord record, Collector<PactRecord> out) throws Exception
-		{
+		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
 			Thread.sleep(WAIT_TIME_PER_RECORD);
 			out.collect(record);
 		}
 	}
 	
-	public static final class LongCancelTimeIdentityMapper extends MapStub
-	{
+	public static final class LongCancelTimeIdentityMapper extends MapStub {
+		
 		private static final int WAIT_TIME_PER_RECORD = 5 * 1000; // 5 sec.
-		/* (non-Javadoc)
-		 * @see eu.stratosphere.pact.common.stubs.MapStub#map(eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.stubs.Collector)
-		 */
+
 		@Override
-		public void map(PactRecord record, Collector<PactRecord> out) throws Exception
-		{
+		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
 			final long start = System.currentTimeMillis();
 			long remaining = WAIT_TIME_PER_RECORD;
 			do {
@@ -151,11 +136,8 @@ public class MapCancelingITCase extends CancellingTestBase
 		}
 	}
 	
-	public static final class StuckInOpenIdentityMapper extends MapStub
-	{
-		/* (non-Javadoc)
-		 * @see eu.stratosphere.pact.common.generic.AbstractStub#open(eu.stratosphere.nephele.configuration.Configuration)
-		 */
+	public static final class StuckInOpenIdentityMapper extends MapStub {
+		
 		@Override
 		public void open(Configuration parameters) throws Exception {
 			synchronized (this) {
@@ -163,9 +145,6 @@ public class MapCancelingITCase extends CancellingTestBase
 			}
 		}
 
-		/* (non-Javadoc)
-		 * @see eu.stratosphere.pact.common.stubs.MapStub#map(eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.stubs.Collector)
-		 */
 		@Override
 		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
 			out.collect(record);

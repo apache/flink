@@ -231,7 +231,7 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 	public Plan getPlan(String... args) {
 
 		// parse job parameters
-		int noSubTasks     = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
+		int numSubTasks     = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		String docsInput   = (args.length > 1 ? args[1] : "");
 		String ranksInput  = (args.length > 2 ? args[2] : "");
 		String visitsInput = (args.length > 3 ? args[3] : "");
@@ -244,7 +244,7 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 		 */
 		// Create DataSourceContract for documents relation
 		FileDataSource docs = new FileDataSource(RecordInputFormat.class, docsInput, "Docs Input");
-		docs.setDegreeOfParallelism(noSubTasks);
+		docs.setDegreeOfParallelism(numSubTasks);
 		RecordInputFormat.configureRecordFormat(docs)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
@@ -259,7 +259,7 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 		 */
 		// Create DataSourceContract for ranks relation
 		FileDataSource ranks = new FileDataSource(RecordInputFormat.class, ranksInput, "Ranks input");
-		ranks.setDegreeOfParallelism(noSubTasks);
+		ranks.setDegreeOfParallelism(numSubTasks);
 		RecordInputFormat.configureRecordFormat(ranks)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
@@ -274,7 +274,7 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 		 */
 		// Create DataSourceContract for visits relation
 		FileDataSource visits = new FileDataSource(RecordInputFormat.class, visitsInput, "Visits input:q");
-		visits.setDegreeOfParallelism(noSubTasks);
+		visits.setDegreeOfParallelism(numSubTasks);
 		RecordInputFormat.configureRecordFormat(visits)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
@@ -287,7 +287,7 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 			.input(docs)
 			.name("Filter Docs")
 			.build();
-		filterDocs.setDegreeOfParallelism(noSubTasks);
+		filterDocs.setDegreeOfParallelism(numSubTasks);
 		filterDocs.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.15f);
 		filterDocs.getCompilerHints().setAvgBytesPerRecord(60);
 		filterDocs.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(new int[]{0}), 1);
@@ -297,7 +297,7 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 			.input(ranks)
 			.name("Filter Ranks")
 			.build();
-		filterRanks.setDegreeOfParallelism(noSubTasks);
+		filterRanks.setDegreeOfParallelism(numSubTasks);
 		filterRanks.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.25f);
 		filterRanks.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(new int[]{0}), 1);
 
@@ -306,7 +306,7 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 			.input(visits)
 			.name("Filter Visits")
 			.build();
-		filterVisits.setDegreeOfParallelism(noSubTasks);
+		filterVisits.setDegreeOfParallelism(numSubTasks);
 		filterVisits.getCompilerHints().setAvgBytesPerRecord(60);
 		filterVisits.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.2f);
 
@@ -317,7 +317,7 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 			.input2(filterRanks)
 			.name("Join Docs Ranks")
 			.build();
-		joinDocsRanks.setDegreeOfParallelism(noSubTasks);
+		joinDocsRanks.setDegreeOfParallelism(numSubTasks);
 
 		// Create CoGroupContract to realize a anti join between the joined
 		// documents and ranks relation and the filtered visits relation
@@ -326,12 +326,12 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 			.input2(filterVisits)
 			.name("Antijoin DocsVisits")
 			.build();
-		antiJoinVisits.setDegreeOfParallelism(noSubTasks);
+		antiJoinVisits.setDegreeOfParallelism(numSubTasks);
 		antiJoinVisits.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.8f);
 
 		// Create DataSinkContract for writing the result of the OLAP query
 		FileDataSink result = new FileDataSink(RecordOutputFormat.class, output, antiJoinVisits, "Result");
-		result.setDegreeOfParallelism(noSubTasks);
+		result.setDegreeOfParallelism(numSubTasks);
 		RecordOutputFormat.configureRecordFormat(result)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
@@ -349,6 +349,6 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 	 */
 	@Override
 	public String getDescription() {
-		return "Parameters: [noSubTasks], [docs], [ranks], [visits], [output]";
+		return "Parameters: [numSubTasks], [docs], [ranks], [visits], [output]";
 	}
 }

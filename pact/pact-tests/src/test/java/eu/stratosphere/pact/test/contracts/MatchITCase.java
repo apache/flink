@@ -123,8 +123,9 @@ public class MatchITCase extends TestBase
 			
 			out.collect(value1);
 			
-			LOG.debug("Processed: [" + keyString.toString() + "," + val1 + "] + " +
-					"[" + keyString.toString() + "," + val2 + "]");
+			if (LOG.isDebugEnabled())
+				LOG.debug("Processed: [" + keyString.toString() + "," + val1 + "] + " +
+						"[" + keyString.toString() + "," + val2 + "]");
 		}
 
 	}

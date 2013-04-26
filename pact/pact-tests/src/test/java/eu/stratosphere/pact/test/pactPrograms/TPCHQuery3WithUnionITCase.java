@@ -15,11 +15,12 @@
 
 package eu.stratosphere.pact.test.pactPrograms;
 
+import java.util.ArrayList;
 import java.util.Collection;
-import java.util.LinkedList;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
@@ -147,7 +148,6 @@ public class TPCHQuery3WithUnionITCase extends TestBase {
 
 	@Override
 	protected void preSubmit() throws Exception {
-		
 		orders1Path = getFilesystemProvider().getTempDirPath() + "/orders1";
 		orders2Path = getFilesystemProvider().getTempDirPath() + "/orders2";
 		partJoin1Path = getFilesystemProvider().getTempDirPath() + "/partJoin1";
@@ -189,12 +189,10 @@ public class TPCHQuery3WithUnionITCase extends TestBase {
 			getFilesystemProvider().createFile(lineitemsPath + "/part_" + i + ".txt", splits[i]);
 			LOG.debug("Lineitems Part " + (i + 1) + ":\n>" + splits[i] + "<");
 		}
-
 	}
 
 	@Override
 	protected JobGraph getJobGraph() throws Exception {
-
 		TPCHQuery3Unioned tpch3 = new TPCHQuery3Unioned();
 		Plan plan = tpch3.getPlan(
 				config.getString("TPCHQuery3Test#NoSubtasks", "1"), 
@@ -214,10 +212,7 @@ public class TPCHQuery3WithUnionITCase extends TestBase {
 
 	@Override
 	protected void postSubmit() throws Exception {
-
-		// Test results
 		compareResultsByLinesInMemory(EXPECTED_RESULT, resultPath);
-
 	}
 	
 	@Override
@@ -234,13 +229,10 @@ public class TPCHQuery3WithUnionITCase extends TestBase {
 
 	@Parameters
 	public static Collection<Object[]> getConfigurations() {
-
-		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
-
+		ArrayList<Configuration> tConfigs = new ArrayList<Configuration>();
 		Configuration config = new Configuration();
 		config.setInteger("TPCHQuery3Test#NoSubtasks", 4);
 		tConfigs.add(config);
-
 		return toParameterList(tConfigs);
 	}
 
@@ -264,9 +256,6 @@ public class TPCHQuery3WithUnionITCase extends TestBase {
 			
 		}
 		splits[noSplits - 1] = splitString;
-
 		return splits;
-
 	}
-
 }

@@ -20,7 +20,7 @@ public class IterativeKMeans extends KMeansIteration {
 	@Override
 	public Plan getPlan(String... args) {
 		// parse job parameters
-		final int noSubTasks = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
+		final int numSubTasks = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		final String dataPointInput = (args.length > 1 ? args[1] : "");
 		final String clusterInput = (args.length > 2 ? args[2] : "");
 		final String output = (args.length > 3 ? args[3] : "");
@@ -62,7 +62,7 @@ public class IterativeKMeans extends KMeansIteration {
 
 		// return the PACT plan
 		Plan plan = new Plan(finalResult, "Iterative KMeans");
-		plan.setDefaultParallelism(noSubTasks);
+		plan.setDefaultParallelism(numSubTasks);
 		return plan;
 	}
 
@@ -71,6 +71,6 @@ public class IterativeKMeans extends KMeansIteration {
 	 */
 	@Override
 	public String getDescription() {
-		return "Parameters: <noSubStasks> <dataPoints> <clusterCenters> <output> <numIterations>";
+		return "Parameters: <numSubStasks> <dataPoints> <clusterCenters> <output> <numIterations>";
 	}
 }

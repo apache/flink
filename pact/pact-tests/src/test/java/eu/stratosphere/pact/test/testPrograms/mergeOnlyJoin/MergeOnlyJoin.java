@@ -63,15 +63,15 @@ public class MergeOnlyJoin implements PlanAssembler, PlanAssemblerDescription {
 	@Override
 	public Plan getPlan(final String... args) {
 		// parse program parameters
-		int noSubtasks       = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
+		int numSubtasks       = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		String input1Path    = (args.length > 1 ? args[1] : "");
 		String input2Path    = (args.length > 2 ? args[2] : "");
 		String output        = (args.length > 3 ? args[3] : "");
-		int noSubtasksInput2 = (args.length > 4 ? Integer.parseInt(args[4]) : 1);
+		int numSubtasksInput2 = (args.length > 4 ? Integer.parseInt(args[4]) : 1);
 
 		// create DataSourceContract for Orders input
 		FileDataSource input1 = new FileDataSource(RecordInputFormat.class, input1Path, "Input 1");
-		input1.setDegreeOfParallelism(noSubtasks);
+		input1.setDegreeOfParallelism(numSubtasks);
 		RecordInputFormat.configureRecordFormat(input1)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
@@ -82,12 +82,12 @@ public class MergeOnlyJoin implements PlanAssembler, PlanAssemblerDescription {
 			.input(input1)
 			.name("AggOrders")
 			.build();
-		aggInput1.setDegreeOfParallelism(noSubtasks);
+		aggInput1.setDegreeOfParallelism(numSubtasks);
 
 		
 		// create DataSourceContract for Orders input
 		FileDataSource input2 = new FileDataSource(RecordInputFormat.class, input2Path, "Input 2");
-		input2.setDegreeOfParallelism(noSubtasksInput2);
+		input2.setDegreeOfParallelism(numSubtasksInput2);
 		RecordInputFormat.configureRecordFormat(input2)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
@@ -98,7 +98,7 @@ public class MergeOnlyJoin implements PlanAssembler, PlanAssemblerDescription {
 			.input(input2)
 			.name("AggLines")
 			.build();
-		aggInput2.setDegreeOfParallelism(noSubtasksInput2);		
+		aggInput2.setDegreeOfParallelism(numSubtasksInput2);		
 		
 		// create MatchContract for joining Orders and LineItems
 		MatchContract joinLiO = MatchContract.builder(JoinInputs.class, PactInteger.class, 0, 0)
@@ -106,13 +106,13 @@ public class MergeOnlyJoin implements PlanAssembler, PlanAssemblerDescription {
 			.input2(aggInput2)
 			.name("JoinLiO")
 			.build();
-		joinLiO.setDegreeOfParallelism(noSubtasks);
+		joinLiO.setDegreeOfParallelism(numSubtasks);
 		// compiler hints
 
 
 		// create DataSinkContract for writing the result
 		FileDataSink result = new FileDataSink(RecordOutputFormat.class, output, joinLiO, "Output");
-		result.setDegreeOfParallelism(noSubtasks);
+		result.setDegreeOfParallelism(numSubtasks);
 		RecordOutputFormat.configureRecordFormat(result)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
@@ -123,12 +123,12 @@ public class MergeOnlyJoin implements PlanAssembler, PlanAssemblerDescription {
 		
 		// assemble the PACT plan
 		Plan plan = new Plan(result, "Merge Only Join");
-		plan.setDefaultParallelism(noSubtasks);
+		plan.setDefaultParallelism(numSubtasks);
 		return plan;
 	}
 
 	@Override
 	public String getDescription() {
-		return "Parameters: [noSubTasks], [input], [input2], [output], [noSubTasksInput2]";
+		return "Parameters: [numSubTasks], [input], [input2], [output], [numSubTasksInput2]";
 	}
 }

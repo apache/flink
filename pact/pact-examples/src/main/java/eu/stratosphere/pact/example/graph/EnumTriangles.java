@@ -46,9 +46,6 @@ import eu.stratosphere.pact.common.type.base.PactString;
  * Usually, triangle enumeration is used as a pre-processing step to identify highly connected subgraphs.
  * The algorithm was published as MapReduce job by J. Cohen in "Graph Twiddling in a MapReduce World".
  * The Pact version was described in "MapReduce and PACT - Comparing Data Parallel Programming Models" (BTW 2011). 
- * 
- * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
- * @author Moritz Kaufmann (moritz.kaufmann@campus.tu-berlin.de)
  *
  */
 public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
@@ -61,9 +58,6 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 	 * The EdgeInFormat filters all rdf triples with foaf:knows predicates. The subjects and objects URLs are
 	 * compared.
 	 * The lexicographically smaller URL is set as the first field of the output record, the greater one as the second field.
-	 * 
-	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
-	 * @author Moritz Kaufmann (moritz.kaufmann@campus.tu-berlin.de)
 	 */
 	public static class EdgeInFormat extends DelimitedInputFormat {
 
@@ -114,11 +108,11 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 			boolean isEncaps = false;
 			
 			// check whether string is encapsulated
-			if(bytes[startPos] == encaps) {
+			if (bytes[startPos] == encaps) {
 				isEncaps = true;
 			}
 			
-			if(isEncaps) {
+			if (isEncaps) {
 				// string is encapsulated
 				for (int i = startPos; i < limit; i++) {
 					if (bytes[i] == encaps) {
@@ -157,8 +151,10 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 		
 		// list of non-matching vertices
 		private final ArrayList<PactString> otherVertices = new ArrayList<PactString>(32);
+		
 		// matching vertex
 		private final PactString matchVertex = new PactString();
+		
 		// mutable output record
 		private final PactRecord result = new PactRecord();
 		
@@ -242,7 +238,7 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 	public Plan getPlan(String... args) {
 
 		// parse job parameters
-		int noSubTasks   = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
+		int numSubTasks   = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		String edgeInput = (args.length > 1 ? args[1] : "");
 		String output    = (args.length > 2 ? args[2] : "");
 
@@ -256,8 +252,8 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 			.keyField(PactString.class, 2, 1)
 			.name("Close Triads")
 			.build();
-		closeTriads.setParameter("INPUT_LEFT_SHIP_STRATEGY", "SHIP_REPARTITION");
-		closeTriads.setParameter("INPUT_RIGHT_SHIP_STRATEGY", "SHIP_REPARTITION");
+		closeTriads.setParameter("INPUT_LEFT_SHIP_STRATEGY", "SHIP_REPARTITION_HASH");
+		closeTriads.setParameter("INPUT_RIGHT_SHIP_STRATEGY", "SHIP_REPARTITION_HASH");
 		closeTriads.setParameter("LOCAL_STRATEGY", "LOCAL_STRATEGY_HASH_BUILD_SECOND");
 
 		FileDataSink triangles = new FileDataSink(RecordOutputFormat.class, output, "Output");
@@ -274,7 +270,7 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 		buildTriads.setInput(edges);
 
 		Plan plan = new Plan(triangles, "Enumerate Triangles");
-		plan.setDefaultParallelism(noSubTasks);
+		plan.setDefaultParallelism(numSubTasks);
 		return plan;
 	}
 
@@ -284,6 +280,6 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 	 */
 	@Override
 	public String getDescription() {
-		return "Parameters: [noSubStasks] [inputRDFTriples] [outputTriangles]";
+		return "Parameters: [numSubStasks] [inputRDFTriples] [outputTriangles]";
 	}
 }

@@ -989,7 +989,7 @@ public class PactCompiler {
 				}
 				
 				// add an outgoing connection to the root of the step function
-				PactConnection rootConn = new PactConnection(rootOfStepFunction, null, -1);
+				PactConnection rootConn = new PactConnection(rootOfStepFunction);
 				rootOfStepFunction.addOutgoingConnection(rootConn);
 				
 				iterNode.setNextPartialSolution(rootOfStepFunction, rootConn);

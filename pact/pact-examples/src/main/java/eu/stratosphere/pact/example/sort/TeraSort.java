@@ -44,7 +44,7 @@ public final class TeraSort implements PlanAssembler, PlanAssemblerDescription {
 	@Override
 	public String getDescription() {
 
-		return "Parameters: [noSubStasks] [input] [output]";
+		return "Parameters: [numSubStasks] [input] [output]";
 	}
 
 	/**
@@ -54,19 +54,19 @@ public final class TeraSort implements PlanAssembler, PlanAssemblerDescription {
 	public Plan getPlan(String... args) throws IllegalArgumentException
 	{
 		// parse job parameters
-		final int noSubTasks = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
+		final int numSubTasks = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		final String input = (args.length > 1 ? args[1] : "");
 		final String output = (args.length > 2 ? args[2] : "");
 
 		// This task will read the input data and generate the key/value pairs
 		final FileDataSource source = 
 				new FileDataSource(TeraInputFormat.class, input, "Data Source");
-		source.setDegreeOfParallelism(noSubTasks);
+		source.setDegreeOfParallelism(numSubTasks);
 
 		// This task writes the sorted data back to disk
 		final FileDataSink sink = 
 				new FileDataSink(TeraOutputFormat.class, output, "Data Sink");
-		sink.setDegreeOfParallelism(noSubTasks);
+		sink.setDegreeOfParallelism(numSubTasks);
 		sink.setGlobalOrder(new Ordering(0, TeraKey.class, Order.ASCENDING), new TeraDistribution());
 
 		sink.addInput(source);

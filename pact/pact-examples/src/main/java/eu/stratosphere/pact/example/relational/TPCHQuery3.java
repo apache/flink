@@ -194,7 +194,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	@Override
 	public Plan getPlan(final String... args) {
 		// parse program parameters
-		final int noSubtasks       = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
+		final int numSubtasks       = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		final String ordersPath    = (args.length > 1 ? args[1] : "");
 		final String lineitemsPath = (args.length > 2 ? args[2] : "");
 		final String output        = (args.length > 3 ? args[3] : "");
@@ -257,7 +257,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		
 		// assemble the PACT plan
 		Plan plan = new Plan(result, "TPCH Q3");
-		plan.setDefaultParallelism(noSubtasks);
+		plan.setDefaultParallelism(numSubtasks);
 		return plan;
 	}
 
@@ -266,6 +266,6 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	 */
 	@Override
 	public String getDescription() {
-		return "Parameters: [noSubStasks], [orders], [lineitem], [output]";
+		return "Parameters: [numSubStasks], [orders], [lineitem], [output]";
 	}
 }

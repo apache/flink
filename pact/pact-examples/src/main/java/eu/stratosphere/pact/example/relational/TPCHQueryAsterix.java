@@ -133,7 +133,7 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 	public Plan getPlan(final String... args) {
 
 		// parse program parameters
-		int noSubtasks       = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
+		int numSubtasks       = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		String ordersPath    = (args.length > 1 ? args[1] : "");
 		String customerPath  = (args.length > 2 ? args[2] : "");
 		String output        = (args.length > 3 ? args[3] : "");
@@ -144,7 +144,7 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 		 */
 		// create DataSourceContract for Orders input
 		FileDataSource orders = new FileDataSource(RecordInputFormat.class, ordersPath, "Orders");
-		orders.setDegreeOfParallelism(noSubtasks);
+		orders.setDegreeOfParallelism(numSubtasks);
 		RecordInputFormat.configureRecordFormat(orders)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
@@ -160,7 +160,7 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 		 */
 		// create DataSourceContract for Customer input
 		FileDataSource customers = new FileDataSource(RecordInputFormat.class, customerPath, "Customers");
-		customers.setDegreeOfParallelism(noSubtasks);
+		customers.setDegreeOfParallelism(numSubtasks);
 		RecordInputFormat.configureRecordFormat(customers)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
@@ -174,7 +174,7 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 		MatchContract joinCO = MatchContract.builder(JoinCO.class, PactInteger.class, 0, 0)
 			.name("JoinCO")
 			.build();
-		joinCO.setDegreeOfParallelism(noSubtasks);
+		joinCO.setDegreeOfParallelism(numSubtasks);
 		// compiler hints
 		joinCO.getCompilerHints().setAvgBytesPerRecord(17);
 
@@ -182,14 +182,14 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 		ReduceContract aggCO = new ReduceContract.Builder(AggCO.class, PactString.class, 1)
 			.name("AggCo")
 			.build();
-		aggCO.setDegreeOfParallelism(noSubtasks);
+		aggCO.setDegreeOfParallelism(numSubtasks);
 		// compiler hints
 		aggCO.getCompilerHints().setAvgBytesPerRecord(17);
 		aggCO.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(new int[]{0}), 1);
 
 		// create DataSinkContract for writing the result
 		FileDataSink result = new FileDataSink(RecordOutputFormat.class, output, "Output");
-		result.setDegreeOfParallelism(noSubtasks);
+		result.setDegreeOfParallelism(numSubtasks);
 		RecordOutputFormat.configureRecordFormat(result)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
@@ -214,6 +214,6 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 	 */
 	@Override
 	public String getDescription() {
-		return "Parameters: [noSubStasks], [orders], [customer], [output]";
+		return "Parameters: [numSubStasks], [orders], [customer], [output]";
 	}
 }

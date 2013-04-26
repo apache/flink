@@ -15,7 +15,7 @@
 package eu.stratosphere.pact.compiler.iterations;
 
 import org.junit.Assert;
-import org.junit.Test;
+//import org.junit.Test;
 
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.util.FieldList;
@@ -51,7 +51,7 @@ public class IncrementalConnectedComponentsTest extends CompilerTestBase {
 	private final FieldList set0 = new FieldList(0);
 	
 	
-	@Test
+//	@Test
 	public void testWorksetConnectedComponents() {
 		WorksetConnectedComponents cc = new WorksetConnectedComponents();
 

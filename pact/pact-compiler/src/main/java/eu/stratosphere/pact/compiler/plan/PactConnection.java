@@ -76,6 +76,26 @@ public class PactConnection implements EstimateProvider, DumpableConnection<Opti
 		this.shipStrategy = shipStrategy;
 		this.maxDepth = maxDepth;
 	}
+	
+	/**
+	 * Creates a new Connection between two nodes.
+	 * 
+	 * @param source
+	 *        The source node.
+	 * @param target
+	 *        The target node.
+	 * @param shipStrategy
+	 *        The shipping strategy.
+	 */
+	public PactConnection(OptimizerNode source) {
+		if (source == null) {
+			throw new NullPointerException("Source and target must not be null.");
+		}
+		this.source = source;
+		this.target = null;
+		this.shipStrategy = ShipStrategyType.NONE;
+		this.maxDepth = -1;
+	}
 
 	/**
 	 * Gets the source of the connection.

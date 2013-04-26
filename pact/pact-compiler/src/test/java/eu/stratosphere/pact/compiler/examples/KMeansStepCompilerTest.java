@@ -149,7 +149,7 @@ public class KMeansStepCompilerTest extends CompilerTestBase {
 	}
 	
 	private static final Plan getRolledOutPlan(int numSteps, boolean uniquenessHints) {
-		final int noSubTasks = DEFAULT_PARALLELISM;
+		final int numSubTasks = DEFAULT_PARALLELISM;
 		final String dataPointInput = IN_FILE;
 		final String clusterInput = IN_FILE;
 		final String output = OUT_FILE;
@@ -194,7 +194,7 @@ public class KMeansStepCompilerTest extends CompilerTestBase {
 
 		// return the PACT plan
 		Plan plan = new Plan(newClusterPoints, "KMeans Iteration (x" + numSteps + ")");
-		plan.setDefaultParallelism(noSubTasks);
+		plan.setDefaultParallelism(numSubTasks);
 		
 		return plan;
 	}

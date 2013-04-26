@@ -47,13 +47,9 @@ import eu.stratosphere.pact.test.contracts.io.ContractITCaseIOFormats.ContractIT
 import eu.stratosphere.pact.test.contracts.io.ContractITCaseIOFormats.ContractITCaseOutputFormat;
 import eu.stratosphere.pact.test.util.TestBase;
 
-/**
- * @author Fabian Hueske
- */
 @RunWith(Parameterized.class)
-public class ReduceITCase extends TestBase
-
-{
+public class ReduceITCase extends TestBase {
+	
 	private static final Log LOG = LogFactory.getLog(ReduceITCase.class);
 
 	public ReduceITCase(String clusterConfig, Configuration testConfig) {

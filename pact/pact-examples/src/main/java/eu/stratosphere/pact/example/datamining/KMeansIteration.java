@@ -578,7 +578,7 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription 
 	@Override
 	public Plan getPlan(String... args) {
 		// parse job parameters
-		int noSubTasks = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
+		int numSubTasks = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		String dataPointInput = (args.length > 1 ? args[1] : "");
 		String clusterInput = (args.length > 2 ? args[2] : "");
 		String output = (args.length > 3 ? args[3] : "");
@@ -616,12 +616,12 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription 
 
 		// return the PACT plan
 		Plan plan = new Plan(newClusterPoints, "KMeans Iteration");
-		plan.setDefaultParallelism(noSubTasks);
+		plan.setDefaultParallelism(numSubTasks);
 		return plan;
 	}
 
 	@Override
 	public String getDescription() {
-		return "Parameters: [noSubStasks] [dataPoints] [clusterCenters] [output]";
+		return "Parameters: [numSubStasks] [dataPoints] [clusterCenters] [output]";
 	}
 }
