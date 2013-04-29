@@ -16,7 +16,6 @@
 	<packaging>pom</packaging>
 
 	<dependencies>
-
 		<!-- BINARIES -->
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
@@ -26,11 +25,6 @@
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
 			<artifactId>nephele-clustermanager</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>eu.stratosphere</groupId>
-			<artifactId>nephele-ec2cloudmanager</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		<dependency>
