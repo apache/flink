@@ -88,7 +88,6 @@
 				<version>2.7</version>
 				<configuration>
 					<systemPropertyVariables>
-						<java.net.preferIPv4Stack>true</java.net.preferIPv4Stack>
 						<log.level>WARN</log.level>
 					</systemPropertyVariables>
 					<excludes>
@@ -110,19 +109,6 @@
 					<perCoreThreadCount>false</perCoreThreadCount>
 				</configuration>
 			</plugin>
-
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-jar-plugin</artifactId>
-				<executions>
-					<execution>
-						<goals>
-							<goal>test-jar</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-
 		</plugins>
 	</build>
 </project>
