@@ -23,7 +23,11 @@ import eu.stratosphere.pact.common.contract.Order;
 import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.common.util.FieldSet;
+import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
+import eu.stratosphere.pact.compiler.plan.candidate.Channel;
+import eu.stratosphere.pact.compiler.util.Utils;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 
 /**
  * This class represents global properties of the data at a certain point in the plan.
@@ -232,6 +236,26 @@ public class GlobalProperties implements Cloneable
 			}
 		}
 		return this;
+	}
+	
+	public void parameterizeChannel(Channel channel, boolean globalDopChange) {
+		switch (this.partitioning) {
+			case RANDOM:
+				channel.setShipStrategy(globalDopChange ? ShipStrategyType.PARTITION_RANDOM : ShipStrategyType.FORWARD);
+				break;
+			case FULL_REPLICATION:
+				channel.setShipStrategy(ShipStrategyType.BROADCAST);
+				break;
+			case ANY_PARTITIONING:
+			case HASH_PARTITIONED:
+				channel.setShipStrategy(ShipStrategyType.PARTITION_HASH, Utils.createOrderedFromSet(this.partitioningFields));
+				break;
+			case RANGE_PARTITIONED:
+				channel.setShipStrategy(ShipStrategyType.PARTITION_RANGE, this.ordering.getInvolvedIndexes(), this.ordering.getFieldSortDirections());
+				break;
+			default:
+				throw new CompilerException();
+		}
 	}
 
 	// ------------------------------------------------------------------------

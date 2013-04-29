@@ -15,8 +15,8 @@
 
 package eu.stratosphere.pact.test.pactPrograms;
 
+import java.util.ArrayList;
 import java.util.Collection;
-import java.util.LinkedList;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -118,10 +118,8 @@ public class MergeOnlyJoinITCase extends TestBase {
 
 	@Override
 	protected void postSubmit() throws Exception {
-
 		// Test results
 		compareResultsByLinesInMemory(EXPECTED_RESULT, resultPath);
-
 	}
 	
 	@Override
@@ -135,8 +133,7 @@ public class MergeOnlyJoinITCase extends TestBase {
 
 	@Parameters
 	public static Collection<Object[]> getConfigurations() {
-
-		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
+		ArrayList<Configuration> tConfigs = new ArrayList<Configuration>();
 
 		Configuration config = new Configuration();
 		config.setInteger("MergeOnlyJoinTest#NoSubtasks", 3);
@@ -157,7 +154,6 @@ public class MergeOnlyJoinITCase extends TestBase {
 	}
 
 	private String[] splitInputString(String inputString, char splitChar, int noSplits) {
-
 		String splitString = inputString.toString();
 		String[] splits = new String[noSplits];
 		int partitionSize = (splitString.length() / noSplits) - 2;
@@ -176,9 +172,6 @@ public class MergeOnlyJoinITCase extends TestBase {
 			
 		}
 		splits[noSplits - 1] = splitString;
-
 		return splits;
-
 	}
-
 }

@@ -46,13 +46,8 @@ import eu.stratosphere.pact.test.contracts.io.ContractITCaseIOFormats.ContractIT
 import eu.stratosphere.pact.test.contracts.io.ContractITCaseIOFormats.ContractITCaseOutputFormat;
 import eu.stratosphere.pact.test.util.TestBase;
 
-/**
- * @author Matthias Ringwald
- */
 @RunWith(Parameterized.class)
-public class UnionITCase extends TestBase
-
-{
+public class UnionITCase extends TestBase {
 	private static final Log LOG = LogFactory.getLog(UnionITCase.class);
 	
 	public UnionITCase(String clusterConfig, Configuration testConfig) {
@@ -107,7 +102,8 @@ public class UnionITCase extends TestBase
 			keyString = record.getField(0, keyString);
 			valueString = record.getField(1, valueString);
 			
-			LOG.debug("Processed: [" + keyString.toString() + "," + valueString.getValue() + "]");
+			if (LOG.isDebugEnabled())
+				LOG.debug("Processed: [" + keyString.toString() + "," + valueString.getValue() + "]");
 			
 			if (Integer.parseInt(keyString.toString()) + Integer.parseInt(valueString.toString()) < 10) {
 

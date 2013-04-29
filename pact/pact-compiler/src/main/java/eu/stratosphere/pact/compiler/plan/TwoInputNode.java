@@ -328,7 +328,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getAlternativePlans()
 	 */
 	@Override
-	final public List<PlanNode> getAlternativePlans(CostEstimator estimator) {
+	public List<PlanNode> getAlternativePlans(CostEstimator estimator) {
 		// check if we have a cached version
 		if (this.cachedPlans != null) {
 			return this.cachedPlans;

@@ -21,9 +21,6 @@ import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
-import eu.stratosphere.pact.compiler.costs.CostEstimator;
-import eu.stratosphere.pact.compiler.costs.Costs;
-import eu.stratosphere.pact.compiler.plan.EstimateProvider;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.util.Utils;
@@ -33,11 +30,15 @@ import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
  * This class represents local properties of the data. A local property is a property that exists
  * within the data of a single partition.
  */
-public final class RequestedLocalProperties implements Cloneable
-{
-	private Ordering ordering;			// order inside a partition, null if not ordered
+public class RequestedLocalProperties implements Cloneable {
 
-	private FieldSet groupedFields;		// fields by which the stream is grouped. null if not grouped.
+	public static final RequestedLocalProperties DEFAULT_PROPERTIES = null;
+	
+	// --------------------------------------------------------------------------------------------
+	
+	Ordering ordering;			// order inside a partition, null if not ordered
+
+	FieldSet groupedFields;		// fields by which the stream is grouped. null if not grouped.
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -140,8 +141,7 @@ public final class RequestedLocalProperties implements Cloneable
 	 * 
 	 * @return True, if the resulting properties are non trivial.
 	 */
-	public RequestedLocalProperties filterByNodesConstantSet(OptimizerNode node, int input)
-	{
+	public RequestedLocalProperties filterByNodesConstantSet(OptimizerNode node, int input) {
 		if (this.ordering != null) {
 			final FieldList involvedIndexes = this.ordering.getInvolvedIndexes();
 			for (int i = 0; i < involvedIndexes.size(); i++) {
@@ -168,8 +168,7 @@ public final class RequestedLocalProperties implements Cloneable
 	 *        The properties for which to check whether they meet these properties.
 	 * @return True, if the properties are met, false otherwise.
 	 */
-	public boolean isMetBy(LocalProperties other)
-	{
+	public boolean isMetBy(LocalProperties other) {
 		if (this.ordering != null) {
 			// we demand an ordering
 			return other.getOrdering() != null && this.ordering.isMetBy(other.getOrdering());
@@ -200,15 +199,7 @@ public final class RequestedLocalProperties implements Cloneable
 		}
 	}
 	
-	public void addMinimalRequiredCosts(Costs to, CostEstimator estimator, EstimateProvider estimate, long memory) {
-		if (this.ordering != null) {
-			estimator.addLocalSortCost(estimate, memory, to);
-		} else if (this.groupedFields != null) {
-			estimator.addLocalSortCost(estimate, memory, to);
-		}
-	}
-	
-	// ------------------------------------------------------------------------
+	// --------------------------------------------------------------------------------------------
 	
 	/**
 	 * @param requested1
@@ -246,12 +237,8 @@ public final class RequestedLocalProperties implements Cloneable
 		}
 	}
 
-	// ------------------------------------------------------------------------
+	// --------------------------------------------------------------------------------------------
 
-	/*
-	 * (non-Javadoc)
-	 * @see java.lang.Object#hashCode()
-	 */
 	@Override
 	public int hashCode() {
 		final int prime = 31;
@@ -261,10 +248,6 @@ public final class RequestedLocalProperties implements Cloneable
 		return result;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see java.lang.Object#equals(java.lang.Object)
-	 */
 	@Override
 	public boolean equals(Object obj) {
 		if (obj instanceof RequestedLocalProperties) {
@@ -276,19 +259,11 @@ public final class RequestedLocalProperties implements Cloneable
 		}
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see java.lang.Object#toString()
-	 */
 	@Override
 	public String toString() {
 		return "Requested Local Properties [ordering=" + this.ordering + ", grouped=" + this.groupedFields + "]";
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see java.lang.Object#clone()
-	 */
 	@Override
 	public RequestedLocalProperties clone() {
 		return new RequestedLocalProperties(this.ordering, this.groupedFields);

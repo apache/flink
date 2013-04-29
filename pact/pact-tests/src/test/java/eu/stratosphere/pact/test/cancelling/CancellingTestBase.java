@@ -190,6 +190,9 @@ public abstract class CancellingTestBase {
 						case CANCELED:
 							exitLoop = true;
 							break;
+						case SCHEDULED: // okay
+						case RUNNING:
+							break;
 						default:
 							throw new Exception("Bug: Unrecognized Job Status.");
 						}

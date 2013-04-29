@@ -50,9 +50,7 @@ import eu.stratosphere.pact.test.util.TestBase;
  * @author Fabian Hueske
  */
 @RunWith(Parameterized.class)
-public class CoGroupITCase extends TestBase
-
-{
+public class CoGroupITCase extends TestBase {
 	private static final Log LOG = LogFactory.getLog(CoGroupITCase.class);
 
 	public CoGroupITCase(String clusterConfig, Configuration testConfig) {

@@ -261,11 +261,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 			LOG.info(formatLogString("Start PACT code."));
 		
 		// sanity check the input setup
-		final int numInputs = this.config.getNumInputs();
-		if (numInputs != this.driver.getNumberOfInputs()) {
-			throw new Exception("Inconsistent config data: Number of inputs inconsistent with the driver requirements.");
-		}
-		
+		final int numInputs = this.driver.getNumberOfInputs();
 		// whatever happens in this scope, make sure that the local strategies are cleaned up!
 		// note that the initialization of the local strategies is in the try-finally block as well,
 		// so that the thread that creates them catches its own errors that may happen in that process.
@@ -501,14 +497,17 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 		final int numInputs = this.driver.getNumberOfInputs();
 		final MutableReader<?>[] inputReaders = new MutableReader[numInputs];
 		
+		int numGates = 0;
+		
 		for (int i = 0; i < numInputs; i++) {
 			//  ---------------- create the input readers ---------------------
 			// in case where a logical input unions multiple physical inputs, create a union reader
 			final int groupSize = this.config.getGroupSize(i);
-			if (groupSize < 2) {
+			numGates += groupSize;
+			if (groupSize == 1) {
 				// non-union case
 				inputReaders[i] = new MutableRecordReader<Record>(this);
-			} else {
+			} else if (groupSize > 1){
 				// union case
 				@SuppressWarnings("unchecked")
 				MutableRecordReader<Record>[] readers = new MutableRecordReader[groupSize];
@@ -516,9 +515,16 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 					readers[j] = new MutableRecordReader<Record>(this);
 				}
 				inputReaders[i] = new MutableUnionRecordReader<Record>(readers);
+			} else {
+				throw new Exception("Illegal input group size in task configuration: " + groupSize);
 			}
 		}
 		this.inputReaders = inputReaders;
+		
+		// final sanity check
+		if (numGates != this.config.getNumInputs()) {
+			throw new Exception("Illegal configuration: Number of input gates and group sizes are not consistent.");
+		}
 	}
 	
 	/**
@@ -755,13 +761,12 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 		if (serializer.getClass() == PactRecordSerializer.class) {
 			// pact record specific deserialization
 			@SuppressWarnings("unchecked")
-			MutableRecordReader<PactRecord> reader = (MutableRecordReader<PactRecord>) inputReader;
+			MutableReader<PactRecord> reader = (MutableReader<PactRecord>) inputReader;
 			return new PactRecordNepheleReaderIterator(reader, readerInterruptionBehavior(inputIndex));
 		} else {
 			// generic data type serialization
 			@SuppressWarnings("unchecked")
-			MutableRecordReader<DeserializationDelegate<?>> reader =
-								(MutableRecordReader<DeserializationDelegate<?>>) inputReader;
+			MutableReader<DeserializationDelegate<?>> reader = (MutableReader<DeserializationDelegate<?>>) inputReader;
 			@SuppressWarnings({ "unchecked", "rawtypes" })
 			final MutableObjectIterator<?> iter = new NepheleReaderIterator(reader, serializer,
 					readerInterruptionBehavior(inputIndex));

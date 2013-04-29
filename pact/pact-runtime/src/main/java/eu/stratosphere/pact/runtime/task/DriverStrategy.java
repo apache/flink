@@ -53,7 +53,9 @@ public enum DriverStrategy
 	// the second input is inner loop, the first input is outer loop and stream-processed
 	NESTEDLOOP_STREAMED_OUTER_FIRST(CrossDriver.class, null, PIPELINED, MATERIALIZING, false),
 	// the first input is inner loop, the second input is outer loop and stream-processed
-	NESTEDLOOP_STREAMED_OUTER_SECOND(CrossDriver.class, null, MATERIALIZING, PIPELINED, false);
+	NESTEDLOOP_STREAMED_OUTER_SECOND(CrossDriver.class, null, MATERIALIZING, PIPELINED, false),
+	// union utility op
+	UNION(null, null, FULL_DAM, FULL_DAM, false);
 	
 	// --------------------------------------------------------------------------------------------
 	

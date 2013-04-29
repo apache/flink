@@ -29,7 +29,7 @@ public class CustomCompensatingMap extends AbstractStub implements GenericMapper
 		int failingIteration = ConfigUtils.asInteger("compensation.failingIteration", parameters);
 		isFailureIteration = currentIteration == failingIteration + 1;
 		
-		int workerIndex = ConfigUtils.asInteger("pact.parallel.task.id", parameters);
+		int workerIndex = getRuntimeContext().getIndexOfThisSubtask();
 		Set<Integer> failingWorkers = ConfigUtils.asIntSet("compensation.failingWorker", parameters);
 		isFailingWorker = failingWorkers.contains(workerIndex);
 		

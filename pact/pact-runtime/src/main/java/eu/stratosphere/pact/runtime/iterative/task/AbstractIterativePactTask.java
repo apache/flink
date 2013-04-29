@@ -67,6 +67,7 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
 			// if the class is null, the driver has no user code 
 			if (userCodeFunctionType != null && (this.stub == null || REINSTANTIATE_STUB_PER_ITERATION)) {
 				this.stub = initStub(userCodeFunctionType);
+				this.stub.setRuntimeContext(getRuntimeContext());
 			}
 		} catch (Exception e) {
 			throw new RuntimeException("Initializing the user code and the configuration failed" +
