@@ -22,18 +22,25 @@ import java.io.DataInputStream;
 import java.io.DataOutput;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.DataDistribution;
 import eu.stratosphere.pact.common.stubs.Stub;
+import eu.stratosphere.pact.common.stubs.aggregators.Aggregator;
+import eu.stratosphere.pact.common.stubs.aggregators.AggregatorWithName;
+import eu.stratosphere.pact.common.stubs.aggregators.ConvergenceCriterion;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
 import eu.stratosphere.pact.generic.types.TypePairComparatorFactory;
 import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
-import eu.stratosphere.pact.runtime.iterative.convergence.ConvergenceCriterion;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.PactDriver;
@@ -157,6 +164,14 @@ public class TaskConfig {
 	private static final String ITERATION_HEAD_SYNC_OUT_INDEX = "pact.iterative.head.sync-index.";
 	
 	private static final String ITERATION_CONVERGENCE_CRITERION = "pact.iterative.terminationCriterion";
+	
+	private static final String ITERATION_CONVERGENCE_CRITERION_AGG_NAME = "pact.iterative.terminationCriterion.agg.name";
+	
+	private static final String ITERATION_NUM_AGGREGATORS = "pact.iterative.num-aggs";
+	
+	private static final String ITERATION_AGGREGATOR_NAME_PREFIX = "pact.iterative.agg.name.";
+	
+	private static final String ITERATION_AGGREGATOR_PREFIX = "pact.iterative.agg.data.";
 	
 	// ---------------------------------- Miscellaneous -------------------------------------------
 	
@@ -668,24 +683,6 @@ public class TaskConfig {
 		return this.config.getInteger(NUMBER_OF_EOS_EVENTS_PREFIX + inputGateIndex, 0);
 	}
 	
-	public void setConvergenceCriterion(Class<? extends ConvergenceCriterion<?>> convergenceCriterionClass) {
-		this.config.setClass(ITERATION_CONVERGENCE_CRITERION, convergenceCriterionClass);
-	}
-
-	public <T extends Value> Class<? extends ConvergenceCriterion<T>> getConvergenceCriterion() {
-		@SuppressWarnings("unchecked")
-		Class<? extends ConvergenceCriterion<T>> clazz = (Class<? extends ConvergenceCriterion<T>>) (Class<?>) 
-							this.config.getClass(ITERATION_CONVERGENCE_CRITERION, null, ConvergenceCriterion.class);
-		if (clazz == null) {
-			throw new NullPointerException();
-		}
-		return clazz;
-	}
-
-	public boolean usesConvergenceCriterion() {
-		return config.getString(ITERATION_CONVERGENCE_CRITERION, null) != null;
-	}
-	
 	public void setIterationHeadId(int id) {
 		if (id < 0) {
 			throw new IllegalArgumentException();
@@ -722,6 +719,68 @@ public class TaskConfig {
 	
 	public TaskConfig getIterationHeadFinalOutputConfig() {
 		return new TaskConfig(new DelegatingConfiguration(this.config, ITERATION_HEAD_FINAL_OUT_CONFIG_PREFIX));
+	}
+
+	public void addIterationAggregator(String name, Class<? extends Aggregator<?>> aggregator) {
+		int num = this.config.getInteger(ITERATION_NUM_AGGREGATORS, 0);
+		this.config.setString(ITERATION_AGGREGATOR_NAME_PREFIX + num, name);
+		this.config.setClass(ITERATION_AGGREGATOR_PREFIX + num, aggregator);
+		this.config.setInteger(ITERATION_NUM_AGGREGATORS, num + 1);
+	}
+	
+	public void addIterationAggregators(Collection<AggregatorWithName<?>> aggregators) {
+		int num = this.config.getInteger(ITERATION_NUM_AGGREGATORS, 0);
+		for (AggregatorWithName<?> awn : aggregators) {
+			this.config.setString(ITERATION_AGGREGATOR_NAME_PREFIX + num, awn.getName());
+			this.config.setClass(ITERATION_AGGREGATOR_PREFIX + num, awn.getAggregator());
+			num++;
+		}
+		this.config.setInteger(ITERATION_NUM_AGGREGATORS, aggregators.size());
+	}
+	
+	public Collection<AggregatorWithName<?>> getIterationAggregators() {
+		final int numAggs = this.config.getInteger(ITERATION_NUM_AGGREGATORS, 0);
+		if (numAggs == 0) {
+			return Collections.emptyList();
+		}
+		
+		List<AggregatorWithName<?>> list = new ArrayList<AggregatorWithName<?>>();
+		for (int i = 0; i < numAggs; i++) {
+			@SuppressWarnings("unchecked")
+			Class<Aggregator<Value>> aggClass = (Class<Aggregator<Value>>) (Class<?>) this.config.getClass(ITERATION_AGGREGATOR_PREFIX + i, null);
+			if (aggClass == null) {
+				throw new RuntimeException("Missing config entry for aggregator.");
+			}
+			String name = this.config.getString(ITERATION_AGGREGATOR_NAME_PREFIX + i, null);
+			if (name == null) {
+				throw new RuntimeException("Missing config entry for aggregator.");
+			}
+			list.add(new AggregatorWithName<Value>(name, aggClass));
+		}
+		return list;
+	}
+	
+	public void setConvergenceCriterion(String aggregatorName, Class<? extends ConvergenceCriterion<?>> convergenceCriterionClass) {
+		this.config.setClass(ITERATION_CONVERGENCE_CRITERION, convergenceCriterionClass);
+		this.config.setString(ITERATION_CONVERGENCE_CRITERION_AGG_NAME, aggregatorName);
+	}
+
+	public <T extends Value> Class<? extends ConvergenceCriterion<T>> getConvergenceCriterion() {
+		@SuppressWarnings("unchecked")
+		Class<? extends ConvergenceCriterion<T>> clazz = (Class<? extends ConvergenceCriterion<T>>) (Class<?>) 
+							this.config.getClass(ITERATION_CONVERGENCE_CRITERION, null, ConvergenceCriterion.class);
+		if (clazz == null) {
+			throw new NullPointerException();
+		}
+		return clazz;
+	}
+
+	public boolean usesConvergenceCriterion() {
+		return config.getString(ITERATION_CONVERGENCE_CRITERION, null) != null;
+	}
+	
+	public String getConvergenceCriterionAggregatorName() {
+		return this.config.getString(ITERATION_CONVERGENCE_CRITERION_AGG_NAME, null);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -939,6 +998,16 @@ public class TaskConfig {
 		@Override
 		public void setBytes(final String key, final byte[] bytes) {
 			this.backingConfig.setBytes(this.prefix + key, bytes);
+		}
+		
+		@Override
+		public void setObject(String key, Serializable object) {
+			this.backingConfig.setObject(this.prefix + key, object);
+		}
+		
+		@Override
+		public Serializable getObject(String key, Serializable defaultValue) {
+			return this.backingConfig.getObject(this.prefix + key, defaultValue);
 		}
 		
 		@Override

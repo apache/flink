@@ -12,17 +12,9 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
+package eu.stratosphere.pact.generic.contract;
 
-package eu.stratosphere.pact.runtime.iterative.playing.pagerank;
-
-import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.common.stubs.MapStub;
-import eu.stratosphere.pact.common.type.PactRecord;
-
-public class IdentityMap extends MapStub {
-
-  @Override
-  public void map(PactRecord record, Collector<PactRecord> collector) throws Exception {
-    collector.collect(record);
-  }
+public interface IterationContract {
+	
+	AggregatorRegistry getAggregators();
 }

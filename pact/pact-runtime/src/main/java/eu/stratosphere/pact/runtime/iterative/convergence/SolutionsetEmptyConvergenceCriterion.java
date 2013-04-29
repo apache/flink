@@ -15,9 +15,8 @@
 
 package eu.stratosphere.pact.runtime.iterative.convergence;
 
-import eu.stratosphere.pact.common.stubs.aggregators.Aggregator;
+import eu.stratosphere.pact.common.stubs.aggregators.ConvergenceCriterion;
 import eu.stratosphere.pact.common.type.base.PactLong;
-import eu.stratosphere.pact.runtime.iterative.aggregate.SumLongAggregator;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -27,11 +26,8 @@ import org.apache.commons.logging.LogFactory;
 public class SolutionsetEmptyConvergenceCriterion implements ConvergenceCriterion<PactLong> {
 
 	private static final Log log = LogFactory.getLog(SolutionsetEmptyConvergenceCriterion.class);
-
-	@Override
-	public Aggregator<PactLong> createAggregator() {
-		return new SumLongAggregator();
-	}
+	
+	public static final String AGGREGATOR_NAME = "pact.runtime.workset-empty-aggregator";
 
 	@Override
 	public boolean isConverged(int iteration, PactLong value) {

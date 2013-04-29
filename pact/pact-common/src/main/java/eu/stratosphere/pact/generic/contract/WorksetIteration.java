@@ -26,7 +26,7 @@ import eu.stratosphere.pact.generic.stub.AbstractStub;
  * This class is a subclass of {@code DualInputContract}. The solution set is considered the first input, the
  * workset is considered the second input.
  */
-public class WorksetIteration extends DualInputContract<AbstractStub> {
+public class WorksetIteration extends DualInputContract<AbstractStub> implements IterationContract {
 	
 	private final Contract solutionSetPlaceholder = new SolutionSetPlaceHolder(this);
 
@@ -45,6 +45,8 @@ public class WorksetIteration extends DualInputContract<AbstractStub> {
 	 * The maximum number of iterations. Possibly used only as a safeguard.
 	 */
 	private int maxNumberOfIterations = -1;
+	
+	private final AggregatorRegistry aggregators = new AggregatorRegistry();
 	
 	// --------------------------------------------------------------------------------------------
 
@@ -77,6 +79,11 @@ public class WorksetIteration extends DualInputContract<AbstractStub> {
 	
 	public int getMaximumNumberOfIterations() {
 		return this.maxNumberOfIterations;
+	}
+	
+	@Override
+	public AggregatorRegistry getAggregators() {
+		return this.aggregators;
 	}
 	
 	// --------------------------------------------------------------------------------------------

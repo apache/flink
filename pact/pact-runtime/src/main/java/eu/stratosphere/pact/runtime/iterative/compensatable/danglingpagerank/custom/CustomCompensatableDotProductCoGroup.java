@@ -5,22 +5,21 @@ import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.generic.stub.AbstractStub;
 import eu.stratosphere.pact.generic.stub.GenericCoGrouper;
 import eu.stratosphere.pact.runtime.iterative.compensatable.ConfigUtils;
-import eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.DiffL1NormConvergenceCriterion;
 import eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.PageRankStats;
 import eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.PageRankStatsAggregator;
 import eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.custom.types.VertexWithRank;
 import eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.custom.types.VertexWithRankAndDangling;
-import eu.stratosphere.pact.runtime.iterative.concurrent.IterationContext;
 
 import java.util.Iterator;
 import java.util.Set;
 
 public class CustomCompensatableDotProductCoGroup extends AbstractStub implements GenericCoGrouper<VertexWithRankAndDangling, VertexWithRank, VertexWithRankAndDangling> {
 
+	public static final String AGGREGATOR_NAME = "pagerank.aggregator";
+	
 	private VertexWithRankAndDangling accumulator = new VertexWithRankAndDangling();
 
-	private PageRankStatsAggregator aggregator =
-		(PageRankStatsAggregator) new DiffL1NormConvergenceCriterion().createAggregator();
+	private PageRankStatsAggregator aggregator;
 
 	private long numVertices;
 
@@ -43,24 +42,25 @@ public class CustomCompensatableDotProductCoGroup extends AbstractStub implement
 	@Override
 	public void open(Configuration parameters) throws Exception {
 		workerIndex = getRuntimeContext().getIndexOfThisSubtask();
-		currentIteration = ConfigUtils.asInteger("pact.iterations.currentIteration", parameters);
+		currentIteration = getIterationRuntimeContext().getSuperstepNumber();
+		
 		failingIteration = ConfigUtils.asInteger("compensation.failingIteration", parameters);
 		failingWorkers = ConfigUtils.asIntSet("compensation.failingWorker", parameters);
-		
 		numVertices = ConfigUtils.asLong("pageRank.numVertices", parameters);
 		numDanglingVertices = ConfigUtils.asLong("pageRank.numDanglingVertices", parameters);
-
-		aggregator.reset();
-
+		
 		dampingFactor = (1d - BETA) / (double) numVertices;
 
+		aggregator = (PageRankStatsAggregator) getIterationRuntimeContext().<PageRankStats>getIterationAggregator(AGGREGATOR_NAME);
+		
 		if (currentIteration == 1) {
 			danglingRankFactor = BETA * (double) numDanglingVertices / ((double) numVertices * (double) numVertices);
 		} else {
-			PageRankStats previousAggregate = (PageRankStats) IterationContext.instance().getGlobalAggregate(
-				workerIndex);
+			PageRankStats previousAggregate = aggregator.getAggregate();
 			danglingRankFactor = BETA * previousAggregate.danglingRank() / (double) numVertices;
 		}
+		
+		aggregator.reset();
 	}
 
 	@Override
@@ -105,7 +105,6 @@ public class CustomCompensatableDotProductCoGroup extends AbstractStub implement
 		if (currentIteration == failingIteration && failingWorkers.contains(workerIndex)) {
 			aggregator.reset();
 		}
-		IterationContext.instance().setAggregate(workerIndex, aggregator.getAggregate());
 	}
 
 	@Override

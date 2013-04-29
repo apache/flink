@@ -16,6 +16,7 @@
 package eu.stratosphere.pact.generic.stub;
 
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.pact.common.stubs.IterationRuntimeContext;
 import eu.stratosphere.pact.common.stubs.RuntimeContext;
 import eu.stratosphere.pact.common.stubs.Stub;
 
@@ -42,6 +43,15 @@ public abstract class AbstractStub implements Stub {
 		}
 	}
 	
+	public final IterationRuntimeContext getIterationRuntimeContext() {
+		if (this.runtimeContext == null) {
+			throw new IllegalStateException("The runtime context has not been initialized.");
+		} else if (this.runtimeContext instanceof IterationRuntimeContext) {
+			return (IterationRuntimeContext) this.runtimeContext;
+		} else {
+			throw new IllegalStateException("This stub is not part of an iteration step function.");
+		}
+	}
 	
 	@Override
 	public void open(Configuration parameters) throws Exception {}

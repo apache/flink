@@ -220,6 +220,7 @@ public class CompensatableDanglingPageRank {
 		tailConfig.setMemoryInput(1, coGroupSortMemory * JobGraphUtils.MEGABYTE);
 		tailConfig.setFilehandlesInput(1, NUM_FILE_HANDLES_PER_SORT);
 		tailConfig.setSpillingThresholdInput(1, SORT_SPILL_THRESHOLD);
+		tailConfig.addIterationAggregator(CompensatableDotProductCoGroup.AGGREGATOR_NAME, PageRankStatsAggregator.class);
 		
 		// output
 		tailConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
@@ -251,7 +252,7 @@ public class CompensatableDanglingPageRank {
 		JobOutputVertex sync = JobGraphUtils.createSync(jobGraph, degreeOfParallelism);
 		TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());
 		syncConfig.setNumberOfIterations(numIterations);
-		syncConfig.setConvergenceCriterion(DiffL1NormConvergenceCriterion.class);
+		syncConfig.setConvergenceCriterion(CompensatableDotProductCoGroup.AGGREGATOR_NAME, DiffL1NormConvergenceCriterion.class);
 		
 		// --------------- the wiring ---------------------
 

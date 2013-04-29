@@ -15,19 +15,22 @@
 
 package eu.stratosphere.pact.generic.contract;
 
+import eu.stratosphere.pact.common.plan.PlanException;
 import eu.stratosphere.pact.common.util.Visitor;
 import eu.stratosphere.pact.generic.stub.AbstractStub;
 
 /**
  * 
  */
-public class BulkIteration extends SingleInputContract<AbstractStub> {
+public class BulkIteration extends SingleInputContract<AbstractStub> implements IterationContract {
 	
 	private static String DEFAULT_NAME = "<Unnamed Bulk Iteration>";
 	
 	private Contract iterationResult;
 	
 	private final Contract inputPlaceHolder = new PartialSolutionPlaceHolder(this);
+	
+	private final AggregatorRegistry aggregators = new AggregatorRegistry();
 	
 	private int numberOfIterations = -1;
 	
@@ -83,30 +86,35 @@ public class BulkIteration extends SingleInputContract<AbstractStub> {
 	/**
 	 * @param num
 	 */
-	public void setNumberOfIterations(int num) {
+	public void setMaximumNumberOfIterations(int num) {
 		if (num < 1) {
 			throw new IllegalArgumentException("The number of iterations must be at least one.");
 		}
 		this.numberOfIterations = num;
 	}
 	
-	public int getNumberOfIterations() {
+	public int getMaximumNumberOfIterations() {
 		return this.numberOfIterations;
+	}
+	
+	@Override
+	public AggregatorRegistry getAggregators() {
+		return this.aggregators;
 	}
 	
 	/**
 	 * @throws Exception
 	 */
-	public void validate() throws Exception {
+	public void validate() throws PlanException {
 		if (this.input == null || this.input.isEmpty()) {
-			throw new Exception("Contract for initial partial solution is not set.");
+			throw new RuntimeException("Contract for initial partial solution is not set.");
 		}
 		if (this.iterationResult == null) {
-			throw new Exception("Contract producing the next version of the partial " +
+			throw new PlanException("Contract producing the next version of the partial " +
 					"solution (iteration result) is not set.");
 		}
-		if (this.numberOfIterations == 0) {
-			throw new Exception("No termination condition is set " +
+		if (this.numberOfIterations <= 0) {
+			throw new PlanException("No termination condition is set " +
 					"(neither fix number of iteration nor termination criterion).");
 		}
 //		if (this.terminationCriterion != null && this.numberOfIterations > 0) {

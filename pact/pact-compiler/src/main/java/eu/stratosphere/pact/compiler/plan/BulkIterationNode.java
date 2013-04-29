@@ -20,6 +20,7 @@ import java.util.Iterator;
 import java.util.List;
 
 import eu.stratosphere.pact.common.util.Visitor;
+import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.PactCompiler.InterestingPropertyVisitor;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
@@ -41,8 +42,6 @@ import eu.stratosphere.pact.generic.contract.BulkIteration;
  */
 public class BulkIterationNode extends SingleInputNode implements IterationNode {
 	
-	private static final int DEFAULT_COST_WEIGHT = 20;
-	
 	private BulkPartialSolutionNode partialSolution;
 	
 	private OptimizerNode nextPartialSolution;
@@ -61,8 +60,11 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 	public BulkIterationNode(BulkIteration iteration) {
 		super(iteration);
 		
-		this.costWeight = iteration.getNumberOfIterations() > 0 ? 
-			iteration.getNumberOfIterations() : DEFAULT_COST_WEIGHT;
+		if (iteration.getMaximumNumberOfIterations() <= 0) {
+			throw new CompilerException("BulkIteration must have a maximum number of iterations specified.");
+		}
+		
+		this.costWeight = iteration.getMaximumNumberOfIterations();
 	}
 
 	// --------------------------------------------------------------------------------------------

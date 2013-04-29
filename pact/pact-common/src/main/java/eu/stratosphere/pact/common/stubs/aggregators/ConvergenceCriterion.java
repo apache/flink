@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -13,19 +13,17 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.contextcheck;
+package eu.stratosphere.pact.common.stubs.aggregators;
 
-import eu.stratosphere.pact.common.plan.PlanException;
+import eu.stratosphere.pact.common.type.Value;
 
-public class MissingChildException extends PlanException {
-	
-	private static final long serialVersionUID = 4206417538759568484L;
-	
-	public MissingChildException(String message) {
-		super(message);
-	}
-	
-	public MissingChildException() {
-		super();
-	}
+/**
+ * Used to check for convergence.
+ */
+public interface ConvergenceCriterion<T extends Value> {
+
+	/**
+	 * Decide whether the iterative algorithm has converged
+	 */
+	boolean isConverged(int iteration, T value);
 }

@@ -40,9 +40,6 @@ import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
 
 /**
  * Encapsulates the functionality necessary to compile and submit a pact program to a nephele cluster.
- * 
- * @author Moritz Kaufmann
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
 public class Client {
 	

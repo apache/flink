@@ -22,7 +22,7 @@ import eu.stratosphere.pact.common.type.Value;
  */
 public interface IterationRuntimeContext extends RuntimeContext {
 	
-	<T extends Value> Aggregator<T> getIterationAggregator(String name);
+	int getSuperstepNumber();
 	
-	<T extends Value> T getPreviousAggregate(String name);
+	<T extends Value> Aggregator<T> getIterationAggregator(String name);
 }

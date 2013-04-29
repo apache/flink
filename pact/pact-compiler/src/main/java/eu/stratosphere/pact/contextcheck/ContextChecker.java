@@ -19,11 +19,14 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.GenericDataSink;
 import eu.stratosphere.pact.common.plan.Plan;
+import eu.stratosphere.pact.common.plan.PlanException;
 import eu.stratosphere.pact.common.util.Visitor;
+import eu.stratosphere.pact.generic.contract.BulkIteration;
 import eu.stratosphere.pact.generic.contract.Contract;
 import eu.stratosphere.pact.generic.contract.DualInputContract;
 import eu.stratosphere.pact.generic.contract.SingleInputContract;
@@ -76,6 +79,8 @@ public class ContextChecker implements Visitor<Contract> {
 			checkFileDataSource((FileDataSource) node);
 		} else if (node instanceof GenericDataSink) {
 			checkDataSink((GenericDataSink) node);
+		} else if (node instanceof BulkIteration) {
+			checkBulkIteration((BulkIteration) node);
 		} else if (node instanceof SingleInputContract<?>) {
 			checkSingleInputContract((SingleInputContract<?>) node);
 		} else if (node instanceof DualInputContract<?>) {
@@ -96,7 +101,6 @@ public class ContextChecker implements Visitor<Contract> {
 	 */
 	private void checkDataSink(GenericDataSink dataSinkContract) {
 		Contract input = dataSinkContract.getInputs().get(0);
-
 		// check if input exists
 		if (input == null) {
 			throw new MissingChildException();
@@ -115,12 +119,19 @@ public class ContextChecker implements Visitor<Contract> {
 		if (path == null) {
 			throw new PlanException("File path of FileDataSink is null.");
 		}
-		if (path.equals("")) {
+		if (path.length() == 0) {
 			throw new PlanException("File path of FileDataSink is empty string.");
 		}
-		if (!(path.startsWith("file://") || path.startsWith("hdfs://"))) {
-			throw new PlanException("File path \"" + path +
-					"\" of FileDataSink is not a valid file URL.");
+		
+		try {
+			Path p = new Path(path);
+			String scheme = p.toUri().getScheme();
+			
+			if (scheme == null) {
+				throw new PlanException("File path \"" + path + "\" of FileDataSink has no file system scheme (like 'file:// or hdfs://').");
+			}
+		} catch (Exception e) {
+			throw new PlanException("File path \"" + path + "\" of FileDataSink is an invalid path: " + e.getMessage());
 		}
 		checkDataSink(fileSink);
 	}
@@ -137,12 +148,19 @@ public class ContextChecker implements Visitor<Contract> {
 		if (path == null) {
 			throw new PlanException("File path of FileDataSource is null.");
 		}
-		if (path.equals("")) {
+		if (path.length() == 0) {
 			throw new PlanException("File path of FileDataSource is empty string.");
 		}
-		if (!(path.startsWith("file://") || path.startsWith("hdfs://"))) {
-			throw new PlanException("File path \"" + path +
-					"\" of FileDataSource is not a valid file uri.");
+		
+		try {
+			Path p = new Path(path);
+			String scheme = p.toUri().getScheme();
+			
+			if (scheme == null) {
+				throw new PlanException("File path \"" + path + "\" of FileDataSource has no file system scheme (like 'file:// or hdfs://').");
+			}
+		} catch (Exception e) {
+			throw new PlanException("File path \"" + path + "\" of FileDataSource is an invalid path: " + e.getMessage());
 		}
 	}
 
@@ -154,9 +172,7 @@ public class ContextChecker implements Visitor<Contract> {
 	 *        SingleInputContract that is checked.
 	 */
 	private void checkSingleInputContract(SingleInputContract<?> singleInputContract) {
-
 		List<Contract> input = singleInputContract.getInputs();
-
 		// check if input exists
 		if (input.size() == 0) {
 			throw new MissingChildException();
@@ -173,10 +189,14 @@ public class ContextChecker implements Visitor<Contract> {
 	private void checkDualInputContract(DualInputContract<?> dualInputContract) {
 		List<Contract> input1 = dualInputContract.getFirstInputs();
 		List<Contract> input2 = dualInputContract.getSecondInputs();
-
 		// check if input exists
 		if (input1.size() == 0 || input2.size() == 0) {
 			throw new MissingChildException();
 		}
+	}
+	
+	private void checkBulkIteration(BulkIteration iter) {
+		iter.validate();
+		checkSingleInputContract(iter);
 	}
 }

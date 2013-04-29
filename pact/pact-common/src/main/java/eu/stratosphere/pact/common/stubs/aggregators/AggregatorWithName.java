@@ -12,21 +12,29 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
+package eu.stratosphere.pact.common.stubs.aggregators;
 
-package eu.stratosphere.pact.runtime.iterative.convergence;
-
-import eu.stratosphere.pact.common.stubs.aggregators.Aggregator;
 import eu.stratosphere.pact.common.type.Value;
 
 /**
- * Used to check for convergence.
+ * Simple class describing an aggregator with the name it is registered under.
  */
-public interface ConvergenceCriterion<T extends Value> {
+public class AggregatorWithName<T extends Value> {
 
-	Aggregator<T> createAggregator();
+	private final String name;
+	
+	private final Class<Aggregator<T>> aggregator;
 
-	/**
-	 * Decide whether the iterative algorithm has converged
-	 */
-	boolean isConverged(int iteration, T value);
+	public AggregatorWithName(String name, Class<Aggregator<T>> aggregator) {
+		this.name = name;
+		this.aggregator = aggregator;
+	}
+	
+	public String getName() {
+		return name;
+	}
+	
+	public Class<Aggregator<T>> getAggregator() {
+		return aggregator;
+	}
 }

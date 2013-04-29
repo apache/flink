@@ -1,30 +1,25 @@
 package eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank;
 
-import eu.stratosphere.pact.common.stubs.aggregators.Aggregator;
-import eu.stratosphere.pact.runtime.iterative.convergence.ConvergenceCriterion;
+import eu.stratosphere.pact.common.stubs.aggregators.ConvergenceCriterion;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 public class DiffL1NormConvergenceCriterion implements ConvergenceCriterion<PageRankStats> {
 
-  private static final double EPSILON = 0.00005;
+	private static final double EPSILON = 0.00005;
 
-  private static final Log log = LogFactory.getLog(DiffL1NormConvergenceCriterion.class);
+	private static final Log log = LogFactory.getLog(DiffL1NormConvergenceCriterion.class);
 
-  @Override
-  public Aggregator<PageRankStats> createAggregator() {
-    return new PageRankStatsAggregator();
-  }
+	@Override
+	public boolean isConverged(int iteration, PageRankStats pageRankStats) {
+		double diff = pageRankStats.diff();
 
-  @Override
-  public boolean isConverged(int iteration, PageRankStats pageRankStats) {
-    double diff = pageRankStats.diff();
+		if (log.isInfoEnabled()) {
+			log.info("Stats in iteration [" + iteration + "]: " + pageRankStats);
+			log.info("L1 norm of the vector difference is [" + diff + "] in iteration [" + iteration + "]");
+		}
 
-    if (log.isInfoEnabled()) {
-      log.info("Stats in iteration [" + iteration + "]: " + pageRankStats);
-      log.info("L1 norm of the vector difference is [" + diff + "] in iteration [" + iteration + "]");
-    }
-
-    return diff < EPSILON;
-  }
+		return diff < EPSILON;
+	}
 }

@@ -855,7 +855,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		syncConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, headVertex.getNumberOfSubtasks());
 
 		// set the number of iteration / convergence criterion for the sync
-		final int maxNumIterations = bulkNode.getBulkIterationNode().getIterationContract().getNumberOfIterations();
+		final int maxNumIterations = bulkNode.getBulkIterationNode().getIterationContract().getMaximumNumberOfIterations();
 		if (maxNumIterations < 1) {
 			throw new CompilerException("Cannot create bulk iteration with unspecified maximum number of iterations");
 		}

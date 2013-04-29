@@ -32,7 +32,7 @@ public class IterativeKMeans extends KMeansIteration {
 		
 		BulkIteration iteration = new BulkIteration("K-Means Loop");
 		iteration.setInput(initialClusterPoints);
-		iteration.setNumberOfIterations(numIterations);
+		iteration.setMaximumNumberOfIterations(numIterations);
 		
 		// create DataSourceContract for data point input
 		FileDataSource dataPoints = new FileDataSource(PointInFormat.class, dataPointInput, "Data Points");
