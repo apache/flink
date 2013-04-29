@@ -1,0 +1,234 @@
+/***********************************************************************************************************************
+ *
+ * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ **********************************************************************************************************************/
+
+package eu.stratosphere.pact.runtime.task;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.HashSet;
+
+import junit.framework.Assert;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.junit.After;
+import org.junit.Test;
+
+import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.pact.common.io.DelimitedOutputFormat;
+import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.runtime.test.util.InfiniteInputIterator;
+import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
+import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
+import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
+
+public class DataSinkTaskTest extends TaskTestBase
+{
+	private static final Log LOG = LogFactory.getLog(DataSinkTaskTest.class);
+	
+	private final String tempTestPath = System.getProperty("java.io.tmpdir")+"/dst_test";
+	
+	@After
+	public void cleanUp() {
+		File tempTestFile = new File(this.tempTestPath);
+		if(tempTestFile.exists()) {
+			tempTestFile.delete();
+		}
+	}
+	
+	@Test
+	public void testDataSinkTask() {
+
+		int keyCnt = 100;
+		int valCnt = 20;
+		
+		super.initEnvironment(1024 * 1024);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 0);
+		
+		DataSinkTask<PactRecord> testTask = new DataSinkTask<PactRecord>();
+		
+		super.registerFileOutputTask(testTask, MockOutputFormat.class, "file://"+this.tempTestPath);
+		
+		try {
+			testTask.invoke();
+		} catch (Exception e) {
+			LOG.debug(e);
+			Assert.fail("Invoke method caused exception.");
+		}
+		
+		File tempTestFile = new File(this.tempTestPath);
+		
+		Assert.assertTrue("Temp output file does not exist",tempTestFile.exists());
+		
+		FileReader fr = null;
+		BufferedReader br = null;
+		try {
+			fr = new FileReader(tempTestFile);
+			br = new BufferedReader(fr);
+			
+			HashMap<Integer,HashSet<Integer>> keyValueCountMap = new HashMap<Integer, HashSet<Integer>>(keyCnt);
+			
+			while(br.ready()) {
+				String line = br.readLine();
+				
+				Integer key = Integer.parseInt(line.substring(0,line.indexOf("_")));
+				Integer val = Integer.parseInt(line.substring(line.indexOf("_")+1,line.length()));
+				
+				if(!keyValueCountMap.containsKey(key)) {
+					keyValueCountMap.put(key,new HashSet<Integer>());
+				}
+				keyValueCountMap.get(key).add(val);
+			}
+			
+			Assert.assertTrue("Invalid key count in out file. Expected: "+keyCnt+" Actual: "+keyValueCountMap.keySet().size(),
+				keyValueCountMap.keySet().size() == keyCnt);
+			
+			for(Integer key : keyValueCountMap.keySet()) {
+				Assert.assertTrue("Invalid value count for key: "+key+". Expected: "+valCnt+" Actual: "+keyValueCountMap.get(key).size(),
+					keyValueCountMap.get(key).size() == valCnt);
+			}
+			
+		} catch (FileNotFoundException e) {
+			Assert.fail("Out file got lost...");
+		} catch (IOException ioe) {
+			Assert.fail("Caught IOE while reading out file");
+		} finally {
+			if (br != null) {
+				try { br.close(); } catch (Throwable t) {}
+			}
+			if (fr != null) {
+				try { fr.close(); } catch (Throwable t) {}
+			}
+		}
+	}
+	
+	@Test
+	public void testFailingDataSinkTask() {
+
+		int keyCnt = 100;
+		int valCnt = 20;
+		
+		super.initEnvironment(1024 * 1024);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 0);
+
+		DataSinkTask<PactRecord> testTask = new DataSinkTask<PactRecord>();
+		Configuration stubParams = new Configuration();
+		super.getTaskConfig().setStubParameters(stubParams);
+		
+		super.registerFileOutputTask(testTask, MockFailingOutputFormat.class, "file://"+this.tempTestPath);
+		
+		boolean stubFailed = false;
+		
+		try {
+			testTask.invoke();
+		} catch (Exception e) {
+			stubFailed = true;
+		}
+		
+		Assert.assertTrue("Stub exception was not forwarded.", stubFailed);
+		
+		// assert that temp file was created
+		File tempTestFile = new File(this.tempTestPath);
+		Assert.assertTrue("Temp output file does not exist",tempTestFile.exists());
+		
+	}
+	
+	@Test
+	public void testCancelDataSinkTask() {
+		
+		super.initEnvironment(1024 * 1024);
+		super.addInput(new InfiniteInputIterator(), 0);
+		
+		final DataSinkTask<PactRecord> testTask = new DataSinkTask<PactRecord>();
+		Configuration stubParams = new Configuration();
+		super.getTaskConfig().setStubParameters(stubParams);
+		
+		super.registerFileOutputTask(testTask, MockOutputFormat.class,  "file://"+this.tempTestPath);
+		
+		Thread taskRunner = new Thread() {
+			@Override
+			public void run() {
+				try {
+					testTask.invoke();
+				} catch (Exception ie) {
+					ie.printStackTrace();
+					Assert.fail("Task threw exception although it was properly canceled");
+				}
+			}
+		};
+		taskRunner.start();
+		
+		TaskCancelThread tct = new TaskCancelThread(1, taskRunner, testTask);
+		tct.start();
+		
+		try {
+			tct.join();
+			taskRunner.join();		
+		} catch(InterruptedException ie) {
+			Assert.fail("Joining threads failed");
+		}
+		
+		// assert that temp file was created
+		File tempTestFile = new File(this.tempTestPath);
+		Assert.assertTrue("Temp output file does not exist",tempTestFile.exists());
+				
+	}
+	
+	public static class MockOutputFormat extends DelimitedOutputFormat
+	{
+		final StringBuilder bld = new StringBuilder();
+		
+		@Override
+		public int serializeRecord(PactRecord rec, byte[] target) throws Exception
+		{
+			PactInteger key = rec.getField(0, PactInteger.class);
+			PactInteger value = rec.getField(1, PactInteger.class);
+		
+			this.bld.setLength(0);
+			this.bld.append(key.getValue());
+			this.bld.append('_');
+			this.bld.append(value.getValue());
+			
+			byte[] bytes = this.bld.toString().getBytes();
+			if (bytes.length <= target.length) {
+				System.arraycopy(bytes, 0, target, 0, bytes.length);
+				return bytes.length;
+			}
+			// else
+			return -bytes.length;
+		}
+		
+	}
+	
+	public static class MockFailingOutputFormat extends MockOutputFormat {
+
+		int cnt = 0;
+		
+		@Override
+		public int serializeRecord(PactRecord rec, byte[] target) throws Exception
+		{
+			if (++this.cnt >= 10) {
+				throw new RuntimeException("Expected Test Exception");
+			}
+			return super.serializeRecord(rec, target);
+		}
+	}
+}
+

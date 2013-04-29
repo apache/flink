@@ -1,0 +1,251 @@
+.draggable
+{
+	position: absolute;
+}
+
+.connector
+{
+	background-color: #FF9900;
+        padding: 1.5px;
+}
+
+.middle-label
+{
+	background-color: #E0E8FF;
+	border: 1px solid #9DA3B3;
+
+	font-family: verdana;
+	font-size: 13px;
+	text-align: center;
+
+	padding: 5px;
+	-webkit-border-radius: 10px; -moz-border-radius: 10px;
+
+        margin-left: -50px;
+}
+
+div.canvas
+{
+	background-color: white;
+	background-image: url('../img/gradient.jpg');
+	background-repeat: no-repeat;
+	background-position: top right;
+	padding: 0px;
+	margin-bottom: 10px;
+}
+
+div.propertyCanvas
+{
+	background-color: white;
+	background-image: url('../img/gradient.jpg');
+	background-repeat: no-repeat;
+	background-position: top right;
+
+	border-top: 1px solid #262A37;
+	border-right: 1px solid #262A37; 
+
+	margin: 5px; 
+	padding: 10px;
+	min-height: 250px;
+	
+	overflow: auto;
+}
+
+span.shippingStrategy
+{
+	font-style: normal;
+	font-weight: normal;
+}
+
+span.localStrategy
+{
+	font-style: italic;
+	font-weight: normal;
+}
+
+span.tempMode
+{
+	font-style: normal;
+	font-weight: bold;
+}
+
+.datasource, .datasink, .pact
+{
+	border: 1px solid #9DA3B3;
+	padding: 3px;
+	margin: 0px;
+	
+	overflow: visible;
+}
+
+.datasource, .datasink
+{
+	background-color: #F7BE81;
+	width: 130px;
+	height: 100px;
+	-webkit-border-radius: 50px; -moz-border-radius: 50px;
+
+}
+
+.sourceSinkContents
+{
+	font-family: verdana;
+	font-size: 14px;
+	word-wrap: break-word;
+	text-align: center;
+	margin-top: 18px;
+	margin-bottom: 23px;
+	margin-left: 5px;
+	margin-right: 5px;
+}
+
+.sourceSinkFold
+{
+	font-family: monospace;
+	font-size: 16px;
+	text-align: center;
+	cursor: default;
+	position: absolute;
+	left: 30px;
+	right: 30px;
+	bottom: 3px;
+}
+
+.pact
+{
+	width: 120px;
+	height: 90px;
+
+	background-color: #A9F5A9;
+	-webkit-border-radius: 5px; -moz-border-radius: 5px;
+
+	overflow: visible;
+}
+
+.pactOutputContract
+{
+	background-color: #99CCFF;
+	border: 1px solid #9DA3B3;
+	padding: 2px;
+
+	width: 20px;
+	position: absolute;
+	top: 2px;
+	bottom: 2px;
+	right: -28px;
+}
+
+.pactOutputContractContents
+{
+	display: block;
+	-webkit-transform: rotate(90deg); 
+	-moz-transform: rotate(90deg);	
+	filter: progid:DXImageTransform.Microsoft.BasicImage(rotation=1);
+}
+
+.pactTypeBox
+{
+	background-color: #E0E8FF;
+	border: 1px solid #9DA3B3;
+	padding: 2px;
+	color: #33333F;
+	font-family: verdana;
+	font-size: 14px;
+	font-weight: bold;
+	text-align: center;
+}
+
+.pactContents
+{
+	font-family: verdana;
+	font-size: 16px;
+	text-align:center;
+	vertical-align: middle;
+	
+	padding: 3px;
+	margin-top: 5px;
+	margin-bottom: 15px;
+
+	word-wrap: break-word;
+	overflow: auto;
+}
+
+.pactFold
+{
+        position: absolute;
+	bottom: 3px;
+	right: 3px;
+	font-family: monospace;
+	font-size: 16px;
+	text-align: right;
+	cursor: default;
+}
+
+.propertiesTable
+{
+	border: none;
+	margin: 2px;
+	padding: 2px;
+	width: 100%;
+
+	background-color: #E0E8FF;
+	font-family: verdana;
+	font-size: 16px;
+	font-weight: normal;
+}
+
+.propertiesNameCell
+{
+	margin: 5px;
+	padding: 3px;
+	background-color: #FFFFFF;
+	font-style: normal;
+	text-align: right;
+}
+
+.propertiesValueCell
+{
+	margin: 5px;
+	padding: 3px;
+	background-color: #FFFFFF;
+	font-style: italic;
+	text-align: left;
+}
+
+p.propItem
+{
+	font-family: Arial;
+	font-size: 16px;
+	font-style: normal;
+	margin: 3px;
+	padding: 3px 10px 3px 5px;
+	border: none;
+	border-bottom: 1px solid #444444;
+}
+
+span.propLabel
+{
+	font-weight: bold;
+	font-style: normal;
+}
+
+span.propValue
+{
+	font-weight: normal;
+	font-style: italic;
+	word-wrap: break-word;
+}
+
+div.propertyCanvasSection
+{
+	float: left;
+	min-width: 280px;
+	max-width: 350px;
+	min-height: 180px;
+
+	border-left: 1px solid #444444;
+	border-top: 1px solid #444444;
+
+	padding: 5px;
+	margin: 0px;
+}

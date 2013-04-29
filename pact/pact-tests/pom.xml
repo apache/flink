@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<artifactId>pact</artifactId>
+		<groupId>eu.stratosphere</groupId>
+		<version>0.2</version>
+	</parent>
+
+	<artifactId>pact-tests</artifactId>
+	<name>pact-tests</name>
+
+	<packaging>jar</packaging>
+
+	<dependencies>
+
+		<dependency>
+			<groupId>eu.stratosphere</groupId>
+			<artifactId>nephele-common</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>eu.stratosphere</groupId>
+			<artifactId>nephele-hdfs</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>eu.stratosphere</groupId>
+			<artifactId>pact-common</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>eu.stratosphere</groupId>
+			<artifactId>pact-runtime</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>eu.stratosphere</groupId>
+			<artifactId>pact-compiler</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>eu.stratosphere</groupId>
+			<artifactId>pact-clients</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>eu.stratosphere</groupId>
+			<artifactId>pact-examples</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>eu.stratosphere</groupId>
+			<artifactId>pact-array-datamodel</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+	</dependencies>
+
+	<reporting>
+		<plugins>
+		</plugins>
+	</reporting>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<version>2.7</version>
+				<configuration>
+					<systemPropertyVariables>
+						<log.level>WARN</log.level>
+					</systemPropertyVariables>
+					<excludes>
+						<exclude>**/*TestBase*.class</exclude>
+					</excludes>
+					<forkMode>once</forkMode>
+				</configuration>
+			</plugin>
+
+			<plugin>
+				<artifactId>maven-failsafe-plugin</artifactId>
+				<version>2.7</version>
+				<configuration>
+					<systemPropertyVariables>
+						<log.level>WARN</log.level>
+					</systemPropertyVariables>
+					<forkMode>always</forkMode>
+					<threadCount>1</threadCount>
+					<perCoreThreadCount>false</perCoreThreadCount>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
+</project>

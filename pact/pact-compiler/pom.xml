@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<artifactId>pact</artifactId>
+		<groupId>eu.stratosphere</groupId>
+		<version>0.2</version>
+	</parent>
+
+	<artifactId>pact-compiler</artifactId>
+	<name>pact-compiler</name>
+
+	<packaging>jar</packaging>
+
+	<dependencies>
+
+		<dependency>
+			<groupId>eu.stratosphere</groupId>
+			<artifactId>pact-common</artifactId>
+			<version>${project.version}</version>
+			<scope>compile</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>eu.stratosphere</groupId>
+			<artifactId>pact-runtime</artifactId>
+			<version>${project.version}</version>
+			<scope>compile</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>eu.stratosphere</groupId>
+			<artifactId>pact-examples</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+
+	<reporting>
+		<plugins>
+		</plugins>
+	</reporting>
+
+	<build>
+		<plugins>
+		</plugins>
+	</build>
+
+</project>

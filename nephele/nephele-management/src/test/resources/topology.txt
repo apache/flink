@@ -1,0 +1,16 @@
+/mainswitch1/rackswitch1/node01
+/mainswitch1/rackswitch1/node02
+/mainswitch1/rackswitch1/node03
+/mainswitch1/rackswitch1/node04
+/mainswitch1/rackswitch2/node05
+/mainswitch1/rackswitch2/node06
+/mainswitch1/rackswitch2/node07
+/mainswitch1/rackswitch2/node08
+/mainswitch2/rackswitch3/node09
+/mainswitch2/rackswitch3/node10
+/mainswitch2/rackswitch3/node11
+/mainswitch2/rackswitch3/node12
+/mainswitch2/rackswitch4/node13
+/mainswitch2/rackswitch4/node14
+/mainswitch2/rackswitch4/node15
+/mainswitch2/rackswitch4/node16

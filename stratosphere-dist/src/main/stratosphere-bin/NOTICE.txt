@@ -1,0 +1,6 @@
+This product includes software developed by The Apache Software
+Foundation (http://www.apache.org/).
+
+Specifically, this product copied and modified source code from the
+following projects:
+ - Apache Hadoop (Version 0.20.2)

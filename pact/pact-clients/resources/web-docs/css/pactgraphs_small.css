@@ -1,0 +1,153 @@
+.draggable
+{
+	position: absolute;
+}
+
+.connector
+{
+	background-color: #FF9900;
+        padding: 0.5px;
+}
+
+.middle-label
+{
+	background-color: #E0E8FF;
+	border: 1px solid #9DA3B3;
+
+	font-family: verdana;
+	font-size: 10px;
+	text-align: center;
+
+	padding: 2px;
+	-webkit-border-radius: 3px; -moz-border-radius: 3px;
+
+        margin-left: -40px;
+}
+
+div.canvas
+{
+	background-color: white;
+	background-image: url('../img/gradient.jpg');
+	background-repeat: no-repeat;
+	background-position: top right;
+	padding: 0px;
+	margin-bottom: 10px;
+}
+
+span.shippingStrategy
+{
+	font-style: normal;
+	font-weight: normal;
+}
+
+span.localStrategy
+{
+	font-style: italic;
+	font-weight: normal;
+}
+
+span.tempMode
+{
+	font-style: normal;
+	font-weight: bold;
+}
+
+.datasource, .datasink, .pact
+{
+	border: 1px solid #9DA3B3;
+	padding: 2px;
+	margin: 0px;
+	
+	overflow: visible;
+}
+
+.datasource, .datasink
+{
+	background-color: #F7BE81;
+	width: 80px;
+	height: 70px;
+	-webkit-border-radius: 10px; -moz-border-radius: 10px;
+
+}
+
+.sourceSinkContents
+{
+	font-family: verdana;
+	font-size: 11px;
+	word-wrap: break-word;
+	text-align: center;
+	margin: 5px;
+}
+
+.pact
+{
+	width: 80px;
+	height: 60px;
+
+	background-color: #A9F5A9;
+	-webkit-border-radius: 2px; -moz-border-radius: 2px;
+
+	overflow: visible;
+}
+
+.pactOutputContract
+{
+	background-color: #99CCFF;
+	border: 1px solid #9DA3B3;
+	padding: 2px;
+
+	width: 20px;
+	position: absolute;
+	top: 2px;
+	bottom: 2px;
+	right: -28px;
+}
+
+.pactOutputContractContents
+{
+	font-family: verdana;
+	font-size: 12px;
+
+	display: block;
+	-webkit-transform: rotate(90deg); 
+	-moz-transform: rotate(90deg);	
+	filter: progid:DXImageTransform.Microsoft.BasicImage(rotation=1);
+}
+
+.pactTypeBox
+{
+	background-color: #E0E8FF;
+	border: 1px solid #9DA3B3;
+	padding: 1px;
+	color: #33333F;
+	font-family: verdana;
+	font-size: 12px;
+	font-weight: bold;
+	text-align: center;
+}
+
+.pactContents
+{
+	font-family: verdana;
+	font-size: 12px;
+	text-align:center;
+	vertical-align: middle;
+	
+	padding: 3px;
+	margin-top: 5px;
+	margin-bottom: 15px;
+
+	word-wrap: break-word;
+	overflow: hidden;
+}
+
+.pactFold
+{
+	display: none;
+}
+
+.sourceSinkFold
+{
+	display: none;
+}
+

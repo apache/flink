@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
+	xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+      <artifactId>nephele</artifactId>
+      <groupId>eu.stratosphere</groupId>
+      <version>0.2</version>
+    </parent>
+
+    <groupId>eu.stratosphere</groupId>
+    <artifactId>nephele-compression-zlib</artifactId>
+    <version>0.2</version>
+    <name>nephele-compression-zlib</name>
+
+    <dependencies>
+      <dependency>
+        <groupId>eu.stratosphere</groupId>
+        <artifactId>nephele-server</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+    </dependencies>
+
+    <build>
+      <plugins>
+        <plugin>
+          <artifactId>maven-antrun-plugin</artifactId>
+          <executions>
+            <execution>
+              <id>build-native</id>
+              <phase>process-classes</phase>
+              <goals>
+                <goal>run</goal>
+              </goals>
+              <configuration>
+                <tasks>
+                <!--
+                  <property name="native.classpath" refid="maven.compile.classpath" />
+                  <echo file="${project.build.directory}/compile-classpath" message="${native.classpath}" />-->
+                  <exec dir="src/main/native" executable="make" failonerror="true"/>
+                </tasks>
+              </configuration>
+            </execution>
+         </executions>
+       </plugin>
+     </plugins>
+    </build>
+
+</project>

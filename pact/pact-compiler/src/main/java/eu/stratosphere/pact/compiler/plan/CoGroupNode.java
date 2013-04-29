@@ -1,0 +1,193 @@
+/***********************************************************************************************************************
+ *
+ * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ **********************************************************************************************************************/
+
+package eu.stratosphere.pact.compiler.plan;
+
+import java.util.Collections;
+import java.util.ArrayList;
+import java.util.List;
+
+import eu.stratosphere.pact.common.contract.CompilerHints;
+import eu.stratosphere.pact.common.util.FieldSet;
+import eu.stratosphere.pact.compiler.DataStatistics;
+import eu.stratosphere.pact.compiler.operators.CoGroupDescriptor;
+import eu.stratosphere.pact.compiler.operators.OperatorDescriptorDual;
+import eu.stratosphere.pact.generic.contract.GenericCoGroupContract;
+
+/**
+ * The Optimizer representation of a <i>CoGroup</i> contract node.
+ */
+public class CoGroupNode extends TwoInputNode
+{	
+	/**
+	 * Creates a new CoGroupNode for the given contract.
+	 * 
+	 * @param pactContract
+	 *        The CoGroup contract object.
+	 */
+	public CoGroupNode(GenericCoGroupContract<?> pactContract) {
+		super(pactContract);
+	}
+
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Gets the contract object for this CoGroup node.
+	 * 
+	 * @return The contract.
+	 */
+	@Override
+	public GenericCoGroupContract<?> getPactContract() {
+		return (GenericCoGroupContract<?>) super.getPactContract();
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getName()
+	 */
+	@Override
+	public String getName() {
+		return "CoGroup";
+	}
+
+	@Override
+	protected List<OperatorDescriptorDual> getPossibleProperties() {
+		return Collections.<OperatorDescriptorDual>singletonList(new CoGroupDescriptor(this.keys1, this.keys2));
+	}
+
+	/**
+	 * Computes the number of keys that are processed by the PACT.
+	 * 
+	 * @return the number of keys processed by the PACT.
+	 */
+	protected long computeNumberOfProcessedKeys() {
+		long numKey1 = this.getFirstPredecessorNode().getEstimatedCardinality(new FieldSet(this.keys1));
+		long numKey2 = this.getSecondPredecessorNode().getEstimatedCardinality(new FieldSet(this.keys2));
+
+		if(numKey1 == -1 && numKey2 == -1)
+			// key card of both inputs unknown. Return -1
+			return -1;
+		
+		if(numKey1 == -1)
+			// key card of 1st input unknown. Use key card of 2nd input as lower bound
+			return numKey2;
+		
+		if(numKey2 == -1)
+			// key card of 2nd input unknown. Use key card of 1st input as lower bound
+			return numKey1;
+
+		// key card of both inputs known. Use maximum as lower bound
+		return Math.max(numKey1, numKey2);
+	}
+	
+	/**
+	 * Computes the number of stub calls for one processed key. 
+	 * 
+	 * @return the number of stub calls for one processed key.
+	 */
+	protected double computeStubCallsPerProcessedKey() {
+		// the stub is called once for each key.
+		return 1;
+	}
+	
+	/**
+	 * Computes the number of stub calls.
+	 * 
+	 * @return the number of stub calls.
+	 */
+	protected long computeNumberOfStubCalls() {
+		// the stub is called once per key
+		return this.computeNumberOfProcessedKeys();
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeOutputEstimates(eu.stratosphere.pact.compiler.DataStatistics)
+	 */
+	@Override
+	public void computeOutputEstimates(DataStatistics statistics) {
+		CompilerHints hints = getPactContract().getCompilerHints();
+
+		// special hint handling for CoGroup:
+		// In case of SameKey OutputContract, avgNumValuesPerKey and avgRecordsEmittedPerStubCall are identical, 
+		// since the stub is called once per key
+		int[] keyColumns = getConstantKeySet(0); 
+		if (keyColumns != null) {
+			FieldSet keySet = new FieldSet(keyColumns);
+			if (hints.getAvgNumRecordsPerDistinctFields(keySet) != -1 && hints.getAvgRecordsEmittedPerStubCall() == -1) {
+				hints.setAvgRecordsEmittedPerStubCall(hints.getAvgNumRecordsPerDistinctFields(keySet));
+			}
+			if(hints.getAvgRecordsEmittedPerStubCall() != -1 && hints.getAvgNumRecordsPerDistinctFields(keySet) == -1) {
+				hints.setAvgNumRecordsPerDistinctFields(keySet, hints.getAvgRecordsEmittedPerStubCall());
+			}
+		}
+		
+		keyColumns = getConstantKeySet(1); 
+		if (keyColumns != null) {
+			FieldSet keySet = new FieldSet(keyColumns);
+			if (hints.getAvgNumRecordsPerDistinctFields(keySet) != -1 && hints.getAvgRecordsEmittedPerStubCall() == -1) {
+				hints.setAvgRecordsEmittedPerStubCall(hints.getAvgNumRecordsPerDistinctFields(keySet));
+			}
+			if(hints.getAvgRecordsEmittedPerStubCall() != -1 && hints.getAvgNumRecordsPerDistinctFields(keySet) == -1) {
+				hints.setAvgNumRecordsPerDistinctFields(keySet, hints.getAvgRecordsEmittedPerStubCall());
+			}
+		}
+		
+		
+		super.computeOutputEstimates(statistics);
+	}
+	
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#createUniqueFieldsForNode()
+	 */
+	@Override
+	public List<FieldSet> createUniqueFieldsForNode() {
+		List<FieldSet> uniqueFields = null;
+		if (keys1 != null) {
+			boolean isKept = true;
+			for (int keyField : keys1) {
+				if (!isFieldConstant(0, keyField)) {
+					isKept = false;
+					break;
+				}
+			}
+			
+			if (isKept) {
+				uniqueFields = new ArrayList<FieldSet>();
+				uniqueFields.add(new FieldSet(keys1));
+			}
+		}
+		
+		if (keys2 != null) {
+			boolean isKept = true;
+			for (int keyField : keys2) {
+				if (!isFieldConstant(1, keyField)) {
+					isKept = false;
+					break;
+				}
+			}
+			
+			if (isKept) {
+				if (uniqueFields == null) {
+					uniqueFields = new ArrayList<FieldSet>();	
+				}
+				uniqueFields.add(new FieldSet(keys2));
+			}
+		}
+		
+		return uniqueFields;
+	}
+}

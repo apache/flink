@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+#######################################################################################################################
+## 
+##  Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+## 
+##  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+##  the License. You may obtain a copy of the License at
+## 
+##      http://www.apache.org/licenses/LICENSE-2.0
+## 
+##  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+##  an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+##  specific language governing permissions and limitations under the License.
+## 
+#######################################################################################################################
+-->
+<configuration>
+
+	<!--  ========================================================================
+	                                    Parallelism
+	      ======================================================================== -->
+	      
+	<!-- The default degree of parallelism for each user function, if no other degree
+	      is explicitly specified. -->
+	<property>
+		<key>pact.parallelization.degree</key>
+		<value>-1</value>
+	</property>
+	
+	<!-- The maximum number of parallel instances of the user function that are assigned to
+	     a single computing instance. If set to -1, than no limit exists. -->
+	<property>
+		<key>pact.parallelization.max-intra-node-degree</key>
+		<value>-1</value>
+	</property>
+
+	<!-- An optional hard limit in the number of machines to use. A program will never use
+	     more than the here specified number of machines. If set to '-1', the limit is set
+	     by the maximal number of instances available in the cluster.
+	     
+	     If this value is set, the actual number of machines used for certain tasks may be
+	     even lower than this value, due to scheduling constraints. -->	
+	<property>
+		<key>pact.parallelization.maxmachines</key>
+		<value>-1</value>
+	</property>
+
+	<!--  ========================================================================
+	                          Common Runtime Options
+	      ======================================================================== -->
+
+	<!-- Introduces a timeout after which HDFS file open calls time out. This can be useful
+             for tracing unexpectedly long query delays. -->	     
+	<property>
+		<key>pact.runtime.fs_timeout</key>
+		<value>0</value>
+	</property>
+
+	<!-- Flag indicating whether to use the experimental multicast feature for broadcasting buffers.
+             USE AT OWN RISK!!! -->
+	<property>
+		<key>pact.runtime.multicast-for-broadcast</key>
+		<value>false</value>
+	</property>
+	
+	<!--  ========================================================================
+	                                    Web Frontend
+	      ======================================================================== -->
+	      
+	<!-- The port of the frontend web server -->
+	<property>
+		<key>pact.web.port</key>
+		<value>8080</value>
+	</property>
+	
+	<!-- The path to the root directory containing the web documents -->
+	<property>
+		<key>pact.web.rootpath</key>
+		<value>./resources/web-docs/</value>
+	</property>
+	
+	<!-- The temp directory for the web server -->
+	<property>
+		<key>pact.web.temp</key>
+		<value>/tmp</value>
+	</property>
+	
+	<!-- The directory into which the web server will store uploaded pact programs -->
+	<property>
+		<key>pact.web.uploaddir</key>
+		<value>/tmp/pact-jobs/</value>
+	</property>
+	
+	<!-- The directory into which the web server will dump temporary JSON files describing pact plans -->
+	<property>
+		<key>pact.web.plandump</key>
+		<value>/tmp/pact-plans/</value>
+	</property>
+	
+</configuration>

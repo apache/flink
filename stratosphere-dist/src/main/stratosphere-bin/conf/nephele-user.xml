@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+#######################################################################################################################
+## 
+##  Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+## 
+##  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+##  the License. You may obtain a copy of the License at
+## 
+##      http://www.apache.org/licenses/LICENSE-2.0
+## 
+##  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+##  an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+##  specific language governing permissions and limitations under the License.
+## 
+#######################################################################################################################
+-->
+<configuration>
+
+	<!--  ========================================================================
+                                     Addresses and Ports 
+              ======================================================================== -->
+
+        <!-- the address of the job manager -->
+        <property>
+                <key>jobmanager.rpc.address</key>
+                <value>localhost</value>
+        </property>
+
+        <!-- the IPC port of the job manager -->
+        <property>
+                <key>jobmanager.rpc.port</key>
+                <value>6123</value>
+        </property>
+
+        <!-- the IPC port of the task manager -->
+        <property>
+                <key>taskmanager.rpc.port</key>
+                <value>6122</value>
+        </property>
+
+
+        <!--  ========================================================================
+	                           Client Configuration   
+	      ======================================================================== -->
+
+	<!-- The interval, in seconds, in which the job client polls the job manager for status updates -->
+        <property>
+                <key>jobclient.polling.internval</key>
+                <value>2</value>
+        </property>
+
+	<!-- Configuration used when writing into the hadoop distributed file system. unless specified, hdfs file creation will use
+             HDFS default settings with respect to block-size, replication factor, etc. -->
+        <!--<property>
+                <key>fs.hdfs.hdfsdefault</key>
+                <value>/share/nephele/hadoop/conf/hdfs-site.xml</value>
+        </property> -->
+
+        <!--  ========================================================================
+	                               Memory, Buffers and Directories
+	      ======================================================================== -->
+
+        <!--  The directories for temporary files. Add a separated list for multiple directories, using system directory, delimiter (colon ':' on unix) -->
+        <property>
+                <key>taskmanager.tmp.dirs</key>
+                <value>/tmp</value>
+        </property>
+
+        <!-- The number of network buffers used by the TaskManager -->
+        <property>
+                <key>channel.network.numberOfBuffers</key>
+                <value>2048</value>
+        </property>
+
+	<!-- The size of the network buffers. -->
+        <property>
+                <key>channel.network.bufferSizeInBytes</key>
+                <value>32768</value>
+        </property>
+
+        <property>
+                <key>jobmanager.rpc.numhandler</key>
+                <value>8</value>
+        </property>
+
+        <property>
+                <key>multicast.enable</key>
+                <value>false</value>
+        </property>
+
+        <!--  ========================================================================
+	                                   Instances
+	      ======================================================================== -->
+	      
+	<!-- Definition of the standard instance type. This definition describes the instances in 
+	     a local and cluster setup. Each node (or more precisely each TaskManager running on a node) 
+	     will be considered to have the here defined resources available.
+	     The available resources are defined as follows:
+	     <name>,<compute-units>,<CPU-cores>,<memory in MB>,<disk-space in GB>,<price-per-hour>  -->
+	
+	<property>
+		<key>instancemanager.cluster.type.1</key>
+		<value>standard,2,1,1024,20,0</value>
+	</property>
+	
+	<property>
+		<key>instancemanager.cluster.defaulttype</key>
+		<value>1</value>
+	</property>
+	
+	<!--  ========================================================================
+	                       Job / Instance Profiling 
+	      ======================================================================== -->
+	      
+	<property>
+		<key>jobmanager.profiling.enable</key>
+		<value>false</value>
+	</property>
+
+	<property>
+		<key>jobmanager.profiling.classname</key>
+		<value>eu.stratosphere.nephele.profiling.impl.JobManagerProfilerImpl</value>
+	</property>
+	
+	<property>
+		<key>taskmanager.profiling.classname</key>
+		<value>eu.stratosphere.nephele.profiling.impl.TaskManagerProfilerImpl</value>
+	 </property>
+	 
+</configuration>
