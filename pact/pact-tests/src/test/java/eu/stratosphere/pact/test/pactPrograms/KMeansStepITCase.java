@@ -16,42 +16,28 @@
 package eu.stratosphere.pact.test.pactPrograms;
 
 import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.List;
-
-import java.util.Random;
 import java.util.StringTokenizer;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.junit.Assert;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.pact.common.contract.CrossContract;
 import eu.stratosphere.pact.common.contract.GenericDataSink;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.plan.Plan;
-import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.PactCompiler;
-import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
-import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.pact.example.kmeans.KMeansSingleStep;
-import eu.stratosphere.pact.test.util.TestBase;
+import eu.stratosphere.pact.test.util.TestBase2;
 
 @RunWith(Parameterized.class)
-public class KMeansIterationITCase extends TestBase {
-
-	private static final Log LOG = LogFactory.getLog(KMeansIterationITCase.class);
+public class KMeansStepITCase extends TestBase2 {
 
 	public final String DATAPOINTS = "0|50.90|16.20|72.08|\n" + "1|73.65|61.76|62.89|\n" + "2|61.73|49.95|92.74|\n"
 			+ "3|1.60|70.11|16.32|\n" + "4|2.43|19.81|89.56|\n" + "5|67.99|9.00|14.48|\n" + "6|87.80|84.49|55.83|\n"
@@ -94,12 +80,12 @@ public class KMeansIterationITCase extends TestBase {
 			+ "2|83.92|60.45|25.17|\n" + "3|70.73|20.18|67.06|\n" + "4|22.51|47.19|86.23|\n" + "5|82.70|53.79|68.68|\n"
 			+ "6|29.74|19.17|59.16|";
 
-	protected String dataPath = null;
-	protected String clusterPath = null;
-	protected String resultPath = null;
+	protected String dataPath;
+	protected String clusterPath;
+	protected String resultPath;
 
 	
-	public KMeansIterationITCase(Configuration config) {
+	public KMeansStepITCase(Configuration config) {
 		super(config);
 	}
 	
@@ -109,53 +95,35 @@ public class KMeansIterationITCase extends TestBase {
 
 	@Override
 	protected void preSubmit() throws Exception {
-
-		dataPath = getFilesystemProvider().getTempDirPath() + "/dataPoints";
-		clusterPath = getFilesystemProvider().getTempDirPath() + "/iter_0";
-		resultPath = getFilesystemProvider().getTempDirPath() + "/iter_1";
+		final String dataPointDir = "dataPoints";
 		
-		int noPartitions = 4;
-
-		// create data path
-		getFilesystemProvider().createDir(dataPath);
+		dataPath = getTempDirPath(dataPointDir);
+		resultPath = getTempFilePath("iter_1");
 		
-		String[] splits = splitInputString(DATAPOINTS, '\n', noPartitions);
+		int numPartitions = 4;
+		String[] splits = splitInputString(DATAPOINTS, '\n', numPartitions);
 
-		int i = 0;
-		for (String split : splits) {
-			getFilesystemProvider().createFile(dataPath + "/part_" + i++ + ".txt", split);
-			if (LOG.isDebugEnabled())
-				LOG.debug("DATAPOINT split "+i+": \n>" + split + "<");
+		for (int i = 0; i < numPartitions; i++) {
+			String split = splits[i];
+			createTempFile(dataPointDir + "/part_" + i + ".txt", split);
 		}
 		
 		// create cluster path and copy data
-		getFilesystemProvider().createDir(clusterPath);
-		getFilesystemProvider().createFile(clusterPath+"/1", CLUSTERCENTERS);
-		
-		if (LOG.isDebugEnabled())
-			LOG.debug("Clusters: \n>" + CLUSTERCENTERS + "<");
-
+		clusterPath = createTempFile("iter_0", CLUSTERCENTERS);
 	}
+	
 
 	@Override
-	protected JobGraph getJobGraph() throws Exception {
-
+	protected Plan getPactPlan() {
 		KMeansSingleStep kmi = new KMeansSingleStep();
 
 		Plan plan = kmi.getPlan(config.getString("KMeansIterationTest#NoSubtasks", "1"), 
-				getFilesystemProvider().getURIPrefix()	+ dataPath, 
-				getFilesystemProvider().getURIPrefix() + clusterPath,  
-				getFilesystemProvider().getURIPrefix()	+ resultPath);
+				dataPath, clusterPath, resultPath);
 		
 		setParameterToCross(plan, config.getString("KMeansIterationTest#ForwardSide", null), PactCompiler.HINT_SHIP_STRATEGY_FORWARD);
-
-		PactCompiler pc = new PactCompiler(new DataStatistics());
-		OptimizedPlan op = pc.compile(plan);
-
-		NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
-		return jgg.compileJobGraph(op);
-
+		return plan;
 	}
+
 
 	@Override
 	protected void postSubmit() throws Exception {
@@ -200,29 +168,14 @@ public class KMeansIterationITCase extends TestBase {
 		// ------- Test results -----------
 		
 		// Determine all result files
-		ArrayList<String> resultFiles = new ArrayList<String>();
-		if (getFilesystemProvider().isDir(resultPath)) {
-			for (String file : getFilesystemProvider().listFiles(resultPath)) {
-				if (!getFilesystemProvider().isDir(file)) {
-					resultFiles.add(resultPath+"/"+file);
-				}
-			}
-		} else {
-			resultFiles.add(resultPath);
-		}
+
 
 		// collect lines of all result files
 		ArrayList<String> resultLines = new ArrayList<String>();
-		for (String resultFile : resultFiles) {
-			// read each result file
-			InputStream is = getFilesystemProvider().getInputStream(resultFile);
-			BufferedReader reader = new BufferedReader(new InputStreamReader(is));
-			String line = reader.readLine();
-
-			// collect lines
-			while (line != null) {
+		for (BufferedReader reader : getResultReader(resultPath)) {
+			String line = null;
+			while ((line = reader.readLine()) != null) {
 				resultLines.add(line);
-				line = reader.readLine();
 			}
 			reader.close();
 		}
@@ -256,34 +209,22 @@ public class KMeansIterationITCase extends TestBase {
 				Assert.assertTrue(shouldDouble - MAX_DELTA < isDouble && shouldDouble + MAX_DELTA > isDouble);
 			}
 		}
-		
-		// clean up file
-		getFilesystemProvider().delete(dataPath, true);
-		getFilesystemProvider().delete(clusterPath, true);
-		getFilesystemProvider().delete(resultPath, true);
-
 	}
 
 	@Parameters
 	public static Collection<Object[]> getConfigurations() {
-
-		List<Configuration> tConfigs = new ArrayList<Configuration>();
-
-		Configuration config = new Configuration();
-		config.setInteger("KMeansIterationTest#NoSubtasks", 4);
-		config.setString("KMeansIterationTest#ForwardSide", PactCompiler.HINT_SHIP_STRATEGY_FIRST_INPUT);
-		tConfigs.add(config);
+		Configuration config1 = new Configuration();
+		config1.setInteger("KMeansIterationTest#NoSubtasks", 4);
+		config1.setString("KMeansIterationTest#ForwardSide", PactCompiler.HINT_SHIP_STRATEGY_FIRST_INPUT);
 		
-		config = new Configuration();
-		config.setInteger("KMeansIterationTest#NoSubtasks", 4);
-		config.setString("KMeansIterationTest#ForwardSide", PactCompiler.HINT_SHIP_STRATEGY_SECOND_INPUT);
-		tConfigs.add(config);
+		Configuration config2 = new Configuration();
+		config2.setInteger("KMeansIterationTest#NoSubtasks", 4);
+		config2.setString("KMeansIterationTest#ForwardSide", PactCompiler.HINT_SHIP_STRATEGY_SECOND_INPUT);
 
-		return toParameterList(tConfigs);
+		return toParameterList(config1, config2);
 	}
 
 	private String[] splitInputString(String inputString, char splitChar, int noSplits) {
-
 		String splitString = inputString.toString();
 		String[] splits = new String[noSplits];
 		int partitionSize = (splitString.length() / noSplits) - 2;
@@ -298,109 +239,6 @@ public class KMeansIterationITCase extends TestBase {
 		splits[noSplits - 1] = splitString;
 
 		return splits;
-
-	}
-
-	public static class KMeanDataGenerator {
-
-		int noPoints;
-		int noClusters;
-		int noDims;
-
-		Random rand = new Random(System.currentTimeMillis());
-
-		double[][] dataPoints;
-		double[][] centers;
-		double[][] newCenters;
-
-		public KMeanDataGenerator(int noPoints, int noClusters, int noDims) {
-			this.noPoints = noPoints;
-			this.noClusters = noClusters;
-			this.noDims = noDims;
-
-			this.dataPoints = new double[noPoints][noDims];
-			this.centers = new double[noClusters][noDims];
-			this.newCenters = new double[noClusters][noDims];
-
-			// init data points
-			for (int i = 0; i < noPoints; i++) {
-				for (int j = 0; j < noDims; j++) {
-					dataPoints[i][j] = rand.nextDouble() * 100;
-				}
-			}
-
-			// init centers
-			for (int i = 0; i < noClusters; i++) {
-				for (int j = 0; j < noDims; j++) {
-					centers[i][j] = rand.nextDouble() * 100;
-				}
-			}
-
-			// compute new centers
-			int[] dataPointCnt = new int[noClusters];
-
-			for (int i = 0; i < noPoints; i++) {
-
-				double minDist = Double.MAX_VALUE;
-				int nearestCluster = 0;
-				for (int j = 0; j < noClusters; j++) {
-					double dist = computeDistance(dataPoints[i], centers[j]);
-					if (dist < minDist) {
-						minDist = dist;
-						nearestCluster = j;
-					}
-				}
-
-				for (int k = 0; k < noDims; k++) {
-					newCenters[nearestCluster][k] += dataPoints[i][k];
-				}
-				dataPointCnt[nearestCluster]++;
-
-			}
-
-			for (int i = 0; i < noClusters; i++) {
-				for (int j = 0; j < noDims; j++) {
-					newCenters[i][j] /= (dataPointCnt[i] != 0 ? dataPointCnt[i] : 1);
-				}
-			}
-		}
-
-		public String getDataPoints() {
-			return points2String(this.dataPoints);
-		}
-
-		public String getClusterCenters() {
-			return points2String(centers);
-		}
-
-		public String getNewClusterCenters() {
-			return points2String(newCenters);
-		}
-
-		private String points2String(double[][] points) {
-			StringBuilder sb = new StringBuilder();
-			DecimalFormat df = new DecimalFormat("#.00");
-
-			for (int i = 0; i < points.length; i++) {
-				sb.append(i);
-				sb.append('|');
-				for (int j = 0; j < points[i].length; j++) {
-					sb.append(df.format(points[i][j]));
-					sb.append('|');
-				}
-				sb.append('\n');
-			}
-			return sb.toString();
-		}
-
-		private double computeDistance(double[] a, double[] b) {
-			double sqrdSum = 0.0;
-			for (int i = 0; i < a.length; i++) {
-				sqrdSum += Math.pow(a[i] - b[i], 2);
-			}
-			return Math.sqrt(sqrdSum);
-		}
-
 	}
 	
 	public static void setParameterToCross(Plan p, String key, String value) {

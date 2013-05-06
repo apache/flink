@@ -682,14 +682,14 @@ public class TaskConfig {
 		return this.config.getInteger(NUMBER_OF_EOS_EVENTS_PREFIX + inputGateIndex, 0);
 	}
 	
-	public void setIterationHeadId(int id) {
+	public void setIterationId(int id) {
 		if (id < 0) {
 			throw new IllegalArgumentException();
 		}
 		this.config.setInteger(ITERATION_HEAD_ID, id);
 	}
 	
-	public int getIterationHeadId() {
+	public int getIterationId() {
 		int id = this.config.getInteger(ITERATION_HEAD_ID, -1);
 		if (id == -1) {
 			throw new CorruptConfigurationException("Iteration head ID is missing.");
@@ -743,7 +743,7 @@ public class TaskConfig {
 			return Collections.emptyList();
 		}
 		
-		List<AggregatorWithName<?>> list = new ArrayList<AggregatorWithName<?>>();
+		List<AggregatorWithName<?>> list = new ArrayList<AggregatorWithName<?>>(numAggs);
 		for (int i = 0; i < numAggs; i++) {
 			@SuppressWarnings("unchecked")
 			Class<Aggregator<Value>> aggClass = (Class<Aggregator<Value>>) (Class<?>) this.config.getClass(ITERATION_AGGREGATOR_PREFIX + i, null);

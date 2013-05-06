@@ -183,7 +183,9 @@ public abstract class SingleInputNode extends OptimizerNode
 		
 		OptimizerNode pred;
 		PactConnection conn;
-		if (children.size() == 1) {
+		if (children.size() == 0) {
+			throw new CompilerException("Error: Node for '" + getPactContract().getName() + "' has no inputs.");
+		} else if (children.size() == 1) {
 			pred = contractToNode.get(children.get(0));
 			conn = new PactConnection(pred, this, pred.getMaxDepth() + 1);
 			if (preSet != null) {

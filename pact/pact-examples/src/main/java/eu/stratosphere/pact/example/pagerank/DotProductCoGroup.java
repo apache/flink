@@ -3,6 +3,7 @@ package eu.stratosphere.pact.example.pagerank;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.stubs.CoGroupStub;
 import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsFirst;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactBoolean;
 import eu.stratosphere.pact.common.type.base.PactDouble;
@@ -11,6 +12,12 @@ import eu.stratosphere.pact.example.util.ConfigUtils;
 
 import java.util.Iterator;
 
+/**
+ * In schema is_
+ * INPUT = (pageId, currentRank, dangling), (pageId, partialRank).
+ * OUTPUT = (pageId, newRank, dangling)
+ */
+@ConstantFieldsFirst(0)
 public class DotProductCoGroup extends CoGroupStub {
 	
 	public static final String NUM_VERTICES_PARAMETER = "pageRank.numVertices";

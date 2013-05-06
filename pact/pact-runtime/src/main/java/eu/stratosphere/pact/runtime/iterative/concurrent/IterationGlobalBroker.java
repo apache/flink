@@ -15,44 +15,15 @@
 
 package eu.stratosphere.pact.runtime.iterative.concurrent;
 
-import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.runtime.iterative.task.RuntimeAggregatorRegistry;
 
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-
-//TODO generify
-public class IterationContext {
-
-	private ConcurrentMap<Integer, Value> aggregates;
-
-	private ConcurrentMap<Integer, Value> globalAggregates;
-
+public class IterationGlobalBroker extends Broker<RuntimeAggregatorRegistry> {
+	
 	/** single instance */
-	private static final IterationContext INSTANCE = new IterationContext();
-
-	private IterationContext() {
-		aggregates = new ConcurrentHashMap<Integer, Value>();
-		globalAggregates = new ConcurrentHashMap<Integer, Value>();
-	}
+	private static final IterationGlobalBroker INSTANCE = new IterationGlobalBroker();
 
 	/** retrieve singleton instance */
-	public static IterationContext instance() {
+	public static IterationGlobalBroker instance() {
 		return INSTANCE;
-	}
-
-	public void setAggregate(int index, Value aggregate) {
-		aggregates.put(index, aggregate);
-	}
-
-	public Value getAggregateAndReset(int index) {
-		return aggregates.remove(index);
-	}
-
-	public void setGlobalAggregate(int index, Value aggregate) {
-		globalAggregates.put(index, aggregate);
-	}
-
-	public Value getGlobalAggregate(int index) {
-		return globalAggregates.get(index);
 	}
 }

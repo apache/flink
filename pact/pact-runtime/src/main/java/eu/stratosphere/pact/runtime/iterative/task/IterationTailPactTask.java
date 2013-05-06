@@ -25,7 +25,7 @@ import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannel;
 import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannelBroker;
 import eu.stratosphere.pact.runtime.iterative.concurrent.Broker;
 import eu.stratosphere.pact.runtime.iterative.io.DataOutputCollector;
-import eu.stratosphere.pact.runtime.iterative.monitoring.IterationMonitoring;
+//import eu.stratosphere.pact.runtime.iterative.monitoring.IterationMonitoring;
 import eu.stratosphere.pact.runtime.task.PactTaskContext;
 
 //TODO could this be an output???
@@ -44,7 +44,7 @@ public class IterationTailPactTask<S extends Stub, OT> extends AbstractIterative
 	private BlockingBackChannel retrieveBackChannel() throws Exception {
 		// blocking call to retrieve the backchannel from the iteration head
 		Broker<BlockingBackChannel> broker = BlockingBackChannelBroker.instance();
-		return broker.get(brokerKey());
+		return broker.getAndRemove(brokerKey());
 	}
 
 	@Override
@@ -66,21 +66,22 @@ public class IterationTailPactTask<S extends Stub, OT> extends AbstractIterative
 
 		while (this.running && !terminationRequested()) {
 
-			notifyMonitor(IterationMonitoring.Event.TAIL_STARTING);
+//			notifyMonitor(IterationMonitoring.Event.TAIL_STARTING);
 			if (log.isInfoEnabled()) {
 				log.info(formatLogString("starting iteration [" + currentIteration() + "]"));
 			}
 
-			notifyMonitor(IterationMonitoring.Event.TAIL_PACT_STARTING);
+//			notifyMonitor(IterationMonitoring.Event.TAIL_PACT_STARTING);
 
 			super.run();
-			notifyMonitor(IterationMonitoring.Event.TAIL_PACT_FINISHED);
+//			notifyMonitor(IterationMonitoring.Event.TAIL_PACT_FINISHED);
 
+			@SuppressWarnings("unused")
 			long elementsCollected = outputCollector.getElementsCollectedAndReset();
-			if (log.isInfoEnabled()) {
-				log.info("IterationTail [" + getEnvironment().getIndexInSubtaskGroup() + "] inserted [" +
-					elementsCollected + "] elements into backchannel in iteration [" + currentIteration() + "]");
-			}
+//			if (log.isInfoEnabled()) {
+//				log.info("IterationTail [" + getEnvironment().getIndexInSubtaskGroup() + "] inserted [" +
+//					elementsCollected + "] elements into backchannel in iteration [" + currentIteration() + "]");
+//			}
 
 			if (log.isInfoEnabled()) {
 				log.info(formatLogString("finishing iteration [" + currentIteration() + "]"));
@@ -90,7 +91,7 @@ public class IterationTailPactTask<S extends Stub, OT> extends AbstractIterative
 				backChannel.notifyOfEndOfSuperstep();
 				incrementIterationCounter();
 			}
-			notifyMonitor(IterationMonitoring.Event.TAIL_FINISHED);
+//			notifyMonitor(IterationMonitoring.Event.TAIL_FINISHED);
 		}
 	}
 }

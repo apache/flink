@@ -113,7 +113,7 @@ public class BrokerTest {
 
 			Thread.sleep(random.nextInt(10));
 //			System.out.println("Tail " + key + " asks for handover");
-			String value = broker.get(key);
+			String value = broker.getAndRemove(key);
 
 //			System.out.println("Tail " + key + " received " + value);
 			Preconditions.checkNotNull(value);

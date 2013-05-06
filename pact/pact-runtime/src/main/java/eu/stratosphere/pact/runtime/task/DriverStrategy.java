@@ -24,8 +24,7 @@ import static eu.stratosphere.pact.runtime.task.DamBehavior.*;
 /**
  * Enumeration of all available operator strategies. 
  */
-public enum DriverStrategy
-{
+public enum DriverStrategy {
 	// no local strategy, as for sources and sinks
 	NONE(null, null, PIPELINED, PIPELINED, false),
 	// no special local strategy is applied

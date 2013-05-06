@@ -25,6 +25,7 @@ import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.generic.types.TypeSerializer;
+import eu.stratosphere.pact.runtime.iterative.concurrent.IterationGlobalBroker;
 import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
 import eu.stratosphere.pact.runtime.iterative.io.InterruptingMutableObjectIterator;
@@ -54,6 +55,10 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
 	private final AtomicBoolean terminationRequested = new AtomicBoolean(false);
 
 	private int numIterations = 1;
+	
+	private RuntimeAggregatorRegistry iterationAggregators;
+	
+	private String brokerKey;
 
 	// --------------------------------------------------------------------------------------------
 	// Wrapping methods to supplement behavior of the regular Pact Task
@@ -150,7 +155,7 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
 		return interruptingIterator;
 	}
 	
-	protected RuntimeContext getRuntimeContext(String taskName) {
+	public RuntimeContext getRuntimeContext(String taskName) {
 		Environment env = getEnvironment();
 		return new IterativeRuntimeUdfContext(taskName, env.getCurrentNumberOfSubtasks(), env.getIndexInSubtaskGroup());
 	}
@@ -179,7 +184,12 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
 	}
 
 	protected String brokerKey() {
-		return getEnvironment().getJobID().toString() + '#' + getEnvironment().getIndexInSubtaskGroup();
+		if (brokerKey == null) {
+			int iterationId = config.getIterationId();
+			brokerKey = getEnvironment().getJobID().toString() + '#' + iterationId + '#' + 
+					getEnvironment().getIndexInSubtaskGroup();
+		}
+		return brokerKey;
 	}
 
 	protected String identifier() {
@@ -203,6 +213,13 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
 					"' , caused an error: " + t.getMessage(), t);
 			}
 		}
+	}
+	
+	public RuntimeAggregatorRegistry getIterationAggregators() {
+		if (this.iterationAggregators == null) {
+			this.iterationAggregators = IterationGlobalBroker.instance().get(brokerKey());
+		}
+		return this.iterationAggregators;
 	}
 
 	@Override
@@ -237,12 +254,13 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
 
 		@Override
 		public <T extends Value> Aggregator<T> getIterationAggregator(String name) {
-			throw new UnsupportedOperationException();
+			return getIterationAggregators().getAggregator(name);
 		}
 
 		@Override
+		@SuppressWarnings("unchecked")
 		public <T extends Value> T getPreviousIterationAggregate(String name) {
-			throw new UnsupportedOperationException();
+			return (T) getIterationAggregators().getPreviousGlobalAggregate(name);
 		}
 	}
 }

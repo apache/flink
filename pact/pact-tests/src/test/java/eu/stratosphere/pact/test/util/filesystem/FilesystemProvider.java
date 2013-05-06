@@ -44,5 +44,4 @@ public interface FilesystemProvider {
 	public boolean isDir(String file) throws IOException;
 	
 	public String getURIPrefix();
-	
 }

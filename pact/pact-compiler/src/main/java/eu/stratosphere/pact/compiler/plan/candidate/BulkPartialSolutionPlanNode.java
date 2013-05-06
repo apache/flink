@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.Iterator;
 
 import eu.stratosphere.pact.common.util.Visitor;
+import eu.stratosphere.pact.compiler.costs.Costs;
 import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.pact.compiler.plan.BulkPartialSolutionNode;
@@ -30,8 +31,10 @@ import eu.stratosphere.pact.runtime.task.DriverStrategy;
 /**
  * Plan candidate node for partial solution of a bulk iteration.
  */
-public class BulkPartialSolutionPlanNode extends PlanNode
-{
+public class BulkPartialSolutionPlanNode extends PlanNode {
+	
+	private static final Costs NO_COSTS = new Costs();
+	
 	private BulkIterationPlanNode containingIterationNode;
 	
 	public Object postPassHelper;
@@ -42,6 +45,10 @@ public class BulkPartialSolutionPlanNode extends PlanNode
 		
 		this.globalProps = gProps;
 		this.localProps = lProps;
+		
+		// the partial solution does not cost anything
+		this.nodeCosts = NO_COSTS;
+		this.cumulativeCosts = NO_COSTS;
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -60,9 +67,6 @@ public class BulkPartialSolutionPlanNode extends PlanNode
 
 	// --------------------------------------------------------------------------------------------
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.plan.Visitable#accept(eu.stratosphere.pact.common.plan.Visitor)
-	 */
 	@Override
 	public void accept(Visitor<PlanNode> visitor) {
 		if (visitor.preVisit(this)) {
@@ -70,25 +74,16 @@ public class BulkPartialSolutionPlanNode extends PlanNode
 		}
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.candidate.PlanNode#getPredecessors()
-	 */
 	@Override
 	public Iterator<PlanNode> getPredecessors() {
 		return Collections.<PlanNode>emptyList().iterator();
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.candidate.PlanNode#getInputs()
-	 */
 	@Override
 	public Iterator<Channel> getInputs() {
 		return Collections.<Channel>emptyList().iterator();
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.candidate.PlanNode#hasDamOnPathDownTo(eu.stratosphere.pact.compiler.plan.candidate.PlanNode)
-	 */
 	@Override
 	public SourceAndDamReport hasDamOnPathDownTo(PlanNode source) {
 		if (source == this) {

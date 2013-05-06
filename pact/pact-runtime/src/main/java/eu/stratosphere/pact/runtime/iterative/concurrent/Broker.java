@@ -31,14 +31,30 @@ public class Broker<V> {
 	 * hand in the object to share
 	 */
 	public void handIn(String key, V obj) {
-		retrieveSharedQueue(key).offer(obj);
+		if (!retrieveSharedQueue(key).offer(obj)) {
+			throw new RuntimeException("Could not register the given element, broker slot is already occupied.");
+		}
 	}
 
-	/** blocking retrieval of the object to share */
-	public V get(String key) {
+	/** blocking retrieval and removal of the object to share */
+	public V getAndRemove(String key) {
 		try {
 			V objToShare = retrieveSharedQueue(key).take();
 			mediations.remove(key);
+			return objToShare;
+		} catch (InterruptedException e) {
+			throw new RuntimeException(e);
+		}
+	}
+	
+	/** blocking retrieval and removal of the object to share */
+	public V get(String key) {
+		try {
+			BlockingQueue<V> queue = retrieveSharedQueue(key);
+			V objToShare = queue.take();
+			if (!queue.offer(objToShare)) {
+				throw new RuntimeException("Error: Concurrent modification of the broker slot for key '" + key + "'.");
+			}
 			return objToShare;
 		} catch (InterruptedException e) {
 			throw new RuntimeException(e);
@@ -49,8 +65,13 @@ public class Broker<V> {
 	 * threadsafe call to get a shared {@link BlockingQueue}
 	 */
 	private BlockingQueue<V> retrieveSharedQueue(String key) {
-		BlockingQueue<V> queue = new ArrayBlockingQueue<V>(1);
-		BlockingQueue<V> commonQueue = mediations.putIfAbsent(key, queue);
-		return commonQueue != null ? commonQueue : queue;
+		BlockingQueue<V> queue = mediations.get(key);
+		if (queue == null) {
+			queue = new ArrayBlockingQueue<V>(1);
+			BlockingQueue<V> commonQueue = mediations.putIfAbsent(key, queue);
+			return commonQueue != null ? commonQueue : queue;
+		} else {
+			return queue;
+		}
 	}
 }

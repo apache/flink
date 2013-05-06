@@ -6,7 +6,7 @@ import eu.stratosphere.pact.common.stubs.MapStub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.runtime.iterative.compensatable.ConfigUtils;
-import eu.stratosphere.pact.runtime.iterative.concurrent.IterationContext;
+
 
 import java.util.Set;
 
@@ -28,14 +28,14 @@ public class CompensatingMap extends MapStub {
   @Override
   public void open(Configuration parameters) throws Exception {
 
-    workerIndex = ConfigUtils.asInteger("pact.parallel.task.id", parameters);
-    currentIteration = ConfigUtils.asInteger("pact.iterations.currentIteration", parameters);
+    workerIndex = getRuntimeContext().getIndexOfThisSubtask();
+    currentIteration = getIterationRuntimeContext().getSuperstepNumber();
     failingIteration = ConfigUtils.asInteger("compensation.failingIteration", parameters);
     failingWorkers = ConfigUtils.asIntSet("compensation.failingWorker", parameters);
     numVertices = ConfigUtils.asLong("pageRank.numVertices", parameters);
 
     if (currentIteration > 1) {
-      PageRankStats stats = (PageRankStats) IterationContext.instance().getGlobalAggregate(workerIndex);
+    	PageRankStats stats = (PageRankStats) getIterationRuntimeContext().getPreviousIterationAggregate(CompensatableDotProductCoGroup.AGGREGATOR_NAME);
 
       uniformRank = 1d / (double) numVertices;
       double lostMassFactor = (numVertices - stats.numVertices()) / (double) numVertices;

@@ -93,7 +93,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 	
 	private Map<PlanNode, TaskInChain> chainedTasks; // a map from optimizer nodes to nephele vertices
 	
-	private Map<PlanNode, IterationDescriptor> iterations;
+	private Map<IterationPlanNode, IterationDescriptor> iterations;
 	
 	private List<TaskInChain> chainedTasksInSequence;
 	
@@ -105,9 +105,9 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 	
 	private final float defaultSortSpillingThreshold;
 	
-	private int iterationHeadId = 1;
+	private int iterationIdEnumerator = 1;
 	
-	private boolean inIteration; // flag to check that no iterations are nested at the moment!
+	private IterationPlanNode currentIteration;	// hack: as long as no nesting is possible, remember the enclosing iteration
 	
 	// ------------------------------------------------------------------------
 
@@ -141,7 +141,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		this.chainedTasks = new HashMap<PlanNode, TaskInChain>();
 		this.chainedTasksInSequence = new ArrayList<TaskInChain>();
 		this.auxVertices = new ArrayList<AbstractJobVertex>();
-		this.iterations = new HashMap<PlanNode, IterationDescriptor>();
+		this.iterations = new HashMap<IterationPlanNode, IterationDescriptor>();
 		this.maxDegreeVertex = null;
 		
 		// generate Nephele job graph
@@ -225,6 +225,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 				vertex = createDataSourceVertex((SourcePlanNode) node);
 			}
 			else if (node instanceof BulkIterationPlanNode) {
+				BulkIterationPlanNode iterationNode = (BulkIterationPlanNode) node;
 				// for the bulk iteration, we skip creating anything for now. we create the graph
 				// for the step function in the post visit.
 				
@@ -232,13 +233,16 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 				// because the tail must have the same DOP as the head, we can only merge the last
 				// operator with the tail, if they have the same DOP. not merging is currently not
 				// implemented
-				PlanNode root = ((BulkIterationPlanNode) node).getRootOfStepFunction();
+				PlanNode root = iterationNode.getRootOfStepFunction();
 				if (root.getDegreeOfParallelism() != node.getDegreeOfParallelism() || 
 						root.getSubtasksPerInstance() != node.getSubtasksPerInstance()) 
 				{
 					throw new CompilerException("It is currently not supported that the final operator of the step " +
 							"function has a different degree of parallelism than the iteration operator itself.");
 				}
+				
+				IterationDescriptor descr = new IterationDescriptor(iterationNode, this.iterationIdEnumerator++);
+				this.iterations.put(iterationNode, descr);
 				vertex = null;
 			}
 			else if (node instanceof SingleInputPlanNode) {
@@ -278,6 +282,22 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			if (node.getSubtasksPerInstance() >= 1) {
 				vertex.setNumberOfSubtasksPerInstance(node.getSubtasksPerInstance());
 			}
+			
+			// check whether this vertex is part of an iteration step function
+			if (this.currentIteration != null) {
+				// check that the task has the same DOP as the iteration as such
+				PlanNode iterationNode = (PlanNode) this.currentIteration;
+				if (iterationNode.getDegreeOfParallelism() != pd) {
+					throw new CompilerException("Error: All functions that are part of an iteration must have the same degree-of-parallelism as that iteration.");
+				}
+				if (iterationNode.getSubtasksPerInstance() != node.getSubtasksPerInstance()) {
+					throw new CompilerException("Error: All functions that are part of an iteration must have the same subtasks-per-instance as that iteration.");
+				}
+				
+				// store the id of the iterations the step functions participate in
+				IterationDescriptor descr = this.iterations.get(this.currentIteration);
+				new TaskConfig(vertex.getConfiguration()).setIterationId(descr.getId());
+			}
 	
 			// store in the map
 			this.vertices.put(node, vertex);
@@ -310,15 +330,15 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			// check if we have an iteration. in that case, translate the step function now
 			if (node instanceof IterationPlanNode) {
 				// for now, prevent nested iterations
-				if (this.inIteration) {
+				if (this.currentIteration != null) {
 					throw new CompilerException("Nested Iterations are not possible at the moment!");
 				}
-				this.inIteration = true;
-				((IterationPlanNode) node).acceptForStepFunction(this);
-				this.inIteration = false;
+				this.currentIteration = (IterationPlanNode) node;
+				this.currentIteration.acceptForStepFunction(this);
+				this.currentIteration = null;
 				
 				// inputs are already connected to the iteration head in the head's post visit,
-				// we , we finalize the iteration now later
+				// we finalize the iteration later
 				return;
 			}
 			
@@ -562,7 +582,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		} else {
 			// create task vertex
 			vertex = new JobTaskVertex(taskName, this.jobGraph);
-			vertex.setTaskClass(this.inIteration ? IterationIntermediatePactTask.class : RegularPactTask.class);
+			vertex.setTaskClass(this.currentIteration == null ? RegularPactTask.class : IterationIntermediatePactTask.class);
 			config = new TaskConfig(vertex.getConfiguration());
 			config.setDriver(ds.getDriverClass());
 		}
@@ -587,7 +607,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		final DriverStrategy ds = node.getDriverStrategy();
 		final JobTaskVertex vertex = new JobTaskVertex(taskName, this.jobGraph);
 		final TaskConfig config = new TaskConfig(vertex.getConfiguration());
-		vertex.setTaskClass(this.inIteration ? IterationIntermediatePactTask.class : RegularPactTask.class);
+		vertex.setTaskClass(this.currentIteration == null ? RegularPactTask.class : IterationIntermediatePactTask.class);
 		
 		// set user code
 		config.setStubClass(node.getPactContract().getUserCodeClass());
@@ -695,8 +715,11 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		}
 		
 		// create the iteration descriptor and the iteration to it
-		final IterationDescriptor descr = new IterationDescriptor(iteration, headVertex);
-		this.iterations.put(iteration, descr);
+		IterationDescriptor descr = this.iterations.get(iteration);
+		if (descr == null) {
+			throw new CompilerException("Bug: Iteration descriptor was not created at when translating head vertex.");
+		}
+		descr.setHeadTask(headVertex);
 		
 		return toReturn;
 	}
@@ -750,7 +773,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			case FORWARD:
 			case PARTITION_LOCAL_HASH:
 				distributionPattern = DistributionPattern.POINTWISE;
-				channelType = ChannelType.INMEMORY;
+				channelType = ChannelType.NETWORK;
 				break;
 			case PARTITION_RANDOM:
 			case BROADCAST:
@@ -846,7 +869,6 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			throw new CompilerException("Bug: No memory has been assigned to the iteration back channel.");
 		}
 		headConfig.setBackChannelMemory(memForBackChannel);
-		headConfig.setIterationHeadId(this.iterationHeadId++);
 		
 		// --------------------------- create the sync task ---------------------------
 		final JobOutputVertex sync = new JobOutputVertex("Bulk-Iteration Sync (" +
@@ -859,7 +881,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		syncConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, headVertex.getNumberOfSubtasks());
 
 		// set the number of iteration / convergence criterion for the sync
-		final int maxNumIterations = bulkNode.getBulkIterationNode().getIterationContract().getMaximumNumberOfIterations();
+		final int maxNumIterations = bulkNode.getIterationNode().getIterationContract().getMaximumNumberOfIterations();
 		if (maxNumIterations < 1) {
 			throw new CompilerException("Cannot create bulk iteration with unspecified maximum number of iterations");
 		}
@@ -909,7 +931,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		// the fake channel is statically typed to pact record. no data is sent over this channel anyways.
 		
 		// ------------------- register the aggregators -------------------
-		AggregatorRegistry aggs = bulkNode.getBulkIterationNode().getIterationContract().getAggregators();
+		AggregatorRegistry aggs = bulkNode.getIterationNode().getIterationContract().getAggregators();
 		Collection<AggregatorWithName<?>> allAggregators = aggs.getAllRegisteredAggregators();
 		
 		headConfig.addIterationAggregators(allAggregators);
@@ -980,18 +1002,24 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		
 		private final IterationPlanNode iterationNode;
 		
-		private final JobTaskVertex headTask;
+		private JobTaskVertex headTask;
 		
-		private final TaskConfig  headFinalResultConfig;
+		private TaskConfig  headFinalResultConfig;
+		
+		private final int id;
 
-		public IterationDescriptor(IterationPlanNode iterationNode, JobTaskVertex headTask) {
+		public IterationDescriptor(IterationPlanNode iterationNode, int id) {
 			this.iterationNode = iterationNode;
-			this.headTask = headTask;
-			this.headFinalResultConfig = new TaskConfig(new Configuration());
+			this.id = id;
 		}
 		
 		public IterationPlanNode getIterationNode() {
 			return iterationNode;
+		}
+		
+		public void setHeadTask(JobTaskVertex headTask) {
+			this.headTask = headTask;
+			this.headFinalResultConfig = new TaskConfig(new Configuration());
 		}
 		
 		public JobTaskVertex getHeadTask() {
@@ -1000,6 +1028,10 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		
 		public TaskConfig getHeadFinalResultConfig() {
 			return headFinalResultConfig;
+		}
+		
+		public int getId() {
+			return this.id;
 		}
 	}
 }

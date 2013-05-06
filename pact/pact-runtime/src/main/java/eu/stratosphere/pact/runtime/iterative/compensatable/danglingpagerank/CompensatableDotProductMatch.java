@@ -50,8 +50,8 @@ public class CompensatableDotProductMatch extends MatchStub {
     vertexID = new PactLong();
     partialRank = new PactDouble();
 
-    workerIndex = ConfigUtils.asInteger("pact.parallel.task.id", parameters);
-    currentIteration = ConfigUtils.asInteger("pact.iterations.currentIteration", parameters);
+    workerIndex = getRuntimeContext().getIndexOfThisSubtask();
+    currentIteration = getIterationRuntimeContext().getSuperstepNumber();
     failingIteration = ConfigUtils.asInteger("compensation.failingIteration", parameters);
     failingWorkers = ConfigUtils.asIntSet("compensation.failingWorker", parameters);
     messageLoss = ConfigUtils.asDouble("compensation.messageLoss", parameters);

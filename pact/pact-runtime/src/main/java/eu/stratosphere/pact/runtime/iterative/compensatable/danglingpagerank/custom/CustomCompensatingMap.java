@@ -7,7 +7,6 @@ import eu.stratosphere.pact.generic.stub.GenericMapper;
 import eu.stratosphere.pact.runtime.iterative.compensatable.ConfigUtils;
 import eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.PageRankStats;
 import eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank.custom.types.VertexWithRankAndDangling;
-import eu.stratosphere.pact.runtime.iterative.concurrent.IterationContext;
 
 import java.util.Set;
 
@@ -23,9 +22,7 @@ public class CustomCompensatingMap extends AbstractStub implements GenericMapper
 
 	@Override
 	public void open(Configuration parameters) throws Exception {
-
-		
-		int currentIteration = ConfigUtils.asInteger("pact.iterations.currentIteration", parameters);
+		int currentIteration = getIterationRuntimeContext().getSuperstepNumber();
 		int failingIteration = ConfigUtils.asInteger("compensation.failingIteration", parameters);
 		isFailureIteration = currentIteration == failingIteration + 1;
 		
@@ -36,7 +33,8 @@ public class CustomCompensatingMap extends AbstractStub implements GenericMapper
 		long numVertices = ConfigUtils.asLong("pageRank.numVertices", parameters);
 
 		if (currentIteration > 1) {
-			PageRankStats stats = (PageRankStats) IterationContext.instance().getGlobalAggregate(workerIndex);
+			
+			PageRankStats stats = (PageRankStats) getIterationRuntimeContext().getPreviousIterationAggregate(CustomCompensatableDotProductCoGroup.AGGREGATOR_NAME);
 
 			uniformRank = 1d / (double) numVertices;
 			double lostMassFactor = (numVertices - stats.numVertices()) / (double) numVertices;

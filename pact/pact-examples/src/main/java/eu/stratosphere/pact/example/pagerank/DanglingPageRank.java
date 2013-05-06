@@ -54,6 +54,7 @@ public class DanglingPageRank implements PlanAssembler, PlanAssemblerDescription
 		pageWithRankInput.getParameters().setLong(DanglingPageRankInputFormat.NUM_VERTICES_PARAMETER, numVertices);
 		
 		BulkIteration iteration = new BulkIteration("Page Rank Loop");
+		iteration.setInput(pageWithRankInput);
 		
 		FileDataSource adjacencyListInput = new FileDataSource(ImprovedAdjacencyListInputFormat.class,
 			adjacencyListInputPath, "AdjancencyListInput");
@@ -63,6 +64,7 @@ public class DanglingPageRank implements PlanAssembler, PlanAssemblerDescription
 				.input2(adjacencyListInput)
 				.name("Join with Edges")
 				.build();
+		join.getParameters().setString("LOCAL_STRATEGY", "LOCAL_STRATEGY_HASH_BUILD_SECOND");
 		
 		CoGroupContract rankAggregation = CoGroupContract.builder(DotProductCoGroup.class, PactLong.class, 0, 0)
 				.input1(iteration.getPartialSolution())

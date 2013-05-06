@@ -24,6 +24,7 @@ import java.util.Set;
 
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.common.util.Visitable;
+import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.costs.Costs;
 import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
@@ -56,9 +57,9 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 	
 	protected Map<OptimizerNode, PlanNode> branchPlan; // the actual plan alternative chosen at a branch point
 	
-	private Costs nodeCosts;						// the costs incurred by this node
+	protected Costs nodeCosts;						// the costs incurred by this node
 
-	private Costs cumulativeCosts;					// the cumulative costs of all operators in the sub-tree
+	protected Costs cumulativeCosts;					// the cumulative costs of all operators in the sub-tree
 	
 	private long memoryPerSubTask;					// the amount of memory dedicated to each task, in bytes
 	
@@ -194,6 +195,8 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 			Costs parentCosts = preds.next().cumulativeCosts;
 			if (parentCosts != null)
 				this.cumulativeCosts.addCosts(parentCosts);
+			else
+				throw new CompilerException();
 		}
 	}
 	

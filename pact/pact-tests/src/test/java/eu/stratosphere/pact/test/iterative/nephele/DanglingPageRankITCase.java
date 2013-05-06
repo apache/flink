@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.test.iterative;
+package eu.stratosphere.pact.test.iterative.nephele;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -30,16 +30,16 @@ import eu.stratosphere.pact.test.util.TestBase;
 @RunWith(Parameterized.class)
 public class DanglingPageRankITCase extends TestBase {
 	
-	private static final String TEST_VERTICES = "1\n" +
-	                                            "2\n" +
-	                                            "5\n" +
-	                                            "3 1\n" +
-	                                            "4";
-	
-	private static final String TEST_EDGES = "2 1\n" +
-                                             "5 2 4\n" +
-                                             "4 3 2\n" +
-                                             "1 4 2 3";
+	public static final String TEST_VERTICES = "1\n" +
+	                                           "2\n" +
+	                                           "5\n" +
+	                                           "3 1\n" +
+	                                           "4";
+
+	public static final String TEST_EDGES = "2 1\n" +
+	                                        "5 2 4\n" +
+	                                        "4 3 2\n" +
+	                                        "1 4 2 3";
 	
 	protected String pagesWithRankPath;
 	protected String edgesPath;
@@ -95,7 +95,7 @@ public class DanglingPageRankITCase extends TestBase {
 			"5",
 			"25",
 			"25",
-			"10",
+			"30",
 			"5",
 			"1",
 			"0",

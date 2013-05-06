@@ -237,7 +237,9 @@ public abstract class TwoInputNode extends OptimizerNode {
 		
 		OptimizerNode pred1;
 		PactConnection conn1;
-		if (leftPreds.size() == 1) {
+		if (leftPreds.size() == 0) {
+			throw new CompilerException("Error: Node for '" + getPactContract().getName() + "' has no input set for first input.");
+		} else if (leftPreds.size() == 1) {
 			pred1 = contractToNode.get(leftPreds.get(0));
 			conn1 = new PactConnection(pred1, this, pred1.getMaxDepth() + 1);
 			if (preSet1 != null) {
@@ -254,7 +256,9 @@ public abstract class TwoInputNode extends OptimizerNode {
 		
 		OptimizerNode pred2;
 		PactConnection conn2;
-		if (rightPreds.size() == 1) {
+		if (rightPreds.size() == 0) {
+			throw new CompilerException("Error: Node for '" + getPactContract().getName() + "' has no input set for second input.");
+		} else if (rightPreds.size() == 1) {
 			pred2 = contractToNode.get(rightPreds.get(0));
 			conn2 = new PactConnection(pred2, this, pred2.getMaxDepth() + 1);
 			if (preSet2 != null) {

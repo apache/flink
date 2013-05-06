@@ -37,15 +37,14 @@ import eu.stratosphere.pact.runtime.io.InputViewIterator;
 import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannel;
 import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannelBroker;
 import eu.stratosphere.pact.runtime.iterative.concurrent.Broker;
-import eu.stratosphere.pact.runtime.iterative.concurrent.IterationContext;
+import eu.stratosphere.pact.runtime.iterative.concurrent.IterationGlobalBroker;
 import eu.stratosphere.pact.runtime.iterative.concurrent.SuperstepBarrier;
 import eu.stratosphere.pact.runtime.iterative.event.AllWorkersDoneEvent;
 import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
 import eu.stratosphere.pact.runtime.iterative.event.WorkerDoneEvent;
 import eu.stratosphere.pact.runtime.iterative.io.SerializedUpdateBuffer;
-import eu.stratosphere.pact.runtime.iterative.monitoring.IterationMonitoring;
-import eu.stratosphere.pact.runtime.task.PactTaskContext;
+//import eu.stratosphere.pact.runtime.iterative.monitoring.IterationMonitoring;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
@@ -67,9 +66,8 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  * 
  * @param <X> The type of the partial solution and the final output.
  */
-public class IterationHeadPactTask<X, S extends Stub, OT> extends AbstractIterativePactTask<S, OT>
-		implements PactTaskContext<S, OT>
-{
+public class IterationHeadPactTask<X, S extends Stub, OT> extends AbstractIterativePactTask<S, OT> {
+	
 	private static final Log log = LogFactory.getLog(IterationHeadPactTask.class);
 
 	
@@ -82,6 +80,8 @@ public class IterationHeadPactTask<X, S extends Stub, OT> extends AbstractIterat
 	private RecordWriter<?> toSync;
 	
 	private int partialSolutionInput;
+	
+	private RuntimeAggregatorRegistry aggregatorRegistry;
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -184,7 +184,6 @@ public class IterationHeadPactTask<X, S extends Stub, OT> extends AbstractIterat
 	public void run() throws Exception {
 
 		final int workerIndex = getEnvironment().getIndexInSubtaskGroup();
-		final IterationContext iterationContext = IterationContext.instance();
 
 		/* used for receiving the current iteration result from iteration tail */
 		BlockingBackChannel backChannel = initBackChannel();
@@ -195,6 +194,10 @@ public class IterationHeadPactTask<X, S extends Stub, OT> extends AbstractIterat
 		
 		// when we reset the inputs, do not reset this particular input!
 		excludeFromReset(this.partialSolutionInput);
+		
+		// instantiate all aggregators and register them at the iteration global registry
+		aggregatorRegistry = new RuntimeAggregatorRegistry(config.getIterationAggregators());
+		IterationGlobalBroker.instance().handIn(brokerKey(), aggregatorRegistry);
 
 //		MutableHashTable hashJoin = config.usesWorkset() ? initHashJoin() : null;
 		
@@ -202,20 +205,20 @@ public class IterationHeadPactTask<X, S extends Stub, OT> extends AbstractIterat
 
 		while (this.running && !terminationRequested()) {
 
-			notifyMonitor(IterationMonitoring.Event.HEAD_STARTING);
+//			notifyMonitor(IterationMonitoring.Event.HEAD_STARTING);
 			if (log.isInfoEnabled()) {
 				log.info(formatLogString("starting iteration [" + currentIteration() + "]"));
 			}
 
 			barrier.setup();
 
-			notifyMonitor(IterationMonitoring.Event.HEAD_PACT_STARTING);
+//			notifyMonitor(IterationMonitoring.Event.HEAD_PACT_STARTING);
 			if (!inFirstIteration()) {
 				feedBackSuperstepResult(superstepResult);
 			}
 
 			super.run();
-			notifyMonitor(IterationMonitoring.Event.HEAD_PACT_FINISHED);
+//			notifyMonitor(IterationMonitoring.Event.HEAD_PACT_FINISHED);
 
 			EndOfSuperstepEvent endOfSuperstepEvent = new EndOfSuperstepEvent();
 
@@ -228,18 +231,11 @@ public class IterationHeadPactTask<X, S extends Stub, OT> extends AbstractIterat
 				log.info(formatLogString("finishing iteration [" + currentIteration() + "]"));
 			}
 
-			Value aggregate = iterationContext.getAggregateAndReset(workerIndex);
+			sendEventToSync(new WorkerDoneEvent(workerIndex, aggregatorRegistry.getAllAggregators()));
 
-			if (aggregate != null && log.isInfoEnabled()) {
-				log.info(formatLogString("sending aggregate [" + aggregate + "] to sync in iteration [" +
-					currentIteration() + "]"));
-			}
+//			notifyMonitor(IterationMonitoring.Event.HEAD_FINISHED);
 
-			sendEventToSync(new WorkerDoneEvent(workerIndex, aggregate));
-
-			notifyMonitor(IterationMonitoring.Event.HEAD_FINISHED);
-
-			notifyMonitor(IterationMonitoring.Event.HEAD_WAITING_FOR_OTHERS);
+//			notifyMonitor(IterationMonitoring.Event.HEAD_WAITING_FOR_OTHERS);
 			if (log.isInfoEnabled()) {
 				log.info(formatLogString("waiting for other workers in iteration [" + currentIteration() + "]"));
 			}
@@ -255,16 +251,10 @@ public class IterationHeadPactTask<X, S extends Stub, OT> extends AbstractIterat
 				sendEventToAllIterationOutputs(new TerminationEvent());
 			} else {
 				incrementIterationCounter();
-
-				Value globalAggregate = barrier.aggregate();
-				if (globalAggregate != null) {
-					if (log.isInfoEnabled()) {
-						log.info(formatLogString("head received global aggregate [" + globalAggregate
-							+ "] in iteration [" +
-							currentIteration() + "]"));
-					}
-					IterationContext.instance().setGlobalAggregate(workerIndex, globalAggregate);
-				}
+				
+				String[] globalAggregateNames = barrier.getAggregatorNames();
+				Value[] globalAggregates = barrier.getAggregates();
+				aggregatorRegistry.updateGlobalAggregatesAndReset(globalAggregateNames, globalAggregates);
 			}
 		}
 
@@ -277,22 +267,25 @@ public class IterationHeadPactTask<X, S extends Stub, OT> extends AbstractIterat
 //		} else {
 			streamOutFinalOutputBulk(new InputViewIterator<X>(superstepResult, this.solutionTypeSerializer));
 //		}
+		
+		// unregister the aggregators
+		IterationGlobalBroker.instance().getAndRemove(brokerKey());
 	}
 
 
 	private void streamOutFinalOutputBulk(MutableObjectIterator<X> results) throws IOException {
 		final Collector<X> out = this.finalOutputCollector;
 		final X record = this.solutionTypeSerializer.createInstance();
-		int recordsPut = 0;
+//		int recordsPut = 0;
 		
 		while (results.next(record)) {
 			out.collect(record);
-			recordsPut++;
+//			recordsPut++;
 		}
 
-		if (log.isInfoEnabled()) {
-			log.info(formatLogString("Sent [" + recordsPut + "] records to final output"));
-		}
+//		if (log.isInfoEnabled()) {
+//			log.info(formatLogString("Sent [" + recordsPut + "] records to final output"));
+//		}
 	}
 
 //	private void streamOutFinalOutputWorkset(MutableHashTable hashJoin) throws IOException, InterruptedException {

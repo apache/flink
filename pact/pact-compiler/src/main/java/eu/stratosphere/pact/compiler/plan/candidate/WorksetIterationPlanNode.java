@@ -62,7 +62,7 @@ public class WorksetIterationPlanNode extends DualInputPlanNode implements Itera
 
 	// --------------------------------------------------------------------------------------------
 	
-	public WorksetIterationNode getWorksetIterationNode() {
+	public WorksetIterationNode getIterationNode() {
 		if (this.template instanceof WorksetIterationNode) {
 			return (WorksetIterationNode) this.template;
 		} else {
@@ -128,7 +128,7 @@ public class WorksetIterationPlanNode extends DualInputPlanNode implements Itera
 		nodeCosts.addCosts(this.nextWorkSetPlanNode.getCumulativeCosts());
 		
 		// we have to subtract that which is double. sanity check that there are branches
-		TwoInputNode auxJoiner = getWorksetIterationNode().getSingleRootOfStepFunction();
+		TwoInputNode auxJoiner = getIterationNode().getSingleRootOfStepFunction();
 		if (auxJoiner.getJoinedBranchers() == null || auxJoiner.getJoinedBranchers().isEmpty()) {
 			throw new CompilerException("Error: No branch in step function between Solution Set Delta and Next Workset.");
 		}

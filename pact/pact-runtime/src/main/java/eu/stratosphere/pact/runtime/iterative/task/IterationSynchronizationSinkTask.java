@@ -16,6 +16,7 @@
 package eu.stratosphere.pact.runtime.iterative.task;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -36,7 +37,7 @@ import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.runtime.iterative.event.AllWorkersDoneEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
 import eu.stratosphere.pact.runtime.iterative.event.WorkerDoneEvent;
-import eu.stratosphere.pact.runtime.iterative.monitoring.IterationMonitoring;
+//import eu.stratosphere.pact.runtime.iterative.monitoring.IterationMonitoring;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
@@ -79,6 +80,7 @@ public class IterationSynchronizationSinkTask extends AbstractOutputTask impleme
 		TaskConfig taskConfig = new TaskConfig(getTaskConfiguration());
 		
 		// instantiate all aggregators
+		this.aggregators = new HashMap<String, Aggregator<?>>();
 		for (AggregatorWithName<?> aggWithName : taskConfig.getIterationAggregators()) {
 			Aggregator<?> agg = InstantiationUtil.instantiate(aggWithName.getAggregator(), Aggregator.class);
 			aggregators.put(aggWithName.getName(), agg);
@@ -103,7 +105,7 @@ public class IterationSynchronizationSinkTask extends AbstractOutputTask impleme
 		
 		while (!terminationRequested()) {
 
-			notifyMonitor(IterationMonitoring.Event.SYNC_STARTING, currentIteration);
+//			notifyMonitor(IterationMonitoring.Event.SYNC_STARTING, currentIteration);
 			if (log.isInfoEnabled()) {
 				log.info(formatLogString("starting iteration [" + currentIteration + "]"));
 			}
@@ -123,7 +125,7 @@ public class IterationSynchronizationSinkTask extends AbstractOutputTask impleme
 
 				requestTermination();
 				sendToAllWorkers(new TerminationEvent());
-				notifyMonitor(IterationMonitoring.Event.SYNC_FINISHED, currentIteration);
+//				notifyMonitor(IterationMonitoring.Event.SYNC_FINISHED, currentIteration);
 			} else {
 				if (log.isInfoEnabled()) {
 					log.info(formatLogString("signaling that all workers are done in iteration [" + currentIteration
@@ -138,17 +140,17 @@ public class IterationSynchronizationSinkTask extends AbstractOutputTask impleme
 					agg.reset();
 				}
 				
-				notifyMonitor(IterationMonitoring.Event.SYNC_FINISHED, currentIteration);
+//				notifyMonitor(IterationMonitoring.Event.SYNC_FINISHED, currentIteration);
 				currentIteration++;
 			}
 		}
 	}
 
-	protected void notifyMonitor(IterationMonitoring.Event event, int currentIteration) {
-		if (log.isInfoEnabled()) {
-			log.info(IterationMonitoring.logLine(getEnvironment().getJobID(), event, currentIteration, 1));
-		}
-	}
+//	protected void notifyMonitor(IterationMonitoring.Event event, int currentIteration) {
+//		if (log.isInfoEnabled()) {
+//			log.info(IterationMonitoring.logLine(getEnvironment().getJobID(), event, currentIteration, 1));
+//		}
+//	}
 
 	private boolean checkForConvergence() {
 		if (maxNumberOfIterations == currentIteration) {

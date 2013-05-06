@@ -59,6 +59,8 @@ public class CustomCompensatableDanglingPageRank {
 	
 	private static final float SORT_SPILL_THRESHOLD = 0.85f;
 	
+	private static final int ITERATION_ID = 1;
+	
 	
 	private static TypeSerializerFactory<VertexWithRank> vertexWithRankSerializer = new VertexWithRankSerializerFactory();
 	
@@ -152,6 +154,7 @@ public class CustomCompensatableDanglingPageRank {
 		JobTaskVertex head = JobGraphUtils.createTask(IterationHeadPactTask.class, "IterationHead", jobGraph,
 			degreeOfParallelism, numSubTasksPerInstance);
 		TaskConfig headConfig = new TaskConfig(head.getConfiguration());
+		headConfig.setIterationId(ITERATION_ID);
 		
 		// initial input / partial solution
 		headConfig.addInputToGroup(0);
@@ -189,12 +192,15 @@ public class CustomCompensatableDanglingPageRank {
 		headConfig.setStubParameter("compensation.failingWorker", failingWorkers);
 		headConfig.setStubParameter("compensation.failingIteration", String.valueOf(failingIteration));
 		headConfig.setStubParameter("compensation.messageLoss", String.valueOf(messageLoss));
+		headConfig.addIterationAggregator(CustomCompensatableDotProductCoGroup.AGGREGATOR_NAME, PageRankStatsAggregator.class);
+		headConfig.setConvergenceCriterion(CustomCompensatableDotProductCoGroup.AGGREGATOR_NAME, DiffL1NormConvergenceCriterion.class);
 
 		// --------------- the join ---------------------
 		
 		JobTaskVertex intermediate = JobGraphUtils.createTask(IterationIntermediatePactTask.class,
 			"IterationIntermediate", jobGraph, degreeOfParallelism, numSubTasksPerInstance);
 		TaskConfig intermediateConfig = new TaskConfig(intermediate.getConfiguration());
+		intermediateConfig.setIterationId(ITERATION_ID);
 //		intermediateConfig.setDriver(RepeatableHashjoinMatchDriverWithCachedBuildside.class);
 		intermediateConfig.setDriver(BuildSecondCachedMatchDriver.class);
 		intermediateConfig.setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_SECOND);
@@ -222,6 +228,7 @@ public class CustomCompensatableDanglingPageRank {
 		JobTaskVertex tail = JobGraphUtils.createTask(IterationTailPactTask.class, "IterationTail", jobGraph,
 			degreeOfParallelism, numSubTasksPerInstance);
 		TaskConfig tailConfig = new TaskConfig(tail.getConfiguration());
+		tailConfig.setIterationId(ITERATION_ID);
 		// TODO we need to combine!
 		
 		// inputs and driver
@@ -241,7 +248,6 @@ public class CustomCompensatableDanglingPageRank {
 		tailConfig.setMemoryInput(1, coGroupSortMemory * JobGraphUtils.MEGABYTE);
 		tailConfig.setFilehandlesInput(1, NUM_FILE_HANDLES_PER_SORT);
 		tailConfig.setSpillingThresholdInput(1, SORT_SPILL_THRESHOLD);
-		tailConfig.addIterationAggregator(CustomCompensatableDotProductCoGroup.AGGREGATOR_NAME, PageRankStatsAggregator.class);
 		
 		// output
 		tailConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
@@ -275,6 +281,7 @@ public class CustomCompensatableDanglingPageRank {
 		syncConfig.setNumberOfIterations(numIterations);
 		syncConfig.addIterationAggregator(CustomCompensatableDotProductCoGroup.AGGREGATOR_NAME, PageRankStatsAggregator.class);
 		syncConfig.setConvergenceCriterion(CustomCompensatableDotProductCoGroup.AGGREGATOR_NAME, DiffL1NormConvergenceCriterion.class);
+		syncConfig.setIterationId(ITERATION_ID);
 		
 		// --------------- the wiring ---------------------
 

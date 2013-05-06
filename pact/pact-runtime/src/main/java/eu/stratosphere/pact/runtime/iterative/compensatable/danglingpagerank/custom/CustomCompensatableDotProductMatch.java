@@ -41,7 +41,7 @@ public class CustomCompensatableDotProductMatch extends AbstractStub implements
 	@Override
 	public void open(Configuration parameters) throws Exception {
 		int workerIndex = getRuntimeContext().getIndexOfThisSubtask();
-		int currentIteration = ConfigUtils.asInteger("pact.iterations.currentIteration", parameters);
+		int currentIteration = getIterationRuntimeContext().getSuperstepNumber();
 		int failingIteration = ConfigUtils.asInteger("compensation.failingIteration", parameters);
 		Set<Integer> failingWorkers = ConfigUtils.asIntSet("compensation.failingWorker", parameters);
 		isFailure = currentIteration == failingIteration && failingWorkers.contains(workerIndex);

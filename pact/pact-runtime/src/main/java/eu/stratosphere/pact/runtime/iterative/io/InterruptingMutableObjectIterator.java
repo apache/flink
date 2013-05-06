@@ -18,8 +18,8 @@ package eu.stratosphere.pact.runtime.iterative.io;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+//import org.apache.commons.logging.Log;
+//import org.apache.commons.logging.LogFactory;
 
 import com.google.common.base.Preconditions;
 
@@ -38,12 +38,12 @@ import eu.stratosphere.pact.runtime.iterative.task.Terminable;
  */
 public class InterruptingMutableObjectIterator<E> implements MutableObjectIterator<E>, EventListener {
 	
-	private static final Log log = LogFactory.getLog(InterruptingMutableObjectIterator.class);
+//	private static final Log log = LogFactory.getLog(InterruptingMutableObjectIterator.class);
 	
 
 	private final MutableObjectIterator<E> delegate;
 
-	private final String name;
+//	private final String name;
 
 	private final int numberOfEventsUntilInterrupt;
 
@@ -53,7 +53,7 @@ public class InterruptingMutableObjectIterator<E> implements MutableObjectIterat
 
 	private final Terminable owningIterativeTask;
 
-	private final int gateIndex;
+//	private final int gateIndex;
 
 
 	public InterruptingMutableObjectIterator(MutableObjectIterator<E> delegate, int numberOfEventsUntilInterrupt,
@@ -62,9 +62,9 @@ public class InterruptingMutableObjectIterator<E> implements MutableObjectIterat
 		Preconditions.checkArgument(numberOfEventsUntilInterrupt > 0);
 		this.delegate = delegate;
 		this.numberOfEventsUntilInterrupt = numberOfEventsUntilInterrupt;
-		this.name = name;
+//		this.name = name;
 		this.owningIterativeTask = owningIterativeTask;
-		this.gateIndex = gateIndex;
+//		this.gateIndex = gateIndex;
 
 		endOfSuperstepEventCounter = new AtomicInteger(0);
 		terminationEventCounter = new AtomicInteger(0);
@@ -88,10 +88,10 @@ public class InterruptingMutableObjectIterator<E> implements MutableObjectIterat
 
 	private void onTermination() {
 		int numberOfEventsSeen = terminationEventCounter.incrementAndGet();
-		if (log.isInfoEnabled()) {
-			log.info("InterruptibleIterator of " + name + " on gate [" + gateIndex + "] received Termination event (" +
-				numberOfEventsSeen + ")");
-		}
+//		if (log.isInfoEnabled()) {
+//			log.info("InterruptibleIterator of " + name + " on gate [" + gateIndex + "] received Termination event (" +
+//				numberOfEventsSeen + ")");
+//		}
 
 		Preconditions.checkState(numberOfEventsSeen <= numberOfEventsUntilInterrupt);
 
@@ -102,11 +102,11 @@ public class InterruptingMutableObjectIterator<E> implements MutableObjectIterat
 
 	private void onEndOfSuperstep() {
 		int numberOfEventsSeen = endOfSuperstepEventCounter.incrementAndGet();
-		if (log.isInfoEnabled()) {
-			log.info("InterruptibleIterator of " + name + " on gate [" + gateIndex
-				+ "] received EndOfSuperstep event (" +
-				numberOfEventsSeen + ")");
-		}
+//		if (log.isInfoEnabled()) {
+//			log.info("InterruptibleIterator of " + name + " on gate [" + gateIndex
+//				+ "] received EndOfSuperstep event (" +
+//				numberOfEventsSeen + ")");
+//		}
 
 		if (numberOfEventsSeen % numberOfEventsUntilInterrupt == 0) {
 			Thread.currentThread().interrupt();
@@ -117,9 +117,9 @@ public class InterruptingMutableObjectIterator<E> implements MutableObjectIterat
 	public boolean next(E target) throws IOException {
 		boolean recordFound = delegate.next(target);
 
-		if (!recordFound && log.isInfoEnabled()) {
-			log.info("InterruptibleIterator of " + name + " on gate [" + gateIndex + "] releases input");
-		}
+//		if (!recordFound && log.isInfoEnabled()) {
+//			log.info("InterruptibleIterator of " + name + " on gate [" + gateIndex + "] releases input");
+//		}
 		
 		return recordFound;
 	}

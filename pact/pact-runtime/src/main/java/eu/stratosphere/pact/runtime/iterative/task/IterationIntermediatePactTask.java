@@ -20,7 +20,7 @@ import eu.stratosphere.nephele.io.AbstractRecordWriter;
 import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
-import eu.stratosphere.pact.runtime.iterative.monitoring.IterationMonitoring;
+//import eu.stratosphere.pact.runtime.iterative.monitoring.IterationMonitoring;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -39,16 +39,20 @@ public class IterationIntermediatePactTask<S extends Stub, OT> extends AbstractI
 
 		while (this.running && !terminationRequested()) {
 
-			notifyMonitor(IterationMonitoring.Event.INTERMEDIATE_STARTING);
+//			notifyMonitor(IterationMonitoring.Event.INTERMEDIATE_STARTING);
 			if (log.isInfoEnabled()) {
 				log.info(formatLogString("starting iteration [" + currentIteration() + "]"));
 			}
 
-			notifyMonitor(IterationMonitoring.Event.INTERMEDIATE_PACT_STARTING);
+//			notifyMonitor(IterationMonitoring.Event.INTERMEDIATE_PACT_STARTING);
+			
+			System.out.println(formatLogString("starting iteration [" + currentIteration() + "]"));
 
 			super.run();
+			
+			System.out.println(formatLogString("finishing iteration [" + currentIteration() + "]"));
 
-			notifyMonitor(IterationMonitoring.Event.INTERMEDIATE_PACT_FINISHED);
+//			notifyMonitor(IterationMonitoring.Event.INTERMEDIATE_PACT_FINISHED);
 			if (log.isInfoEnabled()) {
 				log.info(formatLogString("finishing iteration [" + currentIteration() + "]"));
 			}
@@ -59,14 +63,14 @@ public class IterationIntermediatePactTask<S extends Stub, OT> extends AbstractI
 			} else {
 				propagateEvent(TerminationEvent.INSTANCE);
 			}
-			notifyMonitor(IterationMonitoring.Event.INTERMEDIATE_FINISHED);
+//			notifyMonitor(IterationMonitoring.Event.INTERMEDIATE_FINISHED);
 		}
 	}
 
 	private void propagateEvent(AbstractTaskEvent event) throws IOException, InterruptedException {
-		if (log.isInfoEnabled()) {
-			log.info(formatLogString("propagating " + event.getClass().getSimpleName()));
-		}
+//		if (log.isInfoEnabled()) {
+//			log.info(formatLogString("propagating " + event.getClass().getSimpleName()));
+//		}
 		for (AbstractRecordWriter<?> eventualOutput : eventualOutputs) {
 			eventualOutput.publishEvent(event);
 		}

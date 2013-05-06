@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.test.iterative;
+package eu.stratosphere.pact.test.iterative.nephele;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -29,17 +29,6 @@ import eu.stratosphere.pact.test.util.TestBase;
 
 @RunWith(Parameterized.class)
 public class DanglingPageRankWithCombinerITCase extends TestBase {
-	
-	private static final String TEST_VERTICES = "1\n" +
-	                                            "2\n" +
-	                                            "5\n" +
-	                                            "3 1\n" +
-	                                            "4";
-	
-	private static final String TEST_EDGES = "2 1\n" +
-                                             "5 2 4\n" +
-                                             "4 3 2\n" +
-                                             "1 4 2 3";
 	
 	protected String pagesWithRankPath;
 	protected String edgesPath;
@@ -64,8 +53,8 @@ public class DanglingPageRankWithCombinerITCase extends TestBase {
 		getFilesystemProvider().createDir(this.edgesPath);
 		getFilesystemProvider().createDir(this.resultPath);
 		
-		String[] vertexSplits = splitInputString(TEST_VERTICES, '\n', numPartitions);
-		String[] edgesSplits = splitInputString(TEST_EDGES, '\n', numPartitions);
+		String[] vertexSplits = splitInputString(DanglingPageRankITCase.TEST_VERTICES, '\n', numPartitions);
+		String[] edgesSplits = splitInputString(DanglingPageRankITCase.TEST_EDGES, '\n', numPartitions);
 
 		for (int i = 0; i < numPartitions; i++) {
 			getFilesystemProvider().createFile(pagesWithRankPath + "/part_" + i + ".txt", vertexSplits[i]);
@@ -95,7 +84,7 @@ public class DanglingPageRankWithCombinerITCase extends TestBase {
 			"5",
 			"20",
 			"15",
-			"10",
+			"30",
 			"5",
 			"1",
 			"0",

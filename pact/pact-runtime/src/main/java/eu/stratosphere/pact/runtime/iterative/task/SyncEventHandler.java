@@ -16,8 +16,8 @@ package eu.stratosphere.pact.runtime.iterative.task;
 
 import java.util.Map;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+//import org.apache.commons.logging.Log;
+//import org.apache.commons.logging.LogFactory;
 
 import com.google.common.base.Preconditions;
 
@@ -36,7 +36,7 @@ import eu.stratosphere.pact.runtime.iterative.event.WorkerDoneEvent;
 */
 public class SyncEventHandler implements EventListener {
 	
-	private static final Log log = LogFactory.getLog(SyncEventHandler.class);
+//	private static final Log log = LogFactory.getLog(SyncEventHandler.class);
 	
 	
 	private final Map<String, Aggregator<?>> aggregators;
@@ -70,9 +70,9 @@ public class SyncEventHandler implements EventListener {
 		
 		workerDoneEventCounter++;
 		
-		if (log.isInfoEnabled()) {
-			log.info("Sync event handler received WorkerDoneEvent event (" + workerDoneEventCounter + ")");
-		}
+//		if (log.isInfoEnabled()) {
+//			log.info("Sync event handler received WorkerDoneEvent event (" + workerDoneEventCounter + ")");
+//		}
 		
 		String[] aggNames = workerDoneEvent.getAggregatorNames();
 		Value[] aggregates = workerDoneEvent.getAggregates();

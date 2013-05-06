@@ -15,6 +15,7 @@
 package eu.stratosphere.pact.compiler.plan.candidate;
 
 import eu.stratosphere.pact.common.util.Visitor;
+import eu.stratosphere.pact.compiler.plan.IterationNode;
 
 /**
  *
@@ -22,5 +23,6 @@ import eu.stratosphere.pact.common.util.Visitor;
 public interface IterationPlanNode {
 	
 	void acceptForStepFunction(Visitor<PlanNode> visitor);
-
+	
+	IterationNode getIterationNode();
 }

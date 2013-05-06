@@ -21,6 +21,11 @@ import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.common.type.base.PactLong;
 
+/**
+ * In schema is_
+ * INPUT = (pageId, rank, dangling), (pageId, neighbors-list).
+ * OUTPUT = (targetPageId, partialRank)
+ */
 public class DotProductMatch extends MatchStub {
 
 	private PactRecord record = new PactRecord();
