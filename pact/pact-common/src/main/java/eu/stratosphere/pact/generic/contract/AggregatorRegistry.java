@@ -29,15 +29,15 @@ import eu.stratosphere.pact.common.type.Value;
  */
 public class AggregatorRegistry {
 	
-	private final Map<String, Class<Aggregator<?>>> registry = new HashMap<String, Class<Aggregator<?>>>();
+	private final Map<String, Class<? extends Aggregator<?>>> registry = new HashMap<String, Class<? extends Aggregator<?>>>();
 	
-	private ConvergenceCriterion<? extends Value> convergenceCriterion;
+	private Class<? extends ConvergenceCriterion<? extends Value>> convergenceCriterion;
 	
 	private String convergenceCriterionAggregatorName;
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public void registerAggregator(String name, Class<Aggregator<?>> aggregator) {
+	public void registerAggregator(String name, Class<? extends Aggregator<?>> aggregator) {
 		if (name == null || aggregator == null) {
 			throw new IllegalArgumentException("Name or aggregator must not be null");
 		}
@@ -47,14 +47,14 @@ public class AggregatorRegistry {
 		this.registry.put(name, aggregator);
 	}
 	
-	public Class<Aggregator<?>> unregisterAggregator(String name) {
+	public Class<? extends Aggregator<?>> unregisterAggregator(String name) {
 		return this.registry.remove(name);
 	}
 	
 	public Collection<AggregatorWithName<?>> getAllRegisteredAggregators() {
 		ArrayList<AggregatorWithName<?>> list = new ArrayList<AggregatorWithName<?>>(this.registry.size());
 		
-		for (Map.Entry<String, Class<Aggregator<?>>> entry : this.registry.entrySet()) {
+		for (Map.Entry<String, Class<? extends Aggregator<?>>> entry : this.registry.entrySet()) {
 			@SuppressWarnings("unchecked")
 			Class<Aggregator<Value>> valAgg = (Class<Aggregator<Value>>) (Class<?>) entry.getValue();
 			list.add(new AggregatorWithName<Value>(entry.getKey(), valAgg));
@@ -63,7 +63,7 @@ public class AggregatorRegistry {
 	}
 	
 	public <T extends Value> void registerAggregationConvergenceCriterion(
-			String name, Class<Aggregator<T>> aggregator, ConvergenceCriterion<T> convergenceCheck)
+			String name, Class<? extends Aggregator<T>> aggregator, Class<? extends ConvergenceCriterion<T>> convergenceCheck)
 	{
 		if (name == null || aggregator == null || convergenceCheck == null) {
 			throw new IllegalArgumentException("Name, aggregator, or convergence criterion must not be null");
@@ -72,7 +72,7 @@ public class AggregatorRegistry {
 		@SuppressWarnings("unchecked")
 		Class<Aggregator<?>> genAgg = (Class<Aggregator<?>>) (Class<?>) aggregator;
 		
-		Class<Aggregator<?>> previous = this.registry.get(name);
+		Class<? extends Aggregator<?>> previous = this.registry.get(name);
 		if (previous != null && previous != genAgg) {
 			throw new RuntimeException("An aggregator is already registered under the given name.");
 		}
@@ -86,7 +86,7 @@ public class AggregatorRegistry {
 		return this.convergenceCriterionAggregatorName;
 	}
 	
-	public ConvergenceCriterion<?> getConvergenceCriterion() {
+	public Class<? extends ConvergenceCriterion<?>> getConvergenceCriterion() {
 		return this.convergenceCriterion;
 	}
 }

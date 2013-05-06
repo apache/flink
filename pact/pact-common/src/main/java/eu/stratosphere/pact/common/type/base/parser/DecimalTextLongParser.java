@@ -73,5 +73,33 @@ public class DecimalTextLongParser  implements FieldParser<PactLong> {
 	public PactLong getValue() {
 		return new PactLong();
 	}
-
+	
+	public static final long parseField(byte[] bytes, int startPos, int length, char delim) {
+		if (length <= 0) {
+			throw new NumberFormatException("Invalid input: Empty string");
+		}
+		long val = 0;
+		boolean neg = false;
+		
+		if (bytes[startPos] == '-') {
+			neg = true;
+			startPos++;
+			length--;
+			if (length == 0) {
+				throw new NumberFormatException("Orphaned minus sign.");
+			}
+		}
+		
+		for (; length > 0; startPos++, length--) {
+			if (bytes[startPos] == delim) {
+				return neg ? -val : val;
+			}
+			if (bytes[startPos] < 48 || bytes[startPos] > 57) {
+				throw new NumberFormatException();
+			}
+			val *= 10;
+			val += bytes[startPos] - 48;
+		}
+		return neg ? -val : val;
+	}
 }
