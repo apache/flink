@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.example.graph.io;
+package eu.stratosphere.pact.example.triangles.io;
 
 import eu.stratosphere.pact.common.io.DelimitedOutputFormat;
 import eu.stratosphere.pact.common.type.PactRecord;
@@ -21,18 +21,17 @@ import eu.stratosphere.pact.common.type.base.PactInteger;
 
 
 /**
- * @author Stephan Ewen
+ * 
  */
-public final class TriangleOutputFormat extends DelimitedOutputFormat
-{
+public final class TriangleOutputFormat extends DelimitedOutputFormat {
+	
 	private final StringBuilder line = new StringBuilder();
 
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.common.io.DelimitedOutputFormat#serializeRecord(eu.stratosphere.pact.common.type.PactRecord, byte[])
 	 */
 	@Override
-	public int serializeRecord(PactRecord rec, byte[] target) throws Exception
-	{
+	public int serializeRecord(PactRecord rec, byte[] target) throws Exception {
 		final int e1 = rec.getField(0, PactInteger.class).getValue();
 		final int e2 = rec.getField(1, PactInteger.class).getValue();
 		final int e3 = rec.getField(2, PactInteger.class).getValue();
@@ -49,8 +48,7 @@ public final class TriangleOutputFormat extends DelimitedOutputFormat
 				target[i] = (byte) line.charAt(i);
 			}
 			return line.length();
-		}
-		else {
+		} else {
 			return -line.length();
 		}
 	}

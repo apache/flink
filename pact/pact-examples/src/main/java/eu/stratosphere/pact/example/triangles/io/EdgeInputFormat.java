@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.example.graph.io;
+package eu.stratosphere.pact.example.triangles.io;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.io.DelimitedInputFormat;
@@ -24,8 +24,8 @@ import eu.stratosphere.pact.common.type.base.PactInteger;
 /**
  * 
  */
-public final class EdgeInputFormat extends DelimitedInputFormat
-{
+public final class EdgeInputFormat extends DelimitedInputFormat {
+	
 	public static final String ID_DELIMITER_CHAR = "edgeinput.delimiter";
 	
 	private final PactInteger i1 = new PactInteger();

@@ -15,104 +15,92 @@
 
 package eu.stratosphere.pact.runtime.iterative.task;
 
+import java.io.IOException;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import com.google.common.base.Preconditions;
+
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.io.MutableRecordReader;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
+import eu.stratosphere.nephele.types.IntegerRecord;
 import eu.stratosphere.pact.common.stubs.aggregators.Aggregator;
+import eu.stratosphere.pact.common.stubs.aggregators.AggregatorWithName;
 import eu.stratosphere.pact.common.stubs.aggregators.ConvergenceCriterion;
-import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.runtime.iterative.event.AllWorkersDoneEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
 import eu.stratosphere.pact.runtime.iterative.event.WorkerDoneEvent;
-import eu.stratosphere.pact.runtime.iterative.io.InterruptingMutableObjectIterator;
 import eu.stratosphere.pact.runtime.iterative.monitoring.IterationMonitoring;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
-import eu.stratosphere.pact.runtime.task.util.PactRecordNepheleReaderIterator;
-import eu.stratosphere.pact.runtime.task.util.ReaderInterruptionBehaviors;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
-import java.io.IOException;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * The task responsible for synchronizing all iteration heads, implemented as an {@link AbstractOutputTask}. This task
  * will never see any data.
  * In each superstep, it simply waits until it has receiced a {@link WorkerDoneEvent} from each head and will send back
  * an {@link AllWorkersDoneEvent} to signal that the next superstep can begin.
- * 
- * @param <T> The type in the aggregator that determines the convergence.
  */
-public class IterationSynchronizationSinkTask<T extends Value> extends AbstractOutputTask implements Terminable {
+public class IterationSynchronizationSinkTask extends AbstractOutputTask implements Terminable {
 
 	private static final Log log = LogFactory.getLog(IterationSynchronizationSinkTask.class);
+
+	private MutableRecordReader<IntegerRecord> headEventReader;
 	
-	private TaskConfig taskConfig;
+	private SyncEventHandler eventHandler;
 
-	private InterruptingMutableObjectIterator<PactRecord> headEventRecordIterator;
+	private ConvergenceCriterion<Value> convergenceCriterion;
+	
+	private Map<String, Aggregator<?>> aggregators;
 
-	private MutableRecordReader<PactRecord> headEventReader;
-
-	private ConvergenceCriterion<T> convergenceCriterion;
-
-	private Aggregator<T> aggregator;
+	private String convergenceAggregatorName;
 
 	private int currentIteration = 1;
+	
+	private int maxNumberOfIterations;
 
 	private final AtomicBoolean terminated = new AtomicBoolean(false);
 
-	private final PactRecord headEventRecord = new PactRecord();
 
-	// TODO this duplicates code from AbstractIterativePactTask
+	// --------------------------------------------------------------------------------------------
+	
 	@Override
 	public void registerInputOutput() {
-
-		this.taskConfig = new TaskConfig(getTaskConfiguration());
-
-		String name = getEnvironment().getTaskName() + " (" + (getEnvironment().getIndexInSubtaskGroup() + 1) + '/' +
-			getEnvironment().getCurrentNumberOfSubtasks() + ")";
-
-		int numberOfEventsUntilInterrupt = taskConfig.getNumberOfEventsUntilInterruptInIterativeGate(0);
-
-		if (log.isInfoEnabled()) {
-			log.info(formatLogString("wrapping input [0] with an interrupting iterator that waits " +
-				"for [" + numberOfEventsUntilInterrupt + "] event(s)"));
-		}
-
-		if (taskConfig.usesConvergenceCriterion()) {
-			convergenceCriterion = InstantiationUtil.instantiate(taskConfig.<T>getConvergenceCriterion(),
-				ConvergenceCriterion.class);
-			aggregator = convergenceCriterion.createAggregator();
-		}
-
-		headEventReader = new MutableRecordReader<PactRecord>(this, 0);
-		headEventRecordIterator = new InterruptingMutableObjectIterator<PactRecord>(
-			new PactRecordNepheleReaderIterator(headEventReader, ReaderInterruptionBehaviors.RELEASE_ON_INTERRUPT),
-			numberOfEventsUntilInterrupt, name, this, 0, aggregator);
-
-		headEventReader.subscribeToEvent(headEventRecordIterator, WorkerDoneEvent.class);
-	}
-
-	@Override
-	public boolean terminationRequested() {
-		return terminated.get();
-	}
-
-	@Override
-	public void requestTermination() {
-		if (log.isInfoEnabled()) {
-			log.info(formatLogString("marked as terminated."));
-		}
-		terminated.set(true);
+		this.headEventReader = new MutableRecordReader<IntegerRecord>(this);
 	}
 
 	@Override
 	public void invoke() throws Exception {
+		TaskConfig taskConfig = new TaskConfig(getTaskConfiguration());
+		
+		// instantiate all aggregators
+		for (AggregatorWithName<?> aggWithName : taskConfig.getIterationAggregators()) {
+			Aggregator<?> agg = InstantiationUtil.instantiate(aggWithName.getAggregator(), Aggregator.class);
+			aggregators.put(aggWithName.getName(), agg);
+		}
+		
+		// instantiate the aggregator convergence criterion
+		if (taskConfig.usesConvergenceCriterion()) {
+			Class<? extends ConvergenceCriterion<Value>> convClass = taskConfig.getConvergenceCriterion();
+			convergenceCriterion = InstantiationUtil.instantiate(convClass, ConvergenceCriterion.class);
+			convergenceAggregatorName = taskConfig.getConvergenceCriterionAggregatorName();
+			Preconditions.checkNotNull(convergenceAggregatorName);
+		}
+		
+		maxNumberOfIterations = taskConfig.getNumberOfIterations();
+		
+		// set up the event handler
+		int numEventsTillEndOfSuperstep = taskConfig.getNumberOfEventsUntilInterruptInIterativeGate(0);
+		eventHandler = new SyncEventHandler(numEventsTillEndOfSuperstep, aggregators);
+		headEventReader.subscribeToEvent(eventHandler, WorkerDoneEvent.class);
 
+		IntegerRecord dummy = new IntegerRecord();
+		
 		while (!terminationRequested()) {
 
 			notifyMonitor(IterationMonitoring.Event.SYNC_STARTING, currentIteration);
@@ -120,43 +108,39 @@ public class IterationSynchronizationSinkTask<T extends Value> extends AbstractO
 				log.info(formatLogString("starting iteration [" + currentIteration + "]"));
 			}
 
-			readHeadEventChannel();
+			// this call listens for events until the end-of-superstep is reached
+			readHeadEventChannel(dummy);
 
 			if (log.isInfoEnabled()) {
 				log.info(formatLogString("finishing iteration [" + currentIteration + "]"));
 			}
 
 			if (checkForConvergence()) {
-
 				if (log.isInfoEnabled()) {
 					log.info(formatLogString("signaling that all workers are to terminate in iteration ["
-						+ currentIteration +
-						"]"));
+						+ currentIteration + "]"));
 				}
 
 				requestTermination();
 				sendToAllWorkers(new TerminationEvent());
 				notifyMonitor(IterationMonitoring.Event.SYNC_FINISHED, currentIteration);
 			} else {
-
 				if (log.isInfoEnabled()) {
 					log.info(formatLogString("signaling that all workers are done in iteration [" + currentIteration
 						+ "]"));
 				}
 
-				AllWorkersDoneEvent allWorkersDoneEvent = taskConfig.usesConvergenceCriterion() ?
-					new AllWorkersDoneEvent(aggregator.getAggregate()) :
-					new AllWorkersDoneEvent();
-
-				if (taskConfig.usesConvergenceCriterion()) {
-					aggregator.reset();
-				}
-
+				AllWorkersDoneEvent allWorkersDoneEvent = new AllWorkersDoneEvent(aggregators);
 				sendToAllWorkers(allWorkersDoneEvent);
+				
+				// reset all aggregators
+				for (Aggregator<?> agg : aggregators.values()) {
+					agg.reset();
+				}
+				
 				notifyMonitor(IterationMonitoring.Event.SYNC_FINISHED, currentIteration);
 				currentIteration++;
 			}
-
 		}
 	}
 
@@ -166,12 +150,23 @@ public class IterationSynchronizationSinkTask<T extends Value> extends AbstractO
 		}
 	}
 
-	private boolean checkForConvergence() throws IOException, InterruptedException {
-		Preconditions.checkState(taskConfig.getNumberOfIterations() > 0);
+	private boolean checkForConvergence() {
+		if (maxNumberOfIterations == currentIteration) {
+			if (log.isInfoEnabled()) {
+				log.info(formatLogString("maximum number of iterations [" + currentIteration
+					+ "] reached, terminating..."));
+			}
+			return true;
+		}
 
-		if (taskConfig.usesConvergenceCriterion()) {
-
-			T aggregate = aggregator.getAggregate();
+		if (convergenceAggregatorName != null) {
+			@SuppressWarnings("unchecked")
+			Aggregator<Value> aggregator = (Aggregator<Value>) aggregators.get(convergenceAggregatorName);
+			if (aggregator == null) {
+				throw new RuntimeException("Error: Aggregator for convergence criterion was null.");
+			}
+			
+			Value aggregate = aggregator.getAggregate();
 
 			if (convergenceCriterion.isConverged(currentIteration, aggregate)) {
 				if (log.isInfoEnabled()) {
@@ -181,21 +176,24 @@ public class IterationSynchronizationSinkTask<T extends Value> extends AbstractO
 				return true;
 			}
 		}
-
-		if (taskConfig.getNumberOfIterations() == currentIteration) {
-			if (log.isInfoEnabled()) {
-				log.info(formatLogString("maximum number of iterations [" + currentIteration
-					+ "] reached, terminating..."));
-			}
-			return true;
-		}
-
+		
 		return false;
 	}
 
-	private void readHeadEventChannel() throws IOException {
-		while (headEventRecordIterator.next(headEventRecord)) {
-			throw new IllegalStateException("Synchronization task must not see any records!");
+	private void readHeadEventChannel(IntegerRecord rec) throws IOException {
+		// reset the handler
+		eventHandler.resetEndOfSuperstep();
+		
+		// read (and thereby process all events in the handler's event handling functions)
+		try {
+			while (this.headEventReader.next(rec)) {
+				throw new RuntimeException("Synchronization task must not see any records!");
+			}
+		} catch (InterruptedException iex) {
+			// sanity check
+			if (!(eventHandler.isEndOfSuperstep())) {
+				throw new RuntimeException("Event handler interrupted without reaching end-of-superstep.");
+			}
 		}
 	}
 
@@ -205,5 +203,17 @@ public class IterationSynchronizationSinkTask<T extends Value> extends AbstractO
 
 	private String formatLogString(String message) {
 		return RegularPactTask.constructLogString(message, getEnvironment().getTaskName(), this);
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	@Override
+	public boolean terminationRequested() {
+		return terminated.get();
+	}
+
+	@Override
+	public void requestTermination() {
+		terminated.set(true);
 	}
 }

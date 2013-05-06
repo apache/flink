@@ -20,6 +20,7 @@ import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.RuntimeContext;
 import eu.stratosphere.pact.common.stubs.Stub;
+import eu.stratosphere.pact.runtime.task.RegularPactTask;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.udf.RuntimeUDFContext;
 
@@ -47,7 +48,11 @@ public abstract class ChainedDriver<IT, OT> implements Collector<IT> {
 	public abstract void collect(IT record);
 	
 	protected RuntimeContext getRuntimeContext(AbstractInvokable parent, String name) {
-		Environment env = parent.getEnvironment();
-		return new RuntimeUDFContext(name, env.getCurrentNumberOfSubtasks(), env.getIndexInSubtaskGroup());
+		if (parent instanceof RegularPactTask) {
+			return ((RegularPactTask<?, ?>) parent).getRuntimeContext(name);
+		} else {
+			Environment env = parent.getEnvironment();
+			return new RuntimeUDFContext(name, env.getCurrentNumberOfSubtasks(), env.getIndexInSubtaskGroup());
+		}
 	}
 }

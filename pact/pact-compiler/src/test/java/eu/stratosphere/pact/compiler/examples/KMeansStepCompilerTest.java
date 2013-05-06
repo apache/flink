@@ -32,12 +32,12 @@ import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
-import eu.stratosphere.pact.example.datamining.KMeansIteration;
-import eu.stratosphere.pact.example.datamining.KMeansIteration.ComputeDistance;
-import eu.stratosphere.pact.example.datamining.KMeansIteration.FindNearestCenter;
-import eu.stratosphere.pact.example.datamining.KMeansIteration.PointInFormat;
-import eu.stratosphere.pact.example.datamining.KMeansIteration.PointOutFormat;
-import eu.stratosphere.pact.example.datamining.KMeansIteration.RecomputeClusterCenter;
+import eu.stratosphere.pact.example.kmeans.KMeansSingleStep;
+import eu.stratosphere.pact.example.kmeans.udfs.ComputeDistance;
+import eu.stratosphere.pact.example.kmeans.udfs.FindNearestCenter;
+import eu.stratosphere.pact.example.kmeans.udfs.PointInFormat;
+import eu.stratosphere.pact.example.kmeans.udfs.PointOutFormat;
+import eu.stratosphere.pact.example.kmeans.udfs.RecomputeClusterCenter;
 import eu.stratosphere.pact.generic.contract.Contract;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
@@ -66,7 +66,7 @@ public class KMeansStepCompilerTest extends CompilerTestBase {
 	@Test
 	public void testQueryNoStatsAnyValidPlanNoUniqueness() {
 		try {
-			KMeansIteration job = new KMeansIteration();
+			KMeansSingleStep job = new KMeansSingleStep();
 			Plan p = job.getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE);
 			
 			// clear uniqueness hints
@@ -87,7 +87,7 @@ public class KMeansStepCompilerTest extends CompilerTestBase {
 	@Test
 	public void testQueryNoStatsAnyValidPlanWithUniqueness() {
 		try {
-			KMeansIteration job = new KMeansIteration();
+			KMeansSingleStep job = new KMeansSingleStep();
 			Plan p = job.getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE);
 			OptimizedPlan plan = compileNoStats(p);
 			checkAnyValidPlan(plan);
@@ -210,7 +210,7 @@ public class KMeansStepCompilerTest extends CompilerTestBase {
 //	@Test
 	public void testQueryNoStatisticsChainedReducer() {
 		try {
-			KMeansIteration job = new KMeansIteration();
+			KMeansSingleStep job = new KMeansSingleStep();
 			Plan p = job.getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE);
 			
 			// compile
@@ -245,7 +245,7 @@ public class KMeansStepCompilerTest extends CompilerTestBase {
 //	@Test
 	public void testQueryNoStatisticsNonChainedReducer() {
 		try {
-			KMeansIteration job = new KMeansIteration();
+			KMeansSingleStep job = new KMeansSingleStep();
 			Plan p = job.getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE);
 			
 			// clear uniqueness hints
@@ -310,7 +310,7 @@ public class KMeansStepCompilerTest extends CompilerTestBase {
 		
 	private void testQueryGeneric(long dataPointsSize, long centersSize, boolean bcCenters, boolean streamedNL) {
 		try {
-			KMeansIteration job = new KMeansIteration();
+			KMeansSingleStep job = new KMeansSingleStep();
 			Plan p = job.getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE);
 			
 			// set statistics

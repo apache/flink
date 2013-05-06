@@ -15,61 +15,45 @@
 
 package eu.stratosphere.pact.runtime.iterative.event;
 
-import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
+import eu.stratosphere.pact.common.stubs.aggregators.Aggregator;
 import eu.stratosphere.pact.common.type.Value;
 
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.util.Map;
 
-public class WorkerDoneEvent extends AbstractTaskEvent {
-
+public class WorkerDoneEvent extends IterationEventWithAggregators {
+	
 	private int workerIndex;
-
-	private Value aggregate;
-
+	
 	public WorkerDoneEvent() {
+		super();
 	}
 
-	public WorkerDoneEvent(int workerIndex, Value aggregate) {
+	public WorkerDoneEvent(int workerIndex, String aggregatorName, Value aggregate) {
+		super(aggregatorName, aggregate);
 		this.workerIndex = workerIndex;
-		this.aggregate = aggregate;
 	}
-
-	public int workerIndex() {
+	
+	public WorkerDoneEvent(int workerIndex, Map<String, Aggregator<?>> aggregators) {
+		super(aggregators);
+		this.workerIndex = workerIndex;
+	}
+	
+	public int getWorkerIndex() {
 		return workerIndex;
 	}
-
-	public Value aggregate() {
-		return aggregate;
-	}
-
+	
 	@Override
 	public void write(DataOutput out) throws IOException {
-		out.writeInt(workerIndex);
-		boolean hasAggregate = aggregate != null;
-		out.writeBoolean(hasAggregate);
-		if (hasAggregate) {
-			out.writeUTF(aggregate.getClass().getName());
-			aggregate.write(out);
-		}
+		out.writeInt(this.workerIndex);
+		super.write(out);
 	}
-
+	
 	@Override
 	public void read(DataInput in) throws IOException {
-		workerIndex = in.readInt();
-
-		boolean hasAggregate = in.readBoolean();
-		if (hasAggregate) {
-			String classname = in.readUTF();
-			try {
-				aggregate = Class.forName(classname).asSubclass(Value.class).newInstance();
-			} catch (Exception e) {
-				throw new IOException(e);
-			}
-			aggregate.read(in);
-		} else {
-			aggregate = null;
-		}
+		this.workerIndex = in.readInt();
+		super.read(in);
 	}
 }

@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.example.graph;
+package eu.stratosphere.pact.example.shortestpaths;
 
 import java.io.IOException;
 import java.util.HashMap;

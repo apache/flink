@@ -1,29 +1,25 @@
-package eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank;
+package eu.stratosphere.pact.example.pagerank;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.stubs.CoGroupStub;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.type.base.PactBoolean;
 import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.common.type.base.PactLong;
-import eu.stratosphere.pact.runtime.iterative.compensatable.ConfigUtils;
+import eu.stratosphere.pact.example.util.ConfigUtils;
 
 import java.util.Iterator;
-import java.util.Set;
 
-public class CompensatableDotProductCoGroup extends CoGroupStub {
+public class DotProductCoGroup extends CoGroupStub {
+	
+	public static final String NUM_VERTICES_PARAMETER = "pageRank.numVertices";
+	
+	public static final String NUM_DANGLING_VERTICES_PARAMETER = "pageRank.numDanglingVertices";
 	
 	public static final String AGGREGATOR_NAME = "pagerank.aggregator";
 
 	private PactRecord accumulator = new PactRecord();
-
-	private int workerIndex;
-
-	private int currentIteration;
-
-	private int failingIteration;
-
-	private Set<Integer> failingWorkers;
 
 	private PageRankStatsAggregator aggregator;
 
@@ -39,7 +35,7 @@ public class CompensatableDotProductCoGroup extends CoGroupStub {
 
 	private final PactDouble newRank = new PactDouble();
 
-	private BooleanValue isDangling = new BooleanValue();
+	private PactBoolean isDangling = new PactBoolean();
 
 	private PactLong vertexID = new PactLong();
 
@@ -47,13 +43,10 @@ public class CompensatableDotProductCoGroup extends CoGroupStub {
 
 	@Override
 	public void open(Configuration parameters) throws Exception {
-		workerIndex = getRuntimeContext().getIndexOfThisSubtask();
-		currentIteration = getIterationRuntimeContext().getSuperstepNumber();
+		int currentIteration = getIterationRuntimeContext().getSuperstepNumber();
 		
-		failingIteration = ConfigUtils.asInteger("compensation.failingIteration", parameters);
-		failingWorkers = ConfigUtils.asIntSet("compensation.failingWorker", parameters);
-		numVertices = ConfigUtils.asLong("pageRank.numVertices", parameters);
-		numDanglingVertices = ConfigUtils.asLong("pageRank.numDanglingVertices", parameters);
+		numVertices = ConfigUtils.asLong(NUM_VERTICES_PARAMETER, parameters);
+		numDanglingVertices = ConfigUtils.asLong(NUM_DANGLING_VERTICES_PARAMETER, parameters);
 
 		dampingFactor = (1d - BETA) / (double) numVertices;
 		
@@ -69,8 +62,8 @@ public class CompensatableDotProductCoGroup extends CoGroupStub {
 
 	@Override
 	public void coGroup(Iterator<PactRecord> currentPageRankIterator, Iterator<PactRecord> partialRanks,
-			Collector<PactRecord> collector) {
-
+			Collector<PactRecord> collector)
+	{
 		if (!currentPageRankIterator.hasNext()) {
 			long missingVertex = partialRanks.next().getField(0, PactLong.class).getValue();
 			throw new IllegalStateException("No current page rank for vertex [" + missingVertex + "]!");
@@ -104,12 +97,5 @@ public class CompensatableDotProductCoGroup extends CoGroupStub {
 		accumulator.setField(2, isDangling);
 
 		collector.collect(accumulator);
-	}
-
-	@Override
-	public void close() throws Exception {
-		if (currentIteration == failingIteration && failingWorkers.contains(workerIndex)) {
-			aggregator.reset();
-		}
 	}
 }

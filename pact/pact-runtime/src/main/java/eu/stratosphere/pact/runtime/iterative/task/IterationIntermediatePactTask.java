@@ -60,7 +60,7 @@ public class IterationIntermediatePactTask<S extends Stub, OT> extends AbstractI
 				propagateEvent(TerminationEvent.INSTANCE);
 			}
 			notifyMonitor(IterationMonitoring.Event.INTERMEDIATE_FINISHED);
-		};
+		}
 	}
 
 	private void propagateEvent(AbstractTaskEvent event) throws IOException, InterruptedException {

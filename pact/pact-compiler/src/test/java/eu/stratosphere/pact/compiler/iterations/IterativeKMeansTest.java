@@ -31,7 +31,7 @@ import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
 import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
-import eu.stratosphere.pact.example.iterative.IterativeKMeans;
+import eu.stratosphere.pact.example.kmeans.KMeansIterative;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
@@ -62,7 +62,7 @@ public class IterativeKMeansTest extends CompilerTestBase {
 	@Test
 	public void testCompileKMeansWithStats() {
 		
-		IterativeKMeans kmi = new IterativeKMeans();
+		KMeansIterative kmi = new KMeansIterative();
 		Plan p = kmi.getPlan(String.valueOf(DEFAULT_PARALLELISM),
 				IN_FILE, IN_FILE, OUT_FILE, String.valueOf(20));
 		
@@ -102,7 +102,7 @@ public class IterativeKMeansTest extends CompilerTestBase {
 	@Test
 	public void testCompileKMeansIterationForwardCenters() {
 		
-		IterativeKMeans kmi = new IterativeKMeans();
+		KMeansIterative kmi = new KMeansIterative();
 		Plan p = kmi.getPlan(String.valueOf(DEFAULT_PARALLELISM),
 				IN_FILE, IN_FILE, OUT_FILE, String.valueOf(20));
 		

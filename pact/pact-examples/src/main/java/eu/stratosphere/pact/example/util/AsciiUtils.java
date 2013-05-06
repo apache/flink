@@ -24,8 +24,8 @@ import eu.stratosphere.pact.common.util.MutableObjectIterator;
  * efficient, because they use a very simple encoding logic and operate on mutable objects, sparing object allocation
  * and garbage collection overhead. 
  */
-public final class AsciiUtils
-{
+public final class AsciiUtils {
+	
 	/**
 	 * Converts the given <code>PactString</code> into a lower case variant.
 	 * <p>
@@ -34,8 +34,7 @@ public final class AsciiUtils
 	 * 
 	 * @param string The string to convert to lower case.
 	 */
-	public static void toLowerCase(PactString string)
-	{
+	public static void toLowerCase(PactString string) {
 		final char[] chars = string.getCharArray();
 		final int len = string.length();
 		
@@ -53,8 +52,7 @@ public final class AsciiUtils
 	 * @param string The pact string to have the non-word characters replaced.
 	 * @param replacement The character to use as the replacement.
 	 */
-	public static void replaceNonWordChars(PactString string, char replacement)
-	{
+	public static void replaceNonWordChars(PactString string, char replacement) {
 		final char[] chars = string.getCharArray();
 		final int len = string.length();
 		
@@ -73,8 +71,8 @@ public final class AsciiUtils
 	 * The tokenizer is designed to have a resettable state and operate on mutable objects,
 	 * sparing object allocation and garbage collection overhead.
 	 */
-	public static final class WhitespaceTokenizer implements MutableObjectIterator<PactString>
-	{		
+	public static final class WhitespaceTokenizer implements MutableObjectIterator<PactString> {
+		
 		private PactString toTokenize;		// the string to tokenize
 		private int pos;					// the current position in the string
 		private int limit;					// the limit in the string's character data
@@ -82,16 +80,14 @@ public final class AsciiUtils
 		/**
 		 * Creates a new tokenizer with an undefined internal state.
 		 */
-		public WhitespaceTokenizer()
-		{}
+		public WhitespaceTokenizer() {}
 		
 		/**
 		 * Sets the string to be tokenized and resets the state of the tokenizer.
 		 * 
 		 * @param string The pact string to be tokenized.
 		 */
-		public void setStringToTokenize(PactString string)
-		{
+		public void setStringToTokenize(PactString string) {
 			this.toTokenize = string;
 			this.pos = 0;
 			this.limit = string.length();
@@ -107,8 +103,7 @@ public final class AsciiUtils
 		 * @see eu.stratosphere.pact.common.util.MutableObjectIterator#next(java.lang.Object)
 		 */
 		@Override
-		public boolean next(PactString target)
-		{
+		public boolean next(PactString target) {
 			final char[] data = this.toTokenize.getCharArray();
 			final int limit = this.limit;
 			int pos = this.pos;

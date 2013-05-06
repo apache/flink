@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -13,27 +13,34 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.example.iterative;
+package eu.stratosphere.pact.example.pagerank;
 
-import eu.stratosphere.pact.common.io.TextInputFormat;
+import eu.stratosphere.pact.common.io.DelimitedOutputFormat;
 import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.common.type.base.PactLong;
-import eu.stratosphere.pact.common.type.base.parser.DecimalTextLongParser;
 
-public class DuplicateLongInputFormat extends TextInputFormat {
-	
-	private final PactLong l1 = new PactLong();
-	private final PactLong l2 = new PactLong();
-	
+public class PageWithRankOutFormat extends DelimitedOutputFormat {
+
+	private final StringBuilder buffer = new StringBuilder();
+
 	@Override
-	public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes) {
-		final long value = DecimalTextLongParser.parseField(bytes, offset, numBytes, (char) 0xffff);
-
-		this.l1.setValue(value);
-		this.l2.setValue(value);
+	public int serializeRecord(PactRecord record, byte[] target) {
+		StringBuilder buffer = this.buffer;
 		
-		target.setField(0, this.l1);
-		target.setField(1, this.l2);
-		return true;
+		buffer.setLength(0);
+		buffer.append(record.getField(0, PactLong.class).toString());
+		buffer.append('\t');
+		buffer.append(record.getField(1, PactDouble.class).toString());
+		buffer.append('\n');
+		
+		if (target.length < buffer.length()) {
+			return -buffer.length();
+		}
+		
+		for (int i = 0; i < buffer.length(); i++) {
+			target[i] = (byte) buffer.charAt(i);
+		}
+		return buffer.length();
 	}
 }

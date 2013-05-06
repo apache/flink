@@ -27,8 +27,6 @@ import eu.stratosphere.pact.common.type.Value;
  * the newline character.
  * <p>
  * This class is a wrapper for the value part of the integer number.
- * 
- * @author warneke
  */
 public final class TeraValue implements Value {
 
@@ -78,24 +76,22 @@ public final class TeraValue implements Value {
 		this.offset = offset;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
-	public void write(DataOutput out) throws IOException
-	{
+	public void write(DataOutput out) throws IOException {
 		out.write(this.value, this.offset, VALUE_SIZE);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public void read(DataInput in) throws IOException {
 		in.readFully(this.value, 0, VALUE_SIZE);
 		this.offset = 0;
 	}
-
+	
+	@Override
+	public String toString() {
+		return new String(this.value, this.offset, VALUE_SIZE);
+	}
+	
 	/**
 	 * Copies the value to the given byte buffer.
 	 * 
@@ -103,17 +99,7 @@ public final class TeraValue implements Value {
 	 *        the buffer to copy the value to
 	 */
 	public void copyToBuffer(final byte[] buf) {
-
 		System.arraycopy(this.value, this.offset, buf, 0, VALUE_SIZE);
-	}
-	
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public String toString() {
-
-		return new String(this.value, this.offset, VALUE_SIZE);
 	}
 }
 

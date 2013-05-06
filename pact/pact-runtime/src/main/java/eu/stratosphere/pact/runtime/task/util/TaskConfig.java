@@ -22,7 +22,6 @@ import java.io.DataInputStream;
 import java.io.DataOutput;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -735,7 +734,7 @@ public class TaskConfig {
 			this.config.setClass(ITERATION_AGGREGATOR_PREFIX + num, awn.getAggregator());
 			num++;
 		}
-		this.config.setInteger(ITERATION_NUM_AGGREGATORS, aggregators.size());
+		this.config.setInteger(ITERATION_NUM_AGGREGATORS, num);
 	}
 	
 	public Collection<AggregatorWithName<?>> getIterationAggregators() {
@@ -1001,23 +1000,12 @@ public class TaskConfig {
 		}
 		
 		@Override
-		public void setObject(String key, Serializable object) {
-			this.backingConfig.setObject(this.prefix + key, object);
-		}
-		
-		@Override
-		public Serializable getObject(String key, Serializable defaultValue) {
-			return this.backingConfig.getObject(this.prefix + key, defaultValue);
-		}
-		
-		@Override
 		public void addAll(Configuration other, String prefix) {
 			this.backingConfig.addAll(other, this.prefix + prefix);
 		}
 		
 		@Override
-		public Set<String> keySet()
-		{
+		public Set<String> keySet() {
 			final HashSet<String> set = new HashSet<String>();
 			final int prefixLen = this.prefix == null ? 0 : this.prefix.length();
 			
@@ -1032,15 +1020,13 @@ public class TaskConfig {
 		// --------------------------------------------------------------------------------------------
 
 		@Override
-		public void read(DataInput in) throws IOException
-		{
+		public void read(DataInput in) throws IOException {
 			this.prefix = in.readUTF();
 			this.backingConfig.read(in);
 		}
 
 		@Override
-		public void write(DataOutput out) throws IOException
-		{
+		public void write(DataOutput out) throws IOException {
 			out.writeUTF(this.prefix);
 			this.backingConfig.write(out);
 		}

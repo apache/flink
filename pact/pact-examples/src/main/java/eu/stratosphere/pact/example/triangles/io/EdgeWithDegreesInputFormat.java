@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.example.graph.io;
+package eu.stratosphere.pact.example.triangles.io;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.io.DelimitedInputFormat;
@@ -31,11 +31,9 @@ import eu.stratosphere.pact.common.type.base.PactInteger;
  * The delimiters are configurable. The default delimiter between vertex ID and
  * vertex degree is the comma (<code>,</code>). The default delimiter between the two vertices is
  * the vertical bar (<code>|</code>).
- * 
- * @author Stephan Ewen
  */
-public final class EdgeWithDegreesInputFormat extends DelimitedInputFormat
-{
+public final class EdgeWithDegreesInputFormat extends DelimitedInputFormat {
+	
 	public static final String VERTEX_DELIMITER_CHAR = "edgeinput.vertexdelimiter";
 	public static final String DEGREE_DELIMITER_CHAR = "edgeinput.degreedelimiter";
 	
@@ -53,8 +51,7 @@ public final class EdgeWithDegreesInputFormat extends DelimitedInputFormat
 	 * @see eu.stratosphere.pact.common.io.DelimitedInputFormat#readRecord(eu.stratosphere.pact.common.type.PactRecord, byte[], int)
 	 */
 	@Override
-	public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes)
-	{
+	public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes) {
 		final int limit = offset + numBytes;
 		int firstV = 0, secondV = 0;
 		int firstD = 0, secondD = 0;
@@ -112,8 +109,7 @@ public final class EdgeWithDegreesInputFormat extends DelimitedInputFormat
 	 * @see eu.stratosphere.pact.common.io.DelimitedInputFormat#configure(eu.stratosphere.nephele.configuration.Configuration)
 	 */
 	@Override
-	public void configure(Configuration parameters)
-	{
+	public void configure(Configuration parameters) {
 		super.configure(parameters);
 		this.vertexDelimiter = (char) parameters.getInteger(VERTEX_DELIMITER_CHAR, '|');
 		this.degreeDelimiter = (char) parameters.getInteger(DEGREE_DELIMITER_CHAR, ',');

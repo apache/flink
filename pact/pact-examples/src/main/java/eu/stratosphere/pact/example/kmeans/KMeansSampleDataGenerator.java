@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.example.datamining.generator;
+package eu.stratosphere.pact.example.kmeans;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -22,7 +22,7 @@ import java.util.Calendar;
 import java.util.Locale;
 import java.util.Random;
 
-public class KMeansGenerator {
+public class KMeansSampleDataGenerator {
 
 	/**
 	 * Generates data sets for the KMeansIteration example PACT program. Data
@@ -244,9 +244,7 @@ public class KMeansGenerator {
 			sb.append(df.format(coords[j]));
 			sb.append('|');
 		}
-
 		// return string
 		return sb.toString();
 	}
-
 }

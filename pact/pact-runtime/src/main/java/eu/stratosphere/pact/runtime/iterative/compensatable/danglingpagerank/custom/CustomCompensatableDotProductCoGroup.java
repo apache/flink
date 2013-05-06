@@ -56,11 +56,9 @@ public class CustomCompensatableDotProductCoGroup extends AbstractStub implement
 		if (currentIteration == 1) {
 			danglingRankFactor = BETA * (double) numDanglingVertices / ((double) numVertices * (double) numVertices);
 		} else {
-			PageRankStats previousAggregate = aggregator.getAggregate();
+			PageRankStats previousAggregate = getIterationRuntimeContext().getPreviousIterationAggregate(AGGREGATOR_NAME);
 			danglingRankFactor = BETA * previousAggregate.danglingRank() / (double) numVertices;
 		}
-		
-		aggregator.reset();
 	}
 
 	@Override

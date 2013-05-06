@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.example.graph;
+package eu.stratosphere.pact.example.triangles;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -48,7 +48,7 @@ import eu.stratosphere.pact.common.type.base.PactString;
  * The Pact version was described in "MapReduce and PACT - Comparing Data Parallel Programming Models" (BTW 2011). 
  *
  */
-public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
+public class EnumTrianglesRdfFoaf implements PlanAssembler, PlanAssemblerDescription {
 
 	/**
 	 * Reads RDF triples and filters on the foaf:knows RDF predicate.

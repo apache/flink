@@ -31,7 +31,7 @@ import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
-import eu.stratosphere.pact.example.graph.PairwiseSP;
+import eu.stratosphere.pact.example.shortestpaths.PairwiseSP;
 import eu.stratosphere.pact.test.util.TestBase;
 
 @RunWith(Parameterized.class)

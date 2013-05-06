@@ -31,7 +31,7 @@ import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
-import eu.stratosphere.pact.example.graph.EnumTriangles;
+import eu.stratosphere.pact.example.triangles.EnumTrianglesRdfFoaf;
 import eu.stratosphere.pact.test.util.TestBase;
 
 @RunWith(Parameterized.class)
@@ -75,7 +75,7 @@ public class EnumTrianglesITCase extends TestBase {
 	@Override
 	protected JobGraph getJobGraph() throws Exception {
 
-		EnumTriangles enumTriangles = new EnumTriangles();
+		EnumTrianglesRdfFoaf enumTriangles = new EnumTrianglesRdfFoaf();
 		Plan plan = enumTriangles.getPlan(
 				config.getString("EnumTrianglesTest#NoSubtasks", "4"),
 				getFilesystemProvider().getURIPrefix() + edgesPath, 

@@ -22,9 +22,9 @@ import org.junit.Test;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.compiler.CompilerTestBase;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
-import eu.stratosphere.pact.example.datamining.KMeansIteration;
-import eu.stratosphere.pact.example.iterative.IterativeKMeans;
 import eu.stratosphere.pact.example.iterative.WorksetConnectedComponents;
+import eu.stratosphere.pact.example.kmeans.KMeansIterative;
+import eu.stratosphere.pact.example.kmeans.KMeansSingleStep;
 import eu.stratosphere.pact.example.relational.TPCHQuery3;
 import eu.stratosphere.pact.example.relational.WebLogAnalysis;
 import eu.stratosphere.pact.example.wordcount.WordCount;
@@ -47,7 +47,7 @@ public class CompiledPlanDumpTest extends CompilerTestBase {
 	
 	@Test
 	public void dumpKMeans() {
-		dump(new KMeansIteration().getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE));
+		dump(new KMeansSingleStep().getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE));
 	}
 	
 	@Test
@@ -57,7 +57,7 @@ public class CompiledPlanDumpTest extends CompilerTestBase {
 
 	@Test
 	public void dumpBulkIterationKMeans() {
-		dump(new IterativeKMeans().getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, OUT_FILE));
+		dump(new KMeansIterative().getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, OUT_FILE));
 	}
 	
 	@Test

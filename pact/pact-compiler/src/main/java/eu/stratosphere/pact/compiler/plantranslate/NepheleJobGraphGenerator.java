@@ -16,6 +16,7 @@
 package eu.stratosphere.pact.compiler.plantranslate;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -37,6 +38,8 @@ import eu.stratosphere.nephele.jobgraph.JobInputVertex;
 import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.nephele.template.AbstractInputTask;
+import eu.stratosphere.pact.common.stubs.aggregators.AggregatorWithName;
+import eu.stratosphere.pact.common.stubs.aggregators.ConvergenceCriterion;
 import eu.stratosphere.pact.common.util.PactConfigConstants;
 import eu.stratosphere.pact.common.util.Visitor;
 import eu.stratosphere.pact.compiler.CompilerException;
@@ -52,6 +55,7 @@ import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SourcePlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.UnionPlanNode;
+import eu.stratosphere.pact.generic.contract.AggregatorRegistry;
 import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.runtime.iterative.io.FakeOutputTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationHeadPactTask;
@@ -903,6 +907,27 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		}
 		tailConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
 		// the fake channel is statically typed to pact record. no data is sent over this channel anyways.
+		
+		// ------------------- register the aggregators -------------------
+		AggregatorRegistry aggs = bulkNode.getBulkIterationNode().getIterationContract().getAggregators();
+		Collection<AggregatorWithName<?>> allAggregators = aggs.getAllRegisteredAggregators();
+		
+		headConfig.addIterationAggregators(allAggregators);
+		syncConfig.addIterationAggregators(allAggregators);
+		
+		String convAggName = aggs.getConvergenceCriterionAggregatorName();
+		Class<? extends ConvergenceCriterion<?>> convCriterion = aggs.getConvergenceCriterion();
+		
+		if (convCriterion != null || convAggName != null) {
+			if (convCriterion == null) {
+				throw new CompilerException("Error: Convergence criterion aggregator set, but criterion is null.");
+			}
+			if (convAggName == null) {
+				throw new CompilerException("Error: Aggregator convergence criterion set, but aggregator is null.");
+			}
+			
+			syncConfig.setConvergenceCriterion(convAggName, convCriterion);
+		}
 	}
 
 	// -------------------------------------------------------------------------------------

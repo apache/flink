@@ -29,7 +29,7 @@ import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
-import eu.stratosphere.pact.example.iterative.IterativeKMeans;
+import eu.stratosphere.pact.example.kmeans.KMeansIterative;
 import eu.stratosphere.pact.test.pactPrograms.KMeansIterationITCase;
 
 @RunWith(Parameterized.class)
@@ -42,7 +42,7 @@ public class IterativeKMeansITCase extends KMeansIterationITCase {
 	@Override
 	protected JobGraph getJobGraph() throws Exception {
 
-		IterativeKMeans kmi = new IterativeKMeans();
+		KMeansIterative kmi = new KMeansIterative();
 
 		Plan plan = kmi.getPlan(config.getString("IterativeKMeansITCase#NoSubtasks", "1"), 
 				getFilesystemProvider().getURIPrefix() + dataPath, 

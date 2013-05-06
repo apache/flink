@@ -15,21 +15,20 @@
 
 package eu.stratosphere.pact.runtime.iterative.io;
 
-import com.google.common.base.Preconditions;
-import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
-import eu.stratosphere.nephele.event.task.EventListener;
-import eu.stratosphere.pact.common.stubs.aggregators.Aggregator;
-import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.common.util.MutableObjectIterator;
-import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
-import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
-import eu.stratosphere.pact.runtime.iterative.event.WorkerDoneEvent;
-import eu.stratosphere.pact.runtime.iterative.task.Terminable;
+import java.io.IOException;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import java.io.IOException;
-import java.util.concurrent.atomic.AtomicInteger;
+import com.google.common.base.Preconditions;
+
+import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
+import eu.stratosphere.nephele.event.task.EventListener;
+import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
+import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
+import eu.stratosphere.pact.runtime.iterative.task.Terminable;
 
 /**
  * a delegating {@link MutableObjectIterator} that interrupts the current thread when a given number of events occured.
@@ -38,6 +37,9 @@ import java.util.concurrent.atomic.AtomicInteger;
  * on interruption, see {@link eu.stratosphere.pact.runtime.task.util.ReaderInterruptionBehaviors}
  */
 public class InterruptingMutableObjectIterator<E> implements MutableObjectIterator<E>, EventListener {
+	
+	private static final Log log = LogFactory.getLog(InterruptingMutableObjectIterator.class);
+	
 
 	private final MutableObjectIterator<E> delegate;
 
@@ -53,21 +55,9 @@ public class InterruptingMutableObjectIterator<E> implements MutableObjectIterat
 
 	private final int gateIndex;
 
-	private final AtomicInteger workerDoneEventCounter;
-
-	// TODO factor out!
-	private Aggregator aggregator;
-
-	private static final Log log = LogFactory.getLog(InterruptingMutableObjectIterator.class);
 
 	public InterruptingMutableObjectIterator(MutableObjectIterator<E> delegate, int numberOfEventsUntilInterrupt,
 			String name, Terminable owningIterativeTask, int gateIndex)
-	{
-		this(delegate, numberOfEventsUntilInterrupt, name, owningIterativeTask, gateIndex, null);
-	}
-
-	public InterruptingMutableObjectIterator(MutableObjectIterator<E> delegate, int numberOfEventsUntilInterrupt,
-			String name, Terminable owningIterativeTask, int gateIndex, Aggregator aggregator)
 	{
 		Preconditions.checkArgument(numberOfEventsUntilInterrupt > 0);
 		this.delegate = delegate;
@@ -75,10 +65,8 @@ public class InterruptingMutableObjectIterator<E> implements MutableObjectIterat
 		this.name = name;
 		this.owningIterativeTask = owningIterativeTask;
 		this.gateIndex = gateIndex;
-		this.aggregator = aggregator;
 
 		endOfSuperstepEventCounter = new AtomicInteger(0);
-		workerDoneEventCounter = new AtomicInteger(0);
 		terminationEventCounter = new AtomicInteger(0);
 	}
 
@@ -87,11 +75,6 @@ public class InterruptingMutableObjectIterator<E> implements MutableObjectIterat
 
 		if (EndOfSuperstepEvent.class.equals(event.getClass())) {
 			onEndOfSuperstep();
-			return;
-		}
-
-		if (WorkerDoneEvent.class.equals(event.getClass())) {
-			onWorkerDoneEvent((WorkerDoneEvent) event);
 			return;
 		}
 
@@ -130,45 +113,14 @@ public class InterruptingMutableObjectIterator<E> implements MutableObjectIterat
 		}
 	}
 
-	private void onWorkerDoneEvent(WorkerDoneEvent workerDoneEvent) {
-		int numberOfEventsSeen = workerDoneEventCounter.incrementAndGet();
-		if (log.isInfoEnabled()) {
-			log.info("InterruptibleIterator of " + name + " on gate [" + gateIndex
-				+ "] received WorkerDoneEvent event (" +
-				numberOfEventsSeen + ")");
-		}
-
-		if (aggregator != null) {
-			// int workerIndex = workerDoneEvent.workerIndex();
-			// long aggregate = workerDoneEvent.aggregate();
-			Value aggregate = workerDoneEvent.aggregate();
-			aggregator.aggregate(aggregate);
-			// analyze(workerIndex, aggregate);
-		}
-
-		if (numberOfEventsSeen % numberOfEventsUntilInterrupt == 0) {
-			Thread.currentThread().interrupt();
-		}
-	}
-
-	// private int recordsRead = 0;
-
 	@Override
 	public boolean next(E target) throws IOException {
-
-		// log.info("InterruptibleIterator of " + name + " waiting for record("+ (recordsRead) +")");
-
 		boolean recordFound = delegate.next(target);
-
-		// if (recordFound) {
-		// log.info("InterruptibleIterator of " + name + " read record("+ (recordsRead) +")");
-		// recordsRead++;
-		// } else {
 
 		if (!recordFound && log.isInfoEnabled()) {
 			log.info("InterruptibleIterator of " + name + " on gate [" + gateIndex + "] releases input");
 		}
+		
 		return recordFound;
 	}
-
 }

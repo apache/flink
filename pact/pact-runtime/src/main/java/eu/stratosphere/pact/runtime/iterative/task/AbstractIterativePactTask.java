@@ -15,8 +15,13 @@
 
 package eu.stratosphere.pact.runtime.iterative.task;
 
+import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.io.MutableReader;
+import eu.stratosphere.pact.common.stubs.IterationRuntimeContext;
+import eu.stratosphere.pact.common.stubs.RuntimeContext;
 import eu.stratosphere.pact.common.stubs.Stub;
+import eu.stratosphere.pact.common.stubs.aggregators.Aggregator;
+import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.generic.types.TypeSerializer;
@@ -29,6 +34,8 @@ import eu.stratosphere.pact.runtime.task.RegularPactTask;
 import eu.stratosphere.pact.runtime.task.ResettablePactDriver;
 import eu.stratosphere.pact.runtime.task.util.ReaderInterruptionBehavior;
 import eu.stratosphere.pact.runtime.task.util.ReaderInterruptionBehaviors;
+import eu.stratosphere.pact.runtime.udf.RuntimeUDFContext;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -67,7 +74,7 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
 			// if the class is null, the driver has no user code 
 			if (userCodeFunctionType != null && (this.stub == null || REINSTANTIATE_STUB_PER_ITERATION)) {
 				this.stub = initStub(userCodeFunctionType);
-				this.stub.setRuntimeContext(getRuntimeContext());
+				this.stub.setRuntimeContext(getRuntimeContext(getEnvironment().getTaskName()));
 			}
 		} catch (Exception e) {
 			throw new RuntimeException("Initializing the user code and the configuration failed" +
@@ -90,8 +97,6 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
 	
 	@Override
 	public void run() throws Exception {
-		getTaskConfig().setStubParameter("pact.iterations.currentIteration", String.valueOf(currentIteration()));
-		
 		if (!inFirstIteration()) {
 			reinstantiateDriver();
 			resetAllInputs();
@@ -110,18 +115,6 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
 			} catch (Throwable t) {
 				log.error("Error shutting down a resettable driver.", t);
 			}
-		}
-	}
-
-	/**
-	 * This method should be called at the end of each iterative task's run() method.
-	 * 
-	 * @throws Exception
-	 */
-	protected void shu() throws Exception {
-		if (this.driver instanceof ResettablePactDriver) {
-			final ResettablePactDriver<?, ?> resDriver = (ResettablePactDriver<?, ?>) this.driver;
-			resDriver.teardown();
 		}
 	}
 
@@ -155,6 +148,11 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
 				"for [" + numberOfEventsUntilInterrupt + "] event(s)"));
 		}
 		return interruptingIterator;
+	}
+	
+	protected RuntimeContext getRuntimeContext(String taskName) {
+		Environment env = getEnvironment();
+		return new IterativeRuntimeUdfContext(taskName, env.getCurrentNumberOfSubtasks(), env.getIndexInSubtaskGroup());
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -224,5 +222,27 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
 	public void cancel() throws Exception {
 		requestTermination();
 		super.cancel();
+	}
+	
+	private class IterativeRuntimeUdfContext extends RuntimeUDFContext implements IterationRuntimeContext {
+
+		public IterativeRuntimeUdfContext(String name, int numParallelSubtasks, int subtaskIndex) {
+			super(name, numParallelSubtasks, subtaskIndex);
+		}
+
+		@Override
+		public int getSuperstepNumber() {
+			return AbstractIterativePactTask.this.numIterations;
+		}
+
+		@Override
+		public <T extends Value> Aggregator<T> getIterationAggregator(String name) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public <T extends Value> T getPreviousIterationAggregate(String name) {
+			throw new UnsupportedOperationException();
+		}
 	}
 }

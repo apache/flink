@@ -23,14 +23,17 @@ import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
 
 import java.util.concurrent.CountDownLatch;
 
-/** a resettable one-shot latch */
+/**
+ * A resettable one-shot latch.
+ */
 public class SuperstepBarrier implements EventListener {
 
 	private boolean terminationSignaled = false;
 
 	private CountDownLatch latch;
 
-	private Value aggregate = null;
+	private String[] aggregatorNames;
+	private Value[] aggregates;
 
 	/** setup the barrier, has to be called at the beginning of each superstep */
 	public void setup() {
@@ -42,21 +45,24 @@ public class SuperstepBarrier implements EventListener {
 		latch.await();
 	}
 
-	public Value aggregate() {
-		return aggregate;
+	public String[] getAggregatorNames() {
+		return aggregatorNames;
+	}
+	
+	public Value[] getAggregates() {
+		return aggregates;
 	}
 
 	/** barrier will release the waiting thread if an event occurs */
 	@Override
 	public void eventOccurred(AbstractTaskEvent event) {
-
 		if (event instanceof TerminationEvent) {
 			terminationSignaled = true;
-			aggregate = null;
 		}
-
-		if (event instanceof AllWorkersDoneEvent) {
-			aggregate = ((AllWorkersDoneEvent) event).aggregate();
+		else if (event instanceof AllWorkersDoneEvent) {
+			AllWorkersDoneEvent wde = (AllWorkersDoneEvent) event;
+			aggregatorNames = wde.getAggregatorNames();
+			aggregates = wde.getAggregates();
 		}
 
 		latch.countDown();
@@ -65,5 +71,4 @@ public class SuperstepBarrier implements EventListener {
 	public boolean terminationSignaled() {
 		return terminationSignaled;
 	}
-
 }

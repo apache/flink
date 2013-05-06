@@ -1,4 +1,4 @@
-package eu.stratosphere.pact.example.iterative;
+package eu.stratosphere.pact.example.kmeans;
 
 import eu.stratosphere.pact.common.contract.CrossContract;
 import eu.stratosphere.pact.common.contract.FileDataSink;
@@ -6,17 +6,18 @@ import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.example.datamining.KMeansIteration;
+import eu.stratosphere.pact.example.kmeans.udfs.ComputeDistance;
+import eu.stratosphere.pact.example.kmeans.udfs.FindNearestCenter;
+import eu.stratosphere.pact.example.kmeans.udfs.PointInFormat;
+import eu.stratosphere.pact.example.kmeans.udfs.PointOutFormat;
+import eu.stratosphere.pact.example.kmeans.udfs.RecomputeClusterCenter;
 import eu.stratosphere.pact.generic.contract.BulkIteration;
 
 /**
  *
  */
-public class IterativeKMeans extends KMeansIteration {
+public class KMeansIterative extends KMeansSingleStep {
 	
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public Plan getPlan(String... args) {
 		// parse job parameters
@@ -66,9 +67,6 @@ public class IterativeKMeans extends KMeansIteration {
 		return plan;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.example.datamining.KMeansIteration#getDescription()
-	 */
 	@Override
 	public String getDescription() {
 		return "Parameters: <numSubStasks> <dataPoints> <clusterCenters> <output> <numIterations>";

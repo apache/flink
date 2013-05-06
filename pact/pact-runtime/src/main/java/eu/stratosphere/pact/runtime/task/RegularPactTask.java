@@ -317,7 +317,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 			// if the class is null, the driver has no user code 
 			if (userCodeFunctionType != null) {
 				this.stub = initStub(userCodeFunctionType);
-				this.stub.setRuntimeContext(getRuntimeContext());
+				this.stub.setRuntimeContext(getRuntimeContext(getEnvironment().getTaskName()));
 				
 			}
 		} catch (Exception e) {
@@ -783,9 +783,9 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 		return ReaderInterruptionBehaviors.EXCEPTION_ON_INTERRUPT;
 	}
 	
-	protected RuntimeContext getRuntimeContext() {
+	public RuntimeContext getRuntimeContext(String taskName) {
 		Environment env = getEnvironment();
-		return new RuntimeUDFContext(env.getTaskName(), env.getCurrentNumberOfSubtasks(), env.getIndexInSubtaskGroup());
+		return new RuntimeUDFContext(taskName, env.getCurrentNumberOfSubtasks(), env.getIndexInSubtaskGroup());
 	}
 	
 	/**

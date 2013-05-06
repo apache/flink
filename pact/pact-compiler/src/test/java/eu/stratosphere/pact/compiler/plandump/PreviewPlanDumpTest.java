@@ -23,9 +23,9 @@ import org.junit.Test;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.plan.DataSinkNode;
-import eu.stratosphere.pact.example.datamining.KMeansIteration;
-import eu.stratosphere.pact.example.iterative.IterativeKMeans;
 import eu.stratosphere.pact.example.iterative.WorksetConnectedComponents;
+import eu.stratosphere.pact.example.kmeans.KMeansIterative;
+import eu.stratosphere.pact.example.kmeans.KMeansSingleStep;
 import eu.stratosphere.pact.example.relational.TPCHQuery3;
 import eu.stratosphere.pact.example.relational.WebLogAnalysis;
 import eu.stratosphere.pact.example.wordcount.WordCount;
@@ -51,7 +51,7 @@ public class PreviewPlanDumpTest {
 	
 	@Test
 	public void dumpKMeans() {
-		dump(new KMeansIteration().getPlan("4", IN_FILE, IN_FILE, OUT_FILE));
+		dump(new KMeansSingleStep().getPlan("4", IN_FILE, IN_FILE, OUT_FILE));
 	}
 	
 	@Test
@@ -61,7 +61,7 @@ public class PreviewPlanDumpTest {
 	
 	@Test
 	public void dumpBulkIterationKMeans() {
-		dump(new IterativeKMeans().getPlan("4", IN_FILE, OUT_FILE));
+		dump(new KMeansIterative().getPlan("4", IN_FILE, OUT_FILE));
 	}
 	
 	@Test

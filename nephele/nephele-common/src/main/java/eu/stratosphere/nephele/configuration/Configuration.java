@@ -25,8 +25,6 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.codec.binary.Base64;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.types.StringRecord;
@@ -40,11 +38,6 @@ import eu.stratosphere.nephele.types.StringRecord;
  * @author warneke
  */
 public class Configuration implements IOReadableWritable {
-
-	/**
-	 * Used to log warnings on error originating from this class.
-	 */
-	private static final Log LOG = LogFactory.getLog(Configuration.class);
 
 	/**
 	 * Stores the concrete key/value pairs of this configuration object.
@@ -73,26 +66,7 @@ public class Configuration implements IOReadableWritable {
 		this.classLoader = classLoader;
 	}
 
-	/**
-	 * Returns the value associated with the given key as a string.
-	 * 
-	 * @param key
-	 *        the key pointing to the associated value
-	 * @param defaultValue
-	 *        the default value which is returned in case there is no value associated with the given key
-	 * @return the (default) value associated with the given key
-	 */
-	public String getString(final String key, final String defaultValue) {
-
-		synchronized (this.confData) {
-
-			if (!this.confData.containsKey(key)) {
-				return defaultValue;
-			}
-
-			return this.confData.get(key);
-		}
-	}
+	// --------------------------------------------------------------------------------------------
 
 	/**
 	 * Returns the class associated with the given key as a string.
@@ -111,9 +85,8 @@ public class Configuration implements IOReadableWritable {
 	 * @see #setClass(String, Class)
 	 */
 	@SuppressWarnings("unchecked")
-	public <T> Class<T> getClass(final String key, final Class<? extends T> defaultValue, final Class<T> ancestor) {
-
-		final String className = getString(key, null);
+	public <T> Class<T> getClass(String key, Class<? extends T> defaultValue, Class<T> ancestor) {
+		String className = getStringInternal(key);
 		if (className == null) {
 			return (Class<T>) defaultValue;
 		}
@@ -137,7 +110,7 @@ public class Configuration implements IOReadableWritable {
 	 *         if the class identified by the associated value cannot be resolved
 	 * @see #setClass(String, Class)
 	 */
-	public Class<?> getClass(final String key, final Class<?> defaultValue) {
+	public Class<?> getClass(String key, Class<?> defaultValue) {
 		return getClass(key, defaultValue, Object.class);
 	}
 
@@ -152,30 +125,34 @@ public class Configuration implements IOReadableWritable {
 	 * @see #getClass(String, Class)
 	 * @see #getClass(String, Class, Class)
 	 */
-	public void setClass(final String key, final Class<?> klazz) {
-		setString(key, klazz.getName());
+	public void setClass(String key, Class<?> klazz) {
+		setStringInternal(key, klazz.getName());
 	}
 
 	/**
-	 * Adds the given key/value pair to the configuration object. If either the key
-	 * or the value is <code>null</code> the pair is not added.
+	 * Returns the value associated with the given key as a string.
+	 * 
+	 * @param key
+	 *        the key pointing to the associated value
+	 * @param defaultValue
+	 *        the default value which is returned in case there is no value associated with the given key
+	 * @return the (default) value associated with the given key
+	 */
+	public String getString(String key, String defaultValue) {
+		String val = getStringInternal(key);
+		return val == null ? defaultValue : val;
+	}
+	
+	/**
+	 * Adds the given key/value pair to the configuration object.
 	 * 
 	 * @param key
 	 *        the key of the key/value pair to be added
 	 * @param value
 	 *        the value of the key/value pair to be added
 	 */
-	public void setString(final String key, final String value) {
-
-		if (key == null || value == null) {
-			// TODO: should probably throw an NullPointerException
-			LOG.warn("Key/value pair " + key + ", " + value + " not added to configuration");
-			return;
-		}
-
-		synchronized (this.confData) {
-			this.confData.put(key, value);
-		}
+	public void setString(String key, String value) {
+		setStringInternal(key, value);
 	}
 
 	/**
@@ -187,43 +164,25 @@ public class Configuration implements IOReadableWritable {
 	 *        the default value which is returned in case there is no value associated with the given key
 	 * @return the (default) value associated with the given key
 	 */
-	public int getInteger(final String key, final int defaultValue) {
-
-		int retVal = defaultValue;
-
-		try {
-			synchronized (this.confData) {
-
-				if (this.confData.containsKey(key)) {
-					retVal = Integer.parseInt(this.confData.get(key));
-				}
-			}
-		} catch (NumberFormatException e) {
-			LOG.debug(e);
+	public int getInteger(String key, int defaultValue) {
+		String val = getStringInternal(key);
+		if (val == null) {
+			return defaultValue;
+		} else {
+			return Integer.parseInt(val);
 		}
-
-		return retVal;
 	}
 
 	/**
-	 * Adds the given key/value pair to the configuration object. If the
-	 * key is <code>null</code>, the key/value pair is not added.
+	 * Adds the given key/value pair to the configuration object.
 	 * 
 	 * @param key
 	 *        the key of the key/value pair to be added
 	 * @param value
 	 *        the value of the key/value pair to be added
 	 */
-	public void setInteger(final String key, final int value) {
-
-		if (key == null) {
-			LOG.warn("Cannot set integer: Given key is null!");
-			return;
-		}
-
-		synchronized (this.confData) {
-			this.confData.put(key, Integer.toString(value));
-		}
+	public void setInteger(String key, int value) {
+		setStringInternal(key, Integer.toString(value));
 	}
 
 	/**
@@ -235,39 +194,25 @@ public class Configuration implements IOReadableWritable {
 	 *        the default value which is returned in case there is no value associated with the given key
 	 * @return the (default) value associated with the given key
 	 */
-	public long getLong(final String key, final long defaultValue) {
-		try {
-			synchronized (this.confData) {
-				String val = this.confData.get(key);
-				if (val != null) {
-					return Long.parseLong(val);
-				}
-			}
-		} catch (NumberFormatException e) {
-			LOG.debug(e);
+	public long getLong(String key, long defaultValue) {
+		String val = getStringInternal(key);
+		if (val == null) {
+			return defaultValue;
+		} else {
+			return Long.parseLong(val);
 		}
-
-		return defaultValue;
 	}
 
 	/**
-	 * Adds the given key/value pair to the configuration object. If the
-	 * key is <code>null</code>, the key/value pair is not added.
+	 * Adds the given key/value pair to the configuration object.
 	 * 
 	 * @param key
 	 *        the key of the key/value pair to be added
 	 * @param value
 	 *        the value of the key/value pair to be added
 	 */
-	public void setLong(final String key, final long value) {
-		if (key == null) {
-			LOG.warn("Cannot set integer: Given key is null!");
-			return;
-		}
-
-		synchronized (this.confData) {
-			this.confData.put(key, Long.toString(value));
-		}
+	public void setLong(String key, long value) {
+		setStringInternal(key, Long.toString(value));
 	}
 
 	/**
@@ -279,23 +224,17 @@ public class Configuration implements IOReadableWritable {
 	 *        the default value which is returned in case there is no value associated with the given key
 	 * @return the (default) value associated with the given key
 	 */
-	public boolean getBoolean(final String key, final boolean defaultValue) {
-
-		boolean retVal = defaultValue;
-
-		synchronized (this.confData) {
-
-			if (this.confData.containsKey(key)) {
-				retVal = Boolean.parseBoolean(this.confData.get(key));
-			}
+	public boolean getBoolean(String key, boolean defaultValue) {
+		String val = getStringInternal(key);
+		if (val == null) {
+			return defaultValue;
+		} else {
+			return Boolean.parseBoolean(val);
 		}
-
-		return retVal;
 	}
 
 	/**
-	 * Adds the given key/value pair to the configuration object. If key is <code>null</code> the key/value pair is
-	 * ignored and not added.
+	 * Adds the given key/value pair to the configuration object.
 	 * 
 	 * @param key
 	 *        the key of the key/value pair to be added
@@ -303,15 +242,7 @@ public class Configuration implements IOReadableWritable {
 	 *        the value of the key/value pair to be added
 	 */
 	public void setBoolean(final String key, final boolean value) {
-
-		if (key == null) {
-			LOG.warn("Cannot set boolean: Given key is null!");
-			return;
-		}
-
-		synchronized (this.confData) {
-			this.confData.put(key, Boolean.toString(value));
-		}
+		setStringInternal(key, Boolean.toString(value));
 	}
 
 	/**
@@ -324,34 +255,56 @@ public class Configuration implements IOReadableWritable {
 	 * @return the (default) value associated with the given key
 	 */
 	public float getFloat(final String key, final float defaultValue) {
-		synchronized (this.confData) {
-			String val = this.confData.get(key);
-			return val == null ? defaultValue : Float.parseFloat(val);
+		String val = getStringInternal(key);
+		if (val == null) {
+			return defaultValue;
+		} else {
+			return Float.parseFloat(val);
 		}
 	}
 
 	/**
-	 * Adds the given key/value pair to the configuration object. If key is <code>null</code> the key/value pair is
-	 * ignored and not added.
+	 * Adds the given key/value pair to the configuration object.
 	 * 
 	 * @param key
 	 *        the key of the key/value pair to be added
 	 * @param value
 	 *        the value of the key/value pair to be added
 	 */
-	public void setFloat(final String key, final float value) {
-
-		if (key == null) {
-			LOG.warn("Cannot set boolean: Given key is null!");
-			return;
-		}
-
-		synchronized (this.confData) {
-			this.confData.put(key, Float.toString(value));
-		}
+	public void setFloat(String key, float value) {
+		setStringInternal(key, Float.toString(value));
 	}
 	
+	/**
+	 * Returns the value associated with the given key as a double.
+	 * 
+	 * @param key
+	 *        the key pointing to the associated value
+	 * @param defaultValue
+	 *        the default value which is returned in case there is no value associated with the given key
+	 * @return the (default) value associated with the given key
+	 */
+	public double getDouble(String key, double defaultValue) {
+		String val = getStringInternal(key);
+		if (val == null) {
+			return defaultValue;
+		} else {
+			return Double.parseDouble(val);
+		}
+	}
 
+	/**
+	 * Adds the given key/value pair to the configuration object.
+	 * 
+	 * @param key
+	 *        the key of the key/value pair to be added
+	 * @param value
+	 *        the value of the key/value pair to be added
+	 */
+	public void setDouble(String key, double value) {
+		setStringInternal(key, Double.toString(value));
+	}
+	
 	/**
 	 * Returns the value associated with the given key as a byte array.
 	 * 
@@ -361,16 +314,13 @@ public class Configuration implements IOReadableWritable {
 	 *        The default value which is returned in case there is no value associated with the given key.
 	 * @return the (default) value associated with the given key.
 	 */
-	public byte[] getBytes(final String key, final byte[] defaultValue) {
-		final String encoded;
-		synchronized (this.confData) {
-			encoded = this.confData.get(key);
-		}
+	public byte[] getBytes(String key, byte[] defaultValue) {
+		String encoded = getStringInternal(key);
 		if (encoded == null) {
 			return defaultValue;
+		} else {
+			return Base64.decodeBase64(encoded.getBytes());
 		}
-		
-		return Base64.decodeBase64(encoded.getBytes());
 	}
 	
 	/**
@@ -381,16 +331,9 @@ public class Configuration implements IOReadableWritable {
 	 * @param bytes
 	 *        The bytes to be added.
 	 */
-	public void setBytes(final String key, final byte[] bytes) {
-		if (key == null) {
-			LOG.warn("Cannot set boolean: Given key is null!");
-			return;
-		}
-		
-		final String encoded = new String(Base64.encodeBase64(bytes));
-		synchronized (this.confData) {
-			this.confData.put(key, encoded);
-		}
+	public void setBytes(String key, byte[] bytes) {
+		String encoded = new String(Base64.encodeBase64(bytes));
+		setStringInternal(key, encoded);
 	}
 
 	/**
@@ -439,6 +382,31 @@ public class Configuration implements IOReadableWritable {
 			}
 		}
 	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	private String getStringInternal(String key) {
+		if (key == null)
+			throw new NullPointerException("Key mus not be null.");
+		
+		synchronized (this.confData) {
+			return this.confData.get(key);
+		}
+	}
+	
+	private void setStringInternal(String key, String value) {
+		if (key == null)
+			throw new NullPointerException("Key mus not be null.");
+		if (value == null)
+			throw new NullPointerException("Value mus not be null.");
+			
+		
+		synchronized (this.confData) {
+			this.confData.put(key, value);
+		}
+	}
+	
+	// --------------------------------------------------------------------------------------------
 
 	/**
 	 * {@inheritDoc}
@@ -488,19 +456,15 @@ public class Configuration implements IOReadableWritable {
 
 	@Override
 	public boolean equals(final Object obj) {
-
 		if (this == obj) {
 			return true;
 		}
-
 		if (obj == null) {
 			return false;
 		}
-
 		if (getClass() != obj.getClass()) {
 			return false;
 		}
-
 		final Configuration other = (Configuration) obj;
 		return confData.equals(other.confData);
 	}
