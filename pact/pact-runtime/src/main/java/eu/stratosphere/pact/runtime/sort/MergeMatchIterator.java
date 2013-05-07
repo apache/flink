@@ -158,6 +158,9 @@ public class MergeMatchIterator<T1, T2, O> implements MatchTaskIterator<T1, T2, 
 	throws Exception
 	{
 		if (!this.iterator1.nextKey() || !this.iterator2.nextKey()) {
+			// consume all remanining keys (hack to prevent remaining inputs during iterations, lets get rid of this soon)
+			while (this.iterator1.nextKey());
+			while (this.iterator2.nextKey());
 			return false;
 		}
 

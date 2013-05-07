@@ -45,12 +45,8 @@ public class IterationIntermediatePactTask<S extends Stub, OT> extends AbstractI
 			}
 
 //			notifyMonitor(IterationMonitoring.Event.INTERMEDIATE_PACT_STARTING);
-			
-			System.out.println(formatLogString("starting iteration [" + currentIteration() + "]"));
 
 			super.run();
-			
-			System.out.println(formatLogString("finishing iteration [" + currentIteration() + "]"));
 
 //			notifyMonitor(IterationMonitoring.Event.INTERMEDIATE_PACT_FINISHED);
 			if (log.isInfoEnabled()) {
