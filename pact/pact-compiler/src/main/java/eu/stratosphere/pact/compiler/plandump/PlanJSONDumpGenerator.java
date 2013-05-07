@@ -69,6 +69,13 @@ public class PlanJSONDumpGenerator {
 		compilePlanToJSON(n, writer);
 	}
 	
+	public String getPactPlanAsJSON(List<DataSinkNode> nodes) {
+		StringWriter sw = new StringWriter();
+		PrintWriter pw = new PrintWriter(sw);
+		dumpPactPlanAsJSON(nodes, pw);
+		return sw.toString();
+	}
+	
 	public void dumpOptimizerPlanAsJSON(OptimizedPlan plan, File toFile) throws IOException {
 		PrintWriter pw = null;
 		try {

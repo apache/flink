@@ -14,9 +14,11 @@
  **********************************************************************************************************************/
 package eu.stratosphere.pact.compiler.plandump;
 
-import java.io.PrintWriter;
 import java.util.List;
 
+import org.codehaus.jackson.JsonFactory;
+import org.codehaus.jackson.JsonParseException;
+import org.codehaus.jackson.JsonParser;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -73,11 +75,12 @@ public class PreviewPlanDumpTest {
 		try {
 			List<DataSinkNode> sinks = PactCompiler.createPreOptimizedPlan(p);
 			PlanJSONDumpGenerator dumper = new PlanJSONDumpGenerator();
-			PrintWriter writer = new PrintWriter(new BlackHoleWriter());
-			
-//			StringWriter sw = new StringWriter(512);
-//			PrintWriter writer = new PrintWriter(sw, true);
-			dumper.dumpPactPlanAsJSON(sinks, writer);
+			String json = dumper.getPactPlanAsJSON(sinks);
+			JsonParser parser = new JsonFactory().createJsonParser(json);
+			while (parser.nextToken() != null);
+		} catch (JsonParseException e) {
+			e.printStackTrace();
+			Assert.fail("JSON Generator produced malformatted output: " + e.getMessage());
 		} catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail("An error occurred in the test: " + e.getMessage());
