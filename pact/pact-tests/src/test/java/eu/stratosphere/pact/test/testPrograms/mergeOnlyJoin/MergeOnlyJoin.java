@@ -98,7 +98,7 @@ public class MergeOnlyJoin implements PlanAssembler, PlanAssemblerDescription {
 			.input(input2)
 			.name("AggLines")
 			.build();
-		aggInput2.setDegreeOfParallelism(numSubtasksInput2);		
+		aggInput2.setDegreeOfParallelism(numSubtasksInput2);
 		
 		// create MatchContract for joining Orders and LineItems
 		MatchContract joinLiO = MatchContract.builder(JoinInputs.class, PactInteger.class, 0, 0)
@@ -107,8 +107,6 @@ public class MergeOnlyJoin implements PlanAssembler, PlanAssemblerDescription {
 			.name("JoinLiO")
 			.build();
 		joinLiO.setDegreeOfParallelism(numSubtasks);
-		// compiler hints
-
 
 		// create DataSinkContract for writing the result
 		FileDataSink result = new FileDataSink(RecordOutputFormat.class, output, joinLiO, "Output");

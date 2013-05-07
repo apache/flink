@@ -21,8 +21,6 @@ import java.util.List;
 import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.PartitioningProperty;
-import eu.stratosphere.pact.compiler.dataproperties.RequestedGlobalProperties;
-import eu.stratosphere.pact.compiler.dataproperties.RequestedLocalProperties;
 import eu.stratosphere.pact.compiler.plan.BinaryUnionNode;
 import eu.stratosphere.pact.compiler.plan.TwoInputNode;
 import eu.stratosphere.pact.compiler.plan.candidate.BinaryUnionPlanNode;
@@ -34,25 +32,14 @@ import eu.stratosphere.pact.runtime.task.DriverStrategy;
  *
  */
 public class BinaryUnionOpDescriptor extends OperatorDescriptorDual {
-
-	private final RequestedGlobalProperties props;
 	
-	public BinaryUnionOpDescriptor(RequestedGlobalProperties props) {
+	public BinaryUnionOpDescriptor() {
 		super();
-		if (props == null) {
-			throw new NullPointerException();
-		}
-		this.props = props;
 	}
 
 	@Override
 	public DriverStrategy getStrategy() {
 		return DriverStrategy.UNION;
-	}
-	
-	@Override
-	public List<GlobalPropertiesPair> getPossibleGlobalProperties() {
-		return Collections.singletonList(new GlobalPropertiesPair(this.props, this.props));
 	}
 
 	@Override
@@ -62,9 +49,7 @@ public class BinaryUnionOpDescriptor extends OperatorDescriptorDual {
 	
 	@Override
 	protected List<LocalPropertiesPair> createPossibleLocalProperties() {
-		// all properties are possible
-		return Collections.singletonList(new LocalPropertiesPair(
-			new RequestedLocalProperties(), new RequestedLocalProperties()));
+		return Collections.emptyList();
 	}
 
 	@Override

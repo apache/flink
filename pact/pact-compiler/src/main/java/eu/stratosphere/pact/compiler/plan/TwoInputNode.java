@@ -272,8 +272,6 @@ public abstract class TwoInputNode extends OptimizerNode {
 		// create the connection and add it
 		this.input2 = conn2;
 		pred2.addOutgoingConnection(conn2);
-
-
 	}
 	
 	protected abstract List<OperatorDescriptorDual> getPossibleProperties();
@@ -797,12 +795,6 @@ public abstract class TwoInputNode extends OptimizerNode {
 	//                                     Miscellaneous
 	// --------------------------------------------------------------------------------------------
 	
-	/*
-	 * (non-Javadoc)
-	 * @see
-	 * eu.stratosphere.pact.compiler.plan.OptimizerNode#accept(eu.stratosphere.pact.common.plan.Visitor
-	 * )
-	 */
 	@Override
 	public void accept(Visitor<OptimizerNode> visitor) {
 		if (visitor.preVisit(this)) {

@@ -169,7 +169,6 @@ public class MergeOnlyJoinITCase extends TestBase {
 			else {
 				splits[i] = "";
 			}
-			
 		}
 		splits[noSplits - 1] = splitString;
 		return splits;

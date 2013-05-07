@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.Iterator;
 
 import eu.stratosphere.pact.common.util.Visitor;
+import eu.stratosphere.pact.compiler.costs.Costs;
 import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.pact.compiler.plan.WorksetNode;
@@ -30,8 +31,10 @@ import eu.stratosphere.pact.runtime.task.DriverStrategy;
 /**
  * Plan candidate node for partial solution of a bulk iteration.
  */
-public class WorksetPlanNode extends PlanNode
-{
+public class WorksetPlanNode extends PlanNode {
+	
+	private static final Costs NO_COSTS = new Costs();
+	
 	private WorksetIterationPlanNode containingIterationNode;
 	
 	public Object postPassHelper;
@@ -42,6 +45,10 @@ public class WorksetPlanNode extends PlanNode
 		
 		this.globalProps = gProps;
 		this.localProps = lProps;
+		
+		// the node incurs no cost
+		this.nodeCosts = NO_COSTS;
+		this.cumulativeCosts = NO_COSTS;
 	}
 	
 	// --------------------------------------------------------------------------------------------
