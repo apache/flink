@@ -53,8 +53,11 @@ import eu.stratosphere.pact.compiler.plan.candidate.BulkPartialSolutionPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
+import eu.stratosphere.pact.compiler.plan.candidate.SolutionSetPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SourcePlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.UnionPlanNode;
+import eu.stratosphere.pact.compiler.plan.candidate.WorksetIterationPlanNode;
+import eu.stratosphere.pact.compiler.plan.candidate.WorksetPlanNode;
 import eu.stratosphere.pact.generic.contract.AggregatorRegistry;
 import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.runtime.iterative.io.FakeOutputTask;
@@ -245,6 +248,30 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 				this.iterations.put(iterationNode, descr);
 				vertex = null;
 			}
+			else if (node instanceof WorksetIterationPlanNode) {
+				WorksetIterationPlanNode iterationNode = (WorksetIterationPlanNode) node;
+
+				// we have the same constraints as for the bulk iteration
+				PlanNode nextWorkSet = iterationNode.getNextWorkSetPlanNode();
+				PlanNode solutionSetDelta  = iterationNode.getSolutionSetDeltaPlanNode();
+				
+				if (nextWorkSet.getDegreeOfParallelism() != node.getDegreeOfParallelism() || 
+					nextWorkSet.getSubtasksPerInstance() != node.getSubtasksPerInstance())
+				{
+					throw new CompilerException("It is currently not supported that the final operator of the step " +
+							"function has a different degree of parallelism than the iteration operator itself.");
+				}
+				if (solutionSetDelta.getDegreeOfParallelism() != node.getDegreeOfParallelism() || 
+					solutionSetDelta.getSubtasksPerInstance() != node.getSubtasksPerInstance())
+				{
+					throw new CompilerException("It is currently not supported that the final operator of the step " +
+							"function has a different degree of parallelism than the iteration operator itself.");
+				}
+				
+				IterationDescriptor descr = new IterationDescriptor(iterationNode, this.iterationIdEnumerator++);
+				this.iterations.put(iterationNode, descr);
+				vertex = null;
+			}
 			else if (node instanceof SingleInputPlanNode) {
 				vertex = createSingleInputVertex((SingleInputPlanNode) node);
 			}
@@ -258,6 +285,14 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			else if (node instanceof BulkPartialSolutionPlanNode) {
 				// create a head node (or not, if it is merged into its successor)
 				vertex = createBulkIterationHead((BulkPartialSolutionPlanNode) node);
+			}
+			else if (node instanceof SolutionSetPlanNode) {
+				// create the iteration head here or at the workset, whichever comes second
+				throw new UnsupportedOperationException();
+			}
+			else if (node instanceof WorksetPlanNode) {
+				// create the iteration head here or at the solution set, whichever comes second
+				throw new UnsupportedOperationException();
 			}
 			else {
 				throw new CompilerException("Unrecognized node type: " + node.getClass().getName());

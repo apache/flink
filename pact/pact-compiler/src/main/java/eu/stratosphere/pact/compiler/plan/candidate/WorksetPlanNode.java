@@ -53,7 +53,7 @@ public class WorksetPlanNode extends PlanNode {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public WorksetNode getPartialSolutionNode() {
+	public WorksetNode getWorksetNode() {
 		return (WorksetNode) this.template;
 	}
 	

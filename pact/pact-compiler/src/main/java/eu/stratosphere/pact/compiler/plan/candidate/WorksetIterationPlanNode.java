@@ -47,6 +47,8 @@ public class WorksetIterationPlanNode extends DualInputPlanNode implements Itera
 	
 	private TypeComparatorFactory<?> solutionSetComparator;
 	
+	public Object postPassHelper;
+	
 	// --------------------------------------------------------------------------------------------
 
 	public WorksetIterationPlanNode(WorksetIterationNode template, Channel initialSolutionSet, Channel initialWorkset,

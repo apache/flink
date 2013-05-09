@@ -36,27 +36,27 @@ import eu.stratosphere.pact.example.wordcount.WordCount;
  */
 public class CompiledPlanDumpTest extends CompilerTestBase {
 	
-//	@Test
+	@Test
 	public void dumpWordCount() {
 		dump(new WordCount().getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, OUT_FILE));
 	}
 	
-//	@Test
+	@Test
 	public void dumpTPCH3() {
 		dump(new TPCHQuery3().getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE));
 	}
 	
-//	@Test
+	@Test
 	public void dumpKMeans() {
 		dump(new KMeansSingleStep().getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE));
 	}
 	
-//	@Test
+	@Test
 	public void dumpWebLogAnalysis() {
 		dump(new WebLogAnalysis().getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, IN_FILE, OUT_FILE));
 	}
 
-//	@Test
+	@Test
 	public void dumpBulkIterationKMeans() {
 		dump(new KMeansIterative().getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, OUT_FILE));
 	}

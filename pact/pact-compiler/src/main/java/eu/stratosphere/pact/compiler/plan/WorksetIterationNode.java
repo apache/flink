@@ -145,6 +145,10 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 	public TwoInputNode getSingleRootOfStepFunction() {
 		return this.singleRoot;
 	}
+	
+	public FieldList getSolutionSetKeyFields() {
+		return this.solutionSetKeyFields;
+	}
 
 	// --------------------------------------------------------------------------------------------
 	

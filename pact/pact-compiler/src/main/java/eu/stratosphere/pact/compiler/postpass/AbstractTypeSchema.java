@@ -25,8 +25,8 @@ import eu.stratosphere.pact.common.type.Value;
 /**
  * Class encapsulating a schema map (int column position -> column type) and a reference counter.
  */
-abstract class AbstractTypeSchema<T extends Value> implements Iterable<Map.Entry<Integer, Class<? extends T>>>
-{
+abstract class AbstractTypeSchema<T extends Value> implements Iterable<Map.Entry<Integer, Class<? extends T>>> {
+	
 	private final Map<Integer, Class<? extends T>> schema;
 	
 	private int numConnectionsThatContributed;

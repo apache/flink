@@ -26,7 +26,8 @@ import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SourcePlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.WorksetIterationPlanNode;
-import eu.stratosphere.pact.compiler.plandump.PlanJSONDumpGenerator;
+//import eu.stratosphere.pact.compiler.plandump.PlanJSONDumpGenerator;
+import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.pact.example.iterative.WorksetConnectedComponents;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
@@ -61,9 +62,9 @@ public class IncrementalConnectedComponentsTest extends CompilerTestBase {
 		OptimizedPlan optPlan = compileNoStats(plan);
 		OptimizerPlanNodeResolver or = getOptimizerPlanNodeResolver(optPlan);
 		
-		PlanJSONDumpGenerator dumper = new PlanJSONDumpGenerator();
-		String json = dumper.getOptimizerPlanAsJSON(optPlan);
-		System.out.println(json);
+//		PlanJSONDumpGenerator dumper = new PlanJSONDumpGenerator();
+//		String json = dumper.getOptimizerPlanAsJSON(optPlan);
+//		System.out.println(json);
 		
 		SourcePlanNode vertexSource = or.getNode(VERTEX_SOURCE);
 		SourcePlanNode edgesSource = or.getNode(EDGES_SOURCE);
@@ -122,7 +123,7 @@ public class IncrementalConnectedComponentsTest extends CompilerTestBase {
 		Assert.assertEquals(LocalStrategy.NONE, updatingMatch.getInput1().getLocalStrategy()); // min id
 		Assert.assertEquals(LocalStrategy.NONE, updatingMatch.getInput2().getLocalStrategy()); // solution set
 		
-//		NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
-//		jgg.compileJobGraph(op);
+		NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
+		jgg.compileJobGraph(optPlan);
 	}
 }
