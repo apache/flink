@@ -28,12 +28,13 @@ import eu.stratosphere.pact.compiler.operators.HashJoinBuildSecondProperties;
 import eu.stratosphere.pact.compiler.operators.OperatorDescriptorDual;
 import eu.stratosphere.pact.compiler.operators.SortMergeJoinDescriptor;
 import eu.stratosphere.pact.generic.contract.GenericMatchContract;
+import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**
  * The Optimizer representation of a <i>Match</i> contract node.
  */
-public class MatchNode extends TwoInputNode
-{
+public class MatchNode extends TwoInputNode {
+	
 	/**
 	 * Creates a new MatchNode for the given contract.
 	 * 
@@ -198,5 +199,20 @@ public class MatchNode extends TwoInputNode
 //		}
 //		
 //		return otherKeyIsUnique;
+	}
+	
+	public void fixDriverStrategy(DriverStrategy strategy) {
+		if (strategy == DriverStrategy.MERGE) {
+			this.possibleProperties.clear();
+			this.possibleProperties.add(new SortMergeJoinDescriptor(this.keys1, this.keys2));
+		} else if (strategy == DriverStrategy.HYBRIDHASH_BUILD_FIRST) {
+			this.possibleProperties.clear();
+			this.possibleProperties.add(new HashJoinBuildFirstProperties(this.keys1, this.keys2));			
+		} else if (strategy == DriverStrategy.HYBRIDHASH_BUILD_SECOND) {
+			this.possibleProperties.clear();
+			this.possibleProperties.add(new HashJoinBuildSecondProperties(this.keys1, this.keys2));
+		} else {
+			throw new IllegalArgumentException("Incompatible driver strategy.");
+		}
 	}
 }

@@ -15,7 +15,7 @@
 package eu.stratosphere.pact.compiler.iterations;
 
 import org.junit.Assert;
-//import org.junit.Test;
+import org.junit.Test;
 
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.util.FieldList;
@@ -51,7 +51,7 @@ public class IncrementalConnectedComponentsTest extends CompilerTestBase {
 	private final FieldList set0 = new FieldList(0);
 	
 	
-//	@Test
+	@Test
 	public void testWorksetConnectedComponents() {
 		WorksetConnectedComponents cc = new WorksetConnectedComponents();
 
@@ -59,10 +59,11 @@ public class IncrementalConnectedComponentsTest extends CompilerTestBase {
 				IN_FILE, IN_FILE, OUT_FILE, String.valueOf(100));
 
 		OptimizedPlan optPlan = compileNoStats(plan);
-		System.out.println(new PlanJSONDumpGenerator().getOptimizerPlanAsJSON(optPlan));
-		
-		
 		OptimizerPlanNodeResolver or = getOptimizerPlanNodeResolver(optPlan);
+		
+		PlanJSONDumpGenerator dumper = new PlanJSONDumpGenerator();
+		String json = dumper.getOptimizerPlanAsJSON(optPlan);
+		System.out.println(json);
 		
 		SourcePlanNode vertexSource = or.getNode(VERTEX_SOURCE);
 		SourcePlanNode edgesSource = or.getNode(EDGES_SOURCE);
@@ -73,6 +74,19 @@ public class IncrementalConnectedComponentsTest extends CompilerTestBase {
 		SingleInputPlanNode minIdReducer = or.getNode(MIN_ID_REDUCER);
 		SingleInputPlanNode minIdCombiner = (SingleInputPlanNode) minIdReducer.getPredecessor(); 
 		DualInputPlanNode updatingMatch = or.getNode(UPDATE_ID_MATCH);
+		
+		// test all drivers
+		Assert.assertEquals(DriverStrategy.NONE, sink.getDriverStrategy());
+		Assert.assertEquals(DriverStrategy.NONE, vertexSource.getDriverStrategy());
+		Assert.assertEquals(DriverStrategy.NONE, edgesSource.getDriverStrategy());
+		
+//		Assert.assertEquals(DriverStrategy.HYBRIDHASH_BUILD_SECOND, neighborsJoin.getDriverStrategy());
+		Assert.assertEquals(set0, neighborsJoin.getKeysForInput1());
+		Assert.assertEquals(set0, neighborsJoin.getKeysForInput2());
+		
+		Assert.assertEquals(DriverStrategy.HYBRIDHASH_BUILD_SECOND, updatingMatch.getDriverStrategy());
+		Assert.assertEquals(set0, updatingMatch.getKeysForInput1());
+		Assert.assertEquals(set0, updatingMatch.getKeysForInput2());
 		
 		// test all the shipping strategies
 		Assert.assertEquals(ShipStrategyType.FORWARD, sink.getInput().getShipStrategy());
@@ -96,7 +110,7 @@ public class IncrementalConnectedComponentsTest extends CompilerTestBase {
 		// test all the local strategies
 		Assert.assertEquals(LocalStrategy.NONE, sink.getInput().getLocalStrategy());
 		Assert.assertEquals(LocalStrategy.NONE, iter.getInitialSolutionSetInput().getLocalStrategy());
-		Assert.assertEquals(LocalStrategy.NONE, iter.getInitialWorksetInput().getLocalStrategy());
+//		Assert.assertEquals(LocalStrategy.NONE, iter.getInitialWorksetInput().getLocalStrategy());
 		
 		Assert.assertEquals(LocalStrategy.NONE, neighborsJoin.getInput1().getLocalStrategy()); // workset
 		Assert.assertEquals(LocalStrategy.NONE, neighborsJoin.getInput2().getLocalStrategy()); // edges
@@ -107,21 +121,6 @@ public class IncrementalConnectedComponentsTest extends CompilerTestBase {
 		
 		Assert.assertEquals(LocalStrategy.NONE, updatingMatch.getInput1().getLocalStrategy()); // min id
 		Assert.assertEquals(LocalStrategy.NONE, updatingMatch.getInput2().getLocalStrategy()); // solution set
-		
-		// test all drivers
-		Assert.assertEquals(DriverStrategy.NONE, sink.getDriverStrategy());
-		Assert.assertEquals(DriverStrategy.NONE, vertexSource.getDriverStrategy());
-		Assert.assertEquals(DriverStrategy.NONE, edgesSource.getDriverStrategy());
-		
-		Assert.assertEquals(DriverStrategy.HYBRIDHASH_BUILD_SECOND, neighborsJoin.getDriverStrategy());
-		Assert.assertEquals(set0, neighborsJoin.getKeysForInput1());
-		Assert.assertEquals(set0, neighborsJoin.getKeysForInput2());
-		
-		Assert.assertEquals(DriverStrategy.HYBRIDHASH_BUILD_SECOND, updatingMatch.getDriverStrategy());
-		Assert.assertEquals(set0, updatingMatch.getKeysForInput1());
-		Assert.assertEquals(set0, updatingMatch.getKeysForInput2());
-		
-		
 		
 //		NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
 //		jgg.compileJobGraph(op);

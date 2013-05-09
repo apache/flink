@@ -87,6 +87,7 @@ import eu.stratosphere.pact.generic.contract.GenericMatchContract;
 import eu.stratosphere.pact.generic.contract.GenericReduceContract;
 import eu.stratosphere.pact.generic.contract.WorksetIteration;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
+import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 
 /**
@@ -1026,7 +1027,9 @@ public class PactCompiler {
 				// for now, check that the solution set it joined with only once. we want to allow multiple joins
 				// with the solution set later when we can share data structures among operators. also, the join
 				// must be a match which is at the same time the solution set delta
-				if (solutionSetNode != null) {
+				if (solutionSetNode == null || solutionSetNode.getOutgoingConnections() == null || solutionSetNode.getOutgoingConnections().isEmpty()) {
+					throw new CompilerException("Error: The step function does not reference the solution set.");
+				} else {
 					if (solutionSetNode.getOutgoingConnections().size() > 1) {
 						throw new CompilerException("Error: The solution set may currently be joined with only once.");
 					} else {
@@ -1037,6 +1040,16 @@ public class PactCompiler {
 						if (successor != solutionSetDeltaNode) {
 							throw new CompilerException("Error: The solution set delta must currently be the" +
 									"	same node that joins with the solution set.");
+						}
+						
+						// find out which input to the match the solution set is
+						MatchNode mn = (MatchNode) successor;
+						if (mn.getFirstPredecessorNode() == solutionSetNode) {
+							mn.fixDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_FIRST);
+						} else if (mn.getSecondPredecessorNode() == solutionSetNode) {
+							mn.fixDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_SECOND);
+						} else {
+							throw new CompilerException();
 						}
 					}
 				}
@@ -1239,8 +1252,7 @@ public class PactCompiler {
 			this.stackOfIterationNodes = new ArrayDeque<IterationPlanNode>();
 		}
 
-		private OptimizedPlan createFinalPlan(List<SinkPlanNode> sinks, String jobName, long memPerInstance)
-		{
+		private OptimizedPlan createFinalPlan(List<SinkPlanNode> sinks, String jobName, long memPerInstance) {
 			if (LOG.isDebugEnabled())
 				LOG.debug("Available memory per instance: " + memPerInstance);
 			
@@ -1371,8 +1383,8 @@ public class PactCompiler {
 		public void postVisit(PlanNode visitable) {}
 	}
 	
-	private static final class BinaryUnionReplacer implements Visitor<PlanNode>
-	{
+	private static final class BinaryUnionReplacer implements Visitor<PlanNode> {
+		
 		private final Set<PlanNode> seenBefore = new HashSet<PlanNode>();
 		
 		/* (non-Javadoc)
@@ -1554,8 +1566,8 @@ public class PactCompiler {
 	/**
 	 * Utility class for an asynchronous connection to the job manager to determine the available instances.
 	 */
-	private static final class JobManagerConnector implements Runnable
-	{
+	private static final class JobManagerConnector implements Runnable {
+		
 		private static final long MAX_MILLIS_TO_WAIT = 10000;
 		
 		private final InetSocketAddress jobManagerAddress;
@@ -1567,14 +1579,12 @@ public class PactCompiler {
 		private volatile Throwable error;
 		
 		
-		private JobManagerConnector(InetSocketAddress jobManagerAddress)
-		{
+		private JobManagerConnector(InetSocketAddress jobManagerAddress) {
 			this.jobManagerAddress = jobManagerAddress;
 		}
 		
 		
-		public void waitForCompletion() throws Throwable
-		{
+		public void waitForCompletion() throws Throwable {
 			long start = System.currentTimeMillis();
 			long remaining = MAX_MILLIS_TO_WAIT;
 			
@@ -1610,8 +1620,7 @@ public class PactCompiler {
 		 * @see java.lang.Runnable#run()
 		 */
 		@Override
-		public void run()
-		{
+		public void run() {
 			ExtendedManagementProtocol jobManagerConnection = null;
 
 			try {
@@ -1622,11 +1631,9 @@ public class PactCompiler {
 				if (this.instances == null) {
 					throw new IOException("Returned instance map was <null>");
 				}
-			}
-			catch (Throwable t) {
+			} catch (Throwable t) {
 				this.error = t;
-			}
-			finally {
+			} finally {
 				// first of all, signal completion
 				synchronized (this.lock) {
 					this.lock.notifyAll();
