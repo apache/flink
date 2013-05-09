@@ -25,9 +25,10 @@ public class DotProductCoGroup extends CoGroupStub {
 	public static final String NUM_DANGLING_VERTICES_PARAMETER = "pageRank.numDanglingVertices";
 	
 	public static final String AGGREGATOR_NAME = "pagerank.aggregator";
+	
+	private static final double BETA = 0.85;
 
-	private PactRecord accumulator = new PactRecord();
-
+	
 	private PageRankStatsAggregator aggregator;
 
 	private long numVertices;
@@ -37,8 +38,9 @@ public class DotProductCoGroup extends CoGroupStub {
 	private double dampingFactor;
 
 	private double danglingRankFactor;
-
-	private static final double BETA = 0.85;
+	
+	
+	private PactRecord accumulator = new PactRecord();
 
 	private final PactDouble newRank = new PactDouble();
 
@@ -86,23 +88,20 @@ public class DotProductCoGroup extends CoGroupStub {
 		}
 
 		double rank = BETA * summedRank + dampingFactor + danglingRankFactor;
-
 		double currentRank = currentPageRank.getField(1, doubleInstance).getValue();
 		isDangling = currentPageRank.getField(2, isDangling);
-
+		
+		// maintain statistics to compensate for probability loss on dangling nodes
 		double danglingRankToAggregate = isDangling.get() ? rank : 0;
 		long danglingVerticesToAggregate = isDangling.get() ? 1 : 0;
-
 		double diff = Math.abs(currentRank - rank);
-
-		aggregator.aggregate(diff, rank, danglingRankToAggregate, danglingVerticesToAggregate, 1, edges, summedRank, 0);
-
+		aggregator.aggregate(diff, rank, danglingRankToAggregate, danglingVerticesToAggregate, 1, edges);
+		
+		// return the new record
 		newRank.setValue(rank);
-
 		accumulator.setField(0, currentPageRank.getField(0, vertexID));
 		accumulator.setField(1, newRank);
 		accumulator.setField(2, isDangling);
-
 		collector.collect(accumulator);
 	}
 }

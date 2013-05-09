@@ -262,16 +262,8 @@ public class Ordering {
 		return true;
 	}
 
-	/* (non-Javadoc)
-	 * @see java.lang.Object#toString()
-	 */
 	public String toString() {
-		if (this.indexes.size() == 0) {
-			return "Ordering (none)";
-		}
-		final StringBuffer buf = new StringBuffer("Ordering [");
-		
-		
+		final StringBuffer buf = new StringBuffer("[");
 		for (int i = 0; i < indexes.size(); i++) {
 			if (i != 0) {
 				buf.append(",");
@@ -282,7 +274,7 @@ public class Ordering {
 				buf.append(this.types.get(i).getName());
 			}
 			buf.append(":");
-			buf.append(this.orders.get(i).name());
+			buf.append(this.orders.get(i).getShortName());
 		}
 		buf.append("]");
 		return buf.toString();

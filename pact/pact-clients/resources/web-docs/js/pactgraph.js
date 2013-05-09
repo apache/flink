@@ -1,104 +1,19 @@
-/*
- * global variable for the progress bar
- */
-var progBar = null;
+var BULK_ITERATION_TYPE = "bulk_iteration";
 
 /*
  * Global variable that stores the pact plan as a map
  */
 var idToObjectMap;   // map that maps IDs to the objects
 
-
-/*
- * This functions handels the clicks to the fold button and expands the pact
- * box, showing the properties, or collapses it again.
- *
- * @param target The box that was clicked, as a jquery object.
- */
-function handleFoldClick(target)
-{
-  var par = target.parent();
-
-  var domNode = target[0];
-  var domPar = par[0];
-  
-  var id = domPar.id.substr(9);
-  
-  var pactNode = idToObjectMap[id];
-  var contDiv = $('#pactContents_' + id)[0];
-  
-  if (pactNode.expanded == true) {
-    // fold
-    domNode.innerHTML = "[+]";
-    pactNode.expanded = false;
-    
-    domPar.style.minWidth = pactNode.oldMinWidth;
-    domPar.style.minHeight = pactNode.oldMinHeight;
-    domPar.style.width = pactNode.oldWidth;
-    domPar.style.height = pactNode.oldHeight;
-    domPar.style.maxWidth = pactNode.oldMaxWidth;
-    domPar.style.maxHeight = pactNode.oldMaxHeight;
-    
-    domPar.style.top = pactNode.oldY;
-    domPar.style.left = pactNode.oldX;
-
-    contDiv.innerHTML = pactNode.oldContents;
-  }
-  else {
-    // expand
-    domNode.innerHTML = "[-]";
-    pactNode.expanded = true;
-
-    pactNode.oldMinWidth = domPar.style.minWidth;
-    pactNode.oldMinHeight = domPar.style.minHeight;
-    pactNode.oldWidth = domPar.style.width;
-    pactNode.oldHeight = domPar.style.height;
-    pactNode.oldMaxWidth = domPar.style.maxWidth;
-    pactNode.oldMaxHeight = domPar.style.maxHeight;
-
-    pactNode.oldY = domPar.style.top;
-    pactNode.oldX = domPar.style.left;
-    
-    domPar.style.minWidth = "250px";
-    domPar.style.minHeight = "80px";
-    domPar.style.width = "auto";
-    domPar.style.height = "auto";
-    domPar.style.maxWidth = "300px";
-    domPar.style.maxHeight = "300px";
-
-    var pos = par.position();
-    domPar.style.top = '' + (pos.top - 50) + 'px';
-    domPar.style.left = '' + (pos.left - 100) + 'px';
-
-    pactNode.oldContents = contDiv.innerHTML;
-    
-    var contTab = '<br/><br/><table class="propertiesTable" width="100%">';
-
-    if (pactNode.local_strategy != undefined) {
-      contTab += '<tr><td class="propertiesNameCell">Local Strategy</td><td class="propertiesValueCell">';
-      contTab += pactNode.local_strategy;
-      contTab += '</td></tr>';
+function getIterBoxHeight() {
+    var $inspector = $("<div>").css('display', 'none').addClass('iteration-box');
+    $("body").append($inspector); // add to DOM, in order to read the CSS property
+    try {
+        return $inspector.css('height');
+    } finally {
+        $inspector.remove(); // and remove from DOM
     }
-
-    if (pactNode.properties != undefined && pactNode.properties instanceof Array) {
-      for (var i = 0; i < pactNode.properties.length; i++) {
-        contTab += '<tr><td class="propertiesNameCell">';
-        contTab += pactNode.properties[i].name;
-        contTab += '</td><td class="propertiesValueCell">';
-        contTab += pactNode.properties[i].value;
-        contTab += '</td></tr>';
-      }
-    }
-
-    contTab += '</table>';
-    contDiv.innerHTML = contDiv.innerHTML + contTab;
-  }
-
-  // simulate a drag (by zero pixels) to trigger a graph update
-  par.mousedown();
-  par.mousemove();
-  par.mouseup();
-}
+};
 
 function showProperties(target)
 {
@@ -112,10 +27,9 @@ function showProperties(target)
   // column 1: output contract, local strategy, 
   cont += '<div class="propertyCanvasSection">';
   cont += '<h4>PACT Properties</h4>';
-  cont += '<p class="propItem"><span class="propLabel">Output Contract: </span><span class="propValue">' + (node.outputcontract == undefined ? "None" : node.outputcontract) + '</span></p>';
-  cont += '<p class="propItem"><span class="propLabel">Driver Strategy: </span><span class="propValue">' + (node.driver_strategy == undefined ? "None" : node.driver_strategy) + '</span></p>';
+  cont += '<p class="propItem"><span class="propLabel">Operator: </span><span class="propValue">' + (node.driver_strategy == undefined ? "None" : node.driver_strategy) + '</span></p>';
   cont += '<p class="propItem"><span class="propLabel">Parallelism: </span><span class="propValue">' + (node.parallelism == undefined ? "None" : node.parallelism) + '</span></p>';
-  cont += '<p class="propItem"><span class="propLabel">Subtasks/Instance: </span><span class="propValue">' + (node.subtasks_per_instance == undefined ? "None" : node.subtasks_per_instance) + '</span></p>';
+  cont += '<p class="propItem"><span class="propLabel">Subtasks-per-instance: </span><span class="propValue">' + (node.subtasks_per_instance == undefined ? "None" : node.subtasks_per_instance) + '</span></p>';
   cont += '</div>';
 
   // column 2: global properties
@@ -143,11 +57,11 @@ function showProperties(target)
   }
 
   // column 4: the other properties
-  if (node.properties != undefined && node.properties instanceof Array) {
+  if (node.estimates != undefined && node.estimates instanceof Array) {
     cont += '<div class="propertyCanvasSection">';
     cont += '<h4>Size Estimates</h4>';
-    for (var i = 0; i < node.properties.length; i++) {
-      var prop = node.properties[i];
+    for (var i = 0; i < node.estimates.length; i++) {
+      var prop = node.estimates[i];
       cont += '<p class="propItem"><span class="propLabel">' + (prop.name == undefined ? '(unknown)' : prop.name) + ':&nbsp&nbsp;&nbsp;</span><span class="propValue">' + 
         (prop.value == undefined ? "(none)" : prop.value) + '</span></p>';
     }
@@ -167,16 +81,16 @@ function showProperties(target)
   }
 
   // column 6: the compiler hints
-  if (node.compiler_hints != undefined && node.compiler_hints instanceof Array) {
-    cont += '<div class="propertyCanvasSection">';
-    cont += '<h4>Compiler Hints</h4>';
-    for (var i = 0; i < node.compiler_hints.length; i++) {
-      var hint = node.compiler_hints[i];
-      cont += '<p class="propItem"><span class="propLabel">' + (hint.name == undefined ? '(unknown)' : hint.name) + ':&nbsp&nbsp;&nbsp;</span><span class="propValue">' + 
-        (hint.value == undefined ? "(none)" : hint.value) + '</span></p>';
-    }
-    cont += '</div>';
-  }
+//  if (node.compiler_hints != undefined && node.compiler_hints instanceof Array) {
+//    cont += '<div class="propertyCanvasSection">';
+//    cont += '<h4>Estimate Functions</h4>';
+//    for (var i = 0; i < node.compiler_hints.length; i++) {
+//      var hint = node.compiler_hints[i];
+//      cont += '<p class="propItem"><span class="propLabel">' + (hint.name == undefined ? '(unknown)' : hint.name) + ':&nbsp&nbsp;&nbsp;</span><span class="propValue">' + 
+//        (hint.value == undefined ? "(none)" : hint.value) + '</span></p>';
+//    }
+//    cont += '</div>';
+//  }
 
   $('#propertyCanvas')[0].innerHTML = cont;
 }
@@ -197,120 +111,96 @@ function topoVisit(node, resultList)
   // mark as visited
   node.topoVisited = true;
   // recursively descend
-  for (var k = 0; k < node.preRefs.length; k++)
-  {
+  for (var k = 0; k < node.preRefs.length; k++) {
     topoVisit(node.preRefs[k], resultList);
   }
   // add the node to the list
   resultList.push(node);
 }
 
-
-/*
- * Process a returned pact plan. This function has several
- * steps:
- * 
- *  - Clean the returned plan
- *  - Compute the graph layout (logically)
- *  - Create the graph markup strings
- *  - Turn off the progress bar
- *  - Add the graph to the canvas (invisible)
- *  - Compute and set the actual positions in the window.
- */
-function drawPactPlan(plan, propEvents, imageFile)
+function topoSort(nodes)
 {
-  // initial sanity check
-  if (plan == null || plan.nodes == undefined || (!(plan.nodes instanceof Array))) {
-    alert('The retrieved data does not represent a valid PACT plan.');
-    return;
+  var sortedNodes = new Array();
+  for (var i = 0; i < nodes.length; i++) {
+    var node = nodes[i];
+    // recurse in case of an iteration
+    if (node.step_function != undefined) {
+      node.step_function = topoSort(node.step_function);
+    }
+    topoVisit(node, sortedNodes);
   }
+  return sortedNodes;
+}
 
-  /* The remainder of the code works after the principle of best effort:
-     it draws what is correct and ignores incorrect objects, not showing any error messages. */
-
-  var nodeStr = '';                   // the markup string for the nodes
-  var edgesStr = '';                  // the markup string for the edges
-
-  var nodes = new Array();            // the array of valid nodes
-  var danglingNodes = new Array();    // the array of invalid nodes
-
-  // ----------------------------------------------------------------
-  //   create the id->object map
-  // ----------------------------------------------------------------
-  
-  idToObjectMap = new Object();
-  for (var i = 0; i < plan.nodes.length; i++)
+function makeIdMap(arrayObj, allNodes) {
+  for (var i = 0; i < arrayObj.length; i++)
   {
-    var node = plan.nodes[i];
+    var node = arrayObj[i];
 
     if (node != null) {
-      if (node.id == undefined) {
-        danglingNodes.push(node);
-      }
-      else {
+      if (node.id != undefined) {
         idToObjectMap[node.id] = node;
-        nodes.push(node);
+        allNodes.push(node);
         node.preRefs = new Array();
         node.succRefs = new Array();
-      }
-    }
-  }
-
-  // ----------------------------------------------------------------
-  //   clean up the predecessors and set the references in the objects
-  // ----------------------------------------------------------------
-
-  for (var i = 0; i < nodes.length; i++)
-  {
-    var node = nodes[i];
-    if (node.predecessors != undefined && node.predecessors instanceof Array)
-    {
-      for (var k = 0; k < node.predecessors.length; k++)
-      {
-        var pre = node.predecessors[k];
-        if (pre.id != undefined)
-        {
-          var preNode = idToObjectMap[pre.id];
-          if (preNode != undefined && preNode != null) {
-            node.preRefs.push(preNode);
-            preNode.succRefs.push(node);
-            pre.link = preNode;
+        if (node.step_function != undefined) {
+          // make the id map recursively for the step function
+          makeIdMap(node.step_function, allNodes);
+          
+          // set the nodes for partial solutions, etc
+          if (node.partial_solution != undefined) {
+            var preNode = idToObjectMap[node.partial_solution];
+            node.partial_solution_node = preNode;
+          }
+          if (node.next_partial_solution != undefined) {
+            var preNode = idToObjectMap[node.next_partial_solution];
+            node.next_partial_solution_node = preNode;
+          }
+          if (node.workset != undefined) {
+            var preNode = idToObjectMap[node.workset];
+            node.workset_node = preNode;
+          }
+          if (node.solution_set != undefined) {
+            var preNode = idToObjectMap[node.solution_set];
+            node.solution_set_node = preNode;
+          }
+          if (node.next_workset != undefined) {
+            var preNode = idToObjectMap[node.next_workset];
+            node.next_workset_node = preNode;
+          }
+          if (node.solution_delta != undefined) {
+            var preNode = idToObjectMap[node.solution_delta];
+            node.solution_delta_node = preNode;
           }
         }
       }
     }
   }
+}
 
-  // ----------------------------------------------------------------
-  //   compute the visual layout of the graph
-  // ----------------------------------------------------------------
-
-  // topologically sort the elements in the queue
-  var sortedNodes = new Array();
-  for (var i = 0; i < nodes.length; i++)
-  {
-    var node = nodes[i];
-    topoVisit(node, sortedNodes);
-  }
-  nodes = sortedNodes;
-  sortedNodes = null;
-
-  // Compute the layout columns
-  // This is easy: So through the topologically sorted list and
-  // assign the nodes to columns based on their predecessors
-  // we also assign the first naive row numbers, just as an
-  // incrementing counter for rows in the columns
-  
+/*
+ * Compute the layout columns
+ * This is easy: Go through the topologically sorted list and
+ * assign the nodes to columns based on their predecessors
+ * we also assign the first naive row numbers, just as an
+ * incrementing counter for rows in the columns
+ */
+function makeLogicalColumns(nodes)
+{
   var columns = new Array();
-  for (var i = 0; i < nodes.length; i++)
-  {
+
+  for (var i = 0; i < nodes.length; i++) {
     var node = nodes[i];
+    
+    // recurse for iterations
+    if (node.step_function != undefined) {
+      node.columns = makeLogicalColumns(node.step_function);
+    }
 
     // check, if this node has predecessors
     // and assign it a column higher than the predecessors
     var maxCol = -1;
-    for (var k = 0; k < node.preRefs.length; k++)
-    {
+    for (var k = 0; k < node.preRefs.length; k++) {
       var lc = node.preRefs[k].layoutColumn;
       if (lc != undefined && lc > maxCol) {
         maxCol = lc;
@@ -322,26 +212,32 @@ function drawPactPlan(plan, propEvents, imageFile)
     if (maxCol >= columns.length) {
       node.layoutRow = 0;
       columns.push(new Array(node));
-      
-    }
-    else {
+    } else {
       node.layoutRow = columns[maxCol].length;
       columns[maxCol].push(node);
     }
   }
   
-  // Compute the row layout: This is harder. Since we cannot assume a tree,
-  // we have layout dependencies both an predecessors and successors.
-  // Go back and forth, moving nodes between rows until it fits, maximally 10 iterations.
-  // TODO!!!
-  
+  return columns;
+}
 
+/*
+ * Compute the row layout: This is harder. Since we cannot assume a tree,
+ * we have layout dependencies both an predecessors and successors.
+ * Go back and forth, moving nodes between rows until it fits, maximally x iterations.
+ * TODO!!!
+ */
+function makeLogicalRows(columns)
+{
   for (var i = 0; i < columns.length; i++)
   {
     var xMargin = 2 / (columns[i].length + 1);
     for (var k = 0; k < columns[i].length; k++)
     {
       var node = columns[i][k];
+      if (node.step_function != undefined) {
+        makeLogicalRows(node.columns);
+      }
       
       if (node.preRefs.length == 0) {
         // case no predecessors. place at the relative position with respect to the
@@ -380,14 +276,197 @@ function drawPactPlan(plan, propEvents, imageFile)
       }
     }
   }
+}
+
+function countColumns(nodes) {
+  var num = 0;
+  for (var i = 0; i < nodes.length; i++) {
+    var node = nodes[i];
+    if (node.columns != undefined && node.columns.length != undefined) {
+      num += node.columns.length;
+    }
+  }
+  return num;
+}
+
+function makePhysicalPositions(columns, xPos, halfHeight, columnWidth, iterHeight) {
+  var totalColumnSkips = 0;
+  for (var i = 0; i < columns.length; i++) {
+    var columnSkips = 1;
+    for (var k = 0; k < columns[i].length; k++) {
+      var node = columns[i][k];
+      node.xCenterPos = xPos;
+      node.yCenterPos = Math.floor((1 + node.relativeYPos) * halfHeight);
+      
+      if (node.columns != undefined) {
+        var skips = makePhysicalPositions(node.columns, columnWidth / 2, iterHeight / 2, columnWidth, iterHeight);
+        node.iter_width = skips * columnWidth;
+        if (skips > columnSkips) {
+          columnSkips = skips;
+        }
+      }
+    }
+    xPos = Math.floor(xPos + (columnSkips * columnWidth));
+    totalColumnSkips += columnSkips;
+  }
+  return totalColumnSkips;
+}
+
+
+function drawNode(node, nodeStr, columnWidth) {
+  // construct the string describing the current node
+  if (node.type == "source" || node.type == "sink") {
+    var type = node.type == "source" ? "datasource" : "datasink";
+    var cont = node.contents == undefined ? "Unknown" : node.contents;
+ 
+    nodeStr += '<div class="block draggable ' + type + '" id="pactNode_' + node.id + '" style="left: ' + (node.xCenterPos - 50) + 'px; top: ' + (node.yCenterPos - 30) + 'px;">';
+    nodeStr += '<div class="sourceSinkContents"><span>' + node.contents + '</span></div>';
+    nodeStr += '</div>';
+  } else if (node.type == BULK_ITERATION_TYPE) {
+    var cont = node.contents == undefined ? "Unnamed Bulk Iteration" : node.contents;
+    var partialSolution = node.partial_solution_node;
+    var nextPartial = node.next_partial_solution_node;
+    nodeStr += '<div class="block draggable iteration-box" id="pactNode_' + node.id + '" style="left: ' + (node.xCenterPos - (columnWidth / 2)) + 'px; top: ' + (node.yCenterPos - (node.iter_height/2)) + 'px; width: ' + node.iter_width + 'px;">';
+    nodeStr += '<div class="iteration-name-label">' + cont + '</div>';
+    nodeStr += '<div class="block iteration-set-box iteration-set-box-left" id="pactNode_' + node.partial_solution + '" style="top: ' + (partialSolution.yCenterPos - 15) + 'px; vertical-align: middle;"></div>';
+    nodeStr += '<div class="block iteration-set-box iteration-set-box-right" id="pactNode_' + node.id + '_ns" style="top: ' + (nextPartial.yCenterPos - 15) + 'px; vertical-align: middle;"></div>';
+
+    
+    for (var i = 0; i < node.step_function.length; i++) {
+      var child = node.step_function[i];
+      if (child.type != undefined && child.pact != "Bulk Partial Solution") {
+        nodeStr = drawNode(child, nodeStr, columnWidth);
+      }
+    }
+    
+    nodeStr += '</div>';
+  } else {
+    // pact or unknown
+    var pact = node.pact == undefined ? "Unknown PACT" : node.pact;
+    var cont = node.contents == undefined ? "Unknown Function" : node.contents;
+
+    nodeStr += '<div class="block draggable pact" id="pactNode_' + node.id + '" style="left: ' + (node.xCenterPos - 50) + 'px; top: ' + (node.yCenterPos - 30) + 'px;">';
+    nodeStr += '<div class="pactTypeBox">' + pact + '</div>';
+    nodeStr += '<div class="pactContents">' + cont + '</div>';
+    nodeStr += '</div>';
+  }
+  return nodeStr;
+}
+
+function drawEdge(edgesStr, pre, preId, postId, imageFile) {
+  // create the markup string for the edge
+  edgesStr += '<div class="connector pactNode_' + preId + ' pactNode_' + postId + ' right_start">' +
+              '<img src="img/arrows/' + imageFile + '" class="connector-end">';
+  if (pre.ship_strategy != undefined || pre.local_strategy != undefined || pre.temp_mode != undefined) {
+    edgesStr += '<label class="middle-label">';
+    if (pre.ship_strategy != undefined) {
+      edgesStr += '<span class="shippingStrategy">' + pre.ship_strategy + '</span><br/>';
+    }
+    if (pre.local_strategy != undefined) {
+      edgesStr += '<span class="localStrategy">' + pre.local_strategy + '</span><br/>';
+    }
+    if (pre.temp_mode != undefined) {
+      edgesStr += '<span class="cacheStrategy">' + pre.temp_mode + '</span><br/>';
+    }
+    edgesStr += '</label>';
+  }
+  edgesStr += '</div>';
   
+  return edgesStr;
+}
+
+/*
+ * Process a returned pact plan. This function has several
+ * steps:
+ * 
+ *  - Clean the returned plan
+ *  - Compute the graph layout (logically)
+ *  - Create the graph markup strings
+ *  - Turn off the progress bar
+ *  - Add the graph to the canvas (invisible)
+ *  - Compute and set the actual positions in the window.
+ */
+function drawPactPlan(plan, propEvents, imageFile)
+{
+  // initial sanity check
+  if (plan == null || plan.nodes == undefined || (!(plan.nodes instanceof Array))) {
+    alert('The retrieved data does not represent a valid PACT plan.');
+    return;
+  }
+  
+  var iterHeight = getIterBoxHeight();
+  if (iterHeight != null && iterHeight.substring != undefined && iterHeight.length > 2 && iterHeight.substring(iterHeight.length - 2, iterHeight.length) == 'px') {
+    iterHeight = iterHeight.substring(0, iterHeight.length - 2);
+  } else {
+    iterHeight = 350;
+  }
+
+  /* The remainder of the code works after the principle of best effort:
+     it draws what is correct and ignores incorrect objects, not showing any error messages. */
+
+  var nodeStr = '';                   // the markup string for the nodes
+  var edgesStr = '';                  // the markup string for the edges
+
+  var nodes = plan.nodes            // the array of valid nodes
+  var allNodes = new Array();    // the array of invalid nodes
+
+  // ----------------------------------------------------------------
+  //   create the id->object map
+  // ----------------------------------------------------------------
+  
+  idToObjectMap = new Object();
+  makeIdMap(nodes, allNodes);
+
+  // ----------------------------------------------------------------
+  //   clean up the predecessors and set the references in the objects
+  // ----------------------------------------------------------------
+
+  for (var i = 0; i < allNodes.length; i++)
+  {
+    var node = allNodes[i];
+    
+    if (node.type == BULK_ITERATION_TYPE) {
+      node.iter_height = iterHeight;
+    }
+    
+    if (node.predecessors != undefined && node.predecessors instanceof Array)
+    {
+      for (var k = 0; k < node.predecessors.length; k++)
+      {
+        var pre = node.predecessors[k];
+        if (pre.id != undefined)
+        {
+          var preNode = idToObjectMap[pre.id];
+          if (preNode != undefined && preNode != null) {
+            node.preRefs.push(preNode);
+            preNode.succRefs.push(node);
+            pre.link = preNode;
+          }
+        }
+      }
+    }
+  }
+
+  // ----------------------------------------------------------------
+  //   compute the visual layout of the graph
+  // ----------------------------------------------------------------
+
+  // topologically sort the nodes in the array
+  nodes = topoSort(nodes);
+
+  // Compute the layout columns
+  var columns = makeLogicalColumns(nodes);
+  
+  // Compute the row layout
+  makeLogicalRows(columns);
   
   // ----------------------------------------------------------------
   //   turn the row and column logical positons into actual positons
   // ----------------------------------------------------------------
   
+  var numCols = columns.length + countColumns(nodes);
   var halfHeight = Math.floor($('#mainCanvas').height() / 2);
-  var columnWidth = Math.floor($('#mainCanvas').width() / columns.length);
+  var columnWidth = Math.floor($('#mainCanvas').width() / numCols);
   
   if (columnWidth > maxColumnWidth) {
     columnWidth = maxColumnWidth;
@@ -396,101 +475,41 @@ function drawPactPlan(plan, propEvents, imageFile)
     columnWidth = minColumnWidth;
   }
   
-  for (var i = 0; i < columns.length; i++)
-  {
-    var xPos = Math.floor(i * columnWidth + columnWidth / 2);
-    
-    for (var k = 0; k < columns[i].length; k++)
-    {
-      var node = columns[i][k];
-      node.xCenterPos = xPos;
-      node.yCenterPos = Math.floor((1 + node.relativeYPos) * halfHeight);
-    }
-  }
+  var xPos = Math.floor(columnWidth / 2);
+  makePhysicalPositions(columns, xPos, halfHeight, columnWidth, iterHeight);
   
   // ----------------------------------------------------------------
   //   create the markup for the graph
   // ----------------------------------------------------------------
 
-  for (var i = 0; i < nodes.length; i++)
-  {
-    var node = nodes[i];
-    var outputContr = node.outputcontract;
+  for (var i = 0; i < nodes.length; i++) {
+    nodeStr = drawNode(nodes[i], nodeStr, columnWidth);
+  }
 
-    // construct the string describing the current node
-    if (node.type == "source" || node.type == "sink")
-    {
-      var type = node.type == "source" ? "datasource" : "datasink";
-      var cont = node.contents == undefined ? "Unknown File" : node.contents;
-
-      nodeStr += '<div class="block draggable ' + type + '" id="pactNode_' + node.id + '" style="left: ' + (node.xCenterPos - 50) + 'px; top: ' + (node.yCenterPos - 30) + 'px;">';
-      nodeStr += '<div class="sourceSinkContents" id="pactContents_' + node.id + '"><span>' + node.contents + '</span></div>';
-      nodeStr += '<div class="sourceSinkFold">[+]</div>';
-
-      // if we have an output contract, add it and add also the container for the main contents
-      if (outputContr != undefined) {
-        nodeStr += '<div class="pactOutputContract"><span class="pactOutputContractContents">' + outputContr + '</span></div>';
-      }
-      nodeStr += '</div>';
-    }
-    else {
-      // pact or unknown
-      var pact = node.pact == undefined ? "Unknown PACT" : node.pact;
-      var cont = node.contents == undefined ? "Unknown Function" : node.contents;
-
-      nodeStr += '<div class="block draggable pact" id="pactNode_' + node.id + '" style="left: ' + (node.xCenterPos - 50) + 'px; top: ' + (node.yCenterPos - 30) + 'px;">';
-      nodeStr += '<div class="pactTypeBox">' + pact + '</div>';
-      nodeStr += '<div class="pactContents" id="pactContents_' + node.id + '">' + cont + '</div>';
-      nodeStr += '<div class="pactFold">[+]</div>';
-
-      // if we have an output contract, add it and add also the container for the main contents
-
-
-      if (outputContr != undefined) {
-        nodeStr += '<div class="pactOutputContract"><span class="pactOutputContractContents">' + outputContr + '</span></div>';
-      }
-
-        nodeStr += '</div>';
-    }
-    
+  for (var i = 0; i < allNodes.length; i++) {
+    var node = allNodes[i];
     // add the edges
-    if (node.predecessors != undefined && node.predecessors instanceof Array)
-    { 
-      for (var k = 0; k < node.predecessors.length; k++)
-      {
+    if (node.predecessors != undefined && node.predecessors instanceof Array) { 
+      for (var k = 0; k < node.predecessors.length; k++) {
         var pre = node.predecessors[k];
-        if (pre.link != undefined)
-        {
-          // var dir = node.predecessors.length > 1 ? (pre.link.relativeYPos < node.relativeYPos ? "down_end" : "up_end") : "";
+        if (pre.link != undefined) {
           
-          // create the markup string for the edge
-          edgesStr += '<div class="connector pactNode_' + pre.link.id + ' pactNode_' + node.id + ' right_start">' +
-                        '<img src="img/arrows/' + imageFile + '" class="connector-end">';
-          if (pre.ship_strategy != undefined || pre.local_strategy != undefined || pre.temp_mode != undefined) {
-            // add a lable for one or more of ship strategy, local strategy, temp mode
-            edgesStr += '<label class="middle-label">';
-            if (pre.ship_strategy != undefined && pre.ship_strategy != null) {
-              edgesStr += '<span class="shippingStrategy">' + pre.ship_strategy + '</span><br/>';
-            }
-            if (pre.local_strategy != undefined && pre.local_strategy != null) {
-              edgesStr += '<span class="localStrategy">' + pre.local_strategy + '</span><br/>';
-            }
-            if (pre.temp_mode != undefined && pre.temp_mode != null) {
-              edgesStr += '<br/><span class="tempMode">' + pre.temp_mode + '</span>';
-            }
-            edgesStr += '</label>';
+          var preId = pre.link.id;
+          var postId = node.id;
+          
+          if (node.type == BULK_ITERATION_TYPE) {
+            postId = node.partial_solution;
+            // create the edge from the partial solution root to the box anchor
+            edgesStr = drawEdge(edgesStr, node.next_partial_solution_node, node.next_partial_solution, node.id + '_ns', imageFile);
           }
-          edgesStr += '</div>';
+          if (pre.link.type == BULK_ITERATION_TYPE) {
+            preId = pre.link.id + '_ns';
+          }
+          
+          edgesStr = drawEdge(edgesStr, pre, preId, postId, imageFile);
         }
       }
     }
-  }
-
-  // stop and erase the progress bar
-  if (progBar != null) {
-    progBar.Stop();
-    progBar.Teardown();
-    progBar = null;
   }
 
   // add the nodes and edges to the canvas
@@ -503,12 +522,9 @@ function drawPactPlan(plan, propEvents, imageFile)
   initPageObjects();
   
   if (propEvents) {
-    // register the event handlers that react on the click on the '+'
-    $('.pactFold').click(function () { handleFoldClick($(this))});
-    $('.sourceSinkFold').click(function () { handleFoldClick($(this))});
-
     // register the event handlers that react on clicks on the box as it is
     $('.pact').click(function () { showProperties($(this))});
+    $('.iteration-box').click(function () { showProperties($(this))});
     $('.datasource').click(function () { showProperties($(this))});
     $('.datasink').click(function () { showProperties($(this))});
   }

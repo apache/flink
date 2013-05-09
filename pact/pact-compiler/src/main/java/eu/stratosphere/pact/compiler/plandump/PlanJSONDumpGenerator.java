@@ -46,11 +46,13 @@ import eu.stratosphere.pact.compiler.plan.candidate.BulkIterationPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
+import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.UnionPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.WorksetIterationPlanNode;
 import eu.stratosphere.pact.compiler.util.Utils;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
+import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**
  * 
@@ -165,12 +167,17 @@ public class PlanJSONDumpGenerator {
 			DumpableNode<?> innerChild = node instanceof BulkIterationNode ?
 					((BulkIterationNode) node).getNextPartialSolution() :
 					((BulkIterationPlanNode) node).getRootOfStepFunction();
+					
+			DumpableNode<?> begin = node instanceof BulkIterationNode ?
+				((BulkIterationNode) node).getPartialSolution() :
+				((BulkIterationPlanNode) node).getPartialSolutionPlanNode();
 			
 			writer.print("\t\t\"step_function\": [\n");
 			
 			visit(innerChild, writer, true);
 			
 			writer.print("\n\t\t],\n");
+			writer.print("\t\t\"partial_solution\": " + this.nodeIds.get(begin) + ",\n");
 			writer.print("\t\t\"next_partial_solution\": " + this.nodeIds.get(innerChild) + ",\n");
 		} else if (node instanceof WorksetIterationNode || node instanceof WorksetIterationPlanNode) {
 			
@@ -180,6 +187,13 @@ public class PlanJSONDumpGenerator {
 			DumpableNode<?> solutionDelta = node instanceof WorksetIterationNode ?
 					((WorksetIterationNode) node).getSolutionSetDelta() :
 					((WorksetIterationPlanNode) node).getSolutionSetDeltaPlanNode();
+					
+			DumpableNode<?> workset = node instanceof WorksetIterationNode ?
+						((WorksetIterationNode) node).getWorksetNode() :
+						((WorksetIterationPlanNode) node).getWorksetPlanNode();
+			DumpableNode<?> solutionSet = node instanceof WorksetIterationNode ?
+						((WorksetIterationNode) node).getSolutionSetNode() :
+						((WorksetIterationPlanNode) node).getSolutionSetPlanNode();
 			
 			writer.print("\t\t\"step_function\": [\n");
 			
@@ -187,6 +201,8 @@ public class PlanJSONDumpGenerator {
 			visit(solutionDelta, writer, false);
 			
 			writer.print("\n\t\t],\n");
+			writer.print("\t\t\"workset\": " + this.nodeIds.get(workset) + ",\n");
+			writer.print("\t\t\"solution_set\": " + this.nodeIds.get(solutionSet) + ",\n");
 			writer.print("\t\t\"next_workset\": " + this.nodeIds.get(worksetRoot) + ",\n");
 			writer.print("\t\t\"solution_delta\": " + this.nodeIds.get(solutionDelta) + ",\n");
 		}
@@ -203,6 +219,12 @@ public class PlanJSONDumpGenerator {
 		} else if (n instanceof DataSourceNode) {
 			type = "source";
 			contents = n.getPactContract().toString();
+		} else if (n instanceof BulkIterationNode) {
+			type = "bulk_iteration";
+			contents = n.getPactContract().getName();
+		} else if (n instanceof WorksetIterationNode) {
+			type = "workset_iteration";
+			contents = n.getPactContract().getName();
 		} else if (n instanceof BinaryUnionNode) {
 			type = "pact";
 			contents = "";
@@ -211,11 +233,17 @@ public class PlanJSONDumpGenerator {
 			contents = n.getPactContract().getName();
 		}
 		
+		String name = n.getName();
+		if (name.equals("Reduce") && (node instanceof SingleInputPlanNode) && 
+				((SingleInputPlanNode) node).getDriverStrategy() == DriverStrategy.PARTIAL_GROUP) {
+			name = "Combine";
+		}
+		
 		// output the type identifier
 		writer.print(",\n\t\t\"type\": \"" + type + "\"");
 		
 		// output node name
-		writer.print(",\n\t\t\"pact\": \"" + n.getName() + "\"");
+		writer.print(",\n\t\t\"pact\": \"" + name + "\"");
 		
 		// output node contents
 		writer.print(",\n\t\t\"contents\": \"" + contents + "\"");
@@ -470,10 +498,12 @@ public class PlanJSONDumpGenerator {
 		}
 
 		// output node size estimates
-		writer.print(",\n\t\t\"properties\": [\n");
+		writer.print(",\n\t\t\"estimates\": [\n");
 
+		addProperty(writer, "Est. Output Size", n.getEstimatedOutputSize() == -1 ? "(unknown)"
+			: formatNumber(n.getEstimatedOutputSize(), "B"), true);
 		addProperty(writer, "Est. Cardinality", n.getEstimatedNumRecords() == -1 ? "(unknown)"
-			: formatNumber(n.getEstimatedNumRecords()), true);
+			: formatNumber(n.getEstimatedNumRecords()), false);
 		String estCardinality = "(unknown)";
 		if (n.getEstimatedCardinalities().size() > 0) {
 			estCardinality = "";
@@ -482,8 +512,7 @@ public class PlanJSONDumpGenerator {
 			}
 		}
 		addProperty(writer, "Est. Cardinality/fields", estCardinality, false);
-		addProperty(writer, "Est. Output Size", n.getEstimatedOutputSize() == -1 ? "(unknown)"
-			: formatNumber(n.getEstimatedOutputSize(), "B"), false);
+
 
 		writer.print("\t\t]");
 
@@ -495,6 +524,8 @@ public class PlanJSONDumpGenerator {
 				: formatNumber(p.getNodeCosts().getNetworkCost(), "B"), true);
 			addProperty(writer, "Disk I/O", p.getNodeCosts().getDiskCost() == -1 ? "(unknown)"
 				: formatNumber(p.getNodeCosts().getDiskCost(), "B"), false);
+			addProperty(writer, "CPU", p.getNodeCosts().getCpuCost() == -1 ? "(unknown)"
+				: formatNumber(p.getNodeCosts().getCpuCost(), ""), false);
 
 			addProperty(writer, "Cumulative Network",
 				p.getCumulativeCosts().getNetworkCost() == -1 ? "(unknown)" : formatNumber(p
@@ -502,6 +533,9 @@ public class PlanJSONDumpGenerator {
 			addProperty(writer, "Cumulative Disk I/O",
 				p.getCumulativeCosts().getDiskCost() == -1 ? "(unknown)" : formatNumber(p
 					.getCumulativeCosts().getDiskCost(), "B"), false);
+			addProperty(writer, "Cumulative CPU",
+				p.getCumulativeCosts().getCpuCost() == -1 ? "(unknown)" : formatNumber(p
+					.getCumulativeCosts().getCpuCost(), ""), false);
 
 			writer.print("\n\t\t]");
 		}

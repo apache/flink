@@ -1260,7 +1260,8 @@ function isCanvas(htmlElement)
  */
 function isConnector(htmlElement)
 {
-	return htmlElement.className && htmlElement.className.match(new RegExp('connector .*'));
+	return hasClass(htmlElement, 'connector') || hasClass(htmlElement, 'connector_feedback');
+	// return htmlElement.className && htmlElement.className.match(new RegExp('connector .*'));
 }
 
 /*

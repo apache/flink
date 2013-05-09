@@ -5,7 +5,7 @@
 	z-index: 1;
 }
 
-.connector
+.connector, .connector_feedback
 {
 	background-color: black;
 }

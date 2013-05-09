@@ -38,8 +38,6 @@ import org.apache.commons.fileupload.servlet.ServletFileUpload;
 /**
  * A servlet that accepts uploads of pact programs, returns a listing of the
  * directory containing the job jars, and deleting these jars.
- * 
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
 public class JobsServlet extends HttpServlet {
 	/**

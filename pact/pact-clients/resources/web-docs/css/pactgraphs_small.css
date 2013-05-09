@@ -3,10 +3,68 @@
 	position: absolute;
 }
 
+.connector_feedback
+{
+	background-color: #336699;
+        padding: 1px;
+}
+
 .connector
 {
 	background-color: #FF9900;
         padding: 0.5px;
+}
+
+.iteration-box
+{
+	border: 1.5px dashed #262A37;
+	margin: 2.5px;
+	height: 250px;
+	overflow: visible;
+}
+
+.iteration-name-label
+{
+	margin-top: -12.5px;
+	margin-left: 5px;
+	padding: 1.5px;
+	float: left;
+
+	border: 1px solid #262A37;
+	background-color: #FFFFFF;
+
+	font-family: verdana;
+	font-weight: normal;
+	font-style: italic;
+	font-size: 10px;
+	color: #000000;
+}
+
+.iteration-set-box
+{
+	background-color: #DDDDDD;
+	border: 1px solid #000000;
+
+	position: absolute;
+	width: 30px;
+	height: 30px;
+
+	font-family: verdana;
+	font-weight: bold;
+	font-size: 12px;
+	color: #333333;
+	text-align: center;
+	line-height: 30px;
+}
+
+.iteration-set-box-left
+{
+	left: -15px;
+}
+
+.iteration-set-box-right
+{
+	right: -15px;
 }
 
 .middle-label
@@ -19,9 +77,11 @@
 	text-align: center;
 
 	padding: 2px;
-	-webkit-border-radius: 3px; -moz-border-radius: 3px;
-
-        margin-left: -40px;
+	border-radius: 5px;
+	
+	margin-left: -40px;
+	width: 80px;
+	z-index: 2;
 }
 
 div.canvas
@@ -36,20 +96,20 @@ div.canvas
 
 span.shippingStrategy
 {
-	font-style: normal;
 	font-weight: normal;
+	font-style: normal;
 }
 
 span.localStrategy
 {
-	font-style: italic;
 	font-weight: normal;
+	font-style: italic;
 }
 
-span.tempMode
+span.cacheStrategy
 {
-	font-style: normal;
 	font-weight: bold;
+	font-style: normal;
 }
 
 .datasource, .datasink, .pact
@@ -57,61 +117,35 @@ span.tempMode
 	border: 1px solid #9DA3B3;
 	padding: 2px;
 	margin: 0px;
-	
-	overflow: visible;
 }
 
 .datasource, .datasink
 {
 	background-color: #F7BE81;
-	width: 80px;
-	height: 70px;
-	-webkit-border-radius: 10px; -moz-border-radius: 10px;
+	width: 60px;
+	height: 45px;
+	border-radius: 15px;
 
 }
 
 .sourceSinkContents
 {
 	font-family: verdana;
-	font-size: 11px;
+	font-size: 10px;
 	word-wrap: break-word;
 	text-align: center;
-	margin: 5px;
+	margin-top: 10px;
+	margin-bottom: 18px;
+	margin-left: 3px;
+	margin-right: 3px;
 }
 
 .pact
 {
 	width: 80px;
 	height: 60px;
-
 	background-color: #A9F5A9;
-	-webkit-border-radius: 2px; -moz-border-radius: 2px;
-
-	overflow: visible;
-}
-
-.pactOutputContract
-{
-	background-color: #99CCFF;
-	border: 1px solid #9DA3B3;
-	padding: 2px;
-
-	width: 20px;
-	position: absolute;
-	top: 2px;
-	bottom: 2px;
-	right: -28px;
-}
-
-.pactOutputContractContents
-{
-	font-family: verdana;
-	font-size: 12px;
-
-	display: block;
-	-webkit-transform: rotate(90deg); 
-	-moz-transform: rotate(90deg);	
-	filter: progid:DXImageTransform.Microsoft.BasicImage(rotation=1);
+	border-radius: 5px;
 }
 
 .pactTypeBox
@@ -138,16 +172,4 @@ span.tempMode
 	margin-bottom: 15px;
 
 	word-wrap: break-word;
-	overflow: hidden;
 }
-
-.pactFold
-{
-	display: none;
-}
-
-.sourceSinkFold
-{
-	display: none;
-}
-

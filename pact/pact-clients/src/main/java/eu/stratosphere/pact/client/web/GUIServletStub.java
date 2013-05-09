@@ -26,9 +26,7 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-/**
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
- */
+
 public abstract class GUIServletStub extends HttpServlet {
 	/**
 	 * The content type for plain textual data.
@@ -70,7 +68,6 @@ public abstract class GUIServletStub extends HttpServlet {
 	 */
 	public GUIServletStub(String title) {
 		this.title = title;
-
 		this.cssFiles = new ArrayList<String>();
 		this.jsFiles = new ArrayList<String>();
 	}
@@ -142,7 +139,7 @@ public abstract class GUIServletStub extends HttpServlet {
 		writer.println("<body>");
 		writer.println("  <div class=\"mainHeading\">");
 		writer
-			.println("    <h1><img src=\"img/StratosphereLogo.png\" width=\"326\" height=\"100\" alt=\"Stratosphere Logo\" align=\"middle\"/>Nephele and PACTs Query Interface</h1>");
+			.println("    <h1><img src=\"img/StratosphereLogo.png\" width=\"326\" height=\"100\" alt=\"Stratosphere Logo\" align=\"middle\"/>Stratosphere Query Interface</h1>");
 		writer.println("  </div>");
 
 		@SuppressWarnings("unchecked")

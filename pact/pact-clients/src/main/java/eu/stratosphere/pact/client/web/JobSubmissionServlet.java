@@ -44,10 +44,9 @@ import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plandump.PlanJSONDumpGenerator;
 
-/**
- * 
- */
+
 public class JobSubmissionServlet extends HttpServlet {
+	
 	/**
 	 * Serial UID for serialization interoperability.
 	 */

@@ -33,9 +33,7 @@ import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.net.NetUtils;
 import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
 
-/**
- * @author Stephan Ewen (stephan.ewen@tu-berlin.com)
- */
+
 public class JobsInfoServlet extends HttpServlet {
 	/**
 	 * Serial UID for serialization interoperability.

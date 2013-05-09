@@ -5,6 +5,8 @@ import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.plan.Plan;
+import eu.stratosphere.pact.common.plan.PlanAssembler;
+import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.example.kmeans.udfs.ComputeDistance;
 import eu.stratosphere.pact.example.kmeans.udfs.FindNearestCenter;
@@ -16,7 +18,7 @@ import eu.stratosphere.pact.generic.contract.BulkIteration;
 /**
  *
  */
-public class KMeansIterative extends KMeansSingleStep {
+public class KMeansIterative implements PlanAssembler, PlanAssemblerDescription {
 	
 	@Override
 	public Plan getPlan(String... args) {

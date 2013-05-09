@@ -24,17 +24,19 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import eu.stratosphere.pact.client.nephele.api.Client;
 import eu.stratosphere.pact.client.nephele.api.PactProgram;
 
-/**
- * 
- */
+
 public class PactJobJSONServlet extends HttpServlet {
-	/**
-	 * Serial UID for serialization interoperability.
-	 */
+	
+	/** Serial UID for serialization interoperability. */
 	private static final long serialVersionUID = 558077298726449201L;
+	
+	private static final Log LOG = LogFactory.getLog(PactJobJSONServlet.class);
 
 	// ------------------------------------------------------------------------
 
@@ -59,6 +61,7 @@ public class PactJobJSONServlet extends HttpServlet {
 
 		String jobName = req.getParameter(JOB_PARAM_NAME);
 		if (jobName == null) {
+			LOG.warn("Received request without job parameter name.");
 			resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
 			return;
 		}
@@ -66,6 +69,7 @@ public class PactJobJSONServlet extends HttpServlet {
 		// check, if the jar exists
 		File jarFile = new File(jobStoreDirectory, jobName);
 		if (!jarFile.exists()) {
+			LOG.warn("Received request for non-existing jar file.");
 			resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
 			return;
 		}
@@ -76,6 +80,7 @@ public class PactJobJSONServlet extends HttpServlet {
 			pactProgram = new PactProgram(jarFile, new String[0]);
 		}
 		catch (Throwable t) {
+			LOG.info("Instantiating the PactProgram for '" + jarFile.getName() + "' failed.", t);
 			resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
 			resp.getWriter().print(t.getMessage());
 			return;
@@ -87,12 +92,16 @@ public class PactJobJSONServlet extends HttpServlet {
 		try {
 			jsonPlan = Client.getPreviewAsJSON(pactProgram);
 		}
-		catch (Throwable t) {}
+		catch (Throwable t) {
+			LOG.error("Failed to create json dump of pact program.", t);
+		}
 		
 		try {
 			programDescription = pactProgram.getDescription();
 		}
-		catch (Throwable t) {}
+		catch (Throwable t) {
+			LOG.error("Failed to create description of pact program.", t);
+		}
 			
 		if (jsonPlan == null && programDescription == null) {
 			resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);

@@ -71,6 +71,7 @@ public class CompiledPlanDumpTest extends CompilerTestBase {
 			OptimizedPlan op = compileNoStats(p);
 			PlanJSONDumpGenerator dumper = new PlanJSONDumpGenerator();
 			String json = dumper.getOptimizerPlanAsJSON(op);
+			System.out.println(json);
 			JsonParser parser = new JsonFactory().createJsonParser(json);
 			while (parser.nextToken() != null);
 		} catch (JsonParseException e) {

@@ -41,8 +41,6 @@ import eu.stratosphere.pact.common.util.PactConfigConstants;
 /**
  * This class sets up the web-server that serves the web frontend. It instantiates and
  * configures an embedded jetty server.
- * 
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
 public class WebInterfaceServer {
 	/**
@@ -130,16 +128,17 @@ public class WebInterfaceServer {
 			planDumpDir = new File(basePath+"/"+planDumpDirPath);
 		}
 		
-
-		LOG.debug("Setting up web frontend server, using web-root directory '" + webDir.getAbsolutePath() + "'.");
-		LOG.debug("Web frontend server will store temporary files in '" + tmpDir.getAbsolutePath()
-			+ "', uploaded jobs in '" + uploadDir.getAbsolutePath() + "', plan-json-dumps in '"
-			+ planDumpDir.getAbsolutePath() + "'.");
-
-		LOG.debug("Web-frontend will submit jobs to nephele job-manager on "
-			+ config.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null) + ", port "
-			+ config.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)
-			+ ".");
+		if (LOG.isInfoEnabled()) {
+			LOG.info("Setting up web frontend server, using web-root directory '" + webDir.getAbsolutePath() + "'.");
+			LOG.info("Web frontend server will store temporary files in '" + tmpDir.getAbsolutePath()
+				+ "', uploaded jobs in '" + uploadDir.getAbsolutePath() + "', plan-json-dumps in '"
+				+ planDumpDir.getAbsolutePath() + "'.");
+	
+			LOG.info("Web-frontend will submit jobs to nephele job-manager on "
+				+ config.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null) + ", port "
+				+ config.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)
+				+ ".");
+		}
 
 		server = new Server(port);
 

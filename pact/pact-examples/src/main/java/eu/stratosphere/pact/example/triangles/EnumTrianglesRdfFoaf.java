@@ -45,8 +45,7 @@ import eu.stratosphere.pact.common.type.base.PactString;
  * 
  * Usually, triangle enumeration is used as a pre-processing step to identify highly connected subgraphs.
  * The algorithm was published as MapReduce job by J. Cohen in "Graph Twiddling in a MapReduce World".
- * The Pact version was described in "MapReduce and PACT - Comparing Data Parallel Programming Models" (BTW 2011). 
- *
+ * The Pact version was described in "MapReduce and PACT - Comparing Data Parallel Programming Models" (BTW 2011).
  */
 public class EnumTrianglesRdfFoaf implements PlanAssembler, PlanAssemblerDescription {
 

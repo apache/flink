@@ -19,10 +19,8 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Map;
 
-/**
- * @author Stephan Ewen (stephan.ewen@tu-berlin.com)
- */
 public class PlanDisplayServlet extends GUIServletStub {
+	
 	/**
 	 * Serial UID for serialization interoperability.
 	 */
@@ -32,7 +30,7 @@ public class PlanDisplayServlet extends GUIServletStub {
 	 * Default constructor. Sets up all CSS and JS files for the header.
 	 */
 	public PlanDisplayServlet() {
-		super("Nephele/PACT Query Interface - Query Plan");
+		super("Stratosphere Query Interface - Query Plan");
 
 		addStyleSheet("css/js-graph-it.css");
 		addStyleSheet("css/pactgraphs.css");
@@ -82,11 +80,7 @@ public class PlanDisplayServlet extends GUIServletStub {
 
 		// write the page initialization code
 		writer.println("    <script type=\"text/javascript\">\n" + "    <!--\n" + "      var maxColumnWidth = 350;\n"
-			+ "      var minColumnWidth = 150;\n\n" + "      $(document).ready(function() {\n"
-			+ "        // create the progress bar that animates the waiting until the plan is\n"
-			+ "        // retrieved and displayed\n"
-			+ "        progBar = new ProgressBar(\"progressContainer\", 10);\n" + "        progBar.Init();\n"
-			+ "        progBar.Start();\n");
+			+ "      var minColumnWidth = 150;\n\n" + "      $(document).ready(function() {\n");
 
 		writer.println("        // register the event handler for the 'continue' button\n"
 			+ "        $('#run_button').click(function () {\n" + "          $('#run_button').remove();\n"
