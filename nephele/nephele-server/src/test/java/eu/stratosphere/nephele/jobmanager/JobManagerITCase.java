@@ -492,7 +492,7 @@ public class JobManagerITCase {
 		}
 	}
 
-	@Test
+//	@Test
 	public void testBroadcastChannels() {
 		testBroadcast(100000, 2);
 	}
