@@ -25,23 +25,20 @@ import eu.stratosphere.nephele.services.iomanager.BlockChannelWriter;
 import eu.stratosphere.nephele.services.iomanager.Channel;
 import eu.stratosphere.nephele.services.iomanager.ChannelWriterOutputView;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
+import eu.stratosphere.nephele.services.memorymanager.AbstractPagedInputView;
+import eu.stratosphere.nephele.services.memorymanager.AbstractPagedOutputView;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
+import eu.stratosphere.nephele.services.memorymanager.MemorySegmentSource;
 import eu.stratosphere.nephele.services.memorymanager.SeekableDataInputView;
 import eu.stratosphere.nephele.services.memorymanager.SeekableDataOutputView;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.generic.types.TypeComparator;
 import eu.stratosphere.pact.generic.types.TypeSerializer;
-import eu.stratosphere.nephele.services.memorymanager.AbstractPagedInputView;
-import eu.stratosphere.nephele.services.memorymanager.AbstractPagedOutputView;
 import eu.stratosphere.pact.runtime.io.RandomAccessOutputView;
-import eu.stratosphere.nephele.services.memorymanager.MemorySegmentSource;
 import eu.stratosphere.pact.runtime.util.MathUtils;
 
 
 /**
- *
- *
- * @author Stephan Ewen
  * 
  * @param BT The type of the build side records.
  * @param PT The type of the probe side records.
@@ -50,11 +47,11 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 {
 	// --------------------------------- Table Structure Auxiliaries ------------------------------------
 	
-	MemorySegment[] overflowSegments;	// segments in which overflow buckets from the table structure are stored
+	protected MemorySegment[] overflowSegments;	// segments in which overflow buckets from the table structure are stored
 	
-	int numOverflowSegments;			// the number of actual segments in the overflowSegments array
+	protected int numOverflowSegments;			// the number of actual segments in the overflowSegments array
 	
-	int nextOverflowBucket;				// the next free bucket in the current overflow segment
+	protected int nextOverflowBucket;				// the next free bucket in the current overflow segment
 
 	// -------------------------------------  Type Accessors --------------------------------------------
 	
@@ -64,7 +61,7 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 	
 	// -------------------------------------- Record Buffers --------------------------------------------
 	
-	private MemorySegment[] partitionBuffers;
+	protected MemorySegment[] partitionBuffers;
 	
 	private int currentBufferNum;
 	
@@ -72,13 +69,13 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 	
 	private BuildSideBuffer<BT> buildSideWriteBuffer;
 	
-	private ChannelWriterOutputView probeSideBuffer;
+	protected ChannelWriterOutputView probeSideBuffer;
 	
 	private RandomAccessOutputView overwriteBuffer;
 	
 	private long buildSideRecordCounter;				// number of build-side records in this partition
 	
-	private long probeSideRecordCounter;				// number of probe-side records in this partition 
+	protected long probeSideRecordCounter;				// number of probe-side records in this partition 
 	
 	// ----------------------------------------- General ------------------------------------------------
 	
@@ -88,15 +85,25 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 	
 	private final int partitionNumber;					// the number of the partition
 	
-	private final int recursionLevel;					// the recursion level on which this partition lives
+	protected int recursionLevel;									// the recursion level on which this partition lives
 	
 	// ------------------------------------------ Spilling ----------------------------------------------
 	
 	private BlockChannelWriter buildSideChannel;		// the channel writer for the build side, if partition is spilled
 	
-	private BlockChannelWriter probeSideChannel;		// the channel writer from the probe side, if partition is spilled
+	protected BlockChannelWriter probeSideChannel;		// the channel writer from the probe side, if partition is spilled
+	
+	// ------------------------------------------ Restoring ----------------------------------------------
+	
+	protected boolean furtherPartitioning = false;
+	
+	protected void setFurtherPatitioning(boolean v) {
+		furtherPartitioning = v;
+	}
 	
 	// --------------------------------------------------------------------------------------------------
+	
+	
 	
 	/**
 	 * Creates a new partition, initially in memory, with one buffer for the build side. The partition is
@@ -212,6 +219,7 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 	public BlockChannelWriter getBuildSideChannel() {
 		return this.buildSideChannel;
 	}
+	
 	
 	public BlockChannelWriter getProbeSideChannel() {
 		return this.probeSideChannel;
@@ -345,7 +353,6 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 			this.overflowSegments = null;
 			this.numOverflowSegments = 0;
 			this.nextOverflowBucket = 0;
-			
 			// return the partition buffers
 			for (int i = 0; i < this.partitionBuffers.length; i++) {
 				freeMemory.add(this.partitionBuffers[i]);
@@ -353,7 +360,7 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 			this.partitionBuffers = null;
 			return 0;
 		}
-		else if (this.probeSideRecordCounter == 0) {
+		else if (this.probeSideRecordCounter == 0) { 
 			// partition is empty, no spilled buffers
 			// return the memory buffer
 			freeMemory.add(this.probeSideBuffer.getCurrentSegment());
@@ -373,6 +380,8 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 			return 1;
 		}
 	}
+	
+
 	
 	public void clearAllMemory(List<MemorySegment> target)
 	{
@@ -415,6 +424,7 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 				this.probeSideChannel.close();
 				this.probeSideChannel.deleteChannel();
 			}
+			
 		}
 		catch (IOException ioex) {
 			throw new RuntimeException("Error deleting the partition files. Some temporary files might not be removed.");
@@ -436,6 +446,27 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 		}
 		return this.overwriteBuffer;
 	}
+	
+	// --------------------------------------------------------------------------------------------------
+	//                   ReOpenableHashTable related methods
+	// --------------------------------------------------------------------------------------------------
+	
+	public void prepareProbePhase(IOManager ioAccess, Channel.Enumerator probeChannelEnumerator,
+            LinkedBlockingQueue<MemorySegment> bufferReturnQueue) throws IOException {
+		if (isInMemory()) {
+			return;
+		}
+		// ATTENTION: The following lines are duplicated code from finalizeBuildPhase
+		this.probeSideChannel = ioAccess.createBlockChannelWriter(probeChannelEnumerator.next(), bufferReturnQueue);
+		this.probeSideBuffer = new ChannelWriterOutputView(this.probeSideChannel, this.memorySegmentSize);
+	}
+		
+
+
+
+
+	
+
 	
 	// --------------------------------------------------------------------------------------------------
 	//                   Methods to provide input view abstraction for reading probe records
@@ -476,7 +507,7 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 	
 	// ============================================================================================
 	
-	private static final class BuildSideBuffer<BT> extends AbstractPagedOutputView
+	protected static final class BuildSideBuffer<BT> extends AbstractPagedOutputView
 	{
 		private final ArrayList<MemorySegment> targetList;
 		
@@ -609,4 +640,8 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 			return this.currentHashCode;
 		}
 	}
+
+	
+
+	
 }

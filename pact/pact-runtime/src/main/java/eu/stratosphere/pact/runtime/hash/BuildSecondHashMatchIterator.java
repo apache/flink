@@ -34,7 +34,7 @@ import eu.stratosphere.pact.runtime.task.util.MatchTaskIterator;
 
 /**
  * An implementation of the {@link eu.stratosphere.pact.runtime.task.util.MatchTaskIterator} that uses a hybrid-hash-join
- * internally to match the records with equal key. The build side of the hash is the first input of the match.  
+ * internally to match the records with equal key. The build side of the hash is the second input of the match.  
  *
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
@@ -76,7 +76,7 @@ public final class BuildSecondHashMatchIterator<V1, V2, O> implements MatchTaskI
 		this.tempBuildSideRecord = serializer2.createInstance();
 		this.probeCopy = serializer1.createInstance();
 		
-		this.hashJoin = BuildFirstHashMatchIterator.getHashJoin(serializer2, comparator2, serializer1, comparator1, pairComparator,
+		this.hashJoin = getHashJoin(serializer2, comparator2, serializer1, comparator1, pairComparator,
 			memManager, ioManager, ownerTask, totalMemory);
 	}
 	
@@ -169,4 +169,17 @@ public final class BuildSecondHashMatchIterator<V1, V2, O> implements MatchTaskI
 		final List<MemorySegment> segments = this.hashJoin.getFreedMemory();
 		this.memManager.release(segments);
 	}
+	
+	public <BT, PT> MutableHashTable<BT, PT> getHashJoin(TypeSerializer<BT> buildSideSerializer, TypeComparator<BT> buildSideComparator,
+			TypeSerializer<PT> probeSideSerializer, TypeComparator<PT> probeSideComparator,
+			TypePairComparator<PT, BT> pairComparator,
+			MemoryManager memManager, IOManager ioManager, AbstractInvokable ownerTask, long totalMemory)
+	throws MemoryAllocationException
+	{
+		totalMemory = memManager.roundDownToPageSizeMultiple(totalMemory);
+		final int numPages = (int) (totalMemory / memManager.getPageSize());
+		final List<MemorySegment> memorySegments = memManager.allocatePages(ownerTask, numPages);
+		return new MutableHashTable<BT, PT>(buildSideSerializer, probeSideSerializer, buildSideComparator, probeSideComparator, pairComparator, memorySegments, ioManager);
+	}
+	
 }

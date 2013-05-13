@@ -146,11 +146,11 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 	
 	// -------------------------- Bucket Size and Structure -------------------------------------
 	
-	private static final int NUM_INTRA_BUCKET_BITS = 7;
+	static final int NUM_INTRA_BUCKET_BITS = 7;
 	
-	private static final int HASH_BUCKET_SIZE = 0x1 << NUM_INTRA_BUCKET_BITS;
+	static final int HASH_BUCKET_SIZE = 0x1 << NUM_INTRA_BUCKET_BITS;
 	
-	private static final int BUCKET_HEADER_LENGTH = 16;
+	static final int BUCKET_HEADER_LENGTH = 16;
 	
 	private static final int NUM_ENTRIES_PER_BUCKET = (HASH_BUCKET_SIZE - BUCKET_HEADER_LENGTH) / RECORD_OVERHEAD_BYTES;
 	
@@ -198,17 +198,17 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 	/**
 	 * The utilities to serialize the build side data types.
 	 */
-	private final TypeSerializer<BT> buildSideSerializer;
+	protected final TypeSerializer<BT> buildSideSerializer;
 
 	/**
 	 * The utilities to serialize the probe side data types.
 	 */
-	private final TypeSerializer<PT> probeSideSerializer;
+	protected final TypeSerializer<PT> probeSideSerializer;
 	
 	/**
 	 * The utilities to hash and compare the build side data types.
 	 */
-	private final TypeComparator<BT> buildSideComparator;
+	protected final TypeComparator<BT> buildSideComparator;
 
 	/**
 	 * The utilities to hash and compare the probe side data types.
@@ -223,23 +223,23 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 	/**
 	 * The free memory segments currently available to the hash join.
 	 */
-	private final List<MemorySegment> availableMemory;
+	protected final List<MemorySegment> availableMemory;
 	
 	/**
 	 * The queue of buffers that can be used for write-behind. Any buffer that is written
 	 * asynchronously to disk is returned through this queue. hence, it may sometimes contain more
 	 */
-	private final LinkedBlockingQueue<MemorySegment> writeBehindBuffers;
+	protected final LinkedBlockingQueue<MemorySegment> writeBehindBuffers;
 	
 	/**
 	 * The I/O manager used to instantiate writers for the spilled partitions.
 	 */
-	private final IOManager ioManager;
+	protected final IOManager ioManager;
 	
 	/**
 	 * The size of the segments used by the hash join buckets. All segments must be of equal size to ease offset computations.
 	 */
-	private final int segmentSize;
+	protected final int segmentSize;
 	
 	/**
 	 * The total number of memory segments available to the hash join.
@@ -257,12 +257,12 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 	 * This variable is a mask that is 1 in the lower bits that define the number of a bucket
 	 * in a segment.
 	 */
-	private final int bucketsPerSegmentMask;
+	protected final int bucketsPerSegmentMask;
 	
 	/**
 	 * The number of bits that describe the position of a bucket in a memory segment. Computed as log2(bucketsPerSegment).
 	 */
-	private final int bucketsPerSegmentBits;
+	protected final int bucketsPerSegmentBits;
 	
 	/**
 	 * An estimate for the average record length.
@@ -274,7 +274,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 	/**
 	 * The partitions that are built by processing the current partition.
 	 */
-	private final ArrayList<HashPartition<BT, PT>> partitionsBeingBuilt;
+	protected final ArrayList<HashPartition<BT, PT>> partitionsBeingBuilt;
 	
 	/**
 	 * The partitions that have been spilled previously and are pending to be processed.
@@ -291,7 +291,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 	/**
 	 * Iterator over the elements from the probe side.
 	 */
-	private ProbeIterator<PT> probeIterator;
+	protected ProbeIterator<PT> probeIterator;
 	
 	/**
 	 * The reader for the spilled-file of the probe partition that is currently read.
@@ -302,40 +302,46 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 	 * The channel enumerator that is used while processing the current partition to create
 	 * channels for the spill partitions it requires.
 	 */
-	private Channel.Enumerator currentEnumerator;
+	protected Channel.Enumerator currentEnumerator;
 	
 	/**
 	 * The array of memory segments that contain the buckets which form the actual hash-table
 	 * of hash-codes and pointers to the elements.
 	 */
-	private MemorySegment[] buckets;
+	protected MemorySegment[] buckets;
 	
 	/**
 	 * The number of buckets in the current table. The bucket array is not necessarily fully
 	 * used, when not all buckets that would fit into the last segment are actually used.
 	 */
-	private int numBuckets;
+	protected int numBuckets;
 	
 	/**
 	 * The number of buffers in the write behind queue that are actually not write behind buffers,
 	 * but regular buffers that only have not yet returned. This is part of an optimization that the
 	 * spilling code needs not wait until the partition is completely spilled before proceeding.
 	 */
-	private int writeBehindBuffersAvailable;
+	protected int writeBehindBuffersAvailable;
 	
 	/**
 	 * The recursion depth of the partition that is currently processed. The initial table
 	 * has a recursion depth of 0. Partitions spilled from a table that is built for a partition
 	 * with recursion depth <i>n</i> have a recursion depth of <i>n+1</i>. 
 	 */
-	private int currentRecursionDepth;
+	protected int currentRecursionDepth;
 	
 	/**
 	 * Flag indicating that the closing logic has been invoked.
 	 */
-	private volatile boolean closed;
-
+	protected volatile boolean closed;
 	
+	/**
+	 * If true, build side partitions are kept for multiple probe steps.
+	 */
+	protected boolean keepBuildSidePartitions = false;
+	
+	protected boolean furtherPartitioning = false;
+
 	// ------------------------------------------------------------------------
 	//                         Construction and Teardown
 	// ------------------------------------------------------------------------
@@ -424,7 +430,6 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 		{
 			this.writeBehindBuffers.add(this.availableMemory.remove(this.availableMemory.size() - 1));
 		}
-		
 		// open builds the initial table by consuming the build-side input
 		this.currentRecursionDepth = 0;
 		buildInitialTable(buildSide);
@@ -436,13 +441,8 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 		this.bucketIterator = new HashBucketIterator<BT, PT>(this.buildSideSerializer, this.recordComparator);
 //		this.lazyBucketIterator = new LazyHashBucketIterator<BT, PT>(this.recordComparator);
 	}
-
-	/**
-	 * @return
-	 * @throws IOException
-	 */
-	public boolean nextRecord() throws IOException {
-		
+	
+	protected boolean processProbeIter() throws IOException{
 		final ProbeIterator<PT> probeIter = this.probeIterator;
 		final TypeComparator<PT> probeAccessors = this.probeSideComparator;
 		
@@ -470,19 +470,24 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 				p.insertIntoProbeBuffer(next);
 			}
 		}
-
+		
 		// -------------- partition done ---------------
-
+		
+		return false;
+	}
+	
+	protected boolean prepareNextPartition() throws IOException {
 		// finalize and cleanup the partitions of the current table
 		int buffersAvailable = 0;
 		for (int i = 0; i < this.partitionsBeingBuilt.size(); i++) {
-			HashPartition<BT, PT> p = this.partitionsBeingBuilt.get(i);
+			final HashPartition<BT, PT> p = this.partitionsBeingBuilt.get(i);
+			p.setFurtherPatitioning(this.furtherPartitioning);
 			buffersAvailable += p.finalizeProbePhase(this.availableMemory, this.partitionsPending);
 		}
+		
 		this.partitionsBeingBuilt.clear();
 		this.writeBehindBuffersAvailable += buffersAvailable;
-
-		// release the table memory
+		
 		releaseTable();
 
 		if (this.currentSpilledProbeSide != null) {
@@ -513,7 +518,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 			// unregister the pending partition
 			this.partitionsPending.remove(0);
 			this.currentRecursionDepth = p.getRecursionLevel() + 1;
-
+			
 			// recursively get the next
 			return nextRecord();
 		}
@@ -521,6 +526,18 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 			// no more data
 			return false;
 		}
+	}
+	/**
+	 * @return
+	 * @throws IOException
+	 */
+	public boolean nextRecord() throws IOException {
+		
+		final boolean probeProcessing = processProbeIter();
+		if(probeProcessing) {
+			return true;
+		}
+		return prepareNextPartition();
 	}
 	
 	public HashBucketIterator<BT, PT> getMatchesFor(PT record) throws IOException
@@ -668,7 +685,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 		// create the partitions
 		final int partitionFanOut = getPartitioningFanOutNoEstimates(this.availableMemory.size());
 		if (partitionFanOut > MAX_NUM_PARTITIONS) {
-			throw new RuntimeException("Hash join created ");
+			throw new RuntimeException("Hash join partitions estimate exeeds maximum number of partitions."); 
 		}
 		createPartitions(partitionFanOut, 0);
 		
@@ -712,7 +729,6 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 		//        that single partition.
 		// 2) We can not guarantee that enough memory segments are available and read the partition
 		//    in, distributing its data among newly created partitions.
-		
 		final int totalBuffersAvailable = this.availableMemory.size() + this.writeBehindBuffersAvailable;
 		if (totalBuffersAvailable != this.totalNumBuffers - this.numWriteBehindBuffers) {
 			throw new RuntimeException("Hash Join bug in memory management: Memory buffers leaked.");
@@ -731,7 +747,13 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 			// first read the partition in
 			final BulkBlockChannelReader reader = this.ioManager.createBulkBlockChannelReader(p.getBuildSideChannel().getChannelID(), 
 				this.availableMemory, p.getBuildSideBlockCount());
-			reader.closeAndDelete(); // call waits until all is read
+			// call waits until all is read
+			if (keepBuildSidePartitions && p.recursionLevel == 0) {
+				reader.close(); // keep the partitions
+			} else {
+				reader.closeAndDelete();
+			}
+			
 			final List<MemorySegment> partitionBuffers = reader.getFullSegments();
 			final HashPartition<BT, PT> newPart = new HashPartition<BT, PT>(this.buildSideSerializer, this.probeSideSerializer,
 					0, nextRecursionLevel, partitionBuffers, p.getBuildSideRecordCount(), this.segmentSize, p.getLastSegmentLimit());
@@ -786,7 +808,6 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 						p.getBuildSideBlockCount(), p.getLastSegmentLimit(), false);
 			final ChannelReaderInputViewIterator<BT> inIter = new ChannelReaderInputViewIterator<BT>(inView, 
 					this.availableMemory, this.buildSideSerializer);
-			
 			final TypeComparator<BT> btComparator = this.buildSideComparator;
 			final BT rec = this.buildSideSerializer.createInstance();
 			while (inIter.next(rec))
@@ -842,7 +863,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 	 * @param pointer
 	 * @throws IOException
 	 */
-	private final void insertBucketEntry(final HashPartition<BT, PT> p, final MemorySegment bucket, 
+	final void insertBucketEntry(final HashPartition<BT, PT> p, final MemorySegment bucket, 
 			final int bucketInSegmentPos, final int hashCode, final long pointer)
 	throws IOException
 	{
@@ -954,6 +975,15 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 	// --------------------------------------------------------------------------------------------
 	
 	/**
+	 * Returns a new inMemoryPartition object.
+	 * This is required as a plug for ReOpenableMutableHashTable.
+	 */
+	protected HashPartition<BT, PT> getNewInMemoryPartition(int number, int recursionLevel) {
+		return new HashPartition<BT, PT>(this.buildSideSerializer, this.probeSideSerializer,
+				number, recursionLevel, this.availableMemory.remove(this.availableMemory.size() - 1),
+				this, this.segmentSize);
+	}
+	/**
 	 * @param numPartitions
 	 */
 	protected void createPartitions(int numPartitions, int recursionLevel) {
@@ -964,9 +994,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 		
 		this.partitionsBeingBuilt.clear();
 		for (int i = 0; i < numPartitions; i++) {
-			HashPartition<BT, PT> p = new HashPartition<BT, PT>(this.buildSideSerializer, this.probeSideSerializer,
-				i, recursionLevel, this.availableMemory.remove(this.availableMemory.size() - 1),
-				this, this.segmentSize);
+			HashPartition<BT, PT> p = getNewInMemoryPartition(i, recursionLevel);
 			this.partitionsBeingBuilt.add(p);
 		}
 	}
@@ -1021,7 +1049,6 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 			
 			table[i] = seg;
 		}
-		
 		this.buckets = table;
 		this.numBuckets = numBuckets;
 	}
@@ -1069,14 +1096,12 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 		int numBuffersFreed = p.spillPartition(this.availableMemory, this.ioManager, 
 										this.currentEnumerator.next(), this.writeBehindBuffers);
 		this.writeBehindBuffersAvailable += numBuffersFreed;
-		
 		// grab as many buffers as are available directly
 		MemorySegment currBuff = null;
 		while (this.writeBehindBuffersAvailable > 0 && (currBuff = this.writeBehindBuffers.poll()) != null) {
 			this.availableMemory.add(currBuff);
 			this.writeBehindBuffersAvailable--;
 		}
-		
 		return largestPartNum;
 	}
 	
@@ -1088,7 +1113,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 	 *  
 	 * @param minRequiredAvailable The minimum number of buffers that needs to be reclaimed.
 	 */
-	private final void ensureNumBuffersReturned(final int minRequiredAvailable) {
+	final void ensureNumBuffersReturned(final int minRequiredAvailable) {
 		if (minRequiredAvailable > this.availableMemory.size() + this.writeBehindBuffersAvailable) {
 			throw new IllegalArgumentException("More buffers requested available than totally available.");
 		}
@@ -1114,7 +1139,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 	 *                     exception replaces the <tt>InterruptedException</tt> to consolidate the exception
 	 *                     signatures.
 	 */
-	private final MemorySegment getNextBuffer() {
+	final MemorySegment getNextBuffer() {
 		// check if the list directly offers memory
 		int s = this.availableMemory.size();
 		if (s > 0) {
@@ -1139,7 +1164,6 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 				this.availableMemory.add(currBuff);
 				this.writeBehindBuffersAvailable--;
 			}
-			
 			return toReturn;
 		} else {
 			// no memory available

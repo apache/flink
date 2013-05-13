@@ -125,6 +125,7 @@ public class HashMatchIteratorITCase
 		}
 	}
 
+
 	@Test
 	public void testBuildFirst() {
 		try {
@@ -491,7 +492,9 @@ public class HashMatchIteratorITCase
 	//                                    Utilities
 	// --------------------------------------------------------------------------------------------
 
-	private Map<TestData.Key, Collection<RecordMatch>> matchRecordValues(
+	
+	
+	static Map<TestData.Key, Collection<RecordMatch>> matchRecordValues(
 			Map<TestData.Key, Collection<TestData.Value>> leftMap,
 			Map<TestData.Key, Collection<TestData.Value>> rightMap)
 	{
@@ -521,7 +524,7 @@ public class HashMatchIteratorITCase
 		return map;
 	}
 	
-	private Map<TestData.Key, Collection<RecordIntPairMatch>> matchRecordIntPairValues(
+	static Map<TestData.Key, Collection<RecordIntPairMatch>> matchRecordIntPairValues(
 		Map<Integer, Collection<Integer>> leftMap,
 		Map<TestData.Key, Collection<TestData.Value>> rightMap)
 	{
@@ -555,7 +558,7 @@ public class HashMatchIteratorITCase
 	}
 
 	
-	private Map<TestData.Key, Collection<TestData.Value>> collectRecordData(MutableObjectIterator<PactRecord> iter)
+	static Map<TestData.Key, Collection<TestData.Value>> collectRecordData(MutableObjectIterator<PactRecord> iter)
 	throws Exception
 	{
 		Map<TestData.Key, Collection<TestData.Value>> map = new HashMap<TestData.Key, Collection<TestData.Value>>();
@@ -575,7 +578,7 @@ public class HashMatchIteratorITCase
 		return map;
 	}
 	
-	private Map<Integer, Collection<Integer>> collectIntPairData(MutableObjectIterator<IntPair> iter)
+	static Map<Integer, Collection<Integer>> collectIntPairData(MutableObjectIterator<IntPair> iter)
 	throws Exception
 	{
 		Map<Integer, Collection<Integer>> map = new HashMap<Integer, Collection<Integer>>();
@@ -599,7 +602,7 @@ public class HashMatchIteratorITCase
 	/**
 	 * Private class used for storage of the expected matches in a hash-map.
 	 */
-	private static class RecordMatch
+	static class RecordMatch
 	{
 		private final Value left;
 		private final Value right;
@@ -629,7 +632,7 @@ public class HashMatchIteratorITCase
 	/**
 	 * Private class used for storage of the expected matches in a hash-map.
 	 */
-	private static class RecordIntPairMatch
+	static class RecordIntPairMatch
 	{
 		private final int left;
 		private final Value right;
@@ -656,7 +659,7 @@ public class HashMatchIteratorITCase
 		}
 	}
 	
-	private static final class PactRecordMatchRemovingMatcher extends MatchStub
+	static final class PactRecordMatchRemovingMatcher extends MatchStub
 	{
 		private final Map<TestData.Key, Collection<RecordMatch>> toRemoveFrom;
 		
@@ -670,7 +673,7 @@ public class HashMatchIteratorITCase
 			TestData.Key key = rec1.getField(0, TestData.Key.class);
 			TestData.Value value1 = rec1.getField(1, TestData.Value.class);
 			TestData.Value value2 = rec2.getField(1, TestData.Value.class);
-			
+			//System.err.println("rec1 key = "+key+"  rec2 key= "+rec2.getField(0, TestData.Key.class));
 			Collection<RecordMatch> matches = this.toRemoveFrom.get(key);
 			if (matches == null) {
 				Assert.fail("Match " + key + " - " + value1 + ":" + value2 + " is unexpected.");
@@ -685,7 +688,7 @@ public class HashMatchIteratorITCase
 		}
 	}
 	
-	private static final class RecordIntPairMatchRemovingMatcher extends AbstractStub implements GenericMatcher<IntPair, PactRecord, PactRecord>
+	static final class RecordIntPairMatchRemovingMatcher extends AbstractStub implements GenericMatcher<IntPair, PactRecord, PactRecord>
 	{
 		private final Map<TestData.Key, Collection<RecordIntPairMatch>> toRemoveFrom;
 		
@@ -718,7 +721,7 @@ public class HashMatchIteratorITCase
 		}
 	}
 	
-	private static final class IntPairRecordPairComparator extends TypePairComparator<IntPair, PactRecord>
+	static final class IntPairRecordPairComparator extends TypePairComparator<IntPair, PactRecord>
 	{
 		private int reference;
 		
@@ -748,7 +751,7 @@ public class HashMatchIteratorITCase
 		}
 	}
 	
-	private static final class RecordIntPairPairComparator extends TypePairComparator<PactRecord, IntPair>
+	static final class RecordIntPairPairComparator extends TypePairComparator<PactRecord, IntPair>
 	{
 		private int reference;
 		

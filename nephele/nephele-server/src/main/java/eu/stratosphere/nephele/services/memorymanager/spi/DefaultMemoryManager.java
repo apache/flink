@@ -112,7 +112,7 @@ public class DefaultMemoryManager implements MemoryManager
 		if (memorySize <= 0) {
 			throw new IllegalArgumentException("Size of total memory must be positive.");
 		}
-		if (pageSize <= MIN_PAGE_SIZE) {
+		if (pageSize < MIN_PAGE_SIZE) {
 			throw new IllegalArgumentException("The page size must be at least " + MIN_PAGE_SIZE + " bytes.");
 		}
 		if ((pageSize & (pageSize - 1)) != 0) {
