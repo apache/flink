@@ -46,12 +46,9 @@ import eu.stratosphere.pact.runtime.test.util.types.IntPair;
 import eu.stratosphere.pact.runtime.test.util.types.IntPairComparator;
 import eu.stratosphere.pact.runtime.test.util.types.IntPairSerializer;
 
-/**
- * @author Erik Nijkamp
- * @author Stephan Ewen
- */
-public class UnilateralSortMergerITCase
-{
+
+public class UnilateralSortMergerITCase {
+	
 	private static final Log LOG = LogFactory.getLog(UnilateralSortMergerITCase.class);
 
 	private static final long SEED = 649180756312423613L;
@@ -106,8 +103,7 @@ public class UnilateralSortMergerITCase
 	// --------------------------------------------------------------------------------------------
 	
 	@Test
-	public void testInMemorySort() throws Exception
-	{
+	public void testInMemorySort() throws Exception {
 		// comparator
 		final Comparator<TestData.Key> keyComparator = new TestData.KeyComparator();
 		
@@ -153,8 +149,7 @@ public class UnilateralSortMergerITCase
 	}
 	
 	@Test
-	public void testInMemorySortUsing10Buffers() throws Exception
-	{
+	public void testInMemorySortUsing10Buffers() throws Exception {
 		// comparator
 		final Comparator<TestData.Key> keyComparator = new TestData.KeyComparator();
 		
@@ -200,8 +195,7 @@ public class UnilateralSortMergerITCase
 	}
 
 	@Test
-	public void testSpillingSort() throws Exception
-	{
+	public void testSpillingSort() throws Exception {
 		// comparator
 		final Comparator<TestData.Key> keyComparator = new TestData.KeyComparator();
 		
@@ -246,9 +240,8 @@ public class UnilateralSortMergerITCase
 		merger.close();
 	}
 
-	@Test
-	public void testSpillingSortWithIntermediateMerge() throws Exception
-	{
+//	@Test
+	public void testSpillingSortWithIntermediateMerge() throws Exception {
 		// amount of pairs
 		final int PAIRS = 10000000;
 
@@ -301,7 +294,7 @@ public class UnilateralSortMergerITCase
 		merger.close();
 	}
 	
-	@Test
+//	@Test
 	public void testSpillingSortWithIntermediateMergeIntPair() throws Exception {
 		// amount of pairs
 		final int PAIRS = 50000000;
