@@ -141,7 +141,7 @@ import eu.stratosphere.nephele.util.StringUtils;
 public class JobManager implements DeploymentManager, ExtendedManagementProtocol, InputSplitProviderProtocol,
 		JobManagerProtocol, ChannelLookupProtocol, JobStatusListener, PluginCommunicationProtocol {
 	
-	public static enum ExecutionMode { LOCAL, CLUSTER, CLOUD }
+	public static enum ExecutionMode { LOCAL, CLUSTER }
 	
 	// --------------------------------------------------------------------------------------------
 
@@ -404,10 +404,8 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		final ExecutionMode executionMode;
 		if ("local".equals(executionModeName)) {
 			executionMode = ExecutionMode.LOCAL;
-		} else if ("local".equals(executionModeName)) {
+		} else if ("cluster".equals(executionModeName)) {
 			executionMode = ExecutionMode.CLUSTER;
-		} else if ("local".equals(executionModeName)) {
-			executionMode = ExecutionMode.CLOUD;
 		} else {
 			System.err.println("Unrecognized execution mode: " + executionModeName);
 			System.exit(FAILURERETURNCODE);

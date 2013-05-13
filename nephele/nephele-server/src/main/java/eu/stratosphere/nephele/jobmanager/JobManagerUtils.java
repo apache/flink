@@ -151,8 +151,6 @@ public class JobManagerUtils {
 			return "eu.stratosphere.nephele.jobmanager.scheduler.local.LocalScheduler";
 		case CLUSTER:
 			return "eu.stratosphere.nephele.jobmanager.scheduler.queue.QueueScheduler";
-		case CLOUD:
-			return "eu.stratosphere.nephele.jobmanager.scheduler.queue.QueueScheduler";
 		default:
 			throw new RuntimeException("Unrecognized Execution Mode.");
 		}
@@ -180,8 +178,6 @@ public class JobManagerUtils {
 			return "eu.stratosphere.nephele.instance.local.LocalInstanceManager";
 		case CLUSTER:
 			return "eu.stratosphere.nephele.instance.cluster.ClusterManager";
-		case CLOUD:
-			return "eu.stratosphere.nephele.instance.ec2.EC2CloudManager";
 		default:
 			throw new RuntimeException("Unrecognized Execution Mode.");
 		}
