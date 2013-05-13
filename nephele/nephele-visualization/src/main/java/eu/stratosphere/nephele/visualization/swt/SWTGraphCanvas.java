@@ -51,12 +51,18 @@ public class SWTGraphCanvas extends Canvas implements PaintListener, Listener, M
 	private final GraphVisualizationData visualizationData;
 
 	private final boolean detectBottlenecks;
+	
+	
+	private final String FAKE_TAIL = "Fake Tail";
+	private final String ITERATION_SYNC = "Iteration Sync";
 
 	private AbstractSWTComponent toolTipComponent = null;
 
 	private SWTToolTip displayedToolTip = null;
 
 	private volatile boolean runAnimation = false;
+	
+	
 
 	public SWTGraphCanvas(GraphVisualizationData visualizationData, SWTJobTabItem jobTabItem, Composite parent,
 			int style, boolean detectBottlenecks) {
@@ -129,9 +135,14 @@ public class SWTGraphCanvas extends Canvas implements PaintListener, Listener, M
 			for (int i = 0; i < managementStage.getNumberOfGroupVertices(); i++) {
 
 				final ManagementGroupVertex groupVertex = managementStage.getGroupVertex(i);
-				final SWTGroupVertex visualGroupVertex = new SWTGroupVertex(parent, groupVertex);
 
-				groupMap.put(groupVertex, visualGroupVertex);
+				// hide unwanted elements of iteration pact plans				
+				if (!(groupVertex.getName().equals(this.FAKE_TAIL)|| groupVertex.getName().contains(this.ITERATION_SYNC)) ){
+				    final SWTGroupVertex visualGroupVertex = new SWTGroupVertex(parent, groupVertex);				
+				    groupMap.put(groupVertex, visualGroupVertex);
+				}
+				    
+				    
 			}
 		}
 
@@ -172,20 +183,24 @@ public class SWTGraphCanvas extends Canvas implements PaintListener, Listener, M
 			final ManagementVertex mv = iterator.next();
 			final SWTGroupVertex parent = groupMap.get(mv.getGroupVertex());
 
-			final SWTVertex visualVertex = new SWTVertex(parent, mv);
-			vertexMap.put(mv, visualVertex);
-
-			for (int i = 0; i < mv.getNumberOfOutputGates(); i++) {
-				final ManagementGate outputGate = mv.getOutputGate(i);
-				final SWTGate visualGate = new SWTGate(visualVertex, outputGate);
-				gateMap.put(outputGate, visualGate);
-			}
-
-			for (int i = 0; i < mv.getNumberOfInputGates(); i++) {
-				final ManagementGate inputGate = mv.getInputGate(i);
-				final SWTGate visualGate = new SWTGate(visualVertex, inputGate);
-				gateMap.put(inputGate, visualGate);
-			}
+			// draw connections only for elements that are not hided
+            if ( !(mv.getName().equals(this.FAKE_TAIL) || mv.getName().contains(this.ITERATION_SYNC))){                          
+			
+    			final SWTVertex visualVertex = new SWTVertex(parent, mv);
+    			vertexMap.put(mv, visualVertex);
+    
+    			for (int i = 0; i < mv.getNumberOfOutputGates(); i++) {
+    				final ManagementGate outputGate = mv.getOutputGate(i);
+    				final SWTGate visualGate = new SWTGate(visualVertex, outputGate);
+    				gateMap.put(outputGate, visualGate);
+    			}
+    
+    			for (int i = 0; i < mv.getNumberOfInputGates(); i++) {
+    				final ManagementGate inputGate = mv.getInputGate(i);
+    				final SWTGate visualGate = new SWTGate(visualVertex, inputGate);
+    				gateMap.put(inputGate, visualGate);
+    			}
+            }
 		}
 
 		iterator = new ManagementGraphIterator(managementGraph, true);
