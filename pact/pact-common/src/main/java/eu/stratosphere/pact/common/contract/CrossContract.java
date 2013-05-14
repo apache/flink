@@ -34,8 +34,8 @@ import eu.stratosphere.pact.generic.contract.GenericCrossContract;
  * 
  * @see CrossStub
  */
-public class CrossContract extends GenericCrossContract<CrossStub> implements RecordContract
-{	
+public class CrossContract extends GenericCrossContract<CrossStub> implements RecordContract {
+	
 	private static String DEFAULT_NAME = "<Unnamed Crosser>";
 
 	// --------------------------------------------------------------------------------------------
@@ -53,7 +53,7 @@ public class CrossContract extends GenericCrossContract<CrossStub> implements Re
 	 * The private constructor that only gets invoked from the Builder.
 	 * @param builder
 	 */
-	private CrossContract(Builder builder) {
+	protected CrossContract(Builder builder) {
 		super(builder.udf, builder.name);
 		setFirstInputs(builder.inputs1);
 		setSecondInputs(builder.inputs2);
@@ -71,8 +71,6 @@ public class CrossContract extends GenericCrossContract<CrossStub> implements Re
 
 	/**
 	 * Builder pattern, straight from Joshua Bloch's Effective Java (2nd Edition).
-	 * 
-	 * @author Aljoscha Krettek
 	 */
 	public static class Builder {
 		

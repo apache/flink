@@ -43,16 +43,9 @@ import eu.stratosphere.pact.common.util.InstantiationUtil;
  * memory (&gt; 200 bytes in a 64 bit JVM) due to several pointers and arrays.
  * <p>
  * This class is NOT thread-safe!
- * 
- * <hr>
- * 
- * 
- * 
- * 
- * @author Stephan Ewen
  */
-public final class PactRecord implements Value
-{
+public final class PactRecord implements Value {
+	
 	private static final int NULL_INDICATOR_OFFSET = Integer.MIN_VALUE;			// value marking a field as null
 	
 	private static final int MODIFIED_INDICATOR_OFFSET = Integer.MIN_VALUE + 1;	// value marking field as modified
@@ -86,16 +79,14 @@ public final class PactRecord implements Value
 	/**
 	 * Required nullary constructor for instantiation by serialization logic.
 	 */
-	public PactRecord()
-	{}
+	public PactRecord() {}
 	
 	/**
 	 * Creates a new record containing only a single field, which is the given value.
 	 * 
 	 * @param value The value for the single field of the record.
 	 */
-	public PactRecord(Value value)
-	{
+	public PactRecord(Value value) {
 		setField(0, value);
 	}
 	
@@ -105,8 +96,7 @@ public final class PactRecord implements Value
 	 * @param val1 The value for the first field.
 	 * @param val2 The value for the second field.
 	 */
-	public PactRecord(Value val1, Value val2)
-	{
+	public PactRecord(Value val1, Value val2) {
 		makeSpace(2);
 		setField(0, val1);
 		setField(1, val2);
@@ -117,8 +107,7 @@ public final class PactRecord implements Value
 	 *  
 	 * @param numFields The number of fields for the record.
 	 */
-	public PactRecord(int numFields)
-	{
+	public PactRecord(int numFields) {
 		setNumFields(numFields);
 	}
 
@@ -131,8 +120,7 @@ public final class PactRecord implements Value
 	 *  
 	 * @return The number of fields in the record.
 	 */
-	public int getNumFields()
-	{
+	public int getNumFields() {
 		return this.numFields;
 	}
 	
@@ -143,8 +131,7 @@ public final class PactRecord implements Value
 	 * 
 	 * @param numFields The new number of fields.
 	 */
-	public void setNumFields(final int numFields)
-	{
+	public void setNumFields(final int numFields) {
 		final int oldNumFields = this.numFields;
 		// check whether we increase or decrease the fields 
 		if (numFields > oldNumFields) {
@@ -168,8 +155,7 @@ public final class PactRecord implements Value
 	 * 
 	 * @param numFields The number of fields to reserve space for.
 	 */
-	public void makeSpace(int numFields)
-	{
+	public void makeSpace(int numFields) {
 		final int oldNumFields = this.numFields;
 		// increase the number of fields in the arrays
 		if (this.offsets == null) {
@@ -224,8 +210,7 @@ public final class PactRecord implements Value
 	 *                                   fields in this record.
 	 */
 	@SuppressWarnings("unchecked")
-	public <T extends Value> T getField(final int fieldNum, final Class<T> type)
-	{
+	public <T extends Value> T getField(final int fieldNum, final Class<T> type) {
 		// range check
 		if (fieldNum < 0 || fieldNum >= this.numFields) {
 			throw new IndexOutOfBoundsException(fieldNum + " for range [0.." + (this.numFields - 1) + "]");
@@ -272,8 +257,7 @@ public final class PactRecord implements Value
 	 * @return The value with the contents of the requested field, or null, if the field is null.
 	 */
 	@SuppressWarnings("unchecked")
-	public <T extends Value> T getField(int fieldNum, T target)
-	{
+	public <T extends Value> T getField(int fieldNum, T target) {
 		// range check
 		if (fieldNum < 0 || fieldNum >= this.numFields)
 			throw new IndexOutOfBoundsException();
@@ -281,7 +265,7 @@ public final class PactRecord implements Value
 			throw new NullPointerException("The target object may not be null");
 		
 		// get offset and check for null
-		int offset = this.offsets[fieldNum];
+		final int offset = this.offsets[fieldNum];
 		if (offset == NULL_INDICATOR_OFFSET) {
 			return null;
 		}
@@ -304,8 +288,7 @@ public final class PactRecord implements Value
 	 * @param target The value to deserialize the field into.
 	 * @return True, if the field was deserialized properly, false, if the field was null.
 	 */
-	public boolean getFieldInto(int fieldNum, Value target)
-	{
+	public boolean getFieldInto(int fieldNum, Value target) {
 		// range check
 		if (fieldNum < 0 || fieldNum >= this.numFields) {
 			throw new IndexOutOfBoundsException();
@@ -333,8 +316,7 @@ public final class PactRecord implements Value
 	 * @param targets
 	 * @return
 	 */
-	public boolean getFieldsInto(int[] positions, Value[] targets)
-	{
+	public boolean getFieldsInto(int[] positions, Value[] targets) {
 		for (int i = 0; i < positions.length; i++) {
 			if (!getFieldInto(positions[i], targets[i]))
 				return false;
@@ -347,8 +329,7 @@ public final class PactRecord implements Value
 	 * @param targets
 	 * @return
 	 */
-	public void getFieldsIntoCheckingNull(int[] positions, Value[] targets)
-	{
+	public void getFieldsIntoCheckingNull(int[] positions, Value[] targets) {
 		for (int i = 0; i < positions.length; i++) {
 			if (!getFieldInto(positions[i], targets[i]))
 				throw new NullKeyFieldException(i);
@@ -365,8 +346,7 @@ public final class PactRecord implements Value
 	 * @param offset The offset in the binary string.
 	 * @param limit The limit in the binary string.
 	 */
-	private final <T extends Value> void deserialize(T target, int offset, int limit, int fieldNumber)
-	{
+	private final <T extends Value> void deserialize(T target, int offset, int limit, int fieldNumber) {
 		final InternalDeSerializer serializer = this.serializer;
 		serializer.memory = this.binaryData;
 		serializer.position = offset;
@@ -393,8 +373,7 @@ public final class PactRecord implements Value
 	 * @param fieldNum The position of the field, starting at zero.
 	 * @param value The new value.
 	 */
-	public void setField(int fieldNum, Value value)
-	{
+	public void setField(int fieldNum, Value value) {
 		// range check
 		if (fieldNum < 0)
 			throw new IndexOutOfBoundsException();
@@ -409,43 +388,13 @@ public final class PactRecord implements Value
 	/**
 	 * @param value
 	 */
-	public void addField(Value value)
-	{
+	public void addField(Value value) {
 		final int num = this.numFields;
 		setNumFields(num + 1);
 		internallySetField(num, value);
 	}
 	
-//	/**
-//	 * Inserts a field into the record at the specified position.
-//	 * 
-//	 * @param position Position of the new field in the record.
-//	 * @param value Value to be inserted.
-//	 * 
-//	 * @throws IndexOutOfBoundsException Thrown, when the position is not between 0 (inclusive) and the
-//	 *                                   number of fields (exclusive).
-//	 */
-//	public void insertField(int position, Value value)
-//	{
-//		// range check
-//		if (position < 0 || position > this.numFields) {
-//			throw new IndexOutOfBoundsException();
-//		}
-//		final int oldNumFields = this.numFields;
-//		setNumFields(oldNumFields + 1);
-//
-//		// shift the offsets, lengths and fields in order to make space for the new field
-//		final int len = oldNumFields - position;
-//		System.arraycopy(this.offsets, position, this.offsets, position + 1, len);
-//		System.arraycopy(this.lengths, position, this.lengths, position + 1, len);
-//		System.arraycopy(this.fields, position, this.fields, position + 1, len);
-//
-//		// Set the field at given position to given value and mark as modified
-//		internallySetField(position, value);
-//	}
-	
-	private final void internallySetField(int fieldNum, Value value)
-	{
+	private final void internallySetField(int fieldNum, Value value) {
 		// check if we modify an existing field
 		this.offsets[fieldNum] = value != null ? MODIFIED_INDICATOR_OFFSET : NULL_INDICATOR_OFFSET;
 		this.writeFields[fieldNum] = value;
@@ -472,93 +421,6 @@ public final class PactRecord implements Value
 		final int offset = this.offsets[fieldNum];
 		return offset == NULL_INDICATOR_OFFSET;
 	}
-//	/**
-//	 * Removes the field at the given position.
-//	 * 
-//	 * @param field The index number of the field to be removed.
-//	 * @throws IndexOutOfBoundsException Thrown, when the position is not between 0 (inclusive) and the
-//	 *                                   number of fields (exclusive).
-//	 */
-//	public void removeField(int field)
-//	{
-//		// range check
-//		if (field < 0 || field >= this.numFields) {
-//			throw new IndexOutOfBoundsException();
-//		}
-//		int lastIndex = this.numFields - 1;		
-//
-//		if (field < lastIndex) {
-//			int len = lastIndex - field;
-//			System.arraycopy(this.offsets, field + 1, this.offsets, field, len);
-//			System.arraycopy(this.lengths, field + 1, this.lengths, field, len);
-//			System.arraycopy(this.fields, field + 1, this.fields, field, len);
-//			markModified(field);
-//		}
-//		this.offsets[lastIndex] = NULL_INDICATOR_OFFSET;
-//		this.lengths[lastIndex] = 0;
-//		this.fields[lastIndex] = null;
-//
-//		setNumFields(lastIndex);
-//	}
-	
-//	/**
-//	 * Projects (deletes) the record using the given bit mask. The bits correspond to the individual columns:
-//	 * <code>(1 == keep, 0 == delete)</code>.
-//	 * <p>
-//	 * <b>Only use when record has not more than 64 fields!</b>
-//	 * 
-//	 * @param mask The bitmask used for the projection. The i-th bit corresponds to the i-th
-//	 *             field in the record, starting with the least significant bit.
-//	 */
-//	public void project(long mask)
-//	{
-//		final int oldNumFields = this.numFields;
-//		int index = 0;
-//
-//		for (int i = 0; i < oldNumFields; i++) {
-//			if ((mask & 0x1L) == 0) {
-//				this.removeField(index);
-//			}
-//			else {
-//				index++;
-//			}
-//			mask >>>= 1;
-//		}
-//	}
-	
-//	/**
-//	 * Projects (deletes) the record using the given bit mask. The bits correspond to the individual columns:
-//	 * <code>(1 == keep, 0 == delete)</code>.
-//	 * 
-//	 * @param mask The bit masks used for the projection. The i-th bit in the n-th mask corresponds to the
-//	 *             <code>(n * 64) + i</code>-th field in the record, starting with the least significant bit.
-//	 */
-//	public void project(long[] mask)
-//	{
-//		long curMask = 0;
-//		int offset = 0;
-//		long tmp = 0;
-//		int len = 0;
-//		int index = 0;
-//		int oldNumFields = this.numFields;
-//
-//		for (int k = 0; k < mask.length; k++) {
-//			curMask = mask[k];
-//			offset = k * Long.SIZE;
-//			len = ((offset + Long.SIZE) < oldNumFields) ? Long.SIZE : oldNumFields - offset;
-//
-//			for (int l = 0; l < len; l++) {
-//				tmp = (1L << l) & curMask;
-//
-//				if (tmp == 0) {
-//					this.removeField(index);
-//				}
-//				else {
-//					index++;
-//				}
-//			}
-//		}
-//	}
 	
 	/**
 	 * Sets the field at the given position to <code>null</code>.
@@ -567,8 +429,7 @@ public final class PactRecord implements Value
 	 * @throws IndexOutOfBoundsException Thrown, when the position is not between 0 (inclusive) and the
 	 *                                   number of fields (exclusive).
 	 */
-	public void setNull(int field)
-	{
+	public void setNull(int field) {
 		// range check
 		if (field < 0 || field >= this.numFields) {
 			throw new IndexOutOfBoundsException();
@@ -583,8 +444,7 @@ public final class PactRecord implements Value
 	 * 
 	 * @param mask Bit mask, where the i-th least significant bit represents the i-th field in the record.
 	 */
-	public void setNull(long mask)
-	{
+	public void setNull(long mask) {
 		for (int i = 0; i < this.numFields; i++, mask >>>= 1) {
 			if ((mask & 0x1) != 0)
 				internallySetField(i, null);
@@ -598,8 +458,7 @@ public final class PactRecord implements Value
 	 * @param mask Bit mask, where the i-th least significant bit in the n-th bit mask represents the
 	 *             <code>(n*64) + i</code>-th field in the record.
 	 */
-	public void setNull(long[] mask)
-	{	
+	public void setNull(long[] mask) {
 		for (int maskPos = 0, i = 0; i < this.numFields;) {
 			long currMask = mask[maskPos];
 			for (int k = 64; i < this.numFields && k > 0; --k, i++, currMask >>>= 1) {
@@ -612,8 +471,7 @@ public final class PactRecord implements Value
 	/**
 	 * Clears the record. After this operation, the record will have zero fields.
 	 */
-	public void clear()
-	{
+	public void clear() {
 		if (this.numFields > 0) {
 			this.numFields = 0;
 			this.firstModifiedPos = 0;
@@ -639,8 +497,7 @@ public final class PactRecord implements Value
 	 * 
 	 * @param other The records whose fields to union with this record's fields.
 	 */
-	public void unionFields(PactRecord other)
-	{
+	public void unionFields(PactRecord other) {
 		final int minFields = Math.min(this.numFields, other.numFields);
 		final int maxFields = Math.max(this.numFields, other.numFields);
 		
@@ -811,16 +668,7 @@ public final class PactRecord implements Value
 	/**
 	 * @param target
 	 */
-	public void copyToIfModified(PactRecord target)
-	{
-		copyTo(target);
-	}
-	
-	/**
-	 * @param target
-	 */
-	public void copyTo(PactRecord target)
-	{
+	public void copyTo(PactRecord target) {
 		updateBinaryRepresenation();
 		
 		if (target.binaryData == null || target.binaryData.length < this.binaryLen) {
@@ -853,13 +701,103 @@ public final class PactRecord implements Value
 	 * 
 	 * @return An exact copy of this record. 
 	 */
-	public PactRecord createCopy()
-	{
+	public PactRecord createCopy() {
 		final PactRecord rec = new PactRecord();
 		copyTo(rec);
 		return rec;
 	}
+	
+	/**
+	 * Bin-copies fields from a source record to this record. The following caveats apply:
+	 * 
+	 * If the source field is in a modified state, no binary representation will exist yet.
+	 * In that case, this method is equivalent to setField(..., source.getField(..., <class>)). 
+	 * In particular, if setValue is called on the source field Value instance, that change 
+	 * will propagate to this record.
+	 * 
+	 * If the source field has already been serialized, then the binary representation 
+	 * will be copied. Further modifications to the source field will not be observable 
+	 * via this record, but attempting to read the field from this record will cause it 
+	 * to be deserialized.
+	 * 
+	 * Finally, bin-copying a source field requires calling updateBinaryRepresentation
+	 * on this instance in order to reserve space in the binaryData array. If none
+	 * of the source fields are actually bin-copied, then updateBinaryRepresentation
+	 * won't be called. 
+	 *
+	 * @param sourceFieldNum
+	 * @param targetFieldNum
+	 * @param target
+	 */
+	public void copyFrom(final PactRecord source, final int[] sourcePositions, final int[] targetPositions) {
+		
+		final int[] sourceOffsets = source.offsets;
+		final int[] sourceLengths = source.lengths;
+		final byte[] sourceBuffer = source.binaryData;
+		final Value[] sourceFields = source.writeFields;
 
+		boolean anyFieldIsBinary = false;
+		int maxFieldNum = 0;
+		
+		for (int i = 0; i < sourcePositions.length; i++) {
+		
+			final int sourceFieldNum = sourcePositions[i];
+			final int sourceOffset = sourceOffsets[sourceFieldNum];
+			final int targetFieldNum = targetPositions[i];
+
+			maxFieldNum = Math.max(targetFieldNum, maxFieldNum);
+
+			if (sourceOffset == NULL_INDICATOR_OFFSET) {
+				// set null on existing field (new fields are null by default)
+				if (targetFieldNum < numFields) {
+					internallySetField(targetFieldNum, null);
+				}
+			} else if (sourceOffset != MODIFIED_INDICATOR_OFFSET) {
+				anyFieldIsBinary = true;
+			}
+		}
+		
+		if (numFields < maxFieldNum + 1)
+			setNumFields(maxFieldNum + 1);
+		
+		final int[] targetLengths = this.lengths;
+		final int[] targetOffsets = this.offsets;
+		
+		// reserve space in binaryData for the binary source fields
+		if (anyFieldIsBinary) {
+			
+			for (int i = 0; i < sourcePositions.length; i++) {
+				final int sourceFieldNum = sourcePositions[i];
+				final int sourceOffset = sourceOffsets[sourceFieldNum];
+				
+				if (sourceOffset != MODIFIED_INDICATOR_OFFSET && sourceOffset != NULL_INDICATOR_OFFSET) {
+					final int targetFieldNum = targetPositions[i];
+					targetLengths[targetFieldNum] = sourceLengths[sourceFieldNum];
+					internallySetField(targetFieldNum, RESERVE_SPACE);
+				}
+			}
+			
+			updateBinaryRepresenation();
+		}
+			
+		final byte[] targetBuffer = this.binaryData;
+
+		for (int i = 0; i < sourcePositions.length; i++) {
+			final int sourceFieldNum = sourcePositions[i];
+			final int sourceOffset = sourceOffsets[sourceFieldNum];
+			final int targetFieldNum = targetPositions[i];
+
+			if (sourceOffset == MODIFIED_INDICATOR_OFFSET) {
+				internallySetField(targetFieldNum, sourceFields[sourceFieldNum]);
+			} else if (sourceOffset != NULL_INDICATOR_OFFSET) {
+				// bin-copy
+				final int targetOffset = targetOffsets[targetFieldNum];
+				final int length = targetLengths[targetFieldNum];
+				System.arraycopy(sourceBuffer, sourceOffset, targetBuffer, targetOffset, length);
+			}
+		}
+	}
+	
 	// --------------------------------------------------------------------------------------------
 	
 	/**
@@ -868,8 +806,7 @@ public final class PactRecord implements Value
 	 * @param deserializationHolders
 	 * @return
 	 */
-	public final boolean equalsFields(int[] positions, Value[] searchValues, Value[] deserializationHolders)
-	{
+	public final boolean equalsFields(int[] positions, Value[] searchValues, Value[] deserializationHolders) {
 		for (int i = 0; i < positions.length; i++) {
 			final Value v = getField(positions[i], deserializationHolders[i]);
 			if (v == null || (!v.equals(searchValues[i]))) {
@@ -887,8 +824,7 @@ public final class PactRecord implements Value
 	 * this function triggers the modified fields to serialize themselves into the records buffer and
 	 * afterwards updates the offset table.
 	 */
-	public void updateBinaryRepresenation()
-	{
+	public void updateBinaryRepresenation() {
 		// check whether the binary state is in sync
 		final int firstModified = this.firstModifiedPos;
 		if (firstModified == Integer.MAX_VALUE)
@@ -929,12 +865,26 @@ public final class PactRecord implements Value
 						continue;
 					
 					offsets[i] = offset;
-					if (co == MODIFIED_INDICATOR_OFFSET)
-						// serialize modified fields
-						this.writeFields[i].write(serializer);
-					else
+					if (co == MODIFIED_INDICATOR_OFFSET) {
+						
+						final Value writeField = this.writeFields[i];
+						
+						if (writeField == RESERVE_SPACE) {
+							// RESERVE_SPACE is a placeholder indicating lengths[i] bytes should be reserved
+							final int length = this.lengths[i];
+							
+							if (serializer.position >= serializer.memory.length - length - 1)
+								serializer.resize(length);
+							serializer.position += length;
+							
+						} else {
+							// serialize modified fields
+							this.writeFields[i].write(serializer);
+						}
+					} else {
 						// bin-copy unmodified fields
 						serializer.write(this.binaryData, co, this.lengths[i]);
+					}
 					
 					this.lengths[i] = serializer.position - offset;
 					offset = serializer.position;
@@ -954,8 +904,7 @@ public final class PactRecord implements Value
 		this.firstModifiedPos = Integer.MAX_VALUE;
 	}
 	
-	private final void serializeHeader(final InternalDeSerializer serializer, final int[] offsets, final int numFields)
-	{
+	private final void serializeHeader(final InternalDeSerializer serializer, final int[] offsets, final int numFields) {
 		try {
 			if (numFields > 0) {
 				int slp = serializer.position;	// track the last position of the serializer
@@ -1033,8 +982,7 @@ public final class PactRecord implements Value
 	 * @see eu.stratosphere.nephele.io.IOReadableWritable#write(java.io.DataOutput)
 	 */
 	@Override
-	public void write(DataOutput out) throws IOException
-	{
+	public void write(DataOutput out) throws IOException {
 		// make sure everything is in a valid binary representation
 		updateBinaryRepresenation();
 		
@@ -1047,8 +995,7 @@ public final class PactRecord implements Value
 	 * @see eu.stratosphere.nephele.io.IOReadableWritable#read(java.io.DataInput)
 	 */
 	@Override
-	public void read(DataInput in) throws IOException
-	{
+	public void read(DataInput in) throws IOException {
 		final int len = readVarLengthInt(in);
 		this.binaryLen = len;
 			
@@ -1064,8 +1011,7 @@ public final class PactRecord implements Value
 		initFields(data, 0, len);
 	}
 	
-	private final void initFields(final byte[] data, final int begin, final int len)
-	{
+	private final void initFields(final byte[] data, final int begin, final int len) {
 		try {
 			// read number of fields, variable length encoded reverse at the back
 			int pos = begin + len - 2;
@@ -1164,9 +1110,7 @@ public final class PactRecord implements Value
 	 * 
 	 * @throws IOException Thrown, if an error occurred in the view during writing.
 	 */
-	public long serialize(DataOutputView target)
-	throws IOException
-	{
+	public long serialize(DataOutputView target) throws IOException {
 		updateBinaryRepresenation();
 		
 		long bytesForLen = 1;
@@ -1186,8 +1130,7 @@ public final class PactRecord implements Value
 	 * @param source
 	 * @throws IOException
 	 */
-	public void deserialize(DataInputView source) throws IOException
-	{
+	public void deserialize(DataInputView source) throws IOException {
 		read(source);
 	}
 	
@@ -1195,8 +1138,7 @@ public final class PactRecord implements Value
 	//                                     Utilities
 	// --------------------------------------------------------------------------------------------
 	
-	private static final void writeVarLengthInt(DataOutput out, int value) throws IOException
-	{
+	private static final void writeVarLengthInt(DataOutput out, int value) throws IOException {
 		while (value >= MAX_BIT) {
 			out.write(value | MAX_BIT);
 			value >>= 7;
@@ -1204,8 +1146,7 @@ public final class PactRecord implements Value
 		out.write(value);
 	}
 	
-	private static final int readVarLengthInt(DataInput in) throws IOException
-	{
+	private static final int readVarLengthInt(DataInput in) throws IOException {
 		// read first byte
 		int val = in.readUnsignedByte();
 		if (val >= MAX_BIT) {
@@ -1227,6 +1168,23 @@ public final class PactRecord implements Value
 	// ------------------------------------------------------------------------
 	//                Utility class for internal (de)serialization
 	// ------------------------------------------------------------------------
+	
+	/**
+	 * A special Value instance that doesn't actually (de)serialize anything,
+	 * but instead indicates that space should be reserved in the buffer.
+	 */
+	private static final Value RESERVE_SPACE = new Value() {
+
+		@Override
+		public void write(DataOutput out) throws IOException {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public void read(DataInput in) throws IOException {
+			throw new UnsupportedOperationException();
+		}		
+	};
 	
 	/**
 	 * Internal interface class to provide serialization for the data types.
@@ -1312,8 +1270,7 @@ public final class PactRecord implements Value
 		}
 
 		@Override
-		public String readLine() throws IOException
-		{
+		public String readLine() throws IOException {
 			if (this.position < this.end) {
 				// read until a newline is found
 				StringBuilder bld = new StringBuilder();
@@ -1630,8 +1587,7 @@ public final class PactRecord implements Value
 			this.position = count;
 		}
 		
-		private final void writeValLenIntBackwards(int value) throws IOException
-		{
+		private final void writeValLenIntBackwards(int value) throws IOException {
 			if (this.position > this.memory.length - 4) {
 				resize(4);
 			}
@@ -1663,8 +1619,7 @@ public final class PactRecord implements Value
 			}
 		}
 		
-		private final void resize(int minCapacityAdd) throws IOException
-		{
+		private final void resize(int minCapacityAdd) throws IOException {
 			try {
 				final int newLen = Math.max(this.memory.length * 2, this.memory.length + minCapacityAdd);
 				final byte[] nb = new byte[newLen];

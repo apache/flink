@@ -65,6 +65,11 @@ public class Configuration implements IOReadableWritable {
 	public Configuration(final ClassLoader classLoader) {
 		this.classLoader = classLoader;
 	}
+	
+	
+	public ClassLoader getClassLoader() {
+		return this.classLoader;
+	}
 
 	// --------------------------------------------------------------------------------------------
 

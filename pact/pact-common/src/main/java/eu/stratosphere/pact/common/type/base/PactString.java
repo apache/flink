@@ -40,8 +40,8 @@ import eu.stratosphere.pact.common.type.NormalizableKey;
  * @see java.lang.String
  * @see java.lang.CharSequence
  */
-public class PactString implements Key, NormalizableKey, CharSequence, CopyableValue<PactString>
-{
+public class PactString implements Key, NormalizableKey, CharSequence, CopyableValue<PactString> {
+	
 	private static final char[] EMPTY_STRING = new char[0];
 	
 	private static final int HIGH_BIT = 0x1 << 7;
@@ -65,8 +65,7 @@ public class PactString implements Key, NormalizableKey, CharSequence, CopyableV
 	/**
 	 * Initializes the encapsulated String object with an empty string.	
 	 */
-	public PactString()
-	{
+	public PactString() {
 		this.value = EMPTY_STRING;
 	}
 	
@@ -75,8 +74,7 @@ public class PactString implements Key, NormalizableKey, CharSequence, CopyableV
 	 * 
 	 * @param value The string containing the value for this PactString.
 	 */
-	public PactString(final String value)
-	{
+	public PactString(String value) {
 		this.value = EMPTY_STRING;
 		setValue(value);
 	}
@@ -86,8 +84,7 @@ public class PactString implements Key, NormalizableKey, CharSequence, CopyableV
 	 * 
 	 * @param value The initial value.
 	 */
-	public PactString(final PactString value)
-	{
+	public PactString(PactString value) {
 		this.value = EMPTY_STRING;
 		setValue(value);
 	}
@@ -99,8 +96,7 @@ public class PactString implements Key, NormalizableKey, CharSequence, CopyableV
 	 * @param offset The offset of the substring.
 	 * @param len The length of the substring.
 	 */
-	public PactString(final PactString value, final int offset, final int len)
-	{
+	public PactString(PactString value, int offset, int len) {
 		this.value = EMPTY_STRING;
 		setValue(value, offset, len);
 	}
@@ -114,8 +110,7 @@ public class PactString implements Key, NormalizableKey, CharSequence, CopyableV
 	 * 
 	 * @param len The new length.
 	 */
-	public void setLength(int len)
-	{
+	public void setLength(int len) {
 		if (len < 0 || len > this.len)
 			throw new IllegalArgumentException("Length must be between 0 and the current length.");
 		this.len = len;
@@ -144,8 +139,7 @@ public class PactString implements Key, NormalizableKey, CharSequence, CopyableV
 	 * 
 	 * @param value The new string value.
 	 */
-	public void setValue(final String value)
-	{
+	public void setValue(String value) {
 		if (value == null)
 			throw new NullPointerException("Value must not be null");
 		
@@ -164,8 +158,7 @@ public class PactString implements Key, NormalizableKey, CharSequence, CopyableV
 	 * 
 	 * @param value The new string value.
 	 */
-	public void setValue(final PactString value)
-	{
+	public void setValue(PactString value) {
 		if (value == null)
 			throw new NullPointerException("Value must not be null");
 
@@ -182,8 +175,7 @@ public class PactString implements Key, NormalizableKey, CharSequence, CopyableV
 	 * @param offset The position to start the substring.
 	 * @param len The length of the substring.
 	 */
-	public void setValue(final PactString value, int offset, int len)
-	{
+	public void setValue(PactString value, int offset, int len) {
 		if (value == null)
 			throw new NullPointerException();
 		
@@ -203,11 +195,30 @@ public class PactString implements Key, NormalizableKey, CharSequence, CopyableV
 	 *  
 	 * @param buffer The character buffer to read the characters from.
 	 */
-	public void setValue(CharBuffer buffer)
-	{
+	public void setValue(CharBuffer buffer) {
 		final int len = buffer.length();
 		ensureSize(len);
 		buffer.get(this.value, 0, len);
+		this.len = len;
+		this.hashCode = 0;
+	}
+	
+	/**
+	 * Sets the value of the PactString to a substring of the given value.
+	 * 
+	 * @param value The new string value (as a character array).
+	 * @param offset The position to start the substring.
+	 * @param len The length of the substring.
+	 */
+	public void setValue(char[] chars, int offset, int len) {
+		if (chars == null)
+			throw new NullPointerException();
+
+		if (offset < 0 || len < 0 || offset > chars.length - len)
+			throw new IndexOutOfBoundsException();
+
+		ensureSize(len);
+		System.arraycopy(chars, offset, this.value, 0, len);
 		this.len = len;
 		this.hashCode = 0;
 	}
@@ -220,8 +231,7 @@ public class PactString implements Key, NormalizableKey, CharSequence, CopyableV
 	 * @param offset The offset in the array.
 	 * @param len The number of bytes to read from the array.
 	 */
-	public void setValueAscii(byte[] bytes, int offset, int len)
-	{
+	public void setValueAscii(byte[] bytes, int offset, int len) {
 		if (bytes == null)
 			throw new NullPointerException("Bytes must not be null");
 		if (len < 0 | offset < 0 | offset > bytes.length - len)
@@ -250,8 +260,7 @@ public class PactString implements Key, NormalizableKey, CharSequence, CopyableV
 	 * @return The substring.
 	 * @exception  IndexOutOfBoundsException Thrown, if the start is negative.
 	 */
-	public PactString substring(int start)
-	{
+	public PactString substring(int start) {
 		return substring(start, this.len);
 	}
 	
@@ -265,8 +274,7 @@ public class PactString implements Key, NormalizableKey, CharSequence, CopyableV
 	 * @exception IndexOutOfBoundsException
 	 *            Thrown, if the start is negative, or the end is larger than the length.
 	 */
-	public PactString substring(int start, int end)
-	{
+	public PactString substring(int start, int end) {
 		return new PactString(this, start, end - start);
 	}
 	
@@ -279,8 +287,7 @@ public class PactString implements Key, NormalizableKey, CharSequence, CopyableV
 	 * @return The substring.
 	 * @exception  IndexOutOfBoundsException Thrown, if the start is negative.
 	 */
-	public void substring(PactString target, int start)
-	{
+	public void substring(PactString target, int start) {
 		substring(target, start, this.len);
 	}
 	
@@ -295,8 +302,7 @@ public class PactString implements Key, NormalizableKey, CharSequence, CopyableV
 	 * @exception IndexOutOfBoundsException
 	 *            Thrown, if the start is negative, or the end is larger than the length.
 	 */
-	public void substring(PactString target, int start, int end)
-	{
+	public void substring(PactString target, int start, int end) {
 		target.setValue(this, start, end - start);
 	}
 	
@@ -306,8 +312,7 @@ public class PactString implements Key, NormalizableKey, CharSequence, CopyableV
 	 * @return The position of the first occurrence of the search string in the pact string, or <code>-1</code>, if
 	 *         the character sequence was not found.
 	 */
-	public int find(final CharSequence str)
-	{
+	public int find(CharSequence str) {
 		return find(str, 0);
 	}
 
@@ -318,8 +323,7 @@ public class PactString implements Key, NormalizableKey, CharSequence, CopyableV
 	 * @return The position of the first occurrence of the search string in the pact string, or <code>-1</code>, if
 	 *         the character sequence was not found.
 	 */
-	public int find(final CharSequence str, final int start)
-	{
+	public int find(CharSequence str, int start) {
 		final int pLen = this.len;
 		final int sLen = str.length();
 		
@@ -368,8 +372,7 @@ public class PactString implements Key, NormalizableKey, CharSequence, CopyableV
 	 * @return True, if this PactString substring, starting at position <code>startIndex</code> has </code>prefix</code>
 	 *         as its prefix.
 	 */
-	public boolean startsWith(CharSequence prefix, int startIndex)
-	{
+	public boolean startsWith(CharSequence prefix, int startIndex) {
 		final char[] thisChars = this.value;
 		final int pLen = this.len;
 		final int sLen = prefix.length();
@@ -403,10 +406,6 @@ public class PactString implements Key, NormalizableKey, CharSequence, CopyableV
 	//                            Serialization / De-Serialization
 	// --------------------------------------------------------------------------------------------
 	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.IOReadableWritable#read(java.io.DataInput)
-	 */
 	@Override
 	public void read(final DataInput in) throws IOException {
 		int len = in.readUnsignedByte();
@@ -445,10 +444,6 @@ public class PactString implements Key, NormalizableKey, CharSequence, CopyableV
 		}
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.IOReadableWritable#write(java.io.DataOutput)
-	 */
 	@Override
 	public void write(final DataOutput out) throws IOException {
 		int len = this.len;
@@ -474,19 +469,11 @@ public class PactString implements Key, NormalizableKey, CharSequence, CopyableV
 
 	// --------------------------------------------------------------------------------------------
 	
-	/*
-	 * (non-Javadoc)
-	 * @see java.lang.Object#toString()
-	 */
 	@Override
 	public String toString() {
 		return new String(this.value, 0, this.len);
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see java.lang.Comparable#compareTo(java.lang.Object)
-	 */
 	@Override
 	public int compareTo(final Key o) {
 		if (o instanceof PactString) {
@@ -510,10 +497,6 @@ public class PactString implements Key, NormalizableKey, CharSequence, CopyableV
 			throw new ClassCastException("Cannot compare PactString to " + o.getClass().getName());
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see java.lang.Object#hashCode()
-	 */
 	@Override
 	public int hashCode() {
 		int h = this.hashCode;
@@ -529,10 +512,6 @@ public class PactString implements Key, NormalizableKey, CharSequence, CopyableV
 		return h;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see java.lang.Object#equals(java.lang.Object)
-	 */
 	@Override
 	public boolean equals(final Object obj) {
 		if (this == obj) {
@@ -561,17 +540,11 @@ public class PactString implements Key, NormalizableKey, CharSequence, CopyableV
 	//                              Char Sequence Implementation
 	// --------------------------------------------------------------------------------------------
 
-	/* (non-Javadoc)
-	 * @see java.lang.CharSequence#length()
-	 */
 	@Override
 	public int length() {
 		return this.len;
 	}
 	
-	/* (non-Javadoc)
-	 * @see java.lang.CharSequence#charAt(int)
-	 */
 	@Override
 	public char charAt(int index) {
 		if (index < len) {
@@ -582,9 +555,6 @@ public class PactString implements Key, NormalizableKey, CharSequence, CopyableV
 		}
 	}
 
-	/* (non-Javadoc)
-	 * @see java.lang.CharSequence#subSequence(int, int)
-	 */
 	@Override
 	public CharSequence subSequence(int start, int end) {
 		return new PactString(this, start, end - start);
@@ -594,17 +564,11 @@ public class PactString implements Key, NormalizableKey, CharSequence, CopyableV
 	//                                   Normalized Key
 	// --------------------------------------------------------------------------------------------
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.type.NormalizableKey#getNormalizedKeyLen()
-	 */
 	@Override
 	public int getMaxNormalizedKeyLen() {
 		return Integer.MAX_VALUE;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.type.NormalizableKey#copyNormalizedKey(byte[], int, int)
-	 */
 	@Override
 	public void copyNormalizedKey(byte[] target, int offset, int len)
 	{
@@ -638,17 +602,11 @@ public class PactString implements Key, NormalizableKey, CharSequence, CopyableV
 	
 	// --------------------------------------------------------------------------------------------
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.type.CopyableValue#getBinaryLength()
-	 */
 	@Override
 	public int getBinaryLength() {
 		return -1;
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.type.Copyable#copyTo(java.lang.Object)
-	 */
 	@Override
 	public void copyTo(PactString target) {
 		target.len = this.len;
@@ -657,9 +615,6 @@ public class PactString implements Key, NormalizableKey, CharSequence, CopyableV
 		System.arraycopy(this.value, 0, target.value, 0, this.len);
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.type.CopyableValue#copy(eu.stratosphere.nephele.services.memorymanager.DataInputView, eu.stratosphere.nephele.services.memorymanager.DataOutputView)
-	 */
 	@Override
 	public void copy(DataInputView in, DataOutputView target) throws IOException {
 		int len = in.readUnsignedByte();

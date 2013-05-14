@@ -25,10 +25,11 @@ import eu.stratosphere.pact.common.util.Visitor;
  * Abstract contract superclass for for all contracts that have one input like "map" or "reduce".
  */
 public abstract class SingleInputContract<T extends Stub> extends AbstractPact<T> {
+	
 	/**
 	 * The input which produces the data consumed by this Pact.
 	 */
-	final protected List<Contract> input = new ArrayList<Contract>();
+	protected final List<Contract> input = new ArrayList<Contract>();
 	
 	/**
 	 * The positions of the keys in the tuple.
@@ -94,7 +95,7 @@ public abstract class SingleInputContract<T extends Stub> extends AbstractPact<T
 	 * Clears all previous connections and sets the given contract as
 	 * single input of this contract.
 	 * 
-	 * @param input		The contract will be set as input.
+	 * @param input The contract will be set as input.
 	 */
 	public void setInput(Contract input) {
 		this.input.clear();
@@ -105,7 +106,7 @@ public abstract class SingleInputContract<T extends Stub> extends AbstractPact<T
 	 * Clears all previous connections and sets the given contracts as
 	 * inputs of this contract.
 	 * 
-	 * @param input		The contracts will be set as inputs.
+	 * @param input The contracts will be set as inputs.
 	 */
 	public void setInputs(List<Contract> inputs) {
 		this.input.clear();

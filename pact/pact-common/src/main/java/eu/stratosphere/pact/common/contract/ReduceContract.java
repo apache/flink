@@ -37,8 +37,8 @@ import eu.stratosphere.pact.generic.contract.GenericReduceContract;
  * 
  * @see ReduceStub
  */
-public class ReduceContract extends GenericReduceContract<ReduceStub> implements RecordContract
-{	
+public class ReduceContract extends GenericReduceContract<ReduceStub> implements RecordContract {
+	
 	private static final String DEFAULT_NAME = "<Unnamed Reducer>";		// the default name for contracts
 	
 	/**
@@ -77,7 +77,7 @@ public class ReduceContract extends GenericReduceContract<ReduceStub> implements
 	 * The private constructor that only gets invoked from the Builder.
 	 * @param builder
 	 */
-	private ReduceContract(Builder builder) {
+	protected ReduceContract(Builder builder) {
 		super(builder.udf, builder.getKeyColumnsArray(), builder.name);
 		this.keyTypes = builder.getKeyClassesArray();
 		setInputs(builder.inputs);
@@ -167,8 +167,6 @@ public class ReduceContract extends GenericReduceContract<ReduceStub> implements
 	
 	/**
 	 * Builder pattern, straight from Joshua Bloch's Effective Java (2nd Edition).
-	 * 
-	 * @author Aljoscha Krettek
 	 */
 	public static class Builder {
 		

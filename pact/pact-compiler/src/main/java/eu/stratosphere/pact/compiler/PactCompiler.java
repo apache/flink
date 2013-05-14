@@ -724,7 +724,7 @@ public class PactCompiler {
 		}
 
 		// finalize the plan
-		OptimizedPlan plan = new PlanFinalizer().createFinalPlan(bestPlanSinks, pactPlan.getJobName(), memoryPerInstance);
+		OptimizedPlan plan = new PlanFinalizer().createFinalPlan(bestPlanSinks, pactPlan.getJobName(), pactPlan, memoryPerInstance);
 		plan.setInstanceTypeName(instanceName);
 		
 		// swap the binary unions for n-ary unions. this changes no strategies or memory consumers whatsoever, so
@@ -1252,7 +1252,7 @@ public class PactCompiler {
 			this.stackOfIterationNodes = new ArrayDeque<IterationPlanNode>();
 		}
 
-		private OptimizedPlan createFinalPlan(List<SinkPlanNode> sinks, String jobName, long memPerInstance) {
+		private OptimizedPlan createFinalPlan(List<SinkPlanNode> sinks, String jobName, Plan originalPlan, long memPerInstance) {
 			if (LOG.isDebugEnabled())
 				LOG.debug("Available memory per instance: " + memPerInstance);
 			
@@ -1309,7 +1309,7 @@ public class PactCompiler {
 					}
 				}
 			}
-			return new OptimizedPlan(this.sources, this.sinks, this.allNodes, jobName);
+			return new OptimizedPlan(this.sources, this.sinks, this.allNodes, jobName, originalPlan);
 		}
 
 		/*

@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import eu.stratosphere.pact.common.stubs.CoGroupStub;
+import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.generic.contract.Contract;
 import eu.stratosphere.pact.generic.contract.GenericCoGroupContract;
@@ -75,7 +76,7 @@ public class CoGroupContract extends GenericCoGroupContract<CoGroupStub> impleme
 	 * The private constructor that only gets invoked from the Builder.
 	 * @param builder
 	 */
-	private CoGroupContract(Builder builder) {
+	protected CoGroupContract(Builder builder) {
 		super(builder.udf, builder.getKeyColumnsArray1(), builder.getKeyColumnsArray2(), builder.name);
 		this.keyTypes = builder.getKeyClassesArray();
 		setFirstInputs(builder.inputs1);
@@ -211,7 +212,7 @@ public class CoGroupContract extends GenericCoGroupContract<CoGroupStub> impleme
 		 * @param keyColumn1 The position of the key in the first input's records.
 		 * @param keyColumn2 The position of the key in the second input's records.
 		 */
-		private Builder(Class<? extends CoGroupStub> udf, Class<? extends Key> keyClass,
+		protected Builder(Class<? extends CoGroupStub> udf, Class<? extends Key> keyClass,
 				int keyColumn1, int keyColumn2)
 		{
 			this.udf = udf;
@@ -221,6 +222,26 @@ public class CoGroupContract extends GenericCoGroupContract<CoGroupStub> impleme
 			this.keyColumns1.add(keyColumn1);
 			this.keyColumns2 = new ArrayList<Integer>();
 			this.keyColumns2.add(keyColumn2);
+			this.inputs1 = new ArrayList<Contract>();
+			this.inputs2 = new ArrayList<Contract>();
+		}
+		
+		
+		
+		/**
+		 * Creates a Builder with the provided {@link MatchStub} implementation. This method is intended 
+		 * for special case sub-types only.
+		 * 
+		 * @param udf The {@link CoGroupStub} implementation for this CoGroup contract.
+		 * @param keyClass The class of the key data type.
+		 * @param keyColumn1 The position of the key in the first input's records.
+		 * @param keyColumn2 The position of the key in the second input's records.
+		 */
+		protected Builder(Class<? extends CoGroupStub> udf) {
+			this.udf = udf;
+			this.keyClasses = new ArrayList<Class<? extends Key>>();
+			this.keyColumns1 = new ArrayList<Integer>();
+			this.keyColumns2 = new ArrayList<Integer>();
 			this.inputs1 = new ArrayList<Contract>();
 			this.inputs2 = new ArrayList<Contract>();
 		}

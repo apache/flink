@@ -5,15 +5,13 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
-		<artifactId>stratosphere</artifactId>
 		<groupId>eu.stratosphere</groupId>
+		<artifactId>ozone</artifactId>
 		<version>0.2</version>
 	</parent>
 
 	<artifactId>pact</artifactId>
-
 	<packaging>pom</packaging>
-
 	<name>pact</name>
 
 	<inceptionYear>2009</inceptionYear>
@@ -26,26 +24,6 @@
 	</licenses>
 
 	<developers>
-		<developer>
-			<id>sewen</id>
-			<name>Stephan Ewen</name>
-			<email>stephan.ewen@tu-berlin.de</email>
-			<organization>TU-Berlin, DIMA</organization>
-			<organizationUrl>http://www.dima.tu-berlin.de</organizationUrl>
-			<roles>
-				<role>Lead Developer</role>
-			</roles>
-		</developer>
-		<developer>
-			<id>fhueske</id>
-			<name>Fabian Hueske</name>
-			<email>fabian.hueske@tu-berlin.de</email>
-			<organization>TU-Berlin, DIMA</organization>
-			<organizationUrl>http://www.dima.tu-berlin.de</organizationUrl>
-			<roles>
-				<role>Lead Developer</role>
-			</roles>
-		</developer>
 	</developers>
 
 	<properties>
@@ -63,7 +41,6 @@
 
 	<build>
 		<plugins>
-
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-source-plugin</artifactId>

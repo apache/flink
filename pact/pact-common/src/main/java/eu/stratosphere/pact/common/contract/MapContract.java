@@ -32,11 +32,9 @@ import eu.stratosphere.pact.generic.contract.GenericMapContract;
  * for each record independently.
  * 
  * @see MapStub
- * 
- * @author Aljoscha Krettek
  */
-public class MapContract extends GenericMapContract<MapStub> implements RecordContract
-{	
+public class MapContract extends GenericMapContract<MapStub> implements RecordContract {
+	
 	private static String DEFAULT_NAME = "<Unnamed Mapper>";
 	
 	// --------------------------------------------------------------------------------------------
@@ -54,7 +52,7 @@ public class MapContract extends GenericMapContract<MapStub> implements RecordCo
 	 * The private constructor that only gets invoked from the Builder.
 	 * @param builder
 	 */
-	private MapContract(Builder builder) {
+	protected MapContract(Builder builder) {
 		super(builder.udf, builder.name);
 		setInputs(builder.inputs);
 	}
@@ -71,8 +69,6 @@ public class MapContract extends GenericMapContract<MapStub> implements RecordCo
 	
 	/**
 	 * Builder pattern, straight from Joshua Bloch's Effective Java (2nd Edition).
-	 * 
-	 * @author Aljoscha Krettek
 	 */
 	public static class Builder {
 		

@@ -5,15 +5,13 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
-		<artifactId>stratosphere</artifactId>
 		<groupId>eu.stratosphere</groupId>
+		<artifactId>ozone</artifactId>
 		<version>0.2</version>
 	</parent>
 
 	<artifactId>nephele</artifactId>
-
 	<packaging>pom</packaging>
-
 	<name>nephele</name>
 
 	<inceptionYear>2009</inceptionYear>

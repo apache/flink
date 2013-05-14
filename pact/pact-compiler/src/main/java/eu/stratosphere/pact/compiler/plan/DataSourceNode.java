@@ -268,27 +268,14 @@ public class DataSourceNode extends OptimizerNode {
 		return plans;
 	}
 
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isFieldConstant(int, int)
-	 */
+	@Override
 	public boolean isFieldConstant(int input, int fieldNumber) {
 		return false;
 	}
 	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#readReadsAnnotation()
-	 */
 	@Override
-	protected void readConstantAnnotation() {
-	}
+	protected void readConstantAnnotation() {}
 
-	/*
-	 * (non-Javadoc)
-	 * @see
-	 * eu.stratosphere.pact.compiler.plan.OptimizerNode#accept(eu.stratosphere.pact.common.plan.Visitor)
-	 */
 	@Override
 	public void accept(Visitor<OptimizerNode> visitor) {
 		if (visitor.preVisit(this)) {

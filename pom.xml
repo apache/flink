@@ -6,13 +6,13 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<groupId>eu.stratosphere</groupId>
-	<artifactId>stratosphere</artifactId>
+	<artifactId>ozone</artifactId>
 	<version>0.2</version>
 
-	<name>stratosphere</name>
+	<name>ozone</name>
 	<packaging>pom</packaging>
-	<url>http://www.stratosphere.eu</url>
-	<inceptionYear>2009</inceptionYear>
+	<url>http://github.com/dimalabs/ozone</url>
+	<inceptionYear>2013</inceptionYear>
 
 	<licenses>
 		<license>
@@ -23,54 +23,14 @@
 	</licenses>
 
 	<developers>
-		<developer>
-			<id>warneke</id>
-			<name>Daniel Warneke</name>
-			<email>daniel.warneke@tu-berlin.de</email>
-			<organization>TU-Berlin, CIT</organization>
-			<organizationUrl>http://www.cit.tu-berlin.de</organizationUrl>
-			<roles>
-				<role>Lead Developer</role>
-			</roles>
-		</developer>
-
-		<developer>
-			<id>sewen</id>
-			<name>Stephan Ewen</name>
-			<email>stephan.ewen@tu-berlin.de</email>
-			<organization>TU-Berlin, DIMA</organization>
-			<organizationUrl>http://www.dima.tu-berlin.de</organizationUrl>
-			<roles>
-				<role>Lead Developer</role>
-			</roles>
-		</developer>
-
-		<developer>
-			<id>fhueske</id>
-			<name>Fabian Hueske</name>
-			<email>fabian.hueske@tu-berlin.de</email>
-			<organization>TU-Berlin, DIMA</organization>
-			<organizationUrl>http://www.dima.tu-berlin.de</organizationUrl>
-			<roles>
-				<role>Lead Developer</role>
-			</roles>
-		</developer>
 	</developers>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<project.reporting.outputEncoding>UTF-8
-		</project.reporting.outputEncoding>
+		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 	</properties>
 
 	<pluginRepositories>
-		<!-- <pluginRepository> <id>mc-release</id> <name>Local Maven repository 
-			of releases</name> <url>http://mc-repo.googlecode.com/svn/maven2/releases</url> 
-			<snapshots> <enabled>false</enabled> </snapshots> <releases> <enabled>true</enabled> 
-			</releases> </pluginRepository> <pluginRepository> <id>Codehaus repository</id> 
-			<url>http://repository.codehaus.org/</url> </pluginRepository> <pluginRepository> 
-			<id>apache.snapshots</id> <url>http://repository.apache.org/snapshots/</url> 
-			</pluginRepository> -->
 	</pluginRepositories>
 
 	<dependencies>
@@ -103,6 +63,7 @@
 			<groupId>com.google.guava</groupId>
 			<artifactId>guava</artifactId>
 			<version>r09</version>
+			<type>jar</type>
 			<scope>compile</scope>
 		</dependency>
 		
@@ -166,13 +127,12 @@
 
 			<plugin>
 				<!-- just define the Java version to be used for compiling and plugins -->
+				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
-				<version>2.0</version>
+				<version>3.1</version>
 				<configuration>
 					<source>1.6</source>
 					<target>1.6</target>
-					<!-- High optimization, no debugging <compilerArgument>-g:none -O</compilerArgument> -->
-					<compilerArgument></compilerArgument>
 				</configuration>
 			</plugin>
 
@@ -311,10 +271,11 @@
 				<!-- just define the Java version to be used for compiling and plugins -->
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
-				<version>2.0.2</version>
+				<version>3.1</version>
 				<configuration>
 					<source>1.6</source>
 					<target>1.6</target>
+					<!-- High optimization, no debugging <compilerArgument>-g:none -O</compilerArgument> -->
 				</configuration>
 			</plugin>
 			<plugin>
@@ -351,9 +312,6 @@
 					</execution>
 				</executions>
 				<configuration>
-					<systemPropertyVariables>
-						<java.net.preferIPv4Stack>true</java.net.preferIPv4Stack>
-					</systemPropertyVariables>
 					<argLine>-Xms512m -Xmx512m</argLine>
 				</configuration>
 			</plugin>
@@ -362,9 +320,6 @@
 				<artifactId>maven-surefire-plugin</artifactId>
 				<version>2.7</version>
 				<configuration>
-					<systemPropertyVariables>
-						<java.net.preferIPv4Stack>true</java.net.preferIPv4Stack>
-					</systemPropertyVariables>
 					<argLine>-Xms512m -Xmx512m</argLine>
 				</configuration>
 			</plugin>
@@ -373,13 +328,6 @@
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-checkstyle-plugin</artifactId>
 				<version>2.6</version>
-				<dependencies>
-					<dependency>
-						<groupId>eu.stratosphere</groupId>
-						<artifactId>build-tools</artifactId>
-						<version>0.2</version>
-					</dependency>
-				</dependencies>
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -393,121 +341,10 @@
 					</classpathContainers>
 				</configuration>
 			</plugin>
-
-
-			<!-- <plugin> check whether license information is included in files, 
-				can be used to insert headers as well <groupId>com.google.code.maven-license-plugin</groupId> 
-				<artifactId>maven-license-plugin</artifactId> <version>1.4.0</version> <configuration> 
-				<header>src/main/etc/header.txt</header> </configuration> </plugin> -->
-			<!-- <plugin> plugin that tests which fraction of the source code is covered 
-				by JUnit tests <groupId>org.codehaus.mojo</groupId> <artifactId>cobertura-maven-plugin</artifactId> 
-				<configuration> <instrumentation> <ignores> <ignore>com.example.boringcode.*</ignore> 
-				</ignores> <excludes> <exclude>com/example/dullcode/**/*.class</exclude> 
-				<exclude>com/example/**/*Test.class</exclude> </excludes> </instrumentation> 
-				</configuration> <version>2.4</version> <executions> <execution> <goals> 
-				<goal>clean</goal> </goals> </execution> </executions> </plugin> -->
-			<!-- <plugin> plugin that tests whether the code style is appropriate 
-				<groupId>org.apache.maven.plugins</groupId> <artifactId>maven-checkstyle-plugin</artifactId> 
-				<version>2.3</version> <dependencies> <dependency> <groupId>eu.stratosphere</groupId> 
-				<artifactId>build-tools</artifactId> <version>0.1</version> </dependency> 
-				</dependencies> </plugin> -->
 		</plugins>
 	</build>
-<!--	<distributionManagement>
-		<repository>
-			<id>stratosphere.eu</id>
-			<name>Stratosphere Repository</name>
-			<url>scp://stratosphere.eu/var/projects/stratosphere/maven2</url>
-		</repository>
-	</distributionManagement> -->
 
 	<profiles>
-		<!-- Hudson by default defines a property BUILD_NUMBER which is used to 
-			enable the profile. -->
-<!--		<profile>
-			<id>hudson</id>
-			<activation>
-				<property>
-					<name>BUILD_NUMBER</name>
-				</property>
-			</activation>
-			<build>
-				<plugins>
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-compiler-plugin</artifactId>
-						<version>2.0.2</version>
-						<configuration>
-							<source>1.6</source>
-							<target>1.6</target>
-							<compilerArgument>-g</compilerArgument>
-						</configuration>
-					</plugin>
-					<plugin>
-						<groupId>org.codehaus.mojo</groupId>
-						<artifactId>cobertura-maven-plugin</artifactId>
-						<version>2.4</version>
-						<configuration>
-							<formats>
-								<format>xml</format>
-								<format>html</format>
-							</formats>
-							<instrumentation>
-								<excludes>
-						            <exclude>eu/stratosphere/**/example/**/*.class</exclude>
-							        <exclude>eu/stratosphere/**/examples/**/*.class</exclude>
-							        <exclude>eu/stratosphere/**/*Test.class</exclude>
-					            </excludes>
-								<ignores>
-								  <ignore>org.apache.log4j.*</ignore>
-								  <ignore>org.apache.commons.logging.*</ignore>
-					              <ignore>eu.stratosphere.*examples.*</ignore>
-					              <ignore>eu.stratosphere.*example.*</ignore>
-						          <ignore>eu.stratosphere.*Test</ignore>
-					            </ignores>
-						    </instrumentation>
-						</configuration>
-						<executions>
-							<execution>
-								<phase>cobertura</phase>
-								<goals>
-									<goal>cobertura</goal>
-								</goals>
-							</execution>
-						</executions>
-					</plugin>
-				</plugins>
-			</build>
-		</profile> -->
-<!--		<profile>
-			<id>nightly</id>
-			<activation>
-				<property>
-					<name>BUILD_NUMBER</name>
-				</property>
-			</activation>
-			<build>
-				<finalName>${project.artifactId}-${project.version}-nightly-${BUILD_NUMBER}</finalName>
-			<plugins>
-				<plugin>
-					<groupId>org.apache.maven.plugins</groupId>
-					<artifactId>maven-install-plugin</artifactId>
-					<version>2.3.1</version>
-					<executions>
-						<execution>
-							<goals>
-								<goal>install-file</goal>
-							</goals>
-							<phase>install</phase>
-							<configuration>
-								<file>${project.build.finalName}</file>
-							</configuration>
-						</execution>
-					</executions>
-				</plugin>
-			</plugins>
-			</build>
-		</profile> -->
 	</profiles>
 
 	<modules>
