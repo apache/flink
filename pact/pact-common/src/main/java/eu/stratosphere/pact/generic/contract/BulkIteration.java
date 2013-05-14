@@ -76,6 +76,10 @@ public class BulkIteration extends SingleInputContract<AbstractStub> implements 
 		return this.iterationResult;
 	}
 	
+	public Contract getTerminationCriterion() {
+		return null;
+	}
+	
 	/**
 	 * @param criterion
 	 */

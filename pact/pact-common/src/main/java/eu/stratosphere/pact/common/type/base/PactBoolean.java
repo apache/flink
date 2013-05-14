@@ -29,17 +29,27 @@ public class PactBoolean implements NormalizableKey, CopyableValue<PactBoolean> 
 
 	private boolean value;
 
+	
 	public PactBoolean() {}
 	
 	public PactBoolean(boolean value) {
 		this.value = value;
 	}
 
+	
 	public boolean get() {
 		return value;
 	}
 
 	public void set(boolean value) {
+		this.value = value;
+	}
+	
+	public boolean getValue() {
+		return value;
+	}
+
+	public void setValue(boolean value) {
 		this.value = value;
 	}
 	

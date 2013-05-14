@@ -30,43 +30,43 @@ import eu.stratosphere.pact.common.type.Key;
  * 
  * @see eu.stratosphere.pact.common.type.Key
  */
-public class PactDouble implements Key, CopyableValue<PactDouble> {
+public class PactFloat implements Key, CopyableValue<PactFloat> {
 
-	private double value;
+	private float value;
 
 	/**
-	 * Initializes the encapsulated double with 0.0.
+	 * Initializes the encapsulated float with 0.0.
 	 */
-	public PactDouble() {
+	public PactFloat() {
 		this.value = 0;
 	}
 
 	/**
-	 * Initializes the encapsulated double with the provided value.
+	 * Initializes the encapsulated float with the provided value.
 	 * 
 	 * @param value
-	 *        Initial value of the encapsulated double.
+	 *        Initial value of the encapsulated float.
 	 */
-	public PactDouble(double value) {
+	public PactFloat(float value) {
 		this.value = value;
 	}
 
 	/**
-	 * Returns the value of the encapsulated primitive double.
+	 * Returns the value of the encapsulated primitive float.
 	 * 
-	 * @return the value of the encapsulated primitive double.
+	 * @return the value of the encapsulated primitive float.
 	 */
-	public double getValue() {
+	public float getValue() {
 		return this.value;
 	}
 
 	/**
-	 * Sets the value of the encapsulated primitive double.
+	 * Sets the value of the encapsulated primitive float.
 	 * 
 	 * @param value
-	 *        the new value of the encapsulated primitive double.
+	 *        the new value of the encapsulated primitive float.
 	 */
-	public void setValue(double value) {
+	public void setValue(float value) {
 		this.value = value;
 	}
 
@@ -74,12 +74,12 @@ public class PactDouble implements Key, CopyableValue<PactDouble> {
 	
 	@Override
 	public void read(DataInput in) throws IOException {
-		this.value = in.readDouble();
+		this.value = in.readFloat();
 	}
 
 	@Override
 	public void write(DataOutput out) throws IOException {
-		out.writeDouble(this.value);
+		out.writeFloat(this.value);
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -91,25 +91,23 @@ public class PactDouble implements Key, CopyableValue<PactDouble> {
 	
 	@Override
 	public int compareTo(final Key o) {
-		if (!(o instanceof PactDouble))
-			throw new ClassCastException("Cannot compare " + o.getClass().getName() + " to PactDouble!");
+		if (!(o instanceof PactFloat))
+			throw new ClassCastException("Cannot compare " + o.getClass().getName() + " to PactFloat!");
 
-		final double other = ((PactDouble) o).value;
-
+		final double other = ((PactFloat) o).value;
 		return this.value < other ? -1 : this.value > other ? 1 : 0;
 	}
 
 	@Override
 	public int hashCode() {
-		long temp = Double.doubleToLongBits(this.value);
-		return 31 + (int) (temp ^ temp >>> 32);
+		return Float.floatToIntBits(this.value);
 	}
 
 	@Override
 	public boolean equals(final Object obj) {
-		if (obj.getClass() == PactDouble.class) {
-			final PactDouble other = (PactDouble) obj;
-			return Double.doubleToLongBits(this.value) == Double.doubleToLongBits(other.value);
+		if (obj.getClass() == PactFloat.class) {
+			final PactFloat other = (PactFloat) obj;
+			return Float.floatToIntBits(this.value) == Float.floatToIntBits(other.value);
 		}
 		return false;
 	}
@@ -118,16 +116,16 @@ public class PactDouble implements Key, CopyableValue<PactDouble> {
 	
 	@Override
 	public int getBinaryLength() {
-		return 8;
+		return 4;
 	}
 	
 	@Override
-	public void copyTo(PactDouble target) {
+	public void copyTo(PactFloat target) {
 		target.value = this.value;
 	}
 
 	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		target.write(source, 8);
+		target.write(source, 4);
 	}
 }

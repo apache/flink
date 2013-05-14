@@ -33,9 +33,11 @@ import eu.stratosphere.pact.common.type.base.PactString;
  * Base implementation for an input format that returns each line as a separate record that contains
  * only a single string, namely the line.
  */
-public class TextInputFormat extends DelimitedInputFormat
-{
+public class TextInputFormat extends DelimitedInputFormat {
+	
 	public static final String CHARSET_NAME = "textformat.charset";
+	
+	public static final String FIELD_POS = "textformat.pos";
 	
 	public static final String DEFAULT_CHARSET_NAME = "UTF-8";
 	
@@ -50,15 +52,12 @@ public class TextInputFormat extends DelimitedInputFormat
 	
 	protected boolean ascii;
 	
+	protected int pos;
 	
 	// --------------------------------------------------------------------------------------------
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.io.DelimitedInputFormat#configure(eu.stratosphere.nephele.configuration.Configuration)
-	 */
 	@Override
-	public void configure(Configuration parameters)
-	{
+	public void configure(Configuration parameters) {
 		super.configure(parameters);
 		
 		// get the charset for the decoding
@@ -73,15 +72,17 @@ public class TextInputFormat extends DelimitedInputFormat
 			this.decoder = Charset.forName(charsetName).newDecoder();
 			this.byteWrapper = ByteBuffer.allocate(1);
 		}
+		
+		// get the field position to write in the record
+		this.pos = parameters.getInteger(FIELD_POS, 0);
+		if (this.pos < 0) {
+			throw new RuntimeException("Illegal configuration value for the target position: " + this.pos);
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.io.DelimitedInputFormat#readRecord(eu.stratosphere.pact.common.type.PactRecord, byte[], int)
-	 */
-	public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes)
-	{
+	public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes) {
 		PactString str = this.theString;
 		
 		if (this.ascii) {
@@ -93,7 +94,6 @@ public class TextInputFormat extends DelimitedInputFormat
 				byteWrapper = ByteBuffer.wrap(bytes, 0, bytes.length);
 				this.byteWrapper = byteWrapper;
 			}
-			byteWrapper.clear();
 			byteWrapper.position(offset);
 			byteWrapper.limit(offset + numBytes);
 				
@@ -110,7 +110,7 @@ public class TextInputFormat extends DelimitedInputFormat
 		}
 		
 		target.clear();
-		target.addField(str);
+		target.setField(this.pos, str);
 		return true;
 	}
 }

@@ -93,5 +93,10 @@ public interface Stub {
 	 */
 	RuntimeContext getRuntimeContext();
 	
+	/**
+	 * Sets the stub's runtime context. Called by the framework when creating a parallel instance of the stub.
+	 *  
+	 * @param t The runtime context.
+	 */
 	void setRuntimeContext(RuntimeContext t);
 }

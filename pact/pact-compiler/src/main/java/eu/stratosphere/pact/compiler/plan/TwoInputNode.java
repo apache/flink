@@ -666,8 +666,8 @@ public abstract class TwoInputNode extends OptimizerNode {
 		DualInputContract<?> c = (DualInputContract<?>)super.getPactContract();
 		
 		// get readSet annotation from stub
-		ConstantFieldsFirst constantSet1Annotation = c.getUserCodeClass().getAnnotation(ConstantFieldsFirst.class);
-		ConstantFieldsSecond constantSet2Annotation = c.getUserCodeClass().getAnnotation(ConstantFieldsSecond.class);
+		ConstantFieldsFirst constantSet1Annotation = c.getUserCodeAnnotation(ConstantFieldsFirst.class);
+		ConstantFieldsSecond constantSet2Annotation = c.getUserCodeAnnotation(ConstantFieldsSecond.class);
 		
 		// extract readSets from annotations
 		if(constantSet1Annotation == null) {
@@ -684,8 +684,8 @@ public abstract class TwoInputNode extends OptimizerNode {
 		
 		
 		// get readSet annotation from stub
-		ConstantFieldsFirstExcept notConstantSet1Annotation = c.getUserCodeClass().getAnnotation(ConstantFieldsFirstExcept.class);
-		ConstantFieldsSecondExcept notConstantSet2Annotation = c.getUserCodeClass().getAnnotation(ConstantFieldsSecondExcept.class);
+		ConstantFieldsFirstExcept notConstantSet1Annotation = c.getUserCodeAnnotation(ConstantFieldsFirstExcept.class);
+		ConstantFieldsSecondExcept notConstantSet2Annotation = c.getUserCodeAnnotation(ConstantFieldsSecondExcept.class);
 		
 		// extract readSets from annotations
 		if(notConstantSet1Annotation == null) {

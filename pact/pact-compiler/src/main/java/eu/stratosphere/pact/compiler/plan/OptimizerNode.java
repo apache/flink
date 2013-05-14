@@ -74,6 +74,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	
 	protected Map<FieldSet, Long> estimatedCardinality = new HashMap<FieldSet, Long>(); // the estimated number of distinct keys in the output
 	
+	protected int[][] remappedKeys;
+	
 	protected long estimatedOutputSize = -1; // the estimated size of the output (bytes)
 
 	protected long estimatedNumRecords = -1; // the estimated number of key/value pairs in the output
@@ -106,6 +108,17 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	public OptimizerNode(Contract pactContract) {
 		this.pactContract = pactContract;
 		readStubAnnotations();
+		
+		if (this.pactContract instanceof AbstractPact) {
+			final AbstractPact<?> pact = (AbstractPact<?>) this.pactContract;
+			this.remappedKeys = new int[pact.getNumberOfInputs()][];
+			for (int i = 0; i < this.remappedKeys.length; i++) {
+				final int[] keys = pact.getKeyColumns(i);
+				int[] rk = new int[keys.length];
+				System.arraycopy(keys, 0, rk, 0, keys.length);
+				this.remappedKeys[i] = rk;
+			}
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -1288,5 +1301,9 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		}
 
 		return bld.toString();
+	}
+	
+	public int[] getRemappedKeys(int input) {
+		return this.remappedKeys[input];
 	}
 }

@@ -83,10 +83,11 @@ public class GlobalConfigurationTest {
 			assertEquals(co.getString("mykey3", "null"), "myvalue3");
 			assertEquals(co.getString("mykey4", "null"), "myvalue4");
 
-			// Test (wrong) string-to integer conversion. should return default value.
-			assertEquals(co.getInteger("mykey1", 500), 500);
-			assertEquals(co.getInteger("anything", 500), 500);
-			assertEquals(co.getBoolean("notexistent", true), true);
+//			// Test (wrong) string-to integer conversion. should return default value.
+			// semantics are changed to throw an exception upon invalid parsing!
+//			assertEquals(co.getInteger("mykey1", 500), 500);
+//			assertEquals(co.getInteger("anything", 500), 500);
+//			assertEquals(co.getBoolean("notexistent", true), true);
 
 			// Test include local configuration
 			final Configuration newconf = new Configuration();

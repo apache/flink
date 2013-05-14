@@ -35,8 +35,8 @@ import eu.stratosphere.pact.generic.contract.GenericMatchContract;
  * 
  * @see MatchStub
  */
-public class MatchContract extends GenericMatchContract<MatchStub> implements RecordContract
-{	
+public class MatchContract extends GenericMatchContract<MatchStub> implements RecordContract {
+	
 	private static String DEFAULT_NAME = "<Unnamed Matcher>";		// the default name for contracts
 	
 	/**
@@ -62,7 +62,7 @@ public class MatchContract extends GenericMatchContract<MatchStub> implements Re
 	 * The private constructor that only gets invoked from the Builder.
 	 * @param builder
 	 */
-	private MatchContract(Builder builder) {
+	protected MatchContract(Builder builder) {
 		super(builder.udf, builder.getKeyColumnsArray1(),
 				builder.getKeyColumnsArray2(), builder.name);
 		this.keyTypes = builder.getKeyClassesArray();
@@ -82,8 +82,6 @@ public class MatchContract extends GenericMatchContract<MatchStub> implements Re
 		
 	/**
 	 * Builder pattern, straight from Joshua Bloch's Effective Java (2nd Edition).
-	 * 
-	 * @author Aljoscha Krettek
 	 */
 	public static class Builder {
 		
@@ -107,7 +105,7 @@ public class MatchContract extends GenericMatchContract<MatchStub> implements Re
 		 * @param keyColumn1 The position of the key in the first input's records.
 		 * @param keyColumn2 The position of the key in the second input's records.
 		 */
-		private Builder(Class<? extends MatchStub> udf, Class<? extends Key> keyClass, int keyColumn1, int keyColumn2) {
+		protected Builder(Class<? extends MatchStub> udf, Class<? extends Key> keyClass, int keyColumn1, int keyColumn2) {
 			this.udf = udf;
 			this.keyClasses = new ArrayList<Class<? extends Key>>();
 			this.keyClasses.add(keyClass);
@@ -115,6 +113,21 @@ public class MatchContract extends GenericMatchContract<MatchStub> implements Re
 			this.keyColumns1.add(keyColumn1);
 			this.keyColumns2 = new ArrayList<Integer>();
 			this.keyColumns2.add(keyColumn2);
+			this.inputs1 = new ArrayList<Contract>();
+			this.inputs2 = new ArrayList<Contract>();
+		}
+		
+		/**
+		 * Creates a Builder with the provided {@link MatchStub} implementation. This method is intended 
+		 * for special case sub-types only.
+		 * 
+		 * @param udf The {@link MatchStub} implementation for this Match contract.
+		 */
+		protected Builder(Class<? extends MatchStub> udf) {
+			this.udf = udf;
+			this.keyClasses = new ArrayList<Class<? extends Key>>();
+			this.keyColumns1 = new ArrayList<Integer>();
+			this.keyColumns2 = new ArrayList<Integer>();
 			this.inputs1 = new ArrayList<Contract>();
 			this.inputs2 = new ArrayList<Contract>();
 		}

@@ -47,6 +47,10 @@ public abstract class DualInputContract<T extends Stub> extends AbstractPact<T> 
 	
 	// --------------------------------------------------------------------------------------------
 
+	public DualInputContract() {
+		this(null, null);
+	}
+	
 	/**
 	 * Creates a new abstract dual-input Pact with the given name wrapping the given user function.
 	 * 
@@ -130,6 +134,26 @@ public abstract class DualInputContract<T extends Stub> extends AbstractPact<T> 
 	 */
 	public void addSecondInputs(List<Contract> inputs) {
 		this.input2.addAll(inputs);
+	}
+	
+	/**
+	 * Clears all previous connections and connects the first input to the task wrapped in this contract
+	 * 
+	 * @param firstInput The contract that is connected as the first input.
+	 */
+	public void setFirstInput(Contract input) {
+		this.input1.clear();
+		this.input1.add(input);
+	}
+
+	/**
+	 * Clears all previous connections and connects the second input to the task wrapped in this contract
+	 * 
+	 * @param secondInput The contract that is connected as the second input.
+	 */
+	public void setSecondInput(Contract input) {
+		this.input2.clear();
+		this.input2.add(input);
 	}
 	
 	/**

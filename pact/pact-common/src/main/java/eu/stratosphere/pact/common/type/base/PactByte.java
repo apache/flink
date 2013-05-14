@@ -31,71 +31,70 @@ import eu.stratosphere.pact.common.type.DeNormalizableKey;
  * 
  * @see eu.stratosphere.pact.common.type.Key
  */
-public class PactInteger implements Key, DeNormalizableKey, CopyableValue<PactInteger> {
+public class PactByte implements Key, DeNormalizableKey, CopyableValue<PactByte> {
 	
-	private int value;
+	private byte value;
 
 	/**
-	 * Initializes the encapsulated int with 0.
+	 * Initializes the encapsulated byte with 0.
 	 */
-	public PactInteger() {
+	public PactByte() {
 		this.value = 0;
 	}
 
 	/**
-	 * Initializes the encapsulated int with the provided value.
+	 * Initializes the encapsulated byte with the provided value.
 	 * 
-	 * @param value Initial value of the encapsulated int.
+	 * @param value Initial value of the encapsulated byte.
 	 */
-	public PactInteger(int value) {
+	public PactByte(byte value) {
 		this.value = value;
 	}
 	
 	/**
-	 * Returns the value of the encapsulated int.
+	 * Returns the value of the encapsulated byte.
 	 * 
-	 * @return the value of the encapsulated int.
+	 * @return the value of the encapsulated byte.
 	 */
-	public int getValue() {
+	public byte getValue() {
 		return this.value;
 	}
 
 	/**
-	 * Sets the encapsulated int to the specified value.
+	 * Sets the encapsulated byte to the specified value.
 	 * 
 	 * @param value
-	 *        the new value of the encapsulated int.
+	 *        the new value of the encapsulated byte.
 	 */
-	public void setValue(int value) {
+	public void setValue(byte value) {
 		this.value = value;
-	}
-
-	@Override
-	public String toString() {
-		return String.valueOf(this.value);
 	}
 
 	// --------------------------------------------------------------------------------------------
 	
 	@Override
 	public void read(DataInput in) throws IOException {
-		this.value = in.readInt();
+		this.value = in.readByte();
 	}
 
 	@Override
 	public void write(DataOutput out) throws IOException {
-		out.writeInt(this.value);
+		out.writeByte(this.value);
 	}
 
 	// --------------------------------------------------------------------------------------------
 	
 	@Override
-	public int compareTo(final Key o) {
-		if (!(o instanceof PactInteger))
-			throw new ClassCastException("Cannot compare " + o.getClass().getName() + " to PactInteger!");
+	public String toString() {
+		return String.valueOf(this.value);
+	}
+	
+	@Override
+	public int compareTo(Key o) {
+		if (!(o instanceof PactByte))
+			throw new ClassCastException("Cannot compare " + o.getClass().getName() + " to PactByte!");
 
-		final int other = ((PactInteger) o).value;
-
+		final byte other = ((PactByte) o).value;
 		return this.value < other ? -1 : this.value > other ? 1 : 0;
 	}
 
@@ -106,8 +105,8 @@ public class PactInteger implements Key, DeNormalizableKey, CopyableValue<PactIn
 
 	@Override
 	public boolean equals(final Object obj) {
-		if (obj instanceof PactInteger) {
-			return ((PactInteger) obj).value == this.value;
+		if (obj instanceof PactByte) {
+			return ((PactByte) obj).value == this.value;
 		}
 		return false;
 	}
@@ -116,39 +115,24 @@ public class PactInteger implements Key, DeNormalizableKey, CopyableValue<PactIn
 
 	@Override
 	public int getMaxNormalizedKeyLen() {
-		return 4;
+		return 1;
 	}
 
 	@Override
 	public void copyNormalizedKey(byte[] target, int offset, int len) {
-		if (len == 4) {
+		if (len == 1) {
 			// default case, full normalized key
-			int highByte = ((value >>> 24) & 0xff);
+			int highByte = this.value & 0xff;
 			highByte -= Byte.MIN_VALUE;
-			target[offset    ] = (byte) highByte;
-			target[offset + 1] = (byte) ((value >>> 16) & 0xff);
-			target[offset + 2] = (byte) ((value >>>  8) & 0xff);
-			target[offset + 3] = (byte) ((value       ) & 0xff);
+			target[offset] = (byte) highByte;
 		}
 		else if (len <= 0) {
 		}
-		else if (len < 4) {
-			int highByte = ((value >>> 24) & 0xff);
-			highByte -= Byte.MIN_VALUE;
-			target[offset    ] = (byte) highByte;
-			len--;
-			for (int i = 1; len > 0; len--, i++) {
-				target[offset + i] = (byte) ((value >>> ((3-i)<<3)) & 0xff);
-			}
-		}
 		else {
-			int highByte = ((value >>> 24) & 0xff);
+			int highByte = this.value & 0xff;
 			highByte -= Byte.MIN_VALUE;
-			target[offset    ] = (byte) highByte;
-			target[offset + 1] = (byte) ((value >>> 16) & 0xff);
-			target[offset + 2] = (byte) ((value >>>  8) & 0xff);
-			target[offset + 3] = (byte) ((value       ) & 0xff);
-			for (int i = 4; i < len; i++) {
+			target[offset] = (byte) highByte;
+			for (int i = 1; i < len; i++) {
 				target[offset + i] = 0;
 			}
 		}
@@ -156,13 +140,10 @@ public class PactInteger implements Key, DeNormalizableKey, CopyableValue<PactIn
 	
 	@Override
 	public void readFromNormalizedKey(byte[] source, int offset, int len) {
-		if (len == 4) {
+		if (len == 1) {
 			// the only allowed case
-			value = 0;
-			value |= (((source[offset    ] - Byte.MIN_VALUE) & 0xFF) << 24);
-			value |= ((source[offset + 1] & 0xFF) << 16);
-			value |= ((source[offset + 2] & 0xFF) <<  8);
-			value |= ((source[offset + 3] & 0xFF)      );
+			this.value = 0;
+			this.value |= ((source[offset] - Byte.MIN_VALUE) & 0xFF);
 		}
 		else {
 			throw new IllegalArgumentException("We can only read from normalized keys if the have full length.");
@@ -173,16 +154,16 @@ public class PactInteger implements Key, DeNormalizableKey, CopyableValue<PactIn
 	
 	@Override
 	public int getBinaryLength() {
-		return 4;
+		return 1;
 	}
 	
 	@Override
-	public void copyTo(PactInteger target) {
+	public void copyTo(PactByte target) {
 		target.value = this.value;
 	}
 
 	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		target.write(source, 4);
+		target.write(source, 1);
 	}
 }

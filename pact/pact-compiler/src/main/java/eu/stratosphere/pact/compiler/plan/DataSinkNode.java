@@ -296,30 +296,17 @@ public class DataSinkNode extends OptimizerNode {
 	//                                   Stub Annotation Handling
 	// --------------------------------------------------------------------------------------------
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isFieldConstant(int, int)
-	 */
 	public boolean isFieldConstant(int input, int fieldNumber) {
 		return false;
 	}
 	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#readReadsAnnotation()
-	 */
 	@Override
-	protected void readConstantAnnotation() {
-	}
+	protected void readConstantAnnotation() {}
 	
 	// --------------------------------------------------------------------------------------------
 	//                                     Miscellaneous
 	// --------------------------------------------------------------------------------------------
 	
-	/*
-	 * (non-Javadoc)
-	 * @see
-	 * eu.stratosphere.pact.compiler.plan.OptimizerNode#accept(eu.stratosphere.pact.common.plan.Visitor)
-	 */
 	@Override
 	public void accept(Visitor<OptimizerNode> visitor) {
 		if (visitor.preVisit(this)) {

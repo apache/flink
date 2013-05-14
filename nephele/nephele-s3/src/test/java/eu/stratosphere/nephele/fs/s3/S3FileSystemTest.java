@@ -85,14 +85,17 @@ public class S3FileSystemTest {
 	 */
 	@Before
 	public void initKeys() {
-
 		final String accessKey = System.getenv("AK");
 		final String secretKey = System.getenv("SK");
-
-		final Configuration conf = new Configuration();
-		conf.setString(S3FileSystem.S3_ACCESS_KEY_KEY, accessKey);
-		conf.setString(S3FileSystem.S3_SECRET_KEY_KEY, secretKey);
-		GlobalConfiguration.includeConfiguration(conf);
+		
+		if (accessKey != null || secretKey != null) {
+			Configuration conf = new Configuration();
+			if (accessKey != null)
+				conf.setString(S3FileSystem.S3_ACCESS_KEY_KEY, accessKey);
+			if (secretKey != null)
+				conf.setString(S3FileSystem.S3_SECRET_KEY_KEY, secretKey);
+			GlobalConfiguration.includeConfiguration(conf);
+		}
 	}
 
 	/**
