@@ -21,7 +21,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 /**
- * A concurrent datastructure that allows the handover of an object between a pair of threads
+ * A concurrent data structure that allows the hand-over of an object between a pair of threads
  */
 public class Broker<V> {
 
@@ -48,6 +48,11 @@ public class Broker<V> {
 	}
 	
 	/** blocking retrieval and removal of the object to share */
+	public void remove(String key) {
+		mediations.remove(key);
+	}
+	
+	/** blocking retrieval and removal of the object to share */
 	public V get(String key) {
 		try {
 			BlockingQueue<V> queue = retrieveSharedQueue(key);
@@ -62,7 +67,7 @@ public class Broker<V> {
 	}
 
 	/**
-	 * threadsafe call to get a shared {@link BlockingQueue}
+	 * thread-safe call to get a shared {@link BlockingQueue}
 	 */
 	private BlockingQueue<V> retrieveSharedQueue(String key) {
 		BlockingQueue<V> queue = mediations.get(key);

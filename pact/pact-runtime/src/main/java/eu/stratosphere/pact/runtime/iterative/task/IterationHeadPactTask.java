@@ -32,12 +32,19 @@ import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.pact.generic.types.TypeComparator;
+import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
+import eu.stratosphere.pact.generic.types.TypePairComparator;
+import eu.stratosphere.pact.generic.types.TypePairComparatorFactory;
 import eu.stratosphere.pact.generic.types.TypeSerializer;
+import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
+import eu.stratosphere.pact.runtime.hash.MutableHashTable;
 import eu.stratosphere.pact.runtime.io.InputViewIterator;
 import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannel;
 import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannelBroker;
 import eu.stratosphere.pact.runtime.iterative.concurrent.Broker;
-import eu.stratosphere.pact.runtime.iterative.concurrent.IterationGlobalBroker;
+import eu.stratosphere.pact.runtime.iterative.concurrent.IterationAggregatorBroker;
+import eu.stratosphere.pact.runtime.iterative.concurrent.SolutionsetBroker;
 import eu.stratosphere.pact.runtime.iterative.concurrent.SuperstepBarrier;
 import eu.stratosphere.pact.runtime.iterative.event.AllWorkersDoneEvent;
 import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
@@ -47,6 +54,7 @@ import eu.stratosphere.pact.runtime.iterative.io.SerializedUpdateBuffer;
 //import eu.stratosphere.pact.runtime.iterative.monitoring.IterationMonitoring;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
+import eu.stratosphere.pact.runtime.util.EmptyMutableObjectIterator;
 
 /**
  * The head is responsible for coordinating an iteration and can run a
@@ -64,9 +72,10 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  * step function. - The next m output gates to to the tasks that consume the final solution. - The last output gate
  * connects to the synchronization task.
  * 
- * @param <X> The type of the partial solution and the final output.
+ * @param <X> The type of the bulk partial solution / solution set and the final output.
+ * @param <Y> The type of the feed-back data set (bulk partial solution / workset). For bulk iterations, {@code Y} is the same as {@code X}
  */
-public class IterationHeadPactTask<X, S extends Stub, OT> extends AbstractIterativePactTask<S, OT> {
+public class IterationHeadPactTask<X, Y, S extends Stub, OT> extends AbstractIterativePactTask<S, OT> {
 	
 	private static final Log log = LogFactory.getLog(IterationHeadPactTask.class);
 
@@ -75,19 +84,29 @@ public class IterationHeadPactTask<X, S extends Stub, OT> extends AbstractIterat
 	
 	private List<AbstractRecordWriter<?>> finalOutputWriters;
 	
+	private TypeSerializer<Y> feedbackTypeSerializer;
+	
 	private TypeSerializer<X> solutionTypeSerializer;
 	
 	private RecordWriter<?> toSync;
 	
-	private int partialSolutionInput;
+	private boolean isWorksetIteration;
+	
+	private int initialSolutionSetInput;	// undefined for bulk iterations
+	
+	private int feedbackDataInput;	// workset or bulk partial solution
 	
 	private RuntimeAggregatorRegistry aggregatorRegistry;
 
 	// --------------------------------------------------------------------------------------------
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.RegularPactTask#initOutputs()
-	 */
+	@Override
+	protected int getNumTaskInputs() {
+		// this task has an additional input in the workset case for the initial solution set
+		boolean isWorkset = config.isWorksetIteration();
+		return driver.getNumberOfInputs() + (isWorkset ? 1 : 0);
+	}
+	
 	@Override
 	protected void initOutputs() throws Exception {
 		// initialize the regular outputs first (the ones into the step function).
@@ -111,13 +130,14 @@ public class IterationHeadPactTask<X, S extends Stub, OT> extends AbstractIterat
 		// now, we can instantiate the sync gate
 		this.toSync = new RecordWriter<Record>(this, Record.class);
 	}
+	
 	/**
 	 * the iteration head prepares the backchannel: it allocates memory, instantiates a {@link BlockingBackChannel} and
 	 * hands it to the iteration tail via a {@link Broker} singleton
 	 **/
 	private BlockingBackChannel initBackChannel() throws Exception {
 
-		/* compute the size of the memory available to the backchannel */
+		/* get the size of the memory available to the backchannel */
 		long backChannelMemorySize = this.config.getBackChannelMemory();
 
 		/* allocate the memory available to the backchannel */
@@ -136,42 +156,56 @@ public class IterationHeadPactTask<X, S extends Stub, OT> extends AbstractIterat
 		return backChannel;
 	}
 
-//	// TODO type safety
-//	private <IT1, IT2> MutableHashTable initHashJoin() throws Exception {
-//
-//		/* steal some memory */
-//		long completeMemorySize = config.getMemorySize();
-//		long hashjoinMemorySize = (long) (completeMemorySize * config.getWorksetHashjoinMemoryFraction());
-//		config.setMemorySize(completeMemorySize - hashjoinMemorySize);
-//
-//		TypeSerializer<IT1> probesideSerializer = TypeUtils.instantiateTypeSerializer(
-//			config.getWorksetHashjoinProbesideSerializerFactoryClass(userCodeClassLoader));
-//		TypeSerializer<IT2> buildsideSerializer = TypeUtils.instantiateTypeSerializer(
-//			config.getWorksetHashjoinBuildsideSerializerFactoryClass(userCodeClassLoader));
-//
-//		TypeComparator<IT1> probesideComparator = TypeUtils.instantiateTypeComparator(config.getConfiguration(),
-//			userCodeClassLoader, config.getWorksetHashJoinProbeSideComparatorFactoryClass(userCodeClassLoader),
-//			config.getWorksetHashjoinProbesideComparatorPrefix());
-//
-//		TypeComparator<IT2> buildSideComparator = TypeUtils.instantiateTypeComparator(config.getConfiguration(),
-//			userCodeClassLoader, config.getWorksetHashJoinBuildSideComparatorFactoryClass(userCodeClassLoader),
-//			config.getWorksetHashjoinBuildsideComparatorPrefix());
-//
-//		TypePairComparatorFactory<IT1, IT2> pairComparatorFactory = TypeUtils.instantiateTypePairComparator(
-//			(Class<? extends TypePairComparatorFactory<IT1, IT2>>)
-//			config.getWorksetHashJoinTypePairComparatorFactoryClass(userCodeClassLoader));
-//
-//		List<MemorySegment> memSegments = getMemoryManager().allocatePages(getOwningNepheleTask(), hashjoinMemorySize);
-//
-//		MutableHashTable hashJoin = new MutableHashTable(buildsideSerializer, probesideSerializer, buildSideComparator,
-//			probesideComparator, pairComparatorFactory.createComparator12(probesideComparator, buildSideComparator),
-//			memSegments, getIOManager());
-//
-//		Broker<MutableHashTable> solutionsetBroker = SolutionsetBroker.instance();
-//		solutionsetBroker.handIn(brokerKey(), hashJoin);
-//
-//		return hashJoin;
-//	}
+	private <BT, PT> MutableHashTable<BT, PT> initHashTable() throws Exception {
+		// get some memory
+		long hashjoinMemorySize =  config.getSolutionSetMemory();
+
+		TypeSerializerFactory<BT> solutionTypeSerializerFactory = config.getSolutionSetSerializer(userCodeClassLoader);
+		TypeSerializerFactory<PT> probeSideSerializerFactory = config.getSolutionSetProberSerializer(userCodeClassLoader);
+		TypeComparatorFactory<BT> solutionTypeComparatorFactory = config.getSolutionSetComparator(userCodeClassLoader);
+		TypeComparatorFactory<PT> probeSideComparatorFactory = config.getSolutionSetProberComparator(userCodeClassLoader);
+		TypePairComparatorFactory<BT, PT> pairComparatorFactory = config.getSolutionSetPairComparatorFactory(userCodeClassLoader);
+		
+		TypeSerializer<BT> solutionTypeSerializer = solutionTypeSerializerFactory.getSerializer();
+		TypeSerializer<PT> probeSideSerializer = probeSideSerializerFactory.getSerializer();
+		TypeComparator<BT> solutionTypeComparator = solutionTypeComparatorFactory.createComparator();
+		TypeComparator<PT> probeSideComparator = probeSideComparatorFactory.createComparator();
+		TypePairComparator<PT, BT> pairComparator = pairComparatorFactory.createComparator21(solutionTypeComparator, probeSideComparator);
+	
+		MutableHashTable<BT, PT> hashTable = null;
+		List<MemorySegment> memSegments = null;
+		boolean success = false;
+		try {
+			memSegments = getMemoryManager().allocatePages(getOwningNepheleTask(), hashjoinMemorySize);
+			hashTable = new MutableHashTable<BT, PT>(solutionTypeSerializer, probeSideSerializer, solutionTypeComparator,
+			probeSideComparator, pairComparator, memSegments, getIOManager());
+			success = true;
+			return hashTable;
+		}
+		finally {
+			if (!success) {
+				if (hashTable != null) {
+					try {
+						hashTable.close();
+					} catch (Throwable t) {
+						log.error("Error closing the solution set hash table after unsuccessful creation.", t);
+					}
+				}
+				if (memSegments != null) {
+					try {
+						getMemoryManager().release(memSegments);
+					} catch (Throwable t) {
+						log.error("Error freeing memory after error during solution set hash table creation.", t);
+					}
+				}
+			}
+		}
+	}
+	
+	private <T> void readInitialSolutionSet(MutableHashTable<X, T> solutionSet, MutableObjectIterator<X> solutionSetInput) throws IOException {
+		MutableObjectIterator<T> emptyInput = EmptyMutableObjectIterator.get();
+		solutionSet.open(solutionSetInput, emptyInput);
+	}
 
 	private SuperstepBarrier initSuperstepBarrier() {
 		SuperstepBarrier barrier = new SuperstepBarrier();
@@ -183,93 +217,133 @@ public class IterationHeadPactTask<X, S extends Stub, OT> extends AbstractIterat
 	@Override
 	public void run() throws Exception {
 
+		final String brokerKey = brokerKey();
 		final int workerIndex = getEnvironment().getIndexInSubtaskGroup();
-
-		/* used for receiving the current iteration result from iteration tail */
-		BlockingBackChannel backChannel = initBackChannel();
-		SuperstepBarrier barrier = initSuperstepBarrier();
 		
-		this.partialSolutionInput = this.config.getIterationHeadPartialSolutionInputIndex();
-		this.solutionTypeSerializer = getInputSerializer(this.partialSolutionInput);
-		
-		// when we reset the inputs, do not reset this particular input!
-		excludeFromReset(this.partialSolutionInput);
-		
-		// instantiate all aggregators and register them at the iteration global registry
-		aggregatorRegistry = new RuntimeAggregatorRegistry(config.getIterationAggregators());
-		IterationGlobalBroker.instance().handIn(brokerKey(), aggregatorRegistry);
+		MutableHashTable<X, ?> solutionSet = null; // if workset iteration
 
-//		MutableHashTable hashJoin = config.usesWorkset() ? initHashJoin() : null;
-		
-		DataInputView superstepResult = null;
-
-		while (this.running && !terminationRequested()) {
-
-//			notifyMonitor(IterationMonitoring.Event.HEAD_STARTING);
-			if (log.isInfoEnabled()) {
-				log.info(formatLogString("starting iteration [" + currentIteration() + "]"));
-			}
-
-			barrier.setup();
-
-//			notifyMonitor(IterationMonitoring.Event.HEAD_PACT_STARTING);
-			if (!inFirstIteration()) {
-				feedBackSuperstepResult(superstepResult);
-			}
-
-			super.run();
-//			notifyMonitor(IterationMonitoring.Event.HEAD_PACT_FINISHED);
-
-			EndOfSuperstepEvent endOfSuperstepEvent = new EndOfSuperstepEvent();
-
-			// signal to connected tasks that we are done with the superstep
-			sendEventToAllIterationOutputs(endOfSuperstepEvent);
-
-			// blocking call to wait for the result
-			superstepResult = backChannel.getReadEndAfterSuperstepEnded();
-			if (log.isInfoEnabled()) {
-				log.info(formatLogString("finishing iteration [" + currentIteration() + "]"));
-			}
-
-			sendEventToSync(new WorkerDoneEvent(workerIndex, aggregatorRegistry.getAllAggregators()));
-
-//			notifyMonitor(IterationMonitoring.Event.HEAD_FINISHED);
-
-//			notifyMonitor(IterationMonitoring.Event.HEAD_WAITING_FOR_OTHERS);
-			if (log.isInfoEnabled()) {
-				log.info(formatLogString("waiting for other workers in iteration [" + currentIteration() + "]"));
-			}
-
-			barrier.waitForOtherWorkers();
-
-			if (barrier.terminationSignaled()) {
-				if (log.isInfoEnabled()) {
-					log.info(formatLogString("head received termination request in iteration [" + currentIteration()
-						+ "]"));
-				}
-				requestTermination();
-				sendEventToAllIterationOutputs(new TerminationEvent());
-			} else {
-				incrementIterationCounter();
+		try {
+			/* used for receiving the current iteration result from iteration tail */
+			BlockingBackChannel backChannel = initBackChannel();
+			SuperstepBarrier barrier = initSuperstepBarrier();
+			
+			isWorksetIteration = config.isWorksetIteration();
+			
+			feedbackDataInput = config.getIterationHeadPartialSolutionOrWorksetInputIndex();
+			feedbackTypeSerializer = getInputSerializer(feedbackDataInput);
+			excludeFromReset(feedbackDataInput);
+			
+			if (isWorksetIteration) {
+				initialSolutionSetInput = config.getIterationHeadSolutionSetInputIndex();
+				TypeSerializerFactory<X> solutionTypeSerializerFactory = config.getSolutionSetSerializer(userCodeClassLoader);
+				solutionTypeSerializer = solutionTypeSerializerFactory.getSerializer();
 				
-				String[] globalAggregateNames = barrier.getAggregatorNames();
-				Value[] globalAggregates = barrier.getAggregates();
-				aggregatorRegistry.updateGlobalAggregatesAndReset(globalAggregateNames, globalAggregates);
+				// setup the index for the solution set
+				solutionSet = initHashTable();
+				
+				// read the initial solution set
+				@SuppressWarnings("unchecked")
+				MutableObjectIterator<X> solutionSetInput = (MutableObjectIterator<X>) createInputIterator(
+					initialSolutionSetInput, inputReaders[initialSolutionSetInput], solutionTypeSerializer);
+				readInitialSolutionSet(solutionSet, solutionSetInput);
+				
+				Broker<MutableHashTable<?, ?>> solutionsetBroker = SolutionsetBroker.instance();
+				solutionsetBroker.handIn(brokerKey(), solutionSet);
+			} else {
+				// bulk iteration case
+				initialSolutionSetInput = -1;
+				
+				@SuppressWarnings("unchecked")
+				TypeSerializer<X> solSer = (TypeSerializer<X>) feedbackTypeSerializer;
+				solutionTypeSerializer = solSer;
+			}
+			
+			// instantiate all aggregators and register them at the iteration global registry
+			aggregatorRegistry = new RuntimeAggregatorRegistry(config.getIterationAggregators());
+			IterationAggregatorBroker.instance().handIn(brokerKey(), aggregatorRegistry);
+			
+			DataInputView superstepResult = null;
+	
+			while (this.running && !terminationRequested()) {
+	
+	//			notifyMonitor(IterationMonitoring.Event.HEAD_STARTING);
+				if (log.isInfoEnabled()) {
+					log.info(formatLogString("starting iteration [" + currentIteration() + "]"));
+				}
+	
+				barrier.setup();
+	
+	//			notifyMonitor(IterationMonitoring.Event.HEAD_PACT_STARTING);
+				if (!inFirstIteration()) {
+					feedBackSuperstepResult(superstepResult);
+				}
+	
+				super.run();
+	//			notifyMonitor(IterationMonitoring.Event.HEAD_PACT_FINISHED);
+	
+				EndOfSuperstepEvent endOfSuperstepEvent = new EndOfSuperstepEvent();
+	
+				// signal to connected tasks that we are done with the superstep
+				sendEventToAllIterationOutputs(endOfSuperstepEvent);
+	
+				// blocking call to wait for the result
+				superstepResult = backChannel.getReadEndAfterSuperstepEnded();
+				if (log.isInfoEnabled()) {
+					log.info(formatLogString("finishing iteration [" + currentIteration() + "]"));
+				}
+	
+				sendEventToSync(new WorkerDoneEvent(workerIndex, aggregatorRegistry.getAllAggregators()));
+	
+	//			notifyMonitor(IterationMonitoring.Event.HEAD_FINISHED);
+	
+	//			notifyMonitor(IterationMonitoring.Event.HEAD_WAITING_FOR_OTHERS);
+				if (log.isInfoEnabled()) {
+					log.info(formatLogString("waiting for other workers in iteration [" + currentIteration() + "]"));
+				}
+	
+				barrier.waitForOtherWorkers();
+	
+				if (barrier.terminationSignaled()) {
+					if (log.isInfoEnabled()) {
+						log.info(formatLogString("head received termination request in iteration [" + currentIteration()
+							+ "]"));
+					}
+					requestTermination();
+					sendEventToAllIterationOutputs(new TerminationEvent());
+				} else {
+					incrementIterationCounter();
+					
+					String[] globalAggregateNames = barrier.getAggregatorNames();
+					Value[] globalAggregates = barrier.getAggregates();
+					aggregatorRegistry.updateGlobalAggregatesAndReset(globalAggregateNames, globalAggregates);
+				}
+			}
+	
+			if (log.isInfoEnabled()) {
+				log.info(formatLogString("streaming out final result after [" + currentIteration() + "] iterations"));
+			}
+	
+			if (isWorksetIteration) {
+				streamSolutionSetToFinalOutput(solutionSet);
+			} else {
+				streamOutFinalOutputBulk(new InputViewIterator<X>(superstepResult, this.solutionTypeSerializer));
+			}
+			
+		} finally {
+			// make sure we unregister everything from the broker:
+			// - backchannel
+			// - aggregator registry
+			// - solution set index
+			IterationAggregatorBroker.instance().remove(brokerKey);
+			BlockingBackChannelBroker.instance().remove(brokerKey);
+			if (isWorksetIteration) {
+				SolutionsetBroker.instance().remove(brokerKey);
+			}
+			if (solutionSet != null) {
+				solutionSet.close();
+				solutionSet = null;
 			}
 		}
-
-		if (log.isInfoEnabled()) {
-			log.info(formatLogString("streaming out final result after [" + currentIteration() + "] iterations"));
-		}
-
-//		if (config.usesWorkset()) {
-//			streamOutFinalOutputWorkset(hashJoin);
-//		} else {
-			streamOutFinalOutputBulk(new InputViewIterator<X>(superstepResult, this.solutionTypeSerializer));
-//		}
-		
-		// unregister the aggregators
-		IterationGlobalBroker.instance().getAndRemove(brokerKey());
 	}
 
 
@@ -288,30 +362,25 @@ public class IterationHeadPactTask<X, S extends Stub, OT> extends AbstractIterat
 //		}
 	}
 
-//	private void streamOutFinalOutputWorkset(MutableHashTable hashJoin) throws IOException, InterruptedException {
-//		// TODO type safety
-//		Writer<PactRecord> writer = (Writer<PactRecord>) getFinalOutput();
-//
-//		// TODO implement an iterator over MutableHashTable.partitionsBeingBuilt
-//		MutableObjectIterator<PactRecord> results = hashJoin.getPartitionEntryIterator();
-//
+	private void streamSolutionSetToFinalOutput(MutableHashTable<X, ?> hashTable) throws IOException, InterruptedException {
+		final MutableObjectIterator<X> results = hashTable.getPartitionEntryIterator();
+		final Collector<X> output = this.finalOutputCollector;
+		final X record = solutionTypeSerializer.createInstance();
 //		int recordsPut = 0;
-//		PactRecord record = new PactRecord();
-//		while (results.next(record)) {
-//			writer.emit(record);
+		
+		while (results.next(record)) {
+			output.collect(record);
 //			recordsPut++;
-//		}
-//
-//		hashJoin.close();
-//
+		}
+		
 //		if (log.isInfoEnabled()) {
-//			log.info(formatLogString("Sent [" + recordsPut + "] records to final output"));
+//			log.info(formatLogString("Sent [" + recordsPut + "] records from solution set to final output"));
 //		}
-//	}
+	}
 
 	private void feedBackSuperstepResult(DataInputView superstepResult) {
-		this.inputs[this.partialSolutionInput] = 
-				new InputViewIterator<X>(superstepResult, this.solutionTypeSerializer);
+		this.inputs[this.feedbackDataInput] = 
+				new InputViewIterator<Y>(superstepResult, this.feedbackTypeSerializer);
 	}
 
 	private void sendEventToAllIterationOutputs(AbstractTaskEvent event) throws IOException, InterruptedException {

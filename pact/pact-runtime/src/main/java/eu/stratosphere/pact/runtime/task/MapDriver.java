@@ -30,43 +30,28 @@ import eu.stratosphere.pact.generic.stub.GenericMapper;
  * 
  * @see MapStub
  * @see GenericMapper
- * @author Fabian Hueske
- * @author Stephan Ewen
  * 
  * @param <IT> The mapper's input data type.
  * @param <OT> The mapper's output data type.
  */
-public class MapDriver<IT, OT> implements PactDriver<GenericMapper<IT, OT>, OT>// extends AbstractPactTask<GenericMapper<IT, OT>, OT>
-{
+public class MapDriver<IT, OT> implements PactDriver<GenericMapper<IT, OT>, OT> {
+	
 	private PactTaskContext<GenericMapper<IT, OT>, OT> taskContext;
 	
 	private volatile boolean running;
 	
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.PactDriver#setup(eu.stratosphere.pact.runtime.task.PactTaskContext)
-	 */
 	@Override
 	public void setup(PactTaskContext<GenericMapper<IT, OT>, OT> context) {
 		this.taskContext = context;
 		this.running = true;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#getNumberOfInputs()
-	 */
 	@Override
 	public int getNumberOfInputs() {
 		return 1;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#getStubType()
-	 */
 	@Override
 	public Class<GenericMapper<IT, OT>> getStubType() {
 		@SuppressWarnings("unchecked")
@@ -74,34 +59,18 @@ public class MapDriver<IT, OT> implements PactDriver<GenericMapper<IT, OT>, OT>/
 		return clazz;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#requiresComparatorOnInput()
-	 */
 	@Override
 	public boolean requiresComparatorOnInput() {
 		return false;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#prepare()
-	 */
 	@Override
 	public void prepare() throws Exception {
 		// nothing, since a mapper does not need any preparation
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#run()
-	 */
 	@Override
-	public void run() throws Exception
-	{
+	public void run() throws Exception {
 		// cache references on the stack
 		final MutableObjectIterator<IT> input = this.taskContext.getInput(0);
 		final GenericMapper<IT, OT> stub = this.taskContext.getStub();
@@ -114,19 +83,11 @@ public class MapDriver<IT, OT> implements PactDriver<GenericMapper<IT, OT>, OT>/
 		}
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#cleanup()
-	 */
 	@Override
 	public void cleanup() throws Exception {
 		// mappers need no cleanup, since no strategies are used.
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.PactDriver#cancel()
-	 */
 	@Override
 	public void cancel() {
 		this.running = false;

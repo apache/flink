@@ -23,24 +23,21 @@ import java.io.IOException;
 public class UpdateSolutionsetOutputCollector<T> implements Collector<T> {
 
 	private final Collector<T> delegate;
-
-	// TODO type safety
-	private MutableHashTable.HashBucketIterator<T, ?> hashBucket;
+	
+	private final MutableHashTable<T, ?> hashTable;
 
 	private long numUpdatedElements;
 
-	public UpdateSolutionsetOutputCollector(Collector<T> delegate) {
+	public UpdateSolutionsetOutputCollector(Collector<T> delegate, MutableHashTable<T, ?> hashTable) {
 		this.delegate = delegate;
+		this.hashTable = hashTable;
 		numUpdatedElements = 0;
-	}
-
-	public void setHashBucket(MutableHashTable.HashBucketIterator<T, ?> hashBucket) {
-		this.hashBucket = hashBucket;
 	}
 
 	@Override
 	public void collect(T record) {
 		try {
+			MutableHashTable.HashBucketIterator<T, ?> hashBucket = hashTable.getBuildSideIterator();
 			hashBucket.writeBack(record);
 		} catch (IOException e) {
 			throw new RuntimeException(e);
@@ -57,5 +54,6 @@ public class UpdateSolutionsetOutputCollector<T> implements Collector<T> {
 
 	@Override
 	public void close() {
+		delegate.close();
 	}
 }

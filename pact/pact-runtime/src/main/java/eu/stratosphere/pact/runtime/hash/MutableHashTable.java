@@ -33,7 +33,6 @@ import eu.stratosphere.nephele.services.iomanager.HeaderlessChannelReaderInputVi
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.SeekableDataOutputView;
-import eu.stratosphere.pact.common.type.LazyDeSerializable;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.generic.types.TypeComparator;
 import eu.stratosphere.pact.generic.types.TypePairComparator;
@@ -83,13 +82,11 @@ import eu.stratosphere.pact.runtime.util.MathUtils;
  * |
  * </pre>
  * 
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
- * 
  * @param <BT> The type of records from the build side that are stored in the hash table.
  * @param <PT> The type of records from the probe side that are stored in the hash table.
  */
-public class MutableHashTable<BT, PT> implements MemorySegmentSource
-{
+public class MutableHashTable<BT, PT> implements MemorySegmentSource {
+	
 	private static final Log LOG = LogFactory.getLog(MutableHashTable.class);
 	
 	// ------------------------------------------------------------------------
@@ -289,7 +286,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 	 */
 	private HashBucketIterator<BT, PT> bucketIterator;
 	
-	private LazyHashBucketIterator<BT, PT> lazyBucketIterator;
+//	private LazyHashBucketIterator<BT, PT> lazyBucketIterator;
 	
 	/**
 	 * Iterator over the elements from the probe side.
@@ -437,7 +434,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 		
 		// the bucket iterator can remain constant over the time
 		this.bucketIterator = new HashBucketIterator<BT, PT>(this.buildSideSerializer, this.recordComparator);
-		this.lazyBucketIterator = new LazyHashBucketIterator<BT, PT>(this.recordComparator);
+//		this.lazyBucketIterator = new LazyHashBucketIterator<BT, PT>(this.recordComparator);
 	}
 
 	/**
@@ -552,31 +549,31 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 		}
 	}
 	
-	public LazyHashBucketIterator<BT, PT> getLazyMatchesFor(PT record) throws IOException
-	{
-		final TypeComparator<PT> probeAccessors = this.probeSideComparator;
-		final int hash = hash(probeAccessors.hash(record), this.currentRecursionDepth);
-		final int posHashCode = hash % this.numBuckets;
-		
-		// get the bucket for the given hash code
-		final int bucketArrayPos = posHashCode >> this.bucketsPerSegmentBits;
-		final int bucketInSegmentOffset = (posHashCode & this.bucketsPerSegmentMask) << NUM_INTRA_BUCKET_BITS;
-		final MemorySegment bucket = this.buckets[bucketArrayPos];
-		
-		// get the basic characteristics of the bucket
-		final int partitionNumber = bucket.get(bucketInSegmentOffset + HEADER_PARTITION_OFFSET);
-		final HashPartition<BT, PT> p = this.partitionsBeingBuilt.get(partitionNumber);
-		
-		// for an in-memory partition, process set the return iterators, else spill the probe records
-		if (p.isInMemory()) {
-			this.recordComparator.setReference(record);
-			this.lazyBucketIterator.set(bucket, p.overflowSegments, p, hash, bucketInSegmentOffset);
-			return this.lazyBucketIterator;
-		}
-		else {
-			throw new IllegalStateException("Method is not applicable to partially spilled hash tables.");
-		}
-	}
+//	public LazyHashBucketIterator<BT, PT> getLazyMatchesFor(PT record) throws IOException
+//	{
+//		final TypeComparator<PT> probeAccessors = this.probeSideComparator;
+//		final int hash = hash(probeAccessors.hash(record), this.currentRecursionDepth);
+//		final int posHashCode = hash % this.numBuckets;
+//		
+//		// get the bucket for the given hash code
+//		final int bucketArrayPos = posHashCode >> this.bucketsPerSegmentBits;
+//		final int bucketInSegmentOffset = (posHashCode & this.bucketsPerSegmentMask) << NUM_INTRA_BUCKET_BITS;
+//		final MemorySegment bucket = this.buckets[bucketArrayPos];
+//		
+//		// get the basic characteristics of the bucket
+//		final int partitionNumber = bucket.get(bucketInSegmentOffset + HEADER_PARTITION_OFFSET);
+//		final HashPartition<BT, PT> p = this.partitionsBeingBuilt.get(partitionNumber);
+//		
+//		// for an in-memory partition, process set the return iterators, else spill the probe records
+//		if (p.isInMemory()) {
+//			this.recordComparator.setReference(record);
+//			this.lazyBucketIterator.set(bucket, p.overflowSegments, p, hash, bucketInSegmentOffset);
+//			return this.lazyBucketIterator;
+//		}
+//		else {
+//			throw new IllegalStateException("Method is not applicable to partially spilled hash tables.");
+//		}
+//	}
 	
 	/**
 	 * @return
@@ -1393,91 +1390,88 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 
 	// ======================================================================================================
 	
-	/**
-	 *
-	 */
-	public static final class LazyHashBucketIterator<BT, PT> {
-		
-		private final TypePairComparator<PT, BT> comparator;
-		
-		private MemorySegment bucket;
-		
-		private MemorySegment[] overflowSegments;
-		
-		private HashPartition<BT, PT> partition;
-		
-		private int bucketInSegmentOffset;
-		
-		private int searchHashCode;
-		
-		private int posInSegment;
-		
-		private int countInSegment;
-		
-		private int numInSegment;
-		
-		private LazyHashBucketIterator(TypePairComparator<PT, BT> comparator) {
-			this.comparator = comparator;
-		}
-		
-		
-		void set(MemorySegment bucket, MemorySegment[] overflowSegments, HashPartition<BT, PT> partition,
-				int searchHashCode, int bucketInSegmentOffset) {
-			
-			this.bucket = bucket;
-			this.overflowSegments = overflowSegments;
-			this.partition = partition;
-			this.searchHashCode = searchHashCode;
-			this.bucketInSegmentOffset = bucketInSegmentOffset;
-			
-			this.posInSegment = this.bucketInSegmentOffset + BUCKET_HEADER_LENGTH;
-			this.countInSegment = bucket.getShort(bucketInSegmentOffset + HEADER_COUNT_OFFSET);
-			this.numInSegment = 0;
-		}
-
-		public boolean next(BT target) {
-			// loop over all segments that are involved in the bucket (original bucket plus overflow buckets)
-			while (true) {
-				
-				while (this.numInSegment < this.countInSegment) {
-					
-					final int thisCode = this.bucket.getInt(this.posInSegment);
-					this.posInSegment += HASH_CODE_LEN;
-						
-					// check if the hash code matches
-					if (thisCode == this.searchHashCode) {
-						// get the pointer to the pair
-						final long pointer = this.bucket.getLong(this.bucketInSegmentOffset + 
-													BUCKET_POINTER_START_OFFSET + (this.numInSegment * POINTER_LEN));
-						this.numInSegment++;
-							
-						// check whether it is really equal, or whether we had only a hash collision
-						LazyDeSerializable lds = (LazyDeSerializable) target;
-						lds.setDeSerializer(this.partition, this.partition.getWriteView(), pointer);
-						if (this.comparator.equalToReference(target)) {
-							return true;
-						}
-					}
-					else {
-						this.numInSegment++;
-					}
-				}
-				
-				// this segment is done. check if there is another chained bucket
-				final long forwardPointer = this.bucket.getLong(this.bucketInSegmentOffset + HEADER_FORWARD_OFFSET);
-				if (forwardPointer == BUCKET_FORWARD_POINTER_NOT_SET) {
-					return false;
-				}
-				
-				final int overflowSegNum = (int) (forwardPointer >>> 32);
-				this.bucket = this.overflowSegments[overflowSegNum];
-				this.bucketInSegmentOffset = (int) (forwardPointer & 0xffffffff);
-				this.countInSegment = this.bucket.getShort(this.bucketInSegmentOffset + HEADER_COUNT_OFFSET);
-				this.posInSegment = this.bucketInSegmentOffset + BUCKET_HEADER_LENGTH;
-				this.numInSegment = 0;
-			}
-		}
-	} // end HashBucketIterator
+//	public static final class LazyHashBucketIterator<BT, PT> {
+//		
+//		private final TypePairComparator<PT, BT> comparator;
+//		
+//		private MemorySegment bucket;
+//		
+//		private MemorySegment[] overflowSegments;
+//		
+//		private HashPartition<BT, PT> partition;
+//		
+//		private int bucketInSegmentOffset;
+//		
+//		private int searchHashCode;
+//		
+//		private int posInSegment;
+//		
+//		private int countInSegment;
+//		
+//		private int numInSegment;
+//		
+//		private LazyHashBucketIterator(TypePairComparator<PT, BT> comparator) {
+//			this.comparator = comparator;
+//		}
+//		
+//		
+//		void set(MemorySegment bucket, MemorySegment[] overflowSegments, HashPartition<BT, PT> partition,
+//				int searchHashCode, int bucketInSegmentOffset) {
+//			
+//			this.bucket = bucket;
+//			this.overflowSegments = overflowSegments;
+//			this.partition = partition;
+//			this.searchHashCode = searchHashCode;
+//			this.bucketInSegmentOffset = bucketInSegmentOffset;
+//			
+//			this.posInSegment = this.bucketInSegmentOffset + BUCKET_HEADER_LENGTH;
+//			this.countInSegment = bucket.getShort(bucketInSegmentOffset + HEADER_COUNT_OFFSET);
+//			this.numInSegment = 0;
+//		}
+//
+//		public boolean next(BT target) {
+//			// loop over all segments that are involved in the bucket (original bucket plus overflow buckets)
+//			while (true) {
+//				
+//				while (this.numInSegment < this.countInSegment) {
+//					
+//					final int thisCode = this.bucket.getInt(this.posInSegment);
+//					this.posInSegment += HASH_CODE_LEN;
+//						
+//					// check if the hash code matches
+//					if (thisCode == this.searchHashCode) {
+//						// get the pointer to the pair
+//						final long pointer = this.bucket.getLong(this.bucketInSegmentOffset + 
+//													BUCKET_POINTER_START_OFFSET + (this.numInSegment * POINTER_LEN));
+//						this.numInSegment++;
+//							
+//						// check whether it is really equal, or whether we had only a hash collision
+//						LazyDeSerializable lds = (LazyDeSerializable) target;
+//						lds.setDeSerializer(this.partition, this.partition.getWriteView(), pointer);
+//						if (this.comparator.equalToReference(target)) {
+//							return true;
+//						}
+//					}
+//					else {
+//						this.numInSegment++;
+//					}
+//				}
+//				
+//				// this segment is done. check if there is another chained bucket
+//				final long forwardPointer = this.bucket.getLong(this.bucketInSegmentOffset + HEADER_FORWARD_OFFSET);
+//				if (forwardPointer == BUCKET_FORWARD_POINTER_NOT_SET) {
+//					return false;
+//				}
+//				
+//				final int overflowSegNum = (int) (forwardPointer >>> 32);
+//				this.bucket = this.overflowSegments[overflowSegNum];
+//				this.bucketInSegmentOffset = (int) (forwardPointer & 0xffffffff);
+//				this.countInSegment = this.bucket.getShort(this.bucketInSegmentOffset + HEADER_COUNT_OFFSET);
+//				this.posInSegment = this.bucketInSegmentOffset + BUCKET_HEADER_LENGTH;
+//				this.numInSegment = 0;
+//			}
+//		}
+//	} 
 	
 
 	// ======================================================================================================

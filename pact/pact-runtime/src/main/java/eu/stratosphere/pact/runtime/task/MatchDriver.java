@@ -42,8 +42,8 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  * 
  * @see MatchStub
  */
-public class MatchDriver<IT1, IT2, OT> implements PactDriver<GenericMatcher<IT1, IT2, OT>, OT>
-{
+public class MatchDriver<IT1, IT2, OT> implements PactDriver<GenericMatcher<IT1, IT2, OT>, OT> {
+	
 	protected static final Log LOG = LogFactory.getLog(MatchDriver.class);
 	
 	protected PactTaskContext<GenericMatcher<IT1, IT2, OT>, OT> taskContext;

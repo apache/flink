@@ -33,10 +33,9 @@ import eu.stratosphere.pact.runtime.task.util.CloseableInputProvider;
 
 /**
  * 
- * @author Stephan Ewen
  */
-public class TempBarrier<T> implements CloseableInputProvider<T>
-{
+public class TempBarrier<T> implements CloseableInputProvider<T> {
+	
 	private final SpillingBuffer buffer;
 	
 	private final TypeSerializer<T> serializer;

@@ -25,10 +25,13 @@ import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.generic.types.TypeSerializer;
-import eu.stratosphere.pact.runtime.iterative.concurrent.IterationGlobalBroker;
+import eu.stratosphere.pact.runtime.hash.MutableHashTable;
+import eu.stratosphere.pact.runtime.iterative.concurrent.IterationAggregatorBroker;
+import eu.stratosphere.pact.runtime.iterative.concurrent.SolutionsetBroker;
 import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
 import eu.stratosphere.pact.runtime.iterative.io.InterruptingMutableObjectIterator;
+import eu.stratosphere.pact.runtime.iterative.io.UpdateSolutionsetOutputCollector;
 import eu.stratosphere.pact.runtime.iterative.monitoring.IterationMonitoring;
 import eu.stratosphere.pact.runtime.task.PactDriver;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
@@ -49,12 +52,10 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
 	implements Terminable
 {
 	private static final Log log = LogFactory.getLog(AbstractIterativePactTask.class);
-	
-	private static final boolean REINSTANTIATE_STUB_PER_ITERATION = false;
 
 	private final AtomicBoolean terminationRequested = new AtomicBoolean(false);
 
-	private int numIterations = 1;
+	private int superstepNum = 1;
 	
 	private RuntimeAggregatorRegistry iterationAggregators;
 	
@@ -66,25 +67,7 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
 	
 	@Override
 	protected void initialize() throws Exception {
-		try {
-			this.driver.setup(this);
-		}
-		catch (Throwable t) {
-			throw new Exception("The pact driver setup for '" + this.getEnvironment().getTaskName() +
-				"' , caused an error: " + t.getMessage(), t);
-		}
-		
-		try {
-			final Class<? super S> userCodeFunctionType = this.driver.getStubType();
-			// if the class is null, the driver has no user code 
-			if (userCodeFunctionType != null && (this.stub == null || REINSTANTIATE_STUB_PER_ITERATION)) {
-				this.stub = initStub(userCodeFunctionType);
-				this.stub.setRuntimeContext(getRuntimeContext(getEnvironment().getTaskName()));
-			}
-		} catch (Exception e) {
-			throw new RuntimeException("Initializing the user code and the configuration failed" +
-				e.getMessage() == null ? "." : ": " + e.getMessage(), e);
-		}
+		super.initialize();
 		
 		// check if the driver is resettable
 		if (this.driver instanceof ResettablePactDriver) {
@@ -97,6 +80,17 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
 			}
 			// initialize the repeatable driver
 			resDriver.initialize();
+		}
+		
+		// instantiate the solution set update, if this task is responsible
+		if (config.getUpdateSolutionSet()) {
+			if (config.getUpdateSolutionSetWithoutReprobe()) {
+				@SuppressWarnings("unchecked")
+				MutableHashTable<OT, ?> hashTable = (MutableHashTable<OT, ?>) SolutionsetBroker.instance().get(brokerKey);
+				this.output = new UpdateSolutionsetOutputCollector<OT>(this.output, hashTable);
+			} else {
+				throw new UnsupportedOperationException("Runtime currently supports only fast updates withpout reprobing.");
+			}
 		}
 	}
 	
@@ -165,15 +159,15 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
 	// --------------------------------------------------------------------------------------------
 	
 	protected boolean inFirstIteration() {
-		return this.numIterations == 1;
+		return this.superstepNum == 1;
 	}
 
 	protected int currentIteration() {
-		return this.numIterations;
+		return this.superstepNum;
 	}
 
 	protected void incrementIterationCounter() {
-		this.numIterations++;
+		this.superstepNum++;
 	}
 
 	protected void notifyMonitor(IterationMonitoring.Event event) {
@@ -183,7 +177,7 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
 		}
 	}
 
-	protected String brokerKey() {
+	public String brokerKey() {
 		if (brokerKey == null) {
 			int iterationId = config.getIterationId();
 			brokerKey = getEnvironment().getJobID().toString() + '#' + iterationId + '#' + 
@@ -217,7 +211,7 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
 	
 	public RuntimeAggregatorRegistry getIterationAggregators() {
 		if (this.iterationAggregators == null) {
-			this.iterationAggregators = IterationGlobalBroker.instance().get(brokerKey());
+			this.iterationAggregators = IterationAggregatorBroker.instance().get(brokerKey());
 		}
 		return this.iterationAggregators;
 	}
@@ -249,7 +243,7 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
 
 		@Override
 		public int getSuperstepNumber() {
-			return AbstractIterativePactTask.this.numIterations;
+			return AbstractIterativePactTask.this.superstepNum;
 		}
 
 		@Override

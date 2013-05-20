@@ -15,11 +15,12 @@
 package eu.stratosphere.pact.compiler.iterations;
 
 import org.junit.Assert;
-//import org.junit.Test;
+import org.junit.Test;
 
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.compiler.CompilerTestBase;
+import eu.stratosphere.pact.compiler.plan.TempMode;
 import eu.stratosphere.pact.compiler.plan.candidate.DualInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
@@ -52,7 +53,7 @@ public class IncrementalConnectedComponentsTest extends CompilerTestBase {
 	private final FieldList set0 = new FieldList(0);
 	
 	
-//	@Test
+	@Test
 	public void testWorksetConnectedComponents() {
 		WorksetConnectedComponents cc = new WorksetConnectedComponents();
 
@@ -122,6 +123,10 @@ public class IncrementalConnectedComponentsTest extends CompilerTestBase {
 		
 		Assert.assertEquals(LocalStrategy.NONE, updatingMatch.getInput1().getLocalStrategy()); // min id
 		Assert.assertEquals(LocalStrategy.NONE, updatingMatch.getInput2().getLocalStrategy()); // solution set
+		
+		// check the dams
+		Assert.assertTrue(TempMode.PIPELINE_BREAKER == iter.getInitialWorksetInput().getTempMode() ||
+							LocalStrategy.SORT == iter.getInitialWorksetInput().getLocalStrategy());
 		
 		NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
 		jgg.compileJobGraph(optPlan);

@@ -30,7 +30,7 @@ import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFields;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsFirstExcept;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsFirst;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.generic.contract.WorksetIteration;
@@ -40,7 +40,7 @@ import eu.stratosphere.pact.generic.contract.WorksetIteration;
  */
 public class WorksetConnectedComponents implements PlanAssembler, PlanAssemblerDescription {
 	
-	public class NeighborWithComponentIDJoin extends MatchStub {
+	public static final class NeighborWithComponentIDJoin extends MatchStub {
 
 		private final PactRecord result = new PactRecord();
 
@@ -54,7 +54,7 @@ public class WorksetConnectedComponents implements PlanAssembler, PlanAssemblerD
 	
 	@Combinable
 	@ConstantFields(0)
-	public class MinimumComponentIDReduce extends ReduceStub {
+	public static final class MinimumComponentIDReduce extends ReduceStub {
 
 		private final PactRecord result = new PactRecord();
 		private final PactLong vertexId = new PactLong();
@@ -83,8 +83,8 @@ public class WorksetConnectedComponents implements PlanAssembler, PlanAssemblerD
 		}
 	}
 	
-	@ConstantFieldsFirstExcept({})
-	public class UpdateComponentIdMatch extends MatchStub {
+	@ConstantFieldsFirst(0)
+	public static final class UpdateComponentIdMatch extends MatchStub {
 
 		@Override
 		public void match(PactRecord newVertexWithComponent, PactRecord currentVertexWithComponent, Collector<PactRecord> out){
@@ -98,9 +98,6 @@ public class WorksetConnectedComponents implements PlanAssembler, PlanAssemblerD
 		}
 	}
 	
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public Plan getPlan(String... args) {
 		// parse job parameters
@@ -153,9 +150,6 @@ public class WorksetConnectedComponents implements PlanAssembler, PlanAssemblerD
 		return plan;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.example.datamining.KMeansIteration#getDescription()
-	 */
 	@Override
 	public String getDescription() {
 		return "Parameters: <numberOfSubTasks> <vertices> <edges> <out> <maxIterations>";

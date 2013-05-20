@@ -48,12 +48,9 @@ import eu.stratosphere.pact.common.type.Value;
  * @see Value
  * @see Configuration
  * @see PactRecord
- * 
- * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
- * @author Stephan Ewen
  */
-public class RecordOutputFormat extends FileOutputFormat
-{
+public class RecordOutputFormat extends FileOutputFormat {
+	
 	public static final String RECORD_DELIMITER_PARAMETER = "pact.output.record.delimiter";
 	
 	private static final String RECORD_DELIMITER_ENCODING = "pact.output.record.delimiter-encoding";

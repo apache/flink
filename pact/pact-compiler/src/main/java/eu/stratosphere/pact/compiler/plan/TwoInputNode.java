@@ -49,6 +49,7 @@ import eu.stratosphere.pact.generic.contract.Contract;
 import eu.stratosphere.pact.generic.contract.DualInputContract;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DamBehavior;
+import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 
 import static eu.stratosphere.pact.compiler.plan.candidate.PlanNode.SourceAndDamReport.*;
@@ -547,7 +548,24 @@ public abstract class TwoInputNode extends OptimizerNode {
 			RequestedGlobalProperties globPropsReq1,RequestedGlobalProperties globPropsReq2,
 			RequestedLocalProperties locPropsReq1, RequestedLocalProperties locPropsReq2)
 	{
+		placePipelineBreakersIfNecessary(operator.getStrategy(), in1, in2);
 		
+		DualInputPlanNode node = operator.instantiate(in1, in2, this);
+		
+		GlobalProperties gp1 = in1.getGlobalProperties().clone().filterByNodesConstantSet(this, 0);
+		GlobalProperties gp2 = in2.getGlobalProperties().clone().filterByNodesConstantSet(this, 1);
+		GlobalProperties combined = operator.computeGlobalProperties(gp1, gp2);
+
+		LocalProperties lp1 = in1.getLocalProperties().clone().filterByNodesConstantSet(this, 0);
+		LocalProperties lp2 = in2.getLocalProperties().clone().filterByNodesConstantSet(this, 1);
+		LocalProperties locals = operator.computeLocalProperties(lp1, lp2);
+		
+		node.initProperties(combined, locals);
+		node.updatePropertiesWithUniqueSets(getUniqueFields());
+		target.add(node);
+	}
+	
+	protected void placePipelineBreakersIfNecessary(DriverStrategy strategy, Channel in1, Channel in2) {
 		// before we instantiate, check for deadlocks by tracing back to the open branches and checking
 		// whether either no input, or all of them have a dam
 		if (this.hereJoinedBranchers != null && this.hereJoinedBranchers.size() > 0) {
@@ -556,7 +574,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 			boolean someDamOnRightPaths = false;
 			boolean damOnAllRightPaths = true;
 			
-			if (operator.getStrategy().firstDam() == DamBehavior.FULL_DAM || in1.getLocalStrategy().dams()) {
+			if (strategy.firstDam() == DamBehavior.FULL_DAM || in1.getLocalStrategy().dams()) {
 				someDamOnLeftPaths = true;
 			} else {
 				for (OptimizerNode brancher : this.hereJoinedBranchers) {
@@ -574,7 +592,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 				}
 			}
 			
-			if (operator.getStrategy().secondDam() == DamBehavior.FULL_DAM || in2.getLocalStrategy().dams()) {
+			if (strategy.secondDam() == DamBehavior.FULL_DAM || in2.getLocalStrategy().dams()) {
 				someDamOnRightPaths = true;
 			} else {
 				for (OptimizerNode brancher : this.hereJoinedBranchers) {
@@ -607,20 +625,6 @@ public abstract class TwoInputNode extends OptimizerNode {
 				}
 			}
 		}
-		
-		DualInputPlanNode node = operator.instantiate(in1, in2, this);
-		
-		GlobalProperties gp1 = in1.getGlobalProperties().clone().filterByNodesConstantSet(this, 0);
-		GlobalProperties gp2 = in2.getGlobalProperties().clone().filterByNodesConstantSet(this, 1);
-		GlobalProperties combined = operator.computeGlobalProperties(gp1, gp2);
-
-		LocalProperties lp1 = in1.getLocalProperties().clone().filterByNodesConstantSet(this, 0);
-		LocalProperties lp2 = in2.getLocalProperties().clone().filterByNodesConstantSet(this, 1);
-		LocalProperties locals = operator.computeLocalProperties(lp1, lp2);
-		
-		node.initProperties(combined, locals);
-		node.updatePropertiesWithUniqueSets(getUniqueFields());
-		target.add(node);
 	}
 	
 	/**

@@ -25,8 +25,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.fs.FileSystem;
 import org.junit.After;
 import org.junit.Assert;
@@ -44,20 +42,20 @@ import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
+import eu.stratosphere.pact.compiler.plandump.PlanJSONDumpGenerator;
 import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
 
 public abstract class TestBase2 {
 	
 	private static final int MINIMUM_HEAP_SIZE_MB = 192;
 
-	private static final Log LOG = LogFactory.getLog(TestBase2.class);
-	
-
 	protected final Configuration config;
 	
 	private final List<File> tempFiles;
 	
 	private NepheleMiniCluster executer;
+	
+	protected boolean printPlan = true;
 	
 
 
@@ -77,7 +75,7 @@ public abstract class TestBase2 {
 
 	@Before
 	public void startCluster() throws Exception {
-		LOG.info("######################### STARTING LOCAL EXECUTION CONTEXT #########################");
+		System.err.println("######################### STARTING LOCAL EXECUTION CONTEXT #########################");
 		this.executer = new NepheleMiniCluster();
 		this.executer.start();
 	}
@@ -85,11 +83,13 @@ public abstract class TestBase2 {
 	@After
 	public void stopCluster() throws Exception {
 		try {
-			LOG.info("######################### STOPPING LOCAL EXECUTION CONTEXT #########################");
-			this.executer.stop();
-			this.executer = null;
-			FileSystem.closeAll();
-			System.gc();
+			if (this.executer != null) {
+				System.err.println("######################### STOPPING LOCAL EXECUTION CONTEXT #########################");
+				this.executer.stop();
+				this.executer = null;
+				FileSystem.closeAll();
+				System.gc();
+			}
 		} finally {
 			deleteAllTempFiles();
 		}
@@ -98,28 +98,43 @@ public abstract class TestBase2 {
 	@Test
 	public void testJob() throws Exception {
 		// pre-submit
-		preSubmit();
+		try {
+			preSubmit();
+		} catch (Exception e) {
+			System.err.println(e.getMessage());
+			e.printStackTrace();
+			Assert.fail("Pre-submit work caused an error: " + e.getMessage());
+		}
 
 		// submit job
 		JobGraph jobGraph = null;
 		try {
 			jobGraph = getJobGraph();
 		} catch(Exception e) {
-			LOG.error(e);
+			System.err.println(e.getMessage());
 			e.printStackTrace();
 			Assert.fail("Failed to obtain JobGraph!");
 		}
+		
+		Assert.assertNotNull("Obtained null JobGraph", jobGraph);
 		
 		try {
 			JobClient client = this.executer.getJobClient(jobGraph);
 			client.submitJobAndWait();
 		} catch(Exception e) {
-			LOG.error(e);
+			System.err.println(e.getMessage());
+			e.printStackTrace();
 			Assert.fail("Job execution failed!");
 		}
 		
 		// post-submit
-		postSubmit();
+		try {
+			postSubmit();
+		} catch (Exception e) {
+			System.err.println(e.getMessage());
+			e.printStackTrace();
+			Assert.fail("Post-submit work caused an error: " + e.getMessage());
+		}
 	}
 	
 	public String getTempDirPath(String dirName) throws IOException {
@@ -219,6 +234,10 @@ public abstract class TestBase2 {
 		
 		PactCompiler pc = new PactCompiler(new DataStatistics());
 		OptimizedPlan op = pc.compile(p);
+		
+		if (printPlan) {
+			System.out.println(new PlanJSONDumpGenerator().getOptimizerPlanAsJSON(op)); 
+		}
 
 		NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
 		return jgg.compileJobGraph(op);

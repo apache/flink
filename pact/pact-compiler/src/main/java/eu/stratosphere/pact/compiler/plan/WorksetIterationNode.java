@@ -259,6 +259,9 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 			RequestedGlobalProperties globPropsReqSolutionSet,RequestedGlobalProperties globPropsReqWorkset,
 			RequestedLocalProperties locPropsReqSolutionSet, RequestedLocalProperties locPropsReqWorkset)
 	{
+		// check for pipeline breaking using hash join with build on the solution set side
+		placePipelineBreakersIfNecessary(DriverStrategy.HYBRIDHASH_BUILD_FIRST, solutionSetIn, worksetIn);
+		
 		// NOTES ON THE ENUMERATION OF THE STEP FUNCTION PLANS:
 		// Whenever we instantiate the iteration, we enumerate new candidates for the step function.
 		// That way, we make sure we have an appropriate plan for each candidate for the initial partial solution,

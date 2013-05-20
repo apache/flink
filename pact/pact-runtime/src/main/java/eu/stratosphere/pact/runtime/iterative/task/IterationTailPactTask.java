@@ -19,11 +19,14 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.pact.common.stubs.Stub;
+import eu.stratosphere.pact.common.stubs.aggregators.LongSumAggregator;
+import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.generic.types.TypeSerializer;
 import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannel;
 import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannelBroker;
 import eu.stratosphere.pact.runtime.iterative.concurrent.Broker;
+import eu.stratosphere.pact.runtime.iterative.convergence.WorksetEmptyConvergenceCriterion;
 import eu.stratosphere.pact.runtime.iterative.io.DataOutputCollector;
 //import eu.stratosphere.pact.runtime.iterative.monitoring.IterationMonitoring;
 import eu.stratosphere.pact.runtime.task.PactTaskContext;
@@ -39,6 +42,11 @@ public class IterationTailPactTask<S extends Stub, OT> extends AbstractIterative
 		implements PactTaskContext<S, OT>
 {
 	private static final Log log = LogFactory.getLog(IterationTailPactTask.class);
+	
+	
+	private BlockingBackChannel backChannel;
+	
+	private DataOutputCollector<OT> outputCollector;
 
 	
 	private BlockingBackChannel retrieveBackChannel() throws Exception {
@@ -46,23 +54,34 @@ public class IterationTailPactTask<S extends Stub, OT> extends AbstractIterative
 		Broker<BlockingBackChannel> broker = BlockingBackChannelBroker.instance();
 		return broker.getAndRemove(brokerKey());
 	}
-
+	
 	@Override
-	public void run() throws Exception {
-
+	protected void initialize() throws Exception {
 		// Initially retrieve the backchannel from the iteration head
-		final BlockingBackChannel backChannel = retrieveBackChannel();
+		backChannel = retrieveBackChannel();
 		
 		// instantiate the collector that writes to the back channel
-		final TypeSerializerFactory<OT> outSerializerFact = this.config.getOutputSerializer(this.userCodeClassLoader);
+		TypeSerializerFactory<OT> outSerializerFact = this.config.getOutputSerializer(this.userCodeClassLoader);
 		if (outSerializerFact == null) {
 			throw new Exception("Error: Missing serializer for tail result!");
 		}
-		
-		final TypeSerializer<OT> serializer = outSerializerFact.getSerializer();
-		final DataOutputCollector<OT> outputCollector = new DataOutputCollector<OT>(
-				backChannel.getWriteEnd(), serializer);
+		TypeSerializer<OT> serializer = outSerializerFact.getSerializer();
+		outputCollector = new DataOutputCollector<OT>(backChannel.getWriteEnd(), serializer);
 		this.output = outputCollector;
+		
+		super.initialize();
+	}
+
+	@Override
+	public void run() throws Exception {
+		
+		LongSumAggregator worksetElementsAggregator = null;
+		if (config.isWorksetIteration()) {
+			worksetElementsAggregator = (LongSumAggregator) getIterationAggregators().<PactLong>getAggregator(WorksetEmptyConvergenceCriterion.AGGREGATOR_NAME);
+			if (worksetElementsAggregator == null) {
+				throw new Exception("Error: Iteration tail in workset iteration did not find workset elements count aggregator.");
+			}
+		}
 
 		while (this.running && !terminationRequested()) {
 
@@ -76,12 +95,14 @@ public class IterationTailPactTask<S extends Stub, OT> extends AbstractIterative
 			super.run();
 //			notifyMonitor(IterationMonitoring.Event.TAIL_PACT_FINISHED);
 
-			@SuppressWarnings("unused")
 			long elementsCollected = outputCollector.getElementsCollectedAndReset();
 //			if (log.isInfoEnabled()) {
 //				log.info("IterationTail [" + getEnvironment().getIndexInSubtaskGroup() + "] inserted [" +
 //					elementsCollected + "] elements into backchannel in iteration [" + currentIteration() + "]");
 //			}
+			if (worksetElementsAggregator != null) {
+				worksetElementsAggregator.aggregate(elementsCollected);
+			}
 
 			if (log.isInfoEnabled()) {
 				log.info(formatLogString("finishing iteration [" + currentIteration() + "]"));

@@ -260,8 +260,6 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 		if (LOG.isInfoEnabled())
 			LOG.info(formatLogString("Start PACT code."));
 		
-		// sanity check the input setup
-		final int numInputs = this.driver.getNumberOfInputs();
 		// whatever happens in this scope, make sure that the local strategies are cleaned up!
 		// note that the initialization of the local strategies is in the try-finally block as well,
 		// so that the thread that creates them catches its own errors that may happen in that process.
@@ -270,6 +268,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 			// initialize the remaining data structures on the input and trigger the local processing
 			// the local processing includes building the dams / caches
 			try {
+				int numInputs = driver.getNumberOfInputs();
 				initInputsSerializersAndComparators(numInputs);
 				initLocalStrategies(numInputs);
 			} catch (Exception e) {
@@ -494,7 +493,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 	 * This method requires that the task configuration, the driver, and the user-code class loader are set.
 	 */
 	protected void initInputReaders() throws Exception {
-		final int numInputs = this.driver.getNumberOfInputs();
+		final int numInputs = getNumTaskInputs();
 		final MutableReader<?>[] inputReaders = new MutableReader[numInputs];
 		
 		int numGates = 0;
@@ -595,6 +594,9 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 			
 			if (async || cached) {
 				memory = this.config.getInputMaterializationMemory(i);
+				if (memory <= 0) {
+					throw new Exception("Input marked as materialized/cached, but no memory for materialization provided.");
+				}
 				this.materializationMemory[i] = memory;
 			} else {
 				memory = 0;
@@ -773,6 +775,11 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 			return iter;
 		}
 	}
+	
+	protected int getNumTaskInputs() {
+		return this.driver.getNumberOfInputs();
+	}
+	
 	/**
 	 * Gets the default behavior that readers should use on interrupts.
 	 * 

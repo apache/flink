@@ -23,12 +23,15 @@ import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.plan.Plan;
-import eu.stratosphere.pact.example.pagerank.DanglingPageRank;
-import eu.stratosphere.pact.test.iterative.nephele.DanglingPageRankITCase;
+import eu.stratosphere.pact.example.pagerank.SimplePageRank;
 import eu.stratosphere.pact.test.util.TestBase2;
 
 @RunWith(Parameterized.class)
 public class PageRankITCase extends TestBase2 {
+	
+	private static final String VERTICES = "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n";
+	
+	private static final String EDGES = "1 2\n2 3\n3 4\n4 5\n5 6\n6 7\n7 8\n8 9\n9 10\n10 1\n";
 
 	protected String pagesPath;
 	protected String edgesPath;
@@ -39,25 +42,23 @@ public class PageRankITCase extends TestBase2 {
 		super(config);
 	}
 	
-	
 	@Override
 	protected void preSubmit() throws Exception {
-		pagesPath = createTempFile("pages.txt", DanglingPageRankITCase.TEST_VERTICES);
-		edgesPath = createTempFile("edges.txt", DanglingPageRankITCase.TEST_EDGES);
+		pagesPath = createTempFile("pages.txt", VERTICES);
+		edgesPath = createTempFile("edges.txt", EDGES);
 		resultPath = getTempFilePath("results");
 	}
 
 	@Override
 	protected Plan getPactPlan() {
-		DanglingPageRank pr = new DanglingPageRank();
+		SimplePageRank pr = new SimplePageRank();
 		Plan plan = pr.getPlan(
-			config.getString("PageRankITCase#NoSubtasks", "1"), 
+			config.getString("NumSubtasks", "1"), 
 			pagesPath,
 			edgesPath,
 			resultPath,
-			config.getString("PageRankITCase#NumIterations", "25"),	// max iterations
-			"5",	// num vertices
-			"1");	// num dangling vertices
+			config.getString("NumIterations", "5"),	// max iterations
+			"10");	// num dangling vertices
 		return plan;
 	}
 
@@ -65,8 +66,8 @@ public class PageRankITCase extends TestBase2 {
 	@Parameters
 	public static Collection<Object[]> getConfigurations() {
 		Configuration config1 = new Configuration();
-		config1.setInteger("PageRankITCase#NoSubtasks", 4);
-		config1.setString("PageRankITCase#NumIterations", "25");
+		config1.setInteger("NumSubtasks", 4);
+		config1.setString("NumIterations", "5");
 		return toParameterList(config1);
 	}
 }

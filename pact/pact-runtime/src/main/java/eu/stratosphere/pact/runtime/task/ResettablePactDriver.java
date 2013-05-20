@@ -28,8 +28,8 @@ import eu.stratosphere.pact.common.stubs.Stub;
  * @param <S> The type of stub driven by this driver.
  * @param <OT> The data type of the records produced by this driver.
  */
-public interface ResettablePactDriver<S extends Stub, OT> extends PactDriver<S, OT>
-{
+public interface ResettablePactDriver<S extends Stub, OT> extends PactDriver<S, OT> {
+	
 	boolean isInputResettable(int inputNum);
 	
 	void initialize() throws Exception;

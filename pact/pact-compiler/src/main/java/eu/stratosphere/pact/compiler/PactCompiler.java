@@ -72,8 +72,11 @@ import eu.stratosphere.pact.compiler.plan.candidate.BulkPartialSolutionPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkJoinerPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
+import eu.stratosphere.pact.compiler.plan.candidate.SolutionSetPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SourcePlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.UnionPlanNode;
+import eu.stratosphere.pact.compiler.plan.candidate.WorksetIterationPlanNode;
+import eu.stratosphere.pact.compiler.plan.candidate.WorksetPlanNode;
 import eu.stratosphere.pact.compiler.postpass.OptimizerPostPass;
 import eu.stratosphere.pact.generic.contract.BulkIteration;
 import eu.stratosphere.pact.generic.contract.BulkIteration.PartialSolutionPlaceHolder;
@@ -1339,6 +1342,28 @@ public class PactCompiler {
 							"Cannot associate the node for a partial solutions with its containing iteration.");
 				}
 				pspn.setContainingIterationNode((BulkIterationPlanNode) iteration);
+			} else if (visitable instanceof WorksetPlanNode) {
+				// tell the partial solution about the iteration node that contains it
+				final WorksetPlanNode wspn = (WorksetPlanNode) visitable;
+				final IterationPlanNode iteration = this.stackOfIterationNodes.peekLast();
+				
+				// sanity check!
+				if (iteration == null || !(iteration instanceof WorksetIterationPlanNode)) {
+					throw new CompilerException("Bug: Error finalizing the plan. " +
+							"Cannot associate the node for a partial solutions with its containing iteration.");
+				}
+				wspn.setContainingIterationNode((WorksetIterationPlanNode) iteration);
+			} else if (visitable instanceof SolutionSetPlanNode) {
+				// tell the partial solution about the iteration node that contains it
+				final SolutionSetPlanNode sspn = (SolutionSetPlanNode) visitable;
+				final IterationPlanNode iteration = this.stackOfIterationNodes.peekLast();
+				
+				// sanity check!
+				if (iteration == null || !(iteration instanceof WorksetIterationPlanNode)) {
+					throw new CompilerException("Bug: Error finalizing the plan. " +
+							"Cannot associate the node for a partial solutions with its containing iteration.");
+				}
+				sspn.setContainingIterationNode((WorksetIterationPlanNode) iteration);
 			}
 			
 			for (Iterator<Channel> iter = visitable.getInputs(); iter.hasNext();) {

@@ -154,9 +154,15 @@ public class TaskConfig {
 	
 	private static final String ITERATION_HEAD_ID = "pact.iterative.head.id";
 	
+	private static final String ITERATION_WORKSET_MARKER = "pact.iterative.is-workset";
+	
 	private static final String ITERATION_HEAD_INDEX_OF_PARTIAL_SOLUTION = "pact.iterative.head.ps-input-index";
 	
+	private static final String ITERATION_HEAD_INDEX_OF_SOLUTIONSET = "pact.iterative.head.ss-input-index";
+	
 	private static final String ITERATION_HEAD_BACKCHANNEL_MEMORY = "pact.iterative.head.backchannel-memory";
+	
+	private static final String ITERATION_HEAD_SOLUTION_SET_MEMORY = "pact.iterative.head.solutionset-memory";
 	
 	private static final String ITERATION_HEAD_FINAL_OUT_CONFIG_PREFIX = "pact.iterative.head.out.";
 	
@@ -171,6 +177,28 @@ public class TaskConfig {
 	private static final String ITERATION_AGGREGATOR_NAME_PREFIX = "pact.iterative.agg.name.";
 	
 	private static final String ITERATION_AGGREGATOR_PREFIX = "pact.iterative.agg.data.";
+	
+	private static final String ITERATION_SOLUTION_SET_SERIALIZER = "pact.iterative.ss-serializer";
+	
+	private static final String ITERATION_SOLUTION_SET_SERIALIZER_PARAMETERS = "pact.iterative.ss-serializer.params";
+	
+	private static final String ITERATION_SOLUTION_SET_COMPARATOR = "pact.iterative.ss-comparator";
+	
+	private static final String ITERATION_SOLUTION_SET_COMPARATOR_PARAMETERS = "pact.iterative.ss-comparator.params";
+	
+	private static final String ITERATION_SOLUTION_SET_PROBER_SERIALIZER = "pact.iterative.ss-prober-serializer";
+	
+	private static final String ITERATION_SOLUTION_SET_PROBER_SERIALIZER_PARAMETERS = "pact.iterative.ss-prober-serializer.params";
+	
+	private static final String ITERATION_SOLUTION_SET_PROBER_COMPARATOR = "pact.iterative.ss-prober-comparator";
+	
+	private static final String ITERATION_SOLUTION_SET_PROBER_COMPARATOR_PARAMETERS = "pact.iterative.ss-prober-comparator.params";
+	
+	private static final String ITERATION_SOLUTION_SET_PAIR_COMPARATOR = "pact.iterative.ss-pair-comparator";
+	
+	private static final String ITERATION_SOLUTION_SET_UPDATE = "pact.iterative.ss-update";
+	
+	private static final String ITERATION_SOLUTION_SET_UPDATE_SKIP_REPROBE = "pact.iterative.ss-update-fast";
 	
 	// ---------------------------------- Miscellaneous -------------------------------------------
 	
@@ -631,15 +659,30 @@ public class TaskConfig {
 		return numberOfIterations;
 	}
 	
-	public void setIterationHeadPartialSolutionInputIndex(int inputIndex) {
+	public void setIterationHeadPartialSolutionOrWorksetInputIndex(int inputIndex) {
 		if (inputIndex < 0) {
 			throw new IllegalArgumentException();
 		}
 		this.config.setInteger(ITERATION_HEAD_INDEX_OF_PARTIAL_SOLUTION, inputIndex);
 	}
 	
-	public int getIterationHeadPartialSolutionInputIndex() {
+	public int getIterationHeadPartialSolutionOrWorksetInputIndex() {
 		int index = this.config.getInteger(ITERATION_HEAD_INDEX_OF_PARTIAL_SOLUTION, -1);
+		if (index < 0) {
+			throw new IllegalArgumentException();
+		}
+		return index;
+	}
+	
+	public void setIterationHeadSolutionSetInputIndex(int inputIndex) {
+		if (inputIndex < 0) {
+			throw new IllegalArgumentException();
+		}
+		this.config.setInteger(ITERATION_HEAD_INDEX_OF_SOLUTIONSET, inputIndex);
+	}
+	
+	public int getIterationHeadSolutionSetInputIndex() {
+		int index = this.config.getInteger(ITERATION_HEAD_INDEX_OF_SOLUTIONSET, -1);
 		if (index < 0) {
 			throw new IllegalArgumentException();
 		}
@@ -655,6 +698,21 @@ public class TaskConfig {
 
 	public long getBackChannelMemory() {
 		long backChannelMemory = this.config.getLong(ITERATION_HEAD_BACKCHANNEL_MEMORY, 0);
+		if (backChannelMemory <= 0) {
+			throw new IllegalArgumentException();
+		}
+		return backChannelMemory;
+	}
+	
+	public void setSolutionSetMemory(long memory) {
+		if (memory < 0) {
+			throw new IllegalArgumentException();
+		}
+		this.config.setLong(ITERATION_HEAD_SOLUTION_SET_MEMORY, memory);
+	}
+
+	public long getSolutionSetMemory() {
+		long backChannelMemory = this.config.getLong(ITERATION_HEAD_SOLUTION_SET_MEMORY, 0);
 		if (backChannelMemory <= 0) {
 			throw new IllegalArgumentException();
 		}
@@ -697,6 +755,14 @@ public class TaskConfig {
 		return id;
 	}
 	
+	public void setWorksetIteration() {
+		this.config.setBoolean(ITERATION_WORKSET_MARKER, true);
+	}
+	
+	public boolean isWorksetIteration() {
+		return this.config.getBoolean(ITERATION_WORKSET_MARKER, false);
+	}
+	
 	public void setIterationHeadIndexOfSyncOutput(int outputIndex) {
 		if (outputIndex < 0) {
 			throw new IllegalArgumentException();
@@ -718,6 +784,74 @@ public class TaskConfig {
 	
 	public TaskConfig getIterationHeadFinalOutputConfig() {
 		return new TaskConfig(new DelegatingConfiguration(this.config, ITERATION_HEAD_FINAL_OUT_CONFIG_PREFIX));
+	}
+	
+	public void setSolutionSetSerializer(TypeSerializerFactory<?> factory) {
+		setTypeSerializerFactory(factory, ITERATION_SOLUTION_SET_SERIALIZER,
+			ITERATION_SOLUTION_SET_SERIALIZER_PARAMETERS);
+	}
+	
+	public <T> TypeSerializerFactory<T> getSolutionSetSerializer(ClassLoader cl) {
+		return getTypeSerializerFactory(ITERATION_SOLUTION_SET_SERIALIZER,
+			ITERATION_SOLUTION_SET_SERIALIZER_PARAMETERS, cl);
+	}
+	
+	public void setSolutionSetComparator(TypeComparatorFactory<?> factory) {
+		setTypeComparatorFactory(factory, ITERATION_SOLUTION_SET_COMPARATOR,
+			ITERATION_SOLUTION_SET_COMPARATOR_PARAMETERS);
+	}
+	
+	public <T> TypeComparatorFactory<T> getSolutionSetComparator(ClassLoader cl) {
+		return getTypeComparatorFactory(ITERATION_SOLUTION_SET_COMPARATOR,
+			ITERATION_SOLUTION_SET_COMPARATOR_PARAMETERS, cl);
+	}
+	
+	public void setSolutionSetProberSerializer(TypeSerializerFactory<?> factory) {
+		setTypeSerializerFactory(factory, ITERATION_SOLUTION_SET_PROBER_SERIALIZER,
+			ITERATION_SOLUTION_SET_PROBER_SERIALIZER_PARAMETERS);
+	}
+	
+	public <T> TypeSerializerFactory<T> getSolutionSetProberSerializer(ClassLoader cl) {
+		return getTypeSerializerFactory(ITERATION_SOLUTION_SET_PROBER_SERIALIZER,
+			ITERATION_SOLUTION_SET_PROBER_SERIALIZER_PARAMETERS, cl);
+	}
+	
+	public void setSolutionSetProberComparator(TypeComparatorFactory<?> factory) {
+		setTypeComparatorFactory(factory, ITERATION_SOLUTION_SET_PROBER_COMPARATOR,
+			ITERATION_SOLUTION_SET_PROBER_COMPARATOR_PARAMETERS);
+	}
+	
+	public <T> TypeComparatorFactory<T> getSolutionSetProberComparator(ClassLoader cl) {
+		return getTypeComparatorFactory(ITERATION_SOLUTION_SET_PROBER_COMPARATOR,
+			ITERATION_SOLUTION_SET_PROBER_COMPARATOR_PARAMETERS, cl);
+	}
+	
+	public void setSolutionSetPairComparator(TypePairComparatorFactory<?, ?> factory) {
+		final Class<?> clazz = factory.getClass();
+		InstantiationUtil.checkForInstantiation(clazz);
+		this.config.setString(ITERATION_SOLUTION_SET_PAIR_COMPARATOR, clazz.getName());
+	}
+			
+	public <T1, T2> TypePairComparatorFactory<T1, T2> getSolutionSetPairComparatorFactory(ClassLoader cl) {
+		final String className = this.config.getString(ITERATION_SOLUTION_SET_PAIR_COMPARATOR, null);
+		if (className == null) {
+			return null;
+		}
+		
+		@SuppressWarnings("unchecked")
+		final Class<TypePairComparatorFactory<T1, T2>> superClass = (Class<TypePairComparatorFactory<T1, T2>>) (Class<?>) TypePairComparatorFactory.class;
+		try {
+			final Class<? extends TypePairComparatorFactory<T1, T2>> clazz = Class.forName(className, true, cl).asSubclass(superClass);
+			return InstantiationUtil.instantiate(clazz, superClass);
+		}
+		catch (ClassNotFoundException cnfex) {
+			throw new RuntimeException("The class '" + className + "', noted in the configuration as " +
+				"pair comparator factory, could not be found. It is not part of the user code's class loader resources.");
+		}
+		catch (ClassCastException ccex) {
+			throw new CorruptConfigurationException("The class noted in the configuration as the pair comparator factory " +
+				"is no subclass of TypePairComparatorFactory.");
+		}
 	}
 
 	public void addIterationAggregator(String name, Class<? extends Aggregator<?>> aggregator) {
@@ -781,6 +915,22 @@ public class TaskConfig {
 	public String getConvergenceCriterionAggregatorName() {
 		return this.config.getString(ITERATION_CONVERGENCE_CRITERION_AGG_NAME, null);
 	}
+	
+	public void setUpdateSolutionSet() {
+		this.config.setBoolean(ITERATION_SOLUTION_SET_UPDATE, true);
+	}
+	
+	public boolean getUpdateSolutionSet() {
+		return this.config.getBoolean(ITERATION_SOLUTION_SET_UPDATE, false);
+	}
+	
+	public void setUpdateSolutionSetWithoutReprobe() {
+		this.config.setBoolean(ITERATION_SOLUTION_SET_UPDATE_SKIP_REPROBE, true);
+	}
+	
+	public boolean getUpdateSolutionSetWithoutReprobe() {
+		return this.config.getBoolean(ITERATION_SOLUTION_SET_UPDATE_SKIP_REPROBE, false);
+	}
 
 	// --------------------------------------------------------------------------------------------
 	//                                    Miscellaneous
@@ -799,8 +949,7 @@ public class TaskConfig {
 		factory.writeParametersToConfig(parameters);
 	}
 	
-	private final <T> TypeSerializerFactory<T> getTypeSerializerFactory(String classNameKey, String parametersPrefix, ClassLoader cl)
-	{
+	private final <T> TypeSerializerFactory<T> getTypeSerializerFactory(String classNameKey, String parametersPrefix, ClassLoader cl) {
 		// check the class name
 		final String className = this.config.getString(classNameKey, null);
 		if (className == null) {
@@ -849,8 +998,7 @@ public class TaskConfig {
 		factory.writeParametersToConfig(parameters);
 	}
 	
-	private final <T> TypeComparatorFactory<T> getTypeComparatorFactory(String classNameKey, String parametersPrefix, ClassLoader cl)
-	{
+	private final <T> TypeComparatorFactory<T> getTypeComparatorFactory(String classNameKey, String parametersPrefix, ClassLoader cl) {
 		// check the class name
 		final String className = this.config.getString(classNameKey, null);
 		if (className == null) {

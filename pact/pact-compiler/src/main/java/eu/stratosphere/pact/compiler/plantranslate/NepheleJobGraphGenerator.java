@@ -40,6 +40,7 @@ import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.pact.common.stubs.aggregators.AggregatorWithName;
 import eu.stratosphere.pact.common.stubs.aggregators.ConvergenceCriterion;
+import eu.stratosphere.pact.common.stubs.aggregators.LongSumAggregator;
 import eu.stratosphere.pact.common.util.PactConfigConstants;
 import eu.stratosphere.pact.common.util.Visitor;
 import eu.stratosphere.pact.compiler.CompilerException;
@@ -60,6 +61,7 @@ import eu.stratosphere.pact.compiler.plan.candidate.WorksetIterationPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.WorksetPlanNode;
 import eu.stratosphere.pact.generic.contract.AggregatorRegistry;
 import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
+import eu.stratosphere.pact.runtime.iterative.convergence.WorksetEmptyConvergenceCriterion;
 import eu.stratosphere.pact.runtime.iterative.io.FakeOutputTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationHeadPactTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationIntermediatePactTask;
@@ -162,6 +164,8 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		for (IterationDescriptor iteration : this.iterations.values()) {
 			if (iteration.getIterationNode() instanceof BulkIterationPlanNode) {
 				finalizeBulkIteration(iteration);
+			} else if (iteration.getIterationNode() instanceof WorksetIterationPlanNode) {
+				finalizeWorksetIteration(iteration);
 			} else {
 				throw new CompilerException();
 			}
@@ -287,12 +291,12 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 				vertex = createBulkIterationHead((BulkPartialSolutionPlanNode) node);
 			}
 			else if (node instanceof SolutionSetPlanNode) {
-				// create the iteration head here or at the workset, whichever comes second
-				throw new UnsupportedOperationException();
+				// skip the solution set place holder. we create the head at the workset place holder
+				vertex = null;
 			}
 			else if (node instanceof WorksetPlanNode) {
-				// create the iteration head here or at the solution set, whichever comes second
-				throw new UnsupportedOperationException();
+				// create the iteration head here
+				vertex = createWorksetIterationHead((WorksetPlanNode) node);
 			}
 			else {
 				throw new CompilerException("Unrecognized node type: " + node.getClass().getName());
@@ -453,7 +457,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 				inConns = ((BulkPartialSolutionPlanNode) node).getContainingIterationNode().getInputs();
 				// because the partial solution has its own vertex, is has only one (logical) input.
 				// note this in the task configuration
-				targetVertexConfig.setIterationHeadPartialSolutionInputIndex(0);
+				targetVertexConfig.setIterationHeadPartialSolutionOrWorksetInputIndex(0);
 			} else {
 				inConns = node.getInputs();
 			}
@@ -483,7 +487,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 						}
 						
 						// also, set the index of the gate with the partial solution
-						targetVertexConfig.setIterationHeadPartialSolutionInputIndex(inputIndex);
+						targetVertexConfig.setIterationHeadPartialSolutionOrWorksetInputIndex(inputIndex);
 					} else {
 						// standalone iteration head
 						allInChannels = Collections.singletonList(input).iterator();
@@ -716,6 +720,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			final PlanNode successor = c.getTarget();
 			merge = c.getShipStrategy() == ShipStrategyType.FORWARD &&
 					c.getLocalStrategy() == LocalStrategy.NONE &&
+					c.getTempMode() == TempMode.NONE &&
 					successor.getDegreeOfParallelism() == pspn.getDegreeOfParallelism() &&
 					successor.getSubtasksPerInstance() == pspn.getSubtasksPerInstance() &&
 					!(successor instanceof UnionPlanNode) &&
@@ -752,7 +757,70 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		// create the iteration descriptor and the iteration to it
 		IterationDescriptor descr = this.iterations.get(iteration);
 		if (descr == null) {
-			throw new CompilerException("Bug: Iteration descriptor was not created at when translating head vertex.");
+			throw new CompilerException("Bug: Iteration descriptor was not created at when translating the iteration node.");
+		}
+		descr.setHeadTask(headVertex);
+		
+		return toReturn;
+	}
+	
+	private JobTaskVertex createWorksetIterationHead(WorksetPlanNode wspn) {
+		// get the bulk iteration that corresponds to this partial solution node
+		final WorksetIterationPlanNode iteration = wspn.getContainingIterationNode();
+		
+		// check whether we need an individual vertex for the partial solution, or whether we
+		// attach ourselves to the vertex of the parent node. We can combine the head with a node of 
+		// the step function, if
+		// 1) There is one parent that the partial solution connects to via a forward pattern and no
+		//    local strategy
+		// 2) DOP and the number of subtasks per instance does not change
+		// 3) That successor is not a union
+		// 4) That successor is not itself the last node of the step function
+		
+		final boolean merge;
+		if (wspn.getOutgoingChannels().size() == 1) {
+			final Channel c = wspn.getOutgoingChannels().get(0);
+			final PlanNode successor = c.getTarget();
+			merge = c.getShipStrategy() == ShipStrategyType.FORWARD &&
+					c.getLocalStrategy() == LocalStrategy.NONE &&
+					c.getTempMode() == TempMode.NONE &&
+					successor.getDegreeOfParallelism() == wspn.getDegreeOfParallelism() &&
+					successor.getSubtasksPerInstance() == wspn.getSubtasksPerInstance() &&
+					!(successor instanceof UnionPlanNode) &&
+					successor != iteration.getNextWorkSetPlanNode();
+		} else {
+			merge = false;
+		}
+		
+		// create or adopt the head vertex
+		final JobTaskVertex toReturn;
+		final JobTaskVertex headVertex;
+		if (merge) {
+			final PlanNode successor = wspn.getOutgoingChannels().get(0).getTarget();
+			headVertex = (JobTaskVertex) this.vertices.get(successor);
+			
+			if (headVertex == null) {
+				throw new CompilerException(
+					"Bug: Trying to merge solution set with its sucessor, but successor has not been created.");
+			}
+			
+			// reset the vertex type to iteration head
+			headVertex.setTaskClass(IterationHeadPactTask.class);
+			toReturn = null;
+		} else {
+			// instantiate the head vertex and give it a no-op driver as the driver strategy.
+			// everything else happens in the post visit, after the input (the initial partial solution)
+			// is connected.
+			headVertex = new JobTaskVertex(iteration.getPactContract().getName() + " - Partial Solution", this.jobGraph);
+			headVertex.setTaskClass(IterationHeadPactTask.class);
+			new TaskConfig(headVertex.getConfiguration()).setDriver(NoOpDriver.class);
+			toReturn = headVertex;
+		}
+		
+		// create the iteration descriptor and the iteration to it
+		IterationDescriptor descr = this.iterations.get(iteration);
+		if (descr == null) {
+			throw new CompilerException("Bug: Iteration descriptor was not created at when translating the iteration node.");
 		}
 		descr.setHeadTask(headVertex);
 		
@@ -918,7 +986,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		// set the number of iteration / convergence criterion for the sync
 		final int maxNumIterations = bulkNode.getIterationNode().getIterationContract().getMaximumNumberOfIterations();
 		if (maxNumIterations < 1) {
-			throw new CompilerException("Cannot create bulk iteration with unspecified maximum number of iterations");
+			throw new CompilerException("Cannot create bulk iteration with unspecified maximum number of iterations.");
 		}
 		syncConfig.setNumberOfIterations(maxNumIterations);
 		
@@ -985,6 +1053,79 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			
 			syncConfig.setConvergenceCriterion(convAggName, convCriterion);
 		}
+	}
+	
+	private void finalizeWorksetIteration(IterationDescriptor descr) {
+		final WorksetIterationPlanNode iterNode = (WorksetIterationPlanNode) descr.getIterationNode();
+		final JobTaskVertex headVertex = descr.getHeadTask();
+		final TaskConfig headConfig = new TaskConfig(headVertex.getConfiguration());
+		final TaskConfig headFinalOutputConfig = descr.getHeadFinalResultConfig();
+		
+		// ------------ finalize the head config with the final outputs and the sync gate ------------
+		final int numStepFunctionOuts = headConfig.getNumOutputs();
+		final int numFinalOuts = headFinalOutputConfig.getNumOutputs();
+		headConfig.setIterationHeadFinalOutputConfig(headFinalOutputConfig);
+		headConfig.setIterationHeadIndexOfSyncOutput(numStepFunctionOuts + numFinalOuts);
+		final long mem = iterNode.getMemoryPerSubTask();
+		if (mem <= 0) {
+			throw new CompilerException("Bug: No memory has been assigned to the workset iteration.");
+		}
+		
+		headConfig.setBackChannelMemory(mem / 2);
+		headConfig.setSolutionSetMemory(mem / 2);
+		
+		// --------------------------- create the sync task ---------------------------
+		final JobOutputVertex sync = new JobOutputVertex("Bulk-Iteration Sync (" +
+					iterNode.getPactContract().getName() + ")", this.jobGraph);
+		sync.setOutputClass(IterationSynchronizationSinkTask.class);
+		sync.setNumberOfSubtasks(1);
+		this.auxVertices.add(sync);
+		
+		final TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());
+		syncConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, headVertex.getNumberOfSubtasks());
+
+		// set the number of iteration / convergence criterion for the sync
+		final int maxNumIterations = iterNode.getIterationNode().getIterationContract().getMaximumNumberOfIterations();
+		if (maxNumIterations < 1) {
+			throw new CompilerException("Cannot create workset iteration with unspecified maximum number of iterations.");
+		}
+		syncConfig.setNumberOfIterations(maxNumIterations);
+		
+		// connect the sync task
+		try {
+			headVertex.connectTo(sync, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION, DistributionPattern.POINTWISE);
+		} catch (JobGraphDefinitionException e) {
+			throw new CompilerException("Bug: Cannot connect head vertex to sync task.");
+		}
+		
+		
+		// ----------------------------- create the iteration tail ------------------------------
+		
+		
+		// ------------------- register the aggregators -------------------
+		AggregatorRegistry aggs = iterNode.getIterationNode().getIterationContract().getAggregators();
+		Collection<AggregatorWithName<?>> allAggregators = aggs.getAllRegisteredAggregators();
+		
+		for (AggregatorWithName<?> agg : allAggregators) {
+			if (agg.getName().equals(WorksetEmptyConvergenceCriterion.AGGREGATOR_NAME)) {
+				throw new CompilerException("User defined aggregator used the same name as built-in workset " +
+						"termination check aggregator: " + WorksetEmptyConvergenceCriterion.AGGREGATOR_NAME);
+			}
+		}
+		
+		headConfig.addIterationAggregators(allAggregators);
+		syncConfig.addIterationAggregators(allAggregators);
+		
+		String convAggName = aggs.getConvergenceCriterionAggregatorName();
+		Class<? extends ConvergenceCriterion<?>> convCriterion = aggs.getConvergenceCriterion();
+		
+		if (convCriterion != null || convAggName != null) {
+			throw new CompilerException("Error: Cannot use custom convergence criterion with workset iteration. Workset iterations have implicit convergence criterion where workset is empty.");
+		}
+		
+		headConfig.addIterationAggregator(WorksetEmptyConvergenceCriterion.AGGREGATOR_NAME, LongSumAggregator.class);
+		syncConfig.addIterationAggregator(WorksetEmptyConvergenceCriterion.AGGREGATOR_NAME, LongSumAggregator.class);
+		syncConfig.setConvergenceCriterion(WorksetEmptyConvergenceCriterion.AGGREGATOR_NAME, WorksetEmptyConvergenceCriterion.class);
 	}
 
 	// -------------------------------------------------------------------------------------
