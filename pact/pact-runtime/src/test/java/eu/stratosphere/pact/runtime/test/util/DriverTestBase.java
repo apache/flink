@@ -40,8 +40,8 @@ import eu.stratosphere.pact.runtime.task.PactDriver;
 import eu.stratosphere.pact.runtime.task.PactTaskContext;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
-public class DriverTestBase<S extends Stub> implements PactTaskContext<S, PactRecord>
-{
+public class DriverTestBase<S extends Stub> implements PactTaskContext<S, PactRecord> {
+	
 	protected static final long DEFAULT_PER_SORT_MEM = 16 * 1024 * 1024;
 	
 	protected static final int PAGE_SIZE = 32 * 1024; 
@@ -131,9 +131,8 @@ public class DriverTestBase<S extends Stub> implements PactTaskContext<S, PactRe
 		this.numFileHandles = numFileHandles;
 	}
 
-	public void testDriver(PactDriver<S, PactRecord> driver, Class<? extends S> stubClass)
-	throws Exception
-	{
+	public void testDriver(PactDriver<S, PactRecord> driver, Class<? extends S> stubClass) throws Exception {
+		
 		this.driver = driver;
 		driver.setup(this);
 		
@@ -192,49 +191,33 @@ public class DriverTestBase<S extends Stub> implements PactTaskContext<S, PactRe
 		}
 	}
 	
-	public void cancel() throws Exception
-	{
+	public void cancel() throws Exception {
 		this.running = false;
 		this.driver.cancel();
 	}
 
 	// --------------------------------------------------------------------------------------------
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.PactTaskContext#getTaskConfig()
-	 */
 	@Override
 	public TaskConfig getTaskConfig() {
 		return this.taskConfig;
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.PactTaskContext#getUserCodeClassLoader()
-	 */
 	@Override
 	public ClassLoader getUserCodeClassLoader() {
 		return getClass().getClassLoader();
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.PactTaskContext#getIOManager()
-	 */
 	@Override
 	public IOManager getIOManager() {
 		return this.ioManager;
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.PactTaskContext#getMemoryManager()
-	 */
 	@Override
 	public MemoryManager getMemoryManager() {
 		return this.memManager;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.PactTaskContext#getInput(int)
-	 */
 	@Override
 	public <X> MutableObjectIterator<X> getInput(int index) {
 		MutableObjectIterator<PactRecord> in = this.inputs.get(index);
@@ -253,9 +236,6 @@ public class DriverTestBase<S extends Stub> implements PactTaskContext<S, PactRe
 		return input;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.PactTaskContext#getInputSerializer(int)
-	 */
 	@Override
 	public <X> TypeSerializer<X> getInputSerializer(int index) {
 		@SuppressWarnings("unchecked")
@@ -263,9 +243,6 @@ public class DriverTestBase<S extends Stub> implements PactTaskContext<S, PactRe
 		return serializer;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.PactTaskContext#getInputComparator(int)
-	 */
 	@Override
 	public <X> TypeComparator<X> getInputComparator(int index) {
 		@SuppressWarnings("unchecked")
@@ -273,33 +250,21 @@ public class DriverTestBase<S extends Stub> implements PactTaskContext<S, PactRe
 		return comparator;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.PactTaskContext#getStub()
-	 */
 	@Override
 	public S getStub() {
 		return this.stub;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.PactTaskContext#getOutputCollector()
-	 */
 	@Override
 	public Collector<PactRecord> getOutputCollector() {
 		return this.output;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.PactTaskContext#getOwningNepheleTask()
-	 */
 	@Override
 	public AbstractInvokable getOwningNepheleTask() {
 		return this.owner;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.PactTaskContext#formatLogString(java.lang.String)
-	 */
 	@Override
 	public String formatLogString(String message) {
 		return "Driver Tester: " + message;
@@ -308,26 +273,20 @@ public class DriverTestBase<S extends Stub> implements PactTaskContext<S, PactRe
 	// --------------------------------------------------------------------------------------------
 	
 	@After
-	public void shutdownSorters() throws Exception
-	{
+	public void shutdownAll() throws Exception {
+		// 1st, shutdown sorters
 		for (UnilateralSortMerger<?> sorter : this.sorters) {
 			if (sorter != null)
 				sorter.close();
 		}
 		this.sorters.clear();
-	}
-	
-	@After
-	public void shutdownIOManager() throws Exception
-	{
+		
+		// 2nd, shutdown I/O
 		this.ioManager.shutdown();
 		Assert.assertTrue("I/O Manager has not properly shut down.", this.ioManager.isProperlyShutDown());
-	}
 
-	@After
-	public void shutdownMemoryManager() throws Exception
-	{
-		final MemoryManager memMan = getMemoryManager();
+		// last, verify all memory is returned and shutdown mem manager
+		MemoryManager memMan = getMemoryManager();
 		if (memMan != null) {
 			Assert.assertTrue("Memory Manager managed memory was not completely freed.", memMan.verifyEmpty());
 			memMan.shutdown();
@@ -336,33 +295,26 @@ public class DriverTestBase<S extends Stub> implements PactTaskContext<S, PactRe
 	
 	// --------------------------------------------------------------------------------------------
 	
-	private static final class ListOutputCollector implements Collector<PactRecord>
-	{
-		private final List<PactRecord> output;
+	private static final class ListOutputCollector implements Collector<PactRecord> {
 		
+		private final List<PactRecord> output;
 		
 		public ListOutputCollector(List<PactRecord> outputList) {
 			this.output = outputList;
 		}
 		
 
-		/* (non-Javadoc)
-		 * @see eu.stratosphere.pact.common.stubs.Collector#collect(java.lang.Object)
-		 */
 		@Override
 		public void collect(PactRecord record) {
 			this.output.add(record.createCopy());
 		}
 
-		/* (non-Javadoc)
-		 * @see eu.stratosphere.pact.common.stubs.Collector#close()
-		 */
 		@Override
 		public void close() {}
 	}
 	
-	public static final class CountingOutputCollector implements Collector<PactRecord>
-	{
+	public static final class CountingOutputCollector implements Collector<PactRecord> {
+		
 		private int num;
 
 		@Override

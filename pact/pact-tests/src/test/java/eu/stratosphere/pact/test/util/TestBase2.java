@@ -26,6 +26,7 @@ import java.util.Collection;
 import java.util.List;
 
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.log4j.BasicConfigurator;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -46,6 +47,11 @@ import eu.stratosphere.pact.compiler.plandump.PlanJSONDumpGenerator;
 import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
 
 public abstract class TestBase2 {
+	
+	/* Make sure there is a valid log4j appender */
+	static {
+		BasicConfigurator.configure();
+	}
 	
 	private static final int MINIMUM_HEAP_SIZE_MB = 192;
 

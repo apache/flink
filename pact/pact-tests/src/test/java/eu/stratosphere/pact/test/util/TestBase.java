@@ -36,6 +36,7 @@ import java.util.StringTokenizer;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.log4j.BasicConfigurator;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -48,11 +49,13 @@ import eu.stratosphere.pact.test.util.filesystem.FilesystemProvider;
 import eu.stratosphere.pact.test.util.minicluster.ClusterProvider;
 import eu.stratosphere.pact.test.util.minicluster.ClusterProviderPool;
 
-/**
- * @author Erik Nijkamp
- * @author Fabian Hueske
- */
+
 public abstract class TestBase {
+	
+	/* Make sure there is a valid log4j appender */
+	static {
+		BasicConfigurator.configure();
+	}
 	
 	private static final int MINIMUM_HEAP_SIZE_MB = 192;
 
