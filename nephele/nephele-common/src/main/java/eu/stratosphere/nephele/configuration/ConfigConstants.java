@@ -18,8 +18,6 @@ package eu.stratosphere.nephele.configuration;
 /**
  * This class contains all constants for the configuration. That includes the configuration keys and
  * the default values.
- * 
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
 public final class ConfigConstants {
 

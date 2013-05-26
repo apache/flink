@@ -84,7 +84,7 @@ public class DiscoveryService implements Runnable {
 	 * The key to retrieve the network port the discovery service listens on for incoming connections from the
 	 * configuration.
 	 */
-	private static final String DISCOVERYPORT_KEY = "discoveryservice.port";
+	public static final String DISCOVERYPORT_KEY = "discoveryservice.port";
 
 	/**
 	 * The default network port the discovery service listens on for incoming connections.
