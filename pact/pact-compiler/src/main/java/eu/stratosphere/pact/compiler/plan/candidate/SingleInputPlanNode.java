@@ -32,8 +32,8 @@ import static eu.stratosphere.pact.compiler.plan.candidate.PlanNode.SourceAndDam
 /**
  * 
  */
-public class SingleInputPlanNode extends PlanNode
-{
+public class SingleInputPlanNode extends PlanNode {
+	
 	protected final Channel input;
 	
 	protected final FieldList keys;

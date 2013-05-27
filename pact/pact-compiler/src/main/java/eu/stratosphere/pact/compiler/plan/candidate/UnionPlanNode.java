@@ -28,8 +28,8 @@ import eu.stratosphere.pact.runtime.task.DriverStrategy;
 /**
  * 
  */
-public class UnionPlanNode extends PlanNode
-{
+public class UnionPlanNode extends PlanNode {
+	
 	private final List<Channel> inputs;
 	
 	/**
@@ -43,9 +43,6 @@ public class UnionPlanNode extends PlanNode
 		this.localProps = new LocalProperties();
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.plan.Visitable#accept(eu.stratosphere.pact.common.plan.Visitor)
-	 */
 	@Override
 	public void accept(Visitor<PlanNode> visitor) {
 		visitor.preVisit(this);
@@ -59,17 +56,11 @@ public class UnionPlanNode extends PlanNode
 		return this.inputs;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.candidate.PlanNode#getInputs()
-	 */
 	@Override
 	public Iterator<Channel> getInputs() {
 		return Collections.unmodifiableList(this.inputs).iterator();
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.candidate.PlanNode#getPredecessors()
-	 */
 	@Override
 	public Iterator<PlanNode> getPredecessors() {
 		final Iterator<Channel> channels = this.inputs.iterator();
@@ -92,9 +83,6 @@ public class UnionPlanNode extends PlanNode
 		};
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.candidate.PlanNode#hasDamOnPathDownTo(eu.stratosphere.pact.compiler.plan.candidate.PlanNode)
-	 */
 	@Override
 	public SourceAndDamReport hasDamOnPathDownTo(PlanNode source) {
 		throw new UnsupportedOperationException();

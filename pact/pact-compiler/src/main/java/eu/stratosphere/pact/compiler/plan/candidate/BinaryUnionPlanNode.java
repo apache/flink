@@ -22,13 +22,13 @@ import eu.stratosphere.pact.runtime.task.DriverStrategy;
 /**
  * A special subclass for the union to make it identifiable.
  */
-public class BinaryUnionPlanNode extends DualInputPlanNode
-{
+public class BinaryUnionPlanNode extends DualInputPlanNode {
+	
 	/**
 	 * @param template
 	 */
 	public BinaryUnionPlanNode(BinaryUnionNode template, Channel in1, Channel in2) {
-		super(template, in1, in2, DriverStrategy.NONE);
+		super(template, in1, in2, DriverStrategy.UNION);
 	}
 	
 	public BinaryUnionNode getOptimizerNode() {

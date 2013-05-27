@@ -27,7 +27,7 @@ import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SourcePlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.WorksetIterationPlanNode;
-//import eu.stratosphere.pact.compiler.plandump.PlanJSONDumpGenerator;
+import eu.stratosphere.pact.compiler.plandump.PlanJSONDumpGenerator;
 import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.pact.example.iterative.WorksetConnectedComponents;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
@@ -50,6 +50,8 @@ public class IncrementalConnectedComponentsTest extends CompilerTestBase {
 	
 	private static final String SINK = "Result";
 	
+	private static final boolean PRINT_PLAN = true;
+	
 	private final FieldList set0 = new FieldList(0);
 	
 	
@@ -63,9 +65,11 @@ public class IncrementalConnectedComponentsTest extends CompilerTestBase {
 		OptimizedPlan optPlan = compileNoStats(plan);
 		OptimizerPlanNodeResolver or = getOptimizerPlanNodeResolver(optPlan);
 		
-//		PlanJSONDumpGenerator dumper = new PlanJSONDumpGenerator();
-//		String json = dumper.getOptimizerPlanAsJSON(optPlan);
-//		System.out.println(json);
+		if (PRINT_PLAN) {
+			PlanJSONDumpGenerator dumper = new PlanJSONDumpGenerator();
+			String json = dumper.getOptimizerPlanAsJSON(optPlan);
+			System.out.println(json);
+		}
 		
 		SourcePlanNode vertexSource = or.getNode(VERTEX_SOURCE);
 		SourcePlanNode edgesSource = or.getNode(EDGES_SOURCE);

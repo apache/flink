@@ -27,6 +27,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
@@ -60,6 +61,7 @@ import eu.stratosphere.pact.compiler.plan.candidate.UnionPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.WorksetIterationPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.WorksetPlanNode;
 import eu.stratosphere.pact.generic.contract.AggregatorRegistry;
+import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
 import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.runtime.iterative.convergence.WorksetEmptyConvergenceCriterion;
 import eu.stratosphere.pact.runtime.iterative.io.FakeOutputTask;
@@ -71,8 +73,11 @@ import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DataSinkTask;
 import eu.stratosphere.pact.runtime.task.DataSourceTask;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
+import eu.stratosphere.pact.runtime.task.JoinWithSolutionSetMatchDriver.SolutionSetFirstJoinDriver;
+import eu.stratosphere.pact.runtime.task.MatchDriver;
 import eu.stratosphere.pact.runtime.task.NoOpDriver;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
+import eu.stratosphere.pact.runtime.task.JoinWithSolutionSetMatchDriver.SolutionSetSecondJoinDriver;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedDriver;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
@@ -87,6 +92,11 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  * for the plan nodes, on the way back up, the nodes connect their predecessor.
  */
 public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
+	
+	public static final String MERGE_ITERATION_AUX_TASKS_KEY = "pact.compiler.merge-iteration-aux";
+	
+	private static final boolean mergeIterationAuxTasks = GlobalConfiguration.getBoolean(
+		MERGE_ITERATION_AUX_TASKS_KEY, true);
 	
 	private static final Log LOG = LogFactory.getLog(NepheleJobGraphGenerator.class);
 	
@@ -362,6 +372,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			
 			// skip data source node (they have no inputs)
 			// also, do nothing for union nodes, we connect them later when gathering the inputs for a task
+			// solution sets have no input. the initial solution set input is connected when the iteration node is in its postVisit
 			if (node instanceof SourcePlanNode || node instanceof UnionPlanNode) {
 				return;
 			}
@@ -376,8 +387,61 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 				this.currentIteration.acceptForStepFunction(this);
 				this.currentIteration = null;
 				
-				// inputs are already connected to the iteration head in the head's post visit,
-				// we finalize the iteration later
+				// inputs for initial bulk partial solution or initial workset are already connected to the iteration head in the head's post visit.
+				// connect the initial solution set now.
+				if (node instanceof WorksetIterationPlanNode) {
+					// connect the initial solution set
+					WorksetIterationPlanNode wsNode = (WorksetIterationPlanNode) node;
+					AbstractJobVertex headVertex = this.iterations.get(wsNode).getHeadTask();
+					TaskConfig headConfig = new TaskConfig(headVertex.getConfiguration());
+					int inputIndex = headConfig.getDriverStrategy().getNumInputs();
+					headConfig.setIterationHeadSolutionSetInputIndex(inputIndex);
+					translateChannel(wsNode.getInitialSolutionSetInput(), inputIndex, headVertex, headConfig);
+				}
+				
+				return;
+			} else if (node instanceof SolutionSetPlanNode) {
+				// this represents an access into the solution set index.
+				// add the necessary information to all nodes that access the index
+				if (node.getOutgoingChannels().size() != 1) {
+					throw new CompilerException("Currently, only one join with the solution set is allowed.");
+				}
+				
+				Channel c = node.getOutgoingChannels().get(0);
+				DualInputPlanNode target = (DualInputPlanNode) c.getTarget();
+				AbstractJobVertex accessingVertex = this.vertices.get(target);
+				TaskConfig conf = new TaskConfig(accessingVertex.getConfiguration());
+				int inputNum = c == target.getInput1() ? 0 : c == target.getInput2() ? 1 : -1;
+				
+				// sanity checks
+				if (inputNum == -1) {
+					throw new CompilerException();
+				}
+				if (!conf.getDriver().equals(MatchDriver.class)) {
+					throw new CompilerException("Found join with solution set using incompatible operator.");
+				}
+				
+				// adjust the driver and set the serializer / comparator information
+				conf.setDriver(inputNum == 0 ? SolutionSetFirstJoinDriver.class : SolutionSetSecondJoinDriver.class);
+				conf.setSolutionSetSerializer(((SolutionSetPlanNode) node).getContainingIterationNode().getSolutionSetSerializer());
+				
+				// hack: for now, we need the prober in the workset iteration head task
+				IterationDescriptor iter = this.iterations.get(((SolutionSetPlanNode) node).getContainingIterationNode());
+				TaskConfig headConf = iter.getHeadConfig();
+				
+				TypeSerializerFactory<?> otherSerializer;
+				TypeComparatorFactory<?> otherComparator;
+				if (inputNum == 0) {
+					otherSerializer = target.getInput2().getSerializer();
+					otherComparator = target.getComparator2();
+				} else {
+					otherSerializer = target.getInput1().getSerializer();
+					otherComparator = target.getComparator1();
+				}
+				headConf.setSolutionSetProberSerializer(otherSerializer);
+				headConf.setSolutionSetProberComparator(otherComparator);
+				headConf.setSolutionSetPairComparator(target.getPairComparator());
+				
 				return;
 			}
 			
@@ -435,12 +499,12 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 					this.chainedTasksInSequence.add(chainedTask);
 					return;
 				}
-				else if (node instanceof BulkPartialSolutionPlanNode) {
+				else if (node instanceof BulkPartialSolutionPlanNode ||
+						 node instanceof WorksetPlanNode)
+				{
 					// merged iteration head task. the task that the head is merged with will take care of it
-					// collect all channels, in case we have a union as the input
 					return;
-				}
-				else {
+				} else {
 					throw new CompilerException("Bug: Unrecognized merged task vertex.");
 				}
 			}
@@ -458,6 +522,15 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 				// because the partial solution has its own vertex, is has only one (logical) input.
 				// note this in the task configuration
 				targetVertexConfig.setIterationHeadPartialSolutionOrWorksetInputIndex(0);
+			} else if (node instanceof WorksetPlanNode) {
+				WorksetPlanNode wspn = (WorksetPlanNode) node;
+				// input that is the initial workset
+				inConns = Collections.singleton(wspn.getContainingIterationNode().getInput2()).iterator();
+				
+				// because we have a stand-alone (non-merged) workset iteration head, the initial workset will
+				// be input 0 and the solution set will be input 1
+				targetVertexConfig.setIterationHeadPartialSolutionOrWorksetInputIndex(0);
+				targetVertexConfig.setIterationHeadSolutionSetInputIndex(1);
 			} else {
 				inConns = node.getInputs();
 			}
@@ -466,111 +539,140 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			}
 			
 			for (int inputIndex = 0; inConns.hasNext(); inputIndex++) {
-				final Channel input = inConns.next();
-				final PlanNode inputPlanNode = input.getSource();
-				final Iterator<Channel> allInChannels;
-				
-				if (inputPlanNode instanceof UnionPlanNode) {
-					allInChannels = ((UnionPlanNode) inputPlanNode).getListOfInputs().iterator();
-				}
-				else if (inputPlanNode instanceof BulkPartialSolutionPlanNode) {
-					if (this.vertices.get(inputPlanNode) == null) {
-						// merged iteration head
-						final BulkPartialSolutionPlanNode pspn = (BulkPartialSolutionPlanNode) inputPlanNode;
-						final BulkIterationPlanNode iterationNode = pspn.getContainingIterationNode();
-						
-						// check if the iteration's input is a union
-						if (iterationNode.getInput().getSource() instanceof UnionPlanNode) {
-							allInChannels = ((UnionPlanNode) iterationNode.getInput().getSource()).getInputs();
-						} else {
-							allInChannels = Collections.singletonList(iterationNode.getInput()).iterator();
-						}
-						
-						// also, set the index of the gate with the partial solution
-						targetVertexConfig.setIterationHeadPartialSolutionOrWorksetInputIndex(inputIndex);
-					} else {
-						// standalone iteration head
-						allInChannels = Collections.singletonList(input).iterator();
-					}
-				} else {
-					allInChannels = Collections.singletonList(input).iterator();
-				}
-				
-				// check that the type serializer is consistent
-				TypeSerializerFactory<?> typeSerFact = null;
-				
-				// accounting for channels on the dynamic path
-				int numChannelsTotal = 0;
-				int numChannelsDynamicPath = 0;
-				int numDynamicSenderTasksTotal = 0;
-				
-
-				// expand the channel to all the union channels, in case there is a union operator at its source
-				while (allInChannels.hasNext()) {
-					final Channel inConn = allInChannels.next();
-					
-					// sanity check the common serializer
-					if (typeSerFact == null) {
-						typeSerFact = inConn.getSerializer();
-					} else if (!typeSerFact.equals(inConn.getSerializer())) {
-						throw new CompilerException("Conflicting types in union operator.");
-					}
-					
-					final PlanNode sourceNode = inConn.getSource();
-					AbstractJobVertex sourceVertex = this.vertices.get(sourceNode);
-					TaskConfig sourceVertexConfig;
-	
-					if (sourceVertex == null) {
-						// this predecessor is chained to another task or an iteration
-						final TaskInChain chainedTask;
-						final IterationDescriptor iteration;
-						if ((chainedTask = this.chainedTasks.get(sourceNode)) != null) {
-							// push chained task
-							if (chainedTask.getContainingVertex() == null)
-								throw new IllegalStateException("Bug: Chained task has not been assigned its containing vertex when connecting.");
-							sourceVertex = chainedTask.getContainingVertex();
-							sourceVertexConfig = chainedTask.getTaskConfig();
-						} else if ((iteration = this.iterations.get(sourceNode)) != null) {
-							// predecessor is an iteration
-							sourceVertex = iteration.getHeadTask();
-							sourceVertexConfig = iteration.getHeadFinalResultConfig();
-						} else {
-							throw new CompilerException("Bug: Could not resolve source node for a channel.");
-						}
-					} else {
-						// predecessor is its own vertex
-						sourceVertexConfig = new TaskConfig(sourceVertex.getConfiguration());
-					}
-					DistributionPattern pattern = connectJobVertices(
-						inConn, inputIndex, sourceVertex, sourceVertexConfig, targetVertex, targetVertexConfig);
-					
-					// accounting on channels and senders
-					numChannelsTotal++;
-					if (inConn.isOnDynamicPath()) {
-						numChannelsDynamicPath++;
-						numDynamicSenderTasksTotal += getNumberOfSendersPerReceiver(pattern,
-							sourceVertex.getNumberOfSubtasks(), targetVertex.getNumberOfSubtasks());
-					}
-				}
-				
-				// for the iterations, check that the number of dynamic channels is the same as the number
-				// of channels for this logical input. this condition is violated at the moment, if there
-				// is a union between nodes on the static and nodes on the dynamic path
-				if (numChannelsDynamicPath > 0 && numChannelsTotal != numChannelsDynamicPath) {
-					throw new CompilerException("Error: It is currently not supported to union between dynamic and static path in an iteration.");
-				}
-				if (numDynamicSenderTasksTotal > 0) {
-					targetVertexConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(inputIndex, numDynamicSenderTasksTotal);
-				}
-				
-				// the local strategy is added only once. in non-union case that is the actual edge,
-				// in the union case, it is the edge between union and the target node
-				addLocalInfoFromChannelToConfig(input, targetVertexConfig, inputIndex);
+				Channel input = inConns.next();
+				translateChannel(input, inputIndex, targetVertex,targetVertexConfig);
 			}
 		} catch (Exception e) {
 			throw new CompilerException(
 				"An error occurred while translating the optimized plan to a nephele JobGraph: " + e.getMessage(), e);
 		}
+	}
+	
+	private void translateChannel(Channel input, int inputIndex, AbstractJobVertex targetVertex,
+			TaskConfig targetVertexConfig) throws Exception
+	{
+		final PlanNode inputPlanNode = input.getSource();
+		final Iterator<Channel> allInChannels;
+		
+		if (inputPlanNode instanceof UnionPlanNode) {
+			allInChannels = ((UnionPlanNode) inputPlanNode).getListOfInputs().iterator();
+		}
+		else if (inputPlanNode instanceof BulkPartialSolutionPlanNode) {
+			if (this.vertices.get(inputPlanNode) == null) {
+				// merged iteration head
+				final BulkPartialSolutionPlanNode pspn = (BulkPartialSolutionPlanNode) inputPlanNode;
+				final BulkIterationPlanNode iterationNode = pspn.getContainingIterationNode();
+				
+				// check if the iteration's input is a union
+				if (iterationNode.getInput().getSource() instanceof UnionPlanNode) {
+					allInChannels = ((UnionPlanNode) iterationNode.getInput().getSource()).getInputs();
+				} else {
+					allInChannels = Collections.singletonList(iterationNode.getInput()).iterator();
+				}
+				
+				// also, set the index of the gate with the partial solution
+				targetVertexConfig.setIterationHeadPartialSolutionOrWorksetInputIndex(inputIndex);
+			} else {
+				// standalone iteration head
+				allInChannels = Collections.singletonList(input).iterator();
+			}
+		} else if (inputPlanNode instanceof WorksetPlanNode) {
+			if (this.vertices.get(inputPlanNode) == null) {
+				// merged iteration head
+				final WorksetPlanNode wspn = (WorksetPlanNode) inputPlanNode;
+				final WorksetIterationPlanNode iterationNode = wspn.getContainingIterationNode();
+				
+				// check if the iteration's input is a union
+				if (iterationNode.getInput2().getSource() instanceof UnionPlanNode) {
+					allInChannels = ((UnionPlanNode) iterationNode.getInput2().getSource()).getInputs();
+				} else {
+					allInChannels = Collections.singletonList(iterationNode.getInput2()).iterator();
+				}
+				
+				// also, set the index of the gate with the partial solution
+				targetVertexConfig.setIterationHeadPartialSolutionOrWorksetInputIndex(inputIndex);
+			} else {
+				// standalone iteration head
+				allInChannels = Collections.singletonList(input).iterator();
+			}
+		} else if (inputPlanNode instanceof SolutionSetPlanNode) {
+			// for now, skip connections with the solution set node, as this is a local index access (later to be parameterized here)
+			// rather than a vertex connection
+			return;
+		} else {
+			allInChannels = Collections.singletonList(input).iterator();
+		}
+		
+		// check that the type serializer is consistent
+		TypeSerializerFactory<?> typeSerFact = null;
+		
+		// accounting for channels on the dynamic path
+		int numChannelsTotal = 0;
+		int numChannelsDynamicPath = 0;
+		int numDynamicSenderTasksTotal = 0;
+		
+
+		// expand the channel to all the union channels, in case there is a union operator at its source
+		while (allInChannels.hasNext()) {
+			final Channel inConn = allInChannels.next();
+			
+			// sanity check the common serializer
+			if (typeSerFact == null) {
+				typeSerFact = inConn.getSerializer();
+			} else if (!typeSerFact.equals(inConn.getSerializer())) {
+				throw new CompilerException("Conflicting types in union operator.");
+			}
+			
+			final PlanNode sourceNode = inConn.getSource();
+			AbstractJobVertex sourceVertex = this.vertices.get(sourceNode);
+			TaskConfig sourceVertexConfig;
+
+			if (sourceVertex == null) {
+				// this predecessor is chained to another task or an iteration
+				final TaskInChain chainedTask;
+				final IterationDescriptor iteration;
+				if ((chainedTask = this.chainedTasks.get(sourceNode)) != null) {
+					// push chained task
+					if (chainedTask.getContainingVertex() == null)
+						throw new IllegalStateException("Bug: Chained task has not been assigned its containing vertex when connecting.");
+					sourceVertex = chainedTask.getContainingVertex();
+					sourceVertexConfig = chainedTask.getTaskConfig();
+				} else if ((iteration = this.iterations.get(sourceNode)) != null) {
+					// predecessor is an iteration
+					sourceVertex = iteration.getHeadTask();
+					sourceVertexConfig = iteration.getHeadFinalResultConfig();
+				} else {
+					throw new CompilerException("Bug: Could not resolve source node for a channel.");
+				}
+			} else {
+				// predecessor is its own vertex
+				sourceVertexConfig = new TaskConfig(sourceVertex.getConfiguration());
+			}
+			DistributionPattern pattern = connectJobVertices(
+				inConn, inputIndex, sourceVertex, sourceVertexConfig, targetVertex, targetVertexConfig);
+			
+			// accounting on channels and senders
+			numChannelsTotal++;
+			if (inConn.isOnDynamicPath()) {
+				numChannelsDynamicPath++;
+				numDynamicSenderTasksTotal += getNumberOfSendersPerReceiver(pattern,
+					sourceVertex.getNumberOfSubtasks(), targetVertex.getNumberOfSubtasks());
+			}
+		}
+		
+		// for the iterations, check that the number of dynamic channels is the same as the number
+		// of channels for this logical input. this condition is violated at the moment, if there
+		// is a union between nodes on the static and nodes on the dynamic path
+		if (numChannelsDynamicPath > 0 && numChannelsTotal != numChannelsDynamicPath) {
+			throw new CompilerException("Error: It is currently not supported to union between dynamic and static path in an iteration.");
+		}
+		if (numDynamicSenderTasksTotal > 0) {
+			targetVertexConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(inputIndex, numDynamicSenderTasksTotal);
+		}
+		
+		// the local strategy is added only once. in non-union case that is the actual edge,
+		// in the union case, it is the edge between union and the target node
+		addLocalInfoFromChannelToConfig(input, targetVertexConfig, inputIndex);
 	}
 	
 	private int getNumberOfSendersPerReceiver(DistributionPattern pattern, int numSenders, int numReceivers) {
@@ -715,7 +817,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		// 4) That successor is not itself the last node of the step function
 		
 		final boolean merge;
-		if (pspn.getOutgoingChannels().size() == 1) {
+		if (mergeIterationAuxTasks && pspn.getOutgoingChannels().size() == 1) {
 			final Channel c = pspn.getOutgoingChannels().get(0);
 			final PlanNode successor = c.getTarget();
 			merge = c.getShipStrategy() == ShipStrategyType.FORWARD &&
@@ -732,6 +834,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		// create or adopt the head vertex
 		final JobTaskVertex toReturn;
 		final JobTaskVertex headVertex;
+		final TaskConfig headConfig;
 		if (merge) {
 			final PlanNode successor = pspn.getOutgoingChannels().get(0).getTarget();
 			headVertex = (JobTaskVertex) this.vertices.get(successor);
@@ -743,6 +846,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			
 			// reset the vertex type to iteration head
 			headVertex.setTaskClass(IterationHeadPactTask.class);
+			headConfig = new TaskConfig(headVertex.getConfiguration());
 			toReturn = null;
 		} else {
 			// instantiate the head vertex and give it a no-op driver as the driver strategy.
@@ -750,7 +854,8 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			// is connected.
 			headVertex = new JobTaskVertex(iteration.getPactContract().getName() + " - Partial Solution", this.jobGraph);
 			headVertex.setTaskClass(IterationHeadPactTask.class);
-			new TaskConfig(headVertex.getConfiguration()).setDriver(NoOpDriver.class);
+			headConfig = new TaskConfig(headVertex.getConfiguration());
+			headConfig.setDriver(NoOpDriver.class);
 			toReturn = headVertex;
 		}
 		
@@ -759,7 +864,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		if (descr == null) {
 			throw new CompilerException("Bug: Iteration descriptor was not created at when translating the iteration node.");
 		}
-		descr.setHeadTask(headVertex);
+		descr.setHeadTask(headVertex, headConfig);
 		
 		return toReturn;
 	}
@@ -778,7 +883,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		// 4) That successor is not itself the last node of the step function
 		
 		final boolean merge;
-		if (wspn.getOutgoingChannels().size() == 1) {
+		if (mergeIterationAuxTasks && wspn.getOutgoingChannels().size() == 1) {
 			final Channel c = wspn.getOutgoingChannels().get(0);
 			final PlanNode successor = c.getTarget();
 			merge = c.getShipStrategy() == ShipStrategyType.FORWARD &&
@@ -795,6 +900,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		// create or adopt the head vertex
 		final JobTaskVertex toReturn;
 		final JobTaskVertex headVertex;
+		final TaskConfig headConfig;
 		if (merge) {
 			final PlanNode successor = wspn.getOutgoingChannels().get(0).getTarget();
 			headVertex = (JobTaskVertex) this.vertices.get(successor);
@@ -806,14 +912,16 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			
 			// reset the vertex type to iteration head
 			headVertex.setTaskClass(IterationHeadPactTask.class);
+			headConfig = new TaskConfig(headVertex.getConfiguration());
 			toReturn = null;
 		} else {
 			// instantiate the head vertex and give it a no-op driver as the driver strategy.
 			// everything else happens in the post visit, after the input (the initial partial solution)
 			// is connected.
-			headVertex = new JobTaskVertex(iteration.getPactContract().getName() + " - Partial Solution", this.jobGraph);
+			headVertex = new JobTaskVertex(iteration.getPactContract().getName() + " - Workset Iteration Head", this.jobGraph);
 			headVertex.setTaskClass(IterationHeadPactTask.class);
-			new TaskConfig(headVertex.getConfiguration()).setDriver(NoOpDriver.class);
+			headConfig = new TaskConfig(headVertex.getConfiguration());
+			headConfig.setDriver(NoOpDriver.class);
 			toReturn = headVertex;
 		}
 		
@@ -822,7 +930,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		if (descr == null) {
 			throw new CompilerException("Bug: Iteration descriptor was not created at when translating the iteration node.");
 		}
-		descr.setHeadTask(headVertex);
+		descr.setHeadTask(headVertex, headConfig);
 		
 		return toReturn;
 	}
@@ -1006,7 +1114,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			// last op is chained
 			final TaskInChain taskInChain = this.chainedTasks.get(rootOfStepFunction);
 			if (taskInChain == null) {
-				throw new CompilerException("Bug: Tail of step function not found as vertex or chaine task.");
+				throw new CompilerException("Bug: Tail of step function not found as vertex or chained task.");
 			}
 			rootOfStepFunctionVertex = (JobTaskVertex) taskInChain.getContainingVertex();
 			tailConfig = taskInChain.getTaskConfig();
@@ -1062,45 +1170,114 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		final TaskConfig headFinalOutputConfig = descr.getHeadFinalResultConfig();
 		
 		// ------------ finalize the head config with the final outputs and the sync gate ------------
-		final int numStepFunctionOuts = headConfig.getNumOutputs();
-		final int numFinalOuts = headFinalOutputConfig.getNumOutputs();
-		headConfig.setIterationHeadFinalOutputConfig(headFinalOutputConfig);
-		headConfig.setIterationHeadIndexOfSyncOutput(numStepFunctionOuts + numFinalOuts);
-		final long mem = iterNode.getMemoryPerSubTask();
-		if (mem <= 0) {
-			throw new CompilerException("Bug: No memory has been assigned to the workset iteration.");
+		{
+			final int numStepFunctionOuts = headConfig.getNumOutputs();
+			final int numFinalOuts = headFinalOutputConfig.getNumOutputs();
+			headConfig.setIterationHeadFinalOutputConfig(headFinalOutputConfig);
+			headConfig.setIterationHeadIndexOfSyncOutput(numStepFunctionOuts + numFinalOuts);
+			final long mem = iterNode.getMemoryPerSubTask();
+			if (mem <= 0) {
+				throw new CompilerException("Bug: No memory has been assigned to the workset iteration.");
+			}
+			
+			headConfig.setWorksetIteration();
+			headConfig.setBackChannelMemory(mem / 2);
+			headConfig.setSolutionSetMemory(mem / 2);
+			
+			// set the solution set serializer and comparator
+			headConfig.setSolutionSetSerializer(iterNode.getSolutionSetSerializer());
+			headConfig.setSolutionSetComparator(iterNode.getSolutionSetComparator());
 		}
-		
-		headConfig.setBackChannelMemory(mem / 2);
-		headConfig.setSolutionSetMemory(mem / 2);
 		
 		// --------------------------- create the sync task ---------------------------
-		final JobOutputVertex sync = new JobOutputVertex("Bulk-Iteration Sync (" +
-					iterNode.getPactContract().getName() + ")", this.jobGraph);
-		sync.setOutputClass(IterationSynchronizationSinkTask.class);
-		sync.setNumberOfSubtasks(1);
-		this.auxVertices.add(sync);
-		
-		final TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());
-		syncConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, headVertex.getNumberOfSubtasks());
-
-		// set the number of iteration / convergence criterion for the sync
-		final int maxNumIterations = iterNode.getIterationNode().getIterationContract().getMaximumNumberOfIterations();
-		if (maxNumIterations < 1) {
-			throw new CompilerException("Cannot create workset iteration with unspecified maximum number of iterations.");
+		final TaskConfig syncConfig;
+		{
+			final JobOutputVertex sync = new JobOutputVertex("Workset-Iteration Sync (" +
+						iterNode.getPactContract().getName() + ")", this.jobGraph);
+			sync.setOutputClass(IterationSynchronizationSinkTask.class);
+			sync.setNumberOfSubtasks(1);
+			this.auxVertices.add(sync);
+			
+			syncConfig = new TaskConfig(sync.getConfiguration());
+			syncConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, headVertex.getNumberOfSubtasks());
+	
+			// set the number of iteration / convergence criterion for the sync
+			final int maxNumIterations = iterNode.getIterationNode().getIterationContract().getMaximumNumberOfIterations();
+			if (maxNumIterations < 1) {
+				throw new CompilerException("Cannot create workset iteration with unspecified maximum number of iterations.");
+			}
+			syncConfig.setNumberOfIterations(maxNumIterations);
+			
+			// connect the sync task
+			try {
+				headVertex.connectTo(sync, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION, DistributionPattern.POINTWISE);
+			} catch (JobGraphDefinitionException e) {
+				throw new CompilerException("Bug: Cannot connect head vertex to sync task.");
+			}
 		}
-		syncConfig.setNumberOfIterations(maxNumIterations);
-		
-		// connect the sync task
-		try {
-			headVertex.connectTo(sync, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION, DistributionPattern.POINTWISE);
-		} catch (JobGraphDefinitionException e) {
-			throw new CompilerException("Bug: Cannot connect head vertex to sync task.");
-		}
-		
 		
 		// ----------------------------- create the iteration tail ------------------------------
+		{
+			final PlanNode nextWorksetNode = iterNode.getNextWorkSetPlanNode();
+			final TaskConfig tailConfig;
+			JobTaskVertex nextWorksetVertex = (JobTaskVertex) this.vertices.get(nextWorksetNode);
+			if (nextWorksetVertex == null) {
+				// last op is chained
+				final TaskInChain taskInChain = this.chainedTasks.get(nextWorksetNode);
+				if (taskInChain == null) {
+					throw new CompilerException("Bug: Tail of step function not found as vertex or chained task.");
+				}
+				nextWorksetVertex = (JobTaskVertex) taskInChain.getContainingVertex();
+				tailConfig = taskInChain.getTaskConfig();
+			} else {
+				tailConfig = new TaskConfig(nextWorksetVertex.getConfiguration());
+			}
+			nextWorksetVertex.setTaskClass(IterationTailPactTask.class);
+			
+			tailConfig.setOutputSerializer(iterNode.getWorksetSerializer());
+			
+			// create the fake output task
+			JobOutputVertex fakeTail = new JobOutputVertex("Fake Tail", this.jobGraph);
+			fakeTail.setOutputClass(FakeOutputTask.class);
+			fakeTail.setNumberOfSubtasks(headVertex.getNumberOfSubtasks());
+			fakeTail.setNumberOfSubtasksPerInstance(headVertex.getNumberOfSubtasksPerInstance());
+			this.auxVertices.add(fakeTail);
+			
+			// connect the fake tail
+			try {
+				nextWorksetVertex.connectTo(fakeTail, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, 
+					DistributionPattern.POINTWISE);
+			} catch (JobGraphDefinitionException e) {
+				throw new CompilerException("Bug: Cannot connect iteration tail vertex fake tail task");
+			}
+			tailConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
+			// the fake channel is statically typed to pact record. no data is sent over this channel anyways.
+			
+			// mark the iteration tail as a workset iteration, such that it instantiates the workset element count aggregator
+			tailConfig.setWorksetIteration();
+		}
 		
+		// ------------------- mark the solution set delta node as solution set updating -------------------
+		{
+			final PlanNode solutionDeltaNode = iterNode.getSolutionSetDeltaPlanNode();
+			final TaskConfig solutionDeltaConfig;
+			JobTaskVertex solutionDeltaVertex = (JobTaskVertex) this.vertices.get(solutionDeltaNode);
+			if (solutionDeltaVertex == null) {
+				// last op is chained
+				final TaskInChain taskInChain = this.chainedTasks.get(solutionDeltaNode);
+				if (taskInChain == null) {
+					throw new CompilerException("Bug: Solution Set Delta not found as vertex or chained task.");
+				}
+				solutionDeltaVertex = (JobTaskVertex) taskInChain.getContainingVertex();
+				solutionDeltaConfig = taskInChain.getTaskConfig();
+			} else {
+				solutionDeltaConfig = new TaskConfig(solutionDeltaVertex.getConfiguration());
+			}
+			solutionDeltaConfig.setUpdateSolutionSet();
+			
+			// hack!!! for now, we support only immediate updates
+			solutionDeltaConfig.setUpdateSolutionSetWithoutReprobe();
+		}
 		
 		// ------------------- register the aggregators -------------------
 		AggregatorRegistry aggs = iterNode.getIterationNode().getIterationContract().getAggregators();
@@ -1180,6 +1357,8 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		
 		private JobTaskVertex headTask;
 		
+		private TaskConfig headConfig;
+		
 		private TaskConfig  headFinalResultConfig;
 		
 		private final int id;
@@ -1193,13 +1372,18 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			return iterationNode;
 		}
 		
-		public void setHeadTask(JobTaskVertex headTask) {
+		public void setHeadTask(JobTaskVertex headTask, TaskConfig headConfig) {
 			this.headTask = headTask;
 			this.headFinalResultConfig = new TaskConfig(new Configuration());
+			this.headConfig = headConfig;
 		}
 		
 		public JobTaskVertex getHeadTask() {
 			return headTask;
+		}
+		
+		public TaskConfig getHeadConfig() {
+			return headConfig;
 		}
 		
 		public TaskConfig getHeadFinalResultConfig() {

@@ -157,6 +157,7 @@ public abstract class CostEstimator {
 		case PARTIAL_GROUP:
 		case SORTED_GROUP:
 		case CO_GROUP:
+		case UNION:
 			break;
 		case MERGE:
 			addLocalMergeCost(firstInput, secondInput, availableMemory, driverCosts);

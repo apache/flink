@@ -143,6 +143,11 @@ public class WorksetConnectedComponents implements PlanAssembler, PlanAssemblerD
 
 		// create DataSinkContract for writing the new cluster positions
 		FileDataSink result = new FileDataSink(RecordOutputFormat.class, output, iteration, "Result");
+		RecordOutputFormat.configureRecordFormat(result)
+			.recordDelimiter('\n')
+			.fieldDelimiter(' ')
+			.field(PactLong.class, 0)
+			.field(PactLong.class, 1);
 
 		// return the PACT plan
 		Plan plan = new Plan(result, "Workset Connected Components");

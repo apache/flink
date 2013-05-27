@@ -35,17 +35,11 @@ import eu.stratosphere.pact.runtime.task.DriverStrategy;
  */
 public class UtilSinkJoinOpDescriptor extends OperatorDescriptorDual {
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.dataproperties.DriverProperties#getStrategy()
-	 */
 	@Override
 	public DriverStrategy getStrategy() {
-		return DriverStrategy.NONE;
+		return DriverStrategy.BINARY_NO_OP;
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.operators.OperatorDescriptorDual#createPossibleGlobalProperties()
-	 */
 	@Override
 	protected List<GlobalPropertiesPair> createPossibleGlobalProperties() {
 		// all properties are possible
@@ -53,9 +47,6 @@ public class UtilSinkJoinOpDescriptor extends OperatorDescriptorDual {
 			new RequestedGlobalProperties(), new RequestedGlobalProperties()));
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.dataproperties.DriverPropertiesDual#createPossibleLocalProperties()
-	 */
 	@Override
 	protected List<LocalPropertiesPair> createPossibleLocalProperties() {
 		// all properties are possible
@@ -63,9 +54,6 @@ public class UtilSinkJoinOpDescriptor extends OperatorDescriptorDual {
 			new RequestedLocalProperties(), new RequestedLocalProperties()));
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.dataproperties.DriverPropertiesDual#instantiate(eu.stratosphere.pact.compiler.plan.candidate.Channel, eu.stratosphere.pact.compiler.plan.candidate.Channel, eu.stratosphere.pact.compiler.plan.TwoInputNode)
-	 */
 	@Override
 	public DualInputPlanNode instantiate(Channel in1, Channel in2, TwoInputNode node) {
 		if (node instanceof SinkJoiner) {
@@ -75,17 +63,11 @@ public class UtilSinkJoinOpDescriptor extends OperatorDescriptorDual {
 		}
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.operators.OperatorDescriptorDual#computeLocalProperties(eu.stratosphere.pact.compiler.dataproperties.LocalProperties, eu.stratosphere.pact.compiler.dataproperties.LocalProperties)
-	 */
 	@Override
 	public LocalProperties computeLocalProperties(LocalProperties in1, LocalProperties in2) {
 		return new LocalProperties();
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.operators.OperatorDescriptorDual#computeGlobalProperties(eu.stratosphere.pact.compiler.dataproperties.GlobalProperties, eu.stratosphere.pact.compiler.dataproperties.GlobalProperties)
-	 */
 	@Override
 	public GlobalProperties computeGlobalProperties(GlobalProperties in1, GlobalProperties in2) {
 		return GlobalProperties.combine(in1, in2);
