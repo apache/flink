@@ -28,8 +28,8 @@ import eu.stratosphere.pact.generic.stub.GenericMapper;
  * <p>
  * For a mapper implementation, the <code>map()</code> method must be implemented.
  */
-public abstract class MapStub extends AbstractArrayModelStub implements GenericMapper<Value[], Value[]>
-{
+public abstract class MapStub extends AbstractArrayModelStub implements GenericMapper<Value[], Value[]> {
+	
 	/**
 	 * This method must be implemented to provide a user implementation of a mapper.
 	 * It is called for each individual record.

@@ -15,9 +15,10 @@
 
 package eu.stratosphere.pact.compiler.postpass;
 
-@SuppressWarnings("serial")
-public final class MissingFieldTypeInfoException extends Exception
-{
+public final class MissingFieldTypeInfoException extends Exception {
+	
+	private static final long serialVersionUID = 8749941961302509358L;
+	
 	private final int fieldNumber;
 
 	public MissingFieldTypeInfoException(int fieldNumber) {

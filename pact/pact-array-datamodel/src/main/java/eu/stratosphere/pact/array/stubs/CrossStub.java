@@ -29,12 +29,12 @@ import eu.stratosphere.pact.generic.stub.GenericCrosser;
  * <p>
  * For a cross implementation, the <code>cross()</code> method must be implemented.
  */
-public abstract class CrossStub extends AbstractArrayModelStub implements GenericCrosser<Value[], Value[], Value[]>
-{
+public abstract class CrossStub extends AbstractArrayModelStub implements GenericCrosser<Value[], Value[], Value[]> {
+	
 	/**
 	 * This method must be implemented to provide a user implementation of a cross.
 	 * It is called for each element of the Cartesian product of both input sets.
-
+	 * 
 	 * @param record1 The record from the second input.
 	 * @param record2 The record from the second input.
 	 * @param out A collector that collects all output records.

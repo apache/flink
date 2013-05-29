@@ -31,8 +31,8 @@ import eu.stratosphere.pact.generic.stub.GenericReducer;
  * <p>
  * For a reduce implementation, the <code>reduce()</code> method must be implemented.
  */
-public abstract class ReduceStub extends AbstractArrayModelStub implements GenericReducer<Value[], Value[]>
-{
+public abstract class ReduceStub extends AbstractArrayModelStub implements GenericReducer<Value[], Value[]> {
+	
 	/**
 	 * The central function to be implemented for a reducer. The function receives per call one
 	 * key and all the values that belong to that key. Each key is guaranteed to be processed by exactly

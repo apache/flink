@@ -33,8 +33,8 @@ import eu.stratosphere.pact.generic.stub.GenericMatcher;
  * <p>
  * For a match implementation, the <code>match()</code> method must be implemented.
  */
-public abstract class MatchStub extends AbstractArrayModelStub implements GenericMatcher<Value[], Value[], Value[]>
-{
+public abstract class MatchStub extends AbstractArrayModelStub implements GenericMatcher<Value[], Value[], Value[]> {
+	
 	/**
 	 * This method must be implemented to provide a user implementation of a matcher.
 	 * It is called for each two records that share the same key and come from different inputs.

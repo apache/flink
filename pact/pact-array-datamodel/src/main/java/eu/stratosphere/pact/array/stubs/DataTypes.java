@@ -31,4 +31,20 @@ import eu.stratosphere.pact.common.type.Value;
 public @interface DataTypes {
 	
 	Class<? extends Value>[] value();
+
+	// --------------------------------------------------------------------------------------------
+	// Annotations for UDFs operating on two inputs
+	// --------------------------------------------------------------------------------------------
+	
+	@Retention(RetentionPolicy.RUNTIME)
+	@Target(ElementType.METHOD)
+	public @interface First {
+		Class<? extends Value>[] value();
+	}
+	
+	@Retention(RetentionPolicy.RUNTIME)
+	@Target(ElementType.METHOD)
+	public @interface Second {
+		Class<? extends Value>[] value();
+	}
 }

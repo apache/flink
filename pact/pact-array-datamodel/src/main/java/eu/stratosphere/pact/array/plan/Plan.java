@@ -45,6 +45,6 @@ public class Plan extends eu.stratosphere.pact.common.plan.Plan {
 	 */
 	@Override
 	public String getPostPassClassName() {
-		return "eu.stratosphere.pact.compiler.postpass.ArrayModelPostPass";
+		return "eu.stratosphere.pact.compiler.postpass.GenericArrayRecordPostPass";
 	}
 }

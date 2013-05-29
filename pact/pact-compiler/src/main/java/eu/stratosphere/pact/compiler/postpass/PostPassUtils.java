@@ -12,13 +12,32 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-
 package eu.stratosphere.pact.compiler.postpass;
 
 import eu.stratosphere.pact.common.type.Key;
+import eu.stratosphere.pact.compiler.CompilerException;
 
-/**
- * Class encapsulating a schema map (int column position -> column type) and a reference counter.
- */
-public class KeySchema extends AbstractTypeSchema<Key>
-{}
+
+public class PostPassUtils {
+
+	public static <X> Class<? extends Key>[] getKeys(AbstractSchema<Class< ? extends X>> schema, int[] fields) throws MissingFieldTypeInfoException {
+		@SuppressWarnings("unchecked")
+		Class<? extends Key>[] keyTypes = new Class[fields.length];
+		
+		for (int i = 0; i < fields.length; i++) {
+			Class<? extends X> type = schema.getType(fields[i]);
+			if (type == null) {
+				throw new MissingFieldTypeInfoException(i);
+			} else if (Key.class.isAssignableFrom(type)) {
+				@SuppressWarnings("unchecked")
+				Class<? extends Key> keyType = (Class<? extends Key>) type;
+				keyTypes[i] = keyType;
+			} else {
+				throw new CompilerException("The field type " + type.getName() +
+						" cannot be used as a key because it does not implement the interface 'Key'");
+			}
+		}
+		
+		return keyTypes;
+	}
+}

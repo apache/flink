@@ -16,7 +16,6 @@
 package eu.stratosphere.pact.test.pactPrograms;
 
 import java.util.Collection;
-import java.util.LinkedList;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -25,17 +24,12 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.pact.common.plan.Plan;
-import eu.stratosphere.pact.compiler.DataStatistics;
-import eu.stratosphere.pact.compiler.PactCompiler;
-import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
-import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.pact.example.wordcount.WordCount;
-import eu.stratosphere.pact.test.util.TestBase;
+import eu.stratosphere.pact.test.util.TestBase2;
 
 @RunWith(Parameterized.class)
-public class WordCountITCase extends TestBase {
+public class WordCountITCase extends TestBase2 {
 
 	protected static final Log LOG = LogFactory.getLog(WordCountITCase.class);
 
@@ -175,85 +169,38 @@ public class WordCountITCase extends TestBase {
 			+ "verheeren 1\n" + "fliegend 1\n" + "aus 1\n" + "staub 1\n" + "fluessen 1\n" + "haus 1\n" + "auf 5\n"
 			+ "dient 2\n" + "tiefer 1\n" + "naeh 1\n" + "zieren 1\n";
 
-	protected String textPath = null;
-	protected String resultPath = null;
+	protected String textPath;
+	protected String resultPath;
 
+	
 	public WordCountITCase(Configuration config) {
 		super(config);
 	}
 
+	
 	@Override
 	protected void preSubmit() throws Exception {
-		textPath = getFilesystemProvider().getTempDirPath() + "/text";
-		resultPath = getFilesystemProvider().getTempDirPath() + "/result";
-
-		getFilesystemProvider().createDir(textPath);
-
-		String[] splits = splitInputString(TEXT, '\n', 4);
-		int i = 0;
-		for (String split : splits) {
-			getFilesystemProvider().createFile(textPath + "/part_" + (i++) + ".txt", split);
-			LOG.debug("Text Part " + (i - -1) + ":\n>" + split + "<");
-		}
-
+		textPath = createTempFile("text.txt", TEXT);
+		resultPath = getTempDirPath("result");
 	}
 
 	@Override
-	protected JobGraph getJobGraph() throws Exception {
-
+	protected Plan getPactPlan() {
 		WordCount wc = new WordCount();
-		Plan plan = wc.getPlan(config.getString("WordCountTest#NoSubtasks", "1"), getFilesystemProvider()
-				.getURIPrefix()
-				+ textPath, getFilesystemProvider().getURIPrefix() + resultPath);
-
-		PactCompiler pc = new PactCompiler(new DataStatistics());
-		OptimizedPlan op = pc.compile(plan);
-
-		NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
-		return jgg.compileJobGraph(op);
-
+		return wc.getPlan(config.getString("WordCountTest#NumSubtasks", "1"),
+				textPath, resultPath);
 	}
 
 	@Override
 	protected void postSubmit() throws Exception {
-
 		// Test results
 		compareResultsByLinesInMemory(COUNTS, resultPath);
-
-		// clean up hdfs
-		getFilesystemProvider().delete(textPath, true);
-		getFilesystemProvider().delete(resultPath, true);
 	}
 
 	@Parameters
 	public static Collection<Object[]> getConfigurations() {
-
-		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
-
 		Configuration config = new Configuration();
-		config.setInteger("WordCountTest#NoSubtasks", 4);
-		tConfigs.add(config);
-
-		return toParameterList(tConfigs);
+		config.setInteger("WordCountTest#NumSubtasks", 4);
+		return toParameterList(config);
 	}
-
-	private String[] splitInputString(String inputString, char splitChar, int noSplits) {
-
-		String splitString = inputString.toString();
-		String[] splits = new String[noSplits];
-		int partitionSize = (splitString.length() / noSplits) - 2;
-
-		// split data file and copy parts
-		for (int i = 0; i < noSplits - 1; i++) {
-			int cutPos = splitString.indexOf(splitChar, (partitionSize < splitString.length() ? partitionSize
-					: (splitString.length() - 1)));
-			splits[i] = splitString.substring(0, cutPos) + "\n";
-			splitString = splitString.substring(cutPos + 1);
-		}
-		splits[noSplits - 1] = splitString;
-
-		return splits;
-
-	}
-
 }

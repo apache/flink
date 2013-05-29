@@ -20,68 +20,64 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.common.type.Key;
 
 /**
  * Class encapsulating a schema map (int column position -> column type) and a reference counter.
  */
-abstract class AbstractTypeSchema<T extends Value> implements Iterable<Map.Entry<Integer, Class<? extends T>>> {
+public class SparseKeySchema extends AbstractSchema<Class<? extends Key>> {
 	
-	private final Map<Integer, Class<? extends T>> schema;
-	
-	private int numConnectionsThatContributed;
+	private final Map<Integer, Class<? extends Key>> schema;
 	
 	
-	public AbstractTypeSchema() {
-		this.schema = new HashMap<Integer, Class<? extends T>>();
+	public SparseKeySchema() {
+		this.schema = new HashMap<Integer, Class<? extends Key>>();
 	}
+
+	// --------------------------------------------------------------------------------------------
 	
-	
-	public void addType(Integer key, Class<? extends T> type) throws ConflictingFieldTypeInfoException 
-	{
-		Class<? extends T> previous = this.schema.put(key, type);
+	@Override
+	public void addType(int key, Class<? extends Key> type) throws ConflictingFieldTypeInfoException  {
+		Class<? extends Key> previous = this.schema.put(key, type);
 		if (previous != null && previous != type) {
 			throw new ConflictingFieldTypeInfoException(key, previous, type);
 		}
 	}
 	
-	public Class<? extends T> getType(Integer field) {
+	@Override
+	public Class<? extends Key> getType(int field) {
 		return this.schema.get(field);
 	}
 	
-	public Iterator<Entry<Integer, Class<? extends T>>> iterator() {
+	@Override
+	public Iterator<Entry<Integer, Class<? extends Key>>> iterator() {
 		return this.schema.entrySet().iterator();
 	}
 	
-	public int getNumConnectionsThatContributed() {
-		return this.numConnectionsThatContributed;
-	}
-	
-	public void increaseNumConnectionsThatContributed() {
-		this.numConnectionsThatContributed++;
+	public int getNumTypes() {
+		return this.schema.size();
 	}
 
+	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public int hashCode() {
-		return this.schema.hashCode() ^ this.numConnectionsThatContributed;
+		return this.schema.hashCode() ^ getNumConnectionsThatContributed();
 	}
-
 
 	@Override
 	public boolean equals(Object obj) {
-		if (obj instanceof AbstractTypeSchema) {
-			AbstractTypeSchema<?> other = (AbstractTypeSchema<?>) obj;
+		if (obj instanceof SparseKeySchema) {
+			SparseKeySchema other = (SparseKeySchema) obj;
 			return this.schema.equals(other.schema) && 
-					this.numConnectionsThatContributed == other.numConnectionsThatContributed;
+					this.getNumConnectionsThatContributed() == other.getNumConnectionsThatContributed();
 		} else {
 			return false;
 		}
 	}
-
-
+	
 	@Override
 	public String toString() {
-		return "<" + this.numConnectionsThatContributed + "> : " + this.schema.toString();
+		return "<" + getNumConnectionsThatContributed() + "> : " + this.schema.toString();
 	}
 }

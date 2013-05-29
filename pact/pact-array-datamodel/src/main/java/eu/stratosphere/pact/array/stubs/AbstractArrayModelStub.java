@@ -19,20 +19,27 @@ import java.lang.reflect.Method;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.generic.stub.AbstractStub;
 
-
 /**
- *
+ * Base class of all stubs in the array data model.
  */
 public abstract class AbstractArrayModelStub extends AbstractStub {
 	
-	public Class<? extends Value>[] getDataTypes() {
-		final Method m = getUDFMethod();
-		final DataTypes types = m.getAnnotation(DataTypes.class);
+	public Class<? extends Value>[] getDataTypes(int input) {
+		Method m = getUDFMethod();
 		
-		if (types == null) {
-			return null;
+		if (input == 0) {
+			DataTypes.First typesFirst = m.getAnnotation(DataTypes.First.class);
+			if (typesFirst == null) {
+				DataTypes types = m.getAnnotation(DataTypes.class);
+				return types == null ? null : types.value();
+			} else {
+				return typesFirst.value();
+			}
+		} else if (input == 1) {
+			DataTypes.Second types = m.getAnnotation(DataTypes.Second.class);
+			return types == null ? null : types.value();
 		} else {
-			return types.value();
+			throw new IndexOutOfBoundsException();
 		}
 	}
 	

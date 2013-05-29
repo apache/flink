@@ -12,13 +12,24 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-
 package eu.stratosphere.pact.compiler.postpass;
 
-import eu.stratosphere.pact.common.type.Value;
+import java.util.Map;
 
-/**
- * Class encapsulating a schema map (int column position -> column type) and a reference counter.
- */
-public class TypeSchema extends AbstractTypeSchema<Value>
-{}
+public abstract class AbstractSchema<X> implements Iterable<Map.Entry<Integer, X>> {
+
+	private int numConnectionsThatContributed;
+	
+	
+	public int getNumConnectionsThatContributed() {
+		return this.numConnectionsThatContributed;
+	}
+	
+	public void increaseNumConnectionsThatContributed() {
+		this.numConnectionsThatContributed++;
+	}
+	
+	public abstract void addType(int pos, X type) throws ConflictingFieldTypeInfoException;
+	
+	public abstract X getType(int field);
+}

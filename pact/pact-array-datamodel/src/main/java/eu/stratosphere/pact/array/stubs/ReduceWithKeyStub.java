@@ -34,8 +34,8 @@ import eu.stratosphere.pact.generic.stub.GenericReducer;
  * <p>
  * For a reduce implementation, the <code>reduce()</code> method must be implemented.
  */
-public abstract class ReduceWithKeyStub extends AbstractArrayModelStub implements GenericReducer<Value[], Value[]>
-{
+public abstract class ReduceWithKeyStub extends AbstractArrayModelStub implements GenericReducer<Value[], Value[]> {
+	
 	public abstract void reduce(Value key, Iterator<Value[]> records, Collector<Value[]> out);
 	
 	public void combine(Value key, Iterator<Value[]> records, Collector<Value[]> out) {
@@ -87,7 +87,7 @@ public abstract class ReduceWithKeyStub extends AbstractArrayModelStub implement
 		if (this.keyIndex < 0)
 			throw new Exception("Invalid setup for ReduceWithKey: Key position has not been encoded in the config.");
 		
-		final Class<? extends Value>[] types = getDataTypes();
+		final Class<? extends Value>[] types = getDataTypes(0);
 		if (types == null) {
 			throw new Exception("Data types of the function's input could not be determined.");
 		}

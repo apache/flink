@@ -20,8 +20,8 @@ package eu.stratosphere.pact.compiler;
  * a problem during the optimizer post pass. This is a dedicated exception
  * because it is thrown by user-specified optimizer extensions.
  */
-public class CompilerPostPassException extends CompilerException
-{
+public class CompilerPostPassException extends CompilerException {
+	
 	/**
 	 * Serial version UID for serialization interoperability.
 	 */

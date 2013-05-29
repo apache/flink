@@ -33,8 +33,8 @@ import eu.stratosphere.pact.generic.stub.GenericCoGrouper;
  * <p>
  * For a coGroup implementation, the <code>coGroup()</code> method must be implemented.
  */
-public abstract class CoGroupStub extends AbstractArrayModelStub implements GenericCoGrouper<Value[], Value[], Value[]>
-{
+public abstract class CoGroupStub extends AbstractArrayModelStub implements GenericCoGrouper<Value[], Value[], Value[]> {
+	
 	/**
 	 * This method must be implemented to provide a user implementation of a
 	 * matcher. It is called for each two key-value pairs that share the same

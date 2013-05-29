@@ -18,9 +18,16 @@ package eu.stratosphere.pact.compiler.postpass;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
 
 /**
- * 
+ * Interface for visitors that process the optimizer's plan. Typical post processing applications are schema
+ * finalization or the generation/parameterization of utilities for the actual data model.
  */
-public interface OptimizerPostPass
-{
+public interface OptimizerPostPass {
+	
+	/**
+	 * Central post processing function. Invoked by the optimizer after the best plan has
+	 * been determined.
+	 * 
+	 * @param plan The plan to be post processed.
+	 */
 	void postPass(OptimizedPlan plan);
 }

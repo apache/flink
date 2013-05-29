@@ -27,8 +27,8 @@ import eu.stratosphere.pact.generic.types.TypePairComparatorFactory;
  * the fields for the comparison. That subset of fields (positions and types) is read from the
  * supplied configuration.
  */
-public class ArrayRecordPairComparatorFactory implements TypePairComparatorFactory<Value[], Value[]>
-{
+public class ArrayRecordPairComparatorFactory implements TypePairComparatorFactory<Value[], Value[]> {
+	
 	private static final ArrayRecordPairComparatorFactory INSTANCE = new ArrayRecordPairComparatorFactory();
 	
 	/**

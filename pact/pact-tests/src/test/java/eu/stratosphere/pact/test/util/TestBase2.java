@@ -22,6 +22,7 @@ import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
@@ -402,5 +403,28 @@ public abstract class TestBase2 {
 			configs.add(c);
 		}
 		return configs;
+	}
+	
+	public void readAllResultLines(List<String> target, String resultPath) throws IOException {
+		for (BufferedReader reader : getResultReader(resultPath)) {
+			String s = null;
+			while ((s = reader.readLine()) != null) {
+				target.add(s);
+			}
+		}
+	}
+	
+	public void compareResultsByLinesInMemory(String expectedResultStr, String resultPath) throws Exception {
+		ArrayList<String> list = new ArrayList<String>();
+		readAllResultLines(list, resultPath);
+		
+		String[] result = (String[]) list.toArray(new String[list.size()]);
+		Arrays.sort(result);
+		
+		String[] expected = expectedResultStr.split("\n");
+		Arrays.sort(expected);
+		
+		Assert.assertEquals("Different number of lines in expected and obtained result.", expected.length, result.length);
+		Assert.assertArrayEquals(expected, result);
 	}
 }
