@@ -12,7 +12,7 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.pact.common.io;
+package eu.stratosphere.pact.generic.io;
 
 import java.io.DataOutput;
 import java.io.DataOutputStream;
@@ -21,12 +21,12 @@ import java.io.IOException;
 import java.io.OutputStream;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.nephele.types.Record;
 
 /**
  * @author Arvid Heise
  */
-public abstract class BinaryOutputFormat extends FileOutputFormat {
+public abstract class BinaryOutputFormat<T extends Record> extends FileOutputFormat<T> {
 	/**
 	 * The config parameter which defines the fixed length of a record.
 	 */
@@ -52,7 +52,8 @@ public abstract class BinaryOutputFormat extends FileOutputFormat {
 		this.dataOutputStream.close();
 		super.close();
 	}
-
+	
+	@SuppressWarnings("unused") 
 	protected void complementBlockInfo(BlockInfo blockInfo) throws IOException {
 	}
 
@@ -92,14 +93,14 @@ public abstract class BinaryOutputFormat extends FileOutputFormat {
 		this.dataOutputStream = new DataOutputStream(this.blockBasedInput);
 	}
 
-	protected abstract void serialize(PactRecord record, DataOutput dataOutput) throws IOException;
+	protected abstract void serialize(T record, DataOutput dataOutput) throws IOException;
 
 	/*
 	 * (non-Javadoc)
 	 * @see eu.stratosphere.pact.common.io.OutputFormat#writeRecord(eu.stratosphere.pact.common.type.PactRecord)
 	 */
 	@Override
-	public void writeRecord(PactRecord record) throws IOException {
+	public void writeRecord(T record) throws IOException {
 		this.blockBasedInput.startRecord();
 		this.serialize(record, this.dataOutputStream);
 	}
@@ -172,7 +173,7 @@ public abstract class BinaryOutputFormat extends FileOutputFormat {
 
 			for (int remainingLength = len, offset = off; remainingLength > 0;) {
 				int blockLen = Math.min(remainingLength, this.maxPayloadSize - this.blockPos);
-				out.write(b, offset, blockLen);
+				this.out.write(b, offset, blockLen);
 
 				this.blockPos += blockLen;
 				if (this.blockPos >= this.maxPayloadSize)

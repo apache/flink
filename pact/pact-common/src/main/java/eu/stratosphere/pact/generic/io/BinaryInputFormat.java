@@ -12,7 +12,7 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.pact.common.io;
+package eu.stratosphere.pact.generic.io;
 
 import java.io.DataInput;
 import java.io.DataInputStream;
@@ -32,9 +32,9 @@ import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.nephele.fs.FileStatus;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
+import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.nephele.util.StringUtils;
 import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
-import eu.stratosphere.pact.common.type.PactRecord;
 
 /**
  * Base class for all input formats that use blocks of fixed size. The input splits are aligned to these blocks. Without
@@ -42,7 +42,7 @@ import eu.stratosphere.pact.common.type.PactRecord;
  * 
  * @author Arvid Heise
  */
-public abstract class BinaryInputFormat extends FileInputFormat {
+public abstract class BinaryInputFormat<T extends Record> extends FileInputFormat<T> {
 
 	/**
 	 * The log.
@@ -152,29 +152,28 @@ public abstract class BinaryInputFormat extends FileInputFormat {
 	 */
 	@Override
 	public SequentialStatistics getStatistics(BaseStatistics cachedStats) {
-		
+
 		final FileBaseStatistics cachedFileStats = (cachedStats != null && cachedStats instanceof FileBaseStatistics) ?
-				(FileBaseStatistics) cachedStats : null;
-		
+			(FileBaseStatistics) cachedStats : null;
+
 		try {
 			final Path filePath = this.filePath;
-		
+
 			// get the filesystem
 			final FileSystem fs = FileSystem.get(filePath.toUri());
 			final ArrayList<FileStatus> allFiles = new ArrayList<FileStatus>(1);
-			
+
 			// let the file input format deal with the up-to-date check and the basic size
 			final FileBaseStatistics stats = getFileStats(cachedFileStats, filePath, fs, allFiles);
 			if (stats == null) {
 				return null;
 			}
-			
+
 			// check whether the file stats are still sequential stats (in that case they are still valid)
 			if (stats instanceof SequentialStatistics) {
 				return (SequentialStatistics) stats;
-			} else {
-				return createStatistics(allFiles, stats);
 			}
+			return createStatistics(allFiles, stats);
 		} catch (IOException ioex) {
 			if (LOG.isWarnEnabled())
 				LOG.warn(String.format("Could not determine complete statistics for file '%s' due to an I/O error: %s",
@@ -204,7 +203,8 @@ public abstract class BinaryInputFormat extends FileInputFormat {
 	 * @param stats
 	 *        The pre-filled statistics.
 	 */
-	protected SequentialStatistics createStatistics(List<FileStatus> files, FileBaseStatistics stats) throws IOException {
+	protected SequentialStatistics createStatistics(List<FileStatus> files, FileBaseStatistics stats)
+			throws IOException {
 		if (files.isEmpty())
 			return null;
 
@@ -225,11 +225,12 @@ public abstract class BinaryInputFormat extends FileInputFormat {
 		}
 
 		final float avgWidth = totalCount == 0 ? 0 : ((float) stats.getTotalInputSize() / totalCount);
-		return new SequentialStatistics(stats.getLastModificationTime(), stats.getTotalInputSize(), avgWidth, totalCount);
+		return new SequentialStatistics(stats.getLastModificationTime(), stats.getTotalInputSize(), avgWidth,
+			totalCount);
 	}
 
 	private static class SequentialStatistics extends FileBaseStatistics {
-		
+
 		private final long numberOfRecords;
 
 		public SequentialStatistics(long fileModTime, long fileSize, float avgBytesPerRecord, long numberOfRecords) {
@@ -285,7 +286,7 @@ public abstract class BinaryInputFormat extends FileInputFormat {
 	 * @see eu.stratosphere.pact.common.io.InputFormat#nextRecord(eu.stratosphere.pact.common.type.PactRecord)
 	 */
 	@Override
-	public boolean nextRecord(PactRecord record) throws IOException {
+	public boolean nextRecord(T record) throws IOException {
 		if (this.reachedEnd())
 			return false;
 		this.deserialize(record, this.dataInputStream);
@@ -293,7 +294,7 @@ public abstract class BinaryInputFormat extends FileInputFormat {
 		return true;
 	}
 
-	protected abstract void deserialize(PactRecord record, DataInput dataInput) throws IOException;
+	protected abstract void deserialize(T record, DataInput dataInput) throws IOException;
 
 	/**
 	 * Writes a block info at the end of the blocks.<br>
@@ -320,12 +321,12 @@ public abstract class BinaryInputFormat extends FileInputFormat {
 		public int read() throws IOException {
 			if (this.blockPos++ >= this.maxPayloadSize)
 				this.skipHeader();
-			return in.read();
+			return this.in.read();
 		}
 
 		private void skipHeader() throws IOException {
 			byte[] dummy = new byte[BinaryInputFormat.this.blockInfo.getInfoSize()];
-			in.read(dummy, 0, dummy.length);
+			this.in.read(dummy, 0, dummy.length);
 			this.blockPos = 0;
 		}
 
@@ -347,7 +348,7 @@ public abstract class BinaryInputFormat extends FileInputFormat {
 			int totalRead = 0;
 			for (int remainingLength = len, offset = off; remainingLength > 0;) {
 				int blockLen = Math.min(remainingLength, this.maxPayloadSize - this.blockPos);
-				int read = in.read(b, offset, blockLen);
+				int read = this.in.read(b, offset, blockLen);
 				if (read < 0)
 					return read;
 				totalRead += read;

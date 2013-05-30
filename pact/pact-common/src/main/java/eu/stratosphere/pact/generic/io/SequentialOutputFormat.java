@@ -12,28 +12,29 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.pact.common.io;
+package eu.stratosphere.pact.generic.io;
 
-import java.io.DataInput;
+import java.io.DataOutput;
 import java.io.IOException;
 
-import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.nephele.types.Record;
 
 /**
- * Reads the {@link PactRecord}s from the native format which is deserializable without configuration.
+ * Stores complete {@link Record}s in an efficient binary format which is deserializable without configuration.
  * 
  * @author Arvid Heise
- * @see SequentialOutputFormat
+ * @see BlockBasedOutputFormat
+ * @see SequentialInputFormat
  */
-public class SequentialInputFormat extends BinaryInputFormat {
+public class SequentialOutputFormat extends BinaryOutputFormat<Record> {
 	/*
 	 * (non-Javadoc)
 	 * @see
-	 * eu.stratosphere.pact.testing.ioformats.BlockBasedInputFormat#deserialize(eu.stratosphere.pact.common.type.PactRecord
-	 * , java.io.DataInput)
+	 * eu.stratosphere.pact.testing.ioformats.BlockBasedOutputFormat#serialize(eu.stratosphere.pact.common.type.PactRecord
+	 * , java.io.DataOutput)
 	 */
 	@Override
-	protected void deserialize(PactRecord record, DataInput dataInput) throws IOException {
-		record.read(dataInput);
+	protected void serialize(Record record, DataOutput dataOutputStream) throws IOException {
+		record.write(dataOutputStream);
 	}
 }
