@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -22,8 +22,10 @@ import java.io.IOException;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
- * ID is an abstract base class to provide statistically unique and serializable identification numbers in Nephele.
+ * ID is an abstract base class for providing statistically unique identification numbers in Nephele.
  * Every component that requires these kinds of IDs provides its own concrete type.
+ * <p>
+ * This class is thread-safe.
  * 
  * @author warneke
  */
@@ -63,12 +65,49 @@ public abstract class AbstractID implements IOReadableWritable {
 	}
 
 	/**
+	 * Constructs a new abstract ID.
+	 * 
+	 * @param lowerPart
+	 *        the lower bytes of the ID
+	 * @param upperPart
+	 *        the higher bytes of the ID
+	 */
+	protected AbstractID(final long lowerPart, final long upperPart) {
+
+		this.lowerPart = lowerPart;
+		this.upperPart = upperPart;
+	}
+
+	/**
+	 * Creates a new abstract ID from the given one. The given and the newly created abtract ID will be identical, i.e.
+	 * a comparison by <code>equals</code> will return <code>true</code> and both objects will have the same hash code.
+	 * 
+	 * @param id
+	 *        the abstract ID to copy
+	 */
+	protected AbstractID(final AbstractID id) {
+
+		this.lowerPart = id.lowerPart;
+		this.upperPart = id.upperPart;
+	}
+
+	/**	
 	 * Constructs a new random ID from a uniform distribution.
 	 */
 	public AbstractID() {
 
-		this.lowerPart = (long) (Math.random() * Long.MAX_VALUE);
-		this.upperPart = (long) (Math.random() * Long.MAX_VALUE);
+		this.lowerPart = generateRandomBytes();
+		this.upperPart = generateRandomBytes();
+	}
+
+	/**
+	 * Generates a uniformly distributed random positive long.
+	 * 
+	 * @return a uniformly distributed random positive long
+	 */
+	protected static long generateRandomBytes() {
+
+		return (long) (Math.random() * Long.MAX_VALUE);
 	}
 
 	/**
@@ -108,7 +147,7 @@ public abstract class AbstractID implements IOReadableWritable {
 			ba[offset + SIZE_OF_LONG - 1 - i] = (byte) ((l & (0xffL << shift)) >>> shift);
 		}
 	}
-
+	
 	/**
 	 * Sets an ID from another ID by copying its internal byte representation.
 	 * 
