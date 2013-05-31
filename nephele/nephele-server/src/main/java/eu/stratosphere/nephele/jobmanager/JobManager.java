@@ -38,7 +38,6 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -60,10 +59,10 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.client.AbstractJobResult;
+import eu.stratosphere.nephele.client.AbstractJobResult.ReturnCode;
 import eu.stratosphere.nephele.client.JobCancelResult;
 import eu.stratosphere.nephele.client.JobProgressResult;
 import eu.stratosphere.nephele.client.JobSubmissionResult;
-import eu.stratosphere.nephele.client.AbstractJobResult.ReturnCode;
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.deployment.TaskDeploymentDescriptor;
@@ -82,7 +81,6 @@ import eu.stratosphere.nephele.executiongraph.GraphConversionException;
 import eu.stratosphere.nephele.executiongraph.InternalJobStatus;
 import eu.stratosphere.nephele.executiongraph.JobStatusListener;
 import eu.stratosphere.nephele.instance.AbstractInstance;
-import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.DummyInstance;
 import eu.stratosphere.nephele.instance.HardwareDescription;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
@@ -117,7 +115,6 @@ import eu.stratosphere.nephele.protocols.JobManagerProtocol;
 import eu.stratosphere.nephele.protocols.PluginCommunicationProtocol;
 import eu.stratosphere.nephele.taskmanager.AbstractTaskResult;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
-import eu.stratosphere.nephele.taskmanager.TaskCheckpointState;
 import eu.stratosphere.nephele.taskmanager.TaskExecutionState;
 import eu.stratosphere.nephele.taskmanager.TaskKillResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
@@ -636,9 +633,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			this.inputSplitManager.unregisterJob(executionGraph);
 		}
 
-		// Remove all the checkpoints of the job
-		removeAllCheckpoints(executionGraph);
-
 		// Unregister job with library cache manager
 		try {
 			LibraryCacheManager.unregister(executionGraph.getJobID());
@@ -823,8 +817,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 				return ConnectionInfoLookupResponse.createReceiverFoundAndReady();
 			}
 
-			if (executionState != ExecutionState.RUNNING && executionState != ExecutionState.REPLAYING
-				&& executionState != ExecutionState.FINISHING) {
+			if (executionState != ExecutionState.RUNNING && executionState != ExecutionState.FINISHING) {
 				// LOG.info("Created receiverNotReady for " + connectedVertex + " in state " + executionState + " 2");
 				return ConnectionInfoLookupResponse.createReceiverNotReady();
 			}
@@ -855,8 +848,8 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			// Check execution state
 			final ExecutionState executionState = targetVertex.getExecutionState();
 
-			if (executionState != ExecutionState.RUNNING && executionState != ExecutionState.REPLAYING
-				&& executionState != ExecutionState.FINISHING && executionState != ExecutionState.FINISHED) {
+			if (executionState != ExecutionState.RUNNING && executionState != ExecutionState.FINISHING
+					&& executionState != ExecutionState.FINISHED) {
 
 				if (executionState == ExecutionState.ASSIGNED) {
 
@@ -1037,73 +1030,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 		// Hand it over to the executor service
 		this.executorService.execute(runnable);
-	}
-
-	/**
-	 * Collects all vertices with checkpoints from the given execution graph and advises the corresponding task managers
-	 * to remove those checkpoints.
-	 * 
-	 * @param executionGraph
-	 *        the execution graph from which the checkpoints shall be removed
-	 */
-	private void removeAllCheckpoints(final ExecutionGraph executionGraph) {
-
-		// Group vertex IDs by assigned instance
-		final Map<AbstractInstance, SerializableArrayList<ExecutionVertexID>> instanceMap = new HashMap<AbstractInstance, SerializableArrayList<ExecutionVertexID>>();
-		final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(executionGraph, true);
-		while (it.hasNext()) {
-
-			final ExecutionVertex vertex = it.next();
-			final AllocatedResource allocatedResource = vertex.getAllocatedResource();
-			if (allocatedResource == null) {
-				continue;
-			}
-
-			final AbstractInstance abstractInstance = allocatedResource.getInstance();
-			if (abstractInstance == null) {
-				continue;
-			}
-
-			SerializableArrayList<ExecutionVertexID> vertexIDs = instanceMap.get(abstractInstance);
-			if (vertexIDs == null) {
-				vertexIDs = new SerializableArrayList<ExecutionVertexID>();
-				instanceMap.put(abstractInstance, vertexIDs);
-			}
-			vertexIDs.add(vertex.getID());
-		}
-
-		// Finally, trigger the removal of the checkpoints at each instance
-		final Iterator<Map.Entry<AbstractInstance, SerializableArrayList<ExecutionVertexID>>> it2 = instanceMap
-			.entrySet().iterator();
-		while (it2.hasNext()) {
-
-			final Map.Entry<AbstractInstance, SerializableArrayList<ExecutionVertexID>> entry = it2.next();
-			final AbstractInstance abstractInstance = entry.getKey();
-			if (abstractInstance == null) {
-				LOG.error("Cannot remove checkpoint: abstractInstance is null");
-				continue;
-			}
-
-			if (abstractInstance instanceof DummyInstance) {
-				continue;
-			}
-
-			final Runnable runnable = new Runnable() {
-
-				@Override
-				public void run() {
-
-					try {
-						abstractInstance.removeCheckpoints(entry.getValue());
-					} catch (IOException ioe) {
-						LOG.error(StringUtils.stringifyException(ioe));
-					}
-				}
-			};
-
-			// Hand it over to the executor service
-			this.executorService.execute(runnable);
-		}
 	}
 
 	/**
@@ -1323,40 +1249,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		return new InputSplitWrapper(jobID, this.inputSplitManager.getNextInputSplit(vertex, sequenceNumber.getValue()));
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void updateCheckpointState(final TaskCheckpointState taskCheckpointState) throws IOException {
-
-		// Get the graph object for this
-		final JobID jobID = taskCheckpointState.getJobID();
-		final ExecutionGraph executionGraph = this.scheduler.getExecutionGraphByID(jobID);
-		if (executionGraph == null) {
-			LOG.error("Cannot find execution graph for job " + taskCheckpointState.getJobID()
-				+ " to update checkpoint state");
-			return;
-		}
-
-		final ExecutionVertex vertex = executionGraph.getVertexByID(taskCheckpointState.getVertexID());
-		if (vertex == null) {
-			LOG.error("Cannot find vertex with ID " + taskCheckpointState.getVertexID()
-				+ " to update checkpoint state");
-			return;
-		}
-
-		final Runnable taskStateChangeRunnable = new Runnable() {
-
-			@Override
-			public void run() {
-
-				vertex.updateCheckpointState(taskCheckpointState.getCheckpointState());
-			}
-		};
-
-		// Hand over to the executor service, as this may result in a longer operation with several IPC operations
-		executionGraph.executeCommand(taskStateChangeRunnable);
-	}
 
 	/**
 	 * {@inheritDoc}

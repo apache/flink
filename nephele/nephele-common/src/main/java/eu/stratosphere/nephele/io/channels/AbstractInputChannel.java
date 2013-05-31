@@ -19,8 +19,6 @@ import java.io.EOFException;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.io.InputGate;
-import eu.stratosphere.nephele.io.compression.CompressionException;
-import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.types.Record;
 
@@ -52,8 +50,8 @@ public abstract class AbstractInputChannel<T extends Record> extends AbstractCha
 	 *        the level of compression to be used for this channel
 	 */
 	protected AbstractInputChannel(final InputGate<T> inputGate, final int channelIndex, final ChannelID channelID,
-			final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
-		super(channelIndex, channelID, connectedChannelID, compressionLevel);
+			final ChannelID connectedChannelID) {
+		super(channelIndex, channelID, connectedChannelID);
 		this.inputGate = inputGate;
 	}
 
@@ -90,13 +88,6 @@ public abstract class AbstractInputChannel<T extends Record> extends AbstractCha
 	 */
 	public abstract void close() throws IOException, InterruptedException;
 
-	/**
-	 * Initializes the decompressor object for this input channel.
-	 * 
-	 * @throws CompressionException
-	 *         thrown if an error occurs during the initialization process
-	 */
-	public abstract void initializeDecompressor() throws CompressionException;
 
 	/**
 	 * {@inheritDoc}

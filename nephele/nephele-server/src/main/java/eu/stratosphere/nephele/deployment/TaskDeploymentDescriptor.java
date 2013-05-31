@@ -21,13 +21,11 @@ import java.io.IOException;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
-import eu.stratosphere.nephele.executiongraph.CheckpointState;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.types.StringRecord;
-import eu.stratosphere.nephele.util.EnumUtils;
 import eu.stratosphere.nephele.util.SerializableArrayList;
 import eu.stratosphere.nephele.util.StringUtils;
 
@@ -75,10 +73,6 @@ public final class TaskDeploymentDescriptor implements IOReadableWritable {
 	 */
 	private Configuration taskConfiguration;
 
-	/**
-	 * The task's initial checkpoint state.
-	 */
-	private CheckpointState initialCheckpointState;
 
 	/**
 	 * The class containing the task code to be executed.
@@ -112,8 +106,6 @@ public final class TaskDeploymentDescriptor implements IOReadableWritable {
 	 *        the configuration of the job the task belongs to
 	 * @param taskConfiguration
 	 *        the task's configuration object
-	 * @param initialCheckpointState
-	 *        the task's initial checkpoint state
 	 * @param invokableClass
 	 *        the class containing the task code to be executed
 	 * @param outputGates
@@ -123,7 +115,7 @@ public final class TaskDeploymentDescriptor implements IOReadableWritable {
 	 */
 	public TaskDeploymentDescriptor(final JobID jobID, final ExecutionVertexID vertexID, final String taskName,
 			final int indexInSubtaskGroup, final int currentNumberOfSubtasks, final Configuration jobConfiguration,
-			final Configuration taskConfiguration, final CheckpointState initialCheckpointState,
+			final Configuration taskConfiguration, 
 			final Class<? extends AbstractInvokable> invokableClass,
 			final SerializableArrayList<GateDeploymentDescriptor> outputGates,
 			final SerializableArrayList<GateDeploymentDescriptor> inputGates) {
@@ -157,10 +149,6 @@ public final class TaskDeploymentDescriptor implements IOReadableWritable {
 			throw new IllegalArgumentException("Argument taskConfiguration must not be null");
 		}
 
-		if (initialCheckpointState == null) {
-			throw new IllegalArgumentException("Argument initialCheckpointState must not be null");
-		}
-
 		if (invokableClass == null) {
 			throw new IllegalArgumentException("Argument invokableClass must not be null");
 		}
@@ -180,7 +168,6 @@ public final class TaskDeploymentDescriptor implements IOReadableWritable {
 		this.currentNumberOfSubtasks = currentNumberOfSubtasks;
 		this.jobConfiguration = jobConfiguration;
 		this.taskConfiguration = taskConfiguration;
-		this.initialCheckpointState = initialCheckpointState;
 		this.invokableClass = invokableClass;
 		this.outputGates = outputGates;
 		this.inputGates = inputGates;
@@ -198,7 +185,6 @@ public final class TaskDeploymentDescriptor implements IOReadableWritable {
 		this.currentNumberOfSubtasks = 0;
 		this.jobConfiguration = new Configuration();
 		this.taskConfiguration = new Configuration();
-		this.initialCheckpointState = CheckpointState.NONE;
 		this.invokableClass = null;
 		this.outputGates = new SerializableArrayList<GateDeploymentDescriptor>();
 		this.inputGates = new SerializableArrayList<GateDeploymentDescriptor>();
@@ -215,7 +201,6 @@ public final class TaskDeploymentDescriptor implements IOReadableWritable {
 		StringRecord.writeString(out, this.taskName);
 		out.writeInt(this.indexInSubtaskGroup);
 		out.writeInt(this.currentNumberOfSubtasks);
-		EnumUtils.writeEnum(out, this.initialCheckpointState);
 
 		// Write out the names of the required jar files
 		final String[] requiredJarFiles = LibraryCacheManager.getRequiredJarFiles(this.jobID);
@@ -251,7 +236,6 @@ public final class TaskDeploymentDescriptor implements IOReadableWritable {
 		this.taskName = StringRecord.readString(in);
 		this.indexInSubtaskGroup = in.readInt();
 		this.currentNumberOfSubtasks = in.readInt();
-		this.initialCheckpointState = EnumUtils.readEnum(in, CheckpointState.class);
 
 		// Read names of required jar files
 		final String[] requiredJarFiles = new String[in.readInt()];
@@ -356,16 +340,6 @@ public final class TaskDeploymentDescriptor implements IOReadableWritable {
 	public Configuration getTaskConfiguration() {
 
 		return this.taskConfiguration;
-	}
-
-	/**
-	 * Returns the task's initial checkpoint state.
-	 * 
-	 * @return the tasks's initial checkpoint state
-	 */
-	public CheckpointState getInitialCheckpointState() {
-
-		return this.initialCheckpointState;
 	}
 
 	/**

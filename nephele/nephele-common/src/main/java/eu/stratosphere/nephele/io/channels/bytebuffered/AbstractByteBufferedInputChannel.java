@@ -29,10 +29,6 @@ import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.compression.CompressionEvent;
-import eu.stratosphere.nephele.io.compression.CompressionException;
-import eu.stratosphere.nephele.io.compression.CompressionLevel;
-import eu.stratosphere.nephele.io.compression.Decompressor;
 import eu.stratosphere.nephele.types.Record;
 
 /**
@@ -66,11 +62,6 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 	private ByteBufferedInputChannelBroker inputChannelBroker;
 
 	/**
-	 * The decompressor object to decompress incoming data
-	 */
-	private Decompressor decompressor = null;
-
-	/**
 	 * The exception observed in this channel while processing the buffers. Checked and thrown
 	 * per-buffer.
 	 */
@@ -96,13 +87,10 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 	 *        the ID of the channel
 	 * @param connectedChannelID
 	 *        the ID of the channel this channel is connected to
-	 * @param compressionLevel
-	 *        the level of compression to be used for this channel
 	 */
 	public AbstractByteBufferedInputChannel(final InputGate<T> inputGate, final int channelIndex,
-			final RecordDeserializer<T> deserializer, final ChannelID channelID, final ChannelID connectedChannelID,
-			final CompressionLevel compressionLevel) {
-		super(inputGate, channelIndex, channelID, connectedChannelID, compressionLevel);
+			final RecordDeserializer<T> deserializer, final ChannelID channelID, final ChannelID connectedChannelID) {
+		super(inputGate, channelIndex, channelID, connectedChannelID);
 		this.deserializer = deserializer;
 	}
 
@@ -125,10 +113,6 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 
 			if (this.dataBuffer == null) {
 				return null;
-			}
-
-			if (this.decompressor != null) {
-				this.dataBuffer = this.decompressor.decompress(this.dataBuffer);
 			}
 		}
 
@@ -233,22 +217,6 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 		this.inputChannelBroker = inputChannelBroker;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void initializeDecompressor() throws CompressionException {
-
-		if (this.decompressor != null) {
-			throw new IllegalStateException("Decompressor has already been initialized for channel " + getID());
-		}
-
-		if (this.inputChannelBroker == null) {
-			throw new IllegalStateException("Input channel broker has not been set");
-		}
-
-		this.decompressor = this.inputChannelBroker.getDecompressor();
-	}
 
 	public void checkForNetworkEvents() {
 
@@ -267,10 +235,6 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 		} else if (AbstractTaskEvent.class.isInstance(event)) {
 			// Simply dispatch the event if it comes from a task
 			getInputGate().deliverEvent((AbstractTaskEvent) event);
-		} else if (CompressionEvent.class.isInstance(event)) {
-			final CompressionEvent compressionEvent = (CompressionEvent) event;
-			this.decompressor.setCurrentInternalDecompressionLibraryIndex(compressionEvent
-				.getCurrentInternalCompressionLibraryIndex());
 		} else {
 			// TODO: Handle unknown event
 			LOG.error("Received unknown event: " + event);
@@ -302,10 +266,6 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 		this.deserializer.clear();
 
 		// The buffers are recycled by the input channel wrapper
-
-		if (this.decompressor != null) {
-			this.decompressor.shutdown();
-		}
 	}
 
 	/**

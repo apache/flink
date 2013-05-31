@@ -44,7 +44,6 @@ public class SWTVertexToolTip extends SWTToolTip {
 
 	private final Label executionStateLabel;
 
-	private final Label checkpointStateLabel;
 
 	private Composite warningComposite;
 
@@ -151,17 +150,7 @@ public class SWTVertexToolTip extends SWTToolTip {
 		this.executionStateLabel.setText(this.managementVertex.getExecutionState().toString());
 		this.executionStateLabel.setLayoutData(gridData1);
 
-		// Checkpoint state
-		final Label checkpointStateTextLabel = new Label(tableComposite, SWT.NONE);
-		checkpointStateTextLabel.setBackground(backgroundColor);
-		checkpointStateTextLabel.setForeground(foregroundColor);
-		checkpointStateTextLabel.setText("Checkpoint state:");
 
-		this.checkpointStateLabel = new Label(tableComposite, SWT.NONE);
-		this.checkpointStateLabel.setBackground(backgroundColor);
-		this.checkpointStateLabel.setForeground(foregroundColor);
-		this.checkpointStateLabel.setText(this.managementVertex.getCheckpointState().toString());
-		this.checkpointStateLabel.setLayoutData(gridData1);
 
 		final ManagementGroupVertex groupVertex = this.managementVertex.getGroupVertex();
 		final GroupVertexVisualizationData groupVertexVisualizationData = (GroupVertexVisualizationData) groupVertex
@@ -226,7 +215,6 @@ public class SWTVertexToolTip extends SWTToolTip {
 
 		// Update the labels
 		this.executionStateLabel.setText(this.managementVertex.getExecutionState().toString());
-		this.checkpointStateLabel.setText(this.managementVertex.getCheckpointState().toString());
 		this.instanceIDLabel.setText(this.managementVertex.getInstanceName());
 		this.instanceTypeLabel.setText(this.managementVertex.getInstanceType());
 

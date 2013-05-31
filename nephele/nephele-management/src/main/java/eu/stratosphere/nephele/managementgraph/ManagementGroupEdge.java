@@ -16,7 +16,6 @@
 package eu.stratosphere.nephele.managementgraph;
 
 import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.compression.CompressionLevel;
 
 /**
  * This class implements a directed edge of between two {@link ManagementGroupVertex} objects. The edge is derived from
@@ -54,11 +53,6 @@ public final class ManagementGroupEdge extends ManagementAttachment {
 	private final ChannelType channelType;
 
 	/**
-	 * The compression level of the channels represented by this group edge.
-	 */
-	private final CompressionLevel compressionLevel;
-
-	/**
 	 * Constructs a new management group edge.
 	 * 
 	 * @param source
@@ -75,14 +69,12 @@ public final class ManagementGroupEdge extends ManagementAttachment {
 	 *        the compression level of the channels represented by the new group edge
 	 */
 	public ManagementGroupEdge(final ManagementGroupVertex source, final int sourceIndex,
-			final ManagementGroupVertex target, final int targetIndex, final ChannelType channelType,
-			final CompressionLevel compressionLevel) {
+			final ManagementGroupVertex target, final int targetIndex, final ChannelType channelType) {
 		this.source = source;
 		this.target = target;
 		this.sourceIndex = sourceIndex;
 		this.targetIndex = targetIndex;
 		this.channelType = channelType;
-		this.compressionLevel = compressionLevel;
 
 		source.insertForwardEdge(this, sourceIndex);
 		target.insertBackwardEdge(this, targetIndex);
@@ -97,14 +89,6 @@ public final class ManagementGroupEdge extends ManagementAttachment {
 		return this.channelType;
 	}
 
-	/**
-	 * Returns the compression level of the channels represented by this group edge.
-	 * 
-	 * @return the compression level of the channels represented by this group edge
-	 */
-	public CompressionLevel getCompressionLevel() {
-		return this.compressionLevel;
-	}
 
 	/**
 	 * Returns the source vertex of this group edge.

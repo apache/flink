@@ -28,10 +28,6 @@ import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.channels.SerializationBuffer;
-import eu.stratosphere.nephele.io.compression.CompressionEvent;
-import eu.stratosphere.nephele.io.compression.CompressionException;
-import eu.stratosphere.nephele.io.compression.CompressionLevel;
-import eu.stratosphere.nephele.io.compression.Compressor;
 import eu.stratosphere.nephele.types.Record;
 
 public abstract class AbstractByteBufferedOutputChannel<T extends Record> extends AbstractOutputChannel<T> {
@@ -56,10 +52,6 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	 */
 	private ByteBufferedOutputChannelBroker outputChannelBroker = null;
 
-	/**
-	 * The compressor used to compress the outgoing data.
-	 */
-	private Compressor compressor = null;
 
 	/**
 	 * Stores the number of bytes transmitted through this output channel since its instantiation.
@@ -79,12 +71,10 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	 *        the ID of the channel
 	 * @param connectedChannelID
 	 *        the ID of the channel this channel is connected to
-	 * @param compressionLevel
-	 *        the level of compression to be used for this channel
 	 */
 	protected AbstractByteBufferedOutputChannel(final OutputGate<T> outputGate, final int channelIndex,
-			final ChannelID channelID, final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
-		super(outputGate, channelIndex, channelID, connectedChannelID, compressionLevel);
+			final ChannelID channelID, final ChannelID connectedChannelID) {
+		super(outputGate, channelIndex, channelID, connectedChannelID);
 	}
 
 	/**
@@ -148,12 +138,6 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	 *         thrown if the thread is interrupted while releasing the buffers
 	 */
 	private void releaseWriteBuffer() throws IOException, InterruptedException {
-
-		if (getCompressionLevel() == CompressionLevel.DYNAMIC_COMPRESSION) {
-			this.outputChannelBroker.transferEventToInputChannel(new CompressionEvent(this.compressor
-				.getCurrentInternalCompressionLibraryIndex()));
-		}
-
 		// Keep track of number of bytes transmitted through this channel
 		this.amountOfDataTransmitted += this.dataBuffer.size();
 
@@ -178,26 +162,12 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 
 		// Check if we can accept new records or if there are still old
 		// records to be transmitted
-		if (this.compressor != null) {
-			while (this.serializationBuffer.dataLeftFromPreviousSerialization()) {
+		while (this.serializationBuffer.dataLeftFromPreviousSerialization()) {
 
-				this.serializationBuffer.read(this.dataBuffer);
-				if (this.dataBuffer.remaining() == 0) {
-
-					this.dataBuffer = this.compressor.compress(this.dataBuffer);
-					// this.leasedWriteBuffer.flip();
-					releaseWriteBuffer();
-					requestWriteBufferFromBroker();
-				}
-			}
-		} else {
-			while (this.serializationBuffer.dataLeftFromPreviousSerialization()) {
-
-				this.serializationBuffer.read(this.dataBuffer);
-				if (this.dataBuffer.remaining() == 0) {
-					releaseWriteBuffer();
-					requestWriteBufferFromBroker();
-				}
+			this.serializationBuffer.read(this.dataBuffer);
+			if (this.dataBuffer.remaining() == 0) {
+				releaseWriteBuffer();
+				requestWriteBufferFromBroker();
 			}
 		}
 
@@ -207,19 +177,9 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 
 		this.serializationBuffer.serialize(record);
 
-		if (this.compressor != null) {
-			this.serializationBuffer.read(this.dataBuffer);
-
-			if (this.dataBuffer.remaining() == 0) {
-				this.dataBuffer = this.compressor.compress(this.dataBuffer);
-				// this.leasedWriteBuffer.flip();
-				releaseWriteBuffer();
-			}
-		} else {
-			this.serializationBuffer.read(this.dataBuffer);
-			if (this.dataBuffer.remaining() == 0) {
-				releaseWriteBuffer();
-			}
+		this.serializationBuffer.read(this.dataBuffer);
+		if (this.dataBuffer.remaining() == 0) {
+			releaseWriteBuffer();
 		}
 	}
 
@@ -234,22 +194,6 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 		this.outputChannelBroker = byteBufferedOutputChannelBroker;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void initializeCompressor() throws CompressionException {
-
-		if (this.compressor != null) {
-			throw new IllegalStateException("Decompressor has already been initialized for channel " + getID());
-		}
-
-		if (this.outputChannelBroker == null) {
-			throw new IllegalStateException("Input channel broker has not been set");
-		}
-
-		this.compressor = this.outputChannelBroker.getCompressor();
-	}
 
 	/**
 	 * {@inheritDoc}
@@ -291,33 +235,15 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 					LOG.error(e);
 				}
 			}
-			if (this.compressor != null) {
-				this.serializationBuffer.read(this.dataBuffer);
-				if (this.dataBuffer.remaining() == 0) {
-					this.dataBuffer = this.compressor.compress(this.dataBuffer);
-					// this.leasedWriteBuffer.flip();
-					releaseWriteBuffer();
-				}
-			} else {
-				this.serializationBuffer.read(this.dataBuffer);
-				if (this.dataBuffer.remaining() == 0) {
-					releaseWriteBuffer();
-				}
+			this.serializationBuffer.read(this.dataBuffer);
+			if (this.dataBuffer.remaining() == 0) {
+				releaseWriteBuffer();
 			}
 		}
 
 		// Get rid of the leased write buffer
-		if (this.compressor != null) {
-			if (this.dataBuffer != null) {
-				this.dataBuffer = this.compressor.compress(this.dataBuffer);
-
-				// this.leasedWriteBuffer.flip();
-				releaseWriteBuffer();
-			}
-		} else {
-			if (this.dataBuffer != null) {
-				releaseWriteBuffer();
-			}
+		if (this.dataBuffer != null) {
+			releaseWriteBuffer();
 		}
 	}
 
@@ -335,10 +261,6 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 		if (this.dataBuffer != null) {
 			this.dataBuffer.recycleBuffer();
 			this.dataBuffer = null;
-		}
-
-		if (this.compressor != null) {
-			this.compressor.shutdown();
 		}
 	}
 

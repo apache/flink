@@ -16,7 +16,6 @@
 package eu.stratosphere.nephele.managementgraph;
 
 import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.compression.CompressionLevel;
 
 /**
  * This class implements a directed edge of a {@link ManagementGraph}. The edge is derived from a channel of the actual
@@ -54,11 +53,6 @@ public final class ManagementEdge extends ManagementAttachment {
 	private final ChannelType channelType;
 
 	/**
-	 * The compression level of the channel this edge refers to.
-	 */
-	private final CompressionLevel compressionLevel;
-
-	/**
 	 * The source ID of the management edge.
 	 */
 	private final ManagementEdgeID sourceEdgeID;
@@ -90,7 +84,7 @@ public final class ManagementEdge extends ManagementAttachment {
 	 */
 	public ManagementEdge(final ManagementEdgeID sourceEdgeID, final ManagementEdgeID targetEdgeID,
 			final ManagementGate source, final int sourceIndex, final ManagementGate target, final int targetIndex,
-			final ChannelType channelType, final CompressionLevel compressionLevel) {
+			final ChannelType channelType) {
 
 		this.sourceEdgeID = sourceEdgeID;
 		this.targetEdgeID = targetEdgeID;
@@ -99,7 +93,6 @@ public final class ManagementEdge extends ManagementAttachment {
 		this.sourceIndex = sourceIndex;
 		this.targetIndex = targetIndex;
 		this.channelType = channelType;
-		this.compressionLevel = compressionLevel;
 
 		this.source.insertForwardEdge(this, sourceIndex);
 		this.target.insertBackwardEdge(this, targetIndex);
@@ -112,15 +105,6 @@ public final class ManagementEdge extends ManagementAttachment {
 	 */
 	public ChannelType getChannelType() {
 		return this.channelType;
-	}
-
-	/**
-	 * Returns the compression level of the channel this edge refers to.
-	 * 
-	 * @return the compression level of the channel this edge refers to
-	 */
-	public CompressionLevel getCompressionLevel() {
-		return this.compressionLevel;
 	}
 
 	/**

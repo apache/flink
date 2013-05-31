@@ -25,7 +25,6 @@ import java.util.List;
 import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.util.EnumUtils;
 
 /**
@@ -49,11 +48,6 @@ public final class GateDeploymentDescriptor implements IOReadableWritable {
 	private ChannelType channelType;
 
 	/**
-	 * The compression level of the gate.
-	 */
-	private CompressionLevel compressionLevel;
-
-	/**
 	 * The list of channel deployment descriptors attached to this gate.
 	 */
 	private final List<ChannelDeploymentDescriptor> channels;
@@ -71,7 +65,7 @@ public final class GateDeploymentDescriptor implements IOReadableWritable {
 	 *        the list of channel deployment descriptors attached to this gate
 	 */
 	public GateDeploymentDescriptor(final GateID gateID, final ChannelType channelType,
-			final CompressionLevel compressionLevel, List<ChannelDeploymentDescriptor> channels) {
+			 List<ChannelDeploymentDescriptor> channels) {
 
 		if (gateID == null) {
 			throw new IllegalArgumentException("Argument gateID must no be null");
@@ -81,17 +75,12 @@ public final class GateDeploymentDescriptor implements IOReadableWritable {
 			throw new IllegalArgumentException("Argument channelType must no be null");
 		}
 
-		if (compressionLevel == null) {
-			throw new IllegalArgumentException("Argument compressionLevel must no be null");
-		}
-
 		if (channels == null) {
 			throw new IllegalArgumentException("Argument channels must no be null");
 		}
 
 		this.gateID = gateID;
 		this.channelType = channelType;
-		this.compressionLevel = compressionLevel;
 		this.channels = channels;
 	}
 
@@ -102,7 +91,6 @@ public final class GateDeploymentDescriptor implements IOReadableWritable {
 
 		this.gateID = new GateID();
 		this.channelType = null;
-		this.compressionLevel = null;
 		this.channels = new ArrayList<ChannelDeploymentDescriptor>();
 	}
 
@@ -114,7 +102,6 @@ public final class GateDeploymentDescriptor implements IOReadableWritable {
 
 		this.gateID.write(out);
 		EnumUtils.writeEnum(out, channelType);
-		EnumUtils.writeEnum(out, this.compressionLevel);
 		out.writeInt(this.channels.size());
 		final Iterator<ChannelDeploymentDescriptor> it = this.channels.iterator();
 		while (it.hasNext()) {
@@ -130,7 +117,6 @@ public final class GateDeploymentDescriptor implements IOReadableWritable {
 
 		this.gateID.read(in);
 		this.channelType = EnumUtils.readEnum(in, ChannelType.class);
-		this.compressionLevel = EnumUtils.readEnum(in, CompressionLevel.class);
 		final int nocdd = in.readInt();
 		for (int i = 0; i < nocdd; ++i) {
 			final ChannelDeploymentDescriptor cdd = new ChannelDeploymentDescriptor();
@@ -157,16 +143,6 @@ public final class GateDeploymentDescriptor implements IOReadableWritable {
 	public ChannelType getChannelType() {
 
 		return this.channelType;
-	}
-
-	/**
-	 * Returns the compression level of the gate.
-	 * 
-	 * @return the compression level of the gate
-	 */
-	public CompressionLevel getCompressionLevel() {
-
-		return this.compressionLevel;
 	}
 
 	/**

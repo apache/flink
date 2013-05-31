@@ -15,7 +15,6 @@
 
 package eu.stratosphere.nephele.taskmanager.bufferprovider;
 
-import java.nio.ByteBuffer;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 
@@ -23,6 +22,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
+import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 
 public final class GlobalBufferPool {
 
@@ -53,7 +53,7 @@ public final class GlobalBufferPool {
 	 */
 	private final int bufferSizeInBytes;
 
-	private final Queue<ByteBuffer> buffers;
+	private final Queue<MemorySegment> buffers;
 
 	/**
 	 * Returns the singleton instance of the global buffer pool. If the instance does not already exist, it is also
@@ -80,11 +80,13 @@ public final class GlobalBufferPool {
 		this.bufferSizeInBytes = GlobalConfiguration.getInteger("channel.network.bufferSizeInBytes",
 			DEFAULT_BUFFER_SIZE_IN_BYTES);
 
-		this.buffers = new ArrayBlockingQueue<ByteBuffer>(this.numberOfBuffers);
+		this.buffers = new ArrayBlockingQueue<MemorySegment>(this.numberOfBuffers);
 
 		// Initialize buffers
 		for (int i = 0; i < this.numberOfBuffers; i++) {
-			final ByteBuffer readBuffer = ByteBuffer.allocateDirect(this.bufferSizeInBytes);
+			// allocate byteBuffer
+			final byte[] segMemory = new byte[this.bufferSizeInBytes];
+			final MemorySegment readBuffer = new MemorySegment(segMemory);
 			this.buffers.add(readBuffer);
 		}
 
@@ -107,7 +109,7 @@ public final class GlobalBufferPool {
 	 * 
 	 * @return the locked buffer from the pool or <code>null</code> if currently no global buffer is available
 	 */
-	public ByteBuffer lockGlobalBuffer() {
+	public MemorySegment lockGlobalBuffer() {
 
 		return this.buffers.poll();
 	}
@@ -118,9 +120,7 @@ public final class GlobalBufferPool {
 	 * @param releasedBuffer
 	 *        the previously locked buffer to be released
 	 */
-	public void releaseGlobalBuffer(final ByteBuffer releasedBuffer) {
-
-		releasedBuffer.clear();
+	public void releaseGlobalBuffer(final MemorySegment releasedBuffer) {
 		this.buffers.add(releasedBuffer);
 	}
 

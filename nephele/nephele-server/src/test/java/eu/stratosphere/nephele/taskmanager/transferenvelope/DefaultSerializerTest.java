@@ -30,10 +30,11 @@ import java.util.Deque;
 import org.junit.Test;
 
 import eu.stratosphere.nephele.io.AbstractID;
-import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.BufferFactory;
 import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.io.channels.MemoryBuffer;
 import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.DefaultSerializer;
 import eu.stratosphere.nephele.util.BufferPoolConnector;
@@ -42,7 +43,6 @@ import eu.stratosphere.nephele.util.ServerTestUtils;
 /**
  * This class contains tests covering the serialization of transfer envelopes to a byte stream.
  * 
- * @author warneke
  */
 public class DefaultSerializerTest {
 
@@ -84,7 +84,6 @@ public class DefaultSerializerTest {
 	/**
 	 * Auxiliary class to explicitly access the internal buffer of an ID object.
 	 * 
-	 * @author warneke
 	 */
 	private static class SerializationTestID extends AbstractID {
 
@@ -134,21 +133,21 @@ public class DefaultSerializerTest {
 			+ ServerTestUtils.getRandomFilename());
 		final FileOutputStream outputStream = new FileOutputStream(outputFile);
 		final FileChannel fileChannel = outputStream.getChannel();
-		final Deque<ByteBuffer> recycleQueue = new ArrayDeque<ByteBuffer>();
+		final Deque<MemorySegment> recycleQueue = new ArrayDeque<MemorySegment>();
 		final DefaultSerializer serializer = new DefaultSerializer();
-		final ByteBuffer byteBuffer = ByteBuffer.allocate(BUFFER_SIZE);
+		final MemorySegment byteBuffer = new MemorySegment(new byte[BUFFER_SIZE]);
 		final ByteBuffer initBuffer = ByteBuffer.allocate(1);
-
+		
 		// The byte buffer is initialized from this buffer
 		initBuffer.put(BUFFER_CONTENT);
 		initBuffer.flip();
-
+		
 		// Put byte buffer to recycled queue
 		recycleQueue.add(byteBuffer);
 
 		for (int i = 0; i < BUFFER_SIZE; i++) {
 
-			final Buffer buffer = BufferFactory.createFromMemory(i, recycleQueue.poll(), new BufferPoolConnector(
+			final MemoryBuffer buffer = BufferFactory.createFromMemory(i, recycleQueue.poll(), new BufferPoolConnector(
 				recycleQueue));
 
 			// Initialize buffer
@@ -156,9 +155,7 @@ public class DefaultSerializerTest {
 				buffer.write(initBuffer);
 				initBuffer.position(0);
 			}
-
-			// Finish write phase
-			buffer.finishWritePhase();
+			buffer.flip();
 
 			final TransferEnvelope transferEnvelope = new TransferEnvelope(i, this.jobID, this.sourceChannelID);
 			transferEnvelope.setBuffer(buffer);
@@ -173,7 +170,7 @@ public class DefaultSerializerTest {
 		}
 
 		fileChannel.close();
-
+		
 		return outputFile;
 	}
 
@@ -223,8 +220,7 @@ public class DefaultSerializerTest {
 		assertEquals(expectedBufferSize, bufferSize);
 
 		byte[] buffer = new byte[bufferSize];
-		fileInputStream.read(buffer);
-
+		int r = fileInputStream.read(buffer);
 		for (int i = 0; i < buffer.length; i++) {
 			assertEquals(BUFFER_CONTENT, buffer[i]);
 		}

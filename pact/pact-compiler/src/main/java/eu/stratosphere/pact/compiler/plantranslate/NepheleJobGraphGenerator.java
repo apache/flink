@@ -30,7 +30,6 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.AbstractJobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.AbstractJobVertex;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
@@ -1013,7 +1012,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 				throw new RuntimeException("Unknown runtime ship strategy: " + channel.getShipStrategy());
 		}
 		
-		sourceVertex.connectTo(targetVertex, channelType, CompressionLevel.NO_COMPRESSION, distributionPattern);
+		sourceVertex.connectTo(targetVertex, channelType, distributionPattern);
 
 		// -------------- configure the source task's ship strategy strategies in task config --------------
 		final int outputIndex = sourceConfig.getNumOutputs();
@@ -1116,7 +1115,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		
 		// connect the sync task
 		try {
-			headVertex.connectTo(sync, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION, DistributionPattern.POINTWISE);
+			headVertex.connectTo(sync, ChannelType.NETWORK, DistributionPattern.POINTWISE);
 		} catch (JobGraphDefinitionException e) {
 			throw new CompilerException("Bug: Cannot connect head vertex to sync task.");
 		}
@@ -1149,8 +1148,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		
 		// connect the fake tail
 		try {
-			rootOfStepFunctionVertex.connectTo(fakeTail, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, 
-				DistributionPattern.POINTWISE);
+			rootOfStepFunctionVertex.connectTo(fakeTail, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
 		} catch (JobGraphDefinitionException e) {
 			throw new CompilerException("Bug: Cannot connect iteration tail vertex fake tail task");
 		}
@@ -1226,7 +1224,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			
 			// connect the sync task
 			try {
-				headVertex.connectTo(sync, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION, DistributionPattern.POINTWISE);
+				headVertex.connectTo(sync, ChannelType.NETWORK, DistributionPattern.POINTWISE);
 			} catch (JobGraphDefinitionException e) {
 				throw new CompilerException("Bug: Cannot connect head vertex to sync task.");
 			}
@@ -1261,8 +1259,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			
 			// connect the fake tail
 			try {
-				nextWorksetVertex.connectTo(fakeTail, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, 
-					DistributionPattern.POINTWISE);
+				nextWorksetVertex.connectTo(fakeTail, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
 			} catch (JobGraphDefinitionException e) {
 				throw new CompilerException("Bug: Cannot connect iteration tail vertex fake tail task");
 			}

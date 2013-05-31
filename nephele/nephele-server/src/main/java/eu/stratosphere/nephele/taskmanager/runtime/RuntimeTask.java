@@ -22,7 +22,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.checkpointing.CheckpointDecisionRequester;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionListener;
@@ -30,7 +29,6 @@ import eu.stratosphere.nephele.execution.ExecutionObserver;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.execution.ExecutionStateTransition;
 import eu.stratosphere.nephele.execution.RuntimeEnvironment;
-import eu.stratosphere.nephele.executiongraph.CheckpointState;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.profiling.TaskManagerProfiler;
@@ -54,8 +52,6 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 
 	private final RuntimeEnvironment environment;
 
-	private final CheckpointState initialCheckpointState;
-
 	private final TaskManager taskManager;
 
 	/**
@@ -68,20 +64,13 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 	 */
 	private volatile ExecutionState executionState = ExecutionState.STARTING;
 
-	/**
-	 * If the task creates a checkpoint at runtime, a checkpoint decision can be asynchronously requested through this
-	 * interface.
-	 */
-	private volatile CheckpointDecisionRequester checkpointDecisionRequester = null;
-
 	private Queue<ExecutionListener> registeredListeners = new ConcurrentLinkedQueue<ExecutionListener>();
 
 	public RuntimeTask(final ExecutionVertexID vertexID, final RuntimeEnvironment environment,
-			final CheckpointState initialCheckpointState, final TaskManager taskManager) {
+			final TaskManager taskManager) {
 
 		this.vertexID = vertexID;
 		this.environment = environment;
-		this.initialCheckpointState = initialCheckpointState;
 		this.taskManager = taskManager;
 
 		this.environment.setExecutionObserver(this);
@@ -220,8 +209,7 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 			return;
 		}
 
-		if (this.executionState != ExecutionState.RUNNING && this.executionState != ExecutionState.REPLAYING
-			&& this.executionState != ExecutionState.FINISHING) {
+		if (this.executionState != ExecutionState.RUNNING && this.executionState != ExecutionState.FINISHING) {
 			return;
 		}
 
@@ -283,12 +271,6 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 	public boolean isCanceled() {
 
 		return this.isCanceled;
-	}
-
-	public void checkpointStateChanged(final CheckpointState newCheckpointState) {
-
-		// Propagate event to the job manager
-		this.taskManager.checkpointStateChanged(this.environment.getJobID(), this.vertexID, newCheckpointState);
 	}
 
 	/**
@@ -384,7 +366,7 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 			throw new IllegalStateException("Vertex " + this.vertexID + " has a previous buffer pool owner");
 		}
 
-		return new RuntimeTaskContext(this, this.initialCheckpointState, transferEnvelopeDispatcher);
+		return new RuntimeTaskContext(this, transferEnvelopeDispatcher);
 	}
 
 	/**
@@ -396,32 +378,4 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 		return this.executionState;
 	}
 
-	/**
-	 * Registers a checkpoint decision requester object with this task.
-	 * 
-	 * @param checkpointDecisionRequester
-	 *        the checkpoint decision requester object to register
-	 */
-	void registerCheckpointDecisionRequester(final CheckpointDecisionRequester checkpointDecisionRequester) {
-		this.checkpointDecisionRequester = checkpointDecisionRequester;
-	}
-
-	/**
-	 * Requests a checkpoint decision from the task.
-	 * 
-	 * @return <code>true</code> if the operation was successful, <code>false</code> if the task has not yet created a
-	 *         checkpoint
-	 */
-	public boolean requestCheckpointDecision() {
-
-		if (this.checkpointDecisionRequester == null) {
-			return false;
-		}
-
-		LOG.info("Requesting checkpoint decision for task " + this.environment.getTaskNameWithIndex());
-
-		this.checkpointDecisionRequester.requestCheckpointDecision();
-
-		return true;
-	}
 }

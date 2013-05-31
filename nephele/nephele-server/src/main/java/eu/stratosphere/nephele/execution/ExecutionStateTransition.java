@@ -101,12 +101,6 @@ public final class ExecutionStateTransition {
 		if (oldState == ExecutionState.CANCELED && newState == ExecutionState.CREATED) {
 			unexpectedStateChange = false;
 		}
-		if (oldState == ExecutionState.STARTING && newState == ExecutionState.REPLAYING) {
-			unexpectedStateChange = false;
-		}
-		if (oldState == ExecutionState.REPLAYING && newState == ExecutionState.FINISHING) {
-			unexpectedStateChange = false;
-		}
 
 		// A vertex might skip the SCHEDULED state if its resource has been allocated in a previous stage.
 		if (oldState == ExecutionState.CREATED && newState == ExecutionState.ASSIGNED) {
@@ -143,18 +137,8 @@ public final class ExecutionStateTransition {
 			unexpectedStateChange = false;
 		}
 
-		if (oldState == ExecutionState.REPLAYING && newState == ExecutionState.FAILED) {
-			// This is a regular transition in case of a task error.
-			unexpectedStateChange = false;
-		}
-
 		// This is a regular transition in case a task replay is triggered.
 		if (oldState == ExecutionState.RUNNING && newState == ExecutionState.ASSIGNED) {
-			unexpectedStateChange = false;
-		}
-
-		// This is a regular transition in case a replay task is restarted
-		if (oldState == ExecutionState.REPLAYING && newState == ExecutionState.ASSIGNED) {
 			unexpectedStateChange = false;
 		}
 

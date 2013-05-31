@@ -25,7 +25,7 @@ package eu.stratosphere.nephele.io;
 public enum DistributionPattern {
 
 	/**
-	 * Each subtask of the producing Nepheke task is wired to each subtask of the consuming Nephele task.
+	 * Each subtask of the producing Nephele task is wired to each subtask of the consuming Nephele task.
 	 */
 	BIPARTITE,
 

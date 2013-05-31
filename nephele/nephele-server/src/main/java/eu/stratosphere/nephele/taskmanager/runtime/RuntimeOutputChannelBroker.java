@@ -20,12 +20,9 @@ import java.io.IOException;
 import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.io.channels.Buffer;
-import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedChannelCloseEvent;
 import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedOutputChannelBroker;
-import eu.stratosphere.nephele.io.compression.CompressionException;
-import eu.stratosphere.nephele.io.compression.Compressor;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.AbstractOutputChannelForwarder;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputChannelForwardingChain;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ReceiverNotFoundEvent;
@@ -94,11 +91,6 @@ final class RuntimeOutputChannelBroker extends AbstractOutputChannelForwarder im
 	 */
 	@Override
 	public boolean hasDataLeft() throws IOException, InterruptedException {
-
-		// Don't wait for an acknowledgment in case of a file channel, receiver is not running anyway
-		if (this.byteBufferedOutputChannel.getType() == ChannelType.FILE) {
-			return getNext().hasDataLeft();
-		}
 
 		if (this.closeAcknowledgmentReceived) {
 			return getNext().hasDataLeft();
@@ -190,9 +182,7 @@ final class RuntimeOutputChannelBroker extends AbstractOutputChannelForwarder im
 			throw new IllegalStateException("Channel " + this.byteBufferedOutputChannel.getID()
 				+ " has already a buffer attached");
 		}
-
-		// Finish the write phase of the buffer
-		buffer.finishWritePhase();
+		buffer.flip();
 		this.outgoingTransferEnvelope.setBuffer(buffer);
 
 		this.forwardingChain.pushEnvelope(this.outgoingTransferEnvelope);
@@ -226,15 +216,5 @@ final class RuntimeOutputChannelBroker extends AbstractOutputChannelForwarder im
 
 			this.forwardingChain.pushEnvelope(ephemeralTransferEnvelope);
 		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public Compressor getCompressor() throws CompressionException {
-
-		// Delegate call to the gate context
-		return this.outputGateContext.getCompressor();
 	}
 }

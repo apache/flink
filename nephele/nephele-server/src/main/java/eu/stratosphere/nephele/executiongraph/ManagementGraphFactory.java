@@ -21,7 +21,6 @@ import java.util.Map;
 
 import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.managementgraph.ManagementEdge;
 import eu.stratosphere.nephele.managementgraph.ManagementEdgeID;
 import eu.stratosphere.nephele.managementgraph.ManagementGate;
@@ -103,7 +102,7 @@ public class ManagementGraphFactory {
 					final ExecutionGroupVertex targetVertex = edge.getTargetVertex();
 					final ManagementGroupVertex targetGroupVertex = groupMap.get(targetVertex);
 					new ManagementGroupEdge(sourceGroupVertex, j, targetGroupVertex, edge.getIndexOfInputGate(), edge
-						.getChannelType(), edge.getCompressionLevel());
+						.getChannelType());
 				}
 			}
 		}
@@ -124,10 +123,13 @@ public class ManagementGraphFactory {
 			final ManagementGroupVertex parent = groupMap.get(ev.getGroupVertex());
 
 			final AbstractInstance instance = ev.getAllocatedResource().getInstance();
-			final ManagementVertex managementVertex = new ManagementVertex(parent, ev.getID().toManagementVertexID(),
-				(instance.getInstanceConnectionInfo() != null) ? instance.getInstanceConnectionInfo().toString()
-					: instance.toString(), instance.getType().toString(), ev.getCheckpointState().toString(),
-				ev.getIndexInVertexGroup());
+			final ManagementVertex managementVertex = new ManagementVertex(
+						parent, 
+						ev.getID().toManagementVertexID(),
+						(instance.getInstanceConnectionInfo() != null) ? instance.getInstanceConnectionInfo().toString() : instance.toString(), 
+						instance.getType().toString(), 
+						ev.getIndexInVertexGroup()
+					);
 			managementVertex.setExecutionState(ev.getExecutionState());
 			vertexMap.put(ev, managementVertex);
 
@@ -158,7 +160,6 @@ public class ManagementGraphFactory {
 				final ExecutionGate outputGate = source.getOutputGate(i);
 				final ManagementGate manangementOutputGate = gateMap.get(outputGate);
 				final ChannelType channelType = outputGate.getChannelType();
-				final CompressionLevel compressionLevel = outputGate.getCompressionLevel();
 
 				for (int j = 0; j < outputGate.getNumberOfEdges(); j++) {
 
@@ -169,7 +170,7 @@ public class ManagementGraphFactory {
 					final ManagementEdgeID sourceEdgeID = new ManagementEdgeID(outputChannel.getOutputChannelID());
 					final ManagementEdgeID targetEdgeID = new ManagementEdgeID(outputChannel.getInputChannelID());
 					new ManagementEdge(sourceEdgeID, targetEdgeID, manangementOutputGate, j, managementInputGate,
-						outputChannel.getInputGateIndex(), channelType, compressionLevel);
+						outputChannel.getInputGateIndex(), channelType);
 				}
 			}
 		}

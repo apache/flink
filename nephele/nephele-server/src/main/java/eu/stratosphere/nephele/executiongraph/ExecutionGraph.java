@@ -44,7 +44,6 @@ import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.AbstractJobInputVertex;
 import eu.stratosphere.nephele.jobgraph.AbstractJobVertex;
 import eu.stratosphere.nephele.jobgraph.JobEdge;
@@ -233,19 +232,9 @@ public class ExecutionGraph implements ExecutionListener {
 				if (edge.isChannelTypeUserDefined()) {
 					edge.changeChannelType(edge.getChannelType());
 				}
-				if (edge.isCompressionLevelUserDefined()) {
-					edge.changeCompressionLevel(edge.getCompressionLevel());
-				}
 
 				// Create edges between execution vertices
 				createExecutionEdgesForGroupEdge(edge);
-			}
-
-			// Update initial checkpoint state for all group members
-			final CheckpointState ics = groupVertex.checkInitialCheckpointState();
-			final int currentNumberOfGroupMembers = groupVertex.getCurrentNumberOfGroupMembers();
-			for (int i = 0; i < currentNumberOfGroupMembers; ++i) {
-				groupVertex.getGroupMember(i).updateCheckpointState(ics);
 			}
 		}
 
@@ -439,19 +428,12 @@ public class ExecutionGraph implements ExecutionListener {
 					channelType = ChannelType.NETWORK;
 				}
 				// Use NO_COMPRESSION as default compression level if nothing else is defined by the user
-				CompressionLevel compressionLevel = edge.getCompressionLevel();
-				boolean userDefinedCompressionLevel = true;
-				if (compressionLevel == null) {
-					userDefinedCompressionLevel = false;
-					compressionLevel = CompressionLevel.NO_COMPRESSION;
-				}
 
 				final DistributionPattern distributionPattern = edge.getDistributionPattern();
 
 				// Connect the corresponding group vertices and copy the user settings from the job edge
 				final ExecutionGroupEdge groupEdge = sgv.wireTo(tgv, edge.getIndexOfInputGate(), i, channelType,
-					userDefinedChannelType, compressionLevel, userDefinedCompressionLevel, distributionPattern,
-					isBroadcast);
+					userDefinedChannelType,distributionPattern, isBroadcast);
 
 				final ExecutionGate outputGate = new ExecutionGate(new GateID(), sev, groupEdge, false);
 				sev.insertOutputGate(i, outputGate);
@@ -909,24 +891,12 @@ public class ExecutionGraph implements ExecutionListener {
 				final ExecutionGroupEdge edge = groupVertex.getForwardEdge(i);
 				if (!stageNumbers.containsKey(edge.getTargetVertex())) {
 					// Target vertex has not yet been discovered
-					if (edge.getChannelType() != ChannelType.FILE) {
-						// Same stage as preceding vertex
-						stageNumbers.put(edge.getTargetVertex(), Integer.valueOf(precedingNumber));
-					} else {
-						// File channel, increase stage of target vertex by one
-						stageNumbers.put(edge.getTargetVertex(), Integer.valueOf(precedingNumber + 1));
-					}
+					// Same stage as preceding vertex
+					stageNumbers.put(edge.getTargetVertex(), Integer.valueOf(precedingNumber));
 				} else {
 					final int stageNumber = stageNumbers.get(edge.getTargetVertex()).intValue();
-					if (edge.getChannelType() != ChannelType.FILE) {
-						if (stageNumber != precedingNumber) {
-							stageNumbers.put(edge.getTargetVertex(), (int) Math.max(precedingNumber, stageNumber));
-						}
-					} else {
-						// File channel, increase stage of target vertex by one
-						if (stageNumber != (precedingNumber + 1)) {
-							stageNumbers.put(edge.getTargetVertex(), (int) Math.max(precedingNumber + 1, stageNumber));
-						}
+					if (stageNumber != precedingNumber) {
+						stageNumbers.put(edge.getTargetVertex(), (int) Math.max(precedingNumber, stageNumber));
 					}
 				}
 			}
@@ -945,15 +915,9 @@ public class ExecutionGraph implements ExecutionListener {
 
 				final ExecutionGroupEdge edge = groupVertex.getBackwardEdge(i);
 				final int stageNumber = stageNumbers.get(edge.getSourceVertex());
-				if (edge.getChannelType() == ChannelType.FILE) {
-					if (stageNumber < (succeedingNumber - 1)) {
-						stageNumbers.put(edge.getSourceVertex(), Integer.valueOf(succeedingNumber - 1));
-					}
-				} else {
-					if (stageNumber != succeedingNumber) {
-						LOG.error(edge.getSourceVertex() + " and " + edge.getTargetVertex()
-							+ " are assigned to different stages although not connected by a file channel");
-					}
+				if (stageNumber != succeedingNumber) {
+					throw new IllegalStateException(edge.getSourceVertex() + " and " + edge.getTargetVertex()
+						+ " are assigned to different stages");
 				}
 			}
 		}
@@ -1007,7 +971,7 @@ public class ExecutionGraph implements ExecutionListener {
 
 				final ExecutionGate outputGate = sourceVertex.getOutputGate(i);
 				final ChannelType channelType = outputGate.getChannelType();
-				if (channelType == ChannelType.FILE || channelType == ChannelType.INMEMORY) {
+				if (channelType == ChannelType.INMEMORY) {
 					final int numberOfOutputChannels = outputGate.getNumberOfEdges();
 					for (int j = 0; j < numberOfOutputChannels; ++j) {
 						final ExecutionEdge outputChannel = outputGate.getEdge(j);
@@ -1027,7 +991,7 @@ public class ExecutionGraph implements ExecutionListener {
 
 				final ExecutionGate inputGate = targetVertex.getInputGate(i);
 				final ChannelType channelType = inputGate.getChannelType();
-				if (channelType == ChannelType.FILE || channelType == ChannelType.INMEMORY) {
+				if (channelType == ChannelType.INMEMORY) {
 					final int numberOfInputChannels = inputGate.getNumberOfEdges();
 					for (int j = 0; j < numberOfInputChannels; ++j) {
 						final ExecutionEdge inputChannel = inputGate.getEdge(j);

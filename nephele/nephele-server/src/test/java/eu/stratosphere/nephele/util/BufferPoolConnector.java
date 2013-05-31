@@ -15,24 +15,23 @@
 
 package eu.stratosphere.nephele.util;
 
-import java.nio.ByteBuffer;
 import java.util.Queue;
 
 import eu.stratosphere.nephele.io.channels.MemoryBufferPoolConnector;
+import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 
 /**
  * This is a simple implementation of a {@link MemoryBufferPoolConnector} used for the server unit tests.
  * <p>
  * This class is thread-safe.
  * 
- * @author warneke
  */
 public final class BufferPoolConnector implements MemoryBufferPoolConnector {
 
 	/**
 	 * Reference to the memory pool the byte buffer was originally taken from.
 	 */
-	private final Queue<ByteBuffer> bufferPool;
+	private final Queue<MemorySegment> memoryPool;
 
 	/**
 	 * Constructs a new buffer pool connector
@@ -40,19 +39,19 @@ public final class BufferPoolConnector implements MemoryBufferPoolConnector {
 	 * @param bufferPool
 	 *        a reference to the memory pool the byte buffer was originally taken from
 	 */
-	public BufferPoolConnector(final Queue<ByteBuffer> bufferPool) {
-		this.bufferPool = bufferPool;
+	public BufferPoolConnector(final Queue<MemorySegment> bufferPool) {
+		this.memoryPool = bufferPool;
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void recycle(final ByteBuffer byteBuffer) {
+	public void recycle(final MemorySegment memSeg) {
 
-		synchronized (this.bufferPool) {
-			this.bufferPool.add(byteBuffer);
-			this.bufferPool.notify();
+		synchronized (this.memoryPool) {
+			this.memoryPool.add(memSeg);
+			this.memoryPool.notify();
 		}
 	}
 }

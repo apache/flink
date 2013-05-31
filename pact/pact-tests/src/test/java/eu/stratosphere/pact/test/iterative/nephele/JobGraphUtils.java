@@ -20,7 +20,6 @@ import eu.stratosphere.nephele.client.JobExecutionException;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.AbstractJobVertex;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobGraphDefinitionException;
@@ -75,7 +74,7 @@ public class JobGraphUtils {
 	public static void connect(AbstractJobVertex source, AbstractJobVertex target, ChannelType channelType,
 			DistributionPattern distributionPattern) throws JobGraphDefinitionException
 	{
-		source.connectTo(target, channelType, CompressionLevel.NO_COMPRESSION, distributionPattern);
+		source.connectTo(target, channelType, distributionPattern);
 	}
 
 	public static JobTaskVertex createTask(@SuppressWarnings("rawtypes") Class<? extends RegularPactTask> task, String name, JobGraph graph,

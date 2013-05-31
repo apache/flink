@@ -19,8 +19,6 @@ import java.io.IOException;
 
 import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.io.channels.Buffer;
-import eu.stratosphere.nephele.io.compression.CompressionException;
-import eu.stratosphere.nephele.io.compression.Compressor;
 
 public interface ByteBufferedOutputChannelBroker {
 
@@ -72,13 +70,4 @@ public interface ByteBufferedOutputChannelBroker {
 	 *         thrown if an I/O error occurs while transfering the event
 	 */
 	void transferEventToInputChannel(AbstractEvent event) throws IOException, InterruptedException;
-
-	/**
-	 * Returns (and if necessary previously creates) the compressor associated with the requesting output channel.
-	 * 
-	 * @return the compressor associated with the requesting output channel
-	 * @throws CompressionException
-	 *         thrown if an error occurs while creating the compressor
-	 */
-	Compressor getCompressor() throws CompressionException;
 }

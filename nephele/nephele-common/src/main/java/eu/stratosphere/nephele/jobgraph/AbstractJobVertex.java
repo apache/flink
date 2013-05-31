@@ -25,7 +25,6 @@ import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.IllegalConfigurationException;
 import eu.stratosphere.nephele.types.StringRecord;
@@ -125,7 +124,7 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 	 *         thrown if the given vertex cannot be connected to <code>vertex</code> in the requested manner
 	 */
 	public void connectTo(final AbstractJobVertex vertex) throws JobGraphDefinitionException {
-		this.connectTo(vertex, null, null, -1, -1, DistributionPattern.BIPARTITE);
+		this.connectTo(vertex, null, -1, -1, DistributionPattern.BIPARTITE);
 	}
 
 	/**
@@ -144,7 +143,23 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 	 */
 	public void connectTo(final AbstractJobVertex vertex, final int indexOfOutputGate, final int indexOfInputGate)
 			throws JobGraphDefinitionException {
-		this.connectTo(vertex, null, null, indexOfOutputGate, indexOfInputGate, DistributionPattern.BIPARTITE);
+		this.connectTo(vertex, null, indexOfOutputGate, indexOfInputGate, DistributionPattern.BIPARTITE);
+	}
+
+	/**
+	 * Connects the job vertex to the specified job vertex.
+	 * 
+	 * @param vertex
+	 *        the vertex this vertex should connect to
+	 * @param channelType
+	 *        the channel type the two vertices should be connected by at runtime
+	 * @param compressionLevel
+	 *        the compression level the corresponding channel should have at runtime
+	 * @throws JobGraphDefinitionException
+	 *         thrown if the given vertex cannot be connected to <code>vertex</code> in the requested manner
+	 */
+	public void connectTo(final AbstractJobVertex vertex, final ChannelType channelType) throws JobGraphDefinitionException {
+		this.connectTo(vertex, channelType, -1, -1, DistributionPattern.BIPARTITE);
 	}
 
 	/**
@@ -160,26 +175,9 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 	 *         thrown if the given vertex cannot be connected to <code>vertex</code> in the requested manner
 	 */
 	public void connectTo(final AbstractJobVertex vertex, final ChannelType channelType,
-			final CompressionLevel compressionLevel) throws JobGraphDefinitionException {
-		this.connectTo(vertex, channelType, compressionLevel, -1, -1, DistributionPattern.BIPARTITE);
-	}
-
-	/**
-	 * Connects the job vertex to the specified job vertex.
-	 * 
-	 * @param vertex
-	 *        the vertex this vertex should connect to
-	 * @param channelType
-	 *        the channel type the two vertices should be connected by at runtime
-	 * @param compressionLevel
-	 *        the compression level the corresponding channel should have at runtime
-	 * @throws JobGraphDefinitionException
-	 *         thrown if the given vertex cannot be connected to <code>vertex</code> in the requested manner
-	 */
-	public void connectTo(final AbstractJobVertex vertex, final ChannelType channelType,
-			final CompressionLevel compressionLevel, final DistributionPattern distributionPattern)
+			final DistributionPattern distributionPattern)
 			throws JobGraphDefinitionException {
-		this.connectTo(vertex, channelType, compressionLevel, -1, -1, distributionPattern);
+		this.connectTo(vertex, channelType, -1, -1, distributionPattern);
 	}
 
 	/**
@@ -200,8 +198,7 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 	 * @throws JobGraphDefinitionException
 	 *         thrown if the given vertex cannot be connected to <code>vertex</code> in the requested manner
 	 */
-	public void connectTo(final AbstractJobVertex vertex, final ChannelType channelType,
-			final CompressionLevel compressionLevel, int indexOfOutputGate, int indexOfInputGate,
+	public void connectTo(final AbstractJobVertex vertex, final ChannelType channelType, int indexOfOutputGate, int indexOfInputGate,
 			DistributionPattern distributionPattern)
 			throws JobGraphDefinitionException {
 
@@ -233,9 +230,9 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 		}
 
 		// Add new edge
-		this.forwardEdges.set(indexOfOutputGate, new JobEdge(vertex, channelType, compressionLevel, indexOfInputGate,
+		this.forwardEdges.set(indexOfOutputGate, new JobEdge(vertex, channelType, indexOfInputGate,
 			distributionPattern));
-		vertex.connectBacklink(this, channelType, compressionLevel, indexOfOutputGate, indexOfInputGate,
+		vertex.connectBacklink(this, channelType, indexOfOutputGate, indexOfInputGate,
 			distributionPattern);
 	}
 
@@ -288,7 +285,7 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 	 *        index of the consuming task's input gate to be used
 	 */
 	private void connectBacklink(final AbstractJobVertex vertex, final ChannelType channelType,
-			final CompressionLevel compressionLevel, final int indexOfOutputGate, final int indexOfInputGate,
+			final int indexOfOutputGate, final int indexOfInputGate,
 			DistributionPattern distributionPattern) {
 
 		// Make sure the array is big enough
@@ -296,7 +293,7 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 			this.backwardEdges.add(null);
 		}
 
-		this.backwardEdges.set(indexOfInputGate, new JobEdge(vertex, channelType, compressionLevel, indexOfOutputGate,
+		this.backwardEdges.set(indexOfInputGate, new JobEdge(vertex, channelType, indexOfOutputGate,
 			distributionPattern));
 	}
 
@@ -453,12 +450,11 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 				}
 
 				final ChannelType channelType = EnumUtils.readEnum(in, ChannelType.class);
-				final CompressionLevel compressionLevel = EnumUtils.readEnum(in, CompressionLevel.class);
 				final DistributionPattern distributionPattern = EnumUtils.readEnum(in, DistributionPattern.class);
 				final int indexOfInputGate = in.readInt();
 
 				try {
-					this.connectTo(jv, channelType, compressionLevel, i, indexOfInputGate, distributionPattern);
+					this.connectTo(jv, channelType, i, indexOfInputGate, distributionPattern);
 				} catch (JobGraphDefinitionException e) {
 					throw new IOException(StringUtils.stringifyException(e));
 				}
@@ -526,7 +522,6 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 				out.writeBoolean(true);
 				edge.getConnectedVertex().getID().write(out);
 				EnumUtils.writeEnum(out, edge.getChannelType());
-				EnumUtils.writeEnum(out, edge.getCompressionLevel());
 				EnumUtils.writeEnum(out, edge.getDistributionPattern());
 				out.writeInt(edge.getIndexOfInputGate());
 			}

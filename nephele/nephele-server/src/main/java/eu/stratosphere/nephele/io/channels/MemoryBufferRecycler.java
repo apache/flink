@@ -15,11 +15,12 @@
 
 package eu.stratosphere.nephele.io.channels;
 
-import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+
+import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 
 /**
  * A memory buffer recycler takes care of the correct recycling of the internal byte buffer which backs a memory buffer.
@@ -38,9 +39,9 @@ public final class MemoryBufferRecycler {
 	private static final Log LOG = LogFactory.getLog(MemoryBufferRecycler.class);
 
 	/**
-	 * The original byte buffer which has been taken from byte buffered channel manager's buffer pool.
+	 * The original memory segment which has been taken from byte buffered channel manager's buffer pool.
 	 */
-	private final ByteBuffer originalBuffer;
+	private final MemorySegment originalSegment;
 
 	/**
 	 * The connection to the pool from which the byte buffer has originally been taken.
@@ -50,7 +51,7 @@ public final class MemoryBufferRecycler {
 	/**
 	 * The number of memory buffer objects which may still access the physical buffer.
 	 */
-	private final AtomicInteger referenceCounter = new AtomicInteger(1);
+	public final AtomicInteger referenceCounter = new AtomicInteger(1);
 
 	/**
 	 * Constructs a new memory buffer recycler.
@@ -60,9 +61,9 @@ public final class MemoryBufferRecycler {
 	 * @param bufferPoolConnector
 	 *        the connection to the pool from which the byte buffer has originally been taken
 	 */
-	MemoryBufferRecycler(final ByteBuffer originalBuffer, final MemoryBufferPoolConnector bufferPoolConnector) {
+	MemoryBufferRecycler(final MemorySegment originalSegment, final MemoryBufferPoolConnector bufferPoolConnector) {
 
-		this.originalBuffer = originalBuffer;
+		this.originalSegment = originalSegment;
 		this.bufferPoolConnector = bufferPoolConnector;
 	}
 
@@ -84,9 +85,7 @@ public final class MemoryBufferRecycler {
 
 		final int val = this.referenceCounter.decrementAndGet();
 		if (val == 0) {
-
-			this.originalBuffer.clear();
-			this.bufferPoolConnector.recycle(this.originalBuffer);
+			this.bufferPoolConnector.recycle(this.originalSegment);
 
 		} else if (val < 0) {
 			LOG.error("reference counter is negative");

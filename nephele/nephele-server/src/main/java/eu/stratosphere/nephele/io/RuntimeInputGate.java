@@ -31,12 +31,8 @@ import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.channels.bytebuffered.FileInputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.NetworkInputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.InMemoryInputChannel;
-import eu.stratosphere.nephele.io.compression.CompressionException;
-import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.types.Record;
 
@@ -185,38 +181,25 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	 */
 	@Override
 	public NetworkInputChannel<T> createNetworkInputChannel(final InputGate<T> inputGate, final ChannelID channelID,
-			final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
+			final ChannelID connectedChannelID) {
 
 		final NetworkInputChannel<T> enic = new NetworkInputChannel<T>(inputGate, this.inputChannels.size(),
-			this.deserializerFactory.createDeserializer(), channelID, connectedChannelID, compressionLevel);
+			this.deserializerFactory.createDeserializer(), channelID, connectedChannelID);
 		addInputChannel(enic);
 
 		return enic;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public FileInputChannel<T> createFileInputChannel(final InputGate<T> inputGate, final ChannelID channelID,
-			final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
-
-		final FileInputChannel<T> efic = new FileInputChannel<T>(inputGate, this.inputChannels.size(),
-			this.deserializerFactory.createDeserializer(), channelID, connectedChannelID, compressionLevel);
-		addInputChannel(efic);
-
-		return efic;
-	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
 	public InMemoryInputChannel<T> createInMemoryInputChannel(final InputGate<T> inputGate, final ChannelID channelID,
-			final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
+			final ChannelID connectedChannelID) {
 
 		final InMemoryInputChannel<T> eimic = new InMemoryInputChannel<T>(inputGate, this.inputChannels.size(),
-			this.deserializerFactory.createDeserializer(), channelID, connectedChannelID, compressionLevel);
+			this.deserializerFactory.createDeserializer(), channelID, connectedChannelID);
 		addInputChannel(eimic);
 
 		return eimic;
@@ -416,26 +399,5 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	public void notifyDataUnitConsumed(final int channelIndex) {
 
 		this.channelToReadFrom = -1;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void initializeDecompressors() throws CompressionException {
-
-		// In-memory channels to not use compression, so there is nothing to initialize
-		if (getChannelType() == ChannelType.INMEMORY) {
-			return;
-		}
-
-		// Check if this channel is configured to use compression
-		if (getCompressionLevel() == CompressionLevel.NO_COMPRESSION) {
-			return;
-		}
-
-		for (int i = 0; i < this.inputChannels.size(); ++i) {
-			this.inputChannels.get(i).initializeDecompressor();
-		}
 	}
 }

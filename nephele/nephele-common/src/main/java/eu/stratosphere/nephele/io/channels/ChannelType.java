@@ -21,12 +21,7 @@ package eu.stratosphere.nephele.io.channels;
  * @author warneke
  */
 public enum ChannelType {
-
-	/**
-	 * Enumeration type for file channels.
-	 */
-	FILE,
-
+	
 	/**
 	 * Enumeration type for network channels.
 	 */

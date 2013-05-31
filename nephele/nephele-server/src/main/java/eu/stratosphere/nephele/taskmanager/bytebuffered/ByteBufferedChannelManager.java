@@ -35,7 +35,6 @@ import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.channels.FileBufferManager;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.protocols.ChannelLookupProtocol;
 import eu.stratosphere.nephele.taskmanager.Task;
@@ -91,9 +90,6 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		this.channelLookupService = channelLookupService;
 
 		this.localConnectionInfo = localInstanceConnectionInfo;
-
-		// Initialized the file buffer manager
-		FileBufferManager.getInstance();
 
 		// Initialize the global buffer pool
 		GlobalBufferPool.getInstance();

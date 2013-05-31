@@ -357,7 +357,7 @@
 					</execution>
 				</executions>
 				<configuration>
-					<argLine>-Xms512m -Xmx512m</argLine>
+					<argLine>-Xmx1024m</argLine>
 				</configuration>
 			</plugin>
 			<plugin>
@@ -365,7 +365,7 @@
 				<artifactId>maven-surefire-plugin</artifactId>
 				<version>2.7</version>
 				<configuration>
-					<argLine>-Xms512m -Xmx512m</argLine>
+					<argLine>-Xmx1024m</argLine>
 				</configuration>
 			</plugin>
 			<plugin>

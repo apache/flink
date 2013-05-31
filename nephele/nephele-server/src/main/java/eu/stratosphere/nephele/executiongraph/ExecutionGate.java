@@ -20,7 +20,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.compression.CompressionLevel;
 
 /**
  * Objects of this class represent either an {@link InputGate} or {@link OutputGate} within an {@link ExecutionGraph},
@@ -85,11 +84,6 @@ public final class ExecutionGate {
 	public ChannelType getChannelType() {
 
 		return this.groupEdge.getChannelType();
-	}
-
-	public CompressionLevel getCompressionLevel() {
-
-		return this.groupEdge.getCompressionLevel();
 	}
 
 	ExecutionGroupEdge getGroupEdge() {

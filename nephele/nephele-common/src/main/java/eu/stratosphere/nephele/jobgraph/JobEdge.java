@@ -17,7 +17,6 @@ package eu.stratosphere.nephele.jobgraph;
 
 import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.compression.CompressionLevel;
 
 /**
  * Objects of this class represent edges in the user's job graph.
@@ -31,11 +30,6 @@ public class JobEdge {
 	 * The channel type to be used for the resulting channel.
 	 */
 	private final ChannelType channelType;
-
-	/**
-	 * The compression level to apply to the resulting channel.
-	 */
-	private final CompressionLevel compressionLevel;
 
 	/**
 	 * The vertex connected to this edge.
@@ -65,10 +59,9 @@ public class JobEdge {
 	 *        index of the consuming task's input gate that this edge connects to
 	 */
 	public JobEdge(final AbstractJobVertex connectedVertex, final ChannelType channelType,
-			final CompressionLevel compressionLevel, final int indexOfInputGate, final DistributionPattern distributionPattern) {
+			final int indexOfInputGate, final DistributionPattern distributionPattern) {
 		this.connectedVertex = connectedVertex;
 		this.channelType = channelType;
-		this.compressionLevel = compressionLevel;
 		this.indexOfInputGate = indexOfInputGate;
 		this.distributionPattern = distributionPattern;
 	}
@@ -80,15 +73,6 @@ public class JobEdge {
 	 */
 	public ChannelType getChannelType() {
 		return this.channelType;
-	}
-
-	/**
-	 * Returns the compression level assigned to this edge.
-	 * 
-	 * @return the compression level assigned to this edge
-	 */
-	public CompressionLevel getCompressionLevel() {
-		return this.compressionLevel;
 	}
 
 	/**

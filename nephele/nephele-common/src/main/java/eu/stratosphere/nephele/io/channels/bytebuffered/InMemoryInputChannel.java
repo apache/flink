@@ -19,14 +19,13 @@ import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.RecordDeserializer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.types.Record;
 
 public final class InMemoryInputChannel<T extends Record> extends AbstractByteBufferedInputChannel<T> {
 
 	public InMemoryInputChannel(InputGate<T> inputGate, int channelIndex, RecordDeserializer<T> deserializer,
-			ChannelID channelID, ChannelID connectedChannelID, CompressionLevel compressionLevel) {
-		super(inputGate, channelIndex, deserializer, channelID, connectedChannelID, CompressionLevel.NO_COMPRESSION);
+			ChannelID channelID, ChannelID connectedChannelID) {
+		super(inputGate, channelIndex, deserializer, channelID, connectedChannelID);
 	}
 
 	@Override

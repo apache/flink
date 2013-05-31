@@ -26,7 +26,6 @@ import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobGraphDefinitionException;
 import eu.stratosphere.nephele.jobgraph.JobInputVertex;
@@ -227,7 +226,7 @@ public class BroadcastJob {
 		consumer.getConfiguration().setInteger(BroadcastProducer.NUMBER_OF_RECORDS_KEY, NUMBER_OF_RECORDS);
 
 		// Connect both vertices
-		producer.connectTo(consumer, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
+		producer.connectTo(consumer, ChannelType.NETWORK);
 
 		// Attach jar file
 		jobGraph.addJar(new Path("file://" + JAR_FILE.getAbsolutePath()));

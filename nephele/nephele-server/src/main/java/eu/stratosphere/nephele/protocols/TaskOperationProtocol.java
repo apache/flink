@@ -27,7 +27,6 @@ import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.protocols.VersionedProtocol;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
-import eu.stratosphere.nephele.taskmanager.TaskCheckpointResult;
 import eu.stratosphere.nephele.taskmanager.TaskKillResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
 
@@ -73,8 +72,6 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 	 */
 	TaskKillResult killTask(ExecutionVertexID id) throws IOException;
 
-	TaskCheckpointResult requestCheckpointDecision(ExecutionVertexID id) throws IOException;
-
 	/**
 	 * Queries the task manager about the cache status of the libraries stated in the {@link LibraryCacheProfileRequest}
 	 * object.
@@ -97,16 +94,6 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 	 *         thrown if an error occurs during this remote procedure call
 	 */
 	void updateLibraryCache(LibraryCacheUpdate update) throws IOException;
-
-	/**
-	 * Removes the checkpoints which are identified by the provided list of vertex IDs.
-	 * 
-	 * @param listOfVertexIDs
-	 *        the list of vertex IDs which identify the checkpoints to be removed
-	 * @throws IOException
-	 *         thrown if an error occurs during this remote procedure call
-	 */
-	void removeCheckpoints(List<ExecutionVertexID> listOfVertexIDs) throws IOException;
 
 	/**
 	 * Invalidates the entries identified by the given channel IDs from the task manager's receiver lookup cache.

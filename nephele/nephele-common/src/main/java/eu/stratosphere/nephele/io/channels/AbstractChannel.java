@@ -18,7 +18,6 @@ package eu.stratosphere.nephele.io.channels;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.event.task.AbstractEvent;
-import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.JobID;
 
 /**
@@ -38,11 +37,6 @@ public abstract class AbstractChannel {
 	 */
 	private final ChannelID connectedChannelID;
 
-	/**
-	 * The compression level to be used for the channel.
-	 */
-	private final CompressionLevel compressionLevel;
-
 	private final int channelIndex;
 
 	/**
@@ -57,13 +51,10 @@ public abstract class AbstractChannel {
 	 * @param compressionLevel
 	 *        the level of compression to be used for this channel
 	 */
-	protected AbstractChannel(final int channelIndex, final ChannelID channelID, final ChannelID connectedChannelID,
-			final CompressionLevel compressionLevel) {
-
+	protected AbstractChannel(final int channelIndex, final ChannelID channelID, final ChannelID connectedChannelID) {
 		this.channelIndex = channelIndex;
 		this.channelID = channelID;
 		this.connectedChannelID = connectedChannelID;
-		this.compressionLevel = compressionLevel;
 	}
 
 	/**
@@ -109,14 +100,6 @@ public abstract class AbstractChannel {
 		return this.connectedChannelID;
 	}
 
-	/**
-	 * Returns the channel's current compression level.
-	 * 
-	 * @return the channel's current compression level
-	 */
-	public CompressionLevel getCompressionLevel() {
-		return this.compressionLevel;
-	}
 
 	/**
 	 * Returns the ID of the job this channel belongs to.

@@ -25,7 +25,6 @@ import org.junit.Test;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
-import eu.stratosphere.nephele.executiongraph.CheckpointState;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.library.FileLineReader;
 import eu.stratosphere.nephele.jobgraph.JobID;
@@ -54,7 +53,6 @@ public class TaskDeploymentDescriptorTest {
 		final int currentNumberOfSubtasks = 1;
 		final Configuration jobConfiguration = new Configuration();
 		final Configuration taskConfiguration = new Configuration();
-		final CheckpointState initialCheckpointState = CheckpointState.UNDECIDED;
 		final Class<? extends AbstractInvokable> invokableClass = FileLineReader.class;
 		final SerializableArrayList<GateDeploymentDescriptor> outputGates = new SerializableArrayList<GateDeploymentDescriptor>(
 			0);
@@ -62,7 +60,7 @@ public class TaskDeploymentDescriptorTest {
 			0);
 
 		final TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptor(jobID, vertexID, taskName,
-			indexInSubtaskGroup, currentNumberOfSubtasks, jobConfiguration, taskConfiguration, initialCheckpointState,
+			indexInSubtaskGroup, currentNumberOfSubtasks, jobConfiguration, taskConfiguration,
 			invokableClass, outputGates, inputGates);
 
 		assertEquals(jobID, tdd.getJobID());
@@ -72,7 +70,6 @@ public class TaskDeploymentDescriptorTest {
 		assertEquals(currentNumberOfSubtasks, tdd.getCurrentNumberOfSubtasks());
 		assertEquals(jobConfiguration, tdd.getJobConfiguration());
 		assertEquals(taskConfiguration, tdd.getTaskConfiguration());
-		assertEquals(initialCheckpointState, tdd.getInitialCheckpointState());
 		assertEquals(invokableClass, tdd.getInvokableClass());
 		assertEquals(outputGates.size(), tdd.getNumberOfOutputGateDescriptors());
 		assertEquals(inputGates.size(), tdd.getNumberOfInputGateDescriptors());
@@ -91,7 +88,6 @@ public class TaskDeploymentDescriptorTest {
 		final int currentNumberOfSubtasks = 1;
 		final Configuration jobConfiguration = new Configuration();
 		final Configuration taskConfiguration = new Configuration();
-		final CheckpointState initialCheckpointState = CheckpointState.UNDECIDED;
 		final Class<? extends AbstractInvokable> invokableClass = FileLineReader.class;
 		final SerializableArrayList<GateDeploymentDescriptor> outputGates = new SerializableArrayList<GateDeploymentDescriptor>(
 			0);
@@ -108,12 +104,11 @@ public class TaskDeploymentDescriptorTest {
 		boolean eighthExceptionCaught = false;
 		boolean ninethExeceptionCaught = false;
 		boolean tenthExceptionCaught = false;
-		boolean eleventhExceptionCaught = false;
 
 		try {
 			new TaskDeploymentDescriptor(null, vertexID, taskName,
 				indexInSubtaskGroup, currentNumberOfSubtasks, jobConfiguration, taskConfiguration,
-				initialCheckpointState, invokableClass, outputGates, inputGates);
+				invokableClass, outputGates, inputGates);
 		} catch (IllegalArgumentException e) {
 			firstExceptionCaught = true;
 		}
@@ -121,7 +116,7 @@ public class TaskDeploymentDescriptorTest {
 		try {
 			new TaskDeploymentDescriptor(jobID, null, taskName,
 				indexInSubtaskGroup, currentNumberOfSubtasks, jobConfiguration, taskConfiguration,
-				initialCheckpointState, invokableClass, outputGates, inputGates);
+				invokableClass, outputGates, inputGates);
 		} catch (IllegalArgumentException e) {
 			secondExceptionCaught = true;
 		}
@@ -129,7 +124,7 @@ public class TaskDeploymentDescriptorTest {
 		try {
 			new TaskDeploymentDescriptor(jobID, vertexID, null,
 				indexInSubtaskGroup, currentNumberOfSubtasks, jobConfiguration, taskConfiguration,
-				initialCheckpointState, invokableClass, outputGates, inputGates);
+				invokableClass, outputGates, inputGates);
 		} catch (IllegalArgumentException e) {
 			thirdExceptionCaught = true;
 		}
@@ -137,7 +132,7 @@ public class TaskDeploymentDescriptorTest {
 		try {
 			new TaskDeploymentDescriptor(jobID, vertexID, taskName,
 				-1, currentNumberOfSubtasks, jobConfiguration, taskConfiguration,
-				initialCheckpointState, invokableClass, outputGates, inputGates);
+				invokableClass, outputGates, inputGates);
 		} catch (IllegalArgumentException e) {
 			forthExceptionCaught = true;
 		}
@@ -145,7 +140,7 @@ public class TaskDeploymentDescriptorTest {
 		try {
 			new TaskDeploymentDescriptor(jobID, vertexID, taskName,
 				indexInSubtaskGroup, -1, jobConfiguration, taskConfiguration,
-				initialCheckpointState, invokableClass, outputGates, inputGates);
+				invokableClass, outputGates, inputGates);
 		} catch (IllegalArgumentException e) {
 			fifthExceptionCaught = true;
 		}
@@ -153,7 +148,7 @@ public class TaskDeploymentDescriptorTest {
 		try {
 			new TaskDeploymentDescriptor(jobID, vertexID, taskName,
 				indexInSubtaskGroup, currentNumberOfSubtasks, null, taskConfiguration,
-				initialCheckpointState, invokableClass, outputGates, inputGates);
+				invokableClass, outputGates, inputGates);
 		} catch (IllegalArgumentException e) {
 			sixthExceptionCaught = true;
 		}
@@ -161,7 +156,7 @@ public class TaskDeploymentDescriptorTest {
 		try {
 			new TaskDeploymentDescriptor(jobID, vertexID, taskName,
 				indexInSubtaskGroup, currentNumberOfSubtasks, jobConfiguration, null,
-				initialCheckpointState, invokableClass, outputGates, inputGates);
+				invokableClass, outputGates, inputGates);
 		} catch (IllegalArgumentException e) {
 			seventhExceptionCaught = true;
 		}
@@ -169,33 +164,27 @@ public class TaskDeploymentDescriptorTest {
 		try {
 			new TaskDeploymentDescriptor(jobID, vertexID, taskName,
 				indexInSubtaskGroup, currentNumberOfSubtasks, jobConfiguration, taskConfiguration,
-				null, invokableClass, outputGates, inputGates);
+				 null, outputGates, inputGates);
 		} catch (IllegalArgumentException e) {
 			eighthExceptionCaught = true;
+			
 		}
 
 		try {
 			new TaskDeploymentDescriptor(jobID, vertexID, taskName,
 				indexInSubtaskGroup, currentNumberOfSubtasks, jobConfiguration, taskConfiguration,
-				initialCheckpointState, null, outputGates, inputGates);
+				invokableClass, null, inputGates);
 		} catch (IllegalArgumentException e) {
 			ninethExeceptionCaught = true;
+			
 		}
 
 		try {
 			new TaskDeploymentDescriptor(jobID, vertexID, taskName,
 				indexInSubtaskGroup, currentNumberOfSubtasks, jobConfiguration, taskConfiguration,
-				initialCheckpointState, invokableClass, null, inputGates);
+				invokableClass, outputGates, null);
 		} catch (IllegalArgumentException e) {
 			tenthExceptionCaught = true;
-		}
-
-		try {
-			new TaskDeploymentDescriptor(jobID, vertexID, taskName,
-				indexInSubtaskGroup, currentNumberOfSubtasks, jobConfiguration, taskConfiguration,
-				initialCheckpointState, invokableClass, outputGates, null);
-		} catch (IllegalArgumentException e) {
-			eleventhExceptionCaught = true;
 		}
 
 		if (!firstExceptionCaught) {
@@ -238,9 +227,6 @@ public class TaskDeploymentDescriptorTest {
 			fail("Tenth argument was illegal but not detected");
 		}
 
-		if (!eleventhExceptionCaught) {
-			fail("Eleventh argument was illegal but not detected");
-		}
 	}
 
 	/**
@@ -256,7 +242,6 @@ public class TaskDeploymentDescriptorTest {
 		final int currentNumberOfSubtasks = 1;
 		final Configuration jobConfiguration = new Configuration();
 		final Configuration taskConfiguration = new Configuration();
-		final CheckpointState initialCheckpointState = CheckpointState.UNDECIDED;
 		final Class<? extends AbstractInvokable> invokableClass = FileLineReader.class;
 		final SerializableArrayList<GateDeploymentDescriptor> outputGates = new SerializableArrayList<GateDeploymentDescriptor>(
 			0);
@@ -264,7 +249,7 @@ public class TaskDeploymentDescriptorTest {
 			0);
 
 		final TaskDeploymentDescriptor orig = new TaskDeploymentDescriptor(jobID, vertexID, taskName,
-			indexInSubtaskGroup, currentNumberOfSubtasks, jobConfiguration, taskConfiguration, initialCheckpointState,
+			indexInSubtaskGroup, currentNumberOfSubtasks, jobConfiguration, taskConfiguration,
 			invokableClass, outputGates, inputGates);
 
 		TaskDeploymentDescriptor copy = null;
@@ -292,7 +277,6 @@ public class TaskDeploymentDescriptorTest {
 		assertEquals(orig.getTaskName(), copy.getTaskName());
 		assertEquals(orig.getIndexInSubtaskGroup(), copy.getIndexInSubtaskGroup());
 		assertEquals(orig.getCurrentNumberOfSubtasks(), copy.getCurrentNumberOfSubtasks());
-		assertEquals(orig.getInitialCheckpointState(), copy.getInitialCheckpointState());
 		assertEquals(orig.getNumberOfOutputGateDescriptors(), copy.getNumberOfOutputGateDescriptors());
 		assertEquals(orig.getNumberOfInputGateDescriptors(), copy.getNumberOfInputGateDescriptors());
 

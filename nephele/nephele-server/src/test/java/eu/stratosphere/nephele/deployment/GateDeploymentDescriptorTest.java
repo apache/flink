@@ -28,7 +28,6 @@ import org.junit.Test;
 import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.util.ServerTestUtils;
 import eu.stratosphere.nephele.util.StringUtils;
 
@@ -47,15 +46,12 @@ public class GateDeploymentDescriptorTest {
 
 		final GateID gateID = new GateID();
 		final ChannelType channelType = ChannelType.INMEMORY;
-		final CompressionLevel compressionLevel = CompressionLevel.HEAVY_COMPRESSION;
 		final List<ChannelDeploymentDescriptor> channels = new ArrayList<ChannelDeploymentDescriptor>(0);
 
-		final GateDeploymentDescriptor gdd = new GateDeploymentDescriptor(gateID, channelType, compressionLevel,
-			channels);
+		final GateDeploymentDescriptor gdd = new GateDeploymentDescriptor(gateID, channelType, channels);
 
 		assertEquals(gateID, gdd.getGateID());
 		assertEquals(channelType, gdd.getChannelType());
-		assertEquals(compressionLevel, gdd.getCompressionLevel());
 		assertEquals(channels.size(), gdd.getNumberOfChannelDescriptors());
 	}
 
@@ -67,36 +63,28 @@ public class GateDeploymentDescriptorTest {
 
 		final GateID gateID = new GateID();
 		final ChannelType channelType = ChannelType.INMEMORY;
-		final CompressionLevel compressionLevel = CompressionLevel.HEAVY_COMPRESSION;
 		final List<ChannelDeploymentDescriptor> channels = new ArrayList<ChannelDeploymentDescriptor>(0);
 
 		boolean firstExceptionCaught = false;
 		boolean secondExceptionCaught = false;
 		boolean thirdExceptionCaught = false;
-		boolean forthExceptionCaught = false;
 
 		try {
-			new GateDeploymentDescriptor(null, channelType, compressionLevel, channels);
+			new GateDeploymentDescriptor(null, channelType, channels);
 		} catch (IllegalArgumentException e) {
 			firstExceptionCaught = true;
 		}
 
 		try {
-			new GateDeploymentDescriptor(gateID, null, compressionLevel, channels);
+			new GateDeploymentDescriptor(gateID, null, channels);
 		} catch (IllegalArgumentException e) {
 			secondExceptionCaught = true;
 		}
 
 		try {
-			new GateDeploymentDescriptor(gateID, channelType, null, channels);
+			new GateDeploymentDescriptor(gateID, channelType, null);
 		} catch (IllegalArgumentException e) {
 			thirdExceptionCaught = true;
-		}
-
-		try {
-			new GateDeploymentDescriptor(gateID, channelType, compressionLevel, null);
-		} catch (IllegalArgumentException e) {
-			forthExceptionCaught = true;
 		}
 
 		if (!firstExceptionCaught) {
@@ -107,12 +95,9 @@ public class GateDeploymentDescriptorTest {
 			fail("Second argument was illegal but not detected");
 		}
 
+
 		if (!thirdExceptionCaught) {
 			fail("Third argument was illegal but not detected");
-		}
-
-		if (!forthExceptionCaught) {
-			fail("Forth argument was illegal but not detected");
 		}
 	}
 
@@ -124,12 +109,11 @@ public class GateDeploymentDescriptorTest {
 
 		final GateID gateID = new GateID();
 		final ChannelType channelType = ChannelType.INMEMORY;
-		final CompressionLevel compressionLevel = CompressionLevel.HEAVY_COMPRESSION;
 		final List<ChannelDeploymentDescriptor> channels = new ArrayList<ChannelDeploymentDescriptor>(0);
 		final ChannelDeploymentDescriptor cdd = new ChannelDeploymentDescriptor(new ChannelID(), new ChannelID());
 		channels.add(cdd);
 
-		final GateDeploymentDescriptor orig = new GateDeploymentDescriptor(gateID, channelType, compressionLevel,
+		final GateDeploymentDescriptor orig = new GateDeploymentDescriptor(gateID, channelType,
 			channels);
 
 		GateDeploymentDescriptor copy = null;
@@ -144,7 +128,6 @@ public class GateDeploymentDescriptorTest {
 
 		assertEquals(orig.getGateID(), copy.getGateID());
 		assertEquals(orig.getChannelType(), copy.getChannelType());
-		assertEquals(orig.getCompressionLevel(), copy.getCompressionLevel());
 		assertEquals(orig.getNumberOfChannelDescriptors(), copy.getNumberOfChannelDescriptors());
 		assertEquals(orig.getChannelDescriptor(0).getOutputChannelID(), copy.getChannelDescriptor(0)
 			.getOutputChannelID());

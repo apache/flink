@@ -35,7 +35,6 @@ import eu.stratosphere.nephele.plugins.PluginID;
 import eu.stratosphere.nephele.protocols.PluginCommunicationProtocol;
 import eu.stratosphere.nephele.protocols.TaskOperationProtocol;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
-import eu.stratosphere.nephele.taskmanager.TaskCheckpointResult;
 import eu.stratosphere.nephele.taskmanager.TaskKillResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
 import eu.stratosphere.nephele.topology.NetworkNode;
@@ -247,11 +246,6 @@ public abstract class AbstractInstance extends NetworkNode {
 		return getTaskManagerProxy().cancelTask(id);
 	}
 
-	public synchronized TaskCheckpointResult requestCheckpointDecision(final ExecutionVertexID id) throws IOException {
-
-		return getTaskManagerProxy().requestCheckpointDecision(id);
-	}
-
 	/**
 	 * Kills the task identified by the given ID at the instance's
 	 * {@link eu.stratosphere.nephele.taskmanager.TaskManager}.
@@ -265,20 +259,6 @@ public abstract class AbstractInstance extends NetworkNode {
 	public synchronized TaskKillResult killTask(final ExecutionVertexID id) throws IOException {
 
 		return getTaskManagerProxy().killTask(id);
-	}
-
-	/**
-	 * Removes the checkpoints identified by the given list of vertex IDs at the instance's
-	 * {@link eu.stratosphere.nephele.taskmanager.TaskManager}.
-	 * 
-	 * @param listOfVertexIDs
-	 *        the list of vertex IDs which identify the checkpoints to be removed
-	 * @throws IOException
-	 *         thrown if an error occurs while transmitting the request
-	 */
-	public synchronized void removeCheckpoints(final List<ExecutionVertexID> listOfVertexIDs) throws IOException {
-
-		getTaskManagerProxy().removeCheckpoints(listOfVertexIDs);
 	}
 
 	/**

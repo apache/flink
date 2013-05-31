@@ -31,7 +31,9 @@ import org.junit.Test;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.BufferFactory;
 import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.io.channels.MemoryBuffer;
 import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferAvailabilityListener;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProviderBroker;
@@ -42,7 +44,6 @@ import eu.stratosphere.nephele.util.StringUtils;
 /**
  * This class contains tests covering the deserialization of a byte stream to a transfer envelope.
  * 
- * @author warneke
  */
 public class DefaultDeserializerTest {
 
@@ -78,7 +79,7 @@ public class DefaultDeserializerTest {
 		/**
 		 * Stores the available byte buffers.
 		 */
-		private final Queue<ByteBuffer> bufferPool;
+		private final Queue<MemorySegment> bufferPool;
 
 		/**
 		 * Constructs a new test buffer provider.
@@ -88,9 +89,9 @@ public class DefaultDeserializerTest {
 		 */
 		private TestBufferProvider(final int numberOfBuffers) {
 
-			this.bufferPool = new ArrayDeque<ByteBuffer>(numberOfBuffers);
+			this.bufferPool = new ArrayDeque<MemorySegment>(numberOfBuffers);
 			for (int i = 0; i < numberOfBuffers; ++i) {
-				this.bufferPool.add(ByteBuffer.allocate(TEST_BUFFER_CAPACITY));
+				this.bufferPool.add(new MemorySegment(new byte[TEST_BUFFER_CAPACITY]));
 			}
 		}
 
@@ -160,7 +161,6 @@ public class DefaultDeserializerTest {
 	 * <p>
 	 * This class is not thread-safe.
 	 * 
-	 * @author warneke
 	 */
 	private static final class TestBufferProviderBroker implements BufferProviderBroker {
 
@@ -203,11 +203,10 @@ public class DefaultDeserializerTest {
 				throw new IllegalStateException("Test buffer size can be 100 bytes at most");
 			}
 
-			final Queue<ByteBuffer> bufferPool = new ArrayDeque<ByteBuffer>();
-			final ByteBuffer bb = ByteBuffer.allocate(TEST_BUFFER_CAPACITY);
+			final Queue<MemorySegment> bufferPool = new ArrayDeque<MemorySegment>();
+			final MemorySegment ms = new MemorySegment(new byte[TEST_BUFFER_CAPACITY]);
 
-			final Buffer buffer = BufferFactory
-				.createFromMemory(bb.capacity(), bb, new BufferPoolConnector(bufferPool));
+			final MemoryBuffer buffer = BufferFactory.createFromMemory(ms.size(), ms, new BufferPoolConnector(bufferPool));
 
 			final ByteBuffer srcBuffer = ByteBuffer.allocate(testBufferSize);
 			for (int i = 0; i < testBufferSize; ++i) {
@@ -216,7 +215,7 @@ public class DefaultDeserializerTest {
 			srcBuffer.flip();
 
 			buffer.write(srcBuffer);
-			buffer.finishWritePhase();
+			buffer.flip();
 			te.setBuffer(buffer);
 		}
 

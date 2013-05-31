@@ -23,7 +23,6 @@ import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.io.library.FileLineReader;
 import eu.stratosphere.nephele.io.library.FileLineWriter;
 import eu.stratosphere.nephele.jobgraph.JobFileInputVertex;
@@ -56,8 +55,8 @@ public class Grep {
 
 		try {
 
-			input.connectTo(task1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
-			task1.connectTo(output, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+			input.connectTo(task1, ChannelType.INMEMORY);
+			task1.connectTo(output, ChannelType.INMEMORY);
 
 		} catch (JobGraphDefinitionException e) {
 			e.printStackTrace();

@@ -75,10 +75,5 @@ public enum ExecutionState {
 	/**
 	 * The task has been aborted due to a failure during execution.
 	 */
-	FAILED,
-
-	/**
-	 * The task is being replayed from a checkpoint (the original task may still be running).
-	 */
-	REPLAYING;
+	FAILED
 }

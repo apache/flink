@@ -33,7 +33,6 @@ import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobGraphDefinitionException;
 import eu.stratosphere.nephele.jobgraph.JobInputVertex;
@@ -122,7 +121,7 @@ public class QueueSchedulerTest {
 		outputVertex.setNumberOfSubtasks(1);
 
 		try {
-			inputVertex.connectTo(outputVertex, channelType, CompressionLevel.NO_COMPRESSION);
+			inputVertex.connectTo(outputVertex, channelType);
 		} catch (JobGraphDefinitionException e) {
 			fail(StringUtils.stringifyException(e));
 		}
@@ -181,75 +180,6 @@ public class QueueSchedulerTest {
 			}
 
 			assertEquals(1, tim.getNumberOfReleaseMethodCalls());
-		} finally {
-			try {
-				LibraryCacheManager.unregister(executionGraph.getJobID());
-			} catch (IOException ioe) {
-				// Ignore exception here
-			}
-		}
-	}
-
-	/**
-	 * Checks the behavior of the scheduleJob() method with a job consisting of two tasks connected via a file
-	 * channel.
-	 */
-	@Test
-	public void testSchedulJobWithFileChannel() {
-
-		final TestInstanceManager tim = new TestInstanceManager();
-		final TestDeploymentManager tdm = new TestDeploymentManager();
-		final QueueScheduler scheduler = new QueueScheduler(tdm, tim);
-
-		final ExecutionGraph executionGraph = createExecutionGraph(ChannelType.FILE, tim);
-
-		try {
-			try {
-				scheduler.schedulJob(executionGraph);
-			} catch (SchedulingException e) {
-				fail(StringUtils.stringifyException(e));
-			}
-
-			// Wait for the deployment to complete
-			tdm.waitForDeployment();
-
-			assertEquals(executionGraph.getJobID(), tdm.getIDOfLastDeployedJob());
-			List<ExecutionVertex> listOfDeployedVertices = tdm.getListOfLastDeployedVertices();
-			assertNotNull(listOfDeployedVertices);
-
-			// Vertices connected via file channels must be deployed one after the other
-			assertEquals(1, listOfDeployedVertices.size());
-
-			// Check if the release of the allocated resources works properly by simulating the vertices' life cycle
-			assertEquals(0, tim.getNumberOfReleaseMethodCalls());
-			tdm.clear();
-
-			ExecutionVertex vertex = listOfDeployedVertices.get(0);
-
-			vertex.updateExecutionState(ExecutionState.STARTING);
-			vertex.updateExecutionState(ExecutionState.RUNNING);
-			vertex.updateExecutionState(ExecutionState.FINISHING);
-			vertex.updateExecutionState(ExecutionState.FINISHED);
-
-			// Make sure the allocated resource is not returned in the meantime
-			assertEquals(0, tim.getNumberOfReleaseMethodCalls());
-
-			// Wait for the deployment to complete
-			tdm.waitForDeployment();
-
-			assertEquals(executionGraph.getJobID(), tdm.getIDOfLastDeployedJob());
-			listOfDeployedVertices = tdm.getListOfLastDeployedVertices();
-			assertNotNull(listOfDeployedVertices);
-			assertEquals(1, listOfDeployedVertices.size());
-
-			vertex = listOfDeployedVertices.get(0);
-			vertex.updateExecutionState(ExecutionState.STARTING);
-			vertex.updateExecutionState(ExecutionState.RUNNING);
-			vertex.updateExecutionState(ExecutionState.FINISHING);
-			vertex.updateExecutionState(ExecutionState.FINISHED);
-
-			assertEquals(1, tim.getNumberOfReleaseMethodCalls());
-
 		} finally {
 			try {
 				LibraryCacheManager.unregister(executionGraph.getJobID());

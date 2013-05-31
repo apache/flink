@@ -29,7 +29,6 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.execution.ExecutionState;
-import eu.stratosphere.nephele.executiongraph.CheckpointState;
 import eu.stratosphere.nephele.executiongraph.ExecutionEdge;
 import eu.stratosphere.nephele.executiongraph.ExecutionGate;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
@@ -211,9 +210,6 @@ public abstract class AbstractScheduler implements InstanceListener {
 			boolean deployTarget;
 
 			switch (outputGate.getChannelType()) {
-			case FILE:
-				deployTarget = false;
-				break;
 			case NETWORK:
 				deployTarget = false;
 				break;
@@ -622,10 +618,6 @@ public abstract class AbstractScheduler implements InstanceListener {
 
 						while (vertexIter.hasNext()) {
 							final ExecutionVertex vertex = vertexIter.next();
-
-							// Even if the vertex had a checkpoint before, it is now gone
-							vertex.updateCheckpointState(CheckpointState.NONE);
-
 							final ExecutionState state = vertex.getExecutionState();
 
 							switch (state) {

@@ -23,7 +23,6 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.JobFileInputVertex;
 import eu.stratosphere.nephele.jobgraph.JobFileOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
@@ -55,9 +54,9 @@ public class UnionJob {
 
 		// Create edges between vertices
 		try {
-			input1.connectTo(union, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, DistributionPattern.POINTWISE);
-			input2.connectTo(union, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION, DistributionPattern.POINTWISE);
-			union.connectTo(output, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+			input1.connectTo(union, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
+			input2.connectTo(union, ChannelType.NETWORK,  DistributionPattern.POINTWISE);
+			union.connectTo(output, ChannelType.INMEMORY);
 		} catch (JobGraphDefinitionException e) {
 			e.printStackTrace();
 			return;

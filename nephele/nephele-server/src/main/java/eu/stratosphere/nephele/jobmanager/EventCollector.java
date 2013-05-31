@@ -24,7 +24,6 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 import eu.stratosphere.nephele.event.job.AbstractEvent;
-import eu.stratosphere.nephele.event.job.CheckpointStateChangeEvent;
 import eu.stratosphere.nephele.event.job.ExecutionStateChangeEvent;
 import eu.stratosphere.nephele.event.job.JobEvent;
 import eu.stratosphere.nephele.event.job.ManagementEvent;
@@ -33,8 +32,6 @@ import eu.stratosphere.nephele.event.job.VertexAssignmentEvent;
 import eu.stratosphere.nephele.event.job.VertexEvent;
 import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionState;
-import eu.stratosphere.nephele.executiongraph.CheckpointState;
-import eu.stratosphere.nephele.executiongraph.CheckpointStateListener;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
@@ -64,7 +61,7 @@ import eu.stratosphere.nephele.topology.NetworkTopology;
  * 
  * @author warneke
  */
-public final class EventCollector extends TimerTask implements ProfilingListener, CheckpointStateListener {
+public final class EventCollector extends TimerTask implements ProfilingListener {
 
 	/**
 	 * The execution listener wrapper is an auxiliary class. It is required
@@ -478,10 +475,7 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 			vertex.registerExecutionListener(new ExecutionListenerWrapper(this, vertex));
 
 			// Register the listener object which will pass assignment changes on to the collector
-			vertex
-				.registerVertexAssignmentListener(new VertexAssignmentListenerWrapper(this, executionGraph.getJobID()));
-
-			vertex.registerCheckpointStateListener(this);
+			vertex.registerVertexAssignmentListener(new VertexAssignmentListenerWrapper(this, executionGraph.getJobID()));
 		}
 
 		// Register one job status listener wrapper for the entire job
@@ -643,16 +637,5 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 
 			vertex.setExecutionState(executionStateChangeEvent.getNewExecutionState());
 		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void checkpointStateChanged(final JobID jobID, final ExecutionVertexID vertexID,
-			final CheckpointState newCheckpointState) {
-
-		addEvent(jobID, new CheckpointStateChangeEvent(System.currentTimeMillis(), vertexID.toManagementVertexID(),
-			newCheckpointState.toString()));
 	}
 }

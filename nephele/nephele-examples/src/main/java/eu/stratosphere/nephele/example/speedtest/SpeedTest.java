@@ -25,7 +25,6 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.JobGenericInputVertex;
 import eu.stratosphere.nephele.jobgraph.JobGenericOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
@@ -152,12 +151,12 @@ public final class SpeedTest {
 		// Connect the vertices
 		try {
 			if (forwarder == null) {
-				producer.connectTo(consumer, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION,
+				producer.connectTo(consumer, ChannelType.NETWORK,
 					DistributionPattern.BIPARTITE);
 			} else {
-				producer.connectTo(forwarder, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION,
+				producer.connectTo(forwarder, ChannelType.NETWORK,
 					DistributionPattern.BIPARTITE);
-				forwarder.connectTo(consumer, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION,
+				forwarder.connectTo(consumer, ChannelType.NETWORK,
 					DistributionPattern.BIPARTITE);
 			}
 

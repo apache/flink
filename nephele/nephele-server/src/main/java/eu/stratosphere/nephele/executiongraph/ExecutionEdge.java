@@ -18,7 +18,6 @@ package eu.stratosphere.nephele.executiongraph;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.compression.CompressionLevel;
 
 /**
  * Objects of this class represent a pair of {@link AbstractInputChannel} and {@link AbstractOutputChannel} objects
@@ -88,11 +87,6 @@ public final class ExecutionEdge {
 	public ChannelType getChannelType() {
 		
 		return this.groupEdge.getChannelType();
-	}
-	
-	public CompressionLevel getCompressionLevel() {
-		
-		return this.groupEdge.getCompressionLevel();
 	}
 	
 	public boolean isBroadcast() {

@@ -41,7 +41,6 @@ import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.taskmanager.AbstractTaskResult;
 import eu.stratosphere.nephele.taskmanager.AbstractTaskResult.ReturnCode;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
-import eu.stratosphere.nephele.taskmanager.TaskCheckpointResult;
 import eu.stratosphere.nephele.taskmanager.TaskKillResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
 import eu.stratosphere.nephele.util.AtomicEnum;
@@ -97,12 +96,6 @@ public final class ExecutionVertex {
 	private final CopyOnWriteArrayList<VertexAssignmentListener> vertexAssignmentListeners = new CopyOnWriteArrayList<VertexAssignmentListener>();
 
 	/**
-	 * A list of {@link CheckpointStateListener} objects to be notified about state changes of the vertex's
-	 * checkpoint.
-	 */
-	private final CopyOnWriteArrayList<CheckpointStateListener> checkpointStateListeners = new CopyOnWriteArrayList<CheckpointStateListener>();
-
-	/**
 	 * A map of {@link ExecutionListener} objects to be notified about the state changes of a vertex.
 	 */
 	private final ConcurrentMap<Integer, ExecutionListener> executionListeners = new ConcurrentSkipListMap<Integer, ExecutionListener>();
@@ -133,11 +126,6 @@ public final class ExecutionVertex {
 	 */
 	private final AtomicInteger retriesLeft;
 
-	/**
-	 * The current checkpoint state of this vertex.
-	 */
-	private final AtomicEnum<CheckpointState> checkpointState = new AtomicEnum<CheckpointState>(
-		CheckpointState.UNDECIDED);
 
 	/**
 	 * The execution pipeline this vertex is part of.
@@ -166,8 +154,6 @@ public final class ExecutionVertex {
 		this(new ExecutionVertexID(), executionGraph, groupVertex, numberOfOutputGates, numberOfInputGates);
 
 		this.groupVertex.addInitialSubtask(this);
-
-		this.checkpointState.set(this.groupVertex.checkInitialCheckpointState());
 	}
 
 	/**
@@ -250,9 +236,6 @@ public final class ExecutionVertex {
 			duplicatedVertex.inputGates[i] = new ExecutionGate(new GateID(), duplicatedVertex,
 				this.inputGates[i].getGroupEdge(), true);
 		}
-
-		// Copy checkpoint state from original vertex
-		duplicatedVertex.checkpointState.set(this.checkpointState.get());
 
 		// TODO set new profiling record with new vertex id
 		duplicatedVertex.setAllocatedResource(this.allocatedResource.get());
@@ -452,51 +435,6 @@ public final class ExecutionVertex {
 				LOG.error("Unable to cancel vertex " + this + ": " + tsr.getReturnCode().toString()
 					+ ((tsr.getDescription() != null) ? (" (" + tsr.getDescription() + ")") : ""));
 			}
-		}
-	}
-
-	public void updateCheckpointState(final CheckpointState newCheckpointState) {
-
-		if (newCheckpointState == null) {
-			throw new IllegalArgumentException("Argument newCheckpointState must not be null");
-		}
-
-		// Check and save the new checkpoint state
-		if (this.checkpointState.getAndSet(newCheckpointState) == newCheckpointState) {
-			return;
-		}
-
-		// Notify the listener objects
-		final Iterator<CheckpointStateListener> it = this.checkpointStateListeners.iterator();
-		while (it.hasNext()) {
-			it.next().checkpointStateChanged(this.getExecutionGraph().getJobID(), this.vertexID, newCheckpointState);
-		}
-	}
-
-	public void waitForCheckpointStateChange(final CheckpointState initialValue, final long timeout)
-			throws InterruptedException {
-
-		if (timeout <= 0L) {
-			throw new IllegalArgumentException("Argument timeout must be greather than zero");
-		}
-
-		final long startTime = System.currentTimeMillis();
-
-		while (this.checkpointState.get() == initialValue) {
-
-			Thread.sleep(1);
-
-			if (startTime + timeout < System.currentTimeMillis()) {
-				break;
-			}
-		}
-	}
-
-	public void waitForCheckpointStateChange(final CheckpointState initialValue) throws InterruptedException {
-
-		while (this.checkpointState.get() == initialValue) {
-
-			Thread.sleep(1);
 		}
 	}
 
@@ -791,28 +729,6 @@ public final class ExecutionVertex {
 		}
 	}
 
-	public TaskCheckpointResult requestCheckpointDecision() {
-
-		final AllocatedResource ar = this.allocatedResource.get();
-
-		if (ar == null) {
-			final TaskCheckpointResult result = new TaskCheckpointResult(getID(),
-				AbstractTaskResult.ReturnCode.NO_INSTANCE);
-			result.setDescription("Assigned instance of vertex " + this.toString() + " is null!");
-			return result;
-		}
-
-		try {
-			return ar.getInstance().requestCheckpointDecision(this.vertexID);
-
-		} catch (IOException e) {
-			final TaskCheckpointResult result = new TaskCheckpointResult(getID(),
-				AbstractTaskResult.ReturnCode.IPC_ERROR);
-			result.setDescription(StringUtils.stringifyException(e));
-			return result;
-		}
-	}
-
 	/**
 	 * Cancels and removes the task represented by this vertex
 	 * from the instance it is currently running on. If the task
@@ -868,8 +784,7 @@ public final class ExecutionVertex {
 					return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.SUCCESS);
 				}
 
-				if (previousState != ExecutionState.RUNNING && previousState != ExecutionState.FINISHING
-					&& previousState != ExecutionState.REPLAYING) {
+				if (previousState != ExecutionState.RUNNING && previousState != ExecutionState.FINISHING) {
 					// Set to canceled directly
 					updateExecutionState(ExecutionState.CANCELED, null);
 					return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.SUCCESS);
@@ -973,29 +888,6 @@ public final class ExecutionVertex {
 		this.vertexAssignmentListeners.remove(vertexAssignmentListener);
 	}
 
-	/**
-	 * Registers the {@link CheckpointStateListener} object for this vertex. This object
-	 * will be notified about state changes regarding the vertex's checkpoint.
-	 * 
-	 * @param checkpointStateListener
-	 *        the object to be notified about checkpoint state changes
-	 */
-	public void registerCheckpointStateListener(final CheckpointStateListener checkpointStateListener) {
-
-		this.checkpointStateListeners.addIfAbsent(checkpointStateListener);
-	}
-
-	/**
-	 * Unregisters the {@link CheckpointStateListener} object for this vertex. This object
-	 * will no longer be notified about state changes regarding the vertex's checkpoint.
-	 * 
-	 * @param checkpointStateListener
-	 *        the listener to be unregistered
-	 */
-	public void unregisterCheckpointStateListener(final CheckpointStateListener checkpointStateListener) {
-
-		this.checkpointStateListeners.remove(checkpointStateListener);
-	}
 
 	/**
 	 * Registers the {@link ExecutionListener} object for this vertex. This object
@@ -1025,7 +917,7 @@ public final class ExecutionVertex {
 	 * Unregisters the {@link ExecutionListener} object for this vertex. This object
 	 * will no longer be notified about particular events during the vertex's lifetime.
 	 * 
-	 * @param checkpointStateChangeListener
+	 * @param executionListener
 	 *        the object to be unregistered
 	 */
 	public void unregisterExecutionListener(final ExecutionListener executionListener) {
@@ -1033,15 +925,6 @@ public final class ExecutionVertex {
 		this.executionListeners.remove(Integer.valueOf(executionListener.getPriority()));
 	}
 
-	/**
-	 * Returns the current state of this vertex's checkpoint.
-	 * 
-	 * @return the current state of this vertex's checkpoint
-	 */
-	public CheckpointState getCheckpointState() {
-
-		return this.checkpointState.get();
-	}
 
 	/**
 	 * Sets the {@link ExecutionPipeline} this vertex shall be part of.
@@ -1090,7 +973,7 @@ public final class ExecutionVertex {
 				cdd.add(new ChannelDeploymentDescriptor(ee.getOutputChannelID(), ee.getInputChannelID()));
 			}
 
-			ogd.add(new GateDeploymentDescriptor(eg.getGateID(), eg.getChannelType(), eg.getCompressionLevel(), cdd));
+			ogd.add(new GateDeploymentDescriptor(eg.getGateID(), eg.getChannelType(), cdd));
 		}
 
 		final SerializableArrayList<GateDeploymentDescriptor> igd = new SerializableArrayList<GateDeploymentDescriptor>(
@@ -1107,13 +990,13 @@ public final class ExecutionVertex {
 				cdd.add(new ChannelDeploymentDescriptor(ee.getOutputChannelID(), ee.getInputChannelID()));
 			}
 
-			igd.add(new GateDeploymentDescriptor(eg.getGateID(), eg.getChannelType(), eg.getCompressionLevel(), cdd));
+			igd.add(new GateDeploymentDescriptor(eg.getGateID(), eg.getChannelType(), cdd));
 		}
 
 		final TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptor(this.executionGraph.getJobID(),
 			this.vertexID, this.groupVertex.getName(), this.indexInVertexGroup,
 			this.groupVertex.getCurrentNumberOfGroupMembers(), this.executionGraph.getJobConfiguration(),
-			this.groupVertex.getConfiguration(), this.checkpointState.get(), this.groupVertex.getInvokableClass(), ogd,
+			this.groupVertex.getConfiguration(), this.groupVertex.getInvokableClass(), ogd,
 			igd);
 
 		return tdd;

@@ -30,7 +30,6 @@ import java.util.Map;
 
 import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.types.StringRecord;
 import eu.stratosphere.nephele.util.EnumUtils;
@@ -452,10 +451,8 @@ public final class ManagementGraph extends ManagementAttachment implements IORea
 			final ManagementGroupVertex groupVertex = this.getGroupVertexByID(groupVertexID);
 			final String instanceName = StringRecord.readString(in);
 			final String instanceType = StringRecord.readString(in);
-			final String checkpointState = StringRecord.readString(in);
 			final int indexInGroup = in.readInt();
-			final ManagementVertex vertex = new ManagementVertex(groupVertex, vertexID, instanceName, instanceType,
-				checkpointState, indexInGroup);
+			final ManagementVertex vertex = new ManagementVertex(groupVertex, vertexID, instanceName, instanceType, indexInGroup);
 			vertex.read(in);
 		}
 
@@ -484,9 +481,8 @@ public final class ManagementGraph extends ManagementAttachment implements IORea
 					final int targetIndex = in.readInt();
 
 					final ChannelType channelType = EnumUtils.readEnum(in, ChannelType.class);
-					final CompressionLevel compressionLevel = EnumUtils.readEnum(in, CompressionLevel.class);
 					new ManagementEdge(sourceEdgeID, targetEdgeID, sourceGate, sourceIndex, targetGate, targetIndex,
-						channelType, compressionLevel);
+						channelType);
 				}
 
 			}
@@ -535,7 +531,6 @@ public final class ManagementGraph extends ManagementAttachment implements IORea
 			managementVertex.getGroupVertex().getID().write(out);
 			StringRecord.writeString(out, managementVertex.getInstanceName());
 			StringRecord.writeString(out, managementVertex.getInstanceType());
-			StringRecord.writeString(out, managementVertex.getCheckpointState());
 			out.writeInt(managementVertex.getIndexInGroup());
 			managementVertex.write(out);
 		}
@@ -563,7 +558,6 @@ public final class ManagementGraph extends ManagementAttachment implements IORea
 					out.writeInt(edge.getTargetIndex());
 
 					EnumUtils.writeEnum(out, edge.getChannelType());
-					EnumUtils.writeEnum(out, edge.getCompressionLevel());
 				}
 			}
 		}

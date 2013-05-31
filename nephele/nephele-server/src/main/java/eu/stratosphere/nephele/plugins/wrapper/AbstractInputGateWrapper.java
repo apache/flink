@@ -24,10 +24,8 @@ import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.channels.bytebuffered.FileInputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.InMemoryInputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.NetworkInputChannel;
-import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.types.Record;
 
@@ -143,15 +141,6 @@ public abstract class AbstractInputGateWrapper<T extends Record> implements Inpu
 	 * {@inheritDoc}
 	 */
 	@Override
-	public CompressionLevel getCompressionLevel() {
-
-		return this.wrappedInputGate.getCompressionLevel();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
 	public GateID getGateID() {
 
 		return this.wrappedInputGate.getGateID();
@@ -191,15 +180,6 @@ public abstract class AbstractInputGateWrapper<T extends Record> implements Inpu
 	public void setChannelType(final ChannelType channelType) {
 
 		this.wrappedInputGate.setChannelType(channelType);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void setCompressionLevel(final CompressionLevel compressionLevel) {
-
-		this.wrappedInputGate.setCompressionLevel(compressionLevel);
 	}
 
 	/**
@@ -261,31 +241,20 @@ public abstract class AbstractInputGateWrapper<T extends Record> implements Inpu
 	 */
 	@Override
 	public NetworkInputChannel<T> createNetworkInputChannel(final InputGate<T> inputGate, final ChannelID channelID,
-			final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
+			final ChannelID connectedChannelID) {
 
-		return this.wrappedInputGate.createNetworkInputChannel(inputGate, channelID, connectedChannelID,
-			compressionLevel);
+		return this.wrappedInputGate.createNetworkInputChannel(inputGate, channelID, connectedChannelID);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public FileInputChannel<T> createFileInputChannel(final InputGate<T> inputGate, final ChannelID channelID,
-			final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
-
-		return this.wrappedInputGate.createFileInputChannel(inputGate, channelID, connectedChannelID, compressionLevel);
-	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
 	public InMemoryInputChannel<T> createInMemoryInputChannel(final InputGate<T> inputGate, final ChannelID channelID,
-			final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
+			final ChannelID connectedChannelID) {
 
-		return this.wrappedInputGate.createInMemoryInputChannel(inputGate, channelID, connectedChannelID,
-			compressionLevel);
+		return this.wrappedInputGate.createInMemoryInputChannel(inputGate, channelID, connectedChannelID);
 	}
 
 	/**

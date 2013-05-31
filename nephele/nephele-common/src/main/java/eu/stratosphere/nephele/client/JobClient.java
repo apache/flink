@@ -16,6 +16,7 @@
 package eu.stratosphere.nephele.client;
 
 import java.io.IOException;
+import java.io.PrintStream;
 import java.net.InetSocketAddress;
 import java.util.Iterator;
 
@@ -72,6 +73,9 @@ public class JobClient {
 	 * The sequence number of the last processed event received from the job manager.
 	 */
 	private long lastProcessedEventSequenceNumber = -1;
+	
+	
+	private PrintStream console = System.out;
 
 	/**
 	 * Inner class used to perform clean up tasks when the
@@ -94,7 +98,6 @@ public class JobClient {
 		 *        the job client this clean up object belongs to
 		 */
 		public JobCleanUp(final JobClient jobClient) {
-
 			this.jobClient = jobClient;
 		}
 
@@ -107,8 +110,9 @@ public class JobClient {
 			try {
 
 				// Terminate the running job if the configuration says so
-				if (this.jobClient.getConfiguration().getBoolean(ConfigConstants.JOBCLIENT_SHUTDOWN_TERMINATEJOB_KEY,
-					ConfigConstants.DEFAULT_JOBCLIENT_SHUTDOWN_TERMINATEJOB)) {
+				if (this.jobClient.getConfiguration().getBoolean(ConfigConstants.JOBCLIENT_SHUTDOWN_TERMINATEJOB_KEY, 
+					ConfigConstants.DEFAULT_JOBCLIENT_SHUTDOWN_TERMINATEJOB))
+				{
 					System.out.println(AbstractEvent.timestampToString(System.currentTimeMillis())
 						+ ":\tJobClient is shutting down, canceling job...");
 					this.jobClient.cancelJob();
@@ -324,7 +328,7 @@ public class JobClient {
 					continue;
 				}
 
-				System.out.println(event.toString());
+				this.console.println(event.toString());
 
 				this.lastProcessedEventSequenceNumber = event.getSequenceNumber();
 
@@ -338,7 +342,7 @@ public class JobClient {
 					if (jobStatus == JobStatus.FINISHED) {
 						Runtime.getRuntime().removeShutdownHook(this.jobCleanUp);
 						final long jobDuration = jobEvent.getTimestamp() - startTimestamp;
-						System.out.println("Job duration (in ms): " + jobDuration);
+						this.console.println("Job duration (in ms): " + jobDuration);
 						return jobDuration;
 					} else if (jobStatus == JobStatus.CANCELED || jobStatus == JobStatus.FAILED) {
 						Runtime.getRuntime().removeShutdownHook(this.jobCleanUp);
@@ -384,9 +388,15 @@ public class JobClient {
 	 *         thrown after the error message is written to the log
 	 */
 	private void logErrorAndRethrow(final String errorMessage) throws IOException {
-
 		LOG.error(errorMessage);
 		throw new IOException(errorMessage);
 	}
-
+	
+	public void setConsoleStreamForReporting(PrintStream stream) {
+		if (stream == null) {
+			throw new IllegalArgumentException("Console stream must not be null.");
+		}
+		
+		this.console = stream;
+	}
 }

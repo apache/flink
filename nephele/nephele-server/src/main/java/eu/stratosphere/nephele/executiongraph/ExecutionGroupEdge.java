@@ -17,7 +17,6 @@ package eu.stratosphere.nephele.executiongraph;
 
 import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.compression.CompressionLevel;
 
 /**
  * An execution group edge represents an edge between two execution group vertices.
@@ -34,19 +33,9 @@ public class ExecutionGroupEdge {
 	private final boolean userDefinedChannelType;
 
 	/**
-	 * Stores if the compression level has been specified by the user.
-	 */
-	private final boolean userDefinedCompressionLevel;
-
-	/**
 	 * The channel type to be used between the execution vertices of the two connected group vertices.
 	 */
 	private volatile ChannelType channelType;
-
-	/**
-	 * The compression level to be used between the execution vertices of the two connected group vertices.
-	 */
-	private volatile CompressionLevel compressionLevel;
 
 	/**
 	 * The edge's connection ID. The connection ID determines to which physical TCP connection channels represented by
@@ -110,16 +99,13 @@ public class ExecutionGroupEdge {
 	 */
 	public ExecutionGroupEdge(final ExecutionGroupVertex sourceVertex, final int indexOfOutputGate,
 			final ExecutionGroupVertex targetVertex, final int indexOfInputGate, final ChannelType channelType,
-			final boolean userDefinedChannelType, final CompressionLevel compressionLevel,
-			final boolean userDefinedCompressionLevel, final DistributionPattern distributionPattern,
+			final boolean userDefinedChannelType, final DistributionPattern distributionPattern,
 			final boolean isBroadcast) {
 		this.sourceVertex = sourceVertex;
 		this.indexOfOutputGate = indexOfOutputGate;
 		this.channelType = channelType;
 		this.indexOfInputGate = indexOfInputGate;
 		this.userDefinedChannelType = userDefinedChannelType;
-		this.compressionLevel = compressionLevel;
-		this.userDefinedCompressionLevel = userDefinedCompressionLevel;
 		this.targetVertex = targetVertex;
 		this.distributionPattern = distributionPattern;
 		this.isBroadcast = isBroadcast;
@@ -161,38 +147,6 @@ public class ExecutionGroupEdge {
 	}
 
 	/**
-	 * Returns the compression level assigned to this edge.
-	 * 
-	 * @return the compression level assigned to this edge
-	 */
-	public CompressionLevel getCompressionLevel() {
-		return this.compressionLevel;
-	}
-
-	/**
-	 * Changes the compression level for this edge.
-	 * 
-	 * @param newCompressionLevel
-	 *        the compression type for this edge
-	 * @throws GraphConversionException
-	 *         thrown if the new compression level violates a user setting
-	 */
-	void changeCompressionLevel(final CompressionLevel newCompressionLevel) throws GraphConversionException {
-
-		if (!this.compressionLevel.equals(newCompressionLevel)) {
-
-			if (this.userDefinedCompressionLevel) {
-				throw new GraphConversionException("Cannot overwrite user defined compression level");
-			}
-
-			// TODO: Implement propagation of compression level to channels
-
-			// Update compression level
-			this.compressionLevel = newCompressionLevel;
-		}
-	}
-
-	/**
 	 * Sets the edge's connection ID.
 	 * 
 	 * @param connectionID
@@ -218,15 +172,6 @@ public class ExecutionGroupEdge {
 	 */
 	public boolean isChannelTypeUserDefined() {
 		return this.userDefinedChannelType;
-	}
-
-	/**
-	 * Returns if the edge's compression level is user defined.
-	 * 
-	 * @return <code>true</code> if the compression level is user defined, <code>false</code> otherwise
-	 */
-	public boolean isCompressionLevelUserDefined() {
-		return this.userDefinedCompressionLevel;
 	}
 
 	/**

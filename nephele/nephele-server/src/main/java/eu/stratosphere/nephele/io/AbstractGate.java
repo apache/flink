@@ -19,7 +19,6 @@ import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.event.task.EventListener;
 import eu.stratosphere.nephele.event.task.EventNotificationManager;
 import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.types.Record;
 
@@ -61,11 +60,6 @@ public abstract class AbstractGate<T extends Record> implements Gate<T> {
 	 * The type of input/output channels connected to this gate.
 	 */
 	private ChannelType channelType = ChannelType.NETWORK;
-
-	/**
-	 * The compression level of the input/output channels connected to this gate.
-	 */
-	private CompressionLevel compressionLevel = CompressionLevel.NO_COMPRESSION;
 
 	/**
 	 * Constructs a new abstract gate
@@ -153,24 +147,6 @@ public abstract class AbstractGate<T extends Record> implements Gate<T> {
 	public final ChannelType getChannelType() {
 
 		return this.channelType;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public final void setCompressionLevel(final CompressionLevel compressionLevel) {
-
-		this.compressionLevel = compressionLevel;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public final CompressionLevel getCompressionLevel() {
-
-		return this.compressionLevel;
 	}
 
 	/**

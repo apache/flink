@@ -316,7 +316,7 @@ public class StringRecord implements Record {
 	/**
 	 * serialize write this object to out length uses zero-compressed encoding
 	 * 
-	 * @see Writable#read(DataOutput)
+	 * @see Writable#writeTo(DataOutput)
 	 */
 	public void write(final DataOutput out) throws IOException {
 		out.writeInt(this.length);

@@ -24,7 +24,6 @@ import java.util.List;
 
 import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.util.EnumUtils;
 
 /**
@@ -357,8 +356,7 @@ public final class ManagementGroupVertex extends ManagementAttachment implements
 			final int sourceIndex = in.readInt();
 			final int targetIndex = in.readInt();
 			final ChannelType channelType = EnumUtils.readEnum(in, ChannelType.class);
-			final CompressionLevel compressionLevel = EnumUtils.readEnum(in, CompressionLevel.class);
-			new ManagementGroupEdge(this, sourceIndex, targetGroupVertex, targetIndex, channelType, compressionLevel);
+			new ManagementGroupEdge(this, sourceIndex, targetGroupVertex, targetIndex, channelType);
 		}
 
 	}
@@ -378,7 +376,6 @@ public final class ManagementGroupVertex extends ManagementAttachment implements
 			out.writeInt(groupEdge.getSourceIndex());
 			out.writeInt(groupEdge.getTargetIndex());
 			EnumUtils.writeEnum(out, groupEdge.getChannelType());
-			EnumUtils.writeEnum(out, groupEdge.getCompressionLevel());
 		}
 	}
 

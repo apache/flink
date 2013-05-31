@@ -30,10 +30,8 @@ import eu.stratosphere.nephele.util.StringUtils;
 
 /**
  * This class represents an incoming data connection through which data streams are read and transformed into
- * {@link TransferEnvelope} objects. The source of the data stream can be either a TCP connection or a recovery
- * checkpoint.
+ * {@link TransferEnvelope} objects. The source of the data stream is a TCP connection.
  * 
- * @author warneke
  */
 public class IncomingConnection {
 

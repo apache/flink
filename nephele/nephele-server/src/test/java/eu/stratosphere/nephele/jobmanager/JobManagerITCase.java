@@ -22,10 +22,16 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.io.PrintStream;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
+import org.apache.log4j.ConsoleAppender;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
+import org.apache.log4j.PatternLayout;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -38,7 +44,6 @@ import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.io.library.FileLineReader;
 import eu.stratosphere.nephele.io.library.FileLineWriter;
 import eu.stratosphere.nephele.jobgraph.JobFileInputVertex;
@@ -48,18 +53,28 @@ import eu.stratosphere.nephele.jobgraph.JobGraphDefinitionException;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.nephele.jobmanager.JobManager;
 import eu.stratosphere.nephele.jobmanager.JobManager.ExecutionMode;
+import eu.stratosphere.nephele.taskmanager.TaskManager;
+import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTask;
 import eu.stratosphere.nephele.util.JarFileCreator;
 import eu.stratosphere.nephele.util.ServerTestUtils;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
  * This test is intended to cover the basic functionality of the {@link JobManager}.
- * 
- * @author wenjun
- * @author warneke
  */
 public class JobManagerITCase {
 
+	static {
+		// initialize loggers
+		Logger root = Logger.getRootLogger();
+		root.removeAllAppenders();
+		PatternLayout layout = new PatternLayout("%d{HH:mm:ss,SSS} %-5p %-60c %x - %m%n");
+		ConsoleAppender appender = new ConsoleAppender(layout, "System.err");
+		root.addAppender(appender);
+		root.setLevel(Level.WARN);
+	}
+	
+	
 	/**
 	 * The name of the test directory some tests read their input from.
 	 */
@@ -71,8 +86,6 @@ public class JobManagerITCase {
 
 	/**
 	 * This is an auxiliary class to run the job manager thread.
-	 * 
-	 * @author warneke
 	 */
 	private static final class JobManagerThread extends Thread {
 
@@ -88,7 +101,6 @@ public class JobManagerITCase {
 		 *        the job manager to run in this thread.
 		 */
 		private JobManagerThread(JobManager jobManager) {
-
 			this.jobManager = jobManager;
 		}
 
@@ -97,7 +109,6 @@ public class JobManagerITCase {
 		 */
 		@Override
 		public void run() {
-
 			// Run task loop
 			this.jobManager.runTaskLoop();
 
@@ -112,7 +123,6 @@ public class JobManagerITCase {
 		 *         otherwise
 		 */
 		public boolean isShutDown() {
-
 			return this.jobManager.isShutDown();
 		}
 	}
@@ -132,14 +142,14 @@ public class JobManagerITCase {
 
 			try {
 				jobManager = new JobManager(ExecutionMode.LOCAL);
-			} catch (Exception e) {
+			}
+			catch (Exception e) {
 				e.printStackTrace();
 				fail(e.getMessage());
 				return;
 			}
 
-			configuration = GlobalConfiguration
-				.getConfiguration(new String[] { ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY });
+			configuration = GlobalConfiguration.getConfiguration(new String[] { ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY });
 
 			// Start job manager thread
 			if (jobManager != null) {
@@ -250,19 +260,19 @@ public class JobManagerITCase {
 
 			// connect vertices
 			try {
-				i1.connectTo(t1, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
-				t1.connectTo(t2, ChannelType.FILE, CompressionLevel.NO_COMPRESSION);
-				t2.connectTo(o1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+				i1.connectTo(t1, ChannelType.NETWORK);
+				t1.connectTo(t2, ChannelType.INMEMORY);
+				t2.connectTo(o1, ChannelType.INMEMORY);
 			} catch (JobGraphDefinitionException e) {
 				e.printStackTrace();
 			}
 
 			// add jar
-			jg.addJar(new Path(new File(ServerTestUtils.getTempDir() + File.separator + forwardClassName + ".jar")
-				.toURI()));
+			jg.addJar(new Path(new File(ServerTestUtils.getTempDir() + File.separator + forwardClassName + ".jar").toURI()));
 
 			// Create job client and launch job
 			jobClient = new JobClient(jg, configuration);
+			jobClient.setConsoleStreamForReporting(getNullPrintStream());
 			jobClient.submitJobAndWait();
 
 			// Finally, compare output file to initial number sequence
@@ -353,8 +363,8 @@ public class JobManagerITCase {
 			o1.setVertexToShareInstancesWith(i1);
 
 			// connect vertices
-			i1.connectTo(t1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
-			t1.connectTo(o1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+			i1.connectTo(t1, ChannelType.INMEMORY);
+			t1.connectTo(o1, ChannelType.INMEMORY);
 
 			// add jar
 			jg.addJar(new Path(new File(ServerTestUtils.getTempDir() + File.separator + exceptionClassName + ".jar")
@@ -362,7 +372,13 @@ public class JobManagerITCase {
 
 			// Create job client and launch job
 			jobClient = new JobClient(jg, configuration);
-
+			jobClient.setConsoleStreamForReporting(getNullPrintStream());
+			
+			// deactivate logging of expected test exceptions
+			Logger rtLogger = Logger.getLogger(RuntimeTask.class);
+			Level rtLevel = rtLogger.getEffectiveLevel();
+			rtLogger.setLevel(Level.OFF);
+			
 			try {
 				jobClient.submitJobAndWait();
 			} catch (JobExecutionException e) {
@@ -375,6 +391,9 @@ public class JobManagerITCase {
 				}
 
 				return;
+			}
+			finally {
+				rtLogger.setLevel(rtLevel);
 			}
 
 			fail("Expected exception but did not receive it");
@@ -441,8 +460,8 @@ public class JobManagerITCase {
 			o1.setVertexToShareInstancesWith(i1);
 
 			// connect vertices
-			i1.connectTo(t1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
-			t1.connectTo(o1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+			i1.connectTo(t1, ChannelType.INMEMORY);
+			t1.connectTo(o1, ChannelType.INMEMORY);
 
 			// add jar
 			jg.addJar(new Path(new File(ServerTestUtils.getTempDir() + File.separator + runtimeExceptionClassName
@@ -450,7 +469,12 @@ public class JobManagerITCase {
 
 			// Create job client and launch job
 			jobClient = new JobClient(jg, configuration);
-
+			jobClient.setConsoleStreamForReporting(getNullPrintStream());
+			
+			// deactivate logging of expected test exceptions
+			Logger jcLogger = Logger.getLogger(JobClient.class);
+			Level jcLevel = jcLogger.getEffectiveLevel();
+			jcLogger.setLevel(Level.OFF);
 			try {
 				jobClient.submitJobAndWait();
 			} catch (JobExecutionException e) {
@@ -465,6 +489,9 @@ public class JobManagerITCase {
 
 				// Check if the correct error message is encapsulated in the exception
 				return;
+			}
+			finally {
+				jcLogger.setLevel(jcLevel);
 			}
 
 			fail("Expected exception but did not receive it");
@@ -529,7 +556,7 @@ public class JobManagerITCase {
 
 			// connect vertices
 			try {
-				i1.connectTo(o1, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
+				i1.connectTo(o1, ChannelType.NETWORK);
 			} catch (JobGraphDefinitionException e) {
 				e.printStackTrace();
 			}
@@ -540,6 +567,8 @@ public class JobManagerITCase {
 
 			// Create job client and launch job
 			jobClient = new JobClient(jg, configuration);
+			jobClient.setConsoleStreamForReporting(getNullPrintStream());
+			
 			try {
 				jobClient.submitJobAndWait();
 			} catch (JobExecutionException e) {
@@ -633,9 +662,9 @@ public class JobManagerITCase {
 
 			// connect vertices
 			try {
-				i1.connectTo(t1, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
-				t1.connectTo(t2, ChannelType.FILE, CompressionLevel.NO_COMPRESSION);
-				t2.connectTo(o1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+				i1.connectTo(t1, ChannelType.NETWORK);
+				t1.connectTo(t2, ChannelType.INMEMORY);
+				t2.connectTo(o1, ChannelType.INMEMORY);
 			} catch (JobGraphDefinitionException e) {
 				e.printStackTrace();
 			}
@@ -646,6 +675,8 @@ public class JobManagerITCase {
 
 			// Create job client and launch job
 			jobClient = new JobClient(jg, configuration);
+			jobClient.setConsoleStreamForReporting(getNullPrintStream());
+			
 			try {
 				jobClient.submitJobAndWait();
 			} catch (JobExecutionException e) {
@@ -724,16 +755,16 @@ public class JobManagerITCase {
 			o1.setVertexToShareInstancesWith(i1);
 
 			// connect vertices
-			i1.connectTo(t1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, DistributionPattern.POINTWISE);
-			i1.connectTo(t1, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION, DistributionPattern.BIPARTITE);
-			t1.connectTo(o1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+			i1.connectTo(t1, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
+			i1.connectTo(t1, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
+			t1.connectTo(o1, ChannelType.INMEMORY);
 
 			// add jar
 			jg.addJar(new Path(jarFile.toURI()));
 
 			// Create job client and launch job
 			jobClient = new JobClient(jg, configuration);
-
+			jobClient.setConsoleStreamForReporting(getNullPrintStream());
 			jobClient.submitJobAndWait();
 
 		} catch (JobExecutionException e) {
@@ -799,13 +830,14 @@ public class JobManagerITCase {
 			o1.setVertexToShareInstancesWith(i1);
 
 			// connect vertices
-			i1.connectTo(o1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+			i1.connectTo(o1, ChannelType.INMEMORY);
 
 			// add jar
 			jg.addJar(new Path(jarFile.toURI()));
 
 			// Create job client and launch job
 			jobClient = new JobClient(jg, configuration);
+			jobClient.setConsoleStreamForReporting(getNullPrintStream());
 			jobClient.submitJobAndWait();
 
 		} catch (JobExecutionException e) {
@@ -901,15 +933,16 @@ public class JobManagerITCase {
 			u1.setVertexToShareInstancesWith(o1);
 
 			// connect vertices
-			i1.connectTo(u1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, DistributionPattern.POINTWISE);
-			i2.connectTo(u1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
-			u1.connectTo(o1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+			i1.connectTo(u1, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
+			i2.connectTo(u1, ChannelType.INMEMORY);
+			u1.connectTo(o1, ChannelType.INMEMORY);
 
 			// add jar
 			jg.addJar(new Path(jarFile.toURI()));
 
 			// Create job client and launch job
 			jobClient = new JobClient(jg, configuration);
+			jobClient.setConsoleStreamForReporting(getNullPrintStream());
 
 			try {
 				jobClient.submitJobAndWait();
@@ -1052,21 +1085,37 @@ public class JobManagerITCase {
 			f1.setVertexToShareInstancesWith(o1);
 
 			// connect vertices
-			i1.connectTo(f1, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION, DistributionPattern.BIPARTITE);
-			i2.connectTo(f1, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION, DistributionPattern.BIPARTITE);
-			f1.connectTo(o1, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION, DistributionPattern.BIPARTITE);
+			i1.connectTo(f1, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
+			i2.connectTo(f1, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
+			f1.connectTo(o1, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
 
 			// add jar
 			jg.addJar(new Path(jarFile.toURI()));
 
 			// Create job client and launch job
 			jobClient = new JobClient(jg, configuration);
-
+			jobClient.setConsoleStreamForReporting(getNullPrintStream());
+			
+			// disable logging for the taskmanager and the client, as they will have many
+			// expected test errors they will log.
+			
+			Logger tmLogger = Logger.getLogger(TaskManager.class);
+			Logger jcLogger = Logger.getLogger(JobClient.class);
+			Level tmLevel = tmLogger.getEffectiveLevel();
+			Level jcLevel = jcLogger.getEffectiveLevel();
+			
+			tmLogger.setLevel(Level.OFF);
+			jcLogger.setLevel(Level.OFF);
 			try {
+				
 				jobClient.submitJobAndWait();
 			} catch (JobExecutionException e) {
 				// Job execution should lead to an error due to lack of resources
 				return;
+			}
+			finally {
+				tmLogger.setLevel(tmLevel);
+				jcLogger.setLevel(jcLevel);
 			}
 
 			fail("Undetected lack of resources");
@@ -1102,5 +1151,12 @@ public class JobManagerITCase {
 				jobClient.close();
 			}
 		}
+	}
+	
+	private static PrintStream getNullPrintStream() {
+		return new PrintStream(new OutputStream() {
+			@Override
+			public void write(int b) throws IOException {}
+		});
 	}
 }

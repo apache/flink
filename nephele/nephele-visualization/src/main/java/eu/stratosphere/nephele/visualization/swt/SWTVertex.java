@@ -22,20 +22,15 @@ import org.eclipse.swt.graphics.Device;
 import org.eclipse.swt.graphics.GC;
 import org.eclipse.swt.widgets.Shell;
 
-import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.managementgraph.ManagementVertex;
 
 public class SWTVertex extends AbstractSWTVertex {
 
 	private final static int SPACEFORGATESINPERCENT = 20;
 
-	private final static int MINIMUMSIZEOFREPLAYICON = 40;
-
 	private int gateHeight = 0;
 
 	private final ManagementVertex managementVertex;
-
-	private boolean replayMode = false;
 
 	public SWTVertex(AbstractSWTComponent parent, ManagementVertex managementVertex) {
 		super(parent);
@@ -119,150 +114,6 @@ public class SWTVertex extends AbstractSWTVertex {
 		}
 
 		gc.fillRectangle(this.rect.x, this.rect.y, this.rect.width, this.rect.height);
-
-		// Check for replay mode update
-		final ExecutionState executionState = this.managementVertex.getExecutionState();
-		switch (executionState) {
-		case REPLAYING:
-			this.replayMode = true;
-			break;
-		case RUNNING:
-		case FINISHED:
-		case CANCELED:
-		case FAILED:
-			this.replayMode = false;
-			break;
-		}
-
-		if (this.replayMode) {
-			paintReplayIcon(gc, device);
-		}
-	}
-
-	private void paintReplayIcon(final GC gc, final Device device) {
-
-		// Determine dimension of replay icon
-		int dimension = getHeight();
-		if (this.managementVertex.getNumberOfInputGates() > 0) {
-			dimension -= this.gateHeight;
-		}
-		if (this.managementVertex.getNumberOfOutputGates() > 0) {
-			dimension -= this.gateHeight;
-		}
-		dimension = Math.round((float) Math.min(dimension, getWidth()) * 0.7f);
-
-		// Icon would be too small, do not draw it
-		if (dimension < MINIMUMSIZEOFREPLAYICON) {
-			return;
-		}
-
-		// Determine coordinates of icon
-		final int x = getX() + (getWidth() / 2 - dimension / 2);
-		int height = getHeight();
-		final int numberOfInputGates = this.managementVertex.getNumberOfInputGates();
-		final int numberOfOutputGates = this.managementVertex.getNumberOfOutputGates();
-		if ((numberOfInputGates > 0 && numberOfOutputGates == 0)
-			|| (numberOfInputGates == 0 && numberOfOutputGates > 0)) {
-			height -= this.gateHeight;
-		}
-		int y = getY() + (height / 2 - dimension / 2);
-		if (this.managementVertex.getNumberOfOutputGates() > 0) {
-			y += this.gateHeight;
-		}
-
-		gc.setBackground(getReplayIconBackgroundColor(device));
-		gc.fillOval(x, y, dimension, dimension);
-
-		final int triangleWidth = Math.round((float) (dimension / 2) * 0.6f);
-		final int triangleHeight = Math.round(dimension * 0.6f);
-
-		final int triangleY = y + (dimension / 2 - triangleHeight / 2);
-		final int leftTriangleX = x + (dimension / 2 - triangleWidth);
-		final int rightTriangleX = x + (dimension / 2);
-
-		paintReplayTriangle(gc, device, leftTriangleX, triangleY, triangleWidth, triangleHeight);
-		paintReplayTriangle(gc, device, rightTriangleX, triangleY, triangleWidth, triangleHeight);
-	}
-
-	private void paintReplayTriangle(final GC gc, final Device device, final int x, final int y, final int width,
-			final int height) {
-
-		gc.setBackground(getReplayIconForegroundColor(device));
-
-		final int[] polygon = new int[6];
-
-		polygon[0] = x;
-		polygon[1] = y + (height / 2);
-		polygon[2] = x + width;
-		polygon[3] = y;
-		polygon[4] = x + width;
-		polygon[5] = y + height;
-
-		gc.fillPolygon(polygon);
-	}
-
-	private Color getReplayIconForegroundColor(Device device) {
-
-		Color returnColor = null;
-
-		switch (this.managementVertex.getExecutionState()) {
-		case RUNNING:
-			returnColor = ColorScheme.getGateRunningBorderColor(device);
-			break;
-		case REPLAYING:
-			returnColor = ColorScheme.getGateReplayingBorderColor(device);
-			break;
-		case FINISHING:
-			returnColor = ColorScheme.getGateFinishingBorderColor(device);
-			break;
-		case FINISHED:
-			returnColor = ColorScheme.getGateFinishedBorderColor(device);
-			break;
-		case CANCELING:
-		case CANCELED:
-			returnColor = ColorScheme.getGateCancelBorderColor(device);
-			break;
-		case FAILED:
-			returnColor = ColorScheme.getGateFailedBorderColor(device);
-			break;
-		default:
-			returnColor = ColorScheme.getGateDefaultBorderColor(device);
-			break;
-		}
-
-		return returnColor;
-	}
-
-	private Color getReplayIconBackgroundColor(Device device) {
-
-		Color returnColor = null;
-
-		switch (this.managementVertex.getExecutionState()) {
-		case RUNNING:
-			returnColor = ColorScheme.getGateRunningBackgroundColor(device);
-			break;
-		case REPLAYING:
-			returnColor = ColorScheme.getGateReplayingBackgroundColor(device);
-			break;
-		case FINISHING:
-			returnColor = ColorScheme.getGateFinishingBackgroundColor(device);
-			break;
-		case FINISHED:
-			returnColor = ColorScheme.getGateFinishedBackgroundColor(device);
-			break;
-		case CANCELING:
-		case CANCELED:
-			returnColor = ColorScheme.getGateCancelBackgroundColor(device);
-			break;
-		case FAILED:
-			returnColor = ColorScheme.getGateFailedBackgroundColor(device);
-			break;
-		default:
-			returnColor = ColorScheme.getGateDefaultBackgroundColor(device);
-			break;
-		}
-
-		return returnColor;
 	}
 
 	private Color getBackgroundColor(Device device) {
@@ -272,9 +123,6 @@ public class SWTVertex extends AbstractSWTVertex {
 		switch (this.managementVertex.getExecutionState()) {
 		case RUNNING:
 			returnColor = ColorScheme.getVertexRunningBackgroundColor(device);
-			break;
-		case REPLAYING:
-			returnColor = ColorScheme.getVertexReplayingBackgroundColor(device);
 			break;
 		case FINISHING:
 			returnColor = ColorScheme.getVertexFinishingBackgroundColor(device);

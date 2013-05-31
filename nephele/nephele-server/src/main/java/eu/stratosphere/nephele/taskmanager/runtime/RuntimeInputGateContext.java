@@ -21,14 +21,8 @@ import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.Buffer;
-import eu.stratosphere.nephele.io.channels.BufferFactory;
 import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.io.channels.FileBufferManager;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
-import eu.stratosphere.nephele.io.compression.CompressionBufferProvider;
-import eu.stratosphere.nephele.io.compression.CompressionException;
-import eu.stratosphere.nephele.io.compression.CompressionLoader;
-import eu.stratosphere.nephele.io.compression.Decompressor;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferAvailabilityListener;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPool;
@@ -48,25 +42,15 @@ final class RuntimeInputGateContext implements BufferProvider, InputGateContext,
 
 	private final InputGate<? extends Record> inputGate;
 
-	private final EnvelopeConsumptionLog envelopeConsumptionLog;
-
-	private final FileBufferManager fileBufferManager;
-
-	private Decompressor decompressor = null;
-
 	RuntimeInputGateContext(final String taskName, final TransferEnvelopeDispatcher transferEnvelopeDispatcher,
-			final InputGate<? extends Record> inputGate, final EnvelopeConsumptionLog envelopeConsumptionLog) {
+			final InputGate<? extends Record> inputGate) {
 
 		this.taskName = taskName;
 		this.localBufferPool = new LocalBufferPool(1, false);
 
 		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
 		this.inputGate = inputGate;
-		this.envelopeConsumptionLog = envelopeConsumptionLog;
-
-		this.fileBufferManager = FileBufferManager.getInstance();
 	}
-
 	/**
 	 * {@inheritDoc}
 	 */
@@ -85,11 +69,6 @@ final class RuntimeInputGateContext implements BufferProvider, InputGateContext,
 		final Buffer buffer = this.localBufferPool.requestEmptyBuffer(minimumSizeOfBuffer);
 		if (buffer != null) {
 			return buffer;
-		}
-
-		if (this.envelopeConsumptionLog.followsLog()) {
-			return BufferFactory.createFromFile(minimumSizeOfBuffer, this.inputGate.getGateID(),
-				this.fileBufferManager, false, true);
 		}
 
 		return this.localBufferPool.requestEmptyBufferBlocking(minimumSizeOfBuffer);
@@ -196,7 +175,7 @@ final class RuntimeInputGateContext implements BufferProvider, InputGateContext,
 		}
 
 		return new RuntimeInputChannelContext(this, this.transferEnvelopeDispatcher,
-			(AbstractByteBufferedInputChannel<? extends Record>) channel, this.envelopeConsumptionLog);
+			(AbstractByteBufferedInputChannel<? extends Record>) channel);
 	}
 
 	/**
@@ -227,23 +206,4 @@ final class RuntimeInputGateContext implements BufferProvider, InputGateContext,
 		return this.localBufferPool.registerBufferAvailabilityListener(bufferAvailabilityListener);
 	}
 
-	/**
-	 * Returns (and if necessary previously creates) the decompressor to be used by the attached input channels.
-	 * 
-	 * @return the decompressor to be used by the attached input channels or <code>null</code> if no decompression is
-	 *         necessary
-	 * @throws CompressionException
-	 *         thrown if an error occurs while creating the decompressor
-	 */
-	Decompressor getDecompressor() throws CompressionException {
-
-		if (this.decompressor == null) {
-			this.decompressor = CompressionLoader.getDecompressorByCompressionLevel(
-				this.inputGate.getCompressionLevel(), new CompressionBufferProvider(this, true));
-		} else {
-			this.decompressor.increaseChannelCounter();
-		}
-
-		return this.decompressor;
-	}
 }

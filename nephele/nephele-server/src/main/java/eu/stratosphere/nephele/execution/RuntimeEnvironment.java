@@ -41,8 +41,6 @@ import eu.stratosphere.nephele.io.RuntimeInputGate;
 import eu.stratosphere.nephele.io.RuntimeOutputGate;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.compression.CompressionException;
-import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
@@ -242,25 +240,18 @@ public class RuntimeEnvironment implements Environment, Runnable {
 			final GateDeploymentDescriptor gdd = tdd.getOutputGateDescriptor(i);
 			final OutputGate og = this.outputGates.get(i);
 			final ChannelType channelType = gdd.getChannelType();
-			final CompressionLevel compressionLevel = gdd.getCompressionLevel();
 			og.setChannelType(channelType);
-			og.setCompressionLevel(compressionLevel);
 
 			final int nocdd = gdd.getNumberOfChannelDescriptors();
 			for (int j = 0; j < nocdd; ++j) {
 
 				final ChannelDeploymentDescriptor cdd = gdd.getChannelDescriptor(j);
 				switch (channelType) {
-				case FILE:
-					og.createFileOutputChannel(og, cdd.getOutputChannelID(), cdd.getInputChannelID(), compressionLevel);
-					break;
 				case NETWORK:
-					og.createNetworkOutputChannel(og, cdd.getOutputChannelID(), cdd.getInputChannelID(),
-						compressionLevel);
+					og.createNetworkOutputChannel(og, cdd.getOutputChannelID(), cdd.getInputChannelID());
 					break;
 				case INMEMORY:
-					og.createInMemoryOutputChannel(og, cdd.getOutputChannelID(), cdd.getInputChannelID(),
-						compressionLevel);
+					og.createInMemoryOutputChannel(og, cdd.getOutputChannelID(), cdd.getInputChannelID());
 					break;
 				default:
 					throw new IllegalStateException("Unknown channel type");
@@ -273,25 +264,18 @@ public class RuntimeEnvironment implements Environment, Runnable {
 			final GateDeploymentDescriptor gdd = tdd.getInputGateDescriptor(i);
 			final InputGate ig = this.inputGates.get(i);
 			final ChannelType channelType = gdd.getChannelType();
-			final CompressionLevel compressionLevel = gdd.getCompressionLevel();
 			ig.setChannelType(channelType);
-			ig.setCompressionLevel(compressionLevel);
 
 			final int nicdd = gdd.getNumberOfChannelDescriptors();
 			for (int j = 0; j < nicdd; ++j) {
 
 				final ChannelDeploymentDescriptor cdd = gdd.getChannelDescriptor(j);
 				switch (channelType) {
-				case FILE:
-					ig.createFileInputChannel(ig, cdd.getInputChannelID(), cdd.getOutputChannelID(), compressionLevel);
-					break;
 				case NETWORK:
-					ig.createNetworkInputChannel(ig, cdd.getInputChannelID(), cdd.getOutputChannelID(),
-						compressionLevel);
+					ig.createNetworkInputChannel(ig, cdd.getInputChannelID(), cdd.getOutputChannelID());
 					break;
 				case INMEMORY:
-					ig.createInMemoryInputChannel(ig, cdd.getInputChannelID(), cdd.getOutputChannelID(),
-						compressionLevel);
+					ig.createInMemoryInputChannel(ig, cdd.getInputChannelID(), cdd.getOutputChannelID());
 					break;
 				default:
 					throw new IllegalStateException("Unknown channel type");
@@ -355,12 +339,8 @@ public class RuntimeEnvironment implements Environment, Runnable {
 
 		try {
 
-			// Initialize the compression components
-			initializeCompressionComponents();
-
 			// Activate input channels
 			// activateInputChannels();
-
 			this.invokable.invoke();
 
 			// Make sure, we enter the catch block when the task has been canceled
@@ -445,22 +425,6 @@ public class RuntimeEnvironment implements Environment, Runnable {
 		}
 	}
 
-	/**
-	 * Initializes the compression components of the input and output channels.
-	 * 
-	 * @throws CompressionException
-	 *         thrown if an error occurs while initializing the compression components
-	 */
-	private void initializeCompressionComponents() throws CompressionException {
-
-		for (int i = 0; i < this.outputGates.size(); ++i) {
-			this.outputGates.get(i).initializeCompressors();
-		}
-
-		for (int i = 0; i < this.inputGates.size(); ++i) {
-			this.inputGates.get(i).initializeDecompressors();
-		}
-	}
 
 	/**
 	 * {@inheritDoc}

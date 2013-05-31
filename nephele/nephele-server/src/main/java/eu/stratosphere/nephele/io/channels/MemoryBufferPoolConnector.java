@@ -15,8 +15,7 @@
 
 package eu.stratosphere.nephele.io.channels;
 
-import java.nio.ByteBuffer;
-
+import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPool;
 
 /**
@@ -33,5 +32,5 @@ public interface MemoryBufferPoolConnector {
 	 * @param byteBuffer
 	 *        the buffer to be recycled
 	 */
-	void recycle(ByteBuffer byteBuffer);
+	void recycle(MemorySegment memSeg);
 }
