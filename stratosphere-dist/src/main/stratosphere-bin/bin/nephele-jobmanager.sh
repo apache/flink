@@ -72,6 +72,10 @@ constructJobManagerClassPath() {
 			add=1
 		elif [[ "$jarfile" =~ 'commons-codec' ]]; then
 			add=1
+		elif [[ "$jarfile" =~ 'commons-configuration' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'commons-lang' ]]; then
+			add=1
 		elif [[ "$jarfile" =~ 'log4j' ]]; then
 			add=1
 		elif [[ "$jarfile" =~ 'hadoop-core' ]]; then

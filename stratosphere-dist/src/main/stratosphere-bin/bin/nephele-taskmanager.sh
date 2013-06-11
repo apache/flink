@@ -65,6 +65,10 @@ constructTaskManagerClassPath() {
 			add=1
 		elif [[ "$jarfile" =~ 'commons-codec' ]]; then
 			add=1
+		elif [[ "$jarfile" =~ 'commons-configuration' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'commons-lang' ]]; then
+			add=1
 		elif [[ "$jarfile" =~ 'log4j' ]]; then
 			add=1
 		elif [[ "$jarfile" =~ 'hadoop-core' ]]; then
@@ -85,7 +89,7 @@ constructTaskManagerClassPath() {
 	done
 
 	for jarfile in $NEPHELE_LIB_DIR/dropins/*.jar ; do
-		NEPHELE_JM_CLASSPATH=$NEPHELE_JM_CLASSPATH:$jarfile
+		NEPHELE_TM_CLASSPATH=$NEPHELE_TM_CLASSPATH:$jarfile
 	done
 
 	echo $NEPHELE_TM_CLASSPATH

@@ -66,6 +66,10 @@ constructPactWebFrontendClassPath() {
 			add=1
 		elif [[ "$jarfile" =~ 'commons-codec' ]]; then
 			add=1
+		elif [[ "$jarfile" =~ 'commons-configuration' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'commons-lang' ]]; then
+			add=1
 		elif [[ "$jarfile" =~ 'log4j' ]]; then
 			add=1
 		elif [[ "$jarfile" =~ 'hadoop-core' ]]; then
@@ -106,7 +110,7 @@ constructPactWebFrontendClassPath() {
 	done
 
 	for jarfile in $NEPHELE_LIB_DIR/dropins/*.jar ; do
-		NEPHELE_JM_CLASSPATH=$NEPHELE_JM_CLASSPATH:$jarfile
+		PACT_WF_CLASSPATH=$PACT_WF_CLASSPATH:$jarfile
 	done
 
 	echo $PACT_WF_CLASSPATH
