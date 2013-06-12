@@ -32,8 +32,22 @@ import eu.stratosphere.pact.generic.types.TypeComparator;
  * Implementation of the {@link TypeComparator} interface for the pact record. Instances of this class
  * are parameterized with which fields are relevant to the comparison. 
  */
-public final class PactRecordComparator extends TypeComparator<PactRecord>
-{	
+public final class PactRecordComparator extends TypeComparator<PactRecord> {
+	
+	/**
+	 * A sequence of prime numbers to be used for salting the computed hash values.
+	 * Based on some empirical evidence, we are using a 32-element subsequence of the  
+	 * OEIS sequence #A068652 (numbers such that every cyclic permutation is a prime).
+	 * 
+	 * @see: http://en.wikipedia.org/wiki/List_of_prime_numbers
+	 * @see: http://oeis.org/A068652
+	 */
+	private static final int[] HASH_SALT = new int[] { 
+		73   , 79   , 97   , 113  , 131  , 197  , 199  , 311   , 
+		337  , 373  , 719  , 733  , 919  , 971  , 991  , 1193  , 
+		1931 , 3119 , 3779 , 7793 , 7937 , 9311 , 9377 , 11939 , 
+		19391, 19937, 37199, 39119, 71993, 91193, 93719, 93911 };
+	
 	private final int[] keyFields;
 	
 	private final Key[] keyHolders, transientKeyHolders;
@@ -175,6 +189,7 @@ public final class PactRecordComparator extends TypeComparator<PactRecord>
 			int code = 0;
 			for (; i < this.keyFields.length; i++) {
 				code ^= object.getField(this.keyFields[i], this.transientKeyHolders[i]).hashCode();
+				code *= HASH_SALT[i & 0x1F]; // salt code with (i % HASH_SALT.length)-th salt component
 			}
 			return code;
 		}
