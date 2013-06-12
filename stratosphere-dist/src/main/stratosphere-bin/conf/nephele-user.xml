@@ -61,7 +61,11 @@
 	                               Memory, Buffers and Directories
 	      ======================================================================== -->
 
-        <!--  The directories for temporary files. Add a separated list for multiple directories, using system directory, delimiter (colon ':' on unix) -->
+        <!--  The directories for temporary files. Add a delimited list for multiple directories, using the system directory delimiter
+               (colon ':' on unix). An example would be "<value>/data1/tmp:/data2/tmp:/data3/tmp</value>".
+               Note: Each directory entry is read from and written to by a different I/O thread. You can include the same directory
+               multiple times in that list to create multiple I/O threads against that directory. This is for example relevant for
+               high-throughput RAIDs.-->
         <property>
                 <key>taskmanager.tmp.dirs</key>
                 <value>/tmp</value>
