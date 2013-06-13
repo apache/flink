@@ -1083,7 +1083,7 @@ public class TaskConfig {
 		}
 
 		@Override
-		public <T> Class<T> getClass(String key, Class<? extends T> defaultValue, Class<T> ancestor) {
+		public <T> Class<T> getClass(String key, Class<? extends T> defaultValue, Class<? super T> ancestor) {
 			return this.backingConfig.getClass(this.prefix + key, defaultValue, ancestor);
 		}
 

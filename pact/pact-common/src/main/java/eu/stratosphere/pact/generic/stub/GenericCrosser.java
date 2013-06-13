@@ -21,5 +21,5 @@ import eu.stratosphere.pact.common.stubs.Stub;
 
 public interface GenericCrosser<V1, V2, O> extends Stub
 {
-	void cross(V1 record1, V2 record2, Collector<O> out);
+	void cross(V1 record1, V2 record2, Collector<O> out) throws Exception;
 }

@@ -44,5 +44,5 @@ public abstract class CrossStub extends AbstractStub implements GenericCrosser<P
 	 *                   decide whether to retry the task execution.
 	 */
 	@Override
-	public abstract void cross(PactRecord record1, PactRecord record2, Collector<PactRecord> out);
+	public abstract void cross(PactRecord record1, PactRecord record2, Collector<PactRecord> out) throws Exception;
 }

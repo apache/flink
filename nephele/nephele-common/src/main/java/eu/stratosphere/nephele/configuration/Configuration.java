@@ -90,7 +90,7 @@ public class Configuration implements IOReadableWritable {
 	 * @see #setClass(String, Class)
 	 */
 	@SuppressWarnings("unchecked")
-	public <T> Class<T> getClass(String key, Class<? extends T> defaultValue, Class<T> ancestor) {
+	public <T> Class<T> getClass(String key, Class<? extends T> defaultValue, Class<? super T> ancestor) {
 		String className = getStringInternal(key);
 		if (className == null) {
 			return (Class<T>) defaultValue;

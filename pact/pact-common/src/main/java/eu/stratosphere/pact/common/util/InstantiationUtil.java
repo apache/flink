@@ -15,8 +15,13 @@
 
 package eu.stratosphere.pact.common.util;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Modifier;
+
+import eu.stratosphere.nephele.configuration.Configuration;
 
 
 /**
@@ -161,6 +166,23 @@ public class InstantiationUtil {
 		
 		if (errorMessage != null) {
 			throw new RuntimeException("The class '" + clazz.getName() + "' is not instantiable: " + errorMessage);
+		}
+	}
+	
+	public static Object readObjectFormConfig(Configuration config, String key) throws IOException, ClassNotFoundException {
+		byte[] bytes = config.getBytes(key, null);
+		if (bytes == null) {
+			return null;
+		}
+		
+		ObjectInputStream oois = null;
+		try {
+			oois = new ObjectInputStream(new ByteArrayInputStream(bytes));
+			return oois.readObject();
+		} finally {
+			if (oois != null) {
+				oois.close();
+			}
 		}
 	}
 	

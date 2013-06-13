@@ -48,7 +48,7 @@ public abstract class CoGroupStub extends AbstractStub implements GenericCoGroup
 	 *                   decide whether to retry the task execution.
 	 */
 	@Override
-	public abstract void coGroup(Iterator<PactRecord> records1, Iterator<PactRecord> records2, Collector<PactRecord> out);
+	public abstract void coGroup(Iterator<PactRecord> records1, Iterator<PactRecord> records2, Collector<PactRecord> out) throws Exception;
 	
 	/**
 	 * This method must be overridden by CoGoup UDFs that want to make use of the combining feature
@@ -64,7 +64,7 @@ public abstract class CoGroupStub extends AbstractStub implements GenericCoGroup
 	 *                   decide whether to retry the combiner execution.
 	 */
 	@Override
-	public void combineFirst(Iterator<PactRecord> records, Collector<PactRecord> out) {
+	public void combineFirst(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {
 		throw new UnsupportedOperationException();
 	}
 	
@@ -82,7 +82,7 @@ public abstract class CoGroupStub extends AbstractStub implements GenericCoGroup
 	 *                   decide whether to retry the combiner execution.
 	 */
 	@Override
-	public void combineSecond(Iterator<PactRecord> records, Collector<PactRecord> out) {
+	public void combineSecond(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {
 		throw new UnsupportedOperationException();
 	}
 }

@@ -25,8 +25,6 @@ import eu.stratosphere.pact.generic.stub.GenericMapper;
  * For details on the Map PACT read the documentation of the PACT programming model.
  * <p>
  * For a mapper implementation, the <code>map()</code> method must be implemented.
- * 
- * @author Fabian Hueske
  */
 public abstract class MapStub extends AbstractStub implements GenericMapper<PactRecord, PactRecord> {
 	
