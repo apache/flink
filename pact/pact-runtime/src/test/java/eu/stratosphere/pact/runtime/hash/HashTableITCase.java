@@ -1402,7 +1402,7 @@ public class HashTableITCase
 	/**
 	 * An iterator that returns the Key/Value pairs with identical value a given number of times.
 	 */
-	private static final class ConstantsKeyValuePairsIterator implements MutableObjectIterator<PactRecord>
+	public static final class ConstantsKeyValuePairsIterator implements MutableObjectIterator<PactRecord>
 	{
 		private final PactInteger key;
 		private final PactInteger value;
@@ -1466,7 +1466,7 @@ public class HashTableITCase
 	
 	// ============================================================================================
 	
-	private static final class PactRecordPairComparatorFirstInt extends TypePairComparator<PactRecord, PactRecord>
+	public static final class PactRecordPairComparatorFirstInt extends TypePairComparator<PactRecord, PactRecord>
 	{
 		private int key;
 
