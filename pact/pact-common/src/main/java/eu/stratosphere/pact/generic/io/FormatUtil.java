@@ -18,6 +18,9 @@ package eu.stratosphere.pact.generic.io;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.fs.BlockLocation;
@@ -25,6 +28,7 @@ import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.nephele.fs.FileStatus;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
+import eu.stratosphere.nephele.template.GenericInputSplit;
 import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.pact.common.util.ReflectionUtil;
 
@@ -88,20 +92,45 @@ public class FormatUtil {
 	 *         if an I/O error occurred while accessing the files or initializing the InputFormat.
 	 */
 	@SuppressWarnings("unchecked")
-	public static <T extends Record, F extends FileInputFormat<T>> F[] openAllInputs(
+	public static <T extends Record, F extends FileInputFormat<T>> List<F> openAllInputs(
 			Class<F> inputFormatClass, String path, Configuration configuration) throws IOException {
 		Path nephelePath = new Path(path);
 		FileSystem fs = nephelePath.getFileSystem();
 		FileStatus fileStatus = fs.getFileStatus(nephelePath);
 		if (!fileStatus.isDir())
-			return (F[]) new FileInputFormat[] { openInput(inputFormatClass, path, configuration) };
+			return Arrays.asList(openInput(inputFormatClass, path, configuration));
 		FileStatus[] list = fs.listStatus(nephelePath);
-		F[] formats = (F[]) new FileInputFormat[list.length];
-		for (int index = 0; index < formats.length; index++)
-			formats[index] = openInput(inputFormatClass, list[index].getPath().toString(), configuration);
+		List<F> formats = new ArrayList<F>();
+		for (int index = 0; index < list.length; index++)
+			formats.add(openInput(inputFormatClass, list[index].getPath().toString(), configuration));
 		return formats;
 	}
 
+	/**
+	 * Creates an {@link InputFormat} from a given class. The optional {@link Configuration}
+	 * initializes the format.
+	 * 
+	 * @param <T>
+	 *        the class of the InputFormat
+	 * @param inputFormatClass
+	 *        the class of the InputFormat
+	 * @param configuration
+	 *        optional configuration of the InputFormat
+	 * @return the created {@link InputFormat}
+	 * @throws IOException
+	 *         if an I/O error occurred while accessing the file or initializing the InputFormat.
+	 */
+	public static <T extends Record, F extends GenericInputFormat<T>> F openInput(
+			Class<F> inputFormatClass, Configuration configuration) throws IOException {
+		configuration = configuration == null ? new Configuration() : configuration;
+
+		final F inputFormat = ReflectionUtil.newInstance(inputFormatClass);
+		inputFormat.configure(configuration);
+		final GenericInputSplit[] splits = inputFormat.createInputSplits(1);
+		inputFormat.open(splits[0]);
+		return inputFormat;
+	}
+	
 	/**
 	 * Creates an {@link OutputFormat} from a given class for the specified file. The optional {@link Configuration}
 	 * initializes the format.
