@@ -627,7 +627,7 @@ public class Client {
 	 * Construct an IPC client whose values are of the given {@link Writable} class.
 	 */
 	public Client(final SocketFactory factory) {
-		this.maxIdleTime = 10000;
+		this.maxIdleTime = 1000;
 		this.maxRetries = 10;
 		this.tcpNoDelay = false;
 		this.pingInterval = DEFAULT_PING_INTERVAL;
