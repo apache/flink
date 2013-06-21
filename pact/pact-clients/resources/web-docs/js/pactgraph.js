@@ -1,4 +1,5 @@
 var BULK_ITERATION_TYPE = "bulk_iteration";
+var WORKSET_ITERATION_TYPE = "workset_iteration";
 
 /*
  * Global variable that stores the pact plan as a map
@@ -132,7 +133,8 @@ function topoSort(nodes)
   return sortedNodes;
 }
 
-function makeIdMap(arrayObj, allNodes) {
+function makeIdMap(arrayObj, allNodes)
+{
   for (var i = 0; i < arrayObj.length; i++)
   {
     var node = arrayObj[i];
@@ -326,15 +328,44 @@ function drawNode(node, nodeStr, columnWidth) {
     var cont = node.contents == undefined ? "Unnamed Bulk Iteration" : node.contents;
     var partialSolution = node.partial_solution_node;
     var nextPartial = node.next_partial_solution_node;
+    
     nodeStr += '<div class="block draggable iteration-box" id="pactNode_' + node.id + '" style="left: ' + (node.xCenterPos - (columnWidth / 2)) + 'px; top: ' + (node.yCenterPos - (node.iter_height/2)) + 'px; width: ' + node.iter_width + 'px;">';
     nodeStr += '<div class="iteration-name-label">' + cont + '</div>';
     nodeStr += '<div class="block iteration-set-box iteration-set-box-left" id="pactNode_' + node.partial_solution + '" style="top: ' + (partialSolution.yCenterPos - 15) + 'px; vertical-align: middle;"></div>';
     nodeStr += '<div class="block iteration-set-box iteration-set-box-right" id="pactNode_' + node.id + '_ns" style="top: ' + (nextPartial.yCenterPos - 15) + 'px; vertical-align: middle;"></div>';
-
     
     for (var i = 0; i < node.step_function.length; i++) {
       var child = node.step_function[i];
       if (child.type != undefined && child.pact != "Bulk Partial Solution") {
+        nodeStr = drawNode(child, nodeStr, columnWidth);
+      }
+    }
+    
+    nodeStr += '</div>';
+} else if (node.type == WORKSET_ITERATION_TYPE) {
+    var cont = node.contents == undefined ? "Unnamed Workset Iteration" : node.contents;
+    var solutionSet = node.solution_set_node;
+    var solutionDelta = node.solution_delta_node;
+    var workset = node.workset_node;
+	var nextWorkset = node.next_workset_node;
+	
+	var vStart = node.yCenterPos - (node.iter_height/2);
+	var vEnd = vStart + node.iter_height;
+    
+    // iteration box
+    nodeStr += '<div class="block draggable iteration-box" id="pactNode_' + node.id + '" style="left: ' + (node.xCenterPos - (columnWidth / 2)) + 'px; top: ' + vStart + 'px; width: ' + node.iter_width + 'px;">';
+    nodeStr += '<div class="iteration-name-label">' + cont + '</div>';
+    
+    // boxes for workset, solution set, etc 
+    nodeStr += '<div class="block iteration-set-box iteration-set-box-left" id="pactNode_' + node.workset + '" style="top: 30px; vertical-align: middle;">WS</div>';
+    nodeStr += '<div class="block iteration-set-box iteration-set-box-left" id="pactNode_' + node.solution_set + '" style="bottom: 30px; vertical-align: middle;">S</div>';
+    
+    nodeStr += '<div class="block iteration-set-box iteration-set-box-right" id="pactNode_' + node.id + '_nw" style="top: 30px; vertical-align: middle;">WS\'</div>';
+    nodeStr += '<div class="block iteration-set-box iteration-set-box-right" id="pactNode_' + node.id + '_sd" style="bottom: 30px; vertical-align: middle; font-size: 24px;">&#x2206</div>';
+    
+    for (var i = 0; i < node.step_function.length; i++) {
+      var child = node.step_function[i];
+      if (child.type != undefined && child.pact != "Solution Set" && child.pact != "Workset") {
         nodeStr = drawNode(child, nodeStr, columnWidth);
       }
     }
@@ -425,7 +456,7 @@ function drawPactPlan(plan, propEvents, imageFile)
   {
     var node = allNodes[i];
     
-    if (node.type == BULK_ITERATION_TYPE) {
+    if (node.type == BULK_ITERATION_TYPE || node.type == WORKSET_ITERATION_TYPE) {
       node.iter_height = iterHeight;
     }
     
@@ -488,22 +519,52 @@ function drawPactPlan(plan, propEvents, imageFile)
 
   for (var i = 0; i < allNodes.length; i++) {
     var node = allNodes[i];
+    var postId = node.id;
+    
+    if (node.type == BULK_ITERATION_TYPE) {
+      postId = node.partial_solution;
+      // create the edge from the partial solution root to the box anchor
+      edgesStr = drawEdge(edgesStr, node.next_partial_solution_node, node.next_partial_solution, node.id + '_ns', imageFile);
+    }
+    
+    if (node.type == WORKSET_ITERATION_TYPE) {
+      // create the edges from the solution set delta and the next workset to the box anchor
+      edgesStr = drawEdge(edgesStr, node.next_workset_node, node.next_workset, node.id + '_nw', imageFile);
+      edgesStr = drawEdge(edgesStr, node.solution_delta_node, node.solution_delta, node.id + '_sd', imageFile);
+    }
+    
     // add the edges
     if (node.predecessors != undefined && node.predecessors instanceof Array) { 
       for (var k = 0; k < node.predecessors.length; k++) {
         var pre = node.predecessors[k];
         if (pre.link != undefined) {
-          
           var preId = pre.link.id;
-          var postId = node.id;
-          
-          if (node.type == BULK_ITERATION_TYPE) {
-            postId = node.partial_solution;
-            // create the edge from the partial solution root to the box anchor
-            edgesStr = drawEdge(edgesStr, node.next_partial_solution_node, node.next_partial_solution, node.id + '_ns', imageFile);
+  
+          // if the connections feed into a workset iteration make sure they arrive at the correct dock points
+          if (node.type == WORKSET_ITERATION_TYPE) {
+            if (pre.side == "first") {
+              postId = node.solution_set;
+            }
+            else if (pre.side == "second") {
+              postId = node.workset;
+            }
           }
+          
+          // for successors of bulk iterations, the edge should be anchored at the next-partial-solution box
           if (pre.link.type == BULK_ITERATION_TYPE) {
             preId = pre.link.id + '_ns';
+          }
+          
+          // adjust the markup for the solution set index accesses
+          if (pre.link.pact != undefined && pre.link.pact == "Solution Set") {
+            pre.ship_strategy = undefined;
+            pre.local_strategy = undefined;
+            pre.temp_mode = "Hash Index";
+          }
+          
+          // beautify the pipeline breaker representation
+          if (pre.temp_mode == "PIPELINE_BREAKER") {
+            pre.temp_mode = "Pipeline Breaker";
           }
           
           edgesStr = drawEdge(edgesStr, pre, preId, postId, imageFile);
@@ -524,7 +585,7 @@ function drawPactPlan(plan, propEvents, imageFile)
   if (propEvents) {
     // register the event handlers that react on clicks on the box as it is
     $('.pact').click(function () { showProperties($(this))});
-    $('.iteration-box').click(function () { showProperties($(this))});
+    //$('.iteration-box').click(function () { showProperties($(this))});
     $('.datasource').click(function () { showProperties($(this))});
     $('.datasink').click(function () { showProperties($(this))});
   }
