@@ -68,6 +68,7 @@
 		<module>pact-common</module>
 		<module>pact-runtime</module>
 		<module>pact-compiler</module>
+		<module>pact-compiler-tests</module>
 		<module>pact-clients</module>
 		<module>pact-examples</module>
 		<module>pact-tests</module>

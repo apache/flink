@@ -10,8 +10,8 @@
 		<version>0.2</version>
 	</parent>
 
-	<artifactId>pact-compiler</artifactId>
-	<name>pact-compiler</name>
+	<artifactId>pact-compiler-tests</artifactId>
+	<name>pact-compiler-tests</name>
 
 	<packaging>jar</packaging>
 
@@ -21,16 +21,28 @@
 			<groupId>eu.stratosphere</groupId>
 			<artifactId>pact-common</artifactId>
 			<version>${project.version}</version>
-			<scope>compile</scope>
+			<scope>test</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
-			<artifactId>pact-runtime</artifactId>
+			<artifactId>pact-compiler</artifactId>
 			<version>${project.version}</version>
-			<scope>compile</scope>
+			<scope>test</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>eu.stratosphere</groupId>
+			<artifactId>pact-examples</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.codehaus.jackson</groupId>
+			<artifactId>jackson-core-asl</artifactId>
+			<version>1.9.12</version>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<reporting>
