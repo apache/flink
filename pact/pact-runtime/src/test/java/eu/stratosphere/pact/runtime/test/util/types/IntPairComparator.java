@@ -28,7 +28,7 @@ public class IntPairComparator extends TypeComparator<IntPair>
 	
 	@Override
 	public int hash(IntPair object) {
-		return object.getKey();
+		return object.getKey() * 73;
 	}
 	
 	@Override
