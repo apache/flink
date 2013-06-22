@@ -102,7 +102,7 @@ public final class ConfigConstants {
 	/**
 	 * The default number of retries for failed tasks.
 	 */
-	public static final int DEFAULT_JOB_EXECUTION_RETRIES = 2;
+	public static final int DEFAULT_JOB_EXECUTION_RETRIES = 0;
 
 	/**
 	 * The default minimal amount of memory that the memory manager does not occupy (in megabytes).
