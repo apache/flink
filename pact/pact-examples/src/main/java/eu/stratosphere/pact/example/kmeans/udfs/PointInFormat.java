@@ -48,6 +48,7 @@ public class PointInFormat extends DelimitedInputFormat {
 		int value = 0;
 		int fractionValue = 0;
 		int fractionChars = 0;
+		boolean negative = false;
 		
 		this.dimensionValues.clear();
 
@@ -58,14 +59,18 @@ public class PointInFormat extends DelimitedInputFormat {
 					id = value;
 				}
 				else {
-					this.dimensionValues.add(value + ((double) fractionValue) * Math.pow(10, (-1 * (fractionChars - 1))));
+					double v = value + ((double) fractionValue) * Math.pow(10, (-1 * (fractionChars - 1)));
+					this.dimensionValues.add(negative ? -v : v);
 				}
 				// reset value
 				value = 0;
 				fractionValue = 0;
 				fractionChars = 0;
+				negative = false;
 			} else if (line[pos] == '.') {
 				fractionChars = 1;
+			} else if (line[pos] == '-') {
+				negative = true;
 			} else {
 				if (fractionChars == 0) {
 					value *= 10;
