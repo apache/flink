@@ -7,7 +7,7 @@
 	<parent>
 		<artifactId>pact</artifactId>
 		<groupId>eu.stratosphere</groupId>
-		<version>0.2</version>
+		<version>0.2-ozone</version>
 	</parent>
 
 	<artifactId>pact-examples</artifactId>

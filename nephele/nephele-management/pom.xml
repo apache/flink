@@ -8,7 +8,7 @@
 	<parent>
 		<artifactId>nephele</artifactId>
 		<groupId>eu.stratosphere</groupId>
-		<version>0.2</version>
+		<version>0.2-ozone</version>
 	</parent>
 
 	<artifactId>nephele-management</artifactId>
