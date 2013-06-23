@@ -15,7 +15,6 @@
 
 package eu.stratosphere.pact.compiler.plan;
 
-import java.util.Collections;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -23,14 +22,16 @@ import eu.stratosphere.pact.common.contract.CompilerHints;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.operators.CoGroupDescriptor;
+import eu.stratosphere.pact.compiler.operators.CoGroupWithSolutionSetFirstDescriptor;
+import eu.stratosphere.pact.compiler.operators.CoGroupWithSolutionSetSecondDescriptor;
 import eu.stratosphere.pact.compiler.operators.OperatorDescriptorDual;
 import eu.stratosphere.pact.generic.contract.GenericCoGroupContract;
 
 /**
  * The Optimizer representation of a <i>CoGroup</i> contract node.
  */
-public class CoGroupNode extends TwoInputNode
-{	
+public class CoGroupNode extends TwoInputNode {
+	
 	/**
 	 * Creates a new CoGroupNode for the given contract.
 	 * 
@@ -41,7 +42,7 @@ public class CoGroupNode extends TwoInputNode
 		super(pactContract);
 	}
 
-	// ------------------------------------------------------------------------
+	// --------------------------------------------------------------------------------------------
 
 	/**
 	 * Gets the contract object for this CoGroup node.
@@ -53,10 +54,6 @@ public class CoGroupNode extends TwoInputNode
 		return (GenericCoGroupContract<?>) super.getPactContract();
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getName()
-	 */
 	@Override
 	public String getName() {
 		return "CoGroup";
@@ -64,9 +61,28 @@ public class CoGroupNode extends TwoInputNode
 
 	@Override
 	protected List<OperatorDescriptorDual> getPossibleProperties() {
-		return Collections.<OperatorDescriptorDual>singletonList(new CoGroupDescriptor(this.keys1, this.keys2));
+		List<OperatorDescriptorDual> l = new ArrayList<OperatorDescriptorDual>(1);
+		l.add(new CoGroupDescriptor(this.keys1, this.keys2));
+		return l;
+	}
+	
+	public void makeCoGroupWithSolutionSet(int solutionsetInputIndex) {
+		OperatorDescriptorDual op;
+		if (solutionsetInputIndex == 0) {
+			op = new CoGroupWithSolutionSetFirstDescriptor(keys1, keys2);
+		} else if (solutionsetInputIndex == 1) {
+			op = new CoGroupWithSolutionSetSecondDescriptor(keys1, keys2);
+		} else {
+			throw new IllegalArgumentException();
+		}
+		this.possibleProperties.clear();
+		this.possibleProperties.add(op);
 	}
 
+	// --------------------------------------------------------------------------------------------
+	// Estimates
+	// --------------------------------------------------------------------------------------------
+	
 	/**
 	 * Computes the number of keys that are processed by the PACT.
 	 * 

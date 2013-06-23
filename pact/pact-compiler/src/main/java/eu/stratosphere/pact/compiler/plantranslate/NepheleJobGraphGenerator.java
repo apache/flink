@@ -70,9 +70,12 @@ import eu.stratosphere.pact.runtime.iterative.task.IterationIntermediatePactTask
 import eu.stratosphere.pact.runtime.iterative.task.IterationSynchronizationSinkTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationTailPactTask;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
+import eu.stratosphere.pact.runtime.task.CoGroupDriver;
 import eu.stratosphere.pact.runtime.task.DataSinkTask;
 import eu.stratosphere.pact.runtime.task.DataSourceTask;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
+import eu.stratosphere.pact.runtime.task.JoinWithSolutionSetCoGroupDriver.SolutionSetFirstCoGroupDriver;
+import eu.stratosphere.pact.runtime.task.JoinWithSolutionSetCoGroupDriver.SolutionSetSecondCoGroupDriver;
 import eu.stratosphere.pact.runtime.task.JoinWithSolutionSetMatchDriver.SolutionSetFirstJoinDriver;
 import eu.stratosphere.pact.runtime.task.MatchDriver;
 import eu.stratosphere.pact.runtime.task.NoOpDriver;
@@ -417,12 +420,19 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 				if (inputNum == -1) {
 					throw new CompilerException();
 				}
-				if (!conf.getDriver().equals(MatchDriver.class)) {
-					throw new CompilerException("Found join with solution set using incompatible operator.");
+				
+				// adjust the driver
+				if (conf.getDriver().equals(MatchDriver.class)) {
+					conf.setDriver(inputNum == 0 ? SolutionSetFirstJoinDriver.class : SolutionSetSecondJoinDriver.class);
+				}
+				else if (conf.getDriver().equals(CoGroupDriver.class)) {
+					conf.setDriver(inputNum == 0 ? SolutionSetFirstCoGroupDriver.class : SolutionSetSecondCoGroupDriver.class);
+				}
+				else {
+					throw new CompilerException("Found join with solution set using incompatible operator (only Match/CoGroup are valid.");
 				}
 				
-				// adjust the driver and set the serializer / comparator information
-				conf.setDriver(inputNum == 0 ? SolutionSetFirstJoinDriver.class : SolutionSetSecondJoinDriver.class);
+				// set the serializer / comparator information
 				conf.setSolutionSetSerializer(((SolutionSetPlanNode) node).getContainingIterationNode().getSolutionSetSerializer());
 				
 				// hack: for now, we need the prober in the workset iteration head task

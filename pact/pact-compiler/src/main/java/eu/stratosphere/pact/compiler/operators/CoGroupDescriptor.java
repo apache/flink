@@ -34,8 +34,8 @@ import eu.stratosphere.pact.runtime.task.DriverStrategy;
 /**
  * 
  */
-public class CoGroupDescriptor extends OperatorDescriptorDual
-{
+public class CoGroupDescriptor extends OperatorDescriptorDual {
+	
 	public CoGroupDescriptor(FieldList keys1, FieldList keys2) {
 		super(keys1, keys2);
 	}
@@ -78,7 +78,7 @@ public class CoGroupDescriptor extends OperatorDescriptorDual
 		boolean[] inputOrders = in1.getLocalProperties().getOrdering().getFieldSortDirections();
 		
 		if (inputOrders == null || inputOrders.length < this.keys1.size()) {
-			throw new CompilerException("BUG: The input strategy does not sufficiently describe the sort orders for a merge operator.");
+			throw new CompilerException("BUG: The input strategy does not sufficiently describe the sort orders for a CoGroup operator.");
 		} else if (inputOrders.length > this.keys1.size()) {
 			boolean[] tmp = new boolean[this.keys1.size()];
 			System.arraycopy(inputOrders, 0, tmp, 0, tmp.length);

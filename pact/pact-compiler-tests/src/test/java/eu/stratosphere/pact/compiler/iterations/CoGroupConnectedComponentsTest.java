@@ -23,13 +23,12 @@ import eu.stratosphere.pact.compiler.CompilerTestBase;
 import eu.stratosphere.pact.compiler.plan.TempMode;
 import eu.stratosphere.pact.compiler.plan.candidate.DualInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
-import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SourcePlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.WorksetIterationPlanNode;
 import eu.stratosphere.pact.compiler.plandump.PlanJSONDumpGenerator;
 import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
-import eu.stratosphere.pact.example.iterative.WorksetConnectedComponents;
+import eu.stratosphere.pact.example.iterative.CoGroupConnectedComponents;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
@@ -37,7 +36,7 @@ import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 /**
  *
  */
-public class IncrementalConnectedComponentsTest extends CompilerTestBase {
+public class CoGroupConnectedComponentsTest extends CompilerTestBase {
 	
 	private static final String VERTEX_SOURCE = "Vertices";
 	
@@ -45,8 +44,7 @@ public class IncrementalConnectedComponentsTest extends CompilerTestBase {
 	
 	private static final String EDGES_SOURCE = "Edges";
 	private static final String JOIN_NEIGHBORS_MATCH = "Join Candidate Id With Neighbor";
-	private static final String MIN_ID_REDUCER = "Find Minimum Candidate Id";
-	private static final String UPDATE_ID_MATCH = "Update Component Id";
+	private static final String MIN_ID_AND_UPDATE = "Min Id and Update";
 	
 	private static final String SINK = "Result";
 	
@@ -57,7 +55,7 @@ public class IncrementalConnectedComponentsTest extends CompilerTestBase {
 	
 	@Test
 	public void testWorksetConnectedComponents() {
-		WorksetConnectedComponents cc = new WorksetConnectedComponents();
+		CoGroupConnectedComponents cc = new CoGroupConnectedComponents();
 
 		Plan plan = cc.getPlan(String.valueOf(DEFAULT_PARALLELISM),
 				IN_FILE, IN_FILE, OUT_FILE, String.valueOf(100));
@@ -77,9 +75,7 @@ public class IncrementalConnectedComponentsTest extends CompilerTestBase {
 		WorksetIterationPlanNode iter = or.getNode(ITERATION_NAME);
 		
 		DualInputPlanNode neighborsJoin = or.getNode(JOIN_NEIGHBORS_MATCH);
-		SingleInputPlanNode minIdReducer = or.getNode(MIN_ID_REDUCER);
-		SingleInputPlanNode minIdCombiner = (SingleInputPlanNode) minIdReducer.getPredecessor(); 
-		DualInputPlanNode updatingMatch = or.getNode(UPDATE_ID_MATCH);
+		DualInputPlanNode cogroup = or.getNode(MIN_ID_AND_UPDATE);
 		
 		// test all drivers
 		Assert.assertEquals(DriverStrategy.NONE, sink.getDriverStrategy());
@@ -90,9 +86,9 @@ public class IncrementalConnectedComponentsTest extends CompilerTestBase {
 		Assert.assertEquals(set0, neighborsJoin.getKeysForInput1());
 		Assert.assertEquals(set0, neighborsJoin.getKeysForInput2());
 		
-		Assert.assertEquals(DriverStrategy.HYBRIDHASH_BUILD_SECOND, updatingMatch.getDriverStrategy());
-		Assert.assertEquals(set0, updatingMatch.getKeysForInput1());
-		Assert.assertEquals(set0, updatingMatch.getKeysForInput2());
+//		Assert.assertEquals(DriverStrategy.HYBRIDHASH_BUILD_SECOND, updatingMatch.getDriverStrategy());
+		Assert.assertEquals(set0, cogroup.getKeysForInput1());
+		Assert.assertEquals(set0, cogroup.getKeysForInput2());
 		
 		// test all the shipping strategies
 		Assert.assertEquals(ShipStrategyType.FORWARD, sink.getInput().getShipStrategy());
@@ -106,12 +102,8 @@ public class IncrementalConnectedComponentsTest extends CompilerTestBase {
 		Assert.assertEquals(set0, neighborsJoin.getInput2().getShipStrategyKeys());
 		Assert.assertTrue(neighborsJoin.getInput2().getTempMode().isCached());
 		
-		Assert.assertEquals(ShipStrategyType.PARTITION_HASH, minIdReducer.getInput().getShipStrategy());
-		Assert.assertEquals(set0, minIdReducer.getInput().getShipStrategyKeys());
-		Assert.assertEquals(ShipStrategyType.FORWARD, minIdCombiner.getInput().getShipStrategy());
-		
-		Assert.assertEquals(ShipStrategyType.FORWARD, updatingMatch.getInput1().getShipStrategy()); // min id
-		Assert.assertEquals(ShipStrategyType.FORWARD, updatingMatch.getInput2().getShipStrategy()); // solution set
+		Assert.assertEquals(ShipStrategyType.PARTITION_HASH, cogroup.getInput1().getShipStrategy()); // min id
+		Assert.assertEquals(ShipStrategyType.FORWARD, cogroup.getInput2().getShipStrategy()); // solution set
 		
 		// test all the local strategies
 		Assert.assertEquals(LocalStrategy.NONE, sink.getInput().getLocalStrategy());
@@ -121,12 +113,8 @@ public class IncrementalConnectedComponentsTest extends CompilerTestBase {
 		Assert.assertEquals(LocalStrategy.NONE, neighborsJoin.getInput1().getLocalStrategy()); // workset
 		Assert.assertEquals(LocalStrategy.NONE, neighborsJoin.getInput2().getLocalStrategy()); // edges
 		
-		Assert.assertEquals(LocalStrategy.COMBININGSORT, minIdReducer.getInput().getLocalStrategy());
-		Assert.assertEquals(set0, minIdReducer.getInput().getLocalStrategyKeys());
-		Assert.assertEquals(LocalStrategy.NONE, minIdCombiner.getInput().getLocalStrategy());
-		
-		Assert.assertEquals(LocalStrategy.NONE, updatingMatch.getInput1().getLocalStrategy()); // min id
-		Assert.assertEquals(LocalStrategy.NONE, updatingMatch.getInput2().getLocalStrategy()); // solution set
+		Assert.assertEquals(LocalStrategy.SORT, cogroup.getInput1().getLocalStrategy());
+		Assert.assertEquals(LocalStrategy.NONE, cogroup.getInput2().getLocalStrategy()); // solution set
 		
 		// check the dams
 		Assert.assertTrue(TempMode.PIPELINE_BREAKER == iter.getInitialWorksetInput().getTempMode() ||

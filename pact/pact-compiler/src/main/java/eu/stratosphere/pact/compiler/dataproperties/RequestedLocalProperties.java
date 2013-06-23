@@ -215,6 +215,9 @@ public class RequestedLocalProperties implements Cloneable {
 			return true;
 		} else if (!(requested1.isMetBy(produced1) && requested2.isMetBy(produced2))) {
 			return false;
+		} else if ( (requested1.ordering != null && requested2.ordering == null) ||
+					(requested1.ordering == null && requested2.ordering != null)) {
+			return true;
 		} else if (requested1.ordering != null && requested2.ordering != null
 				&& requested1.ordering.getNumberOfFields() > 0 && requested2.ordering.getNumberOfFields() > 0)
 		{
