@@ -22,6 +22,7 @@ import java.util.Iterator;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.InputSplit;
@@ -87,7 +88,9 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 		}
 		
 		// obtain task configuration (including stub parameters)
-		this.config = new TaskConfig(getTaskConfiguration());
+		Configuration taskConf = getTaskConfiguration();
+		taskConf.setClassLoader(this.userCodeClassLoader);
+		this.config = new TaskConfig(taskConf);
 		
 		initInputFormat(this.userCodeClassLoader);
 		

@@ -47,7 +47,7 @@ public class Configuration implements IOReadableWritable {
 	/**
 	 * The class loader to be used for the <code>getClass</code> method.
 	 */
-	private final ClassLoader classLoader;
+	private ClassLoader classLoader;
 
 	/**
 	 * Constructs a new configuration object.
@@ -67,8 +67,21 @@ public class Configuration implements IOReadableWritable {
 	}
 	
 	
+	/**
+	 * @return the class loader that knows where to locate user classes
+	 */
 	public ClassLoader getClassLoader() {
 		return this.classLoader;
+	}
+
+	/**
+	 * Sets the class loader that knows where to locate user classes
+	 * 
+	 * @param classLoader
+	 *        the class loader to be use for the <code>getClass</code> method
+	 */
+	public void setClassLoader(ClassLoader classLoader) {
+		this.classLoader = classLoader;
 	}
 
 	// --------------------------------------------------------------------------------------------

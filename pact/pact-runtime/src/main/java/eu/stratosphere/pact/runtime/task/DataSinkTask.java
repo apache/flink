@@ -21,6 +21,7 @@ import java.io.IOException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.fs.FileStatus;
 import eu.stratosphere.nephele.fs.FileSystem;
@@ -76,8 +77,7 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void registerInputOutput()
-	{
+	public void registerInputOutput() {
 		if (LOG.isDebugEnabled())
 			LOG.debug(getLogString("Start registering input and output"));
 
@@ -211,8 +211,7 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 	 *         Throws if instance of OutputFormat implementation can not be
 	 *         obtained.
 	 */
-	private void initOutputFormat()
-	{
+	private void initOutputFormat() {
 		if (this.userCodeClassLoader == null) {
 			try {
 				this.userCodeClassLoader = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
@@ -221,7 +220,9 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 			}
 		}
 		// obtain task configuration (including stub parameters)
-		this.config = new TaskConfig(getTaskConfiguration());
+		Configuration taskConf = getTaskConfiguration();
+		taskConf.setClassLoader(this.userCodeClassLoader);
+		this.config = new TaskConfig(taskConf);
 
 		// obtain stub implementation class
 		try {
