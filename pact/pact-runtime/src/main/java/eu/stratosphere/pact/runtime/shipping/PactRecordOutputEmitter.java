@@ -96,6 +96,7 @@ public class PactRecordOutputEmitter implements ChannelSelector<PactRecord>
 		case PARTITION_HASH:
 		case PARTITION_LOCAL_HASH:
 		case PARTITION_RANGE:
+		case PARTITION_RANDOM:
 			this.channels = new int[1];
 			break;
 		case BROADCAST:
