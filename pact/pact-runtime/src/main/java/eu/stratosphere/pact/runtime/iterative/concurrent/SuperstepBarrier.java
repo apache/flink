@@ -27,6 +27,8 @@ import java.util.concurrent.CountDownLatch;
  * A resettable one-shot latch.
  */
 public class SuperstepBarrier implements EventListener {
+	
+	private final ClassLoader userCodeClassLoader;
 
 	private boolean terminationSignaled = false;
 
@@ -34,6 +36,12 @@ public class SuperstepBarrier implements EventListener {
 
 	private String[] aggregatorNames;
 	private Value[] aggregates;
+	
+	
+	public SuperstepBarrier(ClassLoader userCodeClassLoader) {
+		this.userCodeClassLoader = userCodeClassLoader;
+	}
+	
 
 	/** setup the barrier, has to be called at the beginning of each superstep */
 	public void setup() {
@@ -62,7 +70,7 @@ public class SuperstepBarrier implements EventListener {
 		else if (event instanceof AllWorkersDoneEvent) {
 			AllWorkersDoneEvent wde = (AllWorkersDoneEvent) event;
 			aggregatorNames = wde.getAggregatorNames();
-			aggregates = wde.getAggregates();
+			aggregates = wde.getAggregates(userCodeClassLoader);
 		}
 
 		latch.countDown();

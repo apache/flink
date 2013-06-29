@@ -38,6 +38,7 @@ public class SyncEventHandler implements EventListener {
 	
 //	private static final Log log = LogFactory.getLog(SyncEventHandler.class);
 	
+	private final ClassLoader userCodeClassLoader;
 	
 	private final Map<String, Aggregator<?>> aggregators;
 
@@ -48,8 +49,9 @@ public class SyncEventHandler implements EventListener {
 	private boolean endOfSuperstep;
 
 
-	public SyncEventHandler(int numberOfEventsUntilEndOfSuperstep, Map<String, Aggregator<?>> aggregators) {
+	public SyncEventHandler(int numberOfEventsUntilEndOfSuperstep, Map<String, Aggregator<?>> aggregators, ClassLoader userCodeClassLoader) {
 		Preconditions.checkArgument(numberOfEventsUntilEndOfSuperstep > 0);
+		this.userCodeClassLoader = userCodeClassLoader;
 		this.numberOfEventsUntilEndOfSuperstep = numberOfEventsUntilEndOfSuperstep;
 		this.aggregators = aggregators;
 	}
@@ -75,7 +77,7 @@ public class SyncEventHandler implements EventListener {
 //		}
 		
 		String[] aggNames = workerDoneEvent.getAggregatorNames();
-		Value[] aggregates = workerDoneEvent.getAggregates();
+		Value[] aggregates = workerDoneEvent.getAggregates(userCodeClassLoader);
 
 		if (aggNames.length != aggregates.length) {
 			throw new RuntimeException("Inconsistent WorkerDoneEvent received!");

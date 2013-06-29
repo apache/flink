@@ -18,9 +18,14 @@ package eu.stratosphere.pact.runtime.iterative.event;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.pact.common.stubs.aggregators.Aggregator;
 import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.common.util.InstantiationUtil;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.DataInput;
+import java.io.DataInputStream;
 import java.io.DataOutput;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.Map;
 
@@ -30,6 +35,9 @@ public abstract class IterationEventWithAggregators extends AbstractTaskEvent {
 	protected static final Value[] NO_VALUES = new Value[0];
 	
 	private String[] aggNames;
+	
+	private String[] classNames;
+	private byte[][] serializedData;
 
 	private Value[] aggregates;
 
@@ -68,7 +76,36 @@ public abstract class IterationEventWithAggregators extends AbstractTaskEvent {
 		return this.aggNames;
 	}
 
-	public Value[] getAggregates() {
+	public Value[] getAggregates(ClassLoader classResolver) {
+		if (aggregates == null) {
+			// we have read the binary data, but not yet turned into the objects
+			final int num = aggNames.length;
+			aggregates = new Value[num];
+			for (int i = 0; i < num; i++) {
+				Value v;
+				try {
+					Class<? extends Value> valClass = Class.forName(classNames[i], true, classResolver).asSubclass(Value.class);
+					v = InstantiationUtil.instantiate(valClass, Value.class);
+				}
+				catch (ClassNotFoundException e) {
+					throw new RuntimeException("Could not load user-defined class '" + classNames[i] + "'.", e);
+				}
+				catch (ClassCastException e) {
+					throw new RuntimeException("User-defined aggregator class is not a value sublass.");
+				}
+				
+				DataInputStream in = new DataInputStream(new ByteArrayInputStream(serializedData[i]));
+				try {
+					v.read(in);
+					in.close();
+				} catch (IOException e) {
+					throw new RuntimeException("Error while deserializing the user-defined aggregate class.", e);
+				}
+				
+				aggregates[i] = v;
+			}
+		}
+		
 		return this.aggregates;
 	}
 
@@ -76,11 +113,25 @@ public abstract class IterationEventWithAggregators extends AbstractTaskEvent {
 	public void write(DataOutput out) throws IOException {
 		int num = this.aggNames.length;
 		out.writeInt(num);
+		
+		ByteArrayOutputStream boas = new ByteArrayOutputStream();
+		DataOutputStream bufferStream = new DataOutputStream(boas);
+		
 		for (int i = 0; i < num; i++) {
+			// aggregator name and type
 			out.writeUTF(this.aggNames[i]);
 			out.writeUTF(this.aggregates[i].getClass().getName());
-			this.aggregates[i].write(out);
+			
+			// aggregator value indirect as a byte array
+			this.aggregates[i].write(bufferStream);
+			bufferStream.flush();
+			byte[] bytes = boas.toByteArray();
+			out.writeInt(bytes.length);
+			out.write(bytes);
+			boas.reset();
 		}
+		bufferStream.close();
+		boas.close();
 	}
 
 	@Override
@@ -93,20 +144,25 @@ public abstract class IterationEventWithAggregators extends AbstractTaskEvent {
 			if (this.aggNames == null || num > this.aggNames.length) {
 				this.aggNames = new String[num];
 			}
-			if (this.aggregates == null || num > this.aggregates.length) {
-				this.aggregates = new Value[num];
+			if (this.classNames == null || num > this.classNames.length) {
+				this.classNames = new String[num];
+			}
+			if (this.serializedData == null || num > this.serializedData.length) {
+				this.serializedData = new byte[num][];
 			}
 
 			for (int i = 0; i < num; i++) {
 				this.aggNames[i] = in.readUTF();
-				String classname = in.readUTF();
-				try {
-					this.aggregates[i] = Class.forName(classname).asSubclass(Value.class).newInstance();
-				} catch (Exception e) {
-					throw new IOException(e);
-				}
-				aggregates[i].read(in);
+				this.classNames[i] = in.readUTF();
+				
+				int len = in.readInt();
+				byte[] data = new byte[len];
+				this.serializedData[i] = data;
+				in.readFully(data);
+				
 			}
+			
+			this.aggregates = null;
 		}
 	}
 }

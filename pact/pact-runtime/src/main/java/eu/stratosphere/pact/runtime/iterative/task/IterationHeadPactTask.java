@@ -208,7 +208,7 @@ public class IterationHeadPactTask<X, Y, S extends Stub, OT> extends AbstractIte
 	}
 
 	private SuperstepBarrier initSuperstepBarrier() {
-		SuperstepBarrier barrier = new SuperstepBarrier();
+		SuperstepBarrier barrier = new SuperstepBarrier(userCodeClassLoader);
 		this.toSync.subscribeToEvent(barrier, AllWorkersDoneEvent.class);
 		this.toSync.subscribeToEvent(barrier, TerminationEvent.class);
 		return barrier;

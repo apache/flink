@@ -45,7 +45,7 @@ public class SuperstepBarrierTest {
 
 		TerminationSignaled terminationSignaled = new TerminationSignaled();
 
-		SuperstepBarrier barrier = new SuperstepBarrier();
+		SuperstepBarrier barrier = new SuperstepBarrier(getClass().getClassLoader());
 		barrier.setup();
 
 		Thread headThread = new Thread(new IterationHead(barrier, terminationSignaled));

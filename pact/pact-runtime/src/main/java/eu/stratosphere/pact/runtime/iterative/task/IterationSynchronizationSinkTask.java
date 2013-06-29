@@ -26,6 +26,7 @@ import org.apache.commons.logging.LogFactory;
 import com.google.common.base.Preconditions;
 
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
+import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.io.MutableRecordReader;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.nephele.types.IntegerRecord;
@@ -53,6 +54,8 @@ public class IterationSynchronizationSinkTask extends AbstractOutputTask impleme
 
 	private MutableRecordReader<IntegerRecord> headEventReader;
 	
+	private ClassLoader userCodeClassLoader;
+	
 	private SyncEventHandler eventHandler;
 
 	private ConvergenceCriterion<Value> convergenceCriterion;
@@ -77,6 +80,7 @@ public class IterationSynchronizationSinkTask extends AbstractOutputTask impleme
 
 	@Override
 	public void invoke() throws Exception {
+		userCodeClassLoader = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
 		TaskConfig taskConfig = new TaskConfig(getTaskConfiguration());
 		
 		// instantiate all aggregators
@@ -98,7 +102,7 @@ public class IterationSynchronizationSinkTask extends AbstractOutputTask impleme
 		
 		// set up the event handler
 		int numEventsTillEndOfSuperstep = taskConfig.getNumberOfEventsUntilInterruptInIterativeGate(0);
-		eventHandler = new SyncEventHandler(numEventsTillEndOfSuperstep, aggregators);
+		eventHandler = new SyncEventHandler(numEventsTillEndOfSuperstep, aggregators, userCodeClassLoader);
 		headEventReader.subscribeToEvent(eventHandler, WorkerDoneEvent.class);
 
 		IntegerRecord dummy = new IntegerRecord();
