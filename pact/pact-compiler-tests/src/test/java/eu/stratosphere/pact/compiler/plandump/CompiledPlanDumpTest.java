@@ -23,7 +23,7 @@ import org.junit.Test;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.compiler.CompilerTestBase;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
-import eu.stratosphere.pact.example.iterative.WorksetConnectedComponents;
+import eu.stratosphere.pact.example.connectedcomponents.WorksetConnectedComponents;
 import eu.stratosphere.pact.example.kmeans.KMeansIterative;
 import eu.stratosphere.pact.example.kmeans.KMeansSingleStep;
 import eu.stratosphere.pact.example.relational.TPCHQuery3;

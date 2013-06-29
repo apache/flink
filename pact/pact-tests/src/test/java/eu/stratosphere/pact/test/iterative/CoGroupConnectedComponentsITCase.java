@@ -24,7 +24,7 @@ import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.plan.Plan;
-import eu.stratosphere.pact.example.iterative.CoGroupConnectedComponents;
+import eu.stratosphere.pact.example.connectedcomponents.WorksetConnectedComponentsWithCoGroup;
 import eu.stratosphere.pact.test.iterative.nephele.ConnectedComponentsNepheleITCase;
 import eu.stratosphere.pact.test.util.TestBase2;
 
@@ -60,7 +60,7 @@ public class CoGroupConnectedComponentsITCase extends TestBase2 {
 		int maxIterations = config.getInteger("ConnectedComponents#NumIterations", 1);
 		String[] params = { String.valueOf(dop) , verticesPath, edgesPath, resultPath, String.valueOf(maxIterations) };
 		
-		CoGroupConnectedComponents cc = new CoGroupConnectedComponents();
+		WorksetConnectedComponentsWithCoGroup cc = new WorksetConnectedComponentsWithCoGroup();
 		return cc.getPlan(params);
 	}
 

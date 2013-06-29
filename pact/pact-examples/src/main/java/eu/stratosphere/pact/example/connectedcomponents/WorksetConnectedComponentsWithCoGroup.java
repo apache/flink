@@ -13,32 +13,33 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.example.iterative;
+package eu.stratosphere.pact.example.connectedcomponents;
 
 import java.util.Iterator;
 
+import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.MatchContract;
-import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.pact.common.io.RecordOutputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
+import eu.stratosphere.pact.common.stubs.CoGroupStub;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MatchStub;
-import eu.stratosphere.pact.common.stubs.ReduceStub;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFields;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsFirst;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsSecond;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactLong;
+import eu.stratosphere.pact.example.connectedcomponents.DuplicateLongInputFormat;
+import eu.stratosphere.pact.example.connectedcomponents.LongLongInputFormat;
 import eu.stratosphere.pact.generic.contract.WorksetIteration;
 
 /**
  *
  */
-public class WorksetConnectedComponents implements PlanAssembler, PlanAssemblerDescription {
+public class WorksetConnectedComponentsWithCoGroup implements PlanAssembler, PlanAssemblerDescription {
 	
 	public static final class NeighborWithComponentIDJoin extends MatchStub {
 
@@ -52,48 +53,33 @@ public class WorksetConnectedComponents implements PlanAssembler, PlanAssemblerD
 		}
 	}
 	
-	@Combinable
-	@ConstantFields(0)
-	public static final class MinimumComponentIDReduce extends ReduceStub {
+	@ConstantFieldsFirst(0)
+	@ConstantFieldsSecond(0)
+	public static final class MinIdAndUpdate extends CoGroupStub {
 
-		private final PactRecord result = new PactRecord();
-		private final PactLong vertexId = new PactLong();
-		private final PactLong minComponentId = new PactLong();
+		private final PactLong newComponentId = new PactLong();
 		
 		@Override
-		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) {
-
-			final PactRecord first = records.next();
-			final long vertexID = first.getField(0, PactLong.class).getValue();
+		public void coGroup(Iterator<PactRecord> candidates, Iterator<PactRecord> current, Collector<PactRecord> out) throws Exception {
+			if (!current.hasNext()) {
+				throw new Exception("Error: Id not encountered before.");
+			}
+			PactRecord old = current.next();
+			long oldId = old.getField(1, PactLong.class).getValue();
 			
-			long minimumComponentID = first.getField(1, PactLong.class).getValue();
+			long minimumComponentID = Long.MAX_VALUE;
 
-			while (records.hasNext()) {
-				long candidateComponentID = records.next().getField(1, PactLong.class).getValue();
+			while (candidates.hasNext()) {
+				long candidateComponentID = candidates.next().getField(1, PactLong.class).getValue();
 				if (candidateComponentID < minimumComponentID) {
 					minimumComponentID = candidateComponentID;
 				}
 			}
 			
-			this.vertexId.setValue(vertexID);
-			this.minComponentId.setValue(minimumComponentID);
-			this.result.setField(0, this.vertexId);
-			this.result.setField(1, this.minComponentId);
-			out.collect(this.result);
-		}
-	}
-	
-	@ConstantFieldsFirst(0)
-	public static final class UpdateComponentIdMatch extends MatchStub {
-
-		@Override
-		public void match(PactRecord newVertexWithComponent, PactRecord currentVertexWithComponent, Collector<PactRecord> out){
-	
-			long candidateComponentID = newVertexWithComponent.getField(1, PactLong.class).getValue();
-			long currentComponentID = currentVertexWithComponent.getField(1, PactLong.class).getValue();
-	
-			if (candidateComponentID < currentComponentID) {
-				out.collect(newVertexWithComponent);
+			if (minimumComponentID < oldId) {
+				newComponentId.setValue(minimumComponentID);
+				old.setField(1, newComponentId);
+				out.collect(old);
 			}
 		}
 	}
@@ -125,21 +111,14 @@ public class WorksetConnectedComponents implements PlanAssembler, PlanAssemblerD
 				.name("Join Candidate Id With Neighbor")
 				.build();
 
-		// create ReduceContract for finding the nearest cluster centers
-		ReduceContract minCandidateId = ReduceContract.builder(MinimumComponentIDReduce.class, PactLong.class, 0)
-				.input(joinWithNeighbors)
-				.name("Find Minimum Candidate Id")
-				.build();
-		
-		// create CrossContract for distance computation
-		MatchContract updateComponentId = MatchContract.builder(UpdateComponentIdMatch.class, PactLong.class, 0, 0)
-				.input1(minCandidateId)
+		CoGroupContract minAndUpdate = CoGroupContract.builder(MinIdAndUpdate.class, PactLong.class, 0, 0)
+				.input1(joinWithNeighbors)
 				.input2(iteration.getSolutionSet())
-				.name("Update Component Id")
+				.name("Min Id and Update")
 				.build();
 		
-		iteration.setNextWorkset(updateComponentId);
-		iteration.setSolutionSetDelta(updateComponentId);
+		iteration.setNextWorkset(minAndUpdate);
+		iteration.setSolutionSetDelta(minAndUpdate);
 
 		// create DataSinkContract for writing the new cluster positions
 		FileDataSink result = new FileDataSink(RecordOutputFormat.class, output, iteration, "Result");

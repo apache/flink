@@ -29,7 +29,7 @@ import eu.stratosphere.pact.compiler.plan.candidate.SourcePlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.WorksetIterationPlanNode;
 import eu.stratosphere.pact.compiler.plandump.PlanJSONDumpGenerator;
 import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
-import eu.stratosphere.pact.example.iterative.WorksetConnectedComponents;
+import eu.stratosphere.pact.example.connectedcomponents.WorksetConnectedComponents;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
@@ -37,7 +37,7 @@ import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 /**
  *
  */
-public class IncrementalConnectedComponentsTest extends CompilerTestBase {
+public class WorksetConnectedComponentsTest extends CompilerTestBase {
 	
 	private static final String VERTEX_SOURCE = "Vertices";
 	

@@ -28,7 +28,7 @@ import eu.stratosphere.pact.compiler.plan.candidate.SourcePlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.WorksetIterationPlanNode;
 import eu.stratosphere.pact.compiler.plandump.PlanJSONDumpGenerator;
 import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
-import eu.stratosphere.pact.example.iterative.CoGroupConnectedComponents;
+import eu.stratosphere.pact.example.connectedcomponents.WorksetConnectedComponentsWithCoGroup;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
@@ -36,7 +36,7 @@ import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 /**
  *
  */
-public class CoGroupConnectedComponentsTest extends CompilerTestBase {
+public class WorksetConnectedComponentsCoGroupTest extends CompilerTestBase {
 	
 	private static final String VERTEX_SOURCE = "Vertices";
 	
@@ -55,7 +55,7 @@ public class CoGroupConnectedComponentsTest extends CompilerTestBase {
 	
 	@Test
 	public void testWorksetConnectedComponents() {
-		CoGroupConnectedComponents cc = new CoGroupConnectedComponents();
+		WorksetConnectedComponentsWithCoGroup cc = new WorksetConnectedComponentsWithCoGroup();
 
 		Plan plan = cc.getPlan(String.valueOf(DEFAULT_PARALLELISM),
 				IN_FILE, IN_FILE, OUT_FILE, String.valueOf(100));

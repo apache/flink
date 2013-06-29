@@ -40,6 +40,28 @@
 				<version>2.4</version>
 				<executions>
 				
+					<!-- Connected Components -->
+					<execution>
+						<id>ConnectedComponents</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+						<configuration>
+							<classifier>ConnectedComponents</classifier>
+
+							<archive>
+								<manifestEntries>
+									<Pact-Assembler-Class>eu.stratosphere.pact.example.connectedcomponents.WorksetConnectedComponents</Pact-Assembler-Class>
+								</manifestEntries>
+							</archive>
+
+							<includes>
+								<include>**/connectedcomponents/*.class</include>
+							</includes>
+						</configuration>
+					</execution>
+				
 					<!-- DanglingPageRank -->
 					<execution>
 						<id>DanglingPageRank</id>

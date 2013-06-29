@@ -13,28 +13,24 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.example.iterative;
+package eu.stratosphere.pact.example.connectedcomponents;
 
 import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactLong;
+import eu.stratosphere.pact.common.type.base.parser.DecimalTextLongParser;
 
-import java.util.regex.Pattern;
-
-public class LongLongInputFormat extends TextInputFormat {
-
-	private static final Pattern SEPARATOR = Pattern.compile("[,\t ]");
+public class DuplicateLongInputFormat extends TextInputFormat {
 	
 	private final PactLong l1 = new PactLong();
 	private final PactLong l2 = new PactLong();
-
+	
 	@Override
 	public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes) {
-		String str = new String(bytes, offset, numBytes);
-		String[] parts = SEPARATOR.split(str);
+		final long value = DecimalTextLongParser.parseField(bytes, offset, numBytes, (char) 0xffff);
 
-		this.l1.setValue(Long.parseLong(parts[0]));
-		this.l2.setValue(Long.parseLong(parts[1]));
+		this.l1.setValue(value);
+		this.l2.setValue(value);
 		
 		target.setField(0, this.l1);
 		target.setField(1, this.l2);
