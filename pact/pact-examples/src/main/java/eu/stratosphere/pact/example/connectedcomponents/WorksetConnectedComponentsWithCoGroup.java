@@ -18,6 +18,7 @@ package eu.stratosphere.pact.example.connectedcomponents;
 import java.util.Iterator;
 
 import eu.stratosphere.pact.common.contract.CoGroupContract;
+import eu.stratosphere.pact.common.contract.CoGroupContract.CombinableFirst;
 import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.MatchContract;
@@ -53,6 +54,7 @@ public class WorksetConnectedComponentsWithCoGroup implements PlanAssembler, Pla
 		}
 	}
 	
+	@CombinableFirst
 	@ConstantFieldsFirst(0)
 	@ConstantFieldsSecond(0)
 	public static final class MinIdAndUpdate extends CoGroupStub {
@@ -81,6 +83,20 @@ public class WorksetConnectedComponentsWithCoGroup implements PlanAssembler, Pla
 				old.setField(1, newComponentId);
 				out.collect(old);
 			}
+		}
+		
+		@Override
+		public void combineFirst(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {
+			PactRecord next = null;
+			long min = Long.MAX_VALUE;
+			while (records.hasNext()) {
+				next = records.next();
+				min = Math.min(min, next.getField(1, PactLong.class).getValue());
+			}
+			
+			newComponentId.setValue(min);
+			next.setField(1, newComponentId);
+			out.collect(next);
 		}
 	}
 	
