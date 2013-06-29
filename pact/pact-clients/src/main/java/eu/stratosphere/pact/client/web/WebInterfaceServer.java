@@ -98,9 +98,9 @@ public class WebInterfaceServer {
 		String tmpDirPath = config.getString(PactConfigConstants.WEB_TMP_DIR_KEY,
 				PactConfigConstants.DEFAULT_WEB_TMP_DIR);
 		
-		if(tmpDirPath.startsWith("/")) {
-			// absolute path
-			tmpDir = new File(tmpDirPath);
+		tmpDir = new File(tmpDirPath);
+		if(tmpDir.isAbsolute()) {
+			// absolute path, everything all right
 		} else {
 			// path relative to base dir
 			tmpDir = new File(basePath+"/"+tmpDirPath);
@@ -109,9 +109,9 @@ public class WebInterfaceServer {
 		String uploadDirPath = config.getString(PactConfigConstants.WEB_JOB_UPLOAD_DIR_KEY,
 				PactConfigConstants.DEFAULT_WEB_JOB_STORAGE_DIR);
 		
-		if(uploadDirPath.startsWith("/")) {
-			// absolute path
-			uploadDir = new File(uploadDirPath);
+		uploadDir = new File(uploadDirPath);
+		if(uploadDir.isAbsolute()) {
+			// absolute path, everything peachy
 		} else {
 			// path relative to base dir
 			uploadDir = new File(basePath+"/"+uploadDirPath);
@@ -120,9 +120,9 @@ public class WebInterfaceServer {
 		String planDumpDirPath = config.getString(PactConfigConstants.WEB_PLAN_DUMP_DIR_KEY,
 				PactConfigConstants.DEFAULT_WEB_PLAN_DUMP_DIR);
 		
-		if(planDumpDirPath.startsWith("/")) {
-			// absolute path
-			planDumpDir = new File(planDumpDirPath);
+		planDumpDir = new File(planDumpDirPath);
+		if(planDumpDir.isAbsolute()) {
+			// absolute path, nice and dandy
 		} else {
 			// path relative to base dir
 			planDumpDir = new File(basePath+"/"+planDumpDirPath);
