@@ -14,6 +14,27 @@
 # 
 ########################################################################################################################
 
+# These are used to mangle paths that are passed to java when using 
+# cygwin. Cygwin paths are like linux paths, i.e. /path/to/somewhere
+# but the windows java version expects them in Windows Format, i.e. C:\bla\blub.
+# "cygpath" can do the conversion.
+manglePath() {
+    if [ "$(expr substr $(uname -s) 1 6)" == "CYGWIN" ]; then
+        echo `cygpath -w $1`
+    else
+        echo $1
+    fi
+}
+
+manglePathList() {
+    # a path list, for example a java classpath
+    if [ "$(expr substr $(uname -s) 1 6)" == "CYGWIN" ]; then
+        echo `cygpath -wp $1`
+    else
+        echo $1
+    fi
+}
+
 # The default Java heap size for the Nephele Job Manager in MB
 DEFAULT_NEPHELE_JM_HEAP=256
 
@@ -52,6 +73,16 @@ if [ -z "${JAVA_HOME+x}" ]; then
         JAVA_HOME=/usr/lib/jvm/java-6-sun/
 fi
 
+if [ "$(expr substr $(uname -s) 1 6)" == "CYGWIN" ]; then
+    JAVA_RUN=java
+else
+    if [[ -d $JAVA_HOME ]]; then
+        JAVA_RUN=$JAVA_HOME/bin/java
+    else
+        JAVA_RUN=java
+    fi
+fi
+
 # Define HOSTNAME if it is not already set
 if [ -z "${HOSTNAME+x}" ]; then
         HOSTNAME=`hostname`
@@ -69,10 +100,15 @@ fi
 
 # Define the main directory of the Nephele installation
 NEPHELE_ROOT_DIR=`dirname "$this"`/..
-NEPHELE_CONF_DIR=$NEPHELE_ROOT_DIR/conf
-NEPHELE_BIN_DIR=$NEPHELE_ROOT_DIR/bin
 NEPHELE_LIB_DIR=$NEPHELE_ROOT_DIR/lib
-NEPHELE_LOG_DIR=$NEPHELE_ROOT_DIR/log
+
+# These need to be mangled because they are directly passed to java.
+# The above lib path is used by the shell script to retrieve jars in a 
+# directory, so it needs to be unmangled.
+NEPHELE_ROOT_DIR_MANGLED=`manglePath $NEPHELE_ROOT_DIR`
+NEPHELE_CONF_DIR=$NEPHELE_ROOT_DIR_MANGLED/conf
+NEPHELE_BIN_DIR=$NEPHELE_ROOT_DIR_MANGLED/bin
+NEPHELE_LOG_DIR=$NEPHELE_ROOT_DIR_MANGLED/log
 
 # Arguments for the JVM. Used for job manager and task manager JVMs
 # DO NOT USE FOR MEMORY SETTINGS! Use DEFAULT_NEPHELE_JM_HEAP and
@@ -80,7 +116,7 @@ NEPHELE_LOG_DIR=$NEPHELE_ROOT_DIR/log
 JVM_ARGS="-Djava.net.preferIPv4Stack=true"
 
 # Default classpath 
-CLASSPATH=$( echo $NEPHELE_LIB_DIR/*.jar . | sed 's/ /:/g' )
+CLASSPATH=`manglePathList $( echo $NEPHELE_LIB_DIR/*.jar . | sed 's/ /:/g' )`
 
 # Auxilliary function which extracts the name of host from a line which
 # also potentialy includes topology information and the instance type
