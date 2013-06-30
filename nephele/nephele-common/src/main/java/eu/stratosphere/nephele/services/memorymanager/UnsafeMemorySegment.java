@@ -26,10 +26,10 @@ import java.nio.ByteOrder;
  * by a byte array and features random put and get methods for the basic types that are stored in a byte-wise
  * fashion in the memory.
  */
-public class MemorySegment {
+public class UnsafeMemorySegment {
 	
-	// flag to enable / disable boundary checks. Note that the compiler eliminates the
-	// code paths of the checks (as dead code) when this constant is set to false.
+	// flag to enable / disable boundary checks. Note that the compiler eliminates the check code
+	// paths (as dead code) when this constant is set to false.
 	private static final boolean CHECKED = true;
 	
 	/**
@@ -53,7 +53,7 @@ public class MemorySegment {
 	 * @param inputView The input view to use.
 	 * @param outputView The output view to use.
 	 */
-	public MemorySegment(byte[] memory) {
+	public UnsafeMemorySegment(byte[] memory) {
 		this.memory = memory;
 	}
 
@@ -104,6 +104,11 @@ public class MemorySegment {
 	public final int translateOffset(int offset) {
 		return offset;
 	}
+	
+	// -------------------------------------------------------------------------
+	//                       Helper methods
+	// -------------------------------------------------------------------------
+	
 
 	/**
 	 * Wraps the chunk of the underlying memory located between <tt>offset<tt> and 
@@ -132,18 +137,18 @@ public class MemorySegment {
 	}
 
 
-	// ------------------------------------------------------------------------
-	//                    Random Access get() and put() methods
-	// ------------------------------------------------------------------------
+	// --------------------------------------------------------------------
+	//                            Random Access
+	// --------------------------------------------------------------------
 
-	// --------------------------------------------------------------------------------------------
+	// ------------------------------------------------------------------------------------------------------
 	// WARNING: Any code for range checking must take care to avoid integer overflows. The position
 	// integer may go up to <code>Integer.MAX_VALUE</tt>. Range checks that work after the principle
 	// <code>position + 3 &lt; end</code> may fail because <code>position + 3</code> becomes negative.
 	// A safe solution is to subtract the delta from the limit, for example
 	// <code>position &lt; end - 3</code>. Since all indices are always positive, and the integer domain
 	// has one more negative value than positive values, this can never cause an underflow.
-	// --------------------------------------------------------------------------------------------
+	// ------------------------------------------------------------------------------------------------------
 
 
 	/**
@@ -868,28 +873,8 @@ public class MemorySegment {
 		putLongBigEndian(index, Double.doubleToRawLongBits(value));
 	}
 	
-	// -------------------------------------------------------------------------
-	//                      Comparisons & Swapping
-	// -------------------------------------------------------------------------
-	
-	public static final int compare(MemorySegment seg1, MemorySegment seg2, int offset1, int offset2, int len) {
-		final byte[] b1 = seg1.memory;
-		final byte[] b2 = seg2.memory;
-		
-		int val = 0;
-		for (int pos = 0;
-			pos < len && (val = (b1[offset1 + pos] & 0xff) - (b2[offset2 + pos] & 0xff)) == 0; pos++);
-		return val;
-	}
-	
-	public static final void swapBytes(MemorySegment seg1, MemorySegment seg2, byte[] tempBuffer, int offset1, int offset2, int len) {
-		System.arraycopy(seg1.memory, offset1, tempBuffer, 0, len);
-		System.arraycopy(seg2.memory, offset2, seg1.memory, offset1, len);
-		System.arraycopy(tempBuffer, 0, seg2.memory, offset2, len);
-	}
-	
 	// --------------------------------------------------------------------------------------------
-	//                     Utilities for native memory accesses and checks
+	// Utilities for native memory accesses and checks
 	// --------------------------------------------------------------------------------------------
 	
 	@SuppressWarnings("restriction")

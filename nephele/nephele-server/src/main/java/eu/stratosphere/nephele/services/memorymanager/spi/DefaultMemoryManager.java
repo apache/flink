@@ -234,7 +234,7 @@ public class DefaultMemoryManager implements MemoryManager
 			
 			for (int i = numPages; i > 0; i--) {
 				byte[] buffer = this.freeSegments.poll();
-				final DefaultMemorySegment segment = new DefaultMemorySegment(owner, buffer, 0, this.pageSize);
+				final DefaultMemorySegment segment = new DefaultMemorySegment(owner, buffer);
 				target.add(segment);
 				segmentsForOwner.add(segment);
 			}
@@ -444,17 +444,16 @@ public class DefaultMemoryManager implements MemoryManager
 	
 	// ------------------------------------------------------------------------
 	
-	private static final class DefaultMemorySegment extends MemorySegment
-	{
+	private static final class DefaultMemorySegment extends MemorySegment {
+		
 		private AbstractInvokable owner;
 		
-		DefaultMemorySegment(AbstractInvokable owner, byte[] memory, int offset, int size) {
-			super(memory, offset, size);
+		DefaultMemorySegment(AbstractInvokable owner, byte[] memory) {
+			super(memory);
 			this.owner = owner;
 		}
 		
-		byte[] destroy()
-		{
+		byte[] destroy() {
 			final byte[] buffer = this.memory;
 			this.memory = null;
 			this.wrapper = null;

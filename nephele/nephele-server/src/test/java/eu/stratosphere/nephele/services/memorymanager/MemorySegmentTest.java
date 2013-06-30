@@ -28,7 +28,6 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 
 public class MemorySegmentTest {
@@ -58,8 +57,7 @@ public class MemorySegmentTest {
 	}
 
 	@After
-	public void tearDown()
-	{
+	public void tearDown() {
 		this.manager.release(this.segment);
 		this.random = null;
 		this.segment = null;
@@ -270,12 +268,12 @@ public class MemorySegmentTest {
 			long seed = random.nextLong();
 
 			random.setSeed(seed);
-			for (int i = 0; i < PAGE_SIZE / 2; i += 2) {
+			for (int i = 0; i <= PAGE_SIZE - 2; i += 2) {
 				segment.putChar(i, (char) ('a' + random.nextInt(26)));
 			}
 
 			random.setSeed(seed);
-			for (int i = 0; i < PAGE_SIZE / 2; i += 2) {
+			for (int i = 0; i <= PAGE_SIZE - 2; i += 2) {
 				assertEquals((char) ('a' + random.nextInt(26)), segment.getChar(i));
 			}
 		}
@@ -319,12 +317,12 @@ public class MemorySegmentTest {
 			long seed = random.nextLong();
 
 			random.setSeed(seed);
-			for (int i = 0; i < PAGE_SIZE / 8; i += 8) {
+			for (int i = 0; i <= PAGE_SIZE - 8; i += 8) {
 				segment.putDouble(i, random.nextDouble());
 			}
 
 			random.setSeed(seed);
-			for (int i = 0; i < PAGE_SIZE / 8; i += 8) {
+			for (int i = 0; i <= PAGE_SIZE - 8; i += 8) {
 				assertEquals(random.nextDouble(), segment.getDouble(i), 0.0);
 			}
 		}
@@ -368,12 +366,12 @@ public class MemorySegmentTest {
 			long seed = random.nextLong();
 
 			random.setSeed(seed);
-			for (int i = 0; i < PAGE_SIZE / 4; i += 4) {
+			for (int i = 0; i <= PAGE_SIZE - 4; i += 4) {
 				segment.putFloat(i, random.nextFloat());
 			}
 
 			random.setSeed(seed);
-			for (int i = 0; i < PAGE_SIZE / 4; i += 4) {
+			for (int i = 0; i <= PAGE_SIZE - 4; i += 4) {
 				assertEquals(random.nextFloat(), segment.getFloat(i), 0.0);
 			}
 		}
@@ -417,13 +415,31 @@ public class MemorySegmentTest {
 			long seed = random.nextLong();
 
 			random.setSeed(seed);
-			for (int i = 0; i < PAGE_SIZE / 8; i += 8) {
+			for (int i = 0; i <= PAGE_SIZE - 8; i += 8) {
 				segment.putLong(i, random.nextLong());
 			}
 
 			random.setSeed(seed);
-			for (int i = 0; i < PAGE_SIZE / 8; i += 8) {
+			for (int i = 0; i <= PAGE_SIZE - 8; i += 8) {
 				assertEquals(random.nextLong(), segment.getLong(i));
+			}
+		}
+		
+		// test unaligned offsets
+		{
+			final long seed = random.nextLong();
+
+			random.setSeed(seed);
+			for (int offset = 0; offset < PAGE_SIZE - 8; offset += random.nextInt(24) + 8) {
+				long value = random.nextLong();
+				segment.putLong(offset, value);
+			}
+			
+			random.setSeed(seed);
+			for (int offset = 0; offset < PAGE_SIZE - 8; offset += random.nextInt(24) + 8) {
+				long shouldValue = random.nextLong();
+				long isValue = segment.getLong(offset);
+				assertEquals(shouldValue, isValue);
 			}
 		}
 	}
@@ -466,12 +482,12 @@ public class MemorySegmentTest {
 			long seed = random.nextLong();
 
 			random.setSeed(seed);
-			for (int i = 0; i < PAGE_SIZE / 4; i += 4) {
+			for (int i = 0; i <= PAGE_SIZE - 4; i += 4) {
 				segment.putInt(i, random.nextInt());
 			}
 
 			random.setSeed(seed);
-			for (int i = 0; i < PAGE_SIZE / 4; i += 4) {
+			for (int i = 0; i <= PAGE_SIZE - 4; i += 4) {
 				assertEquals(random.nextInt(), segment.getInt(i));
 			}
 		}
@@ -515,12 +531,12 @@ public class MemorySegmentTest {
 			long seed = random.nextLong();
 
 			random.setSeed(seed);
-			for (int i = 0; i < PAGE_SIZE / 4; i += 4) {
+			for (int i = 0; i <= PAGE_SIZE - 2; i += 2) {
 				segment.putShort(i, (short) random.nextInt());
 			}
 
 			random.setSeed(seed);
-			for (int i = 0; i < PAGE_SIZE / 4; i += 4) {
+			for (int i = 0; i <= PAGE_SIZE - 2; i += 2) {
 				assertEquals((short) random.nextInt(), segment.getShort(i));
 			}
 		}
