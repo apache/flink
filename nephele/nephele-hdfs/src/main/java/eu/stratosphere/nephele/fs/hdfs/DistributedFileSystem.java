@@ -16,6 +16,7 @@
 package eu.stratosphere.nephele.fs.hdfs;
 
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.net.URI;
 
 import org.apache.commons.logging.Log;
@@ -73,7 +74,20 @@ public final class DistributedFileSystem extends FileSystem {
 			LOG.debug("Cannot find hdfs-site configuration file");
 		}
 
-		final Class<?> clazz = conf.getClass(HDFS_IMPLEMENTATION_KEY, null);
+		Class<?> clazz = null;
+		
+		// try to get the FileSystem implementation class Hadoop 2.0.0 style
+		try {
+			Method newApi = org.apache.hadoop.fs.FileSystem.class.getMethod("getFileSystemClass", String.class, org.apache.hadoop.conf.Configuration.class);
+			clazz = (Class<?>) newApi.invoke(null, "hdfs",conf);
+		} catch (Exception e) {
+			// if we can't find the FileSystem class using the new API,
+			// clazz will still be null, we assume we're running on an older Hadoop version
+		}
+		if (clazz == null) {
+			clazz = conf.getClass(HDFS_IMPLEMENTATION_KEY, null);
+		}
+
 		if (clazz == null) {
 			throw new IOException("No FileSystem found for " + HDFS_IMPLEMENTATION_KEY);
 		}

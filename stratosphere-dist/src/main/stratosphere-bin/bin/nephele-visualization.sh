@@ -29,33 +29,10 @@ fi
 constructVisualizationClassPath() {
 
 	for jarfile in $NEPHELE_LIB_DIR/*.jar ; do
-
-		add=0
-
-		if [[ "$jarfile" =~ 'nephele-visualization' ]]; then
-			add=1
-		elif [[ "$jarfile" =~ 'nephele-common' ]]; then
-			add=1
-		elif [[ "$jarfile" =~ 'nephele-management' ]]; then
-			add=1
-		elif [[ "$jarfile" =~ 'commons-logging' ]]; then
-			add=1
-		elif [[ "$jarfile" =~ 'log4j' ]]; then
-			add=1
-		elif [[ "$jarfile" =~ 'x86_64' ]]; then
-			add=1
-		elif [[ "$jarfile" =~ 'jfreechart' ]]; then
-			add=1
-		elif [[ "$jarfile" =~ 'jcommon' ]]; then
-			add=1
-		fi
-
-		if [[ "$add" = "1" ]]; then
-			if [[ $NEPHELE_VS_CLASSPATH = "" ]]; then
-				NEPHELE_VS_CLASSPATH=$jarfile;
-			else
-				NEPHELE_VS_CLASSPATH=$NEPHELE_VS_CLASSPATH:$jarfile
-			fi
+		if [[ $NEPHELE_VS_CLASSPATH = "" ]]; then
+			NEPHELE_VS_CLASSPATH=$jarfile;
+		else
+			NEPHELE_VS_CLASSPATH=$NEPHELE_VS_CLASSPATH:$jarfile
 		fi
 	done
 

@@ -22,7 +22,28 @@
 			<useTransitiveDependencies>true</useTransitiveDependencies>
 			<useProjectArtifact>false</useProjectArtifact>
 			<useProjectAttachments>false</useProjectAttachments>
-
+			<useTransitiveFiltering>true</useTransitiveFiltering>
+			
+			<excludes>
+				<exclude>**/*examples*.jar</exclude>
+				<exclude>**/*javadoc*</exclude>
+				<exclude>**/*sources*</exclude>
+				<exclude>eu.stratosphere:pact-clients:**</exclude>
+			</excludes>
+		</dependencySet>
+		
+		<dependencySet>
+			<outputDirectory>lib_clients</outputDirectory>
+			<unpack>false</unpack>
+			<useTransitiveDependencies>true</useTransitiveDependencies>
+			<useProjectArtifact>false</useProjectArtifact>
+			<useProjectAttachments>false</useProjectAttachments>
+			<useTransitiveFiltering>true</useTransitiveFiltering>
+			
+			<includes>
+				<include>eu.stratosphere:pact-clients:**</include>
+			</includes>
+			
 			<excludes>
 				<exclude>**/*examples*.jar</exclude>
 				<exclude>**/*javadoc*</exclude>

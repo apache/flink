@@ -32,6 +32,19 @@
 
 	<pluginRepositories>
 	</pluginRepositories>
+	
+	<repositories>
+      <repository>
+        <id>cloudera-releases</id>
+        <url>https://repository.cloudera.com/artifactory/cloudera-repos</url>
+        <releases>
+          <enabled>true</enabled>
+        </releases>
+        <snapshots>
+          <enabled>false</enabled>
+        </snapshots>
+      </repository>
+    </repositories>
 
 	<dependencies>
 	
@@ -62,7 +75,7 @@
 		<dependency>
 			<groupId>com.google.guava</groupId>
 			<artifactId>guava</artifactId>
-			<version>r09</version>
+			<version>14.0.1</version>
 			<type>jar</type>
 			<scope>compile</scope>
 		</dependency>
@@ -112,13 +125,34 @@
 	<dependencyManagement>
 		<!-- this section defines the module versions that are used if nothing else is specified. -->
 		<dependencies>
-			<dependency>
-				<groupId>org.apache.hadoop</groupId>
-				<artifactId>hadoop-core</artifactId>
-				<version>0.20.203.0</version>
-				<type>jar</type>
-				<scope>compile</scope>
-			</dependency>
+			
+		<!-- Cloudera Hadoop -->
+		<dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-common</artifactId>
+			<version>2.0.0-cdh4.2.1</version>
+			<type>jar</type>
+			<scope>compile</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-hdfs</artifactId>
+			<version>2.0.0-cdh4.2.1</version>
+			<type>jar</type>
+			<scope>compile</scope>
+		</dependency>
+		
+		
+		<!-- Ye'Olde Hadoop 
+		<dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-core</artifactId>
+			<version>0.20.203.0</version>
+			<type>jar</type>
+			<scope>compile</scope>
+		</dependency>
+		-->
+			
 		</dependencies>
 	</dependencyManagement>
 

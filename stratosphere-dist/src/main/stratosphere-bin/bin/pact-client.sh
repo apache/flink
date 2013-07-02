@@ -24,6 +24,8 @@ if [ "$NEPHELE_IDENT_STRING" = "" ]; then
         NEPHELE_IDENT_STRING="$USER"
 fi
 
+NEPHELE_LIB_CLIENTS_DIR=$NEPHELE_ROOT_DIR/lib_clients
+
 JVM_ARGS="$JVM_ARGS -Xmx512m"
 
 # auxilliary function to construct a lightweight classpath for the
@@ -31,59 +33,18 @@ JVM_ARGS="$JVM_ARGS -Xmx512m"
 constructPactCLIClientClassPath() {
 
 	for jarfile in $NEPHELE_LIB_DIR/*.jar ; do
-
-		add=0
-
-		if [[ "$jarfile" =~ 'nephele-server' ]]; then
-			add=1
-		elif [[ "$jarfile" =~ 'nephele-common' ]]; then
-			add=1
-		elif [[ "$jarfile" =~ 'nephele-management' ]]; then
-			add=1
-		elif [[ "$jarfile" =~ 'nephele-hdfs' ]]; then
-			add=1
-		elif [[ "$jarfile" =~ 'nephele-s3' ]]; then
-			add=1
-		elif [[ "$jarfile" =~ 'pact-clients' ]]; then
-			add=1
-		elif [[ "$jarfile" =~ 'pact-common' ]]; then
-			add=1
-		elif [[ "$jarfile" =~ 'pact-array-datamodel' ]]; then
-			add=1
-		elif [[ "$jarfile" =~ 'pact-runtime' ]]; then
-			add=1
-		elif [[ "$jarfile" =~ 'pact-compiler' ]]; then
-			add=1
-		elif [[ "$jarfile" =~ 'commons-cli' ]]; then
-			add=1
-		elif [[ "$jarfile" =~ 'commons-logging' ]]; then
-			add=1
-		elif [[ "$jarfile" =~ 'commons-codec' ]]; then
-			add=1
-		elif [[ "$jarfile" =~ 'commons-configuration' ]]; then
-			add=1
-		elif [[ "$jarfile" =~ 'commons-lang' ]]; then
-			add=1
-		elif [[ "$jarfile" =~ 'log4j' ]]; then
-			add=1
-		elif [[ "$jarfile" =~ 'hadoop-core' ]]; then
-			add=1
-		elif [[ "$jarfile" =~ 'aws-java-sdk' ]]; then
-			add=1
-		elif [[ "$jarfile" =~ 'guava' ]]; then
-			add=1
-		fi
-
-		if [[ "$add" = "1" ]]; then
-			if [[ $PACT_CC_CLASSPATH = "" ]]; then
-				PACT_CC_CLASSPATH=$jarfile;
-			else
-				PACT_CC_CLASSPATH=$PACT_CC_CLASSPATH:$jarfile
-			fi
+		if [[ $PACT_CC_CLASSPATH = "" ]]; then
+			PACT_CC_CLASSPATH=$jarfile;
+		else
+			PACT_CC_CLASSPATH=$PACT_CC_CLASSPATH:$jarfile
 		fi
 	done
 
 	for jarfile in $NEPHELE_LIB_DIR/dropins/*.jar ; do
+		PACT_CC_CLASSPATH=$PACT_CC_CLASSPATH:$jarfile
+	done
+	
+	for jarfile in $NEPHELE_LIB_CLIENTS_DIR/*.jar ; do
 		PACT_CC_CLASSPATH=$PACT_CC_CLASSPATH:$jarfile
 	done
 

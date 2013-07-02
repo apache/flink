@@ -26,6 +26,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.junit.After;
 import org.junit.Assert;
@@ -155,7 +156,7 @@ public abstract class TestBase2 {
 		File f = new File(baseDir, fileName);
 		
 		if (f.exists()) {
-			Files.deleteRecursively(f);
+			deleteRecursively(f);
 		}
 		
 		File parentToDelete = f;
@@ -218,7 +219,7 @@ public abstract class TestBase2 {
 	private void deleteAllTempFiles() throws IOException {
 		for (File f : this.tempFiles) {
 			if (f.exists()) {
-				Files.deleteRecursively(f);
+				deleteRecursively(f);
 			}
 		}
 	}
@@ -403,6 +404,14 @@ public abstract class TestBase2 {
 			configs.add(c);
 		}
 		return configs;
+	}
+	
+	private static void deleteRecursively (File f) throws IOException {
+		if (f.isDirectory()) {
+			FileUtils.deleteDirectory(f);
+		} else {
+			f.delete();
+		}
 	}
 	
 	public void readAllResultLines(List<String> target, String resultPath) throws IOException {
