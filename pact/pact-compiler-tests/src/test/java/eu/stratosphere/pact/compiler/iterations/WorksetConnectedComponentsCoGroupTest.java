@@ -48,7 +48,7 @@ public class WorksetConnectedComponentsCoGroupTest extends CompilerTestBase {
 	
 	private static final String SINK = "Result";
 	
-	private static final boolean PRINT_PLAN = false;
+	private static final boolean PRINT_PLAN = true;
 	
 	private final FieldList set0 = new FieldList(0);
 	
@@ -77,16 +77,23 @@ public class WorksetConnectedComponentsCoGroupTest extends CompilerTestBase {
 		DualInputPlanNode neighborsJoin = or.getNode(JOIN_NEIGHBORS_MATCH);
 		DualInputPlanNode cogroup = or.getNode(MIN_ID_AND_UPDATE);
 		
+		// --------------------------------------------------------------------
+		// Plan validation:
+		//
+		// We expect the plan to go with a sort-merge join, because the CoGroup
+		// sorts and the join in the successive iteration can re-exploit the sorting.
+		// --------------------------------------------------------------------
+		
 		// test all drivers
 		Assert.assertEquals(DriverStrategy.NONE, sink.getDriverStrategy());
 		Assert.assertEquals(DriverStrategy.NONE, vertexSource.getDriverStrategy());
 		Assert.assertEquals(DriverStrategy.NONE, edgesSource.getDriverStrategy());
 		
-//		Assert.assertEquals(DriverStrategy.HYBRIDHASH_BUILD_SECOND, neighborsJoin.getDriverStrategy());
+		Assert.assertEquals(DriverStrategy.MERGE, neighborsJoin.getDriverStrategy());
 		Assert.assertEquals(set0, neighborsJoin.getKeysForInput1());
 		Assert.assertEquals(set0, neighborsJoin.getKeysForInput2());
 		
-//		Assert.assertEquals(DriverStrategy.HYBRIDHASH_BUILD_SECOND, updatingMatch.getDriverStrategy());
+		Assert.assertEquals(DriverStrategy.CO_GROUP, cogroup.getDriverStrategy());
 		Assert.assertEquals(set0, cogroup.getKeysForInput1());
 		Assert.assertEquals(set0, cogroup.getKeysForInput2());
 		
@@ -108,17 +115,17 @@ public class WorksetConnectedComponentsCoGroupTest extends CompilerTestBase {
 		// test all the local strategies
 		Assert.assertEquals(LocalStrategy.NONE, sink.getInput().getLocalStrategy());
 		Assert.assertEquals(LocalStrategy.NONE, iter.getInitialSolutionSetInput().getLocalStrategy());
-//		Assert.assertEquals(LocalStrategy.NONE, iter.getInitialWorksetInput().getLocalStrategy());
 		
+		// the sort for the neighbor join in the first iteration is pushed out of the loop
+		Assert.assertEquals(LocalStrategy.SORT, iter.getInitialWorksetInput().getLocalStrategy());
 		Assert.assertEquals(LocalStrategy.NONE, neighborsJoin.getInput1().getLocalStrategy()); // workset
-		Assert.assertEquals(LocalStrategy.NONE, neighborsJoin.getInput2().getLocalStrategy()); // edges
+		Assert.assertEquals(LocalStrategy.SORT, neighborsJoin.getInput2().getLocalStrategy()); // edges
 		
 		Assert.assertEquals(LocalStrategy.SORT, cogroup.getInput1().getLocalStrategy());
 		Assert.assertEquals(LocalStrategy.NONE, cogroup.getInput2().getLocalStrategy()); // solution set
 		
-		// check the dams
-		Assert.assertTrue(TempMode.PIPELINE_BREAKER == iter.getInitialWorksetInput().getTempMode() ||
-							LocalStrategy.SORT == iter.getInitialWorksetInput().getLocalStrategy());
+		// check the caches
+		Assert.assertTrue(TempMode.CACHED == neighborsJoin.getInput2().getTempMode());
 		
 		NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
 		jgg.compileJobGraph(optPlan);
