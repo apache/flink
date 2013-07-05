@@ -21,6 +21,7 @@ import java.io.IOException;
 
 import eu.stratosphere.nephele.services.memorymanager.DataInputView;
 import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
+import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.pact.common.type.CopyableValue;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.DeNormalizableKey;
@@ -120,36 +121,26 @@ public class PactInteger implements Key, DeNormalizableKey, CopyableValue<PactIn
 	}
 
 	@Override
-	public void copyNormalizedKey(byte[] target, int offset, int len) {
+	public void copyNormalizedKey(MemorySegment target, int offset, int len) {
+		// take out value and add the integer min value. This gets an offsetted
+		// representation when interpreted as an unsigned integer (as is the case
+		// with normalized keys). write this value as big endian to ensure the
+		// most significant byte comes first.
 		if (len == 4) {
-			// default case, full normalized key
-			int highByte = ((value >>> 24) & 0xff);
-			highByte -= Byte.MIN_VALUE;
-			target[offset    ] = (byte) highByte;
-			target[offset + 1] = (byte) ((value >>> 16) & 0xff);
-			target[offset + 2] = (byte) ((value >>>  8) & 0xff);
-			target[offset + 3] = (byte) ((value       ) & 0xff);
+			target.putIntBigEndian(offset, value - Integer.MIN_VALUE);
 		}
 		else if (len <= 0) {
 		}
 		else if (len < 4) {
-			int highByte = ((value >>> 24) & 0xff);
-			highByte -= Byte.MIN_VALUE;
-			target[offset    ] = (byte) highByte;
-			len--;
-			for (int i = 1; len > 0; len--, i++) {
-				target[offset + i] = (byte) ((value >>> ((3-i)<<3)) & 0xff);
+			int value = this.value - Integer.MIN_VALUE;
+			for (int i = 0; len > 0; len--, i++) {
+				target.put(offset + i, (byte) ((value >>> ((3-i)<<3)) & 0xff));
 			}
 		}
 		else {
-			int highByte = ((value >>> 24) & 0xff);
-			highByte -= Byte.MIN_VALUE;
-			target[offset    ] = (byte) highByte;
-			target[offset + 1] = (byte) ((value >>> 16) & 0xff);
-			target[offset + 2] = (byte) ((value >>>  8) & 0xff);
-			target[offset + 3] = (byte) ((value       ) & 0xff);
+			target.putIntBigEndian(offset, value  - Integer.MIN_VALUE);
 			for (int i = 4; i < len; i++) {
-				target[offset + i] = 0;
+				target.put(offset + i, (byte) 0);
 			}
 		}
 	}

@@ -281,13 +281,8 @@ public final class FixedLengthRecordSorter<T> implements InMemorySorter<T> {
 		
 		final MemorySegment segI = this.sortBuffer.get(bufferNumI);
 		final MemorySegment segJ = this.sortBuffer.get(bufferNumJ);
-		final byte[] bI = segI.getBackingArray();
-		final byte[] bJ = segJ.getBackingArray();
 		
-		int val = 0;
-		for (int pos = 0, posI = segI.translateOffset(segmentOffsetI), posJ = segJ.translateOffset(segmentOffsetJ);
-			pos < this.numKeyBytes && (val = (bI[posI] & 0xff) - (bJ[posJ] & 0xff)) == 0; pos++, posI++, posJ++);
-		
+		int val = MemorySegment.compare(segI, segJ, segmentOffsetI, segmentOffsetJ, this.numKeyBytes);
 		return this.useNormKeyUninverted ? val : -val;
 	}
 
@@ -302,9 +297,7 @@ public final class FixedLengthRecordSorter<T> implements InMemorySorter<T> {
 		final MemorySegment segI = this.sortBuffer.get(bufferNumI);
 		final MemorySegment segJ = this.sortBuffer.get(bufferNumJ);
 		
-		segI.get(segmentOffsetI, this.swapBuffer, 0, this.recordSize);
-		System.arraycopy(segJ.getBackingArray(), segJ.translateOffset(segmentOffsetJ), segI.getBackingArray(), segI.translateOffset(segmentOffsetI), this.recordSize);
-		segJ.put(segmentOffsetJ, this.swapBuffer, 0, this.recordSize);
+		MemorySegment.swapBytes(segI, segJ, this.swapBuffer, segmentOffsetI, segmentOffsetJ, this.recordSize);
 	}
 
 	@Override

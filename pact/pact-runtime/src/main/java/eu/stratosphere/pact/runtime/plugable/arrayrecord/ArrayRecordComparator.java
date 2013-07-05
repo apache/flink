@@ -19,6 +19,7 @@ import java.io.IOException;
 
 import eu.stratosphere.nephele.services.memorymanager.DataInputView;
 import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
+import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.pact.common.type.CopyableValue;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyFieldOutOfBoundsException;
@@ -34,6 +35,21 @@ import eu.stratosphere.pact.generic.types.TypeComparator;
  * are parameterized with which fields are relevant to the comparison. 
  */
 public final class ArrayRecordComparator extends TypeComparator<Value[]> {
+	
+	/**
+	 * A sequence of prime numbers to be used for salting the computed hash values.
+	 * Based on some empirical evidence, we are using a 32-element subsequence of the  
+	 * OEIS sequence #A068652 (numbers such that every cyclic permutation is a prime).
+	 * 
+	 * @see: http://en.wikipedia.org/wiki/List_of_prime_numbers
+	 * @see: http://oeis.org/A068652
+	 */
+	private static final int[] HASH_SALT = new int[] { 
+		73   , 79   , 97   , 113  , 131  , 197  , 199  , 311   , 
+		337  , 373  , 719  , 733  , 919  , 971  , 991  , 1193  , 
+		1931 , 3119 , 3779 , 7793 , 7937 , 9311 , 9377 , 11939 , 
+		19391, 19937, 37199, 39119, 71993, 91193, 93719, 93911 };
+	
 	
 	private final ArrayRecordSerializer serializer;
 	
@@ -176,6 +192,7 @@ public final class ArrayRecordComparator extends TypeComparator<Value[]> {
 			int code = 0;
 			for (; i < this.keyFields.length; i++) {
 				code ^= object[this.keyFields[i]].hashCode();
+				code *= HASH_SALT[i & 0x1F]; // salt code with (i % HASH_SALT.length)-th salt component
 			}
 			return code;
 		}
@@ -282,7 +299,7 @@ public final class ArrayRecordComparator extends TypeComparator<Value[]> {
 	 * @see eu.stratosphere.pact.generic.types.TypeComparator#putNormalizedKey(java.lang.Object, byte[], int, int)
 	 */
 	@Override
-	public void putNormalizedKey(Value[] record, byte[] target, int offset, int numBytes) {
+	public void putNormalizedKey(Value[] record, MemorySegment target, int offset, int numBytes) {
 		int i = 0;
 		try {
 			for (; i < this.numLeadingNormalizableKeys & numBytes > 0; i++)

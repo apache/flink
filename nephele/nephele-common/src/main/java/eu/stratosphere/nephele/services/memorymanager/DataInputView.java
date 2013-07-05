@@ -24,12 +24,9 @@ import java.io.IOException;
 /**
  * This interface defines a view over some memory that can be used to sequentially read the contents of the memory.
  * The view is typically backed by one or more {@link eu.stratosphere.nephele.services.memorymanager.MemorySegment}.
- *
- * @author Alexander Alexandrov
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
-public interface DataInputView extends DataInput
-{
+public interface DataInputView extends DataInput {
+	
 	/**
 	 * Skips {@code numBytes} bytes of memory. In contrast to the {@link #skipBytes(int)} method,
 	 * this method always skips the desired number of bytes or throws an {@link java.io.EOFException}.

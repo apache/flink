@@ -19,11 +19,9 @@ import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 
 /**
  * Interface describing entities that can provide memory segments.
- *
- * @author Stephan Ewen
  */
-public interface MemorySegmentSource
-{
+public interface MemorySegmentSource {
+	
 	/**
 	 * Gets the next memory segment. If no more segments are available, it returns null.
 	 * 

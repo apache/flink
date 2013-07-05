@@ -15,6 +15,8 @@
 
 package eu.stratosphere.pact.common.type;
 
+import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
+
 
 /**
  * The base interface for normalizable keys. Normalizable keys can create a binary representation
@@ -27,11 +29,9 @@ package eu.stratosphere.pact.common.type;
  * The latter depends on whether the normalized key covers the entire key or is just a prefix of the
  * key. A normalized key is considered a prefix, if its length is less than the maximal normalized
  * key length.
- *
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
-public interface NormalizableKey extends Key
-{
+public interface NormalizableKey extends Key {
+	
 	/**
 	 * Gets the maximal length of normalized keys that the data type would produce to determine
 	 * the order of instances solely by the normalized key. A value of {@link java.lang.Integer.MAX_VALUE}
@@ -54,9 +54,9 @@ public interface NormalizableKey extends Key
 	 * character, either {@code 0} or {@code 0xff}, depending on whether shorter values are sorted to the beginning or
 	 * the end. 
 	 * 
-	 * @param target The byte array to put the normalized key bytes into.
+	 * @param memory The memory segment to put the normalized key bytes into.
 	 * @param offset The offset in the byte array where the normalized key's bytes should start.
 	 * @param len The number of bytes to put.
 	 */
-	void copyNormalizedKey(byte[] target, int offset, int len);
+	void copyNormalizedKey(MemorySegment memory, int offset, int len);
 }

@@ -19,6 +19,7 @@ import java.io.IOException;
 
 import eu.stratosphere.nephele.services.memorymanager.DataInputView;
 import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
+import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyFieldOutOfBoundsException;
 import eu.stratosphere.pact.common.type.NormalizableKey;
@@ -297,7 +298,7 @@ public final class PactRecordComparator extends TypeComparator<PactRecord> {
 	 * @see eu.stratosphere.pact.generic.types.TypeComparator#putNormalizedKey(java.lang.Object, byte[], int, int)
 	 */
 	@Override
-	public void putNormalizedKey(PactRecord record, byte[] target, int offset, int numBytes) {
+	public void putNormalizedKey(PactRecord record, MemorySegment target, int offset, int numBytes) {
 		int i = 0;
 		try {
 			for (; i < this.numLeadingNormalizableKeys & numBytes > 0; i++)

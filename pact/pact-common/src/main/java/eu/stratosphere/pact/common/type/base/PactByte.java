@@ -21,6 +21,7 @@ import java.io.IOException;
 
 import eu.stratosphere.nephele.services.memorymanager.DataInputView;
 import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
+import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.pact.common.type.CopyableValue;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.DeNormalizableKey;
@@ -119,21 +120,23 @@ public class PactByte implements Key, DeNormalizableKey, CopyableValue<PactByte>
 	}
 
 	@Override
-	public void copyNormalizedKey(byte[] target, int offset, int len) {
+	public void copyNormalizedKey(MemorySegment target, int offset, int len) {
 		if (len == 1) {
-			// default case, full normalized key
+			// default case, full normalized key. need to explicitly convert to int to
+			// avoid false results due to implicit type conversion to int when subtracting
+			// the min byte value
 			int highByte = this.value & 0xff;
 			highByte -= Byte.MIN_VALUE;
-			target[offset] = (byte) highByte;
+			target.put(offset, (byte) highByte);
 		}
 		else if (len <= 0) {
 		}
 		else {
 			int highByte = this.value & 0xff;
 			highByte -= Byte.MIN_VALUE;
-			target[offset] = (byte) highByte;
+			target.put(offset, (byte) highByte);
 			for (int i = 1; i < len; i++) {
-				target[offset + i] = 0;
+				target.put(offset + i, (byte) 0);
 			}
 		}
 	}

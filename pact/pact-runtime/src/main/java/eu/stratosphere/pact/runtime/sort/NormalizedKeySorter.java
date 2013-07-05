@@ -268,7 +268,7 @@ public final class NormalizedKeySorter<T> implements InMemorySorter<T>
 		
 		// add the pointer and the normalized key
 		this.currentSortIndexSegment.putLong(this.currentSortIndexOffset, this.currentDataBufferOffset);
-		this.comparator.putNormalizedKey(record, this.currentSortIndexSegment.getBackingArray(), this.currentSortIndexSegment.translateOffset(this.currentSortIndexOffset + OFFSET_LEN), this.numKeyBytes);
+		this.comparator.putNormalizedKey(record, this.currentSortIndexSegment, this.currentSortIndexOffset + OFFSET_LEN, this.numKeyBytes);
 		
 		// serialize the record into the data buffers
 		try {
@@ -338,12 +338,8 @@ public final class NormalizedKeySorter<T> implements InMemorySorter<T>
 		
 		final MemorySegment segI = this.sortIndex.get(bufferNumI);
 		final MemorySegment segJ = this.sortIndex.get(bufferNumJ);
-		final byte[] bI = segI.getBackingArray();
-		final byte[] bJ = segJ.getBackingArray();
 		
-		int val = 0;
-		for (int pos = 0, posI = segI.translateOffset(segmentOffsetI + OFFSET_LEN), posJ = segJ.translateOffset(segmentOffsetJ + OFFSET_LEN);
-			pos < this.numKeyBytes && (val = (bI[posI] & 0xff) - (bJ[posJ] & 0xff)) == 0; pos++, posI++, posJ++);
+		int val = MemorySegment.compare(segI, segJ, segmentOffsetI + OFFSET_LEN, segmentOffsetJ + OFFSET_LEN, this.numKeyBytes);
 		
 		if (val != 0 || this.normalizedKeyFullyDetermines) {
 			return this.useNormKeyUninverted ? val : -val;
@@ -355,9 +351,6 @@ public final class NormalizedKeySorter<T> implements InMemorySorter<T>
 		return compareRecords(pointerI, pointerJ);
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.sort.IndexedSortable#swap(int, int)
-	 */
 	@Override
 	public void swap(int i, int j) {
 		final int bufferNumI = i / this.indexEntriesPerSegment;
@@ -369,14 +362,9 @@ public final class NormalizedKeySorter<T> implements InMemorySorter<T>
 		final MemorySegment segI = this.sortIndex.get(bufferNumI);
 		final MemorySegment segJ = this.sortIndex.get(bufferNumJ);
 		
-		segI.get(segmentOffsetI, this.swapBuffer, 0, this.indexEntrySize);
-		System.arraycopy(segJ.getBackingArray(), segJ.translateOffset(segmentOffsetJ), segI.getBackingArray(), segI.translateOffset(segmentOffsetI), this.indexEntrySize);
-		segJ.put(segmentOffsetJ, this.swapBuffer, 0, this.indexEntrySize);
+		MemorySegment.swapBytes(segI, segJ, this.swapBuffer, segmentOffsetI, segmentOffsetJ, this.indexEntrySize);
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.sort.IndexedSortable#size()
-	 */
 	@Override
 	public int size() {
 		return this.numRecords;

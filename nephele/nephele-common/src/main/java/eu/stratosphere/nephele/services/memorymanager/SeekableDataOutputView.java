@@ -20,11 +20,9 @@ import java.io.IOException;
 /**
  * Interface marking a {@link DataOutputView} as seekable. Seekable views can set the position where they
  * write to.
- * 
- * @author Stephan Ewen
  */
-public interface SeekableDataOutputView extends DataOutputView
-{
+public interface SeekableDataOutputView extends DataOutputView {
+	
 	/**
 	 * Sets the write pointer to the given position.
 	 * 

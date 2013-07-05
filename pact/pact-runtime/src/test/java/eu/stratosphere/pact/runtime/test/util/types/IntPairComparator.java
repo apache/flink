@@ -19,6 +19,7 @@ import java.io.IOException;
 
 import eu.stratosphere.nephele.services.memorymanager.DataInputView;
 import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
+import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.pact.generic.types.TypeComparator;
 
 
@@ -68,39 +69,24 @@ public class IntPairComparator extends TypeComparator<IntPair>
 	}
 
 	@Override
-	public void putNormalizedKey(IntPair record, byte[] target, int offset, int numBytes)
-	{
-		final int value = record.getKey();
+	public void putNormalizedKey(IntPair record, MemorySegment target, int offset, int len) {
+		// see PactInteger for a documentation of the logic
+		final int value = record.getKey() - Integer.MIN_VALUE;
 		
-		if (numBytes == 4) {
-			// default case, full normalized key
-			int highByte = ((value >>> 24) & 0xff);
-			highByte -= Byte.MIN_VALUE;
-			target[offset    ] = (byte) highByte;
-			target[offset + 1] = (byte) ((value >>> 16) & 0xff);
-			target[offset + 2] = (byte) ((value >>>  8) & 0xff);
-			target[offset + 3] = (byte) ((value       ) & 0xff);
+		if (len == 4) {
+			target.putIntBigEndian(offset, value);
 		}
-		else if (numBytes <= 0) {
+		else if (len <= 0) {
 		}
-		else if (numBytes < 4) {
-			int highByte = ((value >>> 24) & 0xff);
-			highByte -= Byte.MIN_VALUE;
-			target[offset    ] = (byte) highByte;
-			numBytes--;
-			for (int i = 1; numBytes > 0; numBytes--, i++) {
-				target[offset + i] = (byte) ((value >>> ((3-i)<<3)) & 0xff);
+		else if (len < 4) {
+			for (int i = 0; len > 0; len--, i++) {
+				target.put(offset + i, (byte) ((value >>> ((3-i)<<3)) & 0xff));
 			}
 		}
 		else {
-			int highByte = ((value >>> 24) & 0xff);
-			highByte -= Byte.MIN_VALUE;
-			target[offset    ] = (byte) highByte;
-			target[offset + 1] = (byte) ((value >>> 16) & 0xff);
-			target[offset + 2] = (byte) ((value >>>  8) & 0xff);
-			target[offset + 3] = (byte) ((value       ) & 0xff);
-			for (int i = 4; i < numBytes; i++) {
-				target[offset + i] = 0;
+			target.putIntBigEndian(offset, value);
+			for (int i = 4; i < len; i++) {
+				target.put(offset + i, (byte) 0);
 			}
 		}
 	}

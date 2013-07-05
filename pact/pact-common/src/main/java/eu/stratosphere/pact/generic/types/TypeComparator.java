@@ -19,6 +19,7 @@ import java.io.IOException;
 
 import eu.stratosphere.nephele.services.memorymanager.DataInputView;
 import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
+import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.pact.common.type.NormalizableKey;
 
 /**
@@ -43,8 +44,8 @@ import eu.stratosphere.pact.common.type.NormalizableKey;
  * 
  * @param T The data type that the comparator works on.
  */
-public abstract class TypeComparator<T>
-{	
+public abstract class TypeComparator<T> {
+	
 	/**
 	 * Computes a hash value for the given record. The hash value should include all fields in the record
 	 * relevant to the comparison.
@@ -208,9 +209,9 @@ public abstract class TypeComparator<T>
 	 * @param offset The offset in the byte array, where to start writing the normalized key bytes.
 	 * @param numBytes The number of bytes to be written exactly. 
 	 * 
-	 * @see NormalizableKey#copyNormalizedKey(byte[], int, int)
+	 * @see NormalizableKey#copyNormalizedKey(MemorySegment, int, int)
 	 */
-	public abstract void putNormalizedKey(T record, byte[] target, int offset, int numBytes);
+	public abstract void putNormalizedKey(T record, MemorySegment target, int offset, int numBytes);
 
 	/**
 	 * Writes the record in such a fashion that all keys are normalizing and at the beginning of the serialized data.

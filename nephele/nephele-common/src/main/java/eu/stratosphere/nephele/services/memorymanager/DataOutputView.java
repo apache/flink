@@ -23,12 +23,9 @@ import java.io.IOException;
 /**
  * This interface defines a view over some memory that can be used to sequentially write contents to the memory.
  * The view is typically backed by one or more {@link eu.stratosphere.nephele.services.memorymanager.MemorySegment}.
- *
- * @author Alexander Alexandrov
- * @author Stephan Ewen
  */
-public interface DataOutputView extends DataOutput
-{
+public interface DataOutputView extends DataOutput {
+	
 	/**
 	 * Skips {@code numBytes} bytes memory. If some program reads the memory that was skipped over, the
 	 * results are undefined. 

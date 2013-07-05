@@ -19,6 +19,7 @@ import junit.framework.Assert;
 
 import org.junit.Test;
 
+import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.pact.common.type.NormalizableKey;
 
 public class NormalizableKeyTest {
@@ -100,10 +101,11 @@ public class NormalizableKeyTest {
 	
 	private void assertNormalizableKey(NormalizableKey key1, NormalizableKey key2, int len) {
 		
-		byte[] normalizedKeys = new byte[2*len]; 
+		byte[] normalizedKeys = new byte[2*len];
+		MemorySegment wrapper = new MemorySegment(normalizedKeys);
 		
-		key1.copyNormalizedKey(normalizedKeys, 0, len);
-		key2.copyNormalizedKey(normalizedKeys, len, len);
+		key1.copyNormalizedKey(wrapper, 0, len);
+		key2.copyNormalizedKey(wrapper, len, len);
 		
 		for (int i = 0; i < len; i++) {
 			int comp;

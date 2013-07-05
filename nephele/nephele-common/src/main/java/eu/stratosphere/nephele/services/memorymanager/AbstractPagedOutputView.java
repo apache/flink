@@ -30,11 +30,9 @@ import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
  * implement the methods to collect the current page and provide the next memory page once the boundary is crossed.
  * <p>
  * The paging assumes that all memory segments are of the same size.
- *
- * @author Stephan Ewen
  */
-public abstract class AbstractPagedOutputView implements DataOutputView
-{
+public abstract class AbstractPagedOutputView implements DataOutputView {
+	
 	private MemorySegment currentSegment;			// the current memory segment to write to
 	
 	protected final int segmentSize;				// the size of the memory segments
@@ -59,8 +57,7 @@ public abstract class AbstractPagedOutputView implements DataOutputView
 	 * @param segmentSize The size of the memory segments.
 	 * @param headerLength The number of bytes to skip at the beginning of each segment for the header.
 	 */
-	protected AbstractPagedOutputView(MemorySegment initialSegment, int segmentSize, int headerLength)
-	{
+	protected AbstractPagedOutputView(MemorySegment initialSegment, int segmentSize, int headerLength) {
 		if (initialSegment == null) {
 			throw new NullPointerException("Initial Segment may not be null");
 		}
@@ -136,8 +133,7 @@ public abstract class AbstractPagedOutputView implements DataOutputView
 	 * @throws IOException Thrown, if the current segment could not be processed or a new segment could not
 	 *                     be obtained. 
 	 */
-	protected void advance() throws IOException
-	{
+	protected void advance() throws IOException {
 		this.currentSegment = nextSegment(this.currentSegment, this.positionInSegment);
 		this.positionInSegment = this.headerLength;
 	}
@@ -148,8 +144,7 @@ public abstract class AbstractPagedOutputView implements DataOutputView
 	 * @param seg The memory segment to write the next bytes to.
 	 * @param position The position to start writing the next bytes to.
 	 */
-	protected void seekOutput(MemorySegment seg, int position)
-	{
+	protected void seekOutput(MemorySegment seg, int position) {
 		this.currentSegment = seg;
 		this.positionInSegment = position;
 	}
@@ -161,8 +156,7 @@ public abstract class AbstractPagedOutputView implements DataOutputView
 	 * @see #advance()
 	 * @see #seekOutput(MemorySegment, int)
 	 */
-	protected void clear()
-	{
+	protected void clear() {
 		this.currentSegment = null;
 		this.positionInSegment = this.headerLength;
 	}
@@ -171,29 +165,18 @@ public abstract class AbstractPagedOutputView implements DataOutputView
 	//                               Data Output Specific methods
 	// --------------------------------------------------------------------------------------------
 	
-	/* (non-Javadoc)
-	 * @see java.io.DataOutput#write(int)
-	 */
 	@Override
-	public void write(int b) throws IOException
-	{
+	public void write(int b) throws IOException {
 		writeByte(b);
 	}
 
-	/* (non-Javadoc)
-	 * @see java.io.DataOutput#write(byte[])
-	 */
 	@Override
 	public void write(byte[] b) throws IOException {
 		write(b, 0, b.length);
 	}
 
-	/* (non-Javadoc)
-	 * @see java.io.DataOutput#write(byte[], int, int)
-	 */
 	@Override
-	public void write(byte[] b, int off, int len) throws IOException
-	{
+	public void write(byte[] b, int off, int len) throws IOException {
 		int remaining = this.segmentSize - this.positionInSegment;
 		if (remaining >= len) {
 			this.currentSegment.put(this.positionInSegment, b, off, len);
@@ -223,21 +206,13 @@ public abstract class AbstractPagedOutputView implements DataOutputView
 		}
 	}
 
-	/* (non-Javadoc)
-	 * @see java.io.DataOutput#writeBoolean(boolean)
-	 */
 	@Override
-	public void writeBoolean(boolean v) throws IOException
-	{
+	public void writeBoolean(boolean v) throws IOException {
 		writeByte(v ? 1 : 0);
 	}
 
-	/* (non-Javadoc)
-	 * @see java.io.DataOutput#writeByte(int)
-	 */
 	@Override
-	public void writeByte(int v) throws IOException
-	{
+	public void writeByte(int v) throws IOException {
 		if (this.positionInSegment < this.segmentSize) {
 			this.currentSegment.put(this.positionInSegment++, (byte) v);
 		}
@@ -247,12 +222,8 @@ public abstract class AbstractPagedOutputView implements DataOutputView
 		}
 	}
 
-	/* (non-Javadoc)
-	 * @see java.io.DataOutput#writeShort(int)
-	 */
 	@Override
-	public void writeShort(int v) throws IOException
-	{
+	public void writeShort(int v) throws IOException {
 		if (this.positionInSegment < this.segmentSize - 1) {
 			this.currentSegment.putShort(this.positionInSegment, (short) v);
 			this.positionInSegment += 2;
@@ -267,12 +238,8 @@ public abstract class AbstractPagedOutputView implements DataOutputView
 		}
 	}
 
-	/* (non-Javadoc)
-	 * @see java.io.DataOutput#writeChar(int)
-	 */
 	@Override
-	public void writeChar(int v) throws IOException
-	{
+	public void writeChar(int v) throws IOException {
 		if (this.positionInSegment < this.segmentSize - 1) {
 			this.currentSegment.putChar(this.positionInSegment, (char) v);
 			this.positionInSegment += 2;
@@ -287,14 +254,10 @@ public abstract class AbstractPagedOutputView implements DataOutputView
 		}
 	}
 
-	/* (non-Javadoc)
-	 * @see java.io.DataOutput#writeInt(int)
-	 */
 	@Override
-	public void writeInt(int v) throws IOException
-	{
+	public void writeInt(int v) throws IOException {
 		if (this.positionInSegment < this.segmentSize - 3) {
-			this.currentSegment.putInt(this.positionInSegment, v);
+			this.currentSegment.putIntBigEndian(this.positionInSegment, v);
 			this.positionInSegment += 4;
 		}
 		else if (this.positionInSegment == this.segmentSize) {
@@ -309,14 +272,10 @@ public abstract class AbstractPagedOutputView implements DataOutputView
 		}
 	}
 
-	/* (non-Javadoc)
-	 * @see java.io.DataOutput#writeLong(long)
-	 */
 	@Override
-	public void writeLong(long v) throws IOException
-	{
+	public void writeLong(long v) throws IOException {
 		if (this.positionInSegment < this.segmentSize - 7) {
-			this.currentSegment.putLong(this.positionInSegment, v);
+			this.currentSegment.putLongBigEndian(this.positionInSegment, v);
 			this.positionInSegment += 8;
 		}
 		else if (this.positionInSegment == this.segmentSize) {
@@ -335,52 +294,32 @@ public abstract class AbstractPagedOutputView implements DataOutputView
 		}
 	}
 
-	/* (non-Javadoc)
-	 * @see java.io.DataOutput#writeFloat(float)
-	 */
 	@Override
-	public void writeFloat(float v) throws IOException
-	{
-		writeInt(Float.floatToIntBits(v));
+	public void writeFloat(float v) throws IOException {
+		writeInt(Float.floatToRawIntBits(v));
 	}
 
-	/* (non-Javadoc)
-	 * @see java.io.DataOutput#writeDouble(double)
-	 */
 	@Override
-	public void writeDouble(double v) throws IOException
-	{
-		writeLong(Double.doubleToLongBits(v));
+	public void writeDouble(double v) throws IOException {
+		writeLong(Double.doubleToRawLongBits(v));
 	}
 
-	/* (non-Javadoc)
-	 * @see java.io.DataOutput#writeBytes(java.lang.String)
-	 */
 	@Override
-	public void writeBytes(String s) throws IOException
-	{
+	public void writeBytes(String s) throws IOException {
 		for (int i = 0; i < s.length(); i++) {
 			writeByte(s.charAt(i));
 		}
 	}
 
-	/* (non-Javadoc)
-	 * @see java.io.DataOutput#writeChars(java.lang.String)
-	 */
 	@Override
-	public void writeChars(String s) throws IOException
-	{
+	public void writeChars(String s) throws IOException {
 		for (int i = 0; i < s.length(); i++) {
 			writeChar(s.charAt(i));
 		}
 	}
 
-	/* (non-Javadoc)
-	 * @see java.io.DataOutput#writeUTF(java.lang.String)
-	 */
 	@Override
-	public void writeUTF(String str) throws IOException
-	{
+	public void writeUTF(String str) throws IOException {
 		int strlen = str.length();
 		int utflen = 0;
 		int c, count = 0;
@@ -434,12 +373,8 @@ public abstract class AbstractPagedOutputView implements DataOutputView
 		write(bytearr, 0, utflen + 2);
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.services.memorymanager.DataOutputView#skip(int)
-	 */
 	@Override
-	public void skipBytesToWrite(int numBytes) throws IOException
-	{
+	public void skipBytesToWrite(int numBytes) throws IOException {
 		while (numBytes > 0) {
 			final int remaining = this.segmentSize - this.positionInSegment;
 			if (numBytes <= remaining) {
@@ -453,12 +388,8 @@ public abstract class AbstractPagedOutputView implements DataOutputView
 		return;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.services.memorymanager.DataOutputViewV2#write(eu.stratosphere.nephele.services.memorymanager.DataInputViewV2, int)
-	 */
 	@Override
-	public void write(DataInputView source, int numBytes) throws IOException
-	{
+	public void write(DataInputView source, int numBytes) throws IOException {
 		while (numBytes > 0) {
 			final int remaining = this.segmentSize - this.positionInSegment;
 			if (numBytes <= remaining) {

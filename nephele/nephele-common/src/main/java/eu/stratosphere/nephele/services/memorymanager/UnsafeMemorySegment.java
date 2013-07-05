@@ -30,7 +30,7 @@ public class UnsafeMemorySegment {
 	
 	// flag to enable / disable boundary checks. Note that the compiler eliminates the check code
 	// paths (as dead code) when this constant is set to false.
-	private static final boolean CHECKED = true;
+	private static final boolean CHECKED = false;
 	
 	/**
 	 * The array in which the data is stored.

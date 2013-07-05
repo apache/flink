@@ -18,6 +18,7 @@ import java.io.IOException;
 
 import eu.stratosphere.nephele.services.memorymanager.DataInputView;
 import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
+import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.pact.generic.types.TypeComparator;
 
 
@@ -73,46 +74,25 @@ public final class VertexWithAdjacencyListComparator extends TypeComparator<Vert
 	}
 
 	@Override
-	public void putNormalizedKey(VertexWithAdjacencyList record, byte[] target, int offset, int len) {
-		final long value = record.getVertexID();
+	public void putNormalizedKey(VertexWithAdjacencyList record, MemorySegment target, int offset, int len) {
+		final long value = record.getVertexID() - Long.MIN_VALUE;
 		
+		// see PactInteger for an explanation of the logic
 		if (len == 8) {
 			// default case, full normalized key
-			long highByte = ((value >>> 56) & 0xff);
-			highByte -= Byte.MIN_VALUE;
-			target[offset    ] = (byte) highByte;
-			target[offset + 1] = (byte) (value >>> 48);
-			target[offset + 2] = (byte) (value >>> 40);
-			target[offset + 3] = (byte) (value >>> 32);
-			target[offset + 4] = (byte) (value >>> 24);
-			target[offset + 5] = (byte) (value >>> 16);
-			target[offset + 6] = (byte) (value >>>  8);
-			target[offset + 7] = (byte) (value       );
+			target.putLongBigEndian(offset, value);
 		}
 		else if (len <= 0) {
 		}
 		else if (len < 8) {
-			long highByte = ((value >>> 56) & 0xff);
-			highByte -= Byte.MIN_VALUE;
-			target[offset] = (byte) highByte;
-			len--;
-			for (int i = 1; len > 0; len--, i++) {
-				target[offset + i] = (byte) (value >>> ((7-i)<<3));
+			for (int i = 0; len > 0; len--, i++) {
+				target.put(offset + i, (byte) ((value >>> ((3-i)<<3)) & 0xff));
 			}
 		}
 		else {
-			long highByte = ((value >>> 56) & 0xff);
-			highByte -= Byte.MIN_VALUE;
-			target[offset    ] = (byte) highByte;
-			target[offset + 1] = (byte) (value >>> 48);
-			target[offset + 2] = (byte) (value >>> 40);
-			target[offset + 3] = (byte) (value >>> 32);
-			target[offset + 4] = (byte) (value >>> 24);
-			target[offset + 5] = (byte) (value >>> 16);
-			target[offset + 6] = (byte) (value >>>  8);
-			target[offset + 7] = (byte) (value       );
+			target.putLongBigEndian(offset, value);
 			for (int i = 8; i < len; i++) {
-				target[offset + i] = 0;
+				target.put(offset + i, (byte) 0);
 			}
 		}
 	}

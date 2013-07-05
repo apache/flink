@@ -22,6 +22,7 @@ import java.nio.CharBuffer;
 
 import eu.stratosphere.nephele.services.memorymanager.DataInputView;
 import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
+import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.pact.common.type.CopyableValue;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.NormalizableKey;
@@ -570,8 +571,8 @@ public class PactString implements Key, NormalizableKey, CharSequence, CopyableV
 	}
 
 	@Override
-	public void copyNormalizedKey(byte[] target, int offset, int len)
-	{
+	public void copyNormalizedKey(MemorySegment target, int offset, int len) {
+		// cache variables on stack, avoid repeated dereferencing of "this"
 		final char[] chars = this.value;
 		final int limit = offset + len;
 		final int end = this.len;
@@ -580,23 +581,23 @@ public class PactString implements Key, NormalizableKey, CharSequence, CopyableV
 		while (pos < end && offset < limit) {
 			char c = chars[pos++];
 			if (c < HIGH_BIT) {
-				target[offset++] = (byte) c;
+				target.put(offset++, (byte) c);
 			}
 			else if (c < HIGH_BIT2) {
-				target[offset++] = (byte) ((c >>> 7) | HIGH_BIT);
+				target.put(offset++, (byte) ((c >>> 7) | HIGH_BIT));
 				if (offset < limit)
-					target[offset++] = (byte) c;
+					target.put(offset++, (byte) c);
 			}
 			else {
-				target[offset++] = (byte) ((c >>> 10) | HIGH_BIT2_MASK);
+				target.put(offset++, (byte) ((c >>> 10) | HIGH_BIT2_MASK));
 				if (offset < limit)
-					target[offset++] = (byte) (c >>> 2);
+					target.put(offset++, (byte) (c >>> 2));
 				if (offset < limit)
-					target[offset++] = (byte) c;
+					target.put(offset++, (byte) c);
 			}
 		}
 		while (offset < limit) {
-			target[offset++] = 0;
+			target.put(offset++, (byte) 0);
 		}
 	}
 	

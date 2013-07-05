@@ -25,6 +25,43 @@ import java.nio.ByteOrder;
  * This class represents a piece of memory allocated from the memory manager. The segment is backed
  * by a byte array and features random put and get methods for the basic types that are stored in a byte-wise
  * fashion in the memory.
+ * 
+ * <p>
+ * 
+ * Comments on the implementation: We make heavy use of operations that are supported by native
+ * instructions, to achieve a high efficiency. Multi byte types (int, long, float, double, ...)
+ * are read and written with "unsafe" native commands. Little-endian to big-endian conversion and
+ * vice versa are done using the static <i>reverseBytes</i> methods in the boxing data types
+ * (for example {@link Integer#reverseBytes(int)}). On x86/amd64, these are translated by the
+ * jit compiler to <i>bswap</i> intrinsic commands.
+ * 
+ * Below is an example of the code generated for the {@link MemorySegment#putLongBigEndian(int, long)}
+ * function by the just-in-time compiler. The code is grabbed from an oracle jvm 7 using the
+ * hotspot disassembler library (hsdis32.dll) and the jvm command
+ * <i>-XX:+UnlockDiagnosticVMOptions -XX:CompileCommand=print,*UnsafeMemorySegment.putLongBigEndian</i>.
+ * Note that this code realizes both the byte order swapping and the reinterpret cast access to
+ * get a long from the byte array.
+ * 
+ * <pre>
+ * [Verified Entry Point]
+ *   0x00007fc403e19920: sub    $0x18,%rsp
+ *   0x00007fc403e19927: mov    %rbp,0x10(%rsp)    ;*synchronization entry
+ *                                                 ; - eu.stratosphere.nephele.services.memorymanager.UnsafeMemorySegment::putLongBigEndian@-1 (line 652)
+ *   0x00007fc403e1992c: mov    0xc(%rsi),%r10d    ;*getfield memory
+ *                                                 ; - eu.stratosphere.nephele.services.memorymanager.UnsafeMemorySegment::putLong@4 (line 611)
+ *                                                 ; - eu.stratosphere.nephele.services.memorymanager.UnsafeMemorySegment::putLongBigEndian@12 (line 653)
+ *   0x00007fc403e19930: bswap  %rcx
+ *   0x00007fc403e19933: shl    $0x3,%r10
+ *   0x00007fc403e19937: movslq %edx,%r11
+ *   0x00007fc403e1993a: mov    %rcx,0x10(%r10,%r11,1)  ;*invokevirtual putLong
+ *                                                 ; - eu.stratosphere.nephele.services.memorymanager.UnsafeMemorySegment::putLong@14 (line 611)
+ *                                                 ; - eu.stratosphere.nephele.services.memorymanager.UnsafeMemorySegment::putLongBigEndian@12 (line 653)
+ *   0x00007fc403e1993f: add    $0x10,%rsp
+ *   0x00007fc403e19943: pop    %rbp
+ *   0x00007fc403e19944: test   %eax,0x5ba76b6(%rip)        # 0x00007fc4099c1000
+ *                                                 ;   {poll_return}
+ *   0x00007fc403e1994a: retq 
+ * </pre>
  */
 public class MemorySegment {
 	
