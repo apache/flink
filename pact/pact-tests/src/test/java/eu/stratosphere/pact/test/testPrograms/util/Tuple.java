@@ -25,7 +25,7 @@ public class Tuple implements Value {
 
 	private byte[] bytes;
 
-	private short[] offsets;
+	private int[] offsets;
 
 	private int numCols;
 
@@ -49,7 +49,7 @@ public class Tuple implements Value {
 	 * @param cols
 	 *        The number of columns.
 	 */
-	public Tuple(byte[] bytes, short[] offsets, int cols) {
+	public Tuple(byte[] bytes, int[] offsets, int cols) {
 		this.bytes = bytes;
 		this.offsets = offsets;
 		this.numCols = cols;
@@ -105,7 +105,7 @@ public class Tuple implements Value {
 		
 		if (bytes == null) {
 			bytes = (byte[]) other.bytes.clone();
-			offsets = (short[]) other.offsets.clone();
+			offsets = (int[]) other.offsets.clone();
 			numCols = other.numCols;
 		} else {
 			int len = offsets[numCols];
@@ -125,14 +125,14 @@ public class Tuple implements Value {
 
 			// offsets
 			if (offsets.length < numCols + other.numCols + 1) {
-				short[] tmp = new short[numCols + other.numCols + 1];
+				int[] tmp = new int[numCols + other.numCols + 1];
 				System.arraycopy(offsets, 0, tmp, 0, numCols + 1);
 				offsets = tmp;
 			}
 
 			// other offsets
 			for (int i = 1; i < other.numCols + 1; i++) {
-				offsets[numCols + i] = (short) (other.offsets[i] + len);
+				offsets[numCols + i] = other.offsets[i] + len;
 			}
 
 			numCols += other.numCols;
@@ -172,12 +172,12 @@ public class Tuple implements Value {
 		// copy the columns to the beginning and adjust the offsets to the new array
 		for (int i = 0; i < k; i++) {
 			System.arraycopy(bytes, offsets[i], tmp, lenCount, lengths[i]);
-			offsets[i] = (short) lenCount;
+			offsets[i] = lenCount;
 			lenCount += lengths[i];
 		}
 
 		bytes = tmp;
-		offsets[numCols] = (short) tmp.length;
+		offsets[numCols] = tmp.length;
 	}
 
 	/**
@@ -395,7 +395,7 @@ public class Tuple implements Value {
 		}
 
 		if (offsets.length > numCols + 1) {
-			short[] tmp = new short[numCols + 1];
+			int[] tmp = new int[numCols + 1];
 			System.arraycopy(offsets, 0, tmp, 0, numCols + 1);
 			offsets = tmp;
 		}
@@ -410,7 +410,7 @@ public class Tuple implements Value {
 		int end;
 
 		if (numCols == 0) {
-			offsets = new short[5];
+			offsets = new int[5];
 			bytes = new byte[Math.max(256, attValue.length + 1)];
 			end = 0;
 		} else {
@@ -418,7 +418,7 @@ public class Tuple implements Value {
 
 			// increase offset array, if necessary
 			if (numCols + 1 >= offsets.length) {
-				short[] tmp = new short[offsets.length * 2];
+				int[] tmp = new int[offsets.length * 2];
 				System.arraycopy(offsets, 0, tmp, 0, numCols + 1);
 				offsets = tmp;
 			}
@@ -436,7 +436,7 @@ public class Tuple implements Value {
 		end += attValue.length;
 		bytes[end++] = '|';
 		numCols++;
-		offsets[numCols] = (short) end;
+		offsets[numCols] = end;
 	}
 
 	/**
@@ -448,7 +448,7 @@ public class Tuple implements Value {
 		int end;
 
 		if (numCols == 0) {
-			offsets = new short[5];
+			offsets = new int[5];
 			bytes = new byte[Math.max(256, attValue.length() + 1)];
 			end = 0;
 		} else {
@@ -456,7 +456,7 @@ public class Tuple implements Value {
 
 			// increase offset array, if necessary
 			if (numCols + 1 >= offsets.length) {
-				short[] tmp = new short[offsets.length * 2];
+				int[] tmp = new int[offsets.length * 2];
 				System.arraycopy(offsets, 0, tmp, 0, numCols + 1);
 				offsets = tmp;
 			}
@@ -475,7 +475,7 @@ public class Tuple implements Value {
 		}
 		bytes[end++] = '|';
 		numCols++;
-		offsets[numCols] = (short) end;
+		offsets[numCols] = end;
 	}
 	
 	/**
@@ -489,7 +489,7 @@ public class Tuple implements Value {
 		int end;
 
 		if (numCols == 0) {
-			offsets = new short[5];
+			offsets = new int[5];
 			bytes = new byte[Math.max(256, len)];
 			end = 0;
 		} else {
@@ -497,7 +497,7 @@ public class Tuple implements Value {
 
 			// increase offset array, if necessary
 			if (numCols + 1 >= offsets.length) {
-				short[] tmp = new short[offsets.length * 2];
+				int[] tmp = new int[offsets.length * 2];
 				System.arraycopy(offsets, 0, tmp, 0, numCols + 1);
 				offsets = tmp;
 			}
@@ -512,7 +512,7 @@ public class Tuple implements Value {
 
 		System.arraycopy(other.bytes, other.offsets[column], bytes, end, len);
 		numCols++;
-		offsets[numCols] = (short) (end + len);
+		offsets[numCols] = end + len;
 	}
 	
 	public void setContents(byte[] bytes, int offset, int len, char delimiter)
@@ -529,7 +529,7 @@ public class Tuple implements Value {
 		
 		// allocate the offsets array
 		if (this.offsets == null) {
-			this.offsets = new short[4];
+			this.offsets = new int[4];
 		}
 
 		int col = 1; // the column we are in
@@ -539,11 +539,11 @@ public class Tuple implements Value {
 		while (readPos < offset + len) {
 			if (bytes[readPos++] == delimiter) {
 				if (offsets.length <= col) {
-					short newOffsets[] = new short[this.offsets.length * 2];
+					int newOffsets[] = new int[this.offsets.length * 2];
 					System.arraycopy(this.offsets, 0, newOffsets, 0, this.offsets.length);
 					this.offsets = newOffsets;
 				}
-				this.offsets[col++] = (short) (readPos - startPos);
+				this.offsets[col++] = readPos - startPos;
 			}
 		}
 		
@@ -565,12 +565,12 @@ public class Tuple implements Value {
 
 			// read the offsets
 			numCols = in.readInt() + 1;
-			offsets = new short[numCols + 1];
+			offsets = new int[numCols + 1];
 			for (int i = 1; i < numCols; i++) {
-				offsets[i] = in.readShort();
+				offsets[i] = in.readInt();
 			}
 			// set last offset
-			offsets[numCols] = (short) numBytes;
+			offsets[numCols] = numBytes;
 		} else {
 			numCols = 0;
 		}
@@ -588,7 +588,7 @@ public class Tuple implements Value {
 			// exclude first and last
 			out.writeInt(numCols - 1);
 			for (int i = 1; i < numCols; i++) {
-				out.writeShort(offsets[i]);
+				out.writeInt(offsets[i]);
 			}
 		}
 	}

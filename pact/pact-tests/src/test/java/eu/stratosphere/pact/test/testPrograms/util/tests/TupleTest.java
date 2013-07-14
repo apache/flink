@@ -32,7 +32,7 @@ public class TupleTest {
 	public void testTupleByteArrayShortArrayInt() {
 		
 		String tupleStr = "attr1|attr2|3|4|attr5|";
-		short[] offsets = {0,6,12,14,16,22};
+		int[] offsets = {0,6,12,14,16,22};
 		Tuple t1 = new Tuple(tupleStr.getBytes(),offsets,5);
 		
 		Assert.assertTrue(t1.getBytes().length == tupleStr.getBytes().length);
@@ -65,7 +65,7 @@ public class TupleTest {
 		Assert.assertTrue(t.getNumberOfColumns() == 3);
 		
 		String tupleStr = "attr1|attr2|3|4|attr5|";
-		short[] offsets = {0,6,12,14,16,22};
+		int[] offsets = {0,6,12,14,16,22};
 		t = new Tuple(tupleStr.getBytes(),offsets,5);
 		
 		Assert.assertTrue(t.getNumberOfColumns() == 5);
@@ -95,7 +95,7 @@ public class TupleTest {
 		Assert.assertTrue(ret1[exp1.getBytes().length+1] == 0);
 		
 		String tupleStr = "attr1|attr2|3|4|attr5|";
-		short[] offsets = {0,6,12,14,16,22};
+		int[] offsets = {0,6,12,14,16,22};
 		Tuple t2 = new Tuple(tupleStr.getBytes(),offsets,5);
 		
 		byte[] ret2 = t2.getBytes();
@@ -124,7 +124,7 @@ public class TupleTest {
 		Assert.assertTrue(t.getColumnLength(2) == 14);
 		
 		String tupleStr = "attr1|attr2|3|4|attr5|";
-		short[] offsets = {0,6,12,14,16,22};
+		int[] offsets = {0,6,12,14,16,22};
 		t = new Tuple(tupleStr.getBytes(),offsets,5);
 		
 		Assert.assertTrue(t.getColumnLength(0) == 5);
@@ -521,7 +521,7 @@ public class TupleTest {
 		Assert.assertTrue(t.getBytes().length == 13);
 		
 		byte[] ba = new byte[1024];
-		short[] of = {0};
+		int[] of = {0};
 		t = new Tuple(ba, of, 0);
 		
 		Assert.assertTrue(t.getBytes().length == 1024);
@@ -529,7 +529,7 @@ public class TupleTest {
 		Assert.assertTrue(t.getBytes().length == 0);
 		
 		ba = "attr1|attr2|3|4|attr5|thisdoesnotbelongtothetuple".getBytes();
-		short[] of2 = {0,6,12,14,16,22};
+		int[] of2 = {0,6,12,14,16,22};
 		t = new Tuple(ba, of2, 5);
 		
 		Assert.assertTrue(t.getBytes().length == ba.length);
@@ -651,7 +651,7 @@ public class TupleTest {
 		}
 		
 		byte[] ba = "attr1|attr2|3|4|attr5|thisdoesnotbelongtothetuple".getBytes();
-		short[] of2 = {0,6,12,14,16,22};
+		int[] of2 = {0,6,12,14,16,22};
 		t = new Tuple(ba, of2, 5);
 		
 		try {
@@ -736,7 +736,7 @@ public class TupleTest {
 		Assert.assertTrue(t.toString().equals("Hello world!|2ndValue|"));
 		
 		byte[] ba = "attr1|attr2|3|4|attr5|thisdoesnotbelongtothetuple".getBytes();
-		short[] of2 = {0,6,12,14,16,22};
+		int[] of2 = {0,6,12,14,16,22};
 		t = new Tuple(ba, of2, 5);
 		
 		Assert.assertTrue(t.toString().equals("attr1|attr2|3|4|attr5|"));
