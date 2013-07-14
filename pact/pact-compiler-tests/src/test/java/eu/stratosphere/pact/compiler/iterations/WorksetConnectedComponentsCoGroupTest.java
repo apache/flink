@@ -48,7 +48,7 @@ public class WorksetConnectedComponentsCoGroupTest extends CompilerTestBase {
 	
 	private static final String SINK = "Result";
 	
-	private static final boolean PRINT_PLAN = true;
+	private static final boolean PRINT_PLAN = false;
 	
 	private final FieldList set0 = new FieldList(0);
 	
