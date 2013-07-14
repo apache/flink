@@ -1402,8 +1402,11 @@ public class ExecutionGraph implements ExecutionListener {
 		for (int i = 0; i < lastStage.getNumberOfStageMembers(); ++i) {
 
 			final ExecutionGroupVertex groupVertex = lastStage.getStageMember(i);
+			
+			int currentConnectionID = 0;
+			
 			if (groupVertex.isOutputVertex()) {
-				groupVertex.calculateConnectionID(0, alreadyVisited);
+			  currentConnectionID = groupVertex.calculateConnectionID(currentConnectionID, alreadyVisited);
 			}
 		}
 	}

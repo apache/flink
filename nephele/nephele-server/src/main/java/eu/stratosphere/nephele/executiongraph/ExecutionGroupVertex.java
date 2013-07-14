@@ -927,19 +927,25 @@ public final class ExecutionGroupVertex {
 	 *        the current connection ID
 	 * @param alreadyVisited
 	 *        the set of already visited group vertices
+	 * @return maximum assigned connectionID
 	 */
-	void calculateConnectionID(final int currentConnectionID, final Set<ExecutionGroupVertex> alreadyVisited) {
+	int calculateConnectionID(int currentConnectionID, final Set<ExecutionGroupVertex> alreadyVisited) {
 
 		if (!alreadyVisited.add(this)) {
-			return;
+			return currentConnectionID;
 		}
-
-		int nextConnectionID = currentConnectionID;
+		
 		for (final ExecutionGroupEdge backwardLink : this.backwardLinks) {
-			backwardLink.setConnectionID(nextConnectionID);
-			backwardLink.getSourceVertex().calculateConnectionID(nextConnectionID, alreadyVisited);
-			++nextConnectionID;
+		  
+			backwardLink.setConnectionID(currentConnectionID);
+			
+			++currentConnectionID;
+			
+			currentConnectionID = backwardLink.getSourceVertex()
+			    .calculateConnectionID(currentConnectionID, alreadyVisited);
 		}
+		
+		return currentConnectionID;
 	}
 
 	/**
