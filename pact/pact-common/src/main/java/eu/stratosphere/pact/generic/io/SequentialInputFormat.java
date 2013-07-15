@@ -34,6 +34,6 @@ public class SequentialInputFormat<T extends Record> extends BinaryInputFormat<T
 	 */
 	@Override
 	protected void deserialize(Record record, DataInput dataInput) throws IOException {
-		record.read(dataInput);
+		record.read(dataInput);		
 	}
 }

@@ -161,7 +161,7 @@ public class GenericDataSink extends Contract
 	 * 
 	 * @param input		The contracts will be set as inputs.
 	 */
-	public void setInputs(List<Contract> inputs) {
+	public void setInputs(List<? extends Contract> inputs) {
 		this.input.clear();
 		this.input.addAll(inputs);
 	}
