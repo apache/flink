@@ -46,7 +46,7 @@ public abstract class GenericInputFormat<OT> implements InputFormat<OT, GenericI
 	 * @see eu.stratosphere.pact.common.io.InputFormat#getStatistics()
 	 */
 	@Override
-	public BaseStatistics getStatistics(BaseStatistics cachedStatistics) {
+	public BaseStatistics getStatistics(BaseStatistics cachedStatistics) throws IOException {
 		// no statistics available, by default.
 		return cachedStatistics;
 	}

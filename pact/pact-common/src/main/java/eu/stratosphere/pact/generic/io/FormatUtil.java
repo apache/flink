@@ -28,8 +28,7 @@ import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.nephele.fs.FileStatus;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
-import eu.stratosphere.nephele.template.GenericInputSplit;
-import eu.stratosphere.nephele.types.Record;
+import eu.stratosphere.nephele.template.InputSplit;
 import eu.stratosphere.pact.common.util.ReflectionUtil;
 
 /**
@@ -56,7 +55,7 @@ public class FormatUtil {
 	 * @throws IOException
 	 *         if an I/O error occurred while accessing the file or initializing the InputFormat.
 	 */
-	public static <T extends Record, F extends FileInputFormat<T>> F openInput(
+	public static <T, F extends FileInputFormat<T>> F openInput(
 			Class<F> inputFormatClass, String path, Configuration configuration) throws IOException {
 		configuration = configuration == null ? new Configuration() : configuration;
 
@@ -92,7 +91,7 @@ public class FormatUtil {
 	 *         if an I/O error occurred while accessing the files or initializing the InputFormat.
 	 */
 	@SuppressWarnings("unchecked")
-	public static <T extends Record, F extends FileInputFormat<T>> List<F> openAllInputs(
+	public static <T, F extends FileInputFormat<T>> List<F> openAllInputs(
 			Class<F> inputFormatClass, String path, Configuration configuration) throws IOException {
 		Path nephelePath = new Path(path);
 		FileSystem fs = nephelePath.getFileSystem();
@@ -120,13 +119,13 @@ public class FormatUtil {
 	 * @throws IOException
 	 *         if an I/O error occurred while accessing the file or initializing the InputFormat.
 	 */
-	public static <T extends Record, F extends GenericInputFormat<T>> F openInput(
+	public static <T, IS extends InputSplit, F extends InputFormat<T, IS>> F openInput(
 			Class<F> inputFormatClass, Configuration configuration) throws IOException {
 		configuration = configuration == null ? new Configuration() : configuration;
 
 		final F inputFormat = ReflectionUtil.newInstance(inputFormatClass);
 		inputFormat.configure(configuration);
-		final GenericInputSplit[] splits = inputFormat.createInputSplits(1);
+		final IS[] splits = inputFormat.createInputSplits(1);
 		inputFormat.open(splits[0]);
 		return inputFormat;
 	}
@@ -147,7 +146,7 @@ public class FormatUtil {
 	 * @throws IOException
 	 *         if an I/O error occurred while accessing the file or initializing the OutputFormat.
 	 */
-	public static <T extends Record, F extends FileOutputFormat<T>> F openOutput(
+	public static <T, F extends FileOutputFormat<? extends T>> F openOutput(
 			Class<F> outputFormatClass, String pathString, Configuration configuration) throws IOException {
 		final F outputFormat = ReflectionUtil.newInstance(outputFormatClass);
 
