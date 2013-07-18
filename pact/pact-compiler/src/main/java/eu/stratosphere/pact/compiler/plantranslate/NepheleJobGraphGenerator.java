@@ -825,6 +825,8 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		// 2) DOP and the number of subtasks per instance does not change
 		// 3) That successor is not a union
 		// 4) That successor is not itself the last node of the step function
+		// 5) There is no local strategy on the edge for the initial partial solution, as
+		//    this translates to a local strategy that would only be executed in the first iteration
 		
 		final boolean merge;
 		if (mergeIterationAuxTasks && pspn.getOutgoingChannels().size() == 1) {
@@ -836,7 +838,8 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 					successor.getDegreeOfParallelism() == pspn.getDegreeOfParallelism() &&
 					successor.getSubtasksPerInstance() == pspn.getSubtasksPerInstance() &&
 					!(successor instanceof UnionPlanNode) &&
-					successor != iteration.getRootOfStepFunction();
+					successor != iteration.getRootOfStepFunction() &&
+					iteration.getInput().getLocalStrategy() == LocalStrategy.NONE;
 		} else {
 			merge = false;
 		}
@@ -891,6 +894,8 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		// 2) DOP and the number of subtasks per instance does not change
 		// 3) That successor is not a union
 		// 4) That successor is not itself the last node of the step function
+		// 5) There is no local strategy on the edge for the initial workset, as
+		//    this translates to a local strategy that would only be executed in the first superstep
 		
 		final boolean merge;
 		if (mergeIterationAuxTasks && wspn.getOutgoingChannels().size() == 1) {
@@ -902,7 +907,8 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 					successor.getDegreeOfParallelism() == wspn.getDegreeOfParallelism() &&
 					successor.getSubtasksPerInstance() == wspn.getSubtasksPerInstance() &&
 					!(successor instanceof UnionPlanNode) &&
-					successor != iteration.getNextWorkSetPlanNode();
+					successor != iteration.getNextWorkSetPlanNode() &&
+					iteration.getInitialWorksetInput().getLocalStrategy() == LocalStrategy.NONE;
 		} else {
 			merge = false;
 		}
