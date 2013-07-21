@@ -24,7 +24,7 @@ import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.pact.common.type.CopyableValue;
 import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.DeNormalizableKey;
+import eu.stratosphere.pact.common.type.NormalizableKey;
 
 /**
  * Integer base type for PACT programs that implements the Key interface.
@@ -32,7 +32,7 @@ import eu.stratosphere.pact.common.type.DeNormalizableKey;
  * 
  * @see eu.stratosphere.pact.common.type.Key
  */
-public class PactInteger implements Key, DeNormalizableKey, CopyableValue<PactInteger> {
+public class PactInteger implements Key, NormalizableKey, CopyableValue<PactInteger> {
 	
 	private int value;
 
@@ -142,21 +142,6 @@ public class PactInteger implements Key, DeNormalizableKey, CopyableValue<PactIn
 			for (int i = 4; i < len; i++) {
 				target.put(offset + i, (byte) 0);
 			}
-		}
-	}
-	
-	@Override
-	public void readFromNormalizedKey(byte[] source, int offset, int len) {
-		if (len == 4) {
-			// the only allowed case
-			value = 0;
-			value |= (((source[offset    ] - Byte.MIN_VALUE) & 0xFF) << 24);
-			value |= ((source[offset + 1] & 0xFF) << 16);
-			value |= ((source[offset + 2] & 0xFF) <<  8);
-			value |= ((source[offset + 3] & 0xFF)      );
-		}
-		else {
-			throw new IllegalArgumentException("We can only read from normalized keys if the have full length.");
 		}
 	}
 
