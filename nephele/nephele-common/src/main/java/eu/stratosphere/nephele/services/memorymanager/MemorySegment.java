@@ -19,6 +19,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.nio.BufferOverflowException;
+import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
@@ -911,6 +912,48 @@ public class MemorySegment {
 	}
 	
 	/**
+	 * Bulk get method. Copies {@code numBytes} bytes from this memory segment, starting at position
+	 * {@code offset} to the target {@code ByteBuffer}. The bytes will be put into the target buffer
+	 * starting at the buffer's current position. If this method attempts to write more bytes than
+	 * the target byte buffer has remaining (with respect to {@link ByteBuffer#remaining()}),
+	 * this method will cause a {@link BufferOverflowException}.
+	 * 
+	 * @param offset The position where the bytes are started to be read from in this memory segment.
+	 * @param target The ByteBuffer to copy the bytes to.
+	 * @param numBytes The number of bytes to copy.
+	 * 
+	 * @throws IndexOutOfBoundsException If the offset is invalid, or this segment does not
+	 *           contain the given number of bytes (starting from offset), or the target byte buffer does
+	 *           not have enough space for the bytes.
+	 */
+	public final void get(int offset, ByteBuffer target, int numBytes) {
+		// ByteBuffer performs the boundy checks
+		target.put(this.memory, offset, numBytes);
+	}
+	
+	/**
+	 * Bulk put method. Copies {@code numBytes} bytes from the given {@code ByteBuffer}, into
+	 * this memory segment. The bytes will be read from the target buffer
+	 * starting at the buffer's current position, and will be written to this memory segment starting
+	 * at {@code offset}.
+	 * If this method attempts to read more bytes than
+	 * the target byte buffer has remaining (with respect to {@link ByteBuffer#remaining()}),
+	 * this method will cause a {@link BufferUnderflowException}.
+	 * 
+	 * @param offset The position where the bytes are started to be written to in this memory segment.
+	 * @param target The ByteBuffer to copy the bytes from.
+	 * @param numBytes The number of bytes to copy.
+	 * 
+	 * @throws IndexOutOfBoundsException If the offset is invalid, or the source buffer does not
+	 *           contain the given number of bytes, or this segment does
+	 *           not have enough space for the bytes (counting from offset).
+	 */
+	public final void put(int offset, ByteBuffer source, int numBytes) {
+		// ByteBuffer performs the boundy checks
+		source.get(this.memory, offset, numBytes);
+	}
+	
+	/**
 	 * Bulk copy method. Copies {@code numBytes} bytes from this memory segment, starting at position
 	 * {@code offset} to the target memory segment. The bytes will be put into the target segment
 	 * starting at position {@code targetOffset}.
@@ -927,26 +970,6 @@ public class MemorySegment {
 	public final void copyTo(int offset, MemorySegment target, int targetOffset, int numBytes) {
 		// system arraycopy does the boundary checks anyways, no need to check extra
 		System.arraycopy(this.memory, offset, target.memory, targetOffset, numBytes);
-	}
-	
-	/**
-	 * Bulk copy method. Copies {@code numBytes} bytes from this memory segment, starting at position
-	 * {@code offset} to the target {@code ByteBuffer}. The bytes will be put into the target buffer
-	 * starting at the buffer's current position. If this method attempts to write more bytes than
-	 * the target byte buffer has remaining (with respect to {@link ByteBuffer#remaining()}),
-	 * this method will cause a {@link BufferOverflowException}.
-	 * 
-	 * @param offset The position where the bytes are started to be read from in this memory segment.
-	 * @param target The ByteBuffer to copy the bytes to.
-	 * @param numBytes The number of bytes to copy.
-	 * 
-	 * @throws IndexOutOfBoundsException If either of the offsets is invalid, or the source segment does not
-	 *           contain the given number of bytes (starting from offset), or the target segment does
-	 *           not have enough space for the bytes (counting from targetOffset).
-	 */
-	public final void copyTo(int offset, ByteBuffer target, int numBytes) {
-		// ByteBuffer performs the boundy checks
-		target.put(this.memory, offset, numBytes);
 	}
 	
 	// -------------------------------------------------------------------------
