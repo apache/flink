@@ -18,6 +18,7 @@ package eu.stratosphere.nephele.services.memorymanager;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
@@ -260,6 +261,7 @@ public class MemorySegment {
 	 *                                   segment's end.
 	 */
 	public final void get(int index, byte[] dst, int offset, int length) {
+		// system arraycopy does the boundary checks anyways, no need to check extra
 		System.arraycopy(this.memory, index, dst, offset, length);
 	}
 
@@ -279,38 +281,8 @@ public class MemorySegment {
 	 *                                   segment's end.
 	 */
 	public final void put(int index, byte[] src, int offset, int length) {
+		// system arraycopy does the boundary checks anyways, no need to check extra
 		System.arraycopy(src, offset, this.memory, index, length);
-	}
-
-	/**
-	 * Bulk get method. Copies length memory from the specified offset to the
-	 * provided <tt>DataOutput</tt>.
-	 * 
-	 * @param out The data output object to copy the data to.
-	 * @param offset The first byte to by copied.
-	 * @param length The number of bytes to copy.
-	 * @return This view itself.
-	 * 
-	 * @throws IOException Thrown, if the DataOutput encountered a problem upon writing.
-	 */
-	public final void get(DataOutput out, int offset, int length) throws IOException {
-		out.write(this.memory, offset, length);
-	}
-
-	/**
-	 * Bulk put method. Copies length memory from the given DataInput to the
-	 * memory starting at position offset.
-	 * 
-	 * @param in The DataInput to get the data from.
-	 * @param offset The position in the memory segment to copy the chunk to.
-	 * @param length The number of bytes to get. 
-	 * @return This random access view itself.
-	 * 
-	 * @throws IOException Thrown, if the DataInput encountered a problem upon reading,
-	 *                     such as an End-Of-File.
-	 */
-	public final void put(DataInput in, int offset, int length) throws IOException {
-		in.readFully(this.memory, offset, length);
 	}
 
 	/**
@@ -906,6 +878,78 @@ public class MemorySegment {
 	}
 	
 	// -------------------------------------------------------------------------
+	//                     Bulk Read and Write Methods
+	// -------------------------------------------------------------------------
+	
+	/**
+	 * Bulk get method. Copies length memory from the specified offset to the
+	 * provided <tt>DataOutput</tt>.
+	 * 
+	 * @param out The data output object to copy the data to.
+	 * @param offset The first byte to by copied.
+	 * @param length The number of bytes to copy.
+	 * 
+	 * @throws IOException Thrown, if the DataOutput encountered a problem upon writing.
+	 */
+	public final void get(DataOutput out, int offset, int length) throws IOException {
+		out.write(this.memory, offset, length);
+	}
+
+	/**
+	 * Bulk put method. Copies length memory from the given DataInput to the
+	 * memory starting at position offset.
+	 * 
+	 * @param in The DataInput to get the data from.
+	 * @param offset The position in the memory segment to copy the chunk to.
+	 * @param length The number of bytes to get. 
+	 * 
+	 * @throws IOException Thrown, if the DataInput encountered a problem upon reading,
+	 *                     such as an End-Of-File.
+	 */
+	public final void put(DataInput in, int offset, int length) throws IOException {
+		in.readFully(this.memory, offset, length);
+	}
+	
+	/**
+	 * Bulk copy method. Copies {@code numBytes} bytes from this memory segment, starting at position
+	 * {@code offset} to the target memory segment. The bytes will be put into the target segment
+	 * starting at position {@code targetOffset}.
+	 * 
+	 * @param offset The position where the bytes are started to be read from in this memory segment.
+	 * @param target The memory segment to copy the bytes to.
+	 * @param targetOffset The position in the target memory segment to copy the chunk to.
+	 * @param numBytes The number of bytes to copy.
+	 * 
+	 * @throws IndexOutOfBoundsException If either of the offsets is invalid, or the source segment does not
+	 *           contain the given number of bytes (starting from offset), or the target segment does
+	 *           not have enough space for the bytes (counting from targetOffset).
+	 */
+	public final void copyTo(int offset, MemorySegment target, int targetOffset, int numBytes) {
+		// system arraycopy does the boundary checks anyways, no need to check extra
+		System.arraycopy(this.memory, offset, target.memory, targetOffset, numBytes);
+	}
+	
+	/**
+	 * Bulk copy method. Copies {@code numBytes} bytes from this memory segment, starting at position
+	 * {@code offset} to the target {@code ByteBuffer}. The bytes will be put into the target buffer
+	 * starting at the buffer's current position. If this method attempts to write more bytes than
+	 * the target byte buffer has remaining (with respect to {@link ByteBuffer#remaining()}),
+	 * this method will cause a {@link BufferOverflowException}.
+	 * 
+	 * @param offset The position where the bytes are started to be read from in this memory segment.
+	 * @param target The ByteBuffer to copy the bytes to.
+	 * @param numBytes The number of bytes to copy.
+	 * 
+	 * @throws IndexOutOfBoundsException If either of the offsets is invalid, or the source segment does not
+	 *           contain the given number of bytes (starting from offset), or the target segment does
+	 *           not have enough space for the bytes (counting from targetOffset).
+	 */
+	public final void copyTo(int offset, ByteBuffer target, int numBytes) {
+		// ByteBuffer performs the boundy checks
+		target.put(this.memory, offset, numBytes);
+	}
+	
+	// -------------------------------------------------------------------------
 	//                      Comparisons & Swapping
 	// -------------------------------------------------------------------------
 	
@@ -920,6 +964,7 @@ public class MemorySegment {
 	}
 	
 	public static final void swapBytes(MemorySegment seg1, MemorySegment seg2, byte[] tempBuffer, int offset1, int offset2, int len) {
+		// system arraycopy does the boundary checks anyways, no need to check extra
 		System.arraycopy(seg1.memory, offset1, tempBuffer, 0, len);
 		System.arraycopy(seg2.memory, offset2, seg1.memory, offset1, len);
 		System.arraycopy(tempBuffer, 0, seg2.memory, offset2, len);
