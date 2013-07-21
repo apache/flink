@@ -99,6 +99,31 @@ public class NormalizableKeyTest {
 		assertNormalizableKey(pn1, pn2, 0);
 	}
 	
+	@Test
+	public void testPactChar() {
+		
+		final PactCharacter c1 = new PactCharacter((char) 0);
+		final PactCharacter c2 = new PactCharacter((char) 1);
+		final PactCharacter c3 = new PactCharacter((char) 0xff);
+		final PactCharacter c4 = new PactCharacter(Character.MAX_VALUE);
+		final PactCharacter c5 = new PactCharacter((char) (Character.MAX_VALUE + (char) 1));
+		final PactCharacter c6 = new PactCharacter(Character.MAX_HIGH_SURROGATE);
+		final PactCharacter c7 = new PactCharacter(Character.MAX_LOW_SURROGATE);
+		final PactCharacter c8 = new PactCharacter(Character.MAX_SURROGATE);
+		
+		PactCharacter[] allChars = new PactCharacter[] {
+			c1, c2, c3, c4, c5, c6, c7, c8 };
+		
+		for (int i = 0; i < 5; i++) {
+			// self checks
+			for (int x = 0; x < allChars.length; x++) {
+				for (int y = 0; y < allChars.length; y++) {
+					assertNormalizableKey(allChars[x], allChars[y], i);
+				}
+			}
+		}
+	}
+	
 	private void assertNormalizableKey(NormalizableKey key1, NormalizableKey key2, int len) {
 		
 		byte[] normalizedKeys = new byte[2*len];

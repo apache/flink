@@ -122,25 +122,22 @@ public class PactCharacter implements Key, DeNormalizableKey, CopyableValue<Pact
 
 	@Override
 	public void copyNormalizedKey(MemorySegment target, int offset, int len) {
+		// note that the char is an unsigned data type in java and consequently needs
+		// no code that transforms the signed representation to an offsetted representation
+		// that is equivalent to unsigned, when compared byte by byte
 		if (len == 2) {
 			// default case, full normalized key
-			int highByte = ((value >>> 8) & 0xff);
-			highByte -= Byte.MIN_VALUE;
-			target.put(offset, (byte) highByte);
-			target.put(offset + 1, (byte) ((value) & 0xff));
+			target.put(offset,     (byte) ((value >>> 8) & 0xff));
+			target.put(offset + 1, (byte) ((value      ) & 0xff));
 		}
 		else if (len <= 0) {
 		}
 		else if (len == 1) {
-			int highByte = ((value >>> 8) & 0xff);
-			highByte -= Byte.MIN_VALUE;
-			target.put(offset, (byte) highByte);
+			target.put(offset,     (byte) ((value >>> 8) & 0xff));
 		}
 		else {
-			int highByte = ((value >>> 8) & 0xff);
-			highByte -= Byte.MIN_VALUE;
-			target.put(offset, (byte) highByte);
-			target.put(offset + 1, (byte) ((value) & 0xff));
+			target.put(offset,     (byte) ((value >>> 8) & 0xff));
+			target.put(offset + 1, (byte) ((value      ) & 0xff));
 			for (int i = 2; i < len; i++) {
 				target.put(offset + i, (byte) 0);
 			}
@@ -152,8 +149,8 @@ public class PactCharacter implements Key, DeNormalizableKey, CopyableValue<Pact
 		if (len == 2) {
 			// the only allowed case
 			value = 0;
-			value |= (((source[offset   ] - Byte.MIN_VALUE) & 0xFF) << 8);
-			value |= ((source[offset + 1] & 0xFF));
+			value |= (source[offset   ] & 0xFF) << 8;
+			value |= (source[offset + 1] & 0xFF);
 		}
 		else {
 			throw new IllegalArgumentException("We can only read from normalized keys if the have full length.");
