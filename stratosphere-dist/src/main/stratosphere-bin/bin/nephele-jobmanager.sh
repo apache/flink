@@ -48,9 +48,10 @@ constructJobManagerClassPath() {
 		fi
 	done
 
-	for jarfile in $NEPHELE_LIB_DIR/dropins/*.jar ; do
+	for jarfile in $NEPHELE_LIB_DIR/dropin/*.jar ; do
 		NEPHELE_JM_CLASSPATH=$NEPHELE_JM_CLASSPATH:$jarfile
 	done
+	NEPHELE_JM_CLASSPATH=$NEPHELE_JM_CLASSPATH:$NEPHELE_LIB_DIR/dropin/
 
 	echo $NEPHELE_JM_CLASSPATH
 }
