@@ -28,7 +28,7 @@ manglePath() {
 
 manglePathList() {
     # a path list, for example a java classpath
-    if [ "$(expr substr $(uname -s) 1 6)" == "CYGWIN" ]; then
+    if [[ "$OS" =~ Windows ]]; then
         echo `cygpath -wp $1`
     else
         echo $1
