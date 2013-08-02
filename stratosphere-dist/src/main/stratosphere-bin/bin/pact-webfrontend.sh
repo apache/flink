@@ -57,11 +57,11 @@ constructPactWebFrontendClassPath() {
 	echo $PACT_WF_CLASSPATH
 }
 
-PACT_WF_CLASSPATH=`manglePathList $(constructPactWebFrontendClassPath)`
+PACT_WF_CLASSPATH=$(constructPactWebFrontendClassPath)
 
 log=$NEPHELE_LOG_DIR/nephele-$NEPHELE_IDENT_STRING-pact-web-$HOSTNAME.log
 pid=$NEPHELE_PID_DIR/nephele-$NEPHELE_IDENT_STRING-pact-web.pid
-log_setting="-Dlog.file="$log" -Dlog4j.configuration=file:"$NEPHELE_CONF_DIR"/log4j.properties"
+log_setting="-Dlog.file="$log" -Dlog4j.configuration=file://"$NEPHELE_CONF_DIR"/log4j.properties"
 
 case $STARTSTOP in
 
@@ -74,7 +74,7 @@ case $STARTSTOP in
                         fi
                 fi
                 echo Starting PACT Webfrontend
-		$JAVA_RUN $JVM_ARGS $log_setting -classpath $PACT_WF_CLASSPATH eu.stratosphere.pact.client.WebFrontend -configDir $NEPHELE_CONF_DIR &
+		$JAVA_HOME/bin/java $JVM_ARGS $log_setting -classpath $PACT_WF_CLASSPATH eu.stratosphere.pact.client.WebFrontend -configDir $NEPHELE_CONF_DIR &
 		echo $! > $pid
 	;;
 

@@ -81,27 +81,21 @@
 	</property>
 	
 	<!-- The temp directory for the web server -->
-	<!-- Uncomment if you want to change default -->
-    <!-- <property>
+	<property>
 		<key>pact.web.temp</key>
 		<value>/tmp</value>
 	</property>
-    -->
 	
 	<!-- The directory into which the web server will store uploaded pact programs -->
-	<!-- Uncomment if you want to change default -->
-    <!--<property>
+	<property>
 		<key>pact.web.uploaddir</key>
 		<value>/tmp/pact-jobs/</value>
 	</property>
-    -->
 	
 	<!-- The directory into which the web server will dump temporary JSON files describing pact plans -->
-	<!-- Uncomment if you want to change default -->
-    <!--<property>
+	<property>
 		<key>pact.web.plandump</key>
 		<value>/tmp/pact-plans/</value>
 	</property>
-    -->
 	
 </configuration>

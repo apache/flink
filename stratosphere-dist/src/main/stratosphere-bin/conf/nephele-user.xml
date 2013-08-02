@@ -66,12 +66,10 @@
                Note: Each directory entry is read from and written to by a different I/O thread. You can include the same directory
                multiple times in that list to create multiple I/O threads against that directory. This is for example relevant for
                high-throughput RAIDs.-->
-        <!-- Uncomment if you want to change the default value -->
-        <!-- <property>
+        <property>
                 <key>taskmanager.tmp.dirs</key>
                 <value>/tmp</value>
         </property>
-        -->
 
         <!-- The number of network buffers used by the TaskManager -->
         <property>
