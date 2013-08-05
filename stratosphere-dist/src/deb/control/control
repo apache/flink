@@ -1,0 +1,8 @@
+Package: [[name]]
+Version: 0.2
+Section: misc
+Depends: java6-runtime
+Priority: low
+Architecture: all
+Description: [[description]]
+Maintainer: christian_richter@gmx.de
