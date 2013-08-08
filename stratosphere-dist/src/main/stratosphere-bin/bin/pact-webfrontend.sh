@@ -46,12 +46,13 @@ constructPactWebFrontendClassPath() {
 		fi
 	done
 
-	for jarfile in $NEPHELE_LIB_DIR/dropins/*.jar ; do
+	for jarfile in $NEPHELE_LIB_DIR/dropin/*.jar ; do
 		PACT_WF_CLASSPATH=$PACT_WF_CLASSPATH:$jarfile
 	done
+	PACT_WF_CLASSPATH=$PACT_WF_CLASSPATH:$NEPHELE_LIB_DIR/dropin/
 	
 	for jarfile in $NEPHELE_LIB_CLIENTS_DIR/*.jar ; do
-		PACT_CC_CLASSPATH=$PACT_CC_CLASSPATH:$jarfile
+		PACT_WF_CLASSPATH=$PACT_WF_CLASSPATH:$jarfile
 	done
 
 	echo $PACT_WF_CLASSPATH

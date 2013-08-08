@@ -40,9 +40,10 @@ constructPactCLIClientClassPath() {
 		fi
 	done
 
-	for jarfile in $NEPHELE_LIB_DIR/dropins/*.jar ; do
+	for jarfile in $NEPHELE_LIB_DIR/dropin/*.jar ; do
 		PACT_CC_CLASSPATH=$PACT_CC_CLASSPATH:$jarfile
 	done
+	PACT_CC_CLASSPATH=$PACT_CC_CLASSPATH:$NEPHELE_LIB_DIR/dropin/
 	
 	for jarfile in $NEPHELE_LIB_CLIENTS_DIR/*.jar ; do
 		PACT_CC_CLASSPATH=$PACT_CC_CLASSPATH:$jarfile
