@@ -76,7 +76,11 @@ fi
 if [ "$(expr substr $(uname -s) 1 6)" == "CYGWIN" ]; then
     JAVA_RUN=java
 else
-    JAVA_RUN=$JAVA_HOME/bin/java
+    if [[ -d $JAVA_HOME ]]; then
+        JAVA_RUN=$JAVA_HOME/bin/java
+    else
+        JAVA_RUN=java
+    fi
 fi
 
 # Define HOSTNAME if it is not already set
@@ -97,10 +101,14 @@ fi
 # Define the main directory of the Nephele installation
 NEPHELE_ROOT_DIR=`dirname "$this"`/..
 NEPHELE_LIB_DIR=$NEPHELE_ROOT_DIR/lib
-NEPHELE_ROOT_DIR=`manglePath $NEPHELE_ROOT_DIR`
-NEPHELE_CONF_DIR=$NEPHELE_ROOT_DIR/conf
-NEPHELE_BIN_DIR=$NEPHELE_ROOT_DIR/bin
-NEPHELE_LOG_DIR=$NEPHELE_ROOT_DIR/log
+
+# These need to be mangled because they are directly passed to java.
+# The above lib path is used by the shell script to retrieve jars in a 
+# directory, so it needs to be unmangled.
+NEPHELE_ROOT_DIR_MANGLED=`manglePath $NEPHELE_ROOT_DIR`
+NEPHELE_CONF_DIR=$NEPHELE_ROOT_DIR_MANGLED/conf
+NEPHELE_BIN_DIR=$NEPHELE_ROOT_DIR_MANGLED/bin
+NEPHELE_LOG_DIR=$NEPHELE_ROOT_DIR_MANGLED/log
 
 # Arguments for the JVM. Used for job manager and task manager JVMs
 # DO NOT USE FOR MEMORY SETTINGS! Use DEFAULT_NEPHELE_JM_HEAP and
