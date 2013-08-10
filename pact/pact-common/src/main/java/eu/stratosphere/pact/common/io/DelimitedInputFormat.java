@@ -72,7 +72,7 @@ public abstract class DelimitedInputFormat extends FileInputFormat {
 	 */
 	private static int MAX_SAMPLE_LEN;
 	
-	protected static final void loadGloablConfigParams() {
+	protected static final void loadGlobalConfigParams() {
 		int maxSamples = GlobalConfiguration.getInteger(PactConfigConstants.DELIMITED_FORMAT_MAX_LINE_SAMPLES_KEY,
 				PactConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_LINE_SAMPLES);
 		int minSamples = GlobalConfiguration.getInteger(PactConfigConstants.DELIMITED_FORMAT_MIN_LINE_SAMPLES_KEY,
@@ -111,7 +111,7 @@ public abstract class DelimitedInputFormat extends FileInputFormat {
 		MAX_SAMPLE_LEN = maxLen;
 	}
 	
-	static { loadGloablConfigParams(); }
+	static { loadGlobalConfigParams(); }
 	
 	// ------------------------------------- Config Keys ------------------------------------------
 	

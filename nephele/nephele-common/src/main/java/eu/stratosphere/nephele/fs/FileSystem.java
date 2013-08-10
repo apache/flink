@@ -190,7 +190,7 @@ public abstract class FileSystem {
 		synchronized (SYNCHRONIZATION_OBJECT) {
 
 			if (uri.getScheme() == null) {
-				throw new IOException("FileSystem: Scheme is null");
+				throw new IOException("FileSystem: Scheme is null. file:// or hdfs:// are schemes.");
 			}
 
 			final FSKey key = new FSKey(uri.getScheme(), uri.getAuthority());
