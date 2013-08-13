@@ -94,8 +94,8 @@ public class TextInputFormat extends DelimitedInputFormat {
 				byteWrapper = ByteBuffer.wrap(bytes, 0, bytes.length);
 				this.byteWrapper = byteWrapper;
 			}
-			byteWrapper.position(offset);
 			byteWrapper.limit(offset + numBytes);
+			byteWrapper.position(offset);
 				
 			try {
 				CharBuffer result = this.decoder.decode(byteWrapper);
