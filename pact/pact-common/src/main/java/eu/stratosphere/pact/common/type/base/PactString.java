@@ -457,7 +457,7 @@ public class PactString implements Key, NormalizableKey, CharSequence, CopyableV
 	public Appendable append(CharSequence csq, int start, int end) {
 		final int otherLen = end - start;
 		grow(this.len + otherLen);
-		for (int pos = start; pos < len; pos++)
+		for (int pos = start; pos < end; pos++)
 			this.value[this.len + pos] = csq.charAt(pos);
 		this.len += otherLen;
 		return this;
