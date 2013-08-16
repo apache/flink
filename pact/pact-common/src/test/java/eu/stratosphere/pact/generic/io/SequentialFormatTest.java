@@ -206,7 +206,7 @@ public class SequentialFormatTest {
 		}
 	}
 
-	private int getNumberOfTuplesPerFile(@SuppressWarnings("unused") int fileIndex) {
+	private int getNumberOfTuplesPerFile(int fileIndex) {
 		return this.numberOfTuples / this.degreeOfParallelism;
 	}
 

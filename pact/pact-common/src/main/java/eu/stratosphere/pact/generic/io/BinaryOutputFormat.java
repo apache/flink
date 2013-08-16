@@ -27,6 +27,7 @@ import eu.stratosphere.nephele.types.Record;
  * @author Arvid Heise
  */
 public abstract class BinaryOutputFormat<T extends Record> extends FileOutputFormat<T> {
+	
 	/**
 	 * The config parameter which defines the fixed length of a record.
 	 */
@@ -53,7 +54,6 @@ public abstract class BinaryOutputFormat<T extends Record> extends FileOutputFor
 		super.close();
 	}
 	
-	@SuppressWarnings("unused") 
 	protected void complementBlockInfo(BlockInfo blockInfo) throws IOException {
 	}
 
