@@ -153,11 +153,22 @@ public abstract class CostEstimator {
 		// determine the local costs
 		switch (n.getDriverStrategy()) {
 		case NONE:
+			
 		case MAP:
-		case PARTIAL_GROUP:
-		case SORTED_GROUP:
+			
+		case ALL_GROUP:
+			// this operation does not do any actual grouping, since every element is in the same single group
+			
 		case CO_GROUP:
+		case SORTED_GROUP:
+			// grouping or co-grouping over sorted streams for free
+			
+		case PARTIAL_GROUP:
+			// partial grouping is always local and main memory resident. we should add a relative cpu cost at some point
+		
 		case UNION:
+			// pipelined local union is for free
+			
 			break;
 		case MERGE:
 			addLocalMergeCost(firstInput, secondInput, availableMemory, driverCosts);

@@ -36,7 +36,7 @@ public enum DriverStrategy {
 	// partially grouping inputs (best effort resulting possibly in duplicates --> combiner)
 	PARTIAL_GROUP(CombineDriver.class, SynchronousChainedCombineDriver.class, MATERIALIZING, true),
 	// group everything together into one group
-	ALL_GROUP(null, null, PIPELINED, false),
+	ALL_GROUP(AllReduceDriver.class, null, PIPELINED, false),
 	// already grouped input, within a key values are crossed in a nested loop fashion
 	GROUP_SELF_NESTEDLOOP(null, null, PIPELINED, true),	// Note: Self-Match currently inactive
 	// both inputs are merged, but materialized to the side for block-nested-loop-join among values with equal key

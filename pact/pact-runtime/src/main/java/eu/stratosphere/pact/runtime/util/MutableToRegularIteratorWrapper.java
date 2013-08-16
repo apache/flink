@@ -19,32 +19,44 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.pact.generic.types.TypeSerializer;
 
-
-public class MutableToRegularIteratorWrapper implements Iterator<PactRecord>
-{
-	private final MutableObjectIterator<PactRecord> source;
+/**
+ * This class wraps a {@link MutableObjectIterator} into a regular {@link Iterator}.
+ * Internally, it uses two record instances which it uses alternating. That way,
+ * whenever hasNext() returns (possibly with false), the previous obtained record is 
+ * still valid and cannot have been overwritten internally.
+ */
+public class MutableToRegularIteratorWrapper<T> implements Iterator<T> {
 	
-	private final PactRecord instance;
+	private final MutableObjectIterator<T> source;
 	
-	private PactRecord staged;
+	private T current, next;
+	
+	private boolean currentIsAvailable;
 
-	public MutableToRegularIteratorWrapper(MutableObjectIterator<PactRecord> source) {
+	public MutableToRegularIteratorWrapper(MutableObjectIterator<T> source, TypeSerializer<T> serializer) {
 		this.source = source;
-		this.instance = new PactRecord();
+		this.current = serializer.createInstance();
+		this.next = serializer.createInstance();
 	}
 
-	/* (non-Javadoc)
-	 * @see java.util.Iterator#hasNext()
-	 */
 	@Override
 	public boolean hasNext() {
-		if (this.staged == null) {
+		if (currentIsAvailable) {
+			return true;
+		} else {
 			try {
-				if (this.source.next(this.instance)) {
-					this.staged = this.instance;
+				// we always use two records such that whenever hasNext() returns (possibly with false),
+				// the previous record is always still valid.
+				if (source.next(next)) {
+					
+					T tmp = current;
+					current = next;
+					next = tmp;
+					
+					currentIsAvailable = true;
 					return true;
 				} else {
 					return false;
@@ -52,28 +64,19 @@ public class MutableToRegularIteratorWrapper implements Iterator<PactRecord>
 			} catch (IOException ioex) {
 				throw new RuntimeException("Error reading next record: " + ioex.getMessage(), ioex);
 			}
-		} else {
-			return true;
 		}
 	}
 
-	/* (non-Javadoc)
-	 * @see java.util.Iterator#next()
-	 */
 	@Override
-	public PactRecord next() {
-		if (this.staged != null || hasNext()) {
-			final PactRecord rec = this.staged;
-			this.staged = null;
-			return rec;
+	public T next() {
+		if (currentIsAvailable || hasNext()) {
+			currentIsAvailable = false;
+			return current;
 		} else {
 			throw new NoSuchElementException();
 		}
 	}
 
-	/* (non-Javadoc)
-	 * @see java.util.Iterator#remove()
-	 */
 	@Override
 	public void remove() {
 		throw new UnsupportedOperationException();
