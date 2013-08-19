@@ -6,7 +6,7 @@
 	<parent>
 		<groupId>eu.stratosphere</groupId>
 		<artifactId>nephele</artifactId>
-		<version>0.2-ozone</version>
+		<version>0.3-SNAPSHOT</version>
 	</parent>
 	
 	<modelVersion>4.0.0</modelVersion>
