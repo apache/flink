@@ -23,6 +23,13 @@
 			<version>${project.version}</version>
 			<scope>compile</scope>
 		</dependency>
+		
+		<dependency>
+			<groupId>eu.stratosphere</groupId>
+			<artifactId>pact-hbase</artifactId>
+			<version>${project.version}</version>
+			<scope>compile</scope>
+		</dependency>
 
 	</dependencies>
 
@@ -39,7 +46,32 @@
 				<artifactId>maven-jar-plugin</artifactId>
 				<version>2.4</version>
 				<executions>
-				
+
+					<!-- HBaseExample
+					<execution>
+						<id>HBaseExample</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+						<configuration>
+							<classifier>HBaseExample</classifier>
+
+							<archive>
+								<manifestEntries>
+									<Pact-Assembler-Class>eu.stratosphere.pact.example.hbase.HBaseReadExample</Pact-Assembler-Class>
+								</manifestEntries>
+							</archive>
+
+							<includes>
+								<include>**/hbase/*.class</include>
+								<include>**/util/ConfigUtils.class</include>
+							</includes>
+						</configuration>
+					</execution>
+					-->
+					
+
 					<!-- Connected Components -->
 					<execution>
 						<id>ConnectedComponents</id>
@@ -49,19 +81,19 @@
 						</goals>
 						<configuration>
 							<classifier>ConnectedComponents</classifier>
-
+							
 							<archive>
 								<manifestEntries>
 									<Pact-Assembler-Class>eu.stratosphere.pact.example.connectedcomponents.WorksetConnectedComponents</Pact-Assembler-Class>
 								</manifestEntries>
 							</archive>
-
+								
 							<includes>
 								<include>**/connectedcomponents/*.class</include>
 							</includes>
 						</configuration>
 					</execution>
-				
+								
 					<!-- DanglingPageRank -->
 					<execution>
 						<id>DanglingPageRank</id>
