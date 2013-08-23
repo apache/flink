@@ -79,7 +79,7 @@ public abstract class TestBase {
 		PatternLayout layout = new PatternLayout("%d{HH:mm:ss,SSS} %-5p %-60c %x - %m%n");
 		ConsoleAppender appender = new ConsoleAppender(layout, "System.err");
 		root.addAppender(appender);
-		root.setLevel(Level.INFO);
+		root.setLevel(Level.WARN);
 	}
 
 	private void verifyJvmOptions() {
@@ -90,13 +90,11 @@ public abstract class TestBase {
 
 	@Before
 	public void startCluster() throws Exception {
-		LOG.info("######################### start - cluster config : " + clusterConfig + " #########################");
 		cluster = ClusterProviderPool.getInstance(clusterConfig);
 	}
 
 	@After
 	public void stopCluster() throws Exception {
-		LOG.info("######################### stop - cluster config : " + clusterConfig + " #########################");
 		cluster.stopCluster();
 		ClusterProviderPool.removeInstance(clusterConfig);
 		FileSystem.closeAll();
@@ -120,6 +118,7 @@ public abstract class TestBase {
 		
 		try {
 			final JobClient client = cluster.getJobClient(jobGraph, getJarFilePath());
+			client.setConsoleStreamForReporting(TestBase2.getNullPrintStream());
 			client.submitJobAndWait();
 		} catch(Exception e) {
 			LOG.error(e);

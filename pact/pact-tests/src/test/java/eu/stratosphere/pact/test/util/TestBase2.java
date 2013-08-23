@@ -21,6 +21,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -75,7 +77,7 @@ public abstract class TestBase2 {
 		PatternLayout layout = new PatternLayout("%d{HH:mm:ss,SSS} %-5p %-60c %x - %m%n");
 		ConsoleAppender appender = new ConsoleAppender(layout, "System.err");
 		root.addAppender(appender);
-		root.setLevel(Level.INFO);
+		root.setLevel(Level.WARN);
 	}
 	
 
@@ -88,7 +90,6 @@ public abstract class TestBase2 {
 
 	@Before
 	public void startCluster() throws Exception {
-		System.err.println("######################### STARTING LOCAL EXECUTION CONTEXT #########################");
 		this.executer = new NepheleMiniCluster();
 		this.executer.start();
 	}
@@ -97,7 +98,6 @@ public abstract class TestBase2 {
 	public void stopCluster() throws Exception {
 		try {
 			if (this.executer != null) {
-				System.err.println("######################### STOPPING LOCAL EXECUTION CONTEXT #########################");
 				this.executer.stop();
 				this.executer = null;
 				FileSystem.closeAll();
@@ -133,6 +133,7 @@ public abstract class TestBase2 {
 		
 		try {
 			JobClient client = this.executer.getJobClient(jobGraph);
+			client.setConsoleStreamForReporting(getNullPrintStream());
 			client.submitJobAndWait();
 		} catch(Exception e) {
 			System.err.println(e.getMessage());
@@ -448,5 +449,12 @@ public abstract class TestBase2 {
 		
 		Assert.assertEquals("Different number of lines in expected and obtained result.", expected.length, result.length);
 		Assert.assertArrayEquals(expected, result);
+	}
+	
+	public static PrintStream getNullPrintStream() {
+		return new PrintStream(new OutputStream() {
+			@Override
+			public void write(int b) throws IOException {}
+		});
 	}
 }
