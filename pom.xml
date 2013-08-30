@@ -27,23 +27,24 @@
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+		<hadoop.version>2.0.0-cdh4.2.1</hadoop.version>
 	</properties>
 
 	<pluginRepositories>
 	</pluginRepositories>
 	
 	<repositories>
-      <repository>
-        <id>cloudera-releases</id>
-        <url>https://repository.cloudera.com/artifactory/cloudera-repos</url>
-        <releases>
-          <enabled>true</enabled>
-        </releases>
-        <snapshots>
-          <enabled>false</enabled>
-        </snapshots>
-      </repository>
-    </repositories>
+		<repository>
+			<id>cloudera-releases</id>
+			<url>https://repository.cloudera.com/artifactory/cloudera-repos</url>
+			<releases>
+				<enabled>true</enabled>
+			</releases>
+			<snapshots>
+				<enabled>false</enabled>
+			</snapshots>
+		</repository>
+	</repositories>
 
 	<dependencies>
 	
@@ -121,39 +122,60 @@
 		
 	</dependencies>
 
+	<!--
+		Usage of profiles for various hadoop versions:
+		Profile hadoop-yarn is active by default.
+		It will be deactivated whenever another profile becomes active in this pom
+
+		How to build for yarn using a specific version
+		- Call: mvn -Dhadoop.version=<version> <goal>
+
+		How to build for hadoop v1 (will use hadoop-core):
+		- Call: mvn -Phadoop_v1 -Dhadoop.version=<hadoop-version> <goal>
+	-->
+	<profiles>
+		<profile>
+			<id>hadoop_yarn</id>
+			<activation>
+				<activeByDefault>true</activeByDefault>
+			</activation>
+				<dependencyManagement>
+					<dependencies>
+						<!-- YARN -->
+						<dependency>
+							<groupId>org.apache.hadoop</groupId>
+							<artifactId>hadoop-common</artifactId>
+							<version>${hadoop.version}</version>
+						</dependency>
+						<dependency>
+							<groupId>org.apache.hadoop</groupId>
+							<artifactId>hadoop-hdfs</artifactId>
+							<version>${hadoop.version}</version>
+						</dependency>
+					</dependencies>
+				</dependencyManagement>
+			</profile>
+		<profile>
+			<id>hadoop_v1</id>
+			<dependencyManagement>
+				<dependencies>
+					<!-- "Old" Hadoop = MapReduce v1 -->
+					<dependency>
+						<groupId>org.apache.hadoop</groupId>
+						<artifactId>hadoop-core</artifactId>
+						<version>${hadoop.version}</version>
+					</dependency>
+				</dependencies>
+			</dependencyManagement>
+		</profile>
+	</profiles>
+
+
 	<dependencyManagement>
 		<!-- this section defines the module versions that are used if nothing else is specified. -->
-		<dependencies>
-			
-		<!-- Cloudera Hadoop -->
-		<dependency>
-			<groupId>org.apache.hadoop</groupId>
-			<artifactId>hadoop-common</artifactId>
-			<version>2.0.0-cdh4.2.1</version>
-			<type>jar</type>
-			<scope>compile</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.hadoop</groupId>
-			<artifactId>hadoop-hdfs</artifactId>
-			<version>2.0.0-cdh4.2.1</version>
-			<type>jar</type>
-			<scope>compile</scope>
-		</dependency>
-		
-		
-		<!-- Ye'Olde Hadoop 
-		<dependency>
-			<groupId>org.apache.hadoop</groupId>
-			<artifactId>hadoop-core</artifactId>
-			<version>0.20.203.0</version>
-			<type>jar</type>
-			<scope>compile</scope>
-		</dependency>
-		-->
-	
+		<dependencies>	
 		<!-- Managed dependency required for HBase in pact-hbase  -->
-	  <dependency>
+	  	<dependency>
       	<groupId>org.slf4j</groupId>
       	<artifactId>slf4j-api</artifactId>
       	<version>1.4.3</version>
@@ -163,7 +185,6 @@
       	<artifactId>slf4j-log4j12</artifactId>
       	<version>1.4.3</version>
       </dependency>
-			
 		</dependencies>
 	</dependencyManagement>
 
@@ -388,9 +409,6 @@
 			</plugin>
 		</plugins>
 	</build>
-
-	<profiles>
-	</profiles>
 
 	<modules>
 		<module>nephele</module>
