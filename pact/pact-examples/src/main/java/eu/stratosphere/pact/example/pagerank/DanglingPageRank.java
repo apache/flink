@@ -49,23 +49,23 @@ public class DanglingPageRank implements PlanAssembler, PlanAssemblerDescription
 			numDanglingVertices = Long.parseLong(args[6]);
 		}
 		
-		FileDataSource pageWithRankInput = new FileDataSource(DanglingPageRankInputFormat.class,
+		FileDataSource pageWithRankInput = new FileDataSource(new DanglingPageRankInputFormat(),
 			pageWithRankInputPath, "DanglingPageWithRankInput");
 		pageWithRankInput.getParameters().setLong(DanglingPageRankInputFormat.NUM_VERTICES_PARAMETER, numVertices);
 		
 		BulkIteration iteration = new BulkIteration("Page Rank Loop");
 		iteration.setInput(pageWithRankInput);
 		
-		FileDataSource adjacencyListInput = new FileDataSource(ImprovedAdjacencyListInputFormat.class,
+		FileDataSource adjacencyListInput = new FileDataSource(new ImprovedAdjacencyListInputFormat(),
 			adjacencyListInputPath, "AdjancencyListInput");
 		
-		MatchContract join = MatchContract.builder(DotProductMatch.class, PactLong.class, 0, 0)
+		MatchContract join = MatchContract.builder(new DotProductMatch(), PactLong.class, 0, 0)
 				.input1(iteration.getPartialSolution())
 				.input2(adjacencyListInput)
 				.name("Join with Edges")
 				.build();
 		
-		CoGroupContract rankAggregation = CoGroupContract.builder(DotProductCoGroup.class, PactLong.class, 0, 0)
+		CoGroupContract rankAggregation = CoGroupContract.builder(new DotProductCoGroup(), PactLong.class, 0, 0)
 				.input1(iteration.getPartialSolution())
 				.input2(join)
 				.name("Rank Aggregation")
@@ -77,7 +77,7 @@ public class DanglingPageRank implements PlanAssembler, PlanAssemblerDescription
 		iteration.setMaximumNumberOfIterations(numIterations);
 		iteration.getAggregators().registerAggregationConvergenceCriterion(DotProductCoGroup.AGGREGATOR_NAME, PageRankStatsAggregator.class, DiffL1NormConvergenceCriterion.class);
 		
-		FileDataSink out = new FileDataSink(PageWithRankOutFormat.class, outputPath, iteration, "Final Ranks");
+		FileDataSink out = new FileDataSink(new PageWithRankOutFormat(), outputPath, iteration, "Final Ranks");
 
 		Plan p = new Plan(out, "Dangling PageRank");
 		p.setDefaultParallelism(dop);

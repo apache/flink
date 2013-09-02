@@ -21,6 +21,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import org.apache.commons.lang.SerializationUtils;
+
 import eu.stratosphere.pact.common.contract.CompilerHints;
 import eu.stratosphere.pact.common.contract.GenericDataSource;
 import eu.stratosphere.pact.common.io.FileInputFormat;
@@ -119,8 +121,7 @@ public class DataSourceNode extends OptimizerNode {
 			String inFormatDescription = "<unknown>";
 			
 			try {
-				Class<? extends InputFormat<?, ?>> formatClass = getPactContract().getFormatClass();
-				format = formatClass.newInstance();
+				format = getPactContract().getFormatWrapper().getUserCodeObject();
 				format.configure(getPactContract().getParameters());
 			}
 			catch (Throwable t) {
@@ -255,7 +256,7 @@ public class DataSourceNode extends OptimizerNode {
 		candidate.updatePropertiesWithUniqueSets(getUniqueFields());
 		
 		final Costs costs = new Costs();
-		if (FileInputFormat.class.isAssignableFrom(getPactContract().getFormatClass())) {
+		if (FileInputFormat.class.isAssignableFrom(getPactContract().getFormatWrapper().getUserCodeObject().getClass())) {
 			estimator.addFileInputCost(this.inputSize, costs);
 		}
 		candidate.setCosts(costs);

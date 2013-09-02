@@ -33,8 +33,9 @@ import eu.stratosphere.pact.common.type.NormalizableKey;
  * 
  * @see eu.stratosphere.pact.common.type.Key
  */
-public final class PactNull implements Key, NormalizableKey, CopyableValue<PactNull>
-{	
+public final class PactNull implements Key, NormalizableKey, CopyableValue<PactNull> {
+	private static final long serialVersionUID = 1L;
+	
 	/**
 	 * The PactNull singleton instance.
 	 */

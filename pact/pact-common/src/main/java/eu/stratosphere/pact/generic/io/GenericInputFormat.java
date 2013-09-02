@@ -26,6 +26,7 @@ import eu.stratosphere.pact.generic.io.InputFormat;
  * Generic base class for all inputs that are not based on files.
  */
 public abstract class GenericInputFormat<OT> implements InputFormat<OT, GenericInputSplit> {
+	private static final long serialVersionUID = 1L;
 	
 	/**
 	 * The partition of this split.

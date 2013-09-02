@@ -15,6 +15,7 @@
 
 package eu.stratosphere.pact.example.relational;
 
+import java.io.Serializable;
 import java.util.Iterator;
 
 import eu.stratosphere.pact.common.contract.FileDataSink;
@@ -64,7 +65,8 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 	 * Realizes the join between Customers and Order table.
 	 */
 	@ConstantFieldsSecondExcept(0)
-	public static class JoinCO extends MatchStub {
+	public static class JoinCO extends MatchStub implements Serializable {
+		private static final long serialVersionUID = 1L;
 
 		private final PactInteger one = new PactInteger(1);
 		
@@ -89,7 +91,8 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 	 */
 	@Combinable
 	@ConstantFields(1)
-	public static class AggCO extends ReduceStub {
+	public static class AggCO extends ReduceStub implements Serializable {
+		private static final long serialVersionUID = 1L;
 
 		private final PactInteger integer = new PactInteger();
 		private PactRecord record = new PactRecord();
@@ -143,7 +146,7 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 		 * 0: CUSTOMER_ID
 		 */
 		// create DataSourceContract for Orders input
-		FileDataSource orders = new FileDataSource(RecordInputFormat.class, ordersPath, "Orders");
+		FileDataSource orders = new FileDataSource(new RecordInputFormat(), ordersPath, "Orders");
 		orders.setDegreeOfParallelism(numSubtasks);
 		RecordInputFormat.configureRecordFormat(orders)
 			.recordDelimiter('\n')
@@ -159,7 +162,7 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 		 * 1: MKT_SEGMENT
 		 */
 		// create DataSourceContract for Customer input
-		FileDataSource customers = new FileDataSource(RecordInputFormat.class, customerPath, "Customers");
+		FileDataSource customers = new FileDataSource(new RecordInputFormat(), customerPath, "Customers");
 		customers.setDegreeOfParallelism(numSubtasks);
 		RecordInputFormat.configureRecordFormat(customers)
 			.recordDelimiter('\n')
@@ -171,7 +174,7 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 		customers.getCompilerHints().setAvgBytesPerRecord(20);
 		
 		// create MatchContract for joining Orders and LineItems
-		MatchContract joinCO = MatchContract.builder(JoinCO.class, PactInteger.class, 0, 0)
+		MatchContract joinCO = MatchContract.builder(new JoinCO(), PactInteger.class, 0, 0)
 			.name("JoinCO")
 			.build();
 		joinCO.setDegreeOfParallelism(numSubtasks);
@@ -179,7 +182,7 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 		joinCO.getCompilerHints().setAvgBytesPerRecord(17);
 
 		// create ReduceContract for aggregating the result
-		ReduceContract aggCO = new ReduceContract.Builder(AggCO.class, PactString.class, 1)
+		ReduceContract aggCO = ReduceContract.builder(new AggCO(), PactString.class, 1)
 			.name("AggCo")
 			.build();
 		aggCO.setDegreeOfParallelism(numSubtasks);
@@ -188,7 +191,7 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 		aggCO.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(new int[]{0}), 1);
 
 		// create DataSinkContract for writing the result
-		FileDataSink result = new FileDataSink(RecordOutputFormat.class, output, "Output");
+		FileDataSink result = new FileDataSink(new RecordOutputFormat(), output, "Output");
 		result.setDegreeOfParallelism(numSubtasks);
 		RecordOutputFormat.configureRecordFormat(result)
 			.recordDelimiter('\n')

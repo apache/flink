@@ -25,6 +25,7 @@ import eu.stratosphere.pact.common.type.base.PactInteger;
  * 
  */
 public final class EdgeInputFormat extends DelimitedInputFormat {
+	private static final long serialVersionUID = 1L;
 	
 	public static final String ID_DELIMITER_CHAR = "edgeinput.delimiter";
 	

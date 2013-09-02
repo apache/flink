@@ -26,6 +26,9 @@ import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.generic.contract.Contract;
 import eu.stratosphere.pact.generic.contract.GenericReduceContract;
+import eu.stratosphere.pact.generic.contract.UserCodeClassWrapper;
+import eu.stratosphere.pact.generic.contract.UserCodeObjectWrapper;
+import eu.stratosphere.pact.generic.contract.UserCodeWrapper;
 
 /**
  * MapContract represents a Pact with a Map Input Contract.
@@ -58,8 +61,28 @@ public class ReduceContract extends GenericReduceContract<ReduceStub> implements
 	 * 
 	 * @param udf The {@link ReduceStub} implementation for this Reduce contract.
 	 */
+	public static Builder builder(ReduceStub udf) {
+		return new Builder(new UserCodeObjectWrapper<ReduceStub>(udf));
+	}
+	
+	/**
+	 * Creates a Builder with the provided {@link ReduceStub} implementation.
+	 * 
+	 * @param udf The {@link ReduceStub} implementation for this Reduce contract.
+	 * @param keyClass The class of the key data type.
+	 * @param keyColumn The position of the key.
+	 */
+	public static Builder builder(ReduceStub udf, Class<? extends Key> keyClass, int keyColumn) {
+		return new Builder(new UserCodeObjectWrapper<ReduceStub>(udf), keyClass, keyColumn);
+	}
+
+	/**
+	 * Creates a Builder with the provided {@link ReduceStub} implementation.
+	 * 
+	 * @param udf The {@link ReduceStub} implementation for this Reduce contract.
+	 */
 	public static Builder builder(Class<? extends ReduceStub> udf) {
-		return new Builder(udf);
+		return new Builder(new UserCodeClassWrapper<ReduceStub>(udf));
 	}
 	
 	/**
@@ -70,7 +93,7 @@ public class ReduceContract extends GenericReduceContract<ReduceStub> implements
 	 * @param keyColumn The position of the key.
 	 */
 	public static Builder builder(Class<? extends ReduceStub> udf, Class<? extends Key> keyClass, int keyColumn) {
-		return new Builder(udf, keyClass, keyColumn);
+		return new Builder(new UserCodeClassWrapper<ReduceStub>(udf), keyClass, keyColumn);
 	}
 	
 	/**
@@ -120,7 +143,7 @@ public class ReduceContract extends GenericReduceContract<ReduceStub> implements
 	 */
 	@Override
 	public boolean isCombinable() {
-		return super.isCombinable() || getUserCodeClass().getAnnotation(Combinable.class) != null;
+		return super.isCombinable() || getUserCodeAnnotation(Combinable.class) != null;
 	}
 	
 	/**
@@ -171,7 +194,7 @@ public class ReduceContract extends GenericReduceContract<ReduceStub> implements
 	public static class Builder {
 		
 		/* The required parameters */
-		private final Class<? extends ReduceStub> udf;
+		private final UserCodeWrapper<ReduceStub> udf;
 		private final List<Class<? extends Key>> keyClasses;
 		private final List<Integer> keyColumns;
 		
@@ -185,7 +208,7 @@ public class ReduceContract extends GenericReduceContract<ReduceStub> implements
 		 * 
 		 * @param udf The {@link ReduceStub} implementation for this Reduce contract.
 		 */
-		private Builder(Class<? extends ReduceStub> udf) {
+		private Builder(UserCodeWrapper<ReduceStub> udf) {
 			this.udf = udf;
 			this.keyClasses = new ArrayList<Class<? extends Key>>();
 			this.keyColumns = new ArrayList<Integer>();
@@ -199,7 +222,7 @@ public class ReduceContract extends GenericReduceContract<ReduceStub> implements
 		 * @param keyClass The class of the key data type.
 		 * @param keyColumn The position of the key.
 		 */
-		public Builder(Class<? extends ReduceStub> udf, Class<? extends Key> keyClass, int keyColumn) {
+		private Builder(UserCodeWrapper<ReduceStub> udf, Class<? extends Key> keyClass, int keyColumn) {
 			this.udf = udf;
 			this.keyClasses = new ArrayList<Class<? extends Key>>();
 			this.keyClasses.add(keyClass);

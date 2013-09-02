@@ -16,8 +16,10 @@
 package eu.stratosphere.pact.common.util;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Modifier;
 
@@ -184,6 +186,15 @@ public class InstantiationUtil {
 				oois.close();
 			}
 		}
+	}
+	
+	public static void writeObjectToConfig(Object o, Configuration config, String key) throws IOException {
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+	    ObjectOutputStream oos = new ObjectOutputStream(baos);
+	    oos.writeObject(o);
+			    
+	    byte[] bytes = baos.toByteArray();
+	    config.setBytes(key, bytes);
 	}
 	
 	// --------------------------------------------------------------------------------------------

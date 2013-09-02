@@ -21,7 +21,6 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 import eu.stratosphere.pact.common.stubs.ReduceStub;
-import eu.stratosphere.pact.generic.contract.SingleInputContract;
 import eu.stratosphere.pact.generic.stub.GenericReducer;
 
 
@@ -37,12 +36,28 @@ import eu.stratosphere.pact.generic.stub.GenericReducer;
  */
 public class GenericReduceContract<T extends GenericReducer<?, ?>> extends SingleInputContract<T> {
 	
-	public GenericReduceContract(Class <? extends T> udf, int[] keyPositions, String name) {
+	public GenericReduceContract(UserCodeWrapper<T> udf, int[] keyPositions, String name) {
 		super(udf, keyPositions, name);
 	}
 	
-	public GenericReduceContract(Class <? extends T> udf, String name) {
+	public GenericReduceContract(T udf, int[] keyPositions, String name) {
+		super(new UserCodeObjectWrapper<T>(udf), keyPositions, name);
+	}
+	
+	public GenericReduceContract(Class<? extends T> udf, int[] keyPositions, String name) {
+		super(new UserCodeClassWrapper<T>(udf), keyPositions, name);
+	}
+	
+	public GenericReduceContract(UserCodeWrapper<T> udf, String name) {
 		super(udf, name);
+	}
+	
+	public GenericReduceContract(T udf, String name) {
+		super(new UserCodeObjectWrapper<T>(udf), name);
+	}
+	
+	public GenericReduceContract(Class<? extends T> udf, String name) {
+		super(new UserCodeClassWrapper<T>(udf), name);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -56,7 +71,7 @@ public class GenericReduceContract<T extends GenericReducer<?, ?>> extends Singl
 	 * @return True, if the ReduceContract is combinable, false otherwise.
 	 */
 	public boolean isCombinable() {
-		return getUserCodeClass().getAnnotation(Combinable.class) != null;
+		return getUserCodeAnnotation(Combinable.class) != null;
 	}
 	
 	/**

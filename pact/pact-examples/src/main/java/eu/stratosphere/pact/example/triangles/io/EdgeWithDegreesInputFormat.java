@@ -33,6 +33,7 @@ import eu.stratosphere.pact.common.type.base.PactInteger;
  * the vertical bar (<code>|</code>).
  */
 public final class EdgeWithDegreesInputFormat extends DelimitedInputFormat {
+	private static final long serialVersionUID = 1L;
 	
 	public static final String VERTEX_DELIMITER_CHAR = "edgeinput.vertexdelimiter";
 	public static final String DEGREE_DELIMITER_CHAR = "edgeinput.degreedelimiter";

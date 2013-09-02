@@ -15,6 +15,7 @@
 
 package eu.stratosphere.pact.example.connectedcomponents;
 
+import java.io.Serializable;
 import java.util.Iterator;
 
 import eu.stratosphere.pact.common.contract.FileDataSink;
@@ -40,7 +41,8 @@ import eu.stratosphere.pact.generic.contract.WorksetIteration;
  */
 public class WorksetConnectedComponents implements PlanAssembler, PlanAssemblerDescription {
 	
-	public static final class NeighborWithComponentIDJoin extends MatchStub {
+	public static final class NeighborWithComponentIDJoin extends MatchStub implements Serializable {
+		private static final long serialVersionUID = 1L;
 
 		private final PactRecord result = new PactRecord();
 
@@ -54,7 +56,8 @@ public class WorksetConnectedComponents implements PlanAssembler, PlanAssemblerD
 	
 	@Combinable
 	@ConstantFields(0)
-	public static final class MinimumComponentIDReduce extends ReduceStub {
+	public static final class MinimumComponentIDReduce extends ReduceStub implements Serializable {
+		private static final long serialVersionUID = 1L;
 
 		private final PactRecord result = new PactRecord();
 		private final PactLong vertexId = new PactLong();
@@ -84,7 +87,8 @@ public class WorksetConnectedComponents implements PlanAssembler, PlanAssemblerD
 	}
 	
 	@ConstantFieldsFirst(0)
-	public static final class UpdateComponentIdMatch extends MatchStub {
+	public static final class UpdateComponentIdMatch extends MatchStub implements Serializable {
+		private static final long serialVersionUID = 1L;
 
 		@Override
 		public void match(PactRecord newVertexWithComponent, PactRecord currentVertexWithComponent, Collector<PactRecord> out){
@@ -108,7 +112,7 @@ public class WorksetConnectedComponents implements PlanAssembler, PlanAssemblerD
 		final int maxIterations = (args.length > 4 ? Integer.parseInt(args[4]) : 1);
 
 		// create DataSourceContract for the vertices
-		FileDataSource initialVertices = new FileDataSource(DuplicateLongInputFormat.class, verticesInput, "Vertices");
+		FileDataSource initialVertices = new FileDataSource(new DuplicateLongInputFormat(), verticesInput, "Vertices");
 		
 		WorksetIteration iteration = new WorksetIteration(0, "Connected Components Iteration");
 		iteration.setInitialSolutionSet(initialVertices);
@@ -116,23 +120,23 @@ public class WorksetConnectedComponents implements PlanAssembler, PlanAssemblerD
 		iteration.setMaximumNumberOfIterations(maxIterations);
 		
 		// create DataSourceContract for the edges
-		FileDataSource edges = new FileDataSource(LongLongInputFormat.class, edgeInput, "Edges");
+		FileDataSource edges = new FileDataSource(new LongLongInputFormat(), edgeInput, "Edges");
 
 		// create CrossContract for distance computation
-		MatchContract joinWithNeighbors = MatchContract.builder(NeighborWithComponentIDJoin.class, PactLong.class, 0, 0)
+		MatchContract joinWithNeighbors = MatchContract.builder(new NeighborWithComponentIDJoin(), PactLong.class, 0, 0)
 				.input1(iteration.getWorkset())
 				.input2(edges)
 				.name("Join Candidate Id With Neighbor")
 				.build();
 
 		// create ReduceContract for finding the nearest cluster centers
-		ReduceContract minCandidateId = ReduceContract.builder(MinimumComponentIDReduce.class, PactLong.class, 0)
+		ReduceContract minCandidateId = ReduceContract.builder(new MinimumComponentIDReduce(), PactLong.class, 0)
 				.input(joinWithNeighbors)
 				.name("Find Minimum Candidate Id")
 				.build();
 		
 		// create CrossContract for distance computation
-		MatchContract updateComponentId = MatchContract.builder(UpdateComponentIdMatch.class, PactLong.class, 0, 0)
+		MatchContract updateComponentId = MatchContract.builder(new UpdateComponentIdMatch(), PactLong.class, 0, 0)
 				.input1(minCandidateId)
 				.input2(iteration.getSolutionSet())
 				.name("Update Component Id")
@@ -142,7 +146,7 @@ public class WorksetConnectedComponents implements PlanAssembler, PlanAssemblerD
 		iteration.setSolutionSetDelta(updateComponentId);
 
 		// create DataSinkContract for writing the new cluster positions
-		FileDataSink result = new FileDataSink(RecordOutputFormat.class, output, iteration, "Result");
+		FileDataSink result = new FileDataSink(new RecordOutputFormat(), output, iteration, "Result");
 		RecordOutputFormat.configureRecordFormat(result)
 			.recordDelimiter('\n')
 			.fieldDelimiter(' ')

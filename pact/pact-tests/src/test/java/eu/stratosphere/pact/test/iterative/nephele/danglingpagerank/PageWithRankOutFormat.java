@@ -24,6 +24,7 @@ import eu.stratosphere.pact.common.type.base.PactLong;
 import java.io.IOException;
 
 public class PageWithRankOutFormat extends FileOutputFormat {
+  private static final long serialVersionUID = 1L;
 
   private final StringBuilder buffer = new StringBuilder();
 

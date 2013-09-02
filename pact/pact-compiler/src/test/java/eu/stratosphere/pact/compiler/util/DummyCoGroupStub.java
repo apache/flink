@@ -15,13 +15,15 @@
 
 package eu.stratosphere.pact.compiler.util;
 
+import java.io.Serializable;
 import java.util.Iterator;
 
 import eu.stratosphere.pact.common.stubs.CoGroupStub;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.type.PactRecord;
 
-public class DummyCoGroupStub extends CoGroupStub {
+public class DummyCoGroupStub extends CoGroupStub implements Serializable {
+	private static final long serialVersionUID = 1L;
 
 	@Override
 	public void coGroup(Iterator<PactRecord> records1, Iterator<PactRecord> records2, Collector<PactRecord> out) {

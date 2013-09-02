@@ -28,6 +28,7 @@ import eu.stratosphere.pact.common.type.PactRecord;
  * @author warneke
  */
 public final class TeraOutputFormat extends FileOutputFormat {
+	private static final long serialVersionUID = 1L;
 
 	/**
 	 * A buffer to store the line which is about to be written back to disk.

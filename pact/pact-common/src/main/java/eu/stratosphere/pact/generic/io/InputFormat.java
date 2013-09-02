@@ -16,6 +16,7 @@
 package eu.stratosphere.pact.generic.io;
 
 import java.io.IOException;
+import java.io.Serializable;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.template.InputSplit;
@@ -55,7 +56,7 @@ import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
  * @param <OT> The type of the produced records.
  * @param <T> The type of input split.
  */
-public interface InputFormat<OT, T extends InputSplit> {
+public interface InputFormat<OT, T extends InputSplit> extends Serializable {
 	
 	/**
 	 * Configures this input format. Since input formats are instantiated generically and hence parameterless, 

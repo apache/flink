@@ -24,8 +24,9 @@ import eu.stratosphere.pact.common.type.base.PactInteger;
 /**
  * 
  */
-public class InfiniteIntegerInputFormatWithDelay extends GenericInputFormat
-{
+public class InfiniteIntegerInputFormatWithDelay extends GenericInputFormat {
+	private static final long serialVersionUID = 1L;
+	
 	private static final int DELAY = 20;
 	
 	private final PactInteger one = new PactInteger(1);

@@ -31,6 +31,7 @@ import eu.stratosphere.pact.common.type.Key;
  * @author warneke
  */
 public final class TeraKey implements Key {
+	private static final long serialVersionUID = 1L;
 
 	/**
 	 * The size of the key in bytes.

@@ -7,6 +7,7 @@ import java.io.DataOutput;
 import java.io.IOException;
 
 public class BooleanValue implements Value {
+  private static final long serialVersionUID = 1L;
 
   private boolean value;
 

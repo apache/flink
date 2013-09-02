@@ -39,9 +39,9 @@ public class ReduceAllTest extends CompilerTestBase  {
 	@Test
 	public void testReduce() {
 		// construct the plan
-		FileDataSource source = new FileDataSource(DummyInputFormat.class, IN_FILE, "Source");
-		ReduceContract reduce1 = ReduceContract.builder(IdentityReduce.class).name("Reduce1").input(source).build();
-		FileDataSink sink = new FileDataSink(DummyOutputFormat.class, OUT_FILE, "Sink");
+		FileDataSource source = new FileDataSource(new DummyInputFormat(), IN_FILE, "Source");
+		ReduceContract reduce1 = ReduceContract.builder(new IdentityReduce()).name("Reduce1").input(source).build();
+		FileDataSink sink = new FileDataSink(new DummyOutputFormat(), OUT_FILE, "Sink");
 		sink.setInput(reduce1);
 		Plan plan = new Plan(sink, "Test Temp Task");
 		plan.setDefaultParallelism(DEFAULT_PARALLELISM);

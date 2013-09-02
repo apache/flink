@@ -166,13 +166,16 @@ public abstract class Contract implements Visitable<Contract> {
 		this.degreeOfParallelism = degree;
 	}
 	
+	
 	/**
-	 * Gets the user code class. In the case of a pact, that class will be the stub with the user function,
-	 * in the case of an input or output format, it will be the format class.  
+	 * Gets the user code wrapper. In the case of a pact, that object will be the stub with the user function,
+	 * in the case of an input or output format, it will be the format object.  
 	 * 
 	 * @return The class with the user code.
 	 */
-	public abstract Class<?> getUserCodeClass();
+	public UserCodeWrapper<?> getUserCodeWrapper() {
+		return null;
+	}
 	
 	/**
 	 * Gets an annotation that pertains to the user code class. By default, this method will look for
@@ -184,8 +187,9 @@ public abstract class Contract implements Visitable<Contract> {
 	 * @return the annotation, or null if no annotation of the requested type was found
 	 */
 	public <A extends Annotation> A getUserCodeAnnotation(Class<A> annotationClass) {
-		return getUserCodeClass().getAnnotation(annotationClass);
+		return getUserCodeWrapper().getUserCodeAnnotation(annotationClass);
 	}
+	
 	
 	// --------------------------------------------------------------------------------------------
 	

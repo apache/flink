@@ -22,7 +22,6 @@ import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.util.FieldList;
-import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.CompilerPostPassException;
 import eu.stratosphere.pact.compiler.plan.candidate.DualInputPlanNode;
@@ -53,11 +52,10 @@ public class GenericArrayRecordPostPass extends GenericRecordPostPass<Class<? ex
 	@Override
 	protected void getSinkSchema(SinkPlanNode sinkPlanNode, DenseValueSchema schema) throws CompilerPostPassException {
 		GenericDataSink sink = sinkPlanNode.getSinkNode().getPactContract();
-		Class<? extends OutputFormat<?>> format = sink.getFormatClass();
+		OutputFormat<?> format = sink.getFormatWrapper().getUserCodeObject();
 		
-		if (ArrayModelOutputFormat.class.isAssignableFrom(format)) {
-			Class<? extends ArrayModelOutputFormat> formatClass = format.asSubclass(ArrayModelOutputFormat.class);
-			ArrayModelOutputFormat formatInstance = InstantiationUtil.instantiate(formatClass, ArrayModelOutputFormat.class);
+		if (ArrayModelOutputFormat.class.isAssignableFrom(format.getClass())) {
+			ArrayModelOutputFormat formatInstance = (ArrayModelOutputFormat) format;
 			Class<? extends Value>[] types = formatInstance.getDataTypes();
 			
 			try {
@@ -92,10 +90,10 @@ public class GenericArrayRecordPostPass extends GenericRecordPostPass<Class<? ex
 			throws CompilerPostPassException, ConflictingFieldTypeInfoException
 	{
 		SingleInputContract<?> contract = (SingleInputContract<?>) node.getSingleInputNode().getPactContract();
-		Class<? extends Stub> stubClass = contract.getUserCodeClass();
+		Stub stub = contract.getUserCodeWrapper().getUserCodeObject();
 		
-		if (AbstractArrayModelStub.class.isAssignableFrom(stubClass)) {
-			AbstractArrayModelStub ams = (AbstractArrayModelStub) InstantiationUtil.instantiate(stubClass, Stub.class);
+		if (AbstractArrayModelStub.class.isAssignableFrom(stub.getClass())) {
+			AbstractArrayModelStub ams = (AbstractArrayModelStub) stub;
 			Class<? extends Value>[] types = ams.getDataTypes(0);
 			
 			if (types == null) {
@@ -115,10 +113,10 @@ public class GenericArrayRecordPostPass extends GenericRecordPostPass<Class<? ex
 	{
 		// add the nodes local information. this automatically consistency checks
 		DualInputContract<?> contract = node.getTwoInputNode().getPactContract();
-		Class<? extends Stub> stubClass = contract.getUserCodeClass();
+		Stub stub = contract.getUserCodeWrapper().getUserCodeObject();
 		
-		if (AbstractArrayModelStub.class.isAssignableFrom(stubClass)) {
-			AbstractArrayModelStub ams = (AbstractArrayModelStub) InstantiationUtil.instantiate(stubClass, Stub.class);
+		if (AbstractArrayModelStub.class.isAssignableFrom(stub.getClass())) {
+			AbstractArrayModelStub ams = (AbstractArrayModelStub) stub;
 			
 			Class<? extends Value>[] types1 = ams.getDataTypes(0);
 			Class<? extends Value>[] types2 = ams.getDataTypes(1);

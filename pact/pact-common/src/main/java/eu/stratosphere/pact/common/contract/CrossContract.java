@@ -22,6 +22,9 @@ import eu.stratosphere.pact.common.stubs.CrossStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.generic.contract.Contract;
 import eu.stratosphere.pact.generic.contract.GenericCrossContract;
+import eu.stratosphere.pact.generic.contract.UserCodeClassWrapper;
+import eu.stratosphere.pact.generic.contract.UserCodeObjectWrapper;
+import eu.stratosphere.pact.generic.contract.UserCodeWrapper;
 
 
 /**
@@ -45,8 +48,17 @@ public class CrossContract extends GenericCrossContract<CrossStub> implements Re
 	 * 
 	 * @param udf The {@link CrossStub} implementation for this Cross contract.
 	 */
+	public static Builder builder(CrossStub udf) {
+		return new Builder(new UserCodeObjectWrapper<CrossStub>(udf));
+	}
+	
+	/**
+	 * Creates a Builder with the provided {@link CrossStub} implementation.
+	 * 
+	 * @param udf The {@link CrossStub} implementation for this Cross contract.
+	 */
 	public static Builder builder(Class<? extends CrossStub> udf) {
-		return new Builder(udf);
+		return new Builder(new UserCodeClassWrapper<CrossStub>(udf));
 	}
 	
 	/**
@@ -75,7 +87,7 @@ public class CrossContract extends GenericCrossContract<CrossStub> implements Re
 	public static class Builder {
 		
 		/* The required parameters */
-		private final Class<? extends CrossStub> udf;
+		private final UserCodeWrapper<CrossStub> udf;
 		
 		/* The optional parameters */
 		private List<Contract> inputs1;
@@ -87,7 +99,7 @@ public class CrossContract extends GenericCrossContract<CrossStub> implements Re
 		 * 
 		 * @param udf The {@link CrossStub} implementation for this Cross contract.
 		 */
-		private Builder(Class<? extends CrossStub> udf) {
+		private Builder(UserCodeWrapper<CrossStub> udf) {
 			this.udf = udf;
 			this.inputs1 = new ArrayList<Contract>();
 			this.inputs2 = new ArrayList<Contract>();

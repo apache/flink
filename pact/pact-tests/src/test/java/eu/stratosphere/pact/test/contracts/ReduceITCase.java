@@ -17,6 +17,7 @@ package eu.stratosphere.pact.test.contracts;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -80,7 +81,8 @@ public class ReduceITCase extends TestBase {
 	}
 
 	@ReduceContract.Combinable
-	public static class TestReducer extends ReduceStub {
+	public static class TestReducer extends ReduceStub implements Serializable {
+		private static final long serialVersionUID = 1L;
 
 		private PactString reduceValue = new PactString();
 		private PactString combineValue = new PactString();
@@ -126,12 +128,12 @@ public class ReduceITCase extends TestBase {
 		String pathPrefix = getFilesystemProvider().getURIPrefix() + getFilesystemProvider().getTempDirPath();
 
 		FileDataSource input = new FileDataSource(
-				ContractITCaseInputFormat.class, pathPrefix + "/reduceInput");
+				new ContractITCaseInputFormat(), pathPrefix + "/reduceInput");
 		DelimitedInputFormat.configureDelimitedFormat(input)
 			.recordDelimiter('\n');
 		input.setDegreeOfParallelism(config.getInteger("ReduceTest#NoSubtasks", 1));
 
-		ReduceContract testReducer = new ReduceContract.Builder(TestReducer.class, PactString.class, 0)
+		ReduceContract testReducer = ReduceContract.builder(new TestReducer(), PactString.class, 0)
 			.build();
 		testReducer.setDegreeOfParallelism(config.getInteger("ReduceTest#NoSubtasks", 1));
 		testReducer.getParameters().setString(PactCompiler.HINT_LOCAL_STRATEGY,
@@ -140,7 +142,7 @@ public class ReduceITCase extends TestBase {
 				config.getString("ReduceTest#ShipStrategy", ""));
 
 		FileDataSink output = new FileDataSink(
-				ContractITCaseOutputFormat.class, pathPrefix + "/result.txt");
+				new ContractITCaseOutputFormat(), pathPrefix + "/result.txt");
 		output.setDegreeOfParallelism(1);
 
 		output.addInput(testReducer);

@@ -35,8 +35,8 @@ public class FileDataSource extends GenericDataSource<FileInputFormat<?>>
 	 * @param filePath The file location. The file path must be a fully qualified URI, including the address schema.
 	 * @param name The given name for the Pact, used in plans, logs and progress messages.
 	 */
-	public FileDataSource(Class<? extends FileInputFormat<?>> clazz, String filePath, String name) {
-		super(clazz, name);
+	public FileDataSource(FileInputFormat<?> f, String filePath, String name) {
+		super(f, name);
 		this.filePath = filePath;
 		this.parameters.setString(FileInputFormat.FILE_PARAMETER_KEY, filePath);
 	}
@@ -47,8 +47,31 @@ public class FileDataSource extends GenericDataSource<FileInputFormat<?>>
 	 * @param clazz The class describing the input format for the file.
 	 * @param filePath The file location. The file path must be a fully qualified URI, including the address schema.
 	 */
-	public FileDataSource(Class<? extends FileInputFormat<?>> clazz, String file) {
-		this(clazz, file, DEFAULT_NAME);
+	public FileDataSource(FileInputFormat<?> f, String file) {
+		this(f, file, DEFAULT_NAME);
+	}
+	
+	/**
+	 * Creates a new instance for the given file using the given file input format.
+	 * 
+	 * @param clazz The class describing the input format for the file.
+	 * @param filePath The file location. The file path must be a fully qualified URI, including the address schema.
+	 * @param name The given name for the Pact, used in plans, logs and progress messages.
+	 */
+	public FileDataSource(Class<? extends FileInputFormat<?>> f, String filePath, String name) {
+		super(f, name);
+		this.filePath = filePath;
+		this.parameters.setString(FileInputFormat.FILE_PARAMETER_KEY, filePath);
+	}
+
+	/**
+	 * Creates a new instance for the given file using the given input format. The contract has the default name.
+	 * 
+	 * @param clazz The class describing the input format for the file.
+	 * @param filePath The file location. The file path must be a fully qualified URI, including the address schema.
+	 */
+	public FileDataSource(Class<? extends FileInputFormat<?>> f, String file) {
+		this(f, file, DEFAULT_NAME);
 	}
 
 	// --------------------------------------------------------------------------------------------

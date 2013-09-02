@@ -21,6 +21,7 @@ import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.common.type.base.parser.DecimalTextLongParser;
 
 public class DuplicateLongInputFormat extends TextInputFormat {
+	private static final long serialVersionUID = 1L;
 	
 	private final PactLong l1 = new PactLong();
 	private final PactLong l2 = new PactLong();

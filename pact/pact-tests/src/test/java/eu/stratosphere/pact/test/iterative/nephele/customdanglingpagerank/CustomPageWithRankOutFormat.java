@@ -23,6 +23,7 @@ import eu.stratosphere.pact.test.iterative.nephele.customdanglingpagerank.types.
 import java.io.IOException;
 
 public class CustomPageWithRankOutFormat extends FileOutputFormat<VertexWithRankAndDangling> {
+	private static final long serialVersionUID = 1L;
 
 	private final StringBuilder buffer = new StringBuilder();
 

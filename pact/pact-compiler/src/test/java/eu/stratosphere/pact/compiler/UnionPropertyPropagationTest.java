@@ -44,21 +44,21 @@ public class UnionPropertyPropagationTest extends CompilerTestBase {
 	public void testUnionPropertyPropagation() {
 		// construct the plan
 
-		FileDataSource sourceA = new FileDataSource(DummyInputFormat.class, IN_FILE);
-		FileDataSource sourceB = new FileDataSource(DummyInputFormat.class, IN_FILE);
+		FileDataSource sourceA = new FileDataSource(new DummyInputFormat(), IN_FILE);
+		FileDataSource sourceB = new FileDataSource(new DummyInputFormat(), IN_FILE);
 		
-		ReduceContract redA = new ReduceContract.Builder(IdentityReduce.class, PactInteger.class, 0)
+		ReduceContract redA = ReduceContract.builder(new IdentityReduce(), PactInteger.class, 0)
 			.input(sourceA)
 			.build();
-		ReduceContract redB = new ReduceContract.Builder(IdentityReduce.class, PactInteger.class, 0)
+		ReduceContract redB = ReduceContract.builder(new IdentityReduce(), PactInteger.class, 0)
 			.input(sourceB)
 			.build();
 		
-		ReduceContract globalRed = new ReduceContract.Builder(IdentityReduce.class, PactInteger.class, 0).build();
+		ReduceContract globalRed = ReduceContract.builder(new IdentityReduce(), PactInteger.class, 0).build();
 		globalRed.addInput(redA);
 		globalRed.addInput(redB);
 		
-		FileDataSink sink = new FileDataSink(DummyOutputFormat.class, OUT_FILE, globalRed);
+		FileDataSink sink = new FileDataSink(new DummyOutputFormat(), OUT_FILE, globalRed);
 		
 		// return the PACT plan
 		Plan plan = new Plan(sink, "Union Property Propagation");

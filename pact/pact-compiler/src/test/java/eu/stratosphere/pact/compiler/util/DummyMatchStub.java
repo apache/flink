@@ -15,13 +15,16 @@
 
 package eu.stratosphere.pact.compiler.util;
 
+import java.io.Serializable;
+
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsFirstExcept;
 import eu.stratosphere.pact.common.type.PactRecord;
 
 @ConstantFieldsFirstExcept({})
-public class DummyMatchStub extends MatchStub {
+public class DummyMatchStub extends MatchStub implements Serializable {
+	private static final long serialVersionUID = 1L;
 
 	@Override
 	public void match(PactRecord value1, PactRecord value2, Collector<PactRecord> out) throws Exception {

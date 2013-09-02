@@ -43,6 +43,7 @@ import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
  * @author Arvid Heise
  */
 public abstract class BinaryInputFormat<T extends Record> extends FileInputFormat<T> {
+	private static final long serialVersionUID = 1L;
 
 	/**
 	 * The log.

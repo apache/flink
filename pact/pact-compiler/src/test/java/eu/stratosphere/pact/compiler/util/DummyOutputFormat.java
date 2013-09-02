@@ -20,8 +20,9 @@ import eu.stratosphere.pact.common.io.DelimitedOutputFormat;
 import eu.stratosphere.pact.common.type.PactRecord;
 
 
-public final class DummyOutputFormat extends DelimitedOutputFormat
-{	
+public final class DummyOutputFormat extends DelimitedOutputFormat {
+	private static final long serialVersionUID = 1L;
+	
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.common.io.DelimitedOutputFormat#serializeRecord(eu.stratosphere.pact.common.type.PactRecord, byte[])
 	 */

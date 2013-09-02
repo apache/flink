@@ -33,6 +33,7 @@ import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.generic.contract.Contract;
 import eu.stratosphere.pact.generic.contract.DualInputContract;
+import eu.stratosphere.pact.generic.contract.UserCodeClassWrapper;
 import eu.stratosphere.pact.generic.stub.AbstractStub;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 
@@ -307,7 +308,7 @@ public class BinaryUnionNode extends TwoInputNode {
 	
 	private static final class UnionPlaceholderContract extends DualInputContract<MockStub> {
 		private UnionPlaceholderContract() {
-			super(MockStub.class, "UnionPlaceholderContract");
+			super(new UserCodeClassWrapper<MockStub>(MockStub.class), "UnionPlaceholderContract");
 		}
 	}
 }

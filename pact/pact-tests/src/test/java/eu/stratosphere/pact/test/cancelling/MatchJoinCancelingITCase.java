@@ -38,17 +38,17 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 	public void testCancelSortMatchWhileReadingSlowInputs() throws Exception
 	{
 		GenericDataSource<InfiniteIntegerInputFormatWithDelay> source1 =
-			new GenericDataSource<InfiniteIntegerInputFormatWithDelay>(InfiniteIntegerInputFormatWithDelay.class, "Source 1");
+			new GenericDataSource<InfiniteIntegerInputFormatWithDelay>(new InfiniteIntegerInputFormatWithDelay(), "Source 1");
 
 		GenericDataSource<InfiniteIntegerInputFormatWithDelay> source2 =
-			new GenericDataSource<InfiniteIntegerInputFormatWithDelay>(InfiniteIntegerInputFormatWithDelay.class, "Source 2");
+			new GenericDataSource<InfiniteIntegerInputFormatWithDelay>(new InfiniteIntegerInputFormatWithDelay(), "Source 2");
 		
 		MatchContract matcher = MatchContract.builder(SimpleMatcher.class, PactInteger.class, 0, 0)
 			.input1(source1)
 			.input2(source2)
 			.name("Sort Join")
 			.build();
-		GenericDataSink sink = new GenericDataSink(DiscardingOutputFormat.class, matcher, "Sink");
+		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), matcher, "Sink");
 		
 		Plan p = new Plan(sink);
 		p.setDefaultParallelism(4);
@@ -60,17 +60,17 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 	public void testCancelSortMatchWhileReadingFastInputs() throws Exception
 	{
 		GenericDataSource<InfiniteIntegerInputFormat> source1 =
-			new GenericDataSource<InfiniteIntegerInputFormat>(InfiniteIntegerInputFormat.class, "Source 1");
+			new GenericDataSource<InfiniteIntegerInputFormat>(new InfiniteIntegerInputFormat(), "Source 1");
 
 		GenericDataSource<InfiniteIntegerInputFormat> source2 =
-			new GenericDataSource<InfiniteIntegerInputFormat>(InfiniteIntegerInputFormat.class, "Source 2");
+			new GenericDataSource<InfiniteIntegerInputFormat>(new InfiniteIntegerInputFormat(), "Source 2");
 		
 		MatchContract matcher = MatchContract.builder(SimpleMatcher.class, PactInteger.class, 0, 0)
 			.input1(source1)
 			.input2(source2)
 			.name("Sort Join")
 			.build();
-		GenericDataSink sink = new GenericDataSink(DiscardingOutputFormat.class, matcher, "Sink");
+		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), matcher, "Sink");
 		
 		Plan p = new Plan(sink);
 		p.setDefaultParallelism(4);
@@ -82,17 +82,17 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 	public void testCancelSortMatchPriorToFirstRecordReading() throws Exception
 	{
 		GenericDataSource<InfiniteIntegerInputFormat> source1 =
-			new GenericDataSource<InfiniteIntegerInputFormat>(InfiniteIntegerInputFormat.class, "Source 1");
+			new GenericDataSource<InfiniteIntegerInputFormat>(new InfiniteIntegerInputFormat(), "Source 1");
 
 		GenericDataSource<InfiniteIntegerInputFormat> source2 =
-			new GenericDataSource<InfiniteIntegerInputFormat>(InfiniteIntegerInputFormat.class, "Source 2");
+			new GenericDataSource<InfiniteIntegerInputFormat>(new InfiniteIntegerInputFormat(), "Source 2");
 		
 		MatchContract matcher = MatchContract.builder(StuckInOpenMatcher.class, PactInteger.class, 0, 0)
 			.input1(source1)
 			.input2(source2)
 			.name("Stuc-In-Open Match")
 			.build();
-		GenericDataSink sink = new GenericDataSink(DiscardingOutputFormat.class, matcher, "Sink");
+		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), matcher, "Sink");
 		
 		Plan p = new Plan(sink);
 		p.setDefaultParallelism(4);
@@ -106,12 +106,12 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 	public void testCancelSortMatchWhileDoingHeavySorting() throws Exception
 	{
 		GenericDataSource<UniformIntInput> source1 =
-			new GenericDataSource<UniformIntInput>(UniformIntInput.class, "Source 1");
+			new GenericDataSource<UniformIntInput>(new UniformIntInput(), "Source 1");
 		source1.setParameter(UniformIntInput.NUM_KEYS_KEY, 50000);
 		source1.setParameter(UniformIntInput.NUM_VALUES_KEY, 100);
 
 		GenericDataSource<UniformIntInput> source2 =
-			new GenericDataSource<UniformIntInput>(UniformIntInput.class, "Source 2");
+			new GenericDataSource<UniformIntInput>(new UniformIntInput(), "Source 2");
 		source2.setParameter(UniformIntInput.NUM_KEYS_KEY, 50000);
 		source2.setParameter(UniformIntInput.NUM_VALUES_KEY, 100);
 		
@@ -120,7 +120,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 			.input2(source2)
 			.name("Long Cancelling Sort Join")
 			.build();
-		GenericDataSink sink = new GenericDataSink(DiscardingOutputFormat.class, matcher, "Sink");
+		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), matcher, "Sink");
 		
 		Plan p = new Plan(sink);
 		p.setDefaultParallelism(4);
@@ -135,12 +135,12 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 	public void testCancelSortMatchWhileJoining() throws Exception
 	{
 		GenericDataSource<UniformIntInput> source1 =
-			new GenericDataSource<UniformIntInput>(UniformIntInput.class, "Source 1");
+			new GenericDataSource<UniformIntInput>(new UniformIntInput(), "Source 1");
 		source1.setParameter(UniformIntInput.NUM_KEYS_KEY, 500);
 		source1.setParameter(UniformIntInput.NUM_VALUES_KEY, 3);
 
 		GenericDataSource<UniformIntInput> source2 =
-			new GenericDataSource<UniformIntInput>(UniformIntInput.class, "Source 2");
+			new GenericDataSource<UniformIntInput>(new UniformIntInput(), "Source 2");
 		source2.setParameter(UniformIntInput.NUM_KEYS_KEY, 500);
 		source2.setParameter(UniformIntInput.NUM_VALUES_KEY, 3);
 		
@@ -149,7 +149,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 			.input2(source2)
 			.name("Long Cancelling Sort Join")
 			.build();
-		GenericDataSink sink = new GenericDataSink(DiscardingOutputFormat.class, matcher, "Sink");
+		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), matcher, "Sink");
 		
 		Plan p = new Plan(sink);
 		p.setDefaultParallelism(4);
@@ -161,12 +161,12 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 	public void testCancelSortMatchWithLongCancellingResponse() throws Exception
 	{
 		GenericDataSource<UniformIntInput> source1 =
-			new GenericDataSource<UniformIntInput>(UniformIntInput.class, "Source 1");
+			new GenericDataSource<UniformIntInput>(new UniformIntInput(), "Source 1");
 		source1.setParameter(UniformIntInput.NUM_KEYS_KEY, 500);
 		source1.setParameter(UniformIntInput.NUM_VALUES_KEY, 3);
 
 		GenericDataSource<UniformIntInput> source2 =
-			new GenericDataSource<UniformIntInput>(UniformIntInput.class, "Source 2");
+			new GenericDataSource<UniformIntInput>(new UniformIntInput(), "Source 2");
 		source2.setParameter(UniformIntInput.NUM_KEYS_KEY, 500);
 		source2.setParameter(UniformIntInput.NUM_VALUES_KEY, 3);
 		
@@ -175,7 +175,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 			.input2(source2)
 			.name("Long Cancelling Sort Join")
 			.build();
-		GenericDataSink sink = new GenericDataSink(DiscardingOutputFormat.class, matcher, "Sink");
+		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), matcher, "Sink");
 		
 		Plan p = new Plan(sink);
 		p.setDefaultParallelism(4);
@@ -189,17 +189,17 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 	public void testCancelSortMatchWithHighDOP() throws Exception
 	{
 		GenericDataSource<InfiniteIntegerInputFormat> source1 =
-			new GenericDataSource<InfiniteIntegerInputFormat>(InfiniteIntegerInputFormat.class, "Source 1");
+			new GenericDataSource<InfiniteIntegerInputFormat>(new InfiniteIntegerInputFormat(), "Source 1");
 
 		GenericDataSource<InfiniteIntegerInputFormat> source2 =
-			new GenericDataSource<InfiniteIntegerInputFormat>(InfiniteIntegerInputFormat.class, "Source 2");
+			new GenericDataSource<InfiniteIntegerInputFormat>(new InfiniteIntegerInputFormat(), "Source 2");
 		
-		MatchContract matcher = MatchContract.builder(SimpleMatcher.class, PactInteger.class, 0, 0)
+		MatchContract matcher = MatchContract.builder(new SimpleMatcher(), PactInteger.class, 0, 0)
 			.input1(source1)
 			.input2(source2)
 			.name("Sort Join")
 			.build();
-		GenericDataSink sink = new GenericDataSink(DiscardingOutputFormat.class, matcher, "Sink");
+		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), matcher, "Sink");
 		
 		Plan p = new Plan(sink);
 		p.setDefaultParallelism(64);

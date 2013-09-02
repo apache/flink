@@ -21,6 +21,7 @@ import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.common.type.base.PactLong;
 
 public class PageWithRankOutFormat extends DelimitedOutputFormat {
+	private static final long serialVersionUID = 1L;
 
 	private final StringBuilder buffer = new StringBuilder();
 

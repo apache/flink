@@ -144,58 +144,58 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 	public void testBranchingSourceMultipleTimes() {
 		try {
 			// construct the plan
-			FileDataSource sourceA = new FileDataSource(DummyInputFormat.class, IN_FILE);
+			FileDataSource sourceA = new FileDataSource(new DummyInputFormat(), IN_FILE);
 			
-			MatchContract mat1 = MatchContract.builder(DummyMatchStub.class, PactInteger.class, 0, 0)
+			MatchContract mat1 = MatchContract.builder(new DummyMatchStub(), PactInteger.class, 0, 0)
 				.input1(sourceA)
 				.input2(sourceA)
 				.build();
-			MatchContract mat2 = MatchContract.builder(DummyMatchStub.class, PactInteger.class, 0, 0)
+			MatchContract mat2 = MatchContract.builder(new DummyMatchStub(), PactInteger.class, 0, 0)
 				.input1(sourceA)
 				.input2(mat1)
 				.build();
-			MatchContract mat3 = MatchContract.builder(DummyMatchStub.class, PactInteger.class, 0, 0)
+			MatchContract mat3 = MatchContract.builder(new DummyMatchStub(), PactInteger.class, 0, 0)
 				.input1(sourceA)
 				.input2(mat2)
 				.build();
-			MatchContract mat4 = MatchContract.builder(DummyMatchStub.class, PactInteger.class, 0, 0)
+			MatchContract mat4 = MatchContract.builder(new DummyMatchStub(), PactInteger.class, 0, 0)
 				.input1(sourceA)
 				.input2(mat3)
 				.build();
-			MatchContract mat5 = MatchContract.builder(DummyMatchStub.class, PactInteger.class, 0, 0)
+			MatchContract mat5 = MatchContract.builder(new DummyMatchStub(), PactInteger.class, 0, 0)
 				.input1(sourceA)
 				.input2(mat4)
 				.build();
 			
-			MapContract ma = MapContract.builder(IdentityMap.class).input(sourceA).build();
+			MapContract ma = MapContract.builder(new IdentityMap()).input(sourceA).build();
 			
-			MatchContract mat6 = MatchContract.builder(DummyMatchStub.class, PactInteger.class, 0, 0)
+			MatchContract mat6 = MatchContract.builder(new DummyMatchStub(), PactInteger.class, 0, 0)
 				.input1(ma)
 				.input2(ma)
 				.build();
-			MatchContract mat7 = MatchContract.builder(DummyMatchStub.class, PactInteger.class, 0, 0)
+			MatchContract mat7 = MatchContract.builder(new DummyMatchStub(), PactInteger.class, 0, 0)
 				.input1(ma)
 				.input2(mat6)
 				.build();
-			MatchContract mat8 = MatchContract.builder(DummyMatchStub.class, PactInteger.class, 0, 0)
+			MatchContract mat8 = MatchContract.builder(new DummyMatchStub(), PactInteger.class, 0, 0)
 				.input1(ma)
 				.input2(mat7)
 				.build();
-			MatchContract mat9 = MatchContract.builder(DummyMatchStub.class, PactInteger.class, 0, 0)
+			MatchContract mat9 = MatchContract.builder(new DummyMatchStub(), PactInteger.class, 0, 0)
 				.input1(ma)
 				.input2(mat8)
 				.build();
-			MatchContract mat10 = MatchContract.builder(DummyMatchStub.class, PactInteger.class, 0, 0)
+			MatchContract mat10 = MatchContract.builder(new DummyMatchStub(), PactInteger.class, 0, 0)
 				.input1(ma)
 				.input2(mat9)
 				.build();
 			
-			CoGroupContract co = CoGroupContract.builder(DummyCoGroupStub.class, PactInteger.class, 0, 0)
+			CoGroupContract co = CoGroupContract.builder(new DummyCoGroupStub(), PactInteger.class, 0, 0)
 				.input1(mat5)
 				.input2(mat10)
 				.build();
 	
-			FileDataSink sink = new FileDataSink(DummyOutputFormat.class, OUT_FILE, co);
+			FileDataSink sink = new FileDataSink(new DummyOutputFormat(), OUT_FILE, co);
 			
 			// return the PACT plan
 			Plan plan = new Plan(sink, "Branching Source Multiple Times");
@@ -239,34 +239,34 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 			final String out2Path = "file:///test/2";
 			final String out3Path = "file:///test/3";
 	
-			FileDataSource sourceA = new FileDataSource(DummyInputFormat.class, IN_FILE);
-			FileDataSource sourceB = new FileDataSource(DummyInputFormat.class, IN_FILE);
-			FileDataSource sourceC = new FileDataSource(DummyInputFormat.class, IN_FILE);
+			FileDataSource sourceA = new FileDataSource(new DummyInputFormat(), IN_FILE);
+			FileDataSource sourceB = new FileDataSource(new DummyInputFormat(), IN_FILE);
+			FileDataSource sourceC = new FileDataSource(new DummyInputFormat(), IN_FILE);
 			
-			CoGroupContract co = CoGroupContract.builder(DummyCoGroupStub.class, PactInteger.class, 0,0)
+			CoGroupContract co = CoGroupContract.builder(new DummyCoGroupStub(), PactInteger.class, 0,0)
 				.input1(sourceA)
 				.input2(sourceB)
 				.build();
-			MapContract ma = MapContract.builder(IdentityMap.class).input(co).build();
-			MatchContract mat1 = MatchContract.builder(DummyMatchStub.class, PactInteger.class, 0, 0)
+			MapContract ma = MapContract.builder(new IdentityMap()).input(co).build();
+			MatchContract mat1 = MatchContract.builder(new DummyMatchStub(), PactInteger.class, 0, 0)
 				.input1(sourceB)
 				.input2(sourceC)
 				.build();
-			MatchContract mat2 = MatchContract.builder(DummyMatchStub.class, PactInteger.class, 0, 0)
+			MatchContract mat2 = MatchContract.builder(new DummyMatchStub(), PactInteger.class, 0, 0)
 				.input1(ma)
 				.input2(mat1)
 				.build();
-			ReduceContract r = new ReduceContract.Builder(IdentityReduce.class, PactInteger.class, 0)
+			ReduceContract r = ReduceContract.builder(new IdentityReduce(), PactInteger.class, 0)
 				.input(ma)
 				.build();
-			CrossContract c = CrossContract.builder(DummyCrossStub.class)
+			CrossContract c = CrossContract.builder(new DummyCrossStub())
 				.input1(r)
 				.input2(mat2)
 				.build();
 			
-			FileDataSink sinkA = new FileDataSink(DummyOutputFormat.class, out1Path, c);
-			FileDataSink sinkB = new FileDataSink(DummyOutputFormat.class, out2Path, mat2);
-			FileDataSink sinkC = new FileDataSink(DummyOutputFormat.class, out3Path, mat2);
+			FileDataSink sinkA = new FileDataSink(new DummyOutputFormat(), out1Path, c);
+			FileDataSink sinkB = new FileDataSink(new DummyOutputFormat(), out2Path, mat2);
+			FileDataSink sinkC = new FileDataSink(new DummyOutputFormat(), out3Path, mat2);
 			
 			List<GenericDataSink> sinks = new ArrayList<GenericDataSink>();
 			sinks.add(sinkA);
@@ -308,76 +308,76 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 	public void testBranchEachContractType() {
 		try {
 			// construct the plan
-			FileDataSource sourceA = new FileDataSource(DummyInputFormat.class, "file:///test/file1", "Source A");
-			FileDataSource sourceB = new FileDataSource(DummyInputFormat.class, "file:///test/file2", "Source B");
-			FileDataSource sourceC = new FileDataSource(DummyInputFormat.class, "file:///test/file3", "Source C");
+			FileDataSource sourceA = new FileDataSource(new DummyInputFormat(), "file:///test/file1", "Source A");
+			FileDataSource sourceB = new FileDataSource(new DummyInputFormat(), "file:///test/file2", "Source B");
+			FileDataSource sourceC = new FileDataSource(new DummyInputFormat(), "file:///test/file3", "Source C");
 			
-			MapContract map1 = MapContract.builder(IdentityMap.class).input(sourceA).name("Map 1").build();
+			MapContract map1 = MapContract.builder(new IdentityMap()).input(sourceA).name("Map 1").build();
 			
-			ReduceContract reduce1 = new ReduceContract.Builder(IdentityReduce.class, PactInteger.class, 0)
+			ReduceContract reduce1 = ReduceContract.builder(new IdentityReduce(), PactInteger.class, 0)
 				.input(map1)
 				.name("Reduce 1")
 				.build();
 			
-			MatchContract match1 = MatchContract.builder(DummyMatchStub.class, PactInteger.class, 0, 0)
+			MatchContract match1 = MatchContract.builder(new DummyMatchStub(), PactInteger.class, 0, 0)
 				.input1(sourceB, sourceB, sourceC)
 				.input2(sourceC)
 				.name("Match 1")
 				.build();
 			;
-			CoGroupContract cogroup1 = CoGroupContract.builder(DummyCoGroupStub.class, PactInteger.class, 0,0)
+			CoGroupContract cogroup1 = CoGroupContract.builder(new DummyCoGroupStub(), PactInteger.class, 0,0)
 				.input1(sourceA)
 				.input2(sourceB)
 				.name("CoGroup 1")
 				.build();
 			
-			CrossContract cross1 = CrossContract.builder(DummyCrossStub.class)
+			CrossContract cross1 = CrossContract.builder(new DummyCrossStub())
 				.input1(reduce1)
 				.input2(cogroup1)
 				.name("Cross 1")
 				.build();
 			
 			
-			CoGroupContract cogroup2 = CoGroupContract.builder(DummyCoGroupStub.class, PactInteger.class, 0,0)
+			CoGroupContract cogroup2 = CoGroupContract.builder(new DummyCoGroupStub(), PactInteger.class, 0,0)
 				.input1(cross1)
 				.input2(cross1)
 				.name("CoGroup 2")
 				.build();
 			
-			CoGroupContract cogroup3 = CoGroupContract.builder(DummyCoGroupStub.class, PactInteger.class, 0,0)
+			CoGroupContract cogroup3 = CoGroupContract.builder(new DummyCoGroupStub(), PactInteger.class, 0,0)
 				.input1(map1)
 				.input2(match1)
 				.name("CoGroup 3")
 				.build();
 			
 			
-			MapContract map2 = MapContract.builder(IdentityMap.class).input(cogroup3).name("Map 2").build();
+			MapContract map2 = MapContract.builder(new IdentityMap()).input(cogroup3).name("Map 2").build();
 			
-			CoGroupContract cogroup4 = CoGroupContract.builder(DummyCoGroupStub.class, PactInteger.class, 0,0)
+			CoGroupContract cogroup4 = CoGroupContract.builder(new DummyCoGroupStub(), PactInteger.class, 0,0)
 				.input1(map2)
 				.input2(match1)
 				.name("CoGroup 4")
 				.build();
 			
-			CoGroupContract cogroup5 = CoGroupContract.builder(DummyCoGroupStub.class, PactInteger.class, 0,0)
+			CoGroupContract cogroup5 = CoGroupContract.builder(new DummyCoGroupStub(), PactInteger.class, 0,0)
 				.input1(cogroup2)
 				.input2(cogroup1)
 				.name("CoGroup 5")
 				.build();
 			
-			CoGroupContract cogroup6 = CoGroupContract.builder(DummyCoGroupStub.class, PactInteger.class, 0,0)
+			CoGroupContract cogroup6 = CoGroupContract.builder(new DummyCoGroupStub(), PactInteger.class, 0,0)
 				.input1(reduce1)
 				.input2(cogroup4)
 				.name("CoGroup 6")
 				.build();
 			
-			CoGroupContract cogroup7 = CoGroupContract.builder(DummyCoGroupStub.class, PactInteger.class, 0,0)
+			CoGroupContract cogroup7 = CoGroupContract.builder(new DummyCoGroupStub(), PactInteger.class, 0,0)
 				.input1(cogroup5)
 				.input2(cogroup6)
 				.name("CoGroup 7")
 				.build();
 			
-			FileDataSink sink = new FileDataSink(DummyOutputFormat.class, OUT_FILE, cogroup7);
+			FileDataSink sink = new FileDataSink(new DummyOutputFormat(), OUT_FILE, cogroup7);
 	//		sink.addInput(sourceA);
 	//		sink.addInput(co3);
 	//		sink.addInput(co4);
@@ -403,39 +403,39 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 	public void testBranchingUnion() {
 		try {
 			// construct the plan
-			FileDataSource source1 = new FileDataSource(DummyInputFormat.class, IN_FILE);
-			FileDataSource source2 = new FileDataSource(DummyInputFormat.class, IN_FILE);
+			FileDataSource source1 = new FileDataSource(new DummyInputFormat(), IN_FILE);
+			FileDataSource source2 = new FileDataSource(new DummyInputFormat(), IN_FILE);
 			
-			MatchContract mat1 = MatchContract.builder(DummyMatchStub.class, PactInteger.class, 0, 0)
+			MatchContract mat1 = MatchContract.builder(new DummyMatchStub(), PactInteger.class, 0, 0)
 				.input1(source1)
 				.input2(source2)
 				.name("Match 1")
 				.build();
 			
-			MapContract ma1 = MapContract.builder(IdentityMap.class).input(mat1).name("Map1").build();
+			MapContract ma1 = MapContract.builder(new IdentityMap()).input(mat1).name("Map1").build();
 			
-			ReduceContract r1 = new ReduceContract.Builder(IdentityReduce.class, PactInteger.class, 0)
+			ReduceContract r1 = ReduceContract.builder(new IdentityReduce(), PactInteger.class, 0)
 				.input(ma1)
 				.name("Reduce 1")
 				.build();
 			
-			ReduceContract r2 = new ReduceContract.Builder(IdentityReduce.class, PactInteger.class, 0)
+			ReduceContract r2 = ReduceContract.builder(new IdentityReduce(), PactInteger.class, 0)
 				.input(mat1)
 				.name("Reduce 2")
 				.build();
 			
-			MapContract ma2 = MapContract.builder(IdentityMap.class).input(mat1).name("Map 2").build();
+			MapContract ma2 = MapContract.builder(new IdentityMap()).input(mat1).name("Map 2").build();
 			
-			MapContract ma3 = MapContract.builder(IdentityMap.class).input(ma2).name("Map 3").build();
+			MapContract ma3 = MapContract.builder(new IdentityMap()).input(ma2).name("Map 3").build();
 			
-			MatchContract mat2 = MatchContract.builder(DummyMatchStub.class, PactInteger.class, 0, 0)
+			MatchContract mat2 = MatchContract.builder(new DummyMatchStub(), PactInteger.class, 0, 0)
 				.input1(r1, r2, ma2, ma3)
 				.input2(ma2)
 				.name("Match 2")
 				.build();
 			mat2.setParameter(PactCompiler.HINT_LOCAL_STRATEGY, PactCompiler.HINT_LOCAL_STRATEGY_MERGE);
 			
-			FileDataSink sink = new FileDataSink(DummyOutputFormat.class, OUT_FILE, mat2);
+			FileDataSink sink = new FileDataSink(new DummyOutputFormat(), OUT_FILE, mat2);
 			
 			
 			// return the PACT plan

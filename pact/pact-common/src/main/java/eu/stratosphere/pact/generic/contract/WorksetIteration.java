@@ -63,7 +63,7 @@ public class WorksetIteration extends DualInputContract<AbstractStub> implements
 	}
 	
 	public WorksetIteration(int[] keyPositions, String name) {
-		super(AbstractStub.class, name);
+		super(new UserCodeClassWrapper<AbstractStub>(AbstractStub.class), name);
 		this.solutionSetKeyFields = keyPositions;
 	}
 	
@@ -248,6 +248,7 @@ public class WorksetIteration extends DualInputContract<AbstractStub> implements
 	 * Specialized contract to use as a recognizable place-holder for the working set input to the
 	 * step function, when composing the nested data flow.
 	 */
+	// Integer is only a dummy here but this whole placeholder shtick seems a tad bogus.
 	public static class WorksetPlaceHolder extends Contract {
 
 		private final WorksetIteration containingIteration;
@@ -268,7 +269,7 @@ public class WorksetIteration extends DualInputContract<AbstractStub> implements
 		}
 
 		@Override
-		public Class<?> getUserCodeClass() {
+		public UserCodeWrapper<?> getUserCodeWrapper() {
 			return null;
 		}
 	}
@@ -277,6 +278,7 @@ public class WorksetIteration extends DualInputContract<AbstractStub> implements
 	 * Specialized contract to use as a recognizable place-holder for the solution set input to the
 	 * step function, when composing the nested data flow.
 	 */
+	// Integer is only a dummy here but this whole placeholder shtick seems a tad bogus.
 	public static class SolutionSetPlaceHolder extends Contract {
 
 		private final WorksetIteration containingIteration;
@@ -297,7 +299,7 @@ public class WorksetIteration extends DualInputContract<AbstractStub> implements
 		}
 
 		@Override
-		public Class<?> getUserCodeClass() {
+		public UserCodeWrapper<?> getUserCodeWrapper() {
 			return null;
 		}
 	}

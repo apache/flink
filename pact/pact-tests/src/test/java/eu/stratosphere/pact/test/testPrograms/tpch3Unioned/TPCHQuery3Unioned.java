@@ -73,7 +73,7 @@ public class TPCHQuery3Unioned implements PlanAssembler, PlanAssemblerDescriptio
 		String output        = (args.length > 6 ? args[6] : "");
 
 		// create DataSourceContract for Orders input
-		FileDataSource orders1 = new FileDataSource(RecordInputFormat.class, orders1Path, "Orders 1");
+		FileDataSource orders1 = new FileDataSource(new RecordInputFormat(), orders1Path, "Orders 1");
 		RecordInputFormat.configureRecordFormat(orders1)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
@@ -83,7 +83,7 @@ public class TPCHQuery3Unioned implements PlanAssembler, PlanAssemblerDescriptio
 			.field(VarLengthStringParser.class, 4, 10)	// order date
 			.field(VarLengthStringParser.class, 5, 8);	// order prio
 		
-		FileDataSource orders2 = new FileDataSource(RecordInputFormat.class, orders2Path, "Orders 2");
+		FileDataSource orders2 = new FileDataSource(new RecordInputFormat(), orders2Path, "Orders 2");
 		RecordInputFormat.configureRecordFormat(orders2)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
@@ -94,7 +94,7 @@ public class TPCHQuery3Unioned implements PlanAssembler, PlanAssemblerDescriptio
 			.field(VarLengthStringParser.class, 5, 8);	// order prio
 		
 		// create DataSourceContract for LineItems input
-		FileDataSource lineitems = new FileDataSource(RecordInputFormat.class, lineitemsPath, "LineItems");
+		FileDataSource lineitems = new FileDataSource(new RecordInputFormat(), lineitemsPath, "LineItems");
 		RecordInputFormat.configureRecordFormat(lineitems)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
@@ -102,7 +102,7 @@ public class TPCHQuery3Unioned implements PlanAssembler, PlanAssemblerDescriptio
 			.field(DecimalTextDoubleParser.class, 5);
 
 		// create MapContract for filtering Orders tuples
-		MapContract filterO1 = MapContract.builder(FilterO.class)
+		MapContract filterO1 = MapContract.builder(new FilterO())
 			.name("FilterO")
 			.input(orders1)
 			.build();
@@ -112,7 +112,7 @@ public class TPCHQuery3Unioned implements PlanAssembler, PlanAssemblerDescriptio
 		filterO1.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.05f);
 		
 		// create MapContract for filtering Orders tuples
-		MapContract filterO2 = MapContract.builder(FilterO.class)
+		MapContract filterO2 = MapContract.builder(new FilterO())
 			.name("FilterO")
 			.input(orders2)
 			.build();
@@ -122,13 +122,13 @@ public class TPCHQuery3Unioned implements PlanAssembler, PlanAssemblerDescriptio
 		filterO2.getCompilerHints().setAvgRecordsEmittedPerStubCall(1.0f);
 
 		// create MatchContract for joining Orders and LineItems
-		MatchContract joinLiO = MatchContract.builder(JoinLiO.class, PactLong.class, 0, 0)
+		MatchContract joinLiO = MatchContract.builder(new JoinLiO(), PactLong.class, 0, 0)
 			.input1(filterO2, filterO1)
 			.input2(lineitems)
 			.name("JoinLiO")
 			.build();
 		
-		FileDataSource partJoin1 = new FileDataSource(RecordInputFormat.class, partJoin1Path, "Part Join 1");
+		FileDataSource partJoin1 = new FileDataSource(new RecordInputFormat(), partJoin1Path, "Part Join 1");
 		RecordInputFormat.configureRecordFormat(partJoin1)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
@@ -136,7 +136,7 @@ public class TPCHQuery3Unioned implements PlanAssembler, PlanAssemblerDescriptio
 			.field(DecimalTextIntParser.class, 1)
 			.field(DecimalTextDoubleParser.class, 2);
 		
-		FileDataSource partJoin2 = new FileDataSource(RecordInputFormat.class, partJoin2Path, "Part Join 2");
+		FileDataSource partJoin2 = new FileDataSource(new RecordInputFormat(), partJoin2Path, "Part Join 2");
 		RecordInputFormat.configureRecordFormat(partJoin2)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
@@ -146,7 +146,7 @@ public class TPCHQuery3Unioned implements PlanAssembler, PlanAssemblerDescriptio
 		
 		// create ReduceContract for aggregating the result
 		// the reducer has a composite key, consisting of the fields 0 and 1
-		ReduceContract aggLiO = ReduceContract.builder(AggLiO.class)
+		ReduceContract aggLiO = ReduceContract.builder(new AggLiO())
 			.keyField(PactLong.class, 0)
 			.keyField(PactString.class, 1)
 			.input(joinLiO, partJoin2, partJoin1)
@@ -154,7 +154,7 @@ public class TPCHQuery3Unioned implements PlanAssembler, PlanAssemblerDescriptio
 			.build();
 
 		// create DataSinkContract for writing the result
-		FileDataSink result = new FileDataSink(RecordOutputFormat.class, output, aggLiO, "Output");
+		FileDataSink result = new FileDataSink(new RecordOutputFormat(), output, aggLiO, "Output");
 		RecordOutputFormat.configureRecordFormat(result)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')

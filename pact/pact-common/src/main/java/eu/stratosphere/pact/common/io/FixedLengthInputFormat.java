@@ -27,6 +27,7 @@ import eu.stratosphere.pact.common.type.PactRecord;
  * 
  */
 public abstract class FixedLengthInputFormat extends FileInputFormat {
+	private static final long serialVersionUID = 1L;
 	
 	/**
 	 * The config parameter which defines the fixed length of a record.

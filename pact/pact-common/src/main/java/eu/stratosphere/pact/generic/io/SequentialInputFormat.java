@@ -26,6 +26,7 @@ import eu.stratosphere.nephele.types.Record;
  * @see SequentialOutputFormat
  */
 public class SequentialInputFormat<T extends Record> extends BinaryInputFormat<T> {
+	private static final long serialVersionUID = 1L;
 	/*
 	 * (non-Javadoc)
 	 * @see

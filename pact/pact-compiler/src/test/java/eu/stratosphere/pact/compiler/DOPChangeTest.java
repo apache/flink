@@ -63,26 +63,26 @@ public class DOPChangeTest extends CompilerTestBase {
 		final int degOfPar = DEFAULT_PARALLELISM;
 		
 		// construct the plan
-		FileDataSource source = new FileDataSource(DummyInputFormat.class, IN_FILE, "Source");
+		FileDataSource source = new FileDataSource(new DummyInputFormat(), IN_FILE, "Source");
 		source.setDegreeOfParallelism(degOfPar);
 		
-		MapContract map1 = MapContract.builder(IdentityMap.class).name("Map1").build();
+		MapContract map1 = MapContract.builder(new IdentityMap()).name("Map1").build();
 		map1.setDegreeOfParallelism(degOfPar);
 		map1.setInput(source);
 		
-		ReduceContract reduce1 = ReduceContract.builder(IdentityReduce.class, PactInteger.class, 0).name("Reduce 1").build();
+		ReduceContract reduce1 = ReduceContract.builder(new IdentityReduce(), PactInteger.class, 0).name("Reduce 1").build();
 		reduce1.setDegreeOfParallelism(degOfPar);
 		reduce1.setInput(map1);
 		
-		MapContract map2 = MapContract.builder(IdentityMap.class).name("Map2").build();
+		MapContract map2 = MapContract.builder(new IdentityMap()).name("Map2").build();
 		map2.setDegreeOfParallelism(degOfPar * 2);
 		map2.setInput(reduce1);
 		
-		ReduceContract reduce2 = ReduceContract.builder(IdentityReduce.class, PactInteger.class, 0).name("Reduce 2").build();
+		ReduceContract reduce2 = ReduceContract.builder(new IdentityReduce(), PactInteger.class, 0).name("Reduce 2").build();
 		reduce2.setDegreeOfParallelism(degOfPar * 2);
 		reduce2.setInput(map2);
 		
-		FileDataSink sink = new FileDataSink(DummyOutputFormat.class, OUT_FILE, "Sink");
+		FileDataSink sink = new FileDataSink(new DummyOutputFormat(), OUT_FILE, "Sink");
 		sink.setDegreeOfParallelism(degOfPar * 2);
 		sink.setInput(reduce2);
 		
@@ -117,26 +117,26 @@ public class DOPChangeTest extends CompilerTestBase {
 		final int degOfPar = DEFAULT_PARALLELISM;
 		
 		// construct the plan
-		FileDataSource source = new FileDataSource(DummyInputFormat.class, IN_FILE, "Source");
+		FileDataSource source = new FileDataSource(new DummyInputFormat(), IN_FILE, "Source");
 		source.setDegreeOfParallelism(degOfPar);
 		
-		MapContract map1 = MapContract.builder(IdentityMap.class).name("Map1").build();
+		MapContract map1 = MapContract.builder(new IdentityMap()).name("Map1").build();
 		map1.setDegreeOfParallelism(degOfPar);
 		map1.setInput(source);
 		
-		ReduceContract reduce1 = ReduceContract.builder(IdentityReduce.class, PactInteger.class, 0).name("Reduce 1").build();
+		ReduceContract reduce1 = ReduceContract.builder(new IdentityReduce(), PactInteger.class, 0).name("Reduce 1").build();
 		reduce1.setDegreeOfParallelism(degOfPar);
 		reduce1.setInput(map1);
 		
-		MapContract map2 = MapContract.builder(IdentityMap.class).name("Map2").build();
+		MapContract map2 = MapContract.builder(new IdentityMap()).name("Map2").build();
 		map2.setDegreeOfParallelism(degOfPar);
 		map2.setInput(reduce1);
 		
-		ReduceContract reduce2 = ReduceContract.builder(IdentityReduce.class, PactInteger.class, 0).name("Reduce 2").build();
+		ReduceContract reduce2 = ReduceContract.builder(new IdentityReduce(), PactInteger.class, 0).name("Reduce 2").build();
 		reduce2.setDegreeOfParallelism(degOfPar * 2);
 		reduce2.setInput(map2);
 		
-		FileDataSink sink = new FileDataSink(DummyOutputFormat.class, OUT_FILE, "Sink");
+		FileDataSink sink = new FileDataSink(new DummyOutputFormat(), OUT_FILE, "Sink");
 		sink.setDegreeOfParallelism(degOfPar * 2);
 		sink.setInput(reduce2);
 		
@@ -171,26 +171,26 @@ public class DOPChangeTest extends CompilerTestBase {
 		final int degOfPar = 2 * DEFAULT_PARALLELISM;
 		
 		// construct the plan
-		FileDataSource source = new FileDataSource(DummyInputFormat.class, IN_FILE, "Source");
+		FileDataSource source = new FileDataSource(new DummyInputFormat(), IN_FILE, "Source");
 		source.setDegreeOfParallelism(degOfPar);
 		
-		MapContract map1 = MapContract.builder(IdentityMap.class).name("Map1").build();
+		MapContract map1 = MapContract.builder(new IdentityMap()).name("Map1").build();
 		map1.setDegreeOfParallelism(degOfPar);
 		map1.setInput(source);
 		
-		ReduceContract reduce1 = ReduceContract.builder(IdentityReduce.class, PactInteger.class, 0).name("Reduce 1").build();
+		ReduceContract reduce1 = ReduceContract.builder(new IdentityReduce(), PactInteger.class, 0).name("Reduce 1").build();
 		reduce1.setDegreeOfParallelism(degOfPar);
 		reduce1.setInput(map1);
 		
-		MapContract map2 = MapContract.builder(IdentityMap.class).name("Map2").build();
+		MapContract map2 = MapContract.builder(new IdentityMap()).name("Map2").build();
 		map2.setDegreeOfParallelism(degOfPar * 2);
 		map2.setInput(reduce1);
 		
-		ReduceContract reduce2 = ReduceContract.builder(IdentityReduce.class, PactInteger.class, 0).name("Reduce 2").build();
+		ReduceContract reduce2 = ReduceContract.builder(new IdentityReduce(), PactInteger.class, 0).name("Reduce 2").build();
 		reduce2.setDegreeOfParallelism(degOfPar * 2);
 		reduce2.setInput(map2);
 		
-		FileDataSink sink = new FileDataSink(DummyOutputFormat.class, OUT_FILE, "Sink");
+		FileDataSink sink = new FileDataSink(new DummyOutputFormat(), OUT_FILE, "Sink");
 		sink.setDegreeOfParallelism(degOfPar * 2);
 		sink.setInput(reduce2);
 		
@@ -222,26 +222,26 @@ public class DOPChangeTest extends CompilerTestBase {
 		final int degOfPar = DEFAULT_PARALLELISM;
 		
 		// construct the plan
-		FileDataSource source = new FileDataSource(DummyInputFormat.class, IN_FILE, "Source");
+		FileDataSource source = new FileDataSource(new DummyInputFormat(), IN_FILE, "Source");
 		source.setDegreeOfParallelism(degOfPar * 2);
 		
-		MapContract map1 = MapContract.builder(IdentityMap.class).name("Map1").build();
+		MapContract map1 = MapContract.builder(new IdentityMap()).name("Map1").build();
 		map1.setDegreeOfParallelism(degOfPar * 2);
 		map1.setInput(source);
 		
-		ReduceContract reduce1 = ReduceContract.builder(IdentityReduce.class, PactInteger.class, 0).name("Reduce 1").build();
+		ReduceContract reduce1 = ReduceContract.builder(new IdentityReduce(), PactInteger.class, 0).name("Reduce 1").build();
 		reduce1.setDegreeOfParallelism(degOfPar * 2);
 		reduce1.setInput(map1);
 		
-		MapContract map2 = MapContract.builder(IdentityMap.class).name("Map2").build();
+		MapContract map2 = MapContract.builder(new IdentityMap()).name("Map2").build();
 		map2.setDegreeOfParallelism(degOfPar);
 		map2.setInput(reduce1);
 		
-		ReduceContract reduce2 = ReduceContract.builder(IdentityReduce.class, PactInteger.class, 0).name("Reduce 2").build();
+		ReduceContract reduce2 = ReduceContract.builder(new IdentityReduce(), PactInteger.class, 0).name("Reduce 2").build();
 		reduce2.setDegreeOfParallelism(degOfPar);
 		reduce2.setInput(map2);
 		
-		FileDataSink sink = new FileDataSink(DummyOutputFormat.class, OUT_FILE, "Sink");
+		FileDataSink sink = new FileDataSink(new DummyOutputFormat(), OUT_FILE, "Sink");
 		sink.setDegreeOfParallelism(degOfPar);
 		sink.setInput(reduce2);
 		
@@ -277,22 +277,22 @@ public class DOPChangeTest extends CompilerTestBase {
 	public void checkPropertyHandlingWithTwoInputs() {
 		// construct the plan
 
-		FileDataSource sourceA = new FileDataSource(DummyInputFormat.class, IN_FILE);
-		FileDataSource sourceB = new FileDataSource(DummyInputFormat.class, IN_FILE);
+		FileDataSource sourceA = new FileDataSource(new DummyInputFormat(), IN_FILE);
+		FileDataSource sourceB = new FileDataSource(new DummyInputFormat(), IN_FILE);
 		
-		ReduceContract redA = new ReduceContract.Builder(IdentityReduce.class, PactInteger.class, 0)
+		ReduceContract redA = ReduceContract.builder(new IdentityReduce(), PactInteger.class, 0)
 			.input(sourceA)
 			.build();
-		ReduceContract redB = new ReduceContract.Builder(IdentityReduce.class, PactInteger.class, 0)
+		ReduceContract redB = ReduceContract.builder(new IdentityReduce(), PactInteger.class, 0)
 			.input(sourceB)
 			.build();
 		
-		MatchContract mat = MatchContract.builder(DummyMatchStub.class, PactInteger.class, 0, 0)
+		MatchContract mat = MatchContract.builder(new DummyMatchStub(), PactInteger.class, 0, 0)
 			.input1(redA)
 			.input2(redB)
 			.build();
 		
-		FileDataSink sink = new FileDataSink(DummyOutputFormat.class, OUT_FILE, mat);
+		FileDataSink sink = new FileDataSink(new DummyOutputFormat(), OUT_FILE, mat);
 		
 		sourceA.setDegreeOfParallelism(5);
 		sourceB.setDegreeOfParallelism(7);

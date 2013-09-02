@@ -37,6 +37,7 @@ import eu.stratosphere.pact.common.stubs.aggregators.AggregatorWithName;
 import eu.stratosphere.pact.common.stubs.aggregators.ConvergenceCriterion;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
+import eu.stratosphere.pact.generic.contract.UserCodeWrapper;
 import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
 import eu.stratosphere.pact.generic.types.TypePairComparatorFactory;
 import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
@@ -54,7 +55,7 @@ public class TaskConfig {
 	
 	// ------------------------------------ User Code ---------------------------------------------
 	
-	private static final String STUB_CLASS = "pact.stub.class";
+	private static final String STUB_OBJECT = "pact.stub.udf-object";
 	
 	private static final String STUB_PARAM_PREFIX = "pact.stub.param.";
 	
@@ -243,18 +244,24 @@ public class TaskConfig {
 	}
 	
 	
-	public void setStubClass(Class<?> stubClass) {
-		this.config.setString(STUB_CLASS, stubClass.getName());
+	public void setStubWrapper(UserCodeWrapper<?> wrapper) {
+		try {
+			InstantiationUtil.writeObjectToConfig(wrapper, this.config, STUB_OBJECT);
+		} catch (IOException e) {
+			throw new CorruptConfigurationException("Could not write the user code wrapper " + wrapper.getClass() + " : " + e.toString());
+		}
 	}
 
-	public <T> Class<? extends T> getStubClass(Class<T> superClass, ClassLoader cl)
-		throws ClassNotFoundException, ClassCastException
+	@SuppressWarnings("unchecked")
+	public <T> UserCodeWrapper<T> getStubWrapper()
 	{
-		final String stubClassName = this.config.getString(STUB_CLASS, null);
-		if (stubClassName == null) {
-			throw new CorruptConfigurationException("The stub class is missing.");
+		try {
+			return (UserCodeWrapper<T>) InstantiationUtil.readObjectFormConfig(this.config, STUB_OBJECT);
+		} catch (ClassNotFoundException e) {
+			throw new CorruptConfigurationException("Could not read the user code wrapper: " + e);
+		} catch (IOException e) {
+			throw new CorruptConfigurationException("Could not read the user code wrapper: " + e);
 		}
-		return Class.forName(stubClassName, true, cl).asSubclass(superClass);
 	}
 	
 	public void setStubParameters(Configuration parameters) {

@@ -31,6 +31,7 @@ import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.pact.generic.contract.UserCodeClassWrapper;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordSerializerFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DataSinkTask;
@@ -78,7 +79,7 @@ public abstract class TaskTestBase {
 	public void registerTask(AbstractTask task, @SuppressWarnings("rawtypes") Class<? extends PactDriver> driver, Class<? extends Stub> stubClass) {
 		final TaskConfig config = new TaskConfig(this.mockEnv.getTaskConfiguration());
 		config.setDriver(driver);
-		config.setStubClass(stubClass);
+		config.setStubWrapper(new UserCodeClassWrapper<Stub>(stubClass));
 		
 		task.setEnvironment(this.mockEnv);
 
@@ -99,7 +100,7 @@ public abstract class TaskTestBase {
 	{
 		TaskConfig dsConfig = new TaskConfig(this.mockEnv.getTaskConfiguration());
 
-		dsConfig.setStubClass(stubClass);
+		dsConfig.setStubWrapper(new UserCodeClassWrapper<FileOutputFormat>(stubClass));
 		dsConfig.setStubParameter(FileOutputFormat.FILE_PARAMETER_KEY, outPath);
 
 		outTask.setEnvironment(this.mockEnv);
@@ -115,7 +116,7 @@ public abstract class TaskTestBase {
 			Class<? extends DelimitedInputFormat> stubClass, String inPath, String delimiter)
 	{
 		TaskConfig dsConfig = new TaskConfig(this.mockEnv.getTaskConfiguration());
-		dsConfig.setStubClass(stubClass);
+		dsConfig.setStubWrapper(new UserCodeClassWrapper<DelimitedInputFormat>(stubClass));
 		dsConfig.setStubParameter(FileInputFormat.FILE_PARAMETER_KEY, inPath);
 		dsConfig.setStubParameter(DelimitedInputFormat.RECORD_DELIMITER, delimiter);
 

@@ -13,9 +13,9 @@ public class HBaseDataSink extends GenericDataSink
 {
 	private static final int IDENTIFYIER_LEN = 16;
 	
-	public HBaseDataSink(Class<? extends GenericTableOutputFormat> c, Contract input, String name)
+	public HBaseDataSink(GenericTableOutputFormat f, Contract input, String name)
 	{
-		super(c, input, name);
+		super(f, input, name);
 		
 		// generate a random unique identifier string
 		final Random rnd = new Random();

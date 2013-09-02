@@ -24,8 +24,9 @@ import eu.stratosphere.pact.generic.io.OutputFormat;
 /**
  * A simple output format that discards all data by doing nothing.
  */
-public class DiscardingOutputFormat implements OutputFormat<PactRecord>
-{
+public class DiscardingOutputFormat implements OutputFormat<PactRecord> {
+	private static final long serialVersionUID = 1L;
+	
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.common.generic.io.OutputFormat#configure(eu.stratosphere.nephele.configuration.Configuration)
 	 */

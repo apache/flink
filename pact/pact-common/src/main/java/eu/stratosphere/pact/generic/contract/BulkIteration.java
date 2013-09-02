@@ -47,7 +47,7 @@ public class BulkIteration extends SingleInputContract<AbstractStub> implements 
 	 * @param name
 	 */
 	public BulkIteration(String name) {
-		super(AbstractStub.class, name);
+		super(new UserCodeClassWrapper<AbstractStub>(AbstractStub.class), name);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -154,7 +154,7 @@ public class BulkIteration extends SingleInputContract<AbstractStub> implements 
 		}
 
 		@Override
-		public Class<?> getUserCodeClass() {
+		public UserCodeWrapper<?> getUserCodeWrapper() {
 			return null;
 		}
 	}

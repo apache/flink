@@ -63,12 +63,12 @@ public final class TeraSort implements PlanAssembler, PlanAssemblerDescription {
 
 		// This task will read the input data and generate the key/value pairs
 		final FileDataSource source = 
-				new FileDataSource(TeraInputFormat.class, input, "Data Source");
+				new FileDataSource(new TeraInputFormat(), input, "Data Source");
 		source.setDegreeOfParallelism(numSubTasks);
 
 		// This task writes the sorted data back to disk
 		final FileDataSink sink = 
-				new FileDataSink(TeraOutputFormat.class, output, "Data Sink");
+				new FileDataSink(new TeraOutputFormat(), output, "Data Sink");
 		sink.setDegreeOfParallelism(numSubTasks);
 		sink.setGlobalOrder(new Ordering(0, TeraKey.class, Order.ASCENDING), new TeraDistribution());
 

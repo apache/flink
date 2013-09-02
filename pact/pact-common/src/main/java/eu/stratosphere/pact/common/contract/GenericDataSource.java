@@ -20,6 +20,9 @@ import java.lang.annotation.Annotation;
 import eu.stratosphere.pact.common.stubs.StubAnnotation;
 import eu.stratosphere.pact.common.util.Visitor;
 import eu.stratosphere.pact.generic.contract.Contract;
+import eu.stratosphere.pact.generic.contract.UserCodeClassWrapper;
+import eu.stratosphere.pact.generic.contract.UserCodeObjectWrapper;
+import eu.stratosphere.pact.generic.contract.UserCodeWrapper;
 import eu.stratosphere.pact.generic.io.InputFormat;
 
 /**
@@ -31,7 +34,7 @@ public class GenericDataSource<T extends InputFormat<?, ?>> extends Contract imp
 	
 	private static final String DEFAULT_NAME = "<Unnamed Generic Data Source>";
 	
-	protected final Class<? extends T> clazz;
+	protected final UserCodeWrapper<? extends T> formatWrapper;
 	
 	protected String statisticsKey;
 
@@ -41,9 +44,9 @@ public class GenericDataSource<T extends InputFormat<?, ?>> extends Contract imp
 	 * @param clazz The Class for the specific input format
 	 * @param name The given name for the Pact, used in plans, logs and progress messages.
 	 */
-	public GenericDataSource(Class<? extends T> clazz, String name) {
+	public GenericDataSource(T format, String name) {
 		super(name);
-		this.clazz = clazz;
+		this.formatWrapper = new UserCodeObjectWrapper<T>(format);
 	}
 	
 	/**
@@ -51,9 +54,30 @@ public class GenericDataSource<T extends InputFormat<?, ?>> extends Contract imp
 	 * 
 	 * @param clazz The Class for the specific input format
 	 */
-	public GenericDataSource(Class<? extends T> clazz) {
+	public GenericDataSource(T format) {
 		super(DEFAULT_NAME);
-		this.clazz = clazz;
+		this.formatWrapper = new UserCodeObjectWrapper<T>(format);
+	}
+	
+	/**
+	 * Creates a new instance for the given file using the given input format.
+	 * 
+	 * @param clazz The Class for the specific input format
+	 * @param name The given name for the Pact, used in plans, logs and progress messages.
+	 */
+	public GenericDataSource(Class<? extends T> format, String name) {
+		super(name);
+		this.formatWrapper = new UserCodeClassWrapper<T>(format);
+	}
+	
+	/**
+	 * Creates a new instance for the given file using the given input format, using the default name.
+	 * 
+	 * @param clazz The Class for the specific input format
+	 */
+	public GenericDataSource(Class<? extends T> format) {
+		super(DEFAULT_NAME);
+		this.formatWrapper = new UserCodeClassWrapper<T>(format);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -85,8 +109,8 @@ public class GenericDataSource<T extends InputFormat<?, ?>> extends Contract imp
 	 * 
 	 * @return The class describing the input format.
 	 */
-	public Class<? extends T> getFormatClass() {
-		return this.clazz;
+	public UserCodeWrapper<? extends T> getFormatWrapper() {
+		return this.formatWrapper;
 	}
 	
 	/**
@@ -99,8 +123,8 @@ public class GenericDataSource<T extends InputFormat<?, ?>> extends Contract imp
 	 * @see eu.stratosphere.pact.generic.contract.Contract#getUserCodeClass()
 	 */
 	@Override
-	public Class<?> getUserCodeClass() {
-		return this.clazz;
+	public UserCodeWrapper<? extends T> getUserCodeWrapper() {
+		return this.formatWrapper;
 	}
 	
 	// --------------------------------------------------------------------------------------------

@@ -174,6 +174,7 @@ public class ExternalProcessInputFormatTest {
 	}
 	
 	private final class MyExternalProcessTestInputFormat extends ExternalProcessInputFormat<ExternalProcessInputSplit> {
+		private static final long serialVersionUID = 1L;
 
 		public static final String FAILCOUNT_PARAMETER_KEY = "test.failingCount";
 		

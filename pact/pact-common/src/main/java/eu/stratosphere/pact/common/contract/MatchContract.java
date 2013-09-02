@@ -22,6 +22,9 @@ import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.generic.contract.Contract;
 import eu.stratosphere.pact.generic.contract.GenericMatchContract;
+import eu.stratosphere.pact.generic.contract.UserCodeClassWrapper;
+import eu.stratosphere.pact.generic.contract.UserCodeObjectWrapper;
+import eu.stratosphere.pact.generic.contract.UserCodeWrapper;
 
 
 /**
@@ -54,8 +57,20 @@ public class MatchContract extends GenericMatchContract<MatchStub> implements Re
 	 * @param keyColumn1 The position of the key in the first input's records.
 	 * @param keyColumn2 The position of the key in the second input's records.
 	 */
+	public static Builder builder(MatchStub udf, Class<? extends Key> keyClass, int keyColumn1, int keyColumn2) {
+		return new Builder(new UserCodeObjectWrapper<MatchStub>(udf), keyClass, keyColumn1, keyColumn2);
+	}
+	
+	/**
+	 * Creates a Builder with the provided {@link MatchStub} implementation
+	 * 
+	 * @param udf The {@link MatchStub} implementation for this Match contract.
+	 * @param keyClass The class of the key data type.
+	 * @param keyColumn1 The position of the key in the first input's records.
+	 * @param keyColumn2 The position of the key in the second input's records.
+	 */
 	public static Builder builder(Class<? extends MatchStub> udf, Class<? extends Key> keyClass, int keyColumn1, int keyColumn2) {
-		return new Builder(udf, keyClass, keyColumn1, keyColumn2);
+		return new Builder(new UserCodeClassWrapper<MatchStub>(udf), keyClass, keyColumn1, keyColumn2);
 	}
 	
 	/**
@@ -86,7 +101,7 @@ public class MatchContract extends GenericMatchContract<MatchStub> implements Re
 	public static class Builder {
 		
 		/* The required parameters */
-		private final Class<? extends MatchStub> udf;
+		private final UserCodeWrapper<MatchStub> udf;
 		private final List<Class<? extends Key>> keyClasses;
 		private final List<Integer> keyColumns1;
 		private final List<Integer> keyColumns2;
@@ -105,7 +120,7 @@ public class MatchContract extends GenericMatchContract<MatchStub> implements Re
 		 * @param keyColumn1 The position of the key in the first input's records.
 		 * @param keyColumn2 The position of the key in the second input's records.
 		 */
-		protected Builder(Class<? extends MatchStub> udf, Class<? extends Key> keyClass, int keyColumn1, int keyColumn2) {
+		protected Builder(UserCodeWrapper<MatchStub> udf, Class<? extends Key> keyClass, int keyColumn1, int keyColumn2) {
 			this.udf = udf;
 			this.keyClasses = new ArrayList<Class<? extends Key>>();
 			this.keyClasses.add(keyClass);
@@ -123,7 +138,7 @@ public class MatchContract extends GenericMatchContract<MatchStub> implements Re
 		 * 
 		 * @param udf The {@link MatchStub} implementation for this Match contract.
 		 */
-		protected Builder(Class<? extends MatchStub> udf) {
+		protected Builder(UserCodeWrapper<MatchStub> udf) {
 			this.udf = udf;
 			this.keyClasses = new ArrayList<Class<? extends Key>>();
 			this.keyColumns1 = new ArrayList<Integer>();

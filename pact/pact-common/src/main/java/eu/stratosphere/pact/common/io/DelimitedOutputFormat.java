@@ -27,8 +27,9 @@ import eu.stratosphere.pact.common.type.PactRecord;
 /**
  * The base class for output formats that serialize their records into a delimited sequence.
  */
-public abstract class DelimitedOutputFormat extends FileOutputFormat
-{
+public abstract class DelimitedOutputFormat extends FileOutputFormat {
+	private static final long serialVersionUID = 1L;
+
 	/**
 	 * The configuration key for the entry that defines the record delimiter.
 	 */

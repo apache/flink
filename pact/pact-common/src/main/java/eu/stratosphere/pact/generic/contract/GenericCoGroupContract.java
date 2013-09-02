@@ -36,19 +36,25 @@ import eu.stratosphere.pact.generic.stub.GenericCoGrouper;
  */
 public class GenericCoGroupContract<T extends GenericCoGrouper<?, ?, ?>> extends DualInputContract<T> {
 	
-	public GenericCoGroupContract(Class<? extends T> udf, int[] keyPositions1, int[] keyPositions2, String name) {
+	public GenericCoGroupContract(UserCodeWrapper<T> udf, int[] keyPositions1, int[] keyPositions2, String name) {
 		super(udf, keyPositions1, keyPositions2, name);
 	}
 	
+	public GenericCoGroupContract(T udf, int[] keyPositions1, int[] keyPositions2, String name) {
+		this(new UserCodeObjectWrapper<T>(udf), keyPositions1, keyPositions2, name);
+	}
+	
+	public GenericCoGroupContract(Class<? extends T> udf, int[] keyPositions1, int[] keyPositions2, String name) {
+		this(new UserCodeClassWrapper<T>(udf), keyPositions1, keyPositions2, name);
+	}
 
 	public boolean isCombinableFirst() {
-		return getUserCodeClass().getAnnotation(CombinableFirst.class) != null;
+		return getUserCodeAnnotation(CombinableFirst.class) != null;
 	}
 	
 	public boolean isCombinableSecond() {
-		return getUserCodeClass().getAnnotation(CombinableSecond.class) != null;
+		return getUserCodeAnnotation(CombinableSecond.class) != null;
 	}
-	
 
 	@Retention(RetentionPolicy.RUNTIME)
 	@Target(ElementType.TYPE)

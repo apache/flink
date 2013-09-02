@@ -34,6 +34,7 @@ import eu.stratosphere.pact.common.type.base.PactString;
  * only a single string, namely the line.
  */
 public class TextInputFormat extends DelimitedInputFormat {
+	private static final long serialVersionUID = 1L;
 	
 	public static final String CHARSET_NAME = "textformat.charset";
 	

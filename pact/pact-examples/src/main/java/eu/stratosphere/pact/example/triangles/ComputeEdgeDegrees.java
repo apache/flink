@@ -15,6 +15,7 @@
 
 package eu.stratosphere.pact.example.triangles;
 
+import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Iterator;
 
@@ -44,7 +45,8 @@ public class ComputeEdgeDegrees implements PlanAssembler, PlanAssemblerDescripti
 	/**
 	 * Duplicates each edge such that: (u,v) becomes (u,v),(v,u)
 	 */
-	public static final class ProjectEdge extends MapStub {
+	public static final class ProjectEdge extends MapStub implements Serializable {
+		private static final long serialVersionUID = 1L;
 		
 		private final PactRecord copy = new PactRecord();
 
@@ -64,7 +66,8 @@ public class ComputeEdgeDegrees implements PlanAssembler, PlanAssemblerDescripti
 	 * was the key contains the number of edges associated with it. The other count is zero.
 	 * This reducer also eliminates duplicate edges. 
 	 */
-	public static final class CountEdges extends ReduceStub {
+	public static final class CountEdges extends ReduceStub implements Serializable {
+		private static final long serialVersionUID = 1L;
 		
 		private final PactRecord result = new PactRecord();
 		
@@ -141,7 +144,8 @@ public class ComputeEdgeDegrees implements PlanAssembler, PlanAssemblerDescripti
 	 * Takes the two separate edge entries (v1, v2, c1, 0) and (v1, v2, 0, c2)
 	 * and creates an entry (v1, v2, c1, c2). 
 	 */
-	public static final class JoinCountsAndUniquify extends ReduceStub {
+	public static final class JoinCountsAndUniquify extends ReduceStub implements Serializable {
+		private static final long serialVersionUID = 1L;
 		
 		private final PactInteger count1 = new PactInteger();
 		private final PactInteger count2 = new PactInteger();
@@ -192,24 +196,24 @@ public class ComputeEdgeDegrees implements PlanAssembler, PlanAssemblerDescripti
 		final char delimiter   = args.length > 3 ? (char) Integer.parseInt(args[3]) : ',';
 		
 
-		FileDataSource edges = new FileDataSource(EdgeInputFormat.class, edgeInput, "Input Edges");
+		FileDataSource edges = new FileDataSource(new EdgeInputFormat(), edgeInput, "Input Edges");
 		edges.setParameter(DelimitedInputFormat.RECORD_DELIMITER, "\n");
 		edges.setParameter(EdgeInputFormat.ID_DELIMITER_CHAR, delimiter);
 		
-		MapContract projectEdge = MapContract.builder(ProjectEdge.class)
+		MapContract projectEdge = MapContract.builder(new ProjectEdge())
 			.input(edges).name("Project Edge").build();
 		
-		ReduceContract edgeCounter = ReduceContract.builder(CountEdges.class, PactInteger.class, 0)
+		ReduceContract edgeCounter = ReduceContract.builder(new CountEdges(), PactInteger.class, 0)
 			.input(projectEdge).name("Count Edges for Vertex").build();
 		
-		ReduceContract countJoiner = ReduceContract.builder(JoinCountsAndUniquify.class)
+		ReduceContract countJoiner = ReduceContract.builder(new JoinCountsAndUniquify())
 			.keyField(PactInteger.class, 0)
 			.keyField(PactInteger.class, 1)
 			.input(edgeCounter)
 			.name("Join Counts")
 			.build();
 
-		FileDataSink triangles = new FileDataSink(EdgeWithDegreesOutputFormat.class, output, countJoiner, "Unique Edges With Degrees");
+		FileDataSink triangles = new FileDataSink(new EdgeWithDegreesOutputFormat(), output, countJoiner, "Unique Edges With Degrees");
 
 		Plan p = new Plan(triangles, "Normalize Edges and compute Vertex Degrees");
 		p.setDefaultParallelism(numSubTasks);

@@ -188,6 +188,7 @@ public class FixedLenghtInputFormatTest {
 		
 	
 	private final class MyFixedLengthInputFormat extends FixedLengthInputFormat {
+		private static final long serialVersionUID = 1L;
 
 		PactInteger p1 = new PactInteger();
 		PactInteger p2 = new PactInteger();

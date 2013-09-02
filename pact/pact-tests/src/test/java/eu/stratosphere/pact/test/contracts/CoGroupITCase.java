@@ -17,6 +17,7 @@ package eu.stratosphere.pact.test.contracts;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -95,6 +96,7 @@ public class CoGroupITCase extends TestBase {
 	}
 
 	public static class CoGroupTestInFormat extends DelimitedInputFormat {
+		private static final long serialVersionUID = 1L;
 		
 		private final PactString keyString = new PactString();
 		private final PactString valueString = new PactString();
@@ -114,6 +116,7 @@ public class CoGroupITCase extends TestBase {
 	}
 
 	public static class CoGroupOutFormat extends FileOutputFormat {
+		private static final long serialVersionUID = 1L;
 		
 		private final StringBuilder buffer = new StringBuilder();
 		private final PactString keyString = new PactString();
@@ -135,7 +138,8 @@ public class CoGroupITCase extends TestBase {
 		}
 	}
 
-	public static class TestCoGrouper extends CoGroupStub {
+	public static class TestCoGrouper extends CoGroupStub implements Serializable {
+		private static final long serialVersionUID = 1L;
 
 		private PactString keyString = new PactString();
 		private PactString valueString = new PactString();
@@ -177,17 +181,17 @@ public class CoGroupITCase extends TestBase {
 
 		String pathPrefix = getFilesystemProvider().getURIPrefix() + getFilesystemProvider().getTempDirPath();
 
-		FileDataSource input_left =  new FileDataSource(CoGroupTestInFormat.class, pathPrefix + "/cogroup_left");
+		FileDataSource input_left =  new FileDataSource(new CoGroupTestInFormat(), pathPrefix + "/cogroup_left");
 		DelimitedInputFormat.configureDelimitedFormat(input_left)
 			.recordDelimiter('\n');
 		input_left.setDegreeOfParallelism(config.getInteger("CoGroupTest#NoSubtasks", 1));
 
-		FileDataSource input_right =  new FileDataSource(CoGroupTestInFormat.class, pathPrefix + "/cogroup_right");
+		FileDataSource input_right =  new FileDataSource(new CoGroupTestInFormat(), pathPrefix + "/cogroup_right");
 		DelimitedInputFormat.configureDelimitedFormat(input_right)
 			.recordDelimiter('\n');
 		input_right.setDegreeOfParallelism(config.getInteger("CoGroupTest#NoSubtasks", 1));
 
-		CoGroupContract testCoGrouper = CoGroupContract.builder(TestCoGrouper.class, PactString.class, 0, 0)
+		CoGroupContract testCoGrouper = CoGroupContract.builder(new TestCoGrouper(), PactString.class, 0, 0)
 			.build();
 		testCoGrouper.setDegreeOfParallelism(config.getInteger("CoGroupTest#NoSubtasks", 1));
 		testCoGrouper.getParameters().setString(PactCompiler.HINT_LOCAL_STRATEGY,
@@ -195,7 +199,7 @@ public class CoGroupITCase extends TestBase {
 		testCoGrouper.getParameters().setString(PactCompiler.HINT_SHIP_STRATEGY,
 				config.getString("CoGroupTest#ShipStrategy", ""));
 
-		FileDataSink output = new FileDataSink(CoGroupOutFormat.class, pathPrefix + "/result.txt");
+		FileDataSink output = new FileDataSink(new CoGroupOutFormat(), pathPrefix + "/result.txt");
 		output.setDegreeOfParallelism(1);
 
 		output.addInput(testCoGrouper);

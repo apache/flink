@@ -36,6 +36,7 @@ import eu.stratosphere.pact.common.util.PactConfigConstants;
  * Base implementation for delimiter based input formats.
  */
 public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
+	private static final long serialVersionUID = 1L;
 	
 	// -------------------------------------- Constants -------------------------------------------
 	

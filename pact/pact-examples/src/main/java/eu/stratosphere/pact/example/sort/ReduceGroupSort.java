@@ -15,6 +15,7 @@
 
 package eu.stratosphere.pact.example.sort;
 
+import java.io.Serializable;
 import java.util.Iterator;
 
 import eu.stratosphere.pact.common.contract.FileDataSink;
@@ -51,7 +52,8 @@ public class ReduceGroupSort implements PlanAssembler, PlanAssemblerDescription 
 	 *
 	 */
 	@ConstantFieldsExcept(0)
-	public static class IdentityReducer extends ReduceStub {
+	public static class IdentityReducer extends ReduceStub implements Serializable {
+		private static final long serialVersionUID = 1L;
 		
 		@Override
 		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) {
@@ -83,7 +85,7 @@ public class ReduceGroupSort implements PlanAssembler, PlanAssemblerDescription 
 		String dataInput = (args.length > 1 ? args[1] : "");
 		String output = (args.length > 2 ? args[2] : "");
 
-		FileDataSource input = new FileDataSource(RecordInputFormat.class, dataInput, "Input");
+		FileDataSource input = new FileDataSource(new RecordInputFormat(), dataInput, "Input");
 		RecordInputFormat.configureRecordFormat(input)
 			.recordDelimiter('\n')
 			.fieldDelimiter(' ')
@@ -91,7 +93,7 @@ public class ReduceGroupSort implements PlanAssembler, PlanAssemblerDescription 
 			.field(DecimalTextIntParser.class, 1);
 		
 		// create the reduce contract and sets the key to the first field
-		ReduceContract sorter = new ReduceContract.Builder(IdentityReducer.class, PactInteger.class, 0)
+		ReduceContract sorter = ReduceContract.builder(new IdentityReducer(), PactInteger.class, 0)
 			.input(input)
 			.name("Reducer")
 			.build();
@@ -99,7 +101,7 @@ public class ReduceGroupSort implements PlanAssembler, PlanAssemblerDescription 
 		sorter.setGroupOrder(new Ordering(1, PactInteger.class, Order.ASCENDING));
 
 		// create and configure the output format
-		FileDataSink out = new FileDataSink(RecordOutputFormat.class, output, sorter, "Sorted Output");
+		FileDataSink out = new FileDataSink(new RecordOutputFormat(), output, sorter, "Sorted Output");
 		RecordOutputFormat.configureRecordFormat(out)
 			.recordDelimiter('\n')
 			.fieldDelimiter(' ')

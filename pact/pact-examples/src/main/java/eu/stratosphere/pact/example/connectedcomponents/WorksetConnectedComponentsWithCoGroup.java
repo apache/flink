@@ -15,6 +15,7 @@
 
 package eu.stratosphere.pact.example.connectedcomponents;
 
+import java.io.Serializable;
 import java.util.Iterator;
 
 import eu.stratosphere.pact.common.contract.CoGroupContract;
@@ -42,7 +43,8 @@ import eu.stratosphere.pact.generic.contract.WorksetIteration;
  */
 public class WorksetConnectedComponentsWithCoGroup implements PlanAssembler, PlanAssemblerDescription {
 	
-	public static final class NeighborWithComponentIDJoin extends MatchStub {
+	public static final class NeighborWithComponentIDJoin extends MatchStub implements Serializable {
+		private static final long serialVersionUID = 1L;
 
 		private final PactRecord result = new PactRecord();
 
@@ -57,7 +59,8 @@ public class WorksetConnectedComponentsWithCoGroup implements PlanAssembler, Pla
 	@CombinableFirst
 	@ConstantFieldsFirst(0)
 	@ConstantFieldsSecond(0)
-	public static final class MinIdAndUpdate extends CoGroupStub {
+	public static final class MinIdAndUpdate extends CoGroupStub implements Serializable {
+		private static final long serialVersionUID = 1L;
 
 		private final PactLong newComponentId = new PactLong();
 		
@@ -110,7 +113,7 @@ public class WorksetConnectedComponentsWithCoGroup implements PlanAssembler, Pla
 		final int maxIterations = (args.length > 4 ? Integer.parseInt(args[4]) : 1);
 
 		// create DataSourceContract for the vertices
-		FileDataSource initialVertices = new FileDataSource(DuplicateLongInputFormat.class, verticesInput, "Vertices");
+		FileDataSource initialVertices = new FileDataSource(new DuplicateLongInputFormat(), verticesInput, "Vertices");
 		
 		WorksetIteration iteration = new WorksetIteration(0, "Connected Components Iteration");
 		iteration.setInitialSolutionSet(initialVertices);
@@ -118,16 +121,16 @@ public class WorksetConnectedComponentsWithCoGroup implements PlanAssembler, Pla
 		iteration.setMaximumNumberOfIterations(maxIterations);
 		
 		// create DataSourceContract for the edges
-		FileDataSource edges = new FileDataSource(LongLongInputFormat.class, edgeInput, "Edges");
+		FileDataSource edges = new FileDataSource(new LongLongInputFormat(), edgeInput, "Edges");
 
 		// create CrossContract for distance computation
-		MatchContract joinWithNeighbors = MatchContract.builder(NeighborWithComponentIDJoin.class, PactLong.class, 0, 0)
+		MatchContract joinWithNeighbors = MatchContract.builder(new NeighborWithComponentIDJoin(), PactLong.class, 0, 0)
 				.input1(iteration.getWorkset())
 				.input2(edges)
 				.name("Join Candidate Id With Neighbor")
 				.build();
 
-		CoGroupContract minAndUpdate = CoGroupContract.builder(MinIdAndUpdate.class, PactLong.class, 0, 0)
+		CoGroupContract minAndUpdate = CoGroupContract.builder(new MinIdAndUpdate(), PactLong.class, 0, 0)
 				.input1(joinWithNeighbors)
 				.input2(iteration.getSolutionSet())
 				.name("Min Id and Update")
@@ -137,7 +140,7 @@ public class WorksetConnectedComponentsWithCoGroup implements PlanAssembler, Pla
 		iteration.setSolutionSetDelta(minAndUpdate);
 
 		// create DataSinkContract for writing the new cluster positions
-		FileDataSink result = new FileDataSink(RecordOutputFormat.class, output, iteration, "Result");
+		FileDataSink result = new FileDataSink(new RecordOutputFormat(), output, iteration, "Result");
 		RecordOutputFormat.configureRecordFormat(result)
 			.recordDelimiter('\n')
 			.fieldDelimiter(' ')

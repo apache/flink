@@ -227,17 +227,22 @@ public class CollectionsDataTypeTest {
 	}
 
 	private class NfIntStringPair extends PactPair<PactInteger, PactString> {
+		private static final long serialVersionUID = 1L;
 	}
 
 	private class NfDoubleStringPair extends PactPair<PactDouble, PactString> {
+		private static final long serialVersionUID = 1L;
 	}
 
 	private class NfStringList extends PactList<PactString> {
+		private static final long serialVersionUID = 1L;
 	}
 
 	private class NfIntStringMap extends PactMap<PactInteger, PactString> {
+		private static final long serialVersionUID = 1L;
 	}
 
 	private class NfStringIntMap extends PactMap<PactString, PactInteger> {
+		private static final long serialVersionUID = 1L;
 	}
 }

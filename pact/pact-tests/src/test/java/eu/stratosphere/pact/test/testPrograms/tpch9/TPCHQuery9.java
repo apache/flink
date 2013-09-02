@@ -110,7 +110,7 @@ public class TPCHQuery9 implements PlanAssembler, PlanAssemblerDescription {
 		/* Create the 6 data sources: */
 		/* part: (partkey | name, mfgr, brand, type, size, container, retailprice, comment) */
 		FileDataSource partInput = new FileDataSource(
-			IntTupleDataInFormat.class, this.partInputPath, "\"part\" source");
+			new IntTupleDataInFormat(), this.partInputPath, "\"part\" source");
 		partInput.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
 		partInput.setDegreeOfParallelism(this.degreeOfParallelism);
 		//partInput.setOutputContract(UniqueKey.class);
@@ -118,13 +118,13 @@ public class TPCHQuery9 implements PlanAssembler, PlanAssemblerDescription {
 
 		/* partsupp: (partkey | suppkey, availqty, supplycost, comment) */
 		FileDataSource partSuppInput = new FileDataSource(
-			IntTupleDataInFormat.class, this.partSuppInputPath, "\"partsupp\" source");
+			new IntTupleDataInFormat(), this.partSuppInputPath, "\"partsupp\" source");
 		partSuppInput.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
 		partSuppInput.setDegreeOfParallelism(this.degreeOfParallelism);
 
 		/* orders: (orderkey | custkey, orderstatus, totalprice, orderdate, orderpriority, clerk, shippriority, comment) */
 		FileDataSource ordersInput = new FileDataSource(
-			IntTupleDataInFormat.class, this.ordersInputPath, "\"orders\" source");
+			new IntTupleDataInFormat(), this.ordersInputPath, "\"orders\" source");
 		ordersInput.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
 		ordersInput.setDegreeOfParallelism(this.degreeOfParallelism);
 		//ordersInput.setOutputContract(UniqueKey.class);
@@ -132,13 +132,13 @@ public class TPCHQuery9 implements PlanAssembler, PlanAssemblerDescription {
 
 		/* lineitem: (orderkey | partkey, suppkey, linenumber, quantity, extendedprice, discount, tax, ...) */
 		FileDataSource lineItemInput = new FileDataSource(
-			IntTupleDataInFormat.class, this.lineItemInputPath, "\"lineitem\" source");
+			new IntTupleDataInFormat(), this.lineItemInputPath, "\"lineitem\" source");
 		lineItemInput.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
 		lineItemInput.setDegreeOfParallelism(this.degreeOfParallelism);
 
 		/* supplier: (suppkey | name, address, nationkey, phone, acctbal, comment) */
 		FileDataSource supplierInput = new FileDataSource(
-			IntTupleDataInFormat.class, this.supplierInputPath, "\"supplier\" source");
+			new IntTupleDataInFormat(), this.supplierInputPath, "\"supplier\" source");
 		supplierInput.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
 		supplierInput.setDegreeOfParallelism(this.degreeOfParallelism);
 		//supplierInput.setOutputContract(UniqueKey.class);
@@ -146,7 +146,7 @@ public class TPCHQuery9 implements PlanAssembler, PlanAssemblerDescription {
 
 		/* nation: (nationkey | name, regionkey, comment) */
 		FileDataSource nationInput = new FileDataSource(
-			IntTupleDataInFormat.class, this.nationInputPath, "\"nation\" source");
+			new IntTupleDataInFormat(), this.nationInputPath, "\"nation\" source");
 		nationInput.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
 		nationInput.setDegreeOfParallelism(this.degreeOfParallelism);
 		//nationInput.setOutputContract(UniqueKey.class);
@@ -247,7 +247,7 @@ public class TPCHQuery9 implements PlanAssembler, PlanAssemblerDescription {
 
 		/* Connect sink: */
 		FileDataSink result = new FileDataSink(
-				StringIntPairStringDataOutFormat.class, this.outputPath, "Results sink");
+				new StringIntPairStringDataOutFormat(), this.outputPath, "Results sink");
 		result.setDegreeOfParallelism(this.degreeOfParallelism);
 		result.addInput(sumAmountAggregate);
 

@@ -17,6 +17,7 @@ package eu.stratosphere.pact.test.contracts;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.Collection;
 import java.util.LinkedList;
 
@@ -77,7 +78,8 @@ public class MapITCase extends TestBase {
 		getFilesystemProvider().createFile(tempDir+"/mapInput/mapTest_4.txt", MAP_IN_4);
 	}
 
-	public static class TestMapper extends MapStub {
+	public static class TestMapper extends MapStub implements Serializable {
+		private static final long serialVersionUID = 1L;
 
 		private PactString keyString = new PactString();
 		private PactString valueString = new PactString();
@@ -105,16 +107,16 @@ public class MapITCase extends TestBase {
 		String pathPrefix = getFilesystemProvider().getURIPrefix()+getFilesystemProvider().getTempDirPath();
 		
 		FileDataSource input = new FileDataSource(
-				ContractITCaseInputFormat.class, pathPrefix+"/mapInput");
+				new ContractITCaseInputFormat(), pathPrefix+"/mapInput");
 		DelimitedInputFormat.configureDelimitedFormat(input)
 			.recordDelimiter('\n');
 		input.setDegreeOfParallelism(config.getInteger("MapTest#NoSubtasks", 1));
 
-		MapContract testMapper = MapContract.builder(TestMapper.class).build();
+		MapContract testMapper = MapContract.builder(new TestMapper()).build();
 		testMapper.setDegreeOfParallelism(config.getInteger("MapTest#NoSubtasks", 1));
 
 		FileDataSink output = new FileDataSink(
-				ContractITCaseOutputFormat.class, pathPrefix + "/result.txt");
+				new ContractITCaseOutputFormat(), pathPrefix + "/result.txt");
 		output.setDegreeOfParallelism(1);
 
 		output.addInput(testMapper);

@@ -163,6 +163,7 @@ public class FileInputFormatTest {
 	// ------------------------------------------------------------------------
 	
 	private class DummyFileInputFormat extends FileInputFormat<PactInteger> {
+		private static final long serialVersionUID = 1L;
 
 		@Override
 		public boolean reachedEnd() throws IOException {

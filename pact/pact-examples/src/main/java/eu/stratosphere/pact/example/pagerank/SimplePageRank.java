@@ -15,6 +15,7 @@
 
 package eu.stratosphere.pact.example.pagerank;
 
+import java.io.Serializable;
 import java.util.Iterator;
 
 import eu.stratosphere.pact.common.contract.FileDataSink;
@@ -41,7 +42,8 @@ public class SimplePageRank implements PlanAssembler, PlanAssemblerDescription {
 	
 	// --------------------------------------------------------------------------------------------
 
-	public static final class JoinVerexWithEdgesMatch extends MatchStub {
+	public static final class JoinVerexWithEdgesMatch extends MatchStub implements Serializable {
+		private static final long serialVersionUID = 1L;
 
 		private PactRecord record = new PactRecord();
 		private PactLong vertexID = new PactLong();
@@ -71,7 +73,8 @@ public class SimplePageRank implements PlanAssembler, PlanAssemblerDescription {
 	
 	@Combinable
 	@ConstantFields(0)
-	public static final class AggregatingReduce extends ReduceStub {
+	public static final class AggregatingReduce extends ReduceStub implements Serializable {
+		private static final long serialVersionUID = 1L;
 		
 		private final PactDouble sum = new PactDouble();
 
@@ -108,23 +111,23 @@ public class SimplePageRank implements PlanAssembler, PlanAssemblerDescription {
 			numVertices = Long.parseLong(args[5]);
 		}
 		
-		FileDataSource pageWithRankInput = new FileDataSource(DanglingPageRankInputFormat.class,
+		FileDataSource pageWithRankInput = new FileDataSource(new DanglingPageRankInputFormat(),
 			pageWithRankInputPath, "PageWithRank Input");
 		pageWithRankInput.getParameters().setLong(NUM_VERTICES_CONFIG_PARAM, numVertices);
 		
 		BulkIteration iteration = new BulkIteration("Page Rank Loop");
 		iteration.setInput(pageWithRankInput);
 		
-		FileDataSource adjacencyListInput = new FileDataSource(ImprovedAdjacencyListInputFormat.class,
+		FileDataSource adjacencyListInput = new FileDataSource(new ImprovedAdjacencyListInputFormat(),
 			adjacencyListInputPath, "AdjancencyListInput");
 		
-		MatchContract join = MatchContract.builder(JoinVerexWithEdgesMatch.class, PactLong.class, 0, 0)
+		MatchContract join = MatchContract.builder(new JoinVerexWithEdgesMatch(), PactLong.class, 0, 0)
 				.input1(iteration.getPartialSolution())
 				.input2(adjacencyListInput)
 				.name("Join with Edges")
 				.build();
 		
-		ReduceContract rankAggregation = ReduceContract.builder(AggregatingReduce.class, PactLong.class, 0)
+		ReduceContract rankAggregation = ReduceContract.builder(new AggregatingReduce(), PactLong.class, 0)
 				.input(join)
 				.name("Rank Aggregation")
 				.build();
@@ -132,7 +135,7 @@ public class SimplePageRank implements PlanAssembler, PlanAssemblerDescription {
 		iteration.setNextPartialSolution(rankAggregation);
 		iteration.setMaximumNumberOfIterations(numIterations);
 		
-		FileDataSink out = new FileDataSink(PageWithRankOutFormat.class, outputPath, iteration, "Final Ranks");
+		FileDataSink out = new FileDataSink(new PageWithRankOutFormat(), outputPath, iteration, "Final Ranks");
 
 		Plan p = new Plan(out, "Simple PageRank");
 		p.setDefaultParallelism(dop);

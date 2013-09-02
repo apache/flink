@@ -42,6 +42,8 @@ public abstract class DelimitedInputFormat extends FileInputFormat {
 	
 	// -------------------------------------- Constants -------------------------------------------
 	
+	private static final long serialVersionUID = 1L;
+
 	/**
 	 * The log.
 	 */

@@ -34,6 +34,7 @@ import eu.stratosphere.pact.generic.io.OutputFormat;
  * file streams.
  */
 public abstract class FileOutputFormat<IT> implements OutputFormat<IT> {
+	private static final long serialVersionUID = 1L;
 	
 	/**
 	 * The LOG for logging messages in this class.

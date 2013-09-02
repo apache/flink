@@ -15,6 +15,7 @@
 
 package eu.stratosphere.pact.example.triangles;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Iterator;
 
@@ -59,6 +60,7 @@ public class EnumTrianglesRdfFoaf implements PlanAssembler, PlanAssemblerDescrip
 	 * The lexicographically smaller URL is set as the first field of the output record, the greater one as the second field.
 	 */
 	public static class EdgeInFormat extends DelimitedInputFormat {
+		private static final long serialVersionUID = 1L;
 
 		private final PactString rdfSubj = new PactString();
 		private final PactString rdfPred = new PactString();
@@ -146,7 +148,8 @@ public class EnumTrianglesRdfFoaf implements PlanAssembler, PlanAssemblerDescrip
 	 * The common vertex is 
 	 */
 	@ConstantFields(0)
-	public static class BuildTriads extends ReduceStub {
+	public static class BuildTriads extends ReduceStub implements Serializable {
+		private static final long serialVersionUID = 1L;
 		
 		// list of non-matching vertices
 		private final ArrayList<PactString> otherVertices = new ArrayList<PactString>(32);
@@ -221,7 +224,8 @@ public class EnumTrianglesRdfFoaf implements PlanAssembler, PlanAssemblerDescrip
 	 * If the missing edge for a triad is found, the triad is transformed to a triangle by adding the missing edge.
 	 */
 	@ConstantFieldsFirstExcept({})
-	public static class CloseTriads extends MatchStub {
+	public static class CloseTriads extends MatchStub implements Serializable {
+		private static final long serialVersionUID = 1L;
 
 		@Override
 		public void match(PactRecord triad, PactRecord missingEdge, Collector<PactRecord> out) throws Exception {
@@ -241,13 +245,13 @@ public class EnumTrianglesRdfFoaf implements PlanAssembler, PlanAssemblerDescrip
 		String edgeInput = (args.length > 1 ? args[1] : "");
 		String output    = (args.length > 2 ? args[2] : "");
 
-		FileDataSource edges = new FileDataSource(EdgeInFormat.class, edgeInput, "BTC Edges");
+		FileDataSource edges = new FileDataSource(new EdgeInFormat(), edgeInput, "BTC Edges");
 		
-		ReduceContract buildTriads = new ReduceContract.Builder(BuildTriads.class, PactString.class, 0)
+		ReduceContract buildTriads = ReduceContract.builder(new BuildTriads(), PactString.class, 0)
 			.name("Build Triads")
 			.build();
 
-		MatchContract closeTriads = MatchContract.builder(CloseTriads.class, PactString.class, 1, 0)
+		MatchContract closeTriads = MatchContract.builder(new CloseTriads(), PactString.class, 1, 0)
 			.keyField(PactString.class, 2, 1)
 			.name("Close Triads")
 			.build();
@@ -255,7 +259,7 @@ public class EnumTrianglesRdfFoaf implements PlanAssembler, PlanAssemblerDescrip
 		closeTriads.setParameter("INPUT_RIGHT_SHIP_STRATEGY", "SHIP_REPARTITION_HASH");
 		closeTriads.setParameter("LOCAL_STRATEGY", "LOCAL_STRATEGY_HASH_BUILD_SECOND");
 
-		FileDataSink triangles = new FileDataSink(RecordOutputFormat.class, output, "Output");
+		FileDataSink triangles = new FileDataSink(new RecordOutputFormat(), output, "Output");
 		RecordOutputFormat.configureRecordFormat(triangles)
 			.recordDelimiter('\n')
 			.fieldDelimiter(' ')

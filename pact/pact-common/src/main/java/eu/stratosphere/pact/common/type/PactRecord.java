@@ -19,6 +19,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.EOFException;
 import java.io.IOException;
+import java.io.Serializable;
 import java.io.UTFDataFormatException;
 
 import eu.stratosphere.nephele.services.memorymanager.DataInputView;
@@ -45,6 +46,7 @@ import eu.stratosphere.pact.common.util.InstantiationUtil;
  * This class is NOT thread-safe!
  */
 public final class PactRecord implements Value {
+	private static final long serialVersionUID = 1L;
 	
 	private static final int NULL_INDICATOR_OFFSET = Integer.MIN_VALUE;			// value marking a field as null
 	
@@ -1174,6 +1176,7 @@ public final class PactRecord implements Value {
 	 * but instead indicates that space should be reserved in the buffer.
 	 */
 	private static final Value RESERVE_SPACE = new Value() {
+		private static final long serialVersionUID = 1L;
 
 		@Override
 		public void write(DataOutput out) throws IOException {
@@ -1189,8 +1192,9 @@ public final class PactRecord implements Value {
 	/**
 	 * Internal interface class to provide serialization for the data types.
 	 */
-	private static final class InternalDeSerializer implements DataInput, DataOutput
-	{
+	private static final class InternalDeSerializer implements DataInput, DataOutput, Serializable {
+		private static final long serialVersionUID = 1L;
+		
 		private byte[] memory;
 		private int position;
 		private int end;

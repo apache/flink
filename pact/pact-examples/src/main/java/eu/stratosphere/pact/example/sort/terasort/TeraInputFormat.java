@@ -22,8 +22,9 @@ import eu.stratosphere.pact.common.type.PactRecord;
  * This class is responsible for converting a line from the input file to a two field record. 
  * Lines which do not match the expected length are skipped.
  */
-public final class TeraInputFormat extends DelimitedInputFormat
-{
+public final class TeraInputFormat extends DelimitedInputFormat {
+	private static final long serialVersionUID = 1L;
+	
 	private final TeraKey key = new TeraKey();
 	private final TeraValue value = new TeraValue();
 	

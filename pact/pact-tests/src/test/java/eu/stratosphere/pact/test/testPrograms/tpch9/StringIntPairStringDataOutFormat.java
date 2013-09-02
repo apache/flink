@@ -23,6 +23,7 @@ import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactString;
 
 public class StringIntPairStringDataOutFormat extends FileOutputFormat {
+	private static final long serialVersionUID = 1L;
 
 	private final StringBuilder buffer = new StringBuilder();
 	private StringIntPair key = new StringIntPair();

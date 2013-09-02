@@ -7,6 +7,7 @@ import java.io.DataOutput;
 import java.io.IOException;
 
 public class LongArrayView implements Value {
+  private static final long serialVersionUID = 1L;
 
   private long[] entries = new long[0];
   private int numEntries = 0;

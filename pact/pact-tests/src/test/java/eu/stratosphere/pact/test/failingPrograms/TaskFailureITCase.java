@@ -103,7 +103,7 @@ public class TaskFailureITCase extends FailingTestBase {
 		
 		// init data source 
 		FileDataSource input = new FileDataSource(
-			ContractITCaseInputFormat.class, pathPrefix+"/mapInput");
+			new ContractITCaseInputFormat(), pathPrefix+"/mapInput");
 		DelimitedInputFormat.configureDelimitedFormat(input)
 			.recordDelimiter('\n');
 		input.setDegreeOfParallelism(config.getInteger("MapTest#NoSubtasks", 1));
@@ -114,7 +114,7 @@ public class TaskFailureITCase extends FailingTestBase {
 
 		// init data sink
 		FileDataSink output = new FileDataSink(
-			ContractITCaseOutputFormat.class, pathPrefix + "/result.txt");
+			new ContractITCaseOutputFormat(), pathPrefix + "/result.txt");
 		output.setDegreeOfParallelism(1);
 
 		// compose failing program
@@ -144,7 +144,7 @@ public class TaskFailureITCase extends FailingTestBase {
 		
 		// init data source 
 		FileDataSource input = new FileDataSource(
-			ContractITCaseInputFormat.class, pathPrefix+"/mapInput");
+			new ContractITCaseInputFormat(), pathPrefix+"/mapInput");
 		DelimitedInputFormat.configureDelimitedFormat(input)
 			.recordDelimiter('\n');
 		input.setDegreeOfParallelism(config.getInteger("MapTest#NoSubtasks", 1));
@@ -155,7 +155,7 @@ public class TaskFailureITCase extends FailingTestBase {
 
 		// init data sink
 		FileDataSink output = new FileDataSink(
-			ContractITCaseOutputFormat.class, pathPrefix + "/result.txt");
+			new ContractITCaseOutputFormat(), pathPrefix + "/result.txt");
 		output.setDegreeOfParallelism(1);
 
 		// compose working program
