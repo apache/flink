@@ -63,6 +63,25 @@
 
 		</plugins>
 	</build>
+	
+	
+  <profiles>
+    <profile>
+      <id>hadoop_yarn</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
+      <modules>
+        <module>pact-hbase</module>
+      </modules>
+    </profile>
+    <profile>
+      <id>hadoop_v1</id>
+      <modules>
+        <!-- No extra modules: pact-hbase is currently not compatible with Hadoop v1 -->
+      </modules>
+    </profile>
+  </profiles>
 
 	<modules>
 		<module>pact-common</module>
@@ -73,6 +92,5 @@
 		<module>pact-examples</module>
 		<module>pact-tests</module>
 		<module>pact-array-datamodel</module>
-		<module>pact-hbase</module>
 	</modules>
 </project>
