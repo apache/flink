@@ -136,27 +136,27 @@
 	<profiles>
 		<profile>
 			<id>hadoop_yarn</id>
+			<dependencyManagement>
+				<dependencies>
+					<!-- YARN -->
+					<dependency>
+						<groupId>org.apache.hadoop</groupId>
+						<artifactId>hadoop-common</artifactId>
+						<version>${hadoop.version}</version>
+					</dependency>
+					<dependency>
+						<groupId>org.apache.hadoop</groupId>
+						<artifactId>hadoop-hdfs</artifactId>
+						<version>${hadoop.version}</version>
+					</dependency>
+				</dependencies>
+			</dependencyManagement>
+		</profile>
+		<profile>
+			<id>hadoop_v1</id>
 			<activation>
 				<activeByDefault>true</activeByDefault>
 			</activation>
-				<dependencyManagement>
-					<dependencies>
-						<!-- YARN -->
-						<dependency>
-							<groupId>org.apache.hadoop</groupId>
-							<artifactId>hadoop-common</artifactId>
-							<version>${hadoop.version}</version>
-						</dependency>
-						<dependency>
-							<groupId>org.apache.hadoop</groupId>
-							<artifactId>hadoop-hdfs</artifactId>
-							<version>${hadoop.version}</version>
-						</dependency>
-					</dependencies>
-				</dependencyManagement>
-			</profile>
-		<profile>
-			<id>hadoop_v1</id>
 			<dependencyManagement>
 				<dependencies>
 					<!-- "Old" Hadoop = MapReduce v1 -->

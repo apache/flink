@@ -37,9 +37,6 @@
 	<profiles>
 		<profile>
 			<id>hadoop_yarn</id>
-			<activation>
-				<activeByDefault>true</activeByDefault>
-			</activation>
 			<dependencies>
 				<!-- YARN -->
 				<dependency>
@@ -50,6 +47,9 @@
 		</profile>
 		<profile>
 			<id>hadoop_v1</id>
+			<activation>
+				<activeByDefault>true</activeByDefault>
+			</activation>
 			<dependencies>
 				<!-- "Old" Hadoop = MapReduce v1 -->
 				<dependency>
