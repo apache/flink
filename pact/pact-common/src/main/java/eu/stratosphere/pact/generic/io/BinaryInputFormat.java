@@ -113,7 +113,7 @@ public abstract class BinaryInputFormat<T extends Record> extends FileInputForma
 			}
 		}
 
-		if (files.size() < minNumSplits) {
+		if (inputSplits.size() < minNumSplits) {
 			LOG.warn(String.format(
 				"With the given block size %d, the file %s cannot be split into %d blocks. Filling up with empty splits...",
 				blockSize, this.filePath, minNumSplits));
