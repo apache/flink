@@ -36,7 +36,6 @@ import org.apache.commons.logging.LogFactory;
  * <p>
  * This class is thread-safe.
  * 
- * @author warneke
  */
 public class HardwareDescriptionFactory {
 
@@ -117,6 +116,9 @@ public class HardwareDescriptionFactory {
 	 *         one value for the hardware description cannot be determined
 	 */
 	public static HardwareDescription extractFromSystem() {
+		return extractFromSystem(1);
+	}
+	public static HardwareDescription extractFromSystem(final int taskManagersPerJVM) {
 
 		final int numberOfCPUCores = Runtime.getRuntime().availableProcessors();
 
@@ -125,7 +127,7 @@ public class HardwareDescriptionFactory {
 			return null;
 		}
 
-		final long sizeOfFreeMemory = getSizeOfFreeMemory();
+		final long sizeOfFreeMemory = getSizeOfFreeMemory() / taskManagersPerJVM;
 		if (sizeOfFreeMemory < 0) {
 			return null;
 		}

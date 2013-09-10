@@ -175,7 +175,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	private WebInfoServer server;
 	
 	public JobManager(ExecutionMode executionMode) {
-		
+
 		final String ipcAddressString = GlobalConfiguration
 			.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
 
@@ -241,7 +241,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			LOG.info("Trying to load " + instanceManagerClassName + " as instance manager");
 			this.instanceManager = JobManagerUtils.loadInstanceManager(instanceManagerClassName);
 			if (this.instanceManager == null) {
-				LOG.error("UNable to load instance manager " + instanceManagerClassName);
+				LOG.error("Unable to load instance manager " + instanceManagerClassName);
 				System.exit(FAILURERETURNCODE);
 			}
 		}
@@ -428,7 +428,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		
 		// First, try to load global configuration
 		GlobalConfiguration.loadConfiguration(configDir);
-		
+
 		// Create a new job manager object
 		JobManager jobManager = new JobManager(executionMode);
 		
@@ -549,7 +549,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			if (this.eventCollector != null) {
 				this.profiler.registerForProfilingData(eg.getJobID(), this.eventCollector);
 			}
-			
+
 		}
 
 		// Register job with the dynamic input split assigner
@@ -1238,4 +1238,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		}
 	}
 
+	public int getNumberOfTaskTrackers() {
+		return this.instanceManager.getNumberOfTaskTrackers();
+	}
 }

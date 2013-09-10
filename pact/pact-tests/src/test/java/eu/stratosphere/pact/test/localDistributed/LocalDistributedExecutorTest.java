@@ -12,23 +12,25 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.pact.clients.examples;
+package eu.stratosphere.pact.test.localDistributed;
 
 import java.io.File;
 import java.io.FileWriter;
 
+import org.junit.After;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 
-import eu.stratosphere.pact.client.LocalExecutor;
+import eu.stratosphere.pact.client.localDistributed.LocalDistributedExecutor;
 import eu.stratosphere.pact.example.wordcount.WordCount;
 import eu.stratosphere.pact.test.pactPrograms.WordCountITCase;
 
 
-public class LocalExecutorTest {
+public class LocalDistributedExecutorTest {
 
 	@Test
-	public void testLocalExecutorWithWordCount() {
+	public void testLocalDistributedExecutorWithWordCount() {
 		try {
 			// set up the files
 			File inFile = File.createTempFile("wctext", ".in");
@@ -42,11 +44,31 @@ public class LocalExecutorTest {
 			
 			// run WordCount
 			WordCount wc = new WordCount();
-			LocalExecutor.execute(wc, "4", "file://" + inFile.getAbsolutePath(), "file://" + outFile.getAbsolutePath());
+			LocalDistributedExecutor lde = new LocalDistributedExecutor();
+			lde.startNephele(2);
+			lde.run( wc.getPlan("4", "file://" + inFile.getAbsolutePath(), "file://" + outFile.getAbsolutePath()));
+			
 		} catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail(e.getMessage());
 		}
-		
+	}
+	
+	@Before
+	public void cool() {
+		System.err.println("Cooling");
+		try {
+			Thread.sleep(1000);
+			System.gc();
+			Thread.sleep(1000);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	@After
+	public void coolDownGC() {
+		cool();
+		System.exit(0);
 	}
 }

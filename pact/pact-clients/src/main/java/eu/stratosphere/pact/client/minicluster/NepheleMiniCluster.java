@@ -202,7 +202,7 @@ public class NepheleMiniCluster {
 		}
 	}
 	
-	private static Configuration getMiniclusterDefaultConfig(int jobManagerRpcPort, int taskManagerRpcPort,
+	public static Configuration getMiniclusterDefaultConfig(int jobManagerRpcPort, int taskManagerRpcPort,
 			int taskManagerDataPort, int discoveryPort, String hdfsConfigFile, boolean visualization)
 	{
 		final Configuration config = new Configuration();

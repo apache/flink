@@ -1143,4 +1143,9 @@ public class ClusterManager implements InstanceManager {
 		// Simple remove the entire map
 		this.pendingRequestsOfJob.remove(jobID);
 	}
+
+	@Override
+	public int getNumberOfTaskTrackers() {
+		return this.registeredHosts.size();
+	}
 }

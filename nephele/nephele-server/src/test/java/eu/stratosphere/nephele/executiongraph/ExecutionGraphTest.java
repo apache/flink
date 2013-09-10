@@ -203,6 +203,11 @@ public class ExecutionGraphTest {
 			throw new IllegalStateException("cancelPendingRequests called on TestInstanceManager");
 		}
 
+		@Override
+		public int getNumberOfTaskTrackers() {
+			return 0;
+		}
+
 	}
 
 	private static final InstanceManager INSTANCE_MANAGER = new TestInstanceManager();

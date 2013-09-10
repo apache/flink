@@ -163,4 +163,10 @@ public interface InstanceManager {
 	 * Shuts the instance manager down and stops all its internal processes.
 	 */
 	void shutdown();
+
+	/**
+	 * 
+	 * @return the number of available (registered) TaskTrackers
+	 */
+	int getNumberOfTaskTrackers();
 }

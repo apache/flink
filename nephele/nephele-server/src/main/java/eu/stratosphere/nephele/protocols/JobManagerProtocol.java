@@ -27,7 +27,6 @@ import eu.stratosphere.nephele.taskmanager.TaskExecutionState;
  * to task managers which allows them to register themselves, send heart beat messages
  * or to report the results of a task execution.
  * 
- * @author warneke
  */
 public interface JobManagerProtocol extends VersionedProtocol {
 

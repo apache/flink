@@ -64,7 +64,7 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription {
 		public void map(PactRecord record, Collector<PactRecord> collector) {
 			// get the first field (as type PactString) from the record
 			PactString line = record.getField(0, PactString.class);
-			
+
 			// normalize the line
 			AsciiUtils.replaceNonWordChars(line, ' ');
 			AsciiUtils.toLowerCase(line);

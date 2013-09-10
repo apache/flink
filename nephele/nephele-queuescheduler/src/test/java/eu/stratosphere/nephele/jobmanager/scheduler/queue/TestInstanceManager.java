@@ -267,4 +267,9 @@ public final class TestInstanceManager implements InstanceManager {
 	public void shutdown() {
 		throw new IllegalStateException("shutdown called on TestInstanceManager");
 	}
+
+	@Override
+	public int getNumberOfTaskTrackers() {
+		throw new IllegalStateException("getNumberOfTaskTrackers called on TestInstanceManager");
+	}
 }

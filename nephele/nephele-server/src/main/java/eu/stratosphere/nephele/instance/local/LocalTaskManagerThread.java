@@ -20,7 +20,6 @@ import eu.stratosphere.nephele.taskmanager.TaskManager;
 /**
  * This class represents the thread which runs the task manager when Nephele is executed in local mode.
  * 
- * @author warneke
  */
 public class LocalTaskManagerThread extends Thread {
 
@@ -32,24 +31,19 @@ public class LocalTaskManagerThread extends Thread {
 	/**
 	 * Constructs a new thread to run the task manager in Nephele's local mode.
 	 */
-	public LocalTaskManagerThread() {
-		super("Local Taskmanager IO Loop");
-
+	public LocalTaskManagerThread(final String name, final int taskManagersPerJVM) {
+		super(name);
 		TaskManager tmpTaskManager = null;
 		try {
-			tmpTaskManager = new TaskManager();
+			tmpTaskManager = new TaskManager(taskManagersPerJVM);
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
 		this.taskManager = tmpTaskManager;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
-	public void run() {
-
+	public void run() {	
 		this.taskManager.runIOLoop();
 
 		// Wait until the task manager is shut down
