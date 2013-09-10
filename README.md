@@ -1,7 +1,9 @@
 # ozone
 
 
-This is the source code repository of the Stratosphere research project. See www.stratosphere.eu for project details, publications, etc
+This is the source code repository of the Stratosphere research project. 
+
+See www.stratosphere.eu for project details, publications, etc
 
 ozone is the codename of the latest Stratosphere distribution.
 
