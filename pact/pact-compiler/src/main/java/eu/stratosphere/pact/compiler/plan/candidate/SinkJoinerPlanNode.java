@@ -28,7 +28,7 @@ import eu.stratosphere.pact.runtime.task.DriverStrategy;
 public class SinkJoinerPlanNode extends DualInputPlanNode {
 	
 	public SinkJoinerPlanNode(SinkJoiner template, Channel input1, Channel input2) {
-		super(template, input1, input2, DriverStrategy.NONE);
+		super(template, input1, input2, DriverStrategy.BINARY_NO_OP);
 	}
 	
 	// --------------------------------------------------------------------------------------------

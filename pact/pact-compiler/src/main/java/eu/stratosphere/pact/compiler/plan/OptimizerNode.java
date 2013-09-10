@@ -260,7 +260,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 * @param id
 	 *        The id for this node.
 	 */
-	public void SetId(int id) {
+	public void setId(int id) {
 		this.id = id;
 	}
 
@@ -819,7 +819,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 			lastUnion.setSubtasksPerInstance(getSubtasksPerInstance());
 			
 			//push id down to newly created union node
-			lastUnion.SetId(this.id);
+			lastUnion.setId(this.id);
 			this.id++;
 		}
 		

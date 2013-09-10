@@ -48,6 +48,74 @@ import eu.stratosphere.pact.compiler.util.IdentityReduce;
 /**
  */
 public class BranchingPlansCompilerTest extends CompilerTestBase {
+	
+	
+	/**
+	 * 
+	 * <pre>
+	 *                (SRC A)  
+	 *                   |
+	 *                (MAP A)
+	 *             /         \   
+	 *          (MAP B)      (MAP C)
+	 *           /           /     \
+	 *        (SINK A)    (SINK B)  (SINK C)
+	 * </pre>
+	 */
+	@Test
+	public void testBranchingWithMultipleDataSinks2() {
+		try {
+			// construct the plan
+			final String out1Path = "file:///test/1";
+			final String out2Path = "file:///test/2";
+			final String out3Path = "file:///test/3";
+	
+			FileDataSource sourceA = new FileDataSource(DummyInputFormat.class, IN_FILE);
+
+			MapContract mapA = MapContract.builder(IdentityMap.class).input(sourceA).name("Map A").build();
+			MapContract mapB = MapContract.builder(IdentityMap.class).input(mapA).name("Map B").build();
+			MapContract mapC = MapContract.builder(IdentityMap.class).input(mapA).name("Map C").build();
+			
+			FileDataSink sinkA = new FileDataSink(DummyOutputFormat.class, out1Path, mapB, "Sink A");
+			FileDataSink sinkB = new FileDataSink(DummyOutputFormat.class, out2Path, mapC, "Sink B");
+			FileDataSink sinkC = new FileDataSink(DummyOutputFormat.class, out3Path, mapC, "Sink C");
+			
+			List<GenericDataSink> sinks = new ArrayList<GenericDataSink>();
+			sinks.add(sinkA);
+			sinks.add(sinkB);
+			sinks.add(sinkC);
+			
+			// return the PACT plan
+			Plan plan = new Plan(sinks, "Plans With Multiple Data Sinks");
+			
+			OptimizedPlan oPlan = compileNoStats(plan);
+			
+			// ---------- check the optimizer plan ----------
+			
+			// number of sinks
+			Assert.assertEquals("Wrong number of data sinks.", 3, oPlan.getDataSinks().size());
+			
+			// sinks contain all sink paths
+			Set<String> allSinks = new HashSet<String>();
+			allSinks.add(out1Path);
+			allSinks.add(out2Path);
+			allSinks.add(out3Path);
+			
+			for (SinkPlanNode n : oPlan.getDataSinks()) {
+				String path = ((FileDataSink) n.getSinkNode().getPactContract()).getFilePath();
+				Assert.assertTrue("Invalid data sink.", allSinks.remove(path));
+			}
+			
+			// ---------- compile plan to nephele job graph to verify that no error is thrown ----------
+			
+			NepheleJobGraphGenerator jobGen = new NepheleJobGraphGenerator();
+			jobGen.compileJobGraph(oPlan);
+		} catch (Exception e) {
+			e.printStackTrace();
+			Assert.fail(e.getMessage());
+		}
+	}
+	
 
 	/**
 	 * <pre>
