@@ -1,21 +1,20 @@
 # ozone
 
 
-This is the source code repository of the Stratosphere research project. 
-See www.stratosphere.eu
+This is the source code repository of the Stratosphere research project. See www.stratosphere.eu for project details, publications, etc
 
-Ozone is the name of the most advanced, production ready Stratosphere distribution.
+ozone is the codename of the latest Stratosphere distribution.
 
 
 
 Build Status: [![Build Status](https://travis-ci.org/dimalabs/ozone.png)](https://travis-ci.org/dimalabs/ozone)
 
 ## Getting Started
-Below are three little 5-minutes tutorials that guide you through the first steps: Building, Running and Developing!
+Below are three short tutorials that guide you through the first steps: Building, running and developing.
 
 ###  Build From Source
 
-This tutorial lets you build Stratosphere on your own system. Please open a bug report if you have any troubles!
+This tutorial shows how to build Stratosphere on your own system. Please open a bug report if you have any troubles!
 
 #### Requirements
 * Unix-like environment (We use Linux, Mac OS X, it should run with cygwin)
@@ -29,8 +28,8 @@ This tutorial lets you build Stratosphere on your own system. Please open a bug 
 	cd ozone
 	mvn -DskipTests clean package # this will take up to 5 minutes
 
-Stratosphere is now build into `stratosphere-dist/target`
-If you’re a Debian/Ubuntu user, you’ll find a deb-Package. We’ll continue with the generic case
+Stratosphere is now installed in `stratosphere-dist/target`
+If you’re a Debian/Ubuntu user, you’ll find a .deb package. We will continue with the generic case.
 
 	cd stratosphere-dist/target/stratosphere-dist-0.2-ozone-bin/stratosphere-0.2-ozone/
 
@@ -38,8 +37,8 @@ Note: The directory structure here looks like the contents of the official relea
 
 ### Run your first program
 
-Similar to other data processing systems, we’re going to run the famous “Word Count” example aka the “Hello World” of Big Data.
-The easiest way to start Stratosphere on your local machine is the local-mode:
+We will run a simple “Word Count” example. 
+The easiest way to start Stratosphere on your local machine is so-called "local-mode":
 
 	./bin/start-local.sh
 
@@ -51,10 +50,10 @@ Start the job:
 
 	/bin/pact-client.sh run --jarfile ./examples/pact/pact-examples-0.2-ozone-WordCount.jar --arguments 1 file://`pwd`/hamlet.txt file://`pwd`/wordcount-result.txt
 
-You’ll find a file called `wordcount-result.txt` in your current directory.
+You will find a file called `wordcount-result.txt` in your current directory.
 
-#### Alternative Method: Use the PACT-Webinterface
-(And get a nice Execution Plan Overview for free!)
+#### Alternative Method: Use the PACT web interface
+(And get a nice execution plan overview for free!)
 
 	./bin/start-local.sh
 	./bin/pact-webfrontend.sh start
@@ -62,7 +61,7 @@ You’ll find a file called `wordcount-result.txt` in your current directory.
 Get some test data:
 	 wget -O ~/hamlet.txt http://www.gutenberg.org/cache/epub/1787/pg1787.txt
 
-* Browse to http://localhost:8080/launch.html. Upload the WordCount.jar using the upload form in the lower right box. The jar is located in `./examples/pact/pact-examples-0.2-ozone-WordCount.jar`.
+* Point your browser to to http://localhost:8080/launch.html. Upload the WordCount.jar using the upload form in the lower right box. The jar is located in `./examples/pact/pact-examples-0.2-ozone-WordCount.jar`.
 * Select the WordCount jar from the list of available jars (upper left).
 * Enter the argument line in the lower-left box: `1 file://<path to>/hamlet.txt file://<wherever you want the>/wordcount-result.txt`
 
@@ -71,7 +70,7 @@ Get some test data:
 
 ### Eclipse Setup and Debugging
 
-As soon as you want to contribute back to the project or develop your own Jobs for Stratosphere, you need a working development environment. We use Eclipse and IntelliJ for development. Here we focus on Eclipse.
+To contribute back to the project or develop your own jobs for Stratosphere, you need a working development environment. We use Eclipse and IntelliJ for development. Here we focus on Eclipse.
 
 Import the Stratosphere source code using Maven's Import tool:
   * Select "Import" from the "File"-menu.
@@ -117,7 +116,7 @@ public class Tutorial implements PlanAssembler, PlanAssemblerDescription {
 Don’t hesitate to ask!
 We have a mailing list for our users: https://lists.tu-berlin.de/mailman/listinfo/stratosphere-dev
 
-Open an issue on github, if you need our help https://github.com/dimalabs/ozone/issues/new
+Open an issue on github, if you need our hel:p https://github.com/dimalabs/ozone/issues/new
 
 ## Documentation
 
@@ -126,7 +125,7 @@ Open an issue on github, if you need our help https://github.com/dimalabs/ozone/
 
 This is an active open-source project. We are always open to people who want to use the system or contribute to it. 
 
-The development community lives on github and our Mailing list: https://lists.tu-berlin.de/mailman/listinfo/stratosphere-dev (But we prefer github)
+The development community lives on github and our mailing list: https://lists.tu-berlin.de/mailman/listinfo/stratosphere-dev (But we prefer github)
 
 We use the github Pull Request system for the development of Stratosphere. Just open a request if you want to contribute.
 
@@ -134,11 +133,11 @@ We use the github Pull Request system for the development of Stratosphere. Just 
 * Bug reports
 * Bug fixes
 * Documentation
-* Tools that ease use and development of Stratosphere
-* Well-written algorithms, that use Stratosphere (as an example)
+* Tools that ease the use and development of Stratosphere
+* Well-written Stratosphere jobs
 
 
-Let us know if you have created a system that uses Stratosphere, so that we can put a link to you.
+Let us know if you have created a system that uses Stratosphere, so that we can link to you.
 
 
 
