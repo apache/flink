@@ -52,10 +52,10 @@ public final class MemoryBuffer extends Buffer {
 	}
 
 	private MemoryBuffer(final int bufferSize, final int pos, final MemorySegment memory, final MemoryBufferRecycler bufferRecycler) {
-		this.position(pos);
-		this.limit(bufferSize);
 		this.bufferRecycler = bufferRecycler;
 		this.internalMemorySegment = memory;
+		this.position(pos);
+		this.limit(bufferSize);
 	}
 
 	@Override

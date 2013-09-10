@@ -96,6 +96,12 @@ public class MemoryBufferTest {
 		
 		buf.close(); // make eclipse happy
 	}
+	
+	@Test
+	public void testDuplicate() {
+		MemoryBuffer buf = new MemoryBuffer(INT_COUNT*INT_SIZE, new MemorySegment(new byte[INT_COUNT*INT_SIZE]), bufferPoolConnector);
+		MemoryBuffer buf2 = buf.duplicate();
+	}
 
 	private void fillBuffer(Buffer buf) throws IOException {
 		ByteBuffer src = ByteBuffer.allocate(INT_SIZE);
