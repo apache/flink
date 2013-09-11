@@ -97,9 +97,6 @@
 	<profiles>
 		<profile>
 			<id>hadoop_yarn</id>
-			<activation>
-				<activeByDefault>true</activeByDefault>
-			</activation>
 			<dependencies>
 				<dependency>
 					<groupId>eu.stratosphere</groupId>
@@ -111,6 +108,9 @@
 		
 		<profile>
 			<id>hadoop_v1</id>
+			<activation>
+				<activeByDefault>true</activeByDefault>
+			</activation>
 			<dependencies>
         		<!-- No extra dependencies: pact-hbase is currently not compatible with Hadoop v1 -->
 			</dependencies>

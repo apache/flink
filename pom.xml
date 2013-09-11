@@ -27,7 +27,6 @@
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-		<hadoop.version>2.0.0-cdh4.2.1</hadoop.version>
 	</properties>
 
 	<pluginRepositories>
@@ -136,27 +135,33 @@
 	<profiles>
 		<profile>
 			<id>hadoop_yarn</id>
+			<properties>
+				<hadoop.version>2.0.0-cdh4.2.1</hadoop.version>
+			</properties>
+			<dependencyManagement>
+				<dependencies>
+					<!-- YARN -->
+					<dependency>
+						<groupId>org.apache.hadoop</groupId>
+						<artifactId>hadoop-common</artifactId>
+						<version>${hadoop.version}</version>
+					</dependency>
+					<dependency>
+						<groupId>org.apache.hadoop</groupId>
+						<artifactId>hadoop-hdfs</artifactId>
+						<version>${hadoop.version}</version>
+					</dependency>
+				</dependencies>
+			</dependencyManagement>
+		</profile>
+		<profile>
+			<id>hadoop_v1</id>
 			<activation>
 				<activeByDefault>true</activeByDefault>
 			</activation>
-				<dependencyManagement>
-					<dependencies>
-						<!-- YARN -->
-						<dependency>
-							<groupId>org.apache.hadoop</groupId>
-							<artifactId>hadoop-common</artifactId>
-							<version>${hadoop.version}</version>
-						</dependency>
-						<dependency>
-							<groupId>org.apache.hadoop</groupId>
-							<artifactId>hadoop-hdfs</artifactId>
-							<version>${hadoop.version}</version>
-						</dependency>
-					</dependencies>
-				</dependencyManagement>
-			</profile>
-		<profile>
-			<id>hadoop_v1</id>
+			<properties>
+				<hadoop.version>1.2.1</hadoop.version>
+			</properties>
 			<dependencyManagement>
 				<dependencies>
 					<!-- "Old" Hadoop = MapReduce v1 -->
