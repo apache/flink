@@ -50,7 +50,7 @@ Get some test data:
 
 Start the job:
 
-	/bin/pact-client.sh run --jarfile ./examples/pact/pact-examples-0.2-ozone-WordCount.jar --arguments 1 file://`pwd`/hamlet.txt file://`pwd`/wordcount-result.txt
+	./bin/pact-client.sh run --jarfile ./examples/pact/pact-examples-0.2-ozone-WordCount.jar --arguments 1 file://`pwd`/hamlet.txt file://`pwd`/wordcount-result.txt
 
 You will find a file called `wordcount-result.txt` in your current directory.
 
