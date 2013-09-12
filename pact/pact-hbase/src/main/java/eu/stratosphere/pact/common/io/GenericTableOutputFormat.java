@@ -66,6 +66,15 @@ public abstract class GenericTableOutputFormat implements OutputFormat<PactRecor
 	@Override
 	public void open(int taskNumber) throws IOException {
 		this.hadoopConfig = getHadoopConfig(this.config);
+		
+		/**
+		 * PLASE NOTE:
+		 * If you are a Eclipse+Maven Integration user and you have two (or more) warnings here, please
+		 * close the pact-hbase project OR set the maven profile to hadoop_yarn
+		 * 
+		 * pact-hbase requires hadoop_yarn, but Eclipse is not able to parse maven profiles properly. Therefore,
+		 * it imports the pact-hbase project even if it is not included in the standard profile (hadoop_v1)
+		 */
 		final TaskAttemptID attemptId = new TaskAttemptID(this.jtID, this.jobId, TaskType.MAP, taskNumber - 1, 0);
 
 		this.context = new org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl(this.hadoopConfig, attemptId);
