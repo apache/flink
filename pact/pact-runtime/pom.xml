@@ -16,39 +16,49 @@
 	<packaging>jar</packaging>
 
 	<dependencies>
-
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
 			<artifactId>pact-common</artifactId>
 			<version>${project.version}</version>
 		</dependency>
-
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
 			<artifactId>nephele-server</artifactId>
 			<version>${project.version}</version>
 		</dependency>
-
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
 			<artifactId>pact-array-datamodel</artifactId>
 			<version>${project.version}</version>
 		</dependency>
-
-		<!-- Ye Olde Hadoop
-		<dependency>
-			<groupId>org.apache.hadoop</groupId>
-			<artifactId>hadoop-core</artifactId>
-		</dependency>
-		 -->
-		
-		<!-- Coudera Hadoop (no need for hadoop-core anymore) -->
-		<dependency>
-			<groupId>org.apache.hadoop</groupId>
-			<artifactId>hadoop-common</artifactId>
-		</dependency>
-
 	</dependencies>
+
+	<!-- See main pom.xml for explanation of profiles -->
+	<profiles>
+		<profile>
+			<id>hadoop_yarn</id>
+			<dependencies>
+				<!-- YARN -->
+				<dependency>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-common</artifactId>
+				</dependency>
+			</dependencies>
+		</profile>
+		<profile>
+			<id>hadoop_v1</id>
+			<activation>
+				<activeByDefault>true</activeByDefault>
+			</activation>
+			<dependencies>
+				<!-- "Old" Hadoop = MapReduce v1 -->
+				<dependency>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-core</artifactId>
+				</dependency>
+			</dependencies>
+		</profile>
+	</profiles>
 
 	<reporting>
 		<plugins>
@@ -57,7 +67,6 @@
 
 	<build>
 		<plugins>
-
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>

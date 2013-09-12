@@ -16,21 +16,18 @@
 	<packaging>jar</packaging>
 
 	<dependencies>
-
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
 			<artifactId>pact-common</artifactId>
 			<version>${project.version}</version>
 			<scope>compile</scope>
 		</dependency>
-
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
 			<artifactId>pact-runtime</artifactId>
 			<version>${project.version}</version>
 			<scope>compile</scope>
 		</dependency>
-
 	</dependencies>
 
 	<reporting>
