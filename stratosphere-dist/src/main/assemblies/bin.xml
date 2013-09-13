@@ -34,12 +34,7 @@
           The previous command did not work because it also excludes libraries that should be in lib, such as commons-io.
 				-->
         <exclude>commons-fileupload:commons-fileupload</exclude>
-        <exclude>org.eclipse.jetty:jetty-continuation</exclude>
-        <exclude>org.eclipse.jetty:jetty-http</exclude>
-        <exclude>org.eclipse.jetty:jetty-io</exclude>
-        <exclude>org.eclipse.jetty:jetty-security</exclude>
-        <exclude>org.eclipse.jetty:jetty-server</exclude>
-        <exclude>org.eclipse.jetty:jetty-servlet</exclude>
+        <exclude>org.eclipse.jetty:jetty-*</exclude>
 			</excludes>
 		</dependencySet>
 		
