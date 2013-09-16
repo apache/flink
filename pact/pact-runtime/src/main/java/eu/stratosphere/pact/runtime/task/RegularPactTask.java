@@ -724,6 +724,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 					// if the class is null, the driver has no user code 
 					if (userCodeFunctionType != null && GenericReducer.class.isAssignableFrom(userCodeFunctionType)) {
 						localStub = initStub(userCodeFunctionType);
+						localStub.open(this.config.getStubParameters());
 					} else {
 						throw new IllegalStateException("Performing combining sort outside a reduce task!");
 					}
@@ -1207,7 +1208,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 		try {
 			stub.open(parameters);
 		} catch (Throwable t) {
-			throw new Exception("The user defined 'open(Configuration)' method caused an exception: " + t.getMessage(), t);
+			throw new Exception("The user defined 'open(Configuration)' method in " + stub.getClass().toString() + " caused an exception: " + t.getMessage(), t);
 		}
 	}
 	
