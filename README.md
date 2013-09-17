@@ -116,18 +116,26 @@ public class Tutorial implements PlanAssembler, PlanAssemblerDescription {
 
 ## Support
 Don’t hesitate to ask!
-We have a mailing list for our users: https://lists.tu-berlin.de/mailman/listinfo/stratosphere-dev
 
-Open an issue on github, if you need our hel:p https://github.com/dimalabs/ozone/issues/new
+[Open an issue](https://github.com/dimalabs/ozone/issues/new) on github, if you need our help.
+
+We have a mailing list for our users: https://lists.tu-berlin.de/mailman/listinfo/stratosphere-users
+
 
 ## Documentation
+
+There is our (old) [official Wiki](https://stratosphere.eu/wiki/doku).
+
+We are in the progress of migrating it to the [GitHub Wiki](https://github.com/dimalabs/ozone/wiki/_pages)
+
+Please make edits to the Wiki if you find inconsistencies or [Open an issue](https://github.com/dimalabs/ozone/issues/new) 
 
 
 ## Fork and Contribute
 
 This is an active open-source project. We are always open to people who want to use the system or contribute to it. 
 
-The development community lives on github and our mailing list: https://lists.tu-berlin.de/mailman/listinfo/stratosphere-dev (But we prefer github)
+The development community lives on GitHub and our [mailing list](https://lists.tu-berlin.de/mailman/listinfo/stratosphere-dev (But we prefer github)
 
 We use the github Pull Request system for the development of Stratosphere. Just open a request if you want to contribute.
 
