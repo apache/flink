@@ -19,7 +19,8 @@
 # but the windows java version expects them in Windows Format, i.e. C:\bla\blub.
 # "cygpath" can do the conversion.
 manglePath() {
-    if [ "$(expr substr $(uname -s) 1 6)" == "CYGWIN" ]; then
+    UNAME=$(uname -s)
+    if [ "${UNAME:0:6}" == "CYGWIN" ]; then
         echo `cygpath -w $1`
     else
         echo $1
@@ -27,8 +28,9 @@ manglePath() {
 }
 
 manglePathList() {
+    UNAME=$(uname -s)
     # a path list, for example a java classpath
-    if [ "$(expr substr $(uname -s) 1 6)" == "CYGWIN" ]; then
+    if [ "${UNAME:0:6}" == "CYGWIN" ]; then
         echo `cygpath -wp $1`
     else
         echo $1
@@ -73,7 +75,8 @@ if [ -z "${JAVA_HOME+x}" ]; then
         JAVA_HOME=/usr/lib/jvm/java-6-sun/
 fi
 
-if [ "$(expr substr $(uname -s) 1 6)" == "CYGWIN" ]; then
+UNAME=$(uname -s)
+if [ "${UNAME:0:6}" == "CYGWIN" ]; then
     JAVA_RUN=java
 else
     if [[ -d $JAVA_HOME ]]; then
