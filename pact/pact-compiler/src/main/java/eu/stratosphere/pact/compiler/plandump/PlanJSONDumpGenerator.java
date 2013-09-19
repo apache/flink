@@ -408,6 +408,9 @@ public class PlanJSONDumpGenerator {
 			case SORTED_GROUP:
 				locString = "Ordered Grouping";
 				break;
+			case ALL_GROUP: 
+				locString = "Group all into a single group";
+				break;
 			case HYBRIDHASH_BUILD_FIRST:
 				locString = "Hybrid Hash (build: " + child1name + ")";
 				break;
