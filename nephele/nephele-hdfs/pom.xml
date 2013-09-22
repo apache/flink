@@ -28,7 +28,28 @@
 	<!-- See main pom.xml for explanation of profiles -->
 	<profiles>
 		<profile>
-			<id>hadoop_yarn</id>
+			<id>hadoop-1</id>
+			<activation>
+				<property>
+					<name>!hadoop.profile</name>
+				</property>
+			</activation>
+			<dependencies>
+				<!-- "Old" Hadoop = MapReduce v1 -->
+				<dependency>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-core</artifactId>
+				</dependency>
+			</dependencies>
+		</profile>
+		<profile>
+			<id>hadoop-2</id>
+			<activation>
+				<property>
+					<name>hadoop.profile</name>
+					<value>2</value>
+				</property>
+			</activation>
 			<dependencies>
 				<!-- YARN -->
 				<dependency>
@@ -38,19 +59,6 @@
 				<dependency>
 					<groupId>org.apache.hadoop</groupId>
 					<artifactId>hadoop-hdfs</artifactId>
-				</dependency>
-			</dependencies>
-		</profile>
-		<profile>
-			<id>hadoop_v1</id>
-			<activation>
-				<activeByDefault>true</activeByDefault>
-			</activation>
-			<dependencies>
-				<!-- "Old" Hadoop = MapReduce v1 -->
-				<dependency>
-					<groupId>org.apache.hadoop</groupId>
-					<artifactId>hadoop-core</artifactId>
 				</dependency>
 			</dependencies>
 		</profile>
