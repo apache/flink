@@ -33,7 +33,10 @@ import eu.stratosphere.pact.example.sort.terasort.TeraOutputFormat;
  * input data is the Hadoop TeraGen program. For more details see <a
  * href="http://hadoop.apache.org/common/docs/current/api/org/apache/hadoop/examples/terasort/TeraGen.html">
  * http://hadoop.apache.org/common/docs/current/api/org/apache/hadoop/examples/terasort/TeraGen.html</a>.
- * 
+ *
+ * Note: this example job is currently not included in the build, because of problems with the RangePartioner (see
+ * https://github.com/dimalabs/ozone/issues/7). It should be included again after fixing the issue.
+ *
  * @author warneke
  */
 public final class TeraSort implements PlanAssembler, PlanAssemblerDescription {
