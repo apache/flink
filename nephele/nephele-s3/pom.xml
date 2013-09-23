@@ -9,7 +9,8 @@
 		<artifactId>nephele</artifactId>
 		<groupId>eu.stratosphere</groupId>
 		<version>0.2-ozone</version>
-	</parent>
+	    <relativePath>..</relativePath>
+    </parent>
 
 	<artifactId>nephele-s3</artifactId>
 	<name>nephele-s3</name>

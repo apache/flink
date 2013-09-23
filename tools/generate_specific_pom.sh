@@ -40,12 +40,12 @@ default='<name>!hadoop.profile<\/name>'
 notdefault='<name>hadoop.profile<\/name>'
 case "${hadoop_version}" in
   hadoop1)
-    h1="${default}"
-    h2="${notdefault}<value>2<\/value>"
+    hadoop1="${default}"
+    hadoop2="${notdefault}<value>2<\/value>"
     ;;
   hadoop2)
-    h1="${notdefault}<value>1<\/value>"
-    h2="${default}"
+    hadoop1="${notdefault}<value>1<\/value>"
+    hadoop2="${default}"
     ;;
  *) echo "Unknown ${hadoop_version}"
     usage

@@ -8,7 +8,8 @@
 		<artifactId>pact</artifactId>
 		<groupId>eu.stratosphere</groupId>
 		<version>0.2-ozone</version>
-	</parent>
+	    <relativePath>..</relativePath>
+    </parent>
   
 	<artifactId>pact-hbase</artifactId>
 	<name>pact-hbase</name>
