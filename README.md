@@ -35,7 +35,33 @@ If you’re a Debian/Ubuntu user, you’ll find a .deb package. We will continue
 
 	cd stratosphere-dist/target/stratosphere-dist-0.2-ozone-bin/stratosphere-0.2-ozone/
 
-Note: The directory structure here looks like the contents of the official release distribution.
+The directory structure here looks like the contents of the official release distribution.
+
+#### Build for different Hadoop Versions
+This section is for advanced users that want to build Stratosphere for a different Hadoop version, for example for Hadoop Yarn support.
+
+We use the profile activation via properties (-D).
+
+##### Build hadoop v1 (default)
+Build the default (currently hadoop 1.2.1)
+```mvn clean package```
+
+Build for a specific hadoop v1 version
+```mvn -Dhadoop-one.version=1.1.2 clean package```
+
+##### Build hadoop v2 (yarn)
+
+Build the yarn using the default version defined in the pom
+```mvn -Dhadoop.profile=2 clean package```
+
+Build for a specific hadoop v1 version
+```mvn -Dhadoop.profile=2 -Dhadoop-two.version=2.1.0-beta clean package```
+
+It is necessary to generate separate POMs if you want to deploy to your local repository (`mvn install`) or somewhere else.
+We have a script in `/tools` that generates POMs for the profiles. Use 
+```mvn -f pom.hadoop2.xml clean install -DskipTests```
+to put a POM file with the right dependencies into your local repository.
+
 
 ### Run your first program
 

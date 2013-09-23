@@ -57,17 +57,15 @@ nupom="pom.${hadoop_version}.xml"
 poms=`find $ozone_home -name pom.xml`
 for p in $poms; do
   nuname="`dirname $p`/${nupom}"
-  # Now we do search and replace of explicit strings.  The best
-  # way of seeing what the below does is by doing a diff between
-  # the original pom and the generated pom (pom.xml.hadoop1 or
-  # pom.xml.hadoop2). We replace the compat.module variable with
-  # either hbase-hadoop1-compat or hbase-hadoop2-compat, we
-  # replace the version string in all poms, we change modules
-  # to include reference to the non-standard pom name, we
-  # adjust relative paths so child modules can find the parent pom,
-  # and we enable/disable hadoop 1 and hadoop 2 profiles as
-  # appropriate removing a comment string too.  We output the
-  # new pom beside the original.
+  # Now we do search and replace of explicit strings.  The best way of
+  # seeing what the below does is by doing a diff between the original
+  # pom and the generated pom (pom.hadoop1.xml or pom.hadoop2.xml). We
+  # replace the version string in all poms, we change modules to
+  # include reference to the non- standard pom name, we adjust
+  # relative paths so child modules can find the parent pom, and we
+  # enable/disable hadoop 1 and hadoop 2 profiles as appropriate
+  # removing a comment string too. We output the new pom beside the
+  # original.
   sed -e "s/${old_ozone_version}/${new_ozone_version}/" \
     -e "s/\(<module>[^<]*\)/\1\/${nupom}/" \
     -e "s/\(relativePath>\.\.\)/\1\/${nupom}/" \

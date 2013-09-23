@@ -4,9 +4,9 @@ jdk:
   - openjdk7
   - openjdk6
 env:
-  - PROFILE=hadoop_v1
-  - PROFILE=hadoop_yarn
+  - PROFILE=
+  - PROFILE="-Dhadoop.profile=2"
 
 install: true
 
-script: "mvn -P$PROFILE clean verify"
+script: "mvn $PROFILE clean verify"
