@@ -28,7 +28,7 @@ public class BulkIteration extends SingleInputContract<AbstractStub> implements 
 	
 	private Contract iterationResult;
 	
-	private final Contract inputPlaceHolder = new PartialSolutionPlaceHolder(this);
+	private Contract inputPlaceHolder = new PartialSolutionPlaceHolder(this);
 	
 	private final AggregatorRegistry aggregators = new AggregatorRegistry();
 	
@@ -133,11 +133,12 @@ public class BulkIteration extends SingleInputContract<AbstractStub> implements 
 	 * Specialized contract to use as a recognizable place-holder for the input to the
 	 * step function when composing the nested data flow.
 	 */
-	public static final class PartialSolutionPlaceHolder extends Contract {
+	// Integer is only a dummy here but this whole placeholder shtick seems a tad bogus.
+	public static class PartialSolutionPlaceHolder extends Contract {
 		
 		private final BulkIteration containingIteration;
 		
-		private PartialSolutionPlaceHolder(BulkIteration container) {
+		public PartialSolutionPlaceHolder(BulkIteration container) {
 			super("Partial Solution Place Holder");
 			this.containingIteration = container;
 		}
