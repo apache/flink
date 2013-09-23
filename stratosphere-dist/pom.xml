@@ -99,7 +99,8 @@
 			<id>hadoop-1</id>
 			<activation>
 				<property>
-					<name>!hadoop.profile</name>
+					<!-- Please do not remove the 'hadoop1' comment. See ./tools/generate_specific_pom.sh -->
+					<!--hadoop1--><name>!hadoop.profile</name>
 				</property>
 			</activation>
 			<dependencies>
@@ -110,8 +111,8 @@
 			<id>hadoop-2</id>
 			<activation>
 				<property>
-					<name>hadoop.profile</name>
-					<value>2</value>
+					<!-- Please do not remove the 'hadoop1' comment. See ./tools/generate_specific_pom.sh -->
+					<!--hadoop2--><name>hadoop.profile</name><value>2</value>
 				</property>
 			</activation>
 			<dependencies>
