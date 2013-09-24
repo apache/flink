@@ -8,7 +8,8 @@
 		<artifactId>pact</artifactId>
 		<groupId>eu.stratosphere</groupId>
 		<version>0.2-ozone</version>
-	</parent>
+	    <relativePath>..</relativePath>
+    </parent>
 
 	<artifactId>pact-runtime</artifactId>
 	<name>pact-runtime</name>
@@ -36,25 +37,34 @@
 	<!-- See main pom.xml for explanation of profiles -->
 	<profiles>
 		<profile>
-			<id>hadoop_yarn</id>
-			<dependencies>
-				<!-- YARN -->
-				<dependency>
-					<groupId>org.apache.hadoop</groupId>
-					<artifactId>hadoop-common</artifactId>
-				</dependency>
-			</dependencies>
-		</profile>
-		<profile>
-			<id>hadoop_v1</id>
+			<id>hadoop-1</id>
 			<activation>
-				<activeByDefault>true</activeByDefault>
+				<property>
+					<!-- Please do not remove the 'hadoop1' comment. See ./tools/generate_specific_pom.sh -->
+					<!--hadoop1--><name>!hadoop.profile</name>
+				</property>
 			</activation>
 			<dependencies>
 				<!-- "Old" Hadoop = MapReduce v1 -->
 				<dependency>
 					<groupId>org.apache.hadoop</groupId>
 					<artifactId>hadoop-core</artifactId>
+				</dependency>
+			</dependencies>
+		</profile>
+		<profile>
+			<id>hadoop-2</id>
+			<activation>
+				<property>
+					<!-- Please do not remove the 'hadoop1' comment. See ./tools/generate_specific_pom.sh -->
+					<!--hadoop2--><name>hadoop.profile</name><value>2</value>
+				</property>
+			</activation>
+			<dependencies>
+				<!-- YARN -->
+				<dependency>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-common</artifactId>
 				</dependency>
 			</dependencies>
 		</profile>

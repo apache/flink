@@ -8,7 +8,8 @@
 		<artifactId>pact</artifactId>
 		<groupId>eu.stratosphere</groupId>
 		<version>0.2-ozone</version>
-	</parent>
+	    <relativePath>..</relativePath>
+    </parent>
 
 	<artifactId>pact-examples</artifactId>
 	<name>pact-examples</name>
@@ -338,7 +339,47 @@
 	<!-- See main pom.xml for explanation of profiles -->
 	<profiles>
 		<profile>
-			<id>hadoop_yarn</id>
+			<id>hadoop-1</id>
+			<activation>
+				<property>
+					<!-- Please do not remove the 'hadoop1' comment. See ./tools/generate_specific_pom.sh -->
+					<!--hadoop1--><name>!hadoop.profile</name>
+				</property>
+			</activation>
+			<dependencies>
+				<!-- No extra dependencies: pact-hbase is currently not compatible with Hadoop v1 -->
+			</dependencies>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-compiler-plugin</artifactId>
+						<executions>
+							<execution>
+								<id>default-compile</id>
+								<phase>compile</phase>
+								<configuration>
+									<excludes>
+										<exclude>**/hbase/*.java</exclude>
+									</excludes>
+								</configuration>
+								<goals>
+									<goal>compile</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+		<profile>
+			<id>hadoop-2</id>
+			<activation>
+				<property>
+					<!-- Please do not remove the 'hadoop1' comment. See ./tools/generate_specific_pom.sh -->
+					<!--hadoop2--><name>hadoop.profile</name><value>2</value>
+				</property>
+			</activation>
 			<dependencies>
 				<dependency>
 					<groupId>eu.stratosphere</groupId>
@@ -382,37 +423,6 @@
 			</build>
 		</profile>
 		
-		<profile>
-			<id>hadoop_v1</id>
-			<activation>
-				<activeByDefault>true</activeByDefault>
-			</activation>
-			<dependencies>
-        		<!-- No extra dependencies: pact-hbase is currently not compatible with Hadoop v1 -->
-			</dependencies>
-			<build>
-				<plugins>
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-compiler-plugin</artifactId>
-						<executions>
-							<execution>
-								<id>default-compile</id>
-								<phase>compile</phase>
-								<configuration>
-									<excludes>
-										<exclude>**/hbase/*.java</exclude>
-									</excludes>
-								</configuration>
-								<goals>
-									<goal>compile</goal>
-								</goals>
-							</execution>
-						</executions>
-					</plugin>
-				</plugins>
-			</build>
-		</profile>
 	</profiles>
   
 </project>

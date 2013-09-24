@@ -25,9 +25,11 @@
 			<useTransitiveFiltering>true</useTransitiveFiltering>
 			
 			<excludes>
+				<!--
 				<exclude>**/*examples*.jar</exclude>
 				<exclude>**/*javadoc*</exclude>
 				<exclude>**/*sources*</exclude>
+				-->
 <!-- 				<exclude>eu.stratosphere:pact-clients:**</exclude> -->
 				<!--
 				  This is a hardcoded exclude-list containing all libraries that are exclusively used in pact-clients.
@@ -50,11 +52,13 @@
 				<include>eu.stratosphere:pact-clients:**</include>
 			</includes>
 			
+			<!--
 			<excludes>
 				<exclude>**/*examples*.jar</exclude>
 				<exclude>**/*javadoc*</exclude>
 				<exclude>**/*sources*</exclude>
 			</excludes>
+			-->
 		</dependencySet>
 	</dependencySets>
 

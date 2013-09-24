@@ -8,7 +8,8 @@
 		<groupId>eu.stratosphere</groupId>
 		<artifactId>ozone</artifactId>
 		<version>0.2-ozone</version>
-	</parent>
+	    <relativePath>..</relativePath>
+    </parent>
 
 	<artifactId>nephele</artifactId>
 	<packaging>pom</packaging>
@@ -35,6 +36,19 @@
 			</roles>
 		</developer>
 	</developers>
+
+	<modules>
+		<module>nephele-common</module>
+		<module>nephele-management</module>
+		<module>nephele-profiling</module>
+		<module>nephele-queuescheduler</module>
+		<module>nephele-clustermanager</module>
+		<module>nephele-hdfs</module>
+		<module>nephele-s3</module>
+		<module>nephele-visualization</module>
+		<module>nephele-server</module>
+		<module>nephele-examples</module>
+	</modules>
 
 	<reporting>
 		<plugins>
@@ -74,17 +88,5 @@
 
 	<dependencies>
 	</dependencies>
-
-	<modules>
-		<module>nephele-common</module>
-		<module>nephele-management</module>
-		<module>nephele-profiling</module>
-		<module>nephele-queuescheduler</module>
-		<module>nephele-clustermanager</module>
-		<module>nephele-hdfs</module>
-		<module>nephele-s3</module>
-		<module>nephele-visualization</module>
-		<module>nephele-server</module>
-		<module>nephele-examples</module>
-	</modules>
+	
 </project>
