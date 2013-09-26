@@ -248,11 +248,11 @@ public class WorksetIteration extends DualInputContract<AbstractStub> implements
 	 * Specialized contract to use as a recognizable place-holder for the working set input to the
 	 * step function, when composing the nested data flow.
 	 */
-	public static final class WorksetPlaceHolder extends Contract {
+	public static class WorksetPlaceHolder extends Contract {
 
 		private final WorksetIteration containingIteration;
 
-		private WorksetPlaceHolder(WorksetIteration container) {
+		public WorksetPlaceHolder(WorksetIteration container) {
 			super("Workset Place Holder");
 			this.containingIteration = container;
 		}
@@ -277,11 +277,11 @@ public class WorksetIteration extends DualInputContract<AbstractStub> implements
 	 * Specialized contract to use as a recognizable place-holder for the solution set input to the
 	 * step function, when composing the nested data flow.
 	 */
-	public static final class SolutionSetPlaceHolder extends Contract {
+	public static class SolutionSetPlaceHolder extends Contract {
 
 		private final WorksetIteration containingIteration;
 
-		private SolutionSetPlaceHolder(WorksetIteration container) {
+		public SolutionSetPlaceHolder(WorksetIteration container) {
 			super("Solution Set Place Holder");
 			this.containingIteration = container;
 		}
