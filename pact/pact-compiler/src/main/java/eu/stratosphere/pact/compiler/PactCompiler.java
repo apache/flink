@@ -677,7 +677,7 @@ public class PactCompiler {
 
 			while (iter.hasNext()) {
 				rootNode = new SinkJoiner(rootNode, iter.next());
-				rootNode.SetId(id++);
+				rootNode.setId(id++);
 			}
 		} else {
 			throw new CompilerException("Bug: The optimizer plan representation has no sinks.");
@@ -962,7 +962,7 @@ public class PactCompiler {
 			if (n.getId() > 0) {
 				return;
 			}
-			n.SetId(this.id);
+			n.setId(this.id);
 
 			// first connect to the predecessors
 			n.setInputs(this.con2node);
