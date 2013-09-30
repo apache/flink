@@ -15,6 +15,7 @@
 
 package eu.stratosphere.pact.compiler.util;
 
+import java.io.Serializable;
 import java.util.Iterator;
 
 import eu.stratosphere.pact.common.stubs.Collector;
@@ -23,7 +24,8 @@ import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsExcept;
 import eu.stratosphere.pact.common.type.PactRecord;
 
 @ConstantFieldsExcept({})
-public final class IdentityReduce extends ReduceStub {
+public final class IdentityReduce extends ReduceStub implements Serializable {
+	private static final long serialVersionUID = 1L;
 	
 	@Override
 	public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {

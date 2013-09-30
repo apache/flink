@@ -41,6 +41,7 @@ import eu.stratosphere.pact.common.util.ReflectionUtil;
  * 
  */
 public abstract class PactList<V extends Value> implements Value, List<V> {
+	private static final long serialVersionUID = 1L;
 	
 	// Type of list elements
 	private final Class<V> valueClass;

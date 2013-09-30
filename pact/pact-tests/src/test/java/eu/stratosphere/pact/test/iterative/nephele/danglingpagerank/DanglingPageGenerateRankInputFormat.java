@@ -10,6 +10,7 @@ import eu.stratosphere.pact.test.iterative.nephele.ConfigUtils;
 import java.util.regex.Pattern;
 
 public class DanglingPageGenerateRankInputFormat extends TextInputFormat {
+  private static final long serialVersionUID = 1L;
 
   private PactDouble initialRank;
 

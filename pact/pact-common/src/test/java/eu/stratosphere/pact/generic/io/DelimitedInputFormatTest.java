@@ -168,6 +168,7 @@ public class DelimitedInputFormatTest {
 	}
 	
 	protected static final class MyTextInputFormat extends eu.stratosphere.pact.generic.io.DelimitedInputFormat<PactRecord> {
+		private static final long serialVersionUID = 1L;
 		
 		private final PactString str1 = new PactString();
 		private final PactString str2 = new PactString();

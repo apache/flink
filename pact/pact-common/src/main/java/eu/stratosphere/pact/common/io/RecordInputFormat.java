@@ -51,6 +51,7 @@ import eu.stratosphere.pact.generic.contract.Contract;
  * @see PactRecord
  */
 public class RecordInputFormat extends DelimitedInputFormat {
+	private static final long serialVersionUID = 1L;
 
 	// -------------------------------------- Constants -------------------------------------------
 	

@@ -57,8 +57,8 @@ public abstract class DualInputContract<T extends Stub> extends AbstractPact<T> 
 	 * @param name The given name for the Pact, used in plans, logs and progress messages.
 	 * @param stubClass The class containing the user function.
 	 */
-	protected DualInputContract(Class<? extends T> stubClass, String name) {
-		super(stubClass, name);
+	protected DualInputContract(UserCodeWrapper<T> stub, String name) {
+		super(stub, name);
 		this.keyFields1 = this.keyFields2 = new int[0];
 	}
 	
@@ -70,8 +70,8 @@ public abstract class DualInputContract<T extends Stub> extends AbstractPact<T> 
 	 * @param keyTypes The classes of the data types that act as keys in this stub.
 	 * @param stubClass The class containing the user function.
 	 */
-	protected DualInputContract(Class<? extends T> stubClass, int[] keyPositions1, int[] keyPositions2, String name) {
-		super(stubClass, name);
+	protected DualInputContract(UserCodeWrapper<T> stub, int[] keyPositions1, int[] keyPositions2, String name) {
+		super(stub, name);
 		this.keyFields1 = keyPositions1;
 		this.keyFields2 = keyPositions2;
 	}

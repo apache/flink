@@ -24,6 +24,7 @@ package eu.stratosphere.nephele.fs;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.io.Serializable;
 import java.net.URI;
 import java.net.URISyntaxException;
 
@@ -35,7 +36,8 @@ import eu.stratosphere.nephele.util.StringUtils;
  * Names a file or directory in a {@link FileSystem}. Path strings use slash as
  * the directory separator. A path string is absolute if it begins with a slash.
  */
-public class Path implements IOReadableWritable {
+public class Path implements IOReadableWritable, Serializable {
+	private static final long serialVersionUID = 1L;
 
 	/**
 	 * The directory separator, a slash.

@@ -29,7 +29,6 @@ import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.io.MutableRecordReader;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.generic.io.FileOutputFormat;
 import eu.stratosphere.pact.generic.io.OutputFormat;
@@ -211,6 +210,7 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 	 *         Throws if instance of OutputFormat implementation can not be
 	 *         obtained.
 	 */
+	@SuppressWarnings("unchecked")
 	private void initOutputFormat() {
 		if (this.userCodeClassLoader == null) {
 			try {
@@ -224,20 +224,16 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 		taskConf.setClassLoader(this.userCodeClassLoader);
 		this.config = new TaskConfig(taskConf);
 
-		// obtain stub implementation class
 		try {
-			@SuppressWarnings("unchecked")
-			final Class<? extends OutputFormat<IT>> clazz = (Class<? extends OutputFormat<IT>>) (Class<?>) OutputFormat.class;
-			final Class<? extends OutputFormat<IT>> formatClass = this.config.getStubClass(clazz, this.userCodeClassLoader);
-			
-			// obtain instance of stub implementation
-			this.format = InstantiationUtil.instantiate(formatClass, OutputFormat.class);
-		}
-		catch (ClassNotFoundException cnfe) {
-			throw new RuntimeException("OutputFormat implementation class was not found.", cnfe);
+			this.format = (OutputFormat<IT>)this.config.getStubWrapper().getUserCodeObject();
+			// check if the class is a subclass, if the check is required
+			if (!OutputFormat.class.isAssignableFrom(this.format.getClass())) {
+				throw new RuntimeException("The class '" + this.format.getClass().getName() + "' is not a subclass of '" + 
+						OutputFormat.class.getName() + "' as is required.");
+			}
 		}
 		catch (ClassCastException ccex) {
-			throw new RuntimeException("Format format class is not a proper subclass of " + OutputFormat.class.getName(), ccex); 
+			throw new RuntimeException("The stub class is not a proper subclass of " + OutputFormat.class.getName(), ccex);
 		}
 		
 		// configure the stub. catch exceptions here extra, to report them as originating from the user code 

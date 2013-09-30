@@ -14,6 +14,8 @@
  **********************************************************************************************************************/
 package eu.stratosphere.pact.example.kmeans.udfs;
 
+import java.io.Serializable;
+
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.CrossStub;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsFirst;
@@ -26,7 +28,8 @@ import eu.stratosphere.pact.common.type.base.PactInteger;
  * centers.
  */
 @ConstantFieldsFirst({0,1})
-public class ComputeDistance extends	CrossStub {
+public class ComputeDistance extends CrossStub implements Serializable {
+	private static final long serialVersionUID = 1L;
 	
 	private final PactDouble distance = new PactDouble();
 	

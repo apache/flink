@@ -5,6 +5,7 @@ import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactLong;
 
 public class ImprovedAdjacencyListInputFormat extends TextInputFormat {
+	private static final long serialVersionUID = 1L;
 
 	private final PactLong vertexID = new PactLong();
 

@@ -17,6 +17,7 @@ package eu.stratosphere.pact.test.contracts;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.Collection;
 import java.util.LinkedList;
 
@@ -103,7 +104,8 @@ public class CrossITCase extends TestBase
 	}
 
 
-	public static class TestCross extends CrossStub {
+	public static class TestCross extends CrossStub implements Serializable {
+		private static final long serialVersionUID = 1L;
 
 		private PactString string = new PactString();
 		private PactInteger integer = new PactInteger();
@@ -140,18 +142,18 @@ public class CrossITCase extends TestBase
 		String pathPrefix = getFilesystemProvider().getURIPrefix() + getFilesystemProvider().getTempDirPath();
 
 		FileDataSource input_left = new FileDataSource(
-				ContractITCaseInputFormat.class, pathPrefix + "/cross_left");
+				new ContractITCaseInputFormat(), pathPrefix + "/cross_left");
 		DelimitedInputFormat.configureDelimitedFormat(input_left)
 			.recordDelimiter('\n');
 		input_left.setDegreeOfParallelism(config.getInteger("CrossTest#NoSubtasks", 1));
 
 		FileDataSource input_right = new FileDataSource(
-				ContractITCaseInputFormat.class, pathPrefix + "/cross_right");
+				new ContractITCaseInputFormat(), pathPrefix + "/cross_right");
 		DelimitedInputFormat.configureDelimitedFormat(input_right)
 			.recordDelimiter('\n');
 		input_right.setDegreeOfParallelism(config.getInteger("CrossTest#NoSubtasks", 1));
 
-		CrossContract testCross = CrossContract.builder(TestCross.class).build();
+		CrossContract testCross = CrossContract.builder(new TestCross()).build();
 		testCross.setDegreeOfParallelism(config.getInteger("CrossTest#NoSubtasks", 1));
 		testCross.getParameters().setString(PactCompiler.HINT_LOCAL_STRATEGY,
 				config.getString("CrossTest#LocalStrategy", ""));
@@ -171,7 +173,7 @@ public class CrossITCase extends TestBase
 		}
 
 		FileDataSink output = new FileDataSink(
-				ContractITCaseOutputFormat.class, pathPrefix + "/result.txt");
+				new ContractITCaseOutputFormat(), pathPrefix + "/result.txt");
 		output.setDegreeOfParallelism(1);
 
 		output.addInput(testCross);

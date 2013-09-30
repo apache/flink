@@ -101,10 +101,10 @@ public class HBaseReadExample implements PlanAssembler, PlanAssemblerDescription
 		int numSubTasks   = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		String output    = (args.length > 1 ? args[1] : "");
 
-		GenericDataSource<TableInputFormat> source = new GenericDataSource<TableInputFormat>(MyTableInputFormat.class, "HBase Input");
+		GenericDataSource<TableInputFormat> source = new GenericDataSource<TableInputFormat>(new MyTableInputFormat(), "HBase Input");
 		source.setParameter(TableInputFormat.INPUT_TABLE, "twitter");
 		source.setParameter(TableInputFormat.CONFIG_LOCATION, "/etc/hbase/conf/hbase-site.xml");
-		FileDataSink out = new FileDataSink(RecordOutputFormat.class, output, source, "HBase String dump");
+		FileDataSink out = new FileDataSink(new RecordOutputFormat(), output, source, "HBase String dump");
 		RecordOutputFormat.configureRecordFormat(out)
 			.recordDelimiter('\n')
 			.fieldDelimiter(' ')

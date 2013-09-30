@@ -25,8 +25,9 @@ import eu.stratosphere.pact.common.type.base.PactInteger;
 /**
  * 
  */
-public class UniformIntInput extends GenericInputFormat
-{
+public class UniformIntInput extends GenericInputFormat {
+	private static final long serialVersionUID = 1L;
+	
 	public static final String NUM_KEYS_KEY = "testfomat.numkeys";
 	public static final String NUM_VALUES_KEY = "testfomat.numvalues";
 	

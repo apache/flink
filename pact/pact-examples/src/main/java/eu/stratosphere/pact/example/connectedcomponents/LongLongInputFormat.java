@@ -22,6 +22,7 @@ import eu.stratosphere.pact.common.type.base.PactLong;
 import java.util.regex.Pattern;
 
 public class LongLongInputFormat extends TextInputFormat {
+	private static final long serialVersionUID = 1L;
 
 	private static final Pattern SEPARATOR = Pattern.compile("[,\t ]");
 	

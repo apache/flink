@@ -738,7 +738,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		}
 		
 		// set user code
-		config.setStubClass(node.getPactContract().getUserCodeClass());
+		config.setStubWrapper(node.getPactContract().getUserCodeWrapper());
 		config.setStubParameters(node.getPactContract().getParameters());
 		
 		// set the driver strategy
@@ -760,7 +760,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		vertex.setTaskClass(this.currentIteration == null ? RegularPactTask.class : IterationIntermediatePactTask.class);
 		
 		// set user code
-		config.setStubClass(node.getPactContract().getUserCodeClass());
+		config.setStubWrapper(node.getPactContract().getUserCodeWrapper());
 		config.setStubParameters(node.getPactContract().getParameters());
 		
 		// set the driver strategy
@@ -791,7 +791,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		vertex.setInputClass(clazz);
 
 		// set user code
-		config.setStubClass(node.getPactContract().getUserCodeClass());
+		config.setStubWrapper(node.getPactContract().getUserCodeWrapper());
 		config.setStubParameters(node.getPactContract().getParameters());
 		
 		config.setOutputSerializer(node.getSerializer());
@@ -806,7 +806,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		vertex.getConfiguration().setInteger(DataSinkTask.DEGREE_OF_PARALLELISM_KEY, node.getDegreeOfParallelism());
 		
 		// set user code
-		config.setStubClass(node.getPactContract().getUserCodeClass());
+		config.setStubWrapper(node.getPactContract().getUserCodeWrapper());
 		config.setStubParameters(node.getPactContract().getParameters());
 		
 		return vertex;

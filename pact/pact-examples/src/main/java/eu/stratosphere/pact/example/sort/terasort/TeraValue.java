@@ -29,6 +29,7 @@ import eu.stratosphere.pact.common.type.Value;
  * This class is a wrapper for the value part of the integer number.
  */
 public final class TeraValue implements Value {
+	private static final long serialVersionUID = 1L;
 
 	/**
 	 * The size of the value in bytes.

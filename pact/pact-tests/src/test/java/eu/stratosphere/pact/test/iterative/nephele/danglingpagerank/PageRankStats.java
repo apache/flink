@@ -7,6 +7,7 @@ import java.io.DataOutput;
 import java.io.IOException;
 
 public class PageRankStats implements Value {
+	private static final long serialVersionUID = 1L;
 
 	private double diff;
 

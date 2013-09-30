@@ -35,6 +35,7 @@ import eu.stratosphere.pact.common.util.ReflectionUtil;
  * 
  */
 public abstract class PactPair<U extends Key, V extends Key> implements Key {
+	private static final long serialVersionUID = 1L;
 	
 	// class of the first pair element
 	private final Class<U> firstClass;

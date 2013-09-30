@@ -45,8 +45,8 @@ public abstract class SingleInputContract<T extends Stub> extends AbstractPact<T
 	 * @param keyTypes The classes of the data types that act as keys in this stub.
 	 * @param name The given name for the Pact, used in plans, logs and progress messages.
 	 */
-	protected SingleInputContract(Class<? extends T> stubClass, int[] keyPositions, String name) {
-		super(stubClass, name);
+	protected SingleInputContract(UserCodeWrapper<T> stub, int[] keyPositions, String name) {
+		super(stub, name);
 		this.keyFields = keyPositions;
 	}
 	
@@ -57,8 +57,8 @@ public abstract class SingleInputContract<T extends Stub> extends AbstractPact<T
 	 * @param stubClass The class containing the user function.
 	 * @param name The given name for the Pact, used in plans, logs and progress messages.
 	 */
-	protected SingleInputContract(Class<? extends T> stubClass, String name) {
-		super(stubClass, name);
+	protected SingleInputContract(UserCodeWrapper<T> stub, String name) {
+		super(stub, name);
 		this.keyFields = new int[0];
 	}
 

@@ -155,8 +155,8 @@ public class KMeansStepCompilerTest extends CompilerTestBase {
 		final String output = OUT_FILE;
 
 		// create DataSourceContract for data point input
-		FileDataSource dataPoints = new FileDataSource(PointInFormat.class, dataPointInput, DATAPOINTS);
-		FileDataSource clusterPoints = new FileDataSource(PointInFormat.class, clusterInput, CENTERS);
+		FileDataSource dataPoints = new FileDataSource(new PointInFormat(), dataPointInput, DATAPOINTS);
+		FileDataSource clusterPoints = new FileDataSource(new PointInFormat(), clusterInput, CENTERS);
 		clusterPoints.setDegreeOfParallelism(1);
 		
 		if (uniquenessHints) {
@@ -168,20 +168,20 @@ public class KMeansStepCompilerTest extends CompilerTestBase {
 
 		for (int i = 0; i < numSteps; i++) {
 			// create CrossContract for distance computation
-			CrossContract computeDistance = CrossContract.builder(ComputeDistance.class)
+			CrossContract computeDistance = CrossContract.builder(new ComputeDistance())
 				.input1(dataPoints)
 				.input2(latestCenters)
 				.name(CROSS_NAME + i)
 				.build();
 	
 			// create ReduceContract for finding the nearest cluster centers
-			ReduceContract findNearestClusterCenters = new ReduceContract.Builder(FindNearestCenter.class, PactInteger.class, 0)
+			ReduceContract findNearestClusterCenters = ReduceContract.builder(new FindNearestCenter(), PactInteger.class, 0)
 				.input(computeDistance)
 				.name(NEAREST_CENTER_REDUCER + i)
 				.build();
 	
 			// create ReduceContract for computing new cluster positions
-			ReduceContract recomputeClusterCenter = new ReduceContract.Builder(RecomputeClusterCenter.class, PactInteger.class, 0)
+			ReduceContract recomputeClusterCenter = ReduceContract.builder(new RecomputeClusterCenter(), PactInteger.class, 0)
 				.input(findNearestClusterCenters)
 				.name(RECOMPUTE_CENTERS_REDUCER + i)
 				.build();
@@ -190,7 +190,7 @@ public class KMeansStepCompilerTest extends CompilerTestBase {
 		}
 
 		// create DataSinkContract for writing the new cluster positions
-		FileDataSink newClusterPoints = new FileDataSink(PointOutFormat.class, output, latestCenters, SINK);
+		FileDataSink newClusterPoints = new FileDataSink(new PointOutFormat(), output, latestCenters, SINK);
 
 		// return the PACT plan
 		Plan plan = new Plan(newClusterPoints, "KMeans Iteration (x" + numSteps + ")");

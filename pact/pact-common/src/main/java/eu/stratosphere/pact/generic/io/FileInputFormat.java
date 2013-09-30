@@ -69,6 +69,7 @@ import eu.stratosphere.pact.generic.io.InputFormat;
  * </ol>
  */
 public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSplit> {
+	private static final long serialVersionUID = 1L;
 	
 	// -------------------------------------- Constants -------------------------------------------
 	
@@ -488,6 +489,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 		if (this.stream != null) {
 			// close input stream
 			this.stream.close();
+			stream = null;
 		}
 	}
 	

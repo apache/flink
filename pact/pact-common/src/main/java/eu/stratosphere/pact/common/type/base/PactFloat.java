@@ -31,6 +31,7 @@ import eu.stratosphere.pact.common.type.Key;
  * @see eu.stratosphere.pact.common.type.Key
  */
 public class PactFloat implements Key, CopyableValue<PactFloat> {
+	private static final long serialVersionUID = 1L;
 
 	private float value;
 

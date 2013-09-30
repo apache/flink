@@ -7,6 +7,7 @@ import eu.stratosphere.pact.test.iterative.nephele.customdanglingpagerank.types.
 import eu.stratosphere.pact.test.iterative.nephele.danglingpagerank.AsciiLongArrayView;
 
 public class CustomImprovedDanglingPageRankInputFormat extends DelimitedInputFormat<VertexWithRankAndDangling> {
+	private static final long serialVersionUID = 1L;
 
 	private AsciiLongArrayView arrayView = new AsciiLongArrayView();
 

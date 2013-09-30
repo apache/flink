@@ -226,8 +226,9 @@ public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription
 		}
 	}
 
-	public static class TupleOutputFormat extends FileOutputFormat
-	{
+	public static class TupleOutputFormat extends FileOutputFormat {
+		private static final long serialVersionUID = 1L;
+		
 		private final DecimalFormat formatter;
 		private final StringBuilder buffer = new StringBuilder();
 		
@@ -299,22 +300,22 @@ public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription
 			resultPath = args[5];
 		}
 		
-		FileDataSource orders = new FileDataSource(IntTupleDataInFormat.class, ordersPath, "Orders");
+		FileDataSource orders = new FileDataSource(new IntTupleDataInFormat(), ordersPath, "Orders");
 		orders.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
 		orders.setDegreeOfParallelism(degreeOfParallelism);
 		// orders.setOutputContract(UniqueKey.class);
 		// orders.getCompilerHints().setAvgNumValuesPerKey(1);
 
-		FileDataSource lineitems = new FileDataSource(IntTupleDataInFormat.class, lineitemsPath, "LineItems");
+		FileDataSource lineitems = new FileDataSource(new IntTupleDataInFormat(), lineitemsPath, "LineItems");
 		lineitems.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
 		lineitems.setDegreeOfParallelism(degreeOfParallelism);
 		// lineitems.getCompilerHints().setAvgNumValuesPerKey(4);
 
-		FileDataSource customers = new FileDataSource(IntTupleDataInFormat.class, customersPath, "Customers");
+		FileDataSource customers = new FileDataSource(new IntTupleDataInFormat(), customersPath, "Customers");
 		customers.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
 		customers.setDegreeOfParallelism(degreeOfParallelism);
 
-		FileDataSource nations = new FileDataSource(IntTupleDataInFormat.class, nationsPath, "Nations");
+		FileDataSource nations = new FileDataSource(new IntTupleDataInFormat(), nationsPath, "Nations");
 		nations.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
 		nations.setDegreeOfParallelism(degreeOfParallelism);
 
@@ -365,7 +366,7 @@ public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription
 			.build();
 		reduce.setDegreeOfParallelism(degreeOfParallelism);
 
-		FileDataSink result = new FileDataSink(TupleOutputFormat.class, resultPath, "Output");
+		FileDataSink result = new FileDataSink(new TupleOutputFormat(), resultPath, "Output");
 		result.setDegreeOfParallelism(degreeOfParallelism);
 
 		result.setInput(reduce);

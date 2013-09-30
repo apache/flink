@@ -30,7 +30,7 @@ public class KMeansIterative implements PlanAssembler, PlanAssemblerDescription 
 		final int numIterations = (args.length > 4 ? Integer.parseInt(args[4]) : 1);
 
 		// create DataSourceContract for cluster center input
-		FileDataSource initialClusterPoints = new FileDataSource(PointInFormat.class, clusterInput, "Centers");
+		FileDataSource initialClusterPoints = new FileDataSource(new PointInFormat(), clusterInput, "Centers");
 		initialClusterPoints.setDegreeOfParallelism(1);
 		
 		BulkIteration iteration = new BulkIteration("K-Means Loop");
@@ -38,30 +38,30 @@ public class KMeansIterative implements PlanAssembler, PlanAssemblerDescription 
 		iteration.setMaximumNumberOfIterations(numIterations);
 		
 		// create DataSourceContract for data point input
-		FileDataSource dataPoints = new FileDataSource(PointInFormat.class, dataPointInput, "Data Points");
+		FileDataSource dataPoints = new FileDataSource(new PointInFormat(), dataPointInput, "Data Points");
 
 		// create CrossContract for distance computation
-		CrossContract computeDistance = CrossContract.builder(ComputeDistance.class)
+		CrossContract computeDistance = CrossContract.builder(new ComputeDistance())
 				.input1(dataPoints)
 				.input2(iteration.getPartialSolution())
 				.name("Compute Distances")
 				.build();
 
 		// create ReduceContract for finding the nearest cluster centers
-		ReduceContract findNearestClusterCenters = ReduceContract.builder(FindNearestCenter.class, PactInteger.class, 0)
+		ReduceContract findNearestClusterCenters = ReduceContract.builder(new FindNearestCenter(), PactInteger.class, 0)
 				.input(computeDistance)
 				.name("Find Nearest Centers")
 				.build();
 
 		// create ReduceContract for computing new cluster positions
-		ReduceContract recomputeClusterCenter = ReduceContract.builder(RecomputeClusterCenter.class, PactInteger.class, 0)
+		ReduceContract recomputeClusterCenter = ReduceContract.builder(new RecomputeClusterCenter(), PactInteger.class, 0)
 				.input(findNearestClusterCenters)
 				.name("Recompute Center Positions")
 				.build();
 		iteration.setNextPartialSolution(recomputeClusterCenter);
 
 		// create DataSinkContract for writing the new cluster positions
-		FileDataSink finalResult = new FileDataSink(PointOutFormat.class, output, iteration, "New Center Positions");
+		FileDataSink finalResult = new FileDataSink(new PointOutFormat(), output, iteration, "New Center Positions");
 
 		// return the PACT plan
 		Plan plan = new Plan(finalResult, "Iterative KMeans");

@@ -22,6 +22,7 @@ import java.io.IOException;
 import eu.stratosphere.pact.common.type.Value;
 
 public class Tuple implements Value {
+	private static final long serialVersionUID = 1L;
 
 	private byte[] bytes;
 

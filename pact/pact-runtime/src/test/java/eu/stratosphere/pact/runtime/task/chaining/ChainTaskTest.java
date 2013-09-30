@@ -27,6 +27,7 @@ import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.generic.contract.UserCodeClassWrapper;
 import eu.stratosphere.pact.generic.stub.GenericMapper;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparatorFactory;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordSerializerFactory;
@@ -37,8 +38,8 @@ import eu.stratosphere.pact.runtime.task.MapTaskTest.MockMapStub;
 import eu.stratosphere.pact.runtime.task.ReduceTaskTest.MockReduceStub;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
-import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
+import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
 
 
 public class ChainTaskTest extends TaskTestBase {
@@ -79,7 +80,7 @@ public class ChainTaskTest extends TaskTestBase {
 				combineConfig.setMemoryDriver(3 * 1024 * 1024);
 				
 				// udf
-				combineConfig.setStubClass(MockReduceStub.class);
+				combineConfig.setStubWrapper(new UserCodeClassWrapper<MockReduceStub>(MockReduceStub.class));
 				
 				getTaskConfig().addChainedTask(ChainedCombineDriver.class, combineConfig, "combine");
 			}
@@ -135,7 +136,7 @@ public class ChainTaskTest extends TaskTestBase {
 				combineConfig.setMemoryDriver(3 * 1024 * 1024);
 				
 				// udf
-				combineConfig.setStubClass(MockFailingCombineStub.class);
+				combineConfig.setStubWrapper(new UserCodeClassWrapper<MockFailingCombineStub>(MockFailingCombineStub.class));
 				
 				getTaskConfig().addChainedTask(ChainedCombineDriver.class, combineConfig, "combine");
 			}

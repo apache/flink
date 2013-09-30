@@ -14,11 +14,14 @@
  **********************************************************************************************************************/
 package eu.stratosphere.pact.test.iterative.nephele.customdanglingpagerank.types;
 
+import java.io.Serializable;
+
 
 /**
  *
  */
-public final class VertexWithRankAndDangling {
+public final class VertexWithRankAndDangling implements Serializable {
+	private static final long serialVersionUID = 1L;
 
 	private long vertexID;
 	

@@ -113,16 +113,16 @@ public class WordCountCompilerTest extends CompilerTestBase {
 	
 	private void checkWordCountWithSortedSink(boolean estimates) {
 		try {
-			FileDataSource sourceNode = new FileDataSource(TextInputFormat.class, IN_FILE, "Input Lines");
-			MapContract mapNode = MapContract.builder(TokenizeLine.class)
+			FileDataSource sourceNode = new FileDataSource(new TextInputFormat(), IN_FILE, "Input Lines");
+			MapContract mapNode = MapContract.builder(new TokenizeLine())
 				.input(sourceNode)
 				.name("Tokenize Lines")
 				.build();
-			ReduceContract reduceNode = new ReduceContract.Builder(CountWords.class, PactString.class, 0)
+			ReduceContract reduceNode = ReduceContract.builder(new CountWords(), PactString.class, 0)
 				.input(mapNode)
 				.name("Count Words")
 				.build();
-			FileDataSink out = new FileDataSink(RecordOutputFormat.class, OUT_FILE, reduceNode, "Word Counts");
+			FileDataSink out = new FileDataSink(new RecordOutputFormat(), OUT_FILE, reduceNode, "Word Counts");
 			RecordOutputFormat.configureRecordFormat(out)
 				.recordDelimiter('\n')
 				.fieldDelimiter(' ')

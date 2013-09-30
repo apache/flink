@@ -29,6 +29,8 @@ import eu.stratosphere.pact.generic.io.FileOutputFormat;
  */
 public abstract class ArrayOutputFormat extends FileOutputFormat<Value[]> implements ArrayModelOutputFormat
 {
+	private static final long serialVersionUID = 1L;
+
 	private static final String RECORD_DELIMITER_PARAMETER = "pact.output.array.delimiter";
 	
 	private static final String FIELD_DELIMITER_PARAMETER = "pact.output.array.field-delimiter";

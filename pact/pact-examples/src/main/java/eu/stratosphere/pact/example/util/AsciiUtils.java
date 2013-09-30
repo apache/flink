@@ -15,6 +15,8 @@
 
 package eu.stratosphere.pact.example.util;
 
+import java.io.Serializable;
+
 import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 
@@ -71,7 +73,8 @@ public final class AsciiUtils {
 	 * The tokenizer is designed to have a resettable state and operate on mutable objects,
 	 * sparing object allocation and garbage collection overhead.
 	 */
-	public static final class WhitespaceTokenizer implements MutableObjectIterator<PactString> {
+	public static final class WhitespaceTokenizer implements MutableObjectIterator<PactString>, Serializable {
+		private static final long serialVersionUID = 1L;
 		
 		private PactString toTokenize;		// the string to tokenize
 		private int pos;					// the current position in the string

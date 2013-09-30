@@ -18,6 +18,8 @@ package eu.stratosphere.pact.array.contract;
 import eu.stratosphere.pact.array.stubs.ReduceWithKeyStub;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.generic.contract.GenericReduceContract;
+import eu.stratosphere.pact.generic.contract.UserCodeClassWrapper;
+import eu.stratosphere.pact.generic.contract.UserCodeObjectWrapper;
 
 /**
  * MapContract represents a Pact with a Map Input Contract.
@@ -31,8 +33,13 @@ import eu.stratosphere.pact.generic.contract.GenericReduceContract;
  */
 public class ReduceWithKeyContract extends GenericReduceContract<ReduceWithKeyStub>
 {
-	public ReduceWithKeyContract(Class <? extends ReduceWithKeyStub> udf, int keyPosition, String name) {
-		super(udf, new int[] {keyPosition}, name);
+	public ReduceWithKeyContract(Class<? extends ReduceWithKeyStub> udf, int keyPosition, String name) {
+		super(new UserCodeClassWrapper<ReduceWithKeyStub>(udf), new int[] {keyPosition}, name);
+		getParameters().setInteger(ReduceWithKeyStub.KEY_INDEX_PARAM_KEY, keyPosition);
+	}
+	
+	public ReduceWithKeyContract(ReduceWithKeyStub udf, int keyPosition, String name) {
+		super(new UserCodeObjectWrapper<ReduceWithKeyStub>(udf), new int[] {keyPosition}, name);
 		getParameters().setInteger(ReduceWithKeyStub.KEY_INDEX_PARAM_KEY, keyPosition);
 	}
 }

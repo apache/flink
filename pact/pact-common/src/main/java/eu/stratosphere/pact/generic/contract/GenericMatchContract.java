@@ -32,7 +32,15 @@ import eu.stratosphere.pact.generic.stub.GenericMatcher;
  */
 public class GenericMatchContract<T extends GenericMatcher<?, ?, ?>> extends DualInputContract<T>
 {
-	public GenericMatchContract(Class <? extends T> udf, int[] keyPositions1, int[] keyPositions2, String name) {
+	public GenericMatchContract(UserCodeWrapper<T> udf, int[] keyPositions1, int[] keyPositions2, String name) {
 		super(udf, keyPositions1, keyPositions2, name);
+	}
+	
+	public GenericMatchContract(T udf, int[] keyPositions1, int[] keyPositions2, String name) {
+		super(new UserCodeObjectWrapper<T>(udf), keyPositions1, keyPositions2, name);
+	}
+	
+	public GenericMatchContract(Class<? extends T> udf, int[] keyPositions1, int[] keyPositions2, String name) {
+		super(new UserCodeClassWrapper<T>(udf), keyPositions1, keyPositions2, name);
 	}
 }

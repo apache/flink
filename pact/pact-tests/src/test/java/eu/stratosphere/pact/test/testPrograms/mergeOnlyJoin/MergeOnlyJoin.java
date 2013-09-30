@@ -70,7 +70,7 @@ public class MergeOnlyJoin implements PlanAssembler, PlanAssemblerDescription {
 		int numSubtasksInput2 = (args.length > 4 ? Integer.parseInt(args[4]) : 1);
 
 		// create DataSourceContract for Orders input
-		FileDataSource input1 = new FileDataSource(RecordInputFormat.class, input1Path, "Input 1");
+		FileDataSource input1 = new FileDataSource(new RecordInputFormat(), input1Path, "Input 1");
 		input1.setDegreeOfParallelism(numSubtasks);
 		RecordInputFormat.configureRecordFormat(input1)
 			.recordDelimiter('\n')
@@ -78,7 +78,7 @@ public class MergeOnlyJoin implements PlanAssembler, PlanAssemblerDescription {
 			.field(DecimalTextIntParser.class, 0)
 			.field(DecimalTextIntParser.class, 1);
 		
-		ReduceContract aggInput1 = new ReduceContract.Builder(DummyReduce.class, PactInteger.class, 0)
+		ReduceContract aggInput1 = ReduceContract.builder(DummyReduce.class, PactInteger.class, 0)
 			.input(input1)
 			.name("AggOrders")
 			.build();
@@ -86,7 +86,7 @@ public class MergeOnlyJoin implements PlanAssembler, PlanAssemblerDescription {
 
 		
 		// create DataSourceContract for Orders input
-		FileDataSource input2 = new FileDataSource(RecordInputFormat.class, input2Path, "Input 2");
+		FileDataSource input2 = new FileDataSource(new RecordInputFormat(), input2Path, "Input 2");
 		input2.setDegreeOfParallelism(numSubtasksInput2);
 		RecordInputFormat.configureRecordFormat(input2)
 			.recordDelimiter('\n')
@@ -94,7 +94,7 @@ public class MergeOnlyJoin implements PlanAssembler, PlanAssemblerDescription {
 			.field(DecimalTextIntParser.class, 0)
 			.field(DecimalTextIntParser.class, 1);
 
-		ReduceContract aggInput2 = new ReduceContract.Builder(DummyReduce.class, PactInteger.class, 0)
+		ReduceContract aggInput2 = ReduceContract.builder(DummyReduce.class, PactInteger.class, 0)
 			.input(input2)
 			.name("AggLines")
 			.build();
@@ -109,7 +109,7 @@ public class MergeOnlyJoin implements PlanAssembler, PlanAssemblerDescription {
 		joinLiO.setDegreeOfParallelism(numSubtasks);
 
 		// create DataSinkContract for writing the result
-		FileDataSink result = new FileDataSink(RecordOutputFormat.class, output, joinLiO, "Output");
+		FileDataSink result = new FileDataSink(new RecordOutputFormat(), output, joinLiO, "Output");
 		result.setDegreeOfParallelism(numSubtasks);
 		RecordOutputFormat.configureRecordFormat(result)
 			.recordDelimiter('\n')

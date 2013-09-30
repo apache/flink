@@ -15,6 +15,7 @@
 
 package eu.stratosphere.pact.example.relational;
 
+import java.io.Serializable;
 import java.util.Iterator;
 
 import eu.stratosphere.pact.common.contract.CoGroupContract;
@@ -88,7 +89,8 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 	 * keywords. 
 	 */
 	@ConstantFieldsExcept(1)
-	public static class FilterDocs extends MapStub {
+	public static class FilterDocs extends MapStub implements Serializable {
+		private static final long serialVersionUID = 1L;
 		
 		private static final String[] KEYWORDS = { " editors ", " oscillations ", " convection " };
 		
@@ -122,7 +124,8 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 	 * MapStub that filters for records where the rank exceeds a certain threshold.
 	 */
 	@ConstantFieldsExcept({})
-	public static class FilterRanks extends MapStub {
+	public static class FilterRanks extends MapStub implements Serializable {
+		private static final long serialVersionUID = 1L;
 		
 		private static final int RANKFILTER = 50;
 		
@@ -149,7 +152,8 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 	 * (from the date string) is equal to a certain value.
 	 */
 	@ConstantFieldsExcept(1)
-	public static class FilterVisits extends MapStub {
+	public static class FilterVisits extends MapStub implements Serializable {
+		private static final long serialVersionUID = 1L;
 
 		private static final int YEARFILTER = 2010;
 		
@@ -179,7 +183,8 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 	 * ranks relation.
 	 */
 	@ConstantFieldsSecondExcept({})
-	public static class JoinDocRanks extends MatchStub {
+	public static class JoinDocRanks extends MatchStub implements Serializable {
+		private static final long serialVersionUID = 1L;
 
 		/**
 		 * Joins entries from the documents and ranks relation on their URL.
@@ -201,7 +206,8 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 	 * Otherwise, no pair is emitted.
 	 */
 	@ConstantFieldsFirstExcept({})
-	public static class AntiJoinVisits extends CoGroupStub {
+	public static class AntiJoinVisits extends CoGroupStub implements Serializable {
+		private static final long serialVersionUID = 1L;
 
 		/**
 		 * If the visit iterator is empty, all pairs of the rank iterator are emitted.
@@ -243,7 +249,7 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 		 * 1: DOCUMENT_TEXT
 		 */
 		// Create DataSourceContract for documents relation
-		FileDataSource docs = new FileDataSource(RecordInputFormat.class, docsInput, "Docs Input");
+		FileDataSource docs = new FileDataSource(new RecordInputFormat(), docsInput, "Docs Input");
 		docs.setDegreeOfParallelism(numSubTasks);
 		RecordInputFormat.configureRecordFormat(docs)
 			.recordDelimiter('\n')
@@ -258,7 +264,7 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 		 * 2: AVG_DURATION
 		 */
 		// Create DataSourceContract for ranks relation
-		FileDataSource ranks = new FileDataSource(RecordInputFormat.class, ranksInput, "Ranks input");
+		FileDataSource ranks = new FileDataSource(new RecordInputFormat(), ranksInput, "Ranks input");
 		ranks.setDegreeOfParallelism(numSubTasks);
 		RecordInputFormat.configureRecordFormat(ranks)
 			.recordDelimiter('\n')
@@ -273,7 +279,7 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 		 * 1: DATE
 		 */
 		// Create DataSourceContract for visits relation
-		FileDataSource visits = new FileDataSource(RecordInputFormat.class, visitsInput, "Visits input:q");
+		FileDataSource visits = new FileDataSource(new RecordInputFormat(), visitsInput, "Visits input:q");
 		visits.setDegreeOfParallelism(numSubTasks);
 		RecordInputFormat.configureRecordFormat(visits)
 			.recordDelimiter('\n')
@@ -283,7 +289,7 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 
 		// Create MapContract for filtering the entries from the documents
 		// relation
-		MapContract filterDocs = MapContract.builder(FilterDocs.class)
+		MapContract filterDocs = MapContract.builder(new FilterDocs())
 			.input(docs)
 			.name("Filter Docs")
 			.build();
@@ -293,7 +299,7 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 		filterDocs.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(new int[]{0}), 1);
 
 		// Create MapContract for filtering the entries from the ranks relation
-		MapContract filterRanks = MapContract.builder(FilterRanks.class)
+		MapContract filterRanks = MapContract.builder(new FilterRanks())
 			.input(ranks)
 			.name("Filter Ranks")
 			.build();
@@ -302,7 +308,7 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 		filterRanks.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(new int[]{0}), 1);
 
 		// Create MapContract for filtering the entries from the visits relation
-		MapContract filterVisits = MapContract.builder(FilterVisits.class)
+		MapContract filterVisits = MapContract.builder(new FilterVisits())
 			.input(visits)
 			.name("Filter Visits")
 			.build();
@@ -312,7 +318,7 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 
 		// Create MatchContract to join the filtered documents and ranks
 		// relation
-		MatchContract joinDocsRanks = MatchContract.builder(JoinDocRanks.class, PactString.class, 0, 0)
+		MatchContract joinDocsRanks = MatchContract.builder(new JoinDocRanks(), PactString.class, 0, 0)
 			.input1(filterDocs)
 			.input2(filterRanks)
 			.name("Join Docs Ranks")
@@ -321,7 +327,7 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 
 		// Create CoGroupContract to realize a anti join between the joined
 		// documents and ranks relation and the filtered visits relation
-		CoGroupContract antiJoinVisits = CoGroupContract.builder(AntiJoinVisits.class, PactString.class, 0, 0)
+		CoGroupContract antiJoinVisits = CoGroupContract.builder(new AntiJoinVisits(), PactString.class, 0, 0)
 			.input1(joinDocsRanks)
 			.input2(filterVisits)
 			.name("Antijoin DocsVisits")
@@ -330,7 +336,7 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 		antiJoinVisits.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.8f);
 
 		// Create DataSinkContract for writing the result of the OLAP query
-		FileDataSink result = new FileDataSink(RecordOutputFormat.class, output, antiJoinVisits, "Result");
+		FileDataSink result = new FileDataSink(new RecordOutputFormat(), output, antiJoinVisits, "Result");
 		result.setDegreeOfParallelism(numSubTasks);
 		RecordOutputFormat.configureRecordFormat(result)
 			.recordDelimiter('\n')

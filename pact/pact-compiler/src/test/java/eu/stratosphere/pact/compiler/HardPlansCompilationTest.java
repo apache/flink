@@ -51,21 +51,21 @@ public class HardPlansCompilationTest extends CompilerTestBase
 	@Test
 	public void testTicket158() {
 		// construct the plan
-		FileDataSource source = new FileDataSource(DummyInputFormat.class, IN_FILE, "Source");
+		FileDataSource source = new FileDataSource(new DummyInputFormat(), IN_FILE, "Source");
 		
-		MapContract map = MapContract.builder(IdentityMap.class).name("Map1").input(source).build();
+		MapContract map = MapContract.builder(new IdentityMap()).name("Map1").input(source).build();
 		
-		ReduceContract reduce1 = ReduceContract.builder(IdentityReduce.class, PactInteger.class, 0).name("Reduce1").input(map).build();
+		ReduceContract reduce1 = ReduceContract.builder(new IdentityReduce(), PactInteger.class, 0).name("Reduce1").input(map).build();
 		
-		CrossContract cross1 = CrossContract.builder(DummyCrossStub.class).name("Cross1").input1(reduce1).input2(source).build();
+		CrossContract cross1 = CrossContract.builder(new DummyCrossStub()).name("Cross1").input1(reduce1).input2(source).build();
 		
-		ReduceContract reduce2 = ReduceContract.builder(IdentityReduce.class, PactInteger.class, 0).name("Reduce2").input(cross1).build();
+		ReduceContract reduce2 = ReduceContract.builder(new IdentityReduce(), PactInteger.class, 0).name("Reduce2").input(cross1).build();
 		
-		CrossContract cross2 = CrossContract.builder(DummyCrossStub.class).name("Cross2").input1(reduce2).input2(source).build();
+		CrossContract cross2 = CrossContract.builder(new DummyCrossStub()).name("Cross2").input1(reduce2).input2(source).build();
 		
-		ReduceContract reduce3 = ReduceContract.builder(IdentityReduce.class, PactInteger.class, 0).name("Reduce3").input(cross2).build();
+		ReduceContract reduce3 = ReduceContract.builder(new IdentityReduce(), PactInteger.class, 0).name("Reduce3").input(cross2).build();
 		
-		FileDataSink sink = new FileDataSink(DummyOutputFormat.class, OUT_FILE, "Sink");
+		FileDataSink sink = new FileDataSink(new DummyOutputFormat(), OUT_FILE, "Sink");
 		sink.setInput(reduce3);
 		
 		Plan plan = new Plan(sink, "Test Temp Task");

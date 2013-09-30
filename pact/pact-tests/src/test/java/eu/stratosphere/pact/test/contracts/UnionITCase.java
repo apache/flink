@@ -17,6 +17,7 @@ package eu.stratosphere.pact.test.contracts;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.Collection;
 import java.util.LinkedList;
 
@@ -92,8 +93,9 @@ public class UnionITCase extends TestBase {
 		getFilesystemProvider().createFile(tempDir+emptyInputFilePathPostfix+"/UnionTest_4.txt", "");
 	}
 
-	public static class TestMapper extends MapStub {
-
+	public static class TestMapper extends MapStub implements Serializable {
+		private static final long serialVersionUID = 1L;
+		
 		private PactString keyString = new PactString();
 		private PactString valueString = new PactString();
 		
@@ -122,22 +124,22 @@ public class UnionITCase extends TestBase {
 		
 		
 		FileDataSource input1 = new FileDataSource(
-			ContractITCaseInputFormat.class, pathPrefix + config.getString("UnionTest#Input1Path", ""));
+			new ContractITCaseInputFormat(), pathPrefix + config.getString("UnionTest#Input1Path", ""));
 		DelimitedInputFormat.configureDelimitedFormat(input1)
 			.recordDelimiter('\n');
 		input1.setDegreeOfParallelism(config.getInteger("UnionTest#NoSubtasks", 1));
 		
 		FileDataSource input2 = new FileDataSource(
-				ContractITCaseInputFormat.class, pathPrefix + config.getString("UnionTest#Input2Path", ""));
+				new ContractITCaseInputFormat(), pathPrefix + config.getString("UnionTest#Input2Path", ""));
 		DelimitedInputFormat.configureDelimitedFormat(input2)
 			.recordDelimiter('\n');
 		input2.setDegreeOfParallelism(config.getInteger("UnionTest#NoSubtasks", 1));
 		
-		MapContract testMapper = MapContract.builder(TestMapper.class).build();
+		MapContract testMapper = MapContract.builder(new TestMapper()).build();
 		testMapper.setDegreeOfParallelism(config.getInteger("UnionTest#NoSubtasks", 1));
 
 		FileDataSink output = new FileDataSink(
-				ContractITCaseOutputFormat.class, pathPrefix + "/result.txt");
+				new ContractITCaseOutputFormat(), pathPrefix + "/result.txt");
 		output.setDegreeOfParallelism(1);
 
 		output.addInput(testMapper);

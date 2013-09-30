@@ -1,8 +1,11 @@
 package eu.stratosphere.pact.test.iterative.nephele.danglingpagerank;
 
+import java.io.Serializable;
+
 import com.google.common.base.Charsets;
 
-public class AsciiLongArrayView {
+public class AsciiLongArrayView implements Serializable {
+  private static final long serialVersionUID = 1L;
 
   private byte[] buffer;
 

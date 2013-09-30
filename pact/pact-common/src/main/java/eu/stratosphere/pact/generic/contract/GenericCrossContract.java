@@ -32,7 +32,15 @@ import eu.stratosphere.pact.generic.stub.GenericCrosser;
  */
 public class GenericCrossContract<T extends GenericCrosser<?, ?, ?>> extends DualInputContract<T>
 {
-	public GenericCrossContract(Class<? extends T> udf, String name) {
+	public GenericCrossContract(UserCodeWrapper<T> udf, String name) {
 		super(udf, name);
+	}
+	
+	public GenericCrossContract(T udf, String name) {
+		this(new UserCodeObjectWrapper<T>(udf), name);
+	}
+	
+	public GenericCrossContract(Class<? extends T> udf, String name) {
+		this(new UserCodeClassWrapper<T>(udf), name);
 	}
 }

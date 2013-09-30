@@ -32,6 +32,7 @@ import eu.stratosphere.pact.common.type.base.PactInteger;
  * "42|23.23|52.57|74.43| Id: 42 Coordinate vector: (23.23, 52.57, 74.43)
  */
 public class PointOutFormat extends DelimitedOutputFormat {
+	private static final long serialVersionUID = 1L;
 	
 	private final DecimalFormat df = new DecimalFormat("####0.00");
 	private final StringBuilder line = new StringBuilder();

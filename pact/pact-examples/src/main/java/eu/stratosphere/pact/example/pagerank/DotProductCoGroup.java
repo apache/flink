@@ -10,6 +10,7 @@ import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.example.util.ConfigUtils;
 
+import java.io.Serializable;
 import java.util.Iterator;
 
 /**
@@ -18,7 +19,8 @@ import java.util.Iterator;
  * OUTPUT = (pageId, newRank, dangling)
  */
 @ConstantFieldsFirst(0)
-public class DotProductCoGroup extends CoGroupStub {
+public class DotProductCoGroup extends CoGroupStub implements Serializable {
+	private static final long serialVersionUID = 1L;
 	
 	public static final String NUM_VERTICES_PARAMETER = "pageRank.numVertices";
 	

@@ -38,6 +38,8 @@ import eu.stratosphere.pact.common.type.PactRecord;
  */
 public abstract class ExternalProcessFixedLengthInputFormat<T extends ExternalProcessInputSplit> extends ExternalProcessInputFormat<T> {
 
+	private static final long serialVersionUID = 1L;
+
 	/**
 	 * The config parameter which defines the fixed length of a record.
 	 */

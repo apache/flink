@@ -16,6 +16,7 @@
 package eu.stratosphere.pact.example.shortestpaths;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -75,6 +76,7 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 	 *
 	 */
 	public static class RDFTripleInFormat extends DelimitedInputFormat {
+		private static final long serialVersionUID = 1L;
 
 		private final PactString fromNode = new PactString();
 		private final PactString toNode = new PactString();
@@ -127,6 +129,7 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 	 * - hop list at field position 3. 
 	 */
 	public static class PathInFormat extends DelimitedInputFormat {
+		private static final long serialVersionUID = 1L;
 		
 		private final PactString fromNode = new PactString();
 		private final PactString toNode = new PactString();
@@ -167,6 +170,7 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 	 *
 	 */
 	public static class PathOutFormat extends FileOutputFormat {
+		private static final long serialVersionUID = 1L;
 
 		@Override
 		public void writeRecord(PactRecord record) throws IOException {
@@ -201,7 +205,8 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 	 */
 	@ConstantFieldsFirst(1)
 	@ConstantFieldsSecond(0)
-	public static class ConcatPaths extends MatchStub {
+	public static class ConcatPaths extends MatchStub implements Serializable {
+		private static final long serialVersionUID = 1L;
 
 		private final PactRecord outputRecord = new PactRecord();
 		
@@ -263,7 +268,8 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 	 */
 	@ConstantFieldsFirst({0,1})
 	@ConstantFieldsSecond({0,1})
-	public static class FindShortestPath extends CoGroupStub {
+	public static class FindShortestPath extends CoGroupStub implements Serializable {
+		private static final long serialVersionUID = 1L;
 
 		private final PactRecord outputRecord = new PactRecord();
 		
@@ -383,27 +389,27 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 		FileDataSource pathsInput;
 		
 		if(rdfInput) {
-			pathsInput = new FileDataSource(RDFTripleInFormat.class, paths, "RDF Triples");
+			pathsInput = new FileDataSource(new RDFTripleInFormat(), paths, "RDF Triples");
 		} else {
-			pathsInput = new FileDataSource(PathInFormat.class, paths, "Paths");
+			pathsInput = new FileDataSource(new PathInFormat(), paths, "Paths");
 		}
 		pathsInput.setDegreeOfParallelism(numSubTasks);
 
 		MatchContract concatPaths = 
-				MatchContract.builder(ConcatPaths.class, PactString.class, 0, 1)
+				MatchContract.builder(new ConcatPaths(), PactString.class, 0, 1)
 			.name("Concat Paths")
 			.build();
 
 		concatPaths.setDegreeOfParallelism(numSubTasks);
 
 		CoGroupContract findShortestPaths = 
-				CoGroupContract.builder(FindShortestPath.class, PactString.class, 0, 0)
+				CoGroupContract.builder(new FindShortestPath(), PactString.class, 0, 0)
 			.keyField(PactString.class, 1, 1)
 			.name("Find Shortest Paths")
 			.build();
 		findShortestPaths.setDegreeOfParallelism(numSubTasks);
 
-		FileDataSink result = new FileDataSink(PathOutFormat.class,output, "New Paths");
+		FileDataSink result = new FileDataSink(new PathOutFormat(),output, "New Paths");
 		result.setDegreeOfParallelism(numSubTasks);
 
 		result.addInput(findShortestPaths);

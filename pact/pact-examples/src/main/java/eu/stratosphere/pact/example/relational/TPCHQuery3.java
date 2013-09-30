@@ -15,6 +15,7 @@
 
 package eu.stratosphere.pact.example.relational;
 
+import java.io.Serializable;
 import java.util.Iterator;
 
 import eu.stratosphere.nephele.configuration.Configuration;
@@ -71,7 +72,8 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	 * Map PACT implements the selection and projection on the orders table.
 	 */
 	@ConstantFields({0,1})
-	public static class FilterO extends MapStub {
+	public static class FilterO extends MapStub implements Serializable {
+		private static final long serialVersionUID = 1L;
 		
 		private String prioFilter;		// filter literal for the order priority
 		private int yearFilter;			// filter literal for the year
@@ -127,7 +129,8 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	 *
 	 */
 	@ConstantFieldsFirst({0,1})
-	public static class JoinLiO extends MatchStub {
+	public static class JoinLiO extends MatchStub implements Serializable {
+		private static final long serialVersionUID = 1L;
 		
 		/**
 		 * Implements the join between LineItem and Order table on the order key.
@@ -152,7 +155,8 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	 */
 	@Combinable
 	@ConstantFields({0,1})
-	public static class AggLiO extends ReduceStub {
+	public static class AggLiO extends ReduceStub implements Serializable {
+		private static final long serialVersionUID = 1L;
 		
 		private final PactDouble extendedPrice = new PactDouble();
 		
@@ -200,7 +204,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		final String output        = (args.length > 3 ? args[3] : "");
 
 		// create DataSourceContract for Orders input
-		FileDataSource orders = new FileDataSource(RecordInputFormat.class, ordersPath, "Orders");
+		FileDataSource orders = new FileDataSource(new RecordInputFormat(), ordersPath, "Orders");
 		RecordInputFormat.configureRecordFormat(orders)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
@@ -211,7 +215,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 			.field(VarLengthStringParser.class, 5, 8);	// order prio
 
 		// create DataSourceContract for LineItems input
-		FileDataSource lineitems = new FileDataSource(RecordInputFormat.class, lineitemsPath, "LineItems");
+		FileDataSource lineitems = new FileDataSource(new RecordInputFormat(), lineitemsPath, "LineItems");
 		RecordInputFormat.configureRecordFormat(lineitems)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
@@ -219,7 +223,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 			.field(DecimalTextDoubleParser.class, 5);	// extended price
 
 		// create MapContract for filtering Orders tuples
-		MapContract filterO = MapContract.builder(FilterO.class)
+		MapContract filterO = MapContract.builder(new FilterO())
 			.input(orders)
 			.name("FilterO")
 			.build();
@@ -230,7 +234,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		filterO.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.05f);
 
 		// create MatchContract for joining Orders and LineItems
-		MatchContract joinLiO = MatchContract.builder(JoinLiO.class, PactLong.class, 0, 0)
+		MatchContract joinLiO = MatchContract.builder(new JoinLiO(), PactLong.class, 0, 0)
 			.input1(filterO)
 			.input2(lineitems)
 			.name("JoinLiO")
@@ -238,7 +242,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 
 		// create ReduceContract for aggregating the result
 		// the reducer has a composite key, consisting of the fields 0 and 1
-		ReduceContract aggLiO = ReduceContract.builder(AggLiO.class)
+		ReduceContract aggLiO = ReduceContract.builder(new AggLiO())
 			.keyField(PactLong.class, 0)
 			.keyField(PactString.class, 1)
 			.input(joinLiO)
@@ -246,7 +250,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 			.build();
 
 		// create DataSinkContract for writing the result
-		FileDataSink result = new FileDataSink(RecordOutputFormat.class, output, aggLiO, "Output");
+		FileDataSink result = new FileDataSink(new RecordOutputFormat(), output, aggLiO, "Output");
 		RecordOutputFormat.configureRecordFormat(result)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')

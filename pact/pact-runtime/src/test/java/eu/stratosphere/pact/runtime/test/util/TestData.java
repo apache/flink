@@ -51,6 +51,8 @@ public final class TestData {
 	 * Key implementation.
 	 */
 	public static class Key extends PactInteger {
+		private static final long serialVersionUID = 1L;
+		
 		public Key() {
 			super();
 		}
@@ -72,6 +74,7 @@ public final class TestData {
 	 * Value implementation.
 	 */
 	public static class Value extends PactString {
+		private static final long serialVersionUID = 1L;
 
 		public Value() {
 			super();

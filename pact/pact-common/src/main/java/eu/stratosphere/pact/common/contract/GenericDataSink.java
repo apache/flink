@@ -20,6 +20,9 @@ import java.util.List;
 
 import eu.stratosphere.pact.common.util.Visitor;
 import eu.stratosphere.pact.generic.contract.Contract;
+import eu.stratosphere.pact.generic.contract.UserCodeClassWrapper;
+import eu.stratosphere.pact.generic.contract.UserCodeObjectWrapper;
+import eu.stratosphere.pact.generic.contract.UserCodeWrapper;
 import eu.stratosphere.pact.generic.io.OutputFormat;
 
 /**
@@ -27,13 +30,12 @@ import eu.stratosphere.pact.generic.io.OutputFormat;
  * contract. The way the data is stored is handled by the {@link OutputFormat}.
  * 
  */
-public class GenericDataSink extends Contract 
-{
+public class GenericDataSink extends Contract {
 	private static String DEFAULT_NAME = "<Unnamed Generic Data Sink>";
 
 	// --------------------------------------------------------------------------------------------
 	
-	protected final Class<? extends OutputFormat<?>> clazz;
+	protected final UserCodeWrapper<? extends OutputFormat<?>> formatWrapper;
 
 	private List<Contract> input = new ArrayList<Contract>();
 
@@ -46,27 +48,28 @@ public class GenericDataSink extends Contract
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Creates a GenericDataSink with the provided {@link OutputFormat} implementation
-	 * and a default name.
-	 * 
-	 * @param c The {@link OutputFormat} implementation used to sink the data.
-	 */
-	public GenericDataSink(Class<? extends OutputFormat<?>> c) {
-		this(c, DEFAULT_NAME);
-	}
-	
-	/**
 	 * Creates a GenericDataSink with the provided {@link OutputFormat} implementation 
 	 * and the given name. 
 	 * 
 	 * @param c The {@link OutputFormat} implementation used to sink the data.
 	 * @param name The given name for the sink, used in plans, logs and progress messages.
 	 */
-	public GenericDataSink(Class<? extends OutputFormat<?>> c, String name) {
+	public GenericDataSink(OutputFormat<?> f, String name) {
 		super(name);
-		this.clazz = c;
+		this.formatWrapper = new UserCodeObjectWrapper<OutputFormat<?>>(f);
 	}
 
+	
+	/**
+	 * Creates a GenericDataSink with the provided {@link OutputFormat} implementation
+	 * and a default name.
+	 * 
+	 * @param c The {@link OutputFormat} implementation used to sink the data.
+	 */
+	public GenericDataSink(OutputFormat<?> f) {
+		this(f, DEFAULT_NAME);
+	}
+	
 	/**
 	 * Creates a GenericDataSink with the provided {@link OutputFormat} implementation the default name.
 	 * It uses the given contract as its input.
@@ -74,8 +77,8 @@ public class GenericDataSink extends Contract
 	 * @param c The {@link OutputFormat} implementation used to sink the data.
 	 * @param input The contract to use as the input.
 	 */
-	public GenericDataSink(Class<? extends OutputFormat<?>> c, Contract input) {
-		this(c, input, DEFAULT_NAME);
+	public GenericDataSink(OutputFormat<?> f, Contract input) {
+		this(f, input, DEFAULT_NAME);
 	}
 	
 	/**
@@ -85,8 +88,8 @@ public class GenericDataSink extends Contract
 	 * @param c The {@link OutputFormat} implementation used to sink the data.
 	 * @param input The contracts to use as the input.
 	 */
-	public GenericDataSink(Class<? extends OutputFormat<?>> c, List<Contract> input) {
-		this(c, input, DEFAULT_NAME);
+	public GenericDataSink(OutputFormat<?> f, List<Contract> input) {
+		this(f, input, DEFAULT_NAME);
 	}
 
 	/**
@@ -97,8 +100,8 @@ public class GenericDataSink extends Contract
 	 * @param input The contract to use as the input.
 	 * @param name The given name for the sink, used in plans, logs and progress messages.
 	 */
-	public GenericDataSink(Class<? extends OutputFormat<?>> c, Contract input, String name) {
-		this(c, name);
+	public GenericDataSink(OutputFormat<?> f, Contract input, String name) {
+		this(f, name);
 		addInput(input);
 	}
 
@@ -110,8 +113,79 @@ public class GenericDataSink extends Contract
 	 * @param input The contracts to use as the input.
 	 * @param name The given name for the sink, used in plans, logs and progress messages.
 	 */
-	public GenericDataSink(Class<? extends OutputFormat<?>> c, List<Contract> input, String name) {
-		this(c, name);
+	public GenericDataSink(OutputFormat<?> f, List<Contract> input, String name) {
+		this(f, name);
+		addInputs(input);
+	}
+	
+	/**
+	 * Creates a GenericDataSink with the provided {@link OutputFormat} implementation 
+	 * and the given name. 
+	 * 
+	 * @param c The {@link OutputFormat} implementation used to sink the data.
+	 * @param name The given name for the sink, used in plans, logs and progress messages.
+	 */
+	public GenericDataSink(Class<? extends OutputFormat<?>> f, String name) {
+		super(name);
+		this.formatWrapper = new UserCodeClassWrapper<OutputFormat<?>>(f);
+	}
+
+	
+	/**
+	 * Creates a GenericDataSink with the provided {@link OutputFormat} implementation
+	 * and a default name.
+	 * 
+	 * @param c The {@link OutputFormat} implementation used to sink the data.
+	 */
+	public GenericDataSink(Class<? extends OutputFormat<?>> f) {
+		this(f, DEFAULT_NAME);
+	}
+	
+	/**
+	 * Creates a GenericDataSink with the provided {@link OutputFormat} implementation the default name.
+	 * It uses the given contract as its input.
+	 * 
+	 * @param c The {@link OutputFormat} implementation used to sink the data.
+	 * @param input The contract to use as the input.
+	 */
+	public GenericDataSink(Class<? extends OutputFormat<?>> f, Contract input) {
+		this(f, input, DEFAULT_NAME);
+	}
+	
+	/**
+	 * Creates a GenericDataSink with the provided {@link OutputFormat} implementation the default name.
+	 * It uses the given contracts as its input.
+	 * 
+	 * @param c The {@link OutputFormat} implementation used to sink the data.
+	 * @param input The contracts to use as the input.
+	 */
+	public GenericDataSink(Class<? extends OutputFormat<?>> f, List<Contract> input) {
+		this(f, input, DEFAULT_NAME);
+	}
+
+	/**
+	 * Creates a GenericDataSink with the provided {@link OutputFormat} implementation and the given name.
+	 * It uses the given contract as its input.
+	 * 
+	 * @param c The {@link OutputFormat} implementation used to sink the data.
+	 * @param input The contract to use as the input.
+	 * @param name The given name for the sink, used in plans, logs and progress messages.
+	 */
+	public GenericDataSink(Class<? extends OutputFormat<?>> f, Contract input, String name) {
+		this(f, name);
+		addInput(input);
+	}
+
+	/**
+	 * Creates a GenericDataSink with the provided {@link OutputFormat} implementation and the given name.
+	 * It uses the given contracts as its input.
+	 * 
+	 * @param c The {@link OutputFormat} implementation used to sink the data.
+	 * @param input The contracts to use as the input.
+	 * @param name The given name for the sink, used in plans, logs and progress messages.
+	 */
+	public GenericDataSink(Class<? extends OutputFormat<?>> f, List<Contract> input, String name) {
+		this(f, name);
 		addInputs(input);
 	}
 
@@ -261,9 +335,9 @@ public class GenericDataSink extends Contract
 	 * 
 	 * @return The output format class.
 	 */
-	public Class<? extends OutputFormat<?>> getFormatClass()
+	public UserCodeWrapper<? extends OutputFormat<?>> getFormatWrapper()
 	{
-		return this.clazz;
+		return this.formatWrapper;
 	}
 	
 	/**
@@ -276,9 +350,9 @@ public class GenericDataSink extends Contract
 	 * @see eu.stratosphere.pact.generic.contract.Contract#getUserCodeClass()
 	 */
 	@Override
-	public Class<? extends OutputFormat<?>> getUserCodeClass()
+	public UserCodeWrapper<? extends OutputFormat<?>> getUserCodeWrapper()
 	{
-		return this.clazz;
+		return this.formatWrapper;
 	}
 
 	// --------------------------------------------------------------------------------------------

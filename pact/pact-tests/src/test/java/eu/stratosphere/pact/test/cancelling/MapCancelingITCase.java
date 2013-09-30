@@ -33,12 +33,12 @@ public class MapCancelingITCase extends CancellingTestBase {
 	@Test
 	public void testMapCancelling() throws Exception {
 		GenericDataSource<InfiniteIntegerInputFormat> source = new GenericDataSource<InfiniteIntegerInputFormat>(
-																		InfiniteIntegerInputFormat.class, "Source");
+																		new InfiniteIntegerInputFormat(), "Source");
 		MapContract mapper = MapContract.builder(IdentityMapper.class)
 			.input(source)
 			.name("Identity Mapper")
 			.build();
-		GenericDataSink sink = new GenericDataSink(DiscardingOutputFormat.class, mapper, "Sink");
+		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), mapper, "Sink");
 		
 		
 		Plan p = new Plan(sink);
@@ -50,12 +50,12 @@ public class MapCancelingITCase extends CancellingTestBase {
 	@Test
 	public void testSlowMapCancelling() throws Exception {
 		GenericDataSource<InfiniteIntegerInputFormat> source = new GenericDataSource<InfiniteIntegerInputFormat>(
-																		InfiniteIntegerInputFormat.class, "Source");
+																		new InfiniteIntegerInputFormat(), "Source");
 		MapContract mapper = MapContract.builder(DelayingIdentityMapper.class)
 			.input(source)
 			.name("Delay Mapper")
 			.build();
-		GenericDataSink sink = new GenericDataSink(DiscardingOutputFormat.class, mapper, "Sink");
+		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), mapper, "Sink");
 		
 		
 		Plan p = new Plan(sink);
@@ -67,12 +67,12 @@ public class MapCancelingITCase extends CancellingTestBase {
 	@Test
 	public void testMapWithLongCancellingResponse() throws Exception {
 		GenericDataSource<InfiniteIntegerInputFormat> source = new GenericDataSource<InfiniteIntegerInputFormat>(
-																		InfiniteIntegerInputFormat.class, "Source");
+																		new InfiniteIntegerInputFormat(), "Source");
 		MapContract mapper = MapContract.builder(LongCancelTimeIdentityMapper.class)
 			.input(source)
 			.name("Long Cancelling Time Mapper")
 			.build();
-		GenericDataSink sink = new GenericDataSink(DiscardingOutputFormat.class, mapper, "Sink");
+		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), mapper, "Sink");
 		
 		
 		Plan p = new Plan(sink);
@@ -84,12 +84,12 @@ public class MapCancelingITCase extends CancellingTestBase {
 	@Test
 	public void testMapPriorToFirstRecordReading() throws Exception {
 		GenericDataSource<InfiniteIntegerInputFormat> source = new GenericDataSource<InfiniteIntegerInputFormat>(
-																		InfiniteIntegerInputFormat.class, "Source");
+																		new InfiniteIntegerInputFormat(), "Source");
 		MapContract mapper = MapContract.builder(StuckInOpenIdentityMapper.class)
 			.input(source)
 			.name("Stuck-In-Open Mapper")
 			.build();
-		GenericDataSink sink = new GenericDataSink(DiscardingOutputFormat.class, mapper, "Sink");
+		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), mapper, "Sink");
 		
 		
 		Plan p = new Plan(sink);

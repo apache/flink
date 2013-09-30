@@ -81,7 +81,7 @@ public class ContextChecker implements Visitor<Contract> {
 			checkDataSink((GenericDataSink) node);
 		} else if (node instanceof BulkIteration) {
 			checkBulkIteration((BulkIteration) node);
-		} else if (node instanceof SingleInputContract<?>) {
+		} else if (node instanceof SingleInputContract) {
 			checkSingleInputContract((SingleInputContract<?>) node);
 		} else if (node instanceof DualInputContract<?>) {
 			checkDualInputContract((DualInputContract<?>) node);

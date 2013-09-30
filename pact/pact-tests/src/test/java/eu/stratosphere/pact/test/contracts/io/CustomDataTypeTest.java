@@ -67,10 +67,10 @@ public class CustomDataTypeTest extends TestBase
 	@Override
 	protected JobGraph getJobGraph() throws Exception {
 		GenericDataSource<EmptyInputFormat> datasource = 
-				new GenericDataSource<EmptyInputFormat>(EmptyInputFormat.class, "Source");
+				new GenericDataSource<EmptyInputFormat>(new EmptyInputFormat(), "Source");
 		datasource.getParameters().setString(CLASS_TO_INSTANTIATE_KEY, CLASS_TO_INSTANTIATE_NAME);
 		
-		GenericDataSink sink = new GenericDataSink(BlackholeOutputFormat.class, datasource, "Sink");
+		GenericDataSink sink = new GenericDataSink(new BlackholeOutputFormat(), datasource, "Sink");
 		sink.getParameters().setString(CLASS_TO_INSTANTIATE_KEY, CLASS_TO_INSTANTIATE_NAME);
 		
 		Plan plan = new Plan(sink);
@@ -89,6 +89,7 @@ public class CustomDataTypeTest extends TestBase
 	}
 	
 	public static final class EmptyInputFormat extends GenericInputFormat {
+		private static final long serialVersionUID = 1L;
 		
 		@Override
 		public void configure(Configuration parameters)	{
@@ -109,6 +110,7 @@ public class CustomDataTypeTest extends TestBase
 	}
 	
 	public static final class BlackholeOutputFormat implements OutputFormat<PactRecord> {
+		private static final long serialVersionUID = 1L;
 		
 		@Override
 		public void configure(Configuration parameters) {

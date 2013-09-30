@@ -50,6 +50,7 @@ import eu.stratosphere.pact.common.type.Value;
  * @see PactRecord
  */
 public class RecordOutputFormat extends FileOutputFormat {
+	private static final long serialVersionUID = 1L;
 	
 	public static final String RECORD_DELIMITER_PARAMETER = "pact.output.record.delimiter";
 	

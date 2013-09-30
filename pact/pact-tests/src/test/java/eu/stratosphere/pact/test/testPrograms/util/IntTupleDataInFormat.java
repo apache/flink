@@ -20,6 +20,7 @@ import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 
 public class IntTupleDataInFormat extends DelimitedInputFormat {
+	private static final long serialVersionUID = 1L;
 
 	public static final int MAX_COLUMNS = 20;
 

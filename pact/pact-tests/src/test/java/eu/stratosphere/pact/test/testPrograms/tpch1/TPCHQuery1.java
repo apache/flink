@@ -61,21 +61,21 @@ public class TPCHQuery1 implements PlanAssembler, PlanAssemblerDescription {
 		}
 		
 		FileDataSource lineItems =
-			new FileDataSource(IntTupleDataInFormat.class, this.lineItemInputPath, "LineItems");
+			new FileDataSource(new IntTupleDataInFormat(), this.lineItemInputPath, "LineItems");
 		lineItems.setDegreeOfParallelism(this.degreeOfParallelism);
 		
 		FileDataSink result = 
-			new FileDataSink(StringTupleDataOutFormat.class, this.outputPath, "Output");
+			new FileDataSink(new StringTupleDataOutFormat(), this.outputPath, "Output");
 		result.setDegreeOfParallelism(this.degreeOfParallelism);
 		
 		MapContract lineItemFilter = 
-			MapContract.builder(LineItemFilter.class)
+			MapContract.builder(new LineItemFilter())
 			.name("LineItem Filter")
 			.build();
 		lineItemFilter.setDegreeOfParallelism(this.degreeOfParallelism);
 		
 		ReduceContract groupByReturnFlag = 
-			new ReduceContract.Builder(GroupByReturnFlag.class, PactString.class, 0)
+			ReduceContract.builder(new GroupByReturnFlag(), PactString.class, 0)
 			.name("groupyBy")
 			.build();
 		

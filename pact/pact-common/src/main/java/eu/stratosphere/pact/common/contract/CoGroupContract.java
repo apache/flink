@@ -27,6 +27,9 @@ import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.generic.contract.Contract;
 import eu.stratosphere.pact.generic.contract.GenericCoGroupContract;
+import eu.stratosphere.pact.generic.contract.UserCodeClassWrapper;
+import eu.stratosphere.pact.generic.contract.UserCodeObjectWrapper;
+import eu.stratosphere.pact.generic.contract.UserCodeWrapper;
 
 /**
  * CrossContract represents a Match InputContract of the PACT Programming Model.
@@ -67,9 +70,22 @@ public class CoGroupContract extends GenericCoGroupContract<CoGroupStub> impleme
 	 * @param keyColumn1 The position of the key in the first input's records.
 	 * @param keyColumn2 The position of the key in the second input's records.
 	 */
+	public static Builder builder(CoGroupStub udf, Class<? extends Key> keyClass,
+			int keyColumn1, int keyColumn2) {
+		return new Builder(new UserCodeObjectWrapper<CoGroupStub>(udf), keyClass, keyColumn1, keyColumn2);
+	}
+	
+	/**
+	 * Creates a Builder with the provided {@link CoGroupStub} implementation.
+	 * 
+	 * @param udf The {@link CoGroupStub} implementation for this CoGroup contract.
+	 * @param keyClass The class of the key data type.
+	 * @param keyColumn1 The position of the key in the first input's records.
+	 * @param keyColumn2 The position of the key in the second input's records.
+	 */
 	public static Builder builder(Class<? extends CoGroupStub> udf, Class<? extends Key> keyClass,
 			int keyColumn1, int keyColumn2) {
-		return new Builder(udf, keyClass, keyColumn1, keyColumn2);
+		return new Builder(new UserCodeClassWrapper<CoGroupStub>(udf), keyClass, keyColumn1, keyColumn2);
 	}
 	
 	/**
@@ -168,12 +184,12 @@ public class CoGroupContract extends GenericCoGroupContract<CoGroupStub> impleme
 	
 	@Override
 	public boolean isCombinableFirst() {
-		return super.isCombinableFirst() || getUserCodeClass().getAnnotation(CombinableFirst.class) != null;
+		return super.isCombinableFirst() || getUserCodeAnnotation(CombinableFirst.class) != null;
 	}
 	
 	@Override
 	public boolean isCombinableSecond() {
-		return super.isCombinableSecond() || getUserCodeClass().getAnnotation(CombinableSecond.class) != null;
+		return super.isCombinableSecond() || getUserCodeAnnotation(CombinableSecond.class) != null;
 	}
 	
 	@Retention(RetentionPolicy.RUNTIME)
@@ -192,7 +208,7 @@ public class CoGroupContract extends GenericCoGroupContract<CoGroupStub> impleme
 	public static class Builder {
 		
 		/* The required parameters */
-		private final Class<? extends CoGroupStub> udf;
+		private final UserCodeWrapper<CoGroupStub> udf;
 		private final List<Class<? extends Key>> keyClasses;
 		private final List<Integer> keyColumns1;
 		private final List<Integer> keyColumns2;
@@ -212,7 +228,7 @@ public class CoGroupContract extends GenericCoGroupContract<CoGroupStub> impleme
 		 * @param keyColumn1 The position of the key in the first input's records.
 		 * @param keyColumn2 The position of the key in the second input's records.
 		 */
-		protected Builder(Class<? extends CoGroupStub> udf, Class<? extends Key> keyClass,
+		protected Builder(UserCodeWrapper<CoGroupStub> udf, Class<? extends Key> keyClass,
 				int keyColumn1, int keyColumn2)
 		{
 			this.udf = udf;
@@ -237,7 +253,7 @@ public class CoGroupContract extends GenericCoGroupContract<CoGroupStub> impleme
 		 * @param keyColumn1 The position of the key in the first input's records.
 		 * @param keyColumn2 The position of the key in the second input's records.
 		 */
-		protected Builder(Class<? extends CoGroupStub> udf) {
+		protected Builder(UserCodeWrapper<CoGroupStub> udf) {
 			this.udf = udf;
 			this.keyClasses = new ArrayList<Class<? extends Key>>();
 			this.keyColumns1 = new ArrayList<Integer>();

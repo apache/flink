@@ -51,42 +51,42 @@ public class EnumTrianglesWithDegrees implements PlanAssembler, PlanAssemblerDes
 		final char delimiter   = args.length > 3 ? (char) Integer.parseInt(args[3]) : ',';
 		
 
-		FileDataSource edges = new FileDataSource(EdgeInputFormat.class, edgeInput, "Input Edges");
+		FileDataSource edges = new FileDataSource(new EdgeInputFormat(), edgeInput, "Input Edges");
 		edges.setParameter(DelimitedInputFormat.RECORD_DELIMITER, "\n");
 		edges.setParameter(EdgeInputFormat.ID_DELIMITER_CHAR, delimiter);
 
 		// =========================== Vertex Degree ============================
 		
-		MapContract projectEdge = MapContract.builder(ProjectEdge.class)
+		MapContract projectEdge = MapContract.builder(new ProjectEdge())
 				.input(edges).name("Project Edge").build();
 		
-		ReduceContract edgeCounter = ReduceContract.builder(CountEdges.class, PactInteger.class, 0)
+		ReduceContract edgeCounter = ReduceContract.builder(new CountEdges(), PactInteger.class, 0)
 				.input(projectEdge).name("Count Edges for Vertex").build();
 		
-		ReduceContract countJoiner = ReduceContract.builder(JoinCountsAndUniquify.class, PactInteger.class, 0)
+		ReduceContract countJoiner = ReduceContract.builder(new JoinCountsAndUniquify(), PactInteger.class, 0)
 				.keyField(PactInteger.class, 1)
 				.input(edgeCounter).name("Join Counts").build();
 		
 		
 		// =========================== Triangle Enumeration ============================
 		
-		MapContract toLowerDegreeEdge = MapContract.builder(ProjectToLowerDegreeVertex.class)
+		MapContract toLowerDegreeEdge = MapContract.builder(new ProjectToLowerDegreeVertex())
 				.input(countJoiner).name("Select lower-degree Edge").build();
 		
-		MapContract projectOutCounts = MapContract.builder(ProjectOutCounts.class)
+		MapContract projectOutCounts = MapContract.builder(new ProjectOutCounts())
 				.input(countJoiner).name("Project out Counts").build();
 
-		ReduceContract buildTriads = ReduceContract.builder(BuildTriads.class, PactInteger.class, 0)
+		ReduceContract buildTriads = ReduceContract.builder(new BuildTriads(), PactInteger.class, 0)
 				.input(toLowerDegreeEdge).name("Build Triads").build();
 
-		MatchContract closeTriads = MatchContract.builder(CloseTriads.class, PactInteger.class, 1, 0)
+		MatchContract closeTriads = MatchContract.builder(new CloseTriads(), PactInteger.class, 1, 0)
 				.keyField(PactInteger.class, 2, 1)
 				.input1(buildTriads).input2(projectOutCounts)
 				.name("Close Triads").build();
 		closeTriads.setParameter("INPUT_SHIP_STRATEGY", "SHIP_REPARTITION_HASH");
 		closeTriads.setParameter("LOCAL_STRATEGY", "LOCAL_STRATEGY_HASH_BUILD_SECOND");
 
-		FileDataSink triangles = new FileDataSink(TriangleOutputFormat.class, output, closeTriads, "Triangles");
+		FileDataSink triangles = new FileDataSink(new TriangleOutputFormat(), output, closeTriads, "Triangles");
 
 		Plan p = new Plan(triangles, "Enumerate Triangles");
 		p.setDefaultParallelism(numSubTasks);

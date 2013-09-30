@@ -34,7 +34,15 @@ import eu.stratosphere.pact.generic.stub.GenericMapper;
  */
 public class GenericMapContract<T extends GenericMapper<?, ?>> extends SingleInputContract<T>
 {
-	public GenericMapContract(Class<? extends T> udf, String name) {
+	public GenericMapContract(UserCodeWrapper<T> udf, String name) {
 		super(udf, name);
+	}
+	
+	public GenericMapContract(T udf, String name) {
+		super(new UserCodeObjectWrapper<T>(udf), name);
+	}
+	
+	public GenericMapContract(Class<? extends T> udf, String name) {
+		super(new UserCodeClassWrapper<T>(udf), name);
 	}
 }

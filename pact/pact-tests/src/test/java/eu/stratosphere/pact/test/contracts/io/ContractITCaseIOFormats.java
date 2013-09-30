@@ -31,6 +31,7 @@ public class ContractITCaseIOFormats {
 	private static final Log LOG = LogFactory.getLog(ContractITCaseIOFormats.class);
 	
 	public static class ContractITCaseInputFormat extends DelimitedInputFormat {
+		private static final long serialVersionUID = 1L;
 
 		private final PactString keyString = new PactString();
 		private final PactString valueString = new PactString();
@@ -50,6 +51,8 @@ public class ContractITCaseIOFormats {
 	}
 
 	public static class ContractITCaseOutputFormat extends FileOutputFormat {
+		private static final long serialVersionUID = 1L;
+		
 		private final StringBuilder buffer = new StringBuilder();
 		private final PactString keyString = new PactString();
 		private final PactInteger valueInteger = new PactInteger();

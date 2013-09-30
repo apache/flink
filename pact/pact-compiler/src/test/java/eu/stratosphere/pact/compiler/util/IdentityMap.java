@@ -15,13 +15,16 @@
 
 package eu.stratosphere.pact.compiler.util;
 
+import java.io.Serializable;
+
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MapStub;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsExcept;
 import eu.stratosphere.pact.common.type.PactRecord;
 
 @ConstantFieldsExcept({})
-public final class IdentityMap extends MapStub {
+public final class IdentityMap extends MapStub implements Serializable {
+	private static final long serialVersionUID = 1L;
 	
 	@Override
 	public void map(PactRecord record, Collector<PactRecord> out) throws Exception {

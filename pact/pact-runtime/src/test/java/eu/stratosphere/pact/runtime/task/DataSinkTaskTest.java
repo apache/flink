@@ -191,8 +191,9 @@ public class DataSinkTaskTest extends TaskTestBase
 				
 	}
 	
-	public static class MockOutputFormat extends DelimitedOutputFormat
-	{
+	public static class MockOutputFormat extends DelimitedOutputFormat {
+		private static final long serialVersionUID = 1L;
+		
 		final StringBuilder bld = new StringBuilder();
 		
 		@Override
@@ -218,6 +219,7 @@ public class DataSinkTaskTest extends TaskTestBase
 	}
 	
 	public static class MockFailingOutputFormat extends MockOutputFormat {
+		private static final long serialVersionUID = 1L;
 
 		int cnt = 0;
 		

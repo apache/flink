@@ -22,6 +22,9 @@ import eu.stratosphere.pact.common.stubs.MapStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.generic.contract.Contract;
 import eu.stratosphere.pact.generic.contract.GenericMapContract;
+import eu.stratosphere.pact.generic.contract.UserCodeClassWrapper;
+import eu.stratosphere.pact.generic.contract.UserCodeObjectWrapper;
+import eu.stratosphere.pact.generic.contract.UserCodeWrapper;
 
 /**
  * MapContract represents a Pact with a Map Input Contract.
@@ -44,8 +47,17 @@ public class MapContract extends GenericMapContract<MapStub> implements RecordCo
 	 * 
 	 * @param udf The {@link MapStub} implementation for this Map contract.
 	 */
+	public static Builder builder(MapStub udf) {
+		return new Builder(new UserCodeObjectWrapper<MapStub>(udf));
+	}
+	
+	/**
+	 * Creates a Builder with the provided {@link MapStub} implementation.
+	 * 
+	 * @param udf The {@link MapStub} implementation for this Map contract.
+	 */
 	public static Builder builder(Class<? extends MapStub> udf) {
-		return new Builder(udf);
+		return new Builder(new UserCodeClassWrapper<MapStub>(udf));
 	}
 	
 	/**
@@ -73,7 +85,7 @@ public class MapContract extends GenericMapContract<MapStub> implements RecordCo
 	public static class Builder {
 		
 		/* The required parameters */
-		private final Class<? extends MapStub> udf;
+		private final UserCodeWrapper<MapStub> udf;
 		
 		/* The optional parameters */
 		private List<Contract> inputs;
@@ -84,7 +96,7 @@ public class MapContract extends GenericMapContract<MapStub> implements RecordCo
 		 * 
 		 * @param udf The {@link MapStub} implementation for this Map contract.
 		 */
-		private Builder(Class<? extends MapStub> udf) {
+		private Builder(UserCodeWrapper<MapStub> udf) {
 			this.udf = udf;
 			this.inputs = new ArrayList<Contract>();
 		}

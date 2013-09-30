@@ -36,6 +36,8 @@ import eu.stratosphere.pact.generic.io.DelimitedInputFormat;
  */
 public class StringInputFormat extends DelimitedInputFormat<Value[]>
 {
+	private static final long serialVersionUID = 1L;
+
 	public static final String CHARSET_NAME = "textformat.charset";
 	
 	public static final String DEFAULT_CHARSET_NAME = "UTF-8";

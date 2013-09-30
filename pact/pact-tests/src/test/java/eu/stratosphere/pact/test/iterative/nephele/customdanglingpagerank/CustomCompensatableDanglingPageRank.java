@@ -23,6 +23,7 @@ import eu.stratosphere.nephele.jobgraph.JobInputVertex;
 import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
+import eu.stratosphere.pact.generic.contract.UserCodeClassWrapper;
 import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
 import eu.stratosphere.pact.generic.types.TypePairComparatorFactory;
 import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
@@ -185,7 +186,7 @@ public class CustomCompensatableDanglingPageRank {
 		// the driver 
 		headConfig.setDriver(MapDriver.class);
 		headConfig.setDriverStrategy(DriverStrategy.MAP);
-		headConfig.setStubClass(CustomCompensatingMap.class);
+		headConfig.setStubWrapper(new UserCodeClassWrapper<CustomCompensatingMap>(CustomCompensatingMap.class));
 		headConfig.setStubParameter("pageRank.numVertices", String.valueOf(numVertices));
 		headConfig.setStubParameter("compensation.failingWorker", failingWorkers);
 		headConfig.setStubParameter("compensation.failingIteration", String.valueOf(failingIteration));
@@ -214,7 +215,7 @@ public class CustomCompensatableDanglingPageRank {
 		intermediateConfig.addOutputShipStrategy(ShipStrategyType.PARTITION_HASH);
 		intermediateConfig.setOutputComparator(vertexWithRankComparator, 0);
 		
-		intermediateConfig.setStubClass(CustomCompensatableDotProductMatch.class);
+		intermediateConfig.setStubWrapper(new UserCodeClassWrapper<CustomCompensatableDotProductMatch>(CustomCompensatableDotProductMatch.class));
 		intermediateConfig.setStubParameter("pageRank.numVertices", String.valueOf(numVertices));
 		intermediateConfig.setStubParameter("compensation.failingWorker", failingWorkers);
 		intermediateConfig.setStubParameter("compensation.failingIteration", String.valueOf(failingIteration));
@@ -251,7 +252,7 @@ public class CustomCompensatableDanglingPageRank {
 		tailConfig.setOutputSerializer(vertexWithRankAndDanglingSerializer);
 		
 		// the stub
-		tailConfig.setStubClass(CustomCompensatableDotProductCoGroup.class);
+		tailConfig.setStubWrapper(new UserCodeClassWrapper<CustomCompensatableDotProductCoGroup>(CustomCompensatableDotProductCoGroup.class));
 		tailConfig.setStubParameter("pageRank.numVertices", String.valueOf(numVertices));
 		tailConfig.setStubParameter("pageRank.numDanglingVertices", String.valueOf(numDanglingVertices));
 		tailConfig.setStubParameter("compensation.failingWorker", failingWorkers);
@@ -265,7 +266,7 @@ public class CustomCompensatableDanglingPageRank {
 		TaskConfig outputConfig = new TaskConfig(output.getConfiguration());
 		outputConfig.addInputToGroup(0);
 		outputConfig.setInputSerializer(vertexWithRankAndDanglingSerializer, 0);
-		outputConfig.setStubClass(CustomPageWithRankOutFormat.class);
+		outputConfig.setStubWrapper(new UserCodeClassWrapper<CustomPageWithRankOutFormat>(CustomPageWithRankOutFormat.class));
 		outputConfig.setStubParameter(FileOutputFormat.FILE_PARAMETER_KEY, outputPath);
 		
 		// --------------- the auxiliaries ---------------------

@@ -27,6 +27,7 @@ import eu.stratosphere.nephele.types.Record;
  * @author Arvid Heise
  */
 public abstract class BinaryOutputFormat<T extends Record> extends FileOutputFormat<T> {
+	private static final long serialVersionUID = 1L;
 	
 	/**
 	 * The config parameter which defines the fixed length of a record.

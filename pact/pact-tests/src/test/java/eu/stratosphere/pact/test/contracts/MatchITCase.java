@@ -17,6 +17,7 @@ package eu.stratosphere.pact.test.contracts;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.Collection;
 import java.util.LinkedList;
 
@@ -103,7 +104,8 @@ public class MatchITCase extends TestBase
 
 	}
 
-	public static class TestMatcher extends MatchStub {
+	public static class TestMatcher extends MatchStub implements Serializable {
+		private static final long serialVersionUID = 1L;
 
 		private PactString keyString = new PactString();
 		private PactString valueString = new PactString();
@@ -136,18 +138,18 @@ public class MatchITCase extends TestBase
 		String pathPrefix = getFilesystemProvider().getURIPrefix() + getFilesystemProvider().getTempDirPath();
 
 		FileDataSource input_left = new FileDataSource(
-				ContractITCaseInputFormat.class, pathPrefix + "/match_left");
+				new ContractITCaseInputFormat(), pathPrefix + "/match_left");
 		DelimitedInputFormat.configureDelimitedFormat(input_left)
 			.recordDelimiter('\n');
 		input_left.setDegreeOfParallelism(config.getInteger("MatchTest#NoSubtasks", 1));
 
 		FileDataSource input_right = new FileDataSource(
-				ContractITCaseInputFormat.class, pathPrefix + "/match_right");
+				new ContractITCaseInputFormat(), pathPrefix + "/match_right");
 		DelimitedInputFormat.configureDelimitedFormat(input_right)
 			.recordDelimiter('\n');
 		input_right.setDegreeOfParallelism(config.getInteger("MatchTest#NoSubtasks", 1));
 
-		MatchContract testMatcher = MatchContract.builder(TestMatcher.class, PactString.class, 0, 0)
+		MatchContract testMatcher = MatchContract.builder(new TestMatcher(), PactString.class, 0, 0)
 			.build();
 		testMatcher.setDegreeOfParallelism(config.getInteger("MatchTest#NoSubtasks", 1));
 		testMatcher.getParameters().setString(PactCompiler.HINT_LOCAL_STRATEGY,
@@ -168,7 +170,7 @@ public class MatchITCase extends TestBase
 		}
 
 		FileDataSink output = new FileDataSink(
-				ContractITCaseOutputFormat.class, pathPrefix + "/result.txt");
+				new ContractITCaseOutputFormat(), pathPrefix + "/result.txt");
 		output.setDegreeOfParallelism(1);
 
 		output.addInput(testMatcher);

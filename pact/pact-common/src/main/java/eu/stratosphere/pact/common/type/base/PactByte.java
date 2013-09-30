@@ -33,6 +33,7 @@ import eu.stratosphere.pact.common.type.NormalizableKey;
  * @see eu.stratosphere.pact.common.type.Key
  */
 public class PactByte implements Key, NormalizableKey, CopyableValue<PactByte> {
+	private static final long serialVersionUID = 1L;
 	
 	private byte value;
 

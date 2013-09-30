@@ -24,6 +24,8 @@ import eu.stratosphere.pact.common.type.base.PactString;
  */
 public class StringIntOutputFormat extends ArrayOutputFormat
 {
+	private static final long serialVersionUID = 1L;
+	
 	@SuppressWarnings("unchecked")
 	private static final Class<? extends Value>[] types = new Class[] {PactString.class, PactInteger.class};
 	

@@ -224,16 +224,16 @@ public class TPCHQuery4 implements PlanAssembler, PlanAssemblerDescription {
 		}
 		
 		FileDataSource orders = 
-			new FileDataSource(IntTupleDataInFormat.class, this.ordersInputPath, "Orders");
+			new FileDataSource(new IntTupleDataInFormat(), this.ordersInputPath, "Orders");
 		orders.setDegreeOfParallelism(this.degreeOfParallelism);
 		//orders.setOutputContract(UniqueKey.class);
 		
 		FileDataSource lineItems =
-			new FileDataSource(IntTupleDataInFormat.class, this.lineItemInputPath, "LineItems");
+			new FileDataSource(new IntTupleDataInFormat(), this.lineItemInputPath, "LineItems");
 		lineItems.setDegreeOfParallelism(this.degreeOfParallelism);
 		
 		FileDataSink result = 
-				new FileDataSink(StringTupleDataOutFormat.class, this.outputPath, "Output");
+				new FileDataSink(new StringTupleDataOutFormat(), this.outputPath, "Output");
 		result.setDegreeOfParallelism(degreeOfParallelism);
 		
 		MapContract lineFilter = 
@@ -255,7 +255,7 @@ public class TPCHQuery4 implements PlanAssembler, PlanAssemblerDescription {
 			join.setDegreeOfParallelism(degreeOfParallelism);
 		
 		ReduceContract aggregation = 
-				new ReduceContract.Builder(CountAgg.class, PactString.class, 0)
+				ReduceContract.builder(CountAgg.class, PactString.class, 0)
 			.name("AggregateGroupBy")
 			.build();
 		aggregation.setDegreeOfParallelism(this.degreeOfParallelism);

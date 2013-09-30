@@ -46,6 +46,7 @@ import eu.stratosphere.pact.common.type.base.parser.DecimalTextLongParser;
 import eu.stratosphere.pact.example.connectedcomponents.WorksetConnectedComponents.MinimumComponentIDReduce;
 import eu.stratosphere.pact.example.connectedcomponents.WorksetConnectedComponents.NeighborWithComponentIDJoin;
 import eu.stratosphere.pact.example.connectedcomponents.WorksetConnectedComponents.UpdateComponentIdMatch;
+import eu.stratosphere.pact.generic.contract.UserCodeClassWrapper;
 import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
 import eu.stratosphere.pact.generic.types.TypePairComparatorFactory;
 import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
@@ -163,7 +164,7 @@ public class ConnectedComponentsNepheleITCase extends TestBase2 {
 			
 			// chained mapper that duplicates the id
 			TaskConfig chainedMapperConfig = new TaskConfig(new Configuration());
-			chainedMapperConfig.setStubClass(IdDuplicator.class);
+			chainedMapperConfig.setStubWrapper(new UserCodeClassWrapper<IdDuplicator>(IdDuplicator.class));
 			chainedMapperConfig.setDriverStrategy(DriverStrategy.MAP);
 			chainedMapperConfig.setInputLocalStrategy(0, LocalStrategy.NONE);
 			chainedMapperConfig.setInputSerializer(serializer, 0);
@@ -253,7 +254,7 @@ public class ConnectedComponentsNepheleITCase extends TestBase2 {
 			// the driver 
 			headConfig.setDriver(BuildSecondCachedMatchDriver.class);
 			headConfig.setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_SECOND);
-			headConfig.setStubClass(NeighborWithComponentIDJoin.class);
+			headConfig.setStubWrapper(new UserCodeClassWrapper<NeighborWithComponentIDJoin>(NeighborWithComponentIDJoin.class));
 			headConfig.setDriverComparator(comparator, 0);
 			headConfig.setDriverComparator(comparator, 1);
 			headConfig.setDriverPairComparator(pairComparator);
@@ -283,7 +284,7 @@ public class ConnectedComponentsNepheleITCase extends TestBase2 {
 			intermediateConfig.setDriver(ReduceDriver.class);
 			intermediateConfig.setDriverStrategy(DriverStrategy.SORTED_GROUP);
 			intermediateConfig.setDriverComparator(comparator, 0);
-			intermediateConfig.setStubClass(MinimumComponentIDReduce.class);
+			intermediateConfig.setStubWrapper(new UserCodeClassWrapper<MinimumComponentIDReduce>(MinimumComponentIDReduce.class));
 		}
 		
 		// --------------- the tail (solution set join) ---------------
@@ -307,7 +308,7 @@ public class ConnectedComponentsNepheleITCase extends TestBase2 {
 			// the driver
 			tailConfig.setDriver(SolutionSetSecondJoinDriver.class);
 			tailConfig.setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_SECOND);
-			tailConfig.setStubClass(UpdateComponentIdMatch.class);
+			tailConfig.setStubWrapper(new UserCodeClassWrapper<UpdateComponentIdMatch>(UpdateComponentIdMatch.class));
 			tailConfig.setSolutionSetSerializer(serializer);
 		}
 		
@@ -319,7 +320,7 @@ public class ConnectedComponentsNepheleITCase extends TestBase2 {
 			outputConfig.addInputToGroup(0);
 			outputConfig.setInputSerializer(serializer, 0);
 			
-			outputConfig.setStubClass(RecordOutputFormat.class);
+			outputConfig.setStubWrapper(new UserCodeClassWrapper<RecordOutputFormat>(RecordOutputFormat.class));
 			outputConfig.setStubParameter(FileOutputFormat.FILE_PARAMETER_KEY, resultPath);
 			
 			Configuration outputUserConfig = outputConfig.getStubParameters();

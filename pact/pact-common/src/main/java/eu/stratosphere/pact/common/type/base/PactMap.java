@@ -41,6 +41,7 @@ import eu.stratosphere.pact.common.util.ReflectionUtil;
  * 
  */
 public abstract class PactMap<K extends Value, V extends Value> implements Value, Map<K, V> {
+	private static final long serialVersionUID = 1L;
 	
 	// type of the map's key
 	private final Class<K> keyClass;

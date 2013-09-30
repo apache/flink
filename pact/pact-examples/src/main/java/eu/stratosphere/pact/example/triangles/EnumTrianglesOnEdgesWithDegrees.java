@@ -15,6 +15,7 @@
 
 package eu.stratosphere.pact.example.triangles;
 
+import java.io.Serializable;
 import java.util.Iterator;
 
 import eu.stratosphere.pact.common.contract.FileDataSink;
@@ -35,6 +36,7 @@ import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.example.triangles.io.EdgeWithDegreesInputFormat;
 import eu.stratosphere.pact.example.triangles.io.TriangleOutputFormat;
 
+
 /**
  * An implementation of the triangle enumeration, which expects its input to
  * encode the degrees of the vertices. The algorithm selects the lower-degree vertex for the
@@ -46,7 +48,8 @@ public class EnumTrianglesOnEdgesWithDegrees implements PlanAssembler, PlanAssem
 	//                                  Triangle Enumeration
 	// --------------------------------------------------------------------------------------------
 	
-	public static final class ProjectOutCounts extends MapStub {
+	public static final class ProjectOutCounts extends MapStub implements Serializable {
+		private static final long serialVersionUID = 1L;
 		
 		@Override
 		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
@@ -55,7 +58,8 @@ public class EnumTrianglesOnEdgesWithDegrees implements PlanAssembler, PlanAssem
 		}
 	}
 	
-	public static final class ProjectToLowerDegreeVertex extends MapStub {
+	public static final class ProjectToLowerDegreeVertex extends MapStub implements Serializable {
+		private static final long serialVersionUID = 1L;
 
 		@Override
 		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
@@ -72,7 +76,8 @@ public class EnumTrianglesOnEdgesWithDegrees implements PlanAssembler, PlanAssem
 		}
 	}
 
-	public static final class BuildTriads extends ReduceStub {
+	public static final class BuildTriads extends ReduceStub implements Serializable {
+		private static final long serialVersionUID = 1L;
 		
 		private final PactInteger firstVertex = new PactInteger();
 		private final PactInteger secondVertex = new PactInteger();
@@ -114,7 +119,8 @@ public class EnumTrianglesOnEdgesWithDegrees implements PlanAssembler, PlanAssem
 		}
 	}
 
-	public static class CloseTriads extends MatchStub {
+	public static class CloseTriads extends MatchStub implements Serializable {
+		private static final long serialVersionUID = 1L;
 		@Override
 		public void match(PactRecord triangle, PactRecord missingEdge, Collector<PactRecord> out) throws Exception {
 			out.collect(triangle);
@@ -132,29 +138,29 @@ public class EnumTrianglesOnEdgesWithDegrees implements PlanAssembler, PlanAssem
 		String edgeInput = args.length > 1 ? args[1] : "";
 		String output    = args.length > 2 ? args[2] : "";
 
-		FileDataSource edges = new FileDataSource(EdgeWithDegreesInputFormat.class, edgeInput, "Input Edges with Degrees");
+		FileDataSource edges = new FileDataSource(new EdgeWithDegreesInputFormat(), edgeInput, "Input Edges with Degrees");
 		edges.setParameter(DelimitedInputFormat.RECORD_DELIMITER, "\n");
 		edges.setParameter(EdgeWithDegreesInputFormat.VERTEX_DELIMITER_CHAR, '|');
 		edges.setParameter(EdgeWithDegreesInputFormat.DEGREE_DELIMITER_CHAR, ',');
 
 		// =========================== Triangle Enumeration ============================
 		
-		MapContract toLowerDegreeEdge = MapContract.builder(ProjectToLowerDegreeVertex.class)
+		MapContract toLowerDegreeEdge = MapContract.builder(new ProjectToLowerDegreeVertex())
 				.input(edges)
 				.name("Select lower-degree Edge")
 				.build();
 		
-		MapContract projectOutCounts = MapContract.builder(ProjectOutCounts.class)
+		MapContract projectOutCounts = MapContract.builder(new ProjectOutCounts())
 				.input(edges)
 				.name("Project to vertex Ids only")
 				.build();
 
-		ReduceContract buildTriads = ReduceContract.builder(BuildTriads.class, PactInteger.class, 0)
+		ReduceContract buildTriads = ReduceContract.builder(new BuildTriads(), PactInteger.class, 0)
 				.input(toLowerDegreeEdge)
 				.name("Build Triads")
 				.build();
 
-		MatchContract closeTriads = MatchContract.builder(CloseTriads.class, PactInteger.class, 1, 0)
+		MatchContract closeTriads = MatchContract.builder(new CloseTriads(), PactInteger.class, 1, 0)
 				.keyField(PactInteger.class, 2, 1)
 				.input1(buildTriads)
 				.input2(projectOutCounts)
@@ -163,7 +169,7 @@ public class EnumTrianglesOnEdgesWithDegrees implements PlanAssembler, PlanAssem
 		closeTriads.setParameter("INPUT_SHIP_STRATEGY", "SHIP_REPARTITION_HASH");
 		closeTriads.setParameter("LOCAL_STRATEGY", "LOCAL_STRATEGY_HASH_BUILD_SECOND");
 
-		FileDataSink triangles = new FileDataSink(TriangleOutputFormat.class, output, closeTriads, "Triangles");
+		FileDataSink triangles = new FileDataSink(new TriangleOutputFormat(), output, closeTriads, "Triangles");
 
 		Plan p = new Plan(triangles, "Enumerate Triangles");
 		p.setDefaultParallelism(numSubTasks);

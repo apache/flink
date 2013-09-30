@@ -16,6 +16,7 @@
 package eu.stratosphere.pact.generic.io;
 
 import java.io.IOException;
+import java.io.Serializable;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 
@@ -36,7 +37,7 @@ import eu.stratosphere.nephele.configuration.Configuration;
  * 
  * @param <IT> The type of the consumed records. 
  */
-public interface OutputFormat<IT> {
+public interface OutputFormat<IT> extends Serializable {
 	
 	/**
 	 * Configures this output format. Since output formats are instantiated generically and hence parameterless, 

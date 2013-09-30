@@ -23,9 +23,9 @@ import eu.stratosphere.pact.common.stubs.Stub;
 public abstract class AbstractPact<T extends Stub> extends Contract {
 	
 	/**
-	 * The class containing the user function for this Pact.
+	 * The object or class containing the user function.
 	 */
-	protected final Class<? extends T> stubClass;
+	protected final UserCodeWrapper<T> stub;
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -35,9 +35,9 @@ public abstract class AbstractPact<T extends Stub> extends Contract {
 	 * @param name The given name for the Pact, used in plans, logs and progress messages.
 	 * @param stubClass The class containing the user function.
 	 */
-	protected AbstractPact(Class<? extends T> stubClass, String name) {
+	protected AbstractPact(UserCodeWrapper<T> stub, String name) {
 		super(name);
-		this.stubClass = stubClass;
+		this.stub = stub;
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -46,13 +46,16 @@ public abstract class AbstractPact<T extends Stub> extends Contract {
 	 * Gets the stub that is wrapped by this contract. The stub is the actual implementation of the
 	 * user code.
 	 * 
-	 * @return The class with the user function for this Pact.
+	 * This throws an exception if the pact does not contain an object but a class for the user
+	 * code.
+	 * 
+	 * @return The object with the user function for this Pact.
 	 *
-	 * @see eu.stratosphere.pact.generic.contract.Contract#getUserCodeClass()
+	 * @see eu.stratosphere.pact.generic.contract.Contract#getUserCodeObject()
 	 */
 	@Override
-	public Class<? extends T> getUserCodeClass() {
-		return this.stubClass;
+	public UserCodeWrapper<T> getUserCodeWrapper() {
+		return stub;
 	}
 	
 	// --------------------------------------------------------------------------------------------

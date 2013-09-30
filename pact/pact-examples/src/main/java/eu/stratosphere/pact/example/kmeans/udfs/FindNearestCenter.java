@@ -14,6 +14,7 @@
  **********************************************************************************************************************/
 package eu.stratosphere.pact.example.kmeans.udfs;
 
+import java.io.Serializable;
 import java.util.Iterator;
 
 import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
@@ -30,7 +31,8 @@ import eu.stratosphere.pact.common.type.base.PactInteger;
  */
 @Combinable
 @ConstantFields(1)
-public class FindNearestCenter extends ReduceStub {
+public class FindNearestCenter extends ReduceStub implements Serializable {
+	private static final long serialVersionUID = 1L;
 	
 	private final PactInteger centerId = new PactInteger();
 	private final CoordVector position = new CoordVector();

@@ -15,6 +15,8 @@
 
 package eu.stratosphere.pact.common.type;
 
+import java.io.Serializable;
+
 import eu.stratosphere.nephele.types.Record;
 
 /**
@@ -26,5 +28,5 @@ import eu.stratosphere.nephele.types.Record;
  * 
  * @see eu.stratosphere.nephele.io.IOReadableWritable
  */
-public interface Value extends Record {
+public interface Value extends Record, Serializable {
 }

@@ -42,6 +42,7 @@ import eu.stratosphere.pact.common.type.NormalizableKey;
  * @see java.lang.CharSequence
  */
 public class PactString implements Key, NormalizableKey, CharSequence, CopyableValue<PactString>, Appendable {
+	private static final long serialVersionUID = 1L;
 	
 	private static final char[] EMPTY_STRING = new char[0];
 	
@@ -181,7 +182,7 @@ public class PactString implements Key, NormalizableKey, CharSequence, CopyableV
 			throw new NullPointerException();
 		
 		if (offset < 0 || len < 0 || offset > value.len - len)
-			throw new IndexOutOfBoundsException();
+			throw new IndexOutOfBoundsException("offset: " + offset + " len: " + len + " value.len: " + value.len);
 
 		ensureSize(len);
 		this.len = len;

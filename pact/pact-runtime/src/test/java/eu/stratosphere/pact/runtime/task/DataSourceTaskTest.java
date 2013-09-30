@@ -224,8 +224,9 @@ public class DataSourceTaskTest extends TaskTestBase
 		}
 	}
 	
-	public static class MockInputFormat extends DelimitedInputFormat
-	{
+	public static class MockInputFormat extends DelimitedInputFormat {
+		private static final long serialVersionUID = 1L;
+		
 		private final PactInteger key = new PactInteger();
 		private final PactInteger value = new PactInteger();
 		
@@ -248,8 +249,9 @@ public class DataSourceTaskTest extends TaskTestBase
 		}
 	}
 	
-	public static class MockDelayingInputFormat extends DelimitedInputFormat
-	{
+	public static class MockDelayingInputFormat extends DelimitedInputFormat {
+		private static final long serialVersionUID = 1L;
+		
 		private final PactInteger key = new PactInteger();
 		private final PactInteger value = new PactInteger();
 		
@@ -279,8 +281,9 @@ public class DataSourceTaskTest extends TaskTestBase
 		
 	}
 	
-	public static class MockFailingInputFormat extends DelimitedInputFormat
-	{
+	public static class MockFailingInputFormat extends DelimitedInputFormat {
+		private static final long serialVersionUID = 1L;
+		
 		private final PactInteger key = new PactInteger();
 		private final PactInteger value = new PactInteger();
 		

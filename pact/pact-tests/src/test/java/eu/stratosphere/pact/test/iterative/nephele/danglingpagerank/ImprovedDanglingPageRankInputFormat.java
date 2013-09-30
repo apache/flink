@@ -8,6 +8,7 @@ import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.test.iterative.nephele.ConfigUtils;
 
 public class ImprovedDanglingPageRankInputFormat extends TextInputFormat {
+	private static final long serialVersionUID = 1L;
 
 	private PactLong vertexID = new PactLong();
 

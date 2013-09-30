@@ -9,6 +9,7 @@ import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.example.util.ConfigUtils;
 
 public class DanglingPageRankInputFormat extends TextInputFormat {
+	private static final long serialVersionUID = 1L;
 	
 	public static final String NUM_VERTICES_PARAMETER = "pageRank.numVertices";
 

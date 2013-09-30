@@ -121,7 +121,7 @@ public class WordCountArrayTuples implements PlanAssembler, PlanAssemblerDescrip
 		String dataInput = (args.length > 1 ? args[1] : "");
 		String output    = (args.length > 2 ? args[2] : "");
 
-		FileDataSource source = new FileDataSource(StringInputFormat.class, dataInput, "Input Lines");
+		FileDataSource source = new FileDataSource(new StringInputFormat(), dataInput, "Input Lines");
 		source.setParameter(TextInputFormat.CHARSET_NAME, "ASCII");		// comment out this line for UTF-8 inputs
 		
 		GenericMapContract<TokenizeLine> mapper = new GenericMapContract<TokenizeLine>(TokenizeLine.class, "Tokenize Lines");
@@ -130,7 +130,7 @@ public class WordCountArrayTuples implements PlanAssembler, PlanAssemblerDescrip
 		GenericReduceContract<CountWords> reducer = new GenericReduceContract<CountWords>(CountWords.class, new int[] {0}, "Count Words");
 		reducer.setInput(mapper);
 		
-		FileDataSink out = new FileDataSink(StringIntOutputFormat.class, output, reducer, "Word Counts");
+		FileDataSink out = new FileDataSink(new StringIntOutputFormat(), output, reducer, "Word Counts");
 		StringIntOutputFormat.configureArrayFormat(out)
 			.recordDelimiter('\n')
 			.fieldDelimiter(' ')

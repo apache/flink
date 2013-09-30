@@ -26,6 +26,7 @@ import eu.stratosphere.pact.common.type.Key;
  * the Euclidian distance between the points.
  */
 public final class CoordVector implements Key {
+	private static final long serialVersionUID = 1L;
 	
 	// coordinate array
 	private double[] coordinates;

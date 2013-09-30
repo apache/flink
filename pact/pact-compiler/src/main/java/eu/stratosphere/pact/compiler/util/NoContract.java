@@ -15,13 +15,14 @@
 package eu.stratosphere.pact.compiler.util;
 
 import eu.stratosphere.pact.generic.contract.DualInputContract;
+import eu.stratosphere.pact.generic.contract.UserCodeClassWrapper;
 import eu.stratosphere.pact.generic.stub.AbstractStub;
 
 
 public class NoContract extends DualInputContract<MockStub> {
 	
 	public NoContract() {
-		super(MockStub.class, "NoContract");
+		super(new UserCodeClassWrapper<MockStub>(MockStub.class), "NoContract");
 	}
 }
 

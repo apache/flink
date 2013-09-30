@@ -14,6 +14,7 @@
  **********************************************************************************************************************/
 package eu.stratosphere.pact.example.kmeans.udfs;
 
+import java.io.Serializable;
 import java.util.Iterator;
 
 import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
@@ -34,7 +35,8 @@ import eu.stratosphere.pact.common.type.base.PactInteger;
  */
 @Combinable
 @ConstantFields(0)
-public class RecomputeClusterCenter extends ReduceStub {
+public class RecomputeClusterCenter extends ReduceStub implements Serializable {
+	private static final long serialVersionUID = 1L;
 	
 	private final PactInteger count = new PactInteger();
 	
