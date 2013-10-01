@@ -13,8 +13,8 @@ env:
 
 install: true
 
-script: "mvn $PROFILE clean verify"
+script: mvn $PROFILE clean verify"
 
 # deploy if the first job is successful; should be replaced by an after_all_success if travis finally supports it
 after_success: 
-- if [[ $TRAVIS_JOB_NUMBER == *1 ]] && [[ $TRAVIS_PULL_REQUEST == \"false\" ]] ; then mvn -DskipTests deploy --settings deploysettings.xml; fi
+- "./tools/deploy_to_maven.sh"

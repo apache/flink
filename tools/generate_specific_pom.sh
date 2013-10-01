@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
 #
 # See https://github.com/dimalabs/ozone/issues/95
@@ -8,7 +8,7 @@
 
 function usage {
   echo "Usage: $0 CURRENT_VERSION NEW_VERSION"
-  echo "For example, $0 0.2-ozone 0.2-ozone-hadoop2"
+  echo "For example, $0 0.4-ozone-SNAPSHOT 0.4-ozone-hadoop2-SNAPSHOT"
   echo "Presumes VERSION has hadoop1 or hadoop2 in it."
   exit 1
 }
