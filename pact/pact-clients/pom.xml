@@ -7,9 +7,9 @@
 	<parent>
 		<artifactId>pact</artifactId>
 		<groupId>eu.stratosphere</groupId>
-		<version>0.2-ozone</version>
-	    <relativePath>..</relativePath>
-    </parent>
+		<version>0.4-ozone-SNAPSHOT</version>
+		<relativePath>..</relativePath>
+	</parent>
 
 	<artifactId>pact-clients</artifactId>
 	<name>pact-clients</name>
@@ -71,9 +71,9 @@
 		</dependency>
 
 		<dependency>
-			<groupId>commons-io</groupId>
+			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-io</artifactId>
-			<version>2.1</version>
+			<version>1.3.2</version>
 			<type>jar</type>
 			<scope>compile</scope>
 		</dependency>

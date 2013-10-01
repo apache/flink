@@ -7,9 +7,9 @@
 	<parent>
 		<artifactId>pact</artifactId>
 		<groupId>eu.stratosphere</groupId>
-		<version>0.2-ozone</version>
-	    <relativePath>..</relativePath>
-    </parent>
+		<version>0.4-ozone-SNAPSHOT</version>
+		<relativePath>..</relativePath>
+	</parent>
 
 	<artifactId>pact-examples</artifactId>
 	<name>pact-examples</name>
@@ -49,19 +49,19 @@
 						</goals>
 						<configuration>
 							<classifier>ConnectedComponents</classifier>
-							
+
 							<archive>
 								<manifestEntries>
 									<Pact-Assembler-Class>eu.stratosphere.pact.example.connectedcomponents.WorksetConnectedComponents</Pact-Assembler-Class>
 								</manifestEntries>
 							</archive>
-								
+
 							<includes>
 								<include>**/connectedcomponents/*.class</include>
 							</includes>
 						</configuration>
 					</execution>
-								
+		
 					<!-- DanglingPageRank -->
 					<execution>
 						<id>DanglingPageRank</id>

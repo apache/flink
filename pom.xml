@@ -2,11 +2,17 @@
 <project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
 	xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 
+	<parent>
+		<groupId>org.sonatype.oss</groupId>
+		<artifactId>oss-parent</artifactId>
+		<version>7</version>
+	</parent>
+
 	<modelVersion>4.0.0</modelVersion>
 
 	<groupId>eu.stratosphere</groupId>
 	<artifactId>ozone</artifactId>
-	<version>0.2-ozone</version>
+	<version>0.4-ozone-SNAPSHOT</version>
 
 	<name>ozone</name>
 	<packaging>pom</packaging>
@@ -20,6 +26,12 @@
 			<distribution>stratosphere</distribution>
 		</license>
 	</licenses>
+
+	<scm>
+		<url>https://github.com/dimalabs/ozone</url>
+		<connection>scm:git:git@github.com:dimalabs/ozone.git</connection>
+		<developerConnection>scm:git:git@github.com:dimalabs/ozone.git</developerConnection>
+	</scm>
 
 	<developers>
 	</developers>
@@ -417,6 +429,28 @@
 						</classpathContainer>
 					</classpathContainers>
 				</configuration>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-enforcer-plugin</artifactId>
+				<version>1.3.1</version>
+				<executions>
+					<execution>
+						<id>enforce-maven</id>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<rules>
+								<requireMavenVersion>
+									<version>(,2.1.0),(2.1.0,2.2.0),(2.2.0,)</version>
+									<message>Maven 2.1.0 and 2.2.0 produce incorrect GPG signatures and checksums respectively.</message>
+								</requireMavenVersion>
+							</rules>
+						</configuration>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 	</build>

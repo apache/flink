@@ -10,3 +10,13 @@ env:
 install: true
 
 script: "mvn $PROFILE clean verify"
+
+# deploy if the first job is successful; should be replaced by an after_all_success if travis finally supports it
+after_success: 
+- if [[ $TRAVIS_JOB_NUMBER == *1 ]]; then mvn -DskipTests deploy --settings deploysettings.xml; fi
+
+env: 
+  global: 
+  - secure: hiYZDVhJ9P0KjC8IaW5fxR2ztUQrJAgXMnzXo57WMKrGg5wLIa4yjkOW0mxH/Hv06b7Sa+OxVIznOlQy3h1a2L54LzFzGeWgyica5oblMF4JK2l3wCcQ272hZjq6iKAMdUBtVioNcCEZDSQdtbF3w5sD1cseEEbtyz75W/cCgi4=
+  - secure: BOH2vIhuFnjNoF72BoWLvFaW9w2NxFm3+9mk0OpVIq+WSlH9bc169gJGs/HNiWrBvMJxV6WaiwVMoshw3hqKP1qihJzi8JIRSrNkgQw5/hyotOaPjsUskbCiq+PtAmpF3d3XFN9/W4+uP+dce2lDQC8IrRrSyJN6Mj2LDPRKeJU=
+

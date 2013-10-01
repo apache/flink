@@ -7,9 +7,9 @@
 	<parent>
 		<groupId>eu.stratosphere</groupId>
 		<artifactId>ozone</artifactId>
-		<version>0.2-ozone</version>
-	    <relativePath>..</relativePath>
-    </parent>
+		<version>0.4-ozone-SNAPSHOT</version>
+		<relativePath>..</relativePath>
+	</parent>
 
 	<artifactId>pact</artifactId>
 	<packaging>pom</packaging>
