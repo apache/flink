@@ -23,6 +23,7 @@ import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
+import eu.stratosphere.pact.compiler.plandump.PlanJSONDumpGenerator;
 import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
 
 /**
@@ -87,6 +88,26 @@ public class LocalExecutor {
 	}
 	
 	/**
+	 * Returns a JSON dump of the optimized plan.
+	 * 
+	 * @param plan
+	 *            The program's plan.
+	 * @return JSON dump of the optimized plan.
+	 * @throws Exception
+	 */
+	public String getOptimizerPlanAsJSON(Plan plan) throws Exception {
+		if (this.nephele == null) {
+			throw new Exception("The local executor has not been started.");
+		}
+
+		PactCompiler pc = new PactCompiler(new DataStatistics());
+		OptimizedPlan op = pc.compile(plan);
+		PlanJSONDumpGenerator gen = new PlanJSONDumpGenerator();
+
+		return gen.getOptimizerPlanAsJSON(op);
+	}
+	
+	/**
 	 * Executes the program described by the given plan assembler.
 	 * 
 	 * @param pa The program's plan assembler. 
@@ -114,6 +135,30 @@ public class LocalExecutor {
 		try {
 			exec.start();
 			return exec.executePlan(plan);
+		} finally {
+			if (exec != null) {
+				exec.stop();
+			}
+		}
+	}
+	
+	/**
+	 * Returns a JSON dump of the optimized plan.
+	 * 
+	 * @param plan
+	 *            The program's plan.
+	 * @return JSON dump of the optimized plan.
+	 * @throws Exception
+	 */
+	public static String optimizerPlanAsJSON(Plan plan) throws Exception {
+		LocalExecutor exec = new LocalExecutor();
+		try {
+			exec.start();
+			PactCompiler pc = new PactCompiler(new DataStatistics());
+			OptimizedPlan op = pc.compile(plan);
+			PlanJSONDumpGenerator gen = new PlanJSONDumpGenerator();
+
+			return gen.getOptimizerPlanAsJSON(op);
 		} finally {
 			if (exec != null) {
 				exec.stop();
