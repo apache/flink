@@ -55,32 +55,6 @@
 		</plugins>
 	</reporting>
 
-	<build>
-		<plugins>
-
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-source-plugin</artifactId>
-				<version>2.1.1</version>
-				<executions>
-					<execution>
-						<id>source:aggregate</id>
-						<phase>package</phase>
-						<goals>
-							<goal>aggregate</goal>
-						</goals>
-					</execution>
-				</executions>
-				<configuration>
-					<includes>
-						<include>eu/stratosphere/nephele/*</include>
-					</includes>
-				</configuration>
-			</plugin>
-
-		</plugins>
-	</build>
-
 	<dependencyManagement>
 		<dependencies>
 		</dependencies>
