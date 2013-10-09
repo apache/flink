@@ -39,6 +39,7 @@
 	<modules>
 		<module>nephele</module>
 		<module>pact</module>
+		<module>pact-scala</module>
 		<module>stratosphere-dist</module>
 	</modules>
 

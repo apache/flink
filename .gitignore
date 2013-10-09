@@ -8,6 +8,7 @@ target
 .project
 .settings
 .cache
+.metadata/*
 *.class
 filter.properties
 tmp/*
