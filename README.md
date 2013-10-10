@@ -24,7 +24,7 @@ mvn -DskipTests clean package # this will take up to 5 minutes
 Stratosphere is now installed in `stratosphere-dist/target`
 If you’re a Debian/Ubuntu user, you’ll find a .deb package. We will continue with the generic case.
 
-	cd stratosphere-dist/target/stratosphere-dist-0.2-ozone-bin/stratosphere-0.2-ozone/
+	cd stratosphere-dist/target/stratosphere-dist-0.4-ozone-bin/stratosphere-0.4-ozone/
 
 The directory structure here looks like the contents of the official release distribution.
 
