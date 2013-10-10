@@ -91,6 +91,13 @@ Get some test data:
 
 To contribute back to the project or develop your own jobs for Stratosphere, you need a working development environment. We use Eclipse and IntelliJ for development. Here we focus on Eclipse.
 
+If you want to work on the scala code you will need the following plugins:
+  * scala-ide: http://download.scala-ide.org/sdk/e38/scala210/stable/site
+  * m2eclipse-scala: http://alchim31.free.fr/m2e-scala/update-site
+  * build-helper-maven-plugin: https://repository.sonatype.org/content/repositories/forge-sites/m2e-extras/0.15.0/N/0.15.0.201206251206/
+
+When you don't have the plugins your project will have build errors, you can just close the scala projects and ignore them.
+
 Import the Stratosphere source code using Maven's Import tool:
   * Select "Import" from the "File"-menu.
   * Expand "Maven" node, select "Existing Maven Projects", and click "next" button
