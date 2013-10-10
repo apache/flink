@@ -23,9 +23,11 @@ import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.PartitioningProperty;
 import eu.stratosphere.pact.compiler.dataproperties.RequestedGlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.RequestedLocalProperties;
+import eu.stratosphere.pact.compiler.plan.ReduceNode;
 import eu.stratosphere.pact.compiler.plan.SingleInputNode;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
+import eu.stratosphere.pact.generic.contract.GenericReduceContract;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 public final class PartialGroupProperties extends OperatorDescriptorSingle
@@ -47,7 +49,12 @@ public final class PartialGroupProperties extends OperatorDescriptorSingle
 	 */
 	@Override
 	public SingleInputPlanNode instantiate(Channel in, SingleInputNode node) {
-		return new SingleInputPlanNode(node, in, DriverStrategy.PARTIAL_GROUP, this.keyList);
+		// create in input node for combine with same DOP as input node
+		ReduceNode combinerNode = new ReduceNode((GenericReduceContract<?>) node.getPactContract());
+		combinerNode.setDegreeOfParallelism(in.getSource().getDegreeOfParallelism());
+		combinerNode.setSubtasksPerInstance(in.getSource().getSubtasksPerInstance());
+		
+		return new SingleInputPlanNode(combinerNode, in, DriverStrategy.PARTIAL_GROUP, this.keyList);
 	}
 
 	/* (non-Javadoc)

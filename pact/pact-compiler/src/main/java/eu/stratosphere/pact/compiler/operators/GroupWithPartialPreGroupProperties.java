@@ -26,9 +26,11 @@ import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.PartitioningProperty;
 import eu.stratosphere.pact.compiler.dataproperties.RequestedGlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.RequestedLocalProperties;
+import eu.stratosphere.pact.compiler.plan.ReduceNode;
 import eu.stratosphere.pact.compiler.plan.SingleInputNode;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
+import eu.stratosphere.pact.generic.contract.GenericReduceContract;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
@@ -83,7 +85,12 @@ public final class GroupWithPartialPreGroupProperties extends OperatorDescriptor
 			// non forward case. all local properties are killed anyways, so we can safely plug in a combiner
 			Channel toCombiner = new Channel(in.getSource());
 			toCombiner.setShipStrategy(ShipStrategyType.FORWARD);
-			SingleInputPlanNode combiner = new SingleInputPlanNode(node, toCombiner, DriverStrategy.PARTIAL_GROUP, this.keyList);
+			// create in input node for combine with same DOP as input node
+			ReduceNode combinerNode = new ReduceNode((GenericReduceContract<?>) node.getPactContract());
+			combinerNode.setDegreeOfParallelism(in.getSource().getDegreeOfParallelism());
+			combinerNode.setSubtasksPerInstance(in.getSource().getSubtasksPerInstance());
+			
+			SingleInputPlanNode combiner = new SingleInputPlanNode(combinerNode, toCombiner, DriverStrategy.PARTIAL_GROUP, this.keyList);
 			combiner.setCosts(new Costs(0, 0));
 			combiner.initProperties(toCombiner.getGlobalProperties(), toCombiner.getLocalProperties());
 			
