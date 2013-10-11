@@ -226,7 +226,7 @@ trait UDTAnalyzer[C <: Context] { this: MacroContextHolder[C] with UDTDescriptor
 
         case ArrayType(elemTpe) => {
           val iter = { source: Tree => 
-            Apply(Select(source, "iterator": TermName), Nil)
+            Select(source, "iterator": TermName)
           }
           Some(elemTpe, iter)
         }
