@@ -5,33 +5,35 @@
 # Inspired by: https://github.com/apache/hbase/blob/trunk/dev-support/generate-hadoopX-poms.sh
 #
 
-
 function usage {
-  echo "Usage: $0 CURRENT_VERSION NEW_VERSION"
+  echo "Usage: $0 CURRENT_VERSION NEW_VERSION [POM_NAME]"
   echo "For example, $0 0.4-ozone-SNAPSHOT 0.4-ozone-hadoop2-SNAPSHOT"
-  echo "Presumes VERSION has hadoop1 or hadoop2 in it."
+  echo "Presumes VERSION has hadoop1 or hadoop2 in it. POM_NAME is optional and"
+  echo "allows to specify a different name for the generated pom."
   exit 1
 }
 
-if [[ "$#" -ne 2 ]]; then usage; fi
+if [[ "$#" -lt 2 ]]; then usage; fi
 
 old_ozone_version="$1"
 new_ozone_version="$2"
+new_pom_name="$3"
 
 # Get hadoop version from the new ozone version
 hadoop_version=`echo "$new_ozone_version" | sed -n 's/.*\(hadoop[12]\).*/\1/p'`
 if [[ -z $hadoop_version ]]; then usage ; fi
 
 echo "hadoop version $hadoop_version"
+
+
 here="`dirname \"$0\"`"              # relative
 here="`( cd \"$here\" && pwd )`"  # absolutized and normalized
 if [ -z "$here" ] ; then
-	# error; for some reason, the path is not accessible
-	# to the script (e.g. permissions re-evaled after suid)
-	exit 1  # fail
+  # error; for some reason, the path is not accessible
+  # to the script (e.g. permissions re-evaled after suid)
+  exit 1  # fail
 fi
 ozone_home="`dirname \"$here\"`"
-
 
 
 hadoop1=
@@ -52,10 +54,16 @@ case "${hadoop_version}" in
     ;;
 esac
 
+nupom=$new_pom_name
+if [[ -z "$new_pom_name" ]]; then
+  nupom="pom.${hadoop_version}.xml"
+fi
+echo "Using $nupom as name for the generated pom file."
 
-nupom="pom.${hadoop_version}.xml"
 poms=`find $ozone_home -name pom.xml`
 for p in $poms; do
+  # write into tmp file because in-place replacement is not possible (if nupom="pom.xml")
+  tmp_nuname="`dirname $p`/__generate_specific_pom_tmp"
   nuname="`dirname $p`/${nupom}"
   # Now we do search and replace of explicit strings.  The best way of
   # seeing what the below does is by doing a diff between the original
@@ -71,6 +79,7 @@ for p in $poms; do
     -e "s/\(relativePath>\.\.\)/\1\/${nupom}/" \
     -e "s/<!--hadoop1-->.*name>.*/${hadoop1}/" \
     -e "s/<!--hadoop2-->.*<name>.*/${hadoop2}/" \
-  $p > "$nuname"
+  $p > "$tmp_nuname"
+  mv $tmp_nuname $nuname
 done
 
