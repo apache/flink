@@ -47,7 +47,6 @@ import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.common.util.PactConfigConstants;
-import eu.stratosphere.pact.generic.contract.UserCodeWrapper;
 import eu.stratosphere.pact.generic.stub.GenericReducer;
 import eu.stratosphere.pact.generic.types.TypeComparator;
 import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
@@ -479,10 +478,9 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 //	public static <T> T instantiateUserCode(TaskConfig config, ClassLoader cl, Class<? super T> superClass) {
 //		try {
 //			T stub = (T) ((UserCodeWrapper<T>) config.getStubWrapper()).getUserCodeObject(superClass, cl);
-	@SuppressWarnings("unchecked")
-	protected <T> T initStub(Class<? super T> stubSuperClass) throws Exception {
+	protected S initStub(Class<? super S> stubSuperClass) throws Exception {
 		try {
-			T stub = (T) ((UserCodeWrapper<T>) config.getStubWrapper()).getUserCodeObject(stubSuperClass, this.userCodeClassLoader);
+			S stub = config.<S>getStubWrapper(this.userCodeClassLoader).getUserCodeObject(stubSuperClass, this.userCodeClassLoader);
 			// check if the class is a subclass, if the check is required
 			if (stubSuperClass != null && !stubSuperClass.isAssignableFrom(stub.getClass())) {
 				throw new RuntimeException("The class '" + stub.getClass().getName() + "' is not a subclass of '" + 
@@ -1305,10 +1303,9 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 	 * 
 	 * @return An instance of the user code class.
 	 */
-	@SuppressWarnings("unchecked")
 	public static <T> T instantiateUserCode(TaskConfig config, ClassLoader cl, Class<? super T> superClass) {
 		try {
-			T stub = (T) ((UserCodeWrapper<T>) config.getStubWrapper()).getUserCodeObject(superClass, cl);
+			T stub = config.<T>getStubWrapper(cl).getUserCodeObject(superClass, cl);
 			// check if the class is a subclass, if the check is required
 			if (superClass != null && !superClass.isAssignableFrom(stub.getClass())) {
 				throw new RuntimeException("The class '" + stub.getClass().getName() + "' is not a subclass of '" + 

@@ -210,7 +210,6 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 	 *         Throws if instance of OutputFormat implementation can not be
 	 *         obtained.
 	 */
-	@SuppressWarnings("unchecked")
 	private void initOutputFormat() {
 		if (this.userCodeClassLoader == null) {
 			try {
@@ -225,7 +224,8 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 		this.config = new TaskConfig(taskConf);
 
 		try {
-			this.format = (OutputFormat<IT>)this.config.getStubWrapper().getUserCodeObject();
+			this.format = config.<OutputFormat<IT>>getStubWrapper(this.userCodeClassLoader).getUserCodeObject(OutputFormat.class, this.userCodeClassLoader);
+
 			// check if the class is a subclass, if the check is required
 			if (!OutputFormat.class.isAssignableFrom(this.format.getClass())) {
 				throw new RuntimeException("The class '" + this.format.getClass().getName() + "' is not a subclass of '" + 
