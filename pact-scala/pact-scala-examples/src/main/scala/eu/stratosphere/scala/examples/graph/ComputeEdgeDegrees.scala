@@ -42,17 +42,19 @@ class ComputeEdgeDegrees extends ScalaPlanAssembler with PlanAssemblerDescriptio
   override def getDescription = "-input <file>  -output <file>"
 
   override def getScalaPlan(args: Args) = ComputeEdgeDegrees.getPlan(args("input"), args("output"))
+  
+  def getStringScalaPlan(in: String, out: String) = ComputeEdgeDegrees.getPlan(in, out)
 }
 
 /**
  * Annotates edges with associated vertice degrees.
  */
-object ComputeEdgeDegrees {
+private object ComputeEdgeDegrees {
   
   /*
    * Output formatting function for edges with annotated degrees
    */
-  def formatEdgeWithDegrees = (v1: Int, v2: Int, c1: Int, c2: Int) => "%d %d %d %d".format(v1, v2, c1, c2)
+  def formatEdgeWithDegrees = (v1: Int, c1: Int, v2: Int, c2: Int) => "%d,%d|%d,%d".format(v1, c1, v2, c2)
   
   def getPlan(edgeInput: String, annotatedEdgeOutput: String) = {
     
@@ -61,7 +63,7 @@ object ComputeEdgeDegrees {
      * Edges are separated by new line '\n'. 
      * An edge is represented as two Integer vertex IDs which are separated by a blank ' '.
      */
-    val edges = DataSource(edgeInput, RecordDataSourceFormat[(Int, Int)]("\n", " "))
+    val edges = DataSource(edgeInput, RecordDataSourceFormat[(Int, Int)]("\n", ","))
 
     /*
      * Project all edges such that the lower vertex ID is the first vertex ID.

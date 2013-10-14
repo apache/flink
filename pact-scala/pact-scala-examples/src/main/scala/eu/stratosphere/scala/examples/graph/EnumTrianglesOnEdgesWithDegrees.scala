@@ -30,7 +30,7 @@ object RunEnumTrianglesOnEdgesWithDegrees {
   def main(args: Array[String]) {
     
     val plan = EnumTrianglesOnEdgesWithDegrees.getPlan(
-      "file:///tmp/edgeDegrees",
+      "file:///tmp/edgesWithDegrees",
       "file:///tmp/triangles")
 
     GlobalSchemaPrinter.printSchema(plan)
@@ -40,7 +40,7 @@ object RunEnumTrianglesOnEdgesWithDegrees {
   }
 }
 
-class EnumTrianglesOnEdgesWithDegreesDescriptor extends ScalaPlanAssembler with PlanAssemblerDescription {
+class EnumTrianglesOnEdgesWithDegrees extends ScalaPlanAssembler with PlanAssemblerDescription {
   override def getDescription = "-input <file>  -output <file>"
 
   override def getScalaPlan(args: Args) = EnumTrianglesOnEdgesWithDegrees.getPlan(args("input"), args("output"))
@@ -50,15 +50,14 @@ class EnumTrianglesOnEdgesWithDegreesDescriptor extends ScalaPlanAssembler with 
  * Enumerates all triangles build by three connected vertices in a graph.
  * The graph is represented as edges (pairs of vertices) with annotated vertex degrees. * 
  */
-object EnumTrianglesOnEdgesWithDegrees {
+private object EnumTrianglesOnEdgesWithDegrees {
   
   /*
    * Output formatting function for triangles.
    */
-  def formatTriangle = (v1: Int, v2: Int, v3: Int) => "%d %d %d".format(v1, v2, v3)
+  def formatTriangle = (v1: Int, v2: Int, v3: Int) => "%d,%d,%d".format(v1, v2, v3)
   
   def getPlan(edgeInput: String, triangleOutput: String) = {
-    
     /*
      * Input format for edges with degrees
      * Edges are separated by new line '\n'. 
@@ -66,21 +65,37 @@ object EnumTrianglesOnEdgesWithDegrees {
      * The first two Integers are the vertex IDs.
      * The third and forth Integer are the degrees of the first and second vertex, respectively. 
      */
-    val edgeWithDegrees = DataSource(edgeInput, RecordDataSourceFormat[(Int, Int, Int, Int)]("\n", " "))
+    val vertexesWithDegrees = DataSource(edgeInput, RecordDataSourceFormat[(String, String)]("\n", "|"))
 
     /*
-     * Project edges such that vertex with higher degree comes first (record position 1) and remove the degrees.
+     * extracts degree information from input format
      */
-    val projEdges = edgeWithDegrees map { (x) => if (x._3 > x._4) (x._1, x._2) else (x._2, x._1) }
+    val edgesWithDegrees = vertexesWithDegrees map { (x) => ( x._1.split(',')(0).toInt, 
+                                                        	  x._2.split(',')(0).toInt,
+                                                        	  x._1.split(',')(1).toInt, 
+                                                        	  x._2.split(',')(1).toInt ) }
+    
+    
+    
+    /*
+     * Project edges such that vertex with lower degree comes first (record position 1) and remove the degrees.
+     */
+    val edgesByDegree = edgesWithDegrees map { (x) => if (x._3 <= x._4) (x._1, x._2) else (x._2, x._1) }
+    
+    /*
+     * Project edges such that vertex with lower ID comes first (record position) and remove degrees 
+     */
+    val edgesByID = edgesByDegree map { (x) => if (x._1 < x._2) (x._1, x._2) else (x._2, x._1) }
     
     /*
      * Join projected edges with themselves on lower vertex id.
      * Emit a triad (triangle candidate with one missing edge) for each unique combination of edges. 
      * Ensure that vertices are ordered by vertex id. 
      */   
-    val triads = projEdges join projEdges where { _._1 } isEqualTo { _._1 } flatMap { (e1, e2) =>
+    val triads = edgesByDegree join edgesByDegree where { _._1 } isEqualTo { _._1 } flatMap { (e1, e2) =>
         (e1, e2) match {
-          case ((v11, v12), (_, v22)) if v12 < v22 => Some((v11, v12, v22))
+          case ((v11, v12), (_, v22)) 
+          	if v12 < v22 => Some((v11, v12, v22))
           case _ => None
         }
       }
@@ -89,7 +104,7 @@ object EnumTrianglesOnEdgesWithDegrees {
      * Join triads with projected edges to 'close' triads.
      * This filters triads without a closing edge.
      */
-    val triangles = triads join projEdges where { t => (t._2, t._3) } isEqualTo { e => (e._1, e._2) } map { (t, e) => t }
+    val triangles = triads join edgesByID where { t => (t._2, t._3) } isEqualTo { e => (e._1, e._2) } map { (t, e) => t }
     
     /*
      * Emit triangles
