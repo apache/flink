@@ -31,39 +31,31 @@ import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
-import eu.stratosphere.pact.example.triangles.EnumTrianglesRdfFoaf;
+import eu.stratosphere.pact.example.triangles.EnumTrianglesOnEdgesWithDegrees;
 import eu.stratosphere.pact.test.util.TestBase;
 
 @RunWith(Parameterized.class)
-public class EnumTrianglesITCase extends TestBase {
+public class EnumTrianglesOnEdgesWithDegreesITCase extends TestBase {
 
-	private static final Log LOG = LogFactory.getLog(EnumTrianglesITCase.class);
+	private static final Log LOG = LogFactory.getLog(EnumTrianglesOnEdgesWithDegreesITCase.class);
 	
-	String edgesPath = null;
-	String resultPath = null; 
+	protected String edgesPath = null;
+	protected String resultPath = null; 
 
-	private String edges = "<a> <http://xmlns.com/foaf/0.1/knows> <b>\n" + "<a> <http://xmlns.com/foaf/0.1/knows> <c>\n" + 
-						   "<a> <http://xmlns.com/foaf/0.1/knows> <d>\n" + "<b> <http://xmlns.com/foaf/0.1/knows> <c>\n" + 
-						   "<b> <http://xmlns.com/foaf/0.1/knows> <e>\n" + "<b> <http://xmlns.com/foaf/0.1/knows> <f>\n" + 
-						   "<c> <http://xmlns.com/foaf/0.1/knows> <d>\n" + "<d> <http://xmlns.com/foaf/0.1/knows> <b>\n" + 
-						   "<f> <http://xmlns.com/foaf/0.1/knows> <g>\n" + "<f> <http://xmlns.com/foaf/0.1/knows> <h>\n" + 
-						   "<f> <http://xmlns.com/foaf/0.1/knows> <i>\n" + "<g> <http://xmlns.com/foaf/0.1/knows> <i>\n" +
-						   "<g> <http://willNotWork> <h>\n";
-
-	private String expected = "<a> <b> <c>\n" + "<a> <b> <d>\n" + "<a> <c> <d>\n" + 
-	                          "<b> <c> <d>\n" + "<f> <g> <i>\n";
+	private String edgesWithDegrees = "1,4|2,3\n1,4|3,5\n1,4|4,2\n1,4|5,3\n2,3|3,5\n2,3|5,3\n3,5|4,2\n3,5|7,2\n5,3|6,1\n3,5|8,2\n7,2|8,2\n";
+	private String expected = "2,1,3\n4,1,3\n2,1,5\n7,3,8\n";
 	
-	public EnumTrianglesITCase(Configuration config) {
+	public EnumTrianglesOnEdgesWithDegreesITCase(Configuration config) {
 		super(config);
 	}
 
 	@Override
 	protected void preSubmit() throws Exception {
 
-		edgesPath = getFilesystemProvider().getTempDirPath() + "/triangleEdges";
+		edgesPath = getFilesystemProvider().getTempDirPath() + "/edgesWithDegrees";
 		resultPath = getFilesystemProvider().getTempDirPath() + "/triangles";
 		
-		String[] splits = splitInputString(edges, '\n', 4);
+		String[] splits = splitInputString(edgesWithDegrees, '\n', 4);
 		getFilesystemProvider().createDir(edgesPath);
 		for (int i = 0; i < splits.length; i++) {
 			getFilesystemProvider().createFile(edgesPath + "/part_" + i + ".txt", splits[i]);
@@ -75,7 +67,7 @@ public class EnumTrianglesITCase extends TestBase {
 	@Override
 	protected JobGraph getJobGraph() throws Exception {
 
-		EnumTrianglesRdfFoaf enumTriangles = new EnumTrianglesRdfFoaf();
+		EnumTrianglesOnEdgesWithDegrees enumTriangles = new EnumTrianglesOnEdgesWithDegrees();
 		Plan plan = enumTriangles.getPlan(
 				config.getString("EnumTrianglesTest#NoSubtasks", "4"),
 				getFilesystemProvider().getURIPrefix() + edgesPath, 
