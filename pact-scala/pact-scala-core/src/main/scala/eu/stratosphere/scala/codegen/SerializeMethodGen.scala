@@ -202,7 +202,7 @@ trait SerializeMethodGen[C <: Context] { this: MacroContextHolder[C] with UDTDes
       val add = Apply(Select(target, "add"), List(value))
       val addNull = Apply(Select(target, "add"), List(mkNull))
 
-      Block(List(item, mkIf(chk, mkSingle(stats :+ add))), addNull)
+      Block(List(item), mkIf(chk, mkSingle(stats :+ add), addNull))
     }
 
     Seq(it, loop)

@@ -42,7 +42,8 @@ object Main1 {
     val input = TextFile("file:///home/aljoscha/dummy-input")
     val inputNumbers = DataSource("file:///home/aljoscha/dummy-input-numbers", RecordDataSourceFormat[(Int, String)]("\n", ","))
     
-    val counts = input.flatMap { _.split("""\W+""") map { (_, 1) } }
+    val counts = input.map { _.split("""\W+""") map { (_, 1) } }
+      .flatMap { l => l }
       .groupBy { case (word, _) => word }
       .reduce { (w1, w2) => (w1._1, w1._2 + w2._2) }
       .map(fun)
