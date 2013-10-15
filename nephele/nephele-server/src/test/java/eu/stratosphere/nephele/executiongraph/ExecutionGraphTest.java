@@ -848,8 +848,8 @@ public class ExecutionGraphTest {
 			o1.setVertexToShareInstancesWith(o2);
 
 			// connect vertices
-			i1.connectTo(t1, null, DistributionPattern.POINTWISE);
-			i2.connectTo(t2, null, DistributionPattern.POINTWISE);
+			i1.connectTo(t1, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
+			i2.connectTo(t2, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
 			t1.connectTo(t3, ChannelType.NETWORK);
 			t2.connectTo(t3, ChannelType.NETWORK);
 			t3.connectTo(t4, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
@@ -864,9 +864,12 @@ public class ExecutionGraphTest {
 			// test instance types in ExecutionGraph
 			final InstanceRequestMap instanceRequestMap = new InstanceRequestMap();
 			ExecutionStage executionStage = eg.getCurrentExecutionStage();
+			assertNotNull(executionStage);
+			assertEquals(0, executionStage.getStageNumber());
+			
 			executionStage.collectRequiredInstanceTypes(instanceRequestMap, ExecutionState.CREATED);
 			assertEquals(1, instanceRequestMap.size());
-			assertEquals(12,
+			assertEquals(8,
 				(int) instanceRequestMap.getMaximumNumberOfInstances(INSTANCE_MANAGER
 					.getInstanceTypeByName(DEFAULT_INSTANCE_TYPE_NAME)));
 			// Fake transition to next stage by triggering execution state changes manually
@@ -884,13 +887,6 @@ public class ExecutionGraphTest {
 				ev.updateExecutionState(ExecutionState.FINISHED);
 			}
 			instanceRequestMap.clear();
-			executionStage = eg.getCurrentExecutionStage();
-			assertEquals(1, executionStage.getStageNumber());
-			executionStage.collectRequiredInstanceTypes(instanceRequestMap, ExecutionState.CREATED);
-			assertEquals(1, instanceRequestMap.size());
-			assertEquals(4,
-				(int) instanceRequestMap.getMaximumNumberOfInstances(INSTANCE_MANAGER
-					.getInstanceTypeByName(DEFAULT_INSTANCE_TYPE_NAME)));
 		} catch (GraphConversionException e) {
 			fail(e.getMessage());
 		} catch (JobGraphDefinitionException e) {

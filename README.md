@@ -24,7 +24,7 @@ mvn -DskipTests clean package # this will take up to 5 minutes
 Stratosphere is now installed in `stratosphere-dist/target`
 If you’re a Debian/Ubuntu user, you’ll find a .deb package. We will continue with the generic case.
 
-	cd stratosphere-dist/target/stratosphere-dist-0.2-ozone-bin/stratosphere-0.2-ozone/
+	cd stratosphere-dist/target/stratosphere-dist-0.4-ozone-SNAPSHOT-bin/stratosphere-0.4-ozone-SNAPSHOT/
 
 The directory structure here looks like the contents of the official release distribution.
 
@@ -67,7 +67,7 @@ Get some test data:
 
 Start the job:
 
-	./bin/pact-client.sh run --jarfile ./examples/pact/pact-examples-0.2-ozone-WordCount.jar --arguments 1 file://`pwd`/hamlet.txt file://`pwd`/wordcount-result.txt
+	./bin/pact-client.sh run --jarfile ./examples/pact/pact-examples-0.4-ozone-SNAPSHOT-WordCount.jar --arguments 1 file://`pwd`/hamlet.txt file://`pwd`/wordcount-result.txt
 
 You will find a file called `wordcount-result.txt` in your current directory.
 
@@ -142,8 +142,9 @@ public class Tutorial implements PlanAssembler, PlanAssemblerDescription {
 Don’t hesitate to ask!
 
 [Open an issue](https://github.com/dimalabs/ozone/issues/new) on Github, if you found a bug or need any help.
-We also have a [mailing list](https://groups.google.com/d/forum/ozone-dev) for both users and developers.
+We also have a [mailing list](https://groups.google.com/d/forum/stratosphere-dev) for both users and developers.
 
+Some of our colleagues are also in the #dima irc channel on freenode.
 
 ## Documentation
 

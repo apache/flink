@@ -376,6 +376,14 @@ public class Configuration implements IOReadableWritable {
 		return retVal;
 	}
 
+	public void addAll(Configuration other) {
+		synchronized (this.confData) {
+			synchronized (other.confData) {
+				this.confData.putAll(other.confData);
+			}
+		}
+	}
+	
 	/**
 	 * Adds all entries from the given configuration into this configuration. The keys
 	 * are prepended with the given prefix.

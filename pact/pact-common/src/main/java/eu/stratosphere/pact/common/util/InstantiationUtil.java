@@ -18,8 +18,10 @@ package eu.stratosphere.pact.common.util;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.ObjectStreamClass;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Modifier;
 
@@ -31,6 +33,30 @@ import eu.stratosphere.nephele.configuration.Configuration;
  */
 public class InstantiationUtil {
 	
+	/**
+	 * A custom ObjectInputStream that can also load user-code using a
+	 * user-code ClassLoader.
+	 *
+	 */
+	private static class ClassLoaderObjectInputStream extends ObjectInputStream {
+		private ClassLoader classLoader;
+
+		@Override
+		public Class<?> resolveClass(ObjectStreamClass desc)
+				throws IOException, ClassNotFoundException {
+			if (classLoader != null) {
+				return Class.forName(desc.getName(), false, classLoader);
+			}
+
+			return super.resolveClass(desc);
+		}
+
+		public ClassLoaderObjectInputStream(InputStream in, ClassLoader classLoader) throws IOException {
+			super(in);
+			this.classLoader = classLoader;
+		}
+	}
+
 	/**
 	 * Creates a new instance of the given class.
 	 * 
@@ -171,7 +197,7 @@ public class InstantiationUtil {
 		}
 	}
 	
-	public static Object readObjectFormConfig(Configuration config, String key) throws IOException, ClassNotFoundException {
+	public static Object readObjectFormConfig(Configuration config, String key, ClassLoader cl) throws IOException, ClassNotFoundException {
 		byte[] bytes = config.getBytes(key, null);
 		if (bytes == null) {
 			return null;
@@ -179,7 +205,7 @@ public class InstantiationUtil {
 		
 		ObjectInputStream oois = null;
 		try {
-			oois = new ObjectInputStream(new ByteArrayInputStream(bytes));
+			oois = new ClassLoaderObjectInputStream(new ByteArrayInputStream(bytes), cl);
 			return oois.readObject();
 		} finally {
 			if (oois != null) {

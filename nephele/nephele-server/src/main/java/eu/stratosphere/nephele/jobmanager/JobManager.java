@@ -102,9 +102,6 @@ import eu.stratosphere.nephele.jobmanager.splitassigner.InputSplitWrapper;
 import eu.stratosphere.nephele.managementgraph.ManagementGraph;
 import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
 import eu.stratosphere.nephele.multicast.MulticastManager;
-import eu.stratosphere.nephele.plugins.JobManagerPlugin;
-import eu.stratosphere.nephele.plugins.PluginID;
-import eu.stratosphere.nephele.plugins.PluginManager;
 import eu.stratosphere.nephele.profiling.JobManagerProfiler;
 import eu.stratosphere.nephele.profiling.ProfilingListener;
 import eu.stratosphere.nephele.profiling.ProfilingUtils;
@@ -112,7 +109,6 @@ import eu.stratosphere.nephele.protocols.ChannelLookupProtocol;
 import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
 import eu.stratosphere.nephele.protocols.InputSplitProviderProtocol;
 import eu.stratosphere.nephele.protocols.JobManagerProtocol;
-import eu.stratosphere.nephele.protocols.PluginCommunicationProtocol;
 import eu.stratosphere.nephele.taskmanager.AbstractTaskResult;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.TaskExecutionState;
@@ -136,7 +132,7 @@ import eu.stratosphere.nephele.util.StringUtils;
  * @author warneke
  */
 public class JobManager implements DeploymentManager, ExtendedManagementProtocol, InputSplitProviderProtocol,
-		JobManagerProtocol, ChannelLookupProtocol, JobStatusListener, PluginCommunicationProtocol {
+		JobManagerProtocol, ChannelLookupProtocol, JobStatusListener {
 	
 	public static enum ExecutionMode { LOCAL, CLUSTER }
 	
@@ -158,8 +154,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 	private InstanceManager instanceManager;
 
-	private final Map<PluginID, JobManagerPlugin> jobManagerPlugins;
-
 	private final int recommendedClientPollingInterval;
 
 	private final ExecutorService executorService = Executors.newCachedThreadPool();
@@ -171,13 +165,8 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	private final AtomicBoolean isShutdownInProgress = new AtomicBoolean(false);
 
 	private volatile boolean isShutDown = false;
-
 	
 	public JobManager(ExecutionMode executionMode) {
-		this(executionMode, null);
-	}
-	
-	public JobManager(ExecutionMode executionMode, final String pluginsDir) {
 
 		final String ipcAddressString = GlobalConfiguration
 			.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
@@ -229,13 +218,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		}
 
 		LOG.info("Starting job manager in " + executionMode + " mode");
-
-		// Load the plugins
-		if (pluginsDir != null) {
-			this.jobManagerPlugins = PluginManager.getJobManagerPlugins(this, pluginsDir);
-		} else {
-			this.jobManagerPlugins = Collections.emptyMap();
-		}
 
 		// Try to load the instance manager for the given execution mode
 		// Try to load the scheduler for the given execution mode
@@ -347,12 +329,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			}
 		}
 
-		// Stop the plugins
-		final Iterator<JobManagerPlugin> it = this.jobManagerPlugins.values().iterator();
-		while (it.hasNext()) {
-			it.next().shutdown();
-		}
-
 		// Stop and clean up the job progress collector
 		if (this.eventCollector != null) {
 			this.eventCollector.shutdown();
@@ -413,7 +389,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		GlobalConfiguration.loadConfiguration(configDir);
 
 		// Create a new job manager object
-		JobManager jobManager = new JobManager(executionMode, configDir);
+		JobManager jobManager = new JobManager(executionMode);
 
 		// Run the main task loop
 		jobManager.runTaskLoop();
@@ -500,30 +476,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			jobRunsWithProfiling = true;
 		}
 
-		// Allow plugins to rewrite the job graph
-		Iterator<JobManagerPlugin> it = this.jobManagerPlugins.values().iterator();
-		while (it.hasNext()) {
-
-			final JobManagerPlugin plugin = it.next();
-			if (plugin.requiresProfiling() && !jobRunsWithProfiling) {
-				LOG.debug("Skipping job graph rewrite by plugin " + plugin + " because job " + job.getJobID()
-					+ " will not be executed with profiling");
-				continue;
-			}
-
-			final JobGraph inputJob = job;
-			job = plugin.rewriteJobGraph(inputJob);
-			if (job == null) {
-				if (LOG.isWarnEnabled()) {
-					LOG.warn("Plugin " + plugin + " set job graph to null, reverting changes...");
-				}
-				job = inputJob;
-			}
-			if (job != inputJob && LOG.isDebugEnabled()) {
-				LOG.debug("Plugin " + plugin + " rewrote job graph");
-			}
-		}
-
 		// Try to create initial execution graph from job graph
 		LOG.info("Creating initial execution graph from job graph " + job.getName());
 		ExecutionGraph eg = null;
@@ -533,28 +485,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		} catch (GraphConversionException gce) {
 			JobSubmissionResult result = new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR, gce.getMessage());
 			return result;
-		}
-
-		// Allow plugins to rewrite the execution graph
-		it = this.jobManagerPlugins.values().iterator();
-		while (it.hasNext()) {
-
-			final JobManagerPlugin plugin = it.next();
-			if (plugin.requiresProfiling() && !jobRunsWithProfiling) {
-				LOG.debug("Skipping execution graph rewrite by plugin " + plugin + " because job " + job.getJobID()
-					+ " will not be executed with profiling");
-				continue;
-			}
-
-			final ExecutionGraph inputGraph = eg;
-			eg = plugin.rewriteExecutionGraph(inputGraph);
-			if (eg == null) {
-				LOG.warn("Plugin " + plugin + " set execution graph to null, reverting changes...");
-				eg = inputGraph;
-			}
-			if (eg != inputGraph) {
-				LOG.debug("Plugin " + plugin + " rewrote execution graph");
-			}
 		}
 
 		// Register job with the progress collector
@@ -569,16 +499,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			if (this.eventCollector != null) {
 				this.profiler.registerForProfilingData(eg.getJobID(), this.eventCollector);
 			}
-
-			// Allow plugins to register their own profiling listeners for the job
-			it = this.jobManagerPlugins.values().iterator();
-			while (it.hasNext()) {
-
-				final ProfilingListener listener = it.next().getProfilingListener(eg.getJobID());
-				if (listener != null) {
-					this.profiler.registerForProfilingData(eg.getJobID(), listener);
-				}
-			}
+			
 		}
 
 		// Register job with the dynamic input split assigner
@@ -1249,34 +1170,4 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		return new InputSplitWrapper(jobID, this.inputSplitManager.getNextInputSplit(vertex, sequenceNumber.getValue()));
 	}
 
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void sendData(final PluginID pluginID, final IOReadableWritable data) throws IOException {
-
-		final JobManagerPlugin jmp = this.jobManagerPlugins.get(pluginID);
-		if (jmp == null) {
-			LOG.error("Cannot find job manager plugin for plugin ID " + pluginID);
-			return;
-		}
-
-		jmp.sendData(data);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public IOReadableWritable requestData(final PluginID pluginID, final IOReadableWritable data) throws IOException {
-
-		final JobManagerPlugin jmp = this.jobManagerPlugins.get(pluginID);
-		if (jmp == null) {
-			LOG.error("Cannot find job manager plugin for plugin ID " + pluginID);
-			return null;
-		}
-
-		return jmp.requestData(data);
-	}
 }

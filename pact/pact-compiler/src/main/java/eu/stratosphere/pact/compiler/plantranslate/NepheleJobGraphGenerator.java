@@ -547,9 +547,10 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 				throw new CompilerException("Bug: Found a non-source task with no input.");
 			}
 			
-			for (int inputIndex = 0; inConns.hasNext(); inputIndex++) {
+			int inputIndex = 0;
+			while (inConns.hasNext()) {
 				Channel input = inConns.next();
-				translateChannel(input, inputIndex, targetVertex,targetVertexConfig);
+				inputIndex += translateChannel(input, inputIndex, targetVertex,targetVertexConfig);
 			}
 		} catch (Exception e) {
 			throw new CompilerException(
@@ -557,7 +558,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		}
 	}
 	
-	private void translateChannel(Channel input, int inputIndex, AbstractJobVertex targetVertex,
+	private int translateChannel(Channel input, int inputIndex, AbstractJobVertex targetVertex,
 			TaskConfig targetVertexConfig) throws Exception
 	{
 		final PlanNode inputPlanNode = input.getSource();
@@ -607,7 +608,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		} else if (inputPlanNode instanceof SolutionSetPlanNode) {
 			// for now, skip connections with the solution set node, as this is a local index access (later to be parameterized here)
 			// rather than a vertex connection
-			return;
+			return 0;
 		} else {
 			allInChannels = Collections.singletonList(input).iterator();
 		}
@@ -682,6 +683,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		// the local strategy is added only once. in non-union case that is the actual edge,
 		// in the union case, it is the edge between union and the target node
 		addLocalInfoFromChannelToConfig(input, targetVertexConfig, inputIndex);
+		return 1;
 	}
 	
 	private int getNumberOfSendersPerReceiver(DistributionPattern pattern, int numSenders, int numReceivers) {
@@ -1388,6 +1390,12 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		public void setHeadTask(JobTaskVertex headTask, TaskConfig headConfig) {
 			this.headTask = headTask;
 			this.headFinalResultConfig = new TaskConfig(new Configuration());
+			
+			// check if we already had a configuration, for example if the solution set was 
+			if (this.headConfig != null) {
+				headConfig.getConfiguration().addAll(this.headConfig.getConfiguration());
+			}
+			
 			this.headConfig = headConfig;
 		}
 		
@@ -1396,6 +1404,11 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		}
 		
 		public TaskConfig getHeadConfig() {
+			// if there is no configuration yet (solution set parameterization before the
+			// head is created) then we create one now 
+			if (this.headConfig == null) {
+				this.headConfig = new TaskConfig(new Configuration());
+			}
 			return headConfig;
 		}
 		

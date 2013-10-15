@@ -318,8 +318,6 @@ public class DefaultMemoryManager implements MemoryManager
 			return;
 		}
 		
-		final Iterator<T> segmentsIterator = segments.iterator();
-		
 		// -------------------- BEGIN CRITICAL SECTION -------------------
 		synchronized (this.lock)
 		{
@@ -327,6 +325,8 @@ public class DefaultMemoryManager implements MemoryManager
 				throw new IllegalStateException("Memory manager has been shut down.");
 			}
 
+			final Iterator<T> segmentsIterator = segments.iterator();
+			
 			AbstractInvokable lastOwner = null;
 			Set<DefaultMemorySegment> segsForOwner = null;
 
@@ -366,6 +366,8 @@ public class DefaultMemoryManager implements MemoryManager
 					this.freeSegments.add(buffer);
 				}
 			}
+			
+			segments.clear();
 		}
 		// -------------------- END CRITICAL SECTION -------------------
 	}
