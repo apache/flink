@@ -30,7 +30,8 @@ import java.io.BufferedWriter
 object RunComputeEdgeDegrees {
   def main(args: Array[String]) {
     
-    val plan = ComputeEdgeDegrees.getPlan(
+	val computeEdgeDegreesJob = new ComputeEdgeDegrees
+    val plan = computeEdgeDegreesJob.getPlan(
       "file:///tmp/edges",
       "file:///tmp/edgesWithDegrees")
 
@@ -42,16 +43,14 @@ object RunComputeEdgeDegrees {
 }
 
 /**
- * Annotates edges with associated vertice degrees.
+ * Annotates edges with associated vertex degrees.
  */
-class ComputeEdgeDegrees extends ScalaPlanAssembler with PlanAssemblerDescription {
-  override def getDescription = "-input <file>  -output <file>"
-
-  override def getScalaPlan(args: Args) = ComputeEdgeDegrees.getPlan(args("input"), args("output"))
-}
-
-object ComputeEdgeDegrees {
+class ComputeEdgeDegrees extends ScalaPlanAssembler with PlanAssemblerDescription with Serializable {
   
+  override def getDescription = "-input <file>  -output <file>"
+  
+  override def getScalaPlan(args: Args) = getPlan(args("input"), args("output"))
+   
   /*
    * Output formatting function for edges with annotated degrees
    */

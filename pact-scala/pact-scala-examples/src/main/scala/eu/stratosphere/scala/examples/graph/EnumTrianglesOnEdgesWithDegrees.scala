@@ -13,7 +13,6 @@
 
 package eu.stratosphere.scala.examples.graph
 
-import eu.stratosphere.pact.client.LocalExecutor
 import eu.stratosphere.pact.common.`type`.base.PactInteger
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription
 import eu.stratosphere.scala.Args
@@ -21,15 +20,17 @@ import eu.stratosphere.scala.DataSource
 import eu.stratosphere.scala.ScalaPlan
 import eu.stratosphere.scala.ScalaPlanAssembler
 import eu.stratosphere.scala.analysis.GlobalSchemaPrinter
-import eu.stratosphere.scala.operators.optionToIterator
-import eu.stratosphere.scala.operators.RecordDataSourceFormat
 import eu.stratosphere.scala.operators.DelimitedDataSinkFormat
+import eu.stratosphere.scala.operators.RecordDataSourceFormat
+import eu.stratosphere.scala.operators.optionToIterator
+import eu.stratosphere.pact.client.LocalExecutor
 
 
 object RunEnumTrianglesOnEdgesWithDegrees {
   def main(args: Array[String]) {
     
-    val plan = EnumTrianglesOnEdgesWithDegrees.getPlan(
+    val enumTrianglesJob = new EnumTrianglesOnEdgesWithDegrees
+    val plan = enumTrianglesJob.getPlan(
       "file:///tmp/edgesWithDegrees",
       "file:///tmp/triangles")
 
@@ -40,17 +41,15 @@ object RunEnumTrianglesOnEdgesWithDegrees {
   }
 }
 
-class EnumTrianglesOnEdgesWithDegrees extends ScalaPlanAssembler with PlanAssemblerDescription {
-  override def getDescription = "-input <file>  -output <file>"
-
-  override def getScalaPlan(args: Args) = EnumTrianglesOnEdgesWithDegrees.getPlan(args("input"), args("output"))
-}
-
 /**
  * Enumerates all triangles build by three connected vertices in a graph.
  * The graph is represented as edges (pairs of vertices) with annotated vertex degrees. * 
  */
-private object EnumTrianglesOnEdgesWithDegrees {
+class EnumTrianglesOnEdgesWithDegrees extends ScalaPlanAssembler with PlanAssemblerDescription with Serializable {
+
+  override def getDescription = "-input <file>  -output <file>"
+    
+  override def getScalaPlan(args: Args) = getPlan(args("input"), args("output"))
   
   /*
    * Output formatting function for triangles.
