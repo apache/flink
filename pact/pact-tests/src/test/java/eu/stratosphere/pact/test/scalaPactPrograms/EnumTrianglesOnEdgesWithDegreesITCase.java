@@ -20,9 +20,7 @@ public class EnumTrianglesOnEdgesWithDegreesITCase extends eu.stratosphere.pact.
 
 		EnumTrianglesOnEdgesWithDegrees enumTriangles = new EnumTrianglesOnEdgesWithDegrees();
 		Plan plan = enumTriangles.getPlan(
-				"-input",
 				getFilesystemProvider().getURIPrefix() + edgesPath,
-				"-output",
 				getFilesystemProvider().getURIPrefix() + resultPath);
 
 		PactCompiler pc = new PactCompiler(new DataStatistics());

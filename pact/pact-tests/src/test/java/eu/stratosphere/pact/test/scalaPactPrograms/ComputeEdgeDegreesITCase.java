@@ -20,9 +20,7 @@ public class ComputeEdgeDegreesITCase extends eu.stratosphere.pact.test.pactProg
 
 		ComputeEdgeDegrees computeDegrees = new ComputeEdgeDegrees();
 		Plan plan = computeDegrees.getPlan(
-				"-input",
 				getFilesystemProvider().getURIPrefix() + edgesPath,
-				"-output",
 				getFilesystemProvider().getURIPrefix() + resultPath);
 
 		PactCompiler pc = new PactCompiler(new DataStatistics());
