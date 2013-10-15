@@ -22,38 +22,41 @@ bin=`cd "$bin"; pwd`
 
 . "$bin"/nephele-config.sh
 
+if [ -z "${NEPHELE_PID_DIR}" ]; then
+    NEPHELE_PID_DIR=$(readFromConfig ${KEY_ENV_PID_DIR} "${DEFAULT_ENV_PID_DIR}" ${YAML_CONF})
+fi
+
+if [ -z "${NEPHELE_OPTS}" ]; then
+    NEPHELE_OPTS=$(readFromConfig ${KEY_ENV_JAVA_OPTS} "${DEFAULT_ENV_JAVA_OPTS}" ${YAML_CONF})
+fi
+
 if [ "$EXECUTIONMODE" = "local" ]; then
-	NEPHELE_JM_HEAP=`echo $NEPHELE_JM_HEAP+$NEPHELE_TM_HEAP | bc`
+    NEPHELE_JM_HEAP=`echo $NEPHELE_JM_HEAP+$NEPHELE_TM_HEAP | bc`
 fi
 
 JVM_ARGS="$JVM_ARGS -Xms"$NEPHELE_JM_HEAP"m -Xmx"$NEPHELE_JM_HEAP"m"
 
-if [ "$NEPHELE_PID_DIR" = "" ]; then
-	NEPHELE_PID_DIR=/tmp
-fi
-
 if [ "$NEPHELE_IDENT_STRING" = "" ]; then
-	NEPHELE_IDENT_STRING="$USER"
+    NEPHELE_IDENT_STRING="$USER"
 fi
 
 # auxilliary function to construct a lightweight classpath for the
 # Nephele JobManager
 constructJobManagerClassPath() {
+    for jarfile in $NEPHELE_LIB_DIR/*.jar ; do
+        if [[ $NEPHELE_JM_CLASSPATH = "" ]]; then
+            NEPHELE_JM_CLASSPATH=$jarfile;
+        else
+            NEPHELE_JM_CLASSPATH=$NEPHELE_JM_CLASSPATH:$jarfile
+        fi
+    done
 
-	for jarfile in $NEPHELE_LIB_DIR/*.jar ; do
-		if [[ $NEPHELE_JM_CLASSPATH = "" ]]; then
-			NEPHELE_JM_CLASSPATH=$jarfile;
-		else
-			NEPHELE_JM_CLASSPATH=$NEPHELE_JM_CLASSPATH:$jarfile
-		fi
-	done
+    for jarfile in $NEPHELE_LIB_DIR/dropin/*.jar ; do
+        NEPHELE_JM_CLASSPATH=$NEPHELE_JM_CLASSPATH:$jarfile
+    done
+    NEPHELE_JM_CLASSPATH=$NEPHELE_JM_CLASSPATH:$NEPHELE_LIB_DIR/dropin/
 
-	for jarfile in $NEPHELE_LIB_DIR/dropin/*.jar ; do
-		NEPHELE_JM_CLASSPATH=$NEPHELE_JM_CLASSPATH:$jarfile
-	done
-	NEPHELE_JM_CLASSPATH=$NEPHELE_JM_CLASSPATH:$NEPHELE_LIB_DIR/dropin/
-
-	echo $NEPHELE_JM_CLASSPATH
+    echo $NEPHELE_JM_CLASSPATH
 }
 
 NEPHELE_JM_CLASSPATH=`manglePathList $(constructJobManagerClassPath)`
@@ -65,39 +68,39 @@ log_setting="-Dlog.file="$log" -Dlog4j.configuration=file:"$NEPHELE_CONF_DIR"/lo
 
 case $STARTSTOP in
 
-	(start)
-		mkdir -p "$NEPHELE_PID_DIR"
-		if [ -f $pid ]; then
-			if kill -0 `cat $pid` > /dev/null 2>&1; then
-				echo Nephele job manager running as process `cat $pid`.  Stop it first.
-				exit 1
-     			fi
-		fi
+    (start)
+        mkdir -p "$NEPHELE_PID_DIR"
+        if [ -f $pid ]; then
+            if kill -0 `cat $pid` > /dev/null 2>&1; then
+                echo Nephele job manager running as process `cat $pid`.  Stop it first.
+                exit 1
+            fi
+        fi
 
-                # Rotate log files
-                rotateLogFile $log
-                rotateLogFile $out
+        # Rotate log files
+        rotateLogFile $log
+        rotateLogFile $out
 
-		echo Starting Nephele job manager
-		$JAVA_RUN $JVM_ARGS $NEPHELE_OPTS $log_setting -classpath $NEPHELE_JM_CLASSPATH eu.stratosphere.nephele.jobmanager.JobManager -executionMode $EXECUTIONMODE -configDir $NEPHELE_CONF_DIR  > "$out" 2>&1 < /dev/null &
-		echo $! > $pid
-	;;
+        echo Starting Nephele job manager
+        $JAVA_RUN $JVM_ARGS $NEPHELE_OPTS $log_setting -classpath $NEPHELE_JM_CLASSPATH eu.stratosphere.nephele.jobmanager.JobManager -executionMode $EXECUTIONMODE -configDir $NEPHELE_CONF_DIR  > "$out" 2>&1 < /dev/null &
+        echo $! > $pid
+    ;;
 
-	(stop)
-		if [ -f $pid ]; then
-			if kill -0 `cat $pid` > /dev/null 2>&1; then
-				echo Stopping Nephele job manager
-				kill `cat $pid`
-			else
-				echo No Nephele job manager to stop
-			fi
-		else
-			echo No Nephele job manager to stop
-		fi
-	;;
+    (stop)
+        if [ -f $pid ]; then
+            if kill -0 `cat $pid` > /dev/null 2>&1; then
+                echo Stopping Nephele job manager
+                kill `cat $pid`
+            else
+                echo No Nephele job manager to stop
+            fi
+        else
+            echo No Nephele job manager to stop
+        fi
+    ;;
 
-	(*)
-		echo Please specify start or stop
-	;;
+    (*)
+        echo Please specify start or stop
+    ;;
 
 esac

@@ -1,0 +1,98 @@
+########################################################################################################################
+# 
+#  Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+# 
+#  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+#  the License. You may obtain a copy of the License at
+# 
+#      http://www.apache.org/licenses/LICENSE-2.0
+# 
+#  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+#  an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+#  specific language governing permissions and limitations under the License.
+# 
+########################################################################################################################
+
+#=======================================================================================================================
+#                                                   JOB MANAGER (MASTER)
+#=======================================================================================================================
+
+jobmanager.rpc.address: localhost
+
+jobmanager.rpc.port: 6123
+
+jobmanager.profiling.enable: false
+
+# Number of RPC handler threads
+jobmanager.rpc.numhandler: 8
+
+# JVM heap size in MB
+jobmanager.heap.mb: 256
+
+#=======================================================================================================================
+#                                                   TASK MANAGER (WORKERs)
+#=======================================================================================================================
+
+taskmanager.rpc.port: 6122
+
+# JVM heap size in MB
+taskmanager.heap.mb: 512
+
+# Directories for temporary files. Add a delimited list for multiple directories, using the system directory delimiter
+# (colon ':' on unix). An example would be /data1/tmp:/data2/tmp:/data3/tmp.
+# Note: Each directory entry is read from and written to by a different I/O thread. You can include the same directory
+# multiple times in that list to create multiple I/O threads against that directory. This is for example relevant for
+# high-throughput RAIDs.
+# If not specified, the system-specific Java temporary directory is taken (java.io.tmpdir property)
+# taskmanager.tmp.dirs: /tmp
+
+# Number of network buffers (used by each TaskManager)
+channel.network.numberOfBuffers: 2048
+
+# Size of network buffers
+channel.network.bufferSizeInBytes: 32768
+
+#=======================================================================================================================
+#                                                      CLIENTS
+#=======================================================================================================================
+
+# Configuration used when writing into HDFS. Unless specified, HDFS file creation will use HDFS default settings with
+# respect to block-size, replication factor, etc.
+# fs.hdfs.hdfsdefault: /path/to/hadoop/conf/hdfs-site.xml
+
+#=======================================================================================================================
+#                                                    PARALLELISM
+#=======================================================================================================================
+
+# The default degree of parallelism for each user function, if no other degree is explicitly specified.
+pact.parallelization.degree: -1
+
+# The maximum number of parallel instances of the user function that are assigned to a single computing instance.
+# If set to -1, than no limit exists.
+pact.parallelization.max-intra-node-degree: -1
+
+# An optional hard limit in the number of machines to use. A program will never use more than the here specified number
+# of machines. If set to '-1', the limit is set by the maximal number of instances available in the cluster.
+# If this value is set, the actual number of machines used for certain tasks may be even lower than this value, due to
+# scheduling constraints.
+pact.parallelization.maxmachines: -1
+
+#=======================================================================================================================
+#                                                   WEB FRONTEND
+#=======================================================================================================================
+
+pact.web.port: 8088
+
+pact.web.rootpath: ./resources/web-docs/
+
+# The temp directory for the web server
+# If not specified, the system-specific Java temporary directory is taken (java.io.tmpdir property)
+# pact.web.temp: /tmp
+
+# Directory into which the web server will store uploaded PACT programs
+# If not specified, the system-specific Java temporary directory is taken (java.io.tmpdir property) as base.
+# pact.web.uploaddir: /tmp/pact-jobs
+
+# The directory into which the web server will dump temporary JSON files describing pact plans
+# If not specified, the system-specific Java temporary directory is taken (java.io.tmpdir property) as base.
+# pact.web.plandump: /tmp/pact-plans

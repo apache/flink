@@ -21,4 +21,3 @@ bin=`cd "$bin"; pwd`
 
 # local mode, only bring up job manager. The job manager will take care to bring a task manager internally.
 $NEPHELE_BIN_DIR/pact-webfrontend.sh stop
-

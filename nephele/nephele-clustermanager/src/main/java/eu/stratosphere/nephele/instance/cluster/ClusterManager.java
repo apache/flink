@@ -474,7 +474,7 @@ public class ClusterManager implements InstanceManager {
 
 			if (descr == null) {
 				if (count == 1) {
-					LOG.error("Configuration does not contain at least one definition for an instance type, "
+					LOG.info("Configuration does not contain at least one definition for an instance type, "
 						+ "using default instance type: " + ConfigConstants.DEFAULT_INSTANCE_TYPE);
 
 					descr = ConfigConstants.DEFAULT_INSTANCE_TYPE;

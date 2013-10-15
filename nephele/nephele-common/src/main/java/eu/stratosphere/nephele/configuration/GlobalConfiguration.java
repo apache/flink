@@ -15,9 +15,12 @@
 
 package eu.stratosphere.nephele.configuration;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -26,6 +29,8 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -33,17 +38,13 @@ import org.w3c.dom.NodeList;
 import org.w3c.dom.Text;
 import org.xml.sax.SAXException;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
- * Global configuration object in Nephele. Similar to a Java properties configuration
- * objects it includes key-value pairs which represent the framework's settings/configuration.
+ * Global configuration object in Nephele. Similar to Java properties configuration
+ * objects it includes key-value pairs which represent the framework's configuration.
+ * <p>
  * This class is thread-safe.
- * 
- * @author warneke
  */
 public final class GlobalConfiguration {
 
@@ -121,7 +122,7 @@ public final class GlobalConfiguration {
 			return this.confData.get(key);
 		}
 	}
-	
+
 	/**
 	 * Returns the value associated with the given key as a long integer.
 	 * 
@@ -250,6 +251,9 @@ public final class GlobalConfiguration {
 
 	/**
 	 * Loads the configuration files from the specified directory.
+	 * <p>
+	 * XML and YAML are supported as configuration files. If both XML and YAML files exist in the configuration
+	 * directory, keys from YAML will overwrite keys from XML.
 	 * 
 	 * @param configDir
 	 *        the directory which contains the configuration files
@@ -269,23 +273,24 @@ public final class GlobalConfiguration {
 			return;
 		}
 
-		// get all XML files in the directory
-		final File[] files = confDirFile.listFiles(new FilenameFilter() {
-			@Override
-			public boolean accept(final File dir, final String name) {
-				return dir.equals(confDirFile) && name != null && name.endsWith(".xml");
-			}
+		// get all XML and YAML files in the directory
+		final File[] xmlFiles = filterFilesBySuffix(confDirFile, ".xml");
+		final File[] yamlFiles = filterFilesBySuffix(confDirFile, ".yaml");
 
-		});
-		if (files == null || files.length == 0) {
+		if ((xmlFiles == null || xmlFiles.length == 0) && (yamlFiles == null || yamlFiles.length == 0)) {
 			LOG.warn("Unable to get the contents of the config directory '" + configDir + "' ("
 				+ confDirFile.getAbsolutePath() + ").");
 			return;
 		}
 
-		// load each xml file
-		for (File f : files) {
-			get().loadResource(f);
+		// load config files and write into config map
+		for (File f : xmlFiles) {
+			get().loadXMLResource(f);
+		}
+
+		// => if both XML and YAML files exist, the YAML config keys overwrite XML settings
+		for (File f : yamlFiles) {
+			get().loadYAMLResource(f);
 		}
 
 		// Store the path to the configuration directory itself
@@ -295,26 +300,87 @@ public final class GlobalConfiguration {
 	}
 
 	/**
+	 * Loads a YAML-file of key-value pairs.
+	 * <p>
+	 * Colon and whitespace ": " separate key and value (one per line). The hash tag "#" starts a single-line comment.
+	 * <p>
+	 * Example:
+	 * 
+	 * <pre>
+	 * jobmanager.rpc.address: localhost # network address for communication with the job manager
+	 * jobmanager.rpc.port   : 6123      # network port to connect to for communication with the job manager
+	 * taskmanager.rpc.port  : 6122      # network port the task manager expects incoming IPC connections
+	 * </pre>
+	 * <p>
+	 * This does not span the whole YAML specification, but only the *syntax* of simple YAML key-value pairs (see issue
+	 * #113 on GitHub). If at any point in time, there is a need to go beyond simple key-value pairs syntax
+	 * compatibility will allow to introduce a YAML parser library.
+	 * 
+	 * @param file
+	 *        the YAML file
+	 * @see {@link http://www.yaml.org/spec/1.2/spec.html}
+	 * @see {@link https://github.com/stratosphere/stratosphere/issues/113}
+	 */
+	private void loadYAMLResource(final File file) {
+
+		BufferedReader reader = null;
+		try {
+			reader = new BufferedReader(new InputStreamReader(new FileInputStream(file)));
+
+			String line = null;
+			while ((line = reader.readLine()) != null) {
+
+				// 1. check for comments
+				String[] comments = line.split("#", 2);
+				String conf = comments[0];
+
+				// 2. get key and value
+				if (conf.length() > 0) {
+					String[] kv = conf.split(": ", 2);
+
+					// skip line with no valid key-value pair
+					if (kv.length == 1) {
+						LOG.warn("Error while trying to split key and value in configuration file " + file + ": " + line);
+						continue;
+					}
+
+					String key = kv[0].trim();
+					String value = kv[1].trim();
+					
+					// sanity check
+					if (key.length() == 0 || value.length() == 0) {
+						LOG.warn("Error after splitting key and value in configuration file " + file + ": " + line);
+						continue;
+					}
+
+					LOG.debug("Loading configuration property: " + key + ", " + value);
+
+					this.confData.put(key, value);
+				}
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		} finally {
+			try {
+				reader.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
+	/**
 	 * Loads an XML document of key-values pairs.
 	 * 
 	 * @param file
 	 *        the XML document file
 	 */
-	private void loadResource(final File file) {
+	private void loadXMLResource(final File file) {
 
 		final DocumentBuilderFactory docBuilderFactory = DocumentBuilderFactory.newInstance();
 		// Ignore comments in the XML file
 		docBuilderFactory.setIgnoringComments(true);
 		docBuilderFactory.setNamespaceAware(true);
-
-		// TODO: Trying to set this option causes an exception. What do we need it for? (DW)
-		/*
-		 * try {
-		 * docBuilderFactory.setXIncludeAware(true);
-		 * } catch (UnsupportedOperationException e) {
-		 * LOG.error("Failed to set setXIncludeAware(true) for parser " + docBuilderFactory + ":" + e, e);
-		 * }
-		 */
 
 		try {
 
@@ -525,5 +591,23 @@ public final class GlobalConfiguration {
 				this.confData.put(key, conf.getString(key, ""));
 			}
 		}
+	}
+	
+	/**
+	 * Filters files in directory which have the specified suffix (e.g. ".xml").
+	 * 
+	 * @param dir
+	 *        directory to filter
+	 * @param suffix
+	 *        suffix to filter files by (e.g. ".xml")
+	 * @return files with given ending in directory
+	 */
+	private static File[] filterFilesBySuffix(final File dir, final String suffix) {
+		return dir.listFiles(new FilenameFilter() {
+			@Override
+			public boolean accept(final File dir, final String name) {
+				return dir.equals(dir) && name != null && name.endsWith(suffix);
+			}
+		});
 	}
 }

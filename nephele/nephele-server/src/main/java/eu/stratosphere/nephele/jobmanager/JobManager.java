@@ -255,11 +255,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		// Load profiler if it should be used
 		if (GlobalConfiguration.getBoolean(ProfilingUtils.ENABLE_PROFILING_KEY, false)) {
 			final String profilerClassName = GlobalConfiguration.getString(ProfilingUtils.JOBMANAGER_CLASSNAME_KEY,
-				null);
-			if (profilerClassName == null) {
-				LOG.error("Cannot find class name for the profiler");
-				System.exit(FAILURERETURNCODE);
-			}
+				"eu.stratosphere.nephele.profiling.impl.JobManagerProfilerImpl");
 			this.profiler = ProfilingUtils.loadJobManagerProfiler(profilerClassName, ipcAddress);
 			if (this.profiler == null) {
 				LOG.error("Cannot load profiler");

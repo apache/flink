@@ -238,13 +238,12 @@ public class TaskManager implements TaskOperationProtocol {
 		// Load profiler if it should be used
 		if (GlobalConfiguration.getBoolean(ProfilingUtils.ENABLE_PROFILING_KEY, false)) {
 			final String profilerClassName = GlobalConfiguration.getString(ProfilingUtils.TASKMANAGER_CLASSNAME_KEY,
-				null);
-			if (profilerClassName == null) {
-				LOG.error("Cannot find class name for the profiler.");
-				throw new Exception("Cannot find class name for the profiler.");
-			}
+				"eu.stratosphere.nephele.profiling.impl.TaskManagerProfilerImpl");
 			this.profiler = ProfilingUtils.loadTaskManagerProfiler(profilerClassName, jobManagerAddress.getAddress(),
 				this.localInstanceConnectionInfo);
+			if (this.profiler == null) {
+				LOG.error("Cannot find class name for the profiler.");
+			}
 		} else {
 			this.profiler = null;
 			LOG.debug("Profiler disabled");

@@ -68,7 +68,7 @@ public final class ConfigConstants {
 	/**
 	 * The key defining the amount polling interval (in seconds) for the JobClient.
 	 */
-	public static final String JOBCLIENT_POLLING_INTERVAL_KEY = "jobclient.polling.internval";
+	public static final String JOBCLIENT_POLLING_INTERVAL_KEY = "jobclient.polling.interval";
 	
 	/**
 	 * The key for the config parameter defining flag to terminate a job at job-client shutdown.
@@ -115,9 +115,9 @@ public final class ConfigConstants {
 	public static final String DEFAULT_TASK_MANAGER_TMP_PATH = System.getProperty("java.io.tmpdir");
 
 	/**
-	 * The default value for the JobClient's polling interval. 5 Seconds.
+	 * The default value for the JobClient's polling interval. 2 Seconds.
 	 */
-	public static final int DEFAULT_JOBCLIENT_POLLING_INTERVAL = 5;
+	public static final int DEFAULT_JOBCLIENT_POLLING_INTERVAL = 2;
 	
 	/**
 	 * The default value for the flag to terminate a job on job-client shutdown.

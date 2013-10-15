@@ -22,10 +22,6 @@ bin=`cd "$bin"; pwd`
 # get nephele config
 . "$bin"/nephele-config.sh
 
-if [ "$NEPHELE_PID_DIR" = "" ]; then
-        NEPHELE_PID_DIR=/tmp
-fi
-
 if [ "$NEPHELE_IDENT_STRING" = "" ]; then
         NEPHELE_IDENT_STRING="$USER"
 fi
@@ -97,5 +93,4 @@ case $STARTSTOP in
         ;;
 
 esac
-
 
