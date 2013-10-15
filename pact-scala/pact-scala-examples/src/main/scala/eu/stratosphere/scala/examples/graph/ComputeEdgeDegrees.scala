@@ -23,13 +23,16 @@ import eu.stratosphere.scala.analysis.GlobalSchemaPrinter
 import eu.stratosphere.scala.operators.RecordDataSourceFormat
 import eu.stratosphere.scala.operators.optionToIterator
 import eu.stratosphere.scala.operators.DelimitedDataSinkFormat
-
+import java.io.FileWriter
+import java.io.File
+import java.io.BufferedWriter
 
 object RunComputeEdgeDegrees {
   def main(args: Array[String]) {
+    
     val plan = ComputeEdgeDegrees.getPlan(
       "file:///tmp/edges",
-      "file:///tmp/edgeDegrees")
+      "file:///tmp/edgesWithDegrees")
 
     GlobalSchemaPrinter.printSchema(plan)
     LocalExecutor.execute(plan)
@@ -38,67 +41,82 @@ object RunComputeEdgeDegrees {
   }
 }
 
+/**
+ * Annotates edges with associated vertice degrees.
+ */
 class ComputeEdgeDegrees extends ScalaPlanAssembler with PlanAssemblerDescription {
   override def getDescription = "-input <file>  -output <file>"
 
   override def getScalaPlan(args: Args) = ComputeEdgeDegrees.getPlan(args("input"), args("output"))
-  
-  def getStringScalaPlan(in: String, out: String) = ComputeEdgeDegrees.getPlan(in, out)
 }
 
-/**
- * Annotates edges with associated vertice degrees.
- */
-private object ComputeEdgeDegrees {
+object ComputeEdgeDegrees {
   
   /*
    * Output formatting function for edges with annotated degrees
    */
-  def formatEdgeWithDegrees = (v1: Int, c1: Int, v2: Int, c2: Int) => "%d,%d|%d,%d".format(v1, c1, v2, c2)
+  def formatEdgeWithDegrees = (v1: Int, v2: Int, c1: Int, c2: Int) => "%d,%d|%d,%d".format(v1, v2, c1, c2)
+    
+  /*
+   * Emits one edge for each unique input edge with the vertex degree of the first(and grouping key) vertex.
+   * The degree of the second (non-grouping key) vertexes are set to zero.
+   * Edges are projected such that smaller vertex is the first vertex.
+   */ 
+  def annotateFirstVertexDegree(eI: Iterator[(Int, Int)]): List[(Int, Int, Int, Int)] = {
+    val eL = eI.toList
+    val eLUniq = eL.distinct
+    val cnt = eLUniq.size
+    for (e <- eLUniq)
+      yield if (e._1 < e._2) 
+    	  		(e._1, e._2, cnt, 0)
+        	else 
+        		(e._2, e._1, 0, cnt)
+  }
   
+  /*
+   * Combines the degrees of both vertexes of an edge.
+   */
+  def combineVertexDegrees(eI: Iterator[(Int, Int, Int, Int)]) : (Int, Int, Int, Int) = {
+    
+    val eL = eI.toList
+    if (eL.size != 2)
+    	throw new RuntimeException("Problem when combinig vertex counts");
+    
+    if (eL(0)._3 == 0 && eL(1)._4 == 0)
+      (eL(0)._1, eL(1)._3, eL(0)._2, eL(0)._4)
+    else
+      (eL(0)._1, eL(0)._3, eL(0)._2, eL(1)._4)
+    
+  }
+    
   def getPlan(edgeInput: String, annotatedEdgeOutput: String) = {
     
     /*
      * Input format for edges. 
      * Edges are separated by new line '\n'. 
-     * An edge is represented as two Integer vertex IDs which are separated by a blank ' '.
+     * An edge is represented as two Integer vertex IDs which are separated by a blank ','.
      */
     val edges = DataSource(edgeInput, RecordDataSourceFormat[(Int, Int)]("\n", ","))
 
     /*
-     * Project all edges such that the lower vertex ID is the first vertex ID.
+     * Emit each edge twice with both vertex orders.
      */
-    val projEdges = edges map { e => if (e._1 < e._2) e else (e._2, e._1) }
+    val projEdges = edges flatMap { (e) => Iterator((e._1, e._2) , (e._2, e._1)) }
     
     /*
-     * Remove duplicate edges by grouping on the whole edge and returning the first edge of the group.
+     * Annotates each edges with degree for the first vertex.
      */
-    val uniqEdges = projEdges groupBy { e => e } hadoopReduce { i => i.next }
+    val vertexCnts = projEdges groupBy { _._1 } hadoopReduce { annotateFirstVertexDegree } flatMap {x => x.iterator }
     
     /*
-     * Extract both vertex IDs from an edge.
+     * Combines the degrees of both vertexes of an edge.
      */
-    val vertices = uniqEdges flatMap { (e) => Iterator(e._1, e._2) map {v => (v, 1)} }
-    
-    /*
-     * Count the occurrences of each vertex ID.
-     */
-    val vertexCnts = vertices groupBy { _._1 } reduce { (v1, v2) => (v1._1, v1._2 + v2._2) } 
-    
-    /*
-     * Join the first vertex of each edge with its count. 
-     */
-    val firstDegreeEdges = uniqEdges join vertexCnts where {_._1} isEqualTo {_._1} map { (e, vc) => (e._1, e._2, vc._2) }
-    
-    /*
-     * Join the second vertex of each edge with its count.
-     */
-    val bothDegreeEdges = firstDegreeEdges join vertexCnts where {_._2} isEqualTo {_._1} map { (e, vc) => (e._1, e._2, e._3, vc._2) }
+    val combinedVertexCnts = vertexCnts groupBy { (x) => (x._1, x._2) } hadoopReduce { combineVertexDegrees }
     
     /*
      * Emit annotated edges.
      */
-    val output = bothDegreeEdges.write(annotatedEdgeOutput, DelimitedDataSinkFormat(formatEdgeWithDegrees.tupled))
+    val output = combinedVertexCnts.write(annotatedEdgeOutput, DelimitedDataSinkFormat(formatEdgeWithDegrees.tupled))
   
     new ScalaPlan(Seq(output), "Compute Edge Degrees")
   }

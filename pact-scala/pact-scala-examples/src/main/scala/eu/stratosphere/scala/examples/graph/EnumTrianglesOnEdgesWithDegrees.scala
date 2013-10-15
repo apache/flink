@@ -57,48 +57,55 @@ private object EnumTrianglesOnEdgesWithDegrees {
    */
   def formatTriangle = (v1: Int, v2: Int, v3: Int) => "%d,%d,%d".format(v1, v2, v3)
   
+  /*
+   * Extracts degree information and projects edges such that lower degree vertex comes first.
+   */
+  def projectVertexesWithDegrees(e: (String, String)): (Int, Int) = {
+    val v1 = e._1.split(",")
+    val v2 = e._2.split(",")
+    if (v1(1).toInt <= v2(1).toInt)
+      (v1(0).toInt, v2(0).toInt)
+    else
+      (v2(0).toInt, v1(0).toInt)
+  } 
+  
+  /*
+   * Joins projected edges on lower vertex id.
+   * Emits a triad (triangle candidate with one missing edge) for each unique combination of edges.
+   * Ensures that vertex 2 and 3 are ordered by vertex id.  
+   */
+  def buildTriads(eI : Iterator[(Int, Int)]): List[(Int, Int, Int)] = {
+    val eL = eI.toList
+    for (e1 <- eL; 
+         e2 <- eL 
+         if e1._2 < e2._2) yield
+      (e1._1, e1._2, e2._2)
+  }
+  
   def getPlan(edgeInput: String, triangleOutput: String) = {
+    
     /*
      * Input format for edges with degrees
      * Edges are separated by new line '\n'. 
-     * An edge with degrees is represented by four Integers (vertex IDs) separated by one space ' '.
-     * The first two Integers are the vertex IDs.
-     * The third and forth Integer are the degrees of the first and second vertex, respectively. 
+     * An edge is represented by two vertex IDs with associated vertex degrees.
+     * The format of an edge is "<vertexID1>,<vertexDegree1>|<vertexID2>,<vertexDegree2>" 
      */
     val vertexesWithDegrees = DataSource(edgeInput, RecordDataSourceFormat[(String, String)]("\n", "|"))
 
     /*
-     * extracts degree information from input format
-     */
-    val edgesWithDegrees = vertexesWithDegrees map { (x) => ( x._1.split(',')(0).toInt, 
-                                                        	  x._2.split(',')(0).toInt,
-                                                        	  x._1.split(',')(1).toInt, 
-                                                        	  x._2.split(',')(1).toInt ) }
-    
-    
-    
-    /*
      * Project edges such that vertex with lower degree comes first (record position 1) and remove the degrees.
      */
-    val edgesByDegree = edgesWithDegrees map { (x) => if (x._3 <= x._4) (x._1, x._2) else (x._2, x._1) }
+    val edgesByDegree = vertexesWithDegrees map { projectVertexesWithDegrees }
     
     /*
-     * Project edges such that vertex with lower ID comes first (record position) and remove degrees 
+     * Project edges such that vertex with lower ID comes first (record position) and remove degrees.
      */
     val edgesByID = edgesByDegree map { (x) => if (x._1 < x._2) (x._1, x._2) else (x._2, x._1) }
     
     /*
-     * Join projected edges with themselves on lower vertex id.
-     * Emit a triad (triangle candidate with one missing edge) for each unique combination of edges. 
-     * Ensure that vertices are ordered by vertex id. 
+     * Build triads by joining edges on common vertex.
      */   
-    val triads = edgesByDegree join edgesByDegree where { _._1 } isEqualTo { _._1 } flatMap { (e1, e2) =>
-        (e1, e2) match {
-          case ((v11, v12), (_, v22)) 
-          	if v12 < v22 => Some((v11, v12, v22))
-          case _ => None
-        }
-      }
+    val triads = edgesByDegree groupBy { _._1 } hadoopReduce { buildTriads } flatMap {x => x.iterator }
     
     /*
      * Join triads with projected edges to 'close' triads.
