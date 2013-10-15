@@ -16,7 +16,7 @@ This tutorial shows how to build Stratosphere on your own system. Please open a 
 * Java 6 or 7
 
 ```
-git clone https://github.com/dimalabs/ozone.git
+git clone https://github.com/stratosphere/stratosphere.git
 cd ozone
 mvn -DskipTests clean package # this will take up to 5 minutes
 ```
@@ -141,7 +141,7 @@ public class Tutorial implements PlanAssembler, PlanAssemblerDescription {
 ## Support
 Don’t hesitate to ask!
 
-[Open an issue](https://github.com/dimalabs/ozone/issues/new) on Github, if you found a bug or need any help.
+[Open an issue](https://github.com/stratosphere/stratosphere/issues/new) on Github, if you found a bug or need any help.
 We also have a [mailing list](https://groups.google.com/d/forum/stratosphere-dev) for both users and developers.
 
 Some of our colleagues are also in the #dima irc channel on freenode.
@@ -149,9 +149,9 @@ Some of our colleagues are also in the #dima irc channel on freenode.
 ## Documentation
 
 There is our (old) [official Wiki](https://stratosphere.eu/wiki/doku).
-We are in the progress of migrating it to the [GitHub Wiki](https://github.com/dimalabs/ozone/wiki/_pages)
+We are in the progress of migrating it to the [GitHub Wiki](https://github.com/stratosphere/stratosphere/wiki/_pages)
 
-Please make edits to the Wiki if you find inconsistencies or [Open an issue](https://github.com/dimalabs/ozone/issues/new) 
+Please make edits to the Wiki if you find inconsistencies or [Open an issue](https://github.com/stratosphere/stratosphere/issues/new) 
 
 
 ## Fork and Contribute
@@ -178,7 +178,7 @@ We combine cutting edge research outcomes with a stable and usable codebase.
 Decisions are not made behind closed doors. We discuss all changes and plans on our Mailinglists and on GitHub.
 
 
-Build Status: [![Build Status](https://travis-ci.org/dimalabs/ozone.png)](https://travis-ci.org/dimalabs/ozone)
+Build Status: [![Build Status](https://travis-ci.org/stratosphere/stratosphere.png)](https://travis-ci.org/stratosphere/stratosphere)
 
 
 

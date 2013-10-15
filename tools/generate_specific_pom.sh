@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 #
-# See https://github.com/dimalabs/ozone/issues/95
+# See https://github.com/stratosphere/stratosphere/issues/95
 # Inspired by: https://github.com/apache/hbase/blob/trunk/dev-support/generate-hadoopX-poms.sh
 #
 

@@ -313,7 +313,7 @@
 					</execution>
 
 					<!-- TeraSort
-					TeraSort is currently not working, because of problems with the RangePartioner (see https://github.com/dimalabs/ozone/issues/7).
+					TeraSort is currently not working, because of problems with the RangePartioner (see https://github.com/stratosphere/stratosphere/issues/7).
 					It should be included again after fixing the issue.
 					<execution>
 						<id>TeraSort</id>

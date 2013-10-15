@@ -16,7 +16,7 @@
 
 	<name>ozone</name>
 	<packaging>pom</packaging>
-	<url>http://github.com/dimalabs/ozone</url>
+	<url>http://github.com/stratosphere/stratosphere</url>
 	<inceptionYear>2013</inceptionYear>
 
 	<licenses>
@@ -28,9 +28,9 @@
 	</licenses>
 
 	<scm>
-		<url>https://github.com/dimalabs/ozone</url>
-		<connection>scm:git:git@github.com:dimalabs/ozone.git</connection>
-		<developerConnection>scm:git:git@github.com:dimalabs/ozone.git</developerConnection>
+		<url>https://github.com/stratosphere/stratosphere</url>
+		<connection>scm:git:git@github.com:stratosphere/stratosphere.git</connection>
+		<developerConnection>scm:git:git@github.com:stratosphere/stratosphere.git</developerConnection>
 	</scm>
 
 	<developers>
