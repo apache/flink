@@ -22,6 +22,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Set;
 
 import junit.framework.Assert;
 
@@ -32,12 +33,15 @@ import org.junit.Test;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.io.DelimitedOutputFormat;
+import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparatorFactory;
+import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.test.util.InfiniteInputIterator;
-import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
+import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
 
 public class DataSinkTaskTest extends TaskTestBase
 {
@@ -120,6 +124,86 @@ public class DataSinkTaskTest extends TaskTestBase
 	}
 	
 	@Test
+	@SuppressWarnings("unchecked")
+	public void testSortingDataSinkTask() {
+
+		int keyCnt = 100;
+		int valCnt = 20;
+		
+		super.initEnvironment(1024 * 1024 * 4);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, true), 0);
+		
+		DataSinkTask<PactRecord> testTask = new DataSinkTask<PactRecord>();
+		
+		// set sorting
+		super.getTaskConfig().setInputLocalStrategy(0, LocalStrategy.SORT);
+		super.getTaskConfig().setInputComparator(
+				new PactRecordComparatorFactory(new int[]{1},((Class<? extends Key>[])new Class[]{PactInteger.class})), 
+				0);
+		super.getTaskConfig().setMemoryInput(0, 4 * 1024 * 1024);
+		super.getTaskConfig().setFilehandlesInput(0, 8);
+		super.getTaskConfig().setSpillingThresholdInput(0, 0.8f);
+		
+		super.registerFileOutputTask(testTask, MockOutputFormat.class, "file://"+this.tempTestPath);
+		
+		try {
+			testTask.invoke();
+		} catch (Exception e) {
+			LOG.debug(e);
+			Assert.fail("Invoke method caused exception.");
+		}
+		
+		File tempTestFile = new File(this.tempTestPath);
+		
+		Assert.assertTrue("Temp output file does not exist",tempTestFile.exists());
+		
+		FileReader fr = null;
+		BufferedReader br = null;
+		try {
+			fr = new FileReader(tempTestFile);
+			br = new BufferedReader(fr);
+			
+			Set<Integer> keys = new HashSet<Integer>();
+			
+			int curVal = -1;
+			while(br.ready()) {
+				String line = br.readLine();
+				
+				Integer key = Integer.parseInt(line.substring(0,line.indexOf("_")));
+				Integer val = Integer.parseInt(line.substring(line.indexOf("_")+1,line.length()));
+				
+				// check that values are in correct order
+				Assert.assertTrue("Values not in ascending order", val >= curVal);
+				// next value hit
+				if(val > curVal) {
+					if(curVal != -1) {
+						// check that we saw 100 distinct keys for this values
+						Assert.assertTrue("Keys missing for value", keys.size() == 100);
+					}
+					// empty keys set
+					keys.clear();
+					// update current value
+					curVal = val;
+				}
+				
+				Assert.assertTrue("Duplicate key for value", keys.add(key));
+			}
+			
+		} catch (FileNotFoundException e) {
+			Assert.fail("Out file got lost...");
+		} catch (IOException ioe) {
+			Assert.fail("Caught IOE while reading out file");
+		} finally {
+			if (br != null) {
+				try { br.close(); } catch (Throwable t) {}
+			}
+			if (fr != null) {
+				try { fr.close(); } catch (Throwable t) {}
+			}
+		}
+	}
+	
+	@Test
 	public void testFailingDataSinkTask() {
 
 		int keyCnt = 100;
@@ -131,6 +215,47 @@ public class DataSinkTaskTest extends TaskTestBase
 		DataSinkTask<PactRecord> testTask = new DataSinkTask<PactRecord>();
 		Configuration stubParams = new Configuration();
 		super.getTaskConfig().setStubParameters(stubParams);
+		
+		super.registerFileOutputTask(testTask, MockFailingOutputFormat.class, "file://"+this.tempTestPath);
+		
+		boolean stubFailed = false;
+		
+		try {
+			testTask.invoke();
+		} catch (Exception e) {
+			stubFailed = true;
+		}
+		
+		Assert.assertTrue("Stub exception was not forwarded.", stubFailed);
+		
+		// assert that temp file was created
+		File tempTestFile = new File(this.tempTestPath);
+		Assert.assertTrue("Temp output file does not exist",tempTestFile.exists());
+		
+	}
+	
+	@Test
+	@SuppressWarnings("unchecked")
+	public void testFailingSortingDataSinkTask() {
+
+		int keyCnt = 100;
+		int valCnt = 20;
+		
+		super.initEnvironment(4 * 1024 * 1024);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, true), 0);
+
+		DataSinkTask<PactRecord> testTask = new DataSinkTask<PactRecord>();
+		Configuration stubParams = new Configuration();
+		super.getTaskConfig().setStubParameters(stubParams);
+		
+		// set sorting
+		super.getTaskConfig().setInputLocalStrategy(0, LocalStrategy.SORT);
+		super.getTaskConfig().setInputComparator(
+				new PactRecordComparatorFactory(new int[]{1},((Class<? extends Key>[])new Class[]{PactInteger.class})), 
+				0);
+		super.getTaskConfig().setMemoryInput(0, 4 * 1024 * 1024);
+		super.getTaskConfig().setFilehandlesInput(0, 8);
+		super.getTaskConfig().setSpillingThresholdInput(0, 0.8f);
 		
 		super.registerFileOutputTask(testTask, MockFailingOutputFormat.class, "file://"+this.tempTestPath);
 		
@@ -188,6 +313,53 @@ public class DataSinkTaskTest extends TaskTestBase
 		// assert that temp file was created
 		File tempTestFile = new File(this.tempTestPath);
 		Assert.assertTrue("Temp output file does not exist",tempTestFile.exists());
+				
+	}
+	
+	@Test
+	@SuppressWarnings("unchecked")
+	public void testCancelSortingDataSinkTask() {
+		
+		super.initEnvironment(4 * 1024 * 1024);
+		super.addInput(new InfiniteInputIterator(), 0);
+		
+		final DataSinkTask<PactRecord> testTask = new DataSinkTask<PactRecord>();
+		Configuration stubParams = new Configuration();
+		super.getTaskConfig().setStubParameters(stubParams);
+		
+		// set sorting
+		super.getTaskConfig().setInputLocalStrategy(0, LocalStrategy.SORT);
+		super.getTaskConfig().setInputComparator(
+				new PactRecordComparatorFactory(new int[]{1},((Class<? extends Key>[])new Class[]{PactInteger.class})), 
+				0);
+		super.getTaskConfig().setMemoryInput(0, 4 * 1024 * 1024);
+		super.getTaskConfig().setFilehandlesInput(0, 8);
+		super.getTaskConfig().setSpillingThresholdInput(0, 0.8f);
+		
+		super.registerFileOutputTask(testTask, MockOutputFormat.class,  "file://"+this.tempTestPath);
+		
+		Thread taskRunner = new Thread() {
+			@Override
+			public void run() {
+				try {
+					testTask.invoke();
+				} catch (Exception ie) {
+					ie.printStackTrace();
+					Assert.fail("Task threw exception although it was properly canceled");
+				}
+			}
+		};
+		taskRunner.start();
+		
+		TaskCancelThread tct = new TaskCancelThread(2, taskRunner, testTask);
+		tct.start();
+		
+		try {
+			tct.join();
+			taskRunner.join();
+		} catch(InterruptedException ie) {
+			Assert.fail("Joining threads failed");
+		}
 				
 	}
 	

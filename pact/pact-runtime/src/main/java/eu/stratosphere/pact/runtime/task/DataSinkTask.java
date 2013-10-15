@@ -32,9 +32,12 @@ import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.generic.io.FileOutputFormat;
 import eu.stratosphere.pact.generic.io.OutputFormat;
+import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
 import eu.stratosphere.pact.generic.types.TypeSerializer;
 import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.runtime.plugable.DeserializationDelegate;
+import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger;
+import eu.stratosphere.pact.runtime.task.util.CloseableInputProvider;
 import eu.stratosphere.pact.runtime.task.util.NepheleReaderIterator;
 import eu.stratosphere.pact.runtime.task.util.PactRecordNepheleReaderIterator;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
@@ -60,8 +63,14 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 	// input reader
 	private MutableObjectIterator<IT> reader;
 	
+	// input iterator
+	private MutableObjectIterator<IT> input;
+	
 	// The serializer for the input type
 	private TypeSerializer<IT> inputTypeSerializer;
+	
+	// local strategy
+	private CloseableInputProvider<IT> localStrategy;
 
 	// task configuration
 	private TaskConfig config;
@@ -100,8 +109,44 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 			LOG.info(getLogString("Start PACT code"));
 		
 		try {
+			
+			// initialize local strategies
+			switch (this.config.getInputLocalStrategy(0)) {
+			case NONE:
+				// nothing to do
+				localStrategy = null;
+				input = reader;
+				break;
+			case SORT:
+				// initialize sort local strategy
+				try {
+					// get type comparator
+					TypeComparatorFactory<IT> compFact = this.config.getInputComparator(0, this.userCodeClassLoader);
+					if (compFact == null) {
+						throw new Exception("Missing comparator factory for local strategy on input " + 0);
+					}
+					
+					// initialize sorter
+					UnilateralSortMerger<IT> sorter = new UnilateralSortMerger<IT>(
+							getEnvironment().getMemoryManager(), 
+							getEnvironment().getIOManager(),
+							this.reader, this, this.inputTypeSerializer, compFact.createComparator(),
+							this.config.getMemoryInput(0), this.config.getFilehandlesInput(0),
+							this.config.getSpillingThresholdInput(0));
+					
+					this.localStrategy = sorter;
+					this.input = sorter.getIterator();
+				} catch (Exception e) {
+					throw new RuntimeException("Initializing the input processing failed" +
+						e.getMessage() == null ? "." : ": " + e.getMessage(), e);
+				}
+				break;
+			default:
+				throw new RuntimeException("Invalid local strategy for DataSinkTask");
+			}
+			
 			// read the reader and write it to the output
-			final MutableObjectIterator<IT> reader = this.reader;
+			final MutableObjectIterator<IT> input = this.input;
 			final OutputFormat<IT> format = this.format;
 			final IT record = this.inputTypeSerializer.createInstance();
 			
@@ -121,14 +166,14 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 			// special case the pact record / file variant
 			if (record.getClass() == PactRecord.class && format instanceof eu.stratosphere.pact.common.io.FileOutputFormat) {
 				@SuppressWarnings("unchecked")
-				final MutableObjectIterator<PactRecord> pi = (MutableObjectIterator<PactRecord>) reader;
+				final MutableObjectIterator<PactRecord> pi = (MutableObjectIterator<PactRecord>) input;
 				final PactRecord pr = (PactRecord) record;
 				final eu.stratosphere.pact.common.io.FileOutputFormat pf = (eu.stratosphere.pact.common.io.FileOutputFormat) format;
 				while (!this.taskCanceled && pi.next(pr)) {
 					pf.writeRecord(pr);
 				}
 			} else {
-				while (!this.taskCanceled && reader.next(record)) {
+				while (!this.taskCanceled && input.next(record)) {
 					format.writeRecord(record);
 				}
 			}
@@ -157,6 +202,14 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 				catch (Throwable t) {
 					if (LOG.isWarnEnabled())
 						LOG.warn(getLogString("Error closing the ouput format."), t);
+				}
+			}
+			// close local strategy if necessary
+			if (localStrategy != null) {
+				try {
+					this.localStrategy.close();
+				} catch (Throwable t) {
+					LOG.error("Error closing local strategy", t);
 				}
 			}
 		}
