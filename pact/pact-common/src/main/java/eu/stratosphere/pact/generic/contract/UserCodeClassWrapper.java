@@ -61,4 +61,9 @@ public class UserCodeClassWrapper<T> implements UserCodeWrapper<T> {
 			Class<A> annotationClass) {
 		return userCodeClass.getAnnotation(annotationClass);
 	}
+	
+	@Override
+	public Class<? extends T> getUserCodeClass() {
+		return userCodeClass;
+	}
 }
