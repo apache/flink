@@ -68,20 +68,6 @@
 		</dependency>
 		
 		<dependency>
-			<groupId>org.scala-lang</groupId>
-			<artifactId>scala-library</artifactId>
-			<version>2.10.1</version>
-			<scope>test</scope>
-		</dependency>
-		
-		<dependency>
-			<groupId>org.scala-lang</groupId>
-			<artifactId>scala-reflect</artifactId>
-			<version>2.10.1</version>
-			<scope>test</scope>
-		</dependency>
-		
-		<dependency>
 			<groupId>eu.stratosphere</groupId>
 			<artifactId>pact-scala-examples</artifactId>
 			<version>${project.version}</version>
