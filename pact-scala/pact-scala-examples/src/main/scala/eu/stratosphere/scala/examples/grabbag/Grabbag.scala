@@ -49,7 +49,9 @@ object Main1 {
       .map(fun)
 //      .filter { case (w, c) => c == 7 }
     
-    val countsCross = counts.cross(counts) map { (w1, w2) => (w1._1 + " + " + w2._1, w1._2 + w2._2) }
+    val countsCross = counts.cross(counts)
+      .filter { case (left, right) => left._1 == "hier" }
+      .map { case (w1, w2) => (w1._1 + " + " + w2._1, w1._2 + w2._2) }
     
     val foo = counts.join(inputNumbers) where { case (_, c) => c}
     

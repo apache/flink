@@ -53,6 +53,7 @@ class JoinDataStreamWithWhere[LeftIn, RightIn, Key](val leftKey: List[Int], val 
 class JoinDataStreamWithWhereAndEqual[LeftIn, RightIn](val leftKey: List[Int], val rightKey: List[Int], val leftInput: DataStream[LeftIn], val rightInput: DataStream[RightIn]) {
   def map[Out](fun: (LeftIn, RightIn) => Out): DataStream[Out] with TwoInputHintable[LeftIn, RightIn, Out] = macro JoinMacros.map[LeftIn, RightIn, Out]
   def flatMap[Out](fun: (LeftIn, RightIn) => Iterator[Out]): DataStream[Out] with TwoInputHintable[LeftIn, RightIn, Out] = macro JoinMacros.flatMap[LeftIn, RightIn, Out]
+  def filter(fun: (LeftIn, RightIn) => Boolean): DataStream[(LeftIn, RightIn)] with TwoInputHintable[LeftIn, RightIn, (LeftIn, RightIn)] = macro JoinMacros.filter[LeftIn, RightIn]
 }
 
 class NoKeyMatchBuilder(s: MatchStub) extends MatchContract.Builder(new UserCodeObjectWrapper(s))
@@ -252,6 +253,81 @@ object JoinMacros {
     }
 
     val result = c.Expr[DataStream[Out] with TwoInputHintable[LeftIn, RightIn, Out]](Block(List(udtLeftIn, udtRightIn, udtOut), contract.tree))
+    
+    return result
+  }
+  
+  def filter[LeftIn: c.WeakTypeTag, RightIn: c.WeakTypeTag](c: Context { type PrefixType = JoinDataStreamWithWhereAndEqual[LeftIn, RightIn] })(fun: c.Expr[(LeftIn, RightIn) => Boolean]): c.Expr[DataStream[(LeftIn, RightIn)] with TwoInputHintable[LeftIn, RightIn, (LeftIn, RightIn)]] = {
+    import c.universe._
+
+    val slave = MacroContextHolder.newMacroHelper(c)
+    
+    val (udtLeftIn, createUdtLeftIn) = slave.mkUdtClass[LeftIn]
+    val (udtRightIn, createUdtRightIn) = slave.mkUdtClass[RightIn]
+    val (udtOut, createUdtOut) = slave.mkUdtClass[(LeftIn, RightIn)]
+    
+    val contract = reify {
+      val helper: JoinDataStreamWithWhereAndEqual[LeftIn, RightIn] = c.prefix.splice
+      val leftKeySelection = helper.leftKey
+      val rightKeySelection = helper.rightKey
+
+      val generatedStub = new MatchStub with Serializable {
+        val leftInputUDT = c.Expr[UDT[LeftIn]](createUdtLeftIn).splice
+        val rightInputUDT = c.Expr[UDT[RightIn]](createUdtRightIn).splice
+        val outputUDT = c.Expr[UDT[(LeftIn, RightIn)]](createUdtOut).splice
+        val leftKeySelector = new FieldSelector(leftInputUDT, leftKeySelection)
+        val rightKeySelector = new FieldSelector(rightInputUDT, rightKeySelection)
+        val udf: UDF2[LeftIn, RightIn, (LeftIn, RightIn)] = new UDF2(leftInputUDT, rightInputUDT, outputUDT)
+
+        private var leftDeserializer: UDTSerializer[LeftIn] = _
+        private var leftDiscard: Array[Int] = _
+        private var rightDeserializer: UDTSerializer[RightIn] = _
+        private var rightForward: Array[Int] = _
+        private var serializer: UDTSerializer[(LeftIn, RightIn)] = _
+        private var outputLength: Int = _
+
+        override def open(config: Configuration) = {
+          super.open(config)
+
+          this.leftDeserializer = udf.getLeftInputDeserializer
+          this.leftDiscard = udf.getLeftDiscardIndexArray.filter(_ < udf.getOutputLength)
+          this.rightDeserializer = udf.getRightInputDeserializer
+          this.rightForward = udf.getRightForwardIndexArray
+          this.serializer = udf.getOutputSerializer
+          this.outputLength = udf.getOutputLength
+        }
+
+        override def `match`(leftRecord: PactRecord, rightRecord: PactRecord, out: Collector[PactRecord]) = {
+          val left = leftDeserializer.deserializeRecyclingOn(leftRecord)
+          val right = rightDeserializer.deserializeRecyclingOn(rightRecord)
+          if (fun.splice.apply(left, right)) {
+            val output = (left, right)
+            leftRecord.setNumFields(outputLength)
+            serializer.serialize(output, leftRecord)
+            out.collect(leftRecord)
+          }
+        }
+
+      }
+      
+      val builder = new NoKeyMatchBuilder(generatedStub).input1(helper.leftInput.contract).input2(helper.rightInput.contract)
+
+      val keyTypes = generatedStub.leftInputUDT.getKeySet(generatedStub.leftKeySelector.selectedFields map { _.localPos })
+      keyTypes.foreach { builder.keyField(_, -1, -1) } // global indexes haven't been computed yet...
+      
+      
+      val ret = new MatchContract(builder) with TwoInputKeyedScalaContract[LeftIn, RightIn, (LeftIn, RightIn)] {
+        override val leftKey: FieldSelector = generatedStub.leftKeySelector
+        override val rightKey: FieldSelector = generatedStub.rightKeySelector
+        override def getUDF = generatedStub.udf
+        override def annotations = Seq(
+          Annotations.getConstantFieldsFirst(getUDF.getLeftForwardIndexArray),
+          Annotations.getConstantFieldsSecond(getUDF.getRightForwardIndexArray))
+      }
+      new DataStream[(LeftIn, RightIn)](ret) with TwoInputHintable[LeftIn, RightIn, (LeftIn, RightIn)] {}
+    }
+
+    val result = c.Expr[DataStream[(LeftIn, RightIn)] with TwoInputHintable[LeftIn, RightIn, (LeftIn, RightIn)]](Block(List(udtLeftIn, udtRightIn, udtOut), contract.tree))
     
     return result
   }
