@@ -95,6 +95,20 @@ public abstract class DualInputContract<T extends Stub> extends AbstractPact<T> 
 	public List<Contract> getSecondInputs() {
 		return this.input2;
 	}
+	
+	/**
+	 * Removes all inputs from this contract's first input.
+	 */
+	public void clearFirstInputs() {
+		this.input1.clear();
+	}
+	
+	/**
+	 * Removes all inputs from this contract's second input.
+	 */
+	public void clearSecondInputs() {
+		this.input2.clear();
+	}
 
 	/**
 	 * Connects the first input to the task wrapped in this contract.
@@ -103,7 +117,11 @@ public abstract class DualInputContract<T extends Stub> extends AbstractPact<T> 
 	 */
 	public void addFirstInput(Contract ... input) {
 		for (Contract c : input) {
-			this.input1.add(c);
+			if (c == null) {
+				throw new IllegalArgumentException("The input may not contain null elements.");
+			} else {
+				this.input1.add(c);
+			}
 		}
 	}
 	
@@ -114,7 +132,11 @@ public abstract class DualInputContract<T extends Stub> extends AbstractPact<T> 
 	 */
 	public void addSecondInput(Contract ... input) {
 		for (Contract c : input) {
-			this.input2.add(c);
+			if (c == null) {
+				throw new IllegalArgumentException("The input may not contain null elements.");
+			} else {
+				this.input2.add(c);
+			}
 		}
 	}
 
@@ -124,7 +146,13 @@ public abstract class DualInputContract<T extends Stub> extends AbstractPact<T> 
 	 * @param inputs The contracts that is connected as the first inputs.
 	 */
 	public void addFirstInputs(List<Contract> inputs) {
-		this.input1.addAll(inputs);
+		for (Contract c : inputs) {
+			if (c == null) {
+				throw new IllegalArgumentException("The input may not contain null elements.");
+			} else {
+				this.input1.add(c);
+			}
+		}
 	}
 
 	/**
@@ -133,7 +161,13 @@ public abstract class DualInputContract<T extends Stub> extends AbstractPact<T> 
 	 * @param inputs The contracts that is connected as the second inputs.
 	 */
 	public void addSecondInputs(List<Contract> inputs) {
-		this.input2.addAll(inputs);
+		for (Contract c : inputs) {
+			if (c == null) {
+				throw new IllegalArgumentException("The input may not contain null elements.");
+			} else {
+				this.input2.add(c);
+			}
+		}
 	}
 	
 	/**
@@ -143,7 +177,7 @@ public abstract class DualInputContract<T extends Stub> extends AbstractPact<T> 
 	 */
 	public void setFirstInput(Contract input) {
 		this.input1.clear();
-		this.input1.add(input);
+		addFirstInput(input);
 	}
 
 	/**
@@ -153,7 +187,7 @@ public abstract class DualInputContract<T extends Stub> extends AbstractPact<T> 
 	 */
 	public void setSecondInput(Contract input) {
 		this.input2.clear();
-		this.input2.add(input);
+		addSecondInput(input);
 	}
 	
 	/**
@@ -163,9 +197,7 @@ public abstract class DualInputContract<T extends Stub> extends AbstractPact<T> 
 	 */
 	public void setFirstInput(Contract ... input) {
 		this.input1.clear();
-		for (Contract c : input) {
-			this.input1.add(c);
-		}
+		addFirstInput(input);
 	}
 
 	/**
@@ -175,9 +207,7 @@ public abstract class DualInputContract<T extends Stub> extends AbstractPact<T> 
 	 */
 	public void setSecondInput(Contract ... input) {
 		this.input2.clear();
-		for (Contract c : input) {
-			this.input2.add(c);
-		}
+		addSecondInput(input);
 	}
 	
 	/**
@@ -187,7 +217,7 @@ public abstract class DualInputContract<T extends Stub> extends AbstractPact<T> 
 	 */
 	public void setFirstInputs(List<Contract> inputs) {
 		this.input1.clear();
-		this.input1.addAll(inputs);
+		addFirstInputs(inputs);
 	}
 
 	/**
@@ -197,22 +227,16 @@ public abstract class DualInputContract<T extends Stub> extends AbstractPact<T> 
 	 */
 	public void setSecondInputs(List<Contract> inputs) {
 		this.input2.clear();
-		this.input2.addAll(inputs);
+		addSecondInputs(inputs);
 	}
 	
 	// --------------------------------------------------------------------------------------------
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.contract.AbstractPact#getNumberOfInputs()
-	 */
 	@Override
-	public int getNumberOfInputs() {
+	public final int getNumberOfInputs() {
 		return 2;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.contract.AbstractPact#getKeyColumns(int)
-	 */
 	@Override
 	public int[] getKeyColumns(int inputNum) {
 		if (inputNum == 0) {

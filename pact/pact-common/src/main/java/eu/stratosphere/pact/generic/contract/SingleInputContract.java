@@ -72,23 +72,42 @@ public abstract class SingleInputContract<T extends Stub> extends AbstractPact<T
 	public List<Contract> getInputs() {
 		return this.input;
 	}
+	
+	/**
+	 * Removes all inputs from this contract.
+	 */
+	public void clearInputs() {
+		this.input.clear();
+	}
 
 	/**
 	 * Connects the input to the task wrapped in this contract
 	 * 
 	 * @param input The contract will be set as input.
 	 */
-	public void addInput(Contract input) {
-		this.input.add(input);
+	public void addInput(Contract ... input) {
+		for (int i = 0; i < input.length; i++) {
+			if (input[i] == null) {
+				throw new IllegalArgumentException("The input may not contain null elements.");
+			} else {
+				this.input.add(input[i]);
+			}
+		}
 	}
 	
 	/**
 	 * Connects the inputs to the task wrapped in this contract
 	 * 
-	 * @param input The contracts will be set as input.
+	 * @param inputs The contracts will be set as input.
 	 */
 	public void addInputs(List<Contract> inputs) {
-		this.input.addAll(inputs);
+		for (Contract element : inputs) {
+			if (element == null) {
+				throw new IllegalArgumentException("The input may not contain null elements.");
+			} else {
+				this.input.add(element);
+			}
+		}
 	}
 
 	/**
@@ -97,35 +116,29 @@ public abstract class SingleInputContract<T extends Stub> extends AbstractPact<T
 	 * 
 	 * @param input The contract will be set as input.
 	 */
-	public void setInput(Contract input) {
+	public void setInput(Contract ... input) {
 		this.input.clear();
-		this.input.add(input);
+		addInput(input);
 	}
 	
 	/**
 	 * Clears all previous connections and sets the given contracts as
 	 * inputs of this contract.
 	 * 
-	 * @param input The contracts will be set as inputs.
+	 * @param inputs The contracts will be set as inputs.
 	 */
 	public void setInputs(List<Contract> inputs) {
 		this.input.clear();
-		this.input.addAll(inputs);
+		addInputs(inputs);
 	}
 	
 	// --------------------------------------------------------------------------------------------
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.contract.AbstractPact#getNumberOfInputs()
-	 */
 	@Override
-	public int getNumberOfInputs() {
+	public final int getNumberOfInputs() {
 		return 1;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.contract.AbstractPact#getKeyColumns(int)
-	 */
 	@Override
 	public int[] getKeyColumns(int inputNum) {
 		if (inputNum == 0) {
@@ -148,7 +161,7 @@ public abstract class SingleInputContract<T extends Stub> extends AbstractPact<T
 	@Override
 	public void accept(Visitor<Contract> visitor) {
 		if (visitor.preVisit(this)) {
-			for(Contract c : this.input) {
+			for (Contract c : this.input) {
 				c.accept(visitor);
 			}
 			visitor.postVisit(this);
