@@ -2,7 +2,16 @@
 
 Big Data looks tiny from Stratosphere.
 
-## Getting Started
+## Start writing a Stratosphere Job
+If you just want to get started with Stratosphere, use the following command to set up an empty Stratosphere Job
+
+```
+curl https://raw.github.com/rmetzger/stratosphere-quickstart/master/quickstart.sh | bash
+```
+The quickstart sample contains everything to develop a Stratosphere Job on your computer. No setup needed.
+
+
+## Build Stratosphere
 Below are three short tutorials that guide you through the first steps: Building, running and developing.
 
 ###  Build From Source
