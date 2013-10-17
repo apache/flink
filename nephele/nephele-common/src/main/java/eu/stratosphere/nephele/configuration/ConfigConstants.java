@@ -74,6 +74,29 @@ public final class ConfigConstants {
 	 * The key for the config parameter defining flag to terminate a job at job-client shutdown.
 	 */
 	public static final String JOBCLIENT_SHUTDOWN_TERMINATEJOB_KEY = "jobclient.shutdown.terminatejob";
+	
+	
+	// ------------------------ Web Frontend JobManager------------------------
+
+	/**
+	 * The key for Stratosphere's base dir path
+	 */
+	public static final String STRATOSPHERE_BASE_DIR_PATH_KEY = "stratosphere.base.dir.path";
+	
+	/**
+	 * The key for the config parameter defining port for the pact web-frontend server.
+	 */
+	public static final String JOB_MANAGER_WEB_PORT_KEY = "jobmanager.web.port";
+
+	/**
+	 * The key for the config parameter defining the directory containing the web documents.
+	 */
+	public static final String JOB_MANAGER_WEB_ROOT_PATH_KEY = "jobmanager.web.rootpath";
+
+	/**
+	 * The key for the config parameter defining the port to the htaccess file protecting the web server.
+	 */
+	public static final String JOB_MANAGER_WEB_ACCESS_FILE_KEY = "jobmanager.web.access";
 
 	// ------------------------------------------------------------------------
 	// Default Values
@@ -123,6 +146,15 @@ public final class ConfigConstants {
 	 * The default value for the flag to terminate a job on job-client shutdown.
 	 */
 	public static final boolean DEFAULT_JOBCLIENT_SHUTDOWN_TERMINATEJOB = true;
+	
+	/**
+	 */
+	public static final int DEFAULT_WEB_FRONTEND_PORT = 8081;
+
+	/**
+	 * The default path of the directory for info server containing the web documents.
+	 */
+	public static final String DEFAULT_JOB_MANAGER_WEB_ROOT_PATH = "./resources/web-docs-infoserver/";
 
 	// ----------------------------- Instances --------------------------------
 
@@ -135,6 +167,7 @@ public final class ConfigConstants {
 	 * The default index for the default instance type.
 	 */
 	public static final int DEFAULT_DEFAULT_INSTANCE_TYPE_INDEX = 1;
+
 
 	// ------------------------------------------------------------------------
 

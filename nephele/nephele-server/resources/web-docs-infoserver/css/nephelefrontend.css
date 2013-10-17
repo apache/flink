@@ -1,0 +1,285 @@
+*
+{
+	padding: 0px;
+	margin: 0px;
+}
+
+html, body
+{
+	height: 100%;
+	background-color: #E0EBFF;
+}
+
+h1
+{
+	font-family: verdana;
+	font-size: 36px;
+	font-weight: normal;
+	font-decoration: none;
+	font-style: normal;
+	font-variant: small-caps;
+}
+
+h1 img {
+	vertical-align: middle;
+	margin-right: 50px;
+}
+
+h3
+{
+	font-family: verdana;
+	font-size: 20px;
+	font-weight: normal;
+	font-decoration: none;
+	font-style: italic;
+	font-variant: normal;
+	text-align: center;
+	color: #666666;
+	margin: 10px 10px 20px 10px;
+}
+
+h4
+{
+	font-family: Verdana;
+	font-size: 16px;
+	font-weight: normal;
+	font-decoration: none;
+	font-style: italic;
+	font-variant: normal;
+	text-align: left;
+	color: #000000;
+	margin: 5px 5px 10px 5px;
+	padding: 2px 2px 5px 2px;
+	border-bottom: 1px dashed #444444;
+}
+
+input
+{
+	font-family: verdana, Sans-Serif;
+	font-size: 13px;
+
+	border: solid 1.5px #333333;
+	background-color: #eeeeee;
+	color: #333333;
+
+	padding: 5px;
+	margin: 5px;
+}
+
+.fadedPropertiesText
+{
+	font-family: verdana;
+	font-size: 18px;
+	color: #AAAAAA;
+	font-style: italic;
+}
+
+
+.mainHeading
+{
+	border: 1px solid #262A37;
+	margin: 5px;
+	text-align: left;
+	background-color: white;
+	background-image: url('../img/GradientBoxes.png');
+	background-repeat: no-repeat;
+	background-position: right;
+	height: 100px;
+	overflow: hidden;
+}
+
+
+.boxed
+{
+	min-width: 900px; 
+	max-width: 1150px;
+	margin: 0 auto;
+	border: 1px solid #262A37;
+	padding: 50px;
+	background-color: #ffffff;
+	-moz-box-shadow: 5px 5px 3px #888;
+	-webkit-box-shadow: 5px 5px 3px #888;
+	box-shadow: 5px 5px 3px #888;
+}
+
+.spaced
+{
+	margin: 5px;
+}
+
+.footer
+{
+	position: absolute;
+	left: 0px;
+	right: 0px;
+	bottom: 0px;
+}
+
+.error_text
+{
+	font-family: verdana;
+	font-size: 14px;
+	font-weight: normal;
+	font-decoration: none;
+	font-style: italic;
+	font-variant: normal;
+	text-align: center;
+	color: #DF0101;
+}
+
+.translucent
+{
+	-moz-opacity:0 ;
+	filter:alpha(opacity: 0);
+	opacity: 0;
+}
+
+.formLabel
+{
+
+	font-family: verdana;
+	font-size: 14px;
+	font-weight: normal;
+	font-decoration: none;
+	font-style: normal;
+	font-variant: normal;
+	text-align: right;
+	color: #000000;
+}
+
+.jobListItem
+{
+	border: 1px dashed #262A37;
+	height: 30px;
+	word-wrap: break-word;
+
+	font-family: verdana;
+	font-size: 14px;
+	font-variant: normal;
+	font-decoration: none;
+
+	margin: 10px;
+	padding: 10px;
+}
+
+.jobListItemName
+{
+	text-align: left;
+	font-weight: bold;
+	font-style: normal;
+
+}
+
+.jobListItemDate
+{
+	text-align: right;
+	font-weight: normal;
+	font-style: italic;
+	margin-right: 10px;
+}
+
+.layoutTable
+{
+	border: none;
+	margin: 0px;
+	padding: 0px;
+}
+
+
+table{
+    border-spacing: 3px;
+    border-style: none;
+	width: 100%;
+}
+
+
+td, th {
+    color: #000000;
+    font-size: 12px;
+    line-height: 24px;
+}
+
+th {
+    background-color: #5D79F6 ;
+    border-style: none;
+    color: #DDDDDD;
+    font-size: 9pt;
+    font-weight: bold;
+    padding: 3px;
+    text-align: left;
+}
+
+td {
+    background-color: #CED8F6;
+    padding: 3px;
+}
+td.starting, td.running, td.finished, td.canceled, td.failed {
+	width: 120px;
+}
+
+td.starting {
+    background-color: #DADADA;
+    #DADADA
+}
+
+td.starting .progressBar div {
+    background-color: #A2A2A2;
+}
+
+td.running {
+    background-color: #CDDDAC;
+}
+
+td.running .progressBar div  {
+    background-color: #9BBB59;
+}
+
+td.finished {
+    background-color: #CED7FC;
+}
+
+td.finished .progressBar div  {
+    background-color: #5d79f6;
+}
+
+td.canceled {
+    background-color: #FDE0C8;
+}
+
+td.canceled .progressBar div  {
+    background-color: #f79646;
+}
+
+td.failed {
+	background-color:  #FAD3D3;
+}
+
+td.failed .progressBar div  {
+	background-color:  #e52424;
+}
+
+.subtable {
+	margin: 0 auto;
+    width: 800px;
+    background-color: #ffffff;
+}
+
+.subtable th {
+	background-color: #9EAFFA;
+}
+
+.progressBar {
+	width: 120px;
+	height: 22px;
+}
+
+.progressBar div {
+	height: 100%;
+	text-align: right;
+	line-height: 22px;
+	width: 0;
+}
+
+.opensub {
+	cursor: pointer
+}

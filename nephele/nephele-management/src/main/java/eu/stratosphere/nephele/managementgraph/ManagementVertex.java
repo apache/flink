@@ -331,4 +331,21 @@ public final class ManagementVertex extends ManagementAttachment implements IORe
 	public String toString() {
 		return String.format("%s_%d", getGroupVertex().getName(), indexInGroup);
 	}
-}
+	
+	/**
+	 * Returns Json representation of this ManagementVertex
+	 * 
+	 * @return
+	 */
+	public String toJson() {
+		StringBuilder json = new StringBuilder("");
+		json.append("{");
+		json.append("\"vertexid\": \"" + this.getID() + "\",");
+		json.append("\"vertexname\": \"" + this + "\",");
+		json.append("\"vertexstatus\": \"" + this.getExecutionState() + "\",");
+		json.append("\"vertexinstancename\": \"" + this.getInstanceName() + "\",");
+		json.append("\"vertexinstancetype\": \"" + this.getInstanceType() + "\"");
+		json.append("}");
+		return json.toString();
+	}
+} 

@@ -64,6 +64,7 @@ import eu.stratosphere.nephele.client.JobCancelResult;
 import eu.stratosphere.nephele.client.JobProgressResult;
 import eu.stratosphere.nephele.client.JobSubmissionResult;
 import eu.stratosphere.nephele.configuration.ConfigConstants;
+import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.deployment.TaskDeploymentDescriptor;
 import eu.stratosphere.nephele.discovery.DiscoveryException;
@@ -99,6 +100,7 @@ import eu.stratosphere.nephele.jobmanager.scheduler.AbstractScheduler;
 import eu.stratosphere.nephele.jobmanager.scheduler.SchedulingException;
 import eu.stratosphere.nephele.jobmanager.splitassigner.InputSplitManager;
 import eu.stratosphere.nephele.jobmanager.splitassigner.InputSplitWrapper;
+import eu.stratosphere.nephele.jobmanager.web.WebInfoServer;
 import eu.stratosphere.nephele.managementgraph.ManagementGraph;
 import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
 import eu.stratosphere.nephele.multicast.MulticastManager;
@@ -165,6 +167,8 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	private final AtomicBoolean isShutdownInProgress = new AtomicBoolean(false);
 
 	private volatile boolean isShutDown = false;
+	
+	private WebInfoServer server;
 	
 	public JobManager(ExecutionMode executionMode) {
 
@@ -383,9 +387,16 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		
 		// First, try to load global configuration
 		GlobalConfiguration.loadConfiguration(configDir);
-
+		
 		// Create a new job manager object
 		JobManager jobManager = new JobManager(executionMode);
+		
+		// Set base dir for info server
+		Configuration infoserverConfig = GlobalConfiguration.getConfiguration();
+		infoserverConfig.setString(ConfigConstants.STRATOSPHERE_BASE_DIR_PATH_KEY, configDir+"/..");
+				
+		// Start info server for jobmanager
+		jobManager.startInfoServer(infoserverConfig);
 
 		// Run the main task loop
 		jobManager.runTaskLoop();
@@ -1164,6 +1175,23 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		}
 
 		return new InputSplitWrapper(jobID, this.inputSplitManager.getNextInputSplit(vertex, sequenceNumber.getValue()));
+	}
+	
+	/**
+	 * Starts the Jetty Infoserver for the Jobmanager
+	 * 
+	 * @param config
+	 */
+	public void startInfoServer(Configuration config) {
+		// Start InfoServer
+		try {
+			int port = config.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, ConfigConstants.DEFAULT_WEB_FRONTEND_PORT);
+			server = new WebInfoServer(config, port, this);
+			server.start();
+		} catch (Exception e) {
+			LOG.fatal("Cannot instantiate info server: " + StringUtils.stringifyException(e));
+			System.exit(FAILURERETURNCODE);
+		}
 	}
 
 }

@@ -19,9 +19,12 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
+import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.util.EnumUtils;
@@ -416,5 +419,70 @@ public final class ManagementGroupVertex extends ManagementAttachment implements
 	@Override
 	public String toString() {
 		return String.format("ManagementGroupVertex(%s)", getName());
+	}
+	
+	/**
+	 * Returns Json representation of this ManagementGroupVertex
+	 * 
+	 * @return
+	 */
+	public String toJson() {
+		StringBuilder json = new StringBuilder("");
+		
+		json.append("{");
+		json.append("\"groupvertexid\": \"" + this.getID() + "\",");
+		json.append("\"groupvertexname\": \"" + this.getName() + "\",");
+		json.append("\"numberofgroupmembers\": " + this.getNumberOfGroupMembers() + ",");
+		json.append("\"groupmembers\": [");
+		
+		// Count state status of group members
+		Map<ExecutionState, Integer> stateCounts = new HashMap<ExecutionState, Integer>();
+		
+		// initialize with 0
+		for (ExecutionState state : ExecutionState.values()) {
+			stateCounts.put(state, new Integer(0));
+		}
+		
+		for(int j = 0; j < this.getNumberOfGroupMembers(); j++) {
+			ManagementVertex vertex = this.getGroupMember(j);
+			
+			json.append(vertex.toJson());
+			
+			// print delimiter
+			if(j != this.getNumberOfGroupMembers() - 1) {
+				json.append(",");
+			}
+			
+			// Increment state status count
+			Integer count =  stateCounts.get(vertex.getExecutionState()) + new Integer(1);
+			stateCounts.put(vertex.getExecutionState(), count);
+		}
+		json.append("],");
+		json.append("\"backwardEdges\": [");
+		
+		for(int edgeIndex = 0; edgeIndex < this.getNumberOfBackwardEdges(); edgeIndex++) {
+			ManagementGroupEdge edge = this.getBackwardEdge(edgeIndex);
+			
+			json.append("{");
+			json.append("\"groupvertexid\": \"" + edge.getSource().getID() + "\",");
+			json.append("\"groupvertexname\": \"" +  edge.getSource().getName() + "\",");
+			json.append("\"channelType\": \"" +  edge.getChannelType() + "\"");
+			json.append("}");
+			
+			// print delimiter
+			if(edgeIndex != this.getNumberOfBackwardEdges() - 1) {
+				json.append(",");
+			}
+		}
+		json.append("]");
+		
+		// list number of members for each status
+		for (Map.Entry<ExecutionState, Integer> stateCount : stateCounts.entrySet()) {
+			json.append(",\""+stateCount.getKey()+"\": " + stateCount.getValue());
+		}
+		
+		json.append("}");
+		
+		return json.toString();
 	}
 }
