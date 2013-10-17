@@ -57,4 +57,10 @@ public class UserCodeObjectWrapper<T> implements UserCodeWrapper<T> {
 			Class<A> annotationClass) {
 		return userCodeObject.getClass().getAnnotation(annotationClass);
 	}
+	
+	@SuppressWarnings("unchecked")
+	@Override
+	public Class<? extends T> getUserCodeClass() {
+		return (Class<? extends T>) userCodeObject.getClass();
+	}
 }

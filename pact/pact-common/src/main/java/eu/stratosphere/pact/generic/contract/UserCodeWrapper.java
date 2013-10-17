@@ -55,4 +55,12 @@ public interface UserCodeWrapper<T> extends Serializable {
 	 * @return the annotation, or null if no annotation of the requested type was found
 	 */
 	public <A extends Annotation> A getUserCodeAnnotation(Class<A> annotationClass);
+	
+	/**
+	 * Gets the class of the user code. If the user code is provided as a class, this class is just returned.
+	 * If the user code is provided as an object, {@link Object#getClass()} is called on the user code object.
+	 * 
+	 * @return The class of the user code object.
+	 */
+	public Class<? extends T> getUserCodeClass ();
 }
