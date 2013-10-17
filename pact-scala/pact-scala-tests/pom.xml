@@ -5,7 +5,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-	<artifactId>pact</artifactId>
+	<artifactId>pact-scala</artifactId>
 	<groupId>eu.stratosphere</groupId>
 	<version>0.4-ozone-SNAPSHOT</version>
 	<relativePath>..</relativePath>

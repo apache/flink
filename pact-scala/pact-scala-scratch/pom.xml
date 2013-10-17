@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <artifactId>pact-scala</artifactId>
+    <groupId>eu.stratosphere</groupId>
+    <version>0.4-ozone-SNAPSHOT</version>
+    <relativePath>..</relativePath>
+  </parent>
+
+  <artifactId>pact-scala-scratch</artifactId>
+  <name>pact-scala-scratch</name>
+  
+  <packaging>jar</packaging>
+
+  <dependencies>
+
+    <dependency>
+    	<groupId>eu.stratosphere</groupId>
+    	<artifactId>pact-scala-core</artifactId>
+    	<version>${project.version}</version>
+    </dependency>
+    <dependency>
+    	<groupId>eu.stratosphere</groupId>
+    	<artifactId>pact-clients</artifactId>
+    	<version>${project.version}</version>
+    </dependency>
+    <dependency>
+    	<groupId>eu.stratosphere</groupId>
+    	<artifactId>pact-examples</artifactId>
+    	<version>${project.version}</version>
+    </dependency>
+  </dependencies>
+
+  <reporting>
+    <plugins>
+    </plugins>
+  </reporting>
+
+  <build>
+    <plugins>
+    
+      <plugin>
+        <groupId>net.alchim31.maven</groupId>
+        <artifactId>scala-maven-plugin</artifactId>
+        <version>3.1.3</version>
+        <executions>
+          <execution>
+            <goals>
+              <goal>compile</goal>
+              <goal>testCompile</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+      <launchers>
+	<launcher>
+		<id>foo</id>
+		<mainClass>eu.stratosphere.pact4s.example.TestWC</mainClass>
+	</launcher>
+	<!-- you could define other launcher -->
+</launchers>
+    </configuration>
+      </plugin>
+ 
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+      </plugin>
+      
+    </plugins>
+  </build>
+</project>

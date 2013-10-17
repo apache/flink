@@ -14,11 +14,9 @@
 package eu.stratosphere.scala.examples.graph
 
 import eu.stratosphere.pact.client.LocalExecutor
-import eu.stratosphere.pact.common.plan.PlanAssemblerDescription
 import eu.stratosphere.scala.Args
 import eu.stratosphere.scala.DataSource
 import eu.stratosphere.scala.ScalaPlan
-import eu.stratosphere.scala.ScalaPlanAssembler
 import eu.stratosphere.scala.analysis.GlobalSchemaPrinter
 import eu.stratosphere.scala.operators.RecordDataSourceFormat
 import eu.stratosphere.scala.operators.optionToIterator
@@ -28,16 +26,14 @@ import java.io.File
 import java.io.BufferedWriter
 
 object RunComputeEdgeDegrees {
-  def main(args: Array[String]) {
-    
-	val computeEdgeDegreesJob = new ComputeEdgeDegrees
-    val plan = computeEdgeDegreesJob.getPlan(
-      "file:///tmp/edges",
-      "file:///tmp/edgesWithDegrees")
-
-    GlobalSchemaPrinter.printSchema(plan)
+  def main(pArgs: Array[String]) {
+    if (pArgs.size < 2) {
+      println("usage: -input <file> -output <file>")
+      return
+    }
+    val args = Args.parse(pArgs)
+    val plan = new ComputeEdgeDegrees().getPlan(args("input"), args("output"))
     LocalExecutor.execute(plan)
-
     System.exit(0)
   }
 }
@@ -45,11 +41,7 @@ object RunComputeEdgeDegrees {
 /**
  * Annotates edges with associated vertex degrees.
  */
-class ComputeEdgeDegrees extends ScalaPlanAssembler with PlanAssemblerDescription with Serializable {
-  
-  override def getDescription = "-input <file>  -output <file>"
-  
-  override def getScalaPlan(args: Args) = getPlan(args("input"), args("output"))
+class ComputeEdgeDegrees extends Serializable {
    
   /*
    * Output formatting function for edges with annotated degrees

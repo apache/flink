@@ -17,42 +17,36 @@ import scala.Array.canBuildFrom
 import eu.stratosphere.pact.client.LocalExecutor
 import eu.stratosphere.pact.common.`type`.base.PactInteger
 import eu.stratosphere.pact.common.`type`.base.PactString
-import eu.stratosphere.pact.common.plan.PlanAssemblerDescription
 import eu.stratosphere.scala.Args
 import eu.stratosphere.scala.DataSource
 import eu.stratosphere.scala.ScalaPlan
-import eu.stratosphere.scala.ScalaPlanAssembler
 import eu.stratosphere.scala.analysis.GlobalSchemaPrinter
 import eu.stratosphere.scala.operators.arrayToIterator
 import eu.stratosphere.scala.operators.DelimitedDataSourceFormat
 import eu.stratosphere.scala.operators.DelimitedDataSinkFormat
+import eu.stratosphere.scala.TextFile
 
 object RunWordCount {
-  def main(args: Array[String]) {
-    val plan = WordCount.getPlan(
-      "file:///home/aljoscha/dummy-input",
-      "file:///home/aljoscha/wordcount-output")
-
-    GlobalSchemaPrinter.printSchema(plan)
+  def main(pArgs: Array[String]) {
+    if (pArgs.size < 3) {
+      println("usage: -input <file>  -output <file>")
+      return
+    }
+    val args = Args.parse(pArgs)
+    val plan = new WordCount().getPlan(args("input"), args("output"))
     LocalExecutor.execute(plan)
-
     System.exit(0)
   }
 }
 
-class WordCountDescriptor extends ScalaPlanAssembler with PlanAssemblerDescription {
-  override def getDescription = "-input <file>  -output <file>"
+class WordCount extends Serializable {
 
-  override def getScalaPlan(args: Args) = WordCount.getPlan(args("input"), args("output"))
-}
-
-object WordCount {
   def formatOutput = (word: String, count: Int) => "%s %d".format(word, count)
 
   def getPlan(textInput: String, wordsOutput: String) = {
-    val input = DataSource(textInput, DelimitedDataSourceFormat(identity[String] _))
+    val input = TextFile(textInput)
 
-    val words = input flatMap { _.toLowerCase().split("""\W+""") map { (_, 1) } }
+    val words = input flatMap { _.toLowerCase().split("""\W+""") filter { _ != "" } map { (_, 1) } }
     val counts = words groupBy { case (word, _) => word } reduce { (w1, w2) => (w1._1, w1._2 + w2._2) }
 
     counts neglects { case (word, _) => word }
