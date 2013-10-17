@@ -14,41 +14,28 @@
 package eu.stratosphere.scala.examples.datamining
 
 import eu.stratosphere.pact.client.LocalExecutor
-import eu.stratosphere.pact.common.`type`.base.PactDouble
-import eu.stratosphere.pact.common.`type`.base.PactInteger
-import eu.stratosphere.pact.common.plan.PlanAssemblerDescription
-import eu.stratosphere.pact.generic.contract.BulkIteration
 import eu.stratosphere.scala.Args
 import eu.stratosphere.scala.DataSource
 import eu.stratosphere.scala.DataStream
 import eu.stratosphere.scala.ScalaPlan
-import eu.stratosphere.scala.ScalaPlanAssembler
 import eu.stratosphere.scala.operators.DelimitedDataSourceFormat
 import eu.stratosphere.scala.operators.DelimitedDataSinkFormat
-import eu.stratosphere.scala.operators.RecordDataSinkFormat
-import eu.stratosphere.scala.analysis.GlobalSchemaPrinter
 
 object RunKMeans {
-  def main(args: Array[String]) {
-    val plan = KMeans.getPlan(20,
-      "file:///home/aljoscha/kmeans-points",
-      "file:///home/aljoscha/kmeans-clusters",
-      "file:///home/aljoscha/kmeans-output")
-
-    GlobalSchemaPrinter.printSchema(plan)
+  def main(pArgs: Array[String]) {
+    if (pArgs.size < 3) {
+      println("usage: [-numIterations <int:2>] -dataPoints <file> -clusterCenters <file> -output <file>")
+      return
+    }
+    val args = Args.parse(pArgs)
+    val plan = new KMeans().getPlan(args("numIterations", "2").toInt, args("dataPoints"), args("clusterCenters"), args("output"))
     LocalExecutor.execute(plan)
-
     System.exit(0)
   }
 }
 
-class KMeansDescriptor extends ScalaPlanAssembler with PlanAssemblerDescription {
-  override def getDescription = "[-numIterations <int:2>] -dataPoints <file> -clusterCenters <file> -output <file>"
+class KMeans extends Serializable {
 
-  override def getScalaPlan(args: Args) = KMeans.getPlan(args("numIterations", "2").toInt, args("dataPoints"), args("clusterCenters"), args("output"))
-}
-
-object KMeans {
   case class Point(x: Double, y: Double, z: Double) {
     def computeEuclidianDistance(other: Point) = other match {
       case Point(x2, y2, z2) => math.sqrt(math.pow(x - x2, 2) + math.pow(y - y2, 2) + math.pow(z - z2, 2))
@@ -97,7 +84,6 @@ object KMeans {
   def getPlan(numIterations: Int, dataPointInput: String, clusterInput: String, clusterOutput: String) = {
     val dataPoints = DataSource(dataPointInput, DelimitedDataSourceFormat(parseInput))
     val clusterPoints = DataSource(clusterInput, DelimitedDataSourceFormat(parseInput))
-    clusterPoints.degreeOfParallelism(1)
 
     def computeNewCenters(centers: DataStream[(Int, Point)]) = {
 
@@ -107,27 +93,26 @@ object KMeans {
       // TODO change to using combinableReduce with map when the problem with iterations is fixed
 //      val newCenters = nearestCenters groupBy { case (cid, _) => cid } hadoopReduce sumPointSums map { case (cid, pSum) => cid -> pSum.toPoint() }
 
-      distances.left neglects { case (pid, _) => pid }
-      distances.left preserves({ dp => dp }, { case (pid, dist) => (pid, dist.dataPoint) })
-      distances.right neglects { case (cid, _) => cid }
-      distances.right preserves({ case (cid, _) => cid }, { case (_, dist) => dist.clusterId })
-
-      nearestCenters neglects { case (pid, _) => pid }
-
-      newCenters neglects { case (cid, _) => cid }
-      newCenters.preserves({ case (cid, _) => cid }, { case (cid, _) => cid })
-
-      distances.avgBytesPerRecord(48)
-      nearestCenters.avgBytesPerRecord(40)
-      newCenters.avgBytesPerRecord(36)
+//      distances.left neglects { case (pid, _) => pid }
+//      distances.left preserves({ dp => dp }, { case (pid, dist) => (pid, dist.dataPoint) })
+//      distances.right neglects { case (cid, _) => cid }
+//      distances.right preserves({ case (cid, _) => cid }, { case (_, dist) => dist.clusterId })
+//
+//      nearestCenters neglects { case (pid, _) => pid }
+//
+//      newCenters neglects { case (cid, _) => cid }
+//      newCenters.preserves({ case (cid, _) => cid }, { case (cid, _) => cid })
+//
+//      distances.avgBytesPerRecord(48)
+//      nearestCenters.avgBytesPerRecord(40)
+//      newCenters.avgBytesPerRecord(36)
       
-      val diff = centers join newCenters where { _._1 } isEqualTo { _._1 } map { (c1, c2) => c1._2.computeEuclidianDistance(c2._2) }
+//      val diff = centers join newCenters where { _._1 } isEqualTo { _._1 } map { (c1, c2) => c1._2.computeEuclidianDistance(c2._2) }
 
       newCenters
     }
 
     val finalCenters = clusterPoints.iterate(numIterations, computeNewCenters)
-    finalCenters.contract.asInstanceOf[BulkIteration].setMaximumNumberOfIterations(numIterations)
 
     val output = finalCenters.write(clusterOutput, DelimitedDataSinkFormat(formatOutput.tupled))
 

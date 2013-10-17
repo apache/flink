@@ -39,9 +39,9 @@ public class TPCHQuery3ITCase extends TestBase {
 
 	private static final Log LOG = LogFactory.getLog(TPCHQuery3ITCase.class);
 	
-	private String ordersPath = null;
-	private String lineitemsPath = null;
-	private String resultPath = null;
+	protected String ordersPath = null;
+	protected String lineitemsPath = null;
+	protected String resultPath = null;
 
 	public static final String ORDERS = "1|36901|O|173665.47|1996-01-02|5-LOW|Clerk#000000951|0|nstructions sleep furiously among |\n"
 		+ "2|78002|O|46929.18|1996-12-01|1-URGENT|Clerk#000000880|0| foxes. pending accounts at the pending, silent asymptot|\n"

@@ -59,17 +59,15 @@ object Args {
   }
 }
 
-abstract class ScalaPlanAssembler extends PlanAssembler {
-  def getScalaPlan(args: Args): ScalaPlan
-  
-  override def getPlan(args: String*): Plan = {
-    val scalaArgs = Args.parse(args.toSeq)
-    
-    getScalaPlan(scalaArgs)
-  }
-}
-
-class Pact4sInstantiationException(cause: Throwable) extends Exception("Could not instantiate program.", cause)
+//abstract class ScalaPlanAssembler extends PlanAssembler {
+//  def getScalaPlan(args: Args): ScalaPlan
+//  
+//  override def getPlan(args: String*): Plan = {
+//    val scalaArgs = Args.parse(args.toSeq)
+//    
+//    getScalaPlan(scalaArgs)
+//  }
+//}
 
 
 class ScalaPostPass extends GenericPactRecordPostPass with GlobalSchemaOptimizer {
