@@ -395,10 +395,6 @@ public abstract class SingleInputNode extends OptimizerNode
 	//                                     Branch Handling
 	// --------------------------------------------------------------------------------------------
 	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeUnclosedBranchStack()
-	 */
 	@Override
 	public void computeUnclosedBranchStack() {
 		if (this.openBranches != null) {

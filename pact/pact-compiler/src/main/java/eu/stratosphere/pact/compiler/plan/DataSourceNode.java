@@ -21,8 +21,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.apache.commons.lang.SerializationUtils;
-
 import eu.stratosphere.pact.common.contract.CompilerHints;
 import eu.stratosphere.pact.common.contract.GenericDataSource;
 import eu.stratosphere.pact.common.io.FileInputFormat;
@@ -223,29 +221,17 @@ public class DataSourceNode extends OptimizerNode {
 		}
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeInterestingProperties()
-	 */
 	@Override
 	public void computeInterestingPropertiesForInputs(CostEstimator estimator) {
 		// no children, so nothing to compute
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeUnclosedBranchStack()
-	 */
 	@Override
 	public void computeUnclosedBranchStack() {
 		// because there are no inputs, there are no unclosed branches.
 		this.openBranches = Collections.emptyList();
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeAlternativePlans()
-	 */
 	@Override
 	public List<PlanNode> getAlternativePlans(CostEstimator estimator) {
 		if (this.cachedPlans != null) {

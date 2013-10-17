@@ -452,4 +452,138 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 			Assert.fail(e.getMessage());
 		}
 	}
+	
+	/**
+	 * 
+	 * <pre>
+	 *             (SRC A)     
+	 *             /     \      
+	 *        (SINK A)    (SINK B)
+	 * </pre>
+	 */
+	@Test
+	public void testBranchingWithMultipleDataSinksSmall() {
+		try {
+			// construct the plan
+			final String out1Path = "file:///test/1";
+			final String out2Path = "file:///test/2";
+	
+			FileDataSource sourceA = new FileDataSource(DummyInputFormat.class, IN_FILE);
+			
+			FileDataSink sinkA = new FileDataSink(DummyOutputFormat.class, out1Path, sourceA);
+			FileDataSink sinkB = new FileDataSink(DummyOutputFormat.class, out2Path, sourceA);
+			
+			List<GenericDataSink> sinks = new ArrayList<GenericDataSink>();
+			sinks.add(sinkA);
+			sinks.add(sinkB);
+			
+			// return the PACT plan
+			Plan plan = new Plan(sinks, "Plans With Multiple Data Sinks");
+			
+			OptimizedPlan oPlan = compileNoStats(plan);
+			
+			// ---------- check the optimizer plan ----------
+			
+			// number of sinks
+			Assert.assertEquals("Wrong number of data sinks.", 2, oPlan.getDataSinks().size());
+			
+			// sinks contain all sink paths
+			Set<String> allSinks = new HashSet<String>();
+			allSinks.add(out1Path);
+			allSinks.add(out2Path);
+			
+			for (SinkPlanNode n : oPlan.getDataSinks()) {
+				String path = ((FileDataSink) n.getSinkNode().getPactContract()).getFilePath();
+				Assert.assertTrue("Invalid data sink.", allSinks.remove(path));
+			}
+			
+			// ---------- compile plan to nephele job graph to verify that no error is thrown ----------
+			
+			NepheleJobGraphGenerator jobGen = new NepheleJobGraphGenerator();
+			jobGen.compileJobGraph(oPlan);
+		} catch (Exception e) {
+			e.printStackTrace();
+			Assert.fail(e.getMessage());
+		}
+	}
+	
+	/**
+	 * 
+	 * <pre>
+	 *           (SINK A)    (SINK B)
+	 *             /           /
+	 *         (SRC A)     (SRC B)
+	 * </pre>
+	 */
+	@Test
+	public void testSimpleDisjointPlan() {
+		// construct the plan
+		final String out1Path = "file:///test/1";
+		final String out2Path = "file:///test/2";
+
+		FileDataSource sourceA = new FileDataSource(DummyInputFormat.class, IN_FILE);
+		FileDataSource sourceB = new FileDataSource(DummyInputFormat.class, IN_FILE);
+		
+		FileDataSink sinkA = new FileDataSink(DummyOutputFormat.class, out1Path, sourceA);
+		FileDataSink sinkB = new FileDataSink(DummyOutputFormat.class, out2Path, sourceB);
+		
+		List<GenericDataSink> sinks = new ArrayList<GenericDataSink>();
+		sinks.add(sinkA);
+		sinks.add(sinkB);
+		
+		// return the PACT plan
+		Plan plan = new Plan(sinks, "Disjoint plan with multiple data sinks");
+		
+		try {
+			compileNoStats(plan);
+			Assert.fail("Plan must not be compilable, it contains disjoint sub-plans.");
+		}
+		catch (Exception ex) {
+			// as expected
+		}
+	}
+	
+	/**
+	 * 
+	 * <pre>
+	 *     (SINK 3) (SINK 1)   (SINK 2) (SINK 4)
+	 *         \     /             \     /
+	 *         (SRC A)             (SRC B)
+	 * </pre>
+	 * 
+	 * NOTE: this case is currently not caught by the compiler. we should enable the test once it is caught.
+	 */
+	public void testBranchingDisjointPlan() {
+		// construct the plan
+		final String out1Path = "file:///test/1";
+		final String out2Path = "file:///test/2";
+		final String out3Path = "file:///test/3";
+		final String out4Path = "file:///test/4";
+
+		FileDataSource sourceA = new FileDataSource(DummyInputFormat.class, IN_FILE);
+		FileDataSource sourceB = new FileDataSource(DummyInputFormat.class, IN_FILE);
+		
+		FileDataSink sink1 = new FileDataSink(DummyOutputFormat.class, out1Path, sourceA, "1");
+		FileDataSink sink2 = new FileDataSink(DummyOutputFormat.class, out2Path, sourceB, "2");
+		FileDataSink sink3 = new FileDataSink(DummyOutputFormat.class, out3Path, sourceA, "3");
+		FileDataSink sink4 = new FileDataSink(DummyOutputFormat.class, out4Path, sourceB, "4");
+		
+		
+		List<GenericDataSink> sinks = new ArrayList<GenericDataSink>();
+		sinks.add(sink1);
+		sinks.add(sink2);
+		sinks.add(sink3);
+		sinks.add(sink4);
+		
+		// return the PACT plan
+		Plan plan = new Plan(sinks, "Disjoint plan with multiple data sinks and branches");
+		
+		try {
+			compileNoStats(plan);
+			Assert.fail("Plan must not be compilable, it contains disjoint sub-plans.");
+		}
+		catch (Exception ex) {
+			// as expected
+		}
+	}
 }

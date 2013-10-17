@@ -209,10 +209,6 @@ public class DataSinkNode extends OptimizerNode {
 	//                                     Branch Handling
 	// --------------------------------------------------------------------------------------------
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeUnclosedBranchStack()
-	 */
 	@Override
 	public void computeUnclosedBranchStack() {
 		if (this.openBranches != null) {
@@ -223,9 +219,6 @@ public class DataSinkNode extends OptimizerNode {
 		this.openBranches = getPredecessorNode().getBranchesForParent(this.input);
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getBranchesForParent(eu.stratosphere.pact.compiler.plan.OptimizerNode)
-	 */
 	@Override
 	protected List<UnclosedBranchDescriptor> getBranchesForParent(PactConnection parent) {
 		// return our own stack of open branches, because nothing is added
@@ -235,7 +228,6 @@ public class DataSinkNode extends OptimizerNode {
 	// --------------------------------------------------------------------------------------------
 	//                                   Recursive Optimization
 	// --------------------------------------------------------------------------------------------
-	
 	
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getAlternativePlans(eu.stratosphere.pact.compiler.costs.CostEstimator)

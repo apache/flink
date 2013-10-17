@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.operators.OperatorDescriptorDual;
 import eu.stratosphere.pact.compiler.operators.UtilSinkJoinOpDescriptor;
@@ -74,11 +75,18 @@ public class SinkJoiner extends TwoInputNode {
 		addClosedBranches(getFirstPredecessorNode().closedBranchingNodes);
 		addClosedBranches(getSecondPredecessorNode().closedBranchingNodes);
 		
-		List<UnclosedBranchDescriptor> result1 = new ArrayList<UnclosedBranchDescriptor>();
-		List<UnclosedBranchDescriptor> result2 = new ArrayList<UnclosedBranchDescriptor>();
-		result1.addAll(getFirstPredecessorNode().openBranches);
-		result2.addAll(getSecondPredecessorNode().openBranches);
-
+		List<UnclosedBranchDescriptor> pred1branches = getFirstPredecessorNode().openBranches;
+		List<UnclosedBranchDescriptor> pred2branches = getSecondPredecessorNode().openBranches;
+		
+		// if the predecessors do not have branches, then we have multiple sinks that do not originate from
+		// a common data flow.
+		if (pred1branches == null || pred1branches.isEmpty() || pred2branches == null || pred2branches.isEmpty()) {
+			throw new CompilerException("The given Pact program contains multiple disconnected data flows.");
+		}
+		
+		// copy the lists and merge
+		List<UnclosedBranchDescriptor> result1 = new ArrayList<UnclosedBranchDescriptor>(pred1branches);
+		List<UnclosedBranchDescriptor> result2 = new ArrayList<UnclosedBranchDescriptor>(pred2branches);
 		this.openBranches = mergeLists(result1, result2);
 	}
 
