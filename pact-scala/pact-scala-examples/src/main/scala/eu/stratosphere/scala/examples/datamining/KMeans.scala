@@ -14,27 +14,34 @@
 package eu.stratosphere.scala.examples.datamining
 
 import eu.stratosphere.pact.client.LocalExecutor
-import eu.stratosphere.scala.Args
 import eu.stratosphere.scala.DataSource
 import eu.stratosphere.scala.DataStream
 import eu.stratosphere.scala.ScalaPlan
 import eu.stratosphere.scala.operators.DelimitedDataSourceFormat
 import eu.stratosphere.scala.operators.DelimitedDataSinkFormat
+import eu.stratosphere.pact.common.plan.PlanAssembler
+import eu.stratosphere.pact.common.plan.PlanAssemblerDescription
 
 object RunKMeans {
-  def main(pArgs: Array[String]) {
-    if (pArgs.size < 3) {
-      println("usage: [-numIterations <int:2>] -dataPoints <file> -clusterCenters <file> -output <file>")
+  def main(args: Array[String]) {
+    val km = new KMeans
+    if (args.size < 5) {
+      println(km.getDescription)
       return
     }
-    val args = Args.parse(pArgs)
-    val plan = new KMeans().getPlan(args("numIterations", "2").toInt, args("dataPoints"), args("clusterCenters"), args("output"))
+    val plan = km.getScalaPlan(args(0).toInt, args(1), args(2), args(3), args(4).toInt)
     LocalExecutor.execute(plan)
     System.exit(0)
   }
 }
 
-class KMeans extends Serializable {
+class KMeans extends PlanAssembler with PlanAssemblerDescription with Serializable {
+  override def getDescription() = {
+    "Parameters: [numSubStasks] [dataPoints] [clusterCenters] [output] [numIterations]"
+  }
+  override def getPlan(args: String*) = {
+    getScalaPlan(args(0).toInt, args(1), args(2), args(3), args(4).toInt)
+  }
 
   case class Point(x: Double, y: Double, z: Double) {
     def computeEuclidianDistance(other: Point) = other match {
@@ -81,7 +88,7 @@ class KMeans extends Serializable {
     pid -> Distance(dataPoint, cid, distToCluster)
   }
 
-  def getPlan(numIterations: Int, dataPointInput: String, clusterInput: String, clusterOutput: String) = {
+  def getScalaPlan(numSubTasks: Int, dataPointInput: String, clusterInput: String, clusterOutput: String, numIterations: Int) = {
     val dataPoints = DataSource(dataPointInput, DelimitedDataSourceFormat(parseInput))
     val clusterPoints = DataSource(clusterInput, DelimitedDataSourceFormat(parseInput))
 
@@ -116,6 +123,8 @@ class KMeans extends Serializable {
 
     val output = finalCenters.write(clusterOutput, DelimitedDataSinkFormat(formatOutput.tupled))
 
-    new ScalaPlan(Seq(output), "KMeans Iteration (Immutable)")
+    val plan = new ScalaPlan(Seq(output), "KMeans Iteration (Immutable)")
+    plan.setDefaultParallelism(numSubTasks)
+    plan
   }
 }

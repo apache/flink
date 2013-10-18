@@ -15,35 +15,39 @@ package eu.stratosphere.scala.examples.wordcount
 
 import scala.Array.canBuildFrom
 import eu.stratosphere.pact.client.LocalExecutor
-import eu.stratosphere.pact.common.`type`.base.PactInteger
-import eu.stratosphere.pact.common.`type`.base.PactString
-import eu.stratosphere.scala.Args
 import eu.stratosphere.scala.DataSource
 import eu.stratosphere.scala.ScalaPlan
-import eu.stratosphere.scala.analysis.GlobalSchemaPrinter
 import eu.stratosphere.scala.operators.arrayToIterator
 import eu.stratosphere.scala.operators.DelimitedDataSourceFormat
 import eu.stratosphere.scala.operators.DelimitedDataSinkFormat
 import eu.stratosphere.scala.TextFile
+import eu.stratosphere.pact.common.plan.PlanAssembler
+import eu.stratosphere.pact.common.plan.PlanAssemblerDescription
 
 object RunWordCount {
-  def main(pArgs: Array[String]) {
-    if (pArgs.size < 3) {
-      println("usage: -input <file>  -output <file>")
+  def main(args: Array[String]) {
+    val wc = new WordCount
+    if (args.size < 3) {
+      println(wc.getDescription)
       return
     }
-    val args = Args.parse(pArgs)
-    val plan = new WordCount().getPlan(args("input"), args("output"))
+    val plan = wc.getScalaPlan(args(0).toInt, args(1), args(2))
     LocalExecutor.execute(plan)
     System.exit(0)
   }
 }
 
-class WordCount extends Serializable {
+class WordCount extends PlanAssembler with PlanAssemblerDescription with Serializable {
+  override def getDescription() = {
+    "Parameters: [numSubStasks] [input] [output]"
+  }
+  override def getPlan(args: String*) = {
+    getScalaPlan(args(0).toInt, args(1), args(2))
+  }
 
   def formatOutput = (word: String, count: Int) => "%s %d".format(word, count)
 
-  def getPlan(textInput: String, wordsOutput: String) = {
+  def getScalaPlan(numSubTasks: Int, textInput: String, wordsOutput: String) = {
     val input = TextFile(textInput)
 
     val words = input flatMap { _.toLowerCase().split("""\W+""") filter { _ != "" } map { (_, 1) } }
@@ -53,6 +57,8 @@ class WordCount extends Serializable {
     counts preserves({ case (word, _) => word }, { case (word, _) => word })
     val output = counts.write(wordsOutput, DelimitedDataSinkFormat(formatOutput.tupled))
   
-    new ScalaPlan(Seq(output), "Word Count (immutable)")
+    val plan = new ScalaPlan(Seq(output), "Word Count (immutable)")
+    plan.setDefaultParallelism(numSubTasks)
+    plan
   }
 }

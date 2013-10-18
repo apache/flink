@@ -69,7 +69,7 @@ public class ComputeEdgeDegreesITCase extends TestBase {
 
 		ComputeEdgeDegrees computeDegrees = new ComputeEdgeDegrees();
 		Plan plan = computeDegrees.getPlan(
-				config.getString("EnumTrianglesTest#NoSubtasks", "4"),
+				config.getString("ComputeEdgeDegreesTest#NoSubtasks", "4"),
 				getFilesystemProvider().getURIPrefix() + edgesPath, 
 				getFilesystemProvider().getURIPrefix() + resultPath);
 

@@ -19,7 +19,8 @@ public class EnumTrianglesOnEdgesWithDegreesITCase extends eu.stratosphere.pact.
 	protected JobGraph getJobGraph() throws Exception {
 
 		EnumTrianglesOnEdgesWithDegrees enumTriangles = new EnumTrianglesOnEdgesWithDegrees();
-		Plan plan = enumTriangles.getPlan(
+		Plan plan = enumTriangles.getScalaPlan(
+				config.getInteger("EnumTrianglesTest#NoSubtasks", 4),
 				getFilesystemProvider().getURIPrefix() + edgesPath,
 				getFilesystemProvider().getURIPrefix() + resultPath);
 

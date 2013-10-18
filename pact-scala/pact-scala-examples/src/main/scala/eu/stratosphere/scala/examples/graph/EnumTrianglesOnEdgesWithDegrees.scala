@@ -14,7 +14,6 @@
 package eu.stratosphere.scala.examples.graph
 
 import eu.stratosphere.pact.common.`type`.base.PactInteger
-import eu.stratosphere.scala.Args
 import eu.stratosphere.scala.DataSource
 import eu.stratosphere.scala.ScalaPlan
 import eu.stratosphere.scala.analysis.GlobalSchemaPrinter
@@ -22,16 +21,18 @@ import eu.stratosphere.scala.operators.DelimitedDataSinkFormat
 import eu.stratosphere.scala.operators.RecordDataSourceFormat
 import eu.stratosphere.scala.operators.optionToIterator
 import eu.stratosphere.pact.client.LocalExecutor
+import eu.stratosphere.pact.common.plan.PlanAssembler
+import eu.stratosphere.pact.common.plan.PlanAssemblerDescription
 
 
 object RunEnumTrianglesOnEdgesWithDegrees {
-  def main(pArgs: Array[String]) {
-    if (pArgs.size < 2) {
-      println("usage: -input <file>  -output <file>")
+  def main(args: Array[String]) {
+    val enumTriangles = new EnumTrianglesOnEdgesWithDegrees
+    if (args.size < 3) {
+      println(enumTriangles.getDescription)
       return
     }
-    val args = Args.parse(pArgs)
-    val plan = new EnumTrianglesOnEdgesWithDegrees().getPlan(args("input"), args("output"))
+    val plan = enumTriangles.getScalaPlan(args(0).toInt, args(1), args(2))
     LocalExecutor.execute(plan)
     System.exit(0)
   }
@@ -41,8 +42,14 @@ object RunEnumTrianglesOnEdgesWithDegrees {
  * Enumerates all triangles build by three connected vertices in a graph.
  * The graph is represented as edges (pairs of vertices) with annotated vertex degrees. * 
  */
-class EnumTrianglesOnEdgesWithDegrees extends Serializable {
-  
+class EnumTrianglesOnEdgesWithDegrees extends PlanAssembler with PlanAssemblerDescription with Serializable {
+  override def getDescription() = {
+    "Parameters: [numSubStasks] [input file] [output file]"
+  }
+  override def getPlan(args: String*) = {
+    getScalaPlan(args(0).toInt, args(1), args(2))
+  }
+
   /*
    * Output formatting function for triangles.
    */
@@ -73,7 +80,7 @@ class EnumTrianglesOnEdgesWithDegrees extends Serializable {
       (e1._1, e1._2, e2._2)
   }
   
-  def getPlan(edgeInput: String, triangleOutput: String) = {
+  def getScalaPlan(numSubTasks: Int, edgeInput: String, triangleOutput: String) = {
     
     /*
      * Input format for edges with degrees
@@ -109,6 +116,8 @@ class EnumTrianglesOnEdgesWithDegrees extends Serializable {
      */
     val output = triangles.write(triangleOutput, DelimitedDataSinkFormat(formatTriangle.tupled))
   
-    new ScalaPlan(Seq(output), "Enumerate Triangles on Edges with Degrees")
+    val plan = new ScalaPlan(Seq(output), "Enumerate Triangles on Edges with Degrees")
+    plan.setDefaultParallelism(numSubTasks)
+    plan
   }
 }

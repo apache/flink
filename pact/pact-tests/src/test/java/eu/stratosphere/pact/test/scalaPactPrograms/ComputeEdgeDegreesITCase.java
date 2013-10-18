@@ -19,7 +19,8 @@ public class ComputeEdgeDegreesITCase extends eu.stratosphere.pact.test.pactProg
 	protected JobGraph getJobGraph() throws Exception {
 
 		ComputeEdgeDegrees computeDegrees = new ComputeEdgeDegrees();
-		Plan plan = computeDegrees.getPlan(
+		Plan plan = computeDegrees.getScalaPlan(
+				config.getInteger("ComputeEdgeDegreesTest#NoSubtasks", 4),
 				getFilesystemProvider().getURIPrefix() + edgesPath,
 				getFilesystemProvider().getURIPrefix() + resultPath);
 

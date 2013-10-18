@@ -138,6 +138,19 @@
 				<exclude>pact-examples-${project.version}.jar</exclude>
 			</excludes>
 		</fileSet>
+
+		<fileSet>
+			<!-- copy jar files of pact job examples -->
+			<directory>../pact-scala/pact-scala-examples/target</directory>
+			<outputDirectory>examples/pact-scala/</outputDirectory>
+			<fileMode>0644</fileMode>
+			<includes>
+				<include>*.jar</include>
+			</includes>
+			<excludes>
+				<exclude>pact-scala-examples-${project.version}.jar</exclude>
+			</excludes>
+		</fileSet>
 	</fileSets>
 
 </assembly>
