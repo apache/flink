@@ -16,6 +16,7 @@
 package eu.stratosphere.pact.compiler.plan;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -654,7 +655,9 @@ public abstract class TwoInputNode extends OptimizerNode {
 		List<UnclosedBranchDescriptor> result1 = getFirstPredecessorNode().getBranchesForParent(getFirstIncomingConnection());
 		List<UnclosedBranchDescriptor> result2 = getSecondPredecessorNode().getBranchesForParent(getSecondIncomingConnection());
 
-		this.openBranches = mergeLists(result1, result2);
+		ArrayList<UnclosedBranchDescriptor> result = new ArrayList<UnclosedBranchDescriptor>();
+		mergeLists(result1, result2, result);
+		this.openBranches = result.isEmpty() ? Collections.<UnclosedBranchDescriptor>emptyList() : result;
 	}
 
 	// --------------------------------------------------------------------------------------------

@@ -1138,34 +1138,37 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		}
 		this.closedBranchingNodes.add(alreadyClosed);
 	}
-	/*
-	 * node IDs are assigned in graph-traversal order (pre-order)
-	 * hence, each list is sorted by ID in ascending order and all consecutive lists start with IDs in ascending order
+	
+	/**
+	 * The node IDs are assigned in graph-traversal order (pre-order), hence, each list is sorted by ID in ascending order and
+	 * all consecutive lists start with IDs in ascending order.
 	 */
-	protected List<UnclosedBranchDescriptor> mergeLists(List<UnclosedBranchDescriptor> child1open, List<UnclosedBranchDescriptor> child2open) {
+	protected final boolean mergeLists(List<UnclosedBranchDescriptor> child1open, List<UnclosedBranchDescriptor> child2open, List<UnclosedBranchDescriptor> result) {
 
 		//remove branches which have already been closed
 		removeClosedBranches(child1open);
 		removeClosedBranches(child2open);
+		
+		result.clear();
 		
 		// check how many open branches we have. the cases:
 		// 1) if both are null or empty, the result is null
 		// 2) if one side is null (or empty), the result is the other side.
 		// 3) both are set, then we need to merge.
 		if (child1open == null || child1open.isEmpty()) {
-			return child2open;
+			result.addAll(child2open);
+			return false;
 		}
 		
 		if (child2open == null || child2open.isEmpty()) {
-			return child1open;
+			result.addAll(child1open);
+			return false;
 		}
-		
-		// both have a history. merge...
-		ArrayList<UnclosedBranchDescriptor> result = new ArrayList<UnclosedBranchDescriptor>(4);
-
 
 		int index1 = child1open.size() - 1;
 		int index2 = child2open.size() - 1;
+		
+		boolean didCloseABranch = false;
 
 		// as both lists (child1open and child2open) are sorted in ascending ID order
 		// we can do a merge-join-like loop which preserved the order in the result list
@@ -1185,6 +1188,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 
 			// match: they share a common branching child
 			if (id1 == id2) {
+				didCloseABranch = true;
+				
 				// if this is the latest common child, remember it
 				OptimizerNode currBanchingNode = child1open.get(index1).getBranchingNode();
 				
@@ -1223,7 +1228,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 
 		// merged. now we need to reverse the list, because we added the elements in reverse order
 		Collections.reverse(result);
-		return result.isEmpty() ? null : result;
+		return didCloseABranch;
 	}
 	
 	/**

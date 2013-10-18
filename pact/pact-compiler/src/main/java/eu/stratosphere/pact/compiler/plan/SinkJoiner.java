@@ -87,7 +87,16 @@ public class SinkJoiner extends TwoInputNode {
 		// copy the lists and merge
 		List<UnclosedBranchDescriptor> result1 = new ArrayList<UnclosedBranchDescriptor>(pred1branches);
 		List<UnclosedBranchDescriptor> result2 = new ArrayList<UnclosedBranchDescriptor>(pred2branches);
-		this.openBranches = mergeLists(result1, result2);
+		
+		ArrayList<UnclosedBranchDescriptor> result = new ArrayList<UnclosedBranchDescriptor>();
+		boolean didCloseSomeBranch = mergeLists(result1, result2, result);
+		
+		if (!didCloseSomeBranch) {
+			// if the sink joiners do not close branches, then we have disjoint data flows.
+			throw new CompilerException("The given Pact program contains multiple disconnected data flows.");
+		}
+		
+		this.openBranches = result.isEmpty() ? Collections.<UnclosedBranchDescriptor>emptyList() : result;
 	}
 
 	/* (non-Javadoc)

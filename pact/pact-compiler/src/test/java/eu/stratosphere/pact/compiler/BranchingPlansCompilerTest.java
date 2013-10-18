@@ -553,6 +553,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 	 * 
 	 * NOTE: this case is currently not caught by the compiler. we should enable the test once it is caught.
 	 */
+	@Test
 	public void testBranchingDisjointPlan() {
 		// construct the plan
 		final String out1Path = "file:///test/1";
