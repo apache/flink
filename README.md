@@ -33,7 +33,7 @@ mvn -DskipTests clean package # this will take up to 5 minutes
 Stratosphere is now installed in `stratosphere-dist/target`
 If you’re a Debian/Ubuntu user, you’ll find a .deb package. We will continue with the generic case.
 
-	cd stratosphere-dist/target/stratosphere-dist-0.4-ozone-SNAPSHOT-bin/stratosphere-0.4-ozone-SNAPSHOT/
+	cd stratosphere-dist/target/stratosphere-dist-0.4-SNAPSHOT-bin/stratosphere-0.4-SNAPSHOT/
 
 The directory structure here looks like the contents of the official release distribution.
 
@@ -76,7 +76,7 @@ Get some test data:
 
 Start the job:
 
-	./bin/pact-client.sh run --jarfile ./examples/pact/pact-examples-0.4-ozone-SNAPSHOT-WordCount.jar --arguments 1 file://`pwd`/hamlet.txt file://`pwd`/wordcount-result.txt
+	./bin/pact-client.sh run --jarfile ./examples/pact/pact-examples-0.4-SNAPSHOT-WordCount.jar --arguments 1 file://`pwd`/hamlet.txt file://`pwd`/wordcount-result.txt
 
 You will find a file called `wordcount-result.txt` in your current directory.
 

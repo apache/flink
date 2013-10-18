@@ -7,7 +7,7 @@
 
 function usage {
   echo "Usage: $0 CURRENT_VERSION NEW_VERSION [POM_NAME]"
-  echo "For example, $0 0.4-ozone-SNAPSHOT 0.4-ozone-hadoop2-SNAPSHOT"
+  echo "For example, $0 0.4-SNAPSHOT 0.4-hadoop2-SNAPSHOT"
   echo "Presumes VERSION has hadoop1 or hadoop2 in it. POM_NAME is optional and"
   echo "allows to specify a different name for the generated pom."
   exit 1
@@ -15,12 +15,12 @@ function usage {
 
 if [[ "$#" -lt 2 ]]; then usage; fi
 
-old_ozone_version="$1"
-new_ozone_version="$2"
+old_version="$1"
+new_version="$2"
 new_pom_name="$3"
 
-# Get hadoop version from the new ozone version
-hadoop_version=`echo "$new_ozone_version" | sed -n 's/.*\(hadoop[12]\).*/\1/p'`
+# Get hadoop version from the new stratosphere version
+hadoop_version=`echo "$new_version" | sed -n 's/.*\(hadoop[12]\).*/\1/p'`
 if [[ -z $hadoop_version ]]; then usage ; fi
 
 echo "hadoop version $hadoop_version"
@@ -33,7 +33,7 @@ if [ -z "$here" ] ; then
   # to the script (e.g. permissions re-evaled after suid)
   exit 1  # fail
 fi
-ozone_home="`dirname \"$here\"`"
+stratosphere_home="`dirname \"$here\"`"
 
 
 hadoop1=
@@ -60,7 +60,7 @@ if [[ -z "$new_pom_name" ]]; then
 fi
 echo "Using $nupom as name for the generated pom file."
 
-poms=`find $ozone_home -name pom.xml`
+poms=`find $stratosphere_home -name pom.xml`
 for p in $poms; do
   # write into tmp file because in-place replacement is not possible (if nupom="pom.xml")
   tmp_nuname="`dirname $p`/__generate_specific_pom_tmp"
@@ -74,7 +74,7 @@ for p in $poms; do
   # enable/disable hadoop 1 and hadoop 2 profiles as appropriate
   # removing a comment string too. We output the new pom beside the
   # original.
-  sed -e "s/${old_ozone_version}/${new_ozone_version}/" \
+  sed -e "s/${old_version}/${new_version}/" \
     -e "s/\(<module>[^<]*\)/\1\/${nupom}/" \
     -e "s/\(relativePath>\.\.\)/\1\/${nupom}/" \
     -e "s/<!--hadoop1-->.*name>.*/${hadoop1}/" \

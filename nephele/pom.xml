@@ -6,8 +6,8 @@
 
 	<parent>
 		<groupId>eu.stratosphere</groupId>
-		<artifactId>ozone</artifactId>
-		<version>0.4-ozone-SNAPSHOT</version>
+		<artifactId>stratosphere</artifactId>
+		<version>0.4-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
