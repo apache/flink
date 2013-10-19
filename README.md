@@ -1,4 +1,4 @@
-# Stratosphere - "Ozone" Distribution
+# Stratosphere
 
 Big Data looks tiny from Stratosphere.
 
@@ -26,7 +26,7 @@ This tutorial shows how to build Stratosphere on your own system. Please open a 
 
 ```
 git clone https://github.com/stratosphere/stratosphere.git
-cd ozone
+cd stratosphere
 mvn -DskipTests clean package # this will take up to 5 minutes
 ```
 
@@ -89,7 +89,7 @@ You will find a file called `wordcount-result.txt` in your current directory.
 Get some test data:
 	 wget -O ~/hamlet.txt http://www.gutenberg.org/cache/epub/1787/pg1787.txt
 
-* Point your browser to to http://localhost:8080/launch.html. Upload the WordCount.jar using the upload form in the lower right box. The jar is located in `./examples/pact/pact-examples-0.2-ozone-WordCount.jar`.
+* Point your browser to to http://localhost:8080/launch.html. Upload the WordCount.jar using the upload form in the lower right box. The jar is located in `./examples/pact/pact-examples-0.4-WordCount.jar`.
 * Select the WordCount jar from the list of available jars (upper left).
 * Enter the argument line in the lower-left box: `1 file://<path to>/hamlet.txt file://<wherever you want the>/wordcount-result.txt`
 
@@ -113,7 +113,7 @@ Eclipse 3.7:
   * build-helper-maven-plugin: https://repository.sonatype.org/content/repositories/forge-sites/m2e-extras/0.14.0/N/0.14.0.201109282148/
 
 When you don't have the plugins your project will have build errors, you can just close the scala projects and ignore them.
-
+o
 Import the Stratosphere source code using Maven's Import tool:
   * Select "Import" from the "File"-menu.
   * Expand "Maven" node, select "Existing Maven Projects", and click "next" button
