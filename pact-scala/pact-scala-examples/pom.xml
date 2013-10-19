@@ -76,12 +76,56 @@
 
               <archive>
                 <manifestEntries>
-                  <Pact-Assembler-Class>eu.stratosphere.pact4s.examples.datamining.KMeansDescriptor</Pact-Assembler-Class>
+                  <Pact-Assembler-Class>eu.stratosphere.scala.examples.datamining.KMeans</Pact-Assembler-Class>
                 </manifestEntries>
               </archive>
 
               <includes>
                 <include>**/datamining/KMeans*.class</include>
+              </includes>
+            </configuration>
+          </execution>
+
+          <execution>
+            <id>ComputeEdgeDegrees</id>
+            <phase>package</phase>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+
+            <configuration>
+              <classifier>ComputeEdgeDegrees</classifier>
+
+              <archive>
+                <manifestEntries>
+                  <Pact-Assembler-Class>eu.stratosphere.scala.examples.graph.ComputeEdgeDegrees</Pact-Assembler-Class>
+                </manifestEntries>
+              </archive>
+
+              <includes>
+                <include>**/graph/ComputeEdgeDegrees*.class</include>
+              </includes>
+            </configuration>
+          </execution>
+
+          <execution>
+            <id>EnumTrianglesOnEdgesWithDegrees</id>
+            <phase>package</phase>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+
+            <configuration>
+              <classifier>EnumTrianglesOnEdgesWithDegrees</classifier>
+
+              <archive>
+                <manifestEntries>
+                  <Pact-Assembler-Class>eu.stratosphere.scala.examples.graph.EnumTrianglesOnEdgesWithDegrees</Pact-Assembler-Class>
+                </manifestEntries>
+              </archive>
+
+              <includes>
+                <include>**/graph/EnumTrianglesOnEdgesWithDegrees*.class</include>
               </includes>
             </configuration>
           </execution>
@@ -98,7 +142,7 @@
 
               <archive>
                 <manifestEntries>
-                  <Pact-Assembler-Class>eu.stratosphere.pact4s.examples.relational.TPCHQuery3Descriptor</Pact-Assembler-Class>
+                  <Pact-Assembler-Class>eu.stratosphere.scala.examples.relational.TPCHQuery3</Pact-Assembler-Class>
                 </manifestEntries>
               </archive>
 
@@ -120,7 +164,7 @@
 
               <archive>
                 <manifestEntries>
-                  <Pact-Assembler-Class>eu.stratosphere.pact4s.examples.wordcount.WordCountDescriptor</Pact-Assembler-Class>
+                  <Pact-Assembler-Class>eu.stratosphere.scala.examples.wordcount.WordCount</Pact-Assembler-Class>
                 </manifestEntries>
               </archive>
 
@@ -143,7 +187,7 @@
 
               <archive>
                 <manifestEntries>
-                  <Pact-Assembler-Class>eu.stratosphere.pact4s.examples.graph.ConnectedComponentsDescriptor</Pact-Assembler-Class>
+                  <Pact-Assembler-Class>eu.stratosphere.scala.examples.graph.ConnectedComponentsDescriptor</Pact-Assembler-Class>
                 </manifestEntries>
               </archive>
 
@@ -165,7 +209,7 @@
 
               <archive>
                 <manifestEntries>
-                  <Pact-Assembler-Class>eu.stratosphere.pact4s.examples.graph.TransitiveClosureNaiveDescriptor</Pact-Assembler-Class>
+                  <Pact-Assembler-Class>eu.stratosphere.scala.examples.graph.TransitiveClosureNaiveDescriptor</Pact-Assembler-Class>
                 </manifestEntries>
               </archive>
 
@@ -187,7 +231,7 @@
 
               <archive>
                 <manifestEntries>
-                  <Pact-Assembler-Class>eu.stratosphere.pact4s.examples.graph.TransitiveClosureRDDescriptor</Pact-Assembler-Class>
+                  <Pact-Assembler-Class>eu.stratosphere.scala.examples.graph.TransitiveClosureRDDescriptor</Pact-Assembler-Class>
                 </manifestEntries>
               </archive>
 

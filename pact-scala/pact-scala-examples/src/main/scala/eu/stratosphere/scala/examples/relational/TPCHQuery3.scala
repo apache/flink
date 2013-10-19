@@ -16,18 +16,19 @@ package eu.stratosphere.scala.examples.relational;
 import eu.stratosphere.scala._
 import eu.stratosphere.scala.operators._
 import eu.stratosphere.scala.ScalaPlan
-import eu.stratosphere.scala.Args
 import eu.stratosphere.scala.DataSource
 import eu.stratosphere.pact.client.LocalExecutor
+import eu.stratosphere.pact.common.plan.PlanAssembler
+import eu.stratosphere.pact.common.plan.PlanAssemblerDescription
 
 object RunTPCHQuery3 {
-  def main(pArgs: Array[String]) {
-    if (pArgs.size < 3) {
-      println("usage: -orders <file> -lineItems <file> -output <file>")
+  def main(args: Array[String]) {
+    val tpch3 = new TPCHQuery3
+    if (args.size < 4) {
+      println(tpch3.getDescription)
       return
     }
-    val args = Args.parse(pArgs)
-    val plan = new TPCHQuery3().getPlan(args("orders"), args("lineItems"), args("output"))
+    val plan = tpch3.getScalaPlan(args(0).toInt, args(1), args(2), args(3))
     LocalExecutor.execute(plan)
     System.exit(0)
   }
@@ -48,9 +49,15 @@ object RunTPCHQuery3 {
  *     AND o_orderpriority LIKE "Z%"
  *   GROUP BY l_orderkey, o_shippriority;
  */
-class TPCHQuery3 extends Serializable {
+class TPCHQuery3 extends PlanAssembler with PlanAssemblerDescription with Serializable {
+  override def getDescription() = {
+    "Parameters: [numSubStasks], [orders], [lineitem], [output]"
+  }
+  override def getPlan(args: String*) = {
+    getScalaPlan(args(0).toInt, args(1), args(2), args(3))
+  }
 
-  def getPlan(ordersInput: String, lineItemsInput: String, ordersOutput: String, status: Char = 'F', minYear: Int = 1993, priority: String = "5") = {
+  def getScalaPlan(numSubTasks: Int, ordersInput: String, lineItemsInput: String, ordersOutput: String, status: Char = 'F', minYear: Int = 1993, priority: String = "5") = {
     val orders = DataSource(ordersInput, DelimitedDataSourceFormat(parseOrder))
     val lineItems = DataSource(lineItemsInput, DelimitedDataSourceFormat(parseLineItem))
 
@@ -77,7 +84,9 @@ class TPCHQuery3 extends Serializable {
     prioritizedItems.avgBytesPerRecord(32)
     prioritizedOrders.avgBytesPerRecord(32).avgRecordsEmittedPerCall(1)
 
-    new ScalaPlan(Seq(output), "TPCH Query 3 (Immutable)")
+    val plan = new ScalaPlan(Seq(output), "TPCH Query 3 (Immutable)")
+    plan.setDefaultParallelism(numSubTasks)
+    plan
   }
 
   case class Order(orderId: Int, status: Char, year: Int, month: Int, day: Int, orderPriority: String, shipPriority: Int)

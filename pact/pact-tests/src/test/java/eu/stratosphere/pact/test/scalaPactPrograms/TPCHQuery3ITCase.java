@@ -38,12 +38,12 @@ public class TPCHQuery3ITCase extends eu.stratosphere.pact.test.pactPrograms.TPC
 	protected JobGraph getJobGraph() throws Exception {
 
 		TPCHQuery3 tpch3 = new TPCHQuery3();
-		Plan plan = tpch3.getPlan(
+		Plan plan = tpch3.getScalaPlan(
+				config.getInteger("TPCHQuery3Test#NoSubtasks", 1),
 				getFilesystemProvider().getURIPrefix()+ordersPath, 
 				getFilesystemProvider().getURIPrefix()+lineitemsPath, 
 				getFilesystemProvider().getURIPrefix()+resultPath,
 				'F', 1993, "5");
-		plan.setDefaultParallelism(config.getInteger("TPCHQuery3Test#NoSubtasks", 1));
 
 		PactCompiler pc = new PactCompiler(new DataStatistics());
 		OptimizedPlan op = pc.compile(plan);

@@ -14,25 +14,23 @@
 package eu.stratosphere.scala.examples.graph
 
 import eu.stratosphere.pact.client.LocalExecutor
-import eu.stratosphere.scala.Args
 import eu.stratosphere.scala.DataSource
 import eu.stratosphere.scala.ScalaPlan
 import eu.stratosphere.scala.analysis.GlobalSchemaPrinter
 import eu.stratosphere.scala.operators.RecordDataSourceFormat
 import eu.stratosphere.scala.operators.optionToIterator
 import eu.stratosphere.scala.operators.DelimitedDataSinkFormat
-import java.io.FileWriter
-import java.io.File
-import java.io.BufferedWriter
+import eu.stratosphere.pact.common.plan.PlanAssembler
+import eu.stratosphere.pact.common.plan.PlanAssemblerDescription
 
 object RunComputeEdgeDegrees {
-  def main(pArgs: Array[String]) {
-    if (pArgs.size < 2) {
-      println("usage: -input <file> -output <file>")
+  def main(args: Array[String]) {
+    val ced = new ComputeEdgeDegrees
+    if (args.size < 3) {
+      println(ced.getDescription)
       return
     }
-    val args = Args.parse(pArgs)
-    val plan = new ComputeEdgeDegrees().getPlan(args("input"), args("output"))
+    val plan = ced.getScalaPlan(args(0).toInt, args(1), args(2))
     LocalExecutor.execute(plan)
     System.exit(0)
   }
@@ -41,7 +39,13 @@ object RunComputeEdgeDegrees {
 /**
  * Annotates edges with associated vertex degrees.
  */
-class ComputeEdgeDegrees extends Serializable {
+class ComputeEdgeDegrees extends PlanAssembler with PlanAssemblerDescription with Serializable {
+  override def getDescription() = {
+    "Parameters: [numSubStasks] [input file] [output file]"
+  }
+  override def getPlan(args: String*) = {
+    getScalaPlan(args(0).toInt, args(1), args(2))
+  }
    
   /*
    * Output formatting function for edges with annotated degrees
@@ -80,7 +84,7 @@ class ComputeEdgeDegrees extends Serializable {
     
   }
     
-  def getPlan(edgeInput: String, annotatedEdgeOutput: String) = {
+  def getScalaPlan(numSubTasks: Int, edgeInput: String, annotatedEdgeOutput: String) = {
     
     /*
      * Input format for edges. 
@@ -109,6 +113,8 @@ class ComputeEdgeDegrees extends Serializable {
      */
     val output = combinedVertexCnts.write(annotatedEdgeOutput, DelimitedDataSinkFormat(formatEdgeWithDegrees.tupled))
   
-    new ScalaPlan(Seq(output), "Compute Edge Degrees")
+    val plan = new ScalaPlan(Seq(output), "Compute Edge Degrees")
+    plan.setDefaultParallelism(numSubTasks)
+    plan
   }
 }

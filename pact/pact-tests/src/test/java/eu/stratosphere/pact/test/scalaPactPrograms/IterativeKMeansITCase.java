@@ -34,12 +34,11 @@ public class IterativeKMeansITCase extends eu.stratosphere.pact.test.iterative.I
 
 		KMeans kmi = new KMeans();
 
-		Plan plan = kmi.getPlan(
-				Integer.parseInt(config.getString("IterativeKMeansITCase#NumIterations", "1")),
+		return kmi.getScalaPlan(
+				config.getInteger("IterativeKMeansITCase#NoSubtasks", 1),
 				dataPath,
 				clusterPath,
-				resultPath);
-		plan.setDefaultParallelism(config.getInteger("IterativeKMeansITCase#NoSubtasks", 1));
-		return plan;
+				resultPath,
+				Integer.parseInt(config.getString("IterativeKMeansITCase#NumIterations", "1")));
 	}
 }
