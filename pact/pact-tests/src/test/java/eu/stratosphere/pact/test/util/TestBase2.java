@@ -210,6 +210,29 @@ public abstract class TestBase2 {
 		return inStreams;
 	}
 	
+	public void readAllResultLines(List<String> target, String resultPath) throws IOException {
+		for (BufferedReader reader : getResultReader(resultPath)) {
+			String s = null;
+			while ((s = reader.readLine()) != null) {
+				target.add(s);
+			}
+		}
+	}
+	
+	public void compareResultsByLinesInMemory(String expectedResultStr, String resultPath) throws Exception {
+		ArrayList<String> list = new ArrayList<String>();
+		readAllResultLines(list, resultPath);
+		
+		String[] result = (String[]) list.toArray(new String[list.size()]);
+		Arrays.sort(result);
+		
+		String[] expected = expectedResultStr.split("\n");
+		Arrays.sort(expected);
+		
+		Assert.assertEquals("Different number of lines in expected and obtained result.", expected.length, result.length);
+		Assert.assertArrayEquals(expected, result);
+	}
+	
 	private File[] getAllInvolvedFiles(String resultPath) {
 		File result = asFile(resultPath);
 		if (!result.exists()) {
@@ -268,144 +291,6 @@ public abstract class TestBase2 {
 	
 	protected void postSubmit() throws Exception {}
 	
-	// --------------------------------------------------------------------------------------------
-	//  Methods to assess the correctness of the computed result
-	// --------------------------------------------------------------------------------------------
-	
-//	/**
-//	 * Compares the expectedResultString and the file(s) in the HDFS linewise.
-//	 * Both results (expected and computed) are held in memory. Hence, this
-//	 * method should not be used to compare large results.
-//	 * 
-//	 * @param expectedResult
-//	 * @param hdfsPath
-//	 */
-//	protected void compareResultsByLinesInMemory(String expectedResultStr, String resultPath) throws Exception {
-//
-//		Comparator<String> defaultStrComp = new Comparator<String>() {
-//			@Override
-//			public int compare(String arg0, String arg1) {
-//				return arg0.compareTo(arg1);
-//			}
-//		};
-//		
-//		this.compareResultsByLinesInMemory(expectedResultStr, resultPath, defaultStrComp);
-//	}
-//	
-//	protected <T> void compareResultsByLinesInMemoryStrictOrder(List<T> result, String resultPath) throws Exception
-//	{
-//		final ArrayList<String> resultFiles = new ArrayList<String>();
-//
-//		// Determine all result files
-//		if (getFilesystemProvider().isDir(resultPath)) {
-//			final String[] files = getFilesystemProvider().listFiles(resultPath);
-//			final Comparator<String> fileNameComp = new Comparator<String>() {
-//				@Override
-//				public int compare(String o1, String o2) {
-//					if (o1.length() < o2.length())
-//						return -1;
-//					else if (o1.length() > o2.length())
-//						return 1;
-//					else return o1.compareTo(o2);
-//				}
-//			};
-//			Arrays.sort(files, fileNameComp);
-//			
-//			for (String file : files) {
-//				if (!getFilesystemProvider().isDir(file)) {
-//					resultFiles.add(resultPath+"/"+file);
-//				}
-//			}
-//		} else {
-//			resultFiles.add(resultPath);
-//		}
-//		
-//		final Iterator<T> expectedLines = result.iterator();
-//		
-//		for (String resultFile : resultFiles) {
-//			// read each result file
-//			final InputStream is = getFilesystemProvider().getInputStream(resultFile);
-//			final BufferedReader reader = new BufferedReader(new InputStreamReader(is));
-//
-//			// collect lines
-//			String line = null;
-//			while ((line = reader.readLine()) != null) {
-//				Assert.assertTrue("More lines in result than expected lines.", expectedLines.hasNext());
-//				String nextExpected = expectedLines.next().toString();
-//				Assert.assertEquals("Expected result and obtained result do not match.", nextExpected, line);
-//			}
-//			reader.close();
-//		}
-//		
-//		Assert.assertFalse("More expected lines than obtained lines.", expectedLines.hasNext());
-//	}
-//	
-//	/**
-//	 * Compares the expectedResultString and the file(s) in the HDFS linewise.
-//	 * Both results (expected and computed) are held in memory. Hence, this
-//	 * method should not be used to compare large results.
-//	 * 
-//	 * The line comparator is used to compare lines from the expected and result set.
-//	 * 
-//	 * @param expectedResult
-//	 * @param hdfsPath
-//	 * @param comp Line comparator
-//	 */
-//	protected void compareResultsByLinesInMemory(String expectedResultStr, String resultPath, Comparator<String> comp) throws Exception {
-//
-//		ArrayList<String> resultFiles = new ArrayList<String>();
-//
-//		// Determine all result files
-//		if (getFilesystemProvider().isDir(resultPath)) {
-//			for (String file : getFilesystemProvider().listFiles(resultPath)) {
-//				if (!getFilesystemProvider().isDir(file)) {
-//					resultFiles.add(resultPath+"/"+file);
-//				}
-//			}
-//		} else {
-//			resultFiles.add(resultPath);
-//		}
-//
-//		// collect lines of all result files
-//		PriorityQueue<String> computedResult = new PriorityQueue<String>();
-//		for (String resultFile : resultFiles) {
-//			// read each result file
-//			InputStream is = getFilesystemProvider().getInputStream(resultFile);
-//			BufferedReader reader = new BufferedReader(new InputStreamReader(is));
-//			String line = reader.readLine();
-//
-//			// collect lines
-//			while (line != null) {
-//				computedResult.add(line);
-//				line = reader.readLine();
-//			}
-//			reader.close();
-//		}
-//
-//		PriorityQueue<String> expectedResult = new PriorityQueue<String>();
-//		StringTokenizer st = new StringTokenizer(expectedResultStr, "\n");
-//		while (st.hasMoreElements()) {
-//			expectedResult.add(st.nextToken());
-//		}
-//
-//		// log expected and computed results
-//		if (LOG.isDebugEnabled()) {
-//			LOG.debug("Expected: " + expectedResult);
-//			LOG.debug("Computed: " + computedResult);
-//		}
-//
-//		Assert.assertEquals("Computed and expected results have different size", expectedResult.size(), computedResult.size());
-//
-//		while (!expectedResult.isEmpty()) {
-//			String expectedLine = expectedResult.poll();
-//			String computedLine = computedResult.poll();
-//			
-//			if (LOG.isDebugEnabled())
-//				LOG.debug("expLine: <" + expectedLine + ">\t\t: compLine: <" + computedLine + ">");
-//			
-//			Assert.assertEquals("Computed and expected lines differ", expectedLine, computedLine);
-//		}
-//	}
 	
 	// --------------------------------------------------------------------------------------------
 	//  Miscellaneous helper methods
@@ -426,29 +311,6 @@ public abstract class TestBase2 {
 		} else {
 			f.delete();
 		}
-	}
-	
-	public void readAllResultLines(List<String> target, String resultPath) throws IOException {
-		for (BufferedReader reader : getResultReader(resultPath)) {
-			String s = null;
-			while ((s = reader.readLine()) != null) {
-				target.add(s);
-			}
-		}
-	}
-	
-	public void compareResultsByLinesInMemory(String expectedResultStr, String resultPath) throws Exception {
-		ArrayList<String> list = new ArrayList<String>();
-		readAllResultLines(list, resultPath);
-		
-		String[] result = (String[]) list.toArray(new String[list.size()]);
-		Arrays.sort(result);
-		
-		String[] expected = expectedResultStr.split("\n");
-		Arrays.sort(expected);
-		
-		Assert.assertEquals("Different number of lines in expected and obtained result.", expected.length, result.length);
-		Assert.assertArrayEquals(expected, result);
 	}
 	
 	public static PrintStream getNullPrintStream() {

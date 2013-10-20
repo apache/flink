@@ -164,14 +164,6 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		// generate Nephele job graph
 		pactPlan.accept(this);
 		
-		// now that the traversal is done, we have the chained tasks write their configs into their
-		// parents' configurations
-		for (int i = 0; i < this.chainedTasksInSequence.size(); i++) {
-			TaskInChain tic = this.chainedTasksInSequence.get(i);
-			TaskConfig t = new TaskConfig(tic.getContainingVertex().getConfiguration());
-			t.addChainedTask(tic.getChainedTask(), tic.getTaskConfig(), tic.getTaskName());
-		}
-		
 		// finalize the iterations
 		for (IterationDescriptor iteration : this.iterations.values()) {
 			if (iteration.getIterationNode() instanceof BulkIterationPlanNode) {
@@ -181,6 +173,14 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			} else {
 				throw new CompilerException();
 			}
+		}
+		
+		// now that the traversal is done, we have the chained tasks write their configs into their
+		// parents' configurations
+		for (int i = 0; i < this.chainedTasksInSequence.size(); i++) {
+			TaskInChain tic = this.chainedTasksInSequence.get(i);
+			TaskConfig t = new TaskConfig(tic.getContainingVertex().getConfiguration());
+			t.addChainedTask(tic.getChainedTask(), tic.getTaskConfig(), tic.getTaskName());
 		}
 
 		// now that all have been created, make sure that all share their instances with the one
@@ -721,7 +721,8 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 					inConn.getLocalStrategy() == LocalStrategy.NONE &&
 					pred.getOutgoingChannels().size() == 1 &&
 					node.getDegreeOfParallelism() == pred.getDegreeOfParallelism() && 
-					node.getSubtasksPerInstance() == pred.getSubtasksPerInstance();
+					node.getSubtasksPerInstance() == pred.getSubtasksPerInstance() &&
+					node.getOutgoingChannels().size() > 0;
 		}
 		
 		final JobTaskVertex vertex;
