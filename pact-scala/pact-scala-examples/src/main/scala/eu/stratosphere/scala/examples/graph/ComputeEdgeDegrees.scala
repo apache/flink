@@ -101,12 +101,12 @@ class ComputeEdgeDegrees extends PlanAssembler with PlanAssemblerDescription wit
     /*
      * Annotates each edges with degree for the first vertex.
      */
-    val vertexCnts = projEdges groupBy { _._1 } hadoopReduce { annotateFirstVertexDegree } flatMap {x => x.iterator }
+    val vertexCnts = projEdges groupBy { _._1 } groupReduce { annotateFirstVertexDegree } flatMap {x => x.iterator }
     
     /*
      * Combines the degrees of both vertexes of an edge.
      */
-    val combinedVertexCnts = vertexCnts groupBy { (x) => (x._1, x._2) } hadoopReduce { combineVertexDegrees }
+    val combinedVertexCnts = vertexCnts groupBy { (x) => (x._1, x._2) } groupReduce { combineVertexDegrees }
     
     /*
      * Emit annotated edges.

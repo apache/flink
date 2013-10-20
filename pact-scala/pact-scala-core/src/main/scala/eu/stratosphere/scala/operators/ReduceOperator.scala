@@ -38,8 +38,8 @@ import eu.stratosphere.scala.DataStream
 import eu.stratosphere.scala.OneInputHintable
 
 class GroupByDataStream[In](val keySelection: List[Int], val input: DataStream[In]) {
-  def hadoopReduce[Out](fun: Iterator[In] => Out): DataStream[Out] with OneInputHintable[In, Out] = macro ReduceMacros.clunkyReduce[In, Out]
-  def combinableReduce(fun: Iterator[In] => In): DataStream[In] with OneInputHintable[In, In] = macro ReduceMacros.combinableReduce[In]
+  def groupReduce[Out](fun: Iterator[In] => Out): DataStream[Out] with OneInputHintable[In, Out] = macro ReduceMacros.clunkyReduce[In, Out]
+  def combinableGroupReduce(fun: Iterator[In] => In): DataStream[In] with OneInputHintable[In, In] = macro ReduceMacros.combinableReduce[In]
   
   def reduce(fun: (In, In) => In): DataStream[In] with OneInputHintable[In, In] = macro ReduceMacros.properReduce[In]
 }

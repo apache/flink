@@ -115,7 +115,7 @@ object MainIterate {
         (newPaths, oldPaths) => (newPaths ++ oldPaths) minBy { _.dist }
       }
 
-//      val shortestPaths = allNewPaths union paths groupBy { p => (p.from, p.to) } hadoopReduce { _.minBy { _.dist } }
+//      val shortestPaths = allNewPaths union paths groupBy { p => (p.from, p.to) } groupReduce { _.minBy { _.dist } }
 
       shortestPaths
     }
@@ -224,7 +224,7 @@ object ConnectedComponents {
     def propagateComponent = (s: DataStream[(Int, Int)], ws: DataStream[(Int, Int)]) => {
 
       val allNeighbors = ws join undirectedEdges where { case (v, _) => v } isEqualTo { case (from, _) => from } map { (w, e) => e._2 -> w._2 }
-      val minNeighbors = allNeighbors groupBy { case (to, _) => to } combinableReduce { cs => cs minBy { _._2 } }
+      val minNeighbors = allNeighbors groupBy { case (to, _) => to } combinableGroupReduce { cs => cs minBy { _._2 } }
 
       // updated solution elements == new workset
       val s1 = minNeighbors join s where { _._1 } isEqualTo { _._1 } flatMap { (n, s) =>
