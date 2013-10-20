@@ -113,6 +113,10 @@ NEPHELE_BIN_DIR=$NEPHELE_ROOT_DIR_MANGLED/bin
 NEPHELE_LOG_DIR=$NEPHELE_ROOT_DIR_MANGLED/log
 YAML_CONF=${NEPHELE_CONF_DIR}/stratosphere-conf.yaml
 
+########################################################################################################################
+# ENVIRONMENT VARIABLES
+########################################################################################################################
+
 # Define JAVA_HOME if it is not already set
 if [ -z "${JAVA_HOME}" ]; then
     JAVA_HOME=$(readFromConfig ${KEY_ENV_JAVA_HOME} ${DEFAULT_ENV_JAVA_HOME} ${YAML_CONF})    
@@ -146,6 +150,18 @@ fi
 
 if [ -z "${MAX_LOG_FILE_NUMBER}" ]; then
     MAX_LOG_FILE_NUMBER=$(readFromConfig ${KEY_ENV_LOG_MAX} ${DEFAULT_ENV_LOG_MAX} ${YAML_CONF})
+fi
+
+if [ -z "${NEPHELE_PID_DIR}" ]; then
+    NEPHELE_PID_DIR=$(readFromConfig ${KEY_ENV_PID_DIR} "${DEFAULT_ENV_PID_DIR}" ${YAML_CONF})
+fi
+
+if [ -z "${NEPHELE_OPTS}" ]; then
+    NEPHELE_OPTS=$(readFromConfig ${KEY_ENV_JAVA_OPTS} "${DEFAULT_ENV_JAVA_OPTS}" ${YAML_CONF})
+fi
+
+if [ -z "${NEPHELE_SSH_OPTS}" ]; then
+    NEPHELE_OPTS=$(readFromConfig ${KEY_ENV_SSH_OPTS} "${DEFAULT_ENV_SSH_OPTS}" ${YAML_CONF})
 fi
 
 # Arguments for the JVM. Used for job and task manager JVMs.

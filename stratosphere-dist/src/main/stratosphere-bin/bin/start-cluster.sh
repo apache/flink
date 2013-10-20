@@ -19,10 +19,6 @@ bin=`cd "$bin"; pwd`
 
 . "$bin"/nephele-config.sh
 
-if [ -z "${NEPHELE_SSH_OPTS}" ]; then
-    NEPHELE_OPTS=$(readFromConfig ${KEY_ENV_SSH_OPTS} "${DEFAULT_ENV_SSH_OPTS}" ${YAML_CONF})
-fi
-
 HOSTLIST=$NEPHELE_SLAVES
 
 if [ "$HOSTLIST" = "" ]; then

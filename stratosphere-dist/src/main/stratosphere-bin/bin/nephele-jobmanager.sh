@@ -22,16 +22,8 @@ bin=`cd "$bin"; pwd`
 
 . "$bin"/nephele-config.sh
 
-if [ -z "${NEPHELE_PID_DIR}" ]; then
-    NEPHELE_PID_DIR=$(readFromConfig ${KEY_ENV_PID_DIR} "${DEFAULT_ENV_PID_DIR}" ${YAML_CONF})
-fi
-
-if [ -z "${NEPHELE_OPTS}" ]; then
-    NEPHELE_OPTS=$(readFromConfig ${KEY_ENV_JAVA_OPTS} "${DEFAULT_ENV_JAVA_OPTS}" ${YAML_CONF})
-fi
-
 if [ "$EXECUTIONMODE" = "local" ]; then
-    NEPHELE_JM_HEAP=`echo $NEPHELE_JM_HEAP+$NEPHELE_TM_HEAP | bc`
+    NEPHELE_JM_HEAP=`expr $NEPHELE_JM_HEAP + $NEPHELE_TM_HEAP`
 fi
 
 JVM_ARGS="$JVM_ARGS -Xms"$NEPHELE_JM_HEAP"m -Xmx"$NEPHELE_JM_HEAP"m"

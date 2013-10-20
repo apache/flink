@@ -81,7 +81,7 @@ pact.parallelization.maxmachines: -1
 #                                                   WEB FRONTEND
 #=======================================================================================================================
 
-pact.web.port: 8088
+pact.web.port: 8080
 
 pact.web.rootpath: ./resources/web-docs/
 

@@ -19,10 +19,6 @@ bin=`cd "$bin"; pwd`
 
 . "$bin"/nephele-config.sh
 
-if [ -z "${NEPHELE_OPTS}" ]; then
-    NEPHELE_OPTS=$(readFromConfig ${KEY_ENV_JAVA_OPTS} "${DEFAULT_ENV_JAVA_OPTS}" ${YAML_CONF})
-fi
-
 if [ "$NEPHELE_IDENT_STRING" = "" ]; then
     NEPHELE_IDENT_STRING="$USER"
 fi
