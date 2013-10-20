@@ -38,6 +38,8 @@ import eu.stratosphere.nephele.util.StringUtils;
  */
 public abstract class AbstractJobVertex implements IOReadableWritable {
 
+	private static final String DEFAULT_NAME = "(unnamed vertex)";
+	
 	/**
 	 * List of outgoing edges.
 	 */
@@ -109,8 +111,7 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 	 *        the job graph this vertex belongs to
 	 */
 	protected AbstractJobVertex(final String name, final JobVertexID id, final JobGraph jobGraph) {
-
-		this.name = name;
+		this.name = name == null ? DEFAULT_NAME : name;
 		this.id = (id == null) ? new JobVertexID() : id;
 		this.jobGraph = jobGraph;
 	}
@@ -727,5 +728,10 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 	public Class<? extends AbstractInvokable> getInvokableClass() {
 
 		return this.invokableClass;
+	}
+	
+	@Override
+	public String toString() {
+		return this.name + " (" + this.invokableClass + ')';
 	}
 }
