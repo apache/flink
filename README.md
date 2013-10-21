@@ -189,7 +189,7 @@ Let us know if you have created a system that uses Stratosphere, so that we can 
 
 ## About
 
-[Stratosphere](www.stratosphere.eu) is a DFG-founded research project. Ozone is the codename of the latest Stratosphere distribution. 
+[Stratosphere](http://www.stratosphere.eu) is a DFG-founded research project. Ozone is the codename of the latest Stratosphere distribution. 
 We combine cutting edge research outcomes with a stable and usable codebase.
 Decisions are not made behind closed doors. We discuss all changes and plans on our Mailinglists and on GitHub.
 
