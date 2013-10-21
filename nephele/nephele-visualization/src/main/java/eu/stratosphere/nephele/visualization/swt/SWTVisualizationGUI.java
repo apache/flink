@@ -106,8 +106,6 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 
 	private final CTabFolder jobTabFolder;
 
-	private long lastClickTime = 0;
-
 	private Map<JobID, GraphVisualizationData> recentJobs = new HashMap<JobID, GraphVisualizationData>();
 
 	private final SWTFailurePatternsManager failurePatternsManager;
@@ -403,40 +401,33 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 	public void widgetSelected(SelectionEvent arg0) {
 
 		if (arg0.widget == this.jobTree) {
-
-			final long currentTime = System.currentTimeMillis();
-			if ((currentTime - this.lastClickTime) <= getDisplay().getDoubleClickTime()) {
-				// Double click
-				final Widget selectedWidget = arg0.widget;
-				if (!(selectedWidget instanceof Tree)) {
-					return;
-				}
-
-				final Tree tree = (Tree) selectedWidget;
-				final TreeItem[] selectedItems = tree.getSelection();
-				if (selectedItems.length != 1) {
-					return;
-				}
-
-				final TreeItem selectedItem = selectedItems[0];
-				final GraphVisualizationData visualizationData = (GraphVisualizationData) selectedItem.getData();
-				if (visualizationData == null) {
-					return;
-				}
-
-				// Check if the tab is already opened
-				final int index = getJobTabIndex(visualizationData.getManagementGraph().getJobID());
-				if (index >= 0) {
-					this.jobTabFolder.setSelection(index);
-					return;
-				}
-
-				createJobTab(visualizationData);
-				this.jobTabFolder.setSelection(this.jobTabFolder.getItemCount() - 1);
+			
+			final Widget selectedWidget = arg0.widget;
+			if (!(selectedWidget instanceof Tree)) {
+				return;
 			}
 
-			// Update time stamp
-			this.lastClickTime = currentTime;
+			final Tree tree = (Tree) selectedWidget;
+			final TreeItem[] selectedItems = tree.getSelection();
+			if (selectedItems.length != 1) {
+				return;
+			}
+
+			final TreeItem selectedItem = selectedItems[0];
+			final GraphVisualizationData visualizationData = (GraphVisualizationData) selectedItem.getData();
+			if (visualizationData == null) {
+				return;
+			}
+
+			// Check if the tab is already opened
+			final int index = getJobTabIndex(visualizationData.getManagementGraph().getJobID());
+			if (index >= 0) {
+				this.jobTabFolder.setSelection(index);
+				return;
+			}
+
+			createJobTab(visualizationData);
+			this.jobTabFolder.setSelection(this.jobTabFolder.getItemCount() - 1);
 		}
 	}
 
