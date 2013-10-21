@@ -55,8 +55,10 @@ public enum DriverStrategy {
 	NESTEDLOOP_STREAMED_OUTER_FIRST(CrossDriver.class, null, PIPELINED, MATERIALIZING, false),
 	// the first input is inner loop, the second input is outer loop and stream-processed
 	NESTEDLOOP_STREAMED_OUTER_SECOND(CrossDriver.class, null, MATERIALIZING, PIPELINED, false),
-	// union utility op
-	UNION(null, null, FULL_DAM, FULL_DAM, false);
+	// union utility op. unions happen implicitly on the network layer (in the readers) when bundeling streams
+	UNION(null, null, FULL_DAM, FULL_DAM, false),
+	// explicit binary union between a streamed and a cached input
+	UNION_WITH_CACHED(UnionWithTempOperator.class, null, FULL_DAM, PIPELINED, false);
 	
 	// --------------------------------------------------------------------------------------------
 	

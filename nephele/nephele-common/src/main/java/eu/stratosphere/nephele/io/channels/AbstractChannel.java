@@ -22,8 +22,6 @@ import eu.stratosphere.nephele.jobgraph.JobID;
 
 /**
  * An abstract base class for channel objects.
- * 
- * @author warneke
  */
 public abstract class AbstractChannel {
 
@@ -63,7 +61,6 @@ public abstract class AbstractChannel {
 	 * @return the ID of the channel.
 	 */
 	public ChannelID getID() {
-
 		return this.channelID;
 	}
 
@@ -73,7 +70,6 @@ public abstract class AbstractChannel {
 	 * @return the channel's input at the associated gate
 	 */
 	public int getChannelIndex() {
-
 		return this.channelIndex;
 	}
 
@@ -95,8 +91,8 @@ public abstract class AbstractChannel {
 	 */
 	public abstract boolean isClosed() throws IOException, InterruptedException;
 
+	
 	public ChannelID getConnectedChannelID() {
-
 		return this.connectedChannelID;
 	}
 
@@ -115,9 +111,8 @@ public abstract class AbstractChannel {
 	 */
 	public abstract boolean isInputChannel();
 
+	
 	public abstract void transferEvent(AbstractEvent event) throws IOException, InterruptedException;
-
-	public abstract void processEvent(AbstractEvent event);
 
 	/**
 	 * Releases all resources (especially buffers) which are currently allocated by this channel. This method should be

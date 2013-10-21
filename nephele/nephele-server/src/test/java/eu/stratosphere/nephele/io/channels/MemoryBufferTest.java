@@ -9,7 +9,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
@@ -98,9 +97,12 @@ public class MemoryBufferTest {
 	}
 	
 	@Test
-	public void testDuplicate() {
+	public void testDuplicate() throws Exception {
 		MemoryBuffer buf = new MemoryBuffer(INT_COUNT*INT_SIZE, new MemorySegment(new byte[INT_COUNT*INT_SIZE]), bufferPoolConnector);
 		MemoryBuffer buf2 = buf.duplicate();
+		
+		buf2.close();
+		buf.close();
 	}
 
 	private void fillBuffer(Buffer buf) throws IOException {

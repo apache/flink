@@ -25,26 +25,16 @@ import eu.stratosphere.nephele.types.Record;
  * A record writer connects an input gate to an application. It allows the application
  * query for incoming records and read them from input gate.
  * 
- * @author warneke
  * @param <T> The type of the record that can be read from this record reader.
  */
-
-public class RecordReader<T extends Record> extends AbstractRecordReader<T> implements Reader<T>
-{
+public class RecordReader<T extends Record> extends AbstractSingleGateRecordReader<T> implements Reader<T> {
+	
+	private final Class<T> recordType;
+	
 	/**
 	 * Stores the last read record.
 	 */
-	private T lastRead;
-	
-	/**
-	 * Temporarily stores an exception which may have occurred while reading data from the input gate.
-	 */
-	private IOException ioException;
-
-	/**
-	 * Temporarily stores an exception which may have occurred while reading data from the input gate.
-	 */
-	private InterruptedException interruptedException;
+	private T lookahead;
 
 	/**
 	 * Stores if more no more records will be received from the assigned input gate.
@@ -58,12 +48,12 @@ public class RecordReader<T extends Record> extends AbstractRecordReader<T> impl
 	 * 
 	 * @param taskBase
 	 *        The application that instantiated the record reader.
-	 * @param inputClass
+	 * @param recordType
 	 *        The class of records that can be read from the record reader.
 	 */
-	public RecordReader(AbstractTask taskBase, Class<T> inputClass) {
-
-		super(taskBase, new ImmutableRecordDeserializerFactory<T>(inputClass), 0);
+	public RecordReader(AbstractTask taskBase, Class<T> recordType) {
+		super(taskBase, MutableRecordDeserializerFactory.<T>get(), 0);
+		this.recordType = recordType;
 	}
 
 	/**
@@ -71,68 +61,12 @@ public class RecordReader<T extends Record> extends AbstractRecordReader<T> impl
 	 * 
 	 * @param outputBase
 	 *        The application that instantiated the record reader.
-	 * @param inputClass
+	 * @param recordType
 	 *        The class of records that can be read from the record reader.
 	 */
-	public RecordReader(AbstractOutputTask outputBase, Class<T> inputClass) {
-
-		super(outputBase, new ImmutableRecordDeserializerFactory<T>(inputClass), 0);
-	}
-
-	/**
-	 * Constructs a new record reader and registers a new input gate with the application's environment.
-	 * 
-	 * @param taskBase
-	 *        The application that instantiated the record reader.
-	 * @param deserializerFactory
-	 *        A factory to instantiate the record deserializer.
-	 */
-	public RecordReader(AbstractTask taskBase, RecordDeserializerFactory<T> deserializerFactory) {
-
-		super(taskBase, deserializerFactory, 0);
-	}
-
-	/**
-	 * Constructs a new record reader and registers a new input gate with the application's environment.
-	 * 
-	 * @param taskBase
-	 *        The application that instantiated the record reader.
-	 * @param deserializerFactory
-	 *        A factory to instantiate the record deserializer.
-	 * @param inputGateID
-	 *        The ID of the input gate that the reader reads from.
-	 */
-	public RecordReader(AbstractTask taskBase, RecordDeserializerFactory<T> deserializerFactory, int inputGateID) {
-
-		super(taskBase, deserializerFactory, inputGateID);
-	}
-
-	/**
-	 * Constructs a new record reader and registers a new input gate with the application's environment.
-	 * 
-	 * @param outputBase
-	 *        the application that instantiated the record reader
-	 * @param deserializerFactory
-	 *        A factory to instantiate the record deserializer.
-	 */
-	public RecordReader(AbstractOutputTask outputBase, RecordDeserializerFactory<T> deserializerFactory) {
-
-		super(outputBase, deserializerFactory, 0);
-	}
-
-	/**
-	 * Constructs a new record reader and registers a new input gate with the application's environment.
-	 * 
-	 * @param outputBase
-	 *        the application that instantiated the record reader
-	 * @param deserializerFactory
-	 *        A factory to instantiate the record deserializer.
-	 * @param inputGateID
-	 *        The ID of the input gate that the reader reads from.
-	 */
-	public RecordReader(AbstractOutputTask outputBase, RecordDeserializerFactory<T> deserializerFactory, int inputGateID) {
-
-		super(outputBase, deserializerFactory, inputGateID);
+	public RecordReader(AbstractOutputTask outputBase, Class<T> recordType) {
+		super(outputBase, MutableRecordDeserializerFactory.<T>get(), 0);
+		this.recordType = recordType;
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -145,27 +79,35 @@ public class RecordReader<T extends Record> extends AbstractRecordReader<T> impl
 	 *         <code>false</code>
 	 */
 	@Override
-	public boolean hasNext()
-	{
-		if (this.noMoreRecordsWillFollow) {
-			return false;
-		}
-
-		if (this.lastRead == null) {
-			try {
-				this.lastRead = getInputGate().readRecord(null);
-				if (this.lastRead == null) {
-					return false;
+	public boolean hasNext() throws IOException, InterruptedException{
+		if (this.lookahead != null) {
+			return true;
+		} else {
+			if (this.noMoreRecordsWillFollow) {
+				return false;
+			}
+			
+			T record = instantiateRecordType();
+			
+			while (true) {
+				InputChannelResult result = this.inputGate.readRecord(record);
+				switch (result) {
+					case INTERMEDIATE_RECORD_FROM_BUFFER:
+					case LAST_RECORD_FROM_BUFFER:
+						this.lookahead = record;
+						return true;
+					case EVENT:
+						handleEvent(this.inputGate.getCurrentEvent());
+						break;
+					case END_OF_STREAM:
+						this.noMoreRecordsWillFollow = true;
+						return false;
+				
+					default:
+						; // fall through the loop
 				}
-			} catch (IOException e) {
-				this.ioException = e;
-				return true;
-			} catch (InterruptedException e) {
-				this.interruptedException = e;
-				return true;
 			}
 		}
-		return true;
 	}
 
 	/**
@@ -176,21 +118,23 @@ public class RecordReader<T extends Record> extends AbstractRecordReader<T> impl
 	 *         thrown if any error occurs while reading the record from the input gate
 	 */
 	@Override
-	public T next() throws IOException, InterruptedException
-	{
-		if (this.ioException != null) {
-			throw this.ioException;
+	public T next() throws IOException, InterruptedException {
+		if (hasNext()) {
+			T tmp = this.lookahead;
+			this.lookahead = null;
+			return tmp;
+		} else {
+			return null;
 		}
-		if (this.interruptedException != null) {
-			throw this.interruptedException;
+	}
+	
+	private T instantiateRecordType() {
+		try {
+			return this.recordType.newInstance();
+		} catch (InstantiationException e) {
+			throw new RuntimeException("Cannot instantiate class '" + this.recordType.getName() + "'.", e);
+		} catch (IllegalAccessException e) {
+			throw new RuntimeException("Cannot instantiate class '" + this.recordType.getName() + "'.", e);
 		}
-
-		final T retVal = this.lastRead;
-		this.lastRead = getInputGate().readRecord(null);
-		if (this.lastRead == null) {
-			this.noMoreRecordsWillFollow = true;
-		}
-
-		return retVal;
 	}
 }

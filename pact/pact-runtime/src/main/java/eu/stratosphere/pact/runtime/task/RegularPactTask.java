@@ -498,6 +498,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 	 *
 	 * This method requires that the task configuration, the driver, and the user-code class loader are set.
 	 */
+	@SuppressWarnings("unchecked")
 	protected void initInputReaders() throws Exception {
 		final int numInputs = getNumTaskInputs();
 		final MutableReader<?>[] inputReaders = new MutableReader[numInputs];
@@ -514,7 +515,6 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 				inputReaders[i] = new MutableRecordReader<Record>(this);
 			} else if (groupSize > 1){
 				// union case
-				@SuppressWarnings("unchecked")
 				MutableRecordReader<Record>[] readers = new MutableRecordReader[groupSize];
 				for (int j = 0; j < groupSize; ++j) {
 					readers[j] = new MutableRecordReader<Record>(this);

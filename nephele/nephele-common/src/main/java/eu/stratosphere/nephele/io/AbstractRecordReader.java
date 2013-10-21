@@ -19,68 +19,18 @@ import java.io.IOException;
 
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.event.task.EventListener;
-import eu.stratosphere.nephele.execution.Environment;
-import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.nephele.types.Record;
+import eu.stratosphere.nephele.event.task.EventNotificationManager;
 
 /**
- * This is an abstract base class for a record reader, either dealing with mutable or immutable records.
- * 
- * @author warneke
- * @param <T> The type of the record that can be read from this record reader.
+ * This is an abstract base class for a record reader, either dealing with mutable or immutable records,
+ * and dealing with reads from single gates (single end points) or multiple gates (union).
  */
-public abstract class AbstractRecordReader<T extends Record> {
+public abstract class AbstractRecordReader {
 	
-	/**
-	 * The input gate associated with the record reader.
-	 */
-	protected final InputGate<T> inputGate;
-
-	/**
-	 * The environment the associated task runs in.
-	 */
-	private final Environment environment;
+	
+	private final EventNotificationManager eventHandler = new EventNotificationManager();
 	
 	// --------------------------------------------------------------------------------------------
-
-	protected AbstractRecordReader(AbstractInvokable invokable, RecordDeserializerFactory<T> deserializerFactory, int inputGateID) {
-		this.environment = invokable.getEnvironment();
-		GateID gateID = this.environment.getNextUnboundInputGateID();
-		if (gateID == null) {
-			gateID = new GateID();
-		}
-
-		this.inputGate = this.environment.createInputGate(gateID, deserializerFactory);
-		this.environment.registerInputGate(this.inputGate);
-	}
-
-	/**
-	 * Returns the number of input channels wired to this reader's input gate.
-	 * 
-	 * @return the number of input channels wired to this reader's input gate
-	 */
-	public final int getNumberOfInputChannels() {
-		return this.inputGate.getNumberOfInputChannels();
-	}
-
-	/**
-	 * Checks if the input channel with the given index is closed.
-	 * 
-	 * @param index
-	 *        the index of the input channel
-	 * @return <code>true</code> if the respective input channel is already closed, otherwise <code>false</code>
-	 * @throws IOException
-	 *         thrown if an error occurred while closing the input channel
-	 * @throws InterruptedException
-	 *         thrown if the channel is interrupted while processing this call
-	 */
-	public final boolean isInputChannelClosed(final int index) throws IOException, InterruptedException {
-		if (index < this.inputGate.getNumberOfInputChannels()) {
-			return this.inputGate.getInputChannel(index).isClosed();
-		}
-
-		return false;
-	}
 
 	/**
 	 * Subscribes the listener object to receive events of the given type.
@@ -90,45 +40,31 @@ public abstract class AbstractRecordReader<T extends Record> {
 	 * @param eventType
 	 *        the type of event to register the listener for
 	 */
-	public final void subscribeToEvent(EventListener eventListener, Class<? extends AbstractTaskEvent> eventType) {
-		// Delegate call to input gate
-		this.inputGate.subscribeToEvent(eventListener, eventType);
+	public void subscribeToEvent(EventListener eventListener, Class<? extends AbstractTaskEvent> eventType) {
+		this.eventHandler.subscribeToEvent(eventListener, eventType);
 	}
 
 	/**
 	 * Removes the subscription for events of the given type for the listener object.
 	 * 
-	 * @param eventListener
-	 *        the listener object to cancel the subscription for
-	 * @param eventType
-	 *        the type of the event to cancel the subscription for
+	 * @param eventListener The listener object to cancel the subscription for.
+	 * @param eventType The type of the event to cancel the subscription for.
 	 */
-	public final void unsubscribeFromEvent(EventListener eventListener, Class<? extends AbstractTaskEvent> eventType) {
-		// Delegate call to input gate
-		this.inputGate.unsubscribeFromEvent(eventListener, eventType);
+	public void unsubscribeFromEvent(EventListener eventListener, Class<? extends AbstractTaskEvent> eventType) {
+		this.eventHandler.unsubscribeFromEvent(eventListener, eventType);
 	}
 
 	/**
 	 * Publishes an event.
 	 * 
-	 * @param event
-	 *        the event to be published
-	 * @throws IOException
-	 *         thrown if an error occurs while transmitting the event
-	 * @throws InterruptedException
-	 *         thrown if the thread is interrupted while waiting for the event to be published
+	 * @param event The event to be published.
+	 * @throws IOException Thrown, if an error occurs while transmitting the event.
+	 * @throws InterruptedException Thrown, if the thread is interrupted while waiting for the event to be published.
 	 */
-	public final void publishEvent(final AbstractTaskEvent event) throws IOException, InterruptedException {
-		// Delegate call to input gate
-		this.inputGate.publishEvent(event);
-	}
-
-	/**
-	 * Protected method for the subclasses to access the input gate.
-	 * 
-	 * @return the input gate
-	 */
-	protected InputGate<T> getInputGate() {
-		return this.inputGate;
+	public abstract void publishEvent(AbstractTaskEvent event) throws IOException, InterruptedException;
+	
+	
+	protected void handleEvent(AbstractTaskEvent evt) {
+		this.eventHandler.deliverEvent(evt);
 	}
 }

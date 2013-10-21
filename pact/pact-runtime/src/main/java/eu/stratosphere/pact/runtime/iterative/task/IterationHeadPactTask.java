@@ -281,9 +281,8 @@ public class IterationHeadPactTask<X, Y, S extends Stub, OT> extends AbstractIte
 				super.run();
 	//			notifyMonitor(IterationMonitoring.Event.HEAD_PACT_FINISHED);
 	
-				EndOfSuperstepEvent endOfSuperstepEvent = new EndOfSuperstepEvent();
-	
 				// signal to connected tasks that we are done with the superstep
+				EndOfSuperstepEvent endOfSuperstepEvent = new EndOfSuperstepEvent();
 				sendEventToAllIterationOutputs(endOfSuperstepEvent);
 	
 				// blocking call to wait for the result

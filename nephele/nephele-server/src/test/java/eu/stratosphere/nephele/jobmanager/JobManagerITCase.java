@@ -184,6 +184,14 @@ public class JobManagerITCase {
 			}
 		}
 	}
+	
+	/**
+	 * Tests the correctness of the union record reader with non-empty inputs.
+	 */
+	@Test
+	public void testUnionWithNonEmptyInput() {
+		testUnion(1000000);
+	}
 
 	/**
 	 * Tests of the Nephele channels with a large (> 1 MB) file.
@@ -863,14 +871,6 @@ public class JobManagerITCase {
 				jobClient.close();
 			}
 		}
-	}
-
-	/**
-	 * Tests the correctness of the union record reader with non-empty inputs.
-	 */
-	@Test
-	public void testUnionWithNonEmptyInput() {
-		testUnion(1000000);
 	}
 
 	/**

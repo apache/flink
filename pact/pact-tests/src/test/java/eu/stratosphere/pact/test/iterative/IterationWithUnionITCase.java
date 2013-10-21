@@ -27,21 +27,18 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
-import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MapStub;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.example.kmeans.udfs.PointInFormat;
 import eu.stratosphere.pact.example.kmeans.udfs.PointOutFormat;
 import eu.stratosphere.pact.generic.contract.BulkIteration;
 import eu.stratosphere.pact.test.util.TestBase2;
 
-
 @RunWith(Parameterized.class)
-public class IterationWithChainingITCase extends TestBase2 {
+public class IterationWithUnionITCase extends TestBase2 {
 
 	private static final String DATAPOINTS = "0|50.90|16.20|72.08|\n" + "1|73.65|61.76|62.89|\n" + "2|61.73|49.95|92.74|\n";
 
@@ -49,37 +46,56 @@ public class IterationWithChainingITCase extends TestBase2 {
 	protected String resultPath;
 
 	
-	public IterationWithChainingITCase(Configuration config) {
+	public IterationWithUnionITCase(Configuration config) {
 		super(config);
 	}
 
 	@Override
 	protected void preSubmit() throws Exception {
 		dataPath = createTempFile("datapoints.txt", DATAPOINTS);
-		resultPath = getTempFilePath("result");
+		resultPath = getTempDirPath("union_iter_result");
 	}
 	
 	@Override
 	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(DATAPOINTS, resultPath);
+		compareResultsByLinesInMemory(DATAPOINTS + DATAPOINTS + DATAPOINTS + DATAPOINTS, resultPath);
 	}
-	
 
 	@Override
 	protected Plan getPactPlan() {
-		Plan plan = getTestPlanPlan(config.getInteger("ChainedMapperITCase#NoSubtasks", 1), dataPath, resultPath);
-		return plan;
+		return getPlan(config.getInteger("IterationWithUnionITCase#NumSubtasks", 1), dataPath, resultPath);
 	}
 
 	@Parameters
 	public static Collection<Object[]> getConfigurations() {
 		Configuration config1 = new Configuration();
-		config1.setInteger("ChainedMapperITCase#NoSubtasks", 4);
+		config1.setInteger("IterationWithUnionITCase#NumSubtasks", 4);
+
 		return toParameterList(config1);
 	}
 	
-	static final class IdentityMapper extends MapStub implements Serializable {
+	private static Plan getPlan(int numSubTasks, String input, String output) {
+		FileDataSource initialInput = new FileDataSource(new PointInFormat(), input, "Input");
+		initialInput.setDegreeOfParallelism(1);
 		
+		BulkIteration iteration = new BulkIteration("Loop");
+		iteration.setInput(initialInput);
+		iteration.setMaximumNumberOfIterations(2);
+
+//		MapContract map1 = MapContract.builder(new IdentityMapper()).input(iteration.getPartialSolution()).name("map1").build();
+		MapContract map2 = MapContract.builder(new IdentityMapper()).input(iteration.getPartialSolution()).name("map").build();
+		map2.addInput(iteration.getPartialSolution());
+		
+		iteration.setNextPartialSolution(map2);
+
+		FileDataSink finalResult = new FileDataSink(new PointOutFormat(), output, iteration, "Output");
+
+		Plan plan = new Plan(finalResult, "Iteration with union test");
+		plan.setDefaultParallelism(numSubTasks);
+		return plan;
+	}
+	
+	static final class IdentityMapper extends MapStub implements Serializable {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -89,7 +105,6 @@ public class IterationWithChainingITCase extends TestBase2 {
 	}
 
 	static final class DummyReducer extends ReduceStub implements Serializable {
-		
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -98,30 +113,5 @@ public class IterationWithChainingITCase extends TestBase2 {
 				out.collect(it.next());
 			}
 		}
-	}
-
-	static Plan getTestPlanPlan(int numSubTasks, String input, String output) {
-
-		FileDataSource initialInput = new FileDataSource(new PointInFormat(), input, "Input");
-		initialInput.setDegreeOfParallelism(1);
-		
-		BulkIteration iteration = new BulkIteration("Loop");
-		iteration.setInput(initialInput);
-		iteration.setMaximumNumberOfIterations(2);
-
-		ReduceContract dummyReduce = ReduceContract.builder(new DummyReducer(), PactInteger.class, 0)
-				.input(iteration.getPartialSolution())
-				.name("Reduce something")
-				.build();
-
-		
-		MapContract dummyMap = MapContract.builder(new IdentityMapper()).input(dummyReduce).build();
-		iteration.setNextPartialSolution(dummyMap);
-
-		FileDataSink finalResult = new FileDataSink(new PointOutFormat(), output, iteration, "Output");
-
-		Plan plan = new Plan(finalResult, "Iteration with chained map test");
-		plan.setDefaultParallelism(numSubTasks);
-		return plan;
 	}
 }

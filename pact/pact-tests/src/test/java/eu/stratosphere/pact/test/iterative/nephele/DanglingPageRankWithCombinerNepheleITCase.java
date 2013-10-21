@@ -15,7 +15,6 @@
 
 package eu.stratosphere.pact.test.iterative.nephele;
 
-import java.util.ArrayList;
 import java.util.Collection;
 
 import org.junit.runner.RunWith;
@@ -25,10 +24,10 @@ import org.junit.runners.Parameterized.Parameters;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.pact.test.iterative.nephele.customdanglingpagerank.CustomCompensatableDanglingPageRankWithCombiner;
-import eu.stratosphere.pact.test.util.TestBase;
+import eu.stratosphere.pact.test.util.TestBase2;
 
 @RunWith(Parameterized.class)
-public class DanglingPageRankWithCombinerNepheleITCase extends TestBase {
+public class DanglingPageRankWithCombinerNepheleITCase extends TestBase2 {
 	
 	protected String pagesWithRankPath;
 	protected String edgesPath;
@@ -41,45 +40,19 @@ public class DanglingPageRankWithCombinerNepheleITCase extends TestBase {
 	
 	@Override
 	protected void preSubmit() throws Exception {
-
-		this.pagesWithRankPath = getFilesystemProvider().getTempDirPath() + "/pagesWithRank";
-		this.edgesPath = getFilesystemProvider().getTempDirPath() + "/edges";
-		this.resultPath = getFilesystemProvider().getTempDirPath() + "/result";
-		
-		final int numPartitions = 2;
-
-		// create data path
-		getFilesystemProvider().createDir(this.pagesWithRankPath);
-		getFilesystemProvider().createDir(this.edgesPath);
-		getFilesystemProvider().createDir(this.resultPath);
-		
-		String[] vertexSplits = splitInputString(DanglingPageRankNepheleITCase.TEST_VERTICES, '\n', numPartitions);
-		String[] edgesSplits = splitInputString(DanglingPageRankNepheleITCase.TEST_EDGES, '\n', numPartitions);
-
-		for (int i = 0; i < numPartitions; i++) {
-			getFilesystemProvider().createFile(pagesWithRankPath + "/part_" + i + ".txt", vertexSplits[i]);
-			getFilesystemProvider().createFile(edgesPath + "/part_" + i + ".txt", edgesSplits[i]);
-		}
-	}
-	
-	@Override
-	protected void postSubmit() throws Exception {
-		// clean up file
-		getFilesystemProvider().delete(this.pagesWithRankPath, true);
-		getFilesystemProvider().delete(this.edgesPath, true);
-		getFilesystemProvider().delete(this.resultPath, true);
-
+		this.pagesWithRankPath = createTempFile("pagesWithRank", DanglingPageRankNepheleITCase.TEST_VERTICES);
+		this.edgesPath = createTempFile("edges", DanglingPageRankNepheleITCase.TEST_EDGES);
+		this.resultPath = getTempDirPath("result");
 	}
 
 	@Override
 	protected JobGraph getJobGraph() throws Exception {
-		
 		String[] parameters = new String[] {
 			"4",
 			"4",
-			getFilesystemProvider().getURIPrefix() + pagesWithRankPath,
-			getFilesystemProvider().getURIPrefix() + edgesPath,
-			getFilesystemProvider().getURIPrefix() + resultPath,
+			pagesWithRankPath,
+			edgesPath,
+			resultPath,
 			"<none>",
 			"5",
 			"20",
@@ -98,24 +71,6 @@ public class DanglingPageRankWithCombinerNepheleITCase extends TestBase {
 
 	@Parameters
 	public static Collection<Object[]> getConfigurations() {
-		ArrayList<Configuration> tConfigs = new ArrayList<Configuration>();
-		tConfigs.add(new Configuration());
-		return toParameterList(tConfigs);
-	}
-	
-
-	private String[] splitInputString(String splitString, char splitChar, int noSplits) {
-		String[] splits = new String[noSplits];
-		int partitionSize = (splitString.length() / noSplits) - 2;
-
-		// split data file and copy parts
-		for (int i = 0; i < noSplits - 1; i++) {
-			int cutPos = splitString.indexOf(splitChar, (partitionSize < splitString.length() ? partitionSize
-				: (splitString.length() - 1)));
-			splits[i] = splitString.substring(0, cutPos) + "\n";
-			splitString = splitString.substring(cutPos + 1);
-		}
-		splits[noSplits - 1] = splitString;
-		return splits;
+		return toParameterList(new Configuration());
 	}
 }

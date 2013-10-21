@@ -487,7 +487,7 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 	 * 
 	 * @param newUnionNode
 	 */
-	public void swapUnionNodes(UnionPlanNode newUnionNode) {
+	public void swapUnionNodes(PlanNode newUnionNode) {
 		if (!(this.source instanceof BinaryUnionPlanNode)) {
 			throw new IllegalStateException();
 		} else {

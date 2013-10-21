@@ -84,10 +84,9 @@ public class EventNotificationManager {
 	/**
 	 * Delivers a event to all of the registered subscribers.
 	 * 
-	 * @param event
-	 *        the event to deliver
+	 * @param event The event to deliver.
 	 */
-	public void deliverEvent(final AbstractTaskEvent event) {
+	public void deliverEvent(AbstractTaskEvent event) {
 
 		synchronized (this.subscriptions) {
 

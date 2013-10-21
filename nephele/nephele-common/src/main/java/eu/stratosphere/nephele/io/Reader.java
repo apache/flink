@@ -20,15 +20,13 @@ import java.io.IOException;
 import eu.stratosphere.nephele.types.Record;
 
 /**
- * A reader interface which is implemented by record reader.
+ * A reader interface to read records from an input.
  * 
- * @author nijkamp
- * @param <T>
- *        the type of the record that can be emitted with this record writer
+ * @param <T> The type of the record that can be emitted with this record writer
  */
 public interface Reader<T extends Record> {
 
-	boolean hasNext();
+	boolean hasNext() throws IOException, InterruptedException;
 
 	T next() throws IOException, InterruptedException;
 }

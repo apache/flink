@@ -308,7 +308,7 @@ public class BinaryUnionNode extends TwoInputNode {
 	
 	private static final class UnionPlaceholderContract extends DualInputContract<MockStub> {
 		private UnionPlaceholderContract() {
-			super(new UserCodeClassWrapper<MockStub>(MockStub.class), "UnionPlaceholderContract");
+			super(new UserCodeClassWrapper<MockStub>(MockStub.class), "Union");
 		}
 	}
 }

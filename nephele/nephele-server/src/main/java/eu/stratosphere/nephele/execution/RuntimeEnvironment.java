@@ -409,24 +409,6 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	}
 
 	/**
-	 * Activates all of the task's input channels.
-	 * 
-	 * @throws IOException
-	 *         thrown if an I/O error occurs while transmitting one of the activation requests to the corresponding
-	 *         output channels
-	 * @throws InterruptedException
-	 *         throws if the task is interrupted while waiting for the activation process to complete
-	 */
-	@SuppressWarnings("unused")
-	private void activateInputChannels() throws IOException, InterruptedException {
-
-		for (int i = 0; i < getNumberOfInputGates(); ++i) {
-			this.inputGates.get(i).activateInputChannels();
-		}
-	}
-
-
-	/**
 	 * {@inheritDoc}
 	 */
 	@Override
@@ -456,7 +438,6 @@ public class RuntimeEnvironment implements Environment, Runnable {
 
 	@Override
 	public void registerInputGate(InputGate<? extends Record> inputGate) {
-
 		this.inputGates.add(inputGate);
 	}
 

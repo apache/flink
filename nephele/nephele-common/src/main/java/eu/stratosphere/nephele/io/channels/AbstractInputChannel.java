@@ -18,7 +18,9 @@ package eu.stratosphere.nephele.io.channels;
 import java.io.EOFException;
 import java.io.IOException;
 
+import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.io.InputGate;
+import eu.stratosphere.nephele.io.InputChannelResult;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.types.Record;
 
@@ -74,7 +76,7 @@ public abstract class AbstractInputChannel<T extends Record> extends AbstractCha
 	 * @throws IOException
 	 *         thrown if the input channel is already closed {@link EOFException} or a transmission error has occurred
 	 */
-	public abstract T readRecord(T target) throws IOException;
+	public abstract InputChannelResult readRecord(T target) throws IOException;
 
 	/**
 	 * Immediately closes the input channel. The corresponding output channels are
@@ -114,4 +116,6 @@ public abstract class AbstractInputChannel<T extends Record> extends AbstractCha
 	 *         thrown if the calling thread is interrupted while completing the activation request
 	 */
 	public abstract void activate() throws IOException, InterruptedException;
+	
+	public abstract AbstractTaskEvent getCurrentEvent();
 }

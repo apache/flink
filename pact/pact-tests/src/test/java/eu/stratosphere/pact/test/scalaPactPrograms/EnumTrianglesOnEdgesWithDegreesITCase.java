@@ -1,12 +1,7 @@
 package eu.stratosphere.pact.test.scalaPactPrograms;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.pact.common.plan.Plan;
-import eu.stratosphere.pact.compiler.DataStatistics;
-import eu.stratosphere.pact.compiler.PactCompiler;
-import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
-import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.scala.examples.graph.EnumTrianglesOnEdgesWithDegrees;
 
 public class EnumTrianglesOnEdgesWithDegreesITCase extends eu.stratosphere.pact.test.pactPrograms.EnumTrianglesOnEdgesWithDegreesITCase {
@@ -16,19 +11,10 @@ public class EnumTrianglesOnEdgesWithDegreesITCase extends eu.stratosphere.pact.
 	}
 	
 	@Override
-	protected JobGraph getJobGraph() throws Exception {
-
+	protected Plan getPactPlan() {
 		EnumTrianglesOnEdgesWithDegrees enumTriangles = new EnumTrianglesOnEdgesWithDegrees();
-		Plan plan = enumTriangles.getScalaPlan(
-				config.getInteger("EnumTrianglesTest#NoSubtasks", 4),
-				getFilesystemProvider().getURIPrefix() + edgesPath,
-				getFilesystemProvider().getURIPrefix() + resultPath);
-
-		PactCompiler pc = new PactCompiler(new DataStatistics());
-		OptimizedPlan op = pc.compile(plan);
-
-		NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
-		return jgg.compileJobGraph(op);
+		return enumTriangles.getScalaPlan(
+				config.getInteger("EnumTrianglesTest#NumSubtasks", 4),
+				edgesPath, resultPath);
 	}
-
 }

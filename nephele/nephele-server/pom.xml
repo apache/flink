@@ -40,15 +40,8 @@
 				<configuration>
 					<!-- we need to execute tests in target/test-classes so that the config 
 						files are found -->
-					<systemPropertyVariables>
-						<property>
-							<name>java.net.preferIPv4Stack</name>
-							<value>true</value>
-						</property>
-					</systemPropertyVariables>
 					<workingDirectory>${project.build.testOutputDirectory}</workingDirectory>
 					<excludes>
-						<exclude>**/TestInstanceListener.java</exclude>
 						<!-- Start failing Unit Tests - Remove exclusion when fixed! -->
 						<exclude>**/*DiscoveryService*</exclude>
 						<!-- End failing Unit Tests -->
@@ -59,12 +52,6 @@
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-failsafe-plugin</artifactId>
 				<configuration>
-					<systemPropertyVariables>
-						<property>
-							<name>java.net.preferIPv4Stack</name>
-							<value>true</value>
-						</property>
-					</systemPropertyVariables>
 					<workingDirectory>${project.build.testOutputDirectory}</workingDirectory>
 					<excludes>
 						<exclude>**/TestInstanceListener.java</exclude>

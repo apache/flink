@@ -47,6 +47,7 @@ import eu.stratosphere.pact.common.util.Visitor;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
 import eu.stratosphere.pact.compiler.costs.DefaultCostEstimator;
 import eu.stratosphere.pact.compiler.plan.BulkIterationNode;
+import eu.stratosphere.pact.compiler.plan.BulkPartialSolutionNode;
 import eu.stratosphere.pact.compiler.plan.CoGroupNode;
 import eu.stratosphere.pact.compiler.plan.CrossNode;
 import eu.stratosphere.pact.compiler.plan.DataSinkNode;
@@ -56,7 +57,6 @@ import eu.stratosphere.pact.compiler.plan.MapNode;
 import eu.stratosphere.pact.compiler.plan.MatchNode;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.PactConnection;
-import eu.stratosphere.pact.compiler.plan.BulkPartialSolutionNode;
 import eu.stratosphere.pact.compiler.plan.ReduceNode;
 import eu.stratosphere.pact.compiler.plan.SinkJoiner;
 import eu.stratosphere.pact.compiler.plan.SolutionSetNode;
@@ -65,23 +65,21 @@ import eu.stratosphere.pact.compiler.plan.WorksetIterationNode;
 import eu.stratosphere.pact.compiler.plan.WorksetNode;
 import eu.stratosphere.pact.compiler.plan.candidate.BinaryUnionPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.BulkIterationPlanNode;
+import eu.stratosphere.pact.compiler.plan.candidate.BulkPartialSolutionPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.IterationPlanNode;
+import eu.stratosphere.pact.compiler.plan.candidate.NAryUnionPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
-import eu.stratosphere.pact.compiler.plan.candidate.BulkPartialSolutionPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkJoinerPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SolutionSetPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SourcePlanNode;
-import eu.stratosphere.pact.compiler.plan.candidate.UnionPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.WorksetIterationPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.WorksetPlanNode;
 import eu.stratosphere.pact.compiler.postpass.OptimizerPostPass;
 import eu.stratosphere.pact.generic.contract.BulkIteration;
 import eu.stratosphere.pact.generic.contract.BulkIteration.PartialSolutionPlaceHolder;
-import eu.stratosphere.pact.generic.contract.WorksetIteration.SolutionSetPlaceHolder;
-import eu.stratosphere.pact.generic.contract.WorksetIteration.WorksetPlaceHolder;
 import eu.stratosphere.pact.generic.contract.Contract;
 import eu.stratosphere.pact.generic.contract.GenericCoGroupContract;
 import eu.stratosphere.pact.generic.contract.GenericCrossContract;
@@ -89,6 +87,8 @@ import eu.stratosphere.pact.generic.contract.GenericMapContract;
 import eu.stratosphere.pact.generic.contract.GenericMatchContract;
 import eu.stratosphere.pact.generic.contract.GenericReduceContract;
 import eu.stratosphere.pact.generic.contract.WorksetIteration;
+import eu.stratosphere.pact.generic.contract.WorksetIteration.SolutionSetPlaceHolder;
+import eu.stratosphere.pact.generic.contract.WorksetIteration.WorksetPlaceHolder;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
@@ -1103,17 +1103,11 @@ public class PactCompiler {
 			this.costWeight = costWeight;
 		}
 		
-		/* (non-Javadoc)
-		 * @see eu.stratosphere.pact.common.plan.Visitor#preVisit(eu.stratosphere.pact.common.plan.Visitable)
-		 */
 		@Override
 		public boolean preVisit(OptimizerNode visitable) {
 			return this.seenBefore.add(visitable);
 		}
 
-		/* (non-Javadoc)
-		 * @see eu.stratosphere.pact.common.plan.Visitor#postVisit(eu.stratosphere.pact.common.plan.Visitable)
-		 */
 		@Override
 		public void postVisit(OptimizerNode visitable) {
 			visitable.identifyDynamicPath(this.costWeight);
@@ -1326,11 +1320,6 @@ public class PactCompiler {
 			return new OptimizedPlan(this.sources, this.sinks, this.allNodes, jobName, originalPlan);
 		}
 
-		/*
-		 * (non-Javadoc)
-		 * @see
-		 * eu.stratosphere.pact.common.plan.Visitor#preVisit(eu.stratosphere.pact.common.plan.Visitable)
-		 */
 		@Override
 		public boolean preVisit(PlanNode visitable) {
 			// if we come here again, prevent a further descend
@@ -1410,22 +1399,20 @@ public class PactCompiler {
 			return true;
 		}
 
-		/*
-		 * (non-Javadoc)
-		 * @see
-		 * eu.stratosphere.pact.common.plan.Visitor#postVisit(eu.stratosphere.pact.common.plan.Visitable)
-		 */
 		@Override
 		public void postVisit(PlanNode visitable) {}
 	}
+
 	
+	/**
+	 * A visitor that traverses the graph and collects cascading binary unions into a single n-ary
+	 * union operator. The exception is, when on of the union inputs is materialized, such as in the
+	 * static-code-path-cache in iterations.
+	 */
 	private static final class BinaryUnionReplacer implements Visitor<PlanNode> {
 		
 		private final Set<PlanNode> seenBefore = new HashSet<PlanNode>();
 		
-		/* (non-Javadoc)
-		 * @see eu.stratosphere.pact.common.plan.Visitor#preVisit(eu.stratosphere.pact.common.plan.Visitable)
-		 */
 		@Override
 		public boolean preVisit(PlanNode visitable) {
 			if (this.seenBefore.add(visitable)) {
@@ -1438,34 +1425,56 @@ public class PactCompiler {
 			}
 		}
 
-		/* (non-Javadoc)
-		 * @see eu.stratosphere.pact.common.plan.Visitor#postVisit(eu.stratosphere.pact.common.plan.Visitable)
-		 */
 		@Override
 		public void postVisit(PlanNode visitable) {
 			if (visitable instanceof BinaryUnionPlanNode) {
 				final BinaryUnionPlanNode unionNode = (BinaryUnionPlanNode) visitable;
 				final Channel in1 = unionNode.getInput1();
 				final Channel in2 = unionNode.getInput2();
-
-				List<Channel> inputs = new ArrayList<Channel>();
-				collect(in1, inputs);
-				collect(in2, inputs);
 				
-				UnionPlanNode newUnion = new UnionPlanNode(unionNode.getOptimizerNode(), inputs, 
-					unionNode.getGlobalProperties());
+				PlanNode newUnionNode;
 				
-				// adjust the input channels to have their target point to the new union node
-				for (Channel c : inputs) {
-					c.setTarget(newUnion);
-				}
+				// if any input is cached, we keep this as a binary union and do not collapse it into a
+				// n-ary union
+//				if (in1.getTempMode().isCached() || in2.getTempMode().isCached()) {
+//					// replace this node by an explicit operator
+//					Channel cached, pipelined;
+//					if (in1.getTempMode().isCached()) {
+//						cached = in1;
+//						pipelined = in2;
+//					} else {
+//						cached = in2;
+//						pipelined = in1;
+//					}
+//					
+//					newUnionNode = new DualInputPlanNode(unionNode.getOriginalOptimizerNode(), cached, pipelined,
+//						DriverStrategy.UNION_WITH_CACHED);
+//					newUnionNode.initProperties(unionNode.getGlobalProperties(), new LocalProperties());
+//					
+//					in1.setTarget(newUnionNode);
+//					in2.setTarget(newUnionNode);
+//				} else {
+					// collect the union inputs to collapse this operator with 
+					// its collapsed predecessors. check whether an input is materialized to prevent
+					// collapsing
+					List<Channel> inputs = new ArrayList<Channel>();
+					collect(in1, inputs);
+					collect(in2, inputs);
+					
+					newUnionNode = new NAryUnionPlanNode(unionNode.getOptimizerNode(), inputs, unionNode.getGlobalProperties());
+					
+					// adjust the input channels to have their target point to the new union node
+					for (Channel c : inputs) {
+						c.setTarget(newUnionNode);
+					}
+//				}
 				
-				unionNode.getOutgoingChannels().get(0).swapUnionNodes(newUnion);
+				unionNode.getOutgoingChannels().get(0).swapUnionNodes(newUnionNode);
 			}
 		}
 		
 		private void collect(Channel in, List<Channel> inputs) {
-			if (in.getSource() instanceof UnionPlanNode) {
+			if (in.getSource() instanceof NAryUnionPlanNode) {
 				// sanity check
 				if (in.getShipStrategy() != ShipStrategyType.FORWARD) {
 					throw new CompilerException("Bug: Plan generation for Unions picked a ship strategy between binary plan operators.");
@@ -1474,7 +1483,7 @@ public class PactCompiler {
 					throw new CompilerException("Bug: Plan generation for Unions picked a local strategy between binary plan operators.");
 				}
 				
-				inputs.addAll(((UnionPlanNode) in.getSource()).getListOfInputs());
+				inputs.addAll(((NAryUnionPlanNode) in.getSource()).getListOfInputs());
 			} else {
 				// is not a union node, so we take the channel directly
 				inputs.add(in);

@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -12,27 +12,43 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-
 package eu.stratosphere.nephele.io.channels.bytebuffered;
 
-import java.io.IOException;
-
 import eu.stratosphere.nephele.event.task.AbstractEvent;
+import eu.stratosphere.nephele.io.channels.Buffer;
 
-
-public interface ByteBufferedInputChannelBroker {
-
-	public BufferOrEvent getNextBufferOrEvent() throws IOException;
-
-	/**
-	 * Forwards the given event to the connected network output channel on a best effort basis.
-	 * 
-	 * @param event
-	 *        the event to be transferred
-	 * @throws InterruptedException
-	 *         thrown if the thread is interrupted while waiting for the event to be transfered
-	 * @throws IOException
-	 *         thrown if an I/O error occurs while transferring the event
-	 */
-	void transferEventToOutputChannel(AbstractEvent event) throws IOException, InterruptedException;
+/**
+ * Either type for {@link Buffer} and {@link AbstractEvent}.
+ */
+public class BufferOrEvent {
+	
+	private final Buffer buffer;
+	
+	private final AbstractEvent event;
+	
+	public BufferOrEvent(Buffer buffer) {
+		this.buffer = buffer;
+		this.event = null;
+	}
+	
+	public BufferOrEvent(AbstractEvent event) {
+		this.buffer = null;
+		this.event = event;
+	}
+	
+	public boolean isBuffer() {
+		return this.buffer != null;
+	}
+	
+	public boolean isEvent() {
+		return this.event != null;
+	}
+	
+	public Buffer getBuffer() {
+		return this.buffer;
+	}
+	
+	public AbstractEvent getEvent() {
+		return this.event;
+	}
 }

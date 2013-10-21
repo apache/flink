@@ -28,8 +28,8 @@ import eu.stratosphere.pact.common.stubs.Stub;
  * @param <S> The type of stub driven by this driver.
  * @param <OT> The data type of the records produced by this driver.
  */
-public interface PactDriver<S extends Stub, OT>
-{
+public interface PactDriver<S extends Stub, OT> {
+	
 	void setup(PactTaskContext<S, OT> context);
 	
 	/**

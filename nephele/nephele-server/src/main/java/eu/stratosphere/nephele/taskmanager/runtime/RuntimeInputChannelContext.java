@@ -24,21 +24,19 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.event.task.AbstractEvent;
-import eu.stratosphere.nephele.event.task.EventList;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedChannelCloseEvent;
+import eu.stratosphere.nephele.io.channels.bytebuffered.BufferOrEvent;
 import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedInputChannelBroker;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferAvailabilityListener;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.InputChannelContext;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ReceiverNotFoundEvent;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.UnexpectedEnvelopeEvent;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
-import eu.stratosphere.nephele.util.StringUtils;
+
 
 final class RuntimeInputChannelContext implements InputChannelContext, ByteBufferedInputChannelBroker {
 
@@ -51,6 +49,8 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 	private final TransferEnvelopeDispatcher transferEnvelopeDispatcher;
 
 	private final Queue<TransferEnvelope> queuedEnvelopes = new ArrayDeque<TransferEnvelope>();
+	
+	private Iterator<AbstractEvent> pendingEvents;
 
 	private int lastReceivedEnvelope = -1;
 
@@ -66,119 +66,71 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 		this.byteBufferedInputChannel.setInputChannelBroker(this);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
-	public Buffer getReadBufferToConsume() {
+	public BufferOrEvent getNextBufferOrEvent() throws IOException {
+		// return pending events first
+		if (this.pendingEvents != null) {
+			// if the field is not null, it must always have a next value!
+			BufferOrEvent next = new BufferOrEvent(this.pendingEvents.next());
+			if (!this.pendingEvents.hasNext()) {
+				this.pendingEvents = null;
+			}
+			return next;
+		}
 
-		TransferEnvelope transferEnvelope = null;
-
+		// if no events are pending, get the next buffer
+		TransferEnvelope nextEnvelope;
 		synchronized (this.queuedEnvelopes) {
-
 			if (this.queuedEnvelopes.isEmpty()) {
 				return null;
 			}
-
-			transferEnvelope = this.queuedEnvelopes.peek();
-
-			// If envelope does not have a buffer, remove it immediately
-			if (transferEnvelope.getBuffer() == null) {
-				this.queuedEnvelopes.poll();
-			}
+			nextEnvelope = this.queuedEnvelopes.poll();
 		}
 
-		// Make sure we have all necessary buffers before we go on
-		if (transferEnvelope.getBuffer() == null) {
-
-			// No buffers necessary
-			final EventList eventList = transferEnvelope.getEventList();
-			if (eventList != null) {
-				if (!eventList.isEmpty()) {
-					final Iterator<AbstractEvent> it = eventList.iterator();
-					while (it.hasNext()) {
-						this.byteBufferedInputChannel.processEvent(it.next());
-					}
-				}
+		// schedule events as pending, because events come always after the buffer!
+		if (nextEnvelope.getEventList() != null) {
+			Iterator<AbstractEvent> events = nextEnvelope.getEventList().iterator();
+			if (events.hasNext()) {
+				this.pendingEvents = events;
 			}
-
-			// Notify the channel that an envelope has been consumed
-			this.byteBufferedInputChannel.notifyDataUnitConsumed();
-
-			return null;
 		}
-
-		// Moved event processing to releaseConsumedReadBuffer method // copy anything 
-
-		return transferEnvelope.getBuffer();
+		
+		// get the buffer, if there is one
+		if (nextEnvelope.getBuffer() != null) {
+			return new BufferOrEvent(nextEnvelope.getBuffer());
+		}
+		else if (this.pendingEvents != null) {
+			// if the field is not null, it must always have a next value!
+			BufferOrEvent next = new BufferOrEvent(this.pendingEvents.next());
+			if (!this.pendingEvents.hasNext()) {
+				this.pendingEvents = null;
+			}
+			return next;
+		}
+		else {
+			// no buffer and no events, this should be an error
+			throw new IOException("Received an envelope with neither data nor events.");
+		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void releaseConsumedReadBuffer(final Buffer buffer) {
-
-		TransferEnvelope transferEnvelope = null;
-		synchronized (this.queuedEnvelopes) {
-
-			if (this.queuedEnvelopes.isEmpty()) {
-				LOG.error("Inconsistency: releaseConsumedReadBuffer called on empty queue!");
-				return;
-			}
-
-			transferEnvelope = this.queuedEnvelopes.poll();
-		}
-
-		// Process events
-		final EventList eventList = transferEnvelope.getEventList();
-		if (eventList != null) {
-			if (!eventList.isEmpty()) {
-				final Iterator<AbstractEvent> it = eventList.iterator();
-				while (it.hasNext()) {
-					this.byteBufferedInputChannel.processEvent(it.next());
-				}
-			}
-		}
-
-		// Notify the channel that an envelope has been consumed
-//		this.envelopeConsumptionLog.reportEnvelopeConsumed(this.byteBufferedInputChannel);
-		this.byteBufferedInputChannel.notifyDataUnitConsumed();
-
-		if (buffer.remaining() > 0) {
-			LOG.warn("ConsumedReadBuffer has " + buffer.remaining() + " unconsumed bytes left (early end of reading?).");
-		}
-
-		// Recycle consumed read buffer
-		buffer.recycleBuffer();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public void transferEventToOutputChannel(AbstractEvent event) throws IOException, InterruptedException {
-
-		final TransferEnvelope ephemeralTransferEnvelope = new TransferEnvelope(0, getJobID(), getChannelID());
-
+		TransferEnvelope ephemeralTransferEnvelope = new TransferEnvelope(0, getJobID(), getChannelID());
 		ephemeralTransferEnvelope.addEvent(event);
+		
 		this.transferEnvelopeDispatcher.processEnvelopeFromInputChannel(ephemeralTransferEnvelope);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
-	public void queueTransferEnvelope(final TransferEnvelope transferEnvelope) {
-
-		// The sequence number of the envelope to be queued
-		final int sequenceNumber = transferEnvelope.getSequenceNumber();
-
-		AbstractEvent eventToSend = null;
+	public void queueTransferEnvelope(TransferEnvelope transferEnvelope) {
 
 		if (ReceiverNotFoundEvent.isReceiverNotFoundEvent(transferEnvelope)) {
 			return;
 		}
+		
+		// The sequence number of the envelope to be queued
+		final int sequenceNumber = transferEnvelope.getSequenceNumber();
 
 		synchronized (this.queuedEnvelopes) {
 
@@ -192,31 +144,19 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 
 			final int expectedSequenceNumber = this.lastReceivedEnvelope + 1;
 			if (sequenceNumber != expectedSequenceNumber) {
-
-				// We received an envelope with higher sequence number than expected
-				if (sequenceNumber > expectedSequenceNumber) {
-
-					// This is a problem, now we are actually missing some data
-					this.byteBufferedInputChannel.reportIOException(new IOException("Expected data packet "
+				// This is a problem, now we are actually missing some data
+				this.byteBufferedInputChannel.reportIOException(new IOException("Expected data packet "
 						+ expectedSequenceNumber + " but received " + sequenceNumber));
-					this.byteBufferedInputChannel.checkForNetworkEvents();
+				
+				// notify that something (an exception) is available
+				this.byteBufferedInputChannel.notifyGateThatInputIsAvailable();
 
-					if (LOG.isDebugEnabled()) {
-						LOG.debug("Input channel " + getChannelName() + " expected envelope " + expectedSequenceNumber
-							+ " but received " + sequenceNumber);
-					}
-
-				} else {
-
-					eventToSend = lookForCloseEvent(transferEnvelope);
-					if (eventToSend == null) {
-
-						// Tell the sender to skip all envelopes until the next envelope that could potentially include
-						// the close event
-						eventToSend = new UnexpectedEnvelopeEvent(expectedSequenceNumber - 1);
-					}
+				if (LOG.isDebugEnabled()) {
+					LOG.debug("Input channel " + getChannelName() + " expected envelope " + expectedSequenceNumber
+						+ " but received " + sequenceNumber);
 				}
 
+				// rescue the buffer
 				final Buffer buffer = transferEnvelope.getBuffer();
 				if (buffer != null) {
 					buffer.recycleBuffer();
@@ -226,82 +166,44 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 				this.queuedEnvelopes.add(transferEnvelope);
 				this.lastReceivedEnvelope = sequenceNumber;
 
-				// Notify the channel about the new data
-				this.byteBufferedInputChannel.checkForNetworkEvents();
+				// Notify the channel about the new data. notify as much as there is (buffer plus once per event)
+				if (transferEnvelope.getBuffer() != null) {
+					this.byteBufferedInputChannel.notifyGateThatInputIsAvailable();
+				}
+				if (transferEnvelope.getEventList() != null) {
+					for (int i = 0; i < transferEnvelope.getEventList().size(); i++) {
+						this.byteBufferedInputChannel.notifyGateThatInputIsAvailable();
+					}
+				}
 			}
 		}
-
-		if (eventToSend != null) {
-			try {
-				transferEventToOutputChannel(eventToSend);
-			} catch (Exception e) {
-				LOG.error(StringUtils.stringifyException(e));
-			}
-		}
-	}
-
-	/**
-	 * Looks for a {@link ByteBufferedChannelCloseEvent} in the given envelope returns it if it is found.
-	 * 
-	 * @param envelope
-	 *        the envelope to be inspected
-	 * @return the found {@link ByteBufferedChannelCloseEvent} or <code>null</code> if no such event was stored inside
-	 *         the given envelope
-	 */
-	private AbstractEvent lookForCloseEvent(final TransferEnvelope envelope) {
-
-		final EventList eventList = envelope.getEventList();
-		if (eventList == null) {
-			return null;
-		}
-
-		final Iterator<AbstractEvent> it = eventList.iterator();
-		while (it.hasNext()) {
-
-			final AbstractEvent event = it.next();
-
-			if (event instanceof ByteBufferedChannelCloseEvent) {
-				return event;
-			}
-		}
-
-		return null;
 	}
 
 	@Override
 	public ChannelID getChannelID() {
-
 		return this.byteBufferedInputChannel.getID();
 	}
 
 	@Override
 	public ChannelID getConnectedChannelID() {
-
 		return this.byteBufferedInputChannel.getConnectedChannelID();
 	}
 
 	@Override
 	public JobID getJobID() {
-
 		return this.byteBufferedInputChannel.getJobID();
 	}
 
 	@Override
 	public boolean isInputChannel() {
-
 		return this.byteBufferedInputChannel.isInputChannel();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public void destroy() {
-
 		final Queue<Buffer> buffersToRecycle = new ArrayDeque<Buffer>();
 
 		synchronized (this.queuedEnvelopes) {
-
 			this.destroyCalled = true;
 
 			while (!this.queuedEnvelopes.isEmpty()) {
@@ -317,12 +219,8 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public void logQueuedEnvelopes() {
-
 		int numberOfQueuedEnvelopes = 0;
 		int numberOfQueuedEnvelopesWithMemoryBuffers = 0;
 		int numberOfQueuedEnvelopesWithFileBuffers = 0;
@@ -352,57 +250,33 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
-	public Buffer requestEmptyBuffer(final int minimumSizeOfBuffer) throws IOException {
-
+	public Buffer requestEmptyBuffer(int minimumSizeOfBuffer) throws IOException {
 		return this.inputGateContext.requestEmptyBuffer(minimumSizeOfBuffer);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
-	public Buffer requestEmptyBufferBlocking(final int minimumSizeOfBuffer) throws IOException, InterruptedException {
-
+	public Buffer requestEmptyBufferBlocking(int minimumSizeOfBuffer) throws IOException, InterruptedException {
 		return this.inputGateContext.requestEmptyBufferBlocking(minimumSizeOfBuffer);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public int getMaximumBufferSize() {
-
 		return this.inputGateContext.getMaximumBufferSize();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public boolean isShared() {
-
 		return this.inputGateContext.isShared();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public void reportAsynchronousEvent() {
-
 		this.inputGateContext.reportAsynchronousEvent();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public ChannelType getType() {
-
 		return this.byteBufferedInputChannel.getType();
 	}
 
@@ -412,9 +286,7 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 	 * @return a human-readable name of this channel used for debugging
 	 */
 	private String getChannelName() {
-
-		final StringBuilder sb = new StringBuilder(this.inputGateContext.getTaskName());
-
+		StringBuilder sb = new StringBuilder(this.inputGateContext.getTaskName());
 		sb.append(' ');
 		sb.append('(');
 		sb.append(this.byteBufferedInputChannel.getChannelIndex());
@@ -422,16 +294,11 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 		sb.append(' ');
 		sb.append(this.byteBufferedInputChannel.getID());
 		sb.append(')');
-
 		return sb.toString();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public boolean registerBufferAvailabilityListener(final BufferAvailabilityListener bufferAvailabilityListener) {
-
 		return this.inputGateContext.registerBufferAvailabilityListener(bufferAvailabilityListener);
 	}
 }

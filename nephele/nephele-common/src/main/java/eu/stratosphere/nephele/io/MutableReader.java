@@ -22,7 +22,7 @@ import eu.stratosphere.nephele.event.task.EventListener;
 import eu.stratosphere.nephele.types.Record;
 
 /**
- * @author mjsax
+ * 
  */
 public interface MutableReader<T extends Record> {
 	

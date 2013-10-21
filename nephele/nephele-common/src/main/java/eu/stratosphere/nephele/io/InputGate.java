@@ -17,6 +17,7 @@ package eu.stratosphere.nephele.io;
 
 import java.io.IOException;
 
+import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.bytebuffered.InMemoryInputChannel;
@@ -24,31 +25,27 @@ import eu.stratosphere.nephele.io.channels.bytebuffered.NetworkInputChannel;
 import eu.stratosphere.nephele.types.Record;
 
 /**
- * In Nephele input gates are a specialization of general gates and connect input channels and record readers. As
- * channels, input
- * gates are always parameterized to a specific type of record which they can transport. In contrast to output gates
- * input gates
- * can be associated with a {@link DistributionPattern} object which dictates the concrete wiring between two groups of
- * vertices.
- * 
- * @author warneke
- * @param <T>
- *        the type of record that can be transported through this gate
+ * @param <T> The type of record that can be transported through this gate.
  */
 public interface InputGate<T extends Record> extends Gate<T> {
 
 	/**
-	 * Reads a record from one of the associated input channels. The channels are
-	 * chosen in a way so that channels with available records are preferred.
-	 * The operation may block until at least one of the associated input channel
-	 * is able to provide a record.
+	 * Reads a record from one of the associated input channels. Channels are read such that one buffer from a channel is 
+	 * consecutively consumed. The buffers in turn are consumed in the order in which they arrive.
+	 * Note that this method is not guaranteed to return a record, because the currently available channel data may not always
+	 * constitute an entire record, when events or partial records are part of the data.
 	 * 
-	 * @return the record read from one of the input channels or <code>null</code> if all channels are already closed.
-	 * @throws ExecutionFailureException
-	 *         thrown if an error occurred while reading the channels
+	 * When called even though no data is available, this call will block until data is available, so this method should be called
+	 * when waiting is desired (such as when synchronously consuming a single gate) or only when it is known that data is available
+	 * (such as when reading a union of multiple input gates).
+	 * 
+	 * @param target The record object into which to construct the complete record.
+	 * @return The result indicating whether a complete record is available, a event is available, only incomplete data
+	 *         is available (NONE), or the gate is exhausted.
+	 * @throws IOException Thrown when an error occurred in the network stack relating to this channel.
+	 * @throws InterruptedException Thrown, when the thread working on this channel is interrupted.
 	 */
-
-	T readRecord(T target) throws IOException, InterruptedException;
+	InputChannelResult readRecord(T target) throws IOException, InterruptedException;
 
 	/**
 	 * Returns the number of input channels associated with this input gate.
@@ -82,17 +79,6 @@ public interface InputGate<T extends Record> extends Gate<T> {
 	 *        the index of the channel from which a data unit has been consumed
 	 */
 	void notifyDataUnitConsumed(int channelIndex);
-
-	/**
-	 * Activates all of the task's input channels.
-	 * 
-	 * @throws IOException
-	 *         thrown if an I/O error occurs while transmitting one of the activation requests to the corresponding
-	 *         output channels
-	 * @throws InterruptedException
-	 *         throws if the task is interrupted while waiting for the activation process to complete
-	 */
-	void activateInputChannels() throws IOException, InterruptedException;
 
 	/**
 	 * Immediately closes the input gate and all its input channels. The corresponding
@@ -140,24 +126,13 @@ public interface InputGate<T extends Record> extends Gate<T> {
 			ChannelID connectedChannelID);
 
 	/**
-	 * Removes all input channels from the input gate.
-	 */
-	void removeAllInputChannels();
-
-	/**
 	 * Registers a {@link RecordAvailabilityListener} with this input gate.
 	 * 
 	 * @param listener
 	 *        the listener object to be registered
 	 */
 	void registerRecordAvailabilityListener(RecordAvailabilityListener<T> listener);
-
-	/**
-	 * Checks if the input gate has records available.
-	 * 
-	 * @return <code>true</code> if the gate has records available, <code>false</code> otherwise
-	 * @throws IOException
-	 * @throws InterruptedException
-	 */
-	boolean hasRecordAvailable() throws IOException, InterruptedException;
+	
+	
+	AbstractTaskEvent getCurrentEvent();
 }

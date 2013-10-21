@@ -24,6 +24,7 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.GateID;
+import eu.stratosphere.nephele.io.InputChannelResult;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.MutableRecordDeserializerFactory;
 import eu.stratosphere.nephele.io.OutputGate;
@@ -123,12 +124,13 @@ public class MockEnvironment implements Environment
 		}
 
 		@Override
-		public PactRecord readRecord(PactRecord target) throws IOException, InterruptedException {
+		public InputChannelResult readRecord(PactRecord target) throws IOException, InterruptedException {
 
 			if (it.next(target)) {
-				return target;
+				// everything comes from the same source channel and buffer in this mock
+				return InputChannelResult.INTERMEDIATE_RECORD_FROM_BUFFER;
 			} else {
-				return null;
+				return InputChannelResult.END_OF_STREAM;
 			}
 		}
 	}

@@ -16,35 +16,31 @@
 package eu.stratosphere.pact.runtime.task;
 
 import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
-import eu.stratosphere.pact.generic.stub.AbstractStub;
 
-/**
- * A driver that does nothing but forward data from its input to its output.
- * 
- * @param <T> The data type.
- */
-public class NoOpDriver<T> implements PactDriver<AbstractStub, T> {
+
+public class UnionWithTempOperator<T> implements PactDriver<Stub, T> {
 	
-	private PactTaskContext<AbstractStub, T> taskContext;
+	private PactTaskContext<Stub, T> taskContext;
 	
 	private volatile boolean running;
 	
 	
 	@Override
-	public void setup(PactTaskContext<AbstractStub, T> context) {
+	public void setup(PactTaskContext<Stub, T> context) {
 		this.taskContext = context;
 		this.running = true;
 	}
 
 	@Override
 	public int getNumberOfInputs() {
-		return 1;
+		return 2;
 	}
-	
+
 	@Override
-	public Class<AbstractStub> getStubType() {
-		return null;
+	public Class<Stub> getStubType() {
+		return Stub.class;
 	}
 
 	@Override
@@ -57,16 +53,25 @@ public class NoOpDriver<T> implements PactDriver<AbstractStub, T> {
 
 	@Override
 	public void run() throws Exception {
-		// cache references on the stack
-		final MutableObjectIterator<T> input = this.taskContext.getInput(0);
+		
+		final int tempedInput = 0;
+		final int streamedInput = 1;
+		
+		final MutableObjectIterator<T> cache = this.taskContext.getInput(tempedInput);
+		final MutableObjectIterator<T> input = this.taskContext.getInput(streamedInput);
+		
 		final Collector<T> output = this.taskContext.getOutputCollector();
-		final T record = this.taskContext.<T>getInputSerializer(0).createInstance();
+
+		final T record = this.taskContext.<T>getInputSerializer(streamedInput).createInstance();
 
 		while (this.running && input.next(record)) {
 			output.collect(record);
 		}
+		while (this.running && cache.next(record)) {
+			output.collect(record);
+		}
 	}
-	
+
 	@Override
 	public void cleanup() {}
 

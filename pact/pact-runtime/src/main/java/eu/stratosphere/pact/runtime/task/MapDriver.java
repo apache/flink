@@ -65,7 +65,7 @@ public class MapDriver<IT, OT> implements PactDriver<GenericMapper<IT, OT>, OT> 
 	}
 
 	@Override
-	public void prepare() throws Exception {
+	public void prepare() {
 		// nothing, since a mapper does not need any preparation
 	}
 
@@ -84,7 +84,7 @@ public class MapDriver<IT, OT> implements PactDriver<GenericMapper<IT, OT>, OT> 
 	}
 
 	@Override
-	public void cleanup() throws Exception {
+	public void cleanup() {
 		// mappers need no cleanup, since no strategies are used.
 	}
 

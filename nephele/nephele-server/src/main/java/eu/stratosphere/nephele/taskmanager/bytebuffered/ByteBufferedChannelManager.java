@@ -397,12 +397,6 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 					try {
 						destBuffer = inputChannelContext.requestEmptyBufferBlocking(srcBuffer.size());
 						srcBuffer.copyToBuffer(destBuffer);
-					} catch (InterruptedException e) {
-						// Free buffer and re-throw exception
-						if (destBuffer != null) {
-							destBuffer.recycleBuffer();
-						}
-						throw e;
 					} catch (IOException e) {
 						if (destBuffer != null) {
 							destBuffer.recycleBuffer();
@@ -426,22 +420,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 				}
 
 				for (final RemoteReceiver remoteReceiver : remoteReceivers) {
-
-					TransferEnvelope dup = null;
-					try {
-						dup = transferEnvelope.duplicate();
-					} catch (InterruptedException e) {
-						if (dup != null) {
-							recycleBuffer(dup);
-						}
-						throw e;
-					} catch (IOException e) {
-						if (dup != null) {
-							recycleBuffer(dup);
-						}
-						throw e;
-					}
-
+					TransferEnvelope dup = transferEnvelope.duplicate();
 					this.networkConnectionManager.queueEnvelopeForTransfer(remoteReceiver, dup);
 				}
 			}

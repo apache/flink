@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -12,9 +12,13 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
+package eu.stratosphere.nephele.io;
 
-package eu.stratosphere.nephele.taskmanager.transferenvelope;
+public enum InputChannelResult {
 
-public class SpillingQueueTest {
-
+	NONE,
+	INTERMEDIATE_RECORD_FROM_BUFFER,
+	LAST_RECORD_FROM_BUFFER,
+	EVENT,
+	END_OF_STREAM;
 }

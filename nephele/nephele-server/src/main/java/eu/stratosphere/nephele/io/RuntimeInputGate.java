@@ -15,11 +15,9 @@
 
 package eu.stratosphere.nephele.io;
 
-import java.io.EOFException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicReference;
@@ -41,14 +39,11 @@ import eu.stratosphere.nephele.types.Record;
  * channels, input gates are always parameterized to a specific type of record which they can transport. In contrast to
  * output gates input gates can be associated with a {@link DistributionPattern} object which dictates the concrete
  * wiring between two groups of vertices.
- * <p>
- * This class is in general not thread-safe.
  * 
- * @author warneke
- * @param <T>
- *        the type of record that can be transported through this gate
+ * @param <T> The type of record that can be transported through this gate.
  */
 public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implements InputGate<T> {
+	
 	/**
 	 * The log object used for debugging.
 	 */
@@ -72,8 +67,10 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	/**
 	 * The listener object to be notified when a channel has at least one record available.
 	 */
-	private final AtomicReference<RecordAvailabilityListener<T>> recordAvailabilityListener = new AtomicReference<RecordAvailabilityListener<T>>(
-		null);
+	private final AtomicReference<RecordAvailabilityListener<T>> recordAvailabilityListener = new AtomicReference<RecordAvailabilityListener<T>>(null);
+	
+	
+	private AbstractTaskEvent currentEvent;
 
 	/**
 	 * If the value of this variable is set to <code>true</code>, the input gate is closed.
@@ -110,7 +107,8 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	 *        the input channel to be added.
 	 */
 	private void addInputChannel(AbstractInputChannel<T> inputChannel) {
-
+		// in high DOPs, this can be a serious performance issue, as adding all channels and checking linearly has a
+		// quadratic complexity!
 		if (!this.inputChannels.contains(inputChannel)) {
 			this.inputChannels.add(inputChannel);
 		}
@@ -132,53 +130,27 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 				return;
 			}
 		}
-
-		LOG.debug("Cannot find output channel with ID " + inputChannelID + " to remove");
+		
+		if (LOG.isDebugEnabled())
+			LOG.debug("Cannot find output channel with ID " + inputChannelID + " to remove");
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void removeAllInputChannels() {
-
-		this.inputChannels.clear();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public boolean isInputGate() {
-
 		return true;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public int getNumberOfInputChannels() {
-
 		return this.inputChannels.size();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public AbstractInputChannel<T> getInputChannel(int pos) {
-
-		if (pos < this.inputChannels.size()) {
-			return this.inputChannels.get(pos);
-		}
-
-		return null;
+		return this.inputChannels.get(pos);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public NetworkInputChannel<T> createNetworkInputChannel(final InputGate<T> inputGate, final ChannelID channelID,
 			final ChannelID connectedChannelID) {
@@ -191,9 +163,6 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	}
 
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public InMemoryInputChannel<T> createInMemoryInputChannel(final InputGate<T> inputGate, final ChannelID channelID,
 			final ChannelID connectedChannelID) {
@@ -205,58 +174,62 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 		return eimic;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
-	public T readRecord(final T target) throws IOException, InterruptedException {
+	public InputChannelResult readRecord(T target) throws IOException, InterruptedException {
 
-		T record = null;
-
-		while (true) {
-			
-			if (this.channelToReadFrom == -1) {
-				
-				if (this.isClosed()) {
-					return null;
-				}
-				
-				if (Thread.interrupted()) {
-					throw new InterruptedException();
-				}
-				
-				this.channelToReadFrom = waitForAnyChannelToBecomeAvailable();
+		if (this.channelToReadFrom == -1) {
+			if (this.isClosed()) {
+				return InputChannelResult.END_OF_STREAM;
 			}
-			
-			try {
-				record = this.getInputChannel(this.channelToReadFrom).readRecord(target);
-			} catch (EOFException e) {
-				// System.out.println("### Caught EOF exception at channel " + channelToReadFrom + "(" +
-				// this.getInputChannel(channelToReadFrom).getType().toString() + ")");
-				if (this.isClosed()) {
-					this.channelToReadFrom = -1;
-					return null;
-				}
+				
+			if (Thread.interrupted()) {
+				throw new InterruptedException();
 			}
-
-			if (record != null) {
-				break;
-			} else {
-				this.channelToReadFrom = -1;
-			}
+				
+			this.channelToReadFrom = waitForAnyChannelToBecomeAvailable();
 		}
-		return record;
+			
+		InputChannelResult result = this.getInputChannel(this.channelToReadFrom).readRecord(target);
+		switch (result) {
+			case INTERMEDIATE_RECORD_FROM_BUFFER: // full record and we can stay on the same channel
+				return InputChannelResult.INTERMEDIATE_RECORD_FROM_BUFFER;
+				
+			case LAST_RECORD_FROM_BUFFER: // full record, but we must switch the channel afterwards
+				this.channelToReadFrom = -1;
+				return InputChannelResult.LAST_RECORD_FROM_BUFFER;
+				
+			case EVENT: // task event
+				this.currentEvent = this.getInputChannel(this.channelToReadFrom).getCurrentEvent();
+				this.channelToReadFrom = -1;	// event always marks a unit as consumed
+				return InputChannelResult.EVENT;
+					
+			case NONE: // internal event or an incomplete record that needs further chunks
+				// the current unit is exhausted
+				this.channelToReadFrom = -1;
+				return InputChannelResult.NONE;
+				
+			case END_OF_STREAM: // channel is done
+				this.channelToReadFrom = -1;
+				return isClosed() ? InputChannelResult.END_OF_STREAM : InputChannelResult.NONE;
+				
+			default:   // silence the compiler
+				throw new RuntimeException();
+		}
+	}
+	
+	@Override
+	public AbstractTaskEvent getCurrentEvent() {
+		AbstractTaskEvent e = this.currentEvent;
+		this.currentEvent = null;
+		return e;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public void notifyRecordIsAvailable(int channelIndex) {
-
 		this.availableChannels.add(Integer.valueOf(channelIndex));
 
-		final RecordAvailabilityListener<T> listener = this.recordAvailabilityListener.get();
+		RecordAvailabilityListener<T> listener = this.recordAvailabilityListener.get();
 		if (listener != null) {
 			listener.reportRecordAvailability(this);
 		}
@@ -270,7 +243,6 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	 * @return the index of the channel which has at least one record available
 	 */
 	public int waitForAnyChannelToBecomeAvailable() throws InterruptedException {
-
 		return this.availableChannels.take().intValue();
 	}
 
@@ -292,7 +264,7 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 		}
 
 		this.isClosed = true;
-
+		
 		return true;
 	}
 
@@ -307,16 +279,6 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 			inputChannel.close();
 		}
 
-	}
-
-	/**
-	 * Returns the list of InputChannels that feed this RecordReader
-	 * 
-	 * @return the list of InputChannels that feed this RecordReader
-	 */
-	@Deprecated
-	public List<AbstractInputChannel<T>> getInputChannels() {
-		return inputChannels;
 	}
 
 	/**
@@ -362,42 +324,14 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	}
 
 	@Override
-	public void activateInputChannels() throws IOException, InterruptedException {
-		// TODO Auto-generated method stub
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
 	public void registerRecordAvailabilityListener(final RecordAvailabilityListener<T> listener) {
-
 		if (!this.recordAvailabilityListener.compareAndSet(null, listener)) {
 			throw new IllegalStateException(this.recordAvailabilityListener
 				+ " is already registered as a record availability listener");
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public boolean hasRecordAvailable() throws IOException, InterruptedException {
-
-		if (this.channelToReadFrom == -1) {
-
-			if (this.isClosed()) {
-				return true;
-			}
-
-			return !(this.availableChannels.isEmpty());
-		}
-
-		return true;
-	}
-
-	public void notifyDataUnitConsumed(final int channelIndex) {
-
+	public void notifyDataUnitConsumed(int channelIndex) {
 		this.channelToReadFrom = -1;
 	}
 }

@@ -35,7 +35,7 @@ import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SolutionSetPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SourcePlanNode;
-import eu.stratosphere.pact.compiler.plan.candidate.UnionPlanNode;
+import eu.stratosphere.pact.compiler.plan.candidate.NAryUnionPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.WorksetIterationPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.WorksetPlanNode;
 import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
@@ -126,7 +126,7 @@ public abstract class GenericRecordPostPass<X, T extends AbstractSchema<X>> impl
 				return;
 			}
 			
-			if (iterationNode.getRootOfStepFunction() instanceof UnionPlanNode) {
+			if (iterationNode.getRootOfStepFunction() instanceof NAryUnionPlanNode) {
 				throw new CompilerException("Optimizer cannot compile an iteration step function where next partial solution is created by a Union node.");
 			}
 			
@@ -181,10 +181,10 @@ public abstract class GenericRecordPostPass<X, T extends AbstractSchema<X>> impl
 			if (schema.getNumConnectionsThatContributed() < iterationNode.getOutgoingChannels().size()) {
 				return;
 			}
-			if (iterationNode.getNextWorkSetPlanNode() instanceof UnionPlanNode) {
+			if (iterationNode.getNextWorkSetPlanNode() instanceof NAryUnionPlanNode) {
 				throw new CompilerException("Optimizer cannot compile a workset iteration step function where the next workset is produced by a Union node.");
 			}
-			if (iterationNode.getSolutionSetDeltaPlanNode() instanceof UnionPlanNode) {
+			if (iterationNode.getSolutionSetDeltaPlanNode() instanceof NAryUnionPlanNode) {
 				throw new CompilerException("Optimizer cannot compile a workset iteration step function where the solution set delta is produced by a Union node.");
 			}
 			
@@ -373,7 +373,7 @@ public abstract class GenericRecordPostPass<X, T extends AbstractSchema<X>> impl
 					+ optNode.getPactContract().getName() + "'. Missing type information for field " + e.getFieldNumber());
 			}
 		}
-		else if (node instanceof UnionPlanNode) {
+		else if (node instanceof NAryUnionPlanNode) {
 			// only propagate the info down
 			try {
 				for (Iterator<Channel> channels = node.getInputs(); channels.hasNext(); ) {

@@ -15,7 +15,7 @@
 
 package eu.stratosphere.nephele.jobmanager;
 
-import eu.stratosphere.nephele.io.RecordReader;
+import eu.stratosphere.nephele.io.MutableRecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.io.UnionRecordReader;
 import eu.stratosphere.nephele.template.AbstractTask;
@@ -23,8 +23,6 @@ import eu.stratosphere.nephele.types.StringRecord;
 
 /**
  * A simple implementation of a task using a {@link UnionRecordReader}.
- * 
- * @author warneke
  */
 public class UnionTask extends AbstractTask {
 
@@ -35,27 +33,21 @@ public class UnionTask extends AbstractTask {
 
 	private RecordWriter<StringRecord> writer;
 	
-	/**
-	 * {@inheritDoc}
-	 */
+	
 	@Override
 	public void registerInputOutput() {
 
 		@SuppressWarnings("unchecked")
-		final RecordReader<StringRecord>[] recordReaders = (RecordReader<StringRecord>[]) new RecordReader<?>[2];
-		recordReaders[0] = new RecordReader<StringRecord>(this, StringRecord.class);
-		recordReaders[1] = new RecordReader<StringRecord>(this, StringRecord.class);
-		this.unionReader = new UnionRecordReader<StringRecord>(recordReaders);
+		MutableRecordReader<StringRecord>[] recordReaders = (MutableRecordReader<StringRecord>[]) new MutableRecordReader<?>[2];
+		recordReaders[0] = new MutableRecordReader<StringRecord>(this);
+		recordReaders[1] = new MutableRecordReader<StringRecord>(this);
+		this.unionReader = new UnionRecordReader<StringRecord>(recordReaders, StringRecord.class);
 		
 		this.writer = new RecordWriter<StringRecord>(this, StringRecord.class);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public void invoke() throws Exception {
-
 		while (this.unionReader.hasNext()) {
 			this.writer.emit(this.unionReader.next());
 		}

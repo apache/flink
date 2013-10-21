@@ -16,159 +16,54 @@
 package eu.stratosphere.nephele.io;
 
 import java.io.IOException;
-import java.util.ArrayDeque;
-import java.util.HashSet;
-import java.util.NoSuchElementException;
-import java.util.Set;
 
 import eu.stratosphere.nephele.types.Record;
 
-public final class UnionRecordReader<T extends Record> implements Reader<T>, RecordAvailabilityListener<T> {
+public final class UnionRecordReader<T extends Record> extends AbstractUnionRecordReader<T> implements Reader<T> {
+	
+	private final Class<T> recordType;
+	
+	private T lookahead;
+	
 
-	private final Set<InputGate<T>> inputGates;
-
-	private InputGate<T> nextInputGateToReadFrom = null;
-
-	private IOException ioException = null;
-
-	private InterruptedException interruptedExecption = null;
-
-	/**
-	 * Queue with indices of channels that store at least one available record.
-	 */
-	private final ArrayDeque<InputGate<T>> availableInputGates = new ArrayDeque<InputGate<T>>();
-
-	private T nextRecord = null;
-
-	public UnionRecordReader(final RecordReader<T>[] recordReaders) {
-
-		if (recordReaders == null) {
-			throw new IllegalArgumentException("Provided argument recordReaders is null");
-		}
-
-		if (recordReaders.length < 2) {
-			throw new IllegalArgumentException(
-				"The union record reader must at least be initialized with two individual record readers");
-		}
-
-		this.inputGates = new HashSet<InputGate<T>>(recordReaders.length);
-		for (final RecordReader<T> rr : recordReaders) {
-			final InputGate<T> inputGate = rr.getInputGate();
-			inputGate.registerRecordAvailabilityListener(this);
-			this.inputGates.add(inputGate);
-		}
+	public UnionRecordReader(MutableRecordReader<T>[] recordReaders, Class<T> recordType) {
+		super(recordReaders);
+		this.recordType = recordType;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
-	public boolean hasNext() {
-
-		if (this.nextRecord != null) {
+	public boolean hasNext() throws IOException, InterruptedException {
+		if (this.lookahead != null) {
 			return true;
+		} else {
+			T record = instantiateRecordType();
+			if (getNextRecord(record)) {
+				this.lookahead = record;
+				return true;
+			} else {
+				return false;
+			}
 		}
-
-		try {
-			this.nextRecord = readNextRecord();
-		} catch (IOException ioe) {
-			this.ioException = ioe;
-			return true;
-		} catch (InterruptedException ie) {
-			this.interruptedExecption = ie;
-			return true;
-		}
-
-		if (this.nextRecord != null) {
-			return true;
-		}
-
-		return false;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public T next() throws IOException, InterruptedException {
-
-		if (this.nextRecord == null && this.inputGates.isEmpty()) {
-			throw new NoSuchElementException();
-		}
-
-		if (this.ioException != null) {
-			throw this.ioException;
-		}
-
-		if (this.interruptedExecption != null) {
-			throw this.interruptedExecption;
-		}
-
-		if (this.nextRecord == null) {
-			this.nextRecord = readNextRecord();
-		}
-
-		T retVal = this.nextRecord;
-		this.nextRecord = null;
-
-		return retVal;
-	}
-
-	/**
-	 * Reads the next record from one of the underlying input gates.
-	 * 
-	 * @return the next record from the underlying input gates or <code>null</code> if all underlying input gates are
-	 *         closed.
-	 * @throws IOException
-	 *         thrown if one of the underlying input gates experienced an IOException
-	 * @throws InterruptedException
-	 *         thrown if one of the underlying input gates experienced an InterruptedException
-	 */
-	private T readNextRecord() throws IOException, InterruptedException {
-
-		while (true) {
-
-			if (this.inputGates.isEmpty()) {
-				return null;
-			}
-
-			if (this.nextInputGateToReadFrom == null) {
-
-				synchronized (this.availableInputGates) {
-
-					while (this.availableInputGates.isEmpty()) {
-						this.availableInputGates.wait();
-					}
-
-					this.nextInputGateToReadFrom = this.availableInputGates.pop();
-				}
-			}
-
-			if (this.nextInputGateToReadFrom.hasRecordAvailable()) {
-
-				final T record = this.nextInputGateToReadFrom.readRecord(null);
-				if (record == null) { // Gate is closed
-					this.inputGates.remove(this.nextInputGateToReadFrom);
-					this.nextInputGateToReadFrom = null;
-				} else {
-					return record;
-				}
-			} else {
-				this.nextInputGateToReadFrom = null;
-			}
+		if (hasNext()) {
+			T tmp = this.lookahead;
+			this.lookahead = null;
+			return tmp;
+		} else {
+			return null;
 		}
 	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void reportRecordAvailability(final InputGate<T> inputGate) {
-
-		synchronized (this.availableInputGates) {
-			this.availableInputGates.add(inputGate);
-			this.availableInputGates.notify();
-
+	
+	private T instantiateRecordType() {
+		try {
+			return this.recordType.newInstance();
+		} catch (InstantiationException e) {
+			throw new RuntimeException("Cannot instantiate class '" + this.recordType.getName() + "'.", e);
+		} catch (IllegalAccessException e) {
+			throw new RuntimeException("Cannot instantiate class '" + this.recordType.getName() + "'.", e);
 		}
 	}
 }

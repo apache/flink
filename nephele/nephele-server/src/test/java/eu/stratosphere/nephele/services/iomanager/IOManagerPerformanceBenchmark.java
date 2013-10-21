@@ -335,6 +335,7 @@ public class IOManagerPerformanceBenchmark
 		
 	}
 		
+	@SuppressWarnings("resource")
 	private final void speedTestNIO(int bufferSize, boolean direct) throws IOException
 	{
 		final Channel.ID tmpChannel = ioManager.createChannel();
@@ -368,6 +369,7 @@ public class IOManagerPerformanceBenchmark
 			}
 			
 			fs.close();
+			raf.close();
 			fs = null;
 			
 			long writeElapsed = System.currentTimeMillis() - writeStart;
@@ -396,8 +398,7 @@ public class IOManagerPerformanceBenchmark
 			}
 			
 			fs.close();
-			fs = null;
-
+			raf.close();
 			
 			long readElapsed = System.currentTimeMillis() - readStart;
 			
