@@ -55,8 +55,7 @@ class KMeans extends PlanAssembler with PlanAssemblerDescription with Serializab
 
 //  def sumPointSums = (dataPoints: Iterator[(Int, PointSum)]) => dataPoints.reduce { (z, v) => z.copy(_2 = z._2 + v._2) }
   def sumPointSums = (dataPoints: Iterator[(Int, PointSum)]) => {
-    val res = dataPoints.reduce { (z, v) => z.copy(_2 = z._2 + v._2) }
-    (res._1, res._2.toPoint)
+    dataPoints.reduce { (z, v) => z.copy(_2 = z._2 + v._2) }
   }
 
 
@@ -96,9 +95,7 @@ class KMeans extends PlanAssembler with PlanAssemblerDescription with Serializab
 
       val distances = dataPoints cross centers map computeDistance
       val nearestCenters = distances groupBy { case (pid, _) => pid } combinableGroupReduce { ds => ds.minBy(_._2.distance) } map asPointSum.tupled
-      val newCenters = nearestCenters groupBy { case (cid, _) => cid } groupReduce sumPointSums
-      // TODO change to using combinableGroupReduce with map when the problem with iterations is fixed
-//      val newCenters = nearestCenters groupBy { case (cid, _) => cid } groupReduce sumPointSums map { case (cid, pSum) => cid -> pSum.toPoint() }
+      val newCenters = nearestCenters groupBy { case (cid, _) => cid } combinableGroupReduce sumPointSums map { case (cid, pSum) => cid -> pSum.toPoint() }
 
 //      distances.left neglects { case (pid, _) => pid }
 //      distances.left preserves({ dp => dp }, { case (pid, dist) => (pid, dist.dataPoint) })
