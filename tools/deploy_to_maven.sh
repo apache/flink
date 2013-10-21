@@ -32,8 +32,10 @@ if [[ $TRAVIS_PULL_REQUEST == "false" ]] ; then
 	# Please be sure not to use Build 1 as it will always be the yarn build.
 	#
 
-set -x	
 	if [[ $TRAVIS_JOB_NUMBER == *5 ]] ; then 
+		#generate yarn poms & build for yarn.
+		./tools/generate_specific_pom.sh $CURRENT_STRATOSPHERE_VERSION $CURRENT_STRATOSPHERE_VERSION_YARN pom.xml
+		mvn -DskipTests clean package
 		CURRENT_STRATOSPHERE_VERSION=$CURRENT_STRATOSPHERE_VERSION_YARN
 	fi
 	if [[ $TRAVIS_JOB_NUMBER == *2 ]] || [[ $TRAVIS_JOB_NUMBER == *5 ]] ; then 

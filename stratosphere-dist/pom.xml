@@ -222,16 +222,6 @@
 									</mapper>
 								</data>
 								<data>
-									<src>${project.build.directory}/${project.artifactId}-${project.version}-bin/stratosphere-${project.version}/docs</src>
-									<type>directory</type>
-									<mapper>
-										<type>perm</type>
-										<prefix>/usr/share/${project.artifactId}/docs</prefix>
-										<user>root</user>
-										<group>root</group>
-									</mapper>
-								</data>
-								<data>
 									<src>${project.build.directory}/${project.artifactId}-${project.version}-bin/stratosphere-${project.version}/examples</src>
 									<type>directory</type>
 									<mapper>

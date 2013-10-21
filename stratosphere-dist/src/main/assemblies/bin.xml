@@ -80,29 +80,32 @@
 
 		<fileSet>
 			<!-- create an empty log directory -->
-			<directory>src/main/stratosphere-bin/docs</directory>
+			<directory>src/main/stratosphere-bin/</directory>
 			<outputDirectory>log</outputDirectory>
 			<fileMode>0644</fileMode>
 			<excludes>
-				<exclude>*</exclude>
+				<exclude>**/*</exclude>
 			</excludes>
 		</fileSet>
 
 		<fileSet>
 			<!-- create an empty dropin-lib directory -->
-			<directory>src/main/stratosphere-bin/docs</directory>
+			<directory>src/main/stratosphere-bin/</directory>
 			<outputDirectory>lib/dropin</outputDirectory>
 			<fileMode>0644</fileMode>
 			<excludes>
-				<exclude>*</exclude>
+				<exclude>**/*</exclude>
 			</excludes>
 		</fileSet>
 
 		<fileSet>
-			<!-- copy README file -->
-			<directory>src/main/stratosphere-bin/docs</directory>
-			<outputDirectory>docs</outputDirectory>
+			<!-- copy *.txt files -->
+			<directory>src/main/stratosphere-bin/</directory>
+			<outputDirectory></outputDirectory>
 			<fileMode>0644</fileMode>
+			<includes>
+				<include>*.txt</include>
+			</includes>
 		</fileSet>
 
 		<fileSet>

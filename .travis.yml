@@ -9,8 +9,8 @@ env:
         - secure: "QoLd3npmApUw20q+KTt+6Il07bn/edl5pP3jmEqR+rXQXVA2kogjkZerZ5QdM2iQJha7D1M2Y4BTcsJ2Ty7biTxUZkDl+RXz6kpeHPX2alax/KO7mqrJuEfuPAQvaIdHNmKEmdiU/fLMn2q2HllE5MP7FzUNKD5YJIzh1IekPA8="
         - secure: "WzMGwNwWwWw62kwvknMGS4W1zy3oRVihitCjjd5wqk/4JMTeWr+oAMv0GfA8GbOuOcYwA7JNxGXQlBMtn45+/PMLJgnsLxYUbqCD2ybwMBLlnembGYoRPABp5zkuzRmU3G2cbMdu/7VwvlTffEPPG/jqAFLKxmvG0oIOtPtk3lg="
         # DOPA_USER and DOPA_PASS
-        - secure: "ntw3Gptom4JMVLpHOeEULcX62W2GbSAG/mLBTCu5sx8++imcN8mKCsgKe0f31tYoYS9vLFtoj/9+6Ar7kbWL2fDYnMlYJActQjsk7+W/ffD4DloV0MTpDs3MFR6G6HwKAB36z3vnHn9YcIIQJ7EThb6iSxviPwhY8Zx6wOjp7Fg="
-        - secure: "axUYH3fpUAKsYHHey1HgZ1+FaU0hgwXsG7x2V4p3dAjwgrnu0PAxJU91qI1oMQQ7ckGNaS2+G/5Tx16ryOq95PqlzlWO5EQJtPpX8R40f53ozBUN2ITCAgFsSEXeIs6sdk8kqfxGU36E9ovfG8EO2lJDV/ZysElz8a5NKHGpsvo="
+        - secure: "pa6c+tdIp4OVRH4sTw9aIfB26Xzj3TBL0u4WNlNdEaqa43Dz4dZGvg541q9+fyGk5FWVPbNwAiCjV4GgWnULFbYSfD1AHgluP+PpG/sXyES54X/EAjYkov2soX7/iVxsLe7cbVdfosh3vgEazvZq/nLcybs9f4h5+bZkMOnNEEI="
+        - secure: "kMPswo+PvtXpNsfkpwPVgZ33+bOZf5z7BC5Gv7+qHtDqgUom9PJtFsG4wUMU4hb9xx7sE125v2VfxIkDckOLNmAPRGawha7oNpdqBYrRhJPIsnrU/ruZIaKz/c2hWGOiICSgYhJPoac492bt3lBQb3fdo2ioHxzN/GYzT3SKpEk="
     matrix:
         - PROFILE=
         - PROFILE="-Dhadoop.profile=2"
