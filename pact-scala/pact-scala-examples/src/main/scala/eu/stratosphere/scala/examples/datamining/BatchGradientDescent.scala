@@ -61,7 +61,7 @@ abstract class BatchGradientDescent(eps: Double, eta: Double, lambda: Double, ex
     def gradientDescent = (s: DataStream[(Int, Array[Double])], ws: DataStream[(Int, Array[Double], Double)]) => {
 
       val lossesAndGradients = ws cross examples map { (w, ex) => new ValueAndGradient(w._1, computeGradient(ex._2, w._2)) }
-      val lossAndGradientSums = lossesAndGradients groupBy { _.id } combinableGroupReduce { _.reduce(_ + _) }
+      val lossAndGradientSums = lossesAndGradients groupBy { _.id } reduce (_ + _)
       val newWeights = ws join lossAndGradientSums where { _._1 } isEqualTo { _.id } map updateWeight
 
       val s1 = newWeights map { case (wId, _, wNew, _) => (wId, wNew) } // updated solution elements

@@ -63,7 +63,7 @@ class TPCHQuery3 extends PlanAssembler with PlanAssemblerDescription with Serial
 
     val filteredOrders = orders filter { o => o.status == status && o.year > minYear && o.orderPriority.startsWith(priority) }
     val prioritizedItems = filteredOrders join lineItems where { _.orderId } isEqualTo { _.orderId } map { (o, li) => PrioritizedOrder(o.orderId, o.shipPriority, li.extendedPrice) }
-    val prioritizedOrders = prioritizedItems groupBy { pi => (pi.orderId, pi.shipPriority) } combinableGroupReduce { _ reduce addRevenues }
+    val prioritizedOrders = prioritizedItems groupBy { pi => (pi.orderId, pi.shipPriority) } reduceGroup { _ reduce addRevenues }
 
     val output = prioritizedOrders.write(ordersOutput, DelimitedDataSinkFormat(formatOutput))
 

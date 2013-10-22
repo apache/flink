@@ -31,17 +31,21 @@ class DataStream[T] (val contract: Contract with ScalaContract[T]) {
   def cross[RightIn](rightInput: DataStream[RightIn]) = new CrossDataStream[T, RightIn](this, rightInput)
   def join[RightIn](rightInput: DataStream[RightIn]) = new JoinDataStream[T, RightIn](this, rightInput)
   
-  def map[Out](fun: T => Out): DataStream[Out] = macro MapMacros.map[T, Out]
+  def map[Out](fun: T => Out) = macro MapMacros.map[T, Out]
   def flatMap[Out](fun: T => Iterator[Out]) = macro MapMacros.flatMap[T, Out]
-  def filter(fun: T => Boolean): DataStream[T] = macro MapMacros.filter[T]
+  def filter(fun: T => Boolean) = macro MapMacros.filter[T]
   
   // reduce
-  def groupBy[Key](keyFun: T => Key) = macro ReduceMacros.groupByImpl[T, Key]
+  def groupBy[Key](keyFun: T => Key) = macro ReduceMacros.groupBy[T, Key]
+
+  // reduce without grouping
+  def reduce(fun: (T, T) => T) = macro ReduceMacros.globalReduce[T]
+  def reduceAll[Out](fun: Iterator[T] => Out) = macro ReduceMacros.globalReduceAll[T, Out]
   
-  def union(secondInput: DataStream[T]): DataStream[T] = macro UnionMacros.impl[T]
+  def union(secondInput: DataStream[T]) = macro UnionMacros.impl[T]
   
   def iterateWithDelta[DeltaItem](stepFunction: DataStream[T] => (DataStream[T], DataStream[DeltaItem])) = macro IterateMacros.iterateWithDelta[T, DeltaItem]
-  def iterate(n: Int, stepFunction: DataStream[T] => DataStream[T]): DataStream[T] = macro IterateMacros.iterate[T]
+  def iterate(n: Int, stepFunction: DataStream[T] => DataStream[T])= macro IterateMacros.iterate[T]
   def iterateWithWorkset[SolutionKey, WorksetItem](workset: DataStream[WorksetItem], solutionSetKey: T => SolutionKey, stepFunction: (DataStream[T], DataStream[WorksetItem]) => (DataStream[T], DataStream[WorksetItem])) = macro WorksetIterateMacros.iterateWithWorkset[T, SolutionKey, WorksetItem]
   
   def write(url: String, format: DataSinkFormat[T]) = DataSinkOperator.write(this, url, format) 

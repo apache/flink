@@ -103,7 +103,7 @@ class EnumTrianglesOnEdgesWithDegrees extends PlanAssembler with PlanAssemblerDe
     /*
      * Build triads by joining edges on common vertex.
      */   
-    val triads = edgesByDegree groupBy { _._1 } groupReduce { buildTriads } flatMap {x => x.iterator }
+    val triads = edgesByDegree groupBy { _._1 } reduceGroup { buildTriads } flatMap {x => x.iterator }
     
     /*
      * Join triads with projected edges to 'close' triads.

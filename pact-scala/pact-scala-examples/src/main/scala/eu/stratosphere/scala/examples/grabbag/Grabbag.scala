@@ -64,6 +64,10 @@ object Main1 {
     
     val un = countsCross union countsJoin map { x => x }
     
+    val sink0 = counts.reduce { (w1, w2) => ( "Total: " , w1._2 + w2._2) }
+      .write("file:///home/aljoscha/dummy-outputCounts-reduce", RecordDataSinkFormat("\n", ","))
+    val sinkm1 = counts.reduceAll { _.reduce { (w1, w2) => ( "Total: " , w1._2 + w2._2) } }
+      .write("file:///home/aljoscha/dummy-outputCounts-reduce-all", RecordDataSinkFormat("\n", ","))
     val sink1 = counts.write("file:///home/aljoscha/dummy-outputCounts", RecordDataSinkFormat("\n", ","))
     val sink2 = countsCross.write("file:///home/aljoscha/dummy-outputCross", RecordDataSinkFormat("\n", ","))
     val sink3 = countsJoin.write("file:///home/aljoscha/dummy-outputJoin", RecordDataSinkFormat("\n", ","))
@@ -71,7 +75,7 @@ object Main1 {
     val sink5 = bar1.write("file:///home/aljoscha/dummy-outputbar1", RecordDataSinkFormat("\n", ","))
     val sink6 = bar2.write("file:///home/aljoscha/dummy-outputbar2", RecordDataSinkFormat("\n", ","))
     
-    val plan = new ScalaPlan(Seq(sink1, sink2, sink3, sink4, sink5, sink6), "SCALA DUMMY JOBB")
+    val plan = new ScalaPlan(Seq(sinkm1, sink0, sink1, sink2, sink3, sink4, sink5, sink6), "SCALA DUMMY JOBB")
     GlobalSchemaPrinter.printSchema(plan)
 //    input uniqueKey { x => x }
     
@@ -115,7 +119,7 @@ object MainIterate {
         (newPaths, oldPaths) => (newPaths ++ oldPaths) minBy { _.dist }
       }
 
-//      val shortestPaths = allNewPaths union paths groupBy { p => (p.from, p.to) } groupReduce { _.minBy { _.dist } }
+//      val shortestPaths = allNewPaths union paths groupBy { p => (p.from, p.to) } reduceGroup { _.minBy { _.dist } }
 
       shortestPaths
     }
@@ -224,7 +228,7 @@ object ConnectedComponents {
     def propagateComponent = (s: DataStream[(Int, Int)], ws: DataStream[(Int, Int)]) => {
 
       val allNeighbors = ws join undirectedEdges where { case (v, _) => v } isEqualTo { case (from, _) => from } map { (w, e) => e._2 -> w._2 }
-      val minNeighbors = allNeighbors groupBy { case (to, _) => to } combinableGroupReduce { cs => cs minBy { _._2 } }
+      val minNeighbors = allNeighbors groupBy { case (to, _) => to } reduceGroup { cs => cs minBy { _._2 } }
 
       // updated solution elements == new workset
       val s1 = minNeighbors join s where { _._1 } isEqualTo { _._1 } flatMap { (n, s) =>

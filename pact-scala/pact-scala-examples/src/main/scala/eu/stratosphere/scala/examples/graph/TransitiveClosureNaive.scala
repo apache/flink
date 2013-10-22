@@ -46,7 +46,7 @@ class TransitiveClosureNaive extends Serializable {
 
       val allNewPaths = paths join edges where { p => p.to } isEqualTo { p => p.from } map joinPaths
       // TODO this fill fail due to bug in iterations runtime
-      val shortestPaths = allNewPaths union paths groupBy { p => (p.from, p.to) } combinableGroupReduce { _ minBy { _.dist } }
+      val shortestPaths = allNewPaths union paths groupBy { p => (p.from, p.to) } reduceGroup { _ minBy { _.dist } }
 
 //      val delta = paths cogroup shortestPaths where { p => (p.from, p.to) } isEqualTo { p => (p.from, p.to) } flatMap { (oldPaths, newPaths) =>
 //        (oldPaths.toSeq.headOption, newPaths.next) match {

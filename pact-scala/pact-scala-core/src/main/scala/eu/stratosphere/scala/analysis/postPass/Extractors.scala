@@ -136,6 +136,7 @@ object Extractors {
     def unapply(node: OptimizerNode): Option[(UDF1[_, _], FieldSelector, PactConnection)] = node match {
       case node: ReduceNode => node.getPactContract match {
         case contract: ReduceContract with OneInputKeyedScalaContract[_, _] => Some((contract.getUDF, contract.key, node.getIncomingConnection))
+        case contract: ReduceContract with OneInputScalaContract[_, _] => Some((contract.getUDF, new FieldSelector(contract.getUDF.inputUDT, Nil), node.getIncomingConnection))
         case _ => None
       }
       case _ => None

@@ -95,6 +95,7 @@ object Extractors {
   object ReduceNode {
     def unapply(node: Contract): Option[(UDF1[_, _], FieldSelector, List[Contract])] = node match {
       case contract: ReduceContract with OneInputKeyedScalaContract[_, _] => Some((contract.getUDF, contract.key, contract.asInstanceOf[SingleInputContract[_]].getInputs().toList))
+      case contract: ReduceContract with OneInputScalaContract[_, _] => Some((contract.getUDF, new FieldSelector(contract.getUDF.inputUDT, Nil), contract.asInstanceOf[SingleInputContract[_]].getInputs().toList))
       case _                                   => None
     }
   }

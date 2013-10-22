@@ -166,6 +166,13 @@ object NewGlobalSchemaGenerator {
 
         contract.getUDF.setOutputGlobalIndexes(freePos, fixedOutputs)
       }
+      
+      case contract : ReduceContract with OneInputScalaContract[_, _] => {
+
+        val freePos1 = globalizeContract(contract.getInputs().get(0), Seq(contract.getUDF.inputFields), proxies, None, freePos)
+
+        contract.getUDF.setOutputGlobalIndexes(freePos, fixedOutputs)
+      }
 
       case contract : MapContract with UnionScalaContract[_] => {
 
