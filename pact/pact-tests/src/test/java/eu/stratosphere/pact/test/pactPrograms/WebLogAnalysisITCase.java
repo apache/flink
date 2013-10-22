@@ -39,10 +39,10 @@ public class WebLogAnalysisITCase extends TestBase {
 
 	private static final Log LOG = LogFactory.getLog(WebLogAnalysisITCase.class);
 	
-	String docsPath = null;
-	String ranksPath = null;
-	String visitsPath = null;
-	String resultPath = null;
+	protected String docsPath = null;
+	protected String ranksPath = null;
+	protected String visitsPath = null;
+	protected String resultPath = null;
 
 	String docs = 
 		"url_10|volutpat magna quis consectetuer volutpat ad erat editors exerci oscillations euismod volutpat Lorem convectionullamcorper Lorem volutpat enim tation elit |\n" + 
