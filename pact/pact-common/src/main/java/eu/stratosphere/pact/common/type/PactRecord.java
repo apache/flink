@@ -1556,7 +1556,7 @@ public final class PactRecord implements Value {
 				throw new UTFDataFormatException("Encoded string is too long: " + utflen);
 			
 			else if (this.position > this.memory.length - utflen - 2) {
-				resize(utflen);
+				resize(utflen + 2);
 			}
 			
 			byte[] bytearr = this.memory;
