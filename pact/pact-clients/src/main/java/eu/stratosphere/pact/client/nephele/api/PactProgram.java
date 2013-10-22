@@ -40,7 +40,6 @@ import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.plan.DataSinkNode;
-import eu.stratosphere.pact.contextcheck.ContextChecker;
 
 /**
  * This class encapsulates most of the plan related functions. Based on the given jar file,
@@ -129,22 +128,6 @@ public class PactProgram {
 			this.plan = createPlanFromJar(this.assemblerClass, this.args);
 		}
 		return this.plan;
-	}
-
-	/**
-	 * Semantic check of generated plan
-	 * 
-	 * @throws ProgramInvocationException
-	 *         This invocation is thrown if the PlanAssembler can't be properly loaded. Causes
-	 *         may be a missing / wrong class or manifest files.
-	 * @throws ErrorInPlanAssemblerException
-	 *         Thrown if an error occurred in the user-provided pact assembler. This may indicate
-	 *         missing parameters for generation.
-	 */
-	public void checkPlan() throws ProgramInvocationException, ErrorInPlanAssemblerException {
-		// semantic context check of the generated plan
-		ContextChecker checker = new ContextChecker();
-		checker.check(getPlan());
 	}
 
 	/**
