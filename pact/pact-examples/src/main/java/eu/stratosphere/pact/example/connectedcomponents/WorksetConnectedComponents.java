@@ -41,7 +41,13 @@ import eu.stratosphere.pact.generic.contract.WorksetIteration;
  */
 public class WorksetConnectedComponents implements PlanAssembler, PlanAssemblerDescription {
 	
+	/**
+	 * UDF that joins a (Vertex-ID, Component-ID) pair that represents the current component that
+	 * a vertex is associated with, with a (Source-Vertex-ID, Target-VertexID) edge. The function
+	 * produces a (Target-vertex-ID, Component-ID) pair.
+	 */
 	public static final class NeighborWithComponentIDJoin extends MatchStub implements Serializable {
+		
 		private static final long serialVersionUID = 1L;
 
 		private final PactRecord result = new PactRecord();
@@ -54,6 +60,9 @@ public class WorksetConnectedComponents implements PlanAssembler, PlanAssemblerD
 		}
 	}
 	
+	/**
+	 * Minimum aggregation over (Vertex-ID, Component-ID) pairs, selecting the pair with the smallest Comonent-ID.
+	 */
 	@Combinable
 	@ConstantFields(0)
 	public static final class MinimumComponentIDReduce extends ReduceStub implements Serializable {
@@ -86,6 +95,10 @@ public class WorksetConnectedComponents implements PlanAssembler, PlanAssemblerD
 		}
 	}
 	
+	/**
+	 * UDF that joins a candidate (Vertex-ID, Component-ID) pair with another (Vertex-ID, Component-ID) pair.
+	 * Returns the candidate pair, if the candidate's Component-ID is smaller.
+	 */
 	@ConstantFieldsFirst(0)
 	public static final class UpdateComponentIdMatch extends MatchStub implements Serializable {
 		private static final long serialVersionUID = 1L;
@@ -111,31 +124,33 @@ public class WorksetConnectedComponents implements PlanAssembler, PlanAssemblerD
 		final String output = (args.length > 3 ? args[3] : "");
 		final int maxIterations = (args.length > 4 ? Integer.parseInt(args[4]) : 1);
 
-		// create DataSourceContract for the vertices
+		// data source for initial vertices
 		FileDataSource initialVertices = new FileDataSource(new DuplicateLongInputFormat(), verticesInput, "Vertices");
 		
+		// the loop takes the vertices as the solution set and changed vertices as the workset
+		// initially, all vertices are changed
 		WorksetIteration iteration = new WorksetIteration(0, "Connected Components Iteration");
 		iteration.setInitialSolutionSet(initialVertices);
 		iteration.setInitialWorkset(initialVertices);
 		iteration.setMaximumNumberOfIterations(maxIterations);
 		
-		// create DataSourceContract for the edges
+		// data source for the edges
 		FileDataSource edges = new FileDataSource(new LongLongInputFormat(), edgeInput, "Edges");
 
-		// create CrossContract for distance computation
+		// join workset (changed vertices) with the edges to propagate changes to neighbors
 		MatchContract joinWithNeighbors = MatchContract.builder(new NeighborWithComponentIDJoin(), PactLong.class, 0, 0)
 				.input1(iteration.getWorkset())
 				.input2(edges)
 				.name("Join Candidate Id With Neighbor")
 				.build();
 
-		// create ReduceContract for finding the nearest cluster centers
+		// find for each neighbor the smallest of all candidates
 		ReduceContract minCandidateId = ReduceContract.builder(new MinimumComponentIDReduce(), PactLong.class, 0)
 				.input(joinWithNeighbors)
 				.name("Find Minimum Candidate Id")
 				.build();
 		
-		// create CrossContract for distance computation
+		// join candidates with the solution set and update if the candidate component-id is smaller
 		MatchContract updateComponentId = MatchContract.builder(new UpdateComponentIdMatch(), PactLong.class, 0, 0)
 				.input1(minCandidateId)
 				.input2(iteration.getSolutionSet())
@@ -145,7 +160,7 @@ public class WorksetConnectedComponents implements PlanAssembler, PlanAssemblerD
 		iteration.setNextWorkset(updateComponentId);
 		iteration.setSolutionSetDelta(updateComponentId);
 
-		// create DataSinkContract for writing the new cluster positions
+		// sink is the iteration result
 		FileDataSink result = new FileDataSink(new RecordOutputFormat(), output, iteration, "Result");
 		RecordOutputFormat.configureRecordFormat(result)
 			.recordDelimiter('\n')
