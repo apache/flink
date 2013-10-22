@@ -21,7 +21,6 @@ import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 import static org.powermock.api.mockito.PowerMockito.whenNew;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 
@@ -63,9 +62,9 @@ public class ClientTest {
 	@Mock
 	PactProgram program;
 	@Mock
+	PlanWithJars planWithJarsMock;
+	@Mock
 	Plan planMock;
-	@Mock 
-	File mockJarFile;
 	
 	@Mock
 	PactCompiler compilerMock;
@@ -91,10 +90,10 @@ public class ClientTest {
 		when(configMock.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)).thenReturn(6123);
 		
 		when(planMock.getJobName()).thenReturn("MockPlan");
-		when(mockJarFile.getAbsolutePath()).thenReturn("mockFilePath");
+//		when(mockJarFile.getAbsolutePath()).thenReturn("mockFilePath");
 		
-		when(program.getJarFile()).thenReturn(mockJarFile);
-		when(program.getPlan()).thenReturn(planMock);
+		when(program.getPlanWithJars()).thenReturn(planWithJarsMock);
+		when(planWithJarsMock.getPlan()).thenReturn(planMock);
 		
 		whenNew(PactCompiler.class).withArguments(any(DataStatistics.class), any(CostEstimator.class), any(InetSocketAddress.class)).thenReturn(this.compilerMock);
 		when(compilerMock.compile(planMock)).thenReturn(optimizedPlanMock);
@@ -113,7 +112,8 @@ public class ClientTest {
 		when(jobSubmissionResultMock.getReturnCode()).thenReturn(ReturnCode.SUCCESS);
 		
 		Client out = new Client(configMock);
-		out.run(program);
+		out.run(program.getPlanWithJars());
+		program.deleteExtractedLibraries();
 		
 		verify(this.compilerMock, times(1)).compile(planMock);
 		verify(this.generatorMock, times(1)).compileJobGraph(optimizedPlanMock);
@@ -129,7 +129,9 @@ public class ClientTest {
 		when(jobSubmissionResultMock.getReturnCode()).thenReturn(ReturnCode.ERROR);
 		
 		Client out = new Client(configMock);
-		out.run(program);
+		out.run(program.getPlanWithJars());
+		program.deleteExtractedLibraries();
+		
 		verify(this.jobClientMock).submitJob();
 	}
 }

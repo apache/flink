@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.net.InetSocketAddress;
+import java.util.List;
 
 import eu.stratosphere.nephele.client.AbstractJobResult.ReturnCode;
 import eu.stratosphere.nephele.client.JobClient;
@@ -105,7 +106,7 @@ public class Client {
 	 * @throws ProgramInvocationException Thrown, if the pact program could not be instantiated from its jar file.
 	 * @throws ErrorInPlanAssemblerException Thrown, if the plan assembler function causes an exception.
 	 */
-	public OptimizedPlan getOptimizedPlan(PactProgram prog) throws CompilerException, ProgramInvocationException, ErrorInPlanAssemblerException {
+	public OptimizedPlan getOptimizedPlan(PlanWithJars prog) throws CompilerException, ProgramInvocationException, ErrorInPlanAssemblerException {
 		Plan plan = prog.getPlan();
 		ContextChecker checker = new ContextChecker();
 		checker.check(plan);
@@ -156,7 +157,7 @@ public class Client {
 	 * @throws ProgramInvocationException Thrown, if the pact program could not be instantiated from its jar file.
 	 * @throws ErrorInPlanAssemblerException Thrown, if the plan assembler function causes an exception.
 	 */
-	public String getOptimizerPlanAsJSON(PactProgram prog) throws CompilerException, ProgramInvocationException, ErrorInPlanAssemblerException {
+	public String getOptimizerPlanAsJSON(PlanWithJars prog) throws CompilerException, ProgramInvocationException, ErrorInPlanAssemblerException {
 		StringWriter string = new StringWriter(1024);
 		PrintWriter pw = null;
 		try {
@@ -177,7 +178,7 @@ public class Client {
 	 * @throws ProgramInvocationException Thrown, if the pact program could not be instantiated from its jar file.
 	 * @throws ErrorInPlanAssemblerException Thrown, if the plan assembler function causes an exception.
 	 */
-	public void dumpOptimizerPlanAsJSON(PactProgram prog, PrintWriter out) throws CompilerException, ProgramInvocationException, ErrorInPlanAssemblerException {
+	public void dumpOptimizerPlanAsJSON(PlanWithJars prog, PrintWriter out) throws CompilerException, ProgramInvocationException, ErrorInPlanAssemblerException {
 		PlanJSONDumpGenerator jsonGen = new PlanJSONDumpGenerator();
 		jsonGen.dumpOptimizerPlanAsJSON(getOptimizedPlan(prog), out);
 	}
@@ -191,17 +192,16 @@ public class Client {
 	 * @param optPlan The optimized plan.
 	 * @return The nephele job graph, generated from the optimized plan.
 	 */
-	public JobGraph getJobGraph(PactProgram prog, OptimizedPlan optPlan) throws ProgramInvocationException {
+	public JobGraph getJobGraph(PlanWithJars prog, OptimizedPlan optPlan) throws ProgramInvocationException {
 		NepheleJobGraphGenerator gen = new NepheleJobGraphGenerator();
 		JobGraph job = gen.compileJobGraph(optPlan);
-		job.addJar(new Path(prog.getJarFile().getAbsolutePath()));
+		
 		
 		try {
-			File[] containedJars = prog.extractContainedLibaries();
-			if (containedJars != null) {
-				for (int i = 0; i < containedJars.length; i++) {
-					job.addJar(new Path(containedJars[i].getAbsolutePath()));
-				}
+			List<File> jarFiles = prog.getJarFiles();
+
+			for (File jar : jarFiles) {
+				job.addJar(new Path(jar.getAbsolutePath()));
 			}
 		}
 		catch (IOException ioex) {
@@ -224,7 +224,7 @@ public class Client {
 	 *                                    on the nephele system failed.
 	 * @throws ErrorInPlanAssemblerException Thrown, if the plan assembler function causes an exception.
 	 */
-	public void run(PactProgram prog) throws CompilerException, ProgramInvocationException, ErrorInPlanAssemblerException {
+	public void run(PlanWithJars prog) throws CompilerException, ProgramInvocationException, ErrorInPlanAssemblerException {
 		run(prog, false);
 	}
 	
@@ -241,7 +241,7 @@ public class Client {
 	 *                                    on the nephele system failed.
 	 * @throws ErrorInPlanAssemblerException Thrown, if the plan assembler function causes an exception.
 	 */
-	public void run(PactProgram prog, boolean wait) throws CompilerException, ProgramInvocationException, ErrorInPlanAssemblerException {
+	public void run(PlanWithJars prog, boolean wait) throws CompilerException, ProgramInvocationException, ErrorInPlanAssemblerException {
 		run(prog, getOptimizedPlan(prog), wait);
 	}
 	
@@ -256,7 +256,7 @@ public class Client {
 	 *                                    i.e. the job-manager is unreachable, or due to the fact that the execution
 	 *                                    on the nephele system failed.
 	 */
-	public void run(PactProgram prog, OptimizedPlan compiledPlan) throws ProgramInvocationException {
+	public void run(PlanWithJars prog, OptimizedPlan compiledPlan) throws ProgramInvocationException {
 		run(prog, compiledPlan, false);
 	}
 	
@@ -272,7 +272,7 @@ public class Client {
 	 *                                    i.e. the job-manager is unreachable, or due to the fact that the execution
 	 *                                    on the nephele system failed.
 	 */
-	public void run(PactProgram prog, OptimizedPlan compiledPlan, boolean wait) throws ProgramInvocationException {
+	public void run(PlanWithJars prog, OptimizedPlan compiledPlan, boolean wait) throws ProgramInvocationException {
 		JobGraph job = getJobGraph(prog, compiledPlan);
 		run(prog, job, wait);
 	}
@@ -285,7 +285,7 @@ public class Client {
 	 *                                    i.e. the job-manager is unreachable, or due to the fact that the execution
 	 *                                    on the nephele system failed.
 	 */
-	public void run(PactProgram program, JobGraph jobGraph) throws ProgramInvocationException {
+	public void run(PlanWithJars program, JobGraph jobGraph) throws ProgramInvocationException {
 		run(program, jobGraph, false);
 	}
 	/**
@@ -298,7 +298,7 @@ public class Client {
 	 *                                    i.e. the job-manager is unreachable, or due to the fact that the execution
 	 *                                    on the nephele system failed.
 	 */
-	public void run(PactProgram program, JobGraph jobGraph, boolean wait) throws ProgramInvocationException
+	public void run(PlanWithJars program, JobGraph jobGraph, boolean wait) throws ProgramInvocationException
 	{
 		JobClient client;
 		try {
@@ -330,9 +330,6 @@ public class Client {
 			} else {
 				throw new ProgramInvocationException("The program execution failed: " + jex.getMessage());
 			}
-		}
-		finally {
-			program.deleteExtractedLibraries();
 		}
 	}
 }

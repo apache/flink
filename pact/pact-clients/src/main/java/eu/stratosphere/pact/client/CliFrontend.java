@@ -51,6 +51,7 @@ import eu.stratosphere.pact.client.nephele.api.Client;
 import eu.stratosphere.pact.client.nephele.api.ErrorInPlanAssemblerException;
 import eu.stratosphere.pact.client.nephele.api.PactProgram;
 import eu.stratosphere.pact.client.nephele.api.ProgramInvocationException;
+import eu.stratosphere.pact.compiler.CompilerException;
 
 /**
  * Implementation of a simple command line fronted for executing PACT programs.
@@ -281,11 +282,15 @@ public class CliFrontend {
 		Configuration configuration = getConfiguration();
 		Client client = new Client(configuration);
 		try {
-			client.run(program, wait);
+			client.run(program.getPlanWithJars(), wait);
 		} catch (ProgramInvocationException e) {
 			handleError(e);
 		} catch (ErrorInPlanAssemblerException e) {
 			handleError(e);
+		} catch (IOException e) {
+			handleError(e);
+		} finally {
+			program.deleteExtractedLibraries();
 		}
 
 		System.out.println("Job successfully submitted");
@@ -390,10 +395,14 @@ public class CliFrontend {
 			Configuration configuration = getConfiguration();
 			Client client = new Client(configuration);
 			try {
-				jsonPlan = client.getOptimizerPlanAsJSON(program);
+				jsonPlan = client.getOptimizerPlanAsJSON(program.getPlanWithJars());
 			} catch (ProgramInvocationException e) {
 				handleError(e);
 			} catch (ErrorInPlanAssemblerException e) {
+				handleError(e);
+			} catch (CompilerException e) {
+				handleError(e);
+			} catch (IOException e) {
 				handleError(e);
 			}
 			
@@ -405,7 +414,7 @@ public class CliFrontend {
 				System.err.println("JSON plan could not be compiled.");
 			}
 		}
-		
+		program.deleteExtractedLibraries();
 	}
 
 	/**
