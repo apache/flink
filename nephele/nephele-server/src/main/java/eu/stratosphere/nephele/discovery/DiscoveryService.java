@@ -93,9 +93,13 @@ public class DiscoveryService implements Runnable {
 
 	/**
 	 * Flag indicating whether to use IPv6 or not.
+	 * <p>
+	 * This flag used to be set depending on the "java.net.preferIPv4Stack" system property, which was enforced by the
+	 * startup scripts. The hint was necessary for cloud setups in combination with the now removed cloud manager.
+	 * 
+	 * @see {@link https://github.com/stratosphere/stratosphere/issues/189}
 	 */
-	private static final boolean USE_IPV6 = "true".equals(System.getProperty("java.net.preferIPv4Stack")) ? false
-		: true;
+	private static final boolean USE_IPV6 = false;
 
 	/**
 	 * ID for job manager lookup request packets.
