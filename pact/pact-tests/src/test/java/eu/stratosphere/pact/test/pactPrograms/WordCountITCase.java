@@ -17,8 +17,6 @@ package eu.stratosphere.pact.test.pactPrograms;
 
 import java.util.Collection;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
@@ -31,9 +29,7 @@ import eu.stratosphere.pact.test.util.TestBase2;
 @RunWith(Parameterized.class)
 public class WordCountITCase extends TestBase2 {
 
-	protected static final Log LOG = LogFactory.getLog(WordCountITCase.class);
-
-	protected static final String TEXT = "Goethe - Faust: Der Tragoedie erster Teil\n" + "Prolog im Himmel.\n"
+	public static final String TEXT = "Goethe - Faust: Der Tragoedie erster Teil\n" + "Prolog im Himmel.\n"
 			+ "Der Herr. Die himmlischen Heerscharen. Nachher Mephistopheles. Die drei\n" + "Erzengel treten vor.\n"
 			+ "RAPHAEL: Die Sonne toent, nach alter Weise, In Brudersphaeren Wettgesang,\n"
 			+ "Und ihre vorgeschriebne Reise Vollendet sie mit Donnergang. Ihr Anblick\n"
@@ -105,7 +101,7 @@ public class WordCountITCase extends TestBase2 {
 			+ "huete mich, mit ihm zu brechen. Es ist gar huebsch von einem grossen Herrn,\n"
 			+ "So menschlich mit dem Teufel selbst zu sprechen.";
 
-	protected static final String COUNTS = "machen 1\n" + "zeit 2\n" + "heerscharen 1\n" + "keiner 2\n" + "meine 3\n"
+	public static final String COUNTS = "machen 1\n" + "zeit 2\n" + "heerscharen 1\n" + "keiner 2\n" + "meine 3\n"
 			+ "fuehr 1\n" + "triumph 1\n" + "kommst 1\n" + "frei 1\n" + "schaffen 1\n" + "gesinde 1\n"
 			+ "langbeinigen 1\n" + "schalk 1\n" + "besser 1\n" + "solang 1\n" + "meer 4\n" + "fragst 1\n"
 			+ "gabriel 1\n" + "selbst 2\n" + "bin 1\n" + "sich 7\n" + "du 11\n" + "sogar 1\n" + "geht 1\n"
