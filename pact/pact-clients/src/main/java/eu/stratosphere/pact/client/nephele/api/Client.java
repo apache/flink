@@ -224,8 +224,8 @@ public class Client {
 	 *                                    on the nephele system failed.
 	 * @throws ErrorInPlanAssemblerException Thrown, if the plan assembler function causes an exception.
 	 */
-	public void run(PlanWithJars prog) throws CompilerException, ProgramInvocationException, ErrorInPlanAssemblerException {
-		run(prog, false);
+	public long run(PlanWithJars prog) throws CompilerException, ProgramInvocationException, ErrorInPlanAssemblerException {
+		return run(prog, false);
 	}
 	
 	/**
@@ -241,8 +241,8 @@ public class Client {
 	 *                                    on the nephele system failed.
 	 * @throws ErrorInPlanAssemblerException Thrown, if the plan assembler function causes an exception.
 	 */
-	public void run(PlanWithJars prog, boolean wait) throws CompilerException, ProgramInvocationException, ErrorInPlanAssemblerException {
-		run(prog, getOptimizedPlan(prog), wait);
+	public long run(PlanWithJars prog, boolean wait) throws CompilerException, ProgramInvocationException, ErrorInPlanAssemblerException {
+		return run(prog, getOptimizedPlan(prog), wait);
 	}
 	
 	/**
@@ -256,8 +256,8 @@ public class Client {
 	 *                                    i.e. the job-manager is unreachable, or due to the fact that the execution
 	 *                                    on the nephele system failed.
 	 */
-	public void run(PlanWithJars prog, OptimizedPlan compiledPlan) throws ProgramInvocationException {
-		run(prog, compiledPlan, false);
+	public long run(PlanWithJars prog, OptimizedPlan compiledPlan) throws ProgramInvocationException {
+		return run(prog, compiledPlan, false);
 	}
 	
 	/**
@@ -272,9 +272,9 @@ public class Client {
 	 *                                    i.e. the job-manager is unreachable, or due to the fact that the execution
 	 *                                    on the nephele system failed.
 	 */
-	public void run(PlanWithJars prog, OptimizedPlan compiledPlan, boolean wait) throws ProgramInvocationException {
+	public long run(PlanWithJars prog, OptimizedPlan compiledPlan, boolean wait) throws ProgramInvocationException {
 		JobGraph job = getJobGraph(prog, compiledPlan);
-		run(prog, job, wait);
+		return run(prog, job, wait);
 	}
 
 	/**
@@ -285,8 +285,8 @@ public class Client {
 	 *                                    i.e. the job-manager is unreachable, or due to the fact that the execution
 	 *                                    on the nephele system failed.
 	 */
-	public void run(PlanWithJars program, JobGraph jobGraph) throws ProgramInvocationException {
-		run(program, jobGraph, false);
+	public long run(PlanWithJars program, JobGraph jobGraph) throws ProgramInvocationException {
+		return run(program, jobGraph, false);
 	}
 	/**
 	 * Submits the job-graph to the nephele job-manager for execution.
@@ -298,7 +298,7 @@ public class Client {
 	 *                                    i.e. the job-manager is unreachable, or due to the fact that the execution
 	 *                                    on the nephele system failed.
 	 */
-	public void run(PlanWithJars program, JobGraph jobGraph, boolean wait) throws ProgramInvocationException
+	public long run(PlanWithJars program, JobGraph jobGraph, boolean wait) throws ProgramInvocationException
 	{
 		JobClient client;
 		try {
@@ -310,7 +310,7 @@ public class Client {
 
 		try {
 			if (wait) {
-				client.submitJobAndWait();
+				return client.submitJobAndWait();
 			}
 			else {
 				JobSubmissionResult result = client.submitJob();
@@ -331,5 +331,6 @@ public class Client {
 				throw new ProgramInvocationException("The program execution failed: " + jex.getMessage());
 			}
 		}
+		return -1;
 	}
 }
