@@ -25,6 +25,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Random;
@@ -40,7 +41,6 @@ import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.plan.DataSinkNode;
-import eu.stratosphere.pact.contextcheck.ContextChecker;
 
 /**
  * This class encapsulates most of the plan related functions. Based on the given jar file,
@@ -65,7 +65,7 @@ public class PactProgram {
 
 	private final String[] args;
 	
-	private File[] extractedTempLibraries;
+	private List<File> extractedTempLibraries;
 	
 	private Plan plan;
 
@@ -111,6 +111,21 @@ public class PactProgram {
 		this.args = args == null ? new String[0] : args;
 		this.assemblerClass = getPactAssemblerFromJar(jarFile, className);
 	}
+	
+	/**
+	 * Returns the plan with all required jars.
+	 * @throws IOException 
+	 * @throws ErrorInPlanAssemblerException 
+	 * @throws ProgramInvocationException 
+	 */
+	public PlanWithJars getPlanWithJars() throws ProgramInvocationException, ErrorInPlanAssemblerException, IOException {
+		List<String> result = new ArrayList<String>();
+		for (File jar: extractContainedLibaries(jarFile)) {
+			result.add(jar.getAbsolutePath());
+		}
+		result.add(jarFile.getAbsolutePath());
+		return new PlanWithJars(getPlan(), result);
+	}
 
 	/**
 	 * Returns the plan as generated from the Pact Assembler.
@@ -124,27 +139,11 @@ public class PactProgram {
 	 *         Thrown if an error occurred in the user-provided pact assembler. This may indicate
 	 *         missing parameters for generation.
 	 */
-	public Plan getPlan() throws ProgramInvocationException, ErrorInPlanAssemblerException {
+	private Plan getPlan() throws ProgramInvocationException, ErrorInPlanAssemblerException {
 		if (this.plan == null) {
-			this.plan = createPlanFromJar(this.assemblerClass, this.args);
 		}
+		this.plan = createPlanFromJar(this.assemblerClass, this.args);
 		return this.plan;
-	}
-
-	/**
-	 * Semantic check of generated plan
-	 * 
-	 * @throws ProgramInvocationException
-	 *         This invocation is thrown if the PlanAssembler can't be properly loaded. Causes
-	 *         may be a missing / wrong class or manifest files.
-	 * @throws ErrorInPlanAssemblerException
-	 *         Thrown if an error occurred in the user-provided pact assembler. This may indicate
-	 *         missing parameters for generation.
-	 */
-	public void checkPlan() throws ProgramInvocationException, ErrorInPlanAssemblerException {
-		// semantic context check of the generated plan
-		ContextChecker checker = new ContextChecker();
-		checker.check(getPlan());
 	}
 
 	/**
@@ -166,16 +165,6 @@ public class PactProgram {
 		} else {
 			return null;
 		}
-	}
-
-	/**
-	 * Returns the File object of the jar file that is used as base for the
-	 * pact program.
-	 * 
-	 * @return The jar-file of the PactProgram.
-	 */
-	public File getJarFile() {
-		return this.jarFile;
 	}
 
 	/**
@@ -233,7 +222,7 @@ public class PactProgram {
 	 * @return The file names of the extracted temporary files.
 	 * @throws IOException Thrown, if the extraction process failed.
 	 */
-	public File[] extractContainedLibaries() throws IOException {
+	public List<File> extractContainedLibaries(File jarFile) throws IOException {
 		if (this.extractedTempLibraries != null) {
 			return this.extractedTempLibraries;
 			
@@ -257,20 +246,20 @@ public class PactProgram {
 			}
 			
 			if (containedJarFileEntries.isEmpty()) {
-				this.extractedTempLibraries = new File[0];
+				this.extractedTempLibraries = Collections.emptyList();
 				return this.extractedTempLibraries;
 			}
 			
 			// go over all contained jar files
-			this.extractedTempLibraries = new File[containedJarFileEntries.size()];
-			for (int i = 0; i < this.extractedTempLibraries.length; i++)
+			this.extractedTempLibraries = new ArrayList<File>(containedJarFileEntries.size());
+			for (int i = 0; i < this.extractedTempLibraries.size(); i++)
 			{
 				final JarEntry entry = containedJarFileEntries.get(i);
 				String name = entry.getName();
 				name = name.replace(File.separatorChar, '_');
 				
 				File tempFile = File.createTempFile(String.valueOf(Math.abs(rnd.nextInt()) + "_"), name);
-				this.extractedTempLibraries[i] = tempFile;
+				this.extractedTempLibraries.set(i, tempFile);
 			
 				// copy the temp file contents to a temporary File
 				OutputStream out = null;
@@ -309,9 +298,9 @@ public class PactProgram {
 	 */
 	public void deleteExtractedLibraries() {
 		if (this.extractedTempLibraries != null) {
-			for (int i = 0; i < this.extractedTempLibraries.length; i++) {
-				this.extractedTempLibraries[i].delete();
-				this.extractedTempLibraries[i] = null;
+			for (int i = 0; i < this.extractedTempLibraries.size(); i++) {
+				this.extractedTempLibraries.get(i).delete();
+				this.extractedTempLibraries.set(i, null);
 			}
 			this.extractedTempLibraries = null;
 		}
@@ -381,10 +370,9 @@ public class PactProgram {
 		Manifest manifest = null;
 		String className = null;
 
-		checkJarFile(jarFile);
-
 		// Open jar file
 		try {
+			PlanWithJars.checkJarFile(jarFile);
 			jar = new JarFile(jarFile);
 		} catch (IOException ioex) {
 			throw new ProgramInvocationException("Error while opening jar file '" + jarFile.getPath() + "'. "
@@ -424,17 +412,17 @@ public class PactProgram {
 	{
 		Class<? extends PlanAssembler> clazz = null;
 
-		checkJarFile(jarFile);
 
 		try {
-			File[] nestedJars = extractContainedLibaries();
+			PlanWithJars.checkJarFile(jarFile);
+			List<File> nestedJars = extractContainedLibaries(jarFile);
 			
-			URL[] urls = new URL[1 + nestedJars.length];
+			URL[] urls = new URL[1 + nestedJars.size()];
 			urls[0] = jarFile.getAbsoluteFile().toURI().toURL();
 			
 			// add the nested jars
-			for (int i = 0; i < nestedJars.length; i++) {
-				urls[i+1] = nestedJars[i].getAbsoluteFile().toURI().toURL();
+			for (int i = 0; i < nestedJars.size(); i++) {
+				urls[i+1] = nestedJars.get(i).getAbsoluteFile().toURI().toURL();
 			}
 			
 			ClassLoader loader = new URLClassLoader(urls, this.getClass().getClassLoader());
@@ -464,13 +452,4 @@ public class PactProgram {
 		return clazz;
 	}
 
-	private void checkJarFile(File jar) throws ProgramInvocationException {
-		if (!jar.exists()) {
-			throw new ProgramInvocationException("JAR file does not exist '" + jarFile.getPath() + "'");
-		}
-		if (!jar.canRead()) {
-			throw new ProgramInvocationException("JAR file can't be read '" + jarFile.getPath() + "'");
-		}
-		// TODO: Check if proper JAR file
-	}
 }

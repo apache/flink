@@ -164,7 +164,7 @@ public class JobSubmissionServlet extends HttpServlet {
 					pactProgram = new PactProgram(jarFile, assemblerClass, options);
 				}
 				
-				optPlan = client.getOptimizedPlan(pactProgram);
+				optPlan = client.getOptimizedPlan(pactProgram.getPlanWithJars());
 			}
 			catch (ProgramInvocationException pie) {
 				showErrorPage(resp, "An error occurred while invoking the pact program: <br/>" + pie.getMessage());
@@ -222,16 +222,18 @@ public class JobSubmissionServlet extends HttpServlet {
 				// submit the job only, if it should not be suspended
 				if (!suspend) {
 					try {
-						this.client.run(pactProgram, optPlan);
+						this.client.run(pactProgram.getPlanWithJars(), optPlan);
 					} catch (Throwable t) {
 						LOG.error("Error submitting job to the job-manager.", t);
 						showErrorPage(resp, t.getMessage());
 						return;
+					} finally {
+						pactProgram.deleteExtractedLibraries();
 					}
 				} else {
 					try {
 						this.submittedJobs.put(uid, 
-							new ProgramJobGraphPair(pactProgram, this.client.getJobGraph(pactProgram, optPlan)));
+							new ProgramJobGraphPair(pactProgram, this.client.getJobGraph(pactProgram.getPlanWithJars(), optPlan)));
 					}
 					catch (ProgramInvocationException piex) {
 						LOG.error("Error creating JobGraph from optimized plan.", piex);
@@ -251,13 +253,15 @@ public class JobSubmissionServlet extends HttpServlet {
 				// don't show any plan. directly submit the job and redirect to the
 				// nephele runtime monitor
 				try {
-					client.run(pactProgram);
+					client.run(pactProgram.getPlanWithJars());
 				} catch (Exception ex) {
 					LOG.error("Error submitting job to the job-manager.", ex);
 					// HACK: Is necessary because Message contains whole stack trace
 					String errorMessage = ex.getMessage().split("\n")[0];
 					showErrorPage(resp, errorMessage);
 					return;
+				} finally {
+					pactProgram.deleteExtractedLibraries();
 				}
 				resp.sendRedirect(START_PAGE_URL);
 			}
@@ -288,7 +292,7 @@ public class JobSubmissionServlet extends HttpServlet {
 
 			// submit the job
 			try {
-				client.run(job.getProgram(), job.getJobGraph());
+				client.run(job.getProgram().getPlanWithJars(), job.getJobGraph());
 			} catch (Exception ex) {
 				LOG.error("Error submitting job to the job-manager.", ex);
 				resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
@@ -297,6 +301,8 @@ public class JobSubmissionServlet extends HttpServlet {
 				resp.getWriter().print(errorMessage);
 				// resp.sendError(HttpServletResponse.SC_BAD_REQUEST, ex.getMessage());
 				return;
+			} finally {
+				job.getProgram().deleteExtractedLibraries();
 			}
 
 			// redirect to the start page

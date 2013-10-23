@@ -20,16 +20,18 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.net.InetSocketAddress;
+import java.util.List;
 
+import eu.stratosphere.nephele.client.AbstractJobResult.ReturnCode;
 import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.client.JobExecutionException;
 import eu.stratosphere.nephele.client.JobSubmissionResult;
-import eu.stratosphere.nephele.client.AbstractJobResult.ReturnCode;
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
+import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.PactCompiler;
@@ -37,6 +39,7 @@ import eu.stratosphere.pact.compiler.costs.DefaultCostEstimator;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plandump.PlanJSONDumpGenerator;
 import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
+import eu.stratosphere.pact.contextcheck.ContextChecker;
 
 /**
  * Encapsulates the functionality necessary to compile and submit a pact program to a nephele cluster.
@@ -103,9 +106,11 @@ public class Client {
 	 * @throws ProgramInvocationException Thrown, if the pact program could not be instantiated from its jar file.
 	 * @throws ErrorInPlanAssemblerException Thrown, if the plan assembler function causes an exception.
 	 */
-	public OptimizedPlan getOptimizedPlan(PactProgram prog) throws CompilerException, ProgramInvocationException, ErrorInPlanAssemblerException {
-		prog.checkPlan();
-		return this.compiler.compile(prog.getPlan());
+	public OptimizedPlan getOptimizedPlan(PlanWithJars prog) throws CompilerException, ProgramInvocationException, ErrorInPlanAssemblerException {
+		Plan plan = prog.getPlan();
+		ContextChecker checker = new ContextChecker();
+		checker.check(plan);
+		return this.compiler.compile(plan);
 	}
 	
 	/**
@@ -152,7 +157,7 @@ public class Client {
 	 * @throws ProgramInvocationException Thrown, if the pact program could not be instantiated from its jar file.
 	 * @throws ErrorInPlanAssemblerException Thrown, if the plan assembler function causes an exception.
 	 */
-	public String getOptimizerPlanAsJSON(PactProgram prog) throws CompilerException, ProgramInvocationException, ErrorInPlanAssemblerException {
+	public String getOptimizerPlanAsJSON(PlanWithJars prog) throws CompilerException, ProgramInvocationException, ErrorInPlanAssemblerException {
 		StringWriter string = new StringWriter(1024);
 		PrintWriter pw = null;
 		try {
@@ -173,7 +178,7 @@ public class Client {
 	 * @throws ProgramInvocationException Thrown, if the pact program could not be instantiated from its jar file.
 	 * @throws ErrorInPlanAssemblerException Thrown, if the plan assembler function causes an exception.
 	 */
-	public void dumpOptimizerPlanAsJSON(PactProgram prog, PrintWriter out) throws CompilerException, ProgramInvocationException, ErrorInPlanAssemblerException {
+	public void dumpOptimizerPlanAsJSON(PlanWithJars prog, PrintWriter out) throws CompilerException, ProgramInvocationException, ErrorInPlanAssemblerException {
 		PlanJSONDumpGenerator jsonGen = new PlanJSONDumpGenerator();
 		jsonGen.dumpOptimizerPlanAsJSON(getOptimizedPlan(prog), out);
 	}
@@ -187,17 +192,16 @@ public class Client {
 	 * @param optPlan The optimized plan.
 	 * @return The nephele job graph, generated from the optimized plan.
 	 */
-	public JobGraph getJobGraph(PactProgram prog, OptimizedPlan optPlan) throws ProgramInvocationException {
+	public JobGraph getJobGraph(PlanWithJars prog, OptimizedPlan optPlan) throws ProgramInvocationException {
 		NepheleJobGraphGenerator gen = new NepheleJobGraphGenerator();
 		JobGraph job = gen.compileJobGraph(optPlan);
-		job.addJar(new Path(prog.getJarFile().getAbsolutePath()));
+		
 		
 		try {
-			File[] containedJars = prog.extractContainedLibaries();
-			if (containedJars != null) {
-				for (int i = 0; i < containedJars.length; i++) {
-					job.addJar(new Path(containedJars[i].getAbsolutePath()));
-				}
+			List<File> jarFiles = prog.getJarFiles();
+
+			for (File jar : jarFiles) {
+				job.addJar(new Path(jar.getAbsolutePath()));
 			}
 		}
 		catch (IOException ioex) {
@@ -220,8 +224,8 @@ public class Client {
 	 *                                    on the nephele system failed.
 	 * @throws ErrorInPlanAssemblerException Thrown, if the plan assembler function causes an exception.
 	 */
-	public void run(PactProgram prog) throws CompilerException, ProgramInvocationException, ErrorInPlanAssemblerException {
-		run(prog, false);
+	public long run(PlanWithJars prog) throws CompilerException, ProgramInvocationException, ErrorInPlanAssemblerException {
+		return run(prog, false);
 	}
 	
 	/**
@@ -237,8 +241,8 @@ public class Client {
 	 *                                    on the nephele system failed.
 	 * @throws ErrorInPlanAssemblerException Thrown, if the plan assembler function causes an exception.
 	 */
-	public void run(PactProgram prog, boolean wait) throws CompilerException, ProgramInvocationException, ErrorInPlanAssemblerException {
-		run(prog, getOptimizedPlan(prog), wait);
+	public long run(PlanWithJars prog, boolean wait) throws CompilerException, ProgramInvocationException, ErrorInPlanAssemblerException {
+		return run(prog, getOptimizedPlan(prog), wait);
 	}
 	
 	/**
@@ -252,8 +256,8 @@ public class Client {
 	 *                                    i.e. the job-manager is unreachable, or due to the fact that the execution
 	 *                                    on the nephele system failed.
 	 */
-	public void run(PactProgram prog, OptimizedPlan compiledPlan) throws ProgramInvocationException {
-		run(prog, compiledPlan, false);
+	public long run(PlanWithJars prog, OptimizedPlan compiledPlan) throws ProgramInvocationException {
+		return run(prog, compiledPlan, false);
 	}
 	
 	/**
@@ -268,9 +272,9 @@ public class Client {
 	 *                                    i.e. the job-manager is unreachable, or due to the fact that the execution
 	 *                                    on the nephele system failed.
 	 */
-	public void run(PactProgram prog, OptimizedPlan compiledPlan, boolean wait) throws ProgramInvocationException {
+	public long run(PlanWithJars prog, OptimizedPlan compiledPlan, boolean wait) throws ProgramInvocationException {
 		JobGraph job = getJobGraph(prog, compiledPlan);
-		run(prog, job, wait);
+		return run(prog, job, wait);
 	}
 
 	/**
@@ -281,8 +285,8 @@ public class Client {
 	 *                                    i.e. the job-manager is unreachable, or due to the fact that the execution
 	 *                                    on the nephele system failed.
 	 */
-	public void run(PactProgram program, JobGraph jobGraph) throws ProgramInvocationException {
-		run(program, jobGraph, false);
+	public long run(PlanWithJars program, JobGraph jobGraph) throws ProgramInvocationException {
+		return run(program, jobGraph, false);
 	}
 	/**
 	 * Submits the job-graph to the nephele job-manager for execution.
@@ -294,7 +298,7 @@ public class Client {
 	 *                                    i.e. the job-manager is unreachable, or due to the fact that the execution
 	 *                                    on the nephele system failed.
 	 */
-	public void run(PactProgram program, JobGraph jobGraph, boolean wait) throws ProgramInvocationException
+	public long run(PlanWithJars program, JobGraph jobGraph, boolean wait) throws ProgramInvocationException
 	{
 		JobClient client;
 		try {
@@ -306,7 +310,7 @@ public class Client {
 
 		try {
 			if (wait) {
-				client.submitJobAndWait();
+				return client.submitJobAndWait();
 			}
 			else {
 				JobSubmissionResult result = client.submitJob();
@@ -327,8 +331,6 @@ public class Client {
 				throw new ProgramInvocationException("The program execution failed: " + jex.getMessage());
 			}
 		}
-		finally {
-			program.deleteExtractedLibraries();
-		}
+		return -1;
 	}
 }
