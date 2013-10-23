@@ -35,7 +35,7 @@ import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
  * When the class is instantiated a local nephele instance is started, this can
  * be stopped by calling stopNephele.
  */
-public class LocalExecutor {
+public class LocalExecutor implements PlanExecutor {
 
 	private final Object lock = new Object();	// we lock to ensure singleton execution
 	
@@ -60,16 +60,10 @@ public class LocalExecutor {
 		}
 	}
 
-	/**
-	 * Execute the given plan on the local Nephele instance, wait for the job to
-	 * finish and return the runtime in milliseconds.
-	 * 
-	 * @param plan The plan of the program to execute.
-	 * @return The net runtime of the program, in milliseconds.
-	 * 
-	 * @throws Exception Thrown, if either the startup of the local execution context, or the execution
-	 *                   caused an exception.
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.client.PlanExecutor#executePlan(eu.stratosphere.pact.common.plan.Plan)
 	 */
+	@Override
 	public long executePlan(Plan plan) throws Exception {
 		synchronized (this.lock) {
 			if (this.nephele == null) {

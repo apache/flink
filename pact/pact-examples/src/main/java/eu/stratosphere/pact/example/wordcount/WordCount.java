@@ -18,7 +18,8 @@ package eu.stratosphere.pact.example.wordcount;
 import java.io.Serializable;
 import java.util.Iterator;
 
-import eu.stratosphere.pact.client.LocalExecutor;
+import eu.stratosphere.pact.client.PlanExecutor;
+import eu.stratosphere.pact.client.RemoteExecutor;
 import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
@@ -159,8 +160,11 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription {
 	
 	public static void main(String[] args) throws Exception {
 		WordCount wc = new WordCount();
-		Plan plan = wc.getPlan("1", "file:///path/to/input", "file:///path/to/output");
-		LocalExecutor.execute(plan);
-		System.exit(0);
+		Plan plan = wc.getPlan(args[0], args[1], args[2]);
+		// This will create an executor to run the plan on a cluster. We assume
+		// that the JobManager is running on the local machine on the default
+		// port. Change this according to your configuration.
+		PlanExecutor ex = new RemoteExecutor("localhost", 6123, "target/pact-examples-0.4-SNAPSHOT-WordCount.jar");
+		ex.executePlan(plan);
 	}
 }
