@@ -715,8 +715,9 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			Channel inConn = node.getInput();
 			PlanNode pred = inConn.getSource();
 			chaining = ds.getPushChainDriverClass() != null &&
-					!(pred instanceof NAryUnionPlanNode) &&	// union requires a union gate
+					!(pred instanceof NAryUnionPlanNode) &&	// first op after union is stand-alone, because union is merged
 					!(pred instanceof BulkPartialSolutionPlanNode) &&	// partial solution merges anyways
+					!(pred instanceof IterationPlanNode) && // cannot chain with iteration heads currently
 					inConn.getShipStrategy() == ShipStrategyType.FORWARD &&
 					inConn.getLocalStrategy() == LocalStrategy.NONE &&
 					pred.getOutgoingChannels().size() == 1 &&
