@@ -229,7 +229,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 	@Override
 	public boolean preVisit(PlanNode node) {
 		// check if we have visited this node before. in non-tree graphs, this happens
-		if (this.vertices.containsKey(node) || this.chainedTasks.containsKey(node)) {
+		if (this.vertices.containsKey(node) || this.chainedTasks.containsKey(node) || this.iterations.containsKey(node)) {
 			// return false to prevent further descend
 			return false;
 		}
