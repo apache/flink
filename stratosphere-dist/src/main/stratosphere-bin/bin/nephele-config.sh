@@ -58,6 +58,10 @@ readFromConfig() {
 # -or- the respective environment variables are not set.
 ########################################################################################################################
 
+
+# WARNING !!! , these values are only used if there is nothing spcified in
+# conf/stratosphere-conf.yaml
+
 DEFAULT_JOBM_HEAP_MB=256                            # Java heap size for the JobManager (in MB)
 DEFAULT_TASKM_HEAP_MB=512                           # Java heap size for the TaskManager (in MB)
 DEFAULT_ENV_PID_DIR="/tmp"                          # Directory to store *.pid files to
