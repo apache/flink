@@ -44,6 +44,7 @@ import eu.stratosphere.pact.compiler.util.DummyMatchStub;
 import eu.stratosphere.pact.compiler.util.DummyOutputFormat;
 import eu.stratosphere.pact.compiler.util.IdentityMap;
 import eu.stratosphere.pact.compiler.util.IdentityReduce;
+import eu.stratosphere.pact.generic.contract.BulkIteration;
 
 /**
  */
@@ -627,6 +628,39 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 		}
 		catch (Exception ex) {
 			// as expected
+		}
+	}
+	
+	@Test
+	public void testBranchAfterIteration() {
+		FileDataSource sourceA = new FileDataSource(DummyInputFormat.class, IN_FILE, "Source 2");
+		
+		BulkIteration iteration = new BulkIteration("Loop");
+		iteration.setInput(sourceA);
+		iteration.setMaximumNumberOfIterations(10);
+		
+		MapContract mapper = MapContract.builder(IdentityMap.class).name("Mapper").input(iteration.getPartialSolution()).build();
+		iteration.setNextPartialSolution(mapper);
+		
+		FileDataSink sink1 = new FileDataSink(DummyOutputFormat.class, OUT_FILE, iteration, "Sink 1");
+		
+		MapContract postMap = MapContract.builder(IdentityMap.class).name("Post Iteration Mapper")
+				.input(iteration).build();
+		
+		FileDataSink sink2 = new FileDataSink(DummyOutputFormat.class, OUT_FILE, postMap, "Sink 2");
+		
+		List<GenericDataSink> sinks = new ArrayList<GenericDataSink>();
+		sinks.add(sink1);
+		sinks.add(sink2);
+		
+		Plan plan = new Plan(sinks);
+		
+		try {
+			compileNoStats(plan);
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			Assert.fail(e.getMessage());
 		}
 	}
 }
