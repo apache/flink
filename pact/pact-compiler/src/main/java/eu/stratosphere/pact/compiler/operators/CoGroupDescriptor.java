@@ -18,6 +18,8 @@ package eu.stratosphere.pact.compiler.operators;
 import java.util.Collections;
 import java.util.List;
 
+import eu.stratosphere.pact.common.contract.Order;
+import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
@@ -36,21 +38,57 @@ import eu.stratosphere.pact.runtime.task.DriverStrategy;
  */
 public class CoGroupDescriptor extends OperatorDescriptorDual {
 	
+	private final Ordering ordering1;		// ordering on the first input 
+	private final Ordering ordering2;		// ordering on the second input 
+	
+	
 	public CoGroupDescriptor(FieldList keys1, FieldList keys2) {
-		super(keys1, keys2);
+		this(keys1, keys2, null, null);
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.dataproperties.DriverProperties#getStrategy()
-	 */
+	public CoGroupDescriptor(FieldList keys1, FieldList keys2, Ordering additionalOrdering1, Ordering additionalOrdering2) {
+		super(keys1, keys2);
+		
+		// if we have an additional ordering, construct the ordering to have primarily the grouping fields
+		if (additionalOrdering1 != null) {
+			this.ordering1 = new Ordering();
+			for (Integer key : this.keys1) {
+				this.ordering1.appendOrdering(key, null, Order.ANY);
+			}
+		
+			// and next the additional order fields
+			for (int i = 0; i < additionalOrdering1.getNumberOfFields(); i++) {
+				Integer field = additionalOrdering1.getFieldNumber(i);
+				Order order = additionalOrdering1.getOrder(i);
+				this.ordering1.appendOrdering(field, additionalOrdering1.getType(i), order);
+			}
+		} else {
+			this.ordering1 = Utils.createOrdering(this.keys1);
+		}
+		
+		// if we have an additional ordering, construct the ordering to have primarily the grouping fields
+		if (additionalOrdering2 != null) {
+			this.ordering2 = new Ordering();
+			for (Integer key : this.keys2) {
+				this.ordering2.appendOrdering(key, null, Order.ANY);
+			}
+		
+			// and next the additional order fields
+			for (int i = 0; i < additionalOrdering2.getNumberOfFields(); i++) {
+				Integer field = additionalOrdering2.getFieldNumber(i);
+				Order order = additionalOrdering2.getOrder(i);
+				this.ordering2.appendOrdering(field, additionalOrdering2.getType(i), order);
+			}
+		} else {
+			this.ordering2 = Utils.createOrdering(this.keys2);
+		}
+	}
+	
 	@Override
 	public DriverStrategy getStrategy() {
 		return DriverStrategy.CO_GROUP;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.dataproperties.DriverPropertiesDual#createPossibleGlobalProperties()
-	 */
 	@Override
 	protected List<GlobalPropertiesPair> createPossibleGlobalProperties() {
 		RequestedGlobalProperties partitioned1 = new RequestedGlobalProperties();
@@ -60,19 +98,36 @@ public class CoGroupDescriptor extends OperatorDescriptorDual {
 		return Collections.singletonList(new GlobalPropertiesPair(partitioned1, partitioned2));
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.dataproperties.DriverPropertiesDual#createPossibleLocalProperties()
-	 */
 	@Override
 	protected List<LocalPropertiesPair> createPossibleLocalProperties() {
-		RequestedLocalProperties sort1 = new RequestedLocalProperties(Utils.createOrdering(this.keys1));
-		RequestedLocalProperties sort2 = new RequestedLocalProperties(Utils.createOrdering(this.keys2));
+		RequestedLocalProperties sort1 = new RequestedLocalProperties(this.ordering1);
+		RequestedLocalProperties sort2 = new RequestedLocalProperties(this.ordering2);
 		return Collections.singletonList(new LocalPropertiesPair(sort1, sort2));
 	}
+	
+	@Override
+	public boolean areCoFulfilled(RequestedLocalProperties requested1, RequestedLocalProperties requested2,
+			LocalProperties produced1, LocalProperties produced2)
+	{
+		int numRelevantFields = this.keys1.size();
+		
+		Ordering prod1 = produced1.getOrdering();
+		Ordering prod2 = produced2.getOrdering();
+		
+		if (prod1 == null || prod2 == null || prod1.getNumberOfFields() < numRelevantFields ||
+				prod2.getNumberOfFields() < prod2.getNumberOfFields())
+		{
+			throw new CompilerException("The given properties do not meet this operators requirements.");
+		}
+			
+		for (int i = 0; i < numRelevantFields; i++) {
+			if (prod1.getOrder(i) != prod2.getOrder(i)) {
+				return false;
+			}
+		}
+		return true;
+	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.dataproperties.DriverPropertiesDual#instantiate(eu.stratosphere.pact.compiler.plan.candidate.Channel, eu.stratosphere.pact.compiler.plan.candidate.Channel, eu.stratosphere.pact.compiler.plan.TwoInputNode)
-	 */
 	@Override
 	public DualInputPlanNode instantiate(Channel in1, Channel in2, TwoInputNode node) {
 		boolean[] inputOrders = in1.getLocalProperties().getOrdering().getFieldSortDirections();
@@ -88,9 +143,6 @@ public class CoGroupDescriptor extends OperatorDescriptorDual {
 		return new DualInputPlanNode(node, in1, in2, DriverStrategy.CO_GROUP, this.keys1, this.keys2, inputOrders);
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.operators.OperatorDescriptorDual#computeGlobalProperties(eu.stratosphere.pact.compiler.dataproperties.GlobalProperties, eu.stratosphere.pact.compiler.dataproperties.GlobalProperties)
-	 */
 	@Override
 	public GlobalProperties computeGlobalProperties(GlobalProperties in1, GlobalProperties in2) {
 		GlobalProperties gp = GlobalProperties.combine(in1, in2);
@@ -103,9 +155,6 @@ public class CoGroupDescriptor extends OperatorDescriptorDual {
 		return gp;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.operators.OperatorDescriptorDual#computeLocalProperties(eu.stratosphere.pact.compiler.dataproperties.LocalProperties, eu.stratosphere.pact.compiler.dataproperties.LocalProperties)
-	 */
 	@Override
 	public LocalProperties computeLocalProperties(LocalProperties in1, LocalProperties in2) {
 		LocalProperties comb = LocalProperties.combine(in1, in2);

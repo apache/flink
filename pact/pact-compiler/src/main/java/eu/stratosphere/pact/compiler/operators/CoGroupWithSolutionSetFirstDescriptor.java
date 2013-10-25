@@ -38,6 +38,13 @@ public class CoGroupWithSolutionSetFirstDescriptor extends CoGroupDescriptor {
 		RequestedLocalProperties sort = new RequestedLocalProperties(Utils.createOrdering(this.keys2));
 		return Collections.singletonList(new LocalPropertiesPair(none, sort));
 	}
+	
+	@Override
+	public boolean areCoFulfilled(RequestedLocalProperties requested1, RequestedLocalProperties requested2,
+			LocalProperties produced1, LocalProperties produced2)
+	{
+		return true;
+	}
 
 	@Override
 	public LocalProperties computeLocalProperties(LocalProperties in1, LocalProperties in2) {

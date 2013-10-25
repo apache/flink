@@ -21,6 +21,7 @@ import java.util.List;
 import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.PartitioningProperty;
+import eu.stratosphere.pact.compiler.dataproperties.RequestedLocalProperties;
 import eu.stratosphere.pact.compiler.plan.BinaryUnionNode;
 import eu.stratosphere.pact.compiler.plan.TwoInputNode;
 import eu.stratosphere.pact.compiler.plan.candidate.BinaryUnionPlanNode;
@@ -75,5 +76,11 @@ public class BinaryUnionOpDescriptor extends OperatorDescriptorDual {
 	public LocalProperties computeLocalProperties(LocalProperties in1, LocalProperties in2) {
 		// all local properties are destroyed
 		return new LocalProperties();
+	}
+
+	@Override
+	public boolean areCoFulfilled(RequestedLocalProperties requested1, RequestedLocalProperties requested2,
+			LocalProperties produced1, LocalProperties produced2) {
+		return true;
 	}
 }

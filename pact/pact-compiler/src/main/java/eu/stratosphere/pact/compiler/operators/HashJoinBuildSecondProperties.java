@@ -26,40 +26,36 @@ import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.DualInputPlanNode;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
-public final class HashJoinBuildSecondProperties extends AbstractJoinDescriptor
-{
+public final class HashJoinBuildSecondProperties extends AbstractJoinDescriptor {
+	
 	public HashJoinBuildSecondProperties(FieldList keys1, FieldList keys2) {
 		super(keys1, keys2);
 	}
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.dataproperties.DriverProperties#getStrategy()
-	 */
+
 	@Override
 	public DriverStrategy getStrategy() {
 		return DriverStrategy.HYBRIDHASH_BUILD_SECOND;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.dataproperties.DriverPropertiesDual#createPossibleLocalProperties()
-	 */
 	@Override
 	protected List<LocalPropertiesPair> createPossibleLocalProperties() {
 		// all properties are possible
 		return Collections.singletonList(new LocalPropertiesPair(
 			new RequestedLocalProperties(), new RequestedLocalProperties()));
 	}
+	
+	@Override
+	public boolean areCoFulfilled(RequestedLocalProperties requested1, RequestedLocalProperties requested2,
+			LocalProperties produced1, LocalProperties produced2)
+	{
+		return true;
+	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.dataproperties.DriverPropertiesDual#instantiate(eu.stratosphere.pact.compiler.plan.candidate.Channel, eu.stratosphere.pact.compiler.plan.candidate.Channel, eu.stratosphere.pact.compiler.plan.TwoInputNode)
-	 */
 	@Override
 	public DualInputPlanNode instantiate(Channel in1, Channel in2, TwoInputNode node) {
 		return new DualInputPlanNode(node, in1, in2, DriverStrategy.HYBRIDHASH_BUILD_SECOND, this.keys1, this.keys2);
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.operators.OperatorDescriptorDual#computeLocalProperties(eu.stratosphere.pact.compiler.dataproperties.LocalProperties, eu.stratosphere.pact.compiler.dataproperties.LocalProperties)
-	 */
 	@Override
 	public LocalProperties computeLocalProperties(LocalProperties in1, LocalProperties in2) {
 		return new LocalProperties();

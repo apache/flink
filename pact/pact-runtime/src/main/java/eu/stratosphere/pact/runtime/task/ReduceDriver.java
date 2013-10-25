@@ -36,11 +36,9 @@ import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
  * key. The iterator is handed to the <code>reduce()</code> method of the ReduceStub.
  * 
  * @see ReduceStub
- * @author Fabian Hueske
- * @author Stephan Ewen
  */
-public class ReduceDriver<IT, OT> implements PactDriver<GenericReducer<IT, OT>, OT>
-{
+public class ReduceDriver<IT, OT> implements PactDriver<GenericReducer<IT, OT>, OT> {
+	
 	private static final Log LOG = LogFactory.getLog(ReduceDriver.class);
 
 	private PactTaskContext<GenericReducer<IT, OT>, OT> taskContext;
@@ -55,30 +53,17 @@ public class ReduceDriver<IT, OT> implements PactDriver<GenericReducer<IT, OT>, 
 
 	// ------------------------------------------------------------------------
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.PactDriver#setup(eu.stratosphere.pact.runtime.task.PactTaskContext)
-	 */
 	@Override
 	public void setup(PactTaskContext<GenericReducer<IT, OT>, OT> context) {
 		this.taskContext = context;
 		this.running = true;
 	}
 	
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#getNumberOfInputs()
-	 */
 	@Override
 	public int getNumberOfInputs() {
 		return 1;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#getStubType()
-	 */
 	@Override
 	public Class<GenericReducer<IT, OT>> getStubType() {
 		@SuppressWarnings("unchecked")
@@ -86,11 +71,6 @@ public class ReduceDriver<IT, OT> implements PactDriver<GenericReducer<IT, OT>, 
 		return clazz;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#requiresComparatorOnInput()
-	 */
 	@Override
 	public boolean requiresComparatorOnInput() {
 		return true;
@@ -98,15 +78,9 @@ public class ReduceDriver<IT, OT> implements PactDriver<GenericReducer<IT, OT>, 
 
 	// --------------------------------------------------------------------------------------------
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#prepare()
-	 */
 	@Override
-	public void prepare() throws Exception
-	{
-		final TaskConfig config = this.taskContext.getTaskConfig();
+	public void prepare() throws Exception {
+		TaskConfig config = this.taskContext.getTaskConfig();
 		if (config.getDriverStrategy() != DriverStrategy.SORTED_GROUP) {
 			throw new Exception("Unrecognized driver strategy for Reduce driver: " + config.getDriverStrategy().name());
 		}
@@ -115,14 +89,8 @@ public class ReduceDriver<IT, OT> implements PactDriver<GenericReducer<IT, OT>, 
 		this.input = this.taskContext.getInput(0);
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#run()
-	 */
 	@Override
-	public void run() throws Exception
-	{
+	public void run() throws Exception {
 		if (LOG.isDebugEnabled()) {
 			LOG.debug(this.taskContext.formatLogString("Reducer preprocessing done. Running Reducer code."));
 		}
@@ -139,18 +107,9 @@ public class ReduceDriver<IT, OT> implements PactDriver<GenericReducer<IT, OT>, 
 		}
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#cleanup()
-	 */
 	@Override
-	public void cleanup() throws Exception {
-	}
+	public void cleanup() {}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.PactDriver#cancel()
-	 */
 	@Override
 	public void cancel() {
 		this.running = false;

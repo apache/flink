@@ -53,6 +53,13 @@ public class UtilSinkJoinOpDescriptor extends OperatorDescriptorDual {
 		return Collections.singletonList(new LocalPropertiesPair(
 			new RequestedLocalProperties(), new RequestedLocalProperties()));
 	}
+	
+	@Override
+	public boolean areCoFulfilled(RequestedLocalProperties requested1, RequestedLocalProperties requested2,
+			LocalProperties produced1, LocalProperties produced2)
+	{
+		return true;
+	}
 
 	@Override
 	public DualInputPlanNode instantiate(Channel in1, Channel in2, TwoInputNode node) {

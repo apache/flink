@@ -17,6 +17,8 @@ package eu.stratosphere.pact.compiler.operators;
 import java.util.Collections;
 import java.util.List;
 
+import eu.stratosphere.pact.common.contract.Order;
+import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
@@ -28,32 +30,46 @@ import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
-public final class GroupProperties extends OperatorDescriptorSingle
-{
+public final class GroupProperties extends OperatorDescriptorSingle {
+	
+	private final Ordering ordering;		// ordering that we need to use if an additional ordering is requested 
+
 	
 	public GroupProperties(FieldSet keys) {
-		super(keys);
+		this(keys, null);
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.dataproperties.DriverPropertiesHandler#getStrategy()
-	 */
+	public GroupProperties(FieldSet groupKeys, Ordering additionalOrderKeys) {
+		super(groupKeys);
+		
+		// if we have an additional ordering, construct the ordering to have primarily the grouping fields
+		if (additionalOrderKeys != null) {
+			this.ordering = new Ordering();
+			for (Integer key : this.keyList) {
+				this.ordering.appendOrdering(key, null, Order.ANY);
+			}
+		
+			// and next the additional order fields
+			for (int i = 0; i < additionalOrderKeys.getNumberOfFields(); i++) {
+				Integer field = additionalOrderKeys.getFieldNumber(i);
+				Order order = additionalOrderKeys.getOrder(i);
+				this.ordering.appendOrdering(field, additionalOrderKeys.getType(i), order);
+			}
+		} else {
+			this.ordering = null;
+		}
+	}
+	
 	@Override
 	public DriverStrategy getStrategy() {
 		return DriverStrategy.SORTED_GROUP;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.dataproperties.DriverPropertiesHandlerSingle#instantiate(eu.stratosphere.pact.compiler.plan.candidate.Channel, eu.stratosphere.pact.compiler.plan.SingleInputNode, eu.stratosphere.pact.common.util.FieldList)
-	 */
 	@Override
 	public SingleInputPlanNode instantiate(Channel in, SingleInputNode node) {
 		return new SingleInputPlanNode(node, in, DriverStrategy.SORTED_GROUP, this.keyList);
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.dataproperties.DriverPropertiesSingle#createPossibleGlobalProperties()
-	 */
 	@Override
 	protected List<RequestedGlobalProperties> createPossibleGlobalProperties() {
 		RequestedGlobalProperties props = new RequestedGlobalProperties();
@@ -61,19 +77,17 @@ public final class GroupProperties extends OperatorDescriptorSingle
 		return Collections.singletonList(props);
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.dataproperties.DriverPropertiesSingle#createPossibleLocalProperties()
-	 */
 	@Override
 	protected List<RequestedLocalProperties> createPossibleLocalProperties() {
 		RequestedLocalProperties props = new RequestedLocalProperties();
-		props.setGroupedFields(this.keys);
+		if (this.ordering == null) {
+			props.setGroupedFields(this.keys);
+		} else {
+			props.setOrdering(this.ordering);
+		}
 		return Collections.singletonList(props);
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.operators.OperatorDescriptorSingle#computeGlobalProperties(eu.stratosphere.pact.compiler.dataproperties.GlobalProperties)
-	 */
 	@Override
 	public GlobalProperties computeGlobalProperties(GlobalProperties gProps) {
 		if (gProps.getUniqueFieldCombination() != null && gProps.getUniqueFieldCombination().size() > 0 &&
@@ -85,9 +99,6 @@ public final class GroupProperties extends OperatorDescriptorSingle
 		return gProps;
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.operators.OperatorDescriptorSingle#computeLocalProperties(eu.stratosphere.pact.compiler.dataproperties.LocalProperties)
-	 */
 	@Override
 	public LocalProperties computeLocalProperties(LocalProperties lProps) {
 		lProps.clearUniqueFieldSets();

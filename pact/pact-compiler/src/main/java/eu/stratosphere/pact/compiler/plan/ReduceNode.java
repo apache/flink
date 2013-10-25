@@ -20,6 +20,8 @@ import java.util.List;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.CompilerHints;
+import eu.stratosphere.pact.common.contract.Ordering;
+import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.DataStatistics;
@@ -34,10 +36,7 @@ import eu.stratosphere.pact.generic.contract.GenericReduceContract;
 /**
  * The Optimizer representation of a <i>Reduce</i> contract node.
  */
-public class ReduceNode extends SingleInputNode
-{
-	@SuppressWarnings("unused")
-	private float combinerReducingFactor;
+public class ReduceNode extends SingleInputNode {
 	
 	/**
 	 * Creates a new ReduceNode for the given contract.
@@ -76,18 +75,11 @@ public class ReduceNode extends SingleInputNode
 		return getPactContract().isCombinable();
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getName()
-	 */
 	@Override
 	public String getName() {
 		return "Reduce";
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.SingleInputNode#getPossibleProperties()
-	 */
 	@Override
 	protected List<OperatorDescriptorSingle> getPossibleProperties() {
 		// see if an internal hint dictates the strategy to use
@@ -111,11 +103,20 @@ public class ReduceNode extends SingleInputNode
 			useCombiner = isCombineable();
 		}
 		
+		// check if we can work with a grouping (simple reducer), or if we need ordering because of a group order
+		Ordering groupOrder = null;
+		if (getPactContract() instanceof ReduceContract) {
+			groupOrder = ((ReduceContract) getPactContract()).getGroupOrder();
+			if (groupOrder != null && groupOrder.getNumberOfFields() == 0) {
+				groupOrder = null;
+			}
+		}
+		
 		OperatorDescriptorSingle props = useCombiner ?
-			(this.keys == null ? new AllGroupWithPartialPreGroupProperties() : new GroupWithPartialPreGroupProperties(this.keys)) :
-			(this.keys == null ? new AllGroupProperties() : new GroupProperties(this.keys));
-				
-		return Collections.singletonList(props);
+			(this.keys == null ? new AllGroupWithPartialPreGroupProperties() : new GroupWithPartialPreGroupProperties(this.keys, groupOrder)) :
+			(this.keys == null ? new AllGroupProperties() : new GroupProperties(this.keys, groupOrder));
+
+			return Collections.singletonList(props);
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -148,33 +149,33 @@ public class ReduceNode extends SingleInputNode
 		return 1;
 	}
 
-	private void computeCombinerReducingFactor() {
-		if (!isCombineable())
-			return;
-		
-		long numRecords = 0;
-		
-		if (getPredecessorNode() != null && getPredecessorNode().estimatedNumRecords != -1)
-			numRecords = getPredecessorNode().estimatedNumRecords;
-		else
-			return;
-		
-		long numKeys = computeNumberOfProcessedKeys();
-		if(numKeys == -1)
-			return;
-		
-		int parallelism = getDegreeOfParallelism();
-		if (parallelism < 1)
-			parallelism = 32;
-
-		float inValsPerKey = numRecords / (float)numKeys;
-		float valsPerNode = inValsPerKey / parallelism;
-		// each node will process at least one key 
-		if (valsPerNode < 1)
-			valsPerNode = 1;
-
-		this.combinerReducingFactor = 1 / valsPerNode;
-	}
+//	private void computeCombinerReducingFactor() {
+//		if (!isCombineable())
+//			return;
+//		
+//		long numRecords = 0;
+//		
+//		if (getPredecessorNode() != null && getPredecessorNode().estimatedNumRecords != -1)
+//			numRecords = getPredecessorNode().estimatedNumRecords;
+//		else
+//			return;
+//		
+//		long numKeys = computeNumberOfProcessedKeys();
+//		if(numKeys == -1)
+//			return;
+//		
+//		int parallelism = getDegreeOfParallelism();
+//		if (parallelism < 1)
+//			parallelism = 32;
+//
+//		float inValsPerKey = numRecords / (float)numKeys;
+//		float valsPerNode = inValsPerKey / parallelism;
+//		// each node will process at least one key 
+//		if (valsPerNode < 1)
+//			valsPerNode = 1;
+//
+//		this.combinerReducingFactor = 1 / valsPerNode;
+//	}
 
 	/**
 	 * Computes the number of stub calls.
@@ -187,10 +188,7 @@ public class ReduceNode extends SingleInputNode
 		return this.computeNumberOfProcessedKeys();
 	}
 	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeOutputEstimates(eu.stratosphere.pact.compiler.DataStatistics)
-	 */
+
 	@Override
 	public void computeOutputEstimates(DataStatistics statistics) {
 		CompilerHints hints = getPactContract().getCompilerHints();
@@ -210,6 +208,6 @@ public class ReduceNode extends SingleInputNode
 		}
 		super.computeOutputEstimates(statistics);
 		// check if preceding node is available
-		this.computeCombinerReducingFactor();
+//		this.computeCombinerReducingFactor();
 	}
 }

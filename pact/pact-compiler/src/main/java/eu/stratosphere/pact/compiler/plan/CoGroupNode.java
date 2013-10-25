@@ -18,7 +18,9 @@ package eu.stratosphere.pact.compiler.plan;
 import java.util.ArrayList;
 import java.util.List;
 
+import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.contract.CompilerHints;
+import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.operators.CoGroupDescriptor;
@@ -61,8 +63,24 @@ public class CoGroupNode extends TwoInputNode {
 
 	@Override
 	protected List<OperatorDescriptorDual> getPossibleProperties() {
+		Ordering groupOrder1 = null;
+		Ordering groupOrder2 = null;
+		
+		if (getPactContract() instanceof CoGroupContract) {
+			CoGroupContract cgc = (CoGroupContract) getPactContract();
+			groupOrder1 = cgc.getGroupOrderForInputOne();
+			groupOrder2 = cgc.getGroupOrderForInputTwo();
+			
+			if (groupOrder1 != null && groupOrder1.getNumberOfFields() == 0) {
+				groupOrder1 = null;
+			}
+			if (groupOrder2 != null && groupOrder2.getNumberOfFields() == 0) {
+				groupOrder2 = null;
+			}
+		}
+		
 		List<OperatorDescriptorDual> l = new ArrayList<OperatorDescriptorDual>(1);
-		l.add(new CoGroupDescriptor(this.keys1, this.keys2));
+		l.add(new CoGroupDescriptor(this.keys1, this.keys2, groupOrder1, groupOrder2));
 		return l;
 	}
 	

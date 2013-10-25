@@ -14,9 +14,11 @@
  **********************************************************************************************************************/
 package eu.stratosphere.pact.compiler.postpass;
 
+import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.contract.GenericDataSink;
 import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.contract.RecordContract;
+import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.compiler.CompilerException;
@@ -82,6 +84,14 @@ public class GenericPactRecordPostPass extends GenericRecordPostPass<Class<? ext
 		for (int i = 0; i < localPositions.length; i++) {
 			schema.addType(localPositions[i], types[i]);
 		}
+		
+		// this is a temporary fix, we should solve this more generic
+		if (contract instanceof ReduceContract) {
+			Ordering groupOrder = ((ReduceContract) contract).getGroupOrder();
+			if (groupOrder != null) {
+				addOrderingToSchema(groupOrder, schema);
+			}
+		}
 	}
 	
 	@Override
@@ -108,6 +118,20 @@ public class GenericPactRecordPostPass extends GenericRecordPostPass<Class<? ext
 		}
 		for (int i = 0; i < localPositions2.length; i++) {
 			input2Schema.addType(localPositions2[i], types[i]);
+		}
+		
+		
+		// this is a temporary fix, we should solve this more generic
+		if (contract instanceof CoGroupContract) {
+			Ordering groupOrder1 = ((CoGroupContract) contract).getGroupOrderForInputOne();
+			Ordering groupOrder2 = ((CoGroupContract) contract).getGroupOrderForInputTwo();
+			
+			if (groupOrder1 != null) {
+				addOrderingToSchema(groupOrder1, input1Schema);
+			}
+			if (groupOrder2 != null) {
+				addOrderingToSchema(groupOrder2, input2Schema);
+			}
 		}
 	}
 

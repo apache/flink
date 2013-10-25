@@ -18,6 +18,7 @@ package eu.stratosphere.pact.compiler.operators;
 import java.util.Collections;
 import java.util.List;
 
+import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
@@ -36,17 +37,12 @@ public class SortMergeJoinDescriptor extends AbstractJoinDescriptor
 	public SortMergeJoinDescriptor(FieldList keys1, FieldList keys2) {
 		super(keys1, keys2);
 	}
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.dataproperties.DriverProperties#getStrategy()
-	 */
+
 	@Override
 	public DriverStrategy getStrategy() {
 		return DriverStrategy.MERGE;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.dataproperties.DriverPropertiesDual#createPossibleLocalProperties()
-	 */
 	@Override
 	protected List<LocalPropertiesPair> createPossibleLocalProperties() {
 		RequestedLocalProperties sort1 = new RequestedLocalProperties(Utils.createOrdering(this.keys1));
@@ -54,9 +50,29 @@ public class SortMergeJoinDescriptor extends AbstractJoinDescriptor
 		return Collections.singletonList(new LocalPropertiesPair(sort1, sort2));
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.dataproperties.DriverPropertiesDual#instantiate(eu.stratosphere.pact.compiler.plan.candidate.Channel, eu.stratosphere.pact.compiler.plan.candidate.Channel, eu.stratosphere.pact.compiler.plan.TwoInputNode)
-	 */
+	@Override
+	public boolean areCoFulfilled(RequestedLocalProperties requested1, RequestedLocalProperties requested2,
+			LocalProperties produced1, LocalProperties produced2)
+	{
+		int numRelevantFields = this.keys1.size();
+		
+		Ordering prod1 = produced1.getOrdering();
+		Ordering prod2 = produced2.getOrdering();
+		
+		if (prod1 == null || prod2 == null || prod1.getNumberOfFields() < numRelevantFields ||
+				prod2.getNumberOfFields() < prod2.getNumberOfFields())
+		{
+			throw new CompilerException("The given properties do not meet this operators requirements.");
+		}
+			
+		for (int i = 0; i < numRelevantFields; i++) {
+			if (prod1.getOrder(i) != prod2.getOrder(i)) {
+				return false;
+			}
+		}
+		return true;
+	}
+	
 	@Override
 	public DualInputPlanNode instantiate(Channel in1, Channel in2, TwoInputNode node) {
 		boolean[] inputOrders = in1.getLocalProperties().getOrdering().getFieldSortDirections();
@@ -71,9 +87,7 @@ public class SortMergeJoinDescriptor extends AbstractJoinDescriptor
 		
 		return new DualInputPlanNode(node, in1, in2, DriverStrategy.MERGE, this.keys1, this.keys2, inputOrders);
 	}
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.operators.OperatorDescriptorDual#computeLocalProperties(eu.stratosphere.pact.compiler.dataproperties.LocalProperties, eu.stratosphere.pact.compiler.dataproperties.LocalProperties)
-	 */
+
 	@Override
 	public LocalProperties computeLocalProperties(LocalProperties in1, LocalProperties in2) {
 		LocalProperties comb = LocalProperties.combine(in1, in2);

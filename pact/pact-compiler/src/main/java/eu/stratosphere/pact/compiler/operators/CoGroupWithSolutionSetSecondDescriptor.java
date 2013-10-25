@@ -38,6 +38,13 @@ public class CoGroupWithSolutionSetSecondDescriptor extends CoGroupDescriptor {
 		RequestedLocalProperties none = new RequestedLocalProperties();
 		return Collections.singletonList(new LocalPropertiesPair(sort, none));
 	}
+	
+	@Override
+	public boolean areCoFulfilled(RequestedLocalProperties requested1, RequestedLocalProperties requested2,
+			LocalProperties produced1, LocalProperties produced2)
+	{
+		return true;
+	}
 
 	@Override
 	public LocalProperties computeLocalProperties(LocalProperties in1, LocalProperties in2) {

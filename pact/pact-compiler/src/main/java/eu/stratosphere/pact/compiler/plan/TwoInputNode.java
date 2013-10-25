@@ -528,7 +528,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 							// valid combination
 							// for non trivial local properties, we need to check that they are co compatible
 							// (such as when some sort order is requested, that both are the same sort order
-							if (RequestedLocalProperties.doCoFulfill(lpp.getProperties1(), lpp.getProperties2(), 
+							if (dps.areCoFulfilled(lpp.getProperties1(), lpp.getProperties2(), 
 								in1.getLocalProperties(), in2.getLocalProperties()))
 							{
 								// all right, co compatible

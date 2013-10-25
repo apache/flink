@@ -43,7 +43,7 @@ public class ReduceAllTest extends CompilerTestBase  {
 		ReduceContract reduce1 = ReduceContract.builder(new IdentityReduce()).name("Reduce1").input(source).build();
 		FileDataSink sink = new FileDataSink(new DummyOutputFormat(), OUT_FILE, "Sink");
 		sink.setInput(reduce1);
-		Plan plan = new Plan(sink, "Test Temp Task");
+		Plan plan = new Plan(sink, "AllReduce Test");
 		plan.setDefaultParallelism(DEFAULT_PARALLELISM);
 		
 		

@@ -23,18 +23,13 @@ import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.PartitioningProperty;
 import eu.stratosphere.pact.compiler.dataproperties.RequestedGlobalProperties;
 
-/**
- * 
- */
+
 public abstract class AbstractJoinDescriptor extends OperatorDescriptorDual {
 	
 	protected AbstractJoinDescriptor(FieldList keys1, FieldList keys2) {
 		super(keys1, keys2);
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.dataproperties.DriverPropertiesDual#createPossibleGlobalProperties()
-	 */
 	@Override
 	protected List<GlobalPropertiesPair> createPossibleGlobalProperties() {
 		ArrayList<GlobalPropertiesPair> pairs = new ArrayList<GlobalPropertiesPair>();
@@ -61,9 +56,6 @@ public abstract class AbstractJoinDescriptor extends OperatorDescriptorDual {
 		return pairs;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.operators.OperatorDescriptorDual#computeGlobalProperties(eu.stratosphere.pact.compiler.dataproperties.GlobalProperties, eu.stratosphere.pact.compiler.dataproperties.GlobalProperties)
-	 */
 	@Override
 	public GlobalProperties computeGlobalProperties(GlobalProperties in1, GlobalProperties in2) {
 		GlobalProperties gp = GlobalProperties.combine(in1, in2);

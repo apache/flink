@@ -34,8 +34,8 @@ public abstract class OperatorDescriptorDual implements AbstractOperatorDescript
 	protected final FieldList keys1;
 	protected final FieldList keys2;
 	
-	private final List<GlobalPropertiesPair> globalProps;
-	private final List<LocalPropertiesPair> localProps;
+	private List<GlobalPropertiesPair> globalProps;
+	private List<LocalPropertiesPair> localProps;
 	
 	protected OperatorDescriptorDual() {
 		this(null, null);
@@ -44,21 +44,30 @@ public abstract class OperatorDescriptorDual implements AbstractOperatorDescript
 	protected OperatorDescriptorDual(FieldList keys1, FieldList keys2) {
 		this.keys1 = keys1;
 		this.keys2 = keys2;
-		this.globalProps = createPossibleGlobalProperties();
-		this.localProps = createPossibleLocalProperties();
 	}
 	
 	public List<GlobalPropertiesPair> getPossibleGlobalProperties() {
+		if (this.globalProps == null) {
+			this.globalProps = createPossibleGlobalProperties();
+		}
+		
 		return this.globalProps;
 	}
 	
 	public List<LocalPropertiesPair> getPossibleLocalProperties() {
+		if (this.localProps == null) {
+			this.localProps = createPossibleLocalProperties();
+		}
+		
 		return this.localProps;
 	}
 	
 	protected abstract List<GlobalPropertiesPair> createPossibleGlobalProperties();
 	
 	protected abstract List<LocalPropertiesPair> createPossibleLocalProperties();
+	
+	public abstract boolean areCoFulfilled(RequestedLocalProperties requested1, RequestedLocalProperties requested2,
+			LocalProperties produced1, LocalProperties produced2);
 	
 	public abstract DualInputPlanNode instantiate(Channel in1, Channel in2, TwoInputNode node);
 	

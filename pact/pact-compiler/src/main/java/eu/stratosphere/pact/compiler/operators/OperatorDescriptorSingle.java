@@ -30,13 +30,14 @@ import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
 /**
  * 
  */
-public abstract class OperatorDescriptorSingle implements AbstractOperatorDescriptor
-{
-	protected final FieldSet keys;
-	protected final FieldList keyList;
+public abstract class OperatorDescriptorSingle implements AbstractOperatorDescriptor {
 	
-	private final List<RequestedGlobalProperties> globalProps;
-	private final List<RequestedLocalProperties> localProps;
+	protected final FieldSet keys;			// the set of key fields
+	protected final FieldList keyList;		// the key fields with ordered field positions
+	
+	private List<RequestedGlobalProperties> globalProps;
+	private List<RequestedLocalProperties> localProps;
+	
 	
 	protected OperatorDescriptorSingle() {
 		this(null);
@@ -45,15 +46,20 @@ public abstract class OperatorDescriptorSingle implements AbstractOperatorDescri
 	protected OperatorDescriptorSingle(FieldSet keys) {
 		this.keys = keys;
 		this.keyList = keys == null ? null : keys.toFieldList();
-		this.globalProps = createPossibleGlobalProperties();
-		this.localProps = createPossibleLocalProperties();
 	}
 	
+	
 	public List<RequestedGlobalProperties> getPossibleGlobalProperties() {
+		if (this.globalProps == null) {
+			this.globalProps = createPossibleGlobalProperties();
+		}
 		return this.globalProps;
 	}
 	
 	public List<RequestedLocalProperties> getPossibleLocalProperties() {
+		if (this.localProps == null) {
+			this.localProps = createPossibleLocalProperties();
+		}
 		return this.localProps;
 	}
 	

@@ -41,9 +41,6 @@ import eu.stratosphere.pact.generic.io.OutputFormat;
 import eu.stratosphere.pact.test.util.TestBase;
 
 
-/**
- * @author Stephan Ewen
- */
 @RunWith(Parameterized.class)
 public class CustomDataTypeTest extends TestBase 
 {
