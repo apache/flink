@@ -1,7 +1,7 @@
 package eu.stratosphere.pact.client;
 
 import java.net.InetSocketAddress;
-import java.util.LinkedList;
+import java.util.Collections;
 import java.util.List;
 
 import eu.stratosphere.pact.client.nephele.api.Client;
@@ -9,19 +9,18 @@ import eu.stratosphere.pact.client.nephele.api.PlanWithJars;
 import eu.stratosphere.pact.common.plan.Plan;
 
 public class RemoteExecutor implements PlanExecutor {
+	
 	private Client client;
 	private List<String> jarFiles;
 	
 	public RemoteExecutor(String hostname, int port, List<String> jarFiles) {
-		client = new Client(new InetSocketAddress(hostname, port));
+		this.client = new Client(new InetSocketAddress(hostname, port));
 		this.jarFiles = jarFiles;
 
 	}
 
 	public RemoteExecutor(String hostname, int port, String jarFile) {
-		this(hostname, port, new LinkedList<String>());
-		jarFiles.add(jarFile);
-
+		this(hostname, port, Collections.singletonList(jarFile));
 	}
 
 	@Override
