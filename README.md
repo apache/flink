@@ -21,7 +21,7 @@ This tutorial shows how to build Stratosphere on your own system. Please open a 
 #### Requirements
 * Unix-like environment (We use Linux, Mac OS X, Cygwin)
 * git
-* maven (version 3)
+* Maven (at least version 3.0.4)
 * Java 6 or 7
 
 ```
