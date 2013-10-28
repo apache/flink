@@ -128,7 +128,7 @@ public class PactRecordOutputEmitter implements ChannelSelector<PactRecord>
 		case PARTITION_LOCAL_HASH:
 			return hashPartitionDefault(record, numberOfChannels);
 		case PARTITION_RANGE:
-			return rangePartiton(record, numberOfChannels);
+			return rangePartition(record, numberOfChannels);
 		case BROADCAST:
 			return broadcast(numberOfChannels);
 		default:
@@ -168,7 +168,7 @@ public class PactRecordOutputEmitter implements ChannelSelector<PactRecord>
 		return this.channels;
 	}
 	
-	private final int[] rangePartiton(final PactRecord record, int numberOfChannels)
+	private final int[] rangePartition(final PactRecord record, int numberOfChannels)
 	{
 		if (this.partitionBoundaries == null) {
 			this.partitionBoundaries = new Key[numberOfChannels - 1][];
