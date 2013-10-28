@@ -20,13 +20,8 @@ import eu.stratosphere.pact.common.contract.DataDistribution;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparator;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 
-/**
- * @author Erik Nijkamp
- * @author Alexander Alexandrov
- * @author Stephan Ewen
- */
+
 public class PactRecordOutputEmitter implements ChannelSelector<PactRecord>
 {
 	// ------------------------------------------------------------------------
@@ -43,7 +38,7 @@ public class PactRecordOutputEmitter implements ChannelSelector<PactRecord>
 	
 	private Key[][] partitionBoundaries;		// the partition boundaries for range partitioning
 	
-	private final DataDistribution distribution;
+	private final DataDistribution<PactRecord> distribution; // the data distribution to create the partition boundaries for range partitioning
 	
 	private int nextChannelToSendTo;				// counter to go over channels round robin
 
@@ -81,7 +76,7 @@ public class PactRecordOutputEmitter implements ChannelSelector<PactRecord>
 	 * @param comparator The comparator used to hash / compare the records.
 	 * @param distr The distribution pattern used in the case of a range partitioning.
 	 */
-	public PactRecordOutputEmitter(ShipStrategyType strategy, PactRecordComparator comparator, DataDistribution distr)
+	public PactRecordOutputEmitter(ShipStrategyType strategy, PactRecordComparator comparator, DataDistribution<PactRecord> distr)
 	{
 		if (strategy == null) { 
 			throw new NullPointerException();

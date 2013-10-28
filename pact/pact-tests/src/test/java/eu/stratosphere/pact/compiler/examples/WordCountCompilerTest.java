@@ -28,6 +28,7 @@ import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.io.RecordOutputFormat;
 import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
+import eu.stratosphere.pact.common.type.PactRecordDataDistribution;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.pact.common.util.FieldList;
@@ -36,7 +37,6 @@ import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
-import eu.stratosphere.pact.compiler.util.MockDataDistribution;
 import eu.stratosphere.pact.example.wordcount.WordCount;
 import eu.stratosphere.pact.example.wordcount.WordCount.CountWords;
 import eu.stratosphere.pact.example.wordcount.WordCount.TokenizeLine;
@@ -130,7 +130,8 @@ public class WordCountCompilerTest extends CompilerTestBase {
 				.field(PactString.class, 0)
 				.field(PactInteger.class, 1);
 			
-			out.setGlobalOrder(new Ordering(0, PactString.class, Order.DESCENDING), new MockDataDistribution());
+			Ordering ordering = new Ordering(0, PactString.class, Order.DESCENDING);
+			out.setGlobalOrder(ordering, new PactRecordDataDistribution(ordering, new PactString[][] {{new PactString("N")}}));
 			
 			Plan p = new Plan(out, "WordCount Example");
 			p.setDefaultParallelism(DEFAULT_PARALLELISM);
@@ -172,4 +173,5 @@ public class WordCountCompilerTest extends CompilerTestBase {
 			Assert.fail(e.getMessage());
 		}
 	}
+	
 }

@@ -16,9 +16,9 @@
 package eu.stratosphere.pact.common.contract;
 
 import eu.stratosphere.nephele.io.IOReadableWritable;
-import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.type.Key;
 
-public interface DataDistribution extends IOReadableWritable
+public interface DataDistribution<T> extends IOReadableWritable
 {
 	/**
 	 * Returns the i'th bucket's upper bound, given that the distribution is to be
@@ -38,7 +38,28 @@ public interface DataDistribution extends IOReadableWritable
 	 * @param bucketNum The number of the bucket for which to get the upper bound.
 	 * @param totalNumBuckets The number of buckets to split the data into.
 	 * 
-	 * @return
+	 * @return 
 	 */
-	public PactRecord getBucketBoundary(int bucketNum, int totalNumBuckets); 
+	public T getBucketBoundary(int bucketNum, int totalNumBuckets);
+	
+	/**
+	 * Returns the key positions of the boundary records.
+	 * 
+	 * @return An array of key positions of the boundary records.
+	 */
+	public int[] getBoundaryKeyPositions();
+	
+	/**
+	 * Returns the key types of the boundary records.
+	 * 
+	 * @return An array of key types of the boundary records.
+	 */
+	public Class<? extends Key>[] getBoundaryKeyTypes();
+	
+	/**
+	 * Returns the key order of the boundary records.
+	 * 
+	 * @return An array of key orders of the boundary records.
+	 */
+	public Order[] getBoundaryKeyOrders();
 }

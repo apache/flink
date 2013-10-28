@@ -20,6 +20,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import eu.stratosphere.pact.common.contract.DataDistribution;
 import eu.stratosphere.pact.common.contract.GenericDataSink;
 import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.util.Visitor;
@@ -185,9 +186,14 @@ public class DataSinkNode extends OptimizerNode {
 		
 		{
 			final Ordering partitioning = getPactContract().getPartitionOrdering();
+			final DataDistribution<?> dataDist = getPactContract().getDataDistribution();
 			final RequestedGlobalProperties partitioningProps = new RequestedGlobalProperties();
 			if (partitioning != null) {
-				partitioningProps.setRangePartitioned(partitioning);
+				if(dataDist != null) {
+					partitioningProps.setRangePartitioned(partitioning, dataDist);
+				} else {
+					partitioningProps.setRangePartitioned(partitioning);
+				}
 				iProps.addGlobalProperties(partitioningProps);
 			}
 			iProps.addGlobalProperties(partitioningProps);

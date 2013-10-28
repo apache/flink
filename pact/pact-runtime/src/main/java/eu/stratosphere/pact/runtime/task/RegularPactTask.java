@@ -1066,7 +1066,8 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 				} else {
 					if (compFact instanceof PactRecordComparatorFactory) {
 						final PactRecordComparator comparator = ((PactRecordComparatorFactory) compFact).createComparator();
-						final DataDistribution distribution = config.getOutputDataDistribution(cl);
+						@SuppressWarnings("unchecked")
+						final DataDistribution<PactRecord> distribution = (DataDistribution<PactRecord>)config.getOutputDataDistribution(i, cl);
 						oe = new PactRecordOutputEmitter(strategy, comparator, distribution);
 					} else {
 						throw new Exception("Incompatibe serializer-/comparator factories.");
@@ -1107,13 +1108,18 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 				// create the OutputEmitter from output ship strategy
 				final ShipStrategyType strategy = config.getOutputShipStrategy(i);
 				final TypeComparatorFactory<T> compFactory = config.getOutputComparator(i, cl);
+				@SuppressWarnings("unchecked")
+				final DataDistribution<T> dataDist = (DataDistribution<T>)config.getOutputDataDistribution(i, cl);
 
 				final ChannelSelector<SerializationDelegate<T>> oe;
 				if (compFactory == null) {
 					oe = new OutputEmitter<T>(strategy);
-				} else {
+				} else if (dataDist == null){
 					final TypeComparator<T> comparator = compFactory.createComparator();
 					oe = new OutputEmitter<T>(strategy, comparator);
+				} else {
+					final TypeComparator<T> comparator = compFactory.createComparator();
+					oe = new OutputEmitter<T>(strategy, comparator, dataDist);
 				}
 
 				if (strategy == ShipStrategyType.BROADCAST && USE_BROARDCAST_WRITERS) {

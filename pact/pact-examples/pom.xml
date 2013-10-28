@@ -312,9 +312,7 @@
 						</configuration>
 					</execution>
 
-					<!-- TeraSort
-					TeraSort is currently not working, because of problems with the RangePartioner (see https://github.com/stratosphere/stratosphere/issues/7).
-					It should be included again after fixing the issue.
+					<!-- TeraSort -->
 					<execution>
 						<id>TeraSort</id>
 						<phase>package</phase>
@@ -335,7 +333,7 @@
 								<include>**/sort/terasort/*.class</include>
 							</includes>
 						</configuration>
-					</execution> -->
+					</execution>
 				</executions>
 			</plugin>
 

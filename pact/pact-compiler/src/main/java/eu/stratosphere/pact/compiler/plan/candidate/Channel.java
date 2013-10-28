@@ -18,6 +18,7 @@ package eu.stratosphere.pact.compiler.plan.candidate;
 import java.util.HashMap;
 import java.util.Map;
 
+import eu.stratosphere.pact.common.contract.DataDistribution;
 import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
@@ -62,6 +63,8 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 	private TypeComparatorFactory<?> shipStrategyComparator;
 	
 	private TypeComparatorFactory<?> localStrategyComparator;
+	
+	private DataDistribution<?> dataDistribution;
 	
 	private TempMode tempMode;
 	
@@ -168,6 +171,14 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 	
 	public boolean[] getLocalStrategySortOrder() {
 		return this.localSortOrder;
+	}
+	
+	public void setDataDistribution(DataDistribution<?> dataDistribution) {
+		this.dataDistribution = dataDistribution;
+	}
+	
+	public DataDistribution<?> getDataDistribution() {
+		return this.dataDistribution;
 	}
 	
 	public TempMode getTempMode() {
