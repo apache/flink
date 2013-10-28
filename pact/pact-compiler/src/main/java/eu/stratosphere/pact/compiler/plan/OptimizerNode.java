@@ -120,6 +120,29 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 			}
 		}
 	}
+	
+	protected OptimizerNode(OptimizerNode toCopy) {
+		this.pactContract = toCopy.pactContract;
+		
+		this.intProps = toCopy.intProps;
+		
+		this.openBranches = toCopy.openBranches;
+		this.closedBranchingNodes = toCopy.closedBranchingNodes;
+		
+		this.remappedKeys = toCopy.remappedKeys;
+		
+		this.estimatedOutputSize = toCopy.estimatedOutputSize;
+		this.estimatedNumRecords = toCopy.estimatedNumRecords;
+		this.estimatedCardinality = toCopy.estimatedCardinality;
+		
+		this.degreeOfParallelism = toCopy.degreeOfParallelism;
+		this.subtasksPerInstance = toCopy.subtasksPerInstance;
+		this.minimalMemoryPerSubTask = toCopy.minimalMemoryPerSubTask;
+		
+		this.id = toCopy.id;
+		this.costWeight = toCopy.costWeight;
+		this.onDynamicPath = toCopy.onDynamicPath;
+	}
 
 	// ------------------------------------------------------------------------
 	//      Abstract methods that implement node specific behavior

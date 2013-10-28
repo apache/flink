@@ -30,23 +30,17 @@ import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
 import eu.stratosphere.pact.generic.contract.GenericReduceContract;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
-public final class PartialGroupProperties extends OperatorDescriptorSingle
-{
+public final class PartialGroupProperties extends OperatorDescriptorSingle {
+	
 	public PartialGroupProperties(FieldSet keys) {
 		super(keys);
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.dataproperties.DriverPropertiesHandler#getStrategy()
-	 */
 	@Override
 	public DriverStrategy getStrategy() {
 		return DriverStrategy.PARTIAL_GROUP;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.dataproperties.DriverPropertiesHandlerSingle#instantiate(eu.stratosphere.pact.compiler.plan.candidate.Channel, eu.stratosphere.pact.compiler.plan.SingleInputNode, eu.stratosphere.pact.common.util.FieldList)
-	 */
 	@Override
 	public SingleInputPlanNode instantiate(Channel in, SingleInputNode node) {
 		// create in input node for combine with same DOP as input node
@@ -57,17 +51,11 @@ public final class PartialGroupProperties extends OperatorDescriptorSingle
 		return new SingleInputPlanNode(combinerNode, in, DriverStrategy.PARTIAL_GROUP, this.keyList);
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.dataproperties.DriverPropertiesSingle#createPossibleGlobalProperties()
-	 */
 	@Override
 	protected List<RequestedGlobalProperties> createPossibleGlobalProperties() {
 		return Collections.singletonList(new RequestedGlobalProperties());
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.dataproperties.DriverPropertiesSingle#createPossibleLocalProperties()
-	 */
 	@Override
 	protected List<RequestedLocalProperties> createPossibleLocalProperties() {
 		RequestedLocalProperties props = new RequestedLocalProperties();
@@ -75,9 +63,6 @@ public final class PartialGroupProperties extends OperatorDescriptorSingle
 		return Collections.singletonList(props);
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.operators.OperatorDescriptorSingle#computeGlobalProperties(eu.stratosphere.pact.compiler.dataproperties.GlobalProperties)
-	 */
 	@Override
 	public GlobalProperties computeGlobalProperties(GlobalProperties gProps) {
 		if (gProps.getUniqueFieldCombination() != null && gProps.getUniqueFieldCombination().size() > 0 &&
@@ -89,9 +74,6 @@ public final class PartialGroupProperties extends OperatorDescriptorSingle
 		return gProps;
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.operators.OperatorDescriptorSingle#computeLocalProperties(eu.stratosphere.pact.compiler.dataproperties.LocalProperties)
-	 */
 	@Override
 	public LocalProperties computeLocalProperties(LocalProperties lProps) {
 		lProps.clearUniqueFieldSets();

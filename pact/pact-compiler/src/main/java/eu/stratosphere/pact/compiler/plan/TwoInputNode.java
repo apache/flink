@@ -520,6 +520,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 					ilp2.parameterizeChannel(in2);
 				}
 				
+				allPossibleLoop:
 				for (OperatorDescriptorDual dps: this.possibleProperties) {
 					for (LocalPropertiesPair lpp : dps.getPossibleLocalProperties()) {
 						if (lpp.getProperties1().isMetBy(in1.getLocalProperties()) &&
@@ -533,6 +534,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 							{
 								// all right, co compatible
 								instantiate(dps, in1, in2, target, estimator, rgps1, rgps2, ilp1, ilp2);
+								break allPossibleLoop;
 							} else {
 								// meet, but not co-compatible
 								throw new CompilerException("Implements to adjust one side to the other!");

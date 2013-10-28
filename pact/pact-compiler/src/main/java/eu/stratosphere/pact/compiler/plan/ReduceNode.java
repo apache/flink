@@ -38,6 +38,8 @@ import eu.stratosphere.pact.generic.contract.GenericReduceContract;
  */
 public class ReduceNode extends SingleInputNode {
 	
+	private ReduceNode combinerUtilityNode;
+	
 	/**
 	 * Creates a new ReduceNode for the given contract.
 	 * 
@@ -51,6 +53,10 @@ public class ReduceNode extends SingleInputNode {
 			setDegreeOfParallelism(1);
 			setSubtasksPerInstance(1);
 		}
+	}
+	
+	public ReduceNode(ReduceNode reducerToCopyForCombiner) {
+		super(reducerToCopyForCombiner);
 	}
 
 	// ------------------------------------------------------------------------
@@ -209,5 +215,12 @@ public class ReduceNode extends SingleInputNode {
 		super.computeOutputEstimates(statistics);
 		// check if preceding node is available
 //		this.computeCombinerReducingFactor();
+	}
+	
+	public ReduceNode getCombinerUtilityNode() {
+		if (this.combinerUtilityNode == null) {
+			this.combinerUtilityNode = new ReduceNode(this);
+		}
+		return this.combinerUtilityNode;
 	}
 }

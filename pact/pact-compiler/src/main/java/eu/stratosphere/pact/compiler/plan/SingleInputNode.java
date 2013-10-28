@@ -79,6 +79,16 @@ public abstract class SingleInputNode extends OptimizerNode
 		this.possibleProperties = getPossibleProperties();
 	}
 	
+	protected SingleInputNode(SingleInputNode contractToCopy) {
+		super(contractToCopy);
+		
+		this.keys = contractToCopy.keys;
+		this.possibleProperties = contractToCopy.possibleProperties;
+		
+		this.constantSet = contractToCopy.constantSet;
+		this.notConstantSet = contractToCopy.notConstantSet;
+	}
+	
 	// --------------------------------------------------------------------------------------------
 
 	/* (non-Javadoc)
