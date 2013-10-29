@@ -185,7 +185,7 @@ public class SequentialFormatTest {
 		configuration.setLong(BinaryOutputFormat.BLOCK_SIZE_PARAMETER_KEY, this.blockSize);
 		if (this.degreeOfParallelism == 1) {
 			SequentialOutputFormat output =
-				FormatUtil.openOutput(SequentialOutputFormat.class, "file://" + this.tempFile.getAbsolutePath(),
+				FormatUtil.openOutput(SequentialOutputFormat.class, this.tempFile.toURI().toString(),
 					configuration);
 			for (int index = 0; index < this.numberOfTuples; index++)
 				output.writeRecord(this.getRecord(index));
@@ -196,7 +196,7 @@ public class SequentialFormatTest {
 			int recordIndex = 0;
 			for (int fileIndex = 0; fileIndex < this.degreeOfParallelism; fileIndex++) {
 				SequentialOutputFormat output =
-					FormatUtil.openOutput(SequentialOutputFormat.class, "file://" + this.tempFile.getAbsolutePath() +
+					FormatUtil.openOutput(SequentialOutputFormat.class, this.tempFile.toURI() +
 						"/"
 						+ (fileIndex + 1), configuration);
 				for (int fileCount = 0; fileCount < this.getNumberOfTuplesPerFile(fileIndex); fileCount++, recordIndex++)
@@ -228,7 +228,7 @@ public class SequentialFormatTest {
 
 	protected SequentialInputFormat<PactRecord> createInputFormat() {
 		Configuration configuration = new Configuration();
-		configuration.setString(FileInputFormat.FILE_PARAMETER_KEY, "file://" + this.tempFile.getAbsolutePath());
+		configuration.setString(FileInputFormat.FILE_PARAMETER_KEY, this.tempFile.toURI().toString());
 		configuration.setLong(BinaryInputFormat.BLOCK_SIZE_PARAMETER_KEY, this.blockSize);
 
 		final SequentialInputFormat<PactRecord> inputFormat = new SequentialInputFormat<PactRecord>();

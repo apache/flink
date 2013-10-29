@@ -16,6 +16,8 @@
 package eu.stratosphere.pact.test.iterative.nephele.customdanglingpagerank;
 
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.nephele.fs.FileSystem;
+import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
@@ -98,7 +100,7 @@ public class CustomCompensatableDanglingPageRankWithCombiner {
 		String pageWithRankInputPath = ""; //"file://" + PlayConstants.PLAY_DIR + "test-inputs/danglingpagerank/pageWithRank";
 		String adjacencyListInputPath = ""; //"file://" + PlayConstants.PLAY_DIR +
 //			"test-inputs/danglingpagerank/adjacencylists";
-		String outputPath = "file:///tmp/stratosphere/iterations";
+		String outputPath =  Path.constructTestURI("stratosphere_iterations");
 		int minorConsumer = 25;
 		int matchMemory = 50;
 		int coGroupSortMemory = 50;

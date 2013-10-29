@@ -34,7 +34,7 @@ public class TextInputFormatTest {
 		
 		TextInputFormat inputFormat = new TextInputFormat();
 		Configuration parameters = new Configuration();
-		parameters.setString(FileInputFormat.FILE_PARAMETER_KEY, "file://"+tempFile.getAbsolutePath() ); 
+		parameters.setString(FileInputFormat.FILE_PARAMETER_KEY, tempFile.toURI().toString() ); 
 		inputFormat.configure(parameters);
 		FileInputSplit[] splits = inputFormat.createInputSplits(1);
 		assertTrue("expected at least one input split", splits.length >= 1);

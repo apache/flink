@@ -16,6 +16,8 @@
 package eu.stratosphere.pact.runtime.test.util;
 
 import java.io.File;
+import java.net.URI;
+import java.net.URISyntaxException;
 
 import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.nephele.fs.Path;
@@ -55,7 +57,13 @@ public class MockInputSplitProvider implements InputSplitProvider {
 		final InputSplit[] tmp = new InputSplit[noSplits];
 		final String[] hosts = { "localhost" };
 
-		final String localPath = path.substring(7, path.length());
+		final String localPath;
+		try {
+			localPath = new URI(path).getPath();
+		} catch (URISyntaxException e) {
+			throw new IllegalArgumentException("Path URI can not be transformed to local path.");
+		}
+		
 		final File inFile = new File(localPath);
 
 		final long splitLength = inFile.length() / noSplits;

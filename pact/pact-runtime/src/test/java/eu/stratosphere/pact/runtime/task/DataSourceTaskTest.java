@@ -29,6 +29,7 @@ import junit.framework.Assert;
 import org.junit.After;
 import org.junit.Test;
 
+import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.pact.common.io.DelimitedInputFormat;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
@@ -42,7 +43,7 @@ public class DataSourceTaskTest extends TaskTestBase
 {
 	private List<PactRecord> outList;
 	
-	private String tempTestPath = System.getProperty("java.io.tmpdir")+"/dst_test";
+	private String tempTestPath = Path.constructTestPath("dst_test");
 	
 	@After
 	public void cleanUp() {
@@ -73,7 +74,7 @@ public class DataSourceTaskTest extends TaskTestBase
 		
 		DataSourceTask<PactRecord> testTask = new DataSourceTask<PactRecord>();
 		
-		super.registerFileInputTask(testTask, MockInputFormat.class, "file://"+this.tempTestPath, "\n");
+		super.registerFileInputTask(testTask, MockInputFormat.class, new File(tempTestPath).toURI().toString(), "\n");
 		
 		try {
 			testTask.invoke();
@@ -129,8 +130,7 @@ public class DataSourceTaskTest extends TaskTestBase
 		
 		DataSourceTask<PactRecord> testTask = new DataSourceTask<PactRecord>();
 
-		
-		super.registerFileInputTask(testTask, MockFailingInputFormat.class, "file://"+this.tempTestPath, "\n");
+		super.registerFileInputTask(testTask, MockFailingInputFormat.class, new File(tempTestPath).toURI().toString(), "\n");
 		
 		boolean stubFailed = false;
 		
@@ -165,8 +165,8 @@ public class DataSourceTaskTest extends TaskTestBase
 		}
 		
 		final DataSourceTask<PactRecord> testTask = new DataSourceTask<PactRecord>();
-		
-		super.registerFileInputTask(testTask, MockDelayingInputFormat.class,  "file://"+this.tempTestPath, "\n");
+
+		super.registerFileInputTask(testTask, MockDelayingInputFormat.class,  new File(tempTestPath).toURI().toString(), "\n");
 		
 		Thread taskRunner = new Thread() {
 			@Override
@@ -313,4 +313,5 @@ public class DataSourceTaskTest extends TaskTestBase
 			return true;
 		}
 	}
+	
 }

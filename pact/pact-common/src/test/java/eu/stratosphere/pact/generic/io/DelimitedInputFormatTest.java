@@ -164,7 +164,7 @@ public class DelimitedInputFormatTest {
 		wrt.write(contents);
 		wrt.close();
 		
-		return new FileInputSplit(0, new Path("file://" + this.tempFile.getAbsolutePath()), 0, this.tempFile.length(), new String[] {"localhost"});
+		return new FileInputSplit(0, new Path(this.tempFile.toURI().toString()), 0, this.tempFile.length(), new String[] {"localhost"});
 	}
 	
 	protected static final class MyTextInputFormat extends eu.stratosphere.pact.generic.io.DelimitedInputFormat<PactRecord> {

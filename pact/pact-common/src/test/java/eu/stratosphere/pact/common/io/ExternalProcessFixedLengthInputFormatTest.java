@@ -23,6 +23,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.template.GenericInputSplit;
 import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
 import eu.stratosphere.pact.common.type.PactRecord;
@@ -44,6 +45,9 @@ private ExternalProcessFixedLengthInputFormat<ExternalProcessInputSplit> format;
 	
 	@Test
 	public void testOpen() {
+		
+		if(FileSystem.isWindows())
+			return;
 		
 		Configuration config = new Configuration();
 		config.setInteger(ExternalProcessFixedLengthInputFormat.RECORDLENGTH_PARAMETER_KEY, 8);
@@ -269,5 +273,4 @@ private ExternalProcessFixedLengthInputFormat<ExternalProcessInputSplit> format;
 		}
 
 	}
-	
 }

@@ -42,7 +42,7 @@ public class LocalExecutorTest {
 			
 			// run WordCount
 			WordCount wc = new WordCount();
-			LocalExecutor.execute(wc, "4", "file://" + inFile.getAbsolutePath(), "file://" + outFile.getAbsolutePath());
+			LocalExecutor.execute(wc, "4", inFile.toURI().toString(), outFile.toURI().toString());
 		} catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail(e.getMessage());

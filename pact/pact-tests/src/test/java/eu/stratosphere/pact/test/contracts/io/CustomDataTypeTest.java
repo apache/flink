@@ -80,7 +80,7 @@ public class CustomDataTypeTest extends TestBase
 		URL jarFileURL = getClass().getResource(EXTERNAL_JAR_RESOURCE);
 		
 		// attach the jar for a class that is not on the job-manager's classpath
-		jobGraph.addJar(new Path("file://" + jarFileURL.getPath()));
+		jobGraph.addJar(new Path(jarFileURL.toURI().toString()));
 	
 		return jobGraph;
 	}

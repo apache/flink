@@ -23,6 +23,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.template.GenericInputSplit;
 import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
 import eu.stratosphere.pact.common.type.PactRecord;
@@ -43,6 +44,9 @@ public class ExternalProcessInputFormatTest {
 	
 	@Test
 	public void testOpen() {
+		
+		if(FileSystem.isWindows())
+			return;
 		
 		Configuration config = new Configuration();
 		ExternalProcessInputSplit split = new ExternalProcessInputSplit(1, this.neverEndingCommand);
@@ -260,5 +264,4 @@ public class ExternalProcessInputFormatTest {
 		}
 
 	}
-	
 }

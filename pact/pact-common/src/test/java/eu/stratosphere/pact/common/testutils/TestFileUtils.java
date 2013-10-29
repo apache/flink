@@ -38,7 +38,7 @@ public class TestFileUtils {
 	public static Configuration getConfigForFile(long bytes) throws IOException {
 		final String filePath = createTempFile(bytes);
 		final Configuration config = new Configuration();
-		config.setString(FileInputFormat.FILE_PARAMETER_KEY, "file://" + filePath);
+		config.setString(FileInputFormat.FILE_PARAMETER_KEY, filePath);
 		return config;
 	}
 
@@ -54,7 +54,7 @@ public class TestFileUtils {
 		} finally {
 			out.close();
 		}
-		return f.getAbsolutePath();
+		return f.toURI().toString();
 	}
 	
 	public static String createTempFile(String contents) throws IOException {
@@ -67,7 +67,7 @@ public class TestFileUtils {
 		} finally {
 			out.close();
 		}
-		return f.getAbsolutePath();
+		return f.toURI().toString();
 	}
 	
 	// ------------------------------------------------------------------------
@@ -75,7 +75,7 @@ public class TestFileUtils {
 	public static Configuration getConfigForDir(long ... bytes) throws IOException {
 		final String filePath = createTempFileDir(bytes);
 		final Configuration config = new Configuration();
-		config.setString(FileInputFormat.FILE_PARAMETER_KEY, "file://" + filePath);
+		config.setString(FileInputFormat.FILE_PARAMETER_KEY, filePath);
 		return config;
 	}
 
@@ -101,7 +101,7 @@ public class TestFileUtils {
 				out.close();
 			}
 		}
-		return f.getAbsolutePath();
+		return f.toURI().toString();
 	}
 	
 	public static String createTempFileDir(String ... contents) throws IOException {
@@ -124,7 +124,7 @@ public class TestFileUtils {
 				out.close();
 			}
 		}
-		return f.getAbsolutePath();
+		return f.toURI().toString();
 	}
 	
 	public static String randomFileName() {

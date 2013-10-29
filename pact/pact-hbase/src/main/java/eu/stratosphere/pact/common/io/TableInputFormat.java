@@ -34,6 +34,7 @@ import org.apache.hadoop.hbase.util.Pair;
 import org.apache.hadoop.util.StringUtils;
 
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.pact.generic.io.InputFormat;
 import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
 import eu.stratosphere.pact.common.io.util.HBaseUtil;
@@ -177,7 +178,10 @@ public class TableInputFormat implements InputFormat<PactRecord, TableInputSplit
 		if (configLocation != null)
 		{
 			org.apache.hadoop.conf.Configuration dummyConf = new org.apache.hadoop.conf.Configuration();
-			dummyConf.addResource(new Path("file://" + configLocation));
+			if(FileSystem.isWindows())
+				dummyConf.addResource(new Path("file:/" + configLocation));
+			else
+				dummyConf.addResource(new Path("file://" + configLocation));
 			hConf = HBaseConfiguration.create(dummyConf);
 			;
 			// hConf.set("hbase.master", "im1a5.internetmemory.org");
@@ -395,5 +399,4 @@ public class TableInputFormat implements InputFormat<PactRecord, TableInputSplit
 	public Scan getScan() {
 		return scan;
 	}
-
 }

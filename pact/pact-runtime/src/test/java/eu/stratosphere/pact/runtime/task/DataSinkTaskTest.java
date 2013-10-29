@@ -32,6 +32,7 @@ import org.junit.After;
 import org.junit.Test;
 
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.pact.common.io.DelimitedOutputFormat;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
@@ -47,7 +48,7 @@ public class DataSinkTaskTest extends TaskTestBase
 {
 	private static final Log LOG = LogFactory.getLog(DataSinkTaskTest.class);
 	
-	private final String tempTestPath = System.getProperty("java.io.tmpdir")+"/dst_test";
+	private final String tempTestPath = Path.constructTestPath("dst_test");
 	
 	@After
 	public void cleanUp() {
@@ -67,8 +68,8 @@ public class DataSinkTaskTest extends TaskTestBase
 		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 0);
 		
 		DataSinkTask<PactRecord> testTask = new DataSinkTask<PactRecord>();
-		
-		super.registerFileOutputTask(testTask, MockOutputFormat.class, "file://"+this.tempTestPath);
+
+		super.registerFileOutputTask(testTask, MockOutputFormat.class, new File(tempTestPath).toURI().toString());
 		
 		try {
 			testTask.invoke();
@@ -76,7 +77,7 @@ public class DataSinkTaskTest extends TaskTestBase
 			LOG.debug(e);
 			Assert.fail("Invoke method caused exception.");
 		}
-		
+
 		File tempTestFile = new File(this.tempTestPath);
 		
 		Assert.assertTrue("Temp output file does not exist",tempTestFile.exists());
@@ -143,8 +144,8 @@ public class DataSinkTaskTest extends TaskTestBase
 		super.getTaskConfig().setMemoryInput(0, 4 * 1024 * 1024);
 		super.getTaskConfig().setFilehandlesInput(0, 8);
 		super.getTaskConfig().setSpillingThresholdInput(0, 0.8f);
-		
-		super.registerFileOutputTask(testTask, MockOutputFormat.class, "file://"+this.tempTestPath);
+
+		super.registerFileOutputTask(testTask, MockOutputFormat.class, new File(tempTestPath).toURI().toString());
 		
 		try {
 			testTask.invoke();
@@ -215,8 +216,8 @@ public class DataSinkTaskTest extends TaskTestBase
 		DataSinkTask<PactRecord> testTask = new DataSinkTask<PactRecord>();
 		Configuration stubParams = new Configuration();
 		super.getTaskConfig().setStubParameters(stubParams);
-		
-		super.registerFileOutputTask(testTask, MockFailingOutputFormat.class, "file://"+this.tempTestPath);
+
+		super.registerFileOutputTask(testTask, MockFailingOutputFormat.class, new File(tempTestPath).toURI().toString());
 		
 		boolean stubFailed = false;
 		
@@ -257,7 +258,7 @@ public class DataSinkTaskTest extends TaskTestBase
 		super.getTaskConfig().setFilehandlesInput(0, 8);
 		super.getTaskConfig().setSpillingThresholdInput(0, 0.8f);
 		
-		super.registerFileOutputTask(testTask, MockFailingOutputFormat.class, "file://"+this.tempTestPath);
+		super.registerFileOutputTask(testTask, MockFailingOutputFormat.class, new File(tempTestPath).toURI().toString());
 		
 		boolean stubFailed = false;
 		
@@ -285,7 +286,7 @@ public class DataSinkTaskTest extends TaskTestBase
 		Configuration stubParams = new Configuration();
 		super.getTaskConfig().setStubParameters(stubParams);
 		
-		super.registerFileOutputTask(testTask, MockOutputFormat.class,  "file://"+this.tempTestPath);
+		super.registerFileOutputTask(testTask, MockOutputFormat.class,  new File(tempTestPath).toURI().toString());
 		
 		Thread taskRunner = new Thread() {
 			@Override
@@ -336,7 +337,7 @@ public class DataSinkTaskTest extends TaskTestBase
 		super.getTaskConfig().setFilehandlesInput(0, 8);
 		super.getTaskConfig().setSpillingThresholdInput(0, 0.8f);
 		
-		super.registerFileOutputTask(testTask, MockOutputFormat.class,  "file://"+this.tempTestPath);
+		super.registerFileOutputTask(testTask, MockOutputFormat.class,  new File(tempTestPath).toURI().toString());
 		
 		Thread taskRunner = new Thread() {
 			@Override
@@ -404,5 +405,6 @@ public class DataSinkTaskTest extends TaskTestBase
 			return super.serializeRecord(rec, target);
 		}
 	}
+	
 }
 

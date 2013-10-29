@@ -50,6 +50,8 @@ public abstract class FileSystem {
 	 * Object used to protect calls to specific methods.
 	 */
 	private static final Object SYNCHRONIZATION_OBJECT = new Object();
+	
+	private static final boolean IS_WINDOWS =  System.getProperty("os.name").startsWith("Windows");
 
 	/**
 	 * An auxiliary class to identify a file system by its scheme
@@ -164,7 +166,7 @@ public abstract class FileSystem {
 		URI localUri;
 
 		try {
-			localUri = new URI("file:///");
+			localUri = isWindows() ?  new URI("file:/") : new URI("file:///");
 		} catch (URISyntaxException e) {
 			throw new IOException("Cannot create URI for local file system");
 		}
@@ -442,5 +444,11 @@ public abstract class FileSystem {
 		} else {
 			return 1;
 		}
+	}
+	
+	// ------------------------------------------------------------------------
+	
+	public static final boolean isWindows() {
+		return IS_WINDOWS;
 	}
 }

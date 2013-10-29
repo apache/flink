@@ -23,6 +23,8 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -147,18 +149,18 @@ public abstract class TestBase2 {
 	
 	public String getTempDirPath(String dirName) throws IOException {
 		File f = createAndRegisterTempFile(dirName);
-		return "file://" + f.getAbsolutePath();
+		return f.toURI().toString();
 	}
 	
 	public String getTempFilePath(String fileName) throws IOException {
 		File f = createAndRegisterTempFile(fileName);
-		return "file://" + f.getAbsolutePath();
+		return f.toURI().toString();
 	}
 	
 	public String createTempFile(String fileName, String contents) throws IOException {
 		File f = createAndRegisterTempFile(fileName);
 		Files.write(contents, f, Charsets.UTF_8);
-		return "file://" + f.getAbsolutePath();
+		return f.toURI().toString();
 	}
 	
 	private File createAndRegisterTempFile(String fileName) throws IOException {
@@ -240,9 +242,9 @@ public abstract class TestBase2 {
 	}
 	
 	public File asFile(String path) {
-		if (path.startsWith("file://")) {
-			return new File(path.substring(7));
-		} else {
+		try {
+			return new File(new URI(path).getPath());
+		} catch (URISyntaxException e) {
 			throw new IllegalArgumentException("This path does not denote a local file.");
 		}
 	}

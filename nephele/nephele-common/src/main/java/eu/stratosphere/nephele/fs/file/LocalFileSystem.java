@@ -54,7 +54,7 @@ public class LocalFileSystem extends FileSystem {
 	/**
 	 * The URI representing the local file system.
 	 */
-	private final URI name = URI.create("file:///");
+	private final URI name = isWindows() ? URI.create("file:/") : URI.create("file:///");
 
 	/**
 	 * The host name of this machine;

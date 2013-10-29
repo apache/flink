@@ -23,6 +23,7 @@ package eu.stratosphere.nephele.fs;
 
 import java.io.DataInput;
 import java.io.DataOutput;
+import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.URI;
@@ -502,5 +503,19 @@ public class Path implements IOReadableWritable, Serializable {
 			StringRecord.writeString(out, uri.getFragment());
 		}
 
+	}
+	
+	public static String constructTestPath(String folder)
+	{
+		String path = System.getProperty("java.io.tmpdir");
+		if (!(path.endsWith("/") || path.endsWith("\\")) )
+			path += System.getProperty("file.separator");
+		path += folder;
+		return path;
+	}
+	
+	public static String constructTestURI(String folder)
+	{
+		return new File(constructTestPath(folder)).toURI().toString();
 	}
 }

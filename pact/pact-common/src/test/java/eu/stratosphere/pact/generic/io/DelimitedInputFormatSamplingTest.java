@@ -98,7 +98,7 @@ public class DelimitedInputFormatSamplingTest {
 		try {
 			final String tempFile = TestFileUtils.createTempFile(TEST_DATA1);
 			final Configuration conf = new Configuration();
-			conf.setString(FileInputFormat.FILE_PARAMETER_KEY, "test://" + tempFile);
+			conf.setString(FileInputFormat.FILE_PARAMETER_KEY, tempFile.replace("file", "test"));
 			
 			final TestDelimitedInputFormat format = new TestDelimitedInputFormat();
 			format.configure(conf);
@@ -126,7 +126,7 @@ public class DelimitedInputFormatSamplingTest {
 		try {
 			final String tempFile = TestFileUtils.createTempFileDir(TEST_DATA1, TEST_DATA1, TEST_DATA1, TEST_DATA1);
 			final Configuration conf = new Configuration();
-			conf.setString(FileInputFormat.FILE_PARAMETER_KEY, "test://" + tempFile);
+			conf.setString(FileInputFormat.FILE_PARAMETER_KEY, tempFile.replace("file", "test"));
 			
 			final TestDelimitedInputFormat format = new TestDelimitedInputFormat();
 			format.configure(conf);
@@ -154,7 +154,7 @@ public class DelimitedInputFormatSamplingTest {
 		try {
 			final String tempFile = TestFileUtils.createTempFile(TEST_DATA1);
 			final Configuration conf = new Configuration();
-			conf.setString(FileInputFormat.FILE_PARAMETER_KEY, "file://" + tempFile);
+			conf.setString(FileInputFormat.FILE_PARAMETER_KEY, tempFile);
 			
 			final TestDelimitedInputFormat format = new TestDelimitedInputFormat();
 			format.configure(conf);
@@ -175,7 +175,7 @@ public class DelimitedInputFormatSamplingTest {
 		try {
 			final String tempFile = TestFileUtils.createTempFileDir(TEST_DATA1, TEST_DATA2);
 			final Configuration conf = new Configuration();
-			conf.setString(FileInputFormat.FILE_PARAMETER_KEY, "file://" + tempFile);
+			conf.setString(FileInputFormat.FILE_PARAMETER_KEY, tempFile);
 			
 			final TestDelimitedInputFormat format = new TestDelimitedInputFormat();
 			format.configure(conf);
@@ -207,7 +207,7 @@ public class DelimitedInputFormatSamplingTest {
 			
 			final String tempFile = TestFileUtils.createTempFile(testData);
 			final Configuration conf = new Configuration();
-			conf.setString(FileInputFormat.FILE_PARAMETER_KEY, "file://" + tempFile);
+			conf.setString(FileInputFormat.FILE_PARAMETER_KEY, tempFile);
 			conf.setString(TestDelimitedInputFormat.RECORD_DELIMITER, DELIMITER);
 			
 			final TestDelimitedInputFormat format = new TestDelimitedInputFormat();
@@ -230,7 +230,7 @@ public class DelimitedInputFormatSamplingTest {
 		try {
 			final String tempFile = TestFileUtils.createTempFile(2 * PactConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_SAMPLE_LEN);
 			final Configuration conf = new Configuration();
-			conf.setString(FileInputFormat.FILE_PARAMETER_KEY, "file://" + tempFile);
+			conf.setString(FileInputFormat.FILE_PARAMETER_KEY, tempFile);
 			
 			final TestDelimitedInputFormat format = new TestDelimitedInputFormat();
 			format.configure(conf);

@@ -24,6 +24,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
+import eu.stratosphere.nephele.fs.FileSystem;
+
 public class LocalFSProvider implements FilesystemProvider {
 
 	public boolean createDir(String dirName) throws IOException {
@@ -132,6 +134,7 @@ public class LocalFSProvider implements FilesystemProvider {
 
 	@Override
 	public String getURIPrefix() {
-		return "file://";
+		String prefix = FileSystem.isWindows() ? "file:/" : "file://";
+		return prefix;
 	}
 }

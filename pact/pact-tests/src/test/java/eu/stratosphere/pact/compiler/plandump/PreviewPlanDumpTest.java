@@ -22,6 +22,7 @@ import org.codehaus.jackson.JsonParser;
 import org.junit.Assert;
 import org.junit.Test;
 
+import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.plan.DataSinkNode;
@@ -37,9 +38,9 @@ import eu.stratosphere.pact.example.wordcount.WordCount;
  */
 public class PreviewPlanDumpTest {
 	
-	protected static final String IN_FILE = "file:///test/file";
+	protected static final String IN_FILE = FileSystem.isWindows() ?  "file:/c:/test/file" : "file:///test/file";
 	
-	protected static final String OUT_FILE = "file:///test/output";
+	protected static final String OUT_FILE = FileSystem.isWindows() ?  "file:/c:/test/output" : "file:///test/output";
 	
 	@Test
 	public void dumpWordCount() {

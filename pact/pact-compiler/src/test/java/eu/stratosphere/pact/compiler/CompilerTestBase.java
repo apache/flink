@@ -25,6 +25,7 @@ import java.util.Set;
 
 import org.junit.Before;
 
+import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.instance.HardwareDescription;
 import eu.stratosphere.nephele.instance.HardwareDescriptionFactory;
 import eu.stratosphere.nephele.instance.InstanceType;
@@ -49,9 +50,9 @@ import eu.stratosphere.pact.generic.io.FileInputFormat.FileBaseStatistics;
  */
 public abstract class CompilerTestBase {
 
-	protected static final String IN_FILE = isWindows() ? "file://c:\\" : "file:///dev/random";
+	protected static final String IN_FILE = FileSystem.isWindows() ? "file:/c:/" : "file:///dev/random";
 	
-	protected static final String OUT_FILE = isWindows() ? "file://c:\\" : "file:///dev/null";
+	protected static final String OUT_FILE = FileSystem.isWindows() ? "file:/c:/" : "file:///dev/null";
 	
 	protected static final int DEFAULT_PARALLELISM = 8;
 	
@@ -304,11 +305,5 @@ public abstract class CompilerTestBase {
 
 		@Override
 		public void postVisit(Contract visitable) {}
-	}
-	
-	// ------------------------------------------------------------------------
-	
-	private static final boolean isWindows() {
-		return System.getProperty("os.name").startsWith("Windows");
 	}
 }

@@ -69,7 +69,7 @@ public class RecordOutputFormatTest {
 	{
 		try {
 			Configuration config = new Configuration();
-			config.setString(RecordOutputFormat.FILE_PARAMETER_KEY, "file://"+this.tempFile.getAbsolutePath());
+			config.setString(RecordOutputFormat.FILE_PARAMETER_KEY, this.tempFile.toURI().toString());
 			
 			// check missing number of fields
 			boolean validConfig = true;
@@ -163,7 +163,7 @@ public class RecordOutputFormatTest {
 	{
 		try {
 			Configuration config = new Configuration();
-			config.setString(RecordOutputFormat.FILE_PARAMETER_KEY, "file://"+this.tempFile.getAbsolutePath());
+			config.setString(RecordOutputFormat.FILE_PARAMETER_KEY, this.tempFile.toURI().toString());
 			config.setString(RecordOutputFormat.FIELD_DELIMITER_PARAMETER, "|");
 			config.setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 2);
 			config.setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactString.class);
@@ -211,7 +211,7 @@ public class RecordOutputFormatTest {
 	{
 		try {
 			Configuration config = new Configuration();
-			config.setString(RecordOutputFormat.FILE_PARAMETER_KEY, "file://"+this.tempFile.getAbsolutePath());
+			config.setString(RecordOutputFormat.FILE_PARAMETER_KEY, this.tempFile.toURI().toString());
 			config.setString(RecordOutputFormat.FIELD_DELIMITER_PARAMETER, "|");
 			config.setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 2);
 			config.setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactString.class);
@@ -258,7 +258,7 @@ public class RecordOutputFormatTest {
 	{
 		try {
 			Configuration config = new Configuration();
-			config.setString(RecordOutputFormat.FILE_PARAMETER_KEY, "file://"+this.tempFile.getAbsolutePath());
+			config.setString(RecordOutputFormat.FILE_PARAMETER_KEY, this.tempFile.toURI().toString());
 			config.setString(RecordOutputFormat.FIELD_DELIMITER_PARAMETER, "|");
 			config.setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 2);
 			config.setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactString.class);
@@ -307,7 +307,7 @@ public class RecordOutputFormatTest {
 	{
 		try {
 			Configuration config = new Configuration();
-			config.setString(RecordOutputFormat.FILE_PARAMETER_KEY, "file://"+this.tempFile.getAbsolutePath());
+			config.setString(RecordOutputFormat.FILE_PARAMETER_KEY, this.tempFile.toURI().toString());
 			config.setString(RecordOutputFormat.FIELD_DELIMITER_PARAMETER, "|");
 			config.setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 2);
 			config.setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactString.class);
@@ -359,7 +359,7 @@ public class RecordOutputFormatTest {
 	{
 		try {
 			Configuration config = new Configuration();
-			config.setString(RecordOutputFormat.FILE_PARAMETER_KEY, "file://"+this.tempFile.getAbsolutePath());
+			config.setString(RecordOutputFormat.FILE_PARAMETER_KEY, this.tempFile.toURI().toString());
 			config.setString(RecordOutputFormat.FIELD_DELIMITER_PARAMETER, "|");
 			config.setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 2);
 			config.setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactString.class);
@@ -411,7 +411,7 @@ public class RecordOutputFormatTest {
 	{
 		try {
 			Configuration config = new Configuration();
-			config.setString(RecordOutputFormat.FILE_PARAMETER_KEY, "file://"+this.tempFile.getAbsolutePath());
+			config.setString(RecordOutputFormat.FILE_PARAMETER_KEY, this.tempFile.toURI().toString());
 			config.setString(RecordOutputFormat.FIELD_DELIMITER_PARAMETER, "|");
 			config.setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 2);
 			config.setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactString.class);
