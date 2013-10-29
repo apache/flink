@@ -33,8 +33,12 @@ fi
 # cluster mode, only bring up job manager locally and a task manager on every slave host
 $NEPHELE_BIN_DIR/nephele-jobmanager.sh stop
 
-while read line
+GOON=true
+while $GOON
 do
-    HOST=$( extractHostName $line)
-    ssh -n $NEPHELE_SSH_OPTS $HOST -- "nohup /bin/bash $NEPHELE_BIN_DIR/nephele-taskmanager.sh stop &"
+    read line || GOON=false
+    if [ -n "$line" ]; then
+        HOST=$( extractHostName $line)
+        ssh -n $NEPHELE_SSH_OPTS $HOST -- "nohup /bin/bash $NEPHELE_BIN_DIR/nephele-taskmanager.sh stop &"
+    fi
 done < $HOSTLIST

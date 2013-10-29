@@ -61,7 +61,7 @@ public class NetworkTopology implements IOReadableWritable {
 
 		try {
 
-			while ((strLine = br.readLine()) != null) {
+			while ((strLine = br.readLine()) != null && !strLine.isEmpty()) {
 
 				final Matcher m = pattern.matcher(strLine);
 				if (!m.matches()) {
