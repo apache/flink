@@ -12,7 +12,7 @@ function getVersion() {
 	fi
 	stratosphere_home="`dirname \"$here\"`"
 	cd $stratosphere_home
-	echo `mvn org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version | grep -v '\['`
+	echo `mvn org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version|grep -Ev '(^\[|Download\w+:)'`
 }
 
 # this will take a while
@@ -23,9 +23,7 @@ else
 	CURRENT_STRATOSPHERE_VERSION_YARN="$CURRENT_STRATOSPHERE_VERSION-hadoop2"
 fi
 
-
-echo "detected current version as: $CURRENT_STRATOSPHERE_VERSION ; yarn: $CURRENT_STRATOSPHERE_VERSION_YARN "
-
+echo "detected current version as: '$CURRENT_STRATOSPHERE_VERSION' ; yarn: $CURRENT_STRATOSPHERE_VERSION_YARN "
 
 # Check if push/commit is eligible for pushing
 echo "Job: $TRAVIS_JOB_NUMBER ; isPR: $TRAVIS_PULL_REQUEST"
