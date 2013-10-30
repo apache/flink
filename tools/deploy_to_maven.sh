@@ -1,8 +1,31 @@
 #!/usr/bin/env bash
 
+#Please ask @rmetzger (on GitHub) before changing anything here. It contains some magic.
 
-CURRENT_STRATOSPHERE_VERSION=0.4-SNAPSHOT
-CURRENT_STRATOSPHERE_VERSION_YARN=0.4-hadoop2-SNAPSHOT
+function getVersion() {
+	here="`dirname \"$0\"`"              # relative
+	here="`( cd \"$here\" && pwd )`"  # absolutized and normalized
+	if [ -z "$here" ] ; then
+	  # error; for some reason, the path is not accessible
+	  # to the script (e.g. permissions re-evaled after suid)
+	  exit 1  # fail
+	fi
+	stratosphere_home="`dirname \"$here\"`"
+	cd $stratosphere_home
+	echo `mvn org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version | grep -v '\['`
+}
+
+# this will take a while
+CURRENT_STRATOSPHERE_VERSION=`getVersion`
+if [[ "$CURRENT_STRATOSPHERE_VERSION" == *-SNAPSHOT ]]; then
+	CURRENT_STRATOSPHERE_VERSION_YARN=${CURRENT_STRATOSPHERE_VERSION/-SNAPSHOT/-hadoop2-SNAPSHOT}
+else
+	CURRENT_STRATOSPHERE_VERSION_YARN="$CURRENT_STRATOSPHERE_VERSION-hadoop2"
+fi
+
+
+echo "detected current version as: $CURRENT_STRATOSPHERE_VERSION ; yarn: $CURRENT_STRATOSPHERE_VERSION_YARN "
+
 
 # Check if push/commit is eligible for pushing
 echo "Job: $TRAVIS_JOB_NUMBER ; isPR: $TRAVIS_PULL_REQUEST"
