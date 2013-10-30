@@ -226,100 +226,7 @@
 				</configuration>
 			</plugin>
 
-			<!-- measure and report source code complexity -->
-<!--			<plugin>
-				<groupId>org.codehaus.mojo</groupId>
-				<artifactId>javancss-maven-plugin</artifactId>
-				<version>2.0</version>
-			</plugin> -->
 
-			<!-- analyze dependencies in source code -->
-<!--			<plugin>
-				<groupId>org.codehaus.mojo</groupId>
-				<artifactId>jdepend-maven-plugin</artifactId>
-				<version></version>
-			</plugin> -->
-
-			<!-- disabled because currently no SCM defined generates changelog <plugin> 
-				<groupId>org.apache.maven.plugins</groupId> <artifactId>maven-changelog-plugin</artifactId> 
-				<version>2.2-SNAPSHOT</version> </plugin> -->
-
-			<!-- report occurrences of various todo markers in code -->
-<!--			<plugin>
-				<groupId>org.codehaus.mojo</groupId>
-				<artifactId>taglist-maven-plugin</artifactId>
-				<version>2.3</version>
-				<configuration>
-					<tags>
-						<tag>TODO</tag>
-						<tag>FIXME</tag>
-						<tag>@todo</tag>
-						<tag>@deprecated</tag>
-					</tags>
-				</configuration>
-			</plugin> -->
-
-			<!-- todo: reenable when SCM is available <plugin> <groupId>org.codehaus.mojo</groupId> 
-				<artifactId>scmchangelog-maven-plugin</artifactId> <version>1.2</version> 
-				<configuration> <connectionUrl>scm:svn:https://projekte.itmc.tu-dortmund.de/svn/sla4dgrid/trunk</connectionUrl> 
-				<tagBase>https://projekte.itmc.tu-dortmund.de/svn/sla4dgrid/tags/</tagBase> 
-				<filter>.*</filter> </configuration> </plugin> -->
-
-			<!-- generates cross references in code so that you can click in the reports and jump to the respective lines -->
-<!--			<plugin>
-				<groupId>org.codehaus.mojo</groupId>
-				<artifactId>jxr-maven-plugin</artifactId>
-				<configuration>
-					<linkJavadoc>true</linkJavadoc>
-				</configuration>
-			</plugin> -->
-
-			<!-- discovers frequent bugs in programs -->
-<!--			<plugin>
-				<groupId>org.codehaus.mojo</groupId>
-				<artifactId>findbugs-maven-plugin</artifactId>
-				<version>2.0.1</version>
-				<configuration>
-					<effort>Max</effort>
-					<threshold>Medium</threshold>
-					<findbugsXmlOutput>true</findbugsXmlOutput>
-					<xmlOutput>true</xmlOutput>
-				</configuration>
-			</plugin> -->
-
-			<!-- maven source code analysis for frequent bugs -->
-<!--			<plugin>
-				<artifactId>maven-pmd-plugin</artifactId>
-				<version>2.5</version>
-				<configuration>
-					<targetJdk>1.6</targetJdk>
-				</configuration>
-				<reportSets>
-					<reportSet>
-						<reports>
-							<report>pmd</report>
-							<report>cpd</report>
-						</reports>
-					</reportSet>
-				</reportSets>
-			</plugin> -->
-
-			<!-- generation of JavaDoc -->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-javadoc-plugin</artifactId>
-				<version>2.5</version>
-			</plugin>
-
-			<!-- style checker -->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-checkstyle-plugin</artifactId>
-				<version>2.6</version>
-				<configuration>
-					<configLocation>stratosphere/checkstyle.xml</configLocation>
-				</configuration>
-			</plugin>
 
 			<!-- execution of Unit Tests -->
 			<plugin>
@@ -331,29 +238,6 @@
 				</configuration>
 			</plugin>
 
-			<!-- check coverage of tests -->
-<!--			<plugin>
-				<groupId>org.codehaus.mojo</groupId>
-				<artifactId>cobertura-maven-plugin</artifactId>
-				<configuration>
-					<formats>
-						<format>html</format>
-						<format>xml</format>
-					</formats>
-				</configuration>
-			</plugin> -->
-
-			<!-- Generator for QA reports, summarizes various inputs and draws diagrams 
-				indicating improvements/deterioration <plugin> <groupId>net.objectlab</groupId> 
-				<artifactId>mvn-qalab-plugin</artifactId> <version>2.2</version> <reportSets> 
-				<reportSet> <reports> <report>chart</report> <report>report-merge-chart</report> 
-				<report>report-movers-all</report> </reports> </reportSet> </reportSets> 
-				</plugin> -->
-
-<!--			<plugin>
-				<groupId>org.codehaus.mojo</groupId>
-				<artifactId>dashboard-maven-plugin</artifactId>
-			</plugin> -->
 
 		</plugins>
 	</reporting>
@@ -374,24 +258,15 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-javadoc-plugin</artifactId>
-				<version>2.7</version>
+				<version>2.9.1</version>
 				<executions>
 					<execution>
-						<id>javadoc:aggregate-jar</id>
+						<id>attach-javadocs</id>
 						<goals>
-							<goal>aggregate-jar</goal>
+							<goal>jar</goal>
 						</goals>
-						<!-- use "package" phase to include JavaDocs in build -->
-						<phase>site</phase>
-						<configuration>
-							<quiet>true</quiet>
-						</configuration>
 					</execution>
 				</executions>
-				<configuration>
-					<!-- exclude example classes from JavaDoc -->
-					<excludePackageNames>eu.stratosphere.nephele.example.*:eu.stratosphere.pact.example.*</excludePackageNames>
-				</configuration>
 			</plugin>
 			<plugin>
 				<artifactId>maven-failsafe-plugin</artifactId>
