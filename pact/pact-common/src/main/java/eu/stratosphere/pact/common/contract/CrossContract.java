@@ -99,7 +99,7 @@ public class CrossContract extends GenericCrossContract<CrossStub> implements Re
 		 * 
 		 * @param udf The {@link CrossStub} implementation for this Cross contract.
 		 */
-		private Builder(UserCodeWrapper<CrossStub> udf) {
+		protected Builder(UserCodeWrapper<CrossStub> udf) {
 			this.udf = udf;
 			this.inputs1 = new ArrayList<Contract>();
 			this.inputs2 = new ArrayList<Contract>();

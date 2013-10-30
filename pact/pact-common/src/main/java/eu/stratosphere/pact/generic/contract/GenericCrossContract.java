@@ -30,8 +30,8 @@ import eu.stratosphere.pact.generic.stub.GenericCrosser;
  * 
  * @see CrossStub
  */
-public class GenericCrossContract<T extends GenericCrosser<?, ?, ?>> extends DualInputContract<T>
-{
+public class GenericCrossContract<T extends GenericCrosser<?, ?, ?>> extends DualInputContract<T> {
+	
 	public GenericCrossContract(UserCodeWrapper<T> udf, String name) {
 		super(udf, name);
 	}
@@ -43,4 +43,16 @@ public class GenericCrossContract<T extends GenericCrosser<?, ?, ?>> extends Dua
 	public GenericCrossContract(Class<? extends T> udf, String name) {
 		this(new UserCodeClassWrapper<T>(udf), name);
 	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * Marker interface to declare the second input as the smaller one.
+	 */
+	public static interface CrossWithSmall {}
+	
+	/**
+	 * Marker interface to declare the second input as the larger one.
+	 */
+	public static interface CrossWithLarge {}
 }

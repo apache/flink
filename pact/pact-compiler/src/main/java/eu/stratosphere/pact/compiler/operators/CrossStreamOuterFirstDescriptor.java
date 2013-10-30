@@ -23,6 +23,14 @@ import eu.stratosphere.pact.runtime.task.DriverStrategy;
  */
 public class CrossStreamOuterFirstDescriptor extends CartesianProductDescriptor {
 	
+	public CrossStreamOuterFirstDescriptor() {
+		this(true, true);
+	}
+	
+	public CrossStreamOuterFirstDescriptor(boolean allowBroadcastFirst, boolean allowBroadcastSecond) {
+		super(allowBroadcastFirst, allowBroadcastSecond);
+	}
+	
 	@Override
 	public DriverStrategy getStrategy() {
 		return DriverStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST;

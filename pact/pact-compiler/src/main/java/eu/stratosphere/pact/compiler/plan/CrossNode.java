@@ -33,8 +33,8 @@ import eu.stratosphere.pact.generic.contract.GenericCrossContract;
 /**
  * The Optimizer representation of a <i>Cross</i> contract node.
  */
-public class CrossNode extends TwoInputNode
-{
+public class CrossNode extends TwoInputNode {
+	
 	/**
 	 * Creates a new CrossNode for the given contract.
 	 * 
@@ -56,45 +56,54 @@ public class CrossNode extends TwoInputNode
 		return (GenericCrossContract<?>) super.getPactContract();
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getName()
-	 */
 	@Override
 	public String getName() {
 		return "Cross";
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.TwoInputNode#getPossibleProperties()
-	 */
 	@Override
 	protected List<OperatorDescriptorDual> getPossibleProperties() {
-		Configuration conf = getPactContract().getParameters();
-		String localStrategy = conf.getString(PactCompiler.HINT_LOCAL_STRATEGY, null);
-
-		if (localStrategy != null) {
-			final OperatorDescriptorDual fixedDriverStrat;
-			if (PactCompiler.HINT_LOCAL_STRATEGY_NESTEDLOOP_BLOCKED_OUTER_FIRST.equals(localStrategy)) {
-				fixedDriverStrat = new CrossBlockOuterFirstDescriptor();
-			} else if (PactCompiler.HINT_LOCAL_STRATEGY_NESTEDLOOP_BLOCKED_OUTER_SECOND.equals(localStrategy)) {
-				fixedDriverStrat = new CrossBlockOuterSecondDescriptor();
-			} else if (PactCompiler.HINT_LOCAL_STRATEGY_NESTEDLOOP_STREAMED_OUTER_FIRST.equals(localStrategy)) {
-				fixedDriverStrat = new CrossStreamOuterFirstDescriptor();
-			} else if (PactCompiler.HINT_LOCAL_STRATEGY_NESTEDLOOP_STREAMED_OUTER_SECOND.equals(localStrategy)) {
-				fixedDriverStrat = new CrossStreamOuterSecondDescriptor();
-			} else {
-				throw new CompilerException("Invalid local strategy hint for cross contract: " + localStrategy);
-			}
-			
-			return Collections.singletonList(fixedDriverStrat);
-		} else {
+		GenericCrossContract<?> operation = getPactContract();
+		
+		if (operation instanceof GenericCrossContract.CrossWithSmall) {
 			ArrayList<OperatorDescriptorDual> list = new ArrayList<OperatorDescriptorDual>();
-			list.add(new CrossBlockOuterFirstDescriptor());
-			list.add(new CrossBlockOuterSecondDescriptor());
-			list.add(new CrossStreamOuterFirstDescriptor());
-			list.add(new CrossStreamOuterSecondDescriptor());
+			list.add(new CrossBlockOuterSecondDescriptor(false, true));
+			list.add(new CrossStreamOuterFirstDescriptor(false, true));
 			return list;
+		}
+		else if (operation instanceof GenericCrossContract.CrossWithLarge) {
+			ArrayList<OperatorDescriptorDual> list = new ArrayList<OperatorDescriptorDual>();
+			list.add(new CrossBlockOuterFirstDescriptor(true, false));
+			list.add(new CrossStreamOuterSecondDescriptor(true, false));
+			return list;
+		}
+		else {
+			Configuration conf = operation.getParameters();
+			String localStrategy = conf.getString(PactCompiler.HINT_LOCAL_STRATEGY, null);
+	
+			if (localStrategy != null) {
+				final OperatorDescriptorDual fixedDriverStrat;
+				if (PactCompiler.HINT_LOCAL_STRATEGY_NESTEDLOOP_BLOCKED_OUTER_FIRST.equals(localStrategy)) {
+					fixedDriverStrat = new CrossBlockOuterFirstDescriptor();
+				} else if (PactCompiler.HINT_LOCAL_STRATEGY_NESTEDLOOP_BLOCKED_OUTER_SECOND.equals(localStrategy)) {
+					fixedDriverStrat = new CrossBlockOuterSecondDescriptor();
+				} else if (PactCompiler.HINT_LOCAL_STRATEGY_NESTEDLOOP_STREAMED_OUTER_FIRST.equals(localStrategy)) {
+					fixedDriverStrat = new CrossStreamOuterFirstDescriptor();
+				} else if (PactCompiler.HINT_LOCAL_STRATEGY_NESTEDLOOP_STREAMED_OUTER_SECOND.equals(localStrategy)) {
+					fixedDriverStrat = new CrossStreamOuterSecondDescriptor();
+				} else {
+					throw new CompilerException("Invalid local strategy hint for cross contract: " + localStrategy);
+				}
+				
+				return Collections.singletonList(fixedDriverStrat);
+			} else {
+				ArrayList<OperatorDescriptorDual> list = new ArrayList<OperatorDescriptorDual>();
+				list.add(new CrossBlockOuterFirstDescriptor());
+				list.add(new CrossBlockOuterSecondDescriptor());
+				list.add(new CrossStreamOuterFirstDescriptor());
+				list.add(new CrossStreamOuterSecondDescriptor());
+				return list;
+			}
 		}
 	}
 

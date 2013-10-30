@@ -23,6 +23,14 @@ import eu.stratosphere.pact.runtime.task.DriverStrategy;
  */
 public class CrossBlockOuterSecondDescriptor extends CartesianProductDescriptor {
 	
+	public CrossBlockOuterSecondDescriptor() {
+		this(true, true);
+	}
+	
+	public CrossBlockOuterSecondDescriptor(boolean allowBroadcastFirst, boolean allowBroadcastSecond) {
+		super(allowBroadcastFirst, allowBroadcastSecond);
+	}
+	
 	@Override
 	public DriverStrategy getStrategy() {
 		return DriverStrategy.NESTEDLOOP_BLOCKED_OUTER_SECOND;

@@ -28,26 +28,42 @@ import eu.stratosphere.pact.compiler.plan.TwoInputNode;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.DualInputPlanNode;
 
-/**
- *
- */
+
 public abstract class CartesianProductDescriptor extends OperatorDescriptorDual {
+	
+	private final boolean allowBroadcastFirst;
+	private final boolean allowBroadcastSecond;
+	
+	
+	protected CartesianProductDescriptor(boolean allowBroadcastFirst, boolean allowBroadcastSecond) {
+		if (!(allowBroadcastFirst | allowBroadcastSecond))
+			throw new IllegalArgumentException();
+
+		this.allowBroadcastFirst = allowBroadcastFirst;
+		this.allowBroadcastSecond = allowBroadcastSecond;
+	}
+	
 	
 	@Override
 	protected List<GlobalPropertiesPair> createPossibleGlobalProperties() {
 		ArrayList<GlobalPropertiesPair> pairs = new ArrayList<GlobalPropertiesPair>();
-		{ // replicate second
-			RequestedGlobalProperties any1 = new RequestedGlobalProperties();
-			RequestedGlobalProperties replicated2 = new RequestedGlobalProperties();
-			replicated2.setFullyReplicated();
-			pairs.add(new GlobalPropertiesPair(any1, replicated2));
-		}
-		{ // replicate first
+		
+		if (this.allowBroadcastFirst) {
+			// replicate first
 			RequestedGlobalProperties replicated1 = new RequestedGlobalProperties();
 			replicated1.setFullyReplicated();
 			RequestedGlobalProperties any2 = new RequestedGlobalProperties();
 			pairs.add(new GlobalPropertiesPair(replicated1, any2));
 		}
+		
+		if (this.allowBroadcastSecond) {
+			// replicate second
+			RequestedGlobalProperties any1 = new RequestedGlobalProperties();
+			RequestedGlobalProperties replicated2 = new RequestedGlobalProperties();
+			replicated2.setFullyReplicated();
+			pairs.add(new GlobalPropertiesPair(any1, replicated2));
+		}
+
 		return pairs;
 	}
 	
