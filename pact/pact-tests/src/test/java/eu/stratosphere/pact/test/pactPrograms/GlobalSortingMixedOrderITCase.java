@@ -41,7 +41,6 @@ import eu.stratosphere.pact.common.io.RecordInputFormat;
 import eu.stratosphere.pact.common.io.RecordOutputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.PlanAssembler;
-import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.parser.DecimalTextIntParser;
@@ -185,24 +184,6 @@ public class GlobalSortingMixedOrderITCase extends TestBase {
 			bound.setField(1, new PactInteger(RANGE_I2));
 			bound.setField(2, new PactInteger(RANGE_I3));
 			return bound;
-		}
-		
-		@Override
-		public int[] getBoundaryKeyPositions() {
-			return new int[]{0,1,2};
-		}
-
-		@SuppressWarnings("unchecked")
-		@Override
-		public Class<? extends Key>[] getBoundaryKeyTypes() {
-			return new Class[]{PactInteger.class,PactInteger.class,PactInteger.class};
-		}
-
-		@Override
-		public Order[] getBoundaryKeyOrders() {
-			return new Order[]{ascendingI1 ? Order.ASCENDING : Order.DESCENDING, 
-					ascendingI2 ? Order.ASCENDING : Order.DESCENDING,
-					ascendingI3 ? Order.ASCENDING : Order.DESCENDING };
 		}
 		
 	}

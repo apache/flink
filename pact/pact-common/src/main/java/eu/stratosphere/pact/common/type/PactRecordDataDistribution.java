@@ -20,8 +20,6 @@ import java.io.DataOutput;
 import java.io.IOException;
 
 import eu.stratosphere.pact.common.contract.DataDistribution;
-import eu.stratosphere.pact.common.contract.Order;
-import eu.stratosphere.pact.common.contract.Ordering;
 
 /**
  * Data distribution for the PactRecord record type.
@@ -31,12 +29,6 @@ public class PactRecordDataDistribution implements DataDistribution<PactRecord> 
 
 	private PactRecord[] boundaryRecords;  // records that mark the upper boundary of all buckets 
 	
-	private int[] keyPositions; // the key positions set in the boundary records
-
-	private Class<? extends Key>[] keyTypes; // the types of the boundary keys
-	
-	private Order[] keyOrders; // the sort order of the boundary keys
-	
 	/**
 	 * Default constructor for deserialization.
 	 */
@@ -45,41 +37,32 @@ public class PactRecordDataDistribution implements DataDistribution<PactRecord> 
 	}
 	
 	@SuppressWarnings("unchecked")
-	public PactRecordDataDistribution(Ordering ordering, Key[][] boundaryKeys) {
+	public PactRecordDataDistribution(int[] keyPositions, Key[][] boundaryKeys) {
 		
-		int[] keyPositions = ordering.getFieldPositions();
-		Class<? extends Key>[] keyTypes = ordering.getTypes();
-		Order[] orders = ordering.getFieldOrders();
+		Class<? extends Key>[] keyTypes = new Class[keyPositions.length];
 		
 		int numBoundaryKeys = 0;
-		// check boundary keys for compatibility with ordering
+		// check boundary keys for consistency
 		for(Key[] boundaryKey : boundaryKeys) {
 			
+			// check for consistent number of keys
 			if(numBoundaryKeys == 0) {
-				numBoundaryKeys = boundaryKey.length;
-				if (numBoundaryKeys > keyPositions.length) {
-					throw new IllegalArgumentException("Boundary keys must be a subset of the ordering keys");
+				if(keyPositions.length != boundaryKey.length) {
+					throw new IllegalArgumentException("Length of key positions and boundary keys do not match.");
 				}
-				
+				numBoundaryKeys = boundaryKey.length;
 			} else if (numBoundaryKeys != boundaryKey.length) {
 				throw new IllegalArgumentException("All boundaries need the same number of keys.");
 			}
 			
+			// check for consistent key types
 			for(int i = 0; i < boundaryKey.length; i++) {
-				if(! boundaryKey[i].getClass().equals(keyTypes[i])) {
+				if(keyTypes[i] == null) {
+					keyTypes[i] = boundaryKey[i].getClass();
+				} else if (! boundaryKey[i].getClass().equals(keyTypes[i])) {
 					throw new IllegalArgumentException("Boundary keys do not match the ordering key types.");
 				}
 			}
-		}
-		
-		// copy ordering information
-		this.keyPositions = new int[numBoundaryKeys];
-		this.keyTypes = (Class<? extends Key>[]) new Class[numBoundaryKeys];
-		this.keyOrders = new Order[numBoundaryKeys];
-		for(int i=0; i<numBoundaryKeys; i++) {
-			this.keyPositions[i] = ordering.getFieldNumber(i);
-			this.keyTypes[i] = ordering.getType(i);
-			this.keyOrders[i] = ordering.getOrder(i);
 		}
 		
 		// create records from keys
@@ -91,41 +74,6 @@ public class PactRecordDataDistribution implements DataDistribution<PactRecord> 
 				this.boundaryRecords[i].setField(keyPositions[j], boundaryKeys[i][j]);
 			}
 		}
-		
-		// ensure records are in correct order
-		for(int i = 1; i < this.boundaryRecords.length; i++) {
-			for(int j = 0; j < keyPositions.length; j++) {
-				
-				final Key prevKey = this.boundaryRecords[i-1].getField(keyPositions[j], keyTypes[j]);
-				final Key thisKey = this.boundaryRecords[i].getField(keyPositions[j], keyTypes[j]);
-				final int comp = prevKey.compareTo(thisKey);
-				
-				if(orders[j] == Order.ANY || orders[j] == Order.NONE) {
-					continue;
-				}
-				
-				if(comp == 0) {
-					continue;
-				}
-				
-				if(orders[j] == Order.ASCENDING) {
-					if(comp < 0) {
-						break;
-					} else {
-						throw new IllegalArgumentException("Ordering and order of boundary keys inconsistent");
-					}
-				}
-				
-				if(orders[j] == Order.DESCENDING) {
-					if(comp > 0) {
-						break;
-					} else {
-						throw new IllegalArgumentException("Ordering and order of boundary keys inconsistent");
-					}
-				}
-			}
-		}
-		
 	}
 	
 	@Override
@@ -179,19 +127,4 @@ public class PactRecordDataDistribution implements DataDistribution<PactRecord> 
 		}
 	}
 	
-	@Override
-	public int[] getBoundaryKeyPositions() {
-		return keyPositions;
-	}
-	
-	@Override
-	public Class<? extends Key>[] getBoundaryKeyTypes() {
-		return keyTypes;
-	}
-	
-	@Override
-	public Order[] getBoundaryKeyOrders() {
-		return keyOrders;
-	}
-
 }

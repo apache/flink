@@ -41,7 +41,6 @@ import eu.stratosphere.pact.common.io.RecordInputFormat;
 import eu.stratosphere.pact.common.io.RecordOutputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.PlanAssembler;
-import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.parser.DecimalTextIntParser;
@@ -159,22 +158,6 @@ public class GlobalSortingITCase extends TestBase {
 			PactRecord bound = new PactRecord(1);
 			bound.setField(0, new PactInteger(boundVal));
 			return bound;
-		}
-
-		@Override
-		public int[] getBoundaryKeyPositions() {
-			return new int[]{0};
-		}
-
-		@SuppressWarnings("unchecked")
-		@Override
-		public Class<? extends Key>[] getBoundaryKeyTypes() {
-			return new Class[]{PactInteger.class};
-		}
-
-		@Override
-		public Order[] getBoundaryKeyOrders() {
-			return new Order[]{Order.ASCENDING};
 		}
 		
 	}

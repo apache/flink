@@ -19,8 +19,6 @@ import java.io.DataInput;
 import java.io.DataOutput;
 
 import eu.stratosphere.pact.common.contract.DataDistribution;
-import eu.stratosphere.pact.common.contract.Order;
-import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 
 /**
@@ -53,22 +51,6 @@ public class TeraDistribution implements DataDistribution<PactRecord>
 		PactRecord splitRec = new PactRecord();
 		splitRec.setField(0, split);
 		return splitRec;
-	}
-	
-	@Override
-	public int[] getBoundaryKeyPositions() {
-		return new int[] {0};
-	}
-	
-	@SuppressWarnings("unchecked")
-	@Override
-	public Class<? extends Key>[] getBoundaryKeyTypes() {
-		return new Class[] {TeraKey.class};
-	}
-	
-	@Override
-	public Order[] getBoundaryKeyOrders() {
-		return new Order[] {Order.ASCENDING};
 	}
 
 	/* (non-Javadoc)

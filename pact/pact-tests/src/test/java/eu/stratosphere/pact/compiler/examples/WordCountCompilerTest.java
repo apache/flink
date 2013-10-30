@@ -131,7 +131,7 @@ public class WordCountCompilerTest extends CompilerTestBase {
 				.field(PactInteger.class, 1);
 			
 			Ordering ordering = new Ordering(0, PactString.class, Order.DESCENDING);
-			out.setGlobalOrder(ordering, new PactRecordDataDistribution(ordering, new PactString[][] {{new PactString("N")}}));
+			out.setGlobalOrder(ordering, new PactRecordDataDistribution(new int[]{0}, new PactString[][] {{new PactString("N")}}));
 			
 			Plan p = new Plan(out, "WordCount Example");
 			p.setDefaultParallelism(DEFAULT_PARALLELISM);

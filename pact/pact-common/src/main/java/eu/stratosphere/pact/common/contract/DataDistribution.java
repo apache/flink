@@ -16,7 +16,6 @@
 package eu.stratosphere.pact.common.contract;
 
 import eu.stratosphere.nephele.io.IOReadableWritable;
-import eu.stratosphere.pact.common.type.Key;
 
 public interface DataDistribution<T> extends IOReadableWritable
 {
@@ -42,24 +41,4 @@ public interface DataDistribution<T> extends IOReadableWritable
 	 */
 	public T getBucketBoundary(int bucketNum, int totalNumBuckets);
 	
-	/**
-	 * Returns the key positions of the boundary records.
-	 * 
-	 * @return An array of key positions of the boundary records.
-	 */
-	public int[] getBoundaryKeyPositions();
-	
-	/**
-	 * Returns the key types of the boundary records.
-	 * 
-	 * @return An array of key types of the boundary records.
-	 */
-	public Class<? extends Key>[] getBoundaryKeyTypes();
-	
-	/**
-	 * Returns the key order of the boundary records.
-	 * 
-	 * @return An array of key orders of the boundary records.
-	 */
-	public Order[] getBoundaryKeyOrders();
 }

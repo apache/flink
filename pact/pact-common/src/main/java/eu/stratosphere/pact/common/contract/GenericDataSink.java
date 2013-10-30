@@ -43,7 +43,7 @@ public class GenericDataSink extends Contract {
 	
 	private Ordering partitionOrdering;
 	
-	private DataDistribution distribution;
+	private DataDistribution<?> distribution;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -317,6 +317,8 @@ public class GenericDataSink extends Contract {
 	 */
 	public void setRangePartitioned(Ordering partitionOrdering, DataDistribution<?> distribution)
 	{
+		// TODO: check compatibility of distribution and ordering (number and order of keys, key types, etc.
+		// TODO: adapt partition ordering to data distribution (use prefix of ordering)
 		this.partitionOrdering = partitionOrdering;
 		this.distribution = distribution;
 	}

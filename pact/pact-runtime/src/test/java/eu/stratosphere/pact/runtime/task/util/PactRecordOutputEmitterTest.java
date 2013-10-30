@@ -31,9 +31,7 @@ import org.junit.Test;
 
 import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.pact.common.contract.DataDistribution;
-import eu.stratosphere.pact.common.contract.Order;
 import eu.stratosphere.pact.common.type.DeserializationException;
-import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyFieldOutOfBoundsException;
 import eu.stratosphere.pact.common.type.NullKeyFieldException;
 import eu.stratosphere.pact.common.type.PactRecord;
@@ -393,22 +391,6 @@ public class PactRecordOutputEmitterTest extends TestCase {
 			final float bucketWidth = ((float) range) / totalSplits;
 			final int upperBoundary = this.min + (int) ((splitNum + 1) * bucketWidth);
 			return new PactRecord(new PactInteger(upperBoundary));
-		}
-		
-		@Override
-		public int[] getBoundaryKeyPositions() {
-			return new int[] {0};
-		}
-		
-		@SuppressWarnings("unchecked")
-		@Override
-		public Class<? extends Key>[] getBoundaryKeyTypes() {
-			return new Class[] {PactInteger.class};
-		}
-		
-		@Override
-		public Order[] getBoundaryKeyOrders() {
-			return new Order[] {Order.ASCENDING};
 		}
 	}
 }

@@ -26,8 +26,6 @@ import junit.framework.Assert;
 import org.junit.Test;
 
 import eu.stratosphere.pact.common.contract.DataDistribution;
-import eu.stratosphere.pact.common.contract.Order;
-import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
@@ -37,45 +35,25 @@ public class PactRecordDataDistributionTest {
 	@Test
 	public void testConstructorSingleKey() {
 
-		Ordering order = new Ordering(0, PactInteger.class, Order.ASCENDING);
-		
 		// check correct data distribution
-		DataDistribution<PactRecord> dd = new PactRecordDataDistribution(order, 
+		DataDistribution<PactRecord> dd = new PactRecordDataDistribution(new int[]{0}, 
 				new Key[][] {{new PactInteger(1)}, {new PactInteger(2)}, {new PactInteger(3)}});
 		Assert.assertTrue(dd != null);
-		int[] keyPos = dd.getBoundaryKeyPositions();
-		Assert.assertTrue(keyPos.length == 1);
-		Assert.assertTrue(keyPos[0] == 0);
-		Class<? extends Key>[] keyTypes = dd.getBoundaryKeyTypes();
-		Assert.assertTrue(keyTypes.length == 1);
-		Assert.assertTrue(keyTypes[0].equals(PactInteger.class));
-		Order[] keyOrders = dd.getBoundaryKeyOrders();
-		Assert.assertTrue(keyOrders.length == 1);
-		Assert.assertTrue(keyOrders[0].equals(Order.ASCENDING));
 		
 		// check incorrect key types
 		try {
-			dd = new PactRecordDataDistribution(order, 
+			dd = new PactRecordDataDistribution(new int[]{0}, 
 					new Key[][] {{new PactInteger(1)}, {new PactString("ABC")}, {new PactInteger(3)}});
-			Assert.fail("Data distribution accepts incorrect key types");
+			Assert.fail("Data distribution accepts inconsistent key types");
 		} catch(IllegalArgumentException iae) {
 			// do nothing
 		}
 		
 		// check inconsistent number of keys
 		try {
-			dd = new PactRecordDataDistribution(order, 
+			dd = new PactRecordDataDistribution(new int[]{0}, 
 					new Key[][] {{new PactInteger(1)}, {new PactInteger(2), new PactInteger(2)}, {new PactInteger(3)}});
-			Assert.fail("Data distribution accepts bucket boundaries with inconsistent many keys");
-		} catch(IllegalArgumentException iae) {
-			// do nothing
-		}
-		
-		// check invalid key order
-		try {
-			dd = new PactRecordDataDistribution(order, 
-					new Key[][] {{new PactInteger(1)}, {new PactInteger(4)}, {new PactInteger(3)}});
-			Assert.fail("Data distribution accepts bucket boundaries in incorrect order");
+			Assert.fail("Data distribution accepts inconsistent many keys");
 		} catch(IllegalArgumentException iae) {
 			// do nothing
 		}
@@ -84,53 +62,27 @@ public class PactRecordDataDistributionTest {
 	@Test 
 	public void testConstructorMultiKey() {
 		
-		Ordering order = new Ordering(0, PactInteger.class, Order.ASCENDING);
-		order.appendOrdering(5, PactString.class, Order.ASCENDING);
-		order.appendOrdering(4, PactInteger.class, Order.DESCENDING);
-		
 		// check correct data distribution
-		DataDistribution<PactRecord> dd = new PactRecordDataDistribution(order, 
+		DataDistribution<PactRecord> dd = new PactRecordDataDistribution(new int[]{0,5,4}, 
 				new Key[][] {{new PactInteger(1), new PactString("A"), new PactInteger(1)}, 
 				             {new PactInteger(2), new PactString("A"), new PactInteger(1)}, 
 				             {new PactInteger(3), new PactString("A"), new PactInteger(1)}});
 		Assert.assertTrue(dd != null);
-		int[] keyPos = dd.getBoundaryKeyPositions();
-		Assert.assertTrue(keyPos.length == 3);
-		Assert.assertTrue(keyPos[0] == 0);
-		Assert.assertTrue(keyPos[1] == 5);
-		Assert.assertTrue(keyPos[2] == 4);
-		Class<? extends Key>[] keyTypes = dd.getBoundaryKeyTypes();
-		Assert.assertTrue(keyTypes.length == 3);
-		Assert.assertTrue(keyTypes[0].equals(PactInteger.class));
-		Assert.assertTrue(keyTypes[1].equals(PactString.class));
-		Assert.assertTrue(keyTypes[2].equals(PactInteger.class));
-		Order[] keyOrders = dd.getBoundaryKeyOrders();
-		Assert.assertTrue(keyOrders.length == 3);
-		Assert.assertTrue(keyOrders[0].equals(Order.ASCENDING));
-		Assert.assertTrue(keyOrders[1].equals(Order.ASCENDING));
-		Assert.assertTrue(keyOrders[2].equals(Order.DESCENDING));
 		
-		dd = new PactRecordDataDistribution(order, 
-				new Key[][] {{new PactInteger(1), new PactString("A"), new PactInteger(1)}, 
-				             {new PactInteger(1), new PactString("B"), new PactInteger(1)}, 
-				             {new PactInteger(1), new PactString("C"), new PactInteger(1)}});
-		Assert.assertTrue(dd != null);
-		
-		dd = new PactRecordDataDistribution(order, 
-				new Key[][] {{new PactInteger(1), new PactString("A"), new PactInteger(3)}, 
-				             {new PactInteger(2), new PactString("A"), new PactInteger(2)}, 
-				             {new PactInteger(3), new PactString("A"), new PactInteger(1)}});
-		Assert.assertTrue(dd != null);
-		
-		dd = new PactRecordDataDistribution(order, 
-				new Key[][] {{new PactInteger(1), new PactString("A")}, 
-				             {new PactInteger(2), new PactString("A")}, 
-				             {new PactInteger(3), new PactString("A")}});
-		Assert.assertTrue(dd != null);
+		// check inconsistent array parameter lengths
+		try {
+			dd = new PactRecordDataDistribution(new int[]{0,5,4}, 
+					new Key[][] {{new PactInteger(1), new PactString("A")}, 
+					             {new PactInteger(2), new PactString("A")}, 
+					             {new PactInteger(3), new PactString("A")}});
+			Assert.fail("Data distribution accepts key position and key boundary arrays of different length");
+		} catch(IllegalArgumentException iae) {
+			// do nothing 
+		}
 		
 		// check inconsistent key types
 		try {
-			dd = new PactRecordDataDistribution(order, 
+			dd = new PactRecordDataDistribution(new int[]{0,5,4}, 
 					new Key[][] {{new PactInteger(1), new PactString("A"), new PactDouble(1.3d)}, 
 								 {new PactInteger(2), new PactString("B"), new PactInteger(1)}});
 			Assert.fail("Data distribution accepts incorrect key types");
@@ -140,34 +92,11 @@ public class PactRecordDataDistributionTest {
 		
 		// check inconsistent number of keys
 		try {
-			dd = new PactRecordDataDistribution(order, 
-					new Key[][] {{new PactInteger(1)}, 
+			dd = new PactRecordDataDistribution(new int[]{0,5}, 
+					new Key[][] {{new PactInteger(1), new PactInteger(2)}, 
 					             {new PactInteger(2), new PactInteger(2)}, 
 					             {new PactInteger(3)}});
 			Assert.fail("Data distribution accepts bucket boundaries with inconsistent many keys");
-		} catch(IllegalArgumentException iae) {
-			// do nothing
-		}
-		
-		// check invalid key order
-		try {
-			dd = new PactRecordDataDistribution(order, 
-					new Key[][] {{new PactInteger(1), new PactString("A"), new PactInteger(3)}, 
-					             {new PactInteger(1), new PactString("A"), new PactInteger(2)}, 
-					             {new PactInteger(1), new PactString("A"), new PactInteger(3)}});
-			
-			Assert.fail("Data distribution accepts bucket boundaries in incorrect order");
-		} catch(IllegalArgumentException iae) {
-			// do nothing
-		}
-		
-		try {
-			dd = new PactRecordDataDistribution(order, 
-					new Key[][] {{new PactInteger(1), new PactString("A"), new PactInteger(3)}, 
-					             {new PactInteger(1), new PactString("B"), new PactInteger(2)}, 
-					             {new PactInteger(1), new PactString("A"), new PactInteger(3)}});
-			
-			Assert.fail("Data distribution accepts bucket boundaries in incorrect order");
 		} catch(IllegalArgumentException iae) {
 			// do nothing
 		}
@@ -177,11 +106,7 @@ public class PactRecordDataDistributionTest {
 	@Test
 	public void testWriteRead() {
 		
-		Ordering order = new Ordering(0, PactInteger.class, Order.ASCENDING);
-		order.appendOrdering(5, PactString.class, Order.ASCENDING);
-		order.appendOrdering(4, PactInteger.class, Order.DESCENDING);
-		
-		DataDistribution<PactRecord> ddWrite = new PactRecordDataDistribution(order, 
+		DataDistribution<PactRecord> ddWrite = new PactRecordDataDistribution(new int[]{0,5,4}, 
 				new Key[][] {{new PactInteger(1), new PactString("A"), new PactInteger(1)}, 
 				             {new PactInteger(2), new PactString("A"), new PactInteger(1)}, 
 				             {new PactInteger(2), new PactString("B"), new PactInteger(4)},
@@ -223,10 +148,7 @@ public class PactRecordDataDistributionTest {
 	@Test
 	public void testGetBucketBoundary() {
 		
-		Ordering order = new Ordering(0, PactInteger.class, Order.ASCENDING);
-		order.appendOrdering(5, PactString.class, Order.ASCENDING);
-		
-		DataDistribution<PactRecord> dd = new PactRecordDataDistribution(order, 
+		DataDistribution<PactRecord> dd = new PactRecordDataDistribution(new int[]{0,5}, 
 				new Key[][] {{new PactInteger(1), new PactString("A")}, 
 				             {new PactInteger(2), new PactString("B")}, 
 				             {new PactInteger(3), new PactString("C")},
