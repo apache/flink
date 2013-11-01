@@ -27,6 +27,12 @@
 			<groupId>org.apache.hbase</groupId>
 			<artifactId>hbase</artifactId>
 			<version>0.94.2-cdh4.2.1</version>
+			 <exclusions>
+		        <exclusion>  <!-- jruby is used for the hbase shell. -->
+		          <groupId>org.jruby</groupId>
+		          <artifactId>jruby-complete</artifactId>
+		        </exclusion>
+		     </exclusions> 
 		</dependency>
 
 		<dependency>
