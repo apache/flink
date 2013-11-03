@@ -33,8 +33,6 @@ import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.PlanAssembler;
@@ -53,9 +51,6 @@ public class PactProgram {
 	 * Property name of the pact assembler definition in the JAR manifest file.
 	 */
 	public static final String MANIFEST_ATTRIBUTE_ASSEMBLER_CLASS = "Pact-Assembler-Class";
-	
-	private static final Pattern BREAK_TAGS = Pattern.compile("<(b|B)(r|R) */?>");
-	private static final Pattern REMOVE_TAGS = Pattern.compile("<.+?>");
 
 	// --------------------------------------------------------------------------------------------
 
@@ -185,33 +180,6 @@ public class PactProgram {
 			return ((PlanAssemblerDescription) assembler).getDescription();
 		} else {
 			return null;
-		}
-	}
-
-	/**
-	 * Returns the description provided by the PlanAssembler class without
-	 * any HTML tags. This may contain a description of the plan itself
-	 * and its arguments.
-	 * 
-	 * @return The description of the PactProgram's input parameters without HTML mark-up.
-	 * @throws ProgramInvocationException
-	 *         This invocation is thrown if the PlanAssembler can't be properly loaded. Causes
-	 *         may be a missing / wrong class or manifest files.
-	 * @throws ErrorInPlanAssemblerException
-	 *         Thrown if an error occurred in the user-provided pact assembler. This may indicate
-	 *         missing parameters for generation.
-	 */
-	public String getTextDescription() throws ProgramInvocationException {
-		String descr = getDescription();
-		if (descr == null || descr.length() == 0) {
-			return null;
-		} else {
-			
-			Matcher m = BREAK_TAGS.matcher(descr);
-			descr = m.replaceAll("\n");
-			m = REMOVE_TAGS.matcher(descr);
-			// TODO: Properly convert &amp; etc
-			return m.replaceAll("");
 		}
 	}
 
