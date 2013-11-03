@@ -27,7 +27,13 @@ import java.io.DataOutput;
 import java.io.IOException;
 
 public class PactBoolean implements NormalizableKey, CopyableValue<PactBoolean> {
+	
 	private static final long serialVersionUID = 1L;
+	
+	public static final PactBoolean TRUE = new PactBoolean(true);
+	
+	public static final PactBoolean FALSE = new PactBoolean(false);
+	
 
 	private boolean value;
 
