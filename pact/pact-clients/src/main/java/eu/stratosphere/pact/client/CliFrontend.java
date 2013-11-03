@@ -374,7 +374,7 @@ public class CliFrontend {
 		if (description) {
 			String descr = null;
 			try {
-				descr = program.getTextDescription();
+				descr = program.getDescription();
 			} catch (Exception e) {
 				handleError(e);
 			}
