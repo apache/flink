@@ -21,9 +21,11 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.Serializable;
 import java.io.UTFDataFormatException;
+import java.nio.ByteOrder;
 
 import eu.stratosphere.nephele.services.memorymanager.DataInputView;
 import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
+import eu.stratosphere.nephele.services.memorymanager.MemoryUtils;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
 
 
@@ -1193,6 +1195,7 @@ public final class PactRecord implements Value {
 	 * Internal interface class to provide serialization for the data types.
 	 */
 	private static final class InternalDeSerializer implements DataInput, DataOutput, Serializable {
+		
 		private static final long serialVersionUID = 1L;
 		
 		private byte[] memory;
@@ -1266,8 +1269,14 @@ public final class PactRecord implements Value {
 		@Override
 		public int readInt() throws IOException {
 			if (this.position >= 0 && this.position < this.end - 3) {
-				return ((this.memory[position++] & 0xff) << 24) | ((this.memory[position++] & 0xff) << 16)
-					| ((this.memory[position++] & 0xff) << 8) | ((this.memory[position++] & 0xff) << 0);
+				@SuppressWarnings("restriction")
+				int value = UNSAFE.getInt(this.memory, BASE_OFFSET + this.position);
+				if (LITTLE_ENDIAN) {
+					 value = Integer.reverseBytes(value);
+				}
+				
+				this.position += 4;
+				return value;
 			} else {
 				throw new EOFException();
 			}
@@ -1299,14 +1308,13 @@ public final class PactRecord implements Value {
 		@Override
 		public long readLong() throws IOException {
 			if (position >= 0 && position < this.end - 7) {
-				return (((long) this.memory[position++] & 0xff) << 56)
-					| (((long) this.memory[position++] & 0xff) << 48)
-					| (((long) this.memory[position++] & 0xff) << 40)
-					| (((long) this.memory[position++] & 0xff) << 32)
-					| (((long) this.memory[position++] & 0xff) << 24)
-					| (((long) this.memory[position++] & 0xff) << 16)
-					| (((long) this.memory[position++] & 0xff) << 8)
-					| (((long) this.memory[position++] & 0xff) << 0);
+				@SuppressWarnings("restriction")
+				long value = UNSAFE.getLong(this.memory, BASE_OFFSET + this.position);
+				if (LITTLE_ENDIAN) {
+					 value = Long.reverseBytes(value);
+				}
+				this.position += 8;
+				return value;
 			} else {
 				throw new EOFException();
 			}
@@ -1499,30 +1507,30 @@ public final class PactRecord implements Value {
 			writeInt(Float.floatToIntBits(v));
 		}
 
+		@SuppressWarnings("restriction")
 		@Override
 		public void writeInt(int v) throws IOException {
 			if (this.position >= this.memory.length - 3) {
 				resize(4);
 			}
-			this.memory[this.position++] = (byte) (v >> 24);
-			this.memory[this.position++] = (byte) (v >> 16);
-			this.memory[this.position++] = (byte) (v >> 8);
-			this.memory[this.position++] = (byte) v;
+			if (LITTLE_ENDIAN) {
+				v = Integer.reverseBytes(v);
+			}			
+			UNSAFE.putInt(this.memory, BASE_OFFSET + this.position, v);
+			this.position += 4;
 		}
 
+		@SuppressWarnings("restriction")
 		@Override
 		public void writeLong(long v) throws IOException {
 			if (this.position >= this.memory.length - 7) {
 				resize(8);
 			}
-			this.memory[this.position++] = (byte) (v >> 56);
-			this.memory[this.position++] = (byte) (v >> 48);
-			this.memory[this.position++] = (byte) (v >> 40);
-			this.memory[this.position++] = (byte) (v >> 32);
-			this.memory[this.position++] = (byte) (v >> 24);
-			this.memory[this.position++] = (byte) (v >> 16);
-			this.memory[this.position++] = (byte) (v >> 8);
-			this.memory[this.position++] = (byte) v;
+			if (LITTLE_ENDIAN) {
+				v = Long.reverseBytes(v);
+			}
+			UNSAFE.putLong(this.memory, BASE_OFFSET + this.position, v);
+			this.position += 8;
 		}
 
 		@Override
@@ -1634,5 +1642,13 @@ public final class PactRecord implements Value {
 				throw new IOException("Serialization failed because the record length would exceed 2GB.");
 			}
 		}
+		
+		@SuppressWarnings("restriction")
+		private static final sun.misc.Unsafe UNSAFE = MemoryUtils.UNSAFE;
+		
+		@SuppressWarnings("restriction")
+		private static final long BASE_OFFSET = UNSAFE.arrayBaseOffset(byte[].class);
+		
+		private static final boolean LITTLE_ENDIAN = (MemoryUtils.NATIVE_BYTE_ORDER == ByteOrder.LITTLE_ENDIAN);
 	};
 }
