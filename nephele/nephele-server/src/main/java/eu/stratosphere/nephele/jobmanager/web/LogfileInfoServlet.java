@@ -1,12 +1,9 @@
 package eu.stratosphere.nephele.jobmanager.web;
 
-import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.io.PrintWriter;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -74,12 +71,20 @@ public class LogfileInfoServlet extends HttpServlet {
 	}
 	
 	private static void writeFile(OutputStream out, File file) throws IOException {
-		BufferedInputStream is = new BufferedInputStream(new FileInputStream(file));
 		byte[] buf = new byte[4 * 1024]; // 4K buffer
 		
-		int bytesRead;
-		while ((bytesRead = is.read(buf)) != -1) {
-			out.write(buf, 0, bytesRead);
+		FileInputStream  is = null;
+		try {
+			is = new FileInputStream(file);
+			
+			int bytesRead;
+			while ((bytesRead = is.read(buf)) != -1) {
+				out.write(buf, 0, bytesRead);
+			}
+		} finally {
+			if (is != null) {
+				is.close();
+			}
 		}
 	}
 	

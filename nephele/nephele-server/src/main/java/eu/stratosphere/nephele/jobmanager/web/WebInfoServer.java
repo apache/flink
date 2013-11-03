@@ -41,6 +41,7 @@ import eu.stratosphere.nephele.jobmanager.JobManager;
  * It instantiates and configures an embedded jetty server.
  */
 public class WebInfoServer {
+	
 	/**
 	 * The log for this class.
 	 */
@@ -57,11 +58,6 @@ public class WebInfoServer {
 	private int port;
 	
 	/**
-	 * Underlying JobManager
-	 */
-	private final JobManager jobmanager;
-	
-	/**
 	 * Creates a new web info server. The server runs the servlets that implement the logic
 	 * to list all present information concerning the job manager 
 	 * 
@@ -72,16 +68,11 @@ public class WebInfoServer {
 	 * @throws IOException
 	 *         Thrown, if the server setup failed for an I/O related reason.
 	 */
-	public WebInfoServer(Configuration nepheleConfig, int port, JobManager jobmanager)
-																	throws IOException {
-		Configuration config = GlobalConfiguration.getConfiguration();
-
+	public WebInfoServer(Configuration nepheleConfig, int port, JobManager jobmanager) throws IOException {
 		// if no explicit configuration is given, use the global configuration
 		if (nepheleConfig == null) {
-			nepheleConfig = config;
+			nepheleConfig = GlobalConfiguration.getConfiguration();;
 		}
-		
-		this.jobmanager = jobmanager;
 		
 		// get base path of Stratosphere installation
 		String basePath = nepheleConfig.getString(ConfigConstants.STRATOSPHERE_BASE_DIR_PATH_KEY,"");
