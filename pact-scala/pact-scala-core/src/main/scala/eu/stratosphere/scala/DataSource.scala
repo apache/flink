@@ -32,7 +32,7 @@ object DataSource {
     
     val ret = uri.getScheme match {
 
-      case "file" | "hdfs" => new FileDataSource(format.format.asInstanceOf[FileInputFormat[_]], uri.toString)
+      case "file" | "hdfs" => new FileDataSource(format.asInstanceOf[FileInputFormat[_]], uri.toString)
           with ScalaContract[Out] {
 
         override def getUDF = format.getUDF
@@ -40,7 +40,7 @@ object DataSource {
         override def persistConfiguration() = format.persistConfiguration(this.getParameters())
       }
 
-      case "ext" => new GenericDataSource[GenericInputFormat[_]](format.format.asInstanceOf[GenericInputFormat[_]], uri.toString)
+      case "ext" => new GenericDataSource[GenericInputFormat[_]](format.asInstanceOf[GenericInputFormat[_]], uri.toString)
           with ScalaContract[Out] {
 
         override def getUDF = format.getUDF
@@ -61,7 +61,7 @@ object DataSource {
 }
 
 
-abstract class DataSourceFormat[Out](val format: InputFormat[_, _], val udt: UDT[Out]) {
+trait DataSourceFormat[Out] { this: InputFormat[_, _] => 
   def getUDF: UDF0[Out]
   def persistConfiguration(config: Configuration) = {}
 }

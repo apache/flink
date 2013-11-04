@@ -77,19 +77,16 @@ object BinaryDataSourceFormat {
     
     val pact4sFormat = reify {
       
-      class GeneratedInputFormat extends BinaryInput4sStub[Out] {
-        override val udt = c.Expr(createUdtOut).splice
+      new BinaryInput4sStub[Out] with DataSourceFormat[Out] {
+        val udt = c.Expr(createUdtOut).splice
         override val userFunction = readFunction.splice
-      }
-      
-      new DataSourceFormat[Out](new GeneratedInputFormat, c.Expr[UDT[Out]](createUdtOut).splice) {
+
         override def persistConfiguration(config: Configuration) {
           super.persistConfiguration(config)
           blockSize.splice map { config.setLong(BinaryInputFormat.BLOCK_SIZE_PARAMETER_KEY, _) }
         }
-        override def getUDF = this.format.asInstanceOf[InputFormat4sStub[Out]].udf
+        override def getUDF = this.udf
       }
-      
     }
     
     val result = c.Expr[DataSourceFormat[Out]](Block(List(udtOut), pact4sFormat.tree))
@@ -124,13 +121,13 @@ object SequentialDataSourceFormat {
     
     val pact4sFormat = reify {
       
-      new DataSourceFormat[Out](new SequentialInputFormat[PactRecord], c.Expr[UDT[Out]](createUdtOut).splice) {
+      new SequentialInputFormat[PactRecord] with DataSourceFormat[Out] {
         override def persistConfiguration(config: Configuration) {
           super.persistConfiguration(config)
           blockSize.splice map { config.setLong(BinaryInputFormat.BLOCK_SIZE_PARAMETER_KEY, _) }
         }
         
-        override val udt: UDT[Out] = c.Expr[UDT[Out]](createUdtOut).splice
+        val udt: UDT[Out] = c.Expr[UDT[Out]](createUdtOut).splice
         lazy val udf: UDF0[Out] = new UDF0(udt)
         override def getUDF = udf
       }
@@ -153,9 +150,9 @@ object DelimitedDataSourceFormat {
     }
   }
   
-  def apply[Out](readFunction: (Array[Byte], Int, Int) => Out, delimiter: Option[String]): DataSourceFormat[Out] = macro impl[Out]
+  def apply[Out](readFunction: (Array[Byte], Int, Int) => Out, delim: Option[String]): DataSourceFormat[Out] = macro impl[Out]
   def apply[Out](parseFunction: String => Out): DataSourceFormat[Out] = macro parseFunctionImplWithoutDelim[Out]
-  def apply[Out](parseFunction: String => Out, delimiter: String): DataSourceFormat[Out] = macro parseFunctionImplWithDelim[Out]
+  def apply[Out](parseFunction: String => Out, delim: String): DataSourceFormat[Out] = macro parseFunctionImplWithDelim[Out]
   
   def parseFunctionImplWithoutDelim[Out: c.WeakTypeTag](c: Context)(parseFunction: c.Expr[String => Out]) : c.Expr[DataSourceFormat[Out]] = {
     import c.universe._
@@ -164,16 +161,16 @@ object DelimitedDataSourceFormat {
     }
     impl(c)(readFun, reify { None })
   }
-  def parseFunctionImplWithDelim[Out: c.WeakTypeTag](c: Context)(parseFunction: c.Expr[String => Out], delimiter: c.Expr[String]) : c.Expr[DataSourceFormat[Out]] = {
+  def parseFunctionImplWithDelim[Out: c.WeakTypeTag](c: Context)(parseFunction: c.Expr[String => Out], delim: c.Expr[String]) : c.Expr[DataSourceFormat[Out]] = {
     import c.universe._
     val readFun = reify {
       asReadFunction[Out](parseFunction.splice)
     }
-    impl(c)(readFun, reify { Some(delimiter.splice) })
+    impl(c)(readFun, reify { Some(delim.splice) })
   }
 
   
-  def impl[Out: c.WeakTypeTag](c: Context)(readFunction: c.Expr[(Array[Byte], Int, Int) => Out], delimiter: c.Expr[Option[String]]) : c.Expr[DataSourceFormat[Out]] = {
+  def impl[Out: c.WeakTypeTag](c: Context)(readFunction: c.Expr[(Array[Byte], Int, Int) => Out], delim: c.Expr[Option[String]]) : c.Expr[DataSourceFormat[Out]] = {
     import c.universe._
     
     val slave = MacroContextHolder.newMacroHelper(c)
@@ -182,17 +179,15 @@ object DelimitedDataSourceFormat {
     
     val pact4sFormat = reify {
       
-      class GeneratedInputFormat extends DelimitedInput4sStub[Out] {
-        override val udt = c.Expr(createUdtOut).splice
+      new DelimitedInput4sStub[Out] with DataSourceFormat[Out]{
+        val udt = c.Expr(createUdtOut).splice
         override val userFunction = readFunction.splice
-      }
       
-      new DataSourceFormat[Out](new GeneratedInputFormat, c.Expr[UDT[Out]](createUdtOut).splice) {
         override def persistConfiguration(config: Configuration) {
           super.persistConfiguration(config)
-          delimiter.splice map { config.setString(DelimitedInputFormat.RECORD_DELIMITER, _) }
+          delim.splice map { config.setString(DelimitedInputFormat.RECORD_DELIMITER, _) }
         }
-        override def getUDF = this.format.asInstanceOf[InputFormat4sStub[Out]].udf
+        override def getUDF = this.udf
       }
       
     }
@@ -209,20 +204,20 @@ object DelimitedDataSourceFormat {
 object RecordDataSourceFormat {
   
   def apply[Out](): DataSourceFormat[Out] = macro implWithoutAll[Out]
-  def apply[Out](recordDelimiter: String): DataSourceFormat[Out] = macro implWithRD[Out]
-  def apply[Out](recordDelimiter: String, fieldDelimiter: String): DataSourceFormat[Out] = macro implWithRDandFD[Out]
+  def apply[Out](recordDelim: String): DataSourceFormat[Out] = macro implWithRD[Out]
+  def apply[Out](recordDelim: String, fieldDelim: String): DataSourceFormat[Out] = macro implWithRDandFD[Out]
   
   def implWithoutAll[Out: c.WeakTypeTag](c: Context)() : c.Expr[DataSourceFormat[Out]] = {
     import c.universe._
     impl(c)(reify { None }, reify { None })
   }
-  def implWithRD[Out: c.WeakTypeTag](c: Context)(recordDelimiter: c.Expr[String]) : c.Expr[DataSourceFormat[Out]] = {
+  def implWithRD[Out: c.WeakTypeTag](c: Context)(recordDelim: c.Expr[String]) : c.Expr[DataSourceFormat[Out]] = {
     import c.universe._
-    impl(c)(reify { Some(recordDelimiter.splice) }, reify { None })
+    impl(c)(reify { Some(recordDelim.splice) }, reify { None })
   }
-  def implWithRDandFD[Out: c.WeakTypeTag](c: Context)(recordDelimiter: c.Expr[String], fieldDelimiter: c.Expr[String]) : c.Expr[DataSourceFormat[Out]] = {
+  def implWithRDandFD[Out: c.WeakTypeTag](c: Context)(recordDelim: c.Expr[String], fieldDelim: c.Expr[String]) : c.Expr[DataSourceFormat[Out]] = {
     import c.universe._
-    impl(c)(reify { Some(recordDelimiter.splice) }, reify { Some(fieldDelimiter.splice) })
+    impl(c)(reify { Some(recordDelim.splice) }, reify { Some(fieldDelim.splice) })
   }
   
   val fieldParserTypes: Map[Class[_ <: eu.stratosphere.pact.common.`type`.Value], Class[_ <: FieldParser[_]]] = Map(
@@ -232,7 +227,7 @@ object RecordDataSourceFormat {
     classOf[PactString] -> classOf[VarLengthStringParser]
   )
   
-  def impl[Out: c.WeakTypeTag](c: Context)(recordDelimiter: c.Expr[Option[String]], fieldDelimiter: c.Expr[Option[String]]) : c.Expr[DataSourceFormat[Out]] = {
+  def impl[Out: c.WeakTypeTag](c: Context)(recordDelim: c.Expr[Option[String]], fieldDelim: c.Expr[Option[String]]) : c.Expr[DataSourceFormat[Out]] = {
     import c.universe._
     
     val slave = MacroContextHolder.newMacroHelper(c)
@@ -240,7 +235,7 @@ object RecordDataSourceFormat {
     val (udtOut, createUdtOut) = slave.mkUdtClass[Out]
     
     val pact4sFormat = reify {
-      new DataSourceFormat[Out](new RecordInputFormat, c.Expr[UDT[Out]](createUdtOut).splice) {
+      new RecordInputFormat with DataSourceFormat[Out] {
         override def persistConfiguration(config: Configuration) {
           super.persistConfiguration(config)
 
@@ -260,11 +255,11 @@ object RecordDataSourceFormat {
             index = index + 1
           }
 
-          recordDelimiter.splice map { config.setString(RecordInputFormat.RECORD_DELIMITER_PARAMETER, _) }
-          fieldDelimiter.splice map { config.setString(RecordInputFormat.FIELD_DELIMITER_PARAMETER, _) }
+          recordDelim.splice map { config.setString(RecordInputFormat.RECORD_DELIMITER_PARAMETER, _) }
+          fieldDelim.splice map { config.setString(RecordInputFormat.FIELD_DELIMITER_PARAMETER, _) }
         }
         
-        override val udt: UDT[Out] = c.Expr[UDT[Out]](createUdtOut).splice
+        val udt: UDT[Out] = c.Expr[UDT[Out]](createUdtOut).splice
         lazy val udf: UDF0[Out] = new UDF0(udt)
         override def getUDF = udf
       }
@@ -283,7 +278,7 @@ object RecordDataSourceFormat {
 object TextDataSourceFormat {
   def apply(charSetName: Option[String] = None): DataSourceFormat[String] = {
 
-    new DataSourceFormat[String](new TextInputFormat, UDT.StringUDT) {
+    new TextInputFormat with DataSourceFormat[String] {
       override def persistConfiguration(config: Configuration) {
         super.persistConfiguration(config)
 
@@ -291,8 +286,8 @@ object TextDataSourceFormat {
 
         config.setInteger(TextInputFormat.FIELD_POS, getUDF.outputFields(0).globalPos.getValue)
       }
-      override val udt: UDT[String] = UDT.StringUDT
-      lazy val udf: UDF0[String] = new UDF0(udt)
+     // override val udt: UDT[String] = UDT.StringUDT
+      lazy val udf: UDF0[String] = new UDF0(UDT.StringUDT)
       override def getUDF = udf
     }
   }
@@ -310,17 +305,15 @@ object FixedLengthDataSourceFormat {
     
     val pact4sFormat = reify {
       
-      class GeneratedInputFormat extends FixedLengthInput4sStub[Out] {
-        override val udt = c.Expr(createUdtOut).splice
+      new FixedLengthInput4sStub[Out] with DataSourceFormat[Out] {
+        val udt = c.Expr(createUdtOut).splice
         override val userFunction = readFunction.splice
-      }
       
-      new DataSourceFormat[Out](new GeneratedInputFormat, c.Expr[UDT[Out]](createUdtOut).splice) {
         override def persistConfiguration(config: Configuration) {
           super.persistConfiguration(config)
           config.setInteger(FixedLengthInputFormat.RECORDLENGTH_PARAMETER_KEY, (recordLength.splice))
         }
-        override def getUDF = this.format.asInstanceOf[InputFormat4sStub[Out]].udf
+        override def getUDF = this.udf
       }
       
     }
