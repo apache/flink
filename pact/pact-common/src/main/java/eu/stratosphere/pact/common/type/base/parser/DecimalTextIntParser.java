@@ -26,22 +26,14 @@ import eu.stratosphere.pact.common.type.base.PactInteger;
  * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  *
  */
-public class DecimalTextIntParser  implements FieldParser<PactInteger>
-{
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.type.base.parser.FieldParser#configure(eu.stratosphere.nephele.configuration.Configuration)
-	 */
+public class DecimalTextIntParser  implements FieldParser<PactInteger> {
+
 	@Override
 	public void configure(Configuration config) { }
 	
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.type.base.parser.FieldParser#parseField(byte[], int, int, char, eu.stratosphere.pact.common.type.Value)
-	 */
 	@Override
-	public int parseField(byte[] bytes, int startPos, int limit, char delim, PactInteger field)
-	{
+	public int parseField(byte[] bytes, int startPos, int limit, char delim, PactInteger field) {
 		int val = 0;
 		boolean neg = false;
 		
@@ -65,10 +57,6 @@ public class DecimalTextIntParser  implements FieldParser<PactInteger>
 		return limit;
 	}
 	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.type.base.parser.FieldParser#getValue()
-	 */
 	@Override
 	public PactInteger getValue() {
 		return new PactInteger();

@@ -21,24 +21,13 @@ import eu.stratosphere.pact.common.type.base.PactLong;
 /**
  * Parses a decimal text field into a PactLong.
  * Only characters '1' to '0' and '-' are allowed.
- * The parser does not check for the maximum value.
- * 
- * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
- *
+ * The parser does not check for the overflows and underflows.
  */
 public class DecimalTextLongParser  implements FieldParser<PactLong> {
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.type.base.parser.FieldParser#configure(eu.stratosphere.nephele.configuration.Configuration)
-	 */
 	@Override
 	public void configure(Configuration config) { }
 	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.type.base.parser.FieldParser#parseField(byte[], int, int, char, eu.stratosphere.pact.common.type.Value)
-	 */
 	@Override
 	public int parseField(byte[] bytes, int startPos, int length, char delim, PactLong field) {
 		
@@ -65,10 +54,6 @@ public class DecimalTextLongParser  implements FieldParser<PactLong> {
 		return length;
 	}
 	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.type.base.parser.FieldParser#getValue()
-	 */
 	@Override
 	public PactLong getValue() {
 		return new PactLong();
