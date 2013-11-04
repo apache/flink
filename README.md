@@ -1,6 +1,10 @@
 # Stratosphere
 
-Big Data looks tiny from Stratosphere.
+_"Big Data looks tiny from Stratosphere."_
+
+Stratosphere is a next-generation Big Data Analytics Platform. It combines the strenghts of MapReduce/Hadoop with powerful programming abstractions in Java and Scala, and a high performance runtime. Stratosphere has native support for iterations, incremental iterations, and programs consisting of workflows of many operations.
+
+Learn more about Stratosphere at http://stratosphere.eu
 
 ## Start writing a Stratosphere Job
 If you just want to get started with Stratosphere, use the following command to set up an empty Stratosphere Job
@@ -8,7 +12,8 @@ If you just want to get started with Stratosphere, use the following command to 
 ```
 curl https://raw.github.com/stratosphere/stratosphere-quickstart/master/quickstart.sh | bash
 ```
-The quickstart sample contains everything to develop a Stratosphere Job on your computer. No setup needed.
+The quickstart sample contains everything to develop a Stratosphere Job on your computer and run it in a local embedded runtime. No setup needed.
+Further quickstart guides are at http://stratosphere.eu/quickstart/
 
 
 ## Build Stratosphere
