@@ -15,6 +15,9 @@ import eu.stratosphere.pact.common.type.PactRecord;
 public class BinaryInputFormatTest {
 	
 	private static final class MyBinaryInputFormat extends BinaryInputFormat<PactRecord> {
+
+		private static final long serialVersionUID = 1L;
+
 		@Override
 		protected void deserialize(PactRecord record, DataInput dataInput) throws IOException {}
 	}

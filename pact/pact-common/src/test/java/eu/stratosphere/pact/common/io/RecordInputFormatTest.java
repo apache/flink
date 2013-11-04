@@ -38,6 +38,7 @@ import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.parser.DecimalTextIntParser;
+import eu.stratosphere.pact.common.util.LogUtils;
 
 public class RecordInputFormatTest {
 
@@ -53,6 +54,7 @@ public class RecordInputFormatTest {
 	@Before
 	public void setup() {
 		initMocks(this);
+		LogUtils.initializeDefaultConsoleLogger();
 	}
 	
 	@After

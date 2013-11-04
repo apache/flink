@@ -19,15 +19,11 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.type.base.PactString;
 
 /**
- * Converts a variable length field of a byte array into a {@link PactString}. 
- * The field is terminated either by end of array or field delimiter character.
- * A string encapsulator can be configured. If configured, the encapsulator must be present in the input but 
- * will not be included in the PactString.
- * 
- * @author Fabian Hueske
+ * Converts a variable length field of a byte array into a {@link PactString}. The byte contents between
+ * delimiters is interpreted as an ASCII string. The string may be quotes in double quotes. For quoted
+ * strings, whitespaces (space and tab) leading and trailing before and after the quotes are removed.
  * 
  * @see PactString
- *
  */
 public class VarLengthStringParser implements FieldParser<PactString> {
 
