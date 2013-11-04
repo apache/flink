@@ -31,76 +31,73 @@ import eu.stratosphere.pact.common.type.base.PactString;
  */
 public class VarLengthStringParser implements FieldParser<PactString> {
 
-	public static final String STRING_ENCAPSULATOR = "varlength.string.parser.encapsulator";
+	private static final byte WHITESPACE_SPACE = (byte) ' ';
+	private static final byte WHITESPACE_TAB = (byte) '\t';
 	
-	private char encapsulator;
-	private boolean encapsulated;
+	private static final byte QUOTE_DOUBLE = (byte) '"';
 	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.type.base.parser.FieldParser#configure(eu.stratosphere.nephele.configuration.Configuration)
-	 */
-	public void configure(Configuration config) {
-		String encapStr = config.getString(STRING_ENCAPSULATOR, "#*+~#**");
-		if(encapStr.equals("#*+~#**")) {
-			encapsulated = false;
-		} else {
-			encapsulated = true;
-			if(encapStr.length() != 1) {
-				throw new IllegalArgumentException("FixedLengthStringParser: String encapsulator must be exactly one character.");
-			}
-			encapsulator = encapStr.charAt(0);
-		}
-	}
+	@Override
+	public void configure(Configuration config) {}
 	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.type.base.parser.FieldParser#parseField(byte[], int, int, char, eu.stratosphere.pact.common.type.Value)
-	 */
+	
 	@Override
 	public int parseField(byte[] bytes, int startPos, int length, char delim, PactString field) {
-	
-		int i;
 		
-		if(encapsulated) {
-			if(bytes[startPos] != encapsulator) {
-				return -1;
+		int i = startPos;
+		
+		final byte delByte = (byte) delim;
+		byte current;
+		
+		// count initial whitespace lines
+		while (i < length && ((current = bytes[i]) == WHITESPACE_SPACE || current == WHITESPACE_TAB)) {
+			i++;
+		}
+		
+		// first none whitespace character
+		if (i < length && bytes[i] == QUOTE_DOUBLE) {
+			// quoted string
+			i++; // the quote
+			
+			// we count only from after the quote
+			int quoteStart = i;
+			while (i < length && bytes[i] != QUOTE_DOUBLE) {
+				i++;
 			}
 			
-			// encaps string
-			for(i=startPos+1; i<length; i++) {
-				if(bytes[i] == encapsulator) {
-					if(i+1 == length || bytes[i+1] == delim) {
-						break;
-					}
+			if (i < length) {
+				// end of the string
+				field.setValueAscii(bytes, quoteStart, i-quoteStart);
+				
+				i++; // the quote
+				
+				// skip trailing whitespace characters 
+				while (i < length && (current = bytes[i]) != delByte) {
+					if (current == WHITESPACE_SPACE || current == WHITESPACE_TAB)
+						i++;
+					else
+						return -1;	// illegal case of non-whitespace characters trailing
 				}
-			}
-			if(i < length && bytes[i] == encapsulator) {
-				field.setValueAscii(bytes, startPos+1, i-startPos-1);
-				return (i+1 == length ? length : i+2);
+				
+				return (i == length ? length : i+1);
 			} else {
+				// exited due to line end without quote termination
 				return -1;
 			}
-		} else {
-			// non-encaps string
-			for(i=startPos; i<length; i++) {
-				if(bytes[i] == delim) {
-					break;
-				}
+		}
+		else {
+			// unquoted string
+			while (i < length && bytes[i] != delByte) {
+				i++;
 			}
+			
+			// set from the beginning. unquoted strings include the leading whitespaces
 			field.setValueAscii(bytes, startPos, i-startPos);
 			return (i == length ? length : i+1);
 		}
-		
 	}
 	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.type.base.parser.FieldParser#getValue()
-	 */
 	@Override
 	public PactString getValue() {
 		return new PactString();
 	}
-	
 }
