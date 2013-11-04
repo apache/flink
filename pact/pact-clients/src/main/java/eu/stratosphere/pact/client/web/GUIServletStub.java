@@ -146,7 +146,7 @@ public abstract class GUIServletStub extends HttpServlet {
 		Map<String, String[]> m = (Map<String, String[]>) req.getParameterMap();
 
 		// let the content be printed by the child class
-		printPage(writer, m);
+		printPage(writer, m, req);
 
 		// print the footer
 		writer.println("</body>");
@@ -165,5 +165,5 @@ public abstract class GUIServletStub extends HttpServlet {
 	 * @throws IOException
 	 *         If the request processing failed due to an I/O problem.
 	 */
-	public abstract void printPage(PrintWriter writer, Map<String, String[]> parameters) throws IOException;
+	public abstract void printPage(PrintWriter writer, Map<String, String[]> parameters, HttpServletRequest req) throws IOException;
 }

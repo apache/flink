@@ -17,7 +17,11 @@ package eu.stratosphere.pact.client.web;
 
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Map;
+
+import javax.servlet.http.HttpServletRequest;
 
 public class PlanDisplayServlet extends GUIServletStub {
 	
@@ -25,12 +29,19 @@ public class PlanDisplayServlet extends GUIServletStub {
 	 * Serial UID for serialization interoperability.
 	 */
 	private static final long serialVersionUID = 3610115341264927614L;
+	
+	
+	private final int runtimeVisualizationPort;
+	
+	private String runtimeVisURL;
 
 	/**
 	 * Default constructor. Sets up all CSS and JS files for the header.
 	 */
-	public PlanDisplayServlet() {
+	public PlanDisplayServlet(int runtimePort) {
 		super("Stratosphere Query Interface - Query Plan");
+		
+		this.runtimeVisualizationPort = runtimePort;
 
 		addStyleSheet("css/js-graph-it.css");
 		addStyleSheet("css/pactgraphs.css");
@@ -45,7 +56,7 @@ public class PlanDisplayServlet extends GUIServletStub {
 	 * @see de.tuberlin.stratosphere.desktop.ServletStub#printPage(java.io.PrintWriter)
 	 */
 	@Override
-	public void printPage(PrintWriter writer, Map<String, String[]> parameters) throws IOException {
+	public void printPage(PrintWriter writer, Map<String, String[]> parameters, HttpServletRequest req) throws IOException {
 		String[] x = parameters.get("id");
 		String uid = (x != null && x.length >= 1) ? x[0] : null;
 
@@ -59,18 +70,28 @@ public class PlanDisplayServlet extends GUIServletStub {
 			writer.println("    </div>");
 			return;
 		}
-
+		
+		if (this.runtimeVisURL == null) {
+			try {
+				URI request = new URI(req.getRequestURL().toString());
+				URI vizURI = new URI(request.getScheme(), null, request.getHost(), runtimeVisualizationPort, null, null, null);
+				this.runtimeVisURL = vizURI.toString();
+				System.out.println(this.runtimeVisURL);
+			} catch (URISyntaxException e) {
+				; // ignore and simply do not forward
+			}
+		}
+		
 		boolean suspended = Boolean.parseBoolean(suspend);
 
 		// write the canvas for the graph area
-		writer
-			.println("    <div style=\"position: relative;\">\n"
-				+ "      <div id=\"mainCanvas\" class=\"canvas boxed\" style=\"height: 500px;\">\n"
-				+ "        <div align=\"center\" id=\"progressContainer\" style=\"margin: auto; margin-top: 200px;\"></div>\n"
-				+ "      </div>\n" + "      <div style=\"position: absolute; right: 20px; bottom: 20px;\">\n"
-				+ "        <input id=\"back_button\" type=\"button\" value=\"&lt; Back\"/>");
+		writer.println("    <div style=\"position: relative;\">\n"
+		             + "      <div id=\"mainCanvas\" class=\"canvas boxed\" style=\"height: 500px;\">\n"
+		             + "        <div align=\"center\" id=\"progressContainer\" style=\"margin: auto; margin-top: 200px;\"></div>\n"
+		             + "      </div>\n" + "      <div style=\"position: absolute; right: 20px; bottom: 20px;\">\n"
+		             + "        <input id=\"back_button\" type=\"button\" value=\"&lt; Back\"/>");
 		if (suspended) {
-			writer.println("        <input id=\"run_button\" type=\"button\" value=\"Run\"/>");
+			writer.println("        <input id=\"run_button\" type=\"button\" value=\"Continue &gt;\"/>");
 		}
 		writer.println("      </div>\n" + "    </div>");
 
@@ -82,18 +103,19 @@ public class PlanDisplayServlet extends GUIServletStub {
 		writer.println("    <script type=\"text/javascript\">\n" + "    <!--\n" + "      var maxColumnWidth = 350;\n"
 			+ "      var minColumnWidth = 150;\n\n" + "      $(document).ready(function() {\n");
 
-		writer.println("        // register the event handler for the 'continue' button\n"
-			+ "        $('#run_button').click(function () {\n" + "          $('#run_button').remove();\n"
-			+ "          $.ajax( {" + " url: '/runJob'," + " data: { action: 'runsubmitted', id: '" + uid + "' },"
-			+ " success: function () { alert('Job succesfully submitted');},"
-			+ " error: function (xhr, ajaxOptions, thrownError) { alert(xhr.responseText); }" + "          });\n"
-			+ "        });\n");
+		writer.println("        // register the event handler for the 'run' button\n"
+		             + "        $('#run_button').click(function () {\n" + "          $('#run_button').remove();\n"
+		             + "          $.ajax( {" + " url: '/runJob'," + " data: { action: 'runsubmitted', id: '" + uid + "' },"
+		             + " success: function () { alert('Job succesfully submitted');"
+		             + (this.runtimeVisURL != null ? (" window.location = \"" + this.runtimeVisURL + "\"; },") : " },")
+		             + " error: function (xhr, ajaxOptions, thrownError) { alert(xhr.responseText); }" + "          });\n"
+		             + "        });\n");
 
 		writer.println("        // register the event handler for the 'back' button\n"
-			+ "        $('#back_button').click(function () {\n"
-			+ (suspended ? "          var url = \"/runJob?\" + $.param({action: \"back\", id: \"" + uid + "\" });\n"
-				: "          var url = \"" + JobSubmissionServlet.START_PAGE_URL + "\";\n")
-			+ "          window.location = url;\n" + "        });\n");
+		             + "        $('#back_button').click(function () {\n"
+		+ (suspended ? "          var url = \"/runJob?\" + $.param({action: \"back\", id: \"" + uid + "\" });\n"
+		             : "          var url = \"" + JobSubmissionServlet.START_PAGE_URL + "\";\n")
+		             + "          window.location = url;\n" + "        });\n");
 
 		// writer.println(
 		// "        // register an ajax error handler\n" +
