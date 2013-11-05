@@ -169,7 +169,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	private volatile boolean isShutDown = false;
 	
 	public JobManager(ExecutionMode executionMode) {
-		logVersionInformation();
 		
 		final String ipcAddressString = GlobalConfiguration
 			.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
@@ -345,12 +344,12 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	/**
 	 * Log Stratosphere version information.
 	 */
-	private void logVersionInformation() {
-		String version = getClass().getPackage().getImplementationVersion();
+	private static void logVersionInformation() {
+		String version = JobManager.class.getPackage().getImplementationVersion();
 		String revision = null;
 		try {
 	    	Properties properties = new Properties();
-	    	InputStream propFile = getClass().getClassLoader().getResourceAsStream(".version.properties");
+	    	InputStream propFile = JobManager.class.getClassLoader().getResourceAsStream(".version.properties");
 			if(propFile != null) {
 				properties.load(propFile);
 				revision = properties.getProperty("git.commit.id.abbrev");
@@ -370,7 +369,8 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	 */
 	@SuppressWarnings("static-access")
 	public static void main(final String[] args) {
-
+		logVersionInformation();
+		
 		final Option configDirOpt = OptionBuilder.withArgName("config directory").hasArg()
 			.withDescription("Specify configuration directory.").create("configDir");
 
