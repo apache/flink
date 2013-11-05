@@ -15,11 +15,12 @@ package eu.stratosphere.scala.analysis
 
 import scala.collection.GenTraversableOnce
 import scala.collection.generic.CanBuildFrom
-import eu.stratosphere.pact.common.`type`.{ Key => PactKey }
-import eu.stratosphere.pact.common.`type`.{ Value => PactValue }
-import eu.stratosphere.pact.common.`type`.base.PactList
-import eu.stratosphere.pact.common.`type`.base.PactString
+import scala.language.experimental.macros
+import eu.stratosphere.pact.common.`type`.{Key => PactKey}
 import eu.stratosphere.pact.common.`type`.PactRecord
+import eu.stratosphere.pact.common.`type`.{Value => PactValue}
+import eu.stratosphere.pact.common.`type`.base.PactString
+import eu.stratosphere.scala.codegen.UDTUtil
 
 abstract class UDT[T] extends Serializable {
   protected def createSerializer(indexMap: Array[Int]): UDTSerializer[T]
@@ -59,11 +60,7 @@ abstract class UDTSerializer[T](val indexMap: Array[Int]) {
 }
 
 trait UDTLowPriorityImplicits {
-
-  class UDTAnalysisFailedException extends RuntimeException("UDT analysis failed. This should have been caught at compile time.")
-  class UDTSelectionFailedException(msg: String) extends RuntimeException(msg)
-
-  implicit def unanalyzedUDT[T]: UDT[T] = throw new UDTAnalysisFailedException
+  implicit def createUDT[T]: UDT[T] = macro UDTUtil.createUDTImpl[T]
 }
 
 object UDT extends UDTLowPriorityImplicits {
