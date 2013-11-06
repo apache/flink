@@ -318,8 +318,6 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 			// if the class is null, the driver has no user code 
 			if (userCodeFunctionType != null) {
 				this.stub = initStub(userCodeFunctionType);
-				this.stub.setRuntimeContext(getRuntimeContext(getEnvironment().getTaskName()));
-				
 			}
 		} catch (Exception e) {
 			throw new RuntimeException("Initializing the user code and the configuration failed" +
@@ -486,6 +484,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 				throw new RuntimeException("The class '" + stub.getClass().getName() + "' is not a subclass of '" + 
 						stubSuperClass.getName() + "' as is required.");
 			}
+			stub.setRuntimeContext(getRuntimeContext(getEnvironment().getTaskName()));
 			return stub;
 		}
 		catch (ClassCastException ccex) {
