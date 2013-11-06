@@ -40,6 +40,13 @@ trait SerializeMethodGen[C <: Context] { this: MacroContextHolder[C] with UDTDes
 
   private def genSerialize(desc: UDTDescriptor, source: Tree, target: Tree, env: GenEnvironment): Seq[Tree] = desc match {
 
+    case PactValueDescriptor(id, _) => {
+      val chk = env.mkChkIdx(id)
+      val set = env.mkSetField(id, target, source)
+
+      Seq(mkIf(chk, set))
+    }
+    
     case PrimitiveDescriptor(id, _, _, _) => {
       val chk = env.mkChkIdx(id)
       val ser = env.mkSetValue(id, source)
@@ -174,6 +181,8 @@ trait SerializeMethodGen[C <: Context] { this: MacroContextHolder[C] with UDTDes
         case PrimitiveDescriptor(_, _, _, wrapper) => (Seq(), New(TypeTree(wrapper), List(List(Ident("item": TermName)))))
 
         case BoxedPrimitiveDescriptor(_, _, _, wrapper, _, unbox) => (Seq(), New(TypeTree(wrapper), List(List(unbox(Ident("item": TermName))))))
+        
+        case PactValueDescriptor(_, tpe) => (Seq(), Ident("item": TermName))
 
         case ListDescriptor(id, _, iter, innerElem) => {
           val listTpe = env.listImpls(id)

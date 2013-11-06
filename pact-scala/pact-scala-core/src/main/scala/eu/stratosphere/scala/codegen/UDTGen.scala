@@ -46,6 +46,7 @@ trait UDTGen[C <: Context] { this: MacroContextHolder[C] with UDTDescriptors[C] 
       val fieldTypes = getIndexFields(desc).toList map {
         case PrimitiveDescriptor(_, _, _, wrapper) => Literal(Constant(wrapper))
         case BoxedPrimitiveDescriptor(_, _, _, wrapper, _, _) => Literal(Constant(wrapper))
+        case PactValueDescriptor(_, tpe) => Literal(Constant(tpe))
         case ListDescriptor(_, _, _, _) => Literal(Constant(typeOf[PactList[eu.stratosphere.pact.common.`type`.Value]]))
         // Box inner instances of recursive types
         case RecursiveDescriptor(_, _, _) => Literal(Constant(typeOf[PactRecord]))
@@ -65,8 +66,8 @@ trait UDTGen[C <: Context] { this: MacroContextHolder[C] with UDTDescriptors[C] 
         case PrimitiveDescriptor(id, _, _, _) => Literal(Constant(id))
         case BoxedPrimitiveDescriptor(id, _, _, _, _, _) => Literal(Constant(id))
         case ListDescriptor(id, _, _, _) => Literal(Constant(id))
-        // Box inner instances of recursive types
         case RecursiveDescriptor(id, _, _) => Literal(Constant(id))
+        case PactValueDescriptor(id, _) => Literal(Constant(id))
         case BaseClassDescriptor(_, _, _, _) => throw new RuntimeException("Illegal descriptor for basic record field.")
         case CaseClassDescriptor(_, _, _, _, _) => throw new RuntimeException("Illegal descriptor for basic record field.")
         case UnsupportedDescriptor(_, _, _) => throw new RuntimeException("Illegal descriptor for basic record field.")

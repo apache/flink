@@ -101,6 +101,10 @@ trait SerializerGen[C <: Context] { this: MacroContextHolder[C] with UDTDescript
         val (classDef, tpe) = mkListImplClass(c.WeakTypeTag(elem.wrapper))
         (List(classDef), Map(id -> tpe))
       }
+      case ListDescriptor(id, _, _, elem: PactValueDescriptor) => {
+        val (classDef, tpe) = mkListImplClass(c.WeakTypeTag(elem.tpe))
+        (List(classDef), Map(id -> tpe))
+      }
       case ListDescriptor(id, _, _, elem) => {
         val (classDefs, tpes) = mkListImplClasses(elem)
         val (classDef, tpe) = mkListImplClass(c.WeakTypeTag(typeOf[eu.stratosphere.pact.common.`type`.PactRecord]))
@@ -300,6 +304,7 @@ trait SerializerGen[C <: Context] { this: MacroContextHolder[C] with UDTDescript
 
     def mkSetField(fieldId: Int, record: Tree): Tree = mkSetField(fieldId, record, mkSelectWrapper(fieldId))
     def mkSetField(fieldId: Int, record: Tree, wrapper: Tree): Tree = Apply(Select(record, "setField": TermName), List(mkSelectIdx(fieldId), wrapper))
+    def mkGetField(fieldId: Int, record: Tree, tpe: Type): Tree = Apply(Select(record, "getField": TermName), List(mkSelectIdx(fieldId), Literal(Constant(tpe))))
     def mkGetFieldInto(fieldId: Int, record: Tree): Tree = mkGetFieldInto(fieldId, record, mkSelectWrapper(fieldId))
     def mkGetFieldInto(fieldId: Int, record: Tree, wrapper: Tree): Tree = Apply(Select(record, "getFieldInto": TermName), List(mkSelectIdx(fieldId), wrapper))
 

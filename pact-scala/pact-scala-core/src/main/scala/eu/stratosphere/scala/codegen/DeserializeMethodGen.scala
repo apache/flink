@@ -44,6 +44,13 @@ trait DeserializeMethodGen[C <: Context] { this: MacroContextHolder[C] with UDTD
 
   private def genDeserialize(desc: UDTDescriptor, source: Tree, env: GenEnvironment, scope: Map[Int, (String, Type)]): Seq[Tree] = desc match {
 
+    case PactValueDescriptor(id, tpe) => {
+      val chk = env.mkChkIdx(id)
+      val get = env.mkGetField(id, source, tpe)
+
+      Seq(mkIf(chk, get, mkNull))
+    }
+    
     case PrimitiveDescriptor(id, _, default, _) => {
       val chk = env.mkChkIdx(id)
       val des = env.mkGetFieldInto(id, source)
@@ -200,6 +207,8 @@ trait DeserializeMethodGen[C <: Context] { this: MacroContextHolder[C] with UDTD
         case PrimitiveDescriptor(_, _, _, wrapper) => (Seq(), env.mkGetValue(Ident("item": TermName)))
 
         case BoxedPrimitiveDescriptor(_, _, _, wrapper, box, _) => (Seq(), box(env.mkGetValue(Ident("item": TermName))))
+        
+        case PactValueDescriptor(_, tpe) => (Seq(), Ident("item": TermName))
 
         case ListDescriptor(id, tpe, _, innerElem) => {
 
@@ -239,6 +248,7 @@ trait DeserializeMethodGen[C <: Context] { this: MacroContextHolder[C] with UDTD
   private def getListElemWrapperType(desc: UDTDescriptor, env: GenEnvironment): Type = desc match {
     case PrimitiveDescriptor(_, _, _, wrapper) => wrapper
     case BoxedPrimitiveDescriptor(_, _, _, wrapper, _, _) => wrapper
+    case PactValueDescriptor(_, tpe) => tpe
     case ListDescriptor(id, _, _, _) => env.listImpls(id)
     case _ => typeOf[eu.stratosphere.pact.common.`type`.PactRecord]
   }

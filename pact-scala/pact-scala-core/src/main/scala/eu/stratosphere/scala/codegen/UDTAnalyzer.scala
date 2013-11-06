@@ -62,6 +62,7 @@ trait UDTAnalyzer[C <: Context] { this: MacroContextHolder[C] with UDTDescriptor
           case ListType(elemTpe, iter) => analyzeList(id, normed, elemTpe, iter)
           case CaseClassType() => analyzeCaseClass(id, normed)
           case BaseClassType() => analyzeClassHierarchy(id, normed)
+          case PactValueType() => PactValueDescriptor(id, normed)
           case _ => UnsupportedDescriptor(id, normed, Seq("Unsupported type " + normed))
         }
       }
@@ -263,19 +264,21 @@ trait UDTAnalyzer[C <: Context] { this: MacroContextHolder[C] with UDTDescriptor
     }
 
     private object CaseClassType {
-
       def unapply(tpe: Type): Boolean = tpe.typeSymbol.asClass.isCaseClass
     }
 
     private object BaseClassType {
-
       def unapply(tpe: Type): Boolean = tpe.typeSymbol.asClass.isAbstractClass && tpe.typeSymbol.asClass.isSealed
+    }
+    
+    private object PactValueType {
+      def unapply(tpe: Type): Boolean = tpe.typeSymbol.asClass.baseClasses exists { s => s.fullName == "eu.stratosphere.pact.common.type.Value" }
     }
 
     private class UDTAnalyzerCache {
 
       private val caches = new DynamicVariable[Map[Type, RecursiveDescriptor]](Map())
-      private val idGen = new Counter()
+      private val idGen = new Counter
 
       def newId = idGen.next
 

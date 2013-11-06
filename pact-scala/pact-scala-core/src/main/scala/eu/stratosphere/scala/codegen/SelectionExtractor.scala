@@ -29,6 +29,7 @@ trait SelectionExtractor[C <: Context] { this: MacroContextHolder[C] with UDTDes
         }
         case Right((udtDesc, sels)) => {
           val descs: List[Option[UDTDescriptor]] = sels flatMap { sel: List[String] => udtDesc.select(sel) }
+          descs foreach { desc => desc map { desc => if (!desc.canBeKey) c.error(c.enclosingPosition, "Type " + desc.tpe + " cannot be key.") } }
           val ids = descs map { _ map { _.id } }
           ids forall { _.isDefined } match {
             case false => {

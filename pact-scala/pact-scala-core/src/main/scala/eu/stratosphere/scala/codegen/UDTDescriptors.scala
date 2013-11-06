@@ -25,6 +25,8 @@ trait UDTDescriptors[C <: Context] { this: MacroContextHolder[C] =>
     val id: Int
     val tpe: Type
     val isPrimitiveProduct: Boolean = false
+    
+    def canBeKey: Boolean
 
     def mkRoot: UDTDescriptor = this
 
@@ -53,17 +55,21 @@ trait UDTDescriptors[C <: Context] { this: MacroContextHolder[C] =>
 
   case class UnsupportedDescriptor(id: Int, tpe: Type, errors: Seq[String]) extends UDTDescriptor {
     override def flatten = Seq(this)
+    
+    def canBeKey = false
   }
 
   case class PrimitiveDescriptor(id: Int, tpe: Type, default: Literal, wrapper: Type) extends UDTDescriptor {
     override val isPrimitiveProduct = true
     override def flatten = Seq(this)
+    override def canBeKey = wrapper <:< typeOf[eu.stratosphere.pact.common.`type`.Key]
   }
 
   case class BoxedPrimitiveDescriptor(id: Int, tpe: Type, default: Literal, wrapper: Type, box: Tree => Tree, unbox: Tree => Tree) extends UDTDescriptor {
 
     override val isPrimitiveProduct = true
     override def flatten = Seq(this)
+    override def canBeKey = wrapper <:< typeOf[eu.stratosphere.pact.common.`type`.Key]
 
     override def hashCode() = (id, tpe, default, wrapper, "BoxedPrimitiveDescriptor").hashCode()
     override def equals(that: Any) = that match {
@@ -73,7 +79,7 @@ trait UDTDescriptors[C <: Context] { this: MacroContextHolder[C] =>
   }
 
   case class ListDescriptor(id: Int, tpe: Type, iter: Tree => Tree, elem: UDTDescriptor) extends UDTDescriptor {
-
+    override def canBeKey = false
     override def flatten = this +: elem.flatten
 
     def getInnermostElem: UDTDescriptor = elem match {
@@ -90,6 +96,7 @@ trait UDTDescriptors[C <: Context] { this: MacroContextHolder[C] =>
 
   case class BaseClassDescriptor(id: Int, tpe: Type, override val getters: Seq[FieldAccessor], subTypes: Seq[UDTDescriptor]) extends UDTDescriptor {
     override def flatten = this +: ((getters flatMap { _.desc.flatten }) ++ (subTypes flatMap { _.flatten }))
+    override def canBeKey = flatten forall { f => f.canBeKey }
     
     override def select(path: List[String]): Seq[Option[UDTDescriptor]] = path match {
       case Nil => getters flatMap { g => g.desc.select(Nil) }
@@ -106,6 +113,8 @@ trait UDTDescriptors[C <: Context] { this: MacroContextHolder[C] =>
 
     override def mkRoot = this.copy(getters = getters map { _.copy(isBaseField = false) })
     override def flatten = this +: (getters flatMap { _.desc.flatten })
+    
+    override def canBeKey = flatten forall { f => f.canBeKey }
 
     // Hack: ignore the ctorTpe, since two Type instances representing
     // the same ctor function type don't appear to be considered equal. 
@@ -129,6 +138,13 @@ trait UDTDescriptors[C <: Context] { this: MacroContextHolder[C] =>
 
   case class RecursiveDescriptor(id: Int, tpe: Type, refId: Int) extends UDTDescriptor {
     override def flatten = Seq(this)
+    override def canBeKey = tpe <:< typeOf[eu.stratosphere.pact.common.`type`.Key]
+  }
+  
+  case class PactValueDescriptor(id: Int, tpe: Type) extends UDTDescriptor {
+    override val isPrimitiveProduct = true
+    override def flatten = Seq(this)
+    override def canBeKey = tpe <:< typeOf[eu.stratosphere.pact.common.`type`.Key]
   }
 }
 
