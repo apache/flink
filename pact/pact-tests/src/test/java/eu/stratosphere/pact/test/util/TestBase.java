@@ -66,13 +66,14 @@ public abstract class TestBase {
 	public TestBase(Configuration config, String clusterConfig) {
 		this.clusterConfig = clusterConfig;
 		this.config = config;
+		
+		LogUtils.initializeDefaultConsoleLogger(Level.WARN);
+		
 		verifyJvmOptions();
 	}
 
 	public TestBase(Configuration testConfig) {
 		this(testConfig, Constants.DEFAULT_TEST_CONFIG);
-		
-		LogUtils.initializeDefaultConsoleLogger(Level.WARN);
 	}
 
 	private void verifyJvmOptions() {
