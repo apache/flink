@@ -25,17 +25,21 @@
 			<useTransitiveFiltering>true</useTransitiveFiltering>
 			
 			<excludes>
+				<exclude>eu.stratosphere:nephele-examples</exclude>
+				<exclude>eu.stratosphere:pact-examples</exclude>
+				<exclude>eu.stratosphere:pact-scala-examples</exclude>
 				<!--
-				<exclude>**/*examples*.jar</exclude>
 				<exclude>**/*javadoc*</exclude>
 				<exclude>**/*sources*</exclude>
 				-->
-<!-- 				<exclude>eu.stratosphere:pact-clients:**</exclude> -->
+				<!--
+				<exclude>eu.stratosphere:pact-clients:**</exclude> 
+				-->
 				<!--
 				  This is a hardcoded exclude-list containing all libraries that are exclusively used in pact-clients.
           The previous command did not work because it also excludes libraries that should be in lib, such as commons-io.
 				-->
-        <exclude>commons-fileupload:commons-fileupload</exclude>
+			        <exclude>commons-fileupload:commons-fileupload</exclude>
         <!-- <exclude>org.eclipse.jetty:jetty-*</exclude>-->
 			</excludes>
 		</dependencySet>
