@@ -74,18 +74,15 @@ public class RecordInputFormat extends DelimitedInputFormat {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	@SuppressWarnings("rawtypes")
-	private FieldParser[] fieldParsers;
+	private FieldParser<Value>[] fieldParsers;
 	private Value[] fieldValues;
 	private int[] recordPositions;
 	private int numFields;
 		
 	private char fieldDelim;
 	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.io.DelimitedInputFormat#configure(eu.stratosphere.nephele.configuration.Configuration)
-	 */
+
+	@SuppressWarnings("unchecked")
 	@Override
 	public void configure(Configuration config) {
 		
@@ -146,7 +143,7 @@ public class RecordInputFormat extends DelimitedInputFormat {
 		}
 		
 		// init parse and position arrays
-		this.fieldParsers = new FieldParser[maxTextPos+1];
+		this.fieldParsers = (FieldParser<Value>[]) new FieldParser[maxTextPos+1];
 		this.fieldValues = new Value[maxTextPos+1];
 		this.recordPositions = new int[maxTextPos+1];
 		for (int j = 0; j < maxTextPos; j++) 
@@ -160,8 +157,7 @@ public class RecordInputFormat extends DelimitedInputFormat {
 		{
 			int pos = textPosIdx[i];
 			recordPositions[pos] = recPosIdx[i];
-			@SuppressWarnings("unchecked")
-			Class<? extends FieldParser<Value>> clazz = (Class<? extends FieldParser<Value>>) config.getClass(FIELD_PARSER_PARAMETER_PREFIX + i, null);
+			Class<FieldParser<Value>> clazz = (Class<FieldParser<Value>>) config.getClass(FIELD_PARSER_PARAMETER_PREFIX + i, null);
 			if (clazz == null) {
 				throw new IllegalArgumentException("Invalid configuration for RecordInputFormat: " +
 					"No field parser class for parameter " + i);
@@ -187,13 +183,8 @@ public class RecordInputFormat extends DelimitedInputFormat {
 		this.fieldDelim = fieldDelimStr.charAt(0);
 	}
 	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.io.DelimitedInputFormat#readRecord(eu.stratosphere.pact.common.type.PactRecord, byte[], int)
-	 */
-	@SuppressWarnings("unchecked")
 	@Override
-	public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes) {
+	public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes) throws ParseException {
 
 		FieldParser<Value> parser;
 		Value val;
@@ -216,10 +207,12 @@ public class RecordInputFormat extends DelimitedInputFormat {
 				val = this.fieldValues[i];
 				startPos = parser.parseField(bytes, startPos, limit, this.fieldDelim, val);
 				// check parse result
-				if (startPos < 0) {
-					return false;
+				if (startPos >= 0) {
+					target.setField(this.recordPositions[i], val);
+				} else {
+					String lineAsString = new String(bytes, offset, numBytes);
+					throw new ParseException("Line could not be parsed: " + lineAsString);
 				}
-				target.setField(this.recordPositions[i], val);
 			} else {
 				// skip field(s)
 				int skipCnt = 1;
@@ -227,10 +220,13 @@ public class RecordInputFormat extends DelimitedInputFormat {
 					skipCnt++;
 				}
 				startPos = skipFields(bytes, startPos, limit, this.fieldDelim, skipCnt);
-				if (startPos < 0) {
-					return false;
+				if (startPos >= 0) {
+					i += (skipCnt - 1);
 				}
-				i += (skipCnt - 1);
+				else {
+					String lineAsString = new String(bytes, offset, numBytes);
+					throw new ParseException("Line could not be parsed: " + lineAsString);
+				}
 			}
 		}
 		return true;

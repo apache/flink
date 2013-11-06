@@ -38,6 +38,7 @@ import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.parser.DecimalTextIntParser;
+import eu.stratosphere.pact.common.type.base.parser.VarLengthStringParser;
 import eu.stratosphere.pact.common.util.LogUtils;
 
 public class RecordInputFormatTest {
@@ -479,6 +480,50 @@ public class RecordInputFormatTest {
 			PactRecord record = new PactRecord();
 			
 			assertFalse(format.nextRecord(record));
+		}
+		catch (Exception ex) {
+			Assert.fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
+		}
+	}
+	
+	@Test
+	public void testReadInvalidContents() throws IOException {
+		try {
+			final String fileContent = "abc|222|def|444\nkkz|777|888|hhg";
+			final FileInputSplit split = createTempFile(fileContent);	
+		
+			final Configuration parameters = new Configuration();
+			parameters.setString(RecordInputFormat.FILE_PARAMETER_KEY, "file:///some/file/that/will/not/be/read");
+			parameters.setInteger(RecordInputFormat.NUM_FIELDS_PARAMETER, 4);
+			parameters.setString(RecordInputFormat.RECORD_DELIMITER_PARAMETER, "\n");
+			parameters.setString(RecordInputFormat.FIELD_DELIMITER_PARAMETER, "|");
+			parameters.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 0, VarLengthStringParser.class);
+			parameters.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 1, DecimalTextIntParser.class);
+			parameters.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 2, VarLengthStringParser.class);
+			parameters.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 3, DecimalTextIntParser.class);
+			
+			format.configure(parameters);
+			format.open(split);
+			
+			PactRecord record = new PactRecord();
+			
+			try {
+				assertTrue(format.nextRecord(record));
+			}
+			catch (Exception e) {
+				Assert.fail("Input format failed on valid input.");
+			}
+			
+			try {
+				format.nextRecord(record);
+				Assert.fail("Input format accepted on invalid input.");
+			}
+			catch (ParseException e) {
+				; // all good
+			}
+			catch (Exception e) {
+				Assert.fail("Input format failed on invalid input with an exception other from a parse exception.");
+			}
 		}
 		catch (Exception ex) {
 			Assert.fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
