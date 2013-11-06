@@ -33,12 +33,12 @@
 
 package eu.stratosphere.nephele.jobmanager;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -59,6 +59,10 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.log4j.ConsoleAppender;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
+import org.apache.log4j.PatternLayout;
 
 import eu.stratosphere.nephele.client.AbstractJobResult;
 import eu.stratosphere.nephele.client.AbstractJobResult.ReturnCode;
@@ -91,7 +95,6 @@ import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.instance.local.LocalInstanceManager;
-import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.ipc.Server;
@@ -107,7 +110,6 @@ import eu.stratosphere.nephele.managementgraph.ManagementGraph;
 import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
 import eu.stratosphere.nephele.multicast.MulticastManager;
 import eu.stratosphere.nephele.profiling.JobManagerProfiler;
-import eu.stratosphere.nephele.profiling.ProfilingListener;
 import eu.stratosphere.nephele.profiling.ProfilingUtils;
 import eu.stratosphere.nephele.protocols.ChannelLookupProtocol;
 import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
@@ -350,18 +352,22 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	 */
 	private static void logVersionInformation() {
 		String version = JobManager.class.getPackage().getImplementationVersion();
-		String revision = null;
-		try {
-	    	Properties properties = new Properties();
-	    	InputStream propFile = JobManager.class.getClassLoader().getResourceAsStream(".version.properties");
-			if(propFile != null) {
-				properties.load(propFile);
-				revision = properties.getProperty("git.commit.id.abbrev");
+		
+		// if version == null, then the JobManager runs from inside the IDE (or somehow not from the maven build jar)
+		if (version != null) {
+			String revision = "<unknown>";
+			try {
+				Properties properties = new Properties();
+				InputStream propFile = JobManager.class.getClassLoader().getResourceAsStream(".version.properties");
+				if (propFile != null) {
+					properties.load(propFile);
+					revision = properties.getProperty("git.commit.id.abbrev");
+				}
+			} catch (IOException e) {
+				LOG.info("Cannot determine code revision. Unable ro read version property file.");
 			}
-		} catch (IOException e1) {}
-		// if version == null, then the JobManager runs from inside Eclipse (or somehow not from the maven build jar)
-		if(version != null) {
-			LOG.info("Starting Stratosphere JobManager (Version: "+version+", Rev:"+revision+")");
+			
+			LOG.info("Starting Stratosphere JobManager (Version: " + version + ", Rev:" + revision + ")");
 		}
 	}
 	
@@ -373,6 +379,18 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	 */
 	@SuppressWarnings("static-access")
 	public static void main(final String[] args) {
+		
+		// determine if a valid log4j config exists and initialize a default logger if not
+		if (System.getProperty("log4j.configuration") == null) {
+			Logger root = Logger.getRootLogger();
+			root.removeAllAppenders();
+			PatternLayout layout = new PatternLayout("%d{HH:mm:ss,SSS} %-5p %-60c %x - %m%n");
+			ConsoleAppender appender = new ConsoleAppender(layout, "System.err");
+			root.addAppender(appender);
+			root.setLevel(Level.INFO);
+		}
+		
+		// output the version and revision information to the log
 		logVersionInformation();
 		
 		final Option configDirOpt = OptionBuilder.withArgName("config directory").hasArg()
@@ -416,7 +434,9 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		
 		// Set base dir for info server
 		Configuration infoserverConfig = GlobalConfiguration.getConfiguration();
-		infoserverConfig.setString(ConfigConstants.STRATOSPHERE_BASE_DIR_PATH_KEY, configDir+"/..");
+		if (configDir != null) {
+			infoserverConfig.setString(ConfigConstants.STRATOSPHERE_BASE_DIR_PATH_KEY, configDir+"/..");
+		}
 				
 		// Start info server for jobmanager
 		jobManager.startInfoServer(infoserverConfig);
@@ -1211,9 +1231,10 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			int port = config.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, ConfigConstants.DEFAULT_WEB_FRONTEND_PORT);
 			server = new WebInfoServer(config, port, this);
 			server.start();
+		} catch (FileNotFoundException e) {
+			LOG.error(e.getMessage());
 		} catch (Exception e) {
-			LOG.fatal("Cannot instantiate info server: " + StringUtils.stringifyException(e));
-			System.exit(FAILURERETURNCODE);
+			LOG.error("Cannot instantiate info server: " + StringUtils.stringifyException(e));
 		}
 	}
 

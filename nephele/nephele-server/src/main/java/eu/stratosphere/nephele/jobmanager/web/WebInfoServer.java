@@ -69,18 +69,18 @@ public class WebInfoServer {
 	 *         Thrown, if the server setup failed for an I/O related reason.
 	 */
 	public WebInfoServer(Configuration nepheleConfig, int port, JobManager jobmanager) throws IOException {
+		this.port = port;
+		
 		// if no explicit configuration is given, use the global configuration
 		if (nepheleConfig == null) {
-			nepheleConfig = GlobalConfiguration.getConfiguration();;
+			nepheleConfig = GlobalConfiguration.getConfiguration();
 		}
 		
 		// get base path of Stratosphere installation
-		String basePath = nepheleConfig.getString(ConfigConstants.STRATOSPHERE_BASE_DIR_PATH_KEY,"");
-
-		File webDir;
-		
+		String basePath = nepheleConfig.getString(ConfigConstants.STRATOSPHERE_BASE_DIR_PATH_KEY, "");
 		String webDirPath = nepheleConfig.getString(ConfigConstants.JOB_MANAGER_WEB_ROOT_PATH_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_WEB_ROOT_PATH);
 		
+		File webDir;
 		if(webDirPath.startsWith("/")) {
 			// absolute path
 			webDir = new File(webDirPath);
@@ -99,15 +99,14 @@ public class WebInfoServer {
 				+ port
 				+ ".");
 		}
-		
-		this.port = port;
-		server = new Server(port);
 
 		// ensure that the directory with the web documents exists
 		if (!webDir.exists()) {
-			throw new FileNotFoundException("The directory containing the web documents does not exist: "
+			throw new FileNotFoundException("Cannot start jobmanager web info server. The directory containing the web documents does not exist: " 
 				+ webDir.getAbsolutePath());
 		}
+		
+		server = new Server(port);
 
 		// ----- the handlers for the servlets -----
 		ServletContextHandler servletContext = new ServletContextHandler(ServletContextHandler.SESSIONS);
