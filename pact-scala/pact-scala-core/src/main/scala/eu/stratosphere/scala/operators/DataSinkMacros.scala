@@ -46,13 +46,11 @@ object RawDataSinkFormat {
     
     val pact4sFormat = reify {
       
-      class GeneratedOutputFormat extends RawOutput4sStub[In] {
-        override val udt = c.Expr(createUdtIn).splice
+      new RawOutput4sStub[In] with DataSinkFormat[In] {
+        val udt = c.Expr(createUdtIn).splice
         override val userFunction = writeFunction.splice
-      }
       
-      new DataSinkFormat[In](new GeneratedOutputFormat, c.Expr[UDT[In]](createUdtIn).splice) {
-        override def getUDF = this.format.asInstanceOf[DataOutput4sStub[In]].udf
+        override def getUDF = this.udf
       }
       
     }
@@ -87,16 +85,14 @@ object BinaryDataSinkFormat {
     
     val pact4sFormat = reify {
       
-      class GeneratedOutputFormat extends BinaryOutput4sStub[In] {
-        override val udt = c.Expr(createUdtIn).splice
+      new BinaryOutput4sStub[In] with DataSinkFormat[In] {
+        val udt = c.Expr(createUdtIn).splice
         override val userFunction = writeFunction.splice
-      }
       
-      new DataSinkFormat[In](new GeneratedOutputFormat, c.Expr[UDT[In]](createUdtIn).splice) {
         override def persistConfiguration(config: Configuration) {
           blockSize.splice map { config.setLong(BinaryOutputFormat.BLOCK_SIZE_PARAMETER_KEY, _) }
         }
-        override def getUDF = this.format.asInstanceOf[DataOutput4sStub[In]].udf
+        override def getUDF = this.udf
       }
       
     }
@@ -132,11 +128,11 @@ object SequentialDataSinkFormat {
     
     val pact4sFormat = reify {
       
-      new DataSinkFormat[In](new SequentialOutputFormat, c.Expr[UDT[In]](createUdtIn).splice) {
+      new SequentialOutputFormat with DataSinkFormat[In] {
         override def persistConfiguration(config: Configuration) {
           blockSize.splice map { config.setLong(BinaryOutputFormat.BLOCK_SIZE_PARAMETER_KEY, _) }
         }
-        override val udt = c.Expr[UDT[In]](createUdtIn).splice
+        val udt = c.Expr[UDT[In]](createUdtIn).splice
         lazy val udf: UDF1[In, Nothing] = new UDF1[In, Nothing](udt, UDT.NothingUDT)
         override def getUDF = udf
       }
@@ -234,16 +230,14 @@ object DelimitedDataSinkFormat {
     
     val pact4sFormat = reify {
       
-      class GeneratedOutputFormat extends DelimitedOutput4sStub[In] {
-        override val udt = c.Expr(createUdtIn).splice
+      new DelimitedOutput4sStub[In] with DataSinkFormat[In] {
+        val udt = c.Expr(createUdtIn).splice
         override val userFunction = writeFunction.splice
-      }
       
-      new DataSinkFormat[In](new GeneratedOutputFormat, c.Expr[UDT[In]](createUdtIn).splice) {
         override def persistConfiguration(config: Configuration) {
           delimiter.splice map { config.setString(DelimitedOutputFormat.RECORD_DELIMITER, _) }
         }
-        override def getUDF = this.format.asInstanceOf[DataOutput4sStub[In]].udf
+        override def getUDF = this.udf
       }
       
     }
@@ -289,7 +283,7 @@ object RecordDataSinkFormat {
     
     val pact4sFormat = reify {
       
-      new DataSinkFormat[In](new RecordOutputFormat, c.Expr[UDT[In]](createUdtIn).splice) {
+      new RecordOutputFormat with DataSinkFormat[In] {
         override def persistConfiguration(config: Configuration) {
 
           val fields = getUDF.inputFields.filter(_.isUsed)
@@ -309,7 +303,7 @@ object RecordDataSinkFormat {
           lenient.splice map { config.setBoolean(RecordOutputFormat.LENIENT_PARSING, _) }
         }
         
-        override val udt = c.Expr[UDT[In]](createUdtIn).splice
+        val udt = c.Expr[UDT[In]](createUdtIn).splice
         lazy val udf: UDF1[In, Nothing] = new UDF1[In, Nothing](udt, UDT.NothingUDT)
         override def getUDF = udf
       }

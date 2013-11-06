@@ -28,7 +28,7 @@ object DataSinkOperator {
     val uri = getUri(url)
 
     val ret = uri.getScheme match {
-      case "file" | "hdfs" => new FileDataSink(format.format.asInstanceOf[FileOutputFormat[_]], uri.toString, input.contract)
+      case "file" | "hdfs" => new FileDataSink(format.asInstanceOf[FileOutputFormat[_]], uri.toString, input.contract)
           with OneInputScalaContract[In, Nothing] {
 
         def getUDF = format.getUDF
@@ -49,7 +49,7 @@ object DataSinkOperator {
 
 class ScalaSink[In] private[scala] (private[scala] val sink: GenericDataSink)
 
-abstract class DataSinkFormat[In](val format: OutputFormat[_], val udt: UDT[In]) {
+trait DataSinkFormat[In] { this: OutputFormat[_] =>
   def getUDF: UDF1[In, Nothing]
   def persistConfiguration(config: Configuration) = {}
 }
