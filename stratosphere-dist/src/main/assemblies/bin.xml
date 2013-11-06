@@ -105,6 +105,7 @@
 			<fileMode>0644</fileMode>
 			<includes>
 				<include>*.txt</include>
+				<include>*.properties</include>
 			</includes>
 		</fileSet>
 

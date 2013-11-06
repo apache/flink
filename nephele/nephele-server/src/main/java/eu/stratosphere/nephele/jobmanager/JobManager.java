@@ -34,6 +34,7 @@
 package eu.stratosphere.nephele.jobmanager;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
@@ -42,6 +43,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -171,7 +173,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	private WebInfoServer server;
 	
 	public JobManager(ExecutionMode executionMode) {
-
+		
 		final String ipcAddressString = GlobalConfiguration
 			.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
 
@@ -344,6 +346,26 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	}
 
 	/**
+	 * Log Stratosphere version information.
+	 */
+	private static void logVersionInformation() {
+		String version = JobManager.class.getPackage().getImplementationVersion();
+		String revision = null;
+		try {
+	    	Properties properties = new Properties();
+	    	InputStream propFile = JobManager.class.getClassLoader().getResourceAsStream(".version.properties");
+			if(propFile != null) {
+				properties.load(propFile);
+				revision = properties.getProperty("git.commit.id.abbrev");
+			}
+		} catch (IOException e1) {}
+		// if version == null, then the JobManager runs from inside Eclipse (or somehow not from the maven build jar)
+		if(version != null) {
+			LOG.info("Starting Stratosphere JobManager (Version: "+version+", Rev:"+revision+")");
+		}
+	}
+	
+	/**
 	 * Entry point for the program
 	 * 
 	 * @param args
@@ -351,7 +373,8 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	 */
 	@SuppressWarnings("static-access")
 	public static void main(final String[] args) {
-
+		logVersionInformation();
+		
 		final Option configDirOpt = OptionBuilder.withArgName("config directory").hasArg()
 			.withDescription("Specify configuration directory.").create("configDir");
 
