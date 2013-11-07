@@ -41,7 +41,7 @@ if [[ $TRAVIS_PULL_REQUEST == "false" ]] ; then
 		# deploy hadoop v2 (yarn)
 		echo "Generating poms for hadoop-yarn."
 		./tools/generate_specific_pom.sh $CURRENT_STRATOSPHERE_VERSION $CURRENT_STRATOSPHERE_VERSION_YARN
-		mvn -f pom.hadoop2.xml -DskipTests clean deploy --settings deploysettings.xml; 
+		mvn -B -f pom.hadoop2.xml -DskipTests clean deploy --settings deploysettings.xml; 
 	fi
 
 	#
@@ -56,7 +56,7 @@ if [[ $TRAVIS_PULL_REQUEST == "false" ]] ; then
 	if [[ $TRAVIS_JOB_NUMBER == *5 ]] ; then 
 		#generate yarn poms & build for yarn.
 		./tools/generate_specific_pom.sh $CURRENT_STRATOSPHERE_VERSION $CURRENT_STRATOSPHERE_VERSION_YARN pom.xml
-		mvn -DskipTests clean package
+		mvn -B -DskipTests clean package
 		CURRENT_STRATOSPHERE_VERSION=$CURRENT_STRATOSPHERE_VERSION_YARN
 	fi
 	if [[ $TRAVIS_JOB_NUMBER == *2 ]] || [[ $TRAVIS_JOB_NUMBER == *5 ]] ; then 

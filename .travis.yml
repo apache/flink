@@ -17,7 +17,7 @@ env:
 
 install: true
 
-script: "mvn $PROFILE clean verify"
+script: "mvn -B $PROFILE clean verify"
 
 # deploy if the first job is successful; should be replaced by an after_all_success if travis finally supports it
 after_success: 
