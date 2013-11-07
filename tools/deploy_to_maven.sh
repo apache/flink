@@ -2,6 +2,11 @@
 
 #Please ask @rmetzger (on GitHub) before changing anything here. It contains some magic.
 
+echo "install lifecylce mapping fake plugin"
+git clone https://github.com/mfriedenhagen/dummy-lifecycle-mapping-plugin.git
+cd dummy-lifecycle-mapping-plugin
+mvn install
+
 function getVersion() {
 	here="`dirname \"$0\"`"              # relative
 	here="`( cd \"$here\" && pwd )`"  # absolutized and normalized
