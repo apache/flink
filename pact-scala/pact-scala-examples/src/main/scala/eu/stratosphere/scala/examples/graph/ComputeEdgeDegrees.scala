@@ -14,14 +14,11 @@
 package eu.stratosphere.scala.examples.graph
 
 import eu.stratosphere.pact.client.LocalExecutor
-import eu.stratosphere.scala.DataSource
-import eu.stratosphere.scala.ScalaPlan
-import eu.stratosphere.scala.analysis.GlobalSchemaPrinter
-import eu.stratosphere.scala.operators.RecordDataSourceFormat
-import eu.stratosphere.scala.operators.optionToIterator
-import eu.stratosphere.scala.operators.DelimitedDataSinkFormat
 import eu.stratosphere.pact.common.plan.PlanAssembler
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription
+
+import eu.stratosphere.scala._
+import eu.stratosphere.scala.operators._
 
 object RunComputeEdgeDegrees {
   def main(args: Array[String]) {
@@ -91,7 +88,7 @@ class ComputeEdgeDegrees extends PlanAssembler with PlanAssemblerDescription wit
      * Edges are separated by new line '\n'. 
      * An edge is represented as two Integer vertex IDs which are separated by a blank ','.
      */
-    val edges = DataSource(edgeInput, RecordDataSourceFormat[(Int, Int)]("\n", ","))
+    val edges = DataSource(edgeInput, RecordInputFormat[(Int, Int)]("\n", ","))
 
     /*
      * Emit each edge twice with both vertex orders.
@@ -111,7 +108,7 @@ class ComputeEdgeDegrees extends PlanAssembler with PlanAssemblerDescription wit
     /*
      * Emit annotated edges.
      */
-    val output = combinedVertexCnts.write(annotatedEdgeOutput, DelimitedDataSinkFormat(formatEdgeWithDegrees.tupled))
+    val output = combinedVertexCnts.write(annotatedEdgeOutput, DelimitedOutputFormat(formatEdgeWithDegrees.tupled))
   
     val plan = new ScalaPlan(Seq(output), "Compute Edge Degrees")
     plan.setDefaultParallelism(numSubTasks)

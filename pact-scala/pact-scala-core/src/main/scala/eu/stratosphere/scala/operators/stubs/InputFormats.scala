@@ -21,7 +21,9 @@ import eu.stratosphere.pact.common.io._
 import eu.stratosphere.pact.common.`type`.PactRecord
 import eu.stratosphere.nephele.configuration.Configuration
 import eu.stratosphere.nephele.template.GenericInputSplit;
-import eu.stratosphere.pact.generic.io.BinaryInputFormat
+import eu.stratosphere.pact.generic.io.{BinaryInputFormat => JavaBinaryInputFormat}
+import eu.stratosphere.pact.common.io.{DelimitedInputFormat => JavaDelimitedInputFormat}
+import eu.stratosphere.pact.common.io.{FixedLengthInputFormat => JavaFixedLengthInputFormat}
 
 /*case class ExternalProcessFixedLengthInputParameters[Out](
   val serializer: UDTSerializer[Out],
@@ -31,7 +33,7 @@ import eu.stratosphere.pact.generic.io.BinaryInputFormat
   val userFunction: (Array[Byte], Int) => Out)
   extends StubParameters*/
 
-trait InputFormat4sStub[Out] {
+trait ScalaInputFormat[Out] {
   protected val udt: UDT[Out]
   lazy val udf: UDF0[Out] = new UDF0(udt)
   protected var serializer: UDTSerializer[Out] = _
@@ -43,7 +45,7 @@ trait InputFormat4sStub[Out] {
   }
 }
 
-abstract class BinaryInput4sStub[Out] extends BinaryInputFormat[PactRecord] with InputFormat4sStub[Out] {
+abstract class BinaryInputFormat[Out] extends JavaBinaryInputFormat[PactRecord] with ScalaInputFormat[Out] {
   protected val userFunction: DataInput => Out
 
   override def configure(config: Configuration) {
@@ -58,7 +60,7 @@ abstract class BinaryInput4sStub[Out] extends BinaryInputFormat[PactRecord] with
   }
 }
 
-abstract class DelimitedInput4sStub[Out] extends DelimitedInputFormat with InputFormat4sStub[Out] {
+abstract class DelimitedInputFormat[Out] extends JavaDelimitedInputFormat with ScalaInputFormat[Out] {
   protected val userFunction: (Array[Byte], Int, Int) => Out
 
   override def configure(config: Configuration) {
@@ -78,7 +80,7 @@ abstract class DelimitedInput4sStub[Out] extends DelimitedInputFormat with Input
   }
 }
 
-abstract class FixedLengthInput4sStub[Out] extends FixedLengthInputFormat with InputFormat4sStub[Out] {
+abstract class FixedLengthInputFormat[Out] extends JavaFixedLengthInputFormat with ScalaInputFormat[Out] {
   protected val userFunction: (Array[Byte], Int) => Out
 
   override def configure(config: Configuration) {

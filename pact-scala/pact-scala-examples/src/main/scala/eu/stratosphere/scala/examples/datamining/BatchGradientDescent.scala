@@ -16,9 +16,7 @@ package eu.stratosphere.pact4s.examples.datamining
 import scala.math._
 import eu.stratosphere.scala._
 import eu.stratosphere.scala.operators._
-import eu.stratosphere.scala.ScalaPlan
-import eu.stratosphere.scala.DataSource
-import eu.stratosphere.scala.DataStream
+
 
 abstract class BatchGradientDescent(eps: Double, eta: Double, lambda: Double, examplesInput: String, weightsInput: String, weightsOutput: String) extends Serializable {
   def computeGradient(example: Array[Double], weight: Array[Double]): (Double, Array[Double])
@@ -55,10 +53,10 @@ abstract class BatchGradientDescent(eps: Double, eta: Double, lambda: Double, ex
 
   def getPlan() = {
 
-    val examples = DataSource(examplesInput, DelimitedDataSourceFormat(readVector))
-    val weights = DataSource(weightsInput, DelimitedDataSourceFormat(readVector))
+    val examples = DataSource(examplesInput, DelimitedInputFormat(readVector))
+    val weights = DataSource(weightsInput, DelimitedInputFormat(readVector))
 
-    def gradientDescent = (s: DataStream[(Int, Array[Double])], ws: DataStream[(Int, Array[Double], Double)]) => {
+    def gradientDescent = (s: DataSet[(Int, Array[Double])], ws: DataSet[(Int, Array[Double], Double)]) => {
 
       val lossesAndGradients = ws cross examples map { (w, ex) => new ValueAndGradient(w._1, computeGradient(ex._2, w._2)) }
       val lossAndGradientSums = lossesAndGradients groupBy { _.id } reduce (_ + _)
@@ -72,7 +70,7 @@ abstract class BatchGradientDescent(eps: Double, eta: Double, lambda: Double, ex
 
     val newWeights = weights.iterateWithWorkset(weights.map { case (id, w) => (id, w, eta) }, {_._1}, gradientDescent)
 
-    val output = newWeights.write(weightsOutput, DelimitedDataSinkFormat(formatOutput.tupled))
+    val output = newWeights.write(weightsOutput, DelimitedOutputFormat(formatOutput.tupled))
     new ScalaPlan(Seq(output), "Batch Gradient Descent")
   }
 }

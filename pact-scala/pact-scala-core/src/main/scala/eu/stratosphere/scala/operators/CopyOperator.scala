@@ -25,10 +25,10 @@ import eu.stratosphere.scala.OneInputScalaContract
 import eu.stratosphere.scala.analysis.UDF1
 import eu.stratosphere.scala.analysis.UDTSerializer
 import eu.stratosphere.nephele.configuration.Configuration
-import eu.stratosphere.scala.DataStream
+import eu.stratosphere.scala.DataSet
 
 object CopyOperator {
-  def apply(source: Contract with ScalaContract[_]): DataStream[_] = {
+  def apply(source: Contract with ScalaContract[_]): DataSet[_] = {
     val generatedStub = new MapStub with Serializable {
       val udf: UDF1[_, _] = new UDF1(source.getUDF.outputUDT, source.getUDF.outputUDT)
 
@@ -69,6 +69,6 @@ object CopyOperator {
           this.getCompilerHints().setAvgBytesPerRecord(source.getCompilerHints().getAvgBytesPerRecord())
       }
     }
-    new DataStream[Nothing](ret)
+    new DataSet[Nothing](ret)
   }
 }

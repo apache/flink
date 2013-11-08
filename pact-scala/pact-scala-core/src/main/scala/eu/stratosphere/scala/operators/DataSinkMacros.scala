@@ -18,23 +18,26 @@ import java.io.DataOutput
 import java.io.OutputStream
 import scala.reflect.macros.Context
 import eu.stratosphere.scala.DataSinkFormat
-import eu.stratosphere.pact.common.io.RecordOutputFormat
+
 import eu.stratosphere.scala.analysis.UDF1
-import eu.stratosphere.scala.operators.stubs.BinaryOutput4sStub
-import eu.stratosphere.scala.operators.stubs.DataOutput4sStub
-import eu.stratosphere.scala.operators.stubs.RawOutput4sStub
-import eu.stratosphere.scala.operators.stubs.DelimitedOutput4sStub
-import eu.stratosphere.pact.generic.io.SequentialOutputFormat
 import eu.stratosphere.nephele.configuration.Configuration
 import eu.stratosphere.scala.analysis.UDT
-import eu.stratosphere.pact.generic.io.BinaryOutputFormat
 import eu.stratosphere.scala.analysis.InputField
-import eu.stratosphere.pact.common.io.DelimitedOutputFormat
 import eu.stratosphere.scala.codegen.UDTDescriptors
 import eu.stratosphere.scala.codegen.MacroContextHolder
 
+import eu.stratosphere.scala.operators.stubs.ScalaOutputFormat
+import eu.stratosphere.scala.operators.stubs.BinaryOutputFormat
+import eu.stratosphere.scala.operators.stubs.RawOutputFormat
+import eu.stratosphere.scala.operators.stubs.DelimitedOutputFormat
 
-object RawDataSinkFormat {
+import eu.stratosphere.pact.generic.io.{BinaryOutputFormat => JavaBinaryOutputFormat}
+import eu.stratosphere.pact.generic.io.{SequentialOutputFormat => JavaSequentialOutputFormat}
+import eu.stratosphere.pact.common.io.{DelimitedOutputFormat => JavaDelimitedOutputFormat}
+import eu.stratosphere.pact.common.io.{RecordOutputFormat => JavaRecordOutputFormat}
+
+
+object RawOutputFormat {
   def apply[In](writeFunction: (In, OutputStream) => Unit): DataSinkFormat[In] = macro impl[In]
   
   def impl[In: c.WeakTypeTag](c: Context)(writeFunction: c.Expr[(In, OutputStream) => Unit]) : c.Expr[DataSinkFormat[In]] = {
@@ -46,7 +49,7 @@ object RawDataSinkFormat {
     
     val pact4sFormat = reify {
       
-      new RawOutput4sStub[In] with DataSinkFormat[In] {
+      new RawOutputFormat[In] with DataSinkFormat[In] {
         val udt = c.Expr(createUdtIn).splice
         override val userFunction = writeFunction.splice
       
@@ -62,7 +65,7 @@ object RawDataSinkFormat {
   }
 }
 
-object BinaryDataSinkFormat {
+object BinaryOutputFormat {
   
   def apply[In](writeFunction: (In, DataOutput) => Unit): DataSinkFormat[In] = macro implWithoutBlocksize[In]
   def apply[In](writeFunction: (In, DataOutput) => Unit, blockSize: Long): DataSinkFormat[In] = macro implWithBlocksize[In]
@@ -85,12 +88,12 @@ object BinaryDataSinkFormat {
     
     val pact4sFormat = reify {
       
-      new BinaryOutput4sStub[In] with DataSinkFormat[In] {
+      new BinaryOutputFormat[In] with DataSinkFormat[In] {
         val udt = c.Expr(createUdtIn).splice
         override val userFunction = writeFunction.splice
       
         override def persistConfiguration(config: Configuration) {
-          blockSize.splice map { config.setLong(BinaryOutputFormat.BLOCK_SIZE_PARAMETER_KEY, _) }
+          blockSize.splice map { config.setLong(JavaBinaryOutputFormat.BLOCK_SIZE_PARAMETER_KEY, _) }
         }
         override def getUDF = this.udf
       }
@@ -104,8 +107,7 @@ object BinaryDataSinkFormat {
   }
 }
 
-// TODO check whether this ever worked ...
-object SequentialDataSinkFormat {
+object SequentialOutputFormat {
   
   def apply[In](): DataSinkFormat[In] = macro implWithoutBlocksize[In]
   def apply[In](blockSize: Long): DataSinkFormat[In] = macro implWithBlocksize[In]
@@ -128,9 +130,9 @@ object SequentialDataSinkFormat {
     
     val pact4sFormat = reify {
       
-      new SequentialOutputFormat with DataSinkFormat[In] {
+      new JavaSequentialOutputFormat with DataSinkFormat[In] {
         override def persistConfiguration(config: Configuration) {
-          blockSize.splice map { config.setLong(BinaryOutputFormat.BLOCK_SIZE_PARAMETER_KEY, _) }
+          blockSize.splice map { config.setLong(JavaBinaryOutputFormat.BLOCK_SIZE_PARAMETER_KEY, _) }
         }
         val udt = c.Expr[UDT[In]](createUdtIn).splice
         lazy val udf: UDF1[In, Nothing] = new UDF1[In, Nothing](udt, UDT.NothingUDT)
@@ -146,7 +148,7 @@ object SequentialDataSinkFormat {
   }
 }
 
-object DelimitedDataSinkFormat {
+object DelimitedOutputFormat {
   
   def forString[In](formatFunction: In => String) = {
 
@@ -230,12 +232,12 @@ object DelimitedDataSinkFormat {
     
     val pact4sFormat = reify {
       
-      new DelimitedOutput4sStub[In] with DataSinkFormat[In] {
+      new DelimitedOutputFormat[In] with DataSinkFormat[In] {
         val udt = c.Expr(createUdtIn).splice
         override val userFunction = writeFunction.splice
       
         override def persistConfiguration(config: Configuration) {
-          delimiter.splice map { config.setString(DelimitedOutputFormat.RECORD_DELIMITER, _) }
+          delimiter.splice map { config.setString(JavaDelimitedOutputFormat.RECORD_DELIMITER, _) }
         }
         override def getUDF = this.udf
       }
@@ -249,7 +251,7 @@ object DelimitedDataSinkFormat {
   }
 }
 
-object RecordDataSinkFormat {
+object RecordOutputFormat {
   def apply[In](recordDelimiter: Option[String], fieldDelimiter: Option[String] = None, lenient: Option[Boolean]): DataSinkFormat[In] = macro impl[In]
   
   def apply[In](): DataSinkFormat[In] = macro implWithoutAll[In]
@@ -283,24 +285,24 @@ object RecordDataSinkFormat {
     
     val pact4sFormat = reify {
       
-      new RecordOutputFormat with DataSinkFormat[In] {
+      new JavaRecordOutputFormat with DataSinkFormat[In] {
         override def persistConfiguration(config: Configuration) {
 
           val fields = getUDF.inputFields.filter(_.isUsed)
 
-          config.setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, fields.length)
+          config.setInteger(JavaRecordOutputFormat.NUM_FIELDS_PARAMETER, fields.length)
 
           var index = 0
           fields foreach { field: InputField =>
             val tpe = getUDF.inputUDT.fieldTypes(field.localPos)
-            config.setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + index, tpe)
-            config.setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + index, field.globalPos.getValue)
+            config.setClass(JavaRecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + index, tpe)
+            config.setInteger(JavaRecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + index, field.globalPos.getValue)
             index = index + 1
           }
 
-          recordDelimiter.splice map { config.setString(RecordOutputFormat.RECORD_DELIMITER_PARAMETER, _) }
-          fieldDelimiter.splice map { config.setString(RecordOutputFormat.FIELD_DELIMITER_PARAMETER, _) }
-          lenient.splice map { config.setBoolean(RecordOutputFormat.LENIENT_PARSING, _) }
+          recordDelimiter.splice map { config.setString(JavaRecordOutputFormat.RECORD_DELIMITER_PARAMETER, _) }
+          fieldDelimiter.splice map { config.setString(JavaRecordOutputFormat.FIELD_DELIMITER_PARAMETER, _) }
+          lenient.splice map { config.setBoolean(JavaRecordOutputFormat.LENIENT_PARSING, _) }
         }
         
         val udt = c.Expr[UDT[In]](createUdtIn).splice

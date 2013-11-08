@@ -24,7 +24,7 @@ import eu.stratosphere.pact.common.contract.GenericDataSink
 
 object DataSinkOperator {
 
-  def write[In](input: DataStream[In], url: String, format: DataSinkFormat[In]): ScalaSink[In] = {
+  def write[In](input: DataSet[In], url: String, format: DataSinkFormat[In]): ScalaSink[In] = {
     val uri = getUri(url)
 
     val ret = uri.getScheme match {

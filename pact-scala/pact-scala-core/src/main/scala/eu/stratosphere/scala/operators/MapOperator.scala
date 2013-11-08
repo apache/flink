@@ -28,12 +28,12 @@ import eu.stratosphere.scala.OneInputScalaContract
 import eu.stratosphere.scala.analysis.UDF1
 import eu.stratosphere.scala.analysis.UDTSerializer
 import eu.stratosphere.nephele.configuration.Configuration
-import eu.stratosphere.scala.DataStream
+import eu.stratosphere.scala.DataSet
 import eu.stratosphere.scala.OneInputHintable
 
 object MapMacros {
 
-  def map[In: c.WeakTypeTag, Out: c.WeakTypeTag](c: Context { type PrefixType = DataStream[In] })(fun: c.Expr[In => Out]): c.Expr[DataStream[Out] with OneInputHintable[In, Out]] = {
+  def map[In: c.WeakTypeTag, Out: c.WeakTypeTag](c: Context { type PrefixType = DataSet[In] })(fun: c.Expr[In => Out]): c.Expr[DataSet[Out] with OneInputHintable[In, Out]] = {
     import c.universe._
 
     val slave = MacroContextHolder.newMacroHelper(c)
@@ -85,17 +85,17 @@ object MapMacros {
         override def getUDF = generatedStub.udf
         override def annotations = Seq(Annotations.getConstantFields(generatedStub.udf.getForwardIndexArray))
       }
-      val stream = new DataStream[Out](contract) with OneInputHintable[In, Out] {}
+      val stream = new DataSet[Out](contract) with OneInputHintable[In, Out] {}
       contract.persistHints = { () => stream.applyHints(contract) }
       stream
     }
 
-    val result = c.Expr[DataStream[Out] with OneInputHintable[In, Out]](Block(List(udtIn, udtOut), contract.tree))
+    val result = c.Expr[DataSet[Out] with OneInputHintable[In, Out]](Block(List(udtIn, udtOut), contract.tree))
 
     return result
   }
   
-  def flatMap[In: c.WeakTypeTag, Out: c.WeakTypeTag](c: Context { type PrefixType = DataStream[In] })(fun: c.Expr[In => Iterator[Out]]): c.Expr[DataStream[Out] with OneInputHintable[In, Out]] = {
+  def flatMap[In: c.WeakTypeTag, Out: c.WeakTypeTag](c: Context { type PrefixType = DataSet[In] })(fun: c.Expr[In => Iterator[Out]]): c.Expr[DataSet[Out] with OneInputHintable[In, Out]] = {
     import c.universe._
 
     val slave = MacroContextHolder.newMacroHelper(c)
@@ -153,17 +153,17 @@ object MapMacros {
         override def getUDF = generatedStub.udf
         override def annotations = Seq(Annotations.getConstantFields(generatedStub.udf.getForwardIndexArray))
       }
-      val stream = new DataStream[Out](contract) with OneInputHintable[In, Out] {}
+      val stream = new DataSet[Out](contract) with OneInputHintable[In, Out] {}
       contract.persistHints = { () => stream.applyHints(contract) }
       stream
     }
 
-    val result = c.Expr[DataStream[Out] with OneInputHintable[In, Out]](Block(List(udtIn, udtOut), contract.tree))
+    val result = c.Expr[DataSet[Out] with OneInputHintable[In, Out]](Block(List(udtIn, udtOut), contract.tree))
 
     return result
   }
   
-  def filter[In: c.WeakTypeTag](c: Context { type PrefixType = DataStream[In] })(fun: c.Expr[In => Boolean]): c.Expr[DataStream[In] with OneInputHintable[In, In]] = {
+  def filter[In: c.WeakTypeTag](c: Context { type PrefixType = DataSet[In] })(fun: c.Expr[In => Boolean]): c.Expr[DataSet[In] with OneInputHintable[In, In]] = {
     import c.universe._
 
     val slave = MacroContextHolder.newMacroHelper(c)
@@ -208,7 +208,7 @@ object MapMacros {
         override def getUDF = generatedStub.udf
         override def annotations = Seq(Annotations.getConstantFields(generatedStub.udf.getForwardIndexArray))
       }
-      val stream = new DataStream[In](contract) with OneInputHintable[In, In] {}
+      val stream = new DataSet[In](contract) with OneInputHintable[In, In] {}
       contract.persistHints = { () =>
         stream.applyHints(contract);
         0 until generatedStub.udf.getOutputLength foreach { i => stream.markCopied(i, i) }
@@ -216,7 +216,7 @@ object MapMacros {
       stream
     }
 
-    val result = c.Expr[DataStream[In] with OneInputHintable[In, In]](Block(List(udtIn), contract.tree))
+    val result = c.Expr[DataSet[In] with OneInputHintable[In, In]](Block(List(udtIn), contract.tree))
 
     return result
   }

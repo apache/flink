@@ -12,15 +12,16 @@ package eu.stratosphere.scala.examples.graph;
  * specific language governing permissions and limitations under the License.
  */
 
+
+import eu.stratosphere.pact.client.LocalExecutor
+import eu.stratosphere.pact.common.plan.PlanAssembler
+import eu.stratosphere.pact.common.plan.PlanAssemblerDescription
+import eu.stratosphere.scala.analysis.GlobalSchemaPrinter
+
 import scala.math._
+
 import eu.stratosphere.scala._
 import eu.stratosphere.scala.operators._
-import eu.stratosphere.scala.Args
-import eu.stratosphere.scala.DataSource
-import eu.stratosphere.scala.DataStream
-import eu.stratosphere.scala.ScalaPlan
-import eu.stratosphere.pact.client.LocalExecutor
-import eu.stratosphere.scala.analysis.GlobalSchemaPrinter
 
 object RunConnectedComponents {
  def main(pArgs: Array[String]) {
@@ -39,12 +40,12 @@ class ConnectedComponents extends Serializable {
   
   def getPlan(verticesInput: String, edgesInput: String, componentsOutput: String) = {
 
-  val vertices = DataSource(verticesInput, DelimitedDataSourceFormat(parseVertex))
-  val directedEdges = DataSource(edgesInput, DelimitedDataSourceFormat(parseEdge))
+  val vertices = DataSource(verticesInput, DelimitedInputFormat(parseVertex))
+  val directedEdges = DataSource(edgesInput, DelimitedInputFormat(parseEdge))
 
   val undirectedEdges = directedEdges flatMap { case (from, to) => Seq(from -> to, to -> from) }
 
-    def propagateComponent = (s: DataStream[(Int, Int)], ws: DataStream[(Int, Int)]) => {
+    def propagateComponent = (s: DataSet[(Int, Int)], ws: DataSet[(Int, Int)]) => {
 
       val allNeighbors = ws join undirectedEdges where { case (v, _) => v } isEqualTo { case (from, _) => from } map { (w, e) => e._2 -> w._2 }
       val minNeighbors = allNeighbors groupBy { case (to, _) => to } reduceGroup { cs => cs minBy { _._2 } }
@@ -63,7 +64,7 @@ class ConnectedComponents extends Serializable {
     }
 
     val components = vertices.iterateWithWorkset(vertices, { _._1 }, propagateComponent)
-    val output = components.write(componentsOutput, DelimitedDataSinkFormat(formatOutput.tupled))
+    val output = components.write(componentsOutput, DelimitedOutputFormat(formatOutput.tupled))
 
     vertices.avgBytesPerRecord(8)
     directedEdges.avgBytesPerRecord(8)

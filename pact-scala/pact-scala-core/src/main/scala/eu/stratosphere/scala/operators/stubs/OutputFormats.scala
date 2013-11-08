@@ -18,13 +18,14 @@ import java.io.OutputStream
 
 import eu.stratosphere.scala.analysis._
 
-import eu.stratosphere.pact.common.io._
 import eu.stratosphere.pact.common.`type`.PactRecord
 import eu.stratosphere.nephele.configuration.Configuration
-import eu.stratosphere.pact.generic.io.BinaryOutputFormat
-import eu.stratosphere.pact.common.`type`.PactRecord
 
-trait DataOutput4sStub[In] {
+import eu.stratosphere.pact.generic.io.{BinaryOutputFormat => JavaBinaryOutputFormat}
+import eu.stratosphere.pact.common.io.{DelimitedOutputFormat => JavaDelimitedOutputFormat}
+import eu.stratosphere.pact.common.io.FileOutputFormat
+
+trait ScalaOutputFormat[In] {
   protected val udt: UDT[In]
   lazy val udf: UDF1[In, Nothing] = new UDF1[In, Nothing](udt, UDT.NothingUDT)
   protected var deserializer: UDTSerializer[In] = _
@@ -34,7 +35,7 @@ trait DataOutput4sStub[In] {
   }
 }
 
-abstract class RawOutput4sStub[In] extends FileOutputFormat with DataOutput4sStub[In] {
+abstract class RawOutputFormat[In] extends FileOutputFormat with ScalaOutputFormat[In] {
   protected val userFunction: (In, OutputStream) => Unit
   
   override def configure(config: Configuration) {
@@ -48,7 +49,7 @@ abstract class RawOutput4sStub[In] extends FileOutputFormat with DataOutput4sStu
   }
 }
 
-abstract class BinaryOutput4sStub[In] extends BinaryOutputFormat[PactRecord] with DataOutput4sStub[In] {
+abstract class BinaryOutputFormat[In] extends JavaBinaryOutputFormat[PactRecord] with ScalaOutputFormat[In] {
   protected val userFunction: (In, DataOutput) => Unit
   
   override def configure(config: Configuration) {
@@ -62,7 +63,7 @@ abstract class BinaryOutput4sStub[In] extends BinaryOutputFormat[PactRecord] wit
   }
 }
 
-abstract class DelimitedOutput4sStub[In] extends DelimitedOutputFormat with DataOutput4sStub[In] {
+abstract class DelimitedOutputFormat[In] extends JavaDelimitedOutputFormat with ScalaOutputFormat[In] {
   protected val userFunction: (In, Array[Byte]) => Int
 
   override def configure(config: Configuration) {

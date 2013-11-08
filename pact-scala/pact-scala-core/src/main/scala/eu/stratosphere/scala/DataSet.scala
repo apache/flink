@@ -25,11 +25,11 @@ import eu.stratosphere.scala.operators.UnionMacros
 import eu.stratosphere.scala.operators.IterateMacros
 import eu.stratosphere.scala.operators.WorksetIterateMacros
 
-class DataStream[T] (val contract: Contract with ScalaContract[T]) {
+class DataSet[T] (val contract: Contract with ScalaContract[T]) {
   
-  def cogroup[RightIn](rightInput: DataStream[RightIn]) = new CoGroupDataStream[T, RightIn](this, rightInput)
-  def cross[RightIn](rightInput: DataStream[RightIn]) = new CrossDataStream[T, RightIn](this, rightInput)
-  def join[RightIn](rightInput: DataStream[RightIn]) = new JoinDataStream[T, RightIn](this, rightInput)
+  def cogroup[RightIn](rightInput: DataSet[RightIn]) = new CoGroupDataStream[T, RightIn](this, rightInput)
+  def cross[RightIn](rightInput: DataSet[RightIn]) = new CrossDataStream[T, RightIn](this, rightInput)
+  def join[RightIn](rightInput: DataSet[RightIn]) = new JoinDataStream[T, RightIn](this, rightInput)
   
   def map[Out](fun: T => Out) = macro MapMacros.map[T, Out]
   def flatMap[Out](fun: T => Iterator[Out]) = macro MapMacros.flatMap[T, Out]
@@ -42,11 +42,11 @@ class DataStream[T] (val contract: Contract with ScalaContract[T]) {
   def reduce(fun: (T, T) => T) = macro ReduceMacros.globalReduce[T]
   def reduceAll[Out](fun: Iterator[T] => Out) = macro ReduceMacros.globalReduceAll[T, Out]
   
-  def union(secondInput: DataStream[T]) = macro UnionMacros.impl[T]
+  def union(secondInput: DataSet[T]) = macro UnionMacros.impl[T]
   
-  def iterateWithDelta[DeltaItem](stepFunction: DataStream[T] => (DataStream[T], DataStream[DeltaItem])) = macro IterateMacros.iterateWithDelta[T, DeltaItem]
-  def iterate(n: Int, stepFunction: DataStream[T] => DataStream[T])= macro IterateMacros.iterate[T]
-  def iterateWithWorkset[SolutionKey, WorksetItem](workset: DataStream[WorksetItem], solutionSetKey: T => SolutionKey, stepFunction: (DataStream[T], DataStream[WorksetItem]) => (DataStream[T], DataStream[WorksetItem])) = macro WorksetIterateMacros.iterateWithWorkset[T, SolutionKey, WorksetItem]
+  def iterateWithDelta[DeltaItem](stepFunction: DataSet[T] => (DataSet[T], DataSet[DeltaItem])) = macro IterateMacros.iterateWithDelta[T, DeltaItem]
+  def iterate(n: Int, stepFunction: DataSet[T] => DataSet[T])= macro IterateMacros.iterate[T]
+  def iterateWithWorkset[SolutionKey, WorksetItem](workset: DataSet[WorksetItem], solutionSetKey: T => SolutionKey, stepFunction: (DataSet[T], DataSet[WorksetItem]) => (DataSet[T], DataSet[WorksetItem])) = macro WorksetIterateMacros.iterateWithWorkset[T, SolutionKey, WorksetItem]
   
   def write(url: String, format: DataSinkFormat[T]) = DataSinkOperator.write(this, url, format) 
   

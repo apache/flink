@@ -17,10 +17,7 @@ import scala.math._
 import scala.math.Ordered._
 import eu.stratosphere.scala._
 import eu.stratosphere.scala.operators._
-import eu.stratosphere.scala.DataStream
-import eu.stratosphere.scala.ScalaPlan
-import eu.stratosphere.scala.Args
-import eu.stratosphere.scala.DataSource
+
 import eu.stratosphere.pact.client.LocalExecutor
 
 object RunTransitiveClosureNaive {
@@ -39,10 +36,10 @@ object RunTransitiveClosureNaive {
 class TransitiveClosureNaive extends Serializable {
 
   def getPlan(numIterations: Int, verticesInput: String, edgesInput: String, pathsOutput: String) = {
-    val vertices = DataSource(verticesInput, DelimitedDataSourceFormat(parseVertex))
-    val edges = DataSource(edgesInput, DelimitedDataSourceFormat(parseEdge))
+    val vertices = DataSource(verticesInput, DelimitedInputFormat(parseVertex))
+    val edges = DataSource(edgesInput, DelimitedInputFormat(parseEdge))
 
-    def createClosure(paths: DataStream[Path]) = {
+    def createClosure(paths: DataSet[Path]) = {
 
       val allNewPaths = paths join edges where { p => p.to } isEqualTo { p => p.from } map joinPaths
       val shortestPaths = allNewPaths union paths groupBy { p => (p.from, p.to) } reduceGroup { _ minBy { _.dist } }
@@ -60,7 +57,7 @@ class TransitiveClosureNaive extends Serializable {
 
     val transitiveClosure = vertices.iterate(numIterations, createClosure)
 
-    val output = transitiveClosure.write(pathsOutput, DelimitedDataSinkFormat(formatOutput))
+    val output = transitiveClosure.write(pathsOutput, DelimitedOutputFormat(formatOutput))
 
     vertices.avgBytesPerRecord(16)
     edges.avgBytesPerRecord(16)

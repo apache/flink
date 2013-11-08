@@ -49,7 +49,7 @@ case class KeyCardinality(key: FieldSelector, isUnique: Boolean, distinctCount: 
   }
 }
 
-trait OutputHintable[Out] { this: DataStream[Out] =>
+trait OutputHintable[Out] { this: DataSet[Out] =>
   def getContract = contract
   
   private var _cardinalities: List[KeyCardinality] = List[KeyCardinality]()
@@ -221,7 +221,7 @@ object OutputHintableMacros {
   }
 }
 
-trait InputHintable[In, Out] { this: DataStream[Out] =>
+trait InputHintable[In, Out] { this: DataSet[Out] =>
   def markUnread: Int => Unit
   def markCopied: (Int, Int) => Unit
   
@@ -296,7 +296,7 @@ object InputHintableMacros {
   }
 }
 
-trait OneInputHintable[In, Out] extends InputHintable[In, Out] with OutputHintable[Out] { this: DataStream[Out] =>
+trait OneInputHintable[In, Out] extends InputHintable[In, Out] with OutputHintable[Out] { this: DataSet[Out] =>
 	override def markUnread = contract.getUDF.asInstanceOf[UDF1[In, Out]].markInputFieldUnread _ 
 	override def markCopied = contract.getUDF.asInstanceOf[UDF1[In, Out]].markFieldCopied _ 
 	
@@ -304,15 +304,15 @@ trait OneInputHintable[In, Out] extends InputHintable[In, Out] with OutputHintab
 	override def getOutputUDT = contract.getUDF.asInstanceOf[UDF1[In, Out]].outputUDT
 }
 
-trait TwoInputHintable[LeftIn, RightIn, Out] extends OutputHintable[Out] { this: DataStream[Out] =>
-  val left = new DataStream[Out](contract) with OneInputHintable[LeftIn, Out] {
+trait TwoInputHintable[LeftIn, RightIn, Out] extends OutputHintable[Out] { this: DataSet[Out] =>
+  val left = new DataSet[Out](contract) with OneInputHintable[LeftIn, Out] {
 	override def markUnread = { pos: Int => contract.getUDF.asInstanceOf[UDF2[LeftIn, RightIn, Out]].markInputFieldUnread(Left(pos))}
 	override def markCopied = { (from: Int, to: Int) => contract.getUDF.asInstanceOf[UDF2[LeftIn, RightIn, Out]].markFieldCopied(Left(from), to)} 
 	override def getInputUDT = contract.getUDF.asInstanceOf[UDF2[LeftIn, RightIn, Out]].leftInputUDT
 	override def getOutputUDT = contract.getUDF.asInstanceOf[UDF2[LeftIn, RightIn, Out]].outputUDT
   }
   
-  val right = new DataStream[Out](contract) with OneInputHintable[RightIn, Out] {
+  val right = new DataSet[Out](contract) with OneInputHintable[RightIn, Out] {
 	override def markUnread = { pos: Int => contract.getUDF.asInstanceOf[UDF2[LeftIn, RightIn, Out]].markInputFieldUnread(Right(pos))}
 	override def markCopied = { (from: Int, to: Int) => contract.getUDF.asInstanceOf[UDF2[LeftIn, RightIn, Out]].markFieldCopied(Right(from), to)} 
 	override def getInputUDT = contract.getUDF.asInstanceOf[UDF2[LeftIn, RightIn, Out]].rightInputUDT

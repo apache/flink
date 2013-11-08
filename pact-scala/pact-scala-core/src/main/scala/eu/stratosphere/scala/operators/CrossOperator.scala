@@ -37,18 +37,18 @@ import eu.stratosphere.pact.common.contract.CrossContract
 import eu.stratosphere.scala.TwoInputScalaContract
 import eu.stratosphere.scala.analysis.UDF2
 import eu.stratosphere.pact.common.stubs.CrossStub
-import eu.stratosphere.scala.DataStream
+import eu.stratosphere.scala.DataSet
 import eu.stratosphere.scala.TwoInputHintable
 
-class CrossDataStream[LeftIn, RightIn](val leftInput: DataStream[LeftIn], val rightInput: DataStream[RightIn]) {
-  def map[Out](fun: (LeftIn, RightIn) => Out): DataStream[Out] with TwoInputHintable[LeftIn, RightIn, Out] = macro CrossMacros.map[LeftIn, RightIn, Out]
-  def flatMap[Out](fun: (LeftIn, RightIn) => Iterator[Out]): DataStream[Out] with TwoInputHintable[LeftIn, RightIn, Out] = macro CrossMacros.flatMap[LeftIn, RightIn, Out]
-  def filter(fun: (LeftIn, RightIn) => Boolean): DataStream[(LeftIn, RightIn)] with TwoInputHintable[LeftIn, RightIn, (LeftIn, RightIn)] = macro CrossMacros.filter[LeftIn, RightIn]
+class CrossDataStream[LeftIn, RightIn](val leftInput: DataSet[LeftIn], val rightInput: DataSet[RightIn]) {
+  def map[Out](fun: (LeftIn, RightIn) => Out): DataSet[Out] with TwoInputHintable[LeftIn, RightIn, Out] = macro CrossMacros.map[LeftIn, RightIn, Out]
+  def flatMap[Out](fun: (LeftIn, RightIn) => Iterator[Out]): DataSet[Out] with TwoInputHintable[LeftIn, RightIn, Out] = macro CrossMacros.flatMap[LeftIn, RightIn, Out]
+  def filter(fun: (LeftIn, RightIn) => Boolean): DataSet[(LeftIn, RightIn)] with TwoInputHintable[LeftIn, RightIn, (LeftIn, RightIn)] = macro CrossMacros.filter[LeftIn, RightIn]
 }
 
 object CrossMacros {
 
-  def map[LeftIn: c.WeakTypeTag, RightIn: c.WeakTypeTag, Out: c.WeakTypeTag](c: Context { type PrefixType = CrossDataStream[LeftIn, RightIn] })(fun: c.Expr[(LeftIn, RightIn) => Out]): c.Expr[DataStream[Out] with TwoInputHintable[LeftIn, RightIn, Out]] = {
+  def map[LeftIn: c.WeakTypeTag, RightIn: c.WeakTypeTag, Out: c.WeakTypeTag](c: Context { type PrefixType = CrossDataStream[LeftIn, RightIn] })(fun: c.Expr[(LeftIn, RightIn) => Out]): c.Expr[DataSet[Out] with TwoInputHintable[LeftIn, RightIn, Out]] = {
     import c.universe._
 
     val slave = MacroContextHolder.newMacroHelper(c)
@@ -111,15 +111,15 @@ object CrossMacros {
           Annotations.getConstantFieldsFirst(getUDF.getLeftForwardIndexArray),
           Annotations.getConstantFieldsSecond(getUDF.getRightForwardIndexArray))
       }
-      new DataStream[Out](ret) with TwoInputHintable[LeftIn, RightIn, Out] {}
+      new DataSet[Out](ret) with TwoInputHintable[LeftIn, RightIn, Out] {}
     }
 
-    val result = c.Expr[DataStream[Out] with TwoInputHintable[LeftIn, RightIn, Out]](Block(List(udtLeftIn, udtRightIn, udtOut), contract.tree))
+    val result = c.Expr[DataSet[Out] with TwoInputHintable[LeftIn, RightIn, Out]](Block(List(udtLeftIn, udtRightIn, udtOut), contract.tree))
     
     return result
   }
   
-  def flatMap[LeftIn: c.WeakTypeTag, RightIn: c.WeakTypeTag, Out: c.WeakTypeTag](c: Context { type PrefixType = CrossDataStream[LeftIn, RightIn] })(fun: c.Expr[(LeftIn, RightIn) => Iterator[Out]]): c.Expr[DataStream[Out] with TwoInputHintable[LeftIn, RightIn, Out]] = {
+  def flatMap[LeftIn: c.WeakTypeTag, RightIn: c.WeakTypeTag, Out: c.WeakTypeTag](c: Context { type PrefixType = CrossDataStream[LeftIn, RightIn] })(fun: c.Expr[(LeftIn, RightIn) => Iterator[Out]]): c.Expr[DataSet[Out] with TwoInputHintable[LeftIn, RightIn, Out]] = {
     import c.universe._
 
     val slave = MacroContextHolder.newMacroHelper(c)
@@ -187,15 +187,15 @@ object CrossMacros {
           Annotations.getConstantFieldsFirst(getUDF.getLeftForwardIndexArray),
           Annotations.getConstantFieldsSecond(getUDF.getRightForwardIndexArray))
       }
-      new DataStream[Out](ret) with TwoInputHintable[LeftIn, RightIn, Out] {}
+      new DataSet[Out](ret) with TwoInputHintable[LeftIn, RightIn, Out] {}
     }
 
-    val result = c.Expr[DataStream[Out] with TwoInputHintable[LeftIn, RightIn, Out]](Block(List(udtLeftIn, udtRightIn, udtOut), contract.tree))
+    val result = c.Expr[DataSet[Out] with TwoInputHintable[LeftIn, RightIn, Out]](Block(List(udtLeftIn, udtRightIn, udtOut), contract.tree))
     
     return result
   }
   
-   def filter[LeftIn: c.WeakTypeTag, RightIn: c.WeakTypeTag](c: Context { type PrefixType = CrossDataStream[LeftIn, RightIn] })(fun: c.Expr[(LeftIn, RightIn) => Boolean]): c.Expr[DataStream[(LeftIn, RightIn)] with TwoInputHintable[LeftIn, RightIn, (LeftIn, RightIn)]] = {
+   def filter[LeftIn: c.WeakTypeTag, RightIn: c.WeakTypeTag](c: Context { type PrefixType = CrossDataStream[LeftIn, RightIn] })(fun: c.Expr[(LeftIn, RightIn) => Boolean]): c.Expr[DataSet[(LeftIn, RightIn)] with TwoInputHintable[LeftIn, RightIn, (LeftIn, RightIn)]] = {
     import c.universe._
 
     val slave = MacroContextHolder.newMacroHelper(c)
@@ -251,10 +251,10 @@ object CrossMacros {
           Annotations.getConstantFieldsFirst(getUDF.getLeftForwardIndexArray),
           Annotations.getConstantFieldsSecond(getUDF.getRightForwardIndexArray))
       }
-      new DataStream[(LeftIn, RightIn)](ret) with TwoInputHintable[LeftIn, RightIn, (LeftIn, RightIn)] {}
+      new DataSet[(LeftIn, RightIn)](ret) with TwoInputHintable[LeftIn, RightIn, (LeftIn, RightIn)] {}
     }
 
-    val result = c.Expr[DataStream[(LeftIn, RightIn)] with TwoInputHintable[LeftIn, RightIn, (LeftIn, RightIn)]](Block(List(udtLeftIn, udtRightIn, udtOut), contract.tree))
+    val result = c.Expr[DataSet[(LeftIn, RightIn)] with TwoInputHintable[LeftIn, RightIn, (LeftIn, RightIn)]](Block(List(udtLeftIn, udtRightIn, udtOut), contract.tree))
     
     return result
   }

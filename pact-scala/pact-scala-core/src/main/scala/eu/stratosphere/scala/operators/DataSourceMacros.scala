@@ -35,24 +35,25 @@ import eu.stratosphere.pact.common.`type`.base.parser.DecimalTextLongParser
 import eu.stratosphere.pact.common.`type`.base.parser.FieldParser
 import eu.stratosphere.pact.common.`type`.base.parser.VarLengthStringParser
 import eu.stratosphere.pact.common.`type`.base.parser.VarLengthStringParser
-import eu.stratosphere.pact.common.io.FixedLengthInputFormat
-import eu.stratosphere.pact.common.io.RecordInputFormat
-import eu.stratosphere.pact.common.io.TextInputFormat
-import eu.stratosphere.pact.generic.io.SequentialInputFormat
+
 import eu.stratosphere.scala.DataSourceFormat
 import eu.stratosphere.scala.analysis.OutputField
 import eu.stratosphere.scala.analysis.UDF0
 import eu.stratosphere.scala.analysis.UDT
-import eu.stratosphere.scala.operators.stubs.FixedLengthInput4sStub
-import eu.stratosphere.scala.operators.stubs.BinaryInput4sStub
-import eu.stratosphere.scala.operators.stubs.DelimitedInput4sStub
-import eu.stratosphere.scala.operators.stubs.InputFormat4sStub
-import eu.stratosphere.pact.generic.io.BinaryInputFormat
-import eu.stratosphere.scala.operators.stubs.FixedLengthInput4sStub
-import eu.stratosphere.pact.common.io.DelimitedInputFormat
+import eu.stratosphere.scala.operators.stubs.ScalaInputFormat
+import eu.stratosphere.scala.operators.stubs.FixedLengthInputFormat
+import eu.stratosphere.scala.operators.stubs.BinaryInputFormat
+import eu.stratosphere.scala.operators.stubs.DelimitedInputFormat
+import eu.stratosphere.scala.operators.stubs.FixedLengthInputFormat
+import eu.stratosphere.pact.generic.io.{BinaryInputFormat => JavaBinaryInputFormat}
+import eu.stratosphere.pact.generic.io.{SequentialInputFormat => JavaSequentialInputFormat}
+import eu.stratosphere.pact.common.io.{DelimitedInputFormat => JavaDelimitedInputFormat}
+import eu.stratosphere.pact.common.io.{FixedLengthInputFormat => JavaFixedLengthInputFormat}
+import eu.stratosphere.pact.common.io.{RecordInputFormat => JavaRecordInputFormat}
+import eu.stratosphere.pact.common.io.{TextInputFormat => JavaTextInputFormat}
 import eu.stratosphere.scala.codegen.MacroContextHolder
 
-object BinaryDataSourceFormat {
+object BinaryInputFormat {
   // We need to do the "optional parameters" manually here (and in all other formats) because scala macros
   // do (not yet?) support optional parameters in macros.
   
@@ -77,13 +78,13 @@ object BinaryDataSourceFormat {
     
     val pact4sFormat = reify {
       
-      new BinaryInput4sStub[Out] with DataSourceFormat[Out] {
+      new BinaryInputFormat[Out] with DataSourceFormat[Out] {
         val udt = c.Expr(createUdtOut).splice
         override val userFunction = readFunction.splice
 
         override def persistConfiguration(config: Configuration) {
           super.persistConfiguration(config)
-          blockSize.splice map { config.setLong(BinaryInputFormat.BLOCK_SIZE_PARAMETER_KEY, _) }
+          blockSize.splice map { config.setLong(JavaBinaryInputFormat.BLOCK_SIZE_PARAMETER_KEY, _) }
         }
         override def getUDF = this.udf
       }
@@ -98,8 +99,7 @@ object BinaryDataSourceFormat {
   }
 }
 
-// TODO find out whether this stuff ever worked ...
-object SequentialDataSourceFormat {
+object SequentialInputFormat {
   def apply[Out](): DataSourceFormat[Out] = macro implWithoutBlocksize[Out]
   def apply[Out](blockSize: Long): DataSourceFormat[Out] = macro implWithBlocksize[Out]
   
@@ -121,10 +121,10 @@ object SequentialDataSourceFormat {
     
     val pact4sFormat = reify {
       
-      new SequentialInputFormat[PactRecord] with DataSourceFormat[Out] {
+      new JavaSequentialInputFormat[PactRecord] with DataSourceFormat[Out] {
         override def persistConfiguration(config: Configuration) {
           super.persistConfiguration(config)
-          blockSize.splice map { config.setLong(BinaryInputFormat.BLOCK_SIZE_PARAMETER_KEY, _) }
+          blockSize.splice map { config.setLong(JavaBinaryInputFormat.BLOCK_SIZE_PARAMETER_KEY, _) }
         }
         
         val udt: UDT[Out] = c.Expr[UDT[Out]](createUdtOut).splice
@@ -143,7 +143,7 @@ object SequentialDataSourceFormat {
   }
 }
 
-object DelimitedDataSourceFormat {
+object DelimitedInputFormat {
   def asReadFunction[Out](parseFunction: String => Out) = {
     (source: Array[Byte], offset: Int, numBytes: Int) => {
         parseFunction(new String(source, offset, numBytes))
@@ -179,13 +179,13 @@ object DelimitedDataSourceFormat {
     
     val pact4sFormat = reify {
       
-      new DelimitedInput4sStub[Out] with DataSourceFormat[Out]{
+      new DelimitedInputFormat[Out] with DataSourceFormat[Out]{
         val udt = c.Expr(createUdtOut).splice
         override val userFunction = readFunction.splice
       
         override def persistConfiguration(config: Configuration) {
           super.persistConfiguration(config)
-          delim.splice map { config.setString(DelimitedInputFormat.RECORD_DELIMITER, _) }
+          delim.splice map { config.setString(JavaDelimitedInputFormat.RECORD_DELIMITER, _) }
         }
         override def getUDF = this.udf
       }
@@ -201,7 +201,7 @@ object DelimitedDataSourceFormat {
   }
 }
 
-object RecordDataSourceFormat {
+object RecordInputFormat {
   
   def apply[Out](): DataSourceFormat[Out] = macro implWithoutAll[Out]
   def apply[Out](recordDelim: String): DataSourceFormat[Out] = macro implWithRD[Out]
@@ -235,13 +235,13 @@ object RecordDataSourceFormat {
     val (udtOut, createUdtOut) = slave.mkUdtClass[Out]
     
     val pact4sFormat = reify {
-      new RecordInputFormat with DataSourceFormat[Out] {
+      new JavaRecordInputFormat with DataSourceFormat[Out] {
         override def persistConfiguration(config: Configuration) {
           super.persistConfiguration(config)
 
           val fields: Seq[OutputField] = getUDF.outputFields.filter(_.isUsed)
 
-          config.setInteger(RecordInputFormat.NUM_FIELDS_PARAMETER, fields.length)
+          config.setInteger(JavaRecordInputFormat.NUM_FIELDS_PARAMETER, fields.length)
           
           // for some reason we canno use fields.zipWithIndex here,
           // this works, is not as pretty (functional) though
@@ -249,14 +249,14 @@ object RecordDataSourceFormat {
           fields foreach { field: OutputField => 
             val fieldType  = getUDF.outputUDT.fieldTypes(field.localPos)
             val parser = fieldParserTypes(fieldType)
-            config.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + index, parser)
-            config.setInteger(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX + index, field.localPos)
-            config.setInteger(RecordInputFormat.RECORD_POSITION_PARAMETER_PREFIX + index, field.globalPos.getValue)
+            config.setClass(JavaRecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + index, parser)
+            config.setInteger(JavaRecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX + index, field.localPos)
+            config.setInteger(JavaRecordInputFormat.RECORD_POSITION_PARAMETER_PREFIX + index, field.globalPos.getValue)
             index = index + 1
           }
 
-          recordDelim.splice map { config.setString(RecordInputFormat.RECORD_DELIMITER_PARAMETER, _) }
-          fieldDelim.splice map { config.setString(RecordInputFormat.FIELD_DELIMITER_PARAMETER, _) }
+          recordDelim.splice map { config.setString(JavaRecordInputFormat.RECORD_DELIMITER_PARAMETER, _) }
+          fieldDelim.splice map { config.setString(JavaRecordInputFormat.FIELD_DELIMITER_PARAMETER, _) }
         }
         
         val udt: UDT[Out] = c.Expr[UDT[Out]](createUdtOut).splice
@@ -275,16 +275,16 @@ object RecordDataSourceFormat {
   }
 }
 
-object TextDataSourceFormat {
+object TextInputFormat {
   def apply(charSetName: Option[String] = None): DataSourceFormat[String] = {
 
-    new TextInputFormat with DataSourceFormat[String] {
+    new JavaTextInputFormat with DataSourceFormat[String] {
       override def persistConfiguration(config: Configuration) {
         super.persistConfiguration(config)
 
-        charSetName map { config.setString(TextInputFormat.CHARSET_NAME, _) }
+        charSetName map { config.setString(JavaTextInputFormat.CHARSET_NAME, _) }
 
-        config.setInteger(TextInputFormat.FIELD_POS, getUDF.outputFields(0).globalPos.getValue)
+        config.setInteger(JavaTextInputFormat.FIELD_POS, getUDF.outputFields(0).globalPos.getValue)
       }
      // override val udt: UDT[String] = UDT.StringUDT
       lazy val udf: UDF0[String] = new UDF0(UDT.StringUDT)
@@ -293,7 +293,7 @@ object TextDataSourceFormat {
   }
 }
 
-object FixedLengthDataSourceFormat {
+object FixedLengthInputFormat {
   def apply[Out](readFunction: (Array[Byte], Int) => Out, recordLength: Int): DataSourceFormat[Out] = macro impl[Out]
   
   def impl[Out: c.WeakTypeTag](c: Context)(readFunction: c.Expr[(Array[Byte], Int) => Out], recordLength: c.Expr[Int]) : c.Expr[DataSourceFormat[Out]] = {
@@ -305,13 +305,13 @@ object FixedLengthDataSourceFormat {
     
     val pact4sFormat = reify {
       
-      new FixedLengthInput4sStub[Out] with DataSourceFormat[Out] {
+      new FixedLengthInputFormat[Out] with DataSourceFormat[Out] {
         val udt = c.Expr(createUdtOut).splice
         override val userFunction = readFunction.splice
       
         override def persistConfiguration(config: Configuration) {
           super.persistConfiguration(config)
-          config.setInteger(FixedLengthInputFormat.RECORDLENGTH_PARAMETER_KEY, (recordLength.splice))
+          config.setInteger(JavaFixedLengthInputFormat.RECORDLENGTH_PARAMETER_KEY, (recordLength.splice))
         }
         override def getUDF = this.udf
       }

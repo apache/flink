@@ -41,21 +41,21 @@ import eu.stratosphere.scala.TwoInputKeyedScalaContract
 import eu.stratosphere.pact.common.stubs.MatchStub
 import eu.stratosphere.pact.common.contract.CoGroupContract
 import eu.stratosphere.pact.common.stubs.CoGroupStub
-import eu.stratosphere.scala.DataStream
+import eu.stratosphere.scala.DataSet
 import eu.stratosphere.pact.generic.contract.UserCodeObjectWrapper
 import eu.stratosphere.scala.TwoInputHintable
 
-class CoGroupDataStream[LeftIn, RightIn](val leftInput: DataStream[LeftIn], val rightInput: DataStream[RightIn]) {
+class CoGroupDataStream[LeftIn, RightIn](val leftInput: DataSet[LeftIn], val rightInput: DataSet[RightIn]) {
   def where[Key](keyFun: LeftIn => Key): CoGroupDataStreamWithWhere[LeftIn, RightIn, Key] = macro CoGroupMacros.whereImpl[LeftIn, RightIn, Key]
 }
 
-class CoGroupDataStreamWithWhere[LeftIn, RightIn, Key](val leftKeySelection: List[Int], val leftInput: DataStream[LeftIn], val rightInput: DataStream[RightIn]) {
+class CoGroupDataStreamWithWhere[LeftIn, RightIn, Key](val leftKeySelection: List[Int], val leftInput: DataSet[LeftIn], val rightInput: DataSet[RightIn]) {
   def isEqualTo[Key](keyFun: RightIn => Key): CoGroupDataStreamWithWhereAndEqual[LeftIn, RightIn] = macro CoGroupMacros.isEqualToImpl[LeftIn, RightIn, Key]
 }
 
-class CoGroupDataStreamWithWhereAndEqual[LeftIn, RightIn](val leftKeySelection: List[Int], val rightKeySelection: List[Int], val leftInput: DataStream[LeftIn], val rightInput: DataStream[RightIn]) {
-  def map[Out](fun: (Iterator[LeftIn], Iterator[RightIn]) => Out): DataStream[Out] with TwoInputHintable[LeftIn, RightIn, Out] = macro CoGroupMacros.map[LeftIn, RightIn, Out]
-  def flatMap[Out](fun: (Iterator[LeftIn], Iterator[RightIn]) => Iterator[Out]): DataStream[Out] with TwoInputHintable[LeftIn, RightIn, Out] = macro CoGroupMacros.flatMap[LeftIn, RightIn, Out]
+class CoGroupDataStreamWithWhereAndEqual[LeftIn, RightIn](val leftKeySelection: List[Int], val rightKeySelection: List[Int], val leftInput: DataSet[LeftIn], val rightInput: DataSet[RightIn]) {
+  def map[Out](fun: (Iterator[LeftIn], Iterator[RightIn]) => Out): DataSet[Out] with TwoInputHintable[LeftIn, RightIn, Out] = macro CoGroupMacros.map[LeftIn, RightIn, Out]
+  def flatMap[Out](fun: (Iterator[LeftIn], Iterator[RightIn]) => Iterator[Out]): DataSet[Out] with TwoInputHintable[LeftIn, RightIn, Out] = macro CoGroupMacros.flatMap[LeftIn, RightIn, Out]
 }
 
 class NoKeyCoGroupBuilder(s: CoGroupStub) extends CoGroupContract.Builder(new UserCodeObjectWrapper(s))
@@ -92,7 +92,7 @@ object CoGroupMacros {
     return helper
   }
 
-  def map[LeftIn: c.WeakTypeTag, RightIn: c.WeakTypeTag, Out: c.WeakTypeTag](c: Context { type PrefixType = CoGroupDataStreamWithWhereAndEqual[LeftIn, RightIn] })(fun: c.Expr[(Iterator[LeftIn], Iterator[RightIn]) => Out]): c.Expr[DataStream[Out] with TwoInputHintable[LeftIn, RightIn, Out]] = {
+  def map[LeftIn: c.WeakTypeTag, RightIn: c.WeakTypeTag, Out: c.WeakTypeTag](c: Context { type PrefixType = CoGroupDataStreamWithWhereAndEqual[LeftIn, RightIn] })(fun: c.Expr[(Iterator[LeftIn], Iterator[RightIn]) => Out]): c.Expr[DataSet[Out] with TwoInputHintable[LeftIn, RightIn, Out]] = {
     import c.universe._
 
     val slave = MacroContextHolder.newMacroHelper(c)
@@ -167,15 +167,15 @@ object CoGroupMacros {
           Annotations.getConstantFieldsFirst(getUDF.getLeftForwardIndexArray),
           Annotations.getConstantFieldsSecond(getUDF.getRightForwardIndexArray))
       }
-      new DataStream[Out](ret) with TwoInputHintable[LeftIn, RightIn, Out] {}
+      new DataSet[Out](ret) with TwoInputHintable[LeftIn, RightIn, Out] {}
     }
     
-    val result = c.Expr[DataStream[Out] with TwoInputHintable[LeftIn, RightIn, Out]](Block(List(udtLeftIn, udtRightIn, udtOut), contract.tree))
+    val result = c.Expr[DataSet[Out] with TwoInputHintable[LeftIn, RightIn, Out]](Block(List(udtLeftIn, udtRightIn, udtOut), contract.tree))
     
     return result
   }
   
-  def flatMap[LeftIn: c.WeakTypeTag, RightIn: c.WeakTypeTag, Out: c.WeakTypeTag](c: Context { type PrefixType = CoGroupDataStreamWithWhereAndEqual[LeftIn, RightIn] })(fun: c.Expr[(Iterator[LeftIn], Iterator[RightIn]) => Iterator[Out]]): c.Expr[DataStream[Out] with TwoInputHintable[LeftIn, RightIn, Out]] = {
+  def flatMap[LeftIn: c.WeakTypeTag, RightIn: c.WeakTypeTag, Out: c.WeakTypeTag](c: Context { type PrefixType = CoGroupDataStreamWithWhereAndEqual[LeftIn, RightIn] })(fun: c.Expr[(Iterator[LeftIn], Iterator[RightIn]) => Iterator[Out]]): c.Expr[DataSet[Out] with TwoInputHintable[LeftIn, RightIn, Out]] = {
      import c.universe._
 
     val slave = MacroContextHolder.newMacroHelper(c)
@@ -251,10 +251,10 @@ object CoGroupMacros {
           Annotations.getConstantFieldsFirst(getUDF.getLeftForwardIndexArray),
           Annotations.getConstantFieldsSecond(getUDF.getRightForwardIndexArray))
       }
-      new DataStream[Out](ret) with TwoInputHintable[LeftIn, RightIn, Out] {}
+      new DataSet[Out](ret) with TwoInputHintable[LeftIn, RightIn, Out] {}
     }
     
-    val result = c.Expr[DataStream[Out] with TwoInputHintable[LeftIn, RightIn, Out]](Block(List(udtLeftIn, udtRightIn, udtOut), contract.tree))
+    val result = c.Expr[DataSet[Out] with TwoInputHintable[LeftIn, RightIn, Out]](Block(List(udtLeftIn, udtRightIn, udtOut), contract.tree))
     
     return result
   }

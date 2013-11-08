@@ -32,11 +32,11 @@ import eu.stratosphere.scala.ScalaContract
 import eu.stratosphere.scala.analysis.UDF0
 import eu.stratosphere.scala.ScalaContract
 import eu.stratosphere.scala.UnionScalaContract
-import eu.stratosphere.scala.DataStream
+import eu.stratosphere.scala.DataSet
 
 object UnionMacros {
 
-  def impl[In: c.WeakTypeTag](c: Context { type PrefixType = DataStream[In] })(secondInput: c.Expr[DataStream[In]]): c.Expr[DataStream[In]] = {
+  def impl[In: c.WeakTypeTag](c: Context { type PrefixType = DataSet[In] })(secondInput: c.Expr[DataSet[In]]): c.Expr[DataSet[In]] = {
     import c.universe._
 
     val slave = MacroContextHolder.newMacroHelper(c)
@@ -69,10 +69,10 @@ object UnionMacros {
       val ret = new MapContract(builder) with UnionScalaContract[In] {
         override def getUDF = generatedStub.udf
       }
-      new DataStream(ret)
+      new DataSet(ret)
     }
 
-    val result = c.Expr[DataStream[In]](Block(List(udtIn), contract.tree))
+    val result = c.Expr[DataSet[In]](Block(List(udtIn), contract.tree))
 
     return result
   }

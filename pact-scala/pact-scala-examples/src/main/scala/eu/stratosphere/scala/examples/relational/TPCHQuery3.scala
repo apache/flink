@@ -13,13 +13,12 @@ package eu.stratosphere.scala.examples.relational;
  */
 
 
-import eu.stratosphere.scala._
-import eu.stratosphere.scala.operators._
-import eu.stratosphere.scala.ScalaPlan
-import eu.stratosphere.scala.DataSource
 import eu.stratosphere.pact.client.LocalExecutor
 import eu.stratosphere.pact.common.plan.PlanAssembler
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription
+
+import eu.stratosphere.scala._
+import eu.stratosphere.scala.operators._
 
 object RunTPCHQuery3 {
   def main(args: Array[String]) {
@@ -58,14 +57,14 @@ class TPCHQuery3 extends PlanAssembler with PlanAssemblerDescription with Serial
   }
 
   def getScalaPlan(numSubTasks: Int, ordersInput: String, lineItemsInput: String, ordersOutput: String, status: Char = 'F', minYear: Int = 1993, priority: String = "5") = {
-    val orders = DataSource(ordersInput, DelimitedDataSourceFormat(parseOrder))
-    val lineItems = DataSource(lineItemsInput, DelimitedDataSourceFormat(parseLineItem))
+    val orders = DataSource(ordersInput, DelimitedInputFormat(parseOrder))
+    val lineItems = DataSource(lineItemsInput, DelimitedInputFormat(parseLineItem))
 
     val filteredOrders = orders filter { o => o.status == status && o.year > minYear && o.orderPriority.startsWith(priority) }
     val prioritizedItems = filteredOrders join lineItems where { _.orderId } isEqualTo { _.orderId } map { (o, li) => PrioritizedOrder(o.orderId, o.shipPriority, li.extendedPrice) }
     val prioritizedOrders = prioritizedItems groupBy { pi => (pi.orderId, pi.shipPriority) } reduceGroup { _ reduce addRevenues }
 
-    val output = prioritizedOrders.write(ordersOutput, DelimitedDataSinkFormat(formatOutput))
+    val output = prioritizedOrders.write(ordersOutput, DelimitedOutputFormat(formatOutput))
 
     filteredOrders observes { o => (o.status, o.year, o.orderPriority) }
 

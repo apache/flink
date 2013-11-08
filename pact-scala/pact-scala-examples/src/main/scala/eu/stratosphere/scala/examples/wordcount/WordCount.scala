@@ -13,16 +13,12 @@
 
 package eu.stratosphere.scala.examples.wordcount
 
-import scala.Array.canBuildFrom
 import eu.stratosphere.pact.client.LocalExecutor
-import eu.stratosphere.scala.DataSource
-import eu.stratosphere.scala.ScalaPlan
-import eu.stratosphere.scala.operators.arrayToIterator
-import eu.stratosphere.scala.operators.DelimitedDataSourceFormat
-import eu.stratosphere.scala.operators.DelimitedDataSinkFormat
-import eu.stratosphere.scala.TextFile
 import eu.stratosphere.pact.common.plan.PlanAssembler
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription
+
+import eu.stratosphere.scala._
+import eu.stratosphere.scala.operators._
 
 object RunWordCount {
   def main(args: Array[String]) {
@@ -55,7 +51,7 @@ class WordCount extends PlanAssembler with PlanAssemblerDescription with Seriali
 
     counts neglects { case (word, _) => word }
     counts preserves({ case (word, _) => word }, { case (word, _) => word })
-    val output = counts.write(wordsOutput, DelimitedDataSinkFormat(formatOutput.tupled))
+    val output = counts.write(wordsOutput, DelimitedOutputFormat(formatOutput.tupled))
   
     val plan = new ScalaPlan(Seq(output), "Word Count (immutable)")
     plan.setDefaultParallelism(numSubTasks)

@@ -14,13 +14,11 @@
 package eu.stratosphere.scala.examples.datamining
 
 import eu.stratosphere.pact.client.LocalExecutor
-import eu.stratosphere.scala.DataSource
-import eu.stratosphere.scala.DataStream
-import eu.stratosphere.scala.ScalaPlan
-import eu.stratosphere.scala.operators.DelimitedDataSourceFormat
-import eu.stratosphere.scala.operators.DelimitedDataSinkFormat
 import eu.stratosphere.pact.common.plan.PlanAssembler
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription
+
+import eu.stratosphere.scala._
+import eu.stratosphere.scala.operators._
 
 object RunKMeans {
   def main(args: Array[String]) {
@@ -88,10 +86,10 @@ class KMeans extends PlanAssembler with PlanAssemblerDescription with Serializab
   }
 
   def getScalaPlan(numSubTasks: Int, dataPointInput: String, clusterInput: String, clusterOutput: String, numIterations: Int) = {
-    val dataPoints = DataSource(dataPointInput, DelimitedDataSourceFormat(parseInput))
-    val clusterPoints = DataSource(clusterInput, DelimitedDataSourceFormat(parseInput))
+    val dataPoints = DataSource(dataPointInput, DelimitedInputFormat(parseInput))
+    val clusterPoints = DataSource(clusterInput, DelimitedInputFormat(parseInput))
 
-    def computeNewCenters(centers: DataStream[(Int, Point)]) = {
+    def computeNewCenters(centers: DataSet[(Int, Point)]) = {
 
       val distances = dataPoints cross centers map computeDistance
       val nearestCenters = distances groupBy { case (pid, _) => pid } reduceGroup { ds => ds.minBy(_._2.distance) } map asPointSum.tupled
@@ -118,7 +116,7 @@ class KMeans extends PlanAssembler with PlanAssemblerDescription with Serializab
 
     val finalCenters = clusterPoints.iterate(numIterations, computeNewCenters)
 
-    val output = finalCenters.write(clusterOutput, DelimitedDataSinkFormat(formatOutput.tupled))
+    val output = finalCenters.write(clusterOutput, DelimitedOutputFormat(formatOutput.tupled))
 
     val plan = new ScalaPlan(Seq(output), "KMeans Iteration (Immutable)")
     plan.setDefaultParallelism(numSubTasks)

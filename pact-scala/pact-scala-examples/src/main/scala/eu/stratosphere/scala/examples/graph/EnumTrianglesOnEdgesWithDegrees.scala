@@ -14,16 +14,16 @@
 package eu.stratosphere.scala.examples.graph
 
 import eu.stratosphere.pact.common.`type`.base.PactInteger
-import eu.stratosphere.scala.DataSource
-import eu.stratosphere.scala.ScalaPlan
-import eu.stratosphere.scala.analysis.GlobalSchemaPrinter
-import eu.stratosphere.scala.operators.DelimitedDataSinkFormat
-import eu.stratosphere.scala.operators.RecordDataSourceFormat
-import eu.stratosphere.scala.operators.optionToIterator
+
 import eu.stratosphere.pact.client.LocalExecutor
 import eu.stratosphere.pact.common.plan.PlanAssembler
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription
 
+import scala.math._
+import eu.stratosphere.scala._
+import eu.stratosphere.scala.operators._
+
+import eu.stratosphere.scala.analysis.GlobalSchemaPrinter
 
 object RunEnumTrianglesOnEdgesWithDegrees {
   def main(args: Array[String]) {
@@ -88,7 +88,7 @@ class EnumTrianglesOnEdgesWithDegrees extends PlanAssembler with PlanAssemblerDe
      * An edge is represented by two vertex IDs with associated vertex degrees.
      * The format of an edge is "<vertexID1>,<vertexDegree1>|<vertexID2>,<vertexDegree2>" 
      */
-    val vertexesWithDegrees = DataSource(edgeInput, RecordDataSourceFormat[(String, String)]("\n", "|"))
+    val vertexesWithDegrees = DataSource(edgeInput, RecordInputFormat[(String, String)]("\n", "|"))
 
     /*
      * Project edges such that vertex with lower degree comes first (record position 1) and remove the degrees.
@@ -114,7 +114,7 @@ class EnumTrianglesOnEdgesWithDegrees extends PlanAssembler with PlanAssemblerDe
     /*
      * Emit triangles
      */
-    val output = triangles.write(triangleOutput, DelimitedDataSinkFormat(formatTriangle.tupled))
+    val output = triangles.write(triangleOutput, DelimitedOutputFormat(formatTriangle.tupled))
   
     val plan = new ScalaPlan(Seq(output), "Enumerate Triangles on Edges with Degrees")
     plan.setDefaultParallelism(numSubTasks)

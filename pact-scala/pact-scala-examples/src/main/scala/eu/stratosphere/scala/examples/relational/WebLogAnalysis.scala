@@ -13,18 +13,12 @@
 
 package eu.stratosphere.scala.examples.relational;
 
-import eu.stratosphere.pact.common.plan.PlanAssemblerDescription
-import eu.stratosphere.pact.common.plan.PlanAssembler
-import eu.stratosphere.scala.ScalaPlan
 import eu.stratosphere.pact.client.LocalExecutor
-import eu.stratosphere.scala.DataSource
-import eu.stratosphere.pact.common.plan.PlanAssemblerDescription
 import eu.stratosphere.pact.common.plan.PlanAssembler
-import eu.stratosphere.scala.ScalaPlan
-import eu.stratosphere.pact.client.LocalExecutor
-import eu.stratosphere.scala.operators.DelimitedDataSourceFormat
-import eu.stratosphere.scala.operators.DelimitedDataSinkFormat
-import eu.stratosphere.scala.operators.RecordDataSourceFormat
+import eu.stratosphere.pact.common.plan.PlanAssemblerDescription
+
+import eu.stratosphere.scala._
+import eu.stratosphere.scala.operators._
 
 object RunWebLogAnalysis {
   def main(args: Array[String]) {
@@ -100,11 +94,11 @@ class WebLogAnalysis extends PlanAssembler with PlanAssemblerDescription with Se
   def getScalaPlan(numSubTasks: Int, docsInput: String, rankingsInput: String, visitsInput: String, ranksOutput: String) = {
     
     // read documents data
-    val docs = DataSource(docsInput, RecordDataSourceFormat[Doc]("\n", "|"))
+    val docs = DataSource(docsInput, RecordInputFormat[Doc]("\n", "|"))
     // read ranks data
-    val ranks = DataSource(rankingsInput, RecordDataSourceFormat[Rank]("\n", "|"))
+    val ranks = DataSource(rankingsInput, RecordInputFormat[Rank]("\n", "|"))
     // read visits data and project to visits tuple afterwards
-    val visits = DataSource(visitsInput, RecordDataSourceFormat[(String, String, String)]("\n", "|")) map (x => Visit(x._2, x._3)) 
+    val visits = DataSource(visitsInput, RecordInputFormat[(String, String, String)]("\n", "|")) map (x => Visit(x._2, x._3))
 
     // filter on documents that contain certain key words and project to URL
     val filteredDocs = docs filter {d => d.text.contains(" editors ") && d.text.contains(" oscillations ") && d.text.contains(" convection ")} map { d => d.url }
@@ -137,7 +131,7 @@ class WebLogAnalysis extends PlanAssembler with PlanAssemblerDescription with Se
     ranksFilteredByDocs.right.neglects( {v => v} )
     
     // emit the resulting ranks
-    val output = ranksFilteredByDocsAndVisits.write(ranksOutput, DelimitedDataSinkFormat(formatRank))
+    val output = ranksFilteredByDocsAndVisits.write(ranksOutput, DelimitedOutputFormat(formatRank))
 
     val plan = new ScalaPlan(Seq(output), "WebLog Analysis")
     plan.setDefaultParallelism(numSubTasks)

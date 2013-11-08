@@ -32,14 +32,14 @@ import eu.stratosphere.scala.analysis.UDF0
 import eu.stratosphere.pact.generic.stub.AbstractStub
 import eu.stratosphere.scala.BulkIterationScalaContract
 import eu.stratosphere.scala.WorksetIterationScalaContract
-import eu.stratosphere.scala.DataStream
+import eu.stratosphere.scala.DataSet
 import eu.stratosphere.scala.analysis.FieldSelector
 import eu.stratosphere.scala.OutputHintable
 import eu.stratosphere.pact.generic.contract.WorksetIteration
 
 object IterateMacros {
 
-  def iterateWithDelta[SolutionItem: c.WeakTypeTag, DeltaItem: c.WeakTypeTag](c: Context { type PrefixType = DataStream[SolutionItem] })(stepFunction: c.Expr[DataStream[SolutionItem] => (DataStream[SolutionItem], DataStream[DeltaItem])]): c.Expr[DataStream[SolutionItem]] = {
+  def iterateWithDelta[SolutionItem: c.WeakTypeTag, DeltaItem: c.WeakTypeTag](c: Context { type PrefixType = DataSet[SolutionItem] })(stepFunction: c.Expr[DataSet[SolutionItem] => (DataSet[SolutionItem], DataSet[DeltaItem])]): c.Expr[DataSet[SolutionItem]] = {
     import c.universe._
 
     val slave = MacroContextHolder.newMacroHelper(c)
@@ -60,7 +60,7 @@ object IterateMacros {
         override def getPartialSolution: Contract = inputPlaceHolder2.asInstanceOf[Contract]
       }
       
-      val partialSolution = new DataStream(contract.getPartialSolution().asInstanceOf[Contract with ScalaContract[SolutionItem]])
+      val partialSolution = new DataSet(contract.getPartialSolution().asInstanceOf[Contract with ScalaContract[SolutionItem]])
 
       val (output, term) = stepFunction.splice.apply(partialSolution)
 
@@ -70,15 +70,15 @@ object IterateMacros {
       // is currently not implemented in stratosphere
 //      if (term != null) contract.setTerminationCriterion(term)
 
-      new DataStream(contract)
+      new DataSet(contract)
     }
 
-    val result = c.Expr[DataStream[SolutionItem]](Block(List(udtSolution, udtDelta), contract.tree))
+    val result = c.Expr[DataSet[SolutionItem]](Block(List(udtSolution, udtDelta), contract.tree))
 
     return result
   }
   
-  def iterate[SolutionItem: c.WeakTypeTag](c: Context { type PrefixType = DataStream[SolutionItem] })(n: c.Expr[Int], stepFunction: c.Expr[DataStream[SolutionItem] => DataStream[SolutionItem]]): c.Expr[DataStream[SolutionItem]] = {
+  def iterate[SolutionItem: c.WeakTypeTag](c: Context { type PrefixType = DataSet[SolutionItem] })(n: c.Expr[Int], stepFunction: c.Expr[DataSet[SolutionItem] => DataSet[SolutionItem]]): c.Expr[DataSet[SolutionItem]] = {
     import c.universe._
 
     val slave = MacroContextHolder.newMacroHelper(c)
@@ -98,7 +98,7 @@ object IterateMacros {
         override def getPartialSolution: Contract = inputPlaceHolder2.asInstanceOf[Contract]
       }
       
-      val partialSolution = new DataStream(contract.getPartialSolution().asInstanceOf[Contract with ScalaContract[SolutionItem]])
+      val partialSolution = new DataSet(contract.getPartialSolution().asInstanceOf[Contract with ScalaContract[SolutionItem]])
 
       val output = stepFunction.splice.apply(partialSolution)
 
@@ -106,10 +106,10 @@ object IterateMacros {
       contract.setNextPartialSolution(output.contract)
       contract.setMaximumNumberOfIterations(n.splice)
 
-      new DataStream(contract)
+      new DataSet(contract)
     }
 
-    val result = c.Expr[DataStream[SolutionItem]](Block(List(udtSolution), contract.tree))
+    val result = c.Expr[DataSet[SolutionItem]](Block(List(udtSolution), contract.tree))
 
     return result
   }
@@ -119,7 +119,7 @@ object IterateMacros {
 object WorksetIterateMacros {
 
    
-  def iterateWithWorkset[SolutionItem: c.WeakTypeTag, SolutionKey: c.WeakTypeTag, WorksetItem: c.WeakTypeTag](c: Context { type PrefixType = DataStream[SolutionItem] })(workset: c.Expr[DataStream[WorksetItem]], solutionSetKey: c.Expr[SolutionItem => SolutionKey], stepFunction: c.Expr[(DataStream[SolutionItem], DataStream[WorksetItem]) => (DataStream[SolutionItem], DataStream[WorksetItem])]): c.Expr[DataStream[SolutionItem]] = {
+  def iterateWithWorkset[SolutionItem: c.WeakTypeTag, SolutionKey: c.WeakTypeTag, WorksetItem: c.WeakTypeTag](c: Context { type PrefixType = DataSet[SolutionItem] })(workset: c.Expr[DataSet[WorksetItem]], solutionSetKey: c.Expr[SolutionItem => SolutionKey], stepFunction: c.Expr[(DataSet[SolutionItem], DataSet[WorksetItem]) => (DataSet[SolutionItem], DataSet[WorksetItem])]): c.Expr[DataSet[SolutionItem]] = {
     import c.universe._
 
     val slave = MacroContextHolder.newMacroHelper(c)
@@ -158,8 +158,8 @@ object WorksetIterateMacros {
         override def getWorkset: Contract = worksetPlaceHolder2.asInstanceOf[Contract]
       }
 
-      val solutionInput = new DataStream(contract.getSolutionSet().asInstanceOf[Contract with ScalaContract[SolutionItem]])
-      val worksetInput = new DataStream(contract.getWorkset().asInstanceOf[Contract with ScalaContract[WorksetItem]])
+      val solutionInput = new DataSet(contract.getSolutionSet().asInstanceOf[Contract with ScalaContract[SolutionItem]])
+      val worksetInput = new DataSet(contract.getWorkset().asInstanceOf[Contract with ScalaContract[WorksetItem]])
 
 
       contract.setInitialSolutionSet(c.prefix.splice.contract)
@@ -169,10 +169,10 @@ object WorksetIterateMacros {
       contract.setSolutionSetDelta(delta.contract)
       contract.setNextWorkset(nextWorkset.contract)
 
-      new DataStream(contract)
+      new DataSet(contract)
     }
     
-    val result = c.Expr[DataStream[SolutionItem]](Block(List(udtSolution, udtWorkset), contract.tree))
+    val result = c.Expr[DataSet[SolutionItem]](Block(List(udtSolution, udtWorkset), contract.tree))
 
     return result
   }
