@@ -5,7 +5,8 @@
 echo "install lifecylce mapping fake plugin"
 git clone https://github.com/mfriedenhagen/dummy-lifecycle-mapping-plugin.git
 cd dummy-lifecycle-mapping-plugin
-mvn install
+mvn -B install
+cd ..
 
 function getVersion() {
 	here="`dirname \"$0\"`"              # relative
