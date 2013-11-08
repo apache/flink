@@ -66,7 +66,6 @@ DEFAULT_JOBM_HEAP_MB=256                            # Java heap size for the Job
 DEFAULT_TASKM_HEAP_MB=512                           # Java heap size for the TaskManager (in MB)
 DEFAULT_ENV_PID_DIR="/tmp"                          # Directory to store *.pid files to
 DEFAULT_ENV_LOG_MAX=5                               # Maximum number of old log files to keep
-DEFAULT_ENV_JAVA_HOME="/usr/lib/jvm/java-6-sun/"    # Java home
 DEFAULT_ENV_JAVA_OPTS=""                            # Optional JVM args
 DEFAULT_ENV_SSH_OPTS=""                             # Optional SSH parameters running in cluster mode
 
@@ -121,9 +120,19 @@ YAML_CONF=${NEPHELE_CONF_DIR}/stratosphere-conf.yaml
 # ENVIRONMENT VARIABLES
 ########################################################################################################################
 
-# Define JAVA_HOME if it is not already set
-if [ -z "${JAVA_HOME}" ]; then
-    JAVA_HOME=$(readFromConfig ${KEY_ENV_JAVA_HOME} ${DEFAULT_ENV_JAVA_HOME} ${YAML_CONF})    
+# read JAVA_HOME from config with no default value
+MY_JAVA_HOME=$(readFromConfig ${KEY_ENV_JAVA_HOME} "" ${YAML_CONF})  
+# check if config specified JAVA_HOME
+if [ -z "${MY_JAVA_HOME}" ]; then
+    # config did not specify JAVA_HOME. Use system JAVA_HOME
+    MY_JAVA_HOME=${JAVA_HOME} 
+fi
+# check if we have a valid JAVA_HOME and if java is not available
+if [ -z "${MY_JAVA_HOME}" ] && ! type java > /dev/null 2> /dev/null; then
+    echo "Please specify JAVA_HOME. Either in Stratosphere config ./conf/stratosphere-conf.yaml or as system-wide JAVA_HOME."
+    exit 1
+else
+    JAVA_HOME=${MY_JAVA_HOME}
 fi
 
 UNAME=$(uname -s)
