@@ -12,7 +12,7 @@
 
 	<groupId>eu.stratosphere</groupId>
 	<artifactId>stratosphere</artifactId>
-	<version>0.4-SNAPSHOT</version>
+	<version>0.4-alpha.1-SNAPSHOT</version>
 
 	<name>stratosphere</name>
 	<packaging>pom</packaging>
