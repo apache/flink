@@ -1,2 +1,0 @@
-#!/bin/bash
-find .. -name 'pom.xml' -type f -exec sed -i 's#<version>0.4-alpha.0</version>#<version>0.4-SNAPSHOT</version>#' {} \;
