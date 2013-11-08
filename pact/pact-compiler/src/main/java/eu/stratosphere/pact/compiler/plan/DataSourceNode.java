@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.CompilerHints;
 import eu.stratosphere.pact.common.contract.GenericDataSource;
 import eu.stratosphere.pact.common.io.FileInputFormat;
@@ -120,7 +121,9 @@ public class DataSourceNode extends OptimizerNode {
 			
 			try {
 				format = getPactContract().getFormatWrapper().getUserCodeObject();
-				format.configure(getPactContract().getParameters());
+				Configuration config = getPactContract().getParameters();
+				config.setClassLoader(getPactContract().getClass().getClassLoader());
+				format.configure(config);
 			}
 			catch (Throwable t) {
 				if (PactCompiler.LOG.isWarnEnabled())
