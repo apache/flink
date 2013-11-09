@@ -180,6 +180,8 @@ Please make edits to the Wiki if you find inconsistencies or [Open an issue](htt
 This is an active open-source project. We are always open to people who want to use the system or contribute to it. 
 Contact us if you are looking for implementation tasks that fit your skills.
 
+We have a list of [starter jobs](https://github.com/stratosphere/stratosphere/wiki/Starter-Jobs) in our wiki.
+
 We use the GitHub Pull Request system for the development of Stratosphere. Just open a request if you want to contribute.
 
 ### What to contribute
