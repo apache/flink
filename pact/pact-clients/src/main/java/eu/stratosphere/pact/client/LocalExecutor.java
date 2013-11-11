@@ -64,7 +64,7 @@ public class LocalExecutor implements PlanExecutor {
 			this.nephele.start();
 		}
 	}
-	
+
 	/**
 	 * Stop the local executor instance. You should not call executePlan after this.
 	 */
@@ -101,7 +101,7 @@ public class LocalExecutor implements PlanExecutor {
 			return jobClient.submitJobAndWait();
 		}
 	}
-	
+
 	/**
 	 * Returns a JSON dump of the optimized plan.
 	 * 
@@ -121,7 +121,7 @@ public class LocalExecutor implements PlanExecutor {
 
 		return gen.getOptimizerPlanAsJSON(op);
 	}
-	
+
 	/**
 	 * Executes the program described by the given plan assembler.
 	 * 
@@ -151,12 +151,10 @@ public class LocalExecutor implements PlanExecutor {
 			exec.start();
 			return exec.executePlan(plan);
 		} finally {
-			if (exec != null) {
-				exec.stop();
-			}
+			exec.stop();
 		}
 	}
-	
+
 	/**
 	 * Returns a JSON dump of the optimized plan.
 	 * 
@@ -175,12 +173,10 @@ public class LocalExecutor implements PlanExecutor {
 
 			return gen.getOptimizerPlanAsJSON(op);
 		} finally {
-			if (exec != null) {
-				exec.stop();
-			}
+			exec.stop();
 		}
 	}
-	
+
 	/**
 	 * Return unoptimized plan as JSON.
 	 * @return

@@ -9,10 +9,11 @@ import eu.stratosphere.pact.client.nephele.api.PlanWithJars;
 import eu.stratosphere.pact.common.plan.Plan;
 
 public class RemoteExecutor implements PlanExecutor {
-	
+
 	private Client client;
+
 	private List<String> jarFiles;
-	
+
 	public RemoteExecutor(String hostname, int port, List<String> jarFiles) {
 		this.client = new Client(new InetSocketAddress(hostname, port));
 		this.jarFiles = jarFiles;
@@ -25,8 +26,7 @@ public class RemoteExecutor implements PlanExecutor {
 
 	@Override
 	public long executePlan(Plan plan) throws Exception {
-		PlanWithJars p = new PlanWithJars(plan, jarFiles);
-		client.run(p, true);
-		return 0;
+		PlanWithJars p = new PlanWithJars(plan, this.jarFiles);
+		return this.client.run(p, true);
 	}
 }
