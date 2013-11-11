@@ -243,9 +243,14 @@ public abstract class TestBase2 {
 	
 	public File asFile(String path) {
 		try {
-			return new File(new URI(path).getPath());
+			URI uri = new URI(path);
+			if (uri.getScheme().equals("file")) {
+				return new File(uri.getPath());
+			} else {
+				throw new IllegalArgumentException("This path does not denote a local file.");
+			}
 		} catch (URISyntaxException e) {
-			throw new IllegalArgumentException("This path does not denote a local file.");
+			throw new IllegalArgumentException("This path does not describe a valid local file URI.");
 		}
 	}
 	
