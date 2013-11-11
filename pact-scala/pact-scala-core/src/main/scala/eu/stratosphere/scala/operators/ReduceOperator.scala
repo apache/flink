@@ -13,24 +13,29 @@
 
 package eu.stratosphere.scala.operators
 
+import java.util.{ Iterator => JIterator }
+
 import language.experimental.macros
 import scala.reflect.macros.Context
-import eu.stratosphere.scala.codegen.MacroContextHolder
-import eu.stratosphere.scala.ScalaContract
+
+import eu.stratosphere.nephele.configuration.Configuration
+
+import eu.stratosphere.pact.generic.contract.Contract
 import eu.stratosphere.pact.common.contract.MapContract
-import eu.stratosphere.scala.analysis.UDT
 import eu.stratosphere.pact.common.`type`.PactRecord
+import eu.stratosphere.pact.common.`type`.base.PactInteger
 import eu.stratosphere.pact.common.stubs.MapStub
 import eu.stratosphere.pact.common.stubs.Collector
-import eu.stratosphere.pact.generic.contract.Contract
-import eu.stratosphere.scala.contracts.Annotations
 import eu.stratosphere.pact.common.contract.ReduceContract
 import eu.stratosphere.pact.common.stubs.ReduceStub
+
+import eu.stratosphere.scala.contracts.Annotations
 import eu.stratosphere.scala.analysis.UDTSerializer
 import eu.stratosphere.scala.analysis.UDF1
 import eu.stratosphere.scala.operators.stubs.DeserializingIterator
-import eu.stratosphere.nephele.configuration.Configuration
-import java.util.{ Iterator => JIterator }
+import eu.stratosphere.scala.codegen.MacroContextHolder
+import eu.stratosphere.scala.ScalaContract
+import eu.stratosphere.scala.analysis.UDT
 import eu.stratosphere.scala.analysis.FieldSelector
 import eu.stratosphere.scala.analysis.FieldSelector
 import eu.stratosphere.scala.OneInputKeyedScalaContract
@@ -43,6 +48,8 @@ class GroupByDataStream[In](val keySelection: List[Int], val input: DataSet[In])
   // def combinableReduceGroup(fun: Iterator[In] => In): DataStream[In] with OneInputHintable[In, In] = macro ReduceMacros.combinableReduce[In]
   
   def reduce(fun: (In, In) => In): DataSet[In] with OneInputHintable[In, In] = macro ReduceMacros.reduce[In]
+  
+  def count() : DataSet[(In, Int)] with OneInputHintable[In, (In, Int)] = macro ReduceMacros.count[In]
 }
 
 object ReduceMacros {
@@ -475,6 +482,74 @@ object ReduceMacros {
     }
 
     val result = c.Expr[DataSet[Out] with OneInputHintable[In, Out]](Block(List(udtIn, udtOut), contract.tree))
+    
+    return result
+  }
+  
+  
+  def count[In: c.WeakTypeTag](c: Context { type PrefixType = GroupByDataStream[In] })() : c.Expr[DataSet[(In, Int)] with OneInputHintable[In, (In, Int)]] = {
+    import c.universe._
+
+    val slave = MacroContextHolder.newMacroHelper(c)
+
+    val (udtIn, createUdtIn) = slave.mkUdtClass[In]
+    val (udtOut, createUdtOut) = slave.mkUdtClass[(In, Int)]
+    
+    val contract = reify {
+      val helper: GroupByDataStream[In] = c.prefix.splice
+      val keySelection = helper.keySelection
+
+      val generatedStub = new ReduceStub with Serializable {
+        val inputUDT = c.Expr[UDT[In]](createUdtIn).splice
+        val outputUDT = c.Expr[UDT[(In, Int)]](createUdtOut).splice
+        val keySelector = new FieldSelector(inputUDT, keySelection)
+        val udf: UDF1[In, (In, Int)] = new UDF1(inputUDT, outputUDT)
+        
+        private val reduceRecord = new PactRecord()
+        private val pactInt = new PactInteger()
+
+        private var countPosition: Int = 0;
+
+        override def open(config: Configuration) = {
+          super.open(config)
+          this.countPosition = udf.getOutputLength - 1;
+        }
+        
+        override def reduce(records: JIterator[PactRecord], result: Collector[PactRecord]) : Unit = {
+          
+          var record : PactRecord = null
+          var counter: Int = 0
+          while (records.hasNext()) {
+            record = records.next()
+            val count = if (record.getNumFields() <= countPosition || record.isNull(countPosition)) 1 else record.getField(countPosition, pactInt).getValue()
+            counter = counter + count
+          }
+          
+          pactInt.setValue(counter)
+          record.setField(countPosition, pactInt)
+          result.collect(record)
+        }
+        
+        override def combine(records: JIterator[PactRecord], result: Collector[PactRecord]) : Unit = {
+          reduce(records, result)
+        }
+
+      }
+      
+      val builder = ReduceContract.builder(generatedStub).input(helper.input.contract)
+      
+      val keyTypes = generatedStub.inputUDT.getKeySet(generatedStub.keySelector.selectedFields map { _.localPos })
+      keyTypes.foreach { builder.keyField(_, -1) } // global indexes haven't been computed yet...
+      
+      val ret = new ReduceContract(builder) with OneInputKeyedScalaContract[In, (In, Int)] {
+        override val key: FieldSelector = generatedStub.keySelector
+        override def getUDF = generatedStub.udf
+        override def annotations = Annotations.getCombinable() +: Seq(Annotations.getConstantFieldsExcept(Array[Int]()))
+      }
+      new DataSet[(In, Int)](ret) with OneInputHintable[In, (In, Int)] {}
+    }
+
+    val result = c.Expr[DataSet[(In, Int)] with OneInputHintable[In, (In, Int)]](Block(List(udtIn, udtOut), contract.tree))
     
     return result
   }
