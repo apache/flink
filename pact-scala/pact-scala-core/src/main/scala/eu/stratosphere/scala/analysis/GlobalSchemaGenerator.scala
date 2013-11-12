@@ -31,12 +31,12 @@ import eu.stratosphere.pact.common.contract.CrossContract
 import eu.stratosphere.scala.TwoInputScalaContract
 import eu.stratosphere.pact.common.contract.MatchContract
 import eu.stratosphere.scala.TwoInputKeyedScalaContract
-import eu.stratosphere.pact.common.stubs.CoGroupStub
 import eu.stratosphere.pact.common.contract.CoGroupContract
 import eu.stratosphere.scala.UnionScalaContract
-import eu.stratosphere.scala.operators.CopyOperator
 import eu.stratosphere.pact.generic.contract.BulkIteration
 import eu.stratosphere.scala.BulkIterationScalaContract
+import eu.stratosphere.pact.generic.contract.WorksetIteration
+import eu.stratosphere.scala.WorksetIterationScalaContract
 import eu.stratosphere.pact.common.contract.GenericDataSink
 
 object GlobalSchemaGenerator {
@@ -92,11 +92,12 @@ object GlobalSchemaGenerator {
       }
 
       case contract : BulkIteration with BulkIterationScalaContract[_] => {
+        val s0 = contract.getInputs().get(0)
 
-        val s0contract = proxies.getOrElse(contract.getInputs().get(0), contract.getInputs().get(0).asInstanceOf[Contract with ScalaContract[_]])
+        val s0contract = proxies.getOrElse(s0, s0.asInstanceOf[Contract with ScalaContract[_]])
         val newProxies = proxies + (contract.getPartialSolution() -> s0contract)
 
-        val freePos1 = globalizeContract(contract.getInputs().get(0), Seq(), proxies, fixedOutputs, freePos)
+        val freePos1 = globalizeContract(s0, Seq(), proxies, fixedOutputs, freePos)
         val freePos2 = globalizeContract(contract.getNextPartialSolution(), Seq(), newProxies, Some(s0contract.getUDF.outputFields), freePos1)
         val freePos3 = Option(contract.getTerminationCriterion()) map { globalizeContract(_, Seq(), newProxies, None, freePos2) } getOrElse freePos2
 
@@ -105,21 +106,26 @@ object GlobalSchemaGenerator {
         freePos3
       }
 
+      case contract : WorksetIteration with WorksetIterationScalaContract[_] => {
 //      case contract @ WorksetIterate4sContract(s0, ws0, deltaS, newWS, placeholderS, placeholderWS) => {
-//
-//        val s0contract = proxies.getOrElse(s0.get(0), s0.asInstanceOf[Contract with ScalaContract[_]])
-//        val ws0contract = proxies.getOrElse(ws0.get(0), ws0.asInstanceOf[Contract with ScalaContract[_]])
-//        val newProxies = proxies + (placeholderS -> s0contract) + (placeholderWS -> ws0contract)
-//
-//        val freePos1 = globalizeContract(s0.get(0), Seq(contract.key.inputFields), proxies, fixedOutputs, freePos)
-//        val freePos2 = globalizeContract(ws0.get(0), Seq(), proxies, None, freePos1)
-//        val freePos3 = globalizeContract(deltaS, Seq(), newProxies, Some(s0contract.getUDF.outputFields), freePos2)
-//        val freePos4 = globalizeContract(newWS, Seq(), newProxies, Some(ws0contract.getUDF.outputFields), freePos3)
-//
-//        contract.udf.assignOutputGlobalIndexes(s0contract.getUDF.outputFields)
-//
-//        freePos4
-//      }
+        val s0 = contract.getInitialSolutionSet.get(0)
+        val ws0 = contract.getInitialWorkset.get(0)
+        val deltaS = contract.getSolutionSetDelta
+        val newWS = contract.getNextWorkset
+
+        val s0contract = proxies.getOrElse(s0, s0.asInstanceOf[Contract with ScalaContract[_]])
+        val ws0contract = proxies.getOrElse(ws0, ws0.asInstanceOf[Contract with ScalaContract[_]])
+        val newProxies = proxies + (contract.getSolutionSetDelta -> s0contract) + (contract.getNextWorkset -> ws0contract)
+
+        val freePos1 = globalizeContract(s0, Seq(contract.key.inputFields), proxies, fixedOutputs, freePos)
+        val freePos2 = globalizeContract(ws0, Seq(), proxies, None, freePos1)
+        val freePos3 = globalizeContract(deltaS, Seq(), newProxies, Some(s0contract.getUDF.outputFields), freePos2)
+        val freePos4 = globalizeContract(newWS, Seq(), newProxies, Some(ws0contract.getUDF.outputFields), freePos3)
+
+        contract.getUDF.assignOutputGlobalIndexes(s0contract.getUDF.outputFields)
+
+        freePos4
+      }
 
       case contract : CoGroupContract with TwoInputKeyedScalaContract[_, _, _] => {
 

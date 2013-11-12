@@ -47,15 +47,19 @@ class FieldSet[+FieldType <: Field] private (private val fields: Seq[FieldType])
   }
 
   def toSerializerIndexArray: Array[Int] = fields map {
-    case field if field.isUsed => field.globalPos.getValue
+    case field if field.isUsed => field.localPos
+//    case field if field.isUsed => field.globalPos.getValue
     case _                     => -1
   } toArray
 
-  def toIndexSet: Set[Int] = fields.filter(_.isUsed).map(_.globalPos.getValue).toSet
-  
-  def mapToArray[T: ClassTag](fun: FieldType => T): Array[T] = {
-    (fields map fun) toArray
-  }
+  def toIndexSet: Set[Int] = fields.map(_.localPos).toSet
+//  def toIndexSet: Set[Int] = fields.filter(_.isUsed).map(_.globalPos.getValue).toSet
+
+  def toIndexArray: Array[Int] = fields.map { _.localPos }.toArray
+
+//  def mapToArray[T: ClassTag](fun: FieldType => T): Array[T] = {
+//    (fields map fun) toArray
+//  }
 }
 
 object FieldSet {

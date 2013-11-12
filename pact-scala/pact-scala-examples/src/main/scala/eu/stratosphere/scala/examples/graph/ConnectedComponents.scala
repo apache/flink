@@ -17,6 +17,7 @@ import eu.stratosphere.pact.client.LocalExecutor
 import eu.stratosphere.pact.common.plan.PlanAssembler
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription
 import eu.stratosphere.scala.analysis.GlobalSchemaPrinter
+import eu.stratosphere.pact.generic.contract.WorksetIteration
 
 import scala.math._
 
@@ -38,14 +39,14 @@ object RunConnectedComponents {
 
 class ConnectedComponents extends Serializable {
   
-  def getPlan(verticesInput: String, edgesInput: String, componentsOutput: String) = {
+  def getPlan(verticesInput: String, edgesInput: String, componentsOutput: String, maxIterations: Int = 10) = {
 
   val vertices = DataSource(verticesInput, DelimitedInputFormat(parseVertex))
   val directedEdges = DataSource(edgesInput, DelimitedInputFormat(parseEdge))
 
   val undirectedEdges = directedEdges flatMap { case (from, to) => Seq(from -> to, to -> from) }
 
-    def propagateComponent = (s: DataSet[(Int, Int)], ws: DataSet[(Int, Int)]) => {
+    def propagateComponent(s: DataSet[(Int, Int)], ws: DataSet[(Int, Int)]) = {
 
       val allNeighbors = ws join undirectedEdges where { case (v, _) => v } isEqualTo { case (from, _) => from } map { (w, e) => e._2 -> w._2 }
       val minNeighbors = allNeighbors groupBy { case (to, _) => to } reduceGroup { cs => cs minBy { _._2 } }
@@ -53,17 +54,17 @@ class ConnectedComponents extends Serializable {
       // updated solution elements == new workset
       val s1 = s join minNeighbors where { _._1 } isEqualTo { _._1 } flatMap { (n, s) =>
         (n, s) match {
-          case ((v, cNew), (_, cOld)) if cNew < cOld => Some((v, cNew))
+          case ((v, cOld), (_, cNew)) if cNew < cOld => Some((v, cNew))
           case _ => None
         }
       }
-      s1.left preserves({ case (v, _) => v }, { case (v, _) => v })
-      s1.contract.setName("THE MATCHER")
+//      s1.left preserves({ case (v, _) => v }, { case (v, _) => v })
+      s1.right preserves({ v=>v }, { v=>v })
 
       (s1, s1)
     }
 
-    val components = vertices.iterateWithWorkset(vertices, { _._1 }, propagateComponent)
+    val components = vertices.iterateWithWorkset(vertices, { _._1 }, propagateComponent, maxIterations)
     val output = components.write(componentsOutput, DelimitedOutputFormat(formatOutput.tupled))
 
     vertices.avgBytesPerRecord(8)
@@ -77,12 +78,12 @@ class ConnectedComponents extends Serializable {
 
   def parseVertex = (line: String) => { val v = line.toInt; v -> v }
 
-  val EdgeInputPattern = """(\d+)\|(\d+)\|""".r
+  val EdgeInputPattern = """(\d+) (\d+)""".r
 
   def parseEdge = (line: String) => line match {
     case EdgeInputPattern(from, to) => from.toInt -> to.toInt
   }
 
-  def formatOutput = (vertex: Int, component: Int) => "%d|%d".format(vertex, component)
+  def formatOutput = (vertex: Int, component: Int) => "%d %d".format(vertex, component)
 }
 

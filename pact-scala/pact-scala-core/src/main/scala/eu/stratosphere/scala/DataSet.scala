@@ -46,7 +46,7 @@ class DataSet[T] (val contract: Contract with ScalaContract[T]) {
   
   def iterateWithDelta[DeltaItem](stepFunction: DataSet[T] => (DataSet[T], DataSet[DeltaItem])) = macro IterateMacros.iterateWithDelta[T, DeltaItem]
   def iterate(n: Int, stepFunction: DataSet[T] => DataSet[T])= macro IterateMacros.iterate[T]
-  def iterateWithWorkset[SolutionKey, WorksetItem](workset: DataSet[WorksetItem], solutionSetKey: T => SolutionKey, stepFunction: (DataSet[T], DataSet[WorksetItem]) => (DataSet[T], DataSet[WorksetItem])) = macro WorksetIterateMacros.iterateWithWorkset[T, SolutionKey, WorksetItem]
+  def iterateWithWorkset[SolutionKey, WorksetItem](workset: DataSet[WorksetItem], solutionSetKey: T => SolutionKey, stepFunction: (DataSet[T], DataSet[WorksetItem]) => (DataSet[T], DataSet[WorksetItem]), maxIterations: Int) = macro WorksetIterateMacros.iterateWithWorkset[T, SolutionKey, WorksetItem]
   
   def write(url: String, format: DataSinkFormat[T]) = DataSinkOperator.write(this, url, format) 
   

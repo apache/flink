@@ -37,7 +37,7 @@ abstract class UDF[R] extends Serializable {
 
     outputFields.map(_.globalPos).foldLeft(startPos) {
       case (i, gPos @ GlobalPos.Unknown()) => gPos.setIndex(i); i + 1
-      case (i, _)                          => i + 1
+      case (i, _)                          => i
     }
     startPos
   }
@@ -77,15 +77,18 @@ class UDF0[R](val outputUDT: UDT[R]) extends UDF[R]
 class UDF1[T, R](val inputUDT: UDT[T], val outputUDT: UDT[R]) extends UDF[R] {
 
   val inputFields = FieldSet.newInputSet(inputUDT)
-  val forwardSet = mutable.Set[GlobalPos]()
+  val forwardSet = mutable.Set[(InputField, OutputField)]()
   val discardSet = mutable.Set[GlobalPos]()
 
   def getInputDeserializer = inputUDT.getSerializer(inputFields.toSerializerIndexArray)
-  def getForwardIndexArray = forwardSet.map(_.getValue).toArray
+  def getForwardIndexSetFrom = forwardSet.map(_._1.localPos)
+  def getForwardIndexSetTo = forwardSet.map(_._2.localPos)
+  def getForwardIndexArrayFrom = getForwardIndexSetFrom.toArray
+  def getForwardIndexArrayTo = getForwardIndexSetTo.toArray
   def getDiscardIndexArray = discardSet.map(_.getValue).toArray
 
   override def getOutputLength = {
-    val forwardMax = if (forwardSet.isEmpty) -1 else forwardSet.map(_.getValue).max
+    val forwardMax = if (forwardSet.isEmpty) -1 else forwardSet.map(_._2.localPos).max
     math.max(super.getOutputLength, forwardMax + 1)
   }
 
@@ -94,8 +97,9 @@ class UDF1[T, R](val inputUDT: UDT[T], val outputUDT: UDT[R]) extends UDF[R] {
   }
 
   def markFieldCopied(inputLocalPos: Int, outputLocalPos: Int): Unit = {
-    val inputGlobalPos = inputFields(inputLocalPos).globalPos
-    forwardSet.add(inputGlobalPos)
+    val inputField = inputFields(inputLocalPos)
+    val inputGlobalPos = inputField.globalPos
+    forwardSet.add((inputField, outputFields(outputLocalPos)))
     markFieldCopied(inputGlobalPos, outputLocalPos)
   }
 }
@@ -103,24 +107,30 @@ class UDF1[T, R](val inputUDT: UDT[T], val outputUDT: UDT[R]) extends UDF[R] {
 class UDF2[T1, T2, R](val leftInputUDT: UDT[T1], val rightInputUDT: UDT[T2], val outputUDT: UDT[R]) extends UDF[R] {
 
   val leftInputFields = FieldSet.newInputSet(leftInputUDT)
-  val leftForwardSet = mutable.Set[GlobalPos]()
+  val leftForwardSet = mutable.Set[(InputField, OutputField)]()
   val leftDiscardSet = mutable.Set[GlobalPos]()
 
   val rightInputFields = FieldSet.newInputSet(rightInputUDT)
-  val rightForwardSet = mutable.Set[GlobalPos]()
+  val rightForwardSet = mutable.Set[(InputField, OutputField)]()
   val rightDiscardSet = mutable.Set[GlobalPos]()
 
   def getLeftInputDeserializer = leftInputUDT.getSerializer(leftInputFields.toSerializerIndexArray)
-  def getLeftForwardIndexArray = leftForwardSet.map(_.getValue).toArray
+  def getLeftForwardIndexSetFrom = leftForwardSet.map(_._1.localPos)
+  def getLeftForwardIndexSetTo = leftForwardSet.map(_._2.localPos)
+  def getLeftForwardIndexArrayFrom = getLeftForwardIndexSetFrom.toArray
+  def getLeftForwardIndexArrayTo = getLeftForwardIndexSetTo.toArray
   def getLeftDiscardIndexArray = leftDiscardSet.map(_.getValue).toArray
 
   def getRightInputDeserializer = rightInputUDT.getSerializer(rightInputFields.toSerializerIndexArray)
-  def getRightForwardIndexArray = rightForwardSet.map(_.getValue).toArray
+  def getRightForwardIndexSetFrom = rightForwardSet.map(_._1.localPos)
+  def getRightForwardIndexSetTo = rightForwardSet.map(_._2.localPos)
+  def getRightForwardIndexArrayFrom = getRightForwardIndexSetFrom.toArray
+  def getRightForwardIndexArrayTo = getRightForwardIndexSetTo.toArray
   def getRightDiscardIndexArray = rightDiscardSet.map(_.getValue).toArray
 
   override def getOutputLength = {
-    val leftForwardMax = if (leftForwardSet.isEmpty) -1 else leftForwardSet.map(_.getValue).max
-    val rightForwardMax = if (rightForwardSet.isEmpty) -1 else rightForwardSet.map(_.getValue).max
+    val leftForwardMax = if (leftForwardSet.isEmpty) -1 else leftForwardSet.map(_._2.localPos).max
+    val rightForwardMax = if (rightForwardSet.isEmpty) -1 else rightForwardSet.map(_._2.localPos).max
     math.max(super.getOutputLength, math.max(leftForwardMax, rightForwardMax) + 1)
   }
 
@@ -134,9 +144,10 @@ class UDF2[T1, T2, R](val leftInputUDT: UDT[T1], val rightInputUDT: UDT[T2], val
   }
 
   def markFieldCopied(inputLocalPos: Either[Int, Int], outputLocalPos: Int): Unit = {
-    val (fields, forwardSet) = inputLocalPos.fold(_ => (leftInputFields, leftForwardSet), _ => (rightInputFields, rightForwardSet))
-    val inputGlobalPos = fields(inputLocalPos.merge).globalPos
-    forwardSet.add(inputGlobalPos)
+    val (inputFields, forwardSet) = inputLocalPos.fold(_ => (leftInputFields, leftForwardSet), _ => (rightInputFields, rightForwardSet))
+    val inputField = inputFields(inputLocalPos.merge)
+    val inputGlobalPos = inputField.globalPos
+    forwardSet.add((inputField, outputFields(outputLocalPos)))
     markFieldCopied(inputGlobalPos, outputLocalPos)
   }
 }

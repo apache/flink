@@ -41,6 +41,7 @@ import eu.stratosphere.scala.codegen.MacroContextHolder
 import eu.stratosphere.scala.DataSet
 import eu.stratosphere.pact.generic.contract.UserCodeObjectWrapper
 import eu.stratosphere.scala.TwoInputHintable
+import eu.stratosphere.scala.codegen.Util
 
 class JoinDataStream[LeftIn, RightIn](val leftInput: DataSet[LeftIn], val rightInput: DataSet[RightIn]) {
   def where[Key](keyFun: LeftIn => Key) = macro JoinMacros.whereImpl[LeftIn, RightIn, Key]
@@ -114,8 +115,11 @@ object JoinMacros {
 
         private var leftDeserializer: UDTSerializer[LeftIn] = _
         private var leftDiscard: Array[Int] = _
+        private var leftForwardFrom: Array[Int] = _
+        private var leftForwardTo: Array[Int] = _
         private var rightDeserializer: UDTSerializer[RightIn] = _
-        private var rightForward: Array[Int] = _
+        private var rightForwardFrom: Array[Int] = _
+        private var rightForwardTo: Array[Int] = _
         private var serializer: UDTSerializer[Out] = _
         private var outputLength: Int = _
 
@@ -124,8 +128,11 @@ object JoinMacros {
 
           this.leftDeserializer = udf.getLeftInputDeserializer
           this.leftDiscard = udf.getLeftDiscardIndexArray.filter(_ < udf.getOutputLength)
+          this.leftForwardFrom = udf.getLeftForwardIndexArrayFrom
+          this.leftForwardTo = udf.getLeftForwardIndexArrayTo
           this.rightDeserializer = udf.getRightInputDeserializer
-          this.rightForward = udf.getRightForwardIndexArray
+          this.rightForwardFrom = udf.getRightForwardIndexArrayFrom
+          this.rightForwardTo = udf.getRightForwardIndexArrayTo
           this.serializer = udf.getOutputSerializer
           this.outputLength = udf.getOutputLength
         }
@@ -137,11 +144,11 @@ object JoinMacros {
           val output = fun.splice.apply(left, right)
 
           leftRecord.setNumFields(outputLength)
-
           for (field <- leftDiscard)
             leftRecord.setNull(field)
 
-          leftRecord.copyFrom(rightRecord, rightForward, rightForward)
+          leftRecord.copyFrom(rightRecord, rightForwardFrom, rightForwardTo)
+          leftRecord.copyFrom(leftRecord, leftForwardFrom, leftForwardTo)
 
           serializer.serialize(output, leftRecord)
           out.collect(leftRecord)
@@ -151,8 +158,12 @@ object JoinMacros {
       
       val builder = new NoKeyMatchBuilder(generatedStub).input1(helper.leftInput.contract).input2(helper.rightInput.contract)
 
-      val keyTypes = generatedStub.leftInputUDT.getKeySet(generatedStub.leftKeySelector.selectedFields map { _.localPos })
-      keyTypes.foreach { builder.keyField(_, -1, -1) } // global indexes haven't been computed yet...
+      val leftKeyPositions = generatedStub.leftKeySelector.selectedFields.toIndexArray
+      val rightKeyPositions = generatedStub.leftKeySelector.selectedFields.toIndexArray
+      val keyTypes = generatedStub.leftInputUDT.getKeySet(leftKeyPositions)
+      // global indexes haven't been computed yet...
+      0 until keyTypes.size foreach { i => builder.keyField(keyTypes(i), leftKeyPositions(i), rightKeyPositions(i)) }
+
       
       
       val ret = new MatchContract(builder) with TwoInputKeyedScalaContract[LeftIn, RightIn, Out] {
@@ -160,8 +171,10 @@ object JoinMacros {
         override val rightKey: FieldSelector = generatedStub.rightKeySelector
         override def getUDF = generatedStub.udf
         override def annotations = Seq(
-          Annotations.getConstantFieldsFirst(getUDF.getLeftForwardIndexArray),
-          Annotations.getConstantFieldsSecond(getUDF.getRightForwardIndexArray))
+          Annotations.getConstantFieldsFirst(
+            Util.filterNonForwards(getUDF.getLeftForwardIndexArrayFrom, getUDF.getLeftForwardIndexArrayTo)),
+          Annotations.getConstantFieldsSecond(
+            Util.filterNonForwards(getUDF.getRightForwardIndexArrayFrom, getUDF.getRightForwardIndexArrayTo)))
       }
       new DataSet[Out](ret) with TwoInputHintable[LeftIn, RightIn, Out] {}
     }
@@ -195,8 +208,11 @@ object JoinMacros {
 
         private var leftDeserializer: UDTSerializer[LeftIn] = _
         private var leftDiscard: Array[Int] = _
+        private var leftForwardFrom: Array[Int] = _
+        private var leftForwardTo: Array[Int] = _
         private var rightDeserializer: UDTSerializer[RightIn] = _
-        private var rightForward: Array[Int] = _
+        private var rightForwardFrom: Array[Int] = _
+        private var rightForwardTo: Array[Int] = _
         private var serializer: UDTSerializer[Out] = _
         private var outputLength: Int = _
 
@@ -205,8 +221,11 @@ object JoinMacros {
 
           this.leftDeserializer = udf.getLeftInputDeserializer
           this.leftDiscard = udf.getLeftDiscardIndexArray.filter(_ < udf.getOutputLength)
+          this.leftForwardFrom = udf.getLeftForwardIndexArrayFrom
+          this.leftForwardTo = udf.getLeftForwardIndexArrayTo
           this.rightDeserializer = udf.getRightInputDeserializer
-          this.rightForward = udf.getRightForwardIndexArray
+          this.rightForwardFrom = udf.getRightForwardIndexArrayFrom
+          this.rightForwardTo = udf.getRightForwardIndexArrayTo
           this.serializer = udf.getOutputSerializer
           this.outputLength = udf.getOutputLength
         }
@@ -224,7 +243,8 @@ object JoinMacros {
             for (field <- leftDiscard)
               leftRecord.setNull(field)
 
-            leftRecord.copyFrom(rightRecord, rightForward, rightForward)
+            leftRecord.copyFrom(rightRecord, rightForwardFrom, rightForwardTo)
+            leftRecord.copyFrom(leftRecord, leftForwardFrom, leftForwardTo)
 
             for (item <- output) {
               serializer.serialize(item, leftRecord)
@@ -237,8 +257,11 @@ object JoinMacros {
       
       val builder = new NoKeyMatchBuilder(generatedStub).input1(helper.leftInput.contract).input2(helper.rightInput.contract)
 
-      val keyTypes = generatedStub.leftInputUDT.getKeySet(generatedStub.leftKeySelector.selectedFields map { _.localPos })
-      keyTypes.foreach { builder.keyField(_, -1, -1) } // global indexes haven't been computed yet...
+      val leftKeyPositions = generatedStub.leftKeySelector.selectedFields.toIndexArray
+      val rightKeyPositions = generatedStub.leftKeySelector.selectedFields.toIndexArray
+      val keyTypes = generatedStub.leftInputUDT.getKeySet(leftKeyPositions)
+      // global indexes haven't been computed yet...
+      0 until keyTypes.size foreach { i => builder.keyField(keyTypes(i), leftKeyPositions(i), rightKeyPositions(i)) }
       
       
       val ret = new MatchContract(builder) with TwoInputKeyedScalaContract[LeftIn, RightIn, Out] {
@@ -246,8 +269,10 @@ object JoinMacros {
         override val rightKey: FieldSelector = generatedStub.rightKeySelector
         override def getUDF = generatedStub.udf
         override def annotations = Seq(
-          Annotations.getConstantFieldsFirst(getUDF.getLeftForwardIndexArray),
-          Annotations.getConstantFieldsSecond(getUDF.getRightForwardIndexArray))
+          Annotations.getConstantFieldsFirst(
+            Util.filterNonForwards(getUDF.getLeftForwardIndexArrayFrom, getUDF.getLeftForwardIndexArrayTo)),
+          Annotations.getConstantFieldsSecond(
+            Util.filterNonForwards(getUDF.getRightForwardIndexArrayFrom, getUDF.getRightForwardIndexArrayTo)))
       }
       new DataSet[Out](ret) with TwoInputHintable[LeftIn, RightIn, Out] {}
     }
@@ -282,7 +307,8 @@ object JoinMacros {
         private var leftDeserializer: UDTSerializer[LeftIn] = _
         private var leftDiscard: Array[Int] = _
         private var rightDeserializer: UDTSerializer[RightIn] = _
-        private var rightForward: Array[Int] = _
+        private var rightForwardFrom: Array[Int] = _
+        private var rightForwardTo: Array[Int] = _
         private var serializer: UDTSerializer[(LeftIn, RightIn)] = _
         private var outputLength: Int = _
 
@@ -292,7 +318,8 @@ object JoinMacros {
           this.leftDeserializer = udf.getLeftInputDeserializer
           this.leftDiscard = udf.getLeftDiscardIndexArray.filter(_ < udf.getOutputLength)
           this.rightDeserializer = udf.getRightInputDeserializer
-          this.rightForward = udf.getRightForwardIndexArray
+          this.rightForwardFrom = udf.getRightForwardIndexArrayFrom
+          this.rightForwardTo = udf.getRightForwardIndexArrayTo
           this.serializer = udf.getOutputSerializer
           this.outputLength = udf.getOutputLength
         }
@@ -312,8 +339,11 @@ object JoinMacros {
       
       val builder = new NoKeyMatchBuilder(generatedStub).input1(helper.leftInput.contract).input2(helper.rightInput.contract)
 
-      val keyTypes = generatedStub.leftInputUDT.getKeySet(generatedStub.leftKeySelector.selectedFields map { _.localPos })
-      keyTypes.foreach { builder.keyField(_, -1, -1) } // global indexes haven't been computed yet...
+      val leftKeyPositions = generatedStub.leftKeySelector.selectedFields.toIndexArray
+      val rightKeyPositions = generatedStub.leftKeySelector.selectedFields.toIndexArray
+      val keyTypes = generatedStub.leftInputUDT.getKeySet(leftKeyPositions)
+      // global indexes haven't been computed yet...
+      0 until keyTypes.size foreach { i => builder.keyField(keyTypes(i), leftKeyPositions(i), rightKeyPositions(i)) }
       
       
       val ret = new MatchContract(builder) with TwoInputKeyedScalaContract[LeftIn, RightIn, (LeftIn, RightIn)] {
@@ -321,8 +351,10 @@ object JoinMacros {
         override val rightKey: FieldSelector = generatedStub.rightKeySelector
         override def getUDF = generatedStub.udf
         override def annotations = Seq(
-          Annotations.getConstantFieldsFirst(getUDF.getLeftForwardIndexArray),
-          Annotations.getConstantFieldsSecond(getUDF.getRightForwardIndexArray))
+          Annotations.getConstantFieldsFirst(
+            Util.filterNonForwards(getUDF.getLeftForwardIndexArrayFrom, getUDF.getLeftForwardIndexArrayTo)),
+          Annotations.getConstantFieldsSecond(
+            Util.filterNonForwards(getUDF.getRightForwardIndexArrayFrom, getUDF.getRightForwardIndexArrayTo)))
       }
       new DataSet[(LeftIn, RightIn)](ret) with TwoInputHintable[LeftIn, RightIn, (LeftIn, RightIn)] {}
     }

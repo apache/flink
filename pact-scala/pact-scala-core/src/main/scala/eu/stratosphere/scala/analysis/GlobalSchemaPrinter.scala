@@ -71,7 +71,7 @@ object GlobalSchemaPrinter {
             printInfo(node, "Sink",
               Seq(),
               Seq(("", udf.inputFields)),
-              Seq(("", udf.getForwardIndexArray)),
+              Seq(("", udf.getForwardIndexArrayFrom)),
               Seq(("", udf.getDiscardIndexArray)),
               udf.outputFields
             )
@@ -91,7 +91,7 @@ object GlobalSchemaPrinter {
             printInfo(node, "CoGroup",
               Seq(("L", leftKey), ("R", rightKey)),
               Seq(("L", udf.leftInputFields), ("R", udf.rightInputFields)),
-              Seq(("L", udf.getLeftForwardIndexArray), ("R", udf.getRightForwardIndexArray)),
+              Seq(("L", udf.getLeftForwardIndexArrayFrom), ("R", udf.getRightForwardIndexArrayFrom)),
               Seq(("L", udf.getLeftDiscardIndexArray), ("R", udf.getRightDiscardIndexArray)),
               udf.outputFields
             )
@@ -101,7 +101,7 @@ object GlobalSchemaPrinter {
             printInfo(node, "Cross",
               Seq(),
               Seq(("L", udf.leftInputFields), ("R", udf.rightInputFields)),
-              Seq(("L", udf.getLeftForwardIndexArray), ("R", udf.getRightForwardIndexArray)),
+              Seq(("L", udf.getLeftForwardIndexArrayFrom), ("R", udf.getRightForwardIndexArrayFrom)),
               Seq(("L", udf.getLeftDiscardIndexArray), ("R", udf.getRightDiscardIndexArray)),
               udf.outputFields
             )
@@ -111,7 +111,7 @@ object GlobalSchemaPrinter {
             printInfo(node, "Join",
               Seq(("L", leftKey), ("R", rightKey)),
               Seq(("L", udf.leftInputFields), ("R", udf.rightInputFields)),
-              Seq(("L", udf.getLeftForwardIndexArray), ("R", udf.getRightForwardIndexArray)),
+              Seq(("L", udf.getLeftForwardIndexArrayFrom), ("R", udf.getRightForwardIndexArrayFrom)),
               Seq(("L", udf.getLeftDiscardIndexArray), ("R", udf.getRightDiscardIndexArray)),
               udf.outputFields
             )
@@ -121,7 +121,7 @@ object GlobalSchemaPrinter {
             printInfo(node, "Map",
               Seq(),
               Seq(("", udf.inputFields)),
-              Seq(("", udf.getForwardIndexArray)),
+              Seq(("", udf.getForwardIndexArrayFrom)),
               Seq(("", udf.getDiscardIndexArray)),
               udf.outputFields
             )
@@ -131,7 +131,7 @@ object GlobalSchemaPrinter {
             printInfo(node, "Union",
               Seq(),
               Seq(("", udf.inputFields)),
-              Seq(("", udf.getForwardIndexArray)),
+              Seq(("", udf.getForwardIndexArrayFrom)),
               Seq(("", udf.getDiscardIndexArray)),
               udf.outputFields
             )
@@ -153,7 +153,7 @@ object GlobalSchemaPrinter {
             printInfo(node, "Reduce",
               Seq(("", key)),
               Seq(("", udf.inputFields)),
-              Seq(("", udf.getForwardIndexArray)),
+              Seq(("", udf.getForwardIndexArrayFrom)),
               Seq(("", udf.getDiscardIndexArray)),
               udf.outputFields
             )

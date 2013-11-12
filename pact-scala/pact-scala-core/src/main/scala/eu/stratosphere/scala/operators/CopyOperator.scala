@@ -62,7 +62,9 @@ object CopyOperator {
 
     val ret = new MapContract(builder) with OneInputScalaContract[Nothing, Nothing] {
       override def getUDF = generatedStub.udf.asInstanceOf[UDF1[Nothing, Nothing]]
-      override def annotations = Seq(Annotations.getConstantFields(generatedStub.udf.getForwardIndexArray))
+      override def annotations = Seq(Annotations.getConstantFields(
+        generatedStub.udf.getForwardIndexArrayFrom.zip(generatedStub.udf.getForwardIndexArrayTo)
+          .filter( z => z._1 == z._2).map { _._1}))
       persistHints = { () =>
         this.setName("Copy " + source.getName())
         if (source.getCompilerHints().getAvgBytesPerRecord() >= 0)

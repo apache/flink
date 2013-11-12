@@ -20,7 +20,7 @@ import eu.stratosphere.pact.common.`type`.{Key => PactKey}
 import eu.stratosphere.pact.common.`type`.PactRecord
 import eu.stratosphere.pact.common.`type`.{Value => PactValue}
 import eu.stratosphere.pact.common.`type`.base.PactString
-import eu.stratosphere.scala.codegen.UDTUtil
+import eu.stratosphere.scala.codegen.Util
 
 abstract class UDT[T] extends Serializable {
   protected def createSerializer(indexMap: Array[Int]): UDTSerializer[T]
@@ -60,7 +60,7 @@ abstract class UDTSerializer[T](val indexMap: Array[Int]) {
 }
 
 trait UDTLowPriorityImplicits {
-  implicit def createUDT[T]: UDT[T] = macro UDTUtil.createUDTImpl[T]
+  implicit def createUDT[T]: UDT[T] = macro Util.createUDTImpl[T]
 }
 
 object UDT extends UDTLowPriorityImplicits {

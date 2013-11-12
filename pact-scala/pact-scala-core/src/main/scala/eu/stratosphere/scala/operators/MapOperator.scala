@@ -30,6 +30,7 @@ import eu.stratosphere.scala.analysis.UDTSerializer
 import eu.stratosphere.nephele.configuration.Configuration
 import eu.stratosphere.scala.DataSet
 import eu.stratosphere.scala.OneInputHintable
+import eu.stratosphere.scala.codegen.Util
 
 object MapMacros {
 
@@ -83,7 +84,9 @@ object MapMacros {
       
       val contract = new MapContract(builder) with OneInputScalaContract[In, Out] {
         override def getUDF = generatedStub.udf
-        override def annotations = Seq(Annotations.getConstantFields(generatedStub.udf.getForwardIndexArray))
+        override def annotations = Seq(
+          Annotations.getConstantFields(
+            Util.filterNonForwards(getUDF.getForwardIndexArrayFrom, getUDF.getForwardIndexArrayTo)))
       }
       val stream = new DataSet[Out](contract) with OneInputHintable[In, Out] {}
       contract.persistHints = { () => stream.applyHints(contract) }
@@ -151,7 +154,9 @@ object MapMacros {
       
       val contract = new MapContract(builder) with OneInputScalaContract[In, Out] {
         override def getUDF = generatedStub.udf
-        override def annotations = Seq(Annotations.getConstantFields(generatedStub.udf.getForwardIndexArray))
+        override def annotations = Seq(
+          Annotations.getConstantFields(
+            Util.filterNonForwards(getUDF.getForwardIndexArrayFrom, getUDF.getForwardIndexArrayTo)))
       }
       val stream = new DataSet[Out](contract) with OneInputHintable[In, Out] {}
       contract.persistHints = { () => stream.applyHints(contract) }
@@ -206,7 +211,9 @@ object MapMacros {
       
       val contract = new MapContract(builder) with OneInputScalaContract[In, In] {
         override def getUDF = generatedStub.udf
-        override def annotations = Seq(Annotations.getConstantFields(generatedStub.udf.getForwardIndexArray))
+        override def annotations = Seq(
+          Annotations.getConstantFields(
+            Util.filterNonForwards(getUDF.getForwardIndexArrayFrom, getUDF.getForwardIndexArrayTo)))
       }
       val stream = new DataSet[In](contract) with OneInputHintable[In, In] {}
       contract.persistHints = { () =>

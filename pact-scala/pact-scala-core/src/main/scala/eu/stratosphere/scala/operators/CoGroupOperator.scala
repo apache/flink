@@ -44,6 +44,7 @@ import eu.stratosphere.pact.common.stubs.CoGroupStub
 import eu.stratosphere.scala.DataSet
 import eu.stratosphere.pact.generic.contract.UserCodeObjectWrapper
 import eu.stratosphere.scala.TwoInputHintable
+import eu.stratosphere.scala.codegen.Util
 
 class CoGroupDataStream[LeftIn, RightIn](val leftInput: DataSet[LeftIn], val rightInput: DataSet[RightIn]) {
   def where[Key](keyFun: LeftIn => Key): CoGroupDataStreamWithWhere[LeftIn, RightIn, Key] = macro CoGroupMacros.whereImpl[LeftIn, RightIn, Key]
@@ -117,9 +118,11 @@ object CoGroupMacros {
         private val outputRecord = new PactRecord()
 
         private var leftIterator: DeserializingIterator[LeftIn] = _
-        private var leftForward: Array[Int] = _
+        private var leftForwardFrom: Array[Int] = _
+        private var leftForwardTo: Array[Int] = _
         private var rightIterator: DeserializingIterator[RightIn] = _
-        private var rightForward: Array[Int] = _
+        private var rightForwardFrom: Array[Int] = _
+        private var rightForwardTo: Array[Int] = _
         private var serializer: UDTSerializer[Out] = _
 
         override def open(config: Configuration) = {
@@ -128,9 +131,11 @@ object CoGroupMacros {
           this.outputRecord.setNumFields(udf.getOutputLength)
 
           this.leftIterator = new DeserializingIterator(udf.getLeftInputDeserializer)
-          this.leftForward = udf.getLeftForwardIndexArray
+          this.leftForwardFrom = udf.getLeftForwardIndexArrayFrom
+          this.leftForwardTo = udf.getLeftForwardIndexArrayTo
           this.rightIterator = new DeserializingIterator(udf.getRightInputDeserializer)
-          this.rightForward = udf.getRightForwardIndexArray
+          this.rightForwardFrom = udf.getRightForwardIndexArrayFrom
+          this.rightForwardTo = udf.getRightForwardIndexArrayTo
           this.serializer = udf.getOutputSerializer
         }
 
@@ -140,10 +145,10 @@ object CoGroupMacros {
           val firstRightRecord = rightIterator.initialize(rightRecords)
           
           if (firstRightRecord != null) {
-            outputRecord.copyFrom(firstRightRecord, rightForward, rightForward)
+            outputRecord.copyFrom(firstRightRecord, rightForwardFrom, rightForwardTo)
           }
           if (firstLeftRecord != null) {
-            outputRecord.copyFrom(firstLeftRecord, leftForward, leftForward)
+            outputRecord.copyFrom(firstLeftRecord, leftForwardFrom, leftForwardTo)
           }
 
           val output = fun.splice.apply(leftIterator, rightIterator)
@@ -155,8 +160,11 @@ object CoGroupMacros {
       
       val builder = new NoKeyCoGroupBuilder(generatedStub).input1(helper.leftInput.contract).input2(helper.rightInput.contract)
 
-      val keyTypes = generatedStub.leftInputUDT.getKeySet(generatedStub.leftKeySelector.selectedFields map { _.localPos })
-      keyTypes.foreach { builder.keyField(_, -1, -1) } // global indexes haven't been computed yet...
+      val leftKeyPositions = generatedStub.leftKeySelector.selectedFields.toIndexArray
+      val rightKeyPositions = generatedStub.leftKeySelector.selectedFields.toIndexArray
+      val keyTypes = generatedStub.leftInputUDT.getKeySet(leftKeyPositions)
+      // global indexes haven't been computed yet...
+      0 until keyTypes.size foreach { i => builder.keyField(keyTypes(i), leftKeyPositions(i), rightKeyPositions(i)) }
       
       
       val ret = new CoGroupContract(builder) with TwoInputKeyedScalaContract[LeftIn, RightIn, Out] {
@@ -164,8 +172,10 @@ object CoGroupMacros {
         override val rightKey: FieldSelector = generatedStub.rightKeySelector
         override def getUDF = generatedStub.udf
         override def annotations = Seq(
-          Annotations.getConstantFieldsFirst(getUDF.getLeftForwardIndexArray),
-          Annotations.getConstantFieldsSecond(getUDF.getRightForwardIndexArray))
+          Annotations.getConstantFieldsFirst(
+            Util.filterNonForwards(getUDF.getLeftForwardIndexArrayFrom, getUDF.getLeftForwardIndexArrayTo)),
+          Annotations.getConstantFieldsSecond(
+            Util.filterNonForwards(getUDF.getRightForwardIndexArrayFrom, getUDF.getRightForwardIndexArrayTo)))
       }
       new DataSet[Out](ret) with TwoInputHintable[LeftIn, RightIn, Out] {}
     }
@@ -200,9 +210,11 @@ object CoGroupMacros {
         private val outputRecord = new PactRecord()
 
         private var leftIterator: DeserializingIterator[LeftIn] = _
-        private var leftForward: Array[Int] = _
+        private var leftForwardFrom: Array[Int] = _
+        private var leftForwardTo: Array[Int] = _
         private var rightIterator: DeserializingIterator[RightIn] = _
-        private var rightForward: Array[Int] = _
+        private var rightForwardFrom: Array[Int] = _
+        private var rightForwardTo: Array[Int] = _
         private var serializer: UDTSerializer[Out] = _
 
         override def open(config: Configuration) = {
@@ -211,19 +223,21 @@ object CoGroupMacros {
           this.outputRecord.setNumFields(udf.getOutputLength)
 
           this.leftIterator = new DeserializingIterator(udf.getLeftInputDeserializer)
-          this.leftForward = udf.getLeftForwardIndexArray
+          this.leftForwardFrom = udf.getLeftForwardIndexArrayFrom
+          this.leftForwardTo = udf.getLeftForwardIndexArrayTo
           this.rightIterator = new DeserializingIterator(udf.getRightInputDeserializer)
-          this.rightForward = udf.getRightForwardIndexArray
+          this.rightForwardFrom = udf.getRightForwardIndexArrayFrom
+          this.rightForwardTo = udf.getRightForwardIndexArrayTo
           this.serializer = udf.getOutputSerializer
         }
 
         override def coGroup(leftRecords: JIterator[PactRecord], rightRecords: JIterator[PactRecord], out: Collector[PactRecord]) = {
 
           val firstLeftRecord = leftIterator.initialize(leftRecords)
-          outputRecord.copyFrom(firstLeftRecord, leftForward, leftForward)
+          outputRecord.copyFrom(firstLeftRecord, leftForwardFrom, leftForwardTo)
 
           val firstRightRecord = rightIterator.initialize(rightRecords)
-          outputRecord.copyFrom(firstRightRecord, rightForward, rightForward)
+          outputRecord.copyFrom(firstRightRecord, rightForwardFrom, rightForwardTo)
 
           val output = fun.splice.apply(leftIterator, rightIterator)
 
@@ -239,8 +253,11 @@ object CoGroupMacros {
       
       val builder = new NoKeyCoGroupBuilder(generatedStub).input1(helper.leftInput.contract).input2(helper.rightInput.contract)
 
-      val keyTypes = generatedStub.leftInputUDT.getKeySet(generatedStub.leftKeySelector.selectedFields map { _.localPos })
-      keyTypes.foreach { builder.keyField(_, -1, -1) } // global indexes haven't been computed yet...
+      val leftKeyPositions = generatedStub.leftKeySelector.selectedFields.toIndexArray
+      val rightKeyPositions = generatedStub.leftKeySelector.selectedFields.toIndexArray
+      val keyTypes = generatedStub.leftInputUDT.getKeySet(leftKeyPositions)
+      // global indexes haven't been computed yet...
+      0 until keyTypes.size foreach { i => builder.keyField(keyTypes(i), leftKeyPositions(i), rightKeyPositions(i)) }
       
       
       val ret = new CoGroupContract(builder) with TwoInputKeyedScalaContract[LeftIn, RightIn, Out] {
@@ -248,8 +265,10 @@ object CoGroupMacros {
         override val rightKey: FieldSelector = generatedStub.rightKeySelector
         override def getUDF = generatedStub.udf
         override def annotations = Seq(
-          Annotations.getConstantFieldsFirst(getUDF.getLeftForwardIndexArray),
-          Annotations.getConstantFieldsSecond(getUDF.getRightForwardIndexArray))
+          Annotations.getConstantFieldsFirst(
+            Util.filterNonForwards(getUDF.getLeftForwardIndexArrayFrom, getUDF.getLeftForwardIndexArrayTo)),
+          Annotations.getConstantFieldsSecond(
+            Util.filterNonForwards(getUDF.getRightForwardIndexArrayFrom, getUDF.getRightForwardIndexArrayTo)))
       }
       new DataSet[Out](ret) with TwoInputHintable[LeftIn, RightIn, Out] {}
     }

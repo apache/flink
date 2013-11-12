@@ -182,7 +182,7 @@ object MainWorksetIterate {
     }
     
 
-    val transitiveClosure = vertices.iterateWithWorkset(edges, { p => (p.from, p.to) }, createClosure)
+    val transitiveClosure = vertices.iterateWithWorkset(edges, { p => (p.from, p.to) }, createClosure, 10)
 //    vertices iterateWithWorkset edges withKey { p => (p.from, p.to) } using createClosure
     
     val sink = transitiveClosure.write("file:///home/aljoscha/transclos-output-workset", DelimitedOutputFormat(formatOutput))
@@ -244,7 +244,7 @@ object ConnectedComponents {
       (s1, s1)
     }
 
-    val components = vertices.iterateWithWorkset(vertices, { _._1 }, propagateComponent)
+    val components = vertices.iterateWithWorkset(vertices, { _._1 }, propagateComponent, 10)
 
     val sink = components.write("file:///home/aljoscha/connected-components-output", DelimitedOutputFormat(formatOutput.tupled))
     val plan = new ScalaPlan(Seq(sink), "SCALA TRANSITIVE CLOSURE")

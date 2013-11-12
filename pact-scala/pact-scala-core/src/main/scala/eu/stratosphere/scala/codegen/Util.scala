@@ -17,7 +17,7 @@ import language.experimental.macros
 import scala.reflect.macros.Context
 import eu.stratosphere.scala.analysis.UDT
 
-object UDTUtil {
+object Util {
   
   implicit def createUDT[T]: UDT[T] = macro createUDTImpl[T]
 
@@ -33,5 +33,10 @@ object UDTUtil {
     }
     
     c.Expr[UDT[T]](Block(List(udt), udtResult.tree))
+  }
+
+  // filter out forwards that dont forward from one field position to the same field position
+  def filterNonForwards(from: Array[Int], to: Array[Int]): Array[Int] = {
+    from.zip(to).filter( z => z._1 == z._2).map { _._1}
   }
 }

@@ -119,7 +119,7 @@ object IterateMacros {
 object WorksetIterateMacros {
 
    
-  def iterateWithWorkset[SolutionItem: c.WeakTypeTag, SolutionKey: c.WeakTypeTag, WorksetItem: c.WeakTypeTag](c: Context { type PrefixType = DataSet[SolutionItem] })(workset: c.Expr[DataSet[WorksetItem]], solutionSetKey: c.Expr[SolutionItem => SolutionKey], stepFunction: c.Expr[(DataSet[SolutionItem], DataSet[WorksetItem]) => (DataSet[SolutionItem], DataSet[WorksetItem])]): c.Expr[DataSet[SolutionItem]] = {
+  def iterateWithWorkset[SolutionItem: c.WeakTypeTag, SolutionKey: c.WeakTypeTag, WorksetItem: c.WeakTypeTag](c: Context { type PrefixType = DataSet[SolutionItem] })(workset: c.Expr[DataSet[WorksetItem]], solutionSetKey: c.Expr[SolutionItem => SolutionKey], stepFunction: c.Expr[(DataSet[SolutionItem], DataSet[WorksetItem]) => (DataSet[SolutionItem], DataSet[WorksetItem])], maxIterations: c.Expr[Int]): c.Expr[DataSet[SolutionItem]] = {
     import c.universe._
 
     val slave = MacroContextHolder.newMacroHelper(c)
@@ -136,7 +136,7 @@ object WorksetIterateMacros {
       
       val keySelector = new FieldSelector(solutionUDT, keySelection.splice)
       val keyFields = keySelector.selectedFields
-      val keyPositions = keyFields mapToArray { _ => -1 }
+      val keyPositions = keyFields.toIndexArray
 
       val contract = new WorksetIteration(keyPositions) with WorksetIterationScalaContract[SolutionItem] {
         override val key = keySelector
@@ -168,6 +168,7 @@ object WorksetIterateMacros {
       val (delta, nextWorkset) = stepFunction.splice.apply(solutionInput, worksetInput)
       contract.setSolutionSetDelta(delta.contract)
       contract.setNextWorkset(nextWorkset.contract)
+      contract.setMaximumNumberOfIterations(maxIterations.splice)
 
       new DataSet(contract)
     }

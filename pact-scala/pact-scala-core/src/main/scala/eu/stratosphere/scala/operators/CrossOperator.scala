@@ -39,6 +39,7 @@ import eu.stratosphere.scala.analysis.UDF2
 import eu.stratosphere.pact.common.stubs.CrossStub
 import eu.stratosphere.scala.DataSet
 import eu.stratosphere.scala.TwoInputHintable
+import eu.stratosphere.scala.codegen.Util
 
 class CrossDataStream[LeftIn, RightIn](val leftInput: DataSet[LeftIn], val rightInput: DataSet[RightIn]) {
   def map[Out](fun: (LeftIn, RightIn) => Out): DataSet[Out] with TwoInputHintable[LeftIn, RightIn, Out] = macro CrossMacros.map[LeftIn, RightIn, Out]
@@ -67,9 +68,12 @@ object CrossMacros {
         val udf: UDF2[LeftIn, RightIn, Out] = new UDF2(leftInputUDT, rightInputUDT, outputUDT)
 
         private var leftDeserializer: UDTSerializer[LeftIn] = _
+        private var leftForwardFrom: Array[Int] = _
+        private var leftForwardTo: Array[Int] = _
         private var leftDiscard: Array[Int] = _
         private var rightDeserializer: UDTSerializer[RightIn] = _
-        private var rightForward: Array[Int] = _
+        private var rightForwardFrom: Array[Int] = _
+        private var rightForwardTo: Array[Int] = _
         private var serializer: UDTSerializer[Out] = _
         private var outputLength: Int = _
 
@@ -78,8 +82,11 @@ object CrossMacros {
 
           this.leftDeserializer = udf.getLeftInputDeserializer
           this.leftDiscard = udf.getLeftDiscardIndexArray.filter(_ < udf.getOutputLength)
+          this.leftForwardFrom = udf.getLeftForwardIndexArrayFrom
+          this.leftForwardTo = udf.getLeftForwardIndexArrayTo
           this.rightDeserializer = udf.getRightInputDeserializer
-          this.rightForward = udf.getRightForwardIndexArray
+          this.rightForwardFrom = udf.getRightForwardIndexArrayFrom
+          this.rightForwardTo = udf.getRightForwardIndexArrayTo
           this.serializer = udf.getOutputSerializer
           this.outputLength = udf.getOutputLength
         }
@@ -95,7 +102,8 @@ object CrossMacros {
           for (field <- leftDiscard)
             leftRecord.setNull(field)
 
-          leftRecord.copyFrom(rightRecord, rightForward, rightForward)
+          leftRecord.copyFrom(rightRecord, rightForwardFrom, rightForwardTo)
+          leftRecord.copyFrom(leftRecord, leftForwardFrom, leftForwardTo)
 
           serializer.serialize(output, leftRecord)
           out.collect(leftRecord)
@@ -108,8 +116,10 @@ object CrossMacros {
       val ret = new CrossContract(builder) with TwoInputScalaContract[LeftIn, RightIn, Out] {
         override def getUDF = generatedStub.udf
         override def annotations = Seq(
-          Annotations.getConstantFieldsFirst(getUDF.getLeftForwardIndexArray),
-          Annotations.getConstantFieldsSecond(getUDF.getRightForwardIndexArray))
+          Annotations.getConstantFieldsFirst(
+            Util.filterNonForwards(getUDF.getLeftForwardIndexArrayFrom, getUDF.getLeftForwardIndexArrayTo)),
+          Annotations.getConstantFieldsSecond(
+            Util.filterNonForwards(getUDF.getRightForwardIndexArrayFrom, getUDF.getRightForwardIndexArrayTo)))
       }
       new DataSet[Out](ret) with TwoInputHintable[LeftIn, RightIn, Out] {}
     }
@@ -139,8 +149,11 @@ object CrossMacros {
 
         private var leftDeserializer: UDTSerializer[LeftIn] = _
         private var leftDiscard: Array[Int] = _
+        private var leftForwardFrom: Array[Int] = _
+        private var leftForwardTo: Array[Int] = _
         private var rightDeserializer: UDTSerializer[RightIn] = _
-        private var rightForward: Array[Int] = _
+        private var rightForwardFrom: Array[Int] = _
+        private var rightForwardTo: Array[Int] = _
         private var serializer: UDTSerializer[Out] = _
         private var outputLength: Int = _
 
@@ -149,8 +162,11 @@ object CrossMacros {
 
           this.leftDeserializer = udf.getLeftInputDeserializer
           this.leftDiscard = udf.getLeftDiscardIndexArray.filter(_ < udf.getOutputLength)
+          this.leftForwardFrom = udf.getLeftForwardIndexArrayFrom
+          this.leftForwardTo = udf.getLeftForwardIndexArrayTo
           this.rightDeserializer = udf.getRightInputDeserializer
-          this.rightForward = udf.getRightForwardIndexArray
+          this.rightForwardFrom = udf.getRightForwardIndexArrayFrom
+          this.rightForwardTo = udf.getRightForwardIndexArrayTo
           this.serializer = udf.getOutputSerializer
           this.outputLength = udf.getOutputLength
         }
@@ -168,7 +184,8 @@ object CrossMacros {
             for (field <- leftDiscard)
               leftRecord.setNull(field)
 
-            leftRecord.copyFrom(rightRecord, rightForward, rightForward)
+            leftRecord.copyFrom(rightRecord, rightForwardFrom, rightForwardTo)
+            leftRecord.copyFrom(leftRecord, leftForwardFrom, leftForwardTo)
 
             for (item <- output) {
               serializer.serialize(item, leftRecord)
@@ -184,8 +201,10 @@ object CrossMacros {
       val ret = new CrossContract(builder) with TwoInputScalaContract[LeftIn, RightIn, Out] {
         override def getUDF = generatedStub.udf
         override def annotations = Seq(
-          Annotations.getConstantFieldsFirst(getUDF.getLeftForwardIndexArray),
-          Annotations.getConstantFieldsSecond(getUDF.getRightForwardIndexArray))
+          Annotations.getConstantFieldsFirst(
+            Util.filterNonForwards(getUDF.getLeftForwardIndexArrayFrom, getUDF.getLeftForwardIndexArrayTo)),
+          Annotations.getConstantFieldsSecond(
+            Util.filterNonForwards(getUDF.getRightForwardIndexArrayFrom, getUDF.getRightForwardIndexArrayTo)))
       }
       new DataSet[Out](ret) with TwoInputHintable[LeftIn, RightIn, Out] {}
     }
@@ -214,9 +233,7 @@ object CrossMacros {
         val udf: UDF2[LeftIn, RightIn, (LeftIn, RightIn)] = new UDF2(leftInputUDT, rightInputUDT, outputUDT)
 
         private var leftDeserializer: UDTSerializer[LeftIn] = _
-        private var leftDiscard: Array[Int] = _
         private var rightDeserializer: UDTSerializer[RightIn] = _
-        private var rightForward: Array[Int] = _
         private var serializer: UDTSerializer[(LeftIn, RightIn)] = _
         private var outputLength: Int = _
 
@@ -224,9 +241,7 @@ object CrossMacros {
           super.open(config)
 
           this.leftDeserializer = udf.getLeftInputDeserializer
-          this.leftDiscard = udf.getLeftDiscardIndexArray.filter(_ < udf.getOutputLength)
           this.rightDeserializer = udf.getRightInputDeserializer
-          this.rightForward = udf.getRightForwardIndexArray
           this.serializer = udf.getOutputSerializer
           this.outputLength = udf.getOutputLength
         }
@@ -248,8 +263,11 @@ object CrossMacros {
       val ret = new CrossContract(builder) with TwoInputScalaContract[LeftIn, RightIn, (LeftIn, RightIn)] {
         override def getUDF = generatedStub.udf
         override def annotations = Seq(
-          Annotations.getConstantFieldsFirst(getUDF.getLeftForwardIndexArray),
-          Annotations.getConstantFieldsSecond(getUDF.getRightForwardIndexArray))
+          Annotations.getConstantFieldsFirst(
+            Util.filterNonForwards(getUDF.getLeftForwardIndexArrayFrom, getUDF.getLeftForwardIndexArrayTo)),
+          Annotations.getConstantFieldsSecond(
+            Util.filterNonForwards(getUDF.getRightForwardIndexArrayFrom, getUDF.getRightForwardIndexArrayTo)))
+
       }
       new DataSet[(LeftIn, RightIn)](ret) with TwoInputHintable[LeftIn, RightIn, (LeftIn, RightIn)] {}
     }
