@@ -41,7 +41,7 @@ class WordCountWithCount extends WordCount {
     val words = input flatMap { _.toLowerCase().split("""\W+""") filter { _ != "" } }
     val counts = words groupBy { x => x } count()
 
-    val output = counts.write(wordsOutput, DelimitedOutputFormat(formatOutput.tupled))
+    val output = counts.write(wordsOutput, CsvOutputFormat[(String, Int)]("\n", " "))
   
     val plan = new ScalaPlan(Seq(output), "Word Count")
     plan.setDefaultParallelism(numSubTasks)
