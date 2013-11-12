@@ -94,11 +94,11 @@ class WebLogAnalysis extends PlanAssembler with PlanAssemblerDescription with Se
   def getScalaPlan(numSubTasks: Int, docsInput: String, rankingsInput: String, visitsInput: String, ranksOutput: String) = {
     
     // read documents data
-    val docs = DataSource(docsInput, RecordInputFormat[Doc]("\n", "|"))
+    val docs = DataSource(docsInput, CsvInputFormat[Doc]("\n", "|"))
     // read ranks data
-    val ranks = DataSource(rankingsInput, RecordInputFormat[Rank]("\n", "|"))
+    val ranks = DataSource(rankingsInput, CsvInputFormat[Rank]("\n", "|"))
     // read visits data and project to visits tuple afterwards
-    val visits = DataSource(visitsInput, RecordInputFormat[(String, String, String)]("\n", "|")) map (x => Visit(x._2, x._3))
+    val visits = DataSource(visitsInput, CsvInputFormat[(String, String, String)]("\n", "|")) map (x => Visit(x._2, x._3))
 
     // filter on documents that contain certain key words and project to URL
     val filteredDocs = docs filter {d => d.text.contains(" editors ") && d.text.contains(" oscillations ") && d.text.contains(" convection ")} map { d => d.url }

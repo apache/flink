@@ -88,7 +88,7 @@ class EnumTrianglesOnEdgesWithDegrees extends PlanAssembler with PlanAssemblerDe
      * An edge is represented by two vertex IDs with associated vertex degrees.
      * The format of an edge is "<vertexID1>,<vertexDegree1>|<vertexID2>,<vertexDegree2>" 
      */
-    val vertexesWithDegrees = DataSource(edgeInput, RecordInputFormat[(String, String)]("\n", "|"))
+    val vertexesWithDegrees = DataSource(edgeInput, CsvInputFormat[(String, String)]("\n", "|"))
 
     /*
      * Project edges such that vertex with lower degree comes first (record position 1) and remove the degrees.

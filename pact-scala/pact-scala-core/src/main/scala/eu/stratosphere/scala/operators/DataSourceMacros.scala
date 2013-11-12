@@ -201,7 +201,7 @@ object DelimitedInputFormat {
   }
 }
 
-object RecordInputFormat {
+object CsvInputFormat {
   
   def apply[Out](): DataSourceFormat[Out] = macro implWithoutAll[Out]
   def apply[Out](recordDelim: String): DataSourceFormat[Out] = macro implWithRD[Out]

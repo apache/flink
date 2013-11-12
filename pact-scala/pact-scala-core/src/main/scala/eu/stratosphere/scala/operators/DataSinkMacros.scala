@@ -251,7 +251,7 @@ object DelimitedOutputFormat {
   }
 }
 
-object RecordOutputFormat {
+object CsvOutputFormat {
   def apply[In](recordDelimiter: Option[String], fieldDelimiter: Option[String] = None, lenient: Option[Boolean]): DataSinkFormat[In] = macro impl[In]
   
   def apply[In](): DataSinkFormat[In] = macro implWithoutAll[In]

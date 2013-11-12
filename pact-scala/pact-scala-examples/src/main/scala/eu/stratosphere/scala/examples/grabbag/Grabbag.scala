@@ -37,7 +37,7 @@ object Main1 {
     def formatOutput = (word: String, count: Int) => "%s %d".format(word, count)
     
     val input = TextFile("file:///home/aljoscha/dummy-input")
-    val inputNumbers = DataSource("file:///home/aljoscha/dummy-input-numbers", RecordInputFormat[(Int, String)]("\n", ","))
+    val inputNumbers = DataSource("file:///home/aljoscha/dummy-input-numbers", CsvInputFormat[(Int, String)]("\n", ","))
     
     val counts = input.map { _.split("""\W+""") map { (_, 1) } }
       .flatMap { l => l }
@@ -62,15 +62,15 @@ object Main1 {
     val un = countsCross union countsJoin map { x => x }
     
     val sink0 = counts.reduce { (w1, w2) => ( "Total: " , w1._2 + w2._2) }
-      .write("file:///home/aljoscha/dummy-outputCounts-reduce", RecordOutputFormat("\n", ","))
+      .write("file:///home/aljoscha/dummy-outputCounts-reduce", CsvOutputFormat("\n", ","))
     val sinkm1 = counts.reduceAll { _.reduce { (w1, w2) => ( "Total: " , w1._2 + w2._2) } }
-      .write("file:///home/aljoscha/dummy-outputCounts-reduce-all", RecordOutputFormat("\n", ","))
-    val sink1 = counts.write("file:///home/aljoscha/dummy-outputCounts", RecordOutputFormat("\n", ","))
-    val sink2 = countsCross.write("file:///home/aljoscha/dummy-outputCross", RecordOutputFormat("\n", ","))
-    val sink3 = countsJoin.write("file:///home/aljoscha/dummy-outputJoin", RecordOutputFormat("\n", ","))
-    val sink4 = un.write("file:///home/aljoscha/dummy-outputUnion", RecordOutputFormat("\n", ","))
-    val sink5 = bar1.write("file:///home/aljoscha/dummy-outputbar1", RecordOutputFormat("\n", ","))
-    val sink6 = bar2.write("file:///home/aljoscha/dummy-outputbar2", RecordOutputFormat("\n", ","))
+      .write("file:///home/aljoscha/dummy-outputCounts-reduce-all", CsvOutputFormat("\n", ","))
+    val sink1 = counts.write("file:///home/aljoscha/dummy-outputCounts", CsvOutputFormat("\n", ","))
+    val sink2 = countsCross.write("file:///home/aljoscha/dummy-outputCross", CsvOutputFormat("\n", ","))
+    val sink3 = countsJoin.write("file:///home/aljoscha/dummy-outputJoin", CsvOutputFormat("\n", ","))
+    val sink4 = un.write("file:///home/aljoscha/dummy-outputUnion", CsvOutputFormat("\n", ","))
+    val sink5 = bar1.write("file:///home/aljoscha/dummy-outputbar1", CsvOutputFormat("\n", ","))
+    val sink6 = bar2.write("file:///home/aljoscha/dummy-outputbar2", CsvOutputFormat("\n", ","))
     
     val plan = new ScalaPlan(Seq(sinkm1, sink0, sink1, sink2, sink3, sink4, sink5, sink6), "SCALA DUMMY JOBB")
     GlobalSchemaPrinter.printSchema(plan)

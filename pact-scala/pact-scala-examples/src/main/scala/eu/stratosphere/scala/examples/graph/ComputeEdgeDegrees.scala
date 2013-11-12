@@ -88,7 +88,7 @@ class ComputeEdgeDegrees extends PlanAssembler with PlanAssemblerDescription wit
      * Edges are separated by new line '\n'. 
      * An edge is represented as two Integer vertex IDs which are separated by a blank ','.
      */
-    val edges = DataSource(edgeInput, RecordInputFormat[(Int, Int)]("\n", ","))
+    val edges = DataSource(edgeInput, CsvInputFormat[(Int, Int)]("\n", ","))
 
     /*
      * Emit each edge twice with both vertex orders.
