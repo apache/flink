@@ -57,7 +57,7 @@ public class JobmanagerInfoServlet extends HttpServlet {
 				//Serialize job to json
 				wrt.write("{");
 				wrt.write("\"jobid\": \"" + jobEvent.getJobID() + "\",");
-				wrt.write("\"jobname\": \"" + jobEvent.getJobName()+"\",");
+				wrt.write("\"jobname\": \"" + StringUtils.escapeHtml(jobEvent.getJobName())+"\",");
 				wrt.write("\"status\": \""+ jobEvent.getJobStatus() + "\",");
 				wrt.write("\"time\": " + jobEvent.getTimestamp()+",");
 				

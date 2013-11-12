@@ -103,4 +103,48 @@ public final class StringUtils {
 		}
 		return bts;
 	}
+	
+	/**
+	 * Helper function to escape Strings for display in HTML pages
+	 * 
+	 * @param str
+	 * 	String to Escape
+	 * @return escaped String
+	 */
+    public static String escapeHtml(String str) {
+        int len = str.length();
+        char[] s = str.toCharArray();
+        StringBuilder sb = new StringBuilder();
+
+        for (int i = 0; i < len; i += 1) {
+                char c = s[i];
+                if ((c == '\\') || (c == '"') || (c == '/')) {
+                        sb.append('\\');
+                        sb.append(c);
+                }
+                else if (c == '\b')
+                        sb.append("\\b");
+                else if (c == '\t')
+                        sb.append("\\t");
+                else if (c == '\n')
+                        sb.append("<br>");
+                else if (c == '\f')
+                        sb.append("\\f");
+                else if (c == '\r')
+                        sb.append("\\r");
+                else if (c == '>')
+                        sb.append("&gt;");
+                else if (c == '<')
+                        sb.append("&lt;");
+                else {
+                        if (c < ' ') {
+                                // Unreadable throw away
+                        } else {
+                                sb.append(c);
+                        }
+                }
+        }
+
+        return sb.toString();
+    }
 }

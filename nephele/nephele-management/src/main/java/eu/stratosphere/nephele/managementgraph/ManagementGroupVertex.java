@@ -28,6 +28,7 @@ import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.util.EnumUtils;
+import eu.stratosphere.nephele.util.StringUtils;
 
 /**
  * This class implements a management group vertex of a {@link ManagementGraph}. A management group vertex is derived
@@ -431,7 +432,7 @@ public final class ManagementGroupVertex extends ManagementAttachment implements
 		
 		json.append("{");
 		json.append("\"groupvertexid\": \"" + this.getID() + "\",");
-		json.append("\"groupvertexname\": \"" + this.getName() + "\",");
+		json.append("\"groupvertexname\": \"" + StringUtils.escapeHtml(this.getName()) + "\",");
 		json.append("\"numberofgroupmembers\": " + this.getNumberOfGroupMembers() + ",");
 		json.append("\"groupmembers\": [");
 		
@@ -465,7 +466,7 @@ public final class ManagementGroupVertex extends ManagementAttachment implements
 			
 			json.append("{");
 			json.append("\"groupvertexid\": \"" + edge.getSource().getID() + "\",");
-			json.append("\"groupvertexname\": \"" +  edge.getSource().getName() + "\",");
+			json.append("\"groupvertexname\": \"" +  StringUtils.escapeHtml(edge.getSource().getName()) + "\",");
 			json.append("\"channelType\": \"" +  edge.getChannelType() + "\"");
 			json.append("}");
 			
