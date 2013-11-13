@@ -7,7 +7,7 @@
 	<parent>
 		<artifactId>pact</artifactId>
 		<groupId>eu.stratosphere</groupId>
-		<version>0.4-SNAPSHOT</version>
+		<version>0.4-alpha.2-SNAPSHOT</version>
 	    <relativePath>..</relativePath>
     </parent>
   
