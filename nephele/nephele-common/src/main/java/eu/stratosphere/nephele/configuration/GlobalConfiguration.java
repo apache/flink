@@ -210,6 +210,50 @@ public final class GlobalConfiguration {
 
 		return retVal;
 	}
+	
+	/**
+	 * Returns the value associated with the given key as a float.
+	 * 
+	 * @param key
+	 *        the key pointing to the associated value
+	 * @param defaultValue
+	 *        the default value which is returned in case there is no value associated with the given key
+	 * @return the (default) value associated with the given key
+	 */
+	public static float getFloat(String key, float defaultValue) {
+
+		return get().getFloatInternal(key, defaultValue);
+	}
+
+	/**
+	 * Returns the value associated with the given key as an integer.
+	 * 
+	 * @param key
+	 *        the key pointing to the associated value
+	 * @param defaultValue
+	 *        the default value which is returned in case there is no value associated with the given key
+	 * @return the (default) value associated with the given key
+	 */
+	private float getFloatInternal(String key, float defaultValue) {
+
+		float retVal = defaultValue;
+
+		try {
+			synchronized (this.confData) {
+
+				if (this.confData.containsKey(key)) {
+					retVal = Float.parseFloat(this.confData.get(key));
+				}
+			}
+		} catch (NumberFormatException e) {
+
+			if (LOG.isDebugEnabled()) {
+				LOG.debug(StringUtils.stringifyException(e));
+			}
+		}
+
+		return retVal;
+	}
 
 	/**
 	 * Returns the value associated with the given key as a boolean.

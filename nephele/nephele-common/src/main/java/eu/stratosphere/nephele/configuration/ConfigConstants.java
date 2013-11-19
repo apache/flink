@@ -64,6 +64,11 @@ public final class ConfigConstants {
 	 * memory manager (in megabytes).
 	 */
 	public static final String MEMORY_MANAGER_AVAILABLE_MEMORY_SIZE_KEY = "taskmanager.memory.size";
+	
+	/**
+	 * The key for the config parameter defining the fraction of free memory allocated by the memory manager.
+	 */
+	public static final String MEMORY_MANAGER_AVAILABLE_MEMORY_FRACTION_KEY = "taskmanager.memory.fraction";
 
 	/**
 	 * The key defining the amount polling interval (in seconds) for the JobClient.
@@ -118,9 +123,9 @@ public final class ConfigConstants {
 	public static final int DEFAULT_TASK_MANAGER_DATA_PORT = 6121;
 
 	/**
-	 * The default amount of memory assigned to each task manager (in megabytes).
+	 * The default fraction of the free memory allocated by the task manager's memory manager.
 	 */
-	public static final int DEFAULT_MEMORY_MANAGER_AVAILABLE_MEMORY = 512;
+	public static final float DEFAULT_MEMORY_MANAGER_MEMORY_FRACTION = 0.7f;
 	
 	/**
 	 * The default number of retries for failed tasks.
