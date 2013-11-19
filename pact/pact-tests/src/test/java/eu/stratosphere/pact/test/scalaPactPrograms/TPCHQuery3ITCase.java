@@ -35,20 +35,14 @@ public class TPCHQuery3ITCase extends eu.stratosphere.pact.test.pactPrograms.TPC
 	}
 
 	@Override
-	protected JobGraph getJobGraph() throws Exception {
+	protected Plan getPactPlan()  {
 
 		TPCHQuery3 tpch3 = new TPCHQuery3();
-		Plan plan = tpch3.getScalaPlan(
+		return tpch3.getScalaPlan(
 				config.getInteger("TPCHQuery3Test#NoSubtasks", 1),
-				getFilesystemProvider().getURIPrefix()+ordersPath, 
-				getFilesystemProvider().getURIPrefix()+lineitemsPath, 
-				getFilesystemProvider().getURIPrefix()+resultPath,
+				ordersPath,
+				lineitemsPath,
+				resultPath,
 				'F', 1993, "5");
-
-		PactCompiler pc = new PactCompiler(new DataStatistics());
-		OptimizedPlan op = pc.compile(plan);
-
-		NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
-		return jgg.compileJobGraph(op);
 	}
 }
