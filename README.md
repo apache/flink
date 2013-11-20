@@ -127,36 +127,24 @@ Import the Stratosphere source code using Maven's Import tool:
 
 Create a new Eclipse Project that requires Stratosphere in its Build Path!
 
-Use this skeleton as an entry point for your own Jobs: It allows you to hit the “Run as” -> “Java Application” feature of Eclipse. (You have to stop the application manually, because only one instance can run at a time)
+Use this skeleton as an entry point for your own Jobs: It allows you to hit the “Run as” -> “Java Application” feature of Eclipse:
 
 ```java
-public class Tutorial implements PlanAssembler, PlanAssemblerDescription {
+public class Tutorial implements PlanAssembler {
 
-	public static void execute(Plan toExecute) throws Exception {
-		LocalExecutor executor = new LocalExecutor();
-		executor.start();
-		long runtime = executor.executePlan(toExecute);
-		System.out.println("runtime:  " + runtime);
-		executor.stop();
-	}
+    @Override
+    public Plan getPlan(String... args) {
+        // your parallel program goes here
+    }
 
-	@Override
-	public Plan getPlan(String... args) {
-		// your Plan goes here
-	}
-
-	@Override
-	public String getDescription() {
-		return "Usage: …. "; // TODO
-	}
-
-	public static void main(String[] args) throws Exception {
-		Tutorial tut = new Tutorial();
-		Plan toExecute = tut.getPlan( /* Arguments */);
-		execute(toExecute);
-	}
+    public static void main(String[] args) throws Exception {
+        Tutorial tut = new Tutorial();
+        Plan toExecute = tut.getPlan(args);
+        long runtime = LocalExecutor.execute(toExecute);
+        System.out.println("Runime: " + runtime);
+        System.exit(0);
+    }
 }
-
 ```
 
 ## Support
