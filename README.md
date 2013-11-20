@@ -201,8 +201,9 @@ We combine cutting edge research outcomes with a stable and usable codebase.
 Decisions are not made behind closed doors. We discuss all changes and plans on our Mailinglists and on GitHub.
 
 
+<!--- Commented out Travis until we get a reliable repont on build status
 Build Status: [![Build Status](https://travis-ci.org/stratosphere/stratosphere.png)](https://travis-ci.org/stratosphere/stratosphere)
-
+-->
 
 
 
