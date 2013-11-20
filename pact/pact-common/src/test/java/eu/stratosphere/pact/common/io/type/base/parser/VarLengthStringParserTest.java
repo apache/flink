@@ -19,7 +19,6 @@ import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
-import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.pact.common.type.base.parser.VarLengthStringParser;
@@ -30,13 +29,12 @@ public class VarLengthStringParserTest {
 	
 	@Test
 	public void testGetValue() {
-		Value v = parser.getValue();
+		Value v = parser.createValue();
 		assertTrue(v instanceof PactString);
 	}
 	
 	@Test
 	public void testParseValidUnquotedStrings() {
-		parser.configure(new Configuration());
 		
 		// check valid strings with out whitespaces and trailing delimiter
 		byte[] recBytes = "abcdefgh|i|jklmno|".getBytes();
@@ -77,7 +75,6 @@ public class VarLengthStringParserTest {
 	
 	@Test
 	public void testParseValidQuotedStringsWithoutWhitespaces() {
-		parser.configure(new Configuration());
 		
 		// check valid strings with out whitespaces and trailing delimiter
 		byte[] recBytes = "\"abcdefgh\"|\"i\"|\"jklmno\"|".getBytes();
@@ -140,7 +137,6 @@ public class VarLengthStringParserTest {
 	
 	@Test
 	public void testParseValidQuotedStringsWithWhitespaces() {
-		parser.configure(new Configuration());
 		
 		// check valid strings with out whitespaces and trailing delimiter
 		byte[] recBytes = "  \"abcdefgh\"|     \"i\"\t\t\t|\t \t\"jklmno\"  |".getBytes();
@@ -193,7 +189,6 @@ public class VarLengthStringParserTest {
 	
 	@Test
 	public void testParseInvalidQuotedStrings() {
-		parser.configure(new Configuration());
 		
 		// check valid strings with out whitespaces and trailing delimiter
 		byte[] recBytes = "  \"abcdefgh\" gh |     \"i\"\t\t\t|\t \t\"jklmno\"  |".getBytes();

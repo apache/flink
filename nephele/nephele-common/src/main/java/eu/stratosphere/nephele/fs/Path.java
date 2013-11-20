@@ -30,6 +30,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 
 import eu.stratosphere.nephele.io.IOReadableWritable;
+import eu.stratosphere.nephele.os.OperatingSystem;
 import eu.stratosphere.nephele.types.StringRecord;
 import eu.stratosphere.nephele.util.StringUtils;
 
@@ -38,6 +39,7 @@ import eu.stratosphere.nephele.util.StringUtils;
  * the directory separator. A path string is absolute if it begins with a slash.
  */
 public class Path implements IOReadableWritable, Serializable {
+	
 	private static final long serialVersionUID = 1L;
 
 	/**
@@ -56,20 +58,14 @@ public class Path implements IOReadableWritable, Serializable {
 	public static final String CUR_DIR = ".";
 
 	/**
-	 * Stores <code>true</code> if the host operation system is Windows, <code>false</code> otherwise.
-	 */
-	static final boolean WINDOWS = System.getProperty("os.name").startsWith("Windows");
-
-	/**
 	 * The internal representation of the path, a hierarchical URI.
 	 */
-	private URI uri = null;
+	private URI uri;
 
 	/**
 	 * Constructs a new (empty) path object (used to reconstruct path object after RPC call).
 	 */
-	public Path() {
-	}
+	public Path() {}
 
 	/**
 	 * Constructs a path object from a given URI.
@@ -268,7 +264,7 @@ public class Path implements IOReadableWritable, Serializable {
 	 * @return <code>true</code> if the path string contains a windows drive letter, <code>false</code> otherwise
 	 */
 	private boolean hasWindowsDrive(String path, boolean slashed) {
-		if (!WINDOWS) {
+		if (!OperatingSystem.getCurrentOperatingSystem().isWindows()) {
 			return false;
 		}
 		final int start = slashed ? 1 : 0;
@@ -505,8 +501,7 @@ public class Path implements IOReadableWritable, Serializable {
 
 	}
 	
-	public static String constructTestPath(String folder)
-	{
+	public static String constructTestPath(String folder) {
 		String path = System.getProperty("java.io.tmpdir");
 		if (!(path.endsWith("/") || path.endsWith("\\")) )
 			path += System.getProperty("file.separator");
@@ -514,8 +509,7 @@ public class Path implements IOReadableWritable, Serializable {
 		return path;
 	}
 	
-	public static String constructTestURI(String folder)
-	{
+	public static String constructTestURI(String folder) {
 		return new File(constructTestPath(folder)).toURI().toString();
 	}
 }

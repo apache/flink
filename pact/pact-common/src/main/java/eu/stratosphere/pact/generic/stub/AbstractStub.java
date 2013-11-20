@@ -25,7 +25,11 @@ import eu.stratosphere.pact.common.stubs.Stub;
  */
 public abstract class AbstractStub implements Stub {
 	
-	private RuntimeContext runtimeContext;
+	// --------------------------------------------------------------------------------------------
+	//  Runtime context access
+	// --------------------------------------------------------------------------------------------
+	
+	private transient RuntimeContext runtimeContext;
 
 	public final void setRuntimeContext(RuntimeContext t) {
 		if (this.runtimeContext == null) {
@@ -52,6 +56,10 @@ public abstract class AbstractStub implements Stub {
 			throw new IllegalStateException("This stub is not part of an iteration step function.");
 		}
 	}
+	
+	// --------------------------------------------------------------------------------------------
+	//  Default lifecycle methods
+	// --------------------------------------------------------------------------------------------
 	
 	@Override
 	public void open(Configuration parameters) throws Exception {}

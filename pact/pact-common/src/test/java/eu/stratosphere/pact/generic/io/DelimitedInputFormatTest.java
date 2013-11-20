@@ -15,39 +15,35 @@
 
 package eu.stratosphere.pact.generic.io;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.MockitoAnnotations.initMocks;
-import static org.powermock.api.mockito.PowerMockito.when;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.io.OutputStreamWriter;
 
+import org.apache.log4j.Level;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.Matchers;
-import org.mockito.Mock;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactString;
+import eu.stratosphere.pact.common.util.LogUtils;
 
-@RunWith(PowerMockRunner.class)
-@PowerMockIgnore("org.apache.log4j.*")
 public class DelimitedInputFormatTest {
 	
-	@Mock
 	protected Configuration config;
 	
 	protected File tempFile;
@@ -56,9 +52,15 @@ public class DelimitedInputFormatTest {
 	
 	// --------------------------------------------------------------------------------------------
 	
+	@BeforeClass
+	public static void initialize() {
+		LogUtils.initializeDefaultConsoleLogger(Level.WARN);
+	}
+	
 	@Before
 	public void setup() {
-		initMocks(this);
+		this.format.setFilePath(new Path("file:///some/file/that/will/not/be/read"));
+		this.config = new Configuration();
 	}
 	
 	@After
@@ -75,20 +77,43 @@ public class DelimitedInputFormatTest {
 	// --------------------------------------------------------------------------------------------
 	@Test
 	public void testConfigure() {
-		when(this.config.getString(Matchers.matches(DelimitedInputFormat.RECORD_DELIMITER), Matchers.anyString()))
-			.thenReturn("\n");
-		when(this.config.getString(Matchers.matches(FileInputFormat.FILE_PARAMETER_KEY), Matchers.anyString()))
-		.thenReturn("file:///some/file/that/will/not/be/read");
+		this.config.setString("delimited-format.delimiter", "\n");
 		
 		format.configure(this.config);
-		verify(this.config, times(4)).getString(Matchers.any(String.class), Matchers.any(String.class));
 		assertEquals("\n", new String(format.getDelimiter()));
 
-		when(this.config.getString(Matchers.matches(DelimitedInputFormat.RECORD_DELIMITER), Matchers.anyString()))
-			.thenReturn("&-&");
+		this.config.setString("delimited-format.delimiter", "&-&");
 		format.configure(this.config);
-		verify(this.config, times(8)).getString(Matchers.any(String.class), Matchers.any(String.class));
 		assertEquals("&-&", new String(format.getDelimiter()));
+	}
+	
+	@Test
+	public void testSerialization() throws Exception {
+		final byte[] DELIMITER = new byte[] {1, 2, 3, 4};
+		final int NUM_LINE_SAMPLES = 7;
+		final int LINE_LENGTH_LIMIT = 12345;
+		final int BUFFER_SIZE = 178;
+		
+		DelimitedInputFormat<PactRecord> format = new MyTextInputFormat();
+		format.setDelimiter(DELIMITER);
+		format.setNumLineSamples(NUM_LINE_SAMPLES);
+		format.setLineLengthLimit(LINE_LENGTH_LIMIT);
+		format.setBufferSize(BUFFER_SIZE);
+		
+		ByteArrayOutputStream baos = new ByteArrayOutputStream(4096);
+		ObjectOutputStream oos = new ObjectOutputStream(baos);
+		oos.writeObject(format);
+		oos.flush();
+		oos.close();
+		
+		ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(baos.toByteArray()));
+		@SuppressWarnings("unchecked")
+		DelimitedInputFormat<PactRecord> deserialized = (DelimitedInputFormat<PactRecord>) ois.readObject();
+		
+		assertEquals(NUM_LINE_SAMPLES, deserialized.getNumLineSamples());
+		assertEquals(LINE_LENGTH_LIMIT, deserialized.getLineLengthLimit());
+		assertEquals(BUFFER_SIZE, deserialized.getBufferSize());
+		assertArrayEquals(DELIMITER, deserialized.getDelimiter());
 	}
 
 	@Test
@@ -99,8 +124,8 @@ public class DelimitedInputFormatTest {
 		int bufferSize = 5;
 		format.setBufferSize(bufferSize);
 		format.open(split);
-		assertEquals(0, format.getSplitStart());
-		assertEquals(myString.length() - bufferSize, format.getSplitLength());
+		assertEquals(0, format.splitStart);
+		assertEquals(myString.length() - bufferSize, format.splitLength);
 		assertEquals(bufferSize, format.getBufferSize());
 	}
 
@@ -110,9 +135,8 @@ public class DelimitedInputFormatTest {
 		final FileInputSplit split = createTempFile(myString);
 		
 		final Configuration parameters = new Configuration();
-		parameters.setString(FileInputFormat.FILE_PARAMETER_KEY, "file:///some/file/that/will/not/be/read");
-		parameters.setString(DelimitedInputFormat.RECORD_DELIMITER, "$$$");
 		
+		format.setDelimiter("$$$");
 		format.configure(parameters);
 		format.open(split);
 		
@@ -137,9 +161,7 @@ public class DelimitedInputFormatTest {
 		final FileInputSplit split = createTempFile(myString);
 		
 		final Configuration parameters = new Configuration();
-		parameters.setString(FileInputFormat.FILE_PARAMETER_KEY, "file:///some/file/that/will/not/be/read");
-		parameters.setString(DelimitedInputFormat.RECORD_DELIMITER, "\n");
-		
+		// default delimiter = '\n'
 		
 		format.configure(parameters);
 		format.open(split);
@@ -160,6 +182,8 @@ public class DelimitedInputFormatTest {
 	
 	private FileInputSplit createTempFile(String contents) throws IOException {
 		this.tempFile = File.createTempFile("test_contents", "tmp");
+		this.tempFile.deleteOnExit();
+		
 		OutputStreamWriter wrt = new OutputStreamWriter(new FileOutputStream(this.tempFile));
 		wrt.write(contents);
 		wrt.close();
@@ -173,9 +197,6 @@ public class DelimitedInputFormatTest {
 		private final PactString str1 = new PactString();
 		private final PactString str2 = new PactString();
 		
-		/* (non-Javadoc)
-		 * @see eu.stratosphere.pact.common.io.DelimitedInputFormat#readRecord(eu.stratosphere.pact.common.type.PactRecord, byte[], int)
-		 */
 		@Override
 		public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes) {
 			String theRecord = new String(bytes, offset, numBytes);

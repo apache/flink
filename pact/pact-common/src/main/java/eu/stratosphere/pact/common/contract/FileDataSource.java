@@ -20,8 +20,8 @@ import eu.stratosphere.pact.generic.io.FileInputFormat;
 /**
  * Contract for input nodes which read data from files.
  */
-public class FileDataSource extends GenericDataSource<FileInputFormat<?>>
-{
+public class FileDataSource extends GenericDataSource<FileInputFormat<?>> {
+	
 	private static String DEFAULT_NAME = "<Unnamed File Data Source>";
 	
 	protected final String filePath;
@@ -38,7 +38,7 @@ public class FileDataSource extends GenericDataSource<FileInputFormat<?>>
 	public FileDataSource(FileInputFormat<?> f, String filePath, String name) {
 		super(f, name);
 		this.filePath = filePath;
-		this.parameters.setString(FileInputFormat.FILE_PARAMETER_KEY, filePath);
+		f.setFilePath(filePath);
 	}
 
 	/**
@@ -61,7 +61,7 @@ public class FileDataSource extends GenericDataSource<FileInputFormat<?>>
 	public FileDataSource(Class<? extends FileInputFormat<?>> f, String filePath, String name) {
 		super(f, name);
 		this.filePath = filePath;
-		this.parameters.setString(FileInputFormat.FILE_PARAMETER_KEY, filePath);
+		FileInputFormat.configureFileFormat(this).filePath(filePath);
 	}
 
 	/**
@@ -87,9 +87,6 @@ public class FileDataSource extends GenericDataSource<FileInputFormat<?>>
 	
 	// --------------------------------------------------------------------------------------------
 	
-	/* (non-Javadoc)
-	 * @see java.lang.Object#toString()
-	 */
 	public String toString() {
 		return this.filePath;
 	}

@@ -20,9 +20,6 @@ import java.lang.annotation.Annotation;
 /**
  * PACT contracts can have either a class or an object containing the user
  * code, this is the common interface to access them.
- * 
- * @author Aljoscha Krettek
- * 
  */
 public interface UserCodeWrapper<T> extends Serializable {
 	/**

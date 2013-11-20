@@ -18,27 +18,27 @@ package eu.stratosphere.pact.common.io;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.MockitoAnnotations.initMocks;
 
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 
+import org.apache.log4j.Level;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
-import org.mockito.Mock;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.common.util.LogUtils;
 
 public class FixedLenghtInputFormatTest {
 
-	@Mock
 	protected Configuration config;
 	
 	protected File tempFile;
@@ -47,9 +47,14 @@ public class FixedLenghtInputFormatTest {
 	
 	// --------------------------------------------------------------------------------------------
 	
+	@BeforeClass
+	public static void initialize() {
+		LogUtils.initializeDefaultConsoleLogger(Level.WARN);
+	}
+	
 	@Before
 	public void setup() {
-		initMocks(this);
+		format.setFilePath("file:///some/file/that/will/not/be/read");
 	}
 	
 	@After
@@ -63,13 +68,11 @@ public class FixedLenghtInputFormatTest {
 	}
 
 	@Test
-	public void testOpen() throws IOException
-	{
+	public void testOpen() throws IOException {
 		final int[] fileContent = {1,2,3,4,5,6,7,8};
 		final FileInputSplit split = createTempFile(fileContent);	
 	
 		final Configuration parameters = new Configuration();
-		parameters.setString(FileInputFormat.FILE_PARAMETER_KEY, "file:///some/file/that/will/not/be/read");
 		parameters.setInteger(FixedLengthInputFormat.RECORDLENGTH_PARAMETER_KEY, 8);
 		
 		format.configure(parameters);
@@ -95,13 +98,12 @@ public class FixedLenghtInputFormatTest {
 	}
 	
 	@Test
-	public void testRead() throws IOException
-	{
+	public void testRead() throws IOException {
 		final int[] fileContent = {1,2,3,4,5,6,7,8};
 		final FileInputSplit split = createTempFile(fileContent);
 		
 		final Configuration parameters = new Configuration();
-		parameters.setString(FileInputFormat.FILE_PARAMETER_KEY, "file:///some/file/that/will/not/be/read");
+		
 		parameters.setInteger(FixedLengthInputFormat.RECORDLENGTH_PARAMETER_KEY, 8);
 		
 		format.configure(parameters);
@@ -138,7 +140,6 @@ public class FixedLenghtInputFormatTest {
 		final FileInputSplit split = createTempFile(fileContent);
 		
 		final Configuration parameters = new Configuration();
-		parameters.setString(FileInputFormat.FILE_PARAMETER_KEY, "file:///some/file/that/will/not/be/read");
 		parameters.setInteger(FixedLengthInputFormat.RECORDLENGTH_PARAMETER_KEY, 8);
 		
 		format.configure(parameters);
@@ -172,9 +173,10 @@ public class FixedLenghtInputFormatTest {
 	}
 	
 	
-	private FileInputSplit createTempFile(int[] contents) throws IOException
-	{
+	private FileInputSplit createTempFile(int[] contents) throws IOException {
 		this.tempFile = File.createTempFile("test_contents", "tmp");
+		this.tempFile.deleteOnExit();
+		
 		DataOutputStream dos = new DataOutputStream(new FileOutputStream(tempFile));
 		
 		for(int i : contents) {

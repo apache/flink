@@ -33,8 +33,6 @@ import eu.stratosphere.pact.common.util.ReflectionUtil;
 
 /**
  * Provides convenience methods to deal with I/O operations related to {@link InputFormat} and {@link OutputFormat}.
- * 
- * @author Arvid Heise
  */
 public class FormatUtil {
 
@@ -56,14 +54,16 @@ public class FormatUtil {
 	 *         if an I/O error occurred while accessing the file or initializing the InputFormat.
 	 */
 	public static <T, F extends FileInputFormat<T>> F openInput(
-			Class<F> inputFormatClass, String path, Configuration configuration) throws IOException {
+			Class<F> inputFormatClass, String path, Configuration configuration)
+		throws IOException
+	{
 		configuration = configuration == null ? new Configuration() : configuration;
 
 		Path normalizedPath = normalizePath(new Path(path));
 		final F inputFormat = ReflectionUtil.newInstance(inputFormatClass);
 
-		configuration.setString(FileInputFormat.FILE_PARAMETER_KEY, path);
-		configuration.setLong(FileInputFormat.INPUT_STREAM_OPEN_TIMEOUT_KEY, 0);
+		inputFormat.setFilePath(normalizedPath);
+		inputFormat.setOpenTimeout(0);
 		inputFormat.configure(configuration);
 
 		final FileSystem fs = FileSystem.get(normalizedPath.toUri());

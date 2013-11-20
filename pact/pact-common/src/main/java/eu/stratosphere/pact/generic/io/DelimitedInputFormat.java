@@ -16,11 +16,15 @@
 package eu.stratosphere.pact.generic.io;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
+import java.nio.charset.Charset;
+import java.nio.charset.IllegalCharsetNameException;
+import java.nio.charset.UnsupportedCharsetException;
 import java.util.ArrayList;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+
+import com.google.common.base.Charsets;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
@@ -33,11 +37,16 @@ import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
 import eu.stratosphere.pact.common.util.PactConfigConstants;
 
 /**
- * Base implementation for delimiter based input formats.
+ * Base implementation for input formats that split the input at a delimiter into records.
+ * The parsing of the record bytes into the record has to be implemented in the
+ * {@link #readRecord(Object, byte[], int, int)} method.
+ * <p>
+ * The default delimiter is the newline character {@code '\n'}.
  */
 public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
-	private static final long serialVersionUID = 1L;
 	
+	private static final long serialVersionUID = 1L;
+
 	// -------------------------------------- Constants -------------------------------------------
 	
 	/**
@@ -69,6 +78,8 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 	 * The maximum size of a sample record before sampling is aborted. To catch cases where a wrong delimiter is given.
 	 */
 	private static int MAX_SAMPLE_LEN;
+	
+	static { loadGloablConfigParams(); }
 	
 	protected static final void loadGloablConfigParams() {
 		int maxSamples = GlobalConfiguration.getInteger(PactConfigConstants.DELIMITED_FORMAT_MAX_LINE_SAMPLES_KEY,
@@ -109,66 +120,118 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 		MAX_SAMPLE_LEN = maxLen;
 	}
 	
-	static { loadGloablConfigParams(); }
-	
-	// ------------------------------------- Config Keys ------------------------------------------
-	
-	/**
-	 * The configuration key to set the record delimiter.
-	 */
-	public static final String RECORD_DELIMITER = "delimited-format.delimiter";
-	
-	/**
-	 * The configuration key to set the record delimiter encoding.
-	 */
-	public static final String RECORD_DELIMITER_ENCODING = "delimited-format.delimiter-encoding";
-	
-	/**
-	 * The configuration key to set the number of samples to take for the statistics.
-	 */
-	public static final String NUM_STATISTICS_SAMPLES = "delimited-format.numSamples";
-	
+	// --------------------------------------------------------------------------------------------
+	//  Variables for internal parsing.
+	//  They are all transient, because we do not want them so be serialized 
 	// --------------------------------------------------------------------------------------------
 	
-	protected byte[] readBuffer;
+	private transient byte[] readBuffer;
 
-	protected byte[] wrapBuffer;
+	private transient byte[] wrapBuffer;
 
-	protected int readPos;
+	private transient int readPos;
 
-	protected int limit;
-
-	protected byte[] delimiter = new byte[] {'\n'};
+	private transient int limit;
 	
-	private byte[] currBuffer;
-	private int currOffset;
-	private int currLen;
+	private transient byte[] currBuffer;		// buffer in which current record byte sequence is found
+	private transient int currOffset;			// offset in above buffer
+	private transient int currLen;				// length of current byte sequence
+
+	private transient boolean overLimit;
+
+	private transient boolean end;
+	
+	
+	// --------------------------------------------------------------------------------------------
+	//  The configuration parameters. Configured on the instance and serialized to be shipped.
+	// --------------------------------------------------------------------------------------------
+	
+	private byte[] delimiter = new byte[] {'\n'};
+	
 	private int lineLengthLimit = Integer.MAX_VALUE;
-
-	protected boolean overLimit;
-
-	protected boolean end;
 	
-	protected int bufferSize = -1;
+	private int bufferSize = -1;
 	
-	protected int numLineSamples;
+	private int numLineSamples = NUM_SAMPLES_UNDEFINED;
+	
 	
 	// --------------------------------------------------------------------------------------------
+	//  Getters/setters for the configurable parameters
+	// --------------------------------------------------------------------------------------------
 	
-	byte[] getDelimiter() {
-		return this.delimiter;
+	public byte[] getDelimiter() {
+		return delimiter;
 	}
 	
-	void setBufferSize(int size) {
-		this.bufferSize = size;
+	public void setDelimiter(byte[] delimiter) {
+		if (delimiter == null)
+			throw new IllegalArgumentException("Delimiter must not be null");
+		
+		this.delimiter = delimiter;
 	}
 	
-	int getBufferSize() {
-		return this.bufferSize;
+	public void setDelimiter(char delimiter) {
+		setDelimiter(String.valueOf(delimiter));
+	}
+	
+	public void setDelimiter(String delimiter) {
+		setDelimiter(delimiter, Charsets.UTF_8);
+	}
+	
+	public void setDelimiter(String delimiter, String charsetName) throws IllegalCharsetNameException, UnsupportedCharsetException {
+		if (charsetName == null)
+			throw new IllegalArgumentException("Charset name must not be null");
+		
+		Charset charset = Charset.forName(charsetName);
+		setDelimiter(delimiter, charset);
+	}
+	
+	public void setDelimiter(String delimiter, Charset charset) {
+		if (delimiter == null)
+			throw new IllegalArgumentException("Delimiter must not be null");
+		if (charset == null)
+			throw new IllegalArgumentException("Charset must not be null");
+		
+		this.delimiter = delimiter.getBytes(charset);
+	}
+	
+	public int getLineLengthLimit() {
+		return lineLengthLimit;
+	}
+	
+	public void setLineLengthLimit(int lineLengthLimit) {
+		if (lineLengthLimit < 1)
+			throw new IllegalArgumentException("Line length limit must be at least 1.");
+
+		this.lineLengthLimit = lineLengthLimit;
+	}
+	
+	public int getBufferSize() {
+		return bufferSize;
+	}
+	
+	public void setBufferSize(int bufferSize) {
+		if (bufferSize < 1)
+			throw new IllegalArgumentException("Buffer size must be at least 1.");
+		
+		this.bufferSize = bufferSize;
+	}
+	
+	public int getNumLineSamples() {
+		return numLineSamples;
+	}
+	
+	public void setNumLineSamples(int numLineSamples) {
+		if (numLineSamples < 0)
+			throw new IllegalArgumentException("Number of line samples must not be negative.");
+		
+		this.numLineSamples = numLineSamples;
 	}
 	
 	// --------------------------------------------------------------------------------------------
-	
+	//  User-defined behavior
+	// --------------------------------------------------------------------------------------------
+
 	/**
 	 * This function parses the given byte array which represents a serialized key/value
 	 * pair. The parsed content is then returned by setting the pair variables. If the
@@ -181,6 +244,8 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 	public abstract boolean readRecord(OT target, byte[] bytes, int offset, int numBytes);
 	
 	// --------------------------------------------------------------------------------------------
+	//  Pre-flight: Configuration, Splits, Sampling
+	// --------------------------------------------------------------------------------------------
 	
 	/**
 	 * Configures this input format by reading the path to the file from the configuration and the string that
@@ -192,42 +257,37 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 	public void configure(Configuration parameters) {
 		super.configure(parameters);
 		
-		final String delimString = parameters.getString(RECORD_DELIMITER, AbstractConfigBuilder.NEWLINE_DELIMITER);
-		if (delimString == null) {
-			throw new IllegalArgumentException("The delimiter not be null.");
-		}
-		final String charsetName = parameters.getString(RECORD_DELIMITER_ENCODING, null);
+		String delimString = parameters.getString(RECORD_DELIMITER, null);
+		if (delimString != null) {
+			String charsetName = parameters.getString(RECORD_DELIMITER_ENCODING, null);
 
-		try {
-			this.delimiter = charsetName == null ? delimString.getBytes() : delimString.getBytes(charsetName);
-		} catch (UnsupportedEncodingException useex) {
-			throw new IllegalArgumentException("The charset with the name '" + charsetName + 
-				"' is not supported on this TaskManager instance.", useex);
+			if (charsetName == null) {
+				setDelimiter(delimString);
+			} else {
+				try {
+					setDelimiter(delimString, charsetName);
+				}
+				catch (UnsupportedCharsetException e) {
+					throw new IllegalArgumentException("The charset with the name '" + charsetName + 
+							"' is not supported on this TaskManager instance.", e);
+				}
+			}
 		}
 		
 		// set the number of samples
-		this.numLineSamples = NUM_SAMPLES_UNDEFINED;
-		final String samplesString = parameters.getString(NUM_STATISTICS_SAMPLES, null);
+		String samplesString = parameters.getString(NUM_STATISTICS_SAMPLES, null);
 		if (samplesString != null) {
 			try {
-				this.numLineSamples = Integer.parseInt(samplesString);
-				if (this.numLineSamples < 0) {
-					throw new NumberFormatException();
-				}
+				setNumLineSamples(Integer.parseInt(samplesString));
 			}
-			catch (NumberFormatException nfex) {
+			catch (NumberFormatException e) {
 				if (LOG.isWarnEnabled())
 					LOG.warn("Invalid value for number of samples to take: " + samplesString + ". Skipping sampling.");
-				this.numLineSamples = 0;
+				setNumLineSamples(0);
 			}
 		}
 	}
 	
-	// --------------------------------------------------------------------------------------------
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.io.InputFormat#getStatistics()
-	 */
 	@Override
 	public FileBaseStatistics getStatistics(BaseStatistics cachedStats) throws IOException {
 		
@@ -382,9 +442,6 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 		return this.end;
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.generic.io.InputFormat#nextRecord(java.lang.Object)
-	 */
 	@Override
 	public boolean nextRecord(OT record) throws IOException {
 		if (readLine()) {
@@ -516,6 +573,27 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 	}
 	
 	// ============================================================================================
+	//  Parameterization via configuration
+	// ============================================================================================
+	
+	// ------------------------------------- Config Keys ------------------------------------------
+	
+	/**
+	 * The configuration key to set the record delimiter.
+	 */
+	protected static final String RECORD_DELIMITER = "delimited-format.delimiter";
+	
+	/**
+	 * The configuration key to set the record delimiter encoding.
+	 */
+	private static final String RECORD_DELIMITER_ENCODING = "delimited-format.delimiter-encoding";
+	
+	/**
+	 * The configuration key to set the number of samples to take for the statistics.
+	 */
+	private static final String NUM_STATISTICS_SAMPLES = "delimited-format.numSamples";
+	
+	// ----------------------------------- Config Builder -----------------------------------------
 	
 	/**
 	 * Creates a configuration builder that can be used to set the input format's parameters to the config in a fluent

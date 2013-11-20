@@ -23,9 +23,11 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 
+import org.apache.log4j.Level;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -39,17 +41,14 @@ import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
+import eu.stratosphere.pact.common.util.LogUtils;
 
 /**
  * Tests {@link SequentialInputFormat} and {@link SequentialOutputFormat}.
- * 
- * @author Arvid Heise
  */
 @RunWith(Parameterized.class)
 public class SequentialFormatTest {
-	/**
-	 * @author Arvid Heise
-	 */
+
 	public class InputSplitSorter implements Comparator<FileInputSplit> {
 		/*
 		 * (non-Javadoc)
@@ -74,6 +73,11 @@ public class SequentialFormatTest {
 
 	private File tempFile;
 
+	@BeforeClass
+	public static void initialize() {
+		LogUtils.initializeDefaultConsoleLogger(Level.WARN);
+	}
+	
 	/**
 	 * Initializes SequentialFormatTest.
 	 */
@@ -228,10 +232,11 @@ public class SequentialFormatTest {
 
 	protected SequentialInputFormat<PactRecord> createInputFormat() {
 		Configuration configuration = new Configuration();
-		configuration.setString(FileInputFormat.FILE_PARAMETER_KEY, this.tempFile.toURI().toString());
 		configuration.setLong(BinaryInputFormat.BLOCK_SIZE_PARAMETER_KEY, this.blockSize);
 
 		final SequentialInputFormat<PactRecord> inputFormat = new SequentialInputFormat<PactRecord>();
+		inputFormat.setFilePath(this.tempFile.toURI().toString());
+		
 		inputFormat.configure(configuration);
 		return inputFormat;
 	}

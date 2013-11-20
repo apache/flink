@@ -29,7 +29,7 @@ public class DecimalTextDoubleParserTest {
 	
 	@Test
 	public void testGetValue() {
-		Value v = parser.getValue();
+		Value v = parser.createValue();
 		assertTrue(v instanceof PactDouble);
 	}
 	

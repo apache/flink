@@ -29,9 +29,10 @@ import eu.stratosphere.nephele.jobgraph.JobInputVertex;
 import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.nephele.template.AbstractInputTask;
-import eu.stratosphere.pact.common.io.FileInputFormat;
 import eu.stratosphere.pact.generic.contract.UserCodeClassWrapper;
+import eu.stratosphere.pact.generic.contract.UserCodeObjectWrapper;
 import eu.stratosphere.pact.generic.contract.UserCodeWrapper;
+import eu.stratosphere.pact.generic.io.FileInputFormat;
 import eu.stratosphere.pact.generic.io.InputFormat;
 import eu.stratosphere.pact.runtime.iterative.io.FakeOutputTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationSynchronizationSinkTask;
@@ -52,23 +53,36 @@ public class JobGraphUtils {
 		client.submitJobAndWait();
 	}
 	
+	public static <T extends FileInputFormat<?>> JobInputVertex createInput(T stub, String path, String name, JobGraph graph,
+			int degreeOfParallelism, int numSubTasksPerInstance)
+	{
+		stub.setFilePath(path);
+		return createInput(new UserCodeObjectWrapper<T>(stub), null, name, graph, degreeOfParallelism, numSubTasksPerInstance);
+	}
+	
 	public static <T extends InputFormat<?,?>> JobInputVertex createInput(Class<? extends T> stub, String path, String name, JobGraph graph,
 			int degreeOfParallelism, int numSubTasksPerInstance) {
 		return createInput(new UserCodeClassWrapper<T>(stub), path, name, graph, degreeOfParallelism, numSubTasksPerInstance);
 	}
 
-	public static <T extends InputFormat<?,?>> JobInputVertex createInput(UserCodeWrapper<T> stub, String path, String name, JobGraph graph,
+	private static <T extends InputFormat<?,?>> JobInputVertex createInput(UserCodeWrapper<T> stub, String configPath, String name, JobGraph graph,
 			int degreeOfParallelism, int numSubTasksPerInstance)
 	{
 		JobInputVertex inputVertex = new JobInputVertex(name, graph);
+		
 		@SuppressWarnings("unchecked")
 		Class<AbstractInputTask<?>> clazz = (Class<AbstractInputTask<?>>) (Class<?>) DataSourceTask.class;
 		inputVertex.setInputClass(clazz);
+		
 		inputVertex.setNumberOfSubtasks(degreeOfParallelism);
 		inputVertex.setNumberOfSubtasksPerInstance(numSubTasksPerInstance);
+		
 		TaskConfig inputConfig = new TaskConfig(inputVertex.getConfiguration());
 		inputConfig.setStubWrapper(stub);
-		inputConfig.setStubParameter(FileInputFormat.FILE_PARAMETER_KEY, path);
+		if (configPath != null) {
+			inputConfig.setStubParameter("pact.input.file.path", configPath);
+		}
+		
 		return inputVertex;
 	}
 

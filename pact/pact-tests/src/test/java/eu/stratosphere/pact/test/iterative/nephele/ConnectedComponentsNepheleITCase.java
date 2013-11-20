@@ -42,7 +42,6 @@ import eu.stratosphere.pact.common.stubs.MapStub;
 import eu.stratosphere.pact.common.stubs.aggregators.LongSumAggregator;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactLong;
-import eu.stratosphere.pact.common.type.base.parser.DecimalTextLongParser;
 import eu.stratosphere.pact.example.connectedcomponents.WorksetConnectedComponents.MinimumComponentIDReduce;
 import eu.stratosphere.pact.example.connectedcomponents.WorksetConnectedComponents.NeighborWithComponentIDJoin;
 import eu.stratosphere.pact.example.connectedcomponents.WorksetConnectedComponents.UpdateComponentIdMatch;
@@ -147,19 +146,14 @@ public class ConnectedComponentsNepheleITCase extends TestBase2 {
 		// --------------- the inputs ---------------------
 
 		// vertices
-		JobInputVertex verticesInput = JobGraphUtils.createInput(RecordInputFormat.class,
+		@SuppressWarnings("unchecked")
+		RecordInputFormat verticesInFormat = new RecordInputFormat(' ', PactLong.class);
+		JobInputVertex verticesInput = JobGraphUtils.createInput(verticesInFormat,
 			verticesPath, "VerticesInput", jobGraph, degreeOfParallelism, numSubTasksPerInstance);
 		{
 			TaskConfig verticesInputConfig = new TaskConfig(verticesInput.getConfiguration());
-			Configuration verticesInputUserConfig = verticesInputConfig.getStubParameters();
 			verticesInputConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
 			verticesInputConfig.setOutputSerializer(serializer);
-			
-			verticesInputUserConfig.setString(RecordInputFormat.RECORD_DELIMITER_PARAMETER, "\n");
-			verticesInputUserConfig.setString(RecordInputFormat.FIELD_DELIMITER_PARAMETER, " ");
-			verticesInputUserConfig.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 0, DecimalTextLongParser.class);
-			verticesInputUserConfig.setInteger(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX + 0, 0);
-			verticesInputUserConfig.setInteger(RecordInputFormat.NUM_FIELDS_PARAMETER, 1);
 			
 			
 			// chained mapper that duplicates the id
@@ -179,22 +173,15 @@ public class ConnectedComponentsNepheleITCase extends TestBase2 {
 		}
 
 		// edges 
-		JobInputVertex edgeInput = JobGraphUtils.createInput(RecordInputFormat.class,
+		@SuppressWarnings("unchecked")
+		RecordInputFormat edgesInFormat = new RecordInputFormat(' ', PactLong.class, PactLong.class);
+		JobInputVertex edgeInput = JobGraphUtils.createInput(edgesInFormat,
 			edgesPath, "EdgesInput", jobGraph, degreeOfParallelism, numSubTasksPerInstance);
 		{
 			TaskConfig edgesInputConfig = new TaskConfig(edgeInput.getConfiguration());
 			edgesInputConfig.setOutputSerializer(serializer);
 			edgesInputConfig.addOutputShipStrategy(ShipStrategyType.PARTITION_HASH);
 			edgesInputConfig.setOutputComparator(comparator, 0);
-			
-			Configuration edgesInputUserConfig = edgesInputConfig.getStubParameters();
-			edgesInputUserConfig.setString(RecordInputFormat.RECORD_DELIMITER_PARAMETER, "\n");
-			edgesInputUserConfig.setString(RecordInputFormat.FIELD_DELIMITER_PARAMETER, " ");
-			edgesInputUserConfig.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 0, DecimalTextLongParser.class);
-			edgesInputUserConfig.setInteger(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX + 0, 0);
-			edgesInputUserConfig.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 1, DecimalTextLongParser.class);
-			edgesInputUserConfig.setInteger(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX + 1, 1);
-			edgesInputUserConfig.setInteger(RecordInputFormat.NUM_FIELDS_PARAMETER, 2);
 		}
 		
 		// --------------- the iteration head ---------------------

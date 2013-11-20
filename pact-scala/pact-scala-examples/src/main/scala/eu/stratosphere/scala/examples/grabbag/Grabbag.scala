@@ -37,7 +37,7 @@ object Main1 {
     def formatOutput = (word: String, count: Int) => "%s %d".format(word, count)
     
     val input = TextFile("file:///home/aljoscha/dummy-input")
-    val inputNumbers = DataSource("file:///home/aljoscha/dummy-input-numbers", CsvInputFormat[(Int, String)]("\n", ","))
+    val inputNumbers = DataSource("file:///home/aljoscha/dummy-input-numbers", CsvInputFormat[(Int, String)]("\n", ','))
     
     val counts = input.map { _.split("""\W+""") map { (_, 1) } }
       .flatMap { l => l }

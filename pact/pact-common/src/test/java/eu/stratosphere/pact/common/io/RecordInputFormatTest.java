@@ -18,7 +18,7 @@ package eu.stratosphere.pact.common.io;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.MockitoAnnotations.initMocks;
+import static org.junit.Assert.fail;
 
 import java.io.DataOutputStream;
 import java.io.File;
@@ -27,35 +27,37 @@ import java.io.IOException;
 
 import junit.framework.Assert;
 
+import org.apache.log4j.Level;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
-import org.mockito.Mock;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.nephele.fs.Path;
+import eu.stratosphere.nephele.template.IllegalConfigurationException;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.common.type.base.parser.DecimalTextIntParser;
-import eu.stratosphere.pact.common.type.base.parser.VarLengthStringParser;
+import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.pact.common.util.LogUtils;
 
 public class RecordInputFormatTest {
-
-	@Mock
-	protected Configuration config;
 	
 	protected File tempFile;
 	
 	private final RecordInputFormat format = new RecordInputFormat();
 	
 	// --------------------------------------------------------------------------------------------
+
+	@BeforeClass
+	public static void initialize() {
+		LogUtils.initializeDefaultConsoleLogger(Level.WARN);
+	}
 	
 	@Before
 	public void setup() {
-		initMocks(this);
-		LogUtils.initializeDefaultConsoleLogger();
+		format.setFilePath("file:///some/file/that/will/not/be/read");
 	}
 	
 	@After
@@ -69,113 +71,92 @@ public class RecordInputFormatTest {
 	}
 
 	@Test
-	public void testConfigure() {
+	public void testConfigureEmptyConfig() {
 		try {
 			Configuration config = new Configuration();
-			config.setString(RecordInputFormat.FILE_PARAMETER_KEY, "file:///some/file/that/will/not/be/read");
 			
-			// check missing number of fields
-			boolean validConfig = true;
+			// empty configuration, plus no fields on the format itself is not valid
 			try {
 				format.configure(config);
-			} catch(IllegalArgumentException iae) {
-				validConfig = false;
+				fail(); // should give an error
+			} catch (IllegalConfigurationException e) {
+				; // okay
 			}
-			assertFalse(validConfig);
+		}
+		catch (Exception ex) {
+			Assert.fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
+		}
+	}
+	
+	@SuppressWarnings("unchecked")
+	@Test
+	public void readWithEmptyFieldInstanceParameters() {
+		try {
+			final String fileContent = "abc|def|ghijk\nabc||hhg\n|||";
+			final FileInputSplit split = createTempFile(fileContent);	
+		
+			final Configuration parameters = new Configuration();
+
+			format.setFieldDelim('|');
+			format.setFieldTypes(PactString.class, PactString.class, PactString.class);
 			
-			// check missing file parser
-			config.setInteger(RecordInputFormat.NUM_FIELDS_PARAMETER, 2);
-			validConfig = true;
-			try {
-				format.configure(config);
-			} catch(IllegalArgumentException iae) {
-				validConfig = false;
-			}
-			assertFalse(validConfig);
+			format.configure(parameters);
+			format.open(split);
 			
-			// check valid config
-			config.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 0, DecimalTextIntParser.class);
-			config.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 1, DecimalTextIntParser.class);
-			validConfig = true;
-			try {
-				format.configure(config);
-			} catch(IllegalArgumentException iae) {
-				validConfig = false;
-			}
-			assertTrue(validConfig);
+			PactRecord record = new PactRecord();
 			
-			// check invalid file parser config
-			config.setInteger(RecordInputFormat.NUM_FIELDS_PARAMETER, 3);
-			validConfig = true;
-			try {
-				format.configure(config);
-			} catch(IllegalArgumentException iae) {
-				validConfig = false;
-			}
-			assertFalse(validConfig);
+			assertTrue(format.nextRecord(record));
+			assertEquals("abc", record.getField(0, PactString.class).getValue());
+			assertEquals("def", record.getField(1, PactString.class).getValue());
+			assertEquals("ghijk", record.getField(2, PactString.class).getValue());
 			
-			// check invalid field delimiter
-			config.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 2, DecimalTextIntParser.class);
-			config.setString(RecordInputFormat.FIELD_DELIMITER_PARAMETER, "||");
-			validConfig = true;
-			try {
-				format.configure(config);
-			} catch(IllegalArgumentException iae) {
-				validConfig = false;
-			}
-			assertFalse(validConfig);
+			assertTrue(format.nextRecord(record));
+			assertEquals("abc", record.getField(0, PactString.class).getValue());
+			assertEquals("", record.getField(1, PactString.class).getValue());
+			assertEquals("hhg", record.getField(2, PactString.class).getValue());
 			
-			// check valid config
-			config.setString(RecordInputFormat.FIELD_DELIMITER_PARAMETER, "|");
-			validConfig = true;
-			try {
-				format.configure(config);
-			} catch(IllegalArgumentException iae) {
-				validConfig = false;
-			}
-			assertTrue(validConfig);
+			assertTrue(format.nextRecord(record));
+			assertEquals("", record.getField(0, PactString.class).getValue());
+			assertEquals("", record.getField(1, PactString.class).getValue());
+			assertEquals("", record.getField(2, PactString.class).getValue());
+		}
+		catch (Exception ex) {
+			ex.printStackTrace();
+			Assert.fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
+		}
+	}
+	
+	@Test
+	public void readWithEmptyFieldConfigParameters() {
+		try {
+			final String fileContent = "abc|def|ghijk\nabc||hhg\n|||";
+			final FileInputSplit split = createTempFile(fileContent);	
+		
+			final Configuration parameters = new Configuration();
+			new RecordInputFormat.ConfigBuilder(null, parameters)
+				.field(PactString.class, 0).field(PactString.class, 1).field(PactString.class, 2);
 			
-			// check invalid text pos config
-			config.setInteger(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX + 1, 0);
-			validConfig = true;
-			try {
-				format.configure(config);
-			} catch(IllegalArgumentException iae) {
-				validConfig = false;
-			}
-			assertFalse(validConfig);
+			format.setFieldDelim('|');
 			
-			// check valid text pos config
-			config.setInteger(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX + 0, 3);
-			config.setInteger(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX + 2, 9);
-			validConfig = true;
-			try {
-				format.configure(config);
-			} catch(IllegalArgumentException iae) {
-				validConfig = false;
-			}
-			assertTrue(validConfig);
+			format.configure(parameters);
+			format.open(split);
 			
-			// check invalid record pos config
-			config.setInteger(RecordInputFormat.RECORD_POSITION_PARAMETER_PREFIX + 1, 0);
-			validConfig = true;
-			try {
-				format.configure(config);
-			} catch(IllegalArgumentException iae) {
-				validConfig = false;
-			}
-			assertFalse(validConfig);
+			PactRecord record = new PactRecord();
 			
-			// check valid record pos config
-			config.setInteger(RecordInputFormat.RECORD_POSITION_PARAMETER_PREFIX + 0, 3);
-			config.setInteger(RecordInputFormat.RECORD_POSITION_PARAMETER_PREFIX + 2, 9);
-			validConfig = true;
-			try {
-				format.configure(config);
-			} catch(IllegalArgumentException iae) {
-				validConfig = false;
-			}
-			assertTrue(validConfig);
+			assertTrue(format.nextRecord(record));
+			assertEquals("abc", record.getField(0, PactString.class).getValue());
+			assertEquals("def", record.getField(1, PactString.class).getValue());
+			assertEquals("ghijk", record.getField(2, PactString.class).getValue());
+			
+			assertTrue(format.nextRecord(record));
+			assertEquals("abc", record.getField(0, PactString.class).getValue());
+			assertEquals("", record.getField(1, PactString.class).getValue());
+			assertEquals("hhg", record.getField(2, PactString.class).getValue());
+			
+			assertTrue(format.nextRecord(record));
+			assertEquals("", record.getField(0, PactString.class).getValue());
+			assertEquals("", record.getField(1, PactString.class).getValue());
+			assertEquals("", record.getField(2, PactString.class).getValue());
 		}
 		catch (Exception ex) {
 			Assert.fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
@@ -183,21 +164,17 @@ public class RecordInputFormatTest {
 	}
 	
 	@Test
-	public void testReadNoPosAll() throws IOException {
+	public void testReadAll() throws IOException {
 		try {
 			final String fileContent = "111|222|333|444|555\n666|777|888|999|000|";
 			final FileInputSplit split = createTempFile(fileContent);	
 		
 			final Configuration parameters = new Configuration();
-			parameters.setString(RecordInputFormat.FILE_PARAMETER_KEY, "file:///some/file/that/will/not/be/read");
-			parameters.setInteger(RecordInputFormat.NUM_FIELDS_PARAMETER, 5);
-			parameters.setString(RecordInputFormat.RECORD_DELIMITER_PARAMETER, "\n");
-			parameters.setString(RecordInputFormat.FIELD_DELIMITER_PARAMETER, "|");
-			parameters.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 0, DecimalTextIntParser.class);
-			parameters.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 1, DecimalTextIntParser.class);
-			parameters.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 2, DecimalTextIntParser.class);
-			parameters.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 3, DecimalTextIntParser.class);
-			parameters.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 4, DecimalTextIntParser.class);
+			
+			new RecordInputFormat.ConfigBuilder(null, parameters)
+				.fieldDelimiter('|')
+				.field(PactInteger.class, 0).field(PactInteger.class, 1).field(PactInteger.class, 2)
+				.field(PactInteger.class, 3).field(PactInteger.class, 4);
 			
 			format.configure(parameters);
 			format.open(split);
@@ -227,18 +204,16 @@ public class RecordInputFormatTest {
 	}
 	
 	@Test
-	public void testReadNoPosFirstN() throws IOException {
+	public void testReadFirstN() throws IOException {
 		try {
 			final String fileContent = "111|222|333|444|555|\n666|777|888|999|000|";
 			final FileInputSplit split = createTempFile(fileContent);	
 		
 			final Configuration parameters = new Configuration();
-			parameters.setString(RecordInputFormat.FILE_PARAMETER_KEY, "file:///some/file/that/will/not/be/read");
-			parameters.setInteger(RecordInputFormat.NUM_FIELDS_PARAMETER, 2);
-			parameters.setString(RecordInputFormat.RECORD_DELIMITER_PARAMETER, "\n");
-			parameters.setString(RecordInputFormat.FIELD_DELIMITER_PARAMETER, "|");
-			parameters.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 0, DecimalTextIntParser.class);
-			parameters.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 1, DecimalTextIntParser.class);
+			
+			new RecordInputFormat.ConfigBuilder(null, parameters)
+			.fieldDelimiter('|')
+			.field(PactInteger.class, 0).field(PactInteger.class, 1);
 			
 			format.configure(parameters);
 			format.open(split);
@@ -277,22 +252,16 @@ public class RecordInputFormatTest {
 	}
 	
 	@Test
-	public void testReadTextPos() throws IOException {
+	public void testReadSparse() throws IOException {
 		try {
 			final String fileContent = "111|222|333|444|555|666|777|888|999|000|\n000|999|888|777|666|555|444|333|222|111|";
 			final FileInputSplit split = createTempFile(fileContent);	
 		
 			final Configuration parameters = new Configuration();
-			parameters.setString(RecordInputFormat.FILE_PARAMETER_KEY, "file:///some/file/that/will/not/be/read");
-			parameters.setInteger(RecordInputFormat.NUM_FIELDS_PARAMETER, 3);
-			parameters.setString(RecordInputFormat.RECORD_DELIMITER_PARAMETER, "\n");
-			parameters.setString(RecordInputFormat.FIELD_DELIMITER_PARAMETER, "|");
-			parameters.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 0, DecimalTextIntParser.class);
-			parameters.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 1, DecimalTextIntParser.class);
-			parameters.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 2, DecimalTextIntParser.class);
-			parameters.setInteger(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX + 0, 0);
-			parameters.setInteger(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX + 1, 3);
-			parameters.setInteger(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX + 2, 7);
+			
+			new RecordInputFormat.ConfigBuilder(null, parameters)
+				.fieldDelimiter('|')
+				.field(PactInteger.class, 0).field(PactInteger.class, 3).field(PactInteger.class, 7);
 			
 			format.configure(parameters);
 			format.open(split);
@@ -311,15 +280,28 @@ public class RecordInputFormatTest {
 			
 			assertFalse(format.nextRecord(record));
 			assertTrue(format.reachedEnd());
+		}
+		catch (Exception ex) {
+			Assert.fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
+		}
+	}
+	
+	@Test
+	public void testReadSparseShufflePosition() throws IOException {
+		try {
+			final String fileContent = "111|222|333|444|555|666|777|888|999|000|\n000|999|888|777|666|555|444|333|222|111|";
+			final FileInputSplit split = createTempFile(fileContent);	
+		
+			final Configuration parameters = new Configuration();
 			
-			// switched order
-			
-			parameters.setInteger(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX + 0, 8);
-			parameters.setInteger(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX + 1, 1);
-			parameters.setInteger(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX + 2, 3);
+			new RecordInputFormat.ConfigBuilder(null, parameters)
+				.fieldDelimiter('|')
+				.field(PactInteger.class, 8).field(PactInteger.class, 1).field(PactInteger.class, 3);
 			
 			format.configure(parameters);
 			format.open(split);
+			
+			PactRecord record = new PactRecord();
 			
 			assertTrue(format.nextRecord(record));
 			assertEquals(999, record.getField(0, PactInteger.class).getValue());
@@ -333,197 +315,6 @@ public class RecordInputFormatTest {
 			
 			assertFalse(format.nextRecord(record));
 			assertTrue(format.reachedEnd());
-		}
-		catch (Exception ex) {
-			Assert.fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
-		}
-	}
-	
-	@Test
-	public void testReadRecPos() throws IOException {
-		try {
-			final String fileContent = "111|222|333|\n444|555|666|";
-			final FileInputSplit split = createTempFile(fileContent);	
-		
-			final Configuration parameters = new Configuration();
-			parameters.setString(RecordInputFormat.FILE_PARAMETER_KEY, "file:///some/file/that/will/not/be/read");
-			parameters.setInteger(RecordInputFormat.NUM_FIELDS_PARAMETER, 3);
-			parameters.setString(RecordInputFormat.RECORD_DELIMITER_PARAMETER, "\n");
-			parameters.setString(RecordInputFormat.FIELD_DELIMITER_PARAMETER, "|");
-			parameters.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 0, DecimalTextIntParser.class);
-			parameters.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 1, DecimalTextIntParser.class);
-			parameters.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 2, DecimalTextIntParser.class);
-			parameters.setInteger(RecordInputFormat.RECORD_POSITION_PARAMETER_PREFIX + 0, 1);
-			parameters.setInteger(RecordInputFormat.RECORD_POSITION_PARAMETER_PREFIX + 1, 2);
-			parameters.setInteger(RecordInputFormat.RECORD_POSITION_PARAMETER_PREFIX + 2, 0);
-					
-			format.configure(parameters);
-			format.open(split);
-			
-			PactRecord record = new PactRecord();
-			
-			assertTrue(format.nextRecord(record));
-			assertEquals(111, record.getField(1, PactInteger.class).getValue());
-			assertEquals(222, record.getField(2, PactInteger.class).getValue());
-			assertEquals(333, record.getField(0, PactInteger.class).getValue());
-			
-			assertTrue(format.nextRecord(record));
-			assertEquals(444, record.getField(1, PactInteger.class).getValue());
-			assertEquals(555, record.getField(2, PactInteger.class).getValue());
-			assertEquals(666, record.getField(0, PactInteger.class).getValue());
-			
-			assertFalse(format.nextRecord(record));
-			assertTrue(format.reachedEnd());
-			
-			// sparse record
-			
-			parameters.setInteger(RecordInputFormat.RECORD_POSITION_PARAMETER_PREFIX + 0, 1);
-			parameters.setInteger(RecordInputFormat.RECORD_POSITION_PARAMETER_PREFIX + 1, 8);
-			parameters.setInteger(RecordInputFormat.RECORD_POSITION_PARAMETER_PREFIX + 2, 3);
-					
-			format.configure(parameters);
-			format.open(split);
-			
-			assertTrue(format.nextRecord(record));
-			assertEquals(111, record.getField(1, PactInteger.class).getValue());
-			assertEquals(222, record.getField(8, PactInteger.class).getValue());
-			assertEquals(333, record.getField(3, PactInteger.class).getValue());
-			
-			assertTrue(format.nextRecord(record));
-			assertEquals(444, record.getField(1, PactInteger.class).getValue());
-			assertEquals(555, record.getField(8, PactInteger.class).getValue());
-			assertEquals(666, record.getField(3, PactInteger.class).getValue());
-			
-			assertFalse(format.nextRecord(record));
-			assertTrue(format.reachedEnd());
-		}
-		catch (Exception ex) {
-			Assert.fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
-		}
-	}
-	
-	@Test
-	public void testReadTextPosRecPos() throws IOException {
-		try {
-			final String fileContent = "111|222|333|444|555|666|777|888|999|000|\n000|999|888|777|666|555|444|333|222|111|";
-			final FileInputSplit split = createTempFile(fileContent);	
-		
-			final Configuration parameters = new Configuration();
-			parameters.setString(RecordInputFormat.FILE_PARAMETER_KEY, "file:///some/file/that/will/not/be/read");
-			parameters.setInteger(RecordInputFormat.NUM_FIELDS_PARAMETER, 5);
-			parameters.setString(RecordInputFormat.RECORD_DELIMITER_PARAMETER, "\n");
-			parameters.setString(RecordInputFormat.FIELD_DELIMITER_PARAMETER, "|");
-			parameters.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 0, DecimalTextIntParser.class);
-			parameters.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 1, DecimalTextIntParser.class);
-			parameters.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 2, DecimalTextIntParser.class);
-			parameters.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 3, DecimalTextIntParser.class);
-			parameters.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 4, DecimalTextIntParser.class);
-			parameters.setInteger(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX + 0, 3);
-			parameters.setInteger(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX + 1, 0);
-			parameters.setInteger(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX + 2, 1);
-			parameters.setInteger(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX + 3, 8);
-			parameters.setInteger(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX + 4, 4);
-			parameters.setInteger(RecordInputFormat.RECORD_POSITION_PARAMETER_PREFIX + 0, 2);
-			parameters.setInteger(RecordInputFormat.RECORD_POSITION_PARAMETER_PREFIX + 1, 0);
-			parameters.setInteger(RecordInputFormat.RECORD_POSITION_PARAMETER_PREFIX + 2, 1);
-			parameters.setInteger(RecordInputFormat.RECORD_POSITION_PARAMETER_PREFIX + 3, 3);
-			parameters.setInteger(RecordInputFormat.RECORD_POSITION_PARAMETER_PREFIX + 4, 6);
-			
-			
-			format.configure(parameters);
-			format.open(split);
-			
-			PactRecord record = new PactRecord();
-			
-			assertTrue(format.nextRecord(record));
-			assertEquals(444, record.getField(2, PactInteger.class).getValue());
-			assertEquals(111, record.getField(0, PactInteger.class).getValue());
-			assertEquals(222, record.getField(1, PactInteger.class).getValue());
-			assertEquals(999, record.getField(3, PactInteger.class).getValue());
-			assertEquals(555, record.getField(6, PactInteger.class).getValue());
-			
-			assertTrue(format.nextRecord(record));
-			assertEquals(777, record.getField(2, PactInteger.class).getValue());
-			assertEquals(000, record.getField(0, PactInteger.class).getValue());
-			assertEquals(999, record.getField(1, PactInteger.class).getValue());
-			assertEquals(222, record.getField(3, PactInteger.class).getValue());
-			assertEquals(666, record.getField(6, PactInteger.class).getValue());
-			
-			assertFalse(format.nextRecord(record));
-			assertTrue(format.reachedEnd());
-		}
-		catch (Exception ex) {
-			Assert.fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
-		}
-	}
-	
-	@Test
-	public void testReadTooShortInput() throws IOException {
-		try {
-			final String fileContent = "111|222|333|444\n666|777|888|999";
-			final FileInputSplit split = createTempFile(fileContent);	
-		
-			final Configuration parameters = new Configuration();
-			parameters.setString(RecordInputFormat.FILE_PARAMETER_KEY, "file:///some/file/that/will/not/be/read");
-			parameters.setInteger(RecordInputFormat.NUM_FIELDS_PARAMETER, 5);
-			parameters.setString(RecordInputFormat.RECORD_DELIMITER_PARAMETER, "\n");
-			parameters.setString(RecordInputFormat.FIELD_DELIMITER_PARAMETER, "|");
-			parameters.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 0, DecimalTextIntParser.class);
-			parameters.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 1, DecimalTextIntParser.class);
-			parameters.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 2, DecimalTextIntParser.class);
-			parameters.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 3, DecimalTextIntParser.class);
-			parameters.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 4, DecimalTextIntParser.class);
-			
-			format.configure(parameters);
-			format.open(split);
-			
-			PactRecord record = new PactRecord();
-			
-			assertFalse(format.nextRecord(record));
-		}
-		catch (Exception ex) {
-			Assert.fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
-		}
-	}
-	
-	@Test
-	public void testReadInvalidContents() throws IOException {
-		try {
-			final String fileContent = "abc|222|def|444\nkkz|777|888|hhg";
-			final FileInputSplit split = createTempFile(fileContent);	
-		
-			final Configuration parameters = new Configuration();
-			parameters.setString(RecordInputFormat.FILE_PARAMETER_KEY, "file:///some/file/that/will/not/be/read");
-			parameters.setInteger(RecordInputFormat.NUM_FIELDS_PARAMETER, 4);
-			parameters.setString(RecordInputFormat.RECORD_DELIMITER_PARAMETER, "\n");
-			parameters.setString(RecordInputFormat.FIELD_DELIMITER_PARAMETER, "|");
-			parameters.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 0, VarLengthStringParser.class);
-			parameters.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 1, DecimalTextIntParser.class);
-			parameters.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 2, VarLengthStringParser.class);
-			parameters.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 3, DecimalTextIntParser.class);
-			
-			format.configure(parameters);
-			format.open(split);
-			
-			PactRecord record = new PactRecord();
-			
-			try {
-				assertTrue(format.nextRecord(record));
-			}
-			catch (Exception e) {
-				Assert.fail("Input format failed on valid input.");
-			}
-			
-			try {
-				format.nextRecord(record);
-				Assert.fail("Input format accepted on invalid input.");
-			}
-			catch (ParseException e) {
-				; // all good
-			}
-			catch (Exception e) {
-				Assert.fail("Input format failed on invalid input with an exception other from a parse exception.");
-			}
 		}
 		catch (Exception ex) {
 			Assert.fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());

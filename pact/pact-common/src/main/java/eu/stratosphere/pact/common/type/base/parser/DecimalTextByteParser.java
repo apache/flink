@@ -15,17 +15,17 @@
 
 package eu.stratosphere.pact.common.type.base.parser;
 
-import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.common.type.base.PactByte;
 
 /**
  * Parses a decimal text field into a PactInteger.
  * Only characters '1' to '0' and '-' are allowed.
  * The parser does not check for the maximum value.
  */
-public class DecimalTextIntParser extends FieldParser<PactInteger> {
+public class DecimalTextByteParser extends FieldParser<PactByte> {
 
 	@Override
-	public int parseField(byte[] bytes, int startPos, int limit, char delim, PactInteger field) {
+	public int parseField(byte[] bytes, int startPos, int limit, char delim, PactByte field) {
 		long val = 0;
 		boolean neg = false;
 		
@@ -44,19 +44,20 @@ public class DecimalTextIntParser extends FieldParser<PactInteger> {
 			val *= 10;
 			val += bytes[i] - 48;
 		}
+		
 		return valueSet(field, val, neg, limit);
 	}
 	
-	private final int valueSet(PactInteger field, long val, boolean negative, int position) {
+	private final int valueSet(PactByte field, long val, boolean negative, int position) {
 		if (negative) {
-			if (val >= Integer.MIN_VALUE) {
-				field.setValue((int) -val);
+			if (val >= Byte.MIN_VALUE) {
+				field.setValue((byte) -val);
 			} else {
 				return -1;
 			}
 		} else {
-			if (val <= Integer.MAX_VALUE) {
-				field.setValue((int) val);
+			if (val <= Byte.MAX_VALUE) {
+				field.setValue((byte) val);
 			} else {
 				return -1;
 			}
@@ -65,7 +66,7 @@ public class DecimalTextIntParser extends FieldParser<PactInteger> {
 	}
 	
 	@Override
-	public PactInteger createValue() {
-		return new PactInteger();
+	public PactByte createValue() {
+		return new PactByte();
 	}
 }

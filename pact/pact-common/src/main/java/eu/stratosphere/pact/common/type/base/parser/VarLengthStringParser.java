@@ -15,7 +15,6 @@
 
 package eu.stratosphere.pact.common.type.base.parser;
 
-import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.type.base.PactString;
 
 /**
@@ -25,15 +24,12 @@ import eu.stratosphere.pact.common.type.base.PactString;
  * 
  * @see PactString
  */
-public class VarLengthStringParser implements FieldParser<PactString> {
+public class VarLengthStringParser extends FieldParser<PactString> {
 
 	private static final byte WHITESPACE_SPACE = (byte) ' ';
 	private static final byte WHITESPACE_TAB = (byte) '\t';
 	
 	private static final byte QUOTE_DOUBLE = (byte) '"';
-	
-	@Override
-	public void configure(Configuration config) {}
 	
 	
 	@Override
@@ -93,7 +89,7 @@ public class VarLengthStringParser implements FieldParser<PactString> {
 	}
 	
 	@Override
-	public PactString getValue() {
+	public PactString createValue() {
 		return new PactString();
 	}
 }

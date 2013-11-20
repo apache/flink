@@ -38,8 +38,6 @@ import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsSecondExce
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
-import eu.stratosphere.pact.common.type.base.parser.DecimalTextIntParser;
-import eu.stratosphere.pact.common.type.base.parser.VarLengthStringParser;
 import eu.stratosphere.pact.common.util.FieldSet;
 
 /**
@@ -249,13 +247,9 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 		 * 1: DOCUMENT_TEXT
 		 */
 		// Create DataSourceContract for documents relation
-		FileDataSource docs = new FileDataSource(new RecordInputFormat(), docsInput, "Docs Input");
-		docs.setDegreeOfParallelism(numSubTasks);
-		RecordInputFormat.configureRecordFormat(docs)
-			.recordDelimiter('\n')
-			.fieldDelimiter('|')
-			.field(VarLengthStringParser.class, 0)
-			.field(VarLengthStringParser.class, 1);
+		@SuppressWarnings("unchecked")
+		RecordInputFormat docsFormat = new RecordInputFormat('|', PactString.class, PactString.class);
+		FileDataSource docs = new FileDataSource(docsFormat, docsInput, "Docs Input");
 		
 		/*
 		 * Output Format:
@@ -265,13 +259,12 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 		 */
 		// Create DataSourceContract for ranks relation
 		FileDataSource ranks = new FileDataSource(new RecordInputFormat(), ranksInput, "Ranks input");
-		ranks.setDegreeOfParallelism(numSubTasks);
 		RecordInputFormat.configureRecordFormat(ranks)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
-			.field(VarLengthStringParser.class, 1)
-			.field(DecimalTextIntParser.class, 0)
-			.field(DecimalTextIntParser.class, 2);
+			.field(PactString.class, 1)
+			.field(PactInteger.class, 0)
+			.field(PactInteger.class, 2);
 
 		/*
 		 * Output Format:
@@ -279,13 +272,9 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 		 * 1: DATE
 		 */
 		// Create DataSourceContract for visits relation
-		FileDataSource visits = new FileDataSource(new RecordInputFormat(), visitsInput, "Visits input:q");
-		visits.setDegreeOfParallelism(numSubTasks);
-		RecordInputFormat.configureRecordFormat(visits)
-			.recordDelimiter('\n')
-			.fieldDelimiter('|')
-			.field(VarLengthStringParser.class, 1)
-			.field(VarLengthStringParser.class, 2);
+		@SuppressWarnings("unchecked")
+		RecordInputFormat visitsFormat = new RecordInputFormat('|', null, PactString.class, PactString.class);
+		FileDataSource visits = new FileDataSource(visitsFormat, visitsInput, "Visits input:q");
 
 		// Create MapContract for filtering the entries from the documents
 		// relation
@@ -293,7 +282,6 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 			.input(docs)
 			.name("Filter Docs")
 			.build();
-		filterDocs.setDegreeOfParallelism(numSubTasks);
 		filterDocs.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.15f);
 		filterDocs.getCompilerHints().setAvgBytesPerRecord(60);
 		filterDocs.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(new int[]{0}), 1);
@@ -303,7 +291,6 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 			.input(ranks)
 			.name("Filter Ranks")
 			.build();
-		filterRanks.setDegreeOfParallelism(numSubTasks);
 		filterRanks.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.25f);
 		filterRanks.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(new int[]{0}), 1);
 
@@ -312,7 +299,6 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 			.input(visits)
 			.name("Filter Visits")
 			.build();
-		filterVisits.setDegreeOfParallelism(numSubTasks);
 		filterVisits.getCompilerHints().setAvgBytesPerRecord(60);
 		filterVisits.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.2f);
 
@@ -332,7 +318,6 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 			.input2(filterVisits)
 			.name("Antijoin DocsVisits")
 			.build();
-		antiJoinVisits.setDegreeOfParallelism(numSubTasks);
 		antiJoinVisits.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.8f);
 
 		// Create DataSinkContract for writing the result of the OLAP query
@@ -347,7 +332,9 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 			.field(PactInteger.class, 2);
 
 		// Return the PACT plan
-		return new Plan(result, "Weblog Analysis");
+		Plan p = new Plan(result, "Weblog Analysis");
+		p.setDefaultParallelism(numSubTasks);
+		return p;
 	}
 
 	/**

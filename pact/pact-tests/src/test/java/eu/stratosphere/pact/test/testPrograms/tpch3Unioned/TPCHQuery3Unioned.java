@@ -29,10 +29,6 @@ import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.common.type.base.PactString;
-import eu.stratosphere.pact.common.type.base.parser.DecimalTextDoubleParser;
-import eu.stratosphere.pact.common.type.base.parser.DecimalTextIntParser;
-import eu.stratosphere.pact.common.type.base.parser.DecimalTextLongParser;
-import eu.stratosphere.pact.common.type.base.parser.VarLengthStringParser;
 import eu.stratosphere.pact.example.relational.TPCHQuery3;
 import eu.stratosphere.pact.example.relational.TPCHQuery3.AggLiO;
 import eu.stratosphere.pact.example.relational.TPCHQuery3.FilterO;
@@ -77,29 +73,29 @@ public class TPCHQuery3Unioned implements PlanAssembler, PlanAssemblerDescriptio
 		RecordInputFormat.configureRecordFormat(orders1)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
-			.field(DecimalTextLongParser.class, 0)		// order id
-			.field(DecimalTextIntParser.class, 7) 		// ship prio
-			.field(VarLengthStringParser.class, 2, 2)	// order status
-			.field(VarLengthStringParser.class, 4, 10)	// order date
-			.field(VarLengthStringParser.class, 5, 8);	// order prio
+			.field(PactLong.class, 0)		// order id
+			.field(PactInteger.class, 7) 		// ship prio
+			.field(PactString.class, 2, 2)	// order status
+			.field(PactString.class, 4, 10)	// order date
+			.field(PactString.class, 5, 8);	// order prio
 		
 		FileDataSource orders2 = new FileDataSource(new RecordInputFormat(), orders2Path, "Orders 2");
 		RecordInputFormat.configureRecordFormat(orders2)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
-			.field(DecimalTextLongParser.class, 0)		// order id
-			.field(DecimalTextIntParser.class, 7) 		// ship prio
-			.field(VarLengthStringParser.class, 2, 2)	// order status
-			.field(VarLengthStringParser.class, 4, 10)	// order date
-			.field(VarLengthStringParser.class, 5, 8);	// order prio
+			.field(PactLong.class, 0)		// order id
+			.field(PactInteger.class, 7) 		// ship prio
+			.field(PactString.class, 2, 2)	// order status
+			.field(PactString.class, 4, 10)	// order date
+			.field(PactString.class, 5, 8);	// order prio
 		
 		// create DataSourceContract for LineItems input
 		FileDataSource lineitems = new FileDataSource(new RecordInputFormat(), lineitemsPath, "LineItems");
 		RecordInputFormat.configureRecordFormat(lineitems)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
-			.field(DecimalTextLongParser.class, 0)
-			.field(DecimalTextDoubleParser.class, 5);
+			.field(PactLong.class, 0)
+			.field(PactDouble.class, 5);
 
 		// create MapContract for filtering Orders tuples
 		MapContract filterO1 = MapContract.builder(new FilterO())
@@ -132,17 +128,17 @@ public class TPCHQuery3Unioned implements PlanAssembler, PlanAssemblerDescriptio
 		RecordInputFormat.configureRecordFormat(partJoin1)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
-			.field(DecimalTextLongParser.class, 0)
-			.field(DecimalTextIntParser.class, 1)
-			.field(DecimalTextDoubleParser.class, 2);
+			.field(PactLong.class, 0)
+			.field(PactInteger.class, 1)
+			.field(PactDouble.class, 2);
 		
 		FileDataSource partJoin2 = new FileDataSource(new RecordInputFormat(), partJoin2Path, "Part Join 2");
 		RecordInputFormat.configureRecordFormat(partJoin2)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
-			.field(DecimalTextLongParser.class, 0)
-			.field(DecimalTextIntParser.class, 1)
-			.field(DecimalTextDoubleParser.class, 2);
+			.field(PactLong.class, 0)
+			.field(PactInteger.class, 1)
+			.field(PactDouble.class, 2);
 		
 		// create ReduceContract for aggregating the result
 		// the reducer has a composite key, consisting of the fields 0 and 1

@@ -23,7 +23,6 @@ import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.common.io.DelimitedInputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
@@ -197,7 +196,6 @@ public class ComputeEdgeDegrees implements PlanAssembler, PlanAssemblerDescripti
 		
 
 		FileDataSource edges = new FileDataSource(new EdgeInputFormat(), edgeInput, "Input Edges");
-		edges.setParameter(DelimitedInputFormat.RECORD_DELIMITER, "\n");
 		edges.setParameter(EdgeInputFormat.ID_DELIMITER_CHAR, delimiter);
 		
 		MapContract projectEdge = MapContract.builder(new ProjectEdge())

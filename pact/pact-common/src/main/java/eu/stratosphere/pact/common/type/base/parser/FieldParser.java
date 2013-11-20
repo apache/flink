@@ -15,24 +15,24 @@
 
 package eu.stratosphere.pact.common.type.base.parser;
 
-import eu.stratosphere.nephele.configuration.Configuration;
+import java.util.HashMap;
+import java.util.Map;
+
 import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.common.type.base.PactByte;
+import eu.stratosphere.pact.common.type.base.PactDouble;
+import eu.stratosphere.pact.common.type.base.PactFloat;
+import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.common.type.base.PactLong;
+import eu.stratosphere.pact.common.type.base.PactShort;
+import eu.stratosphere.pact.common.type.base.PactString;
 
 /**
  * A FieldParser is used parse a field and fill a {@link Value} from a sequence of bytes.
- * 
- * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  *
  * @param <T> The type of {@link Value} that is filled.
  */
-public interface FieldParser<T extends Value> {
-	
-	/**
-	 * Configures the parser.
-	 * 
-	 * @param config The configuration of the InputFormat.
-	 */
-	public void configure(Configuration config);
+public abstract class FieldParser<T extends Value> {
 	
 	/**
 	 * Fills a given {@link Value} with the value of a field by parsing a byte array. 
@@ -47,13 +47,41 @@ public interface FieldParser<T extends Value> {
 	 * @param field The field to hold the value
 	 * @return The index of the next delimiter, if the field was parsed correctly. A value less than 0 otherwise.
 	 */
-	public int parseField(byte[] bytes, int startPos, int limit, char delim, T field);
+	public abstract int parseField(byte[] bytes, int startPos, int limit, char delim, T field);
 	
 	/**
 	 * Returns an instance of the parsed value type.
 	 * 
 	 * @return An instance of the parsed value type. 
 	 */
-	public T getValue();
+	public abstract T createValue();
 	
+	
+	// --------------------------------------------------------------------------------------------
+	//  Mapping from types to parsers
+	// --------------------------------------------------------------------------------------------
+	
+	public static <T extends Value> Class<FieldParser<T>> getParserForType(Class<T> type) {
+		Class<? extends FieldParser<?>> parser = PARSERS.get(type);
+		if (parser == null) {
+			return null;
+		} else {
+			@SuppressWarnings("unchecked")
+			Class<FieldParser<T>> typedParser = (Class<FieldParser<T>>) parser;
+			return typedParser;
+		}
+	}
+	
+	private static final Map<Class<? extends Value>, Class<? extends FieldParser<?>>> PARSERS = 
+			new HashMap<Class<? extends Value>, Class<? extends FieldParser<?>>>();
+	
+	static {
+		PARSERS.put(PactByte.class, DecimalTextByteParser.class);
+		PARSERS.put(PactShort.class, DecimalTextShortParser.class);
+		PARSERS.put(PactInteger.class, DecimalTextIntParser.class);
+		PARSERS.put(PactLong.class, DecimalTextLongParser.class);
+		PARSERS.put(PactString.class, VarLengthStringParser.class);
+		PARSERS.put(PactFloat.class, DecimalTextFloatParser.class);
+		PARSERS.put(PactDouble.class, DecimalTextDoubleParser.class);
+	}
 }

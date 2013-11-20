@@ -23,14 +23,11 @@ import eu.stratosphere.pact.common.type.base.PactString;
  * Checks that the field is terminated either by end of array or field delimiter character.
  * A string encapsulator can be configured. If configured, the encapsulator must be present in the input but 
  * will not be included in the PactString.
- * The fixed length must include possible encapsulators.   
- * 
- * @author Fabian Hueske
+ * The fixed length must include possible encapsulators.
  * 
  * @see PactString
- *
  */
-public class FixedLengthStringParser implements FieldParser<PactString> {
+public class FixedLengthStringParser extends FieldParser<PactString> {
 
 	public static final String STRING_ENCAPSULATOR = "fixlength.string.parser.encapsulator";
 	public static final String STRING_LENGTH = "fixlength.string.parser.length";
@@ -39,10 +36,7 @@ public class FixedLengthStringParser implements FieldParser<PactString> {
 	private boolean encapsulated;
 	private int fixLength;
 	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.type.base.parser.FieldParser#configure(eu.stratosphere.nephele.configuration.Configuration)
-	 */
+
 	public void configure(Configuration config) {
 		fixLength = config.getInteger(STRING_LENGTH, -1);
 		if(fixLength < 1) {
@@ -60,10 +54,7 @@ public class FixedLengthStringParser implements FieldParser<PactString> {
 		}
 	}
 	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.type.base.parser.FieldParser#parseField(byte[], int, int, char, eu.stratosphere.pact.common.type.Value)
-	 */
+
 	@Override
 	public int parseField(byte[] bytes, int startPos, int length, char delim, PactString field) {
 	
@@ -89,12 +80,8 @@ public class FixedLengthStringParser implements FieldParser<PactString> {
 		return (startPos+fixLength) == length ? length : startPos+fixLength+1;
 	}
 	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.type.base.parser.FieldParser#getValue()
-	 */
 	@Override
-	public PactString getValue() {
+	public PactString createValue() {
 		return new PactString();
 	}
 	

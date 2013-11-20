@@ -69,14 +69,18 @@ import eu.stratosphere.pact.generic.io.InputFormat;
  * </ol>
  */
 public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSplit> {
-	private static final long serialVersionUID = 1L;
 	
 	// -------------------------------------- Constants -------------------------------------------
 	
-	/**
-	 * The LOG for logging messages in this class.
-	 */
 	private static final Log LOG = LogFactory.getLog(FileInputFormat.class);
+	
+	private static final long serialVersionUID = 1L;
+	
+	
+	/**
+	 * The fraction that the last split may be larger than the others.
+	 */
+	private static final float MAX_SPLIT_SIZE_DISCREPANCY = 1.1f;
 	
 	/**
 	 * The timeout (in milliseconds) to wait for a filesystem stream to respond.
@@ -97,33 +101,29 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 		}
 	}
 	
-	/**
-	 * The fraction that the last split may be larger than the others.
-	 */
-	private static final float MAX_SPLIT_SIZE_DISCREPANCY = 1.1f;
-	
-	// ------------------------------------- Config Keys ------------------------------------------
+	// --------------------------------------------------------------------------------------------
+	//  Variables for internal operation.
+	//  They are all transient, because we do not want them so be serialized 
+	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * The config parameter which defines the input file path.
+	 * The input stream reading from the input file.
 	 */
-	public static final String FILE_PARAMETER_KEY = "pact.input.file.path";
-	
-	/**
-	 * The config parameter which defines the number of desired splits.
-	 */
-	private static final String DESIRED_NUMBER_OF_SPLITS_PARAMETER_KEY = "pact.input.file.numsplits";
-	
-	/**
-	 * The config parameter for the minimal split size.
-	 */
-	private static final String MINIMAL_SPLIT_SIZE_PARAMETER_KEY = "pact.input.file.minsplitsize";
+	protected transient FSDataInputStream stream;
 
 	/**
-	 * The config parameter for the opening timeout in milliseconds.
+	 * The start of the split that this parallel instance must consume.
 	 */
-	public static final String INPUT_STREAM_OPEN_TIMEOUT_KEY = "pact.input.file.timeout";
+	protected transient long splitStart;
+
+	/**
+	 * The length of the split that this parallel instance must consume.
+	 */
+	protected transient long splitLength;
 	
+	
+	// --------------------------------------------------------------------------------------------
+	//  The configuration parameters. Configured on the instance and serialized to be shipped.
 	// --------------------------------------------------------------------------------------------
 	
 	/**
@@ -132,45 +132,95 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	protected Path filePath;
 	
 	/**
-	 * The input stream reading from the input file.
-	 */
-	protected FSDataInputStream stream;
-
-	/**
-	 * The start of the split that this parallel instance must consume.
-	 */
-	protected long splitStart;
-
-	/**
-	 * The length of the split that this parallel instance must consume.
-	 */
-	protected long splitLength;
-	
-	/**
 	 * The the minimal split size, set by the configure() method.
 	 */
-	protected long minSplitSize; 
+	protected long minSplitSize = 0; 
 	
 	/**
 	 * The desired number of splits, as set by the configure() method.
 	 */
-	protected int numSplits;
+	protected int numSplits = -1;
 	
 	/**
 	 * Stream opening timeout.
 	 */
-	protected long openTimeout;
+	protected long openTimeout = DEFAULT_OPENING_TIMEOUT;
 
 	// --------------------------------------------------------------------------------------------
+	//  Getters/setters for the configurable parameters
+	// --------------------------------------------------------------------------------------------
 	
+	public Path getFilePath() {
+		return filePath;
+	}
+
+	public void setFilePath(String filePath) {
+		if (filePath == null)
+			throw new IllegalArgumentException("File path may not be null.");
+		
+		setFilePath(new Path(filePath));
+	}
+	
+	public void setFilePath(Path filePath) {
+		if (filePath == null)
+			throw new IllegalArgumentException("File path may not be null.");
+		
+		this.filePath = filePath;
+	}
+	
+	public long getMinSplitSize() {
+		return minSplitSize;
+	}
+	
+	public void setMinSplitSize(long minSplitSize) {
+		if (minSplitSize < 0)
+			throw new IllegalArgumentException("The minimum split size cannot be negative.");
+		
+		this.minSplitSize = minSplitSize;
+	}
+	
+	public int getNumSplits() {
+		return numSplits;
+	}
+	
+	public void setNumSplits(int numSplits) {
+		if (numSplits < -1 || numSplits == 0)
+			throw new IllegalArgumentException("The desired number of splits must be positive or -1 (= don't care).");
+		
+		this.numSplits = numSplits;
+	}
+	
+	public long getOpenTimeout() {
+		return openTimeout;
+	}
+	
+	public void setOpenTimeout(long openTimeout) {
+		if (openTimeout < 0)
+			throw new IllegalArgumentException("The timeout for opening the input splits must be positive or zero (= infinite).");
+		
+		this.openTimeout = openTimeout;
+	}
+	
+	/**
+	 * Gets the start of the current split.
+	 *
+	 * @return The start of the split.
+	 */
 	public long getSplitStart() {
-		return this.splitStart;
+		return splitStart;
 	}
 	
+	/**
+	 * Gets the length or remaining length of the current split.
+	 *
+	 * @return The length or remaining length of the current split.
+	 */
 	public long getSplitLength() {
-		return this.splitLength;
+		return splitLength;
 	}
-	
+
+	// --------------------------------------------------------------------------------------------
+	//  Pre-flight: Configuration, Splits, Sampling
 	// --------------------------------------------------------------------------------------------
 	
 	/**
@@ -181,46 +231,61 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	@Override
 	public void configure(Configuration parameters) {
 		// get the file path
-		final String filePath = parameters.getString(FILE_PARAMETER_KEY, null);
-		if (filePath == null) {
-			throw new IllegalArgumentException("Configuration file FileInputFormat does not contain the file path.");
+		String filePath = parameters.getString(FILE_PARAMETER_KEY, null);
+		if (filePath != null) {
+			try {
+				this.filePath = new Path(filePath);
+			}
+			catch (RuntimeException rex) {
+				throw new RuntimeException("Could not create a valid URI from the given file path name: " + rex.getMessage()); 
+			}
 		}
-		
-		try {
-			this.filePath = new Path(filePath);
-		}
-		catch (RuntimeException rex) {
-			throw new RuntimeException("Could not create a valid URI from the given file path name: " + rex.getMessage()); 
+		else if (this.filePath == null) {
+			throw new IllegalArgumentException("File path was not specified in input format, or configuration."); 
 		}
 		
 		// get the number of splits
-		this.numSplits = parameters.getInteger(DESIRED_NUMBER_OF_SPLITS_PARAMETER_KEY, -1);
-		if (this.numSplits == 0 || this.numSplits < -1) {
-			this.numSplits = -1;
-			if (LOG.isWarnEnabled())
-				LOG.warn("Ignoring invalid parameter for number of splits: " + this.numSplits);
+		int desiredSplits = parameters.getInteger(DESIRED_NUMBER_OF_SPLITS_PARAMETER_KEY, -1);
+		if (desiredSplits != -1) {
+			if (desiredSplits == 0 || desiredSplits < -1) {
+				this.numSplits = -1;
+				if (LOG.isWarnEnabled())
+					LOG.warn("Ignoring invalid parameter for number of splits: " + desiredSplits);
+			}
+			else {
+				this.numSplits = desiredSplits;
+			}
 		}
-		
 		// get the minimal split size
-		this.minSplitSize = parameters.getLong(MINIMAL_SPLIT_SIZE_PARAMETER_KEY, 1);
-		if (this.minSplitSize < 1) {
-			this.minSplitSize = 1;
-			if (LOG.isWarnEnabled())
-				LOG.warn("Ignoring invalid parameter for minimal split size (requires a positive value): " + this.numSplits);
+		long minSplitSize = parameters.getLong(MINIMAL_SPLIT_SIZE_PARAMETER_KEY, -1);
+		if (minSplitSize != -1) {
+			if (minSplitSize < 0) {
+				this.minSplitSize = 0;
+				if (LOG.isWarnEnabled())
+					LOG.warn("Ignoring invalid parameter for minimal split size (requires a positive value): " + minSplitSize);
+			} else {
+				this.minSplitSize = minSplitSize;
+			}
 		}
 		
-		this.openTimeout = parameters.getLong(INPUT_STREAM_OPEN_TIMEOUT_KEY, DEFAULT_OPENING_TIMEOUT);
-		if (this.openTimeout < 0) {
-			this.openTimeout = DEFAULT_OPENING_TIMEOUT;
-			if (LOG.isWarnEnabled())
-				LOG.warn("Ignoring invalid parameter for stream opening timeout (requires a positive value or zero=infinite): " + this.openTimeout);
-		} else if (this.openTimeout == 0) {
-			this.openTimeout = Long.MAX_VALUE;
+		long openTimeout = parameters.getLong(INPUT_STREAM_OPEN_TIMEOUT_KEY, -1);
+		if (openTimeout != -1) {
+			if (openTimeout < 0) {
+				this.openTimeout = DEFAULT_OPENING_TIMEOUT;
+				if (LOG.isWarnEnabled())
+					LOG.warn("Ignoring invalid parameter for stream opening timeout (requires a positive value or zero=infinite): " + openTimeout);
+			} else if (openTimeout == 0) {
+				this.openTimeout = Long.MAX_VALUE;
+			} else {
+				this.openTimeout = openTimeout;
+			}
 		}
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.io.InputFormat#getStatistics()
+	/**
+	 * Obtains basic file statistics containing only file size. If the input is a directory, then the size is the sum of all contained files.
+	 * 
+	 * @see eu.stratosphere.pact.generic.io.InputFormat#getStatistics(eu.stratosphere.pact.common.io.statistics.BaseStatistics)
 	 */
 	@Override
 	public FileBaseStatistics getStatistics(BaseStatistics cachedStats) throws IOException {
@@ -289,10 +354,6 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 		return new FileBaseStatistics(latestModTime, len, BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
 	}
 
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.io.InputFormat#getInputSplitType()
-	 */
 	@Override
 	public Class<FileInputSplit> getInputSplitType() {
 		return FileInputSplit.class;
@@ -421,7 +482,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	 * @param fileStatus
 	 * @return true, if the given file or directory is accepted
 	 */
-	public boolean acceptFile(FileStatus fileStatus) {
+	private boolean acceptFile(FileStatus fileStatus) {
 		final String name = fileStatus.getPath().getName();
 		return !name.startsWith("_") && !name.startsWith(".");
 	}
@@ -435,7 +496,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	 * @param startIndex The earliest index to look at.
 	 * @return The index of the block containing the given position.
 	 */
-	private final int getBlockIndexForPosition(BlockLocation[] blocks, long offset, long halfSplitSize, int startIndex) {
+	private int getBlockIndexForPosition(BlockLocation[] blocks, long offset, long halfSplitSize, int startIndex) {
 		// go over all indexes after the startIndex
 		for (int i = startIndex; i < blocks.length; i++) {
 			long blockStart = blocks[i].getOffset();
@@ -593,9 +654,6 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 			return this.avgBytesPerRecord;
 		}
 		
-		/* (non-Javadoc)
-		 * @see java.lang.Object#toString()
-		 */
 		@Override
 		public String toString() {
 			return "size=" + this.fileSize + ", recWidth=" + this.avgBytesPerRecord + ", modAt=" + this.fileModTime;
@@ -703,6 +761,32 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	}
 	
 	// ============================================================================================
+	//  Parameterization via configuration
+	// ============================================================================================
+	
+	// ------------------------------------- Config Keys ------------------------------------------
+	
+	/**
+	 * The config parameter which defines the input file path.
+	 */
+	private static final String FILE_PARAMETER_KEY = "pact.input.file.path";
+	
+	/**
+	 * The config parameter which defines the number of desired splits.
+	 */
+	private static final String DESIRED_NUMBER_OF_SPLITS_PARAMETER_KEY = "pact.input.file.numsplits";
+	
+	/**
+	 * The config parameter for the minimal split size.
+	 */
+	private static final String MINIMAL_SPLIT_SIZE_PARAMETER_KEY = "pact.input.file.minsplitsize";
+
+	/**
+	 * The config parameter for the opening timeout in milliseconds.
+	 */
+	private static final String INPUT_STREAM_OPEN_TIMEOUT_KEY = "pact.input.file.timeout";
+	
+	// ----------------------------------- Config Builder -----------------------------------------
 	
 	/**
 	 * Creates a configuration builder that can be used to set the input format's parameters to the config in a fluent
@@ -777,13 +861,26 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 			T ret = (T) this;
 			return ret;
 		}
+		
+		/**
+		 * Sets the path to the file or directory to be read by this file input format.
+		 * 
+		 * @param filePath The path to the file or directory.
+		 * @return The builder itself.
+		 */
+		public T filePath(String filePath) {
+			this.config.setString(FILE_PARAMETER_KEY, filePath);
+			@SuppressWarnings("unchecked")
+			T ret = (T) this;
+			return ret;
+		}
 	}
 	
 	/**
 	 * A builder used to set parameters to the input format's configuration in a fluent way.
 	 */
-	public static class ConfigBuilder extends AbstractConfigBuilder<ConfigBuilder>
-	{
+	public static class ConfigBuilder extends AbstractConfigBuilder<ConfigBuilder> {
+		
 		/**
 		 * Creates a new builder for the given configuration.
 		 * 

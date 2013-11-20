@@ -18,6 +18,7 @@ import scala.language.experimental.macros
 import scala.reflect.macros.Context
 import eu.stratosphere.nephele.configuration.Configuration
 import eu.stratosphere.pact.common.`type`.PactRecord
+import eu.stratosphere.pact.common.`type`.Value
 import eu.stratosphere.pact.common.`type`.base.PactDouble
 import eu.stratosphere.pact.common.`type`.base.PactDouble
 import eu.stratosphere.pact.common.`type`.base.PactInteger
@@ -35,7 +36,6 @@ import eu.stratosphere.pact.common.`type`.base.parser.DecimalTextLongParser
 import eu.stratosphere.pact.common.`type`.base.parser.FieldParser
 import eu.stratosphere.pact.common.`type`.base.parser.VarLengthStringParser
 import eu.stratosphere.pact.common.`type`.base.parser.VarLengthStringParser
-
 import eu.stratosphere.scala.DataSourceFormat
 import eu.stratosphere.scala.analysis.OutputField
 import eu.stratosphere.scala.analysis.UDF0
@@ -54,6 +54,7 @@ import eu.stratosphere.pact.common.io.{TextInputFormat => JavaTextInputFormat}
 import eu.stratosphere.scala.codegen.MacroContextHolder
 
 object BinaryInputFormat {
+  
   // We need to do the "optional parameters" manually here (and in all other formats) because scala macros
   // do (not yet?) support optional parameters in macros.
   
@@ -181,12 +182,11 @@ object DelimitedInputFormat {
       
       new DelimitedInputFormat[Out] with DataSourceFormat[Out]{
         val udt = c.Expr(createUdtOut).splice
+        
+        setDelimiter((delim.splice.getOrElse("\n")));
+        
         override val userFunction = readFunction.splice
-      
-        override def persistConfiguration(config: Configuration) {
-          super.persistConfiguration(config)
-          delim.splice map { config.setString(JavaDelimitedInputFormat.RECORD_DELIMITER, _) }
-        }
+        
         override def getUDF = this.udf
       }
       
@@ -205,7 +205,7 @@ object CsvInputFormat {
   
   def apply[Out](): DataSourceFormat[Out] = macro implWithoutAll[Out]
   def apply[Out](recordDelim: String): DataSourceFormat[Out] = macro implWithRD[Out]
-  def apply[Out](recordDelim: String, fieldDelim: String): DataSourceFormat[Out] = macro implWithRDandFD[Out]
+  def apply[Out](recordDelim: String, fieldDelim: Char): DataSourceFormat[Out] = macro implWithRDandFD[Out]
   
   def implWithoutAll[Out: c.WeakTypeTag](c: Context)() : c.Expr[DataSourceFormat[Out]] = {
     import c.universe._
@@ -215,19 +215,12 @@ object CsvInputFormat {
     import c.universe._
     impl(c)(reify { Some(recordDelim.splice) }, reify { None })
   }
-  def implWithRDandFD[Out: c.WeakTypeTag](c: Context)(recordDelim: c.Expr[String], fieldDelim: c.Expr[String]) : c.Expr[DataSourceFormat[Out]] = {
+  def implWithRDandFD[Out: c.WeakTypeTag](c: Context)(recordDelim: c.Expr[String], fieldDelim: c.Expr[Char]) : c.Expr[DataSourceFormat[Out]] = {
     import c.universe._
     impl(c)(reify { Some(recordDelim.splice) }, reify { Some(fieldDelim.splice) })
   }
   
-  val fieldParserTypes: Map[Class[_ <: eu.stratosphere.pact.common.`type`.Value], Class[_ <: FieldParser[_]]] = Map(
-    classOf[PactDouble] -> classOf[DecimalTextDoubleParser],
-    classOf[PactInteger] -> classOf[DecimalTextIntParser],
-    classOf[PactLong] -> classOf[DecimalTextLongParser],
-    classOf[PactString] -> classOf[VarLengthStringParser]
-  )
-  
-  def impl[Out: c.WeakTypeTag](c: Context)(recordDelim: c.Expr[Option[String]], fieldDelim: c.Expr[Option[String]]) : c.Expr[DataSourceFormat[Out]] = {
+  def impl[Out: c.WeakTypeTag](c: Context)(recordDelim: c.Expr[Option[String]], fieldDelim: c.Expr[Option[Char]]) : c.Expr[DataSourceFormat[Out]] = {
     import c.universe._
     
     val slave = MacroContextHolder.newMacroHelper(c)
@@ -236,32 +229,21 @@ object CsvInputFormat {
     
     val pact4sFormat = reify {
       new JavaRecordInputFormat with DataSourceFormat[Out] {
-        override def persistConfiguration(config: Configuration) {
-          super.persistConfiguration(config)
-
-          val fields: Seq[OutputField] = getUDF.outputFields.filter(_.isUsed)
-
-          config.setInteger(JavaRecordInputFormat.NUM_FIELDS_PARAMETER, fields.length)
-          
-          // for some reason we canno use fields.zipWithIndex here,
-          // this works, is not as pretty (functional) though
-          var index = 0;
-          fields foreach { field: OutputField => 
-            val fieldType  = getUDF.outputUDT.fieldTypes(field.localPos)
-            val parser = fieldParserTypes(fieldType)
-            config.setClass(JavaRecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + index, parser)
-            config.setInteger(JavaRecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX + index, field.localPos)
-            config.setInteger(JavaRecordInputFormat.RECORD_POSITION_PARAMETER_PREFIX + index, field.globalPos.getValue)
-            index = index + 1
-          }
-
-          recordDelim.splice map { config.setString(JavaRecordInputFormat.RECORD_DELIMITER_PARAMETER, _) }
-          fieldDelim.splice map { config.setString(JavaRecordInputFormat.FIELD_DELIMITER_PARAMETER, _) }
-        }
         
         val udt: UDT[Out] = c.Expr[UDT[Out]](createUdtOut).splice
         lazy val udf: UDF0[Out] = new UDF0(udt)
         override def getUDF = udf
+        
+                setDelimiter((recordDelim.splice.getOrElse("\n")))
+        setFieldDelim(fieldDelim.splice.getOrElse(','))
+        
+        // there is a problem with the reification of Class[_ <: Value], so we work with Class[_] and convert it
+        // in a function outside the reify block
+        setFieldTypesArray(asValueClassArray(getUDF.outputFields.filter(_.isUsed).map(x => getUDF.outputUDT.fieldTypes(x.localPos))))
+        
+        // is this maybe more correct? Note that null entries in the types array denote fields skipped by the CSV parser
+//      setFieldTypesArray(asValueClassArrayFromOption(getUDF.outputFields.map(x => if (x.isUsed) Some(getUDF.outputUDT.fieldTypes(x.localPos)) else None)))
+        
       }
       
     }
@@ -273,6 +255,28 @@ object CsvInputFormat {
     return result
     
   }
+  
+    // we need to do this conversion outside the reify block
+    def asValueClassArray(types: Seq[Class[_]]) : Array[Class[_ <: Value]] = {
+      
+      val typed = types.foldRight(List[Class[_ <: Value]]())((x,y) => {
+        val t : Class[_ <: Value] = x.asInstanceOf[Class[_ <: Value]]
+        t :: y
+      })
+      
+      Array[Class[_ <: Value]]() ++ typed
+    }
+    
+    // we need to do this conversion outside the reify block
+    def asValueClassArrayFromOption(types: Seq[Option[Class[_]]]) : Array[Class[_ <: Value]] = {
+      
+      val typed = types.foldRight(List[Class[_ <: Value]]())((x,y) => {
+        val t : Class[_ <: Value] = if (x.isEmpty) null else x.asInstanceOf[Class[_ <: Value]]
+        t :: y
+      })
+      
+      Array[Class[_ <: Value]]() ++ typed
+    }
 }
 
 object TextInputFormat {

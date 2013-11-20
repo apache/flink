@@ -15,17 +15,18 @@
 
 package eu.stratosphere.pact.generic.io;
 
+import org.apache.log4j.Level;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.io.FileInputFormat;
 import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
 import eu.stratosphere.pact.common.testutils.TestConfigUtils;
 import eu.stratosphere.pact.common.testutils.TestFileSystem;
 import eu.stratosphere.pact.common.testutils.TestFileUtils;
 import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.common.util.LogUtils;
 import eu.stratosphere.pact.common.util.PactConfigConstants;
 
 public class DelimitedInputFormatSamplingTest {
@@ -70,6 +71,8 @@ public class DelimitedInputFormatSamplingTest {
 	
 	@BeforeClass
 	public static void initialize() {
+		LogUtils.initializeDefaultConsoleLogger(Level.ERROR);
+		
 		try {
 			TestFileSystem.registerTestFileSysten();
 		} catch (Throwable t) {
@@ -98,17 +101,18 @@ public class DelimitedInputFormatSamplingTest {
 		try {
 			final String tempFile = TestFileUtils.createTempFile(TEST_DATA1);
 			final Configuration conf = new Configuration();
-			conf.setString(FileInputFormat.FILE_PARAMETER_KEY, tempFile.replace("file", "test"));
 			
 			final TestDelimitedInputFormat format = new TestDelimitedInputFormat();
+			format.setFilePath(tempFile.replace("file", "test"));
 			format.configure(conf);
 			
 			TestFileSystem.resetStreamOpenCounter();
 			format.getStatistics(null);
 			Assert.assertEquals("Wrong number of samples taken.", DEFAULT_NUM_SAMPLES, TestFileSystem.getNumtimeStreamOpened());
 			
-			conf.setString(TestDelimitedInputFormat.NUM_STATISTICS_SAMPLES, "8");
-			final TestDelimitedInputFormat format2 = new TestDelimitedInputFormat();
+			TestDelimitedInputFormat format2 = new TestDelimitedInputFormat();
+			format2.setFilePath(tempFile.replace("file", "test"));
+			format2.setNumLineSamples(8);
 			format2.configure(conf);
 			
 			TestFileSystem.resetStreamOpenCounter();
@@ -126,17 +130,18 @@ public class DelimitedInputFormatSamplingTest {
 		try {
 			final String tempFile = TestFileUtils.createTempFileDir(TEST_DATA1, TEST_DATA1, TEST_DATA1, TEST_DATA1);
 			final Configuration conf = new Configuration();
-			conf.setString(FileInputFormat.FILE_PARAMETER_KEY, tempFile.replace("file", "test"));
 			
 			final TestDelimitedInputFormat format = new TestDelimitedInputFormat();
+			format.setFilePath(tempFile.replace("file", "test"));
 			format.configure(conf);
 			
 			TestFileSystem.resetStreamOpenCounter();
 			format.getStatistics(null);
 			Assert.assertEquals("Wrong number of samples taken.", DEFAULT_NUM_SAMPLES, TestFileSystem.getNumtimeStreamOpened());
 			
-			conf.setString(TestDelimitedInputFormat.NUM_STATISTICS_SAMPLES, "8");
-			final TestDelimitedInputFormat format2 = new TestDelimitedInputFormat();
+			TestDelimitedInputFormat format2 = new TestDelimitedInputFormat();
+			format2.setFilePath(tempFile.replace("file", "test"));
+			format2.setNumLineSamples(8);
 			format2.configure(conf);
 			
 			TestFileSystem.resetStreamOpenCounter();
@@ -154,9 +159,9 @@ public class DelimitedInputFormatSamplingTest {
 		try {
 			final String tempFile = TestFileUtils.createTempFile(TEST_DATA1);
 			final Configuration conf = new Configuration();
-			conf.setString(FileInputFormat.FILE_PARAMETER_KEY, tempFile);
 			
 			final TestDelimitedInputFormat format = new TestDelimitedInputFormat();
+			format.setFilePath(tempFile);
 			format.configure(conf);
 			BaseStatistics stats = format.getStatistics(null);
 			
@@ -175,9 +180,9 @@ public class DelimitedInputFormatSamplingTest {
 		try {
 			final String tempFile = TestFileUtils.createTempFileDir(TEST_DATA1, TEST_DATA2);
 			final Configuration conf = new Configuration();
-			conf.setString(FileInputFormat.FILE_PARAMETER_KEY, tempFile);
 			
 			final TestDelimitedInputFormat format = new TestDelimitedInputFormat();
+			format.setFilePath(tempFile);
 			format.configure(conf);
 			BaseStatistics stats = format.getStatistics(null);
 			
@@ -207,10 +212,10 @@ public class DelimitedInputFormatSamplingTest {
 			
 			final String tempFile = TestFileUtils.createTempFile(testData);
 			final Configuration conf = new Configuration();
-			conf.setString(FileInputFormat.FILE_PARAMETER_KEY, tempFile);
-			conf.setString(TestDelimitedInputFormat.RECORD_DELIMITER, DELIMITER);
 			
 			final TestDelimitedInputFormat format = new TestDelimitedInputFormat();
+			format.setFilePath(tempFile);
+			format.setDelimiter(DELIMITER);
 			format.configure(conf);
 			
 			BaseStatistics stats = format.getStatistics(null);
@@ -230,9 +235,9 @@ public class DelimitedInputFormatSamplingTest {
 		try {
 			final String tempFile = TestFileUtils.createTempFile(2 * PactConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_SAMPLE_LEN);
 			final Configuration conf = new Configuration();
-			conf.setString(FileInputFormat.FILE_PARAMETER_KEY, tempFile);
 			
 			final TestDelimitedInputFormat format = new TestDelimitedInputFormat();
+			format.setFilePath(tempFile);
 			format.configure(conf);
 			
 			Assert.assertNull("Expected exception due to overly long record.", format.getStatistics(null));
@@ -247,9 +252,9 @@ public class DelimitedInputFormatSamplingTest {
 		try {
 			final String tempFile = TestFileUtils.createTempFile(TEST_DATA1);
 			final Configuration conf = new Configuration();
-			conf.setString(FileInputFormat.FILE_PARAMETER_KEY, "test://" + tempFile);
 			
 			final TestDelimitedInputFormat format = new TestDelimitedInputFormat();
+			format.setFilePath("test://" + tempFile);
 			format.configure(conf);
 			
 			TestFileSystem.resetStreamOpenCounter();
@@ -257,6 +262,7 @@ public class DelimitedInputFormatSamplingTest {
 			Assert.assertEquals("Wrong number of samples taken.", DEFAULT_NUM_SAMPLES, TestFileSystem.getNumtimeStreamOpened());
 			
 			final TestDelimitedInputFormat format2 = new TestDelimitedInputFormat();
+			format2.setFilePath("test://" + tempFile);
 			format2.configure(conf);
 			
 			TestFileSystem.resetStreamOpenCounter();
@@ -276,6 +282,7 @@ public class DelimitedInputFormatSamplingTest {
 	
 	private static final class TestDelimitedInputFormat extends DelimitedInputFormat<PactInteger> {
 		private static final long serialVersionUID = 1L;
+		
 		@Override
 		public boolean readRecord(PactInteger target, byte[] bytes, int offset, int numBytes) {
 			throw new UnsupportedOperationException();

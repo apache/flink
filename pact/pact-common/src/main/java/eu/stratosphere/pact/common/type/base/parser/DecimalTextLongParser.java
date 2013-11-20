@@ -15,7 +15,6 @@
 
 package eu.stratosphere.pact.common.type.base.parser;
 
-import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.type.base.PactLong;
 
 /**
@@ -23,10 +22,7 @@ import eu.stratosphere.pact.common.type.base.PactLong;
  * Only characters '1' to '0' and '-' are allowed.
  * The parser does not check for the overflows and underflows.
  */
-public class DecimalTextLongParser  implements FieldParser<PactLong> {
-
-	@Override
-	public void configure(Configuration config) { }
+public class DecimalTextLongParser extends FieldParser<PactLong> {
 	
 	@Override
 	public int parseField(byte[] bytes, int startPos, int length, char delim, PactLong field) {
@@ -55,7 +51,7 @@ public class DecimalTextLongParser  implements FieldParser<PactLong> {
 	}
 	
 	@Override
-	public PactLong getValue() {
+	public PactLong createValue() {
 		return new PactLong();
 	}
 	

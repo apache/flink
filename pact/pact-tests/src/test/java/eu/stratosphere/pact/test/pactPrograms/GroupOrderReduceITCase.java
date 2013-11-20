@@ -36,7 +36,6 @@ import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.common.type.base.parser.DecimalTextIntParser;
 import eu.stratosphere.pact.test.util.TestBase2;
 
 @RunWith(Parameterized.class)
@@ -77,12 +76,9 @@ public class GroupOrderReduceITCase extends TestBase2 {
 		
 		int dop = this.config.getInteger("GroupOrderTest#NumSubtasks", 1);
 		
-		FileDataSource source = new FileDataSource(RecordInputFormat.class, this.textPath, "Source");
-		RecordInputFormat.configureRecordFormat(source)
-			.recordDelimiter('\n')
-			.fieldDelimiter(',')
-			.field(DecimalTextIntParser.class, 0)
-			.field(DecimalTextIntParser.class, 1);
+		@SuppressWarnings("unchecked")
+		RecordInputFormat format = new RecordInputFormat(',', PactInteger.class, PactInteger.class);
+		FileDataSource source = new FileDataSource(format, this.textPath, "Source");
 		
 		ReduceContract reducer = ReduceContract.builder(CheckingReducer.class)
 			.keyField(PactInteger.class, 0)

@@ -20,10 +20,8 @@ package eu.stratosphere.nephele.template;
  * has configured job vertices in a way that either conflicts
  * with the expected usage of the respective task of the configuration
  * of the Nephele framework.
- * 
- * @author warneke
  */
-public class IllegalConfigurationException extends Exception {
+public class IllegalConfigurationException extends RuntimeException {
 
 	/**
 	 * Generated serial UID.

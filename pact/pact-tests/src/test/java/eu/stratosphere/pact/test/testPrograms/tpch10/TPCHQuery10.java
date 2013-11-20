@@ -26,7 +26,6 @@ import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
-import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
@@ -301,58 +300,44 @@ public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription
 		}
 		
 		FileDataSource orders = new FileDataSource(new IntTupleDataInFormat(), ordersPath, "Orders");
-		orders.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
-		orders.setDegreeOfParallelism(degreeOfParallelism);
 		// orders.setOutputContract(UniqueKey.class);
 		// orders.getCompilerHints().setAvgNumValuesPerKey(1);
 
 		FileDataSource lineitems = new FileDataSource(new IntTupleDataInFormat(), lineitemsPath, "LineItems");
-		lineitems.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
-		lineitems.setDegreeOfParallelism(degreeOfParallelism);
 		// lineitems.getCompilerHints().setAvgNumValuesPerKey(4);
 
 		FileDataSource customers = new FileDataSource(new IntTupleDataInFormat(), customersPath, "Customers");
-		customers.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
-		customers.setDegreeOfParallelism(degreeOfParallelism);
 
 		FileDataSource nations = new FileDataSource(new IntTupleDataInFormat(), nationsPath, "Nations");
-		nations.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
-		nations.setDegreeOfParallelism(degreeOfParallelism);
+
 
 		MapContract mapO = MapContract.builder(FilterO.class)
 			.name("FilterO")
 			.build();
-		mapO.setDegreeOfParallelism(degreeOfParallelism);
 
 		MapContract mapLi = MapContract.builder(FilterLI.class)
 			.name("FilterLi")
 			.build();
-		mapLi.setDegreeOfParallelism(degreeOfParallelism);
 
 		MapContract projectC = MapContract.builder(ProjectC.class)
 			.name("ProjectC")
 			.build();
-		projectC.setDegreeOfParallelism(degreeOfParallelism);
 
 		MapContract projectN = MapContract.builder(ProjectN.class)
 			.name("ProjectN")
 			.build();
-		projectN.setDegreeOfParallelism(degreeOfParallelism);
 
 		MatchContract joinOL = MatchContract.builder(JoinOL.class, PactInteger.class, 0, 0)
 			.name("JoinOL")
 			.build();
-		joinOL.setDegreeOfParallelism(degreeOfParallelism);
 
 		MatchContract joinCOL = MatchContract.builder(JoinCOL.class, PactInteger.class, 0, 0)
 			.name("JoinCOL")
 			.build();
-		joinCOL.setDegreeOfParallelism(degreeOfParallelism);
 
 		MatchContract joinNCOL = MatchContract.builder(JoinNCOL.class, PactInteger.class, 4, 0)
 			.name("JoinNCOL")
 			.build();
-		joinNCOL.setDegreeOfParallelism(degreeOfParallelism);
 
 		ReduceContract reduce = ReduceContract.builder(Sum.class)
 			.keyField(PactInteger.class, 0) 
@@ -364,10 +349,8 @@ public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription
 			.keyField(PactString.class, 7)
 			.name("Reduce")
 			.build();
-		reduce.setDegreeOfParallelism(degreeOfParallelism);
 
 		FileDataSink result = new FileDataSink(new TupleOutputFormat(), resultPath, "Output");
-		result.setDegreeOfParallelism(degreeOfParallelism);
 
 		result.setInput(reduce);
 		
@@ -388,6 +371,8 @@ public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription
 		mapO.setInput(orders);
 
 		// return the PACT plan
-		return new Plan(result, "TPCH Q10");
+		Plan p = new Plan(result, "TPCH Q10");
+		p.setDefaultParallelism(degreeOfParallelism);
+		return p;
 	}
 }

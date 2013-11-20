@@ -36,8 +36,6 @@ import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsSecondExce
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
-import eu.stratosphere.pact.common.type.base.parser.DecimalTextIntParser;
-import eu.stratosphere.pact.common.type.base.parser.VarLengthStringParser;
 import eu.stratosphere.pact.common.util.FieldSet;
 
 /**
@@ -151,7 +149,7 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 		RecordInputFormat.configureRecordFormat(orders)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
-			.field(DecimalTextIntParser.class, 1);
+			.field(PactInteger.class, 1);
 		// compiler hints
 		orders.getCompilerHints().setAvgBytesPerRecord(5);
 		orders.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(new int[]{0}), 10);
@@ -167,8 +165,8 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 		RecordInputFormat.configureRecordFormat(customers)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
-			.field(DecimalTextIntParser.class, 0)
-			.field(VarLengthStringParser.class, 6);
+			.field(PactInteger.class, 0)
+			.field(PactString.class, 6);
 		// compiler hints
 		customers.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(new int[]{0}), 1);
 		customers.getCompilerHints().setAvgBytesPerRecord(20);
@@ -198,9 +196,6 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 			.fieldDelimiter('|')
 			.field(PactInteger.class, 0)
 			.field(PactString.class, 1);
-		// TODO positions are missing here from original code, assume 0 and 1
-		//result.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactInteger.class);
-		//result.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, PactString.class);
 
 		// assemble the PACT plan
 		result.addInput(aggCO);

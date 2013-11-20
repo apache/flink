@@ -15,15 +15,15 @@
 
 package eu.stratosphere.pact.common.type.base.parser;
 
-import eu.stratosphere.pact.common.type.base.PactDouble;
+import eu.stratosphere.pact.common.type.base.PactFloat;
 
 /**
- * Parses a text field into a PactDouble.
+ * Parses a text field into a {@link PactFloat}
  */
-public class DecimalTextDoubleParser extends FieldParser<PactDouble> {
+public class DecimalTextFloatParser extends FieldParser<PactFloat> {
 	
 	@Override
-	public int parseField(byte[] bytes, int startPos, int limit, char delim, PactDouble field) {
+	public int parseField(byte[] bytes, int startPos, int limit, char delim, PactFloat field) {
 		
 		int i = startPos;
 		final byte delByte = (byte) delim;
@@ -34,7 +34,7 @@ public class DecimalTextDoubleParser extends FieldParser<PactDouble> {
 		
 		String str = new String(bytes, startPos, i-startPos);
 		try {
-			double value = Double.parseDouble(str);
+			float value = Float.parseFloat(str);
 			field.setValue(value);
 			return (i == limit) ? limit : i+1;
 		}
@@ -44,7 +44,7 @@ public class DecimalTextDoubleParser extends FieldParser<PactDouble> {
 	}
 	
 	@Override
-	public PactDouble createValue() {
-		return new PactDouble();
+	public PactFloat createValue() {
+		return new PactFloat();
 	}
 }

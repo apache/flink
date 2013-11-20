@@ -20,8 +20,6 @@ import eu.stratosphere.pact.common.util.InstantiationUtil;
 
 /**
  * This holds a class containing user defined code.
- * @author Aljoscha Krettek
- *
  */
 public class UserCodeClassWrapper<T> implements UserCodeWrapper<T> {
 	private static final long serialVersionUID = 1L;

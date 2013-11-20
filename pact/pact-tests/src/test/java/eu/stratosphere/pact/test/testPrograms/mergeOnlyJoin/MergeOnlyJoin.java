@@ -33,7 +33,6 @@ import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsExcept;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsFirstExcept;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.common.type.base.parser.DecimalTextIntParser;
 
 public class MergeOnlyJoin implements PlanAssembler, PlanAssemblerDescription {
 
@@ -70,29 +69,21 @@ public class MergeOnlyJoin implements PlanAssembler, PlanAssemblerDescription {
 		int numSubtasksInput2 = (args.length > 4 ? Integer.parseInt(args[4]) : 1);
 
 		// create DataSourceContract for Orders input
-		FileDataSource input1 = new FileDataSource(new RecordInputFormat(), input1Path, "Input 1");
-		input1.setDegreeOfParallelism(numSubtasks);
-		RecordInputFormat.configureRecordFormat(input1)
-			.recordDelimiter('\n')
-			.fieldDelimiter('|')
-			.field(DecimalTextIntParser.class, 0)
-			.field(DecimalTextIntParser.class, 1);
+		@SuppressWarnings("unchecked")
+		RecordInputFormat format1 = new RecordInputFormat('|', PactInteger.class, PactInteger.class);
+		FileDataSource input1 = new FileDataSource(format1, input1Path, "Input 1");
 		
 		ReduceContract aggInput1 = ReduceContract.builder(DummyReduce.class, PactInteger.class, 0)
 			.input(input1)
 			.name("AggOrders")
 			.build();
-		aggInput1.setDegreeOfParallelism(numSubtasks);
 
 		
 		// create DataSourceContract for Orders input
-		FileDataSource input2 = new FileDataSource(new RecordInputFormat(), input2Path, "Input 2");
+		@SuppressWarnings("unchecked")
+		RecordInputFormat format2 = new RecordInputFormat('|', PactInteger.class, PactInteger.class);
+		FileDataSource input2 = new FileDataSource(format2, input2Path, "Input 2");
 		input2.setDegreeOfParallelism(numSubtasksInput2);
-		RecordInputFormat.configureRecordFormat(input2)
-			.recordDelimiter('\n')
-			.fieldDelimiter('|')
-			.field(DecimalTextIntParser.class, 0)
-			.field(DecimalTextIntParser.class, 1);
 
 		ReduceContract aggInput2 = ReduceContract.builder(DummyReduce.class, PactInteger.class, 0)
 			.input(input2)
@@ -106,11 +97,9 @@ public class MergeOnlyJoin implements PlanAssembler, PlanAssemblerDescription {
 			.input2(aggInput2)
 			.name("JoinLiO")
 			.build();
-		joinLiO.setDegreeOfParallelism(numSubtasks);
 
 		// create DataSinkContract for writing the result
 		FileDataSink result = new FileDataSink(new RecordOutputFormat(), output, joinLiO, "Output");
-		result.setDegreeOfParallelism(numSubtasks);
 		RecordOutputFormat.configureRecordFormat(result)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')

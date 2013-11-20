@@ -20,7 +20,6 @@ import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.common.io.DelimitedInputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
@@ -52,7 +51,6 @@ public class EnumTrianglesWithDegrees implements PlanAssembler, PlanAssemblerDes
 		
 
 		FileDataSource edges = new FileDataSource(new EdgeInputFormat(), edgeInput, "Input Edges");
-		edges.setParameter(DelimitedInputFormat.RECORD_DELIMITER, "\n");
 		edges.setParameter(EdgeInputFormat.ID_DELIMITER_CHAR, delimiter);
 
 		// =========================== Vertex Degree ============================

@@ -16,24 +16,31 @@ package eu.stratosphere.pact.generic.io;
 
 import java.io.IOException;
 
+import org.apache.log4j.Level;
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
 import eu.stratosphere.pact.common.testutils.TestFileUtils;
 import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.common.util.LogUtils;
 import eu.stratosphere.pact.generic.io.FileInputFormat.FileBaseStatistics;
 
 public class FileInputFormatTest { 
 
+	@BeforeClass
+	public static void initialize() {
+		LogUtils.initializeDefaultConsoleLogger(Level.ERROR);
+	}
+	
 	@Test
 	public void testGetStatisticsNonExistingFile() {
 		try {
-			final Configuration config = new Configuration();
-			config.setString(FileInputFormat.FILE_PARAMETER_KEY, "file:///some/none/existing/directory/");
 			final DummyFileInputFormat format = new DummyFileInputFormat();
-			format.configure(config);
+			format.setFilePath("file:///some/none/existing/directory/");
+			format.configure(new Configuration());
 			
 			BaseStatistics stats = format.getStatistics(null);
 			Assert.assertNull("The file statistics should be null.", stats);
@@ -47,10 +54,11 @@ public class FileInputFormatTest {
 	public void testGetStatisticsOneFileNoCachedVersion() {
 		try {
 			final long SIZE = 1024 * 500;
-			final Configuration config = TestFileUtils.getConfigForFile(SIZE);
+			String tempFile = TestFileUtils.createTempFile(SIZE);
 			
 			final DummyFileInputFormat format = new DummyFileInputFormat();
-			format.configure(config);
+			format.setFilePath(tempFile);
+			format.configure(new Configuration());
 			
 			BaseStatistics stats = format.getStatistics(null);
 			Assert.assertEquals("The file size from the statistics is wrong.", SIZE, stats.getTotalInputSize());
@@ -68,10 +76,11 @@ public class FileInputFormatTest {
 			final long SIZE3 = 10;
 			final long TOTAL = SIZE1 + SIZE2 + SIZE3;
 			
-			final Configuration config = TestFileUtils.getConfigForDir(SIZE1, SIZE2, SIZE3);
+			String tempDir = TestFileUtils.createTempFileDir(SIZE1, SIZE2, SIZE3);
 			
 			final DummyFileInputFormat format = new DummyFileInputFormat();
-			format.configure(config);
+			format.setFilePath(tempDir);
+			format.configure(new Configuration());
 			
 			BaseStatistics stats = format.getStatistics(null);
 			Assert.assertEquals("The file size from the statistics is wrong.", TOTAL, stats.getTotalInputSize());
@@ -87,28 +96,37 @@ public class FileInputFormatTest {
 			final long SIZE = 50873;
 			final long FAKE_SIZE = 10065;
 			
-			final Configuration config = TestFileUtils.getConfigForFile(SIZE);
+			String tempFile = TestFileUtils.createTempFile(SIZE);
 			
 			DummyFileInputFormat format = new DummyFileInputFormat();
-			format.configure(config);
+			format.setFilePath(tempFile);
+			format.configure(new Configuration());
+			
+			
 			FileBaseStatistics stats = format.getStatistics(null);
 			Assert.assertEquals("The file size from the statistics is wrong.", SIZE, stats.getTotalInputSize());
 			
 			format = new DummyFileInputFormat();
-			format.configure(config);
+			format.setFilePath(tempFile);
+			format.configure(new Configuration());
+			
 			FileBaseStatistics newStats = format.getStatistics(stats);
 			Assert.assertTrue("Statistics object was changed", newStats == stats);
 
 			// insert fake stats with the correct modification time. the call should return the fake stats
 			format = new DummyFileInputFormat();
-			format.configure(config);
+			format.setFilePath(tempFile);
+			format.configure(new Configuration());
+			
 			FileBaseStatistics fakeStats = new FileBaseStatistics(stats.getLastModificationTime(), FAKE_SIZE, BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
 			BaseStatistics latest = format.getStatistics(fakeStats);
 			Assert.assertEquals("The file size from the statistics is wrong.", FAKE_SIZE, latest.getTotalInputSize());
 			
-			// insert fake stats with the correct modification time. the call should return the fake stats
+			// insert fake stats with the expired modification time. the call should return new accurate stats
 			format = new DummyFileInputFormat();
-			format.configure(config);
+			format.setFilePath(tempFile);
+			format.configure(new Configuration());
+			
 			FileBaseStatistics outDatedFakeStats = new FileBaseStatistics(stats.getLastModificationTime()-1, FAKE_SIZE, BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
 			BaseStatistics reGathered = format.getStatistics(outDatedFakeStats);
 			Assert.assertEquals("The file size from the statistics is wrong.", SIZE, reGathered.getTotalInputSize());
@@ -128,28 +146,36 @@ public class FileInputFormatTest {
 			final long TOTAL = SIZE1 + SIZE2 + SIZE3;
 			final long FAKE_SIZE = 10065;
 			
-			final Configuration config = TestFileUtils.getConfigForDir(SIZE1, SIZE2, SIZE3);
+			String tempDir = TestFileUtils.createTempFileDir(SIZE1, SIZE2, SIZE3);
 			
 			DummyFileInputFormat format = new DummyFileInputFormat();
-			format.configure(config);
+			format.setFilePath(tempDir);
+			format.configure(new Configuration());
+			
 			FileBaseStatistics stats = format.getStatistics(null);
 			Assert.assertEquals("The file size from the statistics is wrong.", TOTAL, stats.getTotalInputSize());
 			
 			format = new DummyFileInputFormat();
-			format.configure(config);
+			format.setFilePath(tempDir);
+			format.configure(new Configuration());
+			
 			FileBaseStatistics newStats = format.getStatistics(stats);
 			Assert.assertTrue("Statistics object was changed", newStats == stats);
 
 			// insert fake stats with the correct modification time. the call should return the fake stats
 			format = new DummyFileInputFormat();
-			format.configure(config);
+			format.setFilePath(tempDir);
+			format.configure(new Configuration());
+			
 			FileBaseStatistics fakeStats = new FileBaseStatistics(stats.getLastModificationTime(), FAKE_SIZE, BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
 			BaseStatistics latest = format.getStatistics(fakeStats);
 			Assert.assertEquals("The file size from the statistics is wrong.", FAKE_SIZE, latest.getTotalInputSize());
 			
 			// insert fake stats with the correct modification time. the call should return the fake stats
 			format = new DummyFileInputFormat();
-			format.configure(config);
+			format.setFilePath(tempDir);
+			format.configure(new Configuration());
+			
 			FileBaseStatistics outDatedFakeStats = new FileBaseStatistics(stats.getLastModificationTime()-1, FAKE_SIZE, BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
 			BaseStatistics reGathered = format.getStatistics(outDatedFakeStats);
 			Assert.assertEquals("The file size from the statistics is wrong.", TOTAL, reGathered.getTotalInputSize());

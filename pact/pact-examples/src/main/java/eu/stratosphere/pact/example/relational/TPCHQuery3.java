@@ -41,10 +41,6 @@ import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.common.type.base.PactString;
-import eu.stratosphere.pact.common.type.base.parser.DecimalTextDoubleParser;
-import eu.stratosphere.pact.common.type.base.parser.DecimalTextIntParser;
-import eu.stratosphere.pact.common.type.base.parser.DecimalTextLongParser;
-import eu.stratosphere.pact.common.type.base.parser.VarLengthStringParser;
 
 /**
  * The TPC-H is a decision support benchmark on relational data.
@@ -208,19 +204,19 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		RecordInputFormat.configureRecordFormat(orders)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
-			.field(DecimalTextLongParser.class, 0)		// order id
-			.field(DecimalTextIntParser.class, 7) 		// ship prio
-			.field(VarLengthStringParser.class, 2, 2)	// order status
-			.field(VarLengthStringParser.class, 4, 10)	// order date
-			.field(VarLengthStringParser.class, 5, 8);	// order prio
+			.field(PactLong.class, 0)		// order id
+			.field(PactInteger.class, 7) 		// ship prio
+			.field(PactString.class, 2, 2)	// order status
+			.field(PactString.class, 4, 10)	// order date
+			.field(PactString.class, 5, 8);	// order prio
 
 		// create DataSourceContract for LineItems input
 		FileDataSource lineitems = new FileDataSource(new RecordInputFormat(), lineitemsPath, "LineItems");
 		RecordInputFormat.configureRecordFormat(lineitems)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
-			.field(DecimalTextLongParser.class, 0)		// order id
-			.field(DecimalTextDoubleParser.class, 5);	// extended price
+			.field(PactLong.class, 0)		// order id
+			.field(PactDouble.class, 5);	// extended price
 
 		// create MapContract for filtering Orders tuples
 		MapContract filterO = MapContract.builder(new FilterO())

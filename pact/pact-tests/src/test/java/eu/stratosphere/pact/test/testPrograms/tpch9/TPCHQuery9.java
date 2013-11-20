@@ -22,7 +22,6 @@ import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
@@ -111,44 +110,32 @@ public class TPCHQuery9 implements PlanAssembler, PlanAssemblerDescription {
 		/* part: (partkey | name, mfgr, brand, type, size, container, retailprice, comment) */
 		FileDataSource partInput = new FileDataSource(
 			new IntTupleDataInFormat(), this.partInputPath, "\"part\" source");
-		partInput.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
-		partInput.setDegreeOfParallelism(this.degreeOfParallelism);
 		//partInput.setOutputContract(UniqueKey.class);
 //		partInput.getCompilerHints().setAvgNumValuesPerKey(1);
 
 		/* partsupp: (partkey | suppkey, availqty, supplycost, comment) */
 		FileDataSource partSuppInput = new FileDataSource(
 			new IntTupleDataInFormat(), this.partSuppInputPath, "\"partsupp\" source");
-		partSuppInput.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
-		partSuppInput.setDegreeOfParallelism(this.degreeOfParallelism);
 
 		/* orders: (orderkey | custkey, orderstatus, totalprice, orderdate, orderpriority, clerk, shippriority, comment) */
 		FileDataSource ordersInput = new FileDataSource(
 			new IntTupleDataInFormat(), this.ordersInputPath, "\"orders\" source");
-		ordersInput.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
-		ordersInput.setDegreeOfParallelism(this.degreeOfParallelism);
 		//ordersInput.setOutputContract(UniqueKey.class);
 //		ordersInput.getCompilerHints().setAvgNumValuesPerKey(1);
 
 		/* lineitem: (orderkey | partkey, suppkey, linenumber, quantity, extendedprice, discount, tax, ...) */
 		FileDataSource lineItemInput = new FileDataSource(
 			new IntTupleDataInFormat(), this.lineItemInputPath, "\"lineitem\" source");
-		lineItemInput.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
-		lineItemInput.setDegreeOfParallelism(this.degreeOfParallelism);
 
 		/* supplier: (suppkey | name, address, nationkey, phone, acctbal, comment) */
 		FileDataSource supplierInput = new FileDataSource(
 			new IntTupleDataInFormat(), this.supplierInputPath, "\"supplier\" source");
-		supplierInput.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
-		supplierInput.setDegreeOfParallelism(this.degreeOfParallelism);
 		//supplierInput.setOutputContract(UniqueKey.class);
 //		supplierInput.getCompilerHints().setAvgNumValuesPerKey(1);
 
 		/* nation: (nationkey | name, regionkey, comment) */
 		FileDataSource nationInput = new FileDataSource(
 			new IntTupleDataInFormat(), this.nationInputPath, "\"nation\" source");
-		nationInput.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
-		nationInput.setDegreeOfParallelism(this.degreeOfParallelism);
 		//nationInput.setOutputContract(UniqueKey.class);
 //		nationInput.getCompilerHints().setAvgNumValuesPerKey(1);
 
@@ -156,72 +143,61 @@ public class TPCHQuery9 implements PlanAssembler, PlanAssemblerDescription {
 		MapContract filterPart = MapContract.builder(PartFilter.class)
 			.name("filterParts")
 			.build();
-		filterPart.setDegreeOfParallelism(this.degreeOfParallelism);
 
 		/* Map to change the key element of partsupp, project value to (supplycost, suppkey): */
 		MapContract mapPartsupp = MapContract.builder(PartsuppMap.class)
 			.name("mapPartsupp")
 			.build();
-		mapPartsupp.setDegreeOfParallelism(this.degreeOfParallelism);
 
 		/* Map to extract the year from order: */
 		MapContract mapOrder = MapContract.builder(OrderMap.class)
 			.name("mapOrder")
 			.build();
-		mapOrder.setDegreeOfParallelism(this.degreeOfParallelism);
 
 		/* Project value to (partkey, suppkey, quantity, price = extendedprice*(1-discount)): */
 		MapContract mapLineItem = MapContract.builder(LineItemMap.class)
 			.name("proj.Partsupp")
 			.build();
-		mapLineItem.setDegreeOfParallelism(this.degreeOfParallelism);
 
 		/* - change the key of supplier to nationkey, project value to suppkey */
 		MapContract mapSupplier = MapContract.builder(SupplierMap.class)
 			.name("proj.Partsupp")
 			.build();
-		mapSupplier.setDegreeOfParallelism(this.degreeOfParallelism);
 
 		/* Equijoin on partkey of part and partsupp: */
 		MatchContract partsJoin = MatchContract.builder(PartJoin.class, PactInteger.class, 0, 0)
 			.name("partsJoin")
 			.build();
-		partsJoin.setDegreeOfParallelism(this.degreeOfParallelism);
 
 		/* Equijoin on orderkey of orders and lineitem: */
 		MatchContract orderedPartsJoin =
 			MatchContract.builder(OrderedPartsJoin.class, PactInteger.class, 0, 0)
 			.name("orderedPartsJoin")
 			.build();
-		orderedPartsJoin.setDegreeOfParallelism(this.degreeOfParallelism);
 
 		/* Equijoin on nationkey of supplier and nation: */
 		MatchContract suppliersJoin =
 			MatchContract.builder(SuppliersJoin.class, PactInteger.class, 0, 0)
 			.name("suppliersJoin")
 			.build();
-		suppliersJoin.setDegreeOfParallelism(this.degreeOfParallelism);
 
 		/* Equijoin on (partkey,suppkey) of parts and orderedParts: */
 		MatchContract filteredPartsJoin =
 			MatchContract.builder(FilteredPartsJoin.class, IntPair.class, 0, 0)
 			.name("filteredPartsJoin")
 			.build();
-		filteredPartsJoin.setDegreeOfParallelism(this.degreeOfParallelism);
 
 		/* Equijoin on suppkey of filteredParts and suppliers: */
 		MatchContract partListJoin =
 			MatchContract.builder(PartListJoin.class, PactInteger.class , 0, 0)
 			.name("partlistJoin")
 			.build();
-		filteredPartsJoin.setDegreeOfParallelism(this.degreeOfParallelism);
 
 		/* Aggregate sum(amount) by (nation,year): */
 		ReduceContract sumAmountAggregate =
 			ReduceContract.builder(AmountAggregate.class, StringIntPair.class, 0)
 			.name("groupyBy")
 			.build();
-		sumAmountAggregate.setDegreeOfParallelism(this.degreeOfParallelism);
 
 		/* Connect input filters: */
 		filterPart.addInput(partInput);
@@ -246,20 +222,16 @@ public class TPCHQuery9 implements PlanAssembler, PlanAssemblerDescription {
 		sumAmountAggregate.addInput(partListJoin);
 
 		/* Connect sink: */
-		FileDataSink result = new FileDataSink(
-				new StringIntPairStringDataOutFormat(), this.outputPath, "Results sink");
-		result.setDegreeOfParallelism(this.degreeOfParallelism);
+		FileDataSink result = new FileDataSink(new StringIntPairStringDataOutFormat(), this.outputPath, "Results sink");
 		result.addInput(sumAmountAggregate);
 
-		return new Plan(result, "TPC-H query 9");
+		Plan p = new Plan(result, "TPC-H query 9");
+		p.setDefaultParallelism(this.degreeOfParallelism);
+		return p;
 	}
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.plan.PlanAssemblerDescription#getDescription()
-	 */
+
 	@Override
 	public String getDescription() {
 		return "TPC-H query 9, parameters: " + this.ARGUMENTS;
 	}
-
 }

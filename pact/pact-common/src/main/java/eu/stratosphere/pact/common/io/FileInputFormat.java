@@ -22,5 +22,6 @@ import eu.stratosphere.pact.common.type.PactRecord;
  * file.
  */
 public abstract class FileInputFormat extends eu.stratosphere.pact.generic.io.FileInputFormat<PactRecord> {
-	private static final long serialVersionUID = 1L;
+	
+	private static final long serialVersionUID = -8819984594406641418L;
 }

@@ -26,12 +26,12 @@ import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.common.io.DelimitedInputFormat;
-import eu.stratosphere.pact.common.io.FileInputFormat;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.generic.contract.UserCodeClassWrapper;
+import eu.stratosphere.pact.generic.contract.UserCodeObjectWrapper;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordSerializerFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DataSinkTask;
@@ -115,11 +115,20 @@ public abstract class TaskTestBase {
 	public void registerFileInputTask(AbstractInputTask<?> inTask,
 			Class<? extends DelimitedInputFormat> stubClass, String inPath, String delimiter)
 	{
+		DelimitedInputFormat format;
+		try {
+			format = stubClass.newInstance();
+		}
+		catch (Throwable t) {
+			throw new RuntimeException("Could not instantiate test input format.", t);
+		}
+		
+		format.setFilePath(inPath);
+		format.setDelimiter(delimiter);
+		
 		TaskConfig dsConfig = new TaskConfig(this.mockEnv.getTaskConfiguration());
-		dsConfig.setStubWrapper(new UserCodeClassWrapper<DelimitedInputFormat>(stubClass));
-		dsConfig.setStubParameter(FileInputFormat.FILE_PARAMETER_KEY, inPath);
-		dsConfig.setStubParameter(DelimitedInputFormat.RECORD_DELIMITER, delimiter);
-
+		dsConfig.setStubWrapper(new UserCodeObjectWrapper<DelimitedInputFormat>(format));
+		
 		this.inputSplitProvider.addInputSplits(inPath, 5);
 
 		inTask.setEnvironment(this.mockEnv);

@@ -66,7 +66,7 @@ public interface InputFormat<OT, T extends InputSplit> extends Serializable {
 	 *  
 	 * @param parameters The configuration with all parameters.
 	 */
-	public void configure(Configuration parameters);
+	void configure(Configuration parameters);
 	
 	/**
 	 * Gets the basic statistics from the input described by this format. If the input format does not know how
@@ -79,7 +79,7 @@ public interface InputFormat<OT, T extends InputSplit> extends Serializable {
 	 * @param cachedStatistics The statistics that were cached. May be null.
 	 * @return The base statistics for the input, or null, if not available.
 	 */
-	public BaseStatistics getStatistics(BaseStatistics cachedStatistics) throws IOException;
+	BaseStatistics getStatistics(BaseStatistics cachedStatistics) throws IOException;
 	
 	/**
 	 * Creates the different splits of the input that can be processed in parallel.
@@ -92,14 +92,14 @@ public interface InputFormat<OT, T extends InputSplit> extends Serializable {
 	 * 
 	 * @throws Exception Thrown, when the creation of the splits was erroneous.
 	 */
-	public T[] createInputSplits(int minNumSplits) throws IOException;
+	T[] createInputSplits(int minNumSplits) throws IOException;
 	
 	/**
 	 * Gets the type of the input splits that are processed by this input format.
 	 * 
 	 * @return The type of the input splits.
 	 */
-	public Class<? extends T> getInputSplitType();
+	Class<? extends T> getInputSplitType();
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -111,7 +111,7 @@ public interface InputFormat<OT, T extends InputSplit> extends Serializable {
 	 * @param split The split to be opened.
 	 * @throws IOException Thrown, if the spit could not be opened due to an I/O problem.
 	 */
-	public void open(T split) throws IOException;
+	void open(T split) throws IOException;
 	
 	/**
 	 * Method used to check if the end of the input is reached.
@@ -121,7 +121,7 @@ public interface InputFormat<OT, T extends InputSplit> extends Serializable {
 	 * @return True if the end is reached, otherwise false.
 	 * @throws IOException Thrown, if an I/O error occurred.
 	 */
-	public abstract boolean reachedEnd() throws IOException;
+	boolean reachedEnd() throws IOException;
 	
 	/**
 	 * Tries to read the next pair from the input. By using the return value invalid records in the
@@ -136,7 +136,7 @@ public interface InputFormat<OT, T extends InputSplit> extends Serializable {
 	 *         
 	 * @throws IOException Thrown, if an I/O error occurred.
 	 */
-	public boolean nextRecord(OT record) throws IOException;
+	boolean nextRecord(OT record) throws IOException;
 	
 	/**
 	 * Method that marks the end of the life-cycle of an input split. Should be used to close channels and streams
@@ -146,5 +146,5 @@ public interface InputFormat<OT, T extends InputSplit> extends Serializable {
 	 * 
 	 * @throws IOException Thrown, if the input could not be closed properly.
 	 */
-	public void close() throws IOException;
+	void close() throws IOException;
 }

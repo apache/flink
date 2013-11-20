@@ -5,12 +5,15 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 
+import org.apache.log4j.Level;
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.util.LogUtils;
 
 public class BinaryInputFormatTest {
 	
@@ -20,6 +23,11 @@ public class BinaryInputFormatTest {
 
 		@Override
 		protected void deserialize(PactRecord record, DataInput dataInput) throws IOException {}
+	}
+	
+	@BeforeClass
+	public static void initialize() {
+		LogUtils.initializeDefaultConsoleLogger(Level.WARN);
 	}
 
 	@Test
@@ -37,8 +45,10 @@ public class BinaryInputFormatTest {
 
 		final Configuration config = new Configuration();
 		config.setLong(BinaryInputFormat.BLOCK_SIZE_PARAMETER_KEY, blockSize);
-		config.setString(BinaryInputFormat.FILE_PARAMETER_KEY, tempFile.toURI().toString());
+		
 		final BinaryInputFormat<PactRecord> inputFormat = new MyBinaryInputFormat();
+		inputFormat.setFilePath(tempFile.toURI().toString());
+		
 		inputFormat.configure(config);
 		
 		FileInputSplit[] inputSplits = inputFormat.createInputSplits(numBlocks);
