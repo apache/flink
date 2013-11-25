@@ -41,6 +41,7 @@
 		<module>pact</module>
 		<module>pact-scala</module>
 		<module>stratosphere-dist</module>
+		<module>stratosphere-addons</module>
 	</modules>
 
 	<properties>

@@ -24,9 +24,6 @@
 		</license>
 	</licenses>
 
-	<developers>
-	</developers>
-
 	<modules>
 		<module>pact-common</module>
 		<module>pact-runtime</module>
@@ -34,11 +31,7 @@
 		<module>pact-clients</module>
 		<module>pact-examples</module>
 		<module>pact-tests</module>
-		<module>pact-array-datamodel</module>
 	</modules>
-
-	<properties>
-	</properties>
 
 	<dependencyManagement>
 		<!-- this section defines the module versions that are used if nothing 
@@ -46,38 +39,4 @@
 		<dependencies>
 		</dependencies>
 	</dependencyManagement>
-
-	<dependencies>
-	</dependencies>
-
-
-	
-	<!-- See main pom.xml for explanation of profiles -->
-	<profiles>
-		<profile>
-			<id>hadoop-1</id>
-			<activation>
-				<property>
-					<!-- Please do not remove the 'hadoop1' comment. See ./tools/generate_specific_pom.sh -->
-					<!--hadoop1--><name>!hadoop.profile</name>
-				</property>
-			</activation>
-			<modules>
-				<!-- No extra modules: pact-hbase is currently not compatible with Hadoop v1 -->
-			</modules>
-		</profile>
-		<profile>
-			<id>hadoop-2</id>
-			<activation>
-				<property>
-					<!-- Please do not remove the 'hadoop1' comment. See ./tools/generate_specific_pom.sh -->
-					<!--hadoop2--><name>hadoop.profile</name><value>2</value>
-				</property>
-			</activation>
-			<modules>
-				<module>pact-hbase</module>
-			</modules>
-		</profile>
-	</profiles>
-
 </project>
