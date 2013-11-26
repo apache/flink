@@ -206,21 +206,44 @@ object CsvInputFormat {
   def apply[Out](): DataSourceFormat[Out] = macro implWithoutAll[Out]
   def apply[Out](recordDelim: String): DataSourceFormat[Out] = macro implWithRD[Out]
   def apply[Out](recordDelim: String, fieldDelim: Char): DataSourceFormat[Out] = macro implWithRDandFD[Out]
-  
+
+  def apply[Out](fieldIndices: Seq[Int]): DataSourceFormat[Out] = macro implWithoutAllWithIndices[Out]
+  def apply[Out](fieldIndices: Seq[Int], recordDelim: String): DataSourceFormat[Out] = macro implWithRDWithIndices[Out]
+  def apply[Out](fieldIndices: Seq[Int], recordDelim: String, fieldDelim: Char): DataSourceFormat[Out] = macro implWithRDandFDWithIndices[Out]
+
+
   def implWithoutAll[Out: c.WeakTypeTag](c: Context)() : c.Expr[DataSourceFormat[Out]] = {
     import c.universe._
-    impl(c)(reify { None }, reify { None })
+    impl(c)(reify { Seq[Int]() }, reify { None }, reify { None })
   }
-  def implWithRD[Out: c.WeakTypeTag](c: Context)(recordDelim: c.Expr[String]) : c.Expr[DataSourceFormat[Out]] = {
+  def implWithRD[Out: c.WeakTypeTag](c: Context)
+                                    (recordDelim: c.Expr[String]) : c.Expr[DataSourceFormat[Out]] = {
     import c.universe._
-    impl(c)(reify { Some(recordDelim.splice) }, reify { None })
+    impl(c)(reify { Seq[Int]() },reify { Some(recordDelim.splice) }, reify { None })
   }
-  def implWithRDandFD[Out: c.WeakTypeTag](c: Context)(recordDelim: c.Expr[String], fieldDelim: c.Expr[Char]) : c.Expr[DataSourceFormat[Out]] = {
+  def implWithRDandFD[Out: c.WeakTypeTag](c: Context)
+                                         (recordDelim: c.Expr[String], fieldDelim: c.Expr[Char]) : c.Expr[DataSourceFormat[Out]] = {
     import c.universe._
-    impl(c)(reify { Some(recordDelim.splice) }, reify { Some(fieldDelim.splice) })
+    impl(c)(reify { Seq[Int]() },reify { Some(recordDelim.splice) }, reify { Some(fieldDelim.splice) })
+  }
+
+  def implWithoutAllWithIndices[Out: c.WeakTypeTag](c: Context)(fieldIndices: c.Expr[Seq[Int]]) : c.Expr[DataSourceFormat[Out]] = {
+    import c.universe._
+    impl(c)(fieldIndices, reify { None }, reify { None })
+  }
+  def implWithRDWithIndices[Out: c.WeakTypeTag](c: Context)
+                                    (fieldIndices: c.Expr[Seq[Int]], recordDelim: c.Expr[String]) : c.Expr[DataSourceFormat[Out]] = {
+    import c.universe._
+    impl(c)(fieldIndices,reify { Some(recordDelim.splice) }, reify { None })
+  }
+  def implWithRDandFDWithIndices[Out: c.WeakTypeTag](c: Context)
+                                         (fieldIndices: c.Expr[Seq[Int]], recordDelim: c.Expr[String], fieldDelim: c.Expr[Char]) : c.Expr[DataSourceFormat[Out]] = {
+    import c.universe._
+    impl(c)(fieldIndices,reify { Some(recordDelim.splice) }, reify { Some(fieldDelim.splice) })
   }
   
-  def impl[Out: c.WeakTypeTag](c: Context)(recordDelim: c.Expr[Option[String]], fieldDelim: c.Expr[Option[Char]]) : c.Expr[DataSourceFormat[Out]] = {
+  def impl[Out: c.WeakTypeTag](c: Context)
+                              (fieldIndices: c.Expr[Seq[Int]], recordDelim: c.Expr[Option[String]], fieldDelim: c.Expr[Option[Char]]) : c.Expr[DataSourceFormat[Out]] = {
     import c.universe._
     
     val slave = MacroContextHolder.newMacroHelper(c)
@@ -234,7 +257,7 @@ object CsvInputFormat {
         lazy val udf: UDF0[Out] = new UDF0(udt)
         override def getUDF = udf
         
-                setDelimiter((recordDelim.splice.getOrElse("\n")))
+        setDelimiter((recordDelim.splice.getOrElse("\n")))
         setFieldDelim(fieldDelim.splice.getOrElse(','))
         
         // there is a problem with the reification of Class[_ <: Value], so we work with Class[_] and convert it
@@ -242,7 +265,16 @@ object CsvInputFormat {
 //        setFieldTypesArray(asValueClassArray(getUDF.outputFields.filter(_.isUsed).map(x => getUDF.outputUDT.fieldTypes(x.localPos))))
         
         // is this maybe more correct? Note that null entries in the types array denote fields skipped by the CSV parser
-        setFieldTypesArray(asValueClassArrayFromOption(getUDF.outputFields.map(x => if (x.isUsed) Some(getUDF.outputUDT.fieldTypes(x.localPos)) else None)))
+        val indices = fieldIndices.splice
+        val fieldTypes = asValueClassArrayFromOption(getUDF.outputFields.map {
+          case x if x.isUsed => Some(getUDF.outputUDT.fieldTypes(x.localPos))
+          case _ => None
+        })
+        if (indices.isEmpty) {
+          setFieldTypesArray(fieldTypes)
+        } else {
+          setFields(indices.toArray, fieldTypes)
+        }
         
       }
       

@@ -37,7 +37,7 @@ object Main1 {
     def formatOutput = (word: String, count: Int) => "%s %d".format(word, count)
     
     val input = TextFile("file:///home/aljoscha/dummy-input")
-    val inputNumbers = DataSource("file:///home/aljoscha/dummy-input-numbers", CsvInputFormat[(Int, String)]("\n", ','))
+    val inputNumbers = DataSource("file:///home/aljoscha/dummy-input-numbers", CsvInputFormat[(Int, String, String)](Seq(0,2,1), "\n", ','))
     
     val counts = input.map { _.split("""\W+""") map { (_, 1) } }
       .flatMap { l => l }
@@ -45,20 +45,24 @@ object Main1 {
       .combinableReduceGroup { _.reduce { (w1, w2) => (w1._1, w1._2 + w2._2) } }
       .map(fun)
 //      .filter { case (w, c) => c == 7 }
-    
+
     val countsCross = counts.cross(counts)
       .filter { case (left, right) => left._1 == "hier" }
       .map { case (w1, w2) => (w1._1 + " + " + w2._1, w1._2 + w2._2) }
     
     val foo = counts.join(inputNumbers) where { case (_, c) => c}
+
     
-    val bar1 = foo.isEqualTo { case (c, _) => c } map { (w1, w2) => (w1._1 + " is ONE " + w2._2, w1._2) }
+    val bar1 = foo.isEqualTo { case (c, _, _) => c } map { (w1, w2) => (w1._1 + " is ONE " + w2._2, w1._2) }
+    bar1.right neglects { case (a,b,c) => c }
     
-    val bar2 = foo.isEqualTo { case (c, _) => c } map { (w1, w2) => (w1._1 + " is TWO " + w2._2, w1._2) }
-    
-    val countsJoin = counts.join(inputNumbers) where { case (_, c) => c} isEqualTo { case (c, _) => c } map { (w1, w2) => (w1._1 + " is " + w2._2, w1._2) }
+    val bar2 = foo.isEqualTo { case (c, _, _) => c } map { (w1, w2) => (w1._1 + " is TWO " + w2._2, w1._2) }
+    bar2.right neglects { case (a,b,c) => c }
+
+    val countsJoin = counts.join(inputNumbers) where { case (_, c) => c} isEqualTo { case (c, _, _) => c } map { (w1, w2) => (w1._1 + " is " + w2._2, w1._2) }
     countsJoin.left preserves({ case (_, count) => count }, { case (_, count) => count })
-    
+    countsJoin.right neglects { case (a,b,c) => c }
+
     val un = countsCross union countsJoin map { x => x }
     
     val sink0 = counts.reduce { (w1, w2) => ( "Total: " , w1._2 + w2._2) }
