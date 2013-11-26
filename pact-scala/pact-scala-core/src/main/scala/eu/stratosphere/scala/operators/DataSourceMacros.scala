@@ -239,10 +239,10 @@ object CsvInputFormat {
         
         // there is a problem with the reification of Class[_ <: Value], so we work with Class[_] and convert it
         // in a function outside the reify block
-        setFieldTypesArray(asValueClassArray(getUDF.outputFields.filter(_.isUsed).map(x => getUDF.outputUDT.fieldTypes(x.localPos))))
+//        setFieldTypesArray(asValueClassArray(getUDF.outputFields.filter(_.isUsed).map(x => getUDF.outputUDT.fieldTypes(x.localPos))))
         
         // is this maybe more correct? Note that null entries in the types array denote fields skipped by the CSV parser
-//      setFieldTypesArray(asValueClassArrayFromOption(getUDF.outputFields.map(x => if (x.isUsed) Some(getUDF.outputUDT.fieldTypes(x.localPos)) else None)))
+        setFieldTypesArray(asValueClassArrayFromOption(getUDF.outputFields.map(x => if (x.isUsed) Some(getUDF.outputUDT.fieldTypes(x.localPos)) else None)))
         
       }
       
@@ -271,7 +271,10 @@ object CsvInputFormat {
     def asValueClassArrayFromOption(types: Seq[Option[Class[_]]]) : Array[Class[_ <: Value]] = {
       
       val typed = types.foldRight(List[Class[_ <: Value]]())((x,y) => {
-        val t : Class[_ <: Value] = if (x.isEmpty) null else x.asInstanceOf[Class[_ <: Value]]
+        val t : Class[_ <: Value] = x match {
+          case None => null
+          case Some(x) => x.asInstanceOf[Class[_ <: Value]]
+        }
         t :: y
       })
       
