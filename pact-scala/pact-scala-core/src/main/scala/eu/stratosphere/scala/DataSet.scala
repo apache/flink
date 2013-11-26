@@ -15,11 +15,11 @@ package eu.stratosphere.scala
 
 import language.experimental.macros
 import eu.stratosphere.pact.generic.contract.Contract
-import eu.stratosphere.scala.operators.CoGroupDataStream
-import eu.stratosphere.scala.operators.CrossDataStream
-import eu.stratosphere.scala.operators.JoinDataStream
+import eu.stratosphere.scala.operators.CoGroupDataSet
+import eu.stratosphere.scala.operators.CrossDataSet
+import eu.stratosphere.scala.operators.JoinDataSet
 import eu.stratosphere.scala.operators.MapMacros
-import eu.stratosphere.scala.operators.GroupByDataStream
+import eu.stratosphere.scala.operators.KeyedDataSet
 import eu.stratosphere.scala.operators.ReduceMacros
 import eu.stratosphere.scala.operators.UnionMacros
 import eu.stratosphere.scala.operators.IterateMacros
@@ -27,9 +27,9 @@ import eu.stratosphere.scala.operators.WorksetIterateMacros
 
 class DataSet[T] (val contract: Contract with ScalaContract[T]) {
   
-  def cogroup[RightIn](rightInput: DataSet[RightIn]) = new CoGroupDataStream[T, RightIn](this, rightInput)
-  def cross[RightIn](rightInput: DataSet[RightIn]) = new CrossDataStream[T, RightIn](this, rightInput)
-  def join[RightIn](rightInput: DataSet[RightIn]) = new JoinDataStream[T, RightIn](this, rightInput)
+  def cogroup[RightIn](rightInput: DataSet[RightIn]) = new CoGroupDataSet[T, RightIn](this, rightInput)
+  def cross[RightIn](rightInput: DataSet[RightIn]) = new CrossDataSet[T, RightIn](this, rightInput)
+  def join[RightIn](rightInput: DataSet[RightIn]) = new JoinDataSet[T, RightIn](this, rightInput)
   
   def map[Out](fun: T => Out) = macro MapMacros.map[T, Out]
   def flatMap[Out](fun: T => Iterator[Out]) = macro MapMacros.flatMap[T, Out]

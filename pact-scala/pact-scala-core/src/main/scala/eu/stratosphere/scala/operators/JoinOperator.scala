@@ -43,15 +43,15 @@ import eu.stratosphere.pact.generic.contract.UserCodeObjectWrapper
 import eu.stratosphere.scala.TwoInputHintable
 import eu.stratosphere.scala.codegen.Util
 
-class JoinDataStream[LeftIn, RightIn](val leftInput: DataSet[LeftIn], val rightInput: DataSet[RightIn]) {
+class JoinDataSet[LeftIn, RightIn](val leftInput: DataSet[LeftIn], val rightInput: DataSet[RightIn]) {
   def where[Key](keyFun: LeftIn => Key) = macro JoinMacros.whereImpl[LeftIn, RightIn, Key]
 }
 
-class JoinDataStreamWithWhere[LeftIn, RightIn, Key](val leftKey: List[Int], val leftInput: DataSet[LeftIn], val rightInput: DataSet[RightIn]) {
+class JoinDataSetWithWhere[LeftIn, RightIn, Key](val leftKey: List[Int], val leftInput: DataSet[LeftIn], val rightInput: DataSet[RightIn]) {
   def isEqualTo[Key](keyFun: RightIn => Key) = macro JoinMacros.isEqualToImpl[LeftIn, RightIn, Key]
 }
 
-class JoinDataStreamWithWhereAndEqual[LeftIn, RightIn](val leftKey: List[Int], val rightKey: List[Int], val leftInput: DataSet[LeftIn], val rightInput: DataSet[RightIn]) {
+class JoinDataSetWithWhereAndEqual[LeftIn, RightIn](val leftKey: List[Int], val rightKey: List[Int], val leftInput: DataSet[LeftIn], val rightInput: DataSet[RightIn]) {
   def map[Out](fun: (LeftIn, RightIn) => Out): DataSet[Out] with TwoInputHintable[LeftIn, RightIn, Out] = macro JoinMacros.map[LeftIn, RightIn, Out]
   def flatMap[Out](fun: (LeftIn, RightIn) => Iterator[Out]): DataSet[Out] with TwoInputHintable[LeftIn, RightIn, Out] = macro JoinMacros.flatMap[LeftIn, RightIn, Out]
   def filter(fun: (LeftIn, RightIn) => Boolean): DataSet[(LeftIn, RightIn)] with TwoInputHintable[LeftIn, RightIn, (LeftIn, RightIn)] = macro JoinMacros.filter[LeftIn, RightIn]
@@ -61,7 +61,7 @@ class NoKeyMatchBuilder(s: MatchStub) extends MatchContract.Builder(new UserCode
 
 object JoinMacros {
   
-  def whereImpl[LeftIn: c.WeakTypeTag, RightIn: c.WeakTypeTag, Key: c.WeakTypeTag](c: Context { type PrefixType = JoinDataStream[LeftIn, RightIn] })(keyFun: c.Expr[LeftIn => Key]): c.Expr[JoinDataStreamWithWhere[LeftIn, RightIn, Key]] = {
+  def whereImpl[LeftIn: c.WeakTypeTag, RightIn: c.WeakTypeTag, Key: c.WeakTypeTag](c: Context { type PrefixType = JoinDataSet[LeftIn, RightIn] })(keyFun: c.Expr[LeftIn => Key]): c.Expr[JoinDataSetWithWhere[LeftIn, RightIn, Key]] = {
     import c.universe._
 
     val slave = MacroContextHolder.newMacroHelper(c)
@@ -70,13 +70,13 @@ object JoinMacros {
 
     val helper = reify {
       val helper = c.prefix.splice
-      new JoinDataStreamWithWhere[LeftIn, RightIn, Key](keySelection.splice, helper.leftInput, helper.rightInput)
+      new JoinDataSetWithWhere[LeftIn, RightIn, Key](keySelection.splice, helper.leftInput, helper.rightInput)
     }
 
     return helper
   }
   
-  def isEqualToImpl[LeftIn: c.WeakTypeTag, RightIn: c.WeakTypeTag, Key: c.WeakTypeTag](c: Context { type PrefixType = JoinDataStreamWithWhere[LeftIn, RightIn, Key] })(keyFun: c.Expr[RightIn => Key]): c.Expr[JoinDataStreamWithWhereAndEqual[LeftIn, RightIn]] = {
+  def isEqualToImpl[LeftIn: c.WeakTypeTag, RightIn: c.WeakTypeTag, Key: c.WeakTypeTag](c: Context { type PrefixType = JoinDataSetWithWhere[LeftIn, RightIn, Key] })(keyFun: c.Expr[RightIn => Key]): c.Expr[JoinDataSetWithWhereAndEqual[LeftIn, RightIn]] = {
     import c.universe._
 
     val slave = MacroContextHolder.newMacroHelper(c)
@@ -85,13 +85,13 @@ object JoinMacros {
 
     val helper = reify {
       val helper = c.prefix.splice
-      new JoinDataStreamWithWhereAndEqual[LeftIn, RightIn](helper.leftKey, keySelection.splice, helper.leftInput, helper.rightInput)
+      new JoinDataSetWithWhereAndEqual[LeftIn, RightIn](helper.leftKey, keySelection.splice, helper.leftInput, helper.rightInput)
     }
 
     return helper
   }
 
-  def map[LeftIn: c.WeakTypeTag, RightIn: c.WeakTypeTag, Out: c.WeakTypeTag](c: Context { type PrefixType = JoinDataStreamWithWhereAndEqual[LeftIn, RightIn] })(fun: c.Expr[(LeftIn, RightIn) => Out]): c.Expr[DataSet[Out] with TwoInputHintable[LeftIn, RightIn, Out]] = {
+  def map[LeftIn: c.WeakTypeTag, RightIn: c.WeakTypeTag, Out: c.WeakTypeTag](c: Context { type PrefixType = JoinDataSetWithWhereAndEqual[LeftIn, RightIn] })(fun: c.Expr[(LeftIn, RightIn) => Out]): c.Expr[DataSet[Out] with TwoInputHintable[LeftIn, RightIn, Out]] = {
     import c.universe._
 
     val slave = MacroContextHolder.newMacroHelper(c)
@@ -101,7 +101,7 @@ object JoinMacros {
     val (udtOut, createUdtOut) = slave.mkUdtClass[Out]
     
     val contract = reify {
-      val helper: JoinDataStreamWithWhereAndEqual[LeftIn, RightIn] = c.prefix.splice
+      val helper: JoinDataSetWithWhereAndEqual[LeftIn, RightIn] = c.prefix.splice
       val leftKeySelection = helper.leftKey
       val rightKeySelection = helper.rightKey
 
@@ -184,7 +184,7 @@ object JoinMacros {
     return result
   }
   
-  def flatMap[LeftIn: c.WeakTypeTag, RightIn: c.WeakTypeTag, Out: c.WeakTypeTag](c: Context { type PrefixType = JoinDataStreamWithWhereAndEqual[LeftIn, RightIn] })(fun: c.Expr[(LeftIn, RightIn) => Iterator[Out]]): c.Expr[DataSet[Out] with TwoInputHintable[LeftIn, RightIn, Out]] = {
+  def flatMap[LeftIn: c.WeakTypeTag, RightIn: c.WeakTypeTag, Out: c.WeakTypeTag](c: Context { type PrefixType = JoinDataSetWithWhereAndEqual[LeftIn, RightIn] })(fun: c.Expr[(LeftIn, RightIn) => Iterator[Out]]): c.Expr[DataSet[Out] with TwoInputHintable[LeftIn, RightIn, Out]] = {
     import c.universe._
 
     val slave = MacroContextHolder.newMacroHelper(c)
@@ -194,7 +194,7 @@ object JoinMacros {
     val (udtOut, createUdtOut) = slave.mkUdtClass[Out]
     
     val contract = reify {
-      val helper: JoinDataStreamWithWhereAndEqual[LeftIn, RightIn] = c.prefix.splice
+      val helper: JoinDataSetWithWhereAndEqual[LeftIn, RightIn] = c.prefix.splice
       val leftKeySelection = helper.leftKey
       val rightKeySelection = helper.rightKey
 
@@ -282,7 +282,7 @@ object JoinMacros {
     return result
   }
   
-  def filter[LeftIn: c.WeakTypeTag, RightIn: c.WeakTypeTag](c: Context { type PrefixType = JoinDataStreamWithWhereAndEqual[LeftIn, RightIn] })(fun: c.Expr[(LeftIn, RightIn) => Boolean]): c.Expr[DataSet[(LeftIn, RightIn)] with TwoInputHintable[LeftIn, RightIn, (LeftIn, RightIn)]] = {
+  def filter[LeftIn: c.WeakTypeTag, RightIn: c.WeakTypeTag](c: Context { type PrefixType = JoinDataSetWithWhereAndEqual[LeftIn, RightIn] })(fun: c.Expr[(LeftIn, RightIn) => Boolean]): c.Expr[DataSet[(LeftIn, RightIn)] with TwoInputHintable[LeftIn, RightIn, (LeftIn, RightIn)]] = {
     import c.universe._
 
     val slave = MacroContextHolder.newMacroHelper(c)
@@ -292,7 +292,7 @@ object JoinMacros {
     val (udtOut, createUdtOut) = slave.mkUdtClass[(LeftIn, RightIn)]
     
     val contract = reify {
-      val helper: JoinDataStreamWithWhereAndEqual[LeftIn, RightIn] = c.prefix.splice
+      val helper: JoinDataSetWithWhereAndEqual[LeftIn, RightIn] = c.prefix.splice
       val leftKeySelection = helper.leftKey
       val rightKeySelection = helper.rightKey
 

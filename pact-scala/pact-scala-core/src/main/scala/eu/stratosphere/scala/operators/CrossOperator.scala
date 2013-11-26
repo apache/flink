@@ -41,7 +41,7 @@ import eu.stratosphere.scala.DataSet
 import eu.stratosphere.scala.TwoInputHintable
 import eu.stratosphere.scala.codegen.Util
 
-class CrossDataStream[LeftIn, RightIn](val leftInput: DataSet[LeftIn], val rightInput: DataSet[RightIn]) {
+class CrossDataSet[LeftIn, RightIn](val leftInput: DataSet[LeftIn], val rightInput: DataSet[RightIn]) {
   def map[Out](fun: (LeftIn, RightIn) => Out): DataSet[Out] with TwoInputHintable[LeftIn, RightIn, Out] = macro CrossMacros.map[LeftIn, RightIn, Out]
   def flatMap[Out](fun: (LeftIn, RightIn) => Iterator[Out]): DataSet[Out] with TwoInputHintable[LeftIn, RightIn, Out] = macro CrossMacros.flatMap[LeftIn, RightIn, Out]
   def filter(fun: (LeftIn, RightIn) => Boolean): DataSet[(LeftIn, RightIn)] with TwoInputHintable[LeftIn, RightIn, (LeftIn, RightIn)] = macro CrossMacros.filter[LeftIn, RightIn]
@@ -49,7 +49,7 @@ class CrossDataStream[LeftIn, RightIn](val leftInput: DataSet[LeftIn], val right
 
 object CrossMacros {
 
-  def map[LeftIn: c.WeakTypeTag, RightIn: c.WeakTypeTag, Out: c.WeakTypeTag](c: Context { type PrefixType = CrossDataStream[LeftIn, RightIn] })(fun: c.Expr[(LeftIn, RightIn) => Out]): c.Expr[DataSet[Out] with TwoInputHintable[LeftIn, RightIn, Out]] = {
+  def map[LeftIn: c.WeakTypeTag, RightIn: c.WeakTypeTag, Out: c.WeakTypeTag](c: Context { type PrefixType = CrossDataSet[LeftIn, RightIn] })(fun: c.Expr[(LeftIn, RightIn) => Out]): c.Expr[DataSet[Out] with TwoInputHintable[LeftIn, RightIn, Out]] = {
     import c.universe._
 
     val slave = MacroContextHolder.newMacroHelper(c)
@@ -59,7 +59,7 @@ object CrossMacros {
     val (udtOut, createUdtOut) = slave.mkUdtClass[Out]
     
     val contract = reify {
-      val helper: CrossDataStream[LeftIn, RightIn] = c.prefix.splice
+      val helper: CrossDataSet[LeftIn, RightIn] = c.prefix.splice
 
       val generatedStub = new CrossStub with Serializable {
         val leftInputUDT = c.Expr[UDT[LeftIn]](createUdtLeftIn).splice
@@ -129,7 +129,7 @@ object CrossMacros {
     return result
   }
   
-  def flatMap[LeftIn: c.WeakTypeTag, RightIn: c.WeakTypeTag, Out: c.WeakTypeTag](c: Context { type PrefixType = CrossDataStream[LeftIn, RightIn] })(fun: c.Expr[(LeftIn, RightIn) => Iterator[Out]]): c.Expr[DataSet[Out] with TwoInputHintable[LeftIn, RightIn, Out]] = {
+  def flatMap[LeftIn: c.WeakTypeTag, RightIn: c.WeakTypeTag, Out: c.WeakTypeTag](c: Context { type PrefixType = CrossDataSet[LeftIn, RightIn] })(fun: c.Expr[(LeftIn, RightIn) => Iterator[Out]]): c.Expr[DataSet[Out] with TwoInputHintable[LeftIn, RightIn, Out]] = {
     import c.universe._
 
     val slave = MacroContextHolder.newMacroHelper(c)
@@ -139,7 +139,7 @@ object CrossMacros {
     val (udtOut, createUdtOut) = slave.mkUdtClass[Out]
     
     val contract = reify {
-      val helper: CrossDataStream[LeftIn, RightIn] = c.prefix.splice
+      val helper: CrossDataSet[LeftIn, RightIn] = c.prefix.splice
 
       val generatedStub = new CrossStub with Serializable {
         val leftInputUDT = c.Expr[UDT[LeftIn]](createUdtLeftIn).splice
@@ -214,7 +214,7 @@ object CrossMacros {
     return result
   }
   
-   def filter[LeftIn: c.WeakTypeTag, RightIn: c.WeakTypeTag](c: Context { type PrefixType = CrossDataStream[LeftIn, RightIn] })(fun: c.Expr[(LeftIn, RightIn) => Boolean]): c.Expr[DataSet[(LeftIn, RightIn)] with TwoInputHintable[LeftIn, RightIn, (LeftIn, RightIn)]] = {
+   def filter[LeftIn: c.WeakTypeTag, RightIn: c.WeakTypeTag](c: Context { type PrefixType = CrossDataSet[LeftIn, RightIn] })(fun: c.Expr[(LeftIn, RightIn) => Boolean]): c.Expr[DataSet[(LeftIn, RightIn)] with TwoInputHintable[LeftIn, RightIn, (LeftIn, RightIn)]] = {
     import c.universe._
 
     val slave = MacroContextHolder.newMacroHelper(c)
@@ -224,7 +224,7 @@ object CrossMacros {
     val (udtOut, createUdtOut) = slave.mkUdtClass[(LeftIn, RightIn)]
     
     val contract = reify {
-      val helper: CrossDataStream[LeftIn, RightIn] = c.prefix.splice
+      val helper: CrossDataSet[LeftIn, RightIn] = c.prefix.splice
 
       val generatedStub = new CrossStub with Serializable {
         val leftInputUDT = c.Expr[UDT[LeftIn]](createUdtLeftIn).splice

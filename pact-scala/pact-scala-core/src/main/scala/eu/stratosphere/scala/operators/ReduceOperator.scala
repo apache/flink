@@ -44,7 +44,7 @@ import eu.stratosphere.scala.OneInputHintable
 import eu.stratosphere.scala.OneInputScalaContract
 import eu.stratosphere.scala.codegen.Util
 
-class GroupByDataStream[In](val keySelection: List[Int], val input: DataSet[In]) {
+class KeyedDataSet[In](val keySelection: List[Int], val input: DataSet[In]) {
   def reduceGroup[Out](fun: Iterator[In] => Out): DataSet[Out] with OneInputHintable[In, Out] = macro ReduceMacros.reduceGroup[In, Out]
   def combinableReduceGroup(fun: Iterator[In] => In): DataSet[In] with OneInputHintable[In, In] = macro ReduceMacros.combinableReduceGroup[In]
   
@@ -56,7 +56,7 @@ class GroupByDataStream[In](val keySelection: List[Int], val input: DataSet[In])
 object ReduceMacros {
   
   def groupBy[In: c.WeakTypeTag, Key: c.WeakTypeTag](c: Context { type PrefixType = DataSet[In] })
-                                                    (keyFun: c.Expr[In => Key]): c.Expr[GroupByDataStream[In]] = {
+                                                    (keyFun: c.Expr[In => Key]): c.Expr[KeyedDataSet[In]] = {
     import c.universe._
 
     val slave = MacroContextHolder.newMacroHelper(c)
@@ -64,13 +64,13 @@ object ReduceMacros {
     val keySelection = slave.getSelector(keyFun)
 
     val helper = reify {
-    	new GroupByDataStream[In](keySelection.splice, c.prefix.splice)
+    	new KeyedDataSet[In](keySelection.splice, c.prefix.splice)
     }
 
     return helper
   }
 
-  def reduce[In: c.WeakTypeTag](c: Context { type PrefixType = GroupByDataStream[In] })
+  def reduce[In: c.WeakTypeTag](c: Context { type PrefixType = KeyedDataSet[In] })
                                (fun: c.Expr[(In, In) => In]): c.Expr[DataSet[In] with OneInputHintable[In, In]] = {
     import c.universe._
 
@@ -80,10 +80,10 @@ object ReduceMacros {
   def globalReduce[In: c.WeakTypeTag](c: Context { type PrefixType = DataSet[In] })(fun: c.Expr[(In, In) => In]): c.Expr[DataSet[In] with OneInputHintable[In, In]] = {
     import c.universe._
 
-    reduceImpl(c)(reify { new GroupByDataStream[In](List[Int](), c.prefix.splice) }, fun)
+    reduceImpl(c)(reify { new KeyedDataSet[In](List[Int](), c.prefix.splice) }, fun)
   }
 
-  def reduceGroup[In: c.WeakTypeTag, Out: c.WeakTypeTag](c: Context { type PrefixType = GroupByDataStream[In] })
+  def reduceGroup[In: c.WeakTypeTag, Out: c.WeakTypeTag](c: Context { type PrefixType = KeyedDataSet[In] })
                                                         (fun: c.Expr[Iterator[In] => Out]): c.Expr[DataSet[Out] with OneInputHintable[In, Out]] = {
     import c.universe._
 
@@ -93,10 +93,10 @@ object ReduceMacros {
   def globalReduceGroup[In: c.WeakTypeTag, Out: c.WeakTypeTag](c: Context { type PrefixType = DataSet[In] })(fun: c.Expr[Iterator[In] => Out]): c.Expr[DataSet[Out] with OneInputHintable[In, Out]] = {
     import c.universe._
 
-    reduceGroupImpl(c)(reify { new GroupByDataStream[In](List[Int](), c.prefix.splice) }, fun)
+    reduceGroupImpl(c)(reify { new KeyedDataSet[In](List[Int](), c.prefix.splice) }, fun)
   }
 
-  def combinableReduceGroup[In: c.WeakTypeTag](c: Context { type PrefixType = GroupByDataStream[In] })
+  def combinableReduceGroup[In: c.WeakTypeTag](c: Context { type PrefixType = KeyedDataSet[In] })
                                               (fun: c.Expr[Iterator[In] => In]): c.Expr[DataSet[In] with OneInputHintable[In, In]] = {
     import c.universe._
 
@@ -107,11 +107,11 @@ object ReduceMacros {
                                               (fun: c.Expr[Iterator[In] => In]): c.Expr[DataSet[In] with OneInputHintable[In, In]] = {
     import c.universe._
 
-    combinableReduceGroupImpl(c)(reify { new GroupByDataStream[In](List[Int](), c.prefix.splice) }, fun)
+    combinableReduceGroupImpl(c)(reify { new KeyedDataSet[In](List[Int](), c.prefix.splice) }, fun)
   }
 
   def reduceImpl[In: c.WeakTypeTag](c: Context)
-                               (groupedInput: c.Expr[GroupByDataStream[In]], fun: c.Expr[(In, In) => In]): c.Expr[DataSet[In] with OneInputHintable[In, In]] = {
+                               (groupedInput: c.Expr[KeyedDataSet[In]], fun: c.Expr[(In, In) => In]): c.Expr[DataSet[In] with OneInputHintable[In, In]] = {
     import c.universe._
 
     val slave = MacroContextHolder.newMacroHelper(c)
@@ -222,7 +222,7 @@ object ReduceMacros {
   }
 
   def reduceGroupImpl[In: c.WeakTypeTag, Out: c.WeakTypeTag](c: Context)
-                                                            (groupedInput: c.Expr[GroupByDataStream[In]], fun: c.Expr[Iterator[In] => Out]): c.Expr[DataSet[Out] with OneInputHintable[In, Out]] = {
+                                                            (groupedInput: c.Expr[KeyedDataSet[In]], fun: c.Expr[Iterator[In] => Out]): c.Expr[DataSet[Out] with OneInputHintable[In, Out]] = {
     import c.universe._
 
     val slave = MacroContextHolder.newMacroHelper(c)
@@ -233,7 +233,7 @@ object ReduceMacros {
     val (udtOut, createUdtOut) = slave.mkUdtClass[Out]
     
     val contract = reify {
-      val helper: GroupByDataStream[In] = groupedInput.splice
+      val helper: KeyedDataSet[In] = groupedInput.splice
       val keySelection = helper.keySelection
 
       val generatedStub = new ReduceStub with Serializable {
@@ -294,7 +294,7 @@ object ReduceMacros {
   }
   
   def combinableReduceGroupImpl[In: c.WeakTypeTag](c: Context)
-                                              (groupedInput: c.Expr[GroupByDataStream[In]], fun: c.Expr[Iterator[In] => In]): c.Expr[DataSet[In] with OneInputHintable[In, In]] = {
+                                              (groupedInput: c.Expr[KeyedDataSet[In]], fun: c.Expr[Iterator[In] => In]): c.Expr[DataSet[In] with OneInputHintable[In, In]] = {
     import c.universe._
 
     val slave = MacroContextHolder.newMacroHelper(c)
@@ -304,7 +304,7 @@ object ReduceMacros {
     val (udtIn, createUdtIn) = slave.mkUdtClass[In]
     
     val contract = reify {
-      val helper: GroupByDataStream[In] = groupedInput.splice
+      val helper: KeyedDataSet[In] = groupedInput.splice
       val keySelection = helper.keySelection
 
       val generatedStub = new ReduceStub with Serializable {
@@ -404,7 +404,7 @@ object ReduceMacros {
     return result
   }
 
-  def count[In: c.WeakTypeTag](c: Context { type PrefixType = GroupByDataStream[In] })() : c.Expr[DataSet[(In, Int)] with OneInputHintable[In, (In, Int)]] = {
+  def count[In: c.WeakTypeTag](c: Context { type PrefixType = KeyedDataSet[In] })() : c.Expr[DataSet[(In, Int)] with OneInputHintable[In, (In, Int)]] = {
     import c.universe._
 
     val slave = MacroContextHolder.newMacroHelper(c)
@@ -413,7 +413,7 @@ object ReduceMacros {
     val (udtOut, createUdtOut) = slave.mkUdtClass[(In, Int)]
     
     val contract = reify {
-      val helper: GroupByDataStream[In] = c.prefix.splice
+      val helper: KeyedDataSet[In] = c.prefix.splice
       val keySelection = helper.keySelection
 
       val generatedStub = new ReduceStub with Serializable {
