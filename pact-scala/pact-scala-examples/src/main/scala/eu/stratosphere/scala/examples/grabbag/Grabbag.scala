@@ -42,7 +42,7 @@ object Main1 {
     val counts = input.map { _.split("""\W+""") map { (_, 1) } }
       .flatMap { l => l }
       .groupBy { case (word, _) => word }
-      .reduce { (w1, w2) => (w1._1, w1._2 + w2._2) }
+      .combinableReduceGroup { _.reduce { (w1, w2) => (w1._1, w1._2 + w2._2) } }
       .map(fun)
 //      .filter { case (w, c) => c == 7 }
     

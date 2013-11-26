@@ -40,8 +40,9 @@ class DataSet[T] (val contract: Contract with ScalaContract[T]) {
 
   // reduce without grouping
   def reduce(fun: (T, T) => T) = macro ReduceMacros.globalReduce[T]
-  def reduceAll[Out](fun: Iterator[T] => Out) = macro ReduceMacros.globalReduceAll[T, Out]
-  
+  def reduceAll[Out](fun: Iterator[T] => Out) = macro ReduceMacros.globalReduceGroup[T, Out]
+  def combinableReduceAll[Out](fun: Iterator[T] => Out) = macro ReduceMacros.combinableGlobalReduceGroup[T]
+
   def union(secondInput: DataSet[T]) = macro UnionMacros.impl[T]
   
   def iterateWithDelta[DeltaItem](stepFunction: DataSet[T] => (DataSet[T], DataSet[DeltaItem])) = macro IterateMacros.iterateWithDelta[T, DeltaItem]
