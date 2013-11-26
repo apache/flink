@@ -165,6 +165,14 @@ object GlobalSchemaGenerator {
         contract.getUDF.setOutputGlobalIndexes(freePos1, fixedOutputs)
       }
 
+      // for key-less (global) reducers
+      case contract : ReduceContract with OneInputScalaContract[_, _] => {
+
+        val freePos1 = globalizeContract(contract.getInputs().get(0), Seq(contract.getUDF.inputFields), proxies, None, freePos)
+
+        contract.getUDF.setOutputGlobalIndexes(freePos1, fixedOutputs)
+      }
+
       case contract : MapContract with UnionScalaContract[_] => {
 
         // Determine where this contract's children should write their output 
@@ -180,7 +188,7 @@ object GlobalSchemaGenerator {
 
           if (input4s.getUDF.outputFields.isGlobalized || input4s.getUDF.outputFields.exists(_.globalPos.isReference)) {
 //            inputs.set(idx, CopyOperator(input4s))
-            throw new RuntimeException("Copy operator needed, not yet implemented properly.")
+//            throw new RuntimeException("Copy operator needed, not yet implemented properly.")
           }
         }
 
