@@ -18,6 +18,8 @@ package eu.stratosphere.pact.generic.io;
 import java.io.IOException;
 import java.util.ArrayList;
 
+import com.google.common.base.Preconditions;
+import com.google.common.primitives.Ints;
 import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.pact.common.io.ParseException;
 import eu.stratosphere.pact.common.type.Value;
@@ -130,6 +132,39 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 		Class<? extends Value>[] denseTypeArray = (Class<? extends Value>[]) types.toArray(new Class[types.size()]);
 		this.fieldTypes = denseTypeArray;
 	}
+
+    public void setFields(int[] sourceFieldIndices, Class<? extends Value>[] fieldTypes) {
+        Preconditions.checkNotNull(fieldTypes);
+        Preconditions.checkArgument(sourceFieldIndices.length == fieldTypes.length,
+                "Number of field indices and field types must match.");
+
+        for (int i : sourceFieldIndices) {
+            if ( i < 0) {
+                throw new IllegalArgumentException("Field indices must not be smaller than zero.");
+            }
+        }
+
+        int largestFieldIndex = Ints.max(sourceFieldIndices);
+        this.fieldIncluded = new boolean[largestFieldIndex + 1];
+        ArrayList<Class<? extends Value>> types = new ArrayList<Class<? extends Value>>();
+
+        // check if we support parsers for these types
+        for (int i = 0; i < fieldTypes.length; i++) {
+            Class<? extends Value> type = fieldTypes[i];
+
+            if (type != null) {
+                if (FieldParser.getParserForType(type) == null) {
+                    throw new IllegalArgumentException("The type '" + type.getName() + "' is not supported for the CSV input format.");
+                }
+                types.add(type);
+                fieldIncluded[sourceFieldIndices[i]] = true;
+            }
+        }
+
+        @SuppressWarnings("unchecked")
+        Class<? extends Value>[] denseTypeArray = (Class<? extends Value>[]) types.toArray(new Class[types.size()]);
+        this.fieldTypes = denseTypeArray;
+    }
 	
 	public int getNumberOfFieldsTotal() {
 		return this.fieldIncluded.length;

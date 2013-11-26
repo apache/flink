@@ -15,24 +15,7 @@
 
 package eu.stratosphere.pact.generic.io;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-
-import java.io.DataOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.util.Arrays;
-
-import junit.framework.Assert;
-
-import org.apache.log4j.Level;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
+import com.google.common.collect.Lists;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.nephele.fs.Path;
@@ -42,7 +25,20 @@ import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.pact.common.util.LogUtils;
-import eu.stratosphere.pact.generic.io.GenericCsvInputFormat;
+import junit.framework.Assert;
+import org.apache.log4j.Level;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Test;
+
+import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.util.Arrays;
+
+import static org.junit.Assert.*;
 
 public class GenericCsvInputFormatTest {
 
@@ -197,6 +193,43 @@ public class GenericCsvInputFormatTest {
 			Assert.fail("Test erroneous");
 		}
 	}
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void testSparseParseWithIndices() {
+        try {
+            final String fileContent = "111|222|333|444|555|666|777|888|999|000|\n000|999|888|777|666|555|444|333|222|111|";
+            final FileInputSplit split = createTempFile(fileContent);
+
+            final Configuration parameters = new Configuration();
+
+            format.setFieldDelim('|');
+            format.setFields(new int[]{0, 3, 7},
+                    (Class<? extends Value>[]) new Class[]{PactInteger.class, PactInteger.class, PactInteger.class});
+            format.configure(parameters);
+            format.open(split);
+
+            Value[] values = createIntValues(3);
+
+            assertTrue(format.nextRecord(values));
+            assertEquals(111, ((PactInteger) values[0]).getValue());
+            assertEquals(444, ((PactInteger) values[1]).getValue());
+            assertEquals(888, ((PactInteger) values[2]).getValue());
+
+            assertTrue(format.nextRecord(values));
+            assertEquals(000, ((PactInteger) values[0]).getValue());
+            assertEquals(777, ((PactInteger) values[1]).getValue());
+            assertEquals(333, ((PactInteger) values[2]).getValue());
+
+            assertFalse(format.nextRecord(values));
+            assertTrue(format.reachedEnd());
+        }
+        catch (Exception ex) {
+            System.err.println(ex.getMessage());
+            ex.printStackTrace();
+            Assert.fail("Test erroneous");
+        }
+    }
 	
 	@SuppressWarnings("unchecked")
 	@Test
