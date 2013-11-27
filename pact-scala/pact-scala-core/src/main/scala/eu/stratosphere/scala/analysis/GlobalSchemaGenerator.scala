@@ -39,7 +39,7 @@ import eu.stratosphere.pact.generic.contract.WorksetIteration
 import eu.stratosphere.scala.WorksetIterationScalaContract
 import eu.stratosphere.pact.common.contract.GenericDataSink
 
-object GlobalSchemaGenerator {
+class GlobalSchemaGenerator {
 
   def initGlobalSchema(sinks: Seq[Contract with ScalaContract[_]]): Unit = {
 

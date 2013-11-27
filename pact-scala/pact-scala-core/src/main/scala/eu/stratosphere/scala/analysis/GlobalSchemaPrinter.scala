@@ -13,7 +13,7 @@
 
 package eu.stratosphere.scala.analysis
 
-import scala.Array.canBuildFrom
+
 import scala.collection.JavaConversions.asScalaBuffer
 import scala.collection.JavaConversions.collectionAsScalaIterable
 import Extractors.CoGroupNode
@@ -23,6 +23,7 @@ import Extractors.DataSourceNode
 import Extractors.JoinNode
 import Extractors.MapNode
 import Extractors.ReduceNode
+import eu.stratosphere.scala.analysis.GlobalSchemaGenerator
 import eu.stratosphere.pact.common.contract.GenericDataSink
 import eu.stratosphere.pact.common.plan.Plan
 import eu.stratosphere.pact.generic.contract.Contract
@@ -30,17 +31,19 @@ import eu.stratosphere.pact.generic.contract.DualInputContract
 import eu.stratosphere.pact.generic.contract.SingleInputContract
 import eu.stratosphere.pact.generic.contract.BulkIteration
 import eu.stratosphere.pact.generic.contract.WorksetIteration
+import org.apache.commons.logging.{LogFactory, Log}
 
 object GlobalSchemaPrinter {
 
   import Extractors._
 
+  private final val LOG: Log = LogFactory.getLog(classOf[GlobalSchemaGenerator])
+
   def printSchema(plan: Plan): Unit = {
 
-    println("### " + plan.getJobName + " ###")
+    LOG.debug("### " + plan.getJobName + " ###")
     plan.getDataSinks.foldLeft(Set[Contract]())(printSchema)
-    println("####" + ("#" * plan.getJobName.length) + "####")
-    println()
+    LOG.debug("####" + ("#" * plan.getJobName.length) + "####")
   }
 
   private def printSchema(visited: Set[Contract], node: Contract): Set[Contract] = {
@@ -201,6 +204,6 @@ object GlobalSchemaPrinter {
     val sDiscards = discards flatMap { case (pre, value) => value.sorted.map(pre + _) } mkString ", "
     val sWrites = indexesToStrings("", writes.toSerializerIndexArray) mkString ", "
 
-    println(formatString.format(name, kind, sKeys, sReads, sForwards, sDiscards, sWrites))
+    LOG.debug(formatString.format(name, kind, sKeys, sReads, sForwards, sDiscards, sWrites))
   }
 }

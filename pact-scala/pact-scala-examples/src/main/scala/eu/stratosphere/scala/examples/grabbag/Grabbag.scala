@@ -12,6 +12,10 @@ import eu.stratosphere.scala.operators._
 
 import eu.stratosphere.scala.analysis.GlobalSchemaPrinter
 import eu.stratosphere.pact.example.util.AsciiUtils
+import org.apache.log4j.Logger
+import org.apache.log4j.Level
+import eu.stratosphere.scala.analysis.postPass.GlobalSchemaOptimizer
+import eu.stratosphere.scala.analysis.GlobalSchemaGenerator
 
 
 // Grab bag of random scala examples
@@ -33,6 +37,10 @@ object Main1 {
   def addCounts(w1: (String, Int), w2: (String, Int)) = (w1._1, w1._2 + w2._2)
   
   def main(args: Array[String]) {
+//    var logger = Logger.getLogger(classOf[GlobalSchemaOptimizer])
+//    logger.setLevel(Level.DEBUG)
+//    logger = Logger.getLogger(classOf[GlobalSchemaGenerator])
+//    logger.setLevel(Level.DEBUG)
 
     def formatOutput = (word: String, count: Int) => "%s %d".format(word, count)
     

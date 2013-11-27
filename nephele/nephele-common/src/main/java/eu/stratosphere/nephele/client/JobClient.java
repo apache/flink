@@ -328,7 +328,7 @@ public class JobClient {
 					continue;
 				}
 
-				this.console.println(event.toString());
+				LOG.info(event.toString());
 
 				this.lastProcessedEventSequenceNumber = event.getSequenceNumber();
 

@@ -29,22 +29,25 @@ import eu.stratosphere.pact.compiler.plan.SinkJoiner
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan
 import eu.stratosphere.scala.analysis.FieldSet
 import eu.stratosphere.scala.analysis.FieldSelector
+import eu.stratosphere.scala.analysis.postPass.GlobalSchemaOptimizer
 import eu.stratosphere.pact.common.plan.Plan
 import eu.stratosphere.pact.generic.contract.Contract
 import eu.stratosphere.pact.generic.contract.SingleInputContract
 import eu.stratosphere.pact.generic.contract.DualInputContract
 import eu.stratosphere.pact.common.contract.GenericDataSink
+import org.apache.commons.logging.{LogFactory, Log}
 
 object GlobalSchemaPrinter {
 
   import Extractors._
 
+  private final val LOG: Log = LogFactory.getLog(classOf[GlobalSchemaOptimizer])
+
   def printSchema(plan: OptimizedPlan): Unit = {
 
-    println("### " + plan.getJobName + " ###")
+    LOG.debug("### " + plan.getJobName + " ###")
     plan.getDataSinks.map(_.getSinkNode).foldLeft(Set[OptimizerNode]())(printSchema)
-    println("####" + ("#" * plan.getJobName.length) + "####")
-    println()
+    LOG.debug("####" + ("#" * plan.getJobName.length) + "####")
   }
 
   private def printSchema(visited: Set[OptimizerNode], node: OptimizerNode): Set[OptimizerNode] = {
@@ -59,7 +62,7 @@ object GlobalSchemaPrinter {
         val newVisited = children.foldLeft(visited + node)(printSchema)
 
         node match {
-          
+
           case _: SinkJoiner | _: BinaryUnionNode =>
 
           case DataSinkNode(udf, input) => {
@@ -121,7 +124,7 @@ object GlobalSchemaPrinter {
               udf.outputFields
             )
           }
-          
+
           case UnionNode(udf, input) => {
             printInfo(node, "Union",
               Seq(),
@@ -134,7 +137,7 @@ object GlobalSchemaPrinter {
 
           case ReduceNode(udf, key, input) => {
 
-//            val contract = node.asInstanceOf[Reduce4sContract[_, _, _]] 
+//            val contract = node.asInstanceOf[Reduce4sContract[_, _, _]]
 //            contract.userCombineCode map { _ =>
 //              printInfo(node, "Combine",
 //                Seq(("", key)),
@@ -197,6 +200,6 @@ object GlobalSchemaPrinter {
     val sDiscards = discards flatMap { case (pre, value) => value.sorted.map(pre + _) } mkString ", "
     val sWrites = indexesToStrings("", writes.toSerializerIndexArray) mkString ", "
 
-    println(formatString.format(name, kind, sKeys, sReads, sForwards, sDiscards, sWrites))
+    LOG.debug(formatString.format(name, kind, sKeys, sReads, sForwards, sDiscards, sWrites))
   }
 }

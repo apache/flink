@@ -17,10 +17,7 @@ package eu.stratosphere.pact.client;
 
 import java.util.List;
 
-import org.apache.log4j.ConsoleAppender;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
-import org.apache.log4j.PatternLayout;
+import org.apache.log4j.*;
 
 import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
@@ -54,6 +51,7 @@ public class LocalExecutor implements PlanExecutor {
 		Logger root = Logger.getRootLogger();
 		PatternLayout layout = new PatternLayout("%d{HH:mm:ss,SSS} %-5p %-60c %x - %m%n");
 		ConsoleAppender appender = new ConsoleAppender(layout, "System.err");
+        appender.setThreshold(Level.ERROR);
 		root.addAppender(appender);
 		root.setLevel(Level.WARN);
 	}

@@ -26,7 +26,7 @@ import eu.stratosphere.pact.common.plan.PlanAssemblerDescription
 
 class ScalaPlan(scalaSinks: Seq[ScalaSink[_]], scalaJobName: String = "PACT SCALA Job at " + Calendar.getInstance().getTime()) extends Plan(asJavaCollection(scalaSinks map { _.sink }), scalaJobName) {
   val pactSinks = scalaSinks map { _.sink.asInstanceOf[Contract with ScalaContract[_]] }
-  GlobalSchemaGenerator.initGlobalSchema(pactSinks)
+  new GlobalSchemaGenerator().initGlobalSchema(pactSinks)
   override def getPostPassClassName() = "eu.stratosphere.scala.ScalaPostPass";
 }
 
