@@ -297,6 +297,8 @@ public class TableInputFormat implements InputFormat<PactRecord, TableInputSplit
 
 		this.hbaseKey = new HBaseKey();
 		this.hbaseResult = new HBaseResult();
+
+        endReached = false;
 	}
 
 	/**
