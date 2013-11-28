@@ -20,7 +20,7 @@ import eu.stratosphere.scala.analysis.GlobalSchemaGenerator
 
 // Grab bag of random scala examples
 
-object Main1 {
+object Main1 extends Serializable {
   
   class Foo(val a: Int) {}
   
@@ -33,9 +33,24 @@ object Main1 {
       a
     }
   }
+
+  val readFun = new Function1[String, String] {
+    def apply(line: String) = {
+      println("reading line: " + line)
+      line
+    }
+  }
+
+  var count = 0
+  def parseInput = (line: String) => {
+    println("reading line: " + count)
+    count = count+1
+    line
+  }
   
   def addCounts(w1: (String, Int), w2: (String, Int)) = (w1._1, w1._2 + w2._2)
-  
+
+
   def main(args: Array[String]) {
 //    var logger = Logger.getLogger(classOf[GlobalSchemaOptimizer])
 //    logger.setLevel(Level.DEBUG)
@@ -43,8 +58,9 @@ object Main1 {
 //    logger.setLevel(Level.DEBUG)
 
     def formatOutput = (word: String, count: Int) => "%s %d".format(word, count)
-    
-    val input = TextFile("file:///home/aljoscha/dummy-input")
+
+
+    val input = DataSource("file:///home/aljoscha/dummy-input", DelimitedInputFormat(readFun) )
     val inputNumbers = DataSource("file:///home/aljoscha/dummy-input-numbers", CsvInputFormat[(Int, String, String)](Seq(0,2,1), "\n", ','))
     
     val counts = input.map { _.split("""\W+""") map { (_, 1) } }

@@ -17,30 +17,39 @@ import language.experimental.macros
 import java.io.DataOutput
 import java.io.OutputStream
 import scala.reflect.macros.Context
-import eu.stratosphere.scala.DataSinkFormat
+import eu.stratosphere.scala.ScalaOutputFormat
 
-import eu.stratosphere.scala.analysis.UDF1
+import eu.stratosphere.scala.analysis.{UDTSerializer, UDF1, UDT, InputField}
 import eu.stratosphere.nephele.configuration.Configuration
-import eu.stratosphere.scala.analysis.UDT
-import eu.stratosphere.scala.analysis.InputField
 import eu.stratosphere.scala.codegen.UDTDescriptors
 import eu.stratosphere.scala.codegen.MacroContextHolder
 
-import eu.stratosphere.scala.operators.stubs.ScalaOutputFormat
-import eu.stratosphere.scala.operators.stubs.BinaryOutputFormat
-import eu.stratosphere.scala.operators.stubs.RawOutputFormat
-import eu.stratosphere.scala.operators.stubs.DelimitedOutputFormat
-
+import eu.stratosphere.pact.common.`type`.PactRecord
 import eu.stratosphere.pact.generic.io.{BinaryOutputFormat => JavaBinaryOutputFormat}
 import eu.stratosphere.pact.generic.io.{SequentialOutputFormat => JavaSequentialOutputFormat}
 import eu.stratosphere.pact.common.io.{DelimitedOutputFormat => JavaDelimitedOutputFormat}
 import eu.stratosphere.pact.common.io.{RecordOutputFormat => JavaRecordOutputFormat}
+import eu.stratosphere.pact.common.io.{FileOutputFormat => JavaFileOutputFormat}
+import eu.stratosphere.pact.generic.io.{OutputFormat => JavaOutputFormat}
+
+
+trait ScalaOutputFormatBase[In] extends ScalaOutputFormat[In] { this: JavaOutputFormat[_] =>
+  protected val udt: UDT[In]
+  lazy val udf: UDF1[In, Nothing] = new UDF1[In, Nothing](udt, UDT.NothingUDT)
+  def getUDF: UDF1[In, Nothing] = udf
+  protected var deserializer: UDTSerializer[In] = _
+
+  abstract override def configure(config: Configuration) {
+    super.configure(config)
+    this.deserializer = udf.getInputDeserializer
+  }
+}
 
 
 object RawOutputFormat {
-  def apply[In](writeFunction: (In, OutputStream) => Unit): DataSinkFormat[In] = macro impl[In]
+  def apply[In](writeFunction: (In, OutputStream) => Unit): ScalaOutputFormat[In] = macro impl[In]
   
-  def impl[In: c.WeakTypeTag](c: Context)(writeFunction: c.Expr[(In, OutputStream) => Unit]) : c.Expr[DataSinkFormat[In]] = {
+  def impl[In: c.WeakTypeTag](c: Context)(writeFunction: c.Expr[(In, OutputStream) => Unit]) : c.Expr[ScalaOutputFormat[In]] = {
     import c.universe._
     
     val slave = MacroContextHolder.newMacroHelper(c)
@@ -49,16 +58,18 @@ object RawOutputFormat {
     
     val pact4sFormat = reify {
       
-      new RawOutputFormat[In] with DataSinkFormat[In] {
-        val udt = c.Expr(createUdtIn).splice
-        override val userFunction = writeFunction.splice
-      
-        override def getUDF = this.udf
+      new JavaFileOutputFormat with ScalaOutputFormatBase[In] {
+        override val udt = c.Expr(createUdtIn).splice
+
+        override def writeRecord(record: PactRecord) = {
+          val input = deserializer.deserializeRecyclingOn(record)
+          writeFunction.splice.apply(input, this.stream)
+        }
       }
       
     }
     
-    val result = c.Expr[DataSinkFormat[In]](Block(List(udtIn), pact4sFormat.tree))
+    val result = c.Expr[ScalaOutputFormat[In]](Block(List(udtIn), pact4sFormat.tree))
 
     return result
     
@@ -67,19 +78,19 @@ object RawOutputFormat {
 
 object BinaryOutputFormat {
   
-  def apply[In](writeFunction: (In, DataOutput) => Unit): DataSinkFormat[In] = macro implWithoutBlocksize[In]
-  def apply[In](writeFunction: (In, DataOutput) => Unit, blockSize: Long): DataSinkFormat[In] = macro implWithBlocksize[In]
+  def apply[In](writeFunction: (In, DataOutput) => Unit): ScalaOutputFormat[In] = macro implWithoutBlocksize[In]
+  def apply[In](writeFunction: (In, DataOutput) => Unit, blockSize: Long): ScalaOutputFormat[In] = macro implWithBlocksize[In]
   
-  def implWithoutBlocksize[In: c.WeakTypeTag](c: Context)(writeFunction: c.Expr[(In, DataOutput) => Unit]) : c.Expr[DataSinkFormat[In]] = {
+  def implWithoutBlocksize[In: c.WeakTypeTag](c: Context)(writeFunction: c.Expr[(In, DataOutput) => Unit]) : c.Expr[ScalaOutputFormat[In]] = {
     import c.universe._
     impl(c)(writeFunction, reify { None })
   }
-  def implWithBlocksize[In: c.WeakTypeTag](c: Context)(writeFunction: c.Expr[(In, DataOutput) => Unit], blockSize: c.Expr[Long]) : c.Expr[DataSinkFormat[In]] = {
+  def implWithBlocksize[In: c.WeakTypeTag](c: Context)(writeFunction: c.Expr[(In, DataOutput) => Unit], blockSize: c.Expr[Long]) : c.Expr[ScalaOutputFormat[In]] = {
     import c.universe._
     impl(c)(writeFunction, reify { Some(blockSize.splice) })
   }
   
-  def impl[In: c.WeakTypeTag](c: Context)(writeFunction: c.Expr[(In, DataOutput) => Unit], blockSize: c.Expr[Option[Long]]) : c.Expr[DataSinkFormat[In]] = {
+  def impl[In: c.WeakTypeTag](c: Context)(writeFunction: c.Expr[(In, DataOutput) => Unit], blockSize: c.Expr[Option[Long]]) : c.Expr[ScalaOutputFormat[In]] = {
     import c.universe._
     
     val slave = MacroContextHolder.newMacroHelper(c)
@@ -88,19 +99,22 @@ object BinaryOutputFormat {
     
     val pact4sFormat = reify {
       
-      new BinaryOutputFormat[In] with DataSinkFormat[In] {
-        val udt = c.Expr(createUdtIn).splice
-        override val userFunction = writeFunction.splice
+      new JavaBinaryOutputFormat with ScalaOutputFormatBase[In] {
+        override val udt = c.Expr(createUdtIn).splice
       
         override def persistConfiguration(config: Configuration) {
           blockSize.splice map { config.setLong(JavaBinaryOutputFormat.BLOCK_SIZE_PARAMETER_KEY, _) }
         }
-        override def getUDF = this.udf
+
+        override def serialize(record: PactRecord, target: DataOutput) = {
+          val input = deserializer.deserializeRecyclingOn(record)
+          writeFunction.splice.apply(input, target)
+        }
       }
       
     }
     
-    val result = c.Expr[DataSinkFormat[In]](Block(List(udtIn), pact4sFormat.tree))
+    val result = c.Expr[ScalaOutputFormat[In]](Block(List(udtIn), pact4sFormat.tree))
 
     return result
     
@@ -109,19 +123,19 @@ object BinaryOutputFormat {
 
 object SequentialOutputFormat {
   
-  def apply[In](): DataSinkFormat[In] = macro implWithoutBlocksize[In]
-  def apply[In](blockSize: Long): DataSinkFormat[In] = macro implWithBlocksize[In]
+  def apply[In](): ScalaOutputFormat[In] = macro implWithoutBlocksize[In]
+  def apply[In](blockSize: Long): ScalaOutputFormat[In] = macro implWithBlocksize[In]
   
-  def implWithoutBlocksize[In: c.WeakTypeTag](c: Context)() : c.Expr[DataSinkFormat[In]] = {
+  def implWithoutBlocksize[In: c.WeakTypeTag](c: Context)() : c.Expr[ScalaOutputFormat[In]] = {
     import c.universe._
     impl(c)(reify { None })
   }
-  def implWithBlocksize[In: c.WeakTypeTag](c: Context)(blockSize: c.Expr[Long]) : c.Expr[DataSinkFormat[In]] = {
+  def implWithBlocksize[In: c.WeakTypeTag](c: Context)(blockSize: c.Expr[Long]) : c.Expr[ScalaOutputFormat[In]] = {
     import c.universe._
     impl(c)(reify { Some(blockSize.splice) })
   }
   
-  def impl[In: c.WeakTypeTag](c: Context)(blockSize: c.Expr[Option[Long]]) : c.Expr[DataSinkFormat[In]] = {
+  def impl[In: c.WeakTypeTag](c: Context)(blockSize: c.Expr[Option[Long]]) : c.Expr[ScalaOutputFormat[In]] = {
     import c.universe._
     
     val slave = MacroContextHolder.newMacroHelper(c)
@@ -130,7 +144,7 @@ object SequentialOutputFormat {
     
     val pact4sFormat = reify {
       
-      new JavaSequentialOutputFormat with DataSinkFormat[In] {
+      new JavaSequentialOutputFormat with ScalaOutputFormat[In] {
         override def persistConfiguration(config: Configuration) {
           blockSize.splice map { config.setLong(JavaBinaryOutputFormat.BLOCK_SIZE_PARAMETER_KEY, _) }
         }
@@ -141,7 +155,7 @@ object SequentialOutputFormat {
       
     }
     
-    val result = c.Expr[DataSinkFormat[In]](Block(List(udtIn), pact4sFormat.tree))
+    val result = c.Expr[ScalaOutputFormat[In]](Block(List(udtIn), pact4sFormat.tree))
 
     return result
     
@@ -186,12 +200,12 @@ object DelimitedOutputFormat {
 
   def maybeDelim(delim: String) = if (delim == null) None else Some(delim)
   
-  def apply[In](formatFunction: In => String): DataSinkFormat[In] = macro writeFunctionForStringWithoutDelim[In]
-  def apply[In](formatFunction: In => String, delimiter: String): DataSinkFormat[In] = macro writeFunctionForStringWithDelim[In]
-  def apply[In](formatFunction: (In, StringBuilder) => Unit): DataSinkFormat[In] = macro writeFunctionForStringBuilderWithoutDelim[In]
-  def apply[In](formatFunction: (In, StringBuilder) => Unit, delimiter: String): DataSinkFormat[In] = macro writeFunctionForStringBuilderWithDelim[In]
+  def apply[In](formatFunction: In => String): ScalaOutputFormat[In] = macro writeFunctionForStringWithoutDelim[In]
+  def apply[In](formatFunction: In => String, delimiter: String): ScalaOutputFormat[In] = macro writeFunctionForStringWithDelim[In]
+  def apply[In](formatFunction: (In, StringBuilder) => Unit): ScalaOutputFormat[In] = macro writeFunctionForStringBuilderWithoutDelim[In]
+  def apply[In](formatFunction: (In, StringBuilder) => Unit, delimiter: String): ScalaOutputFormat[In] = macro writeFunctionForStringBuilderWithDelim[In]
   
-  def writeFunctionForStringWithoutDelim[In: c.WeakTypeTag](c: Context)(formatFunction: c.Expr[In => String]) : c.Expr[DataSinkFormat[In]] = {
+  def writeFunctionForStringWithoutDelim[In: c.WeakTypeTag](c: Context)(formatFunction: c.Expr[In => String]) : c.Expr[ScalaOutputFormat[In]] = {
     import c.universe._
     val writeFun = reify {
       forString[In](formatFunction.splice)
@@ -199,7 +213,7 @@ object DelimitedOutputFormat {
     impl(c)(writeFun, reify { None })
   }
   
-  def writeFunctionForStringWithDelim[In: c.WeakTypeTag](c: Context)(formatFunction: c.Expr[In => String], delimiter: c.Expr[String]) : c.Expr[DataSinkFormat[In]] = {
+  def writeFunctionForStringWithDelim[In: c.WeakTypeTag](c: Context)(formatFunction: c.Expr[In => String], delimiter: c.Expr[String]) : c.Expr[ScalaOutputFormat[In]] = {
     import c.universe._
     val writeFun = reify {
       forString[In](formatFunction.splice)
@@ -207,7 +221,7 @@ object DelimitedOutputFormat {
     impl(c)(writeFun, reify { Some(delimiter.splice) })
   }
   
-  def writeFunctionForStringBuilderWithoutDelim[In: c.WeakTypeTag](c: Context)(formatFunction: c.Expr[(In, StringBuilder) => Unit]) : c.Expr[DataSinkFormat[In]] = {
+  def writeFunctionForStringBuilderWithoutDelim[In: c.WeakTypeTag](c: Context)(formatFunction: c.Expr[(In, StringBuilder) => Unit]) : c.Expr[ScalaOutputFormat[In]] = {
     import c.universe._
     val writeFun = reify {
       forStringBuilder[In](formatFunction.splice)
@@ -215,7 +229,7 @@ object DelimitedOutputFormat {
     impl(c)(writeFun, reify { None })
   }
   
-  def writeFunctionForStringBuilderWithDelim[In: c.WeakTypeTag](c: Context)(formatFunction: c.Expr[(In, StringBuilder) => Unit], delimiter: c.Expr[String]) : c.Expr[DataSinkFormat[In]] = {
+  def writeFunctionForStringBuilderWithDelim[In: c.WeakTypeTag](c: Context)(formatFunction: c.Expr[(In, StringBuilder) => Unit], delimiter: c.Expr[String]) : c.Expr[ScalaOutputFormat[In]] = {
     import c.universe._
     val writeFun = reify {
       forStringBuilder[In](formatFunction.splice)
@@ -223,7 +237,7 @@ object DelimitedOutputFormat {
     impl(c)(writeFun, reify { Some(delimiter.splice) })
   }
   
-  def impl[In: c.WeakTypeTag](c: Context)(writeFunction: c.Expr[(In, Array[Byte]) => Int], delimiter: c.Expr[Option[String]]) : c.Expr[DataSinkFormat[In]] = {
+  def impl[In: c.WeakTypeTag](c: Context)(writeFunction: c.Expr[(In, Array[Byte]) => Int], delimiter: c.Expr[Option[String]]) : c.Expr[ScalaOutputFormat[In]] = {
     import c.universe._
     
     val slave = MacroContextHolder.newMacroHelper(c)
@@ -232,19 +246,22 @@ object DelimitedOutputFormat {
     
     val pact4sFormat = reify {
       
-      new DelimitedOutputFormat[In] with DataSinkFormat[In] {
-        val udt = c.Expr(createUdtIn).splice
-        override val userFunction = writeFunction.splice
-      
+      new JavaDelimitedOutputFormat with ScalaOutputFormatBase[In] {
+        override val udt = c.Expr(createUdtIn).splice
+
         override def persistConfiguration(config: Configuration) {
           delimiter.splice map { config.setString(JavaDelimitedOutputFormat.RECORD_DELIMITER, _) }
         }
-        override def getUDF = this.udf
+
+        override def serializeRecord(record: PactRecord, target: Array[Byte]): Int = {
+          val input = deserializer.deserializeRecyclingOn(record)
+          writeFunction.splice.apply(input, target)
+        }
       }
       
     }
     
-    val result = c.Expr[DataSinkFormat[In]](Block(List(udtIn), pact4sFormat.tree))
+    val result = c.Expr[ScalaOutputFormat[In]](Block(List(udtIn), pact4sFormat.tree))
 
     return result
     
@@ -252,31 +269,31 @@ object DelimitedOutputFormat {
 }
 
 object CsvOutputFormat {
-  def apply[In](recordDelimiter: Option[String], fieldDelimiter: Option[String] = None, lenient: Option[Boolean]): DataSinkFormat[In] = macro impl[In]
+  def apply[In](recordDelimiter: Option[String], fieldDelimiter: Option[String] = None, lenient: Option[Boolean]): ScalaOutputFormat[In] = macro impl[In]
   
-  def apply[In](): DataSinkFormat[In] = macro implWithoutAll[In]
-  def apply[In](recordDelimiter: String): DataSinkFormat[In] = macro implWithRD[In]
-  def apply[In](recordDelimiter: String, fieldDelimiter: String): DataSinkFormat[In] = macro implWithRDandFD[In]
-  def apply[In](recordDelimiter: String, fieldDelimiter: String, lenient: Boolean): DataSinkFormat[In] = macro implWithRDandFDandLenient[In]
+  def apply[In](): ScalaOutputFormat[In] = macro implWithoutAll[In]
+  def apply[In](recordDelimiter: String): ScalaOutputFormat[In] = macro implWithRD[In]
+  def apply[In](recordDelimiter: String, fieldDelimiter: String): ScalaOutputFormat[In] = macro implWithRDandFD[In]
+  def apply[In](recordDelimiter: String, fieldDelimiter: String, lenient: Boolean): ScalaOutputFormat[In] = macro implWithRDandFDandLenient[In]
   
-  def implWithoutAll[In: c.WeakTypeTag](c: Context)() : c.Expr[DataSinkFormat[In]] = {
+  def implWithoutAll[In: c.WeakTypeTag](c: Context)() : c.Expr[ScalaOutputFormat[In]] = {
     import c.universe._
     impl(c)(reify { None }, reify { None }, reify { None })
   }
-  def implWithRD[In: c.WeakTypeTag](c: Context)(recordDelimiter: c.Expr[String]) : c.Expr[DataSinkFormat[In]] = {
+  def implWithRD[In: c.WeakTypeTag](c: Context)(recordDelimiter: c.Expr[String]) : c.Expr[ScalaOutputFormat[In]] = {
     import c.universe._
     impl(c)(reify { Some(recordDelimiter.splice) }, reify { None }, reify { None })
   }
-  def implWithRDandFD[In: c.WeakTypeTag](c: Context)(recordDelimiter: c.Expr[String], fieldDelimiter: c.Expr[String]) : c.Expr[DataSinkFormat[In]] = {
+  def implWithRDandFD[In: c.WeakTypeTag](c: Context)(recordDelimiter: c.Expr[String], fieldDelimiter: c.Expr[String]) : c.Expr[ScalaOutputFormat[In]] = {
     import c.universe._
     impl(c)(reify { Some(recordDelimiter.splice) }, reify { Some(fieldDelimiter.splice) }, reify { None })
   }
-  def implWithRDandFDandLenient[In: c.WeakTypeTag](c: Context)(recordDelimiter: c.Expr[String], fieldDelimiter: c.Expr[String], lenient: c.Expr[Boolean]) : c.Expr[DataSinkFormat[In]] = {
+  def implWithRDandFDandLenient[In: c.WeakTypeTag](c: Context)(recordDelimiter: c.Expr[String], fieldDelimiter: c.Expr[String], lenient: c.Expr[Boolean]) : c.Expr[ScalaOutputFormat[In]] = {
     import c.universe._
     impl(c)(reify { Some(recordDelimiter.splice) }, reify { Some(fieldDelimiter.splice) }, reify { Some(lenient.splice) })
   }
   
-  def impl[In: c.WeakTypeTag](c: Context)(recordDelimiter: c.Expr[Option[String]], fieldDelimiter: c.Expr[Option[String]], lenient: c.Expr[Option[Boolean]]) : c.Expr[DataSinkFormat[In]] = {
+  def impl[In: c.WeakTypeTag](c: Context)(recordDelimiter: c.Expr[Option[String]], fieldDelimiter: c.Expr[Option[String]], lenient: c.Expr[Option[Boolean]]) : c.Expr[ScalaOutputFormat[In]] = {
     import c.universe._
     
     val slave = MacroContextHolder.newMacroHelper(c)
@@ -285,7 +302,7 @@ object CsvOutputFormat {
     
     val pact4sFormat = reify {
       
-      new JavaRecordOutputFormat with DataSinkFormat[In] {
+      new JavaRecordOutputFormat with ScalaOutputFormat[In] {
         override def persistConfiguration(config: Configuration) {
 
           val fields = getUDF.inputFields.filter(_.isUsed)
@@ -312,7 +329,7 @@ object CsvOutputFormat {
       
     }
     
-    val result = c.Expr[DataSinkFormat[In]](Block(List(udtIn), pact4sFormat.tree))
+    val result = c.Expr[ScalaOutputFormat[In]](Block(List(udtIn), pact4sFormat.tree))
 
     return result
     

@@ -29,7 +29,6 @@ import eu.stratosphere.pact.compiler.plan.SinkJoiner
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan
 import eu.stratosphere.scala.analysis.FieldSet
 import eu.stratosphere.scala.analysis.FieldSelector
-import eu.stratosphere.scala.analysis.postPass.GlobalSchemaOptimizer
 import eu.stratosphere.pact.common.plan.Plan
 import eu.stratosphere.pact.generic.contract.Contract
 import eu.stratosphere.pact.generic.contract.SingleInputContract

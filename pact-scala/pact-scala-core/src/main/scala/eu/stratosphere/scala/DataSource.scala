@@ -27,7 +27,7 @@ import eu.stratosphere.scala.operators.TextInputFormat
 
 object DataSource {
 
-  def apply[Out](url: String, format: DataSourceFormat[Out]): DataSet[Out] with OutputHintable[Out] = {
+  def apply[Out](url: String, format: ScalaInputFormat[Out]): DataSet[Out] with OutputHintable[Out] = {
     val uri = getUri(url)
     
     val ret = uri.getScheme match {
@@ -61,9 +61,10 @@ object DataSource {
 }
 
 
-trait DataSourceFormat[Out] { this: InputFormat[_, _] => 
+trait ScalaInputFormat[Out] { this: InputFormat[_, _] =>
   def getUDF: UDF0[Out]
   def persistConfiguration(config: Configuration) = {}
+  def configure(config: Configuration)
 }
 
 // convenience text file to look good in word count example :D

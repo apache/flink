@@ -23,7 +23,6 @@ import Extractors.DataSourceNode
 import Extractors.JoinNode
 import Extractors.MapNode
 import Extractors.ReduceNode
-import eu.stratosphere.scala.analysis.GlobalSchemaGenerator
 import eu.stratosphere.pact.common.contract.GenericDataSink
 import eu.stratosphere.pact.common.plan.Plan
 import eu.stratosphere.pact.generic.contract.Contract
