@@ -29,37 +29,45 @@ public class UniformPactRecordGenerator implements MutableObjectIterator<PactRec
 	
 	int keyCnt = 0;
 	int valCnt = 0;
+	int startKey = 0;
+	int startVal = 0;
 	boolean repeatKey;
 	
 	public UniformPactRecordGenerator(int numKeys, int numVals, boolean repeatKey) {
+		this(numKeys, numVals, 0, 0, repeatKey);
+	}
+	
+	public UniformPactRecordGenerator(int numKeys, int numVals, int startKey, int startVal, boolean repeatKey) {
 		this.numKeys = numKeys;
 		this.numVals = numVals;
+		this.startKey = startKey;
+		this.startVal = startVal;
 		this.repeatKey = repeatKey;
 	}
 
 	@Override
 	public boolean next(PactRecord target) {
 		if(!repeatKey) {
-			if(valCnt >= numVals) {
+			if(valCnt >= numVals+startVal) {
 				return false;
 			}
 			
 			key.setValue(keyCnt++);
 			value.setValue(valCnt);
 			
-			if(keyCnt == numKeys) {
-				keyCnt = 0;
+			if(keyCnt == numKeys+startKey) {
+				keyCnt = startKey;
 				valCnt++;
 			}
 		} else {
-			if(keyCnt >= numKeys) {
+			if(keyCnt >= numKeys+startKey) {
 				return false;
 			}
 			key.setValue(keyCnt);
 			value.setValue(valCnt++);
 			
-			if(valCnt == numVals) {
-				valCnt = 0;
+			if(valCnt == numVals+startVal) {
+				valCnt = startVal;
 				keyCnt++;
 			}
 		}
