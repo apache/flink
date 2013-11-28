@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.common.io;
+package eu.stratosphere.addons.hbase;
 
 import java.io.DataInput;
 import java.io.DataOutput;

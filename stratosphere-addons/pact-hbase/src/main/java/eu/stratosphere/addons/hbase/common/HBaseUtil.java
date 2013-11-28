@@ -1,4 +1,4 @@
-package eu.stratosphere.pact.common.io.util;
+package eu.stratosphere.addons.hbase.common;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -9,7 +9,7 @@ import java.io.IOException;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.util.Base64;
 
-import eu.stratosphere.pact.common.io.TableInputFormat;
+import eu.stratosphere.addons.hbase.TableInputFormat;
 
 /**
  * Utility for {@link TableInputFormat}

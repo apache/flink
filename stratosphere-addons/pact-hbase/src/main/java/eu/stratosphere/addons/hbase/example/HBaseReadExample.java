@@ -1,4 +1,4 @@
-package eu.stratosphere.pact.example.hbase;
+package eu.stratosphere.addons.hbase.example;
 
 /***********************************************************************************************************************
 *
@@ -19,13 +19,13 @@ import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Scan;
 
+import eu.stratosphere.addons.hbase.TableInputFormat;
+import eu.stratosphere.addons.hbase.common.HBaseKey;
+import eu.stratosphere.addons.hbase.common.HBaseResult;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.GenericDataSource;
-import eu.stratosphere.pact.common.io.HBaseKey;
-import eu.stratosphere.pact.common.io.HBaseResult;
 import eu.stratosphere.pact.common.io.RecordOutputFormat;
-import eu.stratosphere.pact.common.io.TableInputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;

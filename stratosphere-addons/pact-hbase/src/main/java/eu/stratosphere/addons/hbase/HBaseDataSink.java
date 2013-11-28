@@ -1,8 +1,8 @@
-package eu.stratosphere.pact.common.contract;
+package eu.stratosphere.addons.hbase;
 
 import java.util.Random;
 
-import eu.stratosphere.pact.common.io.GenericTableOutputFormat;
+import eu.stratosphere.pact.common.contract.GenericDataSink;
 import eu.stratosphere.pact.generic.contract.Contract;
 
 

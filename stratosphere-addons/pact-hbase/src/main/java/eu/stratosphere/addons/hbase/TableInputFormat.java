@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.common.io;
+package eu.stratosphere.addons.hbase;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -33,11 +33,13 @@ import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.Pair;
 import org.apache.hadoop.util.StringUtils;
 
+import eu.stratosphere.addons.hbase.common.HBaseKey;
+import eu.stratosphere.addons.hbase.common.HBaseResult;
+import eu.stratosphere.addons.hbase.common.HBaseUtil;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.pact.generic.io.InputFormat;
 import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
-import eu.stratosphere.pact.common.io.util.HBaseUtil;
 import eu.stratosphere.pact.common.type.PactRecord;
 
 /**
