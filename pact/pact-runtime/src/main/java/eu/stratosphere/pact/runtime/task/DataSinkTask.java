@@ -26,8 +26,11 @@ import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.fs.FileStatus;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
+import eu.stratosphere.nephele.io.MutableReader;
 import eu.stratosphere.nephele.io.MutableRecordReader;
+import eu.stratosphere.nephele.io.MutableUnionRecordReader;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
+import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.generic.io.FileOutputFormat;
@@ -36,6 +39,7 @@ import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
 import eu.stratosphere.pact.generic.types.TypeSerializer;
 import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.runtime.plugable.DeserializationDelegate;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordSerializer;
 import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger;
 import eu.stratosphere.pact.runtime.task.util.CloseableInputProvider;
 import eu.stratosphere.pact.runtime.task.util.NepheleReaderIterator;
@@ -64,7 +68,7 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 	private MutableObjectIterator<IT> reader;
 	
 	// input iterator
-	private MutableObjectIterator<IT> input;
+	 private MutableObjectIterator<IT> input;
 	
 	// The serializer for the input type
 	private TypeSerializer<IT> inputTypeSerializer;
@@ -92,8 +96,13 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 		// initialize OutputFormat
 		initOutputFormat();
 		
-		// initialize input reader
-		initInputReader();
+		// initialize input readers
+		try {
+			initInputReaders();
+		} catch (Exception e) {
+			throw new RuntimeException("Initializing the input streams failed" +
+				e.getMessage() == null ? "." : ": " + e.getMessage(), e);
+		}
 
 		if (LOG.isDebugEnabled())
 			LOG.debug(getLogString("Finished registering input and output"));
@@ -300,22 +309,54 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 	}
 
 	/**
-	 * Initializes the input reader of the DataSinkTask.
+	 * Initializes the input readers of the DataSinkTask.
 	 * 
 	 * @throws RuntimeException
-	 *         Thrown if no input ship strategy was provided.
+	 *         Thrown in case of invalid task input configuration.
 	 */
-	private void initInputReader() {
+	@SuppressWarnings("unchecked")
+	private void initInputReaders() throws Exception {
+		
+		MutableReader<?> inputReader;
+		
+		int numGates = 0;
+		//  ---------------- create the input readers ---------------------
+		// in case where a logical input unions multiple physical inputs, create a union reader
+		final int groupSize = this.config.getGroupSize(0);
+		numGates += groupSize;
+		if (groupSize == 1) {
+			// non-union case
+			inputReader = new MutableRecordReader<DeserializationDelegate<IT>>(this);
+		} else if (groupSize > 1){
+			// union case
+			
+			MutableRecordReader<Record>[] readers = new MutableRecordReader[groupSize];
+			for (int j = 0; j < groupSize; ++j) {
+				readers[j] = new MutableRecordReader<Record>(this);
+			}
+			inputReader = new MutableUnionRecordReader<Record>(readers);
+		} else {
+			throw new Exception("Illegal input group size in task configuration: " + groupSize);
+		}
+		
 		final TypeSerializerFactory<IT> serializerFactory = this.config.getInputSerializer(0, this.userCodeClassLoader);
 		this.inputTypeSerializer = serializerFactory.getSerializer();
 		
-		// create reader
-		if (serializerFactory.getDataType().equals(PactRecord.class)) {
-			@SuppressWarnings("unchecked")
-			MutableObjectIterator<IT> it = (MutableObjectIterator<IT>) new PactRecordNepheleReaderIterator(new MutableRecordReader<PactRecord>(this)); 
-			this.reader = it;
+		if (this.inputTypeSerializer.getClass() == PactRecordSerializer.class) {
+			// pact record specific deserialization
+			MutableReader<PactRecord> reader = (MutableReader<PactRecord>) inputReader;
+			this.reader = (MutableObjectIterator<IT>)new PactRecordNepheleReaderIterator(reader);
 		} else {
-			this.reader = new NepheleReaderIterator<IT>(new MutableRecordReader<DeserializationDelegate<IT>>(this), this.inputTypeSerializer);
+			// generic data type serialization
+			MutableReader<DeserializationDelegate<?>> reader = (MutableReader<DeserializationDelegate<?>>) inputReader;
+			@SuppressWarnings({ "rawtypes" })
+			final MutableObjectIterator<?> iter = new NepheleReaderIterator(reader, this.inputTypeSerializer);
+			this.reader = (MutableObjectIterator<IT>)iter;
+		}
+		
+		// final sanity check
+		if (numGates != this.config.getNumInputs()) {
+			throw new Exception("Illegal configuration: Number of input gates and group sizes are not consistent.");
 		}
 	}
 	

@@ -28,6 +28,7 @@ import eu.stratosphere.nephele.io.InputChannelResult;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.MutableRecordDeserializerFactory;
 import eu.stratosphere.nephele.io.OutputGate;
+import eu.stratosphere.nephele.io.RecordAvailabilityListener;
 import eu.stratosphere.nephele.io.RecordDeserializerFactory;
 import eu.stratosphere.nephele.io.RuntimeInputGate;
 import eu.stratosphere.nephele.io.RuntimeOutputGate;
@@ -124,10 +125,17 @@ public class MockEnvironment implements Environment
 		}
 
 		@Override
+		public void registerRecordAvailabilityListener(final RecordAvailabilityListener<PactRecord> listener) {
+			super.registerRecordAvailabilityListener(listener);
+			this.notifyRecordIsAvailable(0);
+		}
+		
+		@Override
 		public InputChannelResult readRecord(PactRecord target) throws IOException, InterruptedException {
 
 			if (it.next(target)) {
 				// everything comes from the same source channel and buffer in this mock
+				notifyRecordIsAvailable(0);
 				return InputChannelResult.INTERMEDIATE_RECORD_FROM_BUFFER;
 			} else {
 				return InputChannelResult.END_OF_STREAM;

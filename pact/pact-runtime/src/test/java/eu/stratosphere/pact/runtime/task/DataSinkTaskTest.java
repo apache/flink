@@ -125,6 +125,75 @@ public class DataSinkTaskTest extends TaskTestBase
 	}
 	
 	@Test
+	public void testUnionDataSinkTask() {
+
+		int keyCnt = 100;
+		int valCnt = 20;
+		
+		super.initEnvironment(1024 * 1024);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, 0, 0, false), 0);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, keyCnt, 0, false), 0);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, keyCnt*2, 0, false), 0);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, keyCnt*3, 0, false), 0);
+		
+		DataSinkTask<PactRecord> testTask = new DataSinkTask<PactRecord>();
+
+		super.registerFileOutputTask(testTask, MockOutputFormat.class, new File(tempTestPath).toURI().toString());
+		
+		try {
+			testTask.invoke();
+		} catch (Exception e) {
+			LOG.debug(e);
+			Assert.fail("Invoke method caused exception.");
+		}
+
+		File tempTestFile = new File(this.tempTestPath);
+		
+		Assert.assertTrue("Temp output file does not exist",tempTestFile.exists());
+		
+		FileReader fr = null;
+		BufferedReader br = null;
+		try {
+			fr = new FileReader(tempTestFile);
+			br = new BufferedReader(fr);
+			
+			HashMap<Integer,HashSet<Integer>> keyValueCountMap = new HashMap<Integer, HashSet<Integer>>(keyCnt);
+			
+			while(br.ready()) {
+				String line = br.readLine();
+				
+				Integer key = Integer.parseInt(line.substring(0,line.indexOf("_")));
+				Integer val = Integer.parseInt(line.substring(line.indexOf("_")+1,line.length()));
+				
+				if(!keyValueCountMap.containsKey(key)) {
+					keyValueCountMap.put(key,new HashSet<Integer>());
+				}
+				keyValueCountMap.get(key).add(val);
+			}
+			
+			Assert.assertTrue("Invalid key count in out file. Expected: "+keyCnt+" Actual: "+keyValueCountMap.keySet().size(),
+				keyValueCountMap.keySet().size() == keyCnt * 4);
+			
+			for(Integer key : keyValueCountMap.keySet()) {
+				Assert.assertTrue("Invalid value count for key: "+key+". Expected: "+valCnt+" Actual: "+keyValueCountMap.get(key).size(),
+					keyValueCountMap.get(key).size() == valCnt);
+			}
+			
+		} catch (FileNotFoundException e) {
+			Assert.fail("Out file got lost...");
+		} catch (IOException ioe) {
+			Assert.fail("Caught IOE while reading out file");
+		} finally {
+			if (br != null) {
+				try { br.close(); } catch (Throwable t) {}
+			}
+			if (fr != null) {
+				try { fr.close(); } catch (Throwable t) {}
+			}
+		}
+	}
+	
+	@Test
 	@SuppressWarnings("unchecked")
 	public void testSortingDataSinkTask() {
 
