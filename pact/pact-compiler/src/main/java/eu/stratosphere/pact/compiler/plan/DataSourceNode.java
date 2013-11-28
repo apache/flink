@@ -36,6 +36,7 @@ import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SourcePlanNode;
 import eu.stratosphere.pact.generic.contract.Contract;
 import eu.stratosphere.pact.generic.io.InputFormat;
+import eu.stratosphere.pact.generic.io.UnsplittableInput;
 
 /**
  * The optimizer's internal representation of a data source.
@@ -43,6 +44,8 @@ import eu.stratosphere.pact.generic.io.InputFormat;
 public class DataSourceNode extends OptimizerNode {
 	
 	private long inputSize;			//the size of the input in bytes
+	
+	private final boolean unsplittable;
 
 	/**
 	 * Creates a new DataSourceNode for the given contract.
@@ -52,6 +55,18 @@ public class DataSourceNode extends OptimizerNode {
 	 */
 	public DataSourceNode(GenericDataSource<?> pactContract) {
 		super(pactContract);
+		
+		if (pactContract.getUserCodeWrapper().getUserCodeClass() == null) {
+			throw new IllegalArgumentException("Input format has not been set.");
+		}
+		
+		if (UnsplittableInput.class.isAssignableFrom(pactContract.getUserCodeWrapper().getUserCodeClass())) {
+			this.unsplittable = true;
+			setDegreeOfParallelism(1);
+			setSubtasksPerInstance(1);
+		} else {
+			this.unsplittable = false;
+		}
 	}
 
 	/**
@@ -64,36 +79,39 @@ public class DataSourceNode extends OptimizerNode {
 		return (GenericDataSource<?>) super.getPactContract();
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getName()
-	 */
 	@Override
 	public String getName() {
 		return "Data Source";
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isMemoryConsumer()
-	 */
 	@Override
 	public boolean isMemoryConsumer() {
 		return false;
 	}
+	
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getIncomingConnections()
-	 */
+	@Override
+	public void setDegreeOfParallelism(int degreeOfParallelism) {
+		// if unsplittable, DOP remains at 1
+		if (!this.unsplittable) {
+			super.setDegreeOfParallelism(degreeOfParallelism);
+		}
+	}
+	
+
+	@Override
+	public void setSubtasksPerInstance(int instancesPerMachine) {
+		// if unsplittable, DOP remains at 1
+		if (!this.unsplittable) {
+			super.setSubtasksPerInstance(instancesPerMachine);
+		}
+	}
+
 	@Override
 	public List<PactConnection> getIncomingConnections() {
 		return Collections.<PactConnection>emptyList();
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#setInputs(java.util.Map)
-	 */
 	@Override
 	public void setInputs(Map<Contract, OptimizerNode> contractToNode) {
 		// do nothing

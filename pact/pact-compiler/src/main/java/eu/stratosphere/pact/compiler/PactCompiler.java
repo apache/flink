@@ -813,11 +813,6 @@ public class PactCompiler {
 			this.forceDOP = forceDOP;
 		}
 
-		/*
-		 * (non-Javadoc)
-		 * @see
-		 * eu.stratosphere.pact.common.plan.Visitor#preVisit(eu.stratosphere.pact.common.plan.Visitable)
-		 */
 		@Override
 		public boolean preVisit(Contract c) {
 			// check if we have been here before
@@ -949,11 +944,6 @@ public class PactCompiler {
 			return true;
 		}
 
-		/*
-		 * (non-Javadoc)
-		 * @see
-		 * eu.stratosphere.pact.common.plan.Visitor#postVisit(eu.stratosphere.pact.common.plan.Visitable)
-		 */
 		@Override
 		public void postVisit(Contract c) {
 			OptimizerNode n = this.con2node.get(c);
