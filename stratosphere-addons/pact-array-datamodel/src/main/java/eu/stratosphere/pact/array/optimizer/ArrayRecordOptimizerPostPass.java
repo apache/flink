@@ -12,7 +12,7 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.pact.compiler.postpass;
+package eu.stratosphere.pact.array.optimizer;
 
 import eu.stratosphere.pact.array.io.ArrayModelOutputFormat;
 import eu.stratosphere.pact.array.stubs.AbstractArrayModelStub;
@@ -27,6 +27,11 @@ import eu.stratosphere.pact.compiler.CompilerPostPassException;
 import eu.stratosphere.pact.compiler.plan.candidate.DualInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
+import eu.stratosphere.pact.compiler.postpass.ConflictingFieldTypeInfoException;
+import eu.stratosphere.pact.compiler.postpass.DenseValueSchema;
+import eu.stratosphere.pact.compiler.postpass.GenericRecordPostPass;
+import eu.stratosphere.pact.compiler.postpass.MissingFieldTypeInfoException;
+import eu.stratosphere.pact.compiler.postpass.PostPassUtils;
 import eu.stratosphere.pact.generic.contract.DualInputContract;
 import eu.stratosphere.pact.generic.contract.SingleInputContract;
 import eu.stratosphere.pact.generic.io.OutputFormat;
@@ -38,7 +43,7 @@ import eu.stratosphere.pact.runtime.plugable.arrayrecord.ArrayRecordSerializerFa
  * Post pass implementation for the array record data model. Does only type inference and creates
  * serializers and comparators.
  */
-public class GenericArrayRecordPostPass extends GenericRecordPostPass<Class<? extends Value>, DenseValueSchema> {
+public class ArrayRecordOptimizerPostPass extends GenericRecordPostPass<Class<? extends Value>, DenseValueSchema> {
 
 	// --------------------------------------------------------------------------------------------
 	//  Type specific methods that extract schema information

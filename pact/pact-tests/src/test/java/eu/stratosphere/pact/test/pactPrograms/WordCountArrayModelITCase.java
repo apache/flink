@@ -19,8 +19,8 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.pact.array.example.WordCountArrayTuples;
 import eu.stratosphere.pact.common.plan.Plan;
-import eu.stratosphere.pact.example.wordcount.WordCountArrayTuples;
 
 @RunWith(Parameterized.class)
 public class WordCountArrayModelITCase extends WordCountITCase {

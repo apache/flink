@@ -8,12 +8,12 @@
 		<artifactId>stratosphere-addons</artifactId>
 		<groupId>eu.stratosphere</groupId>
 		<version>0.4-SNAPSHOT</version>
-	    <relativePath>..</relativePath>
-    </parent>
-  
+		<relativePath>..</relativePath>
+	</parent>
+
 	<artifactId>pact-hbase</artifactId>
 	<name>pact-hbase</name>
-  
+
 	<packaging>jar</packaging>
 
 	<dependencies>
@@ -27,12 +27,14 @@
 			<groupId>org.apache.hbase</groupId>
 			<artifactId>hbase</artifactId>
 			<version>0.94.2-cdh4.2.1</version>
-			 <exclusions>
-		        <exclusion>  <!-- jruby is used for the hbase shell. -->
-		          <groupId>org.jruby</groupId>
-		          <artifactId>jruby-complete</artifactId>
-		        </exclusion>
-		     </exclusions> 
+	
+			<exclusions>
+				<!-- jruby is used for the hbase shell. -->
+				<exclusion>
+					<groupId>org.jruby</groupId>
+					<artifactId>jruby-complete</artifactId>
+				</exclusion>
+			</exclusions> 
 		</dependency>
 
 		<dependency>
@@ -40,12 +42,12 @@
 			<artifactId>hadoop-client</artifactId>
 			<version>${hadoop.version}</version>
 		</dependency>
-    </dependencies>
+	</dependencies>
 
-    <!--
+	<!--
 		hadoop-client is available for yarn and non-yarn, so there is no need to use profiles
 		See ticket https://issues.apache.org/jira/browse/HADOOP-8009 for description of hadoop-clients
-    -->
+	-->
 
 	<reporting>
 		<plugins>

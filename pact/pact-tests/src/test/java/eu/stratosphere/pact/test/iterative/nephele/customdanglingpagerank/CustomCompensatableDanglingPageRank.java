@@ -16,7 +16,6 @@
 package eu.stratosphere.pact.test.iterative.nephele.customdanglingpagerank;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.channels.ChannelType;

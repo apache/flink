@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.example.wordcount;
+package eu.stratosphere.pact.array.example;
 
 import java.util.Iterator;
 

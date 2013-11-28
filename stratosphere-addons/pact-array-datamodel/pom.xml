@@ -17,11 +17,25 @@
 	<packaging>jar</packaging>
 
 	<dependencies>
+	
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
 			<artifactId>pact-common</artifactId>
 			<version>${project.version}</version>
 		</dependency>
+		
+		<dependency>
+			<groupId>eu.stratosphere</groupId>
+			<artifactId>pact-compiler</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		
+		<dependency>
+			<groupId>eu.stratosphere</groupId>
+			<artifactId>pact-clients</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		
 	</dependencies>
 	
 </project>

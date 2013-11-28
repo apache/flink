@@ -19,9 +19,6 @@ import java.util.Collection;
 import eu.stratosphere.pact.common.contract.GenericDataSink;
 
 
-/**
- *
- */
 public class Plan extends eu.stratosphere.pact.common.plan.Plan {
 
 	public Plan(Collection<GenericDataSink> sinks, String jobName) {
@@ -40,11 +37,8 @@ public class Plan extends eu.stratosphere.pact.common.plan.Plan {
 		super(sink);
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.plan.Plan#getPostPassClassName()
-	 */
 	@Override
 	public String getPostPassClassName() {
-		return "eu.stratosphere.pact.compiler.postpass.GenericArrayRecordPostPass";
+		return "eu.stratosphere.pact.array.optimizer.ArrayRecordOptimizerPostPass";
 	}
 }
