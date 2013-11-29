@@ -238,7 +238,18 @@
 					<argLine>-Xmx1024m</argLine>
 				</configuration>
 			</plugin>
-
+			
+			<!-- test coverage reports -->
+			<plugin>
+			        <groupId>org.codehaus.mojo</groupId>
+			        <artifactId>cobertura-maven-plugin</artifactId>
+			        <version>2.6</version>
+				<configuration>
+					<formats>
+						<format>html</format>
+					</formats>
+				</configuration>
+			</plugin>
 
 		</plugins>
 	</reporting>
