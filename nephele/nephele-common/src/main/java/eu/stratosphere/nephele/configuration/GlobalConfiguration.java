@@ -305,15 +305,28 @@ public final class GlobalConfiguration {
 	public static void loadConfiguration(final String configDir) {
 
 		if (configDir == null) {
-
 			LOG.warn("Given configuration directory is null, cannot load configuration");
 			return;
 		}
 
 		final File confDirFile = new File(configDir);
-		if (!(confDirFile.exists() && confDirFile.isDirectory())) {
+		if (!(confDirFile.exists())) {
 			LOG.warn("The given configuration directory name '" + configDir + "'(" + confDirFile.getAbsolutePath()
 				+ ") does not describe an existing directory.");
+			return;
+		}
+		
+		if(confDirFile.isFile()) {
+			final File file = new File(configDir);
+			if(configDir.endsWith(".xml")) {
+				get().loadXMLResource( file );
+			} else if(configDir.endsWith(".yaml")) {
+				get().loadYAMLResource(file);
+			} else {
+				LOG.warn("The given configuration has an unknown extension.");
+				return;
+			}
+			configuration.confData.put(CONFIGDIRKEY, file.getAbsolutePath() );
 			return;
 		}
 

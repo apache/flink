@@ -50,7 +50,9 @@ import eu.stratosphere.nephele.util.StringUtils;
 import eu.stratosphere.pact.client.nephele.api.Client;
 import eu.stratosphere.pact.client.nephele.api.ErrorInPlanAssemblerException;
 import eu.stratosphere.pact.client.nephele.api.PactProgram;
+import eu.stratosphere.pact.client.nephele.api.PlanWithJars;
 import eu.stratosphere.pact.client.nephele.api.ProgramInvocationException;
+import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.compiler.CompilerException;
 
 /**
@@ -60,6 +62,7 @@ public class CliFrontend {
 
 	// actions
 	private static final String ACTION_RUN = "run";
+	private static final String ACTION_RUN_REMOTE = "remote";
 	private static final String ACTION_INFO = "info";
 	private static final String ACTION_LIST = "list";
 	private static final String ACTION_CANCEL = "cancel";
@@ -106,6 +109,7 @@ public class CliFrontend {
 		options = new HashMap<String, Options>();
 		options.put(GENERAL_OPTS, getGeneralOptions());
 		options.put(ACTION_RUN, getRunOptions());
+		options.put(ACTION_RUN_REMOTE, getRunOptions());
 		options.put(ACTION_INFO, getInfoOptions());
 		options.put(ACTION_LIST, getListOptions());
 		options.put(ACTION_CANCEL, getCancelOptions());
@@ -211,6 +215,35 @@ public class CliFrontend {
 		options.addOption(ID_OPTION);
 		
 		return options;
+	}
+	
+	/**
+	 * Remote executor.
+	 * 
+	 * @param params
+	 */
+	private void remote(String[] params) {
+		//if(params.length != 4) {
+			System.err.println("Usage: [host:port] [jar] [class] [args]");
+		//	System.exit(1);
+		//}
+		for(int i = 0; i < params.length; i++) {
+			System.err.println("arg "+i+" = "+params[i]);
+		}
+		
+		RemoteExecutor re = new RemoteExecutor(params[0], params[1]);
+		PactProgram program = null;
+		try {
+			program = new PactProgram(new File(params[1]), params[2], params[3].split(" "));
+		} catch (ProgramInvocationException e1) {
+			e1.printStackTrace();
+		}
+		try {
+			re.executePlanWithJars(program.getPlanWithJars());
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 	
 	/**
@@ -730,6 +763,8 @@ public class CliFrontend {
 		// do action
 		if(action.equals(ACTION_RUN)) {
 			run(params);
+		} else if (action.equals(ACTION_RUN_REMOTE)) {
+			remote(params);
 		} else if (action.equals(ACTION_LIST)) {
 			list(params);
 		} else if (action.equals(ACTION_INFO)) {
@@ -743,6 +778,8 @@ public class CliFrontend {
 		}
 		
 	}
+
+	
 
 	/**
 	 * Submits the job based on the arguments

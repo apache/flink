@@ -48,27 +48,13 @@
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<hadoop-one.version>1.2.1</hadoop-one.version>
-		<hadoop-two.version>2.0.0-cdh4.2.1</hadoop-two.version>
+		<hadoop-two.version>2.2.0</hadoop-two.version>
 	</properties>
 
 	<pluginRepositories>
 	</pluginRepositories>
 	
-	<repositories>
-		<repository>
-			<id>cloudera-releases</id>
-			<url>https://repository.cloudera.com/artifactory/cloudera-repos</url>
-			<releases>
-				<enabled>true</enabled>
-			</releases>
-			<snapshots>
-				<enabled>false</enabled>
-			</snapshots>
-		</repository>
-	</repositories>
-
 	<dependencies>
-	
 		<dependency>
 			<groupId>commons-logging</groupId>
 			<artifactId>commons-logging</artifactId>

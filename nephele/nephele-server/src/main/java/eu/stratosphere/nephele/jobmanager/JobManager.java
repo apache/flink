@@ -392,7 +392,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	 * @param args
 	 *        arguments from the command line
 	 */
-	@SuppressWarnings("static-access")
+	
 	public static void main(final String[] args) {
 		
 		// determine if a valid log4j config exists and initialize a default logger if not
@@ -405,6 +405,19 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			root.setLevel(Level.INFO);
 		}
 		
+		JobManager jobManager = initialize(args);
+				
+		// Start info server for jobmanager
+		jobManager.startInfoServer();
+
+		// Run the main task loop
+		jobManager.runTaskLoop();
+
+		// Clean up task are triggered through a shutdown hook
+	}
+	
+	@SuppressWarnings("static-access")
+	public static JobManager initialize(final String[] args) {
 		// output the version and revision information to the log
 		logVersionInformation();
 		
@@ -430,7 +443,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		final String configDir = line.getOptionValue(configDirOpt.getOpt(), null);
 		final String executionModeName = line.getOptionValue(executionModeOpt.getOpt(), "local");
 		
-		final ExecutionMode executionMode;
+		ExecutionMode executionMode = null;
 		if ("local".equals(executionModeName)) {
 			executionMode = ExecutionMode.LOCAL;
 		} else if ("cluster".equals(executionModeName)) {
@@ -438,7 +451,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		} else {
 			System.err.println("Unrecognized execution mode: " + executionModeName);
 			System.exit(FAILURERETURNCODE);
-			return;
 		}
 		
 		// First, try to load global configuration
@@ -452,14 +464,8 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		if (configDir != null) {
 			infoserverConfig.setString(ConfigConstants.STRATOSPHERE_BASE_DIR_PATH_KEY, configDir+"/..");
 		}
-				
-		// Start info server for jobmanager
-		jobManager.startInfoServer(infoserverConfig);
-
-		// Run the main task loop
-		jobManager.runTaskLoop();
-
-		// Clean up task are triggered through a shutdown hook
+		GlobalConfiguration.includeConfiguration(infoserverConfig);
+		return jobManager;
 	}
 
 	/**
@@ -1245,9 +1251,9 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	/**
 	 * Starts the Jetty Infoserver for the Jobmanager
 	 * 
-	 * @param config
 	 */
-	public void startInfoServer(Configuration config) {
+	public void startInfoServer() {
+		final Configuration config = GlobalConfiguration.getConfiguration();
 		// Start InfoServer
 		try {
 			int port = config.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, ConfigConstants.DEFAULT_WEB_FRONTEND_PORT);

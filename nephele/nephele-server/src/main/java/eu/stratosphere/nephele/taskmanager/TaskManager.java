@@ -364,7 +364,8 @@ public class TaskManager implements TaskOperationProtocol {
 			try {
 				this.jobManager.sendHeartbeat(this.localInstanceConnectionInfo, this.hardwareDescription);
 			} catch (IOException e) {
-				LOG.debug("sending the heart beat caused on IO Exception");
+				e.printStackTrace();
+				LOG.info("sending the heart beat caused on IO Exception");
 			}
 
 			// Check the status of the task threads to detect unexpected thread terminations

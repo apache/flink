@@ -57,6 +57,7 @@
 			</activation>
 			<modules>
 				<module>pact-hbase</module>
+				<module>stratosphere-yarn</module>
 			</modules>
 		</profile>
 	</profiles>
