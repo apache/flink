@@ -30,22 +30,15 @@ import eu.stratosphere.pact.runtime.sort.AsynchronousPartialSorterCollector;
 import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger.InputDataCollector;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
-import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
 
-/**
- * 
- */
 public class ChainedCombineDriver<T> extends ChainedDriver<T, T> {
 	
 	private InputDataCollector<T> inputCollector;
 	
 	private volatile Exception exception;
 	
-	
 	private GenericReducer<T, ?> combiner;
-	
-	private Collector<T> outputCollector;
 	
 	private AsynchronousPartialSorterCollector<T> sorter;
 	
@@ -53,39 +46,24 @@ public class ChainedCombineDriver<T> extends ChainedDriver<T, T> {
 	
 	private AbstractInvokable parent;
 	
-	private TaskConfig config;
-	
 	private ClassLoader userCodeClassLoader;
-	
-	private String taskName;
 	
 	private volatile boolean canceled;
 	
 	// --------------------------------------------------------------------------------------------
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.chaining.ChainedTask#setup(eu.stratosphere.pact.runtime.task.util.TaskConfig, eu.stratosphere.nephele.template.AbstractInvokable, eu.stratosphere.pact.common.stubs.Collector)
-	 */
-	@Override
-	public void setup(TaskConfig config, String taskName, AbstractInvokable parent, 
-			ClassLoader userCodeClassLoader, Collector<T> output)
-	{
-		this.config = config;
+
+    @Override
+    public void setup(AbstractInvokable parent, ClassLoader userCodeClassLoader) {
 		this.userCodeClassLoader = userCodeClassLoader;
-		this.taskName = taskName;
-		this.outputCollector = output;
 		this.parent = parent;
-		
+
 		@SuppressWarnings("unchecked")
 		final GenericReducer<T, ?> combiner = RegularPactTask.instantiateUserCode(config, userCodeClassLoader, GenericReducer.class);
-		this.combiner = combiner;
-		combiner.setRuntimeContext(getRuntimeContext(parent, taskName));
-	}
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.chaining.ChainedTask#open()
-	 */
-	@Override
+        combiner.setRuntimeContext(getRuntimeContext(parent, taskName));
+        this.combiner = combiner;
+    }
+
+    @Override
 	public void openTask() throws Exception {
 		// open the stub first
 		final Configuration stubConfig = this.config.getStubParameters();
@@ -126,10 +104,7 @@ public class ChainedCombineDriver<T> extends ChainedDriver<T, T> {
 			this.parent.userThreadStarted(this.combinerThread);
 		}
 	}
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.chaining.ChainedTask#closeTask()
-	 */
+
 	@Override
 	public void closeTask() throws Exception {
 		// wait for the thread that runs the combiner to finish
@@ -158,10 +133,7 @@ public class ChainedCombineDriver<T> extends ChainedDriver<T, T> {
 		
 		RegularPactTask.closeUserCode(this.combiner);
 	}
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.chaining.ChainedTask#cancelTask()
-	 */
+
 	@Override
 	public void cancelTask() {
 		this.canceled = true;
@@ -183,26 +155,17 @@ public class ChainedCombineDriver<T> extends ChainedDriver<T, T> {
 	}
 	
 	// --------------------------------------------------------------------------------------------
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.chaining.ChainedTask#getStub()
-	 */
+
 	public Stub getStub() {
 		return this.combiner;
 	}
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.chaining.ChainedTask#getTaskName()
-	 */
+
 	public String getTaskName() {
 		return this.taskName;
 	}
 	
 	// --------------------------------------------------------------------------------------------
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.stubs.Collector#collect(eu.stratosphere.pact.common.type.PactRecord)
-	 */
+
 	@Override
 	public void collect(T record) {
 		if (this.exception != null)
@@ -212,9 +175,6 @@ public class ChainedCombineDriver<T> extends ChainedDriver<T, T> {
 		this.inputCollector.collect(record);
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.stubs.Collector#close()
-	 */
 	@Override
 	public void close() {
 		this.inputCollector.close();

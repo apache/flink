@@ -228,6 +228,7 @@ public class CustomCompensatableDanglingPageRank {
 			degreeOfParallelism, numSubTasksPerInstance);
 		TaskConfig tailConfig = new TaskConfig(tail.getConfiguration());
 		tailConfig.setIterationId(ITERATION_ID);
+        tailConfig.setIsWorksetUpdate();
 		// TODO we need to combine!
 		
 		// inputs and driver

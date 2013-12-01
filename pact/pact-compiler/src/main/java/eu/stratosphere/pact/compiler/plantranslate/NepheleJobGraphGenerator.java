@@ -979,7 +979,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 	 * NOTE: The channel for global and local strategies are different if we connect a union. The global strategy
 	 * channel is then the channel into the union node, the local strategy channel the one from the union to the
 	 * actual target operator.
-	 * 
+	 *
 	 * @param channelForGlobalStrategy
 	 * @param channelForLocalStrategy
 	 * @param inputNumber
@@ -1142,6 +1142,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		}
 		rootOfStepFunctionVertex.setTaskClass(IterationTailPactTask.class);
 		tailConfig.setOutputSerializer(bulkNode.getSerializerForIterationChannel());
+        tailConfig.setIsWorksetUpdate();
 		
 		// create the fake output task
 		JobOutputVertex fakeTail = new JobOutputVertex("Fake Tail", this.jobGraph);
@@ -1198,7 +1199,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 				throw new CompilerException("Bug: No memory has been assigned to the workset iteration.");
 			}
 			
-			headConfig.setWorksetIteration();
+			headConfig.setIsWorksetIteration();
 			headConfig.setBackChannelMemory(mem / 2);
 			headConfig.setSolutionSetMemory(mem / 2);
 			
@@ -1251,9 +1252,12 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 				tailConfig = new TaskConfig(nextWorksetVertex.getConfiguration());
 			}
 			nextWorksetVertex.setTaskClass(IterationTailPactTask.class);
-			
+
 			tailConfig.setOutputSerializer(iterNode.getWorksetSerializer());
-			
+            tailConfig.setIsWorksetIteration();
+            tailConfig.setIsWorksetUpdate();
+            tailConfig.setIsSolutionSetUpdate();
+
 			// create the fake output task
 			JobOutputVertex fakeTail = new JobOutputVertex("Fake Tail", this.jobGraph);
 			fakeTail.setOutputClass(FakeOutputTask.class);
@@ -1271,7 +1275,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			// the fake channel is statically typed to pact record. no data is sent over this channel anyways.
 			
 			// mark the iteration tail as a workset iteration, such that it instantiates the workset element count aggregator
-			tailConfig.setWorksetIteration();
+			tailConfig.setIsWorksetIteration();
 		}
 		
 		// ------------------- mark the solution set delta node as solution set updating -------------------
@@ -1290,10 +1294,10 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			} else {
 				solutionDeltaConfig = new TaskConfig(solutionDeltaVertex.getConfiguration());
 			}
-			solutionDeltaConfig.setUpdateSolutionSet();
+			solutionDeltaConfig.setIsSolutionSetUpdate();
 			
 			// hack!!! for now, we support only immediate updates
-			solutionDeltaConfig.setUpdateSolutionSetWithoutReprobe();
+			solutionDeltaConfig.setIsSolutionSetUpdateWithoutReprobe();
 		}
 		
 		// ------------------- register the aggregators -------------------

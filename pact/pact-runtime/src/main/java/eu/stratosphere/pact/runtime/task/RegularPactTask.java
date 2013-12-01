@@ -494,7 +494,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 	}
 	
 	/**
-	 * Creates the record readers for the number of inputs as defined by {@link #getNumberOfInputs()}.
+	 * Creates the record readers for the number of inputs as defined by {@link #getNumTaskInputs()}.
 	 *
 	 * This method requires that the task configuration, the driver, and the user-code class loader are set.
 	 */
@@ -1154,7 +1154,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 				// get the task first
 				final ChainedDriver<?, ?> ct;
 				try {
-					Class<? extends ChainedDriver<?, ?>> ctc = (Class<? extends ChainedDriver<?, ?>>) config.getChainedTask(i);
+					Class<? extends ChainedDriver<?, ?>> ctc = config.getChainedTask(i);
 					ct = ctc.newInstance();
 				}
 				catch (Exception ex) {
@@ -1170,7 +1170,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 					previous = getOutputCollector(nepheleTask, chainedStubConf, cl, eventualOutputs, chainedStubConf.getNumOutputs());
 				}
 
-				ct.setup(chainedStubConf, taskName, nepheleTask, cl, previous);
+				ct.setup(chainedStubConf, taskName, previous, nepheleTask, cl);
 				chainedTasksTarget.add(0, ct);
 
 				previous = ct;

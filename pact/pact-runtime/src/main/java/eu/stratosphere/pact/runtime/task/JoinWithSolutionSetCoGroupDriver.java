@@ -24,7 +24,7 @@ import eu.stratosphere.pact.generic.types.TypeComparator;
 import eu.stratosphere.pact.generic.types.TypeSerializer;
 import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.runtime.hash.MutableHashTable;
-import eu.stratosphere.pact.runtime.iterative.concurrent.SolutionsetBroker;
+import eu.stratosphere.pact.runtime.iterative.concurrent.SolutionSetBroker;
 import eu.stratosphere.pact.runtime.iterative.task.AbstractIterativePactTask;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
@@ -118,8 +118,8 @@ public abstract class JoinWithSolutionSetCoGroupDriver<IT1, IT2, OT> implements 
 		// grab a handle to the hash table from the iteration broker
 		if (taskContext instanceof AbstractIterativePactTask) {
 			AbstractIterativePactTask<?, ?> iterativeTaskContext = (AbstractIterativePactTask<?, ?>) taskContext;
-			String identifyer = iterativeTaskContext.brokerKey();
-			this.hashTable = SolutionsetBroker.instance().get(identifyer);
+			String identifier = iterativeTaskContext.brokerKey();
+			this.hashTable = SolutionSetBroker.instance().get(identifier);
 		} else {
 			throw new Exception("The task context of this driver is no iterative task context.");
 		}

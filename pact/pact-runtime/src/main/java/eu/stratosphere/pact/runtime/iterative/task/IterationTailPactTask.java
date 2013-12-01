@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2012 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2012-2013 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -15,107 +15,107 @@
 
 package eu.stratosphere.pact.runtime.iterative.task;
 
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.Stub;
+import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannel;
+import eu.stratosphere.pact.runtime.iterative.concurrent.SolutionSetUpdateBarrier;
+import eu.stratosphere.pact.runtime.iterative.concurrent.SolutionSetUpdateBarrierBroker;
+import eu.stratosphere.pact.runtime.iterative.io.WorksetUpdateOutputCollector;
+import eu.stratosphere.pact.runtime.hash.MutableHashTable;
+import eu.stratosphere.pact.runtime.task.PactDriver;
+import eu.stratosphere.pact.runtime.task.PactTaskContext;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.pact.common.stubs.Stub;
-import eu.stratosphere.pact.common.stubs.aggregators.LongSumAggregator;
-import eu.stratosphere.pact.common.type.base.PactLong;
-import eu.stratosphere.pact.generic.types.TypeSerializer;
-import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
-import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannel;
-import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannelBroker;
-import eu.stratosphere.pact.runtime.iterative.concurrent.Broker;
-import eu.stratosphere.pact.runtime.iterative.convergence.WorksetEmptyConvergenceCriterion;
-import eu.stratosphere.pact.runtime.iterative.io.DataOutputCollector;
-import eu.stratosphere.pact.runtime.task.PactTaskContext;
-
-//TODO could this be an output???
 /**
- * The tail of an iteration, which is able to run a {@link eu.stratosphere.pact.runtime.task.PactDriver} inside. It will
- * send back its output to
- * the iteration's head via a {@link BlockingBackChannel}. Therefore this task must be scheduled on the same instance as
- * the head.
+ * An iteration tail, which runs a {@link PactDriver} inside.
+ * <p/>
+ * If the iteration state is updated, the output of this task will be send back to the {@link IterationHeadPactTask}
+ * via a {@link BlockingBackChannel} for the workset -OR- a {@link MutableHashTable} for the solution set. Therefore
+ * this task must be scheduled on the same instance as the head. It's also possible for the tail to update *both* the
+ * workset and the solution set.
+ * <p/>
+ * If there is a separate solution set tail, the iteration head has to make sure to wait for it to finish.
  */
 public class IterationTailPactTask<S extends Stub, OT> extends AbstractIterativePactTask<S, OT>
-		implements PactTaskContext<S, OT>
-{
-	private static final Log log = LogFactory.getLog(IterationTailPactTask.class);
-	
-	
-	private BlockingBackChannel backChannel;
-	
-	private DataOutputCollector<OT> outputCollector;
+        implements PactTaskContext<S, OT> {
 
-	
-	private BlockingBackChannel retrieveBackChannel() throws Exception {
-		// blocking call to retrieve the backchannel from the iteration head
-		Broker<BlockingBackChannel> broker = BlockingBackChannelBroker.instance();
-		return broker.getAndRemove(brokerKey());
-	}
-	
-	@Override
-	protected void initialize() throws Exception {
-		// Initially retrieve the backchannel from the iteration head
-		backChannel = retrieveBackChannel();
-		
-		// instantiate the collector that writes to the back channel
-		TypeSerializerFactory<OT> outSerializerFact = this.config.getOutputSerializer(this.userCodeClassLoader);
-		if (outSerializerFact == null) {
-			throw new Exception("Error: Missing serializer for tail result!");
-		}
-		TypeSerializer<OT> serializer = outSerializerFact.getSerializer();
-		outputCollector = new DataOutputCollector<OT>(backChannel.getWriteEnd(), serializer);
-		this.output = outputCollector;
-		
-		super.initialize();
-	}
+    private static final Log log = LogFactory.getLog(IterationTailPactTask.class);
 
-	@Override
-	public void run() throws Exception {
-		
-		LongSumAggregator worksetElementsAggregator = null;
-		if (config.isWorksetIteration()) {
-			worksetElementsAggregator = (LongSumAggregator) getIterationAggregators().<PactLong>getAggregator(WorksetEmptyConvergenceCriterion.AGGREGATOR_NAME);
-			if (worksetElementsAggregator == null) {
-				throw new Exception("Error: Iteration tail in workset iteration did not find workset elements count aggregator.");
-			}
-		}
+    private SolutionSetUpdateBarrier solutionSetUpdateBarrier;
 
-		while (this.running && !terminationRequested()) {
+    private WorksetUpdateOutputCollector<OT> worksetUpdateOutputCollector;
 
-//			notifyMonitor(IterationMonitoring.Event.TAIL_STARTING);
-			if (log.isInfoEnabled()) {
-				log.info(formatLogString("starting iteration [" + currentIteration() + "]"));
-			}
+    @Override
+    protected void initialize() throws Exception {
+        super.initialize();
 
-//			notifyMonitor(IterationMonitoring.Event.TAIL_PACT_STARTING);
+        // sanity check: the tail has to update either the workset or the solution set
+        if (!isWorksetUpdate && !isSolutionSetUpdate) {
+            throw new RuntimeException("The iteration tail doesn't update workset or the solution set.");
+        }
 
-			super.run();
-			
-			// check if termination was requested
-			checkForTerminationAndResetEndOfSuperstepState();
-			
-//			notifyMonitor(IterationMonitoring.Event.TAIL_PACT_FINISHED);
+        // set the last output collector of this task to reflect the iteration tail state update:
+        // a) workset update,
+        // b) solution set update, or
+        // c) merged workset and solution set update
 
-			long elementsCollected = outputCollector.getElementsCollectedAndReset();
-//			if (log.isInfoEnabled()) {
-//				log.info("IterationTail [" + getEnvironment().getIndexInSubtaskGroup() + "] inserted [" +
-//					elementsCollected + "] elements into backchannel in iteration [" + currentIteration() + "]");
-//			}
-			if (worksetElementsAggregator != null) {
-				worksetElementsAggregator.aggregate(elementsCollected);
-			}
+        Collector<OT> outputCollector = null;
+        if (isWorksetUpdate) {
+            outputCollector = createWorksetUpdateOutputCollector();
 
-			if (log.isInfoEnabled()) {
-				log.info(formatLogString("finishing iteration [" + currentIteration() + "]"));
-			}
+            // we need the WorksetUpdateOutputCollector separately to count the collected elements
+            if (isWorksetIteration) {
+                worksetUpdateOutputCollector = (WorksetUpdateOutputCollector<OT>) outputCollector;
+            }
+        }
 
-			if (!terminationRequested()) {
-				backChannel.notifyOfEndOfSuperstep();
-				incrementIterationCounter();
-			}
-//			notifyMonitor(IterationMonitoring.Event.TAIL_FINISHED);
-		}
-	}
+        if (isSolutionSetUpdate) {
+            outputCollector = createSolutionSetUpdateOutputCollector(outputCollector);
+
+            if (!isWorksetUpdate) {
+                solutionSetUpdateBarrier = SolutionSetUpdateBarrierBroker.instance().get(brokerKey());
+            }
+        }
+
+        setLastOutputCollector(outputCollector);
+    }
+
+    @Override
+    public void run() throws Exception {
+        while (this.running && !terminationRequested()) {
+
+            if (log.isInfoEnabled()) {
+                log.info(formatLogString("starting iteration [" + currentIteration() + "]"));
+            }
+
+            super.run();
+
+            // check if termination was requested
+            checkForTerminationAndResetEndOfSuperstepState();
+
+            if (isWorksetUpdate && isWorksetIteration) {
+                // aggregate workset update element count
+                long numCollected = worksetUpdateOutputCollector.getElementsCollectedAndReset();
+                worksetAggregator.aggregate(numCollected);
+            }
+
+            if (log.isInfoEnabled()) {
+                log.info(formatLogString("finishing iteration [" + currentIteration() + "]"));
+            }
+
+            if (!terminationRequested()) {
+                if (isWorksetUpdate) {
+                    // notify iteration head if responsible for workset update
+                    worksetBackChannel.notifyOfEndOfSuperstep();
+                } else if (isSolutionSetUpdate) {
+                    // notify iteration head if responsible for solution set update
+                    solutionSetUpdateBarrier.notifySolutionSetUpdate();
+                }
+
+                incrementIterationCounter();
+            }
+        }
+    }
+
 }

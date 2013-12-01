@@ -21,7 +21,7 @@ import eu.stratosphere.pact.generic.stub.GenericMatcher;
 import eu.stratosphere.pact.generic.types.TypeSerializer;
 import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.runtime.hash.MutableHashTable;
-import eu.stratosphere.pact.runtime.iterative.concurrent.SolutionsetBroker;
+import eu.stratosphere.pact.runtime.iterative.concurrent.SolutionSetBroker;
 import eu.stratosphere.pact.runtime.iterative.task.AbstractIterativePactTask;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
@@ -114,7 +114,7 @@ public abstract class JoinWithSolutionSetMatchDriver<IT1, IT2, OT> implements Re
 		if (taskContext instanceof AbstractIterativePactTask) {
 			AbstractIterativePactTask<?, ?> iterativeTaskContext = (AbstractIterativePactTask<?, ?>) taskContext;
 			String identifyer = iterativeTaskContext.brokerKey();
-			this.hashTable = SolutionsetBroker.instance().get(identifyer);
+			this.hashTable = SolutionSetBroker.instance().get(identifyer);
 		} else {
 			throw new Exception("The task context of this driver is no iterative task context.");
 		}

@@ -15,9 +15,6 @@
 
 package eu.stratosphere.pact.runtime.task.chaining;
 
-import java.io.IOException;
-import java.util.List;
-
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
@@ -34,12 +31,11 @@ import eu.stratosphere.pact.runtime.sort.InMemorySorter;
 import eu.stratosphere.pact.runtime.sort.NormalizedKeySorter;
 import eu.stratosphere.pact.runtime.sort.QuickSort;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
-import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
 
-/**
- * 
- */
+import java.io.IOException;
+import java.util.List;
+
 public class SynchronousChainedCombineDriver<T> extends ChainedDriver<T, T> {
 	
 	/**
@@ -53,19 +49,13 @@ public class SynchronousChainedCombineDriver<T> extends ChainedDriver<T, T> {
 	
 	private GenericReducer<T, ?> combiner;
 	
-	private Collector<T> outputCollector;
-	
 	private TypeSerializer<T> serializer;
 	
 	private TypeComparator<T> comparator;
 	
-	private TaskConfig config;
-	
 	private AbstractInvokable parent;
 	
 	private ClassLoader userCodeClassLoader;
-	
-	private String taskName;
 	
 	private QuickSort sortAlgo = new QuickSort();
 	
@@ -74,30 +64,20 @@ public class SynchronousChainedCombineDriver<T> extends ChainedDriver<T, T> {
 	private volatile boolean running = true;
 	
 	// --------------------------------------------------------------------------------------------
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.chaining.ChainedTask#setup(eu.stratosphere.pact.runtime.task.util.TaskConfig, eu.stratosphere.nephele.template.AbstractInvokable, eu.stratosphere.pact.common.stubs.Collector)
-	 */
-	@Override
-	public void setup(TaskConfig config, String taskName, AbstractInvokable parent, 
-			ClassLoader userCodeClassLoader, Collector<T> output)
-	{
-		this.config = config;
+
+    @Override
+    public void setup(AbstractInvokable parent, ClassLoader userCodeClassLoader) {
 		this.userCodeClassLoader = userCodeClassLoader;
-		this.taskName = taskName;
-		this.outputCollector = output;
 		this.parent = parent;
-		
+
 		@SuppressWarnings("unchecked")
-		final GenericReducer<T, ?> combiner = RegularPactTask.instantiateUserCode(config, userCodeClassLoader, GenericReducer.class);
+		final GenericReducer<T, ?> combiner =
+                RegularPactTask.instantiateUserCode(this.config, userCodeClassLoader, GenericReducer.class);
 		this.combiner = combiner;
-		combiner.setRuntimeContext(getRuntimeContext(parent, taskName));
-	}
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.chaining.ChainedTask#open()
-	 */
-	@Override
+		combiner.setRuntimeContext(getRuntimeContext(parent, this.taskName));
+    }
+
+    @Override
 	public void openTask() throws Exception {
 		// open the stub first
 		final Configuration stubConfig = this.config.getStubParameters();
@@ -125,10 +105,7 @@ public class SynchronousChainedCombineDriver<T> extends ChainedDriver<T, T> {
 			this.sorter = new NormalizedKeySorter<T>(this.serializer, this.comparator.duplicate(), memory);
 		}
 	}
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.chaining.ChainedTask#closeTask()
-	 */
+
 	@Override
 	public void closeTask() throws Exception {
 		this.memManager.release(this.sorter.dispose());
@@ -138,10 +115,7 @@ public class SynchronousChainedCombineDriver<T> extends ChainedDriver<T, T> {
 		
 		RegularPactTask.closeUserCode(this.combiner);
 	}
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.chaining.ChainedTask#cancelTask()
-	 */
+
 	@Override
 	public void cancelTask() {
 		this.running = false;
@@ -149,57 +123,45 @@ public class SynchronousChainedCombineDriver<T> extends ChainedDriver<T, T> {
 	}
 	
 	// --------------------------------------------------------------------------------------------
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.chaining.ChainedTask#getStub()
-	 */
+
 	public Stub getStub() {
 		return this.combiner;
 	}
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.chaining.ChainedTask#getTaskName()
-	 */
+
 	public String getTaskName() {
 		return this.taskName;
 	}
-	
-	// --------------------------------------------------------------------------------------------
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.stubs.Collector#collect(eu.stratosphere.pact.common.type.PactRecord)
-	 */
-	@Override
-	public void collect(T record) {
-		// try writing to the sorter first
-		try {
-			if (this.sorter.write(record)) {
-				return;
-			}
-		} catch (IOException e) {
-			throw new ExceptionInChainedStubException(this.taskName, e);
-		}
-		
-		// do the actual sorting
-		try {
-			sortAndCombine();
-		} catch (Exception e) {
-			throw new ExceptionInChainedStubException(this.taskName, e);
-		}
-		this.sorter.reset();
-		
-		try {
-			if(!this.sorter.write(record)) {
-				throw new IOException("Cannot write record to fresh sort buffer. Record too large.");
-			}
-		} catch (IOException e) {
-			throw new ExceptionInChainedStubException(this.taskName, e);
-		}
-	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.stubs.Collector#close()
-	 */
+    @Override
+    public void collect(T record) {
+        // try writing to the sorter first
+        try {
+            if (this.sorter.write(record)) {
+                return;
+            }
+        } catch (IOException e) {
+            throw new ExceptionInChainedStubException(this.taskName, e);
+        }
+
+        // do the actual sorting
+        try {
+            sortAndCombine();
+        } catch (Exception e) {
+            throw new ExceptionInChainedStubException(this.taskName, e);
+        }
+        this.sorter.reset();
+
+        try {
+            if(!this.sorter.write(record)) {
+                throw new IOException("Cannot write record to fresh sort buffer. Record too large.");
+            }
+        } catch (IOException e) {
+            throw new ExceptionInChainedStubException(this.taskName, e);
+        }
+    }
+
+	// --------------------------------------------------------------------------------------------
+
 	@Override
 	public void close() {
 		try {

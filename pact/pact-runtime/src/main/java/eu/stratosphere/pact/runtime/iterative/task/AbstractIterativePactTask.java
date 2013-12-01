@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2012 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2012-2013 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -17,23 +17,30 @@ package eu.stratosphere.pact.runtime.iterative.task;
 
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.io.MutableReader;
+import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
+import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.IterationRuntimeContext;
 import eu.stratosphere.pact.common.stubs.RuntimeContext;
 import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.common.stubs.aggregators.Aggregator;
+import eu.stratosphere.pact.common.stubs.aggregators.LongSumAggregator;
 import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.generic.types.TypeSerializer;
+import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.runtime.hash.MutableHashTable;
-import eu.stratosphere.pact.runtime.iterative.concurrent.IterationAggregatorBroker;
-import eu.stratosphere.pact.runtime.iterative.concurrent.SolutionsetBroker;
-import eu.stratosphere.pact.runtime.iterative.io.UpdateSolutionsetOutputCollector;
+import eu.stratosphere.pact.runtime.iterative.concurrent.*;
+import eu.stratosphere.pact.runtime.iterative.convergence.WorksetEmptyConvergenceCriterion;
+import eu.stratosphere.pact.runtime.iterative.io.SolutionSetFastUpdateOutputCollector;
+import eu.stratosphere.pact.runtime.iterative.io.SolutionSetUpdateOutputCollector;
+import eu.stratosphere.pact.runtime.iterative.io.WorksetUpdateOutputCollector;
 import eu.stratosphere.pact.runtime.task.PactDriver;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
 import eu.stratosphere.pact.runtime.task.ResettablePactDriver;
+import eu.stratosphere.pact.runtime.task.chaining.ChainedDriver;
 import eu.stratosphere.pact.runtime.udf.RuntimeUDFContext;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -45,29 +52,39 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * The base class for all tasks able to participate in an iteration.
  */
 public abstract class AbstractIterativePactTask<S extends Stub, OT> extends RegularPactTask<S, OT>
-	implements Terminable
+		implements Terminable
 {
 	private static final Log log = LogFactory.getLog(AbstractIterativePactTask.class);
 
-	
+
 	private final AtomicBoolean terminationRequested = new AtomicBoolean(false);
-	
+
 	private RuntimeAggregatorRegistry iterationAggregators;
-	
+
 	private List<MutableReader<?>> iterativeInputs = new ArrayList<MutableReader<?>>();
-	
+
 	private String brokerKey;
-	
+
 	private int superstepNum = 1;
+
+	protected boolean isWorksetIteration;
+
+	protected boolean isWorksetUpdate;
+
+	protected boolean isSolutionSetUpdate;
+
+	protected LongSumAggregator worksetAggregator;
+
+	protected BlockingBackChannel worksetBackChannel;
 
 	// --------------------------------------------------------------------------------------------
 	// Wrapping methods to supplement behavior of the regular Pact Task
 	// --------------------------------------------------------------------------------------------
-	
+
 	@Override
 	protected void initialize() throws Exception {
 		super.initialize();
-		
+
 		// check if the driver is resettable
 		if (this.driver instanceof ResettablePactDriver) {
 			final ResettablePactDriver<?, ?> resDriver = (ResettablePactDriver<?, ?>) this.driver;
@@ -80,34 +97,40 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
 			// initialize the repeatable driver
 			resDriver.initialize();
 		}
-		
-		// instantiate the solution set update, if this task is responsible
-		if (config.getUpdateSolutionSet()) {
-			if (config.getUpdateSolutionSetWithoutReprobe()) {
-				@SuppressWarnings("unchecked")
-				MutableHashTable<OT, ?> hashTable = (MutableHashTable<OT, ?>) SolutionsetBroker.instance().get(brokerKey);
-				this.output = new UpdateSolutionsetOutputCollector<OT>(this.output, hashTable);
-			} else {
-				throw new UnsupportedOperationException("Runtime currently supports only fast updates withpout reprobing.");
+
+		isWorksetIteration = config.getIsWorksetIteration();
+		isWorksetUpdate = config.getIsWorksetUpdate();
+		isSolutionSetUpdate = config.getIsSolutionSetUpdate();
+
+		if (isWorksetUpdate) {
+			worksetBackChannel = BlockingBackChannelBroker.instance().getAndRemove(brokerKey());
+
+			if (isWorksetIteration) {
+				worksetAggregator = (LongSumAggregator) getIterationAggregators().<PactLong>getAggregator(
+						WorksetEmptyConvergenceCriterion.AGGREGATOR_NAME);
+
+				if (worksetAggregator == null) {
+					throw new RuntimeException("Missing workset elements count aggregator.");
+				}
 			}
 		}
 	}
-	
+
 	@Override
 	public void run() throws Exception {
 		if (!inFirstIteration()) {
 			reinstantiateDriver();
 			resetAllInputs();
 		}
-		
-		// call the parent to execute the superstep 
+
+		// call the parent to execute the superstep
 		super.run();
 	}
-	
+
 	@Override
 	protected void closeLocalStrategiesAndCaches() {
 		super.closeLocalStrategiesAndCaches();
-		
+
 		if (this.driver instanceof ResettablePactDriver) {
 			final ResettablePactDriver<?, ?> resDriver = (ResettablePactDriver<?, ?>) this.driver;
 			try {
@@ -117,37 +140,37 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
 			}
 		}
 	}
-	
+
 	@Override
 	protected MutableObjectIterator<?> createInputIterator(int i, MutableReader<?> inputReader, TypeSerializer<?> serializer) {
 
 		final MutableObjectIterator<?> inIter = super.createInputIterator(i, inputReader, serializer);
 		final int numberOfEventsUntilInterrupt = getTaskConfig().getNumberOfEventsUntilInterruptInIterativeGate(i);
-		
+
 		if (numberOfEventsUntilInterrupt < 0) {
 			throw new IllegalArgumentException();
 		}
 		else if (numberOfEventsUntilInterrupt > 0) {
 			inputReader.setIterative(numberOfEventsUntilInterrupt);
 			this.iterativeInputs.add(inputReader);
-			
+
 			if (log.isDebugEnabled()) {
 				log.debug(formatLogString("Input [" + i + "] reads in supersteps with [" +
-					+ numberOfEventsUntilInterrupt + "] event(s) till next superstep."));
+						+ numberOfEventsUntilInterrupt + "] event(s) till next superstep."));
 			}
 		}
 		return inIter;
 	}
-	
+
 	public RuntimeContext getRuntimeContext(String taskName) {
 		Environment env = getEnvironment();
 		return new IterativeRuntimeUdfContext(taskName, env.getCurrentNumberOfSubtasks(), env.getIndexInSubtaskGroup());
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	// Utility Methods for Iteration Handling
 	// --------------------------------------------------------------------------------------------
-	
+
 	protected boolean inFirstIteration() {
 		return this.superstepNum == 1;
 	}
@@ -163,7 +186,7 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
 	public String brokerKey() {
 		if (brokerKey == null) {
 			int iterationId = config.getIterationId();
-			brokerKey = getEnvironment().getJobID().toString() + '#' + iterationId + '#' + 
+			brokerKey = getEnvironment().getJobID().toString() + '#' + iterationId + '#' +
 					getEnvironment().getIndexInSubtaskGroup();
 		}
 		return brokerKey;
@@ -176,49 +199,49 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
 		} else {
 			Class<? extends PactDriver<S, OT>> driverClass = this.config.getDriver();
 			this.driver = InstantiationUtil.instantiate(driverClass, PactDriver.class);
-			
+
 			try {
 				this.driver.setup(this);
 			}
 			catch (Throwable t) {
 				throw new Exception("The pact driver setup for '" + this.getEnvironment().getTaskName() +
-					"' , caused an error: " + t.getMessage(), t);
+						"' , caused an error: " + t.getMessage(), t);
 			}
 		}
 	}
-	
+
 	public RuntimeAggregatorRegistry getIterationAggregators() {
 		if (this.iterationAggregators == null) {
 			this.iterationAggregators = IterationAggregatorBroker.instance().get(brokerKey());
 		}
 		return this.iterationAggregators;
 	}
-	
+
 	protected void checkForTerminationAndResetEndOfSuperstepState() {
 		// sanity check that there is at least one iterative input reader
 		if (this.iterativeInputs.isEmpty())
 			throw new IllegalStateException();
-		
+
 		// check whether this step ended due to end-of-superstep, or proper close
 		boolean anyClosed = false;
 		boolean allClosed = true;
-		
+
 		for (MutableReader<?> reader : this.iterativeInputs) {
 			if (reader.isInputClosed()) {
 				anyClosed = true;
 			} else {
 				allClosed = false;
 			}
-			
+
 			// also reset the end-of-superstep state
 			reader.startNextSuperstep();
 		}
-		
+
 		// sanity check whether we saw the same state (end-of-superstep or termination) on all inputs
 		if (allClosed != anyClosed) {
 			throw new IllegalStateException("Inconsistent state: Iteration termination received on some, but not all inputs.");
 		}
-		
+
 		if (allClosed) {
 			requestTermination();
 		}
@@ -236,13 +259,104 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
 		}
 		this.terminationRequested.set(true);
 	}
-	
+
 	@Override
 	public void cancel() throws Exception {
 		requestTermination();
 		super.cancel();
 	}
-	
+
+	// -----------------------------------------------------------------------------------------------------------------
+	// Iteration State Update Handling
+	// -----------------------------------------------------------------------------------------------------------------
+
+	/**
+	 * Creates a new {@link WorksetUpdateOutputCollector}.
+	 * <p/>
+	 * This collector is used by {@link IterationIntermediatePactTask} or {@link IterationTailPactTask} to update the
+	 * workset.
+	 * <p/>
+	 * If a non-null delegate is given, the new {@link Collector} will write to the solution set and also call
+	 * collect(T) of the delegate.
+	 *
+	 * @param delegate null -OR- the delegate on which to call collect() by the newly created collector
+	 * @return a new {@link WorksetUpdateOutputCollector}
+	 */
+	protected Collector<OT> createWorksetUpdateOutputCollector(Collector<OT> delegate) {
+		DataOutputView outputView = worksetBackChannel.getWriteEnd();
+		TypeSerializer<OT> serializer = getOutputSerializer();
+		return new WorksetUpdateOutputCollector<OT>(outputView, serializer, delegate);
+	}
+
+	protected Collector<OT> createWorksetUpdateOutputCollector() {
+		return createWorksetUpdateOutputCollector(null);
+	}
+
+	/**
+	 * Creates a new solution set update output collector.
+	 * <p/>
+	 * This collector is used by {@link IterationIntermediatePactTask} or {@link IterationTailPactTask} to update the
+	 * solution set of workset iterations. Depending on the task configuration, either a fast (non-probing)
+	 * {@link SolutionSetFastUpdateOutputCollector} or normal (re-probing) {@link SolutionSetUpdateOutputCollector}
+	 * is created.
+	 * <p/>
+	 * If a non-null delegate is given, the new {@link Collector} will write back to the solution set and also call
+	 * collect(T) of the delegate.
+	 *
+	 * @param delegate null -OR- a delegate collector to be called by the newly created collector
+	 * @return a new {@link SolutionSetFastUpdateOutputCollector} or {@link SolutionSetUpdateOutputCollector}
+	 */
+	protected Collector<OT> createSolutionSetUpdateOutputCollector(Collector<OT> delegate) {
+		Broker<MutableHashTable<?, ?>> solutionSetBroker = SolutionSetBroker.instance();
+
+		if (config.getIsSolutionSetUpdateWithoutReprobe()) {
+			@SuppressWarnings("unchecked")
+			MutableHashTable<OT, ?> solutionSet = (MutableHashTable<OT, ?>) solutionSetBroker.get(brokerKey());
+
+			return new SolutionSetFastUpdateOutputCollector<OT>(solutionSet, delegate);
+		} else {
+			@SuppressWarnings("unchecked")
+			MutableHashTable<OT, OT> solutionSet = (MutableHashTable<OT, OT>) solutionSetBroker.get(brokerKey());
+			TypeSerializer<OT> serializer = getOutputSerializer();
+
+			return new SolutionSetUpdateOutputCollector<OT>(solutionSet, serializer, delegate);
+		}
+	}
+
+	/**
+	 * Sets the last output {@link Collector} of the collector chain of this {@link RegularPactTask}.
+	 * <p/>
+	 * In case of chained tasks, the output collector of the last {@link ChainedDriver} is set. Otherwise it is the
+	 * single collector of the {@link RegularPactTask}.
+	 *
+	 * @param newOutputCollector new output collector to set as last collector
+	 */
+	protected void setLastOutputCollector(Collector<OT> newOutputCollector) {
+		int numChained = this.chainedTasks.size();
+
+		if (numChained == 0) {
+			output = newOutputCollector;
+			return;
+		}
+
+		chainedTasks.get(numChained - 1).setOutputCollector(newOutputCollector);
+	}
+
+	/**
+	 * @return output serializer of this task
+	 */
+	private TypeSerializer<OT> getOutputSerializer() {
+		TypeSerializerFactory<OT> serializerFactory;
+
+		if ((serializerFactory = config.getOutputSerializer(userCodeClassLoader)) == null) {
+			throw new RuntimeException("Missing output serializer for workset update.");
+		}
+
+		return serializerFactory.getSerializer();
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------
+
 	private class IterativeRuntimeUdfContext extends RuntimeUDFContext implements IterationRuntimeContext {
 
 		public IterativeRuntimeUdfContext(String name, int numParallelSubtasks, int subtaskIndex) {
@@ -265,4 +379,5 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
 			return (T) getIterationAggregators().getPreviousGlobalAggregate(name);
 		}
 	}
+
 }

@@ -24,22 +24,35 @@ import eu.stratosphere.pact.runtime.task.RegularPactTask;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.udf.RuntimeUDFContext;
 
-
 /**
  * The interface to be implemented by drivers that do not run in an own pact task context, but are chained to other tasks.
  */
 public abstract class ChainedDriver<IT, OT> implements Collector<IT> {
+
+    protected TaskConfig config;
+
+    protected String taskName;
+
+    protected Collector<OT> outputCollector;
 	
-	public abstract void setup(TaskConfig config, String taskName, AbstractInvokable parent, ClassLoader userCodeClassLoader, Collector<OT> output);
-	
-	
+	public void setup(TaskConfig config, String taskName, Collector<OT> outputCollector,
+                      AbstractInvokable parent, ClassLoader userCodeClassLoader)
+    {
+        this.config = config;
+        this.taskName = taskName;
+        this.outputCollector = outputCollector;
+
+        setup(parent, userCodeClassLoader);
+    }
+
+    public abstract void setup(AbstractInvokable parent, ClassLoader userCodeClassLoader);
+
 	public abstract void openTask() throws Exception;
 	
 	public abstract void closeTask() throws Exception;
 	
 	public abstract void cancelTask();
-	
-	
+
 	public abstract Stub getStub();
 	
 	public abstract String getTaskName();
@@ -55,4 +68,13 @@ public abstract class ChainedDriver<IT, OT> implements Collector<IT> {
 			return new RuntimeUDFContext(name, env.getCurrentNumberOfSubtasks(), env.getIndexInSubtaskGroup());
 		}
 	}
+
+    public void setOutputCollector(Collector<?> outputCollector) {
+        this.outputCollector = (Collector<OT>) outputCollector;
+    }
+
+    public Collector<OT> getOutputCollector() {
+        return outputCollector;
+    }
+
 }

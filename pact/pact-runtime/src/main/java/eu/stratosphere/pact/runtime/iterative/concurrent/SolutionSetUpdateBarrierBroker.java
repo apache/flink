@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2012 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2013 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -15,24 +15,27 @@
 
 package eu.stratosphere.pact.runtime.iterative.concurrent;
 
-import eu.stratosphere.pact.runtime.hash.MutableHashTable;
+import eu.stratosphere.pact.runtime.iterative.task.IterationHeadPactTask;
+import eu.stratosphere.pact.runtime.iterative.task.IterationTailPactTask;
 
 /**
- * Used to hand over the hash-join from the iteration head to the solution-set match.
+ * Broker to hand over {@link SolutionSetUpdateBarrier} from {@link IterationHeadPactTask} to
+ * {@link IterationTailPactTask}.
  */
-public class SolutionsetBroker extends Broker<MutableHashTable<?, ?>> {
+public class SolutionSetUpdateBarrierBroker extends Broker<SolutionSetUpdateBarrier> {
 
-	/**
-	 * Singleton instance
-	 */
-	private static final SolutionsetBroker INSTANCE = new SolutionsetBroker();
+    /**
+     * Singleton instance
+     */
+    private static final SolutionSetUpdateBarrierBroker INSTANCE = new SolutionSetUpdateBarrierBroker();
 
-	/**
-	 * Retrieve the singleton instance.
-	 */
-	public static Broker<MutableHashTable<?, ?>> instance() {
-		return INSTANCE;
-	}
-	
-	private SolutionsetBroker() {}
+    private SolutionSetUpdateBarrierBroker() {
+    }
+
+    /**
+     * @return singleton instance
+     */
+    public static Broker<SolutionSetUpdateBarrier> instance() {
+        return INSTANCE;
+    }
 }
