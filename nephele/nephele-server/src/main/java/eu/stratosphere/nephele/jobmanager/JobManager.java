@@ -73,8 +73,6 @@ import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.deployment.TaskDeploymentDescriptor;
-import eu.stratosphere.nephele.discovery.DiscoveryException;
-import eu.stratosphere.nephele.discovery.DiscoveryService;
 import eu.stratosphere.nephele.event.job.AbstractEvent;
 import eu.stratosphere.nephele.event.job.RecentJobEvent;
 import eu.stratosphere.nephele.execution.ExecutionState;
@@ -198,13 +196,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		final int ipcPort = GlobalConfiguration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
 			ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT);
 
-		// First of all, start discovery manager
-		try {
-			DiscoveryService.startDiscoveryService(ipcAddress, ipcPort);
-		} catch (DiscoveryException e) {
-			LOG.error("Cannot start discovery manager: " + StringUtils.stringifyException(e));
-			System.exit(FAILURERETURNCODE);
-		}
 
 		// Read the suggested client polling interval
 		this.recommendedClientPollingInterval = GlobalConfiguration.getInteger(
@@ -322,9 +313,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		if (this.instanceManager != null) {
 			this.instanceManager.shutdown();
 		}
-
-		// Stop the discovery service
-		DiscoveryService.stopDiscoveryService();
 
 		// Stop profiling if enabled
 		if (this.profiler != null) {
@@ -594,6 +582,11 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 		// Return on success
 		return new JobSubmissionResult(AbstractJobResult.ReturnCode.SUCCESS, null);
+	}
+	
+
+	public InstanceManager getInstanceManager() {
+		return this.instanceManager;
 	}
 
 	/**

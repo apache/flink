@@ -48,7 +48,7 @@ public class LocalDistributedExecutor  {
 		}
 		
 		Configuration conf = NepheleMiniCluster.getMiniclusterDefaultConfig(JOBMANAGER_RPC_PORT, 6500,
-				7501, 7533, null, true);
+				7501, null, true);
 		GlobalConfiguration.includeConfiguration(conf);
 			
 		// start job manager

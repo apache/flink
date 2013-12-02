@@ -21,7 +21,6 @@ import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
-import eu.stratosphere.nephele.discovery.DiscoveryService;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
@@ -37,8 +36,6 @@ public class NepheleMiniCluster {
 	
 	private static final int DEFAULT_TM_DATA_PORT = 7501;
 	
-	private static final int DEFAULT_DISCOVERY_PORT = 7533;
-	
 	private static final boolean DEFAULT_VISUALIZER_ENABLED = true;
 
 	// --------------------------------------------------------------------------------------------
@@ -50,8 +47,6 @@ public class NepheleMiniCluster {
 	private int taskManagerRpcPort = DEFAULT_TM_RPC_PORT;
 	
 	private int taskManagerDataPort = DEFAULT_TM_DATA_PORT;
-	
-	private int discoveryPort = DEFAULT_DISCOVERY_PORT;
 	
 	private String configDir;
 
@@ -92,14 +87,6 @@ public class NepheleMiniCluster {
 		this.taskManagerDataPort = taskManagerDataPort;
 	}
 	
-	public int getDiscoveryPort() {
-		return discoveryPort;
-	}
-	
-	public void setDiscoveryPort(int discoveryPort) {
-		this.discoveryPort = discoveryPort;
-	}
-
 	public String getConfigDir() {
 		return configDir;
 	}
@@ -143,7 +130,7 @@ public class NepheleMiniCluster {
 				GlobalConfiguration.loadConfiguration(configDir);
 			} else {
 				Configuration conf = getMiniclusterDefaultConfig(jobManagerRpcPort, taskManagerRpcPort,
-					taskManagerDataPort, discoveryPort, hdfsConfigFile, visualizerEnabled);
+					taskManagerDataPort, hdfsConfigFile, visualizerEnabled);
 				GlobalConfiguration.includeConfiguration(conf);
 			}
 			
@@ -155,7 +142,7 @@ public class NepheleMiniCluster {
 			for (int i = 0; i < numThreads; i++) {
 				Thread t = allThreads[i];
 				String name = t.getName();
-				if (name.equals("Local Taskmanager IO Loop") || name.equals("Discovery Service") || name.startsWith("IPC")) {
+				if (name.equals("Local Taskmanager IO Loop") || name.startsWith("IPC")) {
 					t.join();
 				}
 			}
@@ -203,7 +190,7 @@ public class NepheleMiniCluster {
 	}
 	
 	public static Configuration getMiniclusterDefaultConfig(int jobManagerRpcPort, int taskManagerRpcPort,
-			int taskManagerDataPort, int discoveryPort, String hdfsConfigFile, boolean visualization)
+			int taskManagerDataPort, String hdfsConfigFile, boolean visualization)
 	{
 		final Configuration config = new Configuration();
 		
@@ -212,14 +199,12 @@ public class NepheleMiniCluster {
 		config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerRpcPort);
 		config.setInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, taskManagerRpcPort);
 		config.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, taskManagerDataPort);
-		config.setInteger(DiscoveryService.DISCOVERYPORT_KEY, discoveryPort);
 		
 		// polling interval
 		config.setInteger(ConfigConstants.JOBCLIENT_POLLING_INTERVAL_KEY, 2);
 		
 		// enable / disable features
 		config.setInteger(ConfigConstants.JOB_EXECUTION_RETRIES_KEY, 0);
-		config.setBoolean("taskmanager.setup.usediscovery", false);
 		config.setBoolean("jobmanager.visualization.enable", visualization);
 		
 		// hdfs
