@@ -34,6 +34,7 @@ import eu.stratosphere.nephele.io.RuntimeInputGate;
 import eu.stratosphere.nephele.io.RuntimeOutputGate;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.protocols.AccumulatorProtocol;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
@@ -349,4 +350,11 @@ public class MockEnvironment implements Environment
 		
 		return this.inputs.size();
 	}
+	
+	@Override
+	public AccumulatorProtocol getAccumulatorProtocolProxy() {
+		throw new UnsupportedOperationException(
+				"getAccumulatorProtocolProxy() is not supported by MockEnvironment");
+	}
+
 }

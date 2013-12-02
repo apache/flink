@@ -42,6 +42,7 @@ import com.google.common.base.Charsets;
 import com.google.common.io.Files;
 
 import eu.stratosphere.nephele.client.JobClient;
+import eu.stratosphere.nephele.client.JobExecutionResult;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.pact.client.minicluster.NepheleMiniCluster;
@@ -65,8 +66,8 @@ public abstract class TestBase2 {
 	
 	protected boolean printPlan = false;
 	
-
-
+	private JobExecutionResult jobExecutionResult;
+	
 	public TestBase2(Configuration config) {
 		verifyJvmOptions();
 		this.config = config;
@@ -129,7 +130,7 @@ public abstract class TestBase2 {
 		try {
 			JobClient client = this.executer.getJobClient(jobGraph);
 			client.setConsoleStreamForReporting(getNullPrintStream());
-			client.submitJobAndWait();
+			this.jobExecutionResult = client.submitJobAndWait();
 			
 		} catch(Exception e) {
 			System.err.println(e.getMessage());
@@ -291,6 +292,10 @@ public abstract class TestBase2 {
 
 	
 	protected void postSubmit() throws Exception {}
+	
+	public JobExecutionResult getJobExecutionResult() {
+		return jobExecutionResult;
+	}
 	
 	
 	// --------------------------------------------------------------------------------------------

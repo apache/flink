@@ -17,6 +17,7 @@ package eu.stratosphere.pact.runtime.task;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 
 import org.apache.commons.logging.Log;
@@ -24,6 +25,7 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
+import eu.stratosphere.nephele.services.accumulators.Accumulator;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.InputSplit;
 import eu.stratosphere.pact.common.stubs.Collector;
@@ -166,6 +168,7 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 								// build next pair and ship pair if it is valid
 								pactRecord.clear();
 								if (inFormat.nextRecord(pactRecord)) {
+									// This is where map of UDF gets called
 									output.collect(pactRecord);
 								}
 							}
@@ -230,6 +233,10 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 			
 			// close all chained tasks letting them report failure
 			RegularPactTask.closeChainedTasks(this.chainedTasks, this);
+			
+			// Merge and report accumulators
+			RegularPactTask.reportAndClearAccumulators(getEnvironment(),
+					new HashMap<String, Accumulator<?,?>>(), chainedTasks);
 		}
 		catch (Exception ex) {
 			// close the input, but do not report any exceptions, since we already have another root cause

@@ -20,6 +20,7 @@ import java.io.IOException;
 
 import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.client.JobExecutionException;
+import eu.stratosphere.nephele.client.JobExecutionResult;
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.fs.Path;
@@ -190,7 +191,8 @@ public final class SpeedTest {
 				ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT);
 
 			final JobClient jobClient = new JobClient(jobGraph, clientConfiguration);
-			final long executionTime = jobClient.submitJobAndWait();
+			final JobExecutionResult jobResult = jobClient.submitJobAndWait();
+			final long executionTime = jobResult.getNetRuntime();
 
 			// Calculate throughput in MBit/s and output it
 			System.out.print("Job finished with a throughput of " + toMBitPerSecond(amountOfDataToSend, executionTime));

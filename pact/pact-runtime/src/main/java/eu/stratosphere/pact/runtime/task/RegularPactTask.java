@@ -18,9 +18,12 @@ package eu.stratosphere.pact.runtime.task;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+
+import com.google.common.collect.Maps;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
@@ -33,12 +36,16 @@ import eu.stratosphere.nephele.io.MutableReader;
 import eu.stratosphere.nephele.io.MutableRecordReader;
 import eu.stratosphere.nephele.io.MutableUnionRecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
+import eu.stratosphere.nephele.services.accumulators.Accumulator;
+import eu.stratosphere.nephele.services.accumulators.AccumulatorEvent;
+import eu.stratosphere.nephele.services.accumulators.AccumulatorHelper;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.nephele.types.Record;
+import eu.stratosphere.nephele.util.StringUtils;
 import eu.stratosphere.pact.common.contract.DataDistribution;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.RuntimeContext;
@@ -410,6 +417,20 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 
 			// close all chained tasks letting them report failure
 			RegularPactTask.closeChainedTasks(this.chainedTasks, this);
+			
+			// Collect the accumulators of all involved UDFs and send them to the
+			// JobManager. close() has been called earlier for all involved UDFs
+			// (using this.stub.close() and closeChainedTasks()), so UDFs can no longer
+			// modify accumulators.
+			Map<String, Accumulator<?,?>> accumulators = null;
+			if (stub != null) {
+				// collect the counters from the stub
+				accumulators = stub.getRuntimeContext().getAllAccumulators();
+			} else {
+				// TODO When is this the case? What should we do here?
+				accumulators = Maps.newHashMap();
+			}
+			RegularPactTask.reportAndClearAccumulators(getEnvironment(), accumulators, this.chainedTasks);
 		}
 		catch (Exception ex) {
 			// close the input, but do not report any exceptions, since we already have another root cause
@@ -429,6 +450,59 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 		}
 		finally {
 			this.driver.cleanup();
+		}
+	}
+
+	/**
+	 * This method is called at the end of a task, receiving the accumulators of
+	 * the task and the chained tasks. It merges them into a single map of
+	 * accumulators and sends them to the JobManager.
+	 * 
+	 * @param stub
+	 *          The task stub which usually holds several accumulators
+	 * @param chainedTasks
+	 *          Each chained task might have accumulators which will be merged
+	 *          with the accumulators of the stub.
+	 */
+	static void reportAndClearAccumulators(Environment env, Map<String, Accumulator<?, ?>> accumulators,
+			ArrayList<ChainedDriver<?, ?>> chainedTasks) {
+
+		// We can merge here the accumulators from the stub and the chained
+		// tasks. Type conflicts can occur here if counters with same name but
+		// different type were used.
+
+//		System.out.println("Subtask " + env.getIndexInSubtaskGroup() + " of "
+//				+ env.getCurrentNumberOfSubtasks() + " (" + env.getTaskName() + ")");
+//		System.out.println(AccumulatorHelper.getAccumulatorsFormated(accumulators));
+		
+		for (ChainedDriver<?, ?> chainedTask : chainedTasks) {
+			Map<String, Accumulator<?, ?>> chainedAccumulators = chainedTask.getStub().getRuntimeContext().getAllAccumulators();
+			System.out.println("MERGE IN (" + chainedTask.getTaskName() + "):");
+			System.out.println(AccumulatorHelper.getAccumulatorsFormated(chainedAccumulators));
+			AccumulatorHelper.mergeInto(accumulators, chainedAccumulators);
+		}
+
+		// Don't report if the UDF didn't collect any accumulators
+		if (accumulators.size() == 0) {
+			return;
+		}
+
+		// Report accumulators to JobManager
+		synchronized (env.getAccumulatorProtocolProxy()) {
+			try {
+				env.getAccumulatorProtocolProxy().reportAccumulatorResult(
+						new AccumulatorEvent(env.getJobID(), accumulators, true));
+			} catch (IOException e) {
+				LOG.error(StringUtils.stringifyException(e));
+			}
+		}
+
+		// We also clear the accumulators, since stub instances might be reused
+		// (e.g. in iterations) and we don't want to count twice. This may not be
+		// done before sending
+		AccumulatorHelper.resetAndClearAccumulators(accumulators);
+		for (ChainedDriver<?, ?> chainedTask : chainedTasks) {
+			AccumulatorHelper.resetAndClearAccumulators(chainedTask.getStub().getRuntimeContext().getAllAccumulators());
 		}
 	}
 

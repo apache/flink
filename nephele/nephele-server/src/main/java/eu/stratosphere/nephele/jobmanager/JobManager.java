@@ -100,6 +100,7 @@ import eu.stratosphere.nephele.ipc.Server;
 import eu.stratosphere.nephele.jobgraph.AbstractJobVertex;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.jobmanager.accumulators.AccumulatorManager;
 import eu.stratosphere.nephele.jobmanager.archive.ArchiveListener;
 import eu.stratosphere.nephele.jobmanager.archive.MemoryArchivist;
 import eu.stratosphere.nephele.jobmanager.scheduler.AbstractScheduler;
@@ -112,10 +113,12 @@ import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
 import eu.stratosphere.nephele.multicast.MulticastManager;
 import eu.stratosphere.nephele.profiling.JobManagerProfiler;
 import eu.stratosphere.nephele.profiling.ProfilingUtils;
+import eu.stratosphere.nephele.protocols.AccumulatorProtocol;
 import eu.stratosphere.nephele.protocols.ChannelLookupProtocol;
 import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
 import eu.stratosphere.nephele.protocols.InputSplitProviderProtocol;
 import eu.stratosphere.nephele.protocols.JobManagerProtocol;
+import eu.stratosphere.nephele.services.accumulators.AccumulatorEvent;
 import eu.stratosphere.nephele.taskmanager.AbstractTaskResult;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.TaskExecutionState;
@@ -140,7 +143,7 @@ import eu.stratosphere.nephele.util.StringUtils;
  * @author warneke
  */
 public class JobManager implements DeploymentManager, ExtendedManagementProtocol, InputSplitProviderProtocol,
-		JobManagerProtocol, ChannelLookupProtocol, JobStatusListener {
+		JobManagerProtocol, ChannelLookupProtocol, JobStatusListener, AccumulatorProtocol {
 	
 	public static enum ExecutionMode { LOCAL, CLUSTER }
 	
@@ -161,6 +164,8 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	private final AbstractScheduler scheduler;
 
 	private final MulticastManager multicastManager;
+	
+	private AccumulatorManager accumulatorManager;
 
 	private InstanceManager instanceManager;
 
@@ -214,6 +219,12 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		}
 		else
 			this.archive = null;
+
+		// Create the accumulator manager, with same archiving limit as web
+		// interface. We need to store the accumulators for at least one job.
+		// Otherwise they might be deleted before the client requested the
+		// accumulator results.
+		this.accumulatorManager = new AccumulatorManager(Math.min(1, archived_items));
 
 		// Load the input split manager
 		this.inputSplitManager = new InputSplitManager();
@@ -1281,5 +1292,16 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 	public int getNumberOfTaskTrackers() {
 		return this.instanceManager.getNumberOfTaskTrackers();
+	}
+
+	@Override
+	public void reportAccumulatorResult(AccumulatorEvent accumulatorEvent) throws IOException {
+		this.accumulatorManager.processIncomingAccumulators(accumulatorEvent.getJobID(),
+				accumulatorEvent.getAccumulators());
+	}
+
+	@Override
+	public AccumulatorEvent getAccumulatorResults(JobID jobID) throws IOException {
+		return new AccumulatorEvent(jobID, this.accumulatorManager.getJobAccumulators(jobID), false);
 	}
 }

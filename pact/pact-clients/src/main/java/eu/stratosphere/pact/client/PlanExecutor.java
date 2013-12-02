@@ -1,5 +1,6 @@
 package eu.stratosphere.pact.client;
 
+import eu.stratosphere.nephele.client.JobExecutionResult;
 import eu.stratosphere.pact.common.plan.Plan;
 
 public interface PlanExecutor {
@@ -12,6 +13,6 @@ public interface PlanExecutor {
 	 * 
 	 * @throws Exception Thrown, i job submission caused an exception.
 	 */
-	public abstract long executePlan(Plan plan) throws Exception;
+	public abstract JobExecutionResult executePlan(Plan plan) throws Exception;
 
 }

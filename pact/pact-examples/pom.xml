@@ -312,6 +312,29 @@
 						</configuration>
 					</execution>
 
+          <!-- WordCount accumulators -->
+          <execution>
+            <id>WordCountAccumulators</id>
+            <phase>package</phase>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+            <configuration>
+              <classifier>WordCountAccumulators</classifier>
+
+              <archive>
+                <manifestEntries>
+                  <Pact-Assembler-Class>eu.stratosphere.pact.example.wordcount.WordCountAccumulators</Pact-Assembler-Class>
+                </manifestEntries>
+              </archive>
+
+              <includes>
+                <include>**/wordcount/*.class</include>
+                <include>**/util/*.class</include>
+              </includes>
+            </configuration>
+          </execution>
+
 					<!-- TeraSort
 					TeraSort is currently not working, because of problems with the RangePartioner (see https://github.com/stratosphere/stratosphere/issues/7).
 					It should be included again after fixing the issue.

@@ -1,28 +1,19 @@
 package eu.stratosphere.nephele.jobmanager.archive;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-
-import org.eclipse.jetty.util.log.Log;
 
 import eu.stratosphere.nephele.event.job.AbstractEvent;
 import eu.stratosphere.nephele.event.job.ExecutionStateChangeEvent;
 import eu.stratosphere.nephele.event.job.JobEvent;
 import eu.stratosphere.nephele.event.job.RecentJobEvent;
-import eu.stratosphere.nephele.event.job.VertexEvent;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobgraph.JobStatus;
-import eu.stratosphere.nephele.jobgraph.JobVertexID;
 import eu.stratosphere.nephele.managementgraph.ManagementGraph;
-import eu.stratosphere.nephele.managementgraph.ManagementGroupVertex;
-import eu.stratosphere.nephele.managementgraph.ManagementGroupVertexID;
 import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
 import eu.stratosphere.nephele.topology.NetworkTopology;
 
@@ -93,7 +84,7 @@ public class MemoryArchivist implements ArchiveListener {
 		
 		cleanup(jobId);
 	}
-	
+
 	public List<RecentJobEvent> getJobs() {
 
 		return new ArrayList<RecentJobEvent>(oldJobs.values());
@@ -150,5 +141,6 @@ public class MemoryArchivist implements ArchiveListener {
 		}
 		return 0;
 	}
+
 
 }

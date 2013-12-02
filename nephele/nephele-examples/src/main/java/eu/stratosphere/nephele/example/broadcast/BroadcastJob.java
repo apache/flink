@@ -22,6 +22,7 @@ import java.io.IOException;
 
 import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.client.JobExecutionException;
+import eu.stratosphere.nephele.client.JobExecutionResult;
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.fs.Path;
@@ -238,7 +239,8 @@ public class BroadcastJob {
 		conf.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT);
 
 		final JobClient jobClient = new JobClient(jobGraph, conf);
-		final long jobDuration = jobClient.submitJobAndWait();
+		final JobExecutionResult jobResult = jobClient.submitJobAndWait();
+		final long jobDuration = jobResult.getNetRuntime();
 
 		final long numberOfBytesSent = (long) BroadcastRecord.RECORD_SIZE * (long) NUMBER_OF_RECORDS
 			* (long) NUMBER_OF_CONSUMERS;

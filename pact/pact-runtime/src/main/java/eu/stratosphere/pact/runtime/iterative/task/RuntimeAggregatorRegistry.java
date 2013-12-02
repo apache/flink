@@ -33,7 +33,6 @@ public class RuntimeAggregatorRegistry {
 	
 	private final Map<String, Value> previousGlobalAggregate;
 	
-	
 	public RuntimeAggregatorRegistry(Collection<AggregatorWithName<?>> aggs) {
 		this.aggregators = new HashMap<String, Aggregator<?>>();
 		this.previousGlobalAggregate = new HashMap<String, Value>();
