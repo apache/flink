@@ -127,7 +127,7 @@ public class ReduceTaskTest extends DriverTestBase<GenericReducer<PactRecord, Pa
 		try {
 			sorter = new CombiningUnilateralSortMerger<PactRecord>(new MockCombiningReduceStub(), 
 				getMemoryManager(), getIOManager(), new UniformPactRecordGenerator(keyCnt, valCnt, false), 
-				getOwningNepheleTask(), PactRecordSerializer.get(), this.comparator.duplicate(), this.perSortMem, 4, 0.8f, false);
+				getOwningNepheleTask(), PactRecordSerializer.get(), this.comparator.duplicate(), this.perSortMem, 4, 0.8f);
 			addInput(sorter.getIterator());
 			
 			ReduceDriver<PactRecord, PactRecord> testTask = new ReduceDriver<PactRecord, PactRecord>();

@@ -23,6 +23,10 @@ import org.apache.log4j.PatternLayout;
 public class LogUtils {
 
 	public static void initializeDefaultConsoleLogger() {
+		initializeDefaultConsoleLogger(Level.INFO);
+	}
+	
+	public static void initializeDefaultTestConsoleLogger() {
 		initializeDefaultConsoleLogger(Level.WARN);
 	}
 	

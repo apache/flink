@@ -15,18 +15,23 @@
 
 package eu.stratosphere.pact.runtime.sort;
 
+import java.io.IOException;
 import java.util.Comparator;
 import java.util.Hashtable;
 import java.util.Iterator;
+import java.util.NoSuchElementException;
 
 import junit.framework.Assert;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+
 import org.junit.After;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
+import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
@@ -35,6 +40,7 @@ import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.common.util.LogUtils;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.generic.types.TypeComparator;
 import eu.stratosphere.pact.generic.types.TypeSerializer;
@@ -45,13 +51,11 @@ import eu.stratosphere.pact.runtime.test.util.TestData;
 import eu.stratosphere.pact.runtime.test.util.TestData.Key;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.KeyMode;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.ValueMode;
+import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
 
-/**
- * @author Fabian Hueske
- * @author Stephan Ewen
- */
-public class CombiningUnilateralSortMergerITCase
-{
+
+public class CombiningUnilateralSortMergerITCase {
+	
 	private static final Log LOG = LogFactory.getLog(CombiningUnilateralSortMergerITCase.class);
 
 	private static final long SEED = 649180756312423613L;
@@ -74,10 +78,15 @@ public class CombiningUnilateralSortMergerITCase
 	
 	private TypeComparator<PactRecord> comparator;
 
+	
+	@BeforeClass
+	public static void setup() {
+		LogUtils.initializeDefaultTestConsoleLogger();
+	}
+	
 	@SuppressWarnings("unchecked")
 	@Before
-	public void beforeTest()
-	{
+	public void beforeTest() {
 		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE);
 		this.ioManager = new IOManager();
 		
@@ -86,8 +95,7 @@ public class CombiningUnilateralSortMergerITCase
 	}
 
 	@After
-	public void afterTest()
-	{
+	public void afterTest() {
 		this.ioManager.shutdown();
 		if (!this.ioManager.isProperlyShutDown()) {
 			Assert.fail("I/O Manager was not properly shut down.");
@@ -111,10 +119,11 @@ public class CombiningUnilateralSortMergerITCase
 
 		LOG.debug("initializing sortmerger");
 		
-		Sorter<PactRecord> merger = new CombiningUnilateralSortMerger<PactRecord>(new TestCountCombiner(), 
-				this.memoryManager, this.ioManager, 
-				reader, this.parentTask, this.serializer, this.comparator,
-				64 * 1024 * 1024, 64, 0.7f, true);
+		TestCountCombiner comb = new TestCountCombiner();
+		
+		Sorter<PactRecord> merger = new CombiningUnilateralSortMerger<PactRecord>(comb, 
+				this.memoryManager, this.ioManager, reader, this.parentTask, this.serializer, this.comparator,
+				64 * 1024 * 1024, 64, 0.7f);
 
 		final PactRecord rec = new PactRecord();
 		rec.setField(1, new PactInteger(1));
@@ -131,12 +140,56 @@ public class CombiningUnilateralSortMergerITCase
 		
 		MutableObjectIterator<PactRecord> iterator = merger.getIterator();
 
-		PactRecord target = new PactRecord();
-		while (iterator.next(target)) {
-			Assert.assertEquals(noKeyCnt, target.getField(1, PactInteger.class).getValue());
+		Iterator<Integer> result = getReducingIterator(iterator, serializer, comparator.duplicate());
+		while (result.hasNext()) {
+			Assert.assertEquals(noKeyCnt, result.next().intValue());
 		}
 		
 		merger.close();
+		
+		// if the combiner was opened, it must have been closed
+		Assert.assertTrue(comb.opened == comb.closed);
+	}
+	
+	@Test
+	public void testCombineSpilling() throws Exception {
+		int noKeys = 100;
+		int noKeyCnt = 10000;
+
+		MockRecordReader reader = new MockRecordReader();
+
+		LOG.debug("initializing sortmerger");
+		
+		TestCountCombiner comb = new TestCountCombiner();
+		
+		Sorter<PactRecord> merger = new CombiningUnilateralSortMerger<PactRecord>(comb, 
+				this.memoryManager, this.ioManager, reader, this.parentTask, this.serializer, this.comparator,
+				3 * 1024 * 1024, 64, 0.005f);
+
+		final PactRecord rec = new PactRecord();
+		rec.setField(1, new PactInteger(1));
+		final TestData.Key key = new TestData.Key();
+		
+		for (int i = 0; i < noKeyCnt; i++) {
+			for (int j = 0; j < noKeys; j++) {
+				key.setKey(j);
+				rec.setField(0, key);
+				reader.emit(rec);
+			}
+		}
+		reader.close();
+		
+		MutableObjectIterator<PactRecord> iterator = merger.getIterator();
+
+		Iterator<Integer> result = getReducingIterator(iterator, serializer, comparator.duplicate());
+		while (result.hasNext()) {
+			Assert.assertEquals(noKeyCnt, result.next().intValue());
+		}
+		
+		merger.close();
+		
+		// if the combiner was opened, it must have been closed
+		Assert.assertTrue(comb.opened == comb.closed);
 	}
 
 	@Test
@@ -156,10 +209,11 @@ public class CombiningUnilateralSortMergerITCase
 		// merge iterator
 		LOG.debug("initializing sortmerger");
 		
-		Sorter<PactRecord> merger = new CombiningUnilateralSortMerger<PactRecord>(new TestCountCombiner2(), 
-				this.memoryManager, this.ioManager, 
-				reader, this.parentTask, this.serializer, this.comparator,
-				64 * 1024 * 1024, 2, 0.7f, true);
+		TestCountCombiner2 comb = new TestCountCombiner2();
+		
+		Sorter<PactRecord> merger = new CombiningUnilateralSortMerger<PactRecord>(comb, 
+				this.memoryManager, this.ioManager, reader, this.parentTask, this.serializer, this.comparator,
+				64 * 1024 * 1024, 2, 0.7f);
 
 		// emit data
 		LOG.debug("emitting data");
@@ -207,17 +261,24 @@ public class CombiningUnilateralSortMergerITCase
 		}
 		
 		merger.close();
+		
+		// if the combiner was opened, it must have been closed
+		Assert.assertTrue(comb.opened == comb.closed);
 	}
 
 	// --------------------------------------------------------------------------------------------
 	
-	public class TestCountCombiner extends ReduceStub
-	{
+	public static class TestCountCombiner extends ReduceStub {
+		
 		private final PactInteger count = new PactInteger();
 		
+		public volatile boolean opened = false;
+		
+		public volatile boolean closed = false;
+		
+		
 		@Override
-		public void combine(Iterator<PactRecord> values, Collector<PactRecord> out)
-		{
+		public void combine(Iterator<PactRecord> values, Collector<PactRecord> out) {
 			PactRecord rec = null;
 			int cnt = 0;
 			while (values.hasNext()) {
@@ -231,16 +292,27 @@ public class CombiningUnilateralSortMergerITCase
 		}
 
 		@Override
-		public void reduce(Iterator<PactRecord> values, Collector<PactRecord> out) {
-			// yo, nothing, mon
+		public void reduce(Iterator<PactRecord> values, Collector<PactRecord> out) {}
+		
+		@Override
+		public void open(Configuration parameters) throws Exception {
+			opened = true;
+		}
+		
+		@Override
+		public void close() throws Exception {
+			closed = true;
 		}
 	}
 
-	public class TestCountCombiner2 extends ReduceStub
-	{
+	public static class TestCountCombiner2 extends ReduceStub {
+		
+		public volatile boolean opened = false;
+		
+		public volatile boolean closed = false;
+		
 		@Override
-		public void combine(Iterator<PactRecord> values, Collector<PactRecord> out)
-		{
+		public void combine(Iterator<PactRecord> values, Collector<PactRecord> out) {
 			PactRecord rec = null;
 			int cnt = 0;
 			while (values.hasNext()) {
@@ -255,5 +327,65 @@ public class CombiningUnilateralSortMergerITCase
 		public void reduce(Iterator<PactRecord> values, Collector<PactRecord> out) {
 			// yo, nothing, mon
 		}
+		
+		@Override
+		public void open(Configuration parameters) throws Exception {
+			opened = true;
+		}
+		
+		@Override
+		public void close() throws Exception {
+			closed = true;
+		}
+	}
+	
+	private static Iterator<Integer> getReducingIterator(MutableObjectIterator<PactRecord> data, TypeSerializer<PactRecord> serializer, TypeComparator<PactRecord> comparator) {
+		
+		final KeyGroupedIterator<PactRecord> groupIter = new KeyGroupedIterator<PactRecord>(data, serializer, comparator);
+		
+		return new Iterator<Integer>() {
+			
+			private boolean hasNext = false;
+
+			@Override
+			public boolean hasNext() {
+				if (hasNext) {
+					return true;
+				}
+				
+				try {
+					hasNext = groupIter.nextKey();
+				} catch (IOException e) {
+					throw new RuntimeException(e);
+				}
+				return hasNext;
+			}
+
+			@Override
+			public Integer next() {
+				if (hasNext()) {
+					hasNext = false;
+					
+					Iterator<PactRecord> values = groupIter.getValues();
+					
+					PactRecord rec = null;
+					int cnt = 0;
+					while (values.hasNext()) {
+						rec = values.next();
+						cnt += rec.getField(1, PactInteger.class).getValue();
+					}
+					
+					return cnt;
+				} else {
+					throw new NoSuchElementException();
+				}
+			}
+
+			@Override
+			public void remove() {
+				throw new UnsupportedOperationException();
+			}
+			
+		};
 	}
 }

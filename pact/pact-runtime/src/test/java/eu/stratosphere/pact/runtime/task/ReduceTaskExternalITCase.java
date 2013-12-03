@@ -132,7 +132,7 @@ public class ReduceTaskExternalITCase extends DriverTestBase<GenericReducer<Pact
 		try {
 			sorter = new CombiningUnilateralSortMerger<PactRecord>(new MockCombiningReduceStub(), 
 				getMemoryManager(), getIOManager(), new UniformPactRecordGenerator(keyCnt, valCnt, false), 
-				getOwningNepheleTask(), PactRecordSerializer.get(), this.comparator.duplicate(), this.perSortMem, 2, 0.8f, false);
+				getOwningNepheleTask(), PactRecordSerializer.get(), this.comparator.duplicate(), this.perSortMem, 2, 0.8f);
 			addInput(sorter.getIterator());
 			
 			ReduceDriver<PactRecord, PactRecord> testTask = new ReduceDriver<PactRecord, PactRecord>();
@@ -176,7 +176,7 @@ public class ReduceTaskExternalITCase extends DriverTestBase<GenericReducer<Pact
 		try {
 			sorter = new CombiningUnilateralSortMerger<PactRecord>(new MockCombiningReduceStub(), 
 				getMemoryManager(), getIOManager(), new UniformPactRecordGenerator(keyCnt, valCnt, false), 
-				getOwningNepheleTask(), PactRecordSerializer.get(), this.comparator.duplicate(), this.perSortMem, 2, 0.8f, false);
+				getOwningNepheleTask(), PactRecordSerializer.get(), this.comparator.duplicate(), this.perSortMem, 2, 0.8f);
 			addInput(sorter.getIterator());
 			
 			ReduceDriver<PactRecord, PactRecord> testTask = new ReduceDriver<PactRecord, PactRecord>();

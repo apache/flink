@@ -720,14 +720,13 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 				}
 				
 				// instantiate ourselves a combiner. we should not use the stub, because the sort and the
-				// subsequent reduce would otherwise share it multithreaded
+				// subsequent reduce would otherwise share it multi-threaded
 				final S localStub;
 				try {
 					final Class<S> userCodeFunctionType = this.driver.getStubType();
 					// if the class is null, the driver has no user code 
 					if (userCodeFunctionType != null && GenericReducer.class.isAssignableFrom(userCodeFunctionType)) {
 						localStub = initStub(userCodeFunctionType);
-						localStub.open(this.config.getStubParameters());
 					} else {
 						throw new IllegalStateException("Performing combining sort outside a reduce task!");
 					}
@@ -741,7 +740,9 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 					(GenericReducer) localStub, getMemoryManager(), getIOManager(), this.inputIterators[inputNum], 
 					this, this.inputSerializers[inputNum], getLocalStrategyComparator(inputNum),
 					this.config.getMemoryInput(inputNum), this.config.getFilehandlesInput(inputNum),
-					this.config.getSpillingThresholdInput(inputNum), false);
+					this.config.getSpillingThresholdInput(inputNum));
+				cSorter.setUdfConfiguration(this.config.getStubParameters());
+				
 				// set the input to null such that it will be lazily fetched from the input strategy
 				this.inputs[inputNum] = null;
 				this.localStrategies[inputNum] = cSorter;
