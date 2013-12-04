@@ -32,6 +32,7 @@ import eu.stratosphere.nephele.fs.FileStatus;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.pact.common.contract.FileDataSource;
+import eu.stratosphere.pact.common.contract.GenericDataSource;
 import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
 import eu.stratosphere.pact.common.util.PactConfigConstants;
 import eu.stratosphere.pact.generic.io.InputFormat;
@@ -798,7 +799,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	 * 
 	 * @return A config builder for setting parameters.
 	 */
-	public static ConfigBuilder configureFileFormat(FileDataSource target) {
+	public static ConfigBuilder configureFileFormat(GenericDataSource<?> target) {
 		return new ConfigBuilder(target.getParameters());
 	}
 	
