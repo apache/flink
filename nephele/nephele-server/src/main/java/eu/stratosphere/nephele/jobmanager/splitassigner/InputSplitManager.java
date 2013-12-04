@@ -34,6 +34,7 @@ import eu.stratosphere.nephele.jobmanager.scheduler.AbstractScheduler;
 import eu.stratosphere.nephele.jobmanager.splitassigner.file.FileInputSplitAssigner;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.AbstractInvokable;
+import eu.stratosphere.nephele.template.GenericInputSplit;
 import eu.stratosphere.nephele.template.InputSplit;
 import eu.stratosphere.nephele.util.StringUtils;
 
@@ -45,8 +46,6 @@ import eu.stratosphere.nephele.util.StringUtils;
  * manager at runtime.
  * <p>
  * This class is thread-safe.
- * 
- * @author warneke
  */
 public final class InputSplitManager {
 
@@ -244,30 +243,32 @@ public final class InputSplitManager {
 	 */
 	private InputSplitAssigner loadInputSplitAssigner(final Class<? extends InputSplit> inputSplitType) {
 
-		final String typeClassName = inputSplitType.getSimpleName();
-		final String assignerKey = INPUT_SPLIT_CONFIG_KEY_PREFIX + typeClassName;
-		LOG.info("Trying to load input split assigner for type " + typeClassName);
+		final String className = inputSplitType.getName();
+		
+		final String assignerKey = INPUT_SPLIT_CONFIG_KEY_PREFIX + className;
+		LOG.info("Trying to load input split assigner for type " + className);
 
 		String assignerClassName = GlobalConfiguration.getString(assignerKey, null);
 
 		// Provide hard-wired default configuration for FileInputSplit objects to make configuration more robust
 		if (assignerClassName == null) {
-			if (FileInputSplit.class.getSimpleName().equals(typeClassName)) {
-				assignerClassName = FileInputSplitAssigner.class.getName();
-			} else {
+			if (FileInputSplit.class == inputSplitType) {
+				return new FileInputSplitAssigner();
+			}
+			else if (GenericInputSplit.class == inputSplitType) {
+				return new DefaultInputSplitAssigner();
+			}
+			else {
 				return null;
 			}
 		}
 
 		try {
-
-			@SuppressWarnings("unchecked")
-			final Class<? extends InputSplitAssigner> assignerClass = (Class<? extends InputSplitAssigner>) Class
-				.forName(assignerClassName);
-
+			final Class<? extends InputSplitAssigner> assignerClass =
+					Class.forName(assignerClassName).asSubclass(InputSplitAssigner.class);
 			return assignerClass.newInstance();
-
-		} catch (Exception e) {
+		}
+		catch (Exception e) {
 			LOG.error(StringUtils.stringifyException(e));
 		}
 
