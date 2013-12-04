@@ -11,7 +11,7 @@
  * specific language governing permissions and limitations under the License.
  */
 
-package eu.stratosphere.scala.operators.stubs
+package eu.stratosphere.scala.stubs
 
 import java.util.{ Iterator => JIterator }
 

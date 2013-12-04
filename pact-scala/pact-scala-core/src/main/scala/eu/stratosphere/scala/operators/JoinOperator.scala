@@ -15,33 +15,23 @@ package eu.stratosphere.scala.operators
 
 import language.experimental.macros
 import scala.reflect.macros.Context
-import eu.stratosphere.scala.ScalaContract
-import eu.stratosphere.pact.common.contract.MapContract
-import eu.stratosphere.scala.analysis.UDT
+
 import eu.stratosphere.pact.common.`type`.PactRecord
-import eu.stratosphere.pact.common.stubs.MapStub
 import eu.stratosphere.pact.common.stubs.Collector
 import eu.stratosphere.pact.generic.contract.Contract
-import eu.stratosphere.scala.contracts.Annotations
-import eu.stratosphere.pact.common.contract.ReduceContract
-import eu.stratosphere.pact.common.stubs.ReduceStub
-import eu.stratosphere.scala.analysis.UDTSerializer
-import eu.stratosphere.scala.analysis.UDF1
-import eu.stratosphere.scala.operators.stubs.DeserializingIterator
-import eu.stratosphere.nephele.configuration.Configuration
-import java.util.{ Iterator => JIterator }
-import eu.stratosphere.scala.analysis.FieldSelector
-import eu.stratosphere.scala.OneInputKeyedScalaContract
-import eu.stratosphere.pact.common.contract.CrossContract
-import eu.stratosphere.scala.analysis.UDF2
 import eu.stratosphere.pact.common.contract.MatchContract
-import eu.stratosphere.scala.TwoInputKeyedScalaContract
 import eu.stratosphere.pact.common.stubs.MatchStub
-import eu.stratosphere.scala.codegen.MacroContextHolder
-import eu.stratosphere.scala.DataSet
 import eu.stratosphere.pact.generic.contract.UserCodeObjectWrapper
-import eu.stratosphere.scala.TwoInputHintable
-import eu.stratosphere.scala.codegen.Util
+
+import eu.stratosphere.nephele.configuration.Configuration
+
+import java.util.{ Iterator => JIterator }
+
+import eu.stratosphere.scala._
+import eu.stratosphere.scala.analysis._
+import eu.stratosphere.scala.contracts.Annotations
+import eu.stratosphere.scala.codegen.{MacroContextHolder, Util}
+import eu.stratosphere.scala.stubs.{JoinStubBase, JoinStub, FlatJoinStub}
 
 class JoinDataSet[LeftIn, RightIn](val leftInput: DataSet[LeftIn], val rightInput: DataSet[RightIn]) {
   def where[Key](keyFun: LeftIn => Key) = macro JoinMacros.whereImpl[LeftIn, RightIn, Key]
@@ -99,46 +89,15 @@ object JoinMacros {
     val (udtLeftIn, createUdtLeftIn) = slave.mkUdtClass[LeftIn]
     val (udtRightIn, createUdtRightIn) = slave.mkUdtClass[RightIn]
     val (udtOut, createUdtOut) = slave.mkUdtClass[Out]
-    
-    val contract = reify {
-      val helper: JoinDataSetWithWhereAndEqual[LeftIn, RightIn] = c.prefix.splice
-      val leftKeySelection = helper.leftKey
-      val rightKeySelection = helper.rightKey
 
-      val generatedStub = new MatchStub with Serializable {
-        val leftInputUDT = c.Expr[UDT[LeftIn]](createUdtLeftIn).splice
-        val rightInputUDT = c.Expr[UDT[RightIn]](createUdtRightIn).splice
-        val outputUDT = c.Expr[UDT[Out]](createUdtOut).splice
-        val leftKeySelector = new FieldSelector(leftInputUDT, leftKeySelection)
-        val rightKeySelector = new FieldSelector(rightInputUDT, rightKeySelection)
-        val udf: UDF2[LeftIn, RightIn, Out] = new UDF2(leftInputUDT, rightInputUDT, outputUDT)
-
-        private var leftDeserializer: UDTSerializer[LeftIn] = _
-        private var leftDiscard: Array[Int] = _
-        private var leftForwardFrom: Array[Int] = _
-        private var leftForwardTo: Array[Int] = _
-        private var rightDeserializer: UDTSerializer[RightIn] = _
-        private var rightForwardFrom: Array[Int] = _
-        private var rightForwardTo: Array[Int] = _
-        private var serializer: UDTSerializer[Out] = _
-        private var outputLength: Int = _
-
-        override def open(config: Configuration) = {
-          super.open(config)
-
-          this.leftDeserializer = udf.getLeftInputDeserializer
-          this.leftDiscard = udf.getLeftDiscardIndexArray.filter(_ < udf.getOutputLength)
-          this.leftForwardFrom = udf.getLeftForwardIndexArrayFrom
-          this.leftForwardTo = udf.getLeftForwardIndexArrayTo
-          this.rightDeserializer = udf.getRightInputDeserializer
-          this.rightForwardFrom = udf.getRightForwardIndexArrayFrom
-          this.rightForwardTo = udf.getRightForwardIndexArrayTo
-          this.serializer = udf.getOutputSerializer
-          this.outputLength = udf.getOutputLength
-        }
-
+    val stub: c.Expr[JoinStubBase[LeftIn, RightIn, Out]] = if (fun.actualType <:< weakTypeOf[JoinStub[LeftIn, RightIn, Out]])
+      reify { fun.splice.asInstanceOf[JoinStubBase[LeftIn, RightIn, Out]] }
+    else reify {
+      implicit val leftInputUDT: UDT[LeftIn] = c.Expr[UDT[LeftIn]](createUdtLeftIn).splice
+      implicit val rightInputUDT: UDT[RightIn] = c.Expr[UDT[RightIn]](createUdtRightIn).splice
+      implicit val outputUDT: UDT[Out] = c.Expr[UDT[Out]](createUdtOut).splice
+      new JoinStubBase[LeftIn, RightIn, Out] {
         override def `match`(leftRecord: PactRecord, rightRecord: PactRecord, out: Collector[PactRecord]) = {
-
           val left = leftDeserializer.deserializeRecyclingOn(leftRecord)
           val right = rightDeserializer.deserializeRecyclingOn(rightRecord)
           val output = fun.splice.apply(left, right)
@@ -153,13 +112,18 @@ object JoinMacros {
           serializer.serialize(output, leftRecord)
           out.collect(leftRecord)
         }
-
       }
-      
+    }
+    val contract = reify {
+      val generatedStub = stub.splice
+      val helper: JoinDataSetWithWhereAndEqual[LeftIn, RightIn] = c.prefix.splice
+      val leftKeySelector = new FieldSelector(generatedStub.leftInputUDT, helper.leftKey)
+      val rightKeySelector = new FieldSelector(generatedStub.rightInputUDT, helper.rightKey)
+
       val builder = new NoKeyMatchBuilder(generatedStub).input1(helper.leftInput.contract).input2(helper.rightInput.contract)
 
-      val leftKeyPositions = generatedStub.leftKeySelector.selectedFields.toIndexArray
-      val rightKeyPositions = generatedStub.leftKeySelector.selectedFields.toIndexArray
+      val leftKeyPositions = leftKeySelector.selectedFields.toIndexArray
+      val rightKeyPositions = leftKeySelector.selectedFields.toIndexArray
       val keyTypes = generatedStub.leftInputUDT.getKeySet(leftKeyPositions)
       // global indexes haven't been computed yet...
       0 until keyTypes.size foreach { i => builder.keyField(keyTypes(i), leftKeyPositions(i), rightKeyPositions(i)) }
@@ -167,8 +131,8 @@ object JoinMacros {
       
       
       val ret = new MatchContract(builder) with TwoInputKeyedScalaContract[LeftIn, RightIn, Out] {
-        override val leftKey: FieldSelector = generatedStub.leftKeySelector
-        override val rightKey: FieldSelector = generatedStub.rightKeySelector
+        override val leftKey: FieldSelector = leftKeySelector
+        override val rightKey: FieldSelector = rightKeySelector
         override def getUDF = generatedStub.udf
         override def annotations = Seq(
           Annotations.getConstantFieldsFirst(
@@ -192,46 +156,15 @@ object JoinMacros {
     val (udtLeftIn, createUdtLeftIn) = slave.mkUdtClass[LeftIn]
     val (udtRightIn, createUdtRightIn) = slave.mkUdtClass[RightIn]
     val (udtOut, createUdtOut) = slave.mkUdtClass[Out]
-    
-    val contract = reify {
-      val helper: JoinDataSetWithWhereAndEqual[LeftIn, RightIn] = c.prefix.splice
-      val leftKeySelection = helper.leftKey
-      val rightKeySelection = helper.rightKey
 
-      val generatedStub = new MatchStub with Serializable {
-        val leftInputUDT = c.Expr[UDT[LeftIn]](createUdtLeftIn).splice
-        val rightInputUDT = c.Expr[UDT[RightIn]](createUdtRightIn).splice
-        val outputUDT = c.Expr[UDT[Out]](createUdtOut).splice
-        val leftKeySelector = new FieldSelector(leftInputUDT, leftKeySelection)
-        val rightKeySelector = new FieldSelector(rightInputUDT, rightKeySelection)
-        val udf: UDF2[LeftIn, RightIn, Out] = new UDF2(leftInputUDT, rightInputUDT, outputUDT)
-
-        private var leftDeserializer: UDTSerializer[LeftIn] = _
-        private var leftDiscard: Array[Int] = _
-        private var leftForwardFrom: Array[Int] = _
-        private var leftForwardTo: Array[Int] = _
-        private var rightDeserializer: UDTSerializer[RightIn] = _
-        private var rightForwardFrom: Array[Int] = _
-        private var rightForwardTo: Array[Int] = _
-        private var serializer: UDTSerializer[Out] = _
-        private var outputLength: Int = _
-
-        override def open(config: Configuration) = {
-          super.open(config)
-
-          this.leftDeserializer = udf.getLeftInputDeserializer
-          this.leftDiscard = udf.getLeftDiscardIndexArray.filter(_ < udf.getOutputLength)
-          this.leftForwardFrom = udf.getLeftForwardIndexArrayFrom
-          this.leftForwardTo = udf.getLeftForwardIndexArrayTo
-          this.rightDeserializer = udf.getRightInputDeserializer
-          this.rightForwardFrom = udf.getRightForwardIndexArrayFrom
-          this.rightForwardTo = udf.getRightForwardIndexArrayTo
-          this.serializer = udf.getOutputSerializer
-          this.outputLength = udf.getOutputLength
-        }
-
+    val stub: c.Expr[JoinStubBase[LeftIn, RightIn, Out]] = if (fun.actualType <:< weakTypeOf[JoinStub[LeftIn, RightIn, Out]])
+      reify { fun.splice.asInstanceOf[JoinStubBase[LeftIn, RightIn, Out]] }
+    else reify {
+      implicit val leftInputUDT: UDT[LeftIn] = c.Expr[UDT[LeftIn]](createUdtLeftIn).splice
+      implicit val rightInputUDT: UDT[RightIn] = c.Expr[UDT[RightIn]](createUdtRightIn).splice
+      implicit val outputUDT: UDT[Out] = c.Expr[UDT[Out]](createUdtOut).splice
+      new JoinStubBase[LeftIn, RightIn, Out] {
         override def `match`(leftRecord: PactRecord, rightRecord: PactRecord, out: Collector[PactRecord]) = {
-
           val left = leftDeserializer.deserializeRecyclingOn(leftRecord)
           val right = rightDeserializer.deserializeRecyclingOn(rightRecord)
           val output = fun.splice.apply(left, right)
@@ -252,21 +185,25 @@ object JoinMacros {
             }
           }
         }
-
       }
-      
+    }
+    val contract = reify {
+      val generatedStub = stub.splice
+      val helper: JoinDataSetWithWhereAndEqual[LeftIn, RightIn] = c.prefix.splice
+      val leftKeySelector = new FieldSelector(generatedStub.leftInputUDT, helper.leftKey)
+      val rightKeySelector = new FieldSelector(generatedStub.rightInputUDT, helper.rightKey)
       val builder = new NoKeyMatchBuilder(generatedStub).input1(helper.leftInput.contract).input2(helper.rightInput.contract)
 
-      val leftKeyPositions = generatedStub.leftKeySelector.selectedFields.toIndexArray
-      val rightKeyPositions = generatedStub.leftKeySelector.selectedFields.toIndexArray
+      val leftKeyPositions = leftKeySelector.selectedFields.toIndexArray
+      val rightKeyPositions = leftKeySelector.selectedFields.toIndexArray
       val keyTypes = generatedStub.leftInputUDT.getKeySet(leftKeyPositions)
       // global indexes haven't been computed yet...
       0 until keyTypes.size foreach { i => builder.keyField(keyTypes(i), leftKeyPositions(i), rightKeyPositions(i)) }
       
       
       val ret = new MatchContract(builder) with TwoInputKeyedScalaContract[LeftIn, RightIn, Out] {
-        override val leftKey: FieldSelector = generatedStub.leftKeySelector
-        override val rightKey: FieldSelector = generatedStub.rightKeySelector
+        override val leftKey: FieldSelector = leftKeySelector
+        override val rightKey: FieldSelector = rightKeySelector
         override def getUDF = generatedStub.udf
         override def annotations = Seq(
           Annotations.getConstantFieldsFirst(
@@ -290,40 +227,14 @@ object JoinMacros {
     val (udtLeftIn, createUdtLeftIn) = slave.mkUdtClass[LeftIn]
     val (udtRightIn, createUdtRightIn) = slave.mkUdtClass[RightIn]
     val (udtOut, createUdtOut) = slave.mkUdtClass[(LeftIn, RightIn)]
-    
-    val contract = reify {
-      val helper: JoinDataSetWithWhereAndEqual[LeftIn, RightIn] = c.prefix.splice
-      val leftKeySelection = helper.leftKey
-      val rightKeySelection = helper.rightKey
 
-      val generatedStub = new MatchStub with Serializable {
-        val leftInputUDT = c.Expr[UDT[LeftIn]](createUdtLeftIn).splice
-        val rightInputUDT = c.Expr[UDT[RightIn]](createUdtRightIn).splice
-        val outputUDT = c.Expr[UDT[(LeftIn, RightIn)]](createUdtOut).splice
-        val leftKeySelector = new FieldSelector(leftInputUDT, leftKeySelection)
-        val rightKeySelector = new FieldSelector(rightInputUDT, rightKeySelection)
-        val udf: UDF2[LeftIn, RightIn, (LeftIn, RightIn)] = new UDF2(leftInputUDT, rightInputUDT, outputUDT)
-
-        private var leftDeserializer: UDTSerializer[LeftIn] = _
-        private var leftDiscard: Array[Int] = _
-        private var rightDeserializer: UDTSerializer[RightIn] = _
-        private var rightForwardFrom: Array[Int] = _
-        private var rightForwardTo: Array[Int] = _
-        private var serializer: UDTSerializer[(LeftIn, RightIn)] = _
-        private var outputLength: Int = _
-
-        override def open(config: Configuration) = {
-          super.open(config)
-
-          this.leftDeserializer = udf.getLeftInputDeserializer
-          this.leftDiscard = udf.getLeftDiscardIndexArray.filter(_ < udf.getOutputLength)
-          this.rightDeserializer = udf.getRightInputDeserializer
-          this.rightForwardFrom = udf.getRightForwardIndexArrayFrom
-          this.rightForwardTo = udf.getRightForwardIndexArrayTo
-          this.serializer = udf.getOutputSerializer
-          this.outputLength = udf.getOutputLength
-        }
-
+    val stub: c.Expr[JoinStubBase[LeftIn, RightIn, (LeftIn, RightIn)]] = if (fun.actualType <:< weakTypeOf[JoinStub[LeftIn, RightIn, (LeftIn, RightIn)]])
+      reify { fun.splice.asInstanceOf[JoinStubBase[LeftIn, RightIn, (LeftIn, RightIn)]] }
+    else reify {
+      implicit val leftInputUDT: UDT[LeftIn] = c.Expr[UDT[LeftIn]](createUdtLeftIn).splice
+      implicit val rightInputUDT: UDT[RightIn] = c.Expr[UDT[RightIn]](createUdtRightIn).splice
+      implicit val outputUDT: UDT[(LeftIn, RightIn)] = c.Expr[UDT[(LeftIn, RightIn)]](createUdtOut).splice
+      new JoinStubBase[LeftIn, RightIn, (LeftIn, RightIn)] {
         override def `match`(leftRecord: PactRecord, rightRecord: PactRecord, out: Collector[PactRecord]) = {
           val left = leftDeserializer.deserializeRecyclingOn(leftRecord)
           val right = rightDeserializer.deserializeRecyclingOn(rightRecord)
@@ -334,21 +245,25 @@ object JoinMacros {
             out.collect(leftRecord)
           }
         }
-
       }
-      
+    }
+    val contract = reify {
+      val generatedStub = stub.splice
+      val helper: JoinDataSetWithWhereAndEqual[LeftIn, RightIn] = c.prefix.splice
+      val leftKeySelector = new FieldSelector(generatedStub.leftInputUDT, helper.leftKey)
+      val rightKeySelector = new FieldSelector(generatedStub.rightInputUDT, helper.rightKey)
       val builder = new NoKeyMatchBuilder(generatedStub).input1(helper.leftInput.contract).input2(helper.rightInput.contract)
 
-      val leftKeyPositions = generatedStub.leftKeySelector.selectedFields.toIndexArray
-      val rightKeyPositions = generatedStub.leftKeySelector.selectedFields.toIndexArray
+      val leftKeyPositions = leftKeySelector.selectedFields.toIndexArray
+      val rightKeyPositions = leftKeySelector.selectedFields.toIndexArray
       val keyTypes = generatedStub.leftInputUDT.getKeySet(leftKeyPositions)
       // global indexes haven't been computed yet...
       0 until keyTypes.size foreach { i => builder.keyField(keyTypes(i), leftKeyPositions(i), rightKeyPositions(i)) }
       
       
       val ret = new MatchContract(builder) with TwoInputKeyedScalaContract[LeftIn, RightIn, (LeftIn, RightIn)] {
-        override val leftKey: FieldSelector = generatedStub.leftKeySelector
-        override val rightKey: FieldSelector = generatedStub.rightKeySelector
+        override val leftKey: FieldSelector = leftKeySelector
+        override val rightKey: FieldSelector = rightKeySelector
         override def getUDF = generatedStub.udf
         override def annotations = Seq(
           Annotations.getConstantFieldsFirst(

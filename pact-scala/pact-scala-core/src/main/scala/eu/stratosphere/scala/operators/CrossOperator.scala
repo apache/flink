@@ -15,31 +15,24 @@ package eu.stratosphere.scala.operators
 
 import language.experimental.macros
 import scala.reflect.macros.Context
-import eu.stratosphere.scala.codegen.MacroContextHolder
-import eu.stratosphere.scala.ScalaContract
+
 import eu.stratosphere.pact.common.contract.MapContract
-import eu.stratosphere.scala.analysis.UDT
+
 import eu.stratosphere.pact.common.`type`.PactRecord
-import eu.stratosphere.pact.common.stubs.MapStub
 import eu.stratosphere.pact.common.stubs.Collector
 import eu.stratosphere.pact.generic.contract.Contract
-import eu.stratosphere.scala.contracts.Annotations
-import eu.stratosphere.pact.common.contract.ReduceContract
-import eu.stratosphere.pact.common.stubs.ReduceStub
-import eu.stratosphere.scala.analysis.UDTSerializer
-import eu.stratosphere.scala.analysis.UDF1
-import eu.stratosphere.scala.operators.stubs.DeserializingIterator
+import eu.stratosphere.pact.common.contract.CrossContract
+
 import eu.stratosphere.nephele.configuration.Configuration
 import java.util.{ Iterator => JIterator }
-import eu.stratosphere.scala.analysis.FieldSelector
-import eu.stratosphere.scala.analysis.FieldSelector
-import eu.stratosphere.pact.common.contract.CrossContract
-import eu.stratosphere.scala.TwoInputScalaContract
-import eu.stratosphere.scala.analysis.UDF2
-import eu.stratosphere.pact.common.stubs.CrossStub
-import eu.stratosphere.scala.DataSet
-import eu.stratosphere.scala.TwoInputHintable
-import eu.stratosphere.scala.codegen.Util
+
+
+import eu.stratosphere.scala.contracts.Annotations
+import eu.stratosphere.scala._
+import eu.stratosphere.scala.analysis._
+import eu.stratosphere.scala.stubs.{CrossStubBase, CrossStub, FlatCrossStub}
+import eu.stratosphere.scala.codegen.{MacroContextHolder, Util}
+import eu.stratosphere.scala.stubs.DeserializingIterator
 
 class CrossDataSet[LeftIn, RightIn](val leftInput: DataSet[LeftIn], val rightInput: DataSet[RightIn]) {
   def map[Out](fun: (LeftIn, RightIn) => Out): DataSet[Out] with TwoInputHintable[LeftIn, RightIn, Out] = macro CrossMacros.map[LeftIn, RightIn, Out]
@@ -49,7 +42,8 @@ class CrossDataSet[LeftIn, RightIn](val leftInput: DataSet[LeftIn], val rightInp
 
 object CrossMacros {
 
-  def map[LeftIn: c.WeakTypeTag, RightIn: c.WeakTypeTag, Out: c.WeakTypeTag](c: Context { type PrefixType = CrossDataSet[LeftIn, RightIn] })(fun: c.Expr[(LeftIn, RightIn) => Out]): c.Expr[DataSet[Out] with TwoInputHintable[LeftIn, RightIn, Out]] = {
+  def map[LeftIn: c.WeakTypeTag, RightIn: c.WeakTypeTag, Out: c.WeakTypeTag](c: Context { type PrefixType = CrossDataSet[LeftIn, RightIn] })
+                                                                            (fun: c.Expr[(LeftIn, RightIn) => Out]): c.Expr[DataSet[Out] with TwoInputHintable[LeftIn, RightIn, Out]] = {
     import c.universe._
 
     val slave = MacroContextHolder.newMacroHelper(c)
@@ -57,42 +51,15 @@ object CrossMacros {
     val (udtLeftIn, createUdtLeftIn) = slave.mkUdtClass[LeftIn]
     val (udtRightIn, createUdtRightIn) = slave.mkUdtClass[RightIn]
     val (udtOut, createUdtOut) = slave.mkUdtClass[Out]
-    
-    val contract = reify {
-      val helper: CrossDataSet[LeftIn, RightIn] = c.prefix.splice
 
-      val generatedStub = new CrossStub with Serializable {
-        val leftInputUDT = c.Expr[UDT[LeftIn]](createUdtLeftIn).splice
-        val rightInputUDT = c.Expr[UDT[RightIn]](createUdtRightIn).splice
-        val outputUDT = c.Expr[UDT[Out]](createUdtOut).splice
-        val udf: UDF2[LeftIn, RightIn, Out] = new UDF2(leftInputUDT, rightInputUDT, outputUDT)
-
-        private var leftDeserializer: UDTSerializer[LeftIn] = _
-        private var leftForwardFrom: Array[Int] = _
-        private var leftForwardTo: Array[Int] = _
-        private var leftDiscard: Array[Int] = _
-        private var rightDeserializer: UDTSerializer[RightIn] = _
-        private var rightForwardFrom: Array[Int] = _
-        private var rightForwardTo: Array[Int] = _
-        private var serializer: UDTSerializer[Out] = _
-        private var outputLength: Int = _
-
-        override def open(config: Configuration) = {
-          super.open(config)
-
-          this.leftDeserializer = udf.getLeftInputDeserializer
-          this.leftDiscard = udf.getLeftDiscardIndexArray.filter(_ < udf.getOutputLength)
-          this.leftForwardFrom = udf.getLeftForwardIndexArrayFrom
-          this.leftForwardTo = udf.getLeftForwardIndexArrayTo
-          this.rightDeserializer = udf.getRightInputDeserializer
-          this.rightForwardFrom = udf.getRightForwardIndexArrayFrom
-          this.rightForwardTo = udf.getRightForwardIndexArrayTo
-          this.serializer = udf.getOutputSerializer
-          this.outputLength = udf.getOutputLength
-        }
-        
+    val stub: c.Expr[CrossStubBase[LeftIn, RightIn, Out]] = if (fun.actualType <:< weakTypeOf[CrossStub[LeftIn, RightIn, Out]])
+      reify { fun.splice.asInstanceOf[CrossStubBase[LeftIn, RightIn, Out]] }
+    else reify {
+      implicit val leftInputUDT: UDT[LeftIn] = c.Expr[UDT[LeftIn]](createUdtLeftIn).splice
+      implicit val rightInputUDT: UDT[RightIn] = c.Expr[UDT[RightIn]](createUdtRightIn).splice
+      implicit val outputUDT: UDT[Out] = c.Expr[UDT[Out]](createUdtOut).splice
+      new CrossStubBase[LeftIn, RightIn, Out] {
         override def cross(leftRecord: PactRecord, rightRecord: PactRecord, out: Collector[PactRecord]) = {
-
           val left = leftDeserializer.deserializeRecyclingOn(leftRecord)
           val right = rightDeserializer.deserializeRecyclingOn(rightRecord)
           val output = fun.splice.apply(left, right)
@@ -108,9 +75,11 @@ object CrossMacros {
           serializer.serialize(output, leftRecord)
           out.collect(leftRecord)
         }
-
       }
-      
+    }
+    val contract = reify {
+      val helper: CrossDataSet[LeftIn, RightIn] = c.prefix.splice
+      val generatedStub = stub.splice
       val builder = CrossContract.builder(generatedStub).input1(helper.leftInput.contract).input2(helper.rightInput.contract)
       
       val ret = new CrossContract(builder) with TwoInputScalaContract[LeftIn, RightIn, Out] {
@@ -137,42 +106,15 @@ object CrossMacros {
     val (udtLeftIn, createUdtLeftIn) = slave.mkUdtClass[LeftIn]
     val (udtRightIn, createUdtRightIn) = slave.mkUdtClass[RightIn]
     val (udtOut, createUdtOut) = slave.mkUdtClass[Out]
-    
-    val contract = reify {
-      val helper: CrossDataSet[LeftIn, RightIn] = c.prefix.splice
 
-      val generatedStub = new CrossStub with Serializable {
-        val leftInputUDT = c.Expr[UDT[LeftIn]](createUdtLeftIn).splice
-        val rightInputUDT = c.Expr[UDT[RightIn]](createUdtRightIn).splice
-        val outputUDT = c.Expr[UDT[Out]](createUdtOut).splice
-        val udf: UDF2[LeftIn, RightIn, Out] = new UDF2(leftInputUDT, rightInputUDT, outputUDT)
-
-        private var leftDeserializer: UDTSerializer[LeftIn] = _
-        private var leftDiscard: Array[Int] = _
-        private var leftForwardFrom: Array[Int] = _
-        private var leftForwardTo: Array[Int] = _
-        private var rightDeserializer: UDTSerializer[RightIn] = _
-        private var rightForwardFrom: Array[Int] = _
-        private var rightForwardTo: Array[Int] = _
-        private var serializer: UDTSerializer[Out] = _
-        private var outputLength: Int = _
-
-        override def open(config: Configuration) = {
-          super.open(config)
-
-          this.leftDeserializer = udf.getLeftInputDeserializer
-          this.leftDiscard = udf.getLeftDiscardIndexArray.filter(_ < udf.getOutputLength)
-          this.leftForwardFrom = udf.getLeftForwardIndexArrayFrom
-          this.leftForwardTo = udf.getLeftForwardIndexArrayTo
-          this.rightDeserializer = udf.getRightInputDeserializer
-          this.rightForwardFrom = udf.getRightForwardIndexArrayFrom
-          this.rightForwardTo = udf.getRightForwardIndexArrayTo
-          this.serializer = udf.getOutputSerializer
-          this.outputLength = udf.getOutputLength
-        }
-
+    val stub: c.Expr[CrossStubBase[LeftIn, RightIn, Out]] = if (fun.actualType <:< weakTypeOf[CrossStub[LeftIn, RightIn, Out]])
+      reify { fun.splice.asInstanceOf[CrossStubBase[LeftIn, RightIn, Out]] }
+    else reify {
+      implicit val leftInputUDT: UDT[LeftIn] = c.Expr[UDT[LeftIn]](createUdtLeftIn).splice
+      implicit val rightInputUDT: UDT[RightIn] = c.Expr[UDT[RightIn]](createUdtRightIn).splice
+      implicit val outputUDT: UDT[Out] = c.Expr[UDT[Out]](createUdtOut).splice
+      new CrossStubBase[LeftIn, RightIn, Out] {
         override def cross(leftRecord: PactRecord, rightRecord: PactRecord, out: Collector[PactRecord]) = {
-
           val left = leftDeserializer.deserializeRecyclingOn(leftRecord)
           val right = rightDeserializer.deserializeRecyclingOn(rightRecord)
           val output = fun.splice.apply(left, right)
@@ -193,9 +135,11 @@ object CrossMacros {
             }
           }
         }
-
       }
-      
+    }
+    val contract = reify {
+      val helper: CrossDataSet[LeftIn, RightIn] = c.prefix.splice
+      val generatedStub = stub.splice
       val builder = CrossContract.builder(generatedStub).input1(helper.leftInput.contract).input2(helper.rightInput.contract)
       
       val ret = new CrossContract(builder) with TwoInputScalaContract[LeftIn, RightIn, Out] {
@@ -213,39 +157,21 @@ object CrossMacros {
     
     return result
   }
-  
-   def filter[LeftIn: c.WeakTypeTag, RightIn: c.WeakTypeTag](c: Context { type PrefixType = CrossDataSet[LeftIn, RightIn] })(fun: c.Expr[(LeftIn, RightIn) => Boolean]): c.Expr[DataSet[(LeftIn, RightIn)] with TwoInputHintable[LeftIn, RightIn, (LeftIn, RightIn)]] = {
+
+  def filter[LeftIn: c.WeakTypeTag, RightIn: c.WeakTypeTag](c: Context { type PrefixType = CrossDataSet[LeftIn, RightIn] })(fun: c.Expr[(LeftIn, RightIn) => Boolean]): c.Expr[DataSet[(LeftIn, RightIn)] with TwoInputHintable[LeftIn, RightIn, (LeftIn, RightIn)]] = {
     import c.universe._
 
     val slave = MacroContextHolder.newMacroHelper(c)
-    
+
     val (udtLeftIn, createUdtLeftIn) = slave.mkUdtClass[LeftIn]
     val (udtRightIn, createUdtRightIn) = slave.mkUdtClass[RightIn]
     val (udtOut, createUdtOut) = slave.mkUdtClass[(LeftIn, RightIn)]
-    
-    val contract = reify {
-      val helper: CrossDataSet[LeftIn, RightIn] = c.prefix.splice
 
-      val generatedStub = new CrossStub with Serializable {
-        val leftInputUDT = c.Expr[UDT[LeftIn]](createUdtLeftIn).splice
-        val rightInputUDT = c.Expr[UDT[RightIn]](createUdtRightIn).splice
-        val outputUDT = c.Expr[UDT[(LeftIn, RightIn)]](createUdtOut).splice
-        val udf: UDF2[LeftIn, RightIn, (LeftIn, RightIn)] = new UDF2(leftInputUDT, rightInputUDT, outputUDT)
-
-        private var leftDeserializer: UDTSerializer[LeftIn] = _
-        private var rightDeserializer: UDTSerializer[RightIn] = _
-        private var serializer: UDTSerializer[(LeftIn, RightIn)] = _
-        private var outputLength: Int = _
-
-        override def open(config: Configuration) = {
-          super.open(config)
-
-          this.leftDeserializer = udf.getLeftInputDeserializer
-          this.rightDeserializer = udf.getRightInputDeserializer
-          this.serializer = udf.getOutputSerializer
-          this.outputLength = udf.getOutputLength
-        }
-
+    val stub = reify {
+      implicit val leftInputUDT: UDT[LeftIn] = c.Expr[UDT[LeftIn]](createUdtLeftIn).splice
+      implicit val rightInputUDT: UDT[RightIn] = c.Expr[UDT[RightIn]](createUdtRightIn).splice
+      implicit val outputUDT: UDT[(LeftIn, RightIn)] = c.Expr[UDT[(LeftIn, RightIn)]](createUdtOut).splice
+      new CrossStubBase[LeftIn, RightIn, (LeftIn, RightIn)] {
         override def cross(leftRecord: PactRecord, rightRecord: PactRecord, out: Collector[PactRecord]) = {
           val left = leftDeserializer.deserializeRecyclingOn(leftRecord)
           val right = rightDeserializer.deserializeRecyclingOn(rightRecord)
@@ -257,7 +183,10 @@ object CrossMacros {
           }
         }
       }
-      
+    }
+    val contract = reify {
+      val helper: CrossDataSet[LeftIn, RightIn] = c.prefix.splice
+      val generatedStub = stub.splice
       val builder = CrossContract.builder(generatedStub).input1(helper.leftInput.contract).input2(helper.rightInput.contract)
       
       val ret = new CrossContract(builder) with TwoInputScalaContract[LeftIn, RightIn, (LeftIn, RightIn)] {

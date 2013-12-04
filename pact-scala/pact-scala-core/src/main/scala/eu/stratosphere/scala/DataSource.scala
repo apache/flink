@@ -14,7 +14,7 @@
 package eu.stratosphere.scala
 import java.net.URI
 import eu.stratosphere.scala.analysis._
-import eu.stratosphere.scala.operators.stubs._
+import eu.stratosphere.scala.stubs._
 import eu.stratosphere.pact.common.`type`.base._
 import eu.stratosphere.pact.common.`type`.base.parser._
 import eu.stratosphere.pact.generic.io.InputFormat
