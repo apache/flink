@@ -15,6 +15,8 @@
 
 package eu.stratosphere.nephele.managementgraph;
 
+import javax.xml.bind.DatatypeConverter;
+
 import eu.stratosphere.nephele.io.AbstractID;
 
 /**
@@ -25,4 +27,36 @@ import eu.stratosphere.nephele.io.AbstractID;
  * @author warneke
  */
 public final class ManagementGroupVertexID extends AbstractID {
+	
+	
+	/**
+	 * Constructs a new ManagementGroupVertexID
+	 * 
+	 */
+	public ManagementGroupVertexID() {
+		super();
+	}
+	
+	/**
+	 * Constructs a new ManagementGroupVertexID from the given bytes.
+	 * 
+	 * @param bytes
+	 *        the bytes to initialize the job ID with
+	 */
+	public ManagementGroupVertexID(final byte[] bytes) {
+		super(bytes);
+	}
+	
+	/**
+	 * Constructs a new job ID and initializes it with the given bytes.
+	 * 
+	 * @param bytes
+	 *        the bytes to initialize the new job ID with
+	 * @return the new job ID
+	 */
+	public static ManagementGroupVertexID fromHexString(final String hexString) {
+
+		return new ManagementGroupVertexID(DatatypeConverter.parseHexBinary(hexString));
+	}
+	
 }

@@ -278,6 +278,16 @@ public final class ManagementGroupVertex extends ManagementAttachment implements
 
 		return null;
 	}
+	
+	/**
+	 * Returns alle management vertices containted in this group
+	 * 
+	 * @return the management vertex with the given index or <code>null</code> if no such vertex exists
+	 */
+	public List<ManagementVertex> getGroupMembers() {
+
+		return this.groupMembers;
+	}
 
 	/**
 	 * Checks if this vertex is an input vertex in its stage, i.e. has either no
@@ -331,19 +341,6 @@ public final class ManagementGroupVertex extends ManagementAttachment implements
 	public int getStageNumber() {
 
 		return this.stage.getStageNumber();
-	}
-
-	/**
-	 * Returns the index at which the given management vertex is included in this group vertex.
-	 * 
-	 * @param managementVertex
-	 *        the management vertex to retrieve the index for
-	 * @return the index of the given management vertex or <code>-1</code> if the given vertex is not included in this
-	 *         group vertex
-	 */
-	public int getIndexOf(final ManagementVertex managementVertex) {
-
-		return this.groupMembers.indexOf(managementVertex);
 	}
 
 	/**

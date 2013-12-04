@@ -45,6 +45,8 @@ import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobgraph.JobStatus;
 import eu.stratosphere.nephele.jobgraph.JobVertexID;
+import eu.stratosphere.nephele.jobmanager.archive.ArchiveListener;
+import eu.stratosphere.nephele.jobmanager.archive.MemoryArchivist;
 import eu.stratosphere.nephele.managementgraph.ManagementGraph;
 import eu.stratosphere.nephele.managementgraph.ManagementVertex;
 import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
@@ -320,6 +322,8 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 	 * The timer used to trigger the cleanup routine.
 	 */
 	private final Timer timer;
+	
+	private List<ArchiveListener> archivists = new ArrayList<ArchiveListener>();
 
 	/**
 	 * Constructs a new event collector and starts
@@ -510,6 +514,7 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 					final AbstractEvent event = it2.next();
 					// If the event is older than TIMERTASKINTERVAL, remove it
 					if ((event.getTimestamp() + this.timerTaskInterval) < currentTime) {
+						archiveEvent(jobID, event);
 						it2.remove();
 					}
 				}
@@ -536,11 +541,14 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 
 				// Check time stamp of last job status update
 				if ((entry.getValue().getTimestamp() + this.timerTaskInterval) < currentTime) {
+					archiveJobevent(entry.getKey(), entry.getValue());
 					it.remove();
 					synchronized (this.recentManagementGraphs) {
+						archiveManagementGraph(entry.getKey(), this.recentManagementGraphs.get(entry.getKey()));
 						this.recentManagementGraphs.remove(entry.getValue());
 					}
 					synchronized (this.recentNetworkTopologies) {
+						archiveNetworkTopology(entry.getKey(), this.recentNetworkTopologies.get(entry.getKey()));
 						this.recentNetworkTopologies.remove(entry.getValue());
 					}
 				}
@@ -636,6 +644,37 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 			}
 
 			vertex.setExecutionState(executionStateChangeEvent.getNewExecutionState());
+		}
+	}
+	
+	/**
+	 * Register Archivist to archive 
+	 */
+	public void registerArchivist(ArchiveListener al) {
+		this.archivists.add(al);
+	}
+	
+	private void archiveEvent(JobID jobId, AbstractEvent event) {
+		for(ArchiveListener al : archivists) {
+			al.archiveEvent(jobId, event);
+		}
+	}
+	
+	private void archiveJobevent(JobID jobId, RecentJobEvent event) {
+		for(ArchiveListener al : archivists) {
+			al.archiveJobevent(jobId, event);
+		}
+	}
+	
+	private void archiveManagementGraph(JobID jobId, ManagementGraph graph) {
+		for(ArchiveListener al : archivists) {
+			al.archiveManagementGraph(jobId, graph);
+		}
+	}
+	
+	private void archiveNetworkTopology(JobID jobId, NetworkTopology topology) {
+		for(ArchiveListener al : archivists) {
+			al.archiveNetworkTopology(jobId, topology);
 		}
 	}
 }

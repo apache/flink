@@ -15,6 +15,8 @@
 
 package eu.stratosphere.nephele.jobgraph;
 
+import javax.xml.bind.DatatypeConverter;
+
 import eu.stratosphere.nephele.io.AbstractID;
 
 /**
@@ -78,5 +80,17 @@ public final class JobID extends AbstractID {
 	public static JobID fromByteArray(final byte[] bytes) {
 
 		return new JobID(bytes);
+	}
+	
+	/**
+	 * Constructs a new job ID and initializes it with the given bytes.
+	 * 
+	 * @param bytes
+	 *        the bytes to initialize the new job ID with
+	 * @return the new job ID
+	 */
+	public static JobID fromHexString(final String hexString) {
+
+		return new JobID(DatatypeConverter.parseHexBinary(hexString));
 	}
 }

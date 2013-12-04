@@ -101,6 +101,8 @@ import eu.stratosphere.nephele.ipc.Server;
 import eu.stratosphere.nephele.jobgraph.AbstractJobVertex;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.jobmanager.archive.ArchiveListener;
+import eu.stratosphere.nephele.jobmanager.archive.MemoryArchivist;
 import eu.stratosphere.nephele.jobmanager.scheduler.AbstractScheduler;
 import eu.stratosphere.nephele.jobmanager.scheduler.SchedulingException;
 import eu.stratosphere.nephele.jobmanager.splitassigner.InputSplitManager;
@@ -151,6 +153,8 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	private final JobManagerProfiler profiler;
 
 	private final EventCollector eventCollector;
+	
+	private final ArchiveListener archive;
 
 	private final InputSplitManager inputSplitManager;
 
@@ -207,6 +211,16 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 		// Load the job progress collector
 		this.eventCollector = new EventCollector(this.recommendedClientPollingInterval);
+		
+		// Register simple job archive
+		int archived_items = GlobalConfiguration.getInteger(
+				ConfigConstants.JOB_MANAGER_WEB_ARCHIVE_COUNT, ConfigConstants.DEFAULT_JOB_MANAGER_WEB_ARCHIVE_COUNT);
+		if(archived_items > 0) {
+			this.archive = new MemoryArchivist(archived_items);
+			this.eventCollector.registerArchivist(archive);
+		}
+		else
+			this.archive = null;
 
 		// Load the input split manager
 		this.inputSplitManager = new InputSplitManager();
@@ -869,14 +883,21 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	}
 
 	/**
+	 * Returns current ManagementGraph from eventCollector and, if not current, from archive
+	 * 
 	 * {@inheritDoc}
 	 */
 	@Override
 	public ManagementGraph getManagementGraph(final JobID jobID) throws IOException {
 
-		final ManagementGraph mg = this.eventCollector.getManagementGraph(jobID);
+		ManagementGraph mg = this.eventCollector.getManagementGraph(jobID);
 		if (mg == null) {
-			throw new IOException("Cannot find job with ID " + jobID);
+			if(this.archive != null)
+				mg = this.archive.getManagementGraph(jobID);
+			
+			if (mg == null) {
+				throw new IOException("Cannot find job with ID " + jobID);
+			}
 		}
 
 		return mg;
@@ -1236,6 +1257,25 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		} catch (Exception e) {
 			LOG.error("Cannot instantiate info server: " + StringUtils.stringifyException(e));
 		}
+	}
+	
+	
+	// TODO Add to RPC?
+	public List<RecentJobEvent> getOldJobs() throws IOException {
+
+		//final List<RecentJobEvent> eventList = new SerializableArrayList<RecentJobEvent>();
+
+		if (this.archive == null) {
+			throw new IOException("No instance of the event collector found");
+		}
+
+		//this.eventCollector.getRecentJobs(eventList);
+
+		return this.archive.getJobs();
+	}
+	
+	public ArchiveListener getArchive() {
+		return this.archive;
 	}
 
 	public int getNumberOfTaskTrackers() {

@@ -102,6 +102,11 @@ public final class ConfigConstants {
 	 * The key for the config parameter defining the port to the htaccess file protecting the web server.
 	 */
 	public static final String JOB_MANAGER_WEB_ACCESS_FILE_KEY = "jobmanager.web.access";
+	
+	/**
+	 * The key for the config parameter defining the number of archived jobs for the jobmanager
+	 */
+	public static final String JOB_MANAGER_WEB_ARCHIVE_COUNT = "jobmanager.web.archive";
 
 	// ------------------------------------------------------------------------
 	// Default Values
@@ -160,6 +165,11 @@ public final class ConfigConstants {
 	 * The default path of the directory for info server containing the web documents.
 	 */
 	public static final String DEFAULT_JOB_MANAGER_WEB_ROOT_PATH = "./resources/web-docs-infoserver/";
+	
+	/**
+	 * The default number of archived jobs for the jobmanager
+	 */
+	public static final int DEFAULT_JOB_MANAGER_WEB_ARCHIVE_COUNT = 20;
 
 	// ----------------------------- Instances --------------------------------
 
