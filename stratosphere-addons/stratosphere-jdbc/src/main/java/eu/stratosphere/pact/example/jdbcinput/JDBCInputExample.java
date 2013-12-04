@@ -1,5 +1,9 @@
 package eu.stratosphere.pact.example.jdbcinput;
 
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.Statement;
+
 import eu.stratosphere.pact.client.LocalExecutor;
 import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.GenericDataSource;
@@ -13,27 +17,19 @@ import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
 
 /**
- * DB Schema
- * ID | title | author | price | qty / int | varchar | varchar | float | int
+ * Stand-alone example for the JDBC connector.
+ * 
+ * NOTE: To run this example, you need the apache derby code in your classpath.
+ *       See the Maven file (pom.xml) for a reference to the derby dependency. You can simply
+ *       Change the scope of the Maven dependency from test to compile.
  */
 public class JDBCInputExample implements PlanAssembler, PlanAssemblerDescription {
 
-	public static void execute(Plan toExecute) throws Exception {
-		LocalExecutor executor = new LocalExecutor();
-		executor.start();
-		long runtime = executor.executePlan(toExecute);
-		System.out.println("runtime:  " + runtime);
-		executor.stop();
-	}
-
 	@Override
-	public Plan getPlan(String ... args) {
-		// String url = args [0];
-		String url = "jdbc:mysql://127.0.0.1:3306/ebookshop?user=root&password=1111";
-		// String query = args[1];
-		String query = "select * from books;";
-		// String output = args[2];
-		String output = "file://c:/TEST/output.txt";
+	public Plan getPlan(String... args) {
+		String url = args.length > 0 ? args[0] : "jdbc:derby:memory:ebookshop";
+		String query = args.length > 1 ? args[1] : "select * from books";
+		String output = args.length > 2 ? args[2] : "file:///tmp";
 
 		/*
 		 * In this example we use the constructor where the url contains all the settings that are needed.
@@ -41,7 +37,7 @@ public class JDBCInputExample implements PlanAssembler, PlanAssemblerDescription
 		 * You also could set the settings to the source-instance.
 		 */
 		GenericDataSource<JDBCInputFormat> source = new GenericDataSource<JDBCInputFormat>(
-				new JDBCInputFormat("com.mysql.jdbc.Driver", url, query), "Data Source");
+			new JDBCInputFormat("org.apache.derby.jdbc.EmbeddedDriver", url, query), "Data Source");
 
 		FileDataSink sink = new FileDataSink(new RecordOutputFormat(), output, "Data Output");
 		RecordOutputFormat.configureRecordFormat(sink)
@@ -59,14 +55,72 @@ public class JDBCInputExample implements PlanAssembler, PlanAssemblerDescription
 
 	@Override
 	public String getDescription() {
-		return "Parameter: [URL] [Query] [Output File]"; // TODO
+		return "Parameter: [URL] [Query] [Output File]";
 	}
 
-	// You can run this using:
-	// mvn exec:exec -Dexec.executable="java" -Dexec.args="-cp %classpath eu.stratosphere.quickstart.RunJob <args>"
+	/*
+	 * To run this example, you need the apache derby code in your classpath!
+	 */
 	public static void main(String[] args) throws Exception {
+		
+		prepareTestDb();
+		
 		JDBCInputExample tut = new JDBCInputExample();
-		Plan toExecute = tut.getPlan(args);
-		execute(toExecute);
+		long runtime = LocalExecutor.execute(tut, args);
+		System.out.println("runtime:  " + runtime);
+		
+		System.exit(0);
+	}
+
+	private static void prepareTestDb() throws Exception {
+		String dbURL = "jdbc:derby:memory:ebookshop;create=true";
+		Class.forName("org.apache.derby.jdbc.EmbeddedDriver");
+		Connection conn = DriverManager.getConnection(dbURL);
+
+		StringBuilder sqlQueryBuilder = new StringBuilder("CREATE TABLE books (");
+		sqlQueryBuilder.append("id INT NOT NULL DEFAULT 0,");
+		sqlQueryBuilder.append("title VARCHAR(50) DEFAULT NULL,");
+		sqlQueryBuilder.append("author VARCHAR(50) DEFAULT NULL,");
+		sqlQueryBuilder.append("price FLOAT DEFAULT NULL,");
+		sqlQueryBuilder.append("qty INT DEFAULT NULL,");
+		sqlQueryBuilder.append("PRIMARY KEY (id))");
+
+		Statement stat = conn.createStatement();
+		stat.executeUpdate(sqlQueryBuilder.toString());
+		stat.close();
+
+		sqlQueryBuilder = new StringBuilder("CREATE TABLE bookscontent (");
+		sqlQueryBuilder.append("id INT NOT NULL DEFAULT 0,");
+		sqlQueryBuilder.append("title VARCHAR(50) DEFAULT NULL,");
+		sqlQueryBuilder.append("content BLOB(10K) DEFAULT NULL,");
+		sqlQueryBuilder.append("PRIMARY KEY (id))");
+
+		stat = conn.createStatement();
+		stat.executeUpdate(sqlQueryBuilder.toString());
+		stat.close();
+
+		sqlQueryBuilder = new StringBuilder("INSERT INTO books (id, title, author, price, qty) VALUES ");
+		sqlQueryBuilder.append("(1001, 'Java for dummies', 'Tan Ah Teck', 11.11, 11),");
+		sqlQueryBuilder.append("(1002, 'More Java for dummies', 'Tan Ah Teck', 22.22, 22),");
+		sqlQueryBuilder.append("(1003, 'More Java for more dummies', 'Mohammad Ali', 33.33, 33),");
+		sqlQueryBuilder.append("(1004, 'A Cup of Java', 'Kumar', 44.44, 44),");
+		sqlQueryBuilder.append("(1005, 'A Teaspoon of Java', 'Kevin Jones', 55.55, 55)");
+
+		stat = conn.createStatement();
+		stat.execute(sqlQueryBuilder.toString());
+		stat.close();
+
+		sqlQueryBuilder = new StringBuilder("INSERT INTO bookscontent (id, title, content) VALUES ");
+		sqlQueryBuilder.append("(1001, 'Java for dummies', CAST(X'7f454c4602' AS BLOB)),");
+		sqlQueryBuilder.append("(1002, 'More Java for dummies', CAST(X'7f454c4602' AS BLOB)),");
+		sqlQueryBuilder.append("(1003, 'More Java for more dummies', CAST(X'7f454c4602' AS BLOB)),");
+		sqlQueryBuilder.append("(1004, 'A Cup of Java', CAST(X'7f454c4602' AS BLOB)),");
+		sqlQueryBuilder.append("(1005, 'A Teaspoon of Java', CAST(X'7f454c4602' AS BLOB))");
+
+		stat = conn.createStatement();
+		stat.execute(sqlQueryBuilder.toString());
+		stat.close();
+
+		conn.close();
 	}
 }
