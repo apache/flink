@@ -370,6 +370,10 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	 */
 	@Override
 	public FileInputSplit[] createInputSplits(int minNumSplits) throws IOException {
+		if (minNumSplits < 1) {
+			throw new IllegalArgumentException("Number of input splits has to be at least 1.");
+		}
+		
 		// take the desired number of splits into account
 		minNumSplits = Math.max(minNumSplits, this.numSplits);
 		

@@ -61,9 +61,9 @@ public class DataSourceNode extends OptimizerNode {
 		}
 		
 		if (UnsplittableInput.class.isAssignableFrom(pactContract.getUserCodeWrapper().getUserCodeClass())) {
-			this.unsplittable = true;
 			setDegreeOfParallelism(1);
 			setSubtasksPerInstance(1);
+			this.unsplittable = true;
 		} else {
 			this.unsplittable = false;
 		}
