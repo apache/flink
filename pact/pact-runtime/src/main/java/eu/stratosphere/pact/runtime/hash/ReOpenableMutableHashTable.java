@@ -56,7 +56,7 @@ public class ReOpenableMutableHashTable<BT, PT> extends MutableHashTable<BT, PT>
 	}
 
 	public void reopenProbe(MutableObjectIterator<PT> probeInput) throws IOException {
-		if (closed) {
+		if (this.closed.get()) {
 			throw new IllegalStateException("Cannot open probe input because hash join has already been closed");
 		}
 		partitionsBeingBuilt.clear();
