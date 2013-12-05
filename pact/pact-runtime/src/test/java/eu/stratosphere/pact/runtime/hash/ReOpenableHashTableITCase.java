@@ -60,7 +60,7 @@ public class ReOpenableHashTableITCase {
 	private static final long SEED1 = 561349061987311L;
 	private static final long SEED2 = 231434613412342L;
 	
-	private static final int NUM_PROBES = 5; // number of reopenings of hash join
+	private static final int NUM_PROBES = 3; // number of reopenings of hash join
 	
 	private final AbstractTask parentTask = new DummyInvokable();
 
