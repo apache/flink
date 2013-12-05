@@ -75,6 +75,7 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ByteBufferedChannelManager;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.InsufficientResourcesException;
+import eu.stratosphere.nephele.taskmanager.runtime.ExecutorThreadFactory;
 import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTask;
 import eu.stratosphere.nephele.util.SerializableArrayList;
 import eu.stratosphere.nephele.util.StringUtils;
@@ -96,7 +97,7 @@ public class TaskManager implements TaskOperationProtocol {
 
 	private final ChannelLookupProtocol lookupService;
 
-	private final ExecutorService executorService = Executors.newCachedThreadPool();
+	private final ExecutorService executorService = Executors.newCachedThreadPool(ExecutorThreadFactory.INSTANCE);
 
 	private static final int handlerCount = 1;
 

@@ -124,6 +124,7 @@ import eu.stratosphere.nephele.taskmanager.TaskKillResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ConnectionInfoLookupResponse;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.RemoteReceiver;
+import eu.stratosphere.nephele.taskmanager.runtime.ExecutorThreadFactory;
 import eu.stratosphere.nephele.topology.NetworkTopology;
 import eu.stratosphere.nephele.types.IntegerRecord;
 import eu.stratosphere.nephele.types.StringRecord;
@@ -166,7 +167,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 	private final int recommendedClientPollingInterval;
 
-	private final ExecutorService executorService = Executors.newCachedThreadPool();
+	private final ExecutorService executorService = Executors.newCachedThreadPool(ExecutorThreadFactory.INSTANCE);
 
 	private final static int SLEEPINTERVAL = 1000;
 

@@ -50,6 +50,7 @@ import eu.stratosphere.nephele.jobgraph.JobEdge;
 import eu.stratosphere.nephele.jobgraph.JobFileOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.taskmanager.runtime.ExecutorThreadFactory;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.IllegalConfigurationException;
@@ -103,7 +104,7 @@ public class ExecutionGraph implements ExecutionListener {
 	/**
 	 * The executor service to asynchronously perform update operations to this graph.
 	 */
-	private final ExecutorService executorService = Executors.newSingleThreadExecutor();
+	private final ExecutorService executorService = Executors.newSingleThreadExecutor(ExecutorThreadFactory.INSTANCE);
 
 	/**
 	 * Index to the current execution stage.
