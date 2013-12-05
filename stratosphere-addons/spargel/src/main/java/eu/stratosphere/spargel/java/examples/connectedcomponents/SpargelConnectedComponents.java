@@ -12,7 +12,7 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.pact.vertexcentric.examples.cc;
+package eu.stratosphere.spargel.java.examples.connectedcomponents;
 
 import java.util.Iterator;
 
@@ -25,24 +25,23 @@ import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
 import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.common.type.base.PactNull;
-import eu.stratosphere.pact.vertexcentric.MessagingFunction;
-import eu.stratosphere.pact.vertexcentric.VertexCentricIteration;
-import eu.stratosphere.pact.vertexcentric.VertexUpdateFunction;
+import eu.stratosphere.spargel.java.MessagingFunction;
+import eu.stratosphere.spargel.java.SpargelIteration;
+import eu.stratosphere.spargel.java.VertexUpdateFunction;
 
-
-public class VertexCentricCC implements PlanAssembler, PlanAssemblerDescription {
+public class SpargelConnectedComponents implements PlanAssembler, PlanAssemblerDescription {
 	
 	public static void main(String[] args) throws Exception {
-		LocalExecutor.execute(new VertexCentricCC(), args);
+		LocalExecutor.execute(new SpargelConnectedComponents(), args);
 	}
 	
 	@Override
 	public Plan getPlan(String... args) {
 		final int dop = args.length > 0 ? Integer.parseInt(args[0]) : 1;
-		final String verticesPath = args.length > 1 ? args[1] : "file:///data/demodata/cc/vertices";
-		final String edgesPath = args.length > 2 ? args[2] : "file:///data/demodata/cc/edges";
-		final String resultPath = args.length > 3 ? args[3] : "file:///tmp";
-		final int maxIterations = args.length > 4 ? Integer.parseInt(args[4]) : 10;
+		final String verticesPath = args.length > 1 ? args[1] : "";
+		final String edgesPath = args.length > 2 ? args[2] : "";
+		final String resultPath = args.length > 3 ? args[3] : "";
+		final int maxIterations = args.length > 4 ? Integer.parseInt(args[4]) : 1;
 		
 		FileDataSource initialVertices = new FileDataSource(DuplicateLongInputFormat.class, verticesPath, "Vertices");
 		FileDataSource edges = new FileDataSource(LongLongInputFormat.class, edgesPath, "Edges");
@@ -54,13 +53,13 @@ public class VertexCentricCC implements PlanAssembler, PlanAssemblerDescription 
 			.field(PactLong.class, 0)
 			.field(PactLong.class, 1);
 		
-		VertexCentricIteration iteration = new VertexCentricIteration(
-			new CCMessager(), new CCUpdater(), "Connected Components Iteration.");
+		SpargelIteration iteration = new SpargelIteration(
+			new CCMessager(), new CCUpdater(), "Connected Components (Spargel API)");
 		iteration.setVertexInput(initialVertices);
 		iteration.setEdgesInput(edges);
 		iteration.setNumberOfIterations(maxIterations);
 		result.setInput(iteration.getOutput());
-		
+
 		Plan p = new Plan(result);
 		p.setDefaultParallelism(dop);
 		return p;
@@ -92,12 +91,12 @@ public class VertexCentricCC implements PlanAssembler, PlanAssemblerDescription 
 		@Override
 		public void sendMessages(PactLong vertexId, PactLong componentId) {
 			sendMessageToAllTargets(componentId);
-		}
+        }
+
 	}
 
 	@Override
 	public String getDescription() {
 		return "<dop> <vertices> <edges> <result> <maxIterations>";
 	}
-
 }

@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2012 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -12,40 +12,30 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.pact.vertexcentric.util;
 
-import java.util.Iterator;
+package eu.stratosphere.spargel.java.examples.connectedcomponents;
 
+import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.common.type.base.PactLong;
+import eu.stratosphere.pact.common.type.base.parser.DecimalTextLongParser;
 
-
-public final class MessageIterator<Message extends Value> implements Iterator<Message> {
-
-	private final Message instance;
-	private Iterator<PactRecord> source;
+public class DuplicateLongInputFormat extends TextInputFormat {
 	
-	public MessageIterator(Message instance) {
-		this.instance = instance;
-	}
+	private static final long serialVersionUID = 1L;
 	
-	public final void setSource(Iterator<PactRecord> source) {
-		this.source = source;
-	}
+	private final PactLong l1 = new PactLong();
+	private final PactLong l2 = new PactLong();
 	
 	@Override
-	public final boolean hasNext() {
-		return this.source.hasNext();
-	}
-	
-	@Override
-	public final Message next() {
-		this.source.next().getFieldInto(1, this.instance);
-		return this.instance;
-	}
+	public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes) {
+		final long value = DecimalTextLongParser.parseField(bytes, offset, numBytes, (char) 0xffff);
 
-	@Override
-	public final void remove() {
-		throw new UnsupportedOperationException();
+		this.l1.setValue(value);
+		this.l2.setValue(value);
+		
+		target.setField(0, this.l1);
+		target.setField(1, this.l2);
+		return true;
 	}
 }

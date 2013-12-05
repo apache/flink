@@ -27,11 +27,9 @@
 	<modules>
 		<module>pact-array-datamodel</module>
 		<!-- To come here: hbase-simple, jdbc, sequenceFile, avro -->
-                <module>stratosphere-jdbc</module>
-                <module>pregelsphere</module>
+		<module>stratosphere-jdbc</module>
+		<module>spargel</module>
 	</modules>
-
-
 	
 	<!-- See main pom.xml for explanation of profiles -->
 	<profiles>

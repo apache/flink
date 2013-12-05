@@ -12,7 +12,7 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.pact.vertexcentric;
+package eu.stratosphere.spargel.java;
 
 import java.io.IOException;
 import java.util.Iterator;
@@ -29,10 +29,10 @@ import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.common.util.ReflectionUtil;
 import eu.stratosphere.pact.generic.contract.Contract;
 import eu.stratosphere.pact.generic.contract.WorksetIteration;
-import eu.stratosphere.pact.vertexcentric.util.MessageIterator;
+import eu.stratosphere.spargel.java.util.MessageIterator;
 
 
-public class VertexCentricIteration {
+public class SpargelIteration {
 	
 	private static final String DEFAULT_NAME = "<unnamed vertex-centric iteration>";
 	
@@ -50,16 +50,16 @@ public class VertexCentricIteration {
 	// ----------------------------------------------------------------------------------
 	
 	public <VertexKey extends Key, VertexValue extends Value, Message extends Value, EdgeValue extends Value>
-		VertexCentricIteration(MessagingFunction<VertexKey, VertexValue, Message, EdgeValue> mf, 
-							   VertexUpdateFunction<VertexKey, VertexValue, Message> uf)
+    SpargelIteration(MessagingFunction<VertexKey, VertexValue, Message, EdgeValue> mf,
+                     VertexUpdateFunction<VertexKey, VertexValue, Message> uf)
 	{
 		this(mf, uf, DEFAULT_NAME);
 	}
 	
 	public <VertexKey extends Key, VertexValue extends Value, Message extends Value, EdgeValue extends Value>
-		VertexCentricIteration(MessagingFunction<VertexKey, VertexValue, Message, EdgeValue> mf, 
-							   VertexUpdateFunction<VertexKey, VertexValue, Message> uf,
-							   String name)
+    SpargelIteration(MessagingFunction<VertexKey, VertexValue, Message, EdgeValue> mf,
+                     VertexUpdateFunction<VertexKey, VertexValue, Message> uf,
+                     String name)
 	{
 		// get the types
 		this.vertexKey = ReflectionUtil.getTemplateType1(mf.getClass());

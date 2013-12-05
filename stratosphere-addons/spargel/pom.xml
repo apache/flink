@@ -11,8 +11,8 @@
 		<relativePath>..</relativePath>
 	</parent>
 	
-	<artifactId>pregelsphere</artifactId>
-	<name>pregelsphere</name>
+	<artifactId>spargel</artifactId>
+	<name>spargel</name>
 
 	<packaging>jar</packaging>
 
@@ -28,5 +28,4 @@
 			<version>${project.version}</version>
 		</dependency>
 	</dependencies>
-	
 </project>
