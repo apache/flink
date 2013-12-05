@@ -37,6 +37,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FilenameFilter;
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collections;
 import java.util.HashMap;
@@ -93,6 +94,7 @@ public class Client {
 	 * Command Line argument options
 	 */
 	private static final Option VERBOSE = new Option("v","verbose",false, "Verbose debug mode");
+	private static final Option GEN_CONF = new Option("g","generateConf",false, "Place default configuration file in current directory");
 	private static final Option STRATOSPHERE_CONF = new Option("c","conf",true, "Path to Stratosphere configuration file");
 	private static final Option STRATOSPHERE_JAR = new Option("j","jar",true, "Path to Stratosphere jar file");
 	private static final Option JM_MEMORY = new Option("jm","jobManagerMemory",true, "Memory for JobManager Container [in MB]");
@@ -149,6 +151,7 @@ public class Client {
 			formatter.setSyntaxPrefix("   Optional");
 			Options opt = new Options();
 			opt.addOption(VERBOSE);
+			opt.addOption(GEN_CONF);
 			opt.addOption(STRATOSPHERE_CONF);
 			opt.addOption(STRATOSPHERE_JAR);
 			opt.addOption(JM_MEMORY);
@@ -176,6 +179,7 @@ public class Client {
 		final int taskManagerCount = Integer.valueOf(cmd.getOptionValue(CONTAINER.getOpt()));
 		
 		
+		
 		// Jar Path
 		Path localJarPath;
 		if(cmd.hasOption(STRATOSPHERE_JAR.getOpt())) {
@@ -186,6 +190,13 @@ public class Client {
 			localJarPath = new Path(userPath);
 		} else {
 			localJarPath = new Path("file://"+Client.class.getProtectionDomain().getCodeSource().getLocation().getPath());
+		}
+		
+		if(cmd.hasOption(GEN_CONF.getOpt())) {
+			LOG.info("Placing default configuration in current directory");
+			File outFile = generateDefaultConf(localJarPath);
+			LOG.info("File written to "+outFile.getAbsolutePath());
+			System.exit(0);
 		}
 		
 		// Conf Path 
@@ -208,33 +219,7 @@ public class Client {
 			if(candidates == null || candidates.length == 0) {
 				System.out.println("No configuration file has been found in current directory.\n"
 						+ "Copying default.");
-				JarFile jar = null;
-				try {
-					jar = new JarFile(localJarPath.toUri().getPath());
-				} catch(FileNotFoundException fne) {
-					LOG.fatal("Unable to access jar file. Specify jar file or configuration file.", fne);
-					System.exit(1);
-				}
-				InputStream confStream = jar.getInputStream(jar.getEntry("stratosphere-conf.yaml"));
-				
-				if(confStream == null) {
-					LOG.warn("Given jar file does not contain yaml conf.");
-					confStream = this.getClass().getResourceAsStream("stratosphere-conf.yaml"); 
-					if(confStream == null) {
-						throw new RuntimeException("Unable to find stratosphere-conf in jar file");
-					}
-				}
-				File outFile = new File("stratosphere-conf.yaml");
-				if(outFile.exists()) {
-					throw new RuntimeException("File unexpectedly exists");
-				}
-				FileOutputStream outputStream = new FileOutputStream(outFile);
-				int read = 0;
-				byte[] bytes = new byte[1024];
-				while ((read = confStream.read(bytes)) != -1) {
-					outputStream.write(bytes, 0, read);
-				}
-				confStream.close(); outputStream.close(); jar.close();
+				File outFile = generateDefaultConf(localJarPath);
 				confPath = new Path(outFile.toURI());
 			} else {
 				if(candidates.length > 1) {
@@ -384,6 +369,38 @@ public class Client {
 
 		System.out.println("Application " + appId + " finished with"
 				+ " state " + appState + " at " + appReport.getFinishTime());
+	}
+
+	private File generateDefaultConf(Path localJarPath) throws IOException,
+			FileNotFoundException {
+		JarFile jar = null;
+		try {
+			jar = new JarFile(localJarPath.toUri().getPath());
+		} catch(FileNotFoundException fne) {
+			LOG.fatal("Unable to access jar file. Specify jar file or configuration file.", fne);
+			System.exit(1);
+		}
+		InputStream confStream = jar.getInputStream(jar.getEntry("stratosphere-conf.yaml"));
+		
+		if(confStream == null) {
+			LOG.warn("Given jar file does not contain yaml conf.");
+			confStream = this.getClass().getResourceAsStream("stratosphere-conf.yaml"); 
+			if(confStream == null) {
+				throw new RuntimeException("Unable to find stratosphere-conf in jar file");
+			}
+		}
+		File outFile = new File("stratosphere-conf.yaml");
+		if(outFile.exists()) {
+			throw new RuntimeException("File unexpectedly exists");
+		}
+		FileOutputStream outputStream = new FileOutputStream(outFile);
+		int read = 0;
+		byte[] bytes = new byte[1024];
+		while ((read = confStream.read(bytes)) != -1) {
+			outputStream.write(bytes, 0, read);
+		}
+		confStream.close(); outputStream.close(); jar.close();
+		return outFile;
 	}
 
 	public static void main(String[] args) throws Exception {
