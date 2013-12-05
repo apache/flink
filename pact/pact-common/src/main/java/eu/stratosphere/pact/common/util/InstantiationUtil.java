@@ -197,7 +197,7 @@ public class InstantiationUtil {
 		}
 	}
 	
-	public static Object readObjectFormConfig(Configuration config, String key, ClassLoader cl) throws IOException, ClassNotFoundException {
+	public static Object readObjectFromConfig(Configuration config, String key, ClassLoader cl) throws IOException, ClassNotFoundException {
 		byte[] bytes = config.getBytes(key, null);
 		if (bytes == null) {
 			return null;

@@ -256,7 +256,7 @@ public class TaskConfig {
 	public <T> UserCodeWrapper<T> getStubWrapper(ClassLoader cl)
 	{
 		try {
-			return (UserCodeWrapper<T>) InstantiationUtil.readObjectFormConfig(this.config, STUB_OBJECT, cl);
+			return (UserCodeWrapper<T>) InstantiationUtil.readObjectFromConfig(this.config, STUB_OBJECT, cl);
 		} catch (ClassNotFoundException e) {
 			throw new CorruptConfigurationException("Could not read the user code wrapper: " + e);
 		} catch (IOException e) {
