@@ -208,6 +208,7 @@ public class ApplicationMaster {
 		
 		// Obtain allocated containers and launch
 		int allocatedContainers = 0;
+		int completedContainers = 0;
 		while (allocatedContainers < taskManagerCount) {
 			AllocateResponse response = rmClient.allocate(0);
 			for (Container container : response.getAllocatedContainers()) {
@@ -243,17 +244,21 @@ public class ApplicationMaster {
 				LOG.info("Launching container " + allocatedContainers);
 				nmClient.startContainer(container, ctx);
 			}
+			for (ContainerStatus status : response.getCompletedContainersStatuses()) {
+				++completedContainers;
+				LOG.info("Completed container "+status.getContainerId()+". Total Completed:" + completedContainers);
+			}
 			Thread.sleep(100);
 		}
 
 		// Now wait for containers to complete
-		int completedContainers = 0;
+		
 		while (completedContainers < taskManagerCount) {
 			AllocateResponse response = rmClient.allocate(completedContainers
 					/ taskManagerCount);
 			for (ContainerStatus status : response.getCompletedContainersStatuses()) {
 				++completedContainers;
-				System.out.println("Completed container " + completedContainers);
+				LOG.info("Completed container "+status.getContainerId()+". Total Completed:" + completedContainers);
 			}
 			Thread.sleep(5000);
 		}

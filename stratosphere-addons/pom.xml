@@ -57,6 +57,17 @@
 			</activation>
 			<modules>
 				<module>pact-hbase</module>
+			</modules>
+		</profile>
+		<profile>
+			<id>include-yarn</id>
+			<activation>
+				<property>
+					<!-- Please do not remove the 'hadoop1' comment. See ./tools/generate_specific_pom.sh -->
+					<!--hadoop2--><name>hadoop.profile</name><value>2</value>
+				</property>
+			</activation>
+			<modules>
 				<module>stratosphere-yarn</module>
 			</modules>
 		</profile>

@@ -41,6 +41,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.jar.JarFile;
 
@@ -58,15 +60,20 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
+import org.apache.hadoop.yarn.api.protocolrecords.GetNewApplicationResponse;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.ApplicationSubmissionContext;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.LocalResource;
+import org.apache.hadoop.yarn.api.records.NodeReport;
+import org.apache.hadoop.yarn.api.records.QueueInfo;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
+import org.apache.hadoop.yarn.api.records.YarnClusterMetrics;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.client.api.YarnClientApplication;
+import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.util.Records;
 import org.apache.log4j.ConsoleAppender;
 import org.apache.log4j.Level;
@@ -93,8 +100,11 @@ public class Client {
 	/**
 	 * Command Line argument options
 	 */
+	private static final Option QUERY = new Option("q","query",false, "Display avilable YARN resources (memory, cores)");
+	// --- or ---
 	private static final Option VERBOSE = new Option("v","verbose",false, "Verbose debug mode");
 	private static final Option GEN_CONF = new Option("g","generateConf",false, "Place default configuration file in current directory");
+	private static final Option QUEUE = new Option("qu","queue",true, "Specify YARN queue.");
 	private static final Option STRATOSPHERE_CONF = new Option("c","conf",true, "Path to Stratosphere configuration file");
 	private static final Option STRATOSPHERE_JAR = new Option("j","jar",true, "Path to Stratosphere jar file");
 	private static final Option JM_MEMORY = new Option("jm","jobManagerMemory",true, "Memory for JobManager Container [in MB]");
@@ -103,9 +113,6 @@ public class Client {
 	private static final Option CONTAINER = new Option("n","container",true, "Number of Yarn container to allocate (=Number of"
 			+ " TaskTrackers)");
 	
-	static {
-		CONTAINER.setRequired(true);
-	}
 	/**
 	 * Constants
 	 */
@@ -131,33 +138,17 @@ public class Client {
 		options.addOption(TM_MEMORY);
 		options.addOption(TM_CORES);
 		options.addOption(CONTAINER);
-		
+		options.addOption(GEN_CONF);
+		options.addOption(QUEUE);
+		options.addOption(QUERY);
 		
 		CommandLineParser parser = new PosixParser();
 		CommandLine cmd = null;
 		try {
 			cmd = parser.parse( options, args);
 		} catch(MissingOptionException moe) {
-			System.err.println(moe.getMessage());
-			System.out.println("Usage:");
-			HelpFormatter formatter = new HelpFormatter();
-			formatter.setWidth(200);
-			formatter.setLeftPadding(5);
-			formatter.setSyntaxPrefix("   Required");
-			Options req = new Options();
-			req.addOption(CONTAINER);
-			formatter.printHelp(" ", req);
-			
-			formatter.setSyntaxPrefix("   Optional");
-			Options opt = new Options();
-			opt.addOption(VERBOSE);
-			opt.addOption(GEN_CONF);
-			opt.addOption(STRATOSPHERE_CONF);
-			opt.addOption(STRATOSPHERE_JAR);
-			opt.addOption(JM_MEMORY);
-			opt.addOption(TM_MEMORY);
-			opt.addOption(TM_CORES);
-			formatter.printHelp(" ", opt);
+			System.out.println(moe.getMessage());
+			printUsage();
 			System.exit(1);
 		}
 		
@@ -174,10 +165,6 @@ public class Client {
 				root.setLevel(Level.INFO);
 			}
 		}
-		
-		// TM Count
-		final int taskManagerCount = Integer.valueOf(cmd.getOptionValue(CONTAINER.getOpt()));
-		
 		
 		
 		// Jar Path
@@ -231,6 +218,11 @@ public class Client {
 				} 
 			}
 		}
+		// queue
+		String queue = "default";
+		if(cmd.hasOption(QUERY.getOpt())) {
+			queue = cmd.getOptionValue(QUERY.getOpt());
+		}
 		
 		// JobManager Memory
 		int jmMemory = 512;
@@ -255,15 +247,6 @@ public class Client {
 			LOG.warn("Unable to find job manager port in configuration!");
 			jmPort = ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT;
 		}
-
-		System.out.println("Using values:");
-		System.out.println("\tContainer Count = "+taskManagerCount);
-		System.out.println("\tJar Path = "+localJarPath.toUri().getPath());
-		System.out.println("\tConfiguration file = "+confPath.toUri().getPath());
-		System.out.println("\tJobManager memory = "+jmMemory);
-		System.out.println("\tTaskManager memory = "+tmMemory);
-		System.out.println("\tTaskManager cores = "+tmCores);
-
 		conf = Utils.initializeYarnConfiguration();
 		
 		// intialize HDFS
@@ -274,12 +257,48 @@ public class Client {
 	    
 		
 	    // Create yarnClient
-		YarnClient yarnClient = YarnClient.createYarnClient();
+		final YarnClient yarnClient = YarnClient.createYarnClient();
 		yarnClient.init(conf);
 		yarnClient.start();
+		
+		// Query cluster for metrics
+		if(cmd.hasOption(QUERY.getOpt())) {
+			showClusterMetrics(yarnClient);
+		}
+		if(!cmd.hasOption(CONTAINER.getOpt())) {
+			LOG.fatal("Missing required argument "+CONTAINER.getOpt());
+			printUsage();
+			yarnClient.stop();
+			System.exit(1);
+		}
+		
+		// TM Count
+		final int taskManagerCount = Integer.valueOf(cmd.getOptionValue(CONTAINER.getOpt()));
+		
+		System.out.println("Using values:");
+		System.out.println("\tContainer Count = "+taskManagerCount);
+		System.out.println("\tJar Path = "+localJarPath.toUri().getPath());
+		System.out.println("\tConfiguration file = "+confPath.toUri().getPath());
+		System.out.println("\tJobManager memory = "+jmMemory);
+		System.out.println("\tTaskManager memory = "+tmMemory);
+		System.out.println("\tTaskManager cores = "+tmCores);
 
 		// Create application via yarnClient
 		YarnClientApplication app = yarnClient.createApplication();
+		GetNewApplicationResponse appResponse = app.getNewApplicationResponse();
+		Resource maxRes = appResponse.getMaximumResourceCapability();
+		if(tmMemory > maxRes.getMemory() || tmCores > maxRes.getVirtualCores()) {
+			LOG.fatal("The cluster does not have the requested resources for the TaskManagers available!\n"
+					+ "Maximum Memory: "+maxRes.getMemory() +", Maximum Cores: "+tmCores);
+			yarnClient.stop();
+			System.exit(1);
+		}
+		if(jmMemory > maxRes.getMemory() ) {
+			LOG.fatal("The cluster does not have the requested resources for the JobManager available!\n"
+					+ "Maximum Memory: "+maxRes.getMemory());
+			yarnClient.stop();
+			System.exit(1);
+		}
 
 		// Set up the container launch context for the application master
 		ContainerLaunchContext amContainer = Records
@@ -333,12 +352,19 @@ public class Client {
 		appContext.setApplicationName("Stratosphere"); // application name
 		appContext.setAMContainerSpec(amContainer);
 		appContext.setResource(capability);
-		appContext.setQueue("default"); // queue
+		appContext.setQueue(queue);
 
 				
-		System.out.println("Submitting application master " + appId);
+		LOG.info("Submitting application master " + appId);
 		yarnClient.submitApplication(appContext);
 		
+		 Runtime.getRuntime().addShutdownHook(new Thread() {
+		   @Override
+		   public void run() {
+		    LOG.info("YARN Client is shutting down");
+		    yarnClient.stop();
+		   }
+		  });
 		ApplicationReport appReport = yarnClient.getApplicationReport(appId);
 		YarnApplicationState appState = appReport.getYarnApplicationState();
 		boolean told = false;
@@ -367,8 +393,66 @@ public class Client {
 			appState = appReport.getYarnApplicationState();
 		}
 
-		System.out.println("Application " + appId + " finished with"
+		LOG.info("Application " + appId + " finished with"
 				+ " state " + appState + " at " + appReport.getFinishTime());
+		if(appState == YarnApplicationState.FAILED || appState == YarnApplicationState.KILLED ) {
+			LOG.warn("Application failed. Diagnostics "+appReport.getDiagnostics());
+		}
+		
+	}
+
+	private void printUsage() {
+		System.out.println("Usage:");
+		HelpFormatter formatter = new HelpFormatter();
+		formatter.setWidth(200);
+		formatter.setLeftPadding(5);
+		formatter.setSyntaxPrefix("   Required");
+		Options req = new Options();
+		req.addOption(CONTAINER);
+		formatter.printHelp(" ", req);
+		
+		formatter.setSyntaxPrefix("   Optional");
+		Options opt = new Options();
+		opt.addOption(VERBOSE);
+		opt.addOption(GEN_CONF);
+		opt.addOption(STRATOSPHERE_CONF);
+		opt.addOption(STRATOSPHERE_JAR);
+		opt.addOption(JM_MEMORY);
+		opt.addOption(TM_MEMORY);
+		opt.addOption(TM_CORES);
+		opt.addOption(QUERY);
+		opt.addOption(QUEUE);
+		formatter.printHelp(" ", opt);
+	}
+
+	private void showClusterMetrics(YarnClient yarnClient)
+			throws YarnException, IOException {
+		YarnClusterMetrics metrics = yarnClient.getYarnClusterMetrics();
+		System.out.println("NodeManagers in Cluster " + metrics.getNumNodeManagers());
+		List<NodeReport> nodes = yarnClient.getNodeReports();
+		final String format = "|%-16s |%-16s %n";
+		System.out.printf("|Property         |Value          %n");
+		System.out.println("+---------------------------------------+");
+		int totalMemory = 0;
+		int totalCores = 0;
+		for(NodeReport rep : nodes) {
+			final Resource res = rep.getCapability();
+			totalMemory += res.getMemory();
+			totalCores += res.getVirtualCores();
+			System.out.format(format, "NodeID", rep.getNodeId());
+			System.out.format(format, "Memory", res.getMemory()+" MB");
+			System.out.format(format, "vCores", res.getVirtualCores());
+			System.out.format(format, "HealthReport", rep.getHealthReport());
+			System.out.format(format, "Containers", rep.getNumContainers());
+			System.out.println("+---------------------------------------+");
+		}
+		System.out.println("Summary: totalMemory "+totalMemory+" totalCores "+totalCores);
+		List<QueueInfo> qInfo = yarnClient.getAllQueues();
+		for(QueueInfo q : qInfo) {
+			System.out.println("Queue: "+q.getQueueName()+", Current Capacity: "+q.getCurrentCapacity()+" Max Capacity: "+q.getMaximumCapacity()+" Applications: "+q.getApplications().size());
+		}
+		yarnClient.stop();
+		System.exit(0);
 	}
 
 	private File generateDefaultConf(Path localJarPath) throws IOException,
