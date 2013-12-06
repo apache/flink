@@ -17,6 +17,7 @@ package eu.stratosphere.nephele.io;
 
 import java.io.IOException;
 
+import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.event.task.EventListener;
 import eu.stratosphere.nephele.io.channels.ChannelType;
@@ -62,7 +63,7 @@ public interface Gate<T extends Record> {
 	 * @throws InterruptedException
 	 *         thrown if the thread is interrupted while waiting for the event to be published
 	 */
-	void publishEvent(AbstractTaskEvent event) throws IOException, InterruptedException;
+	void publishEvent(AbstractEvent event) throws IOException, InterruptedException;
 
 	/**
 	 * Passes a received event on to the event notification manager so it cam ne dispatched.

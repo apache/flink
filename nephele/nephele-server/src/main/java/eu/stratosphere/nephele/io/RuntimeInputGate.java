@@ -25,6 +25,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
@@ -199,10 +200,14 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 				this.channelToReadFrom = -1;
 				return InputChannelResult.LAST_RECORD_FROM_BUFFER;
 				
-			case EVENT: // task event
+			case END_OF_SUPERSTEP:
+				this.channelToReadFrom = -1;
+				return InputChannelResult.END_OF_SUPERSTEP;
+				
+			case TASK_EVENT: // task event
 				this.currentEvent = this.getInputChannel(this.channelToReadFrom).getCurrentEvent();
 				this.channelToReadFrom = -1;	// event always marks a unit as consumed
-				return InputChannelResult.EVENT;
+				return InputChannelResult.TASK_EVENT;
 					
 			case NONE: // internal event or an incomplete record that needs further chunks
 				// the current unit is exhausted
@@ -293,7 +298,7 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void publishEvent(AbstractTaskEvent event) throws IOException, InterruptedException {
+	public void publishEvent(AbstractEvent event) throws IOException, InterruptedException {
 
 		// Copy event to all connected channels
 		final Iterator<AbstractInputChannel<T>> it = this.inputChannels.iterator();

@@ -28,21 +28,17 @@ import eu.stratosphere.pact.generic.types.TypeSerializer;
 import eu.stratosphere.pact.runtime.hash.MutableHashTable;
 import eu.stratosphere.pact.runtime.iterative.concurrent.IterationAggregatorBroker;
 import eu.stratosphere.pact.runtime.iterative.concurrent.SolutionsetBroker;
-import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
-import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
-import eu.stratosphere.pact.runtime.iterative.io.InterruptingMutableObjectIterator;
 import eu.stratosphere.pact.runtime.iterative.io.UpdateSolutionsetOutputCollector;
-import eu.stratosphere.pact.runtime.iterative.monitoring.IterationMonitoring;
 import eu.stratosphere.pact.runtime.task.PactDriver;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
 import eu.stratosphere.pact.runtime.task.ResettablePactDriver;
-import eu.stratosphere.pact.runtime.task.util.ReaderInterruptionBehavior;
-import eu.stratosphere.pact.runtime.task.util.ReaderInterruptionBehaviors;
 import eu.stratosphere.pact.runtime.udf.RuntimeUDFContext;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -53,13 +49,16 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
 {
 	private static final Log log = LogFactory.getLog(AbstractIterativePactTask.class);
 
+	
 	private final AtomicBoolean terminationRequested = new AtomicBoolean(false);
-
-	private int superstepNum = 1;
 	
 	private RuntimeAggregatorRegistry iterationAggregators;
 	
+	private List<MutableReader<?>> iterativeInputs = new ArrayList<MutableReader<?>>();
+	
 	private String brokerKey;
+	
+	private int superstepNum = 1;
 
 	// --------------------------------------------------------------------------------------------
 	// Wrapping methods to supplement behavior of the regular Pact Task
@@ -100,6 +99,8 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
 			reinstantiateDriver();
 			resetAllInputs();
 		}
+		
+		// call the parent to execute the superstep 
 		super.run();
 	}
 	
@@ -116,37 +117,26 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
 			}
 		}
 	}
-
-	@Override
-	protected ReaderInterruptionBehavior readerInterruptionBehavior(int inputGateIndex) {
-		return getTaskConfig().isIterativeInputGate(inputGateIndex) ?
-			ReaderInterruptionBehaviors.RELEASE_ON_INTERRUPT : ReaderInterruptionBehaviors.EXCEPTION_ON_INTERRUPT;
-	}
 	
 	@Override
-	protected MutableObjectIterator<?> createInputIterator(int i, 
-		MutableReader<?> inputReader, TypeSerializer<?> serializer)
-	{
+	protected MutableObjectIterator<?> createInputIterator(int i, MutableReader<?> inputReader, TypeSerializer<?> serializer) {
+
 		final MutableObjectIterator<?> inIter = super.createInputIterator(i, inputReader, serializer);
 		final int numberOfEventsUntilInterrupt = getTaskConfig().getNumberOfEventsUntilInterruptInIterativeGate(i);
 		
-		if (numberOfEventsUntilInterrupt == 0) {
-			// non iterative gate
-			return inIter;
+		if (numberOfEventsUntilInterrupt < 0) {
+			throw new IllegalArgumentException();
 		}
-	
-		@SuppressWarnings({ "unchecked", "rawtypes" })
-		InterruptingMutableObjectIterator<?> interruptingIterator = new InterruptingMutableObjectIterator(
-			inIter, numberOfEventsUntilInterrupt, identifier(), this, i);
-	
-		inputReader.subscribeToEvent(interruptingIterator, EndOfSuperstepEvent.class);
-		inputReader.subscribeToEvent(interruptingIterator, TerminationEvent.class);
-	
-		if (log.isInfoEnabled()) {
-			log.info(formatLogString("wrapping input [" + i + "] with an interrupting iterator that waits " +
-				"for [" + numberOfEventsUntilInterrupt + "] event(s)"));
+		else if (numberOfEventsUntilInterrupt > 0) {
+			inputReader.setIterative(numberOfEventsUntilInterrupt);
+			this.iterativeInputs.add(inputReader);
+			
+			if (log.isDebugEnabled()) {
+				log.debug(formatLogString("Input [" + i + "] reads in supersteps with [" +
+					+ numberOfEventsUntilInterrupt + "] event(s) till next superstep."));
+			}
 		}
-		return interruptingIterator;
+		return inIter;
 	}
 	
 	public RuntimeContext getRuntimeContext(String taskName) {
@@ -170,13 +160,6 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
 		this.superstepNum++;
 	}
 
-	protected void notifyMonitor(IterationMonitoring.Event event) {
-		if (log.isInfoEnabled()) {
-			log.info(IterationMonitoring.logLine(getEnvironment().getJobID(), event, currentIteration(),
-				getEnvironment().getIndexInSubtaskGroup()));
-		}
-	}
-
 	public String brokerKey() {
 		if (brokerKey == null) {
 			int iterationId = config.getIterationId();
@@ -184,11 +167,6 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
 					getEnvironment().getIndexInSubtaskGroup();
 		}
 		return brokerKey;
-	}
-
-	protected String identifier() {
-		return getEnvironment().getTaskName() + " (" + (getEnvironment().getIndexInSubtaskGroup() + 1) + '/' +
-			getEnvironment().getCurrentNumberOfSubtasks() + ')';
 	}
 
 	private void reinstantiateDriver() throws Exception {
@@ -214,6 +192,36 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
 			this.iterationAggregators = IterationAggregatorBroker.instance().get(brokerKey());
 		}
 		return this.iterationAggregators;
+	}
+	
+	protected void checkForTerminationAndResetEndOfSuperstepState() {
+		// sanity check that there is at least one iterative input reader
+		if (this.iterativeInputs.isEmpty())
+			throw new IllegalStateException();
+		
+		// check whether this step ended due to end-of-superstep, or proper close
+		boolean anyClosed = false;
+		boolean allClosed = true;
+		
+		for (MutableReader<?> reader : this.iterativeInputs) {
+			if (reader.isInputClosed()) {
+				anyClosed = true;
+			} else {
+				allClosed = false;
+			}
+			
+			// also reset the end-of-superstep state
+			reader.startNextSuperstep();
+		}
+		
+		// sanity check whether we saw the same state (end-of-superstep or termination) on all inputs
+		if (allClosed != anyClosed) {
+			throw new IllegalStateException("Inconsistent state: Iteration termination received on some, but not all inputs.");
+		}
+		
+		if (allClosed) {
+			requestTermination();
+		}
 	}
 
 	@Override

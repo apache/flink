@@ -15,12 +15,10 @@
 
 package eu.stratosphere.pact.runtime.iterative.task;
 
-import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.io.AbstractRecordWriter;
+import eu.stratosphere.nephele.io.channels.bytebuffered.EndOfSuperstepEvent;
 import eu.stratosphere.pact.common.stubs.Stub;
-import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
-//import eu.stratosphere.pact.runtime.iterative.monitoring.IterationMonitoring;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -47,6 +45,9 @@ public class IterationIntermediatePactTask<S extends Stub, OT> extends AbstractI
 //			notifyMonitor(IterationMonitoring.Event.INTERMEDIATE_PACT_STARTING);
 
 			super.run();
+			
+			// check if termination was requested
+			checkForTerminationAndResetEndOfSuperstepState();
 
 //			notifyMonitor(IterationMonitoring.Event.INTERMEDIATE_PACT_FINISHED);
 			if (log.isInfoEnabled()) {
@@ -54,21 +55,17 @@ public class IterationIntermediatePactTask<S extends Stub, OT> extends AbstractI
 			}
 
 			if (!terminationRequested()) {
-				propagateEvent(EndOfSuperstepEvent.INSTANCE);
+				// send the end-of-superstep
+				sendEndOfSuperstep();
 				incrementIterationCounter();
-			} else {
-				propagateEvent(TerminationEvent.INSTANCE);
 			}
 //			notifyMonitor(IterationMonitoring.Event.INTERMEDIATE_FINISHED);
 		}
 	}
 
-	private void propagateEvent(AbstractTaskEvent event) throws IOException, InterruptedException {
-//		if (log.isInfoEnabled()) {
-//			log.info(formatLogString("propagating " + event.getClass().getSimpleName()));
-//		}
+	private void sendEndOfSuperstep() throws IOException, InterruptedException {
 		for (AbstractRecordWriter<?> eventualOutput : eventualOutputs) {
-			eventualOutput.publishEvent(event);
+			eventualOutput.sendEndOfSuperstep();
 		}
 	}
 

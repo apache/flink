@@ -16,8 +16,9 @@
 package eu.stratosphere.pact.runtime.iterative.concurrent;
 
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
-import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
+import eu.stratosphere.pact.runtime.iterative.event.AllWorkersDoneEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
+
 import org.junit.Test;
 
 import java.util.Random;
@@ -28,9 +29,9 @@ import static org.junit.Assert.assertTrue;
 public class SuperstepBarrierTest {
 
 	@Test
-	public void syncEndOfSuperstep() throws InterruptedException {
+	public void syncAllWorkersDone() throws InterruptedException {
 		for (int n = 0; n < 20; n++) {
-			sync(new EndOfSuperstepEvent());
+			sync(new AllWorkersDoneEvent());
 		}
 	}
 

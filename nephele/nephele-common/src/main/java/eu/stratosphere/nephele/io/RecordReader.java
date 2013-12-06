@@ -96,9 +96,17 @@ public class RecordReader<T extends Record> extends AbstractSingleGateRecordRead
 					case LAST_RECORD_FROM_BUFFER:
 						this.lookahead = record;
 						return true;
-					case EVENT:
+						
+					case END_OF_SUPERSTEP:
+						if (incrementEndOfSuperstepEventAndCheck())
+							return false;
+						else 
+							break; // fall through and wait for next record/event
+						
+					case TASK_EVENT:
 						handleEvent(this.inputGate.getCurrentEvent());
 						break;
+						
 					case END_OF_STREAM:
 						this.noMoreRecordsWillFollow = true;
 						return false;
@@ -126,6 +134,11 @@ public class RecordReader<T extends Record> extends AbstractSingleGateRecordRead
 		} else {
 			return null;
 		}
+	}
+	
+	@Override
+	public boolean isInputClosed() {
+		return this.noMoreRecordsWillFollow;
 	}
 	
 	private T instantiateRecordType() {

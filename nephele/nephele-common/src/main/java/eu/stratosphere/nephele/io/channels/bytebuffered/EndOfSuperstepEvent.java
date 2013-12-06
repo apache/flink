@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -13,28 +13,24 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.task.util;
+package eu.stratosphere.nephele.io.channels.bytebuffered;
 
+import eu.stratosphere.nephele.event.task.AbstractEvent;
+
+import java.io.DataInput;
+import java.io.DataOutput;
 import java.io.IOException;
 
-public class ReaderInterruptionBehaviors {
-
-	public static final ReaderInterruptionBehavior EXCEPTION_ON_INTERRUPT = new ReaderInterruptionBehavior() {
-		@Override
-		public boolean onInterrupt(InterruptedException e) throws IOException {
-			throw new IOException("Reader was interrupted.", e);
-		}
-	};
-
-	public static final ReaderInterruptionBehavior RELEASE_ON_INTERRUPT = new ReaderInterruptionBehavior() {
-		@Override
-		public boolean onInterrupt(InterruptedException e) throws IOException {
-//			Thread.interrupted();
-			return false;
-		}
-	};
+/**
+ * Marks the end of a superstep of one particular iteration head
+ */
+public class EndOfSuperstepEvent extends AbstractEvent {
 	
-	// --------------------------------------------------------------------------------------------
-	
-	private ReaderInterruptionBehaviors() {}
+	public static final EndOfSuperstepEvent INSTANCE = new EndOfSuperstepEvent();
+
+	@Override
+	public void write(DataOutput out) throws IOException {}
+
+	@Override
+	public void read(DataInput in) throws IOException {}
 }

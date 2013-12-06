@@ -106,16 +106,6 @@ public abstract class AbstractInputChannel<T extends Record> extends AbstractCha
 	public JobID getJobID() {
 		return this.inputGate.getJobID();
 	}
-
-	/**
-	 * Activates the input channel.
-	 * 
-	 * @throws IOException
-	 *         thrown if an I/O error occurs while transmitting the activation event to the connected output channel
-	 * @throws InterruptedException
-	 *         thrown if the calling thread is interrupted while completing the activation request
-	 */
-	public abstract void activate() throws IOException, InterruptedException;
 	
 	public abstract AbstractTaskEvent getCurrentEvent();
 }

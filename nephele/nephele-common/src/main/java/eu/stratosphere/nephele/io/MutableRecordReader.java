@@ -83,7 +83,13 @@ public class MutableRecordReader<T extends Record> extends AbstractSingleGateRec
 				case LAST_RECORD_FROM_BUFFER:
 					return true;
 					
-				case EVENT:
+				case END_OF_SUPERSTEP:
+					if (incrementEndOfSuperstepEventAndCheck())
+						return false; // end of the superstep
+					else 
+						break; // fall through and wait for next record/event
+					
+				case TASK_EVENT:
 					handleEvent(this.inputGate.getCurrentEvent());
 					break;	// fall through to get next record
 				
@@ -95,5 +101,19 @@ public class MutableRecordReader<T extends Record> extends AbstractSingleGateRec
 					; // fall through to get next record
 			}
 		}
+	}
+	
+	@Override
+	public boolean isInputClosed() {
+		return this.endOfStream;
+	}
+
+	@Override
+	public void setIterative(int numEventsUntilEndOfSuperstep) {
+		// sanity check for debug purposes
+		if (numEventsUntilEndOfSuperstep != getNumberOfInputChannels()) {
+			throw new IllegalArgumentException("Number of events till end of superstep is different from the number of input channels.");
+		}
+		super.setIterative(numEventsUntilEndOfSuperstep);
 	}
 }

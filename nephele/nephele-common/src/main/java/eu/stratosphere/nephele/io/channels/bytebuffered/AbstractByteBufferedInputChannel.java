@@ -98,6 +98,10 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 			// get the next element we need to handle (buffer or event)
 			BufferOrEvent boe = this.inputChannelBroker.getNextBufferOrEvent();
 			
+			if (boe == null) {
+				throw new IllegalStateException("Input channel was queries for data even though none was announced available.");
+			}
+			
 			// handle events
 			if (boe.isEvent())
 			{
@@ -107,13 +111,16 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 				}
 				
 				AbstractEvent evt = boe.getEvent();
-				if (evt instanceof ByteBufferedChannelCloseEvent) {
+				if (evt.getClass() == ByteBufferedChannelCloseEvent.class) {
 					this.brokerAggreedToCloseChannel = true;
 					return InputChannelResult.END_OF_STREAM;
 				}
+				else if (evt.getClass() == EndOfSuperstepEvent.class) {
+					return InputChannelResult.END_OF_SUPERSTEP;
+				}
 				else if (evt instanceof AbstractTaskEvent) {
 					this.currentEvent = (AbstractTaskEvent) evt;
-					return InputChannelResult.EVENT;
+					return InputChannelResult.TASK_EVENT;
 				}
 				else {
 					LOG.error("Received unknown event: " + evt);
@@ -213,12 +220,6 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 		this.deserializer.clear();
 
 		// The buffers are recycled by the input channel wrapper
-	}
-
-	
-	@Override
-	public void activate() throws IOException, InterruptedException {
-		transferEvent(new ByteBufferedChannelActivateEvent());
 	}
 
 	

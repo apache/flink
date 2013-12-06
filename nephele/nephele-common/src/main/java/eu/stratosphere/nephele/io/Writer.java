@@ -16,20 +16,15 @@
 package eu.stratosphere.nephele.io;
 
 import java.io.IOException;
-import java.util.List;
 
-import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.types.Record;
 
 /**
- * A writer interface which is implemented by record writer.
+ * A writer that sends records.
  * 
- * @author nijkamp
- * @param <T>
- *        the type of the record that can be emitted with this record writer
+ * @param <T> The type of the record that can be emitted with this record writer.
  */
 public interface Writer<T extends Record> {
+	
 	void emit(T record) throws IOException, InterruptedException;
-
-	List<AbstractOutputChannel<T>> getOutputChannels();
 }

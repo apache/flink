@@ -28,7 +28,6 @@ import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannelBrok
 import eu.stratosphere.pact.runtime.iterative.concurrent.Broker;
 import eu.stratosphere.pact.runtime.iterative.convergence.WorksetEmptyConvergenceCriterion;
 import eu.stratosphere.pact.runtime.iterative.io.DataOutputCollector;
-//import eu.stratosphere.pact.runtime.iterative.monitoring.IterationMonitoring;
 import eu.stratosphere.pact.runtime.task.PactTaskContext;
 
 //TODO could this be an output???
@@ -93,6 +92,10 @@ public class IterationTailPactTask<S extends Stub, OT> extends AbstractIterative
 //			notifyMonitor(IterationMonitoring.Event.TAIL_PACT_STARTING);
 
 			super.run();
+			
+			// check if termination was requested
+			checkForTerminationAndResetEndOfSuperstepState();
+			
 //			notifyMonitor(IterationMonitoring.Event.TAIL_PACT_FINISHED);
 
 			long elementsCollected = outputCollector.getElementsCollectedAndReset();

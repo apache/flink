@@ -72,6 +72,9 @@ public class SuperstepBarrier implements EventListener {
 			aggregatorNames = wde.getAggregatorNames();
 			aggregates = wde.getAggregates(userCodeClassLoader);
 		}
+		else {
+			throw new IllegalArgumentException("Unknown event type.");
+		}
 
 		latch.countDown();
 	}

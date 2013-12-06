@@ -71,8 +71,6 @@ import eu.stratosphere.pact.runtime.task.util.CloseableInputProvider;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.task.util.NepheleReaderIterator;
 import eu.stratosphere.pact.runtime.task.util.PactRecordNepheleReaderIterator;
-import eu.stratosphere.pact.runtime.task.util.ReaderInterruptionBehavior;
-import eu.stratosphere.pact.runtime.task.util.ReaderInterruptionBehaviors;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.udf.RuntimeUDFContext;
 
@@ -774,30 +772,19 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 			// pact record specific deserialization
 			@SuppressWarnings("unchecked")
 			MutableReader<PactRecord> reader = (MutableReader<PactRecord>) inputReader;
-			return new PactRecordNepheleReaderIterator(reader, readerInterruptionBehavior(inputIndex));
+			return new PactRecordNepheleReaderIterator(reader);
 		} else {
 			// generic data type serialization
 			@SuppressWarnings("unchecked")
 			MutableReader<DeserializationDelegate<?>> reader = (MutableReader<DeserializationDelegate<?>>) inputReader;
 			@SuppressWarnings({ "unchecked", "rawtypes" })
-			final MutableObjectIterator<?> iter = new NepheleReaderIterator(reader, serializer,
-					readerInterruptionBehavior(inputIndex));
+			final MutableObjectIterator<?> iter = new NepheleReaderIterator(reader, serializer);
 			return iter;
 		}
 	}
 	
 	protected int getNumTaskInputs() {
 		return this.driver.getNumberOfInputs();
-	}
-	
-	/**
-	 * Gets the default behavior that readers should use on interrupts.
-	 * 
-	 * @param inputGateIndex
-	 * @return The default behavior that readers should use on interrupts.
-	 */
-	protected ReaderInterruptionBehavior readerInterruptionBehavior(int inputGateIndex) {
-		return ReaderInterruptionBehaviors.EXCEPTION_ON_INTERRUPT;
 	}
 	
 	public RuntimeContext getRuntimeContext(String taskName) {

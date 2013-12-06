@@ -22,9 +22,9 @@ import java.util.List;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.io.AbstractRecordWriter;
 import eu.stratosphere.nephele.io.RecordWriter;
+import eu.stratosphere.nephele.io.channels.bytebuffered.EndOfSuperstepEvent;
 import eu.stratosphere.nephele.services.memorymanager.DataInputView;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.types.Record;
@@ -47,7 +47,6 @@ import eu.stratosphere.pact.runtime.iterative.concurrent.IterationAggregatorBrok
 import eu.stratosphere.pact.runtime.iterative.concurrent.SolutionsetBroker;
 import eu.stratosphere.pact.runtime.iterative.concurrent.SuperstepBarrier;
 import eu.stratosphere.pact.runtime.iterative.event.AllWorkersDoneEvent;
-import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
 import eu.stratosphere.pact.runtime.iterative.event.WorkerDoneEvent;
 import eu.stratosphere.pact.runtime.iterative.io.SerializedUpdateBuffer;
@@ -282,8 +281,7 @@ public class IterationHeadPactTask<X, Y, S extends Stub, OT> extends AbstractIte
 	//			notifyMonitor(IterationMonitoring.Event.HEAD_PACT_FINISHED);
 	
 				// signal to connected tasks that we are done with the superstep
-				EndOfSuperstepEvent endOfSuperstepEvent = new EndOfSuperstepEvent();
-				sendEventToAllIterationOutputs(endOfSuperstepEvent);
+				sendEndOfSuperstepToAllIterationOutputs();
 	
 				// blocking call to wait for the result
 				superstepResult = backChannel.getReadEndAfterSuperstepEnded();
@@ -308,7 +306,6 @@ public class IterationHeadPactTask<X, Y, S extends Stub, OT> extends AbstractIte
 							+ "]"));
 					}
 					requestTermination();
-					sendEventToAllIterationOutputs(new TerminationEvent());
 				} else {
 					incrementIterationCounter();
 					
@@ -382,13 +379,13 @@ public class IterationHeadPactTask<X, Y, S extends Stub, OT> extends AbstractIte
 				new InputViewIterator<Y>(superstepResult, this.feedbackTypeSerializer);
 	}
 
-	private void sendEventToAllIterationOutputs(AbstractTaskEvent event) throws IOException, InterruptedException {
-		if (log.isInfoEnabled()) {
-			log.info(formatLogString("sending " + event.getClass().getSimpleName() + " to all iteration outputs"));
+	private void sendEndOfSuperstepToAllIterationOutputs() throws IOException, InterruptedException {
+		if (log.isDebugEnabled()) {
+			log.debug(formatLogString("Sending end-of-superstep to all iteration outputs."));
 		}
 
 		for (int outputIndex = 0; outputIndex < this.eventualOutputs.size(); outputIndex++) {
-			this.eventualOutputs.get(outputIndex).publishEvent(event);
+			this.eventualOutputs.get(outputIndex).sendEndOfSuperstep();
 		}
 	}
 

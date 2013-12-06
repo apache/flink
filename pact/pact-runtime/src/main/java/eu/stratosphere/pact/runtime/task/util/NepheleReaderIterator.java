@@ -25,16 +25,12 @@ import eu.stratosphere.pact.runtime.plugable.DeserializationDelegate;
 
 /**
  * A {@link MutableObjectIterator} that wraps a Nephele Reader producing records of a certain type.
- *
- * @author Stephan Ewen
  */
-public final class NepheleReaderIterator<T> implements MutableObjectIterator<T>
-{
+public final class NepheleReaderIterator<T> implements MutableObjectIterator<T> {
+	
 	private final MutableReader<DeserializationDelegate<T>> reader;		// the source
 	
 	private final DeserializationDelegate<T> delegate;
-
-	private final ReaderInterruptionBehavior interruptionBehavior;
 
 	/**
 	 * Creates a new iterator, wrapping the given reader.
@@ -42,37 +38,18 @@ public final class NepheleReaderIterator<T> implements MutableObjectIterator<T>
 	 * @param reader The reader to wrap.
 	 */
 	public NepheleReaderIterator(MutableReader<DeserializationDelegate<T>> reader, TypeSerializer<T> serializer) {
-		this(reader, serializer, ReaderInterruptionBehaviors.EXCEPTION_ON_INTERRUPT);
-	}
-
-	/**
-	 * Creates a new iterator, wrapping the given reader.
-	 * 
-	 * @param reader
-	 *        The reader to wrap.
-	 * @param serializer
-	 *        serializer
-	 * @param interruptionBehavior
-	 *        behavior in case of interruptions
-	 */
-	public NepheleReaderIterator(MutableReader<DeserializationDelegate<T>> reader, TypeSerializer<T> serializer,
-			ReaderInterruptionBehavior interruptionBehavior) {
 		this.reader = reader;
 		this.delegate = new DeserializationDelegate<T>(serializer);
-		this.interruptionBehavior = interruptionBehavior;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.util.MutableObjectIterator#next(java.lang.Object)
-	 */
 	@Override
 	public boolean next(T target) throws IOException {
 		this.delegate.setInstance(target);
 		try {
 			return this.reader.next(this.delegate);
 		}
-		catch (InterruptedException iex) {
-			return interruptionBehavior.onInterrupt(iex);
+		catch (InterruptedException e) {
+			throw new IOException("Reader interrupted.", e);
 		}
 	}
 }

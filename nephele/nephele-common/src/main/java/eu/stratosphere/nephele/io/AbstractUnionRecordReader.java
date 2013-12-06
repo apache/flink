@@ -46,6 +46,11 @@ public abstract class AbstractUnionRecordReader<T extends Record> extends Abstra
 	private InputGate<T> nextInputGateToReadFrom;
 
 	
+	@Override
+	public boolean isInputClosed() {
+		return this.remainingInputGates.isEmpty();
+	}
+	
 	/**
 	 * Constructs a new mutable union record reader.
 	 * 
@@ -94,36 +99,44 @@ public abstract class AbstractUnionRecordReader<T extends Record> extends Abstra
 	protected boolean getNextRecord(T target) throws IOException, InterruptedException {
 
 		while (true) {
-			if (this.remainingInputGates.isEmpty()) {
-				return false;
-			}
-
+			// has the current input gate more data?
 			if (this.nextInputGateToReadFrom == null) {
+				if (this.remainingInputGates.isEmpty()) {
+					return false;
+				}
+				
 				this.nextInputGateToReadFrom = getNextAvailableInputGate();
 			}
 
 			InputChannelResult result = this.nextInputGateToReadFrom.readRecord(target);
 			switch (result) {
-			case INTERMEDIATE_RECORD_FROM_BUFFER: // record is available and we can stay on the same channel
-				return true;
-				
-			case LAST_RECORD_FROM_BUFFER: // record is available, but we might need to switch channels
-				this.nextInputGateToReadFrom = null;
-				return true;
-				
-			case EVENT:	// event for the subscribers is available
-				handleEvent(this.nextInputGateToReadFrom.getCurrentEvent());
-				this.nextInputGateToReadFrom = null;
-				break;
-				
-			case END_OF_STREAM: // one gate is empty
-				this.remainingInputGates.remove(this.nextInputGateToReadFrom);
-				this.nextInputGateToReadFrom = null;
-				break;
-				
-			case NONE: // gate processed an internal event and could not return a record on this call
-				this.nextInputGateToReadFrom = null;
-				break;
+				case INTERMEDIATE_RECORD_FROM_BUFFER: // record is available and we can stay on the same channel
+					return true;
+					
+				case LAST_RECORD_FROM_BUFFER: // record is available, but we need to re-check the channels
+					this.nextInputGateToReadFrom = null;
+					return true;
+					
+				case END_OF_SUPERSTEP:
+					this.nextInputGateToReadFrom = null;
+					if (incrementEndOfSuperstepEventAndCheck())
+						return false; // end of the superstep
+					else 
+						break; // fall through and wait for next record/event
+					
+				case TASK_EVENT:	// event for the subscribers is available
+					handleEvent(this.nextInputGateToReadFrom.getCurrentEvent());
+					this.nextInputGateToReadFrom = null;
+					break;
+					
+				case END_OF_STREAM: // one gate is empty
+					this.remainingInputGates.remove(this.nextInputGateToReadFrom);
+					this.nextInputGateToReadFrom = null;
+					break;
+					
+				case NONE: // gate processed an internal event and could not return a record on this call
+					this.nextInputGateToReadFrom = null;
+					break;
 			}
 		}
 	}

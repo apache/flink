@@ -16,7 +16,6 @@
 package eu.stratosphere.pact.runtime.test.util;
 
 import java.util.Comparator;
-import java.util.Iterator;
 import java.util.Random;
 
 import eu.stratosphere.pact.common.type.PactRecord;
@@ -26,9 +25,6 @@ import eu.stratosphere.pact.common.util.MutableObjectIterator;
 
 /**
  * Test data utilities classes.
- * 
- * @author Alexander Alexandrov
- * @author Erik Nijkamp
  */
 public final class TestData {
 	/**
@@ -233,31 +229,12 @@ public final class TestData {
 		}
 
 	}
-
-	/**
-	 * Record reader mock.
-	 */
-	public static class RecordReaderIterMock implements eu.stratosphere.nephele.io.Reader<PactRecord> {
-		private final Iterator<PactRecord> iterator;
-
-		public RecordReaderIterMock(Iterator<PactRecord> iterator) {
-			this.iterator = iterator;
-		}
-
-		public boolean hasNext() {
-			return iterator.hasNext();
-		}
-
-		public PactRecord next() {
-			return iterator.next();
-		}
-	}
 	
 	/**
 	 * Record reader mock.
 	 */
-	public static class GeneratorIterator implements MutableObjectIterator<PactRecord>
-	{
+	public static class GeneratorIterator implements MutableObjectIterator<PactRecord> {
+		
 		private final Generator generator;
 
 		private final int numberOfRecords;

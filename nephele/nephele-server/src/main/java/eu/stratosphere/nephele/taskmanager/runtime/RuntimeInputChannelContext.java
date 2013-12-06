@@ -106,6 +106,7 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 			if (!this.pendingEvents.hasNext()) {
 				this.pendingEvents = null;
 			}
+			
 			return next;
 		}
 		else {

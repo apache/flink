@@ -23,7 +23,7 @@ import java.util.List;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
+import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
@@ -311,7 +311,7 @@ public class RuntimeOutputGate<T extends Record> extends AbstractGate<T> impleme
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void publishEvent(AbstractTaskEvent event) throws IOException, InterruptedException {
+	public void publishEvent(AbstractEvent event) throws IOException, InterruptedException {
 
 		// Copy event to all connected channels
 		final Iterator<AbstractOutputChannel<T>> it = this.outputChannels.iterator();

@@ -16,33 +16,30 @@
 package eu.stratosphere.nephele.io;
 
 import java.io.IOException;
-import java.util.List;
 
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.event.task.EventListener;
 import eu.stratosphere.nephele.execution.Environment;
-import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
+import eu.stratosphere.nephele.io.channels.bytebuffered.EndOfSuperstepEvent;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.types.Record;
 
 /**
  * Abstract base class for a regular record writer and broadcast record writer.
  * 
- * @author warneke
- * @param <T>
- *        the type of the record that can be emitted with this record writer
+ * @param <T> The type of the record that can be emitted with this record writer.
  */
 public abstract class AbstractRecordWriter<T extends Record> implements Writer<T> {
 
 	/**
 	 * The output gate assigned to this record writer.
 	 */
-	private OutputGate<T> outputGate = null;
+	private OutputGate<T> outputGate;
 
 	/**
 	 * The environment associated to this record writer.
 	 */
-	private Environment environment = null;
+	private Environment environment;
 
 	/**
 	 * Constructs a new record writer and registers a new output gate with the application's environment.
@@ -57,9 +54,7 @@ public abstract class AbstractRecordWriter<T extends Record> implements Writer<T
 	 *        <code>true</code> if this record writer shall broadcast the records to all connected channels,
 	 *        <code>false/<code> otherwise
 	 */
-	public AbstractRecordWriter(AbstractInvokable invokable, Class<T> outputClass, ChannelSelector<T> selector,
-			boolean isBroadcast) {
-
+	public AbstractRecordWriter(AbstractInvokable invokable, Class<T> outputClass, ChannelSelector<T> selector, boolean isBroadcast) {
 		this.environment = invokable.getEnvironment();
 		connectOutputGate(outputClass, selector, isBroadcast);
 	}
@@ -96,18 +91,7 @@ public abstract class AbstractRecordWriter<T extends Record> implements Writer<T
 	 *         Thrown on an error that may happen during the transfer of the given record or a previous record.
 	 */
 	public void emit(final T record) throws IOException, InterruptedException {
-
-		// Simply pass record through to the corresponding output gate
 		this.outputGate.writeRecord(record);
-	}
-
-	/**
-	 * Returns the list of OutputChannels connected to this RecordWriter.
-	 * 
-	 * @return the list of OutputChannels connected to this RecordWriter
-	 */
-	public List<AbstractOutputChannel<T>> getOutputChannels() {
-		return this.outputGate.getOutputChannels();
 	}
 
 	/**
@@ -119,8 +103,6 @@ public abstract class AbstractRecordWriter<T extends Record> implements Writer<T
 	 *        the type of event to register the listener for
 	 */
 	public void subscribeToEvent(EventListener eventListener, Class<? extends AbstractTaskEvent> eventType) {
-
-		// Delegate call to output gate
 		this.outputGate.subscribeToEvent(eventListener, eventType);
 	}
 
@@ -133,8 +115,6 @@ public abstract class AbstractRecordWriter<T extends Record> implements Writer<T
 	 *        the type of the event to cancel the subscription for
 	 */
 	public void unsubscribeFromEvent(EventListener eventListener, Class<? extends AbstractTaskEvent> eventType) {
-
-		// Delegate call to output gate
 		this.outputGate.unsubscribeFromEvent(eventListener, eventType);
 	}
 
@@ -149,13 +129,14 @@ public abstract class AbstractRecordWriter<T extends Record> implements Writer<T
 	 *         thrown if the thread is interrupted while waiting for the event to be published
 	 */
 	public void publishEvent(AbstractTaskEvent event) throws IOException, InterruptedException {
-
-		// Delegate call to output gate
 		this.outputGate.publishEvent(event);
 	}
 
 	public void flush() throws IOException, InterruptedException {
-		// Delegate call to output gate
 		this.outputGate.flush();
+	}
+	
+	public void sendEndOfSuperstep() throws IOException, InterruptedException {
+		this.outputGate.publishEvent(EndOfSuperstepEvent.INSTANCE);
 	}
 }
