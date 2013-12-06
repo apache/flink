@@ -55,12 +55,9 @@ import eu.stratosphere.pact.runtime.util.MathUtils;
  * the logic is factored into three threads (read, sort, spill) which communicate through a set of blocking queues,
  * forming a closed loop.  Memory is allocated using the {@link MemoryManager} interface. Thus the component will
  * not exceed the provided memory limits.
- * 
- * @author Stephan Ewen
- * @author Erik Nijkamp
  */
-public class UnilateralSortMerger<E> implements Sorter<E>
-{	
+public class UnilateralSortMerger<E> implements Sorter<E> {
+	
 	// ------------------------------------------------------------------------
 	//                              Constants
 	// ------------------------------------------------------------------------

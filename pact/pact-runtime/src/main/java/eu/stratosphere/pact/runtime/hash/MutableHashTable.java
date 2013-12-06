@@ -659,8 +659,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 		}
 	}
 	
-	public List<MemorySegment> getFreedMemory()
-	{
+	public List<MemorySegment> getFreedMemory() {
 		if (!this.closed.get()) {
 			throw new IllegalStateException("Cannot return memory while join is open.");
 		}

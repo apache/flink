@@ -35,11 +35,9 @@ import eu.stratosphere.pact.runtime.task.util.MatchTaskIterator;
 /**
  * An implementation of the {@link eu.stratosphere.pact.runtime.task.util.MatchTaskIterator} that uses a hybrid-hash-join
  * internally to match the records with equal key. The build side of the hash is the second input of the match.  
- *
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
-public final class BuildSecondHashMatchIterator<V1, V2, O> implements MatchTaskIterator<V1, V2, O>
-{	
+public final class BuildSecondHashMatchIterator<V1, V2, O> implements MatchTaskIterator<V1, V2, O> {
+	
 	private final MutableHashTable<V2, V1> hashJoin;
 	
 	private final V2 nextBuildSideObject;
@@ -82,21 +80,13 @@ public final class BuildSecondHashMatchIterator<V1, V2, O> implements MatchTaskI
 	
 	// --------------------------------------------------------------------------------------------
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.util.MatchTaskIterator#open()
-	 */
 	@Override
-	public void open() throws IOException, MemoryAllocationException, InterruptedException
-	{
+	public void open() throws IOException, MemoryAllocationException, InterruptedException {
 		this.hashJoin.open(this.secondInput, this.firstInput);
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.util.MatchTaskIterator#close()
-	 */
 	@Override
-	public void close()
-	{
+	public void close() {
 		// close the join
 		this.hashJoin.close();
 		
@@ -105,9 +95,6 @@ public final class BuildSecondHashMatchIterator<V1, V2, O> implements MatchTaskI
 		this.memManager.release(segments);
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.util.MatchTaskIterator#callWithNextKey(eu.stratosphere.pact.common.stub.MatchStub, eu.stratosphere.pact.common.stub.Collector)
-	 */
 	@Override
 	public boolean callWithNextKey(GenericMatcher<V1, V2, O> matchFunction, Collector<O> collector)
 	throws Exception
@@ -155,19 +142,11 @@ public final class BuildSecondHashMatchIterator<V1, V2, O> implements MatchTaskI
 		}
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.util.MatchTaskIterator#abort()
-	 */
 	@Override
-	public void abort()
-	{
+	public void abort() {
 		// close the join
 		this.running = false;
 		this.hashJoin.close();
-		
-		// free the memory
-		final List<MemorySegment> segments = this.hashJoin.getFreedMemory();
-		this.memManager.release(segments);
 	}
 	
 	public <BT, PT> MutableHashTable<BT, PT> getHashJoin(TypeSerializer<BT> buildSideSerializer, TypeComparator<BT> buildSideComparator,

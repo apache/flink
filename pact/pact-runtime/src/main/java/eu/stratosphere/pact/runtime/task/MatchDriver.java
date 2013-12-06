@@ -54,26 +54,17 @@ public class MatchDriver<IT1, IT2, OT> implements PactDriver<GenericMatcher<IT1,
 	
 	// ------------------------------------------------------------------------
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.PactDriver#setup(eu.stratosphere.pact.runtime.task.PactTaskContext)
-	 */
 	@Override
 	public void setup(PactTaskContext<GenericMatcher<IT1, IT2, OT>, OT> context) {
 		this.taskContext = context;
 		this.running = true;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#getNumberOfInputs()
-	 */
 	@Override
 	public int getNumberOfInputs() {
 		return 2;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#getStubType()
-	 */
 	@Override
 	public Class<GenericMatcher<IT1, IT2, OT>> getStubType() {
 		@SuppressWarnings("unchecked")
@@ -81,20 +72,13 @@ public class MatchDriver<IT1, IT2, OT> implements PactDriver<GenericMatcher<IT1,
 		return clazz;
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#requiresComparatorOnInput()
-	 */
 	@Override
 	public boolean requiresComparatorOnInput() {
 		return true;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#prepare()
-	 */
 	@Override
-	public void prepare() throws Exception
-	{
+	public void prepare() throws Exception{
 		final TaskConfig config = this.taskContext.getTaskConfig();
 		
 		// obtain task manager's memory manager and I/O manager
@@ -152,9 +136,6 @@ public class MatchDriver<IT1, IT2, OT> implements PactDriver<GenericMatcher<IT1,
 			LOG.debug(this.taskContext.formatLogString("Match task iterator ready."));
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#run()
-	 */
 	@Override
 	public void run() throws Exception {
 		final GenericMatcher<IT1, IT2, OT> matchStub = this.taskContext.getStub();
@@ -164,9 +145,6 @@ public class MatchDriver<IT1, IT2, OT> implements PactDriver<GenericMatcher<IT1,
 		while (this.running && matchIterator.callWithNextKey(matchStub, collector));
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#cleanup()
-	 */
 	@Override
 	public void cleanup() throws Exception {
 		if (this.matchIterator != null) {
@@ -175,9 +153,6 @@ public class MatchDriver<IT1, IT2, OT> implements PactDriver<GenericMatcher<IT1,
 		}
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#cancel()
-	 */
 	@Override
 	public void cancel() {
 		this.running = false;

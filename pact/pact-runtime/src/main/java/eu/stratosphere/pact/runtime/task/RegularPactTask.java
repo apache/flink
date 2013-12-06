@@ -200,8 +200,10 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 	//                                  Nephele Task Interface
 	// --------------------------------------------------------------------------------------------
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.template.AbstractInvokable#registerInputOutput()
+
+	/**
+	 * Initialization method. Runs in the execution graph setup phase in the JobManager
+	 * and as a setup method on the TaskManager.
 	 */
 	@Override
 	public void registerInputOutput() {
@@ -253,8 +255,9 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 		}
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.template.AbstractInvokable#invoke()
+
+	/**
+	 * The main work method.
 	 */
 	@Override
 	public void invoke() throws Exception {
@@ -280,7 +283,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 			
 			if (!this.running) {
 				if (LOG.isDebugEnabled())
-					LOG.info(formatLogString("Task cancelled before PACT code was started."));
+					LOG.debug(formatLogString("Task cancelled before PACT code was started."));
 				return;
 			}
 			
@@ -401,19 +404,19 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 		}
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.template.AbstractInvokable#cancel()
-	 */
 	@Override
 	public void cancel() throws Exception {
 		this.running = false;
-		if (LOG.isWarnEnabled())
-			LOG.warn(formatLogString("Cancelling PACT code"));
 		
-		closeLocalStrategiesAndCaches();
+		if (LOG.isInfoEnabled())
+			LOG.info(formatLogString("Cancelling PACT code"));
 		
-		if (this.driver != null) {
-			this.driver.cancel();
+		try {
+			if (this.driver != null) {
+				this.driver.cancel();
+			}
+		} finally {
+			closeLocalStrategiesAndCaches();
 		}
 	}
 	

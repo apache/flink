@@ -59,8 +59,7 @@ import eu.stratosphere.pact.runtime.test.util.types.IntPairSerializer;
 import eu.stratosphere.pact.runtime.test.util.UnionIterator;
 
 
-public class HashMatchIteratorITCase
-{
+public class HashMatchIteratorITCase {
 	
 	private static final int MEMORY_SIZE = 16000000;		// total memory
 
@@ -88,8 +87,7 @@ public class HashMatchIteratorITCase
 
 	@SuppressWarnings("unchecked")
 	@Before
-	public void beforeTest()
-	{
+	public void beforeTest() {
 		this.recordSerializer = PactRecordSerializer.get();
 		
 		this.record1Comparator = new PactRecordComparator(new int[] {0}, new Class[] {TestData.Key.class});
@@ -602,8 +600,8 @@ public class HashMatchIteratorITCase
 	/**
 	 * Private class used for storage of the expected matches in a hash-map.
 	 */
-	static class RecordMatch
-	{
+	static class RecordMatch {
+		
 		private final Value left;
 		private final Value right;
 
