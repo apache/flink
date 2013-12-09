@@ -52,11 +52,9 @@ import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
  * and candidate plan enumeration. The subclasses for specific operators simply add logic
  * for cost estimates and specify possible strategies for their realization.
  */
-public abstract class SingleInputNode extends OptimizerNode
-{
-	protected final FieldSet keys; 			// The set of key fields
+public abstract class SingleInputNode extends OptimizerNode {
 	
-	private final List<OperatorDescriptorSingle> possibleProperties;
+	protected final FieldSet keys; 			// The set of key fields
 	
 	protected PactConnection inConn; 		// the input of the node
 	
@@ -75,15 +73,12 @@ public abstract class SingleInputNode extends OptimizerNode
 		
 		int[] k = pactContract.getKeyColumns(0);
 		this.keys = k == null || k.length == 0 ? null : new FieldSet(k);
-		
-		this.possibleProperties = getPossibleProperties();
 	}
 	
 	protected SingleInputNode(SingleInputNode contractToCopy) {
 		super(contractToCopy);
 		
 		this.keys = contractToCopy.keys;
-		this.possibleProperties = contractToCopy.possibleProperties;
 		
 		this.constantSet = contractToCopy.constantSet;
 		this.notConstantSet = contractToCopy.notConstantSet;
@@ -91,9 +86,6 @@ public abstract class SingleInputNode extends OptimizerNode
 	
 	// --------------------------------------------------------------------------------------------
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getPactContract()
-	 */
 	@Override
 	public SingleInputContract<?> getPactContract() {
 		return (SingleInputContract<?>) super.getPactContract();
@@ -130,26 +122,13 @@ public abstract class SingleInputNode extends OptimizerNode
 		}
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getIncomingConnections()
-	 */
+
 	@Override
 	public List<PactConnection> getIncomingConnections() {
 		return Collections.singletonList(this.inConn);
 	}
-
-	/**
-	 * @param fieldNumber
-	 * @return
-	 */
-	public boolean isFieldConstant(int fieldNumber) {
-		return isFieldConstant(0, fieldNumber);
-	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isFieldConstant(int, int)
-	 */
+
 	public boolean isFieldConstant(int input, int fieldNumber) {
 		if (input != 0) {
 			throw new IndexOutOfBoundsException();
@@ -161,10 +140,7 @@ public abstract class SingleInputNode extends OptimizerNode
 		}
 	}
 	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#setInputs(java.util.Map)
-	 */
+
 	@Override
 	public void setInputs(Map<Contract, OptimizerNode> contractToNode) throws CompilerException {
 		// see if an internal hint dictates the strategy to use
@@ -219,12 +195,10 @@ public abstract class SingleInputNode extends OptimizerNode
 	
 	protected abstract List<OperatorDescriptorSingle> getPossibleProperties();
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isMemoryConsumer()
-	 */
+
 	@Override
 	public boolean isMemoryConsumer() {
-		for (OperatorDescriptorSingle dps : this.possibleProperties) {
+		for (OperatorDescriptorSingle dps : getPossibleProperties()) {
 			if (dps.getStrategy().firstDam().isMaterializing()) {
 				return true;
 			}
@@ -246,7 +220,7 @@ public abstract class SingleInputNode extends OptimizerNode
 		final InterestingProperties props = getInterestingProperties().filterByCodeAnnotations(this, 0);
 		
 		// add all properties relevant to this node
-		for (OperatorDescriptorSingle dps : this.possibleProperties) {
+		for (OperatorDescriptorSingle dps : getPossibleProperties()) {
 			for (RequestedGlobalProperties gp : dps.getPossibleGlobalProperties()) {
 				props.addGlobalProperties(gp);
 			}
@@ -257,9 +231,7 @@ public abstract class SingleInputNode extends OptimizerNode
 		this.inConn.setInterestingProperties(props);
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getAlternativePlans(eu.stratosphere.pact.compiler.costs.CostEstimator)
-	 */
+
 	@Override
 	public List<PlanNode> getAlternativePlans(CostEstimator estimator) {
 		// check if we have a cached version
@@ -274,7 +246,7 @@ public abstract class SingleInputNode extends OptimizerNode
 		final RequestedGlobalProperties[] allValidGlobals;
 		{
 			Set<RequestedGlobalProperties> pairs = new HashSet<RequestedGlobalProperties>();
-			for (OperatorDescriptorSingle ods : this.possibleProperties) {
+			for (OperatorDescriptorSingle ods : getPossibleProperties()) {
 				pairs.addAll(ods.getPossibleGlobalProperties());
 			}
 			allValidGlobals = (RequestedGlobalProperties[]) pairs.toArray(new RequestedGlobalProperties[pairs.size()]);
@@ -369,7 +341,7 @@ public abstract class SingleInputNode extends OptimizerNode
 			}
 			
 			// instantiate a candidate, if the instantiated local properties meet one possible local property set
-			for (OperatorDescriptorSingle dps: this.possibleProperties) {
+			for (OperatorDescriptorSingle dps: getPossibleProperties()) {
 				for (RequestedLocalProperties ilps : dps.getPossibleLocalProperties()) {
 					if (ilps.isMetBy(in.getLocalProperties())) {
 						instantiateCandidate(dps, in, target, estimator, rgps, ilp);
@@ -458,10 +430,6 @@ public abstract class SingleInputNode extends OptimizerNode
 	//                                   Stub Annotation Handling
 	// --------------------------------------------------------------------------------------------
 	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#readReadsAnnotation()
-	 */
 	@Override
 	protected void readConstantAnnotation() {
 		final SingleInputContract<?> c = (SingleInputContract<?>) super.getPactContract();
@@ -494,12 +462,6 @@ public abstract class SingleInputNode extends OptimizerNode
 	//                                     Miscellaneous
 	// --------------------------------------------------------------------------------------------
 
-	/*
-	 * (non-Javadoc)
-	 * @see
-	 * eu.stratosphere.pact.compiler.plan.OptimizerNode#accept(eu.stratosphere.pact.common.plan.Visitor
-	 * )
-	 */
 	@Override
 	public void accept(Visitor<OptimizerNode> visitor) {
 		if (visitor.preVisit(this)) {

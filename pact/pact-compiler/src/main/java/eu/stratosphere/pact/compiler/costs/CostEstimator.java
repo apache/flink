@@ -153,6 +153,7 @@ public abstract class CostEstimator {
 		// determine the local costs
 		switch (n.getDriverStrategy()) {
 		case NONE:
+		case UNARY_NO_OP:
 		case BINARY_NO_OP:	
 		case MAP:
 			

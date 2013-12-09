@@ -118,25 +118,11 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 
 	// --------------------------------------------------------------------------------------------
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getName()
-	 */
 	@Override
 	public String getName() {
 		return "Bulk Iteration";
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.SingleInputNode#isFieldConstant(int)
-	 */
-	@Override
-	public boolean isFieldConstant(int fieldNumber) {
-		return false;
-	}
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isFieldConstant(int, int)
-	 */
 	@Override
 	public boolean isFieldConstant(int input, int fieldNumber) {
 		return false;

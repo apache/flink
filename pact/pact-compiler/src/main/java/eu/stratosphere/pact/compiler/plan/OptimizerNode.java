@@ -74,8 +74,6 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	
 	protected Map<FieldSet, Long> estimatedCardinality = new HashMap<FieldSet, Long>(); // the estimated number of distinct keys in the output
 	
-	protected int[][] remappedKeys;
-	
 	protected long estimatedOutputSize = -1; // the estimated size of the output (bytes)
 
 	protected long estimatedNumRecords = -1; // the estimated number of key/value pairs in the output
@@ -95,6 +93,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	protected boolean onDynamicPath;
 	
 	protected List<PlanNode> cachedPlans;	// cache candidates, because the may be accessed repeatedly
+	
+	protected int[][] remappedKeys;
 
 	// ------------------------------------------------------------------------
 	//                      Constructor / Setup
@@ -126,10 +126,10 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		
 		this.intProps = toCopy.intProps;
 		
+		this.remappedKeys = toCopy.remappedKeys;
+		
 		this.openBranches = toCopy.openBranches;
 		this.closedBranchingNodes = toCopy.closedBranchingNodes;
-		
-		this.remappedKeys = toCopy.remappedKeys;
 		
 		this.estimatedOutputSize = toCopy.estimatedOutputSize;
 		this.estimatedNumRecords = toCopy.estimatedNumRecords;
@@ -1287,35 +1287,22 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		}
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plandump.DumpableNode#getOptimizerNode()
-	 */
 	@Override
 	public OptimizerNode getOptimizerNode() {
 		return this;
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plandump.DumpableNode#getPlanNode()
-	 */
 	@Override
 	public PlanNode getPlanNode() {
 		return null;
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plandump.DumpableNode#getDumpableInputs()
-	 */
 	@Override
 	@SuppressWarnings("unchecked")
 	public Iterator<DumpableConnection<OptimizerNode>> getDumpableInputs() {
 		return (Iterator<DumpableConnection<OptimizerNode>>) (Iterator<?>) getIncomingConnections().iterator();
 	}
 	
-	/*
-	 * (non-Javadoc)
-	 * @see java.lang.Object#toString()
-	 */
 	@Override
 	public String toString() {
 		StringBuilder bld = new StringBuilder();
@@ -1330,7 +1317,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 
 		return bld.toString();
 	}
-	
+
 	public int[] getRemappedKeys(int input) {
 		return this.remappedKeys[input];
 	}

@@ -14,16 +14,24 @@
  **********************************************************************************************************************/
 package eu.stratosphere.pact.compiler.util;
 
-import eu.stratosphere.pact.generic.contract.DualInputContract;
+import eu.stratosphere.pact.common.contract.RecordContract;
+import eu.stratosphere.pact.common.type.Key;
+import eu.stratosphere.pact.generic.contract.SingleInputContract;
 import eu.stratosphere.pact.generic.contract.UserCodeClassWrapper;
-import eu.stratosphere.pact.generic.stub.AbstractStub;
 
 
-public class NoContract extends DualInputContract<MockStub> {
+public class NoOpUnaryUdfOp extends SingleInputContract<NoOpStub> implements RecordContract {
 	
-	public NoContract() {
-		super(new UserCodeClassWrapper<MockStub>(MockStub.class), "NoContract");
+	public static final NoOpUnaryUdfOp INSTANCE = new NoOpUnaryUdfOp();
+	
+	private NoOpUnaryUdfOp() {
+		super(new UserCodeClassWrapper<NoOpStub>(NoOpStub.class), "NoContract");
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public Class<? extends Key>[] getKeyClasses() {
+		return (Class<? extends Key>[]) new Class[0];
 	}
 }
 
-class MockStub extends AbstractStub {}

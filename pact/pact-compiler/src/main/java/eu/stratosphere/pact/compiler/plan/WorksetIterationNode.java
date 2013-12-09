@@ -39,7 +39,7 @@ import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SolutionSetPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.WorksetIterationPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.WorksetPlanNode;
-import eu.stratosphere.pact.compiler.util.NoContract;
+import eu.stratosphere.pact.compiler.util.NoOpBinaryUdfOp;
 import eu.stratosphere.pact.generic.contract.WorksetIteration;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
@@ -152,24 +152,17 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 
 	// --------------------------------------------------------------------------------------------
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getName()
-	 */
 	@Override
 	public String getName() {
 		return "Workset Iteration";
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isFieldConstant(int, int)
-	 */
 	@Override
 	public boolean isFieldConstant(int input, int fieldNumber) {
 		return false;
 	}
 	
-	protected void readStubAnnotations() {
-	}
+	protected void readStubAnnotations() {}
 	
 	public void computeOutputEstimates(DataStatistics statistics) {
 		// copy from the partial solution input.
@@ -184,25 +177,16 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 	//                             Properties and Optimization
 	// --------------------------------------------------------------------------------------------
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isMemoryConsumer()
-	 */
 	@Override
 	public boolean isMemoryConsumer() {
 		return true;
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.TwoInputNode#getPossibleProperties()
-	 */
 	@Override
 	protected List<OperatorDescriptorDual> getPossibleProperties() {
 		return new ArrayList<OperatorDescriptorDual>(1);
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeInterestingPropertiesForInputs(eu.stratosphere.pact.compiler.costs.CostEstimator)
-	 */
 	@Override
 	public void computeInterestingPropertiesForInputs(CostEstimator estimator) {
 		// our own solution (the solution set) is always partitioned and this cannot be adjusted
@@ -290,21 +274,7 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 		// 4) Throw away all that are not compatible with the properties currently requested to the
 		//    initial partial solution
 		
-		// check the solution set delta
-		for (Iterator<PlanNode> planDeleter = solutionSetDeltaCandidates.iterator(); planDeleter.hasNext(); ) {
-			PlanNode candidate = planDeleter.next();
-			GlobalProperties gp = candidate.getGlobalProperties();
-			if (gp.getPartitioning() != PartitioningProperty.HASH_PARTITIONED || gp.getPartitioningFields() == null ||
-					!gp.getPartitioningFields().equals(this.solutionSetKeyFields)) {
-				planDeleter.remove();
-			}
-		}
-		if (solutionSetDeltaCandidates.isEmpty()) {
-			throw new CompilerException("No viable strategies for solution set delta found during plan enumeration. " +
-					"Possible reason: Partitioning is not preserved when matching with the solution set. Missing annotation?");
-		}
-		
-		// ... and on the workset
+		// Make sure that the workset candidates fulfill the input requirements
 		for (Iterator<PlanNode> planDeleter = worksetCandidates.iterator(); planDeleter.hasNext(); ) {
 			PlanNode candidate = planDeleter.next();
 			if (!(globPropsReqWorkset.isMetBy(candidate.getGlobalProperties()) && locPropsReqWorkset.isMetBy(candidate.getLocalProperties()))) {
@@ -313,6 +283,17 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 		}
 		if (worksetCandidates.isEmpty()) {
 			return;
+		}
+		
+		// sanity check the solution set delta
+		for (Iterator<PlanNode> planDeleter = solutionSetDeltaCandidates.iterator(); planDeleter.hasNext(); ) {
+			PlanNode candidate = planDeleter.next();
+			GlobalProperties gp = candidate.getGlobalProperties();
+			if (gp.getPartitioning() != PartitioningProperty.HASH_PARTITIONED || gp.getPartitioningFields() == null ||
+					!gp.getPartitioningFields().equals(this.solutionSetKeyFields))
+			{
+				throw new CompilerException("Bug: The solution set delta is not partitioned.");
+			}
 		}
 		
 		// 5) Create a candidate for the Iteration Node for every remaining plan of the step function.
@@ -399,8 +380,8 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 	
 	private static class SingleRootJoiner extends TwoInputNode {
 		
-		SingleRootJoiner() {
-			super(new NoContract());
+		private SingleRootJoiner() {
+			super(NoOpBinaryUdfOp.INSTANCE);
 			
 			setDegreeOfParallelism(1);
 			setSubtasksPerInstance(1);

@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.junit.Before;
+import org.junit.BeforeClass;
 
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.instance.HardwareDescription;
@@ -35,6 +36,7 @@ import eu.stratosphere.nephele.instance.InstanceTypeFactory;
 import eu.stratosphere.pact.common.contract.GenericDataSource;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.stubs.Stub;
+import eu.stratosphere.pact.common.util.LogUtils;
 import eu.stratosphere.pact.common.util.Visitor;
 import eu.stratosphere.pact.compiler.costs.DefaultCostEstimator;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
@@ -73,6 +75,11 @@ public abstract class CompilerTestBase {
 	private int statCounter;
 	
 	// ------------------------------------------------------------------------	
+	
+	@BeforeClass
+	public static void initialize() {
+		LogUtils.initializeDefaultTestConsoleLogger();
+	}
 	
 	@Before
 	public void setup() {
