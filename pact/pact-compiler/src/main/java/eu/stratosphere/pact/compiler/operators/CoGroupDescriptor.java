@@ -140,7 +140,7 @@ public class CoGroupDescriptor extends OperatorDescriptorDual {
 			inputOrders = tmp;
 		}
 		
-		return new DualInputPlanNode(node, in1, in2, DriverStrategy.CO_GROUP, this.keys1, this.keys2, inputOrders);
+		return new DualInputPlanNode(node, "CGp("+node.getPactContract().getName()+")", in1, in2, DriverStrategy.CO_GROUP, this.keys1, this.keys2, inputOrders);
 	}
 	
 	@Override

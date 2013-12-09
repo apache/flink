@@ -42,7 +42,7 @@ public class SolutionSetNode extends AbstractPartialSolutionNode
 		if (this.cachedPlans != null) {
 			throw new IllegalStateException();
 		} else {
-			this.cachedPlans = Collections.<PlanNode>singletonList(new SolutionSetPlanNode(this, gProps, lProps));
+			this.cachedPlans = Collections.<PlanNode>singletonList(new SolutionSetPlanNode(this, "SolSet("+this.getPactContract().getName()+")", gProps, lProps));
 		}
 	}
 	

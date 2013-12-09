@@ -48,7 +48,7 @@ public final class PartialGroupProperties extends OperatorDescriptorSingle {
 		combinerNode.setDegreeOfParallelism(in.getSource().getDegreeOfParallelism());
 		combinerNode.setSubtasksPerInstance(in.getSource().getSubtasksPerInstance());
 		
-		return new SingleInputPlanNode(combinerNode, in, DriverStrategy.PARTIAL_GROUP, this.keyList);
+		return new SingleInputPlanNode(combinerNode, "Cmb("+node.getPactContract().getName()+")", in, DriverStrategy.PARTIAL_GROUP, this.keyList);
 	}
 
 	@Override

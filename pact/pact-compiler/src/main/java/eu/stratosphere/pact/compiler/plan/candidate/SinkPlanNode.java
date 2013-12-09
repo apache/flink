@@ -29,8 +29,8 @@ public class SinkPlanNode extends SingleInputPlanNode
 	 * 
 	 * @param template The template optimizer node that this candidate is created for.
 	 */
-	public SinkPlanNode(DataSinkNode template, Channel input) {
-		super(template, input, DriverStrategy.NONE);
+	public SinkPlanNode(DataSinkNode template, String nodeName, Channel input) {
+		super(template, nodeName, input, DriverStrategy.NONE);
 		
 		this.globalProps = input.getGlobalProperties().clone();
 		this.localProps = input.getLocalProperties().clone();

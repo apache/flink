@@ -79,7 +79,7 @@ public final class GroupWithPartialPreGroupProperties extends OperatorDescriptor
 				}
 				in.setLocalStrategy(LocalStrategy.COMBININGSORT, in.getLocalStrategyKeys(), in.getLocalStrategySortOrder());
 			}
-			return new SingleInputPlanNode(node, in, DriverStrategy.SORTED_GROUP, this.keyList);
+			return new SingleInputPlanNode(node, "Red("+node.getPactContract().getName()+")", in, DriverStrategy.SORTED_GROUP, this.keyList);
 		} else {
 			// non forward case. all local properties are killed anyways, so we can safely plug in a combiner
 			Channel toCombiner = new Channel(in.getSource());
@@ -89,14 +89,14 @@ public final class GroupWithPartialPreGroupProperties extends OperatorDescriptor
 			combinerNode.setDegreeOfParallelism(in.getSource().getDegreeOfParallelism());
 			combinerNode.setSubtasksPerInstance(in.getSource().getSubtasksPerInstance());
 			
-			SingleInputPlanNode combiner = new SingleInputPlanNode(combinerNode, toCombiner, DriverStrategy.PARTIAL_GROUP, this.keyList);
+			SingleInputPlanNode combiner = new SingleInputPlanNode(combinerNode, "Cmb("+node.getPactContract().getName()+")", toCombiner, DriverStrategy.PARTIAL_GROUP, this.keyList);
 			combiner.setCosts(new Costs(0, 0));
 			combiner.initProperties(toCombiner.getGlobalProperties(), toCombiner.getLocalProperties());
 			
 			Channel toReducer = new Channel(combiner);
 			toReducer.setShipStrategy(in.getShipStrategy(), in.getShipStrategyKeys(), in.getShipStrategySortOrder());
 			toReducer.setLocalStrategy(LocalStrategy.COMBININGSORT, in.getLocalStrategyKeys(), in.getLocalStrategySortOrder());
-			return new SingleInputPlanNode(node, toReducer, DriverStrategy.SORTED_GROUP, this.keyList);
+			return new SingleInputPlanNode(node, "Red("+node.getPactContract().getName()+")", toReducer, DriverStrategy.SORTED_GROUP, this.keyList);
 		}
 	}
 

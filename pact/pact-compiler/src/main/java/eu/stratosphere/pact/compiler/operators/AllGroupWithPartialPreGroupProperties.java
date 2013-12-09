@@ -46,18 +46,18 @@ public final class AllGroupWithPartialPreGroupProperties extends OperatorDescrip
 	public SingleInputPlanNode instantiate(Channel in, SingleInputNode node) {
 		if (in.getShipStrategy() == ShipStrategyType.FORWARD) {
 			// locally connected, directly instantiate
-			return new SingleInputPlanNode(node, in, DriverStrategy.ALL_GROUP);
+			return new SingleInputPlanNode(node, "Red("+node.getPactContract().getName()+")", in, DriverStrategy.ALL_GROUP);
 		} else {
 			// non forward case.plug in a combiner
 			Channel toCombiner = new Channel(in.getSource());
 			toCombiner.setShipStrategy(ShipStrategyType.FORWARD);
-			SingleInputPlanNode combiner = new SingleInputPlanNode(node, toCombiner, DriverStrategy.ALL_GROUP);
+			SingleInputPlanNode combiner = new SingleInputPlanNode(node, "Cmb("+node.getPactContract().getName()+")", toCombiner, DriverStrategy.ALL_GROUP);
 			combiner.setCosts(new Costs(0, 0));
 			
 			Channel toReducer = new Channel(combiner);
 			toReducer.setShipStrategy(in.getShipStrategy(), in.getShipStrategyKeys(), in.getShipStrategySortOrder());
 			toReducer.setLocalStrategy(in.getLocalStrategy(), in.getLocalStrategyKeys(), in.getLocalStrategySortOrder());
-			return new SingleInputPlanNode(node, toReducer, DriverStrategy.ALL_GROUP);
+			return new SingleInputPlanNode(node, "Red("+node.getPactContract().getName()+")", toReducer, DriverStrategy.ALL_GROUP);
 		}
 	}
 

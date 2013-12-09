@@ -53,7 +53,7 @@ public final class HashJoinBuildSecondProperties extends AbstractJoinDescriptor 
 
 	@Override
 	public DualInputPlanNode instantiate(Channel in1, Channel in2, TwoInputNode node) {
-		return new DualInputPlanNode(node, in1, in2, DriverStrategy.HYBRIDHASH_BUILD_SECOND, this.keys1, this.keys2);
+		return new DualInputPlanNode(node, "Mat("+node.getPactContract().getName()+")", in1, in2, DriverStrategy.HYBRIDHASH_BUILD_SECOND, this.keys1, this.keys2);
 	}
 	
 	@Override

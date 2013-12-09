@@ -51,11 +51,11 @@ public class WorksetIterationPlanNode extends DualInputPlanNode implements Itera
 	
 	// --------------------------------------------------------------------------------------------
 
-	public WorksetIterationPlanNode(WorksetIterationNode template, Channel initialSolutionSet, Channel initialWorkset,
+	public WorksetIterationPlanNode(WorksetIterationNode template, String nodeName, Channel initialSolutionSet, Channel initialWorkset,
 			SolutionSetPlanNode solutionSetPlanNode, WorksetPlanNode worksetPlanNode,
 			PlanNode nextWorkSetPlanNode, PlanNode solutionSetDeltaPlanNode)
 	{
-		super(template, initialSolutionSet, initialWorkset, DriverStrategy.NONE);
+		super(template, nodeName, initialSolutionSet, initialWorkset, DriverStrategy.NONE);
 		this.solutionSetPlanNode = solutionSetPlanNode;
 		this.worksetPlanNode = worksetPlanNode;
 		this.solutionSetDeltaPlanNode = solutionSetDeltaPlanNode;

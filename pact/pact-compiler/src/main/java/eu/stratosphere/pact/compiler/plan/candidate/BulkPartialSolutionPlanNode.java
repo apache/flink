@@ -40,8 +40,8 @@ public class BulkPartialSolutionPlanNode extends PlanNode {
 	public Object postPassHelper;
 	
 	
-	public BulkPartialSolutionPlanNode(BulkPartialSolutionNode template, GlobalProperties gProps, LocalProperties lProps) {
-		super(template, DriverStrategy.NONE);
+	public BulkPartialSolutionPlanNode(BulkPartialSolutionNode template, String nodeName, GlobalProperties gProps, LocalProperties lProps) {
+		super(template, nodeName, DriverStrategy.NONE);
 		
 		this.globalProps = gProps;
 		this.localProps = lProps;

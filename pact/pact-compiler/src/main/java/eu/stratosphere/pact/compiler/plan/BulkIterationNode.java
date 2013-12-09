@@ -241,7 +241,7 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 		
 		// 5) Create a candidate for the Iteration Node for every remaining plan of the step function.
 		for (PlanNode candidate : candidates) {
-			BulkIterationPlanNode node = new BulkIterationPlanNode(this, in, pspn, candidate);
+			BulkIterationPlanNode node = new BulkIterationPlanNode(this, "BlkIt("+this.getPactContract().getName()+")", in, pspn, candidate);
 			GlobalProperties gProps = candidate.getGlobalProperties().clone();
 			LocalProperties lProps = candidate.getLocalProperties().clone();
 			node.initProperties(gProps, lProps);
