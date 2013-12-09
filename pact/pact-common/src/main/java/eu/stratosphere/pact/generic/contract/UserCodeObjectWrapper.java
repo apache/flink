@@ -16,6 +16,8 @@ package eu.stratosphere.pact.generic.contract;
 
 import java.io.Serializable;
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 
 import org.apache.commons.lang3.SerializationUtils;
 
@@ -34,6 +36,31 @@ public class UserCodeObjectWrapper<T> implements UserCodeWrapper<T> {
 	public UserCodeObjectWrapper(T userCodeObject) {
 		Preconditions.checkArgument(userCodeObject instanceof Serializable, "User code object is not serializable: " + userCodeObject.getClass());
 		this.userCodeObject = userCodeObject;
+                // Remove unserializable objects from the user code object as well as from outer objects
+        Object current = userCodeObject;
+        try {
+            while (null != current) {
+                Object newCurrent = null;
+                for (Field f : current.getClass().getDeclaredFields()) {
+                    f.setAccessible(true);
+
+                    if (f.getName().contains("$outer")) {
+                        newCurrent = f.get(current);
+
+                    }
+
+                    if (!Modifier.isStatic(f.getModifiers()) && f.get(current) != null &&  !(f.get(current) instanceof Serializable)) {
+                        throw new RuntimeException("User code object " +
+                                userCodeObject + " contains non-serializable field " + f.getName() + " = " + f.get(current));
+                    }
+                }
+                current = newCurrent;
+            }
+        } catch (IllegalAccessException e) {
+            // this cannot occur since we call setAccessible(true)
+            e.printStackTrace();
+        }
+
 	}
 	
 	@Override

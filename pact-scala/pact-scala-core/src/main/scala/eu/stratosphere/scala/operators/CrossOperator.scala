@@ -79,8 +79,10 @@ object CrossMacros {
     }
     val contract = reify {
       val helper: CrossDataSet[LeftIn, RightIn] = c.prefix.splice
-      val generatedStub = stub.splice
-      val builder = CrossContract.builder(generatedStub).input1(helper.leftInput.contract).input2(helper.rightInput.contract)
+      val leftInput = helper.leftInput.contract
+      val rightInput = helper.rightInput.contract
+      val generatedStub = ClosureCleaner.clean(stub.splice)
+      val builder = CrossContract.builder(generatedStub).input1(leftInput).input2(rightInput)
       
       val ret = new CrossContract(builder) with TwoInputScalaContract[LeftIn, RightIn, Out] {
         override def getUDF = generatedStub.udf
@@ -139,8 +141,10 @@ object CrossMacros {
     }
     val contract = reify {
       val helper: CrossDataSet[LeftIn, RightIn] = c.prefix.splice
-      val generatedStub = stub.splice
-      val builder = CrossContract.builder(generatedStub).input1(helper.leftInput.contract).input2(helper.rightInput.contract)
+      val leftInput = helper.leftInput.contract
+      val rightInput = helper.rightInput.contract
+      val generatedStub = ClosureCleaner.clean(stub.splice)
+      val builder = CrossContract.builder(generatedStub).input1(leftInput).input2(rightInput)
       
       val ret = new CrossContract(builder) with TwoInputScalaContract[LeftIn, RightIn, Out] {
         override def getUDF = generatedStub.udf
@@ -186,8 +190,10 @@ object CrossMacros {
     }
     val contract = reify {
       val helper: CrossDataSet[LeftIn, RightIn] = c.prefix.splice
-      val generatedStub = stub.splice
-      val builder = CrossContract.builder(generatedStub).input1(helper.leftInput.contract).input2(helper.rightInput.contract)
+      val leftInput = helper.leftInput.contract
+      val rightInput = helper.rightInput.contract
+      val generatedStub = ClosureCleaner.clean(stub.splice)
+      val builder = CrossContract.builder(generatedStub).input1(leftInput).input2(rightInput)
       
       val ret = new CrossContract(builder) with TwoInputScalaContract[LeftIn, RightIn, (LeftIn, RightIn)] {
         override def getUDF = generatedStub.udf

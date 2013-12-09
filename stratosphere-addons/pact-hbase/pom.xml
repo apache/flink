@@ -55,6 +55,12 @@
 			<groupId>org.apache.hadoop</groupId>
 			<artifactId>hadoop-client</artifactId>
 			<version>${hadoop.version}</version>
+			<exclusions>
+                <exclusion>
+                <groupId>asm</groupId>
+                <artifactId>asm</artifactId>
+                </exclusion>
+            </exclusions>
 		</dependency>
 	</dependencies>
 		<!-- <dependency>

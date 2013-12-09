@@ -142,7 +142,7 @@ object SequentialInputFormat {
         }
         
         val udt: UDT[Out] = c.Expr[UDT[Out]](createUdtOut).splice
-        lazy val udf: UDF0[Out] = new UDF0(udt)
+        val udf: UDF0[Out] = new UDF0(udt)
         override def getUDF = udf
       }
       
@@ -274,7 +274,7 @@ object CsvInputFormat {
       new JavaRecordInputFormat with ScalaInputFormat[Out] {
         
         val udt: UDT[Out] = c.Expr[UDT[Out]](createUdtOut).splice
-        lazy val udf: UDF0[Out] = new UDF0(udt)
+        val udf: UDF0[Out] = new UDF0(udt)
         override def getUDF = udf
         
         setDelimiter((recordDelim.splice.getOrElse("\n")))
@@ -346,7 +346,7 @@ object TextInputFormat {
         config.setInteger(JavaTextInputFormat.FIELD_POS, getUDF.outputFields(0).globalPos.getValue)
       }
      // override val udt: UDT[String] = UDT.StringUDT
-      lazy val udf: UDF0[String] = new UDF0(UDT.StringUDT)
+      val udf: UDF0[String] = new UDF0(UDT.StringUDT)
       override def getUDF = udf
     }
   }

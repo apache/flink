@@ -46,6 +46,8 @@ object MapMacros {
       implicit val inputUDT: UDT[In] = c.Expr[UDT[In]](createUdtIn).splice
       implicit val outputUDT: UDT[Out] = c.Expr[UDT[Out]](createUdtOut).splice
       new MapStubBase[In, Out] {
+//        val userFun = ClosureCleaner.clean(fun.splice)
+//        val userFun = fun.splice
         override def map(record: PactRecord, out: Collector[PactRecord]) = {
           val input = deserializer.deserializeRecyclingOn(record)
           val output = fun.splice.apply(input)
@@ -60,9 +62,11 @@ object MapMacros {
         }
       }
     }
+
     val contract = reify {
-      val generatedStub = stub.splice
-      val builder = MapContract.builder(generatedStub).input((c.prefix.splice).contract)
+      val input = c.prefix.splice.contract
+      val generatedStub = ClosureCleaner.clean(stub.splice)
+      val builder = MapContract.builder(generatedStub).input(input)
       
       val contract = new MapContract(builder) with OneInputScalaContract[In, Out] {
         override def getUDF = generatedStub.udf
@@ -117,8 +121,9 @@ object MapMacros {
       }
     }
     val contract = reify {
-      val generatedStub = stub.splice
-      val builder = MapContract.builder(generatedStub).input((c.prefix.splice).contract)
+      val input = c.prefix.splice.contract
+      val generatedStub = ClosureCleaner.clean(stub.splice)
+      val builder = MapContract.builder(generatedStub).input(input)
       
       val contract = new MapContract(builder) with OneInputScalaContract[In, Out] {
         override def getUDF = generatedStub.udf
@@ -159,8 +164,9 @@ object MapMacros {
       }
     }
     val contract = reify {
-      val generatedStub = stub.splice
-      val builder = MapContract.builder(generatedStub).input((c.prefix.splice).contract)
+      val input = c.prefix.splice.contract
+      val generatedStub = ClosureCleaner.clean(stub.splice)
+      val builder = MapContract.builder(generatedStub).input(input)
       
       val contract = new MapContract(builder) with OneInputScalaContract[In, In] {
         override def getUDF = generatedStub.udf

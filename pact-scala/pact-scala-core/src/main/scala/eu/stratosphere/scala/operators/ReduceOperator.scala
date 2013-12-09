@@ -135,11 +135,12 @@ object ReduceMacros {
     }
     val contract = reify {
       val helper = groupedInput.splice
-      val generatedStub = stub.splice
+      val input = helper.input.contract
+      val generatedStub = ClosureCleaner.clean(stub.splice)
       val keySelection = helper.keySelection
       val keySelector = new FieldSelector(generatedStub.inputUDT, keySelection)
 
-      val builder = ReduceContract.builder(generatedStub).input(helper.input.contract)
+      val builder = ReduceContract.builder(generatedStub).input(input)
 
       val keyPositions = keySelector.selectedFields.toIndexArray
       val keyTypes = generatedStub.inputUDT.getKeySet(keyPositions)
@@ -192,10 +193,11 @@ object ReduceMacros {
     }
     val contract = reify {
       val helper = groupedInput.splice
-      val generatedStub = stub.splice
+      val input = helper.input.contract
+      val generatedStub = ClosureCleaner.clean(stub.splice)
       val keySelection = helper.keySelection
       val keySelector = new FieldSelector(generatedStub.inputUDT, keySelection)
-      val builder = ReduceContract.builder(generatedStub).input(helper.input.contract)
+      val builder = ReduceContract.builder(generatedStub).input(input)
 
       val keyPositions = keySelector.selectedFields.toIndexArray
       val keyTypes = generatedStub.inputUDT.getKeySet(keyPositions)
@@ -250,10 +252,11 @@ object ReduceMacros {
     }
     val contract = reify {
       val helper = groupedInput.splice
-      val generatedStub = stub.splice
+      val input = helper.input.contract
+      val generatedStub = ClosureCleaner.clean(stub.splice)
       val keySelection = helper.keySelection
       val keySelector = new FieldSelector(generatedStub.inputUDT, keySelection)
-      val builder = ReduceContract.builder(generatedStub).input(helper.input.contract)
+      val builder = ReduceContract.builder(generatedStub).input(input)
 
       val keyPositions = keySelector.selectedFields.toIndexArray
       val keyTypes = generatedStub.inputUDT.getKeySet(keyPositions)

@@ -120,12 +120,14 @@ object CoGroupMacros {
       }
     }
     val contract = reify {
-      val generatedStub = stub.splice
       val helper: CoGroupDataSetWithWhereAndEqual[LeftIn, RightIn] = c.prefix.splice
+      val leftInput = helper.leftInput.contract
+      val rightInput = helper.rightInput.contract
+      val generatedStub = ClosureCleaner.clean(stub.splice)
       val leftKeySelector = new FieldSelector(generatedStub.leftInputUDT, helper.leftKeySelection)
       val rightKeySelector = new FieldSelector(generatedStub.rightInputUDT, helper.rightKeySelection)
 
-      val builder = new NoKeyCoGroupBuilder(generatedStub).input1(helper.leftInput.contract).input2(helper.rightInput.contract)
+      val builder = new NoKeyCoGroupBuilder(generatedStub).input1(leftInput).input2(rightInput)
 
       val leftKeyPositions = leftKeySelector.selectedFields.toIndexArray
       val rightKeyPositions = leftKeySelector.selectedFields.toIndexArray
@@ -189,12 +191,14 @@ object CoGroupMacros {
       }
     }
     val contract = reify {
-      val generatedStub = stub.splice
       val helper: CoGroupDataSetWithWhereAndEqual[LeftIn, RightIn] = c.prefix.splice
+      val leftInput = helper.leftInput.contract
+      val rightInput = helper.rightInput.contract
+      val generatedStub = ClosureCleaner.clean(stub.splice)
       val leftKeySelector = new FieldSelector(generatedStub.leftInputUDT, helper.leftKeySelection)
       val rightKeySelector = new FieldSelector(generatedStub.rightInputUDT, helper.rightKeySelection)
 
-      val builder = new NoKeyCoGroupBuilder(generatedStub).input1(helper.leftInput.contract).input2(helper.rightInput.contract)
+      val builder = new NoKeyCoGroupBuilder(generatedStub).input1(leftInput).input2(rightInput)
 
       val leftKeyPositions = leftKeySelector.selectedFields.toIndexArray
       val rightKeyPositions = leftKeySelector.selectedFields.toIndexArray

@@ -35,7 +35,7 @@ object RunKMeans {
 
 class KMeans extends PlanAssembler with PlanAssemblerDescription with Serializable {
   override def getDescription() = {
-    "Parameters: [numSubStasks] [dataPoints] [clusterCenters] [output] [numIterations]"
+    "Parameters: [numSubStasksS] [dataPoints] [clusterCenters] [output] [numIterations]"
   }
   override def getPlan(args: String*) = {
     getScalaPlan(args(0).toInt, args(1), args(2), args(3), args(4).toInt)
@@ -89,32 +89,30 @@ class KMeans extends PlanAssembler with PlanAssemblerDescription with Serializab
     val dataPoints = DataSource(dataPointInput, DelimitedInputFormat(parseInput))
     val clusterPoints = DataSource(clusterInput, DelimitedInputFormat(parseInput))
 
-    def computeNewCenters(centers: DataSet[(Int, Point)]) = {
+    val finalCenters = clusterPoints.iterate(numIterations, { centers: DataSet[(Int, Point)] =>
 
       val distances = dataPoints cross centers map computeDistance
       val nearestCenters = distances groupBy { case (pid, _) => pid } reduceGroup { ds => ds.minBy(_._2.distance) } map asPointSum.tupled
       val newCenters = nearestCenters groupBy { case (cid, _) => cid } reduceGroup sumPointSums map { case (cid, pSum) => cid -> pSum.toPoint() }
 
-//      distances.left neglects { case (pid, _) => pid }
-//      distances.left preserves({ dp => dp }, { case (pid, dist) => (pid, dist.dataPoint) })
-//      distances.right neglects { case (cid, _) => cid }
-//      distances.right preserves({ case (cid, _) => cid }, { case (_, dist) => dist.clusterId })
-//
-//      nearestCenters neglects { case (pid, _) => pid }
-//
-//      newCenters neglects { case (cid, _) => cid }
-//      newCenters.preserves({ case (cid, _) => cid }, { case (cid, _) => cid })
-//
-//      distances.avgBytesPerRecord(48)
-//      nearestCenters.avgBytesPerRecord(40)
-//      newCenters.avgBytesPerRecord(36)
-      
-//      val diff = centers join newCenters where { _._1 } isEqualTo { _._1 } map { (c1, c2) => c1._2.computeEuclidianDistance(c2._2) }
+      //      distances.left neglects { case (pid, _) => pid }
+      //      distances.left preserves({ dp => dp }, { case (pid, dist) => (pid, dist.dataPoint) })
+      //      distances.right neglects { case (cid, _) => cid }
+      //      distances.right preserves({ case (cid, _) => cid }, { case (_, dist) => dist.clusterId })
+      //
+      //      nearestCenters neglects { case (pid, _) => pid }
+      //
+      //      newCenters neglects { case (cid, _) => cid }
+      //      newCenters.preserves({ case (cid, _) => cid }, { case (cid, _) => cid })
+      //
+      //      distances.avgBytesPerRecord(48)
+      //      nearestCenters.avgBytesPerRecord(40)
+      //      newCenters.avgBytesPerRecord(36)
+
+      //      val diff = centers join newCenters where { _._1 } isEqualTo { _._1 } map { (c1, c2) => c1._2.computeEuclidianDistance(c2._2) }
 
       newCenters
-    }
-
-    val finalCenters = clusterPoints.iterate(numIterations, computeNewCenters)
+    })
 
     val output = finalCenters.write(clusterOutput, DelimitedOutputFormat(formatOutput.tupled))
 

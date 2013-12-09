@@ -41,6 +41,12 @@
 				<dependency>
 					<groupId>org.apache.hadoop</groupId>
 					<artifactId>hadoop-core</artifactId>
+                    <exclusions>
+                        <exclusion>
+                            <groupId>asm</groupId>
+                            <artifactId>asm</artifactId>
+                        </exclusion>
+                    </exclusions>
 				</dependency>
 			</dependencies>
 		</profile>

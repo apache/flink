@@ -115,12 +115,14 @@ object JoinMacros {
       }
     }
     val contract = reify {
-      val generatedStub = stub.splice
       val helper: JoinDataSetWithWhereAndEqual[LeftIn, RightIn] = c.prefix.splice
+      val leftInput = helper.leftInput.contract
+      val rightInput = helper.rightInput.contract
+      val generatedStub = ClosureCleaner.clean(stub.splice)
       val leftKeySelector = new FieldSelector(generatedStub.leftInputUDT, helper.leftKey)
       val rightKeySelector = new FieldSelector(generatedStub.rightInputUDT, helper.rightKey)
 
-      val builder = new NoKeyMatchBuilder(generatedStub).input1(helper.leftInput.contract).input2(helper.rightInput.contract)
+      val builder = new NoKeyMatchBuilder(generatedStub).input1(leftInput).input2(rightInput)
 
       val leftKeyPositions = leftKeySelector.selectedFields.toIndexArray
       val rightKeyPositions = leftKeySelector.selectedFields.toIndexArray
@@ -188,11 +190,13 @@ object JoinMacros {
       }
     }
     val contract = reify {
-      val generatedStub = stub.splice
       val helper: JoinDataSetWithWhereAndEqual[LeftIn, RightIn] = c.prefix.splice
+      val leftInput = helper.leftInput.contract
+      val rightInput = helper.rightInput.contract
+      val generatedStub = ClosureCleaner.clean(stub.splice)
       val leftKeySelector = new FieldSelector(generatedStub.leftInputUDT, helper.leftKey)
       val rightKeySelector = new FieldSelector(generatedStub.rightInputUDT, helper.rightKey)
-      val builder = new NoKeyMatchBuilder(generatedStub).input1(helper.leftInput.contract).input2(helper.rightInput.contract)
+      val builder = new NoKeyMatchBuilder(generatedStub).input1(leftInput).input2(rightInput)
 
       val leftKeyPositions = leftKeySelector.selectedFields.toIndexArray
       val rightKeyPositions = leftKeySelector.selectedFields.toIndexArray
@@ -248,11 +252,13 @@ object JoinMacros {
       }
     }
     val contract = reify {
-      val generatedStub = stub.splice
       val helper: JoinDataSetWithWhereAndEqual[LeftIn, RightIn] = c.prefix.splice
+      val leftInput = helper.leftInput.contract
+      val rightInput = helper.rightInput.contract
+      val generatedStub = ClosureCleaner.clean(stub.splice)
       val leftKeySelector = new FieldSelector(generatedStub.leftInputUDT, helper.leftKey)
       val rightKeySelector = new FieldSelector(generatedStub.rightInputUDT, helper.rightKey)
-      val builder = new NoKeyMatchBuilder(generatedStub).input1(helper.leftInput.contract).input2(helper.rightInput.contract)
+      val builder = new NoKeyMatchBuilder(generatedStub).input1(leftInput).input2(rightInput)
 
       val leftKeyPositions = leftKeySelector.selectedFields.toIndexArray
       val rightKeyPositions = leftKeySelector.selectedFields.toIndexArray
