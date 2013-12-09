@@ -36,11 +36,17 @@
 package eu.stratosphere.yarn;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.util.Enumeration;
 import java.util.Map;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -57,6 +63,7 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.util.Apps;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 
+import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 
 public class Utils {
@@ -64,6 +71,35 @@ public class Utils {
 	private static final Log LOG = LogFactory.getLog(Utils.class);
 	
 
+	public static void copyJarContents(String prefix, String pathToJar) throws IOException {
+		JarFile jar = null;
+		jar = new JarFile(pathToJar);
+		Enumeration<JarEntry> enumr = jar.entries();
+		byte[] bytes = new byte[1024];
+		while(enumr.hasMoreElements()) {
+			JarEntry entry = enumr.nextElement();
+			if(entry.getName().startsWith(prefix)) {
+				if(entry.isDirectory()) {
+					File cr = new File(entry.getName());
+					cr.mkdirs();
+					continue;
+				}
+				InputStream inStream = jar.getInputStream(entry);
+				File outFile = new File(entry.getName());
+				if(outFile.exists()) {
+					throw new RuntimeException("File unexpectedly exists");
+				}
+				FileOutputStream outputStream = new FileOutputStream(outFile);
+				int read = 0;
+				while ((read = inStream.read(bytes)) != -1) {
+					outputStream.write(bytes, 0, read);
+				}
+				inStream.close(); outputStream.close(); 
+			}
+		}
+		jar.close();
+	}
+	
 	public static void getStratosphereConfiguration(String confDir) {
 		GlobalConfiguration.loadConfiguration(confDir);
 	}
@@ -156,5 +192,13 @@ public class Utils {
 		appMasterJar.setVisibility(LocalResourceVisibility.APPLICATION);
 	}
 	
+	public static void main(String[] args) {
+		try {
+			Utils.copyJarContents(ConfigConstants.DEFAULT_JOB_MANAGER_WEB_PATH_NAME, 
+					"/home/robert/Projekte/ozone/ozone/stratosphere-dist/target/stratosphere-dist-0.4-SNAPSHOT-yarn-uberjar.jar");
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
 	
 }

@@ -50,9 +50,7 @@ import eu.stratosphere.nephele.util.StringUtils;
 import eu.stratosphere.pact.client.nephele.api.Client;
 import eu.stratosphere.pact.client.nephele.api.ErrorInPlanAssemblerException;
 import eu.stratosphere.pact.client.nephele.api.PactProgram;
-import eu.stratosphere.pact.client.nephele.api.PlanWithJars;
 import eu.stratosphere.pact.client.nephele.api.ProgramInvocationException;
-import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.compiler.CompilerException;
 
 /**
@@ -73,11 +71,12 @@ public class CliFrontend {
 	private static final Option HELP_OPTION = new Option("h", "help", false, "Show the help for the CLI Frontend.");
 	private static final Option VERBOSE_OPTION = new Option("v", "verbose", false, "Print more detailed error messages.");
 	
-	// run options
+	// run/remote options
 	private static final Option JAR_OPTION = new Option("j", "jarfile", true, "Pact program JAR file");
 	private static final Option CLASS_OPTION = new Option("c", "class", true, "Pact program assembler class");
 	private static final Option ARGS_OPTION = new Option("a", "arguments", true, "Pact program arguments");
 	private static final Option WAIT_OPTION = new Option("w", "wait", false, "Wait until program finishes");
+	private static final Option ADDRESS_OPTION = new Option("r", "address", true, "Hostname:port of JobManager");
 	
 	// info options
 	private static final Option DESCR_OPTION = new Option("d", "description", false, "Show argument description of pact program");
@@ -109,7 +108,7 @@ public class CliFrontend {
 		options = new HashMap<String, Options>();
 		options.put(GENERAL_OPTS, getGeneralOptions());
 		options.put(ACTION_RUN, getRunOptions());
-		options.put(ACTION_RUN_REMOTE, getRunOptions());
+		options.put(ACTION_RUN_REMOTE, getRemoteOptions());
 		options.put(ACTION_INFO, getInfoOptions());
 		options.put(ACTION_LIST, getListOptions());
 		options.put(ACTION_CANCEL, getCancelOptions());
@@ -134,9 +133,7 @@ public class CliFrontend {
 	 * @return Command line options for the run action.
 	 */
 	private Options getRunOptions() {
-		
 		Options options = new Options();
-		
 		// run options
 		JAR_OPTION.setRequired(false);
 		JAR_OPTION.setArgName("jarfile");
@@ -150,6 +147,27 @@ public class CliFrontend {
 		options.addOption(ARGS_OPTION);
 		WAIT_OPTION.setRequired(false);
 		options.addOption(WAIT_OPTION);
+		
+		return options;
+	}
+	
+	private Options getRemoteOptions() {
+		Options options = new Options();
+		// run options
+		JAR_OPTION.setRequired(false);
+		JAR_OPTION.setArgName("jarfile");
+		options.addOption(JAR_OPTION);
+		CLASS_OPTION.setRequired(false);
+		CLASS_OPTION.setArgName("classname");
+		options.addOption(CLASS_OPTION);
+		ARGS_OPTION.setRequired(false);
+		ARGS_OPTION.setArgName("programArgs");
+		ARGS_OPTION.setArgs(Option.UNLIMITED_VALUES);
+		options.addOption(ARGS_OPTION);
+		WAIT_OPTION.setRequired(false);
+		options.addOption(WAIT_OPTION);
+		ADDRESS_OPTION.setRequired(true);
+		options.addOption(ADDRESS_OPTION);
 		
 		return options;
 	}
@@ -217,55 +235,43 @@ public class CliFrontend {
 		return options;
 	}
 	
-	/**
-	 * Remote executor.
-	 * 
-	 * @param params
-	 */
-	private void remote(String[] params) {
-		//if(params.length != 4) {
-			System.err.println("Usage: [host:port] [jar] [class] [args]");
-		//	System.exit(1);
-		//}
-		for(int i = 0; i < params.length; i++) {
-			System.err.println("arg "+i+" = "+params[i]);
-		}
-		
-		RemoteExecutor re = new RemoteExecutor(params[0], params[1]);
-		PactProgram program = null;
-		try {
-			program = new PactProgram(new File(params[1]), params[2], params[3].split(" "));
-		} catch (ProgramInvocationException e1) {
-			e1.printStackTrace();
-		}
-		try {
-			re.executePlanWithJars(program.getPlanWithJars());
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+	private void run(String[] args) {
+		run(args, false);
 	}
-	
 	/**
 	 * Executions the run action.
 	 * 
 	 * @param args Command line arguments for the run action.
 	 */
-	private void run(String[] args) {
+	private void run(String[] args, boolean remote) {
 		
 		File jarFile = null;
 		String assemblerClass = null;
 		String[] programArgs = null;
+		String address = null; // only if remote == true.
 		boolean wait = false;
 		
 		// Parse command line options
 		CommandLine line = null;
 		try {
-			line = parser.parse(this.options.get(ACTION_RUN), args, false);
+			if(remote) {
+				line = parser.parse(this.options.get(ACTION_RUN_REMOTE), args, false);
+			} else {
+				line = parser.parse(this.options.get(ACTION_RUN), args, false);
+			}
 		} catch (Exception e) {
 			handleError(e);
 		}
 		
+		if(remote) {
+			if( line.hasOption(ADDRESS_OPTION.getOpt())) {
+				address = line.getOptionValue(ADDRESS_OPTION.getOpt());
+			} else {
+				System.err.println("Error: Address for JobManager not set.");	
+				printHelp();
+				System.exit(1);
+			}
+		}
 		// Get jar file
 		if (line.hasOption(JAR_OPTION.getOpt())) {
 			String jarFilePath = line.getOptionValue(JAR_OPTION.getOpt());
@@ -313,7 +319,12 @@ public class CliFrontend {
 		}
 
 		Configuration configuration = getConfiguration();
-		Client client = new Client(configuration);
+		Client client;
+		if(remote) {
+			client = new Client(RemoteExecutor.getInetFromHostport(address), configuration);
+		}else {
+			client = new Client(configuration);
+		}
 		try {
 			client.run(program.getPlanWithJars(), wait);
 		} catch (ProgramInvocationException e) {
@@ -640,6 +651,10 @@ public class CliFrontend {
 		formatter.setSyntaxPrefix("  \"run\" action arguments:");
 		formatter.printHelp(" ", this.options.get(ACTION_RUN));
 		
+		System.out.println("\nAction \"remote\" is similar to \"run\" but allows to specify the JobManager connection");
+		formatter.setSyntaxPrefix("  \"remote\" action arguments:");
+		formatter.printHelp(" ", this.options.get(ACTION_RUN_REMOTE));
+		
 		System.out.println("\nAction \"info\" displays information about a PACT program.");
 		formatter.setSyntaxPrefix("  \"info\" action arguments:");
 		formatter.printHelp(" ", this.options.get(ACTION_INFO));
@@ -764,7 +779,7 @@ public class CliFrontend {
 		if(action.equals(ACTION_RUN)) {
 			run(params);
 		} else if (action.equals(ACTION_RUN_REMOTE)) {
-			remote(params);
+			run(params, true);
 		} else if (action.equals(ACTION_LIST)) {
 			list(params);
 		} else if (action.equals(ACTION_INFO)) {

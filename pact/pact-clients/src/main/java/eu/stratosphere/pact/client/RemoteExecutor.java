@@ -6,12 +6,10 @@ import java.net.URISyntaxException;
 import java.util.Collections;
 import java.util.List;
 
+import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.client.nephele.api.Client;
-import eu.stratosphere.pact.client.nephele.api.ErrorInPlanAssemblerException;
 import eu.stratosphere.pact.client.nephele.api.PlanWithJars;
-import eu.stratosphere.pact.client.nephele.api.ProgramInvocationException;
 import eu.stratosphere.pact.common.plan.Plan;
-import eu.stratosphere.pact.compiler.CompilerException;
 
 public class RemoteExecutor implements PlanExecutor {
 
@@ -20,7 +18,7 @@ public class RemoteExecutor implements PlanExecutor {
 	private List<String> jarFiles;
 
 	public RemoteExecutor(InetSocketAddress inet, List<String> jarFiles) {
-		this.client = new Client(inet);
+		this.client = new Client(inet, new Configuration());
 		this.jarFiles = jarFiles;
 	}
 	
@@ -36,7 +34,7 @@ public class RemoteExecutor implements PlanExecutor {
 		this(getInetFromHostport(hostport), Collections.singletonList(jarFile));
 	}
 	
-	private static InetSocketAddress getInetFromHostport(String hostport) {
+	public static InetSocketAddress getInetFromHostport(String hostport) {
 		// from http://stackoverflow.com/questions/2345063/java-common-way-to-validate-and-convert-hostport-to-inetsocketaddress
 		URI uri;
 		try {

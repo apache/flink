@@ -89,7 +89,7 @@ public class ApplicationMaster {
 			this.jm = JobManager.initialize( args );
 			
 			// Start info server for jobmanager
-			//jobManager.startInfoServer();
+			this.jm.startInfoServer();
 
 			// Run the main task loop
 			this.jm.runTaskLoop();
@@ -99,11 +99,6 @@ public class ApplicationMaster {
 		}
 	}
 	public static void main(String[] args) throws Exception {
-		// LOG.info("CLASSPATH: "+System.getProperty("java.class.path"));
-//		Map<String, String> env = System.getenv();
-//        for (String envName : env.keySet()) {
-//        	LOG.info(envName+"="+env.get(envName));
-//        }
 		
 		// Initialize clients to ResourceManager and NodeManagers
 		Configuration conf = Utils.initializeYarnConfiguration();
@@ -126,7 +121,6 @@ public class ApplicationMaster {
 		LOG.info("Working directory "+currDir);
 		
 		// Update yaml conf -> set jobManager address to this machine's address.
-		// (I never know how to nicely do file i/o in java.)
 		FileInputStream fis = new FileInputStream(currDir+"/stratosphere-conf.yaml");
 		BufferedReader br = new BufferedReader(new InputStreamReader(fis));
 		Writer output = new BufferedWriter(new FileWriter(currDir+"/stratosphere-conf-modified.yaml"));
@@ -134,30 +128,27 @@ public class ApplicationMaster {
 		while ( (line = br.readLine()) != null) {
 		    if(line.contains(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY)) {
 		    	output.append(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY+": "+ownHostname+"\n");
+		    } else if(line.contains(ConfigConstants.JOB_MANAGER_WEB_ROOT_PATH_KEY)) {
+		    	output.append(ConfigConstants.JOB_MANAGER_WEB_ROOT_PATH_KEY+": "+currDir+"/"+ConfigConstants.DEFAULT_JOB_MANAGER_WEB_PATH_NAME+"\n");
 		    } else if(localDirs != null && line.contains(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY)) {
 		    	output.append(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY+": "+localDirs+"\n");
 		    } else {
 		    	output.append(line+"\n");
 		    }
 		}
+		// just to make sure.
+		output.append(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY+": "+ownHostname+"\n");
+		output.append(ConfigConstants.JOB_MANAGER_WEB_ROOT_PATH_KEY+": "+currDir+"/"+ConfigConstants.DEFAULT_JOB_MANAGER_WEB_PATH_NAME+"\n");
+		if(localDirs != null) output.append(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY+": "+localDirs+"\n");
 		output.close();
 		br.close();
-		LOG.info("Wrote to: "+currDir+"/stratosphere-conf-modified.yaml");
 		File newConf = new File(currDir+"/stratosphere-conf-modified.yaml");
 		if(!newConf.exists()) {
 			LOG.warn("modified yaml does not exist!");
 		}
-		// list current files.
-		File cd = new File(".");
-		File[] candidates = cd.listFiles(new FilenameFilter() {
-			@Override
-			public boolean accept(final File dir, final String name) {
-				LOG.info("Files in this directory: "+name);
-				return name != null && name.endsWith(".yaml");
-			}
-		});
 		
-		// TODO: Copy web frontend files.
+		Utils.copyJarContents(ConfigConstants.DEFAULT_JOB_MANAGER_WEB_PATH_NAME, 
+				ApplicationMaster.class.getProtectionDomain().getCodeSource().getLocation().getPath());
 		
 		JobManagerRunner jmr = new JobManagerRunner(currDir+"/stratosphere-conf-modified.yaml");
 		LOG.info("Starting JobManager");

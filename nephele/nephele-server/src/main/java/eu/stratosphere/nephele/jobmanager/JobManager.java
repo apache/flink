@@ -33,6 +33,7 @@
 
 package eu.stratosphere.nephele.jobmanager;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -449,7 +450,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		
 		// Set base dir for info server
 		Configuration infoserverConfig = GlobalConfiguration.getConfiguration();
-		if (configDir != null) {
+		if (configDir != null && new File(configDir).isDirectory()) {
 			infoserverConfig.setString(ConfigConstants.STRATOSPHERE_BASE_DIR_PATH_KEY, configDir+"/..");
 		}
 		GlobalConfiguration.includeConfiguration(infoserverConfig);

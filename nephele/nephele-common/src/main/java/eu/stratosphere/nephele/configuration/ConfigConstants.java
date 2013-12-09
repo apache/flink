@@ -162,9 +162,14 @@ public final class ConfigConstants {
 	public static final int DEFAULT_WEB_FRONTEND_PORT = 8081;
 
 	/**
+	 * The default directory name of the info server
+	 */
+	public static final String DEFAULT_JOB_MANAGER_WEB_PATH_NAME = "web-docs-infoserver";
+	
+	/**
 	 * The default path of the directory for info server containing the web documents.
 	 */
-	public static final String DEFAULT_JOB_MANAGER_WEB_ROOT_PATH = "./resources/web-docs-infoserver/";
+	public static final String DEFAULT_JOB_MANAGER_WEB_ROOT_PATH = "./resources/"+DEFAULT_JOB_MANAGER_WEB_PATH_NAME+"/";
 	
 	/**
 	 * The default number of archived jobs for the jobmanager
