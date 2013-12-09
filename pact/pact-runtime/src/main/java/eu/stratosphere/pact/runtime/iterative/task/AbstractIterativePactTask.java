@@ -39,7 +39,6 @@ import eu.stratosphere.pact.runtime.iterative.io.WorksetUpdateOutputCollector;
 import eu.stratosphere.pact.runtime.task.PactDriver;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
 import eu.stratosphere.pact.runtime.task.ResettablePactDriver;
-import eu.stratosphere.pact.runtime.task.chaining.ChainedDriver;
 import eu.stratosphere.pact.runtime.udf.RuntimeUDFContext;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -129,14 +128,17 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
 
 	@Override
 	protected void closeLocalStrategiesAndCaches() {
-		super.closeLocalStrategiesAndCaches();
-
-		if (this.driver instanceof ResettablePactDriver) {
-			final ResettablePactDriver<?, ?> resDriver = (ResettablePactDriver<?, ?>) this.driver;
-			try {
-				resDriver.teardown();
-			} catch (Throwable t) {
-				log.error("Error shutting down a resettable driver.", t);
+		try {
+			super.closeLocalStrategiesAndCaches();
+		}
+		finally {
+			if (this.driver instanceof ResettablePactDriver) {
+				final ResettablePactDriver<?, ?> resDriver = (ResettablePactDriver<?, ?>) this.driver;
+				try {
+					resDriver.teardown();
+				} catch (Throwable t) {
+					log.error("Error shutting down a resettable driver.", t);
+				}
 			}
 		}
 	}
@@ -254,9 +256,6 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
 
 	@Override
 	public void requestTermination() {
-		if (log.isInfoEnabled()) {
-			log.info(formatLogString("requesting termination."));
-		}
 		this.terminationRequested.set(true);
 	}
 
@@ -321,25 +320,6 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
 
 			return new SolutionSetUpdateOutputCollector<OT>(solutionSet, serializer, delegate);
 		}
-	}
-
-	/**
-	 * Sets the last output {@link Collector} of the collector chain of this {@link RegularPactTask}.
-	 * <p/>
-	 * In case of chained tasks, the output collector of the last {@link ChainedDriver} is set. Otherwise it is the
-	 * single collector of the {@link RegularPactTask}.
-	 *
-	 * @param newOutputCollector new output collector to set as last collector
-	 */
-	protected void setLastOutputCollector(Collector<OT> newOutputCollector) {
-		int numChained = this.chainedTasks.size();
-
-		if (numChained == 0) {
-			output = newOutputCollector;
-			return;
-		}
-
-		chainedTasks.get(numChained - 1).setOutputCollector(newOutputCollector);
 	}
 
 	/**

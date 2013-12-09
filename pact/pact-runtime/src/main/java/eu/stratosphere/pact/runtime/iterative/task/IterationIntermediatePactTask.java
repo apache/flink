@@ -35,90 +35,87 @@ import java.io.IOException;
  * It will propagate {@link EndOfSuperstepEvent}s and {@link TerminationEvent}s to it's connected tasks. Furthermore
  * intermediate tasks can also update the iteration state, either the workset or the solution set.
  * <p/>
- * If the iteration state is updated, the output of this task will be send back to the {@link IterationHeadPactTask}
- * via a {@link BlockingBackChannel} for the workset -XOR- a {@link MutableHashTable} for the solution set. In this
- * case this task must be scheduled on the same instance as the head.
+ * If the iteration state is updated, the output of this task will be send back to the {@link IterationHeadPactTask} via
+ * a {@link BlockingBackChannel} for the workset -XOR- a {@link MutableHashTable} for the solution set. In this case
+ * this task must be scheduled on the same instance as the head.
  */
 public class IterationIntermediatePactTask<S extends Stub, OT> extends AbstractIterativePactTask<S, OT> {
 
-    private static final Log log = LogFactory.getLog(IterationIntermediatePactTask.class);
+	private static final Log log = LogFactory.getLog(IterationIntermediatePactTask.class);
 
-    private WorksetUpdateOutputCollector<OT> worksetUpdateOutputCollector;
+	private WorksetUpdateOutputCollector<OT> worksetUpdateOutputCollector;
 
-    @Override
-    protected void initialize() throws Exception {
-        super.initialize();
+	@Override
+	protected void initialize() throws Exception {
+		super.initialize();
 
-        // set the last output collector of this task to reflect the iteration intermediate state update
-        // a) workset update
-        // b) solution set update
-        // c) none
+		// set the last output collector of this task to reflect the iteration intermediate state update
+		// a) workset update
+		// b) solution set update
+		// c) none
 
-        Collector<OT> delegate = getLastOutputCollector();
-        if (isWorksetUpdate) {
-            Collector<OT> outputCollector = createWorksetUpdateOutputCollector(delegate);
+		Collector<OT> delegate = getLastOutputCollector();
+		if (isWorksetUpdate) {
+			// sanity check: we should not have a solution set and workset update at the same time
+			// in an intermediate task
+			if (isSolutionSetUpdate) {
+				throw new IllegalStateException("Plan bug: Intermediate task performs workset and solutions set update.");
+			}
+			
+			Collector<OT> outputCollector = createWorksetUpdateOutputCollector(delegate);
 
-            // we need the WorksetUpdateOutputCollector separately to count the collected elements
-            if (isWorksetIteration) {
-                worksetUpdateOutputCollector = (WorksetUpdateOutputCollector<OT>) outputCollector;
-            }
+			// we need the WorksetUpdateOutputCollector separately to count the collected elements
+			if (isWorksetIteration) {
+				worksetUpdateOutputCollector = (WorksetUpdateOutputCollector<OT>) outputCollector;
+			}
 
-            setLastOutputCollector(outputCollector);
-        } else if (isSolutionSetUpdate) {
-            setLastOutputCollector(createSolutionSetUpdateOutputCollector(delegate));
-        }
-    }
+			setLastOutputCollector(outputCollector);
+		} else if (isSolutionSetUpdate) {
+			setLastOutputCollector(createSolutionSetUpdateOutputCollector(delegate));
+		}
+	}
 
-    @Override
-    public void run() throws Exception {
+	@Override
+	public void run() throws Exception {
 
-        while (this.running && !terminationRequested()) {
+		while (this.running && !terminationRequested()) {
 
-            if (log.isInfoEnabled()) {
-                log.info(formatLogString("starting iteration [" + currentIteration() + "]"));
-            }
+			if (log.isInfoEnabled()) {
+				log.info(formatLogString("starting iteration [" + currentIteration() + "]"));
+			}
 
-            super.run();
+			super.run();
 
-            // check if termination was requested
-            checkForTerminationAndResetEndOfSuperstepState();
+			// check if termination was requested
+			checkForTerminationAndResetEndOfSuperstepState();
 
-            if (isWorksetUpdate && isWorksetIteration) {
-                long numCollected = worksetUpdateOutputCollector.getElementsCollectedAndReset();
-                worksetAggregator.aggregate(numCollected);
-            }
+			if (isWorksetUpdate && isWorksetIteration) {
+				long numCollected = worksetUpdateOutputCollector.getElementsCollectedAndReset();
+				worksetAggregator.aggregate(numCollected);
+			}
 
-            if (log.isInfoEnabled()) {
-                log.info(formatLogString("finishing iteration [" + currentIteration() + "]"));
-            }
+			if (log.isInfoEnabled()) {
+				log.info(formatLogString("finishing iteration [" + currentIteration() + "]"));
+			}
 
-            if (!terminationRequested()) {
-                if (isWorksetUpdate) {
-                    // notify iteration head if responsible for workset update
-                    worksetBackChannel.notifyOfEndOfSuperstep();
-                }
+			if (!terminationRequested()) {
+				if (isWorksetUpdate) {
+					// notify iteration head if responsible for workset update
+					worksetBackChannel.notifyOfEndOfSuperstep();
+				}
 
-                // send the end-of-superstep
-                sendEndOfSuperstep();
+				// send the end-of-superstep
+				sendEndOfSuperstep();
 
-                incrementIterationCounter();
-            }
-        }
-    }
+				incrementIterationCounter();
+			}
+		}
+	}
 
-    private void sendEndOfSuperstep() throws IOException, InterruptedException {
-        for (AbstractRecordWriter<?> eventualOutput : eventualOutputs) {
-            eventualOutput.sendEndOfSuperstep();
-        }
-    }
-
-    /**
-     * @return the last output collector in the collector chain
-     */
-    @SuppressWarnings("unchecked")
-    private Collector<OT> getLastOutputCollector() {
-        int numChained = this.chainedTasks.size();
-        return (numChained == 0) ? output : (Collector<OT>) chainedTasks.get(numChained - 1).getOutputCollector();
-    }
+	private void sendEndOfSuperstep() throws IOException, InterruptedException {
+		for (AbstractRecordWriter<?> eventualOutput : eventualOutputs) {
+			eventualOutput.sendEndOfSuperstep();
+		}
+	}
 
 }

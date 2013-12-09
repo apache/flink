@@ -46,24 +46,21 @@ public class ChainedCombineDriver<T> extends ChainedDriver<T, T> {
 	
 	private AbstractInvokable parent;
 	
-	private ClassLoader userCodeClassLoader;
-	
 	private volatile boolean canceled;
 	
 	// --------------------------------------------------------------------------------------------
 
-    @Override
-    public void setup(AbstractInvokable parent, ClassLoader userCodeClassLoader) {
-		this.userCodeClassLoader = userCodeClassLoader;
+	@Override
+	public void setup(AbstractInvokable parent) {
 		this.parent = parent;
 
 		@SuppressWarnings("unchecked")
 		final GenericReducer<T, ?> combiner = RegularPactTask.instantiateUserCode(config, userCodeClassLoader, GenericReducer.class);
-        combiner.setRuntimeContext(getRuntimeContext(parent, taskName));
-        this.combiner = combiner;
-    }
+		combiner.setRuntimeContext(getRuntimeContext(parent, taskName));
+		this.combiner = combiner;
+	}
 
-    @Override
+	@Override
 	public void openTask() throws Exception {
 		// open the stub first
 		final Configuration stubConfig = this.config.getStubParameters();

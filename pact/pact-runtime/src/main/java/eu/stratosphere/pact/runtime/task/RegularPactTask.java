@@ -305,6 +305,36 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 		}
 	}
 	
+	@Override
+	public void cancel() throws Exception {
+		this.running = false;
+		
+		if (LOG.isInfoEnabled())
+			LOG.info(formatLogString("Cancelling PACT code"));
+		
+		try {
+			if (this.driver != null) {
+				this.driver.cancel();
+			}
+		} finally {
+			closeLocalStrategiesAndCaches();
+		}
+	}
+
+
+	/**
+	 * Sets the class-loader to be used to load the user code.
+	 *
+	 * @param cl The class-loader to be used to load the user code.
+	 */
+	public void setUserCodeClassLoader(ClassLoader cl) {
+		this.userCodeClassLoader = cl;
+	}
+
+	// --------------------------------------------------------------------------------------------
+	//                                  Main Work Methods
+	// --------------------------------------------------------------------------------------------
+
 	protected void initialize() throws Exception {
 		try {
 			this.driver.setup(this);
@@ -402,22 +432,6 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 		}
 	}
 
-	@Override
-	public void cancel() throws Exception {
-		this.running = false;
-		
-		if (LOG.isInfoEnabled())
-			LOG.info(formatLogString("Cancelling PACT code"));
-		
-		try {
-			if (this.driver != null) {
-				this.driver.cancel();
-			}
-		} finally {
-			closeLocalStrategiesAndCaches();
-		}
-	}
-	
 	protected void closeLocalStrategiesAndCaches() {
 		if (this.localStrategies != null) {
 			for (int i = 0; i < this.localStrategies.length; i++) {
@@ -454,19 +468,40 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 		}
 	}
 
-	/**
-	 * Sets the class-loader to be used to load the user code.
-	 *
-	 * @param cl The class-loader to be used to load the user code.
-	 */
-	public void setUserCodeClassLoader(ClassLoader cl) {
-		this.userCodeClassLoader = cl;
-	}
+	
 
 	// --------------------------------------------------------------------------------------------
 	//                                 Task Setup and Teardown
 	// --------------------------------------------------------------------------------------------
 
+	/**
+	 * @return the last output collector in the collector chain
+	 */
+	@SuppressWarnings("unchecked")
+	protected Collector<OT> getLastOutputCollector() {
+		int numChained = this.chainedTasks.size();
+		return (numChained == 0) ? output : (Collector<OT>) chainedTasks.get(numChained - 1).getOutputCollector();
+	}
+
+	/**
+	 * Sets the last output {@link Collector} of the collector chain of this {@link RegularPactTask}.
+	 * <p/>
+	 * In case of chained tasks, the output collector of the last {@link ChainedDriver} is set. Otherwise it is the
+	 * single collector of the {@link RegularPactTask}.
+	 *
+	 * @param newOutputCollector new output collector to set as last collector
+	 */
+	protected void setLastOutputCollector(Collector<OT> newOutputCollector) {
+		int numChained = this.chainedTasks.size();
+
+		if (numChained == 0) {
+			output = newOutputCollector;
+			return;
+		}
+
+		chainedTasks.get(numChained - 1).setOutputCollector(newOutputCollector);
+	}
+	
 	/**
 	 * Initializes the Stub class implementation and configuration.
 	 *
@@ -787,11 +822,6 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 		return this.driver.getNumberOfInputs();
 	}
 	
-	public RuntimeContext getRuntimeContext(String taskName) {
-		Environment env = getEnvironment();
-		return new RuntimeUDFContext(taskName, env.getCurrentNumberOfSubtasks(), env.getIndexInSubtaskGroup());
-	}
-	
 	/**
 	 * Creates a writer for each output. Creates an OutputCollector which forwards its input to all writers.
 	 * The output collector applies the configured shipping strategies for each writer.
@@ -800,6 +830,11 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 		this.chainedTasks = new ArrayList<ChainedDriver<?, ?>>();
 		this.eventualOutputs = new ArrayList<AbstractRecordWriter<?>>();
 		this.output = initOutputs(this, this.userCodeClassLoader, this.config, this.chainedTasks, this.eventualOutputs);
+	}
+	
+	public RuntimeContext getRuntimeContext(String taskName) {
+		Environment env = getEnvironment();
+		return new RuntimeUDFContext(taskName, env.getCurrentNumberOfSubtasks(), env.getIndexInSubtaskGroup());
 	}
 
 	// --------------------------------------------------------------------------------------------

@@ -28,46 +28,49 @@ import java.io.IOException;
  * <p/>
  * Records will only be collected, if there is a match after probing the hash table. If the build side iterator is
  * already positioned for the update, use {@link SolutionSetFastUpdateOutputCollector} to the save re-probing.
- *
+ * 
  * @see SolutionSetFastUpdateOutputCollector
  */
 public class SolutionSetUpdateOutputCollector<T> implements Collector<T> {
 
-    private final Collector<T> delegate;
-    private final MutableHashTable<T, T> solutionSet;
-    private final T buildSideRecord;
+	private final Collector<T> delegate;
 
-    public SolutionSetUpdateOutputCollector(MutableHashTable<T, T> solutionSet, TypeSerializer<T> serializer) {
-        this(solutionSet, serializer, null);
-    }
+	private final MutableHashTable<T, T> solutionSet;
 
-    public SolutionSetUpdateOutputCollector(MutableHashTable<T, T> solutionSet, TypeSerializer<T> serializer, Collector<T> delegate) {
-        this.solutionSet = solutionSet;
-        this.delegate = delegate;
-        buildSideRecord = serializer.createInstance();
-    }
+	private final T buildSideRecord;
 
-    @Override
-    public void collect(T record) {
-        try {
-            MutableHashTable.HashBucketIterator<T, T> bucket = solutionSet.getMatchesFor(record);
+	public SolutionSetUpdateOutputCollector(MutableHashTable<T, T> solutionSet, TypeSerializer<T> serializer) {
+		this(solutionSet, serializer, null);
+	}
 
-            if (bucket.next(buildSideRecord)) {
-                bucket.writeBack(record);
+	public SolutionSetUpdateOutputCollector(MutableHashTable<T, T> solutionSet, TypeSerializer<T> serializer,
+			Collector<T> delegate) {
+		this.solutionSet = solutionSet;
+		this.delegate = delegate;
+		buildSideRecord = serializer.createInstance();
+	}
 
-                if (delegate != null) {
-                    delegate.collect(record);
-                }
-            }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
+	@Override
+	public void collect(T record) {
+		try {
+			MutableHashTable.HashBucketIterator<T, T> bucket = solutionSet.getMatchesFor(record);
 
-    @Override
-    public void close() {
-        if (delegate != null) {
-            delegate.close();
-        }
-    }
+			if (bucket.next(buildSideRecord)) {
+				bucket.writeBack(record);
+
+				if (delegate != null) {
+					delegate.collect(record);
+				}
+			}
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	@Override
+	public void close() {
+		if (delegate != null) {
+			delegate.close();
+		}
+	}
 }

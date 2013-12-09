@@ -22,20 +22,21 @@ import eu.stratosphere.pact.generic.stub.GenericMapper;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
 
 public class ChainedMapDriver<IT, OT> extends ChainedDriver<IT, OT> {
-	
+
 	private GenericMapper<IT, OT> mapper;
-	
+
 	// --------------------------------------------------------------------------------------------
 
-    @Override
-    public void setup(AbstractInvokable parent, ClassLoader userCodeClassLoader) {
-        final GenericMapper<IT, OT> mapper =
-                RegularPactTask.instantiateUserCode(this.config, userCodeClassLoader, GenericMapper.class);
-        this.mapper = mapper;
-        mapper.setRuntimeContext(getRuntimeContext(parent, this.taskName));
-    }
+	@Override
+	public void setup(AbstractInvokable parent) {
+		@SuppressWarnings("unchecked")
+		final GenericMapper<IT, OT> mapper =
+			RegularPactTask.instantiateUserCode(this.config, userCodeClassLoader, GenericMapper.class);
+		this.mapper = mapper;
+		mapper.setRuntimeContext(getRuntimeContext(parent, this.taskName));
+	}
 
-    @Override
+	@Override
 	public void openTask() throws Exception {
 		Configuration stubConfig = this.config.getStubParameters();
 		RegularPactTask.openUserCode(this.mapper, stubConfig);
@@ -50,9 +51,10 @@ public class ChainedMapDriver<IT, OT> extends ChainedDriver<IT, OT> {
 	public void cancelTask() {
 		try {
 			this.mapper.close();
-		} catch (Throwable t) {}
+		} catch (Throwable t) {
+		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 
 	public Stub getStub() {
@@ -62,15 +64,14 @@ public class ChainedMapDriver<IT, OT> extends ChainedDriver<IT, OT> {
 	public String getTaskName() {
 		return this.taskName;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public void collect(IT record) {
 		try {
 			this.mapper.map(record, this.outputCollector);
-		}
-		catch (Exception ex) {
+		} catch (Exception ex) {
 			throw new ExceptionInChainedStubException(this.taskName, ex);
 		}
 	}
