@@ -100,7 +100,7 @@ public class Client {
 	/**
 	 * Command Line argument options
 	 */
-	private static final Option QUERY = new Option("q","query",false, "Display avilable YARN resources (memory, cores)");
+	private static final Option QUERY = new Option("q","query",false, "Display available YARN resources (memory, cores)");
 	// --- or ---
 	private static final Option VERBOSE = new Option("v","verbose",false, "Verbose debug mode");
 	private static final Option GEN_CONF = new Option("g","generateConf",false, "Place default configuration file in current directory");

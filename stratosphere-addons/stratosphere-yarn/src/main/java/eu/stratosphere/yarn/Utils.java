@@ -192,13 +192,4 @@ public class Utils {
 		appMasterJar.setVisibility(LocalResourceVisibility.APPLICATION);
 	}
 	
-	public static void main(String[] args) {
-		try {
-			Utils.copyJarContents(ConfigConstants.DEFAULT_JOB_MANAGER_WEB_PATH_NAME, 
-					"/home/robert/Projekte/ozone/ozone/stratosphere-dist/target/stratosphere-dist-0.4-SNAPSHOT-yarn-uberjar.jar");
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
-	
 }
