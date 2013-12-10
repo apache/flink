@@ -51,7 +51,6 @@ public class LocalExecutor implements PlanExecutor {
 		Logger root = Logger.getRootLogger();
 		PatternLayout layout = new PatternLayout("%d{HH:mm:ss,SSS} %-5p %-60c %x - %m%n");
 		ConsoleAppender appender = new ConsoleAppender(layout, "System.err");
-        appender.setThreshold(Level.ERROR);
 		root.addAppender(appender);
 		root.setLevel(Level.WARN);
 	}
