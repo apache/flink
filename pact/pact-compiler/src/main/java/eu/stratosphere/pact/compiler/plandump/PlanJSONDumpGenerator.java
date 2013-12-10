@@ -398,6 +398,7 @@ public class PlanJSONDumpGenerator {
 		if (p.getDriverStrategy() != null) {
 			switch (p.getDriverStrategy()) {
 			case NONE:
+			case UNARY_NO_OP:
 				break;
 			case MAP:
 				locString = "Map";

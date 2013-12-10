@@ -32,6 +32,7 @@ import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.compiler.plan.candidate.DualInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
+import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.pact.compiler.util.DummyInputFormat;
 import eu.stratosphere.pact.compiler.util.DummyMatchStub;
 import eu.stratosphere.pact.compiler.util.DummyNonPreservingMatchStub;
@@ -98,6 +99,8 @@ public class WorksetIterationsCompilerTest extends CompilerTestBase {
 		
 		assertTrue( (ss1 == ShipStrategyType.FORWARD && ss2 == ShipStrategyType.PARTITION_HASH) ||
 					(ss2 == ShipStrategyType.FORWARD && ss1 == ShipStrategyType.PARTITION_HASH) );
+		
+		new NepheleJobGraphGenerator().compileJobGraph(oPlan);
 	}
 	
 	@Test
@@ -140,6 +143,8 @@ public class WorksetIterationsCompilerTest extends CompilerTestBase {
 		assertEquals(2, joinWithSolutionSetNode.getOutgoingChannels().size());
 		assertEquals(ShipStrategyType.PARTITION_HASH, joinWithSolutionSetNode.getOutgoingChannels().get(0).getShipStrategy());
 		assertEquals(ShipStrategyType.PARTITION_HASH, joinWithSolutionSetNode.getOutgoingChannels().get(1).getShipStrategy());
+		
+		new NepheleJobGraphGenerator().compileJobGraph(oPlan);
 	}
 	
 	@Test
@@ -179,9 +184,10 @@ public class WorksetIterationsCompilerTest extends CompilerTestBase {
 		
 		
 		// verify solution delta
-		assertEquals(2, joinWithSolutionSetNode.getOutgoingChannels().size());
+		assertEquals(1, joinWithSolutionSetNode.getOutgoingChannels().size());
 		assertEquals(ShipStrategyType.FORWARD, joinWithSolutionSetNode.getOutgoingChannels().get(0).getShipStrategy());
-		assertEquals(ShipStrategyType.FORWARD, joinWithSolutionSetNode.getOutgoingChannels().get(1).getShipStrategy());
+		
+		new NepheleJobGraphGenerator().compileJobGraph(oPlan);
 	}
 	
 	private Plan getTestPlan(boolean joinPreservesSolutionSet, boolean mapBeforeSolutionDelta) {

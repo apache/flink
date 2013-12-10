@@ -47,6 +47,8 @@ public class WorksetIterationPlanNode extends DualInputPlanNode implements Itera
 	
 	private TypeComparatorFactory<?> solutionSetComparator;
 	
+	private boolean immediateSolutionSetUpdate;
+	
 	public Object postPassHelper;
 	
 	// --------------------------------------------------------------------------------------------
@@ -94,6 +96,14 @@ public class WorksetIterationPlanNode extends DualInputPlanNode implements Itera
 	
 	public Channel getInitialWorksetInput() {
 		return getInput2();
+	}
+	
+	public void setImmediateSolutionSetUpdate(boolean immediateUpdate) {
+		this.immediateSolutionSetUpdate = immediateUpdate;
+	}
+	
+	public boolean isImmediateSolutionSetUpdate() {
+		return this.immediateSolutionSetUpdate;
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -149,9 +159,6 @@ public class WorksetIterationPlanNode extends DualInputPlanNode implements Itera
 		return 2;
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.candidate.PlanNode#hasDamOnPathDownTo(eu.stratosphere.pact.compiler.plan.candidate.PlanNode)
-	 */
 	@Override
 	public SourceAndDamReport hasDamOnPathDownTo(PlanNode source) {
 		SourceAndDamReport fromOutside = super.hasDamOnPathDownTo(source);
@@ -167,9 +174,6 @@ public class WorksetIterationPlanNode extends DualInputPlanNode implements Itera
 		}
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.candidate.IterationPlanNode#acceptForStepFunction(eu.stratosphere.pact.common.plan.Visitor)
-	 */
 	@Override
 	public void acceptForStepFunction(Visitor<PlanNode> visitor) {
 		this.solutionSetDeltaPlanNode.accept(visitor);

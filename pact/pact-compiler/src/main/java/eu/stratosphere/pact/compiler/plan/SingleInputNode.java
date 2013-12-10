@@ -40,6 +40,7 @@ import eu.stratosphere.pact.compiler.operators.OperatorDescriptorSingle;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
+import eu.stratosphere.pact.compiler.util.NoOpUnaryUdfOp;
 import eu.stratosphere.pact.generic.contract.Contract;
 import eu.stratosphere.pact.generic.contract.SingleInputContract;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
@@ -73,6 +74,11 @@ public abstract class SingleInputNode extends OptimizerNode {
 		
 		int[] k = pactContract.getKeyColumns(0);
 		this.keys = k == null || k.length == 0 ? null : new FieldSet(k);
+	}
+	
+	protected SingleInputNode(FieldSet keys) {
+		super(NoOpUnaryUdfOp.INSTANCE);
+		this.keys = keys;
 	}
 	
 	protected SingleInputNode(SingleInputNode contractToCopy) {

@@ -33,15 +33,19 @@ import eu.stratosphere.pact.compiler.dataproperties.PartitioningProperty;
 import eu.stratosphere.pact.compiler.dataproperties.RequestedGlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.RequestedLocalProperties;
 import eu.stratosphere.pact.compiler.operators.OperatorDescriptorDual;
+import eu.stratosphere.pact.compiler.operators.SolutionSetDeltaOperator;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.DualInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
+import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SolutionSetPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.WorksetIterationPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.WorksetPlanNode;
 import eu.stratosphere.pact.compiler.util.NoOpBinaryUdfOp;
 import eu.stratosphere.pact.generic.contract.WorksetIteration;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
+import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 
 /**
  * A node in the optimizer's program representation for a workset iteration.
@@ -68,6 +72,8 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 	private PactConnection nextWorksetRootConnection;
 	
 	private SingleRootJoiner singleRoot;
+	
+	private boolean solutionDeltaImmediatelyAfterSolutionJoin;
 	
 	private int costWeight;
 
@@ -126,15 +132,38 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 	}
 	
 	public void setNextPartialSolution(OptimizerNode solutionSetDelta, OptimizerNode nextWorkset) {
-		this.solutionSetDelta = solutionSetDelta;
+		// check whether the next partial solution is itself the join with
+		// the partial solution (so we can potentially do direct updates)
+		if (solutionSetDelta instanceof TwoInputNode) {
+			TwoInputNode solutionDeltaTwoInput = (TwoInputNode) solutionSetDelta;
+			if (solutionDeltaTwoInput.getFirstPredecessorNode() == this.solutionSetNode ||
+				solutionDeltaTwoInput.getSecondPredecessorNode() == this.solutionSetNode)
+			{
+				this.solutionDeltaImmediatelyAfterSolutionJoin = true;
+			}
+		}
+		
+		// attach an extra node to the solution set delta for the cases where we need to repartition
+		UnaryOperatorNode solutionSetDeltaUpdateAux = new UnaryOperatorNode("Solution-Set Delta", getSolutionSetKeyFields(),
+				new SolutionSetDeltaOperator(getSolutionSetKeyFields()));
+		
+		PactConnection conn = new PactConnection(solutionSetDelta, solutionSetDeltaUpdateAux, -1);
+//		conn.setShipStrategy(ShipStrategyType.PARTITION_HASH);
+		solutionSetDeltaUpdateAux.setIncomingConnection(conn);
+		solutionSetDelta.addOutgoingConnection(conn);
+		
+		solutionSetDeltaUpdateAux.setDegreeOfParallelism(getDegreeOfParallelism());
+		solutionSetDeltaUpdateAux.setSubtasksPerInstance(getSubtasksPerInstance());
+		
+		this.solutionSetDelta = solutionSetDeltaUpdateAux;
 		this.nextWorkset = nextWorkset;
 		
 		this.singleRoot = new SingleRootJoiner();
-		this.solutionSetDeltaRootConnection = new PactConnection(solutionSetDelta, this.singleRoot, -1);
+		this.solutionSetDeltaRootConnection = new PactConnection(solutionSetDeltaUpdateAux, this.singleRoot, -1);
 		this.nextWorksetRootConnection = new PactConnection(nextWorkset, this.singleRoot, -1);
 		this.singleRoot.setInputs(this.solutionSetDeltaRootConnection, this.nextWorksetRootConnection);
 		
-		solutionSetDelta.addOutgoingConnection(this.solutionSetDeltaRootConnection);
+		solutionSetDeltaUpdateAux.addOutgoingConnection(this.solutionSetDeltaRootConnection);
 		nextWorkset.addOutgoingConnection(this.nextWorksetRootConnection);
 	}
 	
@@ -285,10 +314,11 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 			return;
 		}
 		
-		// sanity check the solution set delta
-		for (Iterator<PlanNode> planDeleter = solutionSetDeltaCandidates.iterator(); planDeleter.hasNext(); ) {
-			PlanNode candidate = planDeleter.next();
+		// sanity check the solution set delta and cancel out the delta node, if it is not needed
+		for (Iterator<PlanNode> deltaPlans = solutionSetDeltaCandidates.iterator(); deltaPlans.hasNext(); ) {
+			SingleInputPlanNode candidate = (SingleInputPlanNode) deltaPlans.next();
 			GlobalProperties gp = candidate.getGlobalProperties();
+			
 			if (gp.getPartitioning() != PartitioningProperty.HASH_PARTITIONED || gp.getPartitioningFields() == null ||
 					!gp.getPartitioningFields().equals(this.solutionSetKeyFields))
 			{
@@ -310,8 +340,30 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 			for (PlanNode worksetCandidate : worksetCandidates) {
 				// check whether they have the same operator at their latest branching point
 				if (this.singleRoot.areBranchCompatible(solutionSetCandidate, worksetCandidate)) {
+					
+					SingleInputPlanNode siSolutionDeltaCandidate = (SingleInputPlanNode) solutionSetCandidate;
+					boolean immediateDeltaUpdate;
+					
+					// check whether we need a dedicated solution set delta operator, or whether we can update on the fly
+					if (siSolutionDeltaCandidate.getInput().getShipStrategy() == ShipStrategyType.FORWARD && this.solutionDeltaImmediatelyAfterSolutionJoin) {
+						// we do not need this extra node. we can make the predecessor the delta
+						// sanity check the node and connection
+						if (siSolutionDeltaCandidate.getDriverStrategy() != DriverStrategy.UNARY_NO_OP || siSolutionDeltaCandidate.getInput().getLocalStrategy() != LocalStrategy.NONE) {
+							throw new CompilerException("Invalid Solution set delta node.");
+						}
+						
+						solutionSetCandidate = siSolutionDeltaCandidate.getInput().getSource();
+						immediateDeltaUpdate = true;
+					} else {
+						// was not partitioned, we need to keep this node.
+						// mark that we materialize the input
+						siSolutionDeltaCandidate.getInput().setTempMode(TempMode.PIPELINE_BREAKER);
+						immediateDeltaUpdate = false;
+					}
+					
 					WorksetIterationPlanNode wsNode = new WorksetIterationPlanNode(
 						this, solutionSetIn, worksetIn, sspn, wspn, worksetCandidate, solutionSetCandidate);
+					wsNode.setImmediateSolutionSetUpdate(immediateDeltaUpdate);
 					wsNode.initProperties(gp, lp);
 					target.add(wsNode);
 				}

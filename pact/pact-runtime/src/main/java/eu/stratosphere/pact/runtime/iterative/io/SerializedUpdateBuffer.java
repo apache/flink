@@ -35,7 +35,7 @@ public class SerializedUpdateBuffer extends AbstractPagedOutputView {
 
 	private static final int HEADER_LENGTH = 4;
 
-	private static final float SPILL_THRESHOLD = 0.9f;
+	private static final float SPILL_THRESHOLD = 0.95f;
 
 	private final LinkedBlockingQueue<MemorySegment> emptyBuffers;
 

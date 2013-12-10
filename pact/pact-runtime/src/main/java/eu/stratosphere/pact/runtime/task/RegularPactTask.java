@@ -502,16 +502,11 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 		chainedTasks.get(numChained - 1).setOutputCollector(newOutputCollector);
 	}
 	
-	/**
-	 * Initializes the Stub class implementation and configuration.
-	 *
-	 * @throws RuntimeException Thrown, if the stub class could not be loaded, instantiated,
-	 *                          or caused an exception while being configured.
-	 */
+	public TaskConfig getLastTasksConfig() {
+		int numChained = this.chainedTasks.size();
+		return (numChained == 0) ? config : chainedTasks.get(numChained - 1).getTaskConfig();
+	}
 	
-//	public static <T> T instantiateUserCode(TaskConfig config, ClassLoader cl, Class<? super T> superClass) {
-//		try {
-//			T stub = (T) ((UserCodeWrapper<T>) config.getStubWrapper()).getUserCodeObject(superClass, cl);
 	protected S initStub(Class<? super S> stubSuperClass) throws Exception {
 		try {
 			S stub = config.<S>getStubWrapper(this.userCodeClassLoader).getUserCodeObject(stubSuperClass, this.userCodeClassLoader);

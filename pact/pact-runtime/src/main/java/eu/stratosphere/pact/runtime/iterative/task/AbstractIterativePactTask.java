@@ -39,6 +39,7 @@ import eu.stratosphere.pact.runtime.iterative.io.WorksetUpdateOutputCollector;
 import eu.stratosphere.pact.runtime.task.PactDriver;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
 import eu.stratosphere.pact.runtime.task.ResettablePactDriver;
+import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.udf.RuntimeUDFContext;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -96,7 +97,8 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
 			// initialize the repeatable driver
 			resDriver.initialize();
 		}
-
+		
+		TaskConfig config = getLastTasksConfig();
 		isWorksetIteration = config.getIsWorksetIteration();
 		isWorksetUpdate = config.getIsWorksetUpdate();
 		isSolutionSetUpdate = config.getIsSolutionSetUpdate();
@@ -328,7 +330,7 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
 	private TypeSerializer<OT> getOutputSerializer() {
 		TypeSerializerFactory<OT> serializerFactory;
 
-		if ((serializerFactory = config.getOutputSerializer(userCodeClassLoader)) == null) {
+		if ((serializerFactory = getLastTasksConfig().getOutputSerializer(userCodeClassLoader)) == null) {
 			throw new RuntimeException("Missing output serializer for workset update.");
 		}
 

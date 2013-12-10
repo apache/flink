@@ -83,5 +83,8 @@ public abstract class ChainedDriver<IT, OT> implements Collector<IT> {
 	public Collector<OT> getOutputCollector() {
 		return outputCollector;
 	}
-
+	
+	public TaskConfig getTaskConfig() {
+		return this.config;
+	}
 }

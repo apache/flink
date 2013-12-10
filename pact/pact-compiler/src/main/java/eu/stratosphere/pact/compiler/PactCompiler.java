@@ -46,7 +46,6 @@ import eu.stratosphere.pact.common.util.PactConfigConstants;
 import eu.stratosphere.pact.common.util.Visitor;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
 import eu.stratosphere.pact.compiler.costs.DefaultCostEstimator;
-import eu.stratosphere.pact.compiler.operators.SolutionSetDeltaOperator;
 import eu.stratosphere.pact.compiler.plan.BulkIterationNode;
 import eu.stratosphere.pact.compiler.plan.BulkPartialSolutionNode;
 import eu.stratosphere.pact.compiler.plan.CoGroupNode;
@@ -62,7 +61,6 @@ import eu.stratosphere.pact.compiler.plan.ReduceNode;
 import eu.stratosphere.pact.compiler.plan.SinkJoiner;
 import eu.stratosphere.pact.compiler.plan.SolutionSetNode;
 import eu.stratosphere.pact.compiler.plan.TempMode;
-import eu.stratosphere.pact.compiler.plan.UnaryOperatorNode;
 import eu.stratosphere.pact.compiler.plan.WorksetIterationNode;
 import eu.stratosphere.pact.compiler.plan.WorksetNode;
 import eu.stratosphere.pact.compiler.plan.candidate.BinaryUnionPlanNode;
@@ -1005,32 +1003,17 @@ public class PactCompiler {
 				final GraphCreatingVisitor recursiveCreator = new GraphCreatingVisitor(this, true,
 					this.statistics, this.maxMachines, iterNode.getDegreeOfParallelism(), this.computeEstimates);
 				// descend from the solution set delta. check that it depends on both the workset
-				// and the solution set
+				// and the solution set. If it does depend on both, this descend should create both nodes
 				iter.getSolutionSetDelta().accept(recursiveCreator);
 				
+				final SolutionSetNode solutionSetNode = (SolutionSetNode) recursiveCreator.con2node.get(iter.getSolutionSet());
 				final WorksetNode worksetNode = (WorksetNode) recursiveCreator.con2node.get(iter.getWorkset());
+				
 				if (worksetNode == null) {
 					throw new CompilerException("In the given plan, the solution set delta does not depend on the workset. This is a prerequisite in workset iterations.");
 				}
 				
 				iter.getNextWorkset().accept(recursiveCreator);
-
-				final SolutionSetNode solutionSetNode = (SolutionSetNode) recursiveCreator.con2node.get(iter.getSolutionSet());
-				final OptimizerNode nextWorksetNode = recursiveCreator.con2node.get(iter.getNextWorkset());
-				
-				final UnaryOperatorNode solutionSetDeltaNode;
-				{
-					// attach an extra node to the solution set delta for the cases where we need to repartition
-					OptimizerNode initialDeltaNode = recursiveCreator.con2node.get(iter.getSolutionSetDelta());
-					solutionSetDeltaNode = new UnaryOperatorNode("Solution-Set Delta", new SolutionSetDeltaOperator(iterNode.getSolutionSetKeyFields()));
-					
-					PactConnection conn = new PactConnection(initialDeltaNode, solutionSetDeltaNode, -1);
-					solutionSetDeltaNode.setIncomingConnection(conn);
-					initialDeltaNode.addOutgoingConnection(conn);
-					
-					solutionSetDeltaNode.setDegreeOfParallelism(iterNode.getDegreeOfParallelism());
-					solutionSetDeltaNode.setSubtasksPerInstance(iterNode.getSubtasksPerInstance());
-				}
 				
 				// for now, check that the solution set it joined with only once. we want to allow multiple joins
 				// with the solution set later when we can share data structures among operators. also, the join
@@ -1069,6 +1052,9 @@ public class PactCompiler {
 						}
 					}
 				}
+				
+				final OptimizerNode nextWorksetNode = recursiveCreator.con2node.get(iter.getNextWorkset());
+				final OptimizerNode solutionSetDeltaNode = recursiveCreator.con2node.get(iter.getSolutionSetDelta());
 				
 				// set the step function nodes to the iteration node
 				iterNode.setPartialSolution(solutionSetNode, worksetNode);

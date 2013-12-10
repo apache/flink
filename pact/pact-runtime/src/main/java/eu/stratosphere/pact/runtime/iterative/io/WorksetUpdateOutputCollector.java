@@ -28,48 +28,51 @@ import java.io.IOException;
  */
 public class WorksetUpdateOutputCollector<T> implements Collector<T> {
 
-    private final TypeSerializer<T> serializer;
-    private final DataOutputView outputView;
-    private long elementsCollected;
-    private Collector<T> delegate;
+	private final TypeSerializer<T> serializer;
 
-    public WorksetUpdateOutputCollector(DataOutputView outputView, TypeSerializer<T> serializer) {
-        this(outputView, serializer, null);
-    }
+	private final DataOutputView outputView;
 
-    public WorksetUpdateOutputCollector(DataOutputView outputView, TypeSerializer<T> serializer, Collector<T> delegate) {
-        this.outputView = outputView;
-        this.serializer = serializer;
-        this.delegate = delegate;
+	private long elementsCollected;
 
-        this.elementsCollected = 0;
-    }
+	private Collector<T> delegate;
 
-    @Override
-    public void collect(T record) {
-        try {
-            this.serializer.serialize(record, this.outputView);
+	public WorksetUpdateOutputCollector(DataOutputView outputView, TypeSerializer<T> serializer) {
+		this(outputView, serializer, null);
+	}
 
-            if (delegate != null) {
-                delegate.collect(record);
-            }
+	public WorksetUpdateOutputCollector(DataOutputView outputView, TypeSerializer<T> serializer, Collector<T> delegate) {
+		this.outputView = outputView;
+		this.serializer = serializer;
+		this.delegate = delegate;
 
-            this.elementsCollected++;
-        } catch (IOException e) {
-            throw new RuntimeException("Unable to serialize the record", e);
-        }
-    }
+		this.elementsCollected = 0;
+	}
 
-    public long getElementsCollectedAndReset() {
-        long elementsCollectedToReturn = elementsCollected;
-        elementsCollected = 0;
-        return elementsCollectedToReturn;
-    }
+	@Override
+	public void collect(T record) {
+		try {
+			this.serializer.serialize(record, this.outputView);
 
-    @Override
-    public void close() {
-        if (delegate != null) {
-            delegate.close();
-        }
-    }
+			if (delegate != null) {
+				delegate.collect(record);
+			}
+
+			this.elementsCollected++;
+		} catch (IOException e) {
+			throw new RuntimeException("Unable to serialize the record", e);
+		}
+	}
+
+	public long getElementsCollectedAndReset() {
+		long elementsCollectedToReturn = elementsCollected;
+		elementsCollected = 0;
+		return elementsCollectedToReturn;
+	}
+
+	@Override
+	public void close() {
+		if (delegate != null) {
+			delegate.close();
+		}
+	}
 }

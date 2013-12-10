@@ -15,11 +15,10 @@
 package eu.stratosphere.pact.compiler.plan;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
+import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.operators.OperatorDescriptorSingle;
-import eu.stratosphere.pact.compiler.util.NoOpUnaryUdfOp;
 
 
 public class UnaryOperatorNode extends SingleInputNode {
@@ -29,16 +28,13 @@ public class UnaryOperatorNode extends SingleInputNode {
 	private final String name;
 
 
-	public UnaryOperatorNode(String name, OperatorDescriptorSingle operator) {
-		this(name, Collections.singletonList(operator));
+	
+	public UnaryOperatorNode(String name, FieldSet keys, OperatorDescriptorSingle ... operators) {
+		this(name, keys, Arrays.asList(operators));
 	}
 	
-	public UnaryOperatorNode(String name, OperatorDescriptorSingle ... operators) {
-		this(name, Arrays.asList(operators));
-	}
-	
-	public UnaryOperatorNode(String name, List<OperatorDescriptorSingle> operators) {
-		super(NoOpUnaryUdfOp.INSTANCE);
+	public UnaryOperatorNode(String name, FieldSet keys, List<OperatorDescriptorSingle> operators) {
+		super(keys);
 		
 		this.operator = operators;
 		this.name = name;
