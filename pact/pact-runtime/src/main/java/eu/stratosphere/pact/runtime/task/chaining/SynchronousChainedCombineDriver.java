@@ -55,8 +55,6 @@ public class SynchronousChainedCombineDriver<T> extends ChainedDriver<T, T> {
 
 	private AbstractInvokable parent;
 
-	private ClassLoader userCodeClassLoader;
-
 	private QuickSort sortAlgo = new QuickSort();
 
 	private MemoryManager memManager;
