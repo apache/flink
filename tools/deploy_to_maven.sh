@@ -58,7 +58,11 @@ if [[ $TRAVIS_PULL_REQUEST == "false" ]] ; then
 		# deploy hadoop v2 (yarn)
 		echo "Generating poms for hadoop-yarn."
 		./tools/generate_specific_pom.sh $CURRENT_STRATOSPHERE_VERSION $CURRENT_STRATOSPHERE_VERSION_YARN
-		mvn -B -f pom.hadoop2.xml -DskipTests clean deploy --settings deploysettings.xml; 
+		# all these tweaks assume a yarn build.
+		# performance tweaks here: no "clean deploy" so that actually nothing is being rebuild (could cause wrong poms inside the jars?)
+		# skip tests (they were running already)
+		# skip javadocs generation (already generated)
+		mvn -B -f pom.hadoop2.xml -DskipTests -Dmaven.javadoc.skip=true deploy --settings deploysettings.xml; 
 	fi
 
 	
@@ -72,11 +76,13 @@ if [[ $TRAVIS_PULL_REQUEST == "false" ]] ; then
 	# Please be sure not to use Build 1 as it will always be the yarn build.
 	#
 
+	UBER_JAR=""
 	if [[ $TRAVIS_JOB_NUMBER == *5 ]] ; then 
 		#generate yarn poms & build for yarn.
 		./tools/generate_specific_pom.sh $CURRENT_STRATOSPHERE_VERSION $CURRENT_STRATOSPHERE_VERSION_YARN pom.xml
 		mvn -B -DskipTests clean install
 		CURRENT_STRATOSPHERE_VERSION=$CURRENT_STRATOSPHERE_VERSION_YARN
+		UBER_JAR="stratosphere-dist/target/*yarn*.jar"
 	fi
 	if [[ $TRAVIS_JOB_NUMBER == *2 ]] || [[ $TRAVIS_JOB_NUMBER == *5 ]] ; then 
 		sudo apt-get install sshpass
@@ -87,7 +93,9 @@ if [[ $TRAVIS_PULL_REQUEST == "false" ]] ; then
 		mkdir stratosphere
 		cp -r stratosphere-dist/target/stratosphere-dist-$CURRENT_STRATOSPHERE_VERSION-bin/stratosphere-$CURRENT_STRATOSPHERE_VERSION/* stratosphere/
 		tar -czf stratosphere-$CURRENT_STRATOSPHERE_VERSION.tgz stratosphere
-		sshpass -p "$DOPA_PASS" scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -r stratosphere-$CURRENT_STRATOSPHERE_VERSION.tgz stratosphere-dist/target/*yarn*.jar $DOPA_USER@dopa.dima.tu-berlin.de:bin/
+		
+
+		sshpass -p "$DOPA_PASS" scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -r stratosphere-$CURRENT_STRATOSPHERE_VERSION.tgz $UBER_JAR $DOPA_USER@dopa.dima.tu-berlin.de:bin/
 	fi
 
 fi # pull request check
