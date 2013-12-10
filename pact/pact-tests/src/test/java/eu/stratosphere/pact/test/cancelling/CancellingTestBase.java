@@ -26,6 +26,7 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.fs.FileSystem;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.BeforeClass;
 
 import eu.stratosphere.nephele.client.AbstractJobResult;
 import eu.stratosphere.nephele.client.JobCancelResult;
@@ -38,6 +39,7 @@ import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobStatus;
 import eu.stratosphere.nephele.util.StringUtils;
 import eu.stratosphere.pact.common.plan.Plan;
+import eu.stratosphere.pact.common.util.LogUtils;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
@@ -73,6 +75,11 @@ public abstract class CancellingTestBase {
 				+ "m", heap > MINIMUM_HEAP_SIZE_MB - 50);
 	}
 
+	@BeforeClass
+	public static void initLogging() {
+		LogUtils.initializeDefaultTestConsoleLogger();
+	}
+	
 	@Before
 	public void startCluster() throws Exception {
 		verifyJvmOptions();

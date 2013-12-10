@@ -15,17 +15,18 @@
 
 package eu.stratosphere.pact.test.util;
 
+import org.junit.BeforeClass;
+
 import junit.framework.Assert;
 import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.client.JobExecutionException;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
+import eu.stratosphere.pact.common.util.LogUtils;
 import eu.stratosphere.pact.test.util.minicluster.ClusterProvider;
 
 /**
  * Base class for integration tests which test whether the system recovers from failed executions.
- * 
- * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  *
  */
 public abstract class FailingTestBase extends TestBase {
@@ -46,6 +47,12 @@ public abstract class FailingTestBase extends TestBase {
 	public FailingTestBase(Configuration config, String clusterConfig) {
 		super(config,clusterConfig);
 	}
+	
+	@BeforeClass
+	public static void initLogging() {
+		LogUtils.initializeDefaultTestConsoleLogger();
+	}
+	
 	
 	/**
 	 * Returns the {@link JobGraph} of the failing job. 
@@ -110,9 +117,6 @@ public abstract class FailingTestBase extends TestBase {
 	 * Thread for submitting both jobs sequentially to the test cluster.
 	 * First, the failing job is submitted. The working job is submitted after the Nephele client returns 
 	 * from the call of its submitJobAndWait() method. 
-	 * 
-	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
-	 *
 	 */
 	private class SubmissionThread extends Thread {
 
