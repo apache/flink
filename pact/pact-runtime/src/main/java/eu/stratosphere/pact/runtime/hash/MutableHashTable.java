@@ -342,6 +342,8 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 	protected boolean keepBuildSidePartitions = false;
 	
 	protected boolean furtherPartitioning = false;
+	
+	private boolean running = true;
 
 	// ------------------------------------------------------------------------
 	//                         Construction and Teardown
@@ -439,7 +441,6 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 		
 		// the bucket iterator can remain constant over the time
 		this.bucketIterator = new HashBucketIterator<BT, PT>(this.buildSideSerializer, this.recordComparator);
-//		this.lazyBucketIterator = new LazyHashBucketIterator<BT, PT>(this.recordComparator);
 	}
 	
 	protected boolean processProbeIter() throws IOException{
@@ -659,6 +660,10 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 		}
 	}
 	
+	public void abort() {
+		this.running = false;
+	}
+	
 	public List<MemorySegment> getFreedMemory() {
 		if (!this.closed.get()) {
 			throw new IllegalStateException("Cannot return memory while join is open.");
@@ -694,10 +699,13 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 		final BT record = this.buildSideSerializer.createInstance();
 		
 		// go over the complete input and insert every element into the hash table
-		while (input.next(record)) {
+		while (this.running && input.next(record)) {
 			final int hashCode = hash(buildTypeComparator.hash(record), 0);
 			insertIntoTable(record, hashCode);
 		}
+		
+		if (!this.running)
+			return;
 
 		// finalize the partitions
 		for (int i = 0; i < this.partitionsBeingBuilt.size(); i++) {

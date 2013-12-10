@@ -145,9 +145,8 @@ public class BuildFirstHashMatchIterator<V1, V2, O> implements MatchTaskIterator
 
 	@Override
 	public void abort() {
-		// close the join
 		this.running = false;
-		this.hashJoin.close();
+		this.hashJoin.abort();
 	}
 	
 	// --------------------------------------------------------------------------------------------

@@ -748,10 +748,14 @@ public class MatchTaskTest extends DriverTestBase<GenericMatcher<PactRecord, Pac
 		
 		addInput(new DelayingInfinitiveInputIterator(100));
 		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
+		
 		addInputComparator(this.comparator1);
 		addInputComparator(this.comparator2);
+		
 		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		
 		setOutput(new NirvanaOutputList());
+		
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_FIRST);
 		getTaskConfig().setMemoryDriver(HASH_MEM);
 		

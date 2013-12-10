@@ -144,9 +144,8 @@ public final class BuildSecondHashMatchIterator<V1, V2, O> implements MatchTaskI
 	
 	@Override
 	public void abort() {
-		// close the join
 		this.running = false;
-		this.hashJoin.close();
+		this.hashJoin.abort();
 	}
 	
 	public <BT, PT> MutableHashTable<BT, PT> getHashJoin(TypeSerializer<BT> buildSideSerializer, TypeComparator<BT> buildSideComparator,
