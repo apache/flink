@@ -31,11 +31,9 @@ import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.nephele.fs.FileStatus;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
-import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.GenericDataSource;
 import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
 import eu.stratosphere.pact.common.util.PactConfigConstants;
-import eu.stratosphere.pact.generic.io.InputFormat;
 
 /**
  * Describes the base interface that is used for reading from a file input. For specific input types the 
@@ -158,6 +156,14 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	public void setFilePath(String filePath) {
 		if (filePath == null)
 			throw new IllegalArgumentException("File path may not be null.");
+		
+		// TODO The job-submission web interface passes empty args (and thus empty
+		// paths) to compute the preview graph. The following is a workaround for
+		// this situation and we should fix this.
+		if (filePath.isEmpty()) {
+			setFilePath(new Path());
+			return;
+		}
 		
 		setFilePath(new Path(filePath));
 	}

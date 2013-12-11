@@ -42,34 +42,45 @@ public class PreviewPlanDumpTest {
 	
 	protected static final String OUT_FILE = FileSystem.isWindows() ?  "file:/c:/test/output" : "file:///test/output";
 	
+	protected static final String[] NO_ARGS = new String[0];
+	
 	@Test
 	public void dumpWordCount() {
 		dump(new WordCount().getPlan("4", IN_FILE, OUT_FILE));
+		
+		// The web interface passes empty string-args to compute the preview of the
+		// job, so we should test this situation too
+		dump(new WordCount().getPlan(NO_ARGS));
 	}
 	
 	@Test
 	public void dumpTPCH3() {
 		dump(new TPCHQuery3().getPlan("4", IN_FILE, IN_FILE, OUT_FILE));
+		dump(new TPCHQuery3().getPlan(NO_ARGS));
 	}
 	
 	@Test
 	public void dumpKMeans() {
 		dump(new KMeansSingleStep().getPlan("4", IN_FILE, IN_FILE, OUT_FILE));
+		dump(new KMeansSingleStep().getPlan(NO_ARGS));
 	}
 	
 	@Test
 	public void dumpWebLogAnalysis() {
 		dump(new WebLogAnalysis().getPlan("4", IN_FILE, IN_FILE, IN_FILE, OUT_FILE));
+		dump(new WebLogAnalysis().getPlan(NO_ARGS));
 	}
 	
 	@Test
 	public void dumpBulkIterationKMeans() {
 		dump(new KMeansIterative().getPlan("4", IN_FILE, OUT_FILE));
+		dump(new KMeansIterative().getPlan(NO_ARGS));
 	}
 	
 	@Test
 	public void dumpWorksetConnectedComponents() {
 		dump(new WorksetConnectedComponents().getPlan("4", IN_FILE, IN_FILE, OUT_FILE));
+		dump(new WorksetConnectedComponents().getPlan(NO_ARGS));
 	}
 	
 	private void dump(Plan p) {
