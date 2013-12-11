@@ -230,7 +230,7 @@ public class PactString implements Key, NormalizableKey, CharSequence, CopyableV
 	/**
 	 * Sets the value of the PactString to a substring of the given value.
 	 * 
-	 * @param value The new string value (as a character array).
+	 * @param chars The new string value (as a character array).
 	 * @param offset The position to start the substring.
 	 * @param len The length of the substring.
 	 */
@@ -308,7 +308,6 @@ public class PactString implements Key, NormalizableKey, CharSequence, CopyableV
 	 *
 	 * @param target The PactString object to copy the substring to.
 	 * @param start The beginning index, inclusive.
-	 * @return The substring.
 	 * @exception  IndexOutOfBoundsException Thrown, if the start is negative.
 	 */
 	public void substring(PactString target, int start) {
@@ -322,7 +321,6 @@ public class PactString implements Key, NormalizableKey, CharSequence, CopyableV
 	 * @param target The PactString object to copy the substring to.
 	 * @param start The beginning index, inclusive.
 	 * @param end The ending index, exclusive.
-	 * @return The substring.
 	 * @exception IndexOutOfBoundsException
 	 *            Thrown, if the start is negative, or the end is larger than the length.
 	 */

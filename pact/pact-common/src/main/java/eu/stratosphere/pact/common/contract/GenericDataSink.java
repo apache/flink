@@ -51,7 +51,7 @@ public class GenericDataSink extends Contract {
 	 * Creates a GenericDataSink with the provided {@link OutputFormat} implementation 
 	 * and the given name. 
 	 * 
-	 * @param c The {@link OutputFormat} implementation used to sink the data.
+	 * @param f The {@link OutputFormat} implementation used to sink the data.
 	 * @param name The given name for the sink, used in plans, logs and progress messages.
 	 */
 	public GenericDataSink(OutputFormat<?> f, String name) {
@@ -64,7 +64,7 @@ public class GenericDataSink extends Contract {
 	 * Creates a GenericDataSink with the provided {@link OutputFormat} implementation
 	 * and a default name.
 	 * 
-	 * @param c The {@link OutputFormat} implementation used to sink the data.
+	 * @param f The {@link OutputFormat} implementation used to sink the data.
 	 */
 	public GenericDataSink(OutputFormat<?> f) {
 		this(f, DEFAULT_NAME);
@@ -74,7 +74,7 @@ public class GenericDataSink extends Contract {
 	 * Creates a GenericDataSink with the provided {@link OutputFormat} implementation the default name.
 	 * It uses the given contract as its input.
 	 * 
-	 * @param c The {@link OutputFormat} implementation used to sink the data.
+	 * @param f The {@link OutputFormat} implementation used to sink the data.
 	 * @param input The contract to use as the input.
 	 */
 	public GenericDataSink(OutputFormat<?> f, Contract input) {
@@ -85,7 +85,7 @@ public class GenericDataSink extends Contract {
 	 * Creates a GenericDataSink with the provided {@link OutputFormat} implementation the default name.
 	 * It uses the given contracts as its input.
 	 * 
-	 * @param c The {@link OutputFormat} implementation used to sink the data.
+	 * @param f The {@link OutputFormat} implementation used to sink the data.
 	 * @param input The contracts to use as the input.
 	 */
 	public GenericDataSink(OutputFormat<?> f, List<Contract> input) {
@@ -96,7 +96,7 @@ public class GenericDataSink extends Contract {
 	 * Creates a GenericDataSink with the provided {@link OutputFormat} implementation and the given name.
 	 * It uses the given contract as its input.
 	 * 
-	 * @param c The {@link OutputFormat} implementation used to sink the data.
+	 * @param f The {@link OutputFormat} implementation used to sink the data.
 	 * @param input The contract to use as the input.
 	 * @param name The given name for the sink, used in plans, logs and progress messages.
 	 */
@@ -109,7 +109,7 @@ public class GenericDataSink extends Contract {
 	 * Creates a GenericDataSink with the provided {@link OutputFormat} implementation and the given name.
 	 * It uses the given contracts as its input.
 	 * 
-	 * @param c The {@link OutputFormat} implementation used to sink the data.
+	 * @param f The {@link OutputFormat} implementation used to sink the data.
 	 * @param input The contracts to use as the input.
 	 * @param name The given name for the sink, used in plans, logs and progress messages.
 	 */
@@ -122,7 +122,7 @@ public class GenericDataSink extends Contract {
 	 * Creates a GenericDataSink with the provided {@link OutputFormat} implementation 
 	 * and the given name. 
 	 * 
-	 * @param c The {@link OutputFormat} implementation used to sink the data.
+	 * @param f The {@link OutputFormat} implementation used to sink the data.
 	 * @param name The given name for the sink, used in plans, logs and progress messages.
 	 */
 	public GenericDataSink(Class<? extends OutputFormat<?>> f, String name) {
@@ -135,7 +135,7 @@ public class GenericDataSink extends Contract {
 	 * Creates a GenericDataSink with the provided {@link OutputFormat} implementation
 	 * and a default name.
 	 * 
-	 * @param c The {@link OutputFormat} implementation used to sink the data.
+	 * @param f The {@link OutputFormat} implementation used to sink the data.
 	 */
 	public GenericDataSink(Class<? extends OutputFormat<?>> f) {
 		this(f, DEFAULT_NAME);
@@ -145,7 +145,7 @@ public class GenericDataSink extends Contract {
 	 * Creates a GenericDataSink with the provided {@link OutputFormat} implementation the default name.
 	 * It uses the given contract as its input.
 	 * 
-	 * @param c The {@link OutputFormat} implementation used to sink the data.
+	 * @param f The {@link OutputFormat} implementation used to sink the data.
 	 * @param input The contract to use as the input.
 	 */
 	public GenericDataSink(Class<? extends OutputFormat<?>> f, Contract input) {
@@ -156,7 +156,7 @@ public class GenericDataSink extends Contract {
 	 * Creates a GenericDataSink with the provided {@link OutputFormat} implementation the default name.
 	 * It uses the given contracts as its input.
 	 * 
-	 * @param c The {@link OutputFormat} implementation used to sink the data.
+	 * @param f The {@link OutputFormat} implementation used to sink the data.
 	 * @param input The contracts to use as the input.
 	 */
 	public GenericDataSink(Class<? extends OutputFormat<?>> f, List<Contract> input) {
@@ -167,7 +167,7 @@ public class GenericDataSink extends Contract {
 	 * Creates a GenericDataSink with the provided {@link OutputFormat} implementation and the given name.
 	 * It uses the given contract as its input.
 	 * 
-	 * @param c The {@link OutputFormat} implementation used to sink the data.
+	 * @param f The {@link OutputFormat} implementation used to sink the data.
 	 * @param input The contract to use as the input.
 	 * @param name The given name for the sink, used in plans, logs and progress messages.
 	 */
@@ -180,7 +180,7 @@ public class GenericDataSink extends Contract {
 	 * Creates a GenericDataSink with the provided {@link OutputFormat} implementation and the given name.
 	 * It uses the given contracts as its input.
 	 * 
-	 * @param c The {@link OutputFormat} implementation used to sink the data.
+	 * @param f The {@link OutputFormat} implementation used to sink the data.
 	 * @param input The contracts to use as the input.
 	 * @param name The given name for the sink, used in plans, logs and progress messages.
 	 */
@@ -212,7 +212,7 @@ public class GenericDataSink extends Contract {
 	/**
 	 * Connects the inputs to the task wrapped in this contract
 	 * 
-	 * @param input The contracts will be set as input.
+	 * @param inputs The contracts will be set as input.
 	 */
 	public void addInputs(List<Contract> inputs) {
 		this.input.addAll(inputs);
@@ -222,7 +222,7 @@ public class GenericDataSink extends Contract {
 	 * Clears all previous connections and sets the given contract as
 	 * single input of this contract.
 	 * 
-	 * @param input		The contract will be set as input.
+	 * @param input	The contract will be set as input.
 	 */
 	public void setInput(Contract input) {
 		this.input.clear();
@@ -233,7 +233,7 @@ public class GenericDataSink extends Contract {
 	 * Clears all previous connections and sets the given contracts as
 	 * inputs of this contract.
 	 * 
-	 * @param input		The contracts will be set as inputs.
+	 * @param inputs The contracts will be set as inputs.
 	 */
 	public void setInputs(List<? extends Contract> inputs) {
 		this.input.clear();
@@ -343,11 +343,11 @@ public class GenericDataSink extends Contract {
 	/**
 	 * Gets the class describing the output format.
 	 * <p>
-	 * This method is basically identical to {@link #getFormatClass()}.
+	 * This method is basically identical to {@link #getFormatWrapper()}.
 	 * 
 	 * @return The class describing the output format.
 	 * 
-	 * @see eu.stratosphere.pact.generic.contract.Contract#getUserCodeClass()
+	 * @see eu.stratosphere.pact.generic.contract.Contract#getUserCodeWrapper()
 	 */
 	@Override
 	public UserCodeWrapper<? extends OutputFormat<?>> getUserCodeWrapper()

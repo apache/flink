@@ -200,7 +200,7 @@ public abstract class TypeComparator<T> {
 	 * character, either {@code 0} or {@code 0xff}, depending on whether shorter values are sorted to the beginning or
 	 * the end. 
 	 * <p>
-	 * This method is similar to {@link NormalizableKey#copyNormalizedKey(byte[], int, int)}. In the case that
+	 * This method is similar to {@link NormalizableKey#copyNormalizedKey(MemorySegment, int, int)}. In the case that
 	 * multiple fields of a record contribute to the normalized key, it is crucial that the fields align on the
 	 * byte field, i.e. that every field always takes up the exact same number of bytes.
 	 * 
@@ -219,11 +219,11 @@ public abstract class TypeComparator<T> {
 	 * {@code #supportsSerializationWithKeyNormalization()} allows to check that.
 	 *
 	 * @param record The record object into which to read the record data.
-	 * @param source The stream from which to read the data,
+	 * @param target The stream to which to write the data,
 	 *
 	 * @see #supportsSerializationWithKeyNormalization()
 	 * @see #readWithKeyDenormalization(Object, DataInputView)
-	 * @see NormalizableKey#copyNormalizedKey(byte[], int, int)
+	 * @see NormalizableKey#copyNormalizedKey(MemorySegment, int, int)
 	 */
 	public abstract void writeWithKeyNormalization(T record, DataOutputView target) throws IOException;
 	
@@ -237,7 +237,7 @@ public abstract class TypeComparator<T> {
 	 *
 	 * @see #supportsSerializationWithKeyNormalization()
 	 * @see #writeWithKeyNormalization(Object, DataOutputView)
-	 * @see NormalizableKey#copyNormalizedKey(byte[], int, int)
+	 * @see NormalizableKey#copyNormalizedKey(MemorySegment, int, int)
 	 */
 	public abstract void readWithKeyDenormalization(T record, DataInputView source) throws IOException;
 

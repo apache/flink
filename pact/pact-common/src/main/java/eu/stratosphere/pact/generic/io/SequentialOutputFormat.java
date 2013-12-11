@@ -22,8 +22,6 @@ import eu.stratosphere.nephele.types.Record;
 /**
  * Stores complete {@link Record}s in an efficient binary format which is deserializable without configuration.
  * 
- * @author Arvid Heise
- * @see BlockBasedOutputFormat
  * @see SequentialInputFormat
  */
 public class SequentialOutputFormat extends BinaryOutputFormat<Record> {

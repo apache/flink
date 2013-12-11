@@ -316,9 +316,15 @@ public final class PactRecord implements Value {
 	}
 	
 	/**
-	 * @param positions
-	 * @param targets
-	 * @return
+	 * Gets the fields at the given positions into an array. 
+	 * If at any position a field is null, then this method returns false.
+	 * All fields that have been successfully read until the failing read are correctly contained in the record.
+	 * All other fields are not set.
+	 * 
+	 * @param positions The positions of the fields to get.
+	 * @param targets The values into which the content of the fields is put.
+	 * 
+	 * @return True if all fields were successfully read, false if some read failed.
 	 */
 	public boolean getFieldsInto(int[] positions, Value[] targets) {
 		for (int i = 0; i < positions.length; i++) {
@@ -329,9 +335,15 @@ public final class PactRecord implements Value {
 	}
 	
 	/**
-	 * @param positions
-	 * @param targets
-	 * @return
+	 * Gets the fields at the given positions into an array. 
+	 * If at any position a field is null, then this method throws a @link NullKeyFieldException.
+	 * All fields that have been successfully read until the failing read are correctly contained in the record.
+	 * All other fields are not set.
+	 * 
+	 * @param positions The positions of the fields to get.
+	 * @param targets The values into which the content of the fields is put.
+	 * 
+	 * @throws A NullKeyFieldException in case of a failing field read. 
 	 */
 	public void getFieldsIntoCheckingNull(int[] positions, Value[] targets) {
 		for (int i = 0; i < positions.length; i++) {
@@ -729,9 +741,9 @@ public final class PactRecord implements Value {
 	 * of the source fields are actually bin-copied, then updateBinaryRepresentation
 	 * won't be called. 
 	 *
-	 * @param sourceFieldNum
-	 * @param targetFieldNum
-	 * @param target
+	 * @param source
+	 * @param sourcePositions
+	 * @param targetPositions
 	 */
 	public void copyFrom(final PactRecord source, final int[] sourcePositions, final int[] targetPositions) {
 		
@@ -805,10 +817,16 @@ public final class PactRecord implements Value {
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * @param positions
-	 * @param searchValues
-	 * @param deserializationHolders
-	 * @return
+	 * Checks the values of this record and a given list of values at specified positions for equality.
+	 * The values of this record are deserialized and compared against the corresponding search value.
+	 * The position specify which values are compared.
+	 * The method returns true if the values on all positions are equal and false otherwise.  
+	 * 
+	 * @param positions The positions of the values to check for equality.
+	 * @param searchValues The values against which the values of this record are compared.
+	 * @param deserializationHolders An array to hold the deserialized values of this record.
+	 * 
+	 * @return True if all the values on all positions are equal, false otherwise.
 	 */
 	public final boolean equalsFields(int[] positions, Value[] searchValues, Value[] deserializationHolders) {
 		for (int i = 0; i < positions.length; i++) {
@@ -982,9 +1000,6 @@ public final class PactRecord implements Value {
 	//                             Serialization
 	// --------------------------------------------------------------------------------------------
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.IOReadableWritable#write(java.io.DataOutput)
-	 */
 	@Override
 	public void write(DataOutput out) throws IOException {
 		// make sure everything is in a valid binary representation
@@ -995,9 +1010,6 @@ public final class PactRecord implements Value {
 		out.write(this.binaryData, 0, this.binaryLen);
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.IOReadableWritable#read(java.io.DataInput)
-	 */
 	@Override
 	public void read(DataInput in) throws IOException {
 		final int len = readVarLengthInt(in);

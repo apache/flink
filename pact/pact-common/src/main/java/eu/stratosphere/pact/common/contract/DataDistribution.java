@@ -38,7 +38,7 @@ public interface DataDistribution extends IOReadableWritable
 	 * @param bucketNum The number of the bucket for which to get the upper bound.
 	 * @param totalNumBuckets The number of buckets to split the data into.
 	 * 
-	 * @return
+	 * @return A record whose values act as bucket boundaries for the specified bucket.
 	 */
 	public PactRecord getBucketBoundary(int bucketNum, int totalNumBuckets); 
 }

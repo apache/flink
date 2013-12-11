@@ -147,12 +147,12 @@ public class FormatUtil {
 	 *         if an I/O error occurred while accessing the file or initializing the OutputFormat.
 	 */
 	public static <T, F extends FileOutputFormat<? extends T>> F openOutput(
-			Class<F> outputFormatClass, String pathString, Configuration configuration) throws IOException {
+			Class<F> outputFormatClass, String path, Configuration configuration) throws IOException {
 		final F outputFormat = ReflectionUtil.newInstance(outputFormatClass);
 
 		configuration = configuration == null ? new Configuration() : configuration;
 
-		configuration.setString(FileOutputFormat.FILE_PARAMETER_KEY, pathString);
+		configuration.setString(FileOutputFormat.FILE_PARAMETER_KEY, path);
 		configuration.setLong(FileOutputFormat.OUTPUT_STREAM_OPEN_TIMEOUT_KEY, 0);
 		outputFormat.configure(configuration);
 		outputFormat.open(1);

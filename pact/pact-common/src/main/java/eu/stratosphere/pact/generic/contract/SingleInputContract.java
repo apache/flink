@@ -41,8 +41,8 @@ public abstract class SingleInputContract<T extends Stub> extends AbstractPact<T
 	/**
 	 * Creates a new abstract single-input Pact with the given name wrapping the given user function.
 	 * 
-	 * @param stubClass The class containing the user function.
-	 * @param keyTypes The classes of the data types that act as keys in this stub.
+	 * @param stub The object containing the user function.
+	 * @param keyPositions The field positions of the input records that act as keys.
 	 * @param name The given name for the Pact, used in plans, logs and progress messages.
 	 */
 	protected SingleInputContract(UserCodeWrapper<T> stub, int[] keyPositions, String name) {
@@ -54,7 +54,7 @@ public abstract class SingleInputContract<T extends Stub> extends AbstractPact<T
 	 * Creates a new abstract single-input Pact with the given name wrapping the given user function.
 	 * This constructor is specialized only for Pacts that require no keys for their processing.
 	 * 
-	 * @param stubClass The class containing the user function.
+	 * @param stub The object containing the user function.
 	 * @param name The given name for the Pact, used in plans, logs and progress messages.
 	 */
 	protected SingleInputContract(UserCodeWrapper<T> stub, String name) {

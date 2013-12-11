@@ -21,8 +21,6 @@ import eu.stratosphere.pact.common.util.Visitor;
 import eu.stratosphere.pact.generic.stub.AbstractStub;
 
 /**
- * 
- * <p>
  * This class is a subclass of {@code DualInputContract}. The solution set is considered the first input, the
  * workset is considered the second input.
  */
@@ -189,7 +187,7 @@ public class WorksetIteration extends DualInputContract<AbstractStub> implements
 	/**
 	 * Sets the given inputs as the initial solution set.
 	 * 
-	 * @param input The contracts to set as the initial solution set.
+	 * @param inputs The contracts to set as the initial solution set.
 	 */
 	public void setInitialSolutionSet(List<Contract> inputs) {
 		setFirstInputs(inputs);
@@ -198,7 +196,7 @@ public class WorksetIteration extends DualInputContract<AbstractStub> implements
 	/**
 	 * Sets the given inputs as the initial workset.
 	 * 
-	 * @param input The contracts to set as the initial workset.
+	 * @param inputs The contracts to set as the initial workset.
 	 */
 	public void setInitialWorkset(List<Contract> inputs) {
 		setSecondInputs(inputs);
@@ -207,25 +205,25 @@ public class WorksetIteration extends DualInputContract<AbstractStub> implements
 	/**
 	 * Adds the given input to the initial solution set.
 	 * 
-	 * @param input The contract added to the initial solution set.
+	 * @param inputs The contract added to the initial solution set.
 	 */
-	public void addToInitialSolutionSet(Contract ... input) {
-		addFirstInput(input);
+	public void addToInitialSolutionSet(Contract ... inputs) {
+		addFirstInput(inputs);
 	}
 	
 	/**
 	 * Adds the given input to the initial workset.
 	 * 
-	 * @param input The contract added to the initial workset.
+	 * @param inputs The contract added to the initial workset.
 	 */
-	public void addToInitialWorkset(Contract ... input) {
-		addSecondInput(input);
+	public void addToInitialWorkset(Contract ... inputs) {
+		addSecondInput(inputs);
 	}
 
 	/**
 	 * Adds the given inputs to the initial solution set.
 	 * 
-	 * @param input The contracts added to the initial solution set.
+	 * @param inputs The contracts added to the initial solution set.
 	 */
 	public void addToInitialSolutionSet(List<Contract> inputs) {
 		addFirstInputs(inputs);
@@ -234,7 +232,7 @@ public class WorksetIteration extends DualInputContract<AbstractStub> implements
 	/**
 	 * Adds the given inputs to the initial workset.
 	 * 
-	 * @param input The contracts added to the initial workset.
+	 * @param inputs The contracts added to the initial workset.
 	 */
 	public void addToInitialWorkset(List<Contract> inputs) {
 		addSecondInputs(inputs);

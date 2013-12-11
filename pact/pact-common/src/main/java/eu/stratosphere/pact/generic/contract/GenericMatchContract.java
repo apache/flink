@@ -20,7 +20,7 @@ import eu.stratosphere.pact.generic.contract.DualInputContract;
 import eu.stratosphere.pact.generic.stub.GenericMatcher;
 
 /**
- * CrossContract represents a Match InputContract of the PACT Programming Model.
+ * MatchContract represents a Match InputContract of the PACT Programming Model.
  * InputContracts are second-order functions. They have one or multiple input sets of records and a first-order
  * user function (stub implementation).
  * <p> 

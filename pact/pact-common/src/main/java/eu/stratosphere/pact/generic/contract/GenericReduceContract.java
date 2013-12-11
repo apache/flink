@@ -25,12 +25,12 @@ import eu.stratosphere.pact.generic.stub.GenericReducer;
 
 
 /**
- * MapContract represents a Pact with a Map Input Contract.
+ * ReduceContract represents a Pact with a Reduce Input Contract.
  * InputContracts are second-order functions. They have one or multiple input sets of records and a first-order
  * user function (stub implementation).
  * <p> 
- * Map works on a single input and calls the first-order user function of a {@see eu.stratosphere.pact.common.stub.MapStub} 
- * for each record independently.
+ * Reduce works on a single input and calls the first-order user function of a {@link ReduceStub} for each group of 
+ * records that share the same key.
  * 
  * @see ReduceStub
  */
@@ -65,9 +65,9 @@ public class GenericReduceContract<T extends GenericReducer<?, ?>> extends Singl
 	/**
 	 * Returns true if the ReduceContract is annotated with a Combinable annotation.
 	 * The annotation indicates that the contract's {@link ReduceStub} implements the 
-	 * {@link ReduceStub#combine(eu.stratosphere.pact.common.type.Key, java.util.Iterator, eu.stratosphere.pact.common.stubs.Collector)}
+	 * {@link ReduceStub#combine(Iterator, Collector)}
 	 * method.
-	 * 
+	 *  
 	 * @return True, if the ReduceContract is combinable, false otherwise.
 	 */
 	public boolean isCombinable() {

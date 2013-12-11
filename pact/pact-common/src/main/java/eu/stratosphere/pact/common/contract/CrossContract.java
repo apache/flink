@@ -108,7 +108,7 @@ public class CrossContract extends GenericCrossContract<CrossStub> implements Re
 		/**
 		 * Sets one or several inputs (union) for input 1.
 		 * 
-		 * @param input
+		 * @param inputs
 		 */
 		public Builder input1(Contract ...inputs) {
 			this.inputs1.clear();
@@ -121,7 +121,7 @@ public class CrossContract extends GenericCrossContract<CrossStub> implements Re
 		/**
 		 * Sets one or several inputs (union) for input 2.
 		 * 
-		 * @param input
+		 * @param inputs
 		 */
 		public Builder input2(Contract ...inputs) {
 			this.inputs2.clear();

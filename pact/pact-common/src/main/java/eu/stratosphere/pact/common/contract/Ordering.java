@@ -49,10 +49,13 @@ public class Ordering {
 	}
 	
 	/**
-	 * @param index
-	 * @param type
-	 * @param order
-	 * @return
+	 * Extends this ordering by appending an additional order requirement.
+	 * 
+	 * @param index Field index of the appended order requirement.
+	 * @param type Type of the appended order requirement.
+	 * @param order Order of the appended order requirement.
+	 * 
+	 * @return This ordering with an additional appended order requirement.
 	 */
 	public Ordering appendOrdering(Integer index, Class<? extends Key> type, Order order) {
 		if (index.intValue() < 0) {

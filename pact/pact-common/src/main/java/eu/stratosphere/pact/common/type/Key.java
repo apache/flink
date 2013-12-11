@@ -39,8 +39,11 @@ public interface Key extends Value, Comparable<Key>
 	public int hashCode();
 	
 	/**
-	 * @param other
-	 * @return
+	 * Compares the object on equality with another object.
+	 * 
+	 * @param other The other object to compare against.
+	 * 
+	 * @return true the this object is identical to the other object, false otherwise.
 	 */
 	public boolean equals(Object other);
 }

@@ -32,7 +32,7 @@ import eu.stratosphere.pact.generic.contract.UserCodeObjectWrapper;
 import eu.stratosphere.pact.generic.contract.UserCodeWrapper;
 
 /**
- * CrossContract represents a Match InputContract of the PACT Programming Model.
+ * CoGroupContract represents a CoGroup InputContract of the PACT Programming Model.
  * InputContracts are second-order functions. They have one or multiple input sets of records and a first-order
  * user function (stub implementation).
  * <p> 
@@ -249,9 +249,6 @@ public class CoGroupContract extends GenericCoGroupContract<CoGroupStub> impleme
 		 * for special case sub-types only.
 		 * 
 		 * @param udf The {@link CoGroupStub} implementation for this CoGroup contract.
-		 * @param keyClass The class of the key data type.
-		 * @param keyColumn1 The position of the key in the first input's records.
-		 * @param keyColumn2 The position of the key in the second input's records.
 		 */
 		protected Builder(UserCodeWrapper<CoGroupStub> udf) {
 			this.udf = udf;
@@ -319,7 +316,7 @@ public class CoGroupContract extends GenericCoGroupContract<CoGroupStub> impleme
 		/**
 		 * Sets one or several inputs (union) for input 1.
 		 * 
-		 * @param input
+		 * @param inputs
 		 */
 		public Builder input1(Contract ...inputs) {
 			this.inputs1.clear();
@@ -332,7 +329,7 @@ public class CoGroupContract extends GenericCoGroupContract<CoGroupStub> impleme
 		/**
 		 * Sets one or several inputs (union) for input 2.
 		 * 
-		 * @param input
+		 * @param inputs
 		 */
 		public Builder input2(Contract ...inputs) {
 			this.inputs2.clear();

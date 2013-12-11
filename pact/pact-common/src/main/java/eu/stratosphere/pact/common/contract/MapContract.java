@@ -31,7 +31,7 @@ import eu.stratosphere.pact.generic.contract.UserCodeWrapper;
  * InputContracts are second-order functions. They have one or multiple input sets of records and a first-order
  * user function (stub implementation).
  * <p> 
- * Map works on a single input and calls the first-order user function of a {@see eu.stratosphere.pact.common.stub.MapStub} 
+ * Map works on a single input and calls the first-order user function of a {@link MapStub}  
  * for each record independently.
  * 
  * @see MapStub
@@ -104,7 +104,7 @@ public class MapContract extends GenericMapContract<MapStub> implements RecordCo
 		/**
 		 * Sets one or several inputs (union).
 		 * 
-		 * @param input
+		 * @param inputs
 		 */
 		public Builder input(Contract ...inputs) {
 			this.inputs.clear();
@@ -117,7 +117,7 @@ public class MapContract extends GenericMapContract<MapStub> implements RecordCo
 		/**
 		 * Sets the inputs.
 		 * 
-		 * @param input
+		 * @param inputs
 		 */
 		public Builder inputs(List<Contract> inputs) {
 			this.inputs = inputs;

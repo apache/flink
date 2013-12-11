@@ -18,10 +18,6 @@ package eu.stratosphere.pact.common.util;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 
-/**
- * @TODO
- * @author Erik Nijkamp
- */
 public class ReflectionUtil {
 	public static <T> T newInstance(Class<T> clazz) {
 		try {

@@ -31,9 +31,9 @@ public abstract class AbstractPact<T extends Stub> extends Contract {
 	
 	/**
 	 * Creates a new abstract Pact with the given name wrapping the given user function.
-	 * 
+	 *
+	 * @param stub The object containing the user function.
 	 * @param name The given name for the Pact, used in plans, logs and progress messages.
-	 * @param stubClass The class containing the user function.
 	 */
 	protected AbstractPact(UserCodeWrapper<T> stub, String name) {
 		super(name);
@@ -51,7 +51,7 @@ public abstract class AbstractPact<T extends Stub> extends Contract {
 	 * 
 	 * @return The object with the user function for this Pact.
 	 *
-	 * @see eu.stratosphere.pact.generic.contract.Contract#getUserCodeObject()
+	 * @see eu.stratosphere.pact.generic.contract.Contract#getUserCodeWrapper()
 	 */
 	@Override
 	public UserCodeWrapper<T> getUserCodeWrapper() {

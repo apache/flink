@@ -128,16 +128,16 @@ public class CompilerHints {
 	}
 
 	/**
-	 * Sets the key cardinality for the contract containing these hints..
+	 * Sets the count of distinct value combinations for the given set of fields.
 	 * 
-	 * @param keyCardinality
-	 *        The key cardinality to set.
+	 * @param fieldSet The set of fields for which the count is specified. 
+	 * @param count The number of distinct value combinations for the specified set of fields.
 	 */
-	public void setDistinctCount(FieldSet fieldSet, long cardinality) {
-		if(cardinality < 0) {
+	public void setDistinctCount(FieldSet fieldSet, long count) {
+		if(count < 0) {
 			throw new IllegalArgumentException("Cardinality must be >= 0!");
 		}
-		this.distinctCounts.put(fieldSet, cardinality);
+		this.distinctCounts.put(fieldSet, count);
 	}
 
 	/**

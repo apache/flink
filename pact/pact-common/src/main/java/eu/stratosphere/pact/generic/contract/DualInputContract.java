@@ -54,8 +54,8 @@ public abstract class DualInputContract<T extends Stub> extends AbstractPact<T> 
 	/**
 	 * Creates a new abstract dual-input Pact with the given name wrapping the given user function.
 	 * 
+	 * @param stub The class containing the user function.
 	 * @param name The given name for the Pact, used in plans, logs and progress messages.
-	 * @param stubClass The class containing the user function.
 	 */
 	protected DualInputContract(UserCodeWrapper<T> stub, String name) {
 		super(stub, name);
@@ -66,9 +66,10 @@ public abstract class DualInputContract<T extends Stub> extends AbstractPact<T> 
 	 * Creates a new abstract dual-input Pact with the given name wrapping the given user function.
 	 * This constructor is specialized only for Pacts that require no keys for their processing.
 	 * 
+	 * @param stub The object containing the user function.
+	 * @param keyPositions1 The positions of the fields in the first input that act as keys.
+	 * @param keyPositions2 The positions of the fields in the second input that act as keys.
 	 * @param name The given name for the Pact, used in plans, logs and progress messages.
-	 * @param keyTypes The classes of the data types that act as keys in this stub.
-	 * @param stubClass The class containing the user function.
 	 */
 	protected DualInputContract(UserCodeWrapper<T> stub, int[] keyPositions1, int[] keyPositions2, String name) {
 		super(stub, name);
@@ -173,7 +174,7 @@ public abstract class DualInputContract<T extends Stub> extends AbstractPact<T> 
 	/**
 	 * Clears all previous connections and connects the first input to the task wrapped in this contract
 	 * 
-	 * @param firstInput The contract that is connected as the first input.
+	 * @param input The contract that is connected as the first input.
 	 */
 	public void setFirstInput(Contract input) {
 		this.input1.clear();
@@ -183,7 +184,7 @@ public abstract class DualInputContract<T extends Stub> extends AbstractPact<T> 
 	/**
 	 * Clears all previous connections and connects the second input to the task wrapped in this contract
 	 * 
-	 * @param secondInput The contract that is connected as the second input.
+	 * @param input The contract that is connected as the second input.
 	 */
 	public void setSecondInput(Contract input) {
 		this.input2.clear();
@@ -193,27 +194,27 @@ public abstract class DualInputContract<T extends Stub> extends AbstractPact<T> 
 	/**
 	 * Clears all previous connections and connects the first input to the task wrapped in this contract
 	 * 
-	 * @param firstInput The contract that is connected as the first input.
+	 * @param inputs The contracts that are connected as the first input.
 	 */
-	public void setFirstInput(Contract ... input) {
+	public void setFirstInput(Contract ... inputs) {
 		this.input1.clear();
-		addFirstInput(input);
+		addFirstInput(inputs);
 	}
 
 	/**
 	 * Clears all previous connections and connects the second input to the task wrapped in this contract
 	 * 
-	 * @param secondInput The contract that is connected as the second input.
+	 * @param inputs The contracts that are connected as the second input.
 	 */
-	public void setSecondInput(Contract ... input) {
+	public void setSecondInput(Contract ... inputs) {
 		this.input2.clear();
-		addSecondInput(input);
+		addSecondInput(inputs);
 	}
 	
 	/**
 	 * Clears all previous connections and connects the first inputs to the task wrapped in this contract
 	 * 
-	 * @param inputs The contracts that is connected as the first inputs.
+	 * @param inputs The contracts that are connected as the first inputs.
 	 */
 	public void setFirstInputs(List<Contract> inputs) {
 		this.input1.clear();
@@ -223,7 +224,7 @@ public abstract class DualInputContract<T extends Stub> extends AbstractPact<T> 
 	/**
 	 * Clears all previous connections and connects the second inputs to the task wrapped in this contract
 	 * 
-	 * @param secondInput The contracts that is connected as the second inputs.
+	 * @param inputs The contracts that are connected as the second inputs.
 	 */
 	public void setSecondInputs(List<Contract> inputs) {
 		this.input2.clear();

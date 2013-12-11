@@ -71,7 +71,6 @@ public abstract class TypeSerializer<T>
 	 * 
 	 * @param record The record to serialize.
 	 * @param target The output view to write the serialized data to.
-	 * @return The number of bytes consumed during the writing.
 	 * 
 	 * @throws IOException Thrown, if the serialization encountered an I/O related error. Typically raised by the
 	 *                     output view, which may have an underlying I/O channel to which it delegates.
@@ -82,12 +81,12 @@ public abstract class TypeSerializer<T>
 	 * De-serializes a record from the given source input view into the given target record instance.
 	 * 
 	 * @param record The record instance into which to de-serialize the data.
-	 * @param target The input view from which to read the data.
+	 * @param source The input view from which to read the data.
 	 * 
 	 * @throws IOException Thrown, if the de-serialization encountered an I/O related error. Typically raised by the
 	 *                     input view, which may have an underlying I/O channel from which it reads.
 	 */
-	public abstract void deserialize(T target, DataInputView source) throws IOException;
+	public abstract void deserialize(T record, DataInputView source) throws IOException;
 	
 	/**
 	 * Copies exactly one record from the source input view to the target output view. Whether this operation

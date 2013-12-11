@@ -253,7 +253,7 @@ public class RecordOutputFormat extends FileOutputFormat {
 		/**
 		 * Creates a new builder for the given configuration.
 		 * 
-		 * @param targetConfig The configuration into which the parameters will be written.
+		 * @param config The configuration into which the parameters will be written.
 		 */
 		protected AbstractConfigBuilder(Configuration config) {
 			super(config);

@@ -41,7 +41,7 @@ public class GenericDataSource<T extends InputFormat<?, ?>> extends Contract imp
 	/**
 	 * Creates a new instance for the given file using the given input format.
 	 * 
-	 * @param clazz The Class for the specific input format
+	 * @param format The {@link InputFormat} implementation used to read the data.
 	 * @param name The given name for the Pact, used in plans, logs and progress messages.
 	 */
 	public GenericDataSource(T format, String name) {
@@ -56,7 +56,7 @@ public class GenericDataSource<T extends InputFormat<?, ?>> extends Contract imp
 	/**
 	 * Creates a new instance for the given file using the given input format, using the default name.
 	 * 
-	 * @param clazz The Class for the specific input format
+	 * @param format The {@link InputFormat} implementation used to read the data.
 	 */
 	public GenericDataSource(T format) {
 		super(DEFAULT_NAME);
@@ -70,7 +70,7 @@ public class GenericDataSource<T extends InputFormat<?, ?>> extends Contract imp
 	/**
 	 * Creates a new instance for the given file using the given input format.
 	 * 
-	 * @param clazz The Class for the specific input format
+	 * @param format The {@link InputFormat} implementation used to read the data.
 	 * @param name The given name for the Pact, used in plans, logs and progress messages.
 	 */
 	public GenericDataSource(Class<? extends T> format, String name) {
@@ -85,7 +85,7 @@ public class GenericDataSource<T extends InputFormat<?, ?>> extends Contract imp
 	/**
 	 * Creates a new instance for the given file using the given input format, using the default name.
 	 * 
-	 * @param clazz The Class for the specific input format
+	 * @param format The {@link InputFormat} implementation used to read the data.
 	 */
 	public GenericDataSource(Class<? extends T> format) {
 		super(DEFAULT_NAME);
@@ -132,11 +132,11 @@ public class GenericDataSource<T extends InputFormat<?, ?>> extends Contract imp
 	/**
 	 * Gets the class describing the input format.
 	 * <p>
-	 * This method is basically identical to {@link #getFormatClass()}.
+	 * This method is basically identical to {@link #getFormatWrapper()}.
 	 * 
 	 * @return The class describing the input format.
 	 * 
-	 * @see eu.stratosphere.pact.generic.contract.Contract#getUserCodeClass()
+	 * @see eu.stratosphere.pact.generic.contract.Contract#getUserCodeWrapper()
 	 */
 	@Override
 	public UserCodeWrapper<? extends T> getUserCodeWrapper() {

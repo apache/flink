@@ -53,7 +53,7 @@ public class BulkIteration extends SingleInputContract<AbstractStub> implements 
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * @return
+	 * @return The contract representing the partial solution.
 	 */
 	public Contract getPartialSolution() {
 		return this.inputPlaceHolder;
@@ -70,12 +70,15 @@ public class BulkIteration extends SingleInputContract<AbstractStub> implements 
 	}
 	
 	/**
-	 * @return
+	 * @return The contract representing the next partial solution.
 	 */
 	public Contract getNextPartialSolution() {
 		return this.iterationResult;
 	}
 	
+	/**
+	 * @return The contract representing the termination criterion.
+	 */
 	public Contract getTerminationCriterion() {
 		return null;
 	}

@@ -38,7 +38,6 @@ import eu.stratosphere.pact.generic.stub.GenericReducer;
 /**
  * Convenience methods when dealing with {@link Contract}s.
  * 
- * @author Arvid Heise
  */
 public class ContractUtil {
 	private final static Map<Class<?>, Class<? extends Contract>> STUB_CONTRACTS =
@@ -57,7 +56,7 @@ public class ContractUtil {
 	}
 
 	/**
-	 * Returns the associated {@link Contract} type for the given {@link Stub} class.
+	 * Returns the associated {@link Contract} type for the given {@link eu.stratosphere.pact.common.stubs.Stub} class.
 	 * 
 	 * @param stubClass
 	 *        the stub class
@@ -84,7 +83,7 @@ public class ContractUtil {
 	 * Returns the number of inputs for the given {@link Contract} type.<br>
 	 * Currently, it can be 0, 1, or 2.
 	 * 
-	 * @param contractClass
+	 * @param contractType
 	 *        the type of the Contract
 	 * @return the number of input contracts
 	 */

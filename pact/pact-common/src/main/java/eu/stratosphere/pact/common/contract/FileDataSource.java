@@ -31,7 +31,7 @@ public class FileDataSource extends GenericDataSource<FileInputFormat<?>> {
 	/**
 	 * Creates a new instance for the given file using the given file input format.
 	 * 
-	 * @param clazz The class describing the input format for the file.
+	 * @param f The {@link FileInputFormat} implementation used to read the data.
 	 * @param filePath The file location. The file path must be a fully qualified URI, including the address schema.
 	 * @param name The given name for the Pact, used in plans, logs and progress messages.
 	 */
@@ -44,17 +44,17 @@ public class FileDataSource extends GenericDataSource<FileInputFormat<?>> {
 	/**
 	 * Creates a new instance for the given file using the given input format. The contract has the default name.
 	 * 
-	 * @param clazz The class describing the input format for the file.
+	 * @param f The {@link FileInputFormat} implementation used to read the data.
 	 * @param filePath The file location. The file path must be a fully qualified URI, including the address schema.
 	 */
-	public FileDataSource(FileInputFormat<?> f, String file) {
-		this(f, file, DEFAULT_NAME);
+	public FileDataSource(FileInputFormat<?> f, String filePath) {
+		this(f, filePath, DEFAULT_NAME);
 	}
 	
 	/**
 	 * Creates a new instance for the given file using the given file input format.
 	 * 
-	 * @param clazz The class describing the input format for the file.
+	 * @param f The {@link FileInputFormat} implementation used to read the data.
 	 * @param filePath The file location. The file path must be a fully qualified URI, including the address schema.
 	 * @param name The given name for the Pact, used in plans, logs and progress messages.
 	 */
@@ -67,11 +67,11 @@ public class FileDataSource extends GenericDataSource<FileInputFormat<?>> {
 	/**
 	 * Creates a new instance for the given file using the given input format. The contract has the default name.
 	 * 
-	 * @param clazz The class describing the input format for the file.
+	 * @param f The {@link FileInputFormat} implementation used to read the data.
 	 * @param filePath The file location. The file path must be a fully qualified URI, including the address schema.
 	 */
-	public FileDataSource(Class<? extends FileInputFormat<?>> f, String file) {
-		this(f, file, DEFAULT_NAME);
+	public FileDataSource(Class<? extends FileInputFormat<?>> f, String filePath) {
+		this(f, filePath, DEFAULT_NAME);
 	}
 
 	// --------------------------------------------------------------------------------------------

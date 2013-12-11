@@ -233,13 +233,16 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * This function parses the given byte array which represents a serialized key/value
-	 * pair. The parsed content is then returned by setting the pair variables. If the
+	 * This function parses the given byte array which represents a serialized records.
+	 * The parsed content is then returned by setting the pair variables. If the
 	 * byte array contains invalid content the record can be skipped by returning <tt>false</tt>.
 	 * 
-	 * @param record The holder for the line that is read.
-	 * @param bytes The serialized record.
-	 * @return returns whether the record was successfully deserialized
+	 * @param target The holder for the line that is read.
+	 * @param bytes Binary data of serialized records.
+	 * @param offset The offset where to start to read the record data. 
+	 * @param numBytes The number of bytes that can be read starting at the offset position.
+	 * 
+	 * @return returns whether the record was successfully deserialized or not.
 	 */
 	public abstract boolean readRecord(OT target, byte[] bytes, int offset, int numBytes);
 	
@@ -617,7 +620,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 		/**
 		 * Creates a new builder for the given configuration.
 		 * 
-		 * @param targetConfig The configuration into which the parameters will be written.
+		 * @param config The configuration into which the parameters will be written.
 		 */
 		protected AbstractConfigBuilder(Configuration config) {
 			super(config);

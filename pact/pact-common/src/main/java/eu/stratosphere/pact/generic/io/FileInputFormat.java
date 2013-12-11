@@ -46,7 +46,7 @@ import eu.stratosphere.pact.common.util.PactConfigConstants;
  * and if not the next pair is read using the nextPair() method.
  * 
  * Describes the base interface that is used describe an input that produces records that are processed
- * by stratosphere.
+ * by Stratosphere.
  * <p>
  * The input format handles the following:
  * <ul>
@@ -371,8 +371,9 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	 * are requested than blocks are available, then a split may by a fraction of a block and splits may cross
 	 * block boundaries.
 	 * 
-	 * @param The minimum desired number of file splits.
+	 * @param minNumSplits The minimum desired number of file splits.
 	 * @return The computed file splits.
+	 * 
 	 * @see eu.stratosphere.pact.generic.io.InputFormat#createInputSplits(int)
 	 */
 	@Override

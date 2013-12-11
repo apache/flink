@@ -39,16 +39,12 @@ import eu.stratosphere.pact.generic.io.GenericCsvInputFormat;
  * Record and field delimiters must be configured using the InputFormat {@link Configuration}.
  * 
  * The number of fields to parse must be configured as well.  
- * For each field a {@link FieldParser} must be specified using the {@link RecordInputFormat#FIELD_PARSER_PARAMETER_PREFIX} config key.
- * FieldParsers can be configured by adding config entries to the InputFormat configuration. The InputFormat forwards its configuration to each {@link FieldParser}.
+ * For each field a data type must be specified using the {@link RecordInputFormat#FIELD_TYPE_PARAMETER_PREFIX} config key.
  * 
  * The position within the text record can be configured for each field using the {@link RecordInputFormat#TEXT_POSITION_PARAMETER_PREFIX} config key.
  * Either all text positions must be configured or none. If none is configured, the index of the config key is used.
+ * The position of a value within the {@link PactRecord} is the index of the config key.
  * 
- * The position within the {@link PactRecord} can be configured for each field using the {@link RecordInputFormat#RECORD_POSITION_PARAMETER_PREFIX} config key.
- * Either all {@link PactRecord} positions must be configured or none. If none is configured, the index of the config key is used.
- * 
- * @see FieldParser
  * @see Configuration
  * @see PactRecord
  */
@@ -217,7 +213,7 @@ public class RecordInputFormat extends GenericCsvInputFormat<PactRecord> {
 	
 	private static final String NUM_FIELDS_PARAMETER = "recordinformat.field.number";
 	
-	private static final String FIELD_TYPE_PARAMETER_PREFIX = "recordinformat.field.parser_";
+	private static final String FIELD_TYPE_PARAMETER_PREFIX = "recordinformat.field.type_";
 	
 	private static final String TEXT_POSITION_PARAMETER_PREFIX = "recordinformat.text.position_";
 	
@@ -240,8 +236,10 @@ public class RecordInputFormat extends GenericCsvInputFormat<PactRecord> {
 		
 		/**
 		 * Creates a new builder for the given configuration.
-		 * 
-		 * @param targetConfig The configuration into which the parameters will be written.
+		 *
+		 * @param contract The contract from which the the compiler hints are used. 
+		 *                 If contract is null, new compiler hints are generated.  
+		 * @param config The configuration into which the parameters will be written.
 		 */
 		protected AbstractConfigBuilder(Contract contract, Configuration config) {
 			super(config);

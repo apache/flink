@@ -25,12 +25,10 @@ import eu.stratosphere.pact.generic.stub.GenericMapper;
  * InputContracts are second-order functions. They have one or multiple input sets of records and a first-order
  * user function (stub implementation).
  * <p> 
- * Map works on a single input and calls the first-order user function of a {@see eu.stratosphere.pact.common.stub.MapStub} 
+ * Map works on a single input and calls the first-order user function of a {@link MapStub} 
  * for each record independently.
  * 
  * @see MapStub
- * 
- * @author Aljoscha Krettek
  */
 public class GenericMapContract<T extends GenericMapper<?, ?>> extends SingleInputContract<T>
 {
