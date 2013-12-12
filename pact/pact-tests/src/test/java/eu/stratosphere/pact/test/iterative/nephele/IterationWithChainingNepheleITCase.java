@@ -175,7 +175,6 @@ public class IterationWithChainingNepheleITCase extends TestBase2 {
         TaskConfig tailConfig = new TaskConfig(tail.getConfiguration());
         {
             tailConfig.setIterationId(ITERATION_ID);
-            tailConfig.setIsWorksetUpdate();
 
             // inputs and driver
             tailConfig.addInputToGroup(0);
@@ -201,6 +200,8 @@ public class IterationWithChainingNepheleITCase extends TestBase2 {
 
             chainedMapperConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
             chainedMapperConfig.setOutputSerializer(serializer);
+            
+            chainedMapperConfig.setIsWorksetUpdate();
 
             tailConfig.addChainedTask(ChainedMapDriver.class, chainedMapperConfig, "Chained ID Mapper");
         }

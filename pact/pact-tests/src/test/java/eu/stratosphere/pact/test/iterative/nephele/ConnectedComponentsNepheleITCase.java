@@ -70,13 +70,14 @@ import java.util.regex.Pattern;
  * - intermediate solution set update and workset tail
  */
 @RunWith(Parameterized.class)
-public abstract class ConnectedComponentsNepheleITCase extends TestBase2 {
+public class ConnectedComponentsNepheleITCase extends TestBase2 {
 
     private static final long SEED = 0xBADC0FFEEBEEFL;
     private static final int NUM_VERTICES = 1000;
     private static final int NUM_EDGES = 10000;
     private static final int ITERATION_ID = 1;
     private static final long MEM_PER_CONSUMER = 10;
+    
     protected String verticesPath;
     protected String edgesPath;
     protected String resultPath;
@@ -88,9 +89,18 @@ public abstract class ConnectedComponentsNepheleITCase extends TestBase2 {
     @Parameters
     public static Collection<Object[]> getConfigurations() {
         Configuration config1 = new Configuration();
-        config1.setInteger("ConnectedComponentsNephele#NumSubtasks", 1);
-        config1.setInteger("ConnectedComponentsNephele#NumIterations", 100);
-        return toParameterList(config1);
+        config1.setInteger("testcase", 1);
+        
+        Configuration config2 = new Configuration();
+        config2.setInteger("testcase", 2);
+        
+        Configuration config3 = new Configuration();
+        config3.setInteger("testcase", 3);
+        
+        Configuration config4 = new Configuration();
+        config4.setInteger("testcase", 4);
+        
+        return toParameterList(config1, config2, config3, config4);
     }
 
     public static final String getEnumeratingVertices(int num) {
@@ -183,10 +193,22 @@ public abstract class ConnectedComponentsNepheleITCase extends TestBase2 {
 
     @Override
     protected JobGraph getJobGraph() throws Exception {
-        int dop = config.getInteger("ConnectedComponentsNephele#NumSubtasks", 1);
-        int maxIterations = config.getInteger("ConnectedComponentsNephele#NumIterations", 1);
+        int dop = 4;
+        int maxIterations = 100;
 
-        return createWorksetConnectedComponentsJobGraph(verticesPath, edgesPath, resultPath, dop, maxIterations);
+        int type = config.getInteger("testcase", 0);
+        switch (type) {
+        case 1:
+            return createJobGraphUnifiedTails(verticesPath, edgesPath, resultPath, dop, maxIterations);
+        case 2:
+            return createJobGraphSeparateTails(verticesPath, edgesPath, resultPath, dop, maxIterations);
+        case 3:
+            return createJobGraphIntermediateWorksetUpdateAndSolutionSetTail(verticesPath, edgesPath, resultPath, dop, maxIterations);
+        case 4:
+            return createJobGraphSolutionSetUpdateAndWorksetTail(verticesPath, edgesPath, resultPath, dop, maxIterations);
+        default:
+            throw new RuntimeException("Broken test configuration");
+        }
     }
 
     @Override
@@ -205,10 +227,6 @@ public abstract class ConnectedComponentsNepheleITCase extends TestBase2 {
         }
 
     }
-
-    public abstract JobGraph createWorksetConnectedComponentsJobGraph(
-            String verticesPath, String edgesPath, String resultPath, int numSubTasks, int maxIterations)
-            throws JobGraphDefinitionException;
 
     // -----------------------------------------------------------------------------------------------------------------
     // Invariant vertices across all variants
@@ -418,510 +436,477 @@ public abstract class ConnectedComponentsNepheleITCase extends TestBase2 {
     // Unified solution set and workset tail update
     // -----------------------------------------------------------------------------------------------------------------
 
-    public static class ConnectedComponentsUnifiedTailsNepheleITCase extends ConnectedComponentsNepheleITCase {
+    public JobGraph createJobGraphUnifiedTails(
+            String verticesPath, String edgesPath, String resultPath, int numSubTasks, int maxIterations)
+            throws JobGraphDefinitionException {
+    	
+    	numSubTasks = 1;
 
-        public ConnectedComponentsUnifiedTailsNepheleITCase(Configuration config) {
-            super(config);
+        // -- init -------------------------------------------------------------------------------------------------
+        final TypeSerializerFactory<?> serializer = PactRecordSerializerFactory.get();
+        @SuppressWarnings("unchecked")
+        final TypeComparatorFactory<?> comparator =
+                new PactRecordComparatorFactory(new int[]{0}, new Class[]{PactLong.class}, new boolean[]{true});
+        final TypePairComparatorFactory<?, ?> pairComparator = PactRecordPairComparatorFactory.get();
+
+        JobGraph jobGraph = new JobGraph("Connected Components (Unified Tails)");
+
+        // -- invariant vertices -----------------------------------------------------------------------------------
+        JobInputVertex vertices = createVerticesInput(jobGraph, verticesPath, numSubTasks, serializer, comparator);
+        JobInputVertex edges = createEdgesInput(jobGraph, edgesPath, numSubTasks, serializer, comparator);
+        JobTaskVertex head = createIterationHead(jobGraph, numSubTasks, serializer, comparator, pairComparator);
+
+        JobTaskVertex intermediate = createIterationIntermediate(jobGraph, numSubTasks, serializer, comparator);
+        TaskConfig intermediateConfig = new TaskConfig(intermediate.getConfiguration());
+
+        JobOutputVertex output = createOutput(jobGraph, resultPath, numSubTasks, serializer);
+        JobOutputVertex fakeTail = createFakeTail(jobGraph, numSubTasks);
+        JobOutputVertex sync = createSync(jobGraph, numSubTasks, maxIterations);
+
+        // --------------- the tail (solution set join) ---------------
+        JobTaskVertex tail = JobGraphUtils.createTask(IterationTailPactTask.class, "IterationTail", jobGraph,
+                numSubTasks, numSubTasks);
+        TaskConfig tailConfig = new TaskConfig(tail.getConfiguration());
+        {
+            tailConfig.setIterationId(ITERATION_ID);
+            
+            tailConfig.setIsWorksetIteration();
+            tailConfig.setIsWorksetUpdate();
+            
+            tailConfig.setIsSolutionSetUpdate();
+            tailConfig.setIsSolutionSetUpdateWithoutReprobe();
+
+            // inputs and driver
+            tailConfig.addInputToGroup(0);
+            tailConfig.setInputSerializer(serializer, 0);
+
+            // output
+            tailConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
+            tailConfig.setOutputSerializer(serializer);
+
+            // the driver
+            tailConfig.setDriver(SolutionSetSecondJoinDriver.class);
+            tailConfig.setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_SECOND);
+            tailConfig.setStubWrapper(new UserCodeClassWrapper<UpdateComponentIdMatch>(UpdateComponentIdMatch.class));
+            tailConfig.setSolutionSetSerializer(serializer);
         }
 
-        public JobGraph createWorksetConnectedComponentsJobGraph(
-                String verticesPath, String edgesPath, String resultPath, int numSubTasks, int maxIterations)
-                throws JobGraphDefinitionException {
+        // -- edges ------------------------------------------------------------------------------------------------
+        JobGraphUtils.connect(vertices, head, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
+        JobGraphUtils.connect(edges, head, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
+        JobGraphUtils.connect(vertices, head, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
 
-            // -- init -------------------------------------------------------------------------------------------------
-            final TypeSerializerFactory<?> serializer = PactRecordSerializerFactory.get();
-            @SuppressWarnings("unchecked")
-            final TypeComparatorFactory<?> comparator =
-                    new PactRecordComparatorFactory(new int[]{0}, new Class[]{PactLong.class}, new boolean[]{true});
-            final TypePairComparatorFactory<?, ?> pairComparator = PactRecordPairComparatorFactory.get();
+        JobGraphUtils.connect(head, intermediate, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
+        intermediateConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, numSubTasks);
 
-            JobGraph jobGraph = new JobGraph("Connected Components (Unified Tails)");
+        JobGraphUtils.connect(intermediate, tail, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
+        tailConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, 1);
 
-            // -- invariant vertices -----------------------------------------------------------------------------------
-            JobInputVertex vertices = createVerticesInput(jobGraph, verticesPath, numSubTasks, serializer, comparator);
-            JobInputVertex edges = createEdgesInput(jobGraph, edgesPath, numSubTasks, serializer, comparator);
-            JobTaskVertex head = createIterationHead(jobGraph, numSubTasks, serializer, comparator, pairComparator);
+        JobGraphUtils.connect(head, output, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
+        JobGraphUtils.connect(tail, fakeTail, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
 
-            JobTaskVertex intermediate = createIterationIntermediate(jobGraph, numSubTasks, serializer, comparator);
-            TaskConfig intermediateConfig = new TaskConfig(intermediate.getConfiguration());
+        JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.POINTWISE);
 
-            JobOutputVertex output = createOutput(jobGraph, resultPath, numSubTasks, serializer);
-            JobOutputVertex fakeTail = createFakeTail(jobGraph, numSubTasks);
-            JobOutputVertex sync = createSync(jobGraph, numSubTasks, maxIterations);
+        vertices.setVertexToShareInstancesWith(head);
+        edges.setVertexToShareInstancesWith(head);
 
-            // --------------- the tail (solution set join) ---------------
-            JobTaskVertex tail = JobGraphUtils.createTask(IterationTailPactTask.class, "IterationTail", jobGraph,
-                    numSubTasks, numSubTasks);
-            TaskConfig tailConfig = new TaskConfig(tail.getConfiguration());
-            {
-                tailConfig.setIterationId(ITERATION_ID);
-                tailConfig.setIsWorksetIteration();
-                tailConfig.setIsWorksetUpdate();
-                tailConfig.setIsSolutionSetUpdate();
-                tailConfig.setIsSolutionSetUpdateWithoutReprobe();
+        intermediate.setVertexToShareInstancesWith(head);
+        tail.setVertexToShareInstancesWith(head);
 
-                // inputs and driver
-                tailConfig.addInputToGroup(0);
-                tailConfig.setInputSerializer(serializer, 0);
+        output.setVertexToShareInstancesWith(head);
+        sync.setVertexToShareInstancesWith(head);
+        fakeTail.setVertexToShareInstancesWith(tail);
 
-                // output
-                tailConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
-                tailConfig.setOutputSerializer(serializer);
-
-                // the driver
-                tailConfig.setDriver(SolutionSetSecondJoinDriver.class);
-                tailConfig.setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_SECOND);
-                tailConfig.setStubWrapper(new UserCodeClassWrapper<UpdateComponentIdMatch>(UpdateComponentIdMatch.class));
-                tailConfig.setSolutionSetSerializer(serializer);
-            }
-
-            // -- edges ------------------------------------------------------------------------------------------------
-            JobGraphUtils.connect(vertices, head, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
-            JobGraphUtils.connect(edges, head, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
-            JobGraphUtils.connect(vertices, head, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
-
-            JobGraphUtils.connect(head, intermediate, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
-            intermediateConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, numSubTasks);
-
-            JobGraphUtils.connect(intermediate, tail, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
-            tailConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, 1);
-
-            JobGraphUtils.connect(head, output, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
-            JobGraphUtils.connect(tail, fakeTail, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
-
-            JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.POINTWISE);
-
-            vertices.setVertexToShareInstancesWith(head);
-            edges.setVertexToShareInstancesWith(head);
-
-            intermediate.setVertexToShareInstancesWith(head);
-            tail.setVertexToShareInstancesWith(head);
-
-            output.setVertexToShareInstancesWith(head);
-            sync.setVertexToShareInstancesWith(head);
-            fakeTail.setVertexToShareInstancesWith(tail);
-
-            return jobGraph;
-        }
+        return jobGraph;
     }
 
-    // -----------------------------------------------------------------------------------------------------------------
-    // Separate solution set and workset tail updates
-    // -----------------------------------------------------------------------------------------------------------------
 
-    public static class ConnectedComponentsSeparateTailsNepheleITCase extends ConnectedComponentsNepheleITCase {
+    public JobGraph createJobGraphSeparateTails(
+            String verticesPath, String edgesPath, String resultPath, int numSubTasks, int maxIterations)
+            throws JobGraphDefinitionException {
+        // -- init -------------------------------------------------------------------------------------------------
+        final TypeSerializerFactory<?> serializer = PactRecordSerializerFactory.get();
+        @SuppressWarnings("unchecked")
+        final TypeComparatorFactory<?> comparator =
+                new PactRecordComparatorFactory(new int[]{0}, new Class[]{PactLong.class}, new boolean[]{true});
+        final TypePairComparatorFactory<?, ?> pairComparator = PactRecordPairComparatorFactory.get();
 
-        public ConnectedComponentsSeparateTailsNepheleITCase(Configuration config) {
-            super(config);
+        JobGraph jobGraph = new JobGraph("Connected Components (Unified Tails)");
+
+        // input
+        JobInputVertex vertices = createVerticesInput(jobGraph, verticesPath, numSubTasks, serializer, comparator);
+        JobInputVertex edges = createEdgesInput(jobGraph, edgesPath, numSubTasks, serializer, comparator);
+
+        // head
+        JobTaskVertex head = createIterationHead(jobGraph, numSubTasks, serializer, comparator, pairComparator);
+        TaskConfig headConfig = new TaskConfig(head.getConfiguration());
+        headConfig.setWaitForSolutionSetUpdate();
+
+        // intermediate
+        JobTaskVertex intermediate = createIterationIntermediate(jobGraph, numSubTasks, serializer, comparator);
+        TaskConfig intermediateConfig = new TaskConfig(intermediate.getConfiguration());
+
+        // output and auxiliaries
+        JobOutputVertex output = createOutput(jobGraph, resultPath, numSubTasks, serializer);
+        JobOutputVertex ssFakeTail = createFakeTail(jobGraph, numSubTasks);
+        JobOutputVertex wsFakeTail = createFakeTail(jobGraph, numSubTasks);
+        JobOutputVertex sync = createSync(jobGraph, numSubTasks, maxIterations);
+
+        // ------------------ the intermediate (ss join) ----------------------
+        JobTaskVertex ssJoinIntermediate = JobGraphUtils.createTask(IterationIntermediatePactTask.class,
+                "Solution Set Join", jobGraph, numSubTasks, numSubTasks);
+        TaskConfig ssJoinIntermediateConfig = new TaskConfig(ssJoinIntermediate.getConfiguration());
+        {
+            ssJoinIntermediateConfig.setIterationId(ITERATION_ID);
+
+            // inputs
+            ssJoinIntermediateConfig.addInputToGroup(0);
+            ssJoinIntermediateConfig.setInputSerializer(serializer, 0);
+
+            // output
+            ssJoinIntermediateConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
+            ssJoinIntermediateConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
+            ssJoinIntermediateConfig.setOutputComparator(comparator, 0);
+            ssJoinIntermediateConfig.setOutputComparator(comparator, 1);
+
+            ssJoinIntermediateConfig.setOutputSerializer(serializer);
+
+            // driver
+            ssJoinIntermediateConfig.setDriver(SolutionSetSecondJoinDriver.class);
+            ssJoinIntermediateConfig.setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_SECOND);
+            ssJoinIntermediateConfig.setStubWrapper(
+                    new UserCodeClassWrapper<UpdateComponentIdMatch>(UpdateComponentIdMatch.class));
+            ssJoinIntermediateConfig.setSolutionSetSerializer(serializer);
         }
 
-        @Override
-        public JobGraph createWorksetConnectedComponentsJobGraph(
-                String verticesPath, String edgesPath, String resultPath, int numSubTasks, int maxIterations)
-                throws JobGraphDefinitionException {
-            // -- init -------------------------------------------------------------------------------------------------
-            final TypeSerializerFactory<?> serializer = PactRecordSerializerFactory.get();
-            @SuppressWarnings("unchecked")
-            final TypeComparatorFactory<?> comparator =
-                    new PactRecordComparatorFactory(new int[]{0}, new Class[]{PactLong.class}, new boolean[]{true});
-            final TypePairComparatorFactory<?, ?> pairComparator = PactRecordPairComparatorFactory.get();
 
-            JobGraph jobGraph = new JobGraph("Connected Components (Unified Tails)");
+        // -------------------------- ss tail --------------------------------
+        JobTaskVertex ssTail = JobGraphUtils.createTask(IterationTailPactTask.class, "IterationSolutionSetTail",
+                jobGraph, numSubTasks, numSubTasks);
+        TaskConfig ssTailConfig = new TaskConfig(ssTail.getConfiguration());
+        {
+            ssTailConfig.setIterationId(ITERATION_ID);
+            ssTailConfig.setIsSolutionSetUpdate();
 
-            // input
-            JobInputVertex vertices = createVerticesInput(jobGraph, verticesPath, numSubTasks, serializer, comparator);
-            JobInputVertex edges = createEdgesInput(jobGraph, edgesPath, numSubTasks, serializer, comparator);
+            // inputs and driver
+            ssTailConfig.addInputToGroup(0);
+            ssTailConfig.setInputSerializer(serializer, 0);
+            ssTailConfig.setInputAsynchronouslyMaterialized(0, true);
+            ssTailConfig.setInputMaterializationMemory(0, MEM_PER_CONSUMER * JobGraphUtils.MEGABYTE);
 
-            // head
-            JobTaskVertex head = createIterationHead(jobGraph, numSubTasks, serializer, comparator, pairComparator);
-            TaskConfig headConfig = new TaskConfig(head.getConfiguration());
-            headConfig.setWaitForSolutionSetUpdate();
+            // output
+            ssTailConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
+            ssTailConfig.setOutputSerializer(serializer);
 
-            // intermediate
-            JobTaskVertex intermediate = createIterationIntermediate(jobGraph, numSubTasks, serializer, comparator);
-            TaskConfig intermediateConfig = new TaskConfig(intermediate.getConfiguration());
-
-            // output and auxiliaries
-            JobOutputVertex output = createOutput(jobGraph, resultPath, numSubTasks, serializer);
-            JobOutputVertex ssFakeTail = createFakeTail(jobGraph, numSubTasks);
-            JobOutputVertex wsFakeTail = createFakeTail(jobGraph, numSubTasks);
-            JobOutputVertex sync = createSync(jobGraph, numSubTasks, maxIterations);
-
-            // ------------------ the intermediate (ss join) ----------------------
-            JobTaskVertex ssJoinIntermediate = JobGraphUtils.createTask(IterationIntermediatePactTask.class,
-                    "Solution Set Join", jobGraph, numSubTasks, numSubTasks);
-            TaskConfig ssJoinIntermediateConfig = new TaskConfig(ssJoinIntermediate.getConfiguration());
-            {
-                ssJoinIntermediateConfig.setIterationId(ITERATION_ID);
-
-                // inputs
-                ssJoinIntermediateConfig.addInputToGroup(0);
-                ssJoinIntermediateConfig.setInputSerializer(serializer, 0);
-
-                // output
-                ssJoinIntermediateConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
-                ssJoinIntermediateConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
-                ssJoinIntermediateConfig.setOutputComparator(comparator, 0);
-                ssJoinIntermediateConfig.setOutputComparator(comparator, 1);
-
-                ssJoinIntermediateConfig.setOutputSerializer(serializer);
-
-                // driver
-                ssJoinIntermediateConfig.setDriver(SolutionSetSecondJoinDriver.class);
-                ssJoinIntermediateConfig.setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_SECOND);
-                ssJoinIntermediateConfig.setStubWrapper(
-                        new UserCodeClassWrapper<UpdateComponentIdMatch>(UpdateComponentIdMatch.class));
-                ssJoinIntermediateConfig.setSolutionSetSerializer(serializer);
-            }
-
-
-            // -------------------------- ss tail --------------------------------
-            JobTaskVertex ssTail = JobGraphUtils.createTask(IterationTailPactTask.class, "IterationSolutionSetTail",
-                    jobGraph, numSubTasks, numSubTasks);
-            TaskConfig ssTailConfig = new TaskConfig(ssTail.getConfiguration());
-            {
-                ssTailConfig.setIterationId(ITERATION_ID);
-                ssTailConfig.setIsSolutionSetUpdate();
-
-                // inputs and driver
-                ssTailConfig.addInputToGroup(0);
-                ssTailConfig.setInputSerializer(serializer, 0);
-
-                // output
-                ssTailConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
-                ssTailConfig.setOutputSerializer(serializer);
-
-                // the driver
-                ssTailConfig.setDriver(MapDriver.class);
-                ssTailConfig.setDriverStrategy(DriverStrategy.MAP);
-                ssTailConfig.setStubWrapper(new UserCodeClassWrapper<DummyMapper>(DummyMapper.class));
-            }
-
-            // -------------------------- ws tail --------------------------------
-            JobTaskVertex wsTail = JobGraphUtils.createTask(IterationTailPactTask.class, "IterationWorksetTail",
-                    jobGraph, numSubTasks, numSubTasks);
-            TaskConfig wsTailConfig = new TaskConfig(wsTail.getConfiguration());
-            {
-                wsTailConfig.setIterationId(ITERATION_ID);
-                wsTailConfig.setIsWorksetIteration();
-                wsTailConfig.setIsWorksetUpdate();
-
-                // inputs and driver
-                wsTailConfig.addInputToGroup(0);
-                wsTailConfig.setInputSerializer(serializer, 0);
-
-                // output
-                wsTailConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
-                wsTailConfig.setOutputSerializer(serializer);
-
-                // the driver
-                wsTailConfig.setDriver(MapDriver.class);
-                wsTailConfig.setDriverStrategy(DriverStrategy.MAP);
-                wsTailConfig.setStubWrapper(new UserCodeClassWrapper<DummyMapper>(DummyMapper.class));
-            }
-
-            // --------------- the wiring ---------------------
-
-            JobGraphUtils.connect(vertices, head, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
-            JobGraphUtils.connect(edges, head, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
-            JobGraphUtils.connect(vertices, head, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
-
-            JobGraphUtils.connect(head, intermediate, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
-            intermediateConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, numSubTasks);
-
-            JobGraphUtils.connect(intermediate, ssJoinIntermediate, ChannelType.NETWORK, DistributionPattern.POINTWISE);
-            ssJoinIntermediateConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, 1);
-
-            JobGraphUtils.connect(ssJoinIntermediate, ssTail, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
-            ssTailConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, 1);
-
-            JobGraphUtils.connect(ssJoinIntermediate, wsTail, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
-            wsTailConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, 1);
-
-            JobGraphUtils.connect(head, output, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
-
-            JobGraphUtils.connect(ssTail, ssFakeTail, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
-            JobGraphUtils.connect(wsTail, wsFakeTail, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
-
-            JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.POINTWISE);
-
-            vertices.setVertexToShareInstancesWith(head);
-            edges.setVertexToShareInstancesWith(head);
-
-            intermediate.setVertexToShareInstancesWith(head);
-
-            ssJoinIntermediate.setVertexToShareInstancesWith(head);
-            wsTail.setVertexToShareInstancesWith(head);
-
-            output.setVertexToShareInstancesWith(head);
-            sync.setVertexToShareInstancesWith(head);
-
-            ssTail.setVertexToShareInstancesWith(wsTail);
-            ssFakeTail.setVertexToShareInstancesWith(ssTail);
-            wsFakeTail.setVertexToShareInstancesWith(wsTail);
-
-            return jobGraph;
+            // the driver
+            ssTailConfig.setDriver(MapDriver.class);
+            ssTailConfig.setDriverStrategy(DriverStrategy.MAP);
+            ssTailConfig.setStubWrapper(new UserCodeClassWrapper<DummyMapper>(DummyMapper.class));
         }
+
+        // -------------------------- ws tail --------------------------------
+        JobTaskVertex wsTail = JobGraphUtils.createTask(IterationTailPactTask.class, "IterationWorksetTail",
+                jobGraph, numSubTasks, numSubTasks);
+        TaskConfig wsTailConfig = new TaskConfig(wsTail.getConfiguration());
+        {
+            wsTailConfig.setIterationId(ITERATION_ID);
+            wsTailConfig.setIsWorksetIteration();
+            wsTailConfig.setIsWorksetUpdate();
+
+            // inputs and driver
+            wsTailConfig.addInputToGroup(0);
+            wsTailConfig.setInputSerializer(serializer, 0);
+
+            // output
+            wsTailConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
+            wsTailConfig.setOutputSerializer(serializer);
+
+            // the driver
+            wsTailConfig.setDriver(MapDriver.class);
+            wsTailConfig.setDriverStrategy(DriverStrategy.MAP);
+            wsTailConfig.setStubWrapper(new UserCodeClassWrapper<DummyMapper>(DummyMapper.class));
+        }
+
+        // --------------- the wiring ---------------------
+
+        JobGraphUtils.connect(vertices, head, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
+        JobGraphUtils.connect(edges, head, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
+        JobGraphUtils.connect(vertices, head, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
+
+        JobGraphUtils.connect(head, intermediate, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
+        intermediateConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, numSubTasks);
+
+        JobGraphUtils.connect(intermediate, ssJoinIntermediate, ChannelType.NETWORK, DistributionPattern.POINTWISE);
+        ssJoinIntermediateConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, 1);
+
+        JobGraphUtils.connect(ssJoinIntermediate, ssTail, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
+        ssTailConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, 1);
+
+        JobGraphUtils.connect(ssJoinIntermediate, wsTail, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
+        wsTailConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, 1);
+
+        JobGraphUtils.connect(head, output, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
+
+        JobGraphUtils.connect(ssTail, ssFakeTail, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
+        JobGraphUtils.connect(wsTail, wsFakeTail, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
+
+        JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.POINTWISE);
+
+        vertices.setVertexToShareInstancesWith(head);
+        edges.setVertexToShareInstancesWith(head);
+
+        intermediate.setVertexToShareInstancesWith(head);
+
+        ssJoinIntermediate.setVertexToShareInstancesWith(head);
+        wsTail.setVertexToShareInstancesWith(head);
+
+        output.setVertexToShareInstancesWith(head);
+        sync.setVertexToShareInstancesWith(head);
+
+        ssTail.setVertexToShareInstancesWith(wsTail);
+        ssFakeTail.setVertexToShareInstancesWith(ssTail);
+        wsFakeTail.setVertexToShareInstancesWith(wsTail);
+
+        return jobGraph;
     }
 
-    // -----------------------------------------------------------------------------------------------------------------
-    // Intermediate workset update and solution set tail
-    // -----------------------------------------------------------------------------------------------------------------
+    public JobGraph createJobGraphIntermediateWorksetUpdateAndSolutionSetTail(
+            String verticesPath, String edgesPath, String resultPath, int numSubTasks, int maxIterations)
+            throws JobGraphDefinitionException {
+        // -- init -------------------------------------------------------------------------------------------------
+        final TypeSerializerFactory<?> serializer = PactRecordSerializerFactory.get();
+        @SuppressWarnings("unchecked")
+        final TypeComparatorFactory<?> comparator =
+                new PactRecordComparatorFactory(new int[]{0}, new Class[]{PactLong.class}, new boolean[]{true});
+        final TypePairComparatorFactory<?, ?> pairComparator = PactRecordPairComparatorFactory.get();
 
-    public static class ConnectedComponentsIntermediateWorksetUpdateAndSolutionSetTail
-            extends ConnectedComponentsNepheleITCase {
+        JobGraph jobGraph = new JobGraph("Connected Components (Intermediate Workset Update, Solution Set Tail)");
 
-        public ConnectedComponentsIntermediateWorksetUpdateAndSolutionSetTail(Configuration config) {
-            super(config);
+        // input
+        JobInputVertex vertices = createVerticesInput(jobGraph, verticesPath, numSubTasks, serializer, comparator);
+        JobInputVertex edges = createEdgesInput(jobGraph, edgesPath, numSubTasks, serializer, comparator);
+
+        // head
+        JobTaskVertex head = createIterationHead(jobGraph, numSubTasks, serializer, comparator, pairComparator);
+        TaskConfig headConfig = new TaskConfig(head.getConfiguration());
+        headConfig.setWaitForSolutionSetUpdate();
+
+        // intermediate
+        JobTaskVertex intermediate = createIterationIntermediate(jobGraph, numSubTasks, serializer, comparator);
+        TaskConfig intermediateConfig = new TaskConfig(intermediate.getConfiguration());
+
+        // output and auxiliaries
+        JobOutputVertex output = createOutput(jobGraph, resultPath, numSubTasks, serializer);
+        JobOutputVertex fakeTail = createFakeTail(jobGraph, numSubTasks);
+        JobOutputVertex sync = createSync(jobGraph, numSubTasks, maxIterations);
+
+        // ------------------ the intermediate (ws update) ----------------------
+        JobTaskVertex wsUpdateIntermediate =
+                JobGraphUtils.createTask(IterationIntermediatePactTask.class, "WorksetUpdate", jobGraph,
+                        numSubTasks, numSubTasks);
+        TaskConfig wsUpdateConfig = new TaskConfig(wsUpdateIntermediate.getConfiguration());
+        {
+            wsUpdateConfig.setIterationId(ITERATION_ID);
+            wsUpdateConfig.setIsWorksetIteration();
+            wsUpdateConfig.setIsWorksetUpdate();
+
+            // inputs
+            wsUpdateConfig.addInputToGroup(0);
+            wsUpdateConfig.setInputSerializer(serializer, 0);
+
+            // output
+            wsUpdateConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
+            wsUpdateConfig.setOutputComparator(comparator, 0);
+
+            wsUpdateConfig.setOutputSerializer(serializer);
+
+            // driver
+            wsUpdateConfig.setDriver(SolutionSetSecondJoinDriver.class);
+            wsUpdateConfig.setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_SECOND);
+            wsUpdateConfig.setStubWrapper(new UserCodeClassWrapper<UpdateComponentIdMatch>(
+                    UpdateComponentIdMatch.class));
+            wsUpdateConfig.setSolutionSetSerializer(serializer);
         }
 
-        @Override
-        public JobGraph createWorksetConnectedComponentsJobGraph(
-                String verticesPath, String edgesPath, String resultPath, int numSubTasks, int maxIterations)
-                throws JobGraphDefinitionException {
-            // -- init -------------------------------------------------------------------------------------------------
-            final TypeSerializerFactory<?> serializer = PactRecordSerializerFactory.get();
-            @SuppressWarnings("unchecked")
-            final TypeComparatorFactory<?> comparator =
-                    new PactRecordComparatorFactory(new int[]{0}, new Class[]{PactLong.class}, new boolean[]{true});
-            final TypePairComparatorFactory<?, ?> pairComparator = PactRecordPairComparatorFactory.get();
+        // -------------------------- ss tail --------------------------------
+        JobTaskVertex ssTail =
+                JobGraphUtils.createTask(IterationTailPactTask.class, "IterationSolutionSetTail", jobGraph,
+                        numSubTasks, numSubTasks);
+        TaskConfig ssTailConfig = new TaskConfig(ssTail.getConfiguration());
+        {
+            ssTailConfig.setIterationId(ITERATION_ID);
+            ssTailConfig.setIsSolutionSetUpdate();
 
-            JobGraph jobGraph = new JobGraph("Connected Components (Intermediate Workset Update, Solution Set Tail)");
+            // inputs and driver
+            ssTailConfig.addInputToGroup(0);
+            ssTailConfig.setInputSerializer(serializer, 0);
 
-            // input
-            JobInputVertex vertices = createVerticesInput(jobGraph, verticesPath, numSubTasks, serializer, comparator);
-            JobInputVertex edges = createEdgesInput(jobGraph, edgesPath, numSubTasks, serializer, comparator);
+            // output
+            ssTailConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
+            ssTailConfig.setOutputSerializer(serializer);
 
-            // head
-            JobTaskVertex head = createIterationHead(jobGraph, numSubTasks, serializer, comparator, pairComparator);
-            TaskConfig headConfig = new TaskConfig(head.getConfiguration());
-            headConfig.setWaitForSolutionSetUpdate();
-
-            // intermediate
-            JobTaskVertex intermediate = createIterationIntermediate(jobGraph, numSubTasks, serializer, comparator);
-            TaskConfig intermediateConfig = new TaskConfig(intermediate.getConfiguration());
-
-            // output and auxiliaries
-            JobOutputVertex output = createOutput(jobGraph, resultPath, numSubTasks, serializer);
-            JobOutputVertex fakeTail = createFakeTail(jobGraph, numSubTasks);
-            JobOutputVertex sync = createSync(jobGraph, numSubTasks, maxIterations);
-
-            // ------------------ the intermediate (ws update) ----------------------
-            JobTaskVertex wsUpdateIntermediate =
-                    JobGraphUtils.createTask(IterationIntermediatePactTask.class, "WorksetUpdate", jobGraph,
-                            numSubTasks, numSubTasks);
-            TaskConfig wsUpdateConfig = new TaskConfig(wsUpdateIntermediate.getConfiguration());
-            {
-                wsUpdateConfig.setIterationId(ITERATION_ID);
-                wsUpdateConfig.setIsWorksetIteration();
-                wsUpdateConfig.setIsWorksetUpdate();
-
-                // inputs
-                wsUpdateConfig.addInputToGroup(0);
-                wsUpdateConfig.setInputSerializer(serializer, 0);
-
-                // output
-                wsUpdateConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
-                wsUpdateConfig.setOutputComparator(comparator, 0);
-
-                wsUpdateConfig.setOutputSerializer(serializer);
-
-                // driver
-                wsUpdateConfig.setDriver(SolutionSetSecondJoinDriver.class);
-                wsUpdateConfig.setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_SECOND);
-                wsUpdateConfig.setStubWrapper(new UserCodeClassWrapper<UpdateComponentIdMatch>(
-                        UpdateComponentIdMatch.class));
-                wsUpdateConfig.setSolutionSetSerializer(serializer);
-            }
-
-            // -------------------------- ss tail --------------------------------
-            JobTaskVertex ssTail =
-                    JobGraphUtils.createTask(IterationTailPactTask.class, "IterationSolutionSetTail", jobGraph,
-                            numSubTasks, numSubTasks);
-            TaskConfig ssTailConfig = new TaskConfig(ssTail.getConfiguration());
-            {
-                ssTailConfig.setIterationId(ITERATION_ID);
-                ssTailConfig.setIsSolutionSetUpdate();
-
-                // inputs and driver
-                ssTailConfig.addInputToGroup(0);
-                ssTailConfig.setInputSerializer(serializer, 0);
-
-                // output
-                ssTailConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
-                ssTailConfig.setOutputSerializer(serializer);
-
-                // the driver
-                ssTailConfig.setDriver(MapDriver.class);
-                ssTailConfig.setDriverStrategy(DriverStrategy.MAP);
-                ssTailConfig.setStubWrapper(new UserCodeClassWrapper<DummyMapper>(DummyMapper.class));
-            }
-
-            // edges
-
-            JobGraphUtils.connect(vertices, head, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
-            JobGraphUtils.connect(edges, head, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
-            JobGraphUtils.connect(vertices, head, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
-
-            JobGraphUtils.connect(head, intermediate, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
-            intermediateConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, numSubTasks);
-
-            JobGraphUtils.connect(intermediate, wsUpdateIntermediate, ChannelType.NETWORK,
-                    DistributionPattern.POINTWISE);
-            wsUpdateConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, 1);
-
-            JobGraphUtils.connect(wsUpdateIntermediate, ssTail, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
-            ssTailConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, 1);
-
-            JobGraphUtils.connect(head, output, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
-
-            JobGraphUtils.connect(ssTail, fakeTail, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
-
-            JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.POINTWISE);
-
-            vertices.setVertexToShareInstancesWith(head);
-            edges.setVertexToShareInstancesWith(head);
-
-            intermediate.setVertexToShareInstancesWith(head);
-
-            wsUpdateIntermediate.setVertexToShareInstancesWith(head);
-            ssTail.setVertexToShareInstancesWith(head);
-
-            output.setVertexToShareInstancesWith(head);
-            sync.setVertexToShareInstancesWith(head);
-
-            fakeTail.setVertexToShareInstancesWith(ssTail);
-
-            return jobGraph;
+            // the driver
+            ssTailConfig.setDriver(MapDriver.class);
+            ssTailConfig.setDriverStrategy(DriverStrategy.MAP);
+            ssTailConfig.setStubWrapper(new UserCodeClassWrapper<DummyMapper>(DummyMapper.class));
         }
+
+        // edges
+
+        JobGraphUtils.connect(vertices, head, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
+        JobGraphUtils.connect(edges, head, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
+        JobGraphUtils.connect(vertices, head, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
+
+        JobGraphUtils.connect(head, intermediate, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
+        intermediateConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, numSubTasks);
+
+        JobGraphUtils.connect(intermediate, wsUpdateIntermediate, ChannelType.NETWORK,
+                DistributionPattern.POINTWISE);
+        wsUpdateConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, 1);
+
+        JobGraphUtils.connect(wsUpdateIntermediate, ssTail, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
+        ssTailConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, 1);
+
+        JobGraphUtils.connect(head, output, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
+
+        JobGraphUtils.connect(ssTail, fakeTail, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
+
+        JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.POINTWISE);
+
+        vertices.setVertexToShareInstancesWith(head);
+        edges.setVertexToShareInstancesWith(head);
+
+        intermediate.setVertexToShareInstancesWith(head);
+
+        wsUpdateIntermediate.setVertexToShareInstancesWith(head);
+        ssTail.setVertexToShareInstancesWith(head);
+
+        output.setVertexToShareInstancesWith(head);
+        sync.setVertexToShareInstancesWith(head);
+
+        fakeTail.setVertexToShareInstancesWith(ssTail);
+
+        return jobGraph;
     }
 
     // -----------------------------------------------------------------------------------------------------------------
     // Intermediate solution set update and workset tail
     // -----------------------------------------------------------------------------------------------------------------
 
-    public static class ConnectedComponentsIntermediateSolutionSetUpdateAndWorksetTail
-            extends ConnectedComponentsNepheleITCase {
 
-        public ConnectedComponentsIntermediateSolutionSetUpdateAndWorksetTail(Configuration config) {
-            super(config);
+    public JobGraph createJobGraphSolutionSetUpdateAndWorksetTail(
+            String verticesPath, String edgesPath, String resultPath, int numSubTasks, int maxIterations)
+            throws JobGraphDefinitionException {
+        // -- init -------------------------------------------------------------------------------------------------
+        final TypeSerializerFactory<?> serializer = PactRecordSerializerFactory.get();
+        @SuppressWarnings("unchecked")
+        final TypeComparatorFactory<?> comparator =
+                new PactRecordComparatorFactory(new int[]{0}, new Class[]{PactLong.class}, new boolean[]{true});
+        final TypePairComparatorFactory<?, ?> pairComparator = PactRecordPairComparatorFactory.get();
+
+        JobGraph jobGraph = new JobGraph("Connected Components (Intermediate Solution Set Update, Workset Tail)");
+
+        // input
+        JobInputVertex vertices = createVerticesInput(jobGraph, verticesPath, numSubTasks, serializer, comparator);
+        JobInputVertex edges = createEdgesInput(jobGraph, edgesPath, numSubTasks, serializer, comparator);
+
+        // head
+        JobTaskVertex head = createIterationHead(jobGraph, numSubTasks, serializer, comparator, pairComparator);
+
+        // intermediate
+        JobTaskVertex intermediate = createIterationIntermediate(jobGraph, numSubTasks, serializer, comparator);
+        TaskConfig intermediateConfig = new TaskConfig(intermediate.getConfiguration());
+
+        // output and auxiliaries
+        JobOutputVertex output = createOutput(jobGraph, resultPath, numSubTasks, serializer);
+        JobOutputVertex fakeTail = createFakeTail(jobGraph, numSubTasks);
+        JobOutputVertex sync = createSync(jobGraph, numSubTasks, maxIterations);
+
+        // ------------------ the intermediate (ss update) ----------------------
+        JobTaskVertex ssJoinIntermediate = JobGraphUtils.createTask(IterationIntermediatePactTask.class,
+                "Solution Set Update", jobGraph, numSubTasks, numSubTasks);
+        TaskConfig ssJoinIntermediateConfig = new TaskConfig(ssJoinIntermediate.getConfiguration());
+        {
+            ssJoinIntermediateConfig.setIterationId(ITERATION_ID);
+            ssJoinIntermediateConfig.setIsSolutionSetUpdate();
+            ssJoinIntermediateConfig.setIsSolutionSetUpdateWithoutReprobe();
+
+            // inputs
+            ssJoinIntermediateConfig.addInputToGroup(0);
+            ssJoinIntermediateConfig.setInputSerializer(serializer, 0);
+
+            // output
+            ssJoinIntermediateConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
+            ssJoinIntermediateConfig.setOutputComparator(comparator, 0);
+
+            ssJoinIntermediateConfig.setOutputSerializer(serializer);
+
+            // driver
+            ssJoinIntermediateConfig.setDriver(SolutionSetSecondJoinDriver.class);
+            ssJoinIntermediateConfig.setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_SECOND);
+            ssJoinIntermediateConfig.setStubWrapper(
+                    new UserCodeClassWrapper<UpdateComponentIdMatch>(UpdateComponentIdMatch.class));
+            ssJoinIntermediateConfig.setSolutionSetSerializer(serializer);
         }
 
-        @Override
-        public JobGraph createWorksetConnectedComponentsJobGraph(
-                String verticesPath, String edgesPath, String resultPath, int numSubTasks, int maxIterations)
-                throws JobGraphDefinitionException {
-            // -- init -------------------------------------------------------------------------------------------------
-            final TypeSerializerFactory<?> serializer = PactRecordSerializerFactory.get();
-            @SuppressWarnings("unchecked")
-            final TypeComparatorFactory<?> comparator =
-                    new PactRecordComparatorFactory(new int[]{0}, new Class[]{PactLong.class}, new boolean[]{true});
-            final TypePairComparatorFactory<?, ?> pairComparator = PactRecordPairComparatorFactory.get();
+        // -------------------------- ws tail --------------------------------
+        JobTaskVertex wsTail = JobGraphUtils.createTask(IterationTailPactTask.class, "IterationWorksetTail",
+                jobGraph, numSubTasks, numSubTasks);
+        TaskConfig wsTailConfig = new TaskConfig(wsTail.getConfiguration());
+        {
+            wsTailConfig.setIterationId(ITERATION_ID);
+            wsTailConfig.setIsWorksetIteration();
+            wsTailConfig.setIsWorksetUpdate();
 
-            JobGraph jobGraph = new JobGraph("Connected Components (Intermediate Solution Set Update, Workset Tail)");
+            // inputs and driver
+            wsTailConfig.addInputToGroup(0);
+            wsTailConfig.setInputSerializer(serializer, 0);
 
-            // input
-            JobInputVertex vertices = createVerticesInput(jobGraph, verticesPath, numSubTasks, serializer, comparator);
-            JobInputVertex edges = createEdgesInput(jobGraph, edgesPath, numSubTasks, serializer, comparator);
+            // output
+            wsTailConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
+            wsTailConfig.setOutputSerializer(serializer);
 
-            // head
-            JobTaskVertex head = createIterationHead(jobGraph, numSubTasks, serializer, comparator, pairComparator);
-
-            // intermediate
-            JobTaskVertex intermediate = createIterationIntermediate(jobGraph, numSubTasks, serializer, comparator);
-            TaskConfig intermediateConfig = new TaskConfig(intermediate.getConfiguration());
-
-            // output and auxiliaries
-            JobOutputVertex output = createOutput(jobGraph, resultPath, numSubTasks, serializer);
-            JobOutputVertex fakeTail = createFakeTail(jobGraph, numSubTasks);
-            JobOutputVertex sync = createSync(jobGraph, numSubTasks, maxIterations);
-
-            // ------------------ the intermediate (ss update) ----------------------
-            JobTaskVertex ssJoinIntermediate = JobGraphUtils.createTask(IterationIntermediatePactTask.class,
-                    "Solution Set Update", jobGraph, numSubTasks, numSubTasks);
-            TaskConfig ssJoinIntermediateConfig = new TaskConfig(ssJoinIntermediate.getConfiguration());
-            {
-                ssJoinIntermediateConfig.setIterationId(ITERATION_ID);
-                ssJoinIntermediateConfig.setIsSolutionSetUpdate();
-                ssJoinIntermediateConfig.setIsSolutionSetUpdateWithoutReprobe();
-
-                // inputs
-                ssJoinIntermediateConfig.addInputToGroup(0);
-                ssJoinIntermediateConfig.setInputSerializer(serializer, 0);
-
-                // output
-                ssJoinIntermediateConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
-                ssJoinIntermediateConfig.setOutputComparator(comparator, 0);
-
-                ssJoinIntermediateConfig.setOutputSerializer(serializer);
-
-                // driver
-                ssJoinIntermediateConfig.setDriver(SolutionSetSecondJoinDriver.class);
-                ssJoinIntermediateConfig.setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_SECOND);
-                ssJoinIntermediateConfig.setStubWrapper(
-                        new UserCodeClassWrapper<UpdateComponentIdMatch>(UpdateComponentIdMatch.class));
-                ssJoinIntermediateConfig.setSolutionSetSerializer(serializer);
-            }
-
-            // -------------------------- ws tail --------------------------------
-            JobTaskVertex wsTail = JobGraphUtils.createTask(IterationTailPactTask.class, "IterationWorksetTail",
-                    jobGraph, numSubTasks, numSubTasks);
-            TaskConfig wsTailConfig = new TaskConfig(wsTail.getConfiguration());
-            {
-                wsTailConfig.setIterationId(ITERATION_ID);
-                wsTailConfig.setIsWorksetIteration();
-                wsTailConfig.setIsWorksetUpdate();
-
-                // inputs and driver
-                wsTailConfig.addInputToGroup(0);
-                wsTailConfig.setInputSerializer(serializer, 0);
-
-                // output
-                wsTailConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
-                wsTailConfig.setOutputSerializer(serializer);
-
-                // the driver
-                wsTailConfig.setDriver(MapDriver.class);
-                wsTailConfig.setDriverStrategy(DriverStrategy.MAP);
-                wsTailConfig.setStubWrapper(new UserCodeClassWrapper<DummyMapper>(DummyMapper.class));
-            }
-
-            // --------------- the wiring ---------------------
-
-            JobGraphUtils.connect(vertices, head, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
-            JobGraphUtils.connect(edges, head, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
-            JobGraphUtils.connect(vertices, head, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
-
-            JobGraphUtils.connect(head, intermediate, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
-            intermediateConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, numSubTasks);
-
-            JobGraphUtils.connect(intermediate, ssJoinIntermediate, ChannelType.NETWORK, DistributionPattern.POINTWISE);
-            ssJoinIntermediateConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, 1);
-
-            JobGraphUtils.connect(ssJoinIntermediate, wsTail, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
-            wsTailConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, 1);
-
-            JobGraphUtils.connect(head, output, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
-
-            JobGraphUtils.connect(wsTail, fakeTail, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
-
-            JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.POINTWISE);
-
-            vertices.setVertexToShareInstancesWith(head);
-            edges.setVertexToShareInstancesWith(head);
-
-            intermediate.setVertexToShareInstancesWith(head);
-
-            ssJoinIntermediate.setVertexToShareInstancesWith(head);
-            wsTail.setVertexToShareInstancesWith(head);
-
-            output.setVertexToShareInstancesWith(head);
-            sync.setVertexToShareInstancesWith(head);
-
-            fakeTail.setVertexToShareInstancesWith(wsTail);
-
-            return jobGraph;
+            // the driver
+            wsTailConfig.setDriver(MapDriver.class);
+            wsTailConfig.setDriverStrategy(DriverStrategy.MAP);
+            wsTailConfig.setStubWrapper(new UserCodeClassWrapper<DummyMapper>(DummyMapper.class));
         }
+
+        // --------------- the wiring ---------------------
+
+        JobGraphUtils.connect(vertices, head, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
+        JobGraphUtils.connect(edges, head, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
+        JobGraphUtils.connect(vertices, head, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
+
+        JobGraphUtils.connect(head, intermediate, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
+        intermediateConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, numSubTasks);
+
+        JobGraphUtils.connect(intermediate, ssJoinIntermediate, ChannelType.NETWORK, DistributionPattern.POINTWISE);
+        ssJoinIntermediateConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, 1);
+
+        JobGraphUtils.connect(ssJoinIntermediate, wsTail, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
+        wsTailConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, 1);
+
+        JobGraphUtils.connect(head, output, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
+
+        JobGraphUtils.connect(wsTail, fakeTail, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
+
+        JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.POINTWISE);
+
+        vertices.setVertexToShareInstancesWith(head);
+        edges.setVertexToShareInstancesWith(head);
+
+        intermediate.setVertexToShareInstancesWith(head);
+
+        ssJoinIntermediate.setVertexToShareInstancesWith(head);
+        wsTail.setVertexToShareInstancesWith(head);
+
+        output.setVertexToShareInstancesWith(head);
+        sync.setVertexToShareInstancesWith(head);
+
+        fakeTail.setVertexToShareInstancesWith(wsTail);
+
+        return jobGraph;
     }
 
     public static final class DummyMapper extends MapStub {
