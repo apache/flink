@@ -37,9 +37,9 @@ public class BulkIterationPlanNode extends SingleInputPlanNode implements Iterat
 	
 	// --------------------------------------------------------------------------------------------
 
-	public BulkIterationPlanNode(BulkIterationNode template, Channel input,
+	public BulkIterationPlanNode(BulkIterationNode template, String nodeName, Channel input,
 			BulkPartialSolutionPlanNode pspn, PlanNode rootOfStepFunction) {
-		super(template, input, DriverStrategy.NONE);
+		super(template, nodeName, input, DriverStrategy.NONE);
 		this.partialSolutionPlanNode = pspn;
 		this.rootOfStepFunction = rootOfStepFunction;
 	}

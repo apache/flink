@@ -39,8 +39,8 @@ public class SourcePlanNode extends PlanNode
 	 * 
 	 * @param template The template optimizer node that this candidate is created for.
 	 */
-	public SourcePlanNode(DataSourceNode template) {
-		super(template, DriverStrategy.NONE);
+	public SourcePlanNode(DataSourceNode template, String nodeName) {
+		super(template, nodeName, DriverStrategy.NONE);
 		
 		this.globalProps = new GlobalProperties();
 		this.localProps = new LocalProperties();

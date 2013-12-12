@@ -49,6 +49,8 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 	
 	protected final List<Channel> outChannels;
 	
+	private final String nodeName; 
+	
 	private final DriverStrategy driverStrategy;	// The local strategy (sorting / hashing, ...)
 	
 	protected LocalProperties localProps; 			// local properties of the data produced by this node
@@ -67,9 +69,10 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public PlanNode(OptimizerNode template, DriverStrategy strategy) {
+	public PlanNode(OptimizerNode template, String nodeName, DriverStrategy strategy) {
 		this.outChannels = new ArrayList<Channel>(2);
 		this.template = template;
+		this.nodeName = nodeName;
 		this.driverStrategy = strategy;
 		
 		// check, if there is branch at this node. if yes, this candidate must be associated with
@@ -100,6 +103,15 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 	 */
 	public Contract getPactContract() {
 		return this.template.getPactContract();
+	}
+	
+	/**
+	 * Gets the name of the plan node.
+	 * 
+	 * @return The name of the plan node.
+	 */
+	public String getNodeName() {
+		return this.nodeName;
 	}
 	
 	public int getMemoryConsumerWeight() {

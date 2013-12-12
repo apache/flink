@@ -53,7 +53,7 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 	/**
 	 * The name of the vertex or task, respectively.
 	 */
-	private final String name;
+	private String name;
 
 	/**
 	 * The ID of the vertex.
@@ -298,6 +298,16 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 			distributionPattern));
 	}
 
+	/**
+	 * Sets the name of the vertex.
+	 * 
+	 * @param name 
+	 *        The name of the vertex.
+	 */
+	public void setName(String name) {
+		this.name = name;
+	}
+	
 	/**
 	 * Returns the name of the vertex.
 	 * 

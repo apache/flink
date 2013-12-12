@@ -56,7 +56,7 @@ public class HashJoinBuildFirstProperties extends AbstractJoinDescriptor {
 
 	@Override
 	public DualInputPlanNode instantiate(Channel in1, Channel in2, TwoInputNode node) {
-		return new DualInputPlanNode(node, in1, in2, DriverStrategy.HYBRIDHASH_BUILD_FIRST, this.keys1, this.keys2);
+		return new DualInputPlanNode(node, "Match("+node.getPactContract().getName()+")", in1, in2, DriverStrategy.HYBRIDHASH_BUILD_FIRST, this.keys1, this.keys2);
 	}
 	
 	@Override

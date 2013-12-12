@@ -42,7 +42,7 @@ public final class AllGroupProperties extends OperatorDescriptorSingle
 	 */
 	@Override
 	public SingleInputPlanNode instantiate(Channel in, SingleInputNode node) {
-		return new SingleInputPlanNode(node, in, DriverStrategy.ALL_GROUP);
+		return new SingleInputPlanNode(node, "Reduce("+node.getPactContract().getName()+")", in, DriverStrategy.ALL_GROUP);
 	}
 
 	/* (non-Javadoc)

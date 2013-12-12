@@ -67,7 +67,7 @@ public final class GroupProperties extends OperatorDescriptorSingle {
 
 	@Override
 	public SingleInputPlanNode instantiate(Channel in, SingleInputNode node) {
-		return new SingleInputPlanNode(node, in, DriverStrategy.SORTED_GROUP, this.keyList);
+		return new SingleInputPlanNode(node, "Reduce("+node.getPactContract().getName()+")", in, DriverStrategy.SORTED_GROUP, this.keyList);
 	}
 
 	@Override

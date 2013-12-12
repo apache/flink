@@ -44,7 +44,7 @@ public class SolutionSetDeltaOperator extends OperatorDescriptorSingle {
 
 	@Override
 	public SingleInputPlanNode instantiate(Channel in, SingleInputNode node) {
-		return new SingleInputPlanNode(node, in, DriverStrategy.UNARY_NO_OP);
+		return new SingleInputPlanNode(node, "SolutionSet Delta", in, DriverStrategy.UNARY_NO_OP);
 	}
 
 	@Override

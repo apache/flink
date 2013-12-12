@@ -362,7 +362,7 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 					}
 					
 					WorksetIterationPlanNode wsNode = new WorksetIterationPlanNode(
-						this, solutionSetIn, worksetIn, sspn, wspn, worksetCandidate, solutionSetCandidate);
+						this, "WorksetIteration ("+this.getPactContract().getName()+")", solutionSetIn, worksetIn, sspn, wspn, worksetCandidate, solutionSetCandidate);
 					wsNode.setImmediateSolutionSetUpdate(immediateDeltaUpdate);
 					wsNode.initProperties(gp, lp);
 					target.add(wsNode);

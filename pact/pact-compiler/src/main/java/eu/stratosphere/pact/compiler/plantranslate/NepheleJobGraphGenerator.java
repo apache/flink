@@ -505,6 +505,14 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 					// add info about the input serializer type
 					chainedTask.getTaskConfig().setInputSerializer(inConn.getSerializer(), 0);
 					
+					// update name of container task
+					String containerTaskName = container.getName();
+					if(containerTaskName.startsWith("CHAIN ")) {
+						container.setName(containerTaskName+" -> "+chainedTask.getTaskName());
+					} else {
+						container.setName("CHAIN "+containerTaskName+" -> "+chainedTask.getTaskName());
+					}
+					
 					this.chainedTasksInSequence.add(chainedTask);
 					return;
 				}
@@ -706,7 +714,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 	// ------------------------------------------------------------------------
 	
 	private JobTaskVertex createSingleInputVertex(SingleInputPlanNode node) throws CompilerException {
-		final String taskName = node.getPactContract().getName();
+		final String taskName = node.getNodeName();
 		final DriverStrategy ds = node.getDriverStrategy();
 		
 		// check, whether chaining is possible
@@ -767,7 +775,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 	}
 
 	private JobTaskVertex createDualInputVertex(DualInputPlanNode node) throws CompilerException {
-		final String taskName = node.getPactContract().getName();
+		final String taskName = node.getNodeName();
 		final DriverStrategy ds = node.getDriverStrategy();
 		final JobTaskVertex vertex = new JobTaskVertex(taskName, this.jobGraph);
 		final TaskConfig config = new TaskConfig(vertex.getConfiguration());
@@ -796,7 +804,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 	}
 
 	private JobInputVertex createDataSourceVertex(SourcePlanNode node) throws CompilerException {
-		final JobInputVertex vertex = new JobInputVertex(node.getPactContract().getName(), this.jobGraph);
+		final JobInputVertex vertex = new JobInputVertex(node.getNodeName(), this.jobGraph);
 		final TaskConfig config = new TaskConfig(vertex.getConfiguration());
 		
 		// set task class
@@ -813,7 +821,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 	}
 
 	private AbstractJobOutputVertex createDataSinkVertex(SinkPlanNode node) throws CompilerException {
-		final JobOutputVertex vertex = new JobOutputVertex(node.getPactContract().getName(), this.jobGraph);
+		final JobOutputVertex vertex = new JobOutputVertex(node.getNodeName(), this.jobGraph);
 		final TaskConfig config = new TaskConfig(vertex.getConfiguration());
 		
 		vertex.setOutputClass(DataSinkTask.class);
@@ -878,7 +886,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			// instantiate the head vertex and give it a no-op driver as the driver strategy.
 			// everything else happens in the post visit, after the input (the initial partial solution)
 			// is connected.
-			headVertex = new JobTaskVertex(iteration.getPactContract().getName() + " - Partial Solution", this.jobGraph);
+			headVertex = new JobTaskVertex("PartialSolution("+iteration.getNodeName()+")", this.jobGraph);
 			headVertex.setTaskClass(IterationHeadPactTask.class);
 			headConfig = new TaskConfig(headVertex.getConfiguration());
 			headConfig.setDriver(NoOpDriver.class);
@@ -947,7 +955,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			// instantiate the head vertex and give it a no-op driver as the driver strategy.
 			// everything else happens in the post visit, after the input (the initial partial solution)
 			// is connected.
-			headVertex = new JobTaskVertex(iteration.getPactContract().getName() + " - Workset Iteration Head", this.jobGraph);
+			headVertex = new JobTaskVertex("IterationHead("+iteration.getNodeName()+")", this.jobGraph);
 			headVertex.setTaskClass(IterationHeadPactTask.class);
 			headConfig = new TaskConfig(headVertex.getConfiguration());
 			headConfig.setDriver(NoOpDriver.class);
@@ -1111,8 +1119,8 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		headConfig.setBackChannelMemory(memForBackChannel);
 		
 		// --------------------------- create the sync task ---------------------------
-		final JobOutputVertex sync = new JobOutputVertex("Bulk-Iteration Sync (" +
-					bulkNode.getPactContract().getName() + ")", this.jobGraph);
+		final JobOutputVertex sync = new JobOutputVertex("Sync(" +
+					bulkNode.getNodeName() + ")", this.jobGraph);
 		sync.setOutputClass(IterationSynchronizationSinkTask.class);
 		sync.setNumberOfSubtasks(1);
 		this.auxVertices.add(sync);
@@ -1222,8 +1230,8 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		// --------------------------- create the sync task ---------------------------
 		final TaskConfig syncConfig;
 		{
-			final JobOutputVertex sync = new JobOutputVertex("Workset-Iteration Sync (" +
-						iterNode.getPactContract().getName() + ")", this.jobGraph);
+			final JobOutputVertex sync = new JobOutputVertex("Sync(" +
+						iterNode.getNodeName() + ")", this.jobGraph);
 			sync.setOutputClass(IterationSynchronizationSinkTask.class);
 			sync.setNumberOfSubtasks(1);
 			this.auxVertices.add(sync);

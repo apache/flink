@@ -40,8 +40,8 @@ public class WorksetPlanNode extends PlanNode {
 	public Object postPassHelper;
 	
 	
-	public WorksetPlanNode(WorksetNode template, GlobalProperties gProps, LocalProperties lProps) {
-		super(template, DriverStrategy.NONE);
+	public WorksetPlanNode(WorksetNode template, String nodeName, GlobalProperties gProps, LocalProperties lProps) {
+		super(template, nodeName, DriverStrategy.NONE);
 		
 		this.globalProps = gProps;
 		this.localProps = lProps;

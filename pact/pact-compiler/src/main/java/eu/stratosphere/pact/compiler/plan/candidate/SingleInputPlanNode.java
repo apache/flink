@@ -46,20 +46,20 @@ public class SingleInputPlanNode extends PlanNode {
 	
 	// --------------------------------------------------------------------------------------------
 
-	public SingleInputPlanNode(OptimizerNode template, Channel input, DriverStrategy driverStrategy) {
-		this(template, input, driverStrategy, null, null);
+	public SingleInputPlanNode(OptimizerNode template, String nodeName, Channel input, DriverStrategy driverStrategy) {
+		this(template, nodeName, input, driverStrategy, null, null);
 	}
 	
-	public SingleInputPlanNode(OptimizerNode template, Channel input, 
+	public SingleInputPlanNode(OptimizerNode template, String nodeName, Channel input, 
 			DriverStrategy driverStrategy, FieldList driverKeyFields)
 	{
-		this(template, input, driverStrategy, driverKeyFields, getTrueArray(driverKeyFields.size()));
+		this(template, nodeName, input, driverStrategy, driverKeyFields, getTrueArray(driverKeyFields.size()));
 	}
 	
-	public SingleInputPlanNode(OptimizerNode template, Channel input, 
+	public SingleInputPlanNode(OptimizerNode template, String nodeName, Channel input, 
 			DriverStrategy driverStrategy, FieldList driverKeyFields, boolean[] driverSortOrders)
 	{
-		super(template, driverStrategy);
+		super(template, nodeName, driverStrategy);
 		this.input = input;
 		this.keys = driverKeyFields;
 		this.sortOrders = driverSortOrders;

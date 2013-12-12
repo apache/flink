@@ -28,7 +28,7 @@ public class BinaryUnionPlanNode extends DualInputPlanNode {
 	 * @param template
 	 */
 	public BinaryUnionPlanNode(BinaryUnionNode template, Channel in1, Channel in2) {
-		super(template, in1, in2, DriverStrategy.UNION);
+		super(template, "Union", in1, in2, DriverStrategy.UNION);
 	}
 	
 	public BinaryUnionNode getOptimizerNode() {

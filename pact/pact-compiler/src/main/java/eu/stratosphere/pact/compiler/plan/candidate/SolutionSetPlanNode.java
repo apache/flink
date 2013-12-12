@@ -40,8 +40,8 @@ public class SolutionSetPlanNode extends PlanNode {
 	public Object postPassHelper;
 	
 	
-	public SolutionSetPlanNode(SolutionSetNode template, GlobalProperties gProps, LocalProperties lProps) {
-		super(template, DriverStrategy.NONE);
+	public SolutionSetPlanNode(SolutionSetNode template, String nodeName, GlobalProperties gProps, LocalProperties lProps) {
+		super(template, nodeName, DriverStrategy.NONE);
 		
 		this.globalProps = gProps;
 		this.localProps = lProps;
