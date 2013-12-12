@@ -22,6 +22,7 @@ import java.util.Map;
 
 import eu.stratosphere.pact.common.contract.GenericDataSink;
 import eu.stratosphere.pact.common.contract.Ordering;
+import eu.stratosphere.pact.common.distributions.DataDistribution;
 import eu.stratosphere.pact.common.util.Visitor;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.DataStatistics;
@@ -174,20 +175,20 @@ public class DataSinkNode extends OptimizerNode {
 		this.estimatedOutputSize = getPredecessorNode().getEstimatedOutputSize();
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeInterestingProperties()
-	 */
 	@Override
-	public void computeInterestingPropertiesForInputs(CostEstimator estimator)
-	{
+	public void computeInterestingPropertiesForInputs(CostEstimator estimator) {
 		final InterestingProperties iProps = new InterestingProperties();
 		
 		{
 			final Ordering partitioning = getPactContract().getPartitionOrdering();
+			final DataDistribution dataDist = getPactContract().getDataDistribution();
 			final RequestedGlobalProperties partitioningProps = new RequestedGlobalProperties();
 			if (partitioning != null) {
-				partitioningProps.setRangePartitioned(partitioning);
+				if(dataDist != null) {
+					partitioningProps.setRangePartitioned(partitioning, dataDist);
+				} else {
+					partitioningProps.setRangePartitioned(partitioning);
+				}
 				iProps.addGlobalProperties(partitioningProps);
 			}
 			iProps.addGlobalProperties(partitioningProps);
@@ -229,9 +230,6 @@ public class DataSinkNode extends OptimizerNode {
 	//                                   Recursive Optimization
 	// --------------------------------------------------------------------------------------------
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getAlternativePlans(eu.stratosphere.pact.compiler.costs.CostEstimator)
-	 */
 	@Override
 	public List<PlanNode> getAlternativePlans(CostEstimator estimator) {
 		// check if we have a cached version

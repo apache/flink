@@ -15,14 +15,11 @@
 
 package eu.stratosphere.pact.runtime.task.util;
 
-import java.io.DataInput;
 import java.io.DataInputStream;
-import java.io.DataOutput;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
-import java.util.Random;
 
 import junit.framework.Assert;
 import junit.framework.TestCase;
@@ -30,7 +27,6 @@ import junit.framework.TestCase;
 import org.junit.Test;
 
 import eu.stratosphere.nephele.io.ChannelSelector;
-import eu.stratosphere.pact.common.contract.DataDistribution;
 import eu.stratosphere.pact.common.type.DeserializationException;
 import eu.stratosphere.pact.common.type.KeyFieldOutOfBoundsException;
 import eu.stratosphere.pact.common.type.NullKeyFieldException;
@@ -38,21 +34,25 @@ import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparator;
-import eu.stratosphere.pact.runtime.shipping.PactRecordOutputEmitter;
+import eu.stratosphere.pact.generic.types.TypeComparator;
+import eu.stratosphere.pact.runtime.plugable.SerializationDelegate;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparatorFactory;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordSerializerFactory;
+import eu.stratosphere.pact.runtime.shipping.OutputEmitter;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 
 public class OutputEmitterTest extends TestCase {
 	
-	private static final long SEED = 485213591485399L;
+//	private static final long SEED = 485213591485399L;
 	
 	@Test
 	public void testPartitionHash() {
 		// Test for PactInteger
 		@SuppressWarnings("unchecked")
-		final PactRecordComparator intComp = new PactRecordComparator(new int[] {0}, new Class[] {PactInteger.class});
-		final ChannelSelector<PactRecord> oe1 = new PactRecordOutputEmitter(ShipStrategyType.PARTITION_HASH, intComp);
-
+		final TypeComparator<PactRecord> intComp = new PactRecordComparatorFactory(new int[] {0}, new Class[] {PactInteger.class}).createComparator();
+		final ChannelSelector<SerializationDelegate<PactRecord>> oe1 = new OutputEmitter<PactRecord>(ShipStrategyType.PARTITION_HASH, intComp);
+		final SerializationDelegate<PactRecord> delegate = new SerializationDelegate<PactRecord>(new PactRecordSerializerFactory().getSerializer());
+		
 		int numChans = 100;
 		int numRecs = 50000;
 		int[] hit = new int[numChans];
@@ -61,7 +61,9 @@ public class OutputEmitterTest extends TestCase {
 			PactInteger k = new PactInteger(i);
 			PactRecord rec = new PactRecord(k);
 			
-			int[] chans = oe1.selectChannels(rec, hit.length);
+			delegate.setInstance(rec);
+			
+			int[] chans = oe1.selectChannels(delegate, hit.length);
 			for(int j=0; j < chans.length; j++) {
 				hit[chans[j]]++;
 			}
@@ -76,8 +78,8 @@ public class OutputEmitterTest extends TestCase {
 
 		// Test for PactString
 		@SuppressWarnings("unchecked")
-		final PactRecordComparator stringComp = new PactRecordComparator(new int[] {0}, new Class[] {PactString.class});
-		ChannelSelector<PactRecord> oe2 = new PactRecordOutputEmitter(ShipStrategyType.PARTITION_HASH, stringComp);
+		final TypeComparator<PactRecord> stringComp = new PactRecordComparatorFactory(new int[] {0}, new Class[] {PactString.class}).createComparator();
+		final ChannelSelector<SerializationDelegate<PactRecord>> oe2 = new OutputEmitter<PactRecord>(ShipStrategyType.PARTITION_HASH, stringComp);
 
 		numChans = 100;
 		numRecs = 10000;
@@ -87,8 +89,9 @@ public class OutputEmitterTest extends TestCase {
 		for (int i = 0; i < numRecs; i++) {
 			PactString k = new PactString(i + "");
 			PactRecord rec = new PactRecord(k);
+			delegate.setInstance(rec);
 				
-			int[] chans = oe2.selectChannels(rec, hit.length);
+			int[] chans = oe2.selectChannels(delegate, hit.length);
 			for(int j=0; j < chans.length; j++) {
 				hit[chans[j]]++;
 			}
@@ -107,9 +110,10 @@ public class OutputEmitterTest extends TestCase {
 	public void testForward() {
 		// Test for PactInteger
 		@SuppressWarnings("unchecked")
-		final PactRecordComparator intComp = new PactRecordComparator(new int[] {0}, new Class[] {PactInteger.class});
-		final ChannelSelector<PactRecord> oe1 = new PactRecordOutputEmitter(ShipStrategyType.FORWARD, intComp);
-
+		final TypeComparator<PactRecord> intComp = new PactRecordComparatorFactory(new int[] {0}, new Class[] {PactInteger.class}).createComparator();
+		final ChannelSelector<SerializationDelegate<PactRecord>> oe1 = new OutputEmitter<PactRecord>(ShipStrategyType.FORWARD, intComp);
+		final SerializationDelegate<PactRecord> delegate = new SerializationDelegate<PactRecord>(new PactRecordSerializerFactory().getSerializer());
+		
 		int numChannels = 100;
 		int numRecords = 50000;
 		
@@ -118,8 +122,9 @@ public class OutputEmitterTest extends TestCase {
 		for (int i = 0; i < numRecords; i++) {
 			PactInteger k = new PactInteger(i);
 			PactRecord rec = new PactRecord(k);
+			delegate.setInstance(rec);
 			
-			int[] chans = oe1.selectChannels(rec, hit.length);
+			int[] chans = oe1.selectChannels(delegate, hit.length);
 			for(int j=0; j < chans.length; j++) {
 				hit[chans[j]]++;
 			}
@@ -134,8 +139,8 @@ public class OutputEmitterTest extends TestCase {
 
 		// Test for PactString
 		@SuppressWarnings("unchecked")
-		final PactRecordComparator stringComp = new PactRecordComparator(new int[] {0}, new Class[] {PactString.class});
-		final ChannelSelector<PactRecord> oe2 = new PactRecordOutputEmitter(ShipStrategyType.FORWARD, stringComp);
+		final TypeComparator<PactRecord> stringComp = new PactRecordComparatorFactory(new int[] {0}, new Class[] {PactString.class}).createComparator();
+		final ChannelSelector<SerializationDelegate<PactRecord>> oe2 = new OutputEmitter<PactRecord>(ShipStrategyType.FORWARD, stringComp);
 
 		numChannels = 100;
 		numRecords = 10000;
@@ -145,8 +150,9 @@ public class OutputEmitterTest extends TestCase {
 		for (int i = 0; i < numRecords; i++) {
 			PactString k = new PactString(i + "");
 			PactRecord rec = new PactRecord(k);
+			delegate.setInstance(rec);
 				
-			int[] chans = oe2.selectChannels(rec, hit.length);
+			int[] chans = oe2.selectChannels(delegate, hit.length);
 			for(int j=0; j < chans.length; j++) {
 				hit[chans[j]]++;
 			}
@@ -165,9 +171,10 @@ public class OutputEmitterTest extends TestCase {
 	public void testBroadcast() {
 		// Test for PactInteger
 		@SuppressWarnings("unchecked")
-		final PactRecordComparator intComp = new PactRecordComparator(new int[] {0}, new Class[] {PactInteger.class});
-		final ChannelSelector<PactRecord> oe1 = new PactRecordOutputEmitter(ShipStrategyType.BROADCAST, intComp);
-
+		final TypeComparator<PactRecord> intComp = new PactRecordComparatorFactory(new int[] {0}, new Class[] {PactInteger.class}).createComparator();
+		final ChannelSelector<SerializationDelegate<PactRecord>> oe1 = new OutputEmitter<PactRecord>(ShipStrategyType.BROADCAST, intComp);
+		final SerializationDelegate<PactRecord> delegate = new SerializationDelegate<PactRecord>(new PactRecordSerializerFactory().getSerializer());
+		
 		int numChannels = 100;
 		int numRecords = 50000;
 		
@@ -176,8 +183,9 @@ public class OutputEmitterTest extends TestCase {
 		for (int i = 0; i < numRecords; i++) {
 			PactInteger k = new PactInteger(i);
 			PactRecord rec = new PactRecord(k);
+			delegate.setInstance(rec);
 			
-			int[] chans = oe1.selectChannels(rec, hit.length);
+			int[] chans = oe1.selectChannels(delegate, hit.length);
 			for(int j=0; j < chans.length; j++) {
 				hit[chans[j]]++;
 			}
@@ -189,8 +197,8 @@ public class OutputEmitterTest extends TestCase {
 		
 		// Test for PactString
 		@SuppressWarnings("unchecked")
-		final PactRecordComparator stringComp = new PactRecordComparator(new int[] {0}, new Class[] {PactString.class});
-		final ChannelSelector<PactRecord> oe2 = new PactRecordOutputEmitter(ShipStrategyType.BROADCAST, stringComp);
+		final TypeComparator<PactRecord> stringComp = new PactRecordComparatorFactory(new int[] {0}, new Class[] {PactString.class}).createComparator();
+		final ChannelSelector<SerializationDelegate<PactRecord>> oe2 = new OutputEmitter<PactRecord>(ShipStrategyType.BROADCAST, stringComp);
 
 		numChannels = 100;
 		numRecords = 5000;
@@ -200,8 +208,9 @@ public class OutputEmitterTest extends TestCase {
 		for (int i = 0; i < numRecords; i++) {
 			PactString k = new PactString(i + "");
 			PactRecord rec = new PactRecord(k);
+			delegate.setInstance(rec);
 				
-			int[] chans = oe2.selectChannels(rec, hit.length);
+			int[] chans = oe2.selectChannels(delegate, hit.length);
 			for(int j=0; j < chans.length; j++) {
 				hit[chans[j]]++;
 			}
@@ -215,9 +224,10 @@ public class OutputEmitterTest extends TestCase {
 	@Test
 	public void testMultiKeys() {
 		@SuppressWarnings("unchecked")
-		final PactRecordComparator multiComp = new PactRecordComparator(new int[] {0,1,3}, new Class[] {PactInteger.class, PactString.class, PactDouble.class});
-		final ChannelSelector<PactRecord> oe1 = new PactRecordOutputEmitter(ShipStrategyType.PARTITION_HASH, multiComp);
-
+		final TypeComparator<PactRecord> multiComp = new PactRecordComparatorFactory(new int[] {0,1,3}, new Class[] {PactInteger.class, PactString.class, PactDouble.class}).createComparator();
+		final ChannelSelector<SerializationDelegate<PactRecord>> oe1 = new OutputEmitter<PactRecord>(ShipStrategyType.PARTITION_HASH, multiComp);
+		final SerializationDelegate<PactRecord> delegate = new SerializationDelegate<PactRecord>(new PactRecordSerializerFactory().getSerializer());
+		
 		int numChannels = 100;
 		int numRecords = 5000;
 		
@@ -228,8 +238,9 @@ public class OutputEmitterTest extends TestCase {
 			rec.setField(0, new PactInteger(i));
 			rec.setField(1, new PactString("AB"+i+"CD"+i));
 			rec.setField(3, new PactDouble(i*3.141d));
+			delegate.setInstance(rec);
 			
-			int[] chans = oe1.selectChannels(rec, hit.length);
+			int[] chans = oe1.selectChannels(delegate, hit.length);
 			for(int j=0; j < chans.length; j++) {
 				hit[chans[j]]++;
 			}
@@ -248,14 +259,16 @@ public class OutputEmitterTest extends TestCase {
 	public void testMissingKey() {
 		// Test for PactInteger
 		@SuppressWarnings("unchecked")
-		final PactRecordComparator intComp = new PactRecordComparator(new int[] {1}, new Class[] {PactInteger.class});
-		final ChannelSelector<PactRecord> oe1 = new PactRecordOutputEmitter(ShipStrategyType.PARTITION_HASH, intComp);
-
+		final TypeComparator<PactRecord> intComp = new PactRecordComparatorFactory(new int[] {1}, new Class[] {PactInteger.class}).createComparator();
+		final ChannelSelector<SerializationDelegate<PactRecord>> oe1 = new OutputEmitter<PactRecord>(ShipStrategyType.PARTITION_HASH, intComp);
+		final SerializationDelegate<PactRecord> delegate = new SerializationDelegate<PactRecord>(new PactRecordSerializerFactory().getSerializer());
+		
 		PactRecord rec = new PactRecord(0);
 		rec.setField(0, new PactInteger(1));
+		delegate.setInstance(rec);
 		
 		try {
-			oe1.selectChannels(rec, 100);
+			oe1.selectChannels(delegate, 100);
 		} catch (KeyFieldOutOfBoundsException re) {
 			Assert.assertEquals(1, re.getFieldNumber());
 			return;
@@ -267,14 +280,16 @@ public class OutputEmitterTest extends TestCase {
 	public void testNullKey() {
 		// Test for PactInteger
 		@SuppressWarnings("unchecked")
-		final PactRecordComparator intComp = new PactRecordComparator(new int[] {0}, new Class[] {PactInteger.class});
-		final ChannelSelector<PactRecord> oe1 = new PactRecordOutputEmitter(ShipStrategyType.PARTITION_HASH, intComp);
-
+		final TypeComparator<PactRecord> intComp = new PactRecordComparatorFactory(new int[] {0}, new Class[] {PactInteger.class}).createComparator();
+		final ChannelSelector<SerializationDelegate<PactRecord>> oe1 = new OutputEmitter<PactRecord>(ShipStrategyType.PARTITION_HASH, intComp);
+		final SerializationDelegate<PactRecord> delegate = new SerializationDelegate<PactRecord>(new PactRecordSerializerFactory().getSerializer());
+		
 		PactRecord rec = new PactRecord(2);
 		rec.setField(1, new PactInteger(1));
+		delegate.setInstance(rec);
 
 		try {
-			oe1.selectChannels(rec, 100);
+			oe1.selectChannels(delegate, 100);
 		} catch (NullKeyFieldException re) {
 			Assert.assertEquals(0, re.getFieldNumber());
 			return;
@@ -287,9 +302,10 @@ public class OutputEmitterTest extends TestCase {
 		
 		// Test for PactInteger
 		@SuppressWarnings("unchecked")
-		final PactRecordComparator doubleComp = new PactRecordComparator(new int[] {0}, new Class[] {PactDouble.class});
-		final ChannelSelector<PactRecord> oe1 = new PactRecordOutputEmitter(ShipStrategyType.PARTITION_HASH, doubleComp);
-
+		final TypeComparator<PactRecord> doubleComp = new PactRecordComparatorFactory(new int[] {0}, new Class[] {PactDouble.class}).createComparator();
+		final ChannelSelector<SerializationDelegate<PactRecord>> oe1 = new OutputEmitter<PactRecord>(ShipStrategyType.PARTITION_HASH, doubleComp);
+		final SerializationDelegate<PactRecord> delegate = new SerializationDelegate<PactRecord>(new PactRecordSerializerFactory().getSerializer());
+		
 		PipedInputStream pipedInput = new PipedInputStream(1024*1024);
 		DataInputStream in = new DataInputStream(pipedInput);
 		DataOutputStream out;
@@ -310,87 +326,59 @@ public class OutputEmitterTest extends TestCase {
 		}
 
 		try {
-			oe1.selectChannels(rec, 100);
+			delegate.setInstance(rec);
+			oe1.selectChannels(delegate, 100);
 		} catch (DeserializationException re) {
 			return;
 		}
 		Assert.fail("Expected a NullKeyFieldException.");
 	}
 	
-	@Test
-	public void testPartitionRange() {
-		final Random rnd = new Random(SEED);
-		
-		final int DISTR_MIN = 0;
-		final int DISTR_MAX = 1000000;
-		final int DISTR_RANGE = DISTR_MAX - DISTR_MIN + 1;
-		final int NUM_BUCKETS = 137;
-		final float BUCKET_WIDTH = DISTR_RANGE / ((float) NUM_BUCKETS);
-		
-		final int NUM_ELEMENTS = 10000000;
-		
-		final DataDistribution distri = new IntegerUniformDistribution(DISTR_MIN, DISTR_MAX);
-		
-		@SuppressWarnings("unchecked")
-		final PactRecordComparator intComp = new PactRecordComparator(new int[] {0}, new Class[] {PactInteger.class});
-		final ChannelSelector<PactRecord> oe = new PactRecordOutputEmitter(ShipStrategyType.PARTITION_RANGE, intComp, distri);
-		
-		final PactInteger integer = new PactInteger();
-		final PactRecord rec = new PactRecord();
-		
-		for (int i = 0; i < NUM_ELEMENTS; i++) {
-			final int nextValue = rnd.nextInt(DISTR_RANGE) + DISTR_MIN;
-			integer.setValue(nextValue);
-			rec.setField(0, integer);
-			
-			final int[] channels = oe.selectChannels(rec, NUM_BUCKETS);
-			if (channels.length != 1) {
-				Assert.fail("Resulting channels array has more than one channel.");
-			}
-			
-			final int bucket = channels[0];
-			final int shouldBeBucket = (int) ((nextValue - DISTR_MIN) / BUCKET_WIDTH);
-			
-			if (shouldBeBucket != bucket) {
-				// we may have a rounding imprecision in the 'should be bucket' computation.
-				final int lowerBoundaryForSelectedBucket = DISTR_MIN + (int) ((bucket    ) * BUCKET_WIDTH);
-				final int upperBoundaryForSelectedBucket = DISTR_MIN + (int) ((bucket + 1) * BUCKET_WIDTH);
-				if (nextValue <= lowerBoundaryForSelectedBucket || nextValue > upperBoundaryForSelectedBucket) {
-					Assert.fail("Wrong bucket selected");
-				}
-			}
-			
-		}
-	}
-	
-	private static final class IntegerUniformDistribution implements DataDistribution {
-		
-		private int min;	
-		private int max;
-		
-		public IntegerUniformDistribution(int min, int max) {
-			this.min = min;
-			this.max = max;
-		}
-
-		@Override
-		public void write(DataOutput out) throws IOException {
-			out.writeInt(this.min);
-			out.writeInt(this.max);
-		}
-
-		@Override
-		public void read(DataInput in) throws IOException {
-			this.min = in.readInt();
-			this.max = in.readInt();
-		}
-
-		@Override
-		public PactRecord getBucketBoundary(int splitNum, int totalSplits) {
-			final int range = this.max - this.min + 1;
-			final float bucketWidth = ((float) range) / totalSplits;
-			final int upperBoundary = this.min + (int) ((splitNum + 1) * bucketWidth);
-			return new PactRecord(new PactInteger(upperBoundary));
-		}
-	}
+//	@Test
+//	public void testPartitionRange() {
+//		final Random rnd = new Random(SEED);
+//		
+//		final int DISTR_MIN = 0;
+//		final int DISTR_MAX = 1000000;
+//		final int DISTR_RANGE = DISTR_MAX - DISTR_MIN + 1;
+//		final int NUM_BUCKETS = 137;
+//		final float BUCKET_WIDTH = DISTR_RANGE / ((float) NUM_BUCKETS);
+//		
+//		final int NUM_ELEMENTS = 10000000;
+//		
+//		final DataDistribution distri = new UniformIntegerDistribution(DISTR_MIN, DISTR_MAX);
+//		
+//		@SuppressWarnings("unchecked")
+//		final TypeComparator<PactRecord> intComp = new PactRecordComparatorFactory(new int[] {0}, new Class[] {PactInteger.class}).createComparator();
+//		final ChannelSelector<SerializationDelegate<PactRecord>> oe = new OutputEmitter<PactRecord>(ShipStrategyType.PARTITION_RANGE, intComp, distri);
+//		final SerializationDelegate<PactRecord> delegate = new SerializationDelegate<PactRecord>(new PactRecordSerializerFactory().getSerializer());
+//		
+//		final PactInteger integer = new PactInteger();
+//		final PactRecord rec = new PactRecord();
+//		
+//		for (int i = 0; i < NUM_ELEMENTS; i++) {
+//			final int nextValue = rnd.nextInt(DISTR_RANGE) + DISTR_MIN;
+//			integer.setValue(nextValue);
+//			rec.setField(0, integer);
+//			delegate.setInstance(rec);
+//			
+//			final int[] channels = oe.selectChannels(delegate, NUM_BUCKETS);
+//			if (channels.length != 1) {
+//				Assert.fail("Resulting channels array has more than one channel.");
+//			}
+//			
+//			final int bucket = channels[0];
+//			final int shouldBeBucket = (int) ((nextValue - DISTR_MIN) / BUCKET_WIDTH);
+//			
+//			if (shouldBeBucket != bucket) {
+//				// we may have a rounding imprecision in the 'should be bucket' computation.
+//				final int lowerBoundaryForSelectedBucket = DISTR_MIN + (int) ((bucket    ) * BUCKET_WIDTH);
+//				final int upperBoundaryForSelectedBucket = DISTR_MIN + (int) ((bucket + 1) * BUCKET_WIDTH);
+//				if (nextValue <= lowerBoundaryForSelectedBucket || nextValue > upperBoundaryForSelectedBucket) {
+//					Assert.fail("Wrong bucket selected");
+//				}
+//			}
+//			
+//		}
+//	}
 }

@@ -30,7 +30,7 @@ import java.util.List;
 import java.util.Set;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.contract.DataDistribution;
+import eu.stratosphere.pact.common.distributions.DataDistribution;
 import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.common.stubs.aggregators.Aggregator;
 import eu.stratosphere.pact.common.stubs.aggregators.AggregatorWithName;
@@ -121,7 +121,7 @@ public class TaskConfig {
 	
 	private static final String OUTPUT_DATA_DISTRIBUTION_CLASS = "pact.out.distribution.class";
 	
-	private static final String OUTPUT_DATA_DISTRIBUTION_STATE = "pact.out.distribution.state";
+	private static final String OUTPUT_DATA_DISTRIBUTION_PREFIX = "pact.out.distribution.";
 	
 	// ------------------------------------- Chaining ---------------------------------------------
 	
@@ -494,7 +494,7 @@ public class TaskConfig {
 			OUTPUT_TYPE_COMPARATOR_PARAMETERS_PREFIX + outputNum + SEPARATOR, cl);
 	}
 	
-	public void setOutputDataDistribution(DataDistribution distribution) {
+	public void setOutputDataDistribution(DataDistribution distribution, int outputNum) {
 		this.config.setString(OUTPUT_DATA_DISTRIBUTION_CLASS, distribution.getClass().getName());
 		
 		final ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -505,10 +505,10 @@ public class TaskConfig {
 			throw new RuntimeException("Error serializing the DataDistribution: " + e.getMessage(), e);
 		}
 
-		this.config.setBytes(OUTPUT_DATA_DISTRIBUTION_STATE, baos.toByteArray());
+		this.config.setBytes(OUTPUT_DATA_DISTRIBUTION_PREFIX + outputNum, baos.toByteArray());
 	}
 	
-	public DataDistribution getOutputDataDistribution(final ClassLoader cl) throws ClassNotFoundException {
+	public DataDistribution getOutputDataDistribution(int outputNum, final ClassLoader cl) throws ClassNotFoundException {
 		final String className = this.config.getString(OUTPUT_DATA_DISTRIBUTION_CLASS, null);
 		if (className == null) {
 			return null;
@@ -516,7 +516,7 @@ public class TaskConfig {
 		
 		final Class<? extends DataDistribution> clazz;
 		try {
-			clazz = Class.forName(className, true, cl).asSubclass(DataDistribution.class);
+			clazz = (Class<? extends DataDistribution>) Class.forName(className, true, cl).asSubclass(DataDistribution.class);
 		} catch (ClassCastException ccex) {
 			throw new CorruptConfigurationException("The class noted in the configuration as the data distribution " +
 					"is no subclass of DataDistribution.");
@@ -524,7 +524,7 @@ public class TaskConfig {
 		
 		final DataDistribution distribution = InstantiationUtil.instantiate(clazz, DataDistribution.class);
 		
-		final byte[] stateEncoded = this.config.getBytes(OUTPUT_DATA_DISTRIBUTION_STATE, null);
+		final byte[] stateEncoded = this.config.getBytes(OUTPUT_DATA_DISTRIBUTION_PREFIX + outputNum, null);
 		if (stateEncoded == null) {
 			throw new CorruptConfigurationException(
 						"The configuration contained the data distribution type, but no serialized state.");

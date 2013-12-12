@@ -17,17 +17,10 @@ package eu.stratosphere.nephele.instance.local;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
-
-import java.io.IOException;
-
 import junit.framework.Assert;
 
-import org.apache.log4j.BasicConfigurator;
-import org.junit.After;
-import org.junit.Before;
 import org.junit.Test;
 
-import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.jobmanager.JobManager;

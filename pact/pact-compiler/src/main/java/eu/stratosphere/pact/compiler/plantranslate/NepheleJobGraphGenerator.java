@@ -38,6 +38,7 @@ import eu.stratosphere.nephele.jobgraph.JobInputVertex;
 import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.nephele.template.AbstractInputTask;
+import eu.stratosphere.pact.common.distributions.DataDistribution;
 import eu.stratosphere.pact.common.stubs.aggregators.AggregatorWithName;
 import eu.stratosphere.pact.common.stubs.aggregators.ConvergenceCriterion;
 import eu.stratosphere.pact.common.stubs.aggregators.LongSumAggregator;
@@ -46,17 +47,17 @@ import eu.stratosphere.pact.common.util.Visitor;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.plan.TempMode;
 import eu.stratosphere.pact.compiler.plan.candidate.BulkIterationPlanNode;
+import eu.stratosphere.pact.compiler.plan.candidate.BulkPartialSolutionPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.DualInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.IterationPlanNode;
+import eu.stratosphere.pact.compiler.plan.candidate.NAryUnionPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
-import eu.stratosphere.pact.compiler.plan.candidate.BulkPartialSolutionPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SolutionSetPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SourcePlanNode;
-import eu.stratosphere.pact.compiler.plan.candidate.NAryUnionPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.WorksetIterationPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.WorksetPlanNode;
 import eu.stratosphere.pact.generic.contract.AggregatorRegistry;
@@ -76,10 +77,10 @@ import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.JoinWithSolutionSetCoGroupDriver.SolutionSetFirstCoGroupDriver;
 import eu.stratosphere.pact.runtime.task.JoinWithSolutionSetCoGroupDriver.SolutionSetSecondCoGroupDriver;
 import eu.stratosphere.pact.runtime.task.JoinWithSolutionSetMatchDriver.SolutionSetFirstJoinDriver;
+import eu.stratosphere.pact.runtime.task.JoinWithSolutionSetMatchDriver.SolutionSetSecondJoinDriver;
 import eu.stratosphere.pact.runtime.task.MatchDriver;
 import eu.stratosphere.pact.runtime.task.NoOpDriver;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
-import eu.stratosphere.pact.runtime.task.JoinWithSolutionSetMatchDriver.SolutionSetSecondJoinDriver;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedDriver;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
@@ -1046,9 +1047,15 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			sourceConfig.setOutputComparator(channel.getShipStrategyComparator(), outputIndex);
 		}
 		
-		// TODO: Re-enable range partitioner distribution
 		if (channel.getShipStrategy() == ShipStrategyType.PARTITION_RANGE) {
-			throw new CompilerException("Range Partitioner is currently not enabled.");
+			
+			final DataDistribution dataDistribution = channel.getDataDistribution();
+			if(dataDistribution != null) {
+				sourceConfig.setOutputDataDistribution(dataDistribution, outputIndex);
+			} else {
+				throw new RuntimeException("Range partitioning requires data distribution");
+				// TODO: inject code and configuration for automatic histogram generation
+			}
 		}
 //		if (targetContract instanceof GenericDataSink) {
 //			final DataDistribution distri = ((GenericDataSink) targetContract).getDataDistribution();

@@ -18,24 +18,19 @@ package eu.stratosphere.pact.example.sort.terasort;
 import java.io.DataInput;
 import java.io.DataOutput;
 
-import eu.stratosphere.pact.common.contract.DataDistribution;
-import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.distributions.DataDistribution;
+import eu.stratosphere.pact.common.type.Key;
 
 /**
  * This class implements the uniform data distribution of the TeraSort benchmark.
- * 
- * @author warneke
  */
-public class TeraDistribution implements DataDistribution
-{
+public class TeraDistribution implements DataDistribution  {
+
+	private static final long serialVersionUID = 1L;
 	private static final int ALPHABETH_SIZE = 95;
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.contract.DataDistribution#getBucketBoundary(int, int)
-	 */
 	@Override
-	public PactRecord getBucketBoundary(int bucketNum, int totalNumBuckets)
-	{
+	public Key[] getBucketBoundary(int bucketNum, int totalNumBuckets) {
 		final byte[] buf = new byte[TeraKey.KEY_SIZE];
 		double threshold = (double) ALPHABETH_SIZE / (double) (totalNumBuckets + 1) * (double) (bucketNum + 1);
 
@@ -47,23 +42,17 @@ public class TeraDistribution implements DataDistribution
 			threshold = threshold * ALPHABETH_SIZE;
 		}
 
-		final TeraKey split = new TeraKey(buf, 0);
-		PactRecord splitRec = new PactRecord();
-		splitRec.setField(0, split);
-		return splitRec;
+		return new TeraKey[] { new TeraKey(buf, 0) };
+	}
+	
+	@Override
+	public int getNumberOfFields() {
+		return 1;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.IOReadableWritable#write(java.io.DataOutput)
-	 */
 	@Override
-	public void write(DataOutput out)
-	{}
+	public void write(DataOutput out) {}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.IOReadableWritable#read(java.io.DataInput)
-	 */
 	@Override
-	public void read(DataInput in)
-	{}
+	public void read(DataInput in) {}
 }

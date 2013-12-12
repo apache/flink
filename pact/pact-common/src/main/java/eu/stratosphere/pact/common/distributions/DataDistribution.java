@@ -13,23 +13,25 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.common.contract;
+package eu.stratosphere.pact.common.distributions;
+
+import java.io.Serializable;
 
 import eu.stratosphere.nephele.io.IOReadableWritable;
-import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.type.Key;
 
-public interface DataDistribution extends IOReadableWritable
-{
+public interface DataDistribution extends IOReadableWritable, Serializable {
+	
 	/**
 	 * Returns the i'th bucket's upper bound, given that the distribution is to be
 	 * split into {@code totalBuckets} buckets.
 	 * <p>
 	 * Assuming <i>n</i> buckets, let {@code B_i} be the result from calling {@code getBucketBoundary(i, n)},
 	 * then the distribution will partition the data domain in the following fashion:
-	 * 
 	 * <pre>
 	 * (-inf, B_1] (B_1, B_2] ... (B_n-2, B_n-1] (B_n-1, inf)
 	 * </pre>
+	 * 
 	 * <p>
 	 * Note: The last bucket's upper bound is actually discarded by many algorithms.
 	 * The last bucket is assumed to hold all values <i>v</i> such that
@@ -40,5 +42,14 @@ public interface DataDistribution extends IOReadableWritable
 	 * 
 	 * @return A record whose values act as bucket boundaries for the specified bucket.
 	 */
-	public PactRecord getBucketBoundary(int bucketNum, int totalNumBuckets); 
+	Key[] getBucketBoundary(int bucketNum, int totalNumBuckets);
+	
+	/**
+	 * The number of fields in the (composite) key. This determines how many fields in the records define
+	 * the bucket. The number of fields must be the size of the array returned by the function
+	 * {@link #getBucketBoundary(int, int)}.
+	 * 
+	 * @return The number of fields in the (composite) key.
+	 */
+	int getNumberOfFields();
 }

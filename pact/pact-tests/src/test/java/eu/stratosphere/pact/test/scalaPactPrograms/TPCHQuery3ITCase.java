@@ -19,12 +19,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.pact.common.plan.Plan;
-import eu.stratosphere.pact.compiler.DataStatistics;
-import eu.stratosphere.pact.compiler.PactCompiler;
-import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
-import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.scala.examples.relational.TPCHQuery3;
 
 @RunWith(Parameterized.class)

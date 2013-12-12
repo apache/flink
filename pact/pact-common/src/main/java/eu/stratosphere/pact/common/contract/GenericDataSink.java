@@ -18,6 +18,7 @@ package eu.stratosphere.pact.common.contract;
 import java.util.ArrayList;
 import java.util.List;
 
+import eu.stratosphere.pact.common.distributions.DataDistribution;
 import eu.stratosphere.pact.common.util.Visitor;
 import eu.stratosphere.pact.generic.contract.Contract;
 import eu.stratosphere.pact.generic.contract.UserCodeClassWrapper;
@@ -31,6 +32,7 @@ import eu.stratosphere.pact.generic.io.OutputFormat;
  * 
  */
 public class GenericDataSink extends Contract {
+	
 	private static String DEFAULT_NAME = "<Unnamed Generic Data Sink>";
 
 	// --------------------------------------------------------------------------------------------
@@ -302,8 +304,7 @@ public class GenericDataSink extends Contract {
 	 * 
 	 * @param partitionOrdering The record ordering over which to partition in ranges.
 	 */
-	public void setRangePartitioned(Ordering partitionOrdering)
-	{
+	public void setRangePartitioned(Ordering partitionOrdering) {
 		throw new UnsupportedOperationException(
 			"Range partitioning is currently only supported with a user supplied data distribution.");
 	}
@@ -315,8 +316,13 @@ public class GenericDataSink extends Contract {
 	 * @param partitionOrdering The record ordering over which to partition in ranges.
 	 * @param distribution The distribution to use for the range partitioning.
 	 */
-	public void setRangePartitioned(Ordering partitionOrdering, DataDistribution distribution)
-	{
+	public void setRangePartitioned(Ordering partitionOrdering, DataDistribution distribution) {
+		if (partitionOrdering.getNumberOfFields() != distribution.getNumberOfFields())
+			throw new IllegalArgumentException("The number of keys in the distribution must match number of ordered fields.");
+		
+		// TODO: check compatibility of distribution and ordering (number and order of keys, key types, etc.
+		// TODO: adapt partition ordering to data distribution (use prefix of ordering)
+		
 		this.partitionOrdering = partitionOrdering;
 		this.distribution = distribution;
 	}
@@ -335,8 +341,7 @@ public class GenericDataSink extends Contract {
 	 * 
 	 * @return The output format class.
 	 */
-	public UserCodeWrapper<? extends OutputFormat<?>> getFormatWrapper()
-	{
+	public UserCodeWrapper<? extends OutputFormat<?>> getFormatWrapper() {
 		return this.formatWrapper;
 	}
 	
@@ -350,8 +355,7 @@ public class GenericDataSink extends Contract {
 	 * @see eu.stratosphere.pact.generic.contract.Contract#getUserCodeWrapper()
 	 */
 	@Override
-	public UserCodeWrapper<? extends OutputFormat<?>> getUserCodeWrapper()
-	{
+	public UserCodeWrapper<? extends OutputFormat<?>> getUserCodeWrapper() {
 		return this.formatWrapper;
 	}
 
@@ -368,8 +372,7 @@ public class GenericDataSink extends Contract {
 	 * @see eu.stratosphere.pact.common.util.Visitable#accept(eu.stratosphere.pact.common.util.Visitor)
 	 */
 	@Override
-	public void accept(Visitor<Contract> visitor)
-	{
+	public void accept(Visitor<Contract> visitor) {
 		boolean descend = visitor.preVisit(this);
 		if (descend) {
 			for (Contract c : this.input) {
@@ -381,9 +384,6 @@ public class GenericDataSink extends Contract {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	/* (non-Javadoc)
-	 * @see java.lang.Object#toString()
-	 */
 	@Override
 	public String toString() {
 		return this.name;

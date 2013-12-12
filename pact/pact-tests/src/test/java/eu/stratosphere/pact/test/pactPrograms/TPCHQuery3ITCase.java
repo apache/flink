@@ -15,29 +15,19 @@
 
 package eu.stratosphere.pact.test.pactPrograms;
 
-import java.util.ArrayList;
 import java.util.Collection;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.pact.common.plan.Plan;
-import eu.stratosphere.pact.compiler.DataStatistics;
-import eu.stratosphere.pact.compiler.PactCompiler;
-import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
-import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.pact.example.relational.TPCHQuery3;
 import eu.stratosphere.pact.test.util.TestBase2;
 
 @RunWith(Parameterized.class)
 public class TPCHQuery3ITCase extends TestBase2 {
-
-	private static final Log LOG = LogFactory.getLog(TPCHQuery3ITCase.class);
 	
 	protected String ordersPath = null;
 	protected String lineitemsPath = null;

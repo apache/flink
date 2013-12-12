@@ -316,6 +316,7 @@ public class RPC {
 	public static <V extends VersionedProtocol> V getProxy(Class<V> protocol, InetSocketAddress addr,
 			SocketFactory factory) throws IOException {
 
+		@SuppressWarnings("unchecked")
 		V proxy = (V) Proxy.newProxyInstance(protocol.getClassLoader(), new Class[] { protocol }, new Invoker(addr, factory));
 
 		return proxy;

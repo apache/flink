@@ -54,8 +54,7 @@ public final class TeraSort implements PlanAssembler, PlanAssemblerDescription {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Plan getPlan(String... args) throws IllegalArgumentException
-	{
+	public Plan getPlan(String... args) throws IllegalArgumentException {
 		// parse job parameters
 		final int numSubTasks = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		final String input = (args.length > 1 ? args[1] : "");

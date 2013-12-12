@@ -16,17 +16,13 @@
 package eu.stratosphere.pact.runtime.shipping;
 
 import eu.stratosphere.nephele.io.ChannelSelector;
+import eu.stratosphere.pact.common.distributions.DataDistribution;
 import eu.stratosphere.pact.generic.types.TypeComparator;
 import eu.stratosphere.pact.runtime.plugable.SerializationDelegate;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 
-/**
- * @author Erik Nijkamp
- * @author Alexander Alexandrov
- * @author Stephan Ewen
- */
-public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T>>
-{
+
+public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T>> {
+	
 	private static final byte[] DEFAULT_SALT = new byte[] { 17, 31, 47, 51, 83, 1 };
 	
 	private final ShipStrategyType strategy;		// the shipping strategy used by this output emitter
@@ -37,6 +33,10 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 	
 	private final TypeComparator<T> comparator;	// the comparator for hashing / sorting
 	
+//	private Key[][] partitionBoundaries;		// the partition boundaries for range partitioning
+//	
+//	private final DataDistribution distribution; // the data distribution to create the partition boundaries for range partitioning
+	
 	private final byte[] salt;					// the salt used to randomize the hash values
 
 	// ------------------------------------------------------------------------
@@ -46,8 +46,7 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 	/**
 	 * Creates a new channel selector that distributes data round robin.
 	 */
-	public OutputEmitter()
-	{
+	public OutputEmitter() {
 		this(ShipStrategyType.NONE);
 	}
 
@@ -56,8 +55,7 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 	 * 
 	 * @param strategy The distribution strategy to be used.
 	 */
-	public OutputEmitter(ShipStrategyType strategy)
-	{
+	public OutputEmitter(ShipStrategyType strategy) {
 		this(strategy, null);
 	}	
 	
@@ -68,11 +66,10 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 	 * @param strategy The distribution strategy to be used.
 	 * @param comparator The comparator used to hash / compare the records.
 	 */
-	public OutputEmitter(ShipStrategyType strategy, TypeComparator<T> comparator)
-	{
+	public OutputEmitter(ShipStrategyType strategy, TypeComparator<T> comparator) {
 		this(strategy, comparator, DEFAULT_SALT);
 	}
-
+	
 	/**
 	 * Creates a new channel selector that uses the given strategy (broadcasting, partitioning, ...)
 	 * and uses the supplied comparator to hash / compare records for partitioning them deterministically.
@@ -81,27 +78,63 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 	 * @param comparator The comparator used to hash / compare the records.
 	 * @param salt The salt to use to randomize the hashes.
 	 */
-	public OutputEmitter(ShipStrategyType strategy, TypeComparator<T> comparator, byte[] salt)
-	{
-		if (strategy == null | salt == null) { 
+	public OutputEmitter(ShipStrategyType strategy, TypeComparator<T> comparator, byte[] salt) {
+		this(strategy, comparator, salt, null);
+	}
+	
+	/**
+	 * Creates a new channel selector that uses the given strategy (broadcasting, partitioning, ...)
+	 * and uses the supplied comparator to hash / compare records for partitioning them deterministically.
+	 * 
+	 * @param strategy The distribution strategy to be used.
+	 * @param comparator The comparator used to hash / compare the records.
+	 * @param distr The distribution pattern used in the case of a range partitioning.
+	 */
+	public OutputEmitter(ShipStrategyType strategy, TypeComparator<T> comparator, DataDistribution distr) {
+		this(strategy, comparator, DEFAULT_SALT, distr);
+	}
+	
+	/**
+	 * Creates a new channel selector that uses the given strategy (broadcasting, partitioning, ...)
+	 * and uses the supplied comparator to hash / compare records for partitioning them deterministically.
+	 * 
+	 * @param strategy The distribution strategy to be used.
+	 * @param comparator The comparator used to hash / compare the records.
+	 * @param salt The salt to use to randomize the hashes.
+	 * @param distr The distribution pattern used in the case of a range partitioning.
+	 */
+	public OutputEmitter(ShipStrategyType strategy, TypeComparator<T> comparator, byte[] salt, DataDistribution distr) {
+		if (strategy == null || salt == null) { 
 			throw new NullPointerException();
 		}
+		
 		this.strategy = strategy;
-		this.salt = salt;
 		this.comparator = comparator;
+		this.salt = salt;
+//		this.distribution = distr;
+		
+		switch (strategy) {
+		case FORWARD:
+		case PARTITION_HASH:
+		case PARTITION_LOCAL_HASH:
+		case PARTITION_RANGE:
+		case PARTITION_RANDOM:
+		case BROADCAST:
+			break;
+		default:
+			throw new IllegalArgumentException("Invalid shipping strategy for OutputEmitter: " + strategy.name());
+		}
+		
+		if ((strategy == ShipStrategyType.PARTITION_RANGE) && distr == null)
+			throw new NullPointerException("Data distribution must not be null when the ship strategy is range partitioning.");
 	}
 
 	// ------------------------------------------------------------------------
 	// Channel Selection
 	// ------------------------------------------------------------------------
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.ChannelSelector#selectChannels(java.lang.Object, int)
-	 */
 	@Override
-	public final int[] selectChannels(SerializationDelegate<T> record, int numberOfChannels)
-	{
+	public final int[] selectChannels(SerializationDelegate<T> record, int numberOfChannels) {
 		switch (strategy) {
 		case FORWARD:
 		case PARTITION_RANDOM:
@@ -109,6 +142,8 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 		case PARTITION_HASH:
 		case PARTITION_LOCAL_HASH:
 			return hashPartitionDefault(record.getInstance(), numberOfChannels);
+		case PARTITION_RANGE:
+			return rangePartition(record.getInstance(), numberOfChannels);
 		case BROADCAST:
 			return broadcast(numberOfChannels);
 		default:
@@ -118,8 +153,7 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 	
 	// --------------------------------------------------------------------------------------------
 
-	private final int[] robin(int numberOfChannels)
-	{
+	private final int[] robin(int numberOfChannels) {
 		if (this.channels == null || this.channels.length != 1) {
 			this.channels = new int[1];
 		}
@@ -132,8 +166,7 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 		return this.channels;
 	}
 
-	private final int[] broadcast(int numberOfChannels)
-	{
+	private final int[] broadcast(int numberOfChannels) {
 		if (channels == null || channels.length != numberOfChannels) {
 			channels = new int[numberOfChannels];
 			for (int i = 0; i < numberOfChannels; i++)
@@ -143,8 +176,7 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 		return channels;
 	}
 
-	private final int[] hashPartitionDefault(T record, int numberOfChannels)
-	{
+	private final int[] hashPartitionDefault(T record, int numberOfChannels) {
 		if (channels == null || channels.length != 1) {
 			channels = new int[1];
 		}
@@ -156,5 +188,48 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 	
 		this.channels[0] = (hash < 0) ? -hash % numberOfChannels : hash % numberOfChannels;
 		return this.channels;
+	}
+	
+	private final int[] rangePartition(T record, int numberOfChannels) {
+		throw new UnsupportedOperationException();
+//		if (channels == null || channels.length != 1) {
+//			channels = new int[1];
+//		}
+//		
+//		if (this.partitionBoundaries == null) {
+//			this.partitionBoundaries = new Key[numberOfChannels - 1][];
+//			for (int i = 0; i < numberOfChannels - 1; i++) {
+//				this.partitionBoundaries[i] = this.distribution.getBucketBoundary(i, numberOfChannels);
+//			}
+//		}
+//		
+//		if (numberOfChannels == this.partitionBoundaries.length + 1) {
+//			final TypeComparator<T>[] boundaries = this.partitionBoundaries;
+//			this.comparator.setReference(record);
+//			
+//			// bin search the bucket
+//			int low = 0;
+//			int high = this.partitionBoundaries.length - 1;
+//			
+//			while (low <= high) {
+//				final int mid = (low + high) >>> 1;
+//				final int result = this.comparator.compareToReference(boundaries[mid]);
+//				
+//				if (result < 0) {
+//					low = mid + 1;
+//				} else if (result > 0) {
+//					high = mid - 1;
+//				} else {
+//					this.channels[0] = mid;
+//					return this.channels;
+//				}
+//			}
+//			this.channels[0] = low;	// key not found, but the low index is the target
+//									// bucket, since the boundaries are the upper bound
+//			return this.channels;
+//		} else {
+//			throw new IllegalStateException(
+//			"The number of channels to partition among is inconsistent with the partitioners state.");
+//		}
 	}
 }

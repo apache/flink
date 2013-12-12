@@ -39,7 +39,7 @@ import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.nephele.types.Record;
-import eu.stratosphere.pact.common.contract.DataDistribution;
+import eu.stratosphere.pact.common.distributions.DataDistribution;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.RuntimeContext;
 import eu.stratosphere.pact.common.stubs.Stub;
@@ -1086,7 +1086,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 				} else {
 					if (compFact instanceof PactRecordComparatorFactory) {
 						final PactRecordComparator comparator = ((PactRecordComparatorFactory) compFact).createComparator();
-						final DataDistribution distribution = config.getOutputDataDistribution(cl);
+						final DataDistribution distribution = config.getOutputDataDistribution(i, cl);
 						oe = new PactRecordOutputEmitter(strategy, comparator, distribution);
 					} else {
 						throw new Exception("Incompatibe serializer-/comparator factories.");
@@ -1127,13 +1127,17 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 				// create the OutputEmitter from output ship strategy
 				final ShipStrategyType strategy = config.getOutputShipStrategy(i);
 				final TypeComparatorFactory<T> compFactory = config.getOutputComparator(i, cl);
+				final DataDistribution dataDist = config.getOutputDataDistribution(i, cl);
 
 				final ChannelSelector<SerializationDelegate<T>> oe;
 				if (compFactory == null) {
 					oe = new OutputEmitter<T>(strategy);
-				} else {
+				} else if (dataDist == null){
 					final TypeComparator<T> comparator = compFactory.createComparator();
 					oe = new OutputEmitter<T>(strategy, comparator);
+				} else {
+					final TypeComparator<T> comparator = compFactory.createComparator();
+					oe = new OutputEmitter<T>(strategy, comparator, dataDist);
 				}
 
 				if (strategy == ShipStrategyType.BROADCAST && USE_BROARDCAST_WRITERS) {

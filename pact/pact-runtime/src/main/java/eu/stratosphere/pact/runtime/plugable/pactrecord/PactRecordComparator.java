@@ -382,7 +382,9 @@ public final class PactRecordComparator extends TypeComparator<PactRecord> {
 			for (int i = 0; i < keys.length; i++) {
 				keys[i] = this.keyHolders[i].getClass().newInstance();
 			}
-			record.getFieldsInto(this.keyFields, keys);
+			if(!record.getFieldsInto(this.keyFields, keys)) {
+				throw new RuntimeException("Could not extract keys from record.");
+			}
 			return keys;
 		} catch (Exception ex) {
 			// this should never happen, because the classes have been instantiated before. Report for debugging.

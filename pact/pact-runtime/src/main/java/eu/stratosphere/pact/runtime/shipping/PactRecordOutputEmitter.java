@@ -16,19 +16,14 @@
 package eu.stratosphere.pact.runtime.shipping;
 
 import eu.stratosphere.nephele.io.ChannelSelector;
-import eu.stratosphere.pact.common.contract.DataDistribution;
+import eu.stratosphere.pact.common.distributions.DataDistribution;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparator;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 
-/**
- * @author Erik Nijkamp
- * @author Alexander Alexandrov
- * @author Stephan Ewen
- */
-public class PactRecordOutputEmitter implements ChannelSelector<PactRecord>
-{
+
+public class PactRecordOutputEmitter implements ChannelSelector<PactRecord> {
+	
 	// ------------------------------------------------------------------------
 	// Fields
 	// ------------------------------------------------------------------------
@@ -43,7 +38,7 @@ public class PactRecordOutputEmitter implements ChannelSelector<PactRecord>
 	
 	private Key[][] partitionBoundaries;		// the partition boundaries for range partitioning
 	
-	private final DataDistribution distribution;
+	private final DataDistribution distribution; // the data distribution to create the partition boundaries for range partitioning
 	
 	private int nextChannelToSendTo;				// counter to go over channels round robin
 
@@ -56,8 +51,7 @@ public class PactRecordOutputEmitter implements ChannelSelector<PactRecord>
 	 * 
 	 * @param strategy The distribution strategy to be used.
 	 */
-	public PactRecordOutputEmitter(ShipStrategyType strategy)
-	{
+	public PactRecordOutputEmitter(ShipStrategyType strategy) {
 		this(strategy, null);
 	}	
 	
@@ -68,8 +62,7 @@ public class PactRecordOutputEmitter implements ChannelSelector<PactRecord>
 	 * @param strategy The distribution strategy to be used.
 	 * @param comparator The comparator used to hash / compare the records.
 	 */
-	public PactRecordOutputEmitter(ShipStrategyType strategy, PactRecordComparator comparator)
-	{
+	public PactRecordOutputEmitter(ShipStrategyType strategy, PactRecordComparator comparator) {
 		this(strategy, comparator, null);
 	}
 
@@ -81,8 +74,7 @@ public class PactRecordOutputEmitter implements ChannelSelector<PactRecord>
 	 * @param comparator The comparator used to hash / compare the records.
 	 * @param distr The distribution pattern used in the case of a range partitioning.
 	 */
-	public PactRecordOutputEmitter(ShipStrategyType strategy, PactRecordComparator comparator, DataDistribution distr)
-	{
+	public PactRecordOutputEmitter(ShipStrategyType strategy, PactRecordComparator comparator, DataDistribution distr) {
 		if (strategy == null) { 
 			throw new NullPointerException();
 		}
@@ -113,13 +105,8 @@ public class PactRecordOutputEmitter implements ChannelSelector<PactRecord>
 	// Channel Selection
 	// ------------------------------------------------------------------------
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.ChannelSelector#selectChannels(java.lang.Object, int)
-	 */
 	@Override
-	public final int[] selectChannels(PactRecord record, int numberOfChannels)
-	{
+	public final int[] selectChannels(PactRecord record, int numberOfChannels) {
 		switch (strategy) {
 		case FORWARD:
 		case PARTITION_RANDOM:
@@ -128,7 +115,7 @@ public class PactRecordOutputEmitter implements ChannelSelector<PactRecord>
 		case PARTITION_LOCAL_HASH:
 			return hashPartitionDefault(record, numberOfChannels);
 		case PARTITION_RANGE:
-			return rangePartiton(record, numberOfChannels);
+			return rangePartition(record, numberOfChannels);
 		case BROADCAST:
 			return broadcast(numberOfChannels);
 		default:
@@ -138,16 +125,14 @@ public class PactRecordOutputEmitter implements ChannelSelector<PactRecord>
 	
 	// --------------------------------------------------------------------------------------------
 
-	private final int[] robin(int numberOfChannels)
-	{
+	private final int[] robin(int numberOfChannels) {
 		final int channel = this.nextChannelToSendTo;
 		this.nextChannelToSendTo = channel > 0 ? channel - 1 : numberOfChannels - 1;
 		this.channels[0] = channel;
 		return this.channels;
 	}
 
-	private final int[] broadcast(int numberOfChannels)
-	{
+	private final int[] broadcast(int numberOfChannels) {
 		if (this.channels == null || this.channels.length != numberOfChannels) {
 			this.channels = new int[numberOfChannels];
 			for (int i = 0; i < numberOfChannels; i++) {
@@ -158,8 +143,7 @@ public class PactRecordOutputEmitter implements ChannelSelector<PactRecord>
 		return this.channels;
 	}
 
-	private final int[] hashPartitionDefault(final PactRecord record, int numberOfChannels)
-	{
+	private final int[] hashPartitionDefault(final PactRecord record, int numberOfChannels) {
 		int hash = this.comparator.hash(record);
 		for (int i = 0; i < DEFAULT_SALT.length; i++) {
 			hash ^= ((hash << 5) + DEFAULT_SALT[i] + (hash >> 2));
@@ -168,13 +152,11 @@ public class PactRecordOutputEmitter implements ChannelSelector<PactRecord>
 		return this.channels;
 	}
 	
-	private final int[] rangePartiton(final PactRecord record, int numberOfChannels)
-	{
+	private final int[] rangePartition(final PactRecord record, int numberOfChannels) {
 		if (this.partitionBoundaries == null) {
 			this.partitionBoundaries = new Key[numberOfChannels - 1][];
 			for (int i = 0; i < numberOfChannels - 1; i++) {
-				final PactRecord boundary = this.distribution.getBucketBoundary(i, numberOfChannels);
-				this.partitionBoundaries[i] = comparator.getKeysAsCopy(boundary);
+				this.partitionBoundaries[i] = this.distribution.getBucketBoundary(i, numberOfChannels);
 			}
 		}
 		
