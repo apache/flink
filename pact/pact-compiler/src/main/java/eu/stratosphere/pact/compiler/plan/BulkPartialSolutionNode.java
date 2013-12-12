@@ -42,7 +42,7 @@ public class BulkPartialSolutionNode extends AbstractPartialSolutionNode
 		if (this.cachedPlans != null) {
 			throw new IllegalStateException();
 		} else {
-			this.cachedPlans = Collections.<PlanNode>singletonList(new BulkPartialSolutionPlanNode(this, "BlkPSol("+this.getPactContract().getName()+")", gProps, lProps));
+			this.cachedPlans = Collections.<PlanNode>singletonList(new BulkPartialSolutionPlanNode(this, "BulkPartialSolution("+this.getPactContract().getName()+")", gProps, lProps));
 		}
 	}
 	

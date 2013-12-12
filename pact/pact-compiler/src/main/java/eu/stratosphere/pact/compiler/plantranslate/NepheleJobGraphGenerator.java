@@ -876,7 +876,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			// instantiate the head vertex and give it a no-op driver as the driver strategy.
 			// everything else happens in the post visit, after the input (the initial partial solution)
 			// is connected.
-			headVertex = new JobTaskVertex("PartSol("+iteration.getNodeName()+")", this.jobGraph);
+			headVertex = new JobTaskVertex("PartialSolution("+iteration.getNodeName()+")", this.jobGraph);
 			headVertex.setTaskClass(IterationHeadPactTask.class);
 			headConfig = new TaskConfig(headVertex.getConfiguration());
 			headConfig.setDriver(NoOpDriver.class);
@@ -945,7 +945,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			// instantiate the head vertex and give it a no-op driver as the driver strategy.
 			// everything else happens in the post visit, after the input (the initial partial solution)
 			// is connected.
-			headVertex = new JobTaskVertex("ItHead("+iteration.getNodeName()+")", this.jobGraph);
+			headVertex = new JobTaskVertex("IterationHead("+iteration.getNodeName()+")", this.jobGraph);
 			headVertex.setTaskClass(IterationHeadPactTask.class);
 			headConfig = new TaskConfig(headVertex.getConfiguration());
 			headConfig.setDriver(NoOpDriver.class);

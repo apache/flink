@@ -259,7 +259,7 @@ public class DataSourceNode extends OptimizerNode {
 			return this.cachedPlans;
 		}
 		
-		SourcePlanNode candidate = new SourcePlanNode(this, "Src("+this.getPactContract().getName()+")");
+		SourcePlanNode candidate = new SourcePlanNode(this, "DataSource("+this.getPactContract().getName()+")");
 		candidate.updatePropertiesWithUniqueSets(getUniqueFields());
 		
 		final Costs costs = new Costs();

@@ -330,7 +330,7 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 				// check whether they have the same operator at their latest branching point
 				if (this.singleRoot.areBranchCompatible(solutionSetCandidate, worksetCandidate)) {
 					WorksetIterationPlanNode wsNode = new WorksetIterationPlanNode(
-						this, "WkSetIt("+this.getPactContract().getName()+")", solutionSetIn, worksetIn, sspn, wspn, worksetCandidate, solutionSetCandidate);
+						this, "WorksetIteration("+this.getPactContract().getName()+")", solutionSetIn, worksetIn, sspn, wspn, worksetCandidate, solutionSetCandidate);
 					wsNode.initProperties(gp, lp);
 					target.add(wsNode);
 				}
