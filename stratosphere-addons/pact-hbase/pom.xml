@@ -39,28 +39,42 @@
 			<artifactId>pact-common</artifactId>
 			<version>${project.version}</version>
 		</dependency>
+
 		<dependency>
-        <groupId>org.apache.hbase</groupId>
+			<groupId>eu.stratosphere</groupId>
+			<artifactId>stratosphere-core</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>eu.stratosphere</groupId>
+			<artifactId>stratosphere-record-api</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.hbase</groupId>
 			<artifactId>hbase</artifactId>
-	       	<version>0.94.2-cdh4.2.1</version>
-		       <exclusions>
-		         <!-- jruby is used for the hbase shell. -->
-		         <exclusion>
-		           <groupId>org.jruby</groupId>
-		           <artifactId>jruby-complete</artifactId>
-		         </exclusion>
-		       </exclusions> 
-		 </dependency>
-		 <dependency>
+			<version>0.94.2-cdh4.2.1</version>
+			<exclusions>
+				<!-- jruby is used for the hbase shell. -->
+				<exclusion>
+					<groupId>org.jruby</groupId>
+					<artifactId>jruby-complete</artifactId>
+					</exclusion>
+				</exclusions> 
+		</dependency>
+
+		<dependency>
 			<groupId>org.apache.hadoop</groupId>
 			<artifactId>hadoop-client</artifactId>
 			<version>${hadoop.version}</version>
 			<exclusions>
-                <exclusion>
-                <groupId>asm</groupId>
-                <artifactId>asm</artifactId>
-                </exclusion>
-            </exclusions>
+				<exclusion>
+					<groupId>asm</groupId>
+					<artifactId>asm</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 	</dependencies>
 		<!-- <dependency>

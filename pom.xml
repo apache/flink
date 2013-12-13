@@ -40,8 +40,17 @@
 		<module>nephele</module>
 		<module>pact</module>
 		<module>pact-scala</module>
-		<module>stratosphere-dist</module>
+		<module>stratosphere-core</module>
+		<module>stratosphere-java-api</module>
+		<module>stratosphere-record-api</module>
+		<module>stratosphere-scala-api</module>
+		<module>stratosphere-runtime</module>
+		<module>stratosphere-compiler</module>
+		<module>stratosphere-examples</module>
+		<module>stratosphere-clients</module>
+		<module>stratosphere-tests</module>
 		<module>stratosphere-addons</module>
+		<module>stratosphere-dist</module>
 	</modules>
 
 	<properties>

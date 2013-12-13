@@ -2,41 +2,53 @@
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:schemaLocation="http://maven.apache.org/plugins/maven-assembly-plugin/assembly/1.1.0 http://maven.apache.org/xsd/assembly-1.1.0.xsd">
 
-  <!-- Note: This file has been copied from: http://maven.apache.org/plugins/maven-assembly-plugin/descriptor-refs.html#jar-with-dependencies 
-  (and changed)
-  -->
+	<!-- Note: This file has been copied and adapted from: http://maven.apache.org/plugins/maven-assembly-plugin/descriptor-refs.html#jar-with-dependencies -->
 
-  <!-- TODO: a jarjar format would be better -->
-  <id>yarn-uberjar</id>
-  <formats>
-    <format>jar</format>
-  </formats>
-  <includeBaseDirectory>false</includeBaseDirectory>
-  <dependencySets>
-    <dependencySet>
-      <outputDirectory>/</outputDirectory>
-      <useProjectArtifact>true</useProjectArtifact>
-      <unpack>true</unpack>
-      <scope>runtime</scope>
-    </dependencySet>
-  </dependencySets>
-  <files>
-      <file>
-      <!-- copy default configuration -->
-      <source>src/main/stratosphere-bin/conf/stratosphere-conf.yaml</source>
-      <outputDirectory>/</outputDirectory>
-      <fileMode>0644</fileMode>
-    </file>
-  </files>
-  <fileSets>
- 	 <fileSet>
+	<!-- TODO: a jarjar format would be better -->
+ 	<id>yarn-uberjar</id>
+	<formats>
+		<format>jar</format>
+	</formats>
+
+	<includeBaseDirectory>false</includeBaseDirectory>
+
+	<dependencySets>
+		<dependencySet>
+			<outputDirectory>/</outputDirectory>
+			<useProjectArtifact>true</useProjectArtifact>
+			<unpack>true</unpack>
+			<scope>runtime</scope>
+		</dependencySet>
+	</dependencySets>
+
+	<files>
+		<!-- copy default configuration -->
+		<file>
+			<source>src/main/stratosphere-bin/conf/stratosphere-conf.yaml</source>
+			<outputDirectory>/</outputDirectory>
+			<fileMode>0644</fileMode>
+		</file>
+	</files>
+
+	<fileSets>
 		<!-- copy files for Jobmanager web frontend -->
-		<directory>../nephele/nephele-server/resources</directory>
-		<outputDirectory>resources</outputDirectory>
-		<fileMode>0644</fileMode>
-		<excludes>
-			<exclude>*etc/users</exclude>
-		</excludes>
-	</fileSet>
-</fileSets>
+		<fileSet>
+			<directory>../nephele/nephele-server/resources</directory>
+			<outputDirectory>resources</outputDirectory>
+			<fileMode>0644</fileMode>
+			<excludes>
+				<exclude>*etc/users</exclude>
+			</excludes>
+		</fileSet>
+
+		<!-- copy files for Jobmanager web frontend -->
+		<fileSet>
+			<directory>../stratosphere-runtime/resources</directory>
+			<outputDirectory>resources</outputDirectory>
+			<fileMode>0644</fileMode>
+			<excludes>
+				<exclude>*etc/users</exclude>
+			</excludes>
+		</fileSet>
+	</fileSets>
 </assembly>

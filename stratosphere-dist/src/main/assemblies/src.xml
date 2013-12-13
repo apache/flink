@@ -72,15 +72,25 @@
 		-->
     	</fileSet>
     	
-        <fileSet>
-        <!-- copy files for PACT web frontend -->
-    		<directory>../pact/pact-clients/resources</directory>
-    		<outputDirectory>resources</outputDirectory>
-    		<fileMode>0644</fileMode>
-        <excludes>
-          <exclude>*etc/users</exclude>
-        </excludes>
-    	</fileSet>
+	        <!-- copy files for PACT web frontend -->
+		<fileSet>
+			<directory>../pact/pact-clients/resources</directory>
+			<outputDirectory>resources</outputDirectory>
+			<fileMode>0644</fileMode>
+			<excludes>
+				<exclude>*etc/users</exclude>
+			</excludes>
+		</fileSet>
+
+		<!-- copy files for Jobmanager web frontend -->
+		<fileSet>
+			<directory>../nephele/nephele-server/resources</directory>
+			<outputDirectory>resources</outputDirectory>
+			<fileMode>0644</fileMode>
+			<excludes>
+				<exclude>*etc/users</exclude>
+			</excludes>
+		</fileSet>
       
     </fileSets>
 

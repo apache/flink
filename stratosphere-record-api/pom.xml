@@ -5,38 +5,23 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
-		<artifactId>stratosphere-addons</artifactId>
 		<groupId>eu.stratosphere</groupId>
+		<artifactId>stratosphere</artifactId>
 		<version>0.4-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
-	
-	<artifactId>spargel</artifactId>
-	<name>spargel</name>
+
+	<artifactId>stratosphere-record-api</artifactId>
+	<name>stratosphere-record-api</name>
 
 	<packaging>jar</packaging>
 
 	<dependencies>
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
-			<artifactId>pact-common</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>eu.stratosphere</groupId>
-			<artifactId>pact-clients</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>eu.stratosphere</groupId>
 			<artifactId>stratosphere-core</artifactId>
 			<version>${project.version}</version>
 		</dependency>
-		<dependency>
-			<groupId>eu.stratosphere</groupId>
-			<artifactId>stratosphere-record-api</artifactId>
-			<version>${project.version}</version>
-		</dependency>
 	</dependencies>
+
 </project>

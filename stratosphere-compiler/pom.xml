@@ -5,49 +5,31 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
-		<artifactId>stratosphere-addons</artifactId>
 		<groupId>eu.stratosphere</groupId>
+		<artifactId>stratosphere</artifactId>
 		<version>0.4-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
-	
-	<artifactId>pact-array-datamodel</artifactId>
-	<name>pact-array-datamodel</name>
+
+	<artifactId>stratosphere-compiler</artifactId>
+	<name>stratosphere-compiler</name>
 
 	<packaging>jar</packaging>
 
 	<dependencies>
-	
-		<dependency>
-			<groupId>eu.stratosphere</groupId>
-			<artifactId>pact-common</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-		
-		<dependency>
-			<groupId>eu.stratosphere</groupId>
-			<artifactId>pact-compiler</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-		
-		<dependency>
-			<groupId>eu.stratosphere</groupId>
-			<artifactId>pact-clients</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
 			<artifactId>stratosphere-core</artifactId>
 			<version>${project.version}</version>
+			<scope>compile</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
-			<artifactId>stratosphere-compiler</artifactId>
+			<artifactId>stratosphere-runtime</artifactId>
 			<version>${project.version}</version>
+			<scope>compile</scope>
 		</dependency>
-		
 	</dependencies>
-	
+
 </project>

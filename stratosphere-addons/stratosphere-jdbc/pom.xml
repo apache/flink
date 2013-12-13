@@ -28,16 +28,19 @@
 			<artifactId>pact-clients</artifactId>
 			<version>${project.version}</version>
 		</dependency>
-		<dependency>
-			<groupId>org.apache.commons</groupId>
-			<artifactId>commons-lang3</artifactId>
-			<version>3.1</version>
-		</dependency>
-		<dependency>
+
+                <dependency>
 			<groupId>eu.stratosphere</groupId>
-			<artifactId>nephele-common</artifactId>
+			<artifactId>stratosphere-core</artifactId>
 			<version>${project.version}</version>
 		</dependency>
+
+                <dependency>
+			<groupId>eu.stratosphere</groupId>
+			<artifactId>stratosphere-record-api</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
 		<dependency>
 			<groupId>org.apache.derby</groupId>
 			<artifactId>derby</artifactId>

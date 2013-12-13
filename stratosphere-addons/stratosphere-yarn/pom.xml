@@ -10,18 +10,24 @@
   <url>http://stratosphere.eu</url>
  
   <parent>
-  	<groupId>eu.stratosphere</groupId>
+    <groupId>eu.stratosphere</groupId>
     <artifactId>stratosphere-addons</artifactId>
     <version>0.4-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
-<packaging>jar</packaging>
+  <packaging>jar</packaging>
 
   <dependencies>
   	<dependency>
       <groupId>eu.stratosphere</groupId>
       <artifactId>nephele-server</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>eu.stratosphere</groupId>
+      <artifactId>stratosphere-runtime</artifactId>
       <version>${project.version}</version>
     </dependency>
     
@@ -30,15 +36,17 @@
       <artifactId>hadoop-yarn-client</artifactId>
       <version>${hadoop.version}</version>
     </dependency>
+
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-common</artifactId>
       <version>${hadoop.version}</version>
     </dependency>
-     <dependency>
+
+    <dependency>
        <groupId>org.apache.hadoop</groupId>
        <artifactId>hadoop-hdfs</artifactId>
        <version>${hadoop.version}</version>
-   </dependency>
+    </dependency>
   </dependencies>
 </project>
