@@ -6,7 +6,7 @@
     <parent>
         <artifactId>pact-scala</artifactId>
         <groupId>eu.stratosphere</groupId>
-        <version>0.4-SNAPSHOT</version>
+        <version>0.4-alpha.3-SNAPSHOT</version>
         <relativePath>..</relativePath>
     </parent>
 
