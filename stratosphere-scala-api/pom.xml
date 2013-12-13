@@ -70,14 +70,14 @@
 					    scala classes can be resolved later in the (Java) compile phase -->
 					<execution>
 						<id>scala-compile-first</id>
-						<phase>process-resources</phase>                        
+						<phase>process-resources</phase>
 						<goals>
 							<goal>compile</goal>
 						</goals>
 					</execution>
  
 					<!-- Run scala compiler in the process-test-resources phase, so that dependencies on
-					     scala classes can be resolved later in the (Java) test-compile phase -->                    
+					     scala classes can be resolved later in the (Java) test-compile phase -->
 					<execution>
 						<id>scala-test-compile</id>
 						<phase>process-test-resources</phase>
