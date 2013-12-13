@@ -37,9 +37,6 @@
 	</developers>
 
 	<modules>
-		<module>nephele</module>
-		<module>pact</module>
-		<module>pact-scala</module>
 		<module>stratosphere-core</module>
 		<module>stratosphere-java-api</module>
 		<module>stratosphere-record-api</module>

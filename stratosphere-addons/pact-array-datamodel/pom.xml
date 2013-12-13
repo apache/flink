@@ -11,24 +11,12 @@
 		<relativePath>..</relativePath>
 	</parent>
 	
-	<artifactId>pact-array-datamodel</artifactId>
-	<name>pact-array-datamodel</name>
+	<artifactId>stratosphere-array-datamodel</artifactId>
+	<name>stratosphere-array-datamodel</name>
 
 	<packaging>jar</packaging>
 
 	<dependencies>
-	
-		<dependency>
-			<groupId>eu.stratosphere</groupId>
-			<artifactId>pact-common</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-		
-		<dependency>
-			<groupId>eu.stratosphere</groupId>
-			<artifactId>pact-compiler</artifactId>
-			<version>${project.version}</version>
-		</dependency>
 		
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
@@ -44,8 +32,15 @@
 
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
-			<artifactId>stratosphere-compiler</artifactId>
+			<artifactId>stratosphere-clients</artifactId>
 			<version>${project.version}</version>
+		</dependency>
+		
+		<dependency>
+			<groupId>eu.stratosphere</groupId>
+			<artifactId>stratosphere-tests</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
 		</dependency>
 		
 	</dependencies>

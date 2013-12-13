@@ -12,23 +12,15 @@
 	</parent>
 
 	<artifactId>stratosphere-addons</artifactId>
-	<packaging>pom</packaging>
 	<name>stratosphere-addons</name>
-
-	<inceptionYear>2013</inceptionYear>
-	<licenses>
-		<license>
-			<name>The Apache Software License, Version 2.0</name>
-			<url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
-			<distribution>nephele</distribution>
-		</license>
-	</licenses>
+	<packaging>pom</packaging>
 
 	<modules>
 		<module>pact-array-datamodel</module>
 		<!-- To come here: hbase-simple, jdbc, sequenceFile, avro -->
 		<module>stratosphere-jdbc</module>
 		<module>spargel</module>
+		<module>nephele-visualization</module>
 	</modules>
 	
 	<!-- See main pom.xml for explanation of profiles -->

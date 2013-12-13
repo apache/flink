@@ -25,11 +25,6 @@
 			<useTransitiveFiltering>true</useTransitiveFiltering>
 			
 			<excludes>
-				<exclude>eu.stratosphere:nephele-examples</exclude>
-				<exclude>eu.stratosphere:pact-examples</exclude>
-				<exclude>eu.stratosphere:pact-scala-examples</exclude>
-
-				<exclude>eu.stratosphere:stratosphere-examples</exclude>
 				<exclude>eu.stratosphere:stratosphere-java-examples</exclude>
 				<exclude>eu.stratosphere:stratosphere-scala-examples</exclude>
 				<exclude>eu.stratosphere:stratosphere-record-examples</exclude>
@@ -188,31 +183,6 @@
 			</excludes>
 		</fileSet>
 
-		<fileSet>
-			<!-- copy jar files of pact job examples -->
-			<directory>../pact/pact-examples/target</directory>
-			<outputDirectory>examples/pact/</outputDirectory>
-			<fileMode>0644</fileMode>
-			<includes>
-				<include>*.jar</include>
-			</includes>
-			<excludes>
-				<exclude>pact-examples-${project.version}.jar</exclude>
-			</excludes>
-		</fileSet>
-
-		<fileSet>
-			<!-- copy jar files of pact job examples -->
-			<directory>../pact-scala/pact-scala-examples/target</directory>
-			<outputDirectory>examples/pact-scala/</outputDirectory>
-			<fileMode>0644</fileMode>
-			<includes>
-				<include>*.jar</include>
-			</includes>
-			<excludes>
-				<exclude>pact-scala-examples-${project.version}.jar</exclude>
-			</excludes>
-		</fileSet>
 	</fileSets>
 
 </assembly>
