@@ -41,7 +41,9 @@ import eu.stratosphere.nephele.io.RuntimeInputGate;
 import eu.stratosphere.nephele.io.RuntimeOutputGate;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
+import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.protocols.AccumulatorProtocol;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
@@ -141,6 +143,11 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	 * The observer object for the task's execution.
 	 */
 	private volatile ExecutionObserver executionObserver = null;
+	
+	/**
+	 * The RPC procy to report accumulators to JobManager
+	 */
+	private AccumulatorProtocol accumulatorProtocolProxy = null;
 
 	/**
 	 * The index of this subtask in the subtask group.
@@ -209,8 +216,10 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	 *         thrown if an error occurs while instantiating the invokable class
 	 */
 	@SuppressWarnings({ "unchecked", "rawtypes" })
-	public RuntimeEnvironment(final TaskDeploymentDescriptor tdd, final MemoryManager memoryManager,
-			final IOManager ioManager, final InputSplitProvider inputSplitProvider) throws Exception {
+	public RuntimeEnvironment(final TaskDeploymentDescriptor tdd,
+			final MemoryManager memoryManager, final IOManager ioManager,
+			final InputSplitProvider inputSplitProvider,
+			AccumulatorProtocol accumulatorProtocolProxy) throws Exception {
 
 		this.jobID = tdd.getJobID();
 		this.taskName = tdd.getTaskName();
@@ -222,6 +231,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 		this.memoryManager = memoryManager;
 		this.ioManager = ioManager;
 		this.inputSplitProvider = inputSplitProvider;
+		this.accumulatorProtocolProxy = accumulatorProtocolProxy;
 
 		this.invokable = this.invokableClass.newInstance();
 		this.invokable.setEnvironment(this);
@@ -887,4 +897,10 @@ public class RuntimeEnvironment implements Environment, Runnable {
 
 		return Collections.unmodifiableSet(inputChannelIDs);
 	}
+	
+	@Override
+	public AccumulatorProtocol getAccumulatorProtocolProxy() {
+		return accumulatorProtocolProxy;
+	}
+
 }

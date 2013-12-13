@@ -37,6 +37,7 @@ import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.PosixParser;
 import org.apache.commons.cli.UnrecognizedOptionException;
 
+import eu.stratosphere.nephele.client.JobExecutionResult;
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
@@ -46,6 +47,7 @@ import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobgraph.JobStatus;
 import eu.stratosphere.nephele.net.NetUtils;
 import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
+import eu.stratosphere.nephele.services.accumulators.AccumulatorHelper;
 import eu.stratosphere.nephele.util.StringUtils;
 import eu.stratosphere.pact.client.nephele.api.Client;
 import eu.stratosphere.pact.client.nephele.api.ErrorInPlanAssemblerException;
@@ -294,8 +296,9 @@ public class CliFrontend {
 		} else {
 			client = new Client(configuration);
 		}
+		JobExecutionResult execResult = null;
 		try {
-			client.run(program.getPlanWithJars(), wait);
+			execResult = client.run(program.getPlanWithJars(), wait);
 		} catch (ProgramInvocationException e) {
 			handleError(e);
 		} catch (ErrorInPlanAssemblerException e) {
@@ -305,18 +308,26 @@ public class CliFrontend {
 		} finally {
 			program.deleteExtractedLibraries();
 		}
-		if(address != null && !address.isEmpty()) {
-			System.out.println("Job successfully submitted. Use -w (or --wait) option to track the progress here.\n"
-					+ "JobManager web interface: http://"
-					+ socket.getHostName()
-					+":"+configuration.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, ConfigConstants.DEFAULT_WEB_FRONTEND_PORT));
+		if(wait) {
+			System.out.println("Job Runtime: "+execResult.getNetRuntime());
+			Map<String, Object> accumulatorsResult = execResult.getAllAccumulatorResults();
+			if(accumulatorsResult.size() > 0) {
+				System.out.println("Accumulator Results: ");
+				System.out.println(AccumulatorHelper.getResultsFormated(accumulatorsResult));
+			}
 		} else {
-			System.out.println("Job successfully submitted. Use -w (or --wait) option to track the progress here.\n"
-				+ "JobManager web interface: http://"
-				+ configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null)
-				+":"+configuration.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, ConfigConstants.DEFAULT_WEB_FRONTEND_PORT));
+			if(address != null && !address.isEmpty()) {
+				System.out.println("Job successfully submitted. Use -w (or --wait) option to track the progress here.\n"
+						+ "JobManager web interface: http://"
+						+ socket.getHostName()
+						+":"+configuration.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, ConfigConstants.DEFAULT_WEB_FRONTEND_PORT));
+			} else {
+				System.out.println("Job successfully submitted. Use -w (or --wait) option to track the progress here.\n"
+					+ "JobManager web interface: http://"
+					+ configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null)
+					+":"+configuration.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, ConfigConstants.DEFAULT_WEB_FRONTEND_PORT));
+			}
 		}
-	
 	}
 	
 	/**

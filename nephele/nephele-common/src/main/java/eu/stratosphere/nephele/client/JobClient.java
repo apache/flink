@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.net.InetSocketAddress;
 import java.util.Iterator;
+import java.util.Map;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -31,7 +32,10 @@ import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobStatus;
 import eu.stratosphere.nephele.net.NetUtils;
+import eu.stratosphere.nephele.protocols.AccumulatorProtocol;
 import eu.stratosphere.nephele.protocols.JobManagementProtocol;
+import eu.stratosphere.nephele.services.accumulators.AccumulatorEvent;
+import eu.stratosphere.nephele.services.accumulators.AccumulatorHelper;
 import eu.stratosphere.nephele.types.IntegerRecord;
 import eu.stratosphere.nephele.util.StringUtils;
 
@@ -53,6 +57,11 @@ public class JobClient {
 	 * The job management server stub.
 	 */
 	private final JobManagementProtocol jobSubmitClient;
+
+	/**
+	 * The accumulator protocol stub to request accumulators from JobManager
+	 */
+	private AccumulatorProtocol accumulatorProtocolProxy;
 
 	/**
 	 * The job graph assigned with this job client.
@@ -161,6 +170,7 @@ public class JobClient {
 
 		final InetSocketAddress inetaddr = new InetSocketAddress(address, port);
 		this.jobSubmitClient = RPC.getProxy(JobManagementProtocol.class, inetaddr, NetUtils.getSocketFactory());
+		this.accumulatorProtocolProxy = RPC.getProxy(AccumulatorProtocol.class, inetaddr, NetUtils.getSocketFactory());
 		this.jobGraph = jobGraph;
 		this.configuration = configuration;
 		this.jobCleanUp = new JobCleanUp(this);
@@ -196,6 +206,10 @@ public class JobClient {
 
 		synchronized (this.jobSubmitClient) {
 			RPC.stopProxy(this.jobSubmitClient);
+		}
+
+		synchronized (this.accumulatorProtocolProxy) {
+			RPC.stopProxy(this.accumulatorProtocolProxy);
 		}
 	}
 
@@ -262,7 +276,7 @@ public class JobClient {
 	 * @throws JobExecutionException
 	 *         thrown if the job has been aborted either by the user or as a result of an error
 	 */
-	public long submitJobAndWait() throws IOException, JobExecutionException {
+	public JobExecutionResult submitJobAndWait() throws IOException, JobExecutionException {
 
 		synchronized (this.jobSubmitClient) {
 
@@ -343,7 +357,17 @@ public class JobClient {
 						Runtime.getRuntime().removeShutdownHook(this.jobCleanUp);
 						final long jobDuration = jobEvent.getTimestamp() - startTimestamp;
 						this.console.println("Job duration (in ms): " + jobDuration);
-						return jobDuration;
+						
+						// Request accumulators
+						Map<String, Object> accumulators = null;
+						try {
+							accumulators = AccumulatorHelper.toResultMap(getAccumulators().getAccumulators());
+						} catch (IOException ioe) {
+							Runtime.getRuntime().removeShutdownHook(this.jobCleanUp);
+							throw ioe;	// Rethrow error
+						}
+						return new JobExecutionResult(jobDuration, accumulators);
+						
 					} else if (jobStatus == JobStatus.CANCELED || jobStatus == JobStatus.FAILED) {
 						Runtime.getRuntime().removeShutdownHook(this.jobCleanUp);
 						LOG.info(jobEvent.getOptionalMessage());
@@ -398,5 +422,11 @@ public class JobClient {
 		}
 		
 		this.console = stream;
+	}
+
+	private AccumulatorEvent getAccumulators() throws IOException {
+		synchronized (this.jobSubmitClient) {
+			return this.accumulatorProtocolProxy.getAccumulatorResults(this.jobGraph.getJobID());
+		}
 	}
 }

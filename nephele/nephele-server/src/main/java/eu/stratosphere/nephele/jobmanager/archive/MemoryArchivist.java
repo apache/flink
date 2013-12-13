@@ -84,7 +84,7 @@ public class MemoryArchivist implements ArchiveListener {
 		
 		cleanup(jobId);
 	}
-	
+
 	public List<RecentJobEvent> getJobs() {
 
 		return new ArrayList<RecentJobEvent>(oldJobs.values());
@@ -141,5 +141,6 @@ public class MemoryArchivist implements ArchiveListener {
 		}
 		return 0;
 	}
+
 
 }

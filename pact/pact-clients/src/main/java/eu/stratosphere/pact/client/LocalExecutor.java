@@ -17,8 +17,12 @@ package eu.stratosphere.pact.client;
 
 import java.util.List;
 
-import org.apache.log4j.*;
+import org.apache.log4j.ConsoleAppender;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
+import org.apache.log4j.PatternLayout;
 
+import eu.stratosphere.nephele.client.JobExecutionResult;
 import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.pact.client.minicluster.NepheleMiniCluster;
@@ -82,7 +86,7 @@ public class LocalExecutor implements PlanExecutor {
 	 * @throws Exception Thrown, if either the startup of the local execution context, or the execution
 	 *                   caused an exception.
 	 */
-	public long executePlan(Plan plan) throws Exception {
+	public JobExecutionResult executePlan(Plan plan) throws Exception {
 		synchronized (this.lock) {
 			if (this.nephele == null) {
 				throw new Exception("The local executor has not been started.");
@@ -95,7 +99,8 @@ public class LocalExecutor implements PlanExecutor {
 			JobGraph jobGraph = jgg.compileJobGraph(op);
 			
 			JobClient jobClient = this.nephele.getJobClient(jobGraph);
-			return jobClient.submitJobAndWait();
+			JobExecutionResult result = jobClient.submitJobAndWait();
+			return result;
 		}
 	}
 
@@ -129,7 +134,7 @@ public class LocalExecutor implements PlanExecutor {
 	 * @throws Exception Thrown, if either the startup of the local execution context, or the execution
 	 *                   caused an exception.
 	 */
-	public static long execute(PlanAssembler pa, String... args) throws Exception {
+	public static JobExecutionResult execute(PlanAssembler pa, String... args) throws Exception {
 		return execute(pa.getPlan(args));
 	}
 	
@@ -142,7 +147,7 @@ public class LocalExecutor implements PlanExecutor {
 	 * @throws Exception Thrown, if either the startup of the local execution context, or the execution
 	 *                   caused an exception.
 	 */
-	public static long execute(Plan plan) throws Exception {
+	public static JobExecutionResult execute(Plan plan) throws Exception {
 		LocalExecutor exec = new LocalExecutor();
 		try {
 			exec.start();

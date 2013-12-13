@@ -4,6 +4,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.Statement;
 
+import eu.stratosphere.nephele.client.JobExecutionResult;
 import eu.stratosphere.pact.client.LocalExecutor;
 import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.GenericDataSource;
@@ -66,8 +67,8 @@ public class JDBCInputExample implements PlanAssembler, PlanAssemblerDescription
 		prepareTestDb();
 		
 		JDBCInputExample tut = new JDBCInputExample();
-		long runtime = LocalExecutor.execute(tut, args);
-		System.out.println("runtime:  " + runtime);
+		JobExecutionResult res = LocalExecutor.execute(tut, args);
+		System.out.println("runtime:  " + res.getNetRuntime());
 		
 		System.exit(0);
 	}
