@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
@@ -42,11 +43,10 @@ import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.instance.cluster.ClusterManager;
 import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.util.LogUtils;
 
 /**
  * Tests for {@link ClusterManager}.
- * 
- * @author warneke
  */
 public class ClusterManagerTest {
 
@@ -58,7 +58,7 @@ public class ClusterManagerTest {
 	/**
 	 * The directory containing the correct configuration file to be used during the tests.
 	 */
-	private static final String CORRECT_CONF_DIR = "/correct-conf";
+	private static final String CORRECT_CONF_DIR = "/confs/clustermanager";
 
 	/**
 	 * The name of the small instance type.
@@ -90,6 +90,12 @@ public class ClusterManagerTest {
 	 */
 	private static final String ECLIPSE_PATH_EXTENSION = "/src/test/resources";
 
+	@BeforeClass
+	public static void initLogging() {
+		LogUtils.initializeDefaultTestConsoleLogger();
+	}
+	
+	
 	/**
 	 * This test covers the parsing of instance types from the configuration and the default instance type.
 	 */
@@ -336,7 +342,7 @@ public class ClusterManagerTest {
 	@Test
 	public void testCleanUp() {
 
-		GlobalConfiguration.loadConfiguration(System.getProperty(USER_DIR_KEY) + CORRECT_CONF_DIR);
+		GlobalConfiguration.loadConfiguration(getConfigDir());
 
 		final TestInstanceListener testInstanceListener = new TestInstanceListener();
 		final ClusterManager cm = new ClusterManager();
