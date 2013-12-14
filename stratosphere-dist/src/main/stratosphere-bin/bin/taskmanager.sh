@@ -15,43 +15,39 @@
 ########################################################################################################################
 
 STARTSTOP=$1
-EXECUTIONMODE=$2
 
 bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
 
-. "$bin"/nephele-config.sh
-
-if [ "$EXECUTIONMODE" = "local" ]; then
-    NEPHELE_JM_HEAP=`expr $NEPHELE_JM_HEAP + $NEPHELE_TM_HEAP`
-fi
-
-JVM_ARGS="$JVM_ARGS -Xms"$NEPHELE_JM_HEAP"m -Xmx"$NEPHELE_JM_HEAP"m"
+. "$bin"/config.sh
 
 if [ "$NEPHELE_IDENT_STRING" = "" ]; then
     NEPHELE_IDENT_STRING="$USER"
 fi
 
 # auxilliary function to construct a lightweight classpath for the
-# Nephele JobManager
-constructJobManagerClassPath() {
+# Nephele TaskManager
+constructTaskManagerClassPath() {
+
     for jarfile in $NEPHELE_LIB_DIR/*.jar ; do
-        if [[ $NEPHELE_JM_CLASSPATH = "" ]]; then
-            NEPHELE_JM_CLASSPATH=$jarfile;
+        if [[ $NEPHELE_TM_CLASSPATH = "" ]]; then
+            NEPHELE_TM_CLASSPATH=$jarfile;
         else
-            NEPHELE_JM_CLASSPATH=$NEPHELE_JM_CLASSPATH:$jarfile
+            NEPHELE_TM_CLASSPATH=$NEPHELE_TM_CLASSPATH:$jarfile
         fi
     done
 
-    echo $NEPHELE_JM_CLASSPATH
+    echo $NEPHELE_TM_CLASSPATH
 }
 
-NEPHELE_JM_CLASSPATH=`manglePathList $(constructJobManagerClassPath)`
+NEPHELE_TM_CLASSPATH=`manglePathList $(constructTaskManagerClassPath)`
 
-log=$NEPHELE_LOG_DIR/nephele-$NEPHELE_IDENT_STRING-jobmanager-$HOSTNAME.log
-out=$NEPHELE_LOG_DIR/nephele-$NEPHELE_IDENT_STRING-jobmanager-$HOSTNAME.out
-pid=$NEPHELE_PID_DIR/nephele-$NEPHELE_IDENT_STRING-jobmanager.pid
+log=$NEPHELE_LOG_DIR/nephele-$NEPHELE_IDENT_STRING-taskmanager-$HOSTNAME.log
+out=$NEPHELE_LOG_DIR/nephele-$NEPHELE_IDENT_STRING-taskmanager-$HOSTNAME.out
+pid=$NEPHELE_PID_DIR/nephele-$NEPHELE_IDENT_STRING-taskmanager.pid
 log_setting="-Dlog.file="$log" -Dlog4j.configuration=file:"$NEPHELE_CONF_DIR"/log4j.properties"
+
+JVM_ARGS="$JVM_ARGS -XX:+UseParNewGC -XX:NewRatio=8 -XX:PretenureSizeThreshold=64m -Xms"$NEPHELE_TM_HEAP"m -Xmx"$NEPHELE_TM_HEAP"m"
 
 case $STARTSTOP in
 
@@ -59,7 +55,7 @@ case $STARTSTOP in
         mkdir -p "$NEPHELE_PID_DIR"
         if [ -f $pid ]; then
             if kill -0 `cat $pid` > /dev/null 2>&1; then
-                echo Nephele job manager running as process `cat $pid`.  Stop it first.
+                echo Nephele task manager running as process `cat $pid` on host $HOSTNAME.  Stop it first.
                 exit 1
             fi
         fi
@@ -68,21 +64,21 @@ case $STARTSTOP in
         rotateLogFile $log
         rotateLogFile $out
 
-        echo Starting Nephele job manager
-        $JAVA_RUN $JVM_ARGS $NEPHELE_OPTS $log_setting -classpath $NEPHELE_JM_CLASSPATH eu.stratosphere.nephele.jobmanager.JobManager -executionMode $EXECUTIONMODE -configDir $NEPHELE_CONF_DIR  > "$out" 2>&1 < /dev/null &
+        echo Starting Nephele task manager on host $HOSTNAME
+        $JAVA_RUN $JVM_ARGS $NEPHELE_OPTS $log_setting -classpath $NEPHELE_TM_CLASSPATH eu.stratosphere.nephele.taskmanager.TaskManager -configDir $NEPHELE_CONF_DIR > "$out" 2>&1 < /dev/null &
         echo $! > $pid
     ;;
 
     (stop)
         if [ -f $pid ]; then
             if kill -0 `cat $pid` > /dev/null 2>&1; then
-                echo Stopping Nephele job manager
+                echo Stopping Nephele task manager on host $HOSTNAME
                 kill `cat $pid`
             else
-                echo No Nephele job manager to stop
+                echo No Nephele task manager to stop on host $HOSTNAME
             fi
         else
-            echo No Nephele job manager to stop
+            echo No Nephele task manager to stop on host $HOSTNAME
         fi
     ;;
 

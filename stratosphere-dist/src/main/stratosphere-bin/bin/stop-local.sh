@@ -17,7 +17,7 @@
 bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
 
-. "$bin"/nephele-config.sh
+. "$bin"/config.sh
 
 # stop local job manager. Local job manager will take care of stopping the task manager internally
-$NEPHELE_BIN_DIR/nephele-jobmanager.sh stop
+$NEPHELE_BIN_DIR/jobmanager.sh stop

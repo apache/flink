@@ -17,7 +17,7 @@
 bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
 
-. "$bin"/nephele-config.sh
+. "$bin"/config.sh
 
 # local mode, only bring up job manager. The job manager will take care to bring a task manager internally.
-$NEPHELE_BIN_DIR/nephele-jobmanager.sh start local
+$NEPHELE_BIN_DIR/jobmanager.sh start local

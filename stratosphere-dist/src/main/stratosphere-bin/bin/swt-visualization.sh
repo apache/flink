@@ -17,7 +17,30 @@
 bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
 
-. "$bin"/nephele-config.sh
+. "$bin"/config.sh
 
-# local mode, only bring up job manager. The job manager will take care to bring a task manager internally.
-$NEPHELE_BIN_DIR/pact-webfrontend.sh start
+if [ "$NEPHELE_IDENT_STRING" = "" ]; then
+    NEPHELE_IDENT_STRING="$USER"
+fi
+
+# auxilliary function to construct a lightweight classpath for the
+# Nephele visualization component
+constructVisualizationClassPath() {
+
+    for jarfile in $NEPHELE_LIB_DIR/*.jar ; do
+        if [[ $NEPHELE_VS_CLASSPATH = "" ]]; then
+            NEPHELE_VS_CLASSPATH=$jarfile;
+        else
+            NEPHELE_VS_CLASSPATH=$NEPHELE_VS_CLASSPATH:$jarfile
+        fi
+    done
+
+    echo $NEPHELE_VS_CLASSPATH
+}
+
+log=$NEPHELE_LOG_DIR/nephele-$NEPHELE_IDENT_STRING-visualization-$HOSTNAME.log
+log_setting="-Dlog.file="$log" -Dlog4j.configuration=file://"$NEPHELE_CONF_DIR"/log4j.properties"
+
+NEPHELE_VS_CLASSPATH=$(constructVisualizationClassPath)
+
+$JAVA_RUN $JVM_ARGS $NEPHELE_OPTS $log_setting -classpath $NEPHELE_VS_CLASSPATH eu.stratosphere.addons.visualization.swt.SWTVisualization -configDir $NEPHELE_CONF_DIR

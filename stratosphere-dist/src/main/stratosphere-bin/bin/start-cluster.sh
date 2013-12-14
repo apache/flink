@@ -17,7 +17,7 @@
 bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
 
-. "$bin"/nephele-config.sh
+. "$bin"/config.sh
 
 HOSTLIST=$NEPHELE_SLAVES
 
@@ -31,7 +31,7 @@ if [ ! -f $HOSTLIST ]; then
 fi
 
 # cluster mode, only bring up job manager locally and a task manager on every slave host
-$NEPHELE_BIN_DIR/nephele-jobmanager.sh start cluster
+$NEPHELE_BIN_DIR/jobmanager.sh start cluster
 
 GOON=true
 while $GOON
@@ -39,6 +39,6 @@ do
     read line || GOON=false
     if [ -n "$line" ]; then
         HOST=$( extractHostName $line)
-        ssh -n $NEPHELE_SSH_OPTS $HOST -- "nohup /bin/bash $NEPHELE_BIN_DIR/nephele-taskmanager.sh start &"
+        ssh -n $NEPHELE_SSH_OPTS $HOST -- "nohup /bin/bash $NEPHELE_BIN_DIR/taskmanager.sh start &"
     fi
 done < $HOSTLIST

@@ -20,8 +20,8 @@ SET NEPHELE_LIB_DIR=%NEPHELE_ROOT_DIR%\lib
 
 SET JVM_ARGS=-Xmx512m
 
-SET NEPHELE_JM_CLASSPATH=%NEPHELE_LIB_DIR%\*;%NEPHELE_LIB_DIR%\dropin\*;%NEPHELE_LIB_DIR%\dropin\
+SET NEPHELE_JM_CLASSPATH=%NEPHELE_LIB_DIR%\*
 
-java %JVM_ARGS% -cp %NEPHELE_JM_CLASSPATH% eu.stratosphere.pact.client.CliFrontend %*
+java %JVM_ARGS% -cp %NEPHELE_JM_CLASSPATH% eu.stratosphere.client.CliFrontend %*
 
 endlocal

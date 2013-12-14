@@ -22,7 +22,7 @@ SET NEPHELE_LOG_DIR=%NEPHELE_ROOT_DIR%\log
 
 SET JVM_ARGS=-Xms768m -Xmx768m
 
-SET NEPHELE_JM_CLASSPATH=%NEPHELE_LIB_DIR%\*;%NEPHELE_LIB_DIR%\dropin\*;%NEPHELE_LIB_DIR%\dropin\
+SET NEPHELE_JM_CLASSPATH=%NEPHELE_LIB_DIR%\*
 
 java %JVM_ARGS% -cp %NEPHELE_JM_CLASSPATH% eu.stratosphere.nephele.jobmanager.JobManager -executionMode local -configDir %NEPHELE_CONF_DIR%
 

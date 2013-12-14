@@ -20,7 +20,7 @@ bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
 
 # get nephele config
-. "$bin"/nephele-config.sh
+. "$bin"/config.sh
 
 if [ "$NEPHELE_IDENT_STRING" = "" ]; then
         NEPHELE_IDENT_STRING="$USER"
