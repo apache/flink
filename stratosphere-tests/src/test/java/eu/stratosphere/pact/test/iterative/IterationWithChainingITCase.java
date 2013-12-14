@@ -18,14 +18,14 @@ import eu.stratosphere.api.operators.BulkIteration;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.api.record.functions.MapStub;
+import eu.stratosphere.api.record.functions.ReduceStub;
+import eu.stratosphere.api.record.operators.MapOperator;
+import eu.stratosphere.api.record.operators.ReduceOperator;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.pact.common.contract.MapContract;
-import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.common.stubs.MapStub;
-import eu.stratosphere.pact.common.stubs.ReduceStub;
-import eu.stratosphere.pact.example.kmeans.udfs.PointInFormat;
-import eu.stratosphere.pact.example.kmeans.udfs.PointOutFormat;
-import eu.stratosphere.pact.test.util.TestBase2;
+import eu.stratosphere.example.record.kmeans.udfs.PointInFormat;
+import eu.stratosphere.example.record.kmeans.udfs.PointOutFormat;
+import eu.stratosphere.test.util.TestBase2;
 import eu.stratosphere.types.PactInteger;
 import eu.stratosphere.types.PactRecord;
 import eu.stratosphere.util.Collector;
@@ -106,13 +106,13 @@ public class IterationWithChainingITCase extends TestBase2 {
         iteration.setInput(initialInput);
         iteration.setMaximumNumberOfIterations(2);
 
-        ReduceContract dummyReduce = ReduceContract.builder(new DummyReducer(), PactInteger.class, 0)
+        ReduceOperator dummyReduce = ReduceOperator.builder(new DummyReducer(), PactInteger.class, 0)
                 .input(iteration.getPartialSolution())
                 .name("Reduce something")
                 .build();
 
 
-        MapContract dummyMap = MapContract.builder(new IdentityMapper()).input(dummyReduce).build();
+        MapOperator dummyMap = MapOperator.builder(new IdentityMapper()).input(dummyReduce).build();
         iteration.setNextPartialSolution(dummyMap);
 
         FileDataSink finalResult = new FileDataSink(new PointOutFormat(), output, iteration, "Output");

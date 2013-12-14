@@ -19,8 +19,8 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.api.functions.GenericReducer;
+import eu.stratosphere.api.record.functions.ReduceStub;
 import eu.stratosphere.api.typeutils.TypeSerializer;
-import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.util.MutableToRegularIteratorWrapper;
 import eu.stratosphere.util.Collector;

@@ -22,13 +22,13 @@ import org.junit.Test;
 import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.operators.util.FieldList;
 import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.pact.common.contract.MatchContract;
+import eu.stratosphere.api.record.operators.JoinOperator;
+import eu.stratosphere.compiler.plan.DualInputPlanNode;
+import eu.stratosphere.compiler.plan.OptimizedPlan;
+import eu.stratosphere.compiler.plan.SingleInputPlanNode;
+import eu.stratosphere.compiler.plan.SinkPlanNode;
+import eu.stratosphere.example.record.relational.TPCHQuery3;
 import eu.stratosphere.pact.compiler.CompilerTestBase;
-import eu.stratosphere.pact.compiler.plan.candidate.DualInputPlanNode;
-import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
-import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
-import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
-import eu.stratosphere.pact.example.relational.TPCHQuery3;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
@@ -114,7 +114,7 @@ public class TPCHQuery3CompilerTest extends CompilerTestBase {
 		
 		// set compiler hints
 		ContractResolver cr = getContractResolver(p);
-		MatchContract match = cr.getNode("JoinLiO");
+		JoinOperator match = cr.getNode("JoinLiO");
 		match.getCompilerHints().setAvgRecordsEmittedPerStubCall(100f);
 		
 		testQueryGeneric(100l*1024*1024*1024*1024, 100l*1024*1024*1024*1024, false, true, false, false, true);

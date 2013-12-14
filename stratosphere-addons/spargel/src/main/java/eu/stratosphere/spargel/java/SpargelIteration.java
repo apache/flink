@@ -20,9 +20,9 @@ import java.util.Iterator;
 import eu.stratosphere.api.functions.StubAnnotation.ConstantFieldsFirst;
 import eu.stratosphere.api.operators.Contract;
 import eu.stratosphere.api.operators.WorksetIteration;
+import eu.stratosphere.api.record.functions.CoGroupStub;
+import eu.stratosphere.api.record.operators.CoGroupOperator;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.pact.common.contract.CoGroupContract;
-import eu.stratosphere.pact.common.stubs.CoGroupStub;
 import eu.stratosphere.spargel.java.util.MessageIterator;
 import eu.stratosphere.types.Key;
 import eu.stratosphere.types.PactRecord;
@@ -43,8 +43,8 @@ public class SpargelIteration {
 	private final Class<? extends Value> messageType;
 	private final Class<? extends Value> edgeValue;
 	
-	private final CoGroupContract vertexUpdater;
-	private final CoGroupContract messager;
+	private final CoGroupOperator vertexUpdater;
+	private final CoGroupOperator messager;
 	
 	
 	// ----------------------------------------------------------------------------------
@@ -74,11 +74,11 @@ public class SpargelIteration {
 		// instantiate the data flow
 		this.iteration = new WorksetIteration(0, name);
 		
-		this.messager = CoGroupContract.builder(MessagingDriver.class, vertexKey, 0, 0)
+		this.messager = CoGroupOperator.builder(MessagingDriver.class, vertexKey, 0, 0)
 			.input2(iteration.getWorkset())
 			.name("Message Sender")
 			.build();
-		this.vertexUpdater = CoGroupContract.builder(VertexUpdateDriver.class, vertexKey, 0, 0)
+		this.vertexUpdater = CoGroupOperator.builder(VertexUpdateDriver.class, vertexKey, 0, 0)
 			.input1(messager)
 			.input2(iteration.getSolutionSet())
 			.name("Vertex Updater")

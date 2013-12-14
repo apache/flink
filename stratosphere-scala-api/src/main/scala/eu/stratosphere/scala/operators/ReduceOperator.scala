@@ -21,11 +21,11 @@ import scala.reflect.macros.Context
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.util.Collector
 import eu.stratosphere.api.operators.Contract
-import eu.stratosphere.pact.common.contract.MapContract
+import eu.stratosphere.api.record.operators.MapOperator
 import eu.stratosphere.types.PactRecord
 import eu.stratosphere.types.PactInteger
-import eu.stratosphere.pact.common.contract.ReduceContract
-import eu.stratosphere.pact.common.stubs.{ReduceStub => JReduceStub}
+import eu.stratosphere.api.record.operators.ReduceOperator
+import eu.stratosphere.api.record.functions.{ReduceStub => JReduceStub}
 
 import eu.stratosphere.scala.contracts.Annotations
 import eu.stratosphere.scala._
@@ -139,14 +139,14 @@ object ReduceMacros {
       val keySelection = helper.keySelection
       val keySelector = new FieldSelector(generatedStub.inputUDT, keySelection)
 
-      val builder = ReduceContract.builder(generatedStub).input(input)
+      val builder = ReduceOperator.builder(generatedStub).input(input)
 
       val keyPositions = keySelector.selectedFields.toIndexArray
       val keyTypes = generatedStub.inputUDT.getKeySet(keyPositions)
       // global indexes haven't been computed yet...
       0 until keyTypes.size foreach { i => builder.keyField(keyTypes(i), keyPositions(i)) }
       
-      val ret = new ReduceContract(builder) with OneInputKeyedScalaContract[In, In] {
+      val ret = new ReduceOperator(builder) with OneInputKeyedScalaContract[In, In] {
         override val key: FieldSelector = keySelector
         override def getUDF = generatedStub.udf
         override def annotations = Annotations.getCombinable() +: Seq(
@@ -196,14 +196,14 @@ object ReduceMacros {
       val generatedStub = ClosureCleaner.clean(stub.splice)
       val keySelection = helper.keySelection
       val keySelector = new FieldSelector(generatedStub.inputUDT, keySelection)
-      val builder = ReduceContract.builder(generatedStub).input(input)
+      val builder = ReduceOperator.builder(generatedStub).input(input)
 
       val keyPositions = keySelector.selectedFields.toIndexArray
       val keyTypes = generatedStub.inputUDT.getKeySet(keyPositions)
       // global indexes haven't been computed yet...
       0 until keyTypes.size foreach { i => builder.keyField(keyTypes(i), keyPositions(i)) }
       
-      val ret = new ReduceContract(builder) with OneInputKeyedScalaContract[In, Out] {
+      val ret = new ReduceOperator(builder) with OneInputKeyedScalaContract[In, Out] {
         override val key: FieldSelector = keySelector
         override def getUDF = generatedStub.udf
         override def annotations = Seq(
@@ -255,14 +255,14 @@ object ReduceMacros {
       val generatedStub = ClosureCleaner.clean(stub.splice)
       val keySelection = helper.keySelection
       val keySelector = new FieldSelector(generatedStub.inputUDT, keySelection)
-      val builder = ReduceContract.builder(generatedStub).input(input)
+      val builder = ReduceOperator.builder(generatedStub).input(input)
 
       val keyPositions = keySelector.selectedFields.toIndexArray
       val keyTypes = generatedStub.inputUDT.getKeySet(keyPositions)
       // global indexes haven't been computed yet...
       0 until keyTypes.size foreach { i => builder.keyField(keyTypes(i), keyPositions(i)) }
       
-      val ret = new ReduceContract(builder) with OneInputKeyedScalaContract[In, In] {
+      val ret = new ReduceOperator(builder) with OneInputKeyedScalaContract[In, In] {
         override val key: FieldSelector = keySelector
         override def getUDF = generatedStub.udf
         override def annotations = Annotations.getCombinable() +: Seq(
@@ -326,14 +326,14 @@ object ReduceMacros {
 
       }
       
-      val builder = ReduceContract.builder(generatedStub).input(helper.input.contract)
+      val builder = ReduceOperator.builder(generatedStub).input(helper.input.contract)
 
       val keyPositions = generatedStub.keySelector.selectedFields.toIndexArray
       val keyTypes = generatedStub.inputUDT.getKeySet(keyPositions)
       // global indexes haven't been computed yet...
       0 until keyTypes.size foreach { i => builder.keyField(keyTypes(i), keyPositions(i)) }
       
-      val ret = new ReduceContract(builder) with OneInputKeyedScalaContract[In, (In, Int)] {
+      val ret = new ReduceOperator(builder) with OneInputKeyedScalaContract[In, (In, Int)] {
         override val key: FieldSelector = generatedStub.keySelector
         override def getUDF = generatedStub.udf
         override def annotations = Annotations.getCombinable() +: Seq(Annotations.getConstantFieldsExcept(Array[Int]()))

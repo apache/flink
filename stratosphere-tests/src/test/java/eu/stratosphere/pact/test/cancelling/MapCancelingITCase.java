@@ -20,9 +20,9 @@ import org.junit.Test;
 import eu.stratosphere.api.operators.GenericDataSink;
 import eu.stratosphere.api.operators.GenericDataSource;
 import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.api.record.functions.MapStub;
+import eu.stratosphere.api.record.operators.MapOperator;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.pact.common.contract.MapContract;
-import eu.stratosphere.pact.common.stubs.MapStub;
 import eu.stratosphere.pact.test.testPrograms.util.DiscardingOutputFormat;
 import eu.stratosphere.pact.test.testPrograms.util.InfiniteIntegerInputFormat;
 import eu.stratosphere.types.PactRecord;
@@ -34,7 +34,7 @@ public class MapCancelingITCase extends CancellingTestBase {
 	public void testMapCancelling() throws Exception {
 		GenericDataSource<InfiniteIntegerInputFormat> source = new GenericDataSource<InfiniteIntegerInputFormat>(
 																		new InfiniteIntegerInputFormat(), "Source");
-		MapContract mapper = MapContract.builder(IdentityMapper.class)
+		MapOperator mapper = MapOperator.builder(IdentityMapper.class)
 			.input(source)
 			.name("Identity Mapper")
 			.build();
@@ -51,7 +51,7 @@ public class MapCancelingITCase extends CancellingTestBase {
 	public void testSlowMapCancelling() throws Exception {
 		GenericDataSource<InfiniteIntegerInputFormat> source = new GenericDataSource<InfiniteIntegerInputFormat>(
 																		new InfiniteIntegerInputFormat(), "Source");
-		MapContract mapper = MapContract.builder(DelayingIdentityMapper.class)
+		MapOperator mapper = MapOperator.builder(DelayingIdentityMapper.class)
 			.input(source)
 			.name("Delay Mapper")
 			.build();
@@ -68,7 +68,7 @@ public class MapCancelingITCase extends CancellingTestBase {
 	public void testMapWithLongCancellingResponse() throws Exception {
 		GenericDataSource<InfiniteIntegerInputFormat> source = new GenericDataSource<InfiniteIntegerInputFormat>(
 																		new InfiniteIntegerInputFormat(), "Source");
-		MapContract mapper = MapContract.builder(LongCancelTimeIdentityMapper.class)
+		MapOperator mapper = MapOperator.builder(LongCancelTimeIdentityMapper.class)
 			.input(source)
 			.name("Long Cancelling Time Mapper")
 			.build();
@@ -85,7 +85,7 @@ public class MapCancelingITCase extends CancellingTestBase {
 	public void testMapPriorToFirstRecordReading() throws Exception {
 		GenericDataSource<InfiniteIntegerInputFormat> source = new GenericDataSource<InfiniteIntegerInputFormat>(
 																		new InfiniteIntegerInputFormat(), "Source");
-		MapContract mapper = MapContract.builder(StuckInOpenIdentityMapper.class)
+		MapOperator mapper = MapOperator.builder(StuckInOpenIdentityMapper.class)
 			.input(source)
 			.name("Stuck-In-Open Mapper")
 			.build();

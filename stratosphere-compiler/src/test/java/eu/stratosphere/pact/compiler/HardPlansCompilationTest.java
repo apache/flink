@@ -20,11 +20,11 @@ import org.junit.Test;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.pact.common.contract.CrossContract;
-import eu.stratosphere.pact.common.contract.MapContract;
-import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
-import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
+import eu.stratosphere.api.record.operators.CrossOperator;
+import eu.stratosphere.api.record.operators.MapOperator;
+import eu.stratosphere.api.record.operators.ReduceOperator;
+import eu.stratosphere.compiler.plan.OptimizedPlan;
+import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.pact.compiler.util.DummyCrossStub;
 import eu.stratosphere.pact.compiler.util.DummyInputFormat;
 import eu.stratosphere.pact.compiler.util.DummyOutputFormat;
@@ -53,17 +53,17 @@ public class HardPlansCompilationTest extends CompilerTestBase
 		// construct the plan
 		FileDataSource source = new FileDataSource(new DummyInputFormat(), IN_FILE, "Source");
 		
-		MapContract map = MapContract.builder(new IdentityMap()).name("Map1").input(source).build();
+		MapOperator map = MapOperator.builder(new IdentityMap()).name("Map1").input(source).build();
 		
-		ReduceContract reduce1 = ReduceContract.builder(new IdentityReduce(), PactInteger.class, 0).name("Reduce1").input(map).build();
+		ReduceOperator reduce1 = ReduceOperator.builder(new IdentityReduce(), PactInteger.class, 0).name("Reduce1").input(map).build();
 		
-		CrossContract cross1 = CrossContract.builder(new DummyCrossStub()).name("Cross1").input1(reduce1).input2(source).build();
+		CrossOperator cross1 = CrossOperator.builder(new DummyCrossStub()).name("Cross1").input1(reduce1).input2(source).build();
 		
-		ReduceContract reduce2 = ReduceContract.builder(new IdentityReduce(), PactInteger.class, 0).name("Reduce2").input(cross1).build();
+		ReduceOperator reduce2 = ReduceOperator.builder(new IdentityReduce(), PactInteger.class, 0).name("Reduce2").input(cross1).build();
 		
-		CrossContract cross2 = CrossContract.builder(new DummyCrossStub()).name("Cross2").input1(reduce2).input2(source).build();
+		CrossOperator cross2 = CrossOperator.builder(new DummyCrossStub()).name("Cross2").input1(reduce2).input2(source).build();
 		
-		ReduceContract reduce3 = ReduceContract.builder(new IdentityReduce(), PactInteger.class, 0).name("Reduce3").input(cross2).build();
+		ReduceOperator reduce3 = ReduceOperator.builder(new IdentityReduce(), PactInteger.class, 0).name("Reduce3").input(cross2).build();
 		
 		FileDataSink sink = new FileDataSink(new DummyOutputFormat(), OUT_FILE, "Sink");
 		sink.setInput(reduce3);

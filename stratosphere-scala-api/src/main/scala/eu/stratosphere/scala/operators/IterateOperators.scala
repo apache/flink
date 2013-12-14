@@ -17,10 +17,10 @@ import language.experimental.macros
 import scala.reflect.macros.Context
 import eu.stratosphere.scala.codegen.MacroContextHolder
 import eu.stratosphere.scala.ScalaContract
-import eu.stratosphere.pact.common.contract.MapContract
+import eu.stratosphere.api.record.operators.MapOperator
 import eu.stratosphere.scala.analysis.UDT
 import eu.stratosphere.types.PactRecord
-import eu.stratosphere.pact.common.stubs.MapStub
+import eu.stratosphere.api.record.functions.MapStub
 import eu.stratosphere.util.Collector
 import eu.stratosphere.api.operators.Contract
 import eu.stratosphere.scala.contracts.Annotations

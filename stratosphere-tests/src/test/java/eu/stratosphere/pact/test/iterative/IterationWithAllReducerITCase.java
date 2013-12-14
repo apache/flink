@@ -28,12 +28,12 @@ import eu.stratosphere.api.operators.BulkIteration;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.api.record.functions.ReduceStub;
+import eu.stratosphere.api.record.io.CsvOutputFormat;
+import eu.stratosphere.api.record.io.TextInputFormat;
+import eu.stratosphere.api.record.operators.ReduceOperator;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.common.io.RecordOutputFormat;
-import eu.stratosphere.pact.common.io.TextInputFormat;
-import eu.stratosphere.pact.common.stubs.ReduceStub;
-import eu.stratosphere.pact.test.util.TestBase2;
+import eu.stratosphere.test.util.TestBase2;
 import eu.stratosphere.types.PactRecord;
 import eu.stratosphere.types.PactString;
 import eu.stratosphere.util.Collector;
@@ -86,15 +86,15 @@ public class IterationWithAllReducerITCase extends TestBase2 {
 		iteration.setMaximumNumberOfIterations(2);
 		Assert.assertTrue(iteration.getMaximumNumberOfIterations() > 1);
 
-		ReduceContract sumReduce = ReduceContract.builder(new SumReducer())
+		ReduceOperator sumReduce = ReduceOperator.builder(new SumReducer())
 				.input(iteration.getPartialSolution())
 				.name("Compute sum (Reduce)")
 				.build();
 		
 		iteration.setNextPartialSolution(sumReduce);
 
-		FileDataSink finalResult = new FileDataSink(RecordOutputFormat.class, output, iteration, "Output");
-		RecordOutputFormat.configureRecordFormat(finalResult)
+		FileDataSink finalResult = new FileDataSink(CsvOutputFormat.class, output, iteration, "Output");
+		CsvOutputFormat.configureRecordFormat(finalResult)
     		.recordDelimiter('\n')
     		.fieldDelimiter(' ')
     		.field(PactString.class, 0);

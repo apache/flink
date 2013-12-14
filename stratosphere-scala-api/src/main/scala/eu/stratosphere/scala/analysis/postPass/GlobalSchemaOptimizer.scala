@@ -16,8 +16,8 @@ package eu.stratosphere.scala.analysis.postPass
 import scala.collection.JavaConversions.asScalaBuffer
 import scala.collection.JavaConversions.collectionAsScalaIterable
 
-import eu.stratosphere.pact.compiler.plan.OptimizerNode
-import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan
+import eu.stratosphere.compiler.dag.OptimizerNode
+import eu.stratosphere.compiler.plan.OptimizedPlan
 import eu.stratosphere.scala.ScalaContract
 
 trait GlobalSchemaOptimizer {

@@ -13,7 +13,7 @@ package eu.stratosphere.scala.examples.graph;
  */
 
 
-import eu.stratosphere.pact.client.LocalExecutor
+import eu.stratosphere.client.LocalExecutor
 import eu.stratosphere.api.plan.PlanAssembler
 import eu.stratosphere.api.plan.PlanAssemblerDescription
 import eu.stratosphere.scala.analysis.GlobalSchemaPrinter

@@ -25,13 +25,13 @@ import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.plan.Plan;
 import eu.stratosphere.api.plan.PlanAssembler;
 import eu.stratosphere.api.plan.PlanAssemblerDescription;
-import eu.stratosphere.pact.common.contract.MapContract;
-import eu.stratosphere.pact.common.contract.MatchContract;
-import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.common.io.FileOutputFormat;
-import eu.stratosphere.pact.common.stubs.MapStub;
-import eu.stratosphere.pact.common.stubs.MatchStub;
-import eu.stratosphere.pact.common.stubs.ReduceStub;
+import eu.stratosphere.api.record.functions.MapStub;
+import eu.stratosphere.api.record.functions.MatchStub;
+import eu.stratosphere.api.record.functions.ReduceStub;
+import eu.stratosphere.api.record.io.FileOutputFormat;
+import eu.stratosphere.api.record.operators.MapOperator;
+import eu.stratosphere.api.record.operators.JoinOperator;
+import eu.stratosphere.api.record.operators.ReduceOperator;
 import eu.stratosphere.pact.test.testPrograms.util.IntTupleDataInFormat;
 import eu.stratosphere.pact.test.testPrograms.util.Tuple;
 import eu.stratosphere.types.PactDouble;
@@ -199,7 +199,7 @@ public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription
 		}
 	}
 	
-	@ReduceContract.Combinable
+	@ReduceOperator.Combinable
 	public static class Sum extends ReduceStub
 	{
 		private final PactDouble d = new PactDouble();
@@ -311,35 +311,35 @@ public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription
 		FileDataSource nations = new FileDataSource(new IntTupleDataInFormat(), nationsPath, "Nations");
 
 
-		MapContract mapO = MapContract.builder(FilterO.class)
+		MapOperator mapO = MapOperator.builder(FilterO.class)
 			.name("FilterO")
 			.build();
 
-		MapContract mapLi = MapContract.builder(FilterLI.class)
+		MapOperator mapLi = MapOperator.builder(FilterLI.class)
 			.name("FilterLi")
 			.build();
 
-		MapContract projectC = MapContract.builder(ProjectC.class)
+		MapOperator projectC = MapOperator.builder(ProjectC.class)
 			.name("ProjectC")
 			.build();
 
-		MapContract projectN = MapContract.builder(ProjectN.class)
+		MapOperator projectN = MapOperator.builder(ProjectN.class)
 			.name("ProjectN")
 			.build();
 
-		MatchContract joinOL = MatchContract.builder(JoinOL.class, PactInteger.class, 0, 0)
+		JoinOperator joinOL = JoinOperator.builder(JoinOL.class, PactInteger.class, 0, 0)
 			.name("JoinOL")
 			.build();
 
-		MatchContract joinCOL = MatchContract.builder(JoinCOL.class, PactInteger.class, 0, 0)
+		JoinOperator joinCOL = JoinOperator.builder(JoinCOL.class, PactInteger.class, 0, 0)
 			.name("JoinCOL")
 			.build();
 
-		MatchContract joinNCOL = MatchContract.builder(JoinNCOL.class, PactInteger.class, 4, 0)
+		JoinOperator joinNCOL = JoinOperator.builder(JoinNCOL.class, PactInteger.class, 4, 0)
 			.name("JoinNCOL")
 			.build();
 
-		ReduceContract reduce = ReduceContract.builder(Sum.class)
+		ReduceOperator reduce = ReduceOperator.builder(Sum.class)
 			.keyField(PactInteger.class, 0) 
 			.keyField(PactString.class, 1)
 			.keyField(PactString.class, 3)

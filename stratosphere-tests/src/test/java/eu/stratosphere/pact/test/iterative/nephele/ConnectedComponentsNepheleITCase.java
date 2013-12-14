@@ -17,20 +17,20 @@ package eu.stratosphere.pact.test.iterative.nephele;
 
 import eu.stratosphere.api.functions.aggregators.LongSumAggregator;
 import eu.stratosphere.api.operators.util.UserCodeClassWrapper;
+import eu.stratosphere.api.record.functions.MapStub;
+import eu.stratosphere.api.record.io.CsvInputFormat;
+import eu.stratosphere.api.record.io.CsvOutputFormat;
+import eu.stratosphere.api.record.io.FileOutputFormat;
 import eu.stratosphere.api.typeutils.TypeComparatorFactory;
 import eu.stratosphere.api.typeutils.TypePairComparatorFactory;
 import eu.stratosphere.api.typeutils.TypeSerializerFactory;
 import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.example.record.connectedcomponents.WorksetConnectedComponents.MinimumComponentIDReduce;
+import eu.stratosphere.example.record.connectedcomponents.WorksetConnectedComponents.NeighborWithComponentIDJoin;
+import eu.stratosphere.example.record.connectedcomponents.WorksetConnectedComponents.UpdateComponentIdMatch;
 import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.jobgraph.*;
-import eu.stratosphere.pact.common.io.FileOutputFormat;
-import eu.stratosphere.pact.common.io.RecordInputFormat;
-import eu.stratosphere.pact.common.io.RecordOutputFormat;
-import eu.stratosphere.pact.common.stubs.MapStub;
-import eu.stratosphere.pact.example.connectedcomponents.WorksetConnectedComponents.MinimumComponentIDReduce;
-import eu.stratosphere.pact.example.connectedcomponents.WorksetConnectedComponents.NeighborWithComponentIDJoin;
-import eu.stratosphere.pact.example.connectedcomponents.WorksetConnectedComponents.UpdateComponentIdMatch;
 import eu.stratosphere.pact.runtime.iterative.convergence.WorksetEmptyConvergenceCriterion;
 import eu.stratosphere.pact.runtime.iterative.task.IterationHeadPactTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationIntermediatePactTask;
@@ -47,7 +47,7 @@ import eu.stratosphere.pact.runtime.task.ReduceDriver;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedMapDriver;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
-import eu.stratosphere.pact.test.util.TestBase2;
+import eu.stratosphere.test.util.TestBase2;
 import eu.stratosphere.types.PactLong;
 import eu.stratosphere.types.PactRecord;
 import eu.stratosphere.util.Collector;
@@ -237,7 +237,7 @@ public class ConnectedComponentsNepheleITCase extends TestBase2 {
                                                       TypeSerializerFactory<?> serializer,
                                                       TypeComparatorFactory<?> comparator) {
         @SuppressWarnings("unchecked")
-        RecordInputFormat verticesInFormat = new RecordInputFormat(' ', PactLong.class);
+        CsvInputFormat verticesInFormat = new CsvInputFormat(' ', PactLong.class);
         JobInputVertex verticesInput = JobGraphUtils.createInput(verticesInFormat, verticesPath, "VerticesInput",
                 jobGraph, numSubTasks, numSubTasks);
         TaskConfig verticesInputConfig = new TaskConfig(verticesInput.getConfiguration());
@@ -269,7 +269,7 @@ public class ConnectedComponentsNepheleITCase extends TestBase2 {
                                                    TypeComparatorFactory<?> comparator) {
         // edges
         @SuppressWarnings("unchecked")
-        RecordInputFormat edgesInFormat = new RecordInputFormat(' ', PactLong.class, PactLong.class);
+        CsvInputFormat edgesInFormat = new CsvInputFormat(' ', PactLong.class, PactLong.class);
         JobInputVertex edgesInput = JobGraphUtils.createInput(edgesInFormat, edgesPath, "EdgesInput", jobGraph,
                 numSubTasks, numSubTasks);
         TaskConfig edgesInputConfig = new TaskConfig(edgesInput.getConfiguration());
@@ -398,17 +398,17 @@ public class ConnectedComponentsNepheleITCase extends TestBase2 {
             outputConfig.addInputToGroup(0);
             outputConfig.setInputSerializer(serializer, 0);
 
-            outputConfig.setStubWrapper(new UserCodeClassWrapper<RecordOutputFormat>(RecordOutputFormat.class));
+            outputConfig.setStubWrapper(new UserCodeClassWrapper<CsvOutputFormat>(CsvOutputFormat.class));
             outputConfig.setStubParameter(FileOutputFormat.FILE_PARAMETER_KEY, resultPath);
 
             Configuration outputUserConfig = outputConfig.getStubParameters();
-            outputUserConfig.setString(RecordOutputFormat.RECORD_DELIMITER_PARAMETER, "\n");
-            outputUserConfig.setString(RecordOutputFormat.FIELD_DELIMITER_PARAMETER, " ");
-            outputUserConfig.setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactLong.class);
-            outputUserConfig.setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 0, 0);
-            outputUserConfig.setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, PactLong.class);
-            outputUserConfig.setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 1, 1);
-            outputUserConfig.setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 2);
+            outputUserConfig.setString(CsvOutputFormat.RECORD_DELIMITER_PARAMETER, "\n");
+            outputUserConfig.setString(CsvOutputFormat.FIELD_DELIMITER_PARAMETER, " ");
+            outputUserConfig.setClass(CsvOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactLong.class);
+            outputUserConfig.setInteger(CsvOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 0, 0);
+            outputUserConfig.setClass(CsvOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, PactLong.class);
+            outputUserConfig.setInteger(CsvOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 1, 1);
+            outputUserConfig.setInteger(CsvOutputFormat.NUM_FIELDS_PARAMETER, 2);
         }
 
         return output;

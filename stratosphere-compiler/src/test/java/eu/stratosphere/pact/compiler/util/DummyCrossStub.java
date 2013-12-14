@@ -17,7 +17,7 @@ package eu.stratosphere.pact.compiler.util;
 
 import java.io.Serializable;
 
-import eu.stratosphere.pact.common.stubs.CrossStub;
+import eu.stratosphere.api.record.functions.CrossStub;
 import eu.stratosphere.types.PactRecord;
 import eu.stratosphere.util.Collector;
 
@@ -25,7 +25,7 @@ public class DummyCrossStub extends CrossStub implements Serializable {
 	private static final long serialVersionUID = 1L;
 
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.stubs.CrossStub#cross(eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.stubs.Collector)
+	 * @see eu.stratosphere.api.record.functions.CrossStub#cross(eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.api.record.functions.Collector)
 	 */
 	@Override
 	public void cross(PactRecord record1, PactRecord record2, Collector<PactRecord> out) {

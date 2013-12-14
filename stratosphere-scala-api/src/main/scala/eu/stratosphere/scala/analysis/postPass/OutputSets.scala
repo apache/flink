@@ -18,8 +18,8 @@ import scala.collection.JavaConversions._
 import eu.stratosphere.scala.analysis._
 import eu.stratosphere.scala.contracts._
 
-import eu.stratosphere.pact.compiler.plan._
-import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan
+import eu.stratosphere.compiler.dag._
+import eu.stratosphere.compiler.plan.OptimizedPlan
 
 object OutputSets {
 

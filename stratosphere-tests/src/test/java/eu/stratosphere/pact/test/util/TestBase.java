@@ -48,6 +48,7 @@ import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.pact.test.util.filesystem.FilesystemProvider;
 import eu.stratosphere.pact.test.util.minicluster.ClusterProvider;
 import eu.stratosphere.pact.test.util.minicluster.ClusterProviderPool;
+import eu.stratosphere.test.util.TestBase2;
 import eu.stratosphere.util.LogUtils;
 
 

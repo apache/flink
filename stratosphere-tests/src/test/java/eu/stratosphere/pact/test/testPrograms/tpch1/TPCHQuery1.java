@@ -22,8 +22,8 @@ import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.plan.Plan;
 import eu.stratosphere.api.plan.PlanAssembler;
 import eu.stratosphere.api.plan.PlanAssemblerDescription;
-import eu.stratosphere.pact.common.contract.MapContract;
-import eu.stratosphere.pact.common.contract.ReduceContract;
+import eu.stratosphere.api.record.operators.MapOperator;
+import eu.stratosphere.api.record.operators.ReduceOperator;
 import eu.stratosphere.pact.test.testPrograms.util.IntTupleDataInFormat;
 import eu.stratosphere.pact.test.testPrograms.util.StringTupleDataOutFormat;
 import eu.stratosphere.types.PactString;
@@ -68,14 +68,14 @@ public class TPCHQuery1 implements PlanAssembler, PlanAssemblerDescription {
 			new FileDataSink(new StringTupleDataOutFormat(), this.outputPath, "Output");
 		result.setDegreeOfParallelism(this.degreeOfParallelism);
 		
-		MapContract lineItemFilter = 
-			MapContract.builder(new LineItemFilter())
+		MapOperator lineItemFilter = 
+			MapOperator.builder(new LineItemFilter())
 			.name("LineItem Filter")
 			.build();
 		lineItemFilter.setDegreeOfParallelism(this.degreeOfParallelism);
 		
-		ReduceContract groupByReturnFlag = 
-			ReduceContract.builder(new GroupByReturnFlag(), PactString.class, 0)
+		ReduceOperator groupByReturnFlag = 
+			ReduceOperator.builder(new GroupByReturnFlag(), PactString.class, 0)
 			.name("groupyBy")
 			.build();
 		

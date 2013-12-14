@@ -23,12 +23,13 @@ import org.junit.Test;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.pact.common.contract.CrossContract;
-import eu.stratosphere.pact.common.contract.CrossWithLargeContract;
-import eu.stratosphere.pact.common.contract.CrossWithSmallContract;
-import eu.stratosphere.pact.compiler.plan.candidate.Channel;
-import eu.stratosphere.pact.compiler.plan.candidate.DualInputPlanNode;
-import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
+import eu.stratosphere.api.record.operators.CrossOperator;
+import eu.stratosphere.api.record.operators.CrossWithLargeOperator;
+import eu.stratosphere.api.record.operators.CrossWithSmallOperator;
+import eu.stratosphere.compiler.CompilerException;
+import eu.stratosphere.compiler.plan.Channel;
+import eu.stratosphere.compiler.plan.DualInputPlanNode;
+import eu.stratosphere.compiler.plan.OptimizedPlan;
 import eu.stratosphere.pact.compiler.util.DummyCrossStub;
 import eu.stratosphere.pact.compiler.util.DummyInputFormat;
 import eu.stratosphere.pact.compiler.util.DummyOutputFormat;
@@ -47,7 +48,7 @@ public class AdditionalOperatorsTest extends CompilerTestBase {
 		FileDataSource source1 = new FileDataSource(new DummyInputFormat(), IN_FILE, "Source 1");
 		FileDataSource source2 = new FileDataSource(new DummyInputFormat(), IN_FILE, "Source 2");
 		
-		CrossContract cross = CrossWithSmallContract.builder(new DummyCrossStub())
+		CrossOperator cross = CrossWithSmallOperator.builder(new DummyCrossStub())
 				.input1(source1).input2(source2)
 				.name("Cross").build();
 	
@@ -79,7 +80,7 @@ public class AdditionalOperatorsTest extends CompilerTestBase {
 		FileDataSource source1 = new FileDataSource(new DummyInputFormat(), IN_FILE, "Source 1");
 		FileDataSource source2 = new FileDataSource(new DummyInputFormat(), IN_FILE, "Source 2");
 		
-		CrossContract cross= CrossWithLargeContract.builder(new DummyCrossStub())
+		CrossOperator cross= CrossWithLargeOperator.builder(new DummyCrossStub())
 				.input1(source1).input2(source2)
 				.name("Cross").build();
 	

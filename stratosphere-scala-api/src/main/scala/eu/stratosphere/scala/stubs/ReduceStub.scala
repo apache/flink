@@ -16,7 +16,7 @@ package eu.stratosphere.scala.stubs
 import java.util.{ Iterator => JIterator }
 
 import eu.stratosphere.scala.analysis.{UDTSerializer, UDF1, FieldSelector, UDT}
-import eu.stratosphere.pact.common.stubs.{ReduceStub => JReduceStub}
+import eu.stratosphere.api.record.functions.{ReduceStub => JReduceStub}
 import eu.stratosphere.types.PactRecord
 import eu.stratosphere.util.Collector
 import scala.Iterator

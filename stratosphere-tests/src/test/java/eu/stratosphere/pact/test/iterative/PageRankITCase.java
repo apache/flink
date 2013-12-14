@@ -23,8 +23,8 @@ import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.api.plan.Plan;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.pact.example.pagerank.SimplePageRank;
-import eu.stratosphere.pact.test.util.TestBase2;
+import eu.stratosphere.example.record.pagerank.SimplePageRank;
+import eu.stratosphere.test.util.TestBase2;
 
 @RunWith(Parameterized.class)
 public class PageRankITCase extends TestBase2 {

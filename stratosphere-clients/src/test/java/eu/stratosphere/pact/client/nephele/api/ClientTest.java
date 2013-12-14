@@ -32,17 +32,22 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.client.program.Client;
+import eu.stratosphere.client.program.ErrorInPlanAssemblerException;
+import eu.stratosphere.client.program.PackagedProgram;
+import eu.stratosphere.client.program.PlanWithJars;
+import eu.stratosphere.client.program.ProgramInvocationException;
+import eu.stratosphere.compiler.DataStatistics;
+import eu.stratosphere.compiler.PactCompiler;
+import eu.stratosphere.compiler.costs.CostEstimator;
+import eu.stratosphere.compiler.plan.OptimizedPlan;
+import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.client.AbstractJobResult.ReturnCode;
 import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.client.JobSubmissionResult;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.pact.compiler.DataStatistics;
-import eu.stratosphere.pact.compiler.PactCompiler;
-import eu.stratosphere.pact.compiler.costs.CostEstimator;
-import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
-import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
 
 
 
@@ -60,7 +65,7 @@ public class ClientTest {
 	Configuration configMock;
 
 	@Mock
-	PactProgram program;
+	PackagedProgram program;
 	@Mock
 	PlanWithJars planWithJarsMock;
 	@Mock

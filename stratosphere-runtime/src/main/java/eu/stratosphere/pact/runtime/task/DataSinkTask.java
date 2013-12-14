@@ -173,11 +173,11 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 
 			// work!
 			// special case the pact record / file variant
-			if (record.getClass() == PactRecord.class && format instanceof eu.stratosphere.pact.common.io.FileOutputFormat) {
+			if (record.getClass() == PactRecord.class && format instanceof eu.stratosphere.api.record.io.FileOutputFormat) {
 				@SuppressWarnings("unchecked")
 				final MutableObjectIterator<PactRecord> pi = (MutableObjectIterator<PactRecord>) input;
 				final PactRecord pr = (PactRecord) record;
-				final eu.stratosphere.pact.common.io.FileOutputFormat pf = (eu.stratosphere.pact.common.io.FileOutputFormat) format;
+				final eu.stratosphere.api.record.io.FileOutputFormat pf = (eu.stratosphere.api.record.io.FileOutputFormat) format;
 				while (!this.taskCanceled && pi.next(pr)) {
 					pf.writeRecord(pr);
 				}

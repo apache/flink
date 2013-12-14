@@ -3,7 +3,7 @@
 package eu.stratosphere.scala.examples.grabbag
 
 import scala.Array.canBuildFrom
-import eu.stratosphere.pact.client.LocalExecutor
+import eu.stratosphere.client.LocalExecutor
 import eu.stratosphere.types.PactInteger
 import eu.stratosphere.types.PactString
 

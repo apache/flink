@@ -22,4 +22,306 @@
 		</dependency>
 	</dependencies>
 
+	<build>
+		<plugins>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<version>2.4</version>
+				<executions>
+
+					<!-- Connected Components -->
+					<execution>
+						<id>ConnectedComponents</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+						<configuration>
+							<classifier>ConnectedComponents</classifier>
+
+							<archive>
+								<manifestEntries>
+									<Pact-Assembler-Class>eu.stratosphere.example.record.connectedcomponents.WorksetConnectedComponents</Pact-Assembler-Class>
+								</manifestEntries>
+							</archive>
+
+							<includes>
+								<include>**/connectedcomponents/*.class</include>
+							</includes>
+						</configuration>
+					</execution>
+		
+					<!-- DanglingPageRank -->
+					<execution>
+						<id>DanglingPageRank</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+						<configuration>
+							<classifier>DanglingPageRank</classifier>
+
+							<archive>
+								<manifestEntries>
+									<Pact-Assembler-Class>eu.stratosphere.example.record.pagerank.DanglingPageRank</Pact-Assembler-Class>
+								</manifestEntries>
+							</archive>
+
+							<includes>
+								<include>**/pagerank/*.class</include>
+								<include>**/util/ConfigUtils.class</include>
+							</includes>
+						</configuration>
+					</execution>
+
+					<!-- KMeansSingleStep -->
+					<execution>
+						<id>KMeansSingleStep</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+
+						<configuration>
+							<classifier>KMeansSingleStep</classifier>
+
+							<archive>
+								<manifestEntries>
+									<Pact-Assembler-Class>eu.stratosphere.example.record.kmeans.KMeansSingleStep</Pact-Assembler-Class>
+								</manifestEntries>
+							</archive>
+
+							<includes>
+								<include>**/kmeans/KMeansSingleStep.class</include>
+								<include>**/kmeans/KMeansSingleStep$*.class</include>
+								<include>**/kmeans/udfs/*.class</include>
+							</includes>
+						</configuration>
+					</execution>
+					
+					<!-- KMeansIterative -->
+					<execution>
+						<id>KMeansIterative</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+
+						<configuration>
+							<classifier>KMeansIterative</classifier>
+
+							<archive>
+								<manifestEntries>
+									<Pact-Assembler-Class>eu.stratosphere.example.record.kmeans.KMeansIterative</Pact-Assembler-Class>
+								</manifestEntries>
+							</archive>
+
+							<includes>
+								<include>**/kmeans/KMeansIterative.class</include>
+								<include>**/kmeans/KMeansIterative$*.class</include>
+								<include>**/kmeans/udfs/*.class</include>
+							</includes>
+						</configuration>
+					</execution>
+
+					<!-- Pairwise Shortest Paths -->
+					<execution>
+						<id>PairwiseSP</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+						<configuration>
+							<classifier>PairwiseSP</classifier>
+
+							<archive>
+								<manifestEntries>
+									<Pact-Assembler-Class>eu.stratosphere.example.record.shortestpaths.PairwiseSP</Pact-Assembler-Class>
+								</manifestEntries>
+							</archive>
+
+							<includes>
+								<include>**/shortestpaths/PairwiseSP.class</include>
+								<include>**/shortestpaths/PairwiseSP$*.class</include>
+							</includes>
+						</configuration>
+					</execution>
+
+					<!-- EnumTriangles on pre-computed vertex degrees-->
+					<execution>
+						<id>EnumTrianglesOnEdgesWithDegrees</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+						<configuration>
+							<classifier>EnumTrianglesOnEdgesWithDegrees</classifier>
+
+							<archive>
+								<manifestEntries>
+									<Pact-Assembler-Class>eu.stratosphere.example.record.triangles.EnumTrianglesOnEdgesWithDegrees</Pact-Assembler-Class>
+								</manifestEntries>
+							</archive>
+
+							<includes>
+								<include>**/triangles/EnumTrianglesWithDegrees.class</include>
+								<include>**/triangles/EnumTrianglesWithDegrees$*.class</include>
+								<include>**/triangles/ComputeEdgeDegrees.class</include>
+								<include>**/triangles/ComputeEdgeDegrees$*.class</include>
+								<include>**/triangles/EnumTrianglesOnEdgesWithDegrees.class</include>
+								<include>**/triangles/EnumTrianglesOnEdgesWithDegrees$*.class</include>
+								<include>**/triangles/io/*.class</include>
+							</includes>
+						</configuration>
+					</execution>
+					
+					<!-- EnumTriangles including Degree Computation-->
+					<execution>
+						<id>EnumTrianglesWithDegrees</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+						<configuration>
+							<classifier>EnumTrianglesWithDegrees</classifier>
+
+							<archive>
+								<manifestEntries>
+									<Pact-Assembler-Class>eu.stratosphere.example.record.triangles.EnumTrianglesWithDegrees</Pact-Assembler-Class>
+								</manifestEntries>
+							</archive>
+
+							<includes>
+								<include>**/triangles/EnumTrianglesWithDegrees.class</include>
+								<include>**/triangles/EnumTrianglesWithDegrees$*.class</include>
+								<include>**/triangles/ComputeEdgeDegrees.class</include>
+								<include>**/triangles/ComputeEdgeDegrees$*.class</include>
+								<include>**/triangles/EnumTrianglesOnEdgesWithDegrees.class</include>
+								<include>**/triangles/EnumTrianglesOnEdgesWithDegrees$*.class</include>
+								<include>**/triangles/io/*.class</include>
+							</includes>
+						</configuration>
+					</execution>
+					
+					<!-- EnumTrianglesRdfFoaf-->
+					<execution>
+						<id>EnumTrianglesRdfFoaf</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+						<configuration>
+							<classifier>EnumTrianglesRdfFoaf</classifier>
+
+							<archive>
+								<manifestEntries>
+									<Pact-Assembler-Class>eu.stratosphere.example.record.triangles.EnumTrianglesRdfFoaf</Pact-Assembler-Class>
+								</manifestEntries>
+							</archive>
+
+							<includes>
+								<include>**/triangles/EnumTrianglesRdfFoaf.class</include>
+								<include>**/triangles/EnumTrianglesRdfFoaf$*.class</include>
+							</includes>
+						</configuration>
+					</execution>
+
+					<!-- TPCHQuery3 -->
+					<execution>
+						<id>TPCHQuery3</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+						<configuration>
+							<classifier>TPCHQuery3</classifier>
+
+							<archive>
+								<manifestEntries>
+									<Pact-Assembler-Class>eu.stratosphere.example.record.relational.TPCHQuery3</Pact-Assembler-Class>
+								</manifestEntries>
+							</archive>
+
+							<includes>
+								<include>**/relational/TPCHQuery3.class</include>
+								<include>**/relational/TPCHQuery3$*.class</include>
+							</includes>
+						</configuration>
+					</execution>
+
+					<!-- WebLogAnalysis -->
+					<execution>
+						<id>WebLogAnalysis</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+						<configuration>
+							<classifier>WebLogAnalysis</classifier>
+
+							<archive>
+								<manifestEntries>
+									<Pact-Assembler-Class>eu.stratosphere.example.record.relational.WebLogAnalysis</Pact-Assembler-Class>
+								</manifestEntries>
+							</archive>
+
+							<includes>
+								<include>**/relational/WebLogAnalysis.class</include>
+								<include>**/relational/WebLogAnalysis$*.class</include>
+							</includes>
+						</configuration>
+					</execution>
+
+					<!-- WordCount -->
+					<execution>
+						<id>WordCount</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+						<configuration>
+							<classifier>WordCount</classifier>
+
+							<archive>
+								<manifestEntries>
+									<Pact-Assembler-Class>eu.stratosphere.example.record.wordcount.WordCount</Pact-Assembler-Class>
+								</manifestEntries>
+							</archive>
+
+							<includes>
+								<include>**/wordcount/*.class</include>
+							</includes>
+						</configuration>
+					</execution>
+
+					<!-- TeraSort -->
+					<execution>
+						<id>TeraSort</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+						<configuration>
+							<classifier>TeraSort</classifier>
+
+							<archive>
+								<manifestEntries>
+									<Pact-Assembler-Class>eu.stratosphere.example.record.sort.TeraSort</Pact-Assembler-Class>
+								</manifestEntries>
+							</archive>
+
+							<includes>
+								<include>**/sort/TeraSort.class</include>
+								<include>**/sort/terasort/*.class</include>
+							</includes>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+		</plugins>
+	</build>
+
 </project>

@@ -76,6 +76,12 @@
 			<artifactId>stratosphere-record-examples</artifactId>
 			<version>${project.version}</version>
 		</dependency>
+
+		<dependency>
+			<groupId>eu.stratosphere</groupId>
+			<artifactId>swt-visualization</artifactId>
+			<version>${project.version}</version>
+		</dependency>
 	</dependencies>
 
 	<!-- See main pom.xml for explanation of profiles -->
@@ -103,7 +109,7 @@
 			<dependencies>
 				<dependency>
 					<groupId>eu.stratosphere</groupId>
-					<artifactId>stratosphere-yarn</artifactId>
+					<artifactId>yarn</artifactId>
 					<version>${project.version}</version>
 				</dependency>
 			</dependencies>
@@ -146,7 +152,7 @@
 			<dependencies>
 				<dependency>
 					<groupId>eu.stratosphere</groupId>
-					<artifactId>pact-hbase</artifactId>
+					<artifactId>hbase</artifactId>
 					<version>${project.version}</version>
 				</dependency>
 			</dependencies>

@@ -37,11 +37,6 @@ constructTaskManagerClassPath() {
         fi
     done
 
-    for jarfile in $NEPHELE_LIB_DIR/dropin/*.jar ; do
-        NEPHELE_TM_CLASSPATH=$NEPHELE_TM_CLASSPATH:$jarfile
-    done
-    NEPHELE_TM_CLASSPATH=$NEPHELE_TM_CLASSPATH:$NEPHELE_LIB_DIR/dropin/
-
     echo $NEPHELE_TM_CLASSPATH
 }
 

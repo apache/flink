@@ -29,6 +29,7 @@ import org.junit.Test;
 
 import eu.stratosphere.api.functions.AbstractStub;
 import eu.stratosphere.api.functions.GenericMatcher;
+import eu.stratosphere.api.record.functions.MatchStub;
 import eu.stratosphere.api.typeutils.TypeComparator;
 import eu.stratosphere.api.typeutils.TypePairComparator;
 import eu.stratosphere.api.typeutils.TypeSerializer;
@@ -36,7 +37,6 @@ import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparator;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordPairComparator;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordSerializer;

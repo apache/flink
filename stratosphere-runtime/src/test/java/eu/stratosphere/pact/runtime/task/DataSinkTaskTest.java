@@ -31,9 +31,9 @@ import org.apache.commons.logging.LogFactory;
 import org.junit.After;
 import org.junit.Test;
 
+import eu.stratosphere.api.record.io.DelimitedOutputFormat;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.fs.Path;
-import eu.stratosphere.pact.common.io.DelimitedOutputFormat;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparatorFactory;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.test.util.InfiniteInputIterator;

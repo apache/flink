@@ -26,18 +26,18 @@ import eu.stratosphere.api.operators.Order;
 import eu.stratosphere.api.operators.Ordering;
 import eu.stratosphere.api.operators.util.FieldList;
 import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.pact.common.contract.MapContract;
-import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.common.io.RecordOutputFormat;
-import eu.stratosphere.pact.common.io.TextInputFormat;
+import eu.stratosphere.api.record.io.CsvOutputFormat;
+import eu.stratosphere.api.record.io.TextInputFormat;
+import eu.stratosphere.api.record.operators.MapOperator;
+import eu.stratosphere.api.record.operators.ReduceOperator;
+import eu.stratosphere.compiler.plan.Channel;
+import eu.stratosphere.compiler.plan.OptimizedPlan;
+import eu.stratosphere.compiler.plan.SingleInputPlanNode;
+import eu.stratosphere.compiler.plan.SinkPlanNode;
+import eu.stratosphere.example.record.wordcount.WordCount;
+import eu.stratosphere.example.record.wordcount.WordCount.CountWords;
+import eu.stratosphere.example.record.wordcount.WordCount.TokenizeLine;
 import eu.stratosphere.pact.compiler.CompilerTestBase;
-import eu.stratosphere.pact.compiler.plan.candidate.Channel;
-import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
-import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
-import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
-import eu.stratosphere.pact.example.wordcount.WordCount;
-import eu.stratosphere.pact.example.wordcount.WordCount.CountWords;
-import eu.stratosphere.pact.example.wordcount.WordCount.TokenizeLine;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
@@ -114,16 +114,16 @@ public class WordCountCompilerTest extends CompilerTestBase {
 	private void checkWordCountWithSortedSink(boolean estimates) {
 		try {
 			FileDataSource sourceNode = new FileDataSource(new TextInputFormat(), IN_FILE, "Input Lines");
-			MapContract mapNode = MapContract.builder(new TokenizeLine())
+			MapOperator mapNode = MapOperator.builder(new TokenizeLine())
 				.input(sourceNode)
 				.name("Tokenize Lines")
 				.build();
-			ReduceContract reduceNode = ReduceContract.builder(new CountWords(), PactString.class, 0)
+			ReduceOperator reduceNode = ReduceOperator.builder(new CountWords(), PactString.class, 0)
 				.input(mapNode)
 				.name("Count Words")
 				.build();
-			FileDataSink out = new FileDataSink(new RecordOutputFormat(), OUT_FILE, reduceNode, "Word Counts");
-			RecordOutputFormat.configureRecordFormat(out)
+			FileDataSink out = new FileDataSink(new CsvOutputFormat(), OUT_FILE, reduceNode, "Word Counts");
+			CsvOutputFormat.configureRecordFormat(out)
 				.recordDelimiter('\n')
 				.fieldDelimiter(' ')
 				.lenient(true)

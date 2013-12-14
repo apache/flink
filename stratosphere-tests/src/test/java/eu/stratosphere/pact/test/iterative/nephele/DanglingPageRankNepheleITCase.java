@@ -24,7 +24,7 @@ import org.junit.runners.Parameterized.Parameters;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.pact.test.iterative.nephele.customdanglingpagerank.CustomCompensatableDanglingPageRank;
-import eu.stratosphere.pact.test.util.TestBase2;
+import eu.stratosphere.test.util.TestBase2;
 
 @RunWith(Parameterized.class)
 public class DanglingPageRankNepheleITCase extends TestBase2 {

@@ -14,10 +14,10 @@
 package eu.stratosphere.scala.operators
 
 import eu.stratosphere.scala.ScalaContract
-import eu.stratosphere.pact.common.contract.MapContract
+import eu.stratosphere.api.record.operators.MapOperator
 import eu.stratosphere.scala.analysis.UDT
 import eu.stratosphere.types.PactRecord
-import eu.stratosphere.pact.common.stubs.MapStub
+import eu.stratosphere.api.record.functions.MapStub
 import eu.stratosphere.util.Collector
 import eu.stratosphere.api.operators.Contract
 import eu.stratosphere.scala.contracts.Annotations
@@ -58,9 +58,9 @@ object CopyOperator {
       }
     }
 
-    val builder = MapContract.builder(generatedStub).input(source)
+    val builder = MapOperator.builder(generatedStub).input(source)
 
-    val ret = new MapContract(builder) with OneInputScalaContract[Nothing, Nothing] {
+    val ret = new MapOperator(builder) with OneInputScalaContract[Nothing, Nothing] {
       override def getUDF = generatedStub.udf.asInstanceOf[UDF1[Nothing, Nothing]]
       override def annotations = Seq(Annotations.getConstantFields(
         generatedStub.udf.getForwardIndexArrayFrom.zip(generatedStub.udf.getForwardIndexArrayTo)

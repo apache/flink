@@ -23,10 +23,10 @@ import Extractors.DataSourceNode
 import Extractors.JoinNode
 import Extractors.MapNode
 import Extractors.ReduceNode
-import eu.stratosphere.pact.compiler.plan.BinaryUnionNode
-import eu.stratosphere.pact.compiler.plan.OptimizerNode
-import eu.stratosphere.pact.compiler.plan.SinkJoiner
-import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan
+import eu.stratosphere.compiler.dag.BinaryUnionNode
+import eu.stratosphere.compiler.dag.OptimizerNode
+import eu.stratosphere.compiler.dag.SinkJoiner
+import eu.stratosphere.compiler.plan.OptimizedPlan
 import eu.stratosphere.scala.analysis.FieldSet
 import eu.stratosphere.scala.analysis.FieldSelector
 import eu.stratosphere.api.plan.Plan

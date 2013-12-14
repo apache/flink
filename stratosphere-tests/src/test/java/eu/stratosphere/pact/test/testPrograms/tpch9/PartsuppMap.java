@@ -15,7 +15,7 @@
 
 package eu.stratosphere.pact.test.testPrograms.tpch9;
 
-import eu.stratosphere.pact.common.stubs.MapStub;
+import eu.stratosphere.api.record.functions.MapStub;
 import eu.stratosphere.pact.test.testPrograms.util.Tuple;
 import eu.stratosphere.types.PactRecord;
 import eu.stratosphere.util.Collector;

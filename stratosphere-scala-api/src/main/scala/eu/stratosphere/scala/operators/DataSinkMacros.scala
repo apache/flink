@@ -27,9 +27,9 @@ import eu.stratosphere.scala.codegen.MacroContextHolder
 import eu.stratosphere.types.PactRecord
 import eu.stratosphere.api.io.{BinaryOutputFormat => JavaBinaryOutputFormat}
 import eu.stratosphere.api.io.{SequentialOutputFormat => JavaSequentialOutputFormat}
-import eu.stratosphere.pact.common.io.{DelimitedOutputFormat => JavaDelimitedOutputFormat}
-import eu.stratosphere.pact.common.io.{RecordOutputFormat => JavaRecordOutputFormat}
-import eu.stratosphere.pact.common.io.{FileOutputFormat => JavaFileOutputFormat}
+import eu.stratosphere.api.record.io.{DelimitedOutputFormat => JavaDelimitedOutputFormat}
+import eu.stratosphere.api.record.io.{CsvOutputFormat => JavaCsvOutputFormat}
+import eu.stratosphere.api.record.io.{FileOutputFormat => JavaFileOutputFormat}
 import eu.stratosphere.api.io.{OutputFormat => JavaOutputFormat}
 
 
@@ -302,24 +302,24 @@ object CsvOutputFormat {
     
     val pact4sFormat = reify {
       
-      new JavaRecordOutputFormat with ScalaOutputFormat[In] {
+      new JavaCsvOutputFormat with ScalaOutputFormat[In] {
         override def persistConfiguration(config: Configuration) {
 
           val fields = getUDF.inputFields.filter(_.isUsed)
 
-          config.setInteger(JavaRecordOutputFormat.NUM_FIELDS_PARAMETER, fields.length)
+          config.setInteger(JavaCsvOutputFormat.NUM_FIELDS_PARAMETER, fields.length)
 
           var index = 0
           fields foreach { field: InputField =>
             val tpe = getUDF.inputUDT.fieldTypes(field.localPos)
-            config.setClass(JavaRecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + index, tpe)
-            config.setInteger(JavaRecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + index, field.globalPos.getValue)
+            config.setClass(JavaCsvOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + index, tpe)
+            config.setInteger(JavaCsvOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + index, field.globalPos.getValue)
             index = index + 1
           }
 
-          recordDelimiter.splice map { config.setString(JavaRecordOutputFormat.RECORD_DELIMITER_PARAMETER, _) }
-          fieldDelimiter.splice map { config.setString(JavaRecordOutputFormat.FIELD_DELIMITER_PARAMETER, _) }
-          lenient.splice map { config.setBoolean(JavaRecordOutputFormat.LENIENT_PARSING, _) }
+          recordDelimiter.splice map { config.setString(JavaCsvOutputFormat.RECORD_DELIMITER_PARAMETER, _) }
+          fieldDelimiter.splice map { config.setString(JavaCsvOutputFormat.FIELD_DELIMITER_PARAMETER, _) }
+          lenient.splice map { config.setBoolean(JavaCsvOutputFormat.LENIENT_PARSING, _) }
         }
         
         val udt = c.Expr[UDT[In]](createUdtIn).splice

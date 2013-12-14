@@ -41,19 +41,19 @@ import eu.stratosphere.api.functions.StubAnnotation.ConstantFields;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.api.record.functions.MapStub;
+import eu.stratosphere.api.record.functions.ReduceStub;
+import eu.stratosphere.api.record.io.CsvOutputFormat;
+import eu.stratosphere.api.record.io.TextInputFormat;
+import eu.stratosphere.api.record.operators.MapOperator;
+import eu.stratosphere.api.record.operators.ReduceOperator;
+import eu.stratosphere.api.record.operators.ReduceOperator.Combinable;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.core.io.StringRecord;
 import eu.stratosphere.nephele.client.JobExecutionResult;
 import eu.stratosphere.nephele.util.SerializableHashSet;
-import eu.stratosphere.pact.common.contract.MapContract;
-import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
-import eu.stratosphere.pact.common.io.RecordOutputFormat;
-import eu.stratosphere.pact.common.io.TextInputFormat;
-import eu.stratosphere.pact.common.stubs.MapStub;
-import eu.stratosphere.pact.common.stubs.ReduceStub;
-import eu.stratosphere.pact.test.util.TestBase2;
+import eu.stratosphere.test.util.TestBase2;
 import eu.stratosphere.types.PactInteger;
 import eu.stratosphere.types.PactRecord;
 import eu.stratosphere.types.PactString;
@@ -131,16 +131,16 @@ public class AccumulatorITCase extends TestBase2 {
 		
 		FileDataSource source = new FileDataSource(new TextInputFormat(), input, "Input Lines");
 		source.setParameter(TextInputFormat.CHARSET_NAME, "ASCII");
-		MapContract mapper = MapContract.builder(new TokenizeLine())
+		MapOperator mapper = MapOperator.builder(new TokenizeLine())
 			.input(source)
 			.name("Tokenize Lines")
 			.build();
-		ReduceContract reducer = ReduceContract.builder(CountWords.class, PactString.class, 0)
+		ReduceOperator reducer = ReduceOperator.builder(CountWords.class, PactString.class, 0)
 			.input(mapper)
 			.name("Count Words")
 			.build();
-		FileDataSink out = new FileDataSink(new RecordOutputFormat(), output, reducer, "Word Counts");
-		RecordOutputFormat.configureRecordFormat(out)
+		FileDataSink out = new FileDataSink(new CsvOutputFormat(), output, reducer, "Word Counts");
+		CsvOutputFormat.configureRecordFormat(out)
 			.recordDelimiter('\n')
 			.fieldDelimiter(' ')
 			.field(PactString.class, 0)

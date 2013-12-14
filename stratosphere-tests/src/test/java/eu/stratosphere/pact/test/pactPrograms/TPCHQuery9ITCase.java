@@ -25,12 +25,12 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.compiler.DataStatistics;
+import eu.stratosphere.compiler.PactCompiler;
+import eu.stratosphere.compiler.plan.OptimizedPlan;
+import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.pact.compiler.DataStatistics;
-import eu.stratosphere.pact.compiler.PactCompiler;
-import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
-import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.pact.test.testPrograms.tpch9.TPCHQuery9;
 import eu.stratosphere.pact.test.util.TestBase;
 

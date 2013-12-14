@@ -24,20 +24,20 @@ import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.operators.util.FieldList;
 import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.pact.common.contract.CrossContract;
-import eu.stratosphere.pact.common.contract.ReduceContract;
+import eu.stratosphere.api.record.operators.CrossOperator;
+import eu.stratosphere.api.record.operators.ReduceOperator;
+import eu.stratosphere.compiler.plan.DualInputPlanNode;
+import eu.stratosphere.compiler.plan.OptimizedPlan;
+import eu.stratosphere.compiler.plan.PlanNode;
+import eu.stratosphere.compiler.plan.SingleInputPlanNode;
+import eu.stratosphere.compiler.plan.SinkPlanNode;
+import eu.stratosphere.example.record.kmeans.KMeansSingleStep;
+import eu.stratosphere.example.record.kmeans.udfs.ComputeDistance;
+import eu.stratosphere.example.record.kmeans.udfs.FindNearestCenter;
+import eu.stratosphere.example.record.kmeans.udfs.PointInFormat;
+import eu.stratosphere.example.record.kmeans.udfs.PointOutFormat;
+import eu.stratosphere.example.record.kmeans.udfs.RecomputeClusterCenter;
 import eu.stratosphere.pact.compiler.CompilerTestBase;
-import eu.stratosphere.pact.compiler.plan.candidate.DualInputPlanNode;
-import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
-import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
-import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
-import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
-import eu.stratosphere.pact.example.kmeans.KMeansSingleStep;
-import eu.stratosphere.pact.example.kmeans.udfs.ComputeDistance;
-import eu.stratosphere.pact.example.kmeans.udfs.FindNearestCenter;
-import eu.stratosphere.pact.example.kmeans.udfs.PointInFormat;
-import eu.stratosphere.pact.example.kmeans.udfs.PointOutFormat;
-import eu.stratosphere.pact.example.kmeans.udfs.RecomputeClusterCenter;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
@@ -167,21 +167,21 @@ public class KMeansStepCompilerTest extends CompilerTestBase {
 		Contract latestCenters = clusterPoints;
 
 		for (int i = 0; i < numSteps; i++) {
-			// create CrossContract for distance computation
-			CrossContract computeDistance = CrossContract.builder(new ComputeDistance())
+			// create CrossOperator for distance computation
+			CrossOperator computeDistance = CrossOperator.builder(new ComputeDistance())
 				.input1(dataPoints)
 				.input2(latestCenters)
 				.name(CROSS_NAME + i)
 				.build();
 	
-			// create ReduceContract for finding the nearest cluster centers
-			ReduceContract findNearestClusterCenters = ReduceContract.builder(new FindNearestCenter(), PactInteger.class, 0)
+			// create ReduceOperator for finding the nearest cluster centers
+			ReduceOperator findNearestClusterCenters = ReduceOperator.builder(new FindNearestCenter(), PactInteger.class, 0)
 				.input(computeDistance)
 				.name(NEAREST_CENTER_REDUCER + i)
 				.build();
 	
-			// create ReduceContract for computing new cluster positions
-			ReduceContract recomputeClusterCenter = ReduceContract.builder(new RecomputeClusterCenter(), PactInteger.class, 0)
+			// create ReduceOperator for computing new cluster positions
+			ReduceOperator recomputeClusterCenter = ReduceOperator.builder(new RecomputeClusterCenter(), PactInteger.class, 0)
 				.input(findNearestClusterCenters)
 				.name(RECOMPUTE_CENTERS_REDUCER + i)
 				.build();

@@ -28,12 +28,12 @@ import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.operators.Order;
 import eu.stratosphere.api.operators.Ordering;
 import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.api.record.functions.ReduceStub;
+import eu.stratosphere.api.record.io.CsvInputFormat;
+import eu.stratosphere.api.record.io.CsvOutputFormat;
+import eu.stratosphere.api.record.operators.ReduceOperator;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.common.io.RecordInputFormat;
-import eu.stratosphere.pact.common.io.RecordOutputFormat;
-import eu.stratosphere.pact.common.stubs.ReduceStub;
-import eu.stratosphere.pact.test.util.TestBase2;
+import eu.stratosphere.test.util.TestBase2;
 import eu.stratosphere.types.PactInteger;
 import eu.stratosphere.types.PactRecord;
 import eu.stratosphere.util.Collector;
@@ -77,18 +77,18 @@ public class GroupOrderReduceITCase extends TestBase2 {
 		int dop = this.config.getInteger("GroupOrderTest#NumSubtasks", 1);
 		
 		@SuppressWarnings("unchecked")
-		RecordInputFormat format = new RecordInputFormat(',', PactInteger.class, PactInteger.class);
+		CsvInputFormat format = new CsvInputFormat(',', PactInteger.class, PactInteger.class);
 		FileDataSource source = new FileDataSource(format, this.textPath, "Source");
 		
-		ReduceContract reducer = ReduceContract.builder(CheckingReducer.class)
+		ReduceOperator reducer = ReduceOperator.builder(CheckingReducer.class)
 			.keyField(PactInteger.class, 0)
 			.input(source)
 			.name("Ordered Reducer")
 			.build();
 		reducer.setGroupOrder(new Ordering(1, PactInteger.class, Order.ASCENDING));
 		
-		FileDataSink sink = new FileDataSink(RecordOutputFormat.class, this.resultPath, reducer, "Sink");
-		RecordOutputFormat.configureRecordFormat(sink)
+		FileDataSink sink = new FileDataSink(CsvOutputFormat.class, this.resultPath, reducer, "Sink");
+		CsvOutputFormat.configureRecordFormat(sink)
 			.recordDelimiter('\n')
 			.fieldDelimiter(',')
 			.field(PactInteger.class, 0)

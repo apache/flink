@@ -23,12 +23,12 @@ import org.junit.Test;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.compiler.plan.candidate.Channel;
-import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
-import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
-import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
-import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
+import eu.stratosphere.api.record.operators.ReduceOperator;
+import eu.stratosphere.compiler.plan.Channel;
+import eu.stratosphere.compiler.plan.OptimizedPlan;
+import eu.stratosphere.compiler.plan.PlanNode;
+import eu.stratosphere.compiler.plan.SingleInputPlanNode;
+import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.pact.compiler.util.DummyInputFormat;
 import eu.stratosphere.pact.compiler.util.DummyOutputFormat;
 import eu.stratosphere.pact.compiler.util.IdentityReduce;
@@ -47,14 +47,14 @@ public class UnionPropertyPropagationTest extends CompilerTestBase {
 		FileDataSource sourceA = new FileDataSource(new DummyInputFormat(), IN_FILE);
 		FileDataSource sourceB = new FileDataSource(new DummyInputFormat(), IN_FILE);
 		
-		ReduceContract redA = ReduceContract.builder(new IdentityReduce(), PactInteger.class, 0)
+		ReduceOperator redA = ReduceOperator.builder(new IdentityReduce(), PactInteger.class, 0)
 			.input(sourceA)
 			.build();
-		ReduceContract redB = ReduceContract.builder(new IdentityReduce(), PactInteger.class, 0)
+		ReduceOperator redB = ReduceOperator.builder(new IdentityReduce(), PactInteger.class, 0)
 			.input(sourceB)
 			.build();
 		
-		ReduceContract globalRed = ReduceContract.builder(new IdentityReduce(), PactInteger.class, 0).build();
+		ReduceOperator globalRed = ReduceOperator.builder(new IdentityReduce(), PactInteger.class, 0).build();
 		globalRed.addInput(redA);
 		globalRed.addInput(redB);
 		
@@ -74,7 +74,7 @@ public class UnionPropertyPropagationTest extends CompilerTestBase {
 			
 			@Override
 			public boolean preVisit(PlanNode visitable) {
-				if (visitable instanceof SingleInputPlanNode && visitable.getPactContract() instanceof ReduceContract) {
+				if (visitable instanceof SingleInputPlanNode && visitable.getPactContract() instanceof ReduceOperator) {
 					for (Iterator<Channel> inputs = visitable.getInputs(); inputs.hasNext();) {
 						final Channel inConn = inputs.next();
 						Assert.assertTrue("Reduce should just forward the input if it is already partitioned",

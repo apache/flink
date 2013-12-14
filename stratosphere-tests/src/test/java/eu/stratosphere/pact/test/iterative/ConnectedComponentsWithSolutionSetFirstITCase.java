@@ -28,17 +28,17 @@ import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.operators.WorksetIteration;
 import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.api.record.functions.MatchStub;
+import eu.stratosphere.api.record.io.CsvOutputFormat;
+import eu.stratosphere.api.record.operators.JoinOperator;
+import eu.stratosphere.api.record.operators.ReduceOperator;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.pact.common.contract.MatchContract;
-import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.common.io.RecordOutputFormat;
-import eu.stratosphere.pact.common.stubs.MatchStub;
-import eu.stratosphere.pact.example.connectedcomponents.DuplicateLongInputFormat;
-import eu.stratosphere.pact.example.connectedcomponents.LongLongInputFormat;
-import eu.stratosphere.pact.example.connectedcomponents.WorksetConnectedComponents.MinimumComponentIDReduce;
-import eu.stratosphere.pact.example.connectedcomponents.WorksetConnectedComponents.NeighborWithComponentIDJoin;
+import eu.stratosphere.example.record.connectedcomponents.DuplicateLongInputFormat;
+import eu.stratosphere.example.record.connectedcomponents.LongLongInputFormat;
+import eu.stratosphere.example.record.connectedcomponents.WorksetConnectedComponents.MinimumComponentIDReduce;
+import eu.stratosphere.example.record.connectedcomponents.WorksetConnectedComponents.NeighborWithComponentIDJoin;
 import eu.stratosphere.pact.test.iterative.nephele.ConnectedComponentsNepheleITCase;
-import eu.stratosphere.pact.test.util.TestBase2;
+import eu.stratosphere.test.util.TestBase2;
 import eu.stratosphere.types.PactLong;
 import eu.stratosphere.types.PactRecord;
 import eu.stratosphere.util.Collector;
@@ -127,21 +127,21 @@ public class ConnectedComponentsWithSolutionSetFirstITCase extends TestBase2 {
 		// create DataSourceContract for the edges
 		FileDataSource edges = new FileDataSource(new LongLongInputFormat(), edgeInput, "Edges");
 
-		// create CrossContract for distance computation
-		MatchContract joinWithNeighbors = MatchContract.builder(new NeighborWithComponentIDJoin(), PactLong.class, 0, 0)
+		// create CrossOperator for distance computation
+		JoinOperator joinWithNeighbors = JoinOperator.builder(new NeighborWithComponentIDJoin(), PactLong.class, 0, 0)
 				.input1(iteration.getWorkset())
 				.input2(edges)
 				.name("Join Candidate Id With Neighbor")
 				.build();
 
-		// create ReduceContract for finding the nearest cluster centers
-		ReduceContract minCandidateId = ReduceContract.builder(new MinimumComponentIDReduce(), PactLong.class, 0)
+		// create ReduceOperator for finding the nearest cluster centers
+		ReduceOperator minCandidateId = ReduceOperator.builder(new MinimumComponentIDReduce(), PactLong.class, 0)
 				.input(joinWithNeighbors)
 				.name("Find Minimum Candidate Id")
 				.build();
 		
-		// create CrossContract for distance computation
-		MatchContract updateComponentId = MatchContract.builder(new UpdateComponentIdMatchMirrored(), PactLong.class, 0, 0)
+		// create CrossOperator for distance computation
+		JoinOperator updateComponentId = JoinOperator.builder(new UpdateComponentIdMatchMirrored(), PactLong.class, 0, 0)
 				.input1(iteration.getSolutionSet())
 				.input2(minCandidateId)
 				.name("Update Component Id")
@@ -151,8 +151,8 @@ public class ConnectedComponentsWithSolutionSetFirstITCase extends TestBase2 {
 		iteration.setSolutionSetDelta(updateComponentId);
 
 		// create DataSinkContract for writing the new cluster positions
-		FileDataSink result = new FileDataSink(new RecordOutputFormat(), output, iteration, "Result");
-		RecordOutputFormat.configureRecordFormat(result)
+		FileDataSink result = new FileDataSink(new CsvOutputFormat(), output, iteration, "Result");
+		CsvOutputFormat.configureRecordFormat(result)
 			.recordDelimiter('\n')
 			.fieldDelimiter(' ')
 			.field(PactLong.class, 0)

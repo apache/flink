@@ -16,7 +16,7 @@
 package eu.stratosphere.pact.test.testPrograms.tpch9;
 
 
-import eu.stratosphere.pact.common.stubs.MatchStub;
+import eu.stratosphere.api.record.functions.MatchStub;
 import eu.stratosphere.types.PactInteger;
 import eu.stratosphere.types.PactRecord;
 import eu.stratosphere.types.PactString;

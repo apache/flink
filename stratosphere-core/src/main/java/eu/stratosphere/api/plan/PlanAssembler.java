@@ -18,8 +18,8 @@ package eu.stratosphere.api.plan;
 /**
  * Interface that shows that the class contains the method to generate the plan for a Pact Program.
  */
-public interface PlanAssembler
-{
+public interface PlanAssembler {
+	
 	/**
 	 * The method which is invoked by the Pact compiler to get the program's plan, that is then compiled into an
 	 * executable schedule.

@@ -39,11 +39,6 @@ constructPactCLIClientClassPath() {
 			PACT_CC_CLASSPATH=$PACT_CC_CLASSPATH:$jarfile
 		fi
 	done
-
-	for jarfile in $NEPHELE_LIB_DIR/dropin/*.jar ; do
-		PACT_CC_CLASSPATH=$PACT_CC_CLASSPATH:$jarfile
-	done
-	PACT_CC_CLASSPATH=$PACT_CC_CLASSPATH:$NEPHELE_LIB_DIR/dropin/
 	
 	for jarfile in $NEPHELE_LIB_CLIENTS_DIR/*.jar ; do
 		PACT_CC_CLASSPATH=$PACT_CC_CLASSPATH:$jarfile
@@ -59,4 +54,4 @@ log_setting="-Dlog.file="$log" -Dlog4j.configuration=file:"$NEPHELE_CONF_DIR"/lo
 
 export NEPHELE_CONF_DIR
 
-$JAVA_RUN $JVM_ARGS $log_setting -classpath $PACT_CC_CLASSPATH eu.stratosphere.pact.client.CliFrontend $*
+$JAVA_RUN $JVM_ARGS $log_setting -classpath $PACT_CC_CLASSPATH eu.stratosphere.client.CliFrontend $*

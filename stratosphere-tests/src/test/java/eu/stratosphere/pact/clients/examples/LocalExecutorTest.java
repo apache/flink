@@ -20,8 +20,8 @@ import java.io.FileWriter;
 import org.junit.Assert;
 import org.junit.Test;
 
-import eu.stratosphere.pact.client.LocalExecutor;
-import eu.stratosphere.pact.example.wordcount.WordCount;
+import eu.stratosphere.client.LocalExecutor;
+import eu.stratosphere.example.record.wordcount.WordCount;
 import eu.stratosphere.pact.test.pactPrograms.WordCountITCase;
 
 

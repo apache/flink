@@ -29,8 +29,8 @@ import junit.framework.Assert;
 import org.junit.After;
 import org.junit.Test;
 
+import eu.stratosphere.api.record.io.DelimitedInputFormat;
 import eu.stratosphere.core.fs.Path;
-import eu.stratosphere.pact.common.io.DelimitedInputFormat;
 import eu.stratosphere.pact.runtime.test.util.NirvanaOutputList;
 import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;

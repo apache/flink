@@ -23,7 +23,7 @@ import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.api.plan.Plan;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.pact.example.kmeans.KMeansIterative;
+import eu.stratosphere.example.record.kmeans.KMeansIterative;
 import eu.stratosphere.pact.test.pactPrograms.KMeansStepITCase;
 
 @RunWith(Parameterized.class)

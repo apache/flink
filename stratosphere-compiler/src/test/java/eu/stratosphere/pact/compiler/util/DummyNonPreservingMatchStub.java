@@ -17,7 +17,7 @@ package eu.stratosphere.pact.compiler.util;
 
 import java.io.Serializable;
 
-import eu.stratosphere.pact.common.stubs.MatchStub;
+import eu.stratosphere.api.record.functions.MatchStub;
 import eu.stratosphere.types.PactRecord;
 import eu.stratosphere.util.Collector;
 

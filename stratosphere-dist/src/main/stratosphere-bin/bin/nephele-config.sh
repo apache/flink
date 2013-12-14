@@ -59,7 +59,7 @@ readFromConfig() {
 ########################################################################################################################
 
 
-# WARNING !!! , these values are only used if there is nothing spcified in
+# WARNING !!! , these values are only used if there is nothing else is specified in
 # conf/stratosphere-conf.yaml
 
 DEFAULT_JOBM_HEAP_MB=256                            # Java heap size for the JobManager (in MB)

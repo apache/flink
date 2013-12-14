@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<artifactId>stratosphere-addons</artifactId>
+		<groupId>eu.stratosphere</groupId>
+		<version>0.4-SNAPSHOT</version>
+		<relativePath>..</relativePath>
+	</parent>
+	
+	<repositories>
+		<repository>
+			<id>cloudera-releases</id>
+			<url>https://repository.cloudera.com/artifactory/cloudera-repos</url>
+			<releases>
+				<enabled>true</enabled>
+			</releases>
+			<snapshots>
+				<enabled>false</enabled>
+			</snapshots>
+		</repository>
+	</repositories>
+
+	<properties>
+ 		<hbase.version>0.96.0-hadoop2</hbase.version>
+	</properties>
+
+	<artifactId>hbase</artifactId>
+	<name>hbase</name>
+	<packaging>jar</packaging>
+
+	<dependencies>
+		<dependency>
+			<groupId>eu.stratosphere</groupId>
+			<artifactId>stratosphere-core</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>eu.stratosphere</groupId>
+			<artifactId>stratosphere-record-api</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.hbase</groupId>
+			<artifactId>hbase</artifactId>
+			<version>0.94.2-cdh4.2.1</version>
+			<exclusions>
+				<!-- jruby is used for the hbase shell. -->
+				<exclusion>
+					<groupId>org.jruby</groupId>
+					<artifactId>jruby-complete</artifactId>
+					</exclusion>
+				</exclusions> 
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-client</artifactId>
+			<version>${hadoop.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>asm</groupId>
+					<artifactId>asm</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+	</dependencies>
+		<!-- <dependency>
+			<groupId>org.apache.hbase</groupId>
+			<artifactId>hbase-server</artifactId>
+			<version>${hbase.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.hbase</groupId>
+			<artifactId>hbase-client</artifactId>
+			<version>${hbase.version}</version>
+		</dependency>
+		 -->
+
+	<!-- hadoop-client is available for yarn and non-yarn, so there is no need 
+		to use profiles See ticket https://issues.apache.org/jira/browse/HADOOP-8009 
+		for description of hadoop-clients -->
+
+	<reporting>
+		<plugins>
+		</plugins>
+	</reporting>
+
+	<build>
+		<plugins>
+		</plugins>
+	</build>
+</project>

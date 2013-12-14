@@ -21,8 +21,8 @@ import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.plan.Plan;
 import eu.stratosphere.api.plan.PlanAssembler;
 import eu.stratosphere.api.plan.PlanAssemblerDescription;
-import eu.stratosphere.pact.client.LocalExecutor;
-import eu.stratosphere.pact.common.io.RecordOutputFormat;
+import eu.stratosphere.api.record.io.CsvOutputFormat;
+import eu.stratosphere.client.LocalExecutor;
 import eu.stratosphere.spargel.java.MessagingFunction;
 import eu.stratosphere.spargel.java.SpargelIteration;
 import eu.stratosphere.spargel.java.VertexUpdateFunction;
@@ -46,8 +46,8 @@ public class SpargelConnectedComponents implements PlanAssembler, PlanAssemblerD
 		FileDataSource initialVertices = new FileDataSource(DuplicateLongInputFormat.class, verticesPath, "Vertices");
 		FileDataSource edges = new FileDataSource(LongLongInputFormat.class, edgesPath, "Edges");
 		// create DataSinkContract for writing the new cluster positions
-		FileDataSink result = new FileDataSink(RecordOutputFormat.class, resultPath, "Result");
-		RecordOutputFormat.configureRecordFormat(result)
+		FileDataSink result = new FileDataSink(CsvOutputFormat.class, resultPath, "Result");
+		CsvOutputFormat.configureRecordFormat(result)
 			.recordDelimiter('\n')
 			.fieldDelimiter(' ')
 			.field(PactLong.class, 0)

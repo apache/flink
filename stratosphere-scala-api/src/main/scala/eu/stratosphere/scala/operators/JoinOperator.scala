@@ -19,8 +19,8 @@ import scala.reflect.macros.Context
 import eu.stratosphere.types.PactRecord
 import eu.stratosphere.util.Collector
 import eu.stratosphere.api.operators.Contract
-import eu.stratosphere.pact.common.contract.MatchContract
-import eu.stratosphere.pact.common.stubs.MatchStub
+import eu.stratosphere.api.record.operators.JoinOperator
+import eu.stratosphere.api.record.functions.MatchStub
 import eu.stratosphere.api.operators.util.UserCodeObjectWrapper
 
 import eu.stratosphere.configuration.Configuration;
@@ -47,7 +47,7 @@ class JoinDataSetWithWhereAndEqual[LeftIn, RightIn](val leftKey: List[Int], val 
   def filter(fun: (LeftIn, RightIn) => Boolean): DataSet[(LeftIn, RightIn)] with TwoInputHintable[LeftIn, RightIn, (LeftIn, RightIn)] = macro JoinMacros.filter[LeftIn, RightIn]
 }
 
-class NoKeyMatchBuilder(s: MatchStub) extends MatchContract.Builder(new UserCodeObjectWrapper(s))
+class NoKeyMatchBuilder(s: MatchStub) extends JoinOperator.Builder(new UserCodeObjectWrapper(s))
 
 object JoinMacros {
   
@@ -132,7 +132,7 @@ object JoinMacros {
 
       
       
-      val ret = new MatchContract(builder) with TwoInputKeyedScalaContract[LeftIn, RightIn, Out] {
+      val ret = new JoinOperator(builder) with TwoInputKeyedScalaContract[LeftIn, RightIn, Out] {
         override val leftKey: FieldSelector = leftKeySelector
         override val rightKey: FieldSelector = rightKeySelector
         override def getUDF = generatedStub.udf
@@ -205,7 +205,7 @@ object JoinMacros {
       0 until keyTypes.size foreach { i => builder.keyField(keyTypes(i), leftKeyPositions(i), rightKeyPositions(i)) }
       
       
-      val ret = new MatchContract(builder) with TwoInputKeyedScalaContract[LeftIn, RightIn, Out] {
+      val ret = new JoinOperator(builder) with TwoInputKeyedScalaContract[LeftIn, RightIn, Out] {
         override val leftKey: FieldSelector = leftKeySelector
         override val rightKey: FieldSelector = rightKeySelector
         override def getUDF = generatedStub.udf
@@ -267,7 +267,7 @@ object JoinMacros {
       0 until keyTypes.size foreach { i => builder.keyField(keyTypes(i), leftKeyPositions(i), rightKeyPositions(i)) }
       
       
-      val ret = new MatchContract(builder) with TwoInputKeyedScalaContract[LeftIn, RightIn, (LeftIn, RightIn)] {
+      val ret = new JoinOperator(builder) with TwoInputKeyedScalaContract[LeftIn, RightIn, (LeftIn, RightIn)] {
         override val leftKey: FieldSelector = leftKeySelector
         override val rightKey: FieldSelector = rightKeySelector
         override def getUDF = generatedStub.udf

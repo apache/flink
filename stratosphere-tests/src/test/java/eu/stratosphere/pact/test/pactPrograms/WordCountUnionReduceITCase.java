@@ -27,16 +27,16 @@ import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.plan.Plan;
 import eu.stratosphere.api.plan.PlanAssembler;
 import eu.stratosphere.api.plan.PlanAssemblerDescription;
+import eu.stratosphere.api.record.io.CsvOutputFormat;
+import eu.stratosphere.api.record.io.TextInputFormat;
+import eu.stratosphere.api.record.operators.MapOperator;
+import eu.stratosphere.api.record.operators.ReduceOperator;
 import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.example.record.wordcount.WordCount.CountWords;
+import eu.stratosphere.example.record.wordcount.WordCount.TokenizeLine;
 import eu.stratosphere.nephele.io.MutableUnionRecordReader;
 import eu.stratosphere.nephele.io.UnionRecordReader;
-import eu.stratosphere.pact.common.contract.MapContract;
-import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.common.io.RecordOutputFormat;
-import eu.stratosphere.pact.common.io.TextInputFormat;
-import eu.stratosphere.pact.example.wordcount.WordCount.CountWords;
-import eu.stratosphere.pact.example.wordcount.WordCount.TokenizeLine;
-import eu.stratosphere.pact.test.util.TestBase2;
+import eu.stratosphere.test.util.TestBase2;
 import eu.stratosphere.types.PactInteger;
 import eu.stratosphere.types.PactString;
 
@@ -122,11 +122,11 @@ public class WordCountUnionReduceITCase extends TestBase2 {
 		/**
 		 * <pre>
 		 *                   +-------------+
-		 *              //=> | MapContract | =\\
+		 *              //=> | MapOperator | =\\
 		 * +--------+  //    +-------------+   \\   +----------------+    +------+
-		 * | Source | =|                        |=> | ReduceContract | => | Sink |
+		 * | Source | =|                        |=> | ReduceOperator | => | Sink |
 		 * +--------+  \\    +-------------+   //   +----------------+    +------+
-		 *              \\=> | MapContract | =//
+		 *              \\=> | MapOperator | =//
 		 *                   +-------------+
 		 * </pre>
 		 */
@@ -138,23 +138,23 @@ public class WordCountUnionReduceITCase extends TestBase2 {
 
 			FileDataSource source = new FileDataSource(TextInputFormat.class, inputPath, "First Input");
 
-			MapContract wordsFirstInput = MapContract.builder(TokenizeLine.class)
+			MapOperator wordsFirstInput = MapOperator.builder(TokenizeLine.class)
 				.input(source)
 				.name("Words (First Input)")
 				.build();
 
-			MapContract wordsSecondInput = MapContract.builder(TokenizeLine.class)
+			MapOperator wordsSecondInput = MapOperator.builder(TokenizeLine.class)
 				.input(source)
 				.name("Words (Second Input)")
 				.build();
 
-			ReduceContract counts = ReduceContract.builder(CountWords.class, PactString.class, 0)
+			ReduceOperator counts = ReduceOperator.builder(CountWords.class, PactString.class, 0)
 				.input(wordsFirstInput, wordsSecondInput)
 				.name("Word Counts")
 				.build();
 
-			FileDataSink sink = new FileDataSink(RecordOutputFormat.class, outputPath, counts);
-			RecordOutputFormat.configureRecordFormat(sink)
+			FileDataSink sink = new FileDataSink(CsvOutputFormat.class, outputPath, counts);
+			CsvOutputFormat.configureRecordFormat(sink)
 				.recordDelimiter('\n')
 				.fieldDelimiter(' ')
 				.field(PactString.class, 0)

@@ -15,7 +15,7 @@
 
 package eu.stratosphere.pact.test.testPrograms.util;
 
-import eu.stratosphere.pact.common.io.DelimitedOutputFormat;
+import eu.stratosphere.api.record.io.DelimitedOutputFormat;
 import eu.stratosphere.types.PactRecord;
 import eu.stratosphere.types.PactString;
 

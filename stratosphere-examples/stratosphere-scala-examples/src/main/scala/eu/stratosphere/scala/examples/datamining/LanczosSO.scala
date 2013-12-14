@@ -19,7 +19,7 @@ package eu.stratosphere.scala.examples.datamining;
 //import eu.stratosphere.scala.operators.DelimitedDataSinkFormat
 //import eu.stratosphere.scala.operators.DelimitedDataSourceFormat
 //import eu.stratosphere.api.plan.PlanAssemblerDescription
-//import eu.stratosphere.pact.client.LocalExecutor
+//import eu.stratosphere.client.LocalExecutor
 //import eu.stratosphere.scala.analysis.GlobalSchemaPrinter
 //
 //

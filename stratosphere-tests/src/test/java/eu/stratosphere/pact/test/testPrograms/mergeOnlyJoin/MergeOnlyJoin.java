@@ -24,12 +24,12 @@ import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.plan.Plan;
 import eu.stratosphere.api.plan.PlanAssembler;
 import eu.stratosphere.api.plan.PlanAssemblerDescription;
-import eu.stratosphere.pact.common.contract.MatchContract;
-import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.common.io.RecordInputFormat;
-import eu.stratosphere.pact.common.io.RecordOutputFormat;
-import eu.stratosphere.pact.common.stubs.MatchStub;
-import eu.stratosphere.pact.common.stubs.ReduceStub;
+import eu.stratosphere.api.record.functions.MatchStub;
+import eu.stratosphere.api.record.functions.ReduceStub;
+import eu.stratosphere.api.record.io.CsvInputFormat;
+import eu.stratosphere.api.record.io.CsvOutputFormat;
+import eu.stratosphere.api.record.operators.JoinOperator;
+import eu.stratosphere.api.record.operators.ReduceOperator;
 import eu.stratosphere.types.PactInteger;
 import eu.stratosphere.types.PactRecord;
 import eu.stratosphere.util.Collector;
@@ -70,10 +70,10 @@ public class MergeOnlyJoin implements PlanAssembler, PlanAssemblerDescription {
 
 		// create DataSourceContract for Orders input
 		@SuppressWarnings("unchecked")
-		RecordInputFormat format1 = new RecordInputFormat('|', PactInteger.class, PactInteger.class);
+		CsvInputFormat format1 = new CsvInputFormat('|', PactInteger.class, PactInteger.class);
 		FileDataSource input1 = new FileDataSource(format1, input1Path, "Input 1");
 		
-		ReduceContract aggInput1 = ReduceContract.builder(DummyReduce.class, PactInteger.class, 0)
+		ReduceOperator aggInput1 = ReduceOperator.builder(DummyReduce.class, PactInteger.class, 0)
 			.input(input1)
 			.name("AggOrders")
 			.build();
@@ -81,26 +81,26 @@ public class MergeOnlyJoin implements PlanAssembler, PlanAssemblerDescription {
 		
 		// create DataSourceContract for Orders input
 		@SuppressWarnings("unchecked")
-		RecordInputFormat format2 = new RecordInputFormat('|', PactInteger.class, PactInteger.class);
+		CsvInputFormat format2 = new CsvInputFormat('|', PactInteger.class, PactInteger.class);
 		FileDataSource input2 = new FileDataSource(format2, input2Path, "Input 2");
 		input2.setDegreeOfParallelism(numSubtasksInput2);
 
-		ReduceContract aggInput2 = ReduceContract.builder(DummyReduce.class, PactInteger.class, 0)
+		ReduceOperator aggInput2 = ReduceOperator.builder(DummyReduce.class, PactInteger.class, 0)
 			.input(input2)
 			.name("AggLines")
 			.build();
 		aggInput2.setDegreeOfParallelism(numSubtasksInput2);
 		
-		// create MatchContract for joining Orders and LineItems
-		MatchContract joinLiO = MatchContract.builder(JoinInputs.class, PactInteger.class, 0, 0)
+		// create JoinOperator for joining Orders and LineItems
+		JoinOperator joinLiO = JoinOperator.builder(JoinInputs.class, PactInteger.class, 0, 0)
 			.input1(aggInput1)
 			.input2(aggInput2)
 			.name("JoinLiO")
 			.build();
 
 		// create DataSinkContract for writing the result
-		FileDataSink result = new FileDataSink(new RecordOutputFormat(), output, joinLiO, "Output");
-		RecordOutputFormat.configureRecordFormat(result)
+		FileDataSink result = new FileDataSink(new CsvOutputFormat(), output, joinLiO, "Output");
+		CsvOutputFormat.configureRecordFormat(result)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
 			.lenient(true)

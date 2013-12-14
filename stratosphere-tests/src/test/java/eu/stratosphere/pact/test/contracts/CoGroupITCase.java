@@ -31,16 +31,16 @@ import org.junit.runners.Parameterized.Parameters;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.api.record.functions.CoGroupStub;
+import eu.stratosphere.api.record.io.DelimitedInputFormat;
+import eu.stratosphere.api.record.io.FileOutputFormat;
+import eu.stratosphere.api.record.operators.CoGroupOperator;
+import eu.stratosphere.compiler.DataStatistics;
+import eu.stratosphere.compiler.PactCompiler;
+import eu.stratosphere.compiler.plan.OptimizedPlan;
+import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.pact.common.contract.CoGroupContract;
-import eu.stratosphere.pact.common.io.DelimitedInputFormat;
-import eu.stratosphere.pact.common.io.FileOutputFormat;
-import eu.stratosphere.pact.common.stubs.CoGroupStub;
-import eu.stratosphere.pact.compiler.DataStatistics;
-import eu.stratosphere.pact.compiler.PactCompiler;
-import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
-import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.pact.test.util.TestBase;
 import eu.stratosphere.types.PactInteger;
 import eu.stratosphere.types.PactRecord;
@@ -191,7 +191,7 @@ public class CoGroupITCase extends TestBase {
 			.recordDelimiter('\n');
 		input_right.setDegreeOfParallelism(config.getInteger("CoGroupTest#NoSubtasks", 1));
 
-		CoGroupContract testCoGrouper = CoGroupContract.builder(new TestCoGrouper(), PactString.class, 0, 0)
+		CoGroupOperator testCoGrouper = CoGroupOperator.builder(new TestCoGrouper(), PactString.class, 0, 0)
 			.build();
 		testCoGrouper.setDegreeOfParallelism(config.getInteger("CoGroupTest#NoSubtasks", 1));
 		testCoGrouper.getParameters().setString(PactCompiler.HINT_LOCAL_STRATEGY,

@@ -17,7 +17,7 @@ package eu.stratosphere.pact.test.testPrograms.tpch1;
 
 import java.util.Iterator;
 
-import eu.stratosphere.pact.common.stubs.ReduceStub;
+import eu.stratosphere.api.record.functions.ReduceStub;
 import eu.stratosphere.pact.test.testPrograms.util.Tuple;
 import eu.stratosphere.types.PactLong;
 import eu.stratosphere.types.PactRecord;

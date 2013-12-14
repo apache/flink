@@ -19,7 +19,7 @@ import java.io.Serializable;
 import java.util.Iterator;
 
 import eu.stratosphere.api.functions.StubAnnotation.ConstantFieldsExcept;
-import eu.stratosphere.pact.common.stubs.ReduceStub;
+import eu.stratosphere.api.record.functions.ReduceStub;
 import eu.stratosphere.types.PactRecord;
 import eu.stratosphere.util.Collector;
 

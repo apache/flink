@@ -27,7 +27,7 @@ import org.junit.Test;
 
 import eu.stratosphere.api.functions.GenericReducer;
 import eu.stratosphere.api.operators.base.GenericReduceContract.Combinable;
-import eu.stratosphere.pact.common.stubs.ReduceStub;
+import eu.stratosphere.api.record.functions.ReduceStub;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparator;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordSerializer;
 import eu.stratosphere.pact.runtime.sort.CombiningUnilateralSortMerger;

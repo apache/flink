@@ -16,6 +16,7 @@
 package eu.stratosphere.pact.test.iterative.nephele.customdanglingpagerank;
 
 import eu.stratosphere.api.operators.util.UserCodeClassWrapper;
+import eu.stratosphere.api.record.io.FileOutputFormat;
 import eu.stratosphere.api.typeutils.TypeComparatorFactory;
 import eu.stratosphere.api.typeutils.TypePairComparatorFactory;
 import eu.stratosphere.api.typeutils.TypeSerializerFactory;
@@ -27,7 +28,6 @@ import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobInputVertex;
 import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
-import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.runtime.iterative.task.IterationHeadPactTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationIntermediatePactTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationTailPactTask;

@@ -13,7 +13,7 @@
 
 package eu.stratosphere.scala.stubs
 
-import eu.stratosphere.pact.common.stubs.{CrossStub => JCrossStub}
+import eu.stratosphere.api.record.functions.{CrossStub => JCrossStub}
 import eu.stratosphere.scala.analysis.{UDTSerializer, UDF2, UDT}
 import eu.stratosphere.types.PactRecord
 import eu.stratosphere.util.Collector

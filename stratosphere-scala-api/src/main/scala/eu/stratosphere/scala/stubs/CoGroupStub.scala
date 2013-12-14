@@ -14,7 +14,7 @@
 package eu.stratosphere.scala.stubs
 
 import eu.stratosphere.scala.analysis.{UDTSerializer, UDF2, UDT}
-import eu.stratosphere.pact.common.stubs.{CoGroupStub => JCoGroupStub}
+import eu.stratosphere.api.record.functions.{CoGroupStub => JCoGroupStub}
 import eu.stratosphere.types.PactRecord
 import eu.stratosphere.util.Collector
 import eu.stratosphere.configuration.Configuration;

@@ -13,7 +13,7 @@
 
 package eu.stratosphere.scala.examples.datamining
 
-import eu.stratosphere.pact.client.LocalExecutor
+import eu.stratosphere.client.LocalExecutor
 import eu.stratosphere.api.plan.PlanAssembler
 import eu.stratosphere.api.plan.PlanAssemblerDescription
 

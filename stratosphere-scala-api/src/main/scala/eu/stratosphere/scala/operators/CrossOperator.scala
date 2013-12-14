@@ -16,12 +16,12 @@ package eu.stratosphere.scala.operators
 import language.experimental.macros
 import scala.reflect.macros.Context
 
-import eu.stratosphere.pact.common.contract.MapContract
+import eu.stratosphere.api.record.operators.MapOperator
 
 import eu.stratosphere.types.PactRecord
 import eu.stratosphere.util.Collector
 import eu.stratosphere.api.operators.Contract
-import eu.stratosphere.pact.common.contract.CrossContract
+import eu.stratosphere.api.record.operators.CrossOperator
 
 import eu.stratosphere.configuration.Configuration;
 import java.util.{ Iterator => JIterator }
@@ -82,9 +82,9 @@ object CrossMacros {
       val leftInput = helper.leftInput.contract
       val rightInput = helper.rightInput.contract
       val generatedStub = ClosureCleaner.clean(stub.splice)
-      val builder = CrossContract.builder(generatedStub).input1(leftInput).input2(rightInput)
+      val builder = CrossOperator.builder(generatedStub).input1(leftInput).input2(rightInput)
       
-      val ret = new CrossContract(builder) with TwoInputScalaContract[LeftIn, RightIn, Out] {
+      val ret = new CrossOperator(builder) with TwoInputScalaContract[LeftIn, RightIn, Out] {
         override def getUDF = generatedStub.udf
         override def annotations = Seq(
           Annotations.getConstantFieldsFirst(
@@ -144,9 +144,9 @@ object CrossMacros {
       val leftInput = helper.leftInput.contract
       val rightInput = helper.rightInput.contract
       val generatedStub = ClosureCleaner.clean(stub.splice)
-      val builder = CrossContract.builder(generatedStub).input1(leftInput).input2(rightInput)
+      val builder = CrossOperator.builder(generatedStub).input1(leftInput).input2(rightInput)
       
-      val ret = new CrossContract(builder) with TwoInputScalaContract[LeftIn, RightIn, Out] {
+      val ret = new CrossOperator(builder) with TwoInputScalaContract[LeftIn, RightIn, Out] {
         override def getUDF = generatedStub.udf
         override def annotations = Seq(
           Annotations.getConstantFieldsFirst(
@@ -193,9 +193,9 @@ object CrossMacros {
       val leftInput = helper.leftInput.contract
       val rightInput = helper.rightInput.contract
       val generatedStub = ClosureCleaner.clean(stub.splice)
-      val builder = CrossContract.builder(generatedStub).input1(leftInput).input2(rightInput)
+      val builder = CrossOperator.builder(generatedStub).input1(leftInput).input2(rightInput)
       
-      val ret = new CrossContract(builder) with TwoInputScalaContract[LeftIn, RightIn, (LeftIn, RightIn)] {
+      val ret = new CrossOperator(builder) with TwoInputScalaContract[LeftIn, RightIn, (LeftIn, RightIn)] {
         override def getUDF = generatedStub.udf
         override def annotations = Seq(
           Annotations.getConstantFieldsFirst(

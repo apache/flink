@@ -22,7 +22,7 @@ import java.util.Date;
 
 import org.apache.log4j.Logger;
 
-import eu.stratosphere.pact.common.stubs.MapStub;
+import eu.stratosphere.api.record.functions.MapStub;
 import eu.stratosphere.pact.test.testPrograms.util.Tuple;
 import eu.stratosphere.types.PactRecord;
 import eu.stratosphere.types.PactString;

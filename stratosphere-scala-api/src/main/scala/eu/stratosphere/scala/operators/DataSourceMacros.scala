@@ -33,10 +33,10 @@ import eu.stratosphere.scala.analysis.{UDTSerializer, OutputField, UDF0, UDT}
 import eu.stratosphere.api.io.{InputFormat => JavaInputFormat}
 import eu.stratosphere.api.io.{BinaryInputFormat => JavaBinaryInputFormat}
 import eu.stratosphere.api.io.{SequentialInputFormat => JavaSequentialInputFormat}
-import eu.stratosphere.pact.common.io.{DelimitedInputFormat => JavaDelimitedInputFormat}
-import eu.stratosphere.pact.common.io.{FixedLengthInputFormat => JavaFixedLengthInputFormat}
-import eu.stratosphere.pact.common.io.{RecordInputFormat => JavaRecordInputFormat}
-import eu.stratosphere.pact.common.io.{TextInputFormat => JavaTextInputFormat}
+import eu.stratosphere.api.record.io.{DelimitedInputFormat => JavaDelimitedInputFormat}
+import eu.stratosphere.api.record.io.{FixedLengthInputFormat => JavaFixedLengthInputFormat}
+import eu.stratosphere.api.record.io.{CsvInputFormat => JavaCsvInputFormat}
+import eu.stratosphere.api.record.io.{TextInputFormat => JavaTextInputFormat}
 import eu.stratosphere.scala.codegen.MacroContextHolder
 
 
@@ -263,7 +263,7 @@ object CsvInputFormat {
     val (udtOut, createUdtOut) = slave.mkUdtClass[Out]
     
     val pact4sFormat = reify {
-      new JavaRecordInputFormat with ScalaInputFormat[Out] {
+      new JavaCsvInputFormat with ScalaInputFormat[Out] {
         
         val udt: UDT[Out] = c.Expr[UDT[Out]](createUdtOut).splice
         val udf: UDF0[Out] = new UDF0(udt)

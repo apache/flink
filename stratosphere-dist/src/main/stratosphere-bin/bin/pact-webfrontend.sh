@@ -41,11 +41,6 @@ constructPactWebFrontendClassPath() {
 			PACT_WF_CLASSPATH=$PACT_WF_CLASSPATH:$jarfile
 		fi
 	done
-
-	for jarfile in $NEPHELE_LIB_DIR/dropin/*.jar ; do
-		PACT_WF_CLASSPATH=$PACT_WF_CLASSPATH:$jarfile
-	done
-	PACT_WF_CLASSPATH=$PACT_WF_CLASSPATH:$NEPHELE_LIB_DIR/dropin/
 	
 	for jarfile in $NEPHELE_LIB_CLIENTS_DIR/*.jar ; do
 		PACT_WF_CLASSPATH=$PACT_WF_CLASSPATH:$jarfile
@@ -72,7 +67,7 @@ case $STARTSTOP in
                         fi
                 fi
                 echo Starting PACT Webfrontend
-		$JAVA_RUN $JVM_ARGS $log_setting -classpath $PACT_WF_CLASSPATH eu.stratosphere.pact.client.WebFrontend -configDir $NEPHELE_CONF_DIR > "$out" 2>&1 < /dev/null &
+		$JAVA_RUN $JVM_ARGS $log_setting -classpath $PACT_WF_CLASSPATH eu.stratosphere.client.WebFrontend -configDir $NEPHELE_CONF_DIR > "$out" 2>&1 < /dev/null &
 		echo $! > $pid
 	;;
 

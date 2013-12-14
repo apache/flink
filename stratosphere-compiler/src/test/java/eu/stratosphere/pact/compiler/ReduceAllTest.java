@@ -22,16 +22,17 @@ import org.junit.Test;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
-import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
+import eu.stratosphere.api.record.operators.ReduceOperator;
+import eu.stratosphere.compiler.CompilerException;
+import eu.stratosphere.compiler.plan.OptimizedPlan;
+import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.pact.compiler.util.DummyInputFormat;
 import eu.stratosphere.pact.compiler.util.DummyOutputFormat;
 import eu.stratosphere.pact.compiler.util.IdentityReduce;
 
 /**
  * This test case has been created to validate a bug that occurred when
- * the ReduceContract was used without a grouping key.
+ * the ReduceOperator was used without a grouping key.
  */
 public class ReduceAllTest extends CompilerTestBase {
 
@@ -39,7 +40,7 @@ public class ReduceAllTest extends CompilerTestBase {
 	public void testReduce() {
 		// construct the plan
 		FileDataSource source = new FileDataSource(new DummyInputFormat(), IN_FILE, "Source");
-		ReduceContract reduce1 = ReduceContract.builder(new IdentityReduce()).name("Reduce1").input(source).build();
+		ReduceOperator reduce1 = ReduceOperator.builder(new IdentityReduce()).name("Reduce1").input(source).build();
 		FileDataSink sink = new FileDataSink(new DummyOutputFormat(), OUT_FILE, "Sink");
 		sink.setInput(reduce1);
 		Plan plan = new Plan(sink, "AllReduce Test");

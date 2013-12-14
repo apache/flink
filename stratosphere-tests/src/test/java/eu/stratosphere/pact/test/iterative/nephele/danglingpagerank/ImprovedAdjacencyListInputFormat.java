@@ -1,6 +1,6 @@
 package eu.stratosphere.pact.test.iterative.nephele.danglingpagerank;
 
-import eu.stratosphere.pact.common.io.TextInputFormat;
+import eu.stratosphere.api.record.io.TextInputFormat;
 import eu.stratosphere.types.PactLong;
 import eu.stratosphere.types.PactRecord;
 

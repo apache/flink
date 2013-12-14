@@ -27,19 +27,19 @@ import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.operators.WorksetIteration;
 import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.api.record.functions.MapStub;
+import eu.stratosphere.api.record.functions.MatchStub;
+import eu.stratosphere.api.record.io.CsvOutputFormat;
+import eu.stratosphere.api.record.operators.MapOperator;
+import eu.stratosphere.api.record.operators.JoinOperator;
+import eu.stratosphere.api.record.operators.ReduceOperator;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.pact.common.contract.MapContract;
-import eu.stratosphere.pact.common.contract.MatchContract;
-import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.common.io.RecordOutputFormat;
-import eu.stratosphere.pact.common.stubs.MapStub;
-import eu.stratosphere.pact.common.stubs.MatchStub;
-import eu.stratosphere.pact.example.connectedcomponents.DuplicateLongInputFormat;
-import eu.stratosphere.pact.example.connectedcomponents.LongLongInputFormat;
-import eu.stratosphere.pact.example.connectedcomponents.WorksetConnectedComponents.MinimumComponentIDReduce;
-import eu.stratosphere.pact.example.connectedcomponents.WorksetConnectedComponents.NeighborWithComponentIDJoin;
+import eu.stratosphere.example.record.connectedcomponents.DuplicateLongInputFormat;
+import eu.stratosphere.example.record.connectedcomponents.LongLongInputFormat;
+import eu.stratosphere.example.record.connectedcomponents.WorksetConnectedComponents.MinimumComponentIDReduce;
+import eu.stratosphere.example.record.connectedcomponents.WorksetConnectedComponents.NeighborWithComponentIDJoin;
 import eu.stratosphere.pact.test.iterative.nephele.ConnectedComponentsNepheleITCase;
-import eu.stratosphere.pact.test.util.TestBase2;
+import eu.stratosphere.test.util.TestBase2;
 import eu.stratosphere.types.PactLong;
 import eu.stratosphere.types.PactRecord;
 import eu.stratosphere.util.Collector;
@@ -117,27 +117,27 @@ public class ConnectedComponentsWithDeferredUpdateITCase extends TestBase2 {
 		FileDataSource edges = new FileDataSource(new LongLongInputFormat(), edgeInput, "Edges");
 
 		// join workset (changed vertices) with the edges to propagate changes to neighbors
-		MatchContract joinWithNeighbors = MatchContract.builder(new NeighborWithComponentIDJoin(), PactLong.class, 0, 0)
+		JoinOperator joinWithNeighbors = JoinOperator.builder(new NeighborWithComponentIDJoin(), PactLong.class, 0, 0)
 				.input1(iteration.getWorkset())
 				.input2(edges)
 				.name("Join Candidate Id With Neighbor")
 				.build();
 
 		// find for each neighbor the smallest of all candidates
-		ReduceContract minCandidateId = ReduceContract.builder(new MinimumComponentIDReduce(), PactLong.class, 0)
+		ReduceOperator minCandidateId = ReduceOperator.builder(new MinimumComponentIDReduce(), PactLong.class, 0)
 				.input(joinWithNeighbors)
 				.name("Find Minimum Candidate Id")
 				.build();
 		
 		// join candidates with the solution set and update if the candidate component-id is smaller
-		MatchContract updateComponentId = MatchContract.builder(new UpdateComponentIdMatchNonPreserving(), PactLong.class, 0, 0)
+		JoinOperator updateComponentId = JoinOperator.builder(new UpdateComponentIdMatchNonPreserving(), PactLong.class, 0, 0)
 				.input1(minCandidateId)
 				.input2(iteration.getSolutionSet())
 				.name("Update Component Id")
 				.build();
 		
 		if (extraMap) {
-			MapContract mapper = MapContract.builder(IdentityMap.class).input(updateComponentId).name("idmap").build();
+			MapOperator mapper = MapOperator.builder(IdentityMap.class).input(updateComponentId).name("idmap").build();
 			iteration.setSolutionSetDelta(mapper);
 		} else {
 			iteration.setSolutionSetDelta(updateComponentId);
@@ -146,8 +146,8 @@ public class ConnectedComponentsWithDeferredUpdateITCase extends TestBase2 {
 		iteration.setNextWorkset(updateComponentId);
 
 		// sink is the iteration result
-		FileDataSink result = new FileDataSink(new RecordOutputFormat(), output, iteration, "Result");
-		RecordOutputFormat.configureRecordFormat(result)
+		FileDataSink result = new FileDataSink(new CsvOutputFormat(), output, iteration, "Result");
+		CsvOutputFormat.configureRecordFormat(result)
 			.recordDelimiter('\n')
 			.fieldDelimiter(' ')
 			.field(PactLong.class, 0)

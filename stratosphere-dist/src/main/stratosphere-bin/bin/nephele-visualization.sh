@@ -43,4 +43,4 @@ log_setting="-Dlog.file="$log" -Dlog4j.configuration=file://"$NEPHELE_CONF_DIR"/
 
 NEPHELE_VS_CLASSPATH=$(constructVisualizationClassPath)
 
-$JAVA_RUN $JVM_ARGS $NEPHELE_OPTS $log_setting -classpath $NEPHELE_VS_CLASSPATH eu.stratosphere.nephele.visualization.swt.SWTVisualization -configDir $NEPHELE_CONF_DIR
+$JAVA_RUN $JVM_ARGS $NEPHELE_OPTS $log_setting -classpath $NEPHELE_VS_CLASSPATH eu.stratosphere.addons.visualization.swt.SWTVisualization -configDir $NEPHELE_CONF_DIR

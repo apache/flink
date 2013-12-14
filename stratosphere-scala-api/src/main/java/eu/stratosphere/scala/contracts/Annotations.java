@@ -19,7 +19,7 @@ import java.lang.annotation.Annotation;
 import java.util.Arrays;
 
 import eu.stratosphere.api.functions.StubAnnotation;
-import eu.stratosphere.pact.common.contract.ReduceContract;
+import eu.stratosphere.api.record.operators.ReduceOperator;
 
 public class Annotations {
 
@@ -177,14 +177,14 @@ public class Annotations {
 	}
 
 	@SuppressWarnings("all")
-	private static class Combinable implements Annotation, ReduceContract.Combinable {
+	private static class Combinable implements Annotation, ReduceOperator.Combinable {
 
 		public Combinable() {
 		}
 
 		@Override
 		public Class<? extends Annotation> annotationType() {
-			return ReduceContract.Combinable.class;
+			return ReduceOperator.Combinable.class;
 		}
 
 		@Override

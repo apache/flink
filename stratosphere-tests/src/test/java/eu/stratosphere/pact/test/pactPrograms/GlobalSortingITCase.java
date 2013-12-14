@@ -34,14 +34,14 @@ import eu.stratosphere.api.operators.Order;
 import eu.stratosphere.api.operators.Ordering;
 import eu.stratosphere.api.plan.Plan;
 import eu.stratosphere.api.plan.PlanAssembler;
+import eu.stratosphere.api.record.io.CsvInputFormat;
+import eu.stratosphere.api.record.io.CsvOutputFormat;
+import eu.stratosphere.compiler.DataStatistics;
+import eu.stratosphere.compiler.PactCompiler;
+import eu.stratosphere.compiler.plan.OptimizedPlan;
+import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.pact.common.io.RecordInputFormat;
-import eu.stratosphere.pact.common.io.RecordOutputFormat;
-import eu.stratosphere.pact.compiler.DataStatistics;
-import eu.stratosphere.pact.compiler.PactCompiler;
-import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
-import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.pact.test.util.TestBase;
 import eu.stratosphere.types.PactInteger;
 
@@ -144,17 +144,17 @@ public class GlobalSortingITCase extends TestBase {
 			String recordsPath    = (args.length > 1 ? args[1] : "");
 			String output        = (args.length > 2 ? args[2] : "");
 			
-			FileDataSource source = new FileDataSource(RecordInputFormat.class, recordsPath);
+			FileDataSource source = new FileDataSource(CsvInputFormat.class, recordsPath);
 			source.setDegreeOfParallelism(numSubtasks);
-			RecordInputFormat.configureRecordFormat(source)
+			CsvInputFormat.configureRecordFormat(source)
 				.recordDelimiter('\n')
 				.fieldDelimiter('|')
 				.field(PactInteger.class, 0);
 			
 			FileDataSink sink =
-				new FileDataSink(RecordOutputFormat.class, output);
+				new FileDataSink(CsvOutputFormat.class, output);
 			sink.setDegreeOfParallelism(numSubtasks);
-			RecordOutputFormat.configureRecordFormat(sink)
+			CsvOutputFormat.configureRecordFormat(sink)
 				.recordDelimiter('\n')
 				.fieldDelimiter('|')
 				.lenient(true)

@@ -29,13 +29,13 @@ import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.plan.Plan;
 import eu.stratosphere.api.plan.PlanAssembler;
 import eu.stratosphere.api.plan.PlanAssemblerDescription;
+import eu.stratosphere.api.record.functions.MapStub;
+import eu.stratosphere.api.record.functions.MatchStub;
+import eu.stratosphere.api.record.functions.ReduceStub;
+import eu.stratosphere.api.record.operators.MapOperator;
+import eu.stratosphere.api.record.operators.JoinOperator;
+import eu.stratosphere.api.record.operators.ReduceOperator;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.pact.common.contract.MapContract;
-import eu.stratosphere.pact.common.contract.MatchContract;
-import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.common.stubs.MapStub;
-import eu.stratosphere.pact.common.stubs.MatchStub;
-import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.test.testPrograms.util.IntTupleDataInFormat;
 import eu.stratosphere.pact.test.testPrograms.util.StringTupleDataOutFormat;
 import eu.stratosphere.pact.test.testPrograms.util.Tuple;
@@ -236,26 +236,26 @@ public class TPCHQuery4 implements PlanAssembler, PlanAssemblerDescription {
 				new FileDataSink(new StringTupleDataOutFormat(), this.outputPath, "Output");
 		result.setDegreeOfParallelism(degreeOfParallelism);
 		
-		MapContract lineFilter = 
-				MapContract.builder(LiFilter.class)
+		MapOperator lineFilter = 
+				MapOperator.builder(LiFilter.class)
 			.name("LineItemFilter")
 			.build();
 		lineFilter.setDegreeOfParallelism(degreeOfParallelism);
 		
-		MapContract ordersFilter = 
-				MapContract.builder(OFilter.class)
+		MapOperator ordersFilter = 
+				MapOperator.builder(OFilter.class)
 			.name("OrdersFilter")
 			.build();
 		ordersFilter.setDegreeOfParallelism(degreeOfParallelism);
 		
-		MatchContract join = 
-				MatchContract.builder(JoinLiO.class, PactInteger.class, 0, 0)
+		JoinOperator join = 
+				JoinOperator.builder(JoinLiO.class, PactInteger.class, 0, 0)
 			.name("OrdersLineitemsJoin")
 			.build();
 			join.setDegreeOfParallelism(degreeOfParallelism);
 		
-		ReduceContract aggregation = 
-				ReduceContract.builder(CountAgg.class, PactString.class, 0)
+		ReduceOperator aggregation = 
+				ReduceOperator.builder(CountAgg.class, PactString.class, 0)
 			.name("AggregateGroupBy")
 			.build();
 		aggregation.setDegreeOfParallelism(this.degreeOfParallelism);

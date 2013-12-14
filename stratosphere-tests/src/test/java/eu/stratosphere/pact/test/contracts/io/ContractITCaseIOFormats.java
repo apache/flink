@@ -20,8 +20,8 @@ import java.io.IOException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.pact.common.io.DelimitedInputFormat;
-import eu.stratosphere.pact.common.io.FileOutputFormat;
+import eu.stratosphere.api.record.io.DelimitedInputFormat;
+import eu.stratosphere.api.record.io.FileOutputFormat;
 import eu.stratosphere.types.PactInteger;
 import eu.stratosphere.types.PactRecord;
 import eu.stratosphere.types.PactString;

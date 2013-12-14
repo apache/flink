@@ -1694,7 +1694,7 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 		}
 		
 		/* (non-Javadoc)
-		 * @see eu.stratosphere.pact.common.stubs.Collector#collect(eu.stratosphere.pact.common.type.PactRecord)
+		 * @see eu.stratosphere.api.record.functions.Collector#collect(eu.stratosphere.pact.common.type.PactRecord)
 		 */
 		@Override
 		public void collect(E record)
@@ -1770,7 +1770,7 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 		}
 		
 		/* (non-Javadoc)
-		 * @see eu.stratosphere.pact.common.stubs.Collector#close()
+		 * @see eu.stratosphere.api.record.functions.Collector#close()
 		 */
 		@Override
 		public void close()

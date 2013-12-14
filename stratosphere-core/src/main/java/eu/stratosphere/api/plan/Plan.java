@@ -187,7 +187,7 @@ public class Plan implements Visitable<Contract> {
 	 * @return The postPassClassName.
 	 */
 	public String getPostPassClassName() {
-		return "eu.stratosphere.pact.compiler.postpass.GenericPactRecordPostPass";
+		return "eu.stratosphere.compiler.postpass.GenericPactRecordPostPass";
 	}
 	
 	// ------------------------------------------------------------------------

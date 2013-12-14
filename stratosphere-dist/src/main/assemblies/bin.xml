@@ -92,16 +92,6 @@
 		</fileSet>
 
 		<fileSet>
-			<!-- create an empty dropin-lib directory -->
-			<directory>src/main/stratosphere-bin/</directory>
-			<outputDirectory>lib/dropin</outputDirectory>
-			<fileMode>0644</fileMode>
-			<excludes>
-				<exclude>**/*</exclude>
-			</excludes>
-		</fileSet>
-
-		<fileSet>
 			<!-- copy *.txt files -->
 			<directory>src/main/stratosphere-bin/</directory>
 			<outputDirectory></outputDirectory>

@@ -18,7 +18,7 @@ package eu.stratosphere.pact.compiler.util;
 import java.io.Serializable;
 
 import eu.stratosphere.api.functions.StubAnnotation.ConstantFieldsExcept;
-import eu.stratosphere.pact.common.stubs.MapStub;
+import eu.stratosphere.api.record.functions.MapStub;
 import eu.stratosphere.types.PactRecord;
 import eu.stratosphere.util.Collector;
 

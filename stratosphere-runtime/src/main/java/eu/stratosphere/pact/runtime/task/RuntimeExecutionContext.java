@@ -34,7 +34,7 @@ public class RuntimeExecutionContext implements ExecutionContext
 	}
 
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.stubs.ExecutionContext#getTaskName()
+	 * @see eu.stratosphere.api.record.functions.ExecutionContext#getTaskName()
 	 */
 	@Override
 	public String getTaskName() {
@@ -42,7 +42,7 @@ public class RuntimeExecutionContext implements ExecutionContext
 	}
 
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.stubs.ExecutionContext#getNumberOfSubtasks()
+	 * @see eu.stratosphere.api.record.functions.ExecutionContext#getNumberOfSubtasks()
 	 */
 	@Override
 	public int getNumberOfSubtasks() {
@@ -50,7 +50,7 @@ public class RuntimeExecutionContext implements ExecutionContext
 	}
 
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.stubs.ExecutionContext#getSubtaskIndex()
+	 * @see eu.stratosphere.api.record.functions.ExecutionContext#getSubtaskIndex()
 	 */
 	@Override
 	public int getSubtaskIndex() {

@@ -26,13 +26,14 @@ import eu.stratosphere.api.operators.Order;
 import eu.stratosphere.api.operators.Ordering;
 import eu.stratosphere.api.operators.util.FieldList;
 import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.pact.common.contract.CoGroupContract;
-import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.compiler.plan.candidate.Channel;
-import eu.stratosphere.pact.compiler.plan.candidate.DualInputPlanNode;
-import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
-import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
-import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
+import eu.stratosphere.api.record.operators.CoGroupOperator;
+import eu.stratosphere.api.record.operators.ReduceOperator;
+import eu.stratosphere.compiler.CompilerException;
+import eu.stratosphere.compiler.plan.Channel;
+import eu.stratosphere.compiler.plan.DualInputPlanNode;
+import eu.stratosphere.compiler.plan.OptimizedPlan;
+import eu.stratosphere.compiler.plan.SingleInputPlanNode;
+import eu.stratosphere.compiler.plan.SinkPlanNode;
 import eu.stratosphere.pact.compiler.util.DummyCoGroupStub;
 import eu.stratosphere.pact.compiler.util.DummyInputFormat;
 import eu.stratosphere.pact.compiler.util.DummyOutputFormat;
@@ -56,7 +57,7 @@ public class GroupOrderTest extends CompilerTestBase  {
 		// construct the plan
 		FileDataSource source = new FileDataSource(new DummyInputFormat(), IN_FILE, "Source");
 		
-		ReduceContract reduce = ReduceContract.builder(new IdentityReduce()).keyField(PactInteger.class, 2).name("Reduce").input(source).build();
+		ReduceOperator reduce = ReduceOperator.builder(new IdentityReduce()).keyField(PactInteger.class, 2).name("Reduce").input(source).build();
 		Ordering groupOrder = new Ordering(5, PactString.class, Order.DESCENDING);
 		reduce.setGroupOrder(groupOrder);
 		
@@ -103,7 +104,7 @@ public class GroupOrderTest extends CompilerTestBase  {
 		FileDataSource source1 = new FileDataSource(new DummyInputFormat(), IN_FILE, "Source1");
 		FileDataSource source2 = new FileDataSource(new DummyInputFormat(), IN_FILE, "Source2");
 		
-		CoGroupContract coGroup = CoGroupContract.builder(new DummyCoGroupStub(), PactInteger.class, 3, 6)
+		CoGroupOperator coGroup = CoGroupOperator.builder(new DummyCoGroupStub(), PactInteger.class, 3, 6)
 				.keyField(PactLong.class, 0, 0)
 				.name("CoGroup").input1(source1).input2(source2).build();
 		

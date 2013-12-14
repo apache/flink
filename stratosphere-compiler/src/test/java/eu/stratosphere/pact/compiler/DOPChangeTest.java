@@ -22,16 +22,16 @@ import org.junit.Test;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.pact.common.contract.MapContract;
-import eu.stratosphere.pact.common.contract.MatchContract;
-import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.compiler.plan.candidate.Channel;
-import eu.stratosphere.pact.compiler.plan.candidate.DualInputPlanNode;
-import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
-import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
-import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
-import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
-import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
+import eu.stratosphere.api.record.operators.MapOperator;
+import eu.stratosphere.api.record.operators.JoinOperator;
+import eu.stratosphere.api.record.operators.ReduceOperator;
+import eu.stratosphere.compiler.plan.Channel;
+import eu.stratosphere.compiler.plan.DualInputPlanNode;
+import eu.stratosphere.compiler.plan.OptimizedPlan;
+import eu.stratosphere.compiler.plan.PlanNode;
+import eu.stratosphere.compiler.plan.SingleInputPlanNode;
+import eu.stratosphere.compiler.plan.SinkPlanNode;
+import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.pact.compiler.util.DummyInputFormat;
 import eu.stratosphere.pact.compiler.util.DummyMatchStub;
 import eu.stratosphere.pact.compiler.util.DummyOutputFormat;
@@ -66,19 +66,19 @@ public class DOPChangeTest extends CompilerTestBase {
 		FileDataSource source = new FileDataSource(new DummyInputFormat(), IN_FILE, "Source");
 		source.setDegreeOfParallelism(degOfPar);
 		
-		MapContract map1 = MapContract.builder(new IdentityMap()).name("Map1").build();
+		MapOperator map1 = MapOperator.builder(new IdentityMap()).name("Map1").build();
 		map1.setDegreeOfParallelism(degOfPar);
 		map1.setInput(source);
 		
-		ReduceContract reduce1 = ReduceContract.builder(new IdentityReduce(), PactInteger.class, 0).name("Reduce 1").build();
+		ReduceOperator reduce1 = ReduceOperator.builder(new IdentityReduce(), PactInteger.class, 0).name("Reduce 1").build();
 		reduce1.setDegreeOfParallelism(degOfPar);
 		reduce1.setInput(map1);
 		
-		MapContract map2 = MapContract.builder(new IdentityMap()).name("Map2").build();
+		MapOperator map2 = MapOperator.builder(new IdentityMap()).name("Map2").build();
 		map2.setDegreeOfParallelism(degOfPar * 2);
 		map2.setInput(reduce1);
 		
-		ReduceContract reduce2 = ReduceContract.builder(new IdentityReduce(), PactInteger.class, 0).name("Reduce 2").build();
+		ReduceOperator reduce2 = ReduceOperator.builder(new IdentityReduce(), PactInteger.class, 0).name("Reduce 2").build();
 		reduce2.setDegreeOfParallelism(degOfPar * 2);
 		reduce2.setInput(map2);
 		
@@ -120,19 +120,19 @@ public class DOPChangeTest extends CompilerTestBase {
 		FileDataSource source = new FileDataSource(new DummyInputFormat(), IN_FILE, "Source");
 		source.setDegreeOfParallelism(degOfPar);
 		
-		MapContract map1 = MapContract.builder(new IdentityMap()).name("Map1").build();
+		MapOperator map1 = MapOperator.builder(new IdentityMap()).name("Map1").build();
 		map1.setDegreeOfParallelism(degOfPar);
 		map1.setInput(source);
 		
-		ReduceContract reduce1 = ReduceContract.builder(new IdentityReduce(), PactInteger.class, 0).name("Reduce 1").build();
+		ReduceOperator reduce1 = ReduceOperator.builder(new IdentityReduce(), PactInteger.class, 0).name("Reduce 1").build();
 		reduce1.setDegreeOfParallelism(degOfPar);
 		reduce1.setInput(map1);
 		
-		MapContract map2 = MapContract.builder(new IdentityMap()).name("Map2").build();
+		MapOperator map2 = MapOperator.builder(new IdentityMap()).name("Map2").build();
 		map2.setDegreeOfParallelism(degOfPar);
 		map2.setInput(reduce1);
 		
-		ReduceContract reduce2 = ReduceContract.builder(new IdentityReduce(), PactInteger.class, 0).name("Reduce 2").build();
+		ReduceOperator reduce2 = ReduceOperator.builder(new IdentityReduce(), PactInteger.class, 0).name("Reduce 2").build();
 		reduce2.setDegreeOfParallelism(degOfPar * 2);
 		reduce2.setInput(map2);
 		
@@ -174,19 +174,19 @@ public class DOPChangeTest extends CompilerTestBase {
 		FileDataSource source = new FileDataSource(new DummyInputFormat(), IN_FILE, "Source");
 		source.setDegreeOfParallelism(degOfPar);
 		
-		MapContract map1 = MapContract.builder(new IdentityMap()).name("Map1").build();
+		MapOperator map1 = MapOperator.builder(new IdentityMap()).name("Map1").build();
 		map1.setDegreeOfParallelism(degOfPar);
 		map1.setInput(source);
 		
-		ReduceContract reduce1 = ReduceContract.builder(new IdentityReduce(), PactInteger.class, 0).name("Reduce 1").build();
+		ReduceOperator reduce1 = ReduceOperator.builder(new IdentityReduce(), PactInteger.class, 0).name("Reduce 1").build();
 		reduce1.setDegreeOfParallelism(degOfPar);
 		reduce1.setInput(map1);
 		
-		MapContract map2 = MapContract.builder(new IdentityMap()).name("Map2").build();
+		MapOperator map2 = MapOperator.builder(new IdentityMap()).name("Map2").build();
 		map2.setDegreeOfParallelism(degOfPar * 2);
 		map2.setInput(reduce1);
 		
-		ReduceContract reduce2 = ReduceContract.builder(new IdentityReduce(), PactInteger.class, 0).name("Reduce 2").build();
+		ReduceOperator reduce2 = ReduceOperator.builder(new IdentityReduce(), PactInteger.class, 0).name("Reduce 2").build();
 		reduce2.setDegreeOfParallelism(degOfPar * 2);
 		reduce2.setInput(map2);
 		
@@ -225,19 +225,19 @@ public class DOPChangeTest extends CompilerTestBase {
 		FileDataSource source = new FileDataSource(new DummyInputFormat(), IN_FILE, "Source");
 		source.setDegreeOfParallelism(degOfPar * 2);
 		
-		MapContract map1 = MapContract.builder(new IdentityMap()).name("Map1").build();
+		MapOperator map1 = MapOperator.builder(new IdentityMap()).name("Map1").build();
 		map1.setDegreeOfParallelism(degOfPar * 2);
 		map1.setInput(source);
 		
-		ReduceContract reduce1 = ReduceContract.builder(new IdentityReduce(), PactInteger.class, 0).name("Reduce 1").build();
+		ReduceOperator reduce1 = ReduceOperator.builder(new IdentityReduce(), PactInteger.class, 0).name("Reduce 1").build();
 		reduce1.setDegreeOfParallelism(degOfPar * 2);
 		reduce1.setInput(map1);
 		
-		MapContract map2 = MapContract.builder(new IdentityMap()).name("Map2").build();
+		MapOperator map2 = MapOperator.builder(new IdentityMap()).name("Map2").build();
 		map2.setDegreeOfParallelism(degOfPar);
 		map2.setInput(reduce1);
 		
-		ReduceContract reduce2 = ReduceContract.builder(new IdentityReduce(), PactInteger.class, 0).name("Reduce 2").build();
+		ReduceOperator reduce2 = ReduceOperator.builder(new IdentityReduce(), PactInteger.class, 0).name("Reduce 2").build();
 		reduce2.setDegreeOfParallelism(degOfPar);
 		reduce2.setInput(map2);
 		
@@ -280,14 +280,14 @@ public class DOPChangeTest extends CompilerTestBase {
 		FileDataSource sourceA = new FileDataSource(new DummyInputFormat(), IN_FILE);
 		FileDataSource sourceB = new FileDataSource(new DummyInputFormat(), IN_FILE);
 		
-		ReduceContract redA = ReduceContract.builder(new IdentityReduce(), PactInteger.class, 0)
+		ReduceOperator redA = ReduceOperator.builder(new IdentityReduce(), PactInteger.class, 0)
 			.input(sourceA)
 			.build();
-		ReduceContract redB = ReduceContract.builder(new IdentityReduce(), PactInteger.class, 0)
+		ReduceOperator redB = ReduceOperator.builder(new IdentityReduce(), PactInteger.class, 0)
 			.input(sourceB)
 			.build();
 		
-		MatchContract mat = MatchContract.builder(new DummyMatchStub(), PactInteger.class, 0, 0)
+		JoinOperator mat = JoinOperator.builder(new DummyMatchStub(), PactInteger.class, 0, 0)
 			.input1(redA)
 			.input2(redB)
 			.build();

@@ -18,7 +18,7 @@ package eu.stratosphere.pact.test.testPrograms.tpch9;
 
 import java.io.IOException;
 
-import eu.stratosphere.pact.common.io.FileOutputFormat;
+import eu.stratosphere.api.record.io.FileOutputFormat;
 import eu.stratosphere.types.PactRecord;
 import eu.stratosphere.types.PactString;
 

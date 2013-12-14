@@ -22,16 +22,16 @@ import org.junit.Test;
 import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.operators.util.FieldList;
 import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.pact.common.contract.CrossContract;
+import eu.stratosphere.api.record.operators.CrossOperator;
+import eu.stratosphere.compiler.PactCompiler;
+import eu.stratosphere.compiler.plan.BulkIterationPlanNode;
+import eu.stratosphere.compiler.plan.DualInputPlanNode;
+import eu.stratosphere.compiler.plan.OptimizedPlan;
+import eu.stratosphere.compiler.plan.SingleInputPlanNode;
+import eu.stratosphere.compiler.plan.SinkPlanNode;
+import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
+import eu.stratosphere.example.record.kmeans.KMeansIterative;
 import eu.stratosphere.pact.compiler.CompilerTestBase;
-import eu.stratosphere.pact.compiler.PactCompiler;
-import eu.stratosphere.pact.compiler.plan.candidate.BulkIterationPlanNode;
-import eu.stratosphere.pact.compiler.plan.candidate.DualInputPlanNode;
-import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
-import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
-import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
-import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
-import eu.stratosphere.pact.example.kmeans.KMeansIterative;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
@@ -108,7 +108,7 @@ public class IterativeKMeansTest extends CompilerTestBase {
 		
 		// parameterize the cross strategies
 		ContractResolver cr = getContractResolver(p);
-		CrossContract crossNode = cr.getNode(CROSS_NAME);
+		CrossOperator crossNode = cr.getNode(CROSS_NAME);
 		crossNode.setParameter(PactCompiler.HINT_SHIP_STRATEGY_SECOND_INPUT, PactCompiler.HINT_SHIP_STRATEGY_FORWARD);
 		
 		OptimizedPlan plan = compileNoStats(p);

@@ -16,9 +16,9 @@ package eu.stratosphere.scala.operators
 import language.experimental.macros
 import scala.reflect.macros.Context
 
-import eu.stratosphere.pact.common.contract.MapContract
+import eu.stratosphere.api.record.operators.MapOperator
 import eu.stratosphere.types.PactRecord
-import eu.stratosphere.pact.common.stubs.{MapStub => JMapStub}
+import eu.stratosphere.api.record.functions.{MapStub => JMapStub}
 import eu.stratosphere.api.operators.Contract
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.util.Collector
@@ -67,9 +67,9 @@ object MapMacros {
     val contract = reify {
       val input = c.prefix.splice.contract
       val generatedStub = ClosureCleaner.clean(stub.splice)
-      val builder = MapContract.builder(generatedStub).input(input)
+      val builder = MapOperator.builder(generatedStub).input(input)
       
-      val contract = new MapContract(builder) with OneInputScalaContract[In, Out] {
+      val contract = new MapOperator(builder) with OneInputScalaContract[In, Out] {
         override def getUDF = generatedStub.udf
         override def annotations = Seq(
           Annotations.getConstantFields(
@@ -124,9 +124,9 @@ object MapMacros {
     val contract = reify {
       val input = c.prefix.splice.contract
       val generatedStub = ClosureCleaner.clean(stub.splice)
-      val builder = MapContract.builder(generatedStub).input(input)
+      val builder = MapOperator.builder(generatedStub).input(input)
       
-      val contract = new MapContract(builder) with OneInputScalaContract[In, Out] {
+      val contract = new MapOperator(builder) with OneInputScalaContract[In, Out] {
         override def getUDF = generatedStub.udf
         override def annotations = Seq(
           Annotations.getConstantFields(
@@ -167,9 +167,9 @@ object MapMacros {
     val contract = reify {
       val input = c.prefix.splice.contract
       val generatedStub = ClosureCleaner.clean(stub.splice)
-      val builder = MapContract.builder(generatedStub).input(input)
+      val builder = MapOperator.builder(generatedStub).input(input)
       
-      val contract = new MapContract(builder) with OneInputScalaContract[In, In] {
+      val contract = new MapOperator(builder) with OneInputScalaContract[In, In] {
         override def getUDF = generatedStub.udf
         override def annotations = Seq(
           Annotations.getConstantFields(

@@ -26,13 +26,14 @@ import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.operators.WorksetIteration;
 import eu.stratosphere.api.operators.util.FieldList;
 import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.pact.common.contract.MapContract;
-import eu.stratosphere.pact.common.contract.MatchContract;
-import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.compiler.plan.candidate.DualInputPlanNode;
-import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
-import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
-import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
+import eu.stratosphere.api.record.operators.MapOperator;
+import eu.stratosphere.api.record.operators.JoinOperator;
+import eu.stratosphere.api.record.operators.ReduceOperator;
+import eu.stratosphere.compiler.CompilerException;
+import eu.stratosphere.compiler.plan.DualInputPlanNode;
+import eu.stratosphere.compiler.plan.OptimizedPlan;
+import eu.stratosphere.compiler.plan.SingleInputPlanNode;
+import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.pact.compiler.util.DummyInputFormat;
 import eu.stratosphere.pact.compiler.util.DummyMatchStub;
 import eu.stratosphere.pact.compiler.util.DummyNonPreservingMatchStub;
@@ -201,26 +202,26 @@ public class WorksetIterationsCompilerTest extends CompilerTestBase {
 		iteration.setInitialWorkset(worksetInput);
 		iteration.setMaximumNumberOfIterations(100);
 
-		MatchContract joinWithInvariant = MatchContract.builder(new DummyMatchStub(), PactLong.class, 0, 0)
+		JoinOperator joinWithInvariant = JoinOperator.builder(new DummyMatchStub(), PactLong.class, 0, 0)
 				.input1(iteration.getWorkset())
 				.input2(invariantInput)
 				.name(JOIN_WITH_INVARIANT_NAME)
 				.build();
 
-		MatchContract joinWithSolutionSet = MatchContract.builder(
+		JoinOperator joinWithSolutionSet = JoinOperator.builder(
 				joinPreservesSolutionSet ? new DummyMatchStub() : new DummyNonPreservingMatchStub(), PactLong.class, 0, 0)
 				.input1(iteration.getSolutionSet())
 				.input2(joinWithInvariant)
 				.name(JOIN_WITH_SOLUTION_SET)
 				.build();
 		
-		ReduceContract nextWorkset = ReduceContract.builder(new IdentityReduce(), PactLong.class, 0)
+		ReduceOperator nextWorkset = ReduceOperator.builder(new IdentityReduce(), PactLong.class, 0)
 				.input(joinWithSolutionSet)
 				.name(NEXT_WORKSET_REDUCER_NAME)
 				.build();
 		
 		if (mapBeforeSolutionDelta) {
-			MapContract mapper = MapContract.builder(new IdentityMap())
+			MapOperator mapper = MapOperator.builder(new IdentityMap())
 				.input(joinWithSolutionSet)
 				.name(SOLUTION_DELTA_MAPPER_NAME)
 				.build();

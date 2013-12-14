@@ -19,7 +19,7 @@ import eu.stratosphere.scala.analysis.UDF
 import eu.stratosphere.scala.analysis.UDF1
 import eu.stratosphere.scala.analysis.UDF2
 import eu.stratosphere.scala.analysis.FieldSelector
-import eu.stratosphere.pact.compiler.plan.OptimizerNode
+import eu.stratosphere.compiler.dag.OptimizerNode
 import eu.stratosphere.api.operators.AbstractPact
 import eu.stratosphere.scala.analysis.UDF0
 import eu.stratosphere.api.functions.StubAnnotation

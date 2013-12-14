@@ -23,14 +23,15 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.pact.compiler.PactCompiler;
-import eu.stratosphere.pact.compiler.plan.DataSinkNode;
-import eu.stratosphere.pact.example.connectedcomponents.WorksetConnectedComponents;
-import eu.stratosphere.pact.example.kmeans.KMeansIterative;
-import eu.stratosphere.pact.example.kmeans.KMeansSingleStep;
-import eu.stratosphere.pact.example.relational.TPCHQuery3;
-import eu.stratosphere.pact.example.relational.WebLogAnalysis;
-import eu.stratosphere.pact.example.wordcount.WordCount;
+import eu.stratosphere.compiler.PactCompiler;
+import eu.stratosphere.compiler.dag.DataSinkNode;
+import eu.stratosphere.compiler.plandump.PlanJSONDumpGenerator;
+import eu.stratosphere.example.record.connectedcomponents.WorksetConnectedComponents;
+import eu.stratosphere.example.record.kmeans.KMeansIterative;
+import eu.stratosphere.example.record.kmeans.KMeansSingleStep;
+import eu.stratosphere.example.record.relational.TPCHQuery3;
+import eu.stratosphere.example.record.relational.WebLogAnalysis;
+import eu.stratosphere.example.record.wordcount.WordCount;
 import eu.stratosphere.util.OperatingSystem;
 
 /*

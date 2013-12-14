@@ -15,7 +15,7 @@
 
 package eu.stratosphere.spargel.java.examples.connectedcomponents;
 
-import eu.stratosphere.pact.common.io.TextInputFormat;
+import eu.stratosphere.api.record.io.TextInputFormat;
 import eu.stratosphere.types.PactLong;
 import eu.stratosphere.types.PactRecord;
 import eu.stratosphere.types.parser.DecimalTextLongParser;

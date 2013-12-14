@@ -18,10 +18,10 @@ import scala.collection.JavaConversions._
 import scala.reflect.macros.Context
 import eu.stratosphere.scala.codegen.MacroContextHolder
 import eu.stratosphere.scala.ScalaContract
-import eu.stratosphere.pact.common.contract.MapContract
+import eu.stratosphere.api.record.operators.MapOperator
 import eu.stratosphere.scala.analysis.UDT
 import eu.stratosphere.types.PactRecord
-import eu.stratosphere.pact.common.stubs.MapStub
+import eu.stratosphere.api.record.functions.MapStub
 import eu.stratosphere.util.Collector
 import eu.stratosphere.api.operators.Contract
 import eu.stratosphere.scala.contracts.Annotations
@@ -55,18 +55,18 @@ object UnionMacros {
       }
 
       val firstInputs = c.prefix.splice.contract match {
-        case c : MapContract with UnionScalaContract[_] => c.getInputs().toList
+        case c : MapOperator with UnionScalaContract[_] => c.getInputs().toList
         case c => List(c)
       }
 
       val secondInputs = secondInput.splice.contract match {
-        case c : MapContract with UnionScalaContract[_] => c.getInputs().toList
+        case c : MapOperator with UnionScalaContract[_] => c.getInputs().toList
         case c => List(c)
       }
 
-      val builder = MapContract.builder(generatedStub).inputs(firstInputs ++ secondInputs)
+      val builder = MapOperator.builder(generatedStub).inputs(firstInputs ++ secondInputs)
       
-      val ret = new MapContract(builder) with UnionScalaContract[In] {
+      val ret = new MapOperator(builder) with UnionScalaContract[In] {
         override def getUDF = generatedStub.udf
       }
       new DataSet(ret)

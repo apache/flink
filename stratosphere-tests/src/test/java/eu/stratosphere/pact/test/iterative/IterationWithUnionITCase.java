@@ -27,13 +27,13 @@ import eu.stratosphere.api.operators.BulkIteration;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.api.record.functions.MapStub;
+import eu.stratosphere.api.record.functions.ReduceStub;
+import eu.stratosphere.api.record.operators.MapOperator;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.pact.common.contract.MapContract;
-import eu.stratosphere.pact.common.stubs.MapStub;
-import eu.stratosphere.pact.common.stubs.ReduceStub;
-import eu.stratosphere.pact.example.kmeans.udfs.PointInFormat;
-import eu.stratosphere.pact.example.kmeans.udfs.PointOutFormat;
-import eu.stratosphere.pact.test.util.TestBase2;
+import eu.stratosphere.example.record.kmeans.udfs.PointInFormat;
+import eu.stratosphere.example.record.kmeans.udfs.PointOutFormat;
+import eu.stratosphere.test.util.TestBase2;
 import eu.stratosphere.types.PactRecord;
 import eu.stratosphere.util.Collector;
 
@@ -82,8 +82,8 @@ public class IterationWithUnionITCase extends TestBase2 {
 		iteration.setInput(initialInput);
 		iteration.setMaximumNumberOfIterations(2);
 
-//		MapContract map1 = MapContract.builder(new IdentityMapper()).input(iteration.getPartialSolution()).name("map1").build();
-		MapContract map2 = MapContract.builder(new IdentityMapper()).input(iteration.getPartialSolution()).name("map").build();
+//		MapOperator map1 = MapOperator.builder(new IdentityMapper()).input(iteration.getPartialSolution()).name("map1").build();
+		MapOperator map2 = MapOperator.builder(new IdentityMapper()).input(iteration.getPartialSolution()).name("map").build();
 		map2.addInput(iteration.getPartialSolution());
 		
 		iteration.setNextPartialSolution(map2);

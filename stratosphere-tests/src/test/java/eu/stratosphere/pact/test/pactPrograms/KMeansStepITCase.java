@@ -29,12 +29,12 @@ import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.api.operators.GenericDataSink;
 import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.api.record.operators.CrossOperator;
+import eu.stratosphere.api.record.operators.ReduceOperator;
+import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.pact.common.contract.CrossContract;
-import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.compiler.PactCompiler;
-import eu.stratosphere.pact.example.kmeans.KMeansSingleStep;
-import eu.stratosphere.pact.test.util.TestBase2;
+import eu.stratosphere.example.record.kmeans.KMeansSingleStep;
+import eu.stratosphere.test.util.TestBase2;
 
 @RunWith(Parameterized.class)
 public class KMeansStepITCase extends TestBase2 {
@@ -243,9 +243,9 @@ public class KMeansStepITCase extends TestBase2 {
 	
 	public static void setParameterToCross(Plan p, String key, String value) {
 		GenericDataSink sink = p.getDataSinks().iterator().next();
-		ReduceContract reduce2 = (ReduceContract) sink.getInputs().get(0);
-		ReduceContract reduce1 = (ReduceContract) reduce2.getInputs().get(0);
-		CrossContract cross = (CrossContract) reduce1.getInputs().get(0);
+		ReduceOperator reduce2 = (ReduceOperator) sink.getInputs().get(0);
+		ReduceOperator reduce1 = (ReduceOperator) reduce2.getInputs().get(0);
+		CrossOperator cross = (CrossOperator) reduce1.getInputs().get(0);
 		cross.getParameters().setString(key, value);
 	}
 }

@@ -18,7 +18,7 @@ import scala.math.Ordered._
 import eu.stratosphere.scala._
 import eu.stratosphere.scala.operators._
 
-import eu.stratosphere.pact.client.LocalExecutor
+import eu.stratosphere.client.LocalExecutor
 
 object RunTransitiveClosureRD {
   def main(pArgs: Array[String]) {

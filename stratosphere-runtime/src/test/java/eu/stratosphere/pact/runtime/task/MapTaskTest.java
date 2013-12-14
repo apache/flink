@@ -24,7 +24,7 @@ import org.junit.Test;
 import org.junit.Assert;
 
 import eu.stratosphere.api.functions.GenericMapper;
-import eu.stratosphere.pact.common.stubs.MapStub;
+import eu.stratosphere.api.record.functions.MapStub;
 import eu.stratosphere.pact.runtime.test.util.DiscardingOutputCollector;
 import eu.stratosphere.pact.runtime.test.util.DriverTestBase;
 import eu.stratosphere.pact.runtime.test.util.ExpectedTestException;

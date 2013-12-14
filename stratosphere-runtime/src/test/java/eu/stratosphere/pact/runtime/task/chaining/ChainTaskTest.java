@@ -24,8 +24,8 @@ import org.junit.Test;
 
 import eu.stratosphere.api.functions.GenericMapper;
 import eu.stratosphere.api.operators.util.UserCodeClassWrapper;
+import eu.stratosphere.api.record.functions.ReduceStub;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparatorFactory;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordSerializerFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;

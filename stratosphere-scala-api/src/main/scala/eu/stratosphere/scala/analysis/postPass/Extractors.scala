@@ -13,26 +13,26 @@
 
 package eu.stratosphere.scala.analysis.postPass
 
-import eu.stratosphere.pact.common.contract.CoGroupContract
-import eu.stratosphere.pact.common.contract.CrossContract
+import eu.stratosphere.api.record.operators.CoGroupOperator
+import eu.stratosphere.api.record.operators.CrossOperator
 import eu.stratosphere.api.operators.GenericDataSink
 import eu.stratosphere.api.operators.GenericDataSource
-import eu.stratosphere.pact.common.contract.MapContract
-import eu.stratosphere.pact.common.contract.MatchContract
-import eu.stratosphere.pact.common.contract.ReduceContract
-import eu.stratosphere.pact.compiler.plan.BinaryUnionNode
-import eu.stratosphere.pact.compiler.plan.BulkIterationNode
-import eu.stratosphere.pact.compiler.plan.CoGroupNode
-import eu.stratosphere.pact.compiler.plan.CrossNode
-import eu.stratosphere.pact.compiler.plan.DataSinkNode
-import eu.stratosphere.pact.compiler.plan.DataSourceNode
-import eu.stratosphere.pact.compiler.plan.MapNode
-import eu.stratosphere.pact.compiler.plan.MatchNode
-import eu.stratosphere.pact.compiler.plan.OptimizerNode
-import eu.stratosphere.pact.compiler.plan.PactConnection
-import eu.stratosphere.pact.compiler.plan.ReduceNode
-import eu.stratosphere.pact.compiler.plan.SinkJoiner
-import eu.stratosphere.pact.compiler.plan.WorksetIterationNode
+import eu.stratosphere.api.record.operators.MapOperator
+import eu.stratosphere.api.record.operators.JoinOperator
+import eu.stratosphere.api.record.operators.ReduceOperator
+import eu.stratosphere.compiler.dag.BinaryUnionNode
+import eu.stratosphere.compiler.dag.BulkIterationNode
+import eu.stratosphere.compiler.dag.CoGroupNode
+import eu.stratosphere.compiler.dag.CrossNode
+import eu.stratosphere.compiler.dag.DataSinkNode
+import eu.stratosphere.compiler.dag.DataSourceNode
+import eu.stratosphere.compiler.dag.MapNode
+import eu.stratosphere.compiler.dag.MatchNode
+import eu.stratosphere.compiler.dag.OptimizerNode
+import eu.stratosphere.compiler.dag.PactConnection
+import eu.stratosphere.compiler.dag.ReduceNode
+import eu.stratosphere.compiler.dag.SinkJoiner
+import eu.stratosphere.compiler.dag.WorksetIterationNode
 import eu.stratosphere.api.operators.WorksetIteration
 import eu.stratosphere.scala.ScalaContract
 import eu.stratosphere.scala.OneInputScalaContract
@@ -85,7 +85,7 @@ object Extractors {
   object CoGroupNode {
     def unapply(node: OptimizerNode): Option[(UDF2[_, _, _], FieldSelector, FieldSelector, PactConnection, PactConnection)] = node match {
       case node: CoGroupNode => node.getPactContract() match {
-        case contract: CoGroupContract with TwoInputKeyedScalaContract[_, _, _] => Some((contract.getUDF, contract.leftKey, contract.rightKey, node.getFirstIncomingConnection, node.getSecondIncomingConnection))
+        case contract: CoGroupOperator with TwoInputKeyedScalaContract[_, _, _] => Some((contract.getUDF, contract.leftKey, contract.rightKey, node.getFirstIncomingConnection, node.getSecondIncomingConnection))
         case _ => None
       }
       case _ => None
@@ -95,7 +95,7 @@ object Extractors {
   object CrossNode {
     def unapply(node: OptimizerNode): Option[(UDF2[_, _, _], PactConnection, PactConnection)] = node match {
       case node: CrossNode => node.getPactContract match {
-        case contract: CrossContract with TwoInputScalaContract[_, _, _] => Some((contract.getUDF, node.getFirstIncomingConnection, node.getSecondIncomingConnection))
+        case contract: CrossOperator with TwoInputScalaContract[_, _, _] => Some((contract.getUDF, node.getFirstIncomingConnection, node.getSecondIncomingConnection))
         case _ => None
       }
       case _ => None
@@ -105,7 +105,7 @@ object Extractors {
   object JoinNode {
     def unapply(node: OptimizerNode): Option[(UDF2[_, _, _], FieldSelector, FieldSelector, PactConnection, PactConnection)] = node match {
       case node: MatchNode => node.getPactContract match {
-        case contract: MatchContract with TwoInputKeyedScalaContract[_, _, _] => Some((contract.getUDF, contract.leftKey, contract.rightKey, node.getFirstIncomingConnection, node.getSecondIncomingConnection))
+        case contract: JoinOperator with TwoInputKeyedScalaContract[_, _, _] => Some((contract.getUDF, contract.leftKey, contract.rightKey, node.getFirstIncomingConnection, node.getSecondIncomingConnection))
         case _ => None
       }
       case _ => None
@@ -115,7 +115,7 @@ object Extractors {
   object MapNode {
     def unapply(node: OptimizerNode): Option[(UDF1[_, _], PactConnection)] = node match {
       case node: MapNode => node.getPactContract match {
-        case contract: MapContract with OneInputScalaContract[_, _] => Some((contract.getUDF, node.getIncomingConnection))
+        case contract: MapOperator with OneInputScalaContract[_, _] => Some((contract.getUDF, node.getIncomingConnection))
         case _ => None
       }
       case _ => None
@@ -125,7 +125,7 @@ object Extractors {
   object UnionNode {
     def unapply(node: OptimizerNode): Option[(UDF1[_, _], PactConnection)] = node match {
       case node: MapNode => node.getPactContract match {
-        case contract: MapContract with UnionScalaContract[_] => Some((contract.getUDF, node.getIncomingConnection))
+        case contract: MapOperator with UnionScalaContract[_] => Some((contract.getUDF, node.getIncomingConnection))
         case _ => None
       }
       case _ => None
@@ -135,8 +135,8 @@ object Extractors {
   object ReduceNode {
     def unapply(node: OptimizerNode): Option[(UDF1[_, _], FieldSelector, PactConnection)] = node match {
       case node: ReduceNode => node.getPactContract match {
-        case contract: ReduceContract with OneInputKeyedScalaContract[_, _] => Some((contract.getUDF, contract.key, node.getIncomingConnection))
-        case contract: ReduceContract with OneInputScalaContract[_, _] => Some((contract.getUDF, new FieldSelector(contract.getUDF.inputUDT, Nil), node.getIncomingConnection))
+        case contract: ReduceOperator with OneInputKeyedScalaContract[_, _] => Some((contract.getUDF, contract.key, node.getIncomingConnection))
+        case contract: ReduceOperator with OneInputScalaContract[_, _] => Some((contract.getUDF, new FieldSelector(contract.getUDF.inputUDT, Nil), node.getIncomingConnection))
         case _ => None
       }
       case _ => None

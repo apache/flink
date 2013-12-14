@@ -22,8 +22,8 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import eu.stratosphere.pact.client.localDistributed.LocalDistributedExecutor;
-import eu.stratosphere.pact.example.wordcount.WordCount;
+import eu.stratosphere.client.localDistributed.LocalDistributedExecutor;
+import eu.stratosphere.example.record.wordcount.WordCount;
 import eu.stratosphere.pact.test.pactPrograms.WordCountITCase;
 
 

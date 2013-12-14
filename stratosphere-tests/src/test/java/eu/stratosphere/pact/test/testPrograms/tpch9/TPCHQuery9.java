@@ -22,9 +22,9 @@ import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.plan.Plan;
 import eu.stratosphere.api.plan.PlanAssembler;
 import eu.stratosphere.api.plan.PlanAssemblerDescription;
-import eu.stratosphere.pact.common.contract.MapContract;
-import eu.stratosphere.pact.common.contract.MatchContract;
-import eu.stratosphere.pact.common.contract.ReduceContract;
+import eu.stratosphere.api.record.operators.MapOperator;
+import eu.stratosphere.api.record.operators.JoinOperator;
+import eu.stratosphere.api.record.operators.ReduceOperator;
 import eu.stratosphere.pact.test.testPrograms.util.IntTupleDataInFormat;
 import eu.stratosphere.types.PactInteger;
 
@@ -140,62 +140,62 @@ public class TPCHQuery9 implements PlanAssembler, PlanAssemblerDescription {
 //		nationInput.getCompilerHints().setAvgNumValuesPerKey(1);
 
 		/* Filter on part's name, project values to NULL: */
-		MapContract filterPart = MapContract.builder(PartFilter.class)
+		MapOperator filterPart = MapOperator.builder(PartFilter.class)
 			.name("filterParts")
 			.build();
 
 		/* Map to change the key element of partsupp, project value to (supplycost, suppkey): */
-		MapContract mapPartsupp = MapContract.builder(PartsuppMap.class)
+		MapOperator mapPartsupp = MapOperator.builder(PartsuppMap.class)
 			.name("mapPartsupp")
 			.build();
 
 		/* Map to extract the year from order: */
-		MapContract mapOrder = MapContract.builder(OrderMap.class)
+		MapOperator mapOrder = MapOperator.builder(OrderMap.class)
 			.name("mapOrder")
 			.build();
 
 		/* Project value to (partkey, suppkey, quantity, price = extendedprice*(1-discount)): */
-		MapContract mapLineItem = MapContract.builder(LineItemMap.class)
+		MapOperator mapLineItem = MapOperator.builder(LineItemMap.class)
 			.name("proj.Partsupp")
 			.build();
 
 		/* - change the key of supplier to nationkey, project value to suppkey */
-		MapContract mapSupplier = MapContract.builder(SupplierMap.class)
+		MapOperator mapSupplier = MapOperator.builder(SupplierMap.class)
 			.name("proj.Partsupp")
 			.build();
 
 		/* Equijoin on partkey of part and partsupp: */
-		MatchContract partsJoin = MatchContract.builder(PartJoin.class, PactInteger.class, 0, 0)
+		JoinOperator partsJoin = JoinOperator.builder(PartJoin.class, PactInteger.class, 0, 0)
 			.name("partsJoin")
 			.build();
 
 		/* Equijoin on orderkey of orders and lineitem: */
-		MatchContract orderedPartsJoin =
-			MatchContract.builder(OrderedPartsJoin.class, PactInteger.class, 0, 0)
+		JoinOperator orderedPartsJoin =
+			JoinOperator.builder(OrderedPartsJoin.class, PactInteger.class, 0, 0)
 			.name("orderedPartsJoin")
 			.build();
 
 		/* Equijoin on nationkey of supplier and nation: */
-		MatchContract suppliersJoin =
-			MatchContract.builder(SuppliersJoin.class, PactInteger.class, 0, 0)
+		JoinOperator suppliersJoin =
+			JoinOperator.builder(SuppliersJoin.class, PactInteger.class, 0, 0)
 			.name("suppliersJoin")
 			.build();
 
 		/* Equijoin on (partkey,suppkey) of parts and orderedParts: */
-		MatchContract filteredPartsJoin =
-			MatchContract.builder(FilteredPartsJoin.class, IntPair.class, 0, 0)
+		JoinOperator filteredPartsJoin =
+			JoinOperator.builder(FilteredPartsJoin.class, IntPair.class, 0, 0)
 			.name("filteredPartsJoin")
 			.build();
 
 		/* Equijoin on suppkey of filteredParts and suppliers: */
-		MatchContract partListJoin =
-			MatchContract.builder(PartListJoin.class, PactInteger.class , 0, 0)
+		JoinOperator partListJoin =
+			JoinOperator.builder(PartListJoin.class, PactInteger.class , 0, 0)
 			.name("partlistJoin")
 			.build();
 
 		/* Aggregate sum(amount) by (nation,year): */
-		ReduceContract sumAmountAggregate =
-			ReduceContract.builder(AmountAggregate.class, StringIntPair.class, 0)
+		ReduceOperator sumAmountAggregate =
+			ReduceOperator.builder(AmountAggregate.class, StringIntPair.class, 0)
 			.name("groupyBy")
 			.build();
 

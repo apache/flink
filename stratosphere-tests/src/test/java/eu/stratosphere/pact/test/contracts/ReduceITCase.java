@@ -31,15 +31,15 @@ import org.junit.runners.Parameterized.Parameters;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.api.record.functions.ReduceStub;
+import eu.stratosphere.api.record.io.DelimitedInputFormat;
+import eu.stratosphere.api.record.operators.ReduceOperator;
+import eu.stratosphere.compiler.DataStatistics;
+import eu.stratosphere.compiler.PactCompiler;
+import eu.stratosphere.compiler.plan.OptimizedPlan;
+import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.common.io.DelimitedInputFormat;
-import eu.stratosphere.pact.common.stubs.ReduceStub;
-import eu.stratosphere.pact.compiler.DataStatistics;
-import eu.stratosphere.pact.compiler.PactCompiler;
-import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
-import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.pact.test.contracts.io.ContractITCaseIOFormats.ContractITCaseInputFormat;
 import eu.stratosphere.pact.test.contracts.io.ContractITCaseIOFormats.ContractITCaseOutputFormat;
 import eu.stratosphere.pact.test.util.TestBase;
@@ -80,7 +80,7 @@ public class ReduceITCase extends TestBase {
 		this.getFilesystemProvider().createFile(tempDir + "/reduceInput/reduceTest_4.txt", REDUCE_IN_4);
 	}
 
-	@ReduceContract.Combinable
+	@ReduceOperator.Combinable
 	public static class TestReducer extends ReduceStub implements Serializable {
 		private static final long serialVersionUID = 1L;
 
@@ -133,7 +133,7 @@ public class ReduceITCase extends TestBase {
 			.recordDelimiter('\n');
 		input.setDegreeOfParallelism(config.getInteger("ReduceTest#NoSubtasks", 1));
 
-		ReduceContract testReducer = ReduceContract.builder(new TestReducer(), PactString.class, 0)
+		ReduceOperator testReducer = ReduceOperator.builder(new TestReducer(), PactString.class, 0)
 			.build();
 		testReducer.setDegreeOfParallelism(config.getInteger("ReduceTest#NoSubtasks", 1));
 		testReducer.getParameters().setString(PactCompiler.HINT_LOCAL_STRATEGY,

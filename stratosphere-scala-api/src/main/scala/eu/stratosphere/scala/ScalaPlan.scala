@@ -15,8 +15,8 @@ package eu.stratosphere.scala
 
 import scala.collection.JavaConversions.asJavaCollection
 import eu.stratosphere.api.plan.Plan
-import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan
-import eu.stratosphere.pact.compiler.postpass.GenericPactRecordPostPass
+import eu.stratosphere.compiler.plan.OptimizedPlan
+import eu.stratosphere.compiler.postpass.GenericPactRecordPostPass
 import java.util.Calendar
 import eu.stratosphere.api.operators.Contract
 import eu.stratosphere.scala.analysis.GlobalSchemaGenerator

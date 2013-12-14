@@ -29,15 +29,15 @@ import org.junit.runners.Parameterized.Parameters;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.api.record.functions.MapStub;
+import eu.stratosphere.api.record.io.DelimitedInputFormat;
+import eu.stratosphere.api.record.operators.MapOperator;
+import eu.stratosphere.compiler.DataStatistics;
+import eu.stratosphere.compiler.PactCompiler;
+import eu.stratosphere.compiler.plan.OptimizedPlan;
+import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.pact.common.contract.MapContract;
-import eu.stratosphere.pact.common.io.DelimitedInputFormat;
-import eu.stratosphere.pact.common.stubs.MapStub;
-import eu.stratosphere.pact.compiler.DataStatistics;
-import eu.stratosphere.pact.compiler.PactCompiler;
-import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
-import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.pact.test.contracts.io.ContractITCaseIOFormats.ContractITCaseInputFormat;
 import eu.stratosphere.pact.test.contracts.io.ContractITCaseIOFormats.ContractITCaseOutputFormat;
 import eu.stratosphere.pact.test.util.FailingTestBase;
@@ -109,7 +109,7 @@ public class TaskFailureITCase extends FailingTestBase {
 		input.setDegreeOfParallelism(config.getInteger("MapTest#NoSubtasks", 1));
 
 		// init failing map task
-		MapContract testMapper = MapContract.builder(FailingMapper.class).build();
+		MapOperator testMapper = MapOperator.builder(FailingMapper.class).build();
 		testMapper.setDegreeOfParallelism(config.getInteger("MapTest#NoSubtasks", 1));
 
 		// init data sink
@@ -150,7 +150,7 @@ public class TaskFailureITCase extends FailingTestBase {
 		input.setDegreeOfParallelism(config.getInteger("MapTest#NoSubtasks", 1));
 
 		// init (working) map task
-		MapContract testMapper = MapContract.builder(TestMapper.class).build();
+		MapOperator testMapper = MapOperator.builder(TestMapper.class).build();
 		testMapper.setDegreeOfParallelism(config.getInteger("MapTest#NoSubtasks", 1));
 
 		// init data sink

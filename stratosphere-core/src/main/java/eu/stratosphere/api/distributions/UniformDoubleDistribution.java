@@ -38,7 +38,7 @@ public class UniformDoubleDistribution implements DataDistribution {
 	@Override
 	public PactDouble[] getBucketBoundary(int bucketNum, int totalNumBuckets) {
 		double bucketSize = (max - min) / totalNumBuckets;
-		return new PactDouble[] {new PactDouble(bucketNum * bucketSize) };
+		return new PactDouble[] {new PactDouble(min + (bucketNum+1) * bucketSize) };
 	}
 
 	@Override

@@ -19,8 +19,8 @@ import scala.reflect.macros.Context
 import eu.stratosphere.types.PactRecord
 import eu.stratosphere.util.Collector
 import eu.stratosphere.api.operators.Contract
-import eu.stratosphere.pact.common.contract.CoGroupContract
-import eu.stratosphere.pact.common.stubs.{CoGroupStub => JCoGroupStub}
+import eu.stratosphere.api.record.operators.CoGroupOperator
+import eu.stratosphere.api.record.functions.{CoGroupStub => JCoGroupStub}
 import eu.stratosphere.api.operators.util.UserCodeObjectWrapper
 
 import eu.stratosphere.configuration.Configuration
@@ -47,7 +47,7 @@ class CoGroupDataSetWithWhereAndEqual[LeftIn, RightIn](val leftKeySelection: Lis
   def flatMap[Out](fun: (Iterator[LeftIn], Iterator[RightIn]) => Iterator[Out]): DataSet[Out] with TwoInputHintable[LeftIn, RightIn, Out] = macro CoGroupMacros.flatMap[LeftIn, RightIn, Out]
 }
 
-class NoKeyCoGroupBuilder(s: JCoGroupStub) extends CoGroupContract.Builder(new UserCodeObjectWrapper(s))
+class NoKeyCoGroupBuilder(s: JCoGroupStub) extends CoGroupOperator.Builder(new UserCodeObjectWrapper(s))
 
 object CoGroupMacros {
   
@@ -136,7 +136,7 @@ object CoGroupMacros {
       0 until keyTypes.size foreach { i => builder.keyField(keyTypes(i), leftKeyPositions(i), rightKeyPositions(i)) }
       
       
-      val ret = new CoGroupContract(builder) with TwoInputKeyedScalaContract[LeftIn, RightIn, Out] {
+      val ret = new CoGroupOperator(builder) with TwoInputKeyedScalaContract[LeftIn, RightIn, Out] {
         override val leftKey: FieldSelector = leftKeySelector
         override val rightKey: FieldSelector = rightKeySelector
         override def getUDF = generatedStub.udf
@@ -207,7 +207,7 @@ object CoGroupMacros {
       0 until keyTypes.size foreach { i => builder.keyField(keyTypes(i), leftKeyPositions(i), rightKeyPositions(i)) }
       
       
-      val ret = new CoGroupContract(builder) with TwoInputKeyedScalaContract[LeftIn, RightIn, Out] {
+      val ret = new CoGroupOperator(builder) with TwoInputKeyedScalaContract[LeftIn, RightIn, Out] {
         override val leftKey: FieldSelector = leftKeySelector
         override val rightKey: FieldSelector = rightKeySelector
         override def getUDF = generatedStub.udf

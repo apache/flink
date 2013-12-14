@@ -17,8 +17,8 @@ package eu.stratosphere.pact.test.testPrograms.util;
 
 import java.io.IOException;
 
+import eu.stratosphere.api.record.io.GenericInputFormat;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.pact.common.io.GenericInputFormat;
 import eu.stratosphere.types.PactInteger;
 import eu.stratosphere.types.PactRecord;
 
@@ -55,7 +55,7 @@ public class UniformIntInput extends GenericInputFormat {
 	
 
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.io.GenericInputFormat#configure(eu.stratosphere.nephele.configuration.Configuration)
+	 * @see eu.stratosphere.api.record.io.GenericInputFormat#configure(eu.stratosphere.nephele.configuration.Configuration)
 	 */
 	@Override
 	public void configure(Configuration parameters) {
