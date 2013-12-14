@@ -21,22 +21,22 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.contract.CompilerHints;
-import eu.stratosphere.pact.common.contract.GenericDataSource;
+import eu.stratosphere.api.io.InputFormat;
+import eu.stratosphere.api.io.UnsplittableInput;
+import eu.stratosphere.api.io.statistics.BaseStatistics;
+import eu.stratosphere.api.operators.CompilerHints;
+import eu.stratosphere.api.operators.Contract;
+import eu.stratosphere.api.operators.GenericDataSource;
+import eu.stratosphere.api.operators.util.FieldSet;
+import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.pact.common.io.FileInputFormat;
-import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
-import eu.stratosphere.pact.common.util.FieldSet;
-import eu.stratosphere.pact.common.util.Visitor;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
 import eu.stratosphere.pact.compiler.costs.Costs;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SourcePlanNode;
-import eu.stratosphere.pact.generic.contract.Contract;
-import eu.stratosphere.pact.generic.io.InputFormat;
-import eu.stratosphere.pact.generic.io.UnsplittableInput;
+import eu.stratosphere.util.Visitor;
 
 /**
  * The optimizer's internal representation of a data source.

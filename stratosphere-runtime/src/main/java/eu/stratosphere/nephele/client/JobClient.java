@@ -24,8 +24,9 @@ import java.util.Map;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.configuration.ConfigConstants;
-import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.accumulators.AccumulatorHelper;
+import eu.stratosphere.configuration.ConfigConstants;
+import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.event.job.AbstractEvent;
 import eu.stratosphere.nephele.event.job.JobEvent;
 import eu.stratosphere.nephele.ipc.RPC;
@@ -35,9 +36,8 @@ import eu.stratosphere.nephele.net.NetUtils;
 import eu.stratosphere.nephele.protocols.AccumulatorProtocol;
 import eu.stratosphere.nephele.protocols.JobManagementProtocol;
 import eu.stratosphere.nephele.services.accumulators.AccumulatorEvent;
-import eu.stratosphere.nephele.services.accumulators.AccumulatorHelper;
 import eu.stratosphere.nephele.types.IntegerRecord;
-import eu.stratosphere.nephele.util.StringUtils;
+import eu.stratosphere.util.StringUtils;
 
 /**
  * The job client is able to submit, control, and abort jobs.

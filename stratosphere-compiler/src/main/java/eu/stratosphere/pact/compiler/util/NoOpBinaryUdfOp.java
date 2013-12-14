@@ -14,10 +14,10 @@
  **********************************************************************************************************************/
 package eu.stratosphere.pact.compiler.util;
 
+import eu.stratosphere.api.operators.DualInputContract;
+import eu.stratosphere.api.operators.util.UserCodeClassWrapper;
 import eu.stratosphere.pact.common.contract.RecordContract;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.generic.contract.DualInputContract;
-import eu.stratosphere.pact.generic.contract.UserCodeClassWrapper;
+import eu.stratosphere.types.Key;
 
 
 public class NoOpBinaryUdfOp extends DualInputContract<NoOpStub> implements RecordContract {

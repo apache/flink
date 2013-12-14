@@ -15,12 +15,12 @@
 
 package eu.stratosphere.nephele.io.channels.bytebuffered;
 
+import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.types.Record;
 
-public final class InMemoryOutputChannel<T extends Record> extends AbstractByteBufferedOutputChannel<T> {
+public final class InMemoryOutputChannel<T extends IOReadableWritable> extends AbstractByteBufferedOutputChannel<T> {
 
 	public InMemoryOutputChannel(OutputGate<T> outputGate, int channelIndex, ChannelID channelID,
 			ChannelID connectedChannelID) {

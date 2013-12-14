@@ -15,10 +15,10 @@
 
 package eu.stratosphere.nephele.executiongraph;
 
+import eu.stratosphere.core.io.StringRecord;
 import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.nephele.types.StringRecord;
 
 public class ForwardTask1Input2Outputs extends AbstractTask {
 

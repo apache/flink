@@ -15,10 +15,10 @@
 
 package eu.stratosphere.pact.runtime.plugable.pactrecord;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.generic.types.TypeSerializer;
-import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
+import eu.stratosphere.api.typeutils.TypeSerializer;
+import eu.stratosphere.api.typeutils.TypeSerializerFactory;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.types.PactRecord;
 
 /**
  * A factory that create a serializer for the {@link PactRecord} data type.

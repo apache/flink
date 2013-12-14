@@ -17,6 +17,7 @@ package eu.stratosphere.nephele.taskmanager.runtime;
 
 import java.io.IOException;
 
+import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
@@ -30,7 +31,6 @@ import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPoolOwner;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.InputChannelContext;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.InputGateContext;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
-import eu.stratosphere.nephele.types.Record;
 
 final class RuntimeInputGateContext implements BufferProvider, InputGateContext, LocalBufferPoolOwner {
 
@@ -40,10 +40,10 @@ final class RuntimeInputGateContext implements BufferProvider, InputGateContext,
 
 	private final TransferEnvelopeDispatcher transferEnvelopeDispatcher;
 
-	private final InputGate<? extends Record> inputGate;
+	private final InputGate<? extends IOReadableWritable> inputGate;
 
 	RuntimeInputGateContext(final String taskName, final TransferEnvelopeDispatcher transferEnvelopeDispatcher,
-			final InputGate<? extends Record> inputGate) {
+			final InputGate<? extends IOReadableWritable> inputGate) {
 
 		this.taskName = taskName;
 		this.localBufferPool = new LocalBufferPool(1, false);
@@ -156,9 +156,9 @@ final class RuntimeInputGateContext implements BufferProvider, InputGateContext,
 	public InputChannelContext createInputChannelContext(final ChannelID channelID,
 			final InputChannelContext previousContext) {
 
-		AbstractInputChannel<? extends Record> channel = null;
+		AbstractInputChannel<? extends IOReadableWritable> channel = null;
 		for (int i = 0; i < this.inputGate.getNumberOfInputChannels(); ++i) {
-			AbstractInputChannel<? extends Record> candidateChannel = this.inputGate.getInputChannel(i);
+			AbstractInputChannel<? extends IOReadableWritable> candidateChannel = this.inputGate.getInputChannel(i);
 			if (candidateChannel.getID().equals(channelID)) {
 				channel = candidateChannel;
 				break;
@@ -175,7 +175,7 @@ final class RuntimeInputGateContext implements BufferProvider, InputGateContext,
 		}
 
 		return new RuntimeInputChannelContext(this, this.transferEnvelopeDispatcher,
-			(AbstractByteBufferedInputChannel<? extends Record>) channel);
+			(AbstractByteBufferedInputChannel<? extends IOReadableWritable>) channel);
 	}
 
 	/**

@@ -15,11 +15,11 @@
 
 package eu.stratosphere.nephele.example.union;
 
+import eu.stratosphere.core.io.StringRecord;
 import eu.stratosphere.nephele.io.MutableRecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.io.UnionRecordReader;
 import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.nephele.types.StringRecord;
 
 public class UnionTask extends AbstractTask {
 

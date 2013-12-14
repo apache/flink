@@ -22,9 +22,9 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.pact.common.io.DelimitedInputFormat;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.common.type.base.PactString;
+import eu.stratosphere.types.PactInteger;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.PactString;
 
 public class ContractITCaseIOFormats {
 

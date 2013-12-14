@@ -15,13 +15,13 @@
 
 package eu.stratosphere.pact.example.sort;
 
-import eu.stratosphere.pact.common.contract.FileDataSink;
-import eu.stratosphere.pact.common.contract.FileDataSource;
-import eu.stratosphere.pact.common.contract.Order;
-import eu.stratosphere.pact.common.contract.Ordering;
-import eu.stratosphere.pact.common.plan.Plan;
-import eu.stratosphere.pact.common.plan.PlanAssembler;
-import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
+import eu.stratosphere.api.operators.FileDataSink;
+import eu.stratosphere.api.operators.FileDataSource;
+import eu.stratosphere.api.operators.Order;
+import eu.stratosphere.api.operators.Ordering;
+import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.api.plan.PlanAssembler;
+import eu.stratosphere.api.plan.PlanAssemblerDescription;
 import eu.stratosphere.pact.example.sort.terasort.TeraDistribution;
 import eu.stratosphere.pact.example.sort.terasort.TeraInputFormat;
 import eu.stratosphere.pact.example.sort.terasort.TeraKey;

@@ -14,10 +14,10 @@
  **********************************************************************************************************************/
 package eu.stratosphere.pact.compiler.util;
 
+import eu.stratosphere.api.operators.SingleInputContract;
+import eu.stratosphere.api.operators.util.UserCodeClassWrapper;
 import eu.stratosphere.pact.common.contract.RecordContract;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.generic.contract.SingleInputContract;
-import eu.stratosphere.pact.generic.contract.UserCodeClassWrapper;
+import eu.stratosphere.types.Key;
 
 
 public class NoOpUnaryUdfOp extends SingleInputContract<NoOpStub> implements RecordContract {

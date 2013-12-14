@@ -15,9 +15,9 @@
 
 package eu.stratosphere.pact.runtime.iterative.io;
 
-import eu.stratosphere.pact.generic.types.TypeSerializer;
-import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.api.typeutils.TypeSerializer;
 import eu.stratosphere.pact.runtime.hash.HashPartition;
+import eu.stratosphere.util.MutableObjectIterator;
 
 import java.io.EOFException;
 import java.io.IOException;

@@ -23,25 +23,25 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.contract.FileDataSink;
-import eu.stratosphere.pact.common.contract.FileDataSource;
+import eu.stratosphere.api.functions.StubAnnotation.ConstantFieldsSecondExcept;
+import eu.stratosphere.api.operators.FileDataSink;
+import eu.stratosphere.api.operators.FileDataSource;
+import eu.stratosphere.api.operators.WorksetIteration;
+import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.io.RecordOutputFormat;
-import eu.stratosphere.pact.common.plan.Plan;
-import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MatchStub;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsSecondExcept;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.example.connectedcomponents.DuplicateLongInputFormat;
 import eu.stratosphere.pact.example.connectedcomponents.LongLongInputFormat;
 import eu.stratosphere.pact.example.connectedcomponents.WorksetConnectedComponents.MinimumComponentIDReduce;
 import eu.stratosphere.pact.example.connectedcomponents.WorksetConnectedComponents.NeighborWithComponentIDJoin;
-import eu.stratosphere.pact.generic.contract.WorksetIteration;
 import eu.stratosphere.pact.test.iterative.nephele.ConnectedComponentsNepheleITCase;
 import eu.stratosphere.pact.test.util.TestBase2;
+import eu.stratosphere.types.PactLong;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.util.Collector;
 
 @RunWith(Parameterized.class)
 public class ConnectedComponentsWithSolutionSetFirstITCase extends TestBase2 {

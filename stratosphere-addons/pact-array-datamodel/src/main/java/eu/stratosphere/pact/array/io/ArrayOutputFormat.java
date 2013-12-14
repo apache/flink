@@ -19,10 +19,10 @@ import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.contract.FileDataSink;
-import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.generic.io.FileOutputFormat;
+import eu.stratosphere.api.io.FileOutputFormat;
+import eu.stratosphere.api.operators.FileDataSink;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.types.Value;
 
 /**
  * 

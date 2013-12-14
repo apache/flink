@@ -22,7 +22,7 @@ import java.io.IOException;
 import java.util.Hashtable;
 import java.util.Properties;
 
-import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.pact.test.util.Constants;
 
 /**

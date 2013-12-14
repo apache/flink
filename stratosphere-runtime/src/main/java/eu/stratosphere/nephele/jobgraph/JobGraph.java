@@ -31,15 +31,15 @@ import java.util.Set;
 import java.util.Stack;
 import java.util.Vector;
 
-import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.core.fs.FSDataInputStream;
+import eu.stratosphere.core.fs.FileStatus;
+import eu.stratosphere.core.fs.FileSystem;
+import eu.stratosphere.core.fs.Path;
+import eu.stratosphere.core.io.IOReadableWritable;
+import eu.stratosphere.core.io.StringRecord;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
-import eu.stratosphere.nephele.fs.FSDataInputStream;
-import eu.stratosphere.nephele.fs.FileStatus;
-import eu.stratosphere.nephele.fs.FileSystem;
-import eu.stratosphere.nephele.fs.Path;
-import eu.stratosphere.nephele.io.IOReadableWritable;
-import eu.stratosphere.nephele.types.StringRecord;
-import eu.stratosphere.nephele.util.ClassUtils;
+import eu.stratosphere.util.ClassUtils;
 
 /**
  * A job graph represents an entire job in Nephele. A job graph must consists at least of one job vertex

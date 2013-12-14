@@ -20,17 +20,17 @@ import scala.reflect.macros.Context
 import eu.stratosphere.scala.ScalaOutputFormat
 
 import eu.stratosphere.scala.analysis.{UDTSerializer, UDF1, UDT, InputField}
-import eu.stratosphere.nephele.configuration.Configuration
+import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.scala.codegen.UDTDescriptors
 import eu.stratosphere.scala.codegen.MacroContextHolder
 
-import eu.stratosphere.pact.common.`type`.PactRecord
-import eu.stratosphere.pact.generic.io.{BinaryOutputFormat => JavaBinaryOutputFormat}
-import eu.stratosphere.pact.generic.io.{SequentialOutputFormat => JavaSequentialOutputFormat}
+import eu.stratosphere.types.PactRecord
+import eu.stratosphere.api.io.{BinaryOutputFormat => JavaBinaryOutputFormat}
+import eu.stratosphere.api.io.{SequentialOutputFormat => JavaSequentialOutputFormat}
 import eu.stratosphere.pact.common.io.{DelimitedOutputFormat => JavaDelimitedOutputFormat}
 import eu.stratosphere.pact.common.io.{RecordOutputFormat => JavaRecordOutputFormat}
 import eu.stratosphere.pact.common.io.{FileOutputFormat => JavaFileOutputFormat}
-import eu.stratosphere.pact.generic.io.{OutputFormat => JavaOutputFormat}
+import eu.stratosphere.api.io.{OutputFormat => JavaOutputFormat}
 
 
 trait ScalaOutputFormatBase[In] extends ScalaOutputFormat[In] { this: JavaOutputFormat[_] =>

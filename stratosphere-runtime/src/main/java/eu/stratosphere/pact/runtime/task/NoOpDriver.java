@@ -15,9 +15,9 @@
 
 package eu.stratosphere.pact.runtime.task;
 
-import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.common.util.MutableObjectIterator;
-import eu.stratosphere.pact.generic.stub.AbstractStub;
+import eu.stratosphere.api.functions.AbstractStub;
+import eu.stratosphere.util.Collector;
+import eu.stratosphere.util.MutableObjectIterator;
 
 /**
  * A driver that does nothing but forward data from its input to its output.

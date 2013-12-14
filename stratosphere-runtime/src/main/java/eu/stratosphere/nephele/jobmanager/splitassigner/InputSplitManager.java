@@ -23,20 +23,20 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.configuration.GlobalConfiguration;
+import eu.stratosphere.configuration.GlobalConfiguration;
+import eu.stratosphere.core.fs.FileInputSplit;
+import eu.stratosphere.core.io.GenericInputSplit;
+import eu.stratosphere.core.io.InputSplit;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertexIterator;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
-import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobmanager.scheduler.AbstractScheduler;
 import eu.stratosphere.nephele.jobmanager.splitassigner.file.FileInputSplitAssigner;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.nephele.template.GenericInputSplit;
-import eu.stratosphere.nephele.template.InputSplit;
-import eu.stratosphere.nephele.util.StringUtils;
+import eu.stratosphere.util.StringUtils;
 
 /**
  * The input split manager is responsible for serving input splits to {@link AbstractInputTask} objects at runtime.

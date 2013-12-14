@@ -19,13 +19,13 @@ import java.util.Arrays;
 import org.junit.Assert;
 import org.junit.Test;
 
+import eu.stratosphere.api.operators.Contract;
+import eu.stratosphere.api.operators.FileDataSink;
+import eu.stratosphere.api.operators.FileDataSource;
+import eu.stratosphere.api.operators.util.FieldList;
+import eu.stratosphere.api.plan.Plan;
 import eu.stratosphere.pact.common.contract.CrossContract;
-import eu.stratosphere.pact.common.contract.FileDataSink;
-import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.common.plan.Plan;
-import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.compiler.CompilerTestBase;
 import eu.stratosphere.pact.compiler.plan.candidate.DualInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
@@ -38,10 +38,10 @@ import eu.stratosphere.pact.example.kmeans.udfs.FindNearestCenter;
 import eu.stratosphere.pact.example.kmeans.udfs.PointInFormat;
 import eu.stratosphere.pact.example.kmeans.udfs.PointOutFormat;
 import eu.stratosphere.pact.example.kmeans.udfs.RecomputeClusterCenter;
-import eu.stratosphere.pact.generic.contract.Contract;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
+import eu.stratosphere.types.PactInteger;
 
 /**
  * Tests a K-Means Step under various input conditions.

@@ -46,9 +46,9 @@ import org.apache.commons.cli.ParseException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.configuration.ConfigConstants;
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.configuration.GlobalConfiguration;
+import eu.stratosphere.configuration.ConfigConstants;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.deployment.TaskDeploymentDescriptor;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionState;
@@ -82,7 +82,7 @@ import eu.stratosphere.nephele.taskmanager.bytebuffered.InsufficientResourcesExc
 import eu.stratosphere.nephele.taskmanager.runtime.ExecutorThreadFactory;
 import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTask;
 import eu.stratosphere.nephele.util.SerializableArrayList;
-import eu.stratosphere.nephele.util.StringUtils;
+import eu.stratosphere.util.StringUtils;
 
 /**
  * A task manager receives tasks from the job manager and executes them. After having executed them

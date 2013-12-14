@@ -31,9 +31,9 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 
-import eu.stratosphere.pact.common.plan.Plan;
-import eu.stratosphere.pact.common.plan.PlanAssembler;
-import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
+import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.api.plan.PlanAssembler;
+import eu.stratosphere.api.plan.PlanAssemblerDescription;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.plan.DataSinkNode;
 

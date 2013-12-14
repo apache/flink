@@ -13,11 +13,9 @@
 
 package eu.stratosphere.scala.examples.graph
 
-import eu.stratosphere.pact.common.`type`.base.PactInteger
-
 import eu.stratosphere.pact.client.LocalExecutor
-import eu.stratosphere.pact.common.plan.PlanAssembler
-import eu.stratosphere.pact.common.plan.PlanAssemblerDescription
+import eu.stratosphere.api.plan.PlanAssembler
+import eu.stratosphere.api.plan.PlanAssemblerDescription
 
 import scala.math._
 import eu.stratosphere.scala._

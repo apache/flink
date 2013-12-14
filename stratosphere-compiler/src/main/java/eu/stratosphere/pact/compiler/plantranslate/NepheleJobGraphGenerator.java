@@ -26,8 +26,16 @@ import java.util.Map;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.configuration.GlobalConfiguration;
+import eu.stratosphere.api.distributions.DataDistribution;
+import eu.stratosphere.api.functions.aggregators.AggregatorRegistry;
+import eu.stratosphere.api.functions.aggregators.AggregatorWithName;
+import eu.stratosphere.api.functions.aggregators.ConvergenceCriterion;
+import eu.stratosphere.api.functions.aggregators.LongSumAggregator;
+import eu.stratosphere.api.typeutils.TypeComparatorFactory;
+import eu.stratosphere.api.typeutils.TypeSerializerFactory;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.configuration.GlobalConfiguration;
+import eu.stratosphere.configuration.PactConfigConstants;
 import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.jobgraph.AbstractJobOutputVertex;
@@ -38,12 +46,6 @@ import eu.stratosphere.nephele.jobgraph.JobInputVertex;
 import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.nephele.template.AbstractInputTask;
-import eu.stratosphere.pact.common.distributions.DataDistribution;
-import eu.stratosphere.pact.common.stubs.aggregators.AggregatorWithName;
-import eu.stratosphere.pact.common.stubs.aggregators.ConvergenceCriterion;
-import eu.stratosphere.pact.common.stubs.aggregators.LongSumAggregator;
-import eu.stratosphere.pact.common.util.PactConfigConstants;
-import eu.stratosphere.pact.common.util.Visitor;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.plan.TempMode;
 import eu.stratosphere.pact.compiler.plan.candidate.BulkIterationPlanNode;
@@ -60,9 +62,6 @@ import eu.stratosphere.pact.compiler.plan.candidate.SolutionSetPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SourcePlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.WorksetIterationPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.WorksetPlanNode;
-import eu.stratosphere.pact.generic.contract.AggregatorRegistry;
-import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
-import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.runtime.iterative.convergence.WorksetEmptyConvergenceCriterion;
 import eu.stratosphere.pact.runtime.iterative.io.FakeOutputTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationHeadPactTask;
@@ -84,6 +83,7 @@ import eu.stratosphere.pact.runtime.task.RegularPactTask;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedDriver;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
+import eu.stratosphere.util.Visitor;
 
 /**
  * This component translates the optimizer's resulting plan a nephele job graph. The
@@ -225,7 +225,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 	 * @param node
 	 *        The node that is currently processed.
 	 * @return True, if the visitor should descend to the node's children, false if not.
-	 * @see eu.stratosphere.pact.common.util.Visitor#preVisit(eu.stratosphere.pact.common.plan.Visitable)
+	 * @see eu.stratosphere.util.Visitor#preVisit(eu.stratosphere.pact.common.plan.Visitable)
 	 */
 	@Override
 	public boolean preVisit(PlanNode node) {
@@ -366,7 +366,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 	 * 
 	 * @param node
 	 *        The node currently processed during the post-visit.
-	 * @see eu.stratosphere.pact.common.util.Visitor#postVisit(eu.stratosphere.pact.common.plan.Visitable)
+	 * @see eu.stratosphere.util.Visitor#postVisit(eu.stratosphere.pact.common.plan.Visitable)
 	 */
 	@Override
 	public void postVisit(PlanNode node) {

@@ -18,7 +18,7 @@ package eu.stratosphere.nephele.instance;
 import java.util.List;
 import java.util.Map;
 
-import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.topology.NetworkTopology;
 

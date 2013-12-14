@@ -23,9 +23,9 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.ReadableByteChannel;
 
-import eu.stratosphere.nephele.io.IOReadableWritable;
+import eu.stratosphere.core.io.IOReadableWritable;
+import eu.stratosphere.core.memory.DataInputView;
 import eu.stratosphere.nephele.io.RecordDeserializer;
-import eu.stratosphere.nephele.services.memorymanager.DataInputView;
 
 /**
  * A class for deserializing a portion of binary data into records of type <code>T</code>. The internal

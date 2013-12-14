@@ -17,9 +17,9 @@ package eu.stratosphere.pact.common.io;
 
 import java.io.IOException;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.template.GenericInputSplit;
-import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.core.io.GenericInputSplit;
+import eu.stratosphere.types.PactRecord;
 
 /**
  * This input format starts an external process and reads its input from the standard out (stdout) of the started process.

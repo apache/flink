@@ -14,11 +14,11 @@
 package eu.stratosphere.scala.examples.wordcount
 
 import eu.stratosphere.pact.client.LocalExecutor
-import eu.stratosphere.pact.common.plan.PlanAssembler
-import eu.stratosphere.pact.common.plan.PlanAssemblerDescription
+import eu.stratosphere.api.plan.PlanAssembler
+import eu.stratosphere.api.plan.PlanAssemblerDescription
 
-import eu.stratosphere.pact.common.`type`.base.PactInteger
-import eu.stratosphere.pact.common.`type`.base.PactString
+import eu.stratosphere.types.PactInteger
+import eu.stratosphere.types.PactString
 
 import eu.stratosphere.scala._
 import eu.stratosphere.scala.operators._

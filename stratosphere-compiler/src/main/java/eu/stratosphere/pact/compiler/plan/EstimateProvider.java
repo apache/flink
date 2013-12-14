@@ -17,7 +17,7 @@ package eu.stratosphere.pact.compiler.plan;
 
 import java.util.Map;
 
-import eu.stratosphere.pact.common.util.FieldSet;
+import eu.stratosphere.api.operators.util.FieldSet;
 
 /**
  * 

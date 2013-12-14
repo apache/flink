@@ -19,14 +19,12 @@ import junit.framework.Assert;
 
 import org.junit.Test;
 
-import eu.stratosphere.pact.common.contract.FileDataSink;
-import eu.stratosphere.pact.common.contract.FileDataSource;
+import eu.stratosphere.api.operators.FileDataSink;
+import eu.stratosphere.api.operators.FileDataSource;
+import eu.stratosphere.api.plan.Plan;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.common.plan.Plan;
-import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.common.util.Visitor;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.DualInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
@@ -41,6 +39,8 @@ import eu.stratosphere.pact.compiler.util.IdentityMap;
 import eu.stratosphere.pact.compiler.util.IdentityReduce;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
+import eu.stratosphere.types.PactInteger;
+import eu.stratosphere.util.Visitor;
 
 /**
  * Tests in this class:

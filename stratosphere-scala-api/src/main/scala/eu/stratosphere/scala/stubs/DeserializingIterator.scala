@@ -17,7 +17,7 @@ import java.util.{ Iterator => JIterator }
 
 import eu.stratosphere.scala.analysis.UDTSerializer
 
-import eu.stratosphere.pact.common.`type`.PactRecord
+import eu.stratosphere.types.PactRecord
 
 protected final class DeserializingIterator[T](deserializer: UDTSerializer[T]) extends Iterator[T] {
 

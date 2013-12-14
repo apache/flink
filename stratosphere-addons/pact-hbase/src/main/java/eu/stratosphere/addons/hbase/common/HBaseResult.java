@@ -21,10 +21,12 @@ import java.io.IOException;
 
 import org.apache.hadoop.hbase.client.Result;
 
-import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.types.Value;
 
 public class HBaseResult implements Value {
 	
+	private static final long serialVersionUID = 1L;
+
 	private Result result;
 	
 	
@@ -41,8 +43,7 @@ public class HBaseResult implements Value {
 		return this.result;
 	}
 	
-	public void setResult(Result result)
-	{
+	public void setResult(Result result) {
 		this.result = result;
 	}
 	

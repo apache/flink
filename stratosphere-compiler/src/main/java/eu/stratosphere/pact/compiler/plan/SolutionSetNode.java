@@ -17,11 +17,11 @@ package eu.stratosphere.pact.compiler.plan;
 
 import java.util.Collections;
 
+import eu.stratosphere.api.operators.WorksetIteration.SolutionSetPlaceHolder;
 import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SolutionSetPlanNode;
-import eu.stratosphere.pact.generic.contract.WorksetIteration.SolutionSetPlaceHolder;
 
 /**
  * The optimizer's internal representation of the solution set of a workset iteration.

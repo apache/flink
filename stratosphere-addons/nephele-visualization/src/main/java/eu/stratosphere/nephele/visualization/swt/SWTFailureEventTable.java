@@ -47,7 +47,7 @@ import org.eclipse.swt.widgets.Table;
 import org.eclipse.swt.widgets.TableColumn;
 import org.eclipse.swt.widgets.TableItem;
 
-import eu.stratosphere.nephele.util.StringUtils;
+import eu.stratosphere.util.StringUtils;
 
 public final class SWTFailureEventTable extends Composite {
 

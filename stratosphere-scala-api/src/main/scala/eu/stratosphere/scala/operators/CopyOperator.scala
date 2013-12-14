@@ -16,15 +16,15 @@ package eu.stratosphere.scala.operators
 import eu.stratosphere.scala.ScalaContract
 import eu.stratosphere.pact.common.contract.MapContract
 import eu.stratosphere.scala.analysis.UDT
-import eu.stratosphere.pact.common.`type`.PactRecord
+import eu.stratosphere.types.PactRecord
 import eu.stratosphere.pact.common.stubs.MapStub
-import eu.stratosphere.pact.common.stubs.Collector
-import eu.stratosphere.pact.generic.contract.Contract
+import eu.stratosphere.util.Collector
+import eu.stratosphere.api.operators.Contract
 import eu.stratosphere.scala.contracts.Annotations
 import eu.stratosphere.scala.OneInputScalaContract
 import eu.stratosphere.scala.analysis.UDF1
 import eu.stratosphere.scala.analysis.UDTSerializer
-import eu.stratosphere.nephele.configuration.Configuration
+import eu.stratosphere.configuration.Configuration
 import eu.stratosphere.scala.DataSet
 
 object CopyOperator {

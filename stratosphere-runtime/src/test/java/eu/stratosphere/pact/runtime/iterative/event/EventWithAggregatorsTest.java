@@ -27,10 +27,10 @@ import java.util.Set;
 import org.junit.Assert;
 import org.junit.Test;
 
-import eu.stratosphere.pact.common.stubs.aggregators.Aggregator;
-import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.common.type.base.PactLong;
-import eu.stratosphere.pact.common.type.base.PactString;
+import eu.stratosphere.api.functions.aggregators.Aggregator;
+import eu.stratosphere.types.PactLong;
+import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.Value;
 
 
 public class EventWithAggregatorsTest {

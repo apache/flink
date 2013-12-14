@@ -18,8 +18,8 @@ package eu.stratosphere.pact.test.testPrograms.util;
 import java.io.IOException;
 
 import eu.stratosphere.pact.common.io.GenericInputFormat;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.types.PactInteger;
+import eu.stratosphere.types.PactRecord;
 
 /**
  * 

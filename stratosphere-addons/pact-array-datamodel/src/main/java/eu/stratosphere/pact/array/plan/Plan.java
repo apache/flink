@@ -16,10 +16,10 @@ package eu.stratosphere.pact.array.plan;
 
 import java.util.Collection;
 
-import eu.stratosphere.pact.common.contract.GenericDataSink;
+import eu.stratosphere.api.operators.GenericDataSink;
 
 
-public class Plan extends eu.stratosphere.pact.common.plan.Plan {
+public class Plan extends eu.stratosphere.api.plan.Plan {
 
 	public Plan(Collection<GenericDataSink> sinks, String jobName) {
 		super(sinks, jobName);

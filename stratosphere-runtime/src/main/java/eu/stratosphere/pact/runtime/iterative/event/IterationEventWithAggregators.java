@@ -15,10 +15,10 @@
 
 package eu.stratosphere.pact.runtime.iterative.event;
 
+import eu.stratosphere.api.functions.aggregators.Aggregator;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
-import eu.stratosphere.pact.common.stubs.aggregators.Aggregator;
-import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.common.util.InstantiationUtil;
+import eu.stratosphere.types.Value;
+import eu.stratosphere.util.InstantiationUtil;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;

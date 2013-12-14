@@ -15,37 +15,30 @@
 
 package eu.stratosphere.nephele.io;
 
+import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.channels.DefaultDeserializer;
-import eu.stratosphere.nephele.types.Record;
 
 /**
  * As simple factory implementation that instantiates deserializers for mutable records.
- *
- * @author Stephan Ewen
  */
-public class MutableRecordDeserializerFactory<T extends Record> implements RecordDeserializerFactory<T>
-{
+public class MutableRecordDeserializerFactory<T extends IOReadableWritable> implements RecordDeserializerFactory<T> {
+	
 	/**
 	 * Creates a new factory that instantiates deserializers for immutable records.
 	 * 
 	 * @param recordType The type of the record to be deserialized.
 	 */
-	public MutableRecordDeserializerFactory()
-	{}
+	public MutableRecordDeserializerFactory() {}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.RecordDeserializerFactory#createDeserializer()
-	 */
 	@Override
-	public RecordDeserializer<T> createDeserializer()
-	{
+	public RecordDeserializer<T> createDeserializer() {
 		return new DefaultDeserializer<T>(null);
 	}
 	
 	// --------------------------------------------------------------------------------------------
 	
-	private static final RecordDeserializerFactory<Record> INSTANCE = 
-									new MutableRecordDeserializerFactory<Record>();
+	private static final RecordDeserializerFactory<IOReadableWritable> INSTANCE = 
+									new MutableRecordDeserializerFactory<IOReadableWritable>();
 	
 	/**
 	 * Gets the singleton instance of the {@code MutableRecordDeserializerFactory}.
@@ -53,8 +46,7 @@ public class MutableRecordDeserializerFactory<T extends Record> implements Recor
 	 * @param <E> The generic type of the record to be deserialized.
 	 * @return An instance of the factory.
 	 */
-	public static final <E extends Record> RecordDeserializerFactory<E> get()
-	{
+	public static final <E extends IOReadableWritable> RecordDeserializerFactory<E> get() {
 		@SuppressWarnings("unchecked")
 		RecordDeserializerFactory<E> toReturn = (RecordDeserializerFactory<E>) INSTANCE;
 		return toReturn;

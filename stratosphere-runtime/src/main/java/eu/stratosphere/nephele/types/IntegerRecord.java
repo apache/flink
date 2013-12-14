@@ -19,12 +19,12 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
+import eu.stratosphere.core.io.IOReadableWritable;
+
 /**
  * This class represents record for integer values.
- * 
- * @author warneke
  */
-public class IntegerRecord implements Record {
+public class IntegerRecord implements IOReadableWritable {
 
 	/**
 	 * The integer value represented by the record.
@@ -45,8 +45,7 @@ public class IntegerRecord implements Record {
 	 * Constructs an empty integer record (Mainly used for
 	 * serialization, do not call this constructor in your program).
 	 */
-	public IntegerRecord() {
-	}
+	public IntegerRecord() {}
 
 	/**
 	 * Returns the value of this integer record.
@@ -67,38 +66,25 @@ public class IntegerRecord implements Record {
 		this.value = value;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public void read(final DataInput in) throws IOException {
-
 		// Simply read the value from the stream
 		this.value = in.readInt();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public void write(final DataOutput out) throws IOException {
-
 		// Simply write the value to the stream
 		out.writeInt(this.value);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public boolean equals(final Object obj) {
-
 		if (!(obj instanceof IntegerRecord)) {
 			return false;
 		}
 
 		final IntegerRecord ir = (IntegerRecord) obj;
-
 		return (this.value == ir.value);
 	}
 
@@ -107,7 +93,6 @@ public class IntegerRecord implements Record {
 	 */
 	@Override
 	public int hashCode() {
-
 		return this.value;
 	}
 }

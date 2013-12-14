@@ -17,19 +17,19 @@ package eu.stratosphere.spargel.java;
 import java.io.IOException;
 import java.util.Iterator;
 
-import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.api.functions.StubAnnotation.ConstantFieldsFirst;
+import eu.stratosphere.api.operators.Contract;
+import eu.stratosphere.api.operators.WorksetIteration;
+import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.stubs.CoGroupStub;
-import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsFirst;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.common.util.InstantiationUtil;
-import eu.stratosphere.pact.common.util.ReflectionUtil;
-import eu.stratosphere.pact.generic.contract.Contract;
-import eu.stratosphere.pact.generic.contract.WorksetIteration;
 import eu.stratosphere.spargel.java.util.MessageIterator;
+import eu.stratosphere.types.Key;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Value;
+import eu.stratosphere.util.Collector;
+import eu.stratosphere.util.InstantiationUtil;
+import eu.stratosphere.util.ReflectionUtil;
 
 
 public class SpargelIteration {

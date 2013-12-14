@@ -23,6 +23,7 @@ import java.util.List;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
@@ -31,7 +32,6 @@ import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.channels.bytebuffered.NetworkOutputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.InMemoryOutputChannel;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.types.Record;
 
 /**
  * In Nephele output gates are a specialization of general gates and connect
@@ -40,11 +40,10 @@ import eu.stratosphere.nephele.types.Record;
  * <p>
  * This class is in general not thread-safe.
  * 
- * @author warneke
  * @param <T>
  *        the type of record that can be transported through this gate
  */
-public class RuntimeOutputGate<T extends Record> extends AbstractGate<T> implements OutputGate<T> {
+public class RuntimeOutputGate<T extends IOReadableWritable> extends AbstractGate<T> implements OutputGate<T> {
 
 	/**
 	 * The log object used for debugging.

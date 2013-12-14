@@ -17,12 +17,12 @@ package eu.stratosphere.pact.test.testPrograms.tpch1;
 
 import java.util.Iterator;
 
-import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactLong;
-import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.pact.test.testPrograms.util.Tuple;
+import eu.stratosphere.types.PactLong;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.PactString;
+import eu.stratosphere.util.Collector;
 
 /**
  * @author Mathias Peters <mathias.peters@informatik.hu-berlin.de>

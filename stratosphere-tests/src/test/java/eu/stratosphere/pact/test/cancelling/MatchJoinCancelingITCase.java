@@ -17,19 +17,19 @@ package eu.stratosphere.pact.test.cancelling;
 
 import org.junit.Test;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.contract.GenericDataSink;
-import eu.stratosphere.pact.common.contract.GenericDataSource;
+import eu.stratosphere.api.operators.GenericDataSink;
+import eu.stratosphere.api.operators.GenericDataSource;
+import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.MatchContract;
-import eu.stratosphere.pact.common.plan.Plan;
-import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MatchStub;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.test.testPrograms.util.DiscardingOutputFormat;
 import eu.stratosphere.pact.test.testPrograms.util.InfiniteIntegerInputFormat;
 import eu.stratosphere.pact.test.testPrograms.util.InfiniteIntegerInputFormatWithDelay;
 import eu.stratosphere.pact.test.testPrograms.util.UniformIntInput;
+import eu.stratosphere.types.PactInteger;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.util.Collector;
 
 public class MatchJoinCancelingITCase extends CancellingTestBase
 {

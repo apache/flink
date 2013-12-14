@@ -15,9 +15,9 @@
 
 package eu.stratosphere.pact.runtime.test.util;
 
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.types.PactInteger;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.util.MutableObjectIterator;
 
 /**
  * A simple iterator that returns an infinite amount of records resembling (0, 0) pairs.

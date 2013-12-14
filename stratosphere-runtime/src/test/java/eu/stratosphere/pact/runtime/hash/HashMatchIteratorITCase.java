@@ -27,22 +27,16 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import eu.stratosphere.api.functions.AbstractStub;
+import eu.stratosphere.api.functions.GenericMatcher;
+import eu.stratosphere.api.typeutils.TypeComparator;
+import eu.stratosphere.api.typeutils.TypePairComparator;
+import eu.stratosphere.api.typeutils.TypeSerializer;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MatchStub;
-import eu.stratosphere.pact.common.type.NullKeyFieldException;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.common.util.MutableObjectIterator;
-import eu.stratosphere.pact.generic.stub.AbstractStub;
-import eu.stratosphere.pact.generic.stub.GenericMatcher;
-import eu.stratosphere.pact.generic.types.TypeComparator;
-import eu.stratosphere.pact.generic.types.TypePairComparator;
-import eu.stratosphere.pact.generic.types.TypeSerializer;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparator;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordPairComparator;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordSerializer;
@@ -57,6 +51,12 @@ import eu.stratosphere.pact.runtime.test.util.types.IntPair;
 import eu.stratosphere.pact.runtime.test.util.types.IntPairComparator;
 import eu.stratosphere.pact.runtime.test.util.types.IntPairSerializer;
 import eu.stratosphere.pact.runtime.test.util.UnionIterator;
+import eu.stratosphere.types.NullKeyFieldException;
+import eu.stratosphere.types.PactInteger;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Value;
+import eu.stratosphere.util.Collector;
+import eu.stratosphere.util.MutableObjectIterator;
 
 
 public class HashMatchIteratorITCase {

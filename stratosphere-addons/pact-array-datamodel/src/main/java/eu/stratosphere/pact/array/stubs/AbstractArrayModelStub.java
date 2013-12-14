@@ -16,8 +16,8 @@ package eu.stratosphere.pact.array.stubs;
 
 import java.lang.reflect.Method;
 
-import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.generic.stub.AbstractStub;
+import eu.stratosphere.api.functions.AbstractStub;
+import eu.stratosphere.types.Value;
 
 /**
  * Base class of all stubs in the array data model.

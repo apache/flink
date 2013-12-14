@@ -42,13 +42,13 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.client.JobClient;
-import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.pact.common.util.LogUtils;
 import eu.stratosphere.pact.test.util.filesystem.FilesystemProvider;
 import eu.stratosphere.pact.test.util.minicluster.ClusterProvider;
 import eu.stratosphere.pact.test.util.minicluster.ClusterProviderPool;
+import eu.stratosphere.util.LogUtils;
 
 
 public abstract class TestBase {

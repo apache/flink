@@ -17,8 +17,8 @@ package eu.stratosphere.nephele.profiling.impl;
 
 import java.io.IOException;
 
+import eu.stratosphere.core.protocols.VersionedProtocol;
 import eu.stratosphere.nephele.profiling.impl.types.ProfilingDataContainer;
-import eu.stratosphere.nephele.protocols.VersionedProtocol;
 
 public interface ProfilerImplProtocol extends VersionedProtocol {
 

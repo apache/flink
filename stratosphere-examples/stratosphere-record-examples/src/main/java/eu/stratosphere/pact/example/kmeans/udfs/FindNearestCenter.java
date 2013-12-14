@@ -17,13 +17,13 @@ package eu.stratosphere.pact.example.kmeans.udfs;
 import java.io.Serializable;
 import java.util.Iterator;
 
+import eu.stratosphere.api.functions.StubAnnotation.ConstantFields;
 import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
-import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFields;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactDouble;
-import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.types.PactDouble;
+import eu.stratosphere.types.PactInteger;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.util.Collector;
 
 /**
  * Reduce PACT determines the closes cluster center for a data point. This

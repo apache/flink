@@ -4,25 +4,25 @@ package eu.stratosphere.scala.examples.grabbag
 
 import scala.Array.canBuildFrom
 import eu.stratosphere.pact.client.LocalExecutor
-import eu.stratosphere.pact.common.`type`.base.PactInteger
-import eu.stratosphere.pact.common.`type`.base.PactString
+import eu.stratosphere.types.PactInteger
+import eu.stratosphere.types.PactString
 
 import eu.stratosphere.scala._
 import eu.stratosphere.scala.operators._
 import eu.stratosphere.scala.stubs._
 
 import eu.stratosphere.scala.analysis.GlobalSchemaPrinter
-import eu.stratosphere.pact.example.util.AsciiUtils
+import eu.stratosphere.util.AsciiUtils
 import org.apache.log4j.Logger
 import org.apache.log4j.Level
 import eu.stratosphere.scala.analysis.postPass.GlobalSchemaOptimizer
 import eu.stratosphere.scala.analysis.GlobalSchemaGenerator
 
-import eu.stratosphere.pact.common.`type`.PactRecord
-import eu.stratosphere.pact.common.stubs.Collector
+import eu.stratosphere.types.PactRecord
+import eu.stratosphere.util.Collector
 
 import eu.stratosphere.scala.codegen.Util
-import eu.stratosphere.nephele.configuration.Configuration
+import eu.stratosphere.configuration.Configuration;
 
 
 // Grab bag of random scala examples

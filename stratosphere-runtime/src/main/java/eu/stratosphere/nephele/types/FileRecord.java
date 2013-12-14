@@ -20,7 +20,10 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.util.Arrays;
 
-public class FileRecord implements Record {
+import eu.stratosphere.core.io.IOReadableWritable;
+import eu.stratosphere.core.io.StringRecord;
+
+public class FileRecord implements IOReadableWritable {
 
 	private String fileName;
 

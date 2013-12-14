@@ -17,14 +17,14 @@ package eu.stratosphere.nephele.io;
 
 import java.io.IOException;
 
-import eu.stratosphere.nephele.types.Record;
+import eu.stratosphere.core.io.IOReadableWritable;
 
 /**
  * A writer that sends records.
  * 
  * @param <T> The type of the record that can be emitted with this record writer.
  */
-public interface Writer<T extends Record> {
+public interface Writer<T extends IOReadableWritable> {
 	
 	void emit(T record) throws IOException, InterruptedException;
 }

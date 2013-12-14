@@ -17,7 +17,7 @@ package eu.stratosphere.pact.compiler.plan;
 
 import java.util.Map;
 
-import eu.stratosphere.pact.common.util.FieldSet;
+import eu.stratosphere.api.operators.util.FieldSet;
 import eu.stratosphere.pact.compiler.dataproperties.InterestingProperties;
 import eu.stratosphere.pact.compiler.plandump.DumpableConnection;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;

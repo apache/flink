@@ -18,7 +18,7 @@ package eu.stratosphere.pact.test.iterative.nephele;
 import java.util.HashSet;
 import java.util.Set;
 
-import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.configuration.Configuration;
 
 public class ConfigUtils {
 

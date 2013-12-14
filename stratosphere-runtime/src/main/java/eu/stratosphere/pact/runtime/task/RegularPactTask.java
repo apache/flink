@@ -23,8 +23,20 @@ import java.util.Map;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.configuration.GlobalConfiguration;
+import eu.stratosphere.accumulators.Accumulator;
+import eu.stratosphere.accumulators.AccumulatorHelper;
+import eu.stratosphere.api.distributions.DataDistribution;
+import eu.stratosphere.api.functions.GenericReducer;
+import eu.stratosphere.api.functions.RuntimeContext;
+import eu.stratosphere.api.functions.Stub;
+import eu.stratosphere.api.typeutils.TypeComparator;
+import eu.stratosphere.api.typeutils.TypeComparatorFactory;
+import eu.stratosphere.api.typeutils.TypeSerializer;
+import eu.stratosphere.api.typeutils.TypeSerializerFactory;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.configuration.GlobalConfiguration;
+import eu.stratosphere.configuration.PactConfigConstants;
+import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.io.AbstractRecordWriter;
@@ -34,28 +46,12 @@ import eu.stratosphere.nephele.io.MutableReader;
 import eu.stratosphere.nephele.io.MutableRecordReader;
 import eu.stratosphere.nephele.io.MutableUnionRecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
-import eu.stratosphere.nephele.services.accumulators.Accumulator;
 import eu.stratosphere.nephele.services.accumulators.AccumulatorEvent;
-import eu.stratosphere.nephele.services.accumulators.AccumulatorHelper;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.nephele.types.Record;
-import eu.stratosphere.pact.common.distributions.DataDistribution;
-import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.common.stubs.RuntimeContext;
-import eu.stratosphere.pact.common.stubs.Stub;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.util.InstantiationUtil;
-import eu.stratosphere.pact.common.util.MutableObjectIterator;
-import eu.stratosphere.pact.common.util.PactConfigConstants;
-import eu.stratosphere.pact.generic.stub.GenericReducer;
-import eu.stratosphere.pact.generic.types.TypeComparator;
-import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
-import eu.stratosphere.pact.generic.types.TypeSerializer;
-import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.runtime.plugable.DeserializationDelegate;
 import eu.stratosphere.pact.runtime.plugable.SerializationDelegate;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparator;
@@ -77,6 +73,10 @@ import eu.stratosphere.pact.runtime.task.util.NepheleReaderIterator;
 import eu.stratosphere.pact.runtime.task.util.PactRecordNepheleReaderIterator;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.udf.RuntimeUDFContext;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.util.Collector;
+import eu.stratosphere.util.InstantiationUtil;
+import eu.stratosphere.util.MutableObjectIterator;
 
 /**
  * The abstract base class for all Pact tasks. Encapsulated common behavior and implements the main life-cycle
@@ -603,14 +603,14 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 			numGates += groupSize;
 			if (groupSize == 1) {
 				// non-union case
-				inputReaders[i] = new MutableRecordReader<Record>(this);
+				inputReaders[i] = new MutableRecordReader<IOReadableWritable>(this);
 			} else if (groupSize > 1){
 				// union case
-				MutableRecordReader<Record>[] readers = new MutableRecordReader[groupSize];
+				MutableRecordReader<IOReadableWritable>[] readers = new MutableRecordReader[groupSize];
 				for (int j = 0; j < groupSize; ++j) {
-					readers[j] = new MutableRecordReader<Record>(this);
+					readers[j] = new MutableRecordReader<IOReadableWritable>(this);
 				}
-				inputReaders[i] = new MutableUnionRecordReader<Record>(readers);
+				inputReaders[i] = new MutableUnionRecordReader<IOReadableWritable>(readers);
 			} else {
 				throw new Exception("Illegal input group size in task configuration: " + groupSize);
 			}

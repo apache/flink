@@ -25,11 +25,13 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.mapreduce.TaskType;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.generic.io.OutputFormat;
-import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.api.io.OutputFormat;
+import eu.stratosphere.types.PactRecord;
 
 public abstract class GenericTableOutputFormat implements OutputFormat<PactRecord> {
+
+	private static final long serialVersionUID = 1L;
 
 	public static final String JT_ID_KEY = "pact.hbase.jtkey";
 

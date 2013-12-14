@@ -14,22 +14,19 @@
  **********************************************************************************************************************/
 package eu.stratosphere.pact.test.iterative.nephele;
 
-import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.api.operators.util.UserCodeClassWrapper;
+import eu.stratosphere.api.typeutils.TypeComparatorFactory;
+import eu.stratosphere.api.typeutils.TypeSerializerFactory;
+import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.jobgraph.*;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
-import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MapStub;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.example.kmeans.udfs.CoordVector;
 import eu.stratosphere.pact.example.kmeans.udfs.PointInFormat;
 import eu.stratosphere.pact.example.kmeans.udfs.PointOutFormat;
-import eu.stratosphere.pact.generic.contract.UserCodeClassWrapper;
-import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
-import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.runtime.iterative.task.IterationHeadPactTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationTailPactTask;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparatorFactory;
@@ -42,6 +39,9 @@ import eu.stratosphere.pact.runtime.task.chaining.ChainedMapDriver;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.test.util.TestBase2;
+import eu.stratosphere.types.PactInteger;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.util.Collector;
 
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;

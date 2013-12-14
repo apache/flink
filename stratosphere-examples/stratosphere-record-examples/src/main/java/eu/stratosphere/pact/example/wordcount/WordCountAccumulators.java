@@ -22,32 +22,32 @@ import java.io.Serializable;
 import java.util.Iterator;
 import java.util.Set;
 
+import eu.stratosphere.accumulators.Accumulator;
+import eu.stratosphere.accumulators.Histogram;
+import eu.stratosphere.accumulators.LongCounter;
+import eu.stratosphere.api.functions.StubAnnotation.ConstantFields;
+import eu.stratosphere.api.operators.FileDataSink;
+import eu.stratosphere.api.operators.FileDataSource;
+import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.api.plan.PlanAssembler;
+import eu.stratosphere.api.plan.PlanAssemblerDescription;
+import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.client.JobExecutionResult;
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.services.accumulators.Accumulator;
-import eu.stratosphere.nephele.services.accumulators.Histogram;
-import eu.stratosphere.nephele.services.accumulators.LongCounter;
 import eu.stratosphere.nephele.util.SerializableHashSet;
 import eu.stratosphere.pact.client.LocalExecutor;
-import eu.stratosphere.pact.common.contract.FileDataSink;
-import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.pact.common.io.RecordOutputFormat;
 import eu.stratosphere.pact.common.io.TextInputFormat;
-import eu.stratosphere.pact.common.plan.Plan;
-import eu.stratosphere.pact.common.plan.PlanAssembler;
-import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
-import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MapStub;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFields;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.common.type.base.PactString;
-import eu.stratosphere.pact.example.util.AsciiUtils;
+import eu.stratosphere.types.PactInteger;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.Value;
+import eu.stratosphere.util.AsciiUtils;
+import eu.stratosphere.util.Collector;
 
 /**
  * This is similar to the WordCount example and additionally demonstrates how to

@@ -21,8 +21,8 @@ import java.util.Collections;
 import java.util.List;
 
 import eu.stratosphere.nephele.io.AbstractRecordWriter;
-import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.util.Collector;
 
 /**
  * The OutputCollector collects {@link PactRecord}s, and emits the pair to a set of Nephele {@link RecordWriter}s.

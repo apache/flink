@@ -19,7 +19,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.types.Value;
 
 public class Tuple implements Value {
 	private static final long serialVersionUID = 1L;

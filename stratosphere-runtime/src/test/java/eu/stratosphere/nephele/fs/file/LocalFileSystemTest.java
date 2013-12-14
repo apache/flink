@@ -28,10 +28,11 @@ import java.util.Arrays;
 
 import org.junit.Test;
 
-import eu.stratosphere.nephele.fs.FSDataInputStream;
-import eu.stratosphere.nephele.fs.FSDataOutputStream;
-import eu.stratosphere.nephele.fs.FileStatus;
-import eu.stratosphere.nephele.fs.Path;
+import eu.stratosphere.core.fs.FSDataInputStream;
+import eu.stratosphere.core.fs.FSDataOutputStream;
+import eu.stratosphere.core.fs.FileStatus;
+import eu.stratosphere.core.fs.Path;
+import eu.stratosphere.core.fs.local.LocalFileSystem;
 import eu.stratosphere.nephele.util.CommonTestUtils;
 
 /**

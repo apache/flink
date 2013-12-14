@@ -15,10 +15,10 @@
 
 package eu.stratosphere.pact.test.testPrograms.tpch9;
 
-import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MapStub;
-import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.test.testPrograms.util.Tuple;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.util.Collector;
 
 public class PartsuppMap extends MapStub {
 	

@@ -22,12 +22,12 @@ import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.apache.log4j.PatternLayout;
 
+import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.api.plan.PlanAssembler;
 import eu.stratosphere.nephele.client.JobExecutionResult;
 import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.pact.client.minicluster.NepheleMiniCluster;
-import eu.stratosphere.pact.common.plan.Plan;
-import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.plan.DataSinkNode;

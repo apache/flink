@@ -51,9 +51,10 @@ import org.eclipse.swt.widgets.Tree;
 import org.eclipse.swt.widgets.TreeItem;
 import org.eclipse.swt.widgets.Widget;
 
+import eu.stratosphere.configuration.GlobalConfiguration;
+import eu.stratosphere.core.io.StringRecord;
 import eu.stratosphere.nephele.client.AbstractJobResult;
 import eu.stratosphere.nephele.client.JobCancelResult;
-import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.event.job.AbstractEvent;
 import eu.stratosphere.nephele.event.job.ExecutionStateChangeEvent;
 import eu.stratosphere.nephele.event.job.JobEvent;
@@ -79,8 +80,7 @@ import eu.stratosphere.nephele.profiling.types.VertexProfilingEvent;
 import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
 import eu.stratosphere.nephele.topology.NetworkNode;
 import eu.stratosphere.nephele.topology.NetworkTopology;
-import eu.stratosphere.nephele.types.StringRecord;
-import eu.stratosphere.nephele.util.StringUtils;
+import eu.stratosphere.util.StringUtils;
 
 public class SWTVisualizationGUI implements SelectionListener, Runnable {
 

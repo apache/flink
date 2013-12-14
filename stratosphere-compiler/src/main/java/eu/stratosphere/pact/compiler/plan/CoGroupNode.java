@@ -18,16 +18,16 @@ package eu.stratosphere.pact.compiler.plan;
 import java.util.ArrayList;
 import java.util.List;
 
+import eu.stratosphere.api.operators.CompilerHints;
+import eu.stratosphere.api.operators.Ordering;
+import eu.stratosphere.api.operators.base.GenericCoGroupContract;
+import eu.stratosphere.api.operators.util.FieldSet;
 import eu.stratosphere.pact.common.contract.CoGroupContract;
-import eu.stratosphere.pact.common.contract.CompilerHints;
-import eu.stratosphere.pact.common.contract.Ordering;
-import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.operators.CoGroupDescriptor;
 import eu.stratosphere.pact.compiler.operators.CoGroupWithSolutionSetFirstDescriptor;
 import eu.stratosphere.pact.compiler.operators.CoGroupWithSolutionSetSecondDescriptor;
 import eu.stratosphere.pact.compiler.operators.OperatorDescriptorDual;
-import eu.stratosphere.pact.generic.contract.GenericCoGroupContract;
 
 /**
  * The Optimizer representation of a <i>CoGroup</i> contract node.

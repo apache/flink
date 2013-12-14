@@ -17,9 +17,9 @@ package eu.stratosphere.pact.array.stubs;
 
 import java.lang.reflect.Method;
 
-import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.generic.stub.GenericCrosser;
+import eu.stratosphere.api.functions.GenericCrosser;
+import eu.stratosphere.types.Value;
+import eu.stratosphere.util.Collector;
 
 /**
  * The CrossStub must be extended to provide a cross implementation which is called by a Cross PACT.

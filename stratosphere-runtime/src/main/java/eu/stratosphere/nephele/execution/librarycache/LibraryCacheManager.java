@@ -29,14 +29,14 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import eu.stratosphere.nephele.fs.FSDataInputStream;
-import eu.stratosphere.nephele.fs.FSDataOutputStream;
-import eu.stratosphere.nephele.fs.FileStatus;
-import eu.stratosphere.nephele.fs.FileSystem;
-import eu.stratosphere.nephele.fs.Path;
+import eu.stratosphere.core.fs.FSDataInputStream;
+import eu.stratosphere.core.fs.FSDataOutputStream;
+import eu.stratosphere.core.fs.FileStatus;
+import eu.stratosphere.core.fs.FileSystem;
+import eu.stratosphere.core.fs.Path;
+import eu.stratosphere.core.io.StringRecord;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.types.StringRecord;
-import eu.stratosphere.nephele.util.StringUtils;
+import eu.stratosphere.util.StringUtils;
 
 /**
  * For each job graph that is submitted to the system the library cache manager maintains

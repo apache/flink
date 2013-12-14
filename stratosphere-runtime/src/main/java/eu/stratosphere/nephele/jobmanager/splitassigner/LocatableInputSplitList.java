@@ -26,8 +26,8 @@ import java.util.Set;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.core.io.LocatableInputSplit;
 import eu.stratosphere.nephele.instance.AbstractInstance;
-import eu.stratosphere.nephele.template.LocatableInputSplit;
 
 /**
  * The locatable input split list stores the locatable input splits for an input vertex that are still expected to be

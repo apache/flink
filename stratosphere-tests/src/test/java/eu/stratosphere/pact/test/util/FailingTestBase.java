@@ -18,12 +18,12 @@ package eu.stratosphere.pact.test.util;
 import org.junit.BeforeClass;
 
 import junit.framework.Assert;
+import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.client.JobExecutionException;
-import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.pact.common.util.LogUtils;
 import eu.stratosphere.pact.test.util.minicluster.ClusterProvider;
+import eu.stratosphere.util.LogUtils;
 
 /**
  * Base class for integration tests which test whether the system recovers from failed executions.

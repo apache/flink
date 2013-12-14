@@ -20,12 +20,12 @@ import java.io.DataOutput;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 
-import eu.stratosphere.nephele.fs.FileStatus;
-import eu.stratosphere.nephele.fs.FileSystem;
-import eu.stratosphere.nephele.fs.Path;
+import eu.stratosphere.configuration.IllegalConfigurationException;
+import eu.stratosphere.core.fs.FileStatus;
+import eu.stratosphere.core.fs.FileSystem;
+import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.nephele.template.AbstractFileOutputTask;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.nephele.template.IllegalConfigurationException;
 
 /**
  * A JobFileOutputVertex is a specific subtype of a {@link AbstractJobOutputVertex} and is designed

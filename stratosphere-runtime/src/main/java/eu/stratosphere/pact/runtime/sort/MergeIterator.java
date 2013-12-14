@@ -19,9 +19,9 @@ import java.io.IOException;
 import java.util.Comparator;
 import java.util.List;
 
-import eu.stratosphere.pact.common.util.MutableObjectIterator;
-import eu.stratosphere.pact.generic.types.TypeComparator;
-import eu.stratosphere.pact.generic.types.TypeSerializer;
+import eu.stratosphere.api.typeutils.TypeComparator;
+import eu.stratosphere.api.typeutils.TypeSerializer;
+import eu.stratosphere.util.MutableObjectIterator;
 
 /**
  * An iterator that returns a sorted merge of the sequences of elements from a
@@ -73,7 +73,7 @@ public class MergeIterator<E> implements MutableObjectIterator<E>
 	 *               the contents is undefined.
 	 * @return True, if the iterator had another element, false otherwise. 
 	 * 
-	 * @see eu.stratosphere.pact.common.util.MutableObjectIterator#next(java.lang.Object)
+	 * @see eu.stratosphere.util.MutableObjectIterator#next(java.lang.Object)
 	 */
 	@Override
 	public boolean next(E target) throws IOException

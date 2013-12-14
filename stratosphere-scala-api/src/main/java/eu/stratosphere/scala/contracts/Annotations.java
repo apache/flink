@@ -18,8 +18,8 @@ package eu.stratosphere.scala.contracts;
 import java.lang.annotation.Annotation;
 import java.util.Arrays;
 
+import eu.stratosphere.api.functions.StubAnnotation;
 import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.common.stubs.StubAnnotation;
 
 public class Annotations {
 

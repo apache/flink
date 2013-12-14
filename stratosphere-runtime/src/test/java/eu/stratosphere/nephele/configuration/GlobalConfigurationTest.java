@@ -26,6 +26,8 @@ import static org.junit.Assert.assertEquals;
 import org.junit.Before;
 import org.junit.Test;
 
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.util.CommonTestUtils;
 
 /**

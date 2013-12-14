@@ -15,11 +15,11 @@
 
 package eu.stratosphere.pact.runtime.plugable.pactrecord;
 
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.NullKeyFieldException;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.util.InstantiationUtil;
-import eu.stratosphere.pact.generic.types.TypePairComparator;
+import eu.stratosphere.api.typeutils.TypePairComparator;
+import eu.stratosphere.types.Key;
+import eu.stratosphere.types.NullKeyFieldException;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.util.InstantiationUtil;
 
 
 /**

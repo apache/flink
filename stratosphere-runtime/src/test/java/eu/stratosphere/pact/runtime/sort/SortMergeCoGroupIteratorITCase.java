@@ -28,11 +28,9 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.util.MutableObjectIterator;
-import eu.stratosphere.pact.generic.types.TypeComparator;
-import eu.stratosphere.pact.generic.types.TypePairComparator;
-import eu.stratosphere.pact.generic.types.TypeSerializer;
+import eu.stratosphere.api.typeutils.TypeComparator;
+import eu.stratosphere.api.typeutils.TypePairComparator;
+import eu.stratosphere.api.typeutils.TypeSerializer;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparator;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordPairComparator;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordSerializer;
@@ -40,6 +38,8 @@ import eu.stratosphere.pact.runtime.test.util.TestData;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.KeyMode;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.ValueMode;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.util.MutableObjectIterator;
 
 /**
  * @author Fabian Hueske (fabian.hueske@tu-berlin.de)

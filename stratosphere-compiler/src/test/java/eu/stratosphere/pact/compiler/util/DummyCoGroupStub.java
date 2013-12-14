@@ -19,8 +19,8 @@ import java.io.Serializable;
 import java.util.Iterator;
 
 import eu.stratosphere.pact.common.stubs.CoGroupStub;
-import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.util.Collector;
 
 public class DummyCoGroupStub extends CoGroupStub implements Serializable {
 	private static final long serialVersionUID = 1L;

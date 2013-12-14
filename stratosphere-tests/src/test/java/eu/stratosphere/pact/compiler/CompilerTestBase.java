@@ -25,34 +25,34 @@ import java.util.Set;
 
 import org.junit.Before;
 
-import eu.stratosphere.nephele.fs.FileSystem;
+import eu.stratosphere.api.functions.Stub;
+import eu.stratosphere.api.io.FileInputFormat.FileBaseStatistics;
+import eu.stratosphere.api.operators.BulkIteration;
+import eu.stratosphere.api.operators.Contract;
+import eu.stratosphere.api.operators.GenericDataSource;
+import eu.stratosphere.api.operators.WorksetIteration;
+import eu.stratosphere.api.plan.Plan;
 import eu.stratosphere.nephele.instance.HardwareDescription;
 import eu.stratosphere.nephele.instance.HardwareDescriptionFactory;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.instance.InstanceTypeDescriptionFactory;
 import eu.stratosphere.nephele.instance.InstanceTypeFactory;
-import eu.stratosphere.pact.common.contract.GenericDataSource;
-import eu.stratosphere.pact.common.plan.Plan;
-import eu.stratosphere.pact.common.stubs.Stub;
-import eu.stratosphere.pact.common.util.Visitor;
 import eu.stratosphere.pact.compiler.costs.DefaultCostEstimator;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
-import eu.stratosphere.pact.generic.contract.BulkIteration;
-import eu.stratosphere.pact.generic.contract.Contract;
-import eu.stratosphere.pact.generic.contract.WorksetIteration;
-import eu.stratosphere.pact.generic.io.FileInputFormat.FileBaseStatistics;
+import eu.stratosphere.util.OperatingSystem;
+import eu.stratosphere.util.Visitor;
 
 /**
  *
  */
 public abstract class CompilerTestBase {
 
-	protected static final String IN_FILE = FileSystem.isWindows() ? "file:/c:/" : "file:///dev/random";
+	protected static final String IN_FILE = OperatingSystem.isWindows() ? "file:/c:/" : "file:///dev/random";
 	
-	protected static final String OUT_FILE = FileSystem.isWindows() ? "file:/c:/" : "file:///dev/null";
+	protected static final String OUT_FILE = OperatingSystem.isWindows() ? "file:/c:/" : "file:///dev/null";
 	
 	protected static final int DEFAULT_PARALLELISM = 8;
 	

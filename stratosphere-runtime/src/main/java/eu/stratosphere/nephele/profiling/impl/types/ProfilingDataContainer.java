@@ -22,9 +22,9 @@ import java.util.ArrayDeque;
 import java.util.Iterator;
 import java.util.Queue;
 
-import eu.stratosphere.nephele.io.IOReadableWritable;
-import eu.stratosphere.nephele.types.StringRecord;
-import eu.stratosphere.nephele.util.StringUtils;
+import eu.stratosphere.core.io.IOReadableWritable;
+import eu.stratosphere.core.io.StringRecord;
+import eu.stratosphere.util.StringUtils;
 
 public class ProfilingDataContainer implements IOReadableWritable {
 

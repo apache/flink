@@ -15,10 +15,10 @@
 
 package eu.stratosphere.pact.test.util.minicluster;
 
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.configuration.IllegalConfigurationException;
 import eu.stratosphere.nephele.client.JobClient;
-import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.nephele.template.IllegalConfigurationException;
 import eu.stratosphere.pact.client.minicluster.NepheleMiniCluster;
 import eu.stratosphere.pact.test.util.Constants;
 import eu.stratosphere.pact.test.util.filesystem.LocalFSProvider;

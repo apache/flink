@@ -15,7 +15,7 @@
 
 package eu.stratosphere.nephele.io.channels;
 
-import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
+import eu.stratosphere.core.memory.MemorySegment;
 
 
 public final class BufferFactory {

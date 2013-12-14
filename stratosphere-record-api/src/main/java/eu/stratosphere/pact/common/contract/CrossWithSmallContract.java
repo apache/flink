@@ -15,11 +15,11 @@
 
 package eu.stratosphere.pact.common.contract;
 
+import eu.stratosphere.api.operators.base.GenericCrossContract.CrossWithSmall;
+import eu.stratosphere.api.operators.util.UserCodeClassWrapper;
+import eu.stratosphere.api.operators.util.UserCodeObjectWrapper;
+import eu.stratosphere.api.operators.util.UserCodeWrapper;
 import eu.stratosphere.pact.common.stubs.CrossStub;
-import eu.stratosphere.pact.generic.contract.GenericCrossContract.CrossWithSmall;
-import eu.stratosphere.pact.generic.contract.UserCodeClassWrapper;
-import eu.stratosphere.pact.generic.contract.UserCodeObjectWrapper;
-import eu.stratosphere.pact.generic.contract.UserCodeWrapper;
 
 
 /**

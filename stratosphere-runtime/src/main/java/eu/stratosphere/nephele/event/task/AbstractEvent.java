@@ -15,7 +15,7 @@
 
 package eu.stratosphere.nephele.event.task;
 
-import eu.stratosphere.nephele.io.IOReadableWritable;
+import eu.stratosphere.core.io.IOReadableWritable;
 
 /**
  * This type of event can be used to exchange notification messages between

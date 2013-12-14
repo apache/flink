@@ -27,19 +27,19 @@ import junit.framework.TestCase;
 
 import org.junit.Test;
 
+import eu.stratosphere.api.distributions.DataDistribution;
+import eu.stratosphere.api.distributions.UniformIntegerDistribution;
 import eu.stratosphere.nephele.io.ChannelSelector;
-import eu.stratosphere.pact.common.distributions.DataDistribution;
-import eu.stratosphere.pact.common.distributions.UniformIntegerDistribution;
-import eu.stratosphere.pact.common.type.DeserializationException;
-import eu.stratosphere.pact.common.type.KeyFieldOutOfBoundsException;
-import eu.stratosphere.pact.common.type.NullKeyFieldException;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactDouble;
-import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparator;
 import eu.stratosphere.pact.runtime.shipping.PactRecordOutputEmitter;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
+import eu.stratosphere.types.DeserializationException;
+import eu.stratosphere.types.KeyFieldOutOfBoundsException;
+import eu.stratosphere.types.NullKeyFieldException;
+import eu.stratosphere.types.PactDouble;
+import eu.stratosphere.types.PactInteger;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.PactString;
 
 public class PactRecordOutputEmitterTest extends TestCase {
 	

@@ -21,23 +21,21 @@ import java.io.IOException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.api.io.FileOutputFormat;
+import eu.stratosphere.api.io.OutputFormat;
+import eu.stratosphere.api.typeutils.TypeComparatorFactory;
+import eu.stratosphere.api.typeutils.TypeSerializer;
+import eu.stratosphere.api.typeutils.TypeSerializerFactory;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.core.fs.FileStatus;
+import eu.stratosphere.core.fs.FileSystem;
+import eu.stratosphere.core.fs.Path;
+import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
-import eu.stratosphere.nephele.fs.FileStatus;
-import eu.stratosphere.nephele.fs.FileSystem;
-import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.io.MutableReader;
 import eu.stratosphere.nephele.io.MutableRecordReader;
 import eu.stratosphere.nephele.io.MutableUnionRecordReader;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
-import eu.stratosphere.nephele.types.Record;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.util.MutableObjectIterator;
-import eu.stratosphere.pact.generic.io.FileOutputFormat;
-import eu.stratosphere.pact.generic.io.OutputFormat;
-import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
-import eu.stratosphere.pact.generic.types.TypeSerializer;
-import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.runtime.plugable.DeserializationDelegate;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordSerializer;
 import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger;
@@ -45,6 +43,8 @@ import eu.stratosphere.pact.runtime.task.util.CloseableInputProvider;
 import eu.stratosphere.pact.runtime.task.util.NepheleReaderIterator;
 import eu.stratosphere.pact.runtime.task.util.PactRecordNepheleReaderIterator;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.util.MutableObjectIterator;
 
 /**
  * DataSinkTask which is executed by a Nephele task manager.
@@ -330,11 +330,11 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 		} else if (groupSize > 1){
 			// union case
 			
-			MutableRecordReader<Record>[] readers = new MutableRecordReader[groupSize];
+			MutableRecordReader<IOReadableWritable>[] readers = new MutableRecordReader[groupSize];
 			for (int j = 0; j < groupSize; ++j) {
-				readers[j] = new MutableRecordReader<Record>(this);
+				readers[j] = new MutableRecordReader<IOReadableWritable>(this);
 			}
-			inputReader = new MutableUnionRecordReader<Record>(readers);
+			inputReader = new MutableUnionRecordReader<IOReadableWritable>(readers);
 		} else {
 			throw new Exception("Illegal input group size in task configuration: " + groupSize);
 		}

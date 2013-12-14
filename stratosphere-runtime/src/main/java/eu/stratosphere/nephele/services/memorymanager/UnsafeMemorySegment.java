@@ -21,6 +21,8 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
+import eu.stratosphere.core.memory.MemoryUtils;
+
 /**
  * This class represents a piece of memory allocated from the memory manager. The segment is backed
  * by a byte array and features random put and get methods for the basic types that are stored in a byte-wise

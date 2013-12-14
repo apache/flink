@@ -14,8 +14,9 @@
 package eu.stratosphere.scala.stubs
 
 import eu.stratosphere.scala.analysis.{UDTSerializer, UDT, UDF1}
-import eu.stratosphere.pact.common.stubs.{Collector, MapStub => JMapStub}
-import eu.stratosphere.pact.common.`type`.PactRecord
+import eu.stratosphere.pact.common.stubs.{MapStub => JMapStub}
+import eu.stratosphere.types.PactRecord
+import eu.stratosphere.util.Collector
 
 abstract class MapStubBase[In: UDT, Out: UDT] extends JMapStub with Serializable{
   val inputUDT: UDT[In] = implicitly[UDT[In]]

@@ -18,9 +18,11 @@ package eu.stratosphere.pact.compiler.plan.candidate;
 import java.util.HashMap;
 import java.util.Map;
 
-import eu.stratosphere.pact.common.distributions.DataDistribution;
-import eu.stratosphere.pact.common.util.FieldList;
-import eu.stratosphere.pact.common.util.FieldSet;
+import eu.stratosphere.api.distributions.DataDistribution;
+import eu.stratosphere.api.operators.util.FieldList;
+import eu.stratosphere.api.operators.util.FieldSet;
+import eu.stratosphere.api.typeutils.TypeComparatorFactory;
+import eu.stratosphere.api.typeutils.TypeSerializerFactory;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
@@ -28,8 +30,6 @@ import eu.stratosphere.pact.compiler.plan.EstimateProvider;
 import eu.stratosphere.pact.compiler.plan.TempMode;
 import eu.stratosphere.pact.compiler.plandump.DumpableConnection;
 import eu.stratosphere.pact.compiler.util.Utils;
-import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
-import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 

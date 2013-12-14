@@ -19,9 +19,9 @@ package eu.stratosphere.pact.common.io;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.contract.FileDataSink;
-import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.api.operators.FileDataSink;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.types.PactRecord;
 
 
 /**
@@ -76,7 +76,7 @@ public abstract class DelimitedOutputFormat extends FileOutputFormat {
 	 * 
 	 *  @param config The configuration to read the parameters from.
 	 *  
-	 * @see eu.stratosphere.pact.common.io.FileOutputFormat#configure(eu.stratosphere.nephele.configuration.Configuration)
+	 * @see eu.stratosphere.pact.common.io.FileOutputFormat#configure(eu.stratosphere.configuration.Configuration)
 	 */
 	public void configure(Configuration config)
 	{

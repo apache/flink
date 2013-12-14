@@ -15,8 +15,8 @@
 
 package eu.stratosphere.pact.runtime.test.util;
 
-import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.test.util.types.IntPair;
+import eu.stratosphere.util.MutableObjectIterator;
 
 public class UniformIntPairGenerator implements MutableObjectIterator<IntPair>
 {

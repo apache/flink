@@ -20,18 +20,14 @@ import static org.junit.Assert.fail;
 import org.junit.Assert;
 import org.junit.Test;
 
+import eu.stratosphere.api.operators.FileDataSink;
+import eu.stratosphere.api.operators.FileDataSource;
+import eu.stratosphere.api.operators.Order;
+import eu.stratosphere.api.operators.Ordering;
+import eu.stratosphere.api.operators.util.FieldList;
+import eu.stratosphere.api.plan.Plan;
 import eu.stratosphere.pact.common.contract.CoGroupContract;
-import eu.stratosphere.pact.common.contract.FileDataSink;
-import eu.stratosphere.pact.common.contract.FileDataSource;
-import eu.stratosphere.pact.common.contract.Order;
-import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.common.plan.Plan;
-import eu.stratosphere.pact.common.type.base.PactDouble;
-import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.common.type.base.PactLong;
-import eu.stratosphere.pact.common.type.base.PactString;
-import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.DualInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
@@ -43,6 +39,10 @@ import eu.stratosphere.pact.compiler.util.DummyOutputFormat;
 import eu.stratosphere.pact.compiler.util.IdentityReduce;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
+import eu.stratosphere.types.PactDouble;
+import eu.stratosphere.types.PactInteger;
+import eu.stratosphere.types.PactLong;
+import eu.stratosphere.types.PactString;
 
 
 /**

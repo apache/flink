@@ -33,7 +33,9 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.configuration.IllegalConfigurationException;
+import eu.stratosphere.core.io.InputSplit;
 import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.instance.AllocatedResource;
@@ -53,9 +55,7 @@ import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.taskmanager.runtime.ExecutorThreadFactory;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.nephele.template.IllegalConfigurationException;
-import eu.stratosphere.nephele.template.InputSplit;
-import eu.stratosphere.nephele.util.StringUtils;
+import eu.stratosphere.util.StringUtils;
 
 /**
  * In Nephele an execution graph is the main data structure for scheduling, executing and

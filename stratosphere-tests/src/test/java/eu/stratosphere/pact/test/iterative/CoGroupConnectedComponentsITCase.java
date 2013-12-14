@@ -22,8 +22,8 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.plan.Plan;
+import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.pact.example.connectedcomponents.WorksetConnectedComponentsWithCoGroup;
 import eu.stratosphere.pact.test.iterative.nephele.ConnectedComponentsNepheleITCase;
 import eu.stratosphere.pact.test.util.TestBase2;

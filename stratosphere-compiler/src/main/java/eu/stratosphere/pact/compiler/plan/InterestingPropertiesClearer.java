@@ -14,7 +14,7 @@
  **********************************************************************************************************************/
 package eu.stratosphere.pact.compiler.plan;
 
-import eu.stratosphere.pact.common.util.Visitor;
+import eu.stratosphere.util.Visitor;
 
 final class InterestingPropertiesClearer implements Visitor<OptimizerNode> {
 	

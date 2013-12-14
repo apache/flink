@@ -21,7 +21,7 @@ import java.nio.channels.FileChannel;
 import java.util.Collection;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
+import eu.stratosphere.core.memory.MemorySegment;
 
 
 /**

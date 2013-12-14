@@ -15,7 +15,9 @@
 
 package eu.stratosphere.pact.test.testPrograms.tpch9;
 
-import eu.stratosphere.pact.common.type.base.*;
+import eu.stratosphere.types.PactInteger;
+import eu.stratosphere.types.PactPair;
+import eu.stratosphere.types.PactString;
 
 public class StringIntPair extends PactPair<PactString, PactInteger> {
 	private static final long serialVersionUID = 1L;

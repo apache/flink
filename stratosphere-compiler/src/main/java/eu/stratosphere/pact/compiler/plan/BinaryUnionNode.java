@@ -20,6 +20,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import eu.stratosphere.api.functions.AbstractStub;
+import eu.stratosphere.api.operators.Contract;
+import eu.stratosphere.api.operators.DualInputContract;
+import eu.stratosphere.api.operators.util.UserCodeClassWrapper;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
@@ -31,10 +35,6 @@ import eu.stratosphere.pact.compiler.operators.BinaryUnionOpDescriptor;
 import eu.stratosphere.pact.compiler.operators.OperatorDescriptorDual;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
-import eu.stratosphere.pact.generic.contract.Contract;
-import eu.stratosphere.pact.generic.contract.DualInputContract;
-import eu.stratosphere.pact.generic.contract.UserCodeClassWrapper;
-import eu.stratosphere.pact.generic.stub.AbstractStub;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 
 /**

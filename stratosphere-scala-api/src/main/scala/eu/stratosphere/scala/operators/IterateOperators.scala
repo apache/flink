@@ -19,23 +19,23 @@ import eu.stratosphere.scala.codegen.MacroContextHolder
 import eu.stratosphere.scala.ScalaContract
 import eu.stratosphere.pact.common.contract.MapContract
 import eu.stratosphere.scala.analysis.UDT
-import eu.stratosphere.pact.common.`type`.PactRecord
+import eu.stratosphere.types.PactRecord
 import eu.stratosphere.pact.common.stubs.MapStub
-import eu.stratosphere.pact.common.stubs.Collector
-import eu.stratosphere.pact.generic.contract.Contract
+import eu.stratosphere.util.Collector
+import eu.stratosphere.api.operators.Contract
 import eu.stratosphere.scala.contracts.Annotations
 import eu.stratosphere.scala.analysis.UDF1
 import eu.stratosphere.scala.analysis.UDTSerializer
-import eu.stratosphere.nephele.configuration.Configuration
-import eu.stratosphere.pact.generic.contract.BulkIteration
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.api.operators.BulkIteration
 import eu.stratosphere.scala.analysis.UDF0
-import eu.stratosphere.pact.generic.stub.AbstractStub
+import eu.stratosphere.api.functions.AbstractStub
 import eu.stratosphere.scala.BulkIterationScalaContract
 import eu.stratosphere.scala.WorksetIterationScalaContract
 import eu.stratosphere.scala.DataSet
 import eu.stratosphere.scala.analysis.FieldSelector
 import eu.stratosphere.scala.OutputHintable
-import eu.stratosphere.pact.generic.contract.WorksetIteration
+import eu.stratosphere.api.operators.WorksetIteration
 
 object IterateMacros {
 

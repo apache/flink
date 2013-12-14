@@ -23,16 +23,16 @@ import org.apache.commons.logging.LogFactory;
 import org.junit.Test;
 import org.junit.Assert;
 
-import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.api.functions.GenericMapper;
 import eu.stratosphere.pact.common.stubs.MapStub;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.generic.stub.GenericMapper;
 import eu.stratosphere.pact.runtime.test.util.DiscardingOutputCollector;
 import eu.stratosphere.pact.runtime.test.util.DriverTestBase;
 import eu.stratosphere.pact.runtime.test.util.ExpectedTestException;
 import eu.stratosphere.pact.runtime.test.util.InfiniteInputIterator;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
 import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.util.Collector;
 
 public class MapTaskTest extends DriverTestBase<GenericMapper<PactRecord, PactRecord>> {
 	

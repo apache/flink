@@ -29,12 +29,12 @@ import java.util.Deque;
 
 import org.junit.Test;
 
+import eu.stratosphere.core.memory.MemorySegment;
 import eu.stratosphere.nephele.io.AbstractID;
 import eu.stratosphere.nephele.io.channels.BufferFactory;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.MemoryBuffer;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.DefaultSerializer;
 import eu.stratosphere.nephele.util.BufferPoolConnector;

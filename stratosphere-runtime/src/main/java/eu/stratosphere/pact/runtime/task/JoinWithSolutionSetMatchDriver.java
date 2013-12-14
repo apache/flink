@@ -15,15 +15,15 @@
 
 package eu.stratosphere.pact.runtime.task;
 
-import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.common.util.MutableObjectIterator;
-import eu.stratosphere.pact.generic.stub.GenericMatcher;
-import eu.stratosphere.pact.generic.types.TypeSerializer;
-import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
+import eu.stratosphere.api.functions.GenericMatcher;
+import eu.stratosphere.api.typeutils.TypeSerializer;
+import eu.stratosphere.api.typeutils.TypeSerializerFactory;
 import eu.stratosphere.pact.runtime.hash.MutableHashTable;
 import eu.stratosphere.pact.runtime.iterative.concurrent.SolutionSetBroker;
 import eu.stratosphere.pact.runtime.iterative.task.AbstractIterativePactTask;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
+import eu.stratosphere.util.Collector;
+import eu.stratosphere.util.MutableObjectIterator;
 
 public abstract class JoinWithSolutionSetMatchDriver<IT1, IT2, OT> implements ResettablePactDriver<GenericMatcher<IT1, IT2, OT>, OT> {
 	

@@ -15,7 +15,7 @@
 
 package eu.stratosphere.pact.common.io;
 
-import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.types.PactRecord;
 
 /**
  * Base implementation for input formats that split the input at a delimiter into records.
@@ -24,7 +24,7 @@ import eu.stratosphere.pact.common.type.PactRecord;
  * <p>
  * The default delimiter is the newline character {@code '\n'}.
  */
-public abstract class DelimitedInputFormat extends eu.stratosphere.pact.generic.io.DelimitedInputFormat<PactRecord> {
+public abstract class DelimitedInputFormat extends eu.stratosphere.api.io.DelimitedInputFormat<PactRecord> {
 	
 	private static final long serialVersionUID = -2297199268758915692L;
 

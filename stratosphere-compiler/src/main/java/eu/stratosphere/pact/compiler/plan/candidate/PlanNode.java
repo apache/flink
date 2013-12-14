@@ -22,8 +22,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import eu.stratosphere.pact.common.util.FieldSet;
-import eu.stratosphere.pact.common.util.Visitable;
+import eu.stratosphere.api.operators.Contract;
+import eu.stratosphere.api.operators.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.costs.Costs;
 import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
@@ -31,8 +31,8 @@ import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plandump.DumpableConnection;
 import eu.stratosphere.pact.compiler.plandump.DumpableNode;
-import eu.stratosphere.pact.generic.contract.Contract;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
+import eu.stratosphere.util.Visitable;
 
 /**
  * The representation of a data exchange between to operators. The data exchange can realize a shipping strategy, 

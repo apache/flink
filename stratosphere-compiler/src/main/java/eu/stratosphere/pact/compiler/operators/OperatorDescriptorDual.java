@@ -17,7 +17,7 @@ package eu.stratosphere.pact.compiler.operators;
 
 import java.util.List;
 
-import eu.stratosphere.pact.common.util.FieldList;
+import eu.stratosphere.api.operators.util.FieldList;
 import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.RequestedGlobalProperties;

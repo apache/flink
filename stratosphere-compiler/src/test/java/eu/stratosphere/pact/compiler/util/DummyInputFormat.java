@@ -15,10 +15,10 @@
 
 package eu.stratosphere.pact.compiler.util;
 
+import eu.stratosphere.api.io.statistics.BaseStatistics;
 import eu.stratosphere.pact.common.io.DelimitedInputFormat;
-import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.types.PactInteger;
+import eu.stratosphere.types.PactRecord;
 
 public final class DummyInputFormat extends DelimitedInputFormat {
 	private static final long serialVersionUID = 1L;

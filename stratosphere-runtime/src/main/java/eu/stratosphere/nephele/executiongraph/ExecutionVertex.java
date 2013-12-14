@@ -45,7 +45,7 @@ import eu.stratosphere.nephele.taskmanager.TaskKillResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
 import eu.stratosphere.nephele.util.AtomicEnum;
 import eu.stratosphere.nephele.util.SerializableArrayList;
-import eu.stratosphere.nephele.util.StringUtils;
+import eu.stratosphere.util.StringUtils;
 
 /**
  * An execution vertex represents an instance of a task in a Nephele job. An execution vertex

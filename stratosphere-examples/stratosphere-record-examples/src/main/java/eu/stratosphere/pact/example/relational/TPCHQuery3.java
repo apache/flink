@@ -18,29 +18,29 @@ package eu.stratosphere.pact.example.relational;
 import java.io.Serializable;
 import java.util.Iterator;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.contract.FileDataSink;
-import eu.stratosphere.pact.common.contract.FileDataSource;
+import eu.stratosphere.api.functions.StubAnnotation.ConstantFields;
+import eu.stratosphere.api.functions.StubAnnotation.ConstantFieldsFirst;
+import eu.stratosphere.api.operators.FileDataSink;
+import eu.stratosphere.api.operators.FileDataSource;
+import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.api.plan.PlanAssembler;
+import eu.stratosphere.api.plan.PlanAssemblerDescription;
+import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.pact.common.io.RecordInputFormat;
 import eu.stratosphere.pact.common.io.RecordOutputFormat;
-import eu.stratosphere.pact.common.plan.Plan;
-import eu.stratosphere.pact.common.plan.PlanAssembler;
-import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
-import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MapStub;
 import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFields;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsFirst;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactDouble;
-import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.common.type.base.PactLong;
-import eu.stratosphere.pact.common.type.base.PactString;
+import eu.stratosphere.types.PactDouble;
+import eu.stratosphere.types.PactInteger;
+import eu.stratosphere.types.PactLong;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.PactString;
+import eu.stratosphere.util.Collector;
 
 /**
  * The TPC-H is a decision support benchmark on relational data.
@@ -82,7 +82,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		/**
 		 * Reads the filter literals from the configuration.
 		 * 
-		 * @see eu.stratosphere.pact.common.stubs.Stub#open(eu.stratosphere.nephele.configuration.Configuration)
+		 * @see eu.stratosphere.api.functions.Stub#open(eu.stratosphere.configuration.Configuration)
 		 */
 		@Override
 		public void open(Configuration parameters) {

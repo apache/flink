@@ -15,15 +15,15 @@
 
 package eu.stratosphere.pact.example.pagerank;
 
+import eu.stratosphere.api.operators.BulkIteration;
+import eu.stratosphere.api.operators.FileDataSink;
+import eu.stratosphere.api.operators.FileDataSource;
+import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.api.plan.PlanAssembler;
+import eu.stratosphere.api.plan.PlanAssemblerDescription;
 import eu.stratosphere.pact.common.contract.CoGroupContract;
-import eu.stratosphere.pact.common.contract.FileDataSink;
-import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.MatchContract;
-import eu.stratosphere.pact.common.plan.Plan;
-import eu.stratosphere.pact.common.plan.PlanAssembler;
-import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
-import eu.stratosphere.pact.common.type.base.PactLong;
-import eu.stratosphere.pact.generic.contract.BulkIteration;
+import eu.stratosphere.types.PactLong;
 
 
 public class DanglingPageRank implements PlanAssembler, PlanAssemblerDescription {

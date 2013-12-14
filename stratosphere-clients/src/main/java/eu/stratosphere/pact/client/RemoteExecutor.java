@@ -6,11 +6,11 @@ import java.net.URISyntaxException;
 import java.util.Collections;
 import java.util.List;
 
+import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.client.JobExecutionResult;
-import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.client.nephele.api.Client;
 import eu.stratosphere.pact.client.nephele.api.PlanWithJars;
-import eu.stratosphere.pact.common.plan.Plan;
 
 public class RemoteExecutor implements PlanExecutor {
 

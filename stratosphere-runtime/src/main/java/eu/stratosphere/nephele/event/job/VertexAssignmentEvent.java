@@ -19,8 +19,8 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
+import eu.stratosphere.core.io.StringRecord;
 import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
-import eu.stratosphere.nephele.types.StringRecord;
 
 /**
  * A {@link VertexAssignmentEvent} can be used to notify other objects about changes in the assignment of vertices to

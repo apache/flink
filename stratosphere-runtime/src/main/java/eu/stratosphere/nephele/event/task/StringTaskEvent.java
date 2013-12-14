@@ -35,7 +35,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-import eu.stratosphere.nephele.types.StringRecord;
+import eu.stratosphere.core.io.StringRecord;
 
 /**
  * This class provides a simple implementation of an event that holds a string value.

@@ -1,6 +1,6 @@
 package eu.stratosphere.pact.example.pagerank;
 
-import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.types.Value;
 
 import java.io.DataInput;
 import java.io.DataOutput;

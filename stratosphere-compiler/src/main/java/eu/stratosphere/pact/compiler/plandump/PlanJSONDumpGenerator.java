@@ -29,8 +29,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import eu.stratosphere.pact.common.contract.CompilerHints;
-import eu.stratosphere.pact.common.util.FieldSet;
+import eu.stratosphere.api.operators.CompilerHints;
+import eu.stratosphere.api.operators.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;

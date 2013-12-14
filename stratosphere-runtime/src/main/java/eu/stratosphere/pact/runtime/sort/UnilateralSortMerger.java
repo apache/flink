@@ -30,6 +30,9 @@ import java.util.concurrent.LinkedBlockingQueue;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.api.typeutils.TypeComparator;
+import eu.stratosphere.api.typeutils.TypeSerializer;
+import eu.stratosphere.core.memory.MemorySegment;
 import eu.stratosphere.nephele.services.iomanager.BlockChannelAccess;
 import eu.stratosphere.nephele.services.iomanager.BlockChannelReader;
 import eu.stratosphere.nephele.services.iomanager.BlockChannelWriter;
@@ -40,15 +43,12 @@ import eu.stratosphere.nephele.services.iomanager.Channel.ID;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
-import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.common.util.MutableObjectIterator;
-import eu.stratosphere.pact.generic.types.TypeComparator;
-import eu.stratosphere.pact.generic.types.TypeSerializer;
 import eu.stratosphere.pact.runtime.io.ChannelReaderInputViewIterator;
 import eu.stratosphere.pact.runtime.util.EmptyMutableObjectIterator;
 import eu.stratosphere.pact.runtime.util.MathUtils;
+import eu.stratosphere.util.Collector;
+import eu.stratosphere.util.MutableObjectIterator;
 
 /**
  * The {@link UnilateralSortMerger} is a full fledged sorter. It implements a multi-way merge sort. Internally, 

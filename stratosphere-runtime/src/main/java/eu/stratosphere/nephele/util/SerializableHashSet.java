@@ -21,12 +21,13 @@ import java.io.IOException;
 import java.util.HashSet;
 import java.util.Iterator;
 
-import eu.stratosphere.nephele.io.IOReadableWritable;
-import eu.stratosphere.nephele.types.StringRecord;
+import eu.stratosphere.core.io.IOReadableWritable;
+import eu.stratosphere.core.io.StringRecord;
+import eu.stratosphere.util.StringUtils;
 
 /**
  * This class extends a standard {@link java.util.HashSet} by implementing the
- * {@link eu.stratosphere.nephele.io.IOReadableWritable} interface. As a result, hash sets of this type can be used
+ * {@link eu.stratosphere.core.io.IOReadableWritable} interface. As a result, hash sets of this type can be used
  * with Nephele's RPC system.
  * <p>
  * This class is not thread-safe.

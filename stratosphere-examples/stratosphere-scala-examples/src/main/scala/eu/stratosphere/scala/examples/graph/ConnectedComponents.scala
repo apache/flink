@@ -14,10 +14,10 @@ package eu.stratosphere.scala.examples.graph;
 
 
 import eu.stratosphere.pact.client.LocalExecutor
-import eu.stratosphere.pact.common.plan.PlanAssembler
-import eu.stratosphere.pact.common.plan.PlanAssemblerDescription
+import eu.stratosphere.api.plan.PlanAssembler
+import eu.stratosphere.api.plan.PlanAssemblerDescription
 import eu.stratosphere.scala.analysis.GlobalSchemaPrinter
-import eu.stratosphere.pact.generic.contract.WorksetIteration
+import eu.stratosphere.api.operators.WorksetIteration
 
 import scala.math._
 

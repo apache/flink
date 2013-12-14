@@ -15,12 +15,12 @@
 
 package eu.stratosphere.nephele.io;
 
+import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.event.task.EventListener;
 import eu.stratosphere.nephele.event.task.EventNotificationManager;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.types.Record;
 
 /**
  * In Nephele a gate represents the connection between a user program and the processing framework. A gate
@@ -34,7 +34,7 @@ import eu.stratosphere.nephele.types.Record;
  * @param <T>
  *        the record type to be transported from this gate
  */
-public abstract class AbstractGate<T extends Record> implements Gate<T> {
+public abstract class AbstractGate<T extends IOReadableWritable> implements Gate<T> {
 
 	/**
 	 * The ID of the job this gate belongs to.

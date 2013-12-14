@@ -19,9 +19,9 @@ import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
 
-import eu.stratosphere.nephele.fs.FileInputSplit;
-import eu.stratosphere.nephele.fs.Path;
-import eu.stratosphere.nephele.template.InputSplit;
+import eu.stratosphere.core.fs.FileInputSplit;
+import eu.stratosphere.core.fs.Path;
+import eu.stratosphere.core.io.InputSplit;
 import eu.stratosphere.nephele.template.InputSplitProvider;
 
 /**

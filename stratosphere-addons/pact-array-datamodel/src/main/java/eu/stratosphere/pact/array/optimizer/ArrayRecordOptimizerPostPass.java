@@ -14,14 +14,15 @@
  **********************************************************************************************************************/
 package eu.stratosphere.pact.array.optimizer;
 
+import eu.stratosphere.api.functions.Stub;
+import eu.stratosphere.api.io.OutputFormat;
+import eu.stratosphere.api.operators.DualInputContract;
+import eu.stratosphere.api.operators.GenericDataSink;
+import eu.stratosphere.api.operators.Ordering;
+import eu.stratosphere.api.operators.SingleInputContract;
+import eu.stratosphere.api.operators.util.FieldList;
 import eu.stratosphere.pact.array.io.ArrayModelOutputFormat;
 import eu.stratosphere.pact.array.stubs.AbstractArrayModelStub;
-import eu.stratosphere.pact.common.contract.GenericDataSink;
-import eu.stratosphere.pact.common.contract.Ordering;
-import eu.stratosphere.pact.common.stubs.Stub;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.CompilerPostPassException;
 import eu.stratosphere.pact.compiler.plan.candidate.DualInputPlanNode;
@@ -32,12 +33,11 @@ import eu.stratosphere.pact.compiler.postpass.DenseValueSchema;
 import eu.stratosphere.pact.compiler.postpass.GenericRecordPostPass;
 import eu.stratosphere.pact.compiler.postpass.MissingFieldTypeInfoException;
 import eu.stratosphere.pact.compiler.postpass.PostPassUtils;
-import eu.stratosphere.pact.generic.contract.DualInputContract;
-import eu.stratosphere.pact.generic.contract.SingleInputContract;
-import eu.stratosphere.pact.generic.io.OutputFormat;
 import eu.stratosphere.pact.runtime.plugable.arrayrecord.ArrayRecordComparatorFactory;
 import eu.stratosphere.pact.runtime.plugable.arrayrecord.ArrayRecordPairComparatorFactory;
 import eu.stratosphere.pact.runtime.plugable.arrayrecord.ArrayRecordSerializerFactory;
+import eu.stratosphere.types.Key;
+import eu.stratosphere.types.Value;
 
 /**
  * Post pass implementation for the array record data model. Does only type inference and creates

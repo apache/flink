@@ -15,21 +15,16 @@
 
 package eu.stratosphere.pact.runtime.iterative.task;
 
+import eu.stratosphere.api.functions.IterationRuntimeContext;
+import eu.stratosphere.api.functions.RuntimeContext;
+import eu.stratosphere.api.functions.Stub;
+import eu.stratosphere.api.functions.aggregators.Aggregator;
+import eu.stratosphere.api.functions.aggregators.LongSumAggregator;
+import eu.stratosphere.api.typeutils.TypeSerializer;
+import eu.stratosphere.api.typeutils.TypeSerializerFactory;
+import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.io.MutableReader;
-import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
-import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.common.stubs.IterationRuntimeContext;
-import eu.stratosphere.pact.common.stubs.RuntimeContext;
-import eu.stratosphere.pact.common.stubs.Stub;
-import eu.stratosphere.pact.common.stubs.aggregators.Aggregator;
-import eu.stratosphere.pact.common.stubs.aggregators.LongSumAggregator;
-import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.common.type.base.PactLong;
-import eu.stratosphere.pact.common.util.InstantiationUtil;
-import eu.stratosphere.pact.common.util.MutableObjectIterator;
-import eu.stratosphere.pact.generic.types.TypeSerializer;
-import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.runtime.hash.MutableHashTable;
 import eu.stratosphere.pact.runtime.iterative.concurrent.*;
 import eu.stratosphere.pact.runtime.iterative.convergence.WorksetEmptyConvergenceCriterion;
@@ -41,6 +36,12 @@ import eu.stratosphere.pact.runtime.task.RegularPactTask;
 import eu.stratosphere.pact.runtime.task.ResettablePactDriver;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.udf.RuntimeUDFContext;
+import eu.stratosphere.types.PactLong;
+import eu.stratosphere.types.Value;
+import eu.stratosphere.util.Collector;
+import eu.stratosphere.util.InstantiationUtil;
+import eu.stratosphere.util.MutableObjectIterator;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 

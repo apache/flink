@@ -23,27 +23,27 @@ import java.util.Iterator;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.accumulators.Accumulator;
+import eu.stratosphere.api.io.InputFormat;
+import eu.stratosphere.api.typeutils.TypeSerializer;
+import eu.stratosphere.api.typeutils.TypeSerializerFactory;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.core.io.InputSplit;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
-import eu.stratosphere.nephele.services.accumulators.Accumulator;
 import eu.stratosphere.nephele.template.AbstractInputTask;
-import eu.stratosphere.nephele.template.InputSplit;
-import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.generic.io.InputFormat;
-import eu.stratosphere.pact.generic.types.TypeSerializer;
-import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.runtime.shipping.OutputCollector;
 import eu.stratosphere.pact.runtime.shipping.PactRecordOutputCollector;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedDriver;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedMapDriver;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.util.Collector;
 
 /**
  * DataSourceTask which is executed by a Nephele task manager. The task reads data and uses an 
  * {@link InputFormat} to create records from the input.
  * 
- * @see eu.stratosphere.pact.generic.io.InputFormat
+ * @see eu.stratosphere.api.io.InputFormat
  */
 public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 {

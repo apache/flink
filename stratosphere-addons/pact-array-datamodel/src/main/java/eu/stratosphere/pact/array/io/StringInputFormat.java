@@ -25,10 +25,10 @@ import java.util.Arrays;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.common.type.base.PactString;
-import eu.stratosphere.pact.generic.io.DelimitedInputFormat;
+import eu.stratosphere.api.io.DelimitedInputFormat;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.Value;
 
 /**
  * Base implementation for an input format that returns each line as a separate record that contains

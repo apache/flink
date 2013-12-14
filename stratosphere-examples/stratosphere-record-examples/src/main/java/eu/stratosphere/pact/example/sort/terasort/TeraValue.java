@@ -19,7 +19,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.types.Value;
 
 /**
  * An integer number according to the rules of Jim Gray's sorting benchmark has a length of 100 bytes. The first 10

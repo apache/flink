@@ -18,7 +18,7 @@ package eu.stratosphere.pact.example.sort.terasort;
 import java.io.IOException;
 
 import eu.stratosphere.pact.common.io.FileOutputFormat;
-import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.types.PactRecord;
 
 
 /**

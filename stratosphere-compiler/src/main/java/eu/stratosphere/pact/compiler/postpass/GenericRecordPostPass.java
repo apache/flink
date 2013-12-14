@@ -18,7 +18,10 @@ package eu.stratosphere.pact.compiler.postpass;
 import java.util.Iterator;
 import java.util.Map;
 
-import eu.stratosphere.pact.common.util.FieldList;
+import eu.stratosphere.api.operators.util.FieldList;
+import eu.stratosphere.api.typeutils.TypeComparatorFactory;
+import eu.stratosphere.api.typeutils.TypePairComparatorFactory;
+import eu.stratosphere.api.typeutils.TypeSerializerFactory;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.CompilerPostPassException;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
@@ -38,9 +41,6 @@ import eu.stratosphere.pact.compiler.plan.candidate.SourcePlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.NAryUnionPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.WorksetIterationPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.WorksetPlanNode;
-import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
-import eu.stratosphere.pact.generic.types.TypePairComparatorFactory;
-import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
 
 /**
  * 

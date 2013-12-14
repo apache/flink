@@ -16,8 +16,9 @@
 package eu.stratosphere.pact.runtime.iterative.concurrent;
 
 import com.google.common.collect.Lists;
-import eu.stratosphere.nephele.services.memorymanager.DataInputView;
-import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
+
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.pact.runtime.iterative.io.SerializedUpdateBuffer;
 import org.junit.Test;
 import org.mockito.Mockito;

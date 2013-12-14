@@ -18,10 +18,10 @@ package eu.stratosphere.pact.compiler.util;
 import java.io.Serializable;
 import java.util.Iterator;
 
-import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.api.functions.StubAnnotation.ConstantFieldsExcept;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsExcept;
-import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.util.Collector;
 
 @ConstantFieldsExcept({})
 public final class IdentityReduce extends ReduceStub implements Serializable {

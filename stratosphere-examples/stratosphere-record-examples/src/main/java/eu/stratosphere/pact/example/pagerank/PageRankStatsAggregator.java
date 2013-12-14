@@ -1,6 +1,6 @@
 package eu.stratosphere.pact.example.pagerank;
 
-import eu.stratosphere.pact.common.stubs.aggregators.Aggregator;
+import eu.stratosphere.api.functions.aggregators.Aggregator;
 
 public class PageRankStatsAggregator implements Aggregator<PageRankStats> {
 

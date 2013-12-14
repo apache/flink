@@ -19,7 +19,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
-import eu.stratosphere.pact.common.util.Visitor;
+import eu.stratosphere.api.operators.BulkIteration;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.PactCompiler.InterestingPropertyVisitor;
@@ -35,7 +35,7 @@ import eu.stratosphere.pact.compiler.plan.candidate.BulkIterationPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.BulkPartialSolutionPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
-import eu.stratosphere.pact.generic.contract.BulkIteration;
+import eu.stratosphere.util.Visitor;
 
 /**
  * A node in the optimizer's program representation for a bulk iteration.

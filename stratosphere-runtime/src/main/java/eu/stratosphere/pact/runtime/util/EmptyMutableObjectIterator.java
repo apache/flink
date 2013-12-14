@@ -15,7 +15,7 @@
 
 package eu.stratosphere.pact.runtime.util;
 
-import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.util.MutableObjectIterator;
 
 
 /**

@@ -20,6 +20,7 @@ import java.io.IOException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.io.InputGate;
@@ -28,12 +29,11 @@ import eu.stratosphere.nephele.io.RecordDeserializer;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.types.Record;
 
 /**
  * @param <T> The type of record that can be transported through this channel.
  */
-public abstract class AbstractByteBufferedInputChannel<T extends Record> extends AbstractInputChannel<T> {
+public abstract class AbstractByteBufferedInputChannel<T extends IOReadableWritable> extends AbstractInputChannel<T> {
 
 	/**
 	 * The log object used to report warnings and errors.

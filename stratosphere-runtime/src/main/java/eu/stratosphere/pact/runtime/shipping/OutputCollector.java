@@ -20,10 +20,10 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import eu.stratosphere.api.typeutils.TypeSerializer;
 import eu.stratosphere.nephele.io.AbstractRecordWriter;
-import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.generic.types.TypeSerializer;
 import eu.stratosphere.pact.runtime.plugable.SerializationDelegate;
+import eu.stratosphere.util.Collector;
 
 /**
  * The OutputCollector collects records, and emits the pair to a set of Nephele {@link RecordWriter}s.

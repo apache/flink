@@ -28,8 +28,8 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import eu.stratosphere.core.io.StringRecord;
 import eu.stratosphere.nephele.types.IntegerRecord;
-import eu.stratosphere.nephele.types.StringRecord;
 
 /**
  * This class checks the functionality of the {@link SerializationBuffer} class and the {@link DefaultDeserializer}

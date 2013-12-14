@@ -17,9 +17,7 @@ package eu.stratosphere.nephele.taskmanager.runtime;
 
 import java.io.IOException;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
+import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.io.AbstractID;
 import eu.stratosphere.nephele.io.GateID;
@@ -33,11 +31,8 @@ import eu.stratosphere.nephele.taskmanager.bytebuffered.InputGateContext;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputGateContext;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.TaskContext;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
-import eu.stratosphere.nephele.types.Record;
 
 public final class RuntimeTaskContext implements BufferProvider, TaskContext {
-
-	private static final Log LOG = LogFactory.getLog(RuntimeTaskContext.class);
 
 	private final LocalBufferPool localBufferPool;
 
@@ -57,7 +52,7 @@ public final class RuntimeTaskContext implements BufferProvider, TaskContext {
 		// Compute number of output input channels
 		int nooc = 0;
 		for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
-			final OutputGate<? extends Record> outputGate = environment.getOutputGate(i);
+			final OutputGate<? extends IOReadableWritable> outputGate = environment.getOutputGate(i);
 			if (outputGate.isBroadcast()) {
 				++nooc;
 			} else {
@@ -182,10 +177,10 @@ public final class RuntimeTaskContext implements BufferProvider, TaskContext {
 			throw new IllegalArgumentException("Argument gateID must not be null");
 		}
 
-		OutputGate<? extends Record> outputGate = null;
+		OutputGate<? extends IOReadableWritable> outputGate = null;
 		final RuntimeEnvironment re = this.task.getRuntimeEnvironment();
 		for (int i = 0; i < re.getNumberOfOutputGates(); ++i) {
-			final OutputGate<? extends Record> candidateGate = re.getOutputGate(i);
+			final OutputGate<? extends IOReadableWritable> candidateGate = re.getOutputGate(i);
 			if (candidateGate.getGateID().equals(gateID)) {
 				outputGate = candidateGate;
 				break;
@@ -209,10 +204,10 @@ public final class RuntimeTaskContext implements BufferProvider, TaskContext {
 			throw new IllegalArgumentException("Argument gateID must not be null");
 		}
 
-		InputGate<? extends Record> inputGate = null;
+		InputGate<? extends IOReadableWritable> inputGate = null;
 		final RuntimeEnvironment re = this.task.getRuntimeEnvironment();
 		for (int i = 0; i < re.getNumberOfInputGates(); ++i) {
-			final InputGate<? extends Record> candidateGate = re.getInputGate(i);
+			final InputGate<? extends IOReadableWritable> candidateGate = re.getInputGate(i);
 			if (candidateGate.getGateID().equals(gateID)) {
 				inputGate = candidateGate;
 				break;

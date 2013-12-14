@@ -29,15 +29,15 @@ import junit.framework.Assert;
 import org.junit.After;
 import org.junit.Test;
 
-import eu.stratosphere.nephele.fs.Path;
+import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.pact.common.io.DelimitedInputFormat;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.test.util.NirvanaOutputList;
 import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
+import eu.stratosphere.types.PactInteger;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.util.MutableObjectIterator;
 
 public class DataSourceTaskTest extends TaskTestBase
 {

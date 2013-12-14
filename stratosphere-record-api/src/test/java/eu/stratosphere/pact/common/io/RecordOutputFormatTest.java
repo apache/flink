@@ -32,10 +32,10 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.common.type.base.PactString;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.types.PactInteger;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.PactString;
 
 public class RecordOutputFormatTest {
 

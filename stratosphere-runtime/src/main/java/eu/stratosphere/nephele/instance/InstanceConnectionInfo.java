@@ -21,9 +21,9 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
-import eu.stratosphere.nephele.io.IOReadableWritable;
-import eu.stratosphere.nephele.types.StringRecord;
-import eu.stratosphere.nephele.util.StringUtils;
+import eu.stratosphere.core.io.IOReadableWritable;
+import eu.stratosphere.core.io.StringRecord;
+import eu.stratosphere.util.StringUtils;
 
 /**
  * This class encapsulates all connection information necessary to connect to the instance's task manager.

@@ -31,6 +31,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
 
+import eu.stratosphere.core.io.StringRecord;
 import eu.stratosphere.nephele.util.CommonTestUtils;
 
 

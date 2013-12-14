@@ -15,9 +15,9 @@
 
 package eu.stratosphere.nephele.example.union;
 
+import eu.stratosphere.core.io.StringRecord;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractFileInputTask;
-import eu.stratosphere.nephele.types.StringRecord;
 
 public class ProducerTask extends AbstractFileInputTask {
 

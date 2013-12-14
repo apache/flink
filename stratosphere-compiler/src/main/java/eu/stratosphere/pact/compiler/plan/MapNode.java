@@ -18,9 +18,9 @@ package eu.stratosphere.pact.compiler.plan;
 import java.util.Collections;
 import java.util.List;
 
+import eu.stratosphere.api.operators.base.GenericMapContract;
 import eu.stratosphere.pact.compiler.operators.MapDescriptor;
 import eu.stratosphere.pact.compiler.operators.OperatorDescriptorSingle;
-import eu.stratosphere.pact.generic.contract.GenericMapContract;
 
 /**
  * The optimizer's internal representation of a <i>Map</i> contract node.

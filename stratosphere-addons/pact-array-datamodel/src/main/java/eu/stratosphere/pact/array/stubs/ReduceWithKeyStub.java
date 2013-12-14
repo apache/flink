@@ -18,12 +18,12 @@ package eu.stratosphere.pact.array.stubs;
 import java.lang.reflect.Method;
 import java.util.Iterator;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.common.type.CopyableValue;
-import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.common.util.InstantiationUtil;
-import eu.stratosphere.pact.generic.stub.GenericReducer;
+import eu.stratosphere.api.functions.GenericReducer;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.types.CopyableValue;
+import eu.stratosphere.types.Value;
+import eu.stratosphere.util.Collector;
+import eu.stratosphere.util.InstantiationUtil;
 
 /**
  * The ReduceStub must be extended to provide a reducer implementation which is called by a Reduce PACT.

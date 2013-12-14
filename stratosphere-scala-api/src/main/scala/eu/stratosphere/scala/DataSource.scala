@@ -15,14 +15,14 @@ package eu.stratosphere.scala
 import java.net.URI
 import eu.stratosphere.scala.analysis._
 import eu.stratosphere.scala.stubs._
-import eu.stratosphere.pact.common.`type`.base._
-import eu.stratosphere.pact.common.`type`.base.parser._
-import eu.stratosphere.pact.generic.io.InputFormat
-import eu.stratosphere.pact.common.contract.GenericDataSource
-import eu.stratosphere.pact.common.contract.FileDataSource
-import eu.stratosphere.nephele.configuration.Configuration
-import eu.stratosphere.pact.generic.io.FileInputFormat
-import eu.stratosphere.pact.generic.io.GenericInputFormat
+import eu.stratosphere.types._
+import eu.stratosphere.types.parser._
+import eu.stratosphere.api.io.InputFormat
+import eu.stratosphere.api.operators.GenericDataSource
+import eu.stratosphere.api.operators.FileDataSource
+import eu.stratosphere.configuration.Configuration
+import eu.stratosphere.api.io.FileInputFormat
+import eu.stratosphere.api.io.GenericInputFormat
 import eu.stratosphere.scala.operators.TextInputFormat
 
 object DataSource {

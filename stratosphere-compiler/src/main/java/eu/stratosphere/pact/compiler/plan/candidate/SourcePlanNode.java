@@ -18,12 +18,12 @@ package eu.stratosphere.pact.compiler.plan.candidate;
 import java.util.Collections;
 import java.util.Iterator;
 
-import eu.stratosphere.pact.common.util.Visitor;
+import eu.stratosphere.api.typeutils.TypeSerializerFactory;
 import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.pact.compiler.plan.DataSourceNode;
-import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
+import eu.stratosphere.util.Visitor;
 
 import static eu.stratosphere.pact.compiler.plan.candidate.PlanNode.SourceAndDamReport.*;
 

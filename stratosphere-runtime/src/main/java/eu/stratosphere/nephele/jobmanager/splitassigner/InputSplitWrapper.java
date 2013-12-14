@@ -19,12 +19,12 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
+import eu.stratosphere.core.io.IOReadableWritable;
+import eu.stratosphere.core.io.InputSplit;
+import eu.stratosphere.core.io.StringRecord;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
-import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.template.InputSplit;
-import eu.stratosphere.nephele.types.StringRecord;
-import eu.stratosphere.nephele.util.StringUtils;
+import eu.stratosphere.util.StringUtils;
 
 /**
  * An input split wrapper object wraps an input split for RPC calls. In particular, the input split wrapper ensures that

@@ -19,8 +19,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.util.FieldSet;
+import eu.stratosphere.api.operators.base.GenericCrossContract;
+import eu.stratosphere.api.operators.util.FieldSet;
+import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.operators.CrossBlockOuterFirstDescriptor;
@@ -28,7 +29,6 @@ import eu.stratosphere.pact.compiler.operators.CrossBlockOuterSecondDescriptor;
 import eu.stratosphere.pact.compiler.operators.CrossStreamOuterFirstDescriptor;
 import eu.stratosphere.pact.compiler.operators.CrossStreamOuterSecondDescriptor;
 import eu.stratosphere.pact.compiler.operators.OperatorDescriptorDual;
-import eu.stratosphere.pact.generic.contract.GenericCrossContract;
 
 /**
  * The Optimizer representation of a <i>Cross</i> contract node.

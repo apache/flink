@@ -19,9 +19,9 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
+import eu.stratosphere.core.io.IOReadableWritable;
+import eu.stratosphere.core.io.StringRecord;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
-import eu.stratosphere.nephele.io.IOReadableWritable;
-import eu.stratosphere.nephele.types.StringRecord;
 import eu.stratosphere.nephele.util.EnumUtils;
 
 /**

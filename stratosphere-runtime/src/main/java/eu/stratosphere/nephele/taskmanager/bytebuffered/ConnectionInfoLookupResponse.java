@@ -21,7 +21,7 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.util.List;
 
-import eu.stratosphere.nephele.io.IOReadableWritable;
+import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.util.EnumUtils;
 import eu.stratosphere.nephele.util.SerializableArrayList;

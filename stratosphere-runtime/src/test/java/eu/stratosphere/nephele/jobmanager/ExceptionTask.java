@@ -15,10 +15,10 @@
 
 package eu.stratosphere.nephele.jobmanager;
 
+import eu.stratosphere.core.io.StringRecord;
 import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.nephele.types.StringRecord;
 
 /**
  * This task is used during the unit tests to generate a custom exception and check the proper response of the execution

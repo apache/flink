@@ -20,10 +20,10 @@ import java.util.ArrayDeque;
 import java.util.HashSet;
 import java.util.Set;
 
+import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
-import eu.stratosphere.nephele.types.Record;
 
-public abstract class AbstractUnionRecordReader<T extends Record> extends AbstractRecordReader implements RecordAvailabilityListener<T> {
+public abstract class AbstractUnionRecordReader<T extends IOReadableWritable> extends AbstractRecordReader implements RecordAvailabilityListener<T> {
 
 	/**
 	 * The set of all input gates.

@@ -17,7 +17,8 @@ package eu.stratosphere.nephele.execution;
 
 import java.util.Set;
 
-import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.InputGate;
@@ -30,7 +31,6 @@ import eu.stratosphere.nephele.protocols.AccumulatorProtocol;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.InputSplitProvider;
-import eu.stratosphere.nephele.types.Record;
 
 /**
  * The user code of every Nephele task runs inside an <code>Environment</code> object. The environment provides
@@ -174,7 +174,7 @@ public interface Environment {
 	 *        The type of the record consumed by the output gate.
 	 * @return The created output gate.
 	 */
-	<T extends Record> OutputGate<T> createOutputGate(GateID gateID, Class<T> outputClass,
+	<T extends IOReadableWritable> OutputGate<T> createOutputGate(GateID gateID, Class<T> outputClass,
 															ChannelSelector<T> selector, boolean isBroadcast);
 
 	/**
@@ -187,7 +187,7 @@ public interface Environment {
 	 *        The type of the record read from the input gate.
 	 * @return The created input gate.
 	 */
-	<T extends Record> InputGate<T> createInputGate(GateID gateID, RecordDeserializerFactory<T> deserializerFactory);
+	<T extends IOReadableWritable> InputGate<T> createInputGate(GateID gateID, RecordDeserializerFactory<T> deserializerFactory);
 
 	/**
 	 * Registers an output gate with this environment.
@@ -195,7 +195,7 @@ public interface Environment {
 	 * @param outputGate
 	 *        the output gate to be registered
 	 */
-	void registerOutputGate(OutputGate<? extends Record> outputGate);
+	void registerOutputGate(OutputGate<? extends IOReadableWritable> outputGate);
 
 	/**
 	 * Registers an input gate with this environment.
@@ -203,7 +203,7 @@ public interface Environment {
 	 * @param inputGate
 	 *        the input gate to be registered
 	 */
-	void registerInputGate(InputGate<? extends Record> inputGate);
+	void registerInputGate(InputGate<? extends IOReadableWritable> inputGate);
 
 	/**
 	 * Returns the IDs of all output channels connected to this environment.

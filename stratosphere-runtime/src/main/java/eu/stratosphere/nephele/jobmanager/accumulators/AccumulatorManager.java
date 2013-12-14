@@ -4,8 +4,8 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
 
+import eu.stratosphere.accumulators.Accumulator;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.services.accumulators.Accumulator;
 
 /**
  * This class manages the accumulators for different jobs. Either the jobs are

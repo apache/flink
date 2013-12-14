@@ -17,9 +17,9 @@ package eu.stratosphere.pact.compiler.plan.candidate;
 
 import java.util.Collection;
 
-import eu.stratosphere.pact.common.plan.Plan;
-import eu.stratosphere.pact.common.util.Visitable;
-import eu.stratosphere.pact.common.util.Visitor;
+import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.util.Visitable;
+import eu.stratosphere.util.Visitor;
 
 /**
  * The optimizer representation of a plan. The optimizer creates this from the user defined PACT job plan.
@@ -153,7 +153,7 @@ public class OptimizedPlan implements Visitable<PlanNode> {
 	 * 
 	 * @param visitor
 	 *        The visitor to apply to the nodes in this plan.
-	 * @see eu.stratosphere.pact.common.util.Visitable#accept(eu.stratosphere.pact.common.util.Visitor)
+	 * @see eu.stratosphere.util.Visitable#accept(eu.stratosphere.util.Visitor)
 	 */
 	@Override
 	public void accept(Visitor<PlanNode> visitor) {

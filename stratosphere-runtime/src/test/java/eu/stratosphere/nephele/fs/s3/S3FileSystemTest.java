@@ -30,14 +30,15 @@ import java.net.URI;
 import org.junit.Before;
 import org.junit.Test;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.configuration.GlobalConfiguration;
-import eu.stratosphere.nephele.fs.BlockLocation;
-import eu.stratosphere.nephele.fs.FSDataInputStream;
-import eu.stratosphere.nephele.fs.FSDataOutputStream;
-import eu.stratosphere.nephele.fs.FileStatus;
-import eu.stratosphere.nephele.fs.FileSystem;
-import eu.stratosphere.nephele.fs.Path;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.configuration.GlobalConfiguration;
+import eu.stratosphere.core.fs.BlockLocation;
+import eu.stratosphere.core.fs.FSDataInputStream;
+import eu.stratosphere.core.fs.FSDataOutputStream;
+import eu.stratosphere.core.fs.FileStatus;
+import eu.stratosphere.core.fs.FileSystem;
+import eu.stratosphere.core.fs.Path;
+import eu.stratosphere.runtime.fs.s3.S3FileSystem;
 
 /**
  * This test checks the S3 implementation of the {@link FileSystem} interface.

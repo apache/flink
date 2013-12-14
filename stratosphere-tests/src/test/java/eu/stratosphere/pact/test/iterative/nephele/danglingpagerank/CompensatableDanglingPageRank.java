@@ -15,8 +15,11 @@
 
 package eu.stratosphere.pact.test.iterative.nephele.danglingpagerank;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.fs.FileSystem;
+import eu.stratosphere.api.operators.util.UserCodeClassWrapper;
+import eu.stratosphere.api.typeutils.TypeComparatorFactory;
+import eu.stratosphere.api.typeutils.TypePairComparatorFactory;
+import eu.stratosphere.api.typeutils.TypeSerializerFactory;
+import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
@@ -24,11 +27,6 @@ import eu.stratosphere.nephele.jobgraph.JobInputVertex;
 import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
-import eu.stratosphere.pact.common.type.base.PactLong;
-import eu.stratosphere.pact.generic.contract.UserCodeClassWrapper;
-import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
-import eu.stratosphere.pact.generic.types.TypePairComparatorFactory;
-import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.runtime.iterative.task.IterationHeadPactTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationIntermediatePactTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationTailPactTask;
@@ -43,6 +41,8 @@ import eu.stratosphere.pact.runtime.task.MapDriver;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.test.iterative.nephele.JobGraphUtils;
+import eu.stratosphere.types.PactLong;
+import eu.stratosphere.util.OperatingSystem;
 
 public class CompensatableDanglingPageRank {
 	
@@ -78,7 +78,7 @@ public class CompensatableDanglingPageRank {
 		String pageWithRankInputPath = ""; // "file://" + PlayConstants.PLAY_DIR + "test-inputs/danglingpagerank/pageWithRank";
 		String adjacencyListInputPath = ""; // "file://" + PlayConstants.PLAY_DIR +
 //			"test-inputs/danglingpagerank/adjacencylists";
-		String outputPath = FileSystem.isWindows() ? "file:/c:/tmp/stratosphere/iterations" : "file:///tmp/stratosphere/iterations";
+		String outputPath = OperatingSystem.isWindows() ? "file:/c:/tmp/stratosphere/iterations" : "file:///tmp/stratosphere/iterations";
 //		String confPath = PlayConstants.PLAY_DIR + "local-conf";
 		int minorConsumer = 25;
 		int matchMemory = 50;

@@ -18,10 +18,10 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
-import eu.stratosphere.pact.common.stubs.aggregators.Aggregator;
-import eu.stratosphere.pact.common.stubs.aggregators.AggregatorWithName;
-import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.common.util.InstantiationUtil;
+import eu.stratosphere.api.functions.aggregators.Aggregator;
+import eu.stratosphere.api.functions.aggregators.AggregatorWithName;
+import eu.stratosphere.types.Value;
+import eu.stratosphere.util.InstantiationUtil;
 
 
 /**

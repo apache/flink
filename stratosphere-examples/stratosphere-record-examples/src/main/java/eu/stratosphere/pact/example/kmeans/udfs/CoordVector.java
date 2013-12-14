@@ -18,7 +18,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-import eu.stratosphere.pact.common.type.Key;
+import eu.stratosphere.types.Key;
 
 /**
  * Implements a feature vector as a multi-dimensional point. Coordinates of that point

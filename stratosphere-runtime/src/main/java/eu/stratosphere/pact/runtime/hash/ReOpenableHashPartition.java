@@ -4,13 +4,13 @@ import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import eu.stratosphere.api.typeutils.TypeSerializer;
+import eu.stratosphere.core.memory.MemorySegment;
+import eu.stratosphere.core.memory.MemorySegmentSource;
 import eu.stratosphere.nephele.services.iomanager.BlockChannelWriter;
 import eu.stratosphere.nephele.services.iomanager.BulkBlockChannelReader;
 import eu.stratosphere.nephele.services.iomanager.Channel;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
-import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
-import eu.stratosphere.nephele.services.memorymanager.MemorySegmentSource;
-import eu.stratosphere.pact.generic.types.TypeSerializer;
 
 public class ReOpenableHashPartition<BT, PT> extends HashPartition<BT, PT> {
 

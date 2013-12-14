@@ -14,15 +14,15 @@
 package eu.stratosphere.scala
 
 import java.lang.annotation.Annotation
-import eu.stratosphere.pact.generic.contract.Contract
+import eu.stratosphere.api.operators.Contract
 import eu.stratosphere.scala.analysis.UDF
 import eu.stratosphere.scala.analysis.UDF1
 import eu.stratosphere.scala.analysis.UDF2
 import eu.stratosphere.scala.analysis.FieldSelector
 import eu.stratosphere.pact.compiler.plan.OptimizerNode
-import eu.stratosphere.pact.generic.contract.AbstractPact
+import eu.stratosphere.api.operators.AbstractPact
 import eu.stratosphere.scala.analysis.UDF0
-import eu.stratosphere.pact.common.stubs.StubAnnotation
+import eu.stratosphere.api.functions.StubAnnotation
 
 trait ScalaContract[T] { this: Contract =>
   def getUDF(): UDF[T]

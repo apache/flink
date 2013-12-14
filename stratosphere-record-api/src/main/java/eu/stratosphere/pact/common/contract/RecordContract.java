@@ -15,8 +15,8 @@
 
 package eu.stratosphere.pact.common.contract;
 
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.types.Key;
+import eu.stratosphere.types.PactRecord;
 
 /**
  * Interface marking contract classes to be referring to the {@link PactRecord} data model.

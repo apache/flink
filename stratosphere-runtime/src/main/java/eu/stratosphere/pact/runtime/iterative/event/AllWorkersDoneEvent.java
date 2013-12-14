@@ -15,7 +15,7 @@
 
 package eu.stratosphere.pact.runtime.iterative.event;
 
-import eu.stratosphere.pact.common.stubs.aggregators.Aggregator;
+import eu.stratosphere.api.functions.aggregators.Aggregator;
 
 import java.util.Map;
 

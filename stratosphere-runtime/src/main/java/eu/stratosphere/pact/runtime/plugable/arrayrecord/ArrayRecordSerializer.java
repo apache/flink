@@ -17,13 +17,13 @@ package eu.stratosphere.pact.runtime.plugable.arrayrecord;
 
 import java.io.IOException;
 
-import eu.stratosphere.nephele.services.memorymanager.DataInputView;
-import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
-import eu.stratosphere.pact.common.type.CopyableValue;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.common.util.InstantiationUtil;
-import eu.stratosphere.pact.generic.types.TypeSerializer;
+import eu.stratosphere.api.typeutils.TypeSerializer;
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
+import eu.stratosphere.types.CopyableValue;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Value;
+import eu.stratosphere.util.InstantiationUtil;
 
 /**
  * Implementation of the (de)serialization and copying logic for the {@link PactRecord}.

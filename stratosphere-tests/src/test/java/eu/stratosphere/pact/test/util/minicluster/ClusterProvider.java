@@ -15,8 +15,8 @@
 
 package eu.stratosphere.pact.test.util.minicluster;
 
+import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.client.JobClient;
-import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.pact.test.util.filesystem.FilesystemProvider;
 

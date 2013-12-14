@@ -17,9 +17,9 @@ package eu.stratosphere.pact.runtime.test.util.types;
 
 import java.io.IOException;
 
-import eu.stratosphere.nephele.services.memorymanager.DataInputView;
-import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
-import eu.stratosphere.pact.generic.types.TypeSerializer;
+import eu.stratosphere.api.typeutils.TypeSerializer;
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 
 
 public class IntPairSerializer extends TypeSerializer<IntPair>

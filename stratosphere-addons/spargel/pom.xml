@@ -17,16 +17,6 @@
 	<packaging>jar</packaging>
 
 	<dependencies>
-		<dependency>
-			<groupId>eu.stratosphere</groupId>
-			<artifactId>pact-common</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>eu.stratosphere</groupId>
-			<artifactId>pact-clients</artifactId>
-			<version>${project.version}</version>
-		</dependency>
 
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
@@ -36,6 +26,11 @@
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
 			<artifactId>stratosphere-record-api</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+				<dependency>
+			<groupId>eu.stratosphere</groupId>
+			<artifactId>stratosphere-clients</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 	</dependencies>

@@ -15,11 +15,11 @@
 
 package eu.stratosphere.pact.common.io;
 
-import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.types.PactRecord;
 
 /**
  * Generic base class for all inputs that are not based on files, specific to PactRecord.
  */
-public abstract class GenericInputFormat extends eu.stratosphere.pact.generic.io.GenericInputFormat<PactRecord> {
+public abstract class GenericInputFormat extends eu.stratosphere.api.io.GenericInputFormat<PactRecord> {
 	private static final long serialVersionUID = 1L;
 }

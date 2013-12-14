@@ -1,8 +1,8 @@
 package eu.stratosphere.pact.test.iterative.nephele.danglingpagerank;
 
 import eu.stratosphere.pact.common.io.TextInputFormat;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactLong;
+import eu.stratosphere.types.PactLong;
+import eu.stratosphere.types.PactRecord;
 
 public class ImprovedAdjacencyListInputFormat extends TextInputFormat {
   private static final long serialVersionUID = 1L;

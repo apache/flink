@@ -17,11 +17,11 @@ package eu.stratosphere.pact.compiler.plan;
 
 import java.util.Collections;
 
+import eu.stratosphere.api.operators.BulkIteration.PartialSolutionPlaceHolder;
 import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.pact.compiler.plan.candidate.BulkPartialSolutionPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
-import eu.stratosphere.pact.generic.contract.BulkIteration.PartialSolutionPlaceHolder;
 
 /**
  * The optimizer's internal representation of the partial solution that is input to a bulk iteration.

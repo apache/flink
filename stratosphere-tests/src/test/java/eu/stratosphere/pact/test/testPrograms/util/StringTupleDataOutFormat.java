@@ -16,8 +16,8 @@
 package eu.stratosphere.pact.test.testPrograms.util;
 
 import eu.stratosphere.pact.common.io.DelimitedOutputFormat;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactString;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.PactString;
 
 public class StringTupleDataOutFormat extends DelimitedOutputFormat {
 	private static final long serialVersionUID = 1L;

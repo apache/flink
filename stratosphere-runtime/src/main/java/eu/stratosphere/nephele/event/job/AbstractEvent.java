@@ -22,7 +22,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.concurrent.atomic.AtomicLong;
 
-import eu.stratosphere.nephele.io.IOReadableWritable;
+import eu.stratosphere.core.io.IOReadableWritable;
 
 /**
  * An abstract event is transmitted from the job manager to the

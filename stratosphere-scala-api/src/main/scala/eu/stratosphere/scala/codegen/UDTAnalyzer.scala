@@ -17,15 +17,15 @@ import scala.collection.GenTraversableOnce
 import scala.collection.mutable
 import scala.reflect.macros.Context
 import scala.util.DynamicVariable
-import eu.stratosphere.pact.common.`type`.base.PactBoolean
-import eu.stratosphere.pact.common.`type`.base.PactByte
-import eu.stratosphere.pact.common.`type`.base.PactCharacter
-import eu.stratosphere.pact.common.`type`.base.PactDouble
-import eu.stratosphere.pact.common.`type`.base.PactFloat
-import eu.stratosphere.pact.common.`type`.base.PactInteger
-import eu.stratosphere.pact.common.`type`.base.PactString
-import eu.stratosphere.pact.common.`type`.base.PactLong
-import eu.stratosphere.pact.common.`type`.base.PactShort
+import eu.stratosphere.types.PactBoolean
+import eu.stratosphere.types.PactByte
+import eu.stratosphere.types.PactCharacter
+import eu.stratosphere.types.PactDouble
+import eu.stratosphere.types.PactFloat
+import eu.stratosphere.types.PactInteger
+import eu.stratosphere.types.PactString
+import eu.stratosphere.types.PactLong
+import eu.stratosphere.types.PactShort
 import scala.Option.option2Iterable
 
 trait UDTAnalyzer[C <: Context] { this: MacroContextHolder[C] with UDTDescriptors[C] with Loggers[C] =>
@@ -272,7 +272,7 @@ trait UDTAnalyzer[C <: Context] { this: MacroContextHolder[C] with UDTDescriptor
     }
     
     private object PactValueType {
-      def unapply(tpe: Type): Boolean = tpe.typeSymbol.asClass.baseClasses exists { s => s.fullName == "eu.stratosphere.pact.common.type.Value" }
+      def unapply(tpe: Type): Boolean = tpe.typeSymbol.asClass.baseClasses exists { s => s.fullName == "eu.stratosphere.types.Value" }
     }
 
     private class UDTAnalyzerCache {

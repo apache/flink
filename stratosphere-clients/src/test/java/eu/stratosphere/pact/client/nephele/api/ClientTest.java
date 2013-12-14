@@ -31,13 +31,13 @@ import org.mockito.Mock;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.configuration.ConfigConstants;
+import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.client.AbstractJobResult.ReturnCode;
 import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.client.JobSubmissionResult;
-import eu.stratosphere.nephele.configuration.ConfigConstants;
-import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;

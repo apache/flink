@@ -15,11 +15,11 @@
 
 package eu.stratosphere.pact.array.contract;
 
+import eu.stratosphere.api.operators.base.GenericReduceContract;
+import eu.stratosphere.api.operators.util.UserCodeClassWrapper;
+import eu.stratosphere.api.operators.util.UserCodeObjectWrapper;
 import eu.stratosphere.pact.array.stubs.ReduceWithKeyStub;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
-import eu.stratosphere.pact.generic.contract.GenericReduceContract;
-import eu.stratosphere.pact.generic.contract.UserCodeClassWrapper;
-import eu.stratosphere.pact.generic.contract.UserCodeObjectWrapper;
 
 /**
  * MapContract represents a Pact with a Map Input Contract.

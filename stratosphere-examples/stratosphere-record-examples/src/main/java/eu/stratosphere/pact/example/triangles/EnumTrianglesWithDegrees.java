@@ -15,15 +15,14 @@
 
 package eu.stratosphere.pact.example.triangles;
 
-import eu.stratosphere.pact.common.contract.FileDataSink;
-import eu.stratosphere.pact.common.contract.FileDataSource;
+import eu.stratosphere.api.operators.FileDataSink;
+import eu.stratosphere.api.operators.FileDataSource;
+import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.api.plan.PlanAssembler;
+import eu.stratosphere.api.plan.PlanAssemblerDescription;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.common.plan.Plan;
-import eu.stratosphere.pact.common.plan.PlanAssembler;
-import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
-import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.example.triangles.ComputeEdgeDegrees.CountEdges;
 import eu.stratosphere.pact.example.triangles.ComputeEdgeDegrees.JoinCountsAndUniquify;
 import eu.stratosphere.pact.example.triangles.ComputeEdgeDegrees.ProjectEdge;
@@ -33,6 +32,7 @@ import eu.stratosphere.pact.example.triangles.EnumTrianglesOnEdgesWithDegrees.Pr
 import eu.stratosphere.pact.example.triangles.EnumTrianglesOnEdgesWithDegrees.ProjectToLowerDegreeVertex;
 import eu.stratosphere.pact.example.triangles.io.EdgeInputFormat;
 import eu.stratosphere.pact.example.triangles.io.TriangleOutputFormat;
+import eu.stratosphere.types.PactInteger;
 
 /**
  * An implementation of the triangle enumeration, which includes the pre-processing step

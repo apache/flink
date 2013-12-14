@@ -22,13 +22,10 @@ import java.util.List;
 import org.junit.Assert;
 import org.junit.Test;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.api.functions.GenericMapper;
+import eu.stratosphere.api.operators.util.UserCodeClassWrapper;
+import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.generic.contract.UserCodeClassWrapper;
-import eu.stratosphere.pact.generic.stub.GenericMapper;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparatorFactory;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordSerializerFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
@@ -40,6 +37,9 @@ import eu.stratosphere.pact.runtime.task.RegularPactTask;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
+import eu.stratosphere.types.PactInteger;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.util.Collector;
 
 
 public class ChainTaskTest extends TaskTestBase {

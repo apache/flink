@@ -17,17 +17,17 @@ package eu.stratosphere.nephele.io;
 
 import java.io.IOException;
 
+import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.nephele.types.Record;
 
 /**
  * This is an abstract base class for a record reader, either dealing with mutable or immutable records.
  * 
  * @param <T> The type of the record that can be read from this record reader.
  */
-public abstract class AbstractSingleGateRecordReader<T extends Record> extends AbstractRecordReader {
+public abstract class AbstractSingleGateRecordReader<T extends IOReadableWritable> extends AbstractRecordReader {
 	
 	/**
 	 * The input gate associated with the record reader.

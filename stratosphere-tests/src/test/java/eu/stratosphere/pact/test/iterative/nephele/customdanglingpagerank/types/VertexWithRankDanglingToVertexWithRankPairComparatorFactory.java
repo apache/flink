@@ -14,9 +14,9 @@
  **********************************************************************************************************************/
 package eu.stratosphere.pact.test.iterative.nephele.customdanglingpagerank.types;
 
-import eu.stratosphere.pact.generic.types.TypeComparator;
-import eu.stratosphere.pact.generic.types.TypePairComparator;
-import eu.stratosphere.pact.generic.types.TypePairComparatorFactory;
+import eu.stratosphere.api.typeutils.TypeComparator;
+import eu.stratosphere.api.typeutils.TypePairComparator;
+import eu.stratosphere.api.typeutils.TypePairComparatorFactory;
 
 
 /**

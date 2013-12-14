@@ -3,15 +3,15 @@ package eu.stratosphere.pact.runtime.hash;
 import java.io.IOException;
 import java.util.List;
 
+import eu.stratosphere.api.typeutils.TypeComparator;
+import eu.stratosphere.api.typeutils.TypePairComparator;
+import eu.stratosphere.api.typeutils.TypeSerializer;
+import eu.stratosphere.core.memory.MemorySegment;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
-import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.pact.common.util.MutableObjectIterator;
-import eu.stratosphere.pact.generic.types.TypeComparator;
-import eu.stratosphere.pact.generic.types.TypePairComparator;
-import eu.stratosphere.pact.generic.types.TypeSerializer;
+import eu.stratosphere.util.MutableObjectIterator;
 
 public class BuildFirstReOpenableHashMatchIterator<V1, V2, O> extends BuildFirstHashMatchIterator<V1, V2, O> {
 

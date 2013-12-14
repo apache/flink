@@ -18,6 +18,8 @@ package eu.stratosphere.nephele.template;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
+import eu.stratosphere.core.io.InputSplit;
+
 /**
  * Abstract base class for tasks submitted as a part of a job input vertex.
  * 

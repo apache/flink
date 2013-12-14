@@ -4,18 +4,18 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.Statement;
 
+import eu.stratosphere.api.operators.FileDataSink;
+import eu.stratosphere.api.operators.GenericDataSource;
+import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.api.plan.PlanAssembler;
+import eu.stratosphere.api.plan.PlanAssemblerDescription;
 import eu.stratosphere.nephele.client.JobExecutionResult;
 import eu.stratosphere.pact.client.LocalExecutor;
-import eu.stratosphere.pact.common.contract.FileDataSink;
-import eu.stratosphere.pact.common.contract.GenericDataSource;
 import eu.stratosphere.pact.common.io.JDBCInputFormat;
 import eu.stratosphere.pact.common.io.RecordOutputFormat;
-import eu.stratosphere.pact.common.plan.Plan;
-import eu.stratosphere.pact.common.plan.PlanAssembler;
-import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
-import eu.stratosphere.pact.common.type.base.PactFloat;
-import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.common.type.base.PactString;
+import eu.stratosphere.types.PactFloat;
+import eu.stratosphere.types.PactInteger;
+import eu.stratosphere.types.PactString;
 
 /**
  * Stand-alone example for the JDBC connector.

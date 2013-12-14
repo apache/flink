@@ -27,11 +27,11 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.api.operators.GenericDataSink;
+import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.CrossContract;
-import eu.stratosphere.pact.common.contract.GenericDataSink;
 import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.example.kmeans.KMeansSingleStep;
 import eu.stratosphere.pact.test.util.TestBase2;

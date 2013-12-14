@@ -25,9 +25,9 @@ import java.util.regex.Pattern;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.configuration.ConfigConstants;
-import eu.stratosphere.nephele.configuration.GlobalConfiguration;
-import eu.stratosphere.nephele.os.OperatingSystem;
+import eu.stratosphere.configuration.ConfigConstants;
+import eu.stratosphere.configuration.GlobalConfiguration;
+import eu.stratosphere.util.OperatingSystem;
 
 /**
  * A factory to construct {@link HardwareDescription} objects. In particular,

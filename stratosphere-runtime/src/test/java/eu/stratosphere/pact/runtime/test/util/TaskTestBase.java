@@ -20,18 +20,16 @@ import java.util.List;
 import org.junit.After;
 import org.junit.Assert;
 
-import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.api.functions.Stub;
+import eu.stratosphere.api.operators.util.UserCodeClassWrapper;
+import eu.stratosphere.api.operators.util.UserCodeObjectWrapper;
+import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.common.io.DelimitedInputFormat;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
-import eu.stratosphere.pact.common.stubs.Stub;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.util.MutableObjectIterator;
-import eu.stratosphere.pact.generic.contract.UserCodeClassWrapper;
-import eu.stratosphere.pact.generic.contract.UserCodeObjectWrapper;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordSerializerFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DataSinkTask;
@@ -39,6 +37,8 @@ import eu.stratosphere.pact.runtime.task.DataSourceTask;
 import eu.stratosphere.pact.runtime.task.PactDriver;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.util.MutableObjectIterator;
 
 public abstract class TaskTestBase {
 	

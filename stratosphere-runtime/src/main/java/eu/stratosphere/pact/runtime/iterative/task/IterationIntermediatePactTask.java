@@ -15,15 +15,16 @@
 
 package eu.stratosphere.pact.runtime.iterative.task;
 
+import eu.stratosphere.api.functions.Stub;
 import eu.stratosphere.nephele.io.AbstractRecordWriter;
-import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.EndOfSuperstepEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
 import eu.stratosphere.pact.runtime.iterative.io.WorksetUpdateOutputCollector;
 import eu.stratosphere.pact.runtime.hash.MutableHashTable;
 import eu.stratosphere.pact.runtime.task.PactDriver;
+import eu.stratosphere.util.Collector;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 

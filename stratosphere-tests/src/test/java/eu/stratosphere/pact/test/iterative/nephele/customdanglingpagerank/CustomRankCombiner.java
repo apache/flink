@@ -16,10 +16,10 @@ package eu.stratosphere.pact.test.iterative.nephele.customdanglingpagerank;
 
 import java.util.Iterator;
 
-import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.generic.stub.AbstractStub;
-import eu.stratosphere.pact.generic.stub.GenericReducer;
+import eu.stratosphere.api.functions.AbstractStub;
+import eu.stratosphere.api.functions.GenericReducer;
 import eu.stratosphere.pact.test.iterative.nephele.customdanglingpagerank.types.VertexWithRank;
+import eu.stratosphere.util.Collector;
 
 
 /**

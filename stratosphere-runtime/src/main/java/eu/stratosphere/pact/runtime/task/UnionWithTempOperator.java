@@ -15,9 +15,9 @@
 
 package eu.stratosphere.pact.runtime.task;
 
-import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.common.stubs.Stub;
-import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.api.functions.Stub;
+import eu.stratosphere.util.Collector;
+import eu.stratosphere.util.MutableObjectIterator;
 
 
 public class UnionWithTempOperator<T> implements PactDriver<Stub, T> {

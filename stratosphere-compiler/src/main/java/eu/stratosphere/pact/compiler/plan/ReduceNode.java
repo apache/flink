@@ -18,11 +18,12 @@ package eu.stratosphere.pact.compiler.plan;
 import java.util.Collections;
 import java.util.List;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.contract.CompilerHints;
-import eu.stratosphere.pact.common.contract.Ordering;
+import eu.stratosphere.api.operators.CompilerHints;
+import eu.stratosphere.api.operators.Ordering;
+import eu.stratosphere.api.operators.base.GenericReduceContract;
+import eu.stratosphere.api.operators.util.FieldSet;
+import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.PactCompiler;
@@ -31,7 +32,6 @@ import eu.stratosphere.pact.compiler.operators.AllGroupWithPartialPreGroupProper
 import eu.stratosphere.pact.compiler.operators.GroupProperties;
 import eu.stratosphere.pact.compiler.operators.GroupWithPartialPreGroupProperties;
 import eu.stratosphere.pact.compiler.operators.OperatorDescriptorSingle;
-import eu.stratosphere.pact.generic.contract.GenericReduceContract;
 
 /**
  * The Optimizer representation of a <i>Reduce</i> contract node.

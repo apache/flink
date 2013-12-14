@@ -15,7 +15,7 @@
 
 package eu.stratosphere.pact.runtime.task;
 
-import eu.stratosphere.pact.common.stubs.Stub;
+import eu.stratosphere.api.functions.Stub;
 
 
 /**

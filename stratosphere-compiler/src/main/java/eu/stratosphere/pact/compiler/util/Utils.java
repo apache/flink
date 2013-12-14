@@ -17,10 +17,10 @@ package eu.stratosphere.pact.compiler.util;
 
 import java.util.Arrays;
 
-import eu.stratosphere.pact.common.contract.Order;
-import eu.stratosphere.pact.common.contract.Ordering;
-import eu.stratosphere.pact.common.util.FieldList;
-import eu.stratosphere.pact.common.util.FieldSet;
+import eu.stratosphere.api.operators.Order;
+import eu.stratosphere.api.operators.Ordering;
+import eu.stratosphere.api.operators.util.FieldList;
+import eu.stratosphere.api.operators.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
 
 

@@ -25,9 +25,9 @@ import java.util.Arrays;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactString;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.PactString;
 
 /**
  * Base implementation for an input format that returns each line as a separate record that contains

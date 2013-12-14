@@ -15,9 +15,9 @@
 
 package eu.stratosphere.pact.compiler.dataproperties;
 
-import eu.stratosphere.pact.common.contract.Ordering;
-import eu.stratosphere.pact.common.distributions.DataDistribution;
-import eu.stratosphere.pact.common.util.FieldSet;
+import eu.stratosphere.api.distributions.DataDistribution;
+import eu.stratosphere.api.operators.Ordering;
+import eu.stratosphere.api.operators.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
 import eu.stratosphere.pact.compiler.costs.Costs;

@@ -19,8 +19,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.StringTokenizer;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.template.GenericInputSplit;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.core.io.GenericInputSplit;
 
 /**
  * This input format starts an external process and reads its input from the standard out (stdout) of the started process.

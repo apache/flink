@@ -19,13 +19,11 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-import eu.stratosphere.nephele.template.LocatableInputSplit;
+import eu.stratosphere.core.io.LocatableInputSplit;
 
 /**
  * This class implements a input splits for HBase. Each table input split corresponds to a key range (low, high). All
  * references to row below refer to the key of the row.
- * 
- * @author warneke
  */
 public class TableInputSplit extends LocatableInputSplit {
 

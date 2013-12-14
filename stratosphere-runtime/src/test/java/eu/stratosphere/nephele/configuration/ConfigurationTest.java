@@ -23,6 +23,7 @@ import java.io.IOException;
 
 import org.junit.Test;
 
+import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.util.CommonTestUtils;
 
 /**

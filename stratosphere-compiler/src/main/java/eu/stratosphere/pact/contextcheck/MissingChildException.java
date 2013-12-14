@@ -15,7 +15,7 @@
 
 package eu.stratosphere.pact.contextcheck;
 
-import eu.stratosphere.pact.common.plan.PlanException;
+import eu.stratosphere.api.plan.PlanException;
 
 public class MissingChildException extends PlanException {
 	

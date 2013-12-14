@@ -17,6 +17,14 @@ package eu.stratosphere.pact.array.example;
 
 import java.util.Iterator;
 
+import eu.stratosphere.api.functions.StubAnnotation.ConstantFields;
+import eu.stratosphere.api.operators.FileDataSink;
+import eu.stratosphere.api.operators.FileDataSource;
+import eu.stratosphere.api.operators.base.GenericMapContract;
+import eu.stratosphere.api.operators.base.GenericReduceContract;
+import eu.stratosphere.api.operators.base.GenericReduceContract.Combinable;
+import eu.stratosphere.api.plan.PlanAssembler;
+import eu.stratosphere.api.plan.PlanAssemblerDescription;
 import eu.stratosphere.pact.array.io.StringInputFormat;
 import eu.stratosphere.pact.array.io.StringIntOutputFormat;
 import eu.stratosphere.pact.array.plan.Plan;
@@ -25,19 +33,11 @@ import eu.stratosphere.pact.array.stubs.MapStub;
 import eu.stratosphere.pact.array.stubs.ReduceStub;
 import eu.stratosphere.pact.array.util.AsciiUtils;
 import eu.stratosphere.pact.client.LocalExecutor;
-import eu.stratosphere.pact.common.contract.FileDataSink;
-import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.io.TextInputFormat;
-import eu.stratosphere.pact.common.plan.PlanAssembler;
-import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
-import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFields;
-import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.common.type.base.PactString;
-import eu.stratosphere.pact.generic.contract.GenericMapContract;
-import eu.stratosphere.pact.generic.contract.GenericReduceContract;
-import eu.stratosphere.pact.generic.contract.GenericReduceContract.Combinable;
+import eu.stratosphere.types.PactInteger;
+import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.Value;
+import eu.stratosphere.util.Collector;
 
 /**
  * Implements a word count which takes the input file and counts the number of

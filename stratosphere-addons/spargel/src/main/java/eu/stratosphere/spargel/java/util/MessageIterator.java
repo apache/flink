@@ -16,8 +16,8 @@ package eu.stratosphere.spargel.java.util;
 
 import java.util.Iterator;
 
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Value;
 
 
 public final class MessageIterator<Message extends Value> implements Iterator<Message> {

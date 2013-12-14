@@ -19,7 +19,7 @@ import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
 
-import eu.stratosphere.nephele.types.StringRecord;
+import eu.stratosphere.core.io.StringRecord;
 
 /**
  * This class checks the functionality of the {@link DefaultChannelSelector} class.

@@ -15,14 +15,14 @@
 
 package eu.stratosphere.pact.common.io;
 
-import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.types.PactRecord;
 
 
 /**
  * The abstract base class for all output formats that are file based. Contains the logic to open/close the target
  * file streams.
  */
-public abstract class FileOutputFormat extends eu.stratosphere.pact.generic.io.FileOutputFormat<PactRecord> {
+public abstract class FileOutputFormat extends eu.stratosphere.api.io.FileOutputFormat<PactRecord> {
 	
 	private static final long serialVersionUID = 3832934435044920834L;
 }

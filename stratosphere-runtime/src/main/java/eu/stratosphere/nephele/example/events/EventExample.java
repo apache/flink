@@ -31,11 +31,11 @@
  */
 package eu.stratosphere.nephele.example.events;
 
+import eu.stratosphere.configuration.ConfigConstants;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.client.JobSubmissionResult;
-import eu.stratosphere.nephele.configuration.ConfigConstants;
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.library.FileLineReader;
 import eu.stratosphere.nephele.io.library.FileLineWriter;

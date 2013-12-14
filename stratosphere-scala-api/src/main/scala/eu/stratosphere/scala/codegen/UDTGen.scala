@@ -15,8 +15,8 @@ package eu.stratosphere.scala.codegen
 
 import scala.reflect.macros.Context
 import eu.stratosphere.scala.analysis.UDT
-import eu.stratosphere.pact.common.`type`.base.PactList
-import eu.stratosphere.pact.common.`type`.PactRecord
+import eu.stratosphere.types.PactList
+import eu.stratosphere.types.PactRecord
 
 trait UDTGen[C <: Context] { this: MacroContextHolder[C] with UDTDescriptors[C] with UDTAnalyzer[C] with TreeGen[C] with SerializerGen[C] with SerializeMethodGen[C] with DeserializeMethodGen[C] with Loggers[C] =>
   import c.universe._
@@ -41,13 +41,13 @@ trait UDTGen[C <: Context] { this: MacroContextHolder[C] with UDTDescriptors[C] 
   
   private def mkFieldTypes(desc: UDTDescriptor): Tree = {
 
-    mkVal("fieldTypes", Flag.OVERRIDE | Flag.FINAL, false, typeOf[Array[Class[_ <: eu.stratosphere.pact.common.`type`.Value]]], {
+    mkVal("fieldTypes", Flag.OVERRIDE | Flag.FINAL, false, typeOf[Array[Class[_ <: eu.stratosphere.types.Value]]], {
 
       val fieldTypes = getIndexFields(desc).toList map {
         case PrimitiveDescriptor(_, _, _, wrapper) => Literal(Constant(wrapper))
         case BoxedPrimitiveDescriptor(_, _, _, wrapper, _, _) => Literal(Constant(wrapper))
         case PactValueDescriptor(_, tpe) => Literal(Constant(tpe))
-        case ListDescriptor(_, _, _, _) => Literal(Constant(typeOf[PactList[eu.stratosphere.pact.common.`type`.Value]]))
+        case ListDescriptor(_, _, _, _) => Literal(Constant(typeOf[PactList[eu.stratosphere.types.Value]]))
         // Box inner instances of recursive types
         case RecursiveDescriptor(_, _, _) => Literal(Constant(typeOf[PactRecord]))
         case BaseClassDescriptor(_, _, _, _) => throw new RuntimeException("Illegal descriptor for basic record field.")

@@ -16,13 +16,13 @@ package eu.stratosphere.pact.runtime.udf;
 
 import java.util.HashMap;
 
-import eu.stratosphere.nephele.services.accumulators.Accumulator;
-import eu.stratosphere.nephele.services.accumulators.AccumulatorHelper;
-import eu.stratosphere.nephele.services.accumulators.DoubleCounter;
-import eu.stratosphere.nephele.services.accumulators.Histogram;
-import eu.stratosphere.nephele.services.accumulators.IntCounter;
-import eu.stratosphere.nephele.services.accumulators.LongCounter;
-import eu.stratosphere.pact.common.stubs.RuntimeContext;
+import eu.stratosphere.accumulators.Accumulator;
+import eu.stratosphere.accumulators.AccumulatorHelper;
+import eu.stratosphere.accumulators.DoubleCounter;
+import eu.stratosphere.accumulators.Histogram;
+import eu.stratosphere.accumulators.IntCounter;
+import eu.stratosphere.accumulators.LongCounter;
+import eu.stratosphere.api.functions.RuntimeContext;
 
 /**
  *

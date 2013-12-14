@@ -15,9 +15,10 @@
 
 package eu.stratosphere.pact.common.stubs;
 
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.generic.stub.AbstractStub;
-import eu.stratosphere.pact.generic.stub.GenericMapper;
+import eu.stratosphere.api.functions.AbstractStub;
+import eu.stratosphere.api.functions.GenericMapper;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.util.Collector;
 
 /**
  * The MapStub must be extended to provide a mapper implementation which is called by a Map PACT.

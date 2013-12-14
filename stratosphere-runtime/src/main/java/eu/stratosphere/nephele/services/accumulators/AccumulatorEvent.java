@@ -6,10 +6,11 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
+import eu.stratosphere.accumulators.Accumulator;
+import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
-import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.util.StringUtils;
+import eu.stratosphere.util.StringUtils;
 
 /**
  * This class encapsulates a map of accumulators for a single job. It is used

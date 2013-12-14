@@ -17,10 +17,10 @@ package eu.stratosphere.pact.compiler.util;
 
 import java.io.Serializable;
 
-import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.api.functions.StubAnnotation.ConstantFieldsExcept;
 import eu.stratosphere.pact.common.stubs.MapStub;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsExcept;
-import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.util.Collector;
 
 @ConstantFieldsExcept({})
 public final class IdentityMap extends MapStub implements Serializable {

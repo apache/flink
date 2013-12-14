@@ -19,13 +19,12 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 
+import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.DataOutputBuffer;
-import eu.stratosphere.nephele.io.IOReadableWritable;
 
 /**
  * A class for serializing a record to its binary representation.
  * 
- * @author warneke
  * @param <T>
  *        the type of the record this serialization buffer can be used for
  */

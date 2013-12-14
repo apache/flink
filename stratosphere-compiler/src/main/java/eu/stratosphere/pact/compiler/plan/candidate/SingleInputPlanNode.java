@@ -18,14 +18,14 @@ package eu.stratosphere.pact.compiler.plan.candidate;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-import eu.stratosphere.pact.common.util.FieldList;
-import eu.stratosphere.pact.common.util.Visitor;
+import eu.stratosphere.api.operators.util.FieldList;
+import eu.stratosphere.api.typeutils.TypeComparatorFactory;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.SingleInputNode;
-import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DamBehavior;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
+import eu.stratosphere.util.Visitor;
 
 import static eu.stratosphere.pact.compiler.plan.candidate.PlanNode.SourceAndDamReport.*;
 

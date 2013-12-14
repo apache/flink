@@ -17,13 +17,13 @@ package eu.stratosphere.spargel.java;
 import java.io.Serializable;
 import java.util.Iterator;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.common.stubs.IterationRuntimeContext;
-import eu.stratosphere.pact.common.stubs.aggregators.Aggregator;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.api.functions.IterationRuntimeContext;
+import eu.stratosphere.api.functions.aggregators.Aggregator;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.types.Key;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Value;
+import eu.stratosphere.util.Collector;
 
 public abstract class MessagingFunction<VertexKey extends Key, VertexValue extends Value, Message extends Value, EdgeValue extends Value> implements Serializable {
 

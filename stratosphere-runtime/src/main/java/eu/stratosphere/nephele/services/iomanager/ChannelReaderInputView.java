@@ -21,19 +21,17 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import eu.stratosphere.core.memory.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.AbstractPagedInputView;
-import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 
 
 /**
  * A {@link DataInputView} that is backed by a {@link BlockChannelReader}, making it effectively a data input
  * stream. The view reads it data in blocks from the underlying channel. The view can only read data that
  * has been written by a {@link ChannelWriterOutputView}, due to block formatting.
- *
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
-public class ChannelReaderInputView extends AbstractPagedInputView
-{
+public class ChannelReaderInputView extends AbstractPagedInputView {
+	
 	protected final BlockChannelReader reader;		// the block reader that reads memory segments
 	
 	protected int numRequestsRemaining;				// the number of block requests remaining
@@ -207,7 +205,7 @@ public class ChannelReaderInputView extends AbstractPagedInputView
 	 * 
 	 * @throws EOFException Thrown, if no further segments are available.
 	 * @throws IOException Thrown, if an I/O error occurred while reading 
-	 * @see eu.stratosphere.pact.runtime.io.AbstractPagedInputView#nextSegment(eu.stratosphere.nephele.services.memorymanager.MemorySegment)
+	 * @see eu.stratosphere.pact.runtime.io.AbstractPagedInputView#nextSegment(eu.stratosphere.core.memory.MemorySegment)
 	 */
 	@Override
 	protected MemorySegment nextSegment(MemorySegment current) throws IOException

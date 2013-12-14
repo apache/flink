@@ -15,12 +15,12 @@
 
 package eu.stratosphere.pact.runtime.plugable.arrayrecord;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
+import eu.stratosphere.api.typeutils.TypeSerializerFactory;
+import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.pact.runtime.task.util.CorruptConfigurationException;
+import eu.stratosphere.types.Key;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Value;
 
 /**
  * A factory that create a serializer for the {@link PactRecord} data type.

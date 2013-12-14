@@ -31,18 +31,18 @@ import org.apache.commons.logging.LogFactory;
 import org.junit.After;
 import org.junit.Test;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.fs.Path;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.pact.common.io.DelimitedOutputFormat;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparatorFactory;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.test.util.InfiniteInputIterator;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
+import eu.stratosphere.types.Key;
+import eu.stratosphere.types.PactInteger;
+import eu.stratosphere.types.PactRecord;
 
 public class DataSinkTaskTest extends TaskTestBase
 {

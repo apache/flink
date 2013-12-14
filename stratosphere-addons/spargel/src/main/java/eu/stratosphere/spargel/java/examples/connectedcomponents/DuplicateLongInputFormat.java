@@ -16,9 +16,9 @@
 package eu.stratosphere.spargel.java.examples.connectedcomponents;
 
 import eu.stratosphere.pact.common.io.TextInputFormat;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactLong;
-import eu.stratosphere.pact.common.type.base.parser.DecimalTextLongParser;
+import eu.stratosphere.types.PactLong;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.parser.DecimalTextLongParser;
 
 public class DuplicateLongInputFormat extends TextInputFormat {
 	

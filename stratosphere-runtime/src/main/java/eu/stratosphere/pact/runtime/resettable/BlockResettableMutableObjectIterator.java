@@ -20,12 +20,12 @@ import java.io.IOException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.api.typeutils.TypeSerializer;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.pact.common.util.MutableObjectIterator;
-import eu.stratosphere.pact.generic.types.TypeSerializer;
 import eu.stratosphere.pact.runtime.util.ResettableMutableObjectIterator;
+import eu.stratosphere.util.MutableObjectIterator;
 
 /**
  * Implementation of an iterator that fetches a block of data into main memory and offers resettable

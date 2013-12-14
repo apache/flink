@@ -23,17 +23,17 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
+import eu.stratosphere.api.typeutils.TypeComparator;
+import eu.stratosphere.api.typeutils.TypeSerializer;
+import eu.stratosphere.core.memory.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
-import eu.stratosphere.pact.common.util.MutableObjectIterator;
-import eu.stratosphere.pact.generic.types.TypeComparator;
-import eu.stratosphere.pact.generic.types.TypeSerializer;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.RandomIntPairGenerator;
 import eu.stratosphere.pact.runtime.test.util.UniformIntPairGenerator;
 import eu.stratosphere.pact.runtime.test.util.types.IntPair;
 import eu.stratosphere.pact.runtime.test.util.types.IntPairComparator;
 import eu.stratosphere.pact.runtime.test.util.types.IntPairSerializer;
+import eu.stratosphere.util.MutableObjectIterator;
 
 /**
  * 

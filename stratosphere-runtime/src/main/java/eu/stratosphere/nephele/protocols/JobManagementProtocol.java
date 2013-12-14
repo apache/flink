@@ -17,6 +17,7 @@ package eu.stratosphere.nephele.protocols;
 
 import java.io.IOException;
 
+import eu.stratosphere.core.protocols.VersionedProtocol;
 import eu.stratosphere.nephele.client.JobCancelResult;
 import eu.stratosphere.nephele.client.JobProgressResult;
 import eu.stratosphere.nephele.client.JobSubmissionResult;

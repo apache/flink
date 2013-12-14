@@ -29,11 +29,11 @@ import eu.stratosphere.pact.compiler.plan.SinkJoiner
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan
 import eu.stratosphere.scala.analysis.FieldSet
 import eu.stratosphere.scala.analysis.FieldSelector
-import eu.stratosphere.pact.common.plan.Plan
-import eu.stratosphere.pact.generic.contract.Contract
-import eu.stratosphere.pact.generic.contract.SingleInputContract
-import eu.stratosphere.pact.generic.contract.DualInputContract
-import eu.stratosphere.pact.common.contract.GenericDataSink
+import eu.stratosphere.api.plan.Plan
+import eu.stratosphere.api.operators.Contract
+import eu.stratosphere.api.operators.SingleInputContract
+import eu.stratosphere.api.operators.DualInputContract
+import eu.stratosphere.api.operators.GenericDataSink
 import org.apache.commons.logging.{LogFactory, Log}
 
 object GlobalSchemaPrinter {

@@ -19,14 +19,12 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-import eu.stratosphere.nephele.types.Record;
+import eu.stratosphere.core.io.IOReadableWritable;
 
 /**
  * This class implements the record type used for the speed test.
- * 
- * @author warneke
  */
-public final class SpeedTestRecord implements Record {
+public final class SpeedTestRecord implements IOReadableWritable {
 
 	/**
 	 * The size of a single record in bytes.
@@ -42,27 +40,18 @@ public final class SpeedTestRecord implements Record {
 	 * Constructs a new record and initializes it.
 	 */
 	public SpeedTestRecord() {
-
 		for (int i = 0; i < RECORD_SIZE; ++i) {
 			this.buf[i] = (byte) (i % 128);
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public void write(final DataOutput out) throws IOException {
-
 		out.write(this.buf);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public void read(final DataInput in) throws IOException {
-
 		in.readFully(this.buf);
 	}
 }

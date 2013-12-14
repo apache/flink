@@ -22,12 +22,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.contract.CompilerHints;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFields;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsExcept;
-import eu.stratosphere.pact.common.util.FieldSet;
-import eu.stratosphere.pact.common.util.Visitor;
+import eu.stratosphere.api.functions.StubAnnotation.ConstantFields;
+import eu.stratosphere.api.functions.StubAnnotation.ConstantFieldsExcept;
+import eu.stratosphere.api.operators.CompilerHints;
+import eu.stratosphere.api.operators.Contract;
+import eu.stratosphere.api.operators.SingleInputContract;
+import eu.stratosphere.api.operators.util.FieldSet;
+import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
@@ -41,10 +42,9 @@ import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
 import eu.stratosphere.pact.compiler.util.NoOpUnaryUdfOp;
-import eu.stratosphere.pact.generic.contract.Contract;
-import eu.stratosphere.pact.generic.contract.SingleInputContract;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
+import eu.stratosphere.util.Visitor;
 
 /**
  * A node in the optimizer's program representation for a PACT with a single input.

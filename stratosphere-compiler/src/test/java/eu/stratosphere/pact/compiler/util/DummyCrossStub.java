@@ -17,9 +17,9 @@ package eu.stratosphere.pact.compiler.util;
 
 import java.io.Serializable;
 
-import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.CrossStub;
-import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.util.Collector;
 
 public class DummyCrossStub extends CrossStub implements Serializable {
 	private static final long serialVersionUID = 1L;

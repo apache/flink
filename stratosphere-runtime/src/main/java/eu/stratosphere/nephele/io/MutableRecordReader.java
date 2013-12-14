@@ -17,11 +17,11 @@ package eu.stratosphere.nephele.io;
 
 import java.io.IOException;
 
+import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.nephele.types.Record;
 
-public class MutableRecordReader<T extends Record> extends AbstractSingleGateRecordReader<T> implements MutableReader<T> {
+public class MutableRecordReader<T extends IOReadableWritable> extends AbstractSingleGateRecordReader<T> implements MutableReader<T> {
 	
 	private boolean endOfStream;
 	

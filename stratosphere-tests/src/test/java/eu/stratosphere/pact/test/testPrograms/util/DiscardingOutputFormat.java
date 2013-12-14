@@ -17,9 +17,9 @@ package eu.stratosphere.pact.test.testPrograms.util;
 
 import java.io.IOException;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.generic.io.OutputFormat;
+import eu.stratosphere.api.io.OutputFormat;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.types.PactRecord;
 
 /**
  * A simple output format that discards all data by doing nothing.

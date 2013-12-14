@@ -17,19 +17,19 @@ package eu.stratosphere.nephele.io;
 
 import java.io.IOException;
 
+import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.event.task.EventListener;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.io.channels.bytebuffered.EndOfSuperstepEvent;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.nephele.types.Record;
 
 /**
  * Abstract base class for a regular record writer and broadcast record writer.
  * 
  * @param <T> The type of the record that can be emitted with this record writer.
  */
-public abstract class AbstractRecordWriter<T extends Record> implements Writer<T> {
+public abstract class AbstractRecordWriter<T extends IOReadableWritable> implements Writer<T> {
 
 	/**
 	 * The output gate assigned to this record writer.

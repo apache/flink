@@ -30,22 +30,19 @@ import eu.stratosphere.pact.runtime.iterative.concurrent.SuperstepBarrier;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.api.functions.Stub;
+import eu.stratosphere.api.typeutils.TypeComparator;
+import eu.stratosphere.api.typeutils.TypeComparatorFactory;
+import eu.stratosphere.api.typeutils.TypePairComparator;
+import eu.stratosphere.api.typeutils.TypePairComparatorFactory;
+import eu.stratosphere.api.typeutils.TypeSerializer;
+import eu.stratosphere.api.typeutils.TypeSerializerFactory;
+import eu.stratosphere.core.io.IOReadableWritable;
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.MemorySegment;
 import eu.stratosphere.nephele.io.AbstractRecordWriter;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.io.channels.bytebuffered.EndOfSuperstepEvent;
-import eu.stratosphere.nephele.services.memorymanager.DataInputView;
-import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
-import eu.stratosphere.nephele.types.Record;
-import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.common.stubs.Stub;
-import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.common.util.MutableObjectIterator;
-import eu.stratosphere.pact.generic.types.TypeComparator;
-import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
-import eu.stratosphere.pact.generic.types.TypePairComparator;
-import eu.stratosphere.pact.generic.types.TypePairComparatorFactory;
-import eu.stratosphere.pact.generic.types.TypeSerializer;
-import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.runtime.hash.MutableHashTable;
 import eu.stratosphere.pact.runtime.io.InputViewIterator;
 import eu.stratosphere.pact.runtime.iterative.event.AllWorkersDoneEvent;
@@ -55,6 +52,9 @@ import eu.stratosphere.pact.runtime.iterative.io.SerializedUpdateBuffer;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.util.EmptyMutableObjectIterator;
+import eu.stratosphere.types.Value;
+import eu.stratosphere.util.Collector;
+import eu.stratosphere.util.MutableObjectIterator;
 
 /**
  * The head is responsible for coordinating an iteration and can run a
@@ -128,7 +128,7 @@ public class IterationHeadPactTask<X, Y, S extends Stub, OT> extends AbstractIte
 			throw new Exception("Error: Inconsistent head task setup - wrong mapping of output gates.");
 		}
 		// now, we can instantiate the sync gate
-		this.toSync = new RecordWriter<Record>(this, Record.class);
+		this.toSync = new RecordWriter<IOReadableWritable>(this, IOReadableWritable.class);
 	}
 
 	/**

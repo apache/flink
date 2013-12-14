@@ -23,8 +23,8 @@ import org.apache.commons.logging.LogFactory;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Shell;
 
-import eu.stratosphere.nephele.configuration.ConfigConstants;
-import eu.stratosphere.nephele.configuration.GlobalConfiguration;
+import eu.stratosphere.configuration.ConfigConstants;
+import eu.stratosphere.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.net.NetUtils;
 import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;

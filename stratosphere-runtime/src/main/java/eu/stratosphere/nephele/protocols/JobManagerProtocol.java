@@ -17,9 +17,9 @@ package eu.stratosphere.nephele.protocols;
 
 import java.io.IOException;
 
+import eu.stratosphere.core.protocols.VersionedProtocol;
 import eu.stratosphere.nephele.instance.HardwareDescription;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
-import eu.stratosphere.nephele.protocols.VersionedProtocol;
 import eu.stratosphere.nephele.taskmanager.TaskExecutionState;
 
 /**

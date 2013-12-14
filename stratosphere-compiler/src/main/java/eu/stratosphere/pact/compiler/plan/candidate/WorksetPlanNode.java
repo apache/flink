@@ -21,12 +21,12 @@ import static eu.stratosphere.pact.compiler.plan.candidate.PlanNode.SourceAndDam
 import java.util.Collections;
 import java.util.Iterator;
 
-import eu.stratosphere.pact.common.util.Visitor;
 import eu.stratosphere.pact.compiler.costs.Costs;
 import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.pact.compiler.plan.WorksetNode;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
+import eu.stratosphere.util.Visitor;
 
 /**
  * Plan candidate node for partial solution of a bulk iteration.

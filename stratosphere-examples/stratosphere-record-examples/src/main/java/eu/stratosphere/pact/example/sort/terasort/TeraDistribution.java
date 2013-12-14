@@ -18,8 +18,8 @@ package eu.stratosphere.pact.example.sort.terasort;
 import java.io.DataInput;
 import java.io.DataOutput;
 
-import eu.stratosphere.pact.common.distributions.DataDistribution;
-import eu.stratosphere.pact.common.type.Key;
+import eu.stratosphere.api.distributions.DataDistribution;
+import eu.stratosphere.types.Key;
 
 /**
  * This class implements the uniform data distribution of the TeraSort benchmark.

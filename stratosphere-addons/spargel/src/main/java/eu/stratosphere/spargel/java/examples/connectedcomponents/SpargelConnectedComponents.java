@@ -16,18 +16,18 @@ package eu.stratosphere.spargel.java.examples.connectedcomponents;
 
 import java.util.Iterator;
 
+import eu.stratosphere.api.operators.FileDataSink;
+import eu.stratosphere.api.operators.FileDataSource;
+import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.api.plan.PlanAssembler;
+import eu.stratosphere.api.plan.PlanAssemblerDescription;
 import eu.stratosphere.pact.client.LocalExecutor;
-import eu.stratosphere.pact.common.contract.FileDataSink;
-import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.io.RecordOutputFormat;
-import eu.stratosphere.pact.common.plan.Plan;
-import eu.stratosphere.pact.common.plan.PlanAssembler;
-import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
-import eu.stratosphere.pact.common.type.base.PactLong;
-import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.spargel.java.MessagingFunction;
 import eu.stratosphere.spargel.java.SpargelIteration;
 import eu.stratosphere.spargel.java.VertexUpdateFunction;
+import eu.stratosphere.types.PactLong;
+import eu.stratosphere.types.PactNull;
 
 public class SpargelConnectedComponents implements PlanAssembler, PlanAssemblerDescription {
 	

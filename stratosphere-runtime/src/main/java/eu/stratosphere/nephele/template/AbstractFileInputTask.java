@@ -21,11 +21,11 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
-import eu.stratosphere.nephele.fs.BlockLocation;
-import eu.stratosphere.nephele.fs.FileInputSplit;
-import eu.stratosphere.nephele.fs.FileStatus;
-import eu.stratosphere.nephele.fs.FileSystem;
-import eu.stratosphere.nephele.fs.Path;
+import eu.stratosphere.core.fs.BlockLocation;
+import eu.stratosphere.core.fs.FileInputSplit;
+import eu.stratosphere.core.fs.FileStatus;
+import eu.stratosphere.core.fs.FileSystem;
+import eu.stratosphere.core.fs.Path;
 
 /**
  * Specialized subtype of {@link AbstractInputTask} for tasks which are supposed to generate input from

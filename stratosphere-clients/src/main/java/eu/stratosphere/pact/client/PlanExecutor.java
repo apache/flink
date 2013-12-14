@@ -1,7 +1,7 @@
 package eu.stratosphere.pact.client;
 
+import eu.stratosphere.api.plan.Plan;
 import eu.stratosphere.nephele.client.JobExecutionResult;
-import eu.stratosphere.pact.common.plan.Plan;
 
 public interface PlanExecutor {
 

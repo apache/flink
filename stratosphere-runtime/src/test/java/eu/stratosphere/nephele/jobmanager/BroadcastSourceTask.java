@@ -3,13 +3,13 @@ package eu.stratosphere.nephele.jobmanager;
 
 import java.util.Iterator;
 
-import eu.stratosphere.nephele.fs.FSDataInputStream;
-import eu.stratosphere.nephele.fs.FileInputSplit;
-import eu.stratosphere.nephele.fs.FileSystem;
-import eu.stratosphere.nephele.fs.LineReader;
+import eu.stratosphere.core.fs.FSDataInputStream;
+import eu.stratosphere.core.fs.FileInputSplit;
+import eu.stratosphere.core.fs.FileSystem;
+import eu.stratosphere.core.io.StringRecord;
 import eu.stratosphere.nephele.io.BroadcastRecordWriter;
 import eu.stratosphere.nephele.template.AbstractFileInputTask;
-import eu.stratosphere.nephele.types.StringRecord;
+import eu.stratosphere.runtime.fs.LineReader;
 
 public class BroadcastSourceTask extends AbstractFileInputTask {
 

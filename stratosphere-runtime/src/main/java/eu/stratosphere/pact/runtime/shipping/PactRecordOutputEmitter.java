@@ -15,11 +15,11 @@
 
 package eu.stratosphere.pact.runtime.shipping;
 
+import eu.stratosphere.api.distributions.DataDistribution;
 import eu.stratosphere.nephele.io.ChannelSelector;
-import eu.stratosphere.pact.common.distributions.DataDistribution;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparator;
+import eu.stratosphere.types.Key;
+import eu.stratosphere.types.PactRecord;
 
 
 public class PactRecordOutputEmitter implements ChannelSelector<PactRecord> {

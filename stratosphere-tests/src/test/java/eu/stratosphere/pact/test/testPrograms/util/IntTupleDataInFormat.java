@@ -16,8 +16,8 @@
 package eu.stratosphere.pact.test.testPrograms.util;
 
 import eu.stratosphere.pact.common.io.DelimitedInputFormat;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.types.PactInteger;
+import eu.stratosphere.types.PactRecord;
 
 public class IntTupleDataInFormat extends DelimitedInputFormat {
 	private static final long serialVersionUID = 1L;

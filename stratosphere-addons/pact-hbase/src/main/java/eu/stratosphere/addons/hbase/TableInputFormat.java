@@ -36,18 +36,18 @@ import org.apache.hadoop.util.StringUtils;
 import eu.stratosphere.addons.hbase.common.HBaseKey;
 import eu.stratosphere.addons.hbase.common.HBaseResult;
 import eu.stratosphere.addons.hbase.common.HBaseUtil;
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.fs.FileSystem;
-import eu.stratosphere.pact.generic.io.InputFormat;
-import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
-import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.api.io.InputFormat;
+import eu.stratosphere.api.io.statistics.BaseStatistics;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.util.OperatingSystem;
 
 /**
  * {@link InputFormat} subclass that wraps the acccess for HTables.
- * 
- * @author Mathias Peters <mathias.peters@informatik.hu-berlin.de>
  */
 public class TableInputFormat implements InputFormat<PactRecord, TableInputSplit> {
+
+	private static final long serialVersionUID = 1L;
 
 	private static final Log LOG = LogFactory.getLog(TableInputFormat.class);
 
@@ -180,7 +180,7 @@ public class TableInputFormat implements InputFormat<PactRecord, TableInputSplit
 		if (configLocation != null)
 		{
 			org.apache.hadoop.conf.Configuration dummyConf = new org.apache.hadoop.conf.Configuration();
-			if(FileSystem.isWindows())
+			if(OperatingSystem.isWindows())
 				dummyConf.addResource(new Path("file:/" + configLocation));
 			else
 				dummyConf.addResource(new Path("file://" + configLocation));

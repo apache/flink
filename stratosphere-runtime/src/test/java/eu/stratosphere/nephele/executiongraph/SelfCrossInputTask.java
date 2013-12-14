@@ -15,9 +15,9 @@
 
 package eu.stratosphere.nephele.executiongraph;
 
+import eu.stratosphere.core.io.StringRecord;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractFileInputTask;
-import eu.stratosphere.nephele.types.StringRecord;
 
 /**
  * This class represents the data source in the self cross unit test.

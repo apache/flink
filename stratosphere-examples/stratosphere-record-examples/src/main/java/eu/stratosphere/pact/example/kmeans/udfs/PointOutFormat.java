@@ -18,8 +18,8 @@ import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 
 import eu.stratosphere.pact.common.io.DelimitedOutputFormat;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.types.PactInteger;
+import eu.stratosphere.types.PactRecord;
 
 /**
  * Writes records that contain an id and a CoordVector.

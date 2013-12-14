@@ -17,13 +17,12 @@ package eu.stratosphere.pact.compiler;
 
 import org.junit.Test;
 
+import eu.stratosphere.api.operators.FileDataSink;
+import eu.stratosphere.api.operators.FileDataSource;
+import eu.stratosphere.api.plan.Plan;
 import eu.stratosphere.pact.common.contract.CrossContract;
-import eu.stratosphere.pact.common.contract.FileDataSink;
-import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.common.plan.Plan;
-import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.pact.compiler.util.DummyCrossStub;
@@ -31,6 +30,7 @@ import eu.stratosphere.pact.compiler.util.DummyInputFormat;
 import eu.stratosphere.pact.compiler.util.DummyOutputFormat;
 import eu.stratosphere.pact.compiler.util.IdentityMap;
 import eu.stratosphere.pact.compiler.util.IdentityReduce;
+import eu.stratosphere.types.PactInteger;
 
 /**
  * This class tests plans that once failed because of a bug:

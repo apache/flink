@@ -18,6 +18,7 @@ package eu.stratosphere.nephele.services.memorymanager;
 import java.util.Collection;
 import java.util.List;
 
+import eu.stratosphere.core.memory.MemorySegment;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 
 /**

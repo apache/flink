@@ -19,7 +19,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-import eu.stratosphere.nephele.io.IOReadableWritable;
+import eu.stratosphere.core.io.IOReadableWritable;
 
 /**
  * A hardware description reflects the hardware environment which is actually present on the task manager's compute

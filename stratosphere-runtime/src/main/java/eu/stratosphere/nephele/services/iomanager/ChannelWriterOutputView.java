@@ -20,8 +20,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import eu.stratosphere.core.memory.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.AbstractPagedOutputView;
-import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 
 
 /**

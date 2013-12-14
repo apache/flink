@@ -14,8 +14,8 @@
  **********************************************************************************************************************/
 package eu.stratosphere.pact.test.iterative.nephele.customdanglingpagerank.types;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
+import eu.stratosphere.api.typeutils.TypeSerializerFactory;
+import eu.stratosphere.configuration.Configuration;
 
 /**
  *

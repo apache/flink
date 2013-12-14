@@ -17,7 +17,7 @@ package eu.stratosphere.pact.compiler.util;
 
 
 import eu.stratosphere.pact.common.io.DelimitedOutputFormat;
-import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.types.PactRecord;
 
 
 public final class DummyOutputFormat extends DelimitedOutputFormat {

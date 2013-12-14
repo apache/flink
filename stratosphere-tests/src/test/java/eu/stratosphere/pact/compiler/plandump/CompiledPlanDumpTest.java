@@ -20,7 +20,7 @@ import org.codehaus.jackson.JsonParser;
 import org.junit.Assert;
 import org.junit.Test;
 
-import eu.stratosphere.pact.common.plan.Plan;
+import eu.stratosphere.api.plan.Plan;
 import eu.stratosphere.pact.compiler.CompilerTestBase;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
 import eu.stratosphere.pact.example.connectedcomponents.WorksetConnectedComponents;

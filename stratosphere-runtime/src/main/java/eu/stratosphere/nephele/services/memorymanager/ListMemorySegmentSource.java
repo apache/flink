@@ -17,6 +17,9 @@ package eu.stratosphere.nephele.services.memorymanager;
 
 import java.util.List;
 
+import eu.stratosphere.core.memory.MemorySegment;
+import eu.stratosphere.core.memory.MemorySegmentSource;
+
 /**
  * Simple memory segment source that draws segments from a list.
  * 

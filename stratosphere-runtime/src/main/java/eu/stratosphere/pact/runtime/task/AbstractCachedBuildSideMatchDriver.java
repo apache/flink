@@ -17,16 +17,16 @@ package eu.stratosphere.pact.runtime.task;
 
 import java.util.List;
 
-import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
-import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.common.util.MutableObjectIterator;
-import eu.stratosphere.pact.generic.stub.GenericMatcher;
-import eu.stratosphere.pact.generic.types.TypeComparator;
-import eu.stratosphere.pact.generic.types.TypePairComparatorFactory;
-import eu.stratosphere.pact.generic.types.TypeSerializer;
+import eu.stratosphere.api.functions.GenericMatcher;
+import eu.stratosphere.api.typeutils.TypeComparator;
+import eu.stratosphere.api.typeutils.TypePairComparatorFactory;
+import eu.stratosphere.api.typeutils.TypeSerializer;
+import eu.stratosphere.core.memory.MemorySegment;
 import eu.stratosphere.pact.runtime.hash.MutableHashTable;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.util.EmptyMutableObjectIterator;
+import eu.stratosphere.util.Collector;
+import eu.stratosphere.util.MutableObjectIterator;
 
 public abstract class AbstractCachedBuildSideMatchDriver<IT1, IT2, OT> extends MatchDriver<IT1, IT2, OT> implements ResettablePactDriver<GenericMatcher<IT1, IT2, OT>, OT> {
 	

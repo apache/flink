@@ -17,20 +17,19 @@ package eu.stratosphere.nephele.io.channels;
 
 import java.io.IOException;
 
+import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.types.Record;
 
 /**
  * OutputChannel is an abstract base class to all different kinds of concrete
  * output channels that can be used. Input channels are always parameterized to
  * a specific type that can be transported through the channel.
  * 
- * @author warneke
  * @param <T>
  *        The Type of the record that can be transported through the channel.
  */
-public abstract class AbstractOutputChannel<T extends Record> extends AbstractChannel {
+public abstract class AbstractOutputChannel<T extends IOReadableWritable> extends AbstractChannel {
 
 	private final OutputGate<T> outputGate;
 

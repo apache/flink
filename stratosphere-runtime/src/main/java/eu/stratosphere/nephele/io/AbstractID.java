@@ -19,7 +19,8 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-import eu.stratosphere.nephele.util.StringUtils;
+import eu.stratosphere.core.io.IOReadableWritable;
+import eu.stratosphere.util.StringUtils;
 
 /**
  * ID is an abstract base class for providing statistically unique identification numbers in Nephele.

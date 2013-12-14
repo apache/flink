@@ -19,8 +19,8 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
+import eu.stratosphere.core.io.StringRecord;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.types.StringRecord;
 
 /**
  * A single instance profiling event encapsulates profiling information for one particular instance.

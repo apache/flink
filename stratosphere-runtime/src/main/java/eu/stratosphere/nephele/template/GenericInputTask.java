@@ -15,6 +15,8 @@
 
 package eu.stratosphere.nephele.template;
 
+import eu.stratosphere.core.io.GenericInputSplit;
+
 /**
  * An input task that processes generic input splits (partitions).
  */

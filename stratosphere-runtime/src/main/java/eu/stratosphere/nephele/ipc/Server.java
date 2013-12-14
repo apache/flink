@@ -57,10 +57,10 @@ import java.util.concurrent.LinkedBlockingQueue;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.io.IOReadableWritable;
-import eu.stratosphere.nephele.protocols.VersionedProtocol;
-import eu.stratosphere.nephele.types.StringRecord;
-import eu.stratosphere.nephele.util.ClassUtils;
+import eu.stratosphere.core.io.IOReadableWritable;
+import eu.stratosphere.core.io.StringRecord;
+import eu.stratosphere.core.protocols.VersionedProtocol;
+import eu.stratosphere.util.ClassUtils;
 
 /**
  * An abstract IPC service. IPC calls take a single {@link Writable} as a

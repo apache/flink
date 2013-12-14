@@ -16,31 +16,23 @@ package eu.stratosphere.scala.operators
 import java.io.DataInput
 import scala.language.experimental.macros
 import scala.reflect.macros.Context
-import eu.stratosphere.nephele.configuration.Configuration
-import eu.stratosphere.pact.common.`type`.PactRecord
-import eu.stratosphere.pact.common.`type`.Value
-import eu.stratosphere.pact.common.`type`.base.PactDouble
-import eu.stratosphere.pact.common.`type`.base.PactDouble
-import eu.stratosphere.pact.common.`type`.base.PactInteger
-import eu.stratosphere.pact.common.`type`.base.PactInteger
-import eu.stratosphere.pact.common.`type`.base.PactLong
-import eu.stratosphere.pact.common.`type`.base.PactLong
-import eu.stratosphere.pact.common.`type`.base.PactString
-import eu.stratosphere.pact.common.`type`.base.PactString
-import eu.stratosphere.pact.common.`type`.base.parser.DecimalTextDoubleParser
-import eu.stratosphere.pact.common.`type`.base.parser.DecimalTextDoubleParser
-import eu.stratosphere.pact.common.`type`.base.parser.DecimalTextIntParser
-import eu.stratosphere.pact.common.`type`.base.parser.DecimalTextIntParser
-import eu.stratosphere.pact.common.`type`.base.parser.DecimalTextLongParser
-import eu.stratosphere.pact.common.`type`.base.parser.DecimalTextLongParser
-import eu.stratosphere.pact.common.`type`.base.parser.FieldParser
-import eu.stratosphere.pact.common.`type`.base.parser.VarLengthStringParser
-import eu.stratosphere.pact.common.`type`.base.parser.VarLengthStringParser
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.types.PactRecord
+import eu.stratosphere.types.Value
+import eu.stratosphere.types.PactDouble
+import eu.stratosphere.types.PactInteger
+import eu.stratosphere.types.PactLong
+import eu.stratosphere.types.PactString
+import eu.stratosphere.types.parser.DecimalTextDoubleParser
+import eu.stratosphere.types.parser.DecimalTextIntParser
+import eu.stratosphere.types.parser.DecimalTextLongParser
+import eu.stratosphere.types.parser.FieldParser
+import eu.stratosphere.types.parser.VarLengthStringParser
 import eu.stratosphere.scala.ScalaInputFormat
 import eu.stratosphere.scala.analysis.{UDTSerializer, OutputField, UDF0, UDT}
-import eu.stratosphere.pact.generic.io.{InputFormat => JavaInputFormat}
-import eu.stratosphere.pact.generic.io.{BinaryInputFormat => JavaBinaryInputFormat}
-import eu.stratosphere.pact.generic.io.{SequentialInputFormat => JavaSequentialInputFormat}
+import eu.stratosphere.api.io.{InputFormat => JavaInputFormat}
+import eu.stratosphere.api.io.{BinaryInputFormat => JavaBinaryInputFormat}
+import eu.stratosphere.api.io.{SequentialInputFormat => JavaSequentialInputFormat}
 import eu.stratosphere.pact.common.io.{DelimitedInputFormat => JavaDelimitedInputFormat}
 import eu.stratosphere.pact.common.io.{FixedLengthInputFormat => JavaFixedLengthInputFormat}
 import eu.stratosphere.pact.common.io.{RecordInputFormat => JavaRecordInputFormat}

@@ -18,25 +18,25 @@ package eu.stratosphere.pact.example.connectedcomponents;
 import java.io.Serializable;
 import java.util.Iterator;
 
+import eu.stratosphere.api.functions.StubAnnotation.ConstantFieldsFirst;
+import eu.stratosphere.api.functions.StubAnnotation.ConstantFieldsSecond;
+import eu.stratosphere.api.operators.FileDataSink;
+import eu.stratosphere.api.operators.FileDataSource;
+import eu.stratosphere.api.operators.WorksetIteration;
+import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.api.plan.PlanAssembler;
+import eu.stratosphere.api.plan.PlanAssemblerDescription;
 import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.contract.CoGroupContract.CombinableFirst;
-import eu.stratosphere.pact.common.contract.FileDataSink;
-import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.io.RecordOutputFormat;
-import eu.stratosphere.pact.common.plan.Plan;
-import eu.stratosphere.pact.common.plan.PlanAssembler;
-import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
 import eu.stratosphere.pact.common.stubs.CoGroupStub;
-import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MatchStub;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsFirst;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsSecond;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.example.connectedcomponents.DuplicateLongInputFormat;
 import eu.stratosphere.pact.example.connectedcomponents.LongLongInputFormat;
-import eu.stratosphere.pact.generic.contract.WorksetIteration;
+import eu.stratosphere.types.PactLong;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.util.Collector;
 
 /**
  *

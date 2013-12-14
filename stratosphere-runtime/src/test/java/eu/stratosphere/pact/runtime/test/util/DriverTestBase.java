@@ -23,24 +23,24 @@ import junit.framework.Assert;
 import org.junit.After;
 import org.junit.BeforeClass;
 
-import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.api.functions.Stub;
+import eu.stratosphere.api.typeutils.TypeComparator;
+import eu.stratosphere.api.typeutils.TypeSerializer;
+import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.common.stubs.Stub;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.util.LogUtils;
-import eu.stratosphere.pact.common.util.MutableObjectIterator;
-import eu.stratosphere.pact.generic.types.TypeComparator;
-import eu.stratosphere.pact.generic.types.TypeSerializer;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparator;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordSerializer;
 import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger;
 import eu.stratosphere.pact.runtime.task.PactDriver;
 import eu.stratosphere.pact.runtime.task.PactTaskContext;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.util.Collector;
+import eu.stratosphere.util.LogUtils;
+import eu.stratosphere.util.MutableObjectIterator;
 
 public class DriverTestBase<S extends Stub> implements PactTaskContext<S, PactRecord> {
 	

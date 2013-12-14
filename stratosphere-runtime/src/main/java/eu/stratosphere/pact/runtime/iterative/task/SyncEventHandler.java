@@ -21,12 +21,12 @@ import java.util.Map;
 
 import com.google.common.base.Preconditions;
 
+import eu.stratosphere.api.functions.aggregators.Aggregator;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.event.task.EventListener;
-import eu.stratosphere.pact.common.stubs.aggregators.Aggregator;
-import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.iterative.event.WorkerDoneEvent;
+import eu.stratosphere.types.Value;
+import eu.stratosphere.util.MutableObjectIterator;
 
 /**
 * a delegating {@link MutableObjectIterator} that interrupts the current thread when a given number of events occured.

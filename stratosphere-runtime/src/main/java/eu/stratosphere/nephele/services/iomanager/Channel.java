@@ -18,7 +18,7 @@ package eu.stratosphere.nephele.services.iomanager;
 import java.io.File;
 import java.util.Random;
 
-import eu.stratosphere.nephele.util.StringUtils;
+import eu.stratosphere.util.StringUtils;
 
 /**
  * A Channel represents a collection of files that belong logically to the same resource. An example is a collection of

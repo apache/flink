@@ -15,14 +15,14 @@
 
 package eu.stratosphere.pact.test.iterative.nephele.customdanglingpagerank;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.generic.stub.AbstractStub;
-import eu.stratosphere.pact.generic.stub.GenericMatcher;
+import eu.stratosphere.api.functions.AbstractStub;
+import eu.stratosphere.api.functions.GenericMatcher;
+import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.pact.test.iterative.nephele.ConfigUtils;
 import eu.stratosphere.pact.test.iterative.nephele.customdanglingpagerank.types.VertexWithAdjacencyList;
 import eu.stratosphere.pact.test.iterative.nephele.customdanglingpagerank.types.VertexWithRank;
 import eu.stratosphere.pact.test.iterative.nephele.customdanglingpagerank.types.VertexWithRankAndDangling;
+import eu.stratosphere.util.Collector;
 
 import java.util.Random;
 import java.util.Set;

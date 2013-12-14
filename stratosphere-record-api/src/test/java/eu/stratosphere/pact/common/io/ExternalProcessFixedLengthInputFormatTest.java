@@ -22,12 +22,12 @@ import junit.framework.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.fs.FileSystem;
-import eu.stratosphere.nephele.template.GenericInputSplit;
-import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.api.io.statistics.BaseStatistics;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.core.io.GenericInputSplit;
+import eu.stratosphere.types.PactInteger;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.util.OperatingSystem;
 
 public class ExternalProcessFixedLengthInputFormatTest {
 
@@ -46,7 +46,7 @@ private ExternalProcessFixedLengthInputFormat<ExternalProcessInputSplit> format;
 	@Test
 	public void testOpen() {
 		
-		if(FileSystem.isWindows())
+		if(OperatingSystem.isWindows())
 			return;
 		
 		Configuration config = new Configuration();

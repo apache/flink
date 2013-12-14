@@ -24,8 +24,6 @@ import eu.stratosphere.nephele.template.AbstractOutputTask;
 
 /**
  * This is a sample consumer task for the broadcast test job.
- * 
- * @author warneke
  */
 public class BroadcastConsumer extends AbstractOutputTask {
 

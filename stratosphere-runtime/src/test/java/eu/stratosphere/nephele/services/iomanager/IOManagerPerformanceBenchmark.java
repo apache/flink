@@ -36,6 +36,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import eu.stratosphere.core.memory.MemorySegment;
 import eu.stratosphere.nephele.services.iomanager.BlockChannelReader;
 import eu.stratosphere.nephele.services.iomanager.BlockChannelWriter;
 import eu.stratosphere.nephele.services.iomanager.Channel;
@@ -43,7 +44,6 @@ import eu.stratosphere.nephele.services.iomanager.ChannelReaderInputView;
 import eu.stratosphere.nephele.services.iomanager.ChannelWriterOutputView;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.DefaultMemoryManagerTest;
-import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.types.IntegerRecord;

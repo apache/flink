@@ -19,7 +19,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-import eu.stratosphere.nephele.types.StringRecord;
+import eu.stratosphere.core.io.StringRecord;
 
 /**
  * Auxiliary class to (de)serialize enumeration values.

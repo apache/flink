@@ -24,11 +24,11 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.nephele.execution.ExecutionState;
-import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.util.EnumUtils;
-import eu.stratosphere.nephele.util.StringUtils;
+import eu.stratosphere.util.StringUtils;
 
 /**
  * This class implements a management group vertex of a {@link ManagementGraph}. A management group vertex is derived

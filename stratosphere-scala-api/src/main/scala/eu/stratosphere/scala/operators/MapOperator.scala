@@ -17,10 +17,11 @@ import language.experimental.macros
 import scala.reflect.macros.Context
 
 import eu.stratosphere.pact.common.contract.MapContract
-import eu.stratosphere.pact.common.`type`.PactRecord
-import eu.stratosphere.pact.common.stubs.{Collector, MapStub => JMapStub}
-import eu.stratosphere.pact.generic.contract.Contract
-import eu.stratosphere.nephele.configuration.Configuration
+import eu.stratosphere.types.PactRecord
+import eu.stratosphere.pact.common.stubs.{MapStub => JMapStub}
+import eu.stratosphere.api.operators.Contract
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.util.Collector
 
 import eu.stratosphere.scala.codegen.{MacroContextHolder, Util}
 import eu.stratosphere.scala._

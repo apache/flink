@@ -15,12 +15,12 @@
 
 package eu.stratosphere.pact.runtime.plugable.arrayrecord;
 
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.generic.types.TypeComparator;
-import eu.stratosphere.pact.generic.types.TypePairComparator;
-import eu.stratosphere.pact.generic.types.TypePairComparatorFactory;
+import eu.stratosphere.api.typeutils.TypeComparator;
+import eu.stratosphere.api.typeutils.TypePairComparator;
+import eu.stratosphere.api.typeutils.TypePairComparatorFactory;
+import eu.stratosphere.types.Key;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Value;
 
 /**
  * A factory for a {@link TypePairComparator} for {@link PactRecord}. The comparator uses a subset of

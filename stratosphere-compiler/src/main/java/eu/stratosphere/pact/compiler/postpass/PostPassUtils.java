@@ -14,8 +14,8 @@
  **********************************************************************************************************************/
 package eu.stratosphere.pact.compiler.postpass;
 
-import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.compiler.CompilerException;
+import eu.stratosphere.types.Key;
 
 
 public class PostPassUtils {

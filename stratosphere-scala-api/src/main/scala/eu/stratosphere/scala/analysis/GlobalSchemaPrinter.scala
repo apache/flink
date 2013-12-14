@@ -23,13 +23,13 @@ import Extractors.DataSourceNode
 import Extractors.JoinNode
 import Extractors.MapNode
 import Extractors.ReduceNode
-import eu.stratosphere.pact.common.contract.GenericDataSink
-import eu.stratosphere.pact.common.plan.Plan
-import eu.stratosphere.pact.generic.contract.Contract
-import eu.stratosphere.pact.generic.contract.DualInputContract
-import eu.stratosphere.pact.generic.contract.SingleInputContract
-import eu.stratosphere.pact.generic.contract.BulkIteration
-import eu.stratosphere.pact.generic.contract.WorksetIteration
+import eu.stratosphere.api.operators.GenericDataSink
+import eu.stratosphere.api.plan.Plan
+import eu.stratosphere.api.operators.Contract
+import eu.stratosphere.api.operators.DualInputContract
+import eu.stratosphere.api.operators.SingleInputContract
+import eu.stratosphere.api.operators.BulkIteration
+import eu.stratosphere.api.operators.WorksetIteration
 import org.apache.commons.logging.{LogFactory, Log}
 
 object GlobalSchemaPrinter {

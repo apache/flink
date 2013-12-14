@@ -21,7 +21,7 @@ import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 
 
-import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
+import eu.stratosphere.core.memory.MemorySegment;
 
 public final class MemoryBuffer extends Buffer {
 

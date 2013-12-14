@@ -18,7 +18,7 @@ package eu.stratosphere.nephele.execution;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.util.StringUtils;
+import eu.stratosphere.util.StringUtils;
 
 /**
  * This class is a utility class to check the consistency of Nephele's execution state model.

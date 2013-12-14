@@ -14,9 +14,10 @@
 package eu.stratosphere.scala.stubs
 
 import eu.stratosphere.scala.analysis.{UDTSerializer, UDF2, UDT}
-import eu.stratosphere.pact.common.stubs.{CoGroupStub => JCoGroupStub, Collector}
-import eu.stratosphere.pact.common.`type`.PactRecord
-import eu.stratosphere.nephele.configuration.Configuration
+import eu.stratosphere.pact.common.stubs.{CoGroupStub => JCoGroupStub}
+import eu.stratosphere.types.PactRecord
+import eu.stratosphere.util.Collector
+import eu.stratosphere.configuration.Configuration;
 import java.util.{Iterator => JIterator}
 
 abstract class CoGroupStubBase[LeftIn: UDT, RightIn: UDT, Out: UDT] extends JCoGroupStub with Serializable {

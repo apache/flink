@@ -15,14 +15,14 @@
 
 package eu.stratosphere.pact.runtime.task.chaining;
 
+import eu.stratosphere.api.functions.RuntimeContext;
+import eu.stratosphere.api.functions.Stub;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.common.stubs.RuntimeContext;
-import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.udf.RuntimeUDFContext;
+import eu.stratosphere.util.Collector;
 
 /**
  * The interface to be implemented by drivers that do not run in an own pact task context, but are chained to other

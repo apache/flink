@@ -24,10 +24,10 @@ import java.util.concurrent.ConcurrentMap;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.core.io.InputSplit;
 import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.template.InputSplit;
 
 /**
  * This is the default implementation of the {@link InputSplitAssigner} interface. The default input split assigner

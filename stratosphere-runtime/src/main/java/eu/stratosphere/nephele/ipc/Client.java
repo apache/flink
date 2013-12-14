@@ -45,12 +45,12 @@ import javax.net.SocketFactory;
 
 import org.apache.commons.logging.*;
 
+import eu.stratosphere.core.io.IOReadableWritable;
+import eu.stratosphere.core.io.StringRecord;
 import eu.stratosphere.nephele.io.DataOutputBuffer;
-import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.net.NetUtils;
-import eu.stratosphere.nephele.types.StringRecord;
-import eu.stratosphere.nephele.util.ClassUtils;
 import eu.stratosphere.nephele.util.IOUtils;
+import eu.stratosphere.util.ClassUtils;
 
 /**
  * A client for an IPC service. IPC calls take a single {@link Writable} as a

@@ -17,7 +17,7 @@ package eu.stratosphere.pact.compiler.plan;
 import java.util.Arrays;
 import java.util.List;
 
-import eu.stratosphere.pact.common.util.FieldSet;
+import eu.stratosphere.api.operators.util.FieldSet;
 import eu.stratosphere.pact.compiler.operators.OperatorDescriptorSingle;
 
 

@@ -14,8 +14,8 @@
 package eu.stratosphere.scala.examples.relational;
 
 import eu.stratosphere.pact.client.LocalExecutor
-import eu.stratosphere.pact.common.plan.PlanAssembler
-import eu.stratosphere.pact.common.plan.PlanAssemblerDescription
+import eu.stratosphere.api.plan.PlanAssembler
+import eu.stratosphere.api.plan.PlanAssemblerDescription
 
 import eu.stratosphere.scala._
 import eu.stratosphere.scala.operators._

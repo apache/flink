@@ -28,7 +28,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.nephele.deployment.ChannelDeploymentDescriptor;
 import eu.stratosphere.nephele.deployment.GateDeploymentDescriptor;
 import eu.stratosphere.nephele.deployment.TaskDeploymentDescriptor;
@@ -48,8 +49,7 @@ import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.InputSplitProvider;
-import eu.stratosphere.nephele.types.Record;
-import eu.stratosphere.nephele.util.StringUtils;
+import eu.stratosphere.util.StringUtils;
 
 /**
  * The user code of every Nephele task runs inside a <code>RuntimeEnvironment</code> object. The environment provides
@@ -57,8 +57,6 @@ import eu.stratosphere.nephele.util.StringUtils;
  * splits, memory manager, etc.
  * <p>
  * This class is thread-safe.
- * 
- * @author warneke
  */
 public class RuntimeEnvironment implements Environment, Runnable {
 
@@ -75,12 +73,12 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	/**
 	 * List of output gates created by the task.
 	 */
-	private final List<OutputGate<? extends Record>> outputGates = new CopyOnWriteArrayList<OutputGate<? extends Record>>();
+	private final List<OutputGate<? extends IOReadableWritable>> outputGates = new CopyOnWriteArrayList<OutputGate<? extends IOReadableWritable>>();
 
 	/**
 	 * List of input gates created by the task.
 	 */
-	private final List<InputGate<? extends Record>> inputGates = new CopyOnWriteArrayList<InputGate<? extends Record>>();
+	private final List<InputGate<? extends IOReadableWritable>> inputGates = new CopyOnWriteArrayList<InputGate<? extends IOReadableWritable>>();
 
 	/**
 	 * Queue of unbound output gate IDs which are required for deserializing an environment in the course of an RPC
@@ -422,7 +420,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public <T extends Record> OutputGate<T> createOutputGate(final GateID gateID, Class<T> outputClass,
+	public <T extends IOReadableWritable> OutputGate<T> createOutputGate(final GateID gateID, Class<T> outputClass,
 			final ChannelSelector<T> selector, final boolean isBroadcast) {
 		final RuntimeOutputGate<T> rog = new RuntimeOutputGate<T>(getJobID(), gateID, outputClass,
 															getNumberOfOutputGates(), selector, isBroadcast);
@@ -433,7 +431,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public <T extends Record> InputGate<T> createInputGate(final GateID gateID,
+	public <T extends IOReadableWritable> InputGate<T> createInputGate(final GateID gateID,
 										final RecordDeserializerFactory<T> deserializerFactory) {
 		final RuntimeInputGate<T> rig = new RuntimeInputGate<T>(getJobID(), gateID, deserializerFactory,
 			getNumberOfInputGates());
@@ -441,13 +439,13 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	}
 
 	@Override
-	public void registerOutputGate(OutputGate<? extends Record> outputGate) {
+	public void registerOutputGate(OutputGate<? extends IOReadableWritable> outputGate) {
 
 		this.outputGates.add(outputGate);
 	}
 
 	@Override
-	public void registerInputGate(InputGate<? extends Record> inputGate) {
+	public void registerInputGate(InputGate<? extends IOReadableWritable> inputGate) {
 		this.inputGates.add(inputGate);
 	}
 
@@ -501,7 +499,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	 *        the index of the input gate to return
 	 * @return the input gate at index <code>pos</code> or <code>null</code> if no such index exists
 	 */
-	public InputGate<? extends Record> getInputGate(final int pos) {
+	public InputGate<? extends IOReadableWritable> getInputGate(final int pos) {
 		if (pos < this.inputGates.size()) {
 			return this.inputGates.get(pos);
 		}
@@ -516,7 +514,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	 *        the index of the output gate to return
 	 * @return the output gate at index <code>pos</code> or <code>null</code> if no such index exists
 	 */
-	public OutputGate<? extends Record> getOutputGate(final int pos) {
+	public OutputGate<? extends IOReadableWritable> getOutputGate(final int pos) {
 		if (pos < this.outputGates.size()) {
 			return this.outputGates.get(pos);
 		}
@@ -565,7 +563,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 
 			boolean allClosed = true;
 			for (int i = 0; i < getNumberOfOutputGates(); i++) {
-				final OutputGate<? extends Record> og = this.outputGates.get(i);
+				final OutputGate<? extends IOReadableWritable> og = this.outputGates.get(i);
 				if (!og.isClosed()) {
 					allClosed = false;
 				}
@@ -599,7 +597,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 
 			boolean allClosed = true;
 			for (int i = 0; i < getNumberOfInputGates(); i++) {
-				final InputGate<? extends Record> eig = this.inputGates.get(i);
+				final InputGate<? extends IOReadableWritable> eig = this.inputGates.get(i);
 				if (!eig.isClosed()) {
 					allClosed = false;
 				}
@@ -619,7 +617,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	private void closeInputGates() throws IOException, InterruptedException {
 
 		for (int i = 0; i < this.inputGates.size(); i++) {
-			final InputGate<? extends Record> eig = this.inputGates.get(i);
+			final InputGate<? extends IOReadableWritable> eig = this.inputGates.get(i);
 			// Important: close must be called on each input gate exactly once
 			eig.close();
 		}
@@ -776,10 +774,10 @@ public class RuntimeEnvironment implements Environment, Runnable {
 
 		final Set<ChannelID> outputChannelIDs = new HashSet<ChannelID>();
 
-		final Iterator<OutputGate<? extends Record>> gateIterator = this.outputGates.iterator();
+		final Iterator<OutputGate<? extends IOReadableWritable>> gateIterator = this.outputGates.iterator();
 		while (gateIterator.hasNext()) {
 
-			final OutputGate<? extends Record> outputGate = gateIterator.next();
+			final OutputGate<? extends IOReadableWritable> outputGate = gateIterator.next();
 			for (int i = 0; i < outputGate.getNumberOfOutputChannels(); ++i) {
 				outputChannelIDs.add(outputGate.getOutputChannel(i).getID());
 			}
@@ -796,10 +794,10 @@ public class RuntimeEnvironment implements Environment, Runnable {
 
 		final Set<ChannelID> inputChannelIDs = new HashSet<ChannelID>();
 
-		final Iterator<InputGate<? extends Record>> gateIterator = this.inputGates.iterator();
+		final Iterator<InputGate<? extends IOReadableWritable>> gateIterator = this.inputGates.iterator();
 		while (gateIterator.hasNext()) {
 
-			final InputGate<? extends Record> outputGate = gateIterator.next();
+			final InputGate<? extends IOReadableWritable> outputGate = gateIterator.next();
 			for (int i = 0; i < outputGate.getNumberOfInputChannels(); ++i) {
 				inputChannelIDs.add(outputGate.getInputChannel(i).getID());
 			}
@@ -816,7 +814,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 
 		final Set<GateID> inputGateIDs = new HashSet<GateID>();
 
-		final Iterator<InputGate<? extends Record>> gateIterator = this.inputGates.iterator();
+		final Iterator<InputGate<? extends IOReadableWritable>> gateIterator = this.inputGates.iterator();
 		while (gateIterator.hasNext()) {
 			inputGateIDs.add(gateIterator.next().getGateID());
 		}
@@ -832,7 +830,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 
 		final Set<GateID> outputGateIDs = new HashSet<GateID>();
 
-		final Iterator<OutputGate<? extends Record>> gateIterator = this.outputGates.iterator();
+		final Iterator<OutputGate<? extends IOReadableWritable>> gateIterator = this.outputGates.iterator();
 		while (gateIterator.hasNext()) {
 			outputGateIDs.add(gateIterator.next().getGateID());
 		}
@@ -846,10 +844,10 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	@Override
 	public Set<ChannelID> getOutputChannelIDsOfGate(final GateID gateID) {
 
-		OutputGate<? extends Record> outputGate = null;
-		final Iterator<OutputGate<? extends Record>> gateIterator = this.outputGates.iterator();
+		OutputGate<? extends IOReadableWritable> outputGate = null;
+		final Iterator<OutputGate<? extends IOReadableWritable>> gateIterator = this.outputGates.iterator();
 		while (gateIterator.hasNext()) {
-			final OutputGate<? extends Record> candidateGate = gateIterator.next();
+			final OutputGate<? extends IOReadableWritable> candidateGate = gateIterator.next();
 			if (candidateGate.getGateID().equals(gateID)) {
 				outputGate = candidateGate;
 				break;
@@ -875,10 +873,10 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	@Override
 	public Set<ChannelID> getInputChannelIDsOfGate(final GateID gateID) {
 
-		InputGate<? extends Record> inputGate = null;
-		final Iterator<InputGate<? extends Record>> gateIterator = this.inputGates.iterator();
+		InputGate<? extends IOReadableWritable> inputGate = null;
+		final Iterator<InputGate<? extends IOReadableWritable>> gateIterator = this.inputGates.iterator();
 		while (gateIterator.hasNext()) {
-			final InputGate<? extends Record> candidateGate = gateIterator.next();
+			final InputGate<? extends IOReadableWritable> candidateGate = gateIterator.next();
 			if (candidateGate.getGateID().equals(gateID)) {
 				inputGate = candidateGate;
 				break;

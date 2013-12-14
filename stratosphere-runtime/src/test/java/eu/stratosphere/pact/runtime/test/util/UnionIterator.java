@@ -18,7 +18,7 @@ package eu.stratosphere.pact.runtime.test.util;
 import java.io.IOException;
 import java.util.List;
 
-import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.util.MutableObjectIterator;
 
 
 /**

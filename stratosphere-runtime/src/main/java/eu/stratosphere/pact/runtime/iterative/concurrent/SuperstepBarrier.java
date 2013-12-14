@@ -17,9 +17,9 @@ package eu.stratosphere.pact.runtime.iterative.concurrent;
 
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.event.task.EventListener;
-import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.runtime.iterative.event.AllWorkersDoneEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
+import eu.stratosphere.types.Value;
 
 import java.util.concurrent.CountDownLatch;
 

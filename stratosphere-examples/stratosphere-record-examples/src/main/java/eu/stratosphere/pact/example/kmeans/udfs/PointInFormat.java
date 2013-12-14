@@ -18,8 +18,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import eu.stratosphere.pact.common.io.DelimitedInputFormat;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.types.PactInteger;
+import eu.stratosphere.types.PactRecord;
 
 /**
  * Generates records with an id and a and CoordVector.

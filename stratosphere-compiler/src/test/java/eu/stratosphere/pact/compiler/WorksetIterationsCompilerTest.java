@@ -21,14 +21,14 @@ import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
-import eu.stratosphere.pact.common.contract.FileDataSink;
-import eu.stratosphere.pact.common.contract.FileDataSource;
+import eu.stratosphere.api.operators.FileDataSink;
+import eu.stratosphere.api.operators.FileDataSource;
+import eu.stratosphere.api.operators.WorksetIteration;
+import eu.stratosphere.api.operators.util.FieldList;
+import eu.stratosphere.api.plan.Plan;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.common.plan.Plan;
-import eu.stratosphere.pact.common.type.base.PactLong;
-import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.compiler.plan.candidate.DualInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
@@ -39,8 +39,8 @@ import eu.stratosphere.pact.compiler.util.DummyNonPreservingMatchStub;
 import eu.stratosphere.pact.compiler.util.DummyOutputFormat;
 import eu.stratosphere.pact.compiler.util.IdentityMap;
 import eu.stratosphere.pact.compiler.util.IdentityReduce;
-import eu.stratosphere.pact.generic.contract.WorksetIteration;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
+import eu.stratosphere.types.PactLong;
 
 
 /**

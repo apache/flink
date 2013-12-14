@@ -19,16 +19,16 @@ import junit.framework.Assert;
 
 import org.junit.Test;
 
-import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.api.functions.GenericMatcher;
 import eu.stratosphere.pact.common.stubs.MatchStub;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.generic.stub.GenericMatcher;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparator;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordPairComparatorFactory;
 import eu.stratosphere.pact.runtime.test.util.DriverTestBase;
 import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
+import eu.stratosphere.types.Key;
+import eu.stratosphere.types.PactInteger;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.util.Collector;
 
 public class MatchTaskExternalITCase extends DriverTestBase<GenericMatcher<PactRecord, PactRecord, PactRecord>>
 {

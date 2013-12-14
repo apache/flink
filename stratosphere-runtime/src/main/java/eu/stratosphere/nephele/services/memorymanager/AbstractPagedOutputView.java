@@ -19,9 +19,9 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.UTFDataFormatException;
 
-import eu.stratosphere.nephele.services.memorymanager.DataInputView;
-import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
-import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
+import eu.stratosphere.core.memory.MemorySegment;
 
 
 /**

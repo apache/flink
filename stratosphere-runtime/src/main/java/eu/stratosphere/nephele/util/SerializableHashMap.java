@@ -22,12 +22,13 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
-import eu.stratosphere.nephele.io.IOReadableWritable;
-import eu.stratosphere.nephele.types.StringRecord;
+import eu.stratosphere.core.io.IOReadableWritable;
+import eu.stratosphere.core.io.StringRecord;
+import eu.stratosphere.util.StringUtils;
 
 /**
  * This class extends a standard {@link java.util.HashMap} by implementing the
- * {@link eu.stratosphere.nephele.io.IOReadableWritable} interface. As a result, hash maps of this type can be used
+ * {@link eu.stratosphere.core.io.IOReadableWritable} interface. As a result, hash maps of this type can be used
  * with Nephele's RPC system.
  * <p>
  * This class is not thread-safe.

@@ -15,9 +15,9 @@
 
 package eu.stratosphere.pact.runtime.iterative.io;
 
-import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
-import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.generic.types.TypeSerializer;
+import eu.stratosphere.api.typeutils.TypeSerializer;
+import eu.stratosphere.core.memory.DataOutputView;
+import eu.stratosphere.util.Collector;
 
 import java.io.IOException;
 

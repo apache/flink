@@ -17,19 +17,20 @@ package eu.stratosphere.pact.common.io;
 
 import java.io.IOException;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.fs.FileInputSplit;
-import eu.stratosphere.nephele.template.IllegalConfigurationException;
-import eu.stratosphere.pact.common.contract.CompilerHints;
-import eu.stratosphere.pact.common.contract.FileDataSource;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.common.type.base.PactDouble;
-import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.common.type.base.PactLong;
-import eu.stratosphere.pact.common.type.base.parser.FieldParser;
-import eu.stratosphere.pact.generic.contract.Contract;
-import eu.stratosphere.pact.generic.io.GenericCsvInputFormat;
+import eu.stratosphere.api.io.GenericCsvInputFormat;
+import eu.stratosphere.api.io.ParseException;
+import eu.stratosphere.api.operators.CompilerHints;
+import eu.stratosphere.api.operators.Contract;
+import eu.stratosphere.api.operators.FileDataSource;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.configuration.IllegalConfigurationException;
+import eu.stratosphere.core.fs.FileInputSplit;
+import eu.stratosphere.types.PactDouble;
+import eu.stratosphere.types.PactInteger;
+import eu.stratosphere.types.PactLong;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Value;
+import eu.stratosphere.types.parser.FieldParser;
 
 /**
  * Input format to parse text files and generate PactRecords. 

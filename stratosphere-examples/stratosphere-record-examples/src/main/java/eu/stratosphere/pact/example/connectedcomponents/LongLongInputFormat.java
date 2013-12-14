@@ -16,8 +16,8 @@
 package eu.stratosphere.pact.example.connectedcomponents;
 
 import eu.stratosphere.pact.common.io.TextInputFormat;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactLong;
+import eu.stratosphere.types.PactLong;
+import eu.stratosphere.types.PactRecord;
 
 import java.util.regex.Pattern;
 

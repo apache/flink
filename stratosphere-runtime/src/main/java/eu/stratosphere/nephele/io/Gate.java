@@ -17,14 +17,14 @@ package eu.stratosphere.nephele.io;
 
 import java.io.IOException;
 
+import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.event.task.EventListener;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.types.Record;
 
-public interface Gate<T extends Record> {
+public interface Gate<T extends IOReadableWritable> {
 
 	/**
 	 * Returns the index that has been assigned to the gate upon initialization.

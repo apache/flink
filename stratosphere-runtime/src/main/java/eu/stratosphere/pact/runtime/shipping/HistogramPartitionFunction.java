@@ -17,8 +17,8 @@ package eu.stratosphere.pact.runtime.shipping;
 
 import java.util.Arrays;
 
-import eu.stratosphere.pact.common.contract.Order;
-import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.api.operators.Order;
+import eu.stratosphere.types.PactRecord;
 
 public class HistogramPartitionFunction implements PartitionFunction {
 	private final PactRecord[] splitBorders;

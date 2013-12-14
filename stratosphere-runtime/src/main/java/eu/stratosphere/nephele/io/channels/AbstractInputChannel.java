@@ -18,22 +18,20 @@ package eu.stratosphere.nephele.io.channels;
 import java.io.EOFException;
 import java.io.IOException;
 
+import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.InputChannelResult;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.types.Record;
 
 /**
  * InputChannel is an abstract base class to all different kinds of concrete
  * input channels that can be used. Input channels are always parameterized to
  * a specific type that can be transported through the channel.
- * 
- * @author warneke
- * @param <T>
- *        The Type of the record that can be transported through the channel.
+
+ * @param <T> The Type of the record that can be transported through the channel.
  */
-public abstract class AbstractInputChannel<T extends Record> extends AbstractChannel {
+public abstract class AbstractInputChannel<T extends IOReadableWritable> extends AbstractChannel {
 
 	private final InputGate<T> inputGate;
 

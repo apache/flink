@@ -15,7 +15,7 @@
 
 package eu.stratosphere.nephele.profiling.impl.types;
 
-import eu.stratosphere.nephele.io.IOReadableWritable;
+import eu.stratosphere.core.io.IOReadableWritable;
 
 public interface InternalProfilingData extends IOReadableWritable {
 

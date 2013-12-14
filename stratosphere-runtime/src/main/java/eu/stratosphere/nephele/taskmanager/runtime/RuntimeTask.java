@@ -22,7 +22,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionObserver;
@@ -39,7 +39,7 @@ import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPoolOwner;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.TaskContext;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.nephele.util.StringUtils;
+import eu.stratosphere.util.StringUtils;
 
 public final class RuntimeTask implements Task, ExecutionObserver {
 

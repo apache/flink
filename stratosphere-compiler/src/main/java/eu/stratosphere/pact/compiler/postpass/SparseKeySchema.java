@@ -20,7 +20,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import eu.stratosphere.pact.common.type.Key;
+import eu.stratosphere.types.Key;
 
 /**
  * Class encapsulating a schema map (int column position -> column type) and a reference counter.

@@ -18,14 +18,14 @@ package eu.stratosphere.nephele.taskmanager;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import eu.stratosphere.core.io.InputSplit;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobmanager.splitassigner.InputSplitWrapper;
 import eu.stratosphere.nephele.protocols.InputSplitProviderProtocol;
-import eu.stratosphere.nephele.template.InputSplit;
 import eu.stratosphere.nephele.template.InputSplitProvider;
 import eu.stratosphere.nephele.types.IntegerRecord;
-import eu.stratosphere.nephele.util.StringUtils;
+import eu.stratosphere.util.StringUtils;
 
 /**
  * The task input split provider is a component of the task manager which implements the {@link InputSplitProvider}

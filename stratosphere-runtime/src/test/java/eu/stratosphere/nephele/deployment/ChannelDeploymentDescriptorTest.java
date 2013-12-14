@@ -25,7 +25,7 @@ import org.junit.Test;
 
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.util.ServerTestUtils;
-import eu.stratosphere.nephele.util.StringUtils;
+import eu.stratosphere.util.StringUtils;
 
 /**
  * This class contains unit tests for the {@link ChannelDeploymentDescriptor} class.

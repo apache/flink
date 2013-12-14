@@ -24,9 +24,9 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
 
-import eu.stratosphere.nephele.configuration.ConfigConstants;
-import eu.stratosphere.nephele.configuration.GlobalConfiguration;
-import eu.stratosphere.nephele.io.IOReadableWritable;
+import eu.stratosphere.configuration.ConfigConstants;
+import eu.stratosphere.configuration.GlobalConfiguration;
+import eu.stratosphere.core.io.IOReadableWritable;
 
 /**
  * This class contains auxiliary methods for unit tests in the Nephele common module.

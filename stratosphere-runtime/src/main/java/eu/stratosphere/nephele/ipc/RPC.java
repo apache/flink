@@ -37,11 +37,11 @@ import java.util.HashMap;
 
 import javax.net.SocketFactory;
 
-import eu.stratosphere.nephele.io.IOReadableWritable;
+import eu.stratosphere.core.io.IOReadableWritable;
+import eu.stratosphere.core.io.StringRecord;
+import eu.stratosphere.core.protocols.VersionedProtocol;
 import eu.stratosphere.nephele.net.NetUtils;
-import eu.stratosphere.nephele.protocols.VersionedProtocol;
-import eu.stratosphere.nephele.types.StringRecord;
-import eu.stratosphere.nephele.util.ClassUtils;
+import eu.stratosphere.util.ClassUtils;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;

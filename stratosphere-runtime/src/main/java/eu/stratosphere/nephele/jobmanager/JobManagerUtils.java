@@ -24,7 +24,7 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.jobmanager.JobManager.ExecutionMode;
 import eu.stratosphere.nephele.jobmanager.scheduler.AbstractScheduler;
-import eu.stratosphere.nephele.util.StringUtils;
+import eu.stratosphere.util.StringUtils;
 
 /**
  * This class provides static utility methods for the {@link JobManager}.

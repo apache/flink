@@ -1,6 +1,6 @@
 package eu.stratosphere.pact.example.pagerank;
 
-import eu.stratosphere.pact.common.stubs.aggregators.ConvergenceCriterion;
+import eu.stratosphere.api.functions.aggregators.ConvergenceCriterion;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;

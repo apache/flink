@@ -19,14 +19,14 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-import eu.stratosphere.nephele.types.Record;
+import eu.stratosphere.core.io.IOReadableWritable;
 
 /**
  * This class implements a sample record type used for the broadcast test job.
  * 
  * @author warneke
  */
-public class BroadcastRecord implements Record {
+public class BroadcastRecord implements IOReadableWritable {
 
 	/**
 	 * The size of a broadcast record.

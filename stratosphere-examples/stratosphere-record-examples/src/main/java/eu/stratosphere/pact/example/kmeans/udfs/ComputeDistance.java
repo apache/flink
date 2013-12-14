@@ -16,12 +16,12 @@ package eu.stratosphere.pact.example.kmeans.udfs;
 
 import java.io.Serializable;
 
-import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.api.functions.StubAnnotation.ConstantFieldsFirst;
 import eu.stratosphere.pact.common.stubs.CrossStub;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsFirst;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactDouble;
-import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.types.PactDouble;
+import eu.stratosphere.types.PactInteger;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.util.Collector;
 
 /**
  * Cross PACT computes the distance of all data points to all cluster

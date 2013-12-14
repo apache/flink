@@ -14,24 +14,24 @@
  **********************************************************************************************************************/
 package eu.stratosphere.pact.compiler.postpass;
 
+import eu.stratosphere.api.operators.DualInputContract;
+import eu.stratosphere.api.operators.GenericDataSink;
+import eu.stratosphere.api.operators.Ordering;
+import eu.stratosphere.api.operators.SingleInputContract;
+import eu.stratosphere.api.operators.util.FieldList;
+import eu.stratosphere.api.typeutils.TypeSerializerFactory;
 import eu.stratosphere.pact.common.contract.CoGroupContract;
-import eu.stratosphere.pact.common.contract.GenericDataSink;
-import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.contract.RecordContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.CompilerPostPassException;
 import eu.stratosphere.pact.compiler.plan.candidate.DualInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
-import eu.stratosphere.pact.generic.contract.DualInputContract;
-import eu.stratosphere.pact.generic.contract.SingleInputContract;
-import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparatorFactory;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordPairComparatorFactory;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordSerializerFactory;
+import eu.stratosphere.types.Key;
 
 /**
  * Post pass implementation for the PactRecord data model. Does only type inference and creates

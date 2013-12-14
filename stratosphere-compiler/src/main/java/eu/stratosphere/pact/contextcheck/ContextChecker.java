@@ -19,17 +19,17 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import eu.stratosphere.nephele.fs.Path;
-import eu.stratosphere.pact.common.contract.FileDataSink;
-import eu.stratosphere.pact.common.contract.FileDataSource;
-import eu.stratosphere.pact.common.contract.GenericDataSink;
-import eu.stratosphere.pact.common.plan.Plan;
-import eu.stratosphere.pact.common.plan.PlanException;
-import eu.stratosphere.pact.common.util.Visitor;
-import eu.stratosphere.pact.generic.contract.BulkIteration;
-import eu.stratosphere.pact.generic.contract.Contract;
-import eu.stratosphere.pact.generic.contract.DualInputContract;
-import eu.stratosphere.pact.generic.contract.SingleInputContract;
+import eu.stratosphere.api.operators.BulkIteration;
+import eu.stratosphere.api.operators.Contract;
+import eu.stratosphere.api.operators.DualInputContract;
+import eu.stratosphere.api.operators.FileDataSink;
+import eu.stratosphere.api.operators.FileDataSource;
+import eu.stratosphere.api.operators.GenericDataSink;
+import eu.stratosphere.api.operators.SingleInputContract;
+import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.api.plan.PlanException;
+import eu.stratosphere.core.fs.Path;
+import eu.stratosphere.util.Visitor;
 
 /**
  * Traverses a plan and checks whether all Contracts are correctly connected to

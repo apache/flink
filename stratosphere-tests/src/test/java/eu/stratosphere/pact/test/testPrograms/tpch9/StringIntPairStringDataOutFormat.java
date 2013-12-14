@@ -19,8 +19,8 @@ package eu.stratosphere.pact.test.testPrograms.tpch9;
 import java.io.IOException;
 
 import eu.stratosphere.pact.common.io.FileOutputFormat;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactString;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.PactString;
 
 public class StringIntPairStringDataOutFormat extends FileOutputFormat {
 	private static final long serialVersionUID = 1L;

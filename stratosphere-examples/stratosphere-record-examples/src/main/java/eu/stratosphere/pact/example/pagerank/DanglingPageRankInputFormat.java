@@ -1,12 +1,12 @@
 package eu.stratosphere.pact.example.pagerank;
 
-import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.pact.common.io.TextInputFormat;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactBoolean;
-import eu.stratosphere.pact.common.type.base.PactDouble;
-import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.example.util.ConfigUtils;
+import eu.stratosphere.types.PactBoolean;
+import eu.stratosphere.types.PactDouble;
+import eu.stratosphere.types.PactLong;
+import eu.stratosphere.types.PactRecord;
 
 public class DanglingPageRankInputFormat extends TextInputFormat {
 	private static final long serialVersionUID = 1L;

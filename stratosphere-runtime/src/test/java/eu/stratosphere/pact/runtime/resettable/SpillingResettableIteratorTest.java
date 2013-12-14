@@ -26,14 +26,14 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import eu.stratosphere.api.typeutils.TypeSerializer;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.generic.types.TypeSerializer;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.types.PactIntegerSerializer;
+import eu.stratosphere.types.PactInteger;
 
 public class SpillingResettableIteratorTest {
 

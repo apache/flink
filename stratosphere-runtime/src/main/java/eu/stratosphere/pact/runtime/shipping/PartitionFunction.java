@@ -15,7 +15,7 @@
 
 package eu.stratosphere.pact.runtime.shipping;
 
-import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.types.PactRecord;
 
 public interface PartitionFunction {
 	public void selectChannels(PactRecord data, int numChannels, int[] channels);

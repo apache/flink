@@ -22,10 +22,10 @@ import java.util.Queue;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.core.memory.MemorySegment;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.BufferFactory;
 import eu.stratosphere.nephele.io.channels.MemoryBufferPoolConnector;
-import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 
 public final class LocalBufferPool implements BufferProvider {
 

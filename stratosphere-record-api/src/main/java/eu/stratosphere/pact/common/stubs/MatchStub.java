@@ -15,9 +15,10 @@
 
 package eu.stratosphere.pact.common.stubs;
 
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.generic.stub.AbstractStub;
-import eu.stratosphere.pact.generic.stub.GenericMatcher;
+import eu.stratosphere.api.functions.AbstractStub;
+import eu.stratosphere.api.functions.GenericMatcher;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.util.Collector;
 
 /**
  * The MatchStub must be extended to provide a matcher implementation which is

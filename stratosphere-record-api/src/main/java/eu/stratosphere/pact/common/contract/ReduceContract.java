@@ -22,13 +22,14 @@ import java.lang.annotation.Target;
 import java.util.ArrayList;
 import java.util.List;
 
+import eu.stratosphere.api.operators.Contract;
+import eu.stratosphere.api.operators.Ordering;
+import eu.stratosphere.api.operators.base.GenericReduceContract;
+import eu.stratosphere.api.operators.util.UserCodeClassWrapper;
+import eu.stratosphere.api.operators.util.UserCodeObjectWrapper;
+import eu.stratosphere.api.operators.util.UserCodeWrapper;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.generic.contract.Contract;
-import eu.stratosphere.pact.generic.contract.GenericReduceContract;
-import eu.stratosphere.pact.generic.contract.UserCodeClassWrapper;
-import eu.stratosphere.pact.generic.contract.UserCodeObjectWrapper;
-import eu.stratosphere.pact.generic.contract.UserCodeWrapper;
+import eu.stratosphere.types.Key;
 
 /**
  * ReduceContract represents a Pact with a Reduce Input Contract.

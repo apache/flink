@@ -18,22 +18,21 @@ package eu.stratosphere.nephele.io;
 import java.io.IOException;
 import java.util.List;
 
+import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.bytebuffered.InMemoryOutputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.NetworkOutputChannel;
-import eu.stratosphere.nephele.types.Record;
 
 /**
  * In Nephele output gates are a specialization of general gates and connect
  * record writers and output channels. As channels, output gates are always
  * parameterized to a specific type of record which they can transport.
  * 
- * @author warneke
  * @param <T>
  *        the type of record that can be transported through this gate
  */
-public interface OutputGate<T extends Record> extends Gate<T> {
+public interface OutputGate<T extends IOReadableWritable> extends Gate<T> {
 
 	/**
 	 * Returns the type of record that can be transported through this gate.

@@ -17,9 +17,9 @@ package eu.stratosphere.pact.array.stubs;
 
 import java.lang.reflect.Method;
 
-import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.generic.stub.GenericMatcher;
+import eu.stratosphere.api.functions.GenericMatcher;
+import eu.stratosphere.types.Value;
+import eu.stratosphere.util.Collector;
 
 /**
  * The MatchStub must be extended to provide a matcher implementation which is

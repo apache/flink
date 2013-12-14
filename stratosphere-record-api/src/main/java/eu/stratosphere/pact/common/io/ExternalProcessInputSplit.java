@@ -25,9 +25,9 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-import eu.stratosphere.nephele.template.GenericInputSplit;
-import eu.stratosphere.nephele.types.StringRecord;
-import eu.stratosphere.pact.generic.io.InputFormat;
+import eu.stratosphere.api.io.InputFormat;
+import eu.stratosphere.core.io.GenericInputSplit;
+import eu.stratosphere.core.io.StringRecord;
 
 /**
  * The ExternalProcessInputSplit contains all informations for {@link InputFormat} that read their data from external processes.

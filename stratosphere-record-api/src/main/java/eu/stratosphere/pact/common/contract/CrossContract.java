@@ -18,13 +18,13 @@ package eu.stratosphere.pact.common.contract;
 import java.util.ArrayList;
 import java.util.List;
 
+import eu.stratosphere.api.operators.Contract;
+import eu.stratosphere.api.operators.base.GenericCrossContract;
+import eu.stratosphere.api.operators.util.UserCodeClassWrapper;
+import eu.stratosphere.api.operators.util.UserCodeObjectWrapper;
+import eu.stratosphere.api.operators.util.UserCodeWrapper;
 import eu.stratosphere.pact.common.stubs.CrossStub;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.generic.contract.Contract;
-import eu.stratosphere.pact.generic.contract.GenericCrossContract;
-import eu.stratosphere.pact.generic.contract.UserCodeClassWrapper;
-import eu.stratosphere.pact.generic.contract.UserCodeObjectWrapper;
-import eu.stratosphere.pact.generic.contract.UserCodeWrapper;
+import eu.stratosphere.types.Key;
 
 
 /**

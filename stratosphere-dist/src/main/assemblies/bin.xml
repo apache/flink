@@ -52,7 +52,7 @@
 			<useTransitiveFiltering>true</useTransitiveFiltering>
 			
 			<includes>
-				<include>eu.stratosphere:pact-clients:**</include>
+				<include>eu.stratosphere:stratosphere-clients:**</include>
 			</includes>
 			
 			<!--

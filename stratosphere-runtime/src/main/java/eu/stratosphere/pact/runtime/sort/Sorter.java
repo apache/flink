@@ -15,8 +15,8 @@
 
 package eu.stratosphere.pact.runtime.sort;
 
-import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.task.util.CloseableInputProvider;
+import eu.stratosphere.util.MutableObjectIterator;
 
 /**
  * The SortMerger interface representing the public interface to all specific Sort-Merge implementations.

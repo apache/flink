@@ -24,6 +24,7 @@ import java.util.List;
 
 import org.junit.Test;
 
+import eu.stratosphere.core.io.StringRecord;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
@@ -40,8 +41,7 @@ import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.jobmanager.scheduler.SchedulingException;
 import eu.stratosphere.nephele.template.AbstractGenericInputTask;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
-import eu.stratosphere.nephele.types.StringRecord;
-import eu.stratosphere.nephele.util.StringUtils;
+import eu.stratosphere.util.StringUtils;
 
 /**
  * @author marrus

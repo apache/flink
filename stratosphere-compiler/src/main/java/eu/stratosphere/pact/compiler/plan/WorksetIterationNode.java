@@ -20,8 +20,8 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
-import eu.stratosphere.pact.common.util.FieldList;
-import eu.stratosphere.pact.common.util.Visitor;
+import eu.stratosphere.api.operators.WorksetIteration;
+import eu.stratosphere.api.operators.util.FieldList;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.PactCompiler.InterestingPropertyVisitor;
@@ -42,10 +42,10 @@ import eu.stratosphere.pact.compiler.plan.candidate.SolutionSetPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.WorksetIterationPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.WorksetPlanNode;
 import eu.stratosphere.pact.compiler.util.NoOpBinaryUdfOp;
-import eu.stratosphere.pact.generic.contract.WorksetIteration;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
+import eu.stratosphere.util.Visitor;
 
 /**
  * A node in the optimizer's program representation for a workset iteration.

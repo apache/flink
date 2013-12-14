@@ -18,7 +18,7 @@ package eu.stratosphere.pact.runtime.task.util;
 import java.io.Closeable;
 import java.io.IOException;
 
-import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.util.MutableObjectIterator;
 
 /**
  * Utility interface for a provider of an input that can be closed.

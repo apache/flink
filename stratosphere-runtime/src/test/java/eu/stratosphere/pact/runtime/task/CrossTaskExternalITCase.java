@@ -19,11 +19,11 @@ import junit.framework.Assert;
 
 import org.junit.Test;
 
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.generic.stub.GenericCrosser;
+import eu.stratosphere.api.functions.GenericCrosser;
 import eu.stratosphere.pact.runtime.task.CrossTaskTest.MockCrossStub;
 import eu.stratosphere.pact.runtime.test.util.DriverTestBase;
 import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
+import eu.stratosphere.types.PactRecord;
 
 
 public class CrossTaskExternalITCase extends DriverTestBase<GenericCrosser<PactRecord, PactRecord, PactRecord>>

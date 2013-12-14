@@ -25,22 +25,22 @@ import org.apache.commons.logging.LogFactory;
 
 import com.google.common.base.Preconditions;
 
+import eu.stratosphere.api.functions.aggregators.Aggregator;
+import eu.stratosphere.api.functions.aggregators.AggregatorWithName;
+import eu.stratosphere.api.functions.aggregators.ConvergenceCriterion;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.io.MutableRecordReader;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.nephele.types.IntegerRecord;
-import eu.stratosphere.pact.common.stubs.aggregators.Aggregator;
-import eu.stratosphere.pact.common.stubs.aggregators.AggregatorWithName;
-import eu.stratosphere.pact.common.stubs.aggregators.ConvergenceCriterion;
-import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.runtime.iterative.event.AllWorkersDoneEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
 import eu.stratosphere.pact.runtime.iterative.event.WorkerDoneEvent;
 //import eu.stratosphere.pact.runtime.iterative.monitoring.IterationMonitoring;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
+import eu.stratosphere.types.Value;
+import eu.stratosphere.util.InstantiationUtil;
 
 /**
  * The task responsible for synchronizing all iteration heads, implemented as an {@link AbstractOutputTask}. This task

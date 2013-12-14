@@ -19,14 +19,14 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.MemorySegment;
+import eu.stratosphere.core.memory.MemorySegmentSource;
 import eu.stratosphere.nephele.services.iomanager.BlockChannelReader;
 import eu.stratosphere.nephele.services.iomanager.BlockChannelWriter;
 import eu.stratosphere.nephele.services.iomanager.HeaderlessChannelReaderInputView;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.AbstractPagedOutputView;
-import eu.stratosphere.nephele.services.memorymanager.DataInputView;
-import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
-import eu.stratosphere.nephele.services.memorymanager.MemorySegmentSource;
 
 
 /**

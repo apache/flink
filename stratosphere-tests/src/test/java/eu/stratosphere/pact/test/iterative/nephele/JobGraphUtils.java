@@ -17,9 +17,14 @@ package eu.stratosphere.pact.test.iterative.nephele;
 
 import java.io.IOException;
 
+import eu.stratosphere.api.io.FileInputFormat;
+import eu.stratosphere.api.io.InputFormat;
+import eu.stratosphere.api.operators.util.UserCodeClassWrapper;
+import eu.stratosphere.api.operators.util.UserCodeObjectWrapper;
+import eu.stratosphere.api.operators.util.UserCodeWrapper;
+import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.client.JobExecutionException;
-import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.jobgraph.AbstractJobVertex;
@@ -29,11 +34,6 @@ import eu.stratosphere.nephele.jobgraph.JobInputVertex;
 import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.nephele.template.AbstractInputTask;
-import eu.stratosphere.pact.generic.contract.UserCodeClassWrapper;
-import eu.stratosphere.pact.generic.contract.UserCodeObjectWrapper;
-import eu.stratosphere.pact.generic.contract.UserCodeWrapper;
-import eu.stratosphere.pact.generic.io.FileInputFormat;
-import eu.stratosphere.pact.generic.io.InputFormat;
 import eu.stratosphere.pact.runtime.iterative.io.FakeOutputTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationSynchronizationSinkTask;
 import eu.stratosphere.pact.runtime.task.DataSinkTask;

@@ -32,7 +32,7 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferAvailabilityListener;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.NoBufferAvailableException;
-import eu.stratosphere.nephele.util.StringUtils;
+import eu.stratosphere.util.StringUtils;
 
 public class IncomingConnectionThread extends Thread {
 

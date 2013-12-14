@@ -15,12 +15,12 @@ package eu.stratosphere.scala
 
 import java.net.URI
 import eu.stratosphere.scala.analysis._
-import eu.stratosphere.pact.common.contract.FileDataSink
-import eu.stratosphere.pact.generic.io.OutputFormat
-import eu.stratosphere.pact.generic.contract.Contract
-import eu.stratosphere.nephele.configuration.Configuration
-import eu.stratosphere.pact.generic.io.FileOutputFormat
-import eu.stratosphere.pact.common.contract.GenericDataSink
+import eu.stratosphere.api.operators.FileDataSink
+import eu.stratosphere.api.io.OutputFormat
+import eu.stratosphere.api.operators.Contract
+import eu.stratosphere.configuration.Configuration
+import eu.stratosphere.api.io.FileOutputFormat
+import eu.stratosphere.api.operators.GenericDataSink
 
 object DataSinkOperator {
 

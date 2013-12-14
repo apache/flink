@@ -15,17 +15,15 @@
 
 package eu.stratosphere.nephele.io;
 
+import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.channels.DefaultDeserializer;
-import eu.stratosphere.nephele.types.Record;
 
 /**
  * As simple factory implementation that instantiates deserializers for immutable records. For
  * each deserialization, a new record is instantiated from the given class.
- *
- * @author Stephan Ewen
  */
-public class ImmutableRecordDeserializerFactory<T extends Record> implements RecordDeserializerFactory<T>
-{
+public class ImmutableRecordDeserializerFactory<T extends IOReadableWritable> implements RecordDeserializerFactory<T> {
+	
 	private final Class<? extends T> recordType;			// the type of the record to be deserialized
 	
 	
@@ -34,17 +32,12 @@ public class ImmutableRecordDeserializerFactory<T extends Record> implements Rec
 	 * 
 	 * @param recordType The type of the record to be deserialized.
 	 */
-	public ImmutableRecordDeserializerFactory(final Class<? extends T> recordType)
-	{
+	public ImmutableRecordDeserializerFactory(final Class<? extends T> recordType) {
 		this.recordType = recordType;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.RecordDeserializerFactory#createDeserializer()
-	 */
 	@Override
-	public RecordDeserializer<T> createDeserializer()
-	{
+	public RecordDeserializer<T> createDeserializer() {
 		return new DefaultDeserializer<T>(this.recordType);
 	}
 }

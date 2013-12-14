@@ -20,6 +20,7 @@ import java.io.IOException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.io.OutputGate;
@@ -28,9 +29,8 @@ import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.channels.SerializationBuffer;
-import eu.stratosphere.nephele.types.Record;
 
-public abstract class AbstractByteBufferedOutputChannel<T extends Record> extends AbstractOutputChannel<T> {
+public abstract class AbstractByteBufferedOutputChannel<T extends IOReadableWritable> extends AbstractOutputChannel<T> {
 
 	/**
 	 * The serialization buffer used to serialize records.

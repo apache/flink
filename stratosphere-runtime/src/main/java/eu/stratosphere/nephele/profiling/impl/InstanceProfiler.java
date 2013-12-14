@@ -24,7 +24,7 @@ import java.util.regex.Pattern;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.profiling.ProfilingException;
 import eu.stratosphere.nephele.profiling.impl.types.InternalInstanceProfilingData;
-import eu.stratosphere.nephele.util.StringUtils;
+import eu.stratosphere.util.StringUtils;
 
 public class InstanceProfiler {
 

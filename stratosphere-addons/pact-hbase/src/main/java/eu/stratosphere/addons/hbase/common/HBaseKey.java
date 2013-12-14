@@ -21,12 +21,14 @@ import java.io.IOException;
 
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 
-import eu.stratosphere.pact.common.type.Key;
+import eu.stratosphere.types.Key;
 
 /**
  * Simple wrapper to encapsulate an HBase h{@link ImmutableBytesWritable} as a Key
  */
 public class HBaseKey implements Key {
+
+	private static final long serialVersionUID = 1L;
 
 	private ImmutableBytesWritable writable;
 	

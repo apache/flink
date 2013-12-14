@@ -21,7 +21,7 @@ import junit.framework.Assert;
 
 import org.junit.Test;
 
-import eu.stratosphere.nephele.configuration.GlobalConfiguration;
+import eu.stratosphere.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.jobmanager.JobManager;
 import eu.stratosphere.nephele.jobmanager.JobManager.ExecutionMode;

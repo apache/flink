@@ -17,9 +17,9 @@ package eu.stratosphere.pact.runtime.io;
 
 import java.io.EOFException;
 
+import eu.stratosphere.core.memory.MemorySegment;
+import eu.stratosphere.core.memory.SeekableDataOutputView;
 import eu.stratosphere.nephele.services.memorymanager.AbstractPagedOutputView;
-import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
-import eu.stratosphere.nephele.services.memorymanager.SeekableDataOutputView;
 import eu.stratosphere.pact.runtime.util.MathUtils;
 
 

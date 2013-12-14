@@ -22,15 +22,15 @@ import org.apache.hadoop.hbase.client.Scan;
 import eu.stratosphere.addons.hbase.TableInputFormat;
 import eu.stratosphere.addons.hbase.common.HBaseKey;
 import eu.stratosphere.addons.hbase.common.HBaseResult;
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.contract.FileDataSink;
-import eu.stratosphere.pact.common.contract.GenericDataSource;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.api.operators.FileDataSink;
+import eu.stratosphere.api.operators.GenericDataSource;
 import eu.stratosphere.pact.common.io.RecordOutputFormat;
-import eu.stratosphere.pact.common.plan.Plan;
-import eu.stratosphere.pact.common.plan.PlanAssembler;
-import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactString;
+import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.api.plan.PlanAssembler;
+import eu.stratosphere.api.plan.PlanAssemblerDescription;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.PactString;
 
 /**
 * Implements a word count which takes the input file and counts the number of
@@ -40,6 +40,8 @@ public class HBaseReadExample implements PlanAssembler, PlanAssemblerDescription
 	
 	public static class MyTableInputFormat extends  TableInputFormat {
 		
+		private static final long serialVersionUID = 1L;
+
 		private final byte[] META_FAMILY = "meta".getBytes();
 		
 		private final byte[] USER_COLUMN = "user".getBytes();

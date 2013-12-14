@@ -15,12 +15,12 @@
 
 package eu.stratosphere.pact.runtime.plugable.arrayrecord;
 
-import eu.stratosphere.pact.common.type.CopyableValue;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.NullKeyFieldException;
-import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.common.util.InstantiationUtil;
-import eu.stratosphere.pact.generic.types.TypePairComparator;
+import eu.stratosphere.api.typeutils.TypePairComparator;
+import eu.stratosphere.types.CopyableValue;
+import eu.stratosphere.types.Key;
+import eu.stratosphere.types.NullKeyFieldException;
+import eu.stratosphere.types.Value;
+import eu.stratosphere.util.InstantiationUtil;
 
 
 /**

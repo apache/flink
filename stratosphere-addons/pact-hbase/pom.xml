@@ -26,20 +26,13 @@
 
 	<properties>
  		<hbase.version>0.96.0-hadoop2</hbase.version>
-    </properties>
-    
+	</properties>
+
 	<artifactId>pact-hbase</artifactId>
 	<name>pact-hbase</name>
-
 	<packaging>jar</packaging>
 
 	<dependencies>
-		<dependency>
-			<groupId>eu.stratosphere</groupId>
-			<artifactId>pact-common</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
 			<artifactId>stratosphere-core</artifactId>

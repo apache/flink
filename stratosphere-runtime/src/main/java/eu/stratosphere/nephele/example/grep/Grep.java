@@ -19,9 +19,9 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.nephele.client.JobClient;
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.library.FileLineReader;
 import eu.stratosphere.nephele.io.library.FileLineWriter;

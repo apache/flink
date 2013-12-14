@@ -17,9 +17,9 @@ package eu.stratosphere.pact.compiler.dataproperties;
 
 import java.util.Arrays;
 
-import eu.stratosphere.pact.common.contract.Ordering;
-import eu.stratosphere.pact.common.util.FieldList;
-import eu.stratosphere.pact.common.util.FieldSet;
+import eu.stratosphere.api.operators.Ordering;
+import eu.stratosphere.api.operators.util.FieldList;
+import eu.stratosphere.api.operators.util.FieldSet;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.util.Utils;

@@ -18,12 +18,12 @@ import scala.reflect.macros.Context
 
 import eu.stratosphere.pact.common.contract.MapContract
 
-import eu.stratosphere.pact.common.`type`.PactRecord
-import eu.stratosphere.pact.common.stubs.Collector
-import eu.stratosphere.pact.generic.contract.Contract
+import eu.stratosphere.types.PactRecord
+import eu.stratosphere.util.Collector
+import eu.stratosphere.api.operators.Contract
 import eu.stratosphere.pact.common.contract.CrossContract
 
-import eu.stratosphere.nephele.configuration.Configuration
+import eu.stratosphere.configuration.Configuration;
 import java.util.{ Iterator => JIterator }
 
 

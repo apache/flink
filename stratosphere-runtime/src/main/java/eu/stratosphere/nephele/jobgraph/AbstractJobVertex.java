@@ -20,16 +20,16 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.util.ArrayList;
 
-import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.configuration.IllegalConfigurationException;
+import eu.stratosphere.core.io.IOReadableWritable;
+import eu.stratosphere.core.io.StringRecord;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.io.DistributionPattern;
-import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.nephele.template.IllegalConfigurationException;
-import eu.stratosphere.nephele.types.StringRecord;
 import eu.stratosphere.nephele.util.EnumUtils;
-import eu.stratosphere.nephele.util.StringUtils;
+import eu.stratosphere.util.StringUtils;
 
 /**
  * An abstract base class for a job vertex in Nephele.

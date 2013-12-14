@@ -1,7 +1,7 @@
 package eu.stratosphere.pact.test.scalaPactPrograms;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.plan.Plan;
+import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.scala.examples.graph.ComputeEdgeDegrees;
 
 public class ComputeEdgeDegreesITCase extends eu.stratosphere.pact.test.pactPrograms.ComputeEdgeDegreesITCase {

@@ -17,9 +17,9 @@ package eu.stratosphere.pact.runtime.sort;
 import java.io.IOException;
 import java.util.List;
 
+import eu.stratosphere.core.memory.MemorySegment;
 import eu.stratosphere.nephele.services.iomanager.ChannelWriterOutputView;
-import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
-import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.util.MutableObjectIterator;
 
 
 /**

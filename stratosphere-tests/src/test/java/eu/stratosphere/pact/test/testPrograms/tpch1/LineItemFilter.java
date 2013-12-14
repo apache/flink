@@ -22,11 +22,11 @@ import java.util.Date;
 
 import org.apache.log4j.Logger;
 
-import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MapStub;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.pact.test.testPrograms.util.Tuple;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.PactString;
+import eu.stratosphere.util.Collector;
 
 /**
  * Filters the line item tuples according to the filter condition

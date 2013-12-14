@@ -17,8 +17,8 @@ package eu.stratosphere.pact.array.util;
 
 import java.io.Serializable;
 
-import eu.stratosphere.pact.common.type.base.PactString;
-import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.types.PactString;
+import eu.stratosphere.util.MutableObjectIterator;
 
 
 /**
@@ -108,7 +108,7 @@ public final class AsciiUtils
 		 * 
 		 * @param target The PactString object to store the next token in.
 		 * @return True, if there was another token, false if not.
-		 * @see eu.stratosphere.pact.common.util.MutableObjectIterator#next(java.lang.Object)
+		 * @see eu.stratosphere.util.MutableObjectIterator#next(java.lang.Object)
 		 */
 		@Override
 		public boolean next(PactString target)

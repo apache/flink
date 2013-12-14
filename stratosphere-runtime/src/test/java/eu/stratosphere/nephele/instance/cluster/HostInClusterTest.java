@@ -26,7 +26,7 @@ import org.junit.Test;
 
 import static org.junit.Assert.*;
 
-import eu.stratosphere.nephele.configuration.ConfigConstants;
+import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.nephele.instance.HardwareDescription;
 import eu.stratosphere.nephele.instance.HardwareDescriptionFactory;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;

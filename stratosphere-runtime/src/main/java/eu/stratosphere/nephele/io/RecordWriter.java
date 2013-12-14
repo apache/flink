@@ -15,9 +15,9 @@
 
 package eu.stratosphere.nephele.io;
 
+import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.nephele.types.Record;
 
 /**
  * A record writer connects the application to an output gate. It allows the application
@@ -28,7 +28,7 @@ import eu.stratosphere.nephele.types.Record;
  * @param <T>
  *        the type of the record that can be emitted with this record writer
  */
-public class RecordWriter<T extends Record> extends AbstractRecordWriter<T> {
+public class RecordWriter<T extends IOReadableWritable> extends AbstractRecordWriter<T> {
 
 	/**
 	 * Constructs a new record writer and registers a new output gate with the application's environment.

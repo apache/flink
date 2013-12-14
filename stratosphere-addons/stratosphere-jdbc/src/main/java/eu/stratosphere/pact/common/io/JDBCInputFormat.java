@@ -24,17 +24,17 @@ import java.sql.Statement;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactBoolean;
-import eu.stratosphere.pact.common.type.base.PactDouble;
-import eu.stratosphere.pact.common.type.base.PactFloat;
-import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.common.type.base.PactLong;
-import eu.stratosphere.pact.common.type.base.PactNull;
-import eu.stratosphere.pact.common.type.base.PactShort;
-import eu.stratosphere.pact.common.type.base.PactString;
-import eu.stratosphere.pact.generic.io.UnsplittableInput;
+import eu.stratosphere.api.io.UnsplittableInput;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.types.PactBoolean;
+import eu.stratosphere.types.PactDouble;
+import eu.stratosphere.types.PactFloat;
+import eu.stratosphere.types.PactInteger;
+import eu.stratosphere.types.PactLong;
+import eu.stratosphere.types.PactNull;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.PactShort;
+import eu.stratosphere.types.PactString;
 
 /**
  * InputFormat to read data from a database and generate PactReords.

@@ -14,8 +14,8 @@
  **********************************************************************************************************************/
 package eu.stratosphere.pact.array.io;
 
-import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.generic.io.OutputFormat;
+import eu.stratosphere.api.io.OutputFormat;
+import eu.stratosphere.types.Value;
 
 /**
  *

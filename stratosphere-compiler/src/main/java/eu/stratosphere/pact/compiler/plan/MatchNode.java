@@ -19,15 +19,15 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.util.FieldSet;
+import eu.stratosphere.api.operators.base.GenericMatchContract;
+import eu.stratosphere.api.operators.util.FieldSet;
+import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.operators.HashJoinBuildFirstProperties;
 import eu.stratosphere.pact.compiler.operators.HashJoinBuildSecondProperties;
 import eu.stratosphere.pact.compiler.operators.OperatorDescriptorDual;
 import eu.stratosphere.pact.compiler.operators.SortMergeJoinDescriptor;
-import eu.stratosphere.pact.generic.contract.GenericMatchContract;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**

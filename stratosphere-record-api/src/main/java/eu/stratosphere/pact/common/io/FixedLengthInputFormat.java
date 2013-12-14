@@ -18,10 +18,10 @@ package eu.stratosphere.pact.common.io;
 
 import java.io.IOException;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.fs.FileInputSplit;
-import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
-import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.api.io.statistics.BaseStatistics;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.core.fs.FileInputSplit;
+import eu.stratosphere.types.PactRecord;
 
 /**
  * 

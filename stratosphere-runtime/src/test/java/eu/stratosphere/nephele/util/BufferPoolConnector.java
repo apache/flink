@@ -17,8 +17,8 @@ package eu.stratosphere.nephele.util;
 
 import java.util.Queue;
 
+import eu.stratosphere.core.memory.MemorySegment;
 import eu.stratosphere.nephele.io.channels.MemoryBufferPoolConnector;
-import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 
 /**
  * This is a simple implementation of a {@link MemoryBufferPoolConnector} used for the server unit tests.

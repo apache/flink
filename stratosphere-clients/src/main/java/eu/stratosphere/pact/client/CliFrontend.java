@@ -37,23 +37,23 @@ import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.PosixParser;
 import org.apache.commons.cli.UnrecognizedOptionException;
 
+import eu.stratosphere.accumulators.AccumulatorHelper;
+import eu.stratosphere.configuration.ConfigConstants;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.client.JobExecutionResult;
-import eu.stratosphere.nephele.configuration.ConfigConstants;
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.event.job.RecentJobEvent;
 import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobgraph.JobStatus;
 import eu.stratosphere.nephele.net.NetUtils;
 import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
-import eu.stratosphere.nephele.services.accumulators.AccumulatorHelper;
-import eu.stratosphere.nephele.util.StringUtils;
 import eu.stratosphere.pact.client.nephele.api.Client;
 import eu.stratosphere.pact.client.nephele.api.ErrorInPlanAssemblerException;
 import eu.stratosphere.pact.client.nephele.api.PactProgram;
 import eu.stratosphere.pact.client.nephele.api.ProgramInvocationException;
 import eu.stratosphere.pact.compiler.CompilerException;
+import eu.stratosphere.util.StringUtils;
 
 /**
  * Implementation of a simple command line fronted for executing PACT programs.

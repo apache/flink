@@ -15,8 +15,8 @@
 package eu.stratosphere.spargel.java;
 
 
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.types.Key;
+import eu.stratosphere.types.Value;
 
 
 public final class Edge<VertexKey extends Key, EdgeValue extends Value> {

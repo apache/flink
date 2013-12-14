@@ -17,12 +17,12 @@ package eu.stratosphere.pact.runtime.plugable.pactrecord;
 
 import java.util.Arrays;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.generic.types.TypeComparator;
-import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
+import eu.stratosphere.api.typeutils.TypeComparator;
+import eu.stratosphere.api.typeutils.TypeComparatorFactory;
+import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.pact.runtime.task.util.CorruptConfigurationException;
+import eu.stratosphere.types.Key;
+import eu.stratosphere.types.PactRecord;
 
 /**
  * A factory for a {@link TypeComparator} for {@link PactRecord}. The comparator uses a subset of

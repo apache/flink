@@ -17,7 +17,8 @@ package eu.stratosphere.pact.compiler.operators;
 import java.util.Collections;
 import java.util.List;
 
-import eu.stratosphere.pact.common.util.FieldSet;
+import eu.stratosphere.api.operators.base.GenericReduceContract;
+import eu.stratosphere.api.operators.util.FieldSet;
 import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.PartitioningProperty;
@@ -27,7 +28,6 @@ import eu.stratosphere.pact.compiler.plan.ReduceNode;
 import eu.stratosphere.pact.compiler.plan.SingleInputNode;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
-import eu.stratosphere.pact.generic.contract.GenericReduceContract;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 public final class PartialGroupProperties extends OperatorDescriptorSingle {

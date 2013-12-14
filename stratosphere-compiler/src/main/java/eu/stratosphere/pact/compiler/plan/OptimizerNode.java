@@ -26,10 +26,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Map.Entry;
 
-import eu.stratosphere.pact.common.contract.CompilerHints;
-import eu.stratosphere.pact.common.util.FieldSet;
-import eu.stratosphere.pact.common.util.Visitable;
-import eu.stratosphere.pact.common.util.Visitor;
+import eu.stratosphere.api.operators.AbstractPact;
+import eu.stratosphere.api.operators.CompilerHints;
+import eu.stratosphere.api.operators.Contract;
+import eu.stratosphere.api.operators.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
@@ -39,9 +39,9 @@ import eu.stratosphere.pact.compiler.dataproperties.RequestedLocalProperties;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.plandump.DumpableConnection;
 import eu.stratosphere.pact.compiler.plandump.DumpableNode;
-import eu.stratosphere.pact.generic.contract.AbstractPact;
-import eu.stratosphere.pact.generic.contract.Contract;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
+import eu.stratosphere.util.Visitable;
+import eu.stratosphere.util.Visitor;
 
 /**
  * This class represents a node in the optimizer's internal representation of the PACT plan. It contains
@@ -213,7 +213,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 * 
 	 * @param visitor
 	 *        The graph traversing visitor.
-	 * @see eu.stratosphere.pact.common.util.Visitable#accept(eu.stratosphere.pact.common.util.Visitor)
+	 * @see eu.stratosphere.util.Visitable#accept(eu.stratosphere.util.Visitor)
 	 */
 	@Override
 	public abstract void accept(Visitor<OptimizerNode> visitor);

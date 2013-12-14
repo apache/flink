@@ -16,9 +16,10 @@ package eu.stratosphere.scala.stubs
 import java.util.{ Iterator => JIterator }
 
 import eu.stratosphere.scala.analysis.{UDTSerializer, UDF1, FieldSelector, UDT}
-import eu.stratosphere.pact.common.stubs.{ReduceStub => JReduceStub, Collector}
+import eu.stratosphere.pact.common.stubs.{ReduceStub => JReduceStub}
+import eu.stratosphere.types.PactRecord
+import eu.stratosphere.util.Collector
 import scala.Iterator
-import eu.stratosphere.pact.common.`type`.PactRecord
 
 
 abstract class ReduceStubBase[In: UDT, Out: UDT] extends JReduceStub with Serializable {

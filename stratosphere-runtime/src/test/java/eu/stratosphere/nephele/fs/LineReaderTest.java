@@ -24,10 +24,11 @@ import java.io.PrintWriter;
 
 import org.junit.Test;
 
-import eu.stratosphere.nephele.fs.FSDataInputStream;
-import eu.stratosphere.nephele.fs.Path;
-import eu.stratosphere.nephele.fs.file.LocalFileSystem;
+import eu.stratosphere.core.fs.FSDataInputStream;
+import eu.stratosphere.core.fs.Path;
+import eu.stratosphere.core.fs.local.LocalFileSystem;
 import eu.stratosphere.nephele.util.CommonTestUtils;
+import eu.stratosphere.runtime.fs.LineReader;
 
 /**
  * This class tests the functionality of the LineReader class using a local filesystem.

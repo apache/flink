@@ -17,8 +17,8 @@ package eu.stratosphere.pact.runtime.test.util;
 
 import java.util.Random;
 
-import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.test.util.types.IntPair;
+import eu.stratosphere.util.MutableObjectIterator;
 
 public class RandomIntPairGenerator implements MutableObjectIterator<IntPair>
 {

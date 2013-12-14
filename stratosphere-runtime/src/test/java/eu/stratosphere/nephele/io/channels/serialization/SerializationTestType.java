@@ -17,7 +17,7 @@ package eu.stratosphere.nephele.io.channels.serialization;
 
 import java.util.Random;
 
-import eu.stratosphere.nephele.io.IOReadableWritable;
+import eu.stratosphere.core.io.IOReadableWritable;
 
 /**
  * @author Stephan Ewen

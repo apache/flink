@@ -19,7 +19,7 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.util.List;
 
-import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
+import eu.stratosphere.core.memory.MemorySegment;
 
 
 /**

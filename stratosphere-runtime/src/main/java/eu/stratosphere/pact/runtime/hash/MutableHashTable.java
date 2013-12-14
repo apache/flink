@@ -26,21 +26,21 @@ import eu.stratosphere.pact.runtime.iterative.io.HashPartitionIterator;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.api.typeutils.TypeComparator;
+import eu.stratosphere.api.typeutils.TypePairComparator;
+import eu.stratosphere.api.typeutils.TypeSerializer;
+import eu.stratosphere.core.memory.MemorySegment;
+import eu.stratosphere.core.memory.MemorySegmentSource;
+import eu.stratosphere.core.memory.SeekableDataOutputView;
 import eu.stratosphere.nephele.services.iomanager.BlockChannelReader;
 import eu.stratosphere.nephele.services.iomanager.BulkBlockChannelReader;
 import eu.stratosphere.nephele.services.iomanager.Channel;
 import eu.stratosphere.nephele.services.iomanager.ChannelReaderInputView;
 import eu.stratosphere.nephele.services.iomanager.HeaderlessChannelReaderInputView;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
-import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
-import eu.stratosphere.nephele.services.memorymanager.SeekableDataOutputView;
-import eu.stratosphere.pact.common.util.MutableObjectIterator;
-import eu.stratosphere.pact.generic.types.TypeComparator;
-import eu.stratosphere.pact.generic.types.TypePairComparator;
-import eu.stratosphere.pact.generic.types.TypeSerializer;
 import eu.stratosphere.pact.runtime.io.ChannelReaderInputViewIterator;
-import eu.stratosphere.nephele.services.memorymanager.MemorySegmentSource;
 import eu.stratosphere.pact.runtime.util.MathUtils;
+import eu.stratosphere.util.MutableObjectIterator;
 
 
 /**

@@ -17,9 +17,9 @@ package eu.stratosphere.nephele.io;
 
 import java.io.IOException;
 
-import eu.stratosphere.nephele.types.Record;
+import eu.stratosphere.core.io.IOReadableWritable;
 
-public class MutableUnionRecordReader<T extends Record> extends AbstractUnionRecordReader<T> implements MutableReader<T> {
+public class MutableUnionRecordReader<T extends IOReadableWritable> extends AbstractUnionRecordReader<T> implements MutableReader<T> {
 
 	
 	/**

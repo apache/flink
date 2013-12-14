@@ -19,12 +19,12 @@ import java.io.IOException;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
-import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
+import eu.stratosphere.core.memory.MemorySegment;
 
 
 /**
  * A reader that reads data in blocks from a file channel. The reader reads the blocks into a 
- * {@link eu.stratosphere.nephele.services.memorymanager.MemorySegment} in an asynchronous fashion. That is, a read
+ * {@link eu.stratosphere.core.memory.MemorySegment} in an asynchronous fashion. That is, a read
  * request is not processed by the thread that issues it, but by an asynchronous reader thread. Once the read request
  * is done, the asynchronous reader adds the full MemorySegment to a <i>return queue</i> where it can be popped by the
  * worker thread, once it needs the data. The return queue is in this case a

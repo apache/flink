@@ -22,14 +22,14 @@ import junit.framework.Assert;
 
 import org.junit.Test;
 
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.generic.stub.GenericReducer;
+import eu.stratosphere.api.functions.GenericReducer;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparator;
 import eu.stratosphere.pact.runtime.task.CombineTaskTest.MockCombiningReduceStub;
 import eu.stratosphere.pact.runtime.test.util.DriverTestBase;
 import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
+import eu.stratosphere.types.Key;
+import eu.stratosphere.types.PactInteger;
+import eu.stratosphere.types.PactRecord;
 
 
 public class CombineTaskExternalITCase extends DriverTestBase<GenericReducer<PactRecord, ?>>

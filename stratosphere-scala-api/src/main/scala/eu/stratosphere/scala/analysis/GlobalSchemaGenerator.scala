@@ -16,13 +16,13 @@ package eu.stratosphere.scala.analysis
 import java.util.{List => JList}
 import scala.collection.JavaConversions.asScalaBuffer
 import scala.collection.JavaConversions.bufferAsJavaList
-import eu.stratosphere.pact.generic.contract.Contract
-import eu.stratosphere.pact.generic.contract.DualInputContract
-import eu.stratosphere.pact.generic.contract.SingleInputContract
+import eu.stratosphere.api.operators.Contract
+import eu.stratosphere.api.operators.DualInputContract
+import eu.stratosphere.api.operators.SingleInputContract
 import eu.stratosphere.scala.analysis.FieldSet.toSeq
 import eu.stratosphere.scala.ScalaContract
-import eu.stratosphere.pact.common.contract.FileDataSink
-import eu.stratosphere.pact.common.contract.GenericDataSource
+import eu.stratosphere.api.operators.FileDataSink
+import eu.stratosphere.api.operators.GenericDataSource
 import eu.stratosphere.pact.common.contract.MapContract
 import eu.stratosphere.scala.OneInputScalaContract
 import eu.stratosphere.pact.common.contract.ReduceContract
@@ -33,11 +33,11 @@ import eu.stratosphere.pact.common.contract.MatchContract
 import eu.stratosphere.scala.TwoInputKeyedScalaContract
 import eu.stratosphere.pact.common.contract.CoGroupContract
 import eu.stratosphere.scala.UnionScalaContract
-import eu.stratosphere.pact.generic.contract.BulkIteration
+import eu.stratosphere.api.operators.BulkIteration
 import eu.stratosphere.scala.BulkIterationScalaContract
-import eu.stratosphere.pact.generic.contract.WorksetIteration
+import eu.stratosphere.api.operators.WorksetIteration
 import eu.stratosphere.scala.WorksetIterationScalaContract
-import eu.stratosphere.pact.common.contract.GenericDataSink
+import eu.stratosphere.api.operators.GenericDataSink
 
 class GlobalSchemaGenerator {
 

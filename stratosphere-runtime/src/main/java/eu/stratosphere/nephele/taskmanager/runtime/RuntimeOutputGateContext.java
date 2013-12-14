@@ -17,6 +17,7 @@ package eu.stratosphere.nephele.taskmanager.runtime;
 
 import java.io.IOException;
 
+import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.AbstractID;
 import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.OutputGate;
@@ -30,15 +31,14 @@ import eu.stratosphere.nephele.taskmanager.bytebuffered.AbstractOutputChannelFor
 import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputChannelContext;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputChannelForwardingChain;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputGateContext;
-import eu.stratosphere.nephele.types.Record;
 
 final class RuntimeOutputGateContext implements BufferProvider, OutputGateContext {
 
 	private final RuntimeTaskContext taskContext;
 
-	private final OutputGate<? extends Record> outputGate;
+	private final OutputGate<? extends IOReadableWritable> outputGate;
 
-	RuntimeOutputGateContext(final RuntimeTaskContext taskContext, final OutputGate<? extends Record> outputGate) {
+	RuntimeOutputGateContext(final RuntimeTaskContext taskContext, final OutputGate<? extends IOReadableWritable> outputGate) {
 
 		this.taskContext = taskContext;
 		this.outputGate = outputGate;
@@ -122,9 +122,9 @@ final class RuntimeOutputGateContext implements BufferProvider, OutputGateContex
 			throw new IllegalStateException("Found previous output context for channel " + channelID);
 		}
 
-		AbstractOutputChannel<? extends Record> channel = null;
+		AbstractOutputChannel<? extends IOReadableWritable> channel = null;
 		for (int i = 0; i < this.outputGate.getNumberOfOutputChannels(); ++i) {
-			AbstractOutputChannel<? extends Record> candidateChannel = this.outputGate.getOutputChannel(i);
+			AbstractOutputChannel<? extends IOReadableWritable> candidateChannel = this.outputGate.getOutputChannel(i);
 			if (candidateChannel.getID().equals(channelID)) {
 				channel = candidateChannel;
 				break;
@@ -141,7 +141,7 @@ final class RuntimeOutputGateContext implements BufferProvider, OutputGateContex
 		}
 
 		// The output channel for this context
-		final AbstractByteBufferedOutputChannel<? extends Record> outputChannel = (AbstractByteBufferedOutputChannel<? extends Record>) channel;
+		final AbstractByteBufferedOutputChannel<? extends IOReadableWritable> outputChannel = (AbstractByteBufferedOutputChannel<? extends IOReadableWritable>) channel;
 
 		// Construct the forwarding chain
 		RuntimeOutputChannelBroker outputChannelBroker;

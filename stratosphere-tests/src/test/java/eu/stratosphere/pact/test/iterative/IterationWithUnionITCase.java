@@ -23,19 +23,19 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.contract.FileDataSink;
-import eu.stratosphere.pact.common.contract.FileDataSource;
+import eu.stratosphere.api.operators.BulkIteration;
+import eu.stratosphere.api.operators.FileDataSink;
+import eu.stratosphere.api.operators.FileDataSource;
+import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.MapContract;
-import eu.stratosphere.pact.common.plan.Plan;
-import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MapStub;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
-import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.example.kmeans.udfs.PointInFormat;
 import eu.stratosphere.pact.example.kmeans.udfs.PointOutFormat;
-import eu.stratosphere.pact.generic.contract.BulkIteration;
 import eu.stratosphere.pact.test.util.TestBase2;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.util.Collector;
 
 @RunWith(Parameterized.class)
 public class IterationWithUnionITCase extends TestBase2 {

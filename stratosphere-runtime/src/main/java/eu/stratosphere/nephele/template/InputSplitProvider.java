@@ -15,6 +15,8 @@
 
 package eu.stratosphere.nephele.template;
 
+import eu.stratosphere.core.io.InputSplit;
+
 /**
  * An input split provider can be successively queried to provide a series of {@link InputSplit} objects an
  * {@link AbstractInputTask} is supposed to consume in the course of its execution.

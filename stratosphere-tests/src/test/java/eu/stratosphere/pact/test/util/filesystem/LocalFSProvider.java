@@ -24,7 +24,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
-import eu.stratosphere.nephele.fs.FileSystem;
+import eu.stratosphere.util.OperatingSystem;
 
 public class LocalFSProvider implements FilesystemProvider {
 
@@ -134,7 +134,7 @@ public class LocalFSProvider implements FilesystemProvider {
 
 	@Override
 	public String getURIPrefix() {
-		String prefix = FileSystem.isWindows() ? "file:/" : "file://";
+		String prefix = OperatingSystem.isWindows() ? "file:/" : "file://";
 		return prefix;
 	}
 }

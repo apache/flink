@@ -15,7 +15,8 @@
 
 package eu.stratosphere.nephele.template;
 
-import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.configuration.IllegalConfigurationException;
 import eu.stratosphere.nephele.execution.Environment;
 
 /**

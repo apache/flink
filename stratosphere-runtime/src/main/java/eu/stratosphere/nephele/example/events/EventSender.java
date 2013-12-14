@@ -32,11 +32,11 @@ package eu.stratosphere.nephele.example.events;
  *  under the License.
  */
 
+import eu.stratosphere.core.io.StringRecord;
 import eu.stratosphere.nephele.event.task.StringTaskEvent;
 import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.nephele.types.StringRecord;
 
 /**
  * @author casp

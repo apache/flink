@@ -1,12 +1,12 @@
 package eu.stratosphere.pact.test.iterative.nephele.danglingpagerank;
 
-import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.pact.common.stubs.CoGroupStub;
-import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactDouble;
-import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.test.iterative.nephele.ConfigUtils;
+import eu.stratosphere.types.PactDouble;
+import eu.stratosphere.types.PactLong;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.util.Collector;
 
 import java.util.Iterator;
 import java.util.Set;

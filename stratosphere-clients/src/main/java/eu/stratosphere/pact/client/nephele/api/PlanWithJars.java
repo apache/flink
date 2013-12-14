@@ -24,7 +24,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import eu.stratosphere.pact.common.plan.Plan;
+import eu.stratosphere.api.plan.Plan;
 
 public class PlanWithJars {
 	

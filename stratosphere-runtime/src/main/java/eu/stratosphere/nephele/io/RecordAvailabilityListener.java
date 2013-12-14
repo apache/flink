@@ -15,17 +15,16 @@
 
 package eu.stratosphere.nephele.io;
 
-import eu.stratosphere.nephele.types.Record;
+import eu.stratosphere.core.io.IOReadableWritable;
 
 /**
  * This interface can be implemented by a class which shall be notified by an input gate when one of the its connected
  * input channels has at least one record available for reading.
  * 
- * @author warneke
  * @param <T>
  *        the type of record transported through the corresponding input gate
  */
-public interface RecordAvailabilityListener<T extends Record> {
+public interface RecordAvailabilityListener<T extends IOReadableWritable> {
 
 	/**
 	 * This method is called by an input gate when one of its connected input channels has at least one record available

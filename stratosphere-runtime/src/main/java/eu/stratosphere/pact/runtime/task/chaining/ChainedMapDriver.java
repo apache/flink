@@ -15,10 +15,10 @@
 
 package eu.stratosphere.pact.runtime.task.chaining;
 
-import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.api.functions.GenericMapper;
+import eu.stratosphere.api.functions.Stub;
+import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.pact.common.stubs.Stub;
-import eu.stratosphere.pact.generic.stub.GenericMapper;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
 
 public class ChainedMapDriver<IT, OT> extends ChainedDriver<IT, OT> {

@@ -15,7 +15,7 @@
 
 package eu.stratosphere.nephele.io;
 
-import eu.stratosphere.nephele.types.Record;
+import eu.stratosphere.core.io.IOReadableWritable;
 
 /**
  * Objects implementing this interface are passed to an {@link OutputGate}. When a record is sent through the output
@@ -26,7 +26,7 @@ import eu.stratosphere.nephele.types.Record;
  * @param <T>
  *        the type of record which is sent through the attached output gate
  */
-public interface ChannelSelector<T extends Record> {
+public interface ChannelSelector<T extends IOReadableWritable> {
 
 	/**
 	 * Called to determine to which attached {@link AbstractOutputChannel} objects the given record shall be forwarded.

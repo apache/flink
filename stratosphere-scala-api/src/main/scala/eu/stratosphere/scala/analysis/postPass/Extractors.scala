@@ -15,8 +15,8 @@ package eu.stratosphere.scala.analysis.postPass
 
 import eu.stratosphere.pact.common.contract.CoGroupContract
 import eu.stratosphere.pact.common.contract.CrossContract
-import eu.stratosphere.pact.common.contract.GenericDataSink
-import eu.stratosphere.pact.common.contract.GenericDataSource
+import eu.stratosphere.api.operators.GenericDataSink
+import eu.stratosphere.api.operators.GenericDataSource
 import eu.stratosphere.pact.common.contract.MapContract
 import eu.stratosphere.pact.common.contract.MatchContract
 import eu.stratosphere.pact.common.contract.ReduceContract
@@ -33,7 +33,7 @@ import eu.stratosphere.pact.compiler.plan.PactConnection
 import eu.stratosphere.pact.compiler.plan.ReduceNode
 import eu.stratosphere.pact.compiler.plan.SinkJoiner
 import eu.stratosphere.pact.compiler.plan.WorksetIterationNode
-import eu.stratosphere.pact.generic.contract.WorksetIteration
+import eu.stratosphere.api.operators.WorksetIteration
 import eu.stratosphere.scala.ScalaContract
 import eu.stratosphere.scala.OneInputScalaContract
 import eu.stratosphere.scala.OneInputKeyedScalaContract
@@ -46,7 +46,7 @@ import eu.stratosphere.scala.analysis.UDF0
 import eu.stratosphere.scala.analysis.UDF1
 import eu.stratosphere.scala.analysis.UDF2
 import eu.stratosphere.scala.BulkIterationScalaContract
-import eu.stratosphere.pact.generic.contract.BulkIteration
+import eu.stratosphere.api.operators.BulkIteration
 import eu.stratosphere.scala.UnionScalaContract
 
 object Extractors {

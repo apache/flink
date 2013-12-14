@@ -20,10 +20,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import eu.stratosphere.pact.common.contract.GenericDataSink;
-import eu.stratosphere.pact.common.contract.Ordering;
-import eu.stratosphere.pact.common.distributions.DataDistribution;
-import eu.stratosphere.pact.common.util.Visitor;
+import eu.stratosphere.api.distributions.DataDistribution;
+import eu.stratosphere.api.operators.Contract;
+import eu.stratosphere.api.operators.GenericDataSink;
+import eu.stratosphere.api.operators.Ordering;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
@@ -33,9 +33,9 @@ import eu.stratosphere.pact.compiler.dataproperties.RequestedLocalProperties;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
-import eu.stratosphere.pact.generic.contract.Contract;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
+import eu.stratosphere.util.Visitor;
 
 /**
  * The Optimizer representation of a data sink.

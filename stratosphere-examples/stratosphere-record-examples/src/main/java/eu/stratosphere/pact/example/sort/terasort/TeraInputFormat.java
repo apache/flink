@@ -16,7 +16,7 @@
 package eu.stratosphere.pact.example.sort.terasort;
 
 import eu.stratosphere.pact.common.io.DelimitedInputFormat;
-import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.types.PactRecord;
 
 /**
  * This class is responsible for converting a line from the input file to a two field record. 

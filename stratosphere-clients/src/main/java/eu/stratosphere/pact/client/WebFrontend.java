@@ -18,10 +18,10 @@ package eu.stratosphere.pact.client;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.configuration.GlobalConfiguration;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.configuration.GlobalConfiguration;
+import eu.stratosphere.configuration.PactConfigConstants;
 import eu.stratosphere.pact.client.web.WebInterfaceServer;
-import eu.stratosphere.pact.common.util.PactConfigConstants;
 
 /**
  * Main entry point for the web frontend. Creates a web server according to the configuration

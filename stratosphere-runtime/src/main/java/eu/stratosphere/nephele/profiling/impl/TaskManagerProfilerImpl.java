@@ -29,8 +29,8 @@ import java.util.TimerTask;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.configuration.GlobalConfiguration;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
@@ -43,7 +43,7 @@ import eu.stratosphere.nephele.profiling.impl.types.InternalExecutionVertexThrea
 import eu.stratosphere.nephele.profiling.impl.types.InternalInstanceProfilingData;
 import eu.stratosphere.nephele.profiling.impl.types.ProfilingDataContainer;
 import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTask;
-import eu.stratosphere.nephele.util.StringUtils;
+import eu.stratosphere.util.StringUtils;
 
 public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerProfiler {
 

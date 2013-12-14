@@ -17,7 +17,7 @@ package eu.stratosphere.pact.tuple;
 import java.io.File;
 import java.io.PrintWriter;
 
-import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.types.Value;
 
 /**
  *

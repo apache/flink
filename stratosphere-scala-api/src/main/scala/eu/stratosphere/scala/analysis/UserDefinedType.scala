@@ -16,15 +16,15 @@ package eu.stratosphere.scala.analysis
 import scala.collection.GenTraversableOnce
 import scala.collection.generic.CanBuildFrom
 import scala.language.experimental.macros
-import eu.stratosphere.pact.common.`type`.{Key => PactKey}
-import eu.stratosphere.pact.common.`type`.PactRecord
-import eu.stratosphere.pact.common.`type`.{Value => PactValue}
-import eu.stratosphere.pact.common.`type`.base.PactString
+import eu.stratosphere.types.{Key => PactKey}
+import eu.stratosphere.types.PactRecord
+import eu.stratosphere.types.{Value => PactValue}
+import eu.stratosphere.types.PactString
 import eu.stratosphere.scala.codegen.Util
 
 abstract class UDT[T] extends Serializable {
   protected def createSerializer(indexMap: Array[Int]): UDTSerializer[T]
-  val fieldTypes: Array[Class[_ <: eu.stratosphere.pact.common.`type`.Value]]
+  val fieldTypes: Array[Class[_ <: eu.stratosphere.types.Value]]
   val udtIdMap: Map[Int, Int]
   
   def numFields = fieldTypes.length

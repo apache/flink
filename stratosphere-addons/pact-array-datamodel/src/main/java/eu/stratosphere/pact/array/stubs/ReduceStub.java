@@ -18,9 +18,9 @@ package eu.stratosphere.pact.array.stubs;
 import java.lang.reflect.Method;
 import java.util.Iterator;
 
-import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.generic.stub.GenericReducer;
+import eu.stratosphere.api.functions.GenericReducer;
+import eu.stratosphere.types.Value;
+import eu.stratosphere.util.Collector;
 
 /**
  * The ReduceStub must be extended to provide a reducer implementation which is called by a Reduce PACT.

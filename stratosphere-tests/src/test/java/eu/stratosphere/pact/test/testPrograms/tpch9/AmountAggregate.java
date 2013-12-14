@@ -18,10 +18,10 @@ package eu.stratosphere.pact.test.testPrograms.tpch9;
 
 import java.util.Iterator;
 
-import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.*;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.PactString;
+import eu.stratosphere.util.Collector;
 
 public class AmountAggregate extends ReduceStub
 {

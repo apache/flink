@@ -20,7 +20,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
-import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.GateID;
@@ -39,12 +40,11 @@ import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.InputSplitProvider;
-import eu.stratosphere.nephele.types.Record;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.util.MutableObjectIterator;
 
-public class MockEnvironment implements Environment
-{
+public class MockEnvironment implements Environment {
+	
 	private final MemoryManager memManager;
 
 	private final IOManager ioManager;
@@ -61,8 +61,7 @@ public class MockEnvironment implements Environment
 
 	private final JobID jobID = new JobID();
 
-	public MockEnvironment(long memorySize, MockInputSplitProvider inputSplitProvider) 
-	{
+	public MockEnvironment(long memorySize, MockInputSplitProvider inputSplitProvider) {
 		this.jobConfiguration = new Configuration();
 		this.taskConfiguration = new Configuration();
 		this.inputs = new LinkedList<RuntimeInputGate<PactRecord>>();
@@ -83,41 +82,29 @@ public class MockEnvironment implements Environment
 		outputs.add(new MockOutputGate(id, outputList));
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public Configuration getTaskConfiguration() {
 		return this.taskConfiguration;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public MemoryManager getMemoryManager() {
 		return this.memManager;
 	}
-
-	/**
-	 * {@inheritDoc}
-	 */
+	
 	@Override
 	public IOManager getIOManager() {
 		return this.ioManager;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public JobID getJobID() {
 		return this.jobID;
 	}
 
 
-	private static class MockInputGate extends RuntimeInputGate<PactRecord>
-	{
+	private static class MockInputGate extends RuntimeInputGate<PactRecord> {
+		
 		private MutableObjectIterator<PactRecord> it;
 
 		public MockInputGate(int id, MutableObjectIterator<PactRecord> it) {
@@ -144,8 +131,8 @@ public class MockEnvironment implements Environment
 		}
 	}
 
-	private static class MockOutputGate extends RuntimeOutputGate<PactRecord>
-	{
+	private static class MockOutputGate extends RuntimeOutputGate<PactRecord> {
+		
 		private List<PactRecord> out;
 
 		public MockOutputGate(int index, List<PactRecord> outList) {
@@ -159,195 +146,124 @@ public class MockEnvironment implements Environment
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public Configuration getJobConfiguration() {
 		return this.jobConfiguration;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public int getCurrentNumberOfSubtasks() {
 		return 0;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public int getIndexInSubtaskGroup() {
 		return 1;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public void userThreadStarted(final Thread userThread) {
 		// Nothing to do here
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public void userThreadFinished(final Thread userThread) {
 		// Nothing to do here
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public InputSplitProvider getInputSplitProvider() {
 		return this.inputSplitProvider;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public String getTaskName() {
 		return null;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public GateID getNextUnboundInputGateID() {
 		return null;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public GateID getNextUnboundOutputGateID() {
 		return null;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public int getNumberOfOutputGates() {
 		return this.outputs.size();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public int getNumberOfInputGates() {
 		return this.inputs.size();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
-	public void registerOutputGate(final OutputGate<? extends Record> outputGate) {
+	public void registerOutputGate(final OutputGate<? extends IOReadableWritable> outputGate) {
 		// Nothing to do here
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
-	public void registerInputGate(final InputGate<? extends Record> inputGate) {
+	public void registerInputGate(final InputGate<? extends IOReadableWritable> inputGate) {
 		// Nothing to do here
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public Set<ChannelID> getOutputChannelIDs() {
 		throw new IllegalStateException("getOutputChannelIDs called on MockEnvironment");
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public Set<ChannelID> getInputChannelIDs() {
 		throw new IllegalStateException("getInputChannelIDs called on MockEnvironment");
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public Set<GateID> getOutputGateIDs() {
 		throw new IllegalStateException("getOutputGateIDs called on MockEnvironment");
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public Set<GateID> getInputGateIDs() {
 		throw new IllegalStateException("getInputGateIDs called on MockEnvironment");
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public Set<ChannelID> getOutputChannelIDsOfGate(final GateID gateID) {
 		throw new IllegalStateException("getOutputChannelIDsOfGate called on MockEnvironment");
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public Set<ChannelID> getInputChannelIDsOfGate(final GateID gateID) {
 		throw new IllegalStateException("getInputChannelIDsOfGate called on MockEnvironment");
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.execution.Environment#createOutputGate(eu.stratosphere.nephele.io.GateID, java.lang.Class, eu.stratosphere.nephele.io.ChannelSelector, boolean)
-	 */
 	@SuppressWarnings("unchecked")
 	@Override
-	public <T extends Record> OutputGate<T> createOutputGate(GateID gateID, Class<T> outputClass,
+	public <T extends IOReadableWritable> OutputGate<T> createOutputGate(GateID gateID, Class<T> outputClass,
 			ChannelSelector<T> selector, boolean isBroadcast)
 	{
 		return (OutputGate<T>) this.outputs.remove(0);
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.execution.Environment#createInputGate(eu.stratosphere.nephele.io.GateID, eu.stratosphere.nephele.io.RecordDeserializerFactory)
-	 */
 	@SuppressWarnings("unchecked")
 	@Override
-	public <T extends Record> InputGate<T> createInputGate(GateID gateID,
+	public <T extends IOReadableWritable> InputGate<T> createInputGate(GateID gateID,
 			RecordDeserializerFactory<T> deserializerFactory)
 	{
 		return (InputGate<T>) this.inputs.remove(0);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public int getNumberOfOutputChannels() {
-		
 		return this.outputs.size();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public int getNumberOfInputChannels() {
-		
 		return this.inputs.size();
 	}
 	

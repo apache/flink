@@ -18,10 +18,10 @@ package eu.stratosphere.pact.runtime.test.util;
 import java.util.Comparator;
 import java.util.Random;
 
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.common.type.base.PactString;
-import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.types.PactInteger;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.PactString;
+import eu.stratosphere.util.MutableObjectIterator;
 
 /**
  * Test data utilities classes.
@@ -175,7 +175,7 @@ public final class TestData {
 			return true;
 		}
 
-		public boolean next(eu.stratosphere.pact.common.type.Value[] target) {
+		public boolean next(eu.stratosphere.types.Value[] target) {
 			this.key.setKey(keyMode == KeyMode.SORTED ? ++counter : Math.abs(random.nextInt() % keyMax) + 1);
 			// TODO change this to something proper
 			((PactInteger)target[0]).setValue(this.key.getValue());

@@ -28,18 +28,18 @@ import java.util.Queue;
 
 import org.junit.Test;
 
+import eu.stratosphere.core.memory.MemorySegment;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.BufferFactory;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.MemoryBuffer;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferAvailabilityListener;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProviderBroker;
 import eu.stratosphere.nephele.util.BufferPoolConnector;
 import eu.stratosphere.nephele.util.InterruptibleByteChannel;
-import eu.stratosphere.nephele.util.StringUtils;
+import eu.stratosphere.util.StringUtils;
 
 /**
  * This class contains tests covering the deserialization of a byte stream to a transfer envelope.

@@ -17,8 +17,8 @@ import language.experimental.macros
 import scala.util.DynamicVariable
 import eu.stratosphere.scala.analysis._
 import eu.stratosphere.scala.contracts._
-import eu.stratosphere.pact.common.util.{ FieldSet => PactFieldSet }
-import eu.stratosphere.pact.generic.contract.Contract
+import eu.stratosphere.api.operators.util.{ FieldSet => PactFieldSet }
+import eu.stratosphere.api.operators.Contract
 import eu.stratosphere.scala.codegen.MacroContextHolder
 import scala.reflect.macros.Context
 

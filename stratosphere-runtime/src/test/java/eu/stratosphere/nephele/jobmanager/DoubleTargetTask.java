@@ -15,10 +15,10 @@
 
 package eu.stratosphere.nephele.jobmanager;
 
+import eu.stratosphere.core.io.StringRecord;
 import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.nephele.types.StringRecord;
 
 public class DoubleTargetTask extends AbstractTask {
 

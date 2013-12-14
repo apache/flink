@@ -16,10 +16,10 @@
 package eu.stratosphere.nephele.executiongraph;
 
 
+import eu.stratosphere.core.io.StringRecord;
 import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.nephele.types.StringRecord;
 
 /**
  * This class represents the cross task in the self cross unit test.

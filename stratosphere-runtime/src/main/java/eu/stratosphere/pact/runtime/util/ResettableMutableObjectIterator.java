@@ -17,7 +17,7 @@ package eu.stratosphere.pact.runtime.util;
 
 import java.io.IOException;
 
-import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.util.MutableObjectIterator;
 
 /**
  * The resettable iterator is a specialization of the iterator, allowing to reset the iterator and re-retrieve elements.

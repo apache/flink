@@ -22,8 +22,7 @@ import org.codehaus.jackson.JsonParser;
 import org.junit.Assert;
 import org.junit.Test;
 
-import eu.stratosphere.nephele.fs.FileSystem;
-import eu.stratosphere.pact.common.plan.Plan;
+import eu.stratosphere.api.plan.Plan;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.plan.DataSinkNode;
 import eu.stratosphere.pact.example.connectedcomponents.WorksetConnectedComponents;
@@ -32,15 +31,16 @@ import eu.stratosphere.pact.example.kmeans.KMeansSingleStep;
 import eu.stratosphere.pact.example.relational.TPCHQuery3;
 import eu.stratosphere.pact.example.relational.WebLogAnalysis;
 import eu.stratosphere.pact.example.wordcount.WordCount;
+import eu.stratosphere.util.OperatingSystem;
 
 /*
  * The tests in this class simply invokes the JSON dump code for the original plan.
  */
 public class PreviewPlanDumpTest {
 	
-	protected static final String IN_FILE = FileSystem.isWindows() ?  "file:/c:/test/file" : "file:///test/file";
+	protected static final String IN_FILE = OperatingSystem.isWindows() ?  "file:/c:/test/file" : "file:///test/file";
 	
-	protected static final String OUT_FILE = FileSystem.isWindows() ?  "file:/c:/test/output" : "file:///test/output";
+	protected static final String OUT_FILE = OperatingSystem.isWindows() ?  "file:/c:/test/output" : "file:///test/output";
 	
 	protected static final String[] NO_ARGS = new String[0];
 	

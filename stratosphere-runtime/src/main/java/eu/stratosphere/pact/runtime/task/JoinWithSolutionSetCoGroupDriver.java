@@ -18,16 +18,16 @@ package eu.stratosphere.pact.runtime.task;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.generic.stub.GenericCoGrouper;
-import eu.stratosphere.pact.generic.types.TypeComparator;
-import eu.stratosphere.pact.generic.types.TypeSerializer;
-import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
+import eu.stratosphere.api.functions.GenericCoGrouper;
+import eu.stratosphere.api.typeutils.TypeComparator;
+import eu.stratosphere.api.typeutils.TypeSerializer;
+import eu.stratosphere.api.typeutils.TypeSerializerFactory;
 import eu.stratosphere.pact.runtime.hash.MutableHashTable;
 import eu.stratosphere.pact.runtime.iterative.concurrent.SolutionSetBroker;
 import eu.stratosphere.pact.runtime.iterative.task.AbstractIterativePactTask;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
+import eu.stratosphere.util.Collector;
 
 public abstract class JoinWithSolutionSetCoGroupDriver<IT1, IT2, OT> implements ResettablePactDriver<GenericCoGrouper<IT1, IT2, OT>, OT> {
 	

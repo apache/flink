@@ -26,7 +26,7 @@ import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.DefaultDeserializer;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.NoBufferAvailableException;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
-import eu.stratosphere.nephele.util.StringUtils;
+import eu.stratosphere.util.StringUtils;
 
 /**
  * This class represents an incoming data connection through which data streams are read and transformed into

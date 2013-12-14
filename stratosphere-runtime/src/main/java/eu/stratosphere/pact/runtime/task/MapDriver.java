@@ -15,10 +15,10 @@
 
 package eu.stratosphere.pact.runtime.task;
 
-import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.api.functions.GenericMapper;
 import eu.stratosphere.pact.common.stubs.MapStub;
-import eu.stratosphere.pact.common.util.MutableObjectIterator;
-import eu.stratosphere.pact.generic.stub.GenericMapper;
+import eu.stratosphere.util.Collector;
+import eu.stratosphere.util.MutableObjectIterator;
 
 /**
  * Map task which is executed by a Nephele task manager. The task has a single

@@ -17,7 +17,7 @@ package eu.stratosphere.pact.runtime.util;
 
 import java.util.Comparator;
 
-import eu.stratosphere.pact.common.type.Key;
+import eu.stratosphere.types.Key;
 
 
 /**

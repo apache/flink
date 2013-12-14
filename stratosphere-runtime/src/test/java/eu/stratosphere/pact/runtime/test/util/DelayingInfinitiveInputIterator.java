@@ -15,7 +15,7 @@
 
 package eu.stratosphere.pact.runtime.test.util;
 
-import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.types.PactRecord;
 
 public class DelayingInfinitiveInputIterator extends InfiniteInputIterator
 {

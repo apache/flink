@@ -16,8 +16,8 @@
 package eu.stratosphere.pact.example.triangles.io;
 
 import eu.stratosphere.pact.common.io.DelimitedOutputFormat;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.types.PactInteger;
+import eu.stratosphere.types.PactRecord;
 
 
 /**

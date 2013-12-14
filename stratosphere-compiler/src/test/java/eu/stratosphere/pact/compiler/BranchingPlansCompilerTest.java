@@ -24,16 +24,16 @@ import junit.framework.Assert;
 
 import org.junit.Test;
 
+import eu.stratosphere.api.operators.BulkIteration;
+import eu.stratosphere.api.operators.FileDataSink;
+import eu.stratosphere.api.operators.FileDataSource;
+import eu.stratosphere.api.operators.GenericDataSink;
+import eu.stratosphere.api.plan.Plan;
 import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.contract.CrossContract;
-import eu.stratosphere.pact.common.contract.FileDataSink;
-import eu.stratosphere.pact.common.contract.FileDataSource;
-import eu.stratosphere.pact.common.contract.GenericDataSink;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.common.plan.Plan;
-import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
 import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
@@ -44,7 +44,7 @@ import eu.stratosphere.pact.compiler.util.DummyMatchStub;
 import eu.stratosphere.pact.compiler.util.DummyOutputFormat;
 import eu.stratosphere.pact.compiler.util.IdentityMap;
 import eu.stratosphere.pact.compiler.util.IdentityReduce;
-import eu.stratosphere.pact.generic.contract.BulkIteration;
+import eu.stratosphere.types.PactInteger;
 
 /**
  */

@@ -18,7 +18,7 @@ package eu.stratosphere.pact.compiler;
 import java.util.HashMap;
 import java.util.Map;
 
-import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
+import eu.stratosphere.api.io.statistics.BaseStatistics;
 
 /**
  * The collection of access methods that can be used to retrieve statistical information about the

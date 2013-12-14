@@ -29,22 +29,22 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.distributions.DataDistribution;
-import eu.stratosphere.pact.common.stubs.Stub;
-import eu.stratosphere.pact.common.stubs.aggregators.Aggregator;
-import eu.stratosphere.pact.common.stubs.aggregators.AggregatorWithName;
-import eu.stratosphere.pact.common.stubs.aggregators.ConvergenceCriterion;
-import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.common.util.InstantiationUtil;
-import eu.stratosphere.pact.generic.contract.UserCodeWrapper;
-import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
-import eu.stratosphere.pact.generic.types.TypePairComparatorFactory;
-import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
+import eu.stratosphere.api.distributions.DataDistribution;
+import eu.stratosphere.api.functions.Stub;
+import eu.stratosphere.api.functions.aggregators.Aggregator;
+import eu.stratosphere.api.functions.aggregators.AggregatorWithName;
+import eu.stratosphere.api.functions.aggregators.ConvergenceCriterion;
+import eu.stratosphere.api.operators.util.UserCodeWrapper;
+import eu.stratosphere.api.typeutils.TypeComparatorFactory;
+import eu.stratosphere.api.typeutils.TypePairComparatorFactory;
+import eu.stratosphere.api.typeutils.TypeSerializerFactory;
+import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.PactDriver;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedDriver;
+import eu.stratosphere.types.Value;
+import eu.stratosphere.util.InstantiationUtil;
 
 /**
  * Configuration class which stores all relevant parameters required to set up the Pact tasks.

@@ -25,20 +25,20 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.fs.Path;
+import eu.stratosphere.api.io.OutputFormat;
+import eu.stratosphere.api.operators.GenericDataSink;
+import eu.stratosphere.api.operators.GenericDataSource;
+import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.pact.common.contract.GenericDataSink;
-import eu.stratosphere.pact.common.contract.GenericDataSource;
 import eu.stratosphere.pact.common.io.GenericInputFormat;
-import eu.stratosphere.pact.common.plan.Plan;
-import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
-import eu.stratosphere.pact.generic.io.OutputFormat;
 import eu.stratosphere.pact.test.util.TestBase;
+import eu.stratosphere.types.PactRecord;
 
 
 @RunWith(Parameterized.class)

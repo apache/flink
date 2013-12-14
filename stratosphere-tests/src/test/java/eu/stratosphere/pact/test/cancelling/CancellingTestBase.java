@@ -28,6 +28,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
 
+import eu.stratosphere.api.plan.Plan;
 import eu.stratosphere.nephele.client.AbstractJobResult;
 import eu.stratosphere.nephele.client.JobCancelResult;
 import eu.stratosphere.nephele.client.JobClient;
@@ -37,9 +38,6 @@ import eu.stratosphere.nephele.event.job.AbstractEvent;
 import eu.stratosphere.nephele.event.job.JobEvent;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobStatus;
-import eu.stratosphere.nephele.util.StringUtils;
-import eu.stratosphere.pact.common.plan.Plan;
-import eu.stratosphere.pact.common.util.LogUtils;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
@@ -47,6 +45,8 @@ import eu.stratosphere.pact.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.pact.test.util.Constants;
 import eu.stratosphere.pact.test.util.minicluster.ClusterProvider;
 import eu.stratosphere.pact.test.util.minicluster.ClusterProviderPool;
+import eu.stratosphere.util.LogUtils;
+import eu.stratosphere.util.StringUtils;
 
 /**
  * 

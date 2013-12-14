@@ -17,10 +17,10 @@ package eu.stratosphere.pact.runtime.test.util.types;
 
 import java.io.IOException;
 
-import eu.stratosphere.nephele.services.memorymanager.DataInputView;
-import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
-import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
-import eu.stratosphere.pact.generic.types.TypeComparator;
+import eu.stratosphere.api.typeutils.TypeComparator;
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
+import eu.stratosphere.core.memory.MemorySegment;
 
 
 public class IntPairComparator extends TypeComparator<IntPair>

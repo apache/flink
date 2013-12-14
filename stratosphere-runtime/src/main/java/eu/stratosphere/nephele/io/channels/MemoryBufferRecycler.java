@@ -20,7 +20,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
+import eu.stratosphere.core.memory.MemorySegment;
 
 /**
  * A memory buffer recycler takes care of the correct recycling of the internal byte buffer which backs a memory buffer.

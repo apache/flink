@@ -17,7 +17,7 @@ package eu.stratosphere.pact.runtime.iterative.io;
 
 import eu.stratosphere.nephele.io.MutableRecordReader;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
-import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.types.PactRecord;
 
 /**
  * Output task for the iteration tail

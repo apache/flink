@@ -17,17 +17,17 @@ package eu.stratosphere.nephele.io;
 
 import java.io.IOException;
 
+import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.bytebuffered.InMemoryInputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.NetworkInputChannel;
-import eu.stratosphere.nephele.types.Record;
 
 /**
  * @param <T> The type of record that can be transported through this gate.
  */
-public interface InputGate<T extends Record> extends Gate<T> {
+public interface InputGate<T extends IOReadableWritable> extends Gate<T> {
 
 	/**
 	 * Reads a record from one of the associated input channels. Channels are read such that one buffer from a channel is 

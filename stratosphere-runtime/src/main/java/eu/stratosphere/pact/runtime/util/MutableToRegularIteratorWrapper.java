@@ -19,8 +19,8 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-import eu.stratosphere.pact.common.util.MutableObjectIterator;
-import eu.stratosphere.pact.generic.types.TypeSerializer;
+import eu.stratosphere.api.typeutils.TypeSerializer;
+import eu.stratosphere.util.MutableObjectIterator;
 
 /**
  * This class wraps a {@link MutableObjectIterator} into a regular {@link Iterator}.

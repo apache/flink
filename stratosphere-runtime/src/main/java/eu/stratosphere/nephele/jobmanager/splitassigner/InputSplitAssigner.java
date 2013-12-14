@@ -15,9 +15,9 @@
 
 package eu.stratosphere.nephele.jobmanager.splitassigner;
 
+import eu.stratosphere.core.io.InputSplit;
 import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
-import eu.stratosphere.nephele.template.InputSplit;
 
 /**
  * The input split assigner interface must be implemented by every component which is supposed to dynamically offer

@@ -20,7 +20,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 
-import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.types.PactRecord;
 
 public class NirvanaOutputList implements List<PactRecord> {
 

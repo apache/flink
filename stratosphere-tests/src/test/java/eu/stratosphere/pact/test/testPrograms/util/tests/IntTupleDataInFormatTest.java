@@ -18,10 +18,10 @@ package eu.stratosphere.pact.test.testPrograms.util.tests;
 import org.junit.Assert;
 import org.junit.Test;
 
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.test.testPrograms.util.IntTupleDataInFormat;
 import eu.stratosphere.pact.test.testPrograms.util.Tuple;
+import eu.stratosphere.types.PactInteger;
+import eu.stratosphere.types.PactRecord;
 
 public class IntTupleDataInFormatTest
 {

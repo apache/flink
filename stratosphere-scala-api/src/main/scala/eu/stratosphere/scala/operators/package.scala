@@ -15,7 +15,7 @@ package eu.stratosphere.scala
 
 import scala.collection.TraversableOnce
 import eu.stratosphere.scala.analysis._
-import eu.stratosphere.pact.generic.contract.Contract
+import eu.stratosphere.api.operators.Contract
 
 package object operators {
 

@@ -17,9 +17,9 @@ package eu.stratosphere.nephele.io;
 
 import java.io.IOException;
 
+import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.nephele.types.Record;
 
 /**
  * A record writer connects an input gate to an application. It allows the application
@@ -27,7 +27,7 @@ import eu.stratosphere.nephele.types.Record;
  * 
  * @param <T> The type of the record that can be read from this record reader.
  */
-public class RecordReader<T extends Record> extends AbstractSingleGateRecordReader<T> implements Reader<T> {
+public class RecordReader<T extends IOReadableWritable> extends AbstractSingleGateRecordReader<T> implements Reader<T> {
 	
 	private final Class<T> recordType;
 	

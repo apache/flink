@@ -1,6 +1,6 @@
 package eu.stratosphere.pact.test.iterative.nephele.customdanglingpagerank;
 
-import eu.stratosphere.pact.generic.io.DelimitedInputFormat;
+import eu.stratosphere.api.io.DelimitedInputFormat;
 import eu.stratosphere.pact.test.iterative.nephele.customdanglingpagerank.types.VertexWithAdjacencyList;
 import eu.stratosphere.pact.test.iterative.nephele.danglingpagerank.AsciiLongArrayView;
 

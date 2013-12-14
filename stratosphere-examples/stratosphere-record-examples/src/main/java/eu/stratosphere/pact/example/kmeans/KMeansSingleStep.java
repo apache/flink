@@ -16,19 +16,19 @@
 package eu.stratosphere.pact.example.kmeans;
 
 
+import eu.stratosphere.api.operators.FileDataSink;
+import eu.stratosphere.api.operators.FileDataSource;
+import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.api.plan.PlanAssembler;
+import eu.stratosphere.api.plan.PlanAssemblerDescription;
 import eu.stratosphere.pact.common.contract.CrossContract;
-import eu.stratosphere.pact.common.contract.FileDataSink;
-import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.common.plan.Plan;
-import eu.stratosphere.pact.common.plan.PlanAssembler;
-import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
-import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.example.kmeans.udfs.ComputeDistance;
 import eu.stratosphere.pact.example.kmeans.udfs.FindNearestCenter;
 import eu.stratosphere.pact.example.kmeans.udfs.PointInFormat;
 import eu.stratosphere.pact.example.kmeans.udfs.PointOutFormat;
 import eu.stratosphere.pact.example.kmeans.udfs.RecomputeClusterCenter;
+import eu.stratosphere.types.PactInteger;
 
 /**
  * The K-Means cluster algorithm is well-known (see

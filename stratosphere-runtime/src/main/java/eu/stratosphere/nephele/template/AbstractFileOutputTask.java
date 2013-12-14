@@ -15,8 +15,8 @@
 
 package eu.stratosphere.nephele.template;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.fs.Path;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.core.fs.Path;
 
 /**
  * Specialized subtype of {@link AbstractOutputTask} for tasks which are supposed to write output to

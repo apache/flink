@@ -19,11 +19,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import eu.stratosphere.pact.common.util.Visitor;
+import eu.stratosphere.api.operators.Contract;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
-import eu.stratosphere.pact.generic.contract.Contract;
+import eu.stratosphere.util.Visitor;
 
 /**
  * The optimizer's internal representation of the partial solution that is input to a bulk iteration.

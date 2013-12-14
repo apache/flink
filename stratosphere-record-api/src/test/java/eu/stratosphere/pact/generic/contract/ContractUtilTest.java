@@ -21,18 +21,24 @@ import java.util.Iterator;
 
 import org.junit.Test;
 
-import eu.stratosphere.pact.common.contract.GenericDataSink;
-import eu.stratosphere.pact.common.contract.GenericDataSource;
+import eu.stratosphere.api.functions.Stub;
+import eu.stratosphere.api.operators.GenericDataSink;
+import eu.stratosphere.api.operators.GenericDataSource;
+import eu.stratosphere.api.operators.base.GenericCoGroupContract;
+import eu.stratosphere.api.operators.base.GenericCrossContract;
+import eu.stratosphere.api.operators.base.GenericMapContract;
+import eu.stratosphere.api.operators.base.GenericMatchContract;
+import eu.stratosphere.api.operators.base.GenericReduceContract;
+import eu.stratosphere.api.operators.util.ContractUtil;
 import eu.stratosphere.pact.common.io.DelimitedInputFormat;
 import eu.stratosphere.pact.common.io.DelimitedOutputFormat;
 import eu.stratosphere.pact.common.stubs.CoGroupStub;
-import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.CrossStub;
 import eu.stratosphere.pact.common.stubs.MapStub;
 import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
-import eu.stratosphere.pact.common.stubs.Stub;
-import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.util.Collector;
 
 /**
  * Tests {@link ContractUtil}.

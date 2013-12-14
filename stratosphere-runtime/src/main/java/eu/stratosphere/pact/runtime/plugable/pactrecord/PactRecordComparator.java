@@ -17,16 +17,16 @@ package eu.stratosphere.pact.runtime.plugable.pactrecord;
 
 import java.io.IOException;
 
-import eu.stratosphere.nephele.services.memorymanager.DataInputView;
-import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
-import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.KeyFieldOutOfBoundsException;
-import eu.stratosphere.pact.common.type.NormalizableKey;
-import eu.stratosphere.pact.common.type.NullKeyFieldException;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.util.InstantiationUtil;
-import eu.stratosphere.pact.generic.types.TypeComparator;
+import eu.stratosphere.api.typeutils.TypeComparator;
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
+import eu.stratosphere.core.memory.MemorySegment;
+import eu.stratosphere.types.Key;
+import eu.stratosphere.types.KeyFieldOutOfBoundsException;
+import eu.stratosphere.types.NormalizableKey;
+import eu.stratosphere.types.NullKeyFieldException;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.util.InstantiationUtil;
 
 
 /**

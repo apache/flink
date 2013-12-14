@@ -17,9 +17,10 @@ package eu.stratosphere.pact.common.stubs;
 
 import java.util.Iterator;
 
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.generic.stub.AbstractStub;
-import eu.stratosphere.pact.generic.stub.GenericCoGrouper;
+import eu.stratosphere.api.functions.AbstractStub;
+import eu.stratosphere.api.functions.GenericCoGrouper;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.util.Collector;
 
 /**
  * The CoGroupStub must be extended to provide a co-grouper implementation which is called by a CoGroup PACT.
