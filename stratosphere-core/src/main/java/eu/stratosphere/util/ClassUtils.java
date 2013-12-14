@@ -57,9 +57,18 @@ public final class ClassUtils {
 	 * @throws ClassNotFoundException
 	 *         thrown if no class with such a name can be found
 	 */
-	public static Class<? extends IOReadableWritable> getRecordByName(final String className) throws ClassNotFoundException {
-		return Class.forName(className, true, getClassLoader()).asSubclass(IOReadableWritable.class);
-
+	@SuppressWarnings("unchecked")
+	public static Class<? extends IOReadableWritable> getRecordByName(final String className)
+			throws ClassNotFoundException {
+//		
+//		Class<?> clazz = Class.forName(className, true, getClassLoader());
+//		if (IOReadableWritable.class.isAssignableFrom(clazz)) {
+//			return clazz.asSubclass(IOReadableWritable.class);
+//		} else {
+//			return (Class<? extends IOReadableWritable>) clazz;
+//		}
+//		
+		return (Class<? extends IOReadableWritable>) Class.forName(className, true, getClassLoader());
 	}
 
 	/**

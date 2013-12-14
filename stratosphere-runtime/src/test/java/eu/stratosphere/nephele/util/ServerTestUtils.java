@@ -39,8 +39,6 @@ import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
 
 /**
  * This class contains a selection of utility functions which are used for testing the nephele-server module.
- * 
- * @author warneke
  */
 public final class ServerTestUtils {
 
@@ -52,7 +50,7 @@ public final class ServerTestUtils {
 	/**
 	 * The directory containing the correct configuration file to be used during the tests.
 	 */
-	private static final String CORRECT_CONF_DIR = "/correct-conf";
+	private static final String CORRECT_CONF_DIR = "/confs/jobmanager";
 
 	/**
 	 * The directory the configuration directory is expected in when test are executed using Eclipse.
