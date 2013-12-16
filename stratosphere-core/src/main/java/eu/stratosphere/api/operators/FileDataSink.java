@@ -201,7 +201,7 @@ public class FileDataSink extends GenericDataSink
 	}
 	
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.contract.GenericDataSink#toString()
+	 * @see eu.stratosphere.api.operators.GenericDataSink#toString()
 	 */
 	@Override
 	public String toString() {
