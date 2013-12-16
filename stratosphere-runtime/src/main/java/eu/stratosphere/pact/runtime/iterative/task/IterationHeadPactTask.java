@@ -228,6 +228,7 @@ public class IterationHeadPactTask<X, Y, S extends Stub, OT> extends AbstractIte
 		MutableHashTable<X, ?> solutionSet = null; // if workset iteration
 
 		boolean waitForSolutionSetUpdate = config.getWaitForSolutionSetUpdate();
+		boolean isWorksetIteration = config.getIsWorksetIteration();
 
 		try {
 			/* used for receiving the current iteration result from iteration tail */
