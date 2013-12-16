@@ -1,11 +1,11 @@
 package eu.stratosphere.example.record.incremental.pagerank;
 
-import eu.stratosphere.api.record.io.TextInputFormat;
+import eu.stratosphere.api.record.io.DelimitedInputFormat;
 import eu.stratosphere.types.PactRecord;
 import eu.stratosphere.types.PactDouble;
 import eu.stratosphere.types.PactLong;
 
-public class InitialRankInputFormat extends TextInputFormat {
+public class InitialRankInputFormat extends DelimitedInputFormat {
 	
 	private static final long serialVersionUID = 1L;
 	

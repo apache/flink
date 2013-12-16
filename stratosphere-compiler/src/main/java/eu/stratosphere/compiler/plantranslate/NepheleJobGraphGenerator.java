@@ -1237,7 +1237,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		// --------------------------- create the sync task ---------------------------
 		final TaskConfig syncConfig;
 		{
-			final JobOutputVertex sync = new JobOutputVertex("Sync(" +
+			final JobOutputVertex sync = new JobOutputVertex("Sync (" +
 						iterNode.getNodeName() + ")", this.jobGraph);
 			sync.setOutputClass(IterationSynchronizationSinkTask.class);
 			sync.setNumberOfSubtasks(1);
