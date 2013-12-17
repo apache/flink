@@ -52,7 +52,6 @@ public abstract class FileSystem {
 	 * An auxiliary class to identify a file system by its scheme
 	 * and its authority.
 	 * 
-	 * @author warneke
 	 */
 	public static class FSKey {
 

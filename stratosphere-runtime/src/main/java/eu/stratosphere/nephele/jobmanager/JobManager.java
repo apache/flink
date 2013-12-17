@@ -138,7 +138,6 @@ import eu.stratosphere.util.StringUtils;
  * Task managers can discover the job manager by means of an UDP broadcast and afterwards advertise
  * themselves as new workers for tasks.
  * 
- * @author warneke
  */
 public class JobManager implements DeploymentManager, ExtendedManagementProtocol, InputSplitProviderProtocol,
 		JobManagerProtocol, ChannelLookupProtocol, JobStatusListener, AccumulatorProtocol {

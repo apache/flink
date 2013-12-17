@@ -73,9 +73,11 @@ taskmanager.network.bufferSizeInBytes: 32768
 #                                                      CLIENTS
 #=======================================================================================================================
 
-# Configuration used when writing into HDFS. Unless specified, HDFS file creation will use HDFS default settings with
-# respect to block-size, replication factor, etc.
-# fs.hdfs.hdfsdefault: /path/to/hadoop/conf/hdfs-site.xml
+# Specify the path to the Hadoop configuration. 
+# The Configuration is used when writing into HDFS. Unless specified, HDFS file creation will use HDFS default settings with
+# respect to block-size, replication factor, etc. 
+# (If the hdfs-site.xml file is in another location, specify it using fs.hdfs.hdfsdefault: /path/to/hadoop/conf/hdfs-site.xml)
+# fs.hdfs.hadoopconf: /path/to/hadoop/conf/
 
 #=======================================================================================================================
 #                                                    PARALLELISM

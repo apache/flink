@@ -58,6 +58,15 @@ function analyzeTime(json, stacked) {
 		$("#run").html(convertTime(job[job.status] - job.SCHEDULED));
 		$("#status").html(job.status);
 		$("#jobtitle").html(job.jobname);
+		// create accumulators table
+		if($.isArray(job.accumulators)  && job.accumulators.length > 0) {
+			accuTable = "<table><tr><td><b>Name</b></td><td><b>Value</b></td></tr>";
+			$.each(job.accumulators, function(i, accu) {
+				accuTable += "<tr><td>"+accu.name+"</td><td>"+accu.value+"</td></tr>";
+			});
+			accuTable += "</table>";
+			$("#accumulators").html(accuTable);
+		}
 
 		var data = new google.visualization.DataTable();
 		data.addColumn('datetime', 'start');

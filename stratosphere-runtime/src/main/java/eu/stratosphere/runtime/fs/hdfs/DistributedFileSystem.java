@@ -13,6 +13,7 @@
 
 package eu.stratosphere.runtime.fs.hdfs;
 
+import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.URI;
@@ -21,6 +22,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 
+import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.configuration.GlobalConfiguration;
 import eu.stratosphere.core.fs.BlockLocation;
 import eu.stratosphere.core.fs.FSDataInputStream;
@@ -36,20 +38,17 @@ import eu.stratosphere.util.StringUtils;
  */
 public final class DistributedFileSystem extends FileSystem {
 	
-	private static final String HDFS_IMPLEMENTATION_KEY = "fs.hdfs.impl";
-
 	private static final Log LOG = LogFactory.getLog(DistributedFileSystem.class);
-	
-	
-	private static final String HDFS_DEFAULT_CONFIG = "fs.hdfs.hdfsdefault";
-	
-	private static final String HDFS_SITE_CONFIG = "fs.hdfs.hdfssite";
-
 
 	private final Configuration conf;
 
-	private final org.apache.hadoop.fs.FileSystem fs;
-
+	private org.apache.hadoop.fs.FileSystem fs;
+	
+	/**
+	 * Configuration value name for the DFS implementation name. Usually
+	 * not specified in hadoop configurations.
+	 */
+	public static final String HDFS_IMPLEMENTATION_KEY = "fs.hdfs.impl";
 
 	/**
 	 * Creates a new DistributedFileSystem object to access HDFS
@@ -62,19 +61,51 @@ public final class DistributedFileSystem extends FileSystem {
 		// Create new Hadoop configuration object
 		this.conf = new Configuration();
 
+		// We need to load both core-site.xml and hdfs-site.xml to determine the default fs path and
+		// the hdfs configuration
 		// Try to load HDFS configuration from Hadoop's own configuration files
-		final String hdfsDefaultPath = GlobalConfiguration.getString(HDFS_DEFAULT_CONFIG, null);
+		// 1. approach: Stratosphere configuration
+		final String hdfsDefaultPath = GlobalConfiguration.getString(ConfigConstants.HDFS_DEFAULT_CONFIG, null);
 		if (hdfsDefaultPath != null) {
 			this.conf.addResource(new org.apache.hadoop.fs.Path(hdfsDefaultPath));
 		} else {
 			LOG.debug("Cannot find hdfs-default configuration file");
 		}
 
-		final String hdfsSitePath = GlobalConfiguration.getString(HDFS_SITE_CONFIG, null);
+		final String hdfsSitePath = GlobalConfiguration.getString(ConfigConstants.HDFS_SITE_CONFIG, null);
 		if (hdfsSitePath != null) {
 			conf.addResource(new org.apache.hadoop.fs.Path(hdfsSitePath));
 		} else {
 			LOG.debug("Cannot find hdfs-site configuration file");
+		}
+		
+		// 2. Approach environment variables
+		String[] possibleHadoopConfPaths = new String[4]; 
+		possibleHadoopConfPaths[0] = GlobalConfiguration.getString(ConfigConstants.PATH_HADOOP_CONFIG, null);
+		possibleHadoopConfPaths[1] = System.getenv("HADOOP_CONF_DIR");
+		if(System.getenv("HADOOP_HOME") != null) {
+			possibleHadoopConfPaths[2] = System.getenv("HADOOP_HOME")+"/conf";
+			possibleHadoopConfPaths[3] = System.getenv("HADOOP_HOME")+"/etc/hadoop"; // hadoop 2.2
+		}
+		for(int i = 0; i < possibleHadoopConfPaths.length; i++) {
+			if(possibleHadoopConfPaths[i] == null) {
+				continue;
+			}
+			if(new File(possibleHadoopConfPaths[i]).exists()) {
+				if(new File(possibleHadoopConfPaths[i]+"/core-site.xml").exists()) {
+					conf.addResource(new org.apache.hadoop.fs.Path(possibleHadoopConfPaths[i]+"/core-site.xml"));
+					LOG.debug("Adding "+possibleHadoopConfPaths[i]+"/core-site.xml to hadoop configuration");
+				}
+				if(new File(possibleHadoopConfPaths[i]+"/hdfs-site.xml").exists()) {
+					conf.addResource(new org.apache.hadoop.fs.Path(possibleHadoopConfPaths[i]+"/hdfs-site.xml"));
+					LOG.debug("Adding "+possibleHadoopConfPaths[i]+"/hdfs-site.xml to hadoop configuration");
+				}
+			}
+		}
+		
+		// 3. approach: just set some configuration values if they are still not defined
+		if(conf.get(HDFS_IMPLEMENTATION_KEY,null) == null) {
+			conf.set(HDFS_IMPLEMENTATION_KEY, "org.apache.hadoop.hdfs.DistributedFileSystem");
 		}
 
 		Class<?> clazz = null;
@@ -89,18 +120,17 @@ public final class DistributedFileSystem extends FileSystem {
 		}
 		if (clazz == null) {
 			clazz = conf.getClass(HDFS_IMPLEMENTATION_KEY, null);
-		}
-
-		if (clazz == null) {
-			throw new IOException("No FileSystem found for " + HDFS_IMPLEMENTATION_KEY);
-		}
-
-		try {
-			this.fs = (org.apache.hadoop.fs.FileSystem) clazz.newInstance();
-		} catch (InstantiationException e) {
-			throw new IOException("InstantiationException occured: " + StringUtils.stringifyException(e));
-		} catch (IllegalAccessException e) {
-			throw new IOException("IllegalAccessException occured: " + StringUtils.stringifyException(e));
+			if (clazz == null) {
+				this.fs = org.apache.hadoop.fs.FileSystem.get(conf);
+			}
+		} else {
+			try {
+				this.fs = (org.apache.hadoop.fs.FileSystem) clazz.newInstance();
+			} catch (InstantiationException e) {
+				throw new IOException("InstantiationException occured: " + StringUtils.stringifyException(e));
+			} catch (IllegalAccessException e) {
+				throw new IOException("IllegalAccessException occured: " + StringUtils.stringifyException(e));
+			}
 		}
 	}
 
@@ -121,6 +151,11 @@ public final class DistributedFileSystem extends FileSystem {
 		if (path.getAuthority() == null) {
 			
 			String configEntry = this.conf.get("fs.default.name", null);
+			if(configEntry == null) {
+				// fs.default.name depricated as of hadoop 2.2.0 http://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-common/DeprecatedProperties.html
+				configEntry = this.conf.get("fs.defaultFS", null);
+			}
+			LOG.debug("fs.defaultFS is set to "+configEntry);
 			
 			if (configEntry == null) {
 				throw new IOException(getMissingAuthorityErrorPrefix(path) + "Either no default hdfs configuration was registered, " +
@@ -164,8 +199,8 @@ public final class DistributedFileSystem extends FileSystem {
 	
 	private static final String getMissingAuthorityErrorPrefix(URI path) {
 		return "The given HDFS file URI (" + path.toString() + ") did not describe the HDFS Namenode." +
-				" The attempt to use a default HDFS configuration, as specified in the '" + HDFS_DEFAULT_CONFIG + "' or '" + 
-				HDFS_SITE_CONFIG + "' config parameter failed due to the following problem: ";
+				" The attempt to use a default HDFS configuration, as specified in the '" + ConfigConstants.HDFS_DEFAULT_CONFIG + "' or '" + 
+				ConfigConstants.HDFS_SITE_CONFIG + "' config parameter failed due to the following problem: ";
 	}
 
 

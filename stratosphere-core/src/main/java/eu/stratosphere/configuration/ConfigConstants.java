@@ -123,7 +123,27 @@ public final class ConfigConstants {
 	 */
 	public static final String JOBCLIENT_POLLING_INTERVAL_KEY = "jobclient.polling.interval";
 	
+
+		
+	// ------------------------ Hadoop Configuration ------------------------
 	
+	
+	/**
+	 * Path to hdfs-defaul.xml file
+	 */
+	public static final String HDFS_DEFAULT_CONFIG = "fs.hdfs.hdfsdefault";
+	
+	/**
+	 * Path to hdfs-site.xml file
+	 */
+	public static final String HDFS_SITE_CONFIG = "fs.hdfs.hdfssite";
+	
+	/**
+	 * Path to Hadoop configuration
+	 */
+	public static final String PATH_HADOOP_CONFIG = "fs.hdfs.hadoopconf";
+
+
 	// ---------------------------- Compiler -------------------------------
 
 	/**

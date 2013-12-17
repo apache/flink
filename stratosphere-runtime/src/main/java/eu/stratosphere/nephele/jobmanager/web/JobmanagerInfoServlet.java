@@ -18,6 +18,8 @@ import java.io.PrintWriter;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -28,6 +30,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.eclipse.jetty.io.EofException;
 
+import eu.stratosphere.api.accumulators.AccumulatorHelper;
 import eu.stratosphere.nephele.event.job.RecentJobEvent;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.jobgraph.JobID;
@@ -37,6 +40,7 @@ import eu.stratosphere.nephele.managementgraph.ManagementGraph;
 import eu.stratosphere.nephele.managementgraph.ManagementGroupVertex;
 import eu.stratosphere.nephele.managementgraph.ManagementGroupVertexID;
 import eu.stratosphere.nephele.managementgraph.ManagementVertex;
+import eu.stratosphere.nephele.services.accumulators.AccumulatorEvent;
 import eu.stratosphere.util.StringUtils;
 
 public class JobmanagerInfoServlet extends HttpServlet {
@@ -229,6 +233,20 @@ public class JobmanagerInfoServlet extends HttpServlet {
 			}
 			wrt.write("],");
 			
+			// write accumulators
+			AccumulatorEvent accumulators = jobmanager.getAccumulatorResults(jobEvent.getJobID());
+			Map<String, Object> accMap = AccumulatorHelper.toResultMap(accumulators.getAccumulators());
+			
+			wrt.write("\n\"accumulators\": [");
+			int i = 0;
+			for( Entry<String, Object> accumulator : accMap.entrySet()) {
+				wrt.write("{ \"name\": \""+accumulator.getKey()+" (" + accumulator.getValue().getClass().getName()+")\","
+						+ " \"value\": \""+accumulator.getValue().toString()+"\"}\n");
+				if(++i < accMap.size()) {
+					wrt.write(",");
+				}
+			}
+			wrt.write("],\n");
 			
 			wrt.write("\"groupverticetimes\": {");
 			first = true;
@@ -278,6 +296,7 @@ public class JobmanagerInfoServlet extends HttpServlet {
 				wrt.write("}");
 				
 			}
+			
 			wrt.write("}");
 			
 			wrt.write("}");
