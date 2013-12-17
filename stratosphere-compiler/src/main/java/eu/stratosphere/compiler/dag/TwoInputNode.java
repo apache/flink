@@ -22,15 +22,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import eu.stratosphere.api.functions.StubAnnotation.ConstantFieldsFirst;
-import eu.stratosphere.api.functions.StubAnnotation.ConstantFieldsFirstExcept;
-import eu.stratosphere.api.functions.StubAnnotation.ConstantFieldsSecond;
-import eu.stratosphere.api.functions.StubAnnotation.ConstantFieldsSecondExcept;
 import eu.stratosphere.api.operators.CompilerHints;
-import eu.stratosphere.api.operators.Contract;
-import eu.stratosphere.api.operators.DualInputContract;
+import eu.stratosphere.api.operators.Operator;
+import eu.stratosphere.api.operators.DualInputOperator;
 import eu.stratosphere.api.operators.util.FieldList;
 import eu.stratosphere.api.operators.util.FieldSet;
+import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFieldsFirst;
+import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFieldsFirstExcept;
+import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFieldsSecond;
+import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFieldsSecondExcept;
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.costs.CostEstimator;
@@ -71,7 +71,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 
 	protected PactConnection input2; // The second input edge
 	
-	// ------------- Stub Annotations
+	// ------------- Function Annotations
 	
 	protected FieldSet constant1; // set of fields that are left unchanged by the stub
 	
@@ -89,7 +89,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 	 * @param pactContract
 	 *        The PACT that the node represents.
 	 */
-	public TwoInputNode(DualInputContract<?> pactContract) {
+	public TwoInputNode(DualInputOperator<?> pactContract) {
 		super(pactContract);
 
 		int[] k1 = pactContract.getKeyColumns(0);
@@ -119,8 +119,8 @@ public abstract class TwoInputNode extends OptimizerNode {
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getPactContract()
 	 */
 	@Override
-	public DualInputContract<?> getPactContract() {
-		return (DualInputContract<?>) super.getPactContract();
+	public DualInputOperator<?> getPactContract() {
+		return (DualInputOperator<?>) super.getPactContract();
 	}
 
 	/**
@@ -172,7 +172,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#setInputs(java.util.Map)
 	 */
 	@Override
-	public void setInputs(Map<Contract, OptimizerNode> contractToNode) {
+	public void setInputs(Map<Operator, OptimizerNode> contractToNode) {
 		// see if there is a hint that dictates which shipping strategy to use for BOTH inputs
 		final Configuration conf = getPactContract().getParameters();
 		ShipStrategyType preSet1 = null;
@@ -232,10 +232,10 @@ public abstract class TwoInputNode extends OptimizerNode {
 		}
 		
 		// get the predecessors
-		DualInputContract<?> contr = (DualInputContract<?>) getPactContract();
+		DualInputOperator<?> contr = (DualInputOperator<?>) getPactContract();
 		
-		List<Contract> leftPreds = contr.getFirstInputs();
-		List<Contract> rightPreds = contr.getSecondInputs();
+		List<Operator> leftPreds = contr.getFirstInputs();
+		List<Operator> rightPreds = contr.getSecondInputs();
 		
 		OptimizerNode pred1;
 		PactConnection conn1;
@@ -663,7 +663,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 	}
 
 	// --------------------------------------------------------------------------------------------
-	//                                 Stub Annotation Handling
+	//                                 Function Annotation Handling
 	// --------------------------------------------------------------------------------------------
 	
 	/*
@@ -672,7 +672,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 	 */
 	@Override
 	protected void readConstantAnnotation() {
-		DualInputContract<?> c = (DualInputContract<?>)super.getPactContract();
+		DualInputOperator<?> c = (DualInputOperator<?>)super.getPactContract();
 		
 		// get readSet annotation from stub
 		ConstantFieldsFirst constantSet1Annotation = c.getUserCodeAnnotation(ConstantFieldsFirst.class);

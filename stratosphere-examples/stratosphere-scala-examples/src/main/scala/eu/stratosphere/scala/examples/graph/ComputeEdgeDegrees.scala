@@ -14,8 +14,8 @@
 package eu.stratosphere.scala.examples.graph
 
 import eu.stratosphere.client.LocalExecutor
-import eu.stratosphere.api.plan.PlanAssembler
-import eu.stratosphere.api.plan.PlanAssemblerDescription
+import eu.stratosphere.api.Program
+import eu.stratosphere.api.ProgramDescription
 
 import eu.stratosphere.scala._
 import eu.stratosphere.scala.operators._
@@ -36,11 +36,11 @@ object RunComputeEdgeDegrees {
 /**
  * Annotates edges with associated vertex degrees.
  */
-class ComputeEdgeDegrees extends PlanAssembler with PlanAssemblerDescription with Serializable {
+class ComputeEdgeDegrees extends Program with ProgramDescription with Serializable {
   override def getDescription() = {
     "Parameters: [numSubStasks] [input file] [output file]"
   }
-  override def getPlan(args: String*) = {
+  override def createJob(args: String*) = {
     getScalaPlan(args(0).toInt, args(1), args(2))
   }
    

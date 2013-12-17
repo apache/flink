@@ -20,7 +20,7 @@ import java.util.Iterator;
 import eu.stratosphere.util.Collector;
 
 
-public interface GenericCoGrouper<V1, V2, O> extends Stub {
+public interface GenericCoGrouper<V1, V2, O> extends Function {
 	
 	public abstract void coGroup(Iterator<V1> records1, Iterator<V2> records2, Collector<O> out) throws Exception;
 	

@@ -27,10 +27,10 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
+import eu.stratosphere.api.Job;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
-import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.api.record.functions.MapStub;
+import eu.stratosphere.api.record.functions.MapFunction;
 import eu.stratosphere.api.record.io.DelimitedInputFormat;
 import eu.stratosphere.api.record.operators.MapOperator;
 import eu.stratosphere.compiler.DataStatistics;
@@ -93,7 +93,7 @@ public class UnionSinkITCase extends TestBase {
 		getFilesystemProvider().createFile(tempDir+emptyInputFilePathPostfix+"/UnionTest_4.txt", "");
 	}
 
-	public static class TestMapper extends MapStub implements Serializable {
+	public static class TestMapper extends MapFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 		
 		private PactString keyString = new PactString();
@@ -151,7 +151,7 @@ public class UnionSinkITCase extends TestBase {
 		output.addInput(testMapper1);
 		output.addInput(testMapper2);
 		
-		Plan plan = new Plan(output);
+		Job plan = new Job(output);
 
 		PactCompiler pc = new PactCompiler(new DataStatistics());
 		OptimizedPlan op = pc.compile(plan);

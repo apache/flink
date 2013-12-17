@@ -19,15 +19,15 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Iterator;
 
-import eu.stratosphere.api.functions.StubAnnotation.ConstantFields;
-import eu.stratosphere.api.functions.StubAnnotation.ConstantFieldsFirstExcept;
+import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Program;
+import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
-import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.api.plan.PlanAssembler;
-import eu.stratosphere.api.plan.PlanAssemblerDescription;
-import eu.stratosphere.api.record.functions.MatchStub;
-import eu.stratosphere.api.record.functions.ReduceStub;
+import eu.stratosphere.api.record.functions.JoinFunction;
+import eu.stratosphere.api.record.functions.ReduceFunction;
+import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFields;
+import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFieldsFirstExcept;
 import eu.stratosphere.api.record.io.CsvOutputFormat;
 import eu.stratosphere.api.record.io.DelimitedInputFormat;
 import eu.stratosphere.api.record.operators.JoinOperator;
@@ -48,7 +48,7 @@ import eu.stratosphere.util.Collector;
  * The algorithm was published as MapReduce job by J. Cohen in "Graph Twiddling in a MapReduce World".
  * The Pact version was described in "MapReduce and PACT - Comparing Data Parallel Programming Models" (BTW 2011).
  */
-public class EnumTrianglesRdfFoaf implements PlanAssembler, PlanAssemblerDescription {
+public class EnumTrianglesRdfFoaf implements Program, ProgramDescription {
 
 	/**
 	 * Reads RDF triples and filters on the foaf:knows RDF predicate.
@@ -148,7 +148,7 @@ public class EnumTrianglesRdfFoaf implements PlanAssembler, PlanAssemblerDescrip
 	 * The common vertex is 
 	 */
 	@ConstantFields(0)
-	public static class BuildTriads extends ReduceStub implements Serializable {
+	public static class BuildTriads extends ReduceFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 		
 		// list of non-matching vertices
@@ -224,7 +224,7 @@ public class EnumTrianglesRdfFoaf implements PlanAssembler, PlanAssemblerDescrip
 	 * If the missing edge for a triad is found, the triad is transformed to a triangle by adding the missing edge.
 	 */
 	@ConstantFieldsFirstExcept({})
-	public static class CloseTriads extends MatchStub implements Serializable {
+	public static class CloseTriads extends JoinFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -238,7 +238,7 @@ public class EnumTrianglesRdfFoaf implements PlanAssembler, PlanAssemblerDescrip
 	 * Assembles the Plan of the triangle enumeration example Pact program.
 	 */
 	@Override
-	public Plan getPlan(String... args) {
+	public Job createJob(String... args) {
 
 		// parse job parameters
 		int numSubTasks   = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
@@ -272,7 +272,7 @@ public class EnumTrianglesRdfFoaf implements PlanAssembler, PlanAssemblerDescrip
 		closeTriads.setFirstInput(buildTriads);
 		buildTriads.setInput(edges);
 
-		Plan plan = new Plan(triangles, "Enumerate Triangles");
+		Job plan = new Job(triangles, "Enumerate Triangles");
 		plan.setDefaultParallelism(numSubTasks);
 		return plan;
 	}

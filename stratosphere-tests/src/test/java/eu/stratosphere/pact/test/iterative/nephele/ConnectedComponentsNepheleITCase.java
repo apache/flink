@@ -17,7 +17,7 @@ package eu.stratosphere.pact.test.iterative.nephele;
 
 import eu.stratosphere.api.functions.aggregators.LongSumAggregator;
 import eu.stratosphere.api.operators.util.UserCodeClassWrapper;
-import eu.stratosphere.api.record.functions.MapStub;
+import eu.stratosphere.api.record.functions.MapFunction;
 import eu.stratosphere.api.record.io.CsvInputFormat;
 import eu.stratosphere.api.record.io.CsvOutputFormat;
 import eu.stratosphere.api.record.io.FileOutputFormat;
@@ -219,7 +219,7 @@ public class ConnectedComponentsNepheleITCase extends TestBase2 {
         }
     }
 
-    public static final class IdDuplicator extends MapStub {
+    public static final class IdDuplicator extends MapFunction {
 
         @Override
         public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
@@ -910,7 +910,7 @@ public class ConnectedComponentsNepheleITCase extends TestBase2 {
         return jobGraph;
     }
 
-    public static final class DummyMapper extends MapStub {
+    public static final class DummyMapper extends MapFunction {
         @Override
         public void map(PactRecord rec, Collector<PactRecord> out) {
             out.collect(rec);

@@ -31,9 +31,9 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 
-import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.api.plan.PlanAssembler;
-import eu.stratosphere.api.plan.PlanAssemblerDescription;
+import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Program;
+import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.dag.DataSinkNode;
 
@@ -47,7 +47,7 @@ public class PackagedProgram {
 	/**
 	 * Property name of the pact assembler definition in the JAR manifest file.
 	 */
-	public static final String MANIFEST_ATTRIBUTE_ASSEMBLER_CLASS = "Pact-Assembler-Class";
+	public static final String MANIFEST_ATTRIBUTE_ASSEMBLER_CLASS = "program-class";
 
 	// --------------------------------------------------------------------------------------------
 
@@ -55,13 +55,13 @@ public class PackagedProgram {
 
 	private final String[] args;
 	
-	private final PlanAssembler planAssembler;
+	private final Program planAssembler;
 	
 	private List<File> extractedTempLibraries;
 	
 	private ClassLoader userCodeClassLoader;
 	
-	private Plan plan;
+	private Job plan;
 
 	/**
 	 * Creates an instance that wraps the plan defined in the jar file using the given
@@ -69,12 +69,12 @@ public class PackagedProgram {
 	 * 
 	 * @param jarFile
 	 *        The jar file which contains the plan and a Manifest which defines
-	 *        the Pact-Assembler-Class
+	 *        the program-class
 	 * @param args
 	 *        Optional. The arguments used to create the pact plan, depend on
 	 *        implementation of the pact plan. See getDescription().
 	 * @throws ProgramInvocationException
-	 *         This invocation is thrown if the PlanAssembler can't be properly loaded. Causes
+	 *         This invocation is thrown if the Program can't be properly loaded. Causes
 	 *         may be a missing / wrong class or manifest files.
 	 */
 	public PackagedProgram(File jarFile, String... args) throws ProgramInvocationException {
@@ -86,7 +86,7 @@ public class PackagedProgram {
 		this.extractedTempLibraries = extractContainedLibaries(jarFile);
 		this.userCodeClassLoader = buildUserCodeClassLoader(jarFile, extractedTempLibraries, getClass().getClassLoader());
 		
-		Class<? extends PlanAssembler> assemblerClass = getPactAssemblerFromJar(jarFile, userCodeClassLoader);
+		Class<? extends Program> assemblerClass = getPactAssemblerFromJar(jarFile, userCodeClassLoader);
 		this.planAssembler = instantiateAssemblerFromClass(assemblerClass);
 	}
 
@@ -104,7 +104,7 @@ public class PackagedProgram {
 	 *        Optional. The arguments used to create the pact plan, depend on
 	 *        implementation of the pact plan. See getDescription().
 	 * @throws ProgramInvocationException
-	 *         This invocation is thrown if the PlanAssembler can't be properly loaded. Causes
+	 *         This invocation is thrown if the Program can't be properly loaded. Causes
 	 *         may be a missing / wrong class or manifest files.
 	 */
 	public PackagedProgram(File jarFile, String className, String... args) throws ProgramInvocationException {
@@ -116,7 +116,7 @@ public class PackagedProgram {
 		this.extractedTempLibraries = extractContainedLibaries(jarFile);
 		this.userCodeClassLoader = buildUserCodeClassLoader(jarFile, extractedTempLibraries, getClass().getClassLoader());
 		
-		Class<? extends PlanAssembler> assemblerClass = getPactAssemblerFromJar(jarFile, className, userCodeClassLoader);
+		Class<? extends Program> assemblerClass = getPactAssemblerFromJar(jarFile, className, userCodeClassLoader);
 		this.planAssembler = instantiateAssemblerFromClass(assemblerClass);
 	}
 	
@@ -125,16 +125,16 @@ public class PackagedProgram {
 	/**
 	 * Returns the plan with all required jars.
 	 * @throws IOException 
-	 * @throws ErrorInPlanAssemblerException 
+	 * @throws JobInstantiationException 
 	 * @throws ProgramInvocationException 
 	 */
-	public PlanWithJars getPlanWithJars() throws ProgramInvocationException, ErrorInPlanAssemblerException, IOException {
+	public JobWithJars getPlanWithJars() throws ProgramInvocationException, JobInstantiationException, IOException {
 		List<File> allJars = new ArrayList<File>();
 		
 		allJars.add(jarFile);
 		allJars.addAll(extractedTempLibraries);
 		
-		return new PlanWithJars(getPlan(), allJars, userCodeClassLoader);
+		return new JobWithJars(getPlan(), allJars, userCodeClassLoader);
 	}
 
 	/**
@@ -143,14 +143,14 @@ public class PackagedProgram {
 	 * @return
 	 *         the analyzed plan without any optimizations.
 	 * @throws ProgramInvocationException
-	 *         This invocation is thrown if the PlanAssembler can't be properly loaded. Causes
+	 *         This invocation is thrown if the Program can't be properly loaded. Causes
 	 *         may be a missing / wrong class or manifest files.
-	 * @throws ErrorInPlanAssemblerException
+	 * @throws JobInstantiationException
 	 *         Thrown if an error occurred in the user-provided pact assembler. This may indicate
 	 *         missing parameters for generation.
 	 */
-	public List<DataSinkNode> getPreviewPlan() throws ProgramInvocationException, ErrorInPlanAssemblerException {
-		Plan plan = getPlan();
+	public List<DataSinkNode> getPreviewPlan() throws ProgramInvocationException, JobInstantiationException {
+		Job plan = getPlan();
 		if (plan != null) {
 			return PactCompiler.createPreOptimizedPlan(plan);
 		} else {
@@ -159,21 +159,21 @@ public class PackagedProgram {
 	}
 
 	/**
-	 * Returns the description provided by the PlanAssembler class. This
+	 * Returns the description provided by the Program class. This
 	 * may contain a description of the plan itself and its arguments.
 	 * 
 	 * @return The description of the PactProgram's input parameters.
 	 * @throws ProgramInvocationException
-	 *         This invocation is thrown if the PlanAssembler can't be properly loaded. Causes
+	 *         This invocation is thrown if the Program can't be properly loaded. Causes
 	 *         may be a missing / wrong class or manifest files.
-	 * @throws ErrorInPlanAssemblerException
+	 * @throws JobInstantiationException
 	 *         Thrown if an error occurred in the user-provided pact assembler. This may indicate
 	 *         missing parameters for generation.
 	 */
 	public String getDescription() throws ProgramInvocationException {
-		if (this.planAssembler instanceof PlanAssemblerDescription) {
+		if (this.planAssembler instanceof ProgramDescription) {
 			try {
-				return ((PlanAssemblerDescription) this.planAssembler).getDescription();
+				return ((ProgramDescription) this.planAssembler).getDescription();
 			}
 			catch (Throwable t) {
 				throw new ProgramInvocationException("Error while getting the program description" + 
@@ -214,13 +214,13 @@ public class PackagedProgram {
 	 * @return
 	 *         the generated plan
 	 * @throws ProgramInvocationException
-	 *         This invocation is thrown if the PlanAssembler can't be properly loaded. Causes
+	 *         This invocation is thrown if the Program can't be properly loaded. Causes
 	 *         may be a missing / wrong class or manifest files.
-	 * @throws ErrorInPlanAssemblerException
+	 * @throws JobInstantiationException
 	 *         Thrown if an error occurred in the user-provided pact assembler. This may indicate
 	 *         missing parameters for generation.
 	 */
-	private Plan getPlan() throws ProgramInvocationException, ErrorInPlanAssemblerException {
+	private Job getPlan() throws ProgramInvocationException, JobInstantiationException {
 		if (this.plan == null) {
 			this.plan = createPlanFromProgram(this.planAssembler, this.args);
 		}
@@ -228,7 +228,7 @@ public class PackagedProgram {
 		return this.plan;
 	}
 
-	private static Class<? extends PlanAssembler> getPactAssemblerFromJar(File jarFile, ClassLoader cl)
+	private static Class<? extends Program> getPactAssemblerFromJar(File jarFile, ClassLoader cl)
 			throws ProgramInvocationException
 	{
 		JarFile jar = null;
@@ -271,11 +271,11 @@ public class PackagedProgram {
 		return getPactAssemblerFromJar(jarFile, className, cl);
 	}
 
-	private static Class<? extends PlanAssembler> getPactAssemblerFromJar(File jarFile, String className, ClassLoader cl)
+	private static Class<? extends Program> getPactAssemblerFromJar(File jarFile, String className, ClassLoader cl)
 			throws ProgramInvocationException
 	{
 		try {
-			return Class.forName(className, true, cl).asSubclass(PlanAssembler.class);
+			return Class.forName(className, true, cl).asSubclass(Program.class);
 		}
 		catch (ClassNotFoundException e) {
 			throw new ProgramInvocationException("The pact plan assembler class '" + className
@@ -283,7 +283,7 @@ public class PackagedProgram {
 		}
 		catch (ClassCastException e) {
 			throw new ProgramInvocationException("The pact plan assembler class '" + className
-				+ "' cannot be cast to PlanAssembler.", e);
+				+ "' cannot be cast to Program.", e);
 		}
 		catch (Throwable t) {
 			throw new ProgramInvocationException("An unknown problem ocurred during the instantiation of the "
@@ -306,16 +306,16 @@ public class PackagedProgram {
 	 * @throws ProgramInvocationException
 	 *         Thrown, if the jar file or its manifest could not be accessed, or if the assembler
 	 *         class was not found or could not be instantiated.
-	 * @throws ErrorInPlanAssemblerException
+	 * @throws JobInstantiationException
 	 *         Thrown, if an error occurred in the user-provided pact assembler.
 	 */
-	private static Plan createPlanFromProgram(PlanAssembler assembler, String[] options)
-			throws ProgramInvocationException, ErrorInPlanAssemblerException
+	private static Job createPlanFromProgram(Program assembler, String[] options)
+			throws ProgramInvocationException, JobInstantiationException
 	{
 		try {
-			return assembler.getPlan(options);
+			return assembler.createJob(options);
 		} catch (Throwable t) {
-			throw new ErrorInPlanAssemblerException("Error while creating plan: " + t, t);
+			throw new JobInstantiationException("Error while creating plan: " + t, t);
 		}
 	}
 	
@@ -329,7 +329,7 @@ public class PackagedProgram {
 	 * @throws ProgramInvocationException
 	 *         is thrown if class can't be found or instantiated
 	 */
-	private static PlanAssembler instantiateAssemblerFromClass(Class<? extends PlanAssembler> clazz)
+	private static Program instantiateAssemblerFromClass(Class<? extends Program> clazz)
 			throws ProgramInvocationException
 	{
 		try {
@@ -455,12 +455,12 @@ public class PackagedProgram {
 		allJars.add(mainJar);
 		allJars.addAll(nestedJars);
 		
-		return PlanWithJars.buildUserCodeClassLoader(allJars, parent);
+		return JobWithJars.buildUserCodeClassLoader(allJars, parent);
 	}
 	
 	private static void checkJarFile(File jarfile) throws ProgramInvocationException {
 		try {
-			PlanWithJars.checkJarFile(jarfile);
+			JobWithJars.checkJarFile(jarfile);
 		}
 		catch (IOException e) {
 			throw new ProgramInvocationException(e.getMessage());

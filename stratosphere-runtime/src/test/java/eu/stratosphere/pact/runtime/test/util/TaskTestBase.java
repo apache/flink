@@ -20,7 +20,7 @@ import java.util.List;
 import org.junit.After;
 import org.junit.Assert;
 
-import eu.stratosphere.api.functions.Stub;
+import eu.stratosphere.api.functions.Function;
 import eu.stratosphere.api.operators.util.UserCodeClassWrapper;
 import eu.stratosphere.api.operators.util.UserCodeObjectWrapper;
 import eu.stratosphere.api.record.io.DelimitedInputFormat;
@@ -76,10 +76,10 @@ public abstract class TaskTestBase {
 		return this.mockEnv.getTaskConfiguration();
 	}
 
-	public void registerTask(AbstractTask task, @SuppressWarnings("rawtypes") Class<? extends PactDriver> driver, Class<? extends Stub> stubClass) {
+	public void registerTask(AbstractTask task, @SuppressWarnings("rawtypes") Class<? extends PactDriver> driver, Class<? extends Function> stubClass) {
 		final TaskConfig config = new TaskConfig(this.mockEnv.getTaskConfiguration());
 		config.setDriver(driver);
-		config.setStubWrapper(new UserCodeClassWrapper<Stub>(stubClass));
+		config.setStubWrapper(new UserCodeClassWrapper<Function>(stubClass));
 		
 		task.setEnvironment(this.mockEnv);
 

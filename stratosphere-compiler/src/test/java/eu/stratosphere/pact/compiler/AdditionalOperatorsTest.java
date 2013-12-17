@@ -20,9 +20,9 @@ import static org.junit.Assert.fail;
 
 import org.junit.Test;
 
+import eu.stratosphere.api.Job;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
-import eu.stratosphere.api.plan.Plan;
 import eu.stratosphere.api.record.operators.CrossOperator;
 import eu.stratosphere.api.record.operators.CrossWithLargeOperator;
 import eu.stratosphere.api.record.operators.CrossWithSmallOperator;
@@ -54,7 +54,7 @@ public class AdditionalOperatorsTest extends CompilerTestBase {
 	
 		FileDataSink sink = new FileDataSink(new DummyOutputFormat(), OUT_FILE, cross, "Sink");
 		
-		Plan plan = new Plan(sink);
+		Job plan = new Job(sink);
 		plan.setDefaultParallelism(DEFAULT_PARALLELISM);
 		
 		
@@ -86,7 +86,7 @@ public class AdditionalOperatorsTest extends CompilerTestBase {
 	
 		FileDataSink sink = new FileDataSink(new DummyOutputFormat(), OUT_FILE, cross, "Sink");
 		
-		Plan plan = new Plan(sink);
+		Job plan = new Job(sink);
 		plan.setDefaultParallelism(DEFAULT_PARALLELISM);
 		
 		

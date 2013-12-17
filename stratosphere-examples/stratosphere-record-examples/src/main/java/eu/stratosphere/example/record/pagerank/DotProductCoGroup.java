@@ -1,7 +1,7 @@
 package eu.stratosphere.example.record.pagerank;
 
-import eu.stratosphere.api.functions.StubAnnotation.ConstantFieldsFirst;
-import eu.stratosphere.api.record.functions.CoGroupStub;
+import eu.stratosphere.api.record.functions.CoGroupFunction;
+import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFieldsFirst;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.example.record.util.ConfigUtils;
 import eu.stratosphere.types.PactBoolean;
@@ -19,7 +19,7 @@ import java.util.Iterator;
  * OUTPUT = (pageId, newRank, dangling)
  */
 @ConstantFieldsFirst(0)
-public class DotProductCoGroup extends CoGroupStub implements Serializable {
+public class DotProductCoGroup extends CoGroupFunction implements Serializable {
 	private static final long serialVersionUID = 1L;
 	
 	public static final String NUM_VERTICES_PARAMETER = "pageRank.numVertices";

@@ -27,9 +27,9 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import eu.stratosphere.api.functions.AbstractStub;
-import eu.stratosphere.api.functions.GenericMatcher;
-import eu.stratosphere.api.record.functions.MatchStub;
+import eu.stratosphere.api.functions.AbstractFunction;
+import eu.stratosphere.api.functions.GenericJoiner;
+import eu.stratosphere.api.record.functions.JoinFunction;
 import eu.stratosphere.api.typeutils.TypeComparator;
 import eu.stratosphere.api.typeutils.TypePairComparator;
 import eu.stratosphere.api.typeutils.TypeSerializer;
@@ -138,7 +138,7 @@ public class HashMatchIteratorITCase {
 				collectRecordData(input1),
 				collectRecordData(input2));
 			
-			final MatchStub matcher = new PactRecordMatchRemovingMatcher(expectedMatchesMap);
+			final JoinFunction matcher = new PactRecordMatchRemovingMatcher(expectedMatchesMap);
 			final Collector<PactRecord> collector = new DiscardingOutputCollector();
 	
 			// reset the generators
@@ -231,7 +231,7 @@ public class HashMatchIteratorITCase {
 			input1 = new UnionIterator<PactRecord>(inList1);
 			input2 = new UnionIterator<PactRecord>(inList2);
 			
-			final MatchStub matcher = new PactRecordMatchRemovingMatcher(expectedMatchesMap);
+			final JoinFunction matcher = new PactRecordMatchRemovingMatcher(expectedMatchesMap);
 			final Collector<PactRecord> collector = new DiscardingOutputCollector();
 	
 			BuildFirstHashMatchIterator<PactRecord, PactRecord, PactRecord> iterator = 
@@ -273,7 +273,7 @@ public class HashMatchIteratorITCase {
 				collectRecordData(input1),
 				collectRecordData(input2));
 			
-			final MatchStub matcher = new PactRecordMatchRemovingMatcher(expectedMatchesMap);
+			final JoinFunction matcher = new PactRecordMatchRemovingMatcher(expectedMatchesMap);
 			final Collector<PactRecord> collector = new DiscardingOutputCollector();
 	
 			// reset the generators
@@ -366,7 +366,7 @@ public class HashMatchIteratorITCase {
 			input1 = new UnionIterator<PactRecord>(inList1);
 			input2 = new UnionIterator<PactRecord>(inList2);
 			
-			final MatchStub matcher = new PactRecordMatchRemovingMatcher(expectedMatchesMap);
+			final JoinFunction matcher = new PactRecordMatchRemovingMatcher(expectedMatchesMap);
 			final Collector<PactRecord> collector = new DiscardingOutputCollector();
 	
 			BuildSecondHashMatchIterator<PactRecord, PactRecord, PactRecord> iterator = 
@@ -407,7 +407,7 @@ public class HashMatchIteratorITCase {
 				collectIntPairData(input1),
 				collectRecordData(input2));
 			
-			final GenericMatcher<IntPair, PactRecord, PactRecord> matcher = new RecordIntPairMatchRemovingMatcher(expectedMatchesMap);
+			final GenericJoiner<IntPair, PactRecord, PactRecord> matcher = new RecordIntPairMatchRemovingMatcher(expectedMatchesMap);
 			final Collector<PactRecord> collector = new DiscardingOutputCollector();
 	
 			// reset the generators
@@ -453,7 +453,7 @@ public class HashMatchIteratorITCase {
 				collectIntPairData(input1),
 				collectRecordData(input2));
 			
-			final GenericMatcher<IntPair, PactRecord, PactRecord> matcher = new RecordIntPairMatchRemovingMatcher(expectedMatchesMap);
+			final GenericJoiner<IntPair, PactRecord, PactRecord> matcher = new RecordIntPairMatchRemovingMatcher(expectedMatchesMap);
 			final Collector<PactRecord> collector = new DiscardingOutputCollector();
 	
 			// reset the generators
@@ -657,7 +657,7 @@ public class HashMatchIteratorITCase {
 		}
 	}
 	
-	static final class PactRecordMatchRemovingMatcher extends MatchStub
+	static final class PactRecordMatchRemovingMatcher extends JoinFunction
 	{
 		private final Map<TestData.Key, Collection<RecordMatch>> toRemoveFrom;
 		
@@ -686,7 +686,7 @@ public class HashMatchIteratorITCase {
 		}
 	}
 	
-	static final class RecordIntPairMatchRemovingMatcher extends AbstractStub implements GenericMatcher<IntPair, PactRecord, PactRecord>
+	static final class RecordIntPairMatchRemovingMatcher extends AbstractFunction implements GenericJoiner<IntPair, PactRecord, PactRecord>
 	{
 		private final Map<TestData.Key, Collection<RecordIntPairMatch>> toRemoveFrom;
 		

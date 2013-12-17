@@ -24,15 +24,15 @@ import java.util.Map;
 import java.util.Set;
 import java.util.StringTokenizer;
 
-import eu.stratosphere.api.functions.StubAnnotation.ConstantFieldsFirst;
-import eu.stratosphere.api.functions.StubAnnotation.ConstantFieldsSecond;
+import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Program;
+import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
-import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.api.plan.PlanAssembler;
-import eu.stratosphere.api.plan.PlanAssemblerDescription;
-import eu.stratosphere.api.record.functions.CoGroupStub;
-import eu.stratosphere.api.record.functions.MatchStub;
+import eu.stratosphere.api.record.functions.CoGroupFunction;
+import eu.stratosphere.api.record.functions.JoinFunction;
+import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFieldsFirst;
+import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFieldsSecond;
 import eu.stratosphere.api.record.io.DelimitedInputFormat;
 import eu.stratosphere.api.record.io.FileOutputFormat;
 import eu.stratosphere.api.record.operators.CoGroupOperator;
@@ -59,7 +59,7 @@ import eu.stratosphere.util.Collector;
  * @author Moritz Kaufmann (moritz.kaufmann@campus.tu-berlin.de)
  *
  */
-public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
+public class PairwiseSP implements Program, ProgramDescription {
 
 	/**
 	 * Reads RDF triples and filters on the foaf:knows RDF predicate. The triples elements must be separated by whitespaces.
@@ -205,7 +205,7 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 	 */
 	@ConstantFieldsFirst(1)
 	@ConstantFieldsSecond(0)
-	public static class ConcatPaths extends MatchStub implements Serializable {
+	public static class ConcatPaths extends JoinFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 
 		private final PactRecord outputRecord = new PactRecord();
@@ -268,7 +268,7 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 	 */
 	@ConstantFieldsFirst({0,1})
 	@ConstantFieldsSecond({0,1})
-	public static class FindShortestPath extends CoGroupStub implements Serializable {
+	public static class FindShortestPath extends CoGroupFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 
 		private final PactRecord outputRecord = new PactRecord();
@@ -378,7 +378,7 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 	 *
 	 */
 	@Override
-	public Plan getPlan(String... args) {
+	public Job createJob(String... args) {
 
 		// parse job parameters
 		int numSubTasks   = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
@@ -418,7 +418,7 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 		concatPaths.addFirstInput(pathsInput);
 		concatPaths.addSecondInput(pathsInput);
 
-		return new Plan(result, "Pairwise Shortest Paths");
+		return new Job(result, "Pairwise Shortest Paths");
 
 	}
 

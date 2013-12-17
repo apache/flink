@@ -17,8 +17,8 @@ package eu.stratosphere.example.record.kmeans.udfs;
 import java.io.Serializable;
 import java.util.Iterator;
 
-import eu.stratosphere.api.functions.StubAnnotation.ConstantFields;
-import eu.stratosphere.api.record.functions.ReduceStub;
+import eu.stratosphere.api.record.functions.ReduceFunction;
+import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFields;
 import eu.stratosphere.api.record.operators.ReduceOperator.Combinable;
 import eu.stratosphere.types.PactInteger;
 import eu.stratosphere.types.PactRecord;
@@ -35,7 +35,7 @@ import eu.stratosphere.util.Collector;
  */
 @Combinable
 @ConstantFields(0)
-public class RecomputeClusterCenter extends ReduceStub implements Serializable {
+public class RecomputeClusterCenter extends ReduceFunction implements Serializable {
 	private static final long serialVersionUID = 1L;
 	
 	private final PactInteger count = new PactInteger();

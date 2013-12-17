@@ -18,15 +18,15 @@ package eu.stratosphere.example.record.sort;
 import java.io.Serializable;
 import java.util.Iterator;
 
-import eu.stratosphere.api.functions.StubAnnotation.ConstantFieldsExcept;
+import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Program;
+import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.operators.Order;
 import eu.stratosphere.api.operators.Ordering;
-import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.api.plan.PlanAssembler;
-import eu.stratosphere.api.plan.PlanAssemblerDescription;
-import eu.stratosphere.api.record.functions.ReduceStub;
+import eu.stratosphere.api.record.functions.ReduceFunction;
+import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFieldsExcept;
 import eu.stratosphere.api.record.io.CsvInputFormat;
 import eu.stratosphere.api.record.io.CsvOutputFormat;
 import eu.stratosphere.api.record.operators.ReduceOperator;
@@ -38,14 +38,14 @@ import eu.stratosphere.util.Collector;
  * This job shows how to define ordered input for a Reduce contract.
  * The inputs for CoGroups can be (individually) ordered as well.  
  */
-public class ReduceGroupSort implements PlanAssembler, PlanAssemblerDescription {
+public class ReduceGroupSort implements Program, ProgramDescription {
 	
 	/**
 	 * Increments the first field of the first record of the reduce group by 100 and emits it.
 	 * Then all remaining records of the group are emitted.	 *
 	 */
 	@ConstantFieldsExcept(0)
-	public static class IdentityReducer extends ReduceStub implements Serializable {
+	public static class IdentityReducer extends ReduceFunction implements Serializable {
 		
 		private static final long serialVersionUID = 1L;
 		
@@ -69,7 +69,7 @@ public class ReduceGroupSort implements PlanAssembler, PlanAssemblerDescription 
 
 
 	@Override
-	public Plan getPlan(String... args) {
+	public Job createJob(String... args) {
 		
 		// parse job parameters
 		int numSubTasks = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
@@ -96,7 +96,7 @@ public class ReduceGroupSort implements PlanAssembler, PlanAssemblerDescription 
 			.field(PactInteger.class, 0)
 			.field(PactInteger.class, 1);
 		
-		Plan plan = new Plan(out, "SecondarySort Example");
+		Job plan = new Job(out, "SecondarySort Example");
 		plan.setDefaultParallelism(numSubTasks);
 		return plan;
 	}

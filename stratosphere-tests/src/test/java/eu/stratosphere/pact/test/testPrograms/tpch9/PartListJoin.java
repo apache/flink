@@ -16,13 +16,13 @@
 package eu.stratosphere.pact.test.testPrograms.tpch9;
 
 
-import eu.stratosphere.api.record.functions.MatchStub;
+import eu.stratosphere.api.record.functions.JoinFunction;
 import eu.stratosphere.types.PactInteger;
 import eu.stratosphere.types.PactRecord;
 import eu.stratosphere.types.PactString;
 import eu.stratosphere.util.Collector;
 
-public class PartListJoin extends MatchStub{
+public class PartListJoin extends JoinFunction{
 
 	private final StringIntPair amountYearPair = new StringIntPair();
 	private final PactString nationName = new PactString();

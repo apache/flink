@@ -22,7 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import eu.stratosphere.api.operators.Contract;
+import eu.stratosphere.api.operators.Operator;
 import eu.stratosphere.api.operators.util.FieldSet;
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.costs.Costs;
@@ -101,7 +101,7 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 	 * 
 	 * @return The pact contract this node represents in the plan.
 	 */
-	public Contract getPactContract() {
+	public Operator getPactContract() {
 		return this.template.getPactContract();
 	}
 	

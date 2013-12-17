@@ -20,12 +20,12 @@ import scala.reflect.macros.Context
 
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.util.Collector
-import eu.stratosphere.api.operators.Contract
+import eu.stratosphere.api.operators.Operator
 import eu.stratosphere.api.record.operators.MapOperator
 import eu.stratosphere.types.PactRecord
 import eu.stratosphere.types.PactInteger
 import eu.stratosphere.api.record.operators.ReduceOperator
-import eu.stratosphere.api.record.functions.{ReduceStub => JReduceStub}
+import eu.stratosphere.api.record.functions.{ReduceFunction => JReduceStub}
 
 import eu.stratosphere.scala.contracts.Annotations
 import eu.stratosphere.scala._

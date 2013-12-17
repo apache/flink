@@ -18,11 +18,11 @@ package eu.stratosphere.pact.compiler.util;
 import java.io.Serializable;
 import java.util.Iterator;
 
-import eu.stratosphere.api.record.functions.CoGroupStub;
+import eu.stratosphere.api.record.functions.CoGroupFunction;
 import eu.stratosphere.types.PactRecord;
 import eu.stratosphere.util.Collector;
 
-public class DummyCoGroupStub extends CoGroupStub implements Serializable {
+public class DummyCoGroupStub extends CoGroupFunction implements Serializable {
 	private static final long serialVersionUID = 1L;
 
 	@Override

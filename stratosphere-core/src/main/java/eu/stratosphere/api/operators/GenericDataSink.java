@@ -26,11 +26,11 @@ import eu.stratosphere.api.operators.util.UserCodeWrapper;
 import eu.stratosphere.util.Visitor;
 
 /**
- * Contract for nodes which act as data sinks, storing the data they receive somewhere instead of sending it to another
+ * Operator for nodes which act as data sinks, storing the data they receive somewhere instead of sending it to another
  * contract. The way the data is stored is handled by the {@link OutputFormat}.
  * 
  */
-public class GenericDataSink extends Contract {
+public class GenericDataSink extends Operator {
 	
 	private static String DEFAULT_NAME = "<Unnamed Generic Data Sink>";
 
@@ -38,7 +38,7 @@ public class GenericDataSink extends Contract {
 	
 	protected final UserCodeWrapper<? extends OutputFormat<?>> formatWrapper;
 
-	private List<Contract> input = new ArrayList<Contract>();
+	private List<Operator> input = new ArrayList<Operator>();
 
 	private Ordering localOrdering;
 	
@@ -78,7 +78,7 @@ public class GenericDataSink extends Contract {
 	 * @param f The {@link OutputFormat} implementation used to sink the data.
 	 * @param input The contract to use as the input.
 	 */
-	public GenericDataSink(OutputFormat<?> f, Contract input) {
+	public GenericDataSink(OutputFormat<?> f, Operator input) {
 		this(f, input, DEFAULT_NAME);
 	}
 	
@@ -89,7 +89,7 @@ public class GenericDataSink extends Contract {
 	 * @param f The {@link OutputFormat} implementation used to sink the data.
 	 * @param input The contracts to use as the input.
 	 */
-	public GenericDataSink(OutputFormat<?> f, List<Contract> input) {
+	public GenericDataSink(OutputFormat<?> f, List<Operator> input) {
 		this(f, input, DEFAULT_NAME);
 	}
 
@@ -101,7 +101,7 @@ public class GenericDataSink extends Contract {
 	 * @param input The contract to use as the input.
 	 * @param name The given name for the sink, used in plans, logs and progress messages.
 	 */
-	public GenericDataSink(OutputFormat<?> f, Contract input, String name) {
+	public GenericDataSink(OutputFormat<?> f, Operator input, String name) {
 		this(f, name);
 		addInput(input);
 	}
@@ -114,7 +114,7 @@ public class GenericDataSink extends Contract {
 	 * @param input The contracts to use as the input.
 	 * @param name The given name for the sink, used in plans, logs and progress messages.
 	 */
-	public GenericDataSink(OutputFormat<?> f, List<Contract> input, String name) {
+	public GenericDataSink(OutputFormat<?> f, List<Operator> input, String name) {
 		this(f, name);
 		addInputs(input);
 	}
@@ -149,7 +149,7 @@ public class GenericDataSink extends Contract {
 	 * @param f The {@link OutputFormat} implementation used to sink the data.
 	 * @param input The contract to use as the input.
 	 */
-	public GenericDataSink(Class<? extends OutputFormat<?>> f, Contract input) {
+	public GenericDataSink(Class<? extends OutputFormat<?>> f, Operator input) {
 		this(f, input, DEFAULT_NAME);
 	}
 	
@@ -160,7 +160,7 @@ public class GenericDataSink extends Contract {
 	 * @param f The {@link OutputFormat} implementation used to sink the data.
 	 * @param input The contracts to use as the input.
 	 */
-	public GenericDataSink(Class<? extends OutputFormat<?>> f, List<Contract> input) {
+	public GenericDataSink(Class<? extends OutputFormat<?>> f, List<Operator> input) {
 		this(f, input, DEFAULT_NAME);
 	}
 
@@ -172,7 +172,7 @@ public class GenericDataSink extends Contract {
 	 * @param input The contract to use as the input.
 	 * @param name The given name for the sink, used in plans, logs and progress messages.
 	 */
-	public GenericDataSink(Class<? extends OutputFormat<?>> f, Contract input, String name) {
+	public GenericDataSink(Class<? extends OutputFormat<?>> f, Operator input, String name) {
 		this(f, name);
 		addInput(input);
 	}
@@ -185,7 +185,7 @@ public class GenericDataSink extends Contract {
 	 * @param input The contracts to use as the input.
 	 * @param name The given name for the sink, used in plans, logs and progress messages.
 	 */
-	public GenericDataSink(Class<? extends OutputFormat<?>> f, List<Contract> input, String name) {
+	public GenericDataSink(Class<? extends OutputFormat<?>> f, List<Operator> input, String name) {
 		this(f, name);
 		addInputs(input);
 	}
@@ -197,7 +197,7 @@ public class GenericDataSink extends Contract {
 	 * 
 	 * @return the contract's input contract.
 	 */
-	public List<Contract> getInputs() {
+	public List<Operator> getInputs() {
 		return this.input;
 	}
 
@@ -206,7 +206,7 @@ public class GenericDataSink extends Contract {
 	 * 
 	 * @param input the contract's input contract
 	 */
-	public void addInput(Contract input) {
+	public void addInput(Operator input) {
 		this.input.add(input);
 	}
 
@@ -215,7 +215,7 @@ public class GenericDataSink extends Contract {
 	 * 
 	 * @param inputs The contracts will be set as input.
 	 */
-	public void addInputs(List<Contract> inputs) {
+	public void addInputs(List<Operator> inputs) {
 		this.input.addAll(inputs);
 	}
 
@@ -225,7 +225,7 @@ public class GenericDataSink extends Contract {
 	 * 
 	 * @param input	The contract will be set as input.
 	 */
-	public void setInput(Contract input) {
+	public void setInput(Operator input) {
 		this.input.clear();
 		this.input.add(input);
 	}
@@ -236,7 +236,7 @@ public class GenericDataSink extends Contract {
 	 * 
 	 * @param inputs The contracts will be set as inputs.
 	 */
-	public void setInputs(List<? extends Contract> inputs) {
+	public void setInputs(List<? extends Operator> inputs) {
 		this.input.clear();
 		this.input.addAll(inputs);
 	}
@@ -351,7 +351,7 @@ public class GenericDataSink extends Contract {
 	 * 
 	 * @return The class describing the output format.
 	 * 
-	 * @see eu.stratosphere.api.operators.Contract#getUserCodeWrapper()
+	 * @see eu.stratosphere.api.operators.Operator#getUserCodeWrapper()
 	 */
 	@Override
 	public UserCodeWrapper<? extends OutputFormat<?>> getUserCodeWrapper() {
@@ -371,10 +371,10 @@ public class GenericDataSink extends Contract {
 	 * @see eu.stratosphere.util.Visitable#accept(eu.stratosphere.util.Visitor)
 	 */
 	@Override
-	public void accept(Visitor<Contract> visitor) {
+	public void accept(Visitor<Operator> visitor) {
 		boolean descend = visitor.preVisit(this);
 		if (descend) {
-			for (Contract c : this.input) {
+			for (Operator c : this.input) {
 				c.accept(visitor);
 			}
 			visitor.postVisit(this);

@@ -22,8 +22,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.Test;
 import org.junit.Assert;
 
-import eu.stratosphere.api.functions.GenericMatcher;
-import eu.stratosphere.api.record.functions.MatchStub;
+import eu.stratosphere.api.functions.GenericJoiner;
+import eu.stratosphere.api.record.functions.JoinFunction;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparator;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordPairComparatorFactory;
 import eu.stratosphere.pact.runtime.test.util.DelayingInfinitiveInputIterator;
@@ -37,7 +37,7 @@ import eu.stratosphere.types.PactInteger;
 import eu.stratosphere.types.PactRecord;
 import eu.stratosphere.util.Collector;
 
-public class MatchTaskTest extends DriverTestBase<GenericMatcher<PactRecord, PactRecord, PactRecord>>
+public class MatchTaskTest extends DriverTestBase<GenericJoiner<PactRecord, PactRecord, PactRecord>>
 {
 	private static final long HASH_MEM = 6*1024*1024;
 	
@@ -702,7 +702,7 @@ public class MatchTaskTest extends DriverTestBase<GenericMatcher<PactRecord, Pac
 		
 		try {
 			testDriver(testTask, MockFailingMatchStub.class);
-			Assert.fail("Stub exception was not forwarded.");
+			Assert.fail("Function exception was not forwarded.");
 		} catch (ExpectedTestException etex) {
 			// good!
 		} catch (Exception e) {
@@ -732,7 +732,7 @@ public class MatchTaskTest extends DriverTestBase<GenericMatcher<PactRecord, Pac
 		
 		try {
 			testDriver(testTask, MockFailingMatchStub.class);
-			Assert.fail("Stub exception was not forwarded.");
+			Assert.fail("Function exception was not forwarded.");
 		} catch (ExpectedTestException etex) {
 			// good!
 		} catch (Exception e) {
@@ -923,7 +923,7 @@ public class MatchTaskTest extends DriverTestBase<GenericMatcher<PactRecord, Pac
 	
 	// =================================================================================================
 	
-	public static final class MockMatchStub extends MatchStub
+	public static final class MockMatchStub extends JoinFunction
 	{
 		@Override
 		public void match(PactRecord record1, PactRecord record2, Collector<PactRecord> out) throws Exception {
@@ -931,7 +931,7 @@ public class MatchTaskTest extends DriverTestBase<GenericMatcher<PactRecord, Pac
 		}
 	}
 	
-	public static final class MockFailingMatchStub extends MatchStub
+	public static final class MockFailingMatchStub extends JoinFunction
 	{
 		private int cnt = 0;
 		
@@ -945,7 +945,7 @@ public class MatchTaskTest extends DriverTestBase<GenericMatcher<PactRecord, Pac
 		}
 	}
 	
-	public static final class MockDelayingMatchStub extends MatchStub
+	public static final class MockDelayingMatchStub extends JoinFunction
 	{
 		@Override
 		public void match(PactRecord record1, PactRecord record2, Collector<PactRecord> out) {

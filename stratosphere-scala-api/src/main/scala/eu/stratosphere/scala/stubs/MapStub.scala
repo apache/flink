@@ -14,7 +14,7 @@
 package eu.stratosphere.scala.stubs
 
 import eu.stratosphere.scala.analysis.{UDTSerializer, UDT, UDF1}
-import eu.stratosphere.api.record.functions.{MapStub => JMapStub}
+import eu.stratosphere.api.record.functions.{MapFunction => JMapStub}
 import eu.stratosphere.types.PactRecord
 import eu.stratosphere.util.Collector
 

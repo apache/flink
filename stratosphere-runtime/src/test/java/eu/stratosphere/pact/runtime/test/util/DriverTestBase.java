@@ -23,7 +23,7 @@ import junit.framework.Assert;
 import org.junit.After;
 import org.junit.BeforeClass;
 
-import eu.stratosphere.api.functions.Stub;
+import eu.stratosphere.api.functions.Function;
 import eu.stratosphere.api.typeutils.TypeComparator;
 import eu.stratosphere.api.typeutils.TypeSerializer;
 import eu.stratosphere.configuration.Configuration;
@@ -42,7 +42,7 @@ import eu.stratosphere.util.Collector;
 import eu.stratosphere.util.LogUtils;
 import eu.stratosphere.util.MutableObjectIterator;
 
-public class DriverTestBase<S extends Stub> implements PactTaskContext<S, PactRecord> {
+public class DriverTestBase<S extends Function> implements PactTaskContext<S, PactRecord> {
 	
 	protected static final long DEFAULT_PER_SORT_MEM = 16 * 1024 * 1024;
 	

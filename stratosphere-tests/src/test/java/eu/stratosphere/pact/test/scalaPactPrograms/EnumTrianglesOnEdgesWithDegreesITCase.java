@@ -1,6 +1,6 @@
 package eu.stratosphere.pact.test.scalaPactPrograms;
 
-import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.api.Job;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.scala.examples.graph.EnumTrianglesOnEdgesWithDegrees;
 
@@ -11,7 +11,7 @@ public class EnumTrianglesOnEdgesWithDegreesITCase extends eu.stratosphere.pact.
 	}
 	
 	@Override
-	protected Plan getPactPlan() {
+	protected Job getPactPlan() {
 		EnumTrianglesOnEdgesWithDegrees enumTriangles = new EnumTrianglesOnEdgesWithDegrees();
 		return enumTriangles.getScalaPlan(
 				config.getInteger("EnumTrianglesTest#NumSubtasks", 4),

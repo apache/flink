@@ -17,11 +17,11 @@ package eu.stratosphere.pact.test.testPrograms.tpch9;
 
 import org.apache.log4j.Logger;
 
+import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Program;
+import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
-import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.api.plan.PlanAssembler;
-import eu.stratosphere.api.plan.PlanAssemblerDescription;
 import eu.stratosphere.api.record.operators.MapOperator;
 import eu.stratosphere.api.record.operators.JoinOperator;
 import eu.stratosphere.api.record.operators.ReduceOperator;
@@ -64,7 +64,7 @@ import eu.stratosphere.types.PactInteger;
  * @author Dennis Schneider <dschneid@informatik.hu-berlin.de>
  */
 
-public class TPCHQuery9 implements PlanAssembler, PlanAssemblerDescription {
+public class TPCHQuery9 implements Program, ProgramDescription {
 	public final String ARGUMENTS = "dop partInputPath partSuppInputPath ordersInputPath lineItemInputPath supplierInputPath nationInputPath outputPath";
 
 	private static Logger LOGGER = Logger.getLogger(TPCHQuery9.class);
@@ -80,7 +80,7 @@ public class TPCHQuery9 implements PlanAssembler, PlanAssemblerDescription {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Plan getPlan(String... args) throws IllegalArgumentException {
+	public Job createJob(String... args) throws IllegalArgumentException {
 
 		if (args.length != 8)
 		{
@@ -225,7 +225,7 @@ public class TPCHQuery9 implements PlanAssembler, PlanAssemblerDescription {
 		FileDataSink result = new FileDataSink(new StringIntPairStringDataOutFormat(), this.outputPath, "Results sink");
 		result.addInput(sumAmountAggregate);
 
-		Plan p = new Plan(result, "TPC-H query 9");
+		Job p = new Job(result, "TPC-H query 9");
 		p.setDefaultParallelism(this.degreeOfParallelism);
 		return p;
 	}

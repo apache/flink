@@ -17,7 +17,7 @@ package eu.stratosphere.pact.test.testPrograms.tpch1;
 
 import java.util.Iterator;
 
-import eu.stratosphere.api.record.functions.ReduceStub;
+import eu.stratosphere.api.record.functions.ReduceFunction;
 import eu.stratosphere.pact.test.testPrograms.util.Tuple;
 import eu.stratosphere.types.PactLong;
 import eu.stratosphere.types.PactRecord;
@@ -28,7 +28,7 @@ import eu.stratosphere.util.Collector;
  * @author Mathias Peters <mathias.peters@informatik.hu-berlin.de>
  * @author Moritz Kaufmann <moritz.kaufmann@campus.tu-berlin.de>
  */
-public class GroupByReturnFlag extends ReduceStub {
+public class GroupByReturnFlag extends ReduceFunction {
 
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.common.stub.ReduceStub#reduce(eu.stratosphere.pact.common.type.Key, java.util.Iterator, eu.stratosphere.pact.common.stub.Collector)

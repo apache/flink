@@ -18,18 +18,18 @@ package eu.stratosphere.example.record.relational;
 import java.io.Serializable;
 import java.util.Iterator;
 
-import eu.stratosphere.api.functions.StubAnnotation.ConstantFieldsExcept;
-import eu.stratosphere.api.functions.StubAnnotation.ConstantFieldsFirstExcept;
-import eu.stratosphere.api.functions.StubAnnotation.ConstantFieldsSecondExcept;
+import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Program;
+import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.operators.util.FieldSet;
-import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.api.plan.PlanAssembler;
-import eu.stratosphere.api.plan.PlanAssemblerDescription;
-import eu.stratosphere.api.record.functions.CoGroupStub;
-import eu.stratosphere.api.record.functions.MapStub;
-import eu.stratosphere.api.record.functions.MatchStub;
+import eu.stratosphere.api.record.functions.CoGroupFunction;
+import eu.stratosphere.api.record.functions.MapFunction;
+import eu.stratosphere.api.record.functions.JoinFunction;
+import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFieldsExcept;
+import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFieldsFirstExcept;
+import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFieldsSecondExcept;
 import eu.stratosphere.api.record.io.CsvInputFormat;
 import eu.stratosphere.api.record.io.CsvOutputFormat;
 import eu.stratosphere.api.record.operators.CoGroupOperator;
@@ -79,15 +79,15 @@ import eu.stratosphere.util.Collector;
  * 
  * @author Fabian Hueske
  */
-public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
+public class WebLogAnalysis implements Program, ProgramDescription
 {
 	
 	/**
-	 * MapStub that filters for documents that contain a certain set of
+	 * MapFunction that filters for documents that contain a certain set of
 	 * keywords. 
 	 */
 	@ConstantFieldsExcept(1)
-	public static class FilterDocs extends MapStub implements Serializable {
+	public static class FilterDocs extends MapFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 		
 		private static final String[] KEYWORDS = { " editors ", " oscillations ", " convection " };
@@ -119,10 +119,10 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 	}
 
 	/**
-	 * MapStub that filters for records where the rank exceeds a certain threshold.
+	 * MapFunction that filters for records where the rank exceeds a certain threshold.
 	 */
 	@ConstantFieldsExcept({})
-	public static class FilterRanks extends MapStub implements Serializable {
+	public static class FilterRanks extends MapFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 		
 		private static final int RANKFILTER = 50;
@@ -146,11 +146,11 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 	}
 
 	/**
-	 * MapStub that filters for records of the visits relation where the year
+	 * MapFunction that filters for records of the visits relation where the year
 	 * (from the date string) is equal to a certain value.
 	 */
 	@ConstantFieldsExcept(1)
-	public static class FilterVisits extends MapStub implements Serializable {
+	public static class FilterVisits extends MapFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 
 		private static final int YEARFILTER = 2010;
@@ -177,11 +177,11 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 	}
 
 	/**
-	 * MatchStub that joins the filtered entries from the documents and the
+	 * JoinFunction that joins the filtered entries from the documents and the
 	 * ranks relation.
 	 */
 	@ConstantFieldsSecondExcept({})
-	public static class JoinDocRanks extends MatchStub implements Serializable {
+	public static class JoinDocRanks extends JoinFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 
 		/**
@@ -199,12 +199,12 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 	}
 
 	/**
-	 * CoGroupStub that realizes an anti-join.
+	 * CoGroupFunction that realizes an anti-join.
 	 * If the first input does not provide any pairs, all pairs of the second input are emitted.
 	 * Otherwise, no pair is emitted.
 	 */
 	@ConstantFieldsFirstExcept({})
-	public static class AntiJoinVisits extends CoGroupStub implements Serializable {
+	public static class AntiJoinVisits extends CoGroupFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 
 		/**
@@ -232,7 +232,7 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Plan getPlan(String... args) {
+	public Job createJob(String... args) {
 
 		// parse job parameters
 		int numSubTasks     = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
@@ -332,7 +332,7 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 			.field(PactInteger.class, 2);
 
 		// Return the PACT plan
-		Plan p = new Plan(result, "Weblog Analysis");
+		Job p = new Job(result, "Weblog Analysis");
 		p.setDefaultParallelism(numSubTasks);
 		return p;
 	}

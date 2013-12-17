@@ -18,12 +18,12 @@ package eu.stratosphere.api.record.operators;
 import java.util.ArrayList;
 import java.util.List;
 
-import eu.stratosphere.api.operators.Contract;
-import eu.stratosphere.api.operators.base.GenericCrossContract;
+import eu.stratosphere.api.operators.Operator;
+import eu.stratosphere.api.operators.base.CrossOperatorBase;
 import eu.stratosphere.api.operators.util.UserCodeClassWrapper;
 import eu.stratosphere.api.operators.util.UserCodeObjectWrapper;
 import eu.stratosphere.api.operators.util.UserCodeWrapper;
-import eu.stratosphere.api.record.functions.CrossStub;
+import eu.stratosphere.api.record.functions.CrossFunction;
 import eu.stratosphere.types.Key;
 
 
@@ -32,33 +32,33 @@ import eu.stratosphere.types.Key;
  *  InputContracts are second-order functions. They have one or multiple input sets of records and a first-order
  *  user function (stub implementation).
  * <p> 
- * Cross works on two inputs and calls the first-order function of a {@link CrossStub} 
+ * Cross works on two inputs and calls the first-order function of a {@link CrossFunction} 
  * for each combination of record from both inputs (each element of the Cartesian Product) independently.
  * 
- * @see CrossStub
+ * @see CrossFunction
  */
-public class CrossOperator extends GenericCrossContract<CrossStub> implements RecordOperator {
+public class CrossOperator extends CrossOperatorBase<CrossFunction> implements RecordOperator {
 	
 	private static String DEFAULT_NAME = "<Unnamed Crosser>";
 
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * Creates a Builder with the provided {@link CrossStub} implementation.
+	 * Creates a Builder with the provided {@link CrossFunction} implementation.
 	 * 
-	 * @param udf The {@link CrossStub} implementation for this Cross contract.
+	 * @param udf The {@link CrossFunction} implementation for this Cross contract.
 	 */
-	public static Builder builder(CrossStub udf) {
-		return new Builder(new UserCodeObjectWrapper<CrossStub>(udf));
+	public static Builder builder(CrossFunction udf) {
+		return new Builder(new UserCodeObjectWrapper<CrossFunction>(udf));
 	}
 	
 	/**
-	 * Creates a Builder with the provided {@link CrossStub} implementation.
+	 * Creates a Builder with the provided {@link CrossFunction} implementation.
 	 * 
-	 * @param udf The {@link CrossStub} implementation for this Cross contract.
+	 * @param udf The {@link CrossFunction} implementation for this Cross contract.
 	 */
-	public static Builder builder(Class<? extends CrossStub> udf) {
-		return new Builder(new UserCodeClassWrapper<CrossStub>(udf));
+	public static Builder builder(Class<? extends CrossFunction> udf) {
+		return new Builder(new UserCodeClassWrapper<CrossFunction>(udf));
 	}
 	
 	/**
@@ -87,22 +87,22 @@ public class CrossOperator extends GenericCrossContract<CrossStub> implements Re
 	public static class Builder {
 		
 		/* The required parameters */
-		private final UserCodeWrapper<CrossStub> udf;
+		private final UserCodeWrapper<CrossFunction> udf;
 		
 		/* The optional parameters */
-		private List<Contract> inputs1;
-		private List<Contract> inputs2;
+		private List<Operator> inputs1;
+		private List<Operator> inputs2;
 		private String name = DEFAULT_NAME;
 		
 		/**
-		 * Creates a Builder with the provided {@link CrossStub} implementation.
+		 * Creates a Builder with the provided {@link CrossFunction} implementation.
 		 * 
-		 * @param udf The {@link CrossStub} implementation for this Cross contract.
+		 * @param udf The {@link CrossFunction} implementation for this Cross contract.
 		 */
-		protected Builder(UserCodeWrapper<CrossStub> udf) {
+		protected Builder(UserCodeWrapper<CrossFunction> udf) {
 			this.udf = udf;
-			this.inputs1 = new ArrayList<Contract>();
-			this.inputs2 = new ArrayList<Contract>();
+			this.inputs1 = new ArrayList<Operator>();
+			this.inputs2 = new ArrayList<Operator>();
 		}
 		
 		/**
@@ -110,9 +110,9 @@ public class CrossOperator extends GenericCrossContract<CrossStub> implements Re
 		 * 
 		 * @param inputs
 		 */
-		public Builder input1(Contract ...inputs) {
+		public Builder input1(Operator ...inputs) {
 			this.inputs1.clear();
-			for (Contract c : inputs) {
+			for (Operator c : inputs) {
 				this.inputs1.add(c);
 			}
 			return this;
@@ -123,9 +123,9 @@ public class CrossOperator extends GenericCrossContract<CrossStub> implements Re
 		 * 
 		 * @param inputs
 		 */
-		public Builder input2(Contract ...inputs) {
+		public Builder input2(Operator ...inputs) {
 			this.inputs2.clear();
-			for (Contract c : inputs) {
+			for (Operator c : inputs) {
 				this.inputs2.add(c);
 			}
 			return this;
@@ -136,7 +136,7 @@ public class CrossOperator extends GenericCrossContract<CrossStub> implements Re
 		 * 
 		 * @param inputs
 		 */
-		public Builder inputs1(List<Contract> inputs) {
+		public Builder inputs1(List<Operator> inputs) {
 			this.inputs1 = inputs;
 			return this;
 		}
@@ -146,7 +146,7 @@ public class CrossOperator extends GenericCrossContract<CrossStub> implements Re
 		 * 
 		 * @param inputs
 		 */
-		public Builder inputs2(List<Contract> inputs) {
+		public Builder inputs2(List<Operator> inputs) {
 			this.inputs2 = inputs;
 			return this;
 		}

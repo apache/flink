@@ -15,13 +15,13 @@
 
 package eu.stratosphere.pact.test.testPrograms.tpch9;
 
-import eu.stratosphere.api.record.functions.MapStub;
+import eu.stratosphere.api.record.functions.MapFunction;
 import eu.stratosphere.pact.test.testPrograms.util.Tuple;
 import eu.stratosphere.types.PactNull;
 import eu.stratosphere.types.PactRecord;
 import eu.stratosphere.util.Collector;
 
-public class PartFilter extends MapStub {
+public class PartFilter extends MapFunction {
 
 	private final Tuple inputTuple = new Tuple();
 	

@@ -24,7 +24,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.api.Job;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
@@ -193,7 +193,7 @@ public class TPCHQuery10ITCase extends TestBase {
 	@Override
 	protected JobGraph getJobGraph() throws Exception {
 		TPCHQuery10 tpchq10 = new TPCHQuery10();
-		Plan plan = tpchq10.getPlan(
+		Job plan = tpchq10.createJob(
 				config.getString("TPCHQuery10Test#NoSubtasks", "1"),
 				getFilesystemProvider().getURIPrefix() + ordersPath,
 				getFilesystemProvider().getURIPrefix() + lineitemsPath,

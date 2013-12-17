@@ -52,7 +52,7 @@ import eu.stratosphere.util.MutableObjectIterator;
  * determining a total order for the given set of pairs (sorting). Thereafter an iteration over the ordered set is
  * performed and each time the key changes the consecutive objects are united into a new group. Reducers have a combining feature
  * can reduce the data before it is written to disk. In order to implement a combining Reducer, the 
- * {@link eu.stratosphere.pact.common.stub.ReduceStub#combine(Key, Iterator, Collector)} method must be implemented and the ReduceStub 
+ * {@link eu.stratosphere.pact.ReduceFunction.stub.ReduceStub#combine(Key, Iterator, Collector)} method must be implemented and the ReduceFunction 
  * must be annotated with the {@link eu.stratosphere.api.record.operators.ReduceOperator.Combinable} annotation.
  * Conceptually, a merge sort with combining works as follows:
  * (1) Divide the unsorted list into n sublists of about 1/n the size. (2) Sort each sublist recursively by re-applying

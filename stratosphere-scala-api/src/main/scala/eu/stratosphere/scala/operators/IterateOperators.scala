@@ -20,16 +20,16 @@ import eu.stratosphere.scala.ScalaContract
 import eu.stratosphere.api.record.operators.MapOperator
 import eu.stratosphere.scala.analysis.UDT
 import eu.stratosphere.types.PactRecord
-import eu.stratosphere.api.record.functions.MapStub
+import eu.stratosphere.api.record.functions.MapFunction
 import eu.stratosphere.util.Collector
-import eu.stratosphere.api.operators.Contract
+import eu.stratosphere.api.operators.Operator
 import eu.stratosphere.scala.contracts.Annotations
 import eu.stratosphere.scala.analysis.UDF1
 import eu.stratosphere.scala.analysis.UDTSerializer
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.api.operators.BulkIteration
 import eu.stratosphere.scala.analysis.UDF0
-import eu.stratosphere.api.functions.AbstractStub
+import eu.stratosphere.api.functions.AbstractFunction
 import eu.stratosphere.scala.BulkIterationScalaContract
 import eu.stratosphere.scala.WorksetIterationScalaContract
 import eu.stratosphere.scala.DataSet
@@ -57,10 +57,10 @@ object IterateMacros {
           override def getUDF = udf
           
         }
-        override def getPartialSolution: Contract = inputPlaceHolder2.asInstanceOf[Contract]
+        override def getPartialSolution: Operator = inputPlaceHolder2.asInstanceOf[Operator]
       }
       
-      val partialSolution = new DataSet(contract.getPartialSolution().asInstanceOf[Contract with ScalaContract[SolutionItem]])
+      val partialSolution = new DataSet(contract.getPartialSolution().asInstanceOf[Operator with ScalaContract[SolutionItem]])
 
       val (output, term) = stepFunction.splice.apply(partialSolution)
 
@@ -95,10 +95,10 @@ object IterateMacros {
           override def getUDF = udf
           
         }
-        override def getPartialSolution: Contract = inputPlaceHolder2.asInstanceOf[Contract]
+        override def getPartialSolution: Operator = inputPlaceHolder2.asInstanceOf[Operator]
       }
       
-      val partialSolution = new DataSet(contract.getPartialSolution().asInstanceOf[Contract with ScalaContract[SolutionItem]])
+      val partialSolution = new DataSet(contract.getPartialSolution().asInstanceOf[Operator with ScalaContract[SolutionItem]])
 
       val output = stepFunction.splice.apply(partialSolution)
 
@@ -148,18 +148,18 @@ object WorksetIterateMacros {
           override def getUDF = udf
 
         }
-        override def getSolutionSet: Contract = solutionSetPlaceHolder2.asInstanceOf[Contract]
+        override def getSolutionSet: Operator = solutionSetPlaceHolder2.asInstanceOf[Operator]
         
         private val worksetPlaceHolder2 = new WorksetIteration.WorksetPlaceHolder(this) with ScalaContract[WorksetItem] with Serializable {
           val udf = new UDF0[WorksetItem](worksetUDT)
           override def getUDF = udf
 
         }
-        override def getWorkset: Contract = worksetPlaceHolder2.asInstanceOf[Contract]
+        override def getWorkset: Operator = worksetPlaceHolder2.asInstanceOf[Operator]
       }
 
-      val solutionInput = new DataSet(contract.getSolutionSet().asInstanceOf[Contract with ScalaContract[SolutionItem]])
-      val worksetInput = new DataSet(contract.getWorkset().asInstanceOf[Contract with ScalaContract[WorksetItem]])
+      val solutionInput = new DataSet(contract.getSolutionSet().asInstanceOf[Operator with ScalaContract[SolutionItem]])
+      val worksetInput = new DataSet(contract.getWorkset().asInstanceOf[Operator with ScalaContract[WorksetItem]])
 
 
       contract.setInitialSolutionSet(c.prefix.splice.contract)

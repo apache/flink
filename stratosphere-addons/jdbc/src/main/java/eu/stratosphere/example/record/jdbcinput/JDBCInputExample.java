@@ -7,9 +7,9 @@ import java.sql.Statement;
 import eu.stratosphere.api.io.jdbc.JDBCInputFormat;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.GenericDataSource;
-import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.api.plan.PlanAssembler;
-import eu.stratosphere.api.plan.PlanAssemblerDescription;
+import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Program;
+import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.record.io.CsvOutputFormat;
 import eu.stratosphere.client.LocalExecutor;
 import eu.stratosphere.nephele.client.JobExecutionResult;
@@ -24,10 +24,10 @@ import eu.stratosphere.types.PactString;
  *       See the Maven file (pom.xml) for a reference to the derby dependency. You can simply
  *       Change the scope of the Maven dependency from test to compile.
  */
-public class JDBCInputExample implements PlanAssembler, PlanAssemblerDescription {
+public class JDBCInputExample implements Program, ProgramDescription {
 
 	@Override
-	public Plan getPlan(String... args) {
+	public Job createJob(String... args) {
 		String url = args.length > 0 ? args[0] : "jdbc:derby:memory:ebookshop";
 		String query = args.length > 1 ? args[1] : "select * from books";
 		String output = args.length > 2 ? args[2] : "file:///tmp";
@@ -51,7 +51,7 @@ public class JDBCInputExample implements PlanAssembler, PlanAssemblerDescription
 			.field(PactInteger.class, 4);
 
 		sink.addInput(source);
-		return new Plan(sink, "JDBC Input Example Job");
+		return new Job(sink, "JDBC Input Example Job");
 	}
 
 	@Override

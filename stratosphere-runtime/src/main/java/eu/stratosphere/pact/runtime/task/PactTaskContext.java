@@ -15,7 +15,7 @@
 
 package eu.stratosphere.pact.runtime.task;
 
-import eu.stratosphere.api.functions.Stub;
+import eu.stratosphere.api.functions.Function;
 import eu.stratosphere.api.typeutils.TypeComparator;
 import eu.stratosphere.api.typeutils.TypeSerializer;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
@@ -34,7 +34,7 @@ import eu.stratosphere.util.MutableObjectIterator;
  *
  * @see PactDriver
  */
-public interface PactTaskContext<S extends Stub, OT>
+public interface PactTaskContext<S extends Function, OT>
 {
 	TaskConfig getTaskConfig();
 	

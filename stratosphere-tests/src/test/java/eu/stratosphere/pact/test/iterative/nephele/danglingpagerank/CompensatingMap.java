@@ -1,6 +1,6 @@
 package eu.stratosphere.pact.test.iterative.nephele.danglingpagerank;
 
-import eu.stratosphere.api.record.functions.MapStub;
+import eu.stratosphere.api.record.functions.MapFunction;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.pact.test.iterative.nephele.ConfigUtils;
 import eu.stratosphere.types.PactDouble;
@@ -10,7 +10,7 @@ import eu.stratosphere.util.Collector;
 
 import java.util.Set;
 
-public class CompensatingMap extends MapStub {
+public class CompensatingMap extends MapFunction {
 
   private int workerIndex;
   private int currentIteration;

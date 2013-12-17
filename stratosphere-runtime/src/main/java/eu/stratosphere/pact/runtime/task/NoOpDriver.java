@@ -15,7 +15,7 @@
 
 package eu.stratosphere.pact.runtime.task;
 
-import eu.stratosphere.api.functions.AbstractStub;
+import eu.stratosphere.api.functions.AbstractFunction;
 import eu.stratosphere.util.Collector;
 import eu.stratosphere.util.MutableObjectIterator;
 
@@ -24,15 +24,15 @@ import eu.stratosphere.util.MutableObjectIterator;
  * 
  * @param <T> The data type.
  */
-public class NoOpDriver<T> implements PactDriver<AbstractStub, T> {
+public class NoOpDriver<T> implements PactDriver<AbstractFunction, T> {
 	
-	private PactTaskContext<AbstractStub, T> taskContext;
+	private PactTaskContext<AbstractFunction, T> taskContext;
 	
 	private volatile boolean running;
 	
 	
 	@Override
-	public void setup(PactTaskContext<AbstractStub, T> context) {
+	public void setup(PactTaskContext<AbstractFunction, T> context) {
 		this.taskContext = context;
 		this.running = true;
 	}
@@ -43,7 +43,7 @@ public class NoOpDriver<T> implements PactDriver<AbstractStub, T> {
 	}
 	
 	@Override
-	public Class<AbstractStub> getStubType() {
+	public Class<AbstractFunction> getStubType() {
 		return null;
 	}
 

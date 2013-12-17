@@ -18,7 +18,7 @@ package eu.stratosphere.pact.test.scalaPactPrograms;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.api.Job;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
@@ -38,7 +38,7 @@ public class WebLogAnalysisITCase extends eu.stratosphere.pact.test.pactPrograms
 	protected JobGraph getJobGraph() throws Exception {
 
 		WebLogAnalysis webLogAnalysis = new WebLogAnalysis();
-		Plan plan = webLogAnalysis.getScalaPlan(
+		Job plan = webLogAnalysis.getScalaPlan(
 				Integer.parseInt(config.getString("WebLogAnalysisTest#NoSubtasks", "1")),
 				getFilesystemProvider().getURIPrefix()+docsPath, 
 				getFilesystemProvider().getURIPrefix()+ranksPath, 

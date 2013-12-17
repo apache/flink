@@ -18,9 +18,9 @@ import java.util.Iterator;
 
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
-import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.api.plan.PlanAssembler;
-import eu.stratosphere.api.plan.PlanAssemblerDescription;
+import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Program;
+import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.record.io.CsvOutputFormat;
 import eu.stratosphere.client.LocalExecutor;
 import eu.stratosphere.spargel.java.MessagingFunction;
@@ -29,14 +29,14 @@ import eu.stratosphere.spargel.java.VertexUpdateFunction;
 import eu.stratosphere.types.PactLong;
 import eu.stratosphere.types.PactNull;
 
-public class SpargelConnectedComponents implements PlanAssembler, PlanAssemblerDescription {
+public class SpargelConnectedComponents implements Program, ProgramDescription {
 	
 	public static void main(String[] args) throws Exception {
 		LocalExecutor.execute(new SpargelConnectedComponents(), args);
 	}
 	
 	@Override
-	public Plan getPlan(String... args) {
+	public Job createJob(String... args) {
 		final int dop = args.length > 0 ? Integer.parseInt(args[0]) : 1;
 		final String verticesPath = args.length > 1 ? args[1] : "";
 		final String edgesPath = args.length > 2 ? args[2] : "";
@@ -60,7 +60,7 @@ public class SpargelConnectedComponents implements PlanAssembler, PlanAssemblerD
 		iteration.setNumberOfIterations(maxIterations);
 		result.setInput(iteration.getOutput());
 
-		Plan p = new Plan(result);
+		Job p = new Job(result);
 		p.setDefaultParallelism(dop);
 		return p;
 	}

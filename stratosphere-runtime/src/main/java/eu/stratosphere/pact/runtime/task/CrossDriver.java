@@ -29,13 +29,13 @@ import eu.stratosphere.util.MutableObjectIterator;
 
 /**
  * Cross task which is executed by a Nephele task manager. The task has two
- * inputs and one or multiple outputs. It is provided with a CrossStub
+ * inputs and one or multiple outputs. It is provided with a CrossFunction
  * implementation.
  * <p>
  * The CrossTask builds the Cartesian product of the pairs of its two inputs. Each element (pair of pairs) is handed to
- * the <code>cross()</code> method of the CrossStub.
+ * the <code>cross()</code> method of the CrossFunction.
  * 
- * @see eu.stratosphere.api.record.functions.CrossStub
+ * @see eu.stratosphere.api.record.functions.CrossFunction
  * 
  * @author Stephan Ewen
  * @author Fabian Hueske

@@ -22,14 +22,14 @@ import java.lang.annotation.Target;
 import java.util.ArrayList;
 import java.util.List;
 
-import eu.stratosphere.api.operators.Contract;
+import eu.stratosphere.api.operators.Operator;
 import eu.stratosphere.api.operators.Ordering;
-import eu.stratosphere.api.operators.base.GenericCoGroupContract;
+import eu.stratosphere.api.operators.base.CoGroupOperatorBase;
 import eu.stratosphere.api.operators.util.UserCodeClassWrapper;
 import eu.stratosphere.api.operators.util.UserCodeObjectWrapper;
 import eu.stratosphere.api.operators.util.UserCodeWrapper;
-import eu.stratosphere.api.record.functions.CoGroupStub;
-import eu.stratosphere.api.record.functions.MatchStub;
+import eu.stratosphere.api.record.functions.CoGroupFunction;
+import eu.stratosphere.api.record.functions.JoinFunction;
 import eu.stratosphere.types.Key;
 
 /**
@@ -37,12 +37,12 @@ import eu.stratosphere.types.Key;
  * InputContracts are second-order functions. They have one or multiple input sets of records and a first-order
  * user function (stub implementation).
  * <p> 
- * CoGroup works on two inputs and calls the first-order user function of a {@link CoGroupStub} 
+ * CoGroup works on two inputs and calls the first-order user function of a {@link CoGroupFunction} 
  * with the groups of records sharing the same key (one group per input) independently.
  * 
- * @see CoGroupStub
+ * @see CoGroupFunction
  */
-public class CoGroupOperator extends GenericCoGroupContract<CoGroupStub> implements RecordOperator {
+public class CoGroupOperator extends CoGroupOperatorBase<CoGroupFunction> implements RecordOperator {
 	
 	private static String DEFAULT_NAME = "<Unnamed CoGrouper>";		// the default name for contracts
 	
@@ -64,29 +64,29 @@ public class CoGroupOperator extends GenericCoGroupContract<CoGroupStub> impleme
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * Creates a Builder with the provided {@link CoGroupStub} implementation.
+	 * Creates a Builder with the provided {@link CoGroupFunction} implementation.
 	 * 
-	 * @param udf The {@link CoGroupStub} implementation for this CoGroup contract.
+	 * @param udf The {@link CoGroupFunction} implementation for this CoGroup contract.
 	 * @param keyClass The class of the key data type.
 	 * @param keyColumn1 The position of the key in the first input's records.
 	 * @param keyColumn2 The position of the key in the second input's records.
 	 */
-	public static Builder builder(CoGroupStub udf, Class<? extends Key> keyClass,
+	public static Builder builder(CoGroupFunction udf, Class<? extends Key> keyClass,
 			int keyColumn1, int keyColumn2) {
-		return new Builder(new UserCodeObjectWrapper<CoGroupStub>(udf), keyClass, keyColumn1, keyColumn2);
+		return new Builder(new UserCodeObjectWrapper<CoGroupFunction>(udf), keyClass, keyColumn1, keyColumn2);
 	}
 	
 	/**
-	 * Creates a Builder with the provided {@link CoGroupStub} implementation.
+	 * Creates a Builder with the provided {@link CoGroupFunction} implementation.
 	 * 
-	 * @param udf The {@link CoGroupStub} implementation for this CoGroup contract.
+	 * @param udf The {@link CoGroupFunction} implementation for this CoGroup contract.
 	 * @param keyClass The class of the key data type.
 	 * @param keyColumn1 The position of the key in the first input's records.
 	 * @param keyColumn2 The position of the key in the second input's records.
 	 */
-	public static Builder builder(Class<? extends CoGroupStub> udf, Class<? extends Key> keyClass,
+	public static Builder builder(Class<? extends CoGroupFunction> udf, Class<? extends Key> keyClass,
 			int keyColumn1, int keyColumn2) {
-		return new Builder(new UserCodeClassWrapper<CoGroupStub>(udf), keyClass, keyColumn1, keyColumn2);
+		return new Builder(new UserCodeClassWrapper<CoGroupFunction>(udf), keyClass, keyColumn1, keyColumn2);
 	}
 	
 	/**
@@ -209,27 +209,27 @@ public class CoGroupOperator extends GenericCoGroupContract<CoGroupStub> impleme
 	public static class Builder {
 		
 		/* The required parameters */
-		private final UserCodeWrapper<CoGroupStub> udf;
+		private final UserCodeWrapper<CoGroupFunction> udf;
 		private final List<Class<? extends Key>> keyClasses;
 		private final List<Integer> keyColumns1;
 		private final List<Integer> keyColumns2;
 		
 		/* The optional parameters */
-		private List<Contract> inputs1;
-		private List<Contract> inputs2;
+		private List<Operator> inputs1;
+		private List<Operator> inputs2;
 		private Ordering secondaryOrder1 = null;
 		private Ordering secondaryOrder2 = null;
 		private String name = DEFAULT_NAME;
 		
 		/**
-		 * Creates a Builder with the provided {@link CoGroupStub} implementation.
+		 * Creates a Builder with the provided {@link CoGroupFunction} implementation.
 		 * 
-		 * @param udf The {@link CoGroupStub} implementation for this CoGroup contract.
+		 * @param udf The {@link CoGroupFunction} implementation for this CoGroup contract.
 		 * @param keyClass The class of the key data type.
 		 * @param keyColumn1 The position of the key in the first input's records.
 		 * @param keyColumn2 The position of the key in the second input's records.
 		 */
-		protected Builder(UserCodeWrapper<CoGroupStub> udf, Class<? extends Key> keyClass,
+		protected Builder(UserCodeWrapper<CoGroupFunction> udf, Class<? extends Key> keyClass,
 				int keyColumn1, int keyColumn2)
 		{
 			this.udf = udf;
@@ -239,25 +239,25 @@ public class CoGroupOperator extends GenericCoGroupContract<CoGroupStub> impleme
 			this.keyColumns1.add(keyColumn1);
 			this.keyColumns2 = new ArrayList<Integer>();
 			this.keyColumns2.add(keyColumn2);
-			this.inputs1 = new ArrayList<Contract>();
-			this.inputs2 = new ArrayList<Contract>();
+			this.inputs1 = new ArrayList<Operator>();
+			this.inputs2 = new ArrayList<Operator>();
 		}
 		
 		
 		
 		/**
-		 * Creates a Builder with the provided {@link MatchStub} implementation. This method is intended 
+		 * Creates a Builder with the provided {@link JoinFunction} implementation. This method is intended 
 		 * for special case sub-types only.
 		 * 
-		 * @param udf The {@link CoGroupStub} implementation for this CoGroup contract.
+		 * @param udf The {@link CoGroupFunction} implementation for this CoGroup contract.
 		 */
-		protected Builder(UserCodeWrapper<CoGroupStub> udf) {
+		protected Builder(UserCodeWrapper<CoGroupFunction> udf) {
 			this.udf = udf;
 			this.keyClasses = new ArrayList<Class<? extends Key>>();
 			this.keyColumns1 = new ArrayList<Integer>();
 			this.keyColumns2 = new ArrayList<Integer>();
-			this.inputs1 = new ArrayList<Contract>();
-			this.inputs2 = new ArrayList<Contract>();
+			this.inputs1 = new ArrayList<Operator>();
+			this.inputs2 = new ArrayList<Operator>();
 		}
 		
 		private int[] getKeyColumnsArray1() {
@@ -319,9 +319,9 @@ public class CoGroupOperator extends GenericCoGroupContract<CoGroupStub> impleme
 		 * 
 		 * @param inputs
 		 */
-		public Builder input1(Contract ...inputs) {
+		public Builder input1(Operator ...inputs) {
 			this.inputs1.clear();
-			for (Contract c : inputs) {
+			for (Operator c : inputs) {
 				this.inputs1.add(c);
 			}
 			return this;
@@ -332,9 +332,9 @@ public class CoGroupOperator extends GenericCoGroupContract<CoGroupStub> impleme
 		 * 
 		 * @param inputs
 		 */
-		public Builder input2(Contract ...inputs) {
+		public Builder input2(Operator ...inputs) {
 			this.inputs2.clear();
-			for (Contract c : inputs) {
+			for (Operator c : inputs) {
 				this.inputs2.add(c);
 			}
 			return this;
@@ -345,7 +345,7 @@ public class CoGroupOperator extends GenericCoGroupContract<CoGroupStub> impleme
 		 * 
 		 * @param inputs
 		 */
-		public Builder inputs1(List<Contract> inputs) {
+		public Builder inputs1(List<Operator> inputs) {
 			this.inputs1 = inputs;
 			return this;
 		}
@@ -355,7 +355,7 @@ public class CoGroupOperator extends GenericCoGroupContract<CoGroupStub> impleme
 		 * 
 		 * @param inputs
 		 */
-		public Builder inputs2(List<Contract> inputs) {
+		public Builder inputs2(List<Operator> inputs) {
 			this.inputs2 = inputs;
 			return this;
 		}

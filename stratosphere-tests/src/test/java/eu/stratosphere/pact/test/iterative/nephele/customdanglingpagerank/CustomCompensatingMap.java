@@ -1,6 +1,6 @@
 package eu.stratosphere.pact.test.iterative.nephele.customdanglingpagerank;
 
-import eu.stratosphere.api.functions.AbstractStub;
+import eu.stratosphere.api.functions.AbstractFunction;
 import eu.stratosphere.api.functions.GenericMapper;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.pact.test.iterative.nephele.ConfigUtils;
@@ -10,7 +10,7 @@ import eu.stratosphere.util.Collector;
 
 import java.util.Set;
 
-public class CustomCompensatingMap extends AbstractStub implements GenericMapper<VertexWithRankAndDangling, VertexWithRankAndDangling> {
+public class CustomCompensatingMap extends AbstractFunction implements GenericMapper<VertexWithRankAndDangling, VertexWithRankAndDangling> {
 	
 	private boolean isFailureIteration;
 

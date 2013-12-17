@@ -19,8 +19,8 @@ import junit.framework.Assert;
 
 import org.junit.Test;
 
-import eu.stratosphere.api.functions.GenericMatcher;
-import eu.stratosphere.api.record.functions.MatchStub;
+import eu.stratosphere.api.functions.GenericJoiner;
+import eu.stratosphere.api.record.functions.JoinFunction;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparator;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordPairComparatorFactory;
 import eu.stratosphere.pact.runtime.test.util.DriverTestBase;
@@ -30,7 +30,7 @@ import eu.stratosphere.types.PactInteger;
 import eu.stratosphere.types.PactRecord;
 import eu.stratosphere.util.Collector;
 
-public class MatchTaskExternalITCase extends DriverTestBase<GenericMatcher<PactRecord, PactRecord, PactRecord>>
+public class MatchTaskExternalITCase extends DriverTestBase<GenericJoiner<PactRecord, PactRecord, PactRecord>>
 {
 	private static final long HASH_MEM = 4*1024*1024;
 	
@@ -146,7 +146,7 @@ public class MatchTaskExternalITCase extends DriverTestBase<GenericMatcher<PactR
 		Assert.assertEquals("Wrong result set size.", expCnt, this.output.getNumberOfRecords());
 	}
 	
-	public static final class MockMatchStub extends MatchStub
+	public static final class MockMatchStub extends JoinFunction
 	{
 		@Override
 		public void match(PactRecord value1, PactRecord value2, Collector<PactRecord> out) throws Exception {

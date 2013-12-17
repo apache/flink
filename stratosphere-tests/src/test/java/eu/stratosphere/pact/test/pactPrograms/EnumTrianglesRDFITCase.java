@@ -24,7 +24,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.api.Job;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
@@ -76,7 +76,7 @@ public class EnumTrianglesRDFITCase extends TestBase {
 	protected JobGraph getJobGraph() throws Exception {
 
 		EnumTrianglesRdfFoaf enumTriangles = new EnumTrianglesRdfFoaf();
-		Plan plan = enumTriangles.getPlan(
+		Job plan = enumTriangles.createJob(
 				config.getString("EnumTrianglesTest#NoSubtasks", "4"),
 				getFilesystemProvider().getURIPrefix() + edgesPath, 
 				getFilesystemProvider().getURIPrefix() + resultPath);

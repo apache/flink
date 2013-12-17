@@ -16,7 +16,7 @@
 package eu.stratosphere.pact.runtime.task.chaining;
 
 import eu.stratosphere.api.functions.GenericMapper;
-import eu.stratosphere.api.functions.Stub;
+import eu.stratosphere.api.functions.Function;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
@@ -57,7 +57,7 @@ public class ChainedMapDriver<IT, OT> extends ChainedDriver<IT, OT> {
 
 	// --------------------------------------------------------------------------------------------
 
-	public Stub getStub() {
+	public Function getStub() {
 		return this.mapper;
 	}
 

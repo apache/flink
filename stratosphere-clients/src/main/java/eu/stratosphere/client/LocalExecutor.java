@@ -22,8 +22,8 @@ import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.apache.log4j.PatternLayout;
 
-import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.api.plan.PlanAssembler;
+import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Program;
 import eu.stratosphere.client.minicluster.NepheleMiniCluster;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;
@@ -36,7 +36,7 @@ import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 
 /**
- * A class for executing a {@link Plan} on a local Nephele instance. Note that
+ * A class for executing a {@link Job} on a local Nephele instance. Note that
  * no HDFS instance or anything of that nature is provided. You must therefore
  * only use data sources and sinks with paths beginning with "file://" in your
  * plan.
@@ -86,7 +86,7 @@ public class LocalExecutor implements PlanExecutor {
 	 * @throws Exception Thrown, if either the startup of the local execution context, or the execution
 	 *                   caused an exception.
 	 */
-	public JobExecutionResult executePlan(Plan plan) throws Exception {
+	public JobExecutionResult executePlan(Job plan) throws Exception {
 		synchronized (this.lock) {
 			if (this.nephele == null) {
 				throw new Exception("The local executor has not been started.");
@@ -112,7 +112,7 @@ public class LocalExecutor implements PlanExecutor {
 	 * @return JSON dump of the optimized plan.
 	 * @throws Exception
 	 */
-	public String getOptimizerPlanAsJSON(Plan plan) throws Exception {
+	public String getOptimizerPlanAsJSON(Job plan) throws Exception {
 		if (this.nephele == null) {
 			throw new Exception("The local executor has not been started.");
 		}
@@ -134,8 +134,8 @@ public class LocalExecutor implements PlanExecutor {
 	 * @throws Exception Thrown, if either the startup of the local execution context, or the execution
 	 *                   caused an exception.
 	 */
-	public static JobExecutionResult execute(PlanAssembler pa, String... args) throws Exception {
-		return execute(pa.getPlan(args));
+	public static JobExecutionResult execute(Program pa, String... args) throws Exception {
+		return execute(pa.createJob(args));
 	}
 	
 	/**
@@ -147,7 +147,7 @@ public class LocalExecutor implements PlanExecutor {
 	 * @throws Exception Thrown, if either the startup of the local execution context, or the execution
 	 *                   caused an exception.
 	 */
-	public static JobExecutionResult execute(Plan plan) throws Exception {
+	public static JobExecutionResult execute(Job plan) throws Exception {
 		LocalExecutor exec = new LocalExecutor();
 		try {
 			exec.start();
@@ -165,7 +165,7 @@ public class LocalExecutor implements PlanExecutor {
 	 * @return JSON dump of the optimized plan.
 	 * @throws Exception
 	 */
-	public static String optimizerPlanAsJSON(Plan plan) throws Exception {
+	public static String optimizerPlanAsJSON(Job plan) throws Exception {
 		LocalExecutor exec = new LocalExecutor();
 		try {
 			exec.start();
@@ -183,7 +183,7 @@ public class LocalExecutor implements PlanExecutor {
 	 * Return unoptimized plan as JSON.
 	 * @return
 	 */
-	public static String getPlanAsJSON(Plan plan) {
+	public static String getPlanAsJSON(Job plan) {
 		PlanJSONDumpGenerator gen = new PlanJSONDumpGenerator();
 		List<DataSinkNode> sinks = PactCompiler.createPreOptimizedPlan(plan);
 		return gen.getPactPlanAsJSON(sinks);

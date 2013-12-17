@@ -18,12 +18,12 @@ package eu.stratosphere.api.record.operators;
 import java.util.ArrayList;
 import java.util.List;
 
-import eu.stratosphere.api.operators.Contract;
-import eu.stratosphere.api.operators.base.GenericMatchContract;
+import eu.stratosphere.api.operators.Operator;
+import eu.stratosphere.api.operators.base.JoinOperatorBase;
 import eu.stratosphere.api.operators.util.UserCodeClassWrapper;
 import eu.stratosphere.api.operators.util.UserCodeObjectWrapper;
 import eu.stratosphere.api.operators.util.UserCodeWrapper;
-import eu.stratosphere.api.record.functions.MatchStub;
+import eu.stratosphere.api.record.functions.JoinFunction;
 import eu.stratosphere.types.Key;
 
 
@@ -38,7 +38,7 @@ import eu.stratosphere.types.Key;
  * 
  * @see JoinStub
  */
-public class JoinOperator extends GenericMatchContract<MatchStub> implements RecordOperator {
+public class JoinOperator extends JoinOperatorBase<JoinFunction> implements RecordOperator {
 	
 	private static String DEFAULT_NAME = "<Unnamed Matcher>";		// the default name for contracts
 	
@@ -50,27 +50,27 @@ public class JoinOperator extends GenericMatchContract<MatchStub> implements Rec
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * Creates a Builder with the provided {@link MatchStub} implementation
+	 * Creates a Builder with the provided {@link JoinFunction} implementation
 	 * 
-	 * @param udf The {@link MatchStub} implementation for this Match contract.
+	 * @param udf The {@link JoinFunction} implementation for this Match contract.
 	 * @param keyClass The class of the key data type.
 	 * @param keyColumn1 The position of the key in the first input's records.
 	 * @param keyColumn2 The position of the key in the second input's records.
 	 */
-	public static Builder builder(MatchStub udf, Class<? extends Key> keyClass, int keyColumn1, int keyColumn2) {
-		return new Builder(new UserCodeObjectWrapper<MatchStub>(udf), keyClass, keyColumn1, keyColumn2);
+	public static Builder builder(JoinFunction udf, Class<? extends Key> keyClass, int keyColumn1, int keyColumn2) {
+		return new Builder(new UserCodeObjectWrapper<JoinFunction>(udf), keyClass, keyColumn1, keyColumn2);
 	}
 	
 	/**
-	 * Creates a Builder with the provided {@link MatchStub} implementation
+	 * Creates a Builder with the provided {@link JoinFunction} implementation
 	 * 
-	 * @param udf The {@link MatchStub} implementation for this Match contract.
+	 * @param udf The {@link JoinFunction} implementation for this Match contract.
 	 * @param keyClass The class of the key data type.
 	 * @param keyColumn1 The position of the key in the first input's records.
 	 * @param keyColumn2 The position of the key in the second input's records.
 	 */
-	public static Builder builder(Class<? extends MatchStub> udf, Class<? extends Key> keyClass, int keyColumn1, int keyColumn2) {
-		return new Builder(new UserCodeClassWrapper<MatchStub>(udf), keyClass, keyColumn1, keyColumn2);
+	public static Builder builder(Class<? extends JoinFunction> udf, Class<? extends Key> keyClass, int keyColumn1, int keyColumn2) {
+		return new Builder(new UserCodeClassWrapper<JoinFunction>(udf), keyClass, keyColumn1, keyColumn2);
 	}
 	
 	/**
@@ -98,26 +98,26 @@ public class JoinOperator extends GenericMatchContract<MatchStub> implements Rec
 	public static class Builder {
 		
 		/* The required parameters */
-		private final UserCodeWrapper<MatchStub> udf;
+		private final UserCodeWrapper<JoinFunction> udf;
 		private final List<Class<? extends Key>> keyClasses;
 		private final List<Integer> keyColumns1;
 		private final List<Integer> keyColumns2;
 		
 		/* The optional parameters */
-		private List<Contract> inputs1;
-		private List<Contract> inputs2;
+		private List<Operator> inputs1;
+		private List<Operator> inputs2;
 		private String name = DEFAULT_NAME;
 		
 		
 		/**
-		 * Creates a Builder with the provided {@link MatchStub} implementation
+		 * Creates a Builder with the provided {@link JoinFunction} implementation
 		 * 
-		 * @param udf The {@link MatchStub} implementation for this Match contract.
+		 * @param udf The {@link JoinFunction} implementation for this Match contract.
 		 * @param keyClass The class of the key data type.
 		 * @param keyColumn1 The position of the key in the first input's records.
 		 * @param keyColumn2 The position of the key in the second input's records.
 		 */
-		protected Builder(UserCodeWrapper<MatchStub> udf, Class<? extends Key> keyClass, int keyColumn1, int keyColumn2) {
+		protected Builder(UserCodeWrapper<JoinFunction> udf, Class<? extends Key> keyClass, int keyColumn1, int keyColumn2) {
 			this.udf = udf;
 			this.keyClasses = new ArrayList<Class<? extends Key>>();
 			this.keyClasses.add(keyClass);
@@ -125,23 +125,23 @@ public class JoinOperator extends GenericMatchContract<MatchStub> implements Rec
 			this.keyColumns1.add(keyColumn1);
 			this.keyColumns2 = new ArrayList<Integer>();
 			this.keyColumns2.add(keyColumn2);
-			this.inputs1 = new ArrayList<Contract>();
-			this.inputs2 = new ArrayList<Contract>();
+			this.inputs1 = new ArrayList<Operator>();
+			this.inputs2 = new ArrayList<Operator>();
 		}
 		
 		/**
-		 * Creates a Builder with the provided {@link MatchStub} implementation. This method is intended 
+		 * Creates a Builder with the provided {@link JoinFunction} implementation. This method is intended 
 		 * for special case sub-types only.
 		 * 
-		 * @param udf The {@link MatchStub} implementation for this Match contract.
+		 * @param udf The {@link JoinFunction} implementation for this Match contract.
 		 */
-		protected Builder(UserCodeWrapper<MatchStub> udf) {
+		protected Builder(UserCodeWrapper<JoinFunction> udf) {
 			this.udf = udf;
 			this.keyClasses = new ArrayList<Class<? extends Key>>();
 			this.keyColumns1 = new ArrayList<Integer>();
 			this.keyColumns2 = new ArrayList<Integer>();
-			this.inputs1 = new ArrayList<Contract>();
-			this.inputs2 = new ArrayList<Contract>();
+			this.inputs1 = new ArrayList<Operator>();
+			this.inputs2 = new ArrayList<Operator>();
 		}
 		
 		private int[] getKeyColumnsArray1() {
@@ -184,9 +184,9 @@ public class JoinOperator extends GenericMatchContract<MatchStub> implements Rec
 		 * 
 		 * @param inputs
 		 */
-		public Builder input1(Contract ...inputs) {
+		public Builder input1(Operator ...inputs) {
 			this.inputs1.clear();
-			for (Contract c : inputs) {
+			for (Operator c : inputs) {
 				this.inputs1.add(c);
 			}
 			return this;
@@ -197,9 +197,9 @@ public class JoinOperator extends GenericMatchContract<MatchStub> implements Rec
 		 * 
 		 * @param inputs
 		 */
-		public Builder input2(Contract ...inputs) {
+		public Builder input2(Operator ...inputs) {
 			this.inputs2.clear();
-			for (Contract c : inputs) {
+			for (Operator c : inputs) {
 				this.inputs2.add(c);
 			}
 			return this;
@@ -210,7 +210,7 @@ public class JoinOperator extends GenericMatchContract<MatchStub> implements Rec
 		 * 
 		 * @param inputs
 		 */
-		public Builder inputs1(List<Contract> inputs) {
+		public Builder inputs1(List<Operator> inputs) {
 			this.inputs1 = inputs;
 			return this;
 		}
@@ -220,7 +220,7 @@ public class JoinOperator extends GenericMatchContract<MatchStub> implements Rec
 		 * 
 		 * @param inputs
 		 */
-		public Builder inputs2(List<Contract> inputs) {
+		public Builder inputs2(List<Operator> inputs) {
 			this.inputs2 = inputs;
 			return this;
 		}

@@ -22,12 +22,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import eu.stratosphere.api.functions.StubAnnotation.ConstantFields;
-import eu.stratosphere.api.functions.StubAnnotation.ConstantFieldsExcept;
 import eu.stratosphere.api.operators.CompilerHints;
-import eu.stratosphere.api.operators.Contract;
-import eu.stratosphere.api.operators.SingleInputContract;
+import eu.stratosphere.api.operators.Operator;
+import eu.stratosphere.api.operators.SingleInputOperator;
 import eu.stratosphere.api.operators.util.FieldSet;
+import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFields;
+import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFieldsExcept;
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.costs.CostEstimator;
@@ -69,7 +69,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 	 * 
 	 * @param pactContract The PACT that the node represents.
 	 */
-	protected SingleInputNode(SingleInputContract<?> pactContract) {
+	protected SingleInputNode(SingleInputOperator<?> pactContract) {
 		super(pactContract);
 		
 		int[] k = pactContract.getKeyColumns(0);
@@ -93,8 +93,8 @@ public abstract class SingleInputNode extends OptimizerNode {
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public SingleInputContract<?> getPactContract() {
-		return (SingleInputContract<?>) super.getPactContract();
+	public SingleInputOperator<?> getPactContract() {
+		return (SingleInputOperator<?>) super.getPactContract();
 	}
 	
 	/**
@@ -148,7 +148,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 	
 
 	@Override
-	public void setInputs(Map<Contract, OptimizerNode> contractToNode) throws CompilerException {
+	public void setInputs(Map<Operator, OptimizerNode> contractToNode) throws CompilerException {
 		// see if an internal hint dictates the strategy to use
 		final Configuration conf = getPactContract().getParameters();
 		final String shipStrategy = conf.getString(PactCompiler.HINT_SHIP_STRATEGY, null);
@@ -171,7 +171,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 		}
 		
 		// get the predecessor node
-		List<Contract> children = ((SingleInputContract<?>) getPactContract()).getInputs();
+		List<Operator> children = ((SingleInputOperator<?>) getPactContract()).getInputs();
 		
 		OptimizerNode pred;
 		PactConnection conn;
@@ -433,12 +433,12 @@ public abstract class SingleInputNode extends OptimizerNode {
 	}
 	
 	// --------------------------------------------------------------------------------------------
-	//                                   Stub Annotation Handling
+	//                                   Function Annotation Handling
 	// --------------------------------------------------------------------------------------------
 	
 	@Override
 	protected void readConstantAnnotation() {
-		final SingleInputContract<?> c = (SingleInputContract<?>) super.getPactContract();
+		final SingleInputOperator<?> c = (SingleInputOperator<?>) super.getPactContract();
 		
 		// get constantSet annotation from stub
 		ConstantFields constantSet = c.getUserCodeAnnotation(ConstantFields.class);

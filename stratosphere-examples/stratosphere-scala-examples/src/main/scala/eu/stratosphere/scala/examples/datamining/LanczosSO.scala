@@ -18,7 +18,7 @@ package eu.stratosphere.scala.examples.datamining;
 //import eu.stratosphere.scala._
 //import eu.stratosphere.scala.operators.DelimitedDataSinkFormat
 //import eu.stratosphere.scala.operators.DelimitedDataSourceFormat
-//import eu.stratosphere.api.plan.PlanAssemblerDescription
+//import eu.stratosphere.api.ProgramDescription
 //import eu.stratosphere.client.LocalExecutor
 //import eu.stratosphere.scala.analysis.GlobalSchemaPrinter
 //
@@ -37,7 +37,7 @@ package eu.stratosphere.scala.examples.datamining;
 //  }
 //}
 //
-//class LanczosDescriptor extends ScalaPlanAssembler with PlanAssemblerDescription {
+//class LanczosDescriptor extends ScalaProgram with ProgramDescription {
 //  override def getDescription = "[-k <int:10>] [-m <int:10>] [-eps <double:0.05>] -A <file> -b <file> -lamba <file> -Y <file>"
 //
 //  override def getScalaPlan(args: Args) = LanczosSO.getPlan(args("k", "10").toInt, args("m", "10").toInt, args("eps", "0.05").toDouble, args("A"), args("b"), args("lambda"), args("Y"))

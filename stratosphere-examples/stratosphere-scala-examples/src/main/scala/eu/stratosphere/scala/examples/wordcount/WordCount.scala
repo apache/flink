@@ -14,8 +14,8 @@
 package eu.stratosphere.scala.examples.wordcount
 
 import eu.stratosphere.client.LocalExecutor
-import eu.stratosphere.api.plan.PlanAssembler
-import eu.stratosphere.api.plan.PlanAssemblerDescription
+import eu.stratosphere.api.Program
+import eu.stratosphere.api.ProgramDescription
 
 import eu.stratosphere.scala._
 import eu.stratosphere.scala.operators._
@@ -33,11 +33,11 @@ object RunWordCount {
   }
 }
 
-class WordCount extends PlanAssembler with PlanAssemblerDescription with Serializable {
+class WordCount extends Program with ProgramDescription with Serializable {
   override def getDescription() = {
     "Parameters: [numSubStasks] [input] [output]"
   }
-  override def getPlan(args: String*) = {
+  override def createJob(args: String*) = {
     getScalaPlan(args(0).toInt, args(1), args(2))
   }
 

@@ -24,14 +24,14 @@ import java.util.Iterator;
 
 import org.apache.log4j.Logger;
 
+import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Program;
+import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
-import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.api.plan.PlanAssembler;
-import eu.stratosphere.api.plan.PlanAssemblerDescription;
-import eu.stratosphere.api.record.functions.MapStub;
-import eu.stratosphere.api.record.functions.MatchStub;
-import eu.stratosphere.api.record.functions.ReduceStub;
+import eu.stratosphere.api.record.functions.MapFunction;
+import eu.stratosphere.api.record.functions.JoinFunction;
+import eu.stratosphere.api.record.functions.ReduceFunction;
 import eu.stratosphere.api.record.operators.MapOperator;
 import eu.stratosphere.api.record.operators.JoinOperator;
 import eu.stratosphere.api.record.operators.ReduceOperator;
@@ -50,7 +50,7 @@ import eu.stratosphere.util.Collector;
  * @author Mathias Peters <mathias.peters@informatik.hu-berlin.de>
  * @author Moritz Kaufmann <moritz.kaufmann@campus.tu-berlin.de>
  */
-public class TPCHQuery4 implements PlanAssembler, PlanAssemblerDescription {
+public class TPCHQuery4 implements Program, ProgramDescription {
 
 	private static Logger LOGGER = Logger.getLogger(TPCHQuery4.class);
 	
@@ -61,11 +61,11 @@ public class TPCHQuery4 implements PlanAssembler, PlanAssemblerDescription {
 	
 	
 	/**
-	 * Small {@link MapStub} to filer out the irrelevant orders.
+	 * Small {@link MapFunction} to filer out the irrelevant orders.
 	 *
 	 */
 	//@SameKey
-	public static class OFilter extends MapStub {
+	public static class OFilter extends MapFunction {
 
 		private final String dateParamString = "1995-01-01";
 		private final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
@@ -128,7 +128,7 @@ public class TPCHQuery4 implements PlanAssembler, PlanAssemblerDescription {
 	 * 
 	 */
 	//@SameKey
-	public static class LiFilter extends MapStub {
+	public static class LiFilter extends MapFunction {
 
 		private final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
 		
@@ -160,7 +160,7 @@ public class TPCHQuery4 implements PlanAssembler, PlanAssemblerDescription {
 	 * the order priority as well.
 	 *
 	 */
-	public static class JoinLiO extends MatchStub {
+	public static class JoinLiO extends JoinFunction {
 		
 		@Override
 		public void match(PactRecord order, PactRecord line, Collector<PactRecord> out)
@@ -180,7 +180,7 @@ public class TPCHQuery4 implements PlanAssembler, PlanAssemblerDescription {
 	 *
 	 */
 	//@SameKey
-	public static class CountAgg extends ReduceStub {
+	public static class CountAgg extends ReduceFunction {
 		
 		/* (non-Javadoc)
 		 * @see eu.stratosphere.pact.common.stub.ReduceStub#reduce(eu.stratosphere.pact.common.type.Key, java.util.Iterator, eu.stratosphere.pact.common.stub.Collector)
@@ -210,7 +210,7 @@ public class TPCHQuery4 implements PlanAssembler, PlanAssemblerDescription {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Plan getPlan(String... args) throws IllegalArgumentException {
+	public Job createJob(String... args) throws IllegalArgumentException {
 		
 		if(args == null || args.length != 4)
 		{
@@ -268,7 +268,7 @@ public class TPCHQuery4 implements PlanAssembler, PlanAssemblerDescription {
 		result.addInput(aggregation);
 		
 			
-		return new Plan(result, "TPC-H 4");
+		return new Job(result, "TPC-H 4");
 	}
 
 	/**

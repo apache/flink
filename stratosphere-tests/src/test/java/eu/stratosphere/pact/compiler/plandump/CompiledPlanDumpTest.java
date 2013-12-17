@@ -20,7 +20,7 @@ import org.codehaus.jackson.JsonParser;
 import org.junit.Assert;
 import org.junit.Test;
 
-import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.api.Job;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
 import eu.stratosphere.compiler.plandump.PlanJSONDumpGenerator;
 import eu.stratosphere.example.record.connectedcomponents.WorksetConnectedComponents;
@@ -39,35 +39,35 @@ public class CompiledPlanDumpTest extends CompilerTestBase {
 	
 	@Test
 	public void dumpWordCount() {
-		dump(new WordCount().getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, OUT_FILE));
+		dump(new WordCount().createJob(DEFAULT_PARALLELISM_STRING, IN_FILE, OUT_FILE));
 	}
 	
 	@Test
 	public void dumpTPCH3() {
-		dump(new TPCHQuery3().getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE));
+		dump(new TPCHQuery3().createJob(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE));
 	}
 	
 	@Test
 	public void dumpKMeans() {
-		dump(new KMeansSingleStep().getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE));
+		dump(new KMeansSingleStep().createJob(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE));
 	}
 	
 	@Test
 	public void dumpWebLogAnalysis() {
-		dump(new WebLogAnalysis().getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, IN_FILE, OUT_FILE));
+		dump(new WebLogAnalysis().createJob(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, IN_FILE, OUT_FILE));
 	}
 
 	@Test
 	public void dumpBulkIterationKMeans() {
-		dump(new KMeansIterative().getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, OUT_FILE));
+		dump(new KMeansIterative().createJob(DEFAULT_PARALLELISM_STRING, IN_FILE, OUT_FILE));
 	}
 	
 	@Test
 	public void dumpWorksetConnectedComponents() {
-		dump(new WorksetConnectedComponents().getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE));
+		dump(new WorksetConnectedComponents().createJob(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE));
 	}
 	
-	private void dump(Plan p) {
+	private void dump(Job p) {
 		try {
 			OptimizedPlan op = compileNoStats(p);
 			PlanJSONDumpGenerator dumper = new PlanJSONDumpGenerator();

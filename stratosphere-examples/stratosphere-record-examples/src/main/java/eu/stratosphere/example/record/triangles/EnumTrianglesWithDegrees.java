@@ -15,11 +15,11 @@
 
 package eu.stratosphere.example.record.triangles;
 
+import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Program;
+import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
-import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.api.plan.PlanAssembler;
-import eu.stratosphere.api.plan.PlanAssemblerDescription;
 import eu.stratosphere.api.record.operators.MapOperator;
 import eu.stratosphere.api.record.operators.JoinOperator;
 import eu.stratosphere.api.record.operators.ReduceOperator;
@@ -39,10 +39,10 @@ import eu.stratosphere.types.PactInteger;
  * to compute the degrees of the vertices and to select the lower-degree vertex for the
  * enumeration of open triads.
  */
-public class EnumTrianglesWithDegrees implements PlanAssembler, PlanAssemblerDescription {
+public class EnumTrianglesWithDegrees implements Program, ProgramDescription {
 	
 	@Override
-	public Plan getPlan(String... args) {
+	public Job createJob(String... args) {
 		// parse job parameters
 		final int numSubTasks   = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		final String edgeInput = args.length > 1 ? args[1] : "";
@@ -86,7 +86,7 @@ public class EnumTrianglesWithDegrees implements PlanAssembler, PlanAssemblerDes
 
 		FileDataSink triangles = new FileDataSink(new TriangleOutputFormat(), output, closeTriads, "Triangles");
 
-		Plan p = new Plan(triangles, "Enumerate Triangles");
+		Job p = new Job(triangles, "Enumerate Triangles");
 		p.setDefaultParallelism(numSubTasks);
 		return p;
 	}

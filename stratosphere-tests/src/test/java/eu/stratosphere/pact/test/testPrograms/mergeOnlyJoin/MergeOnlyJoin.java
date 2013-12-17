@@ -17,15 +17,15 @@ package eu.stratosphere.pact.test.testPrograms.mergeOnlyJoin;
 
 import java.util.Iterator;
 
-import eu.stratosphere.api.functions.StubAnnotation.ConstantFieldsExcept;
-import eu.stratosphere.api.functions.StubAnnotation.ConstantFieldsFirstExcept;
+import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Program;
+import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
-import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.api.plan.PlanAssembler;
-import eu.stratosphere.api.plan.PlanAssemblerDescription;
-import eu.stratosphere.api.record.functions.MatchStub;
-import eu.stratosphere.api.record.functions.ReduceStub;
+import eu.stratosphere.api.record.functions.JoinFunction;
+import eu.stratosphere.api.record.functions.ReduceFunction;
+import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFieldsExcept;
+import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFieldsFirstExcept;
 import eu.stratosphere.api.record.io.CsvInputFormat;
 import eu.stratosphere.api.record.io.CsvOutputFormat;
 import eu.stratosphere.api.record.operators.JoinOperator;
@@ -34,10 +34,10 @@ import eu.stratosphere.types.PactInteger;
 import eu.stratosphere.types.PactRecord;
 import eu.stratosphere.util.Collector;
 
-public class MergeOnlyJoin implements PlanAssembler, PlanAssemblerDescription {
+public class MergeOnlyJoin implements Program, ProgramDescription {
 
 	@ConstantFieldsFirstExcept(2)
-	public static class JoinInputs extends MatchStub {
+	public static class JoinInputs extends JoinFunction {
 		@Override
 		public void match(PactRecord input1, PactRecord input2, Collector<PactRecord> out) {
 			input1.setField(2, input2.getField(1, PactInteger.class));
@@ -46,7 +46,7 @@ public class MergeOnlyJoin implements PlanAssembler, PlanAssemblerDescription {
 	}
 
 	@ConstantFieldsExcept({})
-	public static class DummyReduce extends ReduceStub {
+	public static class DummyReduce extends ReduceFunction {
 		
 		@Override
 		public void reduce(Iterator<PactRecord> values, Collector<PactRecord> out) {
@@ -60,7 +60,7 @@ public class MergeOnlyJoin implements PlanAssembler, PlanAssemblerDescription {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Plan getPlan(final String... args) {
+	public Job createJob(final String... args) {
 		// parse program parameters
 		int numSubtasks       = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		String input1Path    = (args.length > 1 ? args[1] : "");
@@ -109,7 +109,7 @@ public class MergeOnlyJoin implements PlanAssembler, PlanAssemblerDescription {
 			.field(PactInteger.class, 2);
 		
 		// assemble the PACT plan
-		Plan plan = new Plan(result, "Merge Only Join");
+		Job plan = new Job(result, "Merge Only Join");
 		plan.setDefaultParallelism(numSubtasks);
 		return plan;
 	}

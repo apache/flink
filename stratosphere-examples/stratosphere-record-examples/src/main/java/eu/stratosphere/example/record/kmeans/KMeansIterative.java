@@ -1,11 +1,11 @@
 package eu.stratosphere.example.record.kmeans;
 
+import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Program;
+import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.operators.BulkIteration;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
-import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.api.plan.PlanAssembler;
-import eu.stratosphere.api.plan.PlanAssemblerDescription;
 import eu.stratosphere.api.record.operators.CrossOperator;
 import eu.stratosphere.api.record.operators.ReduceOperator;
 import eu.stratosphere.example.record.kmeans.udfs.ComputeDistance;
@@ -18,10 +18,10 @@ import eu.stratosphere.types.PactInteger;
 /**
  *
  */
-public class KMeansIterative implements PlanAssembler, PlanAssemblerDescription {
+public class KMeansIterative implements Program, ProgramDescription {
 	
 	@Override
-	public Plan getPlan(String... args) {
+	public Job createJob(String... args) {
 		// parse job parameters
 		final int numSubTasks = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		final String dataPointInput = (args.length > 1 ? args[1] : "");
@@ -64,7 +64,7 @@ public class KMeansIterative implements PlanAssembler, PlanAssemblerDescription 
 		FileDataSink finalResult = new FileDataSink(new PointOutFormat(), output, iteration, "New Center Positions");
 
 		// return the PACT plan
-		Plan plan = new Plan(finalResult, "Iterative KMeans");
+		Job plan = new Job(finalResult, "Iterative KMeans");
 		plan.setDefaultParallelism(numSubTasks);
 		return plan;
 	}

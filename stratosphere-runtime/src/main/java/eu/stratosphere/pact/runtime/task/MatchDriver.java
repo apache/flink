@@ -18,8 +18,8 @@ package eu.stratosphere.pact.runtime.task;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.api.functions.GenericMatcher;
-import eu.stratosphere.api.record.functions.MatchStub;
+import eu.stratosphere.api.functions.GenericJoiner;
+import eu.stratosphere.api.record.functions.JoinFunction;
 import eu.stratosphere.api.typeutils.TypeComparator;
 import eu.stratosphere.api.typeutils.TypePairComparatorFactory;
 import eu.stratosphere.api.typeutils.TypeSerializer;
@@ -35,18 +35,18 @@ import eu.stratosphere.util.MutableObjectIterator;
 
 /**
  * Match task which is executed by a Nephele task manager. The task has two inputs and one or multiple outputs.
- * It is provided with a MatchStub implementation.
+ * It is provided with a JoinFunction implementation.
  * <p>
  * The MatchTask matches all pairs of records that share the same key and come from different inputs. Each pair of 
- * matching records is handed to the <code>match()</code> method of the MatchStub.
+ * matching records is handed to the <code>match()</code> method of the JoinFunction.
  * 
- * @see MatchStub
+ * @see JoinFunction
  */
-public class MatchDriver<IT1, IT2, OT> implements PactDriver<GenericMatcher<IT1, IT2, OT>, OT> {
+public class MatchDriver<IT1, IT2, OT> implements PactDriver<GenericJoiner<IT1, IT2, OT>, OT> {
 	
 	protected static final Log LOG = LogFactory.getLog(MatchDriver.class);
 	
-	protected PactTaskContext<GenericMatcher<IT1, IT2, OT>, OT> taskContext;
+	protected PactTaskContext<GenericJoiner<IT1, IT2, OT>, OT> taskContext;
 	
 	private volatile MatchTaskIterator<IT1, IT2, OT> matchIterator;		// the iterator that does the actual matching
 	
@@ -55,7 +55,7 @@ public class MatchDriver<IT1, IT2, OT> implements PactDriver<GenericMatcher<IT1,
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void setup(PactTaskContext<GenericMatcher<IT1, IT2, OT>, OT> context) {
+	public void setup(PactTaskContext<GenericJoiner<IT1, IT2, OT>, OT> context) {
 		this.taskContext = context;
 		this.running = true;
 	}
@@ -66,9 +66,9 @@ public class MatchDriver<IT1, IT2, OT> implements PactDriver<GenericMatcher<IT1,
 	}
 
 	@Override
-	public Class<GenericMatcher<IT1, IT2, OT>> getStubType() {
+	public Class<GenericJoiner<IT1, IT2, OT>> getStubType() {
 		@SuppressWarnings("unchecked")
-		final Class<GenericMatcher<IT1, IT2, OT>> clazz = (Class<GenericMatcher<IT1, IT2, OT>>) (Class<?>) GenericMatcher.class;
+		final Class<GenericJoiner<IT1, IT2, OT>> clazz = (Class<GenericJoiner<IT1, IT2, OT>>) (Class<?>) GenericJoiner.class;
 		return clazz;
 	}
 	
@@ -138,7 +138,7 @@ public class MatchDriver<IT1, IT2, OT> implements PactDriver<GenericMatcher<IT1,
 
 	@Override
 	public void run() throws Exception {
-		final GenericMatcher<IT1, IT2, OT> matchStub = this.taskContext.getStub();
+		final GenericJoiner<IT1, IT2, OT> matchStub = this.taskContext.getStub();
 		final Collector<OT> collector = this.taskContext.getOutputCollector();
 		final MatchTaskIterator<IT1, IT2, OT> matchIterator = this.matchIterator;
 		

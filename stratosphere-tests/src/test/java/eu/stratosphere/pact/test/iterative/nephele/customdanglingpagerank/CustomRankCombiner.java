@@ -16,7 +16,7 @@ package eu.stratosphere.pact.test.iterative.nephele.customdanglingpagerank;
 
 import java.util.Iterator;
 
-import eu.stratosphere.api.functions.AbstractStub;
+import eu.stratosphere.api.functions.AbstractFunction;
 import eu.stratosphere.api.functions.GenericReducer;
 import eu.stratosphere.pact.test.iterative.nephele.customdanglingpagerank.types.VertexWithRank;
 import eu.stratosphere.util.Collector;
@@ -25,7 +25,7 @@ import eu.stratosphere.util.Collector;
 /**
  *
  */
-public class CustomRankCombiner extends AbstractStub implements GenericReducer<VertexWithRank, VertexWithRank> {
+public class CustomRankCombiner extends AbstractFunction implements GenericReducer<VertexWithRank, VertexWithRank> {
 
 	private final VertexWithRank accumulator = new VertexWithRank();
 	

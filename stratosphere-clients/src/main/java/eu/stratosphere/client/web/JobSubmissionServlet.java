@@ -35,7 +35,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.client.program.Client;
-import eu.stratosphere.client.program.ErrorInPlanAssemblerException;
+import eu.stratosphere.client.program.JobInstantiationException;
 import eu.stratosphere.client.program.PackagedProgram;
 import eu.stratosphere.client.program.ProgramInvocationException;
 import eu.stratosphere.compiler.CompilerException;
@@ -170,7 +170,7 @@ public class JobSubmissionServlet extends HttpServlet {
 				showErrorPage(resp, "An error occurred while invoking the pact program: <br/>" + pie.getMessage());
 				return;
 			}
-			catch (ErrorInPlanAssemblerException eipe) {
+			catch (JobInstantiationException eipe) {
 				// collect the stack trace
 				StringWriter sw = new StringWriter();
 				PrintWriter w = new PrintWriter(sw);

@@ -18,12 +18,12 @@ package eu.stratosphere.pact.test.testPrograms.tpch9;
 
 import java.util.Iterator;
 
-import eu.stratosphere.api.record.functions.ReduceStub;
+import eu.stratosphere.api.record.functions.ReduceFunction;
 import eu.stratosphere.types.PactRecord;
 import eu.stratosphere.types.PactString;
 import eu.stratosphere.util.Collector;
 
-public class AmountAggregate extends ReduceStub
+public class AmountAggregate extends ReduceFunction
 {
 	private PactString value = new PactString();
 	

@@ -16,9 +16,9 @@ package eu.stratosphere.scala.analysis
 import java.util.{List => JList}
 import scala.collection.JavaConversions.asScalaBuffer
 import scala.collection.JavaConversions.bufferAsJavaList
-import eu.stratosphere.api.operators.Contract
-import eu.stratosphere.api.operators.DualInputContract
-import eu.stratosphere.api.operators.SingleInputContract
+import eu.stratosphere.api.operators.Operator
+import eu.stratosphere.api.operators.DualInputOperator
+import eu.stratosphere.api.operators.SingleInputOperator
 import eu.stratosphere.scala.analysis.FieldSet.toSeq
 import eu.stratosphere.scala.ScalaContract
 import eu.stratosphere.api.operators.FileDataSink
@@ -41,7 +41,7 @@ import eu.stratosphere.api.operators.GenericDataSink
 
 class GlobalSchemaGenerator {
 
-  def initGlobalSchema(sinks: Seq[Contract with ScalaContract[_]]): Unit = {
+  def initGlobalSchema(sinks: Seq[Operator with ScalaContract[_]]): Unit = {
 
     sinks.foldLeft(0) { (freePos, contract) => globalizeContract(contract, Seq(), Map(), None, freePos) }
   }
@@ -56,9 +56,9 @@ class GlobalSchemaGenerator {
    * @param freePos The current first available position in the global schema
    * @return The new first available position in the global schema
    */
-  private def globalizeContract(contract: Contract, parentInputs: Seq[FieldSet[InputField]], proxies: Map[Contract, Contract with ScalaContract[_]], fixedOutputs: Option[FieldSet[Field]], freePos: Int): Int = {
+  private def globalizeContract(contract: Operator, parentInputs: Seq[FieldSet[InputField]], proxies: Map[Operator, Operator with ScalaContract[_]], fixedOutputs: Option[FieldSet[Field]], freePos: Int): Int = {
 
-    val contract4s = proxies.getOrElse(contract, contract.asInstanceOf[Contract with ScalaContract[_]])
+    val contract4s = proxies.getOrElse(contract, contract.asInstanceOf[Operator with ScalaContract[_]])
 
     parentInputs.foreach(contract4s.getUDF.attachOutputsToInputs)
 
@@ -78,7 +78,7 @@ class GlobalSchemaGenerator {
     }
   }
 
-  private def globalizeContract(contract: Contract with ScalaContract[_], proxies: Map[Contract, Contract with ScalaContract[_]], fixedOutputs: Option[FieldSet[Field]], freePos: Int): Int = {
+  private def globalizeContract(contract: Operator with ScalaContract[_], proxies: Map[Operator, Operator with ScalaContract[_]], fixedOutputs: Option[FieldSet[Field]], freePos: Int): Int = {
 
     contract match {
 
@@ -94,7 +94,7 @@ class GlobalSchemaGenerator {
       case contract : BulkIteration with BulkIterationScalaContract[_] => {
         val s0 = contract.getInputs().get(0)
 
-        val s0contract = proxies.getOrElse(s0, s0.asInstanceOf[Contract with ScalaContract[_]])
+        val s0contract = proxies.getOrElse(s0, s0.asInstanceOf[Operator with ScalaContract[_]])
         val newProxies = proxies + (contract.getPartialSolution() -> s0contract)
 
         val freePos1 = globalizeContract(s0, Seq(), proxies, fixedOutputs, freePos)
@@ -113,8 +113,8 @@ class GlobalSchemaGenerator {
         val deltaS = contract.getSolutionSetDelta
         val newWS = contract.getNextWorkset
 
-        val s0contract = proxies.getOrElse(s0, s0.asInstanceOf[Contract with ScalaContract[_]])
-        val ws0contract = proxies.getOrElse(ws0, ws0.asInstanceOf[Contract with ScalaContract[_]])
+        val s0contract = proxies.getOrElse(s0, s0.asInstanceOf[Operator with ScalaContract[_]])
+        val ws0contract = proxies.getOrElse(ws0, ws0.asInstanceOf[Operator with ScalaContract[_]])
         val newProxies = proxies + (contract.getSolutionSetDelta -> s0contract) + (contract.getNextWorkset -> ws0contract)
 
         val freePos1 = globalizeContract(s0, Seq(contract.key.inputFields), proxies, fixedOutputs, freePos)
@@ -184,7 +184,7 @@ class GlobalSchemaGenerator {
         // the expected position. Otherwise, the output fields must be physically copied.
         for (idx <- 0 until inputs.size()) {
           val input = inputs.get(idx)
-          val input4s = proxies.getOrElse(input, input.asInstanceOf[Contract with ScalaContract[_]])
+          val input4s = proxies.getOrElse(input, input.asInstanceOf[Operator with ScalaContract[_]])
 
           if (input4s.getUDF.outputFields.isGlobalized || input4s.getUDF.outputFields.exists(_.globalPos.isReference)) {
 //            inputs.set(idx, CopyOperator(input4s))
@@ -199,9 +199,9 @@ class GlobalSchemaGenerator {
     }
   }
 
-  private def eliminateNoOps(contract: Contract): Unit = {
+  private def eliminateNoOps(contract: Operator): Unit = {
 
-    def elim(children: JList[Contract]): Unit = {
+    def elim(children: JList[Operator]): Unit = {
 
       val newChildren = children flatMap {
         case c: MapOperator with UnionScalaContract[_] => c.getInputs()
@@ -213,8 +213,8 @@ class GlobalSchemaGenerator {
     }
 
     contract match {
-      case c: SingleInputContract[_] => elim(c.getInputs())
-      case c: DualInputContract[_]   => elim(c.getFirstInputs()); elim(c.getSecondInputs())
+      case c: SingleInputOperator[_] => elim(c.getInputs())
+      case c: DualInputOperator[_]   => elim(c.getFirstInputs()); elim(c.getSecondInputs())
       case c: GenericDataSink => elim(c.getInputs())
       case _                         =>
     }

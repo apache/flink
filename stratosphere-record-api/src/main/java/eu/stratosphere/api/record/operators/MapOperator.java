@@ -18,46 +18,46 @@ package eu.stratosphere.api.record.operators;
 import java.util.ArrayList;
 import java.util.List;
 
-import eu.stratosphere.api.operators.Contract;
-import eu.stratosphere.api.operators.base.GenericMapContract;
+import eu.stratosphere.api.operators.Operator;
+import eu.stratosphere.api.operators.base.MapOperatorBase;
 import eu.stratosphere.api.operators.util.UserCodeClassWrapper;
 import eu.stratosphere.api.operators.util.UserCodeObjectWrapper;
 import eu.stratosphere.api.operators.util.UserCodeWrapper;
-import eu.stratosphere.api.record.functions.MapStub;
+import eu.stratosphere.api.record.functions.MapFunction;
 import eu.stratosphere.types.Key;
 
 /**
- * MapOperator represents a Pact with a Map Input Contract.
+ * MapOperator represents a Pact with a Map Input Operator.
  * InputContracts are second-order functions. They have one or multiple input sets of records and a first-order
  * user function (stub implementation).
  * <p> 
- * Map works on a single input and calls the first-order user function of a {@link MapStub}  
+ * Map works on a single input and calls the first-order user function of a {@link MapFunction}  
  * for each record independently.
  * 
- * @see MapStub
+ * @see MapFunction
  */
-public class MapOperator extends GenericMapContract<MapStub> implements RecordOperator {
+public class MapOperator extends MapOperatorBase<MapFunction> implements RecordOperator {
 	
 	private static String DEFAULT_NAME = "<Unnamed Mapper>";
 	
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * Creates a Builder with the provided {@link MapStub} implementation.
+	 * Creates a Builder with the provided {@link MapFunction} implementation.
 	 * 
-	 * @param udf The {@link MapStub} implementation for this Map contract.
+	 * @param udf The {@link MapFunction} implementation for this Map contract.
 	 */
-	public static Builder builder(MapStub udf) {
-		return new Builder(new UserCodeObjectWrapper<MapStub>(udf));
+	public static Builder builder(MapFunction udf) {
+		return new Builder(new UserCodeObjectWrapper<MapFunction>(udf));
 	}
 	
 	/**
-	 * Creates a Builder with the provided {@link MapStub} implementation.
+	 * Creates a Builder with the provided {@link MapFunction} implementation.
 	 * 
-	 * @param udf The {@link MapStub} implementation for this Map contract.
+	 * @param udf The {@link MapFunction} implementation for this Map contract.
 	 */
-	public static Builder builder(Class<? extends MapStub> udf) {
-		return new Builder(new UserCodeClassWrapper<MapStub>(udf));
+	public static Builder builder(Class<? extends MapFunction> udf) {
+		return new Builder(new UserCodeClassWrapper<MapFunction>(udf));
 	}
 	
 	/**
@@ -85,20 +85,20 @@ public class MapOperator extends GenericMapContract<MapStub> implements RecordOp
 	public static class Builder {
 		
 		/* The required parameters */
-		private final UserCodeWrapper<MapStub> udf;
+		private final UserCodeWrapper<MapFunction> udf;
 		
 		/* The optional parameters */
-		private List<Contract> inputs;
+		private List<Operator> inputs;
 		private String name = DEFAULT_NAME;
 		
 		/**
-		 * Creates a Builder with the provided {@link MapStub} implementation.
+		 * Creates a Builder with the provided {@link MapFunction} implementation.
 		 * 
-		 * @param udf The {@link MapStub} implementation for this Map contract.
+		 * @param udf The {@link MapFunction} implementation for this Map contract.
 		 */
-		private Builder(UserCodeWrapper<MapStub> udf) {
+		private Builder(UserCodeWrapper<MapFunction> udf) {
 			this.udf = udf;
-			this.inputs = new ArrayList<Contract>();
+			this.inputs = new ArrayList<Operator>();
 		}
 		
 		/**
@@ -106,9 +106,9 @@ public class MapOperator extends GenericMapContract<MapStub> implements RecordOp
 		 * 
 		 * @param inputs
 		 */
-		public Builder input(Contract ...inputs) {
+		public Builder input(Operator ...inputs) {
 			this.inputs.clear();
-			for (Contract c : inputs) {
+			for (Operator c : inputs) {
 				this.inputs.add(c);
 			}
 			return this;
@@ -119,7 +119,7 @@ public class MapOperator extends GenericMapContract<MapStub> implements RecordOp
 		 * 
 		 * @param inputs
 		 */
-		public Builder inputs(List<Contract> inputs) {
+		public Builder inputs(List<Operator> inputs) {
 			this.inputs = inputs;
 			return this;
 		}

@@ -26,10 +26,10 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
+import eu.stratosphere.api.Job;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
-import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.api.record.functions.MapStub;
+import eu.stratosphere.api.record.functions.MapFunction;
 import eu.stratosphere.api.record.io.DelimitedInputFormat;
 import eu.stratosphere.api.record.operators.MapOperator;
 import eu.stratosphere.compiler.DataStatistics;
@@ -122,7 +122,7 @@ public class TaskFailureITCase extends FailingTestBase {
 		testMapper.setInput(input);
 
 		// generate plan
-		Plan plan = new Plan(output);
+		Job plan = new Job(output);
 
 		// optimize and compile plan 
 		PactCompiler pc = new PactCompiler(new DataStatistics());
@@ -163,7 +163,7 @@ public class TaskFailureITCase extends FailingTestBase {
 		testMapper.setInput(input);
 
 		// generate plan
-		Plan plan = new Plan(output);
+		Job plan = new Job(output);
 
 		// optimize and compile plan
 		PactCompiler pc = new PactCompiler(new DataStatistics());
@@ -223,7 +223,7 @@ public class TaskFailureITCase extends FailingTestBase {
 	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
 	 *
 	 */
-	public static class TestMapper extends MapStub {
+	public static class TestMapper extends MapFunction {
 
 		private final PactString string = new PactString();
 		private final PactInteger integer = new PactInteger();
@@ -256,7 +256,7 @@ public class TaskFailureITCase extends FailingTestBase {
 	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
 	 *
 	 */
-	public static class FailingMapper extends MapStub {
+	public static class FailingMapper extends MapFunction {
 
 		@Override
 		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {

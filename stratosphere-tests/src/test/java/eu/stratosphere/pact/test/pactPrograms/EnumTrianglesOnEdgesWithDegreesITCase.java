@@ -21,7 +21,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.api.Job;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.example.record.triangles.EnumTrianglesOnEdgesWithDegrees;
 import eu.stratosphere.test.util.TestBase2;
@@ -47,9 +47,9 @@ public class EnumTrianglesOnEdgesWithDegreesITCase extends TestBase2 {
 	
 	
 	@Override
-	protected Plan getPactPlan() {
+	protected Job getPactPlan() {
 		EnumTrianglesOnEdgesWithDegrees enumTriangles = new EnumTrianglesOnEdgesWithDegrees();
-		return enumTriangles.getPlan(
+		return enumTriangles.createJob(
 				config.getString("EnumTrianglesTest#NumSubtasks", "4"),
 				edgesPath, resultPath);
 	}

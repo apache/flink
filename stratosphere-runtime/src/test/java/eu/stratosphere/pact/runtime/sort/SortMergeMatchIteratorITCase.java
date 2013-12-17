@@ -27,7 +27,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import eu.stratosphere.api.record.functions.MatchStub;
+import eu.stratosphere.api.record.functions.JoinFunction;
 import eu.stratosphere.api.typeutils.TypeComparator;
 import eu.stratosphere.api.typeutils.TypePairComparator;
 import eu.stratosphere.api.typeutils.TypeSerializer;
@@ -132,7 +132,7 @@ public class SortMergeMatchIteratorITCase
 				collectData(input1),
 				collectData(input2));
 			
-			final MatchStub matcher = new MatchRemovingMatcher(expectedMatchesMap);
+			final JoinFunction matcher = new MatchRemovingMatcher(expectedMatchesMap);
 			
 			final Collector<PactRecord> collector = new DiscardingOutputCollector();
 	
@@ -223,7 +223,7 @@ public class SortMergeMatchIteratorITCase
 			input1 = new MergeIterator<PactRecord>(inList1, serializer1, comparator1.duplicate());
 			input2 = new MergeIterator<PactRecord>(inList2, serializer2, comparator2.duplicate());
 			
-			final MatchStub matcher = new MatchRemovingMatcher(expectedMatchesMap);
+			final JoinFunction matcher = new MatchRemovingMatcher(expectedMatchesMap);
 			
 			final Collector<PactRecord> collector = new DiscardingOutputCollector();
 	
@@ -341,7 +341,7 @@ public class SortMergeMatchIteratorITCase
 		}
 	}
 	
-	private static final class MatchRemovingMatcher extends MatchStub
+	private static final class MatchRemovingMatcher extends JoinFunction
 	{
 		private final Map<TestData.Key, Collection<Match>> toRemoveFrom;
 		

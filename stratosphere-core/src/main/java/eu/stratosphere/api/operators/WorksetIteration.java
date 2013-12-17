@@ -17,25 +17,25 @@ package eu.stratosphere.api.operators;
 
 import java.util.List;
 
-import eu.stratosphere.api.functions.AbstractStub;
+import eu.stratosphere.api.functions.AbstractFunction;
 import eu.stratosphere.api.functions.aggregators.AggregatorRegistry;
 import eu.stratosphere.api.operators.util.UserCodeClassWrapper;
 import eu.stratosphere.api.operators.util.UserCodeWrapper;
 import eu.stratosphere.util.Visitor;
 
 /**
- * This class is a subclass of {@code DualInputContract}. The solution set is considered the first input, the
+ * This class is a subclass of {@code DualInputOperator}. The solution set is considered the first input, the
  * workset is considered the second input.
  */
-public class WorksetIteration extends DualInputContract<AbstractStub> implements IterationContract {
+public class WorksetIteration extends DualInputOperator<AbstractFunction> implements IterationOperator {
 	
-	private final Contract solutionSetPlaceholder = new SolutionSetPlaceHolder(this);
+	private final Operator solutionSetPlaceholder = new SolutionSetPlaceHolder(this);
 
-	private final Contract worksetPlaceholder = new WorksetPlaceHolder(this);
+	private final Operator worksetPlaceholder = new WorksetPlaceHolder(this);
 
-	private Contract solutionSetDelta;
+	private Operator solutionSetDelta;
 
-	private Contract nextWorkset;
+	private Operator nextWorkset;
 	
 	/**
 	 * The positions of the keys in the solution tuple.
@@ -64,7 +64,7 @@ public class WorksetIteration extends DualInputContract<AbstractStub> implements
 	}
 	
 	public WorksetIteration(int[] keyPositions, String name) {
-		super(new UserCodeClassWrapper<AbstractStub>(AbstractStub.class), name);
+		super(new UserCodeClassWrapper<AbstractFunction>(AbstractFunction.class), name);
 		this.solutionSetKeyFields = keyPositions;
 	}
 	
@@ -96,7 +96,7 @@ public class WorksetIteration extends DualInputContract<AbstractStub> implements
 	 * 
 	 * @return The solution set for the step function.
 	 */
-	public Contract getSolutionSet() {
+	public Operator getSolutionSet() {
 		return this.solutionSetPlaceholder;
 	}
 
@@ -105,7 +105,7 @@ public class WorksetIteration extends DualInputContract<AbstractStub> implements
 	 * 
 	 * @return The workset for the step function.
 	 */
-	public Contract getWorkset() {
+	public Operator getWorkset() {
 		return this.worksetPlaceholder;
 	}
 
@@ -115,7 +115,7 @@ public class WorksetIteration extends DualInputContract<AbstractStub> implements
 	 * 
 	 * @param result The contract representing the next workset.
 	 */
-	public void setNextWorkset(Contract result) {
+	public void setNextWorkset(Operator result) {
 		this.nextWorkset = result;
 	}
 	
@@ -124,7 +124,7 @@ public class WorksetIteration extends DualInputContract<AbstractStub> implements
 	 * 
 	 * @return The contract that has been set as the next workset.
 	 */
-	public Contract getNextWorkset() {
+	public Operator getNextWorkset() {
 		return this.nextWorkset;
 	}
 	
@@ -134,7 +134,7 @@ public class WorksetIteration extends DualInputContract<AbstractStub> implements
 	 * 
 	 * @param delta The contract representing the solution set delta.
 	 */
-	public void setSolutionSetDelta(Contract delta) {
+	public void setSolutionSetDelta(Operator delta) {
 		this.solutionSetDelta = delta;
 	}
 	
@@ -143,7 +143,7 @@ public class WorksetIteration extends DualInputContract<AbstractStub> implements
 	 * 
 	 * @return The contract that has been set as the solution set delta.
 	 */
-	public Contract getSolutionSetDelta() {
+	public Operator getSolutionSetDelta() {
 		return this.solutionSetDelta;
 	}
 
@@ -156,7 +156,7 @@ public class WorksetIteration extends DualInputContract<AbstractStub> implements
 	 * 
 	 * @return The iteration's initial solution set input.
 	 */
-	public List<Contract> getInitialSolutionSet() {
+	public List<Operator> getInitialSolutionSet() {
 		return getFirstInputs();
 	}
 	
@@ -165,7 +165,7 @@ public class WorksetIteration extends DualInputContract<AbstractStub> implements
 	 * 
 	 * @return The iteration's workset input.
 	 */
-	public List<Contract> getInitialWorkset() {
+	public List<Operator> getInitialWorkset() {
 		return getSecondInputs();
 	}
 	
@@ -174,7 +174,7 @@ public class WorksetIteration extends DualInputContract<AbstractStub> implements
 	 * 
 	 * @param input The contract to set the initial solution set.
 	 */
-	public void setInitialSolutionSet(Contract ... input) {
+	public void setInitialSolutionSet(Operator ... input) {
 		setFirstInput(input);
 	}
 	
@@ -183,7 +183,7 @@ public class WorksetIteration extends DualInputContract<AbstractStub> implements
 	 * 
 	 * @param input The contract to set as the initial workset.
 	 */
-	public void setInitialWorkset(Contract ... input) {
+	public void setInitialWorkset(Operator ... input) {
 		setSecondInput(input);
 	}
 
@@ -192,7 +192,7 @@ public class WorksetIteration extends DualInputContract<AbstractStub> implements
 	 * 
 	 * @param inputs The contracts to set as the initial solution set.
 	 */
-	public void setInitialSolutionSet(List<Contract> inputs) {
+	public void setInitialSolutionSet(List<Operator> inputs) {
 		setFirstInputs(inputs);
 	}
 
@@ -201,7 +201,7 @@ public class WorksetIteration extends DualInputContract<AbstractStub> implements
 	 * 
 	 * @param inputs The contracts to set as the initial workset.
 	 */
-	public void setInitialWorkset(List<Contract> inputs) {
+	public void setInitialWorkset(List<Operator> inputs) {
 		setSecondInputs(inputs);
 	}
 	
@@ -210,7 +210,7 @@ public class WorksetIteration extends DualInputContract<AbstractStub> implements
 	 * 
 	 * @param inputs The contract added to the initial solution set.
 	 */
-	public void addToInitialSolutionSet(Contract ... inputs) {
+	public void addToInitialSolutionSet(Operator ... inputs) {
 		addFirstInput(inputs);
 	}
 	
@@ -219,7 +219,7 @@ public class WorksetIteration extends DualInputContract<AbstractStub> implements
 	 * 
 	 * @param inputs The contract added to the initial workset.
 	 */
-	public void addToInitialWorkset(Contract ... inputs) {
+	public void addToInitialWorkset(Operator ... inputs) {
 		addSecondInput(inputs);
 	}
 
@@ -228,7 +228,7 @@ public class WorksetIteration extends DualInputContract<AbstractStub> implements
 	 * 
 	 * @param inputs The contracts added to the initial solution set.
 	 */
-	public void addToInitialSolutionSet(List<Contract> inputs) {
+	public void addToInitialSolutionSet(List<Operator> inputs) {
 		addFirstInputs(inputs);
 	}
 
@@ -237,7 +237,7 @@ public class WorksetIteration extends DualInputContract<AbstractStub> implements
 	 * 
 	 * @param inputs The contracts added to the initial workset.
 	 */
-	public void addToInitialWorkset(List<Contract> inputs) {
+	public void addToInitialWorkset(List<Operator> inputs) {
 		addSecondInputs(inputs);
 	}
 	
@@ -250,7 +250,7 @@ public class WorksetIteration extends DualInputContract<AbstractStub> implements
 	 * step function, when composing the nested data flow.
 	 */
 	// Integer is only a dummy here but this whole placeholder shtick seems a tad bogus.
-	public static class WorksetPlaceHolder extends Contract {
+	public static class WorksetPlaceHolder extends Operator {
 
 		private final WorksetIteration containingIteration;
 
@@ -264,7 +264,7 @@ public class WorksetIteration extends DualInputContract<AbstractStub> implements
 		}
 
 		@Override
-		public void accept(Visitor<Contract> visitor) {
+		public void accept(Visitor<Operator> visitor) {
 			visitor.preVisit(this);
 			visitor.postVisit(this);
 		}
@@ -280,7 +280,7 @@ public class WorksetIteration extends DualInputContract<AbstractStub> implements
 	 * step function, when composing the nested data flow.
 	 */
 	// Integer is only a dummy here but this whole placeholder shtick seems a tad bogus.
-	public static class SolutionSetPlaceHolder extends Contract {
+	public static class SolutionSetPlaceHolder extends Operator {
 
 		private final WorksetIteration containingIteration;
 
@@ -294,7 +294,7 @@ public class WorksetIteration extends DualInputContract<AbstractStub> implements
 		}
 
 		@Override
-		public void accept(Visitor<Contract> visitor) {
+		public void accept(Visitor<Operator> visitor) {
 			visitor.preVisit(this);
 			visitor.postVisit(this);
 		}

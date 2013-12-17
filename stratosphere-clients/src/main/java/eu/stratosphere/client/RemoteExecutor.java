@@ -6,9 +6,9 @@ import java.net.URISyntaxException;
 import java.util.Collections;
 import java.util.List;
 
-import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.api.Job;
 import eu.stratosphere.client.program.Client;
-import eu.stratosphere.client.program.PlanWithJars;
+import eu.stratosphere.client.program.JobWithJars;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.client.JobExecutionResult;
 
@@ -51,13 +51,13 @@ public class RemoteExecutor implements PlanExecutor {
 		return new InetSocketAddress(host, port);
 	}
 
-	public JobExecutionResult executePlanWithJars(PlanWithJars p) throws Exception {
+	public JobExecutionResult executePlanWithJars(JobWithJars p) throws Exception {
 		return this.client.run(p, true);
 	}
 	
 	@Override
-	public JobExecutionResult executePlan(Plan plan) throws Exception {
-		PlanWithJars p = new PlanWithJars(plan, this.jarFiles);
+	public JobExecutionResult executePlan(Job plan) throws Exception {
+		JobWithJars p = new JobWithJars(plan, this.jarFiles);
 		return this.client.run(p, true);
 	}
 }

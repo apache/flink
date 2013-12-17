@@ -1,12 +1,12 @@
 package eu.stratosphere.example.record.incremental.pagerank;
 
 import eu.stratosphere.util.Collector;
-import eu.stratosphere.api.record.functions.MatchStub;
+import eu.stratosphere.api.record.functions.JoinFunction;
 import eu.stratosphere.types.PactRecord;
 import eu.stratosphere.types.PactDouble;
 import eu.stratosphere.types.PactLong;
 
-public class PRDependenciesComputationMatchDelta extends MatchStub {
+public class PRDependenciesComputationMatchDelta extends JoinFunction {
 
 	private final PactRecord result = new PactRecord();
 	private final PactDouble partRank = new PactDouble();

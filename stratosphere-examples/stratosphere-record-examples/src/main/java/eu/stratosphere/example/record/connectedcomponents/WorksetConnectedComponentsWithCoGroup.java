@@ -18,16 +18,16 @@ package eu.stratosphere.example.record.connectedcomponents;
 import java.io.Serializable;
 import java.util.Iterator;
 
-import eu.stratosphere.api.functions.StubAnnotation.ConstantFieldsFirst;
-import eu.stratosphere.api.functions.StubAnnotation.ConstantFieldsSecond;
+import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Program;
+import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.operators.WorksetIteration;
-import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.api.plan.PlanAssembler;
-import eu.stratosphere.api.plan.PlanAssemblerDescription;
-import eu.stratosphere.api.record.functions.CoGroupStub;
-import eu.stratosphere.api.record.functions.MatchStub;
+import eu.stratosphere.api.record.functions.CoGroupFunction;
+import eu.stratosphere.api.record.functions.JoinFunction;
+import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFieldsFirst;
+import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFieldsSecond;
 import eu.stratosphere.api.record.io.CsvOutputFormat;
 import eu.stratosphere.api.record.operators.CoGroupOperator;
 import eu.stratosphere.api.record.operators.JoinOperator;
@@ -41,9 +41,9 @@ import eu.stratosphere.util.Collector;
 /**
  *
  */
-public class WorksetConnectedComponentsWithCoGroup implements PlanAssembler, PlanAssemblerDescription {
+public class WorksetConnectedComponentsWithCoGroup implements Program, ProgramDescription {
 	
-	public static final class NeighborWithComponentIDJoin extends MatchStub implements Serializable {
+	public static final class NeighborWithComponentIDJoin extends JoinFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 
 		private final PactRecord result = new PactRecord();
@@ -59,7 +59,7 @@ public class WorksetConnectedComponentsWithCoGroup implements PlanAssembler, Pla
 	@CombinableFirst
 	@ConstantFieldsFirst(0)
 	@ConstantFieldsSecond(0)
-	public static final class MinIdAndUpdate extends CoGroupStub implements Serializable {
+	public static final class MinIdAndUpdate extends CoGroupFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 
 		private final PactLong newComponentId = new PactLong();
@@ -104,7 +104,7 @@ public class WorksetConnectedComponentsWithCoGroup implements PlanAssembler, Pla
 	}
 	
 	@Override
-	public Plan getPlan(String... args) {
+	public Job createJob(String... args) {
 		// parse job parameters
 		final int numSubTasks = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		final String verticesInput = (args.length > 1 ? args[1] : "");
@@ -148,7 +148,7 @@ public class WorksetConnectedComponentsWithCoGroup implements PlanAssembler, Pla
 			.field(PactLong.class, 1);
 
 		// return the PACT plan
-		Plan plan = new Plan(result, "Workset Connected Components");
+		Job plan = new Job(result, "Workset Connected Components");
 		plan.setDefaultParallelism(numSubTasks);
 		return plan;
 	}

@@ -21,7 +21,7 @@ import eu.stratosphere.util.Collector;
 
 
 
-public interface GenericReducer<T, O> extends Stub
+public interface GenericReducer<T, O> extends Function
 {
 	void reduce(Iterator<T> records, Collector<O> out) throws Exception;
 

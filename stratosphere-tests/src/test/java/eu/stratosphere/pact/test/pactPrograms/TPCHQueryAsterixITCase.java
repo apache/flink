@@ -24,7 +24,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.api.Job;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
@@ -113,7 +113,7 @@ public class TPCHQueryAsterixITCase extends TestBase {
 	protected JobGraph getJobGraph() throws Exception {
 
 		TPCHQueryAsterix tpchBench = new TPCHQueryAsterix();
-		Plan plan = tpchBench.getPlan(
+		Job plan = tpchBench.createJob(
 				config.getString("TPCHQueryAsterix#NoSubtasks", "1"), 
 				getFilesystemProvider().getURIPrefix()+ordersPath, 
 				getFilesystemProvider().getURIPrefix()+custPath, 

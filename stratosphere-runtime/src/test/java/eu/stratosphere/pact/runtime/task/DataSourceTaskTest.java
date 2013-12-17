@@ -140,7 +140,7 @@ public class DataSourceTaskTest extends TaskTestBase
 			stubFailed = true;
 		}
 		
-		Assert.assertTrue("Stub exception was not forwarded.", stubFailed);
+		Assert.assertTrue("Function exception was not forwarded.", stubFailed);
 		
 		// assert that temp file was created
 		File tempTestFile = new File(this.tempTestPath);

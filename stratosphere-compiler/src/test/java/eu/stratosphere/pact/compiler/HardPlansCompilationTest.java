@@ -17,9 +17,9 @@ package eu.stratosphere.pact.compiler;
 
 import org.junit.Test;
 
+import eu.stratosphere.api.Job;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
-import eu.stratosphere.api.plan.Plan;
 import eu.stratosphere.api.record.operators.CrossOperator;
 import eu.stratosphere.api.record.operators.MapOperator;
 import eu.stratosphere.api.record.operators.ReduceOperator;
@@ -68,7 +68,7 @@ public class HardPlansCompilationTest extends CompilerTestBase
 		FileDataSink sink = new FileDataSink(new DummyOutputFormat(), OUT_FILE, "Sink");
 		sink.setInput(reduce3);
 		
-		Plan plan = new Plan(sink, "Test Temp Task");
+		Job plan = new Job(sink, "Test Temp Task");
 		plan.setDefaultParallelism(DEFAULT_PARALLELISM);
 		
 		OptimizedPlan oPlan = compileNoStats(plan);

@@ -27,13 +27,13 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
+import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Program;
 import eu.stratosphere.api.distributions.UniformIntegerDistribution;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.operators.Order;
 import eu.stratosphere.api.operators.Ordering;
-import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.api.plan.PlanAssembler;
 import eu.stratosphere.api.record.io.CsvInputFormat;
 import eu.stratosphere.api.record.io.CsvOutputFormat;
 import eu.stratosphere.compiler.DataStatistics;
@@ -93,7 +93,7 @@ public class GlobalSortingITCase extends TestBase {
 	protected JobGraph getJobGraph() throws Exception {
 
 		GlobalSort globalSort = new GlobalSort();
-		Plan plan = globalSort.getPlan(
+		Job plan = globalSort.createJob(
 				config.getString("GlobalSortingTest#NoSubtasks", "1"), 
 				getFilesystemProvider().getURIPrefix()+recordsPath,
 				getFilesystemProvider().getURIPrefix()+resultPath);
@@ -135,10 +135,10 @@ public class GlobalSortingITCase extends TestBase {
 		return toParameterList(tConfigs);
 	}
 	
-	private static class GlobalSort implements PlanAssembler {
+	private static class GlobalSort implements Program {
 		
 		@Override
-		public Plan getPlan(String... args) throws IllegalArgumentException {
+		public Job createJob(String... args) throws IllegalArgumentException {
 			// parse program parameters
 			int numSubtasks       = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 			String recordsPath    = (args.length > 1 ? args[1] : "");
@@ -163,7 +163,7 @@ public class GlobalSortingITCase extends TestBase {
 			sink.setGlobalOrder(new Ordering(0, PactInteger.class, Order.ASCENDING), new UniformIntegerDistribution(Integer.MIN_VALUE, Integer.MAX_VALUE));
 			sink.setInput(source);
 			
-			return new Plan(sink);
+			return new Job(sink);
 		}
 		
 	}

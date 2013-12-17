@@ -17,10 +17,10 @@ package eu.stratosphere.pact.test.cancelling;
 
 import org.junit.Test;
 
+import eu.stratosphere.api.Job;
 import eu.stratosphere.api.operators.GenericDataSink;
 import eu.stratosphere.api.operators.GenericDataSource;
-import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.api.record.functions.MapStub;
+import eu.stratosphere.api.record.functions.MapFunction;
 import eu.stratosphere.api.record.operators.MapOperator;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.pact.test.testPrograms.util.DiscardingOutputFormat;
@@ -41,7 +41,7 @@ public class MapCancelingITCase extends CancellingTestBase {
 		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), mapper, "Sink");
 		
 		
-		Plan p = new Plan(sink);
+		Job p = new Job(sink);
 		p.setDefaultParallelism(4);
 		
 		runAndCancelJob(p, 5 * 1000, 10 * 1000);
@@ -58,7 +58,7 @@ public class MapCancelingITCase extends CancellingTestBase {
 		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), mapper, "Sink");
 		
 		
-		Plan p = new Plan(sink);
+		Job p = new Job(sink);
 		p.setDefaultParallelism(4);
 		
 		runAndCancelJob(p, 5 * 1000, 10 * 1000);
@@ -75,7 +75,7 @@ public class MapCancelingITCase extends CancellingTestBase {
 		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), mapper, "Sink");
 		
 		
-		Plan p = new Plan(sink);
+		Job p = new Job(sink);
 		p.setDefaultParallelism(4);
 		
 		runAndCancelJob(p, 10 * 1000, 10 * 1000);
@@ -92,7 +92,7 @@ public class MapCancelingITCase extends CancellingTestBase {
 		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), mapper, "Sink");
 		
 		
-		Plan p = new Plan(sink);
+		Job p = new Job(sink);
 		p.setDefaultParallelism(4);
 		
 		runAndCancelJob(p, 10 * 1000, 10 * 1000);
@@ -100,14 +100,14 @@ public class MapCancelingITCase extends CancellingTestBase {
 
 	// --------------------------------------------------------------------------------------------
 	
-	public static final class IdentityMapper extends MapStub {
+	public static final class IdentityMapper extends MapFunction {
 		@Override
 		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
 			out.collect(record);
 		}
 	}
 	
-	public static final class DelayingIdentityMapper extends MapStub {
+	public static final class DelayingIdentityMapper extends MapFunction {
 		
 		private static final int WAIT_TIME_PER_RECORD = 10 * 1000; // 10 sec.
 
@@ -118,7 +118,7 @@ public class MapCancelingITCase extends CancellingTestBase {
 		}
 	}
 	
-	public static final class LongCancelTimeIdentityMapper extends MapStub {
+	public static final class LongCancelTimeIdentityMapper extends MapFunction {
 		
 		private static final int WAIT_TIME_PER_RECORD = 5 * 1000; // 5 sec.
 
@@ -136,7 +136,7 @@ public class MapCancelingITCase extends CancellingTestBase {
 		}
 	}
 	
-	public static final class StuckInOpenIdentityMapper extends MapStub {
+	public static final class StuckInOpenIdentityMapper extends MapFunction {
 		
 		@Override
 		public void open(Configuration parameters) throws Exception {

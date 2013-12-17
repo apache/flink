@@ -28,10 +28,10 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
+import eu.stratosphere.api.Job;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
-import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.api.record.functions.CoGroupStub;
+import eu.stratosphere.api.record.functions.CoGroupFunction;
 import eu.stratosphere.api.record.io.DelimitedInputFormat;
 import eu.stratosphere.api.record.io.FileOutputFormat;
 import eu.stratosphere.api.record.operators.CoGroupOperator;
@@ -138,7 +138,7 @@ public class CoGroupITCase extends TestBase {
 		}
 	}
 
-	public static class TestCoGrouper extends CoGroupStub implements Serializable {
+	public static class TestCoGrouper extends CoGroupFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 
 		private PactString keyString = new PactString();
@@ -206,7 +206,7 @@ public class CoGroupITCase extends TestBase {
 		testCoGrouper.addFirstInput(input_left);
 		testCoGrouper.addSecondInput(input_right);
 
-		Plan plan = new Plan(output);
+		Job plan = new Job(output);
 
 		PactCompiler pc = new PactCompiler(new DataStatistics());
 		OptimizedPlan op = pc.compile(plan);

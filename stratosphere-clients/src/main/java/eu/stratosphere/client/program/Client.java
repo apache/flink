@@ -22,7 +22,7 @@ import java.io.StringWriter;
 import java.net.InetSocketAddress;
 import java.util.List;
 
-import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.api.Job;
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;
@@ -105,10 +105,10 @@ public class Client {
 	 * @return The compiled and optimized plan, as returned by the compiler.
 	 * @throws CompilerException Thrown, if the compiler encounters an illegal situation.
 	 * @throws ProgramInvocationException Thrown, if the pact program could not be instantiated from its jar file.
-	 * @throws ErrorInPlanAssemblerException Thrown, if the plan assembler function causes an exception.
+	 * @throws JobInstantiationException Thrown, if the plan assembler function causes an exception.
 	 */
-	public OptimizedPlan getOptimizedPlan(PlanWithJars prog) throws CompilerException, ProgramInvocationException, ErrorInPlanAssemblerException {
-		Plan plan = prog.getPlan();
+	public OptimizedPlan getOptimizedPlan(JobWithJars prog) throws CompilerException, ProgramInvocationException, JobInstantiationException {
+		Job plan = prog.getPlan();
 		ContextChecker checker = new ContextChecker();
 		checker.check(plan);
 		return this.compiler.compile(plan);
@@ -121,9 +121,9 @@ public class Client {
 	 * @return A JSON string representation of the optimized input plan.
 	 * @throws CompilerException Thrown, if the compiler encounters an illegal situation.
 	 * @throws ProgramInvocationException Thrown, if the pact program could not be instantiated from its jar file.
-	 * @throws ErrorInPlanAssemblerException Thrown, if the plan assembler function causes an exception.
+	 * @throws JobInstantiationException Thrown, if the plan assembler function causes an exception.
 	 */
-	public static String getPreviewAsJSON(PackagedProgram prog) throws CompilerException, ProgramInvocationException, ErrorInPlanAssemblerException {
+	public static String getPreviewAsJSON(PackagedProgram prog) throws CompilerException, ProgramInvocationException, JobInstantiationException {
 		StringWriter string = new StringWriter(1024);
 		PrintWriter pw = null;
 		try {
@@ -142,9 +142,9 @@ public class Client {
 	 * @return A JSON string representation of the optimized input plan.
 	 * @throws CompilerException Thrown, if the compiler encounters an illegal situation.
 	 * @throws ProgramInvocationException Thrown, if the pact program could not be instantiated from its jar file.
-	 * @throws ErrorInPlanAssemblerException Thrown, if the plan assembler function causes an exception.
+	 * @throws JobInstantiationException Thrown, if the plan assembler function causes an exception.
 	 */
-	public static void dumpPreviewAsJSON(PackagedProgram prog, PrintWriter out) throws CompilerException, ProgramInvocationException, ErrorInPlanAssemblerException {
+	public static void dumpPreviewAsJSON(PackagedProgram prog, PrintWriter out) throws CompilerException, ProgramInvocationException, JobInstantiationException {
 		PlanJSONDumpGenerator jsonGen = new PlanJSONDumpGenerator();
 		jsonGen.dumpPactPlanAsJSON(prog.getPreviewPlan(), out);
 	}
@@ -156,9 +156,9 @@ public class Client {
 	 * @return A JSON string representation of the optimized input plan.
 	 * @throws CompilerException Thrown, if the compiler encounters an illegal situation.
 	 * @throws ProgramInvocationException Thrown, if the pact program could not be instantiated from its jar file.
-	 * @throws ErrorInPlanAssemblerException Thrown, if the plan assembler function causes an exception.
+	 * @throws JobInstantiationException Thrown, if the plan assembler function causes an exception.
 	 */
-	public String getOptimizerPlanAsJSON(PlanWithJars prog) throws CompilerException, ProgramInvocationException, ErrorInPlanAssemblerException {
+	public String getOptimizerPlanAsJSON(JobWithJars prog) throws CompilerException, ProgramInvocationException, JobInstantiationException {
 		StringWriter string = new StringWriter(1024);
 		PrintWriter pw = null;
 		try {
@@ -177,9 +177,9 @@ public class Client {
 	 * @return A JSON string representation of the optimized input plan.
 	 * @throws CompilerException Thrown, if the compiler encounters an illegal situation.
 	 * @throws ProgramInvocationException Thrown, if the pact program could not be instantiated from its jar file.
-	 * @throws ErrorInPlanAssemblerException Thrown, if the plan assembler function causes an exception.
+	 * @throws JobInstantiationException Thrown, if the plan assembler function causes an exception.
 	 */
-	public void dumpOptimizerPlanAsJSON(PlanWithJars prog, PrintWriter out) throws CompilerException, ProgramInvocationException, ErrorInPlanAssemblerException {
+	public void dumpOptimizerPlanAsJSON(JobWithJars prog, PrintWriter out) throws CompilerException, ProgramInvocationException, JobInstantiationException {
 		PlanJSONDumpGenerator jsonGen = new PlanJSONDumpGenerator();
 		jsonGen.dumpOptimizerPlanAsJSON(getOptimizedPlan(prog), out);
 	}
@@ -193,7 +193,7 @@ public class Client {
 	 * @param optPlan The optimized plan.
 	 * @return The nephele job graph, generated from the optimized plan.
 	 */
-	public JobGraph getJobGraph(PlanWithJars prog, OptimizedPlan optPlan) throws ProgramInvocationException {
+	public JobGraph getJobGraph(JobWithJars prog, OptimizedPlan optPlan) throws ProgramInvocationException {
 		NepheleJobGraphGenerator gen = new NepheleJobGraphGenerator();
 		JobGraph job = gen.compileJobGraph(optPlan);
 		
@@ -223,9 +223,9 @@ public class Client {
 	 *                                    or if the submission failed. That might be either due to an I/O problem,
 	 *                                    i.e. the job-manager is unreachable, or due to the fact that the execution
 	 *                                    on the nephele system failed.
-	 * @throws ErrorInPlanAssemblerException Thrown, if the plan assembler function causes an exception.
+	 * @throws JobInstantiationException Thrown, if the plan assembler function causes an exception.
 	 */
-	public JobExecutionResult run(PlanWithJars prog) throws CompilerException, ProgramInvocationException, ErrorInPlanAssemblerException {
+	public JobExecutionResult run(JobWithJars prog) throws CompilerException, ProgramInvocationException, JobInstantiationException {
 		return run(prog, false);
 	}
 	
@@ -240,9 +240,9 @@ public class Client {
 	 *                                    or if the submission failed. That might be either due to an I/O problem,
 	 *                                    i.e. the job-manager is unreachable, or due to the fact that the execution
 	 *                                    on the nephele system failed.
-	 * @throws ErrorInPlanAssemblerException Thrown, if the plan assembler function causes an exception.
+	 * @throws JobInstantiationException Thrown, if the plan assembler function causes an exception.
 	 */
-	public JobExecutionResult run(PlanWithJars prog, boolean wait) throws CompilerException, ProgramInvocationException, ErrorInPlanAssemblerException {
+	public JobExecutionResult run(JobWithJars prog, boolean wait) throws CompilerException, ProgramInvocationException, JobInstantiationException {
 		return run(prog, getOptimizedPlan(prog), wait);
 	}
 	
@@ -257,7 +257,7 @@ public class Client {
 	 *                                    i.e. the job-manager is unreachable, or due to the fact that the execution
 	 *                                    on the nephele system failed.
 	 */
-	public JobExecutionResult run(PlanWithJars prog, OptimizedPlan compiledPlan) throws ProgramInvocationException {
+	public JobExecutionResult run(JobWithJars prog, OptimizedPlan compiledPlan) throws ProgramInvocationException {
 		return run(prog, compiledPlan, false);
 	}
 	
@@ -273,7 +273,7 @@ public class Client {
 	 *                                    i.e. the job-manager is unreachable, or due to the fact that the execution
 	 *                                    on the nephele system failed.
 	 */
-	public JobExecutionResult run(PlanWithJars prog, OptimizedPlan compiledPlan, boolean wait) throws ProgramInvocationException {
+	public JobExecutionResult run(JobWithJars prog, OptimizedPlan compiledPlan, boolean wait) throws ProgramInvocationException {
 		JobGraph job = getJobGraph(prog, compiledPlan);
 		return run(prog, job, wait);
 	}
@@ -286,7 +286,7 @@ public class Client {
 	 *                                    i.e. the job-manager is unreachable, or due to the fact that the execution
 	 *                                    on the nephele system failed.
 	 */
-	public JobExecutionResult run(PlanWithJars program, JobGraph jobGraph) throws ProgramInvocationException {
+	public JobExecutionResult run(JobWithJars program, JobGraph jobGraph) throws ProgramInvocationException {
 		return run(program, jobGraph, false);
 	}
 	/**
@@ -299,7 +299,7 @@ public class Client {
 	 *                                    i.e. the job-manager is unreachable, or due to the fact that the execution
 	 *                                    on the nephele system failed.
 	 */
-	public JobExecutionResult run(PlanWithJars program, JobGraph jobGraph, boolean wait) throws ProgramInvocationException
+	public JobExecutionResult run(JobWithJars program, JobGraph jobGraph, boolean wait) throws ProgramInvocationException
 	{
 		JobClient client;
 		try {

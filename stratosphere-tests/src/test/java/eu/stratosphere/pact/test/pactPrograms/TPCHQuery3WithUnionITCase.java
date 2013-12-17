@@ -25,7 +25,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.api.Job;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
@@ -194,7 +194,7 @@ public class TPCHQuery3WithUnionITCase extends TestBase {
 	@Override
 	protected JobGraph getJobGraph() throws Exception {
 		TPCHQuery3Unioned tpch3 = new TPCHQuery3Unioned();
-		Plan plan = tpch3.getPlan(
+		Job plan = tpch3.createJob(
 				config.getString("TPCHQuery3Test#NoSubtasks", "1"), 
 				getFilesystemProvider().getURIPrefix()+orders1Path,
 				getFilesystemProvider().getURIPrefix()+orders2Path,

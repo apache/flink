@@ -14,12 +14,12 @@
  **********************************************************************************************************************/
 package eu.stratosphere.pact.test.iterative;
 
+import eu.stratosphere.api.Job;
 import eu.stratosphere.api.operators.BulkIteration;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
-import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.api.record.functions.MapStub;
-import eu.stratosphere.api.record.functions.ReduceStub;
+import eu.stratosphere.api.record.functions.MapFunction;
+import eu.stratosphere.api.record.functions.ReduceFunction;
 import eu.stratosphere.api.record.operators.MapOperator;
 import eu.stratosphere.api.record.operators.ReduceOperator;
 import eu.stratosphere.configuration.Configuration;
@@ -63,8 +63,8 @@ public class IterationWithChainingITCase extends TestBase2 {
 
 
     @Override
-    protected Plan getPactPlan() {
-        Plan plan = getTestPlan(config.getInteger("ChainedMapperITCase#NoSubtasks", 1), dataPath, resultPath);
+    protected Job getPactPlan() {
+        Job plan = getTestPlan(config.getInteger("ChainedMapperITCase#NoSubtasks", 1), dataPath, resultPath);
         return plan;
     }
 
@@ -75,7 +75,7 @@ public class IterationWithChainingITCase extends TestBase2 {
         return toParameterList(config1);
     }
 
-    public static final class IdentityMapper extends MapStub implements Serializable {
+    public static final class IdentityMapper extends MapFunction implements Serializable {
 
         private static final long serialVersionUID = 1L;
 
@@ -85,7 +85,7 @@ public class IterationWithChainingITCase extends TestBase2 {
         }
     }
 
-    public static final class DummyReducer extends ReduceStub implements Serializable {
+    public static final class DummyReducer extends ReduceFunction implements Serializable {
 
         private static final long serialVersionUID = 1L;
 
@@ -97,7 +97,7 @@ public class IterationWithChainingITCase extends TestBase2 {
         }
     }
 
-    static Plan getTestPlan(int numSubTasks, String input, String output) {
+    static Job getTestPlan(int numSubTasks, String input, String output) {
 
         FileDataSource initialInput = new FileDataSource(new PointInFormat(), input, "Input");
         initialInput.setDegreeOfParallelism(1);
@@ -117,7 +117,7 @@ public class IterationWithChainingITCase extends TestBase2 {
 
         FileDataSink finalResult = new FileDataSink(new PointOutFormat(), output, iteration, "Output");
 
-        Plan plan = new Plan(finalResult, "Iteration with chained map test");
+        Job plan = new Job(finalResult, "Iteration with chained map test");
         plan.setDefaultParallelism(numSubTasks);
         return plan;
     }

@@ -15,20 +15,20 @@
 
 package eu.stratosphere.pact.runtime.task;
 
-import eu.stratosphere.api.functions.Stub;
+import eu.stratosphere.api.functions.Function;
 import eu.stratosphere.util.Collector;
 import eu.stratosphere.util.MutableObjectIterator;
 
 
-public class UnionWithTempOperator<T> implements PactDriver<Stub, T> {
+public class UnionWithTempOperator<T> implements PactDriver<Function, T> {
 	
-	private PactTaskContext<Stub, T> taskContext;
+	private PactTaskContext<Function, T> taskContext;
 	
 	private volatile boolean running;
 	
 	
 	@Override
-	public void setup(PactTaskContext<Stub, T> context) {
+	public void setup(PactTaskContext<Function, T> context) {
 		this.taskContext = context;
 		this.running = true;
 	}
@@ -39,8 +39,8 @@ public class UnionWithTempOperator<T> implements PactDriver<Stub, T> {
 	}
 
 	@Override
-	public Class<Stub> getStubType() {
-		return Stub.class;
+	public Class<Function> getStubType() {
+		return Function.class;
 	}
 
 	@Override

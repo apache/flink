@@ -17,21 +17,22 @@ package eu.stratosphere.arraymodel.example;
 
 import java.util.Iterator;
 
-import eu.stratosphere.api.functions.StubAnnotation.ConstantFields;
+import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFields;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
-import eu.stratosphere.api.operators.base.GenericMapContract;
-import eu.stratosphere.api.operators.base.GenericReduceContract;
-import eu.stratosphere.api.operators.base.GenericReduceContract.Combinable;
-import eu.stratosphere.api.plan.PlanAssembler;
-import eu.stratosphere.api.plan.PlanAssemblerDescription;
+import eu.stratosphere.api.operators.base.MapOperatorBase;
+import eu.stratosphere.api.operators.base.ReduceOperatorBase;
+import eu.stratosphere.api.operators.base.ReduceOperatorBase.Combinable;
+import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Program;
+import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.record.io.TextInputFormat;
+import eu.stratosphere.arraymodel.ArrayModelJob;
 import eu.stratosphere.arraymodel.functions.DataTypes;
-import eu.stratosphere.arraymodel.functions.MapStub;
-import eu.stratosphere.arraymodel.functions.ReduceStub;
+import eu.stratosphere.arraymodel.functions.MapFunction;
+import eu.stratosphere.arraymodel.functions.ReduceFunction;
 import eu.stratosphere.arraymodel.io.StringInputFormat;
 import eu.stratosphere.arraymodel.io.StringIntOutputFormat;
-import eu.stratosphere.arraymodel.plan.Plan;
 import eu.stratosphere.client.LocalExecutor;
 import eu.stratosphere.types.PactInteger;
 import eu.stratosphere.types.PactString;
@@ -43,7 +44,7 @@ import eu.stratosphere.util.Collector;
  * Implements a word count which takes the input file and counts the number of
  * the occurrences of each word in the file.
  */
-public class WordCountArrayTuples implements PlanAssembler, PlanAssemblerDescription {
+public class WordCountArrayTuples implements Program, ProgramDescription {
 	
 	/**
 	 * Converts a PactRecord containing one string in to multiple string/integer pairs.
@@ -51,7 +52,7 @@ public class WordCountArrayTuples implements PlanAssembler, PlanAssemblerDescrip
 	 * where the token is the first field and an Integer(1) is the second field.
 	 */
 	
-	public static class TokenizeLine extends MapStub {
+	public static class TokenizeLine extends MapFunction {
 		// initialize reusable mutable objects
 		private final PactString word = new PactString();
 		private final PactInteger one = new PactInteger(1);
@@ -85,7 +86,7 @@ public class WordCountArrayTuples implements PlanAssembler, PlanAssemblerDescrip
 	 */
 	@Combinable
 	@ConstantFields(0)
-	public static class CountWords extends ReduceStub {
+	public static class CountWords extends ReduceFunction {
 		
 		private final PactInteger cnt = new PactInteger();
 		private final Value[] result = new Value[] { null, cnt };
@@ -105,9 +106,9 @@ public class WordCountArrayTuples implements PlanAssembler, PlanAssemblerDescrip
 			out.collect(this.result);
 		}
 	}
-
+	
 	@Override
-	public Plan getPlan(String... args) {
+	public Job createJob(String... args) {
 		// parse job parameters
 		int numSubTasks   = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		String dataInput = (args.length > 1 ? args[1] : "");
@@ -116,10 +117,10 @@ public class WordCountArrayTuples implements PlanAssembler, PlanAssemblerDescrip
 		FileDataSource source = new FileDataSource(new StringInputFormat(), dataInput, "Input Lines");
 		source.setParameter(TextInputFormat.CHARSET_NAME, "ASCII");		// comment out this line for UTF-8 inputs
 		
-		GenericMapContract<TokenizeLine> mapper = new GenericMapContract<TokenizeLine>(TokenizeLine.class, "Tokenize Lines");
+		MapOperatorBase<TokenizeLine> mapper = new MapOperatorBase<TokenizeLine>(TokenizeLine.class, "Tokenize Lines");
 		mapper.setInput(source);
 		
-		GenericReduceContract<CountWords> reducer = new GenericReduceContract<CountWords>(CountWords.class, new int[] {0}, "Count Words");
+		ReduceOperatorBase<CountWords> reducer = new ReduceOperatorBase<CountWords>(CountWords.class, new int[] {0}, "Count Words");
 		reducer.setInput(mapper);
 		
 		FileDataSink out = new FileDataSink(new StringIntOutputFormat(), output, reducer, "Word Counts");
@@ -128,7 +129,7 @@ public class WordCountArrayTuples implements PlanAssembler, PlanAssemblerDescrip
 			.fieldDelimiter(' ')
 			.lenient(true);
 		
-		Plan plan = new Plan(out, "WordCount Example");
+		ArrayModelJob plan = new ArrayModelJob(out, "WordCount Example");
 		plan.setDefaultParallelism(numSubTasks);
 		return plan;
 	}
@@ -147,7 +148,7 @@ public class WordCountArrayTuples implements PlanAssembler, PlanAssemblerDescrip
 			System.exit(1);
 		}
 		
-		Plan plan = wc.getPlan(args);
+		Job plan = wc.createJob(args);
 		
 		// This will execute the word-count embedded in a local context. replace this line by the commented
 		// succeeding line to send the job to a local installation or to a cluster for execution

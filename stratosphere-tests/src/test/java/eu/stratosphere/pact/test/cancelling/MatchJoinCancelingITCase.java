@@ -17,10 +17,10 @@ package eu.stratosphere.pact.test.cancelling;
 
 import org.junit.Test;
 
+import eu.stratosphere.api.Job;
 import eu.stratosphere.api.operators.GenericDataSink;
 import eu.stratosphere.api.operators.GenericDataSource;
-import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.api.record.functions.MatchStub;
+import eu.stratosphere.api.record.functions.JoinFunction;
 import eu.stratosphere.api.record.operators.JoinOperator;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.pact.test.testPrograms.util.DiscardingOutputFormat;
@@ -50,7 +50,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 			.build();
 		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), matcher, "Sink");
 		
-		Plan p = new Plan(sink);
+		Job p = new Job(sink);
 		p.setDefaultParallelism(4);
 		
 		runAndCancelJob(p, 3000, 10*1000);
@@ -72,7 +72,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 			.build();
 		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), matcher, "Sink");
 		
-		Plan p = new Plan(sink);
+		Job p = new Job(sink);
 		p.setDefaultParallelism(4);
 		
 		runAndCancelJob(p, 5000, 10*1000);
@@ -94,7 +94,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 			.build();
 		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), matcher, "Sink");
 		
-		Plan p = new Plan(sink);
+		Job p = new Job(sink);
 		p.setDefaultParallelism(4);
 		
 		runAndCancelJob(p, 5000);
@@ -122,7 +122,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 			.build();
 		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), matcher, "Sink");
 		
-		Plan p = new Plan(sink);
+		Job p = new Job(sink);
 		p.setDefaultParallelism(4);
 		
 		runAndCancelJob(p, 30 * 1000, 30 * 1000);
@@ -151,7 +151,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 			.build();
 		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), matcher, "Sink");
 		
-		Plan p = new Plan(sink);
+		Job p = new Job(sink);
 		p.setDefaultParallelism(4);
 		
 		runAndCancelJob(p, 10 * 1000, 20 * 1000);
@@ -177,7 +177,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 			.build();
 		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), matcher, "Sink");
 		
-		Plan p = new Plan(sink);
+		Job p = new Job(sink);
 		p.setDefaultParallelism(4);
 		
 		runAndCancelJob(p, 10 * 1000, 10 * 1000);
@@ -201,7 +201,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 			.build();
 		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), matcher, "Sink");
 		
-		Plan p = new Plan(sink);
+		Job p = new Job(sink);
 		p.setDefaultParallelism(64);
 		
 		runAndCancelJob(p, 3000, 20*1000);
@@ -209,10 +209,10 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 
 	// --------------------------------------------------------------------------------------------
 	
-	public static final class SimpleMatcher extends MatchStub
+	public static final class SimpleMatcher extends JoinFunction
 	{
 		/* (non-Javadoc)
-		 * @see eu.stratosphere.api.record.functions.MatchStub#match(eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.api.record.functions.Collector)
+		 * @see eu.stratosphere.api.record.functions.JoinFunction#match(eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.api.record.functions.Collector)
 		 */
 		@Override
 		public void match(PactRecord value1, PactRecord value2, Collector<PactRecord> out) throws Exception
@@ -222,12 +222,12 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 		}
 	}
 	
-	public static final class DelayingMatcher extends MatchStub
+	public static final class DelayingMatcher extends JoinFunction
 	{
 		private static final int WAIT_TIME_PER_RECORD = 10 * 1000; // 10 sec.
 
 		/* (non-Javadoc)
-		 * @see eu.stratosphere.api.record.functions.MatchStub#match(eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.api.record.functions.Collector)
+		 * @see eu.stratosphere.api.record.functions.JoinFunction#match(eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.api.record.functions.Collector)
 		 */
 		@Override
 		public void match(PactRecord value1, PactRecord value2, Collector<PactRecord> out) throws Exception
@@ -238,12 +238,12 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 		}
 	}
 	
-	public static final class LongCancelTimeMatcher extends MatchStub
+	public static final class LongCancelTimeMatcher extends JoinFunction
 	{
 		private static final int WAIT_TIME_PER_RECORD = 5 * 1000; // 5 sec.
 		
 		/* (non-Javadoc)
-		 * @see eu.stratosphere.api.record.functions.MatchStub#match(eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.api.record.functions.Collector)
+		 * @see eu.stratosphere.api.record.functions.JoinFunction#match(eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.api.record.functions.Collector)
 		 */
 		@Override
 		public void match(PactRecord value1, PactRecord value2, Collector<PactRecord> out) throws Exception
@@ -262,7 +262,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 		}
 	}
 	
-	public static final class StuckInOpenMatcher extends MatchStub
+	public static final class StuckInOpenMatcher extends JoinFunction
 	{
 		/* (non-Javadoc)
 		 * @see eu.stratosphere.pact.common.generic.AbstractStub#open(eu.stratosphere.nephele.configuration.Configuration)
@@ -275,7 +275,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 		}
 
 		/* (non-Javadoc)
-		 * @see eu.stratosphere.api.record.functions.MatchStub#match(eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.api.record.functions.Collector)
+		 * @see eu.stratosphere.api.record.functions.JoinFunction#match(eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.api.record.functions.Collector)
 		 */
 		@Override
 		public void match(PactRecord value1, PactRecord value2, Collector<PactRecord> out) throws Exception

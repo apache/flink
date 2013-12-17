@@ -17,12 +17,12 @@ package eu.stratosphere.pact.compiler.util;
 
 import java.io.Serializable;
 
-import eu.stratosphere.api.record.functions.MatchStub;
+import eu.stratosphere.api.record.functions.JoinFunction;
 import eu.stratosphere.types.PactRecord;
 import eu.stratosphere.util.Collector;
 
 
-public class DummyNonPreservingMatchStub extends MatchStub implements Serializable {
+public class DummyNonPreservingMatchStub extends JoinFunction implements Serializable {
 	private static final long serialVersionUID = 1L;
 
 	@Override

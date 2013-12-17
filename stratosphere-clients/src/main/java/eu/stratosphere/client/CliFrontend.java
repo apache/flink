@@ -37,9 +37,9 @@ import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.PosixParser;
 import org.apache.commons.cli.UnrecognizedOptionException;
 
-import eu.stratosphere.accumulators.AccumulatorHelper;
+import eu.stratosphere.api.accumulators.AccumulatorHelper;
 import eu.stratosphere.client.program.Client;
-import eu.stratosphere.client.program.ErrorInPlanAssemblerException;
+import eu.stratosphere.client.program.JobInstantiationException;
 import eu.stratosphere.client.program.PackagedProgram;
 import eu.stratosphere.client.program.ProgramInvocationException;
 import eu.stratosphere.compiler.CompilerException;
@@ -301,7 +301,7 @@ public class CliFrontend {
 			execResult = client.run(program.getPlanWithJars(), wait);
 		} catch (ProgramInvocationException e) {
 			handleError(e);
-		} catch (ErrorInPlanAssemblerException e) {
+		} catch (JobInstantiationException e) {
 			handleError(e);
 		} catch (IOException e) {
 			handleError(e);
@@ -431,7 +431,7 @@ public class CliFrontend {
 				jsonPlan = client.getOptimizerPlanAsJSON(program.getPlanWithJars());
 			} catch (ProgramInvocationException e) {
 				handleError(e);
-			} catch (ErrorInPlanAssemblerException e) {
+			} catch (JobInstantiationException e) {
 				handleError(e);
 			} catch (CompilerException e) {
 				handleError(e);

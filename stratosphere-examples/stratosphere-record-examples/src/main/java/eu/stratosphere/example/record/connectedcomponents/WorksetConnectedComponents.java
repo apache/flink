@@ -18,16 +18,16 @@ package eu.stratosphere.example.record.connectedcomponents;
 import java.io.Serializable;
 import java.util.Iterator;
 
-import eu.stratosphere.api.functions.StubAnnotation.ConstantFields;
-import eu.stratosphere.api.functions.StubAnnotation.ConstantFieldsFirst;
+import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Program;
+import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.operators.WorksetIteration;
-import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.api.plan.PlanAssembler;
-import eu.stratosphere.api.plan.PlanAssemblerDescription;
-import eu.stratosphere.api.record.functions.MatchStub;
-import eu.stratosphere.api.record.functions.ReduceStub;
+import eu.stratosphere.api.record.functions.JoinFunction;
+import eu.stratosphere.api.record.functions.ReduceFunction;
+import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFields;
+import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFieldsFirst;
 import eu.stratosphere.api.record.io.CsvOutputFormat;
 import eu.stratosphere.api.record.operators.JoinOperator;
 import eu.stratosphere.api.record.operators.ReduceOperator;
@@ -39,14 +39,14 @@ import eu.stratosphere.util.Collector;
 /**
  *
  */
-public class WorksetConnectedComponents implements PlanAssembler, PlanAssemblerDescription {
+public class WorksetConnectedComponents implements Program, ProgramDescription {
 	
 	/**
 	 * UDF that joins a (Vertex-ID, Component-ID) pair that represents the current component that
 	 * a vertex is associated with, with a (Source-Vertex-ID, Target-VertexID) edge. The function
 	 * produces a (Target-vertex-ID, Component-ID) pair.
 	 */
-	public static final class NeighborWithComponentIDJoin extends MatchStub implements Serializable {
+	public static final class NeighborWithComponentIDJoin extends JoinFunction implements Serializable {
 		
 		private static final long serialVersionUID = 1L;
 
@@ -65,7 +65,7 @@ public class WorksetConnectedComponents implements PlanAssembler, PlanAssemblerD
 	 */
 	@Combinable
 	@ConstantFields(0)
-	public static final class MinimumComponentIDReduce extends ReduceStub implements Serializable {
+	public static final class MinimumComponentIDReduce extends ReduceFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 
 		private final PactRecord result = new PactRecord();
@@ -100,7 +100,7 @@ public class WorksetConnectedComponents implements PlanAssembler, PlanAssemblerD
 	 * Returns the candidate pair, if the candidate's Component-ID is smaller.
 	 */
 	@ConstantFieldsFirst(0)
-	public static final class UpdateComponentIdMatch extends MatchStub implements Serializable {
+	public static final class UpdateComponentIdMatch extends JoinFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -116,7 +116,7 @@ public class WorksetConnectedComponents implements PlanAssembler, PlanAssemblerD
 	}
 	
 	@Override
-	public Plan getPlan(String... args) {
+	public Job createJob(String... args) {
 		// parse job parameters
 		final int numSubTasks = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		final String verticesInput = (args.length > 1 ? args[1] : "");
@@ -169,7 +169,7 @@ public class WorksetConnectedComponents implements PlanAssembler, PlanAssemblerD
 			.field(PactLong.class, 1);
 
 		// return the PACT plan
-		Plan plan = new Plan(result, "Workset Connected Components");
+		Job plan = new Job(result, "Workset Connected Components");
 		plan.setDefaultParallelism(numSubTasks);
 		return plan;
 	}

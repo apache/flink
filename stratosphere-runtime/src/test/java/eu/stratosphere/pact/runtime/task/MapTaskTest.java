@@ -24,7 +24,7 @@ import org.junit.Test;
 import org.junit.Assert;
 
 import eu.stratosphere.api.functions.GenericMapper;
-import eu.stratosphere.api.record.functions.MapStub;
+import eu.stratosphere.api.record.functions.MapFunction;
 import eu.stratosphere.pact.runtime.test.util.DiscardingOutputCollector;
 import eu.stratosphere.pact.runtime.test.util.DriverTestBase;
 import eu.stratosphere.pact.runtime.test.util.ExpectedTestException;
@@ -76,7 +76,7 @@ public class MapTaskTest extends DriverTestBase<GenericMapper<PactRecord, PactRe
 		final MapDriver<PactRecord, PactRecord> testTask = new MapDriver<PactRecord, PactRecord>();
 		try {
 			testDriver(testTask, MockFailingMapStub.class);
-			Assert.fail("Stub exception was not forwarded.");
+			Assert.fail("Function exception was not forwarded.");
 		} catch (ExpectedTestException e) {
 			// good!
 		} catch (Exception e) {
@@ -120,7 +120,7 @@ public class MapTaskTest extends DriverTestBase<GenericMapper<PactRecord, PactRe
 		Assert.assertTrue("Test threw an exception even though it was properly canceled.", success.get());
 	}
 	
-	public static class MockMapStub extends MapStub {
+	public static class MockMapStub extends MapFunction {
 		@Override
 		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
 			out.collect(record);
@@ -128,7 +128,7 @@ public class MapTaskTest extends DriverTestBase<GenericMapper<PactRecord, PactRe
 		
 	}
 	
-	public static class MockFailingMapStub extends MapStub {
+	public static class MockFailingMapStub extends MapFunction {
 
 		private int cnt = 0;
 		

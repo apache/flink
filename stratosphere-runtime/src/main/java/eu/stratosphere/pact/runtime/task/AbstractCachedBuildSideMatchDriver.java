@@ -17,7 +17,7 @@ package eu.stratosphere.pact.runtime.task;
 
 import java.util.List;
 
-import eu.stratosphere.api.functions.GenericMatcher;
+import eu.stratosphere.api.functions.GenericJoiner;
 import eu.stratosphere.api.typeutils.TypeComparator;
 import eu.stratosphere.api.typeutils.TypePairComparatorFactory;
 import eu.stratosphere.api.typeutils.TypeSerializer;
@@ -28,7 +28,7 @@ import eu.stratosphere.pact.runtime.util.EmptyMutableObjectIterator;
 import eu.stratosphere.util.Collector;
 import eu.stratosphere.util.MutableObjectIterator;
 
-public abstract class AbstractCachedBuildSideMatchDriver<IT1, IT2, OT> extends MatchDriver<IT1, IT2, OT> implements ResettablePactDriver<GenericMatcher<IT1, IT2, OT>, OT> {
+public abstract class AbstractCachedBuildSideMatchDriver<IT1, IT2, OT> extends MatchDriver<IT1, IT2, OT> implements ResettablePactDriver<GenericJoiner<IT1, IT2, OT>, OT> {
 	
 	/**
 	 * We keep it without generic parameters, because they vary depending on which input is the build side.
@@ -90,7 +90,7 @@ public abstract class AbstractCachedBuildSideMatchDriver<IT1, IT2, OT> extends M
 	@Override
 	public void run() throws Exception {
 
-		final GenericMatcher<IT1, IT2, OT> matchStub = this.taskContext.getStub();
+		final GenericJoiner<IT1, IT2, OT> matchStub = this.taskContext.getStub();
 		final Collector<OT> collector = this.taskContext.getOutputCollector();
 		
 		if (getBuildSideIndex() == 0) {

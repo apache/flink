@@ -19,7 +19,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.api.functions.GenericReducer;
-import eu.stratosphere.api.record.functions.ReduceStub;
+import eu.stratosphere.api.record.functions.ReduceFunction;
 import eu.stratosphere.api.typeutils.TypeComparator;
 import eu.stratosphere.api.typeutils.TypeSerializer;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
@@ -29,13 +29,13 @@ import eu.stratosphere.util.MutableObjectIterator;
 
 /**
  * Reduce task which is executed by a Nephele task manager. The task has a
- * single input and one or multiple outputs. It is provided with a ReduceStub
+ * single input and one or multiple outputs. It is provided with a ReduceFunction
  * implementation.
  * <p>
  * The ReduceTask creates a iterator over all records from its input. The iterator returns all records grouped by their
- * key. The iterator is handed to the <code>reduce()</code> method of the ReduceStub.
+ * key. The iterator is handed to the <code>reduce()</code> method of the ReduceFunction.
  * 
- * @see ReduceStub
+ * @see ReduceFunction
  */
 public class ReduceDriver<IT, OT> implements PactDriver<GenericReducer<IT, OT>, OT> {
 	

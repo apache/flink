@@ -21,7 +21,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.api.Job;
 import eu.stratosphere.arraymodel.example.WordCountArrayTuples;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.test.util.TestBase2;
@@ -173,9 +173,9 @@ public class WordCountArrayModelITCase extends TestBase2 {
 	}
 
 	@Override
-	protected Plan getPactPlan() {
+	protected Job getPactPlan() {
 		WordCountArrayTuples wc = new WordCountArrayTuples();
-		return wc.getPlan(config.getString("WordCountTest#NumSubtasks", "1"), textPath, resultPath);
+		return wc.createJob(config.getString("WordCountTest#NumSubtasks", "1"), textPath, resultPath);
 	}
 	
 	@Override

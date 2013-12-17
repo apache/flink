@@ -23,12 +23,12 @@ import java.util.Map;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.accumulators.Accumulator;
-import eu.stratosphere.accumulators.AccumulatorHelper;
+import eu.stratosphere.api.accumulators.Accumulator;
+import eu.stratosphere.api.accumulators.AccumulatorHelper;
 import eu.stratosphere.api.distributions.DataDistribution;
 import eu.stratosphere.api.functions.GenericReducer;
 import eu.stratosphere.api.functions.RuntimeContext;
-import eu.stratosphere.api.functions.Stub;
+import eu.stratosphere.api.functions.Function;
 import eu.stratosphere.api.typeutils.TypeComparator;
 import eu.stratosphere.api.typeutils.TypeComparatorFactory;
 import eu.stratosphere.api.typeutils.TypeSerializer;
@@ -82,7 +82,7 @@ import eu.stratosphere.util.MutableObjectIterator;
  * The abstract base class for all Pact tasks. Encapsulated common behavior and implements the main life-cycle
  * of the user code.
  */
-public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements PactTaskContext<S, OT> {
+public class RegularPactTask<S extends Function, OT> extends AbstractTask implements PactTaskContext<S, OT> {
 	
 	protected static final Log LOG = LogFactory.getLog(RegularPactTask.class);
 	
@@ -1284,7 +1284,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * Opens the given stub using its {@link Stub#open(Configuration)} method. If the open call produces
+	 * Opens the given stub using its {@link Function#open(Configuration)} method. If the open call produces
 	 * an exception, a new exception with a standard error message is created, using the encountered exception
 	 * as its cause.
 	 * 
@@ -1293,7 +1293,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 	 * 
 	 * @throws Exception Thrown, if the user code's open method produces an exception.
 	 */
-	public static void openUserCode(Stub stub, Configuration parameters) throws Exception {
+	public static void openUserCode(Function stub, Configuration parameters) throws Exception {
 		try {
 			stub.open(parameters);
 		} catch (Throwable t) {
@@ -1302,7 +1302,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 	}
 	
 	/**
-	 * Closes the given stub using its {@link Stub#close()} method. If the close call produces
+	 * Closes the given stub using its {@link Function#close()} method. If the close call produces
 	 * an exception, a new exception with a standard error message is created, using the encountered exception
 	 * as its cause.
 	 * 
@@ -1310,7 +1310,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 	 * 
 	 * @throws Exception Thrown, if the user code's close method produces an exception.
 	 */
-	public static void closeUserCode(Stub stub) throws Exception {
+	public static void closeUserCode(Function stub) throws Exception {
 		try {
 			stub.close();
 		} catch (Throwable t) {

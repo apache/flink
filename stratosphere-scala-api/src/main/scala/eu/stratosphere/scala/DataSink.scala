@@ -17,7 +17,7 @@ import java.net.URI
 import eu.stratosphere.scala.analysis._
 import eu.stratosphere.api.operators.FileDataSink
 import eu.stratosphere.api.io.OutputFormat
-import eu.stratosphere.api.operators.Contract
+import eu.stratosphere.api.operators.Operator
 import eu.stratosphere.configuration.Configuration
 import eu.stratosphere.api.io.FileOutputFormat
 import eu.stratosphere.api.operators.GenericDataSink

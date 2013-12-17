@@ -3,7 +3,7 @@ package eu.stratosphere.addons.hbase;
 import java.util.Random;
 
 import eu.stratosphere.api.operators.GenericDataSink;
-import eu.stratosphere.api.operators.Contract;
+import eu.stratosphere.api.operators.Operator;
 
 /**
  * A sink for writing to HBase
@@ -12,7 +12,7 @@ public class HBaseDataSink extends GenericDataSink
 {
 	private static final int IDENTIFYIER_LEN = 16;
 	
-	public HBaseDataSink(GenericTableOutputFormat f, Contract input, String name)
+	public HBaseDataSink(GenericTableOutputFormat f, Operator input, String name)
 	{
 		super(f, input, name);
 		

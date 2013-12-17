@@ -15,7 +15,7 @@
 
 package eu.stratosphere.pact.test.iterative.nephele.danglingpagerank;
 
-import eu.stratosphere.api.record.functions.MatchStub;
+import eu.stratosphere.api.record.functions.JoinFunction;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.pact.test.iterative.nephele.ConfigUtils;
 import eu.stratosphere.types.PactDouble;
@@ -26,7 +26,7 @@ import eu.stratosphere.util.Collector;
 import java.util.Random;
 import java.util.Set;
 
-public class CompensatableDotProductMatch extends MatchStub {
+public class CompensatableDotProductMatch extends JoinFunction {
 
   private PactRecord record;
   private PactLong vertexID;

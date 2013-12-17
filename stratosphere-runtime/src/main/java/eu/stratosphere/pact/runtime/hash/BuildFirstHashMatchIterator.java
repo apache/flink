@@ -18,7 +18,7 @@ package eu.stratosphere.pact.runtime.hash;
 import java.io.IOException;
 import java.util.List;
 
-import eu.stratosphere.api.functions.GenericMatcher;
+import eu.stratosphere.api.functions.GenericJoiner;
 import eu.stratosphere.api.typeutils.TypeComparator;
 import eu.stratosphere.api.typeutils.TypePairComparator;
 import eu.stratosphere.api.typeutils.TypeSerializer;
@@ -97,7 +97,7 @@ public class BuildFirstHashMatchIterator<V1, V2, O> implements MatchTaskIterator
 	}
 
 	@Override
-	public final boolean callWithNextKey(GenericMatcher<V1, V2, O> matchFunction, Collector<O> collector)
+	public final boolean callWithNextKey(GenericJoiner<V1, V2, O> matchFunction, Collector<O> collector)
 	throws Exception
 	{
 		if (this.hashJoin.nextRecord())

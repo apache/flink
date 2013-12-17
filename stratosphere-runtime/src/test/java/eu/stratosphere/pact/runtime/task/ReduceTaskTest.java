@@ -27,8 +27,8 @@ import org.apache.commons.logging.LogFactory;
 import org.junit.Test;
 
 import eu.stratosphere.api.functions.GenericReducer;
-import eu.stratosphere.api.operators.base.GenericReduceContract.Combinable;
-import eu.stratosphere.api.record.functions.ReduceStub;
+import eu.stratosphere.api.operators.base.ReduceOperatorBase.Combinable;
+import eu.stratosphere.api.record.functions.ReduceFunction;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparator;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordSerializer;
 import eu.stratosphere.pact.runtime.sort.CombiningUnilateralSortMerger;
@@ -171,7 +171,7 @@ public class ReduceTaskTest extends DriverTestBase<GenericReducer<PactRecord, Pa
 		
 		try {
 			testDriver(testTask, MockFailingReduceStub.class);
-			Assert.fail("Stub exception was not forwarded.");
+			Assert.fail("Function exception was not forwarded.");
 		} catch (ExpectedTestException eetex) {
 			// Good!
 		} catch (Exception e) {
@@ -266,7 +266,7 @@ public class ReduceTaskTest extends DriverTestBase<GenericReducer<PactRecord, Pa
 		
 	}
 	
-	public static class MockReduceStub extends ReduceStub {
+	public static class MockReduceStub extends ReduceFunction {
 
 		private final PactInteger key = new PactInteger();
 		private final PactInteger value = new PactInteger();
@@ -288,7 +288,7 @@ public class ReduceTaskTest extends DriverTestBase<GenericReducer<PactRecord, Pa
 	}
 	
 	@Combinable
-	public static class MockCombiningReduceStub extends ReduceStub {
+	public static class MockCombiningReduceStub extends ReduceFunction {
 
 		private final PactInteger key = new PactInteger();
 		private final PactInteger value = new PactInteger();
@@ -330,7 +330,7 @@ public class ReduceTaskTest extends DriverTestBase<GenericReducer<PactRecord, Pa
 		
 	}
 	
-	public static class MockFailingReduceStub extends ReduceStub {
+	public static class MockFailingReduceStub extends ReduceFunction {
 
 		private int cnt = 0;
 		
@@ -358,7 +358,7 @@ public class ReduceTaskTest extends DriverTestBase<GenericReducer<PactRecord, Pa
 		}
 	}
 	
-	public static class MockDelayingReduceStub extends ReduceStub {
+	public static class MockDelayingReduceStub extends ReduceFunction {
 
 		@Override
 		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) {

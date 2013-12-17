@@ -20,7 +20,7 @@ import java.util.List;
 
 import eu.stratosphere.api.operators.CompilerHints;
 import eu.stratosphere.api.operators.Ordering;
-import eu.stratosphere.api.operators.base.GenericReduceContract;
+import eu.stratosphere.api.operators.base.ReduceOperatorBase;
 import eu.stratosphere.api.operators.util.FieldSet;
 import eu.stratosphere.api.record.operators.ReduceOperator;
 import eu.stratosphere.compiler.CompilerException;
@@ -45,7 +45,7 @@ public class ReduceNode extends SingleInputNode {
 	 * 
 	 * @param pactContract The reduce contract object.
 	 */
-	public ReduceNode(GenericReduceContract<?> pactContract) {
+	public ReduceNode(ReduceOperatorBase<?> pactContract) {
 		super(pactContract);
 		
 		if (this.keys == null) {
@@ -67,8 +67,8 @@ public class ReduceNode extends SingleInputNode {
 	 * @return The contract.
 	 */
 	@Override
-	public GenericReduceContract<?> getPactContract() {
-		return (GenericReduceContract<?>) super.getPactContract();
+	public ReduceOperatorBase<?> getPactContract() {
+		return (ReduceOperatorBase<?>) super.getPactContract();
 	}
 
 	/**

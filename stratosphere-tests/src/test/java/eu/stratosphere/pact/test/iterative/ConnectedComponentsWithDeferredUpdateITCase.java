@@ -23,12 +23,12 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
+import eu.stratosphere.api.Job;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.operators.WorksetIteration;
-import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.api.record.functions.MapStub;
-import eu.stratosphere.api.record.functions.MatchStub;
+import eu.stratosphere.api.record.functions.MapFunction;
+import eu.stratosphere.api.record.functions.JoinFunction;
 import eu.stratosphere.api.record.io.CsvOutputFormat;
 import eu.stratosphere.api.record.operators.MapOperator;
 import eu.stratosphere.api.record.operators.JoinOperator;
@@ -71,7 +71,7 @@ public class ConnectedComponentsWithDeferredUpdateITCase extends TestBase2 {
 	}
 	
 	@Override
-	protected Plan getPactPlan() {
+	protected Job getPactPlan() {
 		int dop = config.getInteger("ConnectedComponents#NumSubtasks", 1);
 		int maxIterations = config.getInteger("ConnectedComponents#NumIterations", 1);
 		boolean extraMapper = config.getBoolean("ConnectedComponents#ExtraMapper", false);
@@ -101,7 +101,7 @@ public class ConnectedComponentsWithDeferredUpdateITCase extends TestBase2 {
 		return toParameterList(config1, config2);
 	}
 	
-	public static Plan getPlan(int numSubTasks, String verticesInput, String edgeInput, String output, int maxIterations, boolean extraMap) {
+	public static Job getPlan(int numSubTasks, String verticesInput, String edgeInput, String output, int maxIterations, boolean extraMap) {
 
 		// data source for initial vertices
 		FileDataSource initialVertices = new FileDataSource(new DuplicateLongInputFormat(), verticesInput, "Vertices");
@@ -154,12 +154,12 @@ public class ConnectedComponentsWithDeferredUpdateITCase extends TestBase2 {
 			.field(PactLong.class, 1);
 
 		// return the PACT plan
-		Plan plan = new Plan(result, "Workset Connected Components");
+		Job plan = new Job(result, "Workset Connected Components");
 		plan.setDefaultParallelism(numSubTasks);
 		return plan;
 	}
 	
-	public static final class UpdateComponentIdMatchNonPreserving extends MatchStub implements Serializable {
+	public static final class UpdateComponentIdMatchNonPreserving extends JoinFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -174,7 +174,7 @@ public class ConnectedComponentsWithDeferredUpdateITCase extends TestBase2 {
 		}
 	}
 	
-	public static final class IdentityMap extends MapStub {
+	public static final class IdentityMap extends MapFunction {
 
 		@Override
 		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {

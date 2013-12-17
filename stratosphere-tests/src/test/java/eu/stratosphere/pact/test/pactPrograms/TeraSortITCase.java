@@ -27,7 +27,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.api.Job;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
@@ -59,7 +59,7 @@ public class TeraSortITCase extends TestBase {
 		String inPath = "file://" + fileURL.getPath();
 			
 		TeraSort ts = new TeraSort();
-		Plan plan = ts.getPlan(this.config.getString("TeraSortITCase#NoSubtasks", "1"),
+		Job plan = ts.createJob(this.config.getString("TeraSortITCase#NoSubtasks", "1"),
 			inPath, getFilesystemProvider().getURIPrefix() + resultPath);
 
 		PactCompiler pc = new PactCompiler(new DataStatistics());

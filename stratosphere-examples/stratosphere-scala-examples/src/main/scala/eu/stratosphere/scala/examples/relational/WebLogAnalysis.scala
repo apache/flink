@@ -14,8 +14,8 @@
 package eu.stratosphere.scala.examples.relational;
 
 import eu.stratosphere.client.LocalExecutor
-import eu.stratosphere.api.plan.PlanAssembler
-import eu.stratosphere.api.plan.PlanAssemblerDescription
+import eu.stratosphere.api.Program
+import eu.stratosphere.api.ProgramDescription
 
 import eu.stratosphere.scala._
 import eu.stratosphere.scala.operators._
@@ -71,13 +71,13 @@ object RunWebLogAnalysis {
  * </pre></code>
  * 
  */
-class WebLogAnalysis extends PlanAssembler with PlanAssemblerDescription with Serializable {
+class WebLogAnalysis extends Program with ProgramDescription with Serializable {
   
   override def getDescription() = {
     "Parameters: [numSubStasks], [docs], [rankings], [visits], [output]"
   }
   
-  override def getPlan(args: String*) = {
+  override def createJob(args: String*) = {
     getScalaPlan(args(0).toInt, args(1), args(2), args(3), args(4))
   }
   

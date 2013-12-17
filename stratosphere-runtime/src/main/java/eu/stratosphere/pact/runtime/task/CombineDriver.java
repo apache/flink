@@ -34,12 +34,12 @@ import eu.stratosphere.util.MutableObjectIterator;
  * Combine task which is executed by a Nephele task manager.
  * <p>
  * The task is inserted into a PACT program before a ReduceTask. The combine task has a single input and one output. It
- * is provided with a ReduceStub that implemented the <code>combine()</code> method.
+ * is provided with a ReduceFunction that implemented the <code>combine()</code> method.
  * <p>
  * The CombineTask uses a combining iterator over all key-value pairs of its input. The output of the iterator is
  * emitted.
  * 
- * @see eu.stratosphere.pact.common.stub.ReduceStub
+ * @see eu.stratosphere.pact.ReduceFunction.stub.ReduceStub
  * 
  * @param <T> The data type consumed and produced by the combiner.
  */

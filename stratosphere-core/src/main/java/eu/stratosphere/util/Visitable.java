@@ -35,7 +35,7 @@ public interface Visitable<T extends Visitable<T>> {
 	 * <p>
 	 * A typical code example is the following:
 	 * <code>
-	 * public void accept(Visitor<Contract> visitor) {
+	 * public void accept(Visitor<Operator> visitor) {
 	 *     boolean descend = visitor.preVisit(this);	
 	 *     if (descend) {
 	 *         if (this.input != null) {

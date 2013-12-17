@@ -23,12 +23,12 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
+import eu.stratosphere.api.Job;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.operators.Order;
 import eu.stratosphere.api.operators.Ordering;
-import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.api.record.functions.ReduceStub;
+import eu.stratosphere.api.record.functions.ReduceFunction;
 import eu.stratosphere.api.record.io.CsvInputFormat;
 import eu.stratosphere.api.record.io.CsvOutputFormat;
 import eu.stratosphere.api.record.operators.ReduceOperator;
@@ -72,7 +72,7 @@ public class GroupOrderReduceITCase extends TestBase2 {
 	}
 
 	@Override
-	protected Plan getPactPlan() {
+	protected Job getPactPlan() {
 		
 		int dop = this.config.getInteger("GroupOrderTest#NumSubtasks", 1);
 		
@@ -94,7 +94,7 @@ public class GroupOrderReduceITCase extends TestBase2 {
 			.field(PactInteger.class, 0)
 			.field(PactInteger.class, 1);
 		
-		Plan p = new Plan(sink);
+		Job p = new Job(sink);
 		p.setDefaultParallelism(dop);
 		return p;
 	}
@@ -110,7 +110,7 @@ public class GroupOrderReduceITCase extends TestBase2 {
 		return toParameterList(config);
 	}
 	
-	public static final class CheckingReducer extends ReduceStub implements Serializable {
+	public static final class CheckingReducer extends ReduceFunction implements Serializable {
 		
 		private static final long serialVersionUID = 1L;
 

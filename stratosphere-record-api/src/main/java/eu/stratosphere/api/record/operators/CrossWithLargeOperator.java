@@ -15,37 +15,37 @@
 
 package eu.stratosphere.api.record.operators;
 
-import eu.stratosphere.api.operators.base.GenericCrossContract.CrossWithLarge;
+import eu.stratosphere.api.operators.base.CrossOperatorBase.CrossWithLarge;
 import eu.stratosphere.api.operators.util.UserCodeClassWrapper;
 import eu.stratosphere.api.operators.util.UserCodeObjectWrapper;
 import eu.stratosphere.api.operators.util.UserCodeWrapper;
-import eu.stratosphere.api.record.functions.CrossStub;
+import eu.stratosphere.api.record.functions.CrossFunction;
 
 
 /**
  * This operator represents a Cartesian-Product operation. Of the two inputs, the first is expected to be large
  * and the second is expected to be small. 
  * 
- * @see CrossStub
+ * @see CrossFunction
  */
 public class CrossWithLargeOperator extends CrossOperator implements CrossWithLarge {
 	
 	/**
-	 * Creates a Builder with the provided {@link CrossStub} implementation.
+	 * Creates a Builder with the provided {@link CrossFunction} implementation.
 	 * 
-	 * @param udf The {@link CrossStub} implementation for this Cross contract.
+	 * @param udf The {@link CrossFunction} implementation for this Cross contract.
 	 */
-	public static Builder builder(CrossStub udf) {
-		return new Builder(new UserCodeObjectWrapper<CrossStub>(udf));
+	public static Builder builder(CrossFunction udf) {
+		return new Builder(new UserCodeObjectWrapper<CrossFunction>(udf));
 	}
 	
 	/**
-	 * Creates a Builder with the provided {@link CrossStub} implementation.
+	 * Creates a Builder with the provided {@link CrossFunction} implementation.
 	 * 
-	 * @param udf The {@link CrossStub} implementation for this Cross contract.
+	 * @param udf The {@link CrossFunction} implementation for this Cross contract.
 	 */
-	public static Builder builder(Class<? extends CrossStub> udf) {
-		return new Builder(new UserCodeClassWrapper<CrossStub>(udf));
+	public static Builder builder(Class<? extends CrossFunction> udf) {
+		return new Builder(new UserCodeClassWrapper<CrossFunction>(udf));
 	}
 	
 	/**
@@ -64,11 +64,11 @@ public class CrossWithLargeOperator extends CrossOperator implements CrossWithLa
 	public static class Builder extends CrossOperator.Builder {
 		
 		/**
-		 * Creates a Builder with the provided {@link CrossStub} implementation.
+		 * Creates a Builder with the provided {@link CrossFunction} implementation.
 		 * 
-		 * @param udf The {@link CrossStub} implementation for this Cross contract.
+		 * @param udf The {@link CrossFunction} implementation for this Cross contract.
 		 */
-		private Builder(UserCodeWrapper<CrossStub> udf) {
+		private Builder(UserCodeWrapper<CrossFunction> udf) {
 			super(udf);
 		}
 		

@@ -19,9 +19,9 @@ import junit.framework.Assert;
 
 import org.junit.Test;
 
+import eu.stratosphere.api.Job;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
-import eu.stratosphere.api.plan.Plan;
 import eu.stratosphere.api.record.operators.MapOperator;
 import eu.stratosphere.api.record.operators.JoinOperator;
 import eu.stratosphere.api.record.operators.ReduceOperator;
@@ -86,7 +86,7 @@ public class DOPChangeTest extends CompilerTestBase {
 		sink.setDegreeOfParallelism(degOfPar * 2);
 		sink.setInput(reduce2);
 		
-		Plan plan = new Plan(sink, "Test Increasing Degree Of Parallelism");
+		Job plan = new Job(sink, "Test Increasing Degree Of Parallelism");
 		
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -140,7 +140,7 @@ public class DOPChangeTest extends CompilerTestBase {
 		sink.setDegreeOfParallelism(degOfPar * 2);
 		sink.setInput(reduce2);
 		
-		Plan plan = new Plan(sink, "Test Increasing Degree Of Parallelism");
+		Job plan = new Job(sink, "Test Increasing Degree Of Parallelism");
 		
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -194,7 +194,7 @@ public class DOPChangeTest extends CompilerTestBase {
 		sink.setDegreeOfParallelism(degOfPar * 2);
 		sink.setInput(reduce2);
 		
-		Plan plan = new Plan(sink, "Test Increasing Degree Of Parallelism");
+		Job plan = new Job(sink, "Test Increasing Degree Of Parallelism");
 		
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -245,7 +245,7 @@ public class DOPChangeTest extends CompilerTestBase {
 		sink.setDegreeOfParallelism(degOfPar);
 		sink.setInput(reduce2);
 		
-		Plan plan = new Plan(sink, "Test Increasing Degree Of Parallelism");
+		Job plan = new Job(sink, "Test Increasing Degree Of Parallelism");
 		
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -305,7 +305,7 @@ public class DOPChangeTest extends CompilerTestBase {
 		
 		
 		// return the PACT plan
-		Plan plan = new Plan(sink, "Partition on DoP Change");
+		Job plan = new Job(sink, "Partition on DoP Change");
 		
 		OptimizedPlan oPlan = compileNoStats(plan);
 		

@@ -29,10 +29,10 @@ import eu.stratosphere.compiler.dag.SinkJoiner
 import eu.stratosphere.compiler.plan.OptimizedPlan
 import eu.stratosphere.scala.analysis.FieldSet
 import eu.stratosphere.scala.analysis.FieldSelector
-import eu.stratosphere.api.plan.Plan
-import eu.stratosphere.api.operators.Contract
-import eu.stratosphere.api.operators.SingleInputContract
-import eu.stratosphere.api.operators.DualInputContract
+import eu.stratosphere.api.Job
+import eu.stratosphere.api.operators.Operator
+import eu.stratosphere.api.operators.SingleInputOperator
+import eu.stratosphere.api.operators.DualInputOperator
 import eu.stratosphere.api.operators.GenericDataSink
 import org.apache.commons.logging.{LogFactory, Log}
 

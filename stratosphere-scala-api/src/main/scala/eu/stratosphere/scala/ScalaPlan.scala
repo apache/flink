@@ -14,18 +14,18 @@
 package eu.stratosphere.scala
 
 import scala.collection.JavaConversions.asJavaCollection
-import eu.stratosphere.api.plan.Plan
+import eu.stratosphere.api.Job
 import eu.stratosphere.compiler.plan.OptimizedPlan
 import eu.stratosphere.compiler.postpass.GenericPactRecordPostPass
 import java.util.Calendar
-import eu.stratosphere.api.operators.Contract
+import eu.stratosphere.api.operators.Operator
 import eu.stratosphere.scala.analysis.GlobalSchemaGenerator
 import eu.stratosphere.scala.analysis.postPass.GlobalSchemaOptimizer
-import eu.stratosphere.api.plan.PlanAssembler
-import eu.stratosphere.api.plan.PlanAssemblerDescription
+import eu.stratosphere.api.Program
+import eu.stratosphere.api.ProgramDescription
 
-class ScalaPlan(scalaSinks: Seq[ScalaSink[_]], scalaJobName: String = "PACT SCALA Job at " + Calendar.getInstance().getTime()) extends Plan(asJavaCollection(scalaSinks map { _.sink }), scalaJobName) {
-  val pactSinks = scalaSinks map { _.sink.asInstanceOf[Contract with ScalaContract[_]] }
+class ScalaPlan(scalaSinks: Seq[ScalaSink[_]], scalaJobName: String = "PACT SCALA Job at " + Calendar.getInstance().getTime()) extends Job(asJavaCollection(scalaSinks map { _.sink }), scalaJobName) {
+  val pactSinks = scalaSinks map { _.sink.asInstanceOf[Operator with ScalaContract[_]] }
   new GlobalSchemaGenerator().initGlobalSchema(pactSinks)
   override def getPostPassClassName() = "eu.stratosphere.scala.ScalaPostPass";
 }
@@ -59,10 +59,10 @@ object Args {
   }
 }
 
-//abstract class ScalaPlanAssembler extends PlanAssembler {
+//abstract class ScalaProgram extends Program {
 //  def getScalaPlan(args: Args): ScalaPlan
 //  
-//  override def getPlan(args: String*): Plan = {
+//  override def createJob(args: String*): Plan = {
 //    val scalaArgs = Args.parse(args.toSeq)
 //    
 //    getScalaPlan(scalaArgs)

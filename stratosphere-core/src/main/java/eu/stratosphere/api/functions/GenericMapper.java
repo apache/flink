@@ -19,7 +19,7 @@ import eu.stratosphere.util.Collector;
 
 
 
-public interface GenericMapper<T, O> extends Stub
+public interface GenericMapper<T, O> extends Function
 {
 	void map(T record, Collector<O> out) throws Exception;
 }

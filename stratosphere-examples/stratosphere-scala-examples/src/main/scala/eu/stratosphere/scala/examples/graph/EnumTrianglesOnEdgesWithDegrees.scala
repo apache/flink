@@ -14,8 +14,8 @@
 package eu.stratosphere.scala.examples.graph
 
 import eu.stratosphere.client.LocalExecutor
-import eu.stratosphere.api.plan.PlanAssembler
-import eu.stratosphere.api.plan.PlanAssemblerDescription
+import eu.stratosphere.api.Program
+import eu.stratosphere.api.ProgramDescription
 
 import scala.math._
 import eu.stratosphere.scala._
@@ -40,11 +40,11 @@ object RunEnumTrianglesOnEdgesWithDegrees {
  * Enumerates all triangles build by three connected vertices in a graph.
  * The graph is represented as edges (pairs of vertices) with annotated vertex degrees. * 
  */
-class EnumTrianglesOnEdgesWithDegrees extends PlanAssembler with PlanAssemblerDescription with Serializable {
+class EnumTrianglesOnEdgesWithDegrees extends Program with ProgramDescription with Serializable {
   override def getDescription() = {
     "Parameters: [numSubStasks] [input file] [output file]"
   }
-  override def getPlan(args: String*) = {
+  override def createJob(args: String*) = {
     getScalaPlan(args(0).toInt, args(1), args(2))
   }
 

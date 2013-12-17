@@ -22,7 +22,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.api.Job;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.example.record.connectedcomponents.WorksetConnectedComponentsWithCoGroup;
 import eu.stratosphere.pact.test.iterative.nephele.ConnectedComponentsNepheleITCase;
@@ -55,13 +55,13 @@ public class CoGroupConnectedComponentsITCase extends TestBase2 {
 	}
 	
 	@Override
-	protected Plan getPactPlan() {
+	protected Job getPactPlan() {
 		int dop = config.getInteger("ConnectedComponents#NumSubtasks", 1);
 		int maxIterations = config.getInteger("ConnectedComponents#NumIterations", 1);
 		String[] params = { String.valueOf(dop) , verticesPath, edgesPath, resultPath, String.valueOf(maxIterations) };
 		
 		WorksetConnectedComponentsWithCoGroup cc = new WorksetConnectedComponentsWithCoGroup();
-		return cc.getPlan(params);
+		return cc.createJob(params);
 	}
 
 	@Override

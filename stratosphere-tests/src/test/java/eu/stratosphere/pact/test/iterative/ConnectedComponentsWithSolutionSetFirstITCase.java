@@ -23,12 +23,12 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import eu.stratosphere.api.functions.StubAnnotation.ConstantFieldsSecondExcept;
+import eu.stratosphere.api.Job;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.operators.WorksetIteration;
-import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.api.record.functions.MatchStub;
+import eu.stratosphere.api.record.functions.JoinFunction;
+import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFieldsSecondExcept;
 import eu.stratosphere.api.record.io.CsvOutputFormat;
 import eu.stratosphere.api.record.operators.JoinOperator;
 import eu.stratosphere.api.record.operators.ReduceOperator;
@@ -70,7 +70,7 @@ public class ConnectedComponentsWithSolutionSetFirstITCase extends TestBase2 {
 	}
 	
 	@Override
-	protected Plan getPactPlan() {
+	protected Job getPactPlan() {
 		int dop = config.getInteger("ConnectedComponents#NumSubtasks", 1);
 		int maxIterations = config.getInteger("ConnectedComponents#NumIterations", 1);
 		
@@ -97,7 +97,7 @@ public class ConnectedComponentsWithSolutionSetFirstITCase extends TestBase2 {
 	// --------------------------------------------------------------------------------------------
 	
 	@ConstantFieldsSecondExcept({})
-	public static final class UpdateComponentIdMatchMirrored extends MatchStub implements Serializable {
+	public static final class UpdateComponentIdMatchMirrored extends JoinFunction implements Serializable {
 		
 		private static final long serialVersionUID = 1L;
 
@@ -113,7 +113,7 @@ public class ConnectedComponentsWithSolutionSetFirstITCase extends TestBase2 {
 		}
 	}
 	
-	private static Plan getPlanForWorksetConnectedComponentsWithSolutionSetAsFirstInput(
+	private static Job getPlanForWorksetConnectedComponentsWithSolutionSetAsFirstInput(
 			int numSubTasks, String verticesInput, String edgeInput, String output, int maxIterations)
 	{
 		// create DataSourceContract for the vertices
@@ -159,7 +159,7 @@ public class ConnectedComponentsWithSolutionSetFirstITCase extends TestBase2 {
 			.field(PactLong.class, 1);
 
 		// return the PACT plan
-		Plan plan = new Plan(result, "Workset Connected Components");
+		Job plan = new Job(result, "Workset Connected Components");
 		plan.setDefaultParallelism(numSubTasks);
 		return plan;
 	}

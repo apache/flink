@@ -24,7 +24,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.api.Job;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
@@ -88,7 +88,7 @@ public class PairwiseSPITCase extends TestBase {
 	protected JobGraph getJobGraph() throws Exception {
 
 		PairwiseSP a2aSP = new PairwiseSP();
-		Plan plan = a2aSP.getPlan(config.getString("All2AllSPTest#NoSubtasks", "4"), 
+		Job plan = a2aSP.createJob(config.getString("All2AllSPTest#NoSubtasks", "4"), 
 				getFilesystemProvider().getURIPrefix() + rdfDataPath, 
 				getFilesystemProvider().getURIPrefix() + resultPath, 
 				"true");

@@ -31,11 +31,11 @@ import org.mockito.Mock;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
-import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.api.Job;
 import eu.stratosphere.client.program.Client;
-import eu.stratosphere.client.program.ErrorInPlanAssemblerException;
+import eu.stratosphere.client.program.JobInstantiationException;
 import eu.stratosphere.client.program.PackagedProgram;
-import eu.stratosphere.client.program.PlanWithJars;
+import eu.stratosphere.client.program.JobWithJars;
 import eu.stratosphere.client.program.ProgramInvocationException;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;
@@ -67,9 +67,9 @@ public class ClientTest {
 	@Mock
 	PackagedProgram program;
 	@Mock
-	PlanWithJars planWithJarsMock;
+	JobWithJars planWithJarsMock;
 	@Mock
-	Plan planMock;
+	Job planMock;
 	
 	@Mock
 	PactCompiler compilerMock;
@@ -112,7 +112,7 @@ public class ClientTest {
 	}
 	
 	@Test
-	public void shouldSubmitToJobClient() throws ProgramInvocationException, ErrorInPlanAssemblerException, IOException
+	public void shouldSubmitToJobClient() throws ProgramInvocationException, JobInstantiationException, IOException
 	{
 		when(jobSubmissionResultMock.getReturnCode()).thenReturn(ReturnCode.SUCCESS);
 		

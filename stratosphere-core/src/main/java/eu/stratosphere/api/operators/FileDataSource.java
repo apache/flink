@@ -18,7 +18,7 @@ package eu.stratosphere.api.operators;
 import eu.stratosphere.api.io.FileInputFormat;
 
 /**
- * Contract for input nodes which read data from files.
+ * Operator for input nodes which read data from files.
  */
 public class FileDataSource extends GenericDataSource<FileInputFormat<?>> {
 	

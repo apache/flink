@@ -24,7 +24,7 @@ import java.util.Map;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.accumulators.AccumulatorHelper;
+import eu.stratosphere.api.accumulators.AccumulatorHelper;
 import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.event.job.AbstractEvent;

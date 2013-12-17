@@ -22,18 +22,18 @@ import org.junit.Test;
 import eu.stratosphere.api.functions.GenericCoGrouper;
 import eu.stratosphere.api.functions.GenericCrosser;
 import eu.stratosphere.api.functions.GenericMapper;
-import eu.stratosphere.api.functions.GenericMatcher;
+import eu.stratosphere.api.functions.GenericJoiner;
 import eu.stratosphere.api.functions.GenericReducer;
-import eu.stratosphere.api.functions.Stub;
+import eu.stratosphere.api.functions.Function;
 import eu.stratosphere.api.io.DelimitedInputFormat;
 import eu.stratosphere.api.io.FileOutputFormat;
 import eu.stratosphere.api.operators.GenericDataSink;
 import eu.stratosphere.api.operators.GenericDataSource;
-import eu.stratosphere.api.operators.base.GenericCoGroupContract;
-import eu.stratosphere.api.operators.base.GenericCrossContract;
-import eu.stratosphere.api.operators.base.GenericMapContract;
-import eu.stratosphere.api.operators.base.GenericMatchContract;
-import eu.stratosphere.api.operators.base.GenericReduceContract;
+import eu.stratosphere.api.operators.base.CoGroupOperatorBase;
+import eu.stratosphere.api.operators.base.CrossOperatorBase;
+import eu.stratosphere.api.operators.base.MapOperatorBase;
+import eu.stratosphere.api.operators.base.JoinOperatorBase;
+import eu.stratosphere.api.operators.base.ReduceOperatorBase;
 import eu.stratosphere.types.PactInteger;
 
 /**
@@ -46,7 +46,7 @@ public class ContractUtilTest {
 	@Test
 	public void getContractClassShouldReturnCoGroupForCoGroupStub() {
 		final Class<?> result = ContractUtil.getContractClass(CoGrouper.class);
-		assertEquals(GenericCoGroupContract.class, result);
+		assertEquals(CoGroupOperatorBase.class, result);
 	}
 
 	/**
@@ -55,7 +55,7 @@ public class ContractUtilTest {
 	@Test
 	public void getContractClassShouldReturnCrossForCrossStub() {
 		final Class<?> result = ContractUtil.getContractClass(Crosser.class);
-		assertEquals(GenericCrossContract.class, result);
+		assertEquals(CrossOperatorBase.class, result);
 	}
 
 	/**
@@ -64,7 +64,7 @@ public class ContractUtilTest {
 	@Test
 	public void getContractClassShouldReturnMapForMapStub() {
 		final Class<?> result = ContractUtil.getContractClass(Mapper.class);
-		assertEquals(GenericMapContract.class, result);
+		assertEquals(MapOperatorBase.class, result);
 	}
 
 	/**
@@ -73,7 +73,7 @@ public class ContractUtilTest {
 	@Test
 	public void getContractClassShouldReturnMatchForMatchStub() {
 		final Class<?> result = ContractUtil.getContractClass(Matcher.class);
-		assertEquals(GenericMatchContract.class, result);
+		assertEquals(JoinOperatorBase.class, result);
 	}
 
 	/**
@@ -81,7 +81,7 @@ public class ContractUtilTest {
 	 */
 	@Test
 	public void getContractClassShouldReturnNullForStub() {
-		final Class<?> result = ContractUtil.getContractClass(Stub.class);
+		final Class<?> result = ContractUtil.getContractClass(Function.class);
 		assertEquals(null, result);
 	}
 
@@ -91,7 +91,7 @@ public class ContractUtilTest {
 	@Test
 	public void getContractClassShouldReturnReduceForReduceStub() {
 		final Class<?> result = ContractUtil.getContractClass(Reducer.class);
-		assertEquals(GenericReduceContract.class, result);
+		assertEquals(ReduceOperatorBase.class, result);
 	}
 
 	/**
@@ -118,7 +118,7 @@ public class ContractUtilTest {
 
 	static abstract class Mapper implements GenericMapper<PactInteger, PactInteger> {}
 
-	static abstract class Matcher implements GenericMatcher<PactInteger, PactInteger, PactInteger> {}
+	static abstract class Matcher implements GenericJoiner<PactInteger, PactInteger, PactInteger> {}
 
 	static abstract class Reducer implements GenericReducer<PactInteger, PactInteger> {}
 }

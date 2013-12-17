@@ -31,7 +31,7 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import eu.stratosphere.api.record.functions.ReduceStub;
+import eu.stratosphere.api.record.functions.ReduceFunction;
 import eu.stratosphere.api.typeutils.TypeComparator;
 import eu.stratosphere.api.typeutils.TypeSerializer;
 import eu.stratosphere.configuration.Configuration;
@@ -268,7 +268,7 @@ public class CombiningUnilateralSortMergerITCase {
 
 	// --------------------------------------------------------------------------------------------
 	
-	public static class TestCountCombiner extends ReduceStub {
+	public static class TestCountCombiner extends ReduceFunction {
 		
 		private final PactInteger count = new PactInteger();
 		
@@ -305,7 +305,7 @@ public class CombiningUnilateralSortMergerITCase {
 		}
 	}
 
-	public static class TestCountCombiner2 extends ReduceStub {
+	public static class TestCountCombiner2 extends ReduceFunction {
 		
 		public volatile boolean opened = false;
 		

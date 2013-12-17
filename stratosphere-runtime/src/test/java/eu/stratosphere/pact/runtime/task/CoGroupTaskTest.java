@@ -23,7 +23,7 @@ import junit.framework.Assert;
 import org.junit.Test;
 
 import eu.stratosphere.api.functions.GenericCoGrouper;
-import eu.stratosphere.api.record.functions.CoGroupStub;
+import eu.stratosphere.api.record.functions.CoGroupFunction;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparator;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordPairComparatorFactory;
 import eu.stratosphere.pact.runtime.task.CoGroupTaskExternalITCase.MockCoGroupStub;
@@ -235,7 +235,7 @@ public class CoGroupTaskTest extends DriverTestBase<GenericCoGrouper<PactRecord,
 		
 		try {
 			testDriver(testTask, MockFailingCoGroupStub.class);
-			Assert.fail("Stub exception was not forwarded.");
+			Assert.fail("Function exception was not forwarded.");
 		} catch (ExpectedTestException etex) {
 			// good!
 		} catch (Exception e) {
@@ -398,7 +398,7 @@ public class CoGroupTaskTest extends DriverTestBase<GenericCoGrouper<PactRecord,
 		Assert.assertTrue("Test threw an exception even though it was properly canceled.", success.get());
 	}
 	
-	public static class MockFailingCoGroupStub extends CoGroupStub
+	public static class MockFailingCoGroupStub extends CoGroupFunction
 	{
 		private int cnt = 0;
 		
@@ -437,7 +437,7 @@ public class CoGroupTaskTest extends DriverTestBase<GenericCoGrouper<PactRecord,
 	
 	}
 	
-	public static final class MockDelayingCoGroupStub extends CoGroupStub
+	public static final class MockDelayingCoGroupStub extends CoGroupFunction
 	{
 		@Override
 		public void coGroup(Iterator<PactRecord> records1,

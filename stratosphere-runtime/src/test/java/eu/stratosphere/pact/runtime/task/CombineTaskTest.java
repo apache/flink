@@ -24,8 +24,8 @@ import junit.framework.Assert;
 import org.junit.Test;
 
 import eu.stratosphere.api.functions.GenericReducer;
-import eu.stratosphere.api.operators.base.GenericReduceContract.Combinable;
-import eu.stratosphere.api.record.functions.ReduceStub;
+import eu.stratosphere.api.operators.base.ReduceOperatorBase.Combinable;
+import eu.stratosphere.api.record.functions.ReduceFunction;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparator;
 import eu.stratosphere.pact.runtime.test.util.DelayingInfinitiveInputIterator;
 import eu.stratosphere.pact.runtime.test.util.DiscardingOutputCollector;
@@ -156,7 +156,7 @@ public class CombineTaskTest extends DriverTestBase<GenericReducer<PactRecord, ?
 	}
 	
 	@Combinable
-	public static class MockCombiningReduceStub extends ReduceStub
+	public static class MockCombiningReduceStub extends ReduceFunction
 	{
 		private final PactInteger theInteger = new PactInteger();
 
@@ -183,7 +183,7 @@ public class CombineTaskTest extends DriverTestBase<GenericReducer<PactRecord, ?
 	}
 	
 	@Combinable
-	public static final class MockFailingCombiningReduceStub extends ReduceStub {
+	public static final class MockFailingCombiningReduceStub extends ReduceFunction {
 
 		private int cnt = 0;
 		

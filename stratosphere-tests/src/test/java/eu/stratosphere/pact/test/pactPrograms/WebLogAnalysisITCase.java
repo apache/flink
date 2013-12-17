@@ -24,7 +24,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.api.Job;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
@@ -212,7 +212,7 @@ public class WebLogAnalysisITCase extends TestBase {
 	protected JobGraph getJobGraph() throws Exception {
 
 		WebLogAnalysis relOLAP = new WebLogAnalysis();
-		Plan plan = relOLAP.getPlan(config.getString("WebLogAnalysisTest#NoSubtasks", "1"),
+		Job plan = relOLAP.createJob(config.getString("WebLogAnalysisTest#NoSubtasks", "1"),
 			getFilesystemProvider().getURIPrefix()+docsPath, 
 			getFilesystemProvider().getURIPrefix()+ranksPath, 
 			getFilesystemProvider().getURIPrefix()+visitsPath, 

@@ -22,7 +22,7 @@ import junit.framework.Assert;
 import org.junit.Test;
 
 import eu.stratosphere.api.functions.GenericCoGrouper;
-import eu.stratosphere.api.record.functions.CoGroupStub;
+import eu.stratosphere.api.record.functions.CoGroupFunction;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparator;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordPairComparatorFactory;
 import eu.stratosphere.pact.runtime.test.util.DriverTestBase;
@@ -82,7 +82,7 @@ public class CoGroupTaskExternalITCase extends DriverTestBase<GenericCoGrouper<P
 		Assert.assertEquals("Wrong result set size.", expCnt, this.output.getNumberOfRecords());
 	}
 	
-	public static final class MockCoGroupStub extends CoGroupStub
+	public static final class MockCoGroupStub extends CoGroupFunction
 	{
 		private final PactRecord res = new PactRecord();
 		

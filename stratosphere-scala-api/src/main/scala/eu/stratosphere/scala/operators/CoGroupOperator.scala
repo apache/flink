@@ -18,9 +18,9 @@ import scala.reflect.macros.Context
 
 import eu.stratosphere.types.PactRecord
 import eu.stratosphere.util.Collector
-import eu.stratosphere.api.operators.Contract
+import eu.stratosphere.api.operators.Operator
 import eu.stratosphere.api.record.operators.CoGroupOperator
-import eu.stratosphere.api.record.functions.{CoGroupStub => JCoGroupStub}
+import eu.stratosphere.api.record.functions.{CoGroupFunction => JCoGroupStub}
 import eu.stratosphere.api.operators.util.UserCodeObjectWrapper
 
 import eu.stratosphere.configuration.Configuration

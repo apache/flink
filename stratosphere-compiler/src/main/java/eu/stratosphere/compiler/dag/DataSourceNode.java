@@ -25,7 +25,7 @@ import eu.stratosphere.api.io.InputFormat;
 import eu.stratosphere.api.io.UnsplittableInput;
 import eu.stratosphere.api.io.statistics.BaseStatistics;
 import eu.stratosphere.api.operators.CompilerHints;
-import eu.stratosphere.api.operators.Contract;
+import eu.stratosphere.api.operators.Operator;
 import eu.stratosphere.api.operators.GenericDataSource;
 import eu.stratosphere.api.operators.util.FieldSet;
 import eu.stratosphere.api.record.io.FileInputFormat;
@@ -113,7 +113,7 @@ public class DataSourceNode extends OptimizerNode {
 	}
 
 	@Override
-	public void setInputs(Map<Contract, OptimizerNode> contractToNode) {
+	public void setInputs(Map<Operator, OptimizerNode> contractToNode) {
 		// do nothing
 	}
 

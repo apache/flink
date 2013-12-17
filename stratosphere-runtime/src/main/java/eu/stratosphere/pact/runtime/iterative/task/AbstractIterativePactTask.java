@@ -17,7 +17,7 @@ package eu.stratosphere.pact.runtime.iterative.task;
 
 import eu.stratosphere.api.functions.IterationRuntimeContext;
 import eu.stratosphere.api.functions.RuntimeContext;
-import eu.stratosphere.api.functions.Stub;
+import eu.stratosphere.api.functions.Function;
 import eu.stratosphere.api.functions.aggregators.Aggregator;
 import eu.stratosphere.api.functions.aggregators.LongSumAggregator;
 import eu.stratosphere.api.typeutils.TypeSerializer;
@@ -52,7 +52,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * The base class for all tasks able to participate in an iteration.
  */
-public abstract class AbstractIterativePactTask<S extends Stub, OT> extends RegularPactTask<S, OT>
+public abstract class AbstractIterativePactTask<S extends Function, OT> extends RegularPactTask<S, OT>
 		implements Terminable
 {
 	private static final Log log = LogFactory.getLog(AbstractIterativePactTask.class);

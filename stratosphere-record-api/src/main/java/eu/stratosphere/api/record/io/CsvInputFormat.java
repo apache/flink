@@ -20,7 +20,7 @@ import java.io.IOException;
 import eu.stratosphere.api.io.GenericCsvInputFormat;
 import eu.stratosphere.api.io.ParseException;
 import eu.stratosphere.api.operators.CompilerHints;
-import eu.stratosphere.api.operators.Contract;
+import eu.stratosphere.api.operators.Operator;
 import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.configuration.IllegalConfigurationException;
@@ -242,7 +242,7 @@ public class CsvInputFormat extends GenericCsvInputFormat<PactRecord> {
 		 *                 If contract is null, new compiler hints are generated.  
 		 * @param config The configuration into which the parameters will be written.
 		 */
-		protected AbstractConfigBuilder(Contract contract, Configuration config) {
+		protected AbstractConfigBuilder(Operator contract, Configuration config) {
 			super(config);
 			
 			if (contract != null) {
@@ -309,7 +309,7 @@ public class CsvInputFormat extends GenericCsvInputFormat<PactRecord> {
 	 */
 	public static class ConfigBuilder extends AbstractConfigBuilder<ConfigBuilder> {
 		
-		protected ConfigBuilder(Contract target, Configuration targetConfig) {
+		protected ConfigBuilder(Operator target, Configuration targetConfig) {
 			super(target, targetConfig);
 		}
 	}

@@ -14,8 +14,8 @@
 package eu.stratosphere.scala.examples.wordcount
 
 import eu.stratosphere.client.LocalExecutor
-import eu.stratosphere.api.plan.PlanAssembler
-import eu.stratosphere.api.plan.PlanAssemblerDescription
+import eu.stratosphere.api.Program
+import eu.stratosphere.api.ProgramDescription
 
 import eu.stratosphere.scala._
 import eu.stratosphere.scala.operators._

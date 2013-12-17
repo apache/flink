@@ -3,8 +3,8 @@ package eu.stratosphere.nephele.jobmanager.accumulators;
 import java.util.HashMap;
 import java.util.Map;
 
-import eu.stratosphere.accumulators.Accumulator;
-import eu.stratosphere.accumulators.AccumulatorHelper;
+import eu.stratosphere.api.accumulators.Accumulator;
+import eu.stratosphere.api.accumulators.AccumulatorHelper;
 
 /**
  * Simple class wrapping a map of accumulators for a single job. Just for better

@@ -19,7 +19,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import eu.stratosphere.api.operators.base.GenericCrossContract;
+import eu.stratosphere.api.operators.base.CrossOperatorBase;
 import eu.stratosphere.api.operators.util.FieldSet;
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.PactCompiler;
@@ -40,7 +40,7 @@ public class CrossNode extends TwoInputNode {
 	 * 
 	 * @param pactContract The Cross contract object.
 	 */
-	public CrossNode(GenericCrossContract<?> pactContract) {
+	public CrossNode(CrossOperatorBase<?> pactContract) {
 		super(pactContract);
 	}
 
@@ -52,8 +52,8 @@ public class CrossNode extends TwoInputNode {
 	 * @return The contract.
 	 */
 	@Override
-	public GenericCrossContract<?> getPactContract() {
-		return (GenericCrossContract<?>) super.getPactContract();
+	public CrossOperatorBase<?> getPactContract() {
+		return (CrossOperatorBase<?>) super.getPactContract();
 	}
 
 	@Override
@@ -63,15 +63,15 @@ public class CrossNode extends TwoInputNode {
 	
 	@Override
 	protected List<OperatorDescriptorDual> getPossibleProperties() {
-		GenericCrossContract<?> operation = getPactContract();
+		CrossOperatorBase<?> operation = getPactContract();
 		
-		if (operation instanceof GenericCrossContract.CrossWithSmall) {
+		if (operation instanceof CrossOperatorBase.CrossWithSmall) {
 			ArrayList<OperatorDescriptorDual> list = new ArrayList<OperatorDescriptorDual>();
 			list.add(new CrossBlockOuterSecondDescriptor(false, true));
 			list.add(new CrossStreamOuterFirstDescriptor(false, true));
 			return list;
 		}
-		else if (operation instanceof GenericCrossContract.CrossWithLarge) {
+		else if (operation instanceof CrossOperatorBase.CrossWithLarge) {
 			ArrayList<OperatorDescriptorDual> list = new ArrayList<OperatorDescriptorDual>();
 			list.add(new CrossBlockOuterFirstDescriptor(true, false));
 			list.add(new CrossStreamOuterSecondDescriptor(true, false));

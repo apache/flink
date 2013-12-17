@@ -22,17 +22,17 @@ import java.io.Serializable;
 import java.util.Iterator;
 import java.util.Set;
 
-import eu.stratosphere.accumulators.Accumulator;
-import eu.stratosphere.accumulators.Histogram;
-import eu.stratosphere.accumulators.LongCounter;
-import eu.stratosphere.api.functions.StubAnnotation.ConstantFields;
+import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Program;
+import eu.stratosphere.api.ProgramDescription;
+import eu.stratosphere.api.accumulators.Accumulator;
+import eu.stratosphere.api.accumulators.Histogram;
+import eu.stratosphere.api.accumulators.LongCounter;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
-import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.api.plan.PlanAssembler;
-import eu.stratosphere.api.plan.PlanAssemblerDescription;
-import eu.stratosphere.api.record.functions.MapStub;
-import eu.stratosphere.api.record.functions.ReduceStub;
+import eu.stratosphere.api.record.functions.MapFunction;
+import eu.stratosphere.api.record.functions.ReduceFunction;
+import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFields;
 import eu.stratosphere.api.record.io.CsvOutputFormat;
 import eu.stratosphere.api.record.io.TextInputFormat;
 import eu.stratosphere.api.record.operators.MapOperator;
@@ -53,10 +53,10 @@ import eu.stratosphere.util.Collector;
  * This is similar to the WordCount example and additionally demonstrates how to
  * use custom accumulators (built-in or custom).
  */
-public class WordCountAccumulators implements PlanAssembler,
-		PlanAssemblerDescription {
+public class WordCountAccumulators implements Program,
+		ProgramDescription {
 
-	public static class TokenizeLine extends MapStub implements Serializable {
+	public static class TokenizeLine extends MapFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 
 		private final PactRecord outputRecord = new PactRecord();
@@ -120,7 +120,7 @@ public class WordCountAccumulators implements PlanAssembler,
 
 	@Combinable
 	@ConstantFields(0)
-	public static class CountWords extends ReduceStub implements Serializable {
+	public static class CountWords extends ReduceFunction implements Serializable {
 
 		private static final long serialVersionUID = 1L;
 
@@ -150,7 +150,7 @@ public class WordCountAccumulators implements PlanAssembler,
 	}
 
 	@Override
-	public Plan getPlan(String... args) {
+	public Job createJob(String... args) {
 		int numSubTasks = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		String dataInput = (args.length > 1 ? args[1] : "");
 		String output = (args.length > 2 ? args[2] : "");
@@ -169,7 +169,7 @@ public class WordCountAccumulators implements PlanAssembler,
 				.fieldDelimiter(' ').field(PactString.class, 0)
 				.field(PactInteger.class, 1);
 
-		Plan plan = new Plan(out, "WordCount Example");
+		Job plan = new Job(out, "WordCount Example");
 		plan.setDefaultParallelism(numSubTasks);
 		return plan;
 	}
@@ -187,7 +187,7 @@ public class WordCountAccumulators implements PlanAssembler,
 			System.exit(1);
 		}
 
-		Plan plan = wc.getPlan(args);
+		Job plan = wc.createJob(args);
 
 		// This will execute the word-count embedded in a local context. replace
 		// this line by the commented

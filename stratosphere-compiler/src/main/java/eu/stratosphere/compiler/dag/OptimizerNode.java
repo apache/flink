@@ -26,9 +26,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Map.Entry;
 
-import eu.stratosphere.api.operators.AbstractPact;
+import eu.stratosphere.api.operators.AbstractUdfOperator;
 import eu.stratosphere.api.operators.CompilerHints;
-import eu.stratosphere.api.operators.Contract;
+import eu.stratosphere.api.operators.Operator;
 import eu.stratosphere.api.operators.util.FieldSet;
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.DataStatistics;
@@ -53,7 +53,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	//                                      Members
 	// --------------------------------------------------------------------------------------------
 
-	private final Contract pactContract; // The contract (Reduce / Match / DataSource / ...)
+	private final Operator pactContract; // The contract (Reduce / Match / DataSource / ...)
 	
 	private List<PactConnection> outgoingConnections; // The links to succeeding nodes
 
@@ -105,12 +105,12 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 * 
 	 * @param pactContract The PACT that the node represents.
 	 */
-	public OptimizerNode(Contract pactContract) {
+	public OptimizerNode(Operator pactContract) {
 		this.pactContract = pactContract;
 		readStubAnnotations();
 		
-		if (this.pactContract instanceof AbstractPact) {
-			final AbstractPact<?> pact = (AbstractPact<?>) this.pactContract;
+		if (this.pactContract instanceof AbstractUdfOperator) {
+			final AbstractUdfOperator<?> pact = (AbstractUdfOperator<?>) this.pactContract;
 			this.remappedKeys = new int[pact.getNumberOfInputs()][];
 			for (int i = 0; i < this.remappedKeys.length; i++) {
 				final int[] keys = pact.getKeyColumns(i);
@@ -167,7 +167,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 * @param contractToNode
 	 *        The map to translate the contracts to their corresponding optimizer nodes.
 	 */
-	public abstract void setInputs(Map<Contract, OptimizerNode> contractToNode);
+	public abstract void setInputs(Map<Operator, OptimizerNode> contractToNode);
 
 	/**
 	 * This method needs to be overridden by subclasses to return the children.
@@ -319,7 +319,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 * 
 	 * @return This node's contract.
 	 */
-	public Contract getPactContract() {
+	public Operator getPactContract() {
 		return this.pactContract;
 	}
 
@@ -758,9 +758,9 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 * @return
 	 */
 	protected int[] getConstantKeySet(int input) {
-		Contract contract = getPactContract();
-		if (contract instanceof AbstractPact<?>) {
-			AbstractPact<?> abstractPact = (AbstractPact<?>) contract;
+		Operator contract = getPactContract();
+		if (contract instanceof AbstractUdfOperator<?>) {
+			AbstractUdfOperator<?> abstractPact = (AbstractUdfOperator<?>) contract;
 			int[] keyColumns = abstractPact.getKeyColumns(input);
 			if (keyColumns != null) {
 				if (keyColumns.length == 0) {
@@ -816,7 +816,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	//  Miscellaneous
 	// --------------------------------------------------------------------------------------------
 	
-	public BinaryUnionNode createdUnionCascade(List<Contract> children, Map<Contract, OptimizerNode> contractToNode, ShipStrategyType preSet) {
+	public BinaryUnionNode createdUnionCascade(List<Operator> children, Map<Operator, OptimizerNode> contractToNode, ShipStrategyType preSet) {
 		if (children.size() < 2) {
 			throw new IllegalArgumentException();
 		}

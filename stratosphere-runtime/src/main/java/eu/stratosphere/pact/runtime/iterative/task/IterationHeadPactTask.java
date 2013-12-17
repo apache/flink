@@ -30,7 +30,7 @@ import eu.stratosphere.pact.runtime.iterative.concurrent.SuperstepBarrier;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.api.functions.Stub;
+import eu.stratosphere.api.functions.Function;
 import eu.stratosphere.api.typeutils.TypeComparator;
 import eu.stratosphere.api.typeutils.TypeComparatorFactory;
 import eu.stratosphere.api.typeutils.TypePairComparator;
@@ -78,7 +78,7 @@ import eu.stratosphere.util.MutableObjectIterator;
  *        The type of the feed-back data set (bulk partial solution / workset). For bulk iterations, {@code Y} is the
  *        same as {@code X}
  */
-public class IterationHeadPactTask<X, Y, S extends Stub, OT> extends AbstractIterativePactTask<S, OT> {
+public class IterationHeadPactTask<X, Y, S extends Function, OT> extends AbstractIterativePactTask<S, OT> {
 
 	private static final Log log = LogFactory.getLog(IterationHeadPactTask.class);
 

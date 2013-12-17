@@ -14,14 +14,14 @@
  **********************************************************************************************************************/
 package eu.stratosphere.arraymodel.optimizer;
 
-import eu.stratosphere.api.functions.Stub;
+import eu.stratosphere.api.functions.Function;
 import eu.stratosphere.api.io.OutputFormat;
-import eu.stratosphere.api.operators.DualInputContract;
+import eu.stratosphere.api.operators.DualInputOperator;
 import eu.stratosphere.api.operators.GenericDataSink;
 import eu.stratosphere.api.operators.Ordering;
-import eu.stratosphere.api.operators.SingleInputContract;
+import eu.stratosphere.api.operators.SingleInputOperator;
 import eu.stratosphere.api.operators.util.FieldList;
-import eu.stratosphere.arraymodel.functions.AbstractArrayModelStub;
+import eu.stratosphere.arraymodel.functions.AbstractArrayModelFunction;
 import eu.stratosphere.arraymodel.io.ArrayModelOutputFormat;
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.CompilerPostPassException;
@@ -94,11 +94,11 @@ public class ArrayRecordOptimizerPostPass extends GenericRecordPostPass<Class<? 
 	protected void getSingleInputNodeSchema(SingleInputPlanNode node, DenseValueSchema schema)
 			throws CompilerPostPassException, ConflictingFieldTypeInfoException
 	{
-		SingleInputContract<?> contract = (SingleInputContract<?>) node.getSingleInputNode().getPactContract();
-		Stub stub = contract.getUserCodeWrapper().getUserCodeObject();
+		SingleInputOperator<?> contract = (SingleInputOperator<?>) node.getSingleInputNode().getPactContract();
+		Function stub = contract.getUserCodeWrapper().getUserCodeObject();
 		
-		if (AbstractArrayModelStub.class.isAssignableFrom(stub.getClass())) {
-			AbstractArrayModelStub ams = (AbstractArrayModelStub) stub;
+		if (AbstractArrayModelFunction.class.isAssignableFrom(stub.getClass())) {
+			AbstractArrayModelFunction ams = (AbstractArrayModelFunction) stub;
 			Class<? extends Value>[] types = ams.getDataTypes(0);
 			
 			if (types == null) {
@@ -117,11 +117,11 @@ public class ArrayRecordOptimizerPostPass extends GenericRecordPostPass<Class<? 
 			throws CompilerPostPassException, ConflictingFieldTypeInfoException
 	{
 		// add the nodes local information. this automatically consistency checks
-		DualInputContract<?> contract = node.getTwoInputNode().getPactContract();
-		Stub stub = contract.getUserCodeWrapper().getUserCodeObject();
+		DualInputOperator<?> contract = node.getTwoInputNode().getPactContract();
+		Function stub = contract.getUserCodeWrapper().getUserCodeObject();
 		
-		if (AbstractArrayModelStub.class.isAssignableFrom(stub.getClass())) {
-			AbstractArrayModelStub ams = (AbstractArrayModelStub) stub;
+		if (AbstractArrayModelFunction.class.isAssignableFrom(stub.getClass())) {
+			AbstractArrayModelFunction ams = (AbstractArrayModelFunction) stub;
 			
 			Class<? extends Value>[] types1 = ams.getDataTypes(0);
 			Class<? extends Value>[] types2 = ams.getDataTypes(1);

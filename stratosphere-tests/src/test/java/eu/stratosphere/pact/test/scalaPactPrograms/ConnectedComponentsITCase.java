@@ -15,7 +15,7 @@
 
 package eu.stratosphere.pact.test.scalaPactPrograms;
 
-import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.api.Job;
 import eu.stratosphere.configuration.Configuration;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -28,11 +28,11 @@ public class ConnectedComponentsITCase extends eu.stratosphere.pact.test.iterati
     }
 
     @Override
-    protected Plan getPactPlan() {
+    protected Job getPactPlan() {
         int dop = config.getInteger("ConnectedComponents#NumSubtasks", 1);
         int maxIterations = config.getInteger("ConnectedComponents#NumIterations", 1);
         ConnectedComponents cc = new ConnectedComponents();
-        Plan plan = cc.getPlan(verticesPath, edgesPath, resultPath, maxIterations);
+        Job plan = cc.getPlan(verticesPath, edgesPath, resultPath, maxIterations);
         plan.setDefaultParallelism(dop);
         return plan;
     }

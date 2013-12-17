@@ -25,13 +25,13 @@ import java.util.Set;
 
 import org.junit.Before;
 
-import eu.stratosphere.api.functions.Stub;
+import eu.stratosphere.api.Job;
+import eu.stratosphere.api.functions.Function;
 import eu.stratosphere.api.io.FileInputFormat.FileBaseStatistics;
 import eu.stratosphere.api.operators.BulkIteration;
-import eu.stratosphere.api.operators.Contract;
+import eu.stratosphere.api.operators.Operator;
 import eu.stratosphere.api.operators.GenericDataSource;
 import eu.stratosphere.api.operators.WorksetIteration;
-import eu.stratosphere.api.plan.Plan;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.costs.DefaultCostEstimator;
@@ -95,11 +95,11 @@ public abstract class CompilerTestBase {
 	
 	// ------------------------------------------------------------------------
 	
-	public OptimizedPlan compileWithStats(Plan p) {
+	public OptimizedPlan compileWithStats(Job p) {
 		return this.withStatsCompiler.compile(p, this.instanceType);
 	}
 	
-	public OptimizedPlan compileNoStats(Plan p) {
+	public OptimizedPlan compileNoStats(Job p) {
 		return this.noStatsCompiler.compile(p, this.instanceType);
 	}
 	
@@ -113,7 +113,7 @@ public abstract class CompilerTestBase {
 		source.setStatisticsKey(key);
 	}
 
-	public static ContractResolver getContractResolver(Plan plan) {
+	public static ContractResolver getContractResolver(Job plan) {
 		return new ContractResolver(plan);
 	}
 	
@@ -131,7 +131,7 @@ public abstract class CompilerTestBase {
 			HashMap<String, ArrayList<PlanNode>> map = new HashMap<String, ArrayList<PlanNode>>();
 			
 			for (PlanNode n : p.getAllNodes()) {
-				Contract c = n.getOriginalOptimizerNode().getPactContract();
+				Operator c = n.getOriginalOptimizerNode().getPactContract();
 				String name = c.getName();
 				
 				ArrayList<PlanNode> list = map.get(name);
@@ -184,7 +184,7 @@ public abstract class CompilerTestBase {
 		}
 		
 		@SuppressWarnings("unchecked")
-		public <T extends PlanNode> T getNode(String name, Class<? extends Stub> stubClass) {
+		public <T extends PlanNode> T getNode(String name, Class<? extends Function> stubClass) {
 			List<PlanNode> nodes = this.map.get(name);
 			if (nodes == null || nodes.isEmpty()) {
 				throw new RuntimeException("No node found with the given name and stub class.");
@@ -219,14 +219,14 @@ public abstract class CompilerTestBase {
 	
 	// ------------------------------------------------------------------------
 	
-	public static final class ContractResolver implements Visitor<Contract> {
+	public static final class ContractResolver implements Visitor<Operator> {
 		
-		private final Map<String, List<Contract>> map;
-		private Set<Contract> seen;
+		private final Map<String, List<Operator>> map;
+		private Set<Operator> seen;
 		
-		ContractResolver(Plan p) {
-			this.map = new HashMap<String, List<Contract>>();
-			this.seen = new HashSet<Contract>();
+		ContractResolver(Job p) {
+			this.map = new HashMap<String, List<Operator>>();
+			this.seen = new HashSet<Operator>();
 			
 			p.accept(this);
 			this.seen = null;
@@ -234,8 +234,8 @@ public abstract class CompilerTestBase {
 		
 		
 		@SuppressWarnings("unchecked")
-		public <T extends Contract> T getNode(String name) {
-			List<Contract> nodes = this.map.get(name);
+		public <T extends Operator> T getNode(String name) {
+			List<Operator> nodes = this.map.get(name);
 			if (nodes == null || nodes.isEmpty()) {
 				throw new RuntimeException("No nodes found with the given name.");
 			} else if (nodes.size() != 1) {
@@ -246,13 +246,13 @@ public abstract class CompilerTestBase {
 		}
 		
 		@SuppressWarnings("unchecked")
-		public <T extends Contract> T getNode(String name, Class<? extends Stub> stubClass) {
-			List<Contract> nodes = this.map.get(name);
+		public <T extends Operator> T getNode(String name, Class<? extends Function> stubClass) {
+			List<Operator> nodes = this.map.get(name);
 			if (nodes == null || nodes.isEmpty()) {
 				throw new RuntimeException("No node found with the given name and stub class.");
 			} else {
-				Contract found = null;
-				for (Contract node : nodes) {
+				Operator found = null;
+				for (Operator node : nodes) {
 					if (node.getClass() == stubClass) {
 						if (found == null) {
 							found = node;
@@ -269,23 +269,23 @@ public abstract class CompilerTestBase {
 			}
 		}
 		
-		public List<Contract> getNodes(String name) {
-			List<Contract> nodes = this.map.get(name);
+		public List<Operator> getNodes(String name) {
+			List<Operator> nodes = this.map.get(name);
 			if (nodes == null || nodes.isEmpty()) {
 				throw new RuntimeException("No node found with the given name.");
 			} else {
-				return new ArrayList<Contract>(nodes);
+				return new ArrayList<Operator>(nodes);
 			}
 		}
 
 		@Override
-		public boolean preVisit(Contract visitable) {
+		public boolean preVisit(Operator visitable) {
 			if (this.seen.add(visitable)) {
 				// add to  the map
 				final String name = visitable.getName();
-				List<Contract> list = this.map.get(name);
+				List<Operator> list = this.map.get(name);
 				if (list == null) {
-					list = new ArrayList<Contract>(2);
+					list = new ArrayList<Operator>(2);
 					this.map.put(name, list);
 				}
 				list.add(visitable);
@@ -305,6 +305,6 @@ public abstract class CompilerTestBase {
 		}
 
 		@Override
-		public void postVisit(Contract visitable) {}
+		public void postVisit(Operator visitable) {}
 	}
 }

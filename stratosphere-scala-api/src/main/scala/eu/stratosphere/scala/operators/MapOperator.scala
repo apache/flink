@@ -18,8 +18,8 @@ import scala.reflect.macros.Context
 
 import eu.stratosphere.api.record.operators.MapOperator
 import eu.stratosphere.types.PactRecord
-import eu.stratosphere.api.record.functions.{MapStub => JMapStub}
-import eu.stratosphere.api.operators.Contract
+import eu.stratosphere.api.record.functions.{MapFunction => JMapStub}
+import eu.stratosphere.api.operators.Operator
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.util.Collector
 

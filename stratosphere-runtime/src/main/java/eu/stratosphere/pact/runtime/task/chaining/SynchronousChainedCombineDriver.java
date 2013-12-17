@@ -16,7 +16,7 @@
 package eu.stratosphere.pact.runtime.task.chaining;
 
 import eu.stratosphere.api.functions.GenericReducer;
-import eu.stratosphere.api.functions.Stub;
+import eu.stratosphere.api.functions.Function;
 import eu.stratosphere.api.typeutils.TypeComparator;
 import eu.stratosphere.api.typeutils.TypeComparatorFactory;
 import eu.stratosphere.api.typeutils.TypeSerializer;
@@ -121,7 +121,7 @@ public class SynchronousChainedCombineDriver<T> extends ChainedDriver<T, T> {
 
 	// --------------------------------------------------------------------------------------------
 
-	public Stub getStub() {
+	public Function getStub() {
 		return this.combiner;
 	}
 

@@ -28,10 +28,10 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
+import eu.stratosphere.api.Job;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
-import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.api.record.functions.ReduceStub;
+import eu.stratosphere.api.record.functions.ReduceFunction;
 import eu.stratosphere.api.record.io.DelimitedInputFormat;
 import eu.stratosphere.api.record.operators.ReduceOperator;
 import eu.stratosphere.compiler.DataStatistics;
@@ -81,7 +81,7 @@ public class ReduceITCase extends TestBase {
 	}
 
 	@ReduceOperator.Combinable
-	public static class TestReducer extends ReduceStub implements Serializable {
+	public static class TestReducer extends ReduceFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 
 		private PactString reduceValue = new PactString();
@@ -148,7 +148,7 @@ public class ReduceITCase extends TestBase {
 		output.addInput(testReducer);
 		testReducer.addInput(input);
 
-		Plan plan = new Plan(output);
+		Job plan = new Job(output);
 
 		PactCompiler pc = new PactCompiler(new DataStatistics());
 		OptimizedPlan op = pc.compile(plan);

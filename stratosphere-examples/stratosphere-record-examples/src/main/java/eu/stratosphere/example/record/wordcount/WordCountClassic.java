@@ -17,14 +17,14 @@ package eu.stratosphere.example.record.wordcount;
 
 import java.util.Iterator;
 
-import eu.stratosphere.api.functions.StubAnnotation.ConstantFields;
+import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Program;
+import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
-import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.api.plan.PlanAssembler;
-import eu.stratosphere.api.plan.PlanAssemblerDescription;
-import eu.stratosphere.api.record.functions.MapStub;
-import eu.stratosphere.api.record.functions.ReduceStub;
+import eu.stratosphere.api.record.functions.MapFunction;
+import eu.stratosphere.api.record.functions.ReduceFunction;
+import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFields;
 import eu.stratosphere.api.record.io.CsvOutputFormat;
 import eu.stratosphere.api.record.io.TextInputFormat;
 import eu.stratosphere.api.record.operators.MapOperator;
@@ -40,17 +40,17 @@ import eu.stratosphere.util.Collector;
 /**
  * Implements a word count which takes the input file and counts the number of
  * the occurrences of each word in the file. This is an example of using the
- * classic PACT Contract interface where you can specify classes insted of
+ * classic PACT Operator interface where you can specify classes insted of
  * objects.
  */
-public class WordCountClassic implements PlanAssembler, PlanAssemblerDescription {
+public class WordCountClassic implements Program, ProgramDescription {
 	
 	/**
 	 * Converts a PactRecord containing one string in to multiple string/integer pairs.
 	 * The string is tokenized by whitespaces. For each token a new record is emitted,
 	 * where the token is the first field and an Integer(1) is the second field.
 	 */
-	public static class TokenizeLine extends MapStub {
+	public static class TokenizeLine extends MapFunction {
 		
 		// initialize reusable mutable objects
 		private final PactRecord outputRecord = new PactRecord();
@@ -87,7 +87,7 @@ public class WordCountClassic implements PlanAssembler, PlanAssemblerDescription
 	 */
 	@Combinable
 	@ConstantFields(0)
-	public static class CountWords extends ReduceStub {
+	public static class CountWords extends ReduceFunction {
 		
 		private final PactInteger cnt = new PactInteger();
 		
@@ -117,7 +117,7 @@ public class WordCountClassic implements PlanAssembler, PlanAssemblerDescription
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Plan getPlan(String... args) {
+	public Job createJob(String... args) {
 		// parse job parameters
 		int numSubTasks   = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		String dataInput = (args.length > 1 ? args[1] : "");
@@ -140,7 +140,7 @@ public class WordCountClassic implements PlanAssembler, PlanAssemblerDescription
 			.field(PactString.class, 0)
 			.field(PactInteger.class, 1);
 		
-		Plan plan = new Plan(out, "WordCount Example");
+		Job plan = new Job(out, "WordCount Example");
 		plan.setDefaultParallelism(numSubTasks);
 		return plan;
 	}
@@ -156,7 +156,7 @@ public class WordCountClassic implements PlanAssembler, PlanAssemblerDescription
 	// This can be used to locally run a plan from within eclipse (or anywhere else)
 	public static void main(String[] args) throws Exception {
 		WordCountClassic wc = new WordCountClassic();
-		Plan plan = wc.getPlan("1", "file:///path/to/input", "file:///path/to/output");
+		Job plan = wc.createJob("1", "file:///path/to/input", "file:///path/to/output");
 		LocalExecutor.execute(plan);
 		System.exit(0);
 	}

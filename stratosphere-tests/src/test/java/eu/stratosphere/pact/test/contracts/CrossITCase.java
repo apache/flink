@@ -27,10 +27,10 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
+import eu.stratosphere.api.Job;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
-import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.api.record.functions.CrossStub;
+import eu.stratosphere.api.record.functions.CrossFunction;
 import eu.stratosphere.api.record.io.DelimitedInputFormat;
 import eu.stratosphere.api.record.operators.CrossOperator;
 import eu.stratosphere.compiler.DataStatistics;
@@ -104,7 +104,7 @@ public class CrossITCase extends TestBase
 	}
 
 
-	public static class TestCross extends CrossStub implements Serializable {
+	public static class TestCross extends CrossFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 
 		private PactString string = new PactString();
@@ -180,7 +180,7 @@ public class CrossITCase extends TestBase
 		testCross.addFirstInput(input_left);
 		testCross.addSecondInput(input_right);
 
-		Plan plan = new Plan(output);
+		Job plan = new Job(output);
 
 		PactCompiler pc = new PactCompiler(new DataStatistics());
 		OptimizedPlan op = pc.compile(plan);

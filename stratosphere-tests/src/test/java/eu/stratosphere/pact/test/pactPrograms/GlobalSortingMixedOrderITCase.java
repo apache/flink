@@ -30,13 +30,13 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
+import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Program;
 import eu.stratosphere.api.distributions.DataDistribution;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.operators.Order;
 import eu.stratosphere.api.operators.Ordering;
-import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.api.plan.PlanAssembler;
 import eu.stratosphere.api.record.io.CsvInputFormat;
 import eu.stratosphere.api.record.io.CsvOutputFormat;
 import eu.stratosphere.compiler.DataStatistics;
@@ -102,7 +102,7 @@ public class GlobalSortingMixedOrderITCase extends TestBase {
 	protected JobGraph getJobGraph() throws Exception {
 
 		GlobalSort globalSort = new GlobalSort();
-		Plan plan = globalSort.getPlan(
+		Job plan = globalSort.createJob(
 				config.getString("GlobalSortingTest#NoSubtasks", "1"), 
 				getFilesystemProvider().getURIPrefix()+recordsPath,
 				getFilesystemProvider().getURIPrefix()+resultPath);
@@ -190,10 +190,10 @@ public class GlobalSortingMixedOrderITCase extends TestBase {
 		
 	}
 	
-	private static class GlobalSort implements PlanAssembler {
+	private static class GlobalSort implements Program {
 		
 		@Override
-		public Plan getPlan(String... args) throws IllegalArgumentException {
+		public Job createJob(String... args) throws IllegalArgumentException {
 			// parse program parameters
 			final int numSubtasks     = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 			final String recordsPath = (args.length > 1 ? args[1] : "");
@@ -218,7 +218,7 @@ public class GlobalSortingMixedOrderITCase extends TestBase {
 				new TripleIntDistribution(Order.DESCENDING, Order.ASCENDING, Order.DESCENDING));
 			sink.setInput(source);
 			
-			Plan p = new Plan(sink);
+			Job p = new Job(sink);
 			p.setDefaultParallelism(numSubtasks);
 			return p;
 		}

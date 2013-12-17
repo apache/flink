@@ -15,7 +15,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import eu.stratosphere.api.record.functions.MatchStub;
+import eu.stratosphere.api.record.functions.JoinFunction;
 import eu.stratosphere.api.typeutils.TypeComparator;
 import eu.stratosphere.api.typeutils.TypePairComparator;
 import eu.stratosphere.api.typeutils.TypeSerializer;
@@ -203,14 +203,14 @@ public class ReOpenableHashTableITCase {
 			HashMatchIteratorITCase.collectRecordData(probeInput));
 		
 		final List<Map<TestData.Key, Collection<RecordMatch>>> expectedNMatchesMapList = new ArrayList<Map<Key,Collection<RecordMatch>>>(NUM_PROBES);
-		final MatchStub[] nMatcher = new PactRecordMatchRemovingMatcher[NUM_PROBES];
+		final JoinFunction[] nMatcher = new PactRecordMatchRemovingMatcher[NUM_PROBES];
 		for(int i = 0; i < NUM_PROBES; i++) {
 			Map<TestData.Key, Collection<RecordMatch>> tmp;
 			expectedNMatchesMapList.add(tmp = deepCopy(expectedFirstMatchesMap));
 			nMatcher[i] = new PactRecordMatchRemovingMatcher(tmp);
 		}
 		
-		final MatchStub firstMatcher = new PactRecordMatchRemovingMatcher(expectedFirstMatchesMap);
+		final JoinFunction firstMatcher = new PactRecordMatchRemovingMatcher(expectedFirstMatchesMap);
 		
 		final Collector<PactRecord> collector = new DiscardingOutputCollector();
 

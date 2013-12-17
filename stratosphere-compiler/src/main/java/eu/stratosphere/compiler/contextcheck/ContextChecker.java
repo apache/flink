@@ -19,15 +19,15 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import eu.stratosphere.api.InvalidJobException;
+import eu.stratosphere.api.Job;
 import eu.stratosphere.api.operators.BulkIteration;
-import eu.stratosphere.api.operators.Contract;
-import eu.stratosphere.api.operators.DualInputContract;
+import eu.stratosphere.api.operators.Operator;
+import eu.stratosphere.api.operators.DualInputOperator;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.operators.GenericDataSink;
-import eu.stratosphere.api.operators.SingleInputContract;
-import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.api.plan.PlanException;
+import eu.stratosphere.api.operators.SingleInputOperator;
 import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.util.Visitor;
 
@@ -35,13 +35,13 @@ import eu.stratosphere.util.Visitor;
  * Traverses a plan and checks whether all Contracts are correctly connected to
  * their input contracts.
  */
-public class ContextChecker implements Visitor<Contract> {
+public class ContextChecker implements Visitor<Operator> {
 
 	/**
 	 * A set of all already visited nodes during DAG traversal. Is used
 	 * to avoid processing one node multiple times.
 	 */
-	private final Set<Contract> visitedNodes = new HashSet<Contract>();
+	private final Set<Operator> visitedNodes = new HashSet<Operator>();
 
 	/**
 	 * Default constructor
@@ -57,7 +57,7 @@ public class ContextChecker implements Visitor<Contract> {
 	 * @param plan
 	 *        The PACT plan to check.
 	 */
-	public void check(Plan plan) {
+	public void check(Job plan) {
 		this.visitedNodes.clear();
 		plan.accept(this);
 	}
@@ -66,7 +66,7 @@ public class ContextChecker implements Visitor<Contract> {
 	 * Checks whether the node is correctly connected to its input.
 	 */
 	@Override
-	public boolean preVisit(Contract node) {
+	public boolean preVisit(Operator node) {
 		// check if node was already visited
 		if (!this.visitedNodes.add(node)) {
 			return false;
@@ -81,16 +81,16 @@ public class ContextChecker implements Visitor<Contract> {
 			checkDataSink((GenericDataSink) node);
 		} else if (node instanceof BulkIteration) {
 			checkBulkIteration((BulkIteration) node);
-		} else if (node instanceof SingleInputContract) {
-			checkSingleInputContract((SingleInputContract<?>) node);
-		} else if (node instanceof DualInputContract<?>) {
-			checkDualInputContract((DualInputContract<?>) node);
+		} else if (node instanceof SingleInputOperator) {
+			checkSingleInputContract((SingleInputOperator<?>) node);
+		} else if (node instanceof DualInputOperator<?>) {
+			checkDualInputContract((DualInputOperator<?>) node);
 		}
 		return true;
 	}
 
 	@Override
-	public void postVisit(Contract node) {}
+	public void postVisit(Operator node) {}
 
 	/**
 	 * Checks if DataSinkContract is correctly connected. In case that the
@@ -100,7 +100,7 @@ public class ContextChecker implements Visitor<Contract> {
 	 *        DataSinkContract that is checked.
 	 */
 	private void checkDataSink(GenericDataSink dataSinkContract) {
-		Contract input = dataSinkContract.getInputs().get(0);
+		Operator input = dataSinkContract.getInputs().get(0);
 		// check if input exists
 		if (input == null) {
 			throw new MissingChildException();
@@ -117,10 +117,10 @@ public class ContextChecker implements Visitor<Contract> {
 	private void checkFileDataSink(FileDataSink fileSink) {
 		String path = fileSink.getFilePath();
 		if (path == null) {
-			throw new PlanException("File path of FileDataSink is null.");
+			throw new InvalidJobException("File path of FileDataSink is null.");
 		}
 		if (path.length() == 0) {
-			throw new PlanException("File path of FileDataSink is empty string.");
+			throw new InvalidJobException("File path of FileDataSink is empty string.");
 		}
 		
 		try {
@@ -128,10 +128,10 @@ public class ContextChecker implements Visitor<Contract> {
 			String scheme = p.toUri().getScheme();
 			
 			if (scheme == null) {
-				throw new PlanException("File path \"" + path + "\" of FileDataSink has no file system scheme (like 'file:// or hdfs://').");
+				throw new InvalidJobException("File path \"" + path + "\" of FileDataSink has no file system scheme (like 'file:// or hdfs://').");
 			}
 		} catch (Exception e) {
-			throw new PlanException("File path \"" + path + "\" of FileDataSink is an invalid path: " + e.getMessage());
+			throw new InvalidJobException("File path \"" + path + "\" of FileDataSink is an invalid path: " + e.getMessage());
 		}
 		checkDataSink(fileSink);
 	}
@@ -146,10 +146,10 @@ public class ContextChecker implements Visitor<Contract> {
 	private void checkFileDataSource(FileDataSource fileSource) {
 		String path = fileSource.getFilePath();
 		if (path == null) {
-			throw new PlanException("File path of FileDataSource is null.");
+			throw new InvalidJobException("File path of FileDataSource is null.");
 		}
 		if (path.length() == 0) {
-			throw new PlanException("File path of FileDataSource is empty string.");
+			throw new InvalidJobException("File path of FileDataSource is empty string.");
 		}
 		
 		try {
@@ -157,22 +157,22 @@ public class ContextChecker implements Visitor<Contract> {
 			String scheme = p.toUri().getScheme();
 			
 			if (scheme == null) {
-				throw new PlanException("File path \"" + path + "\" of FileDataSource has no file system scheme (like 'file:// or hdfs://').");
+				throw new InvalidJobException("File path \"" + path + "\" of FileDataSource has no file system scheme (like 'file:// or hdfs://').");
 			}
 		} catch (Exception e) {
-			throw new PlanException("File path \"" + path + "\" of FileDataSource is an invalid path: " + e.getMessage());
+			throw new InvalidJobException("File path \"" + path + "\" of FileDataSource is an invalid path: " + e.getMessage());
 		}
 	}
 
 	/**
-	 * Checks whether a SingleInputContract is correctly connected. In case that
+	 * Checks whether a SingleInputOperator is correctly connected. In case that
 	 * the contract is incorrectly connected a RuntimeException is thrown.
 	 * 
 	 * @param singleInputContract
-	 *        SingleInputContract that is checked.
+	 *        SingleInputOperator that is checked.
 	 */
-	private void checkSingleInputContract(SingleInputContract<?> singleInputContract) {
-		List<Contract> input = singleInputContract.getInputs();
+	private void checkSingleInputContract(SingleInputOperator<?> singleInputContract) {
+		List<Operator> input = singleInputContract.getInputs();
 		// check if input exists
 		if (input.size() == 0) {
 			throw new MissingChildException();
@@ -180,15 +180,15 @@ public class ContextChecker implements Visitor<Contract> {
 	}
 
 	/**
-	 * Checks whether a DualInputContract is correctly connected. In case that
+	 * Checks whether a DualInputOperator is correctly connected. In case that
 	 * the contract is incorrectly connected a RuntimeException is thrown.
 	 * 
 	 * @param dualInputContract
-	 *        DualInputContract that is checked.
+	 *        DualInputOperator that is checked.
 	 */
-	private void checkDualInputContract(DualInputContract<?> dualInputContract) {
-		List<Contract> input1 = dualInputContract.getFirstInputs();
-		List<Contract> input2 = dualInputContract.getSecondInputs();
+	private void checkDualInputContract(DualInputOperator<?> dualInputContract) {
+		List<Operator> input1 = dualInputContract.getFirstInputs();
+		List<Operator> input2 = dualInputContract.getSecondInputs();
 		// check if input exists
 		if (input1.size() == 0 || input2.size() == 0) {
 			throw new MissingChildException();

@@ -18,7 +18,7 @@ import scala.util.DynamicVariable
 import eu.stratosphere.scala.analysis._
 import eu.stratosphere.scala.contracts._
 import eu.stratosphere.api.operators.util.{ FieldSet => PactFieldSet }
-import eu.stratosphere.api.operators.Contract
+import eu.stratosphere.api.operators.Operator
 import eu.stratosphere.scala.codegen.MacroContextHolder
 import scala.reflect.macros.Context
 
@@ -32,12 +32,12 @@ case class KeyCardinality(key: FieldSelector, isUnique: Boolean, distinctCount: 
     }
   }
 
-  @transient private var pactFieldSets = collection.mutable.Map[Contract with ScalaContract[_], RefreshableFieldSet]()
+  @transient private var pactFieldSets = collection.mutable.Map[Operator with ScalaContract[_], RefreshableFieldSet]()
 
-  def getPactFieldSet(contract: Contract with ScalaContract[_]): PactFieldSet = {
+  def getPactFieldSet(contract: Operator with ScalaContract[_]): PactFieldSet = {
 
     if (pactFieldSets == null)
-      pactFieldSets = collection.mutable.Map[Contract with ScalaContract[_], RefreshableFieldSet]()
+      pactFieldSets = collection.mutable.Map[Operator with ScalaContract[_], RefreshableFieldSet]()
 
     val keyCopy = key.copy
     contract.getUDF.attachOutputsToInputs(keyCopy.inputFields)
@@ -76,7 +76,7 @@ trait OutputHintable[Out] { this: DataSet[Out] =>
   def cardinality[Key](fields: Out => Key, avgNumRecords: Float) = macro OutputHintableMacros.cardinalityWithAvgNumRecords[Out, Key]
   def cardinality[Key](fields: Out => Key, distinctCount: Long, avgNumRecords: Float) = macro OutputHintableMacros.cardinalityWithAll[Out, Key]
 
-  def applyHints(contract: Contract with ScalaContract[_]): Unit = {
+  def applyHints(contract: Operator with ScalaContract[_]): Unit = {
     val hints = contract.getCompilerHints
 
     if (hints.getUniqueFields != null)

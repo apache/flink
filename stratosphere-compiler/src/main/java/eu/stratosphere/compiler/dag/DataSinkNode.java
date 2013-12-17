@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.Map;
 
 import eu.stratosphere.api.distributions.DataDistribution;
-import eu.stratosphere.api.operators.Contract;
+import eu.stratosphere.api.operators.Operator;
 import eu.stratosphere.api.operators.GenericDataSink;
 import eu.stratosphere.api.operators.Ordering;
 import eu.stratosphere.compiler.CompilerException;
@@ -133,8 +133,8 @@ public class DataSinkNode extends OptimizerNode {
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#setInputs(java.util.Map)
 	 */
 	@Override
-	public void setInputs(Map<Contract, OptimizerNode> contractToNode) {
-		List<Contract> children = getPactContract().getInputs();
+	public void setInputs(Map<Operator, OptimizerNode> contractToNode) {
+		List<Operator> children = getPactContract().getInputs();
 
 		final OptimizerNode pred;
 		final PactConnection conn;
@@ -283,7 +283,7 @@ public class DataSinkNode extends OptimizerNode {
 	}
 	
 	// --------------------------------------------------------------------------------------------
-	//                                   Stub Annotation Handling
+	//                                   Function Annotation Handling
 	// --------------------------------------------------------------------------------------------
 	
 	public boolean isFieldConstant(int input, int fieldNumber) {

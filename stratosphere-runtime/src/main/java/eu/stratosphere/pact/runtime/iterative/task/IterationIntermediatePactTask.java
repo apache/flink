@@ -15,7 +15,7 @@
 
 package eu.stratosphere.pact.runtime.iterative.task;
 
-import eu.stratosphere.api.functions.Stub;
+import eu.stratosphere.api.functions.Function;
 import eu.stratosphere.nephele.io.AbstractRecordWriter;
 import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.EndOfSuperstepEvent;
@@ -40,7 +40,7 @@ import java.io.IOException;
  * a {@link BlockingBackChannel} for the workset -XOR- a {@link MutableHashTable} for the solution set. In this case
  * this task must be scheduled on the same instance as the head.
  */
-public class IterationIntermediatePactTask<S extends Stub, OT> extends AbstractIterativePactTask<S, OT> {
+public class IterationIntermediatePactTask<S extends Function, OT> extends AbstractIterativePactTask<S, OT> {
 
 	private static final Log log = LogFactory.getLog(IterationIntermediatePactTask.class);
 

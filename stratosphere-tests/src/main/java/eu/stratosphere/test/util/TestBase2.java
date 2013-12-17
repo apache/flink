@@ -41,7 +41,7 @@ import org.junit.Test;
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
 
-import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.api.Job;
 import eu.stratosphere.client.minicluster.NepheleMiniCluster;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;
@@ -268,7 +268,7 @@ public abstract class TestBase2 {
 	// --------------------------------------------------------------------------------------------
 
 	protected JobGraph getJobGraph() throws Exception {
-		Plan p = getPactPlan();
+		Job p = getPactPlan();
 		if (p == null) {
 			Assert.fail("Error: Cannot obtain Pact plan. Did the thest forget to override either 'getPactPlan()' or 'getJobGraph()' ?");
 		}
@@ -284,7 +284,7 @@ public abstract class TestBase2 {
 		return jgg.compileJobGraph(op);
 	}
 	
-	protected Plan getPactPlan() {
+	protected Job getPactPlan() {
 		return null;
 	}
 

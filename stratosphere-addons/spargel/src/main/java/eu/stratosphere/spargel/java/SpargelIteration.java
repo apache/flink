@@ -17,10 +17,10 @@ package eu.stratosphere.spargel.java;
 import java.io.IOException;
 import java.util.Iterator;
 
-import eu.stratosphere.api.functions.StubAnnotation.ConstantFieldsFirst;
-import eu.stratosphere.api.operators.Contract;
+import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFieldsFirst;
+import eu.stratosphere.api.operators.Operator;
 import eu.stratosphere.api.operators.WorksetIteration;
-import eu.stratosphere.api.record.functions.CoGroupStub;
+import eu.stratosphere.api.record.functions.CoGroupFunction;
 import eu.stratosphere.api.record.operators.CoGroupOperator;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.spargel.java.util.MessageIterator;
@@ -112,16 +112,16 @@ public class SpargelIteration {
 	//  inputs and outputs
 	// ----------------------------------------------------------------------------------
 	
-	public void setVertexInput(Contract c) {
+	public void setVertexInput(Operator c) {
 		this.iteration.setInitialSolutionSet(c);
 		this.iteration.setInitialWorkset(c);
 	}
 	
-	public void setEdgesInput(Contract c) {
+	public void setEdgesInput(Operator c) {
 		this.messager.setFirstInput(c);
 	}
 	
-	public Contract getOutput() {
+	public Operator getOutput() {
 		return this.iteration;
 	}
 	
@@ -138,7 +138,7 @@ public class SpargelIteration {
 	// --------------------------------------------------------------------------------------------
 	
 	@ConstantFieldsFirst(0)
-	public static final class VertexUpdateDriver<K extends Key, V extends Value, M extends Value> extends CoGroupStub {
+	public static final class VertexUpdateDriver<K extends Key, V extends Value, M extends Value> extends CoGroupFunction {
 		
 		private static final String UDF_PARAM = "pact.vertex.udf";
 		private static final String KEY_PARAM = "pact.vertex.key-type";
@@ -207,13 +207,13 @@ public class SpargelIteration {
 		}
 	}
 	
-	public static final class MessagingDriver<K extends Key, V extends Value, M extends Value, E extends Value> extends CoGroupStub {
+	public static final class MessagingDriver<K extends Key, V extends Value, M extends Value, E extends Value> extends CoGroupFunction {
 
-		private static final String UDF_PARAM = "pact.vertex.udf";
-		private static final String KEY_PARAM = "pact.vertex.key-type";
-		private static final String VALUE_PARAM = "pact.vertex.value-type";
-		private static final String MESSAGE_PARAM = "pact.vertex.message-type";
-		private static final String EDGE_PARAM = "pact.vertex.edge-value";
+		private static final String UDF_PARAM = "stratosphere.spargel.udf";
+		private static final String KEY_PARAM = "stratosphere.spargel.key-type";
+		private static final String VALUE_PARAM = "stratosphere.spargel.value-type";
+		private static final String MESSAGE_PARAM = "stratosphere.spargel.message-type";
+		private static final String EDGE_PARAM = "stratosphere.spargel.edge-value";
 		
 		
 		private MessagingFunction<K, V, M, E> messagingFunction;

@@ -25,10 +25,10 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
+import eu.stratosphere.api.Job;
 import eu.stratosphere.api.io.OutputFormat;
 import eu.stratosphere.api.operators.GenericDataSink;
 import eu.stratosphere.api.operators.GenericDataSource;
-import eu.stratosphere.api.plan.Plan;
 import eu.stratosphere.api.record.io.GenericInputFormat;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;
@@ -70,7 +70,7 @@ public class CustomDataTypeTest extends TestBase
 		GenericDataSink sink = new GenericDataSink(new BlackholeOutputFormat(), datasource, "Sink");
 		sink.getParameters().setString(CLASS_TO_INSTANTIATE_KEY, CLASS_TO_INSTANTIATE_NAME);
 		
-		Plan plan = new Plan(sink);
+		Job plan = new Job(sink);
 		PactCompiler pc = new PactCompiler(new DataStatistics());
 		OptimizedPlan op = pc.compile(plan);
 

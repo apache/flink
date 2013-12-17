@@ -14,8 +14,8 @@ package eu.stratosphere.scala.examples.relational;
 
 
 import eu.stratosphere.client.LocalExecutor
-import eu.stratosphere.api.plan.PlanAssembler
-import eu.stratosphere.api.plan.PlanAssemblerDescription
+import eu.stratosphere.api.Program
+import eu.stratosphere.api.ProgramDescription
 
 import eu.stratosphere.scala._
 import eu.stratosphere.scala.operators._
@@ -48,11 +48,11 @@ object RunTPCHQuery3 {
  *     AND o_orderpriority LIKE "Z%"
  *   GROUP BY l_orderkey, o_shippriority;
  */
-class TPCHQuery3 extends PlanAssembler with PlanAssemblerDescription with Serializable {
+class TPCHQuery3 extends Program with ProgramDescription with Serializable {
   override def getDescription() = {
     "Parameters: [numSubStasks], [orders], [lineitem], [output]"
   }
-  override def getPlan(args: String*) = {
+  override def createJob(args: String*) = {
     getScalaPlan(args(0).toInt, args(1), args(2), args(3))
   }
 

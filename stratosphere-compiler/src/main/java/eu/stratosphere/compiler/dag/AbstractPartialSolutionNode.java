@@ -19,7 +19,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import eu.stratosphere.api.operators.Contract;
+import eu.stratosphere.api.operators.Operator;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.costs.CostEstimator;
 import eu.stratosphere.compiler.plan.PlanNode;
@@ -31,7 +31,7 @@ import eu.stratosphere.util.Visitor;
 public abstract class AbstractPartialSolutionNode extends OptimizerNode
 {
 	
-	protected AbstractPartialSolutionNode(Contract contract) {
+	protected AbstractPartialSolutionNode(Operator contract) {
 		super(contract);
 	}
 
@@ -78,7 +78,7 @@ public abstract class AbstractPartialSolutionNode extends OptimizerNode
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#setInputs(java.util.Map)
 	 */
 	@Override
-	public void setInputs(Map<Contract, OptimizerNode> contractToNode) {
+	public void setInputs(Map<Operator, OptimizerNode> contractToNode) {
 	}
 
 	/* (non-Javadoc)

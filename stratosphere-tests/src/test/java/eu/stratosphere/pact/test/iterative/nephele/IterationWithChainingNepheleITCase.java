@@ -15,8 +15,8 @@
 package eu.stratosphere.pact.test.iterative.nephele;
 
 import eu.stratosphere.api.operators.util.UserCodeClassWrapper;
-import eu.stratosphere.api.record.functions.MapStub;
-import eu.stratosphere.api.record.functions.ReduceStub;
+import eu.stratosphere.api.record.functions.MapFunction;
+import eu.stratosphere.api.record.functions.ReduceFunction;
 import eu.stratosphere.api.record.io.FileOutputFormat;
 import eu.stratosphere.api.typeutils.TypeComparatorFactory;
 import eu.stratosphere.api.typeutils.TypeSerializerFactory;
@@ -256,14 +256,14 @@ public class IterationWithChainingNepheleITCase extends TestBase2 {
         return jobGraph;
     }
 
-    public static final class DummyMapper extends MapStub {
+    public static final class DummyMapper extends MapFunction {
         @Override
         public void map(PactRecord rec, Collector<PactRecord> out) {
             out.collect(rec);
         }
     }
 
-    public static final class DummyReducer extends ReduceStub {
+    public static final class DummyReducer extends ReduceFunction {
         @Override
         public void reduce(Iterator<PactRecord> it, Collector<PactRecord> out) {
             while (it.hasNext()) {
@@ -272,7 +272,7 @@ public class IterationWithChainingNepheleITCase extends TestBase2 {
         }
     }
 
-    public static final class IncrementCoordinatesMapper extends MapStub {
+    public static final class IncrementCoordinatesMapper extends MapFunction {
         @Override
         public void map(PactRecord rec, Collector<PactRecord> out) {
             CoordVector coord = rec.getField(1, CoordVector.class);

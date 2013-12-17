@@ -15,12 +15,12 @@
 
 package eu.stratosphere.pact.test.testPrograms.tpch9;
 
-import eu.stratosphere.api.record.functions.MapStub;
+import eu.stratosphere.api.record.functions.MapFunction;
 import eu.stratosphere.pact.test.testPrograms.util.Tuple;
 import eu.stratosphere.types.PactRecord;
 import eu.stratosphere.util.Collector;
 
-public class LineItemMap extends MapStub
+public class LineItemMap extends MapFunction
 {
 	/**
 	 * Filter "lineitem".

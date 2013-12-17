@@ -19,11 +19,11 @@ import java.util.Arrays;
 import org.junit.Assert;
 import org.junit.Test;
 
-import eu.stratosphere.api.operators.Contract;
+import eu.stratosphere.api.Job;
+import eu.stratosphere.api.operators.Operator;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.operators.util.FieldList;
-import eu.stratosphere.api.plan.Plan;
 import eu.stratosphere.api.record.operators.CrossOperator;
 import eu.stratosphere.api.record.operators.ReduceOperator;
 import eu.stratosphere.compiler.plan.DualInputPlanNode;
@@ -67,7 +67,7 @@ public class KMeansStepCompilerTest extends CompilerTestBase {
 	public void testQueryNoStatsAnyValidPlanNoUniqueness() {
 		try {
 			KMeansSingleStep job = new KMeansSingleStep();
-			Plan p = job.getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE);
+			Job p = job.createJob(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE);
 			
 			// clear uniqueness hints
 			ContractResolver cr = getContractResolver(p);
@@ -88,7 +88,7 @@ public class KMeansStepCompilerTest extends CompilerTestBase {
 	public void testQueryNoStatsAnyValidPlanWithUniqueness() {
 		try {
 			KMeansSingleStep job = new KMeansSingleStep();
-			Plan p = job.getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE);
+			Job p = job.createJob(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE);
 			OptimizedPlan plan = compileNoStats(p);
 			checkAnyValidPlan(plan);
 		} catch (Exception e) {
@@ -112,7 +112,7 @@ public class KMeansStepCompilerTest extends CompilerTestBase {
 	}
 		
 	private void testQueryRolledOut(int numSteps, boolean unique) {
-		final Plan p = getRolledOutPlan(numSteps, unique);
+		final Job p = getRolledOutPlan(numSteps, unique);
 		final OptimizedPlan plan = compileNoStats(p);
 		
 		// get the nodes from the final plan
@@ -148,7 +148,7 @@ public class KMeansStepCompilerTest extends CompilerTestBase {
 		}
 	}
 	
-	private static final Plan getRolledOutPlan(int numSteps, boolean uniquenessHints) {
+	private static final Job getRolledOutPlan(int numSteps, boolean uniquenessHints) {
 		final int numSubTasks = DEFAULT_PARALLELISM;
 		final String dataPointInput = IN_FILE;
 		final String clusterInput = IN_FILE;
@@ -164,7 +164,7 @@ public class KMeansStepCompilerTest extends CompilerTestBase {
 			clusterPoints.getCompilerHints().addUniqueField(0);
 		}
 		
-		Contract latestCenters = clusterPoints;
+		Operator latestCenters = clusterPoints;
 
 		for (int i = 0; i < numSteps; i++) {
 			// create CrossOperator for distance computation
@@ -193,7 +193,7 @@ public class KMeansStepCompilerTest extends CompilerTestBase {
 		FileDataSink newClusterPoints = new FileDataSink(new PointOutFormat(), output, latestCenters, SINK);
 
 		// return the PACT plan
-		Plan plan = new Plan(newClusterPoints, "KMeans Iteration (x" + numSteps + ")");
+		Job plan = new Job(newClusterPoints, "KMeans Iteration (x" + numSteps + ")");
 		plan.setDefaultParallelism(numSubTasks);
 		
 		return plan;
@@ -211,7 +211,7 @@ public class KMeansStepCompilerTest extends CompilerTestBase {
 	public void testQueryNoStatisticsChainedReducer() {
 		try {
 			KMeansSingleStep job = new KMeansSingleStep();
-			Plan p = job.getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE);
+			Job p = job.createJob(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE);
 			
 			// compile
 			final OptimizedPlan plan = compileNoStats(p);
@@ -246,7 +246,7 @@ public class KMeansStepCompilerTest extends CompilerTestBase {
 	public void testQueryNoStatisticsNonChainedReducer() {
 		try {
 			KMeansSingleStep job = new KMeansSingleStep();
-			Plan p = job.getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE);
+			Job p = job.createJob(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE);
 			
 			// clear uniqueness hints
 			ContractResolver cr = getContractResolver(p);
@@ -311,7 +311,7 @@ public class KMeansStepCompilerTest extends CompilerTestBase {
 	private void testQueryGeneric(long dataPointsSize, long centersSize, boolean bcCenters, boolean streamedNL) {
 		try {
 			KMeansSingleStep job = new KMeansSingleStep();
-			Plan p = job.getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE);
+			Job p = job.createJob(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE);
 			
 			// set statistics
 			ContractResolver cr = getContractResolver(p);

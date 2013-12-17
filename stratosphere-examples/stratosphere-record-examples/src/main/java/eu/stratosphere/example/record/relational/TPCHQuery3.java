@@ -18,16 +18,16 @@ package eu.stratosphere.example.record.relational;
 import java.io.Serializable;
 import java.util.Iterator;
 
-import eu.stratosphere.api.functions.StubAnnotation.ConstantFields;
-import eu.stratosphere.api.functions.StubAnnotation.ConstantFieldsFirst;
+import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Program;
+import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
-import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.api.plan.PlanAssembler;
-import eu.stratosphere.api.plan.PlanAssemblerDescription;
-import eu.stratosphere.api.record.functions.MapStub;
-import eu.stratosphere.api.record.functions.MatchStub;
-import eu.stratosphere.api.record.functions.ReduceStub;
+import eu.stratosphere.api.record.functions.MapFunction;
+import eu.stratosphere.api.record.functions.JoinFunction;
+import eu.stratosphere.api.record.functions.ReduceFunction;
+import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFields;
+import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFieldsFirst;
 import eu.stratosphere.api.record.io.CsvInputFormat;
 import eu.stratosphere.api.record.io.CsvOutputFormat;
 import eu.stratosphere.api.record.operators.MapOperator;
@@ -59,7 +59,7 @@ import eu.stratosphere.util.Collector;
  *     AND o_orderpriority LIKE "Z%"
  * GROUP BY l_orderkey, o_shippriority;
  */
-public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
+public class TPCHQuery3 implements Program, ProgramDescription {
 
 	public static final String YEAR_FILTER = "parameter.YEAR_FILTER";
 	public static final String PRIO_FILTER = "parameter.PRIO_FILTER";
@@ -68,7 +68,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	 * Map PACT implements the selection and projection on the orders table.
 	 */
 	@ConstantFields({0,1})
-	public static class FilterO extends MapStub implements Serializable {
+	public static class FilterO extends MapFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 		
 		private String prioFilter;		// filter literal for the order priority
@@ -82,7 +82,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		/**
 		 * Reads the filter literals from the configuration.
 		 * 
-		 * @see eu.stratosphere.api.functions.Stub#open(eu.stratosphere.configuration.Configuration)
+		 * @see eu.stratosphere.api.functions.Function#open(eu.stratosphere.configuration.Configuration)
 		 */
 		@Override
 		public void open(Configuration parameters) {
@@ -125,7 +125,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	 *
 	 */
 	@ConstantFieldsFirst({0,1})
-	public static class JoinLiO extends MatchStub implements Serializable {
+	public static class JoinLiO extends JoinFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 		
 		/**
@@ -151,7 +151,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	 */
 	@Combinable
 	@ConstantFields({0,1})
-	public static class AggLiO extends ReduceStub implements Serializable {
+	public static class AggLiO extends ReduceFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 		
 		private final PactDouble extendedPrice = new PactDouble();
@@ -192,7 +192,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Plan getPlan(final String... args) {
+	public Job createJob(final String... args) {
 		// parse program parameters
 		final int numSubtasks       = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		final String ordersPath    = (args.length > 1 ? args[1] : "");
@@ -256,7 +256,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 			.field(PactDouble.class, 2);
 		
 		// assemble the PACT plan
-		Plan plan = new Plan(result, "TPCH Q3");
+		Job plan = new Job(result, "TPCH Q3");
 		plan.setDefaultParallelism(numSubtasks);
 		return plan;
 	}

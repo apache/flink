@@ -17,8 +17,8 @@ package eu.stratosphere.pact.compiler.iterations;
 import org.junit.Assert;
 import org.junit.Test;
 
+import eu.stratosphere.api.Job;
 import eu.stratosphere.api.operators.util.FieldList;
-import eu.stratosphere.api.plan.Plan;
 import eu.stratosphere.compiler.dag.TempMode;
 import eu.stratosphere.compiler.plan.DualInputPlanNode;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
@@ -57,7 +57,7 @@ public class WorksetConnectedComponentsCoGroupTest extends CompilerTestBase {
 	public void testWorksetConnectedComponents() {
 		WorksetConnectedComponentsWithCoGroup cc = new WorksetConnectedComponentsWithCoGroup();
 
-		Plan plan = cc.getPlan(String.valueOf(DEFAULT_PARALLELISM),
+		Job plan = cc.createJob(String.valueOf(DEFAULT_PARALLELISM),
 				IN_FILE, IN_FILE, OUT_FILE, String.valueOf(100));
 
 		OptimizedPlan optPlan = compileNoStats(plan);

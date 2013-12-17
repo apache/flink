@@ -14,7 +14,7 @@
  **********************************************************************************************************************/
 package eu.stratosphere.compiler.util;
 
-import eu.stratosphere.api.functions.AbstractStub;
+import eu.stratosphere.api.functions.AbstractFunction;
 
 
-public class NoOpStub extends AbstractStub {}
+public class NoOpStub extends AbstractFunction {}

@@ -26,37 +26,37 @@ import java.util.Map.Entry;
 import eu.stratosphere.api.functions.GenericCoGrouper;
 import eu.stratosphere.api.functions.GenericCrosser;
 import eu.stratosphere.api.functions.GenericMapper;
-import eu.stratosphere.api.functions.GenericMatcher;
+import eu.stratosphere.api.functions.GenericJoiner;
 import eu.stratosphere.api.functions.GenericReducer;
 import eu.stratosphere.api.io.FileInputFormat;
 import eu.stratosphere.api.io.FileOutputFormat;
 import eu.stratosphere.api.io.InputFormat;
 import eu.stratosphere.api.io.OutputFormat;
-import eu.stratosphere.api.operators.Contract;
-import eu.stratosphere.api.operators.DualInputContract;
+import eu.stratosphere.api.operators.Operator;
+import eu.stratosphere.api.operators.DualInputOperator;
 import eu.stratosphere.api.operators.GenericDataSink;
 import eu.stratosphere.api.operators.GenericDataSource;
-import eu.stratosphere.api.operators.SingleInputContract;
-import eu.stratosphere.api.operators.base.GenericCoGroupContract;
-import eu.stratosphere.api.operators.base.GenericCrossContract;
-import eu.stratosphere.api.operators.base.GenericMapContract;
-import eu.stratosphere.api.operators.base.GenericMatchContract;
-import eu.stratosphere.api.operators.base.GenericReduceContract;
+import eu.stratosphere.api.operators.SingleInputOperator;
+import eu.stratosphere.api.operators.base.CoGroupOperatorBase;
+import eu.stratosphere.api.operators.base.CrossOperatorBase;
+import eu.stratosphere.api.operators.base.MapOperatorBase;
+import eu.stratosphere.api.operators.base.JoinOperatorBase;
+import eu.stratosphere.api.operators.base.ReduceOperatorBase;
 
 /**
- * Convenience methods when dealing with {@link Contract}s.
+ * Convenience methods when dealing with {@link Operator}s.
  * 
  */
 public class ContractUtil {
-	private final static Map<Class<?>, Class<? extends Contract>> STUB_CONTRACTS =
-		new LinkedHashMap<Class<?>, Class<? extends Contract>>();
+	private final static Map<Class<?>, Class<? extends Operator>> STUB_CONTRACTS =
+		new LinkedHashMap<Class<?>, Class<? extends Operator>>();
 
 	static {
-		STUB_CONTRACTS.put(GenericMapper.class, GenericMapContract.class);
-		STUB_CONTRACTS.put(GenericReducer.class, GenericReduceContract.class);
-		STUB_CONTRACTS.put(GenericCoGrouper.class, GenericCoGroupContract.class);
-		STUB_CONTRACTS.put(GenericCrosser.class, GenericCrossContract.class);
-		STUB_CONTRACTS.put(GenericMatcher.class, GenericMatchContract.class);
+		STUB_CONTRACTS.put(GenericMapper.class, MapOperatorBase.class);
+		STUB_CONTRACTS.put(GenericReducer.class, ReduceOperatorBase.class);
+		STUB_CONTRACTS.put(GenericCoGrouper.class, CoGroupOperatorBase.class);
+		STUB_CONTRACTS.put(GenericCrosser.class, CrossOperatorBase.class);
+		STUB_CONTRACTS.put(GenericJoiner.class, JoinOperatorBase.class);
 		STUB_CONTRACTS.put(FileInputFormat.class, GenericDataSource.class);
 		STUB_CONTRACTS.put(FileOutputFormat.class, GenericDataSink.class);
 		STUB_CONTRACTS.put(InputFormat.class, GenericDataSource.class);
@@ -64,22 +64,22 @@ public class ContractUtil {
 	}
 
 	/**
-	 * Returns the associated {@link Contract} type for the given {@link eu.stratosphere.api.functions.Stub} class.
+	 * Returns the associated {@link Operator} type for the given {@link eu.stratosphere.api.functions.Function} class.
 	 * 
 	 * @param stubClass
 	 *        the stub class
-	 * @return the associated Contract type
+	 * @return the associated Operator type
 	 */
 	@SuppressWarnings({ "unchecked" })
-	public static Class<? extends Contract> getContractClass(final Class<?> stubClass) {
+	public static Class<? extends Operator> getContractClass(final Class<?> stubClass) {
 		if (stubClass == null)
 			return null;
 		final Class<?> contract = STUB_CONTRACTS.get(stubClass);
 		if (contract != null)
-			return (Class<? extends Contract>) contract;
-		Iterator<Entry<Class<?>, Class<? extends Contract>>> stubContracts = STUB_CONTRACTS.entrySet().iterator();
+			return (Class<? extends Operator>) contract;
+		Iterator<Entry<Class<?>, Class<? extends Operator>>> stubContracts = STUB_CONTRACTS.entrySet().iterator();
 		while (stubContracts.hasNext()) {
-			Map.Entry<Class<?>, Class<? extends Contract>> entry = stubContracts.next();
+			Map.Entry<Class<?>, Class<? extends Operator>> entry = stubContracts.next();
 			if (entry.getKey().isAssignableFrom(stubClass))
 				return entry.getValue();
 		}
@@ -88,85 +88,85 @@ public class ContractUtil {
 	}
 
 	/**
-	 * Returns the number of inputs for the given {@link Contract} type.<br>
+	 * Returns the number of inputs for the given {@link Operator} type.<br>
 	 * Currently, it can be 0, 1, or 2.
 	 * 
 	 * @param contractType
-	 *        the type of the Contract
+	 *        the type of the Operator
 	 * @return the number of input contracts
 	 */
-	public static int getNumInputs(final Class<? extends Contract> contractType) {
+	public static int getNumInputs(final Class<? extends Operator> contractType) {
 
 		if (GenericDataSource.class.isAssignableFrom(contractType))
 			return 0;
 		if (GenericDataSink.class.isAssignableFrom(contractType)
-			|| SingleInputContract.class.isAssignableFrom(contractType))
+			|| SingleInputOperator.class.isAssignableFrom(contractType))
 			return 1;
-		if (DualInputContract.class.isAssignableFrom(contractType))
+		if (DualInputOperator.class.isAssignableFrom(contractType))
 			return 2;
 		throw new IllegalArgumentException("not supported");
 	}
 
 	/**
-	 * Returns a list of all inputs for the given {@link Contract}.<br>
+	 * Returns a list of all inputs for the given {@link Operator}.<br>
 	 * Currently, the list can have 0, 1, or 2 elements.
 	 * 
 	 * @param contract
-	 *        the Contract whose inputs should be returned
+	 *        the Operator whose inputs should be returned
 	 * @return all input contracts to this contract
 	 */
-	public static List<List<Contract>> getInputs(final Contract contract) {
-		ArrayList<List<Contract>> inputs = new ArrayList<List<Contract>>();
+	public static List<List<Operator>> getInputs(final Operator contract) {
+		ArrayList<List<Operator>> inputs = new ArrayList<List<Operator>>();
 
 		if (contract instanceof GenericDataSink)
-			inputs.add(new ArrayList<Contract>(((GenericDataSink) contract).getInputs()));
-		else if (contract instanceof SingleInputContract)
-			inputs.add(new ArrayList<Contract>(((SingleInputContract<?>) contract).getInputs()));
-		else if (contract instanceof DualInputContract) {
-			inputs.add(new ArrayList<Contract>(((DualInputContract<?>) contract).getFirstInputs()));
-			inputs.add(new ArrayList<Contract>(((DualInputContract<?>) contract).getSecondInputs()));
+			inputs.add(new ArrayList<Operator>(((GenericDataSink) contract).getInputs()));
+		else if (contract instanceof SingleInputOperator)
+			inputs.add(new ArrayList<Operator>(((SingleInputOperator<?>) contract).getInputs()));
+		else if (contract instanceof DualInputOperator) {
+			inputs.add(new ArrayList<Operator>(((DualInputOperator<?>) contract).getFirstInputs()));
+			inputs.add(new ArrayList<Operator>(((DualInputOperator<?>) contract).getSecondInputs()));
 		}
 		return inputs;
 	}
 
-	public static List<Contract> getFlatInputs(final Contract contract) {
+	public static List<Operator> getFlatInputs(final Operator contract) {
 		if (contract instanceof GenericDataSink)
 			return ((GenericDataSink) contract).getInputs();
-		if (contract instanceof SingleInputContract)
-			return ((SingleInputContract<?>) contract).getInputs();
-		if (contract instanceof DualInputContract) {
-			ArrayList<Contract> inputs = new ArrayList<Contract>();
-			inputs.addAll(((DualInputContract<?>) contract).getFirstInputs());
-			inputs.addAll(((DualInputContract<?>) contract).getSecondInputs());
+		if (contract instanceof SingleInputOperator)
+			return ((SingleInputOperator<?>) contract).getInputs();
+		if (contract instanceof DualInputOperator) {
+			ArrayList<Operator> inputs = new ArrayList<Operator>();
+			inputs.addAll(((DualInputOperator<?>) contract).getFirstInputs());
+			inputs.addAll(((DualInputOperator<?>) contract).getSecondInputs());
 			return inputs;
 		}
 
-		return new ArrayList<Contract>();
+		return new ArrayList<Operator>();
 	}
 
 	/**
-	 * Sets the inputs of the given {@link Contract}.<br>
+	 * Sets the inputs of the given {@link Operator}.<br>
 	 * Currently, the list can have 0, 1, or 2 elements and the number of elements must match the type of the contract.
 	 * 
 	 * @param contract
-	 *        the Contract whose inputs should be set
+	 *        the Operator whose inputs should be set
 	 * @param inputs
 	 *        all input contracts to this contract
 	 */
-	public static void setInputs(final Contract contract, final List<List<Contract>> inputs) {
+	public static void setInputs(final Operator contract, final List<List<Operator>> inputs) {
 		if (contract instanceof GenericDataSink) {
 			if (inputs.size() != 1)
 				throw new IllegalArgumentException("wrong number of inputs");
 			((GenericDataSink) contract).setInputs(inputs.get(0));
-		} else if (contract instanceof SingleInputContract) {
+		} else if (contract instanceof SingleInputOperator) {
 			if (inputs.size() != 1)
 				throw new IllegalArgumentException("wrong number of inputs");
-			((SingleInputContract<?>) contract).setInputs(inputs.get(0));
-		} else if (contract instanceof DualInputContract) {
+			((SingleInputOperator<?>) contract).setInputs(inputs.get(0));
+		} else if (contract instanceof DualInputOperator) {
 			if (inputs.size() != 2)
 				throw new IllegalArgumentException("wrong number of inputs");
-			((DualInputContract<?>) contract).setFirstInputs(inputs.get(0));
-			((DualInputContract<?>) contract).setSecondInputs(inputs.get(1));
+			((DualInputOperator<?>) contract).setFirstInputs(inputs.get(0));
+			((DualInputOperator<?>) contract).setSecondInputs(inputs.get(1));
 		}
 	}
 
@@ -180,8 +180,8 @@ public class ContractUtil {
 	 * @param input2
 	 *        the second input index
 	 */
-	public static void swapInputs(Contract contract, int input1, int input2) {
-		final List<List<Contract>> inputs = new ArrayList<List<Contract>>(getInputs(contract));
+	public static void swapInputs(Operator contract, int input1, int input2) {
+		final List<List<Operator>> inputs = new ArrayList<List<Operator>>(getInputs(contract));
 		Collections.swap(inputs, input1, input2);
 		setInputs(contract, inputs);
 	}

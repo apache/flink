@@ -15,23 +15,23 @@
 
 package eu.stratosphere.api.operators;
 
-import eu.stratosphere.api.functions.AbstractStub;
+import eu.stratosphere.api.InvalidJobException;
+import eu.stratosphere.api.functions.AbstractFunction;
 import eu.stratosphere.api.functions.aggregators.AggregatorRegistry;
 import eu.stratosphere.api.operators.util.UserCodeClassWrapper;
 import eu.stratosphere.api.operators.util.UserCodeWrapper;
-import eu.stratosphere.api.plan.PlanException;
 import eu.stratosphere.util.Visitor;
 
 /**
  * 
  */
-public class BulkIteration extends SingleInputContract<AbstractStub> implements IterationContract {
+public class BulkIteration extends SingleInputOperator<AbstractFunction> implements IterationOperator {
 	
 	private static String DEFAULT_NAME = "<Unnamed Bulk Iteration>";
 	
-	private Contract iterationResult;
+	private Operator iterationResult;
 	
-	private Contract inputPlaceHolder = new PartialSolutionPlaceHolder(this);
+	private Operator inputPlaceHolder = new PartialSolutionPlaceHolder(this);
 	
 	private final AggregatorRegistry aggregators = new AggregatorRegistry();
 	
@@ -50,7 +50,7 @@ public class BulkIteration extends SingleInputContract<AbstractStub> implements 
 	 * @param name
 	 */
 	public BulkIteration(String name) {
-		super(new UserCodeClassWrapper<AbstractStub>(AbstractStub.class), name);
+		super(new UserCodeClassWrapper<AbstractFunction>(AbstractFunction.class), name);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -58,16 +58,16 @@ public class BulkIteration extends SingleInputContract<AbstractStub> implements 
 	/**
 	 * @return The contract representing the partial solution.
 	 */
-	public Contract getPartialSolution() {
+	public Operator getPartialSolution() {
 		return this.inputPlaceHolder;
 	}
 	
 	/**
 	 * @param result
 	 */
-	public void setNextPartialSolution(Contract result) {
+	public void setNextPartialSolution(Operator result) {
 		if (result == null) {
-			throw new NullPointerException("Contract producing the next partial solution must not be null.");
+			throw new NullPointerException("Operator producing the next partial solution must not be null.");
 		}
 		this.iterationResult = result;
 	}
@@ -75,21 +75,21 @@ public class BulkIteration extends SingleInputContract<AbstractStub> implements 
 	/**
 	 * @return The contract representing the next partial solution.
 	 */
-	public Contract getNextPartialSolution() {
+	public Operator getNextPartialSolution() {
 		return this.iterationResult;
 	}
 	
 	/**
 	 * @return The contract representing the termination criterion.
 	 */
-	public Contract getTerminationCriterion() {
+	public Operator getTerminationCriterion() {
 		return null;
 	}
 	
 	/**
 	 * @param criterion
 	 */
-	public void setTerminationCriterion(Contract criterion) {
+	public void setTerminationCriterion(Operator criterion) {
 		throw new UnsupportedOperationException("Termination criterion support is currently not implemented.");
 	}
 	
@@ -115,16 +115,16 @@ public class BulkIteration extends SingleInputContract<AbstractStub> implements 
 	/**
 	 * @throws Exception
 	 */
-	public void validate() throws PlanException {
+	public void validate() throws InvalidJobException {
 		if (this.input == null || this.input.isEmpty()) {
-			throw new RuntimeException("Contract for initial partial solution is not set.");
+			throw new RuntimeException("Operator for initial partial solution is not set.");
 		}
 		if (this.iterationResult == null) {
-			throw new PlanException("Contract producing the next version of the partial " +
+			throw new InvalidJobException("Operator producing the next version of the partial " +
 					"solution (iteration result) is not set.");
 		}
 		if (this.numberOfIterations <= 0) {
-			throw new PlanException("No termination condition is set " +
+			throw new InvalidJobException("No termination condition is set " +
 					"(neither fix number of iteration nor termination criterion).");
 		}
 //		if (this.terminationCriterion != null && this.numberOfIterations > 0) {
@@ -140,7 +140,7 @@ public class BulkIteration extends SingleInputContract<AbstractStub> implements 
 	 * step function when composing the nested data flow.
 	 */
 	// Integer is only a dummy here but this whole placeholder shtick seems a tad bogus.
-	public static class PartialSolutionPlaceHolder extends Contract {
+	public static class PartialSolutionPlaceHolder extends Operator {
 		
 		private final BulkIteration containingIteration;
 		
@@ -154,7 +154,7 @@ public class BulkIteration extends SingleInputContract<AbstractStub> implements 
 		}
 		
 		@Override
-		public void accept(Visitor<Contract> visitor) {
+		public void accept(Visitor<Operator> visitor) {
 			visitor.preVisit(this);
 			visitor.postVisit(this);
 		}

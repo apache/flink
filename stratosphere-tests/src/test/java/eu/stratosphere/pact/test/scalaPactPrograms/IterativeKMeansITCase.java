@@ -18,7 +18,7 @@ package eu.stratosphere.pact.test.scalaPactPrograms;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.api.Job;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.scala.examples.datamining.KMeans;
 
@@ -30,7 +30,7 @@ public class IterativeKMeansITCase extends eu.stratosphere.pact.test.iterative.I
 	}
 
 	@Override
-	protected Plan getPactPlan() {
+	protected Job getPactPlan() {
 
 		KMeans kmi = new KMeans();
 

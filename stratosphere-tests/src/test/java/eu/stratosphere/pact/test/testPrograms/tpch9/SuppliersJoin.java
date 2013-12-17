@@ -16,7 +16,7 @@
 package eu.stratosphere.pact.test.testPrograms.tpch9;
 
 
-import eu.stratosphere.api.record.functions.MatchStub;
+import eu.stratosphere.api.record.functions.JoinFunction;
 import eu.stratosphere.pact.test.testPrograms.util.Tuple;
 import eu.stratosphere.types.PactInteger;
 import eu.stratosphere.types.PactRecord;
@@ -24,7 +24,7 @@ import eu.stratosphere.types.PactString;
 import eu.stratosphere.util.Collector;
 
 
-public class SuppliersJoin extends MatchStub {
+public class SuppliersJoin extends JoinFunction {
 	
 	private PactInteger suppKey = new PactInteger();
 	private Tuple nationVal = new Tuple();

@@ -23,20 +23,20 @@ import eu.stratosphere.addons.hbase.TableInputFormat;
 import eu.stratosphere.addons.hbase.common.HBaseKey;
 import eu.stratosphere.addons.hbase.common.HBaseResult;
 import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.PactString;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.GenericDataSource;
 import eu.stratosphere.api.record.io.CsvOutputFormat;
-import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.api.plan.PlanAssembler;
-import eu.stratosphere.api.plan.PlanAssemblerDescription;
-import eu.stratosphere.types.PactRecord;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Program;
+import eu.stratosphere.api.ProgramDescription;
 
 /**
-* Implements a word count which takes the input file and counts the number of
-* the occurrences of each word in the file.
-*/
-public class HBaseReadExample implements PlanAssembler, PlanAssemblerDescription {
+ * Implements a word count which takes the input file and counts the number of
+ * the occurrences of each word in the file.
+ */
+public class HBaseReadExample implements Program, ProgramDescription {
 	
 	public static class MyTableInputFormat extends  TableInputFormat {
 		
@@ -98,7 +98,7 @@ public class HBaseReadExample implements PlanAssembler, PlanAssemblerDescription
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Plan getPlan(String... args) {
+	public Job createJob(String... args) {
 		// parse job parameters
 		int numSubTasks   = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		String output    = (args.length > 1 ? args[1] : "");
@@ -115,7 +115,7 @@ public class HBaseReadExample implements PlanAssembler, PlanAssemblerDescription
 			.field(PactString.class, 2)
 			.field(PactString.class, 3);
 		
-		Plan plan = new Plan(out, "HBase access Example");
+		Job plan = new Job(out, "HBase access Example");
 		plan.setDefaultParallelism(numSubTasks);
 		return plan;
 	}

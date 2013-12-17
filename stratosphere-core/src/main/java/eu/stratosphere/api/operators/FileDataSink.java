@@ -20,7 +20,7 @@ import java.util.List;
 import eu.stratosphere.api.io.FileOutputFormat;
 
 /**
- * Contract for nodes which act as data sinks, storing the data they receive in a file instead of sending it to another
+ * Operator for nodes which act as data sinks, storing the data they receive in a file instead of sending it to another
  * contract. The encoding of the data in the file is handled by the {@link FileOutputFormat}.
  * 
  * @see FileOutputFormat
@@ -67,7 +67,7 @@ public class FileDataSink extends GenericDataSink
 	 * @param filePath The path to the file to write the contents to.
 	 * @param input The contract to use as the input.
 	 */
-	public FileDataSink(FileOutputFormat<?> f, String filePath, Contract input) {
+	public FileDataSink(FileOutputFormat<?> f, String filePath, Operator input) {
 		this(f, filePath, input, DEFAULT_NAME);
 	}
 	
@@ -79,7 +79,7 @@ public class FileDataSink extends GenericDataSink
 	 * @param filePath The path to the file to write the contents to.
 	 * @param input The contracts to use as the input.
 	 */
-	public FileDataSink(FileOutputFormat<?> f, String filePath, List<Contract> input) {
+	public FileDataSink(FileOutputFormat<?> f, String filePath, List<Operator> input) {
 		this(f, filePath, input, DEFAULT_NAME);
 	}
 
@@ -92,7 +92,7 @@ public class FileDataSink extends GenericDataSink
 	 * @param input The contract to use as the input.
 	 * @param name The given name for the sink, used in plans, logs and progress messages.
 	 */
-	public FileDataSink(FileOutputFormat<?> f, String filePath, Contract input, String name) {
+	public FileDataSink(FileOutputFormat<?> f, String filePath, Operator input, String name) {
 		this(f, filePath, name);
 		addInput(input);
 	}
@@ -106,7 +106,7 @@ public class FileDataSink extends GenericDataSink
 	 * @param input The contracts to use as the input.
 	 * @param name The given name for the sink, used in plans, logs and progress messages.
 	 */
-	public FileDataSink(FileOutputFormat<?> f, String filePath, List<Contract> input, String name) {
+	public FileDataSink(FileOutputFormat<?> f, String filePath, List<Operator> input, String name) {
 		this(f, filePath, name);
 		addInputs(input);
 	}
@@ -144,7 +144,7 @@ public class FileDataSink extends GenericDataSink
 	 * @param filePath The path to the file to write the contents to.
 	 * @param input The contract to use as the input.
 	 */
-	public FileDataSink(Class<? extends FileOutputFormat<?>> f, String filePath, Contract input) {
+	public FileDataSink(Class<? extends FileOutputFormat<?>> f, String filePath, Operator input) {
 		this(f, filePath, input, DEFAULT_NAME);
 	}
 	
@@ -156,7 +156,7 @@ public class FileDataSink extends GenericDataSink
 	 * @param filePath The path to the file to write the contents to.
 	 * @param input The contracts to use as the input.
 	 */
-	public FileDataSink(Class<? extends FileOutputFormat<?>> f, String filePath, List<Contract> input) {
+	public FileDataSink(Class<? extends FileOutputFormat<?>> f, String filePath, List<Operator> input) {
 		this(f, filePath, input, DEFAULT_NAME);
 	}
 
@@ -169,7 +169,7 @@ public class FileDataSink extends GenericDataSink
 	 * @param input The contract to use as the input.
 	 * @param name The given name for the sink, used in plans, logs and progress messages.
 	 */
-	public FileDataSink(Class<? extends FileOutputFormat<?>> f, String filePath, Contract input, String name) {
+	public FileDataSink(Class<? extends FileOutputFormat<?>> f, String filePath, Operator input, String name) {
 		this(f, filePath, name);
 		addInput(input);
 	}
@@ -183,7 +183,7 @@ public class FileDataSink extends GenericDataSink
 	 * @param input The contracts to use as the input.
 	 * @param name The given name for the sink, used in plans, logs and progress messages.
 	 */
-	public FileDataSink(Class<? extends FileOutputFormat<?>> f, String filePath, List<Contract> input, String name) {
+	public FileDataSink(Class<? extends FileOutputFormat<?>> f, String filePath, List<Operator> input, String name) {
 		this(f, filePath, name);
 		addInputs(input);
 	}

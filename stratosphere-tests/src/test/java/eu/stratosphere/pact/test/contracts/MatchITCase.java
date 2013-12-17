@@ -27,10 +27,10 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
+import eu.stratosphere.api.Job;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
-import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.api.record.functions.MatchStub;
+import eu.stratosphere.api.record.functions.JoinFunction;
 import eu.stratosphere.api.record.io.DelimitedInputFormat;
 import eu.stratosphere.api.record.operators.JoinOperator;
 import eu.stratosphere.compiler.DataStatistics;
@@ -104,7 +104,7 @@ public class MatchITCase extends TestBase
 
 	}
 
-	public static class TestMatcher extends MatchStub implements Serializable {
+	public static class TestMatcher extends JoinFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 
 		private PactString keyString = new PactString();
@@ -177,7 +177,7 @@ public class MatchITCase extends TestBase
 		testMatcher.addFirstInput(input_left);
 		testMatcher.addSecondInput(input_right);
 
-		Plan plan = new Plan(output);
+		Job plan = new Job(output);
 
 		PactCompiler pc = new PactCompiler(new DataStatistics());
 		OptimizedPlan op = pc.compile(plan);

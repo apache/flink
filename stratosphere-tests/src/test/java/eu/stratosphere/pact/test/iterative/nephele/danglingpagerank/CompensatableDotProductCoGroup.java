@@ -1,6 +1,6 @@
 package eu.stratosphere.pact.test.iterative.nephele.danglingpagerank;
 
-import eu.stratosphere.api.record.functions.CoGroupStub;
+import eu.stratosphere.api.record.functions.CoGroupFunction;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.pact.test.iterative.nephele.ConfigUtils;
 import eu.stratosphere.types.PactDouble;
@@ -11,7 +11,7 @@ import eu.stratosphere.util.Collector;
 import java.util.Iterator;
 import java.util.Set;
 
-public class CompensatableDotProductCoGroup extends CoGroupStub {
+public class CompensatableDotProductCoGroup extends CoGroupFunction {
 	
 	public static final String AGGREGATOR_NAME = "pagerank.aggregator";
 

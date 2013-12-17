@@ -15,11 +15,11 @@
 
 package eu.stratosphere.pact.test.testPrograms.tpch3Unioned;
 
+import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Program;
+import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
-import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.api.plan.PlanAssembler;
-import eu.stratosphere.api.plan.PlanAssemblerDescription;
 import eu.stratosphere.api.record.io.CsvInputFormat;
 import eu.stratosphere.api.record.io.CsvOutputFormat;
 import eu.stratosphere.api.record.operators.MapOperator;
@@ -51,13 +51,13 @@ import eu.stratosphere.types.PactString;
  *     AND o_orderpriority LIKE "Z%"
  * GROUP BY l_orderkey, o_shippriority;
  */
-public class TPCHQuery3Unioned implements PlanAssembler, PlanAssemblerDescription {
+public class TPCHQuery3Unioned implements Program, ProgramDescription {
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Plan getPlan(final String... args) {
+	public Job createJob(final String... args) {
 		// parse program parameters
 		final int numSubtasks       = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		String orders1Path    = (args.length > 1 ? args[1] : "");
@@ -160,7 +160,7 @@ public class TPCHQuery3Unioned implements PlanAssembler, PlanAssemblerDescriptio
 			.field(PactDouble.class, 2);
 		
 		// assemble the PACT plan
-		Plan plan = new Plan(result, "TPCH Q3 Unioned");
+		Job plan = new Job(result, "TPCH Q3 Unioned");
 		plan.setDefaultParallelism(numSubtasks);
 		return plan;
 	}

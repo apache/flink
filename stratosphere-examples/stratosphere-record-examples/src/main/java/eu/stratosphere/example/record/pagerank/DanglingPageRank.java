@@ -15,22 +15,22 @@
 
 package eu.stratosphere.example.record.pagerank;
 
+import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Program;
+import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.operators.BulkIteration;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
-import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.api.plan.PlanAssembler;
-import eu.stratosphere.api.plan.PlanAssemblerDescription;
 import eu.stratosphere.api.record.operators.CoGroupOperator;
 import eu.stratosphere.api.record.operators.JoinOperator;
 import eu.stratosphere.types.PactLong;
 
 
-public class DanglingPageRank implements PlanAssembler, PlanAssemblerDescription {
+public class DanglingPageRank implements Program, ProgramDescription {
 	
 	public static final String NUM_VERTICES_CONFIG_PARAM = "pageRank.numVertices";
 		
-	public Plan getPlan(String ... args) {
+	public Job createJob(String ... args) {
 		int dop = 1;
 		String pageWithRankInputPath = "";
 		String adjacencyListInputPath = "";
@@ -79,7 +79,7 @@ public class DanglingPageRank implements PlanAssembler, PlanAssemblerDescription
 		
 		FileDataSink out = new FileDataSink(new PageWithRankOutFormat(), outputPath, iteration, "Final Ranks");
 
-		Plan p = new Plan(out, "Dangling PageRank");
+		Job p = new Job(out, "Dangling PageRank");
 		p.setDefaultParallelism(dop);
 		return p;
 	}

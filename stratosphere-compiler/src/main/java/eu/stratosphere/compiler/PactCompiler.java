@@ -30,20 +30,20 @@ import java.util.Set;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.api.Job;
 import eu.stratosphere.api.operators.BulkIteration;
-import eu.stratosphere.api.operators.Contract;
+import eu.stratosphere.api.operators.Operator;
 import eu.stratosphere.api.operators.GenericDataSink;
 import eu.stratosphere.api.operators.GenericDataSource;
 import eu.stratosphere.api.operators.WorksetIteration;
 import eu.stratosphere.api.operators.BulkIteration.PartialSolutionPlaceHolder;
 import eu.stratosphere.api.operators.WorksetIteration.SolutionSetPlaceHolder;
 import eu.stratosphere.api.operators.WorksetIteration.WorksetPlaceHolder;
-import eu.stratosphere.api.operators.base.GenericCoGroupContract;
-import eu.stratosphere.api.operators.base.GenericCrossContract;
-import eu.stratosphere.api.operators.base.GenericMapContract;
-import eu.stratosphere.api.operators.base.GenericMatchContract;
-import eu.stratosphere.api.operators.base.GenericReduceContract;
-import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.api.operators.base.CoGroupOperatorBase;
+import eu.stratosphere.api.operators.base.CrossOperatorBase;
+import eu.stratosphere.api.operators.base.MapOperatorBase;
+import eu.stratosphere.api.operators.base.JoinOperatorBase;
+import eu.stratosphere.api.operators.base.ReduceOperatorBase;
 import eu.stratosphere.compiler.costs.CostEstimator;
 import eu.stratosphere.compiler.costs.DefaultCostEstimator;
 import eu.stratosphere.compiler.dag.BulkIterationNode;
@@ -540,20 +540,20 @@ public class PactCompiler {
 	 *         Thrown, if the plan is invalid or the optimizer encountered an inconsistent
 	 *         situation during the compilation process.
 	 */
-	public OptimizedPlan compile(Plan pactPlan) throws CompilerException {
+	public OptimizedPlan compile(Job pactPlan) throws CompilerException {
 		// -------------------- try to get the connection to the job manager ----------------------
 		// --------------------------to obtain instance information --------------------------------
 		final OptimizerPostPass postPasser = getPostPassFromPlan(pactPlan);
 		return compile(pactPlan, getInstanceTypeInfo(), postPasser);
 	}
 	
-	public OptimizedPlan compile(Plan pactPlan, OptimizerPostPass postPasser) throws CompilerException {
+	public OptimizedPlan compile(Job pactPlan, OptimizerPostPass postPasser) throws CompilerException {
 		// -------------------- try to get the connection to the job manager ----------------------
 		// --------------------------to obtain instance information --------------------------------
 		return compile(pactPlan, getInstanceTypeInfo(), postPasser);
 	}
 	
-	public OptimizedPlan compile(Plan pactPlan, InstanceTypeDescription type) throws CompilerException {
+	public OptimizedPlan compile(Job pactPlan, InstanceTypeDescription type) throws CompilerException {
 		final OptimizerPostPass postPasser = getPostPassFromPlan(pactPlan);
 		return compile(pactPlan, type, postPasser);
 	}
@@ -579,7 +579,7 @@ public class PactCompiler {
 	 *         Thrown, if the plan is invalid or the optimizer encountered an inconsistent
 	 *         situation during the compilation process.
 	 */
-	public OptimizedPlan compile(Plan pactPlan, InstanceTypeDescription type, OptimizerPostPass postPasser) throws CompilerException {
+	public OptimizedPlan compile(Job pactPlan, InstanceTypeDescription type, OptimizerPostPass postPasser) throws CompilerException {
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Beginning compilation of PACT program '" + pactPlan.getJobName() + '\'');
 		}
@@ -748,7 +748,7 @@ public class PactCompiler {
 	 * @return The optimizer representation of the plan, as a collection of all data sinks
 	 *         from the plan can be traversed.
 	 */
-	public static List<DataSinkNode> createPreOptimizedPlan(Plan pactPlan) {
+	public static List<DataSinkNode> createPreOptimizedPlan(Job pactPlan) {
 		GraphCreatingVisitor graphCreator = new GraphCreatingVisitor(null, -1, 1, false);
 		pactPlan.accept(graphCreator);
 		return graphCreator.sinks;
@@ -768,9 +768,9 @@ public class PactCompiler {
 	 * estimation and the awareness for optimizer hints, the sizes will be properly estimated and the translated plan
 	 * already respects all optimizer hints.
 	 */
-	private static final class GraphCreatingVisitor implements Visitor<Contract> {
+	private static final class GraphCreatingVisitor implements Visitor<Operator> {
 		
-		private final Map<Contract, OptimizerNode> con2node; // map from the contract objects to their
+		private final Map<Operator, OptimizerNode> con2node; // map from the contract objects to their
 																// corresponding optimizer nodes
 
 		private final List<DataSourceNode> sources; // all data source nodes in the optimizer plan
@@ -801,7 +801,7 @@ public class PactCompiler {
 		GraphCreatingVisitor(GraphCreatingVisitor parent, boolean forceDOP,
 			DataStatistics statistics, int maxMachines, int defaultParallelism, boolean computeEstimates)
 		{
-			this.con2node = new HashMap<Contract, OptimizerNode>();
+			this.con2node = new HashMap<Operator, OptimizerNode>();
 			this.sources = new ArrayList<DataSourceNode>(4);
 			this.sinks = new ArrayList<DataSinkNode>(2);
 			this.statistics = statistics;
@@ -814,7 +814,7 @@ public class PactCompiler {
 		}
 
 		@Override
-		public boolean preVisit(Contract c) {
+		public boolean preVisit(Operator c) {
 			// check if we have been here before
 			if (this.con2node.containsKey(c)) {
 				return false;
@@ -833,20 +833,20 @@ public class PactCompiler {
 				this.sources.add(dsn);
 				n = dsn;
 			}
-			else if (c instanceof GenericMapContract) {
-				n = new MapNode((GenericMapContract<?>) c);
+			else if (c instanceof MapOperatorBase) {
+				n = new MapNode((MapOperatorBase<?>) c);
 			}
-			else if (c instanceof GenericReduceContract) {
-				n = new ReduceNode((GenericReduceContract<?>) c);
+			else if (c instanceof ReduceOperatorBase) {
+				n = new ReduceNode((ReduceOperatorBase<?>) c);
 			}
-			else if (c instanceof GenericMatchContract) {
-				n = new MatchNode((GenericMatchContract<?>) c);
+			else if (c instanceof JoinOperatorBase) {
+				n = new MatchNode((JoinOperatorBase<?>) c);
 			}
-			else if (c instanceof GenericCoGroupContract) {
-				n = new CoGroupNode((GenericCoGroupContract<?>) c);
+			else if (c instanceof CoGroupOperatorBase) {
+				n = new CoGroupNode((CoGroupOperatorBase<?>) c);
 			}
-			else if (c instanceof GenericCrossContract) {
-				n = new CrossNode((GenericCrossContract<?>) c);
+			else if (c instanceof CrossOperatorBase) {
+				n = new CrossNode((CrossOperatorBase<?>) c);
 			}
 			else if (c instanceof BulkIteration) {
 				n = new BulkIterationNode((BulkIteration) c);
@@ -945,7 +945,7 @@ public class PactCompiler {
 		}
 
 		@Override
-		public void postVisit(Contract c) {
+		public void postVisit(Operator c) {
 			OptimizerNode n = this.con2node.get(c);
 
 			// check if we have been here before
@@ -1246,7 +1246,7 @@ public class PactCompiler {
 			this.stackOfIterationNodes = new ArrayDeque<IterationPlanNode>();
 		}
 
-		private OptimizedPlan createFinalPlan(List<SinkPlanNode> sinks, String jobName, Plan originalPlan, long memPerInstance) {
+		private OptimizedPlan createFinalPlan(List<SinkPlanNode> sinks, String jobName, Job originalPlan, long memPerInstance) {
 			if (LOG.isDebugEnabled())
 				LOG.debug("Available memory per instance: " + memPerInstance);
 			
@@ -1481,7 +1481,7 @@ public class PactCompiler {
 	// Miscellaneous
 	// ------------------------------------------------------------------------
 	
-	private OptimizerPostPass getPostPassFromPlan(Plan pactPlan) {
+	private OptimizerPostPass getPostPassFromPlan(Job pactPlan) {
 		final String className =  pactPlan.getPostPassClassName();
 		if (className == null) {
 			throw new CompilerException("Optimizer Post Pass class description is null");

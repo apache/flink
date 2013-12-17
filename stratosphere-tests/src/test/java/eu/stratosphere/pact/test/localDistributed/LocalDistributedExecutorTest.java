@@ -46,7 +46,7 @@ public class LocalDistributedExecutorTest {
 			WordCount wc = new WordCount();
 			LocalDistributedExecutor lde = new LocalDistributedExecutor();
 			lde.startNephele(2);
-			lde.run( wc.getPlan("4", "file://" + inFile.getAbsolutePath(), "file://" + outFile.getAbsolutePath()));
+			lde.run( wc.createJob("4", "file://" + inFile.getAbsolutePath(), "file://" + outFile.getAbsolutePath()));
 			
 		} catch (Exception e) {
 			e.printStackTrace();

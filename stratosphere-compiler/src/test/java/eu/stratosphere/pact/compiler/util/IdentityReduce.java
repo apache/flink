@@ -18,13 +18,13 @@ package eu.stratosphere.pact.compiler.util;
 import java.io.Serializable;
 import java.util.Iterator;
 
-import eu.stratosphere.api.functions.StubAnnotation.ConstantFieldsExcept;
-import eu.stratosphere.api.record.functions.ReduceStub;
+import eu.stratosphere.api.record.functions.ReduceFunction;
+import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFieldsExcept;
 import eu.stratosphere.types.PactRecord;
 import eu.stratosphere.util.Collector;
 
 @ConstantFieldsExcept({})
-public final class IdentityReduce extends ReduceStub implements Serializable {
+public final class IdentityReduce extends ReduceFunction implements Serializable {
 	private static final long serialVersionUID = 1L;
 	
 	@Override

@@ -16,7 +16,7 @@
 package eu.stratosphere.pact.runtime.task.chaining;
 
 import eu.stratosphere.api.functions.RuntimeContext;
-import eu.stratosphere.api.functions.Stub;
+import eu.stratosphere.api.functions.Function;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
@@ -58,7 +58,7 @@ public abstract class ChainedDriver<IT, OT> implements Collector<IT> {
 
 	public abstract void cancelTask();
 
-	public abstract Stub getStub();
+	public abstract Function getStub();
 
 	public abstract String getTaskName();
 

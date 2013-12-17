@@ -17,7 +17,7 @@ package eu.stratosphere.example.record.pagerank;
 
 import java.io.Serializable;
 
-import eu.stratosphere.api.record.functions.MatchStub;
+import eu.stratosphere.api.record.functions.JoinFunction;
 import eu.stratosphere.types.PactDouble;
 import eu.stratosphere.types.PactLong;
 import eu.stratosphere.types.PactRecord;
@@ -28,7 +28,7 @@ import eu.stratosphere.util.Collector;
  * INPUT = (pageId, rank, dangling), (pageId, neighbors-list).
  * OUTPUT = (targetPageId, partialRank)
  */
-public class DotProductMatch extends MatchStub implements Serializable {
+public class DotProductMatch extends JoinFunction implements Serializable {
 	private static final long serialVersionUID = 1L;
 
 	private PactRecord record = new PactRecord();

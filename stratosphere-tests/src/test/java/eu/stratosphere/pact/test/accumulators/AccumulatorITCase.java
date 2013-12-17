@@ -32,17 +32,17 @@ import org.junit.runners.Parameterized.Parameters;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
-import eu.stratosphere.accumulators.Accumulator;
-import eu.stratosphere.accumulators.AccumulatorHelper;
-import eu.stratosphere.accumulators.DoubleCounter;
-import eu.stratosphere.accumulators.Histogram;
-import eu.stratosphere.accumulators.IntCounter;
-import eu.stratosphere.api.functions.StubAnnotation.ConstantFields;
+import eu.stratosphere.api.Job;
+import eu.stratosphere.api.accumulators.Accumulator;
+import eu.stratosphere.api.accumulators.AccumulatorHelper;
+import eu.stratosphere.api.accumulators.DoubleCounter;
+import eu.stratosphere.api.accumulators.Histogram;
+import eu.stratosphere.api.accumulators.IntCounter;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
-import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.api.record.functions.MapStub;
-import eu.stratosphere.api.record.functions.ReduceStub;
+import eu.stratosphere.api.record.functions.MapFunction;
+import eu.stratosphere.api.record.functions.ReduceFunction;
+import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFields;
 import eu.stratosphere.api.record.io.CsvOutputFormat;
 import eu.stratosphere.api.record.io.TextInputFormat;
 import eu.stratosphere.api.record.operators.MapOperator;
@@ -115,8 +115,8 @@ public class AccumulatorITCase extends TestBase2 {
 	}
 
 	@Override
-	protected Plan getPactPlan() {
-		Plan plan = getTestPlanPlan(config.getInteger("IterationAllReducer#NoSubtasks", 1), dataPath, resultPath);
+	protected Job getPactPlan() {
+		Job plan = getTestPlanPlan(config.getInteger("IterationAllReducer#NoSubtasks", 1), dataPath, resultPath);
 		return plan;
 	}
 
@@ -127,7 +127,7 @@ public class AccumulatorITCase extends TestBase2 {
 		return toParameterList(config1);
 	}
 	
-	static Plan getTestPlanPlan(int numSubTasks, String input, String output) {
+	static Job getTestPlanPlan(int numSubTasks, String input, String output) {
 		
 		FileDataSource source = new FileDataSource(new TextInputFormat(), input, "Input Lines");
 		source.setParameter(TextInputFormat.CHARSET_NAME, "ASCII");
@@ -145,13 +145,13 @@ public class AccumulatorITCase extends TestBase2 {
 			.fieldDelimiter(' ')
 			.field(PactString.class, 0)
 			.field(PactInteger.class, 1);
-		Plan plan = new Plan(out, "WordCount Example");
+		Job plan = new Job(out, "WordCount Example");
 		plan.setDefaultParallelism(numSubTasks);
 		
 		return plan;
 	}
 	
-	public static class TokenizeLine extends MapStub implements Serializable {
+	public static class TokenizeLine extends MapFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 		private final PactRecord outputRecord = new PactRecord();
 		private final PactString word = new PactString();
@@ -239,7 +239,7 @@ public class AccumulatorITCase extends TestBase2 {
 
 	@Combinable
 	@ConstantFields(0)
-	public static class CountWords extends ReduceStub implements Serializable {
+	public static class CountWords extends ReduceFunction implements Serializable {
 		
 		private static final long serialVersionUID = 1L;
 		

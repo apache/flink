@@ -9,12 +9,12 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import eu.stratosphere.accumulators.IntCounter;
+import eu.stratosphere.api.Job;
+import eu.stratosphere.api.accumulators.IntCounter;
 import eu.stratosphere.api.operators.BulkIteration;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
-import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.api.record.functions.ReduceStub;
+import eu.stratosphere.api.record.functions.ReduceFunction;
 import eu.stratosphere.api.record.io.CsvOutputFormat;
 import eu.stratosphere.api.record.io.TextInputFormat;
 import eu.stratosphere.api.record.operators.ReduceOperator;
@@ -58,8 +58,8 @@ public class AccumulatorIterativeITCase extends TestBase2 {
 	}
 
 	@Override
-	protected Plan getPactPlan() {
-		Plan plan = getTestPlanPlan(config.getInteger("IterationAllReducer#NoSubtasks", 1), dataPath, resultPath);
+	protected Job getPactPlan() {
+		Job plan = getTestPlanPlan(config.getInteger("IterationAllReducer#NoSubtasks", 1), dataPath, resultPath);
 		return plan;
 	}
 
@@ -70,7 +70,7 @@ public class AccumulatorIterativeITCase extends TestBase2 {
 		return toParameterList(config1);
 	}
 	
-	static Plan getTestPlanPlan(int numSubTasks, String input, String output) {
+	static Job getTestPlanPlan(int numSubTasks, String input, String output) {
 
 		FileDataSource initialInput = new FileDataSource(TextInputFormat.class, input, "input");
 		
@@ -91,12 +91,12 @@ public class AccumulatorIterativeITCase extends TestBase2 {
     		.fieldDelimiter(' ')
     		.field(PactString.class, 0);
 
-		Plan plan = new Plan(finalResult, "Iteration with AllReducer (keyless Reducer)");
+		Job plan = new Job(finalResult, "Iteration with AllReducer (keyless Reducer)");
 		plan.setDefaultParallelism(numSubTasks);
 		return plan;
 	}
 	
-	static final class SumReducer extends ReduceStub implements Serializable {
+	static final class SumReducer extends ReduceFunction implements Serializable {
 		
 		private static final long serialVersionUID = 1L;
 		

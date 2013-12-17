@@ -19,13 +19,13 @@ import java.io.Serializable;
 import org.junit.Assert;
 import org.junit.Test;
 
-import eu.stratosphere.api.functions.StubAnnotation.ConstantFieldsSecond;
+import eu.stratosphere.api.Job;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.operators.WorksetIteration;
 import eu.stratosphere.api.operators.util.FieldList;
-import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.api.record.functions.MatchStub;
+import eu.stratosphere.api.record.functions.JoinFunction;
+import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFieldsSecond;
 import eu.stratosphere.api.record.io.CsvOutputFormat;
 import eu.stratosphere.api.record.operators.JoinOperator;
 import eu.stratosphere.api.record.operators.ReduceOperator;
@@ -76,7 +76,7 @@ public class WorksetConnectedComponentsTest extends CompilerTestBase {
 	public void testWorksetConnectedComponents() {
 		WorksetConnectedComponents cc = new WorksetConnectedComponents();
 
-		Plan plan = cc.getPlan(String.valueOf(DEFAULT_PARALLELISM),
+		Job plan = cc.createJob(String.valueOf(DEFAULT_PARALLELISM),
 				IN_FILE, IN_FILE, OUT_FILE, String.valueOf(100));
 
 		OptimizedPlan optPlan = compileNoStats(plan);
@@ -156,7 +156,7 @@ public class WorksetConnectedComponentsTest extends CompilerTestBase {
 	@Test
 	public void testWorksetConnectedComponentsWithSolutionSetAsFirstInput() {
 
-		Plan plan = getPlanForWorksetConnectedComponentsWithSolutionSetAsFirstInput(DEFAULT_PARALLELISM,
+		Job plan = getPlanForWorksetConnectedComponentsWithSolutionSetAsFirstInput(DEFAULT_PARALLELISM,
 				IN_FILE, IN_FILE, OUT_FILE, 100);
 
 		OptimizedPlan optPlan = compileNoStats(plan);
@@ -235,7 +235,7 @@ public class WorksetConnectedComponentsTest extends CompilerTestBase {
 	
 	
 	@ConstantFieldsSecond(0)
-	public static final class UpdateComponentIdMatchMirrored extends MatchStub implements Serializable {
+	public static final class UpdateComponentIdMatchMirrored extends JoinFunction implements Serializable {
 		
 		private static final long serialVersionUID = 1L;
 
@@ -251,7 +251,7 @@ public class WorksetConnectedComponentsTest extends CompilerTestBase {
 		}
 	}
 	
-	private static Plan getPlanForWorksetConnectedComponentsWithSolutionSetAsFirstInput(
+	private static Job getPlanForWorksetConnectedComponentsWithSolutionSetAsFirstInput(
 			int numSubTasks, String verticesInput, String edgeInput, String output, int maxIterations)
 	{
 		// create DataSourceContract for the vertices
@@ -297,7 +297,7 @@ public class WorksetConnectedComponentsTest extends CompilerTestBase {
 			.field(PactLong.class, 1);
 
 		// return the PACT plan
-		Plan plan = new Plan(result, "Workset Connected Components");
+		Job plan = new Job(result, "Workset Connected Components");
 		plan.setDefaultParallelism(numSubTasks);
 		return plan;
 	}

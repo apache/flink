@@ -22,7 +22,7 @@ import java.util.Date;
 
 import org.apache.log4j.Logger;
 
-import eu.stratosphere.api.record.functions.MapStub;
+import eu.stratosphere.api.record.functions.MapFunction;
 import eu.stratosphere.pact.test.testPrograms.util.Tuple;
 import eu.stratosphere.types.PactRecord;
 import eu.stratosphere.types.PactString;
@@ -38,7 +38,7 @@ import eu.stratosphere.util.Collector;
  * @author Mathias Peters <mathias.peters@informatik.hu-berlin.de>
  * @author Moritz Kaufmann <moritz.kaufmann@campus.tu-berlin.de>
  */
-public class LineItemFilter extends MapStub {
+public class LineItemFilter extends MapFunction {
 
 	// used later on when the interval will be randomized
 	// private static final String DATE_CONSTANT = "1998-12-01";

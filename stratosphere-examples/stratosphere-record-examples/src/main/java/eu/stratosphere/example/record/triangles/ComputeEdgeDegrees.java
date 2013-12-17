@@ -19,13 +19,13 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Iterator;
 
+import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Program;
+import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
-import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.api.plan.PlanAssembler;
-import eu.stratosphere.api.plan.PlanAssemblerDescription;
-import eu.stratosphere.api.record.functions.MapStub;
-import eu.stratosphere.api.record.functions.ReduceStub;
+import eu.stratosphere.api.record.functions.MapFunction;
+import eu.stratosphere.api.record.functions.ReduceFunction;
 import eu.stratosphere.api.record.operators.MapOperator;
 import eu.stratosphere.api.record.operators.ReduceOperator;
 import eu.stratosphere.example.record.triangles.io.EdgeInputFormat;
@@ -35,7 +35,7 @@ import eu.stratosphere.types.PactRecord;
 import eu.stratosphere.util.Collector;
 
 
-public class ComputeEdgeDegrees implements PlanAssembler, PlanAssemblerDescription {
+public class ComputeEdgeDegrees implements Program, ProgramDescription {
 	
 	// --------------------------------------------------------------------------------------------
 	//                                  Vertex Degree Computation
@@ -44,7 +44,7 @@ public class ComputeEdgeDegrees implements PlanAssembler, PlanAssemblerDescripti
 	/**
 	 * Duplicates each edge such that: (u,v) becomes (u,v),(v,u)
 	 */
-	public static final class ProjectEdge extends MapStub implements Serializable {
+	public static final class ProjectEdge extends MapFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 		
 		private final PactRecord copy = new PactRecord();
@@ -65,7 +65,7 @@ public class ComputeEdgeDegrees implements PlanAssembler, PlanAssemblerDescripti
 	 * was the key contains the number of edges associated with it. The other count is zero.
 	 * This reducer also eliminates duplicate edges. 
 	 */
-	public static final class CountEdges extends ReduceStub implements Serializable {
+	public static final class CountEdges extends ReduceFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 		
 		private final PactRecord result = new PactRecord();
@@ -143,7 +143,7 @@ public class ComputeEdgeDegrees implements PlanAssembler, PlanAssemblerDescripti
 	 * Takes the two separate edge entries (v1, v2, c1, 0) and (v1, v2, 0, c2)
 	 * and creates an entry (v1, v2, c1, c2). 
 	 */
-	public static final class JoinCountsAndUniquify extends ReduceStub implements Serializable {
+	public static final class JoinCountsAndUniquify extends ReduceFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 		
 		private final PactInteger count1 = new PactInteger();
@@ -187,7 +187,7 @@ public class ComputeEdgeDegrees implements PlanAssembler, PlanAssemblerDescripti
 	 * Assembles the Plan of the triangle enumeration example Pact program.
 	 */
 	@Override
-	public Plan getPlan(String... args) {
+	public Job createJob(String... args) {
 		// parse job parameters
 		final int numSubTasks   = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		final String edgeInput = args.length > 1 ? args[1] : "";
@@ -213,7 +213,7 @@ public class ComputeEdgeDegrees implements PlanAssembler, PlanAssemblerDescripti
 
 		FileDataSink triangles = new FileDataSink(new EdgeWithDegreesOutputFormat(), output, countJoiner, "Unique Edges With Degrees");
 
-		Plan p = new Plan(triangles, "Normalize Edges and compute Vertex Degrees");
+		Job p = new Job(triangles, "Normalize Edges and compute Vertex Degrees");
 		p.setDefaultParallelism(numSubTasks);
 		return p;
 	}

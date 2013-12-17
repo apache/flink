@@ -18,9 +18,9 @@ import scala.reflect.macros.Context
 
 import eu.stratosphere.types.PactRecord
 import eu.stratosphere.util.Collector
-import eu.stratosphere.api.operators.Contract
+import eu.stratosphere.api.operators.Operator
 import eu.stratosphere.api.record.operators.JoinOperator
-import eu.stratosphere.api.record.functions.MatchStub
+import eu.stratosphere.api.record.functions.JoinFunction
 import eu.stratosphere.api.operators.util.UserCodeObjectWrapper
 
 import eu.stratosphere.configuration.Configuration;
@@ -47,7 +47,7 @@ class JoinDataSetWithWhereAndEqual[LeftIn, RightIn](val leftKey: List[Int], val 
   def filter(fun: (LeftIn, RightIn) => Boolean): DataSet[(LeftIn, RightIn)] with TwoInputHintable[LeftIn, RightIn, (LeftIn, RightIn)] = macro JoinMacros.filter[LeftIn, RightIn]
 }
 
-class NoKeyMatchBuilder(s: MatchStub) extends JoinOperator.Builder(new UserCodeObjectWrapper(s))
+class NoKeyMatchBuilder(s: JoinFunction) extends JoinOperator.Builder(new UserCodeObjectWrapper(s))
 
 object JoinMacros {
   

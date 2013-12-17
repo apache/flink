@@ -23,12 +23,12 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
+import eu.stratosphere.api.Job;
 import eu.stratosphere.api.operators.BulkIteration;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
-import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.api.record.functions.MapStub;
-import eu.stratosphere.api.record.functions.ReduceStub;
+import eu.stratosphere.api.record.functions.MapFunction;
+import eu.stratosphere.api.record.functions.ReduceFunction;
 import eu.stratosphere.api.record.operators.MapOperator;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.example.record.kmeans.udfs.PointInFormat;
@@ -62,7 +62,7 @@ public class IterationWithUnionITCase extends TestBase2 {
 	}
 
 	@Override
-	protected Plan getPactPlan() {
+	protected Job getPactPlan() {
 		return getPlan(config.getInteger("IterationWithUnionITCase#NumSubtasks", 1), dataPath, resultPath);
 	}
 
@@ -74,7 +74,7 @@ public class IterationWithUnionITCase extends TestBase2 {
 		return toParameterList(config1);
 	}
 	
-	private static Plan getPlan(int numSubTasks, String input, String output) {
+	private static Job getPlan(int numSubTasks, String input, String output) {
 		FileDataSource initialInput = new FileDataSource(new PointInFormat(), input, "Input");
 		initialInput.setDegreeOfParallelism(1);
 		
@@ -90,12 +90,12 @@ public class IterationWithUnionITCase extends TestBase2 {
 
 		FileDataSink finalResult = new FileDataSink(new PointOutFormat(), output, iteration, "Output");
 
-		Plan plan = new Plan(finalResult, "Iteration with union test");
+		Job plan = new Job(finalResult, "Iteration with union test");
 		plan.setDefaultParallelism(numSubTasks);
 		return plan;
 	}
 	
-	static final class IdentityMapper extends MapStub implements Serializable {
+	static final class IdentityMapper extends MapFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -104,7 +104,7 @@ public class IterationWithUnionITCase extends TestBase2 {
 		}
 	}
 
-	static final class DummyReducer extends ReduceStub implements Serializable {
+	static final class DummyReducer extends ReduceFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 
 		@Override

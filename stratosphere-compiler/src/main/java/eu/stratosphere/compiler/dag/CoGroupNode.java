@@ -20,7 +20,7 @@ import java.util.List;
 
 import eu.stratosphere.api.operators.CompilerHints;
 import eu.stratosphere.api.operators.Ordering;
-import eu.stratosphere.api.operators.base.GenericCoGroupContract;
+import eu.stratosphere.api.operators.base.CoGroupOperatorBase;
 import eu.stratosphere.api.operators.util.FieldSet;
 import eu.stratosphere.api.record.operators.CoGroupOperator;
 import eu.stratosphere.compiler.DataStatistics;
@@ -40,7 +40,7 @@ public class CoGroupNode extends TwoInputNode {
 	 * @param pactContract
 	 *        The CoGroup contract object.
 	 */
-	public CoGroupNode(GenericCoGroupContract<?> pactContract) {
+	public CoGroupNode(CoGroupOperatorBase<?> pactContract) {
 		super(pactContract);
 	}
 
@@ -52,8 +52,8 @@ public class CoGroupNode extends TwoInputNode {
 	 * @return The contract.
 	 */
 	@Override
-	public GenericCoGroupContract<?> getPactContract() {
-		return (GenericCoGroupContract<?>) super.getPactContract();
+	public CoGroupOperatorBase<?> getPactContract() {
+		return (CoGroupOperatorBase<?>) super.getPactContract();
 	}
 
 	@Override

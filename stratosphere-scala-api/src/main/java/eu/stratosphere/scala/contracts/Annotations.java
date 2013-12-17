@@ -18,7 +18,7 @@ package eu.stratosphere.scala.contracts;
 import java.lang.annotation.Annotation;
 import java.util.Arrays;
 
-import eu.stratosphere.api.functions.StubAnnotation;
+import eu.stratosphere.api.record.functions.FunctionAnnotation;
 import eu.stratosphere.api.record.operators.ReduceOperator;
 
 public class Annotations {
@@ -93,85 +93,85 @@ public class Annotations {
 	}
 
 	@SuppressWarnings("all")
-	private static class ConstantFields extends Fields<StubAnnotation.ConstantFields> implements
-			StubAnnotation.ConstantFields {
+	private static class ConstantFields extends Fields<FunctionAnnotation.ConstantFields> implements
+			FunctionAnnotation.ConstantFields {
 
 		public ConstantFields(int[] fields) {
-			super(StubAnnotation.ConstantFields.class, fields);
+			super(FunctionAnnotation.ConstantFields.class, fields);
 		}
 
 		@Override
-		protected int[] getOtherFields(StubAnnotation.ConstantFields other) {
+		protected int[] getOtherFields(FunctionAnnotation.ConstantFields other) {
 			return other.value();
 		}
 	}
 
 	@SuppressWarnings("all")
-	private static class ConstantFieldsFirst extends Fields<StubAnnotation.ConstantFieldsFirst> implements
-			StubAnnotation.ConstantFieldsFirst {
+	private static class ConstantFieldsFirst extends Fields<FunctionAnnotation.ConstantFieldsFirst> implements
+			FunctionAnnotation.ConstantFieldsFirst {
 
 		public ConstantFieldsFirst(int[] fields) {
-			super(StubAnnotation.ConstantFieldsFirst.class, fields);
+			super(FunctionAnnotation.ConstantFieldsFirst.class, fields);
 		}
 
 		@Override
-		protected int[] getOtherFields(StubAnnotation.ConstantFieldsFirst other) {
+		protected int[] getOtherFields(FunctionAnnotation.ConstantFieldsFirst other) {
 			return other.value();
 		}
 	}
 
 	@SuppressWarnings("all")
-	private static class ConstantFieldsSecond extends Fields<StubAnnotation.ConstantFieldsSecond> implements
-			StubAnnotation.ConstantFieldsSecond {
+	private static class ConstantFieldsSecond extends Fields<FunctionAnnotation.ConstantFieldsSecond> implements
+			FunctionAnnotation.ConstantFieldsSecond {
 
 		public ConstantFieldsSecond(int[] fields) {
-			super(StubAnnotation.ConstantFieldsSecond.class, fields);
+			super(FunctionAnnotation.ConstantFieldsSecond.class, fields);
 		}
 
 		@Override
-		protected int[] getOtherFields(StubAnnotation.ConstantFieldsSecond other) {
+		protected int[] getOtherFields(FunctionAnnotation.ConstantFieldsSecond other) {
 			return other.value();
 		}
 	}
 
 	@SuppressWarnings("all")
-	private static class ConstantFieldsExcept extends Fields<StubAnnotation.ConstantFieldsExcept> implements
-			StubAnnotation.ConstantFieldsExcept {
+	private static class ConstantFieldsExcept extends Fields<FunctionAnnotation.ConstantFieldsExcept> implements
+			FunctionAnnotation.ConstantFieldsExcept {
 
 		public ConstantFieldsExcept(int[] fields) {
-			super(StubAnnotation.ConstantFieldsExcept.class, fields);
+			super(FunctionAnnotation.ConstantFieldsExcept.class, fields);
 		}
 
 		@Override
-		protected int[] getOtherFields(StubAnnotation.ConstantFieldsExcept other) {
+		protected int[] getOtherFields(FunctionAnnotation.ConstantFieldsExcept other) {
 			return other.value();
 		}
 	}
 
 	@SuppressWarnings("all")
-	private static class ConstantFieldsFirstExcept extends Fields<StubAnnotation.ConstantFieldsFirstExcept> implements
-			StubAnnotation.ConstantFieldsFirstExcept {
+	private static class ConstantFieldsFirstExcept extends Fields<FunctionAnnotation.ConstantFieldsFirstExcept> implements
+			FunctionAnnotation.ConstantFieldsFirstExcept {
 
 		public ConstantFieldsFirstExcept(int[] fields) {
-			super(StubAnnotation.ConstantFieldsFirstExcept.class, fields);
+			super(FunctionAnnotation.ConstantFieldsFirstExcept.class, fields);
 		}
 
 		@Override
-		protected int[] getOtherFields(StubAnnotation.ConstantFieldsFirstExcept other) {
+		protected int[] getOtherFields(FunctionAnnotation.ConstantFieldsFirstExcept other) {
 			return other.value();
 		}
 	}
 
 	@SuppressWarnings("all")
-	private static class ConstantFieldsSecondExcept extends Fields<StubAnnotation.ConstantFieldsSecondExcept> implements
-			StubAnnotation.ConstantFieldsSecondExcept {
+	private static class ConstantFieldsSecondExcept extends Fields<FunctionAnnotation.ConstantFieldsSecondExcept> implements
+			FunctionAnnotation.ConstantFieldsSecondExcept {
 
 		public ConstantFieldsSecondExcept(int[] fields) {
-			super(StubAnnotation.ConstantFieldsSecondExcept.class, fields);
+			super(FunctionAnnotation.ConstantFieldsSecondExcept.class, fields);
 		}
 
 		@Override
-		protected int[] getOtherFields(StubAnnotation.ConstantFieldsSecondExcept other) {
+		protected int[] getOtherFields(FunctionAnnotation.ConstantFieldsSecondExcept other) {
 			return other.value();
 		}
 	}

@@ -1,6 +1,6 @@
 package eu.stratosphere.pact.test.iterative.nephele.customdanglingpagerank;
 
-import eu.stratosphere.api.functions.AbstractStub;
+import eu.stratosphere.api.functions.AbstractFunction;
 import eu.stratosphere.api.functions.GenericCoGrouper;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.pact.test.iterative.nephele.ConfigUtils;
@@ -13,7 +13,7 @@ import eu.stratosphere.util.Collector;
 import java.util.Iterator;
 import java.util.Set;
 
-public class CustomCompensatableDotProductCoGroup extends AbstractStub implements GenericCoGrouper<VertexWithRankAndDangling, VertexWithRank, VertexWithRankAndDangling> {
+public class CustomCompensatableDotProductCoGroup extends AbstractFunction implements GenericCoGrouper<VertexWithRankAndDangling, VertexWithRank, VertexWithRankAndDangling> {
 
 	public static final String AGGREGATOR_NAME = "pagerank.aggregator";
 	

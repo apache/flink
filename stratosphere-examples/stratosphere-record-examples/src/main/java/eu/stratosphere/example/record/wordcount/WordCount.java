@@ -18,14 +18,14 @@ package eu.stratosphere.example.record.wordcount;
 import java.io.Serializable;
 import java.util.Iterator;
 
-import eu.stratosphere.api.functions.StubAnnotation.ConstantFields;
+import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Program;
+import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
-import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.api.plan.PlanAssembler;
-import eu.stratosphere.api.plan.PlanAssemblerDescription;
-import eu.stratosphere.api.record.functions.MapStub;
-import eu.stratosphere.api.record.functions.ReduceStub;
+import eu.stratosphere.api.record.functions.MapFunction;
+import eu.stratosphere.api.record.functions.ReduceFunction;
+import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFields;
 import eu.stratosphere.api.record.io.CsvOutputFormat;
 import eu.stratosphere.api.record.io.TextInputFormat;
 import eu.stratosphere.api.record.operators.MapOperator;
@@ -42,14 +42,14 @@ import eu.stratosphere.util.Collector;
  * Implements a word count which takes the input file and counts the number of
  * the occurrences of each word in the file.
  */
-public class WordCount implements PlanAssembler, PlanAssemblerDescription {
+public class WordCount implements Program, ProgramDescription {
 	
 	/**
 	 * Converts a PactRecord containing one string in to multiple string/integer pairs.
 	 * The string is tokenized by whitespaces. For each token a new record is emitted,
 	 * where the token is the first field and an Integer(1) is the second field.
 	 */
-	public static class TokenizeLine extends MapStub implements Serializable {
+	public static class TokenizeLine extends MapFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 		
 		// initialize reusable mutable objects
@@ -87,7 +87,7 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription {
 	 */
 	@Combinable
 	@ConstantFields(0)
-	public static class CountWords extends ReduceStub implements Serializable {
+	public static class CountWords extends ReduceFunction implements Serializable {
 		
 		private static final long serialVersionUID = 1L;
 		
@@ -117,7 +117,7 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription {
 
 
 	@Override
-	public Plan getPlan(String... args) {
+	public Job createJob(String... args) {
 		// parse job parameters
 		int numSubTasks   = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		String dataInput = (args.length > 1 ? args[1] : "");
@@ -140,7 +140,7 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription {
 			.field(PactString.class, 0)
 			.field(PactInteger.class, 1);
 		
-		Plan plan = new Plan(out, "WordCount Example");
+		Job plan = new Job(out, "WordCount Example");
 		plan.setDefaultParallelism(numSubTasks);
 		return plan;
 	}
@@ -160,7 +160,7 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription {
 			System.exit(1);
 		}
 		
-		Plan plan = wc.getPlan(args);
+		Job plan = wc.createJob(args);
 		
 		// This will execute the word-count embedded in a local context. replace this line by the commented
 		// succeeding line to send the job to a local installation or to a cluster for execution

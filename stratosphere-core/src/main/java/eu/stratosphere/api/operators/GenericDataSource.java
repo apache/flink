@@ -17,9 +17,8 @@ package eu.stratosphere.api.operators;
 
 import java.lang.annotation.Annotation;
 
-import eu.stratosphere.api.functions.StubAnnotation;
 import eu.stratosphere.api.io.InputFormat;
-import eu.stratosphere.api.operators.util.StubAnnotationConfigurable;
+import eu.stratosphere.api.operators.util.AnnotationConfigurable;
 import eu.stratosphere.api.operators.util.UserCodeClassWrapper;
 import eu.stratosphere.api.operators.util.UserCodeObjectWrapper;
 import eu.stratosphere.api.operators.util.UserCodeWrapper;
@@ -30,7 +29,7 @@ import eu.stratosphere.util.Visitor;
  * 
  * @param T The type of input format invoked by instances of this data source.
  */
-public class GenericDataSource<T extends InputFormat<?, ?>> extends Contract implements StubAnnotationConfigurable {
+public class GenericDataSource<T extends InputFormat<?, ?>> extends Operator implements AnnotationConfigurable {
 	
 	private static final String DEFAULT_NAME = "<Unnamed Generic Data Source>";
 	
@@ -98,21 +97,11 @@ public class GenericDataSource<T extends InputFormat<?, ?>> extends Contract imp
 
 	// --------------------------------------------------------------------------------------------
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.recordcontract.OutputContractConfigurable#addOutputContract(java.lang.Class)
-	 */
 	@Override
 	public void addStubAnnotation(Class<? extends Annotation> oc) {
-		if (!oc.getEnclosingClass().equals(StubAnnotation.class)) {
-			throw new IllegalArgumentException("The given annotation does not describe an output contract.");
-		}
-
 		this.ocs.add(oc);
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.recordcontract.OutputContractConfigurable#getOutputContracts()
-	 */
 	@Override
 	public Class<? extends Annotation>[] getStubAnnotation() {
 		@SuppressWarnings("unchecked")
@@ -136,7 +125,7 @@ public class GenericDataSource<T extends InputFormat<?, ?>> extends Contract imp
 	 * 
 	 * @return The class describing the input format.
 	 * 
-	 * @see eu.stratosphere.api.operators.Contract#getUserCodeWrapper()
+	 * @see eu.stratosphere.api.operators.Operator#getUserCodeWrapper()
 	 */
 	@Override
 	public UserCodeWrapper<? extends T> getUserCodeWrapper() {
@@ -176,7 +165,7 @@ public class GenericDataSource<T extends InputFormat<?, ?>> extends Contract imp
 	 * @see eu.stratosphere.util.Visitable#accept(eu.stratosphere.util.Visitor)
 	 */
 	@Override
-	public void accept(Visitor<Contract> visitor) {
+	public void accept(Visitor<Operator> visitor) {
 		if (visitor.preVisit(this)) {
 			visitor.postVisit(this);
 		}

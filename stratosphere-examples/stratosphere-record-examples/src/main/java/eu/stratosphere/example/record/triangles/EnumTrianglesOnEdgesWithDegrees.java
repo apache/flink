@@ -18,14 +18,14 @@ package eu.stratosphere.example.record.triangles;
 import java.io.Serializable;
 import java.util.Iterator;
 
+import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Program;
+import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
-import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.api.plan.PlanAssembler;
-import eu.stratosphere.api.plan.PlanAssemblerDescription;
-import eu.stratosphere.api.record.functions.MapStub;
-import eu.stratosphere.api.record.functions.MatchStub;
-import eu.stratosphere.api.record.functions.ReduceStub;
+import eu.stratosphere.api.record.functions.MapFunction;
+import eu.stratosphere.api.record.functions.JoinFunction;
+import eu.stratosphere.api.record.functions.ReduceFunction;
 import eu.stratosphere.api.record.operators.MapOperator;
 import eu.stratosphere.api.record.operators.JoinOperator;
 import eu.stratosphere.api.record.operators.ReduceOperator;
@@ -41,13 +41,13 @@ import eu.stratosphere.util.Collector;
  * encode the degrees of the vertices. The algorithm selects the lower-degree vertex for the
  * enumeration of open triads.
  */
-public class EnumTrianglesOnEdgesWithDegrees implements PlanAssembler, PlanAssemblerDescription {
+public class EnumTrianglesOnEdgesWithDegrees implements Program, ProgramDescription {
 
 	// --------------------------------------------------------------------------------------------
 	//                                  Triangle Enumeration
 	// --------------------------------------------------------------------------------------------
 	
-	public static final class ProjectOutCounts extends MapStub implements Serializable {
+	public static final class ProjectOutCounts extends MapFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 		
 		@Override
@@ -57,7 +57,7 @@ public class EnumTrianglesOnEdgesWithDegrees implements PlanAssembler, PlanAssem
 		}
 	}
 	
-	public static final class ProjectToLowerDegreeVertex extends MapStub implements Serializable {
+	public static final class ProjectToLowerDegreeVertex extends MapFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -75,7 +75,7 @@ public class EnumTrianglesOnEdgesWithDegrees implements PlanAssembler, PlanAssem
 		}
 	}
 
-	public static final class BuildTriads extends ReduceStub implements Serializable {
+	public static final class BuildTriads extends ReduceFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 		
 		private final PactInteger firstVertex = new PactInteger();
@@ -118,7 +118,7 @@ public class EnumTrianglesOnEdgesWithDegrees implements PlanAssembler, PlanAssem
 		}
 	}
 
-	public static class CloseTriads extends MatchStub implements Serializable {
+	public static class CloseTriads extends JoinFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 		@Override
 		public void match(PactRecord triangle, PactRecord missingEdge, Collector<PactRecord> out) throws Exception {
@@ -130,7 +130,7 @@ public class EnumTrianglesOnEdgesWithDegrees implements PlanAssembler, PlanAssem
 	 * Assembles the Plan of the triangle enumeration example Pact program.
 	 */
 	@Override
-	public Plan getPlan(String... args) {
+	public Job createJob(String... args) {
 
 		// parse job parameters
 		int numSubTasks   = args.length > 0 ? Integer.parseInt(args[0]) : 1;
@@ -169,7 +169,7 @@ public class EnumTrianglesOnEdgesWithDegrees implements PlanAssembler, PlanAssem
 
 		FileDataSink triangles = new FileDataSink(new TriangleOutputFormat(), output, closeTriads, "Triangles");
 
-		Plan p = new Plan(triangles, "Enumerate Triangles");
+		Job p = new Job(triangles, "Enumerate Triangles");
 		p.setDefaultParallelism(numSubTasks);
 		return p;
 	}

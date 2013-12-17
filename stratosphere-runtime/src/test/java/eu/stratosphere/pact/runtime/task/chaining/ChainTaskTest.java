@@ -24,7 +24,7 @@ import org.junit.Test;
 
 import eu.stratosphere.api.functions.GenericMapper;
 import eu.stratosphere.api.operators.util.UserCodeClassWrapper;
-import eu.stratosphere.api.record.functions.ReduceStub;
+import eu.stratosphere.api.record.functions.ReduceFunction;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparatorFactory;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordSerializerFactory;
@@ -156,7 +156,7 @@ public class ChainTaskTest extends TaskTestBase {
 					stubFailed = true;
 				}
 				
-				Assert.assertTrue("Stub exception was not forwarded.", stubFailed);
+				Assert.assertTrue("Function exception was not forwarded.", stubFailed);
 			}
 		}
 		catch (Exception e) {
@@ -165,7 +165,7 @@ public class ChainTaskTest extends TaskTestBase {
 		}
 	}
 	
-	public static final class MockFailingCombineStub extends ReduceStub {
+	public static final class MockFailingCombineStub extends ReduceFunction {
 		
 		private int cnt = 0;
 

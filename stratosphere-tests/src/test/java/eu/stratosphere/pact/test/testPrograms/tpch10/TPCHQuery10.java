@@ -20,14 +20,14 @@ import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.Iterator;
 
+import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Program;
+import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
-import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.api.plan.PlanAssembler;
-import eu.stratosphere.api.plan.PlanAssemblerDescription;
-import eu.stratosphere.api.record.functions.MapStub;
-import eu.stratosphere.api.record.functions.MatchStub;
-import eu.stratosphere.api.record.functions.ReduceStub;
+import eu.stratosphere.api.record.functions.MapFunction;
+import eu.stratosphere.api.record.functions.JoinFunction;
+import eu.stratosphere.api.record.functions.ReduceFunction;
 import eu.stratosphere.api.record.io.FileOutputFormat;
 import eu.stratosphere.api.record.operators.MapOperator;
 import eu.stratosphere.api.record.operators.JoinOperator;
@@ -45,7 +45,7 @@ import eu.stratosphere.util.Collector;
  * @author Matthias Ringwald
  * @author Stephan Ewen
  */
-public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription
+public class TPCHQuery10 implements Program, ProgramDescription
 {
 	// --------------------------------------------------------------------------------------------
 	//                         Local Filters and Projections
@@ -54,7 +54,7 @@ public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription
 	/**
 	 * Forwards (0 = orderkey, 1 = custkey).
 	 */
-	public static class FilterO extends MapStub
+	public static class FilterO extends MapFunction
 	{
 		private static final int YEAR_FILTER = 1990;
 		
@@ -77,7 +77,7 @@ public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription
 	/**
 	 * Forwards (0 = lineitem, 1 = tuple (extendedprice, discount) )
 	 */
-	public static class FilterLI extends MapStub
+	public static class FilterLI extends MapFunction
 	{
 		private final Tuple tuple = new Tuple();
 		
@@ -96,7 +96,7 @@ public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription
 	/**
 	 * Returns (0 = custkey, 1 = custName, 2 = NULL, 3 = balance, 4 = nationkey, 5 = address, 6 = phone, 7 = comment)
 	 */
-	public static class ProjectC extends MapStub {
+	public static class ProjectC extends MapFunction {
 
 		private final Tuple tuple = new Tuple();
 		
@@ -134,7 +134,7 @@ public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription
 	/**
 	 * Returns (0 = nationkey, 1 = nation_name)
 	 */
-	public static class ProjectN extends MapStub
+	public static class ProjectN extends MapFunction
 	{
 		private final Tuple tuple = new Tuple();
 		private final PactString nationName = new PactString();
@@ -157,7 +157,7 @@ public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription
 	/**
 	 * Returns (0 = custKey, 1 = tuple (extendedprice, discount) )
 	 */
-	public static class JoinOL extends MatchStub
+	public static class JoinOL extends JoinFunction
 	{
 		@Override
 		public void match(PactRecord order, PactRecord lineitem, Collector<PactRecord> out) throws Exception {
@@ -169,7 +169,7 @@ public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription
 	/**
 	 * Returns (0 = custkey, 1 = custName, 2 = extPrice * (1-discount), 3 = balance, 4 = nationkey, 5 = address, 6 = phone, 7 = comment)
 	 */
-	public static class JoinCOL extends MatchStub
+	public static class JoinCOL extends JoinFunction
 	{
 		private final PactDouble d = new PactDouble();
 		
@@ -190,7 +190,7 @@ public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription
 	/**
 	 * Returns (0 = custkey, 1 = custName, 2 = extPrice * (1-discount), 3 = balance, 4 = nationName, 5 = address, 6 = phone, 7 = comment)
 	 */
-	public static class JoinNCOL extends MatchStub
+	public static class JoinNCOL extends JoinFunction
 	{
 		@Override
 		public void match(PactRecord colRecord, PactRecord nation, Collector<PactRecord> out) throws Exception {
@@ -200,7 +200,7 @@ public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription
 	}
 	
 	@ReduceOperator.Combinable
-	public static class Sum extends ReduceStub
+	public static class Sum extends ReduceFunction
 	{
 		private final PactDouble d = new PactDouble();
 		
@@ -278,7 +278,7 @@ public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription
 	 * @see eu.stratosphere.pact.common.plan.PlanAssembler#getPlan(java.lang.String[])
 	 */
 	@Override
-	public Plan getPlan(String... args) throws IllegalArgumentException
+	public Job createJob(String... args) throws IllegalArgumentException
 	{
 		final String ordersPath;
 		final String lineitemsPath;
@@ -371,7 +371,7 @@ public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription
 		mapO.setInput(orders);
 
 		// return the PACT plan
-		Plan p = new Plan(result, "TPCH Q10");
+		Job p = new Job(result, "TPCH Q10");
 		p.setDefaultParallelism(degreeOfParallelism);
 		return p;
 	}

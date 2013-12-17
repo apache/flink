@@ -14,17 +14,17 @@
 package eu.stratosphere.scala
 
 import java.lang.annotation.Annotation
-import eu.stratosphere.api.operators.Contract
+import eu.stratosphere.api.operators.Operator
 import eu.stratosphere.scala.analysis.UDF
 import eu.stratosphere.scala.analysis.UDF1
 import eu.stratosphere.scala.analysis.UDF2
 import eu.stratosphere.scala.analysis.FieldSelector
 import eu.stratosphere.compiler.dag.OptimizerNode
-import eu.stratosphere.api.operators.AbstractPact
+import eu.stratosphere.api.operators.AbstractUdfOperator
 import eu.stratosphere.scala.analysis.UDF0
-import eu.stratosphere.api.functions.StubAnnotation
+import eu.stratosphere.api.record.functions.FunctionAnnotation
 
-trait ScalaContract[T] { this: Contract =>
+trait ScalaContract[T] { this: Operator =>
   def getUDF(): UDF[T]
   def getKeys: Seq[FieldSelector] = Seq()
   def persistConfiguration(): Unit = {}
@@ -35,7 +35,7 @@ trait ScalaContract[T] { this: Contract =>
 
     ScalaContract.this match {
       
-      case contract: AbstractPact[_] => {
+      case contract: AbstractUdfOperator[_] => {
         for ((key, inputNum) <- getKeys.zipWithIndex) {
           
           val source = key.selectedFields.toSerializerIndexArray
@@ -61,46 +61,46 @@ trait ScalaContract[T] { this: Contract =>
     val res = annotations find { _.annotationType().equals(annotationClass) } map { _.asInstanceOf[A] } getOrElse null.asInstanceOf[A]
 //    println("returning ANOOT: " + res + " FOR: " + annotationClass.toString)
 //    res match {
-//      case r : StubAnnotation.ConstantFieldsFirst => println("CONSTANT FIELDS FIRST: " + r.value().mkString(","))
-//      case r : StubAnnotation.ConstantFieldsSecond => println("CONSTANT FIELDS SECOND: " + r.value().mkString(","))
+//      case r : FunctionAnnotation.ConstantFieldsFirst => println("CONSTANT FIELDS FIRST: " + r.value().mkString(","))
+//      case r : FunctionAnnotation.ConstantFieldsSecond => println("CONSTANT FIELDS SECOND: " + r.value().mkString(","))
 //      case _ =>
 //    }
     res
   }
 }
 
-trait NoOpScalaContract[In, Out] extends ScalaContract[Out] { this: Contract =>
+trait NoOpScalaContract[In, Out] extends ScalaContract[Out] { this: Operator =>
 }
 
-trait UnionScalaContract[In] extends NoOpScalaContract[In, In] { this: Contract =>
+trait UnionScalaContract[In] extends NoOpScalaContract[In, In] { this: Operator =>
   override def getUDF(): UDF1[In, In]
 }
 
-trait HigherOrderScalaContract[T] extends ScalaContract[T] { this: Contract =>
+trait HigherOrderScalaContract[T] extends ScalaContract[T] { this: Operator =>
   override def getUDF(): UDF0[T]
 }
 
-trait BulkIterationScalaContract[T] extends HigherOrderScalaContract[T] { this: Contract =>
+trait BulkIterationScalaContract[T] extends HigherOrderScalaContract[T] { this: Operator =>
 }
 
-trait WorksetIterationScalaContract[T] extends HigherOrderScalaContract[T] { this: Contract =>
+trait WorksetIterationScalaContract[T] extends HigherOrderScalaContract[T] { this: Operator =>
   val key: FieldSelector
 }
 
-trait OneInputScalaContract[In, Out] extends ScalaContract[Out] { this: Contract =>
+trait OneInputScalaContract[In, Out] extends ScalaContract[Out] { this: Operator =>
   override def getUDF(): UDF1[In, Out]
 }
 
-trait TwoInputScalaContract[In1, In2, Out] extends ScalaContract[Out] { this: Contract =>
+trait TwoInputScalaContract[In1, In2, Out] extends ScalaContract[Out] { this: Operator =>
   override def getUDF(): UDF2[In1, In2, Out]
 }
 
-trait OneInputKeyedScalaContract[In, Out] extends OneInputScalaContract[In, Out] { this: Contract =>
+trait OneInputKeyedScalaContract[In, Out] extends OneInputScalaContract[In, Out] { this: Operator =>
   val key: FieldSelector
   override def getKeys = Seq(key)
 }
 
-trait TwoInputKeyedScalaContract[LeftIn, RightIn, Out] extends TwoInputScalaContract[LeftIn, RightIn, Out] { this: Contract =>
+trait TwoInputKeyedScalaContract[LeftIn, RightIn, Out] extends TwoInputScalaContract[LeftIn, RightIn, Out] { this: Operator =>
   val leftKey: FieldSelector
   val rightKey: FieldSelector
   override def getKeys = Seq(leftKey, rightKey)

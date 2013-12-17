@@ -18,15 +18,15 @@ package eu.stratosphere.example.record.pagerank;
 import java.io.Serializable;
 import java.util.Iterator;
 
-import eu.stratosphere.api.functions.StubAnnotation.ConstantFields;
+import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Program;
+import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.operators.BulkIteration;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
-import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.api.plan.PlanAssembler;
-import eu.stratosphere.api.plan.PlanAssemblerDescription;
-import eu.stratosphere.api.record.functions.MatchStub;
-import eu.stratosphere.api.record.functions.ReduceStub;
+import eu.stratosphere.api.record.functions.JoinFunction;
+import eu.stratosphere.api.record.functions.ReduceFunction;
+import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFields;
 import eu.stratosphere.api.record.operators.JoinOperator;
 import eu.stratosphere.api.record.operators.ReduceOperator;
 import eu.stratosphere.api.record.operators.ReduceOperator.Combinable;
@@ -36,13 +36,13 @@ import eu.stratosphere.types.PactRecord;
 import eu.stratosphere.util.Collector;
 
 
-public class SimplePageRank implements PlanAssembler, PlanAssemblerDescription {
+public class SimplePageRank implements Program, ProgramDescription {
 	
 	private static final String NUM_VERTICES_CONFIG_PARAM = "pageRank.numVertices";
 	
 	// --------------------------------------------------------------------------------------------
 
-	public static final class JoinVerexWithEdgesMatch extends MatchStub implements Serializable {
+	public static final class JoinVerexWithEdgesMatch extends JoinFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 
 		private PactRecord record = new PactRecord();
@@ -73,7 +73,7 @@ public class SimplePageRank implements PlanAssembler, PlanAssemblerDescription {
 	
 	@Combinable
 	@ConstantFields(0)
-	public static final class AggregatingReduce extends ReduceStub implements Serializable {
+	public static final class AggregatingReduce extends ReduceFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 		
 		private final PactDouble sum = new PactDouble();
@@ -94,7 +94,7 @@ public class SimplePageRank implements PlanAssembler, PlanAssemblerDescription {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public Plan getPlan(String ... args) {
+	public Job createJob(String ... args) {
 		int dop = 1;
 		String pageWithRankInputPath = "";
 		String adjacencyListInputPath = "";
@@ -137,7 +137,7 @@ public class SimplePageRank implements PlanAssembler, PlanAssemblerDescription {
 		
 		FileDataSink out = new FileDataSink(new PageWithRankOutFormat(), outputPath, iteration, "Final Ranks");
 
-		Plan p = new Plan(out, "Simple PageRank");
+		Job p = new Job(out, "Simple PageRank");
 		p.setDefaultParallelism(dop);
 		return p;
 	}

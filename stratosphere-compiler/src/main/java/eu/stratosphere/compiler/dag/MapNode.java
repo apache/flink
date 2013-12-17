@@ -18,7 +18,7 @@ package eu.stratosphere.compiler.dag;
 import java.util.Collections;
 import java.util.List;
 
-import eu.stratosphere.api.operators.base.GenericMapContract;
+import eu.stratosphere.api.operators.base.MapOperatorBase;
 import eu.stratosphere.compiler.operators.MapDescriptor;
 import eu.stratosphere.compiler.operators.OperatorDescriptorSingle;
 
@@ -32,7 +32,7 @@ public class MapNode extends SingleInputNode {
 	 * 
 	 * @param pactContract The map contract object.
 	 */
-	public MapNode(GenericMapContract<?> pactContract) {
+	public MapNode(MapOperatorBase<?> pactContract) {
 		super(pactContract);
 	}
 
@@ -42,8 +42,8 @@ public class MapNode extends SingleInputNode {
 	 * @return The contract.
 	 */
 	@Override
-	public GenericMapContract<?> getPactContract() {
-		return (GenericMapContract<?>) super.getPactContract();
+	public MapOperatorBase<?> getPactContract() {
+		return (MapOperatorBase<?>) super.getPactContract();
 	}
 
 	/*

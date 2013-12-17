@@ -43,7 +43,7 @@
 
 							<archive>
 								<manifestEntries>
-									<Pact-Assembler-Class>eu.stratosphere.example.record.connectedcomponents.WorksetConnectedComponents</Pact-Assembler-Class>
+									<program-class>eu.stratosphere.example.record.connectedcomponents.WorksetConnectedComponents</program-class>
 								</manifestEntries>
 							</archive>
 
@@ -65,7 +65,7 @@
 
 							<archive>
 								<manifestEntries>
-									<Pact-Assembler-Class>eu.stratosphere.example.record.pagerank.DanglingPageRank</Pact-Assembler-Class>
+									<program-class>eu.stratosphere.example.record.pagerank.DanglingPageRank</program-class>
 								</manifestEntries>
 							</archive>
 
@@ -89,7 +89,7 @@
 
 							<archive>
 								<manifestEntries>
-									<Pact-Assembler-Class>eu.stratosphere.example.record.kmeans.KMeansSingleStep</Pact-Assembler-Class>
+									<program-class>eu.stratosphere.example.record.kmeans.KMeansSingleStep</program-class>
 								</manifestEntries>
 							</archive>
 
@@ -114,7 +114,7 @@
 
 							<archive>
 								<manifestEntries>
-									<Pact-Assembler-Class>eu.stratosphere.example.record.kmeans.KMeansIterative</Pact-Assembler-Class>
+									<program-class>eu.stratosphere.example.record.kmeans.KMeansIterative</program-class>
 								</manifestEntries>
 							</archive>
 
@@ -138,7 +138,7 @@
 
 							<archive>
 								<manifestEntries>
-									<Pact-Assembler-Class>eu.stratosphere.example.record.shortestpaths.PairwiseSP</Pact-Assembler-Class>
+									<program-class>eu.stratosphere.example.record.shortestpaths.PairwiseSP</program-class>
 								</manifestEntries>
 							</archive>
 
@@ -161,7 +161,7 @@
 
 							<archive>
 								<manifestEntries>
-									<Pact-Assembler-Class>eu.stratosphere.example.record.triangles.EnumTrianglesOnEdgesWithDegrees</Pact-Assembler-Class>
+									<program-class>eu.stratosphere.example.record.triangles.EnumTrianglesOnEdgesWithDegrees</program-class>
 								</manifestEntries>
 							</archive>
 
@@ -189,7 +189,7 @@
 
 							<archive>
 								<manifestEntries>
-									<Pact-Assembler-Class>eu.stratosphere.example.record.triangles.EnumTrianglesWithDegrees</Pact-Assembler-Class>
+									<program-class>eu.stratosphere.example.record.triangles.EnumTrianglesWithDegrees</program-class>
 								</manifestEntries>
 							</archive>
 
@@ -217,7 +217,7 @@
 
 							<archive>
 								<manifestEntries>
-									<Pact-Assembler-Class>eu.stratosphere.example.record.triangles.EnumTrianglesRdfFoaf</Pact-Assembler-Class>
+									<program-class>eu.stratosphere.example.record.triangles.EnumTrianglesRdfFoaf</program-class>
 								</manifestEntries>
 							</archive>
 
@@ -240,7 +240,7 @@
 
 							<archive>
 								<manifestEntries>
-									<Pact-Assembler-Class>eu.stratosphere.example.record.relational.TPCHQuery3</Pact-Assembler-Class>
+									<program-class>eu.stratosphere.example.record.relational.TPCHQuery3</program-class>
 								</manifestEntries>
 							</archive>
 
@@ -263,7 +263,7 @@
 
 							<archive>
 								<manifestEntries>
-									<Pact-Assembler-Class>eu.stratosphere.example.record.relational.WebLogAnalysis</Pact-Assembler-Class>
+									<program-class>eu.stratosphere.example.record.relational.WebLogAnalysis</program-class>
 								</manifestEntries>
 							</archive>
 
@@ -286,7 +286,7 @@
 
 							<archive>
 								<manifestEntries>
-									<Pact-Assembler-Class>eu.stratosphere.example.record.wordcount.WordCount</Pact-Assembler-Class>
+									<program-class>eu.stratosphere.example.record.wordcount.WordCount</program-class>
 								</manifestEntries>
 							</archive>
 
@@ -308,7 +308,7 @@
 
 							<archive>
 								<manifestEntries>
-									<Pact-Assembler-Class>eu.stratosphere.example.record.sort.TeraSort</Pact-Assembler-Class>
+									<program-class>eu.stratosphere.example.record.sort.TeraSort</program-class>
 								</manifestEntries>
 							</archive>
 

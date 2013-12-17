@@ -20,12 +20,12 @@ import static org.junit.Assert.fail;
 import org.junit.Assert;
 import org.junit.Test;
 
+import eu.stratosphere.api.Job;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.operators.Order;
 import eu.stratosphere.api.operators.Ordering;
 import eu.stratosphere.api.operators.util.FieldList;
-import eu.stratosphere.api.plan.Plan;
 import eu.stratosphere.api.record.operators.CoGroupOperator;
 import eu.stratosphere.api.record.operators.ReduceOperator;
 import eu.stratosphere.compiler.CompilerException;
@@ -64,7 +64,7 @@ public class GroupOrderTest extends CompilerTestBase  {
 		FileDataSink sink = new FileDataSink(new DummyOutputFormat(), OUT_FILE, reduce, "Sink");
 		
 		
-		Plan plan = new Plan(sink, "Test Temp Task");
+		Job plan = new Job(sink, "Test Temp Task");
 		plan.setDefaultParallelism(DEFAULT_PARALLELISM);
 		
 		OptimizedPlan oPlan;
@@ -116,7 +116,7 @@ public class GroupOrderTest extends CompilerTestBase  {
 		
 		FileDataSink sink = new FileDataSink(new DummyOutputFormat(), OUT_FILE, coGroup, "Sink");
 		
-		Plan plan = new Plan(sink, "Reduce Group Order Test");
+		Job plan = new Job(sink, "Reduce Group Order Test");
 		plan.setDefaultParallelism(DEFAULT_PARALLELISM);
 		
 		OptimizedPlan oPlan;

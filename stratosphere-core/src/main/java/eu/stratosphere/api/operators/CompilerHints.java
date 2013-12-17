@@ -104,7 +104,7 @@ public class CompilerHints {
 	 */
 	public void setAvgRecordsEmittedPerStubCall(float avgRecordsEmittedPerStubCall) {
 		if(avgRecordsEmittedPerStubCall < 0) {
-			throw new IllegalArgumentException("Average Number of Emitted Records per Stub Call must be >= 0!");
+			throw new IllegalArgumentException("Average Number of Emitted Records per Function Call must be >= 0!");
 		}
 		this.avgRecordsEmittedPerStubCall = avgRecordsEmittedPerStubCall;
 	}

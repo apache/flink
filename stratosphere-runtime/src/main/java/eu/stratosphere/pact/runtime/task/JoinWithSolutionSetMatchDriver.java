@@ -15,7 +15,7 @@
 
 package eu.stratosphere.pact.runtime.task;
 
-import eu.stratosphere.api.functions.GenericMatcher;
+import eu.stratosphere.api.functions.GenericJoiner;
 import eu.stratosphere.api.typeutils.TypeSerializer;
 import eu.stratosphere.api.typeutils.TypeSerializerFactory;
 import eu.stratosphere.pact.runtime.hash.MutableHashTable;
@@ -25,9 +25,9 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.util.Collector;
 import eu.stratosphere.util.MutableObjectIterator;
 
-public abstract class JoinWithSolutionSetMatchDriver<IT1, IT2, OT> implements ResettablePactDriver<GenericMatcher<IT1, IT2, OT>, OT> {
+public abstract class JoinWithSolutionSetMatchDriver<IT1, IT2, OT> implements ResettablePactDriver<GenericJoiner<IT1, IT2, OT>, OT> {
 	
-	protected PactTaskContext<GenericMatcher<IT1, IT2, OT>, OT> taskContext;
+	protected PactTaskContext<GenericJoiner<IT1, IT2, OT>, OT> taskContext;
 	
 	protected MutableHashTable<?, ?> hashTable;
 	
@@ -48,7 +48,7 @@ public abstract class JoinWithSolutionSetMatchDriver<IT1, IT2, OT> implements Re
 	// --------------------------------------------------------------------------------------------
 	
 	@Override
-	public void setup(PactTaskContext<GenericMatcher<IT1, IT2, OT>, OT> context) {
+	public void setup(PactTaskContext<GenericJoiner<IT1, IT2, OT>, OT> context) {
 		this.taskContext = context;
 		this.running = true;
 	}
@@ -59,9 +59,9 @@ public abstract class JoinWithSolutionSetMatchDriver<IT1, IT2, OT> implements Re
 	}
 	
 	@Override
-	public Class<GenericMatcher<IT1, IT2, OT>> getStubType() {
+	public Class<GenericJoiner<IT1, IT2, OT>> getStubType() {
 		@SuppressWarnings("unchecked")
-		final Class<GenericMatcher<IT1, IT2, OT>> clazz = (Class<GenericMatcher<IT1, IT2, OT>>) (Class<?>) GenericMatcher.class;
+		final Class<GenericJoiner<IT1, IT2, OT>> clazz = (Class<GenericJoiner<IT1, IT2, OT>>) (Class<?>) GenericJoiner.class;
 		return clazz;
 	}
 	
@@ -130,7 +130,7 @@ public abstract class JoinWithSolutionSetMatchDriver<IT1, IT2, OT> implements Re
 	@Override
 	public void run() throws Exception {
 
-		final GenericMatcher<IT1, IT2, OT> matchStub = taskContext.getStub();
+		final GenericJoiner<IT1, IT2, OT> matchStub = taskContext.getStub();
 		final Collector<OT> collector = taskContext.getOutputCollector();
 		
 		if (getSolutionSetInputIndex() == 0) {

@@ -24,10 +24,10 @@ import Extractors.JoinNode
 import Extractors.MapNode
 import Extractors.ReduceNode
 import eu.stratosphere.api.operators.GenericDataSink
-import eu.stratosphere.api.plan.Plan
-import eu.stratosphere.api.operators.Contract
-import eu.stratosphere.api.operators.DualInputContract
-import eu.stratosphere.api.operators.SingleInputContract
+import eu.stratosphere.api.Job
+import eu.stratosphere.api.operators.Operator
+import eu.stratosphere.api.operators.DualInputOperator
+import eu.stratosphere.api.operators.SingleInputOperator
 import eu.stratosphere.api.operators.BulkIteration
 import eu.stratosphere.api.operators.WorksetIteration
 import org.apache.commons.logging.{LogFactory, Log}
@@ -38,14 +38,14 @@ object GlobalSchemaPrinter {
 
   private final val LOG: Log = LogFactory.getLog(classOf[GlobalSchemaGenerator])
 
-  def printSchema(plan: Plan): Unit = {
+  def printSchema(plan: Job): Unit = {
 
     LOG.debug("### " + plan.getJobName + " ###")
-    plan.getDataSinks.foldLeft(Set[Contract]())(printSchema)
+    plan.getDataSinks.foldLeft(Set[Operator]())(printSchema)
     LOG.debug("####" + ("#" * plan.getJobName.length) + "####")
   }
 
-  private def printSchema(visited: Set[Contract], node: Contract): Set[Contract] = {
+  private def printSchema(visited: Set[Operator], node: Operator): Set[Operator] = {
 
     visited.contains(node) match {
 
@@ -56,8 +56,8 @@ object GlobalSchemaPrinter {
         val children = node match {
           case bi: BulkIteration => bi.getInputs().toList :+ bi.getNextPartialSolution()
           case wi: WorksetIteration => wi.getInitialSolutionSet().toList ++ wi.getInitialWorkset().toList :+ wi.getSolutionSetDelta() :+ wi.getNextWorkset()
-          case si : SingleInputContract[_] => si.getInputs().toList
-          case di : DualInputContract[_] => di.getFirstInputs().toList ++ di.getSecondInputs().toList
+          case si : SingleInputOperator[_] => si.getInputs().toList
+          case di : DualInputOperator[_] => di.getFirstInputs().toList ++ di.getSecondInputs().toList
           case gds : GenericDataSink => gds.getInputs().toList
           case _ => List()
         }
@@ -186,7 +186,7 @@ object GlobalSchemaPrinter {
     }
   }
 
-  private def printInfo(node: Contract, kind: String, keys: Seq[(String, FieldSelector)], reads: Seq[(String, FieldSet[_])], forwards: Seq[(String, Array[Int])], discards: Seq[(String, Array[Int])], writes: FieldSet[_]): Unit = {
+  private def printInfo(node: Operator, kind: String, keys: Seq[(String, FieldSelector)], reads: Seq[(String, FieldSet[_])], forwards: Seq[(String, Array[Int])], discards: Seq[(String, Array[Int])], writes: FieldSet[_]): Unit = {
 
     def indexesToStrings(pre: String, indexes: Array[Int]) = indexes map {
       case -1 => "_"

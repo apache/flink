@@ -24,7 +24,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.api.Job;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
@@ -102,7 +102,7 @@ public class MergeOnlyJoinITCase extends TestBase {
 	protected JobGraph getJobGraph() throws Exception {
 
 		MergeOnlyJoin mergeOnlyJoin = new MergeOnlyJoin();
-		Plan plan = mergeOnlyJoin.getPlan(
+		Job plan = mergeOnlyJoin.createJob(
 				config.getString("MergeOnlyJoinTest#NoSubtasks", "1"), 
 				getFilesystemProvider().getURIPrefix()+input1Path,
 				getFilesystemProvider().getURIPrefix()+input2Path,

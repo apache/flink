@@ -22,26 +22,26 @@ import java.lang.annotation.Target;
 import java.util.ArrayList;
 import java.util.List;
 
-import eu.stratosphere.api.operators.Contract;
+import eu.stratosphere.api.operators.Operator;
 import eu.stratosphere.api.operators.Ordering;
-import eu.stratosphere.api.operators.base.GenericReduceContract;
+import eu.stratosphere.api.operators.base.ReduceOperatorBase;
 import eu.stratosphere.api.operators.util.UserCodeClassWrapper;
 import eu.stratosphere.api.operators.util.UserCodeObjectWrapper;
 import eu.stratosphere.api.operators.util.UserCodeWrapper;
-import eu.stratosphere.api.record.functions.ReduceStub;
+import eu.stratosphere.api.record.functions.ReduceFunction;
 import eu.stratosphere.types.Key;
 
 /**
- * ReduceOperator represents a Pact with a Reduce Input Contract.
+ * ReduceOperator represents a Pact with a Reduce Input Operator.
  * InputContracts are second-order functions. They have one or multiple input sets of records and a first-order
  * user function (stub implementation).
  * <p> 
- * Reduce works on a single input and calls the first-order user function of a {@link ReduceStub} for each group of 
+ * Reduce works on a single input and calls the first-order user function of a {@link ReduceFunction} for each group of 
  * records that share the same key.
  * 
- * @see ReduceStub
+ * @see ReduceFunction
  */
-public class ReduceOperator extends GenericReduceContract<ReduceStub> implements RecordOperator {
+public class ReduceOperator extends ReduceOperatorBase<ReduceFunction> implements RecordOperator {
 	
 	private static final String DEFAULT_NAME = "<Unnamed Reducer>";		// the default name for contracts
 	
@@ -58,43 +58,43 @@ public class ReduceOperator extends GenericReduceContract<ReduceStub> implements
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * Creates a Builder with the provided {@link ReduceStub} implementation.
+	 * Creates a Builder with the provided {@link ReduceFunction} implementation.
 	 * 
-	 * @param udf The {@link ReduceStub} implementation for this Reduce contract.
+	 * @param udf The {@link ReduceFunction} implementation for this Reduce contract.
 	 */
-	public static Builder builder(ReduceStub udf) {
-		return new Builder(new UserCodeObjectWrapper<ReduceStub>(udf));
+	public static Builder builder(ReduceFunction udf) {
+		return new Builder(new UserCodeObjectWrapper<ReduceFunction>(udf));
 	}
 	
 	/**
-	 * Creates a Builder with the provided {@link ReduceStub} implementation.
+	 * Creates a Builder with the provided {@link ReduceFunction} implementation.
 	 * 
-	 * @param udf The {@link ReduceStub} implementation for this Reduce contract.
+	 * @param udf The {@link ReduceFunction} implementation for this Reduce contract.
 	 * @param keyClass The class of the key data type.
 	 * @param keyColumn The position of the key.
 	 */
-	public static Builder builder(ReduceStub udf, Class<? extends Key> keyClass, int keyColumn) {
-		return new Builder(new UserCodeObjectWrapper<ReduceStub>(udf), keyClass, keyColumn);
+	public static Builder builder(ReduceFunction udf, Class<? extends Key> keyClass, int keyColumn) {
+		return new Builder(new UserCodeObjectWrapper<ReduceFunction>(udf), keyClass, keyColumn);
 	}
 
 	/**
-	 * Creates a Builder with the provided {@link ReduceStub} implementation.
+	 * Creates a Builder with the provided {@link ReduceFunction} implementation.
 	 * 
-	 * @param udf The {@link ReduceStub} implementation for this Reduce contract.
+	 * @param udf The {@link ReduceFunction} implementation for this Reduce contract.
 	 */
-	public static Builder builder(Class<? extends ReduceStub> udf) {
-		return new Builder(new UserCodeClassWrapper<ReduceStub>(udf));
+	public static Builder builder(Class<? extends ReduceFunction> udf) {
+		return new Builder(new UserCodeClassWrapper<ReduceFunction>(udf));
 	}
 	
 	/**
-	 * Creates a Builder with the provided {@link ReduceStub} implementation.
+	 * Creates a Builder with the provided {@link ReduceFunction} implementation.
 	 * 
-	 * @param udf The {@link ReduceStub} implementation for this Reduce contract.
+	 * @param udf The {@link ReduceFunction} implementation for this Reduce contract.
 	 * @param keyClass The class of the key data type.
 	 * @param keyColumn The position of the key.
 	 */
-	public static Builder builder(Class<? extends ReduceStub> udf, Class<? extends Key> keyClass, int keyColumn) {
-		return new Builder(new UserCodeClassWrapper<ReduceStub>(udf), keyClass, keyColumn);
+	public static Builder builder(Class<? extends ReduceFunction> udf, Class<? extends Key> keyClass, int keyColumn) {
+		return new Builder(new UserCodeClassWrapper<ReduceFunction>(udf), keyClass, keyColumn);
 	}
 	
 	/**
@@ -155,7 +155,7 @@ public class ReduceOperator extends GenericReduceContract<ReduceStub> implements
 	 * 
 	 * <code>
 	 * \@Combinable
-	 * public static class CountWords extends ReduceStub&lt;PactString&gt;
+	 * public static class CountWords extends ReduceFunction&lt;PactString&gt;
 	 * {
 	 *     private final PactInteger theInteger = new PactInteger();
 	 * 
@@ -195,41 +195,41 @@ public class ReduceOperator extends GenericReduceContract<ReduceStub> implements
 	public static class Builder {
 		
 		/* The required parameters */
-		private final UserCodeWrapper<ReduceStub> udf;
+		private final UserCodeWrapper<ReduceFunction> udf;
 		private final List<Class<? extends Key>> keyClasses;
 		private final List<Integer> keyColumns;
 		
 		/* The optional parameters */
 		private Ordering secondaryOrder = null;
-		private List<Contract> inputs;
+		private List<Operator> inputs;
 		private String name = DEFAULT_NAME;
 		
 		/**
-		 * Creates a Builder with the provided {@link ReduceStub} implementation.
+		 * Creates a Builder with the provided {@link ReduceFunction} implementation.
 		 * 
-		 * @param udf The {@link ReduceStub} implementation for this Reduce contract.
+		 * @param udf The {@link ReduceFunction} implementation for this Reduce contract.
 		 */
-		private Builder(UserCodeWrapper<ReduceStub> udf) {
+		private Builder(UserCodeWrapper<ReduceFunction> udf) {
 			this.udf = udf;
 			this.keyClasses = new ArrayList<Class<? extends Key>>();
 			this.keyColumns = new ArrayList<Integer>();
-			this.inputs = new ArrayList<Contract>();
+			this.inputs = new ArrayList<Operator>();
 		}
 		
 		/**
-		 * Creates a Builder with the provided {@link ReduceStub} implementation.
+		 * Creates a Builder with the provided {@link ReduceFunction} implementation.
 		 * 
-		 * @param udf The {@link ReduceStub} implementation for this Reduce contract.
+		 * @param udf The {@link ReduceFunction} implementation for this Reduce contract.
 		 * @param keyClass The class of the key data type.
 		 * @param keyColumn The position of the key.
 		 */
-		private Builder(UserCodeWrapper<ReduceStub> udf, Class<? extends Key> keyClass, int keyColumn) {
+		private Builder(UserCodeWrapper<ReduceFunction> udf, Class<? extends Key> keyClass, int keyColumn) {
 			this.udf = udf;
 			this.keyClasses = new ArrayList<Class<? extends Key>>();
 			this.keyClasses.add(keyClass);
 			this.keyColumns = new ArrayList<Integer>();
 			this.keyColumns.add(keyColumn);
-			this.inputs = new ArrayList<Contract>();
+			this.inputs = new ArrayList<Operator>();
 		}
 		
 		private int[] getKeyColumnsArray() {
@@ -272,9 +272,9 @@ public class ReduceOperator extends GenericReduceContract<ReduceStub> implements
 		 * 
 		 * @param inputs
 		 */
-		public Builder input(Contract ...inputs) {
+		public Builder input(Operator ...inputs) {
 			this.inputs.clear();
-			for (Contract c : inputs) {
+			for (Operator c : inputs) {
 				this.inputs.add(c);
 			}
 			return this;
@@ -285,7 +285,7 @@ public class ReduceOperator extends GenericReduceContract<ReduceStub> implements
 		 * 
 		 * @param inputs
 		 */
-		public Builder inputs(List<Contract> inputs) {
+		public Builder inputs(List<Operator> inputs) {
 			this.inputs = inputs;
 			return this;
 		}

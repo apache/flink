@@ -16,11 +16,11 @@ package eu.stratosphere.api.functions;
 
 import java.util.HashMap;
 
-import eu.stratosphere.accumulators.Accumulator;
-import eu.stratosphere.accumulators.DoubleCounter;
-import eu.stratosphere.accumulators.Histogram;
-import eu.stratosphere.accumulators.IntCounter;
-import eu.stratosphere.accumulators.LongCounter;
+import eu.stratosphere.api.accumulators.Accumulator;
+import eu.stratosphere.api.accumulators.DoubleCounter;
+import eu.stratosphere.api.accumulators.Histogram;
+import eu.stratosphere.api.accumulators.IntCounter;
+import eu.stratosphere.api.accumulators.LongCounter;
 
 /**
  *

@@ -19,9 +19,9 @@ import java.util.Arrays;
 import org.junit.Assert;
 import org.junit.Test;
 
+import eu.stratosphere.api.Job;
 import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.operators.util.FieldList;
-import eu.stratosphere.api.plan.Plan;
 import eu.stratosphere.api.record.operators.JoinOperator;
 import eu.stratosphere.compiler.plan.DualInputPlanNode;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
@@ -54,7 +54,7 @@ public class TPCHQuery3CompilerTest extends CompilerTestBase {
 	public void testQueryNoStatistics() {
 		try {
 			TPCHQuery3 query = new TPCHQuery3();
-			Plan p = query.getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE);
+			Job p = query.createJob(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE);
 			
 			// compile
 			final OptimizedPlan plan = compileNoStats(p);
@@ -110,7 +110,7 @@ public class TPCHQuery3CompilerTest extends CompilerTestBase {
 //	@Test
 	public void testQueryWithStatsForRepartitionMerge() {
 		TPCHQuery3 query = new TPCHQuery3();
-		Plan p = query.getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE);
+		Job p = query.createJob(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE);
 		
 		// set compiler hints
 		ContractResolver cr = getContractResolver(p);
@@ -126,11 +126,11 @@ public class TPCHQuery3CompilerTest extends CompilerTestBase {
 			boolean hashJoinFirstOkay, boolean hashJoinSecondOkay, boolean mergeJoinOkay)
 	{
 		TPCHQuery3 query = new TPCHQuery3();
-		Plan p = query.getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE);
+		Job p = query.createJob(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE);
 		testQueryGeneric(p, orderSize, lineItemSize, broadcastOkay, partitionedOkay, hashJoinFirstOkay, hashJoinSecondOkay, mergeJoinOkay);
 	}
 		
-	private void testQueryGeneric(Plan p, long orderSize, long lineitemSize, boolean broadcastOkay, boolean partitionedOkay,
+	private void testQueryGeneric(Job p, long orderSize, long lineitemSize, boolean broadcastOkay, boolean partitionedOkay,
 			boolean hashJoinFirstOkay, boolean hashJoinSecondOkay, boolean mergeJoinOkay)
 	{
 		try {

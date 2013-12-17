@@ -15,8 +15,8 @@
 
 package eu.stratosphere.pact.test.iterative.nephele.customdanglingpagerank;
 
-import eu.stratosphere.api.functions.AbstractStub;
-import eu.stratosphere.api.functions.GenericMatcher;
+import eu.stratosphere.api.functions.AbstractFunction;
+import eu.stratosphere.api.functions.GenericJoiner;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.pact.test.iterative.nephele.ConfigUtils;
 import eu.stratosphere.pact.test.iterative.nephele.customdanglingpagerank.types.VertexWithAdjacencyList;
@@ -27,8 +27,8 @@ import eu.stratosphere.util.Collector;
 import java.util.Random;
 import java.util.Set;
 
-public class CustomCompensatableDotProductMatch extends AbstractStub implements
-		GenericMatcher<VertexWithRankAndDangling, VertexWithAdjacencyList, VertexWithRank> {
+public class CustomCompensatableDotProductMatch extends AbstractFunction implements
+		GenericJoiner<VertexWithRankAndDangling, VertexWithAdjacencyList, VertexWithRank> {
 
 	private VertexWithRank record = new VertexWithRank();
 

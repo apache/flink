@@ -17,13 +17,13 @@ package eu.stratosphere.pact.compiler.util;
 
 import java.io.Serializable;
 
-import eu.stratosphere.api.functions.StubAnnotation.ConstantFieldsFirstExcept;
-import eu.stratosphere.api.record.functions.MatchStub;
+import eu.stratosphere.api.record.functions.JoinFunction;
+import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFieldsFirstExcept;
 import eu.stratosphere.types.PactRecord;
 import eu.stratosphere.util.Collector;
 
 @ConstantFieldsFirstExcept({})
-public class DummyMatchStub extends MatchStub implements Serializable {
+public class DummyMatchStub extends JoinFunction implements Serializable {
 	private static final long serialVersionUID = 1L;
 
 	@Override

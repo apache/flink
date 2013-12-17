@@ -18,16 +18,16 @@ package eu.stratosphere.example.record.relational;
 import java.io.Serializable;
 import java.util.Iterator;
 
-import eu.stratosphere.api.functions.StubAnnotation.ConstantFields;
-import eu.stratosphere.api.functions.StubAnnotation.ConstantFieldsSecondExcept;
+import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Program;
+import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.operators.util.FieldSet;
-import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.api.plan.PlanAssembler;
-import eu.stratosphere.api.plan.PlanAssemblerDescription;
-import eu.stratosphere.api.record.functions.MatchStub;
-import eu.stratosphere.api.record.functions.ReduceStub;
+import eu.stratosphere.api.record.functions.JoinFunction;
+import eu.stratosphere.api.record.functions.ReduceFunction;
+import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFields;
+import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFieldsSecondExcept;
 import eu.stratosphere.api.record.io.CsvInputFormat;
 import eu.stratosphere.api.record.io.CsvOutputFormat;
 import eu.stratosphere.api.record.operators.JoinOperator;
@@ -57,13 +57,13 @@ import eu.stratosphere.util.Collector;
  * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  */
 
-public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription {
+public class TPCHQueryAsterix implements Program, ProgramDescription {
 
 	/**
 	 * Realizes the join between Customers and Order table.
 	 */
 	@ConstantFieldsSecondExcept(0)
-	public static class JoinCO extends MatchStub implements Serializable {
+	public static class JoinCO extends JoinFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 
 		private final PactInteger one = new PactInteger(1);
@@ -89,7 +89,7 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 	 */
 	@Combinable
 	@ConstantFields(1)
-	public static class AggCO extends ReduceStub implements Serializable {
+	public static class AggCO extends ReduceFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 
 		private final PactInteger integer = new PactInteger();
@@ -131,7 +131,7 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Plan getPlan(final String... args) {
+	public Job createJob(final String... args) {
 
 		// parse program parameters
 		int numSubtasks       = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
@@ -204,7 +204,7 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 		joinCO.addSecondInput(customers);
 
 		// return the PACT plan
-		return new Plan(result, "TPCH Asterix");
+		return new Job(result, "TPCH Asterix");
 	}
 
 	/**

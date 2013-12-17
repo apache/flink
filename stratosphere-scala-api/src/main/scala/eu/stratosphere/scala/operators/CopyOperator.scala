@@ -17,9 +17,9 @@ import eu.stratosphere.scala.ScalaContract
 import eu.stratosphere.api.record.operators.MapOperator
 import eu.stratosphere.scala.analysis.UDT
 import eu.stratosphere.types.PactRecord
-import eu.stratosphere.api.record.functions.MapStub
+import eu.stratosphere.api.record.functions.MapFunction
 import eu.stratosphere.util.Collector
-import eu.stratosphere.api.operators.Contract
+import eu.stratosphere.api.operators.Operator
 import eu.stratosphere.scala.contracts.Annotations
 import eu.stratosphere.scala.OneInputScalaContract
 import eu.stratosphere.scala.analysis.UDF1
@@ -28,8 +28,8 @@ import eu.stratosphere.configuration.Configuration
 import eu.stratosphere.scala.DataSet
 
 object CopyOperator {
-  def apply(source: Contract with ScalaContract[_]): DataSet[_] = {
-    val generatedStub = new MapStub with Serializable {
+  def apply(source: Operator with ScalaContract[_]): DataSet[_] = {
+    val generatedStub = new MapFunction with Serializable {
       val udf: UDF1[_, _] = new UDF1(source.getUDF.outputUDT, source.getUDF.outputUDT)
 
       private var from: Array[Int] = _

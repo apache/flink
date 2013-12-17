@@ -18,7 +18,7 @@ package eu.stratosphere.pact.test.scalaPactPrograms;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import eu.stratosphere.api.plan.Plan;
+import eu.stratosphere.api.Job;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.scala.examples.relational.TPCHQuery3;
 
@@ -30,7 +30,7 @@ public class TPCHQuery3ITCase extends eu.stratosphere.pact.test.pactPrograms.TPC
 	}
 
 	@Override
-	protected Plan getPactPlan()  {
+	protected Job getPactPlan()  {
 
 		TPCHQuery3 tpch3 = new TPCHQuery3();
 		return tpch3.getScalaPlan(

@@ -19,7 +19,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import eu.stratosphere.api.operators.base.GenericMatchContract;
+import eu.stratosphere.api.operators.base.JoinOperatorBase;
 import eu.stratosphere.api.operators.util.FieldSet;
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.PactCompiler;
@@ -40,7 +40,7 @@ public class MatchNode extends TwoInputNode {
 	 * 
 	 * @param pactContract The match contract object.
 	 */
-	public MatchNode(GenericMatchContract<?> pactContract) {
+	public MatchNode(JoinOperatorBase<?> pactContract) {
 		super(pactContract);
 	}
 
@@ -52,8 +52,8 @@ public class MatchNode extends TwoInputNode {
 	 * @return The contract.
 	 */
 	@Override
-	public GenericMatchContract<?> getPactContract() {
-		return (GenericMatchContract<?>) super.getPactContract();
+	public JoinOperatorBase<?> getPactContract() {
+		return (JoinOperatorBase<?>) super.getPactContract();
 	}
 
 	/*

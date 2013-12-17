@@ -20,7 +20,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import eu.stratosphere.api.record.functions.MatchStub;
+import eu.stratosphere.api.record.functions.JoinFunction;
 import eu.stratosphere.api.typeutils.TypeComparator;
 import eu.stratosphere.api.typeutils.TypePairComparator;
 import eu.stratosphere.api.typeutils.TypeSerializer;
@@ -123,7 +123,7 @@ public class HashVsSortMiniBenchmark {
 			final TestData.GeneratorIterator input1 = new TestData.GeneratorIterator(generator1, INPUT_1_SIZE);
 			final TestData.GeneratorIterator input2 = new TestData.GeneratorIterator(generator2, INPUT_2_SIZE);
 			
-			final MatchStub matcher = new NoOpMatcher();
+			final JoinFunction matcher = new NoOpMatcher();
 			final Collector<PactRecord> collector = new DiscardingOutputCollector();
 			
 			long start = System.nanoTime();
@@ -173,7 +173,7 @@ public class HashVsSortMiniBenchmark {
 			final TestData.GeneratorIterator input1 = new TestData.GeneratorIterator(generator1, INPUT_1_SIZE);
 			final TestData.GeneratorIterator input2 = new TestData.GeneratorIterator(generator2, INPUT_2_SIZE);
 			
-			final MatchStub matcher = new NoOpMatcher();
+			final JoinFunction matcher = new NoOpMatcher();
 			
 			final Collector<PactRecord> collector = new DiscardingOutputCollector();
 			
@@ -212,7 +212,7 @@ public class HashVsSortMiniBenchmark {
 			final TestData.GeneratorIterator input1 = new TestData.GeneratorIterator(generator1, INPUT_1_SIZE);
 			final TestData.GeneratorIterator input2 = new TestData.GeneratorIterator(generator2, INPUT_2_SIZE);
 			
-			final MatchStub matcher = new NoOpMatcher();
+			final JoinFunction matcher = new NoOpMatcher();
 			
 			final Collector<PactRecord> collector = new DiscardingOutputCollector();
 			
@@ -243,7 +243,7 @@ public class HashVsSortMiniBenchmark {
 	}
 	
 	
-	private static final class NoOpMatcher extends MatchStub {
+	private static final class NoOpMatcher extends JoinFunction {
 		@Override
 		public void match(PactRecord rec1, PactRecord rec2, Collector<PactRecord> out) {}
 	}

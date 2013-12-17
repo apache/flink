@@ -19,9 +19,9 @@ import java.util.Arrays;
 import org.junit.Assert;
 import org.junit.Test;
 
+import eu.stratosphere.api.Job;
 import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.operators.util.FieldList;
-import eu.stratosphere.api.plan.Plan;
 import eu.stratosphere.api.record.operators.CrossOperator;
 import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.plan.BulkIterationPlanNode;
@@ -63,7 +63,7 @@ public class IterativeKMeansTest extends CompilerTestBase {
 	public void testCompileKMeansWithStats() {
 		
 		KMeansIterative kmi = new KMeansIterative();
-		Plan p = kmi.getPlan(String.valueOf(DEFAULT_PARALLELISM),
+		Job p = kmi.createJob(String.valueOf(DEFAULT_PARALLELISM),
 				IN_FILE, IN_FILE, OUT_FILE, String.valueOf(20));
 		
 		// set the statistics
@@ -103,7 +103,7 @@ public class IterativeKMeansTest extends CompilerTestBase {
 	public void testCompileKMeansIterationForwardCenters() {
 		
 		KMeansIterative kmi = new KMeansIterative();
-		Plan p = kmi.getPlan(String.valueOf(DEFAULT_PARALLELISM),
+		Job p = kmi.createJob(String.valueOf(DEFAULT_PARALLELISM),
 				IN_FILE, IN_FILE, OUT_FILE, String.valueOf(20));
 		
 		// parameterize the cross strategies

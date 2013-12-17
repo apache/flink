@@ -16,19 +16,19 @@
 package eu.stratosphere.pact.runtime.task;
 
 import eu.stratosphere.api.functions.GenericMapper;
-import eu.stratosphere.api.record.functions.MapStub;
+import eu.stratosphere.api.record.functions.MapFunction;
 import eu.stratosphere.util.Collector;
 import eu.stratosphere.util.MutableObjectIterator;
 
 /**
  * Map task which is executed by a Nephele task manager. The task has a single
- * input and one or multiple outputs. It is provided with a MapStub
+ * input and one or multiple outputs. It is provided with a MapFunction
  * implementation.
  * <p>
  * The MapTask creates an iterator over all key-value pairs of its input and hands that to the <code>map()</code> method
- * of the MapStub.
+ * of the MapFunction.
  * 
- * @see MapStub
+ * @see MapFunction
  * @see GenericMapper
  * 
  * @param <IT> The mapper's input data type.

@@ -17,11 +17,11 @@ package eu.stratosphere.pact.test.testPrograms.tpch1;
 
 import org.apache.log4j.Logger;
 
+import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Program;
+import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
-import eu.stratosphere.api.plan.Plan;
-import eu.stratosphere.api.plan.PlanAssembler;
-import eu.stratosphere.api.plan.PlanAssemblerDescription;
 import eu.stratosphere.api.record.operators.MapOperator;
 import eu.stratosphere.api.record.operators.ReduceOperator;
 import eu.stratosphere.pact.test.testPrograms.util.IntTupleDataInFormat;
@@ -32,7 +32,7 @@ import eu.stratosphere.types.PactString;
  * @author Mathias Peters <mathias.peters@informatik.hu-berlin.de>
  *
  */
-public class TPCHQuery1 implements PlanAssembler, PlanAssemblerDescription {
+public class TPCHQuery1 implements Program, ProgramDescription {
 
 	@SuppressWarnings("unused")
 	private static Logger LOGGER = Logger.getLogger(TPCHQuery1.class);
@@ -46,7 +46,7 @@ public class TPCHQuery1 implements PlanAssembler, PlanAssemblerDescription {
 	 * @see eu.stratosphere.pact.common.plan.PlanAssembler#getPlan(java.lang.String[])
 	 */
 	@Override
-	public Plan getPlan(String... args) throws IllegalArgumentException {
+	public Job createJob(String... args) throws IllegalArgumentException {
 		
 		
 		if(args.length != 3)
@@ -83,7 +83,7 @@ public class TPCHQuery1 implements PlanAssembler, PlanAssemblerDescription {
 		groupByReturnFlag.addInput(lineItemFilter);
 		result.addInput(groupByReturnFlag);
 		
-		return new Plan(result, "TPC-H 1");
+		return new Job(result, "TPC-H 1");
 	}
 
 	/* (non-Javadoc)
