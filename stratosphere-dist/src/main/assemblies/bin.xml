@@ -142,7 +142,7 @@
 				<include>*.jar</include>
 			</includes>
 			<excludes>
-				<exclude>stratosphere-examples-${project.version}.jar</exclude>
+				<exclude>stratosphere-java-examples-${project.version}.jar</exclude>
 			</excludes>
 		</fileSet>
 
@@ -155,7 +155,7 @@
 				<include>*.jar</include>
 			</includes>
 			<excludes>
-				<exclude>stratosphere-examples-${project.version}.jar</exclude>
+				<exclude>stratosphere-scala-examples-${project.version}.jar</exclude>
 			</excludes>
 		</fileSet>
 
@@ -168,7 +168,7 @@
 				<include>*.jar</include>
 			</includes>
 			<excludes>
-				<exclude>stratosphere-examples-${project.version}.jar</exclude>
+				<exclude>stratosphere-record-examples-${project.version}.jar</exclude>
 			</excludes>
 		</fileSet>
 
