@@ -73,9 +73,7 @@ public class AsynchronousPartialSorter<E> extends UnilateralSortMerger<E>
 			2, 0.0f, true);
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.sort.UnilateralSortMerger#close()
-	 */
+
 	public void close() {
 		// make a best effort to close the buffer iterator
 		try {
@@ -129,9 +127,7 @@ public class AsynchronousPartialSorter<E> extends UnilateralSortMerger<E>
 			this.queues = queues;
 		}
 
-		/* (non-Javadoc)
-		 * @see eu.stratosphere.pact.common.util.MutableObjectIterator#next(java.lang.Object)
-		 */
+
 		@Override
 		public boolean next(E target) throws IOException {
 			if (this.currentIterator != null && this.currentIterator.next(target)) {

@@ -94,44 +94,25 @@ public class DataSinkNode extends OptimizerNode {
 		return (GenericDataSink) super.getPactContract();
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getName()
-	 */
 	@Override
 	public String getName() {
 		return "Data Sink";
 	}
 
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isMemoryConsumer()
-	 */
 	@Override
 	public boolean isMemoryConsumer() {
 		return getPactContract().getPartitionOrdering() != null || getPactContract().getLocalOrder() != null;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getIncomingConnections()
-	 */
 	@Override
 	public List<PactConnection> getIncomingConnections() {
 		return Collections.singletonList(this.input);
 	}
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getOutgoingConnections()
-	 */
+
 	public List<PactConnection> getOutgoingConnections() {
 		return Collections.emptyList();
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#setInputs(java.util.Map)
-	 */
 	@Override
 	public void setInputs(Map<Operator, OptimizerNode> contractToNode) {
 		List<Operator> children = getPactContract().getInputs();

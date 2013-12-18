@@ -260,10 +260,6 @@ public class GlobalProperties implements Cloneable
 
 	// ------------------------------------------------------------------------
 
-	/*
-	 * (non-Javadoc)
-	 * @see java.lang.Object#hashCode()
-	 */
 	@Override
 	public int hashCode() {
 		final int prime = 31;
@@ -274,10 +270,6 @@ public class GlobalProperties implements Cloneable
 		return result;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see java.lang.Object#equals(java.lang.Object)
-	 */
 	@Override
 	public boolean equals(Object obj) {
 		if (obj != null && obj instanceof GlobalProperties) {
@@ -293,10 +285,6 @@ public class GlobalProperties implements Cloneable
 		}
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see java.lang.Object#toString()
-	 */
 	@Override
 	public String toString() {
 		final StringBuilder bld = new StringBuilder(
@@ -314,10 +302,7 @@ public class GlobalProperties implements Cloneable
 		return bld.toString();
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see java.lang.Object#clone()
-	 */
+	@Override
 	public GlobalProperties clone() {
 		final GlobalProperties newProps = new GlobalProperties();
 		newProps.partitioning = this.partitioning;

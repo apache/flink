@@ -30,8 +30,8 @@ import static eu.stratosphere.compiler.plan.PlanNode.SourceAndDamReport.*;
 /**
  * Plan candidate node for data flow sources that have no input and no special strategies.
  */
-public class SourcePlanNode extends PlanNode
-{
+public class SourcePlanNode extends PlanNode {
+	
 	private TypeSerializerFactory<?> serializer;
 	
 	/**
@@ -73,9 +73,7 @@ public class SourcePlanNode extends PlanNode
 
 	// --------------------------------------------------------------------------------------------
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.plan.Visitable#accept(eu.stratosphere.pact.common.plan.Visitor)
-	 */
+
 	@Override
 	public void accept(Visitor<PlanNode> visitor) {
 		if (visitor.preVisit(this)) {
@@ -83,25 +81,19 @@ public class SourcePlanNode extends PlanNode
 		}
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.candidate.PlanNode#getPredecessors()
-	 */
+
 	@Override
 	public Iterator<PlanNode> getPredecessors() {
 		return Collections.<PlanNode>emptyList().iterator();
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.candidate.PlanNode#getInputs()
-	 */
+
 	@Override
 	public Iterator<Channel> getInputs() {
 		return Collections.<Channel>emptyList().iterator();
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.candidate.PlanNode#hasDamOnPathDownTo(eu.stratosphere.pact.compiler.plan.candidate.PlanNode)
-	 */
+
 	@Override
 	public SourceAndDamReport hasDamOnPathDownTo(PlanNode source) {
 		if (source == this) {

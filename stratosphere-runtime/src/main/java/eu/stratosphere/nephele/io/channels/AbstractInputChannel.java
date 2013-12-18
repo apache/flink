@@ -89,17 +89,13 @@ public abstract class AbstractInputChannel<T extends IOReadableWritable> extends
 	public abstract void close() throws IOException, InterruptedException;
 
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean isInputChannel() {
 		return true;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public JobID getJobID() {
 		return this.inputGate.getJobID();

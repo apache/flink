@@ -50,17 +50,13 @@ public class JobSubmissionResult extends AbstractJobResult {
 		super();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void read(final DataInput in) throws IOException {
 		super.read(in);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final DataOutput out) throws IOException {
 		super.write(out);

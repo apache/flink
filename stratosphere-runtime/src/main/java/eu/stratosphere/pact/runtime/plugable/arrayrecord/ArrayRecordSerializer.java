@@ -73,9 +73,7 @@ public final class ArrayRecordSerializer extends TypeSerializer<Value[]>
 
 	// --------------------------------------------------------------------------------------------
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#createInstance()
-	 */
+
 	@Override
 	public Value[] createInstance() {
 		final Value[] vals = new Value[this.types.length];
@@ -85,9 +83,7 @@ public final class ArrayRecordSerializer extends TypeSerializer<Value[]>
 		return vals; 
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#createCopy(java.lang.Object)
-	 */
+
 	@Override
 	public Value[] createCopy(Value[] from) {
 		final Value[] target = createInstance();
@@ -106,9 +102,7 @@ public final class ArrayRecordSerializer extends TypeSerializer<Value[]>
 		}
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#getLength()
-	 */
+
 	@Override
 	public int getLength() {
 		return len;

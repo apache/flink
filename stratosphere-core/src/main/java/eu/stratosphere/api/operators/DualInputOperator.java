@@ -252,9 +252,7 @@ public abstract class DualInputOperator<T extends Function> extends AbstractUdfO
 	
 	// --------------------------------------------------------------------------------------------
 	
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void accept(Visitor<Operator> visitor) {
 		boolean descend = visitor.preVisit(this);

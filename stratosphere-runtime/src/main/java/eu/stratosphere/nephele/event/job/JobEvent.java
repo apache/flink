@@ -69,9 +69,7 @@ public class JobEvent extends AbstractEvent {
 		this.currentJobStatus = JobStatus.SCHEDULED;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void read(final DataInput in) throws IOException {
 		super.read(in);
@@ -83,9 +81,7 @@ public class JobEvent extends AbstractEvent {
 		this.optionalMessage = StringRecord.readString(in);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final DataOutput out) throws IOException {
 		super.write(out);
@@ -116,17 +112,13 @@ public class JobEvent extends AbstractEvent {
 		return this.optionalMessage;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	public String toString() {
 
 		return timestampToString(getTimestamp()) + ":\tJob execution switched to status " + this.currentJobStatus;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean equals(final Object obj) {
 
@@ -156,9 +148,7 @@ public class JobEvent extends AbstractEvent {
 		return this.optionalMessage.equals(jobEvent.getOptionalMessage());
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int hashCode() {
 

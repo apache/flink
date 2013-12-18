@@ -47,25 +47,19 @@ public class LocalDataOutputStream extends FSDataOutputStream {
 		this.fos = new FileOutputStream(file);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final int b) throws IOException {
 		fos.write(b);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final byte[] b, final int off, final int len) throws IOException {
 		fos.write(b, off, len);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void close() throws IOException {
 

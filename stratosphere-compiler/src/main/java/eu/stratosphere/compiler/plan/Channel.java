@@ -314,25 +314,19 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 	//                                Statistic Estimates
 	// --------------------------------------------------------------------------------------------
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.EstimateProvider#getEstimatedOutputSize()
-	 */
+
 	@Override
 	public long getEstimatedOutputSize() {
 		return this.source.template.getEstimatedOutputSize() * this.replicationFactor;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.EstimateProvider#getEstimatedNumRecords()
-	 */
+
 	@Override
 	public long getEstimatedNumRecords() {
 		return this.source.template.getEstimatedNumRecords() * this.replicationFactor;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.EstimateProvider#getEstimatedCardinalities()
-	 */
+
 	@Override
 	public Map<FieldSet, Long> getEstimatedCardinalities() {
 		final Map<FieldSet, Long> m = this.source.template.getEstimatedCardinalities();
@@ -343,9 +337,7 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 		return res;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.EstimateProvider#getEstimatedCardinality(eu.stratosphere.pact.common.util.FieldSet)
-	 */
+
 	@Override
 	public long getEstimatedCardinality(FieldSet cP) {
 		return this.source.template.getEstimatedCardinality(cP) * this.replicationFactor;
@@ -514,9 +506,7 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 	// --------------------------------------------------------------------------------------------
 
 	
-	/* (non-Javadoc)
-	 * @see java.lang.Object#toString()
-	 */
+
 	public String toString() {
 		return "Channel (" + this.source + (this.target == null ? ')' : ") -> (" + this.target + ')') +
 				'[' + this.shipStrategy + "] [" + this.localStrategy + "] " +

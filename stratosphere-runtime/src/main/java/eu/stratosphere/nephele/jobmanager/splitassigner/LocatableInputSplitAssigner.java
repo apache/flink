@@ -48,9 +48,7 @@ public final class LocatableInputSplitAssigner implements InputSplitAssigner {
 
 	private final ConcurrentMap<ExecutionGroupVertex, LocatableInputSplitList> vertexMap = new ConcurrentHashMap<ExecutionGroupVertex, LocatableInputSplitList>();
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void registerGroupVertex(final ExecutionGroupVertex groupVertex) {
 
@@ -103,17 +101,13 @@ public final class LocatableInputSplitAssigner implements InputSplitAssigner {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void unregisterGroupVertex(final ExecutionGroupVertex groupVertex) {
 		this.vertexMap.remove(groupVertex);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public InputSplit getNextInputSplit(final ExecutionVertex vertex) {
 

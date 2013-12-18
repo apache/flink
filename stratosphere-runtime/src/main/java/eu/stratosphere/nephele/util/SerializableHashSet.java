@@ -43,9 +43,7 @@ public class SerializableHashSet<T extends IOReadableWritable> extends HashSet<T
 	 */
 	private static final long serialVersionUID = -4615823301768215807L;
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final DataOutput out) throws IOException {
 
@@ -61,9 +59,7 @@ public class SerializableHashSet<T extends IOReadableWritable> extends HashSet<T
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@SuppressWarnings("unchecked")
 	// TODO: See if type safety can be improved here
 	@Override

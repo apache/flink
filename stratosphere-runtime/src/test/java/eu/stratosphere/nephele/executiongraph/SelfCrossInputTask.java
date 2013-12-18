@@ -26,9 +26,7 @@ import eu.stratosphere.nephele.template.AbstractFileInputTask;
  */
 public class SelfCrossInputTask extends AbstractFileInputTask {
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void registerInputOutput() {
 
@@ -36,9 +34,7 @@ public class SelfCrossInputTask extends AbstractFileInputTask {
 		new RecordWriter<StringRecord>(this, StringRecord.class);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void invoke() throws Exception {
 

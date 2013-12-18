@@ -193,9 +193,7 @@ public abstract class Operator implements Visitable<Operator> {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	/* (non-Javadoc)
-	 * @see java.lang.Object#toString()
-	 */
+
 	@Override
 	public String toString() {
 		return getClass().getSimpleName() + " - " + getName();

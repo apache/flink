@@ -89,9 +89,7 @@ public class FieldSet implements Iterable<Integer> {
 		return this.collection.size();
 	}
 	
-	/* (non-Javadoc)
-	 * @see java.lang.Iterable#iterator()
-	 */
+
 	@Override
 	public Iterator<Integer> iterator() {
 		return this.collection.iterator();
@@ -138,17 +136,13 @@ public class FieldSet implements Iterable<Integer> {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	/* (non-Javadoc)
-	 * @see java.lang.Object#hashCode()
-	 */
+
 	@Override
 	public int hashCode() {
 		return this.collection.hashCode();
 	}
 
-	/* (non-Javadoc)
-	 * @see java.lang.Object#equals(java.lang.Object)
-	 */
+
 	@Override
 	public boolean equals(Object obj) {
 		if (obj == null) {
@@ -161,9 +155,7 @@ public class FieldSet implements Iterable<Integer> {
 		}
 	}
 
-	/* (non-Javadoc)
-	 * @see java.lang.Object#toString()
-	 */
+
 	@Override
 	public String toString() {
 		StringBuilder bld = new StringBuilder();
@@ -180,9 +172,7 @@ public class FieldSet implements Iterable<Integer> {
 		return bld.toString();
 	}
 	
-	/* (non-Javadoc)
-	 * @see java.lang.Object#clone()
-	 */
+
 	public FieldSet clone() {
 		FieldSet set = new FieldSet();
 		set.addAll(this.collection);

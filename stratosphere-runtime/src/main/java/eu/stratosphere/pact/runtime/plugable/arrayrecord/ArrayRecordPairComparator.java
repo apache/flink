@@ -57,9 +57,7 @@ public class ArrayRecordPairComparator extends TypePairComparator<Value[], Value
 	
 	// --------------------------------------------------------------------------------------------
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeComparator#setReference(java.lang.Object)
-	 */
+
 	@SuppressWarnings("unchecked")
 	@Override
 	public void setReference(Value[] reference) {
@@ -68,9 +66,7 @@ public class ArrayRecordPairComparator extends TypePairComparator<Value[], Value
 		}
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeComparator#equalToReference(java.lang.Object)
-	 */
+
 	@Override
 	public boolean equalToReference(Value[] candidate) {
 		for (int i = 0; i < this.keyFields2.length; i++) {
@@ -83,9 +79,7 @@ public class ArrayRecordPairComparator extends TypePairComparator<Value[], Value
 		return true;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypePairComparator#compareToReference(java.lang.Object)
-	 */
+
 	@Override
 	public int compareToReference(Value[] candidate) {
 		for (int i = 0; i < this.keyFields2.length; i++) {

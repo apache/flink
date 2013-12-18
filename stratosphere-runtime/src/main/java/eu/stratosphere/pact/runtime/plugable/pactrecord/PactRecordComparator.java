@@ -180,9 +180,7 @@ public final class PactRecordComparator extends TypeComparator<PactRecord> {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#hash(java.lang.Object)
-	 */
+
 	@Override
 	public int hash(PactRecord object) {
 		int i = 0;
@@ -202,9 +200,7 @@ public final class PactRecordComparator extends TypeComparator<PactRecord> {
 		}
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#setReferenceForEquality(java.lang.Object)
-	 */
+
 	@Override
 	public void setReference(PactRecord toCompare) {
 		for (int i = 0; i < this.keyFields.length; i++) {
@@ -214,9 +210,7 @@ public final class PactRecordComparator extends TypeComparator<PactRecord> {
 		}
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#equalToReference(java.lang.Object)
-	 */
+
 	@Override
 	public boolean equalToReference(PactRecord candidate) {
 		for (int i = 0; i < this.keyFields.length; i++) {
@@ -229,9 +223,7 @@ public final class PactRecordComparator extends TypeComparator<PactRecord> {
 		return true;
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#compareToReference(eu.stratosphere.pact.runtime.plugable.TypeAccessors)
-	 */
+
 	@Override
 	public int compareToReference(TypeComparator<PactRecord> referencedAccessors) {
 		final PactRecordComparator pra = (PactRecordComparator) referencedAccessors;
@@ -268,25 +260,19 @@ public final class PactRecordComparator extends TypeComparator<PactRecord> {
 	
 	// --------------------------------------------------------------------------------------------
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#supportsNormalizedKey()
-	 */
+
 	@Override
 	public boolean supportsNormalizedKey() {
 		return this.numLeadingNormalizableKeys > 0;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#getNormalizeKeyLen()
-	 */
+
 	@Override
 	public int getNormalizeKeyLen() {
 		return this.normalizableKeyPrefixLen;
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#isNormalizedKeyPrefixOnly()
-	 */
+
 	@Override
 	public boolean isNormalizedKeyPrefixOnly(int keyBytes) {
 		return this.numLeadingNormalizableKeys < this.keyFields.length ||
@@ -315,9 +301,7 @@ public final class PactRecordComparator extends TypeComparator<PactRecord> {
 		}
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.generic.types.TypeComparator#invertNormalizedKey()
-	 */
+
 	@Override
 	public boolean invertNormalizedKey() {
 		return !this.ascending[0];
@@ -325,9 +309,7 @@ public final class PactRecordComparator extends TypeComparator<PactRecord> {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.generic.types.TypeComparator#supportsSerializationWithKeyNormalization()
-	 */
+
 	@Override
 	public boolean supportsSerializationWithKeyNormalization() {
 		return false;
@@ -351,9 +333,7 @@ public final class PactRecordComparator extends TypeComparator<PactRecord> {
 	
 	// --------------------------------------------------------------------------------------------
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#duplicate()
-	 */
+
 	@Override
 	public PactRecordComparator duplicate() {
 		return new PactRecordComparator(this);

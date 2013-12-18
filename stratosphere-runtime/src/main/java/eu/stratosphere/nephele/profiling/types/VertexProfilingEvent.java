@@ -66,9 +66,7 @@ public abstract class VertexProfilingEvent extends ProfilingEvent {
 		return this.profilingInterval;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void read(DataInput in) throws IOException {
 		super.read(in);
@@ -79,9 +77,7 @@ public abstract class VertexProfilingEvent extends ProfilingEvent {
 		this.profilingInterval = in.readInt();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(DataOutput out) throws IOException {
 		super.write(out);
@@ -90,9 +86,7 @@ public abstract class VertexProfilingEvent extends ProfilingEvent {
 		out.writeInt(this.profilingInterval);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean equals(Object obj) {
 

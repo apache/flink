@@ -86,9 +86,7 @@ public class LocalScheduler extends AbstractScheduler implements JobStatusListen
 		// TODO: Remove vertices from restart map
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void schedulJob(final ExecutionGraph executionGraph) throws SchedulingException {
 
@@ -156,9 +154,7 @@ public class LocalScheduler extends AbstractScheduler implements JobStatusListen
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public ExecutionGraph getExecutionGraphByID(final JobID jobID) {
 
@@ -177,9 +173,7 @@ public class LocalScheduler extends AbstractScheduler implements JobStatusListen
 		return null;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void shutdown() {
 
@@ -189,9 +183,7 @@ public class LocalScheduler extends AbstractScheduler implements JobStatusListen
 
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void jobStatusHasChanged(final ExecutionGraph executionGraph, final InternalJobStatus newJobStatus,
 			final String optionalMessage) {
@@ -202,9 +194,7 @@ public class LocalScheduler extends AbstractScheduler implements JobStatusListen
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void nextExecutionStageEntered(final JobID jobID, final ExecutionStage executionStage) {
 

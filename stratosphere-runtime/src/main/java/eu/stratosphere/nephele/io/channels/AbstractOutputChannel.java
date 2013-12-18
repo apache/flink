@@ -86,9 +86,7 @@ public abstract class AbstractOutputChannel<T extends IOReadableWritable> extend
 	public abstract void requestClose() throws IOException, InterruptedException;
 
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean isInputChannel() {
 		return false;
@@ -96,9 +94,7 @@ public abstract class AbstractOutputChannel<T extends IOReadableWritable> extend
 
 	public abstract void flush() throws IOException, InterruptedException;
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public JobID getJobID() {
 		return this.outputGate.getJobID();

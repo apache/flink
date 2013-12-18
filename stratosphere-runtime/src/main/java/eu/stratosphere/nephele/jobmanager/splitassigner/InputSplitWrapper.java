@@ -69,9 +69,7 @@ public final class InputSplitWrapper implements IOReadableWritable {
 		this.jobID = new JobID();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final DataOutput out) throws IOException {
 
@@ -92,9 +90,7 @@ public final class InputSplitWrapper implements IOReadableWritable {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@SuppressWarnings("unchecked")
 	@Override
 	public void read(final DataInput in) throws IOException {

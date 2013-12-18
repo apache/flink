@@ -52,26 +52,20 @@ public class CoGroupDriver<IT1, IT2, OT> implements PactDriver<GenericCoGrouper<
 
 	// ------------------------------------------------------------------------
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.PactDriver#setup(eu.stratosphere.pact.runtime.task.PactTaskContext)
-	 */
+
 	@Override
 	public void setup(PactTaskContext<GenericCoGrouper<IT1, IT2, OT>, OT> context) {
 		this.taskContext = context;
 		this.running = true;
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#getNumberOfInputs()
-	 */
+
 	@Override
 	public int getNumberOfInputs() {
 		return 2;
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#getStubType()
-	 */
+
 	@Override
 	public Class<GenericCoGrouper<IT1, IT2, OT>> getStubType() {
 		@SuppressWarnings("unchecked")
@@ -79,17 +73,13 @@ public class CoGroupDriver<IT1, IT2, OT> implements PactDriver<GenericCoGrouper<
 		return clazz;
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#requiresComparatorOnInput()
-	 */
+
 	@Override
 	public boolean requiresComparatorOnInput() {
 		return true;
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#prepare()
-	 */
+
 	@Override
 	public void prepare() throws Exception
 	{
@@ -125,9 +115,7 @@ public class CoGroupDriver<IT1, IT2, OT> implements PactDriver<GenericCoGrouper<
 			LOG.debug(this.taskContext.formatLogString("CoGroup task iterator ready."));
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#run()
-	 */
+
 	@Override
 	public void run() throws Exception
 	{
@@ -140,9 +128,7 @@ public class CoGroupDriver<IT1, IT2, OT> implements PactDriver<GenericCoGrouper<
 		}
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#cleanup()
-	 */
+
 	@Override
 	public void cleanup() throws Exception {
 		if (this.coGroupIterator != null) {
@@ -151,9 +137,7 @@ public class CoGroupDriver<IT1, IT2, OT> implements PactDriver<GenericCoGrouper<
 		}
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.PactDriver#cancel()
-	 */
+
 	@Override
 	public void cancel() throws Exception {
 		this.running = false;

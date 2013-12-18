@@ -103,9 +103,7 @@ public class SpillingResettableMutableObjectIterator<T> implements ResettableMut
 	public void open() throws IOException
 	{}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.util.ResettableMutableObjectIterator#reset()
-	 */
+
 	@Override
 	public void reset() throws IOException
 	{

@@ -79,9 +79,7 @@ public class MockInputSplitProvider implements InputSplitProvider {
 		this.inputSplits = tmp;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public InputSplit getNextInputSplit() {
 

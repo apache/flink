@@ -284,9 +284,7 @@ public final class ManagementVertex extends ManagementAttachment implements IORe
 		this.instanceType = instanceType;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void read(final DataInput in) throws IOException {
 
@@ -309,9 +307,7 @@ public final class ManagementVertex extends ManagementAttachment implements IORe
 		this.instanceType = StringRecord.readString(in);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final DataOutput out) throws IOException {
 

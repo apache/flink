@@ -87,9 +87,7 @@ public final class ExecutionStateChangeEvent extends AbstractEvent implements Ma
 		return this.newExecutionState;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void read(final DataInput in) throws IOException {
 
@@ -99,9 +97,7 @@ public final class ExecutionStateChangeEvent extends AbstractEvent implements Ma
 		this.newExecutionState = EnumUtils.readEnum(in, ExecutionState.class);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final DataOutput out) throws IOException {
 
@@ -111,9 +107,7 @@ public final class ExecutionStateChangeEvent extends AbstractEvent implements Ma
 		EnumUtils.writeEnum(out, this.newExecutionState);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean equals(final Object obj) {
 
@@ -137,9 +131,7 @@ public final class ExecutionStateChangeEvent extends AbstractEvent implements Ma
 		return true;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int hashCode() {
 

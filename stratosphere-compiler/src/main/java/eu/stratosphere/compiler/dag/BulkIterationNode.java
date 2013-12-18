@@ -147,17 +147,11 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 		return Collections.<OperatorDescriptorSingle>singletonList(new NoOpDescriptor());
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isMemoryConsumer()
-	 */
 	@Override
 	public boolean isMemoryConsumer() {
 		return true;
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeInterestingPropertiesForInputs(eu.stratosphere.pact.compiler.costs.CostEstimator)
-	 */
 	@Override
 	public void computeInterestingPropertiesForInputs(CostEstimator estimator) {
 		final InterestingProperties intProps = getInterestingProperties().clone();
@@ -190,9 +184,6 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 		this.inConn.setInterestingProperties(inProps);
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.SingleInputNode#instantiateCandidate(eu.stratosphere.pact.compiler.operators.OperatorDescriptorSingle, eu.stratosphere.pact.compiler.plan.candidate.Channel, java.util.List, eu.stratosphere.pact.compiler.costs.CostEstimator, eu.stratosphere.pact.compiler.dataproperties.RequestedGlobalProperties, eu.stratosphere.pact.compiler.dataproperties.RequestedLocalProperties)
-	 */
 	@Override
 	protected void instantiateCandidate(OperatorDescriptorSingle dps, Channel in, List<PlanNode> target,
 			CostEstimator estimator, RequestedGlobalProperties globPropsReq, RequestedLocalProperties locPropsReq)
@@ -239,9 +230,6 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 	//                      Iteration Specific Traversals
 	// --------------------------------------------------------------------------------------------
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.IterationNode#acceptForStepFunction(eu.stratosphere.pact.common.plan.Visitor)
-	 */
 	public void acceptForStepFunction(Visitor<OptimizerNode> visitor) {
 		this.nextPartialSolution.accept(visitor);
 	}

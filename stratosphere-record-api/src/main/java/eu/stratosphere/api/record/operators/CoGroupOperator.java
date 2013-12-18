@@ -104,9 +104,7 @@ public class CoGroupOperator extends CoGroupOperatorBase<CoGroupFunction> implem
 
 	// --------------------------------------------------------------------------------------------
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.api.record.operators.RecordOperator#getKeyClasses()
-	 */
+
 	@Override
 	public Class<? extends Key>[] getKeyClasses() {
 		return this.keyTypes;

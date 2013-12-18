@@ -217,9 +217,6 @@ public abstract class SingleInputNode extends OptimizerNode {
 		return false;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeInterestingPropertiesForInputs(eu.stratosphere.pact.compiler.costs.CostEstimator)
-	 */
 	@Override
 	public void computeInterestingPropertiesForInputs(CostEstimator estimator) {
 		// get what we inherit and what is preserved by our user code 

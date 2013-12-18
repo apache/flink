@@ -77,9 +77,7 @@ public abstract class AbstractByteBufferedOutputChannel<T extends IOReadableWrit
 		super(outputGate, channelIndex, channelID, connectedChannelID);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean isClosed() throws IOException, InterruptedException {
 
@@ -94,9 +92,7 @@ public abstract class AbstractByteBufferedOutputChannel<T extends IOReadableWrit
 		return false;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void requestClose() throws IOException, InterruptedException {
 
@@ -145,9 +141,7 @@ public abstract class AbstractByteBufferedOutputChannel<T extends IOReadableWrit
 		this.dataBuffer = null;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void writeRecord(T record) throws IOException, InterruptedException {
 
@@ -204,9 +198,7 @@ public abstract class AbstractByteBufferedOutputChannel<T extends IOReadableWrit
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void transferEvent(AbstractEvent event) throws IOException, InterruptedException {
 
@@ -214,9 +206,7 @@ public abstract class AbstractByteBufferedOutputChannel<T extends IOReadableWrit
 		this.outputChannelBroker.transferEventToInputChannel(event);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void flush() throws IOException, InterruptedException {
 
@@ -243,9 +233,7 @@ public abstract class AbstractByteBufferedOutputChannel<T extends IOReadableWrit
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void releaseAllResources() {
 
@@ -260,9 +248,7 @@ public abstract class AbstractByteBufferedOutputChannel<T extends IOReadableWrit
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public long getAmountOfDataTransmitted() {
 

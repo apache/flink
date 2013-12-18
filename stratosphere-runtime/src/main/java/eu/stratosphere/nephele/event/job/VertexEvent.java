@@ -109,9 +109,7 @@ public class VertexEvent extends AbstractEvent {
 		this.description = null;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void read(final DataInput in) throws IOException {
 
@@ -125,9 +123,7 @@ public class VertexEvent extends AbstractEvent {
 		this.description = StringRecord.readString(in);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final DataOutput out) throws IOException {
 
@@ -197,9 +193,7 @@ public class VertexEvent extends AbstractEvent {
 		return description;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	public String toString() {
 
 		return timestampToString(getTimestamp()) + ":\t" + this.jobVertexName + " (" + (this.indexOfSubtask + 1) + "/"
@@ -207,9 +201,7 @@ public class VertexEvent extends AbstractEvent {
 			+ ((this.description != null) ? ("\n" + this.description) : "");
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean equals(final Object obj) {
 
@@ -263,9 +255,7 @@ public class VertexEvent extends AbstractEvent {
 		return true;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int hashCode() {
 

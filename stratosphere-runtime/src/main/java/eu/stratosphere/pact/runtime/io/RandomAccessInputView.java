@@ -59,9 +59,7 @@ public class RandomAccessInputView extends AbstractPagedInputView implements See
 		this.limitInLastSegment = limitInLastSegment;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.services.memorymanager.SeekableDataInputView#setReadPosition(long)
-	 */
+
 	@Override
 	public void setReadPosition(long position)
 	{
@@ -72,9 +70,7 @@ public class RandomAccessInputView extends AbstractPagedInputView implements See
 		seekInput(this.segments.get(bufferNum), offset, bufferNum < this.segments.size() - 1 ? this.segmentSize : this.limitInLastSegment);
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.services.memorymanager.AbstractPagedInputView#nextSegment(eu.stratosphere.nephele.services.memorymanager.MemorySegment)
-	 */
+
 	@Override
 	protected MemorySegment nextSegment(MemorySegment current) throws EOFException
 	{
@@ -85,9 +81,7 @@ public class RandomAccessInputView extends AbstractPagedInputView implements See
 		}
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.services.memorymanager.AbstractPagedInputView#getLimitForSegment(eu.stratosphere.nephele.services.memorymanager.MemorySegment)
-	 */
+
 	@Override
 	protected int getLimitForSegment(MemorySegment segment)
 	{

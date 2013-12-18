@@ -27,43 +27,29 @@ import eu.stratosphere.compiler.plan.Channel;
 import eu.stratosphere.compiler.plan.SingleInputPlanNode;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
-public final class AllGroupProperties extends OperatorDescriptorSingle
-{
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.dataproperties.DriverPropertiesHandler#getStrategy()
-	 */
+public final class AllGroupProperties extends OperatorDescriptorSingle {
+
 	@Override
 	public DriverStrategy getStrategy() {
 		return DriverStrategy.ALL_GROUP;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.dataproperties.DriverPropertiesHandlerSingle#instantiate(eu.stratosphere.pact.compiler.plan.candidate.Channel, eu.stratosphere.pact.compiler.plan.SingleInputNode, eu.stratosphere.pact.common.util.FieldList)
-	 */
 	@Override
 	public SingleInputPlanNode instantiate(Channel in, SingleInputNode node) {
 		return new SingleInputPlanNode(node, "Reduce("+node.getPactContract().getName()+")", in, DriverStrategy.ALL_GROUP);
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.dataproperties.DriverPropertiesSingle#createPossibleGlobalProperties()
-	 */
 	@Override
 	protected List<RequestedGlobalProperties> createPossibleGlobalProperties() {
 		return Collections.singletonList(new RequestedGlobalProperties());
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.dataproperties.DriverPropertiesSingle#createPossibleLocalProperties()
-	 */
 	@Override
 	protected List<RequestedLocalProperties> createPossibleLocalProperties() {
 		return Collections.singletonList(new RequestedLocalProperties());
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.operators.OperatorDescriptorSingle#computeGlobalProperties(eu.stratosphere.pact.compiler.dataproperties.GlobalProperties)
-	 */
+	
 	@Override
 	public GlobalProperties computeGlobalProperties(GlobalProperties gProps) {
 		if (gProps.getUniqueFieldCombination() != null && gProps.getUniqueFieldCombination().size() > 0 &&
@@ -75,9 +61,7 @@ public final class AllGroupProperties extends OperatorDescriptorSingle
 		return gProps;
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.operators.OperatorDescriptorSingle#computeLocalProperties(eu.stratosphere.pact.compiler.dataproperties.LocalProperties)
-	 */
+
 	@Override
 	public LocalProperties computeLocalProperties(LocalProperties lProps) {
 		lProps.clearUniqueFieldSets();

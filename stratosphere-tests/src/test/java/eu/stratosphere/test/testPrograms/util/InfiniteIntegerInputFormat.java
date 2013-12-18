@@ -29,17 +29,13 @@ public class InfiniteIntegerInputFormat extends GenericInputFormat {
 	
 	private final PactInteger one = new PactInteger(1);
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.generic.io.InputFormat#reachedEnd()
-	 */
+
 	@Override
 	public boolean reachedEnd() throws IOException {
 		return false;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.generic.io.InputFormat#nextRecord(java.lang.Object)
-	 */
+
 	@Override
 	public boolean nextRecord(PactRecord record) throws IOException
 	{

@@ -897,73 +897,55 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 	//                                   Task Context Signature
 	// -------------------------------------------------------------------------------------------
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.PactTaskContext#getTaskConfig()
-	 */
+
 	@Override
 	public TaskConfig getTaskConfig() {
 		return this.config;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.PactTaskContext#getUserCodeClassLoader()
-	 */
+
 	@Override
 	public ClassLoader getUserCodeClassLoader() {
 		return this.userCodeClassLoader;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.PactTaskContext#getMemoryManager()
-	 */
+
 	@Override
 	public MemoryManager getMemoryManager() {
 		return getEnvironment().getMemoryManager();
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.PactTaskContext#getIOManager()
-	 */
+
 	@Override
 	public IOManager getIOManager() {
 		return getEnvironment().getIOManager();
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.PactTaskContext#getStub()
-	 */
+
 	@Override
 	public S getStub() {
 		return this.stub;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.PactTaskContext#getOutputCollector()
-	 */
+
 	@Override
 	public Collector<OT> getOutputCollector() {
 		return this.output;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.PactTaskContext#getOwningNepheleTask()
-	 */
+
 	@Override
 	public AbstractInvokable getOwningNepheleTask() {
 		return this;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.PactTaskContext#formatLogString(java.lang.String)
-	 */
+
 	@Override
 	public String formatLogString(String message) {
 		return constructLogString(message, getEnvironment().getTaskName(), this);
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.PactTaskContext#getInput(int)
-	 */
+
 	@Override
 	public <X> MutableObjectIterator<X> getInput(int index) {
 		if (index < 0 || index > this.driver.getNumberOfInputs()) {
@@ -999,9 +981,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 		}
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.PactTaskContext#getInputSerializer(int)
-	 */
+
 	@Override
 	public <X> TypeSerializer<X> getInputSerializer(int index) {
 		if (index < 0 || index >= this.driver.getNumberOfInputs()) {
@@ -1014,9 +994,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 	}
 
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.PactTaskContext#getInputComparator(int)
-	 */
+
 	@Override
 	public <X> TypeComparator<X> getInputComparator(int index) {
 		if (this.inputComparators == null) {

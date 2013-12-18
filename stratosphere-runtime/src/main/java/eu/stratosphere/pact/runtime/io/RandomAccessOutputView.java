@@ -72,9 +72,7 @@ public class RandomAccessOutputView extends AbstractPagedOutputView implements S
 		}
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.services.memorymanager.SeekableDataOutputView#setWritePosition(long)
-	 */
+
 	@Override
 	public void setWritePosition(long position)
 	{

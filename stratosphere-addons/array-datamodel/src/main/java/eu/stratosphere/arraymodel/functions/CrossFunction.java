@@ -46,9 +46,6 @@ public abstract class CrossFunction extends AbstractArrayModelFunction implement
 	@Override
 	public abstract void cross(Value[] record1, Value[] record2, Collector<Value[]> out);
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.array.stubs.AbstractArrayModelStub#getUDFMethod()
-	 */
 	@Override
 	public Method getUDFMethod() {
 		try {

@@ -54,9 +54,7 @@ public class TaskInputSplitProvider implements InputSplitProvider {
 		this.globalInputSplitProvider = globalInputSplitProvider;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public InputSplit getNextInputSplit() {
 

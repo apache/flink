@@ -57,9 +57,7 @@ public class PactRecordPairComparator extends TypePairComparator<PactRecord, Pac
 	
 	// --------------------------------------------------------------------------------------------
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeComparator#setReference(java.lang.Object)
-	 */
+
 	@Override
 	public void setReference(PactRecord reference)
 	{
@@ -70,9 +68,7 @@ public class PactRecordPairComparator extends TypePairComparator<PactRecord, Pac
 		}
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeComparator#equalToReference(java.lang.Object)
-	 */
+
 	@Override
 	public boolean equalToReference(PactRecord candidate)
 	{
@@ -86,9 +82,7 @@ public class PactRecordPairComparator extends TypePairComparator<PactRecord, Pac
 		return true;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypePairComparator#compareToReference(java.lang.Object)
-	 */
+
 	@Override
 	public int compareToReference(PactRecord candidate)
 	{

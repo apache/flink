@@ -99,9 +99,7 @@ public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerPro
 		this.timer.schedule(this, initialDelay, this.timerInterval);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void registerExecutionListener(final RuntimeTask task, final Configuration jobConfiguration) {
 

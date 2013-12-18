@@ -88,9 +88,7 @@ public class IntegerRecord implements IOReadableWritable {
 		return (this.value == ir.value);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int hashCode() {
 		return this.value;

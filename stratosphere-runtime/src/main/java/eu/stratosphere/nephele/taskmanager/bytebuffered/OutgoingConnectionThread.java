@@ -54,9 +54,7 @@ public class OutgoingConnectionThread extends Thread {
 		this.selector = Selector.open();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void run() {
 

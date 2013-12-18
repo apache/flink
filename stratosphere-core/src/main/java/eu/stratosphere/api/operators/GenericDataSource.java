@@ -171,9 +171,7 @@ public class GenericDataSource<T extends InputFormat<?, ?>> extends Operator imp
 		}
 	}
 	
-	/* (non-Javadoc)
-	 * @see java.lang.Object#toString()
-	 */
+
 	public String toString() {
 		return this.name;
 	}

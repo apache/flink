@@ -92,18 +92,14 @@ public final class RemoteReceiver implements IOReadableWritable {
 		return this.connectionIndex;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int hashCode() {
 
 		return this.connectionAddress.hashCode() + (31 * this.connectionIndex);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean equals(final Object obj) {
 
@@ -123,9 +119,7 @@ public final class RemoteReceiver implements IOReadableWritable {
 		return true;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final DataOutput out) throws IOException {
 
@@ -137,9 +131,7 @@ public final class RemoteReceiver implements IOReadableWritable {
 		out.writeInt(this.connectionIndex);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void read(final DataInput in) throws IOException {
 
@@ -159,9 +151,7 @@ public final class RemoteReceiver implements IOReadableWritable {
 		this.connectionIndex = in.readInt();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public String toString() {
 

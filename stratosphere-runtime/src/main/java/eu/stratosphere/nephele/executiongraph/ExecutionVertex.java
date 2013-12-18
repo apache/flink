@@ -822,9 +822,7 @@ public final class ExecutionVertex {
 		return this.executionGraph;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public String toString() {
 

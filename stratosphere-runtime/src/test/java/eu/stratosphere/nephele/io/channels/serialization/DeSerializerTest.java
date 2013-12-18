@@ -278,9 +278,7 @@ public class DeSerializerTest
 		public void close()
 		{}
 
-		/* (non-Javadoc)
-		 * @see java.nio.channels.WritableByteChannel#write(java.nio.ByteBuffer)
-		 */
+
 		@Override
 		public int write(ByteBuffer src)
 		{
@@ -290,9 +288,7 @@ public class DeSerializerTest
 			return toGet;
 		}
 
-		/* (non-Javadoc)
-		 * @see java.nio.channels.ReadableByteChannel#read(java.nio.ByteBuffer)
-		 */
+
 		@Override
 		public int read(ByteBuffer dst) throws IOException
 		{

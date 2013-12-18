@@ -152,9 +152,7 @@ public final class S3DataOutputStream extends FSDataOutputStream {
 		this.useRRS = useRRS;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final int b) throws IOException {
 
@@ -166,9 +164,7 @@ public final class S3DataOutputStream extends FSDataOutputStream {
 		this.buf[this.bytesWritten++] = (byte) b;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final byte[] b, final int off, final int len) throws IOException {
 
@@ -188,18 +184,14 @@ public final class S3DataOutputStream extends FSDataOutputStream {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final byte[] b) throws IOException {
 
 		write(b, 0, b.length);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void close() throws IOException {
 
@@ -255,9 +247,7 @@ public final class S3DataOutputStream extends FSDataOutputStream {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void flush() throws IOException {
 

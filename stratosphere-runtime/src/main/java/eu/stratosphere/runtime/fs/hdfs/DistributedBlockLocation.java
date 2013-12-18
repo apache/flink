@@ -60,9 +60,7 @@ public final class DistributedBlockLocation implements BlockLocation {
 		this.blockLocation = blockLocation;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public String[] getHosts() throws IOException {
 
@@ -113,27 +111,21 @@ public final class DistributedBlockLocation implements BlockLocation {
 		return originalHostname.substring(0, index);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public long getLength() {
 
 		return this.blockLocation.getLength();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public long getOffset() {
 
 		return this.blockLocation.getOffset();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int compareTo(final BlockLocation o) {
 

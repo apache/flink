@@ -43,17 +43,13 @@ public class SimpleCloseableInputProvider<E> implements CloseableInputProvider<E
 	}
 	
 	
-	/* (non-Javadoc)
-	 * @see java.io.Closeable#close()
-	 */
+
 	@Override
 	public void close() throws IOException {
 		// do nothing
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.util.CloseableInputProvider#getIterator()
-	 */
+
 	@Override
 	public MutableObjectIterator<E> getIterator() {
 		return this.iterator;

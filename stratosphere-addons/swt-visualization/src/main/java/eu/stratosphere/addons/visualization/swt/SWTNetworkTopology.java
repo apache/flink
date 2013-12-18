@@ -91,9 +91,7 @@ public class SWTNetworkTopology extends AbstractSWTComponent {
 		this.rootNode = rootNode;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	protected void paintInternal(GC gc, Device device) {
 

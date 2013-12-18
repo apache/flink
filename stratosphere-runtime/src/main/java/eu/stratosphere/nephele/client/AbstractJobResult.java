@@ -80,9 +80,7 @@ public abstract class AbstractJobResult implements IOReadableWritable {
 	public AbstractJobResult() {
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void read(final DataInput in) throws IOException {
 
@@ -93,9 +91,7 @@ public abstract class AbstractJobResult implements IOReadableWritable {
 		this.description = StringRecord.readString(in);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final DataOutput out) throws IOException {
 
@@ -124,9 +120,7 @@ public abstract class AbstractJobResult implements IOReadableWritable {
 		return this.description;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean equals(final Object obj) {
 
@@ -164,9 +158,7 @@ public abstract class AbstractJobResult implements IOReadableWritable {
 		return true;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int hashCode() {
 

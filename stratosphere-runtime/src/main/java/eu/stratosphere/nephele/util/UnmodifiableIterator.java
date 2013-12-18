@@ -45,27 +45,21 @@ public final class UnmodifiableIterator<T> implements Iterator<T> {
 		this.encapsulatedIterator = encapsulatedIterator;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean hasNext() {
 
 		return this.encapsulatedIterator.hasNext();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public T next() {
 
 		return this.encapsulatedIterator.next();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void remove() {
 

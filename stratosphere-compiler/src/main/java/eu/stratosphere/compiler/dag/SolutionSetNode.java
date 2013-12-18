@@ -70,10 +70,6 @@ public class SolutionSetNode extends AbstractPartialSolutionNode
 		return (SolutionSetPlaceHolder) super.getPactContract();
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getName()
-	 */
 	@Override
 	public String getName() {
 		return "Solution Set";

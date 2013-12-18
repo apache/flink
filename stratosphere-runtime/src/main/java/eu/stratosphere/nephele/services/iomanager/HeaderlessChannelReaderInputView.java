@@ -68,9 +68,7 @@ public class HeaderlessChannelReaderInputView extends ChannelReaderInputView
 		this.lastBlockBytes = numBytesInLastBlock;
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.io.ChannelReaderInputView#nextSegment(eu.stratosphere.nephele.services.memorymanager.MemorySegment)
-	 */
+
 	@Override
 	protected MemorySegment nextSegment(MemorySegment current) throws IOException
 	{
@@ -91,9 +89,7 @@ public class HeaderlessChannelReaderInputView extends ChannelReaderInputView
 		return this.reader.getNextReturnedSegment();
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.io.AbstractPagedInputView#getLimitForSegment(eu.stratosphere.nephele.services.memorymanager.MemorySegment)
-	 */
+
 	@Override
 	protected int getLimitForSegment(MemorySegment segment)
 	{

@@ -51,10 +51,6 @@ public class PlanDisplayServlet extends GUIServletStub {
 		addJavascriptFile("js/pactgraph.js");
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see de.tuberlin.stratosphere.desktop.ServletStub#printPage(java.io.PrintWriter)
-	 */
 	@Override
 	public void printPage(PrintWriter writer, Map<String, String[]> parameters, HttpServletRequest req) throws IOException {
 		String[] x = parameters.get("id");

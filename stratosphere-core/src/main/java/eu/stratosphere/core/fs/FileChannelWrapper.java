@@ -50,63 +50,49 @@ public final class FileChannelWrapper extends FileChannel {
 		this.replication = replication;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void force(final boolean metaData) throws IOException {
 
 		throw new UnsupportedOperationException("Method force is not implemented");
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public FileLock lock(final long position, final long size, final boolean shared) throws IOException {
 
 		throw new UnsupportedOperationException("Method lock is not implemented");
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public MappedByteBuffer map(final MapMode mode, final long position, final long size) throws IOException {
 
 		throw new UnsupportedOperationException("Method map is not implemented");
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public long position() throws IOException {
 
 		throw new UnsupportedOperationException("Method position is not implemented");
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public FileChannel position(final long newPosition) throws IOException {
 
 		throw new UnsupportedOperationException("Method position is not implemented");
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int read(final ByteBuffer dst) throws IOException {
 
 		throw new UnsupportedOperationException("Method read is not implemented");
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int read(final ByteBuffer dst, final long position) throws IOException {
 
@@ -132,72 +118,56 @@ public final class FileChannelWrapper extends FileChannel {
 		return bytesRead;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public long read(final ByteBuffer[] dsts, final int offset, final int length) throws IOException {
 
 		throw new UnsupportedOperationException("Method read is not implemented");
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public long size() throws IOException {
 
 		throw new UnsupportedOperationException("Method size is not implemented");
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public long transferFrom(final ReadableByteChannel src, final long position, final long count) throws IOException {
 
 		throw new UnsupportedOperationException("Method transferFrom is not implemented");
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public long transferTo(final long position, final long count, final WritableByteChannel target) throws IOException {
 
 		throw new UnsupportedOperationException("Method transferTo is not implemented");
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public FileChannel truncate(final long size) throws IOException {
 
 		throw new UnsupportedOperationException("Method truncate is not implemented");
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public FileLock tryLock(final long position, final long size, final boolean shared) throws IOException {
 
 		throw new UnsupportedOperationException("Method tryLock is not implemented");
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int write(final ByteBuffer src) throws IOException {
 
 		return write(src, this.nextExpectedWritePosition);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int write(final ByteBuffer src, final long position) throws IOException {
 
@@ -222,9 +192,7 @@ public final class FileChannelWrapper extends FileChannel {
 		return totalBytesWritten;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public long write(final ByteBuffer[] srcs, final int offset, final int length) throws IOException {
 
@@ -250,9 +218,7 @@ public final class FileChannelWrapper extends FileChannel {
 		return this.inputStream;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	protected void implCloseChannel() throws IOException {
 

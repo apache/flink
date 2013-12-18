@@ -71,9 +71,7 @@ public class CrossOperator extends CrossOperatorBase<CrossFunction> implements R
 		setSecondInputs(builder.inputs2);
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.api.record.operators.RecordOperator#getKeyClasses()
-	 */
+
 	@Override
 	public Class<? extends Key>[] getKeyClasses() {
 		return emptyClassArray();

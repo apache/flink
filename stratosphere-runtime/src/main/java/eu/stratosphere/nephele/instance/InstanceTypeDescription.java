@@ -69,9 +69,7 @@ public final class InstanceTypeDescription implements IOReadableWritable {
 		this.maximumNumberOfAvailableInstances = maximumNumberOfAvailableInstances;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final DataOutput out) throws IOException {
 
@@ -92,9 +90,7 @@ public final class InstanceTypeDescription implements IOReadableWritable {
 		out.writeInt(this.maximumNumberOfAvailableInstances);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void read(final DataInput in) throws IOException {
 

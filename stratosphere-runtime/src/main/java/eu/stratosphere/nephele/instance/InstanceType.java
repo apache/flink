@@ -154,9 +154,7 @@ public final class InstanceType implements IOReadableWritable {
 		return this.identifier;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public String toString() {
 
@@ -178,9 +176,7 @@ public final class InstanceType implements IOReadableWritable {
 		return bld.toString();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final DataOutput out) throws IOException {
 
@@ -192,9 +188,7 @@ public final class InstanceType implements IOReadableWritable {
 		out.writeInt(this.pricePerHour);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void read(final DataInput in) throws IOException {
 

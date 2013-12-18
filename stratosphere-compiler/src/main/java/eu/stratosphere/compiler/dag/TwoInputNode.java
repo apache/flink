@@ -114,10 +114,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 	}
 
 	// ------------------------------------------------------------------------
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getPactContract()
-	 */
+
 	@Override
 	public DualInputOperator<?> getPactContract() {
 		return (DualInputOperator<?>) super.getPactContract();
@@ -155,10 +152,6 @@ public abstract class TwoInputNode extends OptimizerNode {
 			return null;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getIncomingConnections()
-	 */
 	@Override
 	public List<PactConnection> getIncomingConnections() {
 		ArrayList<PactConnection> inputs = new ArrayList<PactConnection>(2);
@@ -167,10 +160,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 		return inputs;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#setInputs(java.util.Map)
-	 */
+
 	@Override
 	public void setInputs(Map<Operator, OptimizerNode> contractToNode) {
 		// see if there is a hint that dictates which shipping strategy to use for BOTH inputs
@@ -278,9 +268,6 @@ public abstract class TwoInputNode extends OptimizerNode {
 	
 	protected abstract List<OperatorDescriptorDual> getPossibleProperties();
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isMemoryConsumer()
-	 */
 	@Override
 	public boolean isMemoryConsumer() {
 		for (OperatorDescriptorDual dpd : this.possibleProperties) {
@@ -296,10 +283,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 		}
 		return false;
 	}
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeInterestingPropertiesForInputs(eu.stratosphere.pact.compiler.costs.CostEstimator)
-	 */
+
 	@Override
 	public void computeInterestingPropertiesForInputs(CostEstimator estimator) {
 		// get what we inherit and what is preserved by our user code 
@@ -327,10 +311,6 @@ public abstract class TwoInputNode extends OptimizerNode {
 		this.input2.setInterestingProperties(props2);
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getAlternativePlans()
-	 */
 	@Override
 	public List<PlanNode> getAlternativePlans(CostEstimator estimator) {
 		// check if we have a cached version
@@ -641,10 +621,6 @@ public abstract class TwoInputNode extends OptimizerNode {
 		return subPlan.getEstimatedOutputSize() != -1;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeUnclosedBranchStack()
-	 */
 	@Override
 	public void computeUnclosedBranchStack() {
 		if (this.openBranches != null) {
@@ -666,10 +642,6 @@ public abstract class TwoInputNode extends OptimizerNode {
 	//                                 Function Annotation Handling
 	// --------------------------------------------------------------------------------------------
 	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#readReadsAnnotation()
-	 */
 	@Override
 	protected void readConstantAnnotation() {
 		DualInputOperator<?> c = (DualInputOperator<?>)super.getPactContract();
@@ -768,10 +740,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 			default: throw new IndexOutOfBoundsException();
 		}
 	}
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isFieldConstant(int, int)
-	 */
+
 	@Override
 	public boolean isFieldConstant(int input, int fieldNumber) {
 		switch(input) {

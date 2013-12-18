@@ -214,9 +214,7 @@ public class ExecutionGroupVertexIterator implements Iterator<ExecutionGroupVert
 		return true;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean hasNext() {
 
@@ -232,9 +230,7 @@ public class ExecutionGroupVertexIterator implements Iterator<ExecutionGroupVert
 
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public ExecutionGroupVertex next() {
 
@@ -323,9 +319,7 @@ public class ExecutionGroupVertexIterator implements Iterator<ExecutionGroupVert
 		return null;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void remove() {
 		// According to the documentation this method is optional and does not need to be implemented

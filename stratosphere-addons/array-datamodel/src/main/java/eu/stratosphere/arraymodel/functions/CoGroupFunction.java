@@ -51,9 +51,6 @@ public abstract class CoGroupFunction extends AbstractArrayModelFunction impleme
 	@Override
 	public abstract void coGroup(Iterator<Value[]> records1, Iterator<Value[]> records2, Collector<Value[]> out);
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.array.stubs.AbstractArrayModelStub#getUDFMethod()
-	 */
 	@Override
 	public Method getUDFMethod() {
 		try {

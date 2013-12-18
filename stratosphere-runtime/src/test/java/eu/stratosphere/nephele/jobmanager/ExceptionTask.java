@@ -56,9 +56,7 @@ public class ExceptionTask extends AbstractTask {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void registerInputOutput() {
 
@@ -66,9 +64,7 @@ public class ExceptionTask extends AbstractTask {
 		new RecordWriter<StringRecord>(this, StringRecord.class);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void invoke() throws Exception {
 

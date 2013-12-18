@@ -38,9 +38,7 @@ public final class DefaultDeserializer extends AbstractDeserializer {
 		this.bufferProviderBroker = bufferProviderBroker;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	protected boolean readBufferData(final ReadableByteChannel readableByteChannel) throws IOException,
 			NoBufferAvailableException {

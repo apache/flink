@@ -204,9 +204,7 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 		return this.domainName;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void read(final DataInput in) throws IOException {
 
@@ -226,9 +224,7 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 		this.dataPort = in.readInt();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final DataOutput out) throws IOException {
 
@@ -240,9 +236,7 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 		out.writeInt(this.dataPort);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public String toString() {
 
@@ -257,9 +251,7 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 		return iaString;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean equals(final Object obj) {
 
@@ -284,18 +276,14 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 		return false;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int hashCode() {
 
 		return this.inetAddress.hashCode();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int compareTo(final InstanceConnectionInfo o) {
 

@@ -349,9 +349,7 @@ public class SWTGraphCanvas extends Canvas implements PaintListener, Listener, M
 		this.jobTabItem.killTask(id, taskName);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void killInstance(final String instanceName) {
 

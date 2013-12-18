@@ -94,9 +94,7 @@ public final class GateDeploymentDescriptor implements IOReadableWritable {
 		this.channels = new ArrayList<ChannelDeploymentDescriptor>();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final DataOutput out) throws IOException {
 
@@ -109,9 +107,7 @@ public final class GateDeploymentDescriptor implements IOReadableWritable {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void read(final DataInput in) throws IOException {
 

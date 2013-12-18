@@ -425,9 +425,6 @@ public class Costs implements Comparable<Costs>, Cloneable {
 		}
 	}
 
-	/* (non-Javadoc)
-	 * @see java.lang.Object#hashCode()
-	 */
 	@Override
 	public int hashCode() {
 		final int prime = 31;
@@ -441,10 +438,6 @@ public class Costs implements Comparable<Costs>, Cloneable {
 		return result;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see java.lang.Object#equals(java.lang.Object)
-	 */
 	@Override
 	public boolean equals(Object obj) {
 		if (obj.getClass() == getClass()) {
@@ -460,10 +453,6 @@ public class Costs implements Comparable<Costs>, Cloneable {
 		}
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see java.lang.Object#toString()
-	 */
 	@Override
 	public String toString() {
 		return "Costs [networkCost=" + networkCost + ", diskCost=" + diskCost + 
@@ -471,10 +460,6 @@ public class Costs implements Comparable<Costs>, Cloneable {
 				", heuristicDiskCost=" + heuristicDiskCost + ", heuristicCpuCost=" + heuristicCpuCost + "]";
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see java.lang.Object#clone()
-	 */
 	@Override
 	public Costs clone() {
 		try {

@@ -373,9 +373,7 @@ public abstract class AbstractScheduler implements InstanceListener {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void resourcesAllocated(final JobID jobID, final List<AllocatedResource> allocatedResources) {
 
@@ -563,9 +561,7 @@ public abstract class AbstractScheduler implements InstanceListener {
 		return this.verticesToBeRestarted;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void allocatedResourcesDied(final JobID jobID, final List<AllocatedResource> allocatedResources) {
 

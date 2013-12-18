@@ -80,9 +80,7 @@ public final class JobFailurePatternExecutor implements Runnable {
 		scheduleNextEvent();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void run() {
 

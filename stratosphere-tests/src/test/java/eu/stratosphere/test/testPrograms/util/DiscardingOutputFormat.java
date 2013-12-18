@@ -27,30 +27,22 @@ import eu.stratosphere.types.PactRecord;
 public class DiscardingOutputFormat implements OutputFormat<PactRecord> {
 	private static final long serialVersionUID = 1L;
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.generic.io.OutputFormat#configure(eu.stratosphere.nephele.configuration.Configuration)
-	 */
+
 	@Override
 	public void configure(Configuration parameters)
 	{}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.generic.io.OutputFormat#open(int)
-	 */
+
 	@Override
 	public void open(int taskNumber) throws IOException
 	{}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.generic.io.OutputFormat#writeRecord(java.lang.Object)
-	 */
+
 	@Override
 	public void writeRecord(PactRecord record) throws IOException
 	{}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.generic.io.OutputFormat#close()
-	 */
+
 	@Override
 	public void close() throws IOException
 	{}

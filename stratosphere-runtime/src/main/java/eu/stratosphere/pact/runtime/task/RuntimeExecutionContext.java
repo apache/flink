@@ -33,25 +33,19 @@ public class RuntimeExecutionContext implements ExecutionContext
 		this.env = env;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.api.record.functions.ExecutionContext#getTaskName()
-	 */
+
 	@Override
 	public String getTaskName() {
 		return this.env.getTaskName();
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.api.record.functions.ExecutionContext#getNumberOfSubtasks()
-	 */
+
 	@Override
 	public int getNumberOfSubtasks() {
 		return this.env.getCurrentNumberOfSubtasks();
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.api.record.functions.ExecutionContext#getSubtaskIndex()
-	 */
+
 	@Override
 	public int getSubtaskIndex() {
 		return this.env.getIndexInSubtaskGroup() + 1;

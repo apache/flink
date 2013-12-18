@@ -22,9 +22,7 @@ import eu.stratosphere.core.io.GenericInputSplit;
  */
 public abstract class AbstractGenericInputTask extends AbstractInputTask<GenericInputSplit> {
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public GenericInputSplit[] computeInputSplits(final int requestedMinNumber) throws Exception {
 		GenericInputSplit[] splits = new GenericInputSplit[requestedMinNumber];
@@ -34,9 +32,7 @@ public abstract class AbstractGenericInputTask extends AbstractInputTask<Generic
 		return splits;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public Class<GenericInputSplit> getInputSplitType() {
 

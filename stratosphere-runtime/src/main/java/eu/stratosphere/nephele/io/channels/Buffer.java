@@ -62,9 +62,7 @@ public abstract class Buffer implements ReadableByteChannel, WritableByteChannel
 	public abstract boolean isOpen();
 	
 	
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public abstract void close() throws IOException;
 	

@@ -101,9 +101,7 @@ public abstract class DelimitedOutputFormat extends FileOutputFormat {
 		}
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.api.record.io.FileOutputFormat#open(int)
-	 */
+
 	public void open(int taskNumber) throws IOException
 	{
 		super.open(taskNumber);
@@ -119,9 +117,7 @@ public abstract class DelimitedOutputFormat extends FileOutputFormat {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.api.record.io.FileOutputFormat#close()
-	 */
+
 	@Override
 	public void close() throws IOException {
 		if (this.stream != null) {
@@ -151,9 +147,7 @@ public abstract class DelimitedOutputFormat extends FileOutputFormat {
 	public abstract int serializeRecord(PactRecord rec, byte[] target) throws Exception;
 	
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.recordio.OutputFormat#writeRecord(eu.stratosphere.pact.common.type.PactRecord)
-	 */
+
 	@Override
 	public void writeRecord(PactRecord record) throws IOException
 	{

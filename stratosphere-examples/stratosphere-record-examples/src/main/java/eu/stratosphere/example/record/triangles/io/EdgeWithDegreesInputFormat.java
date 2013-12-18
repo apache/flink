@@ -106,9 +106,7 @@ public final class EdgeWithDegreesInputFormat extends DelimitedInputFormat {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.api.record.io.DelimitedInputFormat#configure(eu.stratosphere.nephele.configuration.Configuration)
-	 */
+
 	@Override
 	public void configure(Configuration parameters) {
 		super.configure(parameters);

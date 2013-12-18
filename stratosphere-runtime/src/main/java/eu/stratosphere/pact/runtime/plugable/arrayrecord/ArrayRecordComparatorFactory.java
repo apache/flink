@@ -77,9 +77,7 @@ public class ArrayRecordComparatorFactory implements TypeComparatorFactory<Value
 		}
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.generic.types.TypeComparatorFactory#writeParametersToConfig(eu.stratosphere.nephele.configuration.Configuration)
-	 */
+
 	@Override
 	public void writeParametersToConfig(Configuration config) {
 		for (int i = 0; i < this.positions.length; i++) {
@@ -145,9 +143,7 @@ public class ArrayRecordComparatorFactory implements TypeComparatorFactory<Value
 		this.sortDirections = direction;
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.generic.types.TypeComparatorFactory#createComparator()
-	 */
+
 	@Override
 	public ArrayRecordComparator createComparator() {
 		return new ArrayRecordComparator(this.positions, this.types, this.sortDirections);

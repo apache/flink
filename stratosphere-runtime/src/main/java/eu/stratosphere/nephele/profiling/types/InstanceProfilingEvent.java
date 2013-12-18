@@ -302,9 +302,7 @@ public abstract class InstanceProfilingEvent extends ProfilingEvent {
 		return this.transmittedBytes;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void read(final DataInput in) throws IOException {
 		super.read(in);
@@ -328,9 +326,7 @@ public abstract class InstanceProfilingEvent extends ProfilingEvent {
 		this.transmittedBytes = in.readLong();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final DataOutput out) throws IOException {
 		super.write(out);
@@ -354,9 +350,7 @@ public abstract class InstanceProfilingEvent extends ProfilingEvent {
 		out.writeLong(transmittedBytes);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean equals(final Object obj) {
 
@@ -428,9 +422,7 @@ public abstract class InstanceProfilingEvent extends ProfilingEvent {
 		return true;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int hashCode() {
 

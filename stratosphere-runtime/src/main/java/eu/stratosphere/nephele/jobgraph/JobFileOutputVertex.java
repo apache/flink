@@ -118,9 +118,7 @@ public class JobFileOutputVertex extends AbstractJobOutputVertex {
 		return (Class<? extends AbstractFileOutputTask>) this.invokableClass;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void read(final DataInput in) throws IOException {
 		super.read(in);
@@ -133,9 +131,7 @@ public class JobFileOutputVertex extends AbstractJobOutputVertex {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final DataOutput out) throws IOException {
 		super.write(out);
@@ -149,9 +145,7 @@ public class JobFileOutputVertex extends AbstractJobOutputVertex {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void checkConfiguration(final AbstractInvokable invokable) throws IllegalConfigurationException {
 
@@ -163,9 +157,7 @@ public class JobFileOutputVertex extends AbstractJobOutputVertex {
 		super.checkConfiguration(invokable);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int getMaximumNumberOfSubtasks(final AbstractInvokable invokable) {
 

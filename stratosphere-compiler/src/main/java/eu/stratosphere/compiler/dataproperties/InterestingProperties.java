@@ -125,11 +125,7 @@ public class InterestingProperties implements Cloneable
 	}
 
 	// ------------------------------------------------------------------------
-
-	/*
-	 * (non-Javadoc)
-	 * @see java.lang.Object#hashCode()
-	 */
+	
 	@Override
 	public int hashCode() {
 		final int prime = 31;
@@ -139,10 +135,6 @@ public class InterestingProperties implements Cloneable
 		return result;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see java.lang.Object#equals(java.lang.Object)
-	 */
 	@Override
 	public boolean equals(Object obj) {
 		if (obj != null && obj instanceof InterestingProperties) {
@@ -154,20 +146,12 @@ public class InterestingProperties implements Cloneable
 		}
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see java.lang.Object#toString()
-	 */
 	@Override
 	public String toString() {
 		return "InterestingProperties [globalProps=" + this.globalProps + 
 				", localProps=" + this.localProps + " ]";
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see java.lang.Object#clone()
-	 */
 	@Override
 	public InterestingProperties clone() {
 		HashSet<RequestedGlobalProperties> globalProps = new HashSet<RequestedGlobalProperties>();

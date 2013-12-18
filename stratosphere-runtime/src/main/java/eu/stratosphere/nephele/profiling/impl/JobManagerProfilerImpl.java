@@ -93,9 +93,7 @@ public class JobManagerProfilerImpl implements JobManagerProfiler, ProfilerImplP
 
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void unregisterProfilingJob(ExecutionGraph executionGraph) {
 

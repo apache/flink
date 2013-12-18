@@ -68,18 +68,14 @@ public final class UnexpectedEnvelopeEvent extends AbstractEvent {
 		return this.expectedSequenceNumber;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final DataOutput out) throws IOException {
 
 		out.writeInt(this.expectedSequenceNumber);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void read(final DataInput in) throws IOException {
 

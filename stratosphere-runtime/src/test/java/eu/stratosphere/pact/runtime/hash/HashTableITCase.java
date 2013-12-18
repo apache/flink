@@ -1494,9 +1494,7 @@ public class HashTableITCase
 			}
 		}
 
-		/* (non-Javadoc)
-		 * @see eu.stratosphere.pact.runtime.plugable.TypePairComparator#compareToReference(java.lang.Object)
-		 */
+
 		@Override
 		public int compareToReference(PactRecord candidate) {
 			try {

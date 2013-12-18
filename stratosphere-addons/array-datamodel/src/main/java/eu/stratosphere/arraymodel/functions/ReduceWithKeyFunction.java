@@ -102,9 +102,6 @@ public abstract class ReduceWithKeyFunction extends AbstractArrayModelFunction i
 	
 	// --------------------------------------------------------------------------------------------
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.array.stubs.AbstractArrayModelStub#getUDFMethod()
-	 */
 	@Override
 	public final Method getUDFMethod() {
 		try {

@@ -29,18 +29,14 @@ public class RuntimeExceptionTask extends AbstractTask {
 	 */
 	public static final String RUNTIME_EXCEPTION_MESSAGE = "This is a test runtime exception";
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void registerInputOutput() {
 
 		throw new RuntimeException(RUNTIME_EXCEPTION_MESSAGE);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void invoke() throws Exception {
 

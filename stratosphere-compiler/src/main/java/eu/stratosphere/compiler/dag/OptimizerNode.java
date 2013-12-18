@@ -243,10 +243,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	// ------------------------------------------------------------------------
 	//                          Getters / Setters
 	// ------------------------------------------------------------------------
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.util.NodeWithInputs#getPredecessors()
-	 */
+
 	@Override
 	public Iterator<OptimizerNode> getPredecessors() {
 		final Iterator<PactConnection> inputs = getIncomingConnections().iterator();

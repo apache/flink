@@ -44,9 +44,7 @@ public final class ForwardingBarrier extends AbstractOutputChannelForwarder {
 		this.outputChannelID = outputChannelID;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void push(final TransferEnvelope transferEnvelope) throws IOException, InterruptedException {
 
@@ -58,9 +56,7 @@ public final class ForwardingBarrier extends AbstractOutputChannelForwarder {
 		getNext().push(transferEnvelope);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void processEvent(final AbstractEvent event) {
 

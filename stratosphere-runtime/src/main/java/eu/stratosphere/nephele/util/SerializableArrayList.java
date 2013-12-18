@@ -60,9 +60,7 @@ public class SerializableArrayList<E extends IOReadableWritable> extends ArrayLi
 		super(initialCapacity);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final DataOutput out) throws IOException {
 
@@ -78,9 +76,7 @@ public class SerializableArrayList<E extends IOReadableWritable> extends ArrayLi
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@SuppressWarnings("unchecked")
 	@Override
 	public void read(final DataInput in) throws IOException {
@@ -109,9 +105,7 @@ public class SerializableArrayList<E extends IOReadableWritable> extends ArrayLi
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean equals(final Object obj) {
 
@@ -139,9 +133,7 @@ public class SerializableArrayList<E extends IOReadableWritable> extends ArrayLi
 		return true;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int hashCode() {
 

@@ -97,11 +97,6 @@ public class JobSubmissionServlet extends HttpServlet {
 		this.rand = new Random(System.currentTimeMillis());
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see javax.servlet.http.HttpServlet#doGet(javax.servlet.http.HttpServletRequest,
-	 * javax.servlet.http.HttpServletResponse)
-	 */
 	@Override
 	protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
 		String action = req.getParameter(ACTION_PARAM_NAME);

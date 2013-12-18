@@ -56,9 +56,7 @@ public class MergeOnlyJoin implements Program, ProgramDescription {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public Job createJob(final String... args) {
 		// parse program parameters

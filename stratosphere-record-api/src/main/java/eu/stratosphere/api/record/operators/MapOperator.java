@@ -69,9 +69,7 @@ public class MapOperator extends MapOperatorBase<MapFunction> implements RecordO
 		setInputs(builder.inputs);
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.api.record.operators.RecordOperator#getKeyClasses()
-	 */
+
 	@Override
 	public Class<? extends Key>[] getKeyClasses() {
 		return emptyClassArray();

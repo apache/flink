@@ -73,9 +73,7 @@ public final class CapacityConstrainedArrayQueue<E> implements Queue<E> {
 		this.elements = (E[]) new Object[capacity];
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean addAll(final Collection<? extends E> c) {
 
@@ -112,9 +110,7 @@ public final class CapacityConstrainedArrayQueue<E> implements Queue<E> {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void clear() {
 
@@ -123,99 +119,77 @@ public final class CapacityConstrainedArrayQueue<E> implements Queue<E> {
 		this.size = 0;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean containsAll(final Collection<?> c) {
 
 		throw new UnsupportedOperationException("containsAll is not supported on this type of queue");
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean isEmpty() {
 
 		return (this.size == 0);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean removeAll(final Collection<?> c) {
 
 		throw new UnsupportedOperationException("removeAll is not supported on this type of queue");
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean retainAll(final Collection<?> c) {
 
 		throw new UnsupportedOperationException("retainAll is not supported on this type of queue");
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public Object[] toArray() {
 
 		throw new UnsupportedOperationException("toArray is not supported on this type of queue");
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public <T> T[] toArray(T[] a) {
 
 		throw new UnsupportedOperationException("toArray is not supported on this type of queue");
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean add(final E arg0) {
 
 		throw new UnsupportedOperationException("add is not supported on this type of queue");
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean contains(final Object arg0) {
 
 		throw new UnsupportedOperationException("contains is not supported on this type of queue");
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public E element() {
 
 		throw new UnsupportedOperationException("element is not supported on this type of queue");
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public Iterator<E> iterator() {
 
 		return new CapacityConstrainedArrayQueueIterator(this.head);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean offer(final E arg0) {
 
@@ -230,9 +204,7 @@ public final class CapacityConstrainedArrayQueue<E> implements Queue<E> {
 		return true;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public E peek() {
 
@@ -243,9 +215,7 @@ public final class CapacityConstrainedArrayQueue<E> implements Queue<E> {
 		return this.elements[this.head];
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public E poll() {
 
@@ -260,9 +230,7 @@ public final class CapacityConstrainedArrayQueue<E> implements Queue<E> {
 		return retVal;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public E remove() {
 
@@ -274,18 +242,14 @@ public final class CapacityConstrainedArrayQueue<E> implements Queue<E> {
 		return retVal;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean remove(final Object arg0) {
 
 		throw new UnsupportedOperationException("remove is not supported on this type of queue");
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int size() {
 

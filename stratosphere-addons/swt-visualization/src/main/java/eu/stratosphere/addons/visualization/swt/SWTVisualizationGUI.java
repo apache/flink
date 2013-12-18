@@ -386,17 +386,13 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 		jobTabItem.setControl(swtTabItem);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void widgetDefaultSelected(SelectionEvent arg0) {
 		// Nothing to do here
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void widgetSelected(SelectionEvent arg0) {
 
@@ -485,9 +481,7 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void run() {
 

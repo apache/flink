@@ -52,57 +52,43 @@ public class LocalFileStatus implements FileStatus {
 		this.path = new Path(fs.getUri().getScheme() + ":" + f.toURI().getPath());
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public long getAccessTime() {
 		return 0; // We don't have access files for local files
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public long getBlockSize() {
 		return this.file.length();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public long getLen() {
 		return this.file.length();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public long getModificationTime() {
 		return this.file.lastModified();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public short getReplication() {
 		return 1; // For local files replication is always 1
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean isDir() {
 		return this.file.isDirectory();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public Path getPath() {
 		return this.path;

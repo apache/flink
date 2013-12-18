@@ -77,9 +77,7 @@ public class TaskFailureITCase extends FailingTestBase {
 	// expected result of working map job
 	private static final String MAP_RESULT = "1 11\n2 12\n4 14\n4 14\n1 11\n2 12\n2 12\n4 14\n4 14\n3 16\n1 11\n2 12\n2 12\n0 13\n4 14\n1 11\n4 14\n4 14\n";
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	protected void preSubmit() throws Exception {
 		String tempDir = getFilesystemProvider().getTempDirPath();
@@ -92,9 +90,7 @@ public class TaskFailureITCase extends FailingTestBase {
 		getFilesystemProvider().createFile(tempDir+"/mapInput/mapTest_4.txt", MAP_IN_4);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	protected JobGraph getFailingJobGraph() throws Exception {
 
@@ -133,9 +129,7 @@ public class TaskFailureITCase extends FailingTestBase {
 		return jgg.compileJobGraph(op);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	protected JobGraph getJobGraph() throws Exception {
 		
@@ -174,9 +168,7 @@ public class TaskFailureITCase extends FailingTestBase {
 		return jgg.compileJobGraph(op);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	protected void postSubmit() throws Exception {
 		String tempDir = getFilesystemProvider().getTempDirPath();
@@ -190,9 +182,7 @@ public class TaskFailureITCase extends FailingTestBase {
 		
 	}
 	
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	protected int getTimeout() {
 		// time out for this job is 30 secs

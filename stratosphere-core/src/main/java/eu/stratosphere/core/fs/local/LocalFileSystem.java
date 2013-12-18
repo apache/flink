@@ -81,9 +81,7 @@ public class LocalFileSystem extends FileSystem {
 		this.hostName = tmp;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public BlockLocation[] getFileBlockLocations(final FileStatus file, final long start, final long len)
 			throws IOException {
@@ -94,9 +92,7 @@ public class LocalFileSystem extends FileSystem {
 		return blockLocations;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public FileStatus getFileStatus(Path f) throws IOException {
 
@@ -109,44 +105,34 @@ public class LocalFileSystem extends FileSystem {
 
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public URI getUri() {
 
 		return name;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public Path getWorkingDirectory() {
 
 		return workingDir;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void initialize(final URI name) throws IOException {
 		// TODO Auto-generated method stub
 
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public FSDataInputStream open(final Path f, final int bufferSize) throws IOException {
 		return open(f);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public FSDataInputStream open(final Path f) throws IOException {
 
@@ -155,9 +141,7 @@ public class LocalFileSystem extends FileSystem {
 		return new LocalDataInputStream(file);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	private File pathToFile(Path path) {
 
 		if (!path.isAbsolute()) {
@@ -166,9 +150,7 @@ public class LocalFileSystem extends FileSystem {
 		return new File(path.toUri().getPath());
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public FileStatus[] listStatus(final Path f) throws IOException {
 
@@ -194,9 +176,7 @@ public class LocalFileSystem extends FileSystem {
 		return results;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean delete(final Path f, final boolean recursive) throws IOException {
 
@@ -254,9 +234,7 @@ public class LocalFileSystem extends FileSystem {
 		return (parent == null || mkdirs(parent)) && (p2f.mkdir() || p2f.isDirectory());
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public FSDataOutputStream create(final Path f, final boolean overwrite, final int bufferSize,
 			final short replication, final long blockSize) throws IOException {
@@ -274,18 +252,14 @@ public class LocalFileSystem extends FileSystem {
 		return new LocalDataOutputStream(file);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public FSDataOutputStream create(final Path f, final boolean overwrite) throws IOException {
 
 		return create(f, overwrite, 0, (short) 0, 0);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean rename(final Path src, final Path dst) throws IOException {
 

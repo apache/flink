@@ -167,34 +167,22 @@ public class PactConnection implements EstimateProvider, DumpableConnection<Opti
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.EstimateProvider#getEstimatedOutputSize()
-	 */
+
 	@Override
 	public long getEstimatedOutputSize() {
 		return this.source.getEstimatedOutputSize();
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.EstimateProvider#getEstimatedNumRecords()
-	 */
 	@Override
 	public long getEstimatedNumRecords() {
 		return this.source.getEstimatedNumRecords();
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.EstimateProvider#getEstimatedCardinalities()
-	 */
 	@Override
 	public Map<FieldSet, Long> getEstimatedCardinalities() {
 		return this.source.getEstimatedCardinalities();
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.EstimateProvider#getEstimatedCardinality(eu.stratosphere.pact.common.util.FieldSet)
-	 */
 	@Override
 	public long getEstimatedCardinality(FieldSet cP) {
 		return this.source.getEstimatedCardinality(cP);
@@ -220,11 +208,7 @@ public class PactConnection implements EstimateProvider, DumpableConnection<Opti
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
-	/*
-	 * (non-Javadoc)
-	 * @see java.lang.Object#toString()
-	 */
+
 	public String toString() {
 		StringBuilder buf = new StringBuilder(50);
 		buf.append("Connection: ");

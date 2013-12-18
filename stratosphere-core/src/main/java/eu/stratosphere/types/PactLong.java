@@ -137,9 +137,7 @@ public class PactLong implements Key, NormalizableKey, CopyableValue<PactLong> {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.type.NormalizableKey#getNormalizedKeyLen()
-	 */
+
 	@Override
 	public int getMaxNormalizedKeyLen()
 	{

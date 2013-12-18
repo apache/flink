@@ -238,9 +238,7 @@ public class ChannelReaderInputView extends AbstractPagedInputView {
 		return seg;
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.io.AbstractPagedInputView#getLimitForSegment(eu.stratosphere.nephele.services.memorymanager.MemorySegment)
-	 */
+
 	@Override
 	protected int getLimitForSegment(MemorySegment segment)
 	{

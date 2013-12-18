@@ -87,9 +87,7 @@ public abstract class ProfilingEvent extends AbstractEvent implements Management
 		return this.profilingTimestamp;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void read(final DataInput in) throws IOException {
 		super.read(in);
@@ -100,9 +98,7 @@ public abstract class ProfilingEvent extends AbstractEvent implements Management
 		this.profilingTimestamp = in.readLong();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final DataOutput out) throws IOException {
 		super.write(out);
@@ -111,9 +107,7 @@ public abstract class ProfilingEvent extends AbstractEvent implements Management
 		out.writeLong(this.profilingTimestamp);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean equals(final Object obj) {
 
@@ -138,9 +132,7 @@ public abstract class ProfilingEvent extends AbstractEvent implements Management
 		return true;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int hashCode() {
 

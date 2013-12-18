@@ -63,9 +63,7 @@ public class JobProgressResult extends AbstractJobResult {
 		this.events = new SerializableArrayList<AbstractEvent>();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void read(final DataInput in) throws IOException {
 		super.read(in);
@@ -73,9 +71,7 @@ public class JobProgressResult extends AbstractJobResult {
 		this.events.read(in);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final DataOutput out) throws IOException {
 		super.write(out);
@@ -93,9 +89,7 @@ public class JobProgressResult extends AbstractJobResult {
 		return this.events.iterator();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean equals(final Object obj) {
 
@@ -116,9 +110,7 @@ public class JobProgressResult extends AbstractJobResult {
 		return true;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int hashCode() {
 

@@ -70,9 +70,7 @@ public final class HardwareDescription implements IOReadableWritable {
 		this.sizeOfFreeMemory = sizeOfFreeMemory;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final DataOutput out) throws IOException {
 
@@ -81,9 +79,7 @@ public final class HardwareDescription implements IOReadableWritable {
 		out.writeLong(this.sizeOfFreeMemory);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void read(final DataInput in) throws IOException {
 

@@ -323,9 +323,7 @@ public class StringRecord implements IOReadableWritable {
 		out.write(this.bytes, 0, this.length);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean equals(final Object obj) {
 
@@ -354,9 +352,7 @@ public class StringRecord implements IOReadableWritable {
 		return true;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int hashCode() {
 

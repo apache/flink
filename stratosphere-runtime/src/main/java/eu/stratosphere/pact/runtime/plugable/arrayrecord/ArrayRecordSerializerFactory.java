@@ -44,9 +44,7 @@ public class ArrayRecordSerializerFactory implements TypeSerializerFactory<Value
 		this.types = types;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.generic.types.TypeComparatorFactory#writeParametersToConfig(eu.stratosphere.nephele.configuration.Configuration)
-	 */
+
 	@Override
 	public void writeParametersToConfig(Configuration config) {
 		for (int i = 0; i < this.types.length; i++) {
@@ -91,17 +89,13 @@ public class ArrayRecordSerializerFactory implements TypeSerializerFactory<Value
 		this.types = types;
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.generic.types.TypeSerializerFactory#getSerializer()
-	 */
+
 	@Override
 	public ArrayRecordSerializer getSerializer() {
 		return new ArrayRecordSerializer(this.types);
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.generic.types.TypeSerializerFactory#getDataType()
-	 */
+
 	@Override
 	public Class<Value[]> getDataType() {
 		return Value[].class;

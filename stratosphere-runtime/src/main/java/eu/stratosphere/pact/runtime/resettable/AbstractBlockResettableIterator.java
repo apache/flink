@@ -118,9 +118,7 @@ abstract class AbstractBlockResettableIterator<T> implements MemoryBlockIterator
 		this.numRecordsReturned = 0;
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.util.MemoryBlockIterator#nextBlock()
-	 */
+
 	@Override
 	public boolean nextBlock() throws IOException
 	{

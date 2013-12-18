@@ -49,9 +49,7 @@ public class InputSplitIterator<T extends InputSplit> implements Iterator<T> {
 		this.inputSplitProvider = inputSplitProvider;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@SuppressWarnings("unchecked")
 	@Override
 	public boolean hasNext() {
@@ -67,9 +65,7 @@ public class InputSplitIterator<T extends InputSplit> implements Iterator<T> {
 		return true;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@SuppressWarnings("unchecked")
 	@Override
 	public T next() {
@@ -86,9 +82,7 @@ public class InputSplitIterator<T extends InputSplit> implements Iterator<T> {
 		return retVal;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void remove() {
 

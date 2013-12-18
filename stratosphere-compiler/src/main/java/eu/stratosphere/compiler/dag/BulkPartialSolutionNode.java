@@ -70,10 +70,6 @@ public class BulkPartialSolutionNode extends AbstractPartialSolutionNode
 		return (PartialSolutionPlaceHolder) super.getPactContract();
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getName()
-	 */
 	@Override
 	public String getName() {
 		return "Bulk Partial Solution";

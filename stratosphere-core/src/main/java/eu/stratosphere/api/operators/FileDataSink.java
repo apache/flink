@@ -200,9 +200,7 @@ public class FileDataSink extends GenericDataSink
 		return this.filePath;
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.api.operators.GenericDataSink#toString()
-	 */
+
 	@Override
 	public String toString() {
 		return this.filePath;

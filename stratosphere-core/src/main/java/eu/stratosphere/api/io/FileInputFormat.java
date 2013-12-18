@@ -582,9 +582,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 		}
 	}
 	
-	/* (non-Javadoc)
-	 * @see java.lang.Object#toString()
-	 */
+
 	public String toString() {
 		return this.filePath == null ? 
 			"File Input (unknown file)" :

@@ -63,17 +63,13 @@ public final class DistributedDataInputStream extends FSDataInputStream {
 		return fsDataInputStream.read(buffer, offset, length);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int available() throws IOException {
 		return fsDataInputStream.available();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public long skip(long n) throws IOException {
 		return fsDataInputStream.skip(n);

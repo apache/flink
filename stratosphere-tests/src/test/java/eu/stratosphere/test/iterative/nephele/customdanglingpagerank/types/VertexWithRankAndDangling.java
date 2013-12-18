@@ -64,9 +64,7 @@ public final class VertexWithRankAndDangling implements Serializable {
 		this.dangling = dangling;
 	}
 	
-	/* (non-Javadoc)
-	 * @see java.lang.Object#toString()
-	 */
+
 	@Override
 	public String toString() {
 		return this.vertexID + " - " + this.rank + (this.isDangling() ? " (dangling)" : "");

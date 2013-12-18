@@ -28,9 +28,7 @@ public final class TeraInputFormat extends DelimitedInputFormat {
 	private final TeraKey key = new TeraKey();
 	private final TeraValue value = new TeraValue();
 	
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean readRecord(PactRecord target, byte[] record, int offset, int numBytes)
 	{

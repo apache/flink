@@ -39,9 +39,7 @@ public class PactRecordSerializerFactory implements TypeSerializerFactory<PactRe
 	
 	// --------------------------------------------------------------------------------------------
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.generic.types.TypeSerializerFactory#writeParametersToConfig(eu.stratosphere.nephele.configuration.Configuration)
-	 */
+
 	@Override
 	public void writeParametersToConfig(Configuration config)
 	{}
@@ -53,17 +51,13 @@ public class PactRecordSerializerFactory implements TypeSerializerFactory<PactRe
 	public void readParametersFromConfig(Configuration config, ClassLoader cl) throws ClassNotFoundException
 	{}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.generic.types.TypeSerializerFactory#getSerializer()
-	 */
+
 	@Override
 	public TypeSerializer<PactRecord> getSerializer() {
 		return PactRecordSerializer.get();
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.generic.types.TypeSerializerFactory#getDataType()
-	 */
+
 	@Override
 	public Class<PactRecord> getDataType() {
 		return PactRecord.class;

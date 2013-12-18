@@ -51,18 +51,14 @@ final class RuntimeInputGateContext implements BufferProvider, InputGateContext,
 		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
 		this.inputGate = inputGate;
 	}
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public Buffer requestEmptyBuffer(final int minimumSizeOfBuffer) throws IOException {
 
 		return this.localBufferPool.requestEmptyBuffer(minimumSizeOfBuffer);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public Buffer requestEmptyBufferBlocking(final int minimumSizeOfBuffer) throws IOException, InterruptedException {
 
@@ -74,27 +70,21 @@ final class RuntimeInputGateContext implements BufferProvider, InputGateContext,
 		return this.localBufferPool.requestEmptyBufferBlocking(minimumSizeOfBuffer);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int getMaximumBufferSize() {
 
 		return this.localBufferPool.getMaximumBufferSize();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean isShared() {
 
 		return this.localBufferPool.isShared();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void reportAsynchronousEvent() {
 
@@ -107,27 +97,21 @@ final class RuntimeInputGateContext implements BufferProvider, InputGateContext,
 		return this.inputGate.getNumberOfInputChannels();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void setDesignatedNumberOfBuffers(int numberOfBuffers) {
 
 		this.localBufferPool.setDesignatedNumberOfBuffers(numberOfBuffers);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void clearLocalBufferPool() {
 
 		this.localBufferPool.destroy();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void logBufferUtilization() {
 
@@ -140,18 +124,14 @@ final class RuntimeInputGateContext implements BufferProvider, InputGateContext,
 				+ " available, " + req + " requested, " + des + " designated");
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public GateID getGateID() {
 
 		return this.inputGate.getGateID();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public InputChannelContext createInputChannelContext(final ChannelID channelID,
 			final InputChannelContext previousContext) {
@@ -178,9 +158,7 @@ final class RuntimeInputGateContext implements BufferProvider, InputGateContext,
 			(AbstractByteBufferedInputChannel<? extends IOReadableWritable>) channel);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public LocalBufferPoolOwner getLocalBufferPoolOwner() {
 
@@ -197,9 +175,7 @@ final class RuntimeInputGateContext implements BufferProvider, InputGateContext,
 		return this.taskName;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean registerBufferAvailabilityListener(final BufferAvailabilityListener bufferAvailabilityListener) {
 

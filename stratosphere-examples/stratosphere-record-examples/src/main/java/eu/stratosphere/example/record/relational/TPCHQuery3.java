@@ -188,9 +188,7 @@ public class TPCHQuery3 implements Program, ProgramDescription {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public Job createJob(final String... args) {
 		// parse program parameters
@@ -261,9 +259,7 @@ public class TPCHQuery3 implements Program, ProgramDescription {
 		return plan;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public String getDescription() {
 		return "Parameters: [numSubStasks], [orders], [lineitem], [output]";

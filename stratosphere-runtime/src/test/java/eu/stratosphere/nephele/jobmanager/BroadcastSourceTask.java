@@ -18,9 +18,7 @@ public class BroadcastSourceTask extends AbstractFileInputTask {
 	 */
 	private BroadcastRecordWriter<StringRecord> output;
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void registerInputOutput() {
 

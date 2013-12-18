@@ -65,9 +65,7 @@ public class ClusterInstanceNotifier extends Thread {
 		this.allocatedResources = allocatedResources;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void run() {
 

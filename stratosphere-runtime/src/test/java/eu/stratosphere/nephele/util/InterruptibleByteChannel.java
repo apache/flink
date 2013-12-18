@@ -104,27 +104,21 @@ public class InterruptibleByteChannel implements ReadableByteChannel, WritableBy
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean isOpen() {
 
 		return this.isOpen;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void close() throws IOException {
 
 		this.isOpen = false;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int write(final ByteBuffer src) throws IOException {
 
@@ -157,9 +151,7 @@ public class InterruptibleByteChannel implements ReadableByteChannel, WritableBy
 		return numberOfBytesToAccept;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int read(final ByteBuffer dst) throws IOException {
 

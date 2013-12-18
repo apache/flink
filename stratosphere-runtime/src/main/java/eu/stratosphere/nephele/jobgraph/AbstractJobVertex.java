@@ -402,9 +402,7 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 		return this.id;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@SuppressWarnings("unchecked")
 	@Override
 	public void read(final DataInput in) throws IOException {
@@ -491,9 +489,7 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final DataOutput out) throws IOException {
 

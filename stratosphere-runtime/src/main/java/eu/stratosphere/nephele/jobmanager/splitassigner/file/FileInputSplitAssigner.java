@@ -49,9 +49,7 @@ public final class FileInputSplitAssigner implements InputSplitAssigner {
 
 	private final ConcurrentMap<ExecutionGroupVertex, FileInputSplitList> vertexMap = new ConcurrentHashMap<ExecutionGroupVertex, FileInputSplitList>();
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void registerGroupVertex(final ExecutionGroupVertex groupVertex) {
 
@@ -104,18 +102,14 @@ public final class FileInputSplitAssigner implements InputSplitAssigner {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void unregisterGroupVertex(final ExecutionGroupVertex groupVertex) {
 		
 		this.vertexMap.remove(groupVertex);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public InputSplit getNextInputSplit(final ExecutionVertex vertex) {
 

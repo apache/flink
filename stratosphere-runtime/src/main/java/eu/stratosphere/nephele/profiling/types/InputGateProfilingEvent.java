@@ -97,9 +97,7 @@ public final class InputGateProfilingEvent extends VertexProfilingEvent {
 		return this.noRecordsAvailableCounter;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void read(final DataInput in) throws IOException {
 		super.read(in);
@@ -108,9 +106,7 @@ public final class InputGateProfilingEvent extends VertexProfilingEvent {
 		this.noRecordsAvailableCounter = in.readInt();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final DataOutput out) throws IOException {
 		super.write(out);
@@ -119,9 +115,7 @@ public final class InputGateProfilingEvent extends VertexProfilingEvent {
 		out.writeInt(this.noRecordsAvailableCounter);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean equals(final Object obj) {
 
@@ -146,9 +140,7 @@ public final class InputGateProfilingEvent extends VertexProfilingEvent {
 		return true;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int hashCode() {
 

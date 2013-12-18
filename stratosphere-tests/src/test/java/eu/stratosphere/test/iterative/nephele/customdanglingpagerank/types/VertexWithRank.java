@@ -53,9 +53,7 @@ public final class VertexWithRank implements Serializable {
 		this.rank = rank;
 	}
 	
-	/* (non-Javadoc)
-	 * @see java.lang.Object#toString()
-	 */
+
 	@Override
 	public String toString() {
 		return this.vertexID + " - " + this.rank;

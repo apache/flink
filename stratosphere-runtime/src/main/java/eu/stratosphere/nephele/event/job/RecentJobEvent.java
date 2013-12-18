@@ -140,9 +140,7 @@ public final class RecentJobEvent extends AbstractEvent implements ManagementEve
 		return this.submissionTimestamp;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void read(final DataInput in) throws IOException {
 		super.read(in);
@@ -164,9 +162,7 @@ public final class RecentJobEvent extends AbstractEvent implements ManagementEve
 		this.submissionTimestamp = in.readLong();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final DataOutput out) throws IOException {
 		super.write(out);
@@ -187,9 +183,7 @@ public final class RecentJobEvent extends AbstractEvent implements ManagementEve
 		out.writeLong(this.submissionTimestamp);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean equals(final Object obj) {
 
@@ -222,9 +216,7 @@ public final class RecentJobEvent extends AbstractEvent implements ManagementEve
 		return true;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int hashCode() {
 

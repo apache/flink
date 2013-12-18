@@ -95,9 +95,7 @@ public final class OutputGateProfilingEvent extends VertexProfilingEvent {
 		return this.channelCapacityExhausted;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void read(final DataInput in) throws IOException {
 		super.read(in);
@@ -106,9 +104,7 @@ public final class OutputGateProfilingEvent extends VertexProfilingEvent {
 		this.channelCapacityExhausted = in.readInt();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final DataOutput out) throws IOException {
 		super.write(out);
@@ -117,9 +113,7 @@ public final class OutputGateProfilingEvent extends VertexProfilingEvent {
 		out.writeInt(this.channelCapacityExhausted);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean equals(final Object obj) {
 
@@ -144,9 +138,7 @@ public final class OutputGateProfilingEvent extends VertexProfilingEvent {
 		return true;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int hashCode() {
 

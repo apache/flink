@@ -52,18 +52,14 @@ final class LocalChannelWithAccessInfo implements ChannelWithAccessInfo {
 		this.deleteOnClose = new AtomicBoolean(deleteOnClose);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public FileChannel getChannel() {
 
 		return this.channel;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public FileChannel getAndIncrementReferences() {
 
@@ -84,9 +80,7 @@ final class LocalChannelWithAccessInfo implements ChannelWithAccessInfo {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int decrementReferences() {
 
@@ -131,9 +125,7 @@ final class LocalChannelWithAccessInfo implements ChannelWithAccessInfo {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean incrementReferences() {
 
@@ -151,9 +143,7 @@ final class LocalChannelWithAccessInfo implements ChannelWithAccessInfo {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void disposeSilently() {
 
@@ -172,9 +162,7 @@ final class LocalChannelWithAccessInfo implements ChannelWithAccessInfo {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void updateDeleteOnCloseFlag(final boolean deleteOnClose) {
 

@@ -28,9 +28,7 @@ import eu.stratosphere.nephele.template.AbstractTask;
  */
 public class SelfCrossForwardTask extends AbstractTask {
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void registerInputOutput() {
 		
@@ -39,9 +37,7 @@ public class SelfCrossForwardTask extends AbstractTask {
 		new RecordWriter<StringRecord>(this, StringRecord.class);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void invoke() throws Exception {
 		

@@ -55,9 +55,7 @@ public class LibraryCacheProfileRequest implements IOReadableWritable {
 		this.requiredLibraries = requiredLibraries;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void read(final DataInput in) throws IOException {
 
@@ -69,9 +67,7 @@ public class LibraryCacheProfileRequest implements IOReadableWritable {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final DataOutput out) throws IOException {
 

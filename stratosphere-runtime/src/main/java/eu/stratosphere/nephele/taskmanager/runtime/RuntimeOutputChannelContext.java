@@ -34,54 +34,42 @@ public final class RuntimeOutputChannelContext extends AbstractOutputChannelCont
 		this.byteBufferedOutputChannel = byteBufferedOutputChannel;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean isInputChannel() {
 
 		return false;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public ChannelID getChannelID() {
 
 		return this.byteBufferedOutputChannel.getID();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public ChannelID getConnectedChannelID() {
 
 		return this.byteBufferedOutputChannel.getConnectedChannelID();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public JobID getJobID() {
 
 		return this.byteBufferedOutputChannel.getJobID();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public ChannelType getType() {
 
 		return this.byteBufferedOutputChannel.getType();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	protected void processEventAsynchronously(final AbstractEvent event) {
 

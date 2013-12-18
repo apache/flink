@@ -55,18 +55,14 @@ public class BroadcastProducer extends AbstractGenericInputTask {
 	 */
 	private BroadcastRecordWriter<BroadcastRecord> output;
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void registerInputOutput() {
 
 		this.output = new BroadcastRecordWriter<BroadcastRecord>(this, BroadcastRecord.class);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void invoke() throws Exception {
 

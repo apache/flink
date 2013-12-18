@@ -65,26 +65,20 @@ public class CrossDriver<T1, T2, OT> implements PactDriver<GenericCrosser<T1, T2
 	
 	// ------------------------------------------------------------------------
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.PactDriver#setup(eu.stratosphere.pact.runtime.task.PactTaskContext)
-	 */
+
 	@Override
 	public void setup(PactTaskContext<GenericCrosser<T1, T2, OT>, OT> context) {
 		this.taskContext = context;
 		this.running = true;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#getNumberOfInputs()
-	 */
+
 	@Override
 	public int getNumberOfInputs() {
 		return 2;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#getStubType()
-	 */
+
 	@Override
 	public Class<GenericCrosser<T1, T2, OT>> getStubType() {
 		@SuppressWarnings("unchecked")
@@ -92,17 +86,13 @@ public class CrossDriver<T1, T2, OT> implements PactDriver<GenericCrosser<T1, T2
 		return clazz;
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#requiresComparatorOnInput()
-	 */
+
 	@Override
 	public boolean requiresComparatorOnInput() {
 		return false;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#prepare()
-	 */
+
 	@Override
 	public void prepare() throws Exception
 	{
@@ -154,9 +144,7 @@ public class CrossDriver<T1, T2, OT> implements PactDriver<GenericCrosser<T1, T2
 		}
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#run()
-	 */
+
 	@Override
 	public void run() throws Exception
 	{
@@ -175,9 +163,7 @@ public class CrossDriver<T1, T2, OT> implements PactDriver<GenericCrosser<T1, T2
 		}
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#cleanup()
-	 */
+
 	@Override
 	public void cleanup() throws Exception
 	{
@@ -191,9 +177,7 @@ public class CrossDriver<T1, T2, OT> implements PactDriver<GenericCrosser<T1, T2
 		}
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.PactDriver#cancel()
-	 */
+
 	@Override
 	public void cancel() {
 		this.running = false;

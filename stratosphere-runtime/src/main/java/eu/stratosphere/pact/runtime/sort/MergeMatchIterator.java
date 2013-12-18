@@ -111,15 +111,11 @@ public class MergeMatchIterator<T1, T2, O> implements MatchTaskIterator<T1, T2, 
 		this.memoryForSpillingIterator = memoryManager.allocatePages(parentTask, numPagesForSpiller);
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.util.MatchTaskIterator#open()
-	 */
+
 	@Override
 	public void open() throws IOException {}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.util.MatchTaskIterator#close()
-	 */
+
 	@Override
 	public void close() {
 		if (this.blockIt != null) {
@@ -134,9 +130,7 @@ public class MergeMatchIterator<T1, T2, O> implements MatchTaskIterator<T1, T2, 
 		this.memoryManager.release(this.memoryForSpillingIterator);
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.util.MatchTaskIterator#abort()
-	 */
+
 	@Override
 	public void abort() {
 		close();

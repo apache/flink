@@ -38,9 +38,7 @@ public class DefaultChannelSelector<T extends IOReadableWritable> implements Cha
 		this.nextChannelToSendTo[0] = 0;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int[] selectChannels(final T record, final int numberOfOutpuChannels) {
 

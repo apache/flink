@@ -76,18 +76,14 @@ public final class AutoCompletionCombo extends Composite implements KeyListener,
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void keyPressed(final KeyEvent arg0) {
 
 		// Nothing to do here
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void keyReleased(final KeyEvent arg0) {
 
@@ -175,17 +171,13 @@ public final class AutoCompletionCombo extends Composite implements KeyListener,
 		this.combo.setText(text);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void widgetDefaultSelected(final SelectionEvent arg0) {
 		// Nothing to do here
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void widgetSelected(final SelectionEvent arg0) {
 

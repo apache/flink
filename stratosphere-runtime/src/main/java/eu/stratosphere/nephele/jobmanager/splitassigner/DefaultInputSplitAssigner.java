@@ -50,9 +50,7 @@ public class DefaultInputSplitAssigner implements InputSplitAssigner {
 	 */
 	private final ConcurrentMap<ExecutionGroupVertex, Queue<InputSplit>> splitMap = new ConcurrentHashMap<ExecutionGroupVertex, Queue<InputSplit>>();
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void registerGroupVertex(final ExecutionGroupVertex groupVertex) {
 
@@ -74,18 +72,14 @@ public class DefaultInputSplitAssigner implements InputSplitAssigner {
 		queue.addAll(Arrays.asList(inputSplits));
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void unregisterGroupVertex(final ExecutionGroupVertex groupVertex) {
 
 		this.splitMap.remove(groupVertex);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public InputSplit getNextInputSplit(final ExecutionVertex vertex) {
 

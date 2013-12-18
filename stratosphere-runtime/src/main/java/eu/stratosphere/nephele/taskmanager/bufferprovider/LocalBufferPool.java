@@ -79,9 +79,7 @@ public final class LocalBufferPool implements BufferProvider {
 		this.bufferPoolConnector = new LocalBufferPoolConnector(this);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public Buffer requestEmptyBuffer(final int minimumSizeOfBuffer) throws IOException {
 
@@ -94,9 +92,7 @@ public final class LocalBufferPool implements BufferProvider {
 		return null;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public Buffer requestEmptyBufferBlocking(final int minimumSizeOfBuffer) throws IOException, InterruptedException {
 
@@ -163,9 +159,7 @@ public final class LocalBufferPool implements BufferProvider {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int getMaximumBufferSize() {
 
@@ -218,9 +212,7 @@ public final class LocalBufferPool implements BufferProvider {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean isShared() {
 
@@ -266,9 +258,7 @@ public final class LocalBufferPool implements BufferProvider {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void reportAsynchronousEvent() {
 
@@ -278,9 +268,7 @@ public final class LocalBufferPool implements BufferProvider {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean registerBufferAvailabilityListener(final BufferAvailabilityListener bufferAvailabilityListener) {
 

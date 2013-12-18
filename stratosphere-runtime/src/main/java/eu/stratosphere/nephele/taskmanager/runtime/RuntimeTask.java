@@ -76,9 +76,7 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 		this.environment.setExecutionObserver(this);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void executionStateChanged(final ExecutionState newExecutionState, final String optionalMessage) {
 
@@ -116,9 +114,7 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 			+ this.environment.getCurrentNumberOfSubtasks() + ")";
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void userThreadStarted(final Thread userThread) {
 
@@ -129,9 +125,7 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void userThreadFinished(final Thread userThread) {
 
@@ -168,27 +162,21 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 		this.registeredListeners.remove(executionListener);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void markAsFailed() {
 
 		executionStateChanged(ExecutionState.FAILED, "Execution thread died unexpectedly");
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void cancelExecution() {
 
 		cancelOrKillExecution(true);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void killExecution() {
 
@@ -254,9 +242,7 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void startExecution() {
 
@@ -264,18 +250,14 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 		thread.start();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean isCanceled() {
 
 		return this.isCanceled;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean isTerminated() {
 
@@ -287,9 +269,7 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 		return false;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public Environment getEnvironment() {
 
@@ -306,36 +286,28 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 		return this.environment;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public JobID getJobID() {
 
 		return this.environment.getJobID();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public ExecutionVertexID getVertexID() {
 
 		return this.vertexID;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void registerProfiler(final TaskManagerProfiler taskManagerProfiler, final Configuration jobConfiguration) {
 
 		taskManagerProfiler.registerExecutionListener(this, jobConfiguration);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void unregisterMemoryManager(final MemoryManager memoryManager) {
 
@@ -344,9 +316,7 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void unregisterProfiler(final TaskManagerProfiler taskManagerProfiler) {
 
@@ -355,9 +325,7 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public TaskContext createTaskContext(final TransferEnvelopeDispatcher transferEnvelopeDispatcher,
 			final LocalBufferPoolOwner previousBufferPoolOwner) {
@@ -369,9 +337,7 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 		return new RuntimeTaskContext(this, transferEnvelopeDispatcher);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public ExecutionState getExecutionState() {
 

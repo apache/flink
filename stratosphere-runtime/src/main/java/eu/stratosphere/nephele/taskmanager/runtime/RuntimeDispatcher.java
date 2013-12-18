@@ -31,9 +31,7 @@ public final class RuntimeDispatcher extends AbstractOutputChannelForwarder {
 		this.dispatcher = dispatcher;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void push(final TransferEnvelope transferEnvelope) throws IOException, InterruptedException {
 

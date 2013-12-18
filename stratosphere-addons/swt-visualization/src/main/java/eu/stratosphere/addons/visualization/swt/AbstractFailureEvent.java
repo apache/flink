@@ -57,9 +57,7 @@ public abstract class AbstractFailureEvent implements Comparable<AbstractFailure
 		this.interval = interval;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int compareTo(final AbstractFailureEvent o) {
 

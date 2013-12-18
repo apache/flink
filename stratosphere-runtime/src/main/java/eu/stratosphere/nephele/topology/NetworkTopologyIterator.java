@@ -67,9 +67,7 @@ public class NetworkTopologyIterator implements Iterator<NetworkNode> {
 
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean hasNext() {
 
@@ -80,9 +78,7 @@ public class NetworkTopologyIterator implements Iterator<NetworkNode> {
 		return true;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public NetworkNode next() {
 
@@ -101,9 +97,7 @@ public class NetworkTopologyIterator implements Iterator<NetworkNode> {
 		return networkNode;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void remove() {
 		// Optional operation

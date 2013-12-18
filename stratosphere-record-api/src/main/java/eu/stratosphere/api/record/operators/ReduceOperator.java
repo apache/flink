@@ -110,9 +110,7 @@ public class ReduceOperator extends ReduceOperatorBase<ReduceFunction> implement
 	
 	// --------------------------------------------------------------------------------------------
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.api.record.operators.RecordOperator#getKeyClasses()
-	 */
+
 	@Override
 	public Class<? extends Key>[] getKeyClasses() {
 		return this.keyTypes;
@@ -139,9 +137,7 @@ public class ReduceOperator extends ReduceOperatorBase<ReduceFunction> implement
 	
 	// --------------------------------------------------------------------------------------------
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.generic.contract.GenericReduceContract#isCombinable()
-	 */
+
 	@Override
 	public boolean isCombinable() {
 		return super.isCombinable() || getUserCodeAnnotation(Combinable.class) != null;

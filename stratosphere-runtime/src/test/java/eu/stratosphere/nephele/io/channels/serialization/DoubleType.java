@@ -38,36 +38,28 @@ public class DoubleType implements SerializationTestType
 		this.value = value;
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.channels.serialization.SerializationTestType#getRandom(java.util.Random)
-	 */
+
 	@Override
 	public DoubleType getRandom(Random rnd)
 	{
 		return new DoubleType(rnd.nextDouble());
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.IOReadableWritable#write(java.io.DataOutput)
-	 */
+
 	@Override
 	public void write(DataOutput out) throws IOException
 	{
 		out.writeDouble(this.value);
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.IOReadableWritable#read(java.io.DataInput)
-	 */
+
 	@Override
 	public void read(DataInput in) throws IOException
 	{
 		this.value = in.readDouble();
 	}
 
-	/* (non-Javadoc)
-	 * @see java.lang.Object#hashCode()
-	 */
+
 	@Override
 	public int hashCode()
 	{
@@ -75,9 +67,7 @@ public class DoubleType implements SerializationTestType
 		return (int) (l ^ l >>> 32);
 	}
 
-	/* (non-Javadoc)
-	 * @see java.lang.Object#equals(java.lang.Object)
-	 */
+
 	@Override
 	public boolean equals(Object obj)
 	{

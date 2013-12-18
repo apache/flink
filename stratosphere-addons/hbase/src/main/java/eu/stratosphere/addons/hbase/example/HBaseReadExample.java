@@ -94,9 +94,7 @@ public class HBaseReadExample implements Program, ProgramDescription {
 		
 	}
 	
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public Job createJob(String... args) {
 		// parse job parameters
@@ -120,9 +118,7 @@ public class HBaseReadExample implements Program, ProgramDescription {
 		return plan;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public String getDescription() {
 		return "Parameters: [numSubStasks] [input] [output]";

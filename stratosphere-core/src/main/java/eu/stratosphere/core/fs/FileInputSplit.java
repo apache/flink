@@ -138,17 +138,13 @@ public class FileInputSplit implements InputSplit {
 		return this.partitionNumber;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public String toString() {
 		return "[" + this.partitionNumber + "] " + file + ":" + start + "+" + length;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final DataOutput out) throws IOException {
 		// write partition number
@@ -178,9 +174,7 @@ public class FileInputSplit implements InputSplit {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void read(final DataInput in) throws IOException {
 		// read partition number

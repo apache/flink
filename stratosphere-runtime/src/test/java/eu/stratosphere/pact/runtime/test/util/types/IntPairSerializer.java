@@ -24,18 +24,14 @@ import eu.stratosphere.core.memory.DataOutputView;
 
 public class IntPairSerializer extends TypeSerializer<IntPair>
 {	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#createInstance()
-	 */
+
 	@Override
 	public IntPair createInstance()
 	{
 		return new IntPair();
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#createCopy(java.lang.Object)
-	 */
+
 	@Override
 	public IntPair createCopy(IntPair from)
 	{
@@ -52,9 +48,7 @@ public class IntPairSerializer extends TypeSerializer<IntPair>
 		to.setValue(from.getValue());
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#getLength()
-	 */
+
 	@Override
 	public int getLength()
 	{

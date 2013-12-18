@@ -71,25 +71,19 @@ public class SortMergeCoGroupIterator<T1, T2> implements CoGroupTaskIterator<T1,
 	@Override
 	public void close() {}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.util.CoGroupTaskIterator#getValues1()
-	 */
+
 	@Override
 	public Iterator<T1> getValues1() {
 		return this.firstReturn;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.util.CoGroupTaskIterator#getValues2()
-	 */
+
 	@Override
 	public Iterator<T2> getValues2() {
 		return this.secondReturn;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.util.CoGroupTaskIterator#next()
-	 */
+
 	@Override
 	public boolean next() throws IOException
 	{

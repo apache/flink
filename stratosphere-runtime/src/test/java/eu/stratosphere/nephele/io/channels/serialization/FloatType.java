@@ -38,45 +38,35 @@ public class FloatType implements SerializationTestType
 		this.value = value;
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.channels.serialization.SerializationTestType#getRandom(java.util.Random)
-	 */
+
 	@Override
 	public FloatType getRandom(Random rnd)
 	{
 		return new FloatType(rnd.nextFloat());
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.IOReadableWritable#write(java.io.DataOutput)
-	 */
+
 	@Override
 	public void write(DataOutput out) throws IOException
 	{
 		out.writeFloat(this.value);
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.IOReadableWritable#read(java.io.DataInput)
-	 */
+
 	@Override
 	public void read(DataInput in) throws IOException
 	{
 		this.value = in.readFloat();
 	}
 
-	/* (non-Javadoc)
-	 * @see java.lang.Object#hashCode()
-	 */
+
 	@Override
 	public int hashCode()
 	{
 		return Float.floatToIntBits(this.value);
 	}
 
-	/* (non-Javadoc)
-	 * @see java.lang.Object#equals(java.lang.Object)
-	 */
+
 	@Override
 	public boolean equals(Object obj)
 	{

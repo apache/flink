@@ -92,9 +92,7 @@ public class ThreadProfilingEvent extends VertexProfilingEvent {
 		return this.waitedTime;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void read(DataInput in) throws IOException {
 		super.read(in);
@@ -105,9 +103,7 @@ public class ThreadProfilingEvent extends VertexProfilingEvent {
 		this.waitedTime = in.readInt();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(DataOutput out) throws IOException {
 		super.write(out);
@@ -118,9 +114,7 @@ public class ThreadProfilingEvent extends VertexProfilingEvent {
 		out.writeInt(this.waitedTime);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean equals(Object obj) {
 
@@ -153,9 +147,7 @@ public class ThreadProfilingEvent extends VertexProfilingEvent {
 		return true;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int hashCode() {
 

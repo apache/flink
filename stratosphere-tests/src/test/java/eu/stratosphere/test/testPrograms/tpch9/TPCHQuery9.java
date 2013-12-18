@@ -76,9 +76,7 @@ public class TPCHQuery9 implements Program, ProgramDescription {
 
 	private String outputPath;
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public Job createJob(String... args) throws IllegalArgumentException {
 

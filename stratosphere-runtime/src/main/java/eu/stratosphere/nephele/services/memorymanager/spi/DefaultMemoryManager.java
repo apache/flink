@@ -145,9 +145,7 @@ public class DefaultMemoryManager implements MemoryManager
 		}
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.services.memorymanager.MemoryManager#shutdown()
-	 */
+
 	@Override
 	public void shutdown()
 	{
@@ -173,9 +171,7 @@ public class DefaultMemoryManager implements MemoryManager
 		// -------------------- END CRITICAL SECTION -------------------
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.services.memorymanager.MemoryManager#verifyEmpty()
-	 */
+
 	public boolean verifyEmpty()
 	{
 		synchronized (this.lock) {
@@ -263,9 +259,7 @@ public class DefaultMemoryManager implements MemoryManager
 	
 	// ------------------------------------------------------------------------
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.services.memorymanager.MemoryManager#release(eu.stratosphere.nephele.services.memorymanager.MemorySegment)
-	 */
+
 	@Override
 	public void release(MemorySegment segment)
 	{
@@ -307,9 +301,7 @@ public class DefaultMemoryManager implements MemoryManager
 		// -------------------- END CRITICAL SECTION -------------------
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.services.memorymanager.MemoryManager#release(java.util.Collection)
-	 */
+
 	@Override
 	public <T extends MemorySegment> void release(Collection<T> segments) {
 		
@@ -372,9 +364,7 @@ public class DefaultMemoryManager implements MemoryManager
 		// -------------------- END CRITICAL SECTION -------------------
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.services.memorymanager.MemoryManager#releaseAll(eu.stratosphere.nephele.template.AbstractInvokable)
-	 */
+
 	@Override
 	public void releaseAll(AbstractInvokable owner)
 	{
@@ -406,25 +396,19 @@ public class DefaultMemoryManager implements MemoryManager
 	
 	// ------------------------------------------------------------------------
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.services.memorymanager.MemoryManager#getPageSize()
-	 */
+
 	@Override
 	public int getPageSize() {
 		return this.pageSize;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.services.memorymanager.MemoryManager#computeNumberOfPages(long)
-	 */
+
 	@Override
 	public int computeNumberOfPages(long numBytes) {
 		return getNumPages(numBytes);
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.services.memorymanager.MemoryManager#roundDownToPageSizeMultiple(long)
-	 */
+
 	@Override
 	public long roundDownToPageSizeMultiple(long numBytes) {
 		return numBytes & this.roundingMask;

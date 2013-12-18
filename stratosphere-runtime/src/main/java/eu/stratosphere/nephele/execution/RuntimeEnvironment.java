@@ -301,34 +301,26 @@ public class RuntimeEnvironment implements Environment, Runnable {
 		return this.invokable;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public JobID getJobID() {
 		return this.jobID;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public GateID getNextUnboundInputGateID() {
 
 		return this.unboundInputGateIDs.poll();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	public GateID getNextUnboundOutputGateID() {
 
 		return this.unboundOutputGateIDs.poll();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void run() {
 
@@ -416,9 +408,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 		changeExecutionState(ExecutionState.FINISHED, null);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public <T extends IOReadableWritable> OutputGate<T> createOutputGate(final GateID gateID, Class<T> outputClass,
 			final ChannelSelector<T> selector, final boolean isBroadcast) {
@@ -427,9 +417,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 		return rog;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public <T extends IOReadableWritable> InputGate<T> createInputGate(final GateID gateID,
 										final RecordDeserializerFactory<T> deserializerFactory) {
@@ -449,24 +437,18 @@ public class RuntimeEnvironment implements Environment, Runnable {
 		this.inputGates.add(inputGate);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	public int getNumberOfOutputGates() {
 		return this.outputGates.size();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int getNumberOfInputGates() {
 		return this.inputGates.size();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int getNumberOfOutputChannels() {
 
@@ -478,9 +460,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 		return numberOfOutputChannels;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int getNumberOfInputChannels() {
 
@@ -634,50 +614,38 @@ public class RuntimeEnvironment implements Environment, Runnable {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public IOManager getIOManager() {
 		return this.ioManager;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public MemoryManager getMemoryManager() {
 		return this.memoryManager;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public Configuration getTaskConfiguration() {
 		return this.taskConfiguration;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public Configuration getJobConfiguration() {
 		return this.jobConfiguration;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int getCurrentNumberOfSubtasks() {
 
 		return this.currentNumberOfSubtasks;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int getIndexInSubtaskGroup() {
 
@@ -691,9 +659,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public String getTaskName() {
 
@@ -721,17 +687,13 @@ public class RuntimeEnvironment implements Environment, Runnable {
 		this.executionObserver = executionObserver;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public InputSplitProvider getInputSplitProvider() {
 		return this.inputSplitProvider;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void userThreadStarted(final Thread userThread) {
 
@@ -740,9 +702,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void userThreadFinished(final Thread userThread) {
 
@@ -766,9 +726,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public Set<ChannelID> getOutputChannelIDs() {
 
@@ -786,9 +744,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 		return Collections.unmodifiableSet(outputChannelIDs);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public Set<ChannelID> getInputChannelIDs() {
 
@@ -806,9 +762,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 		return Collections.unmodifiableSet(inputChannelIDs);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public Set<GateID> getInputGateIDs() {
 
@@ -822,9 +776,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 		return Collections.unmodifiableSet(inputGateIDs);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public Set<GateID> getOutputGateIDs() {
 
@@ -838,9 +790,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 		return Collections.unmodifiableSet(outputGateIDs);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public Set<ChannelID> getOutputChannelIDsOfGate(final GateID gateID) {
 
@@ -867,9 +817,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 		return Collections.unmodifiableSet(outputChannelIDs);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public Set<ChannelID> getInputChannelIDsOfGate(final GateID gateID) {
 

@@ -47,18 +47,14 @@ public class BroadcastConsumer extends AbstractOutputTask {
 	 */
 	private MutableRecordReader<BroadcastRecord> input;
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void registerInputOutput() {
 
 		this.input = new MutableRecordReader<BroadcastRecord>(this);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void invoke() throws Exception {
 

@@ -75,9 +75,7 @@ public abstract class AbstractEvent implements IOReadableWritable {
 	public AbstractEvent() {
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void read(final DataInput in) throws IOException {
 
@@ -86,9 +84,7 @@ public abstract class AbstractEvent implements IOReadableWritable {
 		this.sequenceNumber = in.readLong();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final DataOutput out) throws IOException {
 
@@ -120,9 +116,7 @@ public abstract class AbstractEvent implements IOReadableWritable {
 
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean equals(final Object obj) {
 
@@ -137,9 +131,7 @@ public abstract class AbstractEvent implements IOReadableWritable {
 		return false;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int hashCode() {
 

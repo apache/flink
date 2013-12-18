@@ -30,18 +30,14 @@ public class SpeedTestConsumer extends AbstractOutputTask {
 	 */
 	private MutableRecordReader<SpeedTestRecord> input;
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void registerInputOutput() {
 
 		this.input = new MutableRecordReader<SpeedTestRecord>(this);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void invoke() throws Exception {
 

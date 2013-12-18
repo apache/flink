@@ -87,9 +87,7 @@ public class AsynchronousPartialSorterCollector<E> extends AsynchronousPartialSo
 		return null;
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.sort.UnilateralSortMerger#close()
-	 */
+
 	public void close()
 	{
 		try {

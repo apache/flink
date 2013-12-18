@@ -77,9 +77,7 @@ public abstract class AbstractGate<T extends IOReadableWritable> implements Gate
 		this.index = index;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public final int getIndex() {
 		return this.index;
@@ -94,27 +92,21 @@ public abstract class AbstractGate<T extends IOReadableWritable> implements Gate
 		return this.eventNotificationManager;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public String toString() {
 
 		return "Gate " + this.index;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public final void subscribeToEvent(EventListener eventListener, Class<? extends AbstractTaskEvent> eventType) {
 
 		this.eventNotificationManager.subscribeToEvent(eventListener, eventType);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public final void unsubscribeFromEvent(final EventListener eventListener,
 			final Class<? extends AbstractTaskEvent> eventType) {
@@ -122,45 +114,35 @@ public abstract class AbstractGate<T extends IOReadableWritable> implements Gate
 		this.eventNotificationManager.unsubscribeFromEvent(eventListener, eventType);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public final void deliverEvent(final AbstractTaskEvent event) {
 
 		this.eventNotificationManager.deliverEvent((AbstractTaskEvent) event);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public final void setChannelType(final ChannelType channelType) {
 
 		this.channelType = channelType;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public final ChannelType getChannelType() {
 
 		return this.channelType;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public JobID getJobID() {
 
 		return this.jobID;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public GateID getGateID() {
 

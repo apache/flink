@@ -65,9 +65,7 @@ public final class SenderHintEvent extends AbstractEvent {
 		return this.remoteReceiver;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final DataOutput out) throws IOException {
 
@@ -75,9 +73,7 @@ public final class SenderHintEvent extends AbstractEvent {
 		this.remoteReceiver.write(out);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void read(final DataInput in) throws IOException {
 

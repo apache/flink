@@ -62,81 +62,63 @@ public class S3DataInputStream extends FSDataInputStream {
 		this.inputStream = s3o.getObjectContent();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int available() throws IOException {
 
 		return this.inputStream.available();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void close() throws IOException {
 
 		this.inputStream.close();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void mark(final int readlimit) {
 
 		this.inputStream.mark(readlimit);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean markSupported() {
 
 		return this.inputStream.markSupported();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int read() throws IOException {
 
 		return this.inputStream.read();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int read(final byte[] b) throws IOException {
 
 		return this.inputStream.read(b);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int read(final byte[] b, final int off, final int len) throws IOException {
 
 		return this.inputStream.read(b, off, len);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void reset() throws IOException {
 
 		this.inputStream.reset();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void seek(final long desired) throws IOException {
 

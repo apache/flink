@@ -144,18 +144,14 @@ public class LocalInstanceManager implements InstanceManager {
 		this.localTaskManagerThread.start();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public InstanceType getDefaultInstanceType() {
 
 		return this.defaultInstanceType;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public InstanceType getInstanceTypeByName(final String instanceTypeName) {
 
@@ -166,9 +162,7 @@ public class LocalInstanceManager implements InstanceManager {
 		return null;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public InstanceType getSuitableInstanceType(final int minNumComputeUnits, final int minNumCPUCores,
 			final int minMemorySize, final int minDiskCapacity, final int maxPricePerHour) {
@@ -196,9 +190,7 @@ public class LocalInstanceManager implements InstanceManager {
 		return this.defaultInstanceType;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void releaseAllocatedResource(final JobID jobID, final Configuration conf,
 			final AllocatedResource allocatedResource)
@@ -220,9 +212,7 @@ public class LocalInstanceManager implements InstanceManager {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void reportHeartBeat(final InstanceConnectionInfo instanceConnectionInfo,
 			final HardwareDescription hardwareDescription) {
@@ -239,9 +229,7 @@ public class LocalInstanceManager implements InstanceManager {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void shutdown() {
 
@@ -271,18 +259,14 @@ public class LocalInstanceManager implements InstanceManager {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public NetworkTopology getNetworkTopology(final JobID jobID) {
 
 		return this.networkTopology;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void setInstanceListener(final InstanceListener instanceListener) {
 
@@ -316,9 +300,7 @@ public class LocalInstanceManager implements InstanceManager {
 			hardwareDescription.getNumberOfCPUCores(), physicalMemory, diskCapacityInGB, 0);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public Map<InstanceType, InstanceTypeDescription> getMapOfAvailableInstanceTypes() {
 
@@ -370,9 +352,7 @@ public class LocalInstanceManager implements InstanceManager {
 
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public AbstractInstance getInstanceByName(final String name) {
 
@@ -391,9 +371,7 @@ public class LocalInstanceManager implements InstanceManager {
 		return null;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void cancelPendingRequests(final JobID jobID) {
 

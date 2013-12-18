@@ -190,9 +190,7 @@ public final class TaskDeploymentDescriptor implements IOReadableWritable {
 		this.inputGates = new SerializableArrayList<GateDeploymentDescriptor>();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final DataOutput out) throws IOException {
 
@@ -224,9 +222,7 @@ public final class TaskDeploymentDescriptor implements IOReadableWritable {
 		this.inputGates.write(out);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@SuppressWarnings("unchecked")
 	@Override
 	public void read(final DataInput in) throws IOException {

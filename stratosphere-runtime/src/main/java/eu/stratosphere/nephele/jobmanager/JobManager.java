@@ -468,9 +468,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		return jobManager;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public JobSubmissionResult submitJob(JobGraph job) throws IOException {
 		// First check if job is null
@@ -640,9 +638,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void sendHeartbeat(final InstanceConnectionInfo instanceConnectionInfo,
 			final HardwareDescription hardwareDescription) {
@@ -662,9 +658,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void updateTaskExecutionState(final TaskExecutionState executionState) throws IOException {
 
@@ -692,9 +686,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		vertex.updateExecutionStateAsynchronously(executionState.getExecutionState(), executionState.getDescription());
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public JobCancelResult cancelJob(final JobID jobID) throws IOException {
 
@@ -754,9 +746,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		return errorResult;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public JobProgressResult getJobProgress(final JobID jobID) throws IOException {
 
@@ -771,9 +761,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		return new JobProgressResult(ReturnCode.SUCCESS, null, eventList);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public ConnectionInfoLookupResponse lookupConnectionInfo(final InstanceConnectionInfo caller, final JobID jobID,
 			final ChannelID sourceChannelID) {
@@ -915,9 +903,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		return mg;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public NetworkTopology getNetworkTopology(final JobID jobID) throws IOException {
 
@@ -928,18 +914,14 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		return null;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public IntegerRecord getRecommendedPollingInterval() throws IOException {
 
 		return new IntegerRecord(this.recommendedClientPollingInterval);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public List<RecentJobEvent> getRecentJobs() throws IOException {
 
@@ -954,9 +936,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		return eventList;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public List<AbstractEvent> getEvents(final JobID jobID) throws IOException {
 
@@ -971,9 +951,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		return eventList;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void killTask(final JobID jobID, final ManagementVertexID id) throws IOException {
 
@@ -1006,9 +984,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		eg.executeCommand(runnable);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void killInstance(final StringRecord instanceName) throws IOException {
 
@@ -1046,9 +1022,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		return this.isShutDown;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	public Map<InstanceType, InstanceTypeDescription> getMapOfAvailableInstanceTypes() {
 
 		// Delegate call to the instance manager
@@ -1059,9 +1033,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		return null;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void jobStatusHasChanged(final ExecutionGraph executionGraph, final InternalJobStatus newJobStatus,
 			final String optionalMessage) {
@@ -1082,9 +1054,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void logBufferUtilization(final JobID jobID) throws IOException {
 
@@ -1136,9 +1106,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		this.executorService.execute(requestRunnable);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void deploy(final JobID jobID, final AbstractInstance instance,
 			final List<ExecutionVertex> verticesToBeDeployed) {
@@ -1231,9 +1199,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		this.executorService.execute(deploymentRunnable);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public InputSplitWrapper requestNextInputSplit(final JobID jobID, final ExecutionVertexID vertexID,
 			final IntegerRecord sequenceNumber) throws IOException {

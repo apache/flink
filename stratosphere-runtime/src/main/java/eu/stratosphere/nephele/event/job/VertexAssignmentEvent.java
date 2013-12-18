@@ -102,9 +102,7 @@ public final class VertexAssignmentEvent extends AbstractEvent implements Manage
 		return this.instanceType;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void read(final DataInput in) throws IOException {
 
@@ -115,9 +113,7 @@ public final class VertexAssignmentEvent extends AbstractEvent implements Manage
 		this.instanceType = StringRecord.readString(in);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final DataOutput out) throws IOException {
 
@@ -128,9 +124,7 @@ public final class VertexAssignmentEvent extends AbstractEvent implements Manage
 		StringRecord.writeString(out, this.instanceType);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean equals(final Object obj) {
 
@@ -171,9 +165,7 @@ public final class VertexAssignmentEvent extends AbstractEvent implements Manage
 		return true;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int hashCode() {
 

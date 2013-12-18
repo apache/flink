@@ -51,9 +51,7 @@ public class FieldList extends FieldSet {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.util.FieldSet#isValidSubset(eu.stratosphere.pact.common.util.FieldSet)
-	 */
+
 	@Override
 	public boolean isValidSubset(FieldSet set) {
 		if (set instanceof FieldList) {

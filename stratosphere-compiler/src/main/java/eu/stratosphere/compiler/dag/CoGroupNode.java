@@ -146,10 +146,6 @@ public class CoGroupNode extends TwoInputNode {
 		return this.computeNumberOfProcessedKeys();
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeOutputEstimates(eu.stratosphere.pact.compiler.DataStatistics)
-	 */
 	@Override
 	public void computeOutputEstimates(DataStatistics statistics) {
 		CompilerHints hints = getPactContract().getCompilerHints();
@@ -183,10 +179,6 @@ public class CoGroupNode extends TwoInputNode {
 		super.computeOutputEstimates(statistics);
 	}
 	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#createUniqueFieldsForNode()
-	 */
 	@Override
 	public List<FieldSet> createUniqueFieldsForNode() {
 		List<FieldSet> uniqueFields = null;

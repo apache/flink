@@ -68,9 +68,7 @@ public class LocatableInputSplit implements InputSplit {
 		return this.hostnames;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final DataOutput out) throws IOException {
 
@@ -89,9 +87,7 @@ public class LocatableInputSplit implements InputSplit {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void read(final DataInput in) throws IOException {
 
@@ -110,9 +106,7 @@ public class LocatableInputSplit implements InputSplit {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int getSplitNumber() {
 

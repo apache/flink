@@ -39,9 +39,7 @@ public class EnvironmentListenerImpl implements ExecutionListener {
 		this.environment = environment;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void executionStateChanged(final JobID jobID, final ExecutionVertexID vertexID,
 			final ExecutionState newExecutionState, final String optionalMessage) {
@@ -65,9 +63,7 @@ public class EnvironmentListenerImpl implements ExecutionListener {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void userThreadFinished(final JobID jobID, final ExecutionVertexID vertexID, final Thread userThread) {
 
@@ -79,9 +75,7 @@ public class EnvironmentListenerImpl implements ExecutionListener {
 		this.taskManagerProfiler.unregisterUserThreadFromCPUProfiling(this.environment, userThread);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void userThreadStarted(final JobID jobID, final ExecutionVertexID vertexID, final Thread userThread) {
 
@@ -93,9 +87,7 @@ public class EnvironmentListenerImpl implements ExecutionListener {
 		this.taskManagerProfiler.registerUserThreadForCPUProfiling(this.environment, userThread);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int getPriority() {
 

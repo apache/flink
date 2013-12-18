@@ -41,9 +41,7 @@ public final class HeapSort implements IndexedSorter {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	public void sort(final IndexedSortable s, final int p, final int r) {
 		final int N = r - p;
 		// build heap w/ reverse comparator, then write in-place from end

@@ -56,18 +56,11 @@ public class MatchNode extends TwoInputNode {
 		return (JoinOperatorBase<?>) super.getPactContract();
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getName()
-	 */
 	@Override
 	public String getName() {
 		return "Match";
 	}
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.TwoInputNode#getPossibleProperties()
-	 */
+
 	@Override
 	protected List<OperatorDescriptorDual> getPossibleProperties() {
 		// see if an internal hint dictates the strategy to use

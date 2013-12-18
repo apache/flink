@@ -35,9 +35,7 @@ public class FileLineWriter extends AbstractFileOutputTask {
 	 */
 	private RecordReader<StringRecord> input = null;
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void invoke() throws Exception {
 
@@ -65,17 +63,13 @@ public class FileLineWriter extends AbstractFileOutputTask {
 
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void registerInputOutput() {
 		this.input = new RecordReader<StringRecord>(this, StringRecord.class);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int getMaximumNumberOfSubtasks() {
 		// The default implementation always returns -1

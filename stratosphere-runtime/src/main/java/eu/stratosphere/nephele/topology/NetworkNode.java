@@ -219,9 +219,7 @@ public class NetworkNode implements IOReadableWritable {
 		return getDistance(networkNode);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void read(final DataInput in) throws IOException {
 
@@ -240,9 +238,7 @@ public class NetworkNode implements IOReadableWritable {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final DataOutput out) throws IOException {
 
@@ -254,9 +250,7 @@ public class NetworkNode implements IOReadableWritable {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public String toString() {
 

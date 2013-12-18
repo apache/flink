@@ -85,9 +85,7 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 	// cancel flag
 	private volatile boolean taskCanceled;
 	
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void registerInputOutput() {
 		if (LOG.isDebugEnabled())
@@ -108,9 +106,7 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 			LOG.debug(getLogString("Finished registering input and output"));
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void invoke() throws Exception
 	{
@@ -364,9 +360,7 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 	//                     Degree of parallelism & checks
 	// ------------------------------------------------------------------------
 	
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int getMaximumNumberOfSubtasks()
 	{

@@ -1112,9 +1112,7 @@ public class PactCompiler {
 			this.memoryPerTaskPerInstance = memoryPerTaskPerInstance;
 		}
 
-		/* (non-Javadoc)
-		 * @see eu.stratosphere.pact.common.plan.Visitor#preVisit(eu.stratosphere.pact.common.plan.Visitable)
-		 */
+
 		@Override
 		public boolean preVisit(OptimizerNode visitable) {
 			// if required, recurse into the step function
@@ -1132,9 +1130,7 @@ public class PactCompiler {
 			}
 		}
 
-		/* (non-Javadoc)
-		 * @see eu.stratosphere.pact.common.plan.Visitor#postVisit(eu.stratosphere.pact.common.plan.Visitable)
-		 */
+
 		@Override
 		public void postVisit(OptimizerNode visitable) {}
 	}
@@ -1177,9 +1173,7 @@ public class PactCompiler {
 			}
 		}
 
-		/* (non-Javadoc)
-		 * @see eu.stratosphere.pact.common.plan.Visitor#postVisit(eu.stratosphere.pact.common.plan.Visitable)
-		 */
+
 		@Override
 		public void postVisit(OptimizerNode visitable) {}
 	}
@@ -1647,9 +1641,7 @@ public class PactCompiler {
 			throw new IOException("Connection timed out.");
 		}
 		
-		/* (non-Javadoc)
-		 * @see java.lang.Runnable#run()
-		 */
+
 		@Override
 		public void run() {
 			ExtendedManagementProtocol jobManagerConnection = null;

@@ -53,9 +53,7 @@ public abstract class ArrayOutputFormat extends FileOutputFormat<Value[]> implem
 	
 	// --------------------------------------------------------------------------------------------
 	
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void configure(Configuration parameters) {
 		super.configure(parameters);
@@ -69,23 +67,15 @@ public abstract class ArrayOutputFormat extends FileOutputFormat<Value[]> implem
 		this.lenient = parameters.getBoolean(LENIENT_PARSING, false);
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.api.record.io.FileOutputFormat#open(int)
-	 */
 	@Override
-	public void open(int taskNumber) throws IOException
-	{
+	public void open(int taskNumber) throws IOException {
 		super.open(taskNumber);
 		this.wrt = this.charsetName == null ? new OutputStreamWriter(new BufferedOutputStream(this.stream, 4096)) :
 				new OutputStreamWriter(new BufferedOutputStream(this.stream, 4096), this.charsetName);
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.api.record.io.FileOutputFormat#close()
-	 */
 	@Override
-	public void close() throws IOException
-	{
+	public void close() throws IOException {
 		if(wrt != null) {
 			this.wrt.close();
 		}
@@ -94,9 +84,6 @@ public abstract class ArrayOutputFormat extends FileOutputFormat<Value[]> implem
 	
 	// --------------------------------------------------------------------------------------------
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.recordio.OutputFormat#writeRecord(eu.stratosphere.pact.common.type.PactRecord)
-	 */
 	@Override
 	public void writeRecord(Value[] record) throws IOException {
 		for (int i = 0; i < record.length; i++) {

@@ -378,9 +378,7 @@ public class Path implements IOReadableWritable, Serializable {
 		return buffer.toString();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean equals(Object o) {
 		if (!(o instanceof Path)) {
@@ -390,9 +388,7 @@ public class Path implements IOReadableWritable, Serializable {
 		return this.uri.equals(that.uri);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int hashCode() {
 		return uri.hashCode();
@@ -455,9 +451,7 @@ public class Path implements IOReadableWritable, Serializable {
 		return new Path(scheme + ":" + "//" + authority + pathUri.getPath());
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void read(DataInput in) throws IOException {
 
@@ -480,9 +474,7 @@ public class Path implements IOReadableWritable, Serializable {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(DataOutput out) throws IOException {
 

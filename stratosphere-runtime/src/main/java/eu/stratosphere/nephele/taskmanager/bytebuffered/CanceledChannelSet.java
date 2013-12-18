@@ -43,9 +43,7 @@ public final class CanceledChannelSet implements Set<ChannelID> {
 	 */
 	private final Map<ChannelID, Long> canceledChannels = new HashMap<ChannelID, Long>();
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean add(ChannelID arg0) {
 
@@ -60,9 +58,7 @@ public final class CanceledChannelSet implements Set<ChannelID> {
 		return false;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean addAll(Collection<? extends ChannelID> arg0) {
 
@@ -83,9 +79,7 @@ public final class CanceledChannelSet implements Set<ChannelID> {
 		return retVal;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void clear() {
 
@@ -95,9 +89,7 @@ public final class CanceledChannelSet implements Set<ChannelID> {
 
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean contains(Object arg0) {
 
@@ -106,9 +98,7 @@ public final class CanceledChannelSet implements Set<ChannelID> {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean containsAll(Collection<?> arg0) {
 
@@ -117,9 +107,7 @@ public final class CanceledChannelSet implements Set<ChannelID> {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean isEmpty() {
 
@@ -128,9 +116,7 @@ public final class CanceledChannelSet implements Set<ChannelID> {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public Iterator<ChannelID> iterator() {
 
@@ -139,9 +125,7 @@ public final class CanceledChannelSet implements Set<ChannelID> {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean remove(Object arg0) {
 
@@ -154,9 +138,7 @@ public final class CanceledChannelSet implements Set<ChannelID> {
 		return true;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean removeAll(Collection<?> arg0) {
 
@@ -175,18 +157,14 @@ public final class CanceledChannelSet implements Set<ChannelID> {
 		return retVal;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean retainAll(Collection<?> arg0) {
 
 		throw new RuntimeException("Method not implemented");
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int size() {
 
@@ -195,9 +173,7 @@ public final class CanceledChannelSet implements Set<ChannelID> {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public Object[] toArray() {
 
@@ -206,9 +182,7 @@ public final class CanceledChannelSet implements Set<ChannelID> {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public <T> T[] toArray(T[] arg0) {
 

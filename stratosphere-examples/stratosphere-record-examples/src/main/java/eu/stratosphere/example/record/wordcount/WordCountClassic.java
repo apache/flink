@@ -113,9 +113,7 @@ public class WordCountClassic implements Program, ProgramDescription {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public Job createJob(String... args) {
 		// parse job parameters
@@ -145,9 +143,7 @@ public class WordCountClassic implements Program, ProgramDescription {
 		return plan;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public String getDescription() {
 		return "Parameters: [numSubStasks] [input] [output]";

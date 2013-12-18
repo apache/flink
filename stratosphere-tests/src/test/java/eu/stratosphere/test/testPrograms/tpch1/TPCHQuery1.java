@@ -86,9 +86,7 @@ public class TPCHQuery1 implements Program, ProgramDescription {
 		return new Job(result, "TPC-H 1");
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.plan.PlanAssemblerDescription#getDescription()
-	 */
+
 	@Override
 	public String getDescription() {
 		return "Parameters: [dop] [lineitem-input] [output]";

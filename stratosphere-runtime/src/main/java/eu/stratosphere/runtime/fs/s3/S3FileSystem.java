@@ -151,27 +151,21 @@ public final class S3FileSystem extends FileSystem {
 			+ (this.useRRS ? "enabled" : "disabled"));
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public Path getWorkingDirectory() {
 
 		return new Path(this.s3Uri);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public URI getUri() {
 
 		return this.s3Uri;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void initialize(URI name) throws IOException {
 
@@ -270,9 +264,7 @@ public final class S3FileSystem extends FileSystem {
 		this.directoryStructure = new S3DirectoryStructure(basePath);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public FileStatus getFileStatus(final Path f) throws IOException {
 
@@ -335,9 +327,7 @@ public final class S3FileSystem extends FileSystem {
 		return date.getTime();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public BlockLocation[] getFileBlockLocations(final FileStatus file, final long start, final long len)
 			throws IOException {
@@ -351,18 +341,14 @@ public final class S3FileSystem extends FileSystem {
 		return new BlockLocation[] { bl };
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public FSDataInputStream open(final Path f, final int bufferSize) throws IOException {
 
 		return open(f); // Ignore bufferSize
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public FSDataInputStream open(final Path f) throws IOException {
 
@@ -381,9 +367,7 @@ public final class S3FileSystem extends FileSystem {
 		return new S3DataInputStream(this.s3Client, bop.getBucket(), bop.getObject());
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public FileStatus[] listStatus(final Path f) throws IOException {
 
@@ -539,9 +523,7 @@ public final class S3FileSystem extends FileSystem {
 		return depth;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean delete(Path f, boolean recursive) throws IOException {
 
@@ -593,9 +575,7 @@ public final class S3FileSystem extends FileSystem {
 		return true;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean mkdirs(final Path f) throws IOException {
 
@@ -678,9 +658,7 @@ public final class S3FileSystem extends FileSystem {
 		this.s3Client.putObject(bucketName, objectName, im, om);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public FSDataOutputStream create(final Path f, final boolean overwrite, final int bufferSize,
 			final short replication, final long blockSize)
@@ -705,9 +683,7 @@ public final class S3FileSystem extends FileSystem {
 		return new S3DataOutputStream(this.s3Client, bop.getBucket(), bop.getObject(), buf, this.useRRS);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public FSDataOutputStream create(final Path f, final boolean overwrite) throws IOException {
 
@@ -778,9 +754,7 @@ public final class S3FileSystem extends FileSystem {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean rename(final Path src, final Path dst) throws IOException {
 

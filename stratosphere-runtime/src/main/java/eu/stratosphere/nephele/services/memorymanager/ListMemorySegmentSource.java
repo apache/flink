@@ -33,9 +33,7 @@ public class ListMemorySegmentSource implements MemorySegmentSource
 		this.segments = memorySegments;
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.services.memorymanager.MemorySegmentSource#nextSegment()
-	 */
+
 	@Override
 	public MemorySegment nextSegment() {
 		if (this.segments.size() > 0) {

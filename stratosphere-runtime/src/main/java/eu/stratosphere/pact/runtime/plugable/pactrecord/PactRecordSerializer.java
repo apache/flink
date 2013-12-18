@@ -46,17 +46,13 @@ public final class PactRecordSerializer extends TypeSerializer<PactRecord>
 
 	// --------------------------------------------------------------------------------------------
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#createInstance()
-	 */
+
 	@Override
 	public PactRecord createInstance() {
 		return new PactRecord(); 
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#createCopy(java.lang.Object)
-	 */
+
 	@Override
 	public PactRecord createCopy(PactRecord from) {
 		return from.createCopy();
@@ -70,9 +66,7 @@ public final class PactRecordSerializer extends TypeSerializer<PactRecord>
 		from.copyTo(to);
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#getLength()
-	 */
+
 	@Override
 	public int getLength() {
 		return -1;

@@ -39,9 +39,7 @@ public class DirectoryReader extends AbstractFileInputTask {
 
 	private static final Log LOG = LogFactory.getLog(DirectoryReader.class);
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void invoke() throws Exception {
 
@@ -96,9 +94,7 @@ public class DirectoryReader extends AbstractFileInputTask {
 			}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void registerInputOutput() {
 		output = new RecordWriter<FileRecord>(this, FileRecord.class);

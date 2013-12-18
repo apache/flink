@@ -47,9 +47,6 @@ public abstract class AbstractPartialSolutionNode extends OptimizerNode
 	
 	// --------------------------------------------------------------------------------------------
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isMemoryConsumer()
-	 */
 	@Override
 	public boolean isMemoryConsumer() {
 		return false;
@@ -64,44 +61,24 @@ public abstract class AbstractPartialSolutionNode extends OptimizerNode
 		this.costWeight = costWeight;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getIncomingConnections()
-	 */
 	@Override
 	public List<PactConnection> getIncomingConnections() {
 		return Collections.<PactConnection>emptyList();
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#setInputs(java.util.Map)
-	 */
 	@Override
-	public void setInputs(Map<Operator, OptimizerNode> contractToNode) {
-	}
+	public void setInputs(Map<Operator, OptimizerNode> contractToNode) {}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeOutputEstimates(eu.stratosphere.pact.compiler.DataStatistics)
-	 */
 	@Override
 	public void computeOutputEstimates(DataStatistics statistics) {
 		// do nothing. we obtain the estimates another way from the enclosing iteration
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeInterestingProperties()
-	 */
 	@Override
 	public void computeInterestingPropertiesForInputs(CostEstimator estimator) {
 		// no children, so nothing to compute
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeUnclosedBranchStack()
-	 */
 	@Override
 	public void computeUnclosedBranchStack() {
 		// because there are no inputs, there are no unclosed branches.

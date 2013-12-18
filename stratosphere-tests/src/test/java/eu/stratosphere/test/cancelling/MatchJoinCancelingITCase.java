@@ -31,12 +31,11 @@ import eu.stratosphere.types.PactInteger;
 import eu.stratosphere.types.PactRecord;
 import eu.stratosphere.util.Collector;
 
-public class MatchJoinCancelingITCase extends CancellingTestBase
-{
+public class MatchJoinCancelingITCase extends CancellingTestBase {
+	
 	// --------------- Test Sort Matches that are canceled while still reading / sorting -----------------
 	@Test
-	public void testCancelSortMatchWhileReadingSlowInputs() throws Exception
-	{
+	public void testCancelSortMatchWhileReadingSlowInputs() throws Exception {
 		GenericDataSource<InfiniteIntegerInputFormatWithDelay> source1 =
 			new GenericDataSource<InfiniteIntegerInputFormatWithDelay>(new InfiniteIntegerInputFormatWithDelay(), "Source 1");
 
@@ -57,8 +56,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 	}
 
 	@Test
-	public void testCancelSortMatchWhileReadingFastInputs() throws Exception
-	{
+	public void testCancelSortMatchWhileReadingFastInputs() throws Exception {
 		GenericDataSource<InfiniteIntegerInputFormat> source1 =
 			new GenericDataSource<InfiniteIntegerInputFormat>(new InfiniteIntegerInputFormat(), "Source 1");
 
@@ -79,8 +77,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 	}
 	
 	@Test
-	public void testCancelSortMatchPriorToFirstRecordReading() throws Exception
-	{
+	public void testCancelSortMatchPriorToFirstRecordReading() throws Exception {
 		GenericDataSource<InfiniteIntegerInputFormat> source1 =
 			new GenericDataSource<InfiniteIntegerInputFormat>(new InfiniteIntegerInputFormat(), "Source 1");
 
@@ -103,8 +100,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 	}
 	
 	@Test
-	public void testCancelSortMatchWhileDoingHeavySorting() throws Exception
-	{
+	public void testCancelSortMatchWhileDoingHeavySorting() throws Exception {
 		GenericDataSource<UniformIntInput> source1 =
 			new GenericDataSource<UniformIntInput>(new UniformIntInput(), "Source 1");
 		source1.setParameter(UniformIntInput.NUM_KEYS_KEY, 50000);
@@ -132,8 +128,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 	// --------------- Test Sort Matches that are canceled while in the Matching Phase -----------------
 	
 	@Test
-	public void testCancelSortMatchWhileJoining() throws Exception
-	{
+	public void testCancelSortMatchWhileJoining() throws Exception {
 		GenericDataSource<UniformIntInput> source1 =
 			new GenericDataSource<UniformIntInput>(new UniformIntInput(), "Source 1");
 		source1.setParameter(UniformIntInput.NUM_KEYS_KEY, 500);
@@ -158,8 +153,8 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 	}
 	
 	@Test
-	public void testCancelSortMatchWithLongCancellingResponse() throws Exception
-	{
+	public void testCancelSortMatchWithLongCancellingResponse() throws Exception {
+		
 		GenericDataSource<UniformIntInput> source1 =
 			new GenericDataSource<UniformIntInput>(new UniformIntInput(), "Source 1");
 		source1.setParameter(UniformIntInput.NUM_KEYS_KEY, 500);
@@ -186,8 +181,8 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 	// -------------------------------------- Test System corner cases ---------------------------------
 	
 //	@Test
-	public void testCancelSortMatchWithHighDOP() throws Exception
-	{
+	public void testCancelSortMatchWithHighDOP() throws Exception {
+		
 		GenericDataSource<InfiniteIntegerInputFormat> source1 =
 			new GenericDataSource<InfiniteIntegerInputFormat>(new InfiniteIntegerInputFormat(), "Source 1");
 
@@ -209,45 +204,33 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 
 	// --------------------------------------------------------------------------------------------
 	
-	public static final class SimpleMatcher extends JoinFunction
-	{
-		/* (non-Javadoc)
-		 * @see eu.stratosphere.api.record.functions.JoinFunction#match(eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.api.record.functions.Collector)
-		 */
+	public static final class SimpleMatcher extends JoinFunction {
+		
 		@Override
-		public void match(PactRecord value1, PactRecord value2, Collector<PactRecord> out) throws Exception
-		{
+		public void match(PactRecord value1, PactRecord value2, Collector<PactRecord> out) throws Exception {
 			value1.setField(1, value2.getField(0, PactInteger.class));
 			out.collect(value1);
 		}
 	}
 	
-	public static final class DelayingMatcher extends JoinFunction
-	{
+	public static final class DelayingMatcher extends JoinFunction {
+		
 		private static final int WAIT_TIME_PER_RECORD = 10 * 1000; // 10 sec.
 
-		/* (non-Javadoc)
-		 * @see eu.stratosphere.api.record.functions.JoinFunction#match(eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.api.record.functions.Collector)
-		 */
 		@Override
-		public void match(PactRecord value1, PactRecord value2, Collector<PactRecord> out) throws Exception
-		{
+		public void match(PactRecord value1, PactRecord value2, Collector<PactRecord> out) throws Exception {
 			Thread.sleep(WAIT_TIME_PER_RECORD);
 			value1.setField(1, value2.getField(0, PactInteger.class));
 			out.collect(value1);
 		}
 	}
 	
-	public static final class LongCancelTimeMatcher extends JoinFunction
-	{
+	public static final class LongCancelTimeMatcher extends JoinFunction {
+		
 		private static final int WAIT_TIME_PER_RECORD = 5 * 1000; // 5 sec.
 		
-		/* (non-Javadoc)
-		 * @see eu.stratosphere.api.record.functions.JoinFunction#match(eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.api.record.functions.Collector)
-		 */
 		@Override
-		public void match(PactRecord value1, PactRecord value2, Collector<PactRecord> out) throws Exception
-		{
+		public void match(PactRecord value1, PactRecord value2, Collector<PactRecord> out) throws Exception {
 			value1.setField(1, value2.getField(0, PactInteger.class));
 			
 			final long start = System.currentTimeMillis();
@@ -262,11 +245,8 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 		}
 	}
 	
-	public static final class StuckInOpenMatcher extends JoinFunction
-	{
-		/* (non-Javadoc)
-		 * @see eu.stratosphere.pact.common.generic.AbstractStub#open(eu.stratosphere.nephele.configuration.Configuration)
-		 */
+	public static final class StuckInOpenMatcher extends JoinFunction {
+		
 		@Override
 		public void open(Configuration parameters) throws Exception {
 			synchronized (this) {
@@ -274,12 +254,8 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 			}
 		}
 
-		/* (non-Javadoc)
-		 * @see eu.stratosphere.api.record.functions.JoinFunction#match(eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.api.record.functions.Collector)
-		 */
 		@Override
-		public void match(PactRecord value1, PactRecord value2, Collector<PactRecord> out) throws Exception
-		{
+		public void match(PactRecord value1, PactRecord value2, Collector<PactRecord> out) throws Exception {
 			value1.setField(1, value2.getField(0, PactInteger.class));
 			out.collect(value1);
 		}

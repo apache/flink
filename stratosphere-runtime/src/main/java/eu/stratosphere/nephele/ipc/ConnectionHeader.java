@@ -49,18 +49,14 @@ class ConnectionHeader implements IOReadableWritable {
 		this.protocol = protocol;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void read(final DataInput in) throws IOException {
 
 		this.protocol = StringRecord.readString(in);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final DataOutput out) throws IOException {
 
@@ -71,9 +67,7 @@ class ConnectionHeader implements IOReadableWritable {
 		return this.protocol;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public String toString() {
 		return this.protocol;

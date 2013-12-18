@@ -79,27 +79,21 @@ public final class TeraKey implements Key {
 		this.offset = offset;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(DataOutput out) throws IOException
 	{
 		out.write(this.key, this.offset, KEY_SIZE);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void read(DataInput in) throws IOException {
 		in.readFully(this.key, 0, KEY_SIZE);
 		this.offset = 0;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int compareTo(Key arg0) {
 
@@ -121,9 +115,7 @@ public final class TeraKey implements Key {
 		return diff;
 	}
 
-	/* (non-Javadoc)
-	 * @see java.lang.Object#hashCode()
-	 */
+
 	@Override
 	public int hashCode() {
 		int result = 1;
@@ -133,9 +125,7 @@ public final class TeraKey implements Key {
 		return result;
 	}
 
-	/* (non-Javadoc)
-	 * @see java.lang.Object#equals(java.lang.Object)
-	 */
+
 	@Override
 	public boolean equals(Object obj) {
 		if (getClass() != obj.getClass())
@@ -161,9 +151,7 @@ public final class TeraKey implements Key {
 		System.arraycopy(this.key, this.offset, buf, 0, KEY_SIZE);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public String toString() {
 

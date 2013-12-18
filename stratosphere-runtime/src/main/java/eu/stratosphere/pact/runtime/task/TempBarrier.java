@@ -99,9 +99,7 @@ public class TempBarrier<T> implements CloseableInputProvider<T> {
 		}
 	}
 
-	/* (non-Javadoc)
-	 * @see java.io.Closeable#close()
-	 */
+
 	@Override
 	public void close() throws IOException {
 		synchronized (this.lock) {

@@ -35,9 +35,7 @@ public final class TeraOutputFormat extends FileOutputFormat {
 	 */
 	private final byte[] buffer = new byte[TeraKey.KEY_SIZE + TeraValue.VALUE_SIZE + 1];
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void writeRecord(PactRecord record) throws IOException {
 		record.getField(0, TeraKey.class).copyToBuffer(this.buffer);

@@ -60,9 +60,7 @@ public class CombineDriver<T> implements PactDriver<GenericReducer<T, ?>, T>
 
 	// ------------------------------------------------------------------------
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.PactDriver#setup(eu.stratosphere.pact.runtime.task.PactTaskContext)
-	 */
+
 	@Override
 	public void setup(PactTaskContext<GenericReducer<T, ?>, T> context) {
 		this.taskContext = context;
@@ -167,9 +165,7 @@ public class CombineDriver<T> implements PactDriver<GenericReducer<T, ?>, T>
 		}
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.PactDriver#cancel()
-	 */
+
 	@Override
 	public void cancel() {
 		this.running = false;

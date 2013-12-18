@@ -34,9 +34,7 @@ public class MutableObjectIteratorWrapper implements MutableObjectIterator<PactR
 		this.source = source;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.util.MutableObjectIterator#next(java.lang.Object)
-	 */
+
 	@Override
 	public boolean next(PactRecord target) throws IOException {
 		if (this.source.hasNext()) {

@@ -490,9 +490,7 @@ public class TaskManager implements TaskOperationProtocol {
         return connectable;
 	}
 	
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public TaskCancelResult cancelTask(final ExecutionVertexID id) throws IOException {
 
@@ -521,9 +519,7 @@ public class TaskManager implements TaskOperationProtocol {
 		return new TaskCancelResult(id, AbstractTaskResult.ReturnCode.SUCCESS);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public TaskKillResult killTask(final ExecutionVertexID id) throws IOException {
 
@@ -552,9 +548,7 @@ public class TaskManager implements TaskOperationProtocol {
 		return new TaskKillResult(id, AbstractTaskResult.ReturnCode.SUCCESS);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public List<TaskSubmissionResult> submitTasks(final List<TaskDeploymentDescriptor> tasks) throws IOException {
 
@@ -724,9 +718,7 @@ public class TaskManager implements TaskOperationProtocol {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public LibraryCacheProfileResponse getLibraryCacheProfile(LibraryCacheProfileRequest request) throws IOException {
 
@@ -743,9 +735,7 @@ public class TaskManager implements TaskOperationProtocol {
 		return response;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void updateLibraryCache(LibraryCacheUpdate update) throws IOException {
 
@@ -865,18 +855,14 @@ public class TaskManager implements TaskOperationProtocol {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void logBufferUtilization() throws IOException {
 
 		this.byteBufferedChannelManager.logBufferUtilization();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void killTaskManager() throws IOException {
 
@@ -894,9 +880,7 @@ public class TaskManager implements TaskOperationProtocol {
 		timer.schedule(timerTask, 10L);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void invalidateLookupCacheEntries(final Set<ChannelID> channelIDs) throws IOException {
 

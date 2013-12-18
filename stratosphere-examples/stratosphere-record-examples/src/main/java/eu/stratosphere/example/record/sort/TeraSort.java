@@ -41,18 +41,14 @@ import eu.stratosphere.example.record.sort.terasort.TeraOutputFormat;
  */
 public final class TeraSort implements Program, ProgramDescription {
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public String getDescription() {
 
 		return "Parameters: [numSubStasks] [input] [output]";
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public Job createJob(String... args) throws IllegalArgumentException {
 		// parse job parameters

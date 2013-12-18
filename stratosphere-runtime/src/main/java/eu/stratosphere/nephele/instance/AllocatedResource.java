@@ -104,9 +104,7 @@ public final class AllocatedResource {
 		return this.instanceType;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean equals(final Object obj) {
 
@@ -143,9 +141,7 @@ public final class AllocatedResource {
 		return false;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int hashCode() {
 

@@ -69,9 +69,7 @@ implements ResettableMutableObjectIterator<T>
 	
 	// --------------------------------------------------------------------------------------------
 
-	/* (non-Javadoc)
-	 * @see java.util.Iterator#hasNext()
-	 */
+
 	@Override
 	public boolean next(T target) throws IOException
 	{
@@ -106,9 +104,7 @@ implements ResettableMutableObjectIterator<T>
 		}
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.resettable.AbstractBlockResettableIterator#reset()
-	 */
+
 	public void reset()
 	{
 		// a reset always goes to the read phase
@@ -116,9 +112,7 @@ implements ResettableMutableObjectIterator<T>
 		super.reset();
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.util.MemoryBlockIterator#nextBlock()
-	 */
+
 	@Override
 	public boolean nextBlock() throws IOException
 	{
@@ -170,9 +164,7 @@ implements ResettableMutableObjectIterator<T>
 		return !this.noMoreBlocks; 
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.resettable.AbstractBlockResettableIterator#close()
-	 */
+
 	public void close()
 	{
 		// suggest that we are in the read phase. because nothing is in the current block,

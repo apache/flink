@@ -70,10 +70,6 @@ public class WorksetNode extends AbstractPartialSolutionNode {
 		return (WorksetPlaceHolder) super.getPactContract();
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getName()
-	 */
 	@Override
 	public String getName() {
 		return "Workset";

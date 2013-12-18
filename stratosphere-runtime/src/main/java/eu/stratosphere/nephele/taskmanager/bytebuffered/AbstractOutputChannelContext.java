@@ -33,9 +33,7 @@ public abstract class AbstractOutputChannelContext implements OutputChannelConte
 		this.forwardingChain = forwardingChain;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void queueTransferEnvelope(final TransferEnvelope transferEnvelope) {
 
@@ -79,9 +77,7 @@ public abstract class AbstractOutputChannelContext implements OutputChannelConte
 		// The default implementation does nothing
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void destroy() {
 

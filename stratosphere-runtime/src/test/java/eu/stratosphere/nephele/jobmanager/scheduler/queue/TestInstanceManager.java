@@ -124,9 +124,7 @@ public final class TestInstanceManager implements InstanceManager {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void requestInstance(final JobID jobID, final Configuration conf,
 			final InstanceRequestMap instanceRequestMap, final List<String> splitAffinityList) throws InstanceException {
@@ -162,9 +160,7 @@ public final class TestInstanceManager implements InstanceManager {
 		new Thread(runnable).start();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void releaseAllocatedResource(final JobID jobID, final Configuration conf,
 			final AllocatedResource allocatedResource) throws InstanceException {
@@ -182,87 +178,67 @@ public final class TestInstanceManager implements InstanceManager {
 		return this.numberOfReleaseCalls;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public InstanceType getSuitableInstanceType(final int minNumComputeUnits, final int minNumCPUCores,
 			final int minMemorySize, final int minDiskCapacity, final int maxPricePerHour) {
 		throw new IllegalStateException("getSuitableInstanceType called on TestInstanceManager");
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void reportHeartBeat(final InstanceConnectionInfo instanceConnectionInfo,
 			final HardwareDescription hardwareDescription) {
 		throw new IllegalStateException("reportHeartBeat called on TestInstanceManager");
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public InstanceType getInstanceTypeByName(final String instanceTypeName) {
 		throw new IllegalStateException("getInstanceTypeByName called on TestInstanceManager");
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public InstanceType getDefaultInstanceType() {
 
 		return INSTANCE_TYPE;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public NetworkTopology getNetworkTopology(final JobID jobID) {
 		throw new IllegalStateException("getNetworkTopology called on TestInstanceManager");
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void setInstanceListener(final InstanceListener instanceListener) {
 
 		this.instanceListener = instanceListener;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public Map<InstanceType, InstanceTypeDescription> getMapOfAvailableInstanceTypes() {
 
 		return this.instanceMap;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public AbstractInstance getInstanceByName(final String name) {
 		throw new IllegalStateException("getInstanceByName called on TestInstanceManager");
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void cancelPendingRequests(final JobID jobID) {
 		throw new IllegalStateException("cancelPendingRequests called on TestInstanceManager");
 
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void shutdown() {
 		throw new IllegalStateException("shutdown called on TestInstanceManager");

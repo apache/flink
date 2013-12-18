@@ -50,11 +50,6 @@ public class PactJobJSONServlet extends HttpServlet {
 		this.jobStoreDirectory = jobStoreDirectory;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see javax.servlet.http.HttpServlet#doGet(javax.servlet.http.HttpServletRequest,
-	 * javax.servlet.http.HttpServletResponse)
-	 */
 	@Override
 	protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
 		resp.setContentType("application/json");

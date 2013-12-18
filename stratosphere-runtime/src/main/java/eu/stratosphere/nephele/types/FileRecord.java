@@ -80,9 +80,7 @@ public class FileRecord implements IOReadableWritable {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void read(final DataInput in) throws IOException {
 		this.fileName = StringRecord.readString(in);
@@ -92,9 +90,7 @@ public class FileRecord implements IOReadableWritable {
 		in.readFully(this.bytes, 0, newLength);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final DataOutput out) throws IOException {
 		StringRecord.writeString(out, fileName);
@@ -102,9 +98,7 @@ public class FileRecord implements IOReadableWritable {
 		out.write(this.bytes, 0, this.bytes.length);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean equals(final Object obj) {
 
@@ -121,9 +115,7 @@ public class FileRecord implements IOReadableWritable {
 		return Arrays.equals(this.bytes, fr.bytes);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int hashCode() {
 

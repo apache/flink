@@ -74,9 +74,7 @@ public class SWTJobToolTip extends SWTToolTip {
 		finishInstantiation(x, y, 100, true);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void updateView() {
 		// Nothing to do here

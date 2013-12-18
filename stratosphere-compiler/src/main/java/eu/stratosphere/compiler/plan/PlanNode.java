@@ -299,9 +299,7 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 	
 	// --------------------------------------------------------------------------------------------
 	
-	/* (non-Javadoc)
-	 * @see java.lang.Object#toString()
-	 */
+
 	@Override
 	public String toString() {
 		return this.template.getName() + " \"" + getPactContract().getName() + "\" : " + this.driverStrategy +
@@ -310,25 +308,19 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 	
 	// --------------------------------------------------------------------------------------------
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plandump.DumpableNode#getOptimizerNode()
-	 */
+
 	@Override
 	public OptimizerNode getOptimizerNode() {
 		return this.template;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plandump.DumpableNode#getPlanNode()
-	 */
+
 	@Override
 	public PlanNode getPlanNode() {
 		return this;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plandump.DumpableNode#getDumpableInputs()
-	 */
+
 	@Override
 	@SuppressWarnings("unchecked")
 	public Iterator<DumpableConnection<PlanNode>> getDumpableInputs() {

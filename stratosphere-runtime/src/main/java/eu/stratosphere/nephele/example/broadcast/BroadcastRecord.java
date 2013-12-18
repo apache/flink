@@ -51,18 +51,14 @@ public class BroadcastRecord implements IOReadableWritable {
 		this.data = new byte[RECORD_SIZE];
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final DataOutput out) throws IOException {
 
 		out.write(this.data);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void read(final DataInput in) throws IOException {
 

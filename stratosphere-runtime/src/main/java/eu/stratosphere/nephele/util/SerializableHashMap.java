@@ -47,9 +47,7 @@ public class SerializableHashMap<K extends IOReadableWritable, V extends IOReada
 	 */
 	private static final long serialVersionUID = 6693468726881121924L;
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final DataOutput out) throws IOException {
 		
@@ -69,9 +67,7 @@ public class SerializableHashMap<K extends IOReadableWritable, V extends IOReada
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@SuppressWarnings("unchecked")
 	@Override
 	public void read(final DataInput in) throws IOException {

@@ -160,9 +160,7 @@ public abstract class AbstractID implements IOReadableWritable {
 		this.upperPart = src.upperPart;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean equals(final Object obj) {
 
@@ -183,18 +181,14 @@ public abstract class AbstractID implements IOReadableWritable {
 		return true;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int hashCode() {
 
 		return (int) (this.lowerPart ^ (this.upperPart >>> 32));
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void read(final DataInput in) throws IOException {
 
@@ -202,9 +196,7 @@ public abstract class AbstractID implements IOReadableWritable {
 		this.upperPart = in.readLong();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final DataOutput out) throws IOException {
 
@@ -212,9 +204,7 @@ public abstract class AbstractID implements IOReadableWritable {
 		out.writeLong(this.upperPart);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public String toString() {
 

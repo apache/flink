@@ -182,9 +182,7 @@ public final class ArrayRecordComparator extends TypeComparator<Value[]> {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#hash(java.lang.Object)
-	 */
+
 	@Override
 	public int hash(Value[] object) {
 		int i = 0;
@@ -204,9 +202,7 @@ public final class ArrayRecordComparator extends TypeComparator<Value[]> {
 		}
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#setReferenceForEquality(java.lang.Object)
-	 */
+
 	@SuppressWarnings("unchecked")
 	@Override
 	public void setReference(Value[] toCompare) {
@@ -215,9 +211,7 @@ public final class ArrayRecordComparator extends TypeComparator<Value[]> {
 		}
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#equalToReference(java.lang.Object)
-	 */
+
 	@Override
 	public boolean equalToReference(Value[] candidate) {
 		for (int i = 0; i < this.keyFields.length; i++) {
@@ -230,9 +224,7 @@ public final class ArrayRecordComparator extends TypeComparator<Value[]> {
 		return true;
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#compareToReference(eu.stratosphere.pact.runtime.plugable.TypeAccessors)
-	 */
+
 	@Override
 	public int compareToReference(TypeComparator<Value[]> referencedAccessors) {
 		final ArrayRecordComparator pra = (ArrayRecordComparator) referencedAccessors;
@@ -269,25 +261,19 @@ public final class ArrayRecordComparator extends TypeComparator<Value[]> {
 	
 	// --------------------------------------------------------------------------------------------
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#supportsNormalizedKey()
-	 */
+
 	@Override
 	public boolean supportsNormalizedKey() {
 		return this.numLeadingNormalizableKeys > 0;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#getNormalizeKeyLen()
-	 */
+
 	@Override
 	public int getNormalizeKeyLen() {
 		return this.normalizableKeyPrefixLen;
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#isNormalizedKeyPrefixOnly()
-	 */
+
 	@Override
 	public boolean isNormalizedKeyPrefixOnly(int keyBytes) {
 		return this.numLeadingNormalizableKeys < this.keyFields.length ||
@@ -340,9 +326,7 @@ public final class ArrayRecordComparator extends TypeComparator<Value[]> {
 //		}
 //	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.generic.types.TypeComparator#invertNormalizedKey()
-	 */
+
 	@Override
 	public boolean invertNormalizedKey() {
 		return !this.ascending[0];
@@ -350,9 +334,7 @@ public final class ArrayRecordComparator extends TypeComparator<Value[]> {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.generic.types.TypeComparator#supportsSerializationWithKeyNormalization()
-	 */
+
 	@Override
 	public boolean supportsSerializationWithKeyNormalization() {
 		return false;
@@ -376,9 +358,7 @@ public final class ArrayRecordComparator extends TypeComparator<Value[]> {
 	
 	// --------------------------------------------------------------------------------------------
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#duplicate()
-	 */
+
 	@Override
 	public ArrayRecordComparator duplicate() {
 		return new ArrayRecordComparator(this);

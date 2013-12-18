@@ -56,9 +56,7 @@ public abstract class AbstractFileInputTask extends AbstractInputTask<FileInputS
 		return new InputSplitIterator<FileInputSplit>(getEnvironment().getInputSplitProvider());
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public FileInputSplit[] computeInputSplits(final int minNumSplits) throws IOException {
 
@@ -197,9 +195,7 @@ public abstract class AbstractFileInputTask extends AbstractInputTask<FileInputS
 		throw new IllegalArgumentException("The given offset is not contained in the any block.");
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public Class<FileInputSplit> getInputSplitType() {
 

@@ -104,9 +104,7 @@ public class TaskExecutionState implements IOReadableWritable {
 		return this.jobID;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void read(final DataInput in) throws IOException {
 
@@ -136,9 +134,7 @@ public class TaskExecutionState implements IOReadableWritable {
 		this.description = StringRecord.readString(in);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final DataOutput out) throws IOException {
 

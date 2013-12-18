@@ -117,9 +117,7 @@ public abstract class FixedLengthInputFormat extends FileInputFormat {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void configure(Configuration parameters) {
 		// pass parameters to FileInputFormat
@@ -178,9 +176,7 @@ public abstract class FixedLengthInputFormat extends FileInputFormat {
 
 	// --------------------------------------------------------------------------------------------
 	
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean reachedEnd() {
 		return this.exhausted;

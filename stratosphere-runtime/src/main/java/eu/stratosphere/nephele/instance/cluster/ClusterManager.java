@@ -437,9 +437,7 @@ public class ClusterManager implements InstanceManager {
 		return NetworkTopology.createEmptyTopology();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public synchronized void shutdown() {
 
@@ -503,18 +501,14 @@ public class ClusterManager implements InstanceManager {
 		return instanceTypes.toArray(new InstanceType[instanceTypes.size()]);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public InstanceType getDefaultInstanceType() {
 
 		return this.defaultInstanceType;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public InstanceType getInstanceTypeByName(final String instanceTypeName) {
 
@@ -527,9 +521,7 @@ public class ClusterManager implements InstanceManager {
 		return null;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public InstanceType getSuitableInstanceType(final int minNumComputeUnits, final int minNumCPUCores,
 			final int minMemorySize, final int minDiskCapacity, final int maxPricePerHour) {
@@ -548,9 +540,7 @@ public class ClusterManager implements InstanceManager {
 		return null;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public synchronized void releaseAllocatedResource(final JobID jobID, final Configuration conf,
 			final AllocatedResource allocatedResource) throws InstanceException {
@@ -696,9 +686,7 @@ public class ClusterManager implements InstanceManager {
 		return null;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public synchronized void reportHeartBeat(final InstanceConnectionInfo instanceConnectionInfo,
 			final HardwareDescription hardwareDescription) {
@@ -835,9 +823,7 @@ public class ClusterManager implements InstanceManager {
 		return slice;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public synchronized void requestInstance(final JobID jobID, final Configuration conf,
 			final InstanceRequestMap instanceRequestMap,
@@ -927,9 +913,7 @@ public class ClusterManager implements InstanceManager {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public NetworkTopology getNetworkTopology(final JobID jobID) {
 
@@ -937,17 +921,13 @@ public class ClusterManager implements InstanceManager {
 		return this.networkTopology;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public synchronized void setInstanceListener(final InstanceListener instanceListener) {
 		this.instanceListener = instanceListener;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public synchronized Map<InstanceType, InstanceTypeDescription> getMapOfAvailableInstanceTypes() {
 
@@ -1113,9 +1093,7 @@ public class ClusterManager implements InstanceManager {
 		return this.instanceAccommodationMatrix[targetTypeIndex][sourceTypeIndex];
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public synchronized AbstractInstance getInstanceByName(final String name) {
 
@@ -1134,9 +1112,7 @@ public class ClusterManager implements InstanceManager {
 		return null;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public synchronized void cancelPendingRequests(final JobID jobID) {
 

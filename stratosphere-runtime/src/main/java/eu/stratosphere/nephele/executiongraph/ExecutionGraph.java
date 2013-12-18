@@ -1180,9 +1180,7 @@ public class ExecutionGraph implements ExecutionListener {
 		return this.jobStatus.get();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void executionStateChanged(final JobID jobID, final ExecutionVertexID vertexID,
 			final ExecutionState newExecutionState, String optionalMessage) {
@@ -1326,18 +1324,14 @@ public class ExecutionGraph implements ExecutionListener {
 		return this.jobName;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void userThreadStarted(final JobID jobID, final ExecutionVertexID vertexID, final Thread userThread) {
 		// TODO Auto-generated method stub
 
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void userThreadFinished(final JobID jobID, final ExecutionVertexID vertexID, final Thread userThread) {
 		// TODO Auto-generated method stub
@@ -1386,9 +1380,7 @@ public class ExecutionGraph implements ExecutionListener {
 		return this.stages.iterator();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int getPriority() {
 

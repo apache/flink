@@ -92,11 +92,6 @@ public abstract class GUIServletStub extends HttpServlet {
 		jsFiles.add(file);
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see javax.servlet.http.HttpServlet#doGet(javax.servlet.http.HttpServletRequest,
-	 * javax.servlet.http.HttpServletResponse)
-	 */
 	@Override
 	protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
 		// response setup

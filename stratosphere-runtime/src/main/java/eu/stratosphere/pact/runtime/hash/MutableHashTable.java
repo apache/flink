@@ -1175,9 +1175,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 		}
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.io.MemorySegmentSource#nextSegment()
-	 */
+
 	@Override
 	public MemorySegment nextSegment() {
 		final MemorySegment seg = getNextBuffer();

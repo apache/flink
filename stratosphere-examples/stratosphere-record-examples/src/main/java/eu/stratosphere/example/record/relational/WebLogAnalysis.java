@@ -228,9 +228,7 @@ public class WebLogAnalysis implements Program, ProgramDescription
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public Job createJob(String... args) {
 
@@ -337,9 +335,7 @@ public class WebLogAnalysis implements Program, ProgramDescription
 		return p;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public String getDescription() {
 		return "Parameters: [numSubTasks], [docs], [ranks], [visits], [output]";

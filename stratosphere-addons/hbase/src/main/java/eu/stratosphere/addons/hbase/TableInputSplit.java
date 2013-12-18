@@ -103,9 +103,7 @@ public class TableInputSplit extends LocatableInputSplit {
 		return this.endRow;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final DataOutput out) throws IOException {
 
@@ -136,9 +134,7 @@ public class TableInputSplit extends LocatableInputSplit {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void read(final DataInput in) throws IOException {
 

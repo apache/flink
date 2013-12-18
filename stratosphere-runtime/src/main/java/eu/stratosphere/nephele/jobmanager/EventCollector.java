@@ -555,9 +555,7 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void processProfilingEvents(final ProfilingEvent profilingEvent) {
 

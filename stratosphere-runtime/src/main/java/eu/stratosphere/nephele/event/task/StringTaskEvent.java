@@ -74,27 +74,21 @@ public class StringTaskEvent extends AbstractTaskEvent {
 		return this.message;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final DataOutput out) throws IOException {
 
 		StringRecord.writeString(out, this.message);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void read(final DataInput in) throws IOException {
 
 		this.message = StringRecord.readString(in);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int hashCode() {
 
@@ -105,9 +99,7 @@ public class StringTaskEvent extends AbstractTaskEvent {
 		return this.message.hashCode();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean equals(final Object obj) {
 

@@ -37,9 +37,7 @@ public class JobManagerCleanUp extends Thread {
 		this.jobManager = jobManager;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void run() {
 

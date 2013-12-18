@@ -89,9 +89,7 @@ public class CsvOutputFormat extends FileOutputFormat {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void configure(Configuration parameters)
 	{
@@ -158,9 +156,7 @@ public class CsvOutputFormat extends FileOutputFormat {
 		this.lenient = parameters.getBoolean(LENIENT_PARSING, false);
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.api.record.io.FileOutputFormat#open(int)
-	 */
+
 	@Override
 	public void open(int taskNumber) throws IOException
 	{
@@ -169,9 +165,7 @@ public class CsvOutputFormat extends FileOutputFormat {
 				new OutputStreamWriter(new BufferedOutputStream(this.stream, 4096), this.charsetName);
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.api.record.io.FileOutputFormat#close()
-	 */
+
 	@Override
 	public void close() throws IOException
 	{
@@ -183,9 +177,7 @@ public class CsvOutputFormat extends FileOutputFormat {
 	
 	// --------------------------------------------------------------------------------------------
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.recordio.OutputFormat#writeRecord(eu.stratosphere.pact.common.type.PactRecord)
-	 */
+
 	@Override
 	public void writeRecord(PactRecord record) throws IOException
 	{

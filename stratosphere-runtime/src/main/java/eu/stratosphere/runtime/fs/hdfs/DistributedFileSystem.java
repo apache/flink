@@ -106,9 +106,7 @@ public final class DistributedFileSystem extends FileSystem {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public Path getWorkingDirectory() {
 		return new Path(this.fs.getWorkingDirectory().toUri());

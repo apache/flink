@@ -36,35 +36,27 @@ public class LocalBlockLocation implements BlockLocation {
 		this.length = length;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public String[] getHosts() throws IOException {
 
 		return this.hosts;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public long getLength() {
 
 		return this.length;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public long getOffset() {
 		return 0;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int compareTo(final BlockLocation o) {
 		return 0;

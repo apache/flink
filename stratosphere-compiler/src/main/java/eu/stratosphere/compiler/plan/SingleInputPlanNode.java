@@ -132,9 +132,7 @@ public class SingleInputPlanNode extends PlanNode {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.plan.Visitable#accept(eu.stratosphere.pact.common.plan.Visitor)
-	 */
+
 	@Override
 	public void accept(Visitor<PlanNode> visitor) {
 		if (visitor.preVisit(this)) {
@@ -143,9 +141,7 @@ public class SingleInputPlanNode extends PlanNode {
 		}
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.candidate.PlanNode#getPredecessors()
-	 */
+
 	@Override
 	public Iterator<PlanNode> getPredecessors() {
 		return new Iterator<PlanNode>() {
@@ -169,9 +165,7 @@ public class SingleInputPlanNode extends PlanNode {
 		};
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.candidate.PlanNode#getInputs()
-	 */
+
 	@Override
 	public Iterator<Channel> getInputs() {
 		return new Iterator<Channel>() {
@@ -195,9 +189,7 @@ public class SingleInputPlanNode extends PlanNode {
 		};
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.candidate.PlanNode#hasDamOnPathDownTo(eu.stratosphere.pact.compiler.plan.candidate.PlanNode)
-	 */
+
 	@Override
 	public SourceAndDamReport hasDamOnPathDownTo(PlanNode source) {
 		if (source == this) {

@@ -206,9 +206,7 @@ public class TPCHQuery4 implements Program, ProgramDescription {
 		}
 	}
 	
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public Job createJob(String... args) throws IllegalArgumentException {
 		
@@ -282,9 +280,7 @@ public class TPCHQuery4 implements Program, ProgramDescription {
 		this.outputPath = args[3];
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public String getDescription() {
 		return "Parameters: [dop] [orders-input] [lineitem-input] [output]";

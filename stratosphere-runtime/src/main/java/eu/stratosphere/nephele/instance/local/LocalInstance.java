@@ -29,9 +29,7 @@ public class LocalInstance extends AbstractInstance {
 		super(instanceType, instanceConnectionInfo, parentNode, networkTopology, hardwareDescription);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public String toString() {
 

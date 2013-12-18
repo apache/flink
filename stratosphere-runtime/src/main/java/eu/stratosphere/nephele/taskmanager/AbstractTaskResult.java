@@ -101,9 +101,7 @@ public abstract class AbstractTaskResult implements IOReadableWritable {
 		return this.returnCode;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void read(DataInput in) throws IOException {
 
@@ -121,9 +119,7 @@ public abstract class AbstractTaskResult implements IOReadableWritable {
 		this.description = StringRecord.readString(in);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(DataOutput out) throws IOException {
 

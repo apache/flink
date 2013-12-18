@@ -47,9 +47,7 @@ public class TestDeploymentManager implements DeploymentManager {
 	 */
 	private final Object synchronizationObject = new Object();
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void deploy(final JobID jobID, final AbstractInstance instance,
 			final List<ExecutionVertex> verticesToBeDeployed) {

@@ -41,9 +41,7 @@ public class IntPairPairComparator extends TypePairComparator<IntPair, IntPair>
 		return this.key == candidate.getKey();
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypePairComparator#compareToReference(java.lang.Object)
-	 */
+
 	@Override
 	public int compareToReference(IntPair candidate) {
 		return candidate.getKey() - this.key;

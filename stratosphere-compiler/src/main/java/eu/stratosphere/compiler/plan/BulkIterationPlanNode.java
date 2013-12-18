@@ -83,9 +83,7 @@ public class BulkIterationPlanNode extends SingleInputPlanNode implements Iterat
 		return 1;
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.candidate.PlanNode#hasDamOnPathDownTo(eu.stratosphere.pact.compiler.plan.candidate.PlanNode)
-	 */
+
 	@Override
 	public SourceAndDamReport hasDamOnPathDownTo(PlanNode source) {
 		SourceAndDamReport fromOutside = super.hasDamOnPathDownTo(source);
@@ -101,9 +99,7 @@ public class BulkIterationPlanNode extends SingleInputPlanNode implements Iterat
 		}
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.candidate.IterationPlanNode#acceptForStepFunction(eu.stratosphere.pact.common.plan.Visitor)
-	 */
+
 	@Override
 	public void acceptForStepFunction(Visitor<PlanNode> visitor) {
 		this.rootOfStepFunction.accept(visitor);

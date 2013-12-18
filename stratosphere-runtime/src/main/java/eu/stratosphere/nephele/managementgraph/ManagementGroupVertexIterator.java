@@ -213,9 +213,7 @@ public final class ManagementGroupVertexIterator implements Iterator<ManagementG
 		return true;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean hasNext() {
 
@@ -231,9 +229,7 @@ public final class ManagementGroupVertexIterator implements Iterator<ManagementG
 
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public ManagementGroupVertex next() {
 
@@ -322,9 +318,7 @@ public final class ManagementGroupVertexIterator implements Iterator<ManagementG
 		return null;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void remove() {
 		// According to the documentation this method is optional and does not need to be implemented

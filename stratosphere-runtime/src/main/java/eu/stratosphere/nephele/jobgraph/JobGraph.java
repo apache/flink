@@ -537,9 +537,7 @@ public class JobGraph implements IOReadableWritable {
 		return null;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void read(final DataInput in) throws IOException {
 
@@ -630,9 +628,7 @@ public class JobGraph implements IOReadableWritable {
 		this.taskManagerConfiguration.read(in);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final DataOutput out) throws IOException {
 

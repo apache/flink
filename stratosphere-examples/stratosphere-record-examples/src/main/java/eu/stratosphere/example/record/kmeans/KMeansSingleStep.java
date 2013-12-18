@@ -42,9 +42,7 @@ import eu.stratosphere.types.PactInteger;
  */
 public class KMeansSingleStep implements Program, ProgramDescription {
 	
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public Job createJob(String... args) {
 		// parse job parameters

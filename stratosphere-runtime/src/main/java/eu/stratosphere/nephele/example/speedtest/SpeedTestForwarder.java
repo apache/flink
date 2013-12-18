@@ -37,9 +37,7 @@ public final class SpeedTestForwarder extends AbstractTask {
 	 */
 	private RecordWriter<SpeedTestRecord> output;
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void registerInputOutput() {
 
@@ -47,9 +45,7 @@ public final class SpeedTestForwarder extends AbstractTask {
 		this.output = new RecordWriter<SpeedTestRecord>(this, SpeedTestRecord.class);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void invoke() throws Exception {
 

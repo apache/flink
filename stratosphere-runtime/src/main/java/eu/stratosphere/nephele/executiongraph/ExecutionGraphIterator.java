@@ -249,9 +249,7 @@ public class ExecutionGraphIterator implements Iterator<ExecutionVertex> {
 		this.alreadyVisited.add(startVertex);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean hasNext() {
 
@@ -278,9 +276,7 @@ public class ExecutionGraphIterator implements Iterator<ExecutionVertex> {
 		return true;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public ExecutionVertex next() {
 
@@ -436,9 +432,7 @@ public class ExecutionGraphIterator implements Iterator<ExecutionVertex> {
 		return true;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void remove() {
 

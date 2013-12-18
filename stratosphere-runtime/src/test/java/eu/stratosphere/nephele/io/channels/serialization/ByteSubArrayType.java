@@ -37,9 +37,7 @@ public class ByteSubArrayType implements SerializationTestType
 		this.len = 0;
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.channels.serialization.SerializationTestType#getRandom(java.util.Random)
-	 */
+
 	@Override
 	public ByteSubArrayType getRandom(Random rnd)
 	{
@@ -55,9 +53,7 @@ public class ByteSubArrayType implements SerializationTestType
 		return t;
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.IOReadableWritable#write(java.io.DataOutput)
-	 */
+
 	@Override
 	public void write(DataOutput out) throws IOException
 	{
@@ -65,9 +61,7 @@ public class ByteSubArrayType implements SerializationTestType
 		out.write(this.data, 0, this.len);
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.IOReadableWritable#read(java.io.DataInput)
-	 */
+
 	@Override
 	public void read(DataInput in) throws IOException
 	{
@@ -75,9 +69,7 @@ public class ByteSubArrayType implements SerializationTestType
 		in.readFully(this.data, 0, this.len);
 	}
 	
-	/* (non-Javadoc)
-	 * @see java.lang.Object#hashCode()
-	 */
+
 	@Override
 	public int hashCode()
 	{
@@ -86,9 +78,7 @@ public class ByteSubArrayType implements SerializationTestType
 		return Arrays.hashCode(copy);
 	}
 
-	/* (non-Javadoc)
-	 * @see java.lang.Object#equals(java.lang.Object)
-	 */
+
 	@Override
 	public boolean equals(Object obj)
 	{

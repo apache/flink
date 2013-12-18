@@ -32,9 +32,7 @@ import eu.stratosphere.pact.runtime.task.DriverStrategy;
  */
 public class NoOpDescriptor extends OperatorDescriptorSingle
 {
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.dataproperties.DriverPropertiesHandler#getStrategy()
-	 */
+
 	@Override
 	public DriverStrategy getStrategy() {
 		return DriverStrategy.NONE;
@@ -48,33 +46,25 @@ public class NoOpDescriptor extends OperatorDescriptorSingle
 		throw new UnsupportedOperationException();
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.dataproperties.DriverPropertiesSingle#getPossibleGlobalProperties()
-	 */
+
 	@Override
 	protected List<RequestedGlobalProperties> createPossibleGlobalProperties() {
 		return Collections.singletonList(new RequestedGlobalProperties());
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.dataproperties.DriverPropertiesSingle#getPossibleLocalProperties()
-	 */
+
 	@Override
 	protected List<RequestedLocalProperties> createPossibleLocalProperties() {
 		return Collections.singletonList(new RequestedLocalProperties());
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.operators.OperatorDescriptorSingle#computeGlobalProperties(eu.stratosphere.pact.compiler.dataproperties.GlobalProperties)
-	 */
+
 	@Override
 	public GlobalProperties computeGlobalProperties(GlobalProperties gProps) {
 		return gProps;
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.operators.OperatorDescriptorSingle#computeLocalProperties(eu.stratosphere.pact.compiler.dataproperties.LocalProperties)
-	 */
+
 	@Override
 	public LocalProperties computeLocalProperties(LocalProperties lProps) {
 		return lProps;

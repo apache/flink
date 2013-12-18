@@ -38,9 +38,7 @@ public class TaskManagerCleanUp extends Thread {
 		this.taskManager = taskManager;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void run() {
 

@@ -102,9 +102,7 @@ public abstract class BlockChannelAccess<R extends IORequest, C extends Collecti
 		return this.returnBuffers;
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.services.iomanager.ChannelAccess#isClosed()
-	 */
+
 	@Override
 	public boolean isClosed()
 	{
@@ -173,9 +171,7 @@ public abstract class BlockChannelAccess<R extends IORequest, C extends Collecti
 		}
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.services.iomanager.ChannelAccess#returnBuffer(eu.stratosphere.nephele.services.iomanager.Buffer)
-	 */
+
 	@Override
 	protected void returnBuffer(MemorySegment buffer)
 	{
@@ -213,9 +209,7 @@ final class SegmentReadRequest implements ReadRequest
 		this.segment = segment;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.services.iomanager.ReadRequest#read(java.nio.channels.FileChannel)
-	 */
+
 	@Override
 	public void read() throws IOException
 	{
@@ -231,9 +225,7 @@ final class SegmentReadRequest implements ReadRequest
 		}
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.services.iomanager.IORequest#requestDone(java.io.IOException)
-	 */
+
 	@Override
 	public void requestDone(IOException ioex)
 	{
@@ -258,9 +250,7 @@ final class SegmentWriteRequest implements WriteRequest
 		this.segment = segment;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.services.iomanager.ReadRequest#read(java.nio.channels.FileChannel)
-	 */
+
 	@Override
 	public void write() throws IOException
 	{
@@ -272,9 +262,7 @@ final class SegmentWriteRequest implements WriteRequest
 		}
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.services.iomanager.IORequest#requestDone(java.io.IOException)
-	 */
+
 	@Override
 	public void requestDone(IOException ioex)
 	{

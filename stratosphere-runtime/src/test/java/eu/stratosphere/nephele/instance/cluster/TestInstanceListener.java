@@ -38,9 +38,7 @@ public class TestInstanceListener implements InstanceListener {
 	 */
 	final Map<JobID, List<AllocatedResource>> resourcesOfJobs = new HashMap<JobID, List<AllocatedResource>>();
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public synchronized void resourcesAllocated(final JobID jobID, final List<AllocatedResource> allocatedResources) {
 
@@ -60,9 +58,7 @@ public class TestInstanceListener implements InstanceListener {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public synchronized void allocatedResourcesDied(final JobID jobID, final List<AllocatedResource> allocatedResources) {
 

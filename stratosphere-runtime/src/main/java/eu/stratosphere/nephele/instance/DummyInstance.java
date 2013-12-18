@@ -47,18 +47,14 @@ public class DummyInstance extends AbstractInstance {
 		this.name = "DummyInstance_" + Integer.toString(id);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public String toString() {
 
 		return this.name;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public HardwareDescription getHardwareDescription() {
 

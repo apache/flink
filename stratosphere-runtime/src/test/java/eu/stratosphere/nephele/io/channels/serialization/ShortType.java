@@ -38,45 +38,35 @@ public class ShortType implements SerializationTestType
 		this.value = value;
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.channels.serialization.SerializationTestType#getRandom(java.util.Random)
-	 */
+
 	@Override
 	public ShortType getRandom(Random rnd)
 	{
 		return new ShortType((short) rnd.nextInt(65536));
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.IOReadableWritable#write(java.io.DataOutput)
-	 */
+
 	@Override
 	public void write(DataOutput out) throws IOException
 	{
 		out.writeShort(this.value);
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.IOReadableWritable#read(java.io.DataInput)
-	 */
+
 	@Override
 	public void read(DataInput in) throws IOException
 	{
 		this.value = in.readShort();
 	}
 
-	/* (non-Javadoc)
-	 * @see java.lang.Object#hashCode()
-	 */
+
 	@Override
 	public int hashCode()
 	{
 		return this.value;
 	}
 
-	/* (non-Javadoc)
-	 * @see java.lang.Object#equals(java.lang.Object)
-	 */
+
 	@Override
 	public boolean equals(Object obj)
 	{

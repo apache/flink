@@ -75,9 +75,7 @@ public class ChannelReaderInputViewIterator<E> implements MutableObjectIterator<
 	}
 			
 
-	/* (non-Javadoc)
-	 * @see java.util.Iterator#next()
-	 */
+
 	@Override
 	public boolean next(E target) throws IOException
 	{

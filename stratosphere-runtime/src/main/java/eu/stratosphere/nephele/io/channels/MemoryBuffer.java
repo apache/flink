@@ -90,18 +90,14 @@ public final class MemoryBuffer extends Buffer {
 		return written;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void close() throws IOException {
 
 		this.position(this.limit());
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean isOpen() {
 
@@ -186,9 +182,7 @@ public final class MemoryBuffer extends Buffer {
 		return this.internalMemorySegment;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	protected void recycle() {
 		this.bufferRecycler.decreaseReferenceCounter();
@@ -198,17 +192,13 @@ public final class MemoryBuffer extends Buffer {
 	}
 
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean isBackedByMemory() {
 		return true;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public MemoryBuffer duplicate() {
 		final MemoryBuffer duplicatedMemoryBuffer = new MemoryBuffer(this.limit(), this.position(), this.internalMemorySegment, this.bufferRecycler);
@@ -216,9 +206,7 @@ public final class MemoryBuffer extends Buffer {
 		return duplicatedMemoryBuffer;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void copyToBuffer(final Buffer destinationBuffer) throws IOException {
 		if (size() > destinationBuffer.size()) {
@@ -232,9 +220,7 @@ public final class MemoryBuffer extends Buffer {
 	}
 
 	 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int write(final ByteBuffer src) throws IOException {
 		int numBytes = src.remaining();
@@ -250,9 +236,7 @@ public final class MemoryBuffer extends Buffer {
 		return numBytes;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int write(final ReadableByteChannel readableByteChannel) throws IOException {
 

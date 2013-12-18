@@ -88,9 +88,7 @@ public class JobTaskVertex extends AbstractJobVertex {
 		return (Class<? extends AbstractTask>) this.invokableClass;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int getMaximumNumberOfSubtasks(final AbstractInvokable invokable) {
 
@@ -98,9 +96,7 @@ public class JobTaskVertex extends AbstractJobVertex {
 		return invokable.getMaximumNumberOfSubtasks();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int getMinimumNumberOfSubtasks(final AbstractInvokable invokable) {
 

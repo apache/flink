@@ -27,9 +27,7 @@ import eu.stratosphere.nephele.io.channels.Buffer;
  */
 public class DefaultSerializer extends AbstractSerializer {
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	protected boolean writeBufferData(final WritableByteChannel writableByteChannel, final Buffer buffer)
 			throws IOException {

@@ -50,9 +50,6 @@ public abstract class JoinFunction extends AbstractArrayModelFunction implements
 	@Override
 	public abstract void match(Value[] value1, Value[] value2, Collector<Value[]> out) throws Exception;
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.array.stubs.AbstractArrayModelStub#getUDFMethod()
-	 */
 	@Override
 	public Method getUDFMethod() {
 		try {

@@ -77,9 +77,6 @@ public abstract class ReduceFunction extends AbstractArrayModelFunction implemen
 		reduce(records, out);
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.array.stubs.AbstractArrayModelStub#getUDFMethod()
-	 */
 	@Override
 	public Method getUDFMethod() {
 		try {

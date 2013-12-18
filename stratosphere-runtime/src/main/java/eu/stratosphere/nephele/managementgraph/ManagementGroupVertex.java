@@ -343,9 +343,7 @@ public final class ManagementGroupVertex extends ManagementAttachment implements
 		return this.stage.getStageNumber();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void read(final DataInput in) throws IOException {
 
@@ -362,9 +360,7 @@ public final class ManagementGroupVertex extends ManagementAttachment implements
 
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final DataOutput out) throws IOException {
 

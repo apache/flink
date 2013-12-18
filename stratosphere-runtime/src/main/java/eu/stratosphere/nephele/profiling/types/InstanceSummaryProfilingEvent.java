@@ -82,9 +82,7 @@ public final class InstanceSummaryProfilingEvent extends InstanceProfilingEvent 
 		super();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean equals(final Object obj) {
 
@@ -99,9 +97,7 @@ public final class InstanceSummaryProfilingEvent extends InstanceProfilingEvent 
 		return true;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int hashCode() {
 

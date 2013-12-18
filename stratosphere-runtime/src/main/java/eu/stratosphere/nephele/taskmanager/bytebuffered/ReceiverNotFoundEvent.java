@@ -98,9 +98,7 @@ public final class ReceiverNotFoundEvent extends AbstractEvent {
 		return this.sequenceNumber;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final DataOutput out) throws IOException {
 
@@ -108,9 +106,7 @@ public final class ReceiverNotFoundEvent extends AbstractEvent {
 		out.writeInt(this.sequenceNumber);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void read(final DataInput in) throws IOException {
 

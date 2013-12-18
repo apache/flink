@@ -43,9 +43,7 @@ public final class BufferPoolConnector implements MemoryBufferPoolConnector {
 		this.memoryPool = bufferPool;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void recycle(final MemorySegment memSeg) {
 

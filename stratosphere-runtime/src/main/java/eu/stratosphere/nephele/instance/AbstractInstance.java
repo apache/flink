@@ -223,9 +223,7 @@ public abstract class AbstractInstance extends NetworkNode {
 		return getTaskManagerProxy().killTask(id);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean equals(final Object obj) {
 
@@ -243,9 +241,7 @@ public abstract class AbstractInstance extends NetworkNode {
 		return this.instanceConnectionInfo.equals(abstractInstance.getInstanceConnectionInfo());
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int hashCode() {
 

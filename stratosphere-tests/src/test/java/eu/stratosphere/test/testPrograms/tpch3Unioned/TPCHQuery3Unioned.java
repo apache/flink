@@ -53,9 +53,7 @@ import eu.stratosphere.types.PactString;
  */
 public class TPCHQuery3Unioned implements Program, ProgramDescription {
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public Job createJob(final String... args) {
 		// parse program parameters

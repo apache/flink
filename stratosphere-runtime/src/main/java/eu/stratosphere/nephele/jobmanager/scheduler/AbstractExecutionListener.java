@@ -55,9 +55,7 @@ public abstract class AbstractExecutionListener implements ExecutionListener {
 		this.executionVertex = executionVertex;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void executionStateChanged(final JobID jobID, final ExecutionVertexID vertexID,
 			final ExecutionState newExecutionState, final String optionalMessage) {
@@ -150,25 +148,19 @@ public abstract class AbstractExecutionListener implements ExecutionListener {
 
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void userThreadFinished(final JobID jobID, final ExecutionVertexID vertexID, final Thread userThread) {
 		// Nothing to do here
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void userThreadStarted(final JobID jobID, final ExecutionVertexID vertexID, final Thread userThread) {
 		// Nothing to do here
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int getPriority() {
 

@@ -204,18 +204,14 @@ public class IOManagerTest
 			this.segment = segment;
 		}
 
-		/* (non-Javadoc)
-		 * @see eu.stratosphere.nephele.services.iomanager.ReadRequest#read(java.nio.channels.FileChannel)
-		 */
+
 		@Override
 		public void read() throws IOException
 		{
 			throw new TestIOException();
 		}
 
-		/* (non-Javadoc)
-		 * @see eu.stratosphere.nephele.services.iomanager.IORequest#requestDone(java.io.IOException)
-		 */
+
 		@Override
 		public void requestDone(IOException ioex)
 		{
@@ -240,18 +236,14 @@ public class IOManagerTest
 			this.segment = segment;
 		}
 
-		/* (non-Javadoc)
-		 * @see eu.stratosphere.nephele.services.iomanager.ReadRequest#read(java.nio.channels.FileChannel)
-		 */
+
 		@Override
 		public void write() throws IOException
 		{
 			throw new TestIOException();
 		}
 
-		/* (non-Javadoc)
-		 * @see eu.stratosphere.nephele.services.iomanager.IORequest#requestDone(java.io.IOException)
-		 */
+
 		@Override
 		public void requestDone(IOException ioex)
 		{

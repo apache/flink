@@ -44,9 +44,6 @@ public abstract class MapFunction extends AbstractArrayModelFunction implements 
 	@Override
 	public abstract void map(Value[] record, Collector<Value[]> out) throws Exception;
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.array.stubs.AbstractArrayModelStub#getUDFMethod()
-	 */
 	@Override
 	public Method getUDFMethod() {
 		try {

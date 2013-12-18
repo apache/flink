@@ -62,9 +62,7 @@ public final class VertexWithAdjacencyList {
 		this.numTargets = numTargets;
 	}
 	
-	/* (non-Javadoc)
-	 * @see java.lang.Object#toString()
-	 */
+
 	@Override
 	public String toString() {
 		StringBuilder bld = new StringBuilder(32);

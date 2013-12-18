@@ -127,9 +127,7 @@ public class TPCHQueryAsterix implements Program, ProgramDescription {
 
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public Job createJob(final String... args) {
 
@@ -207,9 +205,7 @@ public class TPCHQueryAsterix implements Program, ProgramDescription {
 		return new Job(result, "TPCH Asterix");
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public String getDescription() {
 		return "Parameters: [numSubStasks], [orders], [customer], [output]";

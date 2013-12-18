@@ -95,9 +95,7 @@ public class JobGenericOutputVertex extends JobOutputVertex {
 		return this.outputClass;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void read(DataInput in) throws IOException {
 		super.read(in);
@@ -129,9 +127,7 @@ public class JobGenericOutputVertex extends JobOutputVertex {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(DataOutput out) throws IOException {
 		super.write(out);
@@ -146,9 +142,7 @@ public class JobGenericOutputVertex extends JobOutputVertex {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void checkConfiguration(AbstractInvokable invokable) throws IllegalConfigurationException
 	{
@@ -166,18 +160,14 @@ public class JobGenericOutputVertex extends JobOutputVertex {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public Class<? extends AbstractInvokable> getInvokableClass() {
 
 		return this.outputClass;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int getMaximumNumberOfSubtasks(AbstractInvokable invokable)
 	{
@@ -185,9 +175,7 @@ public class JobGenericOutputVertex extends JobOutputVertex {
 		return invokable.getMaximumNumberOfSubtasks();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int getMinimumNumberOfSubtasks(AbstractInvokable invokable)
 	{

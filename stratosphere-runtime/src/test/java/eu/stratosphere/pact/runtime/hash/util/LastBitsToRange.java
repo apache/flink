@@ -37,17 +37,13 @@ public class LastBitsToRange implements RangeCalculator {
 		mask = bucketCount - 1;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int getBucket(int hash) {
 		return hash & mask;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	public int getBucketCount() {
 		return bucketCount;
 	}

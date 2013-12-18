@@ -97,9 +97,7 @@ public abstract class ExternalProcessFixedLengthInputFormat<T extends ExternalPr
 	 */
 	public abstract boolean readBytes(PactRecord target, byte[] buffer, int startPos);
 	
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void configure(Configuration parameters)
 	{
@@ -126,9 +124,7 @@ public abstract class ExternalProcessFixedLengthInputFormat<T extends ExternalPr
 		this.targetReadBufferSize = targetReadBufferSize;
 	}
 	
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void open(GenericInputSplit split) throws IOException {
 		
@@ -156,17 +152,13 @@ public abstract class ExternalProcessFixedLengthInputFormat<T extends ExternalPr
 		
 	}
 	
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean reachedEnd() throws IOException {
 		return noMoreRecordBuffers;
 	}
 	
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean nextRecord(PactRecord record) throws IOException {
 		

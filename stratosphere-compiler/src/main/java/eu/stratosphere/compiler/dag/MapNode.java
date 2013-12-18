@@ -46,10 +46,6 @@ public class MapNode extends SingleInputNode {
 		return (MapOperatorBase<?>) super.getPactContract();
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getName()
-	 */
 	@Override
 	public String getName() {
 		return "Map";
@@ -67,9 +63,6 @@ public class MapNode extends SingleInputNode {
 			return -1;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.SingleInputNode#getPossibleProperties()
-	 */
 	@Override
 	protected List<OperatorDescriptorSingle> getPossibleProperties() {
 		return Collections.<OperatorDescriptorSingle>singletonList(new MapDescriptor());

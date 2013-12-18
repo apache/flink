@@ -301,9 +301,7 @@ public class TableInputFormat implements InputFormat<PactRecord, TableInputSplit
         endReached = false;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public TableInputSplit[] createInputSplits(final int minNumSplits) throws IOException {
 
@@ -377,9 +375,7 @@ public class TableInputFormat implements InputFormat<PactRecord, TableInputSplit
 		return true;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public Class<TableInputSplit> getInputSplitType() {
 

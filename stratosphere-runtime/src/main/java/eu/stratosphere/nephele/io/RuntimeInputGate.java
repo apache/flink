@@ -251,9 +251,7 @@ public class RuntimeInputGate<T extends IOReadableWritable> extends AbstractGate
 		return this.availableChannels.take().intValue();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean isClosed() throws IOException, InterruptedException {
 
@@ -273,9 +271,7 @@ public class RuntimeInputGate<T extends IOReadableWritable> extends AbstractGate
 		return true;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void close() throws IOException, InterruptedException {
 
@@ -286,17 +282,13 @@ public class RuntimeInputGate<T extends IOReadableWritable> extends AbstractGate
 
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public String toString() {
 		return "Input " + super.toString();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void publishEvent(AbstractEvent event) throws IOException, InterruptedException {
 
@@ -316,9 +308,7 @@ public class RuntimeInputGate<T extends IOReadableWritable> extends AbstractGate
 		return this.deserializerFactory;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void releaseAllChannelResources() {
 

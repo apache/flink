@@ -107,9 +107,7 @@ public class RuntimeOutputGate<T extends IOReadableWritable> extends AbstractGat
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public final Class<T> getType() {
 		return this.type;
@@ -156,18 +154,14 @@ public class RuntimeOutputGate<T extends IOReadableWritable> extends AbstractGat
 		this.outputChannels.clear();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean isInputGate() {
 
 		return false;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public int getNumberOfOutputChannels() {
 
@@ -191,9 +185,7 @@ public class RuntimeOutputGate<T extends IOReadableWritable> extends AbstractGat
 			return null;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public NetworkOutputChannel<T> createNetworkOutputChannel(final OutputGate<T> outputGate,
 			final ChannelID channelID, final ChannelID connectedChannelID) {
@@ -205,9 +197,7 @@ public class RuntimeOutputGate<T extends IOReadableWritable> extends AbstractGat
 		return enoc;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public InMemoryOutputChannel<T> createInMemoryOutputChannel(final OutputGate<T> outputGate,
 			final ChannelID channelID, final ChannelID connectedChannelID) {
@@ -219,9 +209,7 @@ public class RuntimeOutputGate<T extends IOReadableWritable> extends AbstractGat
 		return einoc;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void requestClose() throws IOException, InterruptedException {
 		// Close all output channels
@@ -231,9 +219,7 @@ public class RuntimeOutputGate<T extends IOReadableWritable> extends AbstractGat
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean isClosed() throws IOException, InterruptedException {
 
@@ -249,9 +235,7 @@ public class RuntimeOutputGate<T extends IOReadableWritable> extends AbstractGat
 		return allClosed;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void writeRecord(final T record) throws IOException, InterruptedException {
 
@@ -290,25 +274,19 @@ public class RuntimeOutputGate<T extends IOReadableWritable> extends AbstractGat
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public List<AbstractOutputChannel<T>> getOutputChannels() {
 		return this.outputChannels;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public String toString() {
 		return "Output " + super.toString();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void publishEvent(AbstractEvent event) throws IOException, InterruptedException {
 
@@ -319,9 +297,7 @@ public class RuntimeOutputGate<T extends IOReadableWritable> extends AbstractGat
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void flush() throws IOException, InterruptedException {
 		// Flush all connected channels
@@ -331,27 +307,21 @@ public class RuntimeOutputGate<T extends IOReadableWritable> extends AbstractGat
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public boolean isBroadcast() {
 
 		return this.isBroadcast;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public ChannelSelector<T> getChannelSelector() {
 
 		return this.channelSelector;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void releaseAllChannelResources() {
 

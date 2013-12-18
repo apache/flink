@@ -31,9 +31,7 @@ import eu.stratosphere.util.LogUtils;
  */
 public abstract class FailingTestBase extends TestBase {
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	public FailingTestBase(Configuration testConfig) {
 		super(testConfig);
 	}

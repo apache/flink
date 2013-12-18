@@ -103,10 +103,6 @@ public class JobsServlet extends HttpServlet {
 
 	// ------------------------------------------------------------------------
 
-	/*
-	 * (non-Javadoc)
-	 * @see javax.servlet.GenericServlet#init(javax.servlet.ServletConfig)
-	 */
 	public void init(ServletConfig config) throws ServletException {
 		super.init(config);
 
@@ -119,11 +115,6 @@ public class JobsServlet extends HttpServlet {
 		}
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see javax.servlet.http.HttpServlet#doGet(javax.servlet.http.HttpServletRequest,
-	 * javax.servlet.http.HttpServletResponse)
-	 */
 	@Override
 	protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
 		String action = req.getParameter(ACTION_PARAM_NAME);
@@ -167,11 +158,6 @@ public class JobsServlet extends HttpServlet {
 		}
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see javax.servlet.http.HttpServlet#doPost(javax.servlet.http.HttpServletRequest,
-	 * javax.servlet.http.HttpServletResponse)
-	 */
 	@Override
 	protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
 		// check, if we are doing the right request

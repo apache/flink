@@ -73,9 +73,7 @@ public final class ChannelDeploymentDescriptor implements IOReadableWritable {
 		this.inputChannelID = new ChannelID();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final DataOutput out) throws IOException {
 
@@ -83,9 +81,7 @@ public final class ChannelDeploymentDescriptor implements IOReadableWritable {
 		this.inputChannelID.write(out);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void read(final DataInput in) throws IOException {
 

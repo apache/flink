@@ -54,9 +54,7 @@ public class UniformIntInput extends GenericInputFormat {
 	
 	
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.api.record.io.GenericInputFormat#configure(eu.stratosphere.nephele.configuration.Configuration)
-	 */
+
 	@Override
 	public void configure(Configuration parameters) {
 		super.configure(parameters);
@@ -65,17 +63,13 @@ public class UniformIntInput extends GenericInputFormat {
 		this.numValues = parameters.getInteger(NUM_VALUES_KEY, this.numValues);
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.generic.io.InputFormat#reachedEnd()
-	 */
+
 	@Override
 	public boolean reachedEnd() {
 		return this.valueInt >= this.numValues;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.generic.io.InputFormat#nextRecord(java.lang.Object)
-	 */
+
 	@Override
 	public boolean nextRecord(PactRecord record) throws IOException
 	{

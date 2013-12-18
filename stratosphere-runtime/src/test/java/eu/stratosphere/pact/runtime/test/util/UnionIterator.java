@@ -36,9 +36,7 @@ public class UnionIterator<E> implements MutableObjectIterator<E>
 		this.nextSources = sources;
 	}
 
-	/* (non-Javadoc)
-	 * @see java.util.Iterator#next()
-	 */
+
 	@Override
 	public boolean next(E target) throws IOException
 	{

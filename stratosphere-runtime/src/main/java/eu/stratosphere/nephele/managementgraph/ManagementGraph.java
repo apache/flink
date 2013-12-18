@@ -407,9 +407,7 @@ public final class ManagementGraph extends ManagementAttachment implements IORea
 		return reverseTopologicalSort;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void read(final DataInput in) throws IOException {
 
@@ -489,9 +487,7 @@ public final class ManagementGraph extends ManagementAttachment implements IORea
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final DataOutput out) throws IOException {
 

@@ -49,18 +49,14 @@ public class LibraryCacheUpdate implements IOReadableWritable {
 	public LibraryCacheUpdate() {
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void read(final DataInput in) throws IOException {
 
 		LibraryCacheManager.readLibraryFromStream(in);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void write(final DataOutput out) throws IOException {
 

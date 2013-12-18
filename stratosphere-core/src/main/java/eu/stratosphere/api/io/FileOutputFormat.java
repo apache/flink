@@ -68,9 +68,7 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT> {
 
 	// --------------------------------------------------------------------------------------------
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.recordio.OutputFormat#configure(eu.stratosphere.nephele.configuration.Configuration)
-	 */
+
 	@Override
 	public void configure(Configuration parameters) {
 		// get the file parameter
@@ -98,9 +96,7 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT> {
 	}
 
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.recordio.OutputFormat#open()
-	 */
+
 	@Override
 	public void open(int taskNumber) throws IOException {
 		// obtain FSDataOutputStream asynchronously, since HDFS client can not handle InterruptedExceptions
@@ -117,9 +113,7 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT> {
 	}
 
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.recordio.OutputFormat#close()
-	 */
+
 	@Override
 	public void close() throws IOException {
 		final FSDataOutputStream s = this.stream;

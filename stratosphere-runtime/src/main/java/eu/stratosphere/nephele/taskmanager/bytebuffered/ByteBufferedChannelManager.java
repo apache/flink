@@ -602,9 +602,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		return receiverList;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void processEnvelopeFromOutputChannel(final TransferEnvelope transferEnvelope) throws IOException,
 			InterruptedException {
@@ -612,9 +610,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		processEnvelope(transferEnvelope, true);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void processEnvelopeFromInputChannel(final TransferEnvelope transferEnvelope) throws IOException,
 			InterruptedException {
@@ -622,9 +618,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		processEnvelope(transferEnvelope, false);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public void processEnvelopeFromNetwork(final TransferEnvelope transferEnvelope, boolean freeSourceBuffer)
 			throws IOException, InterruptedException {
@@ -680,9 +674,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
+
 	@Override
 	public BufferProvider getBufferProvider(final JobID jobID, final ChannelID sourceChannelID) throws IOException,
 			InterruptedException {

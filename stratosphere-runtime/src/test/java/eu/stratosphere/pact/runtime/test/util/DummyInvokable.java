@@ -24,15 +24,11 @@ import eu.stratosphere.nephele.template.AbstractTask;
  */
 public class DummyInvokable extends AbstractTask
 {
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.template.AbstractInvokable#registerInputOutput()
-	 */
+
 	@Override
 	public void registerInputOutput() {}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.template.AbstractInvokable#invoke()
-	 */
+
 	@Override
 	public void invoke() throws Exception {}
 }
