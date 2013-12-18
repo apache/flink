@@ -23,36 +23,25 @@ import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.operators.WorksetIteration;
 import eu.stratosphere.api.record.functions.CoGroupFunction;
-import eu.stratosphere.api.record.functions.JoinFunction;
 import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFieldsFirst;
 import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFieldsSecond;
+import eu.stratosphere.api.record.io.CsvInputFormat;
 import eu.stratosphere.api.record.io.CsvOutputFormat;
 import eu.stratosphere.api.record.operators.CoGroupOperator;
 import eu.stratosphere.api.record.operators.JoinOperator;
+import eu.stratosphere.api.record.operators.MapOperator;
 import eu.stratosphere.api.record.operators.CoGroupOperator.CombinableFirst;
-import eu.stratosphere.example.record.connectedcomponents.DuplicateLongInputFormat;
-import eu.stratosphere.example.record.connectedcomponents.LongLongInputFormat;
 import eu.stratosphere.types.PactLong;
 import eu.stratosphere.types.PactRecord;
 import eu.stratosphere.util.Collector;
+
+import eu.stratosphere.example.record.connectedcomponents.WorksetConnectedComponents.DuplicateLongMap;
+import eu.stratosphere.example.record.connectedcomponents.WorksetConnectedComponents.NeighborWithComponentIDJoin;
 
 /**
  *
  */
 public class WorksetConnectedComponentsWithCoGroup implements Program, ProgramDescription {
-	
-	public static final class NeighborWithComponentIDJoin extends JoinFunction implements Serializable {
-		private static final long serialVersionUID = 1L;
-
-		private final PactRecord result = new PactRecord();
-
-		@Override
-		public void match(PactRecord vertexWithComponent, PactRecord edge, Collector<PactRecord> out) {
-			this.result.setField(0, edge.getField(1, PactLong.class));
-			this.result.setField(1, vertexWithComponent.getField(1, PactLong.class));
-			out.collect(this.result);
-		}
-	}
 	
 	@CombinableFirst
 	@ConstantFieldsFirst(0)
@@ -101,6 +90,7 @@ public class WorksetConnectedComponentsWithCoGroup implements Program, ProgramDe
 		}
 	}
 	
+	@SuppressWarnings("unchecked")
 	@Override
 	public Plan getPlan(String... args) {
 		// parse job parameters
@@ -110,16 +100,18 @@ public class WorksetConnectedComponentsWithCoGroup implements Program, ProgramDe
 		final String output = (args.length > 3 ? args[3] : "");
 		final int maxIterations = (args.length > 4 ? Integer.parseInt(args[4]) : 1);
 
-		// create DataSourceContract for the vertices
-		FileDataSource initialVertices = new FileDataSource(new DuplicateLongInputFormat(), verticesInput, "Vertices");
+		// data source for initial vertices
+		FileDataSource initialVertices = new FileDataSource(new CsvInputFormat(' ', PactLong.class), verticesInput, "Vertices");
+		
+		MapOperator verticesWithId = MapOperator.builder(DuplicateLongMap.class).input(initialVertices).name("Assign Vertex Ids").build();
 		
 		WorksetIteration iteration = new WorksetIteration(0, "Connected Components Iteration");
-		iteration.setInitialSolutionSet(initialVertices);
-		iteration.setInitialWorkset(initialVertices);
+		iteration.setInitialSolutionSet(verticesWithId);
+		iteration.setInitialWorkset(verticesWithId);
 		iteration.setMaximumNumberOfIterations(maxIterations);
 		
 		// create DataSourceContract for the edges
-		FileDataSource edges = new FileDataSource(new LongLongInputFormat(), edgeInput, "Edges");
+		FileDataSource edges = new FileDataSource(new CsvInputFormat(' ', PactLong.class, PactLong.class), edgeInput, "Edges");
 
 		// create CrossOperator for distance computation
 		JoinOperator joinWithNeighbors = JoinOperator.builder(new NeighborWithComponentIDJoin(), PactLong.class, 0, 0)

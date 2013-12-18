@@ -18,7 +18,7 @@ import org.junit.runners.Parameterized;
 
 import eu.stratosphere.api.Plan;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.scala.examples.relational.TPCHQuery3;
+import eu.stratosphere.examples.scala.relational.TPCHQuery3;
 
 @RunWith(Parameterized.class)
 public class TPCHQuery3ITCase extends eu.stratosphere.test.exampleRecordPrograms.TPCHQuery3ITCase {

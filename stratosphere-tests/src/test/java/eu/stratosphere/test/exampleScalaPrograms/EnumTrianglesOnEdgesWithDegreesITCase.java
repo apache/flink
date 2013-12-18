@@ -15,7 +15,7 @@ package eu.stratosphere.test.exampleScalaPrograms;
 
 import eu.stratosphere.api.Plan;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.scala.examples.graph.EnumTrianglesOnEdgesWithDegrees;
+import eu.stratosphere.examples.scala.graph.EnumTrianglesOnEdgesWithDegrees;
 
 public class EnumTrianglesOnEdgesWithDegreesITCase extends eu.stratosphere.test.exampleRecordPrograms.EnumTrianglesOnEdgesWithDegreesITCase {
 

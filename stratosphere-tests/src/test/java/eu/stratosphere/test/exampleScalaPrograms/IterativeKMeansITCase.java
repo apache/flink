@@ -18,7 +18,7 @@ import org.junit.runners.Parameterized;
 
 import eu.stratosphere.api.Plan;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.scala.examples.datamining.KMeans;
+import eu.stratosphere.examples.scala.datamining.KMeans;
 
 @RunWith(Parameterized.class)
 public class IterativeKMeansITCase extends eu.stratosphere.test.iterative.IterativeKMeansITCase {

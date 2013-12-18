@@ -23,11 +23,14 @@ import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.operators.WorksetIteration;
 import eu.stratosphere.api.record.functions.JoinFunction;
+import eu.stratosphere.api.record.functions.MapFunction;
 import eu.stratosphere.api.record.functions.ReduceFunction;
 import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFields;
 import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFieldsFirst;
+import eu.stratosphere.api.record.io.CsvInputFormat;
 import eu.stratosphere.api.record.io.CsvOutputFormat;
 import eu.stratosphere.api.record.operators.JoinOperator;
+import eu.stratosphere.api.record.operators.MapOperator;
 import eu.stratosphere.api.record.operators.ReduceOperator;
 import eu.stratosphere.api.record.operators.ReduceOperator.Combinable;
 import eu.stratosphere.types.PactLong;
@@ -39,13 +42,22 @@ import eu.stratosphere.util.Collector;
  */
 public class WorksetConnectedComponents implements Program, ProgramDescription {
 	
+	public static final class DuplicateLongMap extends MapFunction implements Serializable {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
+			record.setField(1, record.getField(0, PactLong.class));
+			out.collect(record);
+		}
+	}
+	
 	/**
 	 * UDF that joins a (Vertex-ID, Component-ID) pair that represents the current component that
 	 * a vertex is associated with, with a (Source-Vertex-ID, Target-VertexID) edge. The function
 	 * produces a (Target-vertex-ID, Component-ID) pair.
 	 */
 	public static final class NeighborWithComponentIDJoin extends JoinFunction implements Serializable {
-		
 		private static final long serialVersionUID = 1L;
 
 		private final PactRecord result = new PactRecord();
@@ -113,6 +125,7 @@ public class WorksetConnectedComponents implements Program, ProgramDescription {
 		}
 	}
 	
+	@SuppressWarnings("unchecked")
 	@Override
 	public Plan getPlan(String... args) {
 		// parse job parameters
@@ -123,17 +136,19 @@ public class WorksetConnectedComponents implements Program, ProgramDescription {
 		final int maxIterations = (args.length > 4 ? Integer.parseInt(args[4]) : 1);
 
 		// data source for initial vertices
-		FileDataSource initialVertices = new FileDataSource(new DuplicateLongInputFormat(), verticesInput, "Vertices");
+		FileDataSource initialVertices = new FileDataSource(new CsvInputFormat(' ', PactLong.class), verticesInput, "Vertices");
+		
+		MapOperator verticesWithId = MapOperator.builder(DuplicateLongMap.class).input(initialVertices).name("Assign Vertex Ids").build();
 		
 		// the loop takes the vertices as the solution set and changed vertices as the workset
 		// initially, all vertices are changed
 		WorksetIteration iteration = new WorksetIteration(0, "Connected Components Iteration");
-		iteration.setInitialSolutionSet(initialVertices);
-		iteration.setInitialWorkset(initialVertices);
+		iteration.setInitialSolutionSet(verticesWithId);
+		iteration.setInitialWorkset(verticesWithId);
 		iteration.setMaximumNumberOfIterations(maxIterations);
 		
 		// data source for the edges
-		FileDataSource edges = new FileDataSource(new LongLongInputFormat(), edgeInput, "Edges");
+		FileDataSource edges = new FileDataSource(new CsvInputFormat(' ', PactLong.class, PactLong.class), edgeInput, "Edges");
 
 		// join workset (changed vertices) with the edges to propagate changes to neighbors
 		JoinOperator joinWithNeighbors = JoinOperator.builder(new NeighborWithComponentIDJoin(), PactLong.class, 0, 0)

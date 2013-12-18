@@ -18,7 +18,6 @@ import scala.reflect.macros.Context
 
 import eu.stratosphere.api.record.operators.MapOperator
 import eu.stratosphere.types.PactRecord
-import eu.stratosphere.api.record.functions.{MapFunction => JMapStub}
 import eu.stratosphere.api.operators.Operator
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.util.Collector
@@ -26,8 +25,7 @@ import eu.stratosphere.util.Collector
 import eu.stratosphere.scala.codegen.{MacroContextHolder, Util}
 import eu.stratosphere.scala._
 import eu.stratosphere.scala.analysis._
-import eu.stratosphere.scala.contracts.Annotations
-import eu.stratosphere.scala.stubs.{MapStub, FlatMapStub, FilterStub, MapStubBase}
+import eu.stratosphere.scala.functions.{MapFunction, FlatMapFunction, FilterStub, MapFunctionBase}
 
 object MapMacros {
 
@@ -41,12 +39,12 @@ object MapMacros {
     val (udtIn, createUdtIn) = slave.mkUdtClass[In]
     val (udtOut, createUdtOut) = slave.mkUdtClass[Out]
 
-    val stub: c.Expr[MapStubBase[In, Out]] = if (fun.actualType <:< weakTypeOf[MapStub[In, Out]])
-      reify { fun.splice.asInstanceOf[MapStubBase[In, Out]] }
+    val stub: c.Expr[MapFunctionBase[In, Out]] = if (fun.actualType <:< weakTypeOf[MapFunction[In, Out]])
+      reify { fun.splice.asInstanceOf[MapFunctionBase[In, Out]] }
     else reify {
       implicit val inputUDT: UDT[In] = c.Expr[UDT[In]](createUdtIn).splice
       implicit val outputUDT: UDT[Out] = c.Expr[UDT[Out]](createUdtOut).splice
-      new MapStubBase[In, Out] {
+      new MapFunctionBase[In, Out] {
 //        val userFun = ClosureCleaner.clean(fun.splice)
 //        val userFun = fun.splice
         override def map(record: PactRecord, out: Collector[PactRecord]) = {
@@ -95,12 +93,12 @@ object MapMacros {
     val (udtIn, createUdtIn) = slave.mkUdtClass[In]
     val (udtOut, createUdtOut) = slave.mkUdtClass[Out]
 
-    val stub: c.Expr[MapStubBase[In, Out]] = if (fun.actualType <:< weakTypeOf[FlatMapStub[In, Out]])
-      reify { fun.splice.asInstanceOf[MapStubBase[In, Out]] }
+    val stub: c.Expr[MapFunctionBase[In, Out]] = if (fun.actualType <:< weakTypeOf[FlatMapFunction[In, Out]])
+      reify { fun.splice.asInstanceOf[MapFunctionBase[In, Out]] }
     else reify {
       implicit val inputUDT: UDT[In] = c.Expr[UDT[In]](createUdtIn).splice
       implicit val outputUDT: UDT[Out] = c.Expr[UDT[Out]](createUdtOut).splice
-      new MapStubBase[In, Out] {
+      new MapFunctionBase[In, Out] {
         override def map(record: PactRecord, out: Collector[PactRecord]) = {
           val input = deserializer.deserializeRecyclingOn(record)
           val output = fun.splice.apply(input)
@@ -151,11 +149,11 @@ object MapMacros {
 
     val (udtIn, createUdtIn) = slave.mkUdtClass[In]
 
-    val stub: c.Expr[MapStubBase[In, In]] = if (fun.actualType <:< weakTypeOf[FilterStub[In, In]])
-      reify { fun.splice.asInstanceOf[MapStubBase[In, In]] }
+    val stub: c.Expr[MapFunctionBase[In, In]] = if (fun.actualType <:< weakTypeOf[FilterStub[In, In]])
+      reify { fun.splice.asInstanceOf[MapFunctionBase[In, In]] }
     else reify {
       implicit val inputUDT: UDT[In] = c.Expr[UDT[In]](createUdtIn).splice
-      new MapStubBase[In, In] {
+      new MapFunctionBase[In, In] {
         override def map(record: PactRecord, out: Collector[PactRecord]) = {
           val input = deserializer.deserializeRecyclingOn(record)
           if (fun.splice.apply(input)) {

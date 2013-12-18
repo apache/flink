@@ -34,14 +34,14 @@
 					    scala classes can be resolved later in the (Java) compile phase -->
 					<execution>
 						<id>scala-compile-first</id>
-						<phase>process-resources</phase>                        
+						<phase>process-resources</phase>
 						<goals>
 							<goal>compile</goal>
 						</goals>
 					</execution>
  
 					<!-- Run scala compiler in the process-test-resources phase, so that dependencies on
-					     scala classes can be resolved later in the (Java) test-compile phase -->                    
+					     scala classes can be resolved later in the (Java) test-compile phase -->
 					<execution>
 						<id>scala-test-compile</id>
 						<phase>process-test-resources</phase>
@@ -119,6 +119,180 @@
 							</sources>
 						</configuration>
 					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<executions>
+		
+					<execution>
+						<id>KMeans</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+		
+						<configuration>
+							<classifier>KMeans</classifier>
+							<archive>
+								<manifestEntries>
+									<program-class>eu.stratosphere.examples.scala.datamining.KMeans</program-class>
+								</manifestEntries>
+							</archive>
+		
+							<includes>
+								<include>**/datamining/KMeans*.class</include>
+							</includes>
+						</configuration>
+					</execution>
+		
+					<execution>
+						<id>ComputeEdgeDegrees</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+		
+						<configuration>
+							<classifier>ComputeEdgeDegrees</classifier>
+		
+							<archive>
+								<manifestEntries>
+									<program-class>eu.stratosphere.examples.scala.graph.ComputeEdgeDegrees</program-class>
+								</manifestEntries>
+							</archive>
+		
+							<includes>
+								<include>**/graph/ComputeEdgeDegrees*.class</include>
+							</includes>
+						</configuration>
+					</execution>
+		
+					<execution>
+						<id>EnumTrianglesOnEdgesWithDegrees</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+		
+						<configuration>
+							<classifier>EnumTrianglesOnEdgesWithDegrees</classifier>
+		
+							<archive>
+								<manifestEntries>
+									<program-class>eu.stratosphere.examples.scala.graph.EnumTrianglesOnEdgesWithDegrees</program-class>
+								</manifestEntries>
+							</archive>
+		
+							<includes>
+								<include>**/graph/EnumTrianglesOnEdgesWithDegrees*.class</include>
+							</includes>
+						</configuration>
+					</execution>
+		
+					<execution>
+						<id>TPCHQuery3</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+		
+						<configuration>
+							<classifier>TPCHQuery3</classifier>
+		
+							<archive>
+								<manifestEntries>
+									<program-class>eu.stratosphere.examples.scala.relational.TPCHQuery3</program-class>
+								</manifestEntries>
+							</archive>
+		
+							<includes>
+								<include>**/relational/TPCHQuery3*.class</include>
+							</includes>
+						</configuration>
+					</execution>
+		
+					<execution>
+						<id>WordCount</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+		
+						<configuration>
+							<classifier>WordCount</classifier>
+		
+							<archive>
+								<manifestEntries>
+									<program-class>eu.stratosphere.examples.scala.wordcount.WordCount</program-class>
+								</manifestEntries>
+							</archive>
+		
+							<includes>
+								<include>**/wordcount/WordCount*.class</include>
+							</includes>
+						</configuration>
+					</execution>
+
+					<execution>
+						<id>ConnectedComponents</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+						<configuration>
+							<classifier>ConnectedComponents</classifier>
+							<archive>
+								<manifestEntries>
+									<program-class>eu.stratosphere.examples.scala.graph.ConnectedComponentsDescriptor</program-class>
+								</manifestEntries>
+							</archive>
+							<includes>
+								<include>**/graph/ConnectedComponents*.class</include>
+							</includes>
+						</configuration>
+					</execution>
+					
+					<!--  These examples need not yet supported features
+					<execution>
+						<id>TransitiveClosureNaive</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+						<configuration>
+							<classifier>TransitiveClosureNaive</classifier>
+							<archive>
+								<manifestEntries>
+									<program-class>eu.stratosphere.examples.scala.graph.TransitiveClosureNaiveDescriptor</program-class>
+								</manifestEntries>
+							</archive>
+							<includes>
+								<include>**/graph/TransitiveClosureNaive*.class</include>
+							</includes>
+						</configuration>
+					</execution>
+					<execution>
+						<id>TransitiveClosureRD</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+						<configuration>
+							<classifier>TransitiveClosureRD</classifier>
+							<archive>
+								<manifestEntries>
+									<program-class>eu.stratosphere.examples.scala.graph.TransitiveClosureRDDescriptor</program-class>
+								</manifestEntries>
+							</archive>
+							<includes>
+								<include>**/graph/TransitiveClosureRD*.class</include>
+							</includes>
+						</configuration>
+					</execution> -->
+		
 				</executions>
 			</plugin>
 			

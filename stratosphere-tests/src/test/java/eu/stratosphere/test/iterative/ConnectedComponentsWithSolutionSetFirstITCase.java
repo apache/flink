@@ -27,12 +27,13 @@ import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.operators.WorksetIteration;
 import eu.stratosphere.api.record.functions.JoinFunction;
 import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFieldsSecondExcept;
+import eu.stratosphere.api.record.io.CsvInputFormat;
 import eu.stratosphere.api.record.io.CsvOutputFormat;
 import eu.stratosphere.api.record.operators.JoinOperator;
+import eu.stratosphere.api.record.operators.MapOperator;
 import eu.stratosphere.api.record.operators.ReduceOperator;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.example.record.connectedcomponents.DuplicateLongInputFormat;
-import eu.stratosphere.example.record.connectedcomponents.LongLongInputFormat;
+import eu.stratosphere.example.record.connectedcomponents.WorksetConnectedComponents.DuplicateLongMap;
 import eu.stratosphere.example.record.connectedcomponents.WorksetConnectedComponents.MinimumComponentIDReduce;
 import eu.stratosphere.example.record.connectedcomponents.WorksetConnectedComponents.NeighborWithComponentIDJoin;
 import eu.stratosphere.test.iterative.nephele.ConnectedComponentsNepheleITCase;
@@ -111,19 +112,22 @@ public class ConnectedComponentsWithSolutionSetFirstITCase extends TestBase2 {
 		}
 	}
 	
+	@SuppressWarnings("unchecked")
 	private static Plan getPlanForWorksetConnectedComponentsWithSolutionSetAsFirstInput(
 			int numSubTasks, String verticesInput, String edgeInput, String output, int maxIterations)
 	{
-		// create DataSourceContract for the vertices
-		FileDataSource initialVertices = new FileDataSource(new DuplicateLongInputFormat(), verticesInput, "Vertices");
+		// data source for initial vertices
+		FileDataSource initialVertices = new FileDataSource(new CsvInputFormat(' ', PactLong.class), verticesInput, "Vertices");
+		
+		MapOperator verticesWithId = MapOperator.builder(DuplicateLongMap.class).input(initialVertices).name("Assign Vertex Ids").build();
 		
 		WorksetIteration iteration = new WorksetIteration(0, "Connected Components Iteration");
-		iteration.setInitialSolutionSet(initialVertices);
-		iteration.setInitialWorkset(initialVertices);
+		iteration.setInitialSolutionSet(verticesWithId);
+		iteration.setInitialWorkset(verticesWithId);
 		iteration.setMaximumNumberOfIterations(maxIterations);
 		
 		// create DataSourceContract for the edges
-		FileDataSource edges = new FileDataSource(new LongLongInputFormat(), edgeInput, "Edges");
+		FileDataSource edges = new FileDataSource(new CsvInputFormat(' ', PactLong.class, PactLong.class), edgeInput, "Edges");
 
 		// create CrossOperator for distance computation
 		JoinOperator joinWithNeighbors = JoinOperator.builder(new NeighborWithComponentIDJoin(), PactLong.class, 0, 0)

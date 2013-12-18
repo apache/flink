@@ -26,13 +26,11 @@ import eu.stratosphere.api.record.operators.CrossOperator
 import eu.stratosphere.configuration.Configuration;
 import java.util.{ Iterator => JIterator }
 
-
-import eu.stratosphere.scala.contracts.Annotations
 import eu.stratosphere.scala._
 import eu.stratosphere.scala.analysis._
-import eu.stratosphere.scala.stubs.{CrossStubBase, CrossStub, FlatCrossStub}
+import eu.stratosphere.scala.functions.{CrossFunctionBase, CrossFunction, FlatCrossFunction}
 import eu.stratosphere.scala.codegen.{MacroContextHolder, Util}
-import eu.stratosphere.scala.stubs.DeserializingIterator
+import eu.stratosphere.scala.functions.DeserializingIterator
 
 class CrossDataSet[LeftIn, RightIn](val leftInput: DataSet[LeftIn], val rightInput: DataSet[RightIn]) {
   def map[Out](fun: (LeftIn, RightIn) => Out): DataSet[Out] with TwoInputHintable[LeftIn, RightIn, Out] = macro CrossMacros.map[LeftIn, RightIn, Out]
@@ -52,13 +50,13 @@ object CrossMacros {
     val (udtRightIn, createUdtRightIn) = slave.mkUdtClass[RightIn]
     val (udtOut, createUdtOut) = slave.mkUdtClass[Out]
 
-    val stub: c.Expr[CrossStubBase[LeftIn, RightIn, Out]] = if (fun.actualType <:< weakTypeOf[CrossStub[LeftIn, RightIn, Out]])
-      reify { fun.splice.asInstanceOf[CrossStubBase[LeftIn, RightIn, Out]] }
+    val stub: c.Expr[CrossFunctionBase[LeftIn, RightIn, Out]] = if (fun.actualType <:< weakTypeOf[CrossFunction[LeftIn, RightIn, Out]])
+      reify { fun.splice.asInstanceOf[CrossFunctionBase[LeftIn, RightIn, Out]] }
     else reify {
       implicit val leftInputUDT: UDT[LeftIn] = c.Expr[UDT[LeftIn]](createUdtLeftIn).splice
       implicit val rightInputUDT: UDT[RightIn] = c.Expr[UDT[RightIn]](createUdtRightIn).splice
       implicit val outputUDT: UDT[Out] = c.Expr[UDT[Out]](createUdtOut).splice
-      new CrossStubBase[LeftIn, RightIn, Out] {
+      new CrossFunctionBase[LeftIn, RightIn, Out] {
         override def cross(leftRecord: PactRecord, rightRecord: PactRecord, out: Collector[PactRecord]) = {
           val left = leftDeserializer.deserializeRecyclingOn(leftRecord)
           val right = rightDeserializer.deserializeRecyclingOn(rightRecord)
@@ -109,13 +107,13 @@ object CrossMacros {
     val (udtRightIn, createUdtRightIn) = slave.mkUdtClass[RightIn]
     val (udtOut, createUdtOut) = slave.mkUdtClass[Out]
 
-    val stub: c.Expr[CrossStubBase[LeftIn, RightIn, Out]] = if (fun.actualType <:< weakTypeOf[CrossStub[LeftIn, RightIn, Out]])
-      reify { fun.splice.asInstanceOf[CrossStubBase[LeftIn, RightIn, Out]] }
+    val stub: c.Expr[CrossFunctionBase[LeftIn, RightIn, Out]] = if (fun.actualType <:< weakTypeOf[CrossFunction[LeftIn, RightIn, Out]])
+      reify { fun.splice.asInstanceOf[CrossFunctionBase[LeftIn, RightIn, Out]] }
     else reify {
       implicit val leftInputUDT: UDT[LeftIn] = c.Expr[UDT[LeftIn]](createUdtLeftIn).splice
       implicit val rightInputUDT: UDT[RightIn] = c.Expr[UDT[RightIn]](createUdtRightIn).splice
       implicit val outputUDT: UDT[Out] = c.Expr[UDT[Out]](createUdtOut).splice
-      new CrossStubBase[LeftIn, RightIn, Out] {
+      new CrossFunctionBase[LeftIn, RightIn, Out] {
         override def cross(leftRecord: PactRecord, rightRecord: PactRecord, out: Collector[PactRecord]) = {
           val left = leftDeserializer.deserializeRecyclingOn(leftRecord)
           val right = rightDeserializer.deserializeRecyclingOn(rightRecord)
@@ -175,7 +173,7 @@ object CrossMacros {
       implicit val leftInputUDT: UDT[LeftIn] = c.Expr[UDT[LeftIn]](createUdtLeftIn).splice
       implicit val rightInputUDT: UDT[RightIn] = c.Expr[UDT[RightIn]](createUdtRightIn).splice
       implicit val outputUDT: UDT[(LeftIn, RightIn)] = c.Expr[UDT[(LeftIn, RightIn)]](createUdtOut).splice
-      new CrossStubBase[LeftIn, RightIn, (LeftIn, RightIn)] {
+      new CrossFunctionBase[LeftIn, RightIn, (LeftIn, RightIn)] {
         override def cross(leftRecord: PactRecord, rightRecord: PactRecord, out: Collector[PactRecord]) = {
           val left = leftDeserializer.deserializeRecyclingOn(leftRecord)
           val right = rightDeserializer.deserializeRecyclingOn(rightRecord)

@@ -25,13 +25,12 @@ import eu.stratosphere.api.record.operators.MapOperator
 import eu.stratosphere.types.PactRecord
 import eu.stratosphere.types.PactInteger
 import eu.stratosphere.api.record.operators.ReduceOperator
-import eu.stratosphere.api.record.functions.{ReduceFunction => JReduceStub}
+import eu.stratosphere.api.record.functions.{ReduceFunction => JReduceFunction}
 
-import eu.stratosphere.scala.contracts.Annotations
 import eu.stratosphere.scala._
 import eu.stratosphere.scala.analysis._
 import eu.stratosphere.scala.codegen.{MacroContextHolder, Util}
-import eu.stratosphere.scala.stubs.{ReduceStub, ReduceStubBase, CombinableGroupReduceStub, GroupReduceStub}
+import eu.stratosphere.scala.functions.{ReduceFunction, ReduceFunctionBase, CombinableGroupReduceFunction, GroupReduceFunction}
 
 class KeyedDataSet[In](val keySelection: List[Int], val input: DataSet[In]) {
   def reduceGroup[Out](fun: Iterator[In] => Out): DataSet[Out] with OneInputHintable[In, Out] = macro ReduceMacros.reduceGroup[In, Out]
@@ -109,12 +108,12 @@ object ReduceMacros {
 
     val (udtIn, createUdtIn) = slave.mkUdtClass[In]
 
-    val stub: c.Expr[ReduceStubBase[In, In]] = if (fun.actualType <:< weakTypeOf[ReduceStub[In]])
-      reify { fun.splice.asInstanceOf[ReduceStubBase[In, In]] }
+    val stub: c.Expr[ReduceFunctionBase[In, In]] = if (fun.actualType <:< weakTypeOf[ReduceFunction[In]])
+      reify { fun.splice.asInstanceOf[ReduceFunctionBase[In, In]] }
     else reify {
       implicit val inputUDT: UDT[In] = c.Expr[UDT[In]](createUdtIn).splice
 
-      new ReduceStubBase[In, In] {
+      new ReduceFunctionBase[In, In] {
         override def combine(records: JIterator[PactRecord], out: Collector[PactRecord]) = {
           reduce(records, out)
         }
@@ -172,13 +171,13 @@ object ReduceMacros {
     val (udtIn, createUdtIn) = slave.mkUdtClass[In]
     val (udtOut, createUdtOut) = slave.mkUdtClass[Out]
 
-    val stub: c.Expr[ReduceStubBase[In, Out]] = if (fun.actualType <:< weakTypeOf[GroupReduceStub[In, Out]])
-      reify { fun.splice.asInstanceOf[ReduceStubBase[In, Out]] }
+    val stub: c.Expr[ReduceFunctionBase[In, Out]] = if (fun.actualType <:< weakTypeOf[GroupReduceFunction[In, Out]])
+      reify { fun.splice.asInstanceOf[ReduceFunctionBase[In, Out]] }
     else reify {
       implicit val inputUDT: UDT[In] = c.Expr[UDT[In]](createUdtIn).splice
       implicit val outputUDT: UDT[Out] = c.Expr[UDT[Out]](createUdtOut).splice
 
-      new ReduceStubBase[In, Out] {
+      new ReduceFunctionBase[In, Out] {
         override def reduce(records: JIterator[PactRecord], out: Collector[PactRecord]) = {
           val firstRecord = reduceIterator.initialize(records)
           reduceRecord.copyFrom(firstRecord, reduceForwardFrom, reduceForwardTo)
@@ -228,12 +227,12 @@ object ReduceMacros {
 
     val (udtIn, createUdtIn) = slave.mkUdtClass[In]
 
-    val stub: c.Expr[ReduceStubBase[In, In]] = if (fun.actualType <:< weakTypeOf[CombinableGroupReduceStub[In, In]])
-      reify { fun.splice.asInstanceOf[ReduceStubBase[In, In]] }
+    val stub: c.Expr[ReduceFunctionBase[In, In]] = if (fun.actualType <:< weakTypeOf[CombinableGroupReduceFunction[In, In]])
+      reify { fun.splice.asInstanceOf[ReduceFunctionBase[In, In]] }
     else reify {
       implicit val inputUDT: UDT[In] = c.Expr[UDT[In]](createUdtIn).splice
 
-      new ReduceStubBase[In, In] {
+      new ReduceFunctionBase[In, In] {
         override def combine(records: JIterator[PactRecord], out: Collector[PactRecord]) = {
           reduce(records, out)
         }
@@ -289,7 +288,7 @@ object ReduceMacros {
       val helper: KeyedDataSet[In] = c.prefix.splice
       val keySelection = helper.keySelection
 
-      val generatedStub = new JReduceStub with Serializable {
+      val generatedStub = new JReduceFunction with Serializable {
         val inputUDT = c.Expr[UDT[In]](createUdtIn).splice
         val outputUDT = c.Expr[UDT[(In, Int)]](createUdtOut).splice
         val keySelector = new FieldSelector(inputUDT, keySelection)

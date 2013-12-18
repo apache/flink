@@ -20,7 +20,6 @@ import eu.stratosphere.types.PactRecord
 import eu.stratosphere.api.record.functions.MapFunction
 import eu.stratosphere.util.Collector
 import eu.stratosphere.api.operators.Operator
-import eu.stratosphere.scala.contracts.Annotations
 import eu.stratosphere.scala.OneInputScalaContract
 import eu.stratosphere.scala.analysis.UDF1
 import eu.stratosphere.scala.analysis.UDTSerializer

@@ -13,9 +13,7 @@
 
 package eu.stratosphere.example.record.wordcount;
 
-import java.io.Serializable;
 import java.util.Iterator;
-import java.util.StringTokenizer;
 
 import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.Program;
@@ -34,37 +32,48 @@ import eu.stratosphere.client.LocalExecutor;
 import eu.stratosphere.types.PactInteger;
 import eu.stratosphere.types.PactRecord;
 import eu.stratosphere.types.PactString;
+import eu.stratosphere.util.AsciiUtils;
 import eu.stratosphere.util.Collector;
 
 /**
  * Implements a word count which takes the input file and counts the number of
- * the occurrences of each word in the file.
+ * the occurrences of each word in the file. Compared to the {@link WordCount} example.
+ * this program performs better by using mutable objects and optimized tools.
  */
-public class WordCount implements Program, ProgramDescription {
+public class WordCountOptimized implements Program, ProgramDescription {
 	
 	/**
 	 * Converts a PactRecord containing one string in to multiple string/integer pairs.
 	 * The string is tokenized by whitespaces. For each token a new record is emitted,
 	 * where the token is the first field and an Integer(1) is the second field.
 	 */
-	public static class TokenizeLine extends MapFunction implements Serializable {
-		private static final long serialVersionUID = 1L;
+	public static class TokenizeLine extends MapFunction {
+		
+		// initialize reusable mutable objects
+		private final PactRecord outputRecord = new PactRecord();
+		private final PactString word = new PactString();
+		private final PactInteger one = new PactInteger(1);
+		
+		private final AsciiUtils.WhitespaceTokenizer tokenizer =
+				new AsciiUtils.WhitespaceTokenizer();
 		
 		@Override
 		public void map(PactRecord record, Collector<PactRecord> collector) {
 			// get the first field (as type PactString) from the record
-			String line = record.getField(0, PactString.class).getValue();
-
+			PactString line = record.getField(0, PactString.class);
+			
 			// normalize the line
-			line = line.replaceAll("\\W+", " ").toLowerCase();
+			AsciiUtils.replaceNonWordChars(line, ' ');
+			AsciiUtils.toLowerCase(line);
 			
 			// tokenize the line
-			StringTokenizer tokenizer = new StringTokenizer(line);
-			while (tokenizer.hasMoreTokens()) {
-				String word = tokenizer.nextToken();
-				
+			this.tokenizer.setStringToTokenize(line);
+			while (tokenizer.next(this.word))
+			{
 				// we emit a (word, 1) pair 
-				collector.collect(new PactRecord(new PactString(word), new PactInteger(1)));
+				this.outputRecord.setField(0, this.word);
+				this.outputRecord.setField(1, this.one);
+				collector.collect(this.outputRecord);
 			}
 		}
 	}
@@ -75,9 +84,9 @@ public class WordCount implements Program, ProgramDescription {
 	 */
 	@Combinable
 	@ConstantFields(0)
-	public static class CountWords extends ReduceFunction implements Serializable {
+	public static class CountWords extends ReduceFunction {
 		
-		private static final long serialVersionUID = 1L;
+		private final PactInteger cnt = new PactInteger();
 		
 		@Override
 		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {
@@ -85,18 +94,19 @@ public class WordCount implements Program, ProgramDescription {
 			int sum = 0;
 			while (records.hasNext()) {
 				element = records.next();
-				int cnt = element.getField(1, PactInteger.class).getValue();
-				sum += cnt;
+				PactInteger i = element.getField(1, PactInteger.class);
+				sum += i.getValue();
 			}
 
-			element.setField(1, new PactInteger(sum));
+			this.cnt.setValue(sum);
+			element.setField(1, this.cnt);
 			out.collect(element);
 		}
 		
 		@Override
 		public void combine(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {
 			// the logic is the same as in the reduce function, so simply call the reduce method
-			reduce(records, out);
+			this.reduce(records, out);
 		}
 	}
 
@@ -108,8 +118,9 @@ public class WordCount implements Program, ProgramDescription {
 		String dataInput = (args.length > 1 ? args[1] : "");
 		String output    = (args.length > 2 ? args[2] : "");
 
-		FileDataSource source = new FileDataSource(new TextInputFormat(), dataInput, "Input Lines");
-		MapOperator mapper = MapOperator.builder(new TokenizeLine())
+		FileDataSource source = new FileDataSource(TextInputFormat.class, dataInput, "Input Lines");
+		source.setParameter(TextInputFormat.CHARSET_NAME, "ASCII");		// comment out this line for UTF-8 inputs
+		MapOperator mapper = MapOperator.builder(TokenizeLine.class)
 			.input(source)
 			.name("Tokenize Lines")
 			.build();
@@ -117,7 +128,7 @@ public class WordCount implements Program, ProgramDescription {
 			.input(mapper)
 			.name("Count Words")
 			.build();
-		FileDataSink out = new FileDataSink(new CsvOutputFormat(), output, reducer, "Word Counts");
+		FileDataSink out = new FileDataSink(CsvOutputFormat.class, output, reducer, "Word Counts");
 		CsvOutputFormat.configureRecordFormat(out)
 			.recordDelimiter('\n')
 			.fieldDelimiter(' ')
@@ -134,22 +145,12 @@ public class WordCount implements Program, ProgramDescription {
 	public String getDescription() {
 		return "Parameters: [numSubStasks] [input] [output]";
 	}
-
 	
+	// This can be used to locally run a plan from within eclipse (or anywhere else)
 	public static void main(String[] args) throws Exception {
-		WordCount wc = new WordCount();
-		
-		if (args.length < 3) {
-			System.err.println(wc.getDescription());
-			System.exit(1);
-		}
-		
-		Plan plan = wc.getPlan(args);
-		
-		// This will execute the word-count embedded in a local context. replace this line by the commented
-		// succeeding line to send the job to a local installation or to a cluster for execution
+		WordCountOptimized wc = new WordCountOptimized();
+		Plan plan = wc.getPlan("1", "file:///path/to/input", "file:///path/to/output");
 		LocalExecutor.execute(plan);
-//		PlanExecutor ex = new RemoteExecutor("localhost", 6123, "target/pact-examples-0.4-SNAPSHOT-WordCount.jar");
-//		ex.executePlan(plan);
+		System.exit(0);
 	}
 }

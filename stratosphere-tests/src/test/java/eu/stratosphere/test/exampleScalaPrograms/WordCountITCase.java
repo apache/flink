@@ -18,7 +18,7 @@ import org.junit.runners.Parameterized;
 
 import eu.stratosphere.api.Plan;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.scala.examples.wordcount.WordCount;
+import eu.stratosphere.examples.scala.wordcount.WordCount;
 
 @RunWith(Parameterized.class)
 public class WordCountITCase extends eu.stratosphere.test.exampleRecordPrograms.WordCountITCase {

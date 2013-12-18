@@ -16,7 +16,7 @@ package eu.stratosphere.scala.analysis
 import scala.collection.JavaConversions.asScalaBuffer
 import scala.collection.JavaConversions.collectionAsScalaIterable
 import eu.stratosphere.scala.analysis._
-import eu.stratosphere.scala.contracts._
+import eu.stratosphere.scala.operators.Annotations
 import eu.stratosphere.compiler.dag._
 import eu.stratosphere.api.operators.Operator
 import eu.stratosphere.api.operators.GenericDataSink

@@ -15,9 +15,10 @@ package eu.stratosphere.test.exampleScalaPrograms;
 
 import eu.stratosphere.api.Plan;
 import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.examples.scala.graph.ConnectedComponents;
+
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-import eu.stratosphere.scala.examples.graph.ConnectedComponents;
 
 @RunWith(Parameterized.class)
 public class ConnectedComponentsITCase extends eu.stratosphere.test.iterative.ConnectedComponentsITCase {

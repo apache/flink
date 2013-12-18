@@ -20,7 +20,7 @@ import eu.stratosphere.types.PactRecord
 import eu.stratosphere.util.Collector
 import eu.stratosphere.api.operators.Operator
 import eu.stratosphere.api.record.operators.JoinOperator
-import eu.stratosphere.api.record.functions.JoinFunction
+import eu.stratosphere.api.record.functions.{JoinFunction => JJoinFunction}
 import eu.stratosphere.api.operators.util.UserCodeObjectWrapper
 
 import eu.stratosphere.configuration.Configuration;
@@ -29,9 +29,8 @@ import java.util.{ Iterator => JIterator }
 
 import eu.stratosphere.scala._
 import eu.stratosphere.scala.analysis._
-import eu.stratosphere.scala.contracts.Annotations
 import eu.stratosphere.scala.codegen.{MacroContextHolder, Util}
-import eu.stratosphere.scala.stubs.{JoinStubBase, JoinStub, FlatJoinStub}
+import eu.stratosphere.scala.functions.{JoinFunctionBase, JoinFunction, FlatJoinFunction}
 
 class JoinDataSet[LeftIn, RightIn](val leftInput: DataSet[LeftIn], val rightInput: DataSet[RightIn]) {
   def where[Key](keyFun: LeftIn => Key) = macro JoinMacros.whereImpl[LeftIn, RightIn, Key]
@@ -47,7 +46,7 @@ class JoinDataSetWithWhereAndEqual[LeftIn, RightIn](val leftKey: List[Int], val 
   def filter(fun: (LeftIn, RightIn) => Boolean): DataSet[(LeftIn, RightIn)] with TwoInputHintable[LeftIn, RightIn, (LeftIn, RightIn)] = macro JoinMacros.filter[LeftIn, RightIn]
 }
 
-class NoKeyMatchBuilder(s: JoinFunction) extends JoinOperator.Builder(new UserCodeObjectWrapper(s))
+class NoKeyMatchBuilder(s: JJoinFunction) extends JoinOperator.Builder(new UserCodeObjectWrapper(s))
 
 object JoinMacros {
   
@@ -90,13 +89,13 @@ object JoinMacros {
     val (udtRightIn, createUdtRightIn) = slave.mkUdtClass[RightIn]
     val (udtOut, createUdtOut) = slave.mkUdtClass[Out]
 
-    val stub: c.Expr[JoinStubBase[LeftIn, RightIn, Out]] = if (fun.actualType <:< weakTypeOf[JoinStub[LeftIn, RightIn, Out]])
-      reify { fun.splice.asInstanceOf[JoinStubBase[LeftIn, RightIn, Out]] }
+    val stub: c.Expr[JoinFunctionBase[LeftIn, RightIn, Out]] = if (fun.actualType <:< weakTypeOf[JoinFunction[LeftIn, RightIn, Out]])
+      reify { fun.splice.asInstanceOf[JoinFunctionBase[LeftIn, RightIn, Out]] }
     else reify {
       implicit val leftInputUDT: UDT[LeftIn] = c.Expr[UDT[LeftIn]](createUdtLeftIn).splice
       implicit val rightInputUDT: UDT[RightIn] = c.Expr[UDT[RightIn]](createUdtRightIn).splice
       implicit val outputUDT: UDT[Out] = c.Expr[UDT[Out]](createUdtOut).splice
-      new JoinStubBase[LeftIn, RightIn, Out] {
+      new JoinFunctionBase[LeftIn, RightIn, Out] {
         override def `match`(leftRecord: PactRecord, rightRecord: PactRecord, out: Collector[PactRecord]) = {
           val left = leftDeserializer.deserializeRecyclingOn(leftRecord)
           val right = rightDeserializer.deserializeRecyclingOn(rightRecord)
@@ -159,13 +158,13 @@ object JoinMacros {
     val (udtRightIn, createUdtRightIn) = slave.mkUdtClass[RightIn]
     val (udtOut, createUdtOut) = slave.mkUdtClass[Out]
 
-    val stub: c.Expr[JoinStubBase[LeftIn, RightIn, Out]] = if (fun.actualType <:< weakTypeOf[JoinStub[LeftIn, RightIn, Out]])
-      reify { fun.splice.asInstanceOf[JoinStubBase[LeftIn, RightIn, Out]] }
+    val stub: c.Expr[JoinFunctionBase[LeftIn, RightIn, Out]] = if (fun.actualType <:< weakTypeOf[JoinFunction[LeftIn, RightIn, Out]])
+      reify { fun.splice.asInstanceOf[JoinFunctionBase[LeftIn, RightIn, Out]] }
     else reify {
       implicit val leftInputUDT: UDT[LeftIn] = c.Expr[UDT[LeftIn]](createUdtLeftIn).splice
       implicit val rightInputUDT: UDT[RightIn] = c.Expr[UDT[RightIn]](createUdtRightIn).splice
       implicit val outputUDT: UDT[Out] = c.Expr[UDT[Out]](createUdtOut).splice
-      new JoinStubBase[LeftIn, RightIn, Out] {
+      new JoinFunctionBase[LeftIn, RightIn, Out] {
         override def `match`(leftRecord: PactRecord, rightRecord: PactRecord, out: Collector[PactRecord]) = {
           val left = leftDeserializer.deserializeRecyclingOn(leftRecord)
           val right = rightDeserializer.deserializeRecyclingOn(rightRecord)
@@ -232,13 +231,13 @@ object JoinMacros {
     val (udtRightIn, createUdtRightIn) = slave.mkUdtClass[RightIn]
     val (udtOut, createUdtOut) = slave.mkUdtClass[(LeftIn, RightIn)]
 
-    val stub: c.Expr[JoinStubBase[LeftIn, RightIn, (LeftIn, RightIn)]] = if (fun.actualType <:< weakTypeOf[JoinStub[LeftIn, RightIn, (LeftIn, RightIn)]])
-      reify { fun.splice.asInstanceOf[JoinStubBase[LeftIn, RightIn, (LeftIn, RightIn)]] }
+    val stub: c.Expr[JoinFunctionBase[LeftIn, RightIn, (LeftIn, RightIn)]] = if (fun.actualType <:< weakTypeOf[JoinFunction[LeftIn, RightIn, (LeftIn, RightIn)]])
+      reify { fun.splice.asInstanceOf[JoinFunctionBase[LeftIn, RightIn, (LeftIn, RightIn)]] }
     else reify {
       implicit val leftInputUDT: UDT[LeftIn] = c.Expr[UDT[LeftIn]](createUdtLeftIn).splice
       implicit val rightInputUDT: UDT[RightIn] = c.Expr[UDT[RightIn]](createUdtRightIn).splice
       implicit val outputUDT: UDT[(LeftIn, RightIn)] = c.Expr[UDT[(LeftIn, RightIn)]](createUdtOut).splice
-      new JoinStubBase[LeftIn, RightIn, (LeftIn, RightIn)] {
+      new JoinFunctionBase[LeftIn, RightIn, (LeftIn, RightIn)] {
         override def `match`(leftRecord: PactRecord, rightRecord: PactRecord, out: Collector[PactRecord]) = {
           val left = leftDeserializer.deserializeRecyclingOn(leftRecord)
           val right = rightDeserializer.deserializeRecyclingOn(rightRecord)

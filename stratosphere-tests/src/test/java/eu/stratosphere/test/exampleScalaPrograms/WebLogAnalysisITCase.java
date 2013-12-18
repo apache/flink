@@ -22,8 +22,8 @@ import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
 import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.examples.scala.relational.WebLogAnalysis;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.scala.examples.relational.WebLogAnalysis;
 
 @RunWith(Parameterized.class)
 public class WebLogAnalysisITCase extends eu.stratosphere.test.exampleRecordPrograms.WebLogAnalysisITCase {

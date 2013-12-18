@@ -20,7 +20,7 @@ import eu.stratosphere.types.PactRecord
 import eu.stratosphere.util.Collector
 import eu.stratosphere.api.operators.Operator
 import eu.stratosphere.api.record.operators.CoGroupOperator
-import eu.stratosphere.api.record.functions.{CoGroupFunction => JCoGroupStub}
+import eu.stratosphere.api.record.functions.{CoGroupFunction => JCoGroupFunction}
 import eu.stratosphere.api.operators.util.UserCodeObjectWrapper
 
 import eu.stratosphere.configuration.Configuration
@@ -30,9 +30,8 @@ import java.util.{ Iterator => JIterator }
 import eu.stratosphere.scala.codegen.{MacroContextHolder, Util}
 import eu.stratosphere.scala._
 import eu.stratosphere.scala.analysis._
-import eu.stratosphere.scala.contracts.Annotations
-import eu.stratosphere.scala.stubs.DeserializingIterator
-import eu.stratosphere.scala.stubs.{CoGroupStubBase, CoGroupStub, FlatCoGroupStub}
+import eu.stratosphere.scala.functions.DeserializingIterator
+import eu.stratosphere.scala.functions.{CoGroupFunctionBase, CoGroupFunction, FlatCoGroupFunction}
 
 class CoGroupDataSet[LeftIn, RightIn](val leftInput: DataSet[LeftIn], val rightInput: DataSet[RightIn]) {
   def where[Key](keyFun: LeftIn => Key): CoGroupDataSetWithWhere[LeftIn, RightIn, Key] = macro CoGroupMacros.whereImpl[LeftIn, RightIn, Key]
@@ -47,7 +46,7 @@ class CoGroupDataSetWithWhereAndEqual[LeftIn, RightIn](val leftKeySelection: Lis
   def flatMap[Out](fun: (Iterator[LeftIn], Iterator[RightIn]) => Iterator[Out]): DataSet[Out] with TwoInputHintable[LeftIn, RightIn, Out] = macro CoGroupMacros.flatMap[LeftIn, RightIn, Out]
 }
 
-class NoKeyCoGroupBuilder(s: JCoGroupStub) extends CoGroupOperator.Builder(new UserCodeObjectWrapper(s))
+class NoKeyCoGroupBuilder(s: JCoGroupFunction) extends CoGroupOperator.Builder(new UserCodeObjectWrapper(s))
 
 object CoGroupMacros {
   
@@ -93,13 +92,13 @@ object CoGroupMacros {
     val (udtRightIn, createUdtRightIn) = slave.mkUdtClass[RightIn]
     val (udtOut, createUdtOut) = slave.mkUdtClass[Out]
 
-    val stub: c.Expr[CoGroupStubBase[LeftIn, RightIn, Out]] = if (fun.actualType <:< weakTypeOf[CoGroupStub[LeftIn, RightIn, Out]])
-      reify { fun.splice.asInstanceOf[CoGroupStubBase[LeftIn, RightIn, Out]] }
+    val stub: c.Expr[CoGroupFunctionBase[LeftIn, RightIn, Out]] = if (fun.actualType <:< weakTypeOf[CoGroupFunction[LeftIn, RightIn, Out]])
+      reify { fun.splice.asInstanceOf[CoGroupFunctionBase[LeftIn, RightIn, Out]] }
     else reify {
       implicit val leftInputUDT: UDT[LeftIn] = c.Expr[UDT[LeftIn]](createUdtLeftIn).splice
       implicit val rightInputUDT: UDT[RightIn] = c.Expr[UDT[RightIn]](createUdtRightIn).splice
       implicit val outputUDT: UDT[Out] = c.Expr[UDT[Out]](createUdtOut).splice
-      new CoGroupStubBase[LeftIn, RightIn, Out] {
+      new CoGroupFunctionBase[LeftIn, RightIn, Out] {
         override def coGroup(leftRecords: JIterator[PactRecord], rightRecords: JIterator[PactRecord], out: Collector[PactRecord]) = {
 
           val firstLeftRecord = leftIterator.initialize(leftRecords)
@@ -164,13 +163,13 @@ object CoGroupMacros {
     val (udtRightIn, createUdtRightIn) = slave.mkUdtClass[RightIn]
     val (udtOut, createUdtOut) = slave.mkUdtClass[Out]
 
-    val stub: c.Expr[CoGroupStubBase[LeftIn, RightIn, Out]] = if (fun.actualType <:< weakTypeOf[CoGroupStub[LeftIn, RightIn, Out]])
-      reify { fun.splice.asInstanceOf[CoGroupStubBase[LeftIn, RightIn, Out]] }
+    val stub: c.Expr[CoGroupFunctionBase[LeftIn, RightIn, Out]] = if (fun.actualType <:< weakTypeOf[CoGroupFunction[LeftIn, RightIn, Out]])
+      reify { fun.splice.asInstanceOf[CoGroupFunctionBase[LeftIn, RightIn, Out]] }
     else reify {
       implicit val leftInputUDT: UDT[LeftIn] = c.Expr[UDT[LeftIn]](createUdtLeftIn).splice
       implicit val rightInputUDT: UDT[RightIn] = c.Expr[UDT[RightIn]](createUdtRightIn).splice
       implicit val outputUDT: UDT[Out] = c.Expr[UDT[Out]](createUdtOut).splice
-      new CoGroupStubBase[LeftIn, RightIn, Out] {
+      new CoGroupFunctionBase[LeftIn, RightIn, Out] {
         override def coGroup(leftRecords: JIterator[PactRecord], rightRecords: JIterator[PactRecord], out: Collector[PactRecord]) = {
           val firstLeftRecord = leftIterator.initialize(leftRecords)
           outputRecord.copyFrom(firstLeftRecord, leftForwardFrom, leftForwardTo)
