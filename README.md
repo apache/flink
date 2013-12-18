@@ -2,7 +2,7 @@
 
 _"Big Data looks tiny from Stratosphere."_
 
-Stratosphere is a next-generation Big Data Analytics Platform. It combines the strenghts of MapReduce/Hadoop with powerful programming abstractions in Java and Scala, and a high performance runtime. Stratosphere has native support for iterations, incremental iterations, and programs consisting of workflows of many operations.
+Stratosphere is a next-generation Big Data Analytics Platform. It combines the strengths of MapReduce/Hadoop with powerful programming abstractions in Java and Scala, and a high performance runtime. Stratosphere has native support for iterations, delta iterations, and programs consisting of workflows of many operations.
 
 Learn more about Stratosphere at http://stratosphere.eu
 
@@ -81,20 +81,20 @@ Get some test data:
 
 Start the job:
 
-	./bin/pact-client.sh run --jarfile ./examples/pact/pact-examples-0.4-SNAPSHOT-WordCount.jar --arguments 1 file://`pwd`/hamlet.txt file://`pwd`/wordcount-result.txt
+	./bin/stratosphere run --jarfile ./examples/java-record-api-examples-0.4-SNAPSHOT-WordCount.jar --arguments 1 file://`pwd`/hamlet.txt file://`pwd`/wordcount-result.txt
 
 You will find a file called `wordcount-result.txt` in your current directory.
 
-#### Alternative Method: Use the PACT web interface
+#### Alternative Method: Use the webclient interface
 (And get a nice execution plan overview for free!)
 
 	./bin/start-local.sh
-	./bin/pact-webfrontend.sh start
+	./bin/start-webclient.sh start
 
 Get some test data:
 	 wget -O ~/hamlet.txt http://www.gutenberg.org/cache/epub/1787/pg1787.txt
 
-* Point your browser to to http://localhost:8080/launch.html. Upload the WordCount.jar using the upload form in the lower right box. The jar is located in `./examples/pact/pact-examples-0.4-WordCount.jar`.
+* Point your browser to to http://localhost:8080/launch.html. Upload the WordCount.jar using the upload form in the lower right box. The jar is located in `./examples/java-record-api-examples-0.4-SNAPSHOT-WordCount.jar`.
 * Select the WordCount jar from the list of available jars (upper left).
 * Enter the argument line in the lower-left box: `1 file://<path to>/hamlet.txt file://<wherever you want the>/wordcount-result.txt`
 
@@ -130,7 +130,7 @@ Create a new Eclipse Project that requires Stratosphere in its Build Path!
 Use this skeleton as an entry point for your own Jobs: It allows you to hit the “Run as” -> “Java Application” feature of Eclipse:
 
 ```java
-public class Tutorial implements PlanAssembler {
+public class Tutorial implements Program {
 
     @Override
     public Plan getPlan(String... args) {
@@ -184,12 +184,12 @@ Let us know if you have created a system that uses Stratosphere, so that we can 
 
 ## About
 
-[Stratosphere](http://www.stratosphere.eu) is a DFG-founded research project. Ozone is the codename of the latest Stratosphere distribution. 
+[Stratosphere](http://www.stratosphere.eu) is a DFG-founded research project.
 We combine cutting edge research outcomes with a stable and usable codebase.
 Decisions are not made behind closed doors. We discuss all changes and plans on our Mailinglists and on GitHub.
 
 
-<!--- Commented out Travis until we get a reliable repont on build status
+<!--- Commented out Travis until we get a reliable report on build status. Currently, out tests are so heavy that a large portion of our Travis builds get killed for taking too long.
 Build Status: [![Build Status](https://travis-ci.org/stratosphere/stratosphere.png)](https://travis-ci.org/stratosphere/stratosphere)
 -->
 
