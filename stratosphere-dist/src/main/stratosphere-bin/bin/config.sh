@@ -1,7 +1,7 @@
 #!/bin/bash
 ########################################################################################################################
 # 
-#  Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+#  Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
 # 
 #  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
 #  the License. You may obtain a copy of the License at
@@ -103,18 +103,18 @@ script=`basename "$this"`
 bin=`cd "$bin"; pwd`
 this="$bin/$script"
 
-# Define the main directory of the Nephele installation
-NEPHELE_ROOT_DIR=`dirname "$this"`/..
-NEPHELE_LIB_DIR=$NEPHELE_ROOT_DIR/lib
+# Define the main directory of the stratosphere installation
+STRATOSPHERE_ROOT_DIR=`dirname "$this"`/..
+STRATOSPHERE_LIB_DIR=$STRATOSPHERE_ROOT_DIR/lib
 
 # These need to be mangled because they are directly passed to java.
 # The above lib path is used by the shell script to retrieve jars in a 
 # directory, so it needs to be unmangled.
-NEPHELE_ROOT_DIR_MANGLED=`manglePath $NEPHELE_ROOT_DIR`
-NEPHELE_CONF_DIR=$NEPHELE_ROOT_DIR_MANGLED/conf
-NEPHELE_BIN_DIR=$NEPHELE_ROOT_DIR_MANGLED/bin
-NEPHELE_LOG_DIR=$NEPHELE_ROOT_DIR_MANGLED/log
-YAML_CONF=${NEPHELE_CONF_DIR}/stratosphere-conf.yaml
+STRATOSPHERE_ROOT_DIR_MANGLED=`manglePath $STRATOSPHERE_ROOT_DIR`
+STRATOSPHERE_CONF_DIR=$STRATOSPHERE_ROOT_DIR_MANGLED/conf
+STRATOSPHERE_BIN_DIR=$STRATOSPHERE_ROOT_DIR_MANGLED/bin
+STRATOSPHERE_LOG_DIR=$STRATOSPHERE_ROOT_DIR_MANGLED/log
+YAML_CONF=${STRATOSPHERE_CONF_DIR}/stratosphere-conf.yaml
 
 ########################################################################################################################
 # ENVIRONMENT VARIABLES
@@ -151,30 +151,30 @@ if [ -z "${HOSTNAME}" ]; then
     HOSTNAME=`hostname`
 fi
 
-# Define NEPHELE_JM_HEAP if it is not already set
-if [ -z "${NEPHELE_JM_HEAP}" ]; then
-    NEPHELE_JM_HEAP=$(readFromConfig ${KEY_JOBM_HEAP_MB} ${DEFAULT_JOBM_HEAP_MB} ${YAML_CONF})
+# Define STRATOSPHERE_JM_HEAP if it is not already set
+if [ -z "${STRATOSPHERE_JM_HEAP}" ]; then
+    STRATOSPHERE_JM_HEAP=$(readFromConfig ${KEY_JOBM_HEAP_MB} ${DEFAULT_JOBM_HEAP_MB} ${YAML_CONF})
 fi
 
-# Define NEPHELE_TM_HEAP if it is not already set
-if [ -z "${NEPHELE_TM_HEAP}" ]; then
-    NEPHELE_TM_HEAP=$(readFromConfig ${KEY_TASKM_HEAP_MB} ${DEFAULT_TASKM_HEAP_MB} ${YAML_CONF})
+# Define STRATOSPHERE_TM_HEAP if it is not already set
+if [ -z "${STRATOSPHERE_TM_HEAP}" ]; then
+    STRATOSPHERE_TM_HEAP=$(readFromConfig ${KEY_TASKM_HEAP_MB} ${DEFAULT_TASKM_HEAP_MB} ${YAML_CONF})
 fi
 
 if [ -z "${MAX_LOG_FILE_NUMBER}" ]; then
     MAX_LOG_FILE_NUMBER=$(readFromConfig ${KEY_ENV_LOG_MAX} ${DEFAULT_ENV_LOG_MAX} ${YAML_CONF})
 fi
 
-if [ -z "${NEPHELE_PID_DIR}" ]; then
-    NEPHELE_PID_DIR=$(readFromConfig ${KEY_ENV_PID_DIR} "${DEFAULT_ENV_PID_DIR}" ${YAML_CONF})
+if [ -z "${STRATOSPHERE_PID_DIR}" ]; then
+    STRATOSPHERE_PID_DIR=$(readFromConfig ${KEY_ENV_PID_DIR} "${DEFAULT_ENV_PID_DIR}" ${YAML_CONF})
 fi
 
-if [ -z "${NEPHELE_OPTS}" ]; then
-    NEPHELE_OPTS=$(readFromConfig ${KEY_ENV_JAVA_OPTS} "${DEFAULT_ENV_JAVA_OPTS}" ${YAML_CONF})
+if [ -z "${STRATOSPHERE_OPTS}" ]; then
+    STRATOSPHERE_OPTS=$(readFromConfig ${KEY_ENV_JAVA_OPTS} "${DEFAULT_ENV_JAVA_OPTS}" ${YAML_CONF})
 fi
 
-if [ -z "${NEPHELE_SSH_OPTS}" ]; then
-    NEPHELE_OPTS=$(readFromConfig ${KEY_ENV_SSH_OPTS} "${DEFAULT_ENV_SSH_OPTS}" ${YAML_CONF})
+if [ -z "${STRATOSPHERE_SSH_OPTS}" ]; then
+    STRATOSPHERE_OPTS=$(readFromConfig ${KEY_ENV_SSH_OPTS} "${DEFAULT_ENV_SSH_OPTS}" ${YAML_CONF})
 fi
 
 # Arguments for the JVM. Used for job and task manager JVMs.
@@ -183,7 +183,7 @@ fi
 JVM_ARGS=""
 
 # Default classpath 
-CLASSPATH=`manglePathList $( echo $NEPHELE_LIB_DIR/*.jar . | sed 's/ /:/g' )`
+CLASSPATH=`manglePathList $( echo $STRATOSPHERE_LIB_DIR/*.jar . | sed 's/ /:/g' )`
 
 # Auxilliary function which extracts the name of host from a line which
 # also potentialy includes topology information and the instance type

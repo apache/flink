@@ -1,7 +1,7 @@
 #!/bin/bash
 ########################################################################################################################
 # 
-#  Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+#  Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
 # 
 #  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
 #  the License. You may obtain a copy of the License at
@@ -21,41 +21,41 @@ bin=`cd "$bin"; pwd`
 
 . "$bin"/config.sh
 
-if [ "$NEPHELE_IDENT_STRING" = "" ]; then
-    NEPHELE_IDENT_STRING="$USER"
+if [ "$STRATOSPHERE_IDENT_STRING" = "" ]; then
+    STRATOSPHERE_IDENT_STRING="$USER"
 fi
 
 # auxilliary function to construct a lightweight classpath for the
 # Nephele TaskManager
 constructTaskManagerClassPath() {
 
-    for jarfile in $NEPHELE_LIB_DIR/*.jar ; do
-        if [[ $NEPHELE_TM_CLASSPATH = "" ]]; then
-            NEPHELE_TM_CLASSPATH=$jarfile;
+    for jarfile in $STRATOSPHERE_LIB_DIR/*.jar ; do
+        if [[ $STRATOSPHERE_TM_CLASSPATH = "" ]]; then
+            STRATOSPHERE_TM_CLASSPATH=$jarfile;
         else
-            NEPHELE_TM_CLASSPATH=$NEPHELE_TM_CLASSPATH:$jarfile
+            STRATOSPHERE_TM_CLASSPATH=$STRATOSPHERE_TM_CLASSPATH:$jarfile
         fi
     done
 
-    echo $NEPHELE_TM_CLASSPATH
+    echo $STRATOSPHERE_TM_CLASSPATH
 }
 
-NEPHELE_TM_CLASSPATH=`manglePathList $(constructTaskManagerClassPath)`
+STRATOSPHERE_TM_CLASSPATH=`manglePathList $(constructTaskManagerClassPath)`
 
-log=$NEPHELE_LOG_DIR/nephele-$NEPHELE_IDENT_STRING-taskmanager-$HOSTNAME.log
-out=$NEPHELE_LOG_DIR/nephele-$NEPHELE_IDENT_STRING-taskmanager-$HOSTNAME.out
-pid=$NEPHELE_PID_DIR/nephele-$NEPHELE_IDENT_STRING-taskmanager.pid
-log_setting="-Dlog.file="$log" -Dlog4j.configuration=file:"$NEPHELE_CONF_DIR"/log4j.properties"
+log=$STRATOSPHERE_LOG_DIR/stratosphere-$STRATOSPHERE_IDENT_STRING-taskmanager-$HOSTNAME.log
+out=$STRATOSPHERE_LOG_DIR/stratosphere-$STRATOSPHERE_IDENT_STRING-taskmanager-$HOSTNAME.out
+pid=$STRATOSPHERE_PID_DIR/stratosphere-$STRATOSPHERE_IDENT_STRING-taskmanager.pid
+log_setting="-Dlog.file="$log" -Dlog4j.configuration=file:"$STRATOSPHERE_CONF_DIR"/log4j.properties"
 
-JVM_ARGS="$JVM_ARGS -XX:+UseParNewGC -XX:NewRatio=8 -XX:PretenureSizeThreshold=64m -Xms"$NEPHELE_TM_HEAP"m -Xmx"$NEPHELE_TM_HEAP"m"
+JVM_ARGS="$JVM_ARGS -XX:+UseParNewGC -XX:NewRatio=8 -XX:PretenureSizeThreshold=64m -Xms"$STRATOSPHERE_TM_HEAP"m -Xmx"$STRATOSPHERE_TM_HEAP"m"
 
 case $STARTSTOP in
 
     (start)
-        mkdir -p "$NEPHELE_PID_DIR"
+        mkdir -p "$STRATOSPHERE_PID_DIR"
         if [ -f $pid ]; then
             if kill -0 `cat $pid` > /dev/null 2>&1; then
-                echo Nephele task manager running as process `cat $pid` on host $HOSTNAME.  Stop it first.
+                echo Task manager running as process `cat $pid` on host $HOSTNAME.  Stop it first.
                 exit 1
             fi
         fi
@@ -64,21 +64,21 @@ case $STARTSTOP in
         rotateLogFile $log
         rotateLogFile $out
 
-        echo Starting Nephele task manager on host $HOSTNAME
-        $JAVA_RUN $JVM_ARGS $NEPHELE_OPTS $log_setting -classpath $NEPHELE_TM_CLASSPATH eu.stratosphere.nephele.taskmanager.TaskManager -configDir $NEPHELE_CONF_DIR > "$out" 2>&1 < /dev/null &
+        echo Starting task manager on host $HOSTNAME
+        $JAVA_RUN $JVM_ARGS $STRATOSPHERE_OPTS $log_setting -classpath $STRATOSPHERE_TM_CLASSPATH eu.stratosphere.nephele.taskmanager.TaskManager -configDir $STRATOSPHERE_CONF_DIR > "$out" 2>&1 < /dev/null &
         echo $! > $pid
     ;;
 
     (stop)
         if [ -f $pid ]; then
             if kill -0 `cat $pid` > /dev/null 2>&1; then
-                echo Stopping Nephele task manager on host $HOSTNAME
+                echo Stopping task manager on host $HOSTNAME
                 kill `cat $pid`
             else
-                echo No Nephele task manager to stop on host $HOSTNAME
+                echo No task manager to stop on host $HOSTNAME
             fi
         else
-            echo No Nephele task manager to stop on host $HOSTNAME
+            echo No task manager to stop on host $HOSTNAME
         fi
     ;;
 

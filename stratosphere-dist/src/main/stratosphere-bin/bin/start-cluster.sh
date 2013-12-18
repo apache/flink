@@ -1,7 +1,7 @@
 #!/bin/bash
 ########################################################################################################################
 # 
-#  Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+#  Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
 # 
 #  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
 #  the License. You may obtain a copy of the License at
@@ -19,10 +19,10 @@ bin=`cd "$bin"; pwd`
 
 . "$bin"/config.sh
 
-HOSTLIST=$NEPHELE_SLAVES
+HOSTLIST=$STRATOSPHERE_SLAVES
 
 if [ "$HOSTLIST" = "" ]; then
-    HOSTLIST="${NEPHELE_CONF_DIR}/slaves"
+    HOSTLIST="${STRATOSPHERE_CONF_DIR}/slaves"
 fi
 
 if [ ! -f $HOSTLIST ]; then
@@ -30,8 +30,8 @@ if [ ! -f $HOSTLIST ]; then
     exit 1
 fi
 
-# cluster mode, only bring up job manager locally and a task manager on every slave host
-$NEPHELE_BIN_DIR/jobmanager.sh start cluster
+# cluster mode, bring up job manager locally and a task manager on every slave host
+$STRATOSPHERE_BIN_DIR/jobmanager.sh start cluster
 
 GOON=true
 while $GOON
@@ -39,6 +39,6 @@ do
     read line || GOON=false
     if [ -n "$line" ]; then
         HOST=$( extractHostName $line)
-        ssh -n $NEPHELE_SSH_OPTS $HOST -- "nohup /bin/bash $NEPHELE_BIN_DIR/taskmanager.sh start &"
+        ssh -n $STRATOSPHERE_SSH_OPTS $HOST -- "nohup /bin/bash $STRATOSPHERE_BIN_DIR/taskmanager.sh start &"
     fi
 done < $HOSTLIST

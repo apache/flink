@@ -1,7 +1,7 @@
 #!/bin/bash
 ########################################################################################################################
 # 
-#  Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+#  Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
 # 
 #  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
 #  the License. You may obtain a copy of the License at
@@ -23,43 +23,42 @@ bin=`cd "$bin"; pwd`
 . "$bin"/config.sh
 
 if [ "$EXECUTIONMODE" = "local" ]; then
-    NEPHELE_JM_HEAP=`expr $NEPHELE_JM_HEAP + $NEPHELE_TM_HEAP`
+    STRATOSPHERE_JM_HEAP=`expr $STRATOSPHERE_JM_HEAP + $STRATOSPHERE_TM_HEAP`
 fi
 
-JVM_ARGS="$JVM_ARGS -Xms"$NEPHELE_JM_HEAP"m -Xmx"$NEPHELE_JM_HEAP"m"
+JVM_ARGS="$JVM_ARGS -Xms"$STRATOSPHERE_JM_HEAP"m -Xmx"$STRATOSPHERE_JM_HEAP"m"
 
-if [ "$NEPHELE_IDENT_STRING" = "" ]; then
-    NEPHELE_IDENT_STRING="$USER"
+if [ "$STRATOSPHERE_IDENT_STRING" = "" ]; then
+    STRATOSPHERE_IDENT_STRING="$USER"
 fi
 
-# auxilliary function to construct a lightweight classpath for the
-# Nephele JobManager
+# auxilliary function to construct a the classpath for the jobmanager
 constructJobManagerClassPath() {
-    for jarfile in $NEPHELE_LIB_DIR/*.jar ; do
-        if [[ $NEPHELE_JM_CLASSPATH = "" ]]; then
-            NEPHELE_JM_CLASSPATH=$jarfile;
+    for jarfile in $STRATOSPHERE_LIB_DIR/*.jar ; do
+        if [[ $STRATOSPHERE_JM_CLASSPATH = "" ]]; then
+            STRATOSPHERE_JM_CLASSPATH=$jarfile;
         else
-            NEPHELE_JM_CLASSPATH=$NEPHELE_JM_CLASSPATH:$jarfile
+            STRATOSPHERE_JM_CLASSPATH=$STRATOSPHERE_JM_CLASSPATH:$jarfile
         fi
     done
 
-    echo $NEPHELE_JM_CLASSPATH
+    echo $STRATOSPHERE_JM_CLASSPATH
 }
 
-NEPHELE_JM_CLASSPATH=`manglePathList $(constructJobManagerClassPath)`
+STRATOSPHERE_JM_CLASSPATH=`manglePathList $(constructJobManagerClassPath)`
 
-log=$NEPHELE_LOG_DIR/nephele-$NEPHELE_IDENT_STRING-jobmanager-$HOSTNAME.log
-out=$NEPHELE_LOG_DIR/nephele-$NEPHELE_IDENT_STRING-jobmanager-$HOSTNAME.out
-pid=$NEPHELE_PID_DIR/nephele-$NEPHELE_IDENT_STRING-jobmanager.pid
-log_setting="-Dlog.file="$log" -Dlog4j.configuration=file:"$NEPHELE_CONF_DIR"/log4j.properties"
+log=$STRATOSPHERE_LOG_DIR/stratosphere-$STRATOSPHERE_IDENT_STRING-jobmanager-$HOSTNAME.log
+out=$STRATOSPHERE_LOG_DIR/stratosphere-$STRATOSPHERE_IDENT_STRING-jobmanager-$HOSTNAME.out
+pid=$STRATOSPHERE_PID_DIR/stratosphere-$STRATOSPHERE_IDENT_STRING-jobmanager.pid
+log_setting="-Dlog.file="$log" -Dlog4j.configuration=file:"$STRATOSPHERE_CONF_DIR"/log4j.properties"
 
 case $STARTSTOP in
 
     (start)
-        mkdir -p "$NEPHELE_PID_DIR"
+        mkdir -p "$STRATOSPHERE_PID_DIR"
         if [ -f $pid ]; then
             if kill -0 `cat $pid` > /dev/null 2>&1; then
-                echo Nephele job manager running as process `cat $pid`.  Stop it first.
+                echo Job manager running as process `cat $pid`.  Stop it first.
                 exit 1
             fi
         fi
@@ -68,21 +67,21 @@ case $STARTSTOP in
         rotateLogFile $log
         rotateLogFile $out
 
-        echo Starting Nephele job manager
-        $JAVA_RUN $JVM_ARGS $NEPHELE_OPTS $log_setting -classpath $NEPHELE_JM_CLASSPATH eu.stratosphere.nephele.jobmanager.JobManager -executionMode $EXECUTIONMODE -configDir $NEPHELE_CONF_DIR  > "$out" 2>&1 < /dev/null &
+        echo Starting job manager
+        $JAVA_RUN $JVM_ARGS $STRATOSPHERE_OPTS $log_setting -classpath $STRATOSPHERE_JM_CLASSPATH eu.stratosphere.nephele.jobmanager.JobManager -executionMode $EXECUTIONMODE -configDir $STRATOSPHERE_CONF_DIR  > "$out" 2>&1 < /dev/null &
         echo $! > $pid
     ;;
 
     (stop)
         if [ -f $pid ]; then
             if kill -0 `cat $pid` > /dev/null 2>&1; then
-                echo Stopping Nephele job manager
+                echo Stopping job manager
                 kill `cat $pid`
             else
-                echo No Nephele job manager to stop
+                echo No job manager to stop
             fi
         else
-            echo No Nephele job manager to stop
+            echo No job manager to stop
         fi
     ;;
 

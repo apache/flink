@@ -1,7 +1,7 @@
 #!/bin/bash
 ########################################################################################################################
 # 
-#  Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+#  Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
 # 
 #  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
 #  the License. You may obtain a copy of the License at
@@ -22,65 +22,64 @@ bin=`cd "$bin"; pwd`
 # get nephele config
 . "$bin"/config.sh
 
-if [ "$NEPHELE_IDENT_STRING" = "" ]; then
-        NEPHELE_IDENT_STRING="$USER"
+if [ "$STRATOSPHERE_IDENT_STRING" = "" ]; then
+        STRATOSPHERE_IDENT_STRING="$USER"
 fi
 
-NEPHELE_LIB_CLIENTS_DIR=$NEPHELE_ROOT_DIR/lib_clients
+STRATOSPHERE_LIB_CLIENTS_DIR=$STRATOSPHERE_ROOT_DIR/lib_clients
 
 JVM_ARGS="$JVM_ARGS -Xmx512m"
 
-# auxilliary function to construct a lightweight classpath for the
-# PACT Webfrontend
-constructPactWebFrontendClassPath() {
+# auxilliary function to construct the classpath for the webclient
+constructWebclientClassPath() {
 
-	for jarfile in $NEPHELE_LIB_DIR/*.jar ; do
-		if [[ $PACT_WF_CLASSPATH = "" ]]; then
-			PACT_WF_CLASSPATH=$jarfile;
+	for jarfile in $STRATOSPHERE_LIB_DIR/*.jar ; do
+		if [[ $STRATOSPHERE_WEBCLIENT_CLASSPATH = "" ]]; then
+			STRATOSPHERE_WEBCLIENT_CLASSPATH=$jarfile;
 		else
-			PACT_WF_CLASSPATH=$PACT_WF_CLASSPATH:$jarfile
+			STRATOSPHERE_WEBCLIENT_CLASSPATH=$STRATOSPHERE_WEBCLIENT_CLASSPATH:$jarfile
 		fi
 	done
 	
-	for jarfile in $NEPHELE_LIB_CLIENTS_DIR/*.jar ; do
-		PACT_WF_CLASSPATH=$PACT_WF_CLASSPATH:$jarfile
+	for jarfile in $STRATOSPHERE_LIB_CLIENTS_DIR/*.jar ; do
+		STRATOSPHERE_WEBCLIENT_CLASSPATH=$STRATOSPHERE_WEBCLIENT_CLASSPATH:$jarfile
 	done
 
-	echo $PACT_WF_CLASSPATH
+	echo $STRATOSPHERE_WEBCLIENT_CLASSPATH
 }
 
-PACT_WF_CLASSPATH=`manglePathList $(constructPactWebFrontendClassPath)`
+STRATOSPHERE_WEBCLIENT_CLASSPATH=`manglePathList $(constructWebclientClassPath)`
 
-log=$NEPHELE_LOG_DIR/nephele-$NEPHELE_IDENT_STRING-pact-web-$HOSTNAME.log
-out=$NEPHELE_LOG_DIR/nephele-$NEPHELE_IDENT_STRING-pact-web-$HOSTNAME.out
-pid=$NEPHELE_PID_DIR/nephele-$NEPHELE_IDENT_STRING-pact-web.pid
-log_setting="-Dlog.file="$log" -Dlog4j.configuration=file:"$NEPHELE_CONF_DIR"/log4j.properties"
+log=$STRATOSPHERE_LOG_DIR/stratosphere-$STRATOSPHERE_IDENT_STRING-webclient-$HOSTNAME.log
+out=$STRATOSPHERE_LOG_DIR/stratosphere-$STRATOSPHERE_IDENT_STRING-webclient-$HOSTNAME.out
+pid=$STRATOSPHERE_PID_DIR/stratosphere-$STRATOSPHERE_IDENT_STRING-webclient.pid
+log_setting="-Dlog.file="$log" -Dlog4j.configuration=file:"$STRATOSPHERE_CONF_DIR"/log4j.properties"
 
 case $STARTSTOP in
 
         (start)
-                mkdir -p "$NEPHELE_PID_DIR"
+                mkdir -p "$STRATOSPHERE_PID_DIR"
                 if [ -f $pid ]; then
                         if kill -0 `cat $pid` > /dev/null 2>&1; then
-                                echo PACT Webfrontend running as process `cat $pid`.  Stop it first.
+                                echo Stratosphere webclient running as process `cat $pid`.  Stop it first.
                                 exit 1
                         fi
                 fi
-                echo Starting PACT Webfrontend
-		$JAVA_RUN $JVM_ARGS $log_setting -classpath $PACT_WF_CLASSPATH eu.stratosphere.client.WebFrontend -configDir $NEPHELE_CONF_DIR > "$out" 2>&1 < /dev/null &
+                echo Starting Stratosphere webclient
+		$JAVA_RUN $JVM_ARGS $log_setting -classpath $STRATOSPHERE_WEBCLIENT_CLASSPATH eu.stratosphere.client.WebFrontend -configDir $STRATOSPHERE_CONF_DIR > "$out" 2>&1 < /dev/null &
 		echo $! > $pid
 	;;
 
         (stop)
                 if [ -f $pid ]; then
                         if kill -0 `cat $pid` > /dev/null 2>&1; then
-                                echo Stopping PACT Webfrontend
+                                echo Stopping Stratosphere webclient
                                 kill `cat $pid`
                         else
-                                echo No PACT Webfrontend to stop
+                                echo No Stratosphere webclient to stop
                         fi
                 else
-                        echo No PACT Webfrontend to stop
+                        echo No Stratosphere webclient to stop
                 fi
         ;;
 
