@@ -20,7 +20,7 @@ import java.io.StringWriter;
 import java.net.InetSocketAddress;
 import java.util.List;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;
@@ -106,7 +106,7 @@ public class Client {
 	 * @throws JobInstantiationException Thrown, if the plan assembler function causes an exception.
 	 */
 	public OptimizedPlan getOptimizedPlan(JobWithJars prog) throws CompilerException, ProgramInvocationException, JobInstantiationException {
-		Job plan = prog.getPlan();
+		Plan plan = prog.getPlan();
 		ContextChecker checker = new ContextChecker();
 		checker.check(plan);
 		return this.compiler.compile(plan);

@@ -13,7 +13,7 @@
 
 package eu.stratosphere.test.exampleScalaPrograms;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.configuration.Configuration;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -27,7 +27,7 @@ public class WordCountPactValueITCase extends eu.stratosphere.test.exampleRecord
     }
 
     @Override
-    protected Job getTestJob() {
+    protected Plan getTestJob() {
         WordCountPactValue wc = new WordCountPactValue();
         return wc.getScalaPlan(
                 config.getInteger("WordCountTest#NumSubtasks", 1),

@@ -30,7 +30,7 @@ import org.junit.runners.Parameterized.Parameters;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.accumulators.Accumulator;
 import eu.stratosphere.api.accumulators.AccumulatorHelper;
 import eu.stratosphere.api.accumulators.DoubleCounter;
@@ -113,8 +113,8 @@ public class AccumulatorITCase extends TestBase2 {
 	}
 
 	@Override
-	protected Job getTestJob() {
-		Job plan = getTestPlanPlan(config.getInteger("IterationAllReducer#NoSubtasks", 1), dataPath, resultPath);
+	protected Plan getTestJob() {
+		Plan plan = getTestPlanPlan(config.getInteger("IterationAllReducer#NoSubtasks", 1), dataPath, resultPath);
 		return plan;
 	}
 
@@ -125,7 +125,7 @@ public class AccumulatorITCase extends TestBase2 {
 		return toParameterList(config1);
 	}
 	
-	static Job getTestPlanPlan(int numSubTasks, String input, String output) {
+	static Plan getTestPlanPlan(int numSubTasks, String input, String output) {
 		
 		FileDataSource source = new FileDataSource(new TextInputFormat(), input, "Input Lines");
 		source.setParameter(TextInputFormat.CHARSET_NAME, "ASCII");
@@ -143,7 +143,7 @@ public class AccumulatorITCase extends TestBase2 {
 			.fieldDelimiter(' ')
 			.field(PactString.class, 0)
 			.field(PactInteger.class, 1);
-		Job plan = new Job(out, "WordCount Example");
+		Plan plan = new Plan(out, "WordCount Example");
 		plan.setDefaultParallelism(numSubTasks);
 		
 		return plan;

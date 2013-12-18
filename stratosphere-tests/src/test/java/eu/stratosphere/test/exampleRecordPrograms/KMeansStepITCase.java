@@ -25,7 +25,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.operators.GenericDataSink;
 import eu.stratosphere.api.record.operators.CrossOperator;
 import eu.stratosphere.api.record.operators.ReduceOperator;
@@ -112,10 +112,10 @@ public class KMeansStepITCase extends TestBase2 {
 	
 
 	@Override
-	protected Job getTestJob() {
+	protected Plan getTestJob() {
 		KMeansSingleStep kmi = new KMeansSingleStep();
 
-		Job plan = kmi.createJob(config.getString("KMeansIterationTest#NoSubtasks", "1"), 
+		Plan plan = kmi.getPlan(config.getString("KMeansIterationTest#NoSubtasks", "1"), 
 				dataPath, clusterPath, resultPath);
 		
 		setParameterToCross(plan, config.getString("KMeansIterationTest#ForwardSide", null), PactCompiler.HINT_SHIP_STRATEGY_FORWARD);
@@ -239,7 +239,7 @@ public class KMeansStepITCase extends TestBase2 {
 		return splits;
 	}
 	
-	public static void setParameterToCross(Job p, String key, String value) {
+	public static void setParameterToCross(Plan p, String key, String value) {
 		GenericDataSink sink = p.getDataSinks().iterator().next();
 		ReduceOperator reduce2 = (ReduceOperator) sink.getInputs().get(0);
 		ReduceOperator reduce1 = (ReduceOperator) reduce2.getInputs().get(0);

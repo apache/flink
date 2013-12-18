@@ -15,7 +15,7 @@ package eu.stratosphere.test.cancelling;
 
 import org.junit.Test;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.operators.GenericDataSink;
 import eu.stratosphere.api.operators.GenericDataSource;
 import eu.stratosphere.api.record.functions.JoinFunction;
@@ -47,7 +47,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase {
 			.build();
 		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), matcher, "Sink");
 		
-		Job p = new Job(sink);
+		Plan p = new Plan(sink);
 		p.setDefaultParallelism(4);
 		
 		runAndCancelJob(p, 3000, 10*1000);
@@ -68,7 +68,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase {
 			.build();
 		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), matcher, "Sink");
 		
-		Job p = new Job(sink);
+		Plan p = new Plan(sink);
 		p.setDefaultParallelism(4);
 		
 		runAndCancelJob(p, 5000, 10*1000);
@@ -89,7 +89,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase {
 			.build();
 		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), matcher, "Sink");
 		
-		Job p = new Job(sink);
+		Plan p = new Plan(sink);
 		p.setDefaultParallelism(4);
 		
 		runAndCancelJob(p, 5000);
@@ -116,7 +116,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase {
 			.build();
 		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), matcher, "Sink");
 		
-		Job p = new Job(sink);
+		Plan p = new Plan(sink);
 		p.setDefaultParallelism(4);
 		
 		runAndCancelJob(p, 30 * 1000, 30 * 1000);
@@ -144,7 +144,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase {
 			.build();
 		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), matcher, "Sink");
 		
-		Job p = new Job(sink);
+		Plan p = new Plan(sink);
 		p.setDefaultParallelism(4);
 		
 		runAndCancelJob(p, 10 * 1000, 20 * 1000);
@@ -170,7 +170,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase {
 			.build();
 		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), matcher, "Sink");
 		
-		Job p = new Job(sink);
+		Plan p = new Plan(sink);
 		p.setDefaultParallelism(4);
 		
 		runAndCancelJob(p, 10 * 1000, 10 * 1000);
@@ -194,7 +194,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase {
 			.build();
 		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), matcher, "Sink");
 		
-		Job p = new Job(sink);
+		Plan p = new Plan(sink);
 		p.setDefaultParallelism(64);
 		
 		runAndCancelJob(p, 3000, 20*1000);

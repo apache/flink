@@ -15,7 +15,7 @@ package eu.stratosphere.test.testPrograms.mergeOnlyJoin;
 
 import java.util.Iterator;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.Program;
 import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.operators.FileDataSink;
@@ -56,7 +56,7 @@ public class MergeOnlyJoin implements Program, ProgramDescription {
 
 
 	@Override
-	public Job createJob(final String... args) {
+	public Plan getPlan(final String... args) {
 		// parse program parameters
 		int numSubtasks       = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		String input1Path    = (args.length > 1 ? args[1] : "");
@@ -105,7 +105,7 @@ public class MergeOnlyJoin implements Program, ProgramDescription {
 			.field(PactInteger.class, 2);
 		
 		// assemble the PACT plan
-		Job plan = new Job(result, "Merge Only Join");
+		Plan plan = new Plan(result, "Merge Only Join");
 		plan.setDefaultParallelism(numSubtasks);
 		return plan;
 	}

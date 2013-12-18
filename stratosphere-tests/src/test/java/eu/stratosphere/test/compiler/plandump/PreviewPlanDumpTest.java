@@ -20,7 +20,7 @@ import org.codehaus.jackson.JsonParser;
 import org.junit.Assert;
 import org.junit.Test;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.dag.DataSinkNode;
 import eu.stratosphere.compiler.plandump.PlanJSONDumpGenerator;
@@ -45,44 +45,44 @@ public class PreviewPlanDumpTest {
 	
 	@Test
 	public void dumpWordCount() {
-		dump(new WordCount().createJob("4", IN_FILE, OUT_FILE));
+		dump(new WordCount().getPlan("4", IN_FILE, OUT_FILE));
 		
 		// The web interface passes empty string-args to compute the preview of the
 		// job, so we should test this situation too
-		dump(new WordCount().createJob(NO_ARGS));
+		dump(new WordCount().getPlan(NO_ARGS));
 	}
 	
 	@Test
 	public void dumpTPCH3() {
-		dump(new TPCHQuery3().createJob("4", IN_FILE, IN_FILE, OUT_FILE));
-		dump(new TPCHQuery3().createJob(NO_ARGS));
+		dump(new TPCHQuery3().getPlan("4", IN_FILE, IN_FILE, OUT_FILE));
+		dump(new TPCHQuery3().getPlan(NO_ARGS));
 	}
 	
 	@Test
 	public void dumpKMeans() {
-		dump(new KMeansSingleStep().createJob("4", IN_FILE, IN_FILE, OUT_FILE));
-		dump(new KMeansSingleStep().createJob(NO_ARGS));
+		dump(new KMeansSingleStep().getPlan("4", IN_FILE, IN_FILE, OUT_FILE));
+		dump(new KMeansSingleStep().getPlan(NO_ARGS));
 	}
 	
 	@Test
 	public void dumpWebLogAnalysis() {
-		dump(new WebLogAnalysis().createJob("4", IN_FILE, IN_FILE, IN_FILE, OUT_FILE));
-		dump(new WebLogAnalysis().createJob(NO_ARGS));
+		dump(new WebLogAnalysis().getPlan("4", IN_FILE, IN_FILE, IN_FILE, OUT_FILE));
+		dump(new WebLogAnalysis().getPlan(NO_ARGS));
 	}
 	
 	@Test
 	public void dumpBulkIterationKMeans() {
-		dump(new KMeansIterative().createJob("4", IN_FILE, OUT_FILE));
-		dump(new KMeansIterative().createJob(NO_ARGS));
+		dump(new KMeansIterative().getPlan("4", IN_FILE, OUT_FILE));
+		dump(new KMeansIterative().getPlan(NO_ARGS));
 	}
 	
 	@Test
 	public void dumpWorksetConnectedComponents() {
-		dump(new WorksetConnectedComponents().createJob("4", IN_FILE, IN_FILE, OUT_FILE));
-		dump(new WorksetConnectedComponents().createJob(NO_ARGS));
+		dump(new WorksetConnectedComponents().getPlan("4", IN_FILE, IN_FILE, OUT_FILE));
+		dump(new WorksetConnectedComponents().getPlan(NO_ARGS));
 	}
 	
-	private void dump(Job p) {
+	private void dump(Plan p) {
 		try {
 			List<DataSinkNode> sinks = PactCompiler.createPreOptimizedPlan(p);
 			PlanJSONDumpGenerator dumper = new PlanJSONDumpGenerator();

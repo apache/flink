@@ -28,7 +28,7 @@ import java.util.Set;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.operators.BulkIteration;
 import eu.stratosphere.api.operators.Operator;
 import eu.stratosphere.api.operators.GenericDataSink;
@@ -536,20 +536,20 @@ public class PactCompiler {
 	 *         Thrown, if the plan is invalid or the optimizer encountered an inconsistent
 	 *         situation during the compilation process.
 	 */
-	public OptimizedPlan compile(Job pactPlan) throws CompilerException {
+	public OptimizedPlan compile(Plan pactPlan) throws CompilerException {
 		// -------------------- try to get the connection to the job manager ----------------------
 		// --------------------------to obtain instance information --------------------------------
 		final OptimizerPostPass postPasser = getPostPassFromPlan(pactPlan);
 		return compile(pactPlan, getInstanceTypeInfo(), postPasser);
 	}
 	
-	public OptimizedPlan compile(Job pactPlan, OptimizerPostPass postPasser) throws CompilerException {
+	public OptimizedPlan compile(Plan pactPlan, OptimizerPostPass postPasser) throws CompilerException {
 		// -------------------- try to get the connection to the job manager ----------------------
 		// --------------------------to obtain instance information --------------------------------
 		return compile(pactPlan, getInstanceTypeInfo(), postPasser);
 	}
 	
-	public OptimizedPlan compile(Job pactPlan, InstanceTypeDescription type) throws CompilerException {
+	public OptimizedPlan compile(Plan pactPlan, InstanceTypeDescription type) throws CompilerException {
 		final OptimizerPostPass postPasser = getPostPassFromPlan(pactPlan);
 		return compile(pactPlan, type, postPasser);
 	}
@@ -575,7 +575,7 @@ public class PactCompiler {
 	 *         Thrown, if the plan is invalid or the optimizer encountered an inconsistent
 	 *         situation during the compilation process.
 	 */
-	public OptimizedPlan compile(Job pactPlan, InstanceTypeDescription type, OptimizerPostPass postPasser) throws CompilerException {
+	public OptimizedPlan compile(Plan pactPlan, InstanceTypeDescription type, OptimizerPostPass postPasser) throws CompilerException {
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Beginning compilation of PACT program '" + pactPlan.getJobName() + '\'');
 		}
@@ -744,7 +744,7 @@ public class PactCompiler {
 	 * @return The optimizer representation of the plan, as a collection of all data sinks
 	 *         from the plan can be traversed.
 	 */
-	public static List<DataSinkNode> createPreOptimizedPlan(Job pactPlan) {
+	public static List<DataSinkNode> createPreOptimizedPlan(Plan pactPlan) {
 		GraphCreatingVisitor graphCreator = new GraphCreatingVisitor(null, -1, 1, false);
 		pactPlan.accept(graphCreator);
 		return graphCreator.sinks;
@@ -1236,7 +1236,7 @@ public class PactCompiler {
 			this.stackOfIterationNodes = new ArrayDeque<IterationPlanNode>();
 		}
 
-		private OptimizedPlan createFinalPlan(List<SinkPlanNode> sinks, String jobName, Job originalPlan, long memPerInstance) {
+		private OptimizedPlan createFinalPlan(List<SinkPlanNode> sinks, String jobName, Plan originalPlan, long memPerInstance) {
 			if (LOG.isDebugEnabled())
 				LOG.debug("Available memory per instance: " + memPerInstance);
 			
@@ -1471,7 +1471,7 @@ public class PactCompiler {
 	// Miscellaneous
 	// ------------------------------------------------------------------------
 	
-	private OptimizerPostPass getPostPassFromPlan(Job pactPlan) {
+	private OptimizerPostPass getPostPassFromPlan(Plan pactPlan) {
 		final String className =  pactPlan.getPostPassClassName();
 		if (className == null) {
 			throw new CompilerException("Optimizer Post Pass class description is null");

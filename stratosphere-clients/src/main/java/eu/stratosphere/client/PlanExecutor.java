@@ -13,7 +13,7 @@
 
 package eu.stratosphere.client;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.nephele.client.JobExecutionResult;
 
 public interface PlanExecutor {
@@ -26,6 +26,6 @@ public interface PlanExecutor {
 	 * 
 	 * @throws Exception Thrown, i job submission caused an exception.
 	 */
-	public abstract JobExecutionResult executePlan(Job plan) throws Exception;
+	public abstract JobExecutionResult executePlan(Plan plan) throws Exception;
 
 }

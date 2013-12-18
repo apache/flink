@@ -15,7 +15,7 @@ package eu.stratosphere.test.testPrograms.tpch9;
 
 import org.apache.log4j.Logger;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.Program;
 import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.operators.FileDataSink;
@@ -76,7 +76,7 @@ public class TPCHQuery9 implements Program, ProgramDescription {
 
 
 	@Override
-	public Job createJob(String... args) throws IllegalArgumentException {
+	public Plan getPlan(String... args) throws IllegalArgumentException {
 
 		if (args.length != 8)
 		{
@@ -221,7 +221,7 @@ public class TPCHQuery9 implements Program, ProgramDescription {
 		FileDataSink result = new FileDataSink(new StringIntPairStringDataOutFormat(), this.outputPath, "Results sink");
 		result.addInput(sumAmountAggregate);
 
-		Job p = new Job(result, "TPC-H query 9");
+		Plan p = new Plan(result, "TPC-H query 9");
 		p.setDefaultParallelism(this.degreeOfParallelism);
 		return p;
 	}

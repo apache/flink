@@ -13,7 +13,7 @@
 
 package eu.stratosphere.example.record.sort;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.Program;
 import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.operators.FileDataSink;
@@ -48,7 +48,7 @@ public final class TeraSort implements Program, ProgramDescription {
 
 
 	@Override
-	public Job createJob(String... args) throws IllegalArgumentException {
+	public Plan getPlan(String... args) throws IllegalArgumentException {
 		// parse job parameters
 		final int numSubTasks = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		final String input = (args.length > 1 ? args[1] : "");
@@ -67,7 +67,7 @@ public final class TeraSort implements Program, ProgramDescription {
 
 		sink.addInput(source);
 
-		return new Job(sink, "TeraSort");
+		return new Plan(sink, "TeraSort");
 	}
 
 }

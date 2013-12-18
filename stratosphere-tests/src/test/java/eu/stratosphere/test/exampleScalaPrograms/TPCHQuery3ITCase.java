@@ -16,7 +16,7 @@ package eu.stratosphere.test.exampleScalaPrograms;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.scala.examples.relational.TPCHQuery3;
 
@@ -28,7 +28,7 @@ public class TPCHQuery3ITCase extends eu.stratosphere.test.exampleRecordPrograms
 	}
 
 	@Override
-	protected Job getTestJob()  {
+	protected Plan getTestJob()  {
 
 		TPCHQuery3 tpch3 = new TPCHQuery3();
 		return tpch3.getScalaPlan(

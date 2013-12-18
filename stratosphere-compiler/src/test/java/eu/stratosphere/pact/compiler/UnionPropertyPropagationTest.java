@@ -18,7 +18,7 @@ import java.util.Iterator;
 import org.junit.Assert;
 import org.junit.Test;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.record.operators.ReduceOperator;
@@ -59,7 +59,7 @@ public class UnionPropertyPropagationTest extends CompilerTestBase {
 		FileDataSink sink = new FileDataSink(new DummyOutputFormat(), OUT_FILE, globalRed);
 		
 		// return the PACT plan
-		Job plan = new Job(sink, "Union Property Propagation");
+		Plan plan = new Plan(sink, "Union Property Propagation");
 		
 		OptimizedPlan oPlan = compileNoStats(plan);
 		

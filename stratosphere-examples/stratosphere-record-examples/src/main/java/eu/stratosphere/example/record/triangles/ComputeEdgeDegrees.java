@@ -17,7 +17,7 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Iterator;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.Program;
 import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.operators.FileDataSink;
@@ -185,7 +185,7 @@ public class ComputeEdgeDegrees implements Program, ProgramDescription {
 	 * Assembles the Plan of the triangle enumeration example Pact program.
 	 */
 	@Override
-	public Job createJob(String... args) {
+	public Plan getPlan(String... args) {
 		// parse job parameters
 		final int numSubTasks   = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		final String edgeInput = args.length > 1 ? args[1] : "";
@@ -211,7 +211,7 @@ public class ComputeEdgeDegrees implements Program, ProgramDescription {
 
 		FileDataSink triangles = new FileDataSink(new EdgeWithDegreesOutputFormat(), output, countJoiner, "Unique Edges With Degrees");
 
-		Job p = new Job(triangles, "Normalize Edges and compute Vertex Degrees");
+		Plan p = new Plan(triangles, "Normalize Edges and compute Vertex Degrees");
 		p.setDefaultParallelism(numSubTasks);
 		return p;
 	}

@@ -16,7 +16,7 @@ package eu.stratosphere.example.record.pagerank;
 import java.io.Serializable;
 import java.util.Iterator;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.Program;
 import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.operators.BulkIteration;
@@ -92,7 +92,7 @@ public class SimplePageRank implements Program, ProgramDescription {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public Job createJob(String ... args) {
+	public Plan getPlan(String ... args) {
 		int dop = 1;
 		String pageWithRankInputPath = "";
 		String adjacencyListInputPath = "";
@@ -135,7 +135,7 @@ public class SimplePageRank implements Program, ProgramDescription {
 		
 		FileDataSink out = new FileDataSink(new PageWithRankOutFormat(), outputPath, iteration, "Final Ranks");
 
-		Job p = new Job(out, "Simple PageRank");
+		Plan p = new Plan(out, "Simple PageRank");
 		p.setDefaultParallelism(dop);
 		return p;
 	}

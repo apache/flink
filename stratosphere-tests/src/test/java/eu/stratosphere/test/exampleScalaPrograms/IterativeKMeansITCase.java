@@ -16,7 +16,7 @@ package eu.stratosphere.test.exampleScalaPrograms;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.scala.examples.datamining.KMeans;
 
@@ -28,7 +28,7 @@ public class IterativeKMeansITCase extends eu.stratosphere.test.iterative.Iterat
 	}
 
 	@Override
-	protected Job getTestJob() {
+	protected Plan getTestJob() {
 
 		KMeans kmi = new KMeans();
 

@@ -22,7 +22,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.operators.BulkIteration;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
@@ -61,8 +61,8 @@ public class IterationWithAllReducerITCase extends TestBase2 {
 	}
 
 	@Override
-	protected Job getTestJob() {
-		Job plan = getTestPlanPlan(config.getInteger("IterationAllReducer#NoSubtasks", 1), dataPath, resultPath);
+	protected Plan getTestJob() {
+		Plan plan = getTestPlanPlan(config.getInteger("IterationAllReducer#NoSubtasks", 1), dataPath, resultPath);
 		return plan;
 	}
 
@@ -75,7 +75,7 @@ public class IterationWithAllReducerITCase extends TestBase2 {
 		return toParameterList(config1);
 	}
 	
-	static Job getTestPlanPlan(int numSubTasks, String input, String output) {
+	static Plan getTestPlanPlan(int numSubTasks, String input, String output) {
 
 		FileDataSource initialInput = new FileDataSource(TextInputFormat.class, input, "input");
 		
@@ -97,7 +97,7 @@ public class IterationWithAllReducerITCase extends TestBase2 {
     		.fieldDelimiter(' ')
     		.field(PactString.class, 0);
 
-		Job plan = new Job(finalResult, "Iteration with AllReducer (keyless Reducer)");
+		Plan plan = new Plan(finalResult, "Iteration with AllReducer (keyless Reducer)");
 		plan.setDefaultParallelism(numSubTasks);
 //		Assert.assertTrue(plan.getDefaultParallelism() > 1);
 		return plan;

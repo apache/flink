@@ -24,7 +24,7 @@ import java.util.Set;
 import org.junit.Before;
 import org.junit.BeforeClass;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.functions.Function;
 import eu.stratosphere.api.io.FileInputFormat.FileBaseStatistics;
 import eu.stratosphere.api.operators.BulkIteration;
@@ -100,11 +100,11 @@ public abstract class CompilerTestBase {
 	
 	// ------------------------------------------------------------------------
 	
-	public OptimizedPlan compileWithStats(Job p) {
+	public OptimizedPlan compileWithStats(Plan p) {
 		return this.withStatsCompiler.compile(p, this.instanceType);
 	}
 	
-	public OptimizedPlan compileNoStats(Job p) {
+	public OptimizedPlan compileNoStats(Plan p) {
 		return this.noStatsCompiler.compile(p, this.instanceType);
 	}
 	
@@ -119,7 +119,7 @@ public abstract class CompilerTestBase {
 	}
 	
 	// ------------------------------------------------------------------------
-	public static ContractResolver getContractResolver(Job plan) {
+	public static ContractResolver getContractResolver(Plan plan) {
 		return new ContractResolver(plan);
 	}
 	
@@ -230,7 +230,7 @@ public abstract class CompilerTestBase {
 		private final Map<String, List<Operator>> map;
 		private Set<Operator> seen;
 		
-		ContractResolver(Job p) {
+		ContractResolver(Plan p) {
 			this.map = new HashMap<String, List<Operator>>();
 			this.seen = new HashSet<Operator>();
 			

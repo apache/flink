@@ -19,7 +19,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.example.record.kmeans.KMeansIterative;
 import eu.stratosphere.test.exampleRecordPrograms.KMeansStepITCase;
@@ -32,11 +32,11 @@ public class IterativeKMeansITCase extends KMeansStepITCase {
 	}
 
 	@Override
-	protected Job getTestJob() {
+	protected Plan getTestJob() {
 
 		KMeansIterative kmi = new KMeansIterative();
 
-		Job plan = kmi.createJob(config.getString("IterativeKMeansITCase#NoSubtasks", "1"), 
+		Plan plan = kmi.getPlan(config.getString("IterativeKMeansITCase#NoSubtasks", "1"), 
 				dataPath, clusterPath, resultPath,
 				config.getString("IterativeKMeansITCase#NumIterations", "1"));
 

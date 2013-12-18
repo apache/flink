@@ -14,7 +14,7 @@
 package eu.stratosphere.example.record.kmeans;
 
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.Program;
 import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.operators.FileDataSink;
@@ -42,7 +42,7 @@ public class KMeansSingleStep implements Program, ProgramDescription {
 	
 
 	@Override
-	public Job createJob(String... args) {
+	public Plan getPlan(String... args) {
 		// parse job parameters
 		int numSubTasks = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		String dataPointInput = (args.length > 1 ? args[1] : "");
@@ -81,7 +81,7 @@ public class KMeansSingleStep implements Program, ProgramDescription {
 		FileDataSink newClusterPoints = new FileDataSink(new PointOutFormat(), output, recomputeClusterCenter, "New Center Positions");
 
 		// return the PACT plan
-		Job plan = new Job(newClusterPoints, "KMeans Iteration");
+		Plan plan = new Plan(newClusterPoints, "KMeans Iteration");
 		plan.setDefaultParallelism(numSubTasks);
 		return plan;
 	}

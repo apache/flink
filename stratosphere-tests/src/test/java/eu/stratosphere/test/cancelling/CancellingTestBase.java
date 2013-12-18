@@ -26,7 +26,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
@@ -96,11 +96,11 @@ public abstract class CancellingTestBase {
 
 	// --------------------------------------------------------------------------------------------
 
-	public void runAndCancelJob(Job plan, int msecsTillCanceling) throws Exception {
+	public void runAndCancelJob(Plan plan, int msecsTillCanceling) throws Exception {
 		runAndCancelJob(plan, msecsTillCanceling, DEFAULT_CANCEL_FINISHED_INTERVAL);
 	}
 		
-	public void runAndCancelJob(Job plan, int msecsTillCanceling, int maxTimeTillCanceled) throws Exception {
+	public void runAndCancelJob(Plan plan, int msecsTillCanceling, int maxTimeTillCanceled) throws Exception {
 		try {
 			// submit job
 			final JobGraph jobGraph = getJobGraph(plan);
@@ -222,7 +222,7 @@ public abstract class CancellingTestBase {
 		}
 	}
 
-	private JobGraph getJobGraph(final Job plan) throws Exception {
+	private JobGraph getJobGraph(final Plan plan) throws Exception {
 		final PactCompiler pc = new PactCompiler(new DataStatistics());
 		final OptimizedPlan op = pc.compile(plan);
 		final NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();

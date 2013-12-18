@@ -17,7 +17,7 @@ import java.util.Arrays;
 import org.junit.Assert;
 import org.junit.Test;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.distributions.SimpleDistribution;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
@@ -59,7 +59,7 @@ public class WordCountCompilerTest extends CompilerTestBase {
 	private void checkWordCount(boolean estimates) {
 		try {
 			WordCount wc = new WordCount();
-			Job p = wc.createJob(DEFAULT_PARALLELISM_STRING, IN_FILE, OUT_FILE);
+			Plan p = wc.getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, OUT_FILE);
 			
 			OptimizedPlan plan;
 			if (estimates) {
@@ -131,7 +131,7 @@ public class WordCountCompilerTest extends CompilerTestBase {
 			Ordering ordering = new Ordering(0, PactString.class, Order.DESCENDING);
 			out.setGlobalOrder(ordering, new SimpleDistribution(new PactString[] {new PactString("N")}));
 			
-			Job p = new Job(out, "WordCount Example");
+			Plan p = new Plan(out, "WordCount Example");
 			p.setDefaultParallelism(DEFAULT_PARALLELISM);
 	
 			OptimizedPlan plan;

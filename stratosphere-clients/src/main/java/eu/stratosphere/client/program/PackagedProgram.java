@@ -29,7 +29,7 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.Program;
 import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.compiler.PactCompiler;
@@ -59,7 +59,7 @@ public class PackagedProgram {
 	
 	private ClassLoader userCodeClassLoader;
 	
-	private Job plan;
+	private Plan plan;
 
 	/**
 	 * Creates an instance that wraps the plan defined in the jar file using the given
@@ -148,7 +148,7 @@ public class PackagedProgram {
 	 *         missing parameters for generation.
 	 */
 	public List<DataSinkNode> getPreviewPlan() throws ProgramInvocationException, JobInstantiationException {
-		Job plan = getPlan();
+		Plan plan = getPlan();
 		if (plan != null) {
 			return PactCompiler.createPreOptimizedPlan(plan);
 		} else {
@@ -218,7 +218,7 @@ public class PackagedProgram {
 	 *         Thrown if an error occurred in the user-provided pact assembler. This may indicate
 	 *         missing parameters for generation.
 	 */
-	private Job getPlan() throws ProgramInvocationException, JobInstantiationException {
+	private Plan getPlan() throws ProgramInvocationException, JobInstantiationException {
 		if (this.plan == null) {
 			this.plan = createPlanFromProgram(this.planAssembler, this.args);
 		}
@@ -307,11 +307,11 @@ public class PackagedProgram {
 	 * @throws JobInstantiationException
 	 *         Thrown, if an error occurred in the user-provided pact assembler.
 	 */
-	private static Job createPlanFromProgram(Program assembler, String[] options)
+	private static Plan createPlanFromProgram(Program assembler, String[] options)
 			throws ProgramInvocationException, JobInstantiationException
 	{
 		try {
-			return assembler.createJob(options);
+			return assembler.getPlan(options);
 		} catch (Throwable t) {
 			throw new JobInstantiationException("Error while creating plan: " + t, t);
 		}

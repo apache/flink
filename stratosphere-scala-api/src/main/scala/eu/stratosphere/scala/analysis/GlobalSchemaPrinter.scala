@@ -24,7 +24,7 @@ import Extractors.JoinNode
 import Extractors.MapNode
 import Extractors.ReduceNode
 import eu.stratosphere.api.operators.GenericDataSink
-import eu.stratosphere.api.Job
+import eu.stratosphere.api.Plan
 import eu.stratosphere.api.operators.Operator
 import eu.stratosphere.api.operators.DualInputOperator
 import eu.stratosphere.api.operators.SingleInputOperator
@@ -38,7 +38,7 @@ object GlobalSchemaPrinter {
 
   private final val LOG: Log = LogFactory.getLog(classOf[GlobalSchemaGenerator])
 
-  def printSchema(plan: Job): Unit = {
+  def printSchema(plan: Plan): Unit = {
 
     LOG.debug("### " + plan.getJobName + " ###")
     plan.getDataSinks.foldLeft(Set[Operator]())(printSchema)

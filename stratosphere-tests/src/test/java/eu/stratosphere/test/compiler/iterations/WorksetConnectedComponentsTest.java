@@ -17,7 +17,7 @@ import java.io.Serializable;
 import org.junit.Assert;
 import org.junit.Test;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.operators.WorksetIteration;
@@ -74,7 +74,7 @@ public class WorksetConnectedComponentsTest extends CompilerTestBase {
 	public void testWorksetConnectedComponents() {
 		WorksetConnectedComponents cc = new WorksetConnectedComponents();
 
-		Job plan = cc.createJob(String.valueOf(DEFAULT_PARALLELISM),
+		Plan plan = cc.getPlan(String.valueOf(DEFAULT_PARALLELISM),
 				IN_FILE, IN_FILE, OUT_FILE, String.valueOf(100));
 
 		OptimizedPlan optPlan = compileNoStats(plan);
@@ -154,7 +154,7 @@ public class WorksetConnectedComponentsTest extends CompilerTestBase {
 	@Test
 	public void testWorksetConnectedComponentsWithSolutionSetAsFirstInput() {
 
-		Job plan = getPlanForWorksetConnectedComponentsWithSolutionSetAsFirstInput(DEFAULT_PARALLELISM,
+		Plan plan = getPlanForWorksetConnectedComponentsWithSolutionSetAsFirstInput(DEFAULT_PARALLELISM,
 				IN_FILE, IN_FILE, OUT_FILE, 100);
 
 		OptimizedPlan optPlan = compileNoStats(plan);
@@ -249,7 +249,7 @@ public class WorksetConnectedComponentsTest extends CompilerTestBase {
 		}
 	}
 	
-	private static Job getPlanForWorksetConnectedComponentsWithSolutionSetAsFirstInput(
+	private static Plan getPlanForWorksetConnectedComponentsWithSolutionSetAsFirstInput(
 			int numSubTasks, String verticesInput, String edgeInput, String output, int maxIterations)
 	{
 		// create DataSourceContract for the vertices
@@ -295,7 +295,7 @@ public class WorksetConnectedComponentsTest extends CompilerTestBase {
 			.field(PactLong.class, 1);
 
 		// return the PACT plan
-		Job plan = new Job(result, "Workset Connected Components");
+		Plan plan = new Plan(result, "Workset Connected Components");
 		plan.setDefaultParallelism(numSubTasks);
 		return plan;
 	}

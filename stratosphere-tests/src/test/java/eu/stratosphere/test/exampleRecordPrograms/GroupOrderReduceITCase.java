@@ -21,7 +21,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.operators.Order;
@@ -70,7 +70,7 @@ public class GroupOrderReduceITCase extends TestBase2 {
 	}
 
 	@Override
-	protected Job getTestJob() {
+	protected Plan getTestJob() {
 		
 		int dop = this.config.getInteger("GroupOrderTest#NumSubtasks", 1);
 		
@@ -92,7 +92,7 @@ public class GroupOrderReduceITCase extends TestBase2 {
 			.field(PactInteger.class, 0)
 			.field(PactInteger.class, 1);
 		
-		Job p = new Job(sink);
+		Plan p = new Plan(sink);
 		p.setDefaultParallelism(dop);
 		return p;
 	}

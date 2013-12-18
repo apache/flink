@@ -25,7 +25,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.Program;
 import eu.stratosphere.api.distributions.UniformIntegerDistribution;
 import eu.stratosphere.api.operators.FileDataSink;
@@ -91,7 +91,7 @@ public class GlobalSortingITCase extends TestBase {
 	protected JobGraph getJobGraph() throws Exception {
 
 		GlobalSort globalSort = new GlobalSort();
-		Job plan = globalSort.createJob(
+		Plan plan = globalSort.getPlan(
 				config.getString("GlobalSortingTest#NoSubtasks", "1"), 
 				getFilesystemProvider().getURIPrefix()+recordsPath,
 				getFilesystemProvider().getURIPrefix()+resultPath);
@@ -136,7 +136,7 @@ public class GlobalSortingITCase extends TestBase {
 	private static class GlobalSort implements Program {
 		
 		@Override
-		public Job createJob(String... args) throws IllegalArgumentException {
+		public Plan getPlan(String... args) throws IllegalArgumentException {
 			// parse program parameters
 			int numSubtasks       = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 			String recordsPath    = (args.length > 1 ? args[1] : "");
@@ -161,7 +161,7 @@ public class GlobalSortingITCase extends TestBase {
 			sink.setGlobalOrder(new Ordering(0, PactInteger.class, Order.ASCENDING), new UniformIntegerDistribution(Integer.MIN_VALUE, Integer.MAX_VALUE));
 			sink.setInput(source);
 			
-			return new Job(sink);
+			return new Plan(sink);
 		}
 		
 	}

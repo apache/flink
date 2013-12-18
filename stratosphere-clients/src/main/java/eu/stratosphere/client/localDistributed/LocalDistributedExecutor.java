@@ -18,7 +18,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.client.minicluster.NepheleMiniCluster;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;
@@ -114,7 +114,7 @@ public class LocalDistributedExecutor  {
 		runNepheleJobGraph(jobGraph);
 	}
 	
-	public void run(final Job plan) throws Exception {
+	public void run(final Plan plan) throws Exception {
 		if(!running) {
 			throw new IllegalStateException("Nephele has not been started");
 		}

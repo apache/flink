@@ -17,7 +17,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Iterator;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.Program;
 import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.operators.FileDataSink;
@@ -236,7 +236,7 @@ public class EnumTrianglesRdfFoaf implements Program, ProgramDescription {
 	 * Assembles the Plan of the triangle enumeration example Pact program.
 	 */
 	@Override
-	public Job createJob(String... args) {
+	public Plan getPlan(String... args) {
 
 		// parse job parameters
 		int numSubTasks   = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
@@ -270,7 +270,7 @@ public class EnumTrianglesRdfFoaf implements Program, ProgramDescription {
 		closeTriads.setFirstInput(buildTriads);
 		buildTriads.setInput(edges);
 
-		Job plan = new Job(triangles, "Enumerate Triangles");
+		Plan plan = new Plan(triangles, "Enumerate Triangles");
 		plan.setDefaultParallelism(numSubTasks);
 		return plan;
 	}

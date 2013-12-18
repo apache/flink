@@ -15,7 +15,7 @@ package eu.stratosphere.compiler.plan;
 
 import java.util.Collection;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.util.Visitable;
 import eu.stratosphere.util.Visitor;
 
@@ -44,7 +44,7 @@ public class OptimizedPlan implements Visitable<PlanNode> {
 	/**
 	 * The original pact plan.
 	 */
-	private final Job pactPlan;
+	private final Plan pactPlan;
 
 	/**
 	 * Name of the PACT job
@@ -71,7 +71,7 @@ public class OptimizedPlan implements Visitable<PlanNode> {
 	 *        The name of the PACT job
 	 */
 	public OptimizedPlan(Collection<SourcePlanNode> sources, Collection<SinkPlanNode> sinks,
-			Collection<PlanNode> allNodes, String jobName, Job pactPlan)
+			Collection<PlanNode> allNodes, String jobName, Plan pactPlan)
 	{
 		this.dataSources = sources;
 		this.dataSinks = sinks;
@@ -121,7 +121,7 @@ public class OptimizedPlan implements Visitable<PlanNode> {
 	 * 
 	 * @return The original pact plan.
 	 */
-	public Job getOriginalPactPlan() {
+	public Plan getOriginalPactPlan() {
 		return this.pactPlan;
 	}
 

@@ -20,7 +20,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.Program;
 import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.operators.FileDataSink;
@@ -90,9 +90,9 @@ public class WordCountUnionReduceITCase extends TestBase2 {
 	}
 
 	@Override
-	protected Job getTestJob() {
+	protected Plan getTestJob() {
 		WordCountUnionReduce wc = new WordCountUnionReduce();
-		return wc.createJob(this.inputPath, this.secondInputPath, this.outputPath,
+		return wc.getPlan(this.inputPath, this.secondInputPath, this.outputPath,
 			this.config.getString("WordCountUnionReduce#NumSubtasks", "1"));
 	}
 
@@ -129,7 +129,7 @@ public class WordCountUnionReduceITCase extends TestBase2 {
 		 * </pre>
 		 */
 		@Override
-		public Job createJob(String... args) {
+		public Plan getPlan(String... args) {
 			String inputPath = args.length >= 1 ? args[0] : "";
 			String outputPath = args.length >= 3 ? args[2] : "";
 			int numSubtasks = args.length >= 4 ? Integer.parseInt(args[3]) : 1;
@@ -158,7 +158,7 @@ public class WordCountUnionReduceITCase extends TestBase2 {
 				.field(PactString.class, 0)
 				.field(PactInteger.class, 1);
 
-			Job plan = new Job(sink, "WordCount Union Reduce");
+			Plan plan = new Plan(sink, "WordCount Union Reduce");
 			plan.setDefaultParallelism(numSubtasks);
 
 			return plan;

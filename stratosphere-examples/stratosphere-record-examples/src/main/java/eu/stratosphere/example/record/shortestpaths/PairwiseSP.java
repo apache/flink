@@ -22,7 +22,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.StringTokenizer;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.Program;
 import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.operators.FileDataSink;
@@ -376,7 +376,7 @@ public class PairwiseSP implements Program, ProgramDescription {
 	 *
 	 */
 	@Override
-	public Job createJob(String... args) {
+	public Plan getPlan(String... args) {
 
 		// parse job parameters
 		int numSubTasks   = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
@@ -416,7 +416,7 @@ public class PairwiseSP implements Program, ProgramDescription {
 		concatPaths.addFirstInput(pathsInput);
 		concatPaths.addSecondInput(pathsInput);
 
-		return new Job(result, "Pairwise Shortest Paths");
+		return new Plan(result, "Pairwise Shortest Paths");
 
 	}
 

@@ -15,7 +15,7 @@ package eu.stratosphere.example.record.wordcount;
 
 import java.util.Iterator;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.Program;
 import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.operators.FileDataSink;
@@ -113,7 +113,7 @@ public class WordCountClassic implements Program, ProgramDescription {
 
 
 	@Override
-	public Job createJob(String... args) {
+	public Plan getPlan(String... args) {
 		// parse job parameters
 		int numSubTasks   = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		String dataInput = (args.length > 1 ? args[1] : "");
@@ -136,7 +136,7 @@ public class WordCountClassic implements Program, ProgramDescription {
 			.field(PactString.class, 0)
 			.field(PactInteger.class, 1);
 		
-		Job plan = new Job(out, "WordCount Example");
+		Plan plan = new Plan(out, "WordCount Example");
 		plan.setDefaultParallelism(numSubTasks);
 		return plan;
 	}
@@ -150,7 +150,7 @@ public class WordCountClassic implements Program, ProgramDescription {
 	// This can be used to locally run a plan from within eclipse (or anywhere else)
 	public static void main(String[] args) throws Exception {
 		WordCountClassic wc = new WordCountClassic();
-		Job plan = wc.createJob("1", "file:///path/to/input", "file:///path/to/output");
+		Plan plan = wc.getPlan("1", "file:///path/to/input", "file:///path/to/output");
 		LocalExecutor.execute(plan);
 		System.exit(0);
 	}

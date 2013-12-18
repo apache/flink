@@ -52,7 +52,7 @@ class TPCHQuery3 extends Program with ProgramDescription with Serializable {
   override def getDescription() = {
     "Parameters: [numSubStasks], [orders], [lineitem], [output]"
   }
-  override def createJob(args: String*) = {
+  override def getPlan(args: String*) = {
     getScalaPlan(args(0).toInt, args(1), args(2), args(3))
   }
 

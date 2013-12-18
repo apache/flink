@@ -28,7 +28,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.Program;
 import eu.stratosphere.api.distributions.DataDistribution;
 import eu.stratosphere.api.operators.FileDataSink;
@@ -100,7 +100,7 @@ public class GlobalSortingMixedOrderITCase extends TestBase {
 	protected JobGraph getJobGraph() throws Exception {
 
 		GlobalSort globalSort = new GlobalSort();
-		Job plan = globalSort.createJob(
+		Plan plan = globalSort.getPlan(
 				config.getString("GlobalSortingTest#NoSubtasks", "1"), 
 				getFilesystemProvider().getURIPrefix()+recordsPath,
 				getFilesystemProvider().getURIPrefix()+resultPath);
@@ -191,7 +191,7 @@ public class GlobalSortingMixedOrderITCase extends TestBase {
 	private static class GlobalSort implements Program {
 		
 		@Override
-		public Job createJob(String... args) throws IllegalArgumentException {
+		public Plan getPlan(String... args) throws IllegalArgumentException {
 			// parse program parameters
 			final int numSubtasks     = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 			final String recordsPath = (args.length > 1 ? args[1] : "");
@@ -216,7 +216,7 @@ public class GlobalSortingMixedOrderITCase extends TestBase {
 				new TripleIntDistribution(Order.DESCENDING, Order.ASCENDING, Order.DESCENDING));
 			sink.setInput(source);
 			
-			Job p = new Job(sink);
+			Plan p = new Plan(sink);
 			p.setDefaultParallelism(numSubtasks);
 			return p;
 		}

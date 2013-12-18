@@ -13,7 +13,7 @@
 
 package eu.stratosphere.example.record.triangles;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.Program;
 import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.operators.FileDataSink;
@@ -40,7 +40,7 @@ import eu.stratosphere.types.PactInteger;
 public class EnumTrianglesWithDegrees implements Program, ProgramDescription {
 	
 	@Override
-	public Job createJob(String... args) {
+	public Plan getPlan(String... args) {
 		// parse job parameters
 		final int numSubTasks   = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		final String edgeInput = args.length > 1 ? args[1] : "";
@@ -84,7 +84,7 @@ public class EnumTrianglesWithDegrees implements Program, ProgramDescription {
 
 		FileDataSink triangles = new FileDataSink(new TriangleOutputFormat(), output, closeTriads, "Triangles");
 
-		Job p = new Job(triangles, "Enumerate Triangles");
+		Plan p = new Plan(triangles, "Enumerate Triangles");
 		p.setDefaultParallelism(numSubTasks);
 		return p;
 	}

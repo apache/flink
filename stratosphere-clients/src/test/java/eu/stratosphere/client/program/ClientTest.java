@@ -29,7 +29,7 @@ import org.mockito.Mock;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.client.program.Client;
 import eu.stratosphere.client.program.JobInstantiationException;
 import eu.stratosphere.client.program.PackagedProgram;
@@ -67,7 +67,7 @@ public class ClientTest {
 	@Mock
 	JobWithJars planWithJarsMock;
 	@Mock
-	Job planMock;
+	Plan planMock;
 	
 	@Mock
 	PactCompiler compilerMock;

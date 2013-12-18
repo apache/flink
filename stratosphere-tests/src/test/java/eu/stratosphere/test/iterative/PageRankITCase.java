@@ -19,7 +19,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.example.record.pagerank.SimplePageRank;
 import eu.stratosphere.test.util.TestBase2;
@@ -48,9 +48,9 @@ public class PageRankITCase extends TestBase2 {
 	}
 
 	@Override
-	protected Job getTestJob() {
+	protected Plan getTestJob() {
 		SimplePageRank pr = new SimplePageRank();
-		Job plan = pr.createJob(
+		Plan plan = pr.getPlan(
 			config.getString("NumSubtasks", "1"), 
 			pagesPath,
 			edgesPath,

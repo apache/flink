@@ -14,7 +14,7 @@
 package eu.stratosphere.api;
 
 /**
- * Interface for classes that represent Stratosphere programs. The program creates the {@link Job}, which is the
+ * Interface for classes that represent Stratosphere programs. The program creates the {@link Plan}, which is the
  * instance of the program that will be executed.l
  */
 public interface Program {
@@ -27,5 +27,5 @@ public interface Program {
 	 * 
 	 * @return The job to be compiled and executed.
 	 */
-	Job createJob(String... args);
+	Plan getPlan(String... args);
 }

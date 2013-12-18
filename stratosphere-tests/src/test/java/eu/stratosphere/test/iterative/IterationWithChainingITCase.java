@@ -12,7 +12,7 @@
  **********************************************************************************************************************/
 package eu.stratosphere.test.iterative;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.operators.BulkIteration;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
@@ -61,8 +61,8 @@ public class IterationWithChainingITCase extends TestBase2 {
 
 
     @Override
-    protected Job getTestJob() {
-        Job plan = getTestPlan(config.getInteger("ChainedMapperITCase#NoSubtasks", 1), dataPath, resultPath);
+    protected Plan getTestJob() {
+        Plan plan = getTestPlan(config.getInteger("ChainedMapperITCase#NoSubtasks", 1), dataPath, resultPath);
         return plan;
     }
 
@@ -95,7 +95,7 @@ public class IterationWithChainingITCase extends TestBase2 {
         }
     }
 
-    static Job getTestPlan(int numSubTasks, String input, String output) {
+    static Plan getTestPlan(int numSubTasks, String input, String output) {
 
         FileDataSource initialInput = new FileDataSource(new PointInFormat(), input, "Input");
         initialInput.setDegreeOfParallelism(1);
@@ -115,7 +115,7 @@ public class IterationWithChainingITCase extends TestBase2 {
 
         FileDataSink finalResult = new FileDataSink(new PointOutFormat(), output, iteration, "Output");
 
-        Job plan = new Job(finalResult, "Iteration with chained map test");
+        Plan plan = new Plan(finalResult, "Iteration with chained map test");
         plan.setDefaultParallelism(numSubTasks);
         return plan;
     }

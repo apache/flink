@@ -21,7 +21,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.operators.BulkIteration;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
@@ -60,7 +60,7 @@ public class IterationWithUnionITCase extends TestBase2 {
 	}
 
 	@Override
-	protected Job getTestJob() {
+	protected Plan getTestJob() {
 		return getPlan(config.getInteger("IterationWithUnionITCase#NumSubtasks", 1), dataPath, resultPath);
 	}
 
@@ -72,7 +72,7 @@ public class IterationWithUnionITCase extends TestBase2 {
 		return toParameterList(config1);
 	}
 	
-	private static Job getPlan(int numSubTasks, String input, String output) {
+	private static Plan getPlan(int numSubTasks, String input, String output) {
 		FileDataSource initialInput = new FileDataSource(new PointInFormat(), input, "Input");
 		initialInput.setDegreeOfParallelism(1);
 		
@@ -88,7 +88,7 @@ public class IterationWithUnionITCase extends TestBase2 {
 
 		FileDataSink finalResult = new FileDataSink(new PointOutFormat(), output, iteration, "Output");
 
-		Job plan = new Job(finalResult, "Iteration with union test");
+		Plan plan = new Plan(finalResult, "Iteration with union test");
 		plan.setDefaultParallelism(numSubTasks);
 		return plan;
 	}

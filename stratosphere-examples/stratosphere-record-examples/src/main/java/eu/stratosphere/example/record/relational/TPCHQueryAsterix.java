@@ -16,7 +16,7 @@ package eu.stratosphere.example.record.relational;
 import java.io.Serializable;
 import java.util.Iterator;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.Program;
 import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.operators.FileDataSink;
@@ -127,7 +127,7 @@ public class TPCHQueryAsterix implements Program, ProgramDescription {
 
 
 	@Override
-	public Job createJob(final String... args) {
+	public Plan getPlan(final String... args) {
 
 		// parse program parameters
 		int numSubtasks       = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
@@ -200,7 +200,7 @@ public class TPCHQueryAsterix implements Program, ProgramDescription {
 		joinCO.addSecondInput(customers);
 
 		// return the PACT plan
-		return new Job(result, "TPCH Asterix");
+		return new Plan(result, "TPCH Asterix");
 	}
 
 

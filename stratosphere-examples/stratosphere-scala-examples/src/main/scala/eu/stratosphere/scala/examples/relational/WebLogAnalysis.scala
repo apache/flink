@@ -77,7 +77,7 @@ class WebLogAnalysis extends Program with ProgramDescription with Serializable {
     "Parameters: [numSubStasks], [docs], [rankings], [visits], [output]"
   }
   
-  override def createJob(args: String*) = {
+  override def getPlan(args: String*) = {
     getScalaPlan(args(0).toInt, args(1), args(2), args(3), args(4))
   }
   

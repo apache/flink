@@ -28,7 +28,7 @@ import eu.stratosphere.util.Visitor;
  * Parameters include the name and a default degree of parallelism. The job is referenced by the data sinks,
  * from which a traversal reaches all connected nodes of the job.
  */
-public class Job implements Visitable<Operator> {
+public class Plan implements Visitable<Operator> {
 	
 	/**
 	 * A collection of all sinks in the plan. Since the plan is traversed from the sinks to the sources, this
@@ -63,7 +63,7 @@ public class Job implements Visitable<Operator> {
 	 * @param sinks The collection will the sinks of the job's data flow.
 	 * @param jobName The name to display for the job.
 	 */
-	public Job(Collection<GenericDataSink> sinks, String jobName) {
+	public Plan(Collection<GenericDataSink> sinks, String jobName) {
 		this.sinks = sinks;
 		this.jobName = jobName;
 	}
@@ -78,7 +78,7 @@ public class Job implements Visitable<Operator> {
 	 * @param sink The data sink of the data flow.
 	 * @param jobName The name to display for the job.
 	 */
-	public Job(GenericDataSink sink, String jobName) {
+	public Plan(GenericDataSink sink, String jobName) {
 		this.sinks = new ArrayList<GenericDataSink>();
 		this.sinks.add(sink);
 		this.jobName = jobName;
@@ -94,7 +94,7 @@ public class Job implements Visitable<Operator> {
 	 *  
 	 * @param sinks The collection will the sinks of the data flow.
 	 */
-	public Job(Collection<GenericDataSink> sinks) {
+	public Plan(Collection<GenericDataSink> sinks) {
 		this(sinks, "Stratosphere Job at " + Calendar.getInstance().getTime());
 	}
 
@@ -107,7 +107,7 @@ public class Job implements Visitable<Operator> {
 	 * 
 	 * @param sink The data sink of the data flow.
 	 */
-	public Job(GenericDataSink sink) {
+	public Plan(GenericDataSink sink) {
 		this(sink, "Stratosphere Job at " + Calendar.getInstance().getTime());
 	}
 

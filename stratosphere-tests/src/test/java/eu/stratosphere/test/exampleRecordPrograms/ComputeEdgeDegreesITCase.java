@@ -19,7 +19,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.example.record.triangles.ComputeEdgeDegrees;
 import eu.stratosphere.test.util.TestBase2;
@@ -44,9 +44,9 @@ public class ComputeEdgeDegreesITCase extends TestBase2 {
 	}
 
 	@Override
-	protected Job getTestJob() {
+	protected Plan getTestJob() {
 		ComputeEdgeDegrees computeDegrees = new ComputeEdgeDegrees();
-		return computeDegrees.createJob(config.getString("ComputeEdgeDegreesTest#NumSubtasks", "4"),
+		return computeDegrees.getPlan(config.getString("ComputeEdgeDegreesTest#NumSubtasks", "4"),
 				edgesPath, resultPath);
 	}
 

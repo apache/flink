@@ -19,7 +19,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.example.record.wordcount.WordCount;
 import eu.stratosphere.test.util.TestBase2;
@@ -179,9 +179,9 @@ public class WordCountITCase extends TestBase2 {
 	}
 
 	@Override
-	protected Job getTestJob() {
+	protected Plan getTestJob() {
 		WordCount wc = new WordCount();
-		return wc.createJob(config.getString("WordCountTest#NumSubtasks", "1"),
+		return wc.getPlan(config.getString("WordCountTest#NumSubtasks", "1"),
 				textPath, resultPath);
 	}
 

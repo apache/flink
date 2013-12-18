@@ -18,7 +18,7 @@ import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.Iterator;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.Program;
 import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.operators.FileDataSink;
@@ -276,7 +276,7 @@ public class TPCHQuery10 implements Program, ProgramDescription
 	 * @see eu.stratosphere.pact.common.plan.PlanAssembler#getPlan(java.lang.String[])
 	 */
 	@Override
-	public Job createJob(String... args) throws IllegalArgumentException
+	public Plan getPlan(String... args) throws IllegalArgumentException
 	{
 		final String ordersPath;
 		final String lineitemsPath;
@@ -369,7 +369,7 @@ public class TPCHQuery10 implements Program, ProgramDescription
 		mapO.setInput(orders);
 
 		// return the PACT plan
-		Job p = new Job(result, "TPCH Q10");
+		Plan p = new Plan(result, "TPCH Q10");
 		p.setDefaultParallelism(degreeOfParallelism);
 		return p;
 	}

@@ -22,7 +22,7 @@ import junit.framework.Assert;
 
 import org.junit.Test;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.operators.BulkIteration;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
@@ -77,7 +77,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 			}
 	
 			// return the PACT plan
-			Job plan = new Job(sinks, "Plans With Multiple Data Sinks");
+			Plan plan = new Plan(sinks, "Plans With Multiple Data Sinks");
 	
 			OptimizedPlan oPlan = compileNoStats(plan);
 	
@@ -128,7 +128,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 			sinks.add(sinkC);
 			
 			// return the PACT plan
-			Job plan = new Job(sinks, "Plans With Multiple Data Sinks");
+			Plan plan = new Plan(sinks, "Plans With Multiple Data Sinks");
 			
 			OptimizedPlan oPlan = compileNoStats(plan);
 			
@@ -240,7 +240,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 			FileDataSink sink = new FileDataSink(new DummyOutputFormat(), OUT_FILE, co);
 			
 			// return the PACT plan
-			Job plan = new Job(sink, "Branching Source Multiple Times");
+			Plan plan = new Plan(sink, "Branching Source Multiple Times");
 			
 			OptimizedPlan oPlan = compileNoStats(plan);
 			
@@ -316,7 +316,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 			sinks.add(sinkC);
 			
 			// return the PACT plan
-			Job plan = new Job(sinks, "Branching Plans With Multiple Data Sinks");
+			Plan plan = new Plan(sinks, "Branching Plans With Multiple Data Sinks");
 			
 			OptimizedPlan oPlan = compileNoStats(plan);
 			
@@ -426,7 +426,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 	//		sink.addInput(co1);
 			
 			// return the PACT plan
-			Job plan = new Job(sink, "Branching of each contract type");
+			Plan plan = new Plan(sink, "Branching of each contract type");
 			
 			OptimizedPlan oPlan = compileNoStats(plan);
 			
@@ -481,7 +481,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 			
 			
 			// return the PACT plan
-			Job plan = new Job(sink, "Branching Union");
+			Plan plan = new Plan(sink, "Branching Union");
 			
 			OptimizedPlan oPlan = compileNoStats(plan);
 			
@@ -520,7 +520,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 			sinks.add(sinkB);
 			
 			// return the PACT plan
-			Job plan = new Job(sinks, "Plans With Multiple Data Sinks");
+			Plan plan = new Plan(sinks, "Plans With Multiple Data Sinks");
 			
 			OptimizedPlan oPlan = compileNoStats(plan);
 			
@@ -574,7 +574,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 		sinks.add(sinkB);
 		
 		// return the PACT plan
-		Job plan = new Job(sinks, "Disjoint plan with multiple data sinks");
+		Plan plan = new Plan(sinks, "Disjoint plan with multiple data sinks");
 		
 		try {
 			compileNoStats(plan);
@@ -619,7 +619,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 		sinks.add(sink4);
 		
 		// return the PACT plan
-		Job plan = new Job(sinks, "Disjoint plan with multiple data sinks and branches");
+		Plan plan = new Plan(sinks, "Disjoint plan with multiple data sinks and branches");
 		
 		try {
 			compileNoStats(plan);
@@ -652,7 +652,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 		sinks.add(sink1);
 		sinks.add(sink2);
 		
-		Job plan = new Job(sinks);
+		Plan plan = new Plan(sinks);
 		
 		try {
 			compileNoStats(plan);

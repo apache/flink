@@ -17,7 +17,7 @@ import static org.junit.Assert.fail;
 
 import org.junit.Test;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.record.operators.ReduceOperator;
@@ -41,7 +41,7 @@ public class ReduceAllTest extends CompilerTestBase {
 		ReduceOperator reduce1 = ReduceOperator.builder(new IdentityReduce()).name("Reduce1").input(source).build();
 		FileDataSink sink = new FileDataSink(new DummyOutputFormat(), OUT_FILE, "Sink");
 		sink.setInput(reduce1);
-		Job plan = new Job(sink, "AllReduce Test");
+		Plan plan = new Plan(sink, "AllReduce Test");
 		plan.setDefaultParallelism(DEFAULT_PARALLELISM);
 		
 		

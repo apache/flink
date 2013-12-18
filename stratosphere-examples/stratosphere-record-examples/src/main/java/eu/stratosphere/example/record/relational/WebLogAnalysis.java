@@ -16,7 +16,7 @@ package eu.stratosphere.example.record.relational;
 import java.io.Serializable;
 import java.util.Iterator;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.Program;
 import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.operators.FileDataSink;
@@ -228,7 +228,7 @@ public class WebLogAnalysis implements Program, ProgramDescription
 
 
 	@Override
-	public Job createJob(String... args) {
+	public Plan getPlan(String... args) {
 
 		// parse job parameters
 		int numSubTasks     = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
@@ -328,7 +328,7 @@ public class WebLogAnalysis implements Program, ProgramDescription
 			.field(PactInteger.class, 2);
 
 		// Return the PACT plan
-		Job p = new Job(result, "Weblog Analysis");
+		Plan p = new Plan(result, "Weblog Analysis");
 		p.setDefaultParallelism(numSubTasks);
 		return p;
 	}

@@ -21,7 +21,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.operators.WorksetIteration;
@@ -68,7 +68,7 @@ public class ConnectedComponentsWithSolutionSetFirstITCase extends TestBase2 {
 	}
 	
 	@Override
-	protected Job getTestJob() {
+	protected Plan getTestJob() {
 		int dop = config.getInteger("ConnectedComponents#NumSubtasks", 1);
 		int maxIterations = config.getInteger("ConnectedComponents#NumIterations", 1);
 		
@@ -111,7 +111,7 @@ public class ConnectedComponentsWithSolutionSetFirstITCase extends TestBase2 {
 		}
 	}
 	
-	private static Job getPlanForWorksetConnectedComponentsWithSolutionSetAsFirstInput(
+	private static Plan getPlanForWorksetConnectedComponentsWithSolutionSetAsFirstInput(
 			int numSubTasks, String verticesInput, String edgeInput, String output, int maxIterations)
 	{
 		// create DataSourceContract for the vertices
@@ -157,7 +157,7 @@ public class ConnectedComponentsWithSolutionSetFirstITCase extends TestBase2 {
 			.field(PactLong.class, 1);
 
 		// return the PACT plan
-		Job plan = new Job(result, "Workset Connected Components");
+		Plan plan = new Plan(result, "Workset Connected Components");
 		plan.setDefaultParallelism(numSubTasks);
 		return plan;
 	}

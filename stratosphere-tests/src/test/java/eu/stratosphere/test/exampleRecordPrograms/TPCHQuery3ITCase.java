@@ -19,7 +19,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.example.record.relational.TPCHQuery3;
 import eu.stratosphere.test.util.TestBase2;
@@ -132,10 +132,10 @@ public class TPCHQuery3ITCase extends TestBase2 {
 	}
 
 	@Override
-	protected Job getTestJob() {
+	protected Plan getTestJob() {
 
 		TPCHQuery3 tpch3 = new TPCHQuery3();
-		return tpch3.createJob(
+		return tpch3.getPlan(
 				config.getString("TPCHQuery3Test#NoSubtasks", "1"), 
 				ordersPath,
 				lineitemsPath,

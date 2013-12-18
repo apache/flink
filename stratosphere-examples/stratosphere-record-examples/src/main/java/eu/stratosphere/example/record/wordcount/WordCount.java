@@ -16,7 +16,7 @@ package eu.stratosphere.example.record.wordcount;
 import java.io.Serializable;
 import java.util.Iterator;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.Program;
 import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.operators.FileDataSink;
@@ -115,7 +115,7 @@ public class WordCount implements Program, ProgramDescription {
 
 
 	@Override
-	public Job createJob(String... args) {
+	public Plan getPlan(String... args) {
 		// parse job parameters
 		int numSubTasks   = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		String dataInput = (args.length > 1 ? args[1] : "");
@@ -138,7 +138,7 @@ public class WordCount implements Program, ProgramDescription {
 			.field(PactString.class, 0)
 			.field(PactInteger.class, 1);
 		
-		Job plan = new Job(out, "WordCount Example");
+		Plan plan = new Plan(out, "WordCount Example");
 		plan.setDefaultParallelism(numSubTasks);
 		return plan;
 	}
@@ -158,7 +158,7 @@ public class WordCount implements Program, ProgramDescription {
 			System.exit(1);
 		}
 		
-		Job plan = wc.createJob(args);
+		Plan plan = wc.getPlan(args);
 		
 		// This will execute the word-count embedded in a local context. replace this line by the commented
 		// succeeding line to send the job to a local installation or to a cluster for execution

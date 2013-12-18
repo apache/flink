@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.Set;
 
 import eu.stratosphere.api.InvalidJobException;
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.operators.BulkIteration;
 import eu.stratosphere.api.operators.Operator;
 import eu.stratosphere.api.operators.DualInputOperator;
@@ -55,7 +55,7 @@ public class ContextChecker implements Visitor<Operator> {
 	 * @param plan
 	 *        The PACT plan to check.
 	 */
-	public void check(Job plan) {
+	public void check(Plan plan) {
 		this.visitedNodes.clear();
 		plan.accept(this);
 	}

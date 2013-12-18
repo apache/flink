@@ -15,7 +15,7 @@ package eu.stratosphere.test.testPrograms.tpch1;
 
 import org.apache.log4j.Logger;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.Program;
 import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.operators.FileDataSink;
@@ -44,7 +44,7 @@ public class TPCHQuery1 implements Program, ProgramDescription {
 	 * @see eu.stratosphere.pact.common.plan.PlanAssembler#getPlan(java.lang.String[])
 	 */
 	@Override
-	public Job createJob(String... args) throws IllegalArgumentException {
+	public Plan getPlan(String... args) throws IllegalArgumentException {
 		
 		
 		if(args.length != 3)
@@ -81,7 +81,7 @@ public class TPCHQuery1 implements Program, ProgramDescription {
 		groupByReturnFlag.addInput(lineItemFilter);
 		result.addInput(groupByReturnFlag);
 		
-		return new Job(result, "TPC-H 1");
+		return new Plan(result, "TPC-H 1");
 	}
 
 

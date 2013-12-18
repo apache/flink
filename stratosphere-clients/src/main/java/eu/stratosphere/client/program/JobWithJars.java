@@ -22,18 +22,18 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 
 public class JobWithJars {
 	
-	private Job plan;
+	private Plan plan;
 	
 	private List<File> jarFiles;
 	
 	private ClassLoader userCodeClassLoader;
 
 	
-	public JobWithJars(Job plan, List<String> jarFiles) throws IOException {
+	public JobWithJars(Plan plan, List<String> jarFiles) throws IOException {
 		this.plan = plan;
 		this.jarFiles = new ArrayList<File>(jarFiles.size());
 		
@@ -44,7 +44,7 @@ public class JobWithJars {
 		}
 	}
 	
-	public JobWithJars(Job plan, String jarFile) throws IOException {
+	public JobWithJars(Plan plan, String jarFile) throws IOException {
 		this.plan = plan;
 		
 		File file = new File(jarFile);
@@ -52,7 +52,7 @@ public class JobWithJars {
 		this.jarFiles = Collections.singletonList(file);
 	}
 	
-	JobWithJars(Job plan, List<File> jarFiles, ClassLoader userCodeClassLoader) {
+	JobWithJars(Plan plan, List<File> jarFiles, ClassLoader userCodeClassLoader) {
 		this.plan = plan;
 		this.jarFiles = jarFiles;
 		this.userCodeClassLoader = userCodeClassLoader;
@@ -61,7 +61,7 @@ public class JobWithJars {
 	/**
 	 * Returns the plan
 	 */
-	public Job getPlan() {
+	public Plan getPlan() {
 		return this.plan;
 	}
 

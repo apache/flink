@@ -15,7 +15,7 @@ package eu.stratosphere.test.cancelling;
 
 import org.junit.Test;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.operators.GenericDataSink;
 import eu.stratosphere.api.operators.GenericDataSource;
 import eu.stratosphere.api.record.functions.MapFunction;
@@ -39,7 +39,7 @@ public class MapCancelingITCase extends CancellingTestBase {
 		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), mapper, "Sink");
 		
 		
-		Job p = new Job(sink);
+		Plan p = new Plan(sink);
 		p.setDefaultParallelism(4);
 		
 		runAndCancelJob(p, 5 * 1000, 10 * 1000);
@@ -56,7 +56,7 @@ public class MapCancelingITCase extends CancellingTestBase {
 		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), mapper, "Sink");
 		
 		
-		Job p = new Job(sink);
+		Plan p = new Plan(sink);
 		p.setDefaultParallelism(4);
 		
 		runAndCancelJob(p, 5 * 1000, 10 * 1000);
@@ -73,7 +73,7 @@ public class MapCancelingITCase extends CancellingTestBase {
 		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), mapper, "Sink");
 		
 		
-		Job p = new Job(sink);
+		Plan p = new Plan(sink);
 		p.setDefaultParallelism(4);
 		
 		runAndCancelJob(p, 10 * 1000, 10 * 1000);
@@ -90,7 +90,7 @@ public class MapCancelingITCase extends CancellingTestBase {
 		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), mapper, "Sink");
 		
 		
-		Job p = new Job(sink);
+		Plan p = new Plan(sink);
 		p.setDefaultParallelism(4);
 		
 		runAndCancelJob(p, 10 * 1000, 10 * 1000);

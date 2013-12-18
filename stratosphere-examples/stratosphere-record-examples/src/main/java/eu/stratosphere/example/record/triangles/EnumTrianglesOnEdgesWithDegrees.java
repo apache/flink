@@ -16,7 +16,7 @@ package eu.stratosphere.example.record.triangles;
 import java.io.Serializable;
 import java.util.Iterator;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.Program;
 import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.operators.FileDataSink;
@@ -128,7 +128,7 @@ public class EnumTrianglesOnEdgesWithDegrees implements Program, ProgramDescript
 	 * Assembles the Plan of the triangle enumeration example Pact program.
 	 */
 	@Override
-	public Job createJob(String... args) {
+	public Plan getPlan(String... args) {
 
 		// parse job parameters
 		int numSubTasks   = args.length > 0 ? Integer.parseInt(args[0]) : 1;
@@ -167,7 +167,7 @@ public class EnumTrianglesOnEdgesWithDegrees implements Program, ProgramDescript
 
 		FileDataSink triangles = new FileDataSink(new TriangleOutputFormat(), output, closeTriads, "Triangles");
 
-		Job p = new Job(triangles, "Enumerate Triangles");
+		Plan p = new Plan(triangles, "Enumerate Triangles");
 		p.setDefaultParallelism(numSubTasks);
 		return p;
 	}

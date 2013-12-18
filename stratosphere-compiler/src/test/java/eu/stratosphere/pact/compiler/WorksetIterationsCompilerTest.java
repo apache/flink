@@ -21,7 +21,7 @@ import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.operators.WorksetIteration;
@@ -60,7 +60,7 @@ public class WorksetIterationsCompilerTest extends CompilerTestBase {
 
 	@Test
 	public void testWithDeferredSoltionSetUpdateWithMapper() {
-		Job plan = getTestPlan(false, true);
+		Plan plan = getTestPlan(false, true);
 		
 		OptimizedPlan oPlan;
 		try {
@@ -106,7 +106,7 @@ public class WorksetIterationsCompilerTest extends CompilerTestBase {
 	
 	@Test
 	public void testWithDeferredSoltionSetUpdateWithNonPreservingJoin() {
-		Job plan = getTestPlan(false, false);
+		Plan plan = getTestPlan(false, false);
 		
 		OptimizedPlan oPlan;
 		try {
@@ -150,7 +150,7 @@ public class WorksetIterationsCompilerTest extends CompilerTestBase {
 	
 	@Test
 	public void testWithDirectSoltionSetUpdate() {
-		Job plan = getTestPlan(true, false);
+		Plan plan = getTestPlan(true, false);
 		
 		OptimizedPlan oPlan;
 		try {
@@ -191,7 +191,7 @@ public class WorksetIterationsCompilerTest extends CompilerTestBase {
 		new NepheleJobGraphGenerator().compileJobGraph(oPlan);
 	}
 	
-	private Job getTestPlan(boolean joinPreservesSolutionSet, boolean mapBeforeSolutionDelta) {
+	private Plan getTestPlan(boolean joinPreservesSolutionSet, boolean mapBeforeSolutionDelta) {
 		FileDataSource solutionSetInput = new FileDataSource(new DummyInputFormat(), IN_FILE, "Solution Set");
 		FileDataSource worksetInput = new FileDataSource(new DummyInputFormat(), IN_FILE, "Workset");
 		
@@ -234,7 +234,7 @@ public class WorksetIterationsCompilerTest extends CompilerTestBase {
 
 		FileDataSink sink = new FileDataSink(new DummyOutputFormat(), OUT_FILE, iteration, "Sink");
 		
-		Job plan = new Job(sink);
+		Plan plan = new Plan(sink);
 		plan.setDefaultParallelism(DEFAULT_PARALLELISM);
 		return plan;
 	}

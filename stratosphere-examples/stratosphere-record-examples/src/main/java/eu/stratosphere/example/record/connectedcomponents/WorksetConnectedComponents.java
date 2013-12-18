@@ -16,7 +16,7 @@ package eu.stratosphere.example.record.connectedcomponents;
 import java.io.Serializable;
 import java.util.Iterator;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.Program;
 import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.operators.FileDataSink;
@@ -114,7 +114,7 @@ public class WorksetConnectedComponents implements Program, ProgramDescription {
 	}
 	
 	@Override
-	public Job createJob(String... args) {
+	public Plan getPlan(String... args) {
 		// parse job parameters
 		final int numSubTasks = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		final String verticesInput = (args.length > 1 ? args[1] : "");
@@ -167,7 +167,7 @@ public class WorksetConnectedComponents implements Program, ProgramDescription {
 			.field(PactLong.class, 1);
 
 		// return the PACT plan
-		Job plan = new Job(result, "Workset Connected Components");
+		Plan plan = new Plan(result, "Workset Connected Components");
 		plan.setDefaultParallelism(numSubTasks);
 		return plan;
 	}

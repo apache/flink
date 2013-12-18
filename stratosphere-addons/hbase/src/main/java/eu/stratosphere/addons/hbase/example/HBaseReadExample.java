@@ -28,7 +28,7 @@ import eu.stratosphere.types.PactString;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.GenericDataSource;
 import eu.stratosphere.api.record.io.CsvOutputFormat;
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.Program;
 import eu.stratosphere.api.ProgramDescription;
 
@@ -96,7 +96,7 @@ public class HBaseReadExample implements Program, ProgramDescription {
 	
 
 	@Override
-	public Job createJob(String... args) {
+	public Plan getPlan(String... args) {
 		// parse job parameters
 		int numSubTasks   = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		String output    = (args.length > 1 ? args[1] : "");
@@ -113,7 +113,7 @@ public class HBaseReadExample implements Program, ProgramDescription {
 			.field(PactString.class, 2)
 			.field(PactString.class, 3);
 		
-		Job plan = new Job(out, "HBase access Example");
+		Plan plan = new Plan(out, "HBase access Example");
 		plan.setDefaultParallelism(numSubTasks);
 		return plan;
 	}

@@ -19,7 +19,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.example.record.pagerank.DanglingPageRank;
 import eu.stratosphere.test.iterative.nephele.DanglingPageRankNepheleITCase;
@@ -46,9 +46,9 @@ public class DanglingPageRankITCase extends TestBase2 {
 	}
 
 	@Override
-	protected Job getTestJob() {
+	protected Plan getTestJob() {
 		DanglingPageRank pr = new DanglingPageRank();
-		Job plan = pr.createJob(
+		Plan plan = pr.getPlan(
 			config.getString("PageRankITCase#NoSubtasks", "1"), 
 			pagesPath,
 			edgesPath,

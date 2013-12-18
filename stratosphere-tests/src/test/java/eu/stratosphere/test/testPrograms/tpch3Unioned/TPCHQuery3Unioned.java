@@ -13,7 +13,7 @@
 
 package eu.stratosphere.test.testPrograms.tpch3Unioned;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.Program;
 import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.operators.FileDataSink;
@@ -53,7 +53,7 @@ public class TPCHQuery3Unioned implements Program, ProgramDescription {
 
 
 	@Override
-	public Job createJob(final String... args) {
+	public Plan getPlan(final String... args) {
 		// parse program parameters
 		final int numSubtasks       = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		String orders1Path    = (args.length > 1 ? args[1] : "");
@@ -156,7 +156,7 @@ public class TPCHQuery3Unioned implements Program, ProgramDescription {
 			.field(PactDouble.class, 2);
 		
 		// assemble the PACT plan
-		Job plan = new Job(result, "TPCH Q3 Unioned");
+		Plan plan = new Plan(result, "TPCH Q3 Unioned");
 		plan.setDefaultParallelism(numSubtasks);
 		return plan;
 	}

@@ -26,7 +26,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.record.functions.ReduceFunction;
@@ -146,7 +146,7 @@ public class ReduceITCase extends TestBase {
 		output.addInput(testReducer);
 		testReducer.addInput(input);
 
-		Job plan = new Job(output);
+		Plan plan = new Plan(output);
 
 		PactCompiler pc = new PactCompiler(new DataStatistics());
 		OptimizedPlan op = pc.compile(plan);

@@ -17,7 +17,7 @@ import junit.framework.Assert;
 
 import org.junit.Test;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.record.operators.MapOperator;
@@ -84,7 +84,7 @@ public class DOPChangeTest extends CompilerTestBase {
 		sink.setDegreeOfParallelism(degOfPar * 2);
 		sink.setInput(reduce2);
 		
-		Job plan = new Job(sink, "Test Increasing Degree Of Parallelism");
+		Plan plan = new Plan(sink, "Test Increasing Degree Of Parallelism");
 		
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -138,7 +138,7 @@ public class DOPChangeTest extends CompilerTestBase {
 		sink.setDegreeOfParallelism(degOfPar * 2);
 		sink.setInput(reduce2);
 		
-		Job plan = new Job(sink, "Test Increasing Degree Of Parallelism");
+		Plan plan = new Plan(sink, "Test Increasing Degree Of Parallelism");
 		
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -192,7 +192,7 @@ public class DOPChangeTest extends CompilerTestBase {
 		sink.setDegreeOfParallelism(degOfPar * 2);
 		sink.setInput(reduce2);
 		
-		Job plan = new Job(sink, "Test Increasing Degree Of Parallelism");
+		Plan plan = new Plan(sink, "Test Increasing Degree Of Parallelism");
 		
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -243,7 +243,7 @@ public class DOPChangeTest extends CompilerTestBase {
 		sink.setDegreeOfParallelism(degOfPar);
 		sink.setInput(reduce2);
 		
-		Job plan = new Job(sink, "Test Increasing Degree Of Parallelism");
+		Plan plan = new Plan(sink, "Test Increasing Degree Of Parallelism");
 		
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -303,7 +303,7 @@ public class DOPChangeTest extends CompilerTestBase {
 		
 		
 		// return the PACT plan
-		Job plan = new Job(sink, "Partition on DoP Change");
+		Plan plan = new Plan(sink, "Partition on DoP Change");
 		
 		OptimizedPlan oPlan = compileNoStats(plan);
 		

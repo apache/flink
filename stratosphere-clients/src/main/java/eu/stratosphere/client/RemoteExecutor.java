@@ -19,7 +19,7 @@ import java.net.URISyntaxException;
 import java.util.Collections;
 import java.util.List;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.client.program.Client;
 import eu.stratosphere.client.program.JobWithJars;
 import eu.stratosphere.configuration.Configuration;
@@ -69,7 +69,7 @@ public class RemoteExecutor implements PlanExecutor {
 	}
 	
 	@Override
-	public JobExecutionResult executePlan(Job plan) throws Exception {
+	public JobExecutionResult executePlan(Plan plan) throws Exception {
 		JobWithJars p = new JobWithJars(plan, this.jarFiles);
 		return this.client.run(p, true);
 	}

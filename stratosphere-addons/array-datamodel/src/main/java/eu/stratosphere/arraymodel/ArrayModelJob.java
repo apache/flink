@@ -17,7 +17,7 @@ import java.util.Collection;
 import eu.stratosphere.api.operators.GenericDataSink;
 
 
-public class ArrayModelJob extends eu.stratosphere.api.Job {
+public class ArrayModelJob extends eu.stratosphere.api.Plan {
 
 	public ArrayModelJob(Collection<GenericDataSink> sinks, String jobName) {
 		super(sinks, jobName);

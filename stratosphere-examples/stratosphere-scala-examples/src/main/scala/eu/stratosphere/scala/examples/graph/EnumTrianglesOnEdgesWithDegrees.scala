@@ -44,7 +44,7 @@ class EnumTrianglesOnEdgesWithDegrees extends Program with ProgramDescription wi
   override def getDescription() = {
     "Parameters: [numSubStasks] [input file] [output file]"
   }
-  override def createJob(args: String*) = {
+  override def getPlan(args: String*) = {
     getScalaPlan(args(0).toInt, args(1), args(2))
   }
 

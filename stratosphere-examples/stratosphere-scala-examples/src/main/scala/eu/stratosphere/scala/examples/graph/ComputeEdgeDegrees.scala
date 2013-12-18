@@ -40,7 +40,7 @@ class ComputeEdgeDegrees extends Program with ProgramDescription with Serializab
   override def getDescription() = {
     "Parameters: [numSubStasks] [input file] [output file]"
   }
-  override def createJob(args: String*) = {
+  override def getPlan(args: String*) = {
     getScalaPlan(args(0).toInt, args(1), args(2))
   }
    

@@ -22,7 +22,7 @@ import java.util.Iterator;
 
 import org.apache.log4j.Logger;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.Program;
 import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.operators.FileDataSink;
@@ -206,7 +206,7 @@ public class TPCHQuery4 implements Program, ProgramDescription {
 	
 
 	@Override
-	public Job createJob(String... args) throws IllegalArgumentException {
+	public Plan getPlan(String... args) throws IllegalArgumentException {
 		
 		if(args == null || args.length != 4)
 		{
@@ -264,7 +264,7 @@ public class TPCHQuery4 implements Program, ProgramDescription {
 		result.addInput(aggregation);
 		
 			
-		return new Job(result, "TPC-H 4");
+		return new Plan(result, "TPC-H 4");
 	}
 
 	/**

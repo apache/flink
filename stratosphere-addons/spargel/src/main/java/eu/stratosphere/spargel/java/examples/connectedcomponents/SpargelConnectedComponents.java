@@ -16,7 +16,7 @@ import java.util.Iterator;
 
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.Program;
 import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.record.io.CsvOutputFormat;
@@ -34,7 +34,7 @@ public class SpargelConnectedComponents implements Program, ProgramDescription {
 	}
 	
 	@Override
-	public Job createJob(String... args) {
+	public Plan getPlan(String... args) {
 		final int dop = args.length > 0 ? Integer.parseInt(args[0]) : 1;
 		final String verticesPath = args.length > 1 ? args[1] : "";
 		final String edgesPath = args.length > 2 ? args[2] : "";
@@ -58,7 +58,7 @@ public class SpargelConnectedComponents implements Program, ProgramDescription {
 		iteration.setNumberOfIterations(maxIterations);
 		result.setInput(iteration.getOutput());
 
-		Job p = new Job(result);
+		Plan p = new Plan(result);
 		p.setDefaultParallelism(dop);
 		return p;
 	}

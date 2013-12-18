@@ -24,7 +24,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.record.functions.MapFunction;
@@ -116,7 +116,7 @@ public class TaskFailureITCase extends FailingTestBase {
 		testMapper.setInput(input);
 
 		// generate plan
-		Job plan = new Job(output);
+		Plan plan = new Plan(output);
 
 		// optimize and compile plan 
 		PactCompiler pc = new PactCompiler(new DataStatistics());
@@ -155,7 +155,7 @@ public class TaskFailureITCase extends FailingTestBase {
 		testMapper.setInput(input);
 
 		// generate plan
-		Job plan = new Job(output);
+		Plan plan = new Plan(output);
 
 		// optimize and compile plan
 		PactCompiler pc = new PactCompiler(new DataStatistics());

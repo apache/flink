@@ -20,7 +20,7 @@ import java.sql.Statement;
 import eu.stratosphere.api.io.jdbc.JDBCInputFormat;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.GenericDataSource;
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.Program;
 import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.record.io.CsvOutputFormat;
@@ -40,7 +40,7 @@ import eu.stratosphere.types.PactString;
 public class JDBCInputExample implements Program, ProgramDescription {
 
 	@Override
-	public Job createJob(String... args) {
+	public Plan getPlan(String... args) {
 		String url = args.length > 0 ? args[0] : "jdbc:derby:memory:ebookshop";
 		String query = args.length > 1 ? args[1] : "select * from books";
 		String output = args.length > 2 ? args[2] : "file:///tmp";
@@ -64,7 +64,7 @@ public class JDBCInputExample implements Program, ProgramDescription {
 			.field(PactInteger.class, 4);
 
 		sink.addInput(source);
-		return new Job(sink, "JDBC Input Example Job");
+		return new Plan(sink, "JDBC Input Example Job");
 	}
 
 	@Override

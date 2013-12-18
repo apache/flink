@@ -15,7 +15,7 @@ package eu.stratosphere.example.record.incremental.pagerank;
 
 import java.util.Iterator;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.Program;
 import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.operators.FileDataSink;
@@ -82,7 +82,7 @@ public class DeltaPageRankWithInitialDeltas implements Program, ProgramDescripti
 	}
 	
 	@Override
-	public Job createJob(String... args) {
+	public Plan getPlan(String... args) {
 		
 		// parse job parameters
 		final int numSubTasks = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
@@ -136,7 +136,7 @@ public class DeltaPageRankWithInitialDeltas implements Program, ProgramDescripti
 			.field(PactDouble.class, 1);
 		
 		// return the PACT plan
-		Job plan = new Job(result, "Delta PageRank");
+		Plan plan = new Plan(result, "Delta PageRank");
 		plan.setDefaultParallelism(numSubTasks);
 		return plan;
 		

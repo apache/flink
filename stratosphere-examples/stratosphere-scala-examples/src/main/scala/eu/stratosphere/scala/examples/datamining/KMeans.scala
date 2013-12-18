@@ -37,7 +37,7 @@ class KMeans extends Program with ProgramDescription with Serializable {
   override def getDescription() = {
     "Parameters: [numSubStasksS] [dataPoints] [clusterCenters] [output] [numIterations]"
   }
-  override def createJob(args: String*) = {
+  override def getPlan(args: String*) = {
     getScalaPlan(args(0).toInt, args(1), args(2), args(3), args(4).toInt)
   }
 

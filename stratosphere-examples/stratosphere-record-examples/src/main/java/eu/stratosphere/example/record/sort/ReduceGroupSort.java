@@ -16,7 +16,7 @@ package eu.stratosphere.example.record.sort;
 import java.io.Serializable;
 import java.util.Iterator;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.api.Program;
 import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.operators.FileDataSink;
@@ -67,7 +67,7 @@ public class ReduceGroupSort implements Program, ProgramDescription {
 
 
 	@Override
-	public Job createJob(String... args) {
+	public Plan getPlan(String... args) {
 		
 		// parse job parameters
 		int numSubTasks = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
@@ -94,7 +94,7 @@ public class ReduceGroupSort implements Program, ProgramDescription {
 			.field(PactInteger.class, 0)
 			.field(PactInteger.class, 1);
 		
-		Job plan = new Job(out, "SecondarySort Example");
+		Plan plan = new Plan(out, "SecondarySort Example");
 		plan.setDefaultParallelism(numSubTasks);
 		return plan;
 	}

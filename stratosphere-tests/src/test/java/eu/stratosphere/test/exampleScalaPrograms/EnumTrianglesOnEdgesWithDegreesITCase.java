@@ -13,7 +13,7 @@
 
 package eu.stratosphere.test.exampleScalaPrograms;
 
-import eu.stratosphere.api.Job;
+import eu.stratosphere.api.Plan;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.scala.examples.graph.EnumTrianglesOnEdgesWithDegrees;
 
@@ -24,7 +24,7 @@ public class EnumTrianglesOnEdgesWithDegreesITCase extends eu.stratosphere.test.
 	}
 	
 	@Override
-	protected Job getTestJob() {
+	protected Plan getTestJob() {
 		EnumTrianglesOnEdgesWithDegrees enumTriangles = new EnumTrianglesOnEdgesWithDegrees();
 		return enumTriangles.getScalaPlan(
 				config.getInteger("EnumTrianglesTest#NumSubtasks", 4),
