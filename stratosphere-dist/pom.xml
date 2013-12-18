@@ -176,7 +176,7 @@
 									<controlDir>${basedir}/src/deb/control</controlDir>
 									<dataSet>
 										<data>
-											<src>${basedir}/src/deb/bin/nephele-jobmanager</src>
+											<src>${basedir}/src/deb/bin/jobmanager</src>
 											<type>file</type>
 											<mapper>
 												<type>perm</type>
@@ -187,7 +187,7 @@
 											</mapper>
 										</data>
 										<data>
-											<src>${basedir}/src/deb/bin/nephele-taskmanager</src>
+											<src>${basedir}/src/deb/bin/taskmanager</src>
 											<type>file</type>
 											<mapper>
 												<type>perm</type>
@@ -198,7 +198,7 @@
 											</mapper>
 										</data>
 										<data>
-											<src>${basedir}/src/deb/bin/pact-webfrontend</src>
+											<src>${basedir}/src/deb/bin/webclient</src>
 											<type>file</type>
 											<mapper>
 												<type>perm</type>

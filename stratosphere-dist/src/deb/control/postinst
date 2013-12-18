@@ -17,14 +17,14 @@ set -e
 
 case "$1" in
     configure)
-        if ! getent group ozone >/dev/null; then
-            addgroup --system ozone
+        if ! getent group stratosphere >/dev/null; then
+            addgroup --system stratosphere
         fi
 
         if ! getent passwd stratosphere >/dev/null; then
             adduser --quiet \
                 --system \
-                --ingroup ozone \
+                --ingroup stratosphere \
                 --quiet \
                 --disabled-login \
                 --disabled-password \
@@ -35,9 +35,9 @@ case "$1" in
         fi
 
         if [ -z "$2" ]; then
-            chown -R stratosphere:ozone /var/log/stratosphere-dist
+            chown -R stratosphere:stratosphere /var/log/stratosphere-dist
         fi
-	sed -i s'#./resources/web-docs#/usr/share/stratosphere-dist/resources/web-docs#' /usr/share/stratosphere-dist/conf/pact-user.xml
+	sed -i s'#./resources/web-docs#/usr/share/stratosphere-dist/resources/web-docs#' /usr/share/stratosphere-dist/conf/stratosphere-conf.yaml
     ;;
 
     abort-upgrade|abort-remove|abort-deconfigure)

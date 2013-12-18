@@ -10,42 +10,42 @@
 #
 # Version:  @(#)skeleton  1.9  26-Feb-2001  miquels@cistron.nl
 #
-# Starts a Nephele tasktracker
+# Starts a stratosphere jobmanager
 #
 # chkconfig: 2345 85 15
-# description: Nephele taskmanager
+# description: stratosphere jobmanager
 #
 ### BEGIN INIT INFO
-# Provides:          nephele-taskmanager
+# Provides:          stratosphere-jobmanager
 # Required-Start:    $network $local_fs
 # Required-Stop:
 # Should-Start:      $named
 # Should-Stop:
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
-# Short-Description: Nephele taskmanager daemon
+# Short-Description: stratosphere jobmanager daemon
 ### END INIT INFO
 
-# Include hadoop defaults if available
-if [ -f /etc/default/nephele ] ; then
-  . /etc/default/nephele
+# Include stratosphere defaults if available
+if [ -f /etc/default/stratosphere ] ; then
+  . /etc/default/stratosphere
 fi
 
 
-if [ "$NEPHELE_PID_DIR" = "" ]; then
-	NEPHELE_PID_DIR=/tmp
+if [ "$STRATOSPHERE_PID_DIR" = "" ]; then
+	STRATOSPHERE_PID_DIR=/tmp
 fi
 
-if [ "$NEPHELE_IDENT_STRING" = "" ]; then
-	NEPHELE_IDENT_STRING="$USER"
+if [ "$STRATOSPHERE_IDENT_STRING" = "" ]; then
+	STRATOSPHERE_IDENT_STRING="$USER"
 fi
 
-NEPHELE_HOME=/usr/share/stratosphere-dist
+STRATOSPHERE_HOME=/usr/share/stratosphere-dist
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
-DAEMON_SCRIPT=$NEPHELE_HOME/bin/nephele-taskmanager.sh
-NAME=nephele-taskmanager
-DESC="Nephele taskmanager daemon"
-PID_FILE=$NEPHELE_PID_DIR/nephele-$NEPHELE_IDENT_STRING-taskmanager.pid
+DAEMON_SCRIPT=$STRATOSPHERE_HOME/bin/jobmanager.sh
+NAME=stratosphere-jobmanager
+DESC="stratosphere jobmanager daemon"
+PID_FILE=$STRATOSPHERE_PID_DIR/stratosphere-$STRATOSPHERE_IDENT_STRING-jobmanager.pid
 
 test -x $DAEMON_SCRIPT || exit 1
 
@@ -57,14 +57,14 @@ DODTIME=5                   # Time to wait for the server to die, in seconds
 
 # Checks if the given pid represents a live process.
 # Returns 0 if the pid is a live process, 1 otherwise
-nephele_is_process_alive() {
+stratosphere_is_process_alive() {
   local pid="$1" 
-  ps -fp $pid | grep $pid | grep taskmanager > /dev/null 2>&1
+  ps -fp $pid | grep $pid | grep jobmanager > /dev/null 2>&1
 }
 
 # Check if the process associated to a pidfile is running.
 # Return 0 if the pidfile exists and the process is running, 1 otherwise
-nephele_check_pidfile() {
+stratosphere_check_pidfile() {
   local pidfile="$1" # IN
   local pid
 
@@ -77,10 +77,10 @@ nephele_check_pidfile() {
   set -- $pid
   pid="$1"
 
-  nephele_is_process_alive $pid
+  stratosphere_is_process_alive $pid
 }
 
-nephele_process_kill() {
+stratosphere_process_kill() {
    local pid="$1"    # IN
    local signal="$2" # IN
    local second
@@ -89,7 +89,7 @@ nephele_process_kill() {
 
    # Wait a bit to see if the dirty job has really been done
    for second in 0 1 2 3 4 5 6 7 8 9 10; do
-      if nephele_is_process_alive "$pid"; then
+      if stratosphere_is_process_alive "$pid"; then
          # Success
          return 0
       fi
@@ -102,7 +102,7 @@ nephele_process_kill() {
 }
 
 # Kill the process associated to a pidfile
-nephele_stop_pidfile() {
+stratosphere_stop_pidfile() {
    local pidfile="$1" # IN
    local pid
 
@@ -116,12 +116,12 @@ nephele_stop_pidfile() {
    pid="$1"
 
    # First try the easy way
-   if nephele_process_kill "$pid" 15; then
+   if stratosphere_process_kill "$pid" 15; then
       return 0
    fi
 
    # Otherwise try the hard way
-   if nephele_process_kill "$pid" 9; then
+   if stratosphere_process_kill "$pid" 9; then
       return 0
    fi
 
@@ -129,11 +129,11 @@ nephele_stop_pidfile() {
 }
 
 start() {
-    $NEPHELE_HOME/bin/nephele-taskmanager.sh start 
+    $STRATOSPHERE_HOME/bin/jobmanager.sh start cluster
 }
 
 stop() {
-    $NEPHELE_HOME/bin/nephele-taskmanager.sh stop
+    $STRATOSPHERE_HOME/bin/jobmanager.sh stop
 }
 
 check_for_root() {
@@ -144,14 +144,14 @@ check_for_root() {
   fi
 }
 
-nephele_service() {
+stratosphere_service() {
     case "$1" in
          start)
             check_for_root
             echo -n "Starting $DESC: "
             start
 
-            if nephele_check_pidfile $PID_FILE ; then
+            if stratosphere_check_pidfile $PID_FILE ; then
                 echo "$NAME."
             else
                 echo "ERROR. Could not start $DESC"
@@ -164,7 +164,7 @@ nephele_service() {
             stop
             [ -n "$DODTIME" ] && sleep $DODTIME
 
-            if nephele_check_pidfile $PID_FILE ; then
+            if stratosphere_check_pidfile $PID_FILE ; then
                 echo "ERROR. Could not stop $DESC"
                 exit 1
             else
@@ -174,10 +174,10 @@ nephele_service() {
         force-stop)
             check_for_root
             echo -n "Forcefully stopping $DESC: "
-            nephele_stop_pidfile $PID_FILE
+            stratosphere_stop_pidfile $PID_FILE
             [ -n "$DODTIME" ] && sleep $DODTIME
 
-            if ! nephele_check_pidfile $PID_FILE ; then
+            if ! stratosphere_check_pidfile $PID_FILE ; then
                 echo "$NAME."
             else
                 echo "ERROR. Could not force stop $DESC"
@@ -187,7 +187,7 @@ nephele_service() {
         force-reload)
             check_for_root
             echo -n "Forcefully reloading $DESC: "
-            nephele_check_pidfile $PID_FILE && $0 restart
+            stratosphere_check_pidfile $PID_FILE && $0 restart
             ;;
         restart)
             check_for_root
@@ -198,7 +198,7 @@ nephele_service() {
             ;;
         status)
             echo -n "$NAME is "
-            if nephele_check_pidfile $PID_FILE ;  then
+            if stratosphere_check_pidfile $PID_FILE ;  then
                 echo "running"
             else
                 echo "not running."
@@ -213,6 +213,6 @@ nephele_service() {
     esac
 }
 
-nephele_service "$1"
+stratosphere_service "$1"
 
 exit 0
