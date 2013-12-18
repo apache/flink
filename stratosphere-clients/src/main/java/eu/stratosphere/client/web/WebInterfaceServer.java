@@ -34,7 +34,6 @@ import org.eclipse.jetty.servlet.ServletHolder;
 import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.configuration.GlobalConfiguration;
-import eu.stratosphere.configuration.PactConfigConstants;
 
 /**
  * This class sets up the web-server that serves the web frontend. It instantiates and
@@ -75,15 +74,15 @@ public class WebInterfaceServer {
 		}
 		
 		// get base path of Stratosphere installation
-		String basePath = nepheleConfig.getString(PactConfigConstants.STRATOSPHERE_BASE_DIR_PATH_KEY,"");
+		String basePath = nepheleConfig.getString(ConfigConstants.STRATOSPHERE_BASE_DIR_PATH_KEY,"");
 
 		File webDir;
 		File tmpDir;
 		File uploadDir;
 		File planDumpDir;
 		
-		String webDirPath = config.getString(PactConfigConstants.WEB_ROOT_PATH_KEY,
-				PactConfigConstants.DEFAULT_WEB_ROOT_DIR);
+		String webDirPath = config.getString(ConfigConstants.WEB_ROOT_PATH_KEY,
+			ConfigConstants.DEFAULT_WEB_ROOT_DIR);
 		
 		if(webDirPath.startsWith("/")) {
 			// absolute path
@@ -93,8 +92,8 @@ public class WebInterfaceServer {
 			webDir = new File(basePath+"/"+webDirPath);
 		}
 		
-		String tmpDirPath = config.getString(PactConfigConstants.WEB_TMP_DIR_KEY,
-				PactConfigConstants.DEFAULT_WEB_TMP_DIR);
+		String tmpDirPath = config.getString(ConfigConstants.WEB_TMP_DIR_KEY,
+			ConfigConstants.DEFAULT_WEB_TMP_DIR);
 		
 		tmpDir = new File(tmpDirPath);
 		if(tmpDir.isAbsolute()) {
@@ -104,8 +103,8 @@ public class WebInterfaceServer {
 			tmpDir = new File(basePath+"/"+tmpDirPath);
 		}
 		
-		String uploadDirPath = config.getString(PactConfigConstants.WEB_JOB_UPLOAD_DIR_KEY,
-				PactConfigConstants.DEFAULT_WEB_JOB_STORAGE_DIR);
+		String uploadDirPath = config.getString(ConfigConstants.WEB_JOB_UPLOAD_DIR_KEY,
+				ConfigConstants.DEFAULT_WEB_JOB_STORAGE_DIR);
 		
 		uploadDir = new File(uploadDirPath);
 		if(uploadDir.isAbsolute()) {
@@ -115,8 +114,8 @@ public class WebInterfaceServer {
 			uploadDir = new File(basePath+"/"+uploadDirPath);
 		}
 
-		String planDumpDirPath = config.getString(PactConfigConstants.WEB_PLAN_DUMP_DIR_KEY,
-				PactConfigConstants.DEFAULT_WEB_PLAN_DUMP_DIR);
+		String planDumpDirPath = config.getString(ConfigConstants.WEB_PLAN_DUMP_DIR_KEY,
+				ConfigConstants.DEFAULT_WEB_PLAN_DUMP_DIR);
 		
 		planDumpDir = new File(planDumpDirPath);
 		if(planDumpDir.isAbsolute()) {
@@ -151,7 +150,7 @@ public class WebInterfaceServer {
 		checkAndCreateDirectories(uploadDir, true);
 		checkAndCreateDirectories(planDumpDir, true);
 		
-		int jobManagerWebPort = config.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, ConfigConstants.DEFAULT_WEB_FRONTEND_PORT);
+		int jobManagerWebPort = config.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT);
 
 		// ----- the handlers for the servlets -----
 		ServletContextHandler servletContext = new ServletContextHandler(ServletContextHandler.SESSIONS);
@@ -185,8 +184,8 @@ public class WebInterfaceServer {
 		// ----- create the login module with http authentication -----
 
 		File af = null;
-		String authFile = config.getString(PactConfigConstants.WEB_ACCESS_FILE_KEY,
-			PactConfigConstants.DEFAULT_WEB_ACCESS_FILE_PATH);
+		String authFile = config.getString(ConfigConstants.WEB_ACCESS_FILE_KEY,
+			ConfigConstants.DEFAULT_WEB_ACCESS_FILE_PATH);
 		if (authFile != null) {
 			af = new File(authFile);
 			if (!af.exists()) {

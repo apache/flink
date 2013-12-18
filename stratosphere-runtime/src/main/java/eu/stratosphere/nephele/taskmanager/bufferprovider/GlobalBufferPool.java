@@ -19,6 +19,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.configuration.GlobalConfiguration;
 import eu.stratosphere.core.memory.MemorySegment;
 
@@ -30,16 +31,6 @@ public final class GlobalBufferPool {
 	 * The singleton instance of the global buffer pool.
 	 */
 	private static GlobalBufferPool instance = null;
-
-	/**
-	 * The default number of buffers to create at startup.
-	 */
-	private static final int DEFAULT_NUMBER_OF_BUFFERS = 2048;
-
-	/**
-	 * The default buffer size in bytes.
-	 */
-	public static final int DEFAULT_BUFFER_SIZE_IN_BYTES = 64 * 1024; // 64k
 
 	/**
 	 * The number of buffers created at startup.
@@ -73,10 +64,10 @@ public final class GlobalBufferPool {
 	 */
 	private GlobalBufferPool() {
 
-		this.numberOfBuffers = GlobalConfiguration.getInteger("channel.network.numberOfBuffers",
-			DEFAULT_NUMBER_OF_BUFFERS);
-		this.bufferSizeInBytes = GlobalConfiguration.getInteger("channel.network.bufferSizeInBytes",
-			DEFAULT_BUFFER_SIZE_IN_BYTES);
+		this.numberOfBuffers = GlobalConfiguration.getInteger(ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY,
+			ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_NUM_BUFFERS);
+		this.bufferSizeInBytes = GlobalConfiguration.getInteger(ConfigConstants.TASK_MANAGER_NETWORK_BUFFER_SIZE_KEY,
+			ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_BUFFER_SIZE);
 
 		this.buffers = new ArrayBlockingQueue<MemorySegment>(this.numberOfBuffers);
 

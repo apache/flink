@@ -232,7 +232,8 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 		// Start job manager's IPC server
 		try {
-			final int handlerCount = GlobalConfiguration.getInteger("jobmanager.rpc.numhandler", 3);
+			final int handlerCount = GlobalConfiguration.getInteger(ConfigConstants.JOB_MANAGER_IPC_HANDLERS_KEY,
+				ConfigConstants.DEFAULT_JOB_MANAGER_IPC_HANDLERS);
 			this.jobManagerServer = RPC.getServer(this, rpcServerAddress.getHostName(), rpcServerAddress.getPort(),
 				handlerCount);
 			this.jobManagerServer.start();
@@ -1225,7 +1226,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		final Configuration config = GlobalConfiguration.getConfiguration();
 		// Start InfoServer
 		try {
-			int port = config.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, ConfigConstants.DEFAULT_WEB_FRONTEND_PORT);
+			int port = config.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT);
 			server = new WebInfoServer(config, port, this);
 			server.start();
 		} catch (FileNotFoundException e) {

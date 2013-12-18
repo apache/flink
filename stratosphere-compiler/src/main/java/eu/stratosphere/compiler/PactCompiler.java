@@ -79,7 +79,6 @@ import eu.stratosphere.compiler.postpass.OptimizerPostPass;
 import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.configuration.GlobalConfiguration;
-import eu.stratosphere.configuration.PactConfigConstants;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.ipc.RPC;
@@ -437,20 +436,19 @@ public class PactCompiler {
 		Configuration config = GlobalConfiguration.getConfiguration();
 
 		// determine the maximum number of instances to use
-		this.maxMachines = config.getInteger(PactConfigConstants.MAXIMUM_NUMBER_MACHINES_KEY,
-			PactConfigConstants.DEFAULT_MAX_NUMBER_MACHINES);
+		this.maxMachines = -1;
 
 		// determine the default parallelization degree
-		this.defaultDegreeOfParallelism = config.getInteger(PactConfigConstants.DEFAULT_PARALLELIZATION_DEGREE_KEY,
-			PactConfigConstants.DEFAULT_PARALLELIZATION_DEGREE);
+		this.defaultDegreeOfParallelism = config.getInteger(ConfigConstants.DEFAULT_PARALLELIZATION_DEGREE_KEY,
+			ConfigConstants.DEFAULT_PARALLELIZATION_DEGREE);
 
 		// determine the default intra-node parallelism
-		int maxInNodePar = config.getInteger(PactConfigConstants.PARALLELIZATION_MAX_INTRA_NODE_DEGREE_KEY,
-			PactConfigConstants.DEFAULT_MAX_INTRA_NODE_PARALLELIZATION_DEGREE);
+		int maxInNodePar = config.getInteger(ConfigConstants.PARALLELIZATION_MAX_INTRA_NODE_DEGREE_KEY,
+			ConfigConstants.DEFAULT_MAX_INTRA_NODE_PARALLELIZATION_DEGREE);
 		if (maxInNodePar == 0 || maxInNodePar < -1) {
 			LOG.error("Invalid maximum degree of intra-node parallelism: " + maxInNodePar +
 				". Ignoring parameter.");
-			maxInNodePar = PactConfigConstants.DEFAULT_MAX_INTRA_NODE_PARALLELIZATION_DEGREE;
+			maxInNodePar = ConfigConstants.DEFAULT_MAX_INTRA_NODE_PARALLELIZATION_DEGREE;
 		}
 		this.maxIntraNodeParallelism = maxInNodePar;
 

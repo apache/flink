@@ -21,7 +21,7 @@ import org.junit.Test;
 import eu.stratosphere.api.io.DelimitedInputFormat;
 import eu.stratosphere.api.io.statistics.BaseStatistics;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.configuration.PactConfigConstants;
+import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.testutils.TestConfigUtils;
 import eu.stratosphere.testutils.TestFileSystem;
 import eu.stratosphere.testutils.TestFileUtils;
@@ -81,8 +81,8 @@ public class DelimitedInputFormatSamplingTest {
 		try {
 			// make sure we do 4 samples
 			TestConfigUtils.loadGlobalConf(
-				new String[] { PactConfigConstants.DELIMITED_FORMAT_MIN_LINE_SAMPLES_KEY,
-								PactConfigConstants.DELIMITED_FORMAT_MAX_LINE_SAMPLES_KEY },
+				new String[] { ConfigConstants.DELIMITED_FORMAT_MIN_LINE_SAMPLES_KEY,
+								ConfigConstants.DELIMITED_FORMAT_MAX_LINE_SAMPLES_KEY },
 				new String[] { "4", "4" });
 			
 			TestDelimitedInputFormat.prepare();
@@ -232,7 +232,7 @@ public class DelimitedInputFormatSamplingTest {
 	@Test
 	public void testSamplingOverlyLongRecord() {
 		try {
-			final String tempFile = TestFileUtils.createTempFile(2 * PactConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_SAMPLE_LEN);
+			final String tempFile = TestFileUtils.createTempFile(2 * ConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_SAMPLE_LEN);
 			final Configuration conf = new Configuration();
 			
 			final TestDelimitedInputFormat format = new TestDelimitedInputFormat();

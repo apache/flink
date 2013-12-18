@@ -198,11 +198,13 @@ public class NepheleMiniCluster {
 		config.setInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, taskManagerRpcPort);
 		config.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, taskManagerDataPort);
 		
+		// with the low dop, we can use few RPC handlers
+		config.setInteger(ConfigConstants.JOB_MANAGER_IPC_HANDLERS_KEY, 2);
+		
 		// polling interval
 		config.setInteger(ConfigConstants.JOBCLIENT_POLLING_INTERVAL_KEY, 2);
 		
 		// enable / disable features
-		config.setInteger(ConfigConstants.JOB_EXECUTION_RETRIES_KEY, 0);
 		config.setBoolean("jobmanager.visualization.enable", visualization);
 		
 		// hdfs

@@ -13,6 +13,11 @@
 # 
 ########################################################################################################################
 
+#
+# This configuration file contains a list of the most commonly adjusted config parameters.
+# Please see the configuration reference for a list of all configurable options.
+#
+
 #=======================================================================================================================
 #                                                   SYSTEM ENVIRONMENT
 #=======================================================================================================================
@@ -28,24 +33,24 @@ jobmanager.rpc.address: localhost
 
 jobmanager.rpc.port: 6123
 
+# JVM heap size in MB
+jobmanager.heap.mb: 256
+
 jobmanager.profiling.enable: false
 
 # Number of RPC handler threads
-jobmanager.rpc.numhandler: 8
-
-# JVM heap size in MB
-jobmanager.heap.mb: 256
+#jobmanager.rpc.numhandler: 8
 
 jobmanager.web.port: 8081
 
 # Number of jobs that are kept in the history
-jobmanager.web.archive: 20
+jobmanager.web.history: 5
 
 #=======================================================================================================================
 #                                                   TASK MANAGER (WORKERs)
 #=======================================================================================================================
 
-taskmanager.rpc.port: 6122
+#taskmanager.rpc.port: 6122
 
 # JVM heap size in MB
 taskmanager.heap.mb: 512
@@ -59,10 +64,10 @@ taskmanager.heap.mb: 512
 # taskmanager.tmp.dirs: /tmp
 
 # Number of network buffers (used by each TaskManager)
-channel.network.numberOfBuffers: 2048
+taskmanager.network.numberOfBuffers: 2048
 
 # Size of network buffers
-channel.network.bufferSizeInBytes: 32768
+taskmanager.network.bufferSizeInBytes: 32768
 
 #=======================================================================================================================
 #                                                      CLIENTS
@@ -76,35 +81,28 @@ channel.network.bufferSizeInBytes: 32768
 #                                                    PARALLELISM
 #=======================================================================================================================
 
-# The default degree of parallelism for each user function, if no other degree is explicitly specified.
-pact.parallelization.degree: -1
+# The default degree of parallelism for jobs, if no other degree is explicitly specified.
+parallelization.degree.default: -1
 
-# The maximum number of parallel instances of the user function that are assigned to a single computing instance.
-# If set to -1, than no limit exists.
-pact.parallelization.max-intra-node-degree: -1
-
-# An optional hard limit in the number of machines to use. A program will never use more than the here specified number
-# of machines. If set to '-1', the limit is set by the maximal number of instances available in the cluster.
-# If this value is set, the actual number of machines used for certain tasks may be even lower than this value, due to
-# scheduling constraints.
-pact.parallelization.maxmachines: -1
+# The maximum number of parallel instances per taskmanager. If set to -1, no limit exists.
+parallelization.intra-node.default: -1
 
 #=======================================================================================================================
 #                                                   WEB FRONTEND
 #=======================================================================================================================
 
-pact.web.port: 8080
+webclient.port: 8080
 
-pact.web.rootpath: ./resources/web-docs/
+webclient.rootpath: ./resources/web-docs/
 
 # The temp directory for the web server
 # If not specified, the system-specific Java temporary directory is taken (java.io.tmpdir property)
-# pact.web.temp: /tmp
+# webclient.tempdir: /tmp
 
 # Directory into which the web server will store uploaded PACT programs
 # If not specified, the system-specific Java temporary directory is taken (java.io.tmpdir property) as base.
-# pact.web.uploaddir: /tmp/pact-jobs
+# webclient.uploaddir: /tmp/webclient-jobs
 
 # The directory into which the web server will dump temporary JSON files describing pact plans
 # If not specified, the system-specific Java temporary directory is taken (java.io.tmpdir property) as base.
-# pact.web.plandump: /tmp/pact-plans
+# webclient.plandump: /tmp/webclient-plans

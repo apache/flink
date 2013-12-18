@@ -23,9 +23,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
-import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.configuration.GlobalConfiguration;
 import eu.stratosphere.core.io.InputSplit;
 import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.instance.AllocatedResource;
@@ -41,8 +39,6 @@ import eu.stratosphere.nephele.template.AbstractInvokable;
  * vertices that originate from the same job vertex.
  * <p>
  * This class is thread-safe.
- * 
- * @author warneke
  */
 public final class ExecutionGroupVertex {
 
@@ -50,8 +46,7 @@ public final class ExecutionGroupVertex {
 	 * The default number of retries in case of an error before the task represented by this vertex is considered as
 	 * failed.
 	 */
-	private static final int DEFAULT_EXECUTION_RETRIES = GlobalConfiguration.getInteger(
-			ConfigConstants.JOB_EXECUTION_RETRIES_KEY, ConfigConstants.DEFAULT_JOB_EXECUTION_RETRIES);
+	private static final int DEFAULT_EXECUTION_RETRIES = 0;
 
 	/**
 	 * The name of the vertex.

@@ -318,12 +318,12 @@ public class CliFrontend {
 				System.out.println("Job successfully submitted. Use -w (or --wait) option to track the progress here.\n"
 						+ "JobManager web interface: http://"
 						+ socket.getHostName()
-						+":"+configuration.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, ConfigConstants.DEFAULT_WEB_FRONTEND_PORT));
+						+":"+configuration.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT));
 			} else {
 				System.out.println("Job successfully submitted. Use -w (or --wait) option to track the progress here.\n"
 					+ "JobManager web interface: http://"
 					+ configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null)
-					+":"+configuration.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, ConfigConstants.DEFAULT_WEB_FRONTEND_PORT));
+					+":"+configuration.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT));
 			}
 		}
 	}

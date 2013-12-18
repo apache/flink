@@ -33,7 +33,7 @@ import eu.stratosphere.api.typeutils.TypeSerializer;
 import eu.stratosphere.api.typeutils.TypeSerializerFactory;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.configuration.GlobalConfiguration;
-import eu.stratosphere.configuration.PactConfigConstants;
+import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
@@ -85,7 +85,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 	protected static final Log LOG = LogFactory.getLog(RegularPactTask.class);
 	
 	private static final boolean USE_BROARDCAST_WRITERS = GlobalConfiguration.getBoolean(
-		PactConfigConstants.USE_MULTICAST_FOR_BROADCAST, PactConfigConstants.DEFAULT_USE_MULTICAST_FOR_BROADCAST);
+		ConfigConstants.USE_MULTICAST_FOR_BROADCAST, ConfigConstants.DEFAULT_USE_MULTICAST_FOR_BROADCAST);
 	
 	// --------------------------------------------------------------------------------------------
 

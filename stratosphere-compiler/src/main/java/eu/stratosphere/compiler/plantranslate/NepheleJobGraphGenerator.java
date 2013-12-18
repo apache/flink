@@ -49,7 +49,7 @@ import eu.stratosphere.compiler.plan.WorksetIterationPlanNode;
 import eu.stratosphere.compiler.plan.WorksetPlanNode;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.configuration.GlobalConfiguration;
-import eu.stratosphere.configuration.PactConfigConstants;
+import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.jobgraph.AbstractJobOutputVertex;
@@ -131,15 +131,15 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 	 * Creates a new job graph generator that uses the default values for its resource configuration.
 	 */
 	public NepheleJobGraphGenerator() {
-		this.defaultMaxFan = PactConfigConstants.DEFAULT_SPILLING_MAX_FAN;
-		this.defaultSortSpillingThreshold = PactConfigConstants.DEFAULT_SORT_SPILLING_THRESHOLD;
+		this.defaultMaxFan = ConfigConstants.DEFAULT_SPILLING_MAX_FAN;
+		this.defaultSortSpillingThreshold = ConfigConstants.DEFAULT_SORT_SPILLING_THRESHOLD;
 	}
 	
 	public NepheleJobGraphGenerator(Configuration config) {
-		this.defaultMaxFan = config.getInteger(PactConfigConstants.DEFAULT_SPILLING_MAX_FAN_KEY, 
-				PactConfigConstants.DEFAULT_SPILLING_MAX_FAN);
-		this.defaultSortSpillingThreshold = config.getFloat(PactConfigConstants.DEFAULT_SORT_SPILLING_THRESHOLD_KEY,
-			PactConfigConstants.DEFAULT_SORT_SPILLING_THRESHOLD);
+		this.defaultMaxFan = config.getInteger(ConfigConstants.DEFAULT_SPILLING_MAX_FAN_KEY, 
+				ConfigConstants.DEFAULT_SPILLING_MAX_FAN);
+		this.defaultSortSpillingThreshold = config.getFloat(ConfigConstants.DEFAULT_SORT_SPILLING_THRESHOLD_KEY,
+			ConfigConstants.DEFAULT_SORT_SPILLING_THRESHOLD);
 	}
 
 	/**

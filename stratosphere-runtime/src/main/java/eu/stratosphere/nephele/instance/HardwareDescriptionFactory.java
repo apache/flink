@@ -57,7 +57,7 @@ public class HardwareDescriptionFactory {
 	 * The fraction of free memory that goes into the memory manager by default.
 	 */
 	private static float RUNTIME_MEMORY_THRESHOLD = GlobalConfiguration.getFloat(
-		ConfigConstants.MEMORY_MANAGER_AVAILABLE_MEMORY_FRACTION_KEY, ConfigConstants.DEFAULT_MEMORY_MANAGER_MEMORY_FRACTION);
+		ConfigConstants.TASK_MANAGER_MEMORY_FRACTION_KEY, ConfigConstants.DEFAULT_MEMORY_MANAGER_MEMORY_FRACTION);
 
 	
 	/**

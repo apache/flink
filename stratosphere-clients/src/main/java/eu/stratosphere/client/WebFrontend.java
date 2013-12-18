@@ -19,7 +19,7 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.client.web.WebInterfaceServer;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.configuration.GlobalConfiguration;
-import eu.stratosphere.configuration.PactConfigConstants;
+import eu.stratosphere.configuration.ConfigConstants;
 
 /**
  * Main entry point for the web frontend. Creates a web server according to the configuration
@@ -60,11 +60,11 @@ public class WebFrontend {
 			Configuration config = GlobalConfiguration.getConfiguration();
 			
 			// add stratosphere base dir to config
-			config.setString(PactConfigConstants.STRATOSPHERE_BASE_DIR_PATH_KEY, configDir+"/..");
+			config.setString(ConfigConstants.STRATOSPHERE_BASE_DIR_PATH_KEY, configDir+"/..");
 
 			// get the listening port
-			int port = config.getInteger(PactConfigConstants.WEB_FRONTEND_PORT_KEY,
-				PactConfigConstants.DEFAULT_WEB_FRONTEND_PORT);
+			int port = config.getInteger(ConfigConstants.WEB_FRONTEND_PORT_KEY,
+				ConfigConstants.DEFAULT_WEBCLIENT_PORT);
 
 			// start the server
 			WebInterfaceServer server = new WebInterfaceServer(config, port);

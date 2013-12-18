@@ -25,7 +25,7 @@ import eu.stratosphere.api.io.statistics.BaseStatistics;
 import eu.stratosphere.api.operators.GenericDataSource;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.configuration.GlobalConfiguration;
-import eu.stratosphere.configuration.PactConfigConstants;
+import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.core.fs.BlockLocation;
 import eu.stratosphere.core.fs.FSDataInputStream;
 import eu.stratosphere.core.fs.FileInputSplit;
@@ -85,12 +85,12 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	static final long DEFAULT_OPENING_TIMEOUT;
 	
 	static {
-		final long to = GlobalConfiguration.getLong(PactConfigConstants.FS_STREAM_OPENING_TIMEOUT_KEY,
-				PactConfigConstants.DEFAULT_FS_STREAM_OPENING_TIMEOUT);
+		final long to = GlobalConfiguration.getLong(ConfigConstants.FS_STREAM_OPENING_TIMEOUT_KEY,
+				ConfigConstants.DEFAULT_FS_STREAM_OPENING_TIMEOUT);
 		if (to < 0) {
 			LOG.error("Invalid timeout value for filesystem stream opening: " + to + ". Using default value of " +
-				PactConfigConstants.DEFAULT_FS_STREAM_OPENING_TIMEOUT);
-			DEFAULT_OPENING_TIMEOUT = PactConfigConstants.DEFAULT_FS_STREAM_OPENING_TIMEOUT;
+				ConfigConstants.DEFAULT_FS_STREAM_OPENING_TIMEOUT);
+			DEFAULT_OPENING_TIMEOUT = ConfigConstants.DEFAULT_FS_STREAM_OPENING_TIMEOUT;
 		} else if (to == 0) {
 			DEFAULT_OPENING_TIMEOUT = Long.MAX_VALUE;
 		} else {

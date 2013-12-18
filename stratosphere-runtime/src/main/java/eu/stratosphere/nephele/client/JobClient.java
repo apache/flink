@@ -41,8 +41,6 @@ import eu.stratosphere.util.StringUtils;
  * The job client is able to submit, control, and abort jobs.
  * <p>
  * This class is thread-safe.
- * 
- * @author warneke
  */
 public class JobClient {
 
@@ -87,8 +85,6 @@ public class JobClient {
 	/**
 	 * Inner class used to perform clean up tasks when the
 	 * job client is terminated.
-	 * 
-	 * @author warneke
 	 */
 	public static class JobCleanUp extends Thread {
 
@@ -108,31 +104,11 @@ public class JobClient {
 			this.jobClient = jobClient;
 		}
 
-		/**
-		 * {@inheritDoc}
-		 */
 		@Override
 		public void run() {
-
-			try {
-
-				// Terminate the running job if the configuration says so
-				if (this.jobClient.getConfiguration().getBoolean(ConfigConstants.JOBCLIENT_SHUTDOWN_TERMINATEJOB_KEY, 
-					ConfigConstants.DEFAULT_JOBCLIENT_SHUTDOWN_TERMINATEJOB))
-				{
-					System.out.println(AbstractEvent.timestampToString(System.currentTimeMillis())
-						+ ":\tJobClient is shutting down, canceling job...");
-					this.jobClient.cancelJob();
-				}
-
-				// Close the RPC object
-				this.jobClient.close();
-
-			} catch (IOException ioe) {
-				LOG.warn(StringUtils.stringifyException(ioe));
-			}
+			// Close the RPC object
+			this.jobClient.close();
 		}
-
 	}
 
 	/**

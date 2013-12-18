@@ -279,7 +279,7 @@ public class TaskManager implements TaskOperationProtocol {
 
 		// Check whether the memory size has been explicitly configured. if so that overrides the default mechanism
 		// of taking as much as is mentioned in the hardware description
-		long memorySize = GlobalConfiguration.getInteger(ConfigConstants.MEMORY_MANAGER_AVAILABLE_MEMORY_SIZE_KEY, -1);
+		long memorySize = GlobalConfiguration.getInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, -1);
 
 		if (memorySize > 0) {
 			// manually configured memory size. override the value in the hardware config

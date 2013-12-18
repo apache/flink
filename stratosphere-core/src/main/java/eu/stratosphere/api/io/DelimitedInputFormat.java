@@ -28,7 +28,7 @@ import eu.stratosphere.api.io.statistics.BaseStatistics;
 import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.configuration.GlobalConfiguration;
-import eu.stratosphere.configuration.PactConfigConstants;
+import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.core.fs.FileInputSplit;
 import eu.stratosphere.core.fs.FileStatus;
 import eu.stratosphere.core.fs.FileSystem;
@@ -80,20 +80,20 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 	static { loadGloablConfigParams(); }
 	
 	protected static final void loadGloablConfigParams() {
-		int maxSamples = GlobalConfiguration.getInteger(PactConfigConstants.DELIMITED_FORMAT_MAX_LINE_SAMPLES_KEY,
-				PactConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_LINE_SAMPLES);
-		int minSamples = GlobalConfiguration.getInteger(PactConfigConstants.DELIMITED_FORMAT_MIN_LINE_SAMPLES_KEY,
-			PactConfigConstants.DEFAULT_DELIMITED_FORMAT_MIN_LINE_SAMPLES);
+		int maxSamples = GlobalConfiguration.getInteger(ConfigConstants.DELIMITED_FORMAT_MAX_LINE_SAMPLES_KEY,
+				ConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_LINE_SAMPLES);
+		int minSamples = GlobalConfiguration.getInteger(ConfigConstants.DELIMITED_FORMAT_MIN_LINE_SAMPLES_KEY,
+			ConfigConstants.DEFAULT_DELIMITED_FORMAT_MIN_LINE_SAMPLES);
 		
 		if (maxSamples < 0) {
 			LOG.error("Invalid default maximum number of line samples: " + maxSamples + ". Using default value of " +
-				PactConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_LINE_SAMPLES);
-			maxSamples = PactConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_LINE_SAMPLES;
+				ConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_LINE_SAMPLES);
+			maxSamples = ConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_LINE_SAMPLES;
 		}
 		if (minSamples < 0) {
 			LOG.error("Invalid default minimum number of line samples: " + minSamples + ". Using default value of " +
-				PactConfigConstants.DEFAULT_DELIMITED_FORMAT_MIN_LINE_SAMPLES);
-			minSamples = PactConfigConstants.DEFAULT_DELIMITED_FORMAT_MIN_LINE_SAMPLES;
+				ConfigConstants.DEFAULT_DELIMITED_FORMAT_MIN_LINE_SAMPLES);
+			minSamples = ConfigConstants.DEFAULT_DELIMITED_FORMAT_MIN_LINE_SAMPLES;
 		}
 		
 		DEFAULT_MAX_NUM_SAMPLES = maxSamples;
@@ -106,10 +106,10 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 			DEFAULT_MIN_NUM_SAMPLES = minSamples;
 		}
 		
-		int maxLen = GlobalConfiguration.getInteger(PactConfigConstants.DELIMITED_FORMAT_MAX_SAMPLE_LENGTH_KEY,
-				PactConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_SAMPLE_LEN);
+		int maxLen = GlobalConfiguration.getInteger(ConfigConstants.DELIMITED_FORMAT_MAX_SAMPLE_LENGTH_KEY,
+				ConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_SAMPLE_LEN);
 		if (maxLen <= 0) {
-			maxLen = PactConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_SAMPLE_LEN;
+			maxLen = ConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_SAMPLE_LEN;
 			LOG.error("Invalid value for the maximum sample record length. Using defailt value of " + maxLen + '.');
 		} else if (maxLen < DEFAULT_READ_BUFFER_SIZE) {
 			maxLen = DEFAULT_READ_BUFFER_SIZE;
