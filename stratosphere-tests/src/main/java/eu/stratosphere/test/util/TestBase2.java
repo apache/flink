@@ -268,7 +268,7 @@ public abstract class TestBase2 {
 	// --------------------------------------------------------------------------------------------
 
 	protected JobGraph getJobGraph() throws Exception {
-		Job p = getPactPlan();
+		Job p = getTestJob();
 		if (p == null) {
 			Assert.fail("Error: Cannot obtain Pact plan. Did the thest forget to override either 'getPactPlan()' or 'getJobGraph()' ?");
 		}
@@ -284,7 +284,7 @@ public abstract class TestBase2 {
 		return jgg.compileJobGraph(op);
 	}
 	
-	protected Job getPactPlan() {
+	protected Job getTestJob() {
 		return null;
 	}
 

@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.arraymodel.test;
+package eu.stratosphere.test.exampleRecordPrograms;
 
 import java.util.Collection;
 
@@ -22,12 +22,12 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.api.Job;
-import eu.stratosphere.arraymodel.example.WordCountArrayTuples;
 import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.example.record.wordcount.WordCount;
 import eu.stratosphere.test.util.TestBase2;
 
 @RunWith(Parameterized.class)
-public class WordCountArrayModelITCase extends TestBase2 {
+public class WordCountITCase extends TestBase2 {
 
 	public static final String TEXT = "Goethe - Faust: Der Tragoedie erster Teil\n" + "Prolog im Himmel.\n"
 			+ "Der Herr. Die himmlischen Heerscharen. Nachher Mephistopheles. Die drei\n" + "Erzengel treten vor.\n"
@@ -167,16 +167,12 @@ public class WordCountArrayModelITCase extends TestBase2 {
 
 	protected String textPath;
 	protected String resultPath;
+
 	
-	public WordCountArrayModelITCase(Configuration config) {
+	public WordCountITCase(Configuration config) {
 		super(config);
 	}
 
-	@Override
-	protected Job getTestJob() {
-		WordCountArrayTuples wc = new WordCountArrayTuples();
-		return wc.createJob(config.getString("WordCountTest#NumSubtasks", "1"), textPath, resultPath);
-	}
 	
 	@Override
 	protected void preSubmit() throws Exception {
@@ -185,10 +181,18 @@ public class WordCountArrayModelITCase extends TestBase2 {
 	}
 
 	@Override
+	protected Job getTestJob() {
+		WordCount wc = new WordCount();
+		return wc.createJob(config.getString("WordCountTest#NumSubtasks", "1"),
+				textPath, resultPath);
+	}
+
+	@Override
 	protected void postSubmit() throws Exception {
+		// Test results
 		compareResultsByLinesInMemory(COUNTS, resultPath);
 	}
-	
+
 	@Parameters
 	public static Collection<Object[]> getConfigurations() {
 		Configuration config = new Configuration();
