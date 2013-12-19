@@ -77,7 +77,7 @@ import eu.stratosphere.util.InstantiationUtil;
 import eu.stratosphere.util.MutableObjectIterator;
 
 /**
- * The abstract base class for all Pact tasks. Encapsulated common behavior and implements the main life-cycle
+ * The abstract base class for all tasks. Encapsulated common behavior and implements the main life-cycle
  * of the user code.
  */
 public class RegularPactTask<S extends Function, OT> extends AbstractTask implements PactTaskContext<S, OT> {
@@ -226,7 +226,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 		taskConf.setClassLoader(this.userCodeClassLoader);
 		this.config = new TaskConfig(taskConf);
 
-		// now get the driver class, which drives the actual pact
+		// now get the operator class which drives the operation
 		final Class<? extends PactDriver<S, OT>> driverClass = this.config.getDriver();
 		this.driver = InstantiationUtil.instantiate(driverClass, PactDriver.class);
 
@@ -262,8 +262,8 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 	@Override
 	public void invoke() throws Exception {
 		
-		if (LOG.isInfoEnabled())
-			LOG.info(formatLogString("Start PACT code."));
+		if (LOG.isDebugEnabled())
+			LOG.debug(formatLogString("Start task code."));
 		
 		// whatever happens in this scope, make sure that the local strategies are cleaned up!
 		// note that the initialization of the local strategies is in the try-finally block as well,
@@ -283,7 +283,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 			
 			if (!this.running) {
 				if (LOG.isDebugEnabled())
-					LOG.debug(formatLogString("Task cancelled before PACT code was started."));
+					LOG.debug(formatLogString("Task cancelled before task code was started."));
 				return;
 			}
 			
@@ -299,11 +299,11 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 		}
 		
 		if (this.running) {
-			if (LOG.isInfoEnabled())
-				LOG.info(formatLogString("Finished PACT code."));
+			if (LOG.isDebugEnabled())
+				LOG.debug(formatLogString("Finished task code."));
 		} else {
-			if (LOG.isWarnEnabled())
-				LOG.warn(formatLogString("PACT code cancelled."));
+			if (LOG.isDebugEnabled())
+				LOG.debug(formatLogString("Task code cancelled."));
 		}
 	}
 	
@@ -311,8 +311,8 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 	public void cancel() throws Exception {
 		this.running = false;
 		
-		if (LOG.isInfoEnabled())
-			LOG.info(formatLogString("Cancelling PACT code"));
+		if (LOG.isDebugEnabled())
+			LOG.debug(formatLogString("Cancelling task code"));
 		
 		try {
 			if (this.driver != null) {
@@ -342,7 +342,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 			this.driver.setup(this);
 		}
 		catch (Throwable t) {
-			throw new Exception("The pact driver setup for '" + this.getEnvironment().getTaskName() +
+			throw new Exception("The driver setup for '" + this.getEnvironment().getTaskName() +
 				"' , caused an error: " + t.getMessage(), t);
 		}
 		
@@ -858,7 +858,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 		MutableReader<?> inputReader, TypeSerializer<?> serializer)
 	{
 		if (serializer.getClass() == RecordSerializer.class) {
-			// pact record specific deserialization
+			// record specific deserialization
 			@SuppressWarnings("unchecked")
 			MutableReader<Record> reader = (MutableReader<Record>) inputReader;
 			return new RecordReaderIterator(reader);
@@ -1075,8 +1075,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 		}
 
 		if (LOG.isErrorEnabled()) {
-			LOG.error(constructLogString("Error in PACT code", taskName, parent));
-			LOG.error(ex, ex);
+			LOG.error(constructLogString("Error in task code", taskName, parent), ex);
 		}
 
 		throw ex;
@@ -1310,8 +1309,8 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 		// start all chained tasks
 		for (int i = 0; i < tasks.size(); i++) {
 			final ChainedDriver<?, ?> task = tasks.get(i);
-			if (LOG.isInfoEnabled())
-				LOG.info(constructLogString("Start PACT code", task.getTaskName(), parent));
+			if (LOG.isDebugEnabled())
+				LOG.debug(constructLogString("Start task code", task.getTaskName(), parent));
 			task.openTask();
 		}
 	}
@@ -1329,8 +1328,8 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 			final ChainedDriver<?, ?> task = tasks.get(i);
 			task.closeTask();
 			
-			if (LOG.isInfoEnabled())
-				LOG.info(constructLogString("Finished PACT code", task.getTaskName(), parent));
+			if (LOG.isDebugEnabled())
+				LOG.debug(constructLogString("Finished task code", task.getTaskName(), parent));
 		}
 	}
 	
