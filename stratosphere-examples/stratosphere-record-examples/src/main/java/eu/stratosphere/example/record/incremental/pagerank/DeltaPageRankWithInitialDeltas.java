@@ -23,6 +23,7 @@ import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.record.operators.JoinOperator;
 import eu.stratosphere.api.record.operators.ReduceOperator;
 import eu.stratosphere.api.record.operators.ReduceOperator.Combinable;
+import eu.stratosphere.api.record.io.CsvInputFormat;
 import eu.stratosphere.api.record.io.CsvOutputFormat;
 import eu.stratosphere.util.Collector;
 import eu.stratosphere.api.record.functions.JoinFunction;
@@ -81,9 +82,9 @@ public class DeltaPageRankWithInitialDeltas implements Program, ProgramDescripti
 		}
 	}
 	
+	@SuppressWarnings("unchecked")
 	@Override
 	public Plan getPlan(String... args) {
-		
 		// parse job parameters
 		final int numSubTasks = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		final String solutionSetInput = (args.length > 1 ? args[1] : "");
@@ -93,13 +94,13 @@ public class DeltaPageRankWithInitialDeltas implements Program, ProgramDescripti
 		final int maxIterations = (args.length > 5 ? Integer.parseInt(args[5]) : 1);
 		
 		// create DataSourceContract for the initalSolutionSet
-		FileDataSource initialSolutionSet = new FileDataSource(InitialRankInputFormat.class, solutionSetInput, "Initial Solution Set");		
+		FileDataSource initialSolutionSet = new FileDataSource(new CsvInputFormat(' ', LongValue.class, DoubleValue.class), solutionSetInput, "Initial Solution Set");
 
 		// create DataSourceContract for the initalDeltaSet
-		FileDataSource initialDeltaSet = new FileDataSource(InitialRankInputFormat.class, deltasInput, "Initial DeltaSet");		
+		FileDataSource initialDeltaSet = new FileDataSource(new CsvInputFormat(' ', LongValue.class, DoubleValue.class), deltasInput, "Initial DeltaSet");
 				
 		// create DataSourceContract for the edges
-		FileDataSource dependencySet = new FileDataSource(EdgesWithWeightInputFormat.class, dependencySetInput, "Dependency Set");
+		FileDataSource dependencySet = new FileDataSource(new CsvInputFormat(' ', LongValue.class, LongValue.class, LongValue.class), dependencySetInput, "Dependency Set");
 		
 		WorksetIteration iteration = new WorksetIteration(0, "Delta PageRank");
 		iteration.setInitialSolutionSet(initialSolutionSet);
