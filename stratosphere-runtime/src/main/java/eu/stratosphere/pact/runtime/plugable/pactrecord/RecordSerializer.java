@@ -15,7 +15,7 @@ package eu.stratosphere.pact.runtime.plugable.pactrecord;
 
 import java.io.IOException;
 
-import eu.stratosphere.api.typeutils.TypeSerializer;
+import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.core.memory.DataInputView;
 import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.types.Record;

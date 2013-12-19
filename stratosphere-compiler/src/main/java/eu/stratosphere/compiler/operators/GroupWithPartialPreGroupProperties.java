@@ -15,9 +15,9 @@ package eu.stratosphere.compiler.operators;
 import java.util.Collections;
 import java.util.List;
 
-import eu.stratosphere.api.operators.Order;
-import eu.stratosphere.api.operators.Ordering;
-import eu.stratosphere.api.operators.util.FieldSet;
+import eu.stratosphere.api.common.operators.Order;
+import eu.stratosphere.api.common.operators.Ordering;
+import eu.stratosphere.api.common.operators.util.FieldSet;
 import eu.stratosphere.compiler.costs.Costs;
 import eu.stratosphere.compiler.dag.ReduceNode;
 import eu.stratosphere.compiler.dag.SingleInputNode;

@@ -18,6 +18,6 @@ import eu.stratosphere.types.Record;
 /**
  * Generic base class for all inputs that are not based on files, specific to Record.
  */
-public abstract class GenericInputFormat extends eu.stratosphere.api.io.GenericInputFormat<Record> {
+public abstract class GenericInputFormat extends eu.stratosphere.api.common.io.GenericInputFormat<Record> {
 	private static final long serialVersionUID = 1L;
 }

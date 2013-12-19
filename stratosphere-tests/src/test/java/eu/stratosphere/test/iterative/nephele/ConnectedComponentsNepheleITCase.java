@@ -13,15 +13,15 @@
 
 package eu.stratosphere.test.iterative.nephele;
 
-import eu.stratosphere.api.functions.aggregators.LongSumAggregator;
-import eu.stratosphere.api.operators.util.UserCodeClassWrapper;
+import eu.stratosphere.api.common.aggregators.LongSumAggregator;
+import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
+import eu.stratosphere.api.common.typeutils.TypeComparatorFactory;
+import eu.stratosphere.api.common.typeutils.TypePairComparatorFactory;
+import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
 import eu.stratosphere.api.record.functions.MapFunction;
 import eu.stratosphere.api.record.io.CsvInputFormat;
 import eu.stratosphere.api.record.io.CsvOutputFormat;
 import eu.stratosphere.api.record.io.FileOutputFormat;
-import eu.stratosphere.api.typeutils.TypeComparatorFactory;
-import eu.stratosphere.api.typeutils.TypePairComparatorFactory;
-import eu.stratosphere.api.typeutils.TypeSerializerFactory;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.example.record.connectedcomponents.WorksetConnectedComponents.MinimumComponentIDReduce;
 import eu.stratosphere.example.record.connectedcomponents.WorksetConnectedComponents.NeighborWithComponentIDJoin;

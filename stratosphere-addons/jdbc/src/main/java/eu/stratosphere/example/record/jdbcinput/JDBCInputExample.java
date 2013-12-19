@@ -17,12 +17,12 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.Statement;
 
+import eu.stratosphere.api.common.Plan;
+import eu.stratosphere.api.common.Program;
+import eu.stratosphere.api.common.ProgramDescription;
+import eu.stratosphere.api.common.operators.FileDataSink;
+import eu.stratosphere.api.common.operators.GenericDataSource;
 import eu.stratosphere.api.io.jdbc.JDBCInputFormat;
-import eu.stratosphere.api.operators.FileDataSink;
-import eu.stratosphere.api.operators.GenericDataSource;
-import eu.stratosphere.api.Plan;
-import eu.stratosphere.api.Program;
-import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.record.io.CsvOutputFormat;
 import eu.stratosphere.client.LocalExecutor;
 import eu.stratosphere.nephele.client.JobExecutionResult;

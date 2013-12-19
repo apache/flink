@@ -16,9 +16,9 @@ package eu.stratosphere.pact.runtime.sort;
 import java.io.IOException;
 import java.util.Iterator;
 
-import eu.stratosphere.api.typeutils.TypeComparator;
-import eu.stratosphere.api.typeutils.TypePairComparator;
-import eu.stratosphere.api.typeutils.TypeSerializer;
+import eu.stratosphere.api.common.typeutils.TypeComparator;
+import eu.stratosphere.api.common.typeutils.TypePairComparator;
+import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.pact.runtime.task.util.CoGroupTaskIterator;
 import eu.stratosphere.pact.runtime.util.EmptyIterator;
 import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;

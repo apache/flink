@@ -23,9 +23,9 @@ import org.apache.commons.logging.LogFactory;
 
 import com.google.common.base.Preconditions;
 
-import eu.stratosphere.api.functions.aggregators.Aggregator;
-import eu.stratosphere.api.functions.aggregators.AggregatorWithName;
-import eu.stratosphere.api.functions.aggregators.ConvergenceCriterion;
+import eu.stratosphere.api.common.aggregators.Aggregator;
+import eu.stratosphere.api.common.aggregators.AggregatorWithName;
+import eu.stratosphere.api.common.aggregators.ConvergenceCriterion;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.io.MutableRecordReader;

@@ -13,8 +13,8 @@
 
 package eu.stratosphere.pact.runtime.plugable.pactrecord;
 
-import eu.stratosphere.api.typeutils.TypeSerializer;
-import eu.stratosphere.api.typeutils.TypeSerializerFactory;
+import eu.stratosphere.api.common.typeutils.TypeSerializer;
+import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.types.Record;
 

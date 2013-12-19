@@ -22,7 +22,7 @@ import java.sql.Statement;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.api.io.UnsplittableInput;
+import eu.stratosphere.api.common.io.UnsplittableInput;
 import eu.stratosphere.api.record.io.GenericInputFormat;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.types.BooleanValue;

@@ -17,7 +17,7 @@ package eu.stratosphere.api.record.io;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 
-import eu.stratosphere.api.operators.FileDataSink;
+import eu.stratosphere.api.common.operators.FileDataSink;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.types.Record;
 

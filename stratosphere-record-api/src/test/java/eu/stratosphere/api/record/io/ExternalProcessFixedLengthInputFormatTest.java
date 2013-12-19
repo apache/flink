@@ -20,7 +20,7 @@ import junit.framework.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import eu.stratosphere.api.io.statistics.BaseStatistics;
+import eu.stratosphere.api.common.io.statistics.BaseStatistics;
 import eu.stratosphere.api.record.io.ExternalProcessFixedLengthInputFormat;
 import eu.stratosphere.api.record.io.ExternalProcessInputFormat;
 import eu.stratosphere.api.record.io.ExternalProcessInputSplit;

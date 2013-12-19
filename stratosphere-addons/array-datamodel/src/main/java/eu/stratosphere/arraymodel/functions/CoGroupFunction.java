@@ -16,7 +16,7 @@ package eu.stratosphere.arraymodel.functions;
 import java.lang.reflect.Method;
 import java.util.Iterator;
 
-import eu.stratosphere.api.functions.GenericCoGrouper;
+import eu.stratosphere.api.common.functions.GenericCoGrouper;
 import eu.stratosphere.types.Value;
 import eu.stratosphere.util.Collector;
 

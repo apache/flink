@@ -24,7 +24,7 @@ import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.mapreduce.TaskType;
 
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.api.io.OutputFormat;
+import eu.stratosphere.api.common.io.OutputFormat;
 import eu.stratosphere.types.Record;
 
 public abstract class GenericTableOutputFormat implements OutputFormat<Record> {

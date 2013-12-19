@@ -14,8 +14,8 @@ package eu.stratosphere.test.iterative.nephele.customdanglingpagerank;
 
 import java.util.Iterator;
 
-import eu.stratosphere.api.functions.AbstractFunction;
-import eu.stratosphere.api.functions.GenericReducer;
+import eu.stratosphere.api.common.functions.AbstractFunction;
+import eu.stratosphere.api.common.functions.GenericReducer;
 import eu.stratosphere.test.iterative.nephele.customdanglingpagerank.types.VertexWithRank;
 import eu.stratosphere.util.Collector;
 

@@ -13,12 +13,12 @@
 
 package eu.stratosphere.pact.runtime.task.chaining;
 
-import eu.stratosphere.api.functions.GenericReducer;
-import eu.stratosphere.api.functions.Function;
-import eu.stratosphere.api.typeutils.TypeComparator;
-import eu.stratosphere.api.typeutils.TypeComparatorFactory;
-import eu.stratosphere.api.typeutils.TypeSerializer;
-import eu.stratosphere.api.typeutils.TypeSerializerFactory;
+import eu.stratosphere.api.common.functions.Function;
+import eu.stratosphere.api.common.functions.GenericReducer;
+import eu.stratosphere.api.common.typeutils.TypeComparator;
+import eu.stratosphere.api.common.typeutils.TypeComparatorFactory;
+import eu.stratosphere.api.common.typeutils.TypeSerializer;
+import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.memory.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;

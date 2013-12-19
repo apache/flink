@@ -13,7 +13,7 @@
 
 package eu.stratosphere.example.record.pagerank;
 
-import eu.stratosphere.api.functions.aggregators.ConvergenceCriterion;
+import eu.stratosphere.api.common.aggregators.ConvergenceCriterion;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;

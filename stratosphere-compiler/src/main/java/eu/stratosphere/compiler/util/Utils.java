@@ -15,10 +15,10 @@ package eu.stratosphere.compiler.util;
 
 import java.util.Arrays;
 
-import eu.stratosphere.api.operators.Order;
-import eu.stratosphere.api.operators.Ordering;
-import eu.stratosphere.api.operators.util.FieldList;
-import eu.stratosphere.api.operators.util.FieldSet;
+import eu.stratosphere.api.common.operators.Order;
+import eu.stratosphere.api.common.operators.Ordering;
+import eu.stratosphere.api.common.operators.util.FieldList;
+import eu.stratosphere.api.common.operators.util.FieldSet;
 import eu.stratosphere.compiler.CompilerException;
 
 

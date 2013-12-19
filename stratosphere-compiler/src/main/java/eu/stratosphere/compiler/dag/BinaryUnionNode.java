@@ -18,10 +18,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import eu.stratosphere.api.functions.AbstractFunction;
-import eu.stratosphere.api.operators.Operator;
-import eu.stratosphere.api.operators.DualInputOperator;
-import eu.stratosphere.api.operators.util.UserCodeClassWrapper;
+import eu.stratosphere.api.common.functions.AbstractFunction;
+import eu.stratosphere.api.common.operators.DualInputOperator;
+import eu.stratosphere.api.common.operators.Operator;
+import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.costs.CostEstimator;

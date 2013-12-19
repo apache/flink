@@ -13,8 +13,8 @@
 
 package eu.stratosphere.api.record.functions;
 
-import eu.stratosphere.api.functions.AbstractFunction;
-import eu.stratosphere.api.functions.GenericCrosser;
+import eu.stratosphere.api.common.functions.AbstractFunction;
+import eu.stratosphere.api.common.functions.GenericCrosser;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 

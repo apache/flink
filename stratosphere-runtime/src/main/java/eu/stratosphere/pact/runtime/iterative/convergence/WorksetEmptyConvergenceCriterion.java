@@ -13,7 +13,7 @@
 
 package eu.stratosphere.pact.runtime.iterative.convergence;
 
-import eu.stratosphere.api.functions.aggregators.ConvergenceCriterion;
+import eu.stratosphere.api.common.aggregators.ConvergenceCriterion;
 import eu.stratosphere.types.LongValue;
 
 import org.apache.commons.logging.Log;

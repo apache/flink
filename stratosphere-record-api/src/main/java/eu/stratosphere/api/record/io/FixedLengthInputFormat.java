@@ -16,7 +16,7 @@ package eu.stratosphere.api.record.io;
 
 import java.io.IOException;
 
-import eu.stratosphere.api.io.statistics.BaseStatistics;
+import eu.stratosphere.api.common.io.statistics.BaseStatistics;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.fs.FileInputSplit;
 import eu.stratosphere.types.Record;

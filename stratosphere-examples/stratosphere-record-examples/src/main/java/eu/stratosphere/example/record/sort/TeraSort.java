@@ -13,13 +13,13 @@
 
 package eu.stratosphere.example.record.sort;
 
-import eu.stratosphere.api.Plan;
-import eu.stratosphere.api.Program;
-import eu.stratosphere.api.ProgramDescription;
-import eu.stratosphere.api.operators.FileDataSink;
-import eu.stratosphere.api.operators.FileDataSource;
-import eu.stratosphere.api.operators.Order;
-import eu.stratosphere.api.operators.Ordering;
+import eu.stratosphere.api.common.Plan;
+import eu.stratosphere.api.common.Program;
+import eu.stratosphere.api.common.ProgramDescription;
+import eu.stratosphere.api.common.operators.FileDataSink;
+import eu.stratosphere.api.common.operators.FileDataSource;
+import eu.stratosphere.api.common.operators.Order;
+import eu.stratosphere.api.common.operators.Ordering;
 import eu.stratosphere.example.record.sort.terasort.TeraDistribution;
 import eu.stratosphere.example.record.sort.terasort.TeraInputFormat;
 import eu.stratosphere.example.record.sort.terasort.TeraKey;

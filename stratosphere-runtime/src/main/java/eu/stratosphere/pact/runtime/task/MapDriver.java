@@ -13,7 +13,7 @@
 
 package eu.stratosphere.pact.runtime.task;
 
-import eu.stratosphere.api.functions.GenericMapper;
+import eu.stratosphere.api.common.functions.GenericMapper;
 import eu.stratosphere.api.record.functions.MapFunction;
 import eu.stratosphere.util.Collector;
 import eu.stratosphere.util.MutableObjectIterator;

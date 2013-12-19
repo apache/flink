@@ -25,9 +25,9 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import eu.stratosphere.api.Plan;
-import eu.stratosphere.api.operators.FileDataSink;
-import eu.stratosphere.api.operators.FileDataSource;
+import eu.stratosphere.api.common.Plan;
+import eu.stratosphere.api.common.operators.FileDataSink;
+import eu.stratosphere.api.common.operators.FileDataSource;
 import eu.stratosphere.api.record.functions.JoinFunction;
 import eu.stratosphere.api.record.io.DelimitedInputFormat;
 import eu.stratosphere.api.record.operators.JoinOperator;

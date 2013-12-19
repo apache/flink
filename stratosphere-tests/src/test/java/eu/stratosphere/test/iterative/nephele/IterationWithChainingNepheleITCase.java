@@ -12,12 +12,12 @@
  **********************************************************************************************************************/
 package eu.stratosphere.test.iterative.nephele;
 
-import eu.stratosphere.api.operators.util.UserCodeClassWrapper;
+import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
+import eu.stratosphere.api.common.typeutils.TypeComparatorFactory;
+import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
 import eu.stratosphere.api.record.functions.MapFunction;
 import eu.stratosphere.api.record.functions.ReduceFunction;
 import eu.stratosphere.api.record.io.FileOutputFormat;
-import eu.stratosphere.api.typeutils.TypeComparatorFactory;
-import eu.stratosphere.api.typeutils.TypeSerializerFactory;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.example.record.kmeans.udfs.CoordVector;
 import eu.stratosphere.example.record.kmeans.udfs.PointInFormat;

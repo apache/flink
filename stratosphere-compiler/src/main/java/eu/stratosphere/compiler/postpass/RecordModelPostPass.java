@@ -12,15 +12,15 @@
  **********************************************************************************************************************/
 package eu.stratosphere.compiler.postpass;
 
-import eu.stratosphere.api.operators.DualInputOperator;
-import eu.stratosphere.api.operators.GenericDataSink;
-import eu.stratosphere.api.operators.Ordering;
-import eu.stratosphere.api.operators.SingleInputOperator;
-import eu.stratosphere.api.operators.util.FieldList;
+import eu.stratosphere.api.common.operators.DualInputOperator;
+import eu.stratosphere.api.common.operators.GenericDataSink;
+import eu.stratosphere.api.common.operators.Ordering;
+import eu.stratosphere.api.common.operators.SingleInputOperator;
+import eu.stratosphere.api.common.operators.util.FieldList;
+import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
 import eu.stratosphere.api.record.operators.CoGroupOperator;
 import eu.stratosphere.api.record.operators.RecordOperator;
 import eu.stratosphere.api.record.operators.ReduceOperator;
-import eu.stratosphere.api.typeutils.TypeSerializerFactory;
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.CompilerPostPassException;
 import eu.stratosphere.compiler.plan.DualInputPlanNode;

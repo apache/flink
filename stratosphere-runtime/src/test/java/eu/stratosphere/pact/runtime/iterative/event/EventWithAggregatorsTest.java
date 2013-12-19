@@ -25,7 +25,7 @@ import java.util.Set;
 import org.junit.Assert;
 import org.junit.Test;
 
-import eu.stratosphere.api.functions.aggregators.Aggregator;
+import eu.stratosphere.api.common.aggregators.Aggregator;
 import eu.stratosphere.types.LongValue;
 import eu.stratosphere.types.StringValue;
 import eu.stratosphere.types.Value;

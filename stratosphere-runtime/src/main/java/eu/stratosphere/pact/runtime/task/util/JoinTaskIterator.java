@@ -16,7 +16,7 @@ package eu.stratosphere.pact.runtime.task.util;
 
 import java.io.IOException;
 
-import eu.stratosphere.api.functions.GenericJoiner;
+import eu.stratosphere.api.common.functions.GenericJoiner;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.util.Collector;
 

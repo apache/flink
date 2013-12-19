@@ -19,7 +19,7 @@ import eu.stratosphere.api.scala.analysis.UDT
 import eu.stratosphere.types.Record
 import eu.stratosphere.api.record.functions.MapFunction
 import eu.stratosphere.util.Collector
-import eu.stratosphere.api.operators.Operator
+import eu.stratosphere.api.common.operators.Operator
 import eu.stratosphere.api.scala.OneInputScalaOperator
 import eu.stratosphere.api.scala.analysis.UDF1
 import eu.stratosphere.api.scala.analysis.UDTSerializer

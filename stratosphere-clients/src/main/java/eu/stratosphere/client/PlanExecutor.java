@@ -13,7 +13,7 @@
 
 package eu.stratosphere.client;
 
-import eu.stratosphere.api.Plan;
+import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.nephele.client.JobExecutionResult;
 
 public interface PlanExecutor {

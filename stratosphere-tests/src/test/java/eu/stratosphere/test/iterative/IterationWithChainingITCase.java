@@ -12,10 +12,10 @@
  **********************************************************************************************************************/
 package eu.stratosphere.test.iterative;
 
-import eu.stratosphere.api.Plan;
-import eu.stratosphere.api.operators.BulkIteration;
-import eu.stratosphere.api.operators.FileDataSink;
-import eu.stratosphere.api.operators.FileDataSource;
+import eu.stratosphere.api.common.Plan;
+import eu.stratosphere.api.common.operators.BulkIteration;
+import eu.stratosphere.api.common.operators.FileDataSink;
+import eu.stratosphere.api.common.operators.FileDataSource;
 import eu.stratosphere.api.record.functions.MapFunction;
 import eu.stratosphere.api.record.functions.ReduceFunction;
 import eu.stratosphere.api.record.operators.MapOperator;

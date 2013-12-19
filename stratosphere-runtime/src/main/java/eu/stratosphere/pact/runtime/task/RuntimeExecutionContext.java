@@ -13,7 +13,7 @@
 
 package eu.stratosphere.pact.runtime.task;
 
-import eu.stratosphere.api.functions.ExecutionContext;
+import eu.stratosphere.api.common.functions.ExecutionContext;
 import eu.stratosphere.nephele.execution.Environment;
 
 

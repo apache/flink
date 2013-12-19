@@ -16,10 +16,10 @@ package eu.stratosphere.pact.runtime.task;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.api.functions.GenericCoGrouper;
-import eu.stratosphere.api.typeutils.TypeComparator;
-import eu.stratosphere.api.typeutils.TypePairComparatorFactory;
-import eu.stratosphere.api.typeutils.TypeSerializer;
+import eu.stratosphere.api.common.functions.GenericCoGrouper;
+import eu.stratosphere.api.common.typeutils.TypeComparator;
+import eu.stratosphere.api.common.typeutils.TypePairComparatorFactory;
+import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.pact.runtime.sort.SortMergeCoGroupIterator;
 import eu.stratosphere.pact.runtime.task.util.CoGroupTaskIterator;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;

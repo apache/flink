@@ -12,7 +12,7 @@
  **********************************************************************************************************************/
 package eu.stratosphere.test.iterative.nephele.customdanglingpagerank.types;
 
-import eu.stratosphere.api.typeutils.TypeComparatorFactory;
+import eu.stratosphere.api.common.typeutils.TypeComparatorFactory;
 import eu.stratosphere.configuration.Configuration;
 
 /**

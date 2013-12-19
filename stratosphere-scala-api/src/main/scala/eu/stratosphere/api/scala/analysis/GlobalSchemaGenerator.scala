@@ -16,13 +16,13 @@ package eu.stratosphere.api.scala.analysis
 import java.util.{List => JList}
 import scala.collection.JavaConversions.asScalaBuffer
 import scala.collection.JavaConversions.bufferAsJavaList
-import eu.stratosphere.api.operators.Operator
-import eu.stratosphere.api.operators.DualInputOperator
-import eu.stratosphere.api.operators.SingleInputOperator
+import eu.stratosphere.api.common.operators.Operator
+import eu.stratosphere.api.common.operators.DualInputOperator
+import eu.stratosphere.api.common.operators.SingleInputOperator
 import eu.stratosphere.api.scala.analysis.FieldSet.toSeq
 import eu.stratosphere.api.scala.ScalaOperator
-import eu.stratosphere.api.operators.FileDataSink
-import eu.stratosphere.api.operators.GenericDataSource
+import eu.stratosphere.api.common.operators.FileDataSink
+import eu.stratosphere.api.common.operators.GenericDataSource
 import eu.stratosphere.api.record.operators.MapOperator
 import eu.stratosphere.api.scala.OneInputScalaOperator
 import eu.stratosphere.api.record.operators.ReduceOperator
@@ -33,11 +33,11 @@ import eu.stratosphere.api.record.operators.JoinOperator
 import eu.stratosphere.api.scala.TwoInputKeyedScalaOperator
 import eu.stratosphere.api.record.operators.CoGroupOperator
 import eu.stratosphere.api.scala.UnionScalaOperator
-import eu.stratosphere.api.operators.BulkIteration
+import eu.stratosphere.api.common.operators.BulkIteration
 import eu.stratosphere.api.scala.BulkIterationScalaOperator
-import eu.stratosphere.api.operators.WorksetIteration
+import eu.stratosphere.api.common.operators.WorksetIteration
 import eu.stratosphere.api.scala.DeltaIterationScalaOperator
-import eu.stratosphere.api.operators.GenericDataSink
+import eu.stratosphere.api.common.operators.GenericDataSink
 
 class GlobalSchemaGenerator {
 

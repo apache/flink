@@ -19,7 +19,7 @@ import java.util.Map;
 
 import com.google.common.base.Preconditions;
 
-import eu.stratosphere.api.functions.aggregators.Aggregator;
+import eu.stratosphere.api.common.aggregators.Aggregator;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.event.task.EventListener;
 import eu.stratosphere.pact.runtime.iterative.event.WorkerDoneEvent;

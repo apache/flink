@@ -23,13 +23,13 @@ import java.util.Set;
 
 import org.junit.Before;
 
-import eu.stratosphere.api.Plan;
-import eu.stratosphere.api.functions.Function;
-import eu.stratosphere.api.io.FileInputFormat.FileBaseStatistics;
-import eu.stratosphere.api.operators.BulkIteration;
-import eu.stratosphere.api.operators.Operator;
-import eu.stratosphere.api.operators.GenericDataSource;
-import eu.stratosphere.api.operators.WorksetIteration;
+import eu.stratosphere.api.common.Plan;
+import eu.stratosphere.api.common.functions.Function;
+import eu.stratosphere.api.common.operators.BulkIteration;
+import eu.stratosphere.api.common.operators.GenericDataSource;
+import eu.stratosphere.api.common.operators.Operator;
+import eu.stratosphere.api.common.operators.WorksetIteration;
+import eu.stratosphere.api.common.io.FileInputFormat.FileBaseStatistics;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.costs.DefaultCostEstimator;

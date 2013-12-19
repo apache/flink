@@ -14,7 +14,7 @@
 package eu.stratosphere.api.scala
 
 import language.experimental.macros
-import eu.stratosphere.api.operators.Operator
+import eu.stratosphere.api.common.operators.Operator
 import eu.stratosphere.api.scala.operators.CoGroupDataSet
 import eu.stratosphere.api.scala.operators.CrossDataSet
 import eu.stratosphere.api.scala.operators.JoinDataSet

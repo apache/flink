@@ -19,11 +19,11 @@ import java.io.IOException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.api.io.FileOutputFormat;
-import eu.stratosphere.api.io.OutputFormat;
-import eu.stratosphere.api.typeutils.TypeComparatorFactory;
-import eu.stratosphere.api.typeutils.TypeSerializer;
-import eu.stratosphere.api.typeutils.TypeSerializerFactory;
+import eu.stratosphere.api.common.typeutils.TypeComparatorFactory;
+import eu.stratosphere.api.common.typeutils.TypeSerializer;
+import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
+import eu.stratosphere.api.common.io.FileOutputFormat;
+import eu.stratosphere.api.common.io.OutputFormat;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.fs.FileStatus;
 import eu.stratosphere.core.fs.FileSystem;

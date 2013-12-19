@@ -21,7 +21,7 @@ import org.apache.commons.logging.LogFactory;
 import org.junit.Test;
 import org.junit.Assert;
 
-import eu.stratosphere.api.functions.GenericMapper;
+import eu.stratosphere.api.common.functions.GenericMapper;
 import eu.stratosphere.api.record.functions.MapFunction;
 import eu.stratosphere.pact.runtime.test.util.DiscardingOutputCollector;
 import eu.stratosphere.pact.runtime.test.util.DriverTestBase;

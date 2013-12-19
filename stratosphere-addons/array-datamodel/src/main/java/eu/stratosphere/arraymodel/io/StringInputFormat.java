@@ -23,7 +23,7 @@ import java.util.Arrays;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.api.io.DelimitedInputFormat;
+import eu.stratosphere.api.common.io.DelimitedInputFormat;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.types.StringValue;
 import eu.stratosphere.types.Value;

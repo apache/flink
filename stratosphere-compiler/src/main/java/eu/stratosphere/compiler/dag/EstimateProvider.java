@@ -15,7 +15,7 @@ package eu.stratosphere.compiler.dag;
 
 import java.util.Map;
 
-import eu.stratosphere.api.operators.util.FieldSet;
+import eu.stratosphere.api.common.operators.util.FieldSet;
 
 /**
  * 

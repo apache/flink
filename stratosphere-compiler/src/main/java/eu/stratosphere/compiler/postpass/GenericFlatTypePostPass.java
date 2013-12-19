@@ -16,10 +16,10 @@ package eu.stratosphere.compiler.postpass;
 import java.util.Iterator;
 import java.util.Map;
 
-import eu.stratosphere.api.operators.util.FieldList;
-import eu.stratosphere.api.typeutils.TypeComparatorFactory;
-import eu.stratosphere.api.typeutils.TypePairComparatorFactory;
-import eu.stratosphere.api.typeutils.TypeSerializerFactory;
+import eu.stratosphere.api.common.operators.util.FieldList;
+import eu.stratosphere.api.common.typeutils.TypeComparatorFactory;
+import eu.stratosphere.api.common.typeutils.TypePairComparatorFactory;
+import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.CompilerPostPassException;
 import eu.stratosphere.compiler.dag.OptimizerNode;

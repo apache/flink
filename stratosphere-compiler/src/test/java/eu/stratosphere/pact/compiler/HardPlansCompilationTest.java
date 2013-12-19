@@ -15,9 +15,9 @@ package eu.stratosphere.pact.compiler;
 
 import org.junit.Test;
 
-import eu.stratosphere.api.Plan;
-import eu.stratosphere.api.operators.FileDataSink;
-import eu.stratosphere.api.operators.FileDataSource;
+import eu.stratosphere.api.common.Plan;
+import eu.stratosphere.api.common.operators.FileDataSink;
+import eu.stratosphere.api.common.operators.FileDataSource;
 import eu.stratosphere.api.record.operators.CrossOperator;
 import eu.stratosphere.api.record.operators.MapOperator;
 import eu.stratosphere.api.record.operators.ReduceOperator;

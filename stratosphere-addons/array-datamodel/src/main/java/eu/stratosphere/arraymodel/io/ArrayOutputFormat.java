@@ -17,25 +17,23 @@ import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 
-import eu.stratosphere.api.io.FileOutputFormat;
-import eu.stratosphere.api.operators.FileDataSink;
+import eu.stratosphere.api.common.operators.FileDataSink;
+import eu.stratosphere.api.common.io.FileOutputFormat;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.types.Value;
 
-/**
- * 
- */
-public abstract class ArrayOutputFormat extends FileOutputFormat<Value[]> implements ArrayModelOutputFormat
-{
+
+public abstract class ArrayOutputFormat extends FileOutputFormat<Value[]> implements ArrayModelOutputFormat {
+	
 	private static final long serialVersionUID = 1L;
 
-	private static final String RECORD_DELIMITER_PARAMETER = "pact.output.array.delimiter";
+	private static final String RECORD_DELIMITER_PARAMETER = "arraymodel.output.delimiter";
 	
-	private static final String FIELD_DELIMITER_PARAMETER = "pact.output.array.field-delimiter";
+	private static final String FIELD_DELIMITER_PARAMETER = "arraymodel.outout.field-delimiter";
 	
-	private static final String ENCODING_PARAMETER = "pact.output.array.encoding";
+	private static final String ENCODING_PARAMETER = "arraymodel.output.encoding";
 	
-	private static final String LENIENT_PARSING = "pact.output.array.lenient";
+	private static final String LENIENT_PARSING = "arraymodel.output.lenient";
 	
 	// --------------------------------------------------------------------------------------------
 

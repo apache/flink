@@ -13,8 +13,8 @@
 
 package eu.stratosphere.pact.runtime.task.chaining;
 
-import eu.stratosphere.api.functions.RuntimeContext;
-import eu.stratosphere.api.functions.Function;
+import eu.stratosphere.api.common.functions.Function;
+import eu.stratosphere.api.common.functions.RuntimeContext;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;

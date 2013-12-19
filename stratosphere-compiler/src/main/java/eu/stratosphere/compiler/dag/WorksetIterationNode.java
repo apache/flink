@@ -18,8 +18,8 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
-import eu.stratosphere.api.operators.WorksetIteration;
-import eu.stratosphere.api.operators.util.FieldList;
+import eu.stratosphere.api.common.operators.WorksetIteration;
+import eu.stratosphere.api.common.operators.util.FieldList;
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler.InterestingPropertyVisitor;

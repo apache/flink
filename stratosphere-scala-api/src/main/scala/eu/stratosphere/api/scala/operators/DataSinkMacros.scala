@@ -25,12 +25,12 @@ import eu.stratosphere.api.scala.codegen.UDTDescriptors
 import eu.stratosphere.api.scala.codegen.MacroContextHolder
 
 import eu.stratosphere.types.Record
-import eu.stratosphere.api.io.{BinaryOutputFormat => JavaBinaryOutputFormat}
-import eu.stratosphere.api.io.{SerializedOutputFormat => JavaSerializedOutputFormat}
+import eu.stratosphere.api.common.io.{BinaryOutputFormat => JavaBinaryOutputFormat}
+import eu.stratosphere.api.common.io.{SerializedOutputFormat => JavaSerializedOutputFormat}
 import eu.stratosphere.api.record.io.{DelimitedOutputFormat => JavaDelimitedOutputFormat}
 import eu.stratosphere.api.record.io.{CsvOutputFormat => JavaCsvOutputFormat}
 import eu.stratosphere.api.record.io.{FileOutputFormat => JavaFileOutputFormat}
-import eu.stratosphere.api.io.{OutputFormat => JavaOutputFormat}
+import eu.stratosphere.api.common.io.{OutputFormat => JavaOutputFormat}
 
 
 trait ScalaOutputFormatBase[In] extends ScalaOutputFormat[In] { this: JavaOutputFormat[_] =>

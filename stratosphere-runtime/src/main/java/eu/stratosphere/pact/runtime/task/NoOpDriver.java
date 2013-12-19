@@ -13,7 +13,7 @@
 
 package eu.stratosphere.pact.runtime.task;
 
-import eu.stratosphere.api.functions.AbstractFunction;
+import eu.stratosphere.api.common.functions.AbstractFunction;
 import eu.stratosphere.util.Collector;
 import eu.stratosphere.util.MutableObjectIterator;
 

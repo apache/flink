@@ -13,8 +13,8 @@
 
 package eu.stratosphere.pact.runtime.shipping;
 
-import eu.stratosphere.api.distributions.DataDistribution;
-import eu.stratosphere.api.typeutils.TypeComparator;
+import eu.stratosphere.api.common.distributions.DataDistribution;
+import eu.stratosphere.api.common.typeutils.TypeComparator;
 import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.pact.runtime.plugable.SerializationDelegate;
 

@@ -19,7 +19,7 @@ import java.net.URISyntaxException;
 import java.util.Collections;
 import java.util.List;
 
-import eu.stratosphere.api.Plan;
+import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.client.program.Client;
 import eu.stratosphere.client.program.JobWithJars;
 import eu.stratosphere.configuration.Configuration;

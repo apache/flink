@@ -22,11 +22,11 @@ import junit.framework.Assert;
 
 import org.junit.Test;
 
-import eu.stratosphere.api.Plan;
-import eu.stratosphere.api.operators.BulkIteration;
-import eu.stratosphere.api.operators.FileDataSink;
-import eu.stratosphere.api.operators.FileDataSource;
-import eu.stratosphere.api.operators.GenericDataSink;
+import eu.stratosphere.api.common.Plan;
+import eu.stratosphere.api.common.operators.BulkIteration;
+import eu.stratosphere.api.common.operators.FileDataSink;
+import eu.stratosphere.api.common.operators.FileDataSource;
+import eu.stratosphere.api.common.operators.GenericDataSink;
 import eu.stratosphere.api.record.operators.CoGroupOperator;
 import eu.stratosphere.api.record.operators.CrossOperator;
 import eu.stratosphere.api.record.operators.MapOperator;

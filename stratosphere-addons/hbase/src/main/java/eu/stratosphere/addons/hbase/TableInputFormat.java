@@ -35,13 +35,13 @@ import eu.stratosphere.addons.hbase.common.HBaseKey;
 import eu.stratosphere.addons.hbase.common.HBaseResult;
 import eu.stratosphere.addons.hbase.common.HBaseUtil;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.api.io.InputFormat;
-import eu.stratosphere.api.io.statistics.BaseStatistics;
+import eu.stratosphere.api.common.io.statistics.BaseStatistics;
+import eu.stratosphere.api.common.io.InputFormat;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.OperatingSystem;
 
 /**
- * {@link InputFormat} subclass that wraps the acccess for HTables.
+ * {@link InputFormat} subclass that wraps the access for HTables.
  */
 public class TableInputFormat implements InputFormat<Record, TableInputSplit> {
 

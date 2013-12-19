@@ -27,8 +27,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import eu.stratosphere.api.operators.CompilerHints;
-import eu.stratosphere.api.operators.util.FieldSet;
+import eu.stratosphere.api.common.operators.CompilerHints;
+import eu.stratosphere.api.common.operators.util.FieldSet;
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.dag.BinaryUnionNode;
 import eu.stratosphere.compiler.dag.BulkIterationNode;

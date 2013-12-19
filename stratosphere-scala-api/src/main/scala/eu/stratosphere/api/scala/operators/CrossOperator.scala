@@ -20,7 +20,7 @@ import eu.stratosphere.api.record.operators.MapOperator
 
 import eu.stratosphere.types.Record
 import eu.stratosphere.util.Collector
-import eu.stratosphere.api.operators.Operator
+import eu.stratosphere.api.common.operators.Operator
 import eu.stratosphere.api.record.operators.CrossOperator
 
 import eu.stratosphere.configuration.Configuration;

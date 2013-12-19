@@ -16,10 +16,10 @@ package eu.stratosphere.compiler.dag;
 import java.util.ArrayList;
 import java.util.List;
 
-import eu.stratosphere.api.operators.CompilerHints;
-import eu.stratosphere.api.operators.Ordering;
-import eu.stratosphere.api.operators.base.CoGroupOperatorBase;
-import eu.stratosphere.api.operators.util.FieldSet;
+import eu.stratosphere.api.common.operators.CompilerHints;
+import eu.stratosphere.api.common.operators.Ordering;
+import eu.stratosphere.api.common.operators.base.CoGroupOperatorBase;
+import eu.stratosphere.api.common.operators.util.FieldSet;
 import eu.stratosphere.api.record.operators.CoGroupOperator;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.operators.CoGroupDescriptor;

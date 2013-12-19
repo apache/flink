@@ -22,19 +22,19 @@ import eu.stratosphere.api.scala.analysis.UDT
 import eu.stratosphere.types.Record
 import eu.stratosphere.api.record.functions.MapFunction
 import eu.stratosphere.util.Collector
-import eu.stratosphere.api.operators.Operator
+import eu.stratosphere.api.common.operators.Operator
 import eu.stratosphere.api.scala.analysis.UDF1
 import eu.stratosphere.api.scala.analysis.UDTSerializer
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.api.operators.BulkIteration
+import eu.stratosphere.api.common.operators.BulkIteration
 import eu.stratosphere.api.scala.analysis.UDF0
-import eu.stratosphere.api.functions.AbstractFunction
+import eu.stratosphere.api.common.functions.AbstractFunction
 import eu.stratosphere.api.scala.BulkIterationScalaOperator
 import eu.stratosphere.api.scala.DeltaIterationScalaOperator
 import eu.stratosphere.api.scala.DataSet
 import eu.stratosphere.api.scala.analysis.FieldSelector
 import eu.stratosphere.api.scala.OutputHintable
-import eu.stratosphere.api.operators.WorksetIteration
+import eu.stratosphere.api.common.operators.WorksetIteration
 
 object IterateMacros {
 

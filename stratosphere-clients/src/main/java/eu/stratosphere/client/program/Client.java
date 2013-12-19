@@ -20,7 +20,7 @@ import java.io.StringWriter;
 import java.net.InetSocketAddress;
 import java.util.List;
 
-import eu.stratosphere.api.Plan;
+import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;

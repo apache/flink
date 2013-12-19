@@ -18,12 +18,12 @@ import static org.junit.Assert.fail;
 import org.junit.Assert;
 import org.junit.Test;
 
-import eu.stratosphere.api.Plan;
-import eu.stratosphere.api.operators.FileDataSink;
-import eu.stratosphere.api.operators.FileDataSource;
-import eu.stratosphere.api.operators.Order;
-import eu.stratosphere.api.operators.Ordering;
-import eu.stratosphere.api.operators.util.FieldList;
+import eu.stratosphere.api.common.Plan;
+import eu.stratosphere.api.common.operators.FileDataSink;
+import eu.stratosphere.api.common.operators.FileDataSource;
+import eu.stratosphere.api.common.operators.Order;
+import eu.stratosphere.api.common.operators.Ordering;
+import eu.stratosphere.api.common.operators.util.FieldList;
 import eu.stratosphere.api.record.operators.CoGroupOperator;
 import eu.stratosphere.api.record.operators.ReduceOperator;
 import eu.stratosphere.compiler.CompilerException;

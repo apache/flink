@@ -20,11 +20,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import eu.stratosphere.api.operators.CompilerHints;
-import eu.stratosphere.api.operators.Operator;
-import eu.stratosphere.api.operators.DualInputOperator;
-import eu.stratosphere.api.operators.util.FieldList;
-import eu.stratosphere.api.operators.util.FieldSet;
+import eu.stratosphere.api.common.operators.CompilerHints;
+import eu.stratosphere.api.common.operators.DualInputOperator;
+import eu.stratosphere.api.common.operators.Operator;
+import eu.stratosphere.api.common.operators.util.FieldList;
+import eu.stratosphere.api.common.operators.util.FieldSet;
 import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFieldsFirst;
 import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFieldsFirstExcept;
 import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFieldsSecond;

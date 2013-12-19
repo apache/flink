@@ -15,7 +15,7 @@
 
 package eu.stratosphere.pact.runtime.iterative.io;
 
-import eu.stratosphere.api.typeutils.TypeSerializer;
+import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.pact.runtime.hash.MutableHashTable;
 import eu.stratosphere.util.Collector;
 

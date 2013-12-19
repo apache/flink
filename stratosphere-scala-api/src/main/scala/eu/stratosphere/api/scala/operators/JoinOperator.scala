@@ -18,10 +18,10 @@ import scala.reflect.macros.Context
 
 import eu.stratosphere.types.Record
 import eu.stratosphere.util.Collector
-import eu.stratosphere.api.operators.Operator
+import eu.stratosphere.api.common.operators.Operator
 import eu.stratosphere.api.record.operators.JoinOperator
 import eu.stratosphere.api.record.functions.{JoinFunction => JJoinFunction}
-import eu.stratosphere.api.operators.util.UserCodeObjectWrapper
+import eu.stratosphere.api.common.operators.util.UserCodeObjectWrapper
 
 import eu.stratosphere.configuration.Configuration;
 

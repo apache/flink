@@ -15,8 +15,8 @@ package eu.stratosphere.spargel.java;
 import java.io.Serializable;
 import java.util.Iterator;
 
-import eu.stratosphere.api.functions.IterationRuntimeContext;
-import eu.stratosphere.api.functions.aggregators.Aggregator;
+import eu.stratosphere.api.common.aggregators.Aggregator;
+import eu.stratosphere.api.common.functions.IterationRuntimeContext;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.types.Key;
 import eu.stratosphere.types.Record;

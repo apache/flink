@@ -13,10 +13,10 @@
 
 package eu.stratosphere.api.record.operators;
 
-import eu.stratosphere.api.operators.base.CrossOperatorBase.CrossWithLarge;
-import eu.stratosphere.api.operators.util.UserCodeClassWrapper;
-import eu.stratosphere.api.operators.util.UserCodeObjectWrapper;
-import eu.stratosphere.api.operators.util.UserCodeWrapper;
+import eu.stratosphere.api.common.operators.base.CrossOperatorBase.CrossWithLarge;
+import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
+import eu.stratosphere.api.common.operators.util.UserCodeObjectWrapper;
+import eu.stratosphere.api.common.operators.util.UserCodeWrapper;
 import eu.stratosphere.api.record.functions.CrossFunction;
 
 

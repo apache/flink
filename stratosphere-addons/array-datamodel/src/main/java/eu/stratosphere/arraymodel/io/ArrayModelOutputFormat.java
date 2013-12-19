@@ -12,13 +12,10 @@
  **********************************************************************************************************************/
 package eu.stratosphere.arraymodel.io;
 
-import eu.stratosphere.api.io.OutputFormat;
+import eu.stratosphere.api.common.io.OutputFormat;
 import eu.stratosphere.types.Value;
 
-/**
- *
- */
-public interface ArrayModelOutputFormat extends OutputFormat<Value[]>
-{
+public interface ArrayModelOutputFormat extends OutputFormat<Value[]> {
+	
 	Class<? extends Value>[] getDataTypes();
 }

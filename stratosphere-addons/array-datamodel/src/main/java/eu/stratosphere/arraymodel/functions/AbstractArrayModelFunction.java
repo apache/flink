@@ -14,7 +14,7 @@ package eu.stratosphere.arraymodel.functions;
 
 import java.lang.reflect.Method;
 
-import eu.stratosphere.api.functions.AbstractFunction;
+import eu.stratosphere.api.common.functions.AbstractFunction;
 import eu.stratosphere.types.Value;
 
 /**

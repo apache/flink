@@ -16,11 +16,11 @@ package eu.stratosphere.compiler.plan;
 import java.util.HashMap;
 import java.util.Map;
 
-import eu.stratosphere.api.distributions.DataDistribution;
-import eu.stratosphere.api.operators.util.FieldList;
-import eu.stratosphere.api.operators.util.FieldSet;
-import eu.stratosphere.api.typeutils.TypeComparatorFactory;
-import eu.stratosphere.api.typeutils.TypeSerializerFactory;
+import eu.stratosphere.api.common.distributions.DataDistribution;
+import eu.stratosphere.api.common.operators.util.FieldList;
+import eu.stratosphere.api.common.operators.util.FieldSet;
+import eu.stratosphere.api.common.typeutils.TypeComparatorFactory;
+import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.dag.EstimateProvider;
 import eu.stratosphere.compiler.dag.TempMode;

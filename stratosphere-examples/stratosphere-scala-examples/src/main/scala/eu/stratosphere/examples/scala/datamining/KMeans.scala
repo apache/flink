@@ -14,8 +14,8 @@
 package eu.stratosphere.examples.scala.datamining
 
 import eu.stratosphere.client.LocalExecutor
-import eu.stratosphere.api.Program
-import eu.stratosphere.api.ProgramDescription
+import eu.stratosphere.api.common.Program
+import eu.stratosphere.api.common.ProgramDescription
 
 import eu.stratosphere.api.scala._
 import eu.stratosphere.api.scala.operators._

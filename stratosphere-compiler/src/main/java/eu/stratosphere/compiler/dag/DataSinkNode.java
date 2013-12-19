@@ -18,10 +18,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import eu.stratosphere.api.distributions.DataDistribution;
-import eu.stratosphere.api.operators.Operator;
-import eu.stratosphere.api.operators.GenericDataSink;
-import eu.stratosphere.api.operators.Ordering;
+import eu.stratosphere.api.common.distributions.DataDistribution;
+import eu.stratosphere.api.common.operators.GenericDataSink;
+import eu.stratosphere.api.common.operators.Operator;
+import eu.stratosphere.api.common.operators.Ordering;
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.costs.CostEstimator;

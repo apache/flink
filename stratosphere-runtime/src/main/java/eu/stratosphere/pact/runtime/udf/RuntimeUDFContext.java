@@ -14,13 +14,13 @@ package eu.stratosphere.pact.runtime.udf;
 
 import java.util.HashMap;
 
-import eu.stratosphere.api.accumulators.Accumulator;
-import eu.stratosphere.api.accumulators.AccumulatorHelper;
-import eu.stratosphere.api.accumulators.DoubleCounter;
-import eu.stratosphere.api.accumulators.Histogram;
-import eu.stratosphere.api.accumulators.IntCounter;
-import eu.stratosphere.api.accumulators.LongCounter;
-import eu.stratosphere.api.functions.RuntimeContext;
+import eu.stratosphere.api.common.accumulators.Accumulator;
+import eu.stratosphere.api.common.accumulators.AccumulatorHelper;
+import eu.stratosphere.api.common.accumulators.DoubleCounter;
+import eu.stratosphere.api.common.accumulators.Histogram;
+import eu.stratosphere.api.common.accumulators.IntCounter;
+import eu.stratosphere.api.common.accumulators.LongCounter;
+import eu.stratosphere.api.common.functions.RuntimeContext;
 
 /**
  *

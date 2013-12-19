@@ -24,7 +24,7 @@ import junit.framework.TestCase;
 
 import org.junit.Test;
 
-import eu.stratosphere.api.typeutils.TypeComparator;
+import eu.stratosphere.api.common.typeutils.TypeComparator;
 import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.pact.runtime.plugable.SerializationDelegate;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparatorFactory;

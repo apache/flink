@@ -15,7 +15,7 @@ package eu.stratosphere.compiler.dag;
 
 import java.util.Collections;
 
-import eu.stratosphere.api.operators.BulkIteration.PartialSolutionPlaceHolder;
+import eu.stratosphere.api.common.operators.BulkIteration.PartialSolutionPlaceHolder;
 import eu.stratosphere.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.compiler.plan.BulkPartialSolutionPlanNode;

@@ -15,7 +15,7 @@ package eu.stratosphere.pact.runtime.shipping;
 
 import java.util.Arrays;
 
-import eu.stratosphere.api.operators.Order;
+import eu.stratosphere.api.common.operators.Order;
 import eu.stratosphere.types.Record;
 
 public class HistogramPartitionFunction implements PartitionFunction {

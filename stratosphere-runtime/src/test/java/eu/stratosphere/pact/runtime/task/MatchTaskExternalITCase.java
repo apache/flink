@@ -17,7 +17,7 @@ import junit.framework.Assert;
 
 import org.junit.Test;
 
-import eu.stratosphere.api.functions.GenericJoiner;
+import eu.stratosphere.api.common.functions.GenericJoiner;
 import eu.stratosphere.api.record.functions.JoinFunction;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparator;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordPairComparatorFactory;

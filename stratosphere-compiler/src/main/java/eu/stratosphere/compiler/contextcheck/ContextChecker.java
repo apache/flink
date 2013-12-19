@@ -17,15 +17,15 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import eu.stratosphere.api.InvalidJobException;
-import eu.stratosphere.api.Plan;
-import eu.stratosphere.api.operators.BulkIteration;
-import eu.stratosphere.api.operators.Operator;
-import eu.stratosphere.api.operators.DualInputOperator;
-import eu.stratosphere.api.operators.FileDataSink;
-import eu.stratosphere.api.operators.FileDataSource;
-import eu.stratosphere.api.operators.GenericDataSink;
-import eu.stratosphere.api.operators.SingleInputOperator;
+import eu.stratosphere.api.common.InvalidJobException;
+import eu.stratosphere.api.common.Plan;
+import eu.stratosphere.api.common.operators.BulkIteration;
+import eu.stratosphere.api.common.operators.DualInputOperator;
+import eu.stratosphere.api.common.operators.FileDataSink;
+import eu.stratosphere.api.common.operators.FileDataSource;
+import eu.stratosphere.api.common.operators.GenericDataSink;
+import eu.stratosphere.api.common.operators.Operator;
+import eu.stratosphere.api.common.operators.SingleInputOperator;
 import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.util.Visitor;
 

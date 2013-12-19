@@ -16,7 +16,7 @@ package eu.stratosphere.compiler.plan;
 import java.util.Collections;
 import java.util.Iterator;
 
-import eu.stratosphere.api.typeutils.TypeSerializerFactory;
+import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
 import eu.stratosphere.compiler.dag.DataSourceNode;
 import eu.stratosphere.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.compiler.dataproperties.LocalProperties;

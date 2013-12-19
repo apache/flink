@@ -13,7 +13,7 @@
 
 package eu.stratosphere.pact.runtime.iterative.event;
 
-import eu.stratosphere.api.functions.aggregators.Aggregator;
+import eu.stratosphere.api.common.aggregators.Aggregator;
 import eu.stratosphere.types.Value;
 
 import java.io.DataInput;

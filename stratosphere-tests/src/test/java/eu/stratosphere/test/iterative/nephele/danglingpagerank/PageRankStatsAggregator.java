@@ -13,7 +13,7 @@
 
 package eu.stratosphere.test.iterative.nephele.danglingpagerank;
 
-import eu.stratosphere.api.functions.aggregators.Aggregator;
+import eu.stratosphere.api.common.aggregators.Aggregator;
 
 public class PageRankStatsAggregator implements Aggregator<PageRankStats> {
 

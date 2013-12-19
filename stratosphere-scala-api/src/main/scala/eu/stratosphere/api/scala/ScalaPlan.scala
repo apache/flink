@@ -14,15 +14,15 @@
 package eu.stratosphere.api.scala
 
 import scala.collection.JavaConversions.asJavaCollection
-import eu.stratosphere.api.Plan
+import eu.stratosphere.api.common.Plan
 import eu.stratosphere.compiler.plan.OptimizedPlan
 import eu.stratosphere.compiler.postpass.RecordModelPostPass
 import java.util.Calendar
-import eu.stratosphere.api.operators.Operator
+import eu.stratosphere.api.common.operators.Operator
 import eu.stratosphere.api.scala.analysis.GlobalSchemaGenerator
 import eu.stratosphere.api.scala.analysis.postPass.GlobalSchemaOptimizer
-import eu.stratosphere.api.Program
-import eu.stratosphere.api.ProgramDescription
+import eu.stratosphere.api.common.Program
+import eu.stratosphere.api.common.ProgramDescription
 
 class ScalaPlan(scalaSinks: Seq[ScalaSink[_]], scalaJobName: String = "PACT SCALA Job at " + Calendar.getInstance().getTime()) extends Plan(asJavaCollection(scalaSinks map { _.sink }), scalaJobName) {
   val pactSinks = scalaSinks map { _.sink.asInstanceOf[Operator with ScalaOperator[_]] }

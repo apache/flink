@@ -16,7 +16,7 @@ package eu.stratosphere.arraymodel.functions;
 import java.lang.reflect.Method;
 import java.util.Iterator;
 
-import eu.stratosphere.api.functions.GenericReducer;
+import eu.stratosphere.api.common.functions.GenericReducer;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.types.CopyableValue;
 import eu.stratosphere.types.Value;

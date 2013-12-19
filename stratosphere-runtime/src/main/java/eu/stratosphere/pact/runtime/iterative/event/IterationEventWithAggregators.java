@@ -13,7 +13,7 @@
 
 package eu.stratosphere.pact.runtime.iterative.event;
 
-import eu.stratosphere.api.functions.aggregators.Aggregator;
+import eu.stratosphere.api.common.aggregators.Aggregator;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.types.Value;
 import eu.stratosphere.util.InstantiationUtil;

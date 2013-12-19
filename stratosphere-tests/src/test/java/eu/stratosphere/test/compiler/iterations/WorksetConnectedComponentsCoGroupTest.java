@@ -15,8 +15,8 @@ package eu.stratosphere.test.compiler.iterations;
 import org.junit.Assert;
 import org.junit.Test;
 
-import eu.stratosphere.api.Plan;
-import eu.stratosphere.api.operators.util.FieldList;
+import eu.stratosphere.api.common.Plan;
+import eu.stratosphere.api.common.operators.util.FieldList;
 import eu.stratosphere.compiler.dag.TempMode;
 import eu.stratosphere.compiler.plan.DualInputPlanNode;
 import eu.stratosphere.compiler.plan.OptimizedPlan;

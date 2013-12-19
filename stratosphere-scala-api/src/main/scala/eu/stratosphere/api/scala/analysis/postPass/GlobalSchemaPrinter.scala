@@ -29,11 +29,11 @@ import eu.stratosphere.compiler.dag.SinkJoiner
 import eu.stratosphere.compiler.plan.OptimizedPlan
 import eu.stratosphere.api.scala.analysis.FieldSet
 import eu.stratosphere.api.scala.analysis.FieldSelector
-import eu.stratosphere.api.Plan
-import eu.stratosphere.api.operators.Operator
-import eu.stratosphere.api.operators.SingleInputOperator
-import eu.stratosphere.api.operators.DualInputOperator
-import eu.stratosphere.api.operators.GenericDataSink
+import eu.stratosphere.api.common.Plan
+import eu.stratosphere.api.common.operators.Operator
+import eu.stratosphere.api.common.operators.SingleInputOperator
+import eu.stratosphere.api.common.operators.DualInputOperator
+import eu.stratosphere.api.common.operators.GenericDataSink
 import org.apache.commons.logging.{LogFactory, Log}
 
 object GlobalSchemaPrinter {

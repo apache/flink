@@ -20,8 +20,8 @@ import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.apache.log4j.PatternLayout;
 
-import eu.stratosphere.api.Plan;
-import eu.stratosphere.api.Program;
+import eu.stratosphere.api.common.Plan;
+import eu.stratosphere.api.common.Program;
 import eu.stratosphere.client.minicluster.NepheleMiniCluster;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;

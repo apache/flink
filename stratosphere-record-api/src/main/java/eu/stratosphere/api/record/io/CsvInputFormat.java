@@ -15,11 +15,11 @@ package eu.stratosphere.api.record.io;
 
 import java.io.IOException;
 
-import eu.stratosphere.api.io.GenericCsvInputFormat;
-import eu.stratosphere.api.io.ParseException;
-import eu.stratosphere.api.operators.CompilerHints;
-import eu.stratosphere.api.operators.Operator;
-import eu.stratosphere.api.operators.FileDataSource;
+import eu.stratosphere.api.common.operators.CompilerHints;
+import eu.stratosphere.api.common.operators.FileDataSource;
+import eu.stratosphere.api.common.operators.Operator;
+import eu.stratosphere.api.common.io.GenericCsvInputFormat;
+import eu.stratosphere.api.common.io.ParseException;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.configuration.IllegalConfigurationException;
 import eu.stratosphere.core.fs.FileInputSplit;

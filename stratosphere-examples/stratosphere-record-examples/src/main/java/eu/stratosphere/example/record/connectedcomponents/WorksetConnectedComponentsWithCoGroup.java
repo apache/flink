@@ -16,12 +16,12 @@ package eu.stratosphere.example.record.connectedcomponents;
 import java.io.Serializable;
 import java.util.Iterator;
 
-import eu.stratosphere.api.Plan;
-import eu.stratosphere.api.Program;
-import eu.stratosphere.api.ProgramDescription;
-import eu.stratosphere.api.operators.FileDataSink;
-import eu.stratosphere.api.operators.FileDataSource;
-import eu.stratosphere.api.operators.WorksetIteration;
+import eu.stratosphere.api.common.Plan;
+import eu.stratosphere.api.common.Program;
+import eu.stratosphere.api.common.ProgramDescription;
+import eu.stratosphere.api.common.operators.FileDataSink;
+import eu.stratosphere.api.common.operators.FileDataSource;
+import eu.stratosphere.api.common.operators.WorksetIteration;
 import eu.stratosphere.api.record.functions.CoGroupFunction;
 import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFieldsFirst;
 import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFieldsSecond;

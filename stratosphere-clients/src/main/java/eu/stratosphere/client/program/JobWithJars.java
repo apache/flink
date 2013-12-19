@@ -22,7 +22,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import eu.stratosphere.api.Plan;
+import eu.stratosphere.api.common.Plan;
 
 public class JobWithJars {
 	

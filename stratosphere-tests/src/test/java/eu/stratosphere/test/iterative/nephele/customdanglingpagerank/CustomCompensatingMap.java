@@ -13,8 +13,8 @@
 
 package eu.stratosphere.test.iterative.nephele.customdanglingpagerank;
 
-import eu.stratosphere.api.functions.AbstractFunction;
-import eu.stratosphere.api.functions.GenericMapper;
+import eu.stratosphere.api.common.functions.AbstractFunction;
+import eu.stratosphere.api.common.functions.GenericMapper;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.test.iterative.nephele.ConfigUtils;
 import eu.stratosphere.test.iterative.nephele.customdanglingpagerank.types.VertexWithRankAndDangling;

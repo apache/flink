@@ -16,8 +16,8 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
-import eu.stratosphere.api.functions.aggregators.Aggregator;
-import eu.stratosphere.api.functions.aggregators.AggregatorWithName;
+import eu.stratosphere.api.common.aggregators.Aggregator;
+import eu.stratosphere.api.common.aggregators.AggregatorWithName;
 import eu.stratosphere.types.Value;
 import eu.stratosphere.util.InstantiationUtil;
 

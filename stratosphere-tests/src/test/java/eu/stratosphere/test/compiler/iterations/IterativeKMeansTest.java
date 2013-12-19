@@ -17,9 +17,9 @@ import java.util.Arrays;
 import org.junit.Assert;
 import org.junit.Test;
 
-import eu.stratosphere.api.Plan;
-import eu.stratosphere.api.operators.FileDataSource;
-import eu.stratosphere.api.operators.util.FieldList;
+import eu.stratosphere.api.common.Plan;
+import eu.stratosphere.api.common.operators.FileDataSource;
+import eu.stratosphere.api.common.operators.util.FieldList;
 import eu.stratosphere.api.record.operators.CrossOperator;
 import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.plan.BulkIterationPlanNode;

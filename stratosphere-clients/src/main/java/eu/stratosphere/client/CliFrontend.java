@@ -35,7 +35,7 @@ import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.PosixParser;
 import org.apache.commons.cli.UnrecognizedOptionException;
 
-import eu.stratosphere.api.accumulators.AccumulatorHelper;
+import eu.stratosphere.api.common.accumulators.AccumulatorHelper;
 import eu.stratosphere.client.program.Client;
 import eu.stratosphere.client.program.JobInstantiationException;
 import eu.stratosphere.client.program.PackagedProgram;

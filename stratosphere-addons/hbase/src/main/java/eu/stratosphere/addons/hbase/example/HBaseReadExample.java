@@ -25,12 +25,12 @@ import eu.stratosphere.addons.hbase.common.HBaseResult;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;
-import eu.stratosphere.api.operators.FileDataSink;
-import eu.stratosphere.api.operators.GenericDataSource;
+import eu.stratosphere.api.common.Plan;
+import eu.stratosphere.api.common.Program;
+import eu.stratosphere.api.common.ProgramDescription;
+import eu.stratosphere.api.common.operators.FileDataSink;
+import eu.stratosphere.api.common.operators.GenericDataSource;
 import eu.stratosphere.api.record.io.CsvOutputFormat;
-import eu.stratosphere.api.Plan;
-import eu.stratosphere.api.Program;
-import eu.stratosphere.api.ProgramDescription;
 
 /**
  * Implements a word count which takes the input file and counts the number of

@@ -25,8 +25,8 @@ import junit.framework.TestCase;
 
 import org.junit.Test;
 
-import eu.stratosphere.api.distributions.DataDistribution;
-import eu.stratosphere.api.distributions.UniformIntegerDistribution;
+import eu.stratosphere.api.common.distributions.DataDistribution;
+import eu.stratosphere.api.common.distributions.UniformIntegerDistribution;
 import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparator;
 import eu.stratosphere.pact.runtime.shipping.RecordOutputEmitter;

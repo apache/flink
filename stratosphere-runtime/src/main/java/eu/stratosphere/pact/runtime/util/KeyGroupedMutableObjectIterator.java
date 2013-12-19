@@ -15,8 +15,8 @@ package eu.stratosphere.pact.runtime.util;
 
 import java.io.IOException;
 
-import eu.stratosphere.api.typeutils.TypeComparator;
-import eu.stratosphere.api.typeutils.TypeSerializer;
+import eu.stratosphere.api.common.typeutils.TypeComparator;
+import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.util.MutableObjectIterator;
 
 /**

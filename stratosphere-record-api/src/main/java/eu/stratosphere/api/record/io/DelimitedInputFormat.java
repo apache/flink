@@ -22,7 +22,7 @@ import eu.stratosphere.types.Record;
  * <p>
  * The default delimiter is the newline character {@code '\n'}.
  */
-public abstract class DelimitedInputFormat extends eu.stratosphere.api.io.DelimitedInputFormat<Record> {
+public abstract class DelimitedInputFormat extends eu.stratosphere.api.common.io.DelimitedInputFormat<Record> {
 	
 	private static final long serialVersionUID = -2297199268758915692L;
 

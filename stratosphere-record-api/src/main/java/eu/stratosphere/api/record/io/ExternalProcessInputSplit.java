@@ -23,7 +23,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-import eu.stratosphere.api.io.InputFormat;
+import eu.stratosphere.api.common.io.InputFormat;
 import eu.stratosphere.core.io.GenericInputSplit;
 import eu.stratosphere.core.io.StringRecord;
 

@@ -15,11 +15,11 @@ package eu.stratosphere.test.iterative.nephele;
 
 import java.io.IOException;
 
-import eu.stratosphere.api.io.FileInputFormat;
-import eu.stratosphere.api.io.InputFormat;
-import eu.stratosphere.api.operators.util.UserCodeClassWrapper;
-import eu.stratosphere.api.operators.util.UserCodeObjectWrapper;
-import eu.stratosphere.api.operators.util.UserCodeWrapper;
+import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
+import eu.stratosphere.api.common.operators.util.UserCodeObjectWrapper;
+import eu.stratosphere.api.common.operators.util.UserCodeWrapper;
+import eu.stratosphere.api.common.io.FileInputFormat;
+import eu.stratosphere.api.common.io.InputFormat;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.client.JobExecutionException;

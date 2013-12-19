@@ -18,9 +18,9 @@ import java.util.List;
 import org.junit.After;
 import org.junit.Assert;
 
-import eu.stratosphere.api.functions.Function;
-import eu.stratosphere.api.operators.util.UserCodeClassWrapper;
-import eu.stratosphere.api.operators.util.UserCodeObjectWrapper;
+import eu.stratosphere.api.common.functions.Function;
+import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
+import eu.stratosphere.api.common.operators.util.UserCodeObjectWrapper;
 import eu.stratosphere.api.record.io.DelimitedInputFormat;
 import eu.stratosphere.api.record.io.FileOutputFormat;
 import eu.stratosphere.configuration.Configuration;

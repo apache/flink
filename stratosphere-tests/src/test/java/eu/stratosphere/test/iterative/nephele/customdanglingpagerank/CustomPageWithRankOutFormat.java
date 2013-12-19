@@ -15,7 +15,7 @@ package eu.stratosphere.test.iterative.nephele.customdanglingpagerank;
 
 import com.google.common.base.Charsets;
 
-import eu.stratosphere.api.io.FileOutputFormat;
+import eu.stratosphere.api.common.io.FileOutputFormat;
 import eu.stratosphere.test.iterative.nephele.customdanglingpagerank.types.VertexWithRankAndDangling;
 
 import java.io.IOException;

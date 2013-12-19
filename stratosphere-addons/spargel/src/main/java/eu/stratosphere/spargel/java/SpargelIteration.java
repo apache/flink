@@ -16,8 +16,8 @@ import java.io.IOException;
 import java.util.Iterator;
 
 import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFieldsFirst;
-import eu.stratosphere.api.operators.Operator;
-import eu.stratosphere.api.operators.WorksetIteration;
+import eu.stratosphere.api.common.operators.Operator;
+import eu.stratosphere.api.common.operators.WorksetIteration;
 import eu.stratosphere.api.record.functions.CoGroupFunction;
 import eu.stratosphere.api.record.operators.CoGroupOperator;
 import eu.stratosphere.configuration.Configuration;

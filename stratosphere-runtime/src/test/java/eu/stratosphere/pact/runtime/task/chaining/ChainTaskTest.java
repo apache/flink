@@ -20,8 +20,8 @@ import java.util.List;
 import org.junit.Assert;
 import org.junit.Test;
 
-import eu.stratosphere.api.functions.GenericMapper;
-import eu.stratosphere.api.operators.util.UserCodeClassWrapper;
+import eu.stratosphere.api.common.functions.GenericMapper;
+import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
 import eu.stratosphere.api.record.functions.ReduceFunction;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparatorFactory;

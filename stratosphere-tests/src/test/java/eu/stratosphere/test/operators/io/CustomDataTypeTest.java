@@ -23,10 +23,10 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import eu.stratosphere.api.Plan;
-import eu.stratosphere.api.io.OutputFormat;
-import eu.stratosphere.api.operators.GenericDataSink;
-import eu.stratosphere.api.operators.GenericDataSource;
+import eu.stratosphere.api.common.Plan;
+import eu.stratosphere.api.common.operators.GenericDataSink;
+import eu.stratosphere.api.common.operators.GenericDataSource;
+import eu.stratosphere.api.common.io.OutputFormat;
 import eu.stratosphere.api.record.io.GenericInputFormat;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;

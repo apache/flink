@@ -15,11 +15,12 @@ package eu.stratosphere.example.record.incremental.pagerank;
 
 import java.util.Iterator;
 
-import eu.stratosphere.api.Plan;
-import eu.stratosphere.api.Program;
-import eu.stratosphere.api.ProgramDescription;
-import eu.stratosphere.api.operators.FileDataSink;
-import eu.stratosphere.api.operators.FileDataSource;
+import eu.stratosphere.api.common.Plan;
+import eu.stratosphere.api.common.Program;
+import eu.stratosphere.api.common.ProgramDescription;
+import eu.stratosphere.api.common.operators.FileDataSink;
+import eu.stratosphere.api.common.operators.FileDataSource;
+import eu.stratosphere.api.common.operators.WorksetIteration;
 import eu.stratosphere.api.record.operators.JoinOperator;
 import eu.stratosphere.api.record.operators.ReduceOperator;
 import eu.stratosphere.api.record.operators.ReduceOperator.Combinable;
@@ -33,7 +34,6 @@ import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFieldsSec
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.DoubleValue;
 import eu.stratosphere.types.LongValue;
-import eu.stratosphere.api.operators.WorksetIteration;
 
 public class DeltaPageRankWithInitialDeltas implements Program, ProgramDescription {
 

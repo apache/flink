@@ -13,7 +13,7 @@
 
 package eu.stratosphere.test.iterative.nephele.customdanglingpagerank;
 
-import eu.stratosphere.api.io.DelimitedInputFormat;
+import eu.stratosphere.api.common.io.DelimitedInputFormat;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.test.iterative.nephele.ConfigUtils;
 import eu.stratosphere.test.iterative.nephele.customdanglingpagerank.types.VertexWithRankAndDangling;

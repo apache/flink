@@ -16,7 +16,7 @@ package eu.stratosphere.pact.runtime.task;
 import java.io.IOException;
 import java.util.ArrayList;
 
-import eu.stratosphere.api.typeutils.TypeSerializer;
+import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.core.memory.DataInputView;
 import eu.stratosphere.core.memory.MemorySegment;
 import eu.stratosphere.nephele.services.iomanager.IOManager;

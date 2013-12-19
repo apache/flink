@@ -15,9 +15,9 @@ package eu.stratosphere.test.cancelling;
 
 import org.junit.Test;
 
-import eu.stratosphere.api.Plan;
-import eu.stratosphere.api.operators.GenericDataSink;
-import eu.stratosphere.api.operators.GenericDataSource;
+import eu.stratosphere.api.common.Plan;
+import eu.stratosphere.api.common.operators.GenericDataSink;
+import eu.stratosphere.api.common.operators.GenericDataSource;
 import eu.stratosphere.api.record.functions.MapFunction;
 import eu.stratosphere.api.record.operators.MapOperator;
 import eu.stratosphere.configuration.Configuration;

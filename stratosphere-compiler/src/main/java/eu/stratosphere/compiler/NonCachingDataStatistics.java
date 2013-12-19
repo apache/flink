@@ -13,7 +13,7 @@
 
 package eu.stratosphere.compiler;
 
-import eu.stratosphere.api.io.statistics.BaseStatistics;
+import eu.stratosphere.api.common.io.statistics.BaseStatistics;
 
 /**
  * A variant of the data statistics that never caches.

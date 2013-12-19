@@ -18,7 +18,7 @@ package eu.stratosphere.examples.scala.datamining;
 //import eu.stratosphere.api.scala._
 //import eu.stratosphere.api.scala.operators.DelimitedDataSinkFormat
 //import eu.stratosphere.api.scala.operators.DelimitedDataSourceFormat
-//import eu.stratosphere.api.ProgramDescription
+//import eu.stratosphere.api.common.ProgramDescription
 //import eu.stratosphere.client.LocalExecutor
 //import eu.stratosphere.api.scala.analysis.GlobalSchemaPrinter
 //

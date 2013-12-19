@@ -13,7 +13,7 @@
 
 package eu.stratosphere.pact.runtime.plugable.arrayrecord;
 
-import eu.stratosphere.api.typeutils.TypePairComparator;
+import eu.stratosphere.api.common.typeutils.TypePairComparator;
 import eu.stratosphere.types.CopyableValue;
 import eu.stratosphere.types.Key;
 import eu.stratosphere.types.NullKeyFieldException;

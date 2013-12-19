@@ -15,10 +15,10 @@ package eu.stratosphere.pact.runtime.task;
 
 import java.util.List;
 
-import eu.stratosphere.api.functions.GenericJoiner;
-import eu.stratosphere.api.typeutils.TypeComparator;
-import eu.stratosphere.api.typeutils.TypePairComparatorFactory;
-import eu.stratosphere.api.typeutils.TypeSerializer;
+import eu.stratosphere.api.common.functions.GenericJoiner;
+import eu.stratosphere.api.common.typeutils.TypeComparator;
+import eu.stratosphere.api.common.typeutils.TypePairComparatorFactory;
+import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.core.memory.MemorySegment;
 import eu.stratosphere.pact.runtime.hash.MutableHashTable;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;

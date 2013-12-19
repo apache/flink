@@ -13,7 +13,7 @@
 
 package eu.stratosphere.pact.runtime.iterative.task;
 
-import eu.stratosphere.api.functions.Function;
+import eu.stratosphere.api.common.functions.Function;
 import eu.stratosphere.nephele.io.AbstractRecordWriter;
 import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.EndOfSuperstepEvent;

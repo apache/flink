@@ -23,7 +23,7 @@ import junit.framework.Assert;
 
 import org.junit.Test;
 
-import eu.stratosphere.api.distributions.SimpleDistribution;
+import eu.stratosphere.api.common.distributions.SimpleDistribution;
 import eu.stratosphere.types.Key;
 import eu.stratosphere.types.DoubleValue;
 import eu.stratosphere.types.IntValue;

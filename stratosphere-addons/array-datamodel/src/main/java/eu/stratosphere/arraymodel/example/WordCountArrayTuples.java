@@ -16,16 +16,16 @@ package eu.stratosphere.arraymodel.example;
 import java.util.Iterator;
 
 import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFields;
-import eu.stratosphere.api.operators.FileDataSink;
-import eu.stratosphere.api.operators.FileDataSource;
-import eu.stratosphere.api.operators.base.MapOperatorBase;
-import eu.stratosphere.api.operators.base.ReduceOperatorBase;
-import eu.stratosphere.api.operators.base.ReduceOperatorBase.Combinable;
-import eu.stratosphere.api.Plan;
-import eu.stratosphere.api.Program;
-import eu.stratosphere.api.ProgramDescription;
+import eu.stratosphere.api.common.Plan;
+import eu.stratosphere.api.common.Program;
+import eu.stratosphere.api.common.ProgramDescription;
+import eu.stratosphere.api.common.operators.FileDataSink;
+import eu.stratosphere.api.common.operators.FileDataSource;
+import eu.stratosphere.api.common.operators.base.MapOperatorBase;
+import eu.stratosphere.api.common.operators.base.ReduceOperatorBase;
+import eu.stratosphere.api.common.operators.base.ReduceOperatorBase.Combinable;
 import eu.stratosphere.api.record.io.TextInputFormat;
-import eu.stratosphere.arraymodel.ArrayModelJob;
+import eu.stratosphere.arraymodel.ArrayModelPlan;
 import eu.stratosphere.arraymodel.functions.DataTypes;
 import eu.stratosphere.arraymodel.functions.MapFunction;
 import eu.stratosphere.arraymodel.functions.ReduceFunction;
@@ -127,7 +127,7 @@ public class WordCountArrayTuples implements Program, ProgramDescription {
 			.fieldDelimiter(' ')
 			.lenient(true);
 		
-		ArrayModelJob plan = new ArrayModelJob(out, "WordCount Example");
+		ArrayModelPlan plan = new ArrayModelPlan(out, "WordCount Example");
 		plan.setDefaultParallelism(numSubTasks);
 		return plan;
 	}

@@ -15,7 +15,7 @@ package eu.stratosphere.compiler.plan;
 
 import java.util.Collection;
 
-import eu.stratosphere.api.Plan;
+import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.util.Visitable;
 import eu.stratosphere.util.Visitor;
 

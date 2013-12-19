@@ -15,8 +15,8 @@ package eu.stratosphere.api.scala.analysis.postPass
 
 import eu.stratosphere.api.record.operators.CoGroupOperator
 import eu.stratosphere.api.record.operators.CrossOperator
-import eu.stratosphere.api.operators.GenericDataSink
-import eu.stratosphere.api.operators.GenericDataSource
+import eu.stratosphere.api.common.operators.GenericDataSink
+import eu.stratosphere.api.common.operators.GenericDataSource
 import eu.stratosphere.api.record.operators.MapOperator
 import eu.stratosphere.api.record.operators.JoinOperator
 import eu.stratosphere.api.record.operators.ReduceOperator
@@ -33,7 +33,7 @@ import eu.stratosphere.compiler.dag.PactConnection
 import eu.stratosphere.compiler.dag.ReduceNode
 import eu.stratosphere.compiler.dag.SinkJoiner
 import eu.stratosphere.compiler.dag.WorksetIterationNode
-import eu.stratosphere.api.operators.WorksetIteration
+import eu.stratosphere.api.common.operators.WorksetIteration
 import eu.stratosphere.api.scala.ScalaOperator
 import eu.stratosphere.api.scala.OneInputScalaOperator
 import eu.stratosphere.api.scala.OneInputKeyedScalaOperator
@@ -46,7 +46,7 @@ import eu.stratosphere.api.scala.analysis.UDF0
 import eu.stratosphere.api.scala.analysis.UDF1
 import eu.stratosphere.api.scala.analysis.UDF2
 import eu.stratosphere.api.scala.BulkIterationScalaOperator
-import eu.stratosphere.api.operators.BulkIteration
+import eu.stratosphere.api.common.operators.BulkIteration
 import eu.stratosphere.api.scala.UnionScalaOperator
 
 object Extractors {

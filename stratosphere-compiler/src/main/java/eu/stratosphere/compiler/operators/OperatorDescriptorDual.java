@@ -15,7 +15,7 @@ package eu.stratosphere.compiler.operators;
 
 import java.util.List;
 
-import eu.stratosphere.api.operators.util.FieldList;
+import eu.stratosphere.api.common.operators.util.FieldList;
 import eu.stratosphere.compiler.dag.TwoInputNode;
 import eu.stratosphere.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.compiler.dataproperties.LocalProperties;

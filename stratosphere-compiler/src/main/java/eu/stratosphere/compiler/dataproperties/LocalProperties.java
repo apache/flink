@@ -16,9 +16,9 @@ package eu.stratosphere.compiler.dataproperties;
 import java.util.HashSet;
 import java.util.Set;
 
-import eu.stratosphere.api.operators.Ordering;
-import eu.stratosphere.api.operators.util.FieldList;
-import eu.stratosphere.api.operators.util.FieldSet;
+import eu.stratosphere.api.common.operators.Ordering;
+import eu.stratosphere.api.common.operators.util.FieldList;
+import eu.stratosphere.api.common.operators.util.FieldSet;
 import eu.stratosphere.compiler.dag.OptimizerNode;
 
 /**

@@ -17,12 +17,12 @@ import eu.stratosphere.api.scala.analysis._
 import eu.stratosphere.api.scala.functions._
 import eu.stratosphere.types._
 import eu.stratosphere.types.parser._
-import eu.stratosphere.api.io.InputFormat
-import eu.stratosphere.api.operators.GenericDataSource
-import eu.stratosphere.api.operators.FileDataSource
+import eu.stratosphere.api.common.io.InputFormat
+import eu.stratosphere.api.common.operators.GenericDataSource
+import eu.stratosphere.api.common.operators.FileDataSource
 import eu.stratosphere.configuration.Configuration
-import eu.stratosphere.api.io.FileInputFormat
-import eu.stratosphere.api.io.GenericInputFormat
+import eu.stratosphere.api.common.io.FileInputFormat
+import eu.stratosphere.api.common.io.GenericInputFormat
 import eu.stratosphere.api.scala.operators.TextInputFormat
 
 object DataSource {

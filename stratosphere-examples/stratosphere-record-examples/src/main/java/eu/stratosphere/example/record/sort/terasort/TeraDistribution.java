@@ -16,7 +16,7 @@ package eu.stratosphere.example.record.sort.terasort;
 import java.io.DataInput;
 import java.io.DataOutput;
 
-import eu.stratosphere.api.distributions.DataDistribution;
+import eu.stratosphere.api.common.distributions.DataDistribution;
 import eu.stratosphere.types.Key;
 
 /**

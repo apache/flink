@@ -13,9 +13,9 @@
 
 package eu.stratosphere.pact.runtime.plugable.pactrecord;
 
-import eu.stratosphere.api.typeutils.TypeComparator;
-import eu.stratosphere.api.typeutils.TypePairComparator;
-import eu.stratosphere.api.typeutils.TypePairComparatorFactory;
+import eu.stratosphere.api.common.typeutils.TypeComparator;
+import eu.stratosphere.api.common.typeutils.TypePairComparator;
+import eu.stratosphere.api.common.typeutils.TypePairComparatorFactory;
 import eu.stratosphere.types.Key;
 import eu.stratosphere.types.Record;
 

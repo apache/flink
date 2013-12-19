@@ -30,9 +30,9 @@ import eu.stratosphere.types.parser.FieldParser
 import eu.stratosphere.types.parser.VarLengthStringParser
 import eu.stratosphere.api.scala.ScalaInputFormat
 import eu.stratosphere.api.scala.analysis.{UDTSerializer, OutputField, UDF0, UDT}
-import eu.stratosphere.api.io.{InputFormat => JavaInputFormat}
-import eu.stratosphere.api.io.{BinaryInputFormat => JavaBinaryInputFormat}
-import eu.stratosphere.api.io.{SerializedInputFormat => JavaSerializedInputFormat}
+import eu.stratosphere.api.common.io.{InputFormat => JavaInputFormat}
+import eu.stratosphere.api.common.io.{BinaryInputFormat => JavaBinaryInputFormat}
+import eu.stratosphere.api.common.io.{SerializedInputFormat => JavaSerializedInputFormat}
 import eu.stratosphere.api.record.io.{DelimitedInputFormat => JavaDelimitedInputFormat}
 import eu.stratosphere.api.record.io.{FixedLengthInputFormat => JavaFixedLengthInputFormat}
 import eu.stratosphere.api.record.io.{CsvInputFormat => JavaCsvInputFormat}

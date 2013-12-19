@@ -15,7 +15,7 @@ package eu.stratosphere.arraymodel.functions;
 
 import java.lang.reflect.Method;
 
-import eu.stratosphere.api.functions.GenericJoiner;
+import eu.stratosphere.api.common.functions.GenericJoiner;
 import eu.stratosphere.types.Value;
 import eu.stratosphere.util.Collector;
 

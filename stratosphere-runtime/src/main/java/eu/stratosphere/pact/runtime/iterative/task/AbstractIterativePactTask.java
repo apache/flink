@@ -13,13 +13,13 @@
 
 package eu.stratosphere.pact.runtime.iterative.task;
 
-import eu.stratosphere.api.functions.IterationRuntimeContext;
-import eu.stratosphere.api.functions.RuntimeContext;
-import eu.stratosphere.api.functions.Function;
-import eu.stratosphere.api.functions.aggregators.Aggregator;
-import eu.stratosphere.api.functions.aggregators.LongSumAggregator;
-import eu.stratosphere.api.typeutils.TypeSerializer;
-import eu.stratosphere.api.typeutils.TypeSerializerFactory;
+import eu.stratosphere.api.common.aggregators.Aggregator;
+import eu.stratosphere.api.common.aggregators.LongSumAggregator;
+import eu.stratosphere.api.common.functions.Function;
+import eu.stratosphere.api.common.functions.IterationRuntimeContext;
+import eu.stratosphere.api.common.functions.RuntimeContext;
+import eu.stratosphere.api.common.typeutils.TypeSerializer;
+import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
 import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.io.MutableReader;

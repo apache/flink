@@ -14,13 +14,13 @@
 package eu.stratosphere.api.scala
 
 import java.lang.annotation.Annotation
-import eu.stratosphere.api.operators.Operator
+import eu.stratosphere.api.common.operators.Operator
 import eu.stratosphere.api.scala.analysis.UDF
 import eu.stratosphere.api.scala.analysis.UDF1
 import eu.stratosphere.api.scala.analysis.UDF2
 import eu.stratosphere.api.scala.analysis.FieldSelector
 import eu.stratosphere.compiler.dag.OptimizerNode
-import eu.stratosphere.api.operators.AbstractUdfOperator
+import eu.stratosphere.api.common.operators.AbstractUdfOperator
 import eu.stratosphere.api.scala.analysis.UDF0
 import eu.stratosphere.api.record.functions.FunctionAnnotation
 

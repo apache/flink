@@ -12,13 +12,13 @@
  **********************************************************************************************************************/
 package eu.stratosphere.arraymodel.optimizer;
 
-import eu.stratosphere.api.functions.Function;
-import eu.stratosphere.api.io.OutputFormat;
-import eu.stratosphere.api.operators.DualInputOperator;
-import eu.stratosphere.api.operators.GenericDataSink;
-import eu.stratosphere.api.operators.Ordering;
-import eu.stratosphere.api.operators.SingleInputOperator;
-import eu.stratosphere.api.operators.util.FieldList;
+import eu.stratosphere.api.common.functions.Function;
+import eu.stratosphere.api.common.operators.DualInputOperator;
+import eu.stratosphere.api.common.operators.GenericDataSink;
+import eu.stratosphere.api.common.operators.Ordering;
+import eu.stratosphere.api.common.operators.SingleInputOperator;
+import eu.stratosphere.api.common.operators.util.FieldList;
+import eu.stratosphere.api.common.io.OutputFormat;
 import eu.stratosphere.arraymodel.functions.AbstractArrayModelFunction;
 import eu.stratosphere.arraymodel.io.ArrayModelOutputFormat;
 import eu.stratosphere.compiler.CompilerException;

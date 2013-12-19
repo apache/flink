@@ -13,7 +13,7 @@
 
 package eu.stratosphere.compiler.contextcheck;
 
-import eu.stratosphere.api.InvalidJobException;
+import eu.stratosphere.api.common.InvalidJobException;
 
 public class MissingChildException extends InvalidJobException {
 	
