@@ -5,7 +5,7 @@ var widthProgressbar = 120;
 var colors = [ "#37485D", "#D9AADC", "#4F7C61", "#8F9C6A", "#BC8E88" ];
 
 (function poll() {
-	$.ajax({ url : "/jobsInfo", type : "GET", success : function(json) {
+	$.ajax({ url : "jobsInfo", type : "GET", success : function(json) {
 	    jsonGlobal = json
 	    // Fill Table	
 	    fillTable("#jobs", json)
@@ -16,7 +16,7 @@ var colors = [ "#37485D", "#D9AADC", "#4F7C61", "#8F9C6A", "#BC8E88" ];
 })();
 
 (function pollArchive() {
-	$.ajax({ url : "/jobsInfo?get=archive", type : "GET",
+	$.ajax({ url : "jobsInfo?get=archive", type : "GET",
 	    success : function(json) {
 		// Fill Table	
 		fillTableArchive("#jobsArchive", json)
@@ -27,7 +27,7 @@ var colors = [ "#37485D", "#D9AADC", "#4F7C61", "#8F9C6A", "#BC8E88" ];
 })();
 
 (function pollTaskmanagers() {
-	$.ajax({ url : "/jobsInfo?get=taskmanagers", type : "GET",
+	$.ajax({ url : "jobsInfo?get=taskmanagers", type : "GET",
 	    success : function(json) {
 		$("#stat-taskmanagers").html(json.taskmanagers);
 	    }, dataType : "json",
@@ -47,7 +47,7 @@ $(".opensub").live("click", function() {
 
 $(".cancel").live("click", function() {
 	var id = $(this).attr("job");
-	$.ajax({ url : "/jobsInfo?get=cancel&job=" + id, type : "GET",
+	$.ajax({ url : "jobsInfo?get=cancel&job=" + id, type : "GET",
 	    success : function(json) {
 	    }
 	//complete: setTimeout(function() {poll()}, 5000),
@@ -219,7 +219,7 @@ function fillTableArchive(table, json) {
 	var canceled = 0;
 	$.each(json, function(i, job) {
 		$(table).append(
-				"<li><a href=\"/analyze.html?job=" + job.jobid + "\">"
+				"<li><a href=\"analyze.html?job=" + job.jobid + "\">"
 						+ job.jobname + " (time: "
 						+ formattedTimeFromTimestamp(job.time)
 						+ ")</a></li>");

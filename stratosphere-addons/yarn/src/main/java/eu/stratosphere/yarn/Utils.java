@@ -50,6 +50,8 @@ public class Utils {
 	
 
 	public static void copyJarContents(String prefix, String pathToJar) throws IOException {
+		LOG.info("Copying jar (location: "+pathToJar+") to prefix "+prefix);
+		
 		JarFile jar = null;
 		jar = new JarFile(pathToJar);
 		Enumeration<JarEntry> enumr = jar.entries();

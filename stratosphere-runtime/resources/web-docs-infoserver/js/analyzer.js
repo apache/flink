@@ -30,7 +30,7 @@ function GET(v) {
 
 function pollArchive() {
 	$.ajax({
-		url : "/jobsInfo?get=job&job="
+		url : "jobsInfo?get=job&job="
 				+ GET("job"), type : "GET",
 		success : function(json) {
 			jsonGlobal = json
@@ -167,7 +167,7 @@ function analyzeTime(json, stacked) {
 
 function loadGroupvertex(groupvertexid) {
 	$.ajax({
-		url : "/jobsInfo?get=groupvertex&job="
+		url : "jobsInfo?get=groupvertex&job="
 				+ GET("job") + "&groupvertex="
 				+ groupvertexid, type : "GET",
 		success : function(json) {

@@ -99,6 +99,8 @@ public class ApplicationMaster {
 		if(ownHostname == null) throw new RuntimeException("Own hostname ("+Environment.NM_HOST+") not set.");
 		LOG.info("Working directory "+currDir);
 		
+		final String localWebInterfaceDir = currDir+"/resources/"+ConfigConstants.DEFAULT_JOB_MANAGER_WEB_PATH_NAME;
+		
 		// Update yaml conf -> set jobManager address to this machine's address.
 		FileInputStream fis = new FileInputStream(currDir+"/stratosphere-conf.yaml");
 		BufferedReader br = new BufferedReader(new InputStreamReader(fis));
@@ -108,7 +110,7 @@ public class ApplicationMaster {
 		    if(line.contains(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY)) {
 		    	output.append(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY+": "+ownHostname+"\n");
 		    } else if(line.contains(ConfigConstants.JOB_MANAGER_WEB_ROOT_PATH_KEY)) {
-		    	output.append(ConfigConstants.JOB_MANAGER_WEB_ROOT_PATH_KEY+": "+currDir+"/"+ConfigConstants.DEFAULT_JOB_MANAGER_WEB_PATH_NAME+"\n");
+		    	output.append(ConfigConstants.JOB_MANAGER_WEB_ROOT_PATH_KEY+": "+"\n");
 		    } else if(localDirs != null && line.contains(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY)) {
 		    	output.append(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY+": "+localDirs+"\n");
 		    } else {
@@ -117,7 +119,7 @@ public class ApplicationMaster {
 		}
 		// just to make sure.
 		output.append(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY+": "+ownHostname+"\n");
-		output.append(ConfigConstants.JOB_MANAGER_WEB_ROOT_PATH_KEY+": "+currDir+"/"+ConfigConstants.DEFAULT_JOB_MANAGER_WEB_PATH_NAME+"\n");
+		output.append(ConfigConstants.JOB_MANAGER_WEB_ROOT_PATH_KEY+": "+localWebInterfaceDir+"\n");
 		if(localDirs != null) output.append(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY+": "+localDirs+"\n");
 		output.close();
 		br.close();
@@ -126,7 +128,7 @@ public class ApplicationMaster {
 			LOG.warn("modified yaml does not exist!");
 		}
 		
-		Utils.copyJarContents(ConfigConstants.DEFAULT_JOB_MANAGER_WEB_PATH_NAME, 
+		Utils.copyJarContents("resources/"+ConfigConstants.DEFAULT_JOB_MANAGER_WEB_PATH_NAME, 
 				ApplicationMaster.class.getProtectionDomain().getCodeSource().getLocation().getPath());
 		
 		JobManagerRunner jmr = new JobManagerRunner(currDir+"/stratosphere-conf-modified.yaml");
