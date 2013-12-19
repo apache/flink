@@ -15,8 +15,8 @@ package eu.stratosphere.examples.scala.graph;
 
 import scala.math._
 import scala.math.Ordered._
-import eu.stratosphere.scala._
-import eu.stratosphere.scala.operators._
+import eu.stratosphere.api.scala._
+import eu.stratosphere.api.scala.operators._
 
 import eu.stratosphere.client.LocalExecutor
 

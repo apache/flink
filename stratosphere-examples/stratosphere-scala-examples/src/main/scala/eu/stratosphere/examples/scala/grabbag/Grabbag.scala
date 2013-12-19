@@ -18,21 +18,21 @@ import eu.stratosphere.client.LocalExecutor
 import eu.stratosphere.types.IntValue
 import eu.stratosphere.types.StringValue
 
-import eu.stratosphere.scala._
-import eu.stratosphere.scala.operators._
-import eu.stratosphere.scala.functions._
+import eu.stratosphere.api.scala._
+import eu.stratosphere.api.scala.operators._
+import eu.stratosphere.api.scala.functions._
 
-import eu.stratosphere.scala.analysis.GlobalSchemaPrinter
+import eu.stratosphere.api.scala.analysis.GlobalSchemaPrinter
 import eu.stratosphere.util.AsciiUtils
 import org.apache.log4j.Logger
 import org.apache.log4j.Level
-import eu.stratosphere.scala.analysis.postPass.GlobalSchemaOptimizer
-import eu.stratosphere.scala.analysis.GlobalSchemaGenerator
+import eu.stratosphere.api.scala.analysis.postPass.GlobalSchemaOptimizer
+import eu.stratosphere.api.scala.analysis.GlobalSchemaGenerator
 
 import eu.stratosphere.types.Record
 import eu.stratosphere.util.Collector
 
-import eu.stratosphere.scala.codegen.Util
+import eu.stratosphere.api.scala.codegen.Util
 import eu.stratosphere.configuration.Configuration;
 
 

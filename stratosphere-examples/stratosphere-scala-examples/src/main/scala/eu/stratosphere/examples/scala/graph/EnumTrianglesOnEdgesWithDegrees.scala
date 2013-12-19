@@ -18,10 +18,10 @@ import eu.stratosphere.api.Program
 import eu.stratosphere.api.ProgramDescription
 
 import scala.math._
-import eu.stratosphere.scala._
-import eu.stratosphere.scala.operators._
+import eu.stratosphere.api.scala._
+import eu.stratosphere.api.scala.operators._
 
-import eu.stratosphere.scala.analysis.GlobalSchemaPrinter
+import eu.stratosphere.api.scala.analysis.GlobalSchemaPrinter
 
 object RunEnumTrianglesOnEdgesWithDegrees {
   def main(args: Array[String]) {

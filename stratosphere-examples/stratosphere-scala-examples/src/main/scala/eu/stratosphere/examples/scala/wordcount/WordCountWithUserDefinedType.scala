@@ -20,8 +20,8 @@ import eu.stratosphere.api.ProgramDescription
 import eu.stratosphere.types.IntValue
 import eu.stratosphere.types.StringValue
 
-import eu.stratosphere.scala._
-import eu.stratosphere.scala.operators._
+import eu.stratosphere.api.scala._
+import eu.stratosphere.api.scala.operators._
 
 object RunWordCountWithUserDefinedType {
   def main(args: Array[String]) {

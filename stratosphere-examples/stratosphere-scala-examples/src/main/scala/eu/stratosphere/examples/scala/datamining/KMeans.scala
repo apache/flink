@@ -17,8 +17,8 @@ import eu.stratosphere.client.LocalExecutor
 import eu.stratosphere.api.Program
 import eu.stratosphere.api.ProgramDescription
 
-import eu.stratosphere.scala._
-import eu.stratosphere.scala.operators._
+import eu.stratosphere.api.scala._
+import eu.stratosphere.api.scala.operators._
 
 object RunKMeans {
   def main(args: Array[String]) {

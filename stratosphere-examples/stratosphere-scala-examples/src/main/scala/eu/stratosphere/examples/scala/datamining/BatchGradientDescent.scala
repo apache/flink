@@ -14,8 +14,8 @@
 package eu.stratosphere.examples.scala.datamining
 
 import scala.math._
-import eu.stratosphere.scala._
-import eu.stratosphere.scala.operators._
+import eu.stratosphere.api.scala._
+import eu.stratosphere.api.scala.operators._
 
 
 abstract class BatchGradientDescent(eps: Double, eta: Double, lambda: Double, examplesInput: String, weightsInput: String, weightsOutput: String) extends Serializable {

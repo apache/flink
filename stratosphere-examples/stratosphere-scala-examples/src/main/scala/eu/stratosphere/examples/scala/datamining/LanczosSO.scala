@@ -15,12 +15,12 @@ package eu.stratosphere.examples.scala.datamining;
 //package eu.stratosphere.pact4s.examples.datamining
 //
 //import scala.math._
-//import eu.stratosphere.scala._
-//import eu.stratosphere.scala.operators.DelimitedDataSinkFormat
-//import eu.stratosphere.scala.operators.DelimitedDataSourceFormat
+//import eu.stratosphere.api.scala._
+//import eu.stratosphere.api.scala.operators.DelimitedDataSinkFormat
+//import eu.stratosphere.api.scala.operators.DelimitedDataSourceFormat
 //import eu.stratosphere.api.ProgramDescription
 //import eu.stratosphere.client.LocalExecutor
-//import eu.stratosphere.scala.analysis.GlobalSchemaPrinter
+//import eu.stratosphere.api.scala.analysis.GlobalSchemaPrinter
 //
 //
 //object RunLanczos {
