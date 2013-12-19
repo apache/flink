@@ -26,7 +26,7 @@ import eu.stratosphere.api.scala.codegen.MacroContextHolder
 
 import eu.stratosphere.types.Record
 import eu.stratosphere.api.io.{BinaryOutputFormat => JavaBinaryOutputFormat}
-import eu.stratosphere.api.io.{SequentialOutputFormat => JavaSequentialOutputFormat}
+import eu.stratosphere.api.io.{SerializedOutputFormat => JavaSerializedOutputFormat}
 import eu.stratosphere.api.record.io.{DelimitedOutputFormat => JavaDelimitedOutputFormat}
 import eu.stratosphere.api.record.io.{CsvOutputFormat => JavaCsvOutputFormat}
 import eu.stratosphere.api.record.io.{FileOutputFormat => JavaFileOutputFormat}
@@ -121,7 +121,7 @@ object BinaryOutputFormat {
   }
 }
 
-object SequentialOutputFormat {
+object BinarySerializedOutputFormat {
   
   def apply[In](): ScalaOutputFormat[In] = macro implWithoutBlocksize[In]
   def apply[In](blockSize: Long): ScalaOutputFormat[In] = macro implWithBlocksize[In]
@@ -144,7 +144,7 @@ object SequentialOutputFormat {
     
     val pact4sFormat = reify {
       
-      new JavaSequentialOutputFormat with ScalaOutputFormat[In] {
+      new JavaSerializedOutputFormat with ScalaOutputFormat[In] {
         override def persistConfiguration(config: Configuration) {
           blockSize.splice map { config.setLong(JavaBinaryOutputFormat.BLOCK_SIZE_PARAMETER_KEY, _) }
         }

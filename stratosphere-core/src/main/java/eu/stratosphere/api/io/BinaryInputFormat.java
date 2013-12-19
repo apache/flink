@@ -66,11 +66,7 @@ public abstract class BinaryInputFormat<T extends IOReadableWritable> extends Fi
 
 	private long readRecords;
 
-	/*
-	 * (non-Javadoc)
-	 * @see
-	 * eu.stratosphere.pact.common.io.FileInputFormat#configure(eu.stratosphere.nephele.configuration.Configuration)
-	 */
+
 	@Override
 	public void configure(Configuration parameters) {
 		super.configure(parameters);
@@ -83,10 +79,6 @@ public abstract class BinaryInputFormat<T extends IOReadableWritable> extends Fi
 			throw new UnsupportedOperationException("Currently only block size up to Integer.MAX_VALUE are supported");
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.io.FileInputFormat#createInputSplits(int)
-	 */
 	@Override
 	public FileInputSplit[] createInputSplits(int minNumSplits) throws IOException {
 		List<FileStatus> files = this.getFiles();
@@ -141,12 +133,6 @@ public abstract class BinaryInputFormat<T extends IOReadableWritable> extends Fi
 		return files;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see
-	 * eu.stratosphere.pact.common.io.InputFormat#getStatistics(eu.stratosphere.pact.common.io.statistics.BaseStatistics
-	 * )
-	 */
 	@Override
 	public SequentialStatistics getStatistics(BaseStatistics cachedStats) {
 
@@ -235,20 +221,12 @@ public abstract class BinaryInputFormat<T extends IOReadableWritable> extends Fi
 			this.numberOfRecords = numberOfRecords;
 		}
 
-		/*
-		 * (non-Javadoc)
-		 * @see eu.stratosphere.pact.common.io.FileInputFormat.FileBaseStatistics#getNumberOfRecords()
-		 */
 		@Override
 		public long getNumberOfRecords() {
 			return this.numberOfRecords;
 		}
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.io.FileInputFormat#open(eu.stratosphere.nephele.fs.FileInputSplit)
-	 */
 	@Override
 	public void open(FileInputSplit split) throws IOException {
 		super.open(split);
@@ -269,19 +247,11 @@ public abstract class BinaryInputFormat<T extends IOReadableWritable> extends Fi
 		this.readRecords = 0;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.io.InputFormat#reachedEnd()
-	 */
 	@Override
 	public boolean reachedEnd() throws IOException {
 		return this.readRecords >= this.blockInfo.getRecordCount();
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.io.InputFormat#nextRecord(eu.stratosphere.pact.common.type.Record)
-	 */
 	@Override
 	public boolean nextRecord(T record) throws IOException {
 		if (this.reachedEnd())
@@ -296,8 +266,6 @@ public abstract class BinaryInputFormat<T extends IOReadableWritable> extends Fi
 	/**
 	 * Writes a block info at the end of the blocks.<br>
 	 * Current implementation uses only int and not long.
-	 * 
-	 * @author Arvid Heise
 	 */
 	protected class BlockBasedInput extends FilterInputStream {
 		private final int maxPayloadSize;
@@ -310,10 +278,6 @@ public abstract class BinaryInputFormat<T extends IOReadableWritable> extends Fi
 			this.maxPayloadSize = blockSize - BinaryInputFormat.this.blockInfo.getInfoSize();
 		}
 
-		/*
-		 * (non-Javadoc)
-		 * @see java.io.FilterInputStream#read()
-		 */
 		@Override
 		public int read() throws IOException {
 			if (this.blockPos++ >= this.maxPayloadSize)
@@ -327,19 +291,11 @@ public abstract class BinaryInputFormat<T extends IOReadableWritable> extends Fi
 			this.blockPos = 0;
 		}
 
-		/*
-		 * (non-Javadoc)
-		 * @see java.io.FilterInputStream#read(byte[])
-		 */
 		@Override
 		public int read(byte[] b) throws IOException {
 			return this.read(b, 0, b.length);
 		}
 
-		/*
-		 * (non-Javadoc)
-		 * @see java.io.FilterInputStream#read(byte[], int, int)
-		 */
 		@Override
 		public int read(byte[] b, int off, int len) throws IOException {
 			int totalRead = 0;

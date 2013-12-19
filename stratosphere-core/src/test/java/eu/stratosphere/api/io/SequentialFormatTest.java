@@ -35,8 +35,8 @@ import eu.stratosphere.api.io.BinaryInputFormat;
 import eu.stratosphere.api.io.BinaryOutputFormat;
 import eu.stratosphere.api.io.BlockInfo;
 import eu.stratosphere.api.io.FormatUtil;
-import eu.stratosphere.api.io.SequentialInputFormat;
-import eu.stratosphere.api.io.SequentialOutputFormat;
+import eu.stratosphere.api.io.SerializedInputFormat;
+import eu.stratosphere.api.io.SerializedOutputFormat;
 import eu.stratosphere.api.io.statistics.BaseStatistics;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.fs.FileInputSplit;
@@ -48,7 +48,7 @@ import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.LogUtils;
 
 /**
- * Tests {@link SequentialInputFormat} and {@link SequentialOutputFormat}.
+ * Tests {@link SerializedInputFormat} and {@link SerializedOutputFormat}.
  */
 @RunWith(Parameterized.class)
 public class SequentialFormatTest {
@@ -71,7 +71,7 @@ public class SequentialFormatTest {
 
 	private int degreeOfParallelism;
 
-	private BlockInfo info = new SequentialInputFormat<IOReadableWritable>().createBlockInfo();
+	private BlockInfo info = new SerializedInputFormat<IOReadableWritable>().createBlockInfo();
 
 	private int[] rawDataSizes;
 
@@ -143,7 +143,7 @@ public class SequentialFormatTest {
 	 */
 	@Test
 	public void checkRead() throws IOException {
-		SequentialInputFormat<Record> input = this.createInputFormat();
+		SerializedInputFormat<Record> input = this.createInputFormat();
 		FileInputSplit[] inputSplits = input.createInputSplits(0);
 		Arrays.sort(inputSplits, new InputSplitSorter());
 		int readCount = 0;
@@ -164,7 +164,7 @@ public class SequentialFormatTest {
 	 */
 	@Test
 	public void checkStatistics() {
-		SequentialInputFormat<Record> input = this.createInputFormat();
+		SerializedInputFormat<Record> input = this.createInputFormat();
 		BaseStatistics statistics = input.getStatistics(null);
 		Assert.assertEquals(this.numberOfTuples, statistics.getNumberOfRecords());
 	}
@@ -187,13 +187,13 @@ public class SequentialFormatTest {
 	 */
 	@Before
 	public void writeTuples() throws IOException {
-		this.tempFile = File.createTempFile("SequentialInputFormat", null);
+		this.tempFile = File.createTempFile("SerializedInputFormat", null);
 		this.tempFile.deleteOnExit();
 		Configuration configuration = new Configuration();
 		configuration.setLong(BinaryOutputFormat.BLOCK_SIZE_PARAMETER_KEY, this.blockSize);
 		if (this.degreeOfParallelism == 1) {
-			SequentialOutputFormat output =
-				FormatUtil.openOutput(SequentialOutputFormat.class, this.tempFile.toURI().toString(),
+			SerializedOutputFormat output =
+				FormatUtil.openOutput(SerializedOutputFormat.class, this.tempFile.toURI().toString(),
 					configuration);
 			for (int index = 0; index < this.numberOfTuples; index++)
 				output.writeRecord(this.getRecord(index));
@@ -203,8 +203,8 @@ public class SequentialFormatTest {
 			this.tempFile.mkdir();
 			int recordIndex = 0;
 			for (int fileIndex = 0; fileIndex < this.degreeOfParallelism; fileIndex++) {
-				SequentialOutputFormat output =
-					FormatUtil.openOutput(SequentialOutputFormat.class, this.tempFile.toURI() +
+				SerializedOutputFormat output =
+					FormatUtil.openOutput(SerializedOutputFormat.class, this.tempFile.toURI() +
 						"/"
 						+ (fileIndex + 1), configuration);
 				for (int fileCount = 0; fileCount < this.getNumberOfTuplesPerFile(fileIndex); fileCount++, recordIndex++)
@@ -234,11 +234,11 @@ public class SequentialFormatTest {
 		}
 	}
 
-	protected SequentialInputFormat<Record> createInputFormat() {
+	protected SerializedInputFormat<Record> createInputFormat() {
 		Configuration configuration = new Configuration();
 		configuration.setLong(BinaryInputFormat.BLOCK_SIZE_PARAMETER_KEY, this.blockSize);
 
-		final SequentialInputFormat<Record> inputFormat = new SequentialInputFormat<Record>();
+		final SerializedInputFormat<Record> inputFormat = new SerializedInputFormat<Record>();
 		inputFormat.setFilePath(this.tempFile.toURI().toString());
 		
 		inputFormat.configure(configuration);

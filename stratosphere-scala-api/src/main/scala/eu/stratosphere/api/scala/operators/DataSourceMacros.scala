@@ -32,7 +32,7 @@ import eu.stratosphere.api.scala.ScalaInputFormat
 import eu.stratosphere.api.scala.analysis.{UDTSerializer, OutputField, UDF0, UDT}
 import eu.stratosphere.api.io.{InputFormat => JavaInputFormat}
 import eu.stratosphere.api.io.{BinaryInputFormat => JavaBinaryInputFormat}
-import eu.stratosphere.api.io.{SequentialInputFormat => JavaSequentialInputFormat}
+import eu.stratosphere.api.io.{SerializedInputFormat => JavaSerializedInputFormat}
 import eu.stratosphere.api.record.io.{DelimitedInputFormat => JavaDelimitedInputFormat}
 import eu.stratosphere.api.record.io.{FixedLengthInputFormat => JavaFixedLengthInputFormat}
 import eu.stratosphere.api.record.io.{CsvInputFormat => JavaCsvInputFormat}
@@ -105,7 +105,7 @@ object BinaryInputFormat {
   }
 }
 
-object SequentialInputFormat {
+object BinarySerializedInputFormat {
   def apply[Out](): ScalaInputFormat[Out] = macro implWithoutBlocksize[Out]
   def apply[Out](blockSize: Long): ScalaInputFormat[Out] = macro implWithBlocksize[Out]
   
@@ -127,7 +127,7 @@ object SequentialInputFormat {
     
     val pact4sFormat = reify {
       
-      new JavaSequentialInputFormat[Record] with ScalaInputFormat[Out] {
+      new JavaSerializedInputFormat[Record] with ScalaInputFormat[Out] {
         override def persistConfiguration(config: Configuration) {
           super.persistConfiguration(config)
           blockSize.splice map { config.setLong(JavaBinaryInputFormat.BLOCK_SIZE_PARAMETER_KEY, _) }

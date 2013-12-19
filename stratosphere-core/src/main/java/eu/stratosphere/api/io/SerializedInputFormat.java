@@ -12,22 +12,22 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.io;
 
-import java.io.DataOutput;
+import java.io.DataInput;
 import java.io.IOException;
 
 import eu.stratosphere.core.io.IOReadableWritable;
 
 /**
- * Stores complete {@link Record}s in an efficient binary format which is deserializable without configuration.
+ * Reads elements by deserializing them with their regular serialization/deserialization functionality.
  * 
- * @see SequentialInputFormat
+ * @see SerializedOutputFormat
  */
-public class SequentialOutputFormat extends BinaryOutputFormat<IOReadableWritable> {
-	
+public class SerializedInputFormat<T extends IOReadableWritable> extends BinaryInputFormat<T> {
+
 	private static final long serialVersionUID = 1L;
-	
+
 	@Override
-	protected void serialize(IOReadableWritable record, DataOutput dataOutputStream) throws IOException {
-		record.write(dataOutputStream);
+	protected void deserialize(IOReadableWritable record, DataInput dataInput) throws IOException {
+		record.read(dataInput);		
 	}
 }
