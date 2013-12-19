@@ -17,7 +17,7 @@
 	<dependencies>
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
-			<artifactId>stratosphere-scala-api</artifactId>
+			<artifactId>stratosphere-scala</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 	</dependencies>

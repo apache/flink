@@ -38,9 +38,8 @@
 
 	<modules>
 		<module>stratosphere-core</module>
-		<module>stratosphere-java-api</module>
-		<module>stratosphere-record-api</module>
-		<module>stratosphere-scala-api</module>
+		<module>stratosphere-java</module>
+		<module>stratosphere-scala</module>
 		<module>stratosphere-runtime</module>
 		<module>stratosphere-compiler</module>
 		<module>stratosphere-examples</module>

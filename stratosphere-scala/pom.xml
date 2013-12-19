@@ -10,8 +10,8 @@
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>stratosphere-scala-api</artifactId>
-	<name>stratosphere-scala-api</name>
+	<artifactId>stratosphere-scala</artifactId>
+	<name>stratosphere-scala</name>
 	<packaging>jar</packaging>
 
 	<dependencies>
@@ -23,7 +23,7 @@
 
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
-			<artifactId>stratosphere-record-api</artifactId>
+			<artifactId>stratosphere-java</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		

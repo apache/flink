@@ -11,8 +11,8 @@
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>stratosphere-record-api</artifactId>
-	<name>stratosphere-record-api</name>
+	<artifactId>stratosphere-java</artifactId>
+	<name>stratosphere-java</name>
 
 	<packaging>jar</packaging>
 

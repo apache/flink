@@ -41,7 +41,7 @@
 
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
-			<artifactId>stratosphere-record-api</artifactId>
+			<artifactId>stratosphere-java</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 

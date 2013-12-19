@@ -30,7 +30,6 @@
 
 	<modules>
 		<module>stratosphere-java-examples</module>
-		<module>stratosphere-record-examples</module>
 		<module>stratosphere-scala-examples</module>
 	</modules>
 
