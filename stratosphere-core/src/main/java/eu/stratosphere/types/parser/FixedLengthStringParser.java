@@ -14,18 +14,18 @@
 package eu.stratosphere.types.parser;
 
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.StringValue;
 
 /**
- * Converts a fixed length portion of a byte array into a {@link PactString}.
+ * Converts a fixed length portion of a byte array into a {@link StringValue}.
  * Checks that the field is terminated either by end of array or field delimiter character.
  * A string encapsulator can be configured. If configured, the encapsulator must be present in the input but 
- * will not be included in the PactString.
+ * will not be included in the StringValue.
  * The fixed length must include possible encapsulators.
  * 
- * @see PactString
+ * @see StringValue
  */
-public class FixedLengthStringParser extends FieldParser<PactString> {
+public class FixedLengthStringParser extends FieldParser<StringValue> {
 
 	public static final String STRING_ENCAPSULATOR = "fixlength.string.parser.encapsulator";
 	public static final String STRING_LENGTH = "fixlength.string.parser.length";
@@ -54,7 +54,7 @@ public class FixedLengthStringParser extends FieldParser<PactString> {
 	
 
 	@Override
-	public int parseField(byte[] bytes, int startPos, int length, char delim, PactString field) {
+	public int parseField(byte[] bytes, int startPos, int length, char delim, StringValue field) {
 	
 		if(startPos+fixLength > length) {
 			// not enough bytes left
@@ -79,8 +79,8 @@ public class FixedLengthStringParser extends FieldParser<PactString> {
 	}
 	
 	@Override
-	public PactString createValue() {
-		return new PactString();
+	public StringValue createValue() {
+		return new StringValue();
 	}
 	
 }

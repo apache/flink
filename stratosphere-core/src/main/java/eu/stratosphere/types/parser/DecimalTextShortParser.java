@@ -13,17 +13,17 @@
 
 package eu.stratosphere.types.parser;
 
-import eu.stratosphere.types.PactShort;
+import eu.stratosphere.types.ShortValue;
 
 /**
- * Parses a decimal text field into a PactInteger.
+ * Parses a decimal text field into a {@link ShortValue}.
  * Only characters '1' to '0' and '-' are allowed.
  * The parser does not check for the maximum value.
  */
-public class DecimalTextShortParser extends FieldParser<PactShort> {
+public class DecimalTextShortParser extends FieldParser<ShortValue> {
 
 	@Override
-	public int parseField(byte[] bytes, int startPos, int limit, char delim, PactShort field) {
+	public int parseField(byte[] bytes, int startPos, int limit, char delim, ShortValue field) {
 		long val = 0;
 		boolean neg = false;
 		
@@ -46,7 +46,7 @@ public class DecimalTextShortParser extends FieldParser<PactShort> {
 		return valueSet(field, val, neg, limit);
 	}
 	
-	private final int valueSet(PactShort field, long val, boolean negative, int position) {
+	private final int valueSet(ShortValue field, long val, boolean negative, int position) {
 		if (negative) {
 			if (val >= Short.MIN_VALUE) {
 				field.setValue((short) -val);
@@ -64,7 +64,7 @@ public class DecimalTextShortParser extends FieldParser<PactShort> {
 	}
 	
 	@Override
-	public PactShort createValue() {
-		return new PactShort();
+	public ShortValue createValue() {
+		return new ShortValue();
 	}
 }

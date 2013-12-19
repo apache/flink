@@ -35,8 +35,8 @@ import eu.stratosphere.example.record.wordcount.WordCount.TokenizeLine;
 import eu.stratosphere.nephele.io.MutableUnionRecordReader;
 import eu.stratosphere.nephele.io.UnionRecordReader;
 import eu.stratosphere.test.util.TestBase2;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.StringValue;
 
 /**
  * WordCount with multiple inputs to the reducer.
@@ -146,7 +146,7 @@ public class WordCountUnionReduceITCase extends TestBase2 {
 				.name("Words (Second Input)")
 				.build();
 
-			ReduceOperator counts = ReduceOperator.builder(CountWords.class, PactString.class, 0)
+			ReduceOperator counts = ReduceOperator.builder(CountWords.class, StringValue.class, 0)
 				.input(wordsFirstInput, wordsSecondInput)
 				.name("Word Counts")
 				.build();
@@ -155,8 +155,8 @@ public class WordCountUnionReduceITCase extends TestBase2 {
 			CsvOutputFormat.configureRecordFormat(sink)
 				.recordDelimiter('\n')
 				.fieldDelimiter(' ')
-				.field(PactString.class, 0)
-				.field(PactInteger.class, 1);
+				.field(StringValue.class, 0)
+				.field(IntValue.class, 1);
 
 			Plan plan = new Plan(sink, "WordCount Union Reduce");
 			plan.setDefaultParallelism(numSubtasks);

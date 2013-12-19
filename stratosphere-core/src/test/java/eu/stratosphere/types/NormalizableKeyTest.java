@@ -19,24 +19,24 @@ import org.junit.Test;
 
 import eu.stratosphere.core.memory.MemorySegment;
 import eu.stratosphere.types.NormalizableKey;
-import eu.stratosphere.types.PactCharacter;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactLong;
-import eu.stratosphere.types.PactNull;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.CharValue;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.LongValue;
+import eu.stratosphere.types.NullValue;
+import eu.stratosphere.types.StringValue;
 
 public class NormalizableKeyTest {
 
 	@Test
-	public void testPactInteger() {
-		PactInteger int0 = new PactInteger(10);
-		PactInteger int1 = new PactInteger(10);
-		PactInteger int2 = new PactInteger(-10);
-		PactInteger int3 = new PactInteger(255);
-		PactInteger int4 = new PactInteger(Integer.MAX_VALUE);
-		PactInteger int5 = new PactInteger(Integer.MAX_VALUE & 0xff800000);
-		PactInteger int6 = new PactInteger(Integer.MIN_VALUE);
-		PactInteger int7 = new PactInteger(Integer.MIN_VALUE & 0xff800000);
+	public void testIntValue() {
+		IntValue int0 = new IntValue(10);
+		IntValue int1 = new IntValue(10);
+		IntValue int2 = new IntValue(-10);
+		IntValue int3 = new IntValue(255);
+		IntValue int4 = new IntValue(Integer.MAX_VALUE);
+		IntValue int5 = new IntValue(Integer.MAX_VALUE & 0xff800000);
+		IntValue int6 = new IntValue(Integer.MIN_VALUE);
+		IntValue int7 = new IntValue(Integer.MIN_VALUE & 0xff800000);
 		
 		for (int length = 2; length <= 4; length++) {
 			assertNormalizableKey(int0, int1, length);
@@ -52,15 +52,15 @@ public class NormalizableKeyTest {
 	}
 	
 	@Test
-	public void testPactLong() {
-		PactLong long0 = new PactLong(10);
-		PactLong long1 = new PactLong(10);
-		PactLong long2 = new PactLong(-10);
-		PactLong long3 = new PactLong(255);
-		PactLong long4 = new PactLong(Long.MAX_VALUE);
-		PactLong long5 = new PactLong(Long.MAX_VALUE & 0xff80000000000000L);
-		PactLong long6 = new PactLong(Long.MIN_VALUE);
-		PactLong long7 = new PactLong(Long.MIN_VALUE & 0xff80000000000000L);
+	public void testLongValue() {
+		LongValue long0 = new LongValue(10);
+		LongValue long1 = new LongValue(10);
+		LongValue long2 = new LongValue(-10);
+		LongValue long3 = new LongValue(255);
+		LongValue long4 = new LongValue(Long.MAX_VALUE);
+		LongValue long5 = new LongValue(Long.MAX_VALUE & 0xff80000000000000L);
+		LongValue long6 = new LongValue(Long.MIN_VALUE);
+		LongValue long7 = new LongValue(Long.MIN_VALUE & 0xff80000000000000L);
 		
 		for (int length = 2; length <= 8; length++) {
 			assertNormalizableKey(long0, long1, length);
@@ -78,12 +78,12 @@ public class NormalizableKeyTest {
 	
 
 	@Test
-	public void testPactString() {
-		PactString string0 = new PactString("This is a test");
-		PactString string1 = new PactString("This is a test with some longer String");
-		PactString string2 = new PactString("This is a tesa");
-		PactString string3 = new PactString("This");
-		PactString string4 = new PactString("Ünlaut ßtring µ avec é y ¢");
+	public void testStringValue() {
+		StringValue string0 = new StringValue("This is a test");
+		StringValue string1 = new StringValue("This is a test with some longer String");
+		StringValue string2 = new StringValue("This is a tesa");
+		StringValue string3 = new StringValue("This");
+		StringValue string4 = new StringValue("Ünlaut ßtring µ avec é y ¢");
 		
 		for (int length = 5; length <= 15; length+=10) {
 			assertNormalizableKey(string0, string1, length);
@@ -96,8 +96,8 @@ public class NormalizableKeyTest {
 	@Test
 	public void testPactNull() {
 		
-		final PactNull pn1 = new PactNull();
-		final PactNull pn2 = new PactNull();
+		final NullValue pn1 = new NullValue();
+		final NullValue pn2 = new NullValue();
 		
 		assertNormalizableKey(pn1, pn2, 0);
 	}
@@ -105,16 +105,16 @@ public class NormalizableKeyTest {
 	@Test
 	public void testPactChar() {
 		
-		final PactCharacter c1 = new PactCharacter((char) 0);
-		final PactCharacter c2 = new PactCharacter((char) 1);
-		final PactCharacter c3 = new PactCharacter((char) 0xff);
-		final PactCharacter c4 = new PactCharacter(Character.MAX_VALUE);
-		final PactCharacter c5 = new PactCharacter((char) (Character.MAX_VALUE + (char) 1));
-		final PactCharacter c6 = new PactCharacter(Character.MAX_HIGH_SURROGATE);
-		final PactCharacter c7 = new PactCharacter(Character.MAX_LOW_SURROGATE);
-		final PactCharacter c8 = new PactCharacter(Character.MAX_SURROGATE);
+		final CharValue c1 = new CharValue((char) 0);
+		final CharValue c2 = new CharValue((char) 1);
+		final CharValue c3 = new CharValue((char) 0xff);
+		final CharValue c4 = new CharValue(Character.MAX_VALUE);
+		final CharValue c5 = new CharValue((char) (Character.MAX_VALUE + (char) 1));
+		final CharValue c6 = new CharValue(Character.MAX_HIGH_SURROGATE);
+		final CharValue c7 = new CharValue(Character.MAX_LOW_SURROGATE);
+		final CharValue c8 = new CharValue(Character.MAX_SURROGATE);
 		
-		PactCharacter[] allChars = new PactCharacter[] {
+		CharValue[] allChars = new CharValue[] {
 			c1, c2, c3, c4, c5, c6, c7, c8 };
 		
 		for (int i = 0; i < 5; i++) {

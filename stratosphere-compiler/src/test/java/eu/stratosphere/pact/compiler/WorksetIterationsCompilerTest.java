@@ -41,7 +41,7 @@ import eu.stratosphere.pact.compiler.util.DummyOutputFormat;
 import eu.stratosphere.pact.compiler.util.IdentityMap;
 import eu.stratosphere.pact.compiler.util.IdentityReduce;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
-import eu.stratosphere.types.PactLong;
+import eu.stratosphere.types.LongValue;
 
 
 /**
@@ -202,20 +202,20 @@ public class WorksetIterationsCompilerTest extends CompilerTestBase {
 		iteration.setInitialWorkset(worksetInput);
 		iteration.setMaximumNumberOfIterations(100);
 
-		JoinOperator joinWithInvariant = JoinOperator.builder(new DummyMatchStub(), PactLong.class, 0, 0)
+		JoinOperator joinWithInvariant = JoinOperator.builder(new DummyMatchStub(), LongValue.class, 0, 0)
 				.input1(iteration.getWorkset())
 				.input2(invariantInput)
 				.name(JOIN_WITH_INVARIANT_NAME)
 				.build();
 
 		JoinOperator joinWithSolutionSet = JoinOperator.builder(
-				joinPreservesSolutionSet ? new DummyMatchStub() : new DummyNonPreservingMatchStub(), PactLong.class, 0, 0)
+				joinPreservesSolutionSet ? new DummyMatchStub() : new DummyNonPreservingMatchStub(), LongValue.class, 0, 0)
 				.input1(iteration.getSolutionSet())
 				.input2(joinWithInvariant)
 				.name(JOIN_WITH_SOLUTION_SET)
 				.build();
 		
-		ReduceOperator nextWorkset = ReduceOperator.builder(new IdentityReduce(), PactLong.class, 0)
+		ReduceOperator nextWorkset = ReduceOperator.builder(new IdentityReduce(), LongValue.class, 0)
 				.input(joinWithSolutionSet)
 				.name(NEXT_WORKSET_REDUCER_NAME)
 				.build();

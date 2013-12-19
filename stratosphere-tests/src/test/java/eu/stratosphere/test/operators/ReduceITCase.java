@@ -41,9 +41,9 @@ import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.test.operators.io.ContractITCaseIOFormats.ContractITCaseInputFormat;
 import eu.stratosphere.test.operators.io.ContractITCaseIOFormats.ContractITCaseOutputFormat;
 import eu.stratosphere.test.util.TestBase;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
+import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
 
 @RunWith(Parameterized.class)
@@ -82,20 +82,20 @@ public class ReduceITCase extends TestBase {
 	public static class TestReducer extends ReduceFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 
-		private PactString reduceValue = new PactString();
-		private PactString combineValue = new PactString();
+		private StringValue reduceValue = new StringValue();
+		private StringValue combineValue = new StringValue();
 
 		@Override
-		public void combine(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {
+		public void combine(Iterator<Record> records, Collector<Record> out) throws Exception {
 		
 			int sum = 0;
-			PactRecord record = new PactRecord();
+			Record record = new Record();
 			while (records.hasNext()) {
 				record = records.next();
 				combineValue = record.getField(1, combineValue);
 				sum += Integer.parseInt(combineValue.toString());
 
-				LOG.debug("Processed: [" + record.getField(0, PactString.class).toString() +
+				LOG.debug("Processed: [" + record.getField(0, StringValue.class).toString() +
 						"," + combineValue.toString() + "]");
 			}
 			combineValue.setValue(sum + "");
@@ -104,19 +104,19 @@ public class ReduceITCase extends TestBase {
 		}
 
 		@Override
-		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {
+		public void reduce(Iterator<Record> records, Collector<Record> out) throws Exception {
 		
 			int sum = 0;
-			PactRecord record = new PactRecord();
+			Record record = new Record();
 			while (records.hasNext()) {
 				record = records.next();
 				reduceValue = record.getField(1, reduceValue);
 				sum += Integer.parseInt(reduceValue.toString());
 
-				LOG.debug("Processed: [" + record.getField(0, PactString.class).toString() +
+				LOG.debug("Processed: [" + record.getField(0, StringValue.class).toString() +
 						"," + reduceValue.toString() + "]");
 			}
-			record.setField(1, new PactInteger(sum));
+			record.setField(1, new IntValue(sum));
 			out.collect(record);
 		}
 	}
@@ -131,7 +131,7 @@ public class ReduceITCase extends TestBase {
 			.recordDelimiter('\n');
 		input.setDegreeOfParallelism(config.getInteger("ReduceTest#NoSubtasks", 1));
 
-		ReduceOperator testReducer = ReduceOperator.builder(new TestReducer(), PactString.class, 0)
+		ReduceOperator testReducer = ReduceOperator.builder(new TestReducer(), StringValue.class, 0)
 			.build();
 		testReducer.setDegreeOfParallelism(config.getInteger("ReduceTest#NoSubtasks", 1));
 		testReducer.getParameters().setString(PactCompiler.HINT_LOCAL_STRATEGY,

@@ -25,9 +25,9 @@ import org.junit.Test;
 
 import eu.stratosphere.api.distributions.SimpleDistribution;
 import eu.stratosphere.types.Key;
-import eu.stratosphere.types.PactDouble;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.DoubleValue;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.StringValue;
 
 public class SimpleDataDistributionTest {
 
@@ -36,7 +36,7 @@ public class SimpleDataDistributionTest {
 
 		// check correct data distribution
 		try {
-			SimpleDistribution dd = new SimpleDistribution(new Key[] {new PactInteger(1), new PactInteger(2), new PactInteger(3)});
+			SimpleDistribution dd = new SimpleDistribution(new Key[] {new IntValue(1), new IntValue(2), new IntValue(3)});
 			Assert.assertEquals(1, dd.getNumberOfFields());
 		}
 		catch (Throwable t) {
@@ -45,7 +45,7 @@ public class SimpleDataDistributionTest {
 		
 		// check incorrect key types
 		try {
-			new SimpleDistribution(new Key[] {new PactInteger(1), new PactString("ABC"), new PactInteger(3)});
+			new SimpleDistribution(new Key[] {new IntValue(1), new StringValue("ABC"), new IntValue(3)});
 			Assert.fail("Data distribution accepts inconsistent key types");
 		} catch(IllegalArgumentException iae) {
 			// do nothing
@@ -53,7 +53,7 @@ public class SimpleDataDistributionTest {
 		
 		// check inconsistent number of keys
 		try {
-			new SimpleDistribution(new Key[][] {{new PactInteger(1)}, {new PactInteger(2), new PactInteger(2)}, {new PactInteger(3)}});
+			new SimpleDistribution(new Key[][] {{new IntValue(1)}, {new IntValue(2), new IntValue(2)}, {new IntValue(3)}});
 			Assert.fail("Data distribution accepts inconsistent many keys");
 		} catch(IllegalArgumentException iae) {
 			// do nothing
@@ -65,16 +65,16 @@ public class SimpleDataDistributionTest {
 		
 		// check correct data distribution
 		SimpleDistribution dd = new SimpleDistribution(
-				new Key[][] {{new PactInteger(1), new PactString("A"), new PactInteger(1)}, 
-				             {new PactInteger(2), new PactString("A"), new PactInteger(1)}, 
-				             {new PactInteger(3), new PactString("A"), new PactInteger(1)}});
+				new Key[][] {{new IntValue(1), new StringValue("A"), new IntValue(1)}, 
+				             {new IntValue(2), new StringValue("A"), new IntValue(1)}, 
+				             {new IntValue(3), new StringValue("A"), new IntValue(1)}});
 		Assert.assertEquals(3, dd.getNumberOfFields());
 		
 		// check inconsistent key types
 		try {
 			new SimpleDistribution( 
-					new Key[][] {{new PactInteger(1), new PactString("A"), new PactDouble(1.3d)}, 
-								 {new PactInteger(2), new PactString("B"), new PactInteger(1)}});
+					new Key[][] {{new IntValue(1), new StringValue("A"), new DoubleValue(1.3d)}, 
+								 {new IntValue(2), new StringValue("B"), new IntValue(1)}});
 			Assert.fail("Data distribution accepts incorrect key types");
 		} catch(IllegalArgumentException iae) {
 			// do nothing
@@ -83,9 +83,9 @@ public class SimpleDataDistributionTest {
 		// check inconsistent number of keys
 		try {
 			dd = new SimpleDistribution(
-					new Key[][] {{new PactInteger(1), new PactInteger(2)}, 
-					             {new PactInteger(2), new PactInteger(2)}, 
-					             {new PactInteger(3)}});
+					new Key[][] {{new IntValue(1), new IntValue(2)}, 
+					             {new IntValue(2), new IntValue(2)}, 
+					             {new IntValue(3)}});
 			Assert.fail("Data distribution accepts bucket boundaries with inconsistent many keys");
 		} catch(IllegalArgumentException iae) {
 			// do nothing
@@ -97,11 +97,11 @@ public class SimpleDataDistributionTest {
 	public void testWriteRead() {
 		
 		SimpleDistribution ddWrite = new SimpleDistribution(
-				new Key[][] {{new PactInteger(1), new PactString("A"), new PactInteger(1)}, 
-				             {new PactInteger(2), new PactString("A"), new PactInteger(1)}, 
-				             {new PactInteger(2), new PactString("B"), new PactInteger(4)},
-				             {new PactInteger(2), new PactString("B"), new PactInteger(3)},
-				             {new PactInteger(2), new PactString("B"), new PactInteger(2)}});
+				new Key[][] {{new IntValue(1), new StringValue("A"), new IntValue(1)}, 
+				             {new IntValue(2), new StringValue("A"), new IntValue(1)}, 
+				             {new IntValue(2), new StringValue("B"), new IntValue(4)},
+				             {new IntValue(2), new StringValue("B"), new IntValue(3)},
+				             {new IntValue(2), new StringValue("B"), new IntValue(2)}});
 		Assert.assertEquals(3, ddWrite.getNumberOfFields());
 		
 		final ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -142,57 +142,57 @@ public class SimpleDataDistributionTest {
 	public void testGetBucketBoundary() {
 		
 		SimpleDistribution dd = new SimpleDistribution(
-				new Key[][] {{new PactInteger(1), new PactString("A")}, 
-				             {new PactInteger(2), new PactString("B")}, 
-				             {new PactInteger(3), new PactString("C")},
-				             {new PactInteger(4), new PactString("D")},
-				             {new PactInteger(5), new PactString("E")},
-				             {new PactInteger(6), new PactString("F")},
-				             {new PactInteger(7), new PactString("G")}});
+				new Key[][] {{new IntValue(1), new StringValue("A")}, 
+				             {new IntValue(2), new StringValue("B")}, 
+				             {new IntValue(3), new StringValue("C")},
+				             {new IntValue(4), new StringValue("D")},
+				             {new IntValue(5), new StringValue("E")},
+				             {new IntValue(6), new StringValue("F")},
+				             {new IntValue(7), new StringValue("G")}});
 		
 		Key[] boundRec = dd.getBucketBoundary(0, 8);
-		Assert.assertEquals(((PactInteger) boundRec[0]).getValue(), 1);
-		Assert.assertTrue(((PactString) boundRec[1]).getValue().equals("A"));
+		Assert.assertEquals(((IntValue) boundRec[0]).getValue(), 1);
+		Assert.assertTrue(((StringValue) boundRec[1]).getValue().equals("A"));
 		
 		boundRec = dd.getBucketBoundary(1, 8);
-		Assert.assertEquals(((PactInteger) boundRec[0]).getValue(), 2);
-		Assert.assertTrue(((PactString) boundRec[1]).getValue().equals("B"));
+		Assert.assertEquals(((IntValue) boundRec[0]).getValue(), 2);
+		Assert.assertTrue(((StringValue) boundRec[1]).getValue().equals("B"));
 		
 		boundRec = dd.getBucketBoundary(2, 8);
-		Assert.assertEquals(((PactInteger) boundRec[0]).getValue(), 3);
-		Assert.assertTrue(((PactString) boundRec[1]).getValue().equals("C"));
+		Assert.assertEquals(((IntValue) boundRec[0]).getValue(), 3);
+		Assert.assertTrue(((StringValue) boundRec[1]).getValue().equals("C"));
 		
 		boundRec = dd.getBucketBoundary(3, 8);
-		Assert.assertEquals(((PactInteger) boundRec[0]).getValue(), 4);
-		Assert.assertTrue(((PactString) boundRec[1]).getValue().equals("D"));
+		Assert.assertEquals(((IntValue) boundRec[0]).getValue(), 4);
+		Assert.assertTrue(((StringValue) boundRec[1]).getValue().equals("D"));
 		
 		boundRec = dd.getBucketBoundary(4, 8);
-		Assert.assertEquals(((PactInteger) boundRec[0]).getValue(), 5);
-		Assert.assertTrue(((PactString) boundRec[1]).getValue().equals("E"));
+		Assert.assertEquals(((IntValue) boundRec[0]).getValue(), 5);
+		Assert.assertTrue(((StringValue) boundRec[1]).getValue().equals("E"));
 		
 		boundRec = dd.getBucketBoundary(5, 8);
-		Assert.assertEquals(((PactInteger) boundRec[0]).getValue(), 6);
-		Assert.assertTrue(((PactString) boundRec[1]).getValue().equals("F"));
+		Assert.assertEquals(((IntValue) boundRec[0]).getValue(), 6);
+		Assert.assertTrue(((StringValue) boundRec[1]).getValue().equals("F"));
 		
 		boundRec = dd.getBucketBoundary(6, 8);
-		Assert.assertEquals(((PactInteger) boundRec[0]).getValue(), 7);
-		Assert.assertTrue(((PactString) boundRec[1]).getValue().equals("G"));
+		Assert.assertEquals(((IntValue) boundRec[0]).getValue(), 7);
+		Assert.assertTrue(((StringValue) boundRec[1]).getValue().equals("G"));
 		
 		boundRec = dd.getBucketBoundary(0, 4);
-		Assert.assertEquals(((PactInteger) boundRec[0]).getValue(), 2);
-		Assert.assertTrue(((PactString) boundRec[1]).getValue().equals("B"));
+		Assert.assertEquals(((IntValue) boundRec[0]).getValue(), 2);
+		Assert.assertTrue(((StringValue) boundRec[1]).getValue().equals("B"));
 		
 		boundRec = dd.getBucketBoundary(1, 4);
-		Assert.assertEquals(((PactInteger) boundRec[0]).getValue(), 4);
-		Assert.assertTrue(((PactString) boundRec[1]).getValue().equals("D"));
+		Assert.assertEquals(((IntValue) boundRec[0]).getValue(), 4);
+		Assert.assertTrue(((StringValue) boundRec[1]).getValue().equals("D"));
 		
 		boundRec = dd.getBucketBoundary(2, 4);
-		Assert.assertEquals(((PactInteger) boundRec[0]).getValue(), 6);
-		Assert.assertTrue(((PactString) boundRec[1]).getValue().equals("F"));
+		Assert.assertEquals(((IntValue) boundRec[0]).getValue(), 6);
+		Assert.assertTrue(((StringValue) boundRec[1]).getValue().equals("F"));
 		
 		boundRec = dd.getBucketBoundary(0, 2);
-		Assert.assertEquals(((PactInteger) boundRec[0]).getValue(), 4);
-		Assert.assertTrue(((PactString) boundRec[1]).getValue().equals("D"));
+		Assert.assertEquals(((IntValue) boundRec[0]).getValue(), 4);
+		Assert.assertTrue(((StringValue) boundRec[1]).getValue().equals("D"));
 		
 		try {
 			boundRec = dd.getBucketBoundary(0, 7);

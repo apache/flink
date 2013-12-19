@@ -14,7 +14,7 @@
 package eu.stratosphere.pact.runtime.iterative.convergence;
 
 import eu.stratosphere.api.functions.aggregators.ConvergenceCriterion;
-import eu.stratosphere.types.PactLong;
+import eu.stratosphere.types.LongValue;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -22,14 +22,14 @@ import org.apache.commons.logging.LogFactory;
 /**
  * A workset iteration is by definition converged if no records have been updated in the solutionset
  */
-public class WorksetEmptyConvergenceCriterion implements ConvergenceCriterion<PactLong> {
+public class WorksetEmptyConvergenceCriterion implements ConvergenceCriterion<LongValue> {
 
 	private static final Log log = LogFactory.getLog(WorksetEmptyConvergenceCriterion.class);
 	
 	public static final String AGGREGATOR_NAME = "pact.runtime.workset-empty-aggregator";
 
 	@Override
-	public boolean isConverged(int iteration, PactLong value) {
+	public boolean isConverged(int iteration, LongValue value) {
 
 		long updatedElements = value.getValue();
 

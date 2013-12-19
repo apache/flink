@@ -24,7 +24,7 @@ import eu.stratosphere.api.record.operators.MapOperator;
 import eu.stratosphere.api.record.operators.JoinOperator;
 import eu.stratosphere.api.record.operators.ReduceOperator;
 import eu.stratosphere.test.testPrograms.util.IntTupleDataInFormat;
-import eu.stratosphere.types.PactInteger;
+import eu.stratosphere.types.IntValue;
 
 /**
  * Quote from the TPC-H homepage:
@@ -161,19 +161,19 @@ public class TPCHQuery9 implements Program, ProgramDescription {
 			.build();
 
 		/* Equijoin on partkey of part and partsupp: */
-		JoinOperator partsJoin = JoinOperator.builder(PartJoin.class, PactInteger.class, 0, 0)
+		JoinOperator partsJoin = JoinOperator.builder(PartJoin.class, IntValue.class, 0, 0)
 			.name("partsJoin")
 			.build();
 
 		/* Equijoin on orderkey of orders and lineitem: */
 		JoinOperator orderedPartsJoin =
-			JoinOperator.builder(OrderedPartsJoin.class, PactInteger.class, 0, 0)
+			JoinOperator.builder(OrderedPartsJoin.class, IntValue.class, 0, 0)
 			.name("orderedPartsJoin")
 			.build();
 
 		/* Equijoin on nationkey of supplier and nation: */
 		JoinOperator suppliersJoin =
-			JoinOperator.builder(SuppliersJoin.class, PactInteger.class, 0, 0)
+			JoinOperator.builder(SuppliersJoin.class, IntValue.class, 0, 0)
 			.name("suppliersJoin")
 			.build();
 
@@ -185,7 +185,7 @@ public class TPCHQuery9 implements Program, ProgramDescription {
 
 		/* Equijoin on suppkey of filteredParts and suppliers: */
 		JoinOperator partListJoin =
-			JoinOperator.builder(PartListJoin.class, PactInteger.class , 0, 0)
+			JoinOperator.builder(PartListJoin.class, IntValue.class , 0, 0)
 			.name("partlistJoin")
 			.build();
 

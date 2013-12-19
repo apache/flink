@@ -20,9 +20,9 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.api.record.io.DelimitedInputFormat;
 import eu.stratosphere.api.record.io.FileOutputFormat;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
+import eu.stratosphere.types.StringValue;
 
 public class ContractITCaseIOFormats {
 
@@ -31,11 +31,11 @@ public class ContractITCaseIOFormats {
 	public static class ContractITCaseInputFormat extends DelimitedInputFormat {
 		private static final long serialVersionUID = 1L;
 
-		private final PactString keyString = new PactString();
-		private final PactString valueString = new PactString();
+		private final StringValue keyString = new StringValue();
+		private final StringValue valueString = new StringValue();
 		
 		@Override
-		public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes) {
+		public boolean readRecord(Record target, byte[] bytes, int offset, int numBytes) {
 			this.keyString.setValueAscii(bytes, offset, 1);
 			this.valueString.setValueAscii(bytes, offset + 2, 1);
 			target.setField(0, keyString);
@@ -52,11 +52,11 @@ public class ContractITCaseIOFormats {
 		private static final long serialVersionUID = 1L;
 		
 		private final StringBuilder buffer = new StringBuilder();
-		private final PactString keyString = new PactString();
-		private final PactInteger valueInteger = new PactInteger();
+		private final StringValue keyString = new StringValue();
+		private final IntValue valueInteger = new IntValue();
 		
 		@Override
-		public void writeRecord(PactRecord record) throws IOException {
+		public void writeRecord(Record record) throws IOException {
 			this.buffer.setLength(0);
 			this.buffer.append(record.getField(0, keyString).toString());
 			this.buffer.append(' ');

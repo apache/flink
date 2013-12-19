@@ -25,11 +25,11 @@ import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordSerializer;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializer;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.MutableObjectIteratorWrapper;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.MutableObjectIterator;
 import junit.framework.Assert;
 
@@ -43,9 +43,9 @@ public class SpillingResettableMutableObjectIteratorTest
 
 	private MemoryManager memman;
 
-	private MutableObjectIterator<PactRecord> reader;
+	private MutableObjectIterator<Record> reader;
 
-	private final TypeSerializer<PactRecord> serializer = PactRecordSerializer.get();
+	private final TypeSerializer<Record> serializer = RecordSerializer.get();
 
 
 	@Before
@@ -56,10 +56,10 @@ public class SpillingResettableMutableObjectIteratorTest
 		this.ioman = new IOManager();
 
 		// create test objects
-		final ArrayList<PactRecord> objects = new ArrayList<PactRecord>(NUM_TESTRECORDS);
+		final ArrayList<Record> objects = new ArrayList<Record>(NUM_TESTRECORDS);
 
 		for (int i = 0; i < NUM_TESTRECORDS; ++i) {
-			PactRecord tmp = new PactRecord(new PactInteger(i));
+			Record tmp = new Record(new IntValue(i));
 			objects.add(tmp);
 		}
 		this.reader = new MutableObjectIteratorWrapper(objects.iterator());
@@ -92,7 +92,7 @@ public class SpillingResettableMutableObjectIteratorTest
 			final AbstractInvokable memOwner = new DummyInvokable();
 	
 			// create the resettable Iterator
-			SpillingResettableMutableObjectIterator<PactRecord> iterator = new SpillingResettableMutableObjectIterator<PactRecord>(
+			SpillingResettableMutableObjectIterator<Record> iterator = new SpillingResettableMutableObjectIterator<Record>(
 				this.reader, this.serializer, this.memman, this.ioman, 2 * 32 * 1024, memOwner);
 	
 			// open the iterator
@@ -103,10 +103,10 @@ public class SpillingResettableMutableObjectIteratorTest
 			}
 			// now test walking through the iterator
 			int count = 0;
-			PactRecord target = new PactRecord();
+			Record target = new Record();
 			while (iterator.next(target))
 				Assert.assertEquals("In initial run, element " + count + " does not match expected value!", count++,
-					target.getField(0, PactInteger.class).getValue());
+					target.getField(0, IntValue.class).getValue());
 			Assert.assertEquals("Too few elements were deserialzied in initial run!", NUM_TESTRECORDS, count);
 			// test resetting the iterator a few times
 			for (int j = 0; j < 10; ++j) {
@@ -115,7 +115,7 @@ public class SpillingResettableMutableObjectIteratorTest
 				// now we should get the same results
 				while (iterator.next(target))
 					Assert.assertEquals("After reset nr. " + j + 1 + " element " + count
-						+ " does not match expected value!", count++, target.getField(0, PactInteger.class).getValue());
+						+ " does not match expected value!", count++, target.getField(0, IntValue.class).getValue());
 				Assert.assertEquals("Too few elements were deserialzied after reset nr. " + j + 1 + "!", NUM_TESTRECORDS,
 					count);
 			}
@@ -137,7 +137,7 @@ public class SpillingResettableMutableObjectIteratorTest
 			final AbstractInvokable memOwner = new DummyInvokable();
 	
 			// create the resettable Iterator
-			SpillingResettableMutableObjectIterator<PactRecord> iterator = new SpillingResettableMutableObjectIterator<PactRecord>(
+			SpillingResettableMutableObjectIterator<Record> iterator = new SpillingResettableMutableObjectIterator<Record>(
 				this.reader, this.serializer, this.memman, this.ioman, 20 * 32 * 1024, memOwner);
 			// open the iterator
 			try {
@@ -147,10 +147,10 @@ public class SpillingResettableMutableObjectIteratorTest
 			}
 			// now test walking through the iterator
 			int count = 0;
-			PactRecord target = new PactRecord();
+			Record target = new Record();
 			while (iterator.next(target))
 				Assert.assertEquals("In initial run, element " + count + " does not match expected value!", count++,
-					target.getField(0, PactInteger.class).getValue());
+					target.getField(0, IntValue.class).getValue());
 			Assert.assertEquals("Too few elements were deserialzied in initial run!", NUM_TESTRECORDS, count);
 			// test resetting the iterator a few times
 			for (int j = 0; j < 10; ++j) {
@@ -159,7 +159,7 @@ public class SpillingResettableMutableObjectIteratorTest
 				// now we should get the same results
 				while (iterator.next(target))
 					Assert.assertEquals("After reset nr. " + j + 1 + " element " + count
-						+ " does not match expected value!", count++, target.getField(0, PactInteger.class).getValue());
+						+ " does not match expected value!", count++, target.getField(0, IntValue.class).getValue());
 				Assert.assertEquals("Too few elements were deserialzied after reset nr. " + j + 1 + "!", NUM_TESTRECORDS,
 					count);
 			}

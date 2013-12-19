@@ -30,10 +30,10 @@ import java.lang.annotation.Target;
  * \@ConstantFieldsExcept(fields={2})
  * public class MyMapper extends MapFunction
  * {
- *     public void map(PactRecord record, Collector out)
+ *     public void map(Record record, Collector out)
  *     {
- *        int value = record.getField(2, PactInteger.class).getValue();
-		  record.setField(2, new PactInteger(Math.abs(value)));
+ *        int value = record.getField(2, IntValue.class).getValue();
+		  record.setField(2, new IntValue(Math.abs(value)));
 		  
 		  out.collect(record);
  *     }

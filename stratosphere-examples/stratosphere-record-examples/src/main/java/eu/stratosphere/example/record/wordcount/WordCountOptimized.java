@@ -29,9 +29,9 @@ import eu.stratosphere.api.record.operators.MapOperator;
 import eu.stratosphere.api.record.operators.ReduceOperator;
 import eu.stratosphere.api.record.operators.ReduceOperator.Combinable;
 import eu.stratosphere.client.LocalExecutor;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
+import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.AsciiUtils;
 import eu.stratosphere.util.Collector;
 
@@ -43,24 +43,24 @@ import eu.stratosphere.util.Collector;
 public class WordCountOptimized implements Program, ProgramDescription {
 	
 	/**
-	 * Converts a PactRecord containing one string in to multiple string/integer pairs.
+	 * Converts a Record containing one string in to multiple string/integer pairs.
 	 * The string is tokenized by whitespaces. For each token a new record is emitted,
 	 * where the token is the first field and an Integer(1) is the second field.
 	 */
 	public static class TokenizeLine extends MapFunction {
 		
 		// initialize reusable mutable objects
-		private final PactRecord outputRecord = new PactRecord();
-		private final PactString word = new PactString();
-		private final PactInteger one = new PactInteger(1);
+		private final Record outputRecord = new Record();
+		private final StringValue word = new StringValue();
+		private final IntValue one = new IntValue(1);
 		
 		private final AsciiUtils.WhitespaceTokenizer tokenizer =
 				new AsciiUtils.WhitespaceTokenizer();
 		
 		@Override
-		public void map(PactRecord record, Collector<PactRecord> collector) {
-			// get the first field (as type PactString) from the record
-			PactString line = record.getField(0, PactString.class);
+		public void map(Record record, Collector<Record> collector) {
+			// get the first field (as type StringValue) from the record
+			StringValue line = record.getField(0, StringValue.class);
 			
 			// normalize the line
 			AsciiUtils.replaceNonWordChars(line, ' ');
@@ -86,15 +86,15 @@ public class WordCountOptimized implements Program, ProgramDescription {
 	@ConstantFields(0)
 	public static class CountWords extends ReduceFunction {
 		
-		private final PactInteger cnt = new PactInteger();
+		private final IntValue cnt = new IntValue();
 		
 		@Override
-		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {
-			PactRecord element = null;
+		public void reduce(Iterator<Record> records, Collector<Record> out) throws Exception {
+			Record element = null;
 			int sum = 0;
 			while (records.hasNext()) {
 				element = records.next();
-				PactInteger i = element.getField(1, PactInteger.class);
+				IntValue i = element.getField(1, IntValue.class);
 				sum += i.getValue();
 			}
 
@@ -104,7 +104,7 @@ public class WordCountOptimized implements Program, ProgramDescription {
 		}
 		
 		@Override
-		public void combine(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {
+		public void combine(Iterator<Record> records, Collector<Record> out) throws Exception {
 			// the logic is the same as in the reduce function, so simply call the reduce method
 			this.reduce(records, out);
 		}
@@ -124,7 +124,7 @@ public class WordCountOptimized implements Program, ProgramDescription {
 			.input(source)
 			.name("Tokenize Lines")
 			.build();
-		ReduceOperator reducer = ReduceOperator.builder(CountWords.class, PactString.class, 0)
+		ReduceOperator reducer = ReduceOperator.builder(CountWords.class, StringValue.class, 0)
 			.input(mapper)
 			.name("Count Words")
 			.build();
@@ -132,8 +132,8 @@ public class WordCountOptimized implements Program, ProgramDescription {
 		CsvOutputFormat.configureRecordFormat(out)
 			.recordDelimiter('\n')
 			.fieldDelimiter(' ')
-			.field(PactString.class, 0)
-			.field(PactInteger.class, 1);
+			.field(StringValue.class, 0)
+			.field(IntValue.class, 1);
 		
 		Plan plan = new Plan(out, "WordCount Example");
 		plan.setDefaultParallelism(numSubTasks);

@@ -23,15 +23,15 @@ import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.configuration.IllegalConfigurationException;
 import eu.stratosphere.core.fs.FileInputSplit;
-import eu.stratosphere.types.PactDouble;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactLong;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.DoubleValue;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.LongValue;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.types.Value;
 import eu.stratosphere.types.parser.FieldParser;
 
 /**
- * Input format to parse text files and generate PactRecords. 
+ * Input format to parse text files and generate Records. 
  * The input file is structured by record delimiters and field delimiters (CSV files are common).
  * Record delimiter separate records from each other ('\n' is common).
  * Field delimiters separate fields within a record. 
@@ -42,12 +42,12 @@ import eu.stratosphere.types.parser.FieldParser;
  * 
  * The position within the text record can be configured for each field using the {@link CsvInputFormat#TEXT_POSITION_PARAMETER_PREFIX} config key.
  * Either all text positions must be configured or none. If none is configured, the index of the config key is used.
- * The position of a value within the {@link PactRecord} is the index of the config key.
+ * The position of a value within the {@link Record} is the index of the config key.
  * 
  * @see Configuration
- * @see PactRecord
+ * @see Record
  */
-public class CsvInputFormat extends GenericCsvInputFormat<PactRecord> {
+public class CsvInputFormat extends GenericCsvInputFormat<Record> {
 	
 	private static final long serialVersionUID = 1L;
 	
@@ -190,7 +190,7 @@ public class CsvInputFormat extends GenericCsvInputFormat<PactRecord> {
 	}
 	
 	@Override
-	public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes) throws ParseException {
+	public boolean readRecord(Record target, byte[] bytes, int offset, int numBytes) throws ParseException {
 		if (parseRecord(parsedValues, bytes, offset, numBytes)) {
 			// valid parse, map values into pact record
 			for (int i = 0; i < parsedValues.length; i++) {
@@ -284,9 +284,9 @@ public class CsvInputFormat extends GenericCsvInputFormat<PactRecord> {
 			
 			// register length
 			if (avgLen == Float.NEGATIVE_INFINITY) {
-				if (type == PactInteger.class) {
+				if (type == IntValue.class) {
 					avgLen = 4f;
-				} else if (type == PactDouble.class || type == PactLong.class) {
+				} else if (type == DoubleValue.class || type == LongValue.class) {
 					avgLen = 8f;
 				}
 			}

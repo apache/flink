@@ -16,9 +16,9 @@ package eu.stratosphere.test.iterative.nephele.danglingpagerank;
 import eu.stratosphere.api.record.functions.CoGroupFunction;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.test.iterative.nephele.ConfigUtils;
-import eu.stratosphere.types.PactDouble;
-import eu.stratosphere.types.PactLong;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.DoubleValue;
+import eu.stratosphere.types.LongValue;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 import java.util.Iterator;
@@ -28,7 +28,7 @@ public class CompensatableDotProductCoGroup extends CoGroupFunction {
 	
 	public static final String AGGREGATOR_NAME = "pagerank.aggregator";
 
-	private PactRecord accumulator = new PactRecord();
+	private Record accumulator = new Record();
 
 	private int workerIndex;
 
@@ -50,13 +50,13 @@ public class CompensatableDotProductCoGroup extends CoGroupFunction {
 
 	private static final double BETA = 0.85;
 
-	private final PactDouble newRank = new PactDouble();
+	private final DoubleValue newRank = new DoubleValue();
 
 	private BooleanValue isDangling = new BooleanValue();
 
-	private PactLong vertexID = new PactLong();
+	private LongValue vertexID = new LongValue();
 
-	private PactDouble doubleInstance = new PactDouble();
+	private DoubleValue doubleInstance = new DoubleValue();
 
 	@Override
 	public void open(Configuration parameters) throws Exception {
@@ -81,15 +81,15 @@ public class CompensatableDotProductCoGroup extends CoGroupFunction {
 	}
 
 	@Override
-	public void coGroup(Iterator<PactRecord> currentPageRankIterator, Iterator<PactRecord> partialRanks,
-			Collector<PactRecord> collector) {
+	public void coGroup(Iterator<Record> currentPageRankIterator, Iterator<Record> partialRanks,
+			Collector<Record> collector) {
 
 		if (!currentPageRankIterator.hasNext()) {
-			long missingVertex = partialRanks.next().getField(0, PactLong.class).getValue();
+			long missingVertex = partialRanks.next().getField(0, LongValue.class).getValue();
 			throw new IllegalStateException("No current page rank for vertex [" + missingVertex + "]!");
 		}
 
-		PactRecord currentPageRank = currentPageRankIterator.next();
+		Record currentPageRank = currentPageRankIterator.next();
 
 		long edges = 0;
 		double summedRank = 0;

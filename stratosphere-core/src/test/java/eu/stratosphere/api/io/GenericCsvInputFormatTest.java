@@ -36,9 +36,9 @@ import eu.stratosphere.api.io.ParseException;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.fs.FileInputSplit;
 import eu.stratosphere.core.fs.Path;
-import eu.stratosphere.types.PactDouble;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.DoubleValue;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.StringValue;
 import eu.stratosphere.types.Value;
 import eu.stratosphere.util.LogUtils;
 
@@ -75,7 +75,7 @@ public class GenericCsvInputFormatTest {
 	public void testSparseFieldArray() {
 		
 		@SuppressWarnings("unchecked")
-		Class<? extends Value>[] originalTypes = new Class[] { PactInteger.class, null, null, PactString.class, null, PactDouble.class };
+		Class<? extends Value>[] originalTypes = new Class[] { IntValue.class, null, null, StringValue.class, null, DoubleValue.class };
 		
 		format.setFieldTypes(originalTypes);
 		assertEquals(3, format.getNumberOfNonNullFields());
@@ -94,7 +94,7 @@ public class GenericCsvInputFormatTest {
 			final Configuration parameters = new Configuration();
 			
 			format.setFieldDelim('|');
-			format.setFieldTypes(PactInteger.class, PactInteger.class, PactInteger.class, PactInteger.class, PactInteger.class);
+			format.setFieldTypes(IntValue.class, IntValue.class, IntValue.class, IntValue.class, IntValue.class);
 			
 			format.configure(parameters);
 			format.open(split);
@@ -102,18 +102,18 @@ public class GenericCsvInputFormatTest {
 			Value[] values = createIntValues(5);
 			
 			assertTrue(format.nextRecord(values));
-			assertEquals(111, ((PactInteger) values[0]).getValue());
-			assertEquals(222, ((PactInteger) values[1]).getValue());
-			assertEquals(333, ((PactInteger) values[2]).getValue());
-			assertEquals(444, ((PactInteger) values[3]).getValue());
-			assertEquals(555, ((PactInteger) values[4]).getValue());
+			assertEquals(111, ((IntValue) values[0]).getValue());
+			assertEquals(222, ((IntValue) values[1]).getValue());
+			assertEquals(333, ((IntValue) values[2]).getValue());
+			assertEquals(444, ((IntValue) values[3]).getValue());
+			assertEquals(555, ((IntValue) values[4]).getValue());
 			
 			assertTrue(format.nextRecord(values));
-			assertEquals(666, ((PactInteger) values[0]).getValue());
-			assertEquals(777, ((PactInteger) values[1]).getValue());
-			assertEquals(888, ((PactInteger) values[2]).getValue());
-			assertEquals(999, ((PactInteger) values[3]).getValue());
-			assertEquals(000, ((PactInteger) values[4]).getValue());
+			assertEquals(666, ((IntValue) values[0]).getValue());
+			assertEquals(777, ((IntValue) values[1]).getValue());
+			assertEquals(888, ((IntValue) values[2]).getValue());
+			assertEquals(999, ((IntValue) values[3]).getValue());
+			assertEquals(000, ((IntValue) values[4]).getValue());
 			
 			assertFalse(format.nextRecord(values));
 			assertTrue(format.reachedEnd());
@@ -133,7 +133,7 @@ public class GenericCsvInputFormatTest {
 			final Configuration parameters = new Configuration();
 			
 			format.setFieldDelim('|');
-			format.setFieldTypes(PactInteger.class, PactInteger.class);
+			format.setFieldTypes(IntValue.class, IntValue.class);
 			
 			format.configure(parameters);
 			format.open(split);
@@ -142,12 +142,12 @@ public class GenericCsvInputFormatTest {
 
 			// if this would parse all, we would get an index out of bounds exception
 			assertTrue(format.nextRecord(values));
-			assertEquals(111, ((PactInteger) values[0]).getValue());
-			assertEquals(222, ((PactInteger) values[1]).getValue());
+			assertEquals(111, ((IntValue) values[0]).getValue());
+			assertEquals(222, ((IntValue) values[1]).getValue());
 			
 			assertTrue(format.nextRecord(values));
-			assertEquals(666, ((PactInteger) values[0]).getValue());
-			assertEquals(777, ((PactInteger) values[1]).getValue());
+			assertEquals(666, ((IntValue) values[0]).getValue());
+			assertEquals(777, ((IntValue) values[1]).getValue());
 
 			
 			assertFalse(format.nextRecord(values));
@@ -169,7 +169,7 @@ public class GenericCsvInputFormatTest {
 			final Configuration parameters = new Configuration();
 			
 			format.setFieldDelim('|');
-			format.setFieldTypes(PactInteger.class, null, null, PactInteger.class, null, null, null, PactInteger.class);
+			format.setFieldTypes(IntValue.class, null, null, IntValue.class, null, null, null, IntValue.class);
 			
 			format.configure(parameters);
 			format.open(split);
@@ -177,14 +177,14 @@ public class GenericCsvInputFormatTest {
 			Value[] values = createIntValues(3);
 			
 			assertTrue(format.nextRecord(values));
-			assertEquals(111, ((PactInteger) values[0]).getValue());
-			assertEquals(444, ((PactInteger) values[1]).getValue());
-			assertEquals(888, ((PactInteger) values[2]).getValue());
+			assertEquals(111, ((IntValue) values[0]).getValue());
+			assertEquals(444, ((IntValue) values[1]).getValue());
+			assertEquals(888, ((IntValue) values[2]).getValue());
 			
 			assertTrue(format.nextRecord(values));
-			assertEquals(000, ((PactInteger) values[0]).getValue());
-			assertEquals(777, ((PactInteger) values[1]).getValue());
-			assertEquals(333, ((PactInteger) values[2]).getValue());
+			assertEquals(000, ((IntValue) values[0]).getValue());
+			assertEquals(777, ((IntValue) values[1]).getValue());
+			assertEquals(333, ((IntValue) values[2]).getValue());
 			
 			assertFalse(format.nextRecord(values));
 			assertTrue(format.reachedEnd());
@@ -207,21 +207,21 @@ public class GenericCsvInputFormatTest {
 
             format.setFieldDelim('|');
             format.setFields(new int[]{0, 3, 7},
-                    (Class<? extends Value>[]) new Class[]{PactInteger.class, PactInteger.class, PactInteger.class});
+                    (Class<? extends Value>[]) new Class[]{IntValue.class, IntValue.class, IntValue.class});
             format.configure(parameters);
             format.open(split);
 
             Value[] values = createIntValues(3);
 
             assertTrue(format.nextRecord(values));
-            assertEquals(111, ((PactInteger) values[0]).getValue());
-            assertEquals(444, ((PactInteger) values[1]).getValue());
-            assertEquals(888, ((PactInteger) values[2]).getValue());
+            assertEquals(111, ((IntValue) values[0]).getValue());
+            assertEquals(444, ((IntValue) values[1]).getValue());
+            assertEquals(888, ((IntValue) values[2]).getValue());
 
             assertTrue(format.nextRecord(values));
-            assertEquals(000, ((PactInteger) values[0]).getValue());
-            assertEquals(777, ((PactInteger) values[1]).getValue());
-            assertEquals(333, ((PactInteger) values[2]).getValue());
+            assertEquals(000, ((IntValue) values[0]).getValue());
+            assertEquals(777, ((IntValue) values[1]).getValue());
+            assertEquals(333, ((IntValue) values[2]).getValue());
 
             assertFalse(format.nextRecord(values));
             assertTrue(format.reachedEnd());
@@ -242,7 +242,7 @@ public class GenericCsvInputFormatTest {
 		
 			final Configuration parameters = new Configuration();
 			format.setFieldDelim('|');
-			format.setFieldTypes(PactInteger.class, PactInteger.class, PactInteger.class, PactInteger.class, PactInteger.class);
+			format.setFieldTypes(IntValue.class, IntValue.class, IntValue.class, IntValue.class, IntValue.class);
 			
 			format.configure(parameters);
 			format.open(split);
@@ -271,7 +271,7 @@ public class GenericCsvInputFormatTest {
 		
 			final Configuration parameters = new Configuration();
 			format.setFieldDelim('|');
-			format.setFieldTypes(PactInteger.class, PactInteger.class, PactInteger.class, PactInteger.class, PactInteger.class);
+			format.setFieldTypes(IntValue.class, IntValue.class, IntValue.class, IntValue.class, IntValue.class);
 			format.setLenient(true);
 			
 			format.configure(parameters);
@@ -298,12 +298,12 @@ public class GenericCsvInputFormatTest {
 			final Configuration parameters = new Configuration();
 
 			format.setFieldDelim('|');
-			format.setFieldTypes(PactString.class, PactInteger.class, PactString.class, PactInteger.class);
+			format.setFieldTypes(StringValue.class, IntValue.class, StringValue.class, IntValue.class);
 			
 			format.configure(parameters);
 			format.open(split);
 			
-			Value[] values = new Value[] { new PactString(), new PactInteger(), new PactString(), new PactInteger() };
+			Value[] values = new Value[] { new StringValue(), new IntValue(), new StringValue(), new IntValue() };
 			
 			assertTrue(format.nextRecord(values));
 			
@@ -330,13 +330,13 @@ public class GenericCsvInputFormatTest {
 			final Configuration parameters = new Configuration();
 
 			format.setFieldDelim('|');
-			format.setFieldTypes(PactString.class, PactInteger.class, PactString.class, PactInteger.class);
+			format.setFieldTypes(StringValue.class, IntValue.class, StringValue.class, IntValue.class);
 			format.setLenient(true);
 			
 			format.configure(parameters);
 			format.open(split);
 			
-			Value[] values = new Value[] { new PactString(), new PactInteger(), new PactString(), new PactInteger() };
+			Value[] values = new Value[] { new StringValue(), new IntValue(), new StringValue(), new IntValue() };
 			
 			assertTrue(format.nextRecord(values));
 			assertFalse(format.nextRecord(values));
@@ -356,27 +356,27 @@ public class GenericCsvInputFormatTest {
 			final Configuration parameters = new Configuration();
 
 			format.setFieldDelim('|');
-			format.setFieldTypes(PactString.class, PactString.class, PactString.class);
+			format.setFieldTypes(StringValue.class, StringValue.class, StringValue.class);
 			
 			format.configure(parameters);
 			format.open(split);
 			
-			Value[] values = new Value[] { new PactString(), new PactString(), new PactString()};
+			Value[] values = new Value[] { new StringValue(), new StringValue(), new StringValue()};
 			
 			assertTrue(format.nextRecord(values));
-			assertEquals("abc", ((PactString) values[0]).getValue());
-			assertEquals("def", ((PactString) values[1]).getValue());
-			assertEquals("ghijk", ((PactString) values[2]).getValue());
+			assertEquals("abc", ((StringValue) values[0]).getValue());
+			assertEquals("def", ((StringValue) values[1]).getValue());
+			assertEquals("ghijk", ((StringValue) values[2]).getValue());
 			
 			assertTrue(format.nextRecord(values));
-			assertEquals("abc", ((PactString) values[0]).getValue());
-			assertEquals("", ((PactString) values[1]).getValue());
-			assertEquals("hhg", ((PactString) values[2]).getValue());
+			assertEquals("abc", ((StringValue) values[0]).getValue());
+			assertEquals("", ((StringValue) values[1]).getValue());
+			assertEquals("hhg", ((StringValue) values[2]).getValue());
 			
 			assertTrue(format.nextRecord(values));
-			assertEquals("", ((PactString) values[0]).getValue());
-			assertEquals("", ((PactString) values[1]).getValue());
-			assertEquals("", ((PactString) values[2]).getValue());
+			assertEquals("", ((StringValue) values[0]).getValue());
+			assertEquals("", ((StringValue) values[1]).getValue());
+			assertEquals("", ((StringValue) values[2]).getValue());
 			
 		}
 		catch (Exception ex) {
@@ -399,7 +399,7 @@ public class GenericCsvInputFormatTest {
 		Value[] v = new Value[num];
 		
 		for (int i = 0; i < num; i++) {
-			v[i] = new PactInteger();
+			v[i] = new IntValue();
 		}
 		
 		return v;

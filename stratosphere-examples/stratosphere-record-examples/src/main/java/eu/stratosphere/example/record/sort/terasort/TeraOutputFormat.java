@@ -16,7 +16,7 @@ package eu.stratosphere.example.record.sort.terasort;
 import java.io.IOException;
 
 import eu.stratosphere.api.record.io.FileOutputFormat;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 
 
 /**
@@ -35,7 +35,7 @@ public final class TeraOutputFormat extends FileOutputFormat {
 
 
 	@Override
-	public void writeRecord(PactRecord record) throws IOException {
+	public void writeRecord(Record record) throws IOException {
 		record.getField(0, TeraKey.class).copyToBuffer(this.buffer);
 		record.getField(1, TeraValue.class).copyToBuffer(this.buffer);
 

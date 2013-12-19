@@ -15,19 +15,19 @@ package eu.stratosphere.pact.compiler.util;
 
 import eu.stratosphere.api.io.statistics.BaseStatistics;
 import eu.stratosphere.api.record.io.DelimitedInputFormat;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
 
 public final class DummyInputFormat extends DelimitedInputFormat {
 	private static final long serialVersionUID = 1L;
 	
-	private final PactInteger integer = new PactInteger(1);
+	private final IntValue integer = new IntValue(1);
 
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.api.record.io.DelimitedInputFormat#readRecord(eu.stratosphere.pact.common.type.PactRecord, byte[], int)
+	 * @see eu.stratosphere.api.record.io.DelimitedInputFormat#readRecord(eu.stratosphere.pact.common.type.Record, byte[], int)
 	 */
 	@Override
-	public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes) {
+	public boolean readRecord(Record target, byte[] bytes, int offset, int numBytes) {
 		target.setField(0, this.integer);
 		target.setField(1, this.integer);
 		return true;

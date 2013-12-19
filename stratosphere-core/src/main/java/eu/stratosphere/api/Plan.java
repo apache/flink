@@ -187,7 +187,7 @@ public class Plan implements Visitable<Operator> {
 	 * @return The name of the class implementing the optimizer post-pass.
 	 */
 	public String getPostPassClassName() {
-		return "eu.stratosphere.compiler.postpass.GenericPactRecordPostPass";
+		return "eu.stratosphere.compiler.postpass.RecordModelPostPass";
 	}
 	
 	// ------------------------------------------------------------------------

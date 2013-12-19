@@ -19,7 +19,7 @@ import java.io.IOException;
 import eu.stratosphere.api.io.statistics.BaseStatistics;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.fs.FileInputSplit;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 
 /**
  * 
@@ -88,12 +88,12 @@ public abstract class FixedLengthInputFormat extends FileInputFormat {
 	 * Reads a record out of the given buffer. This operation always consumes the standard number of
 	 * bytes, regardless of whether the produced record was valid.
 	 * 
-	 * @param target The target PactRecord
+	 * @param target The target Record
 	 * @param buffer The buffer containing the binary data.
 	 * @param startPos The start position in the byte array.
 	 * @return True, is the record is valid, false otherwise.
 	 */
-	public abstract boolean readBytes(PactRecord target, byte[] buffer, int startPos);
+	public abstract boolean readBytes(Record target, byte[] buffer, int startPos);
 	
 	/**
 	 * Returns the fixed length of a record.
@@ -186,7 +186,7 @@ public abstract class FixedLengthInputFormat extends FileInputFormat {
 	 * @throws IOException
 	 */
 	@Override
-	public boolean nextRecord(PactRecord record) throws IOException {
+	public boolean nextRecord(Record record) throws IOException {
 		// check if read buffer contains another full record
 		if (this.readBufferLimit - this.readBufferPos <= 0) {
 			// get another buffer

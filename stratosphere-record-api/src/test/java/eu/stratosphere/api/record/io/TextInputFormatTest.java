@@ -26,8 +26,8 @@ import org.junit.Test;
 import eu.stratosphere.api.record.io.TextInputFormat;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.fs.FileInputSplit;
-import eu.stratosphere.types.PactRecord;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.Record;
+import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.LogUtils;
 
 public class TextInputFormatTest {
@@ -71,12 +71,12 @@ public class TextInputFormatTest {
 			
 			inputFormat.open(splits[0]);
 			
-			PactRecord r = new PactRecord();
+			Record r = new Record();
 			assertTrue("Expecting first record here", inputFormat.nextRecord(r));
-			assertEquals(FIRST, r.getField(0, PactString.class).getValue());
+			assertEquals(FIRST, r.getField(0, StringValue.class).getValue());
 			
 			assertTrue("Expecting second record here",inputFormat.nextRecord(r ));
-			assertEquals(SECOND, r.getField(0, PactString.class).getValue());
+			assertEquals(SECOND, r.getField(0, StringValue.class).getValue());
 			
 			assertFalse("The input file is over", inputFormat.nextRecord(r));
 		}

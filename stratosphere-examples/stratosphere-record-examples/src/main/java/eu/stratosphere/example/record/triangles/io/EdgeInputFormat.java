@@ -15,8 +15,8 @@ package eu.stratosphere.example.record.triangles.io;
 
 import eu.stratosphere.api.record.io.DelimitedInputFormat;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
 
 
 /**
@@ -27,18 +27,18 @@ public final class EdgeInputFormat extends DelimitedInputFormat {
 	
 	public static final String ID_DELIMITER_CHAR = "edgeinput.delimiter";
 	
-	private final PactInteger i1 = new PactInteger();
-	private final PactInteger i2 = new PactInteger();
+	private final IntValue i1 = new IntValue();
+	private final IntValue i2 = new IntValue();
 	
 	private char delimiter;
 	
 	// --------------------------------------------------------------------------------------------
 	
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.api.record.io.DelimitedInputFormat#readRecord(eu.stratosphere.pact.common.type.PactRecord, byte[], int)
+	 * @see eu.stratosphere.api.record.io.DelimitedInputFormat#readRecord(eu.stratosphere.pact.common.type.Record, byte[], int)
 	 */
 	@Override
-	public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes) {
+	public boolean readRecord(Record target, byte[] bytes, int offset, int numBytes) {
 		final int limit = offset + numBytes;
 		int first = 0, second = 0;
 		final char delimiter = this.delimiter;

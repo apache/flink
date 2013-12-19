@@ -14,7 +14,7 @@
 package eu.stratosphere.example.record.sort.terasort;
 
 import eu.stratosphere.api.record.io.DelimitedInputFormat;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 
 /**
  * This class is responsible for converting a line from the input file to a two field record. 
@@ -28,7 +28,7 @@ public final class TeraInputFormat extends DelimitedInputFormat {
 	
 
 	@Override
-	public boolean readRecord(PactRecord target, byte[] record, int offset, int numBytes)
+	public boolean readRecord(Record target, byte[] record, int offset, int numBytes)
 	{
 		if (numBytes != (TeraKey.KEY_SIZE + TeraValue.VALUE_SIZE)) {
 			return false;

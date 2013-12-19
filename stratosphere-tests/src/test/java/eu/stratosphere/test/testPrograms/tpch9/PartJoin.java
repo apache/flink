@@ -15,15 +15,15 @@ package eu.stratosphere.test.testPrograms.tpch9;
 
 import eu.stratosphere.api.record.functions.JoinFunction;
 import eu.stratosphere.test.testPrograms.util.Tuple;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
+import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
 
 public class PartJoin extends JoinFunction {
 	
 	private final Tuple partSuppValue = new Tuple();
-	private final PactInteger partKey = new PactInteger();
+	private final IntValue partKey = new IntValue();
 	
 	/**
 	 * Join "part" and "partsupp" by "partkey".
@@ -34,17 +34,17 @@ public class PartJoin extends JoinFunction {
 	 *
 	 */
 	@Override
-	public void match(PactRecord value1, PactRecord value2, Collector<PactRecord> out)
+	public void match(Record value1, Record value2, Collector<Record> out)
 			throws Exception {
 
-		PactInteger partKey = value1.getField(0, this.partKey);
+		IntValue partKey = value1.getField(0, this.partKey);
 		Tuple partSuppValue = value2.getField(1, this.partSuppValue);
 		
-		IntPair newKey = new IntPair(partKey, new PactInteger(Integer.parseInt(partSuppValue.getStringValueAt(0))));
+		IntPair newKey = new IntPair(partKey, new IntValue(Integer.parseInt(partSuppValue.getStringValueAt(0))));
 		String supplyCost = partSuppValue.getStringValueAt(1);
 		
 		value1.setField(0, newKey);
-		value1.setField(1, new PactString(supplyCost));
+		value1.setField(1, new StringValue(supplyCost));
 		out.collect(value1);
 		
 	}

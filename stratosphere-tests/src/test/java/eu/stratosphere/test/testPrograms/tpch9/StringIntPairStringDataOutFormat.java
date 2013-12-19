@@ -17,18 +17,18 @@ package eu.stratosphere.test.testPrograms.tpch9;
 import java.io.IOException;
 
 import eu.stratosphere.api.record.io.FileOutputFormat;
-import eu.stratosphere.types.PactRecord;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.Record;
+import eu.stratosphere.types.StringValue;
 
 public class StringIntPairStringDataOutFormat extends FileOutputFormat {
 	private static final long serialVersionUID = 1L;
 
 	private final StringBuilder buffer = new StringBuilder();
 	private StringIntPair key = new StringIntPair();
-	private PactString value = new PactString();
+	private StringValue value = new StringValue();
 	
 	@Override
-	public void writeRecord(PactRecord record) throws IOException {
+	public void writeRecord(Record record) throws IOException {
 		key = record.getField(0, key);
 		value = record.getField(1, value);
 		

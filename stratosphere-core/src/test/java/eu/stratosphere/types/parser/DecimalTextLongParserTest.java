@@ -17,7 +17,7 @@ import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
-import eu.stratosphere.types.PactLong;
+import eu.stratosphere.types.LongValue;
 import eu.stratosphere.types.Value;
 import eu.stratosphere.types.parser.DecimalTextLongParser;
 
@@ -28,7 +28,7 @@ public class DecimalTextLongParserTest {
 	@Test
 	public void testGetValue() {
 		Value v = parser.createValue();
-		assertTrue(v instanceof PactLong);
+		assertTrue(v instanceof LongValue);
 	}
 	
 	@Test
@@ -37,7 +37,7 @@ public class DecimalTextLongParserTest {
 		byte[] recBytes = "1234567890123456789|-1234567890123456789|123abc4|".getBytes();
 		
 		// check valid int
-		PactLong l = new PactLong();
+		LongValue l = new LongValue();
 		int startPos = 0;
 		startPos = parser.parseField(recBytes, startPos, recBytes.length, '|', l);
 		assertTrue(startPos == 20);

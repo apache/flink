@@ -18,7 +18,7 @@ import java.util.Iterator;
 
 import eu.stratosphere.api.record.functions.ReduceFunction;
 import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFieldsExcept;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 @ConstantFieldsExcept({})
@@ -26,7 +26,7 @@ public final class IdentityReduce extends ReduceFunction implements Serializable
 	private static final long serialVersionUID = 1L;
 	
 	@Override
-	public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {
+	public void reduce(Iterator<Record> records, Collector<Record> out) throws Exception {
 		while (records.hasNext()) {
 			out.collect(records.next());
 		}

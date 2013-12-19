@@ -17,8 +17,8 @@ import eu.stratosphere.client.LocalExecutor
 import eu.stratosphere.api.Program
 import eu.stratosphere.api.ProgramDescription
 
-import eu.stratosphere.types.PactInteger
-import eu.stratosphere.types.PactString
+import eu.stratosphere.types.IntValue
+import eu.stratosphere.types.StringValue
 
 import eu.stratosphere.scala._
 import eu.stratosphere.scala.operators._
@@ -44,15 +44,15 @@ class WordCountWithUserDefinedType extends Program with ProgramDescription with 
     getScalaPlan(args(0).toInt, args(1), args(2))
   }
 
-  def formatOutput = (word: PactString, count: PactInteger) => "%s %d".format(word.toString, count.getValue)
+  def formatOutput = (word: StringValue, count: IntValue) => "%s %d".format(word.toString, count.getValue)
 
   def getScalaPlan(numSubTasks: Int, textInput: String, wordsOutput: String) = {
     val input = TextFile(textInput)
 
-    val words = input flatMap { _.toLowerCase().split("""\W+""") filter { _ != "" } map { w => (new PactString(w), new PactInteger(1)) } }
+    val words = input flatMap { _.toLowerCase().split("""\W+""") filter { _ != "" } map { w => (new StringValue(w), new IntValue(1)) } }
     val counts = words
       .groupBy { case (word, _) => word }
-      .reduce { (w1, w2) => (w1._1, new PactInteger(w1._2.getValue + w2._2.getValue)) }
+      .reduce { (w1, w2) => (w1._1, new IntValue(w1._2.getValue + w2._2.getValue)) }
 
     val output = counts.write(wordsOutput, DelimitedOutputFormat(formatOutput.tupled))
   

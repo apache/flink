@@ -25,7 +25,7 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.api.io.DelimitedInputFormat;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.StringValue;
 import eu.stratosphere.types.Value;
 
 /**
@@ -42,7 +42,7 @@ public class StringInputFormat extends DelimitedInputFormat<Value[]> {
 	
 	private static final Log LOG = LogFactory.getLog(StringInputFormat.class);
 	
-	protected final PactString theString = new PactString();
+	protected final StringValue theString = new StringValue();
 	
 	protected CharsetDecoder decoder;
 	
@@ -74,7 +74,7 @@ public class StringInputFormat extends DelimitedInputFormat<Value[]> {
 	// --------------------------------------------------------------------------------------------
 
 	public boolean readRecord(Value[] target, byte[] bytes, int offset, int numBytes) {
-		PactString str = this.theString;
+		StringValue str = this.theString;
 		
 		if (this.ascii) {
 			str.setValueAscii(bytes, offset, numBytes);

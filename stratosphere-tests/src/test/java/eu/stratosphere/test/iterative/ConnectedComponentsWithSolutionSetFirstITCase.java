@@ -38,8 +38,8 @@ import eu.stratosphere.example.record.connectedcomponents.WorksetConnectedCompon
 import eu.stratosphere.example.record.connectedcomponents.WorksetConnectedComponents.NeighborWithComponentIDJoin;
 import eu.stratosphere.test.iterative.nephele.ConnectedComponentsNepheleITCase;
 import eu.stratosphere.test.util.TestBase2;
-import eu.stratosphere.types.PactLong;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.LongValue;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 @RunWith(Parameterized.class)
@@ -101,10 +101,10 @@ public class ConnectedComponentsWithSolutionSetFirstITCase extends TestBase2 {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void match(PactRecord currentVertexWithComponent, PactRecord newVertexWithComponent, Collector<PactRecord> out){
+		public void match(Record currentVertexWithComponent, Record newVertexWithComponent, Collector<Record> out){
 	
-			long candidateComponentID = newVertexWithComponent.getField(1, PactLong.class).getValue();
-			long currentComponentID = currentVertexWithComponent.getField(1, PactLong.class).getValue();
+			long candidateComponentID = newVertexWithComponent.getField(1, LongValue.class).getValue();
+			long currentComponentID = currentVertexWithComponent.getField(1, LongValue.class).getValue();
 	
 			if (candidateComponentID < currentComponentID) {
 				out.collect(newVertexWithComponent);
@@ -117,7 +117,7 @@ public class ConnectedComponentsWithSolutionSetFirstITCase extends TestBase2 {
 			int numSubTasks, String verticesInput, String edgeInput, String output, int maxIterations)
 	{
 		// data source for initial vertices
-		FileDataSource initialVertices = new FileDataSource(new CsvInputFormat(' ', PactLong.class), verticesInput, "Vertices");
+		FileDataSource initialVertices = new FileDataSource(new CsvInputFormat(' ', LongValue.class), verticesInput, "Vertices");
 		
 		MapOperator verticesWithId = MapOperator.builder(DuplicateLongMap.class).input(initialVertices).name("Assign Vertex Ids").build();
 		
@@ -127,23 +127,23 @@ public class ConnectedComponentsWithSolutionSetFirstITCase extends TestBase2 {
 		iteration.setMaximumNumberOfIterations(maxIterations);
 		
 		// create DataSourceContract for the edges
-		FileDataSource edges = new FileDataSource(new CsvInputFormat(' ', PactLong.class, PactLong.class), edgeInput, "Edges");
+		FileDataSource edges = new FileDataSource(new CsvInputFormat(' ', LongValue.class, LongValue.class), edgeInput, "Edges");
 
 		// create CrossOperator for distance computation
-		JoinOperator joinWithNeighbors = JoinOperator.builder(new NeighborWithComponentIDJoin(), PactLong.class, 0, 0)
+		JoinOperator joinWithNeighbors = JoinOperator.builder(new NeighborWithComponentIDJoin(), LongValue.class, 0, 0)
 				.input1(iteration.getWorkset())
 				.input2(edges)
 				.name("Join Candidate Id With Neighbor")
 				.build();
 
 		// create ReduceOperator for finding the nearest cluster centers
-		ReduceOperator minCandidateId = ReduceOperator.builder(new MinimumComponentIDReduce(), PactLong.class, 0)
+		ReduceOperator minCandidateId = ReduceOperator.builder(new MinimumComponentIDReduce(), LongValue.class, 0)
 				.input(joinWithNeighbors)
 				.name("Find Minimum Candidate Id")
 				.build();
 		
 		// create CrossOperator for distance computation
-		JoinOperator updateComponentId = JoinOperator.builder(new UpdateComponentIdMatchMirrored(), PactLong.class, 0, 0)
+		JoinOperator updateComponentId = JoinOperator.builder(new UpdateComponentIdMatchMirrored(), LongValue.class, 0, 0)
 				.input1(iteration.getSolutionSet())
 				.input2(minCandidateId)
 				.name("Update Component Id")
@@ -157,8 +157,8 @@ public class ConnectedComponentsWithSolutionSetFirstITCase extends TestBase2 {
 		CsvOutputFormat.configureRecordFormat(result)
 			.recordDelimiter('\n')
 			.fieldDelimiter(' ')
-			.field(PactLong.class, 0)
-			.field(PactLong.class, 1);
+			.field(LongValue.class, 0)
+			.field(LongValue.class, 1);
 
 		// return the PACT plan
 		Plan plan = new Plan(result, "Workset Connected Components");

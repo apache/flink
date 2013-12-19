@@ -14,20 +14,20 @@ package eu.stratosphere.spargel.java.util;
 
 import java.util.Iterator;
 
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.types.Value;
 
 
 public final class MessageIterator<Message extends Value> implements Iterator<Message> {
 
 	private final Message instance;
-	private Iterator<PactRecord> source;
+	private Iterator<Record> source;
 	
 	public MessageIterator(Message instance) {
 		this.instance = instance;
 	}
 	
-	public final void setSource(Iterator<PactRecord> source) {
+	public final void setSource(Iterator<Record> source) {
 		this.source = source;
 	}
 	

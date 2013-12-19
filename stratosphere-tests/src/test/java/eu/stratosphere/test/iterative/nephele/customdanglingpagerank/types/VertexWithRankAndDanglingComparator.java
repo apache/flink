@@ -74,7 +74,7 @@ public final class VertexWithRankAndDanglingComparator extends TypeComparator<Ve
 	public void putNormalizedKey(VertexWithRankAndDangling record, MemorySegment target, int offset, int len) {
 		final long value = record.getVertexID() - Long.MIN_VALUE;
 		
-		// see PactInteger for an explanation of the logic
+		// see IntValue for an explanation of the logic
 		if (len == 8) {
 			// default case, full normalized key
 			target.putLongBigEndian(offset, value);

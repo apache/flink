@@ -27,8 +27,8 @@ import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.jobgraph.*;
 import eu.stratosphere.pact.runtime.iterative.task.IterationHeadPactTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationTailPactTask;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparatorFactory;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordSerializerFactory;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparatorFactory;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializerFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.MapDriver;
@@ -37,8 +37,8 @@ import eu.stratosphere.pact.runtime.task.chaining.ChainedMapDriver;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.test.util.TestBase2;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 import org.junit.runner.RunWith;
@@ -108,11 +108,11 @@ public class IterationWithChainingNepheleITCase extends TestBase2 {
 
         final JobGraph jobGraph = new JobGraph("Iteration Tail with Chaining");
 
-        final TypeSerializerFactory<PactRecord> serializer = PactRecordSerializerFactory.get();
+        final TypeSerializerFactory<Record> serializer = RecordSerializerFactory.get();
 
         @SuppressWarnings("unchecked")
-		final TypeComparatorFactory<PactRecord> comparator =
-                new PactRecordComparatorFactory(new int[]{0}, new Class[]{PactInteger.class});
+		final TypeComparatorFactory<Record> comparator =
+                new RecordComparatorFactory(new int[]{0}, new Class[]{IntValue.class});
 
         final long MEM_PER_CONSUMER = 10;
 
@@ -256,14 +256,14 @@ public class IterationWithChainingNepheleITCase extends TestBase2 {
 
     public static final class DummyMapper extends MapFunction {
         @Override
-        public void map(PactRecord rec, Collector<PactRecord> out) {
+        public void map(Record rec, Collector<Record> out) {
             out.collect(rec);
         }
     }
 
     public static final class DummyReducer extends ReduceFunction {
         @Override
-        public void reduce(Iterator<PactRecord> it, Collector<PactRecord> out) {
+        public void reduce(Iterator<Record> it, Collector<Record> out) {
             while (it.hasNext()) {
                 out.collect(it.next());
             }
@@ -272,7 +272,7 @@ public class IterationWithChainingNepheleITCase extends TestBase2 {
 
     public static final class IncrementCoordinatesMapper extends MapFunction {
         @Override
-        public void map(PactRecord rec, Collector<PactRecord> out) {
+        public void map(Record rec, Collector<Record> out) {
             CoordVector coord = rec.getField(1, CoordVector.class);
 
             double[] vector = coord.getCoordinates();

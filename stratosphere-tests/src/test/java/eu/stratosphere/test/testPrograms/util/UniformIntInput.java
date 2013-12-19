@@ -17,8 +17,8 @@ import java.io.IOException;
 
 import eu.stratosphere.api.record.io.GenericInputFormat;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
 
 /**
  * 
@@ -32,8 +32,8 @@ public class UniformIntInput extends GenericInputFormat {
 	private static final int DEFAULT_NUM_KEYS = 1000;
 	private static final int DEFAULT_NUM_VALUES = 1000;
 	
-	private final PactInteger key = new PactInteger();
-	private final PactInteger value = new PactInteger();
+	private final IntValue key = new IntValue();
+	private final IntValue value = new IntValue();
 	
 	private int numKeys;
 	private int numValues;
@@ -69,7 +69,7 @@ public class UniformIntInput extends GenericInputFormat {
 
 
 	@Override
-	public boolean nextRecord(PactRecord record) throws IOException
+	public boolean nextRecord(Record record) throws IOException
 	{
 		if (this.keyInt == this.numKeys) {
 			this.keyInt = 0;

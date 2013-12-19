@@ -17,12 +17,12 @@ import java.io.IOException;
 
 import eu.stratosphere.api.io.OutputFormat;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 
 /**
  * A simple output format that discards all data by doing nothing.
  */
-public class DiscardingOutputFormat implements OutputFormat<PactRecord> {
+public class DiscardingOutputFormat implements OutputFormat<Record> {
 	private static final long serialVersionUID = 1L;
 	
 
@@ -37,7 +37,7 @@ public class DiscardingOutputFormat implements OutputFormat<PactRecord> {
 
 
 	@Override
-	public void writeRecord(PactRecord record) throws IOException
+	public void writeRecord(Record record) throws IOException
 	{}
 
 

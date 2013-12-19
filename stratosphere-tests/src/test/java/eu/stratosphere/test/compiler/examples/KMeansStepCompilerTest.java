@@ -39,7 +39,7 @@ import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.test.compiler.CompilerTestBase;
-import eu.stratosphere.types.PactInteger;
+import eu.stratosphere.types.IntValue;
 
 /**
  * Tests a K-Means Step under various input conditions.
@@ -173,13 +173,13 @@ public class KMeansStepCompilerTest extends CompilerTestBase {
 				.build();
 	
 			// create ReduceOperator for finding the nearest cluster centers
-			ReduceOperator findNearestClusterCenters = ReduceOperator.builder(new FindNearestCenter(), PactInteger.class, 0)
+			ReduceOperator findNearestClusterCenters = ReduceOperator.builder(new FindNearestCenter(), IntValue.class, 0)
 				.input(computeDistance)
 				.name(NEAREST_CENTER_REDUCER + i)
 				.build();
 	
 			// create ReduceOperator for computing new cluster positions
-			ReduceOperator recomputeClusterCenter = ReduceOperator.builder(new RecomputeClusterCenter(), PactInteger.class, 0)
+			ReduceOperator recomputeClusterCenter = ReduceOperator.builder(new RecomputeClusterCenter(), IntValue.class, 0)
 				.input(findNearestClusterCenters)
 				.name(RECOMPUTE_CENTERS_REDUCER + i)
 				.build();

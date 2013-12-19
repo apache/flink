@@ -32,10 +32,10 @@ import eu.stratosphere.api.record.operators.JoinOperator;
 import eu.stratosphere.api.record.operators.ReduceOperator;
 import eu.stratosphere.test.testPrograms.util.IntTupleDataInFormat;
 import eu.stratosphere.test.testPrograms.util.Tuple;
-import eu.stratosphere.types.PactDouble;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.DoubleValue;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
+import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
 
 /**
@@ -56,10 +56,10 @@ public class TPCHQuery10 implements Program, ProgramDescription
 	{
 		private static final int YEAR_FILTER = 1990;
 		
-		private final PactInteger custKey = new PactInteger();
+		private final IntValue custKey = new IntValue();
 		
 		@Override
-		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
+		public void map(Record record, Collector<Record> out) throws Exception {
 			
 			Tuple t = record.getField(1, Tuple.class);
 			if (Integer.parseInt(t.getStringValueAt(4).substring(0, 4)) > FilterO.YEAR_FILTER) {
@@ -80,7 +80,7 @@ public class TPCHQuery10 implements Program, ProgramDescription
 		private final Tuple tuple = new Tuple();
 		
 		@Override
-		public void map(PactRecord record, Collector<PactRecord> out) throws Exception
+		public void map(Record record, Collector<Record> out) throws Exception
 		{
 			Tuple t = record.getField(1, this.tuple);
 			if (t.getStringValueAt(8).equals("R")) {
@@ -98,16 +98,16 @@ public class TPCHQuery10 implements Program, ProgramDescription
 
 		private final Tuple tuple = new Tuple();
 		
-		private final PactString custName = new PactString();
+		private final StringValue custName = new StringValue();
 		
-		private final PactString balance = new PactString();
-		private final PactInteger nationKey = new PactInteger();
-		private final PactString address = new PactString();
-		private final PactString phone = new PactString();
-		private final PactString comment = new PactString();
+		private final StringValue balance = new StringValue();
+		private final IntValue nationKey = new IntValue();
+		private final StringValue address = new StringValue();
+		private final StringValue phone = new StringValue();
+		private final StringValue comment = new StringValue();
 		
 		@Override
-		public void map(PactRecord record, Collector<PactRecord> out) throws Exception
+		public void map(Record record, Collector<Record> out) throws Exception
 		{
 			final Tuple t = record.getField(1, this.tuple);
 			
@@ -135,10 +135,10 @@ public class TPCHQuery10 implements Program, ProgramDescription
 	public static class ProjectN extends MapFunction
 	{
 		private final Tuple tuple = new Tuple();
-		private final PactString nationName = new PactString();
+		private final StringValue nationName = new StringValue();
 		
 		@Override
-		public void map(PactRecord record, Collector<PactRecord> out) throws Exception
+		public void map(Record record, Collector<Record> out) throws Exception
 		{
 			final Tuple t = record.getField(1, this.tuple);
 			
@@ -158,8 +158,8 @@ public class TPCHQuery10 implements Program, ProgramDescription
 	public static class JoinOL extends JoinFunction
 	{
 		@Override
-		public void match(PactRecord order, PactRecord lineitem, Collector<PactRecord> out) throws Exception {
-			lineitem.setField(0, order.getField(1, PactInteger.class));
+		public void match(Record order, Record lineitem, Collector<Record> out) throws Exception {
+			lineitem.setField(0, order.getField(1, IntValue.class));
 			out.collect(lineitem);
 		}
 	}
@@ -169,10 +169,10 @@ public class TPCHQuery10 implements Program, ProgramDescription
 	 */
 	public static class JoinCOL extends JoinFunction
 	{
-		private final PactDouble d = new PactDouble();
+		private final DoubleValue d = new DoubleValue();
 		
 		@Override
-		public void match(PactRecord custRecord, PactRecord olRecord, Collector<PactRecord> out) throws Exception
+		public void match(Record custRecord, Record olRecord, Collector<Record> out) throws Exception
 		{
 			final Tuple t = olRecord.getField(1, Tuple.class);
 			final double extPrice = Double.parseDouble(t.getStringValueAt(0));
@@ -191,8 +191,8 @@ public class TPCHQuery10 implements Program, ProgramDescription
 	public static class JoinNCOL extends JoinFunction
 	{
 		@Override
-		public void match(PactRecord colRecord, PactRecord nation, Collector<PactRecord> out) throws Exception {
-			colRecord.setField(4, nation.getField(1, PactString.class));
+		public void match(Record colRecord, Record nation, Collector<Record> out) throws Exception {
+			colRecord.setField(4, nation.getField(1, StringValue.class));
 			out.collect(colRecord);
 		}
 	}
@@ -200,16 +200,16 @@ public class TPCHQuery10 implements Program, ProgramDescription
 	@ReduceOperator.Combinable
 	public static class Sum extends ReduceFunction
 	{
-		private final PactDouble d = new PactDouble();
+		private final DoubleValue d = new DoubleValue();
 		
 		@Override
-		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception
+		public void reduce(Iterator<Record> records, Collector<Record> out) throws Exception
 		{
-			PactRecord record = null;
+			Record record = null;
 			double sum = 0;
 			while (records.hasNext()) {
 				record = records.next();
-				sum += record.getField(2, PactDouble.class).getValue();
+				sum += record.getField(2, DoubleValue.class).getValue();
 			}
 		
 			this.d.setValue(sum);
@@ -218,7 +218,7 @@ public class TPCHQuery10 implements Program, ProgramDescription
 		}
 		
 		@Override
-		public void combine(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {
+		public void combine(Iterator<Record> records, Collector<Record> out) throws Exception {
 			reduce(records,out);
 		}
 	}
@@ -238,19 +238,19 @@ public class TPCHQuery10 implements Program, ProgramDescription
 		}
 		
 		@Override
-		public void writeRecord(PactRecord record) throws IOException
+		public void writeRecord(Record record) throws IOException
 		{
 			this.buffer.setLength(0);
-			this.buffer.append(record.getField(0, PactInteger.class).toString()).append('|');
-			this.buffer.append(record.getField(1, PactString.class).toString()).append('|');
+			this.buffer.append(record.getField(0, IntValue.class).toString()).append('|');
+			this.buffer.append(record.getField(1, StringValue.class).toString()).append('|');
 			
-			this.buffer.append(this.formatter.format(record.getField(2, PactDouble.class).getValue())).append('|');
+			this.buffer.append(this.formatter.format(record.getField(2, DoubleValue.class).getValue())).append('|');
 			
-			this.buffer.append(record.getField(3, PactString.class).toString()).append('|');
-			this.buffer.append(record.getField(4, PactString.class).toString()).append('|');
-			this.buffer.append(record.getField(5, PactString.class).toString()).append('|');
-			this.buffer.append(record.getField(6, PactString.class).toString()).append('|');
-			this.buffer.append(record.getField(7, PactString.class).toString()).append('|');
+			this.buffer.append(record.getField(3, StringValue.class).toString()).append('|');
+			this.buffer.append(record.getField(4, StringValue.class).toString()).append('|');
+			this.buffer.append(record.getField(5, StringValue.class).toString()).append('|');
+			this.buffer.append(record.getField(6, StringValue.class).toString()).append('|');
+			this.buffer.append(record.getField(7, StringValue.class).toString()).append('|');
 			
 			this.buffer.append('\n');
 			
@@ -325,26 +325,26 @@ public class TPCHQuery10 implements Program, ProgramDescription
 			.name("ProjectN")
 			.build();
 
-		JoinOperator joinOL = JoinOperator.builder(JoinOL.class, PactInteger.class, 0, 0)
+		JoinOperator joinOL = JoinOperator.builder(JoinOL.class, IntValue.class, 0, 0)
 			.name("JoinOL")
 			.build();
 
-		JoinOperator joinCOL = JoinOperator.builder(JoinCOL.class, PactInteger.class, 0, 0)
+		JoinOperator joinCOL = JoinOperator.builder(JoinCOL.class, IntValue.class, 0, 0)
 			.name("JoinCOL")
 			.build();
 
-		JoinOperator joinNCOL = JoinOperator.builder(JoinNCOL.class, PactInteger.class, 4, 0)
+		JoinOperator joinNCOL = JoinOperator.builder(JoinNCOL.class, IntValue.class, 4, 0)
 			.name("JoinNCOL")
 			.build();
 
 		ReduceOperator reduce = ReduceOperator.builder(Sum.class)
-			.keyField(PactInteger.class, 0) 
-			.keyField(PactString.class, 1)
-			.keyField(PactString.class, 3)
-			.keyField(PactString.class, 4)
-			.keyField(PactString.class, 5)
-			.keyField(PactString.class, 6)
-			.keyField(PactString.class, 7)
+			.keyField(IntValue.class, 0) 
+			.keyField(StringValue.class, 1)
+			.keyField(StringValue.class, 3)
+			.keyField(StringValue.class, 4)
+			.keyField(StringValue.class, 5)
+			.keyField(StringValue.class, 6)
+			.keyField(StringValue.class, 7)
 			.name("Reduce")
 			.build();
 

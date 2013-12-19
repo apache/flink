@@ -15,7 +15,7 @@ package eu.stratosphere.api.record.functions;
 
 import eu.stratosphere.api.functions.AbstractFunction;
 import eu.stratosphere.api.functions.GenericCrosser;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 /**
@@ -26,7 +26,7 @@ import eu.stratosphere.util.Collector;
  * <p>
  * For a cross implementation, the <code>cross()</code> method must be implemented.
  */
-public abstract class CrossFunction extends AbstractFunction implements GenericCrosser<PactRecord, PactRecord, PactRecord> {
+public abstract class CrossFunction extends AbstractFunction implements GenericCrosser<Record, Record, Record> {
 	
 	/**
 	 * This method must be implemented to provide a user implementation of a cross.
@@ -41,5 +41,5 @@ public abstract class CrossFunction extends AbstractFunction implements GenericC
 	 *                   decide whether to retry the task execution.
 	 */
 	@Override
-	public abstract void cross(PactRecord record1, PactRecord record2, Collector<PactRecord> out) throws Exception;
+	public abstract void cross(Record record1, Record record2, Collector<Record> out) throws Exception;
 }

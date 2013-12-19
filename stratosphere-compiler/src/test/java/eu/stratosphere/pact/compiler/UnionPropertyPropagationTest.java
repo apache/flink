@@ -31,7 +31,7 @@ import eu.stratosphere.pact.compiler.util.DummyInputFormat;
 import eu.stratosphere.pact.compiler.util.DummyOutputFormat;
 import eu.stratosphere.pact.compiler.util.IdentityReduce;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
-import eu.stratosphere.types.PactInteger;
+import eu.stratosphere.types.IntValue;
 import eu.stratosphere.util.Visitor;
 
 /**
@@ -45,14 +45,14 @@ public class UnionPropertyPropagationTest extends CompilerTestBase {
 		FileDataSource sourceA = new FileDataSource(new DummyInputFormat(), IN_FILE);
 		FileDataSource sourceB = new FileDataSource(new DummyInputFormat(), IN_FILE);
 		
-		ReduceOperator redA = ReduceOperator.builder(new IdentityReduce(), PactInteger.class, 0)
+		ReduceOperator redA = ReduceOperator.builder(new IdentityReduce(), IntValue.class, 0)
 			.input(sourceA)
 			.build();
-		ReduceOperator redB = ReduceOperator.builder(new IdentityReduce(), PactInteger.class, 0)
+		ReduceOperator redB = ReduceOperator.builder(new IdentityReduce(), IntValue.class, 0)
 			.input(sourceB)
 			.build();
 		
-		ReduceOperator globalRed = ReduceOperator.builder(new IdentityReduce(), PactInteger.class, 0).build();
+		ReduceOperator globalRed = ReduceOperator.builder(new IdentityReduce(), IntValue.class, 0).build();
 		globalRed.addInput(redA);
 		globalRed.addInput(redB);
 		

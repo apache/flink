@@ -17,14 +17,14 @@ import java.io.Serializable;
 import java.util.Iterator;
 
 import eu.stratosphere.api.record.functions.CoGroupFunction;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 public class DummyCoGroupStub extends CoGroupFunction implements Serializable {
 	private static final long serialVersionUID = 1L;
 
 	@Override
-	public void coGroup(Iterator<PactRecord> records1, Iterator<PactRecord> records2, Collector<PactRecord> out) {
+	public void coGroup(Iterator<Record> records1, Iterator<Record> records2, Collector<Record> out) {
 		while (records1.hasNext())
 			out.collect(records1.next());
 

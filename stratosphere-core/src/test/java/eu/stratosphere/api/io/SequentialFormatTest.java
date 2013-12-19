@@ -42,9 +42,9 @@ import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.fs.FileInputSplit;
 import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.core.io.IOReadableWritable;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
+import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.LogUtils;
 
 /**
@@ -143,13 +143,13 @@ public class SequentialFormatTest {
 	 */
 	@Test
 	public void checkRead() throws IOException {
-		SequentialInputFormat<PactRecord> input = this.createInputFormat();
+		SequentialInputFormat<Record> input = this.createInputFormat();
 		FileInputSplit[] inputSplits = input.createInputSplits(0);
 		Arrays.sort(inputSplits, new InputSplitSorter());
 		int readCount = 0;
 		for (FileInputSplit inputSplit : inputSplits) {
 			input.open(inputSplit);
-			PactRecord record = new PactRecord();
+			Record record = new Record();
 			while (!input.reachedEnd())
 				if (input.nextRecord(record)) {
 					this.checkEquals(this.getRecord(readCount), record);
@@ -164,7 +164,7 @@ public class SequentialFormatTest {
 	 */
 	@Test
 	public void checkStatistics() {
-		SequentialInputFormat<PactRecord> input = this.createInputFormat();
+		SequentialInputFormat<Record> input = this.createInputFormat();
 		BaseStatistics statistics = input.getStatistics(null);
 		Assert.assertEquals(this.numberOfTuples, statistics.getNumberOfRecords());
 	}
@@ -234,11 +234,11 @@ public class SequentialFormatTest {
 		}
 	}
 
-	protected SequentialInputFormat<PactRecord> createInputFormat() {
+	protected SequentialInputFormat<Record> createInputFormat() {
 		Configuration configuration = new Configuration();
 		configuration.setLong(BinaryInputFormat.BLOCK_SIZE_PARAMETER_KEY, this.blockSize);
 
-		final SequentialInputFormat<PactRecord> inputFormat = new SequentialInputFormat<PactRecord>();
+		final SequentialInputFormat<Record> inputFormat = new SequentialInputFormat<Record>();
 		inputFormat.setFilePath(this.tempFile.toURI().toString());
 		
 		inputFormat.configure(configuration);
@@ -248,17 +248,17 @@ public class SequentialFormatTest {
 	/**
 	 * Returns the record to write at the given position
 	 */
-	protected PactRecord getRecord(int index) {
-		return new PactRecord(new PactInteger(index), new PactString(String.valueOf(index)));
+	protected Record getRecord(int index) {
+		return new Record(new IntValue(index), new StringValue(String.valueOf(index)));
 	}
 
 	/**
 	 * Checks if both records are equal
 	 */
-	private void checkEquals(PactRecord expected, PactRecord actual) {
+	private void checkEquals(Record expected, Record actual) {
 		Assert.assertEquals(expected.getNumFields(), actual.getNumFields());
-		Assert.assertEquals(expected.getField(0, PactInteger.class), actual.getField(0, PactInteger.class));
-		Assert.assertEquals(expected.getField(1, PactString.class), actual.getField(1, PactString.class));
+		Assert.assertEquals(expected.getField(0, IntValue.class), actual.getField(0, IntValue.class));
+		Assert.assertEquals(expected.getField(1, StringValue.class), actual.getField(1, StringValue.class));
 	}
 
 	private int getExpectedBlockCount(int fileIndex) {

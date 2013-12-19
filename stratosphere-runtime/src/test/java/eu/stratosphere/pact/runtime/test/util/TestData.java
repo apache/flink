@@ -16,9 +16,9 @@ package eu.stratosphere.pact.runtime.test.util;
 import java.util.Comparator;
 import java.util.Random;
 
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
+import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.MutableObjectIterator;
 
 /**
@@ -44,7 +44,7 @@ public final class TestData {
 	/**
 	 * Key implementation.
 	 */
-	public static class Key extends PactInteger {
+	public static class Key extends IntValue {
 		private static final long serialVersionUID = 1L;
 		
 		public Key() {
@@ -67,7 +67,7 @@ public final class TestData {
 	/**
 	 * Value implementation.
 	 */
-	public static class Value extends PactString {
+	public static class Value extends StringValue {
 		private static final long serialVersionUID = 1L;
 
 		public Value() {
@@ -90,7 +90,7 @@ public final class TestData {
 			}
 			
 			if (obj.getClass() == TestData.Value.class) {
-				final PactString other = (PactString) obj;
+				final StringValue other = (StringValue) obj;
 				int len = this.length();
 				
 				if (len == other.length()) {
@@ -111,7 +111,7 @@ public final class TestData {
 	/**
 	 * Pair generator.
 	 */
-	public static class Generator implements MutableObjectIterator<PactRecord>{
+	public static class Generator implements MutableObjectIterator<Record>{
 		public enum KeyMode {
 			SORTED, RANDOM
 		};
@@ -163,7 +163,7 @@ public final class TestData {
 			this.value = constant == null ? new Value() : constant;
 		}
 
-		public boolean next(PactRecord target) {
+		public boolean next(Record target) {
 			this.key.setKey(keyMode == KeyMode.SORTED ? ++counter : Math.abs(random.nextInt() % keyMax) + 1);
 			if (this.valueMode != ValueMode.CONSTANT) {
 				this.value.setValue(randomString());
@@ -176,12 +176,12 @@ public final class TestData {
 		public boolean next(eu.stratosphere.types.Value[] target) {
 			this.key.setKey(keyMode == KeyMode.SORTED ? ++counter : Math.abs(random.nextInt() % keyMax) + 1);
 			// TODO change this to something proper
-			((PactInteger)target[0]).setValue(this.key.getValue());
-			((PactInteger)target[1]).setValue(random.nextInt());
+			((IntValue)target[0]).setValue(this.key.getValue());
+			((IntValue)target[1]).setValue(random.nextInt());
 			return true;
 		}
 
-		public int sizeOf(PactRecord rec) {
+		public int sizeOf(Record rec) {
 			// key
 			int valueLength = Integer.SIZE / 8;
 
@@ -231,7 +231,7 @@ public final class TestData {
 	/**
 	 * Record reader mock.
 	 */
-	public static class GeneratorIterator implements MutableObjectIterator<PactRecord> {
+	public static class GeneratorIterator implements MutableObjectIterator<Record> {
 		
 		private final Generator generator;
 
@@ -247,7 +247,7 @@ public final class TestData {
 		}
 
 		@Override
-		public boolean next(PactRecord target) {
+		public boolean next(Record target) {
 			if (counter < numberOfRecords) {
 				counter++;
 				return generator.next(target);
@@ -264,7 +264,7 @@ public final class TestData {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public static class ConstantValueIterator implements MutableObjectIterator<PactRecord>
+	public static class ConstantValueIterator implements MutableObjectIterator<Record>
 	{
 		private final Key key;
 		private final Value value;
@@ -286,7 +286,7 @@ public final class TestData {
 		}
 		
 		@Override
-		public boolean next(PactRecord target) {
+		public boolean next(Record target) {
 			if (pos < this.numPairs) {
 				this.value.setValue(this.valueValue + ' ' + pos);
 				target.setField(0, this.key);

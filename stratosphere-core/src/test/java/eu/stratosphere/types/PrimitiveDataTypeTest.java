@@ -24,10 +24,10 @@ import junit.framework.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import eu.stratosphere.types.PactDouble;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactNull;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.DoubleValue;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.NullValue;
+import eu.stratosphere.types.StringValue;
 
 public class PrimitiveDataTypeTest {
 
@@ -47,14 +47,14 @@ public class PrimitiveDataTypeTest {
 	}
 
 	@Test
-	public void testPactInteger() {
-		PactInteger int0 = new PactInteger(10);
+	public void testIntValue() {
+		IntValue int0 = new IntValue(10);
 		// test value retrieval
 		Assert.assertEquals(10, int0.getValue());
 		// test value comparison
-		PactInteger int1 = new PactInteger(10);
-		PactInteger int2 = new PactInteger(-10);
-		PactInteger int3 = new PactInteger(20);
+		IntValue int1 = new IntValue(10);
+		IntValue int2 = new IntValue(-10);
+		IntValue int3 = new IntValue(20);
 		Assert.assertEquals(int0.compareTo(int0), 0);
 		Assert.assertEquals(int0.compareTo(int1), 0);
 		Assert.assertEquals(int0.compareTo(int2), 1);
@@ -64,9 +64,9 @@ public class PrimitiveDataTypeTest {
 			int0.write(mOut);
 			int2.write(mOut);
 			int3.write(mOut);
-			PactInteger int1n = new PactInteger();
-			PactInteger int2n = new PactInteger();
-			PactInteger int3n = new PactInteger();
+			IntValue int1n = new IntValue();
+			IntValue int2n = new IntValue();
+			IntValue int3n = new IntValue();
 			int1n.read(mIn);
 			int2n.read(mIn);
 			int3n.read(mIn);
@@ -83,14 +83,14 @@ public class PrimitiveDataTypeTest {
 	}
 
 	@Test
-	public void testPactDouble() {
-		PactDouble double0 = new PactDouble(10.2);
+	public void testDoubleValue() {
+		DoubleValue double0 = new DoubleValue(10.2);
 		// test value retrieval
 		Assert.assertEquals(10.2, double0.getValue());
 		// test value comparison
-		PactDouble double1 = new PactDouble(10.2);
-		PactDouble double2 = new PactDouble(-10.5);
-		PactDouble double3 = new PactDouble(20.2);
+		DoubleValue double1 = new DoubleValue(10.2);
+		DoubleValue double2 = new DoubleValue(-10.5);
+		DoubleValue double3 = new DoubleValue(20.2);
 		Assert.assertEquals(double0.compareTo(double0), 0);
 		Assert.assertEquals(double0.compareTo(double1), 0);
 		Assert.assertEquals(double0.compareTo(double2), 1);
@@ -100,9 +100,9 @@ public class PrimitiveDataTypeTest {
 			double0.write(mOut);
 			double2.write(mOut);
 			double3.write(mOut);
-			PactDouble double1n = new PactDouble();
-			PactDouble double2n = new PactDouble();
-			PactDouble double3n = new PactDouble();
+			DoubleValue double1n = new DoubleValue();
+			DoubleValue double2n = new DoubleValue();
+			DoubleValue double3n = new DoubleValue();
 			double1n.read(mIn);
 			double2n.read(mIn);
 			double3n.read(mIn);
@@ -118,22 +118,22 @@ public class PrimitiveDataTypeTest {
 	}
 
 	@Test
-	public void testPactString() {
-		PactString string0 = new PactString("This is a test");
-		PactString stringThis = new PactString("This");
-		PactString stringIsA = new PactString("is a");
+	public void testStringValue() {
+		StringValue string0 = new StringValue("This is a test");
+		StringValue stringThis = new StringValue("This");
+		StringValue stringIsA = new StringValue("is a");
 		// test value retrieval
 		Assert.assertEquals("This is a test", string0.toString());
 		// test value comparison
-		PactString string1 = new PactString("This is a test");
-		PactString string2 = new PactString("This is a tesa");
-		PactString string3 = new PactString("This is a tesz");
-		PactString string4 = new PactString("Ünlaut ßtring µ avec é y ¢");
+		StringValue string1 = new StringValue("This is a test");
+		StringValue string2 = new StringValue("This is a tesa");
+		StringValue string3 = new StringValue("This is a tesz");
+		StringValue string4 = new StringValue("Ünlaut ßtring µ avec é y ¢");
 		CharSequence chars5 = string1.subSequence(0, 4);
-		PactString string5 = (PactString) chars5;
-		PactString string6 = (PactString) string0.subSequence(0, string0.length());
-		PactString string7 = (PactString) string0.subSequence(5, 9);
-		PactString string8 = (PactString) string0.subSequence(0, 0);
+		StringValue string5 = (StringValue) chars5;
+		StringValue string6 = (StringValue) string0.subSequence(0, string0.length());
+		StringValue string7 = (StringValue) string0.subSequence(5, 9);
+		StringValue string8 = (StringValue) string0.subSequence(0, 0);
 		Assert.assertTrue(string0.compareTo(string0) == 0);
 		Assert.assertTrue(string0.compareTo(string1) == 0);
 		Assert.assertTrue(string0.compareTo(string2) > 0);
@@ -166,11 +166,11 @@ public class PrimitiveDataTypeTest {
 			string2.write(mOut);
 			string3.write(mOut);
 			string7.write(mOut);
-			PactString string1n = new PactString();
-			PactString string2n = new PactString();
-			PactString string3n = new PactString();
-			PactString string4n = new PactString();
-			PactString string7n = new PactString();
+			StringValue string1n = new StringValue();
+			StringValue string2n = new StringValue();
+			StringValue string3n = new StringValue();
+			StringValue string4n = new StringValue();
+			StringValue string7n = new StringValue();
 			string1n.read(mIn);
 			string4n.read(mIn);
 			string2n.read(mIn);
@@ -199,8 +199,8 @@ public class PrimitiveDataTypeTest {
 	@Test
 	public void testPactNull() {
 		
-		final PactNull pn1 = new PactNull();
-		final PactNull pn2 = new PactNull();
+		final NullValue pn1 = new NullValue();
+		final NullValue pn2 = new NullValue();
 		
 		Assert.assertEquals("PactNull not equal to other PactNulls.", pn1, pn2);
 		Assert.assertEquals("PactNull not equal to other PactNulls.", pn2, pn1);
@@ -208,7 +208,7 @@ public class PrimitiveDataTypeTest {
 		Assert.assertFalse("PactNull equal to other null.", pn1.equals(null));
 		
 		// test serialization
-		final PactNull pn = new PactNull();
+		final NullValue pn = new NullValue();
 		final int numWrites = 13;
 		
 		try {

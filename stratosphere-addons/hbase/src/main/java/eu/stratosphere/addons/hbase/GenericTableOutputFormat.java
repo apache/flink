@@ -25,9 +25,9 @@ import org.apache.hadoop.mapreduce.TaskType;
 
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.api.io.OutputFormat;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 
-public abstract class GenericTableOutputFormat implements OutputFormat<PactRecord> {
+public abstract class GenericTableOutputFormat implements OutputFormat<Record> {
 
 	private static final long serialVersionUID = 1L;
 

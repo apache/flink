@@ -14,13 +14,13 @@
 
 package eu.stratosphere.pact.runtime.test.util;
 
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
-public class DiscardingOutputCollector implements Collector<PactRecord>
+public class DiscardingOutputCollector implements Collector<Record>
 {
 	@Override
-	public void collect(PactRecord rec) {}
+	public void collect(Record rec) {}
 
 	@Override
 	public void close() {}

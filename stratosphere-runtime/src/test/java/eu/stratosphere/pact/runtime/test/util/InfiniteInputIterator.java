@@ -13,20 +13,20 @@
 
 package eu.stratosphere.pact.runtime.test.util;
 
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.MutableObjectIterator;
 
 /**
  * A simple iterator that returns an infinite amount of records resembling (0, 0) pairs.
  */
-public class InfiniteInputIterator implements MutableObjectIterator<PactRecord>
+public class InfiniteInputIterator implements MutableObjectIterator<Record>
 {
-	private final PactInteger val1 = new PactInteger(0);
-	private final PactInteger val2 = new PactInteger(0);
+	private final IntValue val1 = new IntValue(0);
+	private final IntValue val2 = new IntValue(0);
 	
 	@Override
-	public boolean next(PactRecord target) {
+	public boolean next(Record target) {
 		target.setField(0, val1);
 		target.setField(1, val2);
 		return true;

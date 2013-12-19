@@ -15,7 +15,7 @@ package eu.stratosphere.api.record.functions;
 
 import eu.stratosphere.api.functions.AbstractFunction;
 import eu.stratosphere.api.functions.GenericJoiner;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 /**
@@ -30,7 +30,7 @@ import eu.stratosphere.util.Collector;
  * <p>
  * For a match implementation, the <code>match()</code> method must be implemented.
  */
-public abstract class JoinFunction extends AbstractFunction implements GenericJoiner<PactRecord, PactRecord, PactRecord> {
+public abstract class JoinFunction extends AbstractFunction implements GenericJoiner<Record, Record, Record> {
 	
 	/**
 	 * This method must be implemented to provide a user implementation of a matcher.
@@ -45,5 +45,5 @@ public abstract class JoinFunction extends AbstractFunction implements GenericJo
 	 *                   decide whether to retry the combiner execution.
 	 */
 	@Override
-	public abstract void match(PactRecord value1, PactRecord value2, Collector<PactRecord> out) throws Exception;
+	public abstract void match(Record value1, Record value2, Collector<Record> out) throws Exception;
 }

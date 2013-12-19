@@ -28,8 +28,8 @@ import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFieldsExc
 import eu.stratosphere.api.record.io.CsvInputFormat;
 import eu.stratosphere.api.record.io.CsvOutputFormat;
 import eu.stratosphere.api.record.operators.ReduceOperator;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 /**
@@ -48,12 +48,12 @@ public class ReduceGroupSort implements Program, ProgramDescription {
 		private static final long serialVersionUID = 1L;
 		
 		@Override
-		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) {
+		public void reduce(Iterator<Record> records, Collector<Record> out) {
 			
-			PactRecord next = records.next();
+			Record next = records.next();
 			
 			// Increments the first field of the first record of the reduce group by 100 and emit it
-			PactInteger incrVal = next.getField(0, PactInteger.class);
+			IntValue incrVal = next.getField(0, IntValue.class);
 			incrVal.setValue(incrVal.getValue() + 100);
 			next.setField(0, incrVal);
 			out.collect(next);
@@ -75,24 +75,24 @@ public class ReduceGroupSort implements Program, ProgramDescription {
 		String output = (args.length > 2 ? args[2] : "");
 
 		@SuppressWarnings("unchecked")
-		CsvInputFormat format = new CsvInputFormat(' ', PactInteger.class, PactInteger.class);
+		CsvInputFormat format = new CsvInputFormat(' ', IntValue.class, IntValue.class);
 		FileDataSource input = new FileDataSource(format, dataInput, "Input");
 		
 		// create the reduce contract and sets the key to the first field
-		ReduceOperator sorter = ReduceOperator.builder(new IdentityReducer(), PactInteger.class, 0)
+		ReduceOperator sorter = ReduceOperator.builder(new IdentityReducer(), IntValue.class, 0)
 			.input(input)
 			.name("Reducer")
 			.build();
 		// sets the group sorting to the second field
-		sorter.setGroupOrder(new Ordering(1, PactInteger.class, Order.ASCENDING));
+		sorter.setGroupOrder(new Ordering(1, IntValue.class, Order.ASCENDING));
 
 		// create and configure the output format
 		FileDataSink out = new FileDataSink(new CsvOutputFormat(), output, sorter, "Sorted Output");
 		CsvOutputFormat.configureRecordFormat(out)
 			.recordDelimiter('\n')
 			.fieldDelimiter(' ')
-			.field(PactInteger.class, 0)
-			.field(PactInteger.class, 1);
+			.field(IntValue.class, 0)
+			.field(IntValue.class, 1);
 		
 		Plan plan = new Plan(out, "SecondarySort Example");
 		plan.setDefaultParallelism(numSubTasks);

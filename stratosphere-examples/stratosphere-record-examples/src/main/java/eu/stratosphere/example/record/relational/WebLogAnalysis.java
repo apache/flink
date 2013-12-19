@@ -33,9 +33,9 @@ import eu.stratosphere.api.record.io.CsvOutputFormat;
 import eu.stratosphere.api.record.operators.CoGroupOperator;
 import eu.stratosphere.api.record.operators.MapOperator;
 import eu.stratosphere.api.record.operators.JoinOperator;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
+import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
 
 /**
@@ -97,10 +97,10 @@ public class WebLogAnalysis implements Program, ProgramDescription
 		 * 0: URL
 		 */
 		@Override
-		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
+		public void map(Record record, Collector<Record> out) throws Exception {
 			// FILTER
 			// Only collect the document if all keywords are contained
-			String docText = record.getField(1, PactString.class).toString();
+			String docText = record.getField(1, StringValue.class).toString();
 			boolean allContained = true;
 			for (String kw : KEYWORDS) {
 				if (!docText.contains(kw)) {
@@ -135,9 +135,9 @@ public class WebLogAnalysis implements Program, ProgramDescription
 		 * 2: AVG_DURATION
 		 */
 		@Override
-		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
+		public void map(Record record, Collector<Record> out) throws Exception {
 			
-			if (record.getField(1, PactInteger.class).getValue() > RANKFILTER) {
+			if (record.getField(1, IntValue.class).getValue() > RANKFILTER) {
 				out.collect(record);
 			}
 		}
@@ -161,9 +161,9 @@ public class WebLogAnalysis implements Program, ProgramDescription
 		 * 0: URL
 		 */
 		@Override
-		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
+		public void map(Record record, Collector<Record> out) throws Exception {
 			// Parse date string with the format YYYY-MM-DD and extract the year
-			String dateString = record.getField(1, PactString.class).getValue();
+			String dateString = record.getField(1, StringValue.class).getValue();
 			int year = Integer.parseInt(dateString.substring(0,4)); 
 			
 			if (year == YEARFILTER) {
@@ -191,7 +191,7 @@ public class WebLogAnalysis implements Program, ProgramDescription
 		 * 2: AVG_DURATION
 		 */
 		@Override
-		public void match(PactRecord document, PactRecord rank, Collector<PactRecord> out) throws Exception {
+		public void match(Record document, Record rank, Collector<Record> out) throws Exception {
 			out.collect(rank);	
 		}
 	}
@@ -215,7 +215,7 @@ public class WebLogAnalysis implements Program, ProgramDescription
 		 * 2: AVG_DURATION
 		 */
 		@Override
-		public void coGroup(Iterator<PactRecord> ranks, Iterator<PactRecord> visits, Collector<PactRecord> out) {
+		public void coGroup(Iterator<Record> ranks, Iterator<Record> visits, Collector<Record> out) {
 			// Check if there is a entry in the visits relation
 			if (!visits.hasNext()) {
 				while (ranks.hasNext()) {
@@ -244,7 +244,7 @@ public class WebLogAnalysis implements Program, ProgramDescription
 		 */
 		// Create DataSourceContract for documents relation
 		@SuppressWarnings("unchecked")
-		CsvInputFormat docsFormat = new CsvInputFormat('|', PactString.class, PactString.class);
+		CsvInputFormat docsFormat = new CsvInputFormat('|', StringValue.class, StringValue.class);
 		FileDataSource docs = new FileDataSource(docsFormat, docsInput, "Docs Input");
 		
 		/*
@@ -258,9 +258,9 @@ public class WebLogAnalysis implements Program, ProgramDescription
 		CsvInputFormat.configureRecordFormat(ranks)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
-			.field(PactString.class, 1)
-			.field(PactInteger.class, 0)
-			.field(PactInteger.class, 2);
+			.field(StringValue.class, 1)
+			.field(IntValue.class, 0)
+			.field(IntValue.class, 2);
 
 		/*
 		 * Output Format:
@@ -269,7 +269,7 @@ public class WebLogAnalysis implements Program, ProgramDescription
 		 */
 		// Create DataSourceContract for visits relation
 		@SuppressWarnings("unchecked")
-		CsvInputFormat visitsFormat = new CsvInputFormat('|', null, PactString.class, PactString.class);
+		CsvInputFormat visitsFormat = new CsvInputFormat('|', null, StringValue.class, StringValue.class);
 		FileDataSource visits = new FileDataSource(visitsFormat, visitsInput, "Visits input:q");
 
 		// Create MapOperator for filtering the entries from the documents
@@ -300,7 +300,7 @@ public class WebLogAnalysis implements Program, ProgramDescription
 
 		// Create JoinOperator to join the filtered documents and ranks
 		// relation
-		JoinOperator joinDocsRanks = JoinOperator.builder(new JoinDocRanks(), PactString.class, 0, 0)
+		JoinOperator joinDocsRanks = JoinOperator.builder(new JoinDocRanks(), StringValue.class, 0, 0)
 			.input1(filterDocs)
 			.input2(filterRanks)
 			.name("Join Docs Ranks")
@@ -309,7 +309,7 @@ public class WebLogAnalysis implements Program, ProgramDescription
 
 		// Create CoGroupOperator to realize a anti join between the joined
 		// documents and ranks relation and the filtered visits relation
-		CoGroupOperator antiJoinVisits = CoGroupOperator.builder(new AntiJoinVisits(), PactString.class, 0, 0)
+		CoGroupOperator antiJoinVisits = CoGroupOperator.builder(new AntiJoinVisits(), StringValue.class, 0, 0)
 			.input1(joinDocsRanks)
 			.input2(filterVisits)
 			.name("Antijoin DocsVisits")
@@ -323,9 +323,9 @@ public class WebLogAnalysis implements Program, ProgramDescription
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
 			.lenient(true)
-			.field(PactInteger.class, 1)
-			.field(PactString.class, 0)
-			.field(PactInteger.class, 2);
+			.field(IntValue.class, 1)
+			.field(StringValue.class, 0)
+			.field(IntValue.class, 2);
 
 		// Return the PACT plan
 		Plan p = new Plan(result, "Weblog Analysis");

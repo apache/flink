@@ -16,9 +16,9 @@ package eu.stratosphere.example.record.pagerank;
 import java.io.Serializable;
 
 import eu.stratosphere.api.record.functions.JoinFunction;
-import eu.stratosphere.types.PactDouble;
-import eu.stratosphere.types.PactLong;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.DoubleValue;
+import eu.stratosphere.types.LongValue;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 /**
@@ -29,15 +29,15 @@ import eu.stratosphere.util.Collector;
 public class DotProductMatch extends JoinFunction implements Serializable {
 	private static final long serialVersionUID = 1L;
 
-	private PactRecord record = new PactRecord();
-	private PactLong vertexID = new PactLong();
-	private PactDouble partialRank = new PactDouble();
-	private PactDouble rank = new PactDouble();
+	private Record record = new Record();
+	private LongValue vertexID = new LongValue();
+	private DoubleValue partialRank = new DoubleValue();
+	private DoubleValue rank = new DoubleValue();
 
 	private LongArrayView adjacentNeighbors = new LongArrayView();
 
 	@Override
-	public void match(PactRecord pageWithRank, PactRecord adjacencyList, Collector<PactRecord> collector) throws Exception {
+	public void match(Record pageWithRank, Record adjacencyList, Collector<Record> collector) throws Exception {
 
 		rank = pageWithRank.getField(1, rank);
 		adjacentNeighbors = adjacencyList.getField(1, adjacentNeighbors);

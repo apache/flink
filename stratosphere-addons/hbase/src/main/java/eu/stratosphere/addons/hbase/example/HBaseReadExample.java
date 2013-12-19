@@ -23,8 +23,8 @@ import eu.stratosphere.addons.hbase.TableInputFormat;
 import eu.stratosphere.addons.hbase.common.HBaseKey;
 import eu.stratosphere.addons.hbase.common.HBaseResult;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.types.PactRecord;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.Record;
+import eu.stratosphere.types.StringValue;
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.GenericDataSource;
 import eu.stratosphere.api.record.io.CsvOutputFormat;
@@ -71,13 +71,13 @@ public class HBaseReadExample implements Program, ProgramDescription {
 			return scan;
 		}
 		
-		PactString row_string = new PactString();
-		PactString user_string = new PactString();
-		PactString timestamp_string = new PactString();
-		PactString tweet_string = new PactString();
+		StringValue row_string = new StringValue();
+		StringValue user_string = new StringValue();
+		StringValue timestamp_string = new StringValue();
+		StringValue tweet_string = new StringValue();
 		
 		@Override
-		public void mapResultToPactRecord(PactRecord record, HBaseKey key,
+		public void mapResultToRecord(Record record, HBaseKey key,
 				HBaseResult result) {
 			Result res = result.getResult();
 			res.getRow();
@@ -87,7 +87,7 @@ public class HBaseReadExample implements Program, ProgramDescription {
 			record.setField(3, toString (tweet_string, res.getValue(TEXT_FAMILY, TWEET_COLUMN)));
 		}
 		
-		private final PactString toString (PactString string, byte[] bytes) {
+		private final StringValue toString (StringValue string, byte[] bytes) {
 			string.setValueAscii(bytes, 0, bytes.length);
 			return string;
 		}
@@ -108,10 +108,10 @@ public class HBaseReadExample implements Program, ProgramDescription {
 		CsvOutputFormat.configureRecordFormat(out)
 			.recordDelimiter('\n')
 			.fieldDelimiter(' ')
-			.field(PactString.class, 0)
-			.field(PactString.class, 1)
-			.field(PactString.class, 2)
-			.field(PactString.class, 3);
+			.field(StringValue.class, 0)
+			.field(StringValue.class, 1)
+			.field(StringValue.class, 2)
+			.field(StringValue.class, 3);
 		
 		Plan plan = new Plan(out, "HBase access Example");
 		plan.setDefaultParallelism(numSubTasks);

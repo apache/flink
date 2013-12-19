@@ -15,7 +15,7 @@ package eu.stratosphere.util;
 
 import java.io.Serializable;
 
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.StringValue;
 
 
 /**
@@ -26,14 +26,14 @@ import eu.stratosphere.types.PactString;
 public final class AsciiUtils {
 	
 	/**
-	 * Converts the given <code>PactString</code> into a lower case variant.
+	 * Converts the given <code>StringValue</code> into a lower case variant.
 	 * <p>
 	 * NOTE: This method assumes that the string contains only characters that are valid in the
 	 * ASCII type set.
 	 * 
 	 * @param string The string to convert to lower case.
 	 */
-	public static void toLowerCase(PactString string) {
+	public static void toLowerCase(StringValue string) {
 		final char[] chars = string.getCharArray();
 		final int len = string.length();
 		
@@ -48,10 +48,10 @@ public final class AsciiUtils {
 	 * <p>
 	 * This operation is intended to simplify strings for counting distinct words.
 	 * 
-	 * @param string The pact string to have the non-word characters replaced.
+	 * @param string The string value to have the non-word characters replaced.
 	 * @param replacement The character to use as the replacement.
 	 */
-	public static void replaceNonWordChars(PactString string, char replacement) {
+	public static void replaceNonWordChars(StringValue string, char replacement) {
 		final char[] chars = string.getCharArray();
 		final int len = string.length();
 		
@@ -66,14 +66,14 @@ public final class AsciiUtils {
 	// ============================================================================================
 	
 	/**
-	 * A tokenizer for pact strings that uses whitespace characters as token delimiters.
+	 * A tokenizer for string values that uses whitespace characters as token delimiters.
 	 * The tokenizer is designed to have a resettable state and operate on mutable objects,
 	 * sparing object allocation and garbage collection overhead.
 	 */
-	public static final class WhitespaceTokenizer implements MutableObjectIterator<PactString>, Serializable {
+	public static final class WhitespaceTokenizer implements MutableObjectIterator<StringValue>, Serializable {
 		private static final long serialVersionUID = 1L;
 		
-		private PactString toTokenize;		// the string to tokenize
+		private StringValue toTokenize;		// the string to tokenize
 		private int pos;					// the current position in the string
 		private int limit;					// the limit in the string's character data
 		
@@ -85,9 +85,9 @@ public final class AsciiUtils {
 		/**
 		 * Sets the string to be tokenized and resets the state of the tokenizer.
 		 * 
-		 * @param string The pact string to be tokenized.
+		 * @param string The string value to be tokenized.
 		 */
-		public void setStringToTokenize(PactString string) {
+		public void setStringToTokenize(StringValue string) {
 			this.toTokenize = string;
 			this.pos = 0;
 			this.limit = string.length();
@@ -98,12 +98,12 @@ public final class AsciiUtils {
 		 * in the given target string object and <code>true</code> is returned. Otherwise,
 		 * the target object is left unchanged and <code>false</code> is returned.
 		 * 
-		 * @param target The PactString object to store the next token in.
+		 * @param target The StringValue object to store the next token in.
 		 * @return True, if there was another token, false if not.
 		 * @see eu.stratosphere.util.MutableObjectIterator#next(java.lang.Object)
 		 */
 		@Override
-		public boolean next(PactString target) {
+		public boolean next(StringValue target) {
 			final char[] data = this.toTokenize.getCharArray();
 			final int limit = this.limit;
 			int pos = this.pos;

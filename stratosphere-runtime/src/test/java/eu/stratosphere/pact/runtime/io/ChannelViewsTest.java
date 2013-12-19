@@ -38,7 +38,7 @@ import eu.stratosphere.pact.runtime.test.util.TestData.Key;
 import eu.stratosphere.pact.runtime.test.util.TestData.Value;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.KeyMode;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.ValueMode;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 
 
 /**
@@ -107,7 +107,7 @@ public class ChannelViewsTest
 		final ChannelWriterOutputView outView = new ChannelWriterOutputView(writer, memory, MEMORY_PAGE_SIZE);
 		
 		// write a number of pairs
-		final PactRecord rec = new PactRecord();
+		final Record rec = new Record();
 		for (int i = 0; i < NUM_PAIRS_SHORT; i++) {
 			generator.next(rec);
 			rec.write(outView);
@@ -121,7 +121,7 @@ public class ChannelViewsTest
 		generator.reset();
 		
 		// read and re-generate all records and compare them
-		final PactRecord readRec = new PactRecord();
+		final Record readRec = new Record();
 		for (int i = 0; i < NUM_PAIRS_SHORT; i++) {
 			generator.next(rec);
 			readRec.read(inView);
@@ -151,7 +151,7 @@ public class ChannelViewsTest
 		final ChannelWriterOutputView outView = new ChannelWriterOutputView(writer, memory, MEMORY_PAGE_SIZE);
 		
 		// write a number of pairs
-		final PactRecord rec = new PactRecord();
+		final Record rec = new Record();
 		for (int i = 0; i < NUM_PAIRS_LONG; i++) {
 			generator.next(rec);
 			rec.write(outView);
@@ -165,7 +165,7 @@ public class ChannelViewsTest
 		generator.reset();
 		
 		// read and re-generate all records and compare them
-		final PactRecord readRec = new PactRecord();
+		final Record readRec = new Record();
 		for (int i = 0; i < NUM_PAIRS_LONG; i++) {
 			generator.next(rec);
 			readRec.read(inView);
@@ -192,7 +192,7 @@ public class ChannelViewsTest
 		final ChannelWriterOutputView outView = new ChannelWriterOutputView(writer, memory, MEMORY_PAGE_SIZE);
 		
 		// write a number of pairs
-		final PactRecord rec = new PactRecord();
+		final Record rec = new Record();
 		for (int i = 0; i < NUM_PAIRS_SHORT; i++) {
 			generator.next(rec);
 			rec.write(outView);
@@ -207,7 +207,7 @@ public class ChannelViewsTest
 		
 		// read and re-generate all records and compare them
 		try {
-			final PactRecord readRec = new PactRecord();
+			final Record readRec = new Record();
 			for (int i = 0; i < NUM_PAIRS_SHORT + 1; i++) {
 				generator.next(rec);
 				readRec.read(inView);
@@ -243,7 +243,7 @@ public class ChannelViewsTest
 		final ChannelWriterOutputView outView = new ChannelWriterOutputView(writer, memory, MEMORY_PAGE_SIZE);
 		
 		// write a number of pairs
-		final PactRecord rec = new PactRecord();
+		final Record rec = new Record();
 		for (int i = 0; i < NUM_PAIRS_SHORT; i++) {
 			generator.next(rec);
 			rec.write(outView);
@@ -257,7 +257,7 @@ public class ChannelViewsTest
 		generator.reset();
 		
 		// read and re-generate all records and cmpare them
-		final PactRecord readRec = new PactRecord();
+		final Record readRec = new Record();
 		for (int i = 0; i < NUM_PAIRS_SHORT; i++) {
 			generator.next(rec);
 			readRec.read(inView);
@@ -287,7 +287,7 @@ public class ChannelViewsTest
 		final ChannelWriterOutputView outView = new ChannelWriterOutputView(writer, memory, MEMORY_PAGE_SIZE);
 		
 		// write a number of pairs
-		final PactRecord rec = new PactRecord();
+		final Record rec = new Record();
 		for (int i = 0; i < NUM_PAIRS_SHORT; i++) {
 			generator.next(rec);
 			rec.write(outView);
@@ -301,7 +301,7 @@ public class ChannelViewsTest
 		generator.reset();
 		
 		// read and re-generate all records and compare them
-		final PactRecord readRec = new PactRecord();
+		final Record readRec = new Record();
 		for (int i = 0; i < NUM_PAIRS_SHORT; i++) {
 			generator.next(rec);
 			readRec.read(inView);
@@ -331,7 +331,7 @@ public class ChannelViewsTest
 		final ChannelWriterOutputView outView = new ChannelWriterOutputView(writer, memory, MEMORY_PAGE_SIZE);
 		
 		// write a number of pairs
-		final PactRecord rec = new PactRecord();
+		final Record rec = new Record();
 		for (int i = 0; i < NUM_PAIRS_SHORT; i++) {
 			generator.next(rec);
 			rec.write(outView);
@@ -345,7 +345,7 @@ public class ChannelViewsTest
 		generator.reset();
 		
 		// read and re-generate all records and compare them
-		final PactRecord readRec = new PactRecord();
+		final Record readRec = new Record();
 		for (int i = 0; i < NUM_PAIRS_SHORT / 2; i++) {
 			generator.next(rec);
 			readRec.read(inView);

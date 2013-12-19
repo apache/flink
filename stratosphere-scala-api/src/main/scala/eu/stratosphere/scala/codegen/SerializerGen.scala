@@ -14,7 +14,7 @@
 package eu.stratosphere.scala.codegen
 
 import scala.reflect.macros.Context
-import eu.stratosphere.types.PactRecord
+import eu.stratosphere.types.Record
 import eu.stratosphere.scala.analysis.UDTSerializer
 
 trait SerializerGen[C <: Context] { this: MacroContextHolder[C] with UDTDescriptors[C] with UDTAnalyzer[C] with TreeGen[C] with SerializeMethodGen[C] with DeserializeMethodGen[C] with Loggers[C] =>
@@ -77,7 +77,7 @@ trait SerializerGen[C <: Context] { this: MacroContextHolder[C] with UDTDescript
 
   private def mkListImplClass[T <: eu.stratosphere.types.Value: c.WeakTypeTag]: (Tree, Type) = {
     val listImplName = c.fresh[TypeName]("PactListImpl")
-    val tpe = weakTypeOf[eu.stratosphere.types.PactList[T]]
+    val tpe = weakTypeOf[eu.stratosphere.types.ListValue[T]]
 
     val listDef = mkClass(listImplName, Flag.FINAL, List(tpe), {
       List(mkMethod(nme.CONSTRUCTOR.toString(), NoFlags, List(), NoType, Block(List(mkSuperCall()), mkUnit)))
@@ -107,7 +107,7 @@ trait SerializerGen[C <: Context] { this: MacroContextHolder[C] with UDTDescript
       }
       case ListDescriptor(id, _, _, elem) => {
         val (classDefs, tpes) = mkListImplClasses(elem)
-        val (classDef, tpe) = mkListImplClass(c.WeakTypeTag(typeOf[eu.stratosphere.types.PactRecord]))
+        val (classDef, tpe) = mkListImplClass(c.WeakTypeTag(typeOf[eu.stratosphere.types.Record]))
         (classDefs :+ classDef, tpes + (id -> tpe))
       }
       case BaseClassDescriptor(_, _, getters, subTypes) => {

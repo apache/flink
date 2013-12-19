@@ -16,21 +16,21 @@ package eu.stratosphere.example.record.pagerank;
 import eu.stratosphere.api.record.io.TextInputFormat;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.example.record.util.ConfigUtils;
-import eu.stratosphere.types.PactBoolean;
-import eu.stratosphere.types.PactDouble;
-import eu.stratosphere.types.PactLong;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.BooleanValue;
+import eu.stratosphere.types.DoubleValue;
+import eu.stratosphere.types.LongValue;
+import eu.stratosphere.types.Record;
 
 public class DanglingPageRankInputFormat extends TextInputFormat {
 	private static final long serialVersionUID = 1L;
 	
 	public static final String NUM_VERTICES_PARAMETER = "pageRank.numVertices";
 
-	private PactLong vertexID = new PactLong();
+	private LongValue vertexID = new LongValue();
 
-	private PactDouble initialRank;
+	private DoubleValue initialRank;
 
-	private PactBoolean isDangling = new PactBoolean();
+	private BooleanValue isDangling = new BooleanValue();
 
 	private AsciiLongArrayView arrayView = new AsciiLongArrayView();
 
@@ -39,12 +39,12 @@ public class DanglingPageRankInputFormat extends TextInputFormat {
 	@Override
 	public void configure(Configuration parameters) {
 		long numVertices = ConfigUtils.asLong(NUM_VERTICES_PARAMETER, parameters);
-		initialRank = new PactDouble(1 / (double) numVertices);
+		initialRank = new DoubleValue(1 / (double) numVertices);
 		super.configure(parameters);
 	}
 
 	@Override
-	public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes) {
+	public boolean readRecord(Record target, byte[] bytes, int offset, int numBytes) {
 
 		arrayView.set(bytes, offset, numBytes);
 

@@ -33,9 +33,9 @@ import eu.stratosphere.pact.runtime.iterative.convergence.WorksetEmptyConvergenc
 import eu.stratosphere.pact.runtime.iterative.task.IterationHeadPactTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationIntermediatePactTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationTailPactTask;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparatorFactory;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordPairComparatorFactory;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordSerializerFactory;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparatorFactory;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordPairComparatorFactory;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializerFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.BuildSecondCachedMatchDriver;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
@@ -46,8 +46,8 @@ import eu.stratosphere.pact.runtime.task.chaining.ChainedMapDriver;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.test.util.TestBase2;
-import eu.stratosphere.types.PactLong;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.LongValue;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 import org.junit.Assert;
@@ -220,8 +220,8 @@ public class ConnectedComponentsNepheleITCase extends TestBase2 {
     public static final class IdDuplicator extends MapFunction {
 
         @Override
-        public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
-            record.setField(1, record.getField(0, PactLong.class));
+        public void map(Record record, Collector<Record> out) throws Exception {
+            record.setField(1, record.getField(0, LongValue.class));
             out.collect(record);
         }
 
@@ -235,7 +235,7 @@ public class ConnectedComponentsNepheleITCase extends TestBase2 {
                                                       TypeSerializerFactory<?> serializer,
                                                       TypeComparatorFactory<?> comparator) {
         @SuppressWarnings("unchecked")
-        CsvInputFormat verticesInFormat = new CsvInputFormat(' ', PactLong.class);
+        CsvInputFormat verticesInFormat = new CsvInputFormat(' ', LongValue.class);
         JobInputVertex verticesInput = JobGraphUtils.createInput(verticesInFormat, verticesPath, "VerticesInput",
                 jobGraph, numSubTasks, numSubTasks);
         TaskConfig verticesInputConfig = new TaskConfig(verticesInput.getConfiguration());
@@ -267,7 +267,7 @@ public class ConnectedComponentsNepheleITCase extends TestBase2 {
                                                    TypeComparatorFactory<?> comparator) {
         // edges
         @SuppressWarnings("unchecked")
-        CsvInputFormat edgesInFormat = new CsvInputFormat(' ', PactLong.class, PactLong.class);
+        CsvInputFormat edgesInFormat = new CsvInputFormat(' ', LongValue.class, LongValue.class);
         JobInputVertex edgesInput = JobGraphUtils.createInput(edgesInFormat, edgesPath, "EdgesInput", jobGraph,
                 numSubTasks, numSubTasks);
         TaskConfig edgesInputConfig = new TaskConfig(edgesInput.getConfiguration());
@@ -402,9 +402,9 @@ public class ConnectedComponentsNepheleITCase extends TestBase2 {
             Configuration outputUserConfig = outputConfig.getStubParameters();
             outputUserConfig.setString(CsvOutputFormat.RECORD_DELIMITER_PARAMETER, "\n");
             outputUserConfig.setString(CsvOutputFormat.FIELD_DELIMITER_PARAMETER, " ");
-            outputUserConfig.setClass(CsvOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactLong.class);
+            outputUserConfig.setClass(CsvOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, LongValue.class);
             outputUserConfig.setInteger(CsvOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 0, 0);
-            outputUserConfig.setClass(CsvOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, PactLong.class);
+            outputUserConfig.setClass(CsvOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, LongValue.class);
             outputUserConfig.setInteger(CsvOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 1, 1);
             outputUserConfig.setInteger(CsvOutputFormat.NUM_FIELDS_PARAMETER, 2);
         }
@@ -442,11 +442,11 @@ public class ConnectedComponentsNepheleITCase extends TestBase2 {
     	numSubTasks = 1;
 
         // -- init -------------------------------------------------------------------------------------------------
-        final TypeSerializerFactory<?> serializer = PactRecordSerializerFactory.get();
+        final TypeSerializerFactory<?> serializer = RecordSerializerFactory.get();
         @SuppressWarnings("unchecked")
         final TypeComparatorFactory<?> comparator =
-                new PactRecordComparatorFactory(new int[]{0}, new Class[]{PactLong.class}, new boolean[]{true});
-        final TypePairComparatorFactory<?, ?> pairComparator = PactRecordPairComparatorFactory.get();
+                new RecordComparatorFactory(new int[]{0}, new Class[]{LongValue.class}, new boolean[]{true});
+        final TypePairComparatorFactory<?, ?> pairComparator = RecordPairComparatorFactory.get();
 
         JobGraph jobGraph = new JobGraph("Connected Components (Unified Tails)");
 
@@ -524,11 +524,11 @@ public class ConnectedComponentsNepheleITCase extends TestBase2 {
             String verticesPath, String edgesPath, String resultPath, int numSubTasks, int maxIterations)
             throws JobGraphDefinitionException {
         // -- init -------------------------------------------------------------------------------------------------
-        final TypeSerializerFactory<?> serializer = PactRecordSerializerFactory.get();
+        final TypeSerializerFactory<?> serializer = RecordSerializerFactory.get();
         @SuppressWarnings("unchecked")
         final TypeComparatorFactory<?> comparator =
-                new PactRecordComparatorFactory(new int[]{0}, new Class[]{PactLong.class}, new boolean[]{true});
-        final TypePairComparatorFactory<?, ?> pairComparator = PactRecordPairComparatorFactory.get();
+                new RecordComparatorFactory(new int[]{0}, new Class[]{LongValue.class}, new boolean[]{true});
+        final TypePairComparatorFactory<?, ?> pairComparator = RecordPairComparatorFactory.get();
 
         JobGraph jobGraph = new JobGraph("Connected Components (Unified Tails)");
 
@@ -673,11 +673,11 @@ public class ConnectedComponentsNepheleITCase extends TestBase2 {
             String verticesPath, String edgesPath, String resultPath, int numSubTasks, int maxIterations)
             throws JobGraphDefinitionException {
         // -- init -------------------------------------------------------------------------------------------------
-        final TypeSerializerFactory<?> serializer = PactRecordSerializerFactory.get();
+        final TypeSerializerFactory<?> serializer = RecordSerializerFactory.get();
         @SuppressWarnings("unchecked")
         final TypeComparatorFactory<?> comparator =
-                new PactRecordComparatorFactory(new int[]{0}, new Class[]{PactLong.class}, new boolean[]{true});
-        final TypePairComparatorFactory<?, ?> pairComparator = PactRecordPairComparatorFactory.get();
+                new RecordComparatorFactory(new int[]{0}, new Class[]{LongValue.class}, new boolean[]{true});
+        final TypePairComparatorFactory<?, ?> pairComparator = RecordPairComparatorFactory.get();
 
         JobGraph jobGraph = new JobGraph("Connected Components (Intermediate Workset Update, Solution Set Tail)");
 
@@ -797,11 +797,11 @@ public class ConnectedComponentsNepheleITCase extends TestBase2 {
             String verticesPath, String edgesPath, String resultPath, int numSubTasks, int maxIterations)
             throws JobGraphDefinitionException {
         // -- init -------------------------------------------------------------------------------------------------
-        final TypeSerializerFactory<?> serializer = PactRecordSerializerFactory.get();
+        final TypeSerializerFactory<?> serializer = RecordSerializerFactory.get();
         @SuppressWarnings("unchecked")
         final TypeComparatorFactory<?> comparator =
-                new PactRecordComparatorFactory(new int[]{0}, new Class[]{PactLong.class}, new boolean[]{true});
-        final TypePairComparatorFactory<?, ?> pairComparator = PactRecordPairComparatorFactory.get();
+                new RecordComparatorFactory(new int[]{0}, new Class[]{LongValue.class}, new boolean[]{true});
+        final TypePairComparatorFactory<?, ?> pairComparator = RecordPairComparatorFactory.get();
 
         JobGraph jobGraph = new JobGraph("Connected Components (Intermediate Solution Set Update, Workset Tail)");
 
@@ -910,7 +910,7 @@ public class ConnectedComponentsNepheleITCase extends TestBase2 {
 
     public static final class DummyMapper extends MapFunction {
         @Override
-        public void map(PactRecord rec, Collector<PactRecord> out) {
+        public void map(Record rec, Collector<Record> out) {
             out.collect(rec);
         }
     }

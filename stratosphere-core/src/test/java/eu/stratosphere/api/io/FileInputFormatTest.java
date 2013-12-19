@@ -24,7 +24,7 @@ import eu.stratosphere.api.io.FileInputFormat.FileBaseStatistics;
 import eu.stratosphere.api.io.statistics.BaseStatistics;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.testutils.TestFileUtils;
-import eu.stratosphere.types.PactInteger;
+import eu.stratosphere.types.IntValue;
 import eu.stratosphere.util.LogUtils;
 
 public class FileInputFormatTest { 
@@ -187,7 +187,7 @@ public class FileInputFormatTest {
 	
 	// ------------------------------------------------------------------------
 	
-	private class DummyFileInputFormat extends FileInputFormat<PactInteger> {
+	private class DummyFileInputFormat extends FileInputFormat<IntValue> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -196,7 +196,7 @@ public class FileInputFormatTest {
 		}
 
 		@Override
-		public boolean nextRecord(PactInteger record) throws IOException {
+		public boolean nextRecord(IntValue record) throws IOException {
 			return false;
 		}
 	}

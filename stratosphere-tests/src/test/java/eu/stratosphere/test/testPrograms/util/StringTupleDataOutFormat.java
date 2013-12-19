@@ -14,15 +14,15 @@
 package eu.stratosphere.test.testPrograms.util;
 
 import eu.stratosphere.api.record.io.DelimitedOutputFormat;
-import eu.stratosphere.types.PactRecord;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.Record;
+import eu.stratosphere.types.StringValue;
 
 public class StringTupleDataOutFormat extends DelimitedOutputFormat {
 	private static final long serialVersionUID = 1L;
 
 	@Override
-	public int serializeRecord(PactRecord rec, byte[] target) throws Exception {
-		String string = rec.getField(0, PactString.class).toString();
+	public int serializeRecord(Record rec, byte[] target) throws Exception {
+		String string = rec.getField(0, StringValue.class).toString();
 		byte[] stringBytes = string.getBytes();
 		Tuple tuple = rec.getField(1, Tuple.class);
 		String tupleStr = tuple.toString();

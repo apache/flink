@@ -23,7 +23,7 @@ import eu.stratosphere.api.record.operators.MapOperator;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.test.testPrograms.util.DiscardingOutputFormat;
 import eu.stratosphere.test.testPrograms.util.InfiniteIntegerInputFormat;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 public class MapCancelingITCase extends CancellingTestBase {
@@ -100,7 +100,7 @@ public class MapCancelingITCase extends CancellingTestBase {
 	
 	public static final class IdentityMapper extends MapFunction {
 		@Override
-		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
+		public void map(Record record, Collector<Record> out) throws Exception {
 			out.collect(record);
 		}
 	}
@@ -110,7 +110,7 @@ public class MapCancelingITCase extends CancellingTestBase {
 		private static final int WAIT_TIME_PER_RECORD = 10 * 1000; // 10 sec.
 
 		@Override
-		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
+		public void map(Record record, Collector<Record> out) throws Exception {
 			Thread.sleep(WAIT_TIME_PER_RECORD);
 			out.collect(record);
 		}
@@ -121,7 +121,7 @@ public class MapCancelingITCase extends CancellingTestBase {
 		private static final int WAIT_TIME_PER_RECORD = 5 * 1000; // 5 sec.
 
 		@Override
-		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
+		public void map(Record record, Collector<Record> out) throws Exception {
 			final long start = System.currentTimeMillis();
 			long remaining = WAIT_TIME_PER_RECORD;
 			do {
@@ -144,7 +144,7 @@ public class MapCancelingITCase extends CancellingTestBase {
 		}
 
 		@Override
-		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
+		public void map(Record record, Collector<Record> out) throws Exception {
 			out.collect(record);
 		}
 	}

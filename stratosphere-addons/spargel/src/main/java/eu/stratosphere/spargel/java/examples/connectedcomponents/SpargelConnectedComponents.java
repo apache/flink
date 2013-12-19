@@ -24,8 +24,8 @@ import eu.stratosphere.client.LocalExecutor;
 import eu.stratosphere.spargel.java.MessagingFunction;
 import eu.stratosphere.spargel.java.SpargelIteration;
 import eu.stratosphere.spargel.java.VertexUpdateFunction;
-import eu.stratosphere.types.PactLong;
-import eu.stratosphere.types.PactNull;
+import eu.stratosphere.types.LongValue;
+import eu.stratosphere.types.NullValue;
 
 public class SpargelConnectedComponents implements Program, ProgramDescription {
 	
@@ -48,8 +48,8 @@ public class SpargelConnectedComponents implements Program, ProgramDescription {
 		CsvOutputFormat.configureRecordFormat(result)
 			.recordDelimiter('\n')
 			.fieldDelimiter(' ')
-			.field(PactLong.class, 0)
-			.field(PactLong.class, 1);
+			.field(LongValue.class, 0)
+			.field(LongValue.class, 1);
 		
 		SpargelIteration iteration = new SpargelIteration(
 			new CCMessager(), new CCUpdater(), "Connected Components (Spargel API)");
@@ -64,30 +64,30 @@ public class SpargelConnectedComponents implements Program, ProgramDescription {
 	}
 	
 	
-	public static final class CCUpdater extends VertexUpdateFunction<PactLong, PactLong, PactLong> {
+	public static final class CCUpdater extends VertexUpdateFunction<LongValue, LongValue, LongValue> {
 
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void updateVertex(PactLong vertexKey, PactLong vertexValue, Iterator<PactLong> inMessages) {
+		public void updateVertex(LongValue vertexKey, LongValue vertexValue, Iterator<LongValue> inMessages) {
 			long min = Long.MAX_VALUE;
 			while (inMessages.hasNext()) {
 				long next = inMessages.next().getValue();
 				min = Math.min(min, next);
 			}
 			if (min < vertexValue.getValue()) {
-				setNewVertexValue(new PactLong(min));
+				setNewVertexValue(new LongValue(min));
 			}
 		}
 		
 	}
 	
-	public static final class CCMessager extends MessagingFunction<PactLong, PactLong, PactLong, PactNull> {
+	public static final class CCMessager extends MessagingFunction<LongValue, LongValue, LongValue, NullValue> {
 
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void sendMessages(PactLong vertexId, PactLong componentId) {
+		public void sendMessages(LongValue vertexId, LongValue componentId) {
 			sendMessageToAllTargets(componentId);
         }
 

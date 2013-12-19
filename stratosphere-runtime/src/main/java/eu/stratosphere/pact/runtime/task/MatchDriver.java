@@ -26,7 +26,7 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.pact.runtime.hash.BuildFirstHashMatchIterator;
 import eu.stratosphere.pact.runtime.hash.BuildSecondHashMatchIterator;
 import eu.stratosphere.pact.runtime.sort.MergeMatchIterator;
-import eu.stratosphere.pact.runtime.task.util.MatchTaskIterator;
+import eu.stratosphere.pact.runtime.task.util.JoinTaskIterator;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.util.Collector;
 import eu.stratosphere.util.MutableObjectIterator;
@@ -46,7 +46,7 @@ public class MatchDriver<IT1, IT2, OT> implements PactDriver<GenericJoiner<IT1, 
 	
 	protected PactTaskContext<GenericJoiner<IT1, IT2, OT>, OT> taskContext;
 	
-	private volatile MatchTaskIterator<IT1, IT2, OT> matchIterator;		// the iterator that does the actual matching
+	private volatile JoinTaskIterator<IT1, IT2, OT> matchIterator;		// the iterator that does the actual matching
 	
 	protected volatile boolean running;
 	
@@ -138,7 +138,7 @@ public class MatchDriver<IT1, IT2, OT> implements PactDriver<GenericJoiner<IT1, 
 	public void run() throws Exception {
 		final GenericJoiner<IT1, IT2, OT> matchStub = this.taskContext.getStub();
 		final Collector<OT> collector = this.taskContext.getOutputCollector();
-		final MatchTaskIterator<IT1, IT2, OT> matchIterator = this.matchIterator;
+		final JoinTaskIterator<IT1, IT2, OT> matchIterator = this.matchIterator;
 		
 		while (this.running && matchIterator.callWithNextKey(matchStub, collector));
 	}

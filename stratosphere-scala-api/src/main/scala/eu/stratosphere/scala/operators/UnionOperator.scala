@@ -20,7 +20,7 @@ import eu.stratosphere.scala.codegen.MacroContextHolder
 import eu.stratosphere.scala.ScalaContract
 import eu.stratosphere.api.record.operators.MapOperator
 import eu.stratosphere.scala.analysis.UDT
-import eu.stratosphere.types.PactRecord
+import eu.stratosphere.types.Record
 import eu.stratosphere.api.record.functions.MapFunction
 import eu.stratosphere.util.Collector
 import eu.stratosphere.api.operators.Operator
@@ -50,7 +50,7 @@ object UnionMacros {
         val inputUDT = c.Expr[UDT[In]](createUdtIn).splice
         val udf: UDF1[In, In] = new UDF1(inputUDT, inputUDT)
 
-        override def map(record: PactRecord, out: Collector[PactRecord]) = out.collect(record)
+        override def map(record: Record, out: Collector[Record]) = out.collect(record)
       }
 
       val firstInputs = c.prefix.splice.contract match {

@@ -18,9 +18,9 @@ import java.util.Iterator;
 import eu.stratosphere.api.record.functions.ReduceFunction;
 import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFields;
 import eu.stratosphere.api.record.operators.ReduceOperator.Combinable;
-import eu.stratosphere.types.PactDouble;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.DoubleValue;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 /**
@@ -32,11 +32,11 @@ import eu.stratosphere.util.Collector;
 public class FindNearestCenter extends ReduceFunction implements Serializable {
 	private static final long serialVersionUID = 1L;
 	
-	private final PactInteger centerId = new PactInteger();
+	private final IntValue centerId = new IntValue();
 	private final CoordVector position = new CoordVector();
-	private final PactInteger one = new PactInteger(1);
+	private final IntValue one = new IntValue(1);
 	
-	private final PactRecord result = new PactRecord(3);
+	private final Record result = new Record(3);
 	
 	/**
 	 * Computes a minimum aggregation on the distance of a data point to
@@ -48,21 +48,21 @@ public class FindNearestCenter extends ReduceFunction implements Serializable {
 	 * 2: constant(1) (to enable combinable average computation in the following reducer)
 	 */
 	@Override
-	public void reduce(Iterator<PactRecord> pointsWithDistance, Collector<PactRecord> out) {
+	public void reduce(Iterator<Record> pointsWithDistance, Collector<Record> out) {
 		double nearestDistance = Double.MAX_VALUE;
 		int nearestClusterId = 0;
 
 		// check all cluster centers
 		while (pointsWithDistance.hasNext()) {
-			PactRecord res = pointsWithDistance.next();
+			Record res = pointsWithDistance.next();
 			
-			double distance = res.getField(3, PactDouble.class).getValue();
+			double distance = res.getField(3, DoubleValue.class).getValue();
 
 			// compare distances
 			if (distance < nearestDistance) {
 				// if distance is smaller than smallest till now, update nearest cluster
 				nearestDistance = distance;
-				nearestClusterId = res.getField(2, PactInteger.class).getValue();
+				nearestClusterId = res.getField(2, IntValue.class).getValue();
 				res.getFieldInto(1, this.position);
 			}
 		}
@@ -79,20 +79,20 @@ public class FindNearestCenter extends ReduceFunction implements Serializable {
 
 	// ----------------------------------------------------------------------------------------
 	
-	private final PactRecord nearest = new PactRecord();
+	private final Record nearest = new Record();
 	
 	/**
 	 * Computes a minimum aggregation on the distance of a data point to
 	 * cluster centers.
 	 */
 	@Override
-	public void combine(Iterator<PactRecord> pointsWithDistance, Collector<PactRecord> out) {
+	public void combine(Iterator<Record> pointsWithDistance, Collector<Record> out) {
 		double nearestDistance = Double.MAX_VALUE;
 
 		// check all cluster centers
 		while (pointsWithDistance.hasNext()) {
-			PactRecord res = pointsWithDistance.next();
-			double distance = res.getField(3, PactDouble.class).getValue();
+			Record res = pointsWithDistance.next();
+			double distance = res.getField(3, DoubleValue.class).getValue();
 
 			// compare distances
 			if (distance < nearestDistance) {

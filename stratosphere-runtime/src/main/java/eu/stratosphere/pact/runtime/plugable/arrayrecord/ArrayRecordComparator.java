@@ -166,7 +166,7 @@ public final class ArrayRecordComparator extends TypeComparator<Value[]> {
 			}
 		} catch (Exception ex) {
 			// this should never happen, because the classes have been instantiated before. Report for debugging.
-			throw new RuntimeException("Could not instantiate key classes when duplicating PactRecordComparator.", ex);
+			throw new RuntimeException("Could not instantiate key classes when duplicating RecordComparator.", ex);
 		}
 		
 		this.normalizedKeyLengths = toCopy.normalizedKeyLengths;

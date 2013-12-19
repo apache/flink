@@ -17,7 +17,7 @@ import java.io.Serializable;
 
 import eu.stratosphere.api.record.functions.JoinFunction;
 import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFieldsFirstExcept;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 @ConstantFieldsFirstExcept({})
@@ -25,7 +25,7 @@ public class DummyMatchStub extends JoinFunction implements Serializable {
 	private static final long serialVersionUID = 1L;
 
 	@Override
-	public void match(PactRecord value1, PactRecord value2, Collector<PactRecord> out) throws Exception {
+	public void match(Record value1, Record value2, Collector<Record> out) throws Exception {
 		out.collect(value1);
 	}
 }

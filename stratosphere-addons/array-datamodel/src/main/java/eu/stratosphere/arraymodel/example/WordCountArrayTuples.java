@@ -32,8 +32,8 @@ import eu.stratosphere.arraymodel.functions.ReduceFunction;
 import eu.stratosphere.arraymodel.io.StringInputFormat;
 import eu.stratosphere.arraymodel.io.StringIntOutputFormat;
 import eu.stratosphere.client.LocalExecutor;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.StringValue;
 import eu.stratosphere.types.Value;
 import eu.stratosphere.util.AsciiUtils;
 import eu.stratosphere.util.Collector;
@@ -45,25 +45,25 @@ import eu.stratosphere.util.Collector;
 public class WordCountArrayTuples implements Program, ProgramDescription {
 	
 	/**
-	 * Converts a PactRecord containing one string in to multiple string/integer pairs.
+	 * Converts a Record containing one string in to multiple string/integer pairs.
 	 * The string is tokenized by whitespaces. For each token a new record is emitted,
 	 * where the token is the first field and an Integer(1) is the second field.
 	 */
 	
 	public static class TokenizeLine extends MapFunction {
 		// initialize reusable mutable objects
-		private final PactString word = new PactString();
-		private final PactInteger one = new PactInteger(1);
+		private final StringValue word = new StringValue();
+		private final IntValue one = new IntValue(1);
 		private final Value[] outputRecord = new Value[] { this.word, this.one };
 		
 		private final AsciiUtils.WhitespaceTokenizer tokenizer = 
 						new AsciiUtils.WhitespaceTokenizer();
 		
 		@Override
-		@DataTypes({PactString.class})
+		@DataTypes({StringValue.class})
 		public void map(Value[] record, Collector<Value[]> collector) {
-			// get the first field (as type PactString) from the record
-			PactString line = (PactString) record[0];
+			// get the first field (as type StringValue) from the record
+			StringValue line = (StringValue) record[0];
 			
 			// normalize the line
 			AsciiUtils.replaceNonWordChars(line, ' ');
@@ -86,17 +86,17 @@ public class WordCountArrayTuples implements Program, ProgramDescription {
 	@ConstantFields(0)
 	public static class CountWords extends ReduceFunction {
 		
-		private final PactInteger cnt = new PactInteger();
+		private final IntValue cnt = new IntValue();
 		private final Value[] result = new Value[] { null, cnt };
 		
 		@Override
-		@DataTypes({PactString.class, PactInteger.class})
+		@DataTypes({StringValue.class, IntValue.class})
 		public void reduce(Iterator<Value[]> records, Collector<Value[]> out) throws Exception {
 			Value[] element = null;
 			int sum = 0;
 			while (records.hasNext()) {
 				element = records.next();
-				sum += ((PactInteger) element[1]).getValue();
+				sum += ((IntValue) element[1]).getValue();
 			}
 
 			this.cnt.setValue(sum);

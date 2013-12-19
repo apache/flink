@@ -24,7 +24,7 @@ import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.scala.codegen.UDTDescriptors
 import eu.stratosphere.scala.codegen.MacroContextHolder
 
-import eu.stratosphere.types.PactRecord
+import eu.stratosphere.types.Record
 import eu.stratosphere.api.io.{BinaryOutputFormat => JavaBinaryOutputFormat}
 import eu.stratosphere.api.io.{SequentialOutputFormat => JavaSequentialOutputFormat}
 import eu.stratosphere.api.record.io.{DelimitedOutputFormat => JavaDelimitedOutputFormat}
@@ -61,7 +61,7 @@ object RawOutputFormat {
       new JavaFileOutputFormat with ScalaOutputFormatBase[In] {
         override val udt = c.Expr(createUdtIn).splice
 
-        override def writeRecord(record: PactRecord) = {
+        override def writeRecord(record: Record) = {
           val input = deserializer.deserializeRecyclingOn(record)
           writeFunction.splice.apply(input, this.stream)
         }
@@ -106,7 +106,7 @@ object BinaryOutputFormat {
           blockSize.splice map { config.setLong(JavaBinaryOutputFormat.BLOCK_SIZE_PARAMETER_KEY, _) }
         }
 
-        override def serialize(record: PactRecord, target: DataOutput) = {
+        override def serialize(record: Record, target: DataOutput) = {
           val input = deserializer.deserializeRecyclingOn(record)
           writeFunction.splice.apply(input, target)
         }
@@ -253,7 +253,7 @@ object DelimitedOutputFormat {
           delimiter.splice map { config.setString(JavaDelimitedOutputFormat.RECORD_DELIMITER, _) }
         }
 
-        override def serializeRecord(record: PactRecord, target: Array[Byte]): Int = {
+        override def serializeRecord(record: Record, target: Array[Byte]): Int = {
           val input = deserializer.deserializeRecyclingOn(record)
           writeFunction.splice.apply(input, target)
         }

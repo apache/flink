@@ -38,7 +38,7 @@ import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.InputSplitProvider;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.MutableObjectIterator;
 
 public class MockEnvironment implements Environment {
@@ -53,29 +53,29 @@ public class MockEnvironment implements Environment {
 
 	private final Configuration taskConfiguration;
 
-	private final List<RuntimeInputGate<PactRecord>> inputs;
+	private final List<RuntimeInputGate<Record>> inputs;
 
-	private final List<RuntimeOutputGate<PactRecord>> outputs;
+	private final List<RuntimeOutputGate<Record>> outputs;
 
 	private final JobID jobID = new JobID();
 
 	public MockEnvironment(long memorySize, MockInputSplitProvider inputSplitProvider) {
 		this.jobConfiguration = new Configuration();
 		this.taskConfiguration = new Configuration();
-		this.inputs = new LinkedList<RuntimeInputGate<PactRecord>>();
-		this.outputs = new LinkedList<RuntimeOutputGate<PactRecord>>();
+		this.inputs = new LinkedList<RuntimeInputGate<Record>>();
+		this.outputs = new LinkedList<RuntimeOutputGate<Record>>();
 
 		this.memManager = new DefaultMemoryManager(memorySize);
 		this.ioManager = new IOManager(System.getProperty("java.io.tmpdir"));
 		this.inputSplitProvider = inputSplitProvider;
 	}
 
-	public void addInput(MutableObjectIterator<PactRecord> inputIterator) {
+	public void addInput(MutableObjectIterator<Record> inputIterator) {
 		int id = inputs.size();
 		inputs.add(new MockInputGate(id, inputIterator));
 	}
 
-	public void addOutput(List<PactRecord> outputList) {
+	public void addOutput(List<Record> outputList) {
 		int id = outputs.size();
 		outputs.add(new MockOutputGate(id, outputList));
 	}
@@ -101,23 +101,23 @@ public class MockEnvironment implements Environment {
 	}
 
 
-	private static class MockInputGate extends RuntimeInputGate<PactRecord> {
+	private static class MockInputGate extends RuntimeInputGate<Record> {
 		
-		private MutableObjectIterator<PactRecord> it;
+		private MutableObjectIterator<Record> it;
 
-		public MockInputGate(int id, MutableObjectIterator<PactRecord> it) {
-			super(new JobID(), new GateID(), MutableRecordDeserializerFactory.<PactRecord>get(), id);
+		public MockInputGate(int id, MutableObjectIterator<Record> it) {
+			super(new JobID(), new GateID(), MutableRecordDeserializerFactory.<Record>get(), id);
 			this.it = it;
 		}
 
 		@Override
-		public void registerRecordAvailabilityListener(final RecordAvailabilityListener<PactRecord> listener) {
+		public void registerRecordAvailabilityListener(final RecordAvailabilityListener<Record> listener) {
 			super.registerRecordAvailabilityListener(listener);
 			this.notifyRecordIsAvailable(0);
 		}
 		
 		@Override
-		public InputChannelResult readRecord(PactRecord target) throws IOException, InterruptedException {
+		public InputChannelResult readRecord(Record target) throws IOException, InterruptedException {
 
 			if (it.next(target)) {
 				// everything comes from the same source channel and buffer in this mock
@@ -129,17 +129,17 @@ public class MockEnvironment implements Environment {
 		}
 	}
 
-	private static class MockOutputGate extends RuntimeOutputGate<PactRecord> {
+	private static class MockOutputGate extends RuntimeOutputGate<Record> {
 		
-		private List<PactRecord> out;
+		private List<Record> out;
 
-		public MockOutputGate(int index, List<PactRecord> outList) {
-			super(new JobID(), new GateID(), PactRecord.class, index, null, false);
+		public MockOutputGate(int index, List<Record> outList) {
+			super(new JobID(), new GateID(), Record.class, index, null, false);
 			this.out = outList;
 		}
 
 		@Override
-		public void writeRecord(PactRecord record) throws IOException, InterruptedException {
+		public void writeRecord(Record record) throws IOException, InterruptedException {
 			out.add(record.createCopy());
 		}
 	}

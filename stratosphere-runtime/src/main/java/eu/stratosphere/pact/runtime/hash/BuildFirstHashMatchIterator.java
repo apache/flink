@@ -25,16 +25,16 @@ import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.pact.runtime.task.util.MatchTaskIterator;
+import eu.stratosphere.pact.runtime.task.util.JoinTaskIterator;
 import eu.stratosphere.util.Collector;
 import eu.stratosphere.util.MutableObjectIterator;
 
 
 /**
- * An implementation of the {@link eu.stratosphere.pact.runtime.task.util.MatchTaskIterator} that uses a hybrid-hash-join
+ * An implementation of the {@link eu.stratosphere.pact.runtime.task.util.JoinTaskIterator} that uses a hybrid-hash-join
  * internally to match the records with equal key. The build side of the hash is the first input of the match.  
  */
-public class BuildFirstHashMatchIterator<V1, V2, O> implements MatchTaskIterator<V1, V2, O> {
+public class BuildFirstHashMatchIterator<V1, V2, O> implements JoinTaskIterator<V1, V2, O> {
 	
 	protected final MutableHashTable<V1, V2> hashJoin;
 	

@@ -17,7 +17,7 @@ import java.util.Iterator;
 
 import eu.stratosphere.api.functions.AbstractFunction;
 import eu.stratosphere.api.functions.GenericReducer;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 /**
@@ -29,7 +29,7 @@ import eu.stratosphere.util.Collector;
  * <p>
  * For a reduce implementation, the <code>reduce()</code> method must be implemented.
  */
-public abstract class ReduceFunction extends AbstractFunction implements GenericReducer<PactRecord, PactRecord> {
+public abstract class ReduceFunction extends AbstractFunction implements GenericReducer<Record, Record> {
 	
 	/**
 	 * The central function to be implemented for a reducer. The function receives per call one
@@ -44,7 +44,7 @@ public abstract class ReduceFunction extends AbstractFunction implements Generic
 	 *                   decide whether to retry the reduce execution.
 	 */
 	@Override
-	public abstract void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception;
+	public abstract void reduce(Iterator<Record> records, Collector<Record> out) throws Exception;
 
 	/**
 	 * No default implementation provided.
@@ -68,7 +68,7 @@ public abstract class ReduceFunction extends AbstractFunction implements Generic
 	 *                   decide whether to retry the combiner execution.
 	 */
 	@Override
-	public void combine(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {
+	public void combine(Iterator<Record> records, Collector<Record> out) throws Exception {
 		// to be implemented, if the reducer should use a combiner. Note that the combining method
 		// is only used, if the stub class is further annotated with the annotation
 		// @ReduceOperator.Combinable

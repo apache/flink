@@ -19,7 +19,7 @@ import static org.junit.Assert.assertTrue;
 import org.junit.Test;
 
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.StringValue;
 import eu.stratosphere.types.Value;
 import eu.stratosphere.types.parser.FixedLengthStringParser;
 
@@ -30,7 +30,7 @@ public class FixedLengthStringParserTest {
 	@Test
 	public void testGetValue() {
 		Value v = parser.createValue();
-		assertTrue(v instanceof PactString);
+		assertTrue(v instanceof StringValue);
 	}
 	
 	@Test
@@ -91,7 +91,7 @@ public class FixedLengthStringParserTest {
 		
 		// check valid strings
 		byte[] recBytes = "abcde|efghi|jklmn|".getBytes();
-		PactString s = new PactString();
+		StringValue s = new StringValue();
 		int startPos = 0;
 		startPos = parser.parseField(recBytes, startPos, recBytes.length, '|', s);
 		assertTrue(startPos == 6);

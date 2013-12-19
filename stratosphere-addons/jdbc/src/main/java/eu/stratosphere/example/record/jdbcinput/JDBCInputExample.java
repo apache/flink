@@ -26,9 +26,9 @@ import eu.stratosphere.api.ProgramDescription;
 import eu.stratosphere.api.record.io.CsvOutputFormat;
 import eu.stratosphere.client.LocalExecutor;
 import eu.stratosphere.nephele.client.JobExecutionResult;
-import eu.stratosphere.types.PactFloat;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.FloatValue;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.StringValue;
 
 /**
  * Stand-alone example for the JDBC connector.
@@ -57,11 +57,11 @@ public class JDBCInputExample implements Program, ProgramDescription {
 		CsvOutputFormat.configureRecordFormat(sink)
 			.recordDelimiter('\n')
 			.fieldDelimiter(' ')
-			.field(PactInteger.class, 0)
-			.field(PactString.class, 1)
-			.field(PactString.class, 2)
-			.field(PactFloat.class, 3)
-			.field(PactInteger.class, 4);
+			.field(IntValue.class, 0)
+			.field(StringValue.class, 1)
+			.field(StringValue.class, 2)
+			.field(FloatValue.class, 3)
+			.field(IntValue.class, 4);
 
 		sink.addInput(source);
 		return new Plan(sink, "JDBC Input Example Job");

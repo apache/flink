@@ -16,9 +16,9 @@ import java.io.Serializable;
 
 import eu.stratosphere.api.record.functions.CrossFunction;
 import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFieldsFirst;
-import eu.stratosphere.types.PactDouble;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.DoubleValue;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 /**
@@ -29,7 +29,7 @@ import eu.stratosphere.util.Collector;
 public class ComputeDistance extends CrossFunction implements Serializable {
 	private static final long serialVersionUID = 1L;
 	
-	private final PactDouble distance = new PactDouble();
+	private final DoubleValue distance = new DoubleValue();
 	
 	/**
 	 * Computes the distance of one data point to one cluster center.
@@ -41,11 +41,11 @@ public class ComputeDistance extends CrossFunction implements Serializable {
 	 * 3: distance
 	 */
 	@Override
-	public void cross(PactRecord dataPointRecord, PactRecord clusterCenterRecord, Collector<PactRecord> out) {
+	public void cross(Record dataPointRecord, Record clusterCenterRecord, Collector<Record> out) {
 		
 		CoordVector dataPoint = dataPointRecord.getField(1, CoordVector.class);
 		
-		PactInteger clusterCenterId = clusterCenterRecord.getField(0, PactInteger.class);
+		IntValue clusterCenterId = clusterCenterRecord.getField(0, IntValue.class);
 		CoordVector clusterPoint = clusterCenterRecord.getField(1, CoordVector.class);
 	
 		this.distance.setValue(dataPoint.computeEuclidianDistance(clusterPoint));

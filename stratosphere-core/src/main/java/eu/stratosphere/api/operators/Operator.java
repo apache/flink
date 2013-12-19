@@ -18,12 +18,12 @@ import java.util.List;
 
 import eu.stratosphere.api.operators.util.UserCodeWrapper;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Visitable;
 
 /**
 * Abstract base class for all Parallelization Contracts (PACTs).
-* A Pact receives one or multiple input sets of records (see {@link PactRecord}). It partitions and combines them
+* A Pact receives one or multiple input sets of records (see {@link Record}). It partitions and combines them
 * into independent sets which are processed by user functions.
 */
 public abstract class Operator implements Visitable<Operator> {

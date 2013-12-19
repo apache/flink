@@ -15,8 +15,8 @@ package eu.stratosphere.example.record.triangles.io;
 
 import eu.stratosphere.api.record.io.DelimitedInputFormat;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
 
 
 /**
@@ -36,10 +36,10 @@ public final class EdgeWithDegreesInputFormat extends DelimitedInputFormat {
 	public static final String VERTEX_DELIMITER_CHAR = "edgeinput.vertexdelimiter";
 	public static final String DEGREE_DELIMITER_CHAR = "edgeinput.degreedelimiter";
 	
-	private final PactInteger v1 = new PactInteger();
-	private final PactInteger v2 = new PactInteger();
-	private final PactInteger d1 = new PactInteger();
-	private final PactInteger d2 = new PactInteger();
+	private final IntValue v1 = new IntValue();
+	private final IntValue v2 = new IntValue();
+	private final IntValue d1 = new IntValue();
+	private final IntValue d2 = new IntValue();
 	
 	private char vertexDelimiter;
 	private char degreeDelimiter;
@@ -47,10 +47,10 @@ public final class EdgeWithDegreesInputFormat extends DelimitedInputFormat {
 	// --------------------------------------------------------------------------------------------
 	
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.api.record.io.DelimitedInputFormat#readRecord(eu.stratosphere.pact.common.type.PactRecord, byte[], int)
+	 * @see eu.stratosphere.api.record.io.DelimitedInputFormat#readRecord(eu.stratosphere.pact.common.type.Record, byte[], int)
 	 */
 	@Override
-	public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes) {
+	public boolean readRecord(Record target, byte[] bytes, int offset, int numBytes) {
 		final int limit = offset + numBytes;
 		int firstV = 0, secondV = 0;
 		int firstD = 0, secondD = 0;

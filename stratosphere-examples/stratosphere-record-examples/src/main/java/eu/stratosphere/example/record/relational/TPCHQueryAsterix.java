@@ -31,9 +31,9 @@ import eu.stratosphere.api.record.io.CsvOutputFormat;
 import eu.stratosphere.api.record.operators.JoinOperator;
 import eu.stratosphere.api.record.operators.ReduceOperator;
 import eu.stratosphere.api.record.operators.ReduceOperator.Combinable;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
+import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
 
 /**
@@ -64,7 +64,7 @@ public class TPCHQueryAsterix implements Program, ProgramDescription {
 	public static class JoinCO extends JoinFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 
-		private final PactInteger one = new PactInteger(1);
+		private final IntValue one = new IntValue(1);
 		
 		/**
 		 * Output Schema:
@@ -72,7 +72,7 @@ public class TPCHQueryAsterix implements Program, ProgramDescription {
 		 *  1: C_MKTSEGMENT
 		 */
 		@Override
-		public void match(PactRecord order, PactRecord cust, Collector<PactRecord> out)
+		public void match(Record order, Record cust, Collector<Record> out)
 				throws Exception {
 			cust.setField(0, one);
 			out.collect(cust);
@@ -90,8 +90,8 @@ public class TPCHQueryAsterix implements Program, ProgramDescription {
 	public static class AggCO extends ReduceFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 
-		private final PactInteger integer = new PactInteger();
-		private PactRecord record = new PactRecord();
+		private final IntValue integer = new IntValue();
+		private Record record = new Record();
 	
 		/**
 		 * Output Schema:
@@ -100,7 +100,7 @@ public class TPCHQueryAsterix implements Program, ProgramDescription {
 		 *
 		 */
 		@Override
-		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out)
+		public void reduce(Iterator<Record> records, Collector<Record> out)
 				throws Exception {
 
 			int count = 0;
@@ -118,7 +118,7 @@ public class TPCHQueryAsterix implements Program, ProgramDescription {
 		/**
 		 * Computes partial counts
 		 */
-		public void combine(Iterator<PactRecord> records, Collector<PactRecord> out)
+		public void combine(Iterator<Record> records, Collector<Record> out)
 				throws Exception {
 			reduce(records, out);
 		}
@@ -145,7 +145,7 @@ public class TPCHQueryAsterix implements Program, ProgramDescription {
 		CsvInputFormat.configureRecordFormat(orders)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
-			.field(PactInteger.class, 1);
+			.field(IntValue.class, 1);
 		// compiler hints
 		orders.getCompilerHints().setAvgBytesPerRecord(5);
 		orders.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(new int[]{0}), 10);
@@ -161,14 +161,14 @@ public class TPCHQueryAsterix implements Program, ProgramDescription {
 		CsvInputFormat.configureRecordFormat(customers)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
-			.field(PactInteger.class, 0)
-			.field(PactString.class, 6);
+			.field(IntValue.class, 0)
+			.field(StringValue.class, 6);
 		// compiler hints
 		customers.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(new int[]{0}), 1);
 		customers.getCompilerHints().setAvgBytesPerRecord(20);
 		
 		// create JoinOperator for joining Orders and LineItems
-		JoinOperator joinCO = JoinOperator.builder(new JoinCO(), PactInteger.class, 0, 0)
+		JoinOperator joinCO = JoinOperator.builder(new JoinCO(), IntValue.class, 0, 0)
 			.name("JoinCO")
 			.build();
 		joinCO.setDegreeOfParallelism(numSubtasks);
@@ -176,7 +176,7 @@ public class TPCHQueryAsterix implements Program, ProgramDescription {
 		joinCO.getCompilerHints().setAvgBytesPerRecord(17);
 
 		// create ReduceOperator for aggregating the result
-		ReduceOperator aggCO = ReduceOperator.builder(new AggCO(), PactString.class, 1)
+		ReduceOperator aggCO = ReduceOperator.builder(new AggCO(), StringValue.class, 1)
 			.name("AggCo")
 			.build();
 		aggCO.setDegreeOfParallelism(numSubtasks);
@@ -190,8 +190,8 @@ public class TPCHQueryAsterix implements Program, ProgramDescription {
 		CsvOutputFormat.configureRecordFormat(result)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
-			.field(PactInteger.class, 0)
-			.field(PactString.class, 1);
+			.field(IntValue.class, 0)
+			.field(StringValue.class, 1);
 
 		// assemble the PACT plan
 		result.addInput(aggCO);

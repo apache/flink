@@ -31,9 +31,9 @@ import eu.stratosphere.api.record.operators.MapOperator;
 import eu.stratosphere.api.record.operators.ReduceOperator;
 import eu.stratosphere.api.record.operators.ReduceOperator.Combinable;
 import eu.stratosphere.client.LocalExecutor;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
+import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
 
 /**
@@ -43,7 +43,7 @@ import eu.stratosphere.util.Collector;
 public class WordCount implements Program, ProgramDescription {
 	
 	/**
-	 * Converts a PactRecord containing one string in to multiple string/integer pairs.
+	 * Converts a Record containing one string in to multiple string/integer pairs.
 	 * The string is tokenized by whitespaces. For each token a new record is emitted,
 	 * where the token is the first field and an Integer(1) is the second field.
 	 */
@@ -51,9 +51,9 @@ public class WordCount implements Program, ProgramDescription {
 		private static final long serialVersionUID = 1L;
 		
 		@Override
-		public void map(PactRecord record, Collector<PactRecord> collector) {
-			// get the first field (as type PactString) from the record
-			String line = record.getField(0, PactString.class).getValue();
+		public void map(Record record, Collector<Record> collector) {
+			// get the first field (as type StringValue) from the record
+			String line = record.getField(0, StringValue.class).getValue();
 
 			// normalize the line
 			line = line.replaceAll("\\W+", " ").toLowerCase();
@@ -64,7 +64,7 @@ public class WordCount implements Program, ProgramDescription {
 				String word = tokenizer.nextToken();
 				
 				// we emit a (word, 1) pair 
-				collector.collect(new PactRecord(new PactString(word), new PactInteger(1)));
+				collector.collect(new Record(new StringValue(word), new IntValue(1)));
 			}
 		}
 	}
@@ -80,21 +80,21 @@ public class WordCount implements Program, ProgramDescription {
 		private static final long serialVersionUID = 1L;
 		
 		@Override
-		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {
-			PactRecord element = null;
+		public void reduce(Iterator<Record> records, Collector<Record> out) throws Exception {
+			Record element = null;
 			int sum = 0;
 			while (records.hasNext()) {
 				element = records.next();
-				int cnt = element.getField(1, PactInteger.class).getValue();
+				int cnt = element.getField(1, IntValue.class).getValue();
 				sum += cnt;
 			}
 
-			element.setField(1, new PactInteger(sum));
+			element.setField(1, new IntValue(sum));
 			out.collect(element);
 		}
 		
 		@Override
-		public void combine(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {
+		public void combine(Iterator<Record> records, Collector<Record> out) throws Exception {
 			// the logic is the same as in the reduce function, so simply call the reduce method
 			reduce(records, out);
 		}
@@ -113,7 +113,7 @@ public class WordCount implements Program, ProgramDescription {
 			.input(source)
 			.name("Tokenize Lines")
 			.build();
-		ReduceOperator reducer = ReduceOperator.builder(CountWords.class, PactString.class, 0)
+		ReduceOperator reducer = ReduceOperator.builder(CountWords.class, StringValue.class, 0)
 			.input(mapper)
 			.name("Count Words")
 			.build();
@@ -121,8 +121,8 @@ public class WordCount implements Program, ProgramDescription {
 		CsvOutputFormat.configureRecordFormat(out)
 			.recordDelimiter('\n')
 			.fieldDelimiter(' ')
-			.field(PactString.class, 0)
-			.field(PactInteger.class, 1);
+			.field(StringValue.class, 0)
+			.field(IntValue.class, 1);
 		
 		Plan plan = new Plan(out, "WordCount Example");
 		plan.setDefaultParallelism(numSubTasks);

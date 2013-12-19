@@ -38,8 +38,8 @@ import eu.stratosphere.example.record.connectedcomponents.WorksetConnectedCompon
 import eu.stratosphere.example.record.connectedcomponents.WorksetConnectedComponents.NeighborWithComponentIDJoin;
 import eu.stratosphere.test.iterative.nephele.ConnectedComponentsNepheleITCase;
 import eu.stratosphere.test.util.TestBase2;
-import eu.stratosphere.types.PactLong;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.LongValue;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 @RunWith(Parameterized.class)
@@ -103,7 +103,7 @@ public class ConnectedComponentsWithDeferredUpdateITCase extends TestBase2 {
 	public static Plan getPlan(int numSubTasks, String verticesInput, String edgeInput, String output, int maxIterations, boolean extraMap) {
 
 		// data source for initial vertices
-		FileDataSource initialVertices = new FileDataSource(new CsvInputFormat(' ', PactLong.class), verticesInput, "Vertices");
+		FileDataSource initialVertices = new FileDataSource(new CsvInputFormat(' ', LongValue.class), verticesInput, "Vertices");
 		
 		MapOperator verticesWithId = MapOperator.builder(DuplicateLongMap.class).input(initialVertices).name("Assign Vertex Ids").build();
 		
@@ -115,23 +115,23 @@ public class ConnectedComponentsWithDeferredUpdateITCase extends TestBase2 {
 		iteration.setMaximumNumberOfIterations(maxIterations);
 		
 		// data source for the edges
-		FileDataSource edges = new FileDataSource(new CsvInputFormat(' ', PactLong.class, PactLong.class), edgeInput, "Edges");
+		FileDataSource edges = new FileDataSource(new CsvInputFormat(' ', LongValue.class, LongValue.class), edgeInput, "Edges");
 
 		// join workset (changed vertices) with the edges to propagate changes to neighbors
-		JoinOperator joinWithNeighbors = JoinOperator.builder(new NeighborWithComponentIDJoin(), PactLong.class, 0, 0)
+		JoinOperator joinWithNeighbors = JoinOperator.builder(new NeighborWithComponentIDJoin(), LongValue.class, 0, 0)
 				.input1(iteration.getWorkset())
 				.input2(edges)
 				.name("Join Candidate Id With Neighbor")
 				.build();
 
 		// find for each neighbor the smallest of all candidates
-		ReduceOperator minCandidateId = ReduceOperator.builder(new MinimumComponentIDReduce(), PactLong.class, 0)
+		ReduceOperator minCandidateId = ReduceOperator.builder(new MinimumComponentIDReduce(), LongValue.class, 0)
 				.input(joinWithNeighbors)
 				.name("Find Minimum Candidate Id")
 				.build();
 		
 		// join candidates with the solution set and update if the candidate component-id is smaller
-		JoinOperator updateComponentId = JoinOperator.builder(new UpdateComponentIdMatchNonPreserving(), PactLong.class, 0, 0)
+		JoinOperator updateComponentId = JoinOperator.builder(new UpdateComponentIdMatchNonPreserving(), LongValue.class, 0, 0)
 				.input1(minCandidateId)
 				.input2(iteration.getSolutionSet())
 				.name("Update Component Id")
@@ -151,8 +151,8 @@ public class ConnectedComponentsWithDeferredUpdateITCase extends TestBase2 {
 		CsvOutputFormat.configureRecordFormat(result)
 			.recordDelimiter('\n')
 			.fieldDelimiter(' ')
-			.field(PactLong.class, 0)
-			.field(PactLong.class, 1);
+			.field(LongValue.class, 0)
+			.field(LongValue.class, 1);
 
 		// return the PACT plan
 		Plan plan = new Plan(result, "Workset Connected Components");
@@ -164,10 +164,10 @@ public class ConnectedComponentsWithDeferredUpdateITCase extends TestBase2 {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void match(PactRecord newVertexWithComponent, PactRecord currentVertexWithComponent, Collector<PactRecord> out){
+		public void match(Record newVertexWithComponent, Record currentVertexWithComponent, Collector<Record> out){
 	
-			long candidateComponentID = newVertexWithComponent.getField(1, PactLong.class).getValue();
-			long currentComponentID = currentVertexWithComponent.getField(1, PactLong.class).getValue();
+			long candidateComponentID = newVertexWithComponent.getField(1, LongValue.class).getValue();
+			long currentComponentID = currentVertexWithComponent.getField(1, LongValue.class).getValue();
 	
 			if (candidateComponentID < currentComponentID) {
 				out.collect(newVertexWithComponent);
@@ -178,7 +178,7 @@ public class ConnectedComponentsWithDeferredUpdateITCase extends TestBase2 {
 	public static final class IdentityMap extends MapFunction {
 
 		@Override
-		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
+		public void map(Record record, Collector<Record> out) throws Exception {
 			out.collect(record);
 		}
 	}

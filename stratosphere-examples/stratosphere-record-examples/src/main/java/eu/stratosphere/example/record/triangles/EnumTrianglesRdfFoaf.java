@@ -30,8 +30,8 @@ import eu.stratosphere.api.record.io.CsvOutputFormat;
 import eu.stratosphere.api.record.io.DelimitedInputFormat;
 import eu.stratosphere.api.record.operators.JoinOperator;
 import eu.stratosphere.api.record.operators.ReduceOperator;
-import eu.stratosphere.types.PactRecord;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.Record;
+import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
 
 /**
@@ -60,12 +60,12 @@ public class EnumTrianglesRdfFoaf implements Program, ProgramDescription {
 	public static class EdgeInFormat extends DelimitedInputFormat {
 		private static final long serialVersionUID = 1L;
 
-		private final PactString rdfSubj = new PactString();
-		private final PactString rdfPred = new PactString();
-		private final PactString rdfObj = new PactString();
+		private final StringValue rdfSubj = new StringValue();
+		private final StringValue rdfPred = new StringValue();
+		private final StringValue rdfObj = new StringValue();
 		
 		@Override
-		public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes) {
+		public boolean readRecord(Record target, byte[] bytes, int offset, int numBytes) {
 			final int limit = offset + numBytes;
 			int startPos = offset;
 			
@@ -102,7 +102,7 @@ public class EnumTrianglesRdfFoaf implements Program, ProgramDescription {
 		/*
 		 * Utility method to efficiently parse encapsulated, variable length strings 
 		 */
-		private int parseVarLengthEncapsulatedStringField(byte[] bytes, int startPos, int limit, char delim, PactString field, char encaps) {
+		private int parseVarLengthEncapsulatedStringField(byte[] bytes, int startPos, int limit, char delim, StringValue field, char encaps) {
 			
 			boolean isEncaps = false;
 			
@@ -150,23 +150,23 @@ public class EnumTrianglesRdfFoaf implements Program, ProgramDescription {
 		private static final long serialVersionUID = 1L;
 		
 		// list of non-matching vertices
-		private final ArrayList<PactString> otherVertices = new ArrayList<PactString>(32);
+		private final ArrayList<StringValue> otherVertices = new ArrayList<StringValue>(32);
 		
 		// matching vertex
-		private final PactString matchVertex = new PactString();
+		private final StringValue matchVertex = new StringValue();
 		
 		// mutable output record
-		private final PactRecord result = new PactRecord();
+		private final Record result = new Record();
 		
 		// initialize list of non-matching vertices for one vertex
 		public BuildTriads() {
-			this.otherVertices.add(new PactString());
+			this.otherVertices.add(new StringValue());
 		}
 
 		@Override
-		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {
+		public void reduce(Iterator<Record> records, Collector<Record> out) throws Exception {
 			// read the first edge
-			final PactRecord rec = records.next();
+			final Record rec = records.next();
 			// read the matching vertex
 			rec.getFieldInto(0, this.matchVertex);
 			// read the non-matching vertex and add it to the list
@@ -180,14 +180,14 @@ public class EnumTrianglesRdfFoaf implements Program, ProgramDescription {
 			while (records.hasNext()) {
 
 				// read the next edge
-				final PactRecord next = records.next();
+				final Record next = records.next();
 				
-				final PactString myVertex;
+				final StringValue myVertex;
 				// obtain an object to store the non-matching vertex
 				if (numEdges >= this.otherVertices.size()) {
 					// we need an additional vertex object
 					// create the object
-					myVertex = new PactString();
+					myVertex = new StringValue();
 					// and put it in the list
 					this.otherVertices.add(myVertex);
 				} else {
@@ -200,7 +200,7 @@ public class EnumTrianglesRdfFoaf implements Program, ProgramDescription {
 				// combine the current edge with all vertices in the non-matching vertex list
 				for (int i = 0; i < numEdges; i++) {
 					// get the other non-matching vertex
-					final PactString otherVertex = this.otherVertices.get(i);
+					final StringValue otherVertex = this.otherVertices.get(i);
 					// add my and other vertex to the output record depending on their ordering 
 					if (otherVertex.compareTo(myVertex) < 0) {
 						this.result.setField(1, otherVertex);
@@ -226,7 +226,7 @@ public class EnumTrianglesRdfFoaf implements Program, ProgramDescription {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void match(PactRecord triad, PactRecord missingEdge, Collector<PactRecord> out) throws Exception {
+		public void match(Record triad, Record missingEdge, Collector<Record> out) throws Exception {
 			// emit triangle (already contains missing edge at field 0
 			out.collect(triad);
 		}
@@ -245,12 +245,12 @@ public class EnumTrianglesRdfFoaf implements Program, ProgramDescription {
 
 		FileDataSource edges = new FileDataSource(new EdgeInFormat(), edgeInput, "BTC Edges");
 		
-		ReduceOperator buildTriads = ReduceOperator.builder(new BuildTriads(), PactString.class, 0)
+		ReduceOperator buildTriads = ReduceOperator.builder(new BuildTriads(), StringValue.class, 0)
 			.name("Build Triads")
 			.build();
 
-		JoinOperator closeTriads = JoinOperator.builder(new CloseTriads(), PactString.class, 1, 0)
-			.keyField(PactString.class, 2, 1)
+		JoinOperator closeTriads = JoinOperator.builder(new CloseTriads(), StringValue.class, 1, 0)
+			.keyField(StringValue.class, 2, 1)
 			.name("Close Triads")
 			.build();
 		closeTriads.setParameter("INPUT_LEFT_SHIP_STRATEGY", "SHIP_REPARTITION_HASH");
@@ -261,9 +261,9 @@ public class EnumTrianglesRdfFoaf implements Program, ProgramDescription {
 		CsvOutputFormat.configureRecordFormat(triangles)
 			.recordDelimiter('\n')
 			.fieldDelimiter(' ')
-			.field(PactString.class, 0)
-			.field(PactString.class, 1)
-			.field(PactString.class, 2);
+			.field(StringValue.class, 0)
+			.field(StringValue.class, 1)
+			.field(StringValue.class, 2);
 
 		triangles.setInput(closeTriads);
 		closeTriads.setSecondInput(edges);

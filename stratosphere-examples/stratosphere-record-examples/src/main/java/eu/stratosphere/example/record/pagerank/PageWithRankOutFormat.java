@@ -14,9 +14,9 @@
 package eu.stratosphere.example.record.pagerank;
 
 import eu.stratosphere.api.record.io.DelimitedOutputFormat;
-import eu.stratosphere.types.PactDouble;
-import eu.stratosphere.types.PactLong;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.DoubleValue;
+import eu.stratosphere.types.LongValue;
+import eu.stratosphere.types.Record;
 
 public class PageWithRankOutFormat extends DelimitedOutputFormat {
 	private static final long serialVersionUID = 1L;
@@ -24,13 +24,13 @@ public class PageWithRankOutFormat extends DelimitedOutputFormat {
 	private final StringBuilder buffer = new StringBuilder();
 
 	@Override
-	public int serializeRecord(PactRecord record, byte[] target) {
+	public int serializeRecord(Record record, byte[] target) {
 		StringBuilder buffer = this.buffer;
 		
 		buffer.setLength(0);
-		buffer.append(record.getField(0, PactLong.class).toString());
+		buffer.append(record.getField(0, LongValue.class).toString());
 		buffer.append('\t');
-		buffer.append(record.getField(1, PactDouble.class).toString());
+		buffer.append(record.getField(1, DoubleValue.class).toString());
 		buffer.append('\n');
 		
 		if (target.length < buffer.length()) {

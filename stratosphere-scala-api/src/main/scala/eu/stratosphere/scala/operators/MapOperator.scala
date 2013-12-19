@@ -17,7 +17,7 @@ import language.experimental.macros
 import scala.reflect.macros.Context
 
 import eu.stratosphere.api.record.operators.MapOperator
-import eu.stratosphere.types.PactRecord
+import eu.stratosphere.types.Record
 import eu.stratosphere.api.operators.Operator
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.util.Collector
@@ -47,7 +47,7 @@ object MapMacros {
       new MapFunctionBase[In, Out] {
 //        val userFun = ClosureCleaner.clean(fun.splice)
 //        val userFun = fun.splice
-        override def map(record: PactRecord, out: Collector[PactRecord]) = {
+        override def map(record: Record, out: Collector[Record]) = {
           val input = deserializer.deserializeRecyclingOn(record)
           val output = fun.splice.apply(input)
 
@@ -99,7 +99,7 @@ object MapMacros {
       implicit val inputUDT: UDT[In] = c.Expr[UDT[In]](createUdtIn).splice
       implicit val outputUDT: UDT[Out] = c.Expr[UDT[Out]](createUdtOut).splice
       new MapFunctionBase[In, Out] {
-        override def map(record: PactRecord, out: Collector[PactRecord]) = {
+        override def map(record: Record, out: Collector[Record]) = {
           val input = deserializer.deserializeRecyclingOn(record)
           val output = fun.splice.apply(input)
 
@@ -154,7 +154,7 @@ object MapMacros {
     else reify {
       implicit val inputUDT: UDT[In] = c.Expr[UDT[In]](createUdtIn).splice
       new MapFunctionBase[In, In] {
-        override def map(record: PactRecord, out: Collector[PactRecord]) = {
+        override def map(record: Record, out: Collector[Record]) = {
           val input = deserializer.deserializeRecyclingOn(record)
           if (fun.splice.apply(input)) {
         	  out.collect(record)

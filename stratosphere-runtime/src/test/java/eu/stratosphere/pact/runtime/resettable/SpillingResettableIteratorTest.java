@@ -30,8 +30,8 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
-import eu.stratosphere.pact.runtime.test.util.types.PactIntegerSerializer;
-import eu.stratosphere.types.PactInteger;
+import eu.stratosphere.pact.runtime.test.util.types.IntValueSerializer;
+import eu.stratosphere.types.IntValue;
 
 public class SpillingResettableIteratorTest {
 
@@ -45,9 +45,9 @@ public class SpillingResettableIteratorTest {
 
 	private MemoryManager memman;
 
-	private Iterator<PactInteger> reader;
+	private Iterator<IntValue> reader;
 	
-	private final TypeSerializer<PactInteger> serializer = new PactIntegerSerializer();
+	private final TypeSerializer<IntValue> serializer = new IntValueSerializer();
 
 	
 	@Before
@@ -57,10 +57,10 @@ public class SpillingResettableIteratorTest {
 		this.ioman = new IOManager();
 
 		// create test objects
-		ArrayList<PactInteger> objects = new ArrayList<PactInteger>(NUM_TESTRECORDS);
+		ArrayList<IntValue> objects = new ArrayList<IntValue>(NUM_TESTRECORDS);
 
 		for (int i = 0; i < NUM_TESTRECORDS; ++i) {
-			PactInteger tmp = new PactInteger(i);
+			IntValue tmp = new IntValue(i);
 			objects.add(tmp);
 		}
 		this.reader = objects.iterator();
@@ -91,7 +91,7 @@ public class SpillingResettableIteratorTest {
 	{
 		try {
 			// create the resettable Iterator
-			SpillingResettableIterator<PactInteger> iterator = new SpillingResettableIterator<PactInteger>(
+			SpillingResettableIterator<IntValue> iterator = new SpillingResettableIterator<IntValue>(
 					this.reader, this.serializer, this.memman, this.ioman, 2 * 32 * 1024, this.memOwner);
 			// open the iterator
 			try {
@@ -133,7 +133,7 @@ public class SpillingResettableIteratorTest {
 	{
 		try {
 			// create the resettable Iterator
-			SpillingResettableIterator<PactInteger> iterator = new SpillingResettableIterator<PactInteger>(
+			SpillingResettableIterator<IntValue> iterator = new SpillingResettableIterator<IntValue>(
 					this.reader, this.serializer, this.memman, this.ioman, 20 * 32 * 1024, this.memOwner);
 			// open the iterator
 			try {
@@ -174,7 +174,7 @@ public class SpillingResettableIteratorTest {
 	{
 		try {
 			// create the resettable Iterator
-			SpillingResettableIterator<PactInteger> iterator = new SpillingResettableIterator<PactInteger>(
+			SpillingResettableIterator<IntValue> iterator = new SpillingResettableIterator<IntValue>(
 					this.reader, this.serializer, this.memman, this.ioman, 2 * 32 * 1024, this.memOwner);
 			// open the iterator
 			try {
@@ -208,7 +208,7 @@ public class SpillingResettableIteratorTest {
 	{
 		try {
 			// create the resettable Iterator
-			SpillingResettableIterator<PactInteger> iterator = new SpillingResettableIterator<PactInteger>(
+			SpillingResettableIterator<IntValue> iterator = new SpillingResettableIterator<IntValue>(
 					this.reader, this.serializer, this.memman, this.ioman, 2 * 32 * 1024, this.memOwner);
 			// open the iterator
 			try {
@@ -217,7 +217,7 @@ public class SpillingResettableIteratorTest {
 				Assert.fail("Could not open resettable iterator:" + e.getMessage());
 			}
 	
-			PactInteger record;
+			IntValue record;
 			int cnt = 0;
 			while (cnt < NUM_TESTRECORDS) {
 				record = iterator.next();

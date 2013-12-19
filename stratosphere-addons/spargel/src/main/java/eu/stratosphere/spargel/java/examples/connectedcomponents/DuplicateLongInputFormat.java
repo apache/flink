@@ -14,19 +14,19 @@
 package eu.stratosphere.spargel.java.examples.connectedcomponents;
 
 import eu.stratosphere.api.record.io.TextInputFormat;
-import eu.stratosphere.types.PactLong;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.LongValue;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.types.parser.DecimalTextLongParser;
 
 public class DuplicateLongInputFormat extends TextInputFormat {
 	
 	private static final long serialVersionUID = 1L;
 	
-	private final PactLong l1 = new PactLong();
-	private final PactLong l2 = new PactLong();
+	private final LongValue l1 = new LongValue();
+	private final LongValue l2 = new LongValue();
 	
 	@Override
-	public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes) {
+	public boolean readRecord(Record target, byte[] bytes, int offset, int numBytes) {
 		final long value = DecimalTextLongParser.parseField(bytes, offset, numBytes, (char) 0xffff);
 
 		this.l1.setValue(value);

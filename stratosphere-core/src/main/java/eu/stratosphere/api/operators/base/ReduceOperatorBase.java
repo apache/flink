@@ -83,19 +83,19 @@ public class ReduceOperatorBase<T extends GenericReducer<?, ?>> extends SingleIn
 	 * 
 	 * <code>
 	 * \@Combinable
-	 * public static class CountWords extends ReduceStub&lt;PactString&gt;
+	 * public static class CountWords extends ReduceStub&lt;StringValue&gt;
 	 * {
-	 *     private final PactInteger theInteger = new PactInteger();
+	 *     private final IntValue theInteger = new IntValue();
 	 * 
 	 *     \@Override
-	 *     public void reduce(PactString key, Iterator&lt;PactRecord&gt; records, Collector out) throws Exception
+	 *     public void reduce(StringValue key, Iterator&lt;Record&gt; records, Collector out) throws Exception
 	 *     {
-	 *         PactRecord element = null;
+	 *         Record element = null;
 	 *         int sum = 0;
 	 *         while (records.hasNext()) {
 	 *             element = records.next();
 	 *             element.getField(1, this.theInteger);
-	 *             // we could have equivalently used PactInteger i = record.getField(1, PactInteger.class);
+	 *             // we could have equivalently used IntValue i = record.getField(1, IntValue.class);
 	 *          
 	 *             sum += this.theInteger.getValue();
 	 *         }
@@ -104,7 +104,7 @@ public class ReduceOperatorBase<T extends GenericReducer<?, ?>> extends SingleIn
 	 *         out.collect(element);
 	 *     }
 	 *     
-	 *     public void combine(PactString key, Iterator&lt;PactRecord&gt; records, Collector out) throws Exception
+	 *     public void combine(StringValue key, Iterator&lt;Record&gt; records, Collector out) throws Exception
 	 *     {
 	 *         this.reduce(key, records, out);
 	 *     }

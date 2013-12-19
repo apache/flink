@@ -16,16 +16,16 @@ package eu.stratosphere.test.iterative.nephele.danglingpagerank;
 import eu.stratosphere.api.record.io.TextInputFormat;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.test.iterative.nephele.ConfigUtils;
-import eu.stratosphere.types.PactDouble;
-import eu.stratosphere.types.PactLong;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.DoubleValue;
+import eu.stratosphere.types.LongValue;
+import eu.stratosphere.types.Record;
 
 public class ImprovedDanglingPageRankInputFormat extends TextInputFormat {
 	private static final long serialVersionUID = 1L;
 
-	private PactLong vertexID = new PactLong();
+	private LongValue vertexID = new LongValue();
 
-	private PactDouble initialRank;
+	private DoubleValue initialRank;
 
 	private BooleanValue isDangling = new BooleanValue();
 
@@ -36,12 +36,12 @@ public class ImprovedDanglingPageRankInputFormat extends TextInputFormat {
 	@Override
 	public void configure(Configuration parameters) {
 		long numVertices = ConfigUtils.asLong("pageRank.numVertices", parameters);
-		initialRank = new PactDouble(1 / (double) numVertices);
+		initialRank = new DoubleValue(1 / (double) numVertices);
 		super.configure(parameters);
 	}
 
 	@Override
-	public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes) {
+	public boolean readRecord(Record target, byte[] bytes, int offset, int numBytes) {
 
 		arrayView.set(bytes, offset, numBytes);
 

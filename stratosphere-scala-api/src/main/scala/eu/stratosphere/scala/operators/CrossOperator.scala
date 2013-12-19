@@ -18,7 +18,7 @@ import scala.reflect.macros.Context
 
 import eu.stratosphere.api.record.operators.MapOperator
 
-import eu.stratosphere.types.PactRecord
+import eu.stratosphere.types.Record
 import eu.stratosphere.util.Collector
 import eu.stratosphere.api.operators.Operator
 import eu.stratosphere.api.record.operators.CrossOperator
@@ -57,7 +57,7 @@ object CrossMacros {
       implicit val rightInputUDT: UDT[RightIn] = c.Expr[UDT[RightIn]](createUdtRightIn).splice
       implicit val outputUDT: UDT[Out] = c.Expr[UDT[Out]](createUdtOut).splice
       new CrossFunctionBase[LeftIn, RightIn, Out] {
-        override def cross(leftRecord: PactRecord, rightRecord: PactRecord, out: Collector[PactRecord]) = {
+        override def cross(leftRecord: Record, rightRecord: Record, out: Collector[Record]) = {
           val left = leftDeserializer.deserializeRecyclingOn(leftRecord)
           val right = rightDeserializer.deserializeRecyclingOn(rightRecord)
           val output = fun.splice.apply(left, right)
@@ -114,7 +114,7 @@ object CrossMacros {
       implicit val rightInputUDT: UDT[RightIn] = c.Expr[UDT[RightIn]](createUdtRightIn).splice
       implicit val outputUDT: UDT[Out] = c.Expr[UDT[Out]](createUdtOut).splice
       new CrossFunctionBase[LeftIn, RightIn, Out] {
-        override def cross(leftRecord: PactRecord, rightRecord: PactRecord, out: Collector[PactRecord]) = {
+        override def cross(leftRecord: Record, rightRecord: Record, out: Collector[Record]) = {
           val left = leftDeserializer.deserializeRecyclingOn(leftRecord)
           val right = rightDeserializer.deserializeRecyclingOn(rightRecord)
           val output = fun.splice.apply(left, right)
@@ -174,7 +174,7 @@ object CrossMacros {
       implicit val rightInputUDT: UDT[RightIn] = c.Expr[UDT[RightIn]](createUdtRightIn).splice
       implicit val outputUDT: UDT[(LeftIn, RightIn)] = c.Expr[UDT[(LeftIn, RightIn)]](createUdtOut).splice
       new CrossFunctionBase[LeftIn, RightIn, (LeftIn, RightIn)] {
-        override def cross(leftRecord: PactRecord, rightRecord: PactRecord, out: Collector[PactRecord]) = {
+        override def cross(leftRecord: Record, rightRecord: Record, out: Collector[Record]) = {
           val left = leftDeserializer.deserializeRecyclingOn(leftRecord)
           val right = rightDeserializer.deserializeRecyclingOn(rightRecord)
           if (fun.splice.apply(left, right)) {

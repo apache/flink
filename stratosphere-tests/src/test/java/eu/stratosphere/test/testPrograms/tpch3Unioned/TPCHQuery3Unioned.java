@@ -27,10 +27,10 @@ import eu.stratosphere.example.record.relational.TPCHQuery3;
 import eu.stratosphere.example.record.relational.TPCHQuery3.AggLiO;
 import eu.stratosphere.example.record.relational.TPCHQuery3.FilterO;
 import eu.stratosphere.example.record.relational.TPCHQuery3.JoinLiO;
-import eu.stratosphere.types.PactDouble;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactLong;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.DoubleValue;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.LongValue;
+import eu.stratosphere.types.StringValue;
 
 /**
  * The TPC-H is a decision support benchmark on relational data.
@@ -69,29 +69,29 @@ public class TPCHQuery3Unioned implements Program, ProgramDescription {
 		CsvInputFormat.configureRecordFormat(orders1)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
-			.field(PactLong.class, 0)		// order id
-			.field(PactInteger.class, 7) 		// ship prio
-			.field(PactString.class, 2, 2)	// order status
-			.field(PactString.class, 4, 10)	// order date
-			.field(PactString.class, 5, 8);	// order prio
+			.field(LongValue.class, 0)		// order id
+			.field(IntValue.class, 7) 		// ship prio
+			.field(StringValue.class, 2, 2)	// order status
+			.field(StringValue.class, 4, 10)	// order date
+			.field(StringValue.class, 5, 8);	// order prio
 		
 		FileDataSource orders2 = new FileDataSource(new CsvInputFormat(), orders2Path, "Orders 2");
 		CsvInputFormat.configureRecordFormat(orders2)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
-			.field(PactLong.class, 0)		// order id
-			.field(PactInteger.class, 7) 		// ship prio
-			.field(PactString.class, 2, 2)	// order status
-			.field(PactString.class, 4, 10)	// order date
-			.field(PactString.class, 5, 8);	// order prio
+			.field(LongValue.class, 0)		// order id
+			.field(IntValue.class, 7) 		// ship prio
+			.field(StringValue.class, 2, 2)	// order status
+			.field(StringValue.class, 4, 10)	// order date
+			.field(StringValue.class, 5, 8);	// order prio
 		
 		// create DataSourceContract for LineItems input
 		FileDataSource lineitems = new FileDataSource(new CsvInputFormat(), lineitemsPath, "LineItems");
 		CsvInputFormat.configureRecordFormat(lineitems)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
-			.field(PactLong.class, 0)
-			.field(PactDouble.class, 5);
+			.field(LongValue.class, 0)
+			.field(DoubleValue.class, 5);
 
 		// create MapOperator for filtering Orders tuples
 		MapOperator filterO1 = MapOperator.builder(new FilterO())
@@ -114,7 +114,7 @@ public class TPCHQuery3Unioned implements Program, ProgramDescription {
 		filterO2.getCompilerHints().setAvgRecordsEmittedPerStubCall(1.0f);
 
 		// create JoinOperator for joining Orders and LineItems
-		JoinOperator joinLiO = JoinOperator.builder(new JoinLiO(), PactLong.class, 0, 0)
+		JoinOperator joinLiO = JoinOperator.builder(new JoinLiO(), LongValue.class, 0, 0)
 			.input1(filterO2, filterO1)
 			.input2(lineitems)
 			.name("JoinLiO")
@@ -124,23 +124,23 @@ public class TPCHQuery3Unioned implements Program, ProgramDescription {
 		CsvInputFormat.configureRecordFormat(partJoin1)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
-			.field(PactLong.class, 0)
-			.field(PactInteger.class, 1)
-			.field(PactDouble.class, 2);
+			.field(LongValue.class, 0)
+			.field(IntValue.class, 1)
+			.field(DoubleValue.class, 2);
 		
 		FileDataSource partJoin2 = new FileDataSource(new CsvInputFormat(), partJoin2Path, "Part Join 2");
 		CsvInputFormat.configureRecordFormat(partJoin2)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
-			.field(PactLong.class, 0)
-			.field(PactInteger.class, 1)
-			.field(PactDouble.class, 2);
+			.field(LongValue.class, 0)
+			.field(IntValue.class, 1)
+			.field(DoubleValue.class, 2);
 		
 		// create ReduceOperator for aggregating the result
 		// the reducer has a composite key, consisting of the fields 0 and 1
 		ReduceOperator aggLiO = ReduceOperator.builder(new AggLiO())
-			.keyField(PactLong.class, 0)
-			.keyField(PactString.class, 1)
+			.keyField(LongValue.class, 0)
+			.keyField(StringValue.class, 1)
 			.input(joinLiO, partJoin2, partJoin1)
 			.name("AggLio")
 			.build();
@@ -151,9 +151,9 @@ public class TPCHQuery3Unioned implements Program, ProgramDescription {
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
 			.lenient(true)
-			.field(PactLong.class, 0)
-			.field(PactInteger.class, 1)
-			.field(PactDouble.class, 2);
+			.field(LongValue.class, 0)
+			.field(IntValue.class, 1)
+			.field(DoubleValue.class, 2);
 		
 		// assemble the PACT plan
 		Plan plan = new Plan(result, "TPCH Q3 Unioned");

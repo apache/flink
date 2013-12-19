@@ -12,25 +12,25 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.functions.aggregators;
 
-import eu.stratosphere.types.PactLong;
+import eu.stratosphere.types.LongValue;
 
 
 /**
  *
  */
-public class LongSumAggregator implements Aggregator<PactLong> {
+public class LongSumAggregator implements Aggregator<LongValue> {
 
-	private PactLong wrapper = new PactLong();
+	private LongValue wrapper = new LongValue();
 	private long sum;
 	
 	@Override
-	public PactLong getAggregate() {
+	public LongValue getAggregate() {
 		wrapper.setValue(sum);
 		return wrapper;
 	}
 
 	@Override
-	public void aggregate(PactLong element) {
+	public void aggregate(LongValue element) {
 		sum += element.getValue();
 	}
 	

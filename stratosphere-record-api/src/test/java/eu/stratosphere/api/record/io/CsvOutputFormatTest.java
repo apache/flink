@@ -32,9 +32,9 @@ import org.mockito.Mock;
 
 import eu.stratosphere.api.record.io.CsvOutputFormat;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
+import eu.stratosphere.types.StringValue;
 
 public class CsvOutputFormatTest {
 
@@ -90,8 +90,8 @@ public class CsvOutputFormatTest {
 			assertFalse(validConfig);
 			
 			// check valid config
-			config.setClass(CsvOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactString.class);
-			config.setClass(CsvOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, PactInteger.class);
+			config.setClass(CsvOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, StringValue.class);
+			config.setClass(CsvOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, IntValue.class);
 			validConfig = true;
 			try {
 				format.configure(config);
@@ -111,7 +111,7 @@ public class CsvOutputFormatTest {
 			assertFalse(validConfig);
 			
 			// check valid config
-			config.setClass(CsvOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 2, PactString.class);
+			config.setClass(CsvOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 2, StringValue.class);
 			validConfig = true;
 			try {
 				format.configure(config);
@@ -165,8 +165,8 @@ public class CsvOutputFormatTest {
 			config.setString(CsvOutputFormat.FILE_PARAMETER_KEY, this.tempFile.toURI().toString());
 			config.setString(CsvOutputFormat.FIELD_DELIMITER_PARAMETER, "|");
 			config.setInteger(CsvOutputFormat.NUM_FIELDS_PARAMETER, 2);
-			config.setClass(CsvOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactString.class);
-			config.setClass(CsvOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, PactInteger.class);
+			config.setClass(CsvOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, StringValue.class);
+			config.setClass(CsvOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, IntValue.class);
 			
 			format.configure(config);
 			
@@ -176,15 +176,15 @@ public class CsvOutputFormatTest {
 				fail(e.getMessage());
 			}
 			
-			PactRecord r = new PactRecord(2);
+			Record r = new Record(2);
 			
 			try {
-				r.setField(0, new PactString("Hello World"));
-				r.setField(1, new PactInteger(42));
+				r.setField(0, new StringValue("Hello World"));
+				r.setField(1, new IntValue(42));
 				format.writeRecord(r);
 				
-				r.setField(0, new PactString("AbCdE"));
-				r.setField(1, new PactInteger(13));
+				r.setField(0, new StringValue("AbCdE"));
+				r.setField(1, new IntValue(13));
 				format.writeRecord(r);
 				
 				format.close();
@@ -213,8 +213,8 @@ public class CsvOutputFormatTest {
 			config.setString(CsvOutputFormat.FILE_PARAMETER_KEY, this.tempFile.toURI().toString());
 			config.setString(CsvOutputFormat.FIELD_DELIMITER_PARAMETER, "|");
 			config.setInteger(CsvOutputFormat.NUM_FIELDS_PARAMETER, 2);
-			config.setClass(CsvOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactString.class);
-			config.setClass(CsvOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, PactInteger.class);
+			config.setClass(CsvOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, StringValue.class);
+			config.setClass(CsvOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, IntValue.class);
 			
 			format.configure(config);
 			
@@ -224,17 +224,17 @@ public class CsvOutputFormatTest {
 				fail(e.getMessage());
 			}
 			
-			PactRecord r = new PactRecord(2);
+			Record r = new Record(2);
 			
 			boolean success = true;
 			
 			try {
-				r.setField(0, new PactString("Hello World"));
-				r.setField(1, new PactInteger(42));
+				r.setField(0, new StringValue("Hello World"));
+				r.setField(1, new IntValue(42));
 				format.writeRecord(r);
 				
 				r.setNull(0);
-				r.setField(1, new PactInteger(13));
+				r.setField(1, new IntValue(13));
 				format.writeRecord(r);
 				
 				format.close();
@@ -260,8 +260,8 @@ public class CsvOutputFormatTest {
 			config.setString(CsvOutputFormat.FILE_PARAMETER_KEY, this.tempFile.toURI().toString());
 			config.setString(CsvOutputFormat.FIELD_DELIMITER_PARAMETER, "|");
 			config.setInteger(CsvOutputFormat.NUM_FIELDS_PARAMETER, 2);
-			config.setClass(CsvOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactString.class);
-			config.setClass(CsvOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, PactInteger.class);
+			config.setClass(CsvOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, StringValue.class);
+			config.setClass(CsvOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, IntValue.class);
 			config.setBoolean(CsvOutputFormat.LENIENT_PARSING, true);
 			
 			format.configure(config);
@@ -272,15 +272,15 @@ public class CsvOutputFormatTest {
 				fail(e.getMessage());
 			}
 			
-			PactRecord r = new PactRecord(2);
+			Record r = new Record(2);
 			
 			try {
-				r.setField(0, new PactString("Hello World"));
-				r.setField(1, new PactInteger(42));
+				r.setField(0, new StringValue("Hello World"));
+				r.setField(1, new IntValue(42));
 				format.writeRecord(r);
 				
 				r.setNull(0);
-				r.setField(1, new PactInteger(13));
+				r.setField(1, new IntValue(13));
 				format.writeRecord(r);
 				
 				format.close();
@@ -309,9 +309,9 @@ public class CsvOutputFormatTest {
 			config.setString(CsvOutputFormat.FILE_PARAMETER_KEY, this.tempFile.toURI().toString());
 			config.setString(CsvOutputFormat.FIELD_DELIMITER_PARAMETER, "|");
 			config.setInteger(CsvOutputFormat.NUM_FIELDS_PARAMETER, 2);
-			config.setClass(CsvOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactString.class);
+			config.setClass(CsvOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, StringValue.class);
 			config.setInteger(CsvOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 0, 2);
-			config.setClass(CsvOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, PactString.class);
+			config.setClass(CsvOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, StringValue.class);
 			config.setInteger(CsvOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 1, 0);
 			
 			format.configure(config);
@@ -322,17 +322,17 @@ public class CsvOutputFormatTest {
 				fail(e.getMessage());
 			}
 			
-			PactRecord r = new PactRecord(2);
+			Record r = new Record(2);
 			
 			try {
-				r.setField(0, new PactString("Hello World"));
-				r.setField(1, new PactInteger(42));
-				r.setField(2, new PactString("Hello User"));
+				r.setField(0, new StringValue("Hello World"));
+				r.setField(1, new IntValue(42));
+				r.setField(2, new StringValue("Hello User"));
 				format.writeRecord(r);
 				
-				r.setField(0, new PactString("AbCdE"));
-				r.setField(1, new PactInteger(13));
-				r.setField(2, new PactString("ZyXvW"));
+				r.setField(0, new StringValue("AbCdE"));
+				r.setField(1, new IntValue(13));
+				r.setField(2, new StringValue("ZyXvW"));
 				format.writeRecord(r);
 				
 				format.close();
@@ -361,9 +361,9 @@ public class CsvOutputFormatTest {
 			config.setString(CsvOutputFormat.FILE_PARAMETER_KEY, this.tempFile.toURI().toString());
 			config.setString(CsvOutputFormat.FIELD_DELIMITER_PARAMETER, "|");
 			config.setInteger(CsvOutputFormat.NUM_FIELDS_PARAMETER, 2);
-			config.setClass(CsvOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactString.class);
+			config.setClass(CsvOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, StringValue.class);
 			config.setInteger(CsvOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 0, 2);
-			config.setClass(CsvOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, PactString.class);
+			config.setClass(CsvOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, StringValue.class);
 			config.setInteger(CsvOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 1, 0);
 			
 			format.configure(config);
@@ -374,20 +374,20 @@ public class CsvOutputFormatTest {
 				fail(e.getMessage());
 			}
 			
-			PactRecord r = new PactRecord(2);
+			Record r = new Record(2);
 			
 			boolean success = true;
 			
 			try {
-				r.setField(0, new PactString("Hello World"));
-				r.setField(1, new PactInteger(42));
-				r.setField(2, new PactString("Hello User"));
+				r.setField(0, new StringValue("Hello World"));
+				r.setField(1, new IntValue(42));
+				r.setField(2, new StringValue("Hello User"));
 				format.writeRecord(r);
 	
-				r = new PactRecord();
+				r = new Record();
 				
-				r.setField(0, new PactString("AbCdE"));
-				r.setField(1, new PactInteger(13));
+				r.setField(0, new StringValue("AbCdE"));
+				r.setField(1, new IntValue(13));
 				format.writeRecord(r);
 				
 				format.close();
@@ -413,9 +413,9 @@ public class CsvOutputFormatTest {
 			config.setString(CsvOutputFormat.FILE_PARAMETER_KEY, this.tempFile.toURI().toString());
 			config.setString(CsvOutputFormat.FIELD_DELIMITER_PARAMETER, "|");
 			config.setInteger(CsvOutputFormat.NUM_FIELDS_PARAMETER, 2);
-			config.setClass(CsvOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactString.class);
+			config.setClass(CsvOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, StringValue.class);
 			config.setInteger(CsvOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 0, 2);
-			config.setClass(CsvOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, PactString.class);
+			config.setClass(CsvOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, StringValue.class);
 			config.setInteger(CsvOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 1, 0);
 			config.setBoolean(CsvOutputFormat.LENIENT_PARSING, true);
 			
@@ -427,18 +427,18 @@ public class CsvOutputFormatTest {
 				fail(e.getMessage());
 			}
 			
-			PactRecord r = new PactRecord(2);
+			Record r = new Record(2);
 			
 			try {
-				r.setField(0, new PactString("Hello World"));
-				r.setField(1, new PactInteger(42));
-				r.setField(2, new PactString("Hello User"));
+				r.setField(0, new StringValue("Hello World"));
+				r.setField(1, new IntValue(42));
+				r.setField(2, new StringValue("Hello User"));
 				format.writeRecord(r);
 	
-				r = new PactRecord();
+				r = new Record();
 				
-				r.setField(0, new PactString("AbCdE"));
-				r.setField(1, new PactInteger(13));
+				r.setField(0, new StringValue("AbCdE"));
+				r.setField(1, new IntValue(13));
 				format.writeRecord(r);
 				
 				format.close();

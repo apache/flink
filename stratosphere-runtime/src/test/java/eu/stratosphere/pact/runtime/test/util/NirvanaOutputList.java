@@ -18,26 +18,26 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 
-public class NirvanaOutputList implements List<PactRecord> {
+public class NirvanaOutputList implements List<Record> {
 
 	@Override
-	public boolean add(PactRecord arg0) {
+	public boolean add(Record arg0) {
 		return true;
 	}
 
 	@Override
-	public void add(int arg0, PactRecord arg1) {
+	public void add(int arg0, Record arg1) {
 	}
 
 	@Override
-	public boolean addAll(Collection<? extends PactRecord> arg0) {
+	public boolean addAll(Collection<? extends Record> arg0) {
 		return true;
 	}
 
 	@Override
-	public boolean addAll(int arg0, Collection<? extends PactRecord> arg1) {
+	public boolean addAll(int arg0, Collection<? extends Record> arg1) {
 		return true;
 	}
 
@@ -56,7 +56,7 @@ public class NirvanaOutputList implements List<PactRecord> {
 	}
 
 	@Override
-	public PactRecord get(int arg0) {
+	public Record get(int arg0) {
 		return null;
 	}
 
@@ -71,9 +71,9 @@ public class NirvanaOutputList implements List<PactRecord> {
 	}
 
 	@Override
-	public Iterator<PactRecord> iterator() {
+	public Iterator<Record> iterator() {
 		
-		return new Iterator<PactRecord>() {
+		return new Iterator<Record>() {
 
 			@Override
 			public boolean hasNext() {
@@ -81,7 +81,7 @@ public class NirvanaOutputList implements List<PactRecord> {
 			}
 
 			@Override
-			public PactRecord next() {
+			public Record next() {
 				return null;
 			}
 
@@ -99,12 +99,12 @@ public class NirvanaOutputList implements List<PactRecord> {
 	}
 
 	@Override
-	public ListIterator<PactRecord> listIterator() {
+	public ListIterator<Record> listIterator() {
 		return null;
 	}
 
 	@Override
-	public ListIterator<PactRecord> listIterator(int arg0) {
+	public ListIterator<Record> listIterator(int arg0) {
 		return null;
 	}
 
@@ -114,7 +114,7 @@ public class NirvanaOutputList implements List<PactRecord> {
 	}
 
 	@Override
-	public PactRecord remove(int arg0) {
+	public Record remove(int arg0) {
 		return null;
 	}
 
@@ -129,7 +129,7 @@ public class NirvanaOutputList implements List<PactRecord> {
 	}
 
 	@Override
-	public PactRecord set(int arg0, PactRecord arg1) {
+	public Record set(int arg0, Record arg1) {
 		return null;
 	}
 
@@ -139,7 +139,7 @@ public class NirvanaOutputList implements List<PactRecord> {
 	}
 
 	@Override
-	public List<PactRecord> subList(int arg0, int arg1) {
+	public List<Record> subList(int arg0, int arg1) {
 		return new NirvanaOutputList();
 	}
 

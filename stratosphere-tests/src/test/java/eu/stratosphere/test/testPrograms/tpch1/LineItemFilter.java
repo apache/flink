@@ -22,8 +22,8 @@ import org.apache.log4j.Logger;
 
 import eu.stratosphere.api.record.functions.MapFunction;
 import eu.stratosphere.test.testPrograms.util.Tuple;
-import eu.stratosphere.types.PactRecord;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.Record;
+import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
 
 /**
@@ -61,7 +61,7 @@ public class LineItemFilter extends MapFunction {
 	}
 
 	@Override
-	public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
+	public void map(Record record, Collector<Record> out) throws Exception {
 		Tuple value = record.getField(1, Tuple.class);
 		
 		if (value != null && value.getNumberOfColumns() >= 11) {
@@ -73,7 +73,7 @@ public class LineItemFilter extends MapFunction {
 				if (shipDate.before(constantDate)) {	
 					String returnFlag = value.getStringValueAt(8);
 					
-					record.setField(0, new PactString(returnFlag));
+					record.setField(0, new StringValue(returnFlag));
 					out.collect(record);
 				}
 			}

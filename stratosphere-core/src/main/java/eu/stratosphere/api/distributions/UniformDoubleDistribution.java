@@ -16,7 +16,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-import eu.stratosphere.types.PactDouble;
+import eu.stratosphere.types.DoubleValue;
 
 
 public class UniformDoubleDistribution implements DataDistribution {
@@ -34,9 +34,9 @@ public class UniformDoubleDistribution implements DataDistribution {
 	}
 
 	@Override
-	public PactDouble[] getBucketBoundary(int bucketNum, int totalNumBuckets) {
+	public DoubleValue[] getBucketBoundary(int bucketNum, int totalNumBuckets) {
 		double bucketSize = (max - min) / totalNumBuckets;
-		return new PactDouble[] {new PactDouble(min + (bucketNum+1) * bucketSize) };
+		return new DoubleValue[] {new DoubleValue(min + (bucketNum+1) * bucketSize) };
 	}
 
 	@Override

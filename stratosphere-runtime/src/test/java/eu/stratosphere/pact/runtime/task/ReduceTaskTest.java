@@ -27,29 +27,29 @@ import org.junit.Test;
 import eu.stratosphere.api.functions.GenericReducer;
 import eu.stratosphere.api.operators.base.ReduceOperatorBase.Combinable;
 import eu.stratosphere.api.record.functions.ReduceFunction;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparator;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordSerializer;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparator;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializer;
 import eu.stratosphere.pact.runtime.sort.CombiningUnilateralSortMerger;
 import eu.stratosphere.pact.runtime.test.util.DelayingInfinitiveInputIterator;
 import eu.stratosphere.pact.runtime.test.util.DriverTestBase;
 import eu.stratosphere.pact.runtime.test.util.ExpectedTestException;
 import eu.stratosphere.pact.runtime.test.util.NirvanaOutputList;
-import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
+import eu.stratosphere.pact.runtime.test.util.UniformRecordGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
 import eu.stratosphere.types.Key;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
-public class ReduceTaskTest extends DriverTestBase<GenericReducer<PactRecord, PactRecord>>
+public class ReduceTaskTest extends DriverTestBase<GenericReducer<Record, Record>>
 {
 	private static final Log LOG = LogFactory.getLog(ReduceTaskTest.class);
 	
 	@SuppressWarnings("unchecked")
-	private final PactRecordComparator comparator = new PactRecordComparator(
-		new int[]{0}, (Class<? extends Key>[])new Class[]{ PactInteger.class });
+	private final RecordComparator comparator = new RecordComparator(
+		new int[]{0}, (Class<? extends Key>[])new Class[]{ IntValue.class });
 	
-	private final List<PactRecord> outList = new ArrayList<PactRecord>();
+	private final List<Record> outList = new ArrayList<Record>();
 
 	public ReduceTaskTest() {
 		super(0, 1, 3*1024*1024);
@@ -65,9 +65,9 @@ public class ReduceTaskTest extends DriverTestBase<GenericReducer<PactRecord, Pa
 		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP);
 		
 		try {
-			addInputSorted(new UniformPactRecordGenerator(keyCnt, valCnt, false), this.comparator.duplicate());
+			addInputSorted(new UniformRecordGenerator(keyCnt, valCnt, false), this.comparator.duplicate());
 			
-			ReduceDriver<PactRecord, PactRecord> testTask = new ReduceDriver<PactRecord, PactRecord>();
+			ReduceDriver<Record, Record> testTask = new ReduceDriver<Record, Record>();
 			
 			testDriver(testTask, MockReduceStub.class);
 		} catch (Exception e) {
@@ -77,8 +77,8 @@ public class ReduceTaskTest extends DriverTestBase<GenericReducer<PactRecord, Pa
 		
 		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+keyCnt, this.outList.size() == keyCnt);
 		
-		for(PactRecord record : this.outList) {
-			Assert.assertTrue("Incorrect result", record.getField(1, PactInteger.class).getValue() == valCnt-record.getField(0, PactInteger.class).getValue());
+		for(Record record : this.outList) {
+			Assert.assertTrue("Incorrect result", record.getField(1, IntValue.class).getValue() == valCnt-record.getField(0, IntValue.class).getValue());
 		}
 		
 		this.outList.clear();
@@ -89,12 +89,12 @@ public class ReduceTaskTest extends DriverTestBase<GenericReducer<PactRecord, Pa
 		final int keyCnt = 100;
 		final int valCnt = 20;
 		
-		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, true));
+		addInput(new UniformRecordGenerator(keyCnt, valCnt, true));
 		addInputComparator(this.comparator);
 		setOutput(this.outList);
 		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP);
 		
-		ReduceDriver<PactRecord, PactRecord> testTask = new ReduceDriver<PactRecord, PactRecord>();
+		ReduceDriver<Record, Record> testTask = new ReduceDriver<Record, Record>();
 		
 		try {
 			testDriver(testTask, MockReduceStub.class);
@@ -105,8 +105,8 @@ public class ReduceTaskTest extends DriverTestBase<GenericReducer<PactRecord, Pa
 		
 		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+keyCnt, this.outList.size() == keyCnt);
 		
-		for(PactRecord record : this.outList) {
-			Assert.assertTrue("Incorrect result", record.getField(1, PactInteger.class).getValue() == valCnt-record.getField(0, PactInteger.class).getValue());
+		for(Record record : this.outList) {
+			Assert.assertTrue("Incorrect result", record.getField(1, IntValue.class).getValue() == valCnt-record.getField(0, IntValue.class).getValue());
 		}
 		
 		this.outList.clear();
@@ -121,14 +121,14 @@ public class ReduceTaskTest extends DriverTestBase<GenericReducer<PactRecord, Pa
 		setOutput(this.outList);
 		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP);
 		
-		CombiningUnilateralSortMerger<PactRecord> sorter = null;
+		CombiningUnilateralSortMerger<Record> sorter = null;
 		try {
-			sorter = new CombiningUnilateralSortMerger<PactRecord>(new MockCombiningReduceStub(), 
-				getMemoryManager(), getIOManager(), new UniformPactRecordGenerator(keyCnt, valCnt, false), 
-				getOwningNepheleTask(), PactRecordSerializer.get(), this.comparator.duplicate(), this.perSortMem, 4, 0.8f);
+			sorter = new CombiningUnilateralSortMerger<Record>(new MockCombiningReduceStub(), 
+				getMemoryManager(), getIOManager(), new UniformRecordGenerator(keyCnt, valCnt, false), 
+				getOwningNepheleTask(), RecordSerializer.get(), this.comparator.duplicate(), this.perSortMem, 4, 0.8f);
 			addInput(sorter.getIterator());
 			
-			ReduceDriver<PactRecord, PactRecord> testTask = new ReduceDriver<PactRecord, PactRecord>();
+			ReduceDriver<Record, Record> testTask = new ReduceDriver<Record, Record>();
 		
 			testDriver(testTask, MockCombiningReduceStub.class);
 		} catch (Exception e) {
@@ -147,8 +147,8 @@ public class ReduceTaskTest extends DriverTestBase<GenericReducer<PactRecord, Pa
 		
 		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+keyCnt, this.outList.size() == keyCnt);
 		
-		for(PactRecord record : this.outList) {
-			Assert.assertTrue("Incorrect result", record.getField(1, PactInteger.class).getValue() == expSum-record.getField(0, PactInteger.class).getValue());
+		for(Record record : this.outList) {
+			Assert.assertTrue("Incorrect result", record.getField(1, IntValue.class).getValue() == expSum-record.getField(0, IntValue.class).getValue());
 		}
 		
 		this.outList.clear();
@@ -160,12 +160,12 @@ public class ReduceTaskTest extends DriverTestBase<GenericReducer<PactRecord, Pa
 		final int keyCnt = 100;
 		final int valCnt = 20;
 		
-		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, true));
+		addInput(new UniformRecordGenerator(keyCnt, valCnt, true));
 		addInputComparator(this.comparator);
 		setOutput(this.outList);
 		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP);
 		
-		ReduceDriver<PactRecord, PactRecord> testTask = new ReduceDriver<PactRecord, PactRecord>();
+		ReduceDriver<Record, Record> testTask = new ReduceDriver<Record, Record>();
 		
 		try {
 			testDriver(testTask, MockFailingReduceStub.class);
@@ -187,7 +187,7 @@ public class ReduceTaskTest extends DriverTestBase<GenericReducer<PactRecord, Pa
 		setOutput(new NirvanaOutputList());
 		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP);
 		
-		final ReduceDriver<PactRecord, PactRecord> testTask = new ReduceDriver<PactRecord, PactRecord>();
+		final ReduceDriver<Record, Record> testTask = new ReduceDriver<Record, Record>();
 		
 		try {
 			addInputSorted(new DelayingInfinitiveInputIterator(100), this.comparator.duplicate());
@@ -230,12 +230,12 @@ public class ReduceTaskTest extends DriverTestBase<GenericReducer<PactRecord, Pa
 		final int keyCnt = 1000;
 		final int valCnt = 2;
 		
-		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, true));
+		addInput(new UniformRecordGenerator(keyCnt, valCnt, true));
 		addInputComparator(this.comparator);
 		setOutput(new NirvanaOutputList());
 		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP);
 		
-		final ReduceDriver<PactRecord, PactRecord> testTask = new ReduceDriver<PactRecord, PactRecord>();
+		final ReduceDriver<Record, Record> testTask = new ReduceDriver<Record, Record>();
 		
 		final AtomicBoolean success = new AtomicBoolean(false);
 		
@@ -266,13 +266,13 @@ public class ReduceTaskTest extends DriverTestBase<GenericReducer<PactRecord, Pa
 	
 	public static class MockReduceStub extends ReduceFunction {
 
-		private final PactInteger key = new PactInteger();
-		private final PactInteger value = new PactInteger();
+		private final IntValue key = new IntValue();
+		private final IntValue value = new IntValue();
 
 		@Override
-		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out)
+		public void reduce(Iterator<Record> records, Collector<Record> out)
 				throws Exception {
-			PactRecord element = null;
+			Record element = null;
 			int cnt = 0;
 			while (records.hasNext()) {
 				element = records.next();
@@ -288,14 +288,14 @@ public class ReduceTaskTest extends DriverTestBase<GenericReducer<PactRecord, Pa
 	@Combinable
 	public static class MockCombiningReduceStub extends ReduceFunction {
 
-		private final PactInteger key = new PactInteger();
-		private final PactInteger value = new PactInteger();
-		private final PactInteger combineValue = new PactInteger();
+		private final IntValue key = new IntValue();
+		private final IntValue value = new IntValue();
+		private final IntValue combineValue = new IntValue();
 
 		@Override
-		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out)
+		public void reduce(Iterator<Record> records, Collector<Record> out)
 				throws Exception {
-			PactRecord element = null;
+			Record element = null;
 			int sum = 0;
 			while (records.hasNext()) {
 				element = records.next();
@@ -310,9 +310,9 @@ public class ReduceTaskTest extends DriverTestBase<GenericReducer<PactRecord, Pa
 		}
 		
 		@Override
-		public void combine(Iterator<PactRecord> records, Collector<PactRecord> out)
+		public void combine(Iterator<Record> records, Collector<Record> out)
 				throws Exception {
-			PactRecord element = null;
+			Record element = null;
 			int sum = 0;
 			while (records.hasNext()) {
 				element = records.next();
@@ -332,13 +332,13 @@ public class ReduceTaskTest extends DriverTestBase<GenericReducer<PactRecord, Pa
 
 		private int cnt = 0;
 		
-		private final PactInteger key = new PactInteger();
-		private final PactInteger value = new PactInteger();
+		private final IntValue key = new IntValue();
+		private final IntValue value = new IntValue();
 
 		@Override
-		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out)
+		public void reduce(Iterator<Record> records, Collector<Record> out)
 				throws Exception {
-			PactRecord element = null;
+			Record element = null;
 			int valCnt = 0;
 			while (records.hasNext()) {
 				element = records.next();
@@ -359,7 +359,7 @@ public class ReduceTaskTest extends DriverTestBase<GenericReducer<PactRecord, Pa
 	public static class MockDelayingReduceStub extends ReduceFunction {
 
 		@Override
-		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) {
+		public void reduce(Iterator<Record> records, Collector<Record> out) {
 			while(records.hasNext()) {
 				try {
 					Thread.sleep(100);

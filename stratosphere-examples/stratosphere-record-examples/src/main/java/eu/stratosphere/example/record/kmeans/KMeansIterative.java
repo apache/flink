@@ -26,7 +26,7 @@ import eu.stratosphere.example.record.kmeans.udfs.FindNearestCenter;
 import eu.stratosphere.example.record.kmeans.udfs.PointInFormat;
 import eu.stratosphere.example.record.kmeans.udfs.PointOutFormat;
 import eu.stratosphere.example.record.kmeans.udfs.RecomputeClusterCenter;
-import eu.stratosphere.types.PactInteger;
+import eu.stratosphere.types.IntValue;
 
 
 public class KMeansIterative implements Program, ProgramDescription {
@@ -59,13 +59,13 @@ public class KMeansIterative implements Program, ProgramDescription {
 				.build();
 
 		// create ReduceOperator for finding the nearest cluster centers
-		ReduceOperator findNearestClusterCenters = ReduceOperator.builder(new FindNearestCenter(), PactInteger.class, 0)
+		ReduceOperator findNearestClusterCenters = ReduceOperator.builder(new FindNearestCenter(), IntValue.class, 0)
 				.input(computeDistance)
 				.name("Find Nearest Centers")
 				.build();
 
 		// create ReduceOperator for computing new cluster positions
-		ReduceOperator recomputeClusterCenter = ReduceOperator.builder(new RecomputeClusterCenter(), PactInteger.class, 0)
+		ReduceOperator recomputeClusterCenter = ReduceOperator.builder(new RecomputeClusterCenter(), IntValue.class, 0)
 				.input(findNearestClusterCenters)
 				.name("Recompute Center Positions")
 				.build();

@@ -17,7 +17,7 @@ import static org.junit.Assert.*;
 
 import org.junit.Test;
 
-import eu.stratosphere.types.PactInteger;
+import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.Value;
 import eu.stratosphere.types.parser.DecimalTextIntParser;
 
@@ -28,7 +28,7 @@ public class DecimalTextIntParserTest {
 	@Test
 	public void testGetValue() {
 		Value v = parser.createValue();
-		assertTrue(v instanceof PactInteger);
+		assertTrue(v instanceof IntValue);
 	}
 	
 	@Test
@@ -37,7 +37,7 @@ public class DecimalTextIntParserTest {
 		byte[] recBytes = "1234|-987|123abc4|".getBytes();
 		
 		// check valid int
-		PactInteger i = new PactInteger();
+		IntValue i = new IntValue();
 		int startPos = 0;
 		startPos = parser.parseField(recBytes, startPos, recBytes.length, '|', i);
 		assertTrue(startPos == 5);

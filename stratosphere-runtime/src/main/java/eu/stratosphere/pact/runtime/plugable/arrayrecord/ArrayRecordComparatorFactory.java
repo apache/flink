@@ -20,11 +20,11 @@ import eu.stratosphere.api.typeutils.TypeComparatorFactory;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.pact.runtime.task.util.CorruptConfigurationException;
 import eu.stratosphere.types.Key;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.types.Value;
 
 /**
- * A factory for a {@link TypeComparator} for {@link PactRecord}. The comparator uses a subset of
+ * A factory for a {@link TypeComparator} for {@link Record}. The comparator uses a subset of
  * the fields for the comparison. That subset of fields (positions and types) is read from the
  * supplied configuration.
  */

@@ -40,9 +40,9 @@ import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.test.operators.io.ContractITCaseIOFormats.ContractITCaseInputFormat;
 import eu.stratosphere.test.operators.io.ContractITCaseIOFormats.ContractITCaseOutputFormat;
 import eu.stratosphere.test.util.TestBase;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
+import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
 
 /**
@@ -105,11 +105,11 @@ public class CrossITCase extends TestBase
 	public static class TestCross extends CrossFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 
-		private PactString string = new PactString();
-		private PactInteger integer = new PactInteger();
+		private StringValue string = new StringValue();
+		private IntValue integer = new IntValue();
 		
 		@Override
-		public void cross(PactRecord record1, PactRecord record2, Collector<PactRecord> out) {
+		public void cross(Record record1, Record record2, Collector<Record> out) {
 			string = record1.getField(1, string);
 			int val1 = Integer.parseInt(string.toString());
 			string = record2.getField(1, string);

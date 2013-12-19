@@ -17,12 +17,12 @@ import java.io.DataInput
 import scala.language.experimental.macros
 import scala.reflect.macros.Context
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.types.PactRecord
+import eu.stratosphere.types.Record
 import eu.stratosphere.types.Value
-import eu.stratosphere.types.PactDouble
-import eu.stratosphere.types.PactInteger
-import eu.stratosphere.types.PactLong
-import eu.stratosphere.types.PactString
+import eu.stratosphere.types.DoubleValue
+import eu.stratosphere.types.IntValue
+import eu.stratosphere.types.LongValue
+import eu.stratosphere.types.StringValue
 import eu.stratosphere.types.parser.DecimalTextDoubleParser
 import eu.stratosphere.types.parser.DecimalTextIntParser
 import eu.stratosphere.types.parser.DecimalTextLongParser
@@ -80,7 +80,7 @@ object BinaryInputFormat {
     
     val pact4sFormat = reify {
       
-      new JavaBinaryInputFormat[PactRecord] with ScalaInputFormatBase[Out] {
+      new JavaBinaryInputFormat[Record] with ScalaInputFormatBase[Out] {
         override val udt = c.Expr(createUdtOut).splice
 
         override def persistConfiguration(config: Configuration) {
@@ -88,7 +88,7 @@ object BinaryInputFormat {
           blockSize.splice map { config.setLong(JavaBinaryInputFormat.BLOCK_SIZE_PARAMETER_KEY, _) }
         }
 
-        override def deserialize(record: PactRecord, source: DataInput) = {
+        override def deserialize(record: Record, source: DataInput) = {
           val output = readFunction.splice.apply(source)
           record.setNumFields(outputLength)
           serializer.serialize(output, record)
@@ -127,7 +127,7 @@ object SequentialInputFormat {
     
     val pact4sFormat = reify {
       
-      new JavaSequentialInputFormat[PactRecord] with ScalaInputFormat[Out] {
+      new JavaSequentialInputFormat[Record] with ScalaInputFormat[Out] {
         override def persistConfiguration(config: Configuration) {
           super.persistConfiguration(config)
           blockSize.splice map { config.setLong(JavaBinaryInputFormat.BLOCK_SIZE_PARAMETER_KEY, _) }
@@ -190,7 +190,7 @@ object DelimitedInputFormat {
         
         setDelimiter((delim.splice.getOrElse("\n")));
 
-        override def readRecord(record: PactRecord, source: Array[Byte], offset: Int, numBytes: Int): Boolean = {
+        override def readRecord(record: Record, source: Array[Byte], offset: Int, numBytes: Int): Boolean = {
           val output = readFunction.splice.apply(source, offset, numBytes)
 
           if (output != null) {
@@ -364,7 +364,7 @@ object FixedLengthInputFormat {
           config.setInteger(JavaFixedLengthInputFormat.RECORDLENGTH_PARAMETER_KEY, (recordLength.splice))
         }
 
-        override def readBytes(record: PactRecord, source: Array[Byte], startPos: Int): Boolean = {
+        override def readBytes(record: Record, source: Array[Byte], startPos: Int): Boolean = {
           val output = readFunction.splice.apply(source, startPos)
 
           if (output != null) {

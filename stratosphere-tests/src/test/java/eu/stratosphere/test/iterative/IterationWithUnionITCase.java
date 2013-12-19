@@ -32,7 +32,7 @@ import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.example.record.kmeans.udfs.PointInFormat;
 import eu.stratosphere.example.record.kmeans.udfs.PointOutFormat;
 import eu.stratosphere.test.util.TestBase2;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 @RunWith(Parameterized.class)
@@ -97,7 +97,7 @@ public class IterationWithUnionITCase extends TestBase2 {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void map(PactRecord rec, Collector<PactRecord> out) {
+		public void map(Record rec, Collector<Record> out) {
 			out.collect(rec);
 		}
 	}
@@ -106,7 +106,7 @@ public class IterationWithUnionITCase extends TestBase2 {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void reduce(Iterator<PactRecord> it, Collector<PactRecord> out) {
+		public void reduce(Iterator<Record> it, Collector<Record> out) {
 			while (it.hasNext()) {
 				out.collect(it.next());
 			}

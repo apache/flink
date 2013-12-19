@@ -28,8 +28,8 @@ import eu.stratosphere.api.record.operators.MapOperator;
 import eu.stratosphere.api.record.operators.ReduceOperator;
 import eu.stratosphere.example.record.triangles.io.EdgeInputFormat;
 import eu.stratosphere.example.record.triangles.io.EdgeWithDegreesOutputFormat;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 
@@ -45,12 +45,12 @@ public class ComputeEdgeDegrees implements Program, ProgramDescription {
 	public static final class ProjectEdge extends MapFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 		
-		private final PactRecord copy = new PactRecord();
+		private final Record copy = new Record();
 
 		@Override
-		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
-			this.copy.setField(0, record.getField(1, PactInteger.class));
-			this.copy.setField(1, record.getField(0, PactInteger.class));
+		public void map(Record record, Collector<Record> out) throws Exception {
+			this.copy.setField(0, record.getField(1, IntValue.class));
+			this.copy.setField(1, record.getField(0, IntValue.class));
 			
 			out.collect(this.copy);
 			out.collect(record);
@@ -66,27 +66,27 @@ public class ComputeEdgeDegrees implements Program, ProgramDescription {
 	public static final class CountEdges extends ReduceFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 		
-		private final PactRecord result = new PactRecord();
+		private final Record result = new Record();
 		
-		private final PactInteger firstVertex = new PactInteger();
-		private final PactInteger secondVertex = new PactInteger();
-		private final PactInteger firstCount = new PactInteger();
-		private final PactInteger secondCount = new PactInteger();
+		private final IntValue firstVertex = new IntValue();
+		private final IntValue secondVertex = new IntValue();
+		private final IntValue firstCount = new IntValue();
+		private final IntValue secondCount = new IntValue();
 		
 		private int[] vals = new int[1024];
 
 		@Override
-		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {
+		public void reduce(Iterator<Record> records, Collector<Record> out) throws Exception {
 			int[] vals = this.vals;
 			int len = 0;
 			int key = -1;
 			
 			// collect all values
 			while (records.hasNext()) {
-				final PactRecord rec = records.next();
-				final int id = rec.getField(1, PactInteger.class).getValue();
+				final Record rec = records.next();
+				final int id = rec.getField(1, IntValue.class).getValue();
 				if (key == -1) {
-					key = rec.getField(0, PactInteger.class).getValue();
+					key = rec.getField(0, IntValue.class).getValue();
 				}
 				
 				if (len >= vals.length) {
@@ -144,19 +144,19 @@ public class ComputeEdgeDegrees implements Program, ProgramDescription {
 	public static final class JoinCountsAndUniquify extends ReduceFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 		
-		private final PactInteger count1 = new PactInteger();
-		private final PactInteger count2 = new PactInteger();
+		private final IntValue count1 = new IntValue();
+		private final IntValue count2 = new IntValue();
 
 		@Override
-		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {
-			PactRecord rec = null;
+		public void reduce(Iterator<Record> records, Collector<Record> out) throws Exception {
+			Record rec = null;
 			int c1 = 0, c2 = 0;
 			int numValues = 0;
 			
 			while (records.hasNext()) {
 				rec = records.next();
-				final int f1 = rec.getField(2, PactInteger.class).getValue();
-				final int f2 = rec.getField(3, PactInteger.class).getValue();
+				final int f1 = rec.getField(2, IntValue.class).getValue();
+				final int f2 = rec.getField(3, IntValue.class).getValue();
 				c1 += f1;
 				c2 += f2;
 				numValues++;
@@ -164,8 +164,8 @@ public class ComputeEdgeDegrees implements Program, ProgramDescription {
 			
 			if (numValues != 2 || c1 == 0 || c2 == 0) {
 				throw new RuntimeException("JoinCountsAndUniquify Problem: key1=" +
-					rec.getField(0, PactInteger.class).getValue() + ", key2=" +
-					rec.getField(1, PactInteger.class).getValue() + 
+					rec.getField(0, IntValue.class).getValue() + ", key2=" +
+					rec.getField(1, IntValue.class).getValue() + 
 					"values=" + numValues + ", c1=" + c1 + ", c2=" + c2);
 			}
 			
@@ -199,12 +199,12 @@ public class ComputeEdgeDegrees implements Program, ProgramDescription {
 		MapOperator projectEdge = MapOperator.builder(new ProjectEdge())
 			.input(edges).name("Project Edge").build();
 		
-		ReduceOperator edgeCounter = ReduceOperator.builder(new CountEdges(), PactInteger.class, 0)
+		ReduceOperator edgeCounter = ReduceOperator.builder(new CountEdges(), IntValue.class, 0)
 			.input(projectEdge).name("Count Edges for Vertex").build();
 		
 		ReduceOperator countJoiner = ReduceOperator.builder(new JoinCountsAndUniquify())
-			.keyField(PactInteger.class, 0)
-			.keyField(PactInteger.class, 1)
+			.keyField(IntValue.class, 0)
+			.keyField(IntValue.class, 1)
 			.input(edgeCounter)
 			.name("Join Counts")
 			.build();

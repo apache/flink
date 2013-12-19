@@ -24,8 +24,8 @@ import eu.stratosphere.api.functions.GenericMapper;
 import eu.stratosphere.api.operators.util.UserCodeClassWrapper;
 import eu.stratosphere.api.record.functions.ReduceFunction;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparatorFactory;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordSerializerFactory;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparatorFactory;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializerFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.MapDriver;
@@ -34,19 +34,19 @@ import eu.stratosphere.pact.runtime.task.ReduceTaskTest.MockReduceStub;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
-import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.pact.runtime.test.util.UniformRecordGenerator;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 
 public class ChainTaskTest extends TaskTestBase {
 	
-	private final List<PactRecord> outList = new ArrayList<PactRecord>();
+	private final List<Record> outList = new ArrayList<Record>();
 	
 	@SuppressWarnings("unchecked")
-	private final PactRecordComparatorFactory compFact = new PactRecordComparatorFactory(new int[]{0}, new Class[]{PactInteger.class}, new boolean[] {true});
-	private final PactRecordSerializerFactory serFact = PactRecordSerializerFactory.get();
+	private final RecordComparatorFactory compFact = new RecordComparatorFactory(new int[]{0}, new Class[]{IntValue.class}, new boolean[] {true});
+	private final RecordSerializerFactory serFact = RecordSerializerFactory.get();
 	
 	@Test
 	public void testMapTask() {
@@ -57,7 +57,7 @@ public class ChainTaskTest extends TaskTestBase {
 		
 			// environment
 			initEnvironment(3*1024*1024);
-			addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 0);
+			addInput(new UniformRecordGenerator(keyCnt, valCnt, false), 0);
 			addOutput(this.outList);
 			
 			// chained combine config
@@ -85,8 +85,8 @@ public class ChainTaskTest extends TaskTestBase {
 			
 			// chained map+combine
 			{
-				RegularPactTask<GenericMapper<PactRecord, PactRecord>, PactRecord> testTask = 
-											new RegularPactTask<GenericMapper<PactRecord, PactRecord>, PactRecord>();
+				RegularPactTask<GenericMapper<Record, Record>, Record> testTask = 
+											new RegularPactTask<GenericMapper<Record, Record>, Record>();
 				registerTask(testTask, MapDriver.class, MockMapStub.class);
 				
 				try {
@@ -113,7 +113,7 @@ public class ChainTaskTest extends TaskTestBase {
 		try {
 			// environment
 			initEnvironment(3*1024*1024);
-			addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 0);
+			addInput(new UniformRecordGenerator(keyCnt, valCnt, false), 0);
 			addOutput(this.outList);
 	
 			// chained combine config
@@ -141,8 +141,8 @@ public class ChainTaskTest extends TaskTestBase {
 			
 			// chained map+combine
 			{
-				final RegularPactTask<GenericMapper<PactRecord, PactRecord>, PactRecord> testTask = 
-											new RegularPactTask<GenericMapper<PactRecord, PactRecord>, PactRecord>();
+				final RegularPactTask<GenericMapper<Record, Record>, Record> testTask = 
+											new RegularPactTask<GenericMapper<Record, Record>, Record>();
 				
 				super.registerTask(testTask, MapDriver.class, MockMapStub.class);
 	
@@ -168,7 +168,7 @@ public class ChainTaskTest extends TaskTestBase {
 		private int cnt = 0;
 
 		@Override
-		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {
+		public void reduce(Iterator<Record> records, Collector<Record> out) throws Exception {
 			if (++this.cnt >= 5) {
 				throw new RuntimeException("Expected Test Exception");
 			}

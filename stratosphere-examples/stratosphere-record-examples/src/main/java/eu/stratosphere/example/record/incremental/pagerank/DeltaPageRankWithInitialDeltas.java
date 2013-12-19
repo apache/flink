@@ -29,9 +29,9 @@ import eu.stratosphere.api.record.functions.JoinFunction;
 import eu.stratosphere.api.record.functions.ReduceFunction;
 import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFields;
 import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFieldsSecond;
-import eu.stratosphere.types.PactRecord;
-import eu.stratosphere.types.PactDouble;
-import eu.stratosphere.types.PactLong;
+import eu.stratosphere.types.Record;
+import eu.stratosphere.types.DoubleValue;
+import eu.stratosphere.types.LongValue;
 import eu.stratosphere.api.operators.WorksetIteration;
 
 public class DeltaPageRankWithInitialDeltas implements Program, ProgramDescription {
@@ -39,12 +39,12 @@ public class DeltaPageRankWithInitialDeltas implements Program, ProgramDescripti
 	@ConstantFieldsSecond(0)
 	public static final class RankComparisonMatch extends JoinFunction {
 		
-		private final PactDouble newRank = new PactDouble();
+		private final DoubleValue newRank = new DoubleValue();
 		
 		@Override
-		public void match(PactRecord vertexWithDelta, PactRecord vertexWithOldRank, Collector<PactRecord> out) throws Exception {			
-			PactDouble deltaVal = vertexWithDelta.getField(1, PactDouble.class);
-			PactDouble currentVal = vertexWithOldRank.getField(1, PactDouble.class);
+		public void match(Record vertexWithDelta, Record vertexWithOldRank, Collector<Record> out) throws Exception {			
+			DoubleValue deltaVal = vertexWithDelta.getField(1, DoubleValue.class);
+			DoubleValue currentVal = vertexWithOldRank.getField(1, DoubleValue.class);
 			
 			newRank.setValue(deltaVal.getValue() + currentVal.getValue());
 			vertexWithOldRank.setField(1, newRank);
@@ -57,18 +57,18 @@ public class DeltaPageRankWithInitialDeltas implements Program, ProgramDescripti
 	@ConstantFields(0)
 	public static final class UpdateRankReduceDelta extends ReduceFunction {
 		
-		private final PactDouble newRank = new PactDouble();
+		private final DoubleValue newRank = new DoubleValue();
 		
 		@Override
-		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) {
+		public void reduce(Iterator<Record> records, Collector<Record> out) {
 			
 			double rankSum = 0.0;
 			double rank;
-			PactRecord rec = null;
+			Record rec = null;
 
 			while (records.hasNext()) {
 				rec = records.next();
-				rank = rec.getField(1, PactDouble.class).getValue();
+				rank = rec.getField(1, DoubleValue.class).getValue();
 				rankSum += rank;
 			}
 			
@@ -107,18 +107,18 @@ public class DeltaPageRankWithInitialDeltas implements Program, ProgramDescripti
 		iteration.setMaximumNumberOfIterations(maxIterations);
 		
 		JoinOperator dependenciesMatch = JoinOperator.builder(PRDependenciesComputationMatchDelta.class, 
-				PactLong.class, 0, 0)
+				LongValue.class, 0, 0)
 				.input1(iteration.getWorkset())
 				.input2(dependencySet)
 				.name("calculate dependencies")
 				.build();
 		
-		ReduceOperator updateRanks = ReduceOperator.builder(UpdateRankReduceDelta.class, PactLong.class, 0)
+		ReduceOperator updateRanks = ReduceOperator.builder(UpdateRankReduceDelta.class, LongValue.class, 0)
 				.input(dependenciesMatch)
 				.name("update ranks")
 				.build();
 		
-		JoinOperator oldRankComparison = JoinOperator.builder(RankComparisonMatch.class, PactLong.class, 0, 0)
+		JoinOperator oldRankComparison = JoinOperator.builder(RankComparisonMatch.class, LongValue.class, 0, 0)
 				.input1(updateRanks)
 				.input2(iteration.getSolutionSet())
 				.name("comparison with old ranks")
@@ -132,8 +132,8 @@ public class DeltaPageRankWithInitialDeltas implements Program, ProgramDescripti
 		CsvOutputFormat.configureRecordFormat(result)
 			.recordDelimiter('\n')
 			.fieldDelimiter(' ')
-			.field(PactLong.class, 0)
-			.field(PactDouble.class, 1);
+			.field(LongValue.class, 0)
+			.field(DoubleValue.class, 1);
 		
 		// return the PACT plan
 		Plan plan = new Plan(result, "Delta PageRank");

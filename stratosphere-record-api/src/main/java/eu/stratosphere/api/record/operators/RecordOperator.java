@@ -14,10 +14,10 @@
 package eu.stratosphere.api.record.operators;
 
 import eu.stratosphere.types.Key;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 
 /**
- * Interface marking contract classes to be referring to the {@link PactRecord} data model.
+ * Interface marking contract classes to be referring to the {@link Record} data model.
  */
 public interface RecordOperator {
 	

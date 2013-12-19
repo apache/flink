@@ -29,8 +29,8 @@ import eu.stratosphere.api.record.operators.JoinOperator;
 import eu.stratosphere.api.record.operators.ReduceOperator;
 import eu.stratosphere.example.record.triangles.io.EdgeWithDegreesInputFormat;
 import eu.stratosphere.example.record.triangles.io.TriangleOutputFormat;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 
@@ -49,7 +49,7 @@ public class EnumTrianglesOnEdgesWithDegrees implements Program, ProgramDescript
 		private static final long serialVersionUID = 1L;
 		
 		@Override
-		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
+		public void map(Record record, Collector<Record> out) throws Exception {
 			record.setNumFields(2);
 			out.collect(record);
 		}
@@ -59,12 +59,12 @@ public class EnumTrianglesOnEdgesWithDegrees implements Program, ProgramDescript
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
-			final int d1 = record.getField(2, PactInteger.class).getValue();
-			final int d2 = record.getField(3, PactInteger.class).getValue();
+		public void map(Record record, Collector<Record> out) throws Exception {
+			final int d1 = record.getField(2, IntValue.class).getValue();
+			final int d2 = record.getField(3, IntValue.class).getValue();
 			if (d1 > d2) {
-				PactInteger first = record.getField(1, PactInteger.class);
-				PactInteger second = record.getField(0, PactInteger.class);
+				IntValue first = record.getField(1, IntValue.class);
+				IntValue second = record.getField(0, IntValue.class);
 				record.setField(0, first);
 				record.setField(1, second);
 			}
@@ -76,19 +76,19 @@ public class EnumTrianglesOnEdgesWithDegrees implements Program, ProgramDescript
 	public static final class BuildTriads extends ReduceFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 		
-		private final PactInteger firstVertex = new PactInteger();
-		private final PactInteger secondVertex = new PactInteger();
+		private final IntValue firstVertex = new IntValue();
+		private final IntValue secondVertex = new IntValue();
 		
 		private int[] edgeCache = new int[1024];
 
 		@Override
-		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {
+		public void reduce(Iterator<Record> records, Collector<Record> out) throws Exception {
 			int len = 0;
 			
-			PactRecord rec = null;
+			Record rec = null;
 			while (records.hasNext()) {
 				rec = records.next();
-				final int e1 = rec.getField(1, PactInteger.class).getValue();
+				final int e1 = rec.getField(1, IntValue.class).getValue();
 				
 				for (int i = 0; i < len; i++) {
 					final int e2 = this.edgeCache[i];
@@ -119,7 +119,7 @@ public class EnumTrianglesOnEdgesWithDegrees implements Program, ProgramDescript
 	public static class CloseTriads extends JoinFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 		@Override
-		public void match(PactRecord triangle, PactRecord missingEdge, Collector<PactRecord> out) throws Exception {
+		public void match(Record triangle, Record missingEdge, Collector<Record> out) throws Exception {
 			out.collect(triangle);
 		}
 	}
@@ -151,13 +151,13 @@ public class EnumTrianglesOnEdgesWithDegrees implements Program, ProgramDescript
 				.name("Project to vertex Ids only")
 				.build();
 
-		ReduceOperator buildTriads = ReduceOperator.builder(new BuildTriads(), PactInteger.class, 0)
+		ReduceOperator buildTriads = ReduceOperator.builder(new BuildTriads(), IntValue.class, 0)
 				.input(toLowerDegreeEdge)
 				.name("Build Triads")
 				.build();
 
-		JoinOperator closeTriads = JoinOperator.builder(new CloseTriads(), PactInteger.class, 1, 0)
-				.keyField(PactInteger.class, 2, 1)
+		JoinOperator closeTriads = JoinOperator.builder(new CloseTriads(), IntValue.class, 1, 0)
+				.keyField(IntValue.class, 2, 1)
 				.input1(buildTriads)
 				.input2(projectOutCounts)
 				.name("Close Triads")

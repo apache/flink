@@ -25,25 +25,25 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.api.io.UnsplittableInput;
 import eu.stratosphere.api.record.io.GenericInputFormat;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.types.PactBoolean;
-import eu.stratosphere.types.PactDouble;
-import eu.stratosphere.types.PactFloat;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactLong;
-import eu.stratosphere.types.PactNull;
-import eu.stratosphere.types.PactRecord;
-import eu.stratosphere.types.PactShort;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.BooleanValue;
+import eu.stratosphere.types.DoubleValue;
+import eu.stratosphere.types.FloatValue;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.LongValue;
+import eu.stratosphere.types.NullValue;
+import eu.stratosphere.types.Record;
+import eu.stratosphere.types.ShortValue;
+import eu.stratosphere.types.StringValue;
 
 /**
  * InputFormat to read data from a database and generate PactReords.
  * The InputFormat has to be configured with the query, and either all
- * connection parameters or a complete database URL.{@link Configuration} The position of a value inside a PactRecord is
+ * connection parameters or a complete database URL.{@link Configuration} The position of a value inside a Record is
  * determined by the table
  * returned.
  * 
  * @see Configuration
- * @see PactRecord
+ * @see Record
  * @see DriverManager
  */
 public class JDBCInputFormat extends GenericInputFormat implements UnsplittableInput {
@@ -167,80 +167,80 @@ public class JDBCInputFormat extends GenericInputFormat implements UnsplittableI
 	}
 
 	/**
-	 * Enters data value from the current resultSet into a PactRecord.
+	 * Enters data value from the current resultSet into a Record.
 	 * 
 	 * @param pos
-	 *        PactRecord position to be set.
+	 *        Record position to be set.
 	 * @param type
 	 *        SQL type of the resultSet value.
 	 * @param record
-	 *        Target PactRecord.
+	 *        Target Record.
 	 */
-	private void retrieveTypeAndFillRecord(int pos, int type, PactRecord record) throws SQLException,
+	private void retrieveTypeAndFillRecord(int pos, int type, Record record) throws SQLException,
 			NotTransformableSQLFieldException {
 		switch (type) {
 		case java.sql.Types.NULL:
-			record.setField(pos, PactNull.getInstance());
+			record.setField(pos, NullValue.getInstance());
 			break;
 		case java.sql.Types.BOOLEAN:
-			record.setField(pos, new PactBoolean(resultSet.getBoolean(pos + 1)));
+			record.setField(pos, new BooleanValue(resultSet.getBoolean(pos + 1)));
 			break;
 		case java.sql.Types.BIT:
-			record.setField(pos, new PactBoolean(resultSet.getBoolean(pos + 1)));
+			record.setField(pos, new BooleanValue(resultSet.getBoolean(pos + 1)));
 			break;
 		case java.sql.Types.CHAR:
-			record.setField(pos, new PactString(resultSet.getString(pos + 1)));
+			record.setField(pos, new StringValue(resultSet.getString(pos + 1)));
 			break;
 		case java.sql.Types.NCHAR:
-			record.setField(pos, new PactString(resultSet.getString(pos + 1)));
+			record.setField(pos, new StringValue(resultSet.getString(pos + 1)));
 			break;
 		case java.sql.Types.VARCHAR:
-			record.setField(pos, new PactString(resultSet.getString(pos + 1)));
+			record.setField(pos, new StringValue(resultSet.getString(pos + 1)));
 			break;
 		case java.sql.Types.LONGVARCHAR:
-			record.setField(pos, new PactString(resultSet.getString(pos + 1)));
+			record.setField(pos, new StringValue(resultSet.getString(pos + 1)));
 			break;
 		case java.sql.Types.LONGNVARCHAR:
-			record.setField(pos, new PactString(resultSet.getString(pos + 1)));
+			record.setField(pos, new StringValue(resultSet.getString(pos + 1)));
 			break;
 		case java.sql.Types.TINYINT:
-			record.setField(pos, new PactShort(resultSet.getShort(pos + 1)));
+			record.setField(pos, new ShortValue(resultSet.getShort(pos + 1)));
 			break;
 		case java.sql.Types.SMALLINT:
-			record.setField(pos, new PactShort(resultSet.getShort(pos + 1)));
+			record.setField(pos, new ShortValue(resultSet.getShort(pos + 1)));
 			break;
 		case java.sql.Types.BIGINT:
-			record.setField(pos, new PactLong(resultSet.getLong(pos + 1)));
+			record.setField(pos, new LongValue(resultSet.getLong(pos + 1)));
 			break;
 		case java.sql.Types.INTEGER:
-			record.setField(pos, new PactInteger(resultSet.getInt(pos + 1)));
+			record.setField(pos, new IntValue(resultSet.getInt(pos + 1)));
 			break;
 		case java.sql.Types.FLOAT:
-			record.setField(pos, new PactDouble(resultSet.getDouble(pos + 1)));
+			record.setField(pos, new DoubleValue(resultSet.getDouble(pos + 1)));
 			break;
 		case java.sql.Types.REAL:
-			record.setField(pos, new PactFloat(resultSet.getFloat(pos + 1)));
+			record.setField(pos, new FloatValue(resultSet.getFloat(pos + 1)));
 			break;
 		case java.sql.Types.DOUBLE:
-			record.setField(pos, new PactDouble(resultSet.getDouble(pos + 1)));
+			record.setField(pos, new DoubleValue(resultSet.getDouble(pos + 1)));
 			break;
 		case java.sql.Types.DECIMAL:
-			record.setField(pos, new PactDouble(resultSet.getBigDecimal(pos + 1).doubleValue()));
+			record.setField(pos, new DoubleValue(resultSet.getBigDecimal(pos + 1).doubleValue()));
 			break;
 		case java.sql.Types.NUMERIC:
-			record.setField(pos, new PactDouble(resultSet.getBigDecimal(pos + 1).doubleValue()));
+			record.setField(pos, new DoubleValue(resultSet.getBigDecimal(pos + 1).doubleValue()));
 			break;
 		case java.sql.Types.DATE:
-			record.setField(pos, new PactString(resultSet.getDate(pos + 1).toString()));
+			record.setField(pos, new StringValue(resultSet.getDate(pos + 1).toString()));
 			break;
 		case java.sql.Types.TIME:
-			record.setField(pos, new PactLong(resultSet.getTime(pos + 1).getTime()));
+			record.setField(pos, new LongValue(resultSet.getTime(pos + 1).getTime()));
 			break;
 		case java.sql.Types.TIMESTAMP:
-			record.setField(pos, new PactString(resultSet.getTimestamp(pos + 1).toString()));
+			record.setField(pos, new StringValue(resultSet.getTimestamp(pos + 1).toString()));
 			break;
 		case java.sql.Types.SQLXML:
-			record.setField(pos, new PactString(resultSet.getSQLXML(pos + 1).toString()));
+			record.setField(pos, new StringValue(resultSet.getSQLXML(pos + 1).toString()));
 			break;
 		default:
 			throw new NotTransformableSQLFieldException("Unknown sql-type [" + type + "]on column [" + pos + "]");
@@ -353,14 +353,14 @@ public class JDBCInputFormat extends GenericInputFormat implements UnsplittableI
 	}
 
 	/**
-	 * Stores the next resultSet row in a PactRecord
+	 * Stores the next resultSet row in a Record
 	 * 
 	 * @param record
-	 *        target PactRecord
+	 *        target Record
 	 * @return boolean value indicating that the operation was successful
 	 */
 	@Override
-	public boolean nextRecord(PactRecord record) {
+	public boolean nextRecord(Record record) {
 		try {
 			resultSet.next();
 			ResultSetMetaData rsmd = resultSet.getMetaData();

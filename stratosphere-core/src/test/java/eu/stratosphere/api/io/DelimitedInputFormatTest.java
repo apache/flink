@@ -37,8 +37,8 @@ import eu.stratosphere.api.io.DelimitedInputFormat;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.fs.FileInputSplit;
 import eu.stratosphere.core.fs.Path;
-import eu.stratosphere.types.PactRecord;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.Record;
+import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.LogUtils;
 
 public class DelimitedInputFormatTest {
@@ -47,7 +47,7 @@ public class DelimitedInputFormatTest {
 	
 	protected File tempFile;
 	
-	private final DelimitedInputFormat<PactRecord> format = new MyTextInputFormat();
+	private final DelimitedInputFormat<Record> format = new MyTextInputFormat();
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -93,7 +93,7 @@ public class DelimitedInputFormatTest {
 		final int LINE_LENGTH_LIMIT = 12345;
 		final int BUFFER_SIZE = 178;
 		
-		DelimitedInputFormat<PactRecord> format = new MyTextInputFormat();
+		DelimitedInputFormat<Record> format = new MyTextInputFormat();
 		format.setDelimiter(DELIMITER);
 		format.setNumLineSamples(NUM_LINE_SAMPLES);
 		format.setLineLengthLimit(LINE_LENGTH_LIMIT);
@@ -107,7 +107,7 @@ public class DelimitedInputFormatTest {
 		
 		ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(baos.toByteArray()));
 		@SuppressWarnings("unchecked")
-		DelimitedInputFormat<PactRecord> deserialized = (DelimitedInputFormat<PactRecord>) ois.readObject();
+		DelimitedInputFormat<Record> deserialized = (DelimitedInputFormat<Record>) ois.readObject();
 		
 		assertEquals(NUM_LINE_SAMPLES, deserialized.getNumLineSamples());
 		assertEquals(LINE_LENGTH_LIMIT, deserialized.getLineLengthLimit());
@@ -139,15 +139,15 @@ public class DelimitedInputFormatTest {
 		format.configure(parameters);
 		format.open(split);
 		
-		PactRecord theRecord = new PactRecord();
+		Record theRecord = new Record();
 
 		assertTrue(format.nextRecord(theRecord));
-		assertEquals("my key", theRecord.getField(0, PactString.class).getValue());
-		assertEquals("my val", theRecord.getField(1, PactString.class).getValue());
+		assertEquals("my key", theRecord.getField(0, StringValue.class).getValue());
+		assertEquals("my val", theRecord.getField(1, StringValue.class).getValue());
 		
 		assertTrue(format.nextRecord(theRecord));
-		assertEquals("my key2\n$$ctd.$$", theRecord.getField(0, PactString.class).getValue());
-		assertEquals("my value2", theRecord.getField(1, PactString.class).getValue());
+		assertEquals("my key2\n$$ctd.$$", theRecord.getField(0, StringValue.class).getValue());
+		assertEquals("my value2", theRecord.getField(1, StringValue.class).getValue());
 		
 		assertFalse(format.nextRecord(theRecord));
 		assertTrue(format.reachedEnd());
@@ -165,15 +165,15 @@ public class DelimitedInputFormatTest {
 		format.configure(parameters);
 		format.open(split);
 
-		PactRecord theRecord = new PactRecord();
+		Record theRecord = new Record();
 
 		assertTrue(format.nextRecord(theRecord));
-		assertEquals("my key", theRecord.getField(0, PactString.class).getValue());
-		assertEquals("my val$$$my key2", theRecord.getField(1, PactString.class).getValue());
+		assertEquals("my key", theRecord.getField(0, StringValue.class).getValue());
+		assertEquals("my val$$$my key2", theRecord.getField(1, StringValue.class).getValue());
 		
 		assertTrue(format.nextRecord(theRecord));
-		assertEquals("$$ctd.$$", theRecord.getField(0, PactString.class).getValue());
-		assertEquals("my value2", theRecord.getField(1, PactString.class).getValue());
+		assertEquals("$$ctd.$$", theRecord.getField(0, StringValue.class).getValue());
+		assertEquals("my value2", theRecord.getField(1, StringValue.class).getValue());
 		
 		assertFalse(format.nextRecord(theRecord));
 		assertTrue(format.reachedEnd());
@@ -190,14 +190,14 @@ public class DelimitedInputFormatTest {
 		return new FileInputSplit(0, new Path(this.tempFile.toURI().toString()), 0, this.tempFile.length(), new String[] {"localhost"});
 	}
 	
-	protected static final class MyTextInputFormat extends eu.stratosphere.api.io.DelimitedInputFormat<PactRecord> {
+	protected static final class MyTextInputFormat extends eu.stratosphere.api.io.DelimitedInputFormat<Record> {
 		private static final long serialVersionUID = 1L;
 		
-		private final PactString str1 = new PactString();
-		private final PactString str2 = new PactString();
+		private final StringValue str1 = new StringValue();
+		private final StringValue str2 = new StringValue();
 		
 		@Override
-		public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes) {
+		public boolean readRecord(Record target, byte[] bytes, int offset, int numBytes) {
 			String theRecord = new String(bytes, offset, numBytes);
 			
 			str1.setValue(theRecord.substring(0, theRecord.indexOf('|')));

@@ -22,30 +22,30 @@ import org.junit.Test;
 
 import eu.stratosphere.api.functions.GenericCoGrouper;
 import eu.stratosphere.api.record.functions.CoGroupFunction;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparator;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordPairComparatorFactory;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparator;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordPairComparatorFactory;
 import eu.stratosphere.pact.runtime.task.CoGroupTaskExternalITCase.MockCoGroupStub;
 import eu.stratosphere.pact.runtime.test.util.DelayingInfinitiveInputIterator;
 import eu.stratosphere.pact.runtime.test.util.DriverTestBase;
 import eu.stratosphere.pact.runtime.test.util.ExpectedTestException;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
-import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
+import eu.stratosphere.pact.runtime.test.util.UniformRecordGenerator;
 import eu.stratosphere.types.Key;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
-public class CoGroupTaskTest extends DriverTestBase<GenericCoGrouper<PactRecord, PactRecord, PactRecord>>
+public class CoGroupTaskTest extends DriverTestBase<GenericCoGrouper<Record, Record, Record>>
 {
 	private static final long SORT_MEM = 3*1024*1024;
 	
 	@SuppressWarnings("unchecked")
-	private final PactRecordComparator comparator1 = new PactRecordComparator(
-		new int[]{0}, (Class<? extends Key>[])new Class[]{ PactInteger.class });
+	private final RecordComparator comparator1 = new RecordComparator(
+		new int[]{0}, (Class<? extends Key>[])new Class[]{ IntValue.class });
 	
 	@SuppressWarnings("unchecked")
-	private final PactRecordComparator comparator2 = new PactRecordComparator(
-		new int[]{0}, (Class<? extends Key>[])new Class[]{ PactInteger.class });
+	private final RecordComparator comparator2 = new RecordComparator(
+		new int[]{0}, (Class<? extends Key>[])new Class[]{ IntValue.class });
 	
 	private final CountingOutputCollector output = new CountingOutputCollector();
 	
@@ -68,14 +68,14 @@ public class CoGroupTaskTest extends DriverTestBase<GenericCoGrouper<PactRecord,
 		setOutput(this.output);
 		addInputComparator(this.comparator1);
 		addInputComparator(this.comparator2);
-		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.CO_GROUP);
 		
-		final CoGroupDriver<PactRecord, PactRecord, PactRecord> testTask = new CoGroupDriver<PactRecord, PactRecord, PactRecord>();
+		final CoGroupDriver<Record, Record, Record> testTask = new CoGroupDriver<Record, Record, Record>();
 		
 		try {
-			addInputSorted(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), this.comparator1.duplicate());
-			addInputSorted(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), this.comparator2.duplicate());
+			addInputSorted(new UniformRecordGenerator(keyCnt1, valCnt1, false), this.comparator1.duplicate());
+			addInputSorted(new UniformRecordGenerator(keyCnt2, valCnt2, false), this.comparator2.duplicate());
 			testDriver(testTask, MockCoGroupStub.class);
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -99,14 +99,14 @@ public class CoGroupTaskTest extends DriverTestBase<GenericCoGrouper<PactRecord,
 		setOutput(this.output);
 		addInputComparator(this.comparator1);
 		addInputComparator(this.comparator2);
-		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.CO_GROUP);
 		
-		final CoGroupDriver<PactRecord, PactRecord, PactRecord> testTask = new CoGroupDriver<PactRecord, PactRecord, PactRecord>();
+		final CoGroupDriver<Record, Record, Record> testTask = new CoGroupDriver<Record, Record, Record>();
 		
 		try {
-			addInputSorted(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), this.comparator1.duplicate());
-			addInputSorted(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), this.comparator2.duplicate());
+			addInputSorted(new UniformRecordGenerator(keyCnt1, valCnt1, false), this.comparator1.duplicate());
+			addInputSorted(new UniformRecordGenerator(keyCnt2, valCnt2, false), this.comparator2.duplicate());
 			testDriver(testTask, MockCoGroupStub.class);
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -130,14 +130,14 @@ public class CoGroupTaskTest extends DriverTestBase<GenericCoGrouper<PactRecord,
 		setOutput(this.output);
 		addInputComparator(this.comparator1);
 		addInputComparator(this.comparator2);
-		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.CO_GROUP);
 		
-		final CoGroupDriver<PactRecord, PactRecord, PactRecord> testTask = new CoGroupDriver<PactRecord, PactRecord, PactRecord>();
+		final CoGroupDriver<Record, Record, Record> testTask = new CoGroupDriver<Record, Record, Record>();
 		
 		try {
-			addInputSorted(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), this.comparator1.duplicate());
-			addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, true));
+			addInputSorted(new UniformRecordGenerator(keyCnt1, valCnt1, false), this.comparator1.duplicate());
+			addInput(new UniformRecordGenerator(keyCnt2, valCnt2, true));
 			testDriver(testTask, MockCoGroupStub.class);
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -161,14 +161,14 @@ public class CoGroupTaskTest extends DriverTestBase<GenericCoGrouper<PactRecord,
 		setOutput(this.output);
 		addInputComparator(this.comparator1);
 		addInputComparator(this.comparator2);
-		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.CO_GROUP);
 		
-		final CoGroupDriver<PactRecord, PactRecord, PactRecord> testTask = new CoGroupDriver<PactRecord, PactRecord, PactRecord>();
+		final CoGroupDriver<Record, Record, Record> testTask = new CoGroupDriver<Record, Record, Record>();
 		
 		try {
-			addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, true));
-			addInputSorted(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), this.comparator2.duplicate());
+			addInput(new UniformRecordGenerator(keyCnt1, valCnt1, true));
+			addInputSorted(new UniformRecordGenerator(keyCnt2, valCnt2, false), this.comparator2.duplicate());
 			testDriver(testTask, MockCoGroupStub.class);
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -191,15 +191,15 @@ public class CoGroupTaskTest extends DriverTestBase<GenericCoGrouper<PactRecord,
 		
 		setOutput(this.output);
 		
-		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, true));
-		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, true));
+		addInput(new UniformRecordGenerator(keyCnt1, valCnt1, true));
+		addInput(new UniformRecordGenerator(keyCnt2, valCnt2, true));
 		addInputComparator(this.comparator1);
 		addInputComparator(this.comparator2);
 		
-		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.CO_GROUP);
 		
-		final CoGroupDriver<PactRecord, PactRecord, PactRecord> testTask = new CoGroupDriver<PactRecord, PactRecord, PactRecord>();
+		final CoGroupDriver<Record, Record, Record> testTask = new CoGroupDriver<Record, Record, Record>();
 		
 		try {
 			testDriver(testTask, MockCoGroupStub.class);
@@ -221,15 +221,15 @@ public class CoGroupTaskTest extends DriverTestBase<GenericCoGrouper<PactRecord,
 		
 		setOutput(this.output);
 		
-		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, true));
-		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, true));
+		addInput(new UniformRecordGenerator(keyCnt1, valCnt1, true));
+		addInput(new UniformRecordGenerator(keyCnt2, valCnt2, true));
 		addInputComparator(this.comparator1);
 		addInputComparator(this.comparator2);
 		
-		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.CO_GROUP);
 		
-		final CoGroupDriver<PactRecord, PactRecord, PactRecord> testTask = new CoGroupDriver<PactRecord, PactRecord, PactRecord>();
+		final CoGroupDriver<Record, Record, Record> testTask = new CoGroupDriver<Record, Record, Record>();
 		
 		try {
 			testDriver(testTask, MockFailingCoGroupStub.class);
@@ -252,14 +252,14 @@ public class CoGroupTaskTest extends DriverTestBase<GenericCoGrouper<PactRecord,
 		addInputComparator(this.comparator1);
 		addInputComparator(this.comparator2);
 		
-		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.CO_GROUP);
 		
-		final CoGroupDriver<PactRecord, PactRecord, PactRecord> testTask = new CoGroupDriver<PactRecord, PactRecord, PactRecord>();
+		final CoGroupDriver<Record, Record, Record> testTask = new CoGroupDriver<Record, Record, Record>();
 		
 		try {
 			addInputSorted(new DelayingInfinitiveInputIterator(1000), this.comparator1.duplicate());
-			addInput(new UniformPactRecordGenerator(keyCnt, valCnt, true));
+			addInput(new UniformRecordGenerator(keyCnt, valCnt, true));
 		} catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail("The test caused an exception.");
@@ -303,13 +303,13 @@ public class CoGroupTaskTest extends DriverTestBase<GenericCoGrouper<PactRecord,
 		addInputComparator(this.comparator1);
 		addInputComparator(this.comparator2);
 		
-		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.CO_GROUP);
 		
-		final CoGroupDriver<PactRecord, PactRecord, PactRecord> testTask = new CoGroupDriver<PactRecord, PactRecord, PactRecord>();
+		final CoGroupDriver<Record, Record, Record> testTask = new CoGroupDriver<Record, Record, Record>();
 		
 		try {
-			addInput(new UniformPactRecordGenerator(keyCnt, valCnt, true));
+			addInput(new UniformRecordGenerator(keyCnt, valCnt, true));
 			addInputSorted(new DelayingInfinitiveInputIterator(1000), this.comparator2.duplicate());
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -355,14 +355,14 @@ public class CoGroupTaskTest extends DriverTestBase<GenericCoGrouper<PactRecord,
 		addInputComparator(this.comparator1);
 		addInputComparator(this.comparator2);
 		
-		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.CO_GROUP);
 		
-		final CoGroupDriver<PactRecord, PactRecord, PactRecord> testTask = new CoGroupDriver<PactRecord, PactRecord, PactRecord>();
+		final CoGroupDriver<Record, Record, Record> testTask = new CoGroupDriver<Record, Record, Record>();
 		
 		try {
-			addInput(new UniformPactRecordGenerator(keyCnt, valCnt, true));
-			addInput(new UniformPactRecordGenerator(keyCnt, valCnt, true));
+			addInput(new UniformRecordGenerator(keyCnt, valCnt, true));
+			addInput(new UniformRecordGenerator(keyCnt, valCnt, true));
 		} catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail("The test caused an exception.");
@@ -401,8 +401,8 @@ public class CoGroupTaskTest extends DriverTestBase<GenericCoGrouper<PactRecord,
 		private int cnt = 0;
 		
 		@Override
-		public void coGroup(Iterator<PactRecord> records1,
-				Iterator<PactRecord> records2, Collector<PactRecord> out) throws RuntimeException
+		public void coGroup(Iterator<Record> records1,
+				Iterator<Record> records2, Collector<Record> out) throws RuntimeException
 		{
 			int val1Cnt = 0;
 			
@@ -412,7 +412,7 @@ public class CoGroupTaskTest extends DriverTestBase<GenericCoGrouper<PactRecord,
 			}
 			
 			while (records2.hasNext()) {
-				PactRecord record2 = records2.next();
+				Record record2 = records2.next();
 				if (val1Cnt == 0) {
 					
 					if(++this.cnt>=10) {
@@ -438,8 +438,8 @@ public class CoGroupTaskTest extends DriverTestBase<GenericCoGrouper<PactRecord,
 	public static final class MockDelayingCoGroupStub extends CoGroupFunction
 	{
 		@Override
-		public void coGroup(Iterator<PactRecord> records1,
-				Iterator<PactRecord> records2, Collector<PactRecord> out) {
+		public void coGroup(Iterator<Record> records1,
+				Iterator<Record> records2, Collector<Record> out) {
 			
 			while (records1.hasNext()) {
 				try {

@@ -37,13 +37,13 @@ import eu.stratosphere.addons.hbase.common.HBaseUtil;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.api.io.InputFormat;
 import eu.stratosphere.api.io.statistics.BaseStatistics;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.OperatingSystem;
 
 /**
  * {@link InputFormat} subclass that wraps the acccess for HTables.
  */
-public class TableInputFormat implements InputFormat<PactRecord, TableInputSplit> {
+public class TableInputFormat implements InputFormat<Record, TableInputSplit> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -237,23 +237,23 @@ public class TableInputFormat implements InputFormat<PactRecord, TableInputSplit
 	}
 
 	@Override
-	public boolean nextRecord(PactRecord record) throws IOException {
+	public boolean nextRecord(Record record) throws IOException {
 		boolean result = nextResult();
 		if (result) {
-			mapResultToPactRecord(record, hbaseKey, hbaseResult);
+			mapResultToRecord(record, hbaseKey, hbaseResult);
 		}
 		return result;
 	}
 
 	/**
-	 * Maps the current HBase Result into a PactRecord.
+	 * Maps the current HBase Result into a Record.
 	 * This implementation simply stores the HBaseKey at position 0, and the HBase Result object at position 1.
 	 * 
 	 * @param record
 	 * @param key
 	 * @param result
 	 */
-	public void mapResultToPactRecord(PactRecord record, HBaseKey key, HBaseResult result) {
+	public void mapResultToRecord(Record record, HBaseKey key, HBaseResult result) {
 		record.setField(0, key);
 		record.setField(1, result);
 	}

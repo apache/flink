@@ -22,8 +22,8 @@ import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.util.Collector
 import eu.stratosphere.api.operators.Operator
 import eu.stratosphere.api.record.operators.MapOperator
-import eu.stratosphere.types.PactRecord
-import eu.stratosphere.types.PactInteger
+import eu.stratosphere.types.Record
+import eu.stratosphere.types.IntValue
 import eu.stratosphere.api.record.operators.ReduceOperator
 import eu.stratosphere.api.record.functions.{ReduceFunction => JReduceFunction}
 
@@ -114,11 +114,11 @@ object ReduceMacros {
       implicit val inputUDT: UDT[In] = c.Expr[UDT[In]](createUdtIn).splice
 
       new ReduceFunctionBase[In, In] {
-        override def combine(records: JIterator[PactRecord], out: Collector[PactRecord]) = {
+        override def combine(records: JIterator[Record], out: Collector[Record]) = {
           reduce(records, out)
         }
 
-        override def reduce(records: JIterator[PactRecord], out: Collector[PactRecord]) = {
+        override def reduce(records: JIterator[Record], out: Collector[Record]) = {
 
           val firstRecord = reduceIterator.initialize(records)
           reduceRecord.copyFrom(firstRecord, reduceForwardFrom, reduceForwardTo)
@@ -178,7 +178,7 @@ object ReduceMacros {
       implicit val outputUDT: UDT[Out] = c.Expr[UDT[Out]](createUdtOut).splice
 
       new ReduceFunctionBase[In, Out] {
-        override def reduce(records: JIterator[PactRecord], out: Collector[PactRecord]) = {
+        override def reduce(records: JIterator[Record], out: Collector[Record]) = {
           val firstRecord = reduceIterator.initialize(records)
           reduceRecord.copyFrom(firstRecord, reduceForwardFrom, reduceForwardTo)
 
@@ -233,11 +233,11 @@ object ReduceMacros {
       implicit val inputUDT: UDT[In] = c.Expr[UDT[In]](createUdtIn).splice
 
       new ReduceFunctionBase[In, In] {
-        override def combine(records: JIterator[PactRecord], out: Collector[PactRecord]) = {
+        override def combine(records: JIterator[Record], out: Collector[Record]) = {
           reduce(records, out)
         }
 
-        override def reduce(records: JIterator[PactRecord], out: Collector[PactRecord]) = {
+        override def reduce(records: JIterator[Record], out: Collector[Record]) = {
           val firstRecord = reduceIterator.initialize(records)
           reduceRecord.copyFrom(firstRecord, reduceForwardFrom, reduceForwardTo)
 
@@ -294,8 +294,8 @@ object ReduceMacros {
         val keySelector = new FieldSelector(inputUDT, keySelection)
         val udf: UDF1[In, (In, Int)] = new UDF1(inputUDT, outputUDT)
         
-        private val reduceRecord = new PactRecord()
-        private val pactInt = new PactInteger()
+        private val reduceRecord = new Record()
+        private val pactInt = new IntValue()
 
         private var countPosition: Int = 0;
 
@@ -304,9 +304,9 @@ object ReduceMacros {
           this.countPosition = udf.getOutputLength - 1;
         }
         
-        override def reduce(records: JIterator[PactRecord], result: Collector[PactRecord]) : Unit = {
+        override def reduce(records: JIterator[Record], result: Collector[Record]) : Unit = {
           
-          var record : PactRecord = null
+          var record : Record = null
           var counter: Int = 0
           while (records.hasNext()) {
             record = records.next()
@@ -319,7 +319,7 @@ object ReduceMacros {
           result.collect(record)
         }
         
-        override def combine(records: JIterator[PactRecord], result: Collector[PactRecord]) : Unit = {
+        override def combine(records: JIterator[Record], result: Collector[Record]) : Unit = {
           reduce(records, result)
         }
 

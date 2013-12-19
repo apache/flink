@@ -25,8 +25,8 @@ import eu.stratosphere.test.testPrograms.util.DiscardingOutputFormat;
 import eu.stratosphere.test.testPrograms.util.InfiniteIntegerInputFormat;
 import eu.stratosphere.test.testPrograms.util.InfiniteIntegerInputFormatWithDelay;
 import eu.stratosphere.test.testPrograms.util.UniformIntInput;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 public class MatchJoinCancelingITCase extends CancellingTestBase {
@@ -40,7 +40,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase {
 		GenericDataSource<InfiniteIntegerInputFormatWithDelay> source2 =
 			new GenericDataSource<InfiniteIntegerInputFormatWithDelay>(new InfiniteIntegerInputFormatWithDelay(), "Source 2");
 		
-		JoinOperator matcher = JoinOperator.builder(SimpleMatcher.class, PactInteger.class, 0, 0)
+		JoinOperator matcher = JoinOperator.builder(SimpleMatcher.class, IntValue.class, 0, 0)
 			.input1(source1)
 			.input2(source2)
 			.name("Sort Join")
@@ -61,7 +61,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase {
 		GenericDataSource<InfiniteIntegerInputFormat> source2 =
 			new GenericDataSource<InfiniteIntegerInputFormat>(new InfiniteIntegerInputFormat(), "Source 2");
 		
-		JoinOperator matcher = JoinOperator.builder(SimpleMatcher.class, PactInteger.class, 0, 0)
+		JoinOperator matcher = JoinOperator.builder(SimpleMatcher.class, IntValue.class, 0, 0)
 			.input1(source1)
 			.input2(source2)
 			.name("Sort Join")
@@ -82,7 +82,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase {
 		GenericDataSource<InfiniteIntegerInputFormat> source2 =
 			new GenericDataSource<InfiniteIntegerInputFormat>(new InfiniteIntegerInputFormat(), "Source 2");
 		
-		JoinOperator matcher = JoinOperator.builder(StuckInOpenMatcher.class, PactInteger.class, 0, 0)
+		JoinOperator matcher = JoinOperator.builder(StuckInOpenMatcher.class, IntValue.class, 0, 0)
 			.input1(source1)
 			.input2(source2)
 			.name("Stuc-In-Open Match")
@@ -109,7 +109,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase {
 		source2.setParameter(UniformIntInput.NUM_KEYS_KEY, 50000);
 		source2.setParameter(UniformIntInput.NUM_VALUES_KEY, 100);
 		
-		JoinOperator matcher = JoinOperator.builder(SimpleMatcher.class, PactInteger.class, 0, 0)
+		JoinOperator matcher = JoinOperator.builder(SimpleMatcher.class, IntValue.class, 0, 0)
 			.input1(source1)
 			.input2(source2)
 			.name("Long Cancelling Sort Join")
@@ -137,7 +137,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase {
 		source2.setParameter(UniformIntInput.NUM_KEYS_KEY, 500);
 		source2.setParameter(UniformIntInput.NUM_VALUES_KEY, 3);
 		
-		JoinOperator matcher = JoinOperator.builder(DelayingMatcher.class, PactInteger.class, 0, 0)
+		JoinOperator matcher = JoinOperator.builder(DelayingMatcher.class, IntValue.class, 0, 0)
 			.input1(source1)
 			.input2(source2)
 			.name("Long Cancelling Sort Join")
@@ -163,7 +163,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase {
 		source2.setParameter(UniformIntInput.NUM_KEYS_KEY, 500);
 		source2.setParameter(UniformIntInput.NUM_VALUES_KEY, 3);
 		
-		JoinOperator matcher = JoinOperator.builder(LongCancelTimeMatcher.class, PactInteger.class, 0, 0)
+		JoinOperator matcher = JoinOperator.builder(LongCancelTimeMatcher.class, IntValue.class, 0, 0)
 			.input1(source1)
 			.input2(source2)
 			.name("Long Cancelling Sort Join")
@@ -187,7 +187,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase {
 		GenericDataSource<InfiniteIntegerInputFormat> source2 =
 			new GenericDataSource<InfiniteIntegerInputFormat>(new InfiniteIntegerInputFormat(), "Source 2");
 		
-		JoinOperator matcher = JoinOperator.builder(new SimpleMatcher(), PactInteger.class, 0, 0)
+		JoinOperator matcher = JoinOperator.builder(new SimpleMatcher(), IntValue.class, 0, 0)
 			.input1(source1)
 			.input2(source2)
 			.name("Sort Join")
@@ -205,8 +205,8 @@ public class MatchJoinCancelingITCase extends CancellingTestBase {
 	public static final class SimpleMatcher extends JoinFunction {
 		
 		@Override
-		public void match(PactRecord value1, PactRecord value2, Collector<PactRecord> out) throws Exception {
-			value1.setField(1, value2.getField(0, PactInteger.class));
+		public void match(Record value1, Record value2, Collector<Record> out) throws Exception {
+			value1.setField(1, value2.getField(0, IntValue.class));
 			out.collect(value1);
 		}
 	}
@@ -216,9 +216,9 @@ public class MatchJoinCancelingITCase extends CancellingTestBase {
 		private static final int WAIT_TIME_PER_RECORD = 10 * 1000; // 10 sec.
 
 		@Override
-		public void match(PactRecord value1, PactRecord value2, Collector<PactRecord> out) throws Exception {
+		public void match(Record value1, Record value2, Collector<Record> out) throws Exception {
 			Thread.sleep(WAIT_TIME_PER_RECORD);
-			value1.setField(1, value2.getField(0, PactInteger.class));
+			value1.setField(1, value2.getField(0, IntValue.class));
 			out.collect(value1);
 		}
 	}
@@ -228,8 +228,8 @@ public class MatchJoinCancelingITCase extends CancellingTestBase {
 		private static final int WAIT_TIME_PER_RECORD = 5 * 1000; // 5 sec.
 		
 		@Override
-		public void match(PactRecord value1, PactRecord value2, Collector<PactRecord> out) throws Exception {
-			value1.setField(1, value2.getField(0, PactInteger.class));
+		public void match(Record value1, Record value2, Collector<Record> out) throws Exception {
+			value1.setField(1, value2.getField(0, IntValue.class));
 			
 			final long start = System.currentTimeMillis();
 			long remaining = WAIT_TIME_PER_RECORD;
@@ -253,8 +253,8 @@ public class MatchJoinCancelingITCase extends CancellingTestBase {
 		}
 
 		@Override
-		public void match(PactRecord value1, PactRecord value2, Collector<PactRecord> out) throws Exception {
-			value1.setField(1, value2.getField(0, PactInteger.class));
+		public void match(Record value1, Record value2, Collector<Record> out) throws Exception {
+			value1.setField(1, value2.getField(0, IntValue.class));
 			out.collect(value1);
 		}
 	}

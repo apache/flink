@@ -52,14 +52,14 @@ import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.runtime.plugable.DeserializationDelegate;
 import eu.stratosphere.pact.runtime.plugable.SerializationDelegate;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparator;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparatorFactory;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordSerializer;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparator;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparatorFactory;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializer;
 import eu.stratosphere.pact.runtime.resettable.SpillingResettableMutableObjectIterator;
 import eu.stratosphere.pact.runtime.shipping.OutputCollector;
 import eu.stratosphere.pact.runtime.shipping.OutputEmitter;
-import eu.stratosphere.pact.runtime.shipping.PactRecordOutputCollector;
-import eu.stratosphere.pact.runtime.shipping.PactRecordOutputEmitter;
+import eu.stratosphere.pact.runtime.shipping.RecordOutputCollector;
+import eu.stratosphere.pact.runtime.shipping.RecordOutputEmitter;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.sort.CombiningUnilateralSortMerger;
 import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger;
@@ -67,11 +67,11 @@ import eu.stratosphere.pact.runtime.task.chaining.ChainedDriver;
 import eu.stratosphere.pact.runtime.task.chaining.ExceptionInChainedStubException;
 import eu.stratosphere.pact.runtime.task.util.CloseableInputProvider;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
-import eu.stratosphere.pact.runtime.task.util.NepheleReaderIterator;
-import eu.stratosphere.pact.runtime.task.util.PactRecordNepheleReaderIterator;
+import eu.stratosphere.pact.runtime.task.util.ReaderIterator;
+import eu.stratosphere.pact.runtime.task.util.RecordReaderIterator;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.udf.RuntimeUDFContext;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 import eu.stratosphere.util.InstantiationUtil;
 import eu.stratosphere.util.MutableObjectIterator;
@@ -857,17 +857,17 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 	protected MutableObjectIterator<?> createInputIterator(int inputIndex, 
 		MutableReader<?> inputReader, TypeSerializer<?> serializer)
 	{
-		if (serializer.getClass() == PactRecordSerializer.class) {
+		if (serializer.getClass() == RecordSerializer.class) {
 			// pact record specific deserialization
 			@SuppressWarnings("unchecked")
-			MutableReader<PactRecord> reader = (MutableReader<PactRecord>) inputReader;
-			return new PactRecordNepheleReaderIterator(reader);
+			MutableReader<Record> reader = (MutableReader<Record>) inputReader;
+			return new RecordReaderIterator(reader);
 		} else {
 			// generic data type serialization
 			@SuppressWarnings("unchecked")
 			MutableReader<DeserializationDelegate<?>> reader = (MutableReader<DeserializationDelegate<?>>) inputReader;
 			@SuppressWarnings({ "unchecked", "rawtypes" })
-			final MutableObjectIterator<?> iter = new NepheleReaderIterator(reader, serializer);
+			final MutableObjectIterator<?> iter = new ReaderIterator(reader, serializer);
 			return iter;
 		}
 	}
@@ -1108,23 +1108,23 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 		// get the factory for the serializer
 		final TypeSerializerFactory<T> serializerFactory = config.getOutputSerializer(cl);
 
-		// special case the PactRecord
-		if (serializerFactory.getDataType().equals(PactRecord.class)) {
-			final List<AbstractRecordWriter<PactRecord>> writers = new ArrayList<AbstractRecordWriter<PactRecord>>(numOutputs);
+		// special case the Record
+		if (serializerFactory.getDataType().equals(Record.class)) {
+			final List<AbstractRecordWriter<Record>> writers = new ArrayList<AbstractRecordWriter<Record>>(numOutputs);
 
 			// create a writer for each output
 			for (int i = 0; i < numOutputs; i++) {
 				// create the OutputEmitter from output ship strategy
 				final ShipStrategyType strategy = config.getOutputShipStrategy(i);
 				final TypeComparatorFactory<?> compFact = config.getOutputComparator(i, cl);
-				final PactRecordOutputEmitter oe;
+				final RecordOutputEmitter oe;
 				if (compFact == null) {
-					oe = new PactRecordOutputEmitter(strategy);
+					oe = new RecordOutputEmitter(strategy);
 				} else {
-					if (compFact instanceof PactRecordComparatorFactory) {
-						final PactRecordComparator comparator = ((PactRecordComparatorFactory) compFact).createComparator();
+					if (compFact instanceof RecordComparatorFactory) {
+						final RecordComparator comparator = ((RecordComparatorFactory) compFact).createComparator();
 						final DataDistribution distribution = config.getOutputDataDistribution(i, cl);
-						oe = new PactRecordOutputEmitter(strategy, comparator, distribution);
+						oe = new RecordOutputEmitter(strategy, comparator, distribution);
 					} else {
 						throw new Exception("Incompatibe serializer-/comparator factories.");
 					}
@@ -1132,15 +1132,15 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 
 				if (strategy == ShipStrategyType.BROADCAST && USE_BROARDCAST_WRITERS) {
 					if (task instanceof AbstractTask) {
-						writers.add(new BroadcastRecordWriter<PactRecord>((AbstractTask) task, PactRecord.class));
+						writers.add(new BroadcastRecordWriter<Record>((AbstractTask) task, Record.class));
 					} else if (task instanceof AbstractInputTask<?>) {
-						writers.add(new BroadcastRecordWriter<PactRecord>((AbstractInputTask<?>) task, PactRecord.class));
+						writers.add(new BroadcastRecordWriter<Record>((AbstractInputTask<?>) task, Record.class));
 					}
 				} else {
 					if (task instanceof AbstractTask) {
-						writers.add(new RecordWriter<PactRecord>((AbstractTask) task, PactRecord.class, oe));
+						writers.add(new RecordWriter<Record>((AbstractTask) task, Record.class, oe));
 					} else if (task instanceof AbstractInputTask<?>) {
-						writers.add(new RecordWriter<PactRecord>((AbstractInputTask<?>) task, PactRecord.class, oe));
+						writers.add(new RecordWriter<Record>((AbstractInputTask<?>) task, Record.class, oe));
 					}
 				}
 			}
@@ -1149,7 +1149,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 			}
 
 			@SuppressWarnings("unchecked")
-			final Collector<T> outColl = (Collector<T>) new PactRecordOutputCollector(writers);
+			final Collector<T> outColl = (Collector<T>) new RecordOutputCollector(writers);
 			return outColl;
 		}
 		else {

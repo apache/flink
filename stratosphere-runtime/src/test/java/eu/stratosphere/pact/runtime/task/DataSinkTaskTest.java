@@ -32,15 +32,15 @@ import org.junit.Test;
 import eu.stratosphere.api.record.io.DelimitedOutputFormat;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.fs.Path;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparatorFactory;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparatorFactory;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.test.util.InfiniteInputIterator;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
-import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
+import eu.stratosphere.pact.runtime.test.util.UniformRecordGenerator;
 import eu.stratosphere.types.Key;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
 
 public class DataSinkTaskTest extends TaskTestBase
 {
@@ -63,9 +63,9 @@ public class DataSinkTaskTest extends TaskTestBase
 		int valCnt = 20;
 		
 		super.initEnvironment(1024 * 1024);
-		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 0);
+		super.addInput(new UniformRecordGenerator(keyCnt, valCnt, false), 0);
 		
-		DataSinkTask<PactRecord> testTask = new DataSinkTask<PactRecord>();
+		DataSinkTask<Record> testTask = new DataSinkTask<Record>();
 
 		super.registerFileOutputTask(testTask, MockOutputFormat.class, new File(tempTestPath).toURI().toString());
 		
@@ -129,12 +129,12 @@ public class DataSinkTaskTest extends TaskTestBase
 		int valCnt = 20;
 		
 		super.initEnvironment(1024 * 1024);
-		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, 0, 0, false), 0);
-		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, keyCnt, 0, false), 0);
-		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, keyCnt*2, 0, false), 0);
-		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, keyCnt*3, 0, false), 0);
+		super.addInput(new UniformRecordGenerator(keyCnt, valCnt, 0, 0, false), 0);
+		super.addInput(new UniformRecordGenerator(keyCnt, valCnt, keyCnt, 0, false), 0);
+		super.addInput(new UniformRecordGenerator(keyCnt, valCnt, keyCnt*2, 0, false), 0);
+		super.addInput(new UniformRecordGenerator(keyCnt, valCnt, keyCnt*3, 0, false), 0);
 		
-		DataSinkTask<PactRecord> testTask = new DataSinkTask<PactRecord>();
+		DataSinkTask<Record> testTask = new DataSinkTask<Record>();
 
 		super.registerFileOutputTask(testTask, MockOutputFormat.class, new File(tempTestPath).toURI().toString());
 		
@@ -199,14 +199,14 @@ public class DataSinkTaskTest extends TaskTestBase
 		int valCnt = 20;
 		
 		super.initEnvironment(1024 * 1024 * 4);
-		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, true), 0);
+		super.addInput(new UniformRecordGenerator(keyCnt, valCnt, true), 0);
 		
-		DataSinkTask<PactRecord> testTask = new DataSinkTask<PactRecord>();
+		DataSinkTask<Record> testTask = new DataSinkTask<Record>();
 		
 		// set sorting
 		super.getTaskConfig().setInputLocalStrategy(0, LocalStrategy.SORT);
 		super.getTaskConfig().setInputComparator(
-				new PactRecordComparatorFactory(new int[]{1},((Class<? extends Key>[])new Class[]{PactInteger.class})), 
+				new RecordComparatorFactory(new int[]{1},((Class<? extends Key>[])new Class[]{IntValue.class})), 
 				0);
 		super.getTaskConfig().setMemoryInput(0, 4 * 1024 * 1024);
 		super.getTaskConfig().setFilehandlesInput(0, 8);
@@ -278,9 +278,9 @@ public class DataSinkTaskTest extends TaskTestBase
 		int valCnt = 20;
 		
 		super.initEnvironment(1024 * 1024);
-		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 0);
+		super.addInput(new UniformRecordGenerator(keyCnt, valCnt, false), 0);
 
-		DataSinkTask<PactRecord> testTask = new DataSinkTask<PactRecord>();
+		DataSinkTask<Record> testTask = new DataSinkTask<Record>();
 		Configuration stubParams = new Configuration();
 		super.getTaskConfig().setStubParameters(stubParams);
 
@@ -310,16 +310,16 @@ public class DataSinkTaskTest extends TaskTestBase
 		int valCnt = 20;
 		
 		super.initEnvironment(4 * 1024 * 1024);
-		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, true), 0);
+		super.addInput(new UniformRecordGenerator(keyCnt, valCnt, true), 0);
 
-		DataSinkTask<PactRecord> testTask = new DataSinkTask<PactRecord>();
+		DataSinkTask<Record> testTask = new DataSinkTask<Record>();
 		Configuration stubParams = new Configuration();
 		super.getTaskConfig().setStubParameters(stubParams);
 		
 		// set sorting
 		super.getTaskConfig().setInputLocalStrategy(0, LocalStrategy.SORT);
 		super.getTaskConfig().setInputComparator(
-				new PactRecordComparatorFactory(new int[]{1},((Class<? extends Key>[])new Class[]{PactInteger.class})), 
+				new RecordComparatorFactory(new int[]{1},((Class<? extends Key>[])new Class[]{IntValue.class})), 
 				0);
 		super.getTaskConfig().setMemoryInput(0, 4 * 1024 * 1024);
 		super.getTaskConfig().setFilehandlesInput(0, 8);
@@ -349,7 +349,7 @@ public class DataSinkTaskTest extends TaskTestBase
 		super.initEnvironment(1024 * 1024);
 		super.addInput(new InfiniteInputIterator(), 0);
 		
-		final DataSinkTask<PactRecord> testTask = new DataSinkTask<PactRecord>();
+		final DataSinkTask<Record> testTask = new DataSinkTask<Record>();
 		Configuration stubParams = new Configuration();
 		super.getTaskConfig().setStubParameters(stubParams);
 		
@@ -391,14 +391,14 @@ public class DataSinkTaskTest extends TaskTestBase
 		super.initEnvironment(4 * 1024 * 1024);
 		super.addInput(new InfiniteInputIterator(), 0);
 		
-		final DataSinkTask<PactRecord> testTask = new DataSinkTask<PactRecord>();
+		final DataSinkTask<Record> testTask = new DataSinkTask<Record>();
 		Configuration stubParams = new Configuration();
 		super.getTaskConfig().setStubParameters(stubParams);
 		
 		// set sorting
 		super.getTaskConfig().setInputLocalStrategy(0, LocalStrategy.SORT);
 		super.getTaskConfig().setInputComparator(
-				new PactRecordComparatorFactory(new int[]{1},((Class<? extends Key>[])new Class[]{PactInteger.class})), 
+				new RecordComparatorFactory(new int[]{1},((Class<? extends Key>[])new Class[]{IntValue.class})), 
 				0);
 		super.getTaskConfig().setMemoryInput(0, 4 * 1024 * 1024);
 		super.getTaskConfig().setFilehandlesInput(0, 8);
@@ -437,10 +437,10 @@ public class DataSinkTaskTest extends TaskTestBase
 		final StringBuilder bld = new StringBuilder();
 		
 		@Override
-		public int serializeRecord(PactRecord rec, byte[] target) throws Exception
+		public int serializeRecord(Record rec, byte[] target) throws Exception
 		{
-			PactInteger key = rec.getField(0, PactInteger.class);
-			PactInteger value = rec.getField(1, PactInteger.class);
+			IntValue key = rec.getField(0, IntValue.class);
+			IntValue value = rec.getField(1, IntValue.class);
 		
 			this.bld.setLength(0);
 			this.bld.append(key.getValue());
@@ -464,7 +464,7 @@ public class DataSinkTaskTest extends TaskTestBase
 		int cnt = 0;
 		
 		@Override
-		public int serializeRecord(PactRecord rec, byte[] target) throws Exception
+		public int serializeRecord(Record rec, byte[] target) throws Exception
 		{
 			if (++this.cnt >= 10) {
 				throw new RuntimeException("Expected Test Exception");

@@ -21,7 +21,7 @@ import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.api.operators.FileDataSource;
 import eu.stratosphere.api.record.operators.CoGroupOperator;
 import eu.stratosphere.api.record.operators.JoinOperator;
-import eu.stratosphere.types.PactLong;
+import eu.stratosphere.types.LongValue;
 
 
 public class DanglingPageRank implements Program, ProgramDescription {
@@ -57,13 +57,13 @@ public class DanglingPageRank implements Program, ProgramDescription {
 		FileDataSource adjacencyListInput = new FileDataSource(new ImprovedAdjacencyListInputFormat(),
 			adjacencyListInputPath, "AdjancencyListInput");
 		
-		JoinOperator join = JoinOperator.builder(new DotProductMatch(), PactLong.class, 0, 0)
+		JoinOperator join = JoinOperator.builder(new DotProductMatch(), LongValue.class, 0, 0)
 				.input1(iteration.getPartialSolution())
 				.input2(adjacencyListInput)
 				.name("Join with Edges")
 				.build();
 		
-		CoGroupOperator rankAggregation = CoGroupOperator.builder(new DotProductCoGroup(), PactLong.class, 0, 0)
+		CoGroupOperator rankAggregation = CoGroupOperator.builder(new DotProductCoGroup(), LongValue.class, 0, 0)
 				.input1(iteration.getPartialSolution())
 				.input2(join)
 				.name("Rank Aggregation")

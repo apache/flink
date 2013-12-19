@@ -17,7 +17,7 @@ import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.StringValue;
 import eu.stratosphere.types.Value;
 import eu.stratosphere.types.parser.VarLengthStringParser;
 
@@ -28,7 +28,7 @@ public class VarLengthStringParserTest {
 	@Test
 	public void testGetValue() {
 		Value v = parser.createValue();
-		assertTrue(v instanceof PactString);
+		assertTrue(v instanceof StringValue);
 	}
 	
 	@Test
@@ -36,7 +36,7 @@ public class VarLengthStringParserTest {
 		
 		// check valid strings with out whitespaces and trailing delimiter
 		byte[] recBytes = "abcdefgh|i|jklmno|".getBytes();
-		PactString s = new PactString();
+		StringValue s = new StringValue();
 		
 		int startPos = 0;
 		startPos = parser.parseField(recBytes, startPos, recBytes.length, '|', s);
@@ -76,7 +76,7 @@ public class VarLengthStringParserTest {
 		
 		// check valid strings with out whitespaces and trailing delimiter
 		byte[] recBytes = "\"abcdefgh\"|\"i\"|\"jklmno\"|".getBytes();
-		PactString s = new PactString();
+		StringValue s = new StringValue();
 		
 		int startPos = 0;
 		startPos = parser.parseField(recBytes, startPos, recBytes.length, '|', s);
@@ -138,7 +138,7 @@ public class VarLengthStringParserTest {
 		
 		// check valid strings with out whitespaces and trailing delimiter
 		byte[] recBytes = "  \"abcdefgh\"|     \"i\"\t\t\t|\t \t\"jklmno\"  |".getBytes();
-		PactString s = new PactString();
+		StringValue s = new StringValue();
 		
 		int startPos = 0;
 		startPos = parser.parseField(recBytes, startPos, recBytes.length, '|', s);
@@ -155,7 +155,7 @@ public class VarLengthStringParserTest {
 		
 		// check valid strings with out whitespaces without trailing delimiter
 		recBytes = "  \"abcdefgh\"|     \"i\"\t\t\t|\t \t\"jklmno\"  ".getBytes();
-		s = new PactString();
+		s = new StringValue();
 		
 		startPos = 0;
 		startPos = parser.parseField(recBytes, startPos, recBytes.length, '|', s);
@@ -190,7 +190,7 @@ public class VarLengthStringParserTest {
 		
 		// check valid strings with out whitespaces and trailing delimiter
 		byte[] recBytes = "  \"abcdefgh\" gh |     \"i\"\t\t\t|\t \t\"jklmno\"  |".getBytes();
-		PactString s = new PactString();
+		StringValue s = new StringValue();
 		
 		int startPos = 0;
 		startPos = parser.parseField(recBytes, startPos, recBytes.length, '|', s);

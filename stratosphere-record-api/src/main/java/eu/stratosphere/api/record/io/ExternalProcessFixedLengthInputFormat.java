@@ -17,11 +17,11 @@ import java.io.IOException;
 
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.io.GenericInputSplit;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 
 /**
  * This input format starts an external process and reads its input from the standard out (stdout) of the started process.
- * The input is split into fixed-sized segments from which a {@link PactRecord} is generated. 
+ * The input is split into fixed-sized segments from which a {@link Record} is generated. 
  * The external process is started outside of the JVM via a provided start command and can be an arbitrary program, 
  * e.g., a data generator or a shell script. The input format checks the exit code of the process 
  * to validate whether the process terminated correctly. A list of allowed exit codes can be provided.
@@ -88,12 +88,12 @@ public abstract class ExternalProcessFixedLengthInputFormat<T extends ExternalPr
 	 * Reads a record out of the given buffer. This operation always consumes the standard number of
 	 * bytes, regardless of whether the produced record was valid.
 	 * 
-	 * @param target The target PactRecord
+	 * @param target The target Record
 	 * @param buffer The buffer containing the binary data.
 	 * @param startPos The start position in the byte array.
 	 * @return True, is the record is valid, false otherwise.
 	 */
-	public abstract boolean readBytes(PactRecord target, byte[] buffer, int startPos);
+	public abstract boolean readBytes(Record target, byte[] buffer, int startPos);
 	
 
 	@Override
@@ -158,7 +158,7 @@ public abstract class ExternalProcessFixedLengthInputFormat<T extends ExternalPr
 	
 
 	@Override
-	public boolean nextRecord(PactRecord record) throws IOException {
+	public boolean nextRecord(Record record) throws IOException {
 		
 		// check if read buffer must be filled (less than one record contained)
 		if(this.readBufferFillPos - this.readBufferReadPos < this.recordLength) {

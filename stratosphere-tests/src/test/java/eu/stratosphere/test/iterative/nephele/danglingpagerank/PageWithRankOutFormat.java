@@ -16,9 +16,9 @@ package eu.stratosphere.test.iterative.nephele.danglingpagerank;
 import com.google.common.base.Charsets;
 
 import eu.stratosphere.api.record.io.FileOutputFormat;
-import eu.stratosphere.types.PactDouble;
-import eu.stratosphere.types.PactLong;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.DoubleValue;
+import eu.stratosphere.types.LongValue;
+import eu.stratosphere.types.Record;
 
 import java.io.IOException;
 
@@ -28,11 +28,11 @@ public class PageWithRankOutFormat extends FileOutputFormat {
   private final StringBuilder buffer = new StringBuilder();
 
   @Override
-  public void writeRecord(PactRecord record) throws IOException {
+  public void writeRecord(Record record) throws IOException {
     buffer.setLength(0);
-    buffer.append(record.getField(0, PactLong.class).toString());
+    buffer.append(record.getField(0, LongValue.class).toString());
     buffer.append('\t');
-    buffer.append(record.getField(1, PactDouble.class).toString());
+    buffer.append(record.getField(1, DoubleValue.class).toString());
     buffer.append('\n');
 
     byte[] bytes = buffer.toString().getBytes(Charsets.UTF_8);

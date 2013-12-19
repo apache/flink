@@ -32,7 +32,7 @@ import eu.stratosphere.api.operators.base.CrossOperatorBase;
 import eu.stratosphere.api.operators.base.MapOperatorBase;
 import eu.stratosphere.api.operators.base.JoinOperatorBase;
 import eu.stratosphere.api.operators.base.ReduceOperatorBase;
-import eu.stratosphere.types.PactInteger;
+import eu.stratosphere.types.IntValue;
 
 /**
  * Tests {@link ContractUtil}.
@@ -110,13 +110,13 @@ public class ContractUtilTest {
 		assertEquals(GenericDataSource.class, result);
 	}
 
-	static abstract class CoGrouper implements GenericCoGrouper<PactInteger, PactInteger, PactInteger> {}
+	static abstract class CoGrouper implements GenericCoGrouper<IntValue, IntValue, IntValue> {}
 
-	static abstract class Crosser implements GenericCrosser<PactInteger, PactInteger, PactInteger> {}
+	static abstract class Crosser implements GenericCrosser<IntValue, IntValue, IntValue> {}
 
-	static abstract class Mapper implements GenericMapper<PactInteger, PactInteger> {}
+	static abstract class Mapper implements GenericMapper<IntValue, IntValue> {}
 
-	static abstract class Matcher implements GenericJoiner<PactInteger, PactInteger, PactInteger> {}
+	static abstract class Matcher implements GenericJoiner<IntValue, IntValue, IntValue> {}
 
-	static abstract class Reducer implements GenericReducer<PactInteger, PactInteger> {}
+	static abstract class Reducer implements GenericReducer<IntValue, IntValue> {}
 }

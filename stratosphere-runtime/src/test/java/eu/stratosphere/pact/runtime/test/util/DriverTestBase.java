@@ -29,18 +29,18 @@ import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparator;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordSerializer;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparator;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializer;
 import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger;
 import eu.stratosphere.pact.runtime.task.PactDriver;
 import eu.stratosphere.pact.runtime.task.PactTaskContext;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 import eu.stratosphere.util.LogUtils;
 import eu.stratosphere.util.MutableObjectIterator;
 
-public class DriverTestBase<S extends Function> implements PactTaskContext<S, PactRecord> {
+public class DriverTestBase<S extends Function> implements PactTaskContext<S, Record> {
 	
 	protected static final long DEFAULT_PER_SORT_MEM = 16 * 1024 * 1024;
 	
@@ -50,11 +50,11 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Pa
 	
 	private final MemoryManager memManager;
 	
-	private final List<MutableObjectIterator<PactRecord>> inputs;
+	private final List<MutableObjectIterator<Record>> inputs;
 	
-	private final List<TypeComparator<PactRecord>> comparators;
+	private final List<TypeComparator<Record>> comparators;
 	
-	private final List<UnilateralSortMerger<PactRecord>> sorters;
+	private final List<UnilateralSortMerger<Record>> sorters;
 	
 	private final AbstractInvokable owner;
 	
@@ -64,13 +64,13 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Pa
 	
 	protected final long perSortMem;
 	
-	private Collector<PactRecord> output;
+	private Collector<Record> output;
 	
 	protected int numFileHandles;
 	
 	private S stub;
 	
-	private PactDriver<S, PactRecord> driver;
+	private PactDriver<S, Record> driver;
 	
 	private volatile boolean running;
 	
@@ -96,9 +96,9 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Pa
 		this.ioManager = new IOManager();
 		this.memManager = totalMem > 0 ? new DefaultMemoryManager(totalMem) : null;
 		
-		this.inputs = new ArrayList<MutableObjectIterator<PactRecord>>();
-		this.comparators = new ArrayList<TypeComparator<PactRecord>>();
-		this.sorters = new ArrayList<UnilateralSortMerger<PactRecord>>();
+		this.inputs = new ArrayList<MutableObjectIterator<Record>>();
+		this.comparators = new ArrayList<TypeComparator<Record>>();
+		this.sorters = new ArrayList<UnilateralSortMerger<Record>>();
 		
 		this.owner = new DummyInvokable();
 		
@@ -106,26 +106,26 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Pa
 		this.taskConfig = new TaskConfig(this.config);
 	}
 
-	public void addInput(MutableObjectIterator<PactRecord> input) {
+	public void addInput(MutableObjectIterator<Record> input) {
 		this.inputs.add(input);
 		this.sorters.add(null);
 	}
 	
-	public void addInputSorted(MutableObjectIterator<PactRecord> input, PactRecordComparator comp) throws Exception {
-		UnilateralSortMerger<PactRecord> sorter = new UnilateralSortMerger<PactRecord>(
-				this.memManager, this.ioManager, input, this.owner, PactRecordSerializer.get(), comp, this.perSortMem, 32, 0.8f);
+	public void addInputSorted(MutableObjectIterator<Record> input, RecordComparator comp) throws Exception {
+		UnilateralSortMerger<Record> sorter = new UnilateralSortMerger<Record>(
+				this.memManager, this.ioManager, input, this.owner, RecordSerializer.get(), comp, this.perSortMem, 32, 0.8f);
 		this.sorters.add(sorter);
 		this.inputs.add(null);
 	}
 	
-	public void addInputComparator(PactRecordComparator comparator) {
+	public void addInputComparator(RecordComparator comparator) {
 		this.comparators.add(comparator);
 	}
 
-	public void setOutput(Collector<PactRecord> output) {
+	public void setOutput(Collector<Record> output) {
 		this.output = output;
 	}
-	public void setOutput(List<PactRecord> output) {
+	public void setOutput(List<Record> output) {
 		this.output = new ListOutputCollector(output);
 	}
 	
@@ -138,7 +138,7 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Pa
 		this.numFileHandles = numFileHandles;
 	}
 
-	public void testDriver(PactDriver<S, PactRecord> driver, Class<? extends S> stubClass) throws Exception {
+	public void testDriver(PactDriver<S, Record> driver, Class<? extends S> stubClass) throws Exception {
 		
 		this.driver = driver;
 		driver.setup(this);
@@ -227,7 +227,7 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Pa
 
 	@Override
 	public <X> MutableObjectIterator<X> getInput(int index) {
-		MutableObjectIterator<PactRecord> in = this.inputs.get(index);
+		MutableObjectIterator<Record> in = this.inputs.get(index);
 		if (in == null) {
 			// waiting from sorter
 			try {
@@ -246,7 +246,7 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Pa
 	@Override
 	public <X> TypeSerializer<X> getInputSerializer(int index) {
 		@SuppressWarnings("unchecked")
-		TypeSerializer<X> serializer = (TypeSerializer<X>) PactRecordSerializer.get();
+		TypeSerializer<X> serializer = (TypeSerializer<X>) RecordSerializer.get();
 		return serializer;
 	}
 
@@ -263,7 +263,7 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Pa
 	}
 
 	@Override
-	public Collector<PactRecord> getOutputCollector() {
+	public Collector<Record> getOutputCollector() {
 		return this.output;
 	}
 
@@ -302,17 +302,17 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Pa
 	
 	// --------------------------------------------------------------------------------------------
 	
-	private static final class ListOutputCollector implements Collector<PactRecord> {
+	private static final class ListOutputCollector implements Collector<Record> {
 		
-		private final List<PactRecord> output;
+		private final List<Record> output;
 		
-		public ListOutputCollector(List<PactRecord> outputList) {
+		public ListOutputCollector(List<Record> outputList) {
 			this.output = outputList;
 		}
 		
 
 		@Override
-		public void collect(PactRecord record) {
+		public void collect(Record record) {
 			this.output.add(record.createCopy());
 		}
 
@@ -320,12 +320,12 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Pa
 		public void close() {}
 	}
 	
-	public static final class CountingOutputCollector implements Collector<PactRecord> {
+	public static final class CountingOutputCollector implements Collector<Record> {
 		
 		private int num;
 
 		@Override
-		public void collect(PactRecord record) {
+		public void collect(Record record) {
 			this.num++;
 		}
 

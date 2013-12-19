@@ -52,9 +52,9 @@ import eu.stratosphere.core.io.StringRecord;
 import eu.stratosphere.nephele.client.JobExecutionResult;
 import eu.stratosphere.nephele.util.SerializableHashSet;
 import eu.stratosphere.test.util.TestBase2;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
+import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.AsciiUtils;
 import eu.stratosphere.util.Collector;
 
@@ -133,7 +133,7 @@ public class AccumulatorITCase extends TestBase2 {
 			.input(source)
 			.name("Tokenize Lines")
 			.build();
-		ReduceOperator reducer = ReduceOperator.builder(CountWords.class, PactString.class, 0)
+		ReduceOperator reducer = ReduceOperator.builder(CountWords.class, StringValue.class, 0)
 			.input(mapper)
 			.name("Count Words")
 			.build();
@@ -141,8 +141,8 @@ public class AccumulatorITCase extends TestBase2 {
 		CsvOutputFormat.configureRecordFormat(out)
 			.recordDelimiter('\n')
 			.fieldDelimiter(' ')
-			.field(PactString.class, 0)
-			.field(PactInteger.class, 1);
+			.field(StringValue.class, 0)
+			.field(IntValue.class, 1);
 		Plan plan = new Plan(out, "WordCount Example");
 		plan.setDefaultParallelism(numSubTasks);
 		
@@ -151,9 +151,9 @@ public class AccumulatorITCase extends TestBase2 {
 	
 	public static class TokenizeLine extends MapFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
-		private final PactRecord outputRecord = new PactRecord();
-		private final PactString word = new PactString();
-		private final PactInteger one = new PactInteger(1);
+		private final Record outputRecord = new Record();
+		private final StringValue word = new StringValue();
+		private final IntValue one = new IntValue(1);
 		private final AsciiUtils.WhitespaceTokenizer tokenizer = new AsciiUtils.WhitespaceTokenizer();
 
 		// Needs to be instantiated later since the runtime context is not yet
@@ -205,11 +205,11 @@ public class AccumulatorITCase extends TestBase2 {
 		}
 		
 		@Override
-		public void map(PactRecord record, Collector<PactRecord> collector) {
+		public void map(Record record, Collector<Record> collector) {
       
 			this.cntNumLines.add(1);
 			
-			PactString line = record.getField(0, PactString.class);
+			StringValue line = record.getField(0, StringValue.class);
 			AsciiUtils.replaceNonWordChars(line, ' ');
 			AsciiUtils.toLowerCase(line);
 			this.tokenizer.setStringToTokenize(line);
@@ -241,7 +241,7 @@ public class AccumulatorITCase extends TestBase2 {
 		
 		private static final long serialVersionUID = 1L;
 		
-		private final PactInteger cnt = new PactInteger();
+		private final IntValue cnt = new IntValue();
 		
 		private IntCounter reduceCalls = null;
 		private IntCounter combineCalls = null;
@@ -253,23 +253,23 @@ public class AccumulatorITCase extends TestBase2 {
 		}
 		
 		@Override
-		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {
+		public void reduce(Iterator<Record> records, Collector<Record> out) throws Exception {
 			reduceCalls.add(1);
 			reduceInternal(records, out);
 		}
 		
 		@Override
-		public void combine(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {
+		public void combine(Iterator<Record> records, Collector<Record> out) throws Exception {
 			combineCalls.add(1);
 			reduceInternal(records, out);
 		}
 		
-		private void reduceInternal(Iterator<PactRecord> records, Collector<PactRecord> out) {
-			PactRecord element = null;
+		private void reduceInternal(Iterator<Record> records, Collector<Record> out) {
+			Record element = null;
 			int sum = 0;
 			while (records.hasNext()) {
 				element = records.next();
-				PactInteger i = element.getField(1, PactInteger.class);
+				IntValue i = element.getField(1, IntValue.class);
 				sum += i.getValue();
 			}
 

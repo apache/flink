@@ -16,8 +16,8 @@ package eu.stratosphere.test.testPrograms.util;
 import java.io.IOException;
 
 import eu.stratosphere.api.record.io.GenericInputFormat;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
 
 /**
  * 
@@ -27,7 +27,7 @@ public class InfiniteIntegerInputFormatWithDelay extends GenericInputFormat {
 	
 	private static final int DELAY = 20;
 	
-	private final PactInteger one = new PactInteger(1);
+	private final IntValue one = new IntValue(1);
 	
 
 	@Override
@@ -37,7 +37,7 @@ public class InfiniteIntegerInputFormatWithDelay extends GenericInputFormat {
 
 
 	@Override
-	public boolean nextRecord(PactRecord record) throws IOException
+	public boolean nextRecord(Record record) throws IOException
 	{
 		record.setField(0, this.one);
 		

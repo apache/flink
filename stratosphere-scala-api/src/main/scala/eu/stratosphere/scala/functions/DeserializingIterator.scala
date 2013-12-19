@@ -17,15 +17,15 @@ import java.util.{ Iterator => JIterator }
 
 import eu.stratosphere.scala.analysis.UDTSerializer
 
-import eu.stratosphere.types.PactRecord
+import eu.stratosphere.types.Record
 
 protected final class DeserializingIterator[T](deserializer: UDTSerializer[T]) extends Iterator[T] {
 
-  private var source: JIterator[PactRecord] = null
-  private var first: PactRecord = null
+  private var source: JIterator[Record] = null
+  private var first: Record = null
   private var fresh = true
 
-  final def initialize(records: JIterator[PactRecord]): PactRecord = {
+  final def initialize(records: JIterator[Record]): Record = {
     source = records
 
     if (source.hasNext) {

@@ -13,16 +13,16 @@
 
 package eu.stratosphere.api.record.io;
 
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 
 /**
  * Base implementation for input formats that split the input at a delimiter into records.
  * The parsing of the record bytes into the record has to be implemented in the
- * {@link #readRecord(PactRecord, byte[], int, int)} method.
+ * {@link #readRecord(Record, byte[], int, int)} method.
  * <p>
  * The default delimiter is the newline character {@code '\n'}.
  */
-public abstract class DelimitedInputFormat extends eu.stratosphere.api.io.DelimitedInputFormat<PactRecord> {
+public abstract class DelimitedInputFormat extends eu.stratosphere.api.io.DelimitedInputFormat<Record> {
 	
 	private static final long serialVersionUID = -2297199268758915692L;
 
@@ -39,5 +39,5 @@ public abstract class DelimitedInputFormat extends eu.stratosphere.api.io.Delimi
 	 * @param bytes The serialized record.
 	 * @return returns whether the record was successfully deserialized
 	 */
-	public abstract boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes);
+	public abstract boolean readRecord(Record target, byte[] bytes, int offset, int numBytes);
 }

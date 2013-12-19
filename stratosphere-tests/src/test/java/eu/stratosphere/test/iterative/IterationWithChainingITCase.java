@@ -24,8 +24,8 @@ import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.example.record.kmeans.udfs.PointInFormat;
 import eu.stratosphere.example.record.kmeans.udfs.PointOutFormat;
 import eu.stratosphere.test.util.TestBase2;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 import org.junit.runner.RunWith;
@@ -78,7 +78,7 @@ public class IterationWithChainingITCase extends TestBase2 {
         private static final long serialVersionUID = 1L;
 
         @Override
-        public void map(PactRecord rec, Collector<PactRecord> out) {
+        public void map(Record rec, Collector<Record> out) {
             out.collect(rec);
         }
     }
@@ -88,7 +88,7 @@ public class IterationWithChainingITCase extends TestBase2 {
         private static final long serialVersionUID = 1L;
 
         @Override
-        public void reduce(Iterator<PactRecord> it, Collector<PactRecord> out) {
+        public void reduce(Iterator<Record> it, Collector<Record> out) {
             while (it.hasNext()) {
                 out.collect(it.next());
             }
@@ -104,7 +104,7 @@ public class IterationWithChainingITCase extends TestBase2 {
         iteration.setInput(initialInput);
         iteration.setMaximumNumberOfIterations(2);
 
-        ReduceOperator dummyReduce = ReduceOperator.builder(new DummyReducer(), PactInteger.class, 0)
+        ReduceOperator dummyReduce = ReduceOperator.builder(new DummyReducer(), IntValue.class, 0)
                 .input(iteration.getPartialSolution())
                 .name("Reduce something")
                 .build();

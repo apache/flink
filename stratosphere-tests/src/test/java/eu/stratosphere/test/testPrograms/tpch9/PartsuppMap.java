@@ -15,7 +15,7 @@ package eu.stratosphere.test.testPrograms.tpch9;
 
 import eu.stratosphere.api.record.functions.MapFunction;
 import eu.stratosphere.test.testPrograms.util.Tuple;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 public class PartsuppMap extends MapFunction {
@@ -31,7 +31,7 @@ public class PartsuppMap extends MapFunction {
 	 *
 	 */
 	@Override
-	public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
+	public void map(Record record, Collector<Record> out) throws Exception {
 		inputTuple = record.getField(1, inputTuple);
 		inputTuple.project((0 << 0) | (1 << 1) | (0 << 2) | (1 << 3) | (0 << 4));
 		record.setField(1, inputTuple);

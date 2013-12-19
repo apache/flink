@@ -16,8 +16,8 @@ package eu.stratosphere.test.iterative.nephele.danglingpagerank;
 import eu.stratosphere.api.record.functions.MapFunction;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.test.iterative.nephele.ConfigUtils;
-import eu.stratosphere.types.PactDouble;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.DoubleValue;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 import java.util.Set;
@@ -35,7 +35,7 @@ public class CompensatingMap extends MapFunction {
   private double uniformRank;
   private double rescaleFactor;
 
-  private PactDouble rank = new PactDouble();
+  private DoubleValue rank = new DoubleValue();
 
   @Override
   public void open(Configuration parameters) throws Exception {
@@ -56,7 +56,7 @@ public class CompensatingMap extends MapFunction {
   }
 
   @Override
-  public void map(PactRecord pageWithRank, Collector<PactRecord> out) throws Exception {
+  public void map(Record pageWithRank, Collector<Record> out) throws Exception {
 
     if (currentIteration == failingIteration + 1) {
 

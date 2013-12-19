@@ -13,13 +13,13 @@
 
 package eu.stratosphere.api.record.io;
 
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 
 /**
- * The base interface for input formats that read {@link PactRecord}s from a
+ * The base interface for input formats that read {@link Record}s from a
  * file.
  */
-public abstract class FileInputFormat extends eu.stratosphere.api.io.FileInputFormat<PactRecord> {
+public abstract class FileInputFormat extends eu.stratosphere.api.io.FileInputFormat<Record> {
 	
 	private static final long serialVersionUID = -8819984594406641418L;
 }

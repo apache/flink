@@ -24,12 +24,12 @@ import eu.stratosphere.api.typeutils.TypeSerializer;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordSerializer;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializer;
 import eu.stratosphere.pact.runtime.resettable.BlockResettableMutableObjectIterator;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.MutableObjectIteratorWrapper;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.MutableObjectIterator;
 import junit.framework.Assert;
 
@@ -39,15 +39,15 @@ public class BlockResettableMutableObjectIteratorTest
 	
 	private static final int NUM_VALUES = 20000;
 	
-	private final TypeSerializer<PactRecord> serializer = PactRecordSerializer.get();
+	private final TypeSerializer<Record> serializer = RecordSerializer.get();
 	
 	private final AbstractInvokable memOwner = new DummyInvokable();
 	
 	private MemoryManager memman;
 
-	private MutableObjectIterator<PactRecord> reader;
+	private MutableObjectIterator<Record> reader;
 
-	private List<PactRecord> objects;
+	private List<Record> objects;
 
 	@Before
 	public void startup() {
@@ -55,9 +55,9 @@ public class BlockResettableMutableObjectIteratorTest
 		this.memman = new DefaultMemoryManager(MEMORY_CAPACITY);
 		
 		// create test objects
-		this.objects = new ArrayList<PactRecord>(20000);
+		this.objects = new ArrayList<Record>(20000);
 		for (int i = 0; i < NUM_VALUES; ++i) {
-			this.objects.add(new PactRecord(new PactInteger(i)));
+			this.objects.add(new Record(new IntValue(i)));
 		}
 		
 		// create the reader
@@ -82,13 +82,13 @@ public class BlockResettableMutableObjectIteratorTest
 	{
 		try {
 			// create the resettable Iterator
-			final BlockResettableMutableObjectIterator<PactRecord> iterator = 
-						new BlockResettableMutableObjectIterator<PactRecord>(this.memman, this.reader, 
+			final BlockResettableMutableObjectIterator<Record> iterator = 
+						new BlockResettableMutableObjectIterator<Record>(this.memman, this.reader, 
 								this.serializer, this.memman.getPageSize(), memOwner);
 			// open the iterator
 			iterator.open();
 			
-			final PactRecord target = new PactRecord();
+			final Record target = new Record();
 			
 			// now test walking through the iterator
 			int lower = 0;
@@ -98,7 +98,7 @@ public class BlockResettableMutableObjectIteratorTest
 				upper = lower;
 				// find the upper bound
 				while (iterator.next(target)) {
-					int val = target.getField(0, PactInteger.class).getValue();
+					int val = target.getField(0, IntValue.class).getValue();
 					Assert.assertEquals(upper++, val);
 				}
 				// now reset the buffer a few times
@@ -106,7 +106,7 @@ public class BlockResettableMutableObjectIteratorTest
 					iterator.reset();
 					int count = 0;
 					while (iterator.next(target)) {
-						int val = target.getField(0, PactInteger.class).getValue();
+						int val = target.getField(0, IntValue.class).getValue();
 						Assert.assertEquals(lower + (count++), val);
 					}
 					Assert.assertEquals(upper - lower, count);
@@ -126,13 +126,13 @@ public class BlockResettableMutableObjectIteratorTest
 	{
 		try {
 			// create the resettable Iterator
-			final BlockResettableMutableObjectIterator<PactRecord> iterator = 
-						new BlockResettableMutableObjectIterator<PactRecord>(this.memman, this.reader, 
+			final BlockResettableMutableObjectIterator<Record> iterator = 
+						new BlockResettableMutableObjectIterator<Record>(this.memman, this.reader, 
 								this.serializer, 2 * this.memman.getPageSize(), memOwner);
 			// open the iterator
 			iterator.open();
 			
-			final PactRecord target = new PactRecord();
+			final Record target = new Record();
 			
 			// now test walking through the iterator
 			int lower = 0;
@@ -142,7 +142,7 @@ public class BlockResettableMutableObjectIteratorTest
 				upper = lower;
 				// find the upper bound
 				while (iterator.next(target)) {
-					int val = target.getField(0, PactInteger.class).getValue();
+					int val = target.getField(0, IntValue.class).getValue();
 					Assert.assertEquals(upper++, val);
 				}
 				// now reset the buffer a few times
@@ -150,7 +150,7 @@ public class BlockResettableMutableObjectIteratorTest
 					iterator.reset();
 					int count = 0;
 					while (iterator.next(target)) {
-						int val = target.getField(0, PactInteger.class).getValue();
+						int val = target.getField(0, IntValue.class).getValue();
 						Assert.assertEquals(lower + (count++), val);
 					}
 					Assert.assertEquals(upper - lower, count);
@@ -170,13 +170,13 @@ public class BlockResettableMutableObjectIteratorTest
 	{
 		try {
 			// create the resettable Iterator
-			final BlockResettableMutableObjectIterator<PactRecord> iterator = 
-						new BlockResettableMutableObjectIterator<PactRecord>(this.memman, this.reader, 
+			final BlockResettableMutableObjectIterator<Record> iterator = 
+						new BlockResettableMutableObjectIterator<Record>(this.memman, this.reader, 
 								this.serializer, 12 * this.memman.getPageSize(), memOwner);
 			// open the iterator
 			iterator.open();
 			
-			final PactRecord target = new PactRecord();
+			final Record target = new Record();
 			
 			// now test walking through the iterator
 			int lower = 0;
@@ -186,7 +186,7 @@ public class BlockResettableMutableObjectIteratorTest
 				upper = lower;
 				// find the upper bound
 				while (iterator.next(target)) {
-					int val = target.getField(0, PactInteger.class).getValue();
+					int val = target.getField(0, IntValue.class).getValue();
 					Assert.assertEquals(upper++, val);
 				}
 				// now reset the buffer a few times
@@ -194,7 +194,7 @@ public class BlockResettableMutableObjectIteratorTest
 					iterator.reset();
 					int count = 0;
 					while (iterator.next(target)) {
-						int val = target.getField(0, PactInteger.class).getValue();
+						int val = target.getField(0, IntValue.class).getValue();
 						Assert.assertEquals(lower + (count++), val);
 					}
 					Assert.assertEquals(upper - lower, count);

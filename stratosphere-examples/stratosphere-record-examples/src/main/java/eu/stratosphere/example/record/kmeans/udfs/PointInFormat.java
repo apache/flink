@@ -16,8 +16,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import eu.stratosphere.api.record.io.DelimitedInputFormat;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
 
 /**
  * Generates records with an id and a and CoordVector.
@@ -32,14 +32,14 @@ import eu.stratosphere.types.PactRecord;
 public class PointInFormat extends DelimitedInputFormat {
 	private static final long serialVersionUID = 1L;
 	
-	private final PactInteger idInteger = new PactInteger();
+	private final IntValue idInteger = new IntValue();
 	private final CoordVector point = new CoordVector();
 	
 	private final List<Double> dimensionValues = new ArrayList<Double>();
 	private double[] pointValues = new double[0];
 	
 	@Override
-	public boolean readRecord(PactRecord record, byte[] line, int offset, int numBytes) {
+	public boolean readRecord(Record record, byte[] line, int offset, int numBytes) {
 		
 		final int limit = offset + numBytes;
 		

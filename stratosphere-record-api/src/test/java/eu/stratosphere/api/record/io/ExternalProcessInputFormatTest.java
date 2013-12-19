@@ -25,8 +25,8 @@ import eu.stratosphere.api.record.io.ExternalProcessInputFormat;
 import eu.stratosphere.api.record.io.ExternalProcessInputSplit;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.io.GenericInputSplit;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.OperatingSystem;
 
 public class ExternalProcessInputFormatTest {
@@ -125,7 +125,7 @@ public class ExternalProcessInputFormatTest {
 		Configuration config = new Configuration();
 		config.setInteger(MyExternalProcessTestInputFormat.FAILCOUNT_PARAMETER_KEY, 100);
 		ExternalProcessInputSplit split = new ExternalProcessInputSplit(1, this.neverEndingCommand);
-		PactRecord record = new PactRecord();
+		Record record = new Record();
 	    	    
 		boolean userException = false;
 		boolean processDestroyed = false;
@@ -157,7 +157,7 @@ public class ExternalProcessInputFormatTest {
 		
 		Configuration config = new Configuration();
 		ExternalProcessInputSplit split = new ExternalProcessInputSplit(1, this.thousandRecordsCommand);
-		PactRecord record = new PactRecord();
+		Record record = new Record();
 
 		int cnt = 0;
 		try {
@@ -218,7 +218,7 @@ public class ExternalProcessInputFormatTest {
 		}
 
 		@Override
-		public boolean nextRecord(PactRecord record) throws IOException {
+		public boolean nextRecord(Record record) throws IOException {
 			
 			if(cnt > failCnt) {
 				throw new RuntimeException("This is a test exception!");
@@ -250,8 +250,8 @@ public class ExternalProcessInputFormatTest {
 			v2 = (v2 << 8) | (0xFF & buf[6]);
 			v2 = (v2 << 8) | (0xFF & buf[7]);
 			
-			record.setField(0,new PactInteger(v1));
-			record.setField(1,new PactInteger(v2));
+			record.setField(0,new IntValue(v1));
+			record.setField(1,new IntValue(v2));
 			
 			this.cnt++;
 			

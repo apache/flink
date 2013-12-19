@@ -16,13 +16,13 @@ package eu.stratosphere.types.parser;
 import java.util.HashMap;
 import java.util.Map;
 
-import eu.stratosphere.types.PactByte;
-import eu.stratosphere.types.PactDouble;
-import eu.stratosphere.types.PactFloat;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactLong;
-import eu.stratosphere.types.PactShort;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.ByteValue;
+import eu.stratosphere.types.DoubleValue;
+import eu.stratosphere.types.FloatValue;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.LongValue;
+import eu.stratosphere.types.ShortValue;
+import eu.stratosphere.types.StringValue;
 import eu.stratosphere.types.Value;
 
 /**
@@ -74,12 +74,12 @@ public abstract class FieldParser<T extends Value> {
 			new HashMap<Class<? extends Value>, Class<? extends FieldParser<?>>>();
 	
 	static {
-		PARSERS.put(PactByte.class, DecimalTextByteParser.class);
-		PARSERS.put(PactShort.class, DecimalTextShortParser.class);
-		PARSERS.put(PactInteger.class, DecimalTextIntParser.class);
-		PARSERS.put(PactLong.class, DecimalTextLongParser.class);
-		PARSERS.put(PactString.class, VarLengthStringParser.class);
-		PARSERS.put(PactFloat.class, DecimalTextFloatParser.class);
-		PARSERS.put(PactDouble.class, DecimalTextDoubleParser.class);
+		PARSERS.put(ByteValue.class, DecimalTextByteParser.class);
+		PARSERS.put(ShortValue.class, DecimalTextShortParser.class);
+		PARSERS.put(IntValue.class, DecimalTextIntParser.class);
+		PARSERS.put(LongValue.class, DecimalTextLongParser.class);
+		PARSERS.put(StringValue.class, VarLengthStringParser.class);
+		PARSERS.put(FloatValue.class, DecimalTextFloatParser.class);
+		PARSERS.put(DoubleValue.class, DecimalTextDoubleParser.class);
 	}
 }

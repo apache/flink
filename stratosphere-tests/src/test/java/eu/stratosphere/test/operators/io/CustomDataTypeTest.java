@@ -36,7 +36,7 @@ import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.test.util.TestBase;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 
 
 @RunWith(Parameterized.class)
@@ -99,12 +99,12 @@ public class CustomDataTypeTest extends TestBase
 		}
 
 		@Override
-		public boolean nextRecord(PactRecord record) throws IOException {
+		public boolean nextRecord(Record record) throws IOException {
 			return false;
 		}
 	}
 	
-	public static final class BlackholeOutputFormat implements OutputFormat<PactRecord> {
+	public static final class BlackholeOutputFormat implements OutputFormat<Record> {
 		private static final long serialVersionUID = 1L;
 		
 		@Override
@@ -117,7 +117,7 @@ public class CustomDataTypeTest extends TestBase
 		public void open(int taskNumber) throws IOException {}
 
 		@Override
-		public void writeRecord(PactRecord record) throws IOException {}
+		public void writeRecord(Record record) throws IOException {}
 
 		@Override
 		public void close() throws IOException {}

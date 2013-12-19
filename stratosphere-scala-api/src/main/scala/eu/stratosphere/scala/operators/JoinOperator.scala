@@ -16,7 +16,7 @@ package eu.stratosphere.scala.operators
 import language.experimental.macros
 import scala.reflect.macros.Context
 
-import eu.stratosphere.types.PactRecord
+import eu.stratosphere.types.Record
 import eu.stratosphere.util.Collector
 import eu.stratosphere.api.operators.Operator
 import eu.stratosphere.api.record.operators.JoinOperator
@@ -96,7 +96,7 @@ object JoinMacros {
       implicit val rightInputUDT: UDT[RightIn] = c.Expr[UDT[RightIn]](createUdtRightIn).splice
       implicit val outputUDT: UDT[Out] = c.Expr[UDT[Out]](createUdtOut).splice
       new JoinFunctionBase[LeftIn, RightIn, Out] {
-        override def `match`(leftRecord: PactRecord, rightRecord: PactRecord, out: Collector[PactRecord]) = {
+        override def `match`(leftRecord: Record, rightRecord: Record, out: Collector[Record]) = {
           val left = leftDeserializer.deserializeRecyclingOn(leftRecord)
           val right = rightDeserializer.deserializeRecyclingOn(rightRecord)
           val output = fun.splice.apply(left, right)
@@ -165,7 +165,7 @@ object JoinMacros {
       implicit val rightInputUDT: UDT[RightIn] = c.Expr[UDT[RightIn]](createUdtRightIn).splice
       implicit val outputUDT: UDT[Out] = c.Expr[UDT[Out]](createUdtOut).splice
       new JoinFunctionBase[LeftIn, RightIn, Out] {
-        override def `match`(leftRecord: PactRecord, rightRecord: PactRecord, out: Collector[PactRecord]) = {
+        override def `match`(leftRecord: Record, rightRecord: Record, out: Collector[Record]) = {
           val left = leftDeserializer.deserializeRecyclingOn(leftRecord)
           val right = rightDeserializer.deserializeRecyclingOn(rightRecord)
           val output = fun.splice.apply(left, right)
@@ -238,7 +238,7 @@ object JoinMacros {
       implicit val rightInputUDT: UDT[RightIn] = c.Expr[UDT[RightIn]](createUdtRightIn).splice
       implicit val outputUDT: UDT[(LeftIn, RightIn)] = c.Expr[UDT[(LeftIn, RightIn)]](createUdtOut).splice
       new JoinFunctionBase[LeftIn, RightIn, (LeftIn, RightIn)] {
-        override def `match`(leftRecord: PactRecord, rightRecord: PactRecord, out: Collector[PactRecord]) = {
+        override def `match`(leftRecord: Record, rightRecord: Record, out: Collector[Record]) = {
           val left = leftDeserializer.deserializeRecyclingOn(leftRecord)
           val right = rightDeserializer.deserializeRecyclingOn(rightRecord)
           if (fun.splice.apply(left, right)) {

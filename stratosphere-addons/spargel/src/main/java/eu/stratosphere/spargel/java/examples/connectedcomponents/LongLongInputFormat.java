@@ -14,8 +14,8 @@
 package eu.stratosphere.spargel.java.examples.connectedcomponents;
 
 import eu.stratosphere.api.record.io.TextInputFormat;
-import eu.stratosphere.types.PactLong;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.LongValue;
+import eu.stratosphere.types.Record;
 
 import java.util.regex.Pattern;
 
@@ -25,11 +25,11 @@ public class LongLongInputFormat extends TextInputFormat {
 
 	private static final Pattern SEPARATOR = Pattern.compile("[,\t ]");
 	
-	private final PactLong l1 = new PactLong();
-	private final PactLong l2 = new PactLong();
+	private final LongValue l1 = new LongValue();
+	private final LongValue l2 = new LongValue();
 
 	@Override
-	public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes) {
+	public boolean readRecord(Record target, byte[] bytes, int offset, int numBytes) {
 		String str = new String(bytes, offset, numBytes);
 		String[] parts = SEPARATOR.split(str);
 

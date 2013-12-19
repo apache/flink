@@ -14,8 +14,8 @@
 package eu.stratosphere.test.testPrograms.util;
 
 import eu.stratosphere.api.record.io.DelimitedInputFormat;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
 
 public class IntTupleDataInFormat extends DelimitedInputFormat {
 	private static final long serialVersionUID = 1L;
@@ -24,11 +24,11 @@ public class IntTupleDataInFormat extends DelimitedInputFormat {
 
 	public static final int DELIMITER = '|';
 	
-	private final PactInteger key = new PactInteger();
+	private final IntValue key = new IntValue();
 	private final int[] offsets = new int[MAX_COLUMNS];
 
 	@Override
-	public boolean readRecord(PactRecord target, byte[] line, int offset, int numBytes)
+	public boolean readRecord(Record target, byte[] line, int offset, int numBytes)
 	{
 		final int limit = offset + numBytes;
 		int readPos = offset;

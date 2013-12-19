@@ -31,8 +31,8 @@ import eu.stratosphere.api.record.operators.CoGroupOperator;
 import eu.stratosphere.api.record.operators.JoinOperator;
 import eu.stratosphere.api.record.operators.MapOperator;
 import eu.stratosphere.api.record.operators.CoGroupOperator.CombinableFirst;
-import eu.stratosphere.types.PactLong;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.LongValue;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 import eu.stratosphere.example.record.connectedcomponents.WorksetConnectedComponents.DuplicateLongMap;
@@ -49,20 +49,20 @@ public class WorksetConnectedComponentsWithCoGroup implements Program, ProgramDe
 	public static final class MinIdAndUpdate extends CoGroupFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 
-		private final PactLong newComponentId = new PactLong();
+		private final LongValue newComponentId = new LongValue();
 		
 		@Override
-		public void coGroup(Iterator<PactRecord> candidates, Iterator<PactRecord> current, Collector<PactRecord> out) throws Exception {
+		public void coGroup(Iterator<Record> candidates, Iterator<Record> current, Collector<Record> out) throws Exception {
 			if (!current.hasNext()) {
 				throw new Exception("Error: Id not encountered before.");
 			}
-			PactRecord old = current.next();
-			long oldId = old.getField(1, PactLong.class).getValue();
+			Record old = current.next();
+			long oldId = old.getField(1, LongValue.class).getValue();
 			
 			long minimumComponentID = Long.MAX_VALUE;
 
 			while (candidates.hasNext()) {
-				long candidateComponentID = candidates.next().getField(1, PactLong.class).getValue();
+				long candidateComponentID = candidates.next().getField(1, LongValue.class).getValue();
 				if (candidateComponentID < minimumComponentID) {
 					minimumComponentID = candidateComponentID;
 				}
@@ -76,12 +76,12 @@ public class WorksetConnectedComponentsWithCoGroup implements Program, ProgramDe
 		}
 		
 		@Override
-		public void combineFirst(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {
-			PactRecord next = null;
+		public void combineFirst(Iterator<Record> records, Collector<Record> out) throws Exception {
+			Record next = null;
 			long min = Long.MAX_VALUE;
 			while (records.hasNext()) {
 				next = records.next();
-				min = Math.min(min, next.getField(1, PactLong.class).getValue());
+				min = Math.min(min, next.getField(1, LongValue.class).getValue());
 			}
 			
 			newComponentId.setValue(min);
@@ -101,7 +101,7 @@ public class WorksetConnectedComponentsWithCoGroup implements Program, ProgramDe
 		final int maxIterations = (args.length > 4 ? Integer.parseInt(args[4]) : 1);
 
 		// data source for initial vertices
-		FileDataSource initialVertices = new FileDataSource(new CsvInputFormat(' ', PactLong.class), verticesInput, "Vertices");
+		FileDataSource initialVertices = new FileDataSource(new CsvInputFormat(' ', LongValue.class), verticesInput, "Vertices");
 		
 		MapOperator verticesWithId = MapOperator.builder(DuplicateLongMap.class).input(initialVertices).name("Assign Vertex Ids").build();
 		
@@ -111,16 +111,16 @@ public class WorksetConnectedComponentsWithCoGroup implements Program, ProgramDe
 		iteration.setMaximumNumberOfIterations(maxIterations);
 		
 		// create DataSourceContract for the edges
-		FileDataSource edges = new FileDataSource(new CsvInputFormat(' ', PactLong.class, PactLong.class), edgeInput, "Edges");
+		FileDataSource edges = new FileDataSource(new CsvInputFormat(' ', LongValue.class, LongValue.class), edgeInput, "Edges");
 
 		// create CrossOperator for distance computation
-		JoinOperator joinWithNeighbors = JoinOperator.builder(new NeighborWithComponentIDJoin(), PactLong.class, 0, 0)
+		JoinOperator joinWithNeighbors = JoinOperator.builder(new NeighborWithComponentIDJoin(), LongValue.class, 0, 0)
 				.input1(iteration.getWorkset())
 				.input2(edges)
 				.name("Join Candidate Id With Neighbor")
 				.build();
 
-		CoGroupOperator minAndUpdate = CoGroupOperator.builder(new MinIdAndUpdate(), PactLong.class, 0, 0)
+		CoGroupOperator minAndUpdate = CoGroupOperator.builder(new MinIdAndUpdate(), LongValue.class, 0, 0)
 				.input1(joinWithNeighbors)
 				.input2(iteration.getSolutionSet())
 				.name("Min Id and Update")
@@ -134,8 +134,8 @@ public class WorksetConnectedComponentsWithCoGroup implements Program, ProgramDe
 		CsvOutputFormat.configureRecordFormat(result)
 			.recordDelimiter('\n')
 			.fieldDelimiter(' ')
-			.field(PactLong.class, 0)
-			.field(PactLong.class, 1);
+			.field(LongValue.class, 0)
+			.field(LongValue.class, 1);
 
 		// return the PACT plan
 		Plan plan = new Plan(result, "Workset Connected Components");

@@ -19,7 +19,7 @@ import eu.stratosphere.scala.codegen.MacroContextHolder
 import eu.stratosphere.scala.ScalaContract
 import eu.stratosphere.api.record.operators.MapOperator
 import eu.stratosphere.scala.analysis.UDT
-import eu.stratosphere.types.PactRecord
+import eu.stratosphere.types.Record
 import eu.stratosphere.api.record.functions.MapFunction
 import eu.stratosphere.util.Collector
 import eu.stratosphere.api.operators.Operator

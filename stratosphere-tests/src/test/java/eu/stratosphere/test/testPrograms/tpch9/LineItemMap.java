@@ -15,7 +15,7 @@ package eu.stratosphere.test.testPrograms.tpch9;
 
 import eu.stratosphere.api.record.functions.MapFunction;
 import eu.stratosphere.test.testPrograms.util.Tuple;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 public class LineItemMap extends MapFunction
@@ -29,7 +29,7 @@ public class LineItemMap extends MapFunction
 	 *
 	 */
 	@Override
-	public void map(PactRecord record, Collector<PactRecord> out) throws Exception
+	public void map(Record record, Collector<Record> out) throws Exception
 	{
 		Tuple inputTuple = record.getField(1, Tuple.class);
 		

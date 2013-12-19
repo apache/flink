@@ -15,13 +15,13 @@ package eu.stratosphere.test.testPrograms.tpch9;
 
 import eu.stratosphere.api.record.functions.MapFunction;
 import eu.stratosphere.test.testPrograms.util.Tuple;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 public class SupplierMap extends MapFunction {
 	
-	private PactInteger suppKey = new PactInteger();
+	private IntValue suppKey = new IntValue();
 	private Tuple inputTuple = new Tuple();
 	
 	/**
@@ -33,12 +33,12 @@ public class SupplierMap extends MapFunction {
 	 *
 	 */
 	@Override
-	public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
+	public void map(Record record, Collector<Record> out) throws Exception {
 		suppKey = record.getField(0, suppKey);
 		inputTuple = record.getField(1, inputTuple);
 		
 		/* Project (suppkey | name, address, nationkey, phone, acctbal, comment): */
-		PactInteger nationKey = new PactInteger(Integer.parseInt(inputTuple.getStringValueAt(3)));
+		IntValue nationKey = new IntValue(Integer.parseInt(inputTuple.getStringValueAt(3)));
 		
 		record.setField(0, nationKey);
 		record.setField(1, suppKey);

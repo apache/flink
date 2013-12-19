@@ -13,17 +13,17 @@
 
 package eu.stratosphere.types.parser;
 
-import eu.stratosphere.types.PactLong;
+import eu.stratosphere.types.LongValue;
 
 /**
- * Parses a decimal text field into a PactLong.
+ * Parses a decimal text field into a LongValue.
  * Only characters '1' to '0' and '-' are allowed.
  * The parser does not check for the overflows and underflows.
  */
-public class DecimalTextLongParser extends FieldParser<PactLong> {
+public class DecimalTextLongParser extends FieldParser<LongValue> {
 	
 	@Override
-	public int parseField(byte[] bytes, int startPos, int length, char delim, PactLong field) {
+	public int parseField(byte[] bytes, int startPos, int length, char delim, LongValue field) {
 		
 		long val = 0;
 		boolean neg = false;
@@ -49,8 +49,8 @@ public class DecimalTextLongParser extends FieldParser<PactLong> {
 	}
 	
 	@Override
-	public PactLong createValue() {
-		return new PactLong();
+	public LongValue createValue() {
+		return new LongValue();
 	}
 	
 	public static final long parseField(byte[] bytes, int startPos, int length, char delim) {

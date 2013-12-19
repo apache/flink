@@ -22,20 +22,20 @@ import org.junit.Assert;
 
 import eu.stratosphere.api.functions.GenericJoiner;
 import eu.stratosphere.api.record.functions.JoinFunction;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparator;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordPairComparatorFactory;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparator;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordPairComparatorFactory;
 import eu.stratosphere.pact.runtime.test.util.DelayingInfinitiveInputIterator;
 import eu.stratosphere.pact.runtime.test.util.DriverTestBase;
 import eu.stratosphere.pact.runtime.test.util.ExpectedTestException;
 import eu.stratosphere.pact.runtime.test.util.NirvanaOutputList;
-import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
+import eu.stratosphere.pact.runtime.test.util.UniformRecordGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
 import eu.stratosphere.types.Key;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
-public class MatchTaskTest extends DriverTestBase<GenericJoiner<PactRecord, PactRecord, PactRecord>>
+public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, Record>>
 {
 	private static final long HASH_MEM = 6*1024*1024;
 	
@@ -44,14 +44,14 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<PactRecord, Pact
 	private static final long BNLJN_MEM = 10 * PAGE_SIZE;
 	
 	@SuppressWarnings("unchecked")
-	private final PactRecordComparator comparator1 = new PactRecordComparator(
-		new int[]{0}, (Class<? extends Key>[])new Class[]{ PactInteger.class });
+	private final RecordComparator comparator1 = new RecordComparator(
+		new int[]{0}, (Class<? extends Key>[])new Class[]{ IntValue.class });
 	
 	@SuppressWarnings("unchecked")
-	private final PactRecordComparator comparator2 = new PactRecordComparator(
-		new int[]{0}, (Class<? extends Key>[])new Class[]{ PactInteger.class });
+	private final RecordComparator comparator2 = new RecordComparator(
+		new int[]{0}, (Class<? extends Key>[])new Class[]{ IntValue.class });
 	
-	private final List<PactRecord> outList = new ArrayList<PactRecord>();
+	private final List<Record> outList = new ArrayList<Record>();
 	
 	
 	public MatchTaskTest() {
@@ -70,16 +70,16 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<PactRecord, Pact
 		setOutput(this.outList);
 		addInputComparator(this.comparator1);
 		addInputComparator(this.comparator2);
-		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
 		getTaskConfig().setMemoryDriver(BNLJN_MEM);
 		setNumFileHandlesForSort(4);
 		
-		final MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
+		final MatchDriver<Record, Record, Record> testTask = new MatchDriver<Record, Record, Record>();
 		
 		try {
-			addInputSorted(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), this.comparator1.duplicate());
-			addInputSorted(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), this.comparator2.duplicate());
+			addInputSorted(new UniformRecordGenerator(keyCnt1, valCnt1, false), this.comparator1.duplicate());
+			addInputSorted(new UniformRecordGenerator(keyCnt2, valCnt2, false), this.comparator2.duplicate());
 			testDriver(testTask, MockMatchStub.class);
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -104,16 +104,16 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<PactRecord, Pact
 		setOutput(this.outList);
 		addInputComparator(this.comparator1);
 		addInputComparator(this.comparator2);
-		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
 		getTaskConfig().setMemoryDriver(BNLJN_MEM);
 		setNumFileHandlesForSort(4);
 		
-		final MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
+		final MatchDriver<Record, Record, Record> testTask = new MatchDriver<Record, Record, Record>();
 		
 		try {
-			addInputSorted(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), this.comparator1.duplicate());
-			addInputSorted(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), this.comparator2.duplicate());
+			addInputSorted(new UniformRecordGenerator(keyCnt1, valCnt1, false), this.comparator1.duplicate());
+			addInputSorted(new UniformRecordGenerator(keyCnt2, valCnt2, false), this.comparator2.duplicate());
 			testDriver(testTask, MockMatchStub.class);
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -140,16 +140,16 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<PactRecord, Pact
 		setOutput(this.outList);
 		addInputComparator(this.comparator1);
 		addInputComparator(this.comparator2);
-		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
 		getTaskConfig().setMemoryDriver(BNLJN_MEM);
 		setNumFileHandlesForSort(4);
 		
-		final MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
+		final MatchDriver<Record, Record, Record> testTask = new MatchDriver<Record, Record, Record>();
 		
 		try {
-			addInputSorted(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), this.comparator1.duplicate());
-			addInputSorted(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), this.comparator2.duplicate());
+			addInputSorted(new UniformRecordGenerator(keyCnt1, valCnt1, false), this.comparator1.duplicate());
+			addInputSorted(new UniformRecordGenerator(keyCnt2, valCnt2, false), this.comparator2.duplicate());
 			testDriver(testTask, MockMatchStub.class);
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -176,16 +176,16 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<PactRecord, Pact
 		setOutput(this.outList);
 		addInputComparator(this.comparator1);
 		addInputComparator(this.comparator2);
-		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
 		getTaskConfig().setMemoryDriver(BNLJN_MEM);
 		setNumFileHandlesForSort(4);
 		
-		final MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
+		final MatchDriver<Record, Record, Record> testTask = new MatchDriver<Record, Record, Record>();
 		
 		try {
-			addInputSorted(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), this.comparator1.duplicate());
-			addInputSorted(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), this.comparator2.duplicate());
+			addInputSorted(new UniformRecordGenerator(keyCnt1, valCnt1, false), this.comparator1.duplicate());
+			addInputSorted(new UniformRecordGenerator(keyCnt2, valCnt2, false), this.comparator2.duplicate());
 			testDriver(testTask, MockMatchStub.class);
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -212,16 +212,16 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<PactRecord, Pact
 		setOutput(this.outList);
 		addInputComparator(this.comparator1);
 		addInputComparator(this.comparator2);
-		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
 		getTaskConfig().setMemoryDriver(BNLJN_MEM);
 		setNumFileHandlesForSort(4);
 		
-		final MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
+		final MatchDriver<Record, Record, Record> testTask = new MatchDriver<Record, Record, Record>();
 		
 		try {
-			addInputSorted(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), this.comparator1.duplicate());
-			addInputSorted(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), this.comparator2.duplicate());
+			addInputSorted(new UniformRecordGenerator(keyCnt1, valCnt1, false), this.comparator1.duplicate());
+			addInputSorted(new UniformRecordGenerator(keyCnt2, valCnt2, false), this.comparator2.duplicate());
 			testDriver(testTask, MockMatchStub.class);
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -248,16 +248,16 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<PactRecord, Pact
 		setOutput(this.outList);
 		addInputComparator(this.comparator1);
 		addInputComparator(this.comparator2);
-		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
 		getTaskConfig().setMemoryDriver(BNLJN_MEM);
 		setNumFileHandlesForSort(4);
 		
-		final MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
+		final MatchDriver<Record, Record, Record> testTask = new MatchDriver<Record, Record, Record>();
 		
 		try {
-			addInputSorted(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), this.comparator1.duplicate());
-			addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, true));
+			addInputSorted(new UniformRecordGenerator(keyCnt1, valCnt1, false), this.comparator1.duplicate());
+			addInput(new UniformRecordGenerator(keyCnt2, valCnt2, true));
 			testDriver(testTask, MockMatchStub.class);
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -284,16 +284,16 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<PactRecord, Pact
 		setOutput(this.outList);
 		addInputComparator(this.comparator1);
 		addInputComparator(this.comparator2);
-		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
 		getTaskConfig().setMemoryDriver(BNLJN_MEM);
 		setNumFileHandlesForSort(4);
 		
-		final MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
+		final MatchDriver<Record, Record, Record> testTask = new MatchDriver<Record, Record, Record>();
 		
 		try {
-			addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, true));
-			addInputSorted(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), this.comparator2.duplicate());
+			addInput(new UniformRecordGenerator(keyCnt1, valCnt1, true));
+			addInputSorted(new UniformRecordGenerator(keyCnt2, valCnt2, false), this.comparator2.duplicate());
 			testDriver(testTask, MockMatchStub.class);
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -319,15 +319,15 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<PactRecord, Pact
 		setOutput(this.outList);
 		addInputComparator(this.comparator1);
 		addInputComparator(this.comparator2);
-		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
 		getTaskConfig().setMemoryDriver(BNLJN_MEM);
 		setNumFileHandlesForSort(4);
 		
-		final MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
+		final MatchDriver<Record, Record, Record> testTask = new MatchDriver<Record, Record, Record>();
 		
-		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, true));
-		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, true));
+		addInput(new UniformRecordGenerator(keyCnt1, valCnt1, true));
+		addInput(new UniformRecordGenerator(keyCnt2, valCnt2, true));
 		
 		try {
 			testDriver(testTask, MockMatchStub.class);
@@ -355,15 +355,15 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<PactRecord, Pact
 		setOutput(new NirvanaOutputList());
 		addInputComparator(this.comparator1);
 		addInputComparator(this.comparator2);
-		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
 		getTaskConfig().setMemoryDriver(BNLJN_MEM);
 		setNumFileHandlesForSort(4);
 		
-		final MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
+		final MatchDriver<Record, Record, Record> testTask = new MatchDriver<Record, Record, Record>();
 		
-		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, true));
-		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, true));
+		addInput(new UniformRecordGenerator(keyCnt1, valCnt1, true));
+		addInput(new UniformRecordGenerator(keyCnt2, valCnt2, true));
 		
 		try {
 			testDriver(testTask, MockFailingMatchStub.class);
@@ -384,16 +384,16 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<PactRecord, Pact
 		setOutput(new NirvanaOutputList());
 		addInputComparator(this.comparator1);
 		addInputComparator(this.comparator2);
-		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
 		getTaskConfig().setMemoryDriver(BNLJN_MEM);
 		setNumFileHandlesForSort(4);
 		
-		final MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
+		final MatchDriver<Record, Record, Record> testTask = new MatchDriver<Record, Record, Record>();
 		
 		try {
 			addInputSorted(new DelayingInfinitiveInputIterator(100), this.comparator1.duplicate());
-			addInput(new UniformPactRecordGenerator(keyCnt, valCnt, true));
+			addInput(new UniformRecordGenerator(keyCnt, valCnt, true));
 		} catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail("The test caused an exception.");
@@ -435,15 +435,15 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<PactRecord, Pact
 		setOutput(new NirvanaOutputList());
 		addInputComparator(this.comparator1);
 		addInputComparator(this.comparator2);
-		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
 		getTaskConfig().setMemoryDriver(BNLJN_MEM);
 		setNumFileHandlesForSort(4);
 		
-		final MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
+		final MatchDriver<Record, Record, Record> testTask = new MatchDriver<Record, Record, Record>();
 		
 		try {
-			addInput(new UniformPactRecordGenerator(keyCnt, valCnt, true));
+			addInput(new UniformRecordGenerator(keyCnt, valCnt, true));
 			addInputSorted(new DelayingInfinitiveInputIterator(100), this.comparator1.duplicate());
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -486,15 +486,15 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<PactRecord, Pact
 		setOutput(new NirvanaOutputList());
 		addInputComparator(this.comparator1);
 		addInputComparator(this.comparator2);
-		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
 		getTaskConfig().setMemoryDriver(BNLJN_MEM);
 		setNumFileHandlesForSort(4);
 		
-		final MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
+		final MatchDriver<Record, Record, Record> testTask = new MatchDriver<Record, Record, Record>();
 		
-		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, true));
-		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, true));
+		addInput(new UniformRecordGenerator(keyCnt, valCnt, true));
+		addInput(new UniformRecordGenerator(keyCnt, valCnt, true));
 		
 		final AtomicBoolean success = new AtomicBoolean(false);
 		
@@ -532,16 +532,16 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<PactRecord, Pact
 		int keyCnt2 = 10;
 		int valCnt2 = 2;
 				
-		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
+		addInput(new UniformRecordGenerator(keyCnt1, valCnt1, false));
+		addInput(new UniformRecordGenerator(keyCnt2, valCnt2, false));
 		addInputComparator(this.comparator1);
 		addInputComparator(this.comparator2);
-		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		setOutput(this.outList);
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_FIRST);
 		getTaskConfig().setMemoryDriver(HASH_MEM);
 		
-		MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
+		MatchDriver<Record, Record, Record> testTask = new MatchDriver<Record, Record, Record>();
 		
 		try {
 			testDriver(testTask, MockMatchStub.class);
@@ -563,16 +563,16 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<PactRecord, Pact
 		int keyCnt2 = 20;
 		int valCnt2 = 1;
 		
-		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
+		addInput(new UniformRecordGenerator(keyCnt1, valCnt1, false));
+		addInput(new UniformRecordGenerator(keyCnt2, valCnt2, false));
 		addInputComparator(this.comparator1);
 		addInputComparator(this.comparator2);
-		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		setOutput(this.outList);
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_SECOND);
 		getTaskConfig().setMemoryDriver(HASH_MEM);
 		
-		MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
+		MatchDriver<Record, Record, Record> testTask = new MatchDriver<Record, Record, Record>();
 		
 		try {
 			testDriver(testTask, MockMatchStub.class);
@@ -594,16 +594,16 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<PactRecord, Pact
 		int keyCnt2 = 20;
 		int valCnt2 = 20;
 		
-		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
+		addInput(new UniformRecordGenerator(keyCnt1, valCnt1, false));
+		addInput(new UniformRecordGenerator(keyCnt2, valCnt2, false));
 		addInputComparator(this.comparator1);
 		addInputComparator(this.comparator2);
-		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		setOutput(this.outList);
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_FIRST);
 		getTaskConfig().setMemoryDriver(HASH_MEM);
 		
-		MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
+		MatchDriver<Record, Record, Record> testTask = new MatchDriver<Record, Record, Record>();
 		
 		try {
 			testDriver(testTask, MockMatchStub.class);
@@ -625,16 +625,16 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<PactRecord, Pact
 		int keyCnt2 = 20;
 		int valCnt2 = 1;
 		
-		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
+		addInput(new UniformRecordGenerator(keyCnt1, valCnt1, false));
+		addInput(new UniformRecordGenerator(keyCnt2, valCnt2, false));
 		addInputComparator(this.comparator1);
 		addInputComparator(this.comparator2);
-		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		setOutput(this.outList);
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_SECOND);
 		getTaskConfig().setMemoryDriver(HASH_MEM);
 		
-		MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
+		MatchDriver<Record, Record, Record> testTask = new MatchDriver<Record, Record, Record>();
 		
 		try {
 			testDriver(testTask, MockMatchStub.class);
@@ -656,16 +656,16 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<PactRecord, Pact
 		int keyCnt2 = 20;
 		int valCnt2 = 20;
 		
-		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
+		addInput(new UniformRecordGenerator(keyCnt1, valCnt1, false));
+		addInput(new UniformRecordGenerator(keyCnt2, valCnt2, false));
 		addInputComparator(this.comparator1);
 		addInputComparator(this.comparator2);
-		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		setOutput(this.outList);
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_FIRST);
 		getTaskConfig().setMemoryDriver(HASH_MEM);
 		
-		MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
+		MatchDriver<Record, Record, Record> testTask = new MatchDriver<Record, Record, Record>();
 		
 		try {
 			testDriver(testTask, MockMatchStub.class);
@@ -687,16 +687,16 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<PactRecord, Pact
 		int keyCnt2 = 20;
 		int valCnt2 = 20;
 		
-		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
+		addInput(new UniformRecordGenerator(keyCnt1, valCnt1, false));
+		addInput(new UniformRecordGenerator(keyCnt2, valCnt2, false));
 		addInputComparator(this.comparator1);
 		addInputComparator(this.comparator2);
-		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		setOutput(new NirvanaOutputList());
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_FIRST);
 		getTaskConfig().setMemoryDriver(HASH_MEM);
 		
-		MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
+		MatchDriver<Record, Record, Record> testTask = new MatchDriver<Record, Record, Record>();
 		
 		try {
 			testDriver(testTask, MockFailingMatchStub.class);
@@ -717,16 +717,16 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<PactRecord, Pact
 		int keyCnt2 = 20;
 		int valCnt2 = 20;
 		
-		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
+		addInput(new UniformRecordGenerator(keyCnt1, valCnt1, false));
+		addInput(new UniformRecordGenerator(keyCnt2, valCnt2, false));
 		addInputComparator(this.comparator1);
 		addInputComparator(this.comparator2);
-		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		setOutput(new NirvanaOutputList());
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_SECOND);
 		getTaskConfig().setMemoryDriver(HASH_MEM);
 		
-		MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
+		MatchDriver<Record, Record, Record> testTask = new MatchDriver<Record, Record, Record>();
 		
 		try {
 			testDriver(testTask, MockFailingMatchStub.class);
@@ -745,19 +745,19 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<PactRecord, Pact
 		int valCnt = 20;
 		
 		addInput(new DelayingInfinitiveInputIterator(100));
-		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
+		addInput(new UniformRecordGenerator(keyCnt, valCnt, false));
 		
 		addInputComparator(this.comparator1);
 		addInputComparator(this.comparator2);
 		
-		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		
 		setOutput(new NirvanaOutputList());
 		
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_FIRST);
 		getTaskConfig().setMemoryDriver(HASH_MEM);
 		
-		final MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
+		final MatchDriver<Record, Record, Record> testTask = new MatchDriver<Record, Record, Record>();
 		
 		final AtomicBoolean success = new AtomicBoolean(false);
 		
@@ -792,16 +792,16 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<PactRecord, Pact
 		int keyCnt = 20;
 		int valCnt = 20;
 		
-		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
+		addInput(new UniformRecordGenerator(keyCnt, valCnt, false));
 		addInput(new DelayingInfinitiveInputIterator(100));
 		addInputComparator(this.comparator1);
 		addInputComparator(this.comparator2);
-		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		setOutput(new NirvanaOutputList());
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_SECOND);
 		getTaskConfig().setMemoryDriver(HASH_MEM);
 		
-		final MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
+		final MatchDriver<Record, Record, Record> testTask = new MatchDriver<Record, Record, Record>();
 		
 		final AtomicBoolean success = new AtomicBoolean(false);
 		
@@ -836,16 +836,16 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<PactRecord, Pact
 		int keyCnt = 20;
 		int valCnt = 20;
 		
-		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
-		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
+		addInput(new UniformRecordGenerator(keyCnt, valCnt, false));
+		addInput(new UniformRecordGenerator(keyCnt, valCnt, false));
 		addInputComparator(this.comparator1);
 		addInputComparator(this.comparator2);
-		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		setOutput(new NirvanaOutputList());
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_FIRST);
 		getTaskConfig().setMemoryDriver(HASH_MEM);
 		
-		final MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
+		final MatchDriver<Record, Record, Record> testTask = new MatchDriver<Record, Record, Record>();
 		
 		final AtomicBoolean success = new AtomicBoolean(false);
 		
@@ -880,16 +880,16 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<PactRecord, Pact
 		int keyCnt = 20;
 		int valCnt = 20;
 		
-		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
-		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
+		addInput(new UniformRecordGenerator(keyCnt, valCnt, false));
+		addInput(new UniformRecordGenerator(keyCnt, valCnt, false));
 		addInputComparator(this.comparator1);
 		addInputComparator(this.comparator2);
-		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		setOutput(new NirvanaOutputList());
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_SECOND);
 		getTaskConfig().setMemoryDriver(HASH_MEM);
 		
-		final MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
+		final MatchDriver<Record, Record, Record> testTask = new MatchDriver<Record, Record, Record>();
 		
 		final AtomicBoolean success = new AtomicBoolean(false);
 		
@@ -924,7 +924,7 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<PactRecord, Pact
 	public static final class MockMatchStub extends JoinFunction
 	{
 		@Override
-		public void match(PactRecord record1, PactRecord record2, Collector<PactRecord> out) throws Exception {
+		public void match(Record record1, Record record2, Collector<Record> out) throws Exception {
 			out.collect(record1);
 		}
 	}
@@ -934,7 +934,7 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<PactRecord, Pact
 		private int cnt = 0;
 		
 		@Override
-		public void match(PactRecord record1, PactRecord record2, Collector<PactRecord> out) {
+		public void match(Record record1, Record record2, Collector<Record> out) {
 			if (++this.cnt >= 10) {
 				throw new ExpectedTestException();
 			}
@@ -946,7 +946,7 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<PactRecord, Pact
 	public static final class MockDelayingMatchStub extends JoinFunction
 	{
 		@Override
-		public void match(PactRecord record1, PactRecord record2, Collector<PactRecord> out) {
+		public void match(Record record1, Record record2, Collector<Record> out) {
 			try {
 				Thread.sleep(100);
 			} catch (InterruptedException e) { }

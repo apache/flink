@@ -17,13 +17,13 @@ package eu.stratosphere.test.testPrograms.tpch9;
 import java.util.Iterator;
 
 import eu.stratosphere.api.record.functions.ReduceFunction;
-import eu.stratosphere.types.PactRecord;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.Record;
+import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
 
 public class AmountAggregate extends ReduceFunction
 {
-	private PactString value = new PactString();
+	private StringValue value = new StringValue();
 	
 	/**
 	 * Aggregate "amount":
@@ -38,14 +38,14 @@ public class AmountAggregate extends ReduceFunction
 	 */
 	
 	@Override
-	public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception
+	public void reduce(Iterator<Record> records, Collector<Record> out) throws Exception
 	{
-		PactRecord record = null;
+		Record record = null;
 		float amount = 0;
 
 		while (records.hasNext()) {
 			record = records.next();
-			PactString value = record.getField(1, PactString.class);
+			StringValue value = record.getField(1, StringValue.class);
 			amount += Float.parseFloat(value.toString());
 		}
 
@@ -59,7 +59,7 @@ public class AmountAggregate extends ReduceFunction
 	 * Creates partial sums of "amount" for each data batch:
 	 */
 	@Override
-	public void combine(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception
+	public void combine(Iterator<Record> records, Collector<Record> out) throws Exception
 	{
 		reduce(records, out);
 	}

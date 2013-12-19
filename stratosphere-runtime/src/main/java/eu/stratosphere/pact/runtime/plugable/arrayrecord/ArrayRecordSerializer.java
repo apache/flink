@@ -19,12 +19,12 @@ import eu.stratosphere.api.typeutils.TypeSerializer;
 import eu.stratosphere.core.memory.DataInputView;
 import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.types.CopyableValue;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.types.Value;
 import eu.stratosphere.util.InstantiationUtil;
 
 /**
- * Implementation of the (de)serialization and copying logic for the {@link PactRecord}.
+ * Implementation of the (de)serialization and copying logic for the {@link Record}.
  */
 public final class ArrayRecordSerializer extends TypeSerializer<Value[]>
 {

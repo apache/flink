@@ -28,9 +28,9 @@ import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.pact.runtime.iterative.task.IterationHeadPactTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationIntermediatePactTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationTailPactTask;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparatorFactory;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordPairComparatorFactory;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordSerializerFactory;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparatorFactory;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordPairComparatorFactory;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializerFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.BuildSecondCachedMatchDriver;
 import eu.stratosphere.pact.runtime.task.CoGroupDriver;
@@ -39,17 +39,17 @@ import eu.stratosphere.pact.runtime.task.MapDriver;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.test.iterative.nephele.JobGraphUtils;
-import eu.stratosphere.types.PactLong;
+import eu.stratosphere.types.LongValue;
 import eu.stratosphere.util.OperatingSystem;
 
 public class CompensatableDanglingPageRank {
 	
-	private static final TypeSerializerFactory<?> recSerializer = PactRecordSerializerFactory.get();
+	private static final TypeSerializerFactory<?> recSerializer = RecordSerializerFactory.get();
 	
 	@SuppressWarnings("unchecked")
-	private static final TypeComparatorFactory<?> fieldZeroComparator = new PactRecordComparatorFactory(new int[] {0}, new Class[] {PactLong.class}, new boolean[] {true});
+	private static final TypeComparatorFactory<?> fieldZeroComparator = new RecordComparatorFactory(new int[] {0}, new Class[] {LongValue.class}, new boolean[] {true});
 	
-	private static final TypePairComparatorFactory<?, ?> pairComparatorFactory = new PactRecordPairComparatorFactory();
+	private static final TypePairComparatorFactory<?, ?> pairComparatorFactory = new RecordPairComparatorFactory();
 	
 	
 	private static final int NUM_FILE_HANDLES_PER_SORT = 64;

@@ -27,17 +27,17 @@ import eu.stratosphere.api.io.BinaryInputFormat;
 import eu.stratosphere.api.io.BlockInfo;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.fs.FileInputSplit;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.LogUtils;
 
 public class BinaryInputFormatTest {
 	
-	private static final class MyBinaryInputFormat extends BinaryInputFormat<PactRecord> {
+	private static final class MyBinaryInputFormat extends BinaryInputFormat<Record> {
 
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		protected void deserialize(PactRecord record, DataInput dataInput) throws IOException {}
+		protected void deserialize(Record record, DataInput dataInput) throws IOException {}
 	}
 	
 	@BeforeClass
@@ -61,7 +61,7 @@ public class BinaryInputFormatTest {
 		final Configuration config = new Configuration();
 		config.setLong(BinaryInputFormat.BLOCK_SIZE_PARAMETER_KEY, blockSize);
 		
-		final BinaryInputFormat<PactRecord> inputFormat = new MyBinaryInputFormat();
+		final BinaryInputFormat<Record> inputFormat = new MyBinaryInputFormat();
 		inputFormat.setFilePath(tempFile.toURI().toString());
 		
 		inputFormat.configure(config);

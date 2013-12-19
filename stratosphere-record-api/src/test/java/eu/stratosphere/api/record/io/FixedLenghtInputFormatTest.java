@@ -32,8 +32,8 @@ import eu.stratosphere.api.record.io.FixedLengthInputFormat;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.fs.FileInputSplit;
 import eu.stratosphere.core.fs.Path;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.LogUtils;
 
 public class FixedLenghtInputFormatTest {
@@ -108,23 +108,23 @@ public class FixedLenghtInputFormatTest {
 		format.configure(parameters);
 		format.open(split);
 		
-		PactRecord record = new PactRecord();
+		Record record = new Record();
 		
 		assertTrue(format.nextRecord(record));
-		assertEquals(1, record.getField(0, PactInteger.class).getValue());
-		assertEquals(2, record.getField(1, PactInteger.class).getValue());	
+		assertEquals(1, record.getField(0, IntValue.class).getValue());
+		assertEquals(2, record.getField(1, IntValue.class).getValue());	
 		
 		assertTrue(format.nextRecord(record));
-		assertEquals(3, record.getField(0, PactInteger.class).getValue());
-		assertEquals(4, record.getField(1, PactInteger.class).getValue());
+		assertEquals(3, record.getField(0, IntValue.class).getValue());
+		assertEquals(4, record.getField(1, IntValue.class).getValue());
 		
 		assertTrue(format.nextRecord(record));
-		assertEquals(5, record.getField(0, PactInteger.class).getValue());
-		assertEquals(6, record.getField(1, PactInteger.class).getValue());
+		assertEquals(5, record.getField(0, IntValue.class).getValue());
+		assertEquals(6, record.getField(1, IntValue.class).getValue());
 		
 		assertTrue(format.nextRecord(record));
-		assertEquals(7, record.getField(0, PactInteger.class).getValue());
-		assertEquals(8, record.getField(1, PactInteger.class).getValue());
+		assertEquals(7, record.getField(0, IntValue.class).getValue());
+		assertEquals(8, record.getField(1, IntValue.class).getValue());
 		
 		assertFalse(format.nextRecord(record));
 		assertTrue(format.reachedEnd());
@@ -144,25 +144,25 @@ public class FixedLenghtInputFormatTest {
 		format.configure(parameters);
 		format.open(split);
 		
-		PactRecord record = new PactRecord();
+		Record record = new Record();
 
 		try {
 		
 			assertTrue(format.nextRecord(record));
-			assertEquals(1, record.getField(0, PactInteger.class).getValue());
-			assertEquals(2, record.getField(1, PactInteger.class).getValue());
+			assertEquals(1, record.getField(0, IntValue.class).getValue());
+			assertEquals(2, record.getField(1, IntValue.class).getValue());
 			
 			assertTrue(format.nextRecord(record));
-			assertEquals(3, record.getField(0, PactInteger.class).getValue());
-			assertEquals(4, record.getField(1, PactInteger.class).getValue());
+			assertEquals(3, record.getField(0, IntValue.class).getValue());
+			assertEquals(4, record.getField(1, IntValue.class).getValue());
 			
 			assertTrue(format.nextRecord(record));
-			assertEquals(5, record.getField(0, PactInteger.class).getValue());
-			assertEquals(6, record.getField(1, PactInteger.class).getValue());
+			assertEquals(5, record.getField(0, IntValue.class).getValue());
+			assertEquals(6, record.getField(1, IntValue.class).getValue());
 			
 			assertTrue(format.nextRecord(record));
-			assertEquals(7, record.getField(0, PactInteger.class).getValue());
-			assertEquals(8, record.getField(1, PactInteger.class).getValue());
+			assertEquals(7, record.getField(0, IntValue.class).getValue());
+			assertEquals(8, record.getField(1, IntValue.class).getValue());
 			
 			assertFalse(format.nextRecord(record));
 
@@ -191,11 +191,11 @@ public class FixedLenghtInputFormatTest {
 	private final class MyFixedLengthInputFormat extends FixedLengthInputFormat {
 		private static final long serialVersionUID = 1L;
 
-		PactInteger p1 = new PactInteger();
-		PactInteger p2 = new PactInteger();
+		IntValue p1 = new IntValue();
+		IntValue p2 = new IntValue();
 		
 		@Override
-		public boolean readBytes(PactRecord target, byte[] buffer, int startPos) {
+		public boolean readBytes(Record target, byte[] buffer, int startPos) {
 			int v1 = 0;
 			v1 = (v1 | buffer[startPos+0]) << 8;
 			v1 = (v1 | buffer[startPos+1]) << 8;

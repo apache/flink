@@ -17,11 +17,11 @@ import eu.stratosphere.api.typeutils.TypeSerializerFactory;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.pact.runtime.task.util.CorruptConfigurationException;
 import eu.stratosphere.types.Key;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.types.Value;
 
 /**
- * A factory that create a serializer for the {@link PactRecord} data type.
+ * A factory that create a serializer for the {@link Record} data type.
  */
 public class ArrayRecordSerializerFactory implements TypeSerializerFactory<Value[]>
 {

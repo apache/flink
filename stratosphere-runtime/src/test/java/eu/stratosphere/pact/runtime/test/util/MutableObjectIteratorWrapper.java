@@ -16,25 +16,25 @@ package eu.stratosphere.pact.runtime.test.util;
 import java.io.IOException;
 import java.util.Iterator;
 
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.MutableObjectIterator;
 
 
 /**
  *
  */
-public class MutableObjectIteratorWrapper implements MutableObjectIterator<PactRecord>
+public class MutableObjectIteratorWrapper implements MutableObjectIterator<Record>
 {
-	private final Iterator<PactRecord> source;
+	private final Iterator<Record> source;
 	
-	public MutableObjectIteratorWrapper(Iterator<PactRecord> source)
+	public MutableObjectIteratorWrapper(Iterator<Record> source)
 	{
 		this.source = source;
 	}
 
 
 	@Override
-	public boolean next(PactRecord target) throws IOException {
+	public boolean next(Record target) throws IOException {
 		if (this.source.hasNext()) {
 			this.source.next().copyTo(target);
 			return true;

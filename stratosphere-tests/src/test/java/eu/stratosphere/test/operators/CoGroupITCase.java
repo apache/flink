@@ -40,9 +40,9 @@ import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.test.util.TestBase;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
+import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
 
 /**
@@ -96,11 +96,11 @@ public class CoGroupITCase extends TestBase {
 	public static class CoGroupTestInFormat extends DelimitedInputFormat {
 		private static final long serialVersionUID = 1L;
 		
-		private final PactString keyString = new PactString();
-		private final PactString valueString = new PactString();
+		private final StringValue keyString = new StringValue();
+		private final StringValue valueString = new StringValue();
 		
 		@Override
-		public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes) {
+		public boolean readRecord(Record target, byte[] bytes, int offset, int numBytes) {
 			this.keyString.setValueAscii(bytes, offset, 1);
 			this.valueString.setValueAscii(bytes, offset + 2, 1);
 			target.setField(0, keyString);
@@ -117,11 +117,11 @@ public class CoGroupITCase extends TestBase {
 		private static final long serialVersionUID = 1L;
 		
 		private final StringBuilder buffer = new StringBuilder();
-		private final PactString keyString = new PactString();
-		private final PactInteger valueInteger = new PactInteger();
+		private final StringValue keyString = new StringValue();
+		private final IntValue valueInteger = new IntValue();
 		
 		@Override
-		public void writeRecord(PactRecord record) throws IOException {
+		public void writeRecord(Record record) throws IOException {
 			this.buffer.setLength(0);
 			this.buffer.append(record.getField(0, keyString).toString());
 			this.buffer.append(' ');
@@ -139,12 +139,12 @@ public class CoGroupITCase extends TestBase {
 	public static class TestCoGrouper extends CoGroupFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 
-		private PactString keyString = new PactString();
-		private PactString valueString = new PactString();
-		private PactRecord record = new PactRecord();
+		private StringValue keyString = new StringValue();
+		private StringValue valueString = new StringValue();
+		private Record record = new Record();
 		
 		@Override
-		public void coGroup(Iterator<PactRecord> records1, Iterator<PactRecord> records2, Collector<PactRecord> out) {
+		public void coGroup(Iterator<Record> records1, Iterator<Record> records2, Collector<Record> out) {
 			// TODO Auto-generated method stub
 			
 			int sum = 0;
@@ -166,7 +166,7 @@ public class CoGroupITCase extends TestBase {
 
 				LOG.debug("Processed: [" + keyString.getValue() + "," + valueString.getValue() + "]");
 			}
-			record.setField(1, new PactInteger(sum));
+			record.setField(1, new IntValue(sum));
 			LOG.debug("Finished");
 			
 			out.collect(record);
@@ -189,7 +189,7 @@ public class CoGroupITCase extends TestBase {
 			.recordDelimiter('\n');
 		input_right.setDegreeOfParallelism(config.getInteger("CoGroupTest#NoSubtasks", 1));
 
-		CoGroupOperator testCoGrouper = CoGroupOperator.builder(new TestCoGrouper(), PactString.class, 0, 0)
+		CoGroupOperator testCoGrouper = CoGroupOperator.builder(new TestCoGrouper(), StringValue.class, 0, 0)
 			.build();
 		testCoGrouper.setDegreeOfParallelism(config.getInteger("CoGroupTest#NoSubtasks", 1));
 		testCoGrouper.getParameters().setString(PactCompiler.HINT_LOCAL_STRATEGY,

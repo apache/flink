@@ -37,7 +37,7 @@ import eu.stratosphere.pact.compiler.util.IdentityMap;
 import eu.stratosphere.pact.compiler.util.IdentityReduce;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
-import eu.stratosphere.types.PactInteger;
+import eu.stratosphere.types.IntValue;
 import eu.stratosphere.util.Visitor;
 
 /**
@@ -68,7 +68,7 @@ public class DOPChangeTest extends CompilerTestBase {
 		map1.setDegreeOfParallelism(degOfPar);
 		map1.setInput(source);
 		
-		ReduceOperator reduce1 = ReduceOperator.builder(new IdentityReduce(), PactInteger.class, 0).name("Reduce 1").build();
+		ReduceOperator reduce1 = ReduceOperator.builder(new IdentityReduce(), IntValue.class, 0).name("Reduce 1").build();
 		reduce1.setDegreeOfParallelism(degOfPar);
 		reduce1.setInput(map1);
 		
@@ -76,7 +76,7 @@ public class DOPChangeTest extends CompilerTestBase {
 		map2.setDegreeOfParallelism(degOfPar * 2);
 		map2.setInput(reduce1);
 		
-		ReduceOperator reduce2 = ReduceOperator.builder(new IdentityReduce(), PactInteger.class, 0).name("Reduce 2").build();
+		ReduceOperator reduce2 = ReduceOperator.builder(new IdentityReduce(), IntValue.class, 0).name("Reduce 2").build();
 		reduce2.setDegreeOfParallelism(degOfPar * 2);
 		reduce2.setInput(map2);
 		
@@ -122,7 +122,7 @@ public class DOPChangeTest extends CompilerTestBase {
 		map1.setDegreeOfParallelism(degOfPar);
 		map1.setInput(source);
 		
-		ReduceOperator reduce1 = ReduceOperator.builder(new IdentityReduce(), PactInteger.class, 0).name("Reduce 1").build();
+		ReduceOperator reduce1 = ReduceOperator.builder(new IdentityReduce(), IntValue.class, 0).name("Reduce 1").build();
 		reduce1.setDegreeOfParallelism(degOfPar);
 		reduce1.setInput(map1);
 		
@@ -130,7 +130,7 @@ public class DOPChangeTest extends CompilerTestBase {
 		map2.setDegreeOfParallelism(degOfPar);
 		map2.setInput(reduce1);
 		
-		ReduceOperator reduce2 = ReduceOperator.builder(new IdentityReduce(), PactInteger.class, 0).name("Reduce 2").build();
+		ReduceOperator reduce2 = ReduceOperator.builder(new IdentityReduce(), IntValue.class, 0).name("Reduce 2").build();
 		reduce2.setDegreeOfParallelism(degOfPar * 2);
 		reduce2.setInput(map2);
 		
@@ -176,7 +176,7 @@ public class DOPChangeTest extends CompilerTestBase {
 		map1.setDegreeOfParallelism(degOfPar);
 		map1.setInput(source);
 		
-		ReduceOperator reduce1 = ReduceOperator.builder(new IdentityReduce(), PactInteger.class, 0).name("Reduce 1").build();
+		ReduceOperator reduce1 = ReduceOperator.builder(new IdentityReduce(), IntValue.class, 0).name("Reduce 1").build();
 		reduce1.setDegreeOfParallelism(degOfPar);
 		reduce1.setInput(map1);
 		
@@ -184,7 +184,7 @@ public class DOPChangeTest extends CompilerTestBase {
 		map2.setDegreeOfParallelism(degOfPar * 2);
 		map2.setInput(reduce1);
 		
-		ReduceOperator reduce2 = ReduceOperator.builder(new IdentityReduce(), PactInteger.class, 0).name("Reduce 2").build();
+		ReduceOperator reduce2 = ReduceOperator.builder(new IdentityReduce(), IntValue.class, 0).name("Reduce 2").build();
 		reduce2.setDegreeOfParallelism(degOfPar * 2);
 		reduce2.setInput(map2);
 		
@@ -227,7 +227,7 @@ public class DOPChangeTest extends CompilerTestBase {
 		map1.setDegreeOfParallelism(degOfPar * 2);
 		map1.setInput(source);
 		
-		ReduceOperator reduce1 = ReduceOperator.builder(new IdentityReduce(), PactInteger.class, 0).name("Reduce 1").build();
+		ReduceOperator reduce1 = ReduceOperator.builder(new IdentityReduce(), IntValue.class, 0).name("Reduce 1").build();
 		reduce1.setDegreeOfParallelism(degOfPar * 2);
 		reduce1.setInput(map1);
 		
@@ -235,7 +235,7 @@ public class DOPChangeTest extends CompilerTestBase {
 		map2.setDegreeOfParallelism(degOfPar);
 		map2.setInput(reduce1);
 		
-		ReduceOperator reduce2 = ReduceOperator.builder(new IdentityReduce(), PactInteger.class, 0).name("Reduce 2").build();
+		ReduceOperator reduce2 = ReduceOperator.builder(new IdentityReduce(), IntValue.class, 0).name("Reduce 2").build();
 		reduce2.setDegreeOfParallelism(degOfPar);
 		reduce2.setInput(map2);
 		
@@ -278,14 +278,14 @@ public class DOPChangeTest extends CompilerTestBase {
 		FileDataSource sourceA = new FileDataSource(new DummyInputFormat(), IN_FILE);
 		FileDataSource sourceB = new FileDataSource(new DummyInputFormat(), IN_FILE);
 		
-		ReduceOperator redA = ReduceOperator.builder(new IdentityReduce(), PactInteger.class, 0)
+		ReduceOperator redA = ReduceOperator.builder(new IdentityReduce(), IntValue.class, 0)
 			.input(sourceA)
 			.build();
-		ReduceOperator redB = ReduceOperator.builder(new IdentityReduce(), PactInteger.class, 0)
+		ReduceOperator redB = ReduceOperator.builder(new IdentityReduce(), IntValue.class, 0)
 			.input(sourceB)
 			.build();
 		
-		JoinOperator mat = JoinOperator.builder(new DummyMatchStub(), PactInteger.class, 0, 0)
+		JoinOperator mat = JoinOperator.builder(new DummyMatchStub(), IntValue.class, 0, 0)
 			.input1(redA)
 			.input2(redB)
 			.build();

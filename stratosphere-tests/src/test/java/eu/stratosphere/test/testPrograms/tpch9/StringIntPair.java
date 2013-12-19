@@ -13,21 +13,21 @@
 
 package eu.stratosphere.test.testPrograms.tpch9;
 
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactPair;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Pair;
+import eu.stratosphere.types.StringValue;
 
-public class StringIntPair extends PactPair<PactString, PactInteger> {
+public class StringIntPair extends Pair<StringValue, IntValue> {
 	private static final long serialVersionUID = 1L;
 	
 	public StringIntPair() {
 	}
 
-	public StringIntPair(PactString first, PactInteger second) {
+	public StringIntPair(StringValue first, IntValue second) {
 		super(first, second);
 	}
 
 	public StringIntPair(String first, int second) {
-		super(new PactString(first), new PactInteger(second));
+		super(new StringValue(first), new IntValue(second));
 	}
 }

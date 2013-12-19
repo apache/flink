@@ -31,14 +31,14 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparator;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordSerializer;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparator;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializer;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.TestData;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.KeyMode;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.ValueMode;
 import eu.stratosphere.pact.runtime.test.util.TestData.Value;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.MutableObjectIterator;
 
 /**
@@ -65,9 +65,9 @@ public class AsynchonousPartialSorterITCase
 
 	private MemoryManager memoryManager;
 	
-	private TypeSerializer<PactRecord> serializer;
+	private TypeSerializer<Record> serializer;
 	
-	private TypeComparator<PactRecord> comparator;
+	private TypeComparator<Record> comparator;
 
 
 	@SuppressWarnings("unchecked")
@@ -76,8 +76,8 @@ public class AsynchonousPartialSorterITCase
 	{
 		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE);
 		this.ioManager = new IOManager();
-		this.serializer = PactRecordSerializer.get();
-		this.comparator = new PactRecordComparator(new int[] {0}, new Class[] {TestData.Key.class});
+		this.serializer = RecordSerializer.get();
+		this.comparator = new RecordComparator(new int[] {0}, new Class[] {TestData.Key.class});
 	}
 
 	@After
@@ -104,11 +104,11 @@ public class AsynchonousPartialSorterITCase
 			
 			// reader
 			final TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.CONSTANT, VAL);
-			final MutableObjectIterator<PactRecord> source = new TestData.GeneratorIterator(generator, NUM_RECORDS);
+			final MutableObjectIterator<Record> source = new TestData.GeneratorIterator(generator, NUM_RECORDS);
 			
 			// merge iterator
 			LOG.debug("Initializing sortmerger...");
-			Sorter<PactRecord> sorter = new AsynchronousPartialSorter<PactRecord>(this.memoryManager, source,
+			Sorter<Record> sorter = new AsynchronousPartialSorter<Record>(this.memoryManager, source,
 				this.parentTask, this.serializer, this.comparator, 32 * 1024 * 1024);
 	
 			runPartialSorter(sorter, NUM_RECORDS, 0);
@@ -127,11 +127,11 @@ public class AsynchonousPartialSorterITCase
 			
 			// reader
 			final TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.CONSTANT, VAL);
-			final MutableObjectIterator<PactRecord> source = new TestData.GeneratorIterator(generator, NUM_RECORDS);
+			final MutableObjectIterator<Record> source = new TestData.GeneratorIterator(generator, NUM_RECORDS);
 			
 			// merge iterator
 			LOG.debug("Initializing sortmerger...");
-			Sorter<PactRecord> sorter = new AsynchronousPartialSorter<PactRecord>(this.memoryManager, source,
+			Sorter<Record> sorter = new AsynchronousPartialSorter<Record>(this.memoryManager, source,
 				this.parentTask, this.serializer, this.comparator, 32 * 1024 * 1024);
 	
 			runPartialSorter(sorter, NUM_RECORDS, 2);
@@ -150,11 +150,11 @@ public class AsynchonousPartialSorterITCase
 			
 			// reader
 			final TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.CONSTANT, VAL);
-			final MutableObjectIterator<PactRecord> source = new TestData.GeneratorIterator(generator, NUM_RECORDS);
+			final MutableObjectIterator<Record> source = new TestData.GeneratorIterator(generator, NUM_RECORDS);
 			
 			// merge iterator
 			LOG.debug("Initializing sortmerger...");
-			Sorter<PactRecord> sorter = new AsynchronousPartialSorter<PactRecord>(this.memoryManager, source,
+			Sorter<Record> sorter = new AsynchronousPartialSorter<Record>(this.memoryManager, source,
 				this.parentTask, this.serializer, this.comparator, 32 * 1024 * 1024);
 	
 			runPartialSorter(sorter, NUM_RECORDS, 28);
@@ -169,17 +169,17 @@ public class AsynchonousPartialSorterITCase
 	public void testExceptionForwarding() throws IOException
 	{
 		try {
-			Sorter<PactRecord> sorter = null;
+			Sorter<Record> sorter = null;
 			try	{
 				final int NUM_RECORDS = 100;
 
 				// reader
 				final TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.CONSTANT, VAL);
-				final MutableObjectIterator<PactRecord> source = new TestData.GeneratorIterator(generator, NUM_RECORDS);
+				final MutableObjectIterator<Record> source = new TestData.GeneratorIterator(generator, NUM_RECORDS);
 				
 				// merge iterator
 				LOG.debug("Initializing sortmerger...");
-				sorter = new ExceptionThrowingAsynchronousPartialSorter<PactRecord>(this.memoryManager, source,
+				sorter = new ExceptionThrowingAsynchronousPartialSorter<Record>(this.memoryManager, source,
 						this.parentTask, this.serializer, this.comparator, 32 * 1024 * 1024);
 		
 				runPartialSorter(sorter, NUM_RECORDS, 0);
@@ -199,17 +199,17 @@ public class AsynchonousPartialSorterITCase
 		}
 	}
 	
-	private static void runPartialSorter(Sorter<PactRecord> sorter, 
+	private static void runPartialSorter(Sorter<Record> sorter, 
 								int expectedNumResultRecords, int expectedNumWindowTransitions)
 	throws Exception
 	{
 		// check order
-		final MutableObjectIterator<PactRecord> iterator = sorter.getIterator();
+		final MutableObjectIterator<Record> iterator = sorter.getIterator();
 		int pairsEmitted = 1;
 		int windowTransitions = 0;
 		
-		PactRecord rec1 = new PactRecord();
-		PactRecord rec2 = new PactRecord();
+		Record rec1 = new Record();
+		Record rec2 = new Record();
 		
 		LOG.debug("Checking results...");
 		Assert.assertTrue(iterator.next(rec1));
@@ -224,7 +224,7 @@ public class AsynchonousPartialSorterITCase
 				windowTransitions++;
 			}
 			
-			PactRecord tmp = rec1;
+			Record tmp = rec1;
 			rec1 = rec2;
 			k1.setKey(k2.getKey());
 			

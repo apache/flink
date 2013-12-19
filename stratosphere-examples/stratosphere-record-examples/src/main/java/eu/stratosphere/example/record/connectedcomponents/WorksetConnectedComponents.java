@@ -33,8 +33,8 @@ import eu.stratosphere.api.record.operators.JoinOperator;
 import eu.stratosphere.api.record.operators.MapOperator;
 import eu.stratosphere.api.record.operators.ReduceOperator;
 import eu.stratosphere.api.record.operators.ReduceOperator.Combinable;
-import eu.stratosphere.types.PactLong;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.LongValue;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 /**
@@ -46,8 +46,8 @@ public class WorksetConnectedComponents implements Program, ProgramDescription {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
-			record.setField(1, record.getField(0, PactLong.class));
+		public void map(Record record, Collector<Record> out) throws Exception {
+			record.setField(1, record.getField(0, LongValue.class));
 			out.collect(record);
 		}
 	}
@@ -60,12 +60,12 @@ public class WorksetConnectedComponents implements Program, ProgramDescription {
 	public static final class NeighborWithComponentIDJoin extends JoinFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 
-		private final PactRecord result = new PactRecord();
+		private final Record result = new Record();
 
 		@Override
-		public void match(PactRecord vertexWithComponent, PactRecord edge, Collector<PactRecord> out) {
-			this.result.setField(0, edge.getField(1, PactLong.class));
-			this.result.setField(1, vertexWithComponent.getField(1, PactLong.class));
+		public void match(Record vertexWithComponent, Record edge, Collector<Record> out) {
+			this.result.setField(0, edge.getField(1, LongValue.class));
+			this.result.setField(1, vertexWithComponent.getField(1, LongValue.class));
 			out.collect(this.result);
 		}
 	}
@@ -78,20 +78,20 @@ public class WorksetConnectedComponents implements Program, ProgramDescription {
 	public static final class MinimumComponentIDReduce extends ReduceFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 
-		private final PactRecord result = new PactRecord();
-		private final PactLong vertexId = new PactLong();
-		private final PactLong minComponentId = new PactLong();
+		private final Record result = new Record();
+		private final LongValue vertexId = new LongValue();
+		private final LongValue minComponentId = new LongValue();
 		
 		@Override
-		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) {
+		public void reduce(Iterator<Record> records, Collector<Record> out) {
 
-			final PactRecord first = records.next();
-			final long vertexID = first.getField(0, PactLong.class).getValue();
+			final Record first = records.next();
+			final long vertexID = first.getField(0, LongValue.class).getValue();
 			
-			long minimumComponentID = first.getField(1, PactLong.class).getValue();
+			long minimumComponentID = first.getField(1, LongValue.class).getValue();
 
 			while (records.hasNext()) {
-				long candidateComponentID = records.next().getField(1, PactLong.class).getValue();
+				long candidateComponentID = records.next().getField(1, LongValue.class).getValue();
 				if (candidateComponentID < minimumComponentID) {
 					minimumComponentID = candidateComponentID;
 				}
@@ -114,10 +114,10 @@ public class WorksetConnectedComponents implements Program, ProgramDescription {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void match(PactRecord newVertexWithComponent, PactRecord currentVertexWithComponent, Collector<PactRecord> out){
+		public void match(Record newVertexWithComponent, Record currentVertexWithComponent, Collector<Record> out){
 	
-			long candidateComponentID = newVertexWithComponent.getField(1, PactLong.class).getValue();
-			long currentComponentID = currentVertexWithComponent.getField(1, PactLong.class).getValue();
+			long candidateComponentID = newVertexWithComponent.getField(1, LongValue.class).getValue();
+			long currentComponentID = currentVertexWithComponent.getField(1, LongValue.class).getValue();
 	
 			if (candidateComponentID < currentComponentID) {
 				out.collect(newVertexWithComponent);
@@ -136,7 +136,7 @@ public class WorksetConnectedComponents implements Program, ProgramDescription {
 		final int maxIterations = (args.length > 4 ? Integer.parseInt(args[4]) : 1);
 
 		// data source for initial vertices
-		FileDataSource initialVertices = new FileDataSource(new CsvInputFormat(' ', PactLong.class), verticesInput, "Vertices");
+		FileDataSource initialVertices = new FileDataSource(new CsvInputFormat(' ', LongValue.class), verticesInput, "Vertices");
 		
 		MapOperator verticesWithId = MapOperator.builder(DuplicateLongMap.class).input(initialVertices).name("Assign Vertex Ids").build();
 		
@@ -148,23 +148,23 @@ public class WorksetConnectedComponents implements Program, ProgramDescription {
 		iteration.setMaximumNumberOfIterations(maxIterations);
 		
 		// data source for the edges
-		FileDataSource edges = new FileDataSource(new CsvInputFormat(' ', PactLong.class, PactLong.class), edgeInput, "Edges");
+		FileDataSource edges = new FileDataSource(new CsvInputFormat(' ', LongValue.class, LongValue.class), edgeInput, "Edges");
 
 		// join workset (changed vertices) with the edges to propagate changes to neighbors
-		JoinOperator joinWithNeighbors = JoinOperator.builder(new NeighborWithComponentIDJoin(), PactLong.class, 0, 0)
+		JoinOperator joinWithNeighbors = JoinOperator.builder(new NeighborWithComponentIDJoin(), LongValue.class, 0, 0)
 				.input1(iteration.getWorkset())
 				.input2(edges)
 				.name("Join Candidate Id With Neighbor")
 				.build();
 
 		// find for each neighbor the smallest of all candidates
-		ReduceOperator minCandidateId = ReduceOperator.builder(new MinimumComponentIDReduce(), PactLong.class, 0)
+		ReduceOperator minCandidateId = ReduceOperator.builder(new MinimumComponentIDReduce(), LongValue.class, 0)
 				.input(joinWithNeighbors)
 				.name("Find Minimum Candidate Id")
 				.build();
 		
 		// join candidates with the solution set and update if the candidate component-id is smaller
-		JoinOperator updateComponentId = JoinOperator.builder(new UpdateComponentIdMatch(), PactLong.class, 0, 0)
+		JoinOperator updateComponentId = JoinOperator.builder(new UpdateComponentIdMatch(), LongValue.class, 0, 0)
 				.input1(minCandidateId)
 				.input2(iteration.getSolutionSet())
 				.name("Update Component Id")
@@ -178,8 +178,8 @@ public class WorksetConnectedComponents implements Program, ProgramDescription {
 		CsvOutputFormat.configureRecordFormat(result)
 			.recordDelimiter('\n')
 			.fieldDelimiter(' ')
-			.field(PactLong.class, 0)
-			.field(PactLong.class, 1);
+			.field(LongValue.class, 0)
+			.field(LongValue.class, 1);
 
 		// return the PACT plan
 		Plan plan = new Plan(result, "Workset Connected Components");

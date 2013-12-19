@@ -28,8 +28,8 @@ import eu.stratosphere.api.record.io.CsvInputFormat;
 import eu.stratosphere.api.record.io.CsvOutputFormat;
 import eu.stratosphere.api.record.operators.JoinOperator;
 import eu.stratosphere.api.record.operators.ReduceOperator;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 public class MergeOnlyJoin implements Program, ProgramDescription {
@@ -37,8 +37,8 @@ public class MergeOnlyJoin implements Program, ProgramDescription {
 	@ConstantFieldsFirstExcept(2)
 	public static class JoinInputs extends JoinFunction {
 		@Override
-		public void match(PactRecord input1, PactRecord input2, Collector<PactRecord> out) {
-			input1.setField(2, input2.getField(1, PactInteger.class));
+		public void match(Record input1, Record input2, Collector<Record> out) {
+			input1.setField(2, input2.getField(1, IntValue.class));
 			out.collect(input1);
 		}
 	}
@@ -47,7 +47,7 @@ public class MergeOnlyJoin implements Program, ProgramDescription {
 	public static class DummyReduce extends ReduceFunction {
 		
 		@Override
-		public void reduce(Iterator<PactRecord> values, Collector<PactRecord> out) {
+		public void reduce(Iterator<Record> values, Collector<Record> out) {
 			while (values.hasNext()) {
 				out.collect(values.next());
 			}
@@ -66,10 +66,10 @@ public class MergeOnlyJoin implements Program, ProgramDescription {
 
 		// create DataSourceContract for Orders input
 		@SuppressWarnings("unchecked")
-		CsvInputFormat format1 = new CsvInputFormat('|', PactInteger.class, PactInteger.class);
+		CsvInputFormat format1 = new CsvInputFormat('|', IntValue.class, IntValue.class);
 		FileDataSource input1 = new FileDataSource(format1, input1Path, "Input 1");
 		
-		ReduceOperator aggInput1 = ReduceOperator.builder(DummyReduce.class, PactInteger.class, 0)
+		ReduceOperator aggInput1 = ReduceOperator.builder(DummyReduce.class, IntValue.class, 0)
 			.input(input1)
 			.name("AggOrders")
 			.build();
@@ -77,18 +77,18 @@ public class MergeOnlyJoin implements Program, ProgramDescription {
 		
 		// create DataSourceContract for Orders input
 		@SuppressWarnings("unchecked")
-		CsvInputFormat format2 = new CsvInputFormat('|', PactInteger.class, PactInteger.class);
+		CsvInputFormat format2 = new CsvInputFormat('|', IntValue.class, IntValue.class);
 		FileDataSource input2 = new FileDataSource(format2, input2Path, "Input 2");
 		input2.setDegreeOfParallelism(numSubtasksInput2);
 
-		ReduceOperator aggInput2 = ReduceOperator.builder(DummyReduce.class, PactInteger.class, 0)
+		ReduceOperator aggInput2 = ReduceOperator.builder(DummyReduce.class, IntValue.class, 0)
 			.input(input2)
 			.name("AggLines")
 			.build();
 		aggInput2.setDegreeOfParallelism(numSubtasksInput2);
 		
 		// create JoinOperator for joining Orders and LineItems
-		JoinOperator joinLiO = JoinOperator.builder(JoinInputs.class, PactInteger.class, 0, 0)
+		JoinOperator joinLiO = JoinOperator.builder(JoinInputs.class, IntValue.class, 0, 0)
 			.input1(aggInput1)
 			.input2(aggInput2)
 			.name("JoinLiO")
@@ -100,9 +100,9 @@ public class MergeOnlyJoin implements Program, ProgramDescription {
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
 			.lenient(true)
-			.field(PactInteger.class, 0)
-			.field(PactInteger.class, 1)
-			.field(PactInteger.class, 2);
+			.field(IntValue.class, 0)
+			.field(IntValue.class, 1)
+			.field(IntValue.class, 2);
 		
 		// assemble the PACT plan
 		Plan plan = new Plan(result, "Merge Only Join");

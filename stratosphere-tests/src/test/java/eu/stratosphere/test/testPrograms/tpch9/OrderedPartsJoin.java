@@ -15,8 +15,8 @@ package eu.stratosphere.test.testPrograms.tpch9;
 
 import eu.stratosphere.api.record.functions.JoinFunction;
 import eu.stratosphere.test.testPrograms.util.Tuple;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 public class OrderedPartsJoin extends JoinFunction
@@ -30,14 +30,14 @@ public class OrderedPartsJoin extends JoinFunction
 	 *
 	 */
 	@Override
-	public void match(PactRecord value1, PactRecord value2, Collector<PactRecord> out)
+	public void match(Record value1, Record value2, Collector<Record> out)
 			throws Exception {
 
-		PactInteger year = value1.getField(1, PactInteger.class);
+		IntValue year = value1.getField(1, IntValue.class);
 		Tuple lineItem = value2.getField(1, Tuple.class);
 		
 		/* (partkey, suppkey) from lineItem: */
-		IntPair newKey = new IntPair(new PactInteger(Integer.parseInt(lineItem.getStringValueAt(0))), new PactInteger(Integer.parseInt(lineItem.getStringValueAt(1))));
+		IntPair newKey = new IntPair(new IntValue(Integer.parseInt(lineItem.getStringValueAt(0))), new IntValue(Integer.parseInt(lineItem.getStringValueAt(1))));
 		Tuple newValue = new Tuple();
 		newValue.addAttribute(year.toString()); // year
 		newValue.addAttribute(lineItem.getStringValueAt(2)); // quantity

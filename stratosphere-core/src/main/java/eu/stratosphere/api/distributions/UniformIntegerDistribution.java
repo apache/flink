@@ -16,7 +16,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-import eu.stratosphere.types.PactInteger;
+import eu.stratosphere.types.IntValue;
 
 
 public class UniformIntegerDistribution implements DataDistribution {
@@ -34,10 +34,10 @@ public class UniformIntegerDistribution implements DataDistribution {
 	}
 
 	@Override
-	public PactInteger[] getBucketBoundary(int bucketNum, int totalNumBuckets) {
+	public IntValue[] getBucketBoundary(int bucketNum, int totalNumBuckets) {
 		long diff = ((long) max) - ((long) min) + 1;
 		double bucketSize = diff / ((double) totalNumBuckets);
-		return new PactInteger[] {new PactInteger(min + (int) ((bucketNum+1) * bucketSize)) };
+		return new IntValue[] {new IntValue(min + (int) ((bucketNum+1) * bucketSize)) };
 	}
 
 	@Override

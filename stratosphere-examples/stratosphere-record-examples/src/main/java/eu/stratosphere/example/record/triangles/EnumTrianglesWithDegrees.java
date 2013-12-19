@@ -30,7 +30,7 @@ import eu.stratosphere.example.record.triangles.EnumTrianglesOnEdgesWithDegrees.
 import eu.stratosphere.example.record.triangles.EnumTrianglesOnEdgesWithDegrees.ProjectToLowerDegreeVertex;
 import eu.stratosphere.example.record.triangles.io.EdgeInputFormat;
 import eu.stratosphere.example.record.triangles.io.TriangleOutputFormat;
-import eu.stratosphere.types.PactInteger;
+import eu.stratosphere.types.IntValue;
 
 /**
  * An implementation of the triangle enumeration, which includes the pre-processing step
@@ -56,11 +56,11 @@ public class EnumTrianglesWithDegrees implements Program, ProgramDescription {
 		MapOperator projectEdge = MapOperator.builder(new ProjectEdge())
 				.input(edges).name("Project Edge").build();
 		
-		ReduceOperator edgeCounter = ReduceOperator.builder(new CountEdges(), PactInteger.class, 0)
+		ReduceOperator edgeCounter = ReduceOperator.builder(new CountEdges(), IntValue.class, 0)
 				.input(projectEdge).name("Count Edges for Vertex").build();
 		
-		ReduceOperator countJoiner = ReduceOperator.builder(new JoinCountsAndUniquify(), PactInteger.class, 0)
-				.keyField(PactInteger.class, 1)
+		ReduceOperator countJoiner = ReduceOperator.builder(new JoinCountsAndUniquify(), IntValue.class, 0)
+				.keyField(IntValue.class, 1)
 				.input(edgeCounter).name("Join Counts").build();
 		
 		
@@ -72,11 +72,11 @@ public class EnumTrianglesWithDegrees implements Program, ProgramDescription {
 		MapOperator projectOutCounts = MapOperator.builder(new ProjectOutCounts())
 				.input(countJoiner).name("Project out Counts").build();
 
-		ReduceOperator buildTriads = ReduceOperator.builder(new BuildTriads(), PactInteger.class, 0)
+		ReduceOperator buildTriads = ReduceOperator.builder(new BuildTriads(), IntValue.class, 0)
 				.input(toLowerDegreeEdge).name("Build Triads").build();
 
-		JoinOperator closeTriads = JoinOperator.builder(new CloseTriads(), PactInteger.class, 1, 0)
-				.keyField(PactInteger.class, 2, 1)
+		JoinOperator closeTriads = JoinOperator.builder(new CloseTriads(), IntValue.class, 1, 0)
+				.keyField(IntValue.class, 2, 1)
 				.input1(buildTriads).input2(projectOutCounts)
 				.name("Close Triads").build();
 		closeTriads.setParameter("INPUT_SHIP_STRATEGY", "SHIP_REPARTITION_HASH");

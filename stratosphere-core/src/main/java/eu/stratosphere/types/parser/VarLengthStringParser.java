@@ -13,16 +13,16 @@
 
 package eu.stratosphere.types.parser;
 
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.StringValue;
 
 /**
- * Converts a variable length field of a byte array into a {@link PactString}. The byte contents between
- * delimiters is interpreted as an ASCII string. The string may be quotes in double quotes. For quoted
+ * Converts a variable length field of a byte array into a {@link StringValue}. The byte contents between
+ * delimiters is interpreted as an ASCII string. The string may be quoted in double quotes. For quoted
  * strings, whitespaces (space and tab) leading and trailing before and after the quotes are removed.
  * 
- * @see PactString
+ * @see StringValue
  */
-public class VarLengthStringParser extends FieldParser<PactString> {
+public class VarLengthStringParser extends FieldParser<StringValue> {
 
 	private static final byte WHITESPACE_SPACE = (byte) ' ';
 	private static final byte WHITESPACE_TAB = (byte) '\t';
@@ -31,7 +31,7 @@ public class VarLengthStringParser extends FieldParser<PactString> {
 	
 	
 	@Override
-	public int parseField(byte[] bytes, int startPos, int length, char delim, PactString field) {
+	public int parseField(byte[] bytes, int startPos, int length, char delim, StringValue field) {
 		
 		int i = startPos;
 		
@@ -87,7 +87,7 @@ public class VarLengthStringParser extends FieldParser<PactString> {
 	}
 	
 	@Override
-	public PactString createValue() {
-		return new PactString();
+	public StringValue createValue() {
+		return new StringValue();
 	}
 }

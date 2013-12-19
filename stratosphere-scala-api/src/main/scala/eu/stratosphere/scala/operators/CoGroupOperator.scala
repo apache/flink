@@ -16,7 +16,7 @@ package eu.stratosphere.scala.operators
 import language.experimental.macros
 import scala.reflect.macros.Context
 
-import eu.stratosphere.types.PactRecord
+import eu.stratosphere.types.Record
 import eu.stratosphere.util.Collector
 import eu.stratosphere.api.operators.Operator
 import eu.stratosphere.api.record.operators.CoGroupOperator
@@ -99,7 +99,7 @@ object CoGroupMacros {
       implicit val rightInputUDT: UDT[RightIn] = c.Expr[UDT[RightIn]](createUdtRightIn).splice
       implicit val outputUDT: UDT[Out] = c.Expr[UDT[Out]](createUdtOut).splice
       new CoGroupFunctionBase[LeftIn, RightIn, Out] {
-        override def coGroup(leftRecords: JIterator[PactRecord], rightRecords: JIterator[PactRecord], out: Collector[PactRecord]) = {
+        override def coGroup(leftRecords: JIterator[Record], rightRecords: JIterator[Record], out: Collector[Record]) = {
 
           val firstLeftRecord = leftIterator.initialize(leftRecords)
           val firstRightRecord = rightIterator.initialize(rightRecords)
@@ -170,7 +170,7 @@ object CoGroupMacros {
       implicit val rightInputUDT: UDT[RightIn] = c.Expr[UDT[RightIn]](createUdtRightIn).splice
       implicit val outputUDT: UDT[Out] = c.Expr[UDT[Out]](createUdtOut).splice
       new CoGroupFunctionBase[LeftIn, RightIn, Out] {
-        override def coGroup(leftRecords: JIterator[PactRecord], rightRecords: JIterator[PactRecord], out: Collector[PactRecord]) = {
+        override def coGroup(leftRecords: JIterator[Record], rightRecords: JIterator[Record], out: Collector[Record]) = {
           val firstLeftRecord = leftIterator.initialize(leftRecords)
           outputRecord.copyFrom(firstLeftRecord, leftForwardFrom, leftForwardTo)
 

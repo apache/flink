@@ -39,24 +39,24 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.pact.runtime.hash.HashMatchIteratorITCase.PactRecordMatchRemovingMatcher;
+import eu.stratosphere.pact.runtime.hash.HashMatchIteratorITCase.RecordMatchRemovingJoin;
 import eu.stratosphere.pact.runtime.hash.HashMatchIteratorITCase.RecordMatch;
 import eu.stratosphere.pact.runtime.hash.HashTableITCase.ConstantsKeyValuePairsIterator;
 import eu.stratosphere.pact.runtime.hash.MutableHashTable.HashBucketIterator;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparator;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordPairComparator;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordSerializer;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparator;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordPairComparator;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializer;
 import eu.stratosphere.pact.runtime.test.util.DiscardingOutputCollector;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.TestData;
-import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
+import eu.stratosphere.pact.runtime.test.util.UniformRecordGenerator;
 import eu.stratosphere.pact.runtime.test.util.UnionIterator;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator;
 import eu.stratosphere.pact.runtime.test.util.TestData.Key;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.KeyMode;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.ValueMode;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 import eu.stratosphere.util.MutableObjectIterator;
 
@@ -80,41 +80,41 @@ public class ReOpenableHashTableITCase {
 	private IOManager ioManager;
 	private MemoryManager memoryManager;
 	
-	private TypeSerializer<PactRecord> recordSerializer;
-	private TypeComparator<PactRecord> record1Comparator;
-	private TypeComparator<PactRecord> record2Comparator;
-	private TypePairComparator<PactRecord, PactRecord> recordPairComparator;
+	private TypeSerializer<Record> recordSerializer;
+	private TypeComparator<Record> record1Comparator;
+	private TypeComparator<Record> record2Comparator;
+	private TypePairComparator<Record, Record> recordPairComparator;
 	
 	
 	
 	
 	private static final AbstractInvokable MEM_OWNER = new DummyInvokable();
-	private TypeSerializer<PactRecord> recordBuildSideAccesssor;
-	private TypeSerializer<PactRecord> recordProbeSideAccesssor;
-	private TypeComparator<PactRecord> recordBuildSideComparator;
-	private TypeComparator<PactRecord> recordProbeSideComparator;
-	private TypePairComparator<PactRecord, PactRecord> pactRecordComparator;
+	private TypeSerializer<Record> recordBuildSideAccesssor;
+	private TypeSerializer<Record> recordProbeSideAccesssor;
+	private TypeComparator<Record> recordBuildSideComparator;
+	private TypeComparator<Record> recordProbeSideComparator;
+	private TypePairComparator<Record, Record> pactRecordComparator;
 	
 
 	@SuppressWarnings("unchecked")
 	@Before
 	public void beforeTest()
 	{
-		this.recordSerializer = PactRecordSerializer.get();
+		this.recordSerializer = RecordSerializer.get();
 		
-		this.record1Comparator = new PactRecordComparator(new int[] {0}, new Class[] {TestData.Key.class});
-		this.record2Comparator = new PactRecordComparator(new int[] {0}, new Class[] {TestData.Key.class});
-		this.recordPairComparator = new PactRecordPairComparator(new int[] {0}, new int[] {0}, new Class[] {TestData.Key.class});
+		this.record1Comparator = new RecordComparator(new int[] {0}, new Class[] {TestData.Key.class});
+		this.record2Comparator = new RecordComparator(new int[] {0}, new Class[] {TestData.Key.class});
+		this.recordPairComparator = new RecordPairComparator(new int[] {0}, new int[] {0}, new Class[] {TestData.Key.class});
 		
 		
 		final int[] keyPos = new int[] {0};
-		final Class<? extends Key>[] keyType = (Class<? extends Key>[]) new Class[] { PactInteger.class };
+		final Class<? extends Key>[] keyType = (Class<? extends Key>[]) new Class[] { IntValue.class };
 		
-		this.recordBuildSideAccesssor = PactRecordSerializer.get();
-		this.recordProbeSideAccesssor = PactRecordSerializer.get();
-		this.recordBuildSideComparator = new PactRecordComparator(keyPos, keyType);
-		this.recordProbeSideComparator = new PactRecordComparator(keyPos, keyType);
-		this.pactRecordComparator = new HashTableITCase.PactRecordPairComparatorFirstInt();
+		this.recordBuildSideAccesssor = RecordSerializer.get();
+		this.recordProbeSideAccesssor = RecordSerializer.get();
+		this.recordBuildSideComparator = new RecordComparator(keyPos, keyType);
+		this.recordProbeSideComparator = new RecordComparator(keyPos, keyType);
+		this.pactRecordComparator = new HashTableITCase.RecordPairComparatorFirstInt();
 		
 		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE, PAGE_SIZE);
 		this.ioManager = new IOManager();
@@ -216,16 +216,16 @@ public class ReOpenableHashTableITCase {
 			HashMatchIteratorITCase.collectRecordData(probeInput));
 		
 		final List<Map<TestData.Key, Collection<RecordMatch>>> expectedNMatchesMapList = new ArrayList<Map<Key,Collection<RecordMatch>>>(NUM_PROBES);
-		final JoinFunction[] nMatcher = new PactRecordMatchRemovingMatcher[NUM_PROBES];
+		final JoinFunction[] nMatcher = new RecordMatchRemovingJoin[NUM_PROBES];
 		for(int i = 0; i < NUM_PROBES; i++) {
 			Map<TestData.Key, Collection<RecordMatch>> tmp;
 			expectedNMatchesMapList.add(tmp = deepCopy(expectedFirstMatchesMap));
-			nMatcher[i] = new PactRecordMatchRemovingMatcher(tmp);
+			nMatcher[i] = new RecordMatchRemovingJoin(tmp);
 		}
 		
-		final JoinFunction firstMatcher = new PactRecordMatchRemovingMatcher(expectedFirstMatchesMap);
+		final JoinFunction firstMatcher = new RecordMatchRemovingJoin(expectedFirstMatchesMap);
 		
-		final Collector<PactRecord> collector = new DiscardingOutputCollector();
+		final Collector<Record> collector = new DiscardingOutputCollector();
 
 		// reset the generators
 		bgen.reset();
@@ -234,8 +234,8 @@ public class ReOpenableHashTableITCase {
 		probeInput.reset();
 
 		// compare with iterator values
-		BuildFirstReOpenableHashMatchIterator<PactRecord, PactRecord, PactRecord> iterator = 
-				new BuildFirstReOpenableHashMatchIterator<PactRecord, PactRecord, PactRecord>(
+		BuildFirstReOpenableHashMatchIterator<Record, Record, Record> iterator = 
+				new BuildFirstReOpenableHashMatchIterator<Record, Record, Record>(
 						buildInput, probeInput, this.recordSerializer, this.record1Comparator, 
 					this.recordSerializer, this.record2Comparator, this.recordPairComparator,
 					this.memoryManager, ioManager, this.parentTask, MEMORY_SIZE);
@@ -276,16 +276,16 @@ public class ReOpenableHashTableITCase {
 	//
 	//
 	
-	private final MutableObjectIterator<PactRecord> getProbeInput(final int numKeys,
+	private final MutableObjectIterator<Record> getProbeInput(final int numKeys,
 			final int probeValsPerKey, final int repeatedValue1, final int repeatedValue2) {
-		MutableObjectIterator<PactRecord> probe1 = new UniformPactRecordGenerator(numKeys, probeValsPerKey, true);
-		MutableObjectIterator<PactRecord> probe2 = new ConstantsKeyValuePairsIterator(repeatedValue1, 17, 5);
-		MutableObjectIterator<PactRecord> probe3 = new ConstantsKeyValuePairsIterator(repeatedValue2, 23, 5);
-		List<MutableObjectIterator<PactRecord>> probes = new ArrayList<MutableObjectIterator<PactRecord>>();
+		MutableObjectIterator<Record> probe1 = new UniformRecordGenerator(numKeys, probeValsPerKey, true);
+		MutableObjectIterator<Record> probe2 = new ConstantsKeyValuePairsIterator(repeatedValue1, 17, 5);
+		MutableObjectIterator<Record> probe3 = new ConstantsKeyValuePairsIterator(repeatedValue2, 23, 5);
+		List<MutableObjectIterator<Record>> probes = new ArrayList<MutableObjectIterator<Record>>();
 		probes.add(probe1);
 		probes.add(probe2);
 		probes.add(probe3);
-		return new UnionIterator<PactRecord>(probes);
+		return new UnionIterator<Record>(probes);
 	}
 	
 	@Test
@@ -303,14 +303,14 @@ public class ReOpenableHashTableITCase {
 		final int PROBE_VALS_PER_KEY = 10;
 		
 		// create a build input that gives 3 million pairs with 3 values sharing the same key, plus 400k pairs with two colliding keys
-		MutableObjectIterator<PactRecord> build1 = new UniformPactRecordGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
-		MutableObjectIterator<PactRecord> build2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, REPEATED_VALUE_COUNT_BUILD);
-		MutableObjectIterator<PactRecord> build3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, REPEATED_VALUE_COUNT_BUILD);
-		List<MutableObjectIterator<PactRecord>> builds = new ArrayList<MutableObjectIterator<PactRecord>>();
+		MutableObjectIterator<Record> build1 = new UniformRecordGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
+		MutableObjectIterator<Record> build2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, REPEATED_VALUE_COUNT_BUILD);
+		MutableObjectIterator<Record> build3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, REPEATED_VALUE_COUNT_BUILD);
+		List<MutableObjectIterator<Record>> builds = new ArrayList<MutableObjectIterator<Record>>();
 		builds.add(build1);
 		builds.add(build2);
 		builds.add(build3);
-		MutableObjectIterator<PactRecord> buildInput = new UnionIterator<PactRecord>(builds);
+		MutableObjectIterator<Record> buildInput = new UnionIterator<Record>(builds);
 	
 		
 		
@@ -330,40 +330,40 @@ public class ReOpenableHashTableITCase {
 		
 		// ----------------------------------------------------------------------------------------
 		
-		final ReOpenableMutableHashTable<PactRecord, PactRecord> join = new ReOpenableMutableHashTable<PactRecord, PactRecord>(
+		final ReOpenableMutableHashTable<Record, Record> join = new ReOpenableMutableHashTable<Record, Record>(
 				this.recordBuildSideAccesssor, this.recordProbeSideAccesssor, 
 				this.recordBuildSideComparator, this.recordProbeSideComparator, this.pactRecordComparator,
 				memSegments, ioManager);
 		
 		for(int probe = 0; probe < NUM_PROBES; probe++) {
 			// create a probe input that gives 10 million pairs with 10 values sharing a key
-			MutableObjectIterator<PactRecord> probeInput = getProbeInput(NUM_KEYS, PROBE_VALS_PER_KEY, REPEATED_VALUE_1, REPEATED_VALUE_2);
+			MutableObjectIterator<Record> probeInput = getProbeInput(NUM_KEYS, PROBE_VALS_PER_KEY, REPEATED_VALUE_1, REPEATED_VALUE_2);
 			if(probe == 0) {
 				join.open(buildInput, probeInput);
 			} else {
 				join.reopenProbe(probeInput);
 			}
 		
-			final PactRecord record = new PactRecord();
+			final Record record = new Record();
 			
 			while (join.nextRecord())
 			{
 				int numBuildValues = 0;
 		
-				final PactRecord probeRec = join.getCurrentProbeRecord();
-				int key = probeRec.getField(0, PactInteger.class).getValue();
+				final Record probeRec = join.getCurrentProbeRecord();
+				int key = probeRec.getField(0, IntValue.class).getValue();
 				
-				HashBucketIterator<PactRecord, PactRecord> buildSide = join.getBuildSideIterator();
+				HashBucketIterator<Record, Record> buildSide = join.getBuildSideIterator();
 				if (buildSide.next(record)) {
 					numBuildValues = 1;
-					Assert.assertEquals("Probe-side key was different than build-side key.", key, record.getField(0, PactInteger.class).getValue()); 
+					Assert.assertEquals("Probe-side key was different than build-side key.", key, record.getField(0, IntValue.class).getValue()); 
 				}
 				else {
 					fail("No build side values found for a probe key.");
 				}
 				while (buildSide.next(record)) {
 					numBuildValues++;
-					Assert.assertEquals("Probe-side key was different than build-side key.", key, record.getField(0, PactInteger.class).getValue());
+					Assert.assertEquals("Probe-side key was different than build-side key.", key, record.getField(0, IntValue.class).getValue());
 				}
 				
 				Long contained = map.get(key);
@@ -420,14 +420,14 @@ public class ReOpenableHashTableITCase {
 		final int PROBE_VALS_PER_KEY = 10;
 		
 		// create a build input that gives 3 million pairs with 3 values sharing the same key, plus 400k pairs with two colliding keys
-		MutableObjectIterator<PactRecord> build1 = new UniformPactRecordGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
-		MutableObjectIterator<PactRecord> build2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, REPEATED_VALUE_COUNT_BUILD);
-		MutableObjectIterator<PactRecord> build3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, REPEATED_VALUE_COUNT_BUILD);
-		List<MutableObjectIterator<PactRecord>> builds = new ArrayList<MutableObjectIterator<PactRecord>>();
+		MutableObjectIterator<Record> build1 = new UniformRecordGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
+		MutableObjectIterator<Record> build2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, REPEATED_VALUE_COUNT_BUILD);
+		MutableObjectIterator<Record> build3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, REPEATED_VALUE_COUNT_BUILD);
+		List<MutableObjectIterator<Record>> builds = new ArrayList<MutableObjectIterator<Record>>();
 		builds.add(build1);
 		builds.add(build2);
 		builds.add(build3);
-		MutableObjectIterator<PactRecord> buildInput = new UnionIterator<PactRecord>(builds);
+		MutableObjectIterator<Record> buildInput = new UnionIterator<Record>(builds);
 	
 
 		// allocate the memory for the HashTable
@@ -445,38 +445,38 @@ public class ReOpenableHashTableITCase {
 		
 		// ----------------------------------------------------------------------------------------
 		
-		final ReOpenableMutableHashTable<PactRecord, PactRecord> join = new ReOpenableMutableHashTable<PactRecord, PactRecord>(
+		final ReOpenableMutableHashTable<Record, Record> join = new ReOpenableMutableHashTable<Record, Record>(
 				this.recordBuildSideAccesssor, this.recordProbeSideAccesssor, 
 				this.recordBuildSideComparator, this.recordProbeSideComparator, this.pactRecordComparator,
 				memSegments, ioManager);
 		for(int probe = 0; probe < NUM_PROBES; probe++) {
 			// create a probe input that gives 10 million pairs with 10 values sharing a key
-			MutableObjectIterator<PactRecord> probeInput = getProbeInput(NUM_KEYS, PROBE_VALS_PER_KEY, REPEATED_VALUE_1, REPEATED_VALUE_2);
+			MutableObjectIterator<Record> probeInput = getProbeInput(NUM_KEYS, PROBE_VALS_PER_KEY, REPEATED_VALUE_1, REPEATED_VALUE_2);
 			if(probe == 0) {
 				join.open(buildInput, probeInput);
 			} else {
 				join.reopenProbe(probeInput);
 			}
-			final PactRecord record = new PactRecord();
+			final Record record = new Record();
 			
 			while (join.nextRecord())
 			{	
 				int numBuildValues = 0;
 				
-				final PactRecord probeRec = join.getCurrentProbeRecord();
-				int key = probeRec.getField(0, PactInteger.class).getValue();
+				final Record probeRec = join.getCurrentProbeRecord();
+				int key = probeRec.getField(0, IntValue.class).getValue();
 				
-				HashBucketIterator<PactRecord, PactRecord> buildSide = join.getBuildSideIterator();
+				HashBucketIterator<Record, Record> buildSide = join.getBuildSideIterator();
 				if (buildSide.next(record)) {
 					numBuildValues = 1;
-					Assert.assertEquals("Probe-side key was different than build-side key.", key, record.getField(0, PactInteger.class).getValue()); 
+					Assert.assertEquals("Probe-side key was different than build-side key.", key, record.getField(0, IntValue.class).getValue()); 
 				}
 				else {
 					fail("No build side values found for a probe key.");
 				}
 				while (buildSide.next(record)) {
 					numBuildValues++;
-					Assert.assertEquals("Probe-side key was different than build-side key.", key, record.getField(0, PactInteger.class).getValue());
+					Assert.assertEquals("Probe-side key was different than build-side key.", key, record.getField(0, IntValue.class).getValue());
 				}
 				
 				Long contained = map.get(key);

@@ -19,7 +19,7 @@ import eu.stratosphere.api.functions.IterationRuntimeContext;
 import eu.stratosphere.api.functions.aggregators.Aggregator;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.types.Key;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.types.Value;
 import eu.stratosphere.util.Collector;
 
@@ -66,16 +66,16 @@ public abstract class VertexUpdateFunction<VertexKey extends Key, VertexValue ex
 	
 	private IterationRuntimeContext runtimeContext;
 	
-	private Collector<PactRecord> out;
+	private Collector<Record> out;
 	
-	private PactRecord outVal;
+	private Record outVal;
 	
 	
 	void init(IterationRuntimeContext context) {
 		this.runtimeContext = context;
 	}
 	
-	void setOutput(PactRecord val, Collector<PactRecord> out) {
+	void setOutput(Record val, Collector<Record> out) {
 		this.out = out;
 		this.outVal = val;
 	}

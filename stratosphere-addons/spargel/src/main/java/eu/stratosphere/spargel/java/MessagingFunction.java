@@ -19,7 +19,7 @@ import eu.stratosphere.api.functions.IterationRuntimeContext;
 import eu.stratosphere.api.functions.aggregators.Aggregator;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.types.Key;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.types.Value;
 import eu.stratosphere.util.Collector;
 
@@ -55,7 +55,7 @@ public abstract class MessagingFunction<VertexKey extends Key, VertexValue exten
 		
 		edgesUsed = true;
 		while (edges.hasNext()) {
-			PactRecord next = edges.next();
+			Record next = edges.next();
 			VertexKey k = next.getField(1, this.keyClass);
 			outValue.setField(0, k);
 			outValue.setField(1, m);
@@ -87,13 +87,13 @@ public abstract class MessagingFunction<VertexKey extends Key, VertexValue exten
 	//  internal methods and state
 	// --------------------------------------------------------------------------------------------
 	
-	private PactRecord outValue;
+	private Record outValue;
 	
 	private IterationRuntimeContext runtimeContext;
 	
-	private Iterator<PactRecord> edges;
+	private Iterator<Record> edges;
 	
-	private Collector<PactRecord> out;
+	private Collector<Record> out;
 	
 	private EdgesIterator<VertexKey, EdgeValue> edgeIter;
 	
@@ -106,11 +106,11 @@ public abstract class MessagingFunction<VertexKey extends Key, VertexValue exten
 	void init(IterationRuntimeContext context, VertexKey keyHolder, EdgeValue edgeValueHolder) {
 		this.runtimeContext = context;
 		this.edgeIter = new EdgesIterator<VertexKey, EdgeValue>(keyHolder, edgeValueHolder);
-		this.outValue = new PactRecord();
+		this.outValue = new Record();
 		this.keyClass = (Class<VertexKey>) keyHolder.getClass();
 	}
 	
-	void set(Iterator<PactRecord> edges, Collector<PactRecord> out) {
+	void set(Iterator<Record> edges, Collector<Record> out) {
 		this.edges = edges;
 		this.out = out;
 		this.edgesUsed = false;
@@ -121,7 +121,7 @@ public abstract class MessagingFunction<VertexKey extends Key, VertexValue exten
 	
 	private static final class EdgesIterator<VertexKey extends Key, EdgeValue extends Value> implements Iterator<Edge<VertexKey, EdgeValue>> {
 
-		private Iterator<PactRecord> input;
+		private Iterator<Record> input;
 		private VertexKey keyHolder;
 		private EdgeValue edgeValueHolder;
 		
@@ -132,7 +132,7 @@ public abstract class MessagingFunction<VertexKey extends Key, VertexValue exten
 			this.edgeValueHolder = edgeValueHolder;
 		}
 		
-		void set(Iterator<PactRecord> input) {
+		void set(Iterator<Record> input) {
 			this.input = input;
 		}
 		
@@ -143,7 +143,7 @@ public abstract class MessagingFunction<VertexKey extends Key, VertexValue exten
 
 		@Override
 		public Edge<VertexKey, EdgeValue> next() {
-			PactRecord next = input.next();
+			Record next = input.next();
 			next.getFieldInto(0, keyHolder);
 			next.getFieldInto(1, edgeValueHolder);
 			edge.set(keyHolder, edgeValueHolder);

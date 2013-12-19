@@ -20,11 +20,11 @@ import org.junit.Test;
 import eu.stratosphere.api.functions.GenericCrosser;
 import eu.stratosphere.pact.runtime.task.CrossTaskTest.MockCrossStub;
 import eu.stratosphere.pact.runtime.test.util.DriverTestBase;
-import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.pact.runtime.test.util.UniformRecordGenerator;
+import eu.stratosphere.types.Record;
 
 
-public class CrossTaskExternalITCase extends DriverTestBase<GenericCrosser<PactRecord, PactRecord, PactRecord>>
+public class CrossTaskExternalITCase extends DriverTestBase<GenericCrosser<Record, Record, Record>>
 {
 	private static final long CROSS_MEM = 1024 * 1024;
 	
@@ -48,13 +48,13 @@ public class CrossTaskExternalITCase extends DriverTestBase<GenericCrosser<PactR
 		
 		setOutput(this.output);
 		
-		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
+		addInput(new UniformRecordGenerator(keyCnt1, valCnt1, false));
+		addInput(new UniformRecordGenerator(keyCnt2, valCnt2, false));
 				
 		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST);
 		getTaskConfig().setMemoryDriver(CROSS_MEM);
 		
-		final CrossDriver<PactRecord, PactRecord, PactRecord> testTask = new CrossDriver<PactRecord, PactRecord, PactRecord>();
+		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<Record, Record, Record>();
 		
 		try {
 			testDriver(testTask, MockCrossStub.class);
@@ -80,13 +80,13 @@ public class CrossTaskExternalITCase extends DriverTestBase<GenericCrosser<PactR
 		
 		setOutput(this.output);
 		
-		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
+		addInput(new UniformRecordGenerator(keyCnt1, valCnt1, false));
+		addInput(new UniformRecordGenerator(keyCnt2, valCnt2, false));
 				
 		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST);
 		getTaskConfig().setMemoryDriver(CROSS_MEM);
 		
-		final CrossDriver<PactRecord, PactRecord, PactRecord> testTask = new CrossDriver<PactRecord, PactRecord, PactRecord>();
+		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<Record, Record, Record>();
 		
 		try {
 			testDriver(testTask, MockCrossStub.class);

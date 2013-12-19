@@ -18,13 +18,13 @@ import org.junit.Test;
 
 import eu.stratosphere.test.testPrograms.util.IntTupleDataInFormat;
 import eu.stratosphere.test.testPrograms.util.Tuple;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
 
 public class IntTupleDataInFormatTest
 {
 	@Test
-	public void testReadLineKeyValuePairOfPactIntegerTupleByteArray() {
+	public void testReadLineKeyValuePairOfIntValueTupleByteArray() {
 		
 		String[] testTuples = {
 			"1|attribute1|attribute2|3|attribute4|5|",
@@ -43,7 +43,7 @@ public class IntTupleDataInFormatTest
 		int[] expectedAttrCnt = {6,2,3,3,3,5,5};
 
 		IntTupleDataInFormat inFormat = new IntTupleDataInFormat();
-		PactRecord rec = new PactRecord();	
+		Record rec = new Record();	
 		
 		for(int i = 0; i < testTuples.length; i++) {
 			
@@ -51,7 +51,7 @@ public class IntTupleDataInFormatTest
 			
 			inFormat.readRecord(rec, tupleBytes, 0, tupleBytes.length);
 			
-			Assert.assertTrue("Expected Key: "+expectedKeys[i]+" != Returned Key: "+rec.getField(0, PactInteger.class), rec.getField(0, PactInteger.class).equals(new PactInteger(expectedKeys[i])));
+			Assert.assertTrue("Expected Key: "+expectedKeys[i]+" != Returned Key: "+rec.getField(0, IntValue.class), rec.getField(0, IntValue.class).equals(new IntValue(expectedKeys[i])));
 			Assert.assertTrue("Expected Attr Cnt: "+expectedAttrCnt[i]+" != Returned Attr Cnt: "+rec.getField(1, Tuple.class), rec.getField(1, Tuple.class).getNumberOfColumns() == expectedAttrCnt[i]);
 		}
 	}

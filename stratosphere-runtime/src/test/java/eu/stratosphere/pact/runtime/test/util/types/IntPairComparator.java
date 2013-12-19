@@ -68,7 +68,7 @@ public class IntPairComparator extends TypeComparator<IntPair>
 
 	@Override
 	public void putNormalizedKey(IntPair record, MemorySegment target, int offset, int len) {
-		// see PactInteger for a documentation of the logic
+		// see IntValue for a documentation of the logic
 		final int value = record.getKey() - Integer.MIN_VALUE;
 		
 		if (len == 4) {

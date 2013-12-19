@@ -15,7 +15,7 @@ package eu.stratosphere.scala.functions
 
 import eu.stratosphere.scala.analysis.{UDTSerializer, UDT, UDF1}
 import eu.stratosphere.api.record.functions.{MapFunction => JMapFunction}
-import eu.stratosphere.types.PactRecord
+import eu.stratosphere.types.Record
 import eu.stratosphere.util.Collector
 
 abstract class MapFunctionBase[In: UDT, Out: UDT] extends JMapFunction with Serializable{
@@ -30,7 +30,7 @@ abstract class MapFunctionBase[In: UDT, Out: UDT] extends JMapFunction with Seri
 }
 
 abstract class MapFunction[In: UDT, Out: UDT] extends MapFunctionBase[In, Out] with Function1[In, Out] {
-  override def map(record: PactRecord, out: Collector[PactRecord]) = {
+  override def map(record: Record, out: Collector[Record]) = {
     val input = deserializer.deserializeRecyclingOn(record)
     val output = apply(input)
 
@@ -45,7 +45,7 @@ abstract class MapFunction[In: UDT, Out: UDT] extends MapFunctionBase[In, Out] w
 }
 
 abstract class FlatMapFunction[In: UDT, Out: UDT] extends MapFunctionBase[In, Out] with Function1[In, Iterator[Out]] {
-  override def map(record: PactRecord, out: Collector[PactRecord]) = {
+  override def map(record: Record, out: Collector[Record]) = {
     val input = deserializer.deserializeRecyclingOn(record)
     val output = apply(input)
 
@@ -66,7 +66,7 @@ abstract class FlatMapFunction[In: UDT, Out: UDT] extends MapFunctionBase[In, Ou
 }
 
 abstract class FilterStub[In: UDT, Out: UDT] extends MapFunctionBase[In, Out] with Function1[In, Boolean]  {
-  override def map(record: PactRecord, out: Collector[PactRecord]) = {
+  override def map(record: Record, out: Collector[Record]) = {
     val input = deserializer.deserializeRecyclingOn(record)
     if (apply(input)) {
       out.collect(record)

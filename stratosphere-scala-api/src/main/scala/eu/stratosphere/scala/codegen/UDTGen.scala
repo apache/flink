@@ -15,8 +15,8 @@ package eu.stratosphere.scala.codegen
 
 import scala.reflect.macros.Context
 import eu.stratosphere.scala.analysis.UDT
-import eu.stratosphere.types.PactList
-import eu.stratosphere.types.PactRecord
+import eu.stratosphere.types.ListValue
+import eu.stratosphere.types.Record
 
 trait UDTGen[C <: Context] { this: MacroContextHolder[C] with UDTDescriptors[C] with UDTAnalyzer[C] with TreeGen[C] with SerializerGen[C] with SerializeMethodGen[C] with DeserializeMethodGen[C] with Loggers[C] =>
   import c.universe._
@@ -47,9 +47,9 @@ trait UDTGen[C <: Context] { this: MacroContextHolder[C] with UDTDescriptors[C] 
         case PrimitiveDescriptor(_, _, _, wrapper) => Literal(Constant(wrapper))
         case BoxedPrimitiveDescriptor(_, _, _, wrapper, _, _) => Literal(Constant(wrapper))
         case PactValueDescriptor(_, tpe) => Literal(Constant(tpe))
-        case ListDescriptor(_, _, _, _) => Literal(Constant(typeOf[PactList[eu.stratosphere.types.Value]]))
+        case ListDescriptor(_, _, _, _) => Literal(Constant(typeOf[ListValue[eu.stratosphere.types.Value]]))
         // Box inner instances of recursive types
-        case RecursiveDescriptor(_, _, _) => Literal(Constant(typeOf[PactRecord]))
+        case RecursiveDescriptor(_, _, _) => Literal(Constant(typeOf[Record]))
         case BaseClassDescriptor(_, _, _, _) => throw new RuntimeException("Illegal descriptor for basic record field.")
         case CaseClassDescriptor(_, _, _, _, _) => throw new RuntimeException("Illegal descriptor for basic record field.")
         case UnsupportedDescriptor(_, _, _) => throw new RuntimeException("Illegal descriptor for basic record field.")

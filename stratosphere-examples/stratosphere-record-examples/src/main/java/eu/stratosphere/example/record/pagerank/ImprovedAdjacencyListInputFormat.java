@@ -14,20 +14,20 @@
 package eu.stratosphere.example.record.pagerank;
 
 import eu.stratosphere.api.record.io.TextInputFormat;
-import eu.stratosphere.types.PactLong;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.LongValue;
+import eu.stratosphere.types.Record;
 
 public class ImprovedAdjacencyListInputFormat extends TextInputFormat {
 	private static final long serialVersionUID = 1L;
 
-	private final PactLong vertexID = new PactLong();
+	private final LongValue vertexID = new LongValue();
 
 	private final AsciiLongArrayView arrayView = new AsciiLongArrayView();
 
 	private final LongArrayView adjacentVertices = new LongArrayView();
 
 	@Override
-	public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes) {
+	public boolean readRecord(Record target, byte[] bytes, int offset, int numBytes) {
 
 		if (numBytes == 0) {
 			return false;

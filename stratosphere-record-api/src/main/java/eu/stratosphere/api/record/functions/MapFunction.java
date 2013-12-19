@@ -15,7 +15,7 @@ package eu.stratosphere.api.record.functions;
 
 import eu.stratosphere.api.functions.AbstractFunction;
 import eu.stratosphere.api.functions.GenericMapper;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 /**
@@ -25,7 +25,7 @@ import eu.stratosphere.util.Collector;
  * <p>
  * For a mapper implementation, the <code>map()</code> method must be implemented.
  */
-public abstract class MapFunction extends AbstractFunction implements GenericMapper<PactRecord, PactRecord> {
+public abstract class MapFunction extends AbstractFunction implements GenericMapper<Record, Record> {
 	
 	/**
 	 * This method must be implemented to provide a user implementation of a mapper.
@@ -39,5 +39,5 @@ public abstract class MapFunction extends AbstractFunction implements GenericMap
 	 *                   decide whether to retry the mapper execution.
 	 */
 	@Override
-	public abstract void map(PactRecord record, Collector<PactRecord> out) throws Exception;
+	public abstract void map(Record record, Collector<Record> out) throws Exception;
 }

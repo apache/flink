@@ -17,7 +17,7 @@ import java.util.{ Iterator => JIterator }
 
 import eu.stratosphere.scala.analysis.{UDTSerializer, UDF1, FieldSelector, UDT}
 import eu.stratosphere.api.record.functions.{ReduceFunction => JReduceFunction}
-import eu.stratosphere.types.PactRecord
+import eu.stratosphere.types.Record
 import eu.stratosphere.util.Collector
 import scala.Iterator
 
@@ -27,7 +27,7 @@ abstract class ReduceFunctionBase[In: UDT, Out: UDT] extends JReduceFunction wit
   val outputUDT: UDT[Out] = implicitly[UDT[Out]]
   val udf: UDF1[In, Out] = new UDF1(inputUDT, outputUDT)
 
-  protected val reduceRecord = new PactRecord()
+  protected val reduceRecord = new Record()
 
   protected lazy val reduceIterator: DeserializingIterator[In] = new DeserializingIterator(udf.getInputDeserializer)
   protected lazy val reduceSerializer: UDTSerializer[Out] = udf.getOutputSerializer
@@ -37,11 +37,11 @@ abstract class ReduceFunctionBase[In: UDT, Out: UDT] extends JReduceFunction wit
 
 abstract class ReduceFunction[In: UDT] extends ReduceFunctionBase[In, In] with Function2[In, In, In] {
 
-  override def combine(records: JIterator[PactRecord], out: Collector[PactRecord]) = {
+  override def combine(records: JIterator[Record], out: Collector[Record]) = {
     reduce(records, out)
   }
 
-  override def reduce(records: JIterator[PactRecord], out: Collector[PactRecord]) = {
+  override def reduce(records: JIterator[Record], out: Collector[Record]) = {
     val firstRecord = reduceIterator.initialize(records)
     reduceRecord.copyFrom(firstRecord, reduceForwardFrom, reduceForwardTo)
 
@@ -53,7 +53,7 @@ abstract class ReduceFunction[In: UDT] extends ReduceFunctionBase[In, In] with F
 }
 
 abstract class GroupReduceFunction[In: UDT, Out: UDT] extends ReduceFunctionBase[In, Out] with Function1[Iterator[In], Out] {
-  override def reduce(records: JIterator[PactRecord], out: Collector[PactRecord]) = {
+  override def reduce(records: JIterator[Record], out: Collector[Record]) = {
     val firstRecord = reduceIterator.initialize(records)
     reduceRecord.copyFrom(firstRecord, reduceForwardFrom, reduceForwardTo)
 
@@ -65,7 +65,7 @@ abstract class GroupReduceFunction[In: UDT, Out: UDT] extends ReduceFunctionBase
 }
 
 abstract class CombinableGroupReduceFunction[In: UDT, Out: UDT] extends ReduceFunctionBase[In, Out] with Function1[Iterator[In], Out] {
-  override def combine(records: JIterator[PactRecord], out: Collector[PactRecord]) = {
+  override def combine(records: JIterator[Record], out: Collector[Record]) = {
     val firstRecord = reduceIterator.initialize(records)
     reduceRecord.copyFrom(firstRecord, reduceForwardFrom, reduceForwardTo)
 
@@ -75,7 +75,7 @@ abstract class CombinableGroupReduceFunction[In: UDT, Out: UDT] extends ReduceFu
     out.collect(reduceRecord)
   }
 
-  override def reduce(records: JIterator[PactRecord], out: Collector[PactRecord]) = {
+  override def reduce(records: JIterator[Record], out: Collector[Record]) = {
     val firstRecord = reduceIterator.initialize(records)
     reduceRecord.copyFrom(firstRecord, reduceForwardFrom, reduceForwardTo)
 

@@ -16,8 +16,8 @@ import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 
 import eu.stratosphere.api.record.io.DelimitedOutputFormat;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
 
 /**
  * Writes records that contain an id and a CoordVector.
@@ -43,11 +43,11 @@ public class PointOutFormat extends DelimitedOutputFormat {
 	}
 	
 	@Override
-	public int serializeRecord(PactRecord record, byte[] target) {
+	public int serializeRecord(Record record, byte[] target) {
 		
 		line.setLength(0);
 		
-		PactInteger centerId = record.getField(0, PactInteger.class);
+		IntValue centerId = record.getField(0, IntValue.class);
 		CoordVector centerPos = record.getField(1, CoordVector.class);
 		
 		

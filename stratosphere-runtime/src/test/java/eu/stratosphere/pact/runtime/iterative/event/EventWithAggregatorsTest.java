@@ -26,8 +26,8 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import eu.stratosphere.api.functions.aggregators.Aggregator;
-import eu.stratosphere.types.PactLong;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.LongValue;
+import eu.stratosphere.types.StringValue;
 import eu.stratosphere.types.Value;
 
 
@@ -46,14 +46,14 @@ public class EventWithAggregatorsTest {
 	
 	@Test
 	public void testSerializationOfEventWithAggregateValues() {
-		PactString stringValue = new PactString("test string");
-		PactLong longValue = new PactLong(68743254);
+		StringValue stringValue = new StringValue("test string");
+		LongValue longValue = new LongValue(68743254);
 		
 		String stringValueName = "stringValue";
 		String longValueName = "longValue";
 		
-		Aggregator<PactString> stringAgg = new TestAggregator<PactString>(stringValue);
-		Aggregator<PactLong> longAgg = new TestAggregator<PactLong>(longValue);
+		Aggregator<StringValue> stringAgg = new TestAggregator<StringValue>(stringValue);
+		Aggregator<LongValue> longAgg = new TestAggregator<LongValue>(longValue);
 		
 		Map<String, Aggregator<?>> aggMap = new HashMap<String,  Aggregator<?>>();
 		aggMap.put(stringValueName, stringAgg);

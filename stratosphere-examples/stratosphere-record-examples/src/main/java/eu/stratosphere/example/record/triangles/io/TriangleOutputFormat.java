@@ -14,8 +14,8 @@
 package eu.stratosphere.example.record.triangles.io;
 
 import eu.stratosphere.api.record.io.DelimitedOutputFormat;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
 
 
 /**
@@ -27,13 +27,13 @@ public final class TriangleOutputFormat extends DelimitedOutputFormat {
 	private final StringBuilder line = new StringBuilder();
 
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.api.record.io.DelimitedOutputFormat#serializeRecord(eu.stratosphere.pact.common.type.PactRecord, byte[])
+	 * @see eu.stratosphere.api.record.io.DelimitedOutputFormat#serializeRecord(eu.stratosphere.pact.common.type.Record, byte[])
 	 */
 	@Override
-	public int serializeRecord(PactRecord rec, byte[] target) throws Exception {
-		final int e1 = rec.getField(0, PactInteger.class).getValue();
-		final int e2 = rec.getField(1, PactInteger.class).getValue();
-		final int e3 = rec.getField(2, PactInteger.class).getValue();
+	public int serializeRecord(Record rec, byte[] target) throws Exception {
+		final int e1 = rec.getField(0, IntValue.class).getValue();
+		final int e2 = rec.getField(1, IntValue.class).getValue();
+		final int e3 = rec.getField(2, IntValue.class).getValue();
 		
 		this.line.setLength(0);
 		this.line.append(e1);

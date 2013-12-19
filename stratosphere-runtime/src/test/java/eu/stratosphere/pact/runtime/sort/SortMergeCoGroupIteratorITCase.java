@@ -29,14 +29,14 @@ import org.junit.Test;
 import eu.stratosphere.api.typeutils.TypeComparator;
 import eu.stratosphere.api.typeutils.TypePairComparator;
 import eu.stratosphere.api.typeutils.TypeSerializer;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparator;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordPairComparator;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordSerializer;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparator;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordPairComparator;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializer;
 import eu.stratosphere.pact.runtime.test.util.TestData;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.KeyMode;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.ValueMode;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.MutableObjectIterator;
 
 /**
@@ -60,26 +60,26 @@ public class SortMergeCoGroupIteratorITCase
 	private Generator generator2;
 
 	// left and right input RecordReader mocks
-	private MutableObjectIterator<PactRecord> reader1;
+	private MutableObjectIterator<Record> reader1;
 
-	private MutableObjectIterator<PactRecord> reader2;
+	private MutableObjectIterator<Record> reader2;
 	
 	
-	private TypeSerializer<PactRecord> serializer1;
-	private TypeSerializer<PactRecord> serializer2;
-	private TypeComparator<PactRecord> comparator1;
-	private TypeComparator<PactRecord> comparator2;
-	private TypePairComparator<PactRecord, PactRecord> pairComparator;
+	private TypeSerializer<Record> serializer1;
+	private TypeSerializer<Record> serializer2;
+	private TypeComparator<Record> comparator1;
+	private TypeComparator<Record> comparator2;
+	private TypePairComparator<Record, Record> pairComparator;
 
 
 	@SuppressWarnings("unchecked")
 	@Before
 	public void beforeTest() {
-		this.serializer1 = PactRecordSerializer.get();
-		this.serializer2 = PactRecordSerializer.get();
-		this.comparator1 = new PactRecordComparator(new int[] {0}, new Class[]{TestData.Key.class});
-		this.comparator2 = new PactRecordComparator(new int[] {0}, new Class[]{TestData.Key.class});
-		this.pairComparator = new PactRecordPairComparator(new int[] {0}, new int[] {0}, new Class[]{TestData.Key.class});
+		this.serializer1 = RecordSerializer.get();
+		this.serializer2 = RecordSerializer.get();
+		this.comparator1 = new RecordComparator(new int[] {0}, new Class[]{TestData.Key.class});
+		this.comparator2 = new RecordComparator(new int[] {0}, new Class[]{TestData.Key.class});
+		this.pairComparator = new RecordPairComparator(new int[] {0}, new int[] {0}, new Class[]{TestData.Key.class});
 	}
 	
 	@Test
@@ -102,7 +102,7 @@ public class SortMergeCoGroupIteratorITCase
 			generator2.reset();
 	
 			// compare with iterator values
-			SortMergeCoGroupIterator<PactRecord, PactRecord> iterator =	new SortMergeCoGroupIterator<PactRecord, PactRecord>(
+			SortMergeCoGroupIterator<Record, Record> iterator =	new SortMergeCoGroupIterator<Record, Record>(
 					this.reader1, this.reader2, this.serializer1, this.comparator1, this.serializer2, this.comparator2,
 					this.pairComparator);
 	
@@ -111,19 +111,19 @@ public class SortMergeCoGroupIteratorITCase
 			final TestData.Key key = new TestData.Key();
 			while (iterator.next())
 			{
-				Iterator<PactRecord> iter1 = iterator.getValues1();
-				Iterator<PactRecord> iter2 = iterator.getValues2();
+				Iterator<Record> iter1 = iterator.getValues1();
+				Iterator<Record> iter2 = iterator.getValues2();
 				
 				TestData.Value v1 = null;
 				TestData.Value v2 = null;
 				
 				if (iter1.hasNext()) {
-					PactRecord rec = iter1.next();
+					Record rec = iter1.next();
 					rec.getFieldInto(0, key);
 					v1 = rec.getField(1, TestData.Value.class);
 				}
 				else if (iter2.hasNext()) {
-					PactRecord rec = iter2.next();
+					Record rec = iter2.next();
 					rec.getFieldInto(0, key);
 					v2 = rec.getField(1, TestData.Value.class);
 				}
@@ -145,13 +145,13 @@ public class SortMergeCoGroupIteratorITCase
 				}
 				
 				while(iter1.hasNext()) {
-					PactRecord rec = iter1.next();
+					Record rec = iter1.next();
 					Assert.assertTrue("Value not in expected set of first input", expValues1.remove(rec.getField(1, TestData.Value.class)));
 				}
 				Assert.assertTrue("Expected set of first input not empty", expValues1.isEmpty());
 				
 				while(iter2.hasNext()) {
-					PactRecord rec = iter2.next();
+					Record rec = iter2.next();
 					Assert.assertTrue("Value not in expected set of second input", expValues2.remove(rec.getField(1, TestData.Value.class)));
 				}
 				Assert.assertTrue("Expected set of second input not empty", expValues2.isEmpty());
@@ -205,7 +205,7 @@ public class SortMergeCoGroupIteratorITCase
 	throws Exception
 	{
 		Map<TestData.Key, Collection<TestData.Value>> map = new HashMap<TestData.Key, Collection<TestData.Value>>();
-		PactRecord pair = new PactRecord();
+		Record pair = new Record();
 		
 		for (int i = 0; i < num; i++) {
 			iter.next(pair);

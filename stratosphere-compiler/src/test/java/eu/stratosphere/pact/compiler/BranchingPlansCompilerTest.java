@@ -43,7 +43,7 @@ import eu.stratosphere.pact.compiler.util.DummyMatchStub;
 import eu.stratosphere.pact.compiler.util.DummyOutputFormat;
 import eu.stratosphere.pact.compiler.util.IdentityMap;
 import eu.stratosphere.pact.compiler.util.IdentityReduce;
-import eu.stratosphere.types.PactInteger;
+import eu.stratosphere.types.IntValue;
 
 /**
  */
@@ -188,51 +188,51 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 			// construct the plan
 			FileDataSource sourceA = new FileDataSource(new DummyInputFormat(), IN_FILE);
 			
-			JoinOperator mat1 = JoinOperator.builder(new DummyMatchStub(), PactInteger.class, 0, 0)
+			JoinOperator mat1 = JoinOperator.builder(new DummyMatchStub(), IntValue.class, 0, 0)
 				.input1(sourceA)
 				.input2(sourceA)
 				.build();
-			JoinOperator mat2 = JoinOperator.builder(new DummyMatchStub(), PactInteger.class, 0, 0)
+			JoinOperator mat2 = JoinOperator.builder(new DummyMatchStub(), IntValue.class, 0, 0)
 				.input1(sourceA)
 				.input2(mat1)
 				.build();
-			JoinOperator mat3 = JoinOperator.builder(new DummyMatchStub(), PactInteger.class, 0, 0)
+			JoinOperator mat3 = JoinOperator.builder(new DummyMatchStub(), IntValue.class, 0, 0)
 				.input1(sourceA)
 				.input2(mat2)
 				.build();
-			JoinOperator mat4 = JoinOperator.builder(new DummyMatchStub(), PactInteger.class, 0, 0)
+			JoinOperator mat4 = JoinOperator.builder(new DummyMatchStub(), IntValue.class, 0, 0)
 				.input1(sourceA)
 				.input2(mat3)
 				.build();
-			JoinOperator mat5 = JoinOperator.builder(new DummyMatchStub(), PactInteger.class, 0, 0)
+			JoinOperator mat5 = JoinOperator.builder(new DummyMatchStub(), IntValue.class, 0, 0)
 				.input1(sourceA)
 				.input2(mat4)
 				.build();
 			
 			MapOperator ma = MapOperator.builder(new IdentityMap()).input(sourceA).build();
 			
-			JoinOperator mat6 = JoinOperator.builder(new DummyMatchStub(), PactInteger.class, 0, 0)
+			JoinOperator mat6 = JoinOperator.builder(new DummyMatchStub(), IntValue.class, 0, 0)
 				.input1(ma)
 				.input2(ma)
 				.build();
-			JoinOperator mat7 = JoinOperator.builder(new DummyMatchStub(), PactInteger.class, 0, 0)
+			JoinOperator mat7 = JoinOperator.builder(new DummyMatchStub(), IntValue.class, 0, 0)
 				.input1(ma)
 				.input2(mat6)
 				.build();
-			JoinOperator mat8 = JoinOperator.builder(new DummyMatchStub(), PactInteger.class, 0, 0)
+			JoinOperator mat8 = JoinOperator.builder(new DummyMatchStub(), IntValue.class, 0, 0)
 				.input1(ma)
 				.input2(mat7)
 				.build();
-			JoinOperator mat9 = JoinOperator.builder(new DummyMatchStub(), PactInteger.class, 0, 0)
+			JoinOperator mat9 = JoinOperator.builder(new DummyMatchStub(), IntValue.class, 0, 0)
 				.input1(ma)
 				.input2(mat8)
 				.build();
-			JoinOperator mat10 = JoinOperator.builder(new DummyMatchStub(), PactInteger.class, 0, 0)
+			JoinOperator mat10 = JoinOperator.builder(new DummyMatchStub(), IntValue.class, 0, 0)
 				.input1(ma)
 				.input2(mat9)
 				.build();
 			
-			CoGroupOperator co = CoGroupOperator.builder(new DummyCoGroupStub(), PactInteger.class, 0, 0)
+			CoGroupOperator co = CoGroupOperator.builder(new DummyCoGroupStub(), IntValue.class, 0, 0)
 				.input1(mat5)
 				.input2(mat10)
 				.build();
@@ -285,20 +285,20 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 			FileDataSource sourceB = new FileDataSource(new DummyInputFormat(), IN_FILE);
 			FileDataSource sourceC = new FileDataSource(new DummyInputFormat(), IN_FILE);
 			
-			CoGroupOperator co = CoGroupOperator.builder(new DummyCoGroupStub(), PactInteger.class, 0,0)
+			CoGroupOperator co = CoGroupOperator.builder(new DummyCoGroupStub(), IntValue.class, 0,0)
 				.input1(sourceA)
 				.input2(sourceB)
 				.build();
 			MapOperator ma = MapOperator.builder(new IdentityMap()).input(co).build();
-			JoinOperator mat1 = JoinOperator.builder(new DummyMatchStub(), PactInteger.class, 0, 0)
+			JoinOperator mat1 = JoinOperator.builder(new DummyMatchStub(), IntValue.class, 0, 0)
 				.input1(sourceB)
 				.input2(sourceC)
 				.build();
-			JoinOperator mat2 = JoinOperator.builder(new DummyMatchStub(), PactInteger.class, 0, 0)
+			JoinOperator mat2 = JoinOperator.builder(new DummyMatchStub(), IntValue.class, 0, 0)
 				.input1(ma)
 				.input2(mat1)
 				.build();
-			ReduceOperator r = ReduceOperator.builder(new IdentityReduce(), PactInteger.class, 0)
+			ReduceOperator r = ReduceOperator.builder(new IdentityReduce(), IntValue.class, 0)
 				.input(ma)
 				.build();
 			CrossOperator c = CrossOperator.builder(new DummyCrossStub())
@@ -356,18 +356,18 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 			
 			MapOperator map1 = MapOperator.builder(new IdentityMap()).input(sourceA).name("Map 1").build();
 			
-			ReduceOperator reduce1 = ReduceOperator.builder(new IdentityReduce(), PactInteger.class, 0)
+			ReduceOperator reduce1 = ReduceOperator.builder(new IdentityReduce(), IntValue.class, 0)
 				.input(map1)
 				.name("Reduce 1")
 				.build();
 			
-			JoinOperator match1 = JoinOperator.builder(new DummyMatchStub(), PactInteger.class, 0, 0)
+			JoinOperator match1 = JoinOperator.builder(new DummyMatchStub(), IntValue.class, 0, 0)
 				.input1(sourceB, sourceB, sourceC)
 				.input2(sourceC)
 				.name("Match 1")
 				.build();
 			;
-			CoGroupOperator cogroup1 = CoGroupOperator.builder(new DummyCoGroupStub(), PactInteger.class, 0,0)
+			CoGroupOperator cogroup1 = CoGroupOperator.builder(new DummyCoGroupStub(), IntValue.class, 0,0)
 				.input1(sourceA)
 				.input2(sourceB)
 				.name("CoGroup 1")
@@ -380,13 +380,13 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 				.build();
 			
 			
-			CoGroupOperator cogroup2 = CoGroupOperator.builder(new DummyCoGroupStub(), PactInteger.class, 0,0)
+			CoGroupOperator cogroup2 = CoGroupOperator.builder(new DummyCoGroupStub(), IntValue.class, 0,0)
 				.input1(cross1)
 				.input2(cross1)
 				.name("CoGroup 2")
 				.build();
 			
-			CoGroupOperator cogroup3 = CoGroupOperator.builder(new DummyCoGroupStub(), PactInteger.class, 0,0)
+			CoGroupOperator cogroup3 = CoGroupOperator.builder(new DummyCoGroupStub(), IntValue.class, 0,0)
 				.input1(map1)
 				.input2(match1)
 				.name("CoGroup 3")
@@ -395,25 +395,25 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 			
 			MapOperator map2 = MapOperator.builder(new IdentityMap()).input(cogroup3).name("Map 2").build();
 			
-			CoGroupOperator cogroup4 = CoGroupOperator.builder(new DummyCoGroupStub(), PactInteger.class, 0,0)
+			CoGroupOperator cogroup4 = CoGroupOperator.builder(new DummyCoGroupStub(), IntValue.class, 0,0)
 				.input1(map2)
 				.input2(match1)
 				.name("CoGroup 4")
 				.build();
 			
-			CoGroupOperator cogroup5 = CoGroupOperator.builder(new DummyCoGroupStub(), PactInteger.class, 0,0)
+			CoGroupOperator cogroup5 = CoGroupOperator.builder(new DummyCoGroupStub(), IntValue.class, 0,0)
 				.input1(cogroup2)
 				.input2(cogroup1)
 				.name("CoGroup 5")
 				.build();
 			
-			CoGroupOperator cogroup6 = CoGroupOperator.builder(new DummyCoGroupStub(), PactInteger.class, 0,0)
+			CoGroupOperator cogroup6 = CoGroupOperator.builder(new DummyCoGroupStub(), IntValue.class, 0,0)
 				.input1(reduce1)
 				.input2(cogroup4)
 				.name("CoGroup 6")
 				.build();
 			
-			CoGroupOperator cogroup7 = CoGroupOperator.builder(new DummyCoGroupStub(), PactInteger.class, 0,0)
+			CoGroupOperator cogroup7 = CoGroupOperator.builder(new DummyCoGroupStub(), IntValue.class, 0,0)
 				.input1(cogroup5)
 				.input2(cogroup6)
 				.name("CoGroup 7")
@@ -448,7 +448,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 			FileDataSource source1 = new FileDataSource(new DummyInputFormat(), IN_FILE);
 			FileDataSource source2 = new FileDataSource(new DummyInputFormat(), IN_FILE);
 			
-			JoinOperator mat1 = JoinOperator.builder(new DummyMatchStub(), PactInteger.class, 0, 0)
+			JoinOperator mat1 = JoinOperator.builder(new DummyMatchStub(), IntValue.class, 0, 0)
 				.input1(source1)
 				.input2(source2)
 				.name("Match 1")
@@ -456,12 +456,12 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 			
 			MapOperator ma1 = MapOperator.builder(new IdentityMap()).input(mat1).name("Map1").build();
 			
-			ReduceOperator r1 = ReduceOperator.builder(new IdentityReduce(), PactInteger.class, 0)
+			ReduceOperator r1 = ReduceOperator.builder(new IdentityReduce(), IntValue.class, 0)
 				.input(ma1)
 				.name("Reduce 1")
 				.build();
 			
-			ReduceOperator r2 = ReduceOperator.builder(new IdentityReduce(), PactInteger.class, 0)
+			ReduceOperator r2 = ReduceOperator.builder(new IdentityReduce(), IntValue.class, 0)
 				.input(mat1)
 				.name("Reduce 2")
 				.build();
@@ -470,7 +470,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 			
 			MapOperator ma3 = MapOperator.builder(new IdentityMap()).input(ma2).name("Map 3").build();
 			
-			JoinOperator mat2 = JoinOperator.builder(new DummyMatchStub(), PactInteger.class, 0, 0)
+			JoinOperator mat2 = JoinOperator.builder(new DummyMatchStub(), IntValue.class, 0, 0)
 				.input1(r1, r2, ma2, ma3)
 				.input2(ma2)
 				.name("Match 2")

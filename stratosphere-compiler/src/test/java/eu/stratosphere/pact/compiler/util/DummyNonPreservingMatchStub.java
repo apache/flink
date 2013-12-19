@@ -16,7 +16,7 @@ package eu.stratosphere.pact.compiler.util;
 import java.io.Serializable;
 
 import eu.stratosphere.api.record.functions.JoinFunction;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 
@@ -24,7 +24,7 @@ public class DummyNonPreservingMatchStub extends JoinFunction implements Seriali
 	private static final long serialVersionUID = 1L;
 
 	@Override
-	public void match(PactRecord value1, PactRecord value2, Collector<PactRecord> out) throws Exception {
+	public void match(Record value1, Record value2, Collector<Record> out) throws Exception {
 		out.collect(value1);
 	}
 }

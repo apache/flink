@@ -34,7 +34,7 @@ import eu.stratosphere.pact.runtime.task.RegularPactTask;
 import eu.stratosphere.pact.runtime.task.ResettablePactDriver;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.udf.RuntimeUDFContext;
-import eu.stratosphere.types.PactLong;
+import eu.stratosphere.types.LongValue;
 import eu.stratosphere.types.Value;
 import eu.stratosphere.util.Collector;
 import eu.stratosphere.util.InstantiationUtil;
@@ -106,7 +106,7 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 			worksetBackChannel = BlockingBackChannelBroker.instance().getAndRemove(brokerKey());
 
 			if (isWorksetIteration) {
-				worksetAggregator = (LongSumAggregator) getIterationAggregators().<PactLong>getAggregator(
+				worksetAggregator = (LongSumAggregator) getIterationAggregators().<LongValue>getAggregator(
 						WorksetEmptyConvergenceCriterion.AGGREGATOR_NAME);
 
 				if (worksetAggregator == null) {

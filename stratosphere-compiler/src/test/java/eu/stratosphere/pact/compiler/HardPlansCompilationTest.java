@@ -28,7 +28,7 @@ import eu.stratosphere.pact.compiler.util.DummyInputFormat;
 import eu.stratosphere.pact.compiler.util.DummyOutputFormat;
 import eu.stratosphere.pact.compiler.util.IdentityMap;
 import eu.stratosphere.pact.compiler.util.IdentityReduce;
-import eu.stratosphere.types.PactInteger;
+import eu.stratosphere.types.IntValue;
 
 /**
  * This class tests plans that once failed because of a bug:
@@ -53,15 +53,15 @@ public class HardPlansCompilationTest extends CompilerTestBase
 		
 		MapOperator map = MapOperator.builder(new IdentityMap()).name("Map1").input(source).build();
 		
-		ReduceOperator reduce1 = ReduceOperator.builder(new IdentityReduce(), PactInteger.class, 0).name("Reduce1").input(map).build();
+		ReduceOperator reduce1 = ReduceOperator.builder(new IdentityReduce(), IntValue.class, 0).name("Reduce1").input(map).build();
 		
 		CrossOperator cross1 = CrossOperator.builder(new DummyCrossStub()).name("Cross1").input1(reduce1).input2(source).build();
 		
-		ReduceOperator reduce2 = ReduceOperator.builder(new IdentityReduce(), PactInteger.class, 0).name("Reduce2").input(cross1).build();
+		ReduceOperator reduce2 = ReduceOperator.builder(new IdentityReduce(), IntValue.class, 0).name("Reduce2").input(cross1).build();
 		
 		CrossOperator cross2 = CrossOperator.builder(new DummyCrossStub()).name("Cross2").input1(reduce2).input2(source).build();
 		
-		ReduceOperator reduce3 = ReduceOperator.builder(new IdentityReduce(), PactInteger.class, 0).name("Reduce3").input(cross2).build();
+		ReduceOperator reduce3 = ReduceOperator.builder(new IdentityReduce(), IntValue.class, 0).name("Reduce3").input(cross2).build();
 		
 		FileDataSink sink = new FileDataSink(new DummyOutputFormat(), OUT_FILE, "Sink");
 		sink.setInput(reduce3);

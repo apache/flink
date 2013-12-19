@@ -45,7 +45,7 @@ import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.test.util.TestBase;
 import eu.stratosphere.types.Key;
-import eu.stratosphere.types.PactInteger;
+import eu.stratosphere.types.IntValue;
 
 @RunWith(Parameterized.class)
 public class GlobalSortingMixedOrderITCase extends TestBase {
@@ -178,7 +178,7 @@ public class GlobalSortingMixedOrderITCase extends TestBase {
 				boundVal = RANGE_I1 - boundVal;
 			}
 			
-			return new Key[] { new PactInteger(boundVal), new PactInteger(RANGE_I2), new PactInteger(RANGE_I3) };
+			return new Key[] { new IntValue(boundVal), new IntValue(RANGE_I2), new IntValue(RANGE_I3) };
 		}
 
 		@Override
@@ -198,21 +198,21 @@ public class GlobalSortingMixedOrderITCase extends TestBase {
 			final String output      = (args.length > 2 ? args[2] : "");
 			
 			@SuppressWarnings("unchecked")
-			FileDataSource source = new FileDataSource(new CsvInputFormat(',', PactInteger.class, PactInteger.class, PactInteger.class), recordsPath);
+			FileDataSource source = new FileDataSource(new CsvInputFormat(',', IntValue.class, IntValue.class, IntValue.class), recordsPath);
 			
 			FileDataSink sink = new FileDataSink(CsvOutputFormat.class, output);
 			CsvOutputFormat.configureRecordFormat(sink)
 				.recordDelimiter('\n')
 				.fieldDelimiter(',')
 				.lenient(true)
-				.field(PactInteger.class, 0)
-				.field(PactInteger.class, 1)
-				.field(PactInteger.class, 2);
+				.field(IntValue.class, 0)
+				.field(IntValue.class, 1)
+				.field(IntValue.class, 2);
 			
 			sink.setGlobalOrder(
-				new Ordering(0, PactInteger.class, Order.DESCENDING)
-					.appendOrdering(1, PactInteger.class, Order.ASCENDING)
-					.appendOrdering(2, PactInteger.class, Order.DESCENDING),
+				new Ordering(0, IntValue.class, Order.DESCENDING)
+					.appendOrdering(1, IntValue.class, Order.ASCENDING)
+					.appendOrdering(2, IntValue.class, Order.DESCENDING),
 				new TripleIntDistribution(Order.DESCENDING, Order.ASCENDING, Order.DESCENDING));
 			sink.setInput(source);
 			

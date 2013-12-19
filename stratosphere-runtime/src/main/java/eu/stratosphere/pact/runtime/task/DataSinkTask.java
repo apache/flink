@@ -35,13 +35,13 @@ import eu.stratosphere.nephele.io.MutableRecordReader;
 import eu.stratosphere.nephele.io.MutableUnionRecordReader;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.pact.runtime.plugable.DeserializationDelegate;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordSerializer;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializer;
 import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger;
 import eu.stratosphere.pact.runtime.task.util.CloseableInputProvider;
-import eu.stratosphere.pact.runtime.task.util.NepheleReaderIterator;
-import eu.stratosphere.pact.runtime.task.util.PactRecordNepheleReaderIterator;
+import eu.stratosphere.pact.runtime.task.util.ReaderIterator;
+import eu.stratosphere.pact.runtime.task.util.RecordReaderIterator;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.MutableObjectIterator;
 
 /**
@@ -167,10 +167,10 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 
 			// work!
 			// special case the pact record / file variant
-			if (record.getClass() == PactRecord.class && format instanceof eu.stratosphere.api.record.io.FileOutputFormat) {
+			if (record.getClass() == Record.class && format instanceof eu.stratosphere.api.record.io.FileOutputFormat) {
 				@SuppressWarnings("unchecked")
-				final MutableObjectIterator<PactRecord> pi = (MutableObjectIterator<PactRecord>) input;
-				final PactRecord pr = (PactRecord) record;
+				final MutableObjectIterator<Record> pi = (MutableObjectIterator<Record>) input;
+				final Record pr = (Record) record;
 				final eu.stratosphere.api.record.io.FileOutputFormat pf = (eu.stratosphere.api.record.io.FileOutputFormat) format;
 				while (!this.taskCanceled && pi.next(pr)) {
 					pf.writeRecord(pr);
@@ -336,15 +336,15 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 		final TypeSerializerFactory<IT> serializerFactory = this.config.getInputSerializer(0, this.userCodeClassLoader);
 		this.inputTypeSerializer = serializerFactory.getSerializer();
 		
-		if (this.inputTypeSerializer.getClass() == PactRecordSerializer.class) {
+		if (this.inputTypeSerializer.getClass() == RecordSerializer.class) {
 			// pact record specific deserialization
-			MutableReader<PactRecord> reader = (MutableReader<PactRecord>) inputReader;
-			this.reader = (MutableObjectIterator<IT>)new PactRecordNepheleReaderIterator(reader);
+			MutableReader<Record> reader = (MutableReader<Record>) inputReader;
+			this.reader = (MutableObjectIterator<IT>)new RecordReaderIterator(reader);
 		} else {
 			// generic data type serialization
 			MutableReader<DeserializationDelegate<?>> reader = (MutableReader<DeserializationDelegate<?>>) inputReader;
 			@SuppressWarnings({ "rawtypes" })
-			final MutableObjectIterator<?> iter = new NepheleReaderIterator(reader, this.inputTypeSerializer);
+			final MutableObjectIterator<?> iter = new ReaderIterator(reader, this.inputTypeSerializer);
 			this.reader = (MutableObjectIterator<IT>)iter;
 		}
 		

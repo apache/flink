@@ -33,16 +33,16 @@ import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparator;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordPairComparator;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordSerializer;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparator;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordPairComparator;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializer;
 import eu.stratosphere.pact.runtime.test.util.DiscardingOutputCollector;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.TestData;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.KeyMode;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.ValueMode;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.types.Value;
 import eu.stratosphere.util.Collector;
 import eu.stratosphere.util.MutableObjectIterator;
@@ -73,22 +73,22 @@ public class SortMergeMatchIteratorITCase
 	private IOManager ioManager;
 	private MemoryManager memoryManager;
 	
-	private TypeSerializer<PactRecord> serializer1;
-	private TypeSerializer<PactRecord> serializer2;
-	private TypeComparator<PactRecord> comparator1;
-	private TypeComparator<PactRecord> comparator2;
-	private TypePairComparator<PactRecord, PactRecord> pairComparator;
+	private TypeSerializer<Record> serializer1;
+	private TypeSerializer<Record> serializer2;
+	private TypeComparator<Record> comparator1;
+	private TypeComparator<Record> comparator2;
+	private TypePairComparator<Record, Record> pairComparator;
 	
 
 	@SuppressWarnings("unchecked")
 	@Before
 	public void beforeTest()
 	{
-		this.serializer1 = PactRecordSerializer.get();
-		this.serializer2 = PactRecordSerializer.get();
-		this.comparator1 = new PactRecordComparator(new int[] {0}, new Class[]{TestData.Key.class});
-		this.comparator2 = new PactRecordComparator(new int[] {0}, new Class[]{TestData.Key.class});
-		this.pairComparator = new PactRecordPairComparator(new int[] {0}, new int[] {0}, new Class[]{TestData.Key.class});
+		this.serializer1 = RecordSerializer.get();
+		this.serializer2 = RecordSerializer.get();
+		this.comparator1 = new RecordComparator(new int[] {0}, new Class[]{TestData.Key.class});
+		this.comparator2 = new RecordComparator(new int[] {0}, new Class[]{TestData.Key.class});
+		this.pairComparator = new RecordPairComparator(new int[] {0}, new int[] {0}, new Class[]{TestData.Key.class});
 		
 		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE);
 		this.ioManager = new IOManager();
@@ -132,7 +132,7 @@ public class SortMergeMatchIteratorITCase
 			
 			final JoinFunction matcher = new MatchRemovingMatcher(expectedMatchesMap);
 			
-			final Collector<PactRecord> collector = new DiscardingOutputCollector();
+			final Collector<Record> collector = new DiscardingOutputCollector();
 	
 			// reset the generators
 			generator1.reset();
@@ -141,8 +141,8 @@ public class SortMergeMatchIteratorITCase
 			input2.reset();
 	
 			// compare with iterator values
-			MergeMatchIterator<PactRecord, PactRecord, PactRecord> iterator = 
-				new MergeMatchIterator<PactRecord, PactRecord, PactRecord>(
+			MergeMatchIterator<Record, Record, Record> iterator = 
+				new MergeMatchIterator<Record, Record, Record>(
 					input1, input2, this.serializer1, this.comparator1, this.serializer2, this.comparator2,
 					this.pairComparator, this.memoryManager, this.ioManager, PAGES_FOR_BNLJN, this.parentTask);
 	
@@ -184,16 +184,16 @@ public class SortMergeMatchIteratorITCase
 			final TestData.ConstantValueIterator const1Iter = new TestData.ConstantValueIterator(DUPLICATE_KEY, "LEFT String for Duplicate Keys", INPUT_1_DUPLICATES);
 			final TestData.ConstantValueIterator const2Iter = new TestData.ConstantValueIterator(DUPLICATE_KEY, "RIGHT String for Duplicate Keys", INPUT_2_DUPLICATES);
 			
-			final List<MutableObjectIterator<PactRecord>> inList1 = new ArrayList<MutableObjectIterator<PactRecord>>();
+			final List<MutableObjectIterator<Record>> inList1 = new ArrayList<MutableObjectIterator<Record>>();
 			inList1.add(gen1Iter);
 			inList1.add(const1Iter);
 			
-			final List<MutableObjectIterator<PactRecord>> inList2 = new ArrayList<MutableObjectIterator<PactRecord>>();
+			final List<MutableObjectIterator<Record>> inList2 = new ArrayList<MutableObjectIterator<Record>>();
 			inList2.add(gen2Iter);
 			inList2.add(const2Iter);
 			
-			MutableObjectIterator<PactRecord> input1 = new MergeIterator<PactRecord>(inList1, serializer1, comparator1.duplicate());
-			MutableObjectIterator<PactRecord> input2 = new MergeIterator<PactRecord>(inList2, serializer2, comparator2.duplicate());
+			MutableObjectIterator<Record> input1 = new MergeIterator<Record>(inList1, serializer1, comparator1.duplicate());
+			MutableObjectIterator<Record> input2 = new MergeIterator<Record>(inList2, serializer2, comparator2.duplicate());
 			
 			// collect expected data
 			final Map<TestData.Key, Collection<Match>> expectedMatchesMap = matchValues(
@@ -218,18 +218,18 @@ public class SortMergeMatchIteratorITCase
 			inList2.add(gen2Iter);
 			inList2.add(const2Iter);
 	
-			input1 = new MergeIterator<PactRecord>(inList1, serializer1, comparator1.duplicate());
-			input2 = new MergeIterator<PactRecord>(inList2, serializer2, comparator2.duplicate());
+			input1 = new MergeIterator<Record>(inList1, serializer1, comparator1.duplicate());
+			input2 = new MergeIterator<Record>(inList2, serializer2, comparator2.duplicate());
 			
 			final JoinFunction matcher = new MatchRemovingMatcher(expectedMatchesMap);
 			
-			final Collector<PactRecord> collector = new DiscardingOutputCollector();
+			final Collector<Record> collector = new DiscardingOutputCollector();
 	
 			
 			// we create this sort-merge iterator with little memory for the block-nested-loops fall-back to make sure it
 			// needs to spill for the duplicate keys
-			MergeMatchIterator<PactRecord, PactRecord, PactRecord> iterator = 
-				new MergeMatchIterator<PactRecord, PactRecord, PactRecord>(
+			MergeMatchIterator<Record, Record, Record> iterator = 
+				new MergeMatchIterator<Record, Record, Record>(
 					input1, input2, this.serializer1, this.comparator1, this.serializer2, this.comparator2,
 					this.pairComparator, this.memoryManager, this.ioManager, PAGES_FOR_BNLJN, this.parentTask);
 	
@@ -289,11 +289,11 @@ public class SortMergeMatchIteratorITCase
 	}
 
 	
-	private Map<TestData.Key, Collection<TestData.Value>> collectData(MutableObjectIterator<PactRecord> iter)
+	private Map<TestData.Key, Collection<TestData.Value>> collectData(MutableObjectIterator<Record> iter)
 	throws Exception
 	{
 		Map<TestData.Key, Collection<TestData.Value>> map = new HashMap<TestData.Key, Collection<TestData.Value>>();
-		PactRecord pair = new PactRecord();
+		Record pair = new Record();
 		
 		while (iter.next(pair)) {
 			TestData.Key key = pair.getField(0, TestData.Key.class);
@@ -348,7 +348,7 @@ public class SortMergeMatchIteratorITCase
 		}
 		
 		@Override
-		public void match(PactRecord rec1, PactRecord rec2, Collector<PactRecord> out)
+		public void match(Record rec1, Record rec2, Collector<Record> out)
 		{
 			TestData.Key key = rec1.getField(0, TestData.Key.class);
 			TestData.Value value1 = rec1.getField(1, TestData.Value.class);

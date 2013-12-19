@@ -17,15 +17,15 @@ import scala.collection.GenTraversableOnce
 import scala.collection.mutable
 import scala.reflect.macros.Context
 import scala.util.DynamicVariable
-import eu.stratosphere.types.PactBoolean
-import eu.stratosphere.types.PactByte
-import eu.stratosphere.types.PactCharacter
-import eu.stratosphere.types.PactDouble
-import eu.stratosphere.types.PactFloat
-import eu.stratosphere.types.PactInteger
-import eu.stratosphere.types.PactString
-import eu.stratosphere.types.PactLong
-import eu.stratosphere.types.PactShort
+import eu.stratosphere.types.BooleanValue
+import eu.stratosphere.types.ByteValue
+import eu.stratosphere.types.CharValue
+import eu.stratosphere.types.DoubleValue
+import eu.stratosphere.types.FloatValue
+import eu.stratosphere.types.IntValue
+import eu.stratosphere.types.StringValue
+import eu.stratosphere.types.LongValue
+import eu.stratosphere.types.ShortValue
 import scala.Option.option2Iterable
 
 trait UDTAnalyzer[C <: Context] { this: MacroContextHolder[C] with UDTDescriptors[C] with Loggers[C] =>
@@ -298,15 +298,15 @@ trait UDTAnalyzer[C <: Context] { this: MacroContextHolder[C] with UDTDescriptor
   }
 
   lazy val primitives = Map[Symbol, (Literal, Type)](
-    definitions.BooleanClass -> (Literal(Constant(false)), typeOf[PactBoolean]),
-    definitions.ByteClass -> (Literal(Constant(0: Byte)), typeOf[PactByte]),
-    definitions.CharClass -> (Literal(Constant(0: Char)), typeOf[PactCharacter]),
-    definitions.DoubleClass -> (Literal(Constant(0: Double)), typeOf[PactDouble]),
-    definitions.FloatClass -> (Literal(Constant(0: Float)), typeOf[PactFloat]),
-    definitions.IntClass -> (Literal(Constant(0: Int)), typeOf[PactInteger]),
-    definitions.LongClass -> (Literal(Constant(0: Long)), typeOf[PactLong]),
-    definitions.ShortClass -> (Literal(Constant(0: Short)), typeOf[PactShort]),
-    definitions.StringClass -> (Literal(Constant(null: String)), typeOf[PactString]))
+    definitions.BooleanClass -> (Literal(Constant(false)), typeOf[BooleanValue]),
+    definitions.ByteClass -> (Literal(Constant(0: Byte)), typeOf[ByteValue]),
+    definitions.CharClass -> (Literal(Constant(0: Char)), typeOf[CharValue]),
+    definitions.DoubleClass -> (Literal(Constant(0: Double)), typeOf[DoubleValue]),
+    definitions.FloatClass -> (Literal(Constant(0: Float)), typeOf[FloatValue]),
+    definitions.IntClass -> (Literal(Constant(0: Int)), typeOf[IntValue]),
+    definitions.LongClass -> (Literal(Constant(0: Long)), typeOf[LongValue]),
+    definitions.ShortClass -> (Literal(Constant(0: Short)), typeOf[ShortValue]),
+    definitions.StringClass -> (Literal(Constant(null: String)), typeOf[StringValue]))
 
   lazy val boxedPrimitives = {
 

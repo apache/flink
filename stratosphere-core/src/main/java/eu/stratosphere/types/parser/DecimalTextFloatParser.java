@@ -13,15 +13,15 @@
 
 package eu.stratosphere.types.parser;
 
-import eu.stratosphere.types.PactFloat;
+import eu.stratosphere.types.FloatValue;
 
 /**
- * Parses a text field into a {@link PactFloat}
+ * Parses a text field into a {@link FloatValue}
  */
-public class DecimalTextFloatParser extends FieldParser<PactFloat> {
+public class DecimalTextFloatParser extends FieldParser<FloatValue> {
 	
 	@Override
-	public int parseField(byte[] bytes, int startPos, int limit, char delim, PactFloat field) {
+	public int parseField(byte[] bytes, int startPos, int limit, char delim, FloatValue field) {
 		
 		int i = startPos;
 		final byte delByte = (byte) delim;
@@ -42,7 +42,7 @@ public class DecimalTextFloatParser extends FieldParser<PactFloat> {
 	}
 	
 	@Override
-	public PactFloat createValue() {
-		return new PactFloat();
+	public FloatValue createValue() {
+		return new FloatValue();
 	}
 }

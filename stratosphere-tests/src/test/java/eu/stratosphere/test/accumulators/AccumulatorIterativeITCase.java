@@ -33,8 +33,8 @@ import eu.stratosphere.api.record.io.TextInputFormat;
 import eu.stratosphere.api.record.operators.ReduceOperator;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.test.util.TestBase2;
-import eu.stratosphere.types.PactRecord;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.Record;
+import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
 
 /**
@@ -102,7 +102,7 @@ public class AccumulatorIterativeITCase extends TestBase2 {
 		CsvOutputFormat.configureRecordFormat(finalResult)
     		.recordDelimiter('\n')
     		.fieldDelimiter(' ')
-    		.field(PactString.class, 0);
+    		.field(StringValue.class, 0);
 
 		Plan plan = new Plan(finalResult, "Iteration with AllReducer (keyless Reducer)");
 		plan.setDefaultParallelism(numSubTasks);
@@ -122,15 +122,15 @@ public class AccumulatorIterativeITCase extends TestBase2 {
 		}
 		
 		@Override
-		public void reduce(Iterator<PactRecord> it, Collector<PactRecord> out) {
+		public void reduce(Iterator<Record> it, Collector<Record> out) {
 			// Compute the sum
 			int sum = 0;
 			while (it.hasNext()) {
-				Integer value = Integer.parseInt(it.next().getField(0, PactString.class).getValue());
+				Integer value = Integer.parseInt(it.next().getField(0, StringValue.class).getValue());
 				sum += value;
 				testCounter.add(value);
 			}
-			out.collect(new PactRecord(new PactString(Integer.toString(sum))));
+			out.collect(new Record(new StringValue(Integer.toString(sum))));
 		}
 	}
 

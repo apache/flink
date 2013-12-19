@@ -31,17 +31,17 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.pact.runtime.resettable.BlockResettableIterator;
 import eu.stratosphere.pact.runtime.resettable.SpillingResettableIterator;
-import eu.stratosphere.pact.runtime.task.util.MatchTaskIterator;
+import eu.stratosphere.pact.runtime.task.util.JoinTaskIterator;
 import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
 import eu.stratosphere.util.Collector;
 import eu.stratosphere.util.MutableObjectIterator;
 
 
 /**
- * An implementation of the {@link MatchTaskIterator} that realizes the
+ * An implementation of the {@link JoinTaskIterator} that realizes the
  * matching through a sort-merge join strategy.
  */
-public class MergeMatchIterator<T1, T2, O> implements MatchTaskIterator<T1, T2, O>
+public class MergeMatchIterator<T1, T2, O> implements JoinTaskIterator<T1, T2, O>
 {
 	/**
 	 * The log used by this iterator to log messages.
@@ -143,7 +143,7 @@ public class MergeMatchIterator<T1, T2, O> implements MatchTaskIterator<T1, T2, 
 	 * 
 	 * @throws Exception Forwards all exceptions from the user code and the I/O system.
 	 * 
-	 * @see eu.stratosphere.pact.runtime.task.util.MatchTaskIterator#callWithNextKey()
+	 * @see eu.stratosphere.pact.runtime.task.util.JoinTaskIterator#callWithNextKey()
 	 */
 	@Override
 	public boolean callWithNextKey(final GenericJoiner<T1, T2, O> matchFunction, final Collector<O> collector)

@@ -24,7 +24,7 @@ import eu.stratosphere.api.record.operators.MapOperator;
 import eu.stratosphere.api.record.operators.ReduceOperator;
 import eu.stratosphere.test.testPrograms.util.IntTupleDataInFormat;
 import eu.stratosphere.test.testPrograms.util.StringTupleDataOutFormat;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.StringValue;
 
 /**
  * @author Mathias Peters <mathias.peters@informatik.hu-berlin.de>
@@ -73,7 +73,7 @@ public class TPCHQuery1 implements Program, ProgramDescription {
 		lineItemFilter.setDegreeOfParallelism(this.degreeOfParallelism);
 		
 		ReduceOperator groupByReturnFlag = 
-			ReduceOperator.builder(new GroupByReturnFlag(), PactString.class, 0)
+			ReduceOperator.builder(new GroupByReturnFlag(), StringValue.class, 0)
 			.name("groupyBy")
 			.build();
 		

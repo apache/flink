@@ -28,11 +28,11 @@ import eu.stratosphere.pact.runtime.test.util.DriverTestBase;
 import eu.stratosphere.pact.runtime.test.util.ExpectedTestException;
 import eu.stratosphere.pact.runtime.test.util.InfiniteInputIterator;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
-import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.pact.runtime.test.util.UniformRecordGenerator;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
-public class MapTaskTest extends DriverTestBase<GenericMapper<PactRecord, PactRecord>> {
+public class MapTaskTest extends DriverTestBase<GenericMapper<Record, Record>> {
 	
 	private static final Log LOG = LogFactory.getLog(MapTaskTest.class);
 	
@@ -48,10 +48,10 @@ public class MapTaskTest extends DriverTestBase<GenericMapper<PactRecord, PactRe
 		final int keyCnt = 100;
 		final int valCnt = 20;
 		
-		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
+		addInput(new UniformRecordGenerator(keyCnt, valCnt, false));
 		setOutput(this.output);
 		
-		final MapDriver<PactRecord, PactRecord> testDriver = new MapDriver<PactRecord, PactRecord>();
+		final MapDriver<Record, Record> testDriver = new MapDriver<Record, Record>();
 		
 		try {
 			testDriver(testDriver, MockMapStub.class);
@@ -68,10 +68,10 @@ public class MapTaskTest extends DriverTestBase<GenericMapper<PactRecord, PactRe
 		final int keyCnt = 100;
 		final int valCnt = 20;
 		
-		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
+		addInput(new UniformRecordGenerator(keyCnt, valCnt, false));
 		setOutput(new DiscardingOutputCollector());
 		
-		final MapDriver<PactRecord, PactRecord> testTask = new MapDriver<PactRecord, PactRecord>();
+		final MapDriver<Record, Record> testTask = new MapDriver<Record, Record>();
 		try {
 			testDriver(testTask, MockFailingMapStub.class);
 			Assert.fail("Function exception was not forwarded.");
@@ -88,7 +88,7 @@ public class MapTaskTest extends DriverTestBase<GenericMapper<PactRecord, PactRe
 		addInput(new InfiniteInputIterator());
 		setOutput(new DiscardingOutputCollector());
 		
-		final MapDriver<PactRecord, PactRecord> testTask = new MapDriver<PactRecord, PactRecord>();
+		final MapDriver<Record, Record> testTask = new MapDriver<Record, Record>();
 		
 		final AtomicBoolean success = new AtomicBoolean(false);
 		
@@ -120,7 +120,7 @@ public class MapTaskTest extends DriverTestBase<GenericMapper<PactRecord, PactRe
 	
 	public static class MockMapStub extends MapFunction {
 		@Override
-		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
+		public void map(Record record, Collector<Record> out) throws Exception {
 			out.collect(record);
 		}
 		
@@ -131,7 +131,7 @@ public class MapTaskTest extends DriverTestBase<GenericMapper<PactRecord, PactRe
 		private int cnt = 0;
 		
 		@Override
-		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
+		public void map(Record record, Collector<Record> out) throws Exception {
 			if (++this.cnt >= 10) {
 				throw new ExpectedTestException();
 			}

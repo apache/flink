@@ -15,20 +15,20 @@ package eu.stratosphere.pact.runtime.iterative.io;
 
 import eu.stratosphere.nephele.io.MutableRecordReader;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 
 /**
  * Output task for the iteration tail
  */
 public class FakeOutputTask extends AbstractOutputTask {
 
-	private MutableRecordReader<PactRecord> reader;
+	private MutableRecordReader<Record> reader;
 
-	private final PactRecord record = new PactRecord();
+	private final Record record = new Record();
 
 	@Override
 	public void registerInputOutput() {
-		reader = new MutableRecordReader<PactRecord>(this);
+		reader = new MutableRecordReader<Record>(this);
 	}
 
 	@Override

@@ -94,7 +94,7 @@ public abstract class BinaryOutputFormat<T extends IOReadableWritable> extends F
 
 	/*
 	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.io.OutputFormat#writeRecord(eu.stratosphere.pact.common.type.PactRecord)
+	 * @see eu.stratosphere.pact.common.io.OutputFormat#writeRecord(eu.stratosphere.pact.common.type.Record)
 	 */
 	@Override
 	public void writeRecord(T record) throws IOException {

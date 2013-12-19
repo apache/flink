@@ -15,7 +15,7 @@ package eu.stratosphere.scala.functions
 
 import eu.stratosphere.api.record.functions.{CrossFunction => JCrossFunction}
 import eu.stratosphere.scala.analysis.{UDTSerializer, UDF2, UDT}
-import eu.stratosphere.types.PactRecord
+import eu.stratosphere.types.Record
 import eu.stratosphere.util.Collector
 
 abstract class CrossFunctionBase[LeftIn: UDT, RightIn: UDT, Out: UDT] extends JCrossFunction with Serializable {
@@ -37,7 +37,7 @@ abstract class CrossFunctionBase[LeftIn: UDT, RightIn: UDT, Out: UDT] extends JC
 }
 
 abstract class CrossFunction[LeftIn: UDT, RightIn: UDT, Out: UDT] extends CrossFunctionBase[LeftIn, RightIn, Out] with Function2[LeftIn, RightIn, Out] {
-  override def cross(leftRecord: PactRecord, rightRecord: PactRecord, out: Collector[PactRecord]) = {
+  override def cross(leftRecord: Record, rightRecord: Record, out: Collector[Record]) = {
     val left = leftDeserializer.deserializeRecyclingOn(leftRecord)
     val right = rightDeserializer.deserializeRecyclingOn(rightRecord)
     val output = apply(left, right)
@@ -56,7 +56,7 @@ abstract class CrossFunction[LeftIn: UDT, RightIn: UDT, Out: UDT] extends CrossF
 }
 
 abstract class FlatCrossFunction[LeftIn: UDT, RightIn: UDT, Out: UDT] extends CrossFunctionBase[LeftIn, RightIn, Out] with Function2[LeftIn, RightIn, Iterator[Out]]  {
-  override def cross(leftRecord: PactRecord, rightRecord: PactRecord, out: Collector[PactRecord]) = {
+  override def cross(leftRecord: Record, rightRecord: Record, out: Collector[Record]) = {
     val left = leftDeserializer.deserializeRecyclingOn(leftRecord)
     val right = rightDeserializer.deserializeRecyclingOn(rightRecord)
     val output = apply(left, right)

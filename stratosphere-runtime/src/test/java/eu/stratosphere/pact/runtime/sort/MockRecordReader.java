@@ -16,29 +16,29 @@ package eu.stratosphere.pact.runtime.sort;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.MutableObjectIterator;
 
 /**
  * @author Erik Nijkamp
  * @author Stephan Ewen
  */
-public class MockRecordReader implements MutableObjectIterator<PactRecord> {
-	private final PactRecord SENTINEL = new PactRecord();
+public class MockRecordReader implements MutableObjectIterator<Record> {
+	private final Record SENTINEL = new Record();
 
-	private final BlockingQueue<PactRecord> queue;
+	private final BlockingQueue<Record> queue;
 
 	public MockRecordReader() {
-		this.queue = new ArrayBlockingQueue<PactRecord>(32, false);
+		this.queue = new ArrayBlockingQueue<Record>(32, false);
 	}
 
 	public MockRecordReader(int size) {
-		this.queue = new ArrayBlockingQueue<PactRecord>(size, false);
+		this.queue = new ArrayBlockingQueue<Record>(size, false);
 	}
 
 	@Override
-	public boolean next(PactRecord target) {
-		PactRecord r = null;
+	public boolean next(Record target) {
+		Record r = null;
 		while (r == null) {
 			try {
 				r = queue.take();
@@ -61,7 +61,7 @@ public class MockRecordReader implements MutableObjectIterator<PactRecord> {
 		}
 	}
 
-	public void emit(PactRecord element) throws InterruptedException {
+	public void emit(Record element) throws InterruptedException {
 		queue.put(element.createCopy());
 	}
 

@@ -30,11 +30,11 @@ import eu.stratosphere.core.io.InputSplit;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.pact.runtime.shipping.OutputCollector;
-import eu.stratosphere.pact.runtime.shipping.PactRecordOutputCollector;
+import eu.stratosphere.pact.runtime.shipping.RecordOutputCollector;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedDriver;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedMapDriver;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 /**
@@ -136,15 +136,15 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 					LOG.debug(getLogString("Starting to read input from split " + split.toString()));
 				
 				try {
-					// ======= special-case the PactRecord, to help the JIT and avoid some casts ======
-					if (record.getClass() == PactRecord.class) {
-						final PactRecord pactRecord = (PactRecord) record;
+					// ======= special-case the Record, to help the JIT and avoid some casts ======
+					if (record.getClass() == Record.class) {
+						final Record pactRecord = (Record) record;
 						@SuppressWarnings("unchecked")
-						final InputFormat<PactRecord, InputSplit> inFormat = (InputFormat<PactRecord, InputSplit>) format;
+						final InputFormat<Record, InputSplit> inFormat = (InputFormat<Record, InputSplit>) format;
 						
-						if (this.output instanceof PactRecordOutputCollector) {
-							// PactRecord going directly into network channels
-							final PactRecordOutputCollector output = (PactRecordOutputCollector) this.output;
+						if (this.output instanceof RecordOutputCollector) {
+							// Record going directly into network channels
+							final RecordOutputCollector output = (RecordOutputCollector) this.output;
 							while (!this.taskCanceled && !inFormat.reachedEnd()) {
 								// build next pair and ship pair if it is valid
 								pactRecord.clear();
@@ -153,9 +153,9 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 								}
 							}
 						} else if (this.output instanceof ChainedMapDriver) {
-							// PactRecord going to a chained map task
+							// Record going to a chained map task
 							@SuppressWarnings("unchecked")
-							final ChainedMapDriver<PactRecord, ?> output = (ChainedMapDriver<PactRecord, ?>) this.output;
+							final ChainedMapDriver<Record, ?> output = (ChainedMapDriver<Record, ?>) this.output;
 							
 							// as long as there is data to read
 							while (!this.taskCanceled && !inFormat.reachedEnd()) {
@@ -167,9 +167,9 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 								}
 							}
 						} else {
-							// PactRecord going to some other chained task
+							// Record going to some other chained task
 							@SuppressWarnings("unchecked")
-							final Collector<PactRecord> output = (Collector<PactRecord>) this.output;
+							final Collector<Record> output = (Collector<Record>) this.output;
 							// as long as there is data to read
 							while (!this.taskCanceled && !inFormat.reachedEnd()) {
 								// build next pair and ship pair if it is valid

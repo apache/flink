@@ -14,19 +14,19 @@
 package eu.stratosphere.example.record.incremental.pagerank;
 
 import eu.stratosphere.api.record.io.DelimitedInputFormat;
-import eu.stratosphere.types.PactRecord;
-import eu.stratosphere.types.PactDouble;
-import eu.stratosphere.types.PactLong;
+import eu.stratosphere.types.Record;
+import eu.stratosphere.types.DoubleValue;
+import eu.stratosphere.types.LongValue;
 
 public class InitialRankInputFormat extends DelimitedInputFormat {
 	
 	private static final long serialVersionUID = 1L;
 	
-	private final PactLong vId = new PactLong();
-	private final PactDouble initialRank = new PactDouble();
+	private final LongValue vId = new LongValue();
+	private final DoubleValue initialRank = new DoubleValue();
 	
 	@Override
-	public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes) {
+	public boolean readRecord(Record target, byte[] bytes, int offset, int numBytes) {
 		String str = new String(bytes, offset, numBytes);
 		String[] parts = str.split("\\s+");
 

@@ -39,8 +39,8 @@ import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.test.compiler.CompilerTestBase;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.StringValue;
 
 /**
  *
@@ -116,7 +116,7 @@ public class WordCountCompilerTest extends CompilerTestBase {
 				.input(sourceNode)
 				.name("Tokenize Lines")
 				.build();
-			ReduceOperator reduceNode = ReduceOperator.builder(new CountWords(), PactString.class, 0)
+			ReduceOperator reduceNode = ReduceOperator.builder(new CountWords(), StringValue.class, 0)
 				.input(mapNode)
 				.name("Count Words")
 				.build();
@@ -125,11 +125,11 @@ public class WordCountCompilerTest extends CompilerTestBase {
 				.recordDelimiter('\n')
 				.fieldDelimiter(' ')
 				.lenient(true)
-				.field(PactString.class, 0)
-				.field(PactInteger.class, 1);
+				.field(StringValue.class, 0)
+				.field(IntValue.class, 1);
 			
-			Ordering ordering = new Ordering(0, PactString.class, Order.DESCENDING);
-			out.setGlobalOrder(ordering, new SimpleDistribution(new PactString[] {new PactString("N")}));
+			Ordering ordering = new Ordering(0, StringValue.class, Order.DESCENDING);
+			out.setGlobalOrder(ordering, new SimpleDistribution(new StringValue[] {new StringValue("N")}));
 			
 			Plan p = new Plan(out, "WordCount Example");
 			p.setDefaultParallelism(DEFAULT_PARALLELISM);

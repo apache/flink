@@ -41,7 +41,7 @@ import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.test.util.TestBase;
-import eu.stratosphere.types.PactInteger;
+import eu.stratosphere.types.IntValue;
 
 @RunWith(Parameterized.class)
 public class GlobalSortingITCase extends TestBase {
@@ -147,7 +147,7 @@ public class GlobalSortingITCase extends TestBase {
 			CsvInputFormat.configureRecordFormat(source)
 				.recordDelimiter('\n')
 				.fieldDelimiter('|')
-				.field(PactInteger.class, 0);
+				.field(IntValue.class, 0);
 			
 			FileDataSink sink =
 				new FileDataSink(CsvOutputFormat.class, output);
@@ -156,9 +156,9 @@ public class GlobalSortingITCase extends TestBase {
 				.recordDelimiter('\n')
 				.fieldDelimiter('|')
 				.lenient(true)
-				.field(PactInteger.class, 0);
+				.field(IntValue.class, 0);
 			
-			sink.setGlobalOrder(new Ordering(0, PactInteger.class, Order.ASCENDING), new UniformIntegerDistribution(Integer.MIN_VALUE, Integer.MAX_VALUE));
+			sink.setGlobalOrder(new Ordering(0, IntValue.class, Order.ASCENDING), new UniformIntegerDistribution(Integer.MIN_VALUE, Integer.MAX_VALUE));
 			sink.setInput(source);
 			
 			return new Plan(sink);

@@ -24,27 +24,27 @@ import org.junit.Test;
 import eu.stratosphere.api.functions.GenericReducer;
 import eu.stratosphere.api.operators.base.ReduceOperatorBase.Combinable;
 import eu.stratosphere.api.record.functions.ReduceFunction;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparator;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparator;
 import eu.stratosphere.pact.runtime.test.util.DelayingInfinitiveInputIterator;
 import eu.stratosphere.pact.runtime.test.util.DiscardingOutputCollector;
 import eu.stratosphere.pact.runtime.test.util.DriverTestBase;
 import eu.stratosphere.pact.runtime.test.util.ExpectedTestException;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
-import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
+import eu.stratosphere.pact.runtime.test.util.UniformRecordGenerator;
 import eu.stratosphere.types.Key;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
-public class CombineTaskTest extends DriverTestBase<GenericReducer<PactRecord, ?>>
+public class CombineTaskTest extends DriverTestBase<GenericReducer<Record, ?>>
 {
 	private static final long COMBINE_MEM = 3 * 1024 * 1024;
 	
-	private final ArrayList<PactRecord> outList = new ArrayList<PactRecord>();
+	private final ArrayList<Record> outList = new ArrayList<Record>();
 	
 	@SuppressWarnings("unchecked")
-	private final PactRecordComparator comparator = new PactRecordComparator(
-		new int[]{0}, (Class<? extends Key>[])new Class[]{ PactInteger.class });
+	private final RecordComparator comparator = new RecordComparator(
+		new int[]{0}, (Class<? extends Key>[])new Class[]{ IntValue.class });
 
 	public CombineTaskTest() {
 		super(COMBINE_MEM, 0);
@@ -55,7 +55,7 @@ public class CombineTaskTest extends DriverTestBase<GenericReducer<PactRecord, ?
 		int keyCnt = 100;
 		int valCnt = 20;
 		
-		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
+		addInput(new UniformRecordGenerator(keyCnt, valCnt, false));
 		addInputComparator(this.comparator);
 		setOutput(this.outList);
 		
@@ -63,7 +63,7 @@ public class CombineTaskTest extends DriverTestBase<GenericReducer<PactRecord, ?
 		getTaskConfig().setMemoryDriver(COMBINE_MEM);
 		getTaskConfig().setFilehandlesDriver(2);
 		
-		final CombineDriver<PactRecord> testTask = new CombineDriver<PactRecord>();
+		final CombineDriver<Record> testTask = new CombineDriver<Record>();
 		
 		try {
 			testDriver(testTask, MockCombiningReduceStub.class);
@@ -79,8 +79,8 @@ public class CombineTaskTest extends DriverTestBase<GenericReducer<PactRecord, ?
 		
 		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+keyCnt, this.outList.size() == keyCnt);
 		
-		for(PactRecord record : this.outList) {
-			Assert.assertTrue("Incorrect result", record.getField(1, PactInteger.class).getValue() == expSum);
+		for(Record record : this.outList) {
+			Assert.assertTrue("Incorrect result", record.getField(1, IntValue.class).getValue() == expSum);
 		}
 		
 		this.outList.clear();
@@ -91,7 +91,7 @@ public class CombineTaskTest extends DriverTestBase<GenericReducer<PactRecord, ?
 		int keyCnt = 100;
 		int valCnt = 20;
 		
-		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
+		addInput(new UniformRecordGenerator(keyCnt, valCnt, false));
 		addInputComparator(this.comparator);
 		setOutput(new DiscardingOutputCollector());
 		
@@ -99,7 +99,7 @@ public class CombineTaskTest extends DriverTestBase<GenericReducer<PactRecord, ?
 		getTaskConfig().setMemoryDriver(COMBINE_MEM);
 		getTaskConfig().setFilehandlesDriver(2);
 		
-		final CombineDriver<PactRecord> testTask = new CombineDriver<PactRecord>();
+		final CombineDriver<Record> testTask = new CombineDriver<Record>();
 		
 		try {
 			testDriver(testTask, MockFailingCombiningReduceStub.class);
@@ -123,7 +123,7 @@ public class CombineTaskTest extends DriverTestBase<GenericReducer<PactRecord, ?
 		getTaskConfig().setMemoryDriver(COMBINE_MEM);
 		getTaskConfig().setFilehandlesDriver(2);
 		
-		final CombineDriver<PactRecord> testTask = new CombineDriver<PactRecord>();
+		final CombineDriver<Record> testTask = new CombineDriver<Record>();
 		
 		final AtomicBoolean success = new AtomicBoolean(false);
 		
@@ -156,12 +156,12 @@ public class CombineTaskTest extends DriverTestBase<GenericReducer<PactRecord, ?
 	@Combinable
 	public static class MockCombiningReduceStub extends ReduceFunction
 	{
-		private final PactInteger theInteger = new PactInteger();
+		private final IntValue theInteger = new IntValue();
 
 		@Override
-		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out)
+		public void reduce(Iterator<Record> records, Collector<Record> out)
 				throws Exception {
-			PactRecord element = null;
+			Record element = null;
 			int sum = 0;
 			while (records.hasNext()) {
 				element = records.next();
@@ -175,7 +175,7 @@ public class CombineTaskTest extends DriverTestBase<GenericReducer<PactRecord, ?
 		}
 		
 		@Override
-		public void combine(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {
+		public void combine(Iterator<Record> records, Collector<Record> out) throws Exception {
 			reduce(records, out);
 		}
 	}
@@ -185,14 +185,14 @@ public class CombineTaskTest extends DriverTestBase<GenericReducer<PactRecord, ?
 
 		private int cnt = 0;
 		
-		private final PactInteger key = new PactInteger();
-		private final PactInteger value = new PactInteger();
-		private final PactInteger combineValue = new PactInteger();
+		private final IntValue key = new IntValue();
+		private final IntValue value = new IntValue();
+		private final IntValue combineValue = new IntValue();
 
 		@Override
-		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out)
+		public void reduce(Iterator<Record> records, Collector<Record> out)
 				throws Exception {
-			PactRecord element = null;
+			Record element = null;
 			int sum = 0;
 			while (records.hasNext()) {
 				element = records.next();
@@ -207,9 +207,9 @@ public class CombineTaskTest extends DriverTestBase<GenericReducer<PactRecord, ?
 		}
 		
 		@Override
-		public void combine(Iterator<PactRecord> records, Collector<PactRecord> out)
+		public void combine(Iterator<Record> records, Collector<Record> out)
 				throws Exception {
-			PactRecord element = null;
+			Record element = null;
 			int sum = 0;
 			while (records.hasNext()) {
 				element = records.next();

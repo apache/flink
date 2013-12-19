@@ -23,15 +23,15 @@ import org.junit.Test;
 
 import eu.stratosphere.core.memory.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparator;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordSerializer;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparator;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializer;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.TestData;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.KeyMode;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.ValueMode;
 import eu.stratosphere.pact.runtime.test.util.TestData.Key;
 import eu.stratosphere.pact.runtime.test.util.TestData.Value;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.MutableObjectIterator;
 
 /**
@@ -71,11 +71,11 @@ public class NormalizedKeySorterTest
 		}
 	}
 
-	private NormalizedKeySorter<PactRecord> newSortBuffer(List<MemorySegment> memory) throws Exception
+	private NormalizedKeySorter<Record> newSortBuffer(List<MemorySegment> memory) throws Exception
 	{
 		@SuppressWarnings("unchecked")
-		PactRecordComparator accessors = new PactRecordComparator(new int[] {0}, new Class[]{Key.class});
-		return new NormalizedKeySorter<PactRecord>(PactRecordSerializer.get(), accessors, memory);
+		RecordComparator accessors = new RecordComparator(new int[] {0}, new Class[]{Key.class});
+		return new NormalizedKeySorter<Record>(RecordSerializer.get(), accessors, memory);
 	}
 
 	@Test
@@ -84,12 +84,12 @@ public class NormalizedKeySorterTest
 		final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
 		final List<MemorySegment> memory = this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
 		
-		NormalizedKeySorter<PactRecord> sorter = newSortBuffer(memory);
+		NormalizedKeySorter<Record> sorter = newSortBuffer(memory);
 		TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
 			ValueMode.RANDOM_LENGTH);
 		
 		// write the records
-		PactRecord record = new PactRecord();
+		Record record = new Record();
 		int num = -1;
 		do {
 			generator.next(record);
@@ -99,7 +99,7 @@ public class NormalizedKeySorterTest
 		
 		// re-read the records
 		generator.reset();
-		PactRecord readTarget = new PactRecord();
+		Record readTarget = new Record();
 		
 		int i = 0;
 		while (i < num) {
@@ -126,12 +126,12 @@ public class NormalizedKeySorterTest
 		final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
 		final List<MemorySegment> memory = this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
 		
-		NormalizedKeySorter<PactRecord> sorter = newSortBuffer(memory);
+		NormalizedKeySorter<Record> sorter = newSortBuffer(memory);
 		TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
 			ValueMode.RANDOM_LENGTH);
 		
 		// write the records
-		PactRecord record = new PactRecord();
+		Record record = new Record();
 		do {
 			generator.next(record);
 		}
@@ -139,8 +139,8 @@ public class NormalizedKeySorterTest
 		
 		// re-read the records
 		generator.reset();
-		MutableObjectIterator<PactRecord> iter = sorter.getIterator();
-		PactRecord readTarget = new PactRecord();
+		MutableObjectIterator<Record> iter = sorter.getIterator();
+		Record readTarget = new Record();
 		
 		while (iter.next(readTarget)) {
 			generator.next(record);
@@ -165,11 +165,11 @@ public class NormalizedKeySorterTest
 		final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
 		final List<MemorySegment> memory = this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
 		
-		NormalizedKeySorter<PactRecord> sorter = newSortBuffer(memory);
+		NormalizedKeySorter<Record> sorter = newSortBuffer(memory);
 		TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.FIX_LENGTH);
 		
 		// write the buffer full with the first set of records
-		PactRecord record = new PactRecord();
+		Record record = new Record();
 		int num = -1;
 		do {
 			generator.next(record);
@@ -194,7 +194,7 @@ public class NormalizedKeySorterTest
 		
 		// re-read the records
 		generator.reset();
-		PactRecord readTarget = new PactRecord();
+		Record readTarget = new Record();
 		
 		int i = 0;
 		while (i < num) {
@@ -226,12 +226,12 @@ public class NormalizedKeySorterTest
 		final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
 		final List<MemorySegment> memory = this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
 		
-		NormalizedKeySorter<PactRecord> sorter = newSortBuffer(memory);
+		NormalizedKeySorter<Record> sorter = newSortBuffer(memory);
 		TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
 			ValueMode.RANDOM_LENGTH);
 		
 		// write the records
-		PactRecord record = new PactRecord();
+		Record record = new Record();
 		int num = -1;
 		do {
 			generator.next(record);
@@ -247,7 +247,7 @@ public class NormalizedKeySorterTest
 		
 		// re-read the records
 		generator.reset();
-		PactRecord readTarget = new PactRecord();
+		Record readTarget = new Record();
 		
 		int i = num - 1;
 		while (i >= 0) {
@@ -279,12 +279,12 @@ public class NormalizedKeySorterTest
 		final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
 		final List<MemorySegment> memory = this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
 		
-		NormalizedKeySorter<PactRecord> sorter = newSortBuffer(memory);
+		NormalizedKeySorter<Record> sorter = newSortBuffer(memory);
 		TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.SORTED,
 			ValueMode.RANDOM_LENGTH);
 		
 		// write the records
-		PactRecord record = new PactRecord();
+		Record record = new Record();
 		int num = -1;
 		do {
 			generator.next(record);
@@ -320,12 +320,12 @@ public class NormalizedKeySorterTest
 		final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
 		final List<MemorySegment> memory = this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
 		
-		NormalizedKeySorter<PactRecord> sorter = newSortBuffer(memory);
+		NormalizedKeySorter<Record> sorter = newSortBuffer(memory);
 		TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
 			ValueMode.RANDOM_LENGTH);
 		
 		// write the records
-		PactRecord record = new PactRecord();
+		Record record = new Record();
 		int num = 0;
 		do {
 			generator.next(record);
@@ -336,8 +336,8 @@ public class NormalizedKeySorterTest
 		QuickSort qs = new QuickSort();
 		qs.sort(sorter);
 		
-		MutableObjectIterator<PactRecord> iter = sorter.getIterator();
-		PactRecord readTarget = new PactRecord();
+		MutableObjectIterator<Record> iter = sorter.getIterator();
+		Record readTarget = new Record();
 		
 		Key current = new Key();
 		Key last = new Key();
@@ -368,14 +368,14 @@ public class NormalizedKeySorterTest
 		final List<MemorySegment> memory = this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
 		
 		@SuppressWarnings("unchecked")
-		PactRecordComparator accessors = new PactRecordComparator(new int[] {1}, new Class[]{Value.class});
-		NormalizedKeySorter<PactRecord> sorter = new NormalizedKeySorter<PactRecord>(PactRecordSerializer.get(), accessors, memory);
+		RecordComparator accessors = new RecordComparator(new int[] {1}, new Class[]{Value.class});
+		NormalizedKeySorter<Record> sorter = new NormalizedKeySorter<Record>(RecordSerializer.get(), accessors, memory);
 		
 		TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, 5, KeyMode.RANDOM,
 			ValueMode.FIX_LENGTH);
 		
 		// write the records
-		PactRecord record = new PactRecord();
+		Record record = new Record();
 		do {
 			generator.next(record);
 		}
@@ -384,8 +384,8 @@ public class NormalizedKeySorterTest
 		QuickSort qs = new QuickSort();
 		qs.sort(sorter);
 		
-		MutableObjectIterator<PactRecord> iter = sorter.getIterator();
-		PactRecord readTarget = new PactRecord();
+		MutableObjectIterator<Record> iter = sorter.getIterator();
+		Record readTarget = new Record();
 		
 		Value current = new Value();
 		Value last = new Value();
@@ -416,14 +416,14 @@ public class NormalizedKeySorterTest
 		final List<MemorySegment> memory = this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
 		
 		@SuppressWarnings("unchecked")
-		PactRecordComparator accessors = new PactRecordComparator(new int[] {1}, new Class[]{Value.class});
-		NormalizedKeySorter<PactRecord> sorter = new NormalizedKeySorter<PactRecord>(PactRecordSerializer.get(), accessors, memory);
+		RecordComparator accessors = new RecordComparator(new int[] {1}, new Class[]{Value.class});
+		NormalizedKeySorter<Record> sorter = new NormalizedKeySorter<Record>(RecordSerializer.get(), accessors, memory);
 		
 		TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
 			ValueMode.FIX_LENGTH);
 		
 		// write the records
-		PactRecord record = new PactRecord();
+		Record record = new Record();
 		do {
 			generator.next(record);
 		}
@@ -432,8 +432,8 @@ public class NormalizedKeySorterTest
 		QuickSort qs = new QuickSort();
 		qs.sort(sorter);
 		
-		MutableObjectIterator<PactRecord> iter = sorter.getIterator();
-		PactRecord readTarget = new PactRecord();
+		MutableObjectIterator<Record> iter = sorter.getIterator();
+		Record readTarget = new Record();
 		
 		Value current = new Value();
 		Value last = new Value();

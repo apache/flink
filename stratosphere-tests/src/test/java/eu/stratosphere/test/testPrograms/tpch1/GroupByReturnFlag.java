@@ -17,9 +17,9 @@ import java.util.Iterator;
 
 import eu.stratosphere.api.record.functions.ReduceFunction;
 import eu.stratosphere.test.testPrograms.util.Tuple;
-import eu.stratosphere.types.PactLong;
-import eu.stratosphere.types.PactRecord;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.LongValue;
+import eu.stratosphere.types.Record;
+import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
 
 /**
@@ -32,8 +32,8 @@ public class GroupByReturnFlag extends ReduceFunction {
 	 * @see eu.stratosphere.pact.common.stub.ReduceStub#reduce(eu.stratosphere.pact.common.type.Key, java.util.Iterator, eu.stratosphere.pact.common.stub.Collector)
 	 */
 	@Override
-	public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {
-		PactRecord outRecord = new PactRecord();
+	public void reduce(Iterator<Record> records, Collector<Record> out) throws Exception {
+		Record outRecord = new Record();
 		Tuple returnTuple = new Tuple();
 		
 		long quantity = 0;
@@ -41,13 +41,13 @@ public class GroupByReturnFlag extends ReduceFunction {
 		
 		boolean first = true;
 		while(records.hasNext()) {
-			PactRecord rec = records.next();
+			Record rec = records.next();
 			Tuple t = rec.getField(1, Tuple.class);
 			
 			if(first) {
 				first = false;
 				rec.copyTo(outRecord);
-				returnTuple.addAttribute(rec.getField(0, PactString.class).toString());
+				returnTuple.addAttribute(rec.getField(0, StringValue.class).toString());
 			}
 			
 			long tupleQuantity = Long.parseLong(t.getStringValueAt(4));
@@ -57,7 +57,7 @@ public class GroupByReturnFlag extends ReduceFunction {
 			extendedPriceSum += extendedPricePerTuple;
 		}
 		
-		PactLong pactQuantity = new PactLong(quantity);
+		LongValue pactQuantity = new LongValue(quantity);
 		returnTuple.addAttribute("" + pactQuantity);
 		returnTuple.addAttribute("" + extendedPriceSum);
 		

@@ -14,19 +14,19 @@
 package eu.stratosphere.example.record.incremental.pagerank;
 
 import eu.stratosphere.api.record.io.TextInputFormat;
-import eu.stratosphere.types.PactRecord;
-import eu.stratosphere.types.PactLong;
+import eu.stratosphere.types.Record;
+import eu.stratosphere.types.LongValue;
 
 public class EdgesWithWeightInputFormat extends TextInputFormat {
 	
 	private static final long serialVersionUID = 1L;
 	
-	private final PactLong srcId = new PactLong();
-	private final PactLong trgId = new PactLong();
-	private final PactLong outLinks = new PactLong();
+	private final LongValue srcId = new LongValue();
+	private final LongValue trgId = new LongValue();
+	private final LongValue outLinks = new LongValue();
 	
 	@Override
-	public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes) {
+	public boolean readRecord(Record target, byte[] bytes, int offset, int numBytes) {
 		String str = new String(bytes, offset, numBytes);
 		String[] parts = str.split("\\s+");
 

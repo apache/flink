@@ -28,9 +28,9 @@ import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFields;
 import eu.stratosphere.api.record.operators.JoinOperator;
 import eu.stratosphere.api.record.operators.ReduceOperator;
 import eu.stratosphere.api.record.operators.ReduceOperator.Combinable;
-import eu.stratosphere.types.PactDouble;
-import eu.stratosphere.types.PactLong;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.DoubleValue;
+import eu.stratosphere.types.LongValue;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 
@@ -43,15 +43,15 @@ public class SimplePageRank implements Program, ProgramDescription {
 	public static final class JoinVerexWithEdgesMatch extends JoinFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 
-		private PactRecord record = new PactRecord();
-		private PactLong vertexID = new PactLong();
-		private PactDouble partialRank = new PactDouble();
-		private PactDouble rank = new PactDouble();
+		private Record record = new Record();
+		private LongValue vertexID = new LongValue();
+		private DoubleValue partialRank = new DoubleValue();
+		private DoubleValue rank = new DoubleValue();
 
 		private LongArrayView adjacentNeighbors = new LongArrayView();
 		
 		@Override
-		public void match(PactRecord pageWithRank, PactRecord edges, Collector<PactRecord> out) throws Exception {
+		public void match(Record pageWithRank, Record edges, Collector<Record> out) throws Exception {
 			rank = pageWithRank.getField(1, rank);
 			adjacentNeighbors = edges.getField(1, adjacentNeighbors);
 			int numNeighbors = adjacentNeighbors.size();
@@ -74,15 +74,15 @@ public class SimplePageRank implements Program, ProgramDescription {
 	public static final class AggregatingReduce extends ReduceFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 		
-		private final PactDouble sum = new PactDouble();
+		private final DoubleValue sum = new DoubleValue();
 
 		@Override
-		public void reduce(Iterator<PactRecord> pageWithPartialRank, Collector<PactRecord> out) throws Exception {
-			PactRecord rec = null;
+		public void reduce(Iterator<Record> pageWithPartialRank, Collector<Record> out) throws Exception {
+			Record rec = null;
 			double rankSum = 0.0;
 			while (pageWithPartialRank.hasNext()) {
 				rec = pageWithPartialRank.next();
-				rankSum += rec.getField(1, PactDouble.class).getValue();
+				rankSum += rec.getField(1, DoubleValue.class).getValue();
 			}
 			sum.setValue(rankSum);
 			rec.setField(1, sum);
@@ -119,13 +119,13 @@ public class SimplePageRank implements Program, ProgramDescription {
 		FileDataSource adjacencyListInput = new FileDataSource(new ImprovedAdjacencyListInputFormat(),
 			adjacencyListInputPath, "AdjancencyListInput");
 		
-		JoinOperator join = JoinOperator.builder(new JoinVerexWithEdgesMatch(), PactLong.class, 0, 0)
+		JoinOperator join = JoinOperator.builder(new JoinVerexWithEdgesMatch(), LongValue.class, 0, 0)
 				.input1(iteration.getPartialSolution())
 				.input2(adjacencyListInput)
 				.name("Join with Edges")
 				.build();
 		
-		ReduceOperator rankAggregation = ReduceOperator.builder(new AggregatingReduce(), PactLong.class, 0)
+		ReduceOperator rankAggregation = ReduceOperator.builder(new AggregatingReduce(), LongValue.class, 0)
 				.input(join)
 				.name("Rank Aggregation")
 				.build();

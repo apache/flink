@@ -15,7 +15,7 @@ package eu.stratosphere.scala.functions
 
 import eu.stratosphere.scala.analysis.{UDTSerializer, UDF2, UDT}
 import eu.stratosphere.api.record.functions.{CoGroupFunction => JCoGroupFunction}
-import eu.stratosphere.types.PactRecord
+import eu.stratosphere.types.Record
 import eu.stratosphere.util.Collector
 import eu.stratosphere.configuration.Configuration;
 import java.util.{Iterator => JIterator}
@@ -26,7 +26,7 @@ abstract class CoGroupFunctionBase[LeftIn: UDT, RightIn: UDT, Out: UDT] extends 
   val outputUDT = implicitly[UDT[Out]]
   val udf: UDF2[LeftIn, RightIn, Out] = new UDF2(leftInputUDT, rightInputUDT, outputUDT)
 
-  protected val outputRecord = new PactRecord()
+  protected val outputRecord = new Record()
 
   protected lazy val leftIterator: DeserializingIterator[LeftIn] = new DeserializingIterator(udf.getLeftInputDeserializer)
   protected lazy val leftForwardFrom: Array[Int] = udf.getLeftForwardIndexArrayFrom
@@ -44,7 +44,7 @@ abstract class CoGroupFunctionBase[LeftIn: UDT, RightIn: UDT, Out: UDT] extends 
 }
 
 abstract class CoGroupFunction[LeftIn: UDT, RightIn: UDT, Out: UDT] extends CoGroupFunctionBase[LeftIn, RightIn, Out] with Function2[Iterator[LeftIn], Iterator[RightIn], Out] {
-  override def coGroup(leftRecords: JIterator[PactRecord], rightRecords: JIterator[PactRecord], out: Collector[PactRecord]) = {
+  override def coGroup(leftRecords: JIterator[Record], rightRecords: JIterator[Record], out: Collector[Record]) = {
     val firstLeftRecord = leftIterator.initialize(leftRecords)
     val firstRightRecord = rightIterator.initialize(rightRecords)
 
@@ -63,7 +63,7 @@ abstract class CoGroupFunction[LeftIn: UDT, RightIn: UDT, Out: UDT] extends CoGr
 }
 
 abstract class FlatCoGroupFunction[LeftIn: UDT, RightIn: UDT, Out: UDT] extends CoGroupFunctionBase[LeftIn, RightIn, Out] with Function2[Iterator[LeftIn], Iterator[RightIn], Iterator[Out]] {
-  override def coGroup(leftRecords: JIterator[PactRecord], rightRecords: JIterator[PactRecord], out: Collector[PactRecord]) = {
+  override def coGroup(leftRecords: JIterator[Record], rightRecords: JIterator[Record], out: Collector[Record]) = {
     val firstLeftRecord = leftIterator.initialize(leftRecords)
     outputRecord.copyFrom(firstLeftRecord, leftForwardFrom, leftForwardTo)
 

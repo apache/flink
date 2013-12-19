@@ -16,7 +16,7 @@ package eu.stratosphere.scala.operators
 import eu.stratosphere.scala.ScalaContract
 import eu.stratosphere.api.record.operators.MapOperator
 import eu.stratosphere.scala.analysis.UDT
-import eu.stratosphere.types.PactRecord
+import eu.stratosphere.types.Record
 import eu.stratosphere.api.record.functions.MapFunction
 import eu.stratosphere.util.Collector
 import eu.stratosphere.api.operators.Operator
@@ -44,7 +44,7 @@ object CopyOperator {
         this.outputLength = udf.getOutputLength
       }
 
-      override def map(record: PactRecord, out: Collector[PactRecord]) = {
+      override def map(record: Record, out: Collector[Record]) = {
 
         record.setNumFields(outputLength)
 

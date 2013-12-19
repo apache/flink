@@ -40,9 +40,9 @@ import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.test.operators.io.ContractITCaseIOFormats.ContractITCaseInputFormat;
 import eu.stratosphere.test.operators.io.ContractITCaseIOFormats.ContractITCaseOutputFormat;
 import eu.stratosphere.test.util.TestBase;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
+import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
 
 /**
@@ -105,11 +105,11 @@ public class MatchITCase extends TestBase
 	public static class TestMatcher extends JoinFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 
-		private PactString keyString = new PactString();
-		private PactString valueString = new PactString();
+		private StringValue keyString = new StringValue();
+		private StringValue valueString = new StringValue();
 		
 		@Override
-		public void match(PactRecord value1, PactRecord value2, Collector<PactRecord> out)
+		public void match(Record value1, Record value2, Collector<Record> out)
 				throws Exception {
 			keyString = value1.getField(0, keyString);
 			keyString.setValue(""+ (Integer.parseInt(keyString.getValue())+1));
@@ -119,7 +119,7 @@ public class MatchITCase extends TestBase
 			valueString = value2.getField(1, valueString);
 			int val2 = Integer.parseInt(valueString.getValue())+1;
 			
-			value1.setField(1, new PactInteger(val1 - val2));
+			value1.setField(1, new IntValue(val1 - val2));
 			
 			out.collect(value1);
 			
@@ -147,7 +147,7 @@ public class MatchITCase extends TestBase
 			.recordDelimiter('\n');
 		input_right.setDegreeOfParallelism(config.getInteger("MatchTest#NoSubtasks", 1));
 
-		JoinOperator testMatcher = JoinOperator.builder(new TestMatcher(), PactString.class, 0, 0)
+		JoinOperator testMatcher = JoinOperator.builder(new TestMatcher(), StringValue.class, 0, 0)
 			.build();
 		testMatcher.setDegreeOfParallelism(config.getInteger("MatchTest#NoSubtasks", 1));
 		testMatcher.getParameters().setString(PactCompiler.HINT_LOCAL_STRATEGY,

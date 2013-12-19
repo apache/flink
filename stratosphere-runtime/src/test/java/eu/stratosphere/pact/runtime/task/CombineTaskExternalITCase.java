@@ -21,24 +21,24 @@ import junit.framework.Assert;
 import org.junit.Test;
 
 import eu.stratosphere.api.functions.GenericReducer;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparator;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparator;
 import eu.stratosphere.pact.runtime.task.CombineTaskTest.MockCombiningReduceStub;
 import eu.stratosphere.pact.runtime.test.util.DriverTestBase;
-import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
+import eu.stratosphere.pact.runtime.test.util.UniformRecordGenerator;
 import eu.stratosphere.types.Key;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
 
 
-public class CombineTaskExternalITCase extends DriverTestBase<GenericReducer<PactRecord, ?>>
+public class CombineTaskExternalITCase extends DriverTestBase<GenericReducer<Record, ?>>
 {
 	private static final long COMBINE_MEM = 3 * 1024 * 1024;
 	
-	private final ArrayList<PactRecord> outList = new ArrayList<PactRecord>();
+	private final ArrayList<Record> outList = new ArrayList<Record>();
 	
 	@SuppressWarnings("unchecked")
-	private final PactRecordComparator comparator = new PactRecordComparator(
-		new int[]{0}, (Class<? extends Key>[])new Class[]{ PactInteger.class });
+	private final RecordComparator comparator = new RecordComparator(
+		new int[]{0}, (Class<? extends Key>[])new Class[]{ IntValue.class });
 
 	public CombineTaskExternalITCase() {
 		super(COMBINE_MEM, 0);
@@ -50,7 +50,7 @@ public class CombineTaskExternalITCase extends DriverTestBase<GenericReducer<Pac
 		final int keyCnt = 40000;
 		final int valCnt = 8;
 		
-		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
+		addInput(new UniformRecordGenerator(keyCnt, valCnt, false));
 		addInputComparator(this.comparator);
 		setOutput(this.outList);
 		
@@ -58,7 +58,7 @@ public class CombineTaskExternalITCase extends DriverTestBase<GenericReducer<Pac
 		getTaskConfig().setMemoryDriver(COMBINE_MEM);
 		getTaskConfig().setFilehandlesDriver(2);
 		
-		final CombineDriver<PactRecord> testTask = new CombineDriver<PactRecord>();
+		final CombineDriver<Record> testTask = new CombineDriver<Record>();
 		
 		try {
 			testDriver(testTask, MockCombiningReduceStub.class);
@@ -74,15 +74,15 @@ public class CombineTaskExternalITCase extends DriverTestBase<GenericReducer<Pac
 		
 		// wee need to do the final aggregation manually in the test, because the
 		// combiner is not guaranteed to do that
-		final HashMap<PactInteger, PactInteger> aggMap = new HashMap<PactInteger, PactInteger>();
-		for (PactRecord record : this.outList) {
-			PactInteger key = new PactInteger();
-			PactInteger value = new PactInteger();
+		final HashMap<IntValue, IntValue> aggMap = new HashMap<IntValue, IntValue>();
+		for (Record record : this.outList) {
+			IntValue key = new IntValue();
+			IntValue value = new IntValue();
 			key = record.getField(0, key);
 			value = record.getField(1, value);
-			PactInteger prevVal = aggMap.get(key);
+			IntValue prevVal = aggMap.get(key);
 			if (prevVal != null) {
-				aggMap.put(key, new PactInteger(prevVal.getValue() + value.getValue()));
+				aggMap.put(key, new IntValue(prevVal.getValue() + value.getValue()));
 			}
 			else {
 				aggMap.put(key, value);
@@ -91,7 +91,7 @@ public class CombineTaskExternalITCase extends DriverTestBase<GenericReducer<Pac
 		
 		Assert.assertTrue("Resultset size was "+aggMap.size()+". Expected was "+keyCnt, aggMap.size() == keyCnt);
 		
-		for (PactInteger integer : aggMap.values()) {
+		for (IntValue integer : aggMap.values()) {
 			Assert.assertTrue("Incorrect result", integer.getValue() == expSum);
 		}
 		
@@ -103,7 +103,7 @@ public class CombineTaskExternalITCase extends DriverTestBase<GenericReducer<Pac
 		final int keyCnt = 100000;
 		final int valCnt = 8;
 		
-		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
+		addInput(new UniformRecordGenerator(keyCnt, valCnt, false));
 		addInputComparator(this.comparator);
 		setOutput(this.outList);
 		
@@ -111,7 +111,7 @@ public class CombineTaskExternalITCase extends DriverTestBase<GenericReducer<Pac
 		getTaskConfig().setMemoryDriver(COMBINE_MEM);
 		getTaskConfig().setFilehandlesDriver(2);
 		
-		final CombineDriver<PactRecord> testTask = new CombineDriver<PactRecord>();
+		final CombineDriver<Record> testTask = new CombineDriver<Record>();
 		
 		try {
 			testDriver(testTask, MockCombiningReduceStub.class);
@@ -127,15 +127,15 @@ public class CombineTaskExternalITCase extends DriverTestBase<GenericReducer<Pac
 		
 		// wee need to do the final aggregation manually in the test, because the
 		// combiner is not guaranteed to do that
-		final HashMap<PactInteger, PactInteger> aggMap = new HashMap<PactInteger, PactInteger>();
-		for (PactRecord record : this.outList) {
-			PactInteger key = new PactInteger();
-			PactInteger value = new PactInteger();
+		final HashMap<IntValue, IntValue> aggMap = new HashMap<IntValue, IntValue>();
+		for (Record record : this.outList) {
+			IntValue key = new IntValue();
+			IntValue value = new IntValue();
 			key = record.getField(0, key);
 			value = record.getField(1, value);
-			PactInteger prevVal = aggMap.get(key);
+			IntValue prevVal = aggMap.get(key);
 			if (prevVal != null) {
-				aggMap.put(key, new PactInteger(prevVal.getValue() + value.getValue()));
+				aggMap.put(key, new IntValue(prevVal.getValue() + value.getValue()));
 			}
 			else {
 				aggMap.put(key, value);
@@ -144,7 +144,7 @@ public class CombineTaskExternalITCase extends DriverTestBase<GenericReducer<Pac
 		
 		Assert.assertTrue("Resultset size was "+aggMap.size()+". Expected was "+keyCnt, aggMap.size() == keyCnt);
 		
-		for (PactInteger integer : aggMap.values()) {
+		for (IntValue integer : aggMap.values()) {
 			Assert.assertTrue("Incorrect result", integer.getValue() == expSum);
 		}
 		

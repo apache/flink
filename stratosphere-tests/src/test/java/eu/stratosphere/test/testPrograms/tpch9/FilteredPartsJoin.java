@@ -16,16 +16,16 @@ package eu.stratosphere.test.testPrograms.tpch9;
 
 import eu.stratosphere.api.record.functions.JoinFunction;
 import eu.stratosphere.test.testPrograms.util.Tuple;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
+import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
 
 
 public class FilteredPartsJoin extends JoinFunction {
 	
 	private final IntPair partAndSupplierKey = new IntPair();
-	private final PactString supplyCostStr = new PactString();
+	private final StringValue supplyCostStr = new StringValue();
 	private final Tuple ordersValue = new Tuple();
 	
 	/**
@@ -37,13 +37,13 @@ public class FilteredPartsJoin extends JoinFunction {
 	 *
 	 */
 	@Override
-	public void match(PactRecord value1, PactRecord value2, Collector<PactRecord> out)
+	public void match(Record value1, Record value2, Collector<Record> out)
 			throws Exception {
 		IntPair partAndSupplierKey = value1.getField(0, this.partAndSupplierKey);
-		PactString supplyCostStr = value1.getField(1, this.supplyCostStr);
+		StringValue supplyCostStr = value1.getField(1, this.supplyCostStr);
 		Tuple ordersValue = value2.getField(1, this.ordersValue);
 		
-		PactInteger year = new PactInteger(Integer.parseInt(ordersValue.getStringValueAt(0)));
+		IntValue year = new IntValue(Integer.parseInt(ordersValue.getStringValueAt(0)));
 		float quantity = Float.parseFloat(ordersValue.getStringValueAt(1));
 		float price = Float.parseFloat(ordersValue.getStringValueAt(2));
 		float supplyCost = Float.parseFloat(supplyCostStr.toString());
@@ -51,7 +51,7 @@ public class FilteredPartsJoin extends JoinFunction {
 		
 		/* Push (supplierKey, (amount, year)): */
 		value1.setField(0, partAndSupplierKey.getSecond());
-		value1.setField(1, new StringIntPair(new PactString("" + amount), year));
+		value1.setField(1, new StringIntPair(new StringValue("" + amount), year));
 		out.collect(value1);
 	}
 

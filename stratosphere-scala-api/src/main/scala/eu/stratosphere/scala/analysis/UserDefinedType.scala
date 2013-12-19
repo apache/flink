@@ -17,9 +17,9 @@ import scala.collection.GenTraversableOnce
 import scala.collection.generic.CanBuildFrom
 import scala.language.experimental.macros
 import eu.stratosphere.types.{Key => PactKey}
-import eu.stratosphere.types.PactRecord
+import eu.stratosphere.types.Record
 import eu.stratosphere.types.{Value => PactValue}
-import eu.stratosphere.types.PactString
+import eu.stratosphere.types.StringValue
 import eu.stratosphere.scala.codegen.Util
 
 abstract class UDT[T] extends Serializable {
@@ -54,9 +54,9 @@ abstract class UDT[T] extends Serializable {
 }
 
 abstract class UDTSerializer[T](val indexMap: Array[Int]) {
-  def serialize(item: T, record: PactRecord)
-  def deserializeRecyclingOff(record: PactRecord): T
-  def deserializeRecyclingOn(record: PactRecord): T
+  def serialize(item: T, record: Record)
+  def deserializeRecyclingOff(record: Record): T
+  def deserializeRecyclingOn(record: Record): T
 }
 
 trait UDTLowPriorityImplicits {
@@ -75,14 +75,14 @@ object UDT extends UDTLowPriorityImplicits {
 
   object StringUDT extends UDT[String] {
 
-    override val fieldTypes = Array[Class[_ <: PactValue]](classOf[PactString])
+    override val fieldTypes = Array[Class[_ <: PactValue]](classOf[StringValue])
     override val udtIdMap: Map[Int, Int] = Map()
 
     override def createSerializer(indexMap: Array[Int]) = new UDTSerializer[String](indexMap) {
 
       private val index = indexMap(0)
 
-      @transient private var pactField = new PactString()
+      @transient private var pactField = new StringValue()
 
 //      override def getFieldIndex(selection: Seq[String]): List[Int] = selection match {
 //        case Seq() => List(index)
@@ -90,14 +90,14 @@ object UDT extends UDTLowPriorityImplicits {
 //        case _     => throw new RuntimeException("Invalid selection: " + selection)
 //      }
 
-      override def serialize(item: String, record: PactRecord) = {
+      override def serialize(item: String, record: Record) = {
         if (index >= 0) {
           pactField.setValue(item)
           record.setField(index, pactField)
         }
       }
 
-      override def deserializeRecyclingOff(record: PactRecord): String = {
+      override def deserializeRecyclingOff(record: Record): String = {
         if (index >= 0) {
           record.getFieldInto(index, pactField)
           pactField.getValue()
@@ -106,7 +106,7 @@ object UDT extends UDTLowPriorityImplicits {
         }
       }
 
-      override def deserializeRecyclingOn(record: PactRecord): String = {
+      override def deserializeRecyclingOn(record: Record): String = {
         if (index >= 0) {
           record.getFieldInto(index, pactField)
           pactField.getValue()
@@ -117,7 +117,7 @@ object UDT extends UDTLowPriorityImplicits {
 
       private def readObject(in: java.io.ObjectInputStream) = {
         in.defaultReadObject()
-        pactField = new PactString()
+        pactField = new StringValue()
       }
     }
   }

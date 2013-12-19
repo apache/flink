@@ -19,7 +19,7 @@ import java.io.UnsupportedEncodingException;
 
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 
 
 /**
@@ -142,12 +142,12 @@ public abstract class DelimitedOutputFormat extends FileOutputFormat {
 	 * @throws Exception If the user code produces an exception that prevents processing the record, it should
 	 *                   throw it such that the engine recognizes the situation as a fault.
 	 */
-	public abstract int serializeRecord(PactRecord rec, byte[] target) throws Exception;
+	public abstract int serializeRecord(Record rec, byte[] target) throws Exception;
 	
 	
 
 	@Override
-	public void writeRecord(PactRecord record) throws IOException
+	public void writeRecord(Record record) throws IOException
 	{
 		int size;
 		try {

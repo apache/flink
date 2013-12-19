@@ -33,11 +33,11 @@ import eu.stratosphere.api.record.operators.JoinOperator;
 import eu.stratosphere.api.record.operators.ReduceOperator;
 import eu.stratosphere.api.record.operators.ReduceOperator.Combinable;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.types.PactDouble;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactLong;
-import eu.stratosphere.types.PactRecord;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.DoubleValue;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.LongValue;
+import eu.stratosphere.types.Record;
+import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
 
 /**
@@ -73,9 +73,9 @@ public class TPCHQuery3 implements Program, ProgramDescription {
 		private int yearFilter;			// filter literal for the year
 		
 		// reusable objects for the fields touched in the mapper
-		private PactString orderStatus;
-		private PactString orderDate;
-		private PactString orderPrio;
+		private StringValue orderStatus;
+		private StringValue orderDate;
+		private StringValue orderPrio;
 		
 		/**
 		 * Reads the filter literals from the configuration.
@@ -100,16 +100,16 @@ public class TPCHQuery3 implements Program, ProgramDescription {
 	 	 *   1:SHIPPRIORITY
 		 */
 		@Override
-		public void map(final PactRecord record, final Collector<PactRecord> out) {
-			orderStatus = record.getField(2, PactString.class);
+		public void map(final Record record, final Collector<Record> out) {
+			orderStatus = record.getField(2, StringValue.class);
 			if (!orderStatus.getValue().equals("F"))
 				return;
 			
-			orderPrio = record.getField(4, PactString.class);
+			orderPrio = record.getField(4, StringValue.class);
 			if(!orderPrio.getValue().startsWith(this.prioFilter))
 				return;
 			
-			orderDate = record.getField(3, PactString.class);
+			orderDate = record.getField(3, StringValue.class);
 			if (!(Integer.parseInt(orderDate.getValue().substring(0, 4)) > this.yearFilter))
 				return;
 			
@@ -135,8 +135,8 @@ public class TPCHQuery3 implements Program, ProgramDescription {
 		 *   2:EXTENDEDPRICE
 		 */
 		@Override
-		public void match(PactRecord order, PactRecord lineitem, Collector<PactRecord> out) {
-			order.setField(2, lineitem.getField(1, PactDouble.class));
+		public void match(Record order, Record lineitem, Collector<Record> out) {
+			order.setField(2, lineitem.getField(1, DoubleValue.class));
 			out.collect(order);
 		}
 	}
@@ -152,7 +152,7 @@ public class TPCHQuery3 implements Program, ProgramDescription {
 	public static class AggLiO extends ReduceFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 		
-		private final PactDouble extendedPrice = new PactDouble();
+		private final DoubleValue extendedPrice = new DoubleValue();
 		
 		/**
 		 * Implements the sum aggregation.
@@ -163,13 +163,13 @@ public class TPCHQuery3 implements Program, ProgramDescription {
 		 *   2:SUM(EXTENDEDPRICE)
 		 */
 		@Override
-		public void reduce(Iterator<PactRecord> values, Collector<PactRecord> out) {
-			PactRecord rec = null;
+		public void reduce(Iterator<Record> values, Collector<Record> out) {
+			Record rec = null;
 			double partExtendedPriceSum = 0;
 
 			while (values.hasNext()) {
 				rec = values.next();
-				partExtendedPriceSum += rec.getField(2, PactDouble.class).getValue();
+				partExtendedPriceSum += rec.getField(2, DoubleValue.class).getValue();
 			}
 
 			this.extendedPrice.setValue(partExtendedPriceSum);
@@ -181,7 +181,7 @@ public class TPCHQuery3 implements Program, ProgramDescription {
 		 * Creates partial sums on the price attribute for each data batch.
 		 */
 		@Override
-		public void combine(Iterator<PactRecord> values, Collector<PactRecord> out) {
+		public void combine(Iterator<Record> values, Collector<Record> out) {
 			reduce(values, out);
 		}
 	}
@@ -200,19 +200,19 @@ public class TPCHQuery3 implements Program, ProgramDescription {
 		CsvInputFormat.configureRecordFormat(orders)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
-			.field(PactLong.class, 0)		// order id
-			.field(PactInteger.class, 7) 		// ship prio
-			.field(PactString.class, 2, 2)	// order status
-			.field(PactString.class, 4, 10)	// order date
-			.field(PactString.class, 5, 8);	// order prio
+			.field(LongValue.class, 0)		// order id
+			.field(IntValue.class, 7) 		// ship prio
+			.field(StringValue.class, 2, 2)	// order status
+			.field(StringValue.class, 4, 10)	// order date
+			.field(StringValue.class, 5, 8);	// order prio
 
 		// create DataSourceContract for LineItems input
 		FileDataSource lineitems = new FileDataSource(new CsvInputFormat(), lineitemsPath, "LineItems");
 		CsvInputFormat.configureRecordFormat(lineitems)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
-			.field(PactLong.class, 0)		// order id
-			.field(PactDouble.class, 5);	// extended price
+			.field(LongValue.class, 0)		// order id
+			.field(DoubleValue.class, 5);	// extended price
 
 		// create MapOperator for filtering Orders tuples
 		MapOperator filterO = MapOperator.builder(new FilterO())
@@ -226,7 +226,7 @@ public class TPCHQuery3 implements Program, ProgramDescription {
 		filterO.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.05f);
 
 		// create JoinOperator for joining Orders and LineItems
-		JoinOperator joinLiO = JoinOperator.builder(new JoinLiO(), PactLong.class, 0, 0)
+		JoinOperator joinLiO = JoinOperator.builder(new JoinLiO(), LongValue.class, 0, 0)
 			.input1(filterO)
 			.input2(lineitems)
 			.name("JoinLiO")
@@ -235,8 +235,8 @@ public class TPCHQuery3 implements Program, ProgramDescription {
 		// create ReduceOperator for aggregating the result
 		// the reducer has a composite key, consisting of the fields 0 and 1
 		ReduceOperator aggLiO = ReduceOperator.builder(new AggLiO())
-			.keyField(PactLong.class, 0)
-			.keyField(PactString.class, 1)
+			.keyField(LongValue.class, 0)
+			.keyField(StringValue.class, 1)
 			.input(joinLiO)
 			.name("AggLio")
 			.build();
@@ -247,9 +247,9 @@ public class TPCHQuery3 implements Program, ProgramDescription {
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
 			.lenient(true)
-			.field(PactLong.class, 0)
-			.field(PactInteger.class, 1)
-			.field(PactDouble.class, 2);
+			.field(LongValue.class, 0)
+			.field(IntValue.class, 1)
+			.field(DoubleValue.class, 2);
 		
 		// assemble the PACT plan
 		Plan plan = new Plan(result, "TPCH Q3");

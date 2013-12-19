@@ -25,11 +25,11 @@ import eu.stratosphere.api.typeutils.TypeSerializer;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordSerializer;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializer;
 import eu.stratosphere.pact.runtime.resettable.BlockResettableIterator;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
 import junit.framework.Assert;
 
 
@@ -41,11 +41,11 @@ public class BlockResettableIteratorTest
 	
 	private MemoryManager memman;
 
-	private Iterator<PactRecord> reader;
+	private Iterator<Record> reader;
 
-	private List<PactRecord> objects;
+	private List<Record> objects;
 	
-	private final TypeSerializer<PactRecord> serializer = PactRecordSerializer.get();
+	private final TypeSerializer<Record> serializer = RecordSerializer.get();
 
 	@Before
 	public void startup() {
@@ -53,9 +53,9 @@ public class BlockResettableIteratorTest
 		this.memman = new DefaultMemoryManager(MEMORY_CAPACITY);
 		
 		// create test objects
-		this.objects = new ArrayList<PactRecord>(20000);
+		this.objects = new ArrayList<Record>(20000);
 		for (int i = 0; i < NUM_VALUES; ++i) {
-			this.objects.add(new PactRecord(new PactInteger(i)));
+			this.objects.add(new Record(new IntValue(i)));
 		}
 		
 		// create the reader
@@ -80,7 +80,7 @@ public class BlockResettableIteratorTest
 	{
 		final AbstractInvokable memOwner = new DummyInvokable();
 		// create the resettable Iterator
-		final BlockResettableIterator<PactRecord> iterator = new BlockResettableIterator<PactRecord>(
+		final BlockResettableIterator<Record> iterator = new BlockResettableIterator<Record>(
 				this.memman, this.reader, this.serializer, this.memman.getPageSize(), memOwner);
 		// open the iterator
 		iterator.open();
@@ -93,8 +93,8 @@ public class BlockResettableIteratorTest
 			upper = lower;
 			// find the upper bound
 			while (iterator.hasNext()) {
-				PactRecord target = iterator.next();
-				int val = target.getField(0, PactInteger.class).getValue();
+				Record target = iterator.next();
+				int val = target.getField(0, IntValue.class).getValue();
 				Assert.assertEquals(upper++, val);
 			}
 			// now reset the buffer a few times
@@ -102,8 +102,8 @@ public class BlockResettableIteratorTest
 				iterator.reset();
 				int count = 0;
 				while (iterator.hasNext()) {
-					PactRecord target = iterator.next();
-					int val = target.getField(0, PactInteger.class).getValue();
+					Record target = iterator.next();
+					int val = target.getField(0, IntValue.class).getValue();
 					Assert.assertEquals(lower + (count++), val);
 				}
 				Assert.assertEquals(upper - lower, count);
@@ -119,7 +119,7 @@ public class BlockResettableIteratorTest
 	{
 		final AbstractInvokable memOwner = new DummyInvokable();
 		// create the resettable Iterator
-		final BlockResettableIterator<PactRecord> iterator = new BlockResettableIterator<PactRecord>(
+		final BlockResettableIterator<Record> iterator = new BlockResettableIterator<Record>(
 				this.memman, this.reader, this.serializer, 2 * this.memman.getPageSize(), memOwner);
 		// open the iterator
 		iterator.open();
@@ -132,8 +132,8 @@ public class BlockResettableIteratorTest
 			upper = lower;
 			// find the upper bound
 			while (iterator.hasNext()) {
-				PactRecord target = iterator.next();
-				int val = target.getField(0, PactInteger.class).getValue();
+				Record target = iterator.next();
+				int val = target.getField(0, IntValue.class).getValue();
 				Assert.assertEquals(upper++, val);
 			}
 			// now reset the buffer a few times
@@ -141,8 +141,8 @@ public class BlockResettableIteratorTest
 				iterator.reset();
 				int count = 0;
 				while (iterator.hasNext()) {
-					PactRecord target = iterator.next();
-					int val = target.getField(0, PactInteger.class).getValue();
+					Record target = iterator.next();
+					int val = target.getField(0, IntValue.class).getValue();
 					Assert.assertEquals(lower + (count++), val);
 				}
 				Assert.assertEquals(upper - lower, count);
@@ -159,7 +159,7 @@ public class BlockResettableIteratorTest
 	{
 		final AbstractInvokable memOwner = new DummyInvokable();
 		// create the resettable Iterator
-		final BlockResettableIterator<PactRecord> iterator = new BlockResettableIterator<PactRecord>(
+		final BlockResettableIterator<Record> iterator = new BlockResettableIterator<Record>(
 				this.memman, this.reader, this.serializer, 12 * this.memman.getPageSize(), memOwner);
 		// open the iterator
 		iterator.open();
@@ -172,8 +172,8 @@ public class BlockResettableIteratorTest
 			upper = lower;
 			// find the upper bound
 			while (iterator.hasNext()) {
-				PactRecord target = iterator.next();
-				int val = target.getField(0, PactInteger.class).getValue();
+				Record target = iterator.next();
+				int val = target.getField(0, IntValue.class).getValue();
 				Assert.assertEquals(upper++, val);
 			}
 			// now reset the buffer a few times
@@ -181,8 +181,8 @@ public class BlockResettableIteratorTest
 				iterator.reset();
 				int count = 0;
 				while (iterator.hasNext()) {
-					PactRecord target = iterator.next();
-					int val = target.getField(0, PactInteger.class).getValue();
+					Record target = iterator.next();
+					int val = target.getField(0, IntValue.class).getValue();
 					Assert.assertEquals(lower + (count++), val);
 				}
 				Assert.assertEquals(upper - lower, count);

@@ -26,8 +26,8 @@ import eu.stratosphere.api.record.io.ExternalProcessInputFormat;
 import eu.stratosphere.api.record.io.ExternalProcessInputSplit;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.io.GenericInputSplit;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.OperatingSystem;
 
 public class ExternalProcessFixedLengthInputFormatTest {
@@ -131,7 +131,7 @@ private ExternalProcessFixedLengthInputFormat<ExternalProcessInputSplit> format;
 		config.setInteger(ExternalProcessFixedLengthInputFormat.RECORDLENGTH_PARAMETER_KEY, 8);
 		config.setInteger(MyExternalProcessTestInputFormat.FAILCOUNT_PARAMETER_KEY, 100);
 		ExternalProcessInputSplit split = new ExternalProcessInputSplit(1, this.neverEndingCommand);
-		PactRecord record = new PactRecord();
+		Record record = new Record();
 	    	    
 		boolean userException = false;
 		boolean processDestroyed = false;
@@ -164,7 +164,7 @@ private ExternalProcessFixedLengthInputFormat<ExternalProcessInputSplit> format;
 		Configuration config = new Configuration();
 		config.setInteger(ExternalProcessFixedLengthInputFormat.RECORDLENGTH_PARAMETER_KEY, 8);
 		ExternalProcessInputSplit split = new ExternalProcessInputSplit(1, this.thousandRecordsCommand);
-		PactRecord record = new PactRecord();
+		Record record = new Record();
 
 		int cnt = 0;
 		try {
@@ -190,7 +190,7 @@ private ExternalProcessFixedLengthInputFormat<ExternalProcessInputSplit> format;
 		Configuration config = new Configuration();
 		config.setInteger(ExternalProcessFixedLengthInputFormat.RECORDLENGTH_PARAMETER_KEY, 8);
 		ExternalProcessInputSplit split = new ExternalProcessInputSplit(1, this.incompleteRecordsCommand);
-		PactRecord record = new PactRecord();
+		Record record = new Record();
 
 		boolean incompleteRecordDetected = false;
 		@SuppressWarnings("unused")
@@ -231,7 +231,7 @@ private ExternalProcessFixedLengthInputFormat<ExternalProcessInputSplit> format;
 		}
 		
 		@Override
-		public boolean readBytes(PactRecord record, byte[] bytes, int startPos) {
+		public boolean readBytes(Record record, byte[] bytes, int startPos) {
 
 			if(cnt == failCnt) {
 				throw new RuntimeException("This is a test exception!");
@@ -249,8 +249,8 @@ private ExternalProcessFixedLengthInputFormat<ExternalProcessInputSplit> format;
 			v2 = (v2 << 8) | (0xFF & bytes[startPos+6]);
 			v2 = (v2 << 8) | (0xFF & bytes[startPos+7]);
 			
-			record.setField(0,new PactInteger(v1));
-			record.setField(1,new PactInteger(v2));
+			record.setField(0,new IntValue(v1));
+			record.setField(1,new IntValue(v2));
 			
 			cnt++;
 			

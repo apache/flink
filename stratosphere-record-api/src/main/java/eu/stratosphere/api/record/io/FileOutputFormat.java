@@ -13,14 +13,14 @@
 
 package eu.stratosphere.api.record.io;
 
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 
 
 /**
  * The abstract base class for all output formats that are file based. Contains the logic to open/close the target
  * file streams.
  */
-public abstract class FileOutputFormat extends eu.stratosphere.api.io.FileOutputFormat<PactRecord> {
+public abstract class FileOutputFormat extends eu.stratosphere.api.io.FileOutputFormat<Record> {
 	
 	private static final long serialVersionUID = 3832934435044920834L;
 }

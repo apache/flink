@@ -13,15 +13,15 @@
 
 package eu.stratosphere.types.parser;
 
-import eu.stratosphere.types.PactDouble;
+import eu.stratosphere.types.DoubleValue;
 
 /**
- * Parses a text field into a PactDouble.
+ * Parses a text field into a DoubleValue.
  */
-public class DecimalTextDoubleParser extends FieldParser<PactDouble> {
+public class DecimalTextDoubleParser extends FieldParser<DoubleValue> {
 	
 	@Override
-	public int parseField(byte[] bytes, int startPos, int limit, char delim, PactDouble field) {
+	public int parseField(byte[] bytes, int startPos, int limit, char delim, DoubleValue field) {
 		
 		int i = startPos;
 		final byte delByte = (byte) delim;
@@ -42,7 +42,7 @@ public class DecimalTextDoubleParser extends FieldParser<PactDouble> {
 	}
 	
 	@Override
-	public PactDouble createValue() {
-		return new PactDouble();
+	public DoubleValue createValue() {
+		return new DoubleValue();
 	}
 }

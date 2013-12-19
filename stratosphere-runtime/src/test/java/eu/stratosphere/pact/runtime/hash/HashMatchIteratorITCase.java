@@ -35,9 +35,9 @@ import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparator;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordPairComparator;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordSerializer;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparator;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordPairComparator;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializer;
 import eu.stratosphere.pact.runtime.test.util.DiscardingOutputCollector;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.TestData;
@@ -50,8 +50,8 @@ import eu.stratosphere.pact.runtime.test.util.types.IntPairComparator;
 import eu.stratosphere.pact.runtime.test.util.types.IntPairSerializer;
 import eu.stratosphere.pact.runtime.test.util.UnionIterator;
 import eu.stratosphere.types.NullKeyFieldException;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.types.Value;
 import eu.stratosphere.util.Collector;
 import eu.stratosphere.util.MutableObjectIterator;
@@ -72,26 +72,26 @@ public class HashMatchIteratorITCase {
 	private IOManager ioManager;
 	private MemoryManager memoryManager;
 	
-	private TypeSerializer<PactRecord> recordSerializer;
-	private TypeComparator<PactRecord> record1Comparator;
-	private TypeComparator<PactRecord> record2Comparator;
-	private TypePairComparator<PactRecord, PactRecord> recordPairComparator;
+	private TypeSerializer<Record> recordSerializer;
+	private TypeComparator<Record> record1Comparator;
+	private TypeComparator<Record> record2Comparator;
+	private TypePairComparator<Record, Record> recordPairComparator;
 	
 	private TypeSerializer<IntPair> pairSerializer;
 	private TypeComparator<IntPair> pairComparator;
-	private TypePairComparator<IntPair, PactRecord> pairRecordPairComparator;
-	private TypePairComparator<PactRecord, IntPair> recordPairPairComparator;
+	private TypePairComparator<IntPair, Record> pairRecordPairComparator;
+	private TypePairComparator<Record, IntPair> recordPairPairComparator;
 
 
 	@SuppressWarnings("unchecked")
 	@Before
 	public void beforeTest() {
-		this.recordSerializer = PactRecordSerializer.get();
+		this.recordSerializer = RecordSerializer.get();
 		
-		this.record1Comparator = new PactRecordComparator(new int[] {0}, new Class[] {TestData.Key.class});
-		this.record2Comparator = new PactRecordComparator(new int[] {0}, new Class[] {TestData.Key.class});
+		this.record1Comparator = new RecordComparator(new int[] {0}, new Class[] {TestData.Key.class});
+		this.record2Comparator = new RecordComparator(new int[] {0}, new Class[] {TestData.Key.class});
 		
-		this.recordPairComparator = new PactRecordPairComparator(new int[] {0}, new int[] {0}, new Class[] {TestData.Key.class});
+		this.recordPairComparator = new RecordPairComparator(new int[] {0}, new int[] {0}, new Class[] {TestData.Key.class});
 		
 		this.pairSerializer = new IntPairSerializer();
 		this.pairComparator = new IntPairComparator();
@@ -136,8 +136,8 @@ public class HashMatchIteratorITCase {
 				collectRecordData(input1),
 				collectRecordData(input2));
 			
-			final JoinFunction matcher = new PactRecordMatchRemovingMatcher(expectedMatchesMap);
-			final Collector<PactRecord> collector = new DiscardingOutputCollector();
+			final JoinFunction matcher = new RecordMatchRemovingJoin(expectedMatchesMap);
+			final Collector<Record> collector = new DiscardingOutputCollector();
 	
 			// reset the generators
 			generator1.reset();
@@ -146,8 +146,8 @@ public class HashMatchIteratorITCase {
 			input2.reset();
 	
 			// compare with iterator values
-			BuildFirstHashMatchIterator<PactRecord, PactRecord, PactRecord> iterator = 
-					new BuildFirstHashMatchIterator<PactRecord, PactRecord, PactRecord>(
+			BuildFirstHashMatchIterator<Record, Record, Record> iterator = 
+					new BuildFirstHashMatchIterator<Record, Record, Record>(
 						input1, input2, this.recordSerializer, this.record1Comparator, 
 						this.recordSerializer, this.record2Comparator, this.recordPairComparator,
 						this.memoryManager, ioManager, this.parentTask, MEMORY_SIZE);
@@ -191,16 +191,16 @@ public class HashMatchIteratorITCase {
 			final TestData.ConstantValueIterator const1Iter = new TestData.ConstantValueIterator(DUPLICATE_KEY, "LEFT String for Duplicate Keys", INPUT_1_DUPLICATES);
 			final TestData.ConstantValueIterator const2Iter = new TestData.ConstantValueIterator(DUPLICATE_KEY, "RIGHT String for Duplicate Keys", INPUT_2_DUPLICATES);
 			
-			final List<MutableObjectIterator<PactRecord>> inList1 = new ArrayList<MutableObjectIterator<PactRecord>>();
+			final List<MutableObjectIterator<Record>> inList1 = new ArrayList<MutableObjectIterator<Record>>();
 			inList1.add(gen1Iter);
 			inList1.add(const1Iter);
 			
-			final List<MutableObjectIterator<PactRecord>> inList2 = new ArrayList<MutableObjectIterator<PactRecord>>();
+			final List<MutableObjectIterator<Record>> inList2 = new ArrayList<MutableObjectIterator<Record>>();
 			inList2.add(gen2Iter);
 			inList2.add(const2Iter);
 			
-			MutableObjectIterator<PactRecord> input1 = new UnionIterator<PactRecord>(inList1);
-			MutableObjectIterator<PactRecord> input2 = new UnionIterator<PactRecord>(inList2);
+			MutableObjectIterator<Record> input1 = new UnionIterator<Record>(inList1);
+			MutableObjectIterator<Record> input2 = new UnionIterator<Record>(inList2);
 			
 			
 			// collect expected data
@@ -226,14 +226,14 @@ public class HashMatchIteratorITCase {
 			inList2.add(gen2Iter);
 			inList2.add(const2Iter);
 	
-			input1 = new UnionIterator<PactRecord>(inList1);
-			input2 = new UnionIterator<PactRecord>(inList2);
+			input1 = new UnionIterator<Record>(inList1);
+			input2 = new UnionIterator<Record>(inList2);
 			
-			final JoinFunction matcher = new PactRecordMatchRemovingMatcher(expectedMatchesMap);
-			final Collector<PactRecord> collector = new DiscardingOutputCollector();
+			final JoinFunction matcher = new RecordMatchRemovingJoin(expectedMatchesMap);
+			final Collector<Record> collector = new DiscardingOutputCollector();
 	
-			BuildFirstHashMatchIterator<PactRecord, PactRecord, PactRecord> iterator = 
-					new BuildFirstHashMatchIterator<PactRecord, PactRecord, PactRecord>(
+			BuildFirstHashMatchIterator<Record, Record, Record> iterator = 
+					new BuildFirstHashMatchIterator<Record, Record, Record>(
 						input1, input2, this.recordSerializer, this.record1Comparator, 
 						this.recordSerializer, this.record2Comparator, this.recordPairComparator,
 						this.memoryManager, ioManager, this.parentTask, MEMORY_SIZE);
@@ -271,8 +271,8 @@ public class HashMatchIteratorITCase {
 				collectRecordData(input1),
 				collectRecordData(input2));
 			
-			final JoinFunction matcher = new PactRecordMatchRemovingMatcher(expectedMatchesMap);
-			final Collector<PactRecord> collector = new DiscardingOutputCollector();
+			final JoinFunction matcher = new RecordMatchRemovingJoin(expectedMatchesMap);
+			final Collector<Record> collector = new DiscardingOutputCollector();
 	
 			// reset the generators
 			generator1.reset();
@@ -281,8 +281,8 @@ public class HashMatchIteratorITCase {
 			input2.reset();
 	
 			// compare with iterator values			
-			BuildSecondHashMatchIterator<PactRecord, PactRecord, PactRecord> iterator = 
-				new BuildSecondHashMatchIterator<PactRecord, PactRecord, PactRecord>(
+			BuildSecondHashMatchIterator<Record, Record, Record> iterator = 
+				new BuildSecondHashMatchIterator<Record, Record, Record>(
 					input1, input2, this.recordSerializer, this.record1Comparator, 
 					this.recordSerializer, this.record2Comparator, this.recordPairComparator,
 					this.memoryManager, ioManager, this.parentTask, MEMORY_SIZE);
@@ -326,16 +326,16 @@ public class HashMatchIteratorITCase {
 			final TestData.ConstantValueIterator const1Iter = new TestData.ConstantValueIterator(DUPLICATE_KEY, "LEFT String for Duplicate Keys", INPUT_1_DUPLICATES);
 			final TestData.ConstantValueIterator const2Iter = new TestData.ConstantValueIterator(DUPLICATE_KEY, "RIGHT String for Duplicate Keys", INPUT_2_DUPLICATES);
 			
-			final List<MutableObjectIterator<PactRecord>> inList1 = new ArrayList<MutableObjectIterator<PactRecord>>();
+			final List<MutableObjectIterator<Record>> inList1 = new ArrayList<MutableObjectIterator<Record>>();
 			inList1.add(gen1Iter);
 			inList1.add(const1Iter);
 			
-			final List<MutableObjectIterator<PactRecord>> inList2 = new ArrayList<MutableObjectIterator<PactRecord>>();
+			final List<MutableObjectIterator<Record>> inList2 = new ArrayList<MutableObjectIterator<Record>>();
 			inList2.add(gen2Iter);
 			inList2.add(const2Iter);
 			
-			MutableObjectIterator<PactRecord> input1 = new UnionIterator<PactRecord>(inList1);
-			MutableObjectIterator<PactRecord> input2 = new UnionIterator<PactRecord>(inList2);
+			MutableObjectIterator<Record> input1 = new UnionIterator<Record>(inList1);
+			MutableObjectIterator<Record> input2 = new UnionIterator<Record>(inList2);
 			
 			
 			// collect expected data
@@ -361,14 +361,14 @@ public class HashMatchIteratorITCase {
 			inList2.add(gen2Iter);
 			inList2.add(const2Iter);
 	
-			input1 = new UnionIterator<PactRecord>(inList1);
-			input2 = new UnionIterator<PactRecord>(inList2);
+			input1 = new UnionIterator<Record>(inList1);
+			input2 = new UnionIterator<Record>(inList2);
 			
-			final JoinFunction matcher = new PactRecordMatchRemovingMatcher(expectedMatchesMap);
-			final Collector<PactRecord> collector = new DiscardingOutputCollector();
+			final JoinFunction matcher = new RecordMatchRemovingJoin(expectedMatchesMap);
+			final Collector<Record> collector = new DiscardingOutputCollector();
 	
-			BuildSecondHashMatchIterator<PactRecord, PactRecord, PactRecord> iterator = 
-				new BuildSecondHashMatchIterator<PactRecord, PactRecord, PactRecord>(
+			BuildSecondHashMatchIterator<Record, Record, Record> iterator = 
+				new BuildSecondHashMatchIterator<Record, Record, Record>(
 					input1, input2, this.recordSerializer, this.record1Comparator, 
 					this.recordSerializer, this.record2Comparator, this.recordPairComparator,
 					this.memoryManager, ioManager, this.parentTask, MEMORY_SIZE);
@@ -405,8 +405,8 @@ public class HashMatchIteratorITCase {
 				collectIntPairData(input1),
 				collectRecordData(input2));
 			
-			final GenericJoiner<IntPair, PactRecord, PactRecord> matcher = new RecordIntPairMatchRemovingMatcher(expectedMatchesMap);
-			final Collector<PactRecord> collector = new DiscardingOutputCollector();
+			final GenericJoiner<IntPair, Record, Record> matcher = new RecordIntPairMatchRemovingMatcher(expectedMatchesMap);
+			final Collector<Record> collector = new DiscardingOutputCollector();
 	
 			// reset the generators
 			input1 = new UniformIntPairGenerator(500, 40, false);
@@ -414,8 +414,8 @@ public class HashMatchIteratorITCase {
 			input2.reset();
 	
 			// compare with iterator values
-			BuildSecondHashMatchIterator<IntPair, PactRecord, PactRecord> iterator = 
-					new BuildSecondHashMatchIterator<IntPair, PactRecord, PactRecord>(
+			BuildSecondHashMatchIterator<IntPair, Record, Record> iterator = 
+					new BuildSecondHashMatchIterator<IntPair, Record, Record>(
 						input1, input2, this.pairSerializer, this.pairComparator, 
 						this.recordSerializer, this.record2Comparator, this.pairRecordPairComparator,
 						this.memoryManager, this.ioManager, this.parentTask, MEMORY_SIZE);
@@ -451,8 +451,8 @@ public class HashMatchIteratorITCase {
 				collectIntPairData(input1),
 				collectRecordData(input2));
 			
-			final GenericJoiner<IntPair, PactRecord, PactRecord> matcher = new RecordIntPairMatchRemovingMatcher(expectedMatchesMap);
-			final Collector<PactRecord> collector = new DiscardingOutputCollector();
+			final GenericJoiner<IntPair, Record, Record> matcher = new RecordIntPairMatchRemovingMatcher(expectedMatchesMap);
+			final Collector<Record> collector = new DiscardingOutputCollector();
 	
 			// reset the generators
 			input1 = new UniformIntPairGenerator(500, 40, false);
@@ -460,8 +460,8 @@ public class HashMatchIteratorITCase {
 			input2.reset();
 	
 			// compare with iterator values
-			BuildFirstHashMatchIterator<IntPair, PactRecord, PactRecord> iterator = 
-					new BuildFirstHashMatchIterator<IntPair, PactRecord, PactRecord>(
+			BuildFirstHashMatchIterator<IntPair, Record, Record> iterator = 
+					new BuildFirstHashMatchIterator<IntPair, Record, Record>(
 						input1, input2, this.pairSerializer, this.pairComparator, 
 						this.recordSerializer, this.record2Comparator, this.recordPairPairComparator,
 						this.memoryManager, this.ioManager, this.parentTask, MEMORY_SIZE);
@@ -554,11 +554,11 @@ public class HashMatchIteratorITCase {
 	}
 
 	
-	static Map<TestData.Key, Collection<TestData.Value>> collectRecordData(MutableObjectIterator<PactRecord> iter)
+	static Map<TestData.Key, Collection<TestData.Value>> collectRecordData(MutableObjectIterator<Record> iter)
 	throws Exception
 	{
 		Map<TestData.Key, Collection<TestData.Value>> map = new HashMap<TestData.Key, Collection<TestData.Value>>();
-		PactRecord pair = new PactRecord();
+		Record pair = new Record();
 		
 		while (iter.next(pair)) {
 
@@ -655,16 +655,16 @@ public class HashMatchIteratorITCase {
 		}
 	}
 	
-	static final class PactRecordMatchRemovingMatcher extends JoinFunction
+	static final class RecordMatchRemovingJoin extends JoinFunction
 	{
 		private final Map<TestData.Key, Collection<RecordMatch>> toRemoveFrom;
 		
-		protected PactRecordMatchRemovingMatcher(Map<TestData.Key, Collection<RecordMatch>> map) {
+		protected RecordMatchRemovingJoin(Map<TestData.Key, Collection<RecordMatch>> map) {
 			this.toRemoveFrom = map;
 		}
 		
 		@Override
-		public void match(PactRecord rec1, PactRecord rec2, Collector<PactRecord> out)
+		public void match(Record rec1, Record rec2, Collector<Record> out)
 		{
 			TestData.Key key = rec1.getField(0, TestData.Key.class);
 			TestData.Value value1 = rec1.getField(1, TestData.Value.class);
@@ -684,7 +684,7 @@ public class HashMatchIteratorITCase {
 		}
 	}
 	
-	static final class RecordIntPairMatchRemovingMatcher extends AbstractFunction implements GenericJoiner<IntPair, PactRecord, PactRecord>
+	static final class RecordIntPairMatchRemovingMatcher extends AbstractFunction implements GenericJoiner<IntPair, Record, Record>
 	{
 		private final Map<TestData.Key, Collection<RecordIntPairMatch>> toRemoveFrom;
 		
@@ -693,7 +693,7 @@ public class HashMatchIteratorITCase {
 		}
 		
 		@Override
-		public void match(IntPair rec1, PactRecord rec2, Collector<PactRecord> out)
+		public void match(IntPair rec1, Record rec2, Collector<Record> out)
 		{
 			final int k = rec1.getKey();
 			final int v = rec1.getValue(); 
@@ -717,7 +717,7 @@ public class HashMatchIteratorITCase {
 		}
 	}
 	
-	static final class IntPairRecordPairComparator extends TypePairComparator<IntPair, PactRecord>
+	static final class IntPairRecordPairComparator extends TypePairComparator<IntPair, Record>
 	{
 		private int reference;
 		
@@ -727,9 +727,9 @@ public class HashMatchIteratorITCase {
 		}
 
 		@Override
-		public boolean equalToReference(PactRecord candidate) {
+		public boolean equalToReference(Record candidate) {
 			try {
-				final PactInteger i = candidate.getField(0, PactInteger.class);
+				final IntValue i = candidate.getField(0, IntValue.class);
 				return i.getValue() == this.reference;
 			} catch (NullPointerException npex) {
 				throw new NullKeyFieldException();
@@ -737,9 +737,9 @@ public class HashMatchIteratorITCase {
 		}
 
 		@Override
-		public int compareToReference(PactRecord candidate) {
+		public int compareToReference(Record candidate) {
 			try {
-				final PactInteger i = candidate.getField(0, PactInteger.class);
+				final IntValue i = candidate.getField(0, IntValue.class);
 				return i.getValue() - this.reference;
 			} catch (NullPointerException npex) {
 				throw new NullKeyFieldException();
@@ -747,13 +747,13 @@ public class HashMatchIteratorITCase {
 		}
 	}
 	
-	static final class RecordIntPairPairComparator extends TypePairComparator<PactRecord, IntPair>
+	static final class RecordIntPairPairComparator extends TypePairComparator<Record, IntPair>
 	{
 		private int reference;
 		
 		@Override
-		public void setReference(PactRecord reference) {
-			this.reference = reference.getField(0, PactInteger.class).getValue();
+		public void setReference(Record reference) {
+			this.reference = reference.getField(0, IntValue.class).getValue();
 		}
 
 		@Override

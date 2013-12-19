@@ -17,7 +17,7 @@ import java.util.Iterator;
 
 import eu.stratosphere.api.functions.AbstractFunction;
 import eu.stratosphere.api.functions.GenericCoGrouper;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 /**
@@ -31,7 +31,7 @@ import eu.stratosphere.util.Collector;
  * <p>
  * For a coGroup implementation, the <code>coGroup()</code> method must be implemented.
  */
-public abstract class CoGroupFunction extends AbstractFunction implements GenericCoGrouper<PactRecord, PactRecord, PactRecord> {
+public abstract class CoGroupFunction extends AbstractFunction implements GenericCoGrouper<Record, Record, Record> {
 	
 	/**
 	 * This method must be implemented to provide a user implementation of a
@@ -47,7 +47,7 @@ public abstract class CoGroupFunction extends AbstractFunction implements Generi
 	 *                   decide whether to retry the task execution.
 	 */
 	@Override
-	public abstract void coGroup(Iterator<PactRecord> records1, Iterator<PactRecord> records2, Collector<PactRecord> out) throws Exception;
+	public abstract void coGroup(Iterator<Record> records1, Iterator<Record> records2, Collector<Record> out) throws Exception;
 	
 	/**
 	 * This method must be overridden by CoGoup UDFs that want to make use of the combining feature
@@ -63,7 +63,7 @@ public abstract class CoGroupFunction extends AbstractFunction implements Generi
 	 *                   decide whether to retry the combiner execution.
 	 */
 	@Override
-	public void combineFirst(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {
+	public void combineFirst(Iterator<Record> records, Collector<Record> out) throws Exception {
 		throw new UnsupportedOperationException();
 	}
 	
@@ -81,7 +81,7 @@ public abstract class CoGroupFunction extends AbstractFunction implements Generi
 	 *                   decide whether to retry the combiner execution.
 	 */
 	@Override
-	public void combineSecond(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {
+	public void combineSecond(Iterator<Record> records, Collector<Record> out) throws Exception {
 		throw new UnsupportedOperationException();
 	}
 }

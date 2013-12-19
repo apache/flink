@@ -24,12 +24,12 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.api.operators.FileDataSink;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.types.Value;
 
 
 /**
- * This is an OutputFormat to serialize {@link PactRecord}s to text. 
+ * This is an OutputFormat to serialize {@link Record}s to text. 
  * The output is structured by record delimiters and field delimiters as common in CSV files.
  * Record delimiter separate records from each other ('\n' is common).
  * Field delimiters separate fields within a record. 
@@ -39,13 +39,13 @@ import eu.stratosphere.types.Value;
  * For each field the type of the {@link Value} must be specified using the {@link CsvOutputFormat#FIELD_TYPE_PARAMETER_PREFIX} config key
  * and an index running from 0 to the number of fields.
  *  
- * The position within the {@link PactRecord} can be configured for each field using the 
+ * The position within the {@link Record} can be configured for each field using the 
  * {@link CsvOutputFormat#RECORD_POSITION_PARAMETER_PREFIX} config key.
- * Either all {@link PactRecord} positions must be configured or none. If none is configured, the index of the config key is used.
+ * Either all {@link Record} positions must be configured or none. If none is configured, the index of the config key is used.
  * 
  * @see Value
  * @see Configuration
- * @see PactRecord
+ * @see Record
  */
 public class CsvOutputFormat extends FileOutputFormat {
 	private static final long serialVersionUID = 1L;
@@ -177,7 +177,7 @@ public class CsvOutputFormat extends FileOutputFormat {
 
 
 	@Override
-	public void writeRecord(PactRecord record) throws IOException
+	public void writeRecord(Record record) throws IOException
 	{
 		int numRecFields = record.getNumFields();
 		int readPos;

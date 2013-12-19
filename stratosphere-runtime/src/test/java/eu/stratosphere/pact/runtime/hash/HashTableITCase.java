@@ -35,10 +35,10 @@ import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.pact.runtime.hash.MutableHashTable;
 import eu.stratosphere.pact.runtime.hash.MutableHashTable.HashBucketIterator;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparator;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordSerializer;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparator;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializer;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
-import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
+import eu.stratosphere.pact.runtime.test.util.UniformRecordGenerator;
 import eu.stratosphere.pact.runtime.test.util.UniformIntPairGenerator;
 import eu.stratosphere.pact.runtime.test.util.UnionIterator;
 import eu.stratosphere.pact.runtime.test.util.types.IntPair;
@@ -47,8 +47,8 @@ import eu.stratosphere.pact.runtime.test.util.types.IntPairPairComparator;
 import eu.stratosphere.pact.runtime.test.util.types.IntPairSerializer;
 import eu.stratosphere.types.Key;
 import eu.stratosphere.types.NullKeyFieldException;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.MutableObjectIterator;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -65,11 +65,11 @@ public class HashTableITCase
 	private MemoryManager memManager;
 	private IOManager ioManager;
 	
-	private TypeSerializer<PactRecord> recordBuildSideAccesssor;
-	private TypeSerializer<PactRecord> recordProbeSideAccesssor;
-	private TypeComparator<PactRecord> recordBuildSideComparator;
-	private TypeComparator<PactRecord> recordProbeSideComparator;
-	private TypePairComparator<PactRecord, PactRecord> pactRecordComparator;
+	private TypeSerializer<Record> recordBuildSideAccesssor;
+	private TypeSerializer<Record> recordProbeSideAccesssor;
+	private TypeComparator<Record> recordBuildSideComparator;
+	private TypeComparator<Record> recordProbeSideComparator;
+	private TypePairComparator<Record, Record> pactRecordComparator;
 	
 	private TypeSerializer<IntPair> pairBuildSideAccesssor;
 	private TypeSerializer<IntPair> pairProbeSideAccesssor;
@@ -82,13 +82,13 @@ public class HashTableITCase
 	{
 		final int[] keyPos = new int[] {0};
 		@SuppressWarnings("unchecked")
-		final Class<? extends Key>[] keyType = (Class<? extends Key>[]) new Class[] { PactInteger.class };
+		final Class<? extends Key>[] keyType = (Class<? extends Key>[]) new Class[] { IntValue.class };
 		
-		this.recordBuildSideAccesssor = PactRecordSerializer.get();
-		this.recordProbeSideAccesssor = PactRecordSerializer.get();
-		this.recordBuildSideComparator = new PactRecordComparator(keyPos, keyType);
-		this.recordProbeSideComparator = new PactRecordComparator(keyPos, keyType);
-		this.pactRecordComparator = new PactRecordPairComparatorFirstInt();
+		this.recordBuildSideAccesssor = RecordSerializer.get();
+		this.recordProbeSideAccesssor = RecordSerializer.get();
+		this.recordBuildSideComparator = new RecordComparator(keyPos, keyType);
+		this.recordProbeSideComparator = new RecordComparator(keyPos, keyType);
+		this.pactRecordComparator = new RecordPairComparatorFirstInt();
 		
 		this.pairBuildSideAccesssor = new IntPairSerializer();
 		this.pairProbeSideAccesssor = new IntPairSerializer();
@@ -145,10 +145,10 @@ public class HashTableITCase
 		final int PROBE_VALS_PER_KEY = 10;
 		
 		// create a build input that gives 3 million pairs with 3 values sharing the same key
-		MutableObjectIterator<PactRecord> buildInput = new UniformPactRecordGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
+		MutableObjectIterator<Record> buildInput = new UniformRecordGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
 
 		// create a probe input that gives 10 million pairs with 10 values sharing a key
-		MutableObjectIterator<PactRecord> probeInput = new UniformPactRecordGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
+		MutableObjectIterator<Record> probeInput = new UniformRecordGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
 
 		// allocate the memory for the HashTable
 		List<MemorySegment> memSegments;
@@ -162,17 +162,17 @@ public class HashTableITCase
 		
 		// ----------------------------------------------------------------------------------------
 		
-		final MutableHashTable<PactRecord, PactRecord> join = new MutableHashTable<PactRecord, PactRecord>(
+		final MutableHashTable<Record, Record> join = new MutableHashTable<Record, Record>(
 			this.recordBuildSideAccesssor, this.recordProbeSideAccesssor, 
 			this.recordBuildSideComparator, this.recordProbeSideComparator, this.pactRecordComparator,
 			memSegments, ioManager);
 		join.open(buildInput, probeInput);
 		
-		final PactRecord record = new PactRecord();
+		final Record record = new Record();
 		int numRecordsInJoinResult = 0;
 		
 		while (join.nextRecord()) {
-			HashBucketIterator<PactRecord, PactRecord> buildSide = join.getBuildSideIterator();
+			HashBucketIterator<Record, Record> buildSide = join.getBuildSideIterator();
 			while (buildSide.next(record)) {
 				numRecordsInJoinResult++;
 			}
@@ -195,10 +195,10 @@ public class HashTableITCase
 		final int PROBE_VALS_PER_KEY = 10;
 		
 		// create a build input that gives 3 million pairs with 3 values sharing the same key
-		MutableObjectIterator<PactRecord> buildInput = new UniformPactRecordGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
+		MutableObjectIterator<Record> buildInput = new UniformRecordGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
 
 		// create a probe input that gives 10 million pairs with 10 values sharing a key
-		MutableObjectIterator<PactRecord> probeInput = new UniformPactRecordGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
+		MutableObjectIterator<Record> probeInput = new UniformRecordGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
 
 		// allocate the memory for the HashTable
 		List<MemorySegment> memSegments;
@@ -212,17 +212,17 @@ public class HashTableITCase
 		
 		// ----------------------------------------------------------------------------------------
 		
-		final MutableHashTable<PactRecord, PactRecord> join = new MutableHashTable<PactRecord, PactRecord>(
+		final MutableHashTable<Record, Record> join = new MutableHashTable<Record, Record>(
 				this.recordBuildSideAccesssor, this.recordProbeSideAccesssor, 
 				this.recordBuildSideComparator, this.recordProbeSideComparator, this.pactRecordComparator,
 				memSegments, ioManager);
 		join.open(buildInput, probeInput);
 		
-		final PactRecord record = new PactRecord();
+		final Record record = new Record();
 		int numRecordsInJoinResult = 0;
 		
 		while (join.nextRecord()) {
-			HashBucketIterator<PactRecord, PactRecord> buildSide = join.getBuildSideIterator();
+			HashBucketIterator<Record, Record> buildSide = join.getBuildSideIterator();
 			while (buildSide.next(record)) {
 				numRecordsInJoinResult++;
 			}
@@ -244,10 +244,10 @@ public class HashTableITCase
 		final int PROBE_VALS_PER_KEY = 10;
 		
 		// create a build input that gives 3 million pairs with 3 values sharing the same key
-		MutableObjectIterator<PactRecord> buildInput = new UniformPactRecordGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
+		MutableObjectIterator<Record> buildInput = new UniformRecordGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
 
 		// create a probe input that gives 10 million pairs with 10 values sharing a key
-		MutableObjectIterator<PactRecord> probeInput = new UniformPactRecordGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
+		MutableObjectIterator<Record> probeInput = new UniformRecordGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
 
 		// allocate the memory for the HashTable
 		List<MemorySegment> memSegments;
@@ -264,13 +264,13 @@ public class HashTableITCase
 		
 		// ----------------------------------------------------------------------------------------
 		
-		final MutableHashTable<PactRecord, PactRecord> join = new MutableHashTable<PactRecord, PactRecord>(
+		final MutableHashTable<Record, Record> join = new MutableHashTable<Record, Record>(
 				this.recordBuildSideAccesssor, this.recordProbeSideAccesssor, 
 				this.recordBuildSideComparator, this.recordProbeSideComparator, this.pactRecordComparator,
 				memSegments, ioManager);
 		join.open(buildInput, probeInput);
 	
-		final PactRecord record = new PactRecord();
+		final Record record = new Record();
 		
 		while (join.nextRecord())
 		{
@@ -278,10 +278,10 @@ public class HashTableITCase
 			
 			int key = 0;
 			
-			HashBucketIterator<PactRecord, PactRecord> buildSide = join.getBuildSideIterator();
+			HashBucketIterator<Record, Record> buildSide = join.getBuildSideIterator();
 			if (buildSide.next(record)) {
 				numBuildValues = 1;
-				key = record.getField(0, PactInteger.class).getValue();
+				key = record.getField(0, IntValue.class).getValue();
 			}
 			else {
 				fail("No build side values found for a probe key.");
@@ -294,8 +294,8 @@ public class HashTableITCase
 				fail("Other than 3 build values!!!");
 			}
 			
-			PactRecord pr = join.getCurrentProbeRecord();
-			Assert.assertEquals("Probe-side key was different than build-side key.", key, pr.getField(0, PactInteger.class).getValue()); 
+			Record pr = join.getCurrentProbeRecord();
+			Assert.assertEquals("Probe-side key was different than build-side key.", key, pr.getField(0, IntValue.class).getValue()); 
 			
 			Long contained = map.get(key);
 			if (contained == null) {
@@ -341,24 +341,24 @@ public class HashTableITCase
 		final int PROBE_VALS_PER_KEY = 10;
 		
 		// create a build input that gives 3 million pairs with 3 values sharing the same key, plus 400k pairs with two colliding keys
-		MutableObjectIterator<PactRecord> build1 = new UniformPactRecordGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
-		MutableObjectIterator<PactRecord> build2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, REPEATED_VALUE_COUNT_BUILD);
-		MutableObjectIterator<PactRecord> build3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, REPEATED_VALUE_COUNT_BUILD);
-		List<MutableObjectIterator<PactRecord>> builds = new ArrayList<MutableObjectIterator<PactRecord>>();
+		MutableObjectIterator<Record> build1 = new UniformRecordGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
+		MutableObjectIterator<Record> build2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, REPEATED_VALUE_COUNT_BUILD);
+		MutableObjectIterator<Record> build3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, REPEATED_VALUE_COUNT_BUILD);
+		List<MutableObjectIterator<Record>> builds = new ArrayList<MutableObjectIterator<Record>>();
 		builds.add(build1);
 		builds.add(build2);
 		builds.add(build3);
-		MutableObjectIterator<PactRecord> buildInput = new UnionIterator<PactRecord>(builds);
+		MutableObjectIterator<Record> buildInput = new UnionIterator<Record>(builds);
 	
 		// create a probe input that gives 10 million pairs with 10 values sharing a key
-		MutableObjectIterator<PactRecord> probe1 = new UniformPactRecordGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
-		MutableObjectIterator<PactRecord> probe2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, 5);
-		MutableObjectIterator<PactRecord> probe3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, 5);
-		List<MutableObjectIterator<PactRecord>> probes = new ArrayList<MutableObjectIterator<PactRecord>>();
+		MutableObjectIterator<Record> probe1 = new UniformRecordGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
+		MutableObjectIterator<Record> probe2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, 5);
+		MutableObjectIterator<Record> probe3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, 5);
+		List<MutableObjectIterator<Record>> probes = new ArrayList<MutableObjectIterator<Record>>();
 		probes.add(probe1);
 		probes.add(probe2);
 		probes.add(probe3);
-		MutableObjectIterator<PactRecord> probeInput = new UnionIterator<PactRecord>(probes);
+		MutableObjectIterator<Record> probeInput = new UnionIterator<Record>(probes);
 
 		// allocate the memory for the HashTable
 		List<MemorySegment> memSegments;
@@ -375,32 +375,32 @@ public class HashTableITCase
 		
 		// ----------------------------------------------------------------------------------------
 		
-		final MutableHashTable<PactRecord, PactRecord> join = new MutableHashTable<PactRecord, PactRecord>(
+		final MutableHashTable<Record, Record> join = new MutableHashTable<Record, Record>(
 				this.recordBuildSideAccesssor, this.recordProbeSideAccesssor, 
 				this.recordBuildSideComparator, this.recordProbeSideComparator, this.pactRecordComparator,
 				memSegments, ioManager);
 		join.open(buildInput, probeInput);
 	
-		final PactRecord record = new PactRecord();
+		final Record record = new Record();
 		
 		while (join.nextRecord())
 		{	
 			int numBuildValues = 0;
 	
-			final PactRecord probeRec = join.getCurrentProbeRecord();
-			int key = probeRec.getField(0, PactInteger.class).getValue();
+			final Record probeRec = join.getCurrentProbeRecord();
+			int key = probeRec.getField(0, IntValue.class).getValue();
 			
-			HashBucketIterator<PactRecord, PactRecord> buildSide = join.getBuildSideIterator();
+			HashBucketIterator<Record, Record> buildSide = join.getBuildSideIterator();
 			if (buildSide.next(record)) {
 				numBuildValues = 1;
-				Assert.assertEquals("Probe-side key was different than build-side key.", key, record.getField(0, PactInteger.class).getValue()); 
+				Assert.assertEquals("Probe-side key was different than build-side key.", key, record.getField(0, IntValue.class).getValue()); 
 			}
 			else {
 				fail("No build side values found for a probe key.");
 			}
 			while (buildSide.next(record)) {
 				numBuildValues++;
-				Assert.assertEquals("Probe-side key was different than build-side key.", key, record.getField(0, PactInteger.class).getValue());
+				Assert.assertEquals("Probe-side key was different than build-side key.", key, record.getField(0, IntValue.class).getValue());
 			}
 			
 			Long contained = map.get(key);
@@ -453,24 +453,24 @@ public class HashTableITCase
 		final int PROBE_VALS_PER_KEY = 10;
 		
 		// create a build input that gives 3 million pairs with 3 values sharing the same key, plus 400k pairs with two colliding keys
-		MutableObjectIterator<PactRecord> build1 = new UniformPactRecordGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
-		MutableObjectIterator<PactRecord> build2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, REPEATED_VALUE_COUNT_BUILD);
-		MutableObjectIterator<PactRecord> build3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, REPEATED_VALUE_COUNT_BUILD);
-		List<MutableObjectIterator<PactRecord>> builds = new ArrayList<MutableObjectIterator<PactRecord>>();
+		MutableObjectIterator<Record> build1 = new UniformRecordGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
+		MutableObjectIterator<Record> build2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, REPEATED_VALUE_COUNT_BUILD);
+		MutableObjectIterator<Record> build3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, REPEATED_VALUE_COUNT_BUILD);
+		List<MutableObjectIterator<Record>> builds = new ArrayList<MutableObjectIterator<Record>>();
 		builds.add(build1);
 		builds.add(build2);
 		builds.add(build3);
-		MutableObjectIterator<PactRecord> buildInput = new UnionIterator<PactRecord>(builds);
+		MutableObjectIterator<Record> buildInput = new UnionIterator<Record>(builds);
 	
 		// create a probe input that gives 10 million pairs with 10 values sharing a key
-		MutableObjectIterator<PactRecord> probe1 = new UniformPactRecordGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
-		MutableObjectIterator<PactRecord> probe2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, 5);
-		MutableObjectIterator<PactRecord> probe3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, 5);
-		List<MutableObjectIterator<PactRecord>> probes = new ArrayList<MutableObjectIterator<PactRecord>>();
+		MutableObjectIterator<Record> probe1 = new UniformRecordGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
+		MutableObjectIterator<Record> probe2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, 5);
+		MutableObjectIterator<Record> probe3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, 5);
+		List<MutableObjectIterator<Record>> probes = new ArrayList<MutableObjectIterator<Record>>();
 		probes.add(probe1);
 		probes.add(probe2);
 		probes.add(probe3);
-		MutableObjectIterator<PactRecord> probeInput = new UnionIterator<PactRecord>(probes);
+		MutableObjectIterator<Record> probeInput = new UnionIterator<Record>(probes);
 
 		// allocate the memory for the HashTable
 		List<MemorySegment> memSegments;
@@ -487,32 +487,32 @@ public class HashTableITCase
 		
 		// ----------------------------------------------------------------------------------------
 		
-		final MutableHashTable<PactRecord, PactRecord> join = new MutableHashTable<PactRecord, PactRecord>(
+		final MutableHashTable<Record, Record> join = new MutableHashTable<Record, Record>(
 				this.recordBuildSideAccesssor, this.recordProbeSideAccesssor, 
 				this.recordBuildSideComparator, this.recordProbeSideComparator, this.pactRecordComparator,
 				memSegments, ioManager);
 		join.open(buildInput, probeInput);
 		
-		final PactRecord record = new PactRecord();
+		final Record record = new Record();
 		
 		while (join.nextRecord())
 		{	
 			int numBuildValues = 0;
 			
-			final PactRecord probeRec = join.getCurrentProbeRecord();
-			int key = probeRec.getField(0, PactInteger.class).getValue();
+			final Record probeRec = join.getCurrentProbeRecord();
+			int key = probeRec.getField(0, IntValue.class).getValue();
 			
-			HashBucketIterator<PactRecord, PactRecord> buildSide = join.getBuildSideIterator();
+			HashBucketIterator<Record, Record> buildSide = join.getBuildSideIterator();
 			if (buildSide.next(record)) {
 				numBuildValues = 1;
-				Assert.assertEquals("Probe-side key was different than build-side key.", key, record.getField(0, PactInteger.class).getValue()); 
+				Assert.assertEquals("Probe-side key was different than build-side key.", key, record.getField(0, IntValue.class).getValue()); 
 			}
 			else {
 				fail("No build side values found for a probe key.");
 			}
 			while (buildSide.next(record)) {
 				numBuildValues++;
-				Assert.assertEquals("Probe-side key was different than build-side key.", key, record.getField(0, PactInteger.class).getValue());
+				Assert.assertEquals("Probe-side key was different than build-side key.", key, record.getField(0, IntValue.class).getValue());
 			}
 			
 			Long contained = map.get(key);
@@ -564,24 +564,24 @@ public class HashTableITCase
 		final int PROBE_VALS_PER_KEY = 10;
 		
 		// create a build input that gives 3 million pairs with 3 values sharing the same key, plus 400k pairs with two colliding keys
-		MutableObjectIterator<PactRecord> build1 = new UniformPactRecordGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
-		MutableObjectIterator<PactRecord> build2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, REPEATED_VALUE_COUNT);
-		MutableObjectIterator<PactRecord> build3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, REPEATED_VALUE_COUNT);
-		List<MutableObjectIterator<PactRecord>> builds = new ArrayList<MutableObjectIterator<PactRecord>>();
+		MutableObjectIterator<Record> build1 = new UniformRecordGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
+		MutableObjectIterator<Record> build2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, REPEATED_VALUE_COUNT);
+		MutableObjectIterator<Record> build3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, REPEATED_VALUE_COUNT);
+		List<MutableObjectIterator<Record>> builds = new ArrayList<MutableObjectIterator<Record>>();
 		builds.add(build1);
 		builds.add(build2);
 		builds.add(build3);
-		MutableObjectIterator<PactRecord> buildInput = new UnionIterator<PactRecord>(builds);
+		MutableObjectIterator<Record> buildInput = new UnionIterator<Record>(builds);
 	
 		// create a probe input that gives 10 million pairs with 10 values sharing a key
-		MutableObjectIterator<PactRecord> probe1 = new UniformPactRecordGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
-		MutableObjectIterator<PactRecord> probe2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, REPEATED_VALUE_COUNT);
-		MutableObjectIterator<PactRecord> probe3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, REPEATED_VALUE_COUNT);
-		List<MutableObjectIterator<PactRecord>> probes = new ArrayList<MutableObjectIterator<PactRecord>>();
+		MutableObjectIterator<Record> probe1 = new UniformRecordGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
+		MutableObjectIterator<Record> probe2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, REPEATED_VALUE_COUNT);
+		MutableObjectIterator<Record> probe3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, REPEATED_VALUE_COUNT);
+		List<MutableObjectIterator<Record>> probes = new ArrayList<MutableObjectIterator<Record>>();
 		probes.add(probe1);
 		probes.add(probe2);
 		probes.add(probe3);
-		MutableObjectIterator<PactRecord> probeInput = new UnionIterator<PactRecord>(probes);
+		MutableObjectIterator<Record> probeInput = new UnionIterator<Record>(probes);
 		
 		// allocate the memory for the HashTable
 		List<MemorySegment> memSegments;
@@ -595,18 +595,18 @@ public class HashTableITCase
 		
 		// ----------------------------------------------------------------------------------------
 		
-		final MutableHashTable<PactRecord, PactRecord> join = new MutableHashTable<PactRecord, PactRecord>(
+		final MutableHashTable<Record, Record> join = new MutableHashTable<Record, Record>(
 				this.recordBuildSideAccesssor, this.recordProbeSideAccesssor, 
 				this.recordBuildSideComparator, this.recordProbeSideComparator, this.pactRecordComparator,
 				memSegments, ioManager);
 		join.open(buildInput, probeInput);
 		
-		final PactRecord record = new PactRecord();
+		final Record record = new Record();
 		
 		try {
 			while (join.nextRecord())
 			{	
-				HashBucketIterator<PactRecord, PactRecord> buildSide = join.getBuildSideIterator();
+				HashBucketIterator<Record, Record> buildSide = join.getBuildSideIterator();
 				if (!buildSide.next(record)) {
 					fail("No build side values found for a probe key.");
 				}
@@ -638,7 +638,7 @@ public class HashTableITCase
 		final int NUM_PROBE_KEYS = 20;
 		final int NUM_PROBE_VALS = 1;
 
-		MutableObjectIterator<PactRecord> buildInput = new UniformPactRecordGenerator(
+		MutableObjectIterator<Record> buildInput = new UniformRecordGenerator(
 				NUM_BUILD_KEYS, NUM_BUILD_VALS, false);
 
 		// allocate the memory for the HashTable
@@ -651,20 +651,20 @@ public class HashTableITCase
 			return;
 		}
 
-		final MutableHashTable<PactRecord, PactRecord> join = new MutableHashTable<PactRecord, PactRecord>(
+		final MutableHashTable<Record, Record> join = new MutableHashTable<Record, Record>(
 				this.recordBuildSideAccesssor, this.recordProbeSideAccesssor, 
 				this.recordBuildSideComparator, this.recordProbeSideComparator, this.pactRecordComparator,
 				memSegments, ioManager);
-		join.open(buildInput, new UniformPactRecordGenerator(NUM_PROBE_KEYS, NUM_PROBE_VALS, true));
+		join.open(buildInput, new UniformRecordGenerator(NUM_PROBE_KEYS, NUM_PROBE_VALS, true));
 
 		int expectedNumResults = (Math.min(NUM_PROBE_KEYS, NUM_BUILD_KEYS) * NUM_BUILD_VALS)
 				* NUM_PROBE_VALS;
 
-		final PactRecord record = new PactRecord();
+		final Record record = new Record();
 		int numRecordsInJoinResult = 0;
 		
 		while (join.nextRecord()) {
-			HashBucketIterator<PactRecord, PactRecord> buildSide = join.getBuildSideIterator();
+			HashBucketIterator<Record, Record> buildSide = join.getBuildSideIterator();
 			while (buildSide.next(record)) {
 				numRecordsInJoinResult++;
 			}
@@ -688,7 +688,7 @@ public class HashTableITCase
 		final int NUM_PROBE_KEYS = 10;
 		final int NUM_PROBE_VALS = 1;
 		
-		MutableObjectIterator<PactRecord> buildInput = new UniformPactRecordGenerator(NUM_BUILD_KEYS, NUM_BUILD_VALS, false);
+		MutableObjectIterator<Record> buildInput = new UniformRecordGenerator(NUM_BUILD_KEYS, NUM_BUILD_VALS, false);
 		
 		// allocate the memory for the HashTable
 		List<MemorySegment> memSegments;
@@ -700,20 +700,20 @@ public class HashTableITCase
 			return;
 		}		
 				
-		final MutableHashTable<PactRecord, PactRecord> join = new MutableHashTable<PactRecord, PactRecord>(
+		final MutableHashTable<Record, Record> join = new MutableHashTable<Record, Record>(
 				this.recordBuildSideAccesssor, this.recordProbeSideAccesssor, 
 				this.recordBuildSideComparator, this.recordProbeSideComparator, this.pactRecordComparator,
 				memSegments, ioManager);
-		join.open(buildInput, new UniformPactRecordGenerator(NUM_PROBE_KEYS, NUM_PROBE_VALS, true));
+		join.open(buildInput, new UniformRecordGenerator(NUM_PROBE_KEYS, NUM_PROBE_VALS, true));
 		
-		final PactRecord record = new PactRecord();
+		final Record record = new Record();
 		int numRecordsInJoinResult = 0;
 		
 		int expectedNumResults = (Math.min(NUM_PROBE_KEYS, NUM_BUILD_KEYS) * NUM_BUILD_VALS)
 		* NUM_PROBE_VALS;
 		
 		while (join.nextRecord()) {
-			HashBucketIterator<PactRecord, PactRecord> buildSide = join.getBuildSideIterator();
+			HashBucketIterator<Record, Record> buildSide = join.getBuildSideIterator();
 			while (buildSide.next(record)) {
 				numRecordsInJoinResult++;
 			}
@@ -1400,22 +1400,22 @@ public class HashTableITCase
 	/**
 	 * An iterator that returns the Key/Value pairs with identical value a given number of times.
 	 */
-	public static final class ConstantsKeyValuePairsIterator implements MutableObjectIterator<PactRecord>
+	public static final class ConstantsKeyValuePairsIterator implements MutableObjectIterator<Record>
 	{
-		private final PactInteger key;
-		private final PactInteger value;
+		private final IntValue key;
+		private final IntValue value;
 		
 		private int numLeft;
 		
 		public ConstantsKeyValuePairsIterator(int key, int value, int count)
 		{
-			this.key = new PactInteger(key);
-			this.value = new PactInteger(value);
+			this.key = new IntValue(key);
+			this.value = new IntValue(value);
 			this.numLeft = count;
 		}
 
 		@Override
-		public boolean next(PactRecord target) {
+		public boolean next(Record target) {
 			if (this.numLeft > 0) {
 				this.numLeft--;
 				target.clear();
@@ -1464,29 +1464,23 @@ public class HashTableITCase
 	
 	// ============================================================================================
 	
-	public static final class PactRecordPairComparatorFirstInt extends TypePairComparator<PactRecord, PactRecord>
-	{
+	public static final class RecordPairComparatorFirstInt extends TypePairComparator<Record, Record> {
+		
 		private int key;
 
-		/* (non-Javadoc)
-		 * @see eu.stratosphere.pact.runtime.plugable.TypeComparator#setReference(java.lang.Object, eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2)
-		 */
 		@Override
-		public void setReference(PactRecord reference) {
+		public void setReference(Record reference) {
 			try {
-				this.key = reference.getField(0, PactInteger.class).getValue();
+				this.key = reference.getField(0, IntValue.class).getValue();
 			} catch (NullPointerException npex) {
 				throw new NullKeyFieldException();
 			}
 		}
 
-		/* (non-Javadoc)
-		 * @see eu.stratosphere.pact.runtime.plugable.TypeComparator#equalToReference(java.lang.Object, eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2)
-		 */
 		@Override
-		public boolean equalToReference(PactRecord candidate) {
+		public boolean equalToReference(Record candidate) {
 			try {
-				return this.key == candidate.getField(0, PactInteger.class).getValue();
+				return this.key == candidate.getField(0, IntValue.class).getValue();
 			} catch (NullPointerException npex) {
 				throw new NullKeyFieldException();
 			}
@@ -1494,9 +1488,9 @@ public class HashTableITCase
 
 
 		@Override
-		public int compareToReference(PactRecord candidate) {
+		public int compareToReference(Record candidate) {
 			try {
-				final int i = candidate.getField(0, PactInteger.class).getValue();
+				final int i = candidate.getField(0, IntValue.class).getValue();
 				return i - this.key;
 			} catch (NullPointerException npex) {
 				throw new NullKeyFieldException();

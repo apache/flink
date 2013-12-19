@@ -38,10 +38,10 @@ import eu.stratosphere.pact.compiler.util.DummyOutputFormat;
 import eu.stratosphere.pact.compiler.util.IdentityReduce;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
-import eu.stratosphere.types.PactDouble;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactLong;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.DoubleValue;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.LongValue;
+import eu.stratosphere.types.StringValue;
 
 
 /**
@@ -55,8 +55,8 @@ public class GroupOrderTest extends CompilerTestBase  {
 		// construct the plan
 		FileDataSource source = new FileDataSource(new DummyInputFormat(), IN_FILE, "Source");
 		
-		ReduceOperator reduce = ReduceOperator.builder(new IdentityReduce()).keyField(PactInteger.class, 2).name("Reduce").input(source).build();
-		Ordering groupOrder = new Ordering(5, PactString.class, Order.DESCENDING);
+		ReduceOperator reduce = ReduceOperator.builder(new IdentityReduce()).keyField(IntValue.class, 2).name("Reduce").input(source).build();
+		Ordering groupOrder = new Ordering(5, StringValue.class, Order.DESCENDING);
 		reduce.setGroupOrder(groupOrder);
 		
 		FileDataSink sink = new FileDataSink(new DummyOutputFormat(), OUT_FILE, reduce, "Sink");
@@ -102,13 +102,13 @@ public class GroupOrderTest extends CompilerTestBase  {
 		FileDataSource source1 = new FileDataSource(new DummyInputFormat(), IN_FILE, "Source1");
 		FileDataSource source2 = new FileDataSource(new DummyInputFormat(), IN_FILE, "Source2");
 		
-		CoGroupOperator coGroup = CoGroupOperator.builder(new DummyCoGroupStub(), PactInteger.class, 3, 6)
-				.keyField(PactLong.class, 0, 0)
+		CoGroupOperator coGroup = CoGroupOperator.builder(new DummyCoGroupStub(), IntValue.class, 3, 6)
+				.keyField(LongValue.class, 0, 0)
 				.name("CoGroup").input1(source1).input2(source2).build();
 		
-		Ordering groupOrder1 = new Ordering(5, PactString.class, Order.DESCENDING);
-		Ordering groupOrder2 = new Ordering(1, PactString.class, Order.DESCENDING);
-		groupOrder2.appendOrdering(4, PactDouble.class, Order.ASCENDING);
+		Ordering groupOrder1 = new Ordering(5, StringValue.class, Order.DESCENDING);
+		Ordering groupOrder2 = new Ordering(1, StringValue.class, Order.DESCENDING);
+		groupOrder2.appendOrdering(4, DoubleValue.class, Order.ASCENDING);
 		coGroup.setGroupOrderForInputOne(groupOrder1);
 		coGroup.setGroupOrderForInputTwo(groupOrder2);
 		

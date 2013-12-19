@@ -30,16 +30,16 @@ import org.junit.Test;
 import eu.stratosphere.api.record.io.DelimitedInputFormat;
 import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.pact.runtime.test.util.NirvanaOutputList;
-import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
+import eu.stratosphere.pact.runtime.test.util.UniformRecordGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.MutableObjectIterator;
 
 public class DataSourceTaskTest extends TaskTestBase
 {
-	private List<PactRecord> outList;
+	private List<Record> outList;
 	
 	private String tempTestPath = Path.constructTestPath("dst_test");
 	
@@ -58,10 +58,10 @@ public class DataSourceTaskTest extends TaskTestBase
 		int keyCnt = 100;
 		int valCnt = 20;
 		
-		this.outList = new ArrayList<PactRecord>();
+		this.outList = new ArrayList<Record>();
 		
 		try {
-			InputFilePreparator.prepareInputFile(new UniformPactRecordGenerator(keyCnt, valCnt, false), 
+			InputFilePreparator.prepareInputFile(new UniformRecordGenerator(keyCnt, valCnt, false), 
 				this.tempTestPath, true);
 		} catch (IOException e1) {
 			Assert.fail("Unable to set-up test input file");
@@ -70,7 +70,7 @@ public class DataSourceTaskTest extends TaskTestBase
 		super.initEnvironment(1024 * 1024);
 		super.addOutput(this.outList);
 		
-		DataSourceTask<PactRecord> testTask = new DataSourceTask<PactRecord>();
+		DataSourceTask<Record> testTask = new DataSourceTask<Record>();
 		
 		super.registerFileInputTask(testTask, MockInputFormat.class, new File(tempTestPath).toURI().toString(), "\n");
 		
@@ -86,10 +86,10 @@ public class DataSourceTaskTest extends TaskTestBase
 		
 		HashMap<Integer,HashSet<Integer>> keyValueCountMap = new HashMap<Integer, HashSet<Integer>>(keyCnt);
 		
-		for (PactRecord kvp : this.outList) {
+		for (Record kvp : this.outList) {
 			
-			int key = kvp.getField(0, PactInteger.class).getValue();
-			int val = kvp.getField(1, PactInteger.class).getValue();
+			int key = kvp.getField(0, IntValue.class).getValue();
+			int val = kvp.getField(1, IntValue.class).getValue();
 			
 			if(!keyValueCountMap.containsKey(key)) {
 				keyValueCountMap.put(key,new HashSet<Integer>());
@@ -117,7 +117,7 @@ public class DataSourceTaskTest extends TaskTestBase
 		this.outList = new NirvanaOutputList();
 		
 		try {
-			InputFilePreparator.prepareInputFile(new UniformPactRecordGenerator(keyCnt, valCnt, false), 
+			InputFilePreparator.prepareInputFile(new UniformRecordGenerator(keyCnt, valCnt, false), 
 				this.tempTestPath, false);
 		} catch (IOException e1) {
 			Assert.fail("Unable to set-up test input file");
@@ -126,7 +126,7 @@ public class DataSourceTaskTest extends TaskTestBase
 		super.initEnvironment(1024 * 1024);
 		super.addOutput(this.outList);
 		
-		DataSourceTask<PactRecord> testTask = new DataSourceTask<PactRecord>();
+		DataSourceTask<Record> testTask = new DataSourceTask<Record>();
 
 		super.registerFileInputTask(testTask, MockFailingInputFormat.class, new File(tempTestPath).toURI().toString(), "\n");
 		
@@ -156,13 +156,13 @@ public class DataSourceTaskTest extends TaskTestBase
 		super.addOutput(new NirvanaOutputList());
 		
 		try {
-			InputFilePreparator.prepareInputFile(new UniformPactRecordGenerator(keyCnt, valCnt, false), 
+			InputFilePreparator.prepareInputFile(new UniformRecordGenerator(keyCnt, valCnt, false), 
 				this.tempTestPath, false);
 		} catch (IOException e1) {
 			Assert.fail("Unable to set-up test input file");
 		}
 		
-		final DataSourceTask<PactRecord> testTask = new DataSourceTask<PactRecord>();
+		final DataSourceTask<Record> testTask = new DataSourceTask<Record>();
 
 		super.registerFileInputTask(testTask, MockDelayingInputFormat.class,  new File(tempTestPath).toURI().toString(), "\n");
 		
@@ -198,7 +198,7 @@ public class DataSourceTaskTest extends TaskTestBase
 	
 	private static class InputFilePreparator
 	{
-		public static void prepareInputFile(MutableObjectIterator<PactRecord> inIt, String inputFilePath, boolean insertInvalidData)
+		public static void prepareInputFile(MutableObjectIterator<Record> inIt, String inputFilePath, boolean insertInvalidData)
 		throws IOException
 		{
 			FileWriter fw = new FileWriter(inputFilePath);
@@ -207,10 +207,10 @@ public class DataSourceTaskTest extends TaskTestBase
 			if (insertInvalidData)
 				bw.write("####_I_AM_INVALID_########\n");
 			
-			PactRecord rec = new PactRecord();
+			Record rec = new Record();
 			while (inIt.next(rec)) {
-				PactInteger key = rec.getField(0, PactInteger.class);
-				PactInteger value = rec.getField(1, PactInteger.class);
+				IntValue key = rec.getField(0, IntValue.class);
+				IntValue value = rec.getField(1, IntValue.class);
 				
 				bw.write(key.getValue() + "_" + value.getValue() + "\n");
 			}
@@ -225,11 +225,11 @@ public class DataSourceTaskTest extends TaskTestBase
 	public static class MockInputFormat extends DelimitedInputFormat {
 		private static final long serialVersionUID = 1L;
 		
-		private final PactInteger key = new PactInteger();
-		private final PactInteger value = new PactInteger();
+		private final IntValue key = new IntValue();
+		private final IntValue value = new IntValue();
 		
 		@Override
-		public boolean readRecord(PactRecord target, byte[] record, int offset, int numBytes) {
+		public boolean readRecord(Record target, byte[] record, int offset, int numBytes) {
 			
 			String line = new String(record, offset, numBytes);
 			
@@ -250,11 +250,11 @@ public class DataSourceTaskTest extends TaskTestBase
 	public static class MockDelayingInputFormat extends DelimitedInputFormat {
 		private static final long serialVersionUID = 1L;
 		
-		private final PactInteger key = new PactInteger();
-		private final PactInteger value = new PactInteger();
+		private final IntValue key = new IntValue();
+		private final IntValue value = new IntValue();
 		
 		@Override
-		public boolean readRecord(PactRecord target, byte[] record, int offset, int numBytes) {
+		public boolean readRecord(Record target, byte[] record, int offset, int numBytes) {
 			try {
 				Thread.sleep(100);
 			}
@@ -282,13 +282,13 @@ public class DataSourceTaskTest extends TaskTestBase
 	public static class MockFailingInputFormat extends DelimitedInputFormat {
 		private static final long serialVersionUID = 1L;
 		
-		private final PactInteger key = new PactInteger();
-		private final PactInteger value = new PactInteger();
+		private final IntValue key = new IntValue();
+		private final IntValue value = new IntValue();
 		
 		private int cnt = 0;
 		
 		@Override
-		public boolean readRecord(PactRecord target, byte[] record, int offset, int numBytes) {
+		public boolean readRecord(Record target, byte[] record, int offset, int numBytes) {
 			
 			if(this.cnt == 10) {
 				throw new RuntimeException("Excpected Test Exception.");

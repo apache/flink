@@ -36,9 +36,9 @@ import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.configuration.IllegalConfigurationException;
 import eu.stratosphere.core.fs.FileInputSplit;
 import eu.stratosphere.core.fs.Path;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
+import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.LogUtils;
 
 public class CsvInputFormatTest {
@@ -97,27 +97,27 @@ public class CsvInputFormatTest {
 			final Configuration parameters = new Configuration();
 
 			format.setFieldDelim('|');
-			format.setFieldTypes(PactString.class, PactString.class, PactString.class);
+			format.setFieldTypes(StringValue.class, StringValue.class, StringValue.class);
 			
 			format.configure(parameters);
 			format.open(split);
 			
-			PactRecord record = new PactRecord();
+			Record record = new Record();
 			
 			assertTrue(format.nextRecord(record));
-			assertEquals("abc", record.getField(0, PactString.class).getValue());
-			assertEquals("def", record.getField(1, PactString.class).getValue());
-			assertEquals("ghijk", record.getField(2, PactString.class).getValue());
+			assertEquals("abc", record.getField(0, StringValue.class).getValue());
+			assertEquals("def", record.getField(1, StringValue.class).getValue());
+			assertEquals("ghijk", record.getField(2, StringValue.class).getValue());
 			
 			assertTrue(format.nextRecord(record));
-			assertEquals("abc", record.getField(0, PactString.class).getValue());
-			assertEquals("", record.getField(1, PactString.class).getValue());
-			assertEquals("hhg", record.getField(2, PactString.class).getValue());
+			assertEquals("abc", record.getField(0, StringValue.class).getValue());
+			assertEquals("", record.getField(1, StringValue.class).getValue());
+			assertEquals("hhg", record.getField(2, StringValue.class).getValue());
 			
 			assertTrue(format.nextRecord(record));
-			assertEquals("", record.getField(0, PactString.class).getValue());
-			assertEquals("", record.getField(1, PactString.class).getValue());
-			assertEquals("", record.getField(2, PactString.class).getValue());
+			assertEquals("", record.getField(0, StringValue.class).getValue());
+			assertEquals("", record.getField(1, StringValue.class).getValue());
+			assertEquals("", record.getField(2, StringValue.class).getValue());
 		}
 		catch (Exception ex) {
 			ex.printStackTrace();
@@ -133,29 +133,29 @@ public class CsvInputFormatTest {
 		
 			final Configuration parameters = new Configuration();
 			new CsvInputFormat.ConfigBuilder(null, parameters)
-				.field(PactString.class, 0).field(PactString.class, 1).field(PactString.class, 2);
+				.field(StringValue.class, 0).field(StringValue.class, 1).field(StringValue.class, 2);
 			
 			format.setFieldDelim('|');
 			
 			format.configure(parameters);
 			format.open(split);
 			
-			PactRecord record = new PactRecord();
+			Record record = new Record();
 			
 			assertTrue(format.nextRecord(record));
-			assertEquals("abc", record.getField(0, PactString.class).getValue());
-			assertEquals("def", record.getField(1, PactString.class).getValue());
-			assertEquals("ghijk", record.getField(2, PactString.class).getValue());
+			assertEquals("abc", record.getField(0, StringValue.class).getValue());
+			assertEquals("def", record.getField(1, StringValue.class).getValue());
+			assertEquals("ghijk", record.getField(2, StringValue.class).getValue());
 			
 			assertTrue(format.nextRecord(record));
-			assertEquals("abc", record.getField(0, PactString.class).getValue());
-			assertEquals("", record.getField(1, PactString.class).getValue());
-			assertEquals("hhg", record.getField(2, PactString.class).getValue());
+			assertEquals("abc", record.getField(0, StringValue.class).getValue());
+			assertEquals("", record.getField(1, StringValue.class).getValue());
+			assertEquals("hhg", record.getField(2, StringValue.class).getValue());
 			
 			assertTrue(format.nextRecord(record));
-			assertEquals("", record.getField(0, PactString.class).getValue());
-			assertEquals("", record.getField(1, PactString.class).getValue());
-			assertEquals("", record.getField(2, PactString.class).getValue());
+			assertEquals("", record.getField(0, StringValue.class).getValue());
+			assertEquals("", record.getField(1, StringValue.class).getValue());
+			assertEquals("", record.getField(2, StringValue.class).getValue());
 		}
 		catch (Exception ex) {
 			Assert.fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
@@ -172,27 +172,27 @@ public class CsvInputFormatTest {
 			
 			new CsvInputFormat.ConfigBuilder(null, parameters)
 				.fieldDelimiter('|')
-				.field(PactInteger.class, 0).field(PactInteger.class, 1).field(PactInteger.class, 2)
-				.field(PactInteger.class, 3).field(PactInteger.class, 4);
+				.field(IntValue.class, 0).field(IntValue.class, 1).field(IntValue.class, 2)
+				.field(IntValue.class, 3).field(IntValue.class, 4);
 			
 			format.configure(parameters);
 			format.open(split);
 			
-			PactRecord record = new PactRecord();
+			Record record = new Record();
 			
 			assertTrue(format.nextRecord(record));
-			assertEquals(111, record.getField(0, PactInteger.class).getValue());
-			assertEquals(222, record.getField(1, PactInteger.class).getValue());
-			assertEquals(333, record.getField(2, PactInteger.class).getValue());
-			assertEquals(444, record.getField(3, PactInteger.class).getValue());
-			assertEquals(555, record.getField(4, PactInteger.class).getValue());
+			assertEquals(111, record.getField(0, IntValue.class).getValue());
+			assertEquals(222, record.getField(1, IntValue.class).getValue());
+			assertEquals(333, record.getField(2, IntValue.class).getValue());
+			assertEquals(444, record.getField(3, IntValue.class).getValue());
+			assertEquals(555, record.getField(4, IntValue.class).getValue());
 			
 			assertTrue(format.nextRecord(record));
-			assertEquals(666, record.getField(0, PactInteger.class).getValue());
-			assertEquals(777, record.getField(1, PactInteger.class).getValue());
-			assertEquals(888, record.getField(2, PactInteger.class).getValue());
-			assertEquals(999, record.getField(3, PactInteger.class).getValue());
-			assertEquals(000, record.getField(4, PactInteger.class).getValue());
+			assertEquals(666, record.getField(0, IntValue.class).getValue());
+			assertEquals(777, record.getField(1, IntValue.class).getValue());
+			assertEquals(888, record.getField(2, IntValue.class).getValue());
+			assertEquals(999, record.getField(3, IntValue.class).getValue());
+			assertEquals(000, record.getField(4, IntValue.class).getValue());
 			
 			assertFalse(format.nextRecord(record));
 			assertTrue(format.reachedEnd());
@@ -212,30 +212,30 @@ public class CsvInputFormatTest {
 			
 			new CsvInputFormat.ConfigBuilder(null, parameters)
 			.fieldDelimiter('|')
-			.field(PactInteger.class, 0).field(PactInteger.class, 1);
+			.field(IntValue.class, 0).field(IntValue.class, 1);
 			
 			format.configure(parameters);
 			format.open(split);
 			
-			PactRecord record = new PactRecord();
+			Record record = new Record();
 			
 			assertTrue(format.nextRecord(record));
-			assertEquals(111, record.getField(0, PactInteger.class).getValue());
-			assertEquals(222, record.getField(1, PactInteger.class).getValue());
+			assertEquals(111, record.getField(0, IntValue.class).getValue());
+			assertEquals(222, record.getField(1, IntValue.class).getValue());
 			boolean notParsed = false;
 			try {
-				record.getField(2, PactInteger.class);
+				record.getField(2, IntValue.class);
 			} catch (IndexOutOfBoundsException ioo) {
 				notParsed = true;
 			}
 			assertTrue(notParsed);
 			
 			assertTrue(format.nextRecord(record));
-			assertEquals(666, record.getField(0, PactInteger.class).getValue());
-			assertEquals(777, record.getField(1, PactInteger.class).getValue());
+			assertEquals(666, record.getField(0, IntValue.class).getValue());
+			assertEquals(777, record.getField(1, IntValue.class).getValue());
 			notParsed = false;
 			try {
-				record.getField(2, PactInteger.class);
+				record.getField(2, IntValue.class);
 			} catch (IndexOutOfBoundsException ioo) {
 				notParsed = true;
 			}
@@ -260,22 +260,22 @@ public class CsvInputFormatTest {
 			
 			new CsvInputFormat.ConfigBuilder(null, parameters)
 				.fieldDelimiter('|')
-				.field(PactInteger.class, 0).field(PactInteger.class, 3).field(PactInteger.class, 7);
+				.field(IntValue.class, 0).field(IntValue.class, 3).field(IntValue.class, 7);
 			
 			format.configure(parameters);
 			format.open(split);
 			
-			PactRecord record = new PactRecord();
+			Record record = new Record();
 			
 			assertTrue(format.nextRecord(record));
-			assertEquals(111, record.getField(0, PactInteger.class).getValue());
-			assertEquals(444, record.getField(1, PactInteger.class).getValue());
-			assertEquals(888, record.getField(2, PactInteger.class).getValue());
+			assertEquals(111, record.getField(0, IntValue.class).getValue());
+			assertEquals(444, record.getField(1, IntValue.class).getValue());
+			assertEquals(888, record.getField(2, IntValue.class).getValue());
 			
 			assertTrue(format.nextRecord(record));
-			assertEquals(000, record.getField(0, PactInteger.class).getValue());
-			assertEquals(777, record.getField(1, PactInteger.class).getValue());
-			assertEquals(333, record.getField(2, PactInteger.class).getValue());
+			assertEquals(000, record.getField(0, IntValue.class).getValue());
+			assertEquals(777, record.getField(1, IntValue.class).getValue());
+			assertEquals(333, record.getField(2, IntValue.class).getValue());
 			
 			assertFalse(format.nextRecord(record));
 			assertTrue(format.reachedEnd());
@@ -295,22 +295,22 @@ public class CsvInputFormatTest {
 			
 			new CsvInputFormat.ConfigBuilder(null, parameters)
 				.fieldDelimiter('|')
-				.field(PactInteger.class, 8).field(PactInteger.class, 1).field(PactInteger.class, 3);
+				.field(IntValue.class, 8).field(IntValue.class, 1).field(IntValue.class, 3);
 			
 			format.configure(parameters);
 			format.open(split);
 			
-			PactRecord record = new PactRecord();
+			Record record = new Record();
 			
 			assertTrue(format.nextRecord(record));
-			assertEquals(999, record.getField(0, PactInteger.class).getValue());
-			assertEquals(222, record.getField(1, PactInteger.class).getValue());
-			assertEquals(444, record.getField(2, PactInteger.class).getValue());
+			assertEquals(999, record.getField(0, IntValue.class).getValue());
+			assertEquals(222, record.getField(1, IntValue.class).getValue());
+			assertEquals(444, record.getField(2, IntValue.class).getValue());
 			
 			assertTrue(format.nextRecord(record));
-			assertEquals(222, record.getField(0, PactInteger.class).getValue());
-			assertEquals(999, record.getField(1, PactInteger.class).getValue());
-			assertEquals(777, record.getField(2, PactInteger.class).getValue());
+			assertEquals(222, record.getField(0, IntValue.class).getValue());
+			assertEquals(999, record.getField(1, IntValue.class).getValue());
+			assertEquals(777, record.getField(2, IntValue.class).getValue());
 			
 			assertFalse(format.nextRecord(record));
 			assertTrue(format.reachedEnd());

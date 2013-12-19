@@ -16,17 +16,17 @@ package eu.stratosphere.pact.compiler.util;
 import java.io.Serializable;
 
 import eu.stratosphere.api.record.functions.CrossFunction;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 public class DummyCrossStub extends CrossFunction implements Serializable {
 	private static final long serialVersionUID = 1L;
 
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.api.record.functions.CrossFunction#cross(eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.api.record.functions.Collector)
+	 * @see eu.stratosphere.api.record.functions.CrossFunction#cross(eu.stratosphere.pact.common.type.Record, eu.stratosphere.pact.common.type.Record, eu.stratosphere.api.record.functions.Collector)
 	 */
 	@Override
-	public void cross(PactRecord record1, PactRecord record2, Collector<PactRecord> out) {
+	public void cross(Record record1, Record record2, Collector<Record> out) {
 		out.collect(record1);
 		out.collect(record2);
 	}

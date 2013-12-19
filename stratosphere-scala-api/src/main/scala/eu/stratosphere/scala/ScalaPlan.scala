@@ -16,7 +16,7 @@ package eu.stratosphere.scala
 import scala.collection.JavaConversions.asJavaCollection
 import eu.stratosphere.api.Plan
 import eu.stratosphere.compiler.plan.OptimizedPlan
-import eu.stratosphere.compiler.postpass.GenericPactRecordPostPass
+import eu.stratosphere.compiler.postpass.RecordModelPostPass
 import java.util.Calendar
 import eu.stratosphere.api.operators.Operator
 import eu.stratosphere.scala.analysis.GlobalSchemaGenerator
@@ -70,7 +70,7 @@ object Args {
 //}
 
 
-class ScalaPostPass extends GenericPactRecordPostPass with GlobalSchemaOptimizer {
+class ScalaPostPass extends RecordModelPostPass with GlobalSchemaOptimizer {
   override def postPass(plan: OptimizedPlan): Unit = {
     optimizeSchema(plan, false)
     super.postPass(plan)

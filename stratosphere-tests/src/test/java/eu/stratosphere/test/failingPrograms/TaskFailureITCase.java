@@ -39,9 +39,9 @@ import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.test.operators.io.ContractITCaseIOFormats.ContractITCaseInputFormat;
 import eu.stratosphere.test.operators.io.ContractITCaseIOFormats.ContractITCaseOutputFormat;
 import eu.stratosphere.test.util.FailingTestBase;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
+import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
 
 /**
@@ -213,16 +213,16 @@ public class TaskFailureITCase extends FailingTestBase {
 	 */
 	public static class TestMapper extends MapFunction {
 
-		private final PactString string = new PactString();
-		private final PactInteger integer = new PactInteger();
+		private final StringValue string = new StringValue();
+		private final IntValue integer = new IntValue();
 
 		@Override
-		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
+		public void map(Record record, Collector<Record> out) throws Exception {
 			
-			final PactString keyString = record.getField(0, this.string);
+			final StringValue keyString = record.getField(0, this.string);
 			final int key = Integer.parseInt(keyString.toString());
 			
-			final PactString valueString = record.getField(1, this.string);
+			final StringValue valueString = record.getField(1, this.string);
 			final int value = Integer.parseInt(valueString.toString());
 			
 			if (LOG.isDebugEnabled())
@@ -247,7 +247,7 @@ public class TaskFailureITCase extends FailingTestBase {
 	public static class FailingMapper extends MapFunction {
 
 		@Override
-		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
+		public void map(Record record, Collector<Record> out) throws Exception {
 			throw new RuntimeException("This is an expected Test Exception");
 		}
 		

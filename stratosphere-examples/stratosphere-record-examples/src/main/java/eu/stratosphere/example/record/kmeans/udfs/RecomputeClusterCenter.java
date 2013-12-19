@@ -18,8 +18,8 @@ import java.util.Iterator;
 import eu.stratosphere.api.record.functions.ReduceFunction;
 import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFields;
 import eu.stratosphere.api.record.operators.ReduceOperator.Combinable;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 /**
@@ -36,14 +36,14 @@ import eu.stratosphere.util.Collector;
 public class RecomputeClusterCenter extends ReduceFunction implements Serializable {
 	private static final long serialVersionUID = 1L;
 	
-	private final PactInteger count = new PactInteger();
+	private final IntValue count = new IntValue();
 	
 	/**
 	 * Compute the new position (coordinate vector) of a cluster center.
 	 */
 	@Override
-	public void reduce(Iterator<PactRecord> dataPoints, Collector<PactRecord> out) {
-		PactRecord next = null;
+	public void reduce(Iterator<Record> dataPoints, Collector<Record> out) {
+		Record next = null;
 			
 		// initialize coordinate vector sum and count
 		CoordVector coordinates = new CoordVector();
@@ -56,7 +56,7 @@ public class RecomputeClusterCenter extends ReduceFunction implements Serializab
 			
 			// get the coordinates and the count from the record
 			double[] thisCoords = next.getField(1, CoordVector.class).getCoordinates();
-			int thisCount = next.getField(2, PactInteger.class).getValue();
+			int thisCount = next.getField(2, IntValue.class).getValue();
 			
 			if (coordinateSum == null) {
 				if (coordinates.getCoordinates() != null) {
@@ -88,9 +88,9 @@ public class RecomputeClusterCenter extends ReduceFunction implements Serializab
 	 * Computes a pre-aggregated average value of a coordinate vector.
 	 */
 	@Override
-	public void combine(Iterator<PactRecord> dataPoints, Collector<PactRecord> out) {
+	public void combine(Iterator<Record> dataPoints, Collector<Record> out) {
 		
-		PactRecord next = null;
+		Record next = null;
 		
 		// initialize coordinate vector sum and count
 		CoordVector coordinates = new CoordVector();
@@ -103,7 +103,7 @@ public class RecomputeClusterCenter extends ReduceFunction implements Serializab
 			
 			// get the coordinates and the count from the record
 			double[] thisCoords = next.getField(1, CoordVector.class).getCoordinates();
-			int thisCount = next.getField(2, PactInteger.class).getValue();
+			int thisCount = next.getField(2, IntValue.class).getValue();
 			
 			if (coordinateSum == null) {
 				if (coordinates.getCoordinates() != null) {

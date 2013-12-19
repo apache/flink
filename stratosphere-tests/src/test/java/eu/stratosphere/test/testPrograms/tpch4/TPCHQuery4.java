@@ -37,9 +37,9 @@ import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.test.testPrograms.util.IntTupleDataInFormat;
 import eu.stratosphere.test.testPrograms.util.StringTupleDataOutFormat;
 import eu.stratosphere.test.testPrograms.util.Tuple;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
+import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
 
 /**
@@ -87,7 +87,7 @@ public class TPCHQuery4 implements Program, ProgramDescription {
 		 * @see eu.stratosphere.pact.common.stub.MapStub#map(eu.stratosphere.pact.common.type.Key, eu.stratosphere.pact.common.type.Value, eu.stratosphere.pact.common.stub.Collector)
 		 */
 		@Override
-		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
+		public void map(Record record, Collector<Record> out) throws Exception {
 			Tuple tuple = record.getField(1, Tuple.class);
 			Date orderDate;
 			
@@ -131,7 +131,7 @@ public class TPCHQuery4 implements Program, ProgramDescription {
 		private final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
 		
 		@Override
-		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
+		public void map(Record record, Collector<Record> out) throws Exception {
 			Tuple tuple = record.getField(1, Tuple.class);
 			String commitString = tuple.getStringValueAt(11);
 			String receiptString = tuple.getStringValueAt(12);
@@ -161,14 +161,14 @@ public class TPCHQuery4 implements Program, ProgramDescription {
 	public static class JoinLiO extends JoinFunction {
 		
 		@Override
-		public void match(PactRecord order, PactRecord line, Collector<PactRecord> out)
+		public void match(Record order, Record line, Collector<Record> out)
 				throws Exception {
 			Tuple orderTuple = order.getField(1, Tuple.class);
 			
 			orderTuple.project(32);
 			String newOrderKey = orderTuple.getStringValueAt(0);
 			
-			order.setField(0, new PactString(newOrderKey));
+			order.setField(0, new StringValue(newOrderKey));
 			out.collect(order);
 		}
 	}
@@ -184,9 +184,9 @@ public class TPCHQuery4 implements Program, ProgramDescription {
 		 * @see eu.stratosphere.pact.common.stub.ReduceStub#reduce(eu.stratosphere.pact.common.type.Key, java.util.Iterator, eu.stratosphere.pact.common.stub.Collector)
 		 */
 		@Override
-		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {	
+		public void reduce(Iterator<Record> records, Collector<Record> out) throws Exception {	
 			long count = 0;
-			PactRecord rec = null;
+			Record rec = null;
 			
 			while(records.hasNext()) {
 			 	rec = records.next();
@@ -245,13 +245,13 @@ public class TPCHQuery4 implements Program, ProgramDescription {
 		ordersFilter.setDegreeOfParallelism(degreeOfParallelism);
 		
 		JoinOperator join = 
-				JoinOperator.builder(JoinLiO.class, PactInteger.class, 0, 0)
+				JoinOperator.builder(JoinLiO.class, IntValue.class, 0, 0)
 			.name("OrdersLineitemsJoin")
 			.build();
 			join.setDegreeOfParallelism(degreeOfParallelism);
 		
 		ReduceOperator aggregation = 
-				ReduceOperator.builder(CountAgg.class, PactString.class, 0)
+				ReduceOperator.builder(CountAgg.class, StringValue.class, 0)
 			.name("AggregateGroupBy")
 			.build();
 		aggregation.setDegreeOfParallelism(this.degreeOfParallelism);

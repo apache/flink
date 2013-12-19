@@ -28,14 +28,14 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordSerializerFactory;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializerFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DataSinkTask;
 import eu.stratosphere.pact.runtime.task.DataSourceTask;
 import eu.stratosphere.pact.runtime.task.PactDriver;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.MutableObjectIterator;
 
 public abstract class TaskTestBase {
@@ -52,18 +52,18 @@ public abstract class TaskTestBase {
 		this.mockEnv = new MockEnvironment(this.memorySize, this.inputSplitProvider);
 	}
 
-	public void addInput(MutableObjectIterator<PactRecord> input, int groupId) {
+	public void addInput(MutableObjectIterator<Record> input, int groupId) {
 		this.mockEnv.addInput(input);
 		TaskConfig conf = new TaskConfig(this.mockEnv.getTaskConfiguration());
 		conf.addInputToGroup(groupId);
-		conf.setInputSerializer(PactRecordSerializerFactory.get(), groupId);
+		conf.setInputSerializer(RecordSerializerFactory.get(), groupId);
 	}
 
-	public void addOutput(List<PactRecord> output) {
+	public void addOutput(List<Record> output) {
 		this.mockEnv.addOutput(output);
 		TaskConfig conf = new TaskConfig(this.mockEnv.getTaskConfiguration());
 		conf.addOutputShipStrategy(ShipStrategyType.FORWARD);
-		conf.setOutputSerializer(PactRecordSerializerFactory.get());
+		conf.setOutputSerializer(RecordSerializerFactory.get());
 	}
 
 	public TaskConfig getTaskConfig() {

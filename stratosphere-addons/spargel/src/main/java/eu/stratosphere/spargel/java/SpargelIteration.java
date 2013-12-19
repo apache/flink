@@ -23,7 +23,7 @@ import eu.stratosphere.api.record.operators.CoGroupOperator;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.spargel.java.util.MessageIterator;
 import eu.stratosphere.types.Key;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.types.Value;
 import eu.stratosphere.util.Collector;
 import eu.stratosphere.util.InstantiationUtil;
@@ -150,9 +150,9 @@ public class SpargelIteration {
 		private MessageIterator<M> messageIter;
 
 		@Override
-		public void coGroup(Iterator<PactRecord> messages, Iterator<PactRecord> vertex, Collector<PactRecord> out) throws Exception {
+		public void coGroup(Iterator<Record> messages, Iterator<Record> vertex, Collector<Record> out) throws Exception {
 			if (vertex.hasNext()) {
-				PactRecord first = vertex.next();
+				Record first = vertex.next();
 				first.getFieldInto(0, vertexKey);
 				first.getFieldInto(1, vertexValue);
 				messageIter.setSource(messages);
@@ -162,7 +162,7 @@ public class SpargelIteration {
 				if (messages.hasNext()) {
 					String message = "Target vertex does not exist!.";
 					try {
-						PactRecord next = messages.next();
+						Record next = messages.next();
 						next.getFieldInto(0, vertexKey);
 						message = "Target vertex '" + vertexKey + "' does not exist!.";
 					} catch (Throwable t) {}
@@ -220,9 +220,9 @@ public class SpargelIteration {
 		private V vertexValue;
 		
 		@Override
-		public void coGroup(Iterator<PactRecord> edges, Iterator<PactRecord> state, Collector<PactRecord> out) throws Exception {
+		public void coGroup(Iterator<Record> edges, Iterator<Record> state, Collector<Record> out) throws Exception {
 			if (state.hasNext()) {
-				PactRecord first = state.next();
+				Record first = state.next();
 				first.getFieldInto(0, vertexKey);
 				first.getFieldInto(1, vertexValue);
 				messagingFunction.set(edges, out);

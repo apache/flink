@@ -17,7 +17,7 @@ import java.io.Serializable;
 
 import eu.stratosphere.api.record.functions.MapFunction;
 import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFieldsExcept;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 @ConstantFieldsExcept({})
@@ -25,7 +25,7 @@ public final class IdentityMap extends MapFunction implements Serializable {
 	private static final long serialVersionUID = 1L;
 	
 	@Override
-	public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
+	public void map(Record record, Collector<Record> out) throws Exception {
 		out.collect(record);
 	}
 }

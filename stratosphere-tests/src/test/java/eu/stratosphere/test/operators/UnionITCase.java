@@ -40,9 +40,9 @@ import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.test.operators.io.ContractITCaseIOFormats.ContractITCaseInputFormat;
 import eu.stratosphere.test.operators.io.ContractITCaseIOFormats.ContractITCaseOutputFormat;
 import eu.stratosphere.test.util.TestBase;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
+import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
 
 @RunWith(Parameterized.class)
@@ -94,11 +94,11 @@ public class UnionITCase extends TestBase {
 	public static class TestMapper extends MapFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 		
-		private PactString keyString = new PactString();
-		private PactString valueString = new PactString();
+		private StringValue keyString = new StringValue();
+		private StringValue valueString = new StringValue();
 		
 		@Override
-		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
+		public void map(Record record, Collector<Record> out) throws Exception {
 			keyString = record.getField(0, keyString);
 			valueString = record.getField(1, valueString);
 			
@@ -108,7 +108,7 @@ public class UnionITCase extends TestBase {
 			if (Integer.parseInt(keyString.toString()) + Integer.parseInt(valueString.toString()) < 10) {
 
 				record.setField(0, valueString);
-				record.setField(1, new PactInteger(Integer.parseInt(keyString.toString()) + 10));
+				record.setField(1, new IntValue(Integer.parseInt(keyString.toString()) + 10));
 				
 				out.collect(record);
 			}

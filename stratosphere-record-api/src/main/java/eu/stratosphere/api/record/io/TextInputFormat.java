@@ -24,8 +24,8 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.types.PactRecord;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.Record;
+import eu.stratosphere.types.StringValue;
 
 /**
  * Base implementation for an input format that returns each line as a separate record that contains
@@ -43,7 +43,7 @@ public class TextInputFormat extends DelimitedInputFormat {
 	private static final Log LOG = LogFactory.getLog(TextInputFormat.class);
 	
 	
-	protected final PactString theString = new PactString();
+	protected final StringValue theString = new StringValue();
 	
 	protected CharsetDecoder decoder;
 	
@@ -81,8 +81,8 @@ public class TextInputFormat extends DelimitedInputFormat {
 
 	// --------------------------------------------------------------------------------------------
 
-	public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes) {
-		PactString str = this.theString;
+	public boolean readRecord(Record target, byte[] bytes, int offset, int numBytes) {
+		StringValue str = this.theString;
 		
 		if (this.ascii) {
 			str.setValueAscii(bytes, offset, numBytes);

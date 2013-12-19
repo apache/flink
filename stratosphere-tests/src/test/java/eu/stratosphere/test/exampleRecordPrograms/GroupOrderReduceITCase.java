@@ -32,8 +32,8 @@ import eu.stratosphere.api.record.io.CsvOutputFormat;
 import eu.stratosphere.api.record.operators.ReduceOperator;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.test.util.TestBase2;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 @RunWith(Parameterized.class)
@@ -75,22 +75,22 @@ public class GroupOrderReduceITCase extends TestBase2 {
 		int dop = this.config.getInteger("GroupOrderTest#NumSubtasks", 1);
 		
 		@SuppressWarnings("unchecked")
-		CsvInputFormat format = new CsvInputFormat(',', PactInteger.class, PactInteger.class);
+		CsvInputFormat format = new CsvInputFormat(',', IntValue.class, IntValue.class);
 		FileDataSource source = new FileDataSource(format, this.textPath, "Source");
 		
 		ReduceOperator reducer = ReduceOperator.builder(CheckingReducer.class)
-			.keyField(PactInteger.class, 0)
+			.keyField(IntValue.class, 0)
 			.input(source)
 			.name("Ordered Reducer")
 			.build();
-		reducer.setGroupOrder(new Ordering(1, PactInteger.class, Order.ASCENDING));
+		reducer.setGroupOrder(new Ordering(1, IntValue.class, Order.ASCENDING));
 		
 		FileDataSink sink = new FileDataSink(CsvOutputFormat.class, this.resultPath, reducer, "Sink");
 		CsvOutputFormat.configureRecordFormat(sink)
 			.recordDelimiter('\n')
 			.fieldDelimiter(',')
-			.field(PactInteger.class, 0)
-			.field(PactInteger.class, 1);
+			.field(IntValue.class, 0)
+			.field(IntValue.class, 1);
 		
 		Plan p = new Plan(sink);
 		p.setDefaultParallelism(dop);
@@ -113,11 +113,11 @@ public class GroupOrderReduceITCase extends TestBase2 {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {
-			int lastValue = records.next().getField(1, PactInteger.class).getValue();
+		public void reduce(Iterator<Record> records, Collector<Record> out) throws Exception {
+			int lastValue = records.next().getField(1, IntValue.class).getValue();
 			
 			while (records.hasNext()) {
-				int nextValue = records.next().getField(1, PactInteger.class).getValue();
+				int nextValue = records.next().getField(1, IntValue.class).getValue();
 				
 				if (nextValue < lastValue) {
 					throw new Exception("Group Order is violated!");

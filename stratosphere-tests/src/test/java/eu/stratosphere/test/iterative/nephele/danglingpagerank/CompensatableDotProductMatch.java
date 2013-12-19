@@ -16,9 +16,9 @@ package eu.stratosphere.test.iterative.nephele.danglingpagerank;
 import eu.stratosphere.api.record.functions.JoinFunction;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.test.iterative.nephele.ConfigUtils;
-import eu.stratosphere.types.PactDouble;
-import eu.stratosphere.types.PactLong;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.DoubleValue;
+import eu.stratosphere.types.LongValue;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 import java.util.Random;
@@ -26,11 +26,11 @@ import java.util.Set;
 
 public class CompensatableDotProductMatch extends JoinFunction {
 
-  private PactRecord record;
-  private PactLong vertexID;
-  private PactDouble partialRank;
+  private Record record;
+  private LongValue vertexID;
+  private DoubleValue partialRank;
 
-  private PactDouble rank = new PactDouble();
+  private DoubleValue rank = new DoubleValue();
   private LongArrayView adjacentNeighbors = new LongArrayView();
 
   private int workerIndex;
@@ -44,9 +44,9 @@ public class CompensatableDotProductMatch extends JoinFunction {
 
   @Override
   public void open(Configuration parameters) throws Exception {
-    record = new PactRecord();
-    vertexID = new PactLong();
-    partialRank = new PactDouble();
+    record = new Record();
+    vertexID = new LongValue();
+    partialRank = new DoubleValue();
 
     workerIndex = getRuntimeContext().getIndexOfThisSubtask();
     currentIteration = getIterationRuntimeContext().getSuperstepNumber();
@@ -58,7 +58,7 @@ public class CompensatableDotProductMatch extends JoinFunction {
   }
 
   @Override
-  public void match(PactRecord pageWithRank, PactRecord adjacencyList, Collector<PactRecord> collector)
+  public void match(Record pageWithRank, Record adjacencyList, Collector<Record> collector)
       throws Exception {
 
     rank = pageWithRank.getField(1, rank);

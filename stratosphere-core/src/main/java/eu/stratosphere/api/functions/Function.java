@@ -50,8 +50,8 @@ public interface Function {
 	 *         // searchString will be "bar" when job is started
 	 *     }
 	 *     
-	 *     public void map(PactRecord record, Collector collector) {
-	 *         if ( record.getValue(0, PactString.class).equals(this.searchString) ) {
+	 *     public void map(Record record, Collector collector) {
+	 *         if ( record.getValue(0, StringValue.class).equals(this.searchString) ) {
 	 *             collector.emit(record);
 	 *         }
 	 *     }

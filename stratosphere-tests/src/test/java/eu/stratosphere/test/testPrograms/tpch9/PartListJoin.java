@@ -15,15 +15,15 @@ package eu.stratosphere.test.testPrograms.tpch9;
 
 
 import eu.stratosphere.api.record.functions.JoinFunction;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
+import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
 
 public class PartListJoin extends JoinFunction{
 
 	private final StringIntPair amountYearPair = new StringIntPair();
-	private final PactString nationName = new PactString();
+	private final StringValue nationName = new StringValue();
 	
 	/**
 	 * Join "filteredParts" and "suppliers" by "suppkey".
@@ -34,13 +34,13 @@ public class PartListJoin extends JoinFunction{
 	 *
 	 */
 	@Override
-	public void match(PactRecord value1, PactRecord value2, Collector<PactRecord> out) throws Exception
+	public void match(Record value1, Record value2, Collector<Record> out) throws Exception
 	{
 		StringIntPair amountYearPair = value1.getField(1, this.amountYearPair);
-		PactString nationName = value2.getField(1, this.nationName);
+		StringValue nationName = value2.getField(1, this.nationName);
 		
-		PactInteger year = amountYearPair.getSecond();
-		PactString amount = amountYearPair.getFirst();
+		IntValue year = amountYearPair.getSecond();
+		StringValue amount = amountYearPair.getFirst();
 		StringIntPair key = new StringIntPair(nationName, year);
 		value1.setField(0, key);
 		value1.setField(1, amount);

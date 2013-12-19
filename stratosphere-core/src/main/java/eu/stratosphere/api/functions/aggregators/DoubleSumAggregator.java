@@ -12,25 +12,25 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.functions.aggregators;
 
-import eu.stratosphere.types.PactDouble;
+import eu.stratosphere.types.DoubleValue;
 
 
 /**
  *
  */
-public class DoubleSumAggregator implements Aggregator<PactDouble> {
+public class DoubleSumAggregator implements Aggregator<DoubleValue> {
 
-	private PactDouble wrapper = new PactDouble();
+	private DoubleValue wrapper = new DoubleValue();
 	private double sum;
 	
 	@Override
-	public PactDouble getAggregate() {
+	public DoubleValue getAggregate() {
 		wrapper.setValue(sum);
 		return wrapper;
 	}
 
 	@Override
-	public void aggregate(PactDouble element) {
+	public void aggregate(DoubleValue element) {
 		sum += element.getValue();
 	}
 

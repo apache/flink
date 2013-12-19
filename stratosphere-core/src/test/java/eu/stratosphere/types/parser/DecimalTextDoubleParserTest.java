@@ -17,7 +17,7 @@ import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
-import eu.stratosphere.types.PactDouble;
+import eu.stratosphere.types.DoubleValue;
 import eu.stratosphere.types.Value;
 import eu.stratosphere.types.parser.DecimalTextDoubleParser;
 
@@ -28,7 +28,7 @@ public class DecimalTextDoubleParserTest {
 	@Test
 	public void testGetValue() {
 		Value v = parser.createValue();
-		assertTrue(v instanceof PactDouble);
+		assertTrue(v instanceof DoubleValue);
 	}
 	
 	@Test
@@ -37,7 +37,7 @@ public class DecimalTextDoubleParserTest {
 		byte[] recBytes = "123.4|0.124|.623|1234|-12.34|123abc4|".getBytes();
 		
 		// check simple valid double
-		PactDouble d = new PactDouble();
+		DoubleValue d = new DoubleValue();
 		int startPos = 0;
 		startPos = parser.parseField(recBytes, startPos, recBytes.length, '|', d);
 		assertTrue(startPos == 6);

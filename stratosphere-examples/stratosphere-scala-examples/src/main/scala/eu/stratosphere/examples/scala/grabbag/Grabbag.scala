@@ -15,8 +15,8 @@ package eu.stratosphere.examples.scala.grabbag
 
 import scala.Array.canBuildFrom
 import eu.stratosphere.client.LocalExecutor
-import eu.stratosphere.types.PactInteger
-import eu.stratosphere.types.PactString
+import eu.stratosphere.types.IntValue
+import eu.stratosphere.types.StringValue
 
 import eu.stratosphere.scala._
 import eu.stratosphere.scala.operators._
@@ -29,7 +29,7 @@ import org.apache.log4j.Level
 import eu.stratosphere.scala.analysis.postPass.GlobalSchemaOptimizer
 import eu.stratosphere.scala.analysis.GlobalSchemaGenerator
 
-import eu.stratosphere.types.PactRecord
+import eu.stratosphere.types.Record
 import eu.stratosphere.util.Collector
 
 import eu.stratosphere.scala.codegen.Util
@@ -47,7 +47,7 @@ object Main1 extends Serializable {
     val foo = new Foo(3)
     def apply(a: (String, Int)) = {
       println("I GOT: " + a + " ANDd: " + foo.a)
-      tokenizer.setStringToTokenize(new PactString(a._1))
+      tokenizer.setStringToTokenize(new StringValue(a._1))
       a
     }
   }

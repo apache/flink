@@ -16,19 +16,19 @@ package eu.stratosphere.pact.runtime.shipping;
 import java.util.Arrays;
 
 import eu.stratosphere.api.operators.Order;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 
 public class HistogramPartitionFunction implements PartitionFunction {
-	private final PactRecord[] splitBorders;
+	private final Record[] splitBorders;
 	private final Order partitionOrder;
 	
-	public HistogramPartitionFunction(PactRecord[] splitBorders, Order partitionOrder) {
+	public HistogramPartitionFunction(Record[] splitBorders, Order partitionOrder) {
 		this.splitBorders = splitBorders;
 		this.partitionOrder = partitionOrder;
 	}
 
 	@Override
-	public void selectChannels(PactRecord data, int numChannels, int[] channels) {
+	public void selectChannels(Record data, int numChannels, int[] channels) {
 		//TODO: Check partition borders match number of channels
 		int pos = Arrays.binarySearch(splitBorders, data);
 

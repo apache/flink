@@ -16,7 +16,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-import eu.stratosphere.types.PactInteger;
+import eu.stratosphere.types.IntValue;
 
 public class SimpleIntegerDistribution extends SimpleDistribution {
 	
@@ -24,7 +24,7 @@ public class SimpleIntegerDistribution extends SimpleDistribution {
 	
 	
 	public SimpleIntegerDistribution() {
-		boundaries = new PactInteger[0][];
+		boundaries = new IntValue[0][];
 	}
 	
 	public SimpleIntegerDistribution(int[] bucketBoundaries) {
@@ -40,7 +40,7 @@ public class SimpleIntegerDistribution extends SimpleDistribution {
 		boundaries = packIntegers(bucketBoundaries);
 	}
 	
-	public SimpleIntegerDistribution(PactInteger[] bucketBoundaries) {
+	public SimpleIntegerDistribution(IntValue[] bucketBoundaries) {
 		if (bucketBoundaries == null)
 			throw new IllegalArgumentException("Bucket boundaries must not be null.");
 		if (bucketBoundaries.length == 0)
@@ -50,13 +50,13 @@ public class SimpleIntegerDistribution extends SimpleDistribution {
 		dim = 1;
 		
 		// make the array 2-dimensional
-		boundaries = new PactInteger[bucketBoundaries.length][];
+		boundaries = new IntValue[bucketBoundaries.length][];
 		for (int i = 0; i < bucketBoundaries.length; i++) {
-			boundaries[i] = new PactInteger[] { bucketBoundaries[i] };
+			boundaries[i] = new IntValue[] { bucketBoundaries[i] };
 		}
 	}
 	
-	public SimpleIntegerDistribution(PactInteger[][] bucketBoundaries) {
+	public SimpleIntegerDistribution(IntValue[][] bucketBoundaries) {
 		if (bucketBoundaries == null)
 			throw new IllegalArgumentException("Bucket boundaries must not be null.");
 		if (bucketBoundaries.length == 0)
@@ -79,7 +79,7 @@ public class SimpleIntegerDistribution extends SimpleDistribution {
 	}
 
 	@Override
-	public PactInteger[] getBucketBoundary(int bucketNum, int totalNumBuckets) {
+	public IntValue[] getBucketBoundary(int bucketNum, int totalNumBuckets) {
 		// check validity of arguments
 		if(bucketNum < 0) {
 			throw new IllegalArgumentException("Requested bucket must be greater than or equal to 0.");
@@ -98,7 +98,7 @@ public class SimpleIntegerDistribution extends SimpleDistribution {
 			final int n = maxNumBuckets / totalNumBuckets;
 			final int bucketId = bucketNum * n + (n -  1); 
 			
-			return (PactInteger[]) boundaries[bucketId];
+			return (IntValue[]) boundaries[bucketId];
 		} else {
 			throw new IllegalArgumentException("Interpolation of bucket boundaries currently not supported. " +
 					"Please use an even divider of the maximum possible buckets (here: "+maxNumBuckets+") as totalBuckets.");
@@ -113,7 +113,7 @@ public class SimpleIntegerDistribution extends SimpleDistribution {
 		
 		for (int i = 0; i < boundaries.length; i++) {
 			for (int d = 0; d < dim; d++) {
-				out.writeInt(((PactInteger) boundaries[i][d]).getValue());
+				out.writeInt(((IntValue) boundaries[i][d]).getValue());
 			}
 		}
 	}
@@ -123,22 +123,22 @@ public class SimpleIntegerDistribution extends SimpleDistribution {
 		this.dim = in.readInt();
 		final int len = in.readInt();
 		
-		boundaries = new PactInteger[len][];
+		boundaries = new IntValue[len][];
 		
 		for (int i = 0; i < len; i++) {
-			PactInteger[] bucket = new PactInteger[dim]; 
+			IntValue[] bucket = new IntValue[dim]; 
 			for (int d = 0; d < dim; d++) {
-				bucket[d] = new PactInteger(in.readInt());
+				bucket[d] = new IntValue(in.readInt());
 			}
 			
 			boundaries[i] = bucket;
 		}
 	}
 	
-	private static PactInteger[][] packIntegers(int[] values) {
-		PactInteger[][] packed = new PactInteger[values.length][];
+	private static IntValue[][] packIntegers(int[] values) {
+		IntValue[][] packed = new IntValue[values.length][];
 		for (int i = 0; i < values.length; i++) {
-			packed[i] = new PactInteger[] { new PactInteger(values[i]) };
+			packed[i] = new IntValue[] { new IntValue(values[i]) };
 		}
 		
 		return packed;

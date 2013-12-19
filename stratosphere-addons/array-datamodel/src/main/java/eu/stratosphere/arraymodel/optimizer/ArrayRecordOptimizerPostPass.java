@@ -28,7 +28,7 @@ import eu.stratosphere.compiler.plan.SingleInputPlanNode;
 import eu.stratosphere.compiler.plan.SinkPlanNode;
 import eu.stratosphere.compiler.postpass.ConflictingFieldTypeInfoException;
 import eu.stratosphere.compiler.postpass.DenseValueSchema;
-import eu.stratosphere.compiler.postpass.GenericRecordPostPass;
+import eu.stratosphere.compiler.postpass.GenericFlatTypePostPass;
 import eu.stratosphere.compiler.postpass.MissingFieldTypeInfoException;
 import eu.stratosphere.compiler.postpass.PostPassUtils;
 import eu.stratosphere.pact.runtime.plugable.arrayrecord.ArrayRecordComparatorFactory;
@@ -41,7 +41,7 @@ import eu.stratosphere.types.Value;
  * Post pass implementation for the array record data model. Does only type inference and creates
  * serializers and comparators.
  */
-public class ArrayRecordOptimizerPostPass extends GenericRecordPostPass<Class<? extends Value>, DenseValueSchema> {
+public class ArrayRecordOptimizerPostPass extends GenericFlatTypePostPass<Class<? extends Value>, DenseValueSchema> {
 
 	// --------------------------------------------------------------------------------------------
 	//  Type specific methods that extract schema information

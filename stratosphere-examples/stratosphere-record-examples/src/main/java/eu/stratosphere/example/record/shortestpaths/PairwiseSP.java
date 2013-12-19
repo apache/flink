@@ -35,9 +35,9 @@ import eu.stratosphere.api.record.io.DelimitedInputFormat;
 import eu.stratosphere.api.record.io.FileOutputFormat;
 import eu.stratosphere.api.record.operators.CoGroupOperator;
 import eu.stratosphere.api.record.operators.JoinOperator;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
+import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
 
 /**
@@ -76,14 +76,14 @@ public class PairwiseSP implements Program, ProgramDescription {
 	public static class RDFTripleInFormat extends DelimitedInputFormat {
 		private static final long serialVersionUID = 1L;
 
-		private final PactString fromNode = new PactString();
-		private final PactString toNode = new PactString();
-		private final PactInteger pathLength = new PactInteger(1);
-		private final PactInteger hopCnt = new PactInteger(0);
-		private final PactString hopList = new PactString(" ");
+		private final StringValue fromNode = new StringValue();
+		private final StringValue toNode = new StringValue();
+		private final IntValue pathLength = new IntValue(1);
+		private final IntValue hopCnt = new IntValue(0);
+		private final StringValue hopList = new StringValue(" ");
 		
 		@Override
-		public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes) {
+		public boolean readRecord(Record target, byte[] bytes, int offset, int numBytes) {
 			String lineStr = new String(bytes, offset, numBytes);
 			// replace reduce whitespaces and trim
 			lineStr = lineStr.replaceAll("\\s+", " ").trim();
@@ -129,14 +129,14 @@ public class PairwiseSP implements Program, ProgramDescription {
 	public static class PathInFormat extends DelimitedInputFormat {
 		private static final long serialVersionUID = 1L;
 		
-		private final PactString fromNode = new PactString();
-		private final PactString toNode = new PactString();
-		private final PactInteger length = new PactInteger();
-		private final PactInteger hopCnt = new PactInteger();
-		private final PactString hopList = new PactString();
+		private final StringValue fromNode = new StringValue();
+		private final StringValue toNode = new StringValue();
+		private final IntValue length = new IntValue();
+		private final IntValue hopCnt = new IntValue();
+		private final StringValue hopList = new StringValue();
 
 		@Override
-		public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes) {
+		public boolean readRecord(Record target, byte[] bytes, int offset, int numBytes) {
 			String lineStr = new String(bytes, offset, numBytes);
 			StringTokenizer st = new StringTokenizer(lineStr, "|");
 			
@@ -171,23 +171,23 @@ public class PairwiseSP implements Program, ProgramDescription {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void writeRecord(PactRecord record) throws IOException {
+		public void writeRecord(Record record) throws IOException {
 			StringBuilder line = new StringBuilder();
 
 			// append from-node
-			line.append(record.getField(0, PactString.class).toString());
+			line.append(record.getField(0, StringValue.class).toString());
 			line.append("|");
 			// append to-node
-			line.append(record.getField(1, PactString.class).toString());
+			line.append(record.getField(1, StringValue.class).toString());
 			line.append("|");
 			// append length
-			line.append(record.getField(2, PactInteger.class).toString());
+			line.append(record.getField(2, IntValue.class).toString());
 			line.append("|");
 			// append hopCnt
-			line.append(record.getField(3, PactInteger.class).toString());
+			line.append(record.getField(3, IntValue.class).toString());
 			line.append("|");
 			// append hopList
-			line.append(record.getField(4, PactString.class).toString());
+			line.append(record.getField(4, StringValue.class).toString());
 			line.append("|");
 			line.append("\n");
 			
@@ -206,22 +206,22 @@ public class PairwiseSP implements Program, ProgramDescription {
 	public static class ConcatPaths extends JoinFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 
-		private final PactRecord outputRecord = new PactRecord();
+		private final Record outputRecord = new Record();
 		
-		private final PactInteger length = new PactInteger();
-		private final PactInteger hopCnt = new PactInteger();
-		private final PactString hopList = new PactString();
+		private final IntValue length = new IntValue();
+		private final IntValue hopCnt = new IntValue();
+		private final StringValue hopList = new StringValue();
 		
 		@Override
-		public void match(PactRecord rec1, PactRecord rec2, Collector<PactRecord> out) throws Exception {
+		public void match(Record rec1, Record rec2, Collector<Record> out) throws Exception {
 
 			// rec1 has matching start, rec2 matching end
 			// Therefore, rec2's end node and rec1's start node are identical
 			// First half of new path will be rec2, second half will be rec1
 			
 			// Get from-node and to-node of new path  
-			final PactString fromNode = rec2.getField(0, PactString.class);
-			final PactString toNode = rec1.getField(1, PactString.class);
+			final StringValue fromNode = rec2.getField(0, StringValue.class);
+			final StringValue toNode = rec1.getField(1, StringValue.class);
 			
 			// Check whether from-node = to-node to prevent circles!
 			if (fromNode.equals(toNode)) return;
@@ -231,24 +231,24 @@ public class PairwiseSP implements Program, ProgramDescription {
 			outputRecord.setField(1, toNode);
 			
 			// Compute length of new path
-			length.setValue(rec1.getField(2, PactInteger.class).getValue() + rec2.getField(2, PactInteger.class).getValue());
+			length.setValue(rec1.getField(2, IntValue.class).getValue() + rec2.getField(2, IntValue.class).getValue());
 			outputRecord.setField(2, length);
 			
 			// compute hop count
-			int hops = rec1.getField(3, PactInteger.class).getValue() + 1 + rec2.getField(3, PactInteger.class).getValue();
+			int hops = rec1.getField(3, IntValue.class).getValue() + 1 + rec2.getField(3, IntValue.class).getValue();
 			hopCnt.setValue(hops);
 			outputRecord.setField(3, hopCnt);
 			
 			// Concatenate hops lists and insert matching node
 			StringBuilder sb = new StringBuilder();
 			// first path
-			sb.append(rec2.getField(4, PactString.class).getValue());
+			sb.append(rec2.getField(4, StringValue.class).getValue());
 			sb.append(" ");
 			// common node
-			sb.append(rec1.getField(0, PactString.class).getValue());
+			sb.append(rec1.getField(0, StringValue.class).getValue());
 			// second path
 			sb.append(" ");
-			sb.append(rec1.getField(4, PactString.class).getValue());
+			sb.append(rec1.getField(4, StringValue.class).getValue());
 						
 			hopList.setValue(sb.toString().trim());
 			outputRecord.setField(4, hopList);
@@ -269,18 +269,18 @@ public class PairwiseSP implements Program, ProgramDescription {
 	public static class FindShortestPath extends CoGroupFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 
-		private final PactRecord outputRecord = new PactRecord();
+		private final Record outputRecord = new Record();
 		
-		private final Set<PactString> shortestPaths = new HashSet<PactString>();
-		private final Map<PactString,PactInteger> hopCnts = new HashMap<PactString,PactInteger>();
-		private final PactInteger minLength = new PactInteger();
+		private final Set<StringValue> shortestPaths = new HashSet<StringValue>();
+		private final Map<StringValue,IntValue> hopCnts = new HashMap<StringValue,IntValue>();
+		private final IntValue minLength = new IntValue();
 		
 		@Override
-		public void coGroup(Iterator<PactRecord> inputRecords, Iterator<PactRecord> concatRecords, Collector<PactRecord> out) {
+		public void coGroup(Iterator<Record> inputRecords, Iterator<Record> concatRecords, Collector<Record> out) {
 
 			// init minimum length and minimum path
-			PactRecord pathRec = null;
-			PactString path = null;
+			Record pathRec = null;
+			StringValue path = null;
 			if(inputRecords.hasNext()) {
 				// path is in input paths
 				pathRec = inputRecords.next();
@@ -289,26 +289,26 @@ public class PairwiseSP implements Program, ProgramDescription {
 				pathRec = concatRecords.next();
 			}
 			// get from node (common for all paths)
-			PactString fromNode = pathRec.getField(0, PactString.class);
+			StringValue fromNode = pathRec.getField(0, StringValue.class);
 			// get to node (common for all paths)
-			PactString toNode = pathRec.getField(1, PactString.class);
+			StringValue toNode = pathRec.getField(1, StringValue.class);
 			// get length of path
-			minLength.setValue(pathRec.getField(2, PactInteger.class).getValue());
+			minLength.setValue(pathRec.getField(2, IntValue.class).getValue());
 			// store path and hop count
-			path = new PactString(pathRec.getField(4, PactString.class));
+			path = new StringValue(pathRec.getField(4, StringValue.class));
 			shortestPaths.add(path);
-			hopCnts.put(path, new PactInteger(pathRec.getField(3, PactInteger.class).getValue()));
+			hopCnts.put(path, new IntValue(pathRec.getField(3, IntValue.class).getValue()));
 						
 			// find shortest path of all input paths
 			while (inputRecords.hasNext()) {
 				pathRec = inputRecords.next();
-				PactInteger length = pathRec.getField(2, PactInteger.class);
+				IntValue length = pathRec.getField(2, IntValue.class);
 				
 				if (length.getValue() == minLength.getValue()) {
 					// path has also minimum length add to list
-					path = new PactString(pathRec.getField(4, PactString.class));
+					path = new StringValue(pathRec.getField(4, StringValue.class));
 					if(shortestPaths.add(path)) {
-						hopCnts.put(path, new PactInteger(pathRec.getField(3, PactInteger.class).getValue()));
+						hopCnts.put(path, new IntValue(pathRec.getField(3, IntValue.class).getValue()));
 					}
 				} else if (length.getValue() < minLength.getValue()) {
 					// path has minimum length
@@ -317,22 +317,22 @@ public class PairwiseSP implements Program, ProgramDescription {
 					hopCnts.clear();
 					shortestPaths.clear();
 					// get path and add path and hop count
-					path = new PactString(pathRec.getField(4, PactString.class));
+					path = new StringValue(pathRec.getField(4, StringValue.class));
 					shortestPaths.add(path);
-					hopCnts.put(path, new PactInteger(pathRec.getField(3, PactInteger.class).getValue()));
+					hopCnts.put(path, new IntValue(pathRec.getField(3, IntValue.class).getValue()));
 				}
 			}
 
 			// find shortest path of all input and concatenated paths
 			while (concatRecords.hasNext()) {
 				pathRec = concatRecords.next();
-				PactInteger length = pathRec.getField(2, PactInteger.class);
+				IntValue length = pathRec.getField(2, IntValue.class);
 				
 				if (length.getValue() == minLength.getValue()) {
 					// path has also minimum length add to list
-					path = new PactString(pathRec.getField(4, PactString.class));
+					path = new StringValue(pathRec.getField(4, StringValue.class));
 					if(shortestPaths.add(path)) {
-						hopCnts.put(path, new PactInteger(pathRec.getField(3, PactInteger.class).getValue()));
+						hopCnts.put(path, new IntValue(pathRec.getField(3, IntValue.class).getValue()));
 					}
 				} else if (length.getValue() < minLength.getValue()) {
 					// path has minimum length
@@ -341,9 +341,9 @@ public class PairwiseSP implements Program, ProgramDescription {
 					hopCnts.clear();
 					shortestPaths.clear();
 					// get path and add path and hop count
-					path = new PactString(pathRec.getField(4, PactString.class));
+					path = new StringValue(pathRec.getField(4, StringValue.class));
 					shortestPaths.add(path);
-					hopCnts.put(path, new PactInteger(pathRec.getField(3, PactInteger.class).getValue()));
+					hopCnts.put(path, new IntValue(pathRec.getField(3, IntValue.class).getValue()));
 				}
 			}
 			
@@ -352,7 +352,7 @@ public class PairwiseSP implements Program, ProgramDescription {
 			outputRecord.setField(2, minLength);
 			
 			// emit all shortest paths
-			for(PactString shortestPath : shortestPaths) {
+			for(StringValue shortestPath : shortestPaths) {
 				outputRecord.setField(3, hopCnts.get(shortestPath));
 				outputRecord.setField(4, shortestPath);
 				out.collect(outputRecord);
@@ -394,15 +394,15 @@ public class PairwiseSP implements Program, ProgramDescription {
 		pathsInput.setDegreeOfParallelism(numSubTasks);
 
 		JoinOperator concatPaths = 
-				JoinOperator.builder(new ConcatPaths(), PactString.class, 0, 1)
+				JoinOperator.builder(new ConcatPaths(), StringValue.class, 0, 1)
 			.name("Concat Paths")
 			.build();
 
 		concatPaths.setDegreeOfParallelism(numSubTasks);
 
 		CoGroupOperator findShortestPaths = 
-				CoGroupOperator.builder(new FindShortestPath(), PactString.class, 0, 0)
-			.keyField(PactString.class, 1, 1)
+				CoGroupOperator.builder(new FindShortestPath(), StringValue.class, 0, 0)
+			.keyField(StringValue.class, 1, 1)
 			.name("Find Shortest Paths")
 			.build();
 		findShortestPaths.setDegreeOfParallelism(numSubTasks);

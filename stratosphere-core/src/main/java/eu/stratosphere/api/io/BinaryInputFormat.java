@@ -280,7 +280,7 @@ public abstract class BinaryInputFormat<T extends IOReadableWritable> extends Fi
 
 	/*
 	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.io.InputFormat#nextRecord(eu.stratosphere.pact.common.type.PactRecord)
+	 * @see eu.stratosphere.pact.common.io.InputFormat#nextRecord(eu.stratosphere.pact.common.type.Record)
 	 */
 	@Override
 	public boolean nextRecord(T record) throws IOException {

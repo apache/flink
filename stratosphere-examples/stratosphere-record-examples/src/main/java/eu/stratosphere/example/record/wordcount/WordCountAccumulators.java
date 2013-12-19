@@ -40,9 +40,9 @@ import eu.stratosphere.client.LocalExecutor;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.client.JobExecutionResult;
 import eu.stratosphere.nephele.util.SerializableHashSet;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
+import eu.stratosphere.types.StringValue;
 import eu.stratosphere.types.Value;
 import eu.stratosphere.util.AsciiUtils;
 import eu.stratosphere.util.Collector;
@@ -57,9 +57,9 @@ public class WordCountAccumulators implements Program,
 	public static class TokenizeLine extends MapFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 
-		private final PactRecord outputRecord = new PactRecord();
-		private final PactString word = new PactString();
-		private final PactInteger one = new PactInteger(1);
+		private final Record outputRecord = new Record();
+		private final StringValue word = new StringValue();
+		private final IntValue one = new IntValue(1);
 
 		private final AsciiUtils.WhitespaceTokenizer tokenizer = new AsciiUtils.WhitespaceTokenizer();
 
@@ -74,7 +74,7 @@ public class WordCountAccumulators implements Program,
 		private Histogram wordsPerLine = new Histogram();
 
 		public static final String ACCUM_DISTINCT_WORDS = "accumulator.distinct-words";
-		private SetAccumulator<PactString> distinctWords = new SetAccumulator<PactString>();
+		private SetAccumulator<StringValue> distinctWords = new SetAccumulator<StringValue>();
 
 		@Override
 		public void open(Configuration parameters) throws Exception {
@@ -90,12 +90,12 @@ public class WordCountAccumulators implements Program,
 		}
 
 		@Override
-		public void map(PactRecord record, Collector<PactRecord> collector) {
+		public void map(Record record, Collector<Record> collector) {
 
 			// Increment counter
 			numLines.add(1L);
 
-			PactString line = record.getField(0, PactString.class);
+			StringValue line = record.getField(0, StringValue.class);
 
 			AsciiUtils.replaceNonWordChars(line, ' ');
 			AsciiUtils.toLowerCase(line);
@@ -103,7 +103,7 @@ public class WordCountAccumulators implements Program,
 			this.tokenizer.setStringToTokenize(line);
 			int numWords = 0;
 			while (tokenizer.next(this.word)) {
-				distinctWords.add(new PactString(this.word));
+				distinctWords.add(new StringValue(this.word));
 
 				++numWords;
 				this.outputRecord.setField(0, this.word);
@@ -122,16 +122,16 @@ public class WordCountAccumulators implements Program,
 
 		private static final long serialVersionUID = 1L;
 
-		private final PactInteger cnt = new PactInteger();
+		private final IntValue cnt = new IntValue();
 
 		@Override
-		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out)
+		public void reduce(Iterator<Record> records, Collector<Record> out)
 				throws Exception {
-			PactRecord element = null;
+			Record element = null;
 			int sum = 0;
 			while (records.hasNext()) {
 				element = records.next();
-				PactInteger i = element.getField(1, PactInteger.class);
+				IntValue i = element.getField(1, IntValue.class);
 				sum += i.getValue();
 			}
 
@@ -141,7 +141,7 @@ public class WordCountAccumulators implements Program,
 		}
 
 		@Override
-		public void combine(Iterator<PactRecord> records, Collector<PactRecord> out)
+		public void combine(Iterator<Record> records, Collector<Record> out)
 				throws Exception {
 			reduce(records, out);
 		}
@@ -159,13 +159,13 @@ public class WordCountAccumulators implements Program,
 		MapOperator mapper = MapOperator.builder(new TokenizeLine()).input(source)
 				.name("Tokenize Lines").build();
 		ReduceOperator reducer = ReduceOperator
-				.builder(CountWords.class, PactString.class, 0).input(mapper)
+				.builder(CountWords.class, StringValue.class, 0).input(mapper)
 				.name("Count Words").build();
 		FileDataSink out = new FileDataSink(new CsvOutputFormat(), output,
 				reducer, "Word Counts");
 		CsvOutputFormat.configureRecordFormat(out).recordDelimiter('\n')
-				.fieldDelimiter(' ').field(PactString.class, 0)
-				.field(PactInteger.class, 1);
+				.fieldDelimiter(' ').field(StringValue.class, 0)
+				.field(IntValue.class, 1);
 
 		Plan plan = new Plan(out, "WordCount Example");
 		plan.setDefaultParallelism(numSubTasks);

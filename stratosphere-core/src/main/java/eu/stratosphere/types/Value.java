@@ -18,10 +18,9 @@ import java.io.Serializable;
 import eu.stratosphere.core.io.IOReadableWritable;
 
 /**
- * This interface has to be implemented by all data types that act as values. Values are consumed
- * and produced by user functions (PACT stubs) that run inside PACTs.
+ * Basic value interface for types that act as serializable values.
  * <p>
- * This interface extends {@link eu.stratosphere.nephele.types.Record} and requires to implement
+ * This interface extends {@link IOReadableWritable} and requires to implement
  * the serialization of its value.
  * 
  * @see eu.stratosphere.core.io.IOReadableWritable

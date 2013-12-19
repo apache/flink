@@ -27,11 +27,11 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 
 import eu.stratosphere.nephele.io.AbstractRecordWriter;
-import eu.stratosphere.pact.runtime.shipping.PactRecordOutputCollector;
+import eu.stratosphere.pact.runtime.shipping.RecordOutputCollector;
 import eu.stratosphere.test.testPrograms.util.Tuple;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
+import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
 
 public class LineItemFilterTest {
@@ -39,9 +39,9 @@ public class LineItemFilterTest {
 	private static final String RETURN_FLAG = "N";
 	
 	@Mock
-	AbstractRecordWriter<PactRecord> recordWriterMock; 
+	AbstractRecordWriter<Record> recordWriterMock; 
 	
-	private List<AbstractRecordWriter<PactRecord>> writerList = new ArrayList<AbstractRecordWriter<PactRecord>>();
+	private List<AbstractRecordWriter<Record>> writerList = new ArrayList<AbstractRecordWriter<Record>>();
 	
 	@Before
 	public void setUp()
@@ -57,21 +57,21 @@ public class LineItemFilterTest {
 		
 		String shipDate = "1996-03-13";
 		Tuple input = createInputTuple(shipDate);
-		PactInteger inputKey = new PactInteger();
-		PactRecord rec = new PactRecord();
+		IntValue inputKey = new IntValue();
+		Record rec = new Record();
 		rec.setField(0, inputKey);
 		rec.setField(1, input);
 		
-		Collector<PactRecord> collector = new PactRecordOutputCollector(writerList);
+		Collector<Record> collector = new RecordOutputCollector(writerList);
 		
-		PactString returnFlag = new PactString(RETURN_FLAG);
+		StringValue returnFlag = new StringValue(RETURN_FLAG);
 		
 		out.map(rec, collector);
 		
-		ArgumentCaptor<PactRecord> argument = ArgumentCaptor.forClass(PactRecord.class);
+		ArgumentCaptor<Record> argument = ArgumentCaptor.forClass(Record.class);
 		verify(recordWriterMock).emit(argument.capture());
-		assertEquals(returnFlag, argument.getValue().getField(0, PactString.class));
-		assertEquals(input, argument.getValue().getField(1, PactRecord.class));
+		assertEquals(returnFlag, argument.getValue().getField(0, StringValue.class));
+		assertEquals(input, argument.getValue().getField(1, Record.class));
 	}
 	
 	
@@ -83,12 +83,12 @@ public class LineItemFilterTest {
 		String shipDate = "1999-03-13";
 		
 		Tuple input = createInputTuple(shipDate);
-		PactInteger inputKey = new PactInteger();
-		PactRecord rec = new PactRecord();
+		IntValue inputKey = new IntValue();
+		Record rec = new Record();
 		rec.setField(0, inputKey);
 		rec.setField(1, input);
 		
-		Collector<PactRecord> collector = new PactRecordOutputCollector(writerList);
+		Collector<Record> collector = new RecordOutputCollector(writerList);
 		
 		out.map(rec, collector);
 		verifyNoMoreInteractions(recordWriterMock);
@@ -100,13 +100,13 @@ public class LineItemFilterTest {
 		LineItemFilter out = new LineItemFilter();
 		
 		Tuple input = null;
-		PactInteger inputKey = new PactInteger();
-		PactRecord rec = new PactRecord();
+		IntValue inputKey = new IntValue();
+		Record rec = new Record();
 		rec.setField(0, inputKey);
 		rec.setField(1, input);
 		
 		
-		Collector<PactRecord> collector = new PactRecordOutputCollector(writerList);
+		Collector<Record> collector = new RecordOutputCollector(writerList);
 		
 		out.map(rec, collector);
 		verifyNoMoreInteractions(recordWriterMock);
@@ -120,12 +120,12 @@ public class LineItemFilterTest {
 		String shipDate = "foobarDate";
 		
 		Tuple input = createInputTuple(shipDate);
-		PactInteger inputKey = new PactInteger();
-		PactRecord rec = new PactRecord();
+		IntValue inputKey = new IntValue();
+		Record rec = new Record();
 		rec.setField(0, inputKey);
 		rec.setField(1, input);
 		
-		Collector<PactRecord> collector = new PactRecordOutputCollector(writerList);
+		Collector<Record> collector = new RecordOutputCollector(writerList);
 		
 		out.map(rec, collector);
 		verifyNoMoreInteractions(recordWriterMock);
@@ -149,12 +149,12 @@ public class LineItemFilterTest {
 		input.addAttribute("0");
 		//the relevant column is missing now
 		
-		PactInteger inputKey = new PactInteger();
-		PactRecord rec = new PactRecord();
+		IntValue inputKey = new IntValue();
+		Record rec = new Record();
 		rec.setField(0, inputKey);
 		rec.setField(1, input);
 		
-		Collector<PactRecord> collector = new PactRecordOutputCollector(writerList);
+		Collector<Record> collector = new RecordOutputCollector(writerList);
 		
 		out.map(rec, collector);
 		verifyNoMoreInteractions(recordWriterMock);

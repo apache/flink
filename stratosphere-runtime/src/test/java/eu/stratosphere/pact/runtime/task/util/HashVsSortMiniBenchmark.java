@@ -28,9 +28,9 @@ import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.runtime.hash.BuildFirstHashMatchIterator;
 import eu.stratosphere.pact.runtime.hash.BuildSecondHashMatchIterator;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordComparator;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordPairComparator;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.PactRecordSerializer;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparator;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordPairComparator;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializer;
 import eu.stratosphere.pact.runtime.sort.MergeMatchIterator;
 import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger;
 import eu.stratosphere.pact.runtime.test.util.DiscardingOutputCollector;
@@ -39,7 +39,7 @@ import eu.stratosphere.pact.runtime.test.util.TestData;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.KeyMode;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.ValueMode;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 import eu.stratosphere.util.MutableObjectIterator;
 
@@ -73,21 +73,21 @@ public class HashVsSortMiniBenchmark {
 	private IOManager ioManager;
 	private MemoryManager memoryManager;
 	
-	private TypeSerializer<PactRecord> serializer1;
-	private TypeSerializer<PactRecord> serializer2;
-	private TypeComparator<PactRecord> comparator1;
-	private TypeComparator<PactRecord> comparator2;
-	private TypePairComparator<PactRecord, PactRecord> pairComparator11;
+	private TypeSerializer<Record> serializer1;
+	private TypeSerializer<Record> serializer2;
+	private TypeComparator<Record> comparator1;
+	private TypeComparator<Record> comparator2;
+	private TypePairComparator<Record, Record> pairComparator11;
 
 
 	@SuppressWarnings("unchecked")
 	@Before
 	public void beforeTest() {
-		this.serializer1 = PactRecordSerializer.get();
-		this.serializer2 = PactRecordSerializer.get();
-		this.comparator1 = new PactRecordComparator(new int[] {0}, new Class[] {TestData.Key.class});
-		this.comparator2 = new PactRecordComparator(new int[] {0}, new Class[] {TestData.Key.class});
-		this.pairComparator11 = new PactRecordPairComparator(new int[] {0}, new int[] {0}, new Class[] {TestData.Key.class});
+		this.serializer1 = RecordSerializer.get();
+		this.serializer2 = RecordSerializer.get();
+		this.comparator1 = new RecordComparator(new int[] {0}, new Class[] {TestData.Key.class});
+		this.comparator2 = new RecordComparator(new int[] {0}, new Class[] {TestData.Key.class});
+		this.pairComparator11 = new RecordPairComparator(new int[] {0}, new int[] {0}, new Class[] {TestData.Key.class});
 		
 		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE, PAGE_SIZE);
 		this.ioManager = new IOManager();
@@ -122,24 +122,24 @@ public class HashVsSortMiniBenchmark {
 			final TestData.GeneratorIterator input2 = new TestData.GeneratorIterator(generator2, INPUT_2_SIZE);
 			
 			final JoinFunction matcher = new NoOpMatcher();
-			final Collector<PactRecord> collector = new DiscardingOutputCollector();
+			final Collector<Record> collector = new DiscardingOutputCollector();
 			
 			long start = System.nanoTime();
 			
-			final UnilateralSortMerger<PactRecord> sorter1 = new UnilateralSortMerger<PactRecord>(
+			final UnilateralSortMerger<Record> sorter1 = new UnilateralSortMerger<Record>(
 					this.memoryManager, this.ioManager, input1, this.parentTask, this.serializer1, 
 					this.comparator1.duplicate(), MEMORY_FOR_SORTER, 128, 0.8f);
 			
-			final UnilateralSortMerger<PactRecord> sorter2 = new UnilateralSortMerger<PactRecord>(
+			final UnilateralSortMerger<Record> sorter2 = new UnilateralSortMerger<Record>(
 					this.memoryManager, this.ioManager, input2, this.parentTask, this.serializer2, 
 					this.comparator2.duplicate(), MEMORY_FOR_SORTER, 128, 0.8f);
 			
-			final MutableObjectIterator<PactRecord> sortedInput1 = sorter1.getIterator();
-			final MutableObjectIterator<PactRecord> sortedInput2 = sorter2.getIterator();
+			final MutableObjectIterator<Record> sortedInput1 = sorter1.getIterator();
+			final MutableObjectIterator<Record> sortedInput2 = sorter2.getIterator();
 			
 			// compare with iterator values
-			MergeMatchIterator<PactRecord, PactRecord, PactRecord> iterator = 
-				new MergeMatchIterator<PactRecord, PactRecord, PactRecord>(sortedInput1, sortedInput2, 
+			MergeMatchIterator<Record, Record, Record> iterator = 
+				new MergeMatchIterator<Record, Record, Record>(sortedInput1, sortedInput2, 
 						this.serializer1, this.comparator1, this.serializer2, this.comparator2, this.pairComparator11,
 						this.memoryManager, this.ioManager, MEMORY_PAGES_FOR_MERGE, this.parentTask);
 			
@@ -173,13 +173,13 @@ public class HashVsSortMiniBenchmark {
 			
 			final JoinFunction matcher = new NoOpMatcher();
 			
-			final Collector<PactRecord> collector = new DiscardingOutputCollector();
+			final Collector<Record> collector = new DiscardingOutputCollector();
 			
 			long start = System.nanoTime();
 			
 			// compare with iterator values
-			final BuildFirstHashMatchIterator<PactRecord, PactRecord, PactRecord> iterator = 
-					new BuildFirstHashMatchIterator<PactRecord, PactRecord, PactRecord>(
+			final BuildFirstHashMatchIterator<Record, Record, Record> iterator = 
+					new BuildFirstHashMatchIterator<Record, Record, Record>(
 						input1, input2, this.serializer1, this.comparator1, 
 							this.serializer2, this.comparator2, this.pairComparator11,
 							this.memoryManager, this.ioManager, this.parentTask, MEMORY_SIZE);
@@ -212,13 +212,13 @@ public class HashVsSortMiniBenchmark {
 			
 			final JoinFunction matcher = new NoOpMatcher();
 			
-			final Collector<PactRecord> collector = new DiscardingOutputCollector();
+			final Collector<Record> collector = new DiscardingOutputCollector();
 			
 			long start = System.nanoTime();
 			
 			// compare with iterator values
-			BuildSecondHashMatchIterator<PactRecord, PactRecord, PactRecord> iterator = 
-					new BuildSecondHashMatchIterator<PactRecord, PactRecord, PactRecord>(
+			BuildSecondHashMatchIterator<Record, Record, Record> iterator = 
+					new BuildSecondHashMatchIterator<Record, Record, Record>(
 						input1, input2, this.serializer1, this.comparator1, 
 						this.serializer2, this.comparator2, this.pairComparator11,
 						this.memoryManager, this.ioManager, this.parentTask, MEMORY_SIZE);
@@ -243,6 +243,6 @@ public class HashVsSortMiniBenchmark {
 	
 	private static final class NoOpMatcher extends JoinFunction {
 		@Override
-		public void match(PactRecord rec1, PactRecord rec2, Collector<PactRecord> out) {}
+		public void match(Record rec1, Record rec2, Collector<Record> out) {}
 	}
 }

@@ -25,11 +25,11 @@ import eu.stratosphere.pact.runtime.test.util.DelayingInfinitiveInputIterator;
 import eu.stratosphere.pact.runtime.test.util.DriverTestBase;
 import eu.stratosphere.pact.runtime.test.util.ExpectedTestException;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
-import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.pact.runtime.test.util.UniformRecordGenerator;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
-public class CrossTaskTest extends DriverTestBase<GenericCrosser<PactRecord, PactRecord, PactRecord>>
+public class CrossTaskTest extends DriverTestBase<GenericCrosser<Record, Record, Record>>
 {
 	private static final long CROSS_MEM = 1024 * 1024;
 	
@@ -52,13 +52,13 @@ public class CrossTaskTest extends DriverTestBase<GenericCrosser<PactRecord, Pac
 		
 		setOutput(this.output);
 		
-		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
+		addInput(new UniformRecordGenerator(keyCnt1, valCnt1, false));
+		addInput(new UniformRecordGenerator(keyCnt2, valCnt2, false));
 				
 		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST);
 		getTaskConfig().setMemoryDriver(CROSS_MEM);
 		
-		final CrossDriver<PactRecord, PactRecord, PactRecord> testTask = new CrossDriver<PactRecord, PactRecord, PactRecord>();
+		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<Record, Record, Record>();
 		
 		try {
 			testDriver(testTask, MockCrossStub.class);
@@ -82,13 +82,13 @@ public class CrossTaskTest extends DriverTestBase<GenericCrosser<PactRecord, Pac
 		
 		setOutput(this.output);
 		
-		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
+		addInput(new UniformRecordGenerator(keyCnt1, valCnt1, false));
+		addInput(new UniformRecordGenerator(keyCnt2, valCnt2, false));
 				
 		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_BLOCKED_OUTER_SECOND);
 		getTaskConfig().setMemoryDriver(CROSS_MEM);
 		
-		final CrossDriver<PactRecord, PactRecord, PactRecord> testTask = new CrossDriver<PactRecord, PactRecord, PactRecord>();
+		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<Record, Record, Record>();
 		
 		try {
 			testDriver(testTask, MockCrossStub.class);
@@ -110,13 +110,13 @@ public class CrossTaskTest extends DriverTestBase<GenericCrosser<PactRecord, Pac
 		
 		setOutput(this.output);
 		
-		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
+		addInput(new UniformRecordGenerator(keyCnt1, valCnt1, false));
+		addInput(new UniformRecordGenerator(keyCnt2, valCnt2, false));
 				
 		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST);
 		getTaskConfig().setMemoryDriver(CROSS_MEM);
 		
-		final CrossDriver<PactRecord, PactRecord, PactRecord> testTask = new CrossDriver<PactRecord, PactRecord, PactRecord>();
+		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<Record, Record, Record>();
 		
 		try {
 			testDriver(testTask, MockFailingCrossStub.class);
@@ -140,13 +140,13 @@ public class CrossTaskTest extends DriverTestBase<GenericCrosser<PactRecord, Pac
 		
 		setOutput(this.output);
 		
-		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
+		addInput(new UniformRecordGenerator(keyCnt1, valCnt1, false));
+		addInput(new UniformRecordGenerator(keyCnt2, valCnt2, false));
 				
 		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_BLOCKED_OUTER_SECOND);
 		getTaskConfig().setMemoryDriver(CROSS_MEM);
 		
-		final CrossDriver<PactRecord, PactRecord, PactRecord> testTask = new CrossDriver<PactRecord, PactRecord, PactRecord>();
+		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<Record, Record, Record>();
 		
 		try {
 			testDriver(testTask, MockFailingCrossStub.class);
@@ -171,13 +171,13 @@ public class CrossTaskTest extends DriverTestBase<GenericCrosser<PactRecord, Pac
 		
 		setOutput(this.output);
 		
-		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
+		addInput(new UniformRecordGenerator(keyCnt1, valCnt1, false));
+		addInput(new UniformRecordGenerator(keyCnt2, valCnt2, false));
 				
 		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST);
 		getTaskConfig().setMemoryDriver(CROSS_MEM);
 		
-		final CrossDriver<PactRecord, PactRecord, PactRecord> testTask = new CrossDriver<PactRecord, PactRecord, PactRecord>();
+		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<Record, Record, Record>();
 		
 		try {
 			testDriver(testTask, MockCrossStub.class);
@@ -202,13 +202,13 @@ public class CrossTaskTest extends DriverTestBase<GenericCrosser<PactRecord, Pac
 		
 		setOutput(this.output);
 		
-		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
+		addInput(new UniformRecordGenerator(keyCnt1, valCnt1, false));
+		addInput(new UniformRecordGenerator(keyCnt2, valCnt2, false));
 				
 		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND);
 		getTaskConfig().setMemoryDriver(CROSS_MEM);
 		
-		final CrossDriver<PactRecord, PactRecord, PactRecord> testTask = new CrossDriver<PactRecord, PactRecord, PactRecord>();
+		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<Record, Record, Record>();
 		
 		try {
 			testDriver(testTask, MockCrossStub.class);
@@ -230,13 +230,13 @@ public class CrossTaskTest extends DriverTestBase<GenericCrosser<PactRecord, Pac
 	
 		setOutput(this.output);
 		
-		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
+		addInput(new UniformRecordGenerator(keyCnt1, valCnt1, false));
+		addInput(new UniformRecordGenerator(keyCnt2, valCnt2, false));
 				
 		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST);
 		getTaskConfig().setMemoryDriver(CROSS_MEM);
 		
-		final CrossDriver<PactRecord, PactRecord, PactRecord> testTask = new CrossDriver<PactRecord, PactRecord, PactRecord>();
+		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<Record, Record, Record>();
 		
 		try {
 			testDriver(testTask, MockFailingCrossStub.class);
@@ -259,13 +259,13 @@ public class CrossTaskTest extends DriverTestBase<GenericCrosser<PactRecord, Pac
 	
 		setOutput(this.output);
 		
-		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
+		addInput(new UniformRecordGenerator(keyCnt1, valCnt1, false));
+		addInput(new UniformRecordGenerator(keyCnt2, valCnt2, false));
 				
 		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND);
 		getTaskConfig().setMemoryDriver(CROSS_MEM);
 		
-		final CrossDriver<PactRecord, PactRecord, PactRecord> testTask = new CrossDriver<PactRecord, PactRecord, PactRecord>();
+		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<Record, Record, Record>();
 		
 		try {
 			testDriver(testTask, MockFailingCrossStub.class);
@@ -290,13 +290,13 @@ public class CrossTaskTest extends DriverTestBase<GenericCrosser<PactRecord, Pac
 		
 		setOutput(this.output);
 		
-		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
+		addInput(new UniformRecordGenerator(keyCnt1, valCnt1, false));
+		addInput(new UniformRecordGenerator(keyCnt2, valCnt2, false));
 				
 		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST);
 		getTaskConfig().setMemoryDriver(CROSS_MEM);
 		
-		final CrossDriver<PactRecord, PactRecord, PactRecord> testTask = new CrossDriver<PactRecord, PactRecord, PactRecord>();
+		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<Record, Record, Record>();
 		
 		try {
 			testDriver(testTask, MockCrossStub.class);
@@ -320,13 +320,13 @@ public class CrossTaskTest extends DriverTestBase<GenericCrosser<PactRecord, Pac
 		
 		setOutput(this.output);
 		
-		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
+		addInput(new UniformRecordGenerator(keyCnt1, valCnt1, false));
+		addInput(new UniformRecordGenerator(keyCnt2, valCnt2, false));
 				
 		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND);
 		getTaskConfig().setMemoryDriver(CROSS_MEM);
 		
-		final CrossDriver<PactRecord, PactRecord, PactRecord> testTask = new CrossDriver<PactRecord, PactRecord, PactRecord>();
+		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<Record, Record, Record>();
 		
 		try {
 			testDriver(testTask, MockCrossStub.class);
@@ -350,13 +350,13 @@ public class CrossTaskTest extends DriverTestBase<GenericCrosser<PactRecord, Pac
 		
 		setOutput(this.output);
 		
-		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
+		addInput(new UniformRecordGenerator(keyCnt1, valCnt1, false));
+		addInput(new UniformRecordGenerator(keyCnt2, valCnt2, false));
 				
 		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST);
 		getTaskConfig().setMemoryDriver(CROSS_MEM);
 		
-		final CrossDriver<PactRecord, PactRecord, PactRecord> testTask = new CrossDriver<PactRecord, PactRecord, PactRecord>();
+		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<Record, Record, Record>();
 		
 		try {
 			testDriver(testTask, MockCrossStub.class);
@@ -380,13 +380,13 @@ public class CrossTaskTest extends DriverTestBase<GenericCrosser<PactRecord, Pac
 		
 		setOutput(this.output);
 		
-		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
+		addInput(new UniformRecordGenerator(keyCnt1, valCnt1, false));
+		addInput(new UniformRecordGenerator(keyCnt2, valCnt2, false));
 				
 		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_BLOCKED_OUTER_SECOND);
 		getTaskConfig().setMemoryDriver(CROSS_MEM);
 		
-		final CrossDriver<PactRecord, PactRecord, PactRecord> testTask = new CrossDriver<PactRecord, PactRecord, PactRecord>();
+		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<Record, Record, Record>();
 		
 		try {
 			testDriver(testTask, MockCrossStub.class);
@@ -407,13 +407,13 @@ public class CrossTaskTest extends DriverTestBase<GenericCrosser<PactRecord, Pac
 
 		setOutput(this.output);
 		
-		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
+		addInput(new UniformRecordGenerator(keyCnt, valCnt, false));
 		addInput(new DelayingInfinitiveInputIterator(100));
 		
 		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST);
 		getTaskConfig().setMemoryDriver(CROSS_MEM);
 		
-		final CrossDriver<PactRecord, PactRecord, PactRecord> testTask = new CrossDriver<PactRecord, PactRecord, PactRecord>();
+		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<Record, Record, Record>();
 		
 		final AtomicBoolean success = new AtomicBoolean(false);
 		
@@ -450,13 +450,13 @@ public class CrossTaskTest extends DriverTestBase<GenericCrosser<PactRecord, Pac
 		
 		setOutput(this.output);
 		
-		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
+		addInput(new UniformRecordGenerator(keyCnt, valCnt, false));
 		addInput(new DelayingInfinitiveInputIterator(100));
 		
 		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_BLOCKED_OUTER_SECOND);
 		getTaskConfig().setMemoryDriver(CROSS_MEM);
 		
-		final CrossDriver<PactRecord, PactRecord, PactRecord> testTask = new CrossDriver<PactRecord, PactRecord, PactRecord>();
+		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<Record, Record, Record>();
 		
 		final AtomicBoolean success = new AtomicBoolean(false);
 		
@@ -493,13 +493,13 @@ public class CrossTaskTest extends DriverTestBase<GenericCrosser<PactRecord, Pac
 		
 		setOutput(this.output);
 		
-		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
+		addInput(new UniformRecordGenerator(keyCnt, valCnt, false));
 		addInput(new DelayingInfinitiveInputIterator(100));
 		
 		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST);
 		getTaskConfig().setMemoryDriver(CROSS_MEM);
 		
-		final CrossDriver<PactRecord, PactRecord, PactRecord> testTask = new CrossDriver<PactRecord, PactRecord, PactRecord>();
+		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<Record, Record, Record>();
 		
 		final AtomicBoolean success = new AtomicBoolean(false);
 		
@@ -536,13 +536,13 @@ public class CrossTaskTest extends DriverTestBase<GenericCrosser<PactRecord, Pac
 		
 		setOutput(this.output);
 		
-		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
+		addInput(new UniformRecordGenerator(keyCnt, valCnt, false));
 		addInput(new DelayingInfinitiveInputIterator(100));
 		
 		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND);
 		getTaskConfig().setMemoryDriver(CROSS_MEM);
 		
-		final CrossDriver<PactRecord, PactRecord, PactRecord> testTask = new CrossDriver<PactRecord, PactRecord, PactRecord>();
+		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<Record, Record, Record>();
 		
 		final AtomicBoolean success = new AtomicBoolean(false);
 		
@@ -575,7 +575,7 @@ public class CrossTaskTest extends DriverTestBase<GenericCrosser<PactRecord, Pac
 	public static final class MockCrossStub extends CrossFunction
 	{
 		@Override
-		public void cross(PactRecord record1, PactRecord record2, Collector<PactRecord> out) {
+		public void cross(Record record1, Record record2, Collector<Record> out) {
 			out.collect(record1);
 		}
 	}
@@ -585,7 +585,7 @@ public class CrossTaskTest extends DriverTestBase<GenericCrosser<PactRecord, Pac
 		private int cnt = 0;
 		
 		@Override
-		public void cross(PactRecord record1, PactRecord record2, Collector<PactRecord> out) {
+		public void cross(Record record1, Record record2, Collector<Record> out) {
 			if (++this.cnt >= 10) {
 				throw new ExpectedTestException();
 			}

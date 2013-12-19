@@ -35,7 +35,7 @@ import eu.stratosphere.pact.runtime.test.util.TestData.Key;
 import eu.stratosphere.pact.runtime.test.util.TestData.Value;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.KeyMode;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.ValueMode;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 
 
 /**
@@ -100,7 +100,7 @@ public class SpillingBufferTest
 							new ListMemorySegmentSource(memory), this.memoryManager.getPageSize());
 		
 		// write a number of pairs
-		final PactRecord rec = new PactRecord();
+		final Record rec = new Record();
 		for (int i = 0; i < NUM_PAIRS_INMEM; i++) {
 			generator.next(rec);
 			rec.write(outView);
@@ -111,7 +111,7 @@ public class SpillingBufferTest
 		generator.reset();
 		
 		// read and re-generate all records and compare them
-		final PactRecord readRec = new PactRecord();
+		final Record readRec = new Record();
 		for (int i = 0; i < NUM_PAIRS_INMEM; i++) {
 			generator.next(rec);
 			readRec.read(inView);
@@ -159,7 +159,7 @@ public class SpillingBufferTest
 							new ListMemorySegmentSource(memory), this.memoryManager.getPageSize());
 		
 		// write a number of pairs
-		final PactRecord rec = new PactRecord();
+		final Record rec = new Record();
 		for (int i = 0; i < NUM_PAIRS_INMEM; i++) {
 			generator.next(rec);
 			rec.write(outView);
@@ -170,7 +170,7 @@ public class SpillingBufferTest
 		generator.reset();
 		
 		// read and re-generate all records and compare them
-		final PactRecord readRec = new PactRecord();
+		final Record readRec = new Record();
 		try {
 			for (int i = 0; i < NUM_PAIRS_INMEM + 1; i++) {
 				generator.next(rec);
@@ -226,7 +226,7 @@ public class SpillingBufferTest
 							new ListMemorySegmentSource(memory), this.memoryManager.getPageSize());
 		
 		// write a number of pairs
-		final PactRecord rec = new PactRecord();
+		final Record rec = new Record();
 		for (int i = 0; i < NUM_PAIRS_EXTERNAL; i++) {
 			generator.next(rec);
 			rec.write(outView);
@@ -237,7 +237,7 @@ public class SpillingBufferTest
 		generator.reset();
 		
 		// read and re-generate all records and compare them
-		final PactRecord readRec = new PactRecord();
+		final Record readRec = new Record();
 		for (int i = 0; i < NUM_PAIRS_EXTERNAL; i++) {
 			generator.next(rec);
 			readRec.read(inView);
@@ -285,7 +285,7 @@ public class SpillingBufferTest
 							new ListMemorySegmentSource(memory), this.memoryManager.getPageSize());
 		
 		// write a number of pairs
-		final PactRecord rec = new PactRecord();
+		final Record rec = new Record();
 		for (int i = 0; i < NUM_PAIRS_EXTERNAL; i++) {
 			generator.next(rec);
 			rec.write(outView);
@@ -296,7 +296,7 @@ public class SpillingBufferTest
 		generator.reset();
 		
 		// read and re-generate all records and compare them
-		final PactRecord readRec = new PactRecord();
+		final Record readRec = new Record();
 		try {
 			for (int i = 0; i < NUM_PAIRS_EXTERNAL + 1; i++) {
 				generator.next(rec);

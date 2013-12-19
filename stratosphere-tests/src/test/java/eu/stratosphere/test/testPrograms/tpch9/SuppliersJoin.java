@@ -16,15 +16,15 @@ package eu.stratosphere.test.testPrograms.tpch9;
 
 import eu.stratosphere.api.record.functions.JoinFunction;
 import eu.stratosphere.test.testPrograms.util.Tuple;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactRecord;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
+import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
 
 
 public class SuppliersJoin extends JoinFunction {
 	
-	private PactInteger suppKey = new PactInteger();
+	private IntValue suppKey = new IntValue();
 	private Tuple nationVal = new Tuple();
 	
 	/**
@@ -36,12 +36,12 @@ public class SuppliersJoin extends JoinFunction {
 	 *
 	 */
 	@Override
-	public void match(PactRecord value1, PactRecord value2, Collector<PactRecord> out)
+	public void match(Record value1, Record value2, Collector<Record> out)
 			throws Exception {
 		suppKey = value1.getField(1, suppKey);
 		nationVal = value2.getField(1, nationVal);
 		
-		PactString nationName = new PactString(nationVal.getStringValueAt(1));
+		StringValue nationName = new StringValue(nationVal.getStringValueAt(1));
 		
 		value1.setField(0, suppKey);
 		value1.setField(1, nationName);

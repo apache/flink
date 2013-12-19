@@ -27,12 +27,12 @@ import junit.framework.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import eu.stratosphere.types.PactDouble;
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactList;
-import eu.stratosphere.types.PactMap;
-import eu.stratosphere.types.PactPair;
-import eu.stratosphere.types.PactString;
+import eu.stratosphere.types.DoubleValue;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.ListValue;
+import eu.stratosphere.types.MapValue;
+import eu.stratosphere.types.Pair;
+import eu.stratosphere.types.StringValue;
 
 public class CollectionsDataTypeTest {
 	private DataOutputStream out;
@@ -51,15 +51,15 @@ public class CollectionsDataTypeTest {
 	}
 
 	@Test
-	public void testPactPair() {
+	public void testPair() {
 		NfIntStringPair pair1 = new NfIntStringPair();
 
-		pair1.setFirst(new PactInteger(10));
-		pair1.setSecond(new PactString("This is a string"));
+		pair1.setFirst(new IntValue(10));
+		pair1.setSecond(new StringValue("This is a string"));
 
 		// test data retrieval
-		Assert.assertEquals(pair1.getFirst(), new PactInteger(10));
-		Assert.assertEquals(pair1.getSecond(), new PactString("This is a string"));
+		Assert.assertEquals(pair1.getFirst(), new IntValue(10));
+		Assert.assertEquals(pair1.getSecond(), new StringValue("This is a string"));
 
 		// test serialization
 		try {
@@ -80,20 +80,20 @@ public class CollectionsDataTypeTest {
 		NfIntStringPair pair5 = new NfIntStringPair();
 		NfIntStringPair pair6 = new NfIntStringPair();
 
-		pair2.setFirst(new PactInteger(10));
-		pair2.setSecond(new PactString("This is a string"));
+		pair2.setFirst(new IntValue(10));
+		pair2.setSecond(new StringValue("This is a string"));
 
-		pair3.setFirst(new PactInteger(5));
-		pair3.setSecond(new PactString("This is a string"));
+		pair3.setFirst(new IntValue(5));
+		pair3.setSecond(new StringValue("This is a string"));
 
-		pair4.setFirst(new PactInteger(15));
-		pair4.setSecond(new PactString("This is a string"));
+		pair4.setFirst(new IntValue(15));
+		pair4.setSecond(new StringValue("This is a string"));
 
-		pair5.setFirst(new PactInteger(10));
-		pair5.setSecond(new PactString("This is a strina"));
+		pair5.setFirst(new IntValue(10));
+		pair5.setSecond(new StringValue("This is a strina"));
 
-		pair6.setFirst(new PactInteger(10));
-		pair6.setSecond(new PactString("This is a strinz"));
+		pair6.setFirst(new IntValue(10));
+		pair6.setSecond(new StringValue("This is a strinz"));
 
 		Assert.assertTrue(pair1.compareTo(pair2) == 0);
 		Assert.assertTrue(pair1.compareTo(pair3) > 0);
@@ -109,7 +109,7 @@ public class CollectionsDataTypeTest {
 
 		// test incorrect comparison
 		NfDoubleStringPair mPair7 = new NfDoubleStringPair();
-		mPair7.setFirst(new PactDouble(2.3));
+		mPair7.setFirst(new DoubleValue(2.3));
 
 		try {
 			pair1.compareTo(mPair7);
@@ -154,34 +154,34 @@ public class CollectionsDataTypeTest {
 	@Test
 	public void testPactMap() {
 		NfIntStringMap map0 = new NfIntStringMap();
-		map0.put(new PactInteger(10), new PactString("20"));
+		map0.put(new IntValue(10), new StringValue("20"));
 
 		// test data retrieval
-		for (Entry<PactInteger, PactString> entry : map0.entrySet()) {
-			Assert.assertEquals(entry.getValue(), new PactString("20"));
-			Assert.assertEquals(entry.getKey(), new PactInteger(10));
+		for (Entry<IntValue, StringValue> entry : map0.entrySet()) {
+			Assert.assertEquals(entry.getValue(), new StringValue("20"));
+			Assert.assertEquals(entry.getKey(), new IntValue(10));
 		}
 
 		// test data overwriting
-		map0.put(new PactInteger(10), new PactString("10"));
-		for (Entry<PactInteger, PactString> entry : map0.entrySet()) {
-			Assert.assertEquals(entry.getValue(), new PactString("10"));
-			Assert.assertEquals(entry.getKey(), new PactInteger(10));
+		map0.put(new IntValue(10), new StringValue("10"));
+		for (Entry<IntValue, StringValue> entry : map0.entrySet()) {
+			Assert.assertEquals(entry.getValue(), new StringValue("10"));
+			Assert.assertEquals(entry.getKey(), new IntValue(10));
 		}
 
 		// now test data retrieval of multiple values
-		map0.put(new PactInteger(20), new PactString("20"));
-		map0.put(new PactInteger(30), new PactString("30"));
-		map0.put(new PactInteger(40), new PactString("40"));
+		map0.put(new IntValue(20), new StringValue("20"));
+		map0.put(new IntValue(30), new StringValue("30"));
+		map0.put(new IntValue(40), new StringValue("40"));
 
 		// construct an inverted map
 		NfStringIntMap mapinv = new NfStringIntMap();
-		for (Entry<PactInteger, PactString> entry : map0.entrySet()) {
+		for (Entry<IntValue, StringValue> entry : map0.entrySet()) {
 			Assert.assertEquals(entry.getKey().getValue(), Integer.parseInt(entry.getValue().toString()));
 			mapinv.put(entry.getValue(), entry.getKey());
 		}
 
-		for (Entry<PactString, PactInteger> entry : mapinv.entrySet()) {
+		for (Entry<StringValue, IntValue> entry : mapinv.entrySet()) {
 			Assert.assertEquals(entry.getValue().getValue(), Integer.parseInt(entry.getKey().toString()));
 		}
 
@@ -193,7 +193,7 @@ public class CollectionsDataTypeTest {
 		} catch (Exception e) {
 			Assert.assertTrue(false);
 		}
-		for (Entry<PactInteger, PactString> entry : map0.entrySet()) {
+		for (Entry<IntValue, StringValue> entry : map0.entrySet()) {
 			Assert.assertEquals(entry.getKey().getValue(), Integer.parseInt(entry.getValue().toString()));
 		}
 	}
@@ -201,15 +201,15 @@ public class CollectionsDataTypeTest {
 	@Test
 	public void testPactList() {
 		NfStringList list = new NfStringList();
-		list.add(new PactString("Hello!"));
+		list.add(new StringValue("Hello!"));
 
-		for (PactString value : list) {
-			Assert.assertEquals(value, new PactString("Hello!"));
+		for (StringValue value : list) {
+			Assert.assertEquals(value, new StringValue("Hello!"));
 		}
 
-		list.add(new PactString("Hello2!"));
-		list.add(new PactString("Hello3!"));
-		list.add(new PactString("Hello4!"));
+		list.add(new StringValue("Hello2!"));
+		list.add(new StringValue("Hello3!"));
+		list.add(new StringValue("Hello4!"));
 
 		Assert.assertTrue(list.equals(list));
 
@@ -224,23 +224,23 @@ public class CollectionsDataTypeTest {
 		Assert.assertTrue(list.equals(mList2));
 	}
 
-	private class NfIntStringPair extends PactPair<PactInteger, PactString> {
+	private class NfIntStringPair extends Pair<IntValue, StringValue> {
 		private static final long serialVersionUID = 1L;
 	}
 
-	private class NfDoubleStringPair extends PactPair<PactDouble, PactString> {
+	private class NfDoubleStringPair extends Pair<DoubleValue, StringValue> {
 		private static final long serialVersionUID = 1L;
 	}
 
-	private class NfStringList extends PactList<PactString> {
+	private class NfStringList extends ListValue<StringValue> {
 		private static final long serialVersionUID = 1L;
 	}
 
-	private class NfIntStringMap extends PactMap<PactInteger, PactString> {
+	private class NfIntStringMap extends MapValue<IntValue, StringValue> {
 		private static final long serialVersionUID = 1L;
 	}
 
-	private class NfStringIntMap extends PactMap<PactString, PactInteger> {
+	private class NfStringIntMap extends MapValue<StringValue, IntValue> {
 		private static final long serialVersionUID = 1L;
 	}
 }

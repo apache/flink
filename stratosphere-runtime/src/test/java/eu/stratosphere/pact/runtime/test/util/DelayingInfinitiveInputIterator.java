@@ -13,7 +13,7 @@
 
 package eu.stratosphere.pact.runtime.test.util;
 
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 
 public class DelayingInfinitiveInputIterator extends InfiniteInputIterator
 {
@@ -24,7 +24,7 @@ public class DelayingInfinitiveInputIterator extends InfiniteInputIterator
 	}
 	
 	@Override
-	public boolean next(PactRecord target) {
+	public boolean next(Record target) {
 		try {
 			Thread.sleep(delay);
 		}

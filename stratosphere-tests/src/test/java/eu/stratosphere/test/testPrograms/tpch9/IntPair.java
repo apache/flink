@@ -13,20 +13,20 @@
 
 package eu.stratosphere.test.testPrograms.tpch9;
 
-import eu.stratosphere.types.PactInteger;
-import eu.stratosphere.types.PactPair;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Pair;
 
-public class IntPair extends PactPair<PactInteger, PactInteger> {
+public class IntPair extends Pair<IntValue, IntValue> {
 	private static final long serialVersionUID = 1L;
 	
 	public IntPair() {
 	}
 
-	public IntPair(PactInteger first, PactInteger second) {
+	public IntPair(IntValue first, IntValue second) {
 		super(first, second);
 	}
 
 	public IntPair(int first, int second) {
-		super(new PactInteger(first), new PactInteger(second));
+		super(new IntValue(first), new IntValue(second));
 	}
 }

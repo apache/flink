@@ -17,11 +17,11 @@ import eu.stratosphere.api.typeutils.TypeComparator;
 import eu.stratosphere.api.typeutils.TypePairComparator;
 import eu.stratosphere.api.typeutils.TypePairComparatorFactory;
 import eu.stratosphere.types.Key;
-import eu.stratosphere.types.PactRecord;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.types.Value;
 
 /**
- * A factory for a {@link TypePairComparator} for {@link PactRecord}. The comparator uses a subset of
+ * A factory for a {@link TypePairComparator} for {@link Record}. The comparator uses a subset of
  * the fields for the comparison. That subset of fields (positions and types) is read from the
  * supplied configuration.
  */
@@ -94,12 +94,12 @@ public class ArrayRecordPairComparatorFactory implements TypePairComparatorFacto
 	{
 		if (pos1.length != pos2.length || types1.length != types2.length) {
 			throw new IllegalArgumentException(
-				"The given pair of PactRecordComparators does not operate on the same number of fields.");
+				"The given pair of RecordComparators does not operate on the same number of fields.");
 		}
 		for (int i = 0; i < types1.length; i++) {
 			if (!types1[i].equals(types2[i])) {
 				throw new IllegalArgumentException(
-				"The given pair of PactRecordComparators does not operates on different data types.");
+				"The given pair of RecordComparators does not operates on different data types.");
 			}
 		}
 	}

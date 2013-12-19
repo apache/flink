@@ -25,7 +25,7 @@ import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.testutils.TestConfigUtils;
 import eu.stratosphere.testutils.TestFileSystem;
 import eu.stratosphere.testutils.TestFileUtils;
-import eu.stratosphere.types.PactInteger;
+import eu.stratosphere.types.IntValue;
 import eu.stratosphere.util.LogUtils;
 
 public class DelimitedInputFormatSamplingTest {
@@ -279,11 +279,11 @@ public class DelimitedInputFormatSamplingTest {
 	//  Mocks
 	// ========================================================================
 	
-	private static final class TestDelimitedInputFormat extends DelimitedInputFormat<PactInteger> {
+	private static final class TestDelimitedInputFormat extends DelimitedInputFormat<IntValue> {
 		private static final long serialVersionUID = 1L;
 		
 		@Override
-		public boolean readRecord(PactInteger target, byte[] bytes, int offset, int numBytes) {
+		public boolean readRecord(IntValue target, byte[] bytes, int offset, int numBytes) {
 			throw new UnsupportedOperationException();
 		}
 		
