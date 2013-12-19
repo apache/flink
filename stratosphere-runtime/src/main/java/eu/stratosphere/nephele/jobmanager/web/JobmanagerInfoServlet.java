@@ -30,7 +30,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.eclipse.jetty.io.EofException;
 
-import eu.stratosphere.api.accumulators.AccumulatorHelper;
+import eu.stratosphere.api.common.accumulators.AccumulatorHelper;
 import eu.stratosphere.nephele.event.job.RecentJobEvent;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.jobgraph.JobID;
