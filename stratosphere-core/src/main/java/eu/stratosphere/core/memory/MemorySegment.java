@@ -162,7 +162,7 @@ public class MemorySegment {
 	/**
 	 * Reads the byte at the given position.
 	 * 
-	 * @param position The position from which the byte will be read
+	 * @param index The position from which the byte will be read
 	 * @return The byte at the given position.
 	 * 
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger or equal to the size of
@@ -175,7 +175,7 @@ public class MemorySegment {
 	/**
 	 * Writes the given byte into this buffer at the given position.
 	 * 
-	 * @param position The position at which the byte will be written.
+	 * @param index The index at which the byte will be written.
 	 * @param b The byte value to be written.
 	 * @return This view itself.
 	 * 
@@ -190,7 +190,7 @@ public class MemorySegment {
 	 * Bulk get method. Copies dst.length memory from the specified position to
 	 * the destination memory.
 	 * 
-	 * @param position The position at which the first byte will be read.
+	 * @param index The position at which the first byte will be read.
 	 * @param dst The memory into which the memory will be copied.
 	 * @return This view itself.
 	 * 
@@ -205,7 +205,7 @@ public class MemorySegment {
 	 * Bulk put method. Copies src.length memory from the source memory into the
 	 * memory segment beginning at the specified position.
 	 * 
-	 * @param index The position in the memory segment array, where the data is put.
+	 * @param index The index in the memory segment array, where the data is put.
 	 * @param src The source array to copy the data from.
 	 * @return This random access view itself.
 	 * 
@@ -221,7 +221,7 @@ public class MemorySegment {
 	 * Bulk get method. Copies length memory from the specified position to the
 	 * destination memory, beginning at the given offset
 	 * 
-	 * @param position
+	 * @param index
 	 *        The position at which the first byte will be read.
 	 * @param dst
 	 *        The memory into which the memory will be copied.
@@ -264,7 +264,7 @@ public class MemorySegment {
 	 * Reads one byte at the given position and returns its boolean
 	 * representation.
 	 * 
-	 * @param position The position from which the memory will be read.
+	 * @param index The position from which the memory will be read.
 	 * @return The char value at the given position.
 	 * 
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
@@ -278,7 +278,7 @@ public class MemorySegment {
 	 * Writes one byte containing the byte value into this buffer at the given
 	 * position.
 	 * 
-	 * @param position The position at which the memory will be written.
+	 * @param index The position at which the memory will be written.
 	 * @param value The char value to be written.
 	 * @return This view itself.
 	 * 
@@ -293,7 +293,7 @@ public class MemorySegment {
 	 * Reads two memory at the given position, composing them into a char value
 	 * according to the current byte order.
 	 * 
-	 * @param position The position from which the memory will be read.
+	 * @param index The position from which the memory will be read.
 	 * @return The char value at the given position.
 	 * 
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
@@ -308,7 +308,7 @@ public class MemorySegment {
 	 * Writes two memory containing the given char value, in the current byte
 	 * order, into this buffer at the given position.
 	 * 
-	 * @param position The position at which the memory will be written.
+	 * @param index The position at which the memory will be written.
 	 * @param value The char value to be written.
 	 * @return This view itself.
 	 * 
@@ -324,7 +324,7 @@ public class MemorySegment {
 	 * Reads two memory at the given position, composing them into a short value
 	 * according to the current byte order.
 	 * 
-	 * @param position The position from which the memory will be read.
+	 * @param index The position from which the memory will be read.
 	 * @return The short value at the given position.
 	 * 
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
@@ -340,7 +340,7 @@ public class MemorySegment {
 	 * Writes the given short value into this buffer at the given position, using
 	 * the native byte order of the system.
 	 * 
-	 * @param position The position at which the value will be written.
+	 * @param index The position at which the value will be written.
 	 * @param value The short value to be written.
 	 * 
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
@@ -359,7 +359,7 @@ public class MemorySegment {
 	 * (such as transient storage in memory, or serialization for I/O and network), making this
 	 * method the preferable choice.
 	 * 
-	 * @param position The position from which the value will be read.
+	 * @param index The position from which the value will be read.
 	 * @return The int value at the given position.
 	 * 
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
@@ -386,7 +386,7 @@ public class MemorySegment {
 	 * it suffices to know that the byte order in which the value is written is the same as the
 	 * one in which it is read, and {@link #getInt(int)} is the preferable choice.
 	 * 
-	 * @param position The position from which the value will be read.
+	 * @param index The position from which the value will be read.
 	 * @return The int value at the given position.
 	 * 
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
@@ -408,7 +408,7 @@ public class MemorySegment {
 	 * it suffices to know that the byte order in which the value is written is the same as the
 	 * one in which it is read, and {@link #getInt(int)} is the preferable choice.
 	 * 
-	 * @param position The position from which the value will be read.
+	 * @param index The position from which the value will be read.
 	 * @return The int value at the given position.
 	 * 
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
@@ -430,7 +430,7 @@ public class MemorySegment {
 	 * (such as transient storage in memory, or serialization for I/O and network), making this
 	 * method the preferable choice.
 	 * 
-	 * @param position The position at which the value will be written.
+	 * @param index The position at which the value will be written.
 	 * @param value The int value to be written.
 	 * 
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
@@ -457,7 +457,7 @@ public class MemorySegment {
 	 * it suffices to know that the byte order in which the value is written is the same as the
 	 * one in which it is read, and {@link #putInt(int, int)} is the preferable choice.
 	 * 
-	 * @param position The position at which the value will be written.
+	 * @param index The position at which the value will be written.
 	 * @param value The int value to be written.
 	 * 
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
@@ -479,7 +479,7 @@ public class MemorySegment {
 	 * it suffices to know that the byte order in which the value is written is the same as the
 	 * one in which it is read, and {@link #putInt(int, int)} is the preferable choice.
 	 * 
-	 * @param position The position at which the value will be written.
+	 * @param index The position at which the value will be written.
 	 * @param value The int value to be written.
 	 * 
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
@@ -501,7 +501,7 @@ public class MemorySegment {
 	 * (such as transient storage in memory, or serialization for I/O and network), making this
 	 * method the preferable choice.
 	 * 
-	 * @param position The position from which the value will be read.
+	 * @param index The position from which the value will be read.
 	 * @return The long value at the given position.
 	 * 
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
@@ -528,7 +528,7 @@ public class MemorySegment {
 	 * it suffices to know that the byte order in which the value is written is the same as the
 	 * one in which it is read, and {@link #getLong(int)} is the preferable choice.
 	 * 
-	 * @param position The position from which the value will be read.
+	 * @param index The position from which the value will be read.
 	 * @return The long value at the given position.
 	 * 
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
@@ -550,7 +550,7 @@ public class MemorySegment {
 	 * it suffices to know that the byte order in which the value is written is the same as the
 	 * one in which it is read, and {@link #getLong(int)} is the preferable choice.
 	 * 
-	 * @param position The position from which the value will be read.
+	 * @param index The position from which the value will be read.
 	 * @return The long value at the given position.
 	 * 
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
@@ -572,7 +572,7 @@ public class MemorySegment {
 	 * (such as transient storage in memory, or serialization for I/O and network), making this
 	 * method the preferable choice.
 	 * 
-	 * @param position The position at which the value will be written.
+	 * @param index The position at which the value will be written.
 	 * @param value The long value to be written.
 	 * 
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
@@ -599,7 +599,7 @@ public class MemorySegment {
 	 * it suffices to know that the byte order in which the value is written is the same as the
 	 * one in which it is read, and {@link #putLong(int, long)} is the preferable choice.
 	 * 
-	 * @param position The position at which the value will be written.
+	 * @param index The position at which the value will be written.
 	 * @param value The long value to be written.
 	 * 
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
@@ -621,7 +621,7 @@ public class MemorySegment {
 	 * it suffices to know that the byte order in which the value is written is the same as the
 	 * one in which it is read, and {@link #putLong(int, long)} is the preferable choice.
 	 * 
-	 * @param position The position at which the value will be written.
+	 * @param index The position at which the value will be written.
 	 * @param value The long value to be written.
 	 * 
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
@@ -643,7 +643,7 @@ public class MemorySegment {
 	 * (such as transient storage in memory, or serialization for I/O and network), making this
 	 * method the preferable choice.
 	 * 
-	 * @param position The position from which the value will be read.
+	 * @param index The position from which the value will be read.
 	 * @return The float value at the given position.
 	 * 
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
@@ -661,7 +661,7 @@ public class MemorySegment {
 	 * it suffices to know that the byte order in which the value is written is the same as the
 	 * one in which it is read, and {@link #getFloat(int)} is the preferable choice.
 	 * 
-	 * @param position The position from which the value will be read.
+	 * @param index The position from which the value will be read.
 	 * @return The long value at the given position.
 	 * 
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
@@ -679,7 +679,7 @@ public class MemorySegment {
 	 * it suffices to know that the byte order in which the value is written is the same as the
 	 * one in which it is read, and {@link #getFloat(int)} is the preferable choice.
 	 * 
-	 * @param position The position from which the value will be read.
+	 * @param index The position from which the value will be read.
 	 * @return The long value at the given position.
 	 * 
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
@@ -697,7 +697,7 @@ public class MemorySegment {
 	 * (such as transient storage in memory, or serialization for I/O and network), making this
 	 * method the preferable choice.
 	 * 
-	 * @param position The position at which the value will be written.
+	 * @param index The position at which the value will be written.
 	 * @param value The float value to be written.
 	 * 
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
@@ -715,7 +715,7 @@ public class MemorySegment {
 	 * it suffices to know that the byte order in which the value is written is the same as the
 	 * one in which it is read, and {@link #putFloat(int, float)} is the preferable choice.
 	 * 
-	 * @param position The position at which the value will be written.
+	 * @param index The position at which the value will be written.
 	 * @param value The long value to be written.
 	 * 
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
@@ -733,7 +733,7 @@ public class MemorySegment {
 	 * it suffices to know that the byte order in which the value is written is the same as the
 	 * one in which it is read, and {@link #putFloat(int, float)} is the preferable choice.
 	 * 
-	 * @param position The position at which the value will be written.
+	 * @param index The position at which the value will be written.
 	 * @param value The long value to be written.
 	 * 
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
@@ -751,7 +751,7 @@ public class MemorySegment {
 	 * (such as transient storage in memory, or serialization for I/O and network), making this
 	 * method the preferable choice.
 	 * 
-	 * @param position The position from which the value will be read.
+	 * @param index The position from which the value will be read.
 	 * @return The double value at the given position.
 	 * 
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
@@ -769,7 +769,7 @@ public class MemorySegment {
 	 * it suffices to know that the byte order in which the value is written is the same as the
 	 * one in which it is read, and {@link #getDouble(int)} is the preferable choice.
 	 * 
-	 * @param position The position from which the value will be read.
+	 * @param index The position from which the value will be read.
 	 * @return The long value at the given position.
 	 * 
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
@@ -787,7 +787,7 @@ public class MemorySegment {
 	 * it suffices to know that the byte order in which the value is written is the same as the
 	 * one in which it is read, and {@link #getDouble(int)} is the preferable choice.
 	 * 
-	 * @param position The position from which the value will be read.
+	 * @param index The position from which the value will be read.
 	 * @return The long value at the given position.
 	 * 
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
@@ -805,7 +805,7 @@ public class MemorySegment {
 	 * (such as transient storage in memory, or serialization for I/O and network), making this
 	 * method the preferable choice.
 	 * 
-	 * @param position The position at which the memory will be written.
+	 * @param index The position at which the memory will be written.
 	 * @param value The double value to be written.
 	 * @return This view itself.
 	 * 
@@ -824,7 +824,7 @@ public class MemorySegment {
 	 * it suffices to know that the byte order in which the value is written is the same as the
 	 * one in which it is read, and {@link #putDouble(int, double)} is the preferable choice.
 	 * 
-	 * @param position The position at which the value will be written.
+	 * @param index The position at which the value will be written.
 	 * @param value The long value to be written.
 	 * 
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
@@ -842,7 +842,7 @@ public class MemorySegment {
 	 * it suffices to know that the byte order in which the value is written is the same as the
 	 * one in which it is read, and {@link #putDouble(int, double)} is the preferable choice.
 	 * 
-	 * @param position The position at which the value will be written.
+	 * @param index The position at which the value will be written.
 	 * @param value The long value to be written.
 	 * 
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
