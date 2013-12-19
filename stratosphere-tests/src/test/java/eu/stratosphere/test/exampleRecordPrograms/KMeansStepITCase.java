@@ -27,11 +27,11 @@ import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.operators.GenericDataSink;
-import eu.stratosphere.api.record.operators.CrossOperator;
-import eu.stratosphere.api.record.operators.ReduceOperator;
+import eu.stratosphere.api.java.record.operators.CrossOperator;
+import eu.stratosphere.api.java.record.operators.ReduceOperator;
 import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.example.record.kmeans.KMeansSingleStep;
+import eu.stratosphere.example.java.record.kmeans.KMeansSingleStep;
 import eu.stratosphere.test.util.TestBase2;
 
 @RunWith(Parameterized.class)

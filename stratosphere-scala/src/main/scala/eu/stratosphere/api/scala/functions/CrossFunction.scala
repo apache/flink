@@ -13,7 +13,7 @@
 
 package eu.stratosphere.api.scala.functions
 
-import eu.stratosphere.api.record.functions.{CrossFunction => JCrossFunction}
+import eu.stratosphere.api.java.record.functions.{CrossFunction => JCrossFunction}
 import eu.stratosphere.api.scala.analysis.{UDTSerializer, UDF2, UDT}
 import eu.stratosphere.types.Record
 import eu.stratosphere.util.Collector

@@ -20,9 +20,9 @@ import eu.stratosphere.api.common.Program;
 import eu.stratosphere.api.common.ProgramDescription;
 import eu.stratosphere.api.common.operators.FileDataSink;
 import eu.stratosphere.api.common.operators.FileDataSource;
-import eu.stratosphere.api.record.operators.MapOperator;
-import eu.stratosphere.api.record.operators.JoinOperator;
-import eu.stratosphere.api.record.operators.ReduceOperator;
+import eu.stratosphere.api.java.record.operators.JoinOperator;
+import eu.stratosphere.api.java.record.operators.MapOperator;
+import eu.stratosphere.api.java.record.operators.ReduceOperator;
 import eu.stratosphere.test.testPrograms.util.IntTupleDataInFormat;
 import eu.stratosphere.types.IntValue;
 

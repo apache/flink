@@ -15,7 +15,7 @@ package eu.stratosphere.test.iterative.nephele.danglingpagerank;
 
 import com.google.common.base.Charsets;
 
-import eu.stratosphere.api.record.io.FileOutputFormat;
+import eu.stratosphere.api.java.record.io.FileOutputFormat;
 import eu.stratosphere.types.DoubleValue;
 import eu.stratosphere.types.LongValue;
 import eu.stratosphere.types.Record;

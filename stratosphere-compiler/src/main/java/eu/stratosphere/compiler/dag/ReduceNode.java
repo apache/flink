@@ -20,7 +20,7 @@ import eu.stratosphere.api.common.operators.CompilerHints;
 import eu.stratosphere.api.common.operators.Ordering;
 import eu.stratosphere.api.common.operators.base.ReduceOperatorBase;
 import eu.stratosphere.api.common.operators.util.FieldSet;
-import eu.stratosphere.api.record.operators.ReduceOperator;
+import eu.stratosphere.api.java.record.operators.ReduceOperator;
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;

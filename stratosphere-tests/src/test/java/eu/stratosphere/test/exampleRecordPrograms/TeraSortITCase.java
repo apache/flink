@@ -31,7 +31,7 @@ import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
 import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.example.record.sort.TeraSort;
+import eu.stratosphere.example.java.record.sort.TeraSort;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.test.util.TestBase;
 

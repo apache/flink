@@ -24,7 +24,7 @@ public class TupleGenerator {
 	
 	private static final String ROOT_DIRECTORY = "./src/main/java/";
 	
-	private static final String PACKAGE = "eu.stratosphere.pact.tuple";
+	private static final String PACKAGE = "eu.stratosphere.api.java.tuple";
 	
 	private static final String VALUE_TYPE_FULL = Value.class.getName();
 	

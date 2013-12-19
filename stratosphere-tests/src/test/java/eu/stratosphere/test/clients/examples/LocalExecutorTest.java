@@ -19,7 +19,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import eu.stratosphere.client.LocalExecutor;
-import eu.stratosphere.example.record.wordcount.WordCount;
+import eu.stratosphere.example.java.record.wordcount.WordCount;
 import eu.stratosphere.test.exampleRecordPrograms.WordCountITCase;
 
 

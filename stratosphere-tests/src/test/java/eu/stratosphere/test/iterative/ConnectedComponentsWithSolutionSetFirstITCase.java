@@ -24,18 +24,18 @@ import org.junit.runners.Parameterized.Parameters;
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.operators.FileDataSink;
 import eu.stratosphere.api.common.operators.FileDataSource;
-import eu.stratosphere.api.common.operators.WorksetIteration;
-import eu.stratosphere.api.record.functions.JoinFunction;
-import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFieldsSecondExcept;
-import eu.stratosphere.api.record.io.CsvInputFormat;
-import eu.stratosphere.api.record.io.CsvOutputFormat;
-import eu.stratosphere.api.record.operators.JoinOperator;
-import eu.stratosphere.api.record.operators.MapOperator;
-import eu.stratosphere.api.record.operators.ReduceOperator;
+import eu.stratosphere.api.common.operators.DeltaIteration;
+import eu.stratosphere.api.java.record.functions.JoinFunction;
+import eu.stratosphere.api.java.record.functions.FunctionAnnotation.ConstantFieldsSecondExcept;
+import eu.stratosphere.api.java.record.io.CsvInputFormat;
+import eu.stratosphere.api.java.record.io.CsvOutputFormat;
+import eu.stratosphere.api.java.record.operators.JoinOperator;
+import eu.stratosphere.api.java.record.operators.MapOperator;
+import eu.stratosphere.api.java.record.operators.ReduceOperator;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.example.record.connectedcomponents.WorksetConnectedComponents.DuplicateLongMap;
-import eu.stratosphere.example.record.connectedcomponents.WorksetConnectedComponents.MinimumComponentIDReduce;
-import eu.stratosphere.example.record.connectedcomponents.WorksetConnectedComponents.NeighborWithComponentIDJoin;
+import eu.stratosphere.example.java.record.connectedcomponents.WorksetConnectedComponents.DuplicateLongMap;
+import eu.stratosphere.example.java.record.connectedcomponents.WorksetConnectedComponents.MinimumComponentIDReduce;
+import eu.stratosphere.example.java.record.connectedcomponents.WorksetConnectedComponents.NeighborWithComponentIDJoin;
 import eu.stratosphere.test.iterative.nephele.ConnectedComponentsNepheleITCase;
 import eu.stratosphere.test.util.TestBase2;
 import eu.stratosphere.types.LongValue;
@@ -121,7 +121,7 @@ public class ConnectedComponentsWithSolutionSetFirstITCase extends TestBase2 {
 		
 		MapOperator verticesWithId = MapOperator.builder(DuplicateLongMap.class).input(initialVertices).name("Assign Vertex Ids").build();
 		
-		WorksetIteration iteration = new WorksetIteration(0, "Connected Components Iteration");
+		DeltaIteration iteration = new DeltaIteration(0, "Connected Components Iteration");
 		iteration.setInitialSolutionSet(verticesWithId);
 		iteration.setInitialWorkset(verticesWithId);
 		iteration.setMaximumNumberOfIterations(maxIterations);

@@ -27,7 +27,7 @@ import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.operators.GenericDataSink;
 import eu.stratosphere.api.common.operators.GenericDataSource;
 import eu.stratosphere.api.common.io.OutputFormat;
-import eu.stratosphere.api.record.io.GenericInputFormat;
+import eu.stratosphere.api.java.record.io.GenericInputFormat;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.plan.OptimizedPlan;

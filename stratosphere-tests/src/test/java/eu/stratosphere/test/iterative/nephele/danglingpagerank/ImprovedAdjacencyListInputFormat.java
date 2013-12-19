@@ -13,7 +13,7 @@
 
 package eu.stratosphere.test.iterative.nephele.danglingpagerank;
 
-import eu.stratosphere.api.record.io.TextInputFormat;
+import eu.stratosphere.api.java.record.io.TextInputFormat;
 import eu.stratosphere.types.LongValue;
 import eu.stratosphere.types.Record;
 

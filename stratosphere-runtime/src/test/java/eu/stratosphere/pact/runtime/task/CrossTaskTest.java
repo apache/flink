@@ -20,7 +20,7 @@ import junit.framework.Assert;
 import org.junit.Test;
 
 import eu.stratosphere.api.common.functions.GenericCrosser;
-import eu.stratosphere.api.record.functions.CrossFunction;
+import eu.stratosphere.api.java.record.functions.CrossFunction;
 import eu.stratosphere.pact.runtime.test.util.DelayingInfinitiveInputIterator;
 import eu.stratosphere.pact.runtime.test.util.DriverTestBase;
 import eu.stratosphere.pact.runtime.test.util.ExpectedTestException;

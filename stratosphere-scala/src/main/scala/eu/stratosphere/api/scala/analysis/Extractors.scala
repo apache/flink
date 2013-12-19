@@ -22,18 +22,18 @@ import eu.stratosphere.api.common.operators.Operator
 import eu.stratosphere.api.common.operators.GenericDataSink
 import eu.stratosphere.api.common.operators.DualInputOperator
 import eu.stratosphere.api.common.operators.SingleInputOperator
-import eu.stratosphere.api.record.operators.MapOperator
+import eu.stratosphere.api.java.record.operators.MapOperator
 import eu.stratosphere.api.scala.ScalaOperator
 import eu.stratosphere.api.common.operators.GenericDataSource
 import eu.stratosphere.api.scala.OneInputScalaOperator
 import eu.stratosphere.api.scala.OneInputKeyedScalaOperator
-import eu.stratosphere.api.record.operators.ReduceOperator
-import eu.stratosphere.api.record.operators.CrossOperator
+import eu.stratosphere.api.java.record.operators.ReduceOperator
+import eu.stratosphere.api.java.record.operators.CrossOperator
 import eu.stratosphere.api.scala.TwoInputScalaOperator
-import eu.stratosphere.api.record.operators.JoinOperator
+import eu.stratosphere.api.java.record.operators.JoinOperator
 import eu.stratosphere.api.scala.TwoInputKeyedScalaOperator
-import eu.stratosphere.api.record.operators.CoGroupOperator
-import eu.stratosphere.api.common.operators.WorksetIteration
+import eu.stratosphere.api.java.record.operators.CoGroupOperator
+import eu.stratosphere.api.common.operators.DeltaIteration
 import eu.stratosphere.api.common.operators.BulkIteration
 import eu.stratosphere.api.scala.DeltaIterationScalaOperator
 import eu.stratosphere.api.scala.BulkIterationScalaOperator
@@ -99,9 +99,9 @@ object Extractors {
       case _                                   => None
     }
   }
- object WorksetIterationNode {
+ object DeltaIterationNode {
     def unapply(node: Operator): Option[(UDF0[_], FieldSelector, List[Operator], List[Operator])] = node match {
-        case contract: WorksetIteration with DeltaIterationScalaOperator[_] => Some((contract.getUDF, contract.key, contract.asInstanceOf[DualInputOperator[_]].getFirstInputs().toList, contract.asInstanceOf[DualInputOperator[_]].getSecondInputs().toList))
+        case contract: DeltaIteration with DeltaIterationScalaOperator[_] => Some((contract.getUDF, contract.key, contract.asInstanceOf[DualInputOperator[_]].getFirstInputs().toList, contract.asInstanceOf[DualInputOperator[_]].getSecondInputs().toList))
         case _                                  => None
       }
   }

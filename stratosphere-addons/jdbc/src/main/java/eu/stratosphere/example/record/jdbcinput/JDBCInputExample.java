@@ -23,7 +23,7 @@ import eu.stratosphere.api.common.ProgramDescription;
 import eu.stratosphere.api.common.operators.FileDataSink;
 import eu.stratosphere.api.common.operators.GenericDataSource;
 import eu.stratosphere.api.io.jdbc.JDBCInputFormat;
-import eu.stratosphere.api.record.io.CsvOutputFormat;
+import eu.stratosphere.api.java.record.io.CsvOutputFormat;
 import eu.stratosphere.client.LocalExecutor;
 import eu.stratosphere.nephele.client.JobExecutionResult;
 import eu.stratosphere.types.FloatValue;

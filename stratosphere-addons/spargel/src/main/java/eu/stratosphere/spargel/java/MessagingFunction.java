@@ -48,7 +48,7 @@ public abstract class MessagingFunction<VertexKey extends Key, VertexValue exten
 		return edgeIter;
 	}
 	
-	public void sendMessageToAllTargets(Message m) {
+	public void sendMessageToAllNeighbors(Message m) {
 		if (edgesUsed) {
 			throw new IllegalStateException("Can use either 'getOutgoingEdges()' or 'sendMessageToAllTargets()'.");
 		}
@@ -63,7 +63,7 @@ public abstract class MessagingFunction<VertexKey extends Key, VertexValue exten
 		}
 	}
 	
-	public void sendMessageToTarget(VertexKey target, Message m) {
+	public void sendMessageTo(VertexKey target, Message m) {
 		outValue.setField(0, target);
 		outValue.setField(1, m);
 		out.collect(outValue);
@@ -116,7 +116,6 @@ public abstract class MessagingFunction<VertexKey extends Key, VertexValue exten
 		this.edgesUsed = false;
 	}
 	
-	// serializability
 	private static final long serialVersionUID = 1L;
 	
 	private static final class EdgesIterator<VertexKey extends Key, EdgeValue extends Value> implements Iterator<Edge<VertexKey, EdgeValue>> {

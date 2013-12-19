@@ -21,7 +21,7 @@ import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.example.record.pagerank.DanglingPageRank;
+import eu.stratosphere.example.java.record.pagerank.DanglingPageRank;
 import eu.stratosphere.test.iterative.nephele.DanglingPageRankNepheleITCase;
 import eu.stratosphere.test.util.TestBase2;
 

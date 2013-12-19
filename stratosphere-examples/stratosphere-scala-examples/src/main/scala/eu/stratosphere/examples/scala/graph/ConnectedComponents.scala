@@ -17,7 +17,7 @@ import eu.stratosphere.client.LocalExecutor
 import eu.stratosphere.api.common.Program
 import eu.stratosphere.api.common.ProgramDescription
 import eu.stratosphere.api.scala.analysis.GlobalSchemaPrinter
-import eu.stratosphere.api.common.operators.WorksetIteration
+import eu.stratosphere.api.common.operators.DeltaIteration
 
 import scala.math._
 
@@ -64,7 +64,7 @@ class ConnectedComponents extends Serializable {
       (s1, s1)
     }
 
-    val components = vertices.iterateWithWorkset(vertices, { _._1 }, propagateComponent, maxIterations)
+    val components = vertices.iterateWithDelta(vertices, { _._1 }, propagateComponent, maxIterations)
     val output = components.write(componentsOutput, DelimitedOutputFormat(formatOutput.tupled))
 
     vertices.avgBytesPerRecord(8)

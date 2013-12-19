@@ -20,7 +20,7 @@ import eu.stratosphere.api.common.operators.CompilerHints;
 import eu.stratosphere.api.common.operators.Ordering;
 import eu.stratosphere.api.common.operators.base.CoGroupOperatorBase;
 import eu.stratosphere.api.common.operators.util.FieldSet;
-import eu.stratosphere.api.record.operators.CoGroupOperator;
+import eu.stratosphere.api.java.record.operators.CoGroupOperator;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.operators.CoGroupDescriptor;
 import eu.stratosphere.compiler.operators.CoGroupWithSolutionSetFirstDescriptor;

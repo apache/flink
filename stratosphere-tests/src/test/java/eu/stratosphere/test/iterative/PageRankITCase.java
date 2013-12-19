@@ -21,7 +21,7 @@ import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.example.record.pagerank.SimplePageRank;
+import eu.stratosphere.example.java.record.pagerank.SimplePageRank;
 import eu.stratosphere.test.util.TestBase2;
 
 @RunWith(Parameterized.class)

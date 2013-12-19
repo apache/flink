@@ -15,11 +15,11 @@ package eu.stratosphere.spargel.java;
 import java.io.IOException;
 import java.util.Iterator;
 
-import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFieldsFirst;
 import eu.stratosphere.api.common.operators.Operator;
-import eu.stratosphere.api.common.operators.WorksetIteration;
-import eu.stratosphere.api.record.functions.CoGroupFunction;
-import eu.stratosphere.api.record.operators.CoGroupOperator;
+import eu.stratosphere.api.common.operators.DeltaIteration;
+import eu.stratosphere.api.java.record.functions.CoGroupFunction;
+import eu.stratosphere.api.java.record.functions.FunctionAnnotation.ConstantFieldsFirst;
+import eu.stratosphere.api.java.record.operators.CoGroupOperator;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.spargel.java.util.MessageIterator;
 import eu.stratosphere.types.Key;
@@ -34,7 +34,7 @@ public class SpargelIteration {
 	
 	private static final String DEFAULT_NAME = "<unnamed vertex-centric iteration>";
 	
-	private final WorksetIteration iteration;
+	private final DeltaIteration iteration;
 	
 	private final Class<? extends Key> vertexKey;
 	private final Class<? extends Value> vertexValue;
@@ -70,7 +70,7 @@ public class SpargelIteration {
 		}
 	
 		// instantiate the data flow
-		this.iteration = new WorksetIteration(0, name);
+		this.iteration = new DeltaIteration(0, name);
 		
 		this.messager = CoGroupOperator.builder(MessagingDriver.class, vertexKey, 0, 0)
 			.input2(iteration.getWorkset())

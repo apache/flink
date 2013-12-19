@@ -57,7 +57,7 @@ public abstract class ReduceFunction extends AbstractArrayModelFunction implemen
 	 * prior to the <code>reduce()</code> method, input and output types of the combine method are the input types of
 	 * the <code>reduce()</code> method.
 	 * 
-	 * @see eu.stratosphere.api.record.operators.ReduceOperator.Combinable
+	 * @see eu.stratosphere.api.java.record.operators.ReduceOperator.Combinable
 	 * @param records
 	 *        The records to be combined. Unlike in the reduce method, these are not necessarily all records
 	 *        belonging to the given key.

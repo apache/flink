@@ -34,7 +34,7 @@ import eu.stratosphere.util.MutableObjectIterator;
  * The CoGroupTask group all pairs that share the same key from both inputs. Each for each key, the sets of values that
  * were pair with that key of both inputs are handed to the <code>coGroup()</code> method of the CoGroupFunction.
  * 
- * @see eu.stratosphere.api.record.functions.CoGroupFunction
+ * @see eu.stratosphere.api.java.record.functions.CoGroupFunction
  * @author Stephan Ewen
  */
 public class CoGroupDriver<IT1, IT2, OT> implements PactDriver<GenericCoGrouper<IT1, IT2, OT>, OT>

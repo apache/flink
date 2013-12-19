@@ -13,7 +13,7 @@
 
 package eu.stratosphere.test.testPrograms.tpch9;
 
-import eu.stratosphere.api.record.functions.MapFunction;
+import eu.stratosphere.api.java.record.functions.MapFunction;
 import eu.stratosphere.test.testPrograms.util.Tuple;
 import eu.stratosphere.types.NullValue;
 import eu.stratosphere.types.Record;

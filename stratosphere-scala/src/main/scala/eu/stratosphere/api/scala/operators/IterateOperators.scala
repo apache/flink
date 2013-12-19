@@ -17,10 +17,10 @@ import language.experimental.macros
 import scala.reflect.macros.Context
 import eu.stratosphere.api.scala.codegen.MacroContextHolder
 import eu.stratosphere.api.scala.ScalaOperator
-import eu.stratosphere.api.record.operators.MapOperator
+import eu.stratosphere.api.java.record.operators.MapOperator
 import eu.stratosphere.api.scala.analysis.UDT
 import eu.stratosphere.types.Record
-import eu.stratosphere.api.record.functions.MapFunction
+import eu.stratosphere.api.java.record.functions.MapFunction
 import eu.stratosphere.util.Collector
 import eu.stratosphere.api.common.operators.Operator
 import eu.stratosphere.api.scala.analysis.UDF1
@@ -34,7 +34,7 @@ import eu.stratosphere.api.scala.DeltaIterationScalaOperator
 import eu.stratosphere.api.scala.DataSet
 import eu.stratosphere.api.scala.analysis.FieldSelector
 import eu.stratosphere.api.scala.OutputHintable
-import eu.stratosphere.api.common.operators.WorksetIteration
+import eu.stratosphere.api.common.operators.DeltaIteration
 
 object IterateMacros {
 
@@ -118,7 +118,7 @@ object IterateMacros {
 object WorksetIterateMacros {
 
    
-  def iterateWithWorkset[SolutionItem: c.WeakTypeTag, SolutionKey: c.WeakTypeTag, WorksetItem: c.WeakTypeTag](c: Context { type PrefixType = DataSet[SolutionItem] })(workset: c.Expr[DataSet[WorksetItem]], solutionSetKey: c.Expr[SolutionItem => SolutionKey], stepFunction: c.Expr[(DataSet[SolutionItem], DataSet[WorksetItem]) => (DataSet[SolutionItem], DataSet[WorksetItem])], maxIterations: c.Expr[Int]): c.Expr[DataSet[SolutionItem]] = {
+  def iterateWithDelta[SolutionItem: c.WeakTypeTag, SolutionKey: c.WeakTypeTag, WorksetItem: c.WeakTypeTag](c: Context { type PrefixType = DataSet[SolutionItem] })(workset: c.Expr[DataSet[WorksetItem]], solutionSetKey: c.Expr[SolutionItem => SolutionKey], stepFunction: c.Expr[(DataSet[SolutionItem], DataSet[WorksetItem]) => (DataSet[SolutionItem], DataSet[WorksetItem])], maxIterations: c.Expr[Int]): c.Expr[DataSet[SolutionItem]] = {
     import c.universe._
 
     val slave = MacroContextHolder.newMacroHelper(c)
@@ -137,19 +137,19 @@ object WorksetIterateMacros {
       val keyFields = keySelector.selectedFields
       val keyPositions = keyFields.toIndexArray
 
-      val contract = new WorksetIteration(keyPositions) with DeltaIterationScalaOperator[SolutionItem] {
+      val contract = new DeltaIteration(keyPositions) with DeltaIterationScalaOperator[SolutionItem] {
         override val key = keySelector
         val udf = new UDF0[SolutionItem](solutionUDT)     
         override def getUDF = udf
 
-        private val solutionSetPlaceHolder2 = new WorksetIteration.SolutionSetPlaceHolder(this) with ScalaOperator[SolutionItem] with Serializable {
+        private val solutionSetPlaceHolder2 = new DeltaIteration.SolutionSetPlaceHolder(this) with ScalaOperator[SolutionItem] with Serializable {
           val udf = new UDF0[SolutionItem](solutionUDT)
           override def getUDF = udf
 
         }
         override def getSolutionSet: Operator = solutionSetPlaceHolder2.asInstanceOf[Operator]
         
-        private val worksetPlaceHolder2 = new WorksetIteration.WorksetPlaceHolder(this) with ScalaOperator[WorksetItem] with Serializable {
+        private val worksetPlaceHolder2 = new DeltaIteration.WorksetPlaceHolder(this) with ScalaOperator[WorksetItem] with Serializable {
           val udf = new UDF0[WorksetItem](worksetUDT)
           override def getUDF = udf
 

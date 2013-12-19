@@ -21,7 +21,7 @@ import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.example.record.triangles.EnumTrianglesOnEdgesWithDegrees;
+import eu.stratosphere.example.java.record.triangles.EnumTrianglesOnEdgesWithDegrees;
 import eu.stratosphere.test.util.TestBase2;
 
 @RunWith(Parameterized.class)

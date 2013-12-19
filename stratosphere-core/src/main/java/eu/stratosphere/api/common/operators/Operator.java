@@ -196,16 +196,4 @@ public abstract class Operator implements Visitable<Operator> {
 	public String toString() {
 		return getClass().getSimpleName() + " - " + getName();
 	}
-	
-	// --------------------------------------------------------------------------------------------
-	
-	/**
-	 * Auxiliary Method to swap compiler hints with customized versions. Should not be called by the
-	 * instantiating code.
-	 * 
-	 * @param hints The hints to swap in.
-	 */
-	public void swapCompilerHints(CompilerHints hints) {
-		this.compilerHints = hints;
-	}
 }

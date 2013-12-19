@@ -47,7 +47,7 @@
 
 							<archive>
 								<manifestEntries>
-									<program-class>eu.stratosphere.example.record.connectedcomponents.WorksetConnectedComponents</program-class>
+									<program-class>eu.stratosphere.example.java.record.connectedcomponents.WorksetConnectedComponents</program-class>
 								</manifestEntries>
 							</archive>
 
@@ -69,7 +69,7 @@
 
 							<archive>
 								<manifestEntries>
-									<program-class>eu.stratosphere.example.record.pagerank.DanglingPageRank</program-class>
+									<program-class>eu.stratosphere.example.java.record.pagerank.DanglingPageRank</program-class>
 								</manifestEntries>
 							</archive>
 
@@ -93,7 +93,7 @@
 
 							<archive>
 								<manifestEntries>
-									<program-class>eu.stratosphere.example.record.kmeans.KMeansSingleStep</program-class>
+									<program-class>eu.stratosphere.example.java.record.kmeans.KMeansSingleStep</program-class>
 								</manifestEntries>
 							</archive>
 
@@ -118,7 +118,7 @@
 
 							<archive>
 								<manifestEntries>
-									<program-class>eu.stratosphere.example.record.kmeans.KMeansIterative</program-class>
+									<program-class>eu.stratosphere.example.java.record.kmeans.KMeansIterative</program-class>
 								</manifestEntries>
 							</archive>
 
@@ -142,7 +142,7 @@
 
 							<archive>
 								<manifestEntries>
-									<program-class>eu.stratosphere.example.record.shortestpaths.PairwiseSP</program-class>
+									<program-class>eu.stratosphere.example.java.record.shortestpaths.PairwiseSP</program-class>
 								</manifestEntries>
 							</archive>
 
@@ -165,7 +165,7 @@
 
 							<archive>
 								<manifestEntries>
-									<program-class>eu.stratosphere.example.record.triangles.EnumTrianglesOnEdgesWithDegrees</program-class>
+									<program-class>eu.stratosphere.example.java.record.triangles.EnumTrianglesOnEdgesWithDegrees</program-class>
 								</manifestEntries>
 							</archive>
 
@@ -193,7 +193,7 @@
 
 							<archive>
 								<manifestEntries>
-									<program-class>eu.stratosphere.example.record.triangles.EnumTrianglesWithDegrees</program-class>
+									<program-class>eu.stratosphere.example.java.record.triangles.EnumTrianglesWithDegrees</program-class>
 								</manifestEntries>
 							</archive>
 
@@ -221,7 +221,7 @@
 
 							<archive>
 								<manifestEntries>
-									<program-class>eu.stratosphere.example.record.triangles.EnumTrianglesRdfFoaf</program-class>
+									<program-class>eu.stratosphere.example.java.record.triangles.EnumTrianglesRdfFoaf</program-class>
 								</manifestEntries>
 							</archive>
 
@@ -244,7 +244,7 @@
 
 							<archive>
 								<manifestEntries>
-									<program-class>eu.stratosphere.example.record.relational.TPCHQuery3</program-class>
+									<program-class>eu.stratosphere.example.java.record.relational.TPCHQuery3</program-class>
 								</manifestEntries>
 							</archive>
 
@@ -267,7 +267,7 @@
 
 							<archive>
 								<manifestEntries>
-									<program-class>eu.stratosphere.example.record.relational.WebLogAnalysis</program-class>
+									<program-class>eu.stratosphere.example.java.record.relational.WebLogAnalysis</program-class>
 								</manifestEntries>
 							</archive>
 
@@ -290,7 +290,7 @@
 
 							<archive>
 								<manifestEntries>
-									<program-class>eu.stratosphere.example.record.wordcount.WordCount</program-class>
+									<program-class>eu.stratosphere.example.java.record.wordcount.WordCount</program-class>
 								</manifestEntries>
 							</archive>
 
@@ -312,7 +312,7 @@
 
 							<archive>
 								<manifestEntries>
-									<program-class>eu.stratosphere.example.record.sort.TeraSort</program-class>
+									<program-class>eu.stratosphere.example.java.record.sort.TeraSort</program-class>
 								</manifestEntries>
 							</archive>
 

@@ -27,7 +27,6 @@
 			<excludes>
 				<exclude>eu.stratosphere:stratosphere-java-examples</exclude>
 				<exclude>eu.stratosphere:stratosphere-scala-examples</exclude>
-				<exclude>eu.stratosphere:stratosphere-record-examples</exclude>
 				<!--
 				<exclude>**/*javadoc*</exclude>
 				<exclude>**/*sources*</exclude>
@@ -156,19 +155,6 @@
 			</includes>
 			<excludes>
 				<exclude>stratosphere-scala-examples-${project.version}.jar</exclude>
-			</excludes>
-		</fileSet>
-
-		<fileSet>
-			<!-- copy jar files of examples -->
-			<directory>../stratosphere-examples/stratosphere-record-examples/target</directory>
-			<outputDirectory>examples</outputDirectory>
-			<fileMode>0644</fileMode>
-			<includes>
-				<include>*.jar</include>
-			</includes>
-			<excludes>
-				<exclude>stratosphere-record-examples-${project.version}.jar</exclude>
 			</excludes>
 		</fileSet>
 

@@ -15,7 +15,7 @@ package eu.stratosphere.compiler.dag;
 
 import java.util.Collections;
 
-import eu.stratosphere.api.common.operators.WorksetIteration.WorksetPlaceHolder;
+import eu.stratosphere.api.common.operators.DeltaIteration.WorksetPlaceHolder;
 import eu.stratosphere.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.compiler.plan.PlanNode;

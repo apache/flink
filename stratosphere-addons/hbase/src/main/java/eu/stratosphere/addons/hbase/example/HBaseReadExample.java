@@ -30,7 +30,7 @@ import eu.stratosphere.api.common.Program;
 import eu.stratosphere.api.common.ProgramDescription;
 import eu.stratosphere.api.common.operators.FileDataSink;
 import eu.stratosphere.api.common.operators.GenericDataSource;
-import eu.stratosphere.api.record.io.CsvOutputFormat;
+import eu.stratosphere.api.java.record.io.CsvOutputFormat;
 
 /**
  * Implements a word count which takes the input file and counts the number of

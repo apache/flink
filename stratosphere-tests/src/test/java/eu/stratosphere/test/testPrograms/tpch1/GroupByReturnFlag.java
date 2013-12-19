@@ -15,7 +15,7 @@ package eu.stratosphere.test.testPrograms.tpch1;
 
 import java.util.Iterator;
 
-import eu.stratosphere.api.record.functions.ReduceFunction;
+import eu.stratosphere.api.java.record.functions.ReduceFunction;
 import eu.stratosphere.test.testPrograms.util.Tuple;
 import eu.stratosphere.types.LongValue;
 import eu.stratosphere.types.Record;

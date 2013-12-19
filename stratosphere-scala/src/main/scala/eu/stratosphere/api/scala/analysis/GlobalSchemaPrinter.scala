@@ -29,7 +29,7 @@ import eu.stratosphere.api.common.operators.Operator
 import eu.stratosphere.api.common.operators.DualInputOperator
 import eu.stratosphere.api.common.operators.SingleInputOperator
 import eu.stratosphere.api.common.operators.BulkIteration
-import eu.stratosphere.api.common.operators.WorksetIteration
+import eu.stratosphere.api.common.operators.DeltaIteration
 import org.apache.commons.logging.{LogFactory, Log}
 
 object GlobalSchemaPrinter {
@@ -55,7 +55,7 @@ object GlobalSchemaPrinter {
 
         val children = node match {
           case bi: BulkIteration => bi.getInputs().toList :+ bi.getNextPartialSolution()
-          case wi: WorksetIteration => wi.getInitialSolutionSet().toList ++ wi.getInitialWorkset().toList :+ wi.getSolutionSetDelta() :+ wi.getNextWorkset()
+          case wi: DeltaIteration => wi.getInitialSolutionSet().toList ++ wi.getInitialWorkset().toList :+ wi.getSolutionSetDelta() :+ wi.getNextWorkset()
           case si : SingleInputOperator[_] => si.getInputs().toList
           case di : DualInputOperator[_] => di.getFirstInputs().toList ++ di.getSecondInputs().toList
           case gds : GenericDataSink => gds.getInputs().toList
@@ -66,8 +66,8 @@ object GlobalSchemaPrinter {
         node match {
           
           case _ : BulkIteration.PartialSolutionPlaceHolder =>
-          case _ : WorksetIteration.SolutionSetPlaceHolder => 
-          case _ : WorksetIteration.WorksetPlaceHolder =>
+          case _ : DeltaIteration.SolutionSetPlaceHolder => 
+          case _ : DeltaIteration.WorksetPlaceHolder =>
 
           case DataSinkNode(udf, input) => {
             printInfo(node, "Sink",
@@ -160,7 +160,7 @@ object GlobalSchemaPrinter {
               udf.outputFields
             )
           }
-          case WorksetIterationNode(udf, key, input1, input2) => {
+          case DeltaIterationNode(udf, key, input1, input2) => {
 
             printInfo(node, "WorksetIterate",
               Seq(("", key)),

@@ -22,7 +22,7 @@ import org.junit.Test;
 
 import eu.stratosphere.api.common.functions.GenericMapper;
 import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
-import eu.stratosphere.api.record.functions.ReduceFunction;
+import eu.stratosphere.api.java.record.functions.ReduceFunction;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparatorFactory;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializerFactory;

@@ -14,7 +14,7 @@ package eu.stratosphere.compiler.util;
 
 import eu.stratosphere.api.common.operators.DualInputOperator;
 import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
-import eu.stratosphere.api.record.operators.RecordOperator;
+import eu.stratosphere.api.java.record.operators.RecordOperator;
 import eu.stratosphere.types.Key;
 
 

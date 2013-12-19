@@ -15,7 +15,6 @@ package eu.stratosphere.arraymodel.example;
 
 import java.util.Iterator;
 
-import eu.stratosphere.api.record.functions.FunctionAnnotation.ConstantFields;
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.Program;
 import eu.stratosphere.api.common.ProgramDescription;
@@ -24,7 +23,8 @@ import eu.stratosphere.api.common.operators.FileDataSource;
 import eu.stratosphere.api.common.operators.base.MapOperatorBase;
 import eu.stratosphere.api.common.operators.base.ReduceOperatorBase;
 import eu.stratosphere.api.common.operators.base.ReduceOperatorBase.Combinable;
-import eu.stratosphere.api.record.io.TextInputFormat;
+import eu.stratosphere.api.java.record.functions.FunctionAnnotation.ConstantFields;
+import eu.stratosphere.api.java.record.io.TextInputFormat;
 import eu.stratosphere.arraymodel.ArrayModelPlan;
 import eu.stratosphere.arraymodel.functions.DataTypes;
 import eu.stratosphere.arraymodel.functions.MapFunction;

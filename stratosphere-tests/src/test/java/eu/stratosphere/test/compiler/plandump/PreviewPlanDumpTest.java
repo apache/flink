@@ -24,12 +24,12 @@ import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.dag.DataSinkNode;
 import eu.stratosphere.compiler.plandump.PlanJSONDumpGenerator;
-import eu.stratosphere.example.record.connectedcomponents.WorksetConnectedComponents;
-import eu.stratosphere.example.record.kmeans.KMeansIterative;
-import eu.stratosphere.example.record.kmeans.KMeansSingleStep;
-import eu.stratosphere.example.record.relational.TPCHQuery3;
-import eu.stratosphere.example.record.relational.WebLogAnalysis;
-import eu.stratosphere.example.record.wordcount.WordCount;
+import eu.stratosphere.example.java.record.connectedcomponents.WorksetConnectedComponents;
+import eu.stratosphere.example.java.record.kmeans.KMeansIterative;
+import eu.stratosphere.example.java.record.kmeans.KMeansSingleStep;
+import eu.stratosphere.example.java.record.relational.TPCHQuery3;
+import eu.stratosphere.example.java.record.relational.WebLogAnalysis;
+import eu.stratosphere.example.java.record.wordcount.WordCount;
 import eu.stratosphere.util.OperatingSystem;
 
 /*

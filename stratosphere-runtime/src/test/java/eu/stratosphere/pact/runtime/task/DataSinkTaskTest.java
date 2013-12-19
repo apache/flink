@@ -29,7 +29,7 @@ import org.apache.commons.logging.LogFactory;
 import org.junit.After;
 import org.junit.Test;
 
-import eu.stratosphere.api.record.io.DelimitedOutputFormat;
+import eu.stratosphere.api.java.record.io.DelimitedOutputFormat;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparatorFactory;

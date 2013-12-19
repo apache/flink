@@ -33,7 +33,7 @@ import eu.stratosphere.util.MutableObjectIterator;
  * The CrossTask builds the Cartesian product of the pairs of its two inputs. Each element (pair of pairs) is handed to
  * the <code>cross()</code> method of the CrossFunction.
  * 
- * @see eu.stratosphere.api.record.functions.CrossFunction
+ * @see eu.stratosphere.api.java.record.functions.CrossFunction
  * 
  * @author Stephan Ewen
  * @author Fabian Hueske

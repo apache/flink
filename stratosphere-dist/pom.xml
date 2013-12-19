@@ -86,6 +86,7 @@
 				<!-- No extra dependencies: pact-hbase is currently not compatible with Hadoop v1 -->
 			</dependencies>
 		</profile>
+		
 		<profile>
 			<id>include-yarn</id>
 			<activation>
@@ -102,33 +103,34 @@
 				</dependency>
 			</dependencies>
 			<build>
-			<plugins>
-			    <plugin>
-			      <artifactId>maven-assembly-plugin</artifactId>
-			      <version>2.4</version>
-			         <executions>
-				      <execution>
-				      	<id>single-jar</id>
-				        <phase>package</phase>
-				        <goals>
-				          <goal>single</goal>
-				        </goals>
-				        <configuration>
-					        <archive>
-					          <manifest>
-					            <mainClass>eu.stratosphere.yarn.Client</mainClass>
-					          </manifest>
-					        </archive>
-							<descriptors>
-								<descriptor>src/main/assemblies/yarn-uberjar.xml</descriptor>
-							</descriptors>
-						 </configuration>
-				      </execution>
-				    </executions>
-			    </plugin>
-			  </plugins>
-			 </build>
+				<plugins>
+					<plugin>
+						<artifactId>maven-assembly-plugin</artifactId>
+						<version>2.4</version>
+						<executions>
+							<execution>
+								<id>single-jar</id>
+								<phase>package</phase>
+								<goals>
+									<goal>single</goal>
+								</goals>
+								<configuration>
+									<archive>
+										<manifest>
+											<mainClass>eu.stratosphere.yarn.Client</mainClass>
+										</manifest>
+									</archive>
+									<descriptors>
+										<descriptor>src/main/assemblies/yarn-uberjar.xml</descriptor>
+									</descriptors>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
 		</profile>
+		
 		<profile>
 			<id>hadoop-2</id>
 			<activation>
@@ -145,6 +147,7 @@
 				</dependency>
 			</dependencies>
 		</profile>
+		
 		<profile>
 			<id>debian-package</id>
 			<build>
@@ -284,6 +287,7 @@
 			</build>
 		</profile>
 	</profiles>
+	
 	<build>
 		<plugins>
 			<plugin>

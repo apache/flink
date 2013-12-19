@@ -14,10 +14,10 @@
 package eu.stratosphere.api.scala.operators
 
 import eu.stratosphere.api.scala.ScalaOperator
-import eu.stratosphere.api.record.operators.MapOperator
+import eu.stratosphere.api.java.record.operators.MapOperator
 import eu.stratosphere.api.scala.analysis.UDT
 import eu.stratosphere.types.Record
-import eu.stratosphere.api.record.functions.MapFunction
+import eu.stratosphere.api.java.record.functions.MapFunction
 import eu.stratosphere.util.Collector
 import eu.stratosphere.api.common.operators.Operator
 import eu.stratosphere.api.scala.OneInputScalaOperator

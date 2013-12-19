@@ -13,7 +13,7 @@
 
 package eu.stratosphere.test.testPrograms.util;
 
-import eu.stratosphere.api.record.io.DelimitedInputFormat;
+import eu.stratosphere.api.java.record.io.DelimitedInputFormat;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.Record;
 

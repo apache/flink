@@ -21,11 +21,11 @@ import scala.reflect.macros.Context
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.util.Collector
 import eu.stratosphere.api.common.operators.Operator
-import eu.stratosphere.api.record.operators.MapOperator
+import eu.stratosphere.api.java.record.operators.MapOperator
 import eu.stratosphere.types.Record
 import eu.stratosphere.types.IntValue
-import eu.stratosphere.api.record.operators.ReduceOperator
-import eu.stratosphere.api.record.functions.{ReduceFunction => JReduceFunction}
+import eu.stratosphere.api.java.record.operators.ReduceOperator
+import eu.stratosphere.api.java.record.functions.{ReduceFunction => JReduceFunction}
 
 import eu.stratosphere.api.scala._
 import eu.stratosphere.api.scala.analysis._

@@ -18,8 +18,8 @@ import java.io.IOException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.api.record.io.DelimitedInputFormat;
-import eu.stratosphere.api.record.io.FileOutputFormat;
+import eu.stratosphere.api.java.record.io.DelimitedInputFormat;
+import eu.stratosphere.api.java.record.io.FileOutputFormat;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;

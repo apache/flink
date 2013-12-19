@@ -26,7 +26,7 @@ import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.common.operators.util.FieldSet;
 import eu.stratosphere.api.common.io.InputFormat;
 import eu.stratosphere.api.common.io.UnsplittableInput;
-import eu.stratosphere.api.record.io.FileInputFormat;
+import eu.stratosphere.api.java.record.io.FileInputFormat;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.costs.CostEstimator;

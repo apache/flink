@@ -23,19 +23,19 @@ import eu.stratosphere.api.scala.analysis.FieldSet.toSeq
 import eu.stratosphere.api.scala.ScalaOperator
 import eu.stratosphere.api.common.operators.FileDataSink
 import eu.stratosphere.api.common.operators.GenericDataSource
-import eu.stratosphere.api.record.operators.MapOperator
+import eu.stratosphere.api.java.record.operators.MapOperator
 import eu.stratosphere.api.scala.OneInputScalaOperator
-import eu.stratosphere.api.record.operators.ReduceOperator
+import eu.stratosphere.api.java.record.operators.ReduceOperator
 import eu.stratosphere.api.scala.OneInputKeyedScalaOperator
-import eu.stratosphere.api.record.operators.CrossOperator
+import eu.stratosphere.api.java.record.operators.CrossOperator
 import eu.stratosphere.api.scala.TwoInputScalaOperator
-import eu.stratosphere.api.record.operators.JoinOperator
+import eu.stratosphere.api.java.record.operators.JoinOperator
 import eu.stratosphere.api.scala.TwoInputKeyedScalaOperator
-import eu.stratosphere.api.record.operators.CoGroupOperator
+import eu.stratosphere.api.java.record.operators.CoGroupOperator
 import eu.stratosphere.api.scala.UnionScalaOperator
 import eu.stratosphere.api.common.operators.BulkIteration
 import eu.stratosphere.api.scala.BulkIterationScalaOperator
-import eu.stratosphere.api.common.operators.WorksetIteration
+import eu.stratosphere.api.common.operators.DeltaIteration
 import eu.stratosphere.api.scala.DeltaIterationScalaOperator
 import eu.stratosphere.api.common.operators.GenericDataSink
 
@@ -106,7 +106,7 @@ class GlobalSchemaGenerator {
         freePos3
       }
 
-      case contract : WorksetIteration with DeltaIterationScalaOperator[_] => {
+      case contract : DeltaIteration with DeltaIterationScalaOperator[_] => {
 //      case contract @ WorksetIterate4sContract(s0, ws0, deltaS, newWS, placeholderS, placeholderWS) => {
         val s0 = contract.getInitialSolutionSet.get(0)
         val ws0 = contract.getInitialWorkset.get(0)

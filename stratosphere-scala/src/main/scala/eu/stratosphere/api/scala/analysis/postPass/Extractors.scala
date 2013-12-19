@@ -13,13 +13,13 @@
 
 package eu.stratosphere.api.scala.analysis.postPass
 
-import eu.stratosphere.api.record.operators.CoGroupOperator
-import eu.stratosphere.api.record.operators.CrossOperator
+import eu.stratosphere.api.java.record.operators.CoGroupOperator
+import eu.stratosphere.api.java.record.operators.CrossOperator
 import eu.stratosphere.api.common.operators.GenericDataSink
 import eu.stratosphere.api.common.operators.GenericDataSource
-import eu.stratosphere.api.record.operators.MapOperator
-import eu.stratosphere.api.record.operators.JoinOperator
-import eu.stratosphere.api.record.operators.ReduceOperator
+import eu.stratosphere.api.java.record.operators.MapOperator
+import eu.stratosphere.api.java.record.operators.JoinOperator
+import eu.stratosphere.api.java.record.operators.ReduceOperator
 import eu.stratosphere.compiler.dag.BinaryUnionNode
 import eu.stratosphere.compiler.dag.BulkIterationNode
 import eu.stratosphere.compiler.dag.CoGroupNode
@@ -33,7 +33,7 @@ import eu.stratosphere.compiler.dag.PactConnection
 import eu.stratosphere.compiler.dag.ReduceNode
 import eu.stratosphere.compiler.dag.SinkJoiner
 import eu.stratosphere.compiler.dag.WorksetIterationNode
-import eu.stratosphere.api.common.operators.WorksetIteration
+import eu.stratosphere.api.common.operators.DeltaIteration
 import eu.stratosphere.api.scala.ScalaOperator
 import eu.stratosphere.api.scala.OneInputScalaOperator
 import eu.stratosphere.api.scala.OneInputKeyedScalaOperator
@@ -142,10 +142,10 @@ object Extractors {
       case _ => None
     }
   }
-  object WorksetIterationNode {
+  object DeltaIterationNode {
     def unapply(node: OptimizerNode): Option[(UDF0[_], FieldSelector, PactConnection, PactConnection)] = node match {
       case node: WorksetIterationNode => node.getPactContract match {
-        case contract: WorksetIteration with DeltaIterationScalaOperator[_] => Some((contract.getUDF, contract.key, node.getFirstIncomingConnection(), node.getSecondIncomingConnection()))
+        case contract: DeltaIteration with DeltaIterationScalaOperator[_] => Some((contract.getUDF, contract.key, node.getFirstIncomingConnection(), node.getSecondIncomingConnection()))
         case _                                  => None
       }
       case _ => None

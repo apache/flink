@@ -13,7 +13,7 @@
 
 package eu.stratosphere.spargel.java.examples.connectedcomponents;
 
-import eu.stratosphere.api.record.io.TextInputFormat;
+import eu.stratosphere.api.java.record.io.TextInputFormat;
 import eu.stratosphere.types.LongValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.parser.DecimalTextLongParser;

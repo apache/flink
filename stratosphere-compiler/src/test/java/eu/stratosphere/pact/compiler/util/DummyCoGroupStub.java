@@ -16,7 +16,7 @@ package eu.stratosphere.pact.compiler.util;
 import java.io.Serializable;
 import java.util.Iterator;
 
-import eu.stratosphere.api.record.functions.CoGroupFunction;
+import eu.stratosphere.api.java.record.functions.CoGroupFunction;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 

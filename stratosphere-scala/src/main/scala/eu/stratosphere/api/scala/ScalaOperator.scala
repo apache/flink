@@ -22,7 +22,7 @@ import eu.stratosphere.api.scala.analysis.FieldSelector
 import eu.stratosphere.compiler.dag.OptimizerNode
 import eu.stratosphere.api.common.operators.AbstractUdfOperator
 import eu.stratosphere.api.scala.analysis.UDF0
-import eu.stratosphere.api.record.functions.FunctionAnnotation
+import eu.stratosphere.api.java.record.functions.FunctionAnnotation
 
 trait ScalaOperator[T] { this: Operator =>
   def getUDF(): UDF[T]

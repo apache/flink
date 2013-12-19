@@ -19,7 +19,8 @@ import eu.stratosphere.api.common.Program;
 import eu.stratosphere.api.common.ProgramDescription;
 import eu.stratosphere.api.common.operators.FileDataSink;
 import eu.stratosphere.api.common.operators.FileDataSource;
-import eu.stratosphere.api.record.io.CsvOutputFormat;
+import eu.stratosphere.api.java.record.io.CsvInputFormat;
+import eu.stratosphere.api.java.record.io.CsvOutputFormat;
 import eu.stratosphere.client.LocalExecutor;
 import eu.stratosphere.spargel.java.MessagingFunction;
 import eu.stratosphere.spargel.java.SpargelIteration;
@@ -33,6 +34,7 @@ public class SpargelConnectedComponents implements Program, ProgramDescription {
 		LocalExecutor.execute(new SpargelConnectedComponents(), args);
 	}
 	
+	@SuppressWarnings("unchecked")
 	@Override
 	public Plan getPlan(String... args) {
 		final int dop = args.length > 0 ? Integer.parseInt(args[0]) : 1;
@@ -42,7 +44,8 @@ public class SpargelConnectedComponents implements Program, ProgramDescription {
 		final int maxIterations = args.length > 4 ? Integer.parseInt(args[4]) : 1;
 		
 		FileDataSource initialVertices = new FileDataSource(DuplicateLongInputFormat.class, verticesPath, "Vertices");
-		FileDataSource edges = new FileDataSource(LongLongInputFormat.class, edgesPath, "Edges");
+		FileDataSource edges = new FileDataSource(new CsvInputFormat(' ', LongValue.class, LongValue.class), edgesPath, "Edges");
+		
 		// create DataSinkContract for writing the new cluster positions
 		FileDataSink result = new FileDataSink(CsvOutputFormat.class, resultPath, "Result");
 		CsvOutputFormat.configureRecordFormat(result)
@@ -88,8 +91,8 @@ public class SpargelConnectedComponents implements Program, ProgramDescription {
 
 		@Override
 		public void sendMessages(LongValue vertexId, LongValue componentId) {
-			sendMessageToAllTargets(componentId);
-        }
+			sendMessageToAllNeighbors(componentId);
+		}
 
 	}
 

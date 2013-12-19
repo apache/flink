@@ -24,11 +24,11 @@ import org.junit.Test;
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.operators.FileDataSink;
 import eu.stratosphere.api.common.operators.FileDataSource;
-import eu.stratosphere.api.common.operators.WorksetIteration;
+import eu.stratosphere.api.common.operators.DeltaIteration;
 import eu.stratosphere.api.common.operators.util.FieldList;
-import eu.stratosphere.api.record.operators.MapOperator;
-import eu.stratosphere.api.record.operators.JoinOperator;
-import eu.stratosphere.api.record.operators.ReduceOperator;
+import eu.stratosphere.api.java.record.operators.JoinOperator;
+import eu.stratosphere.api.java.record.operators.MapOperator;
+import eu.stratosphere.api.java.record.operators.ReduceOperator;
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.plan.DualInputPlanNode;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
@@ -197,7 +197,7 @@ public class WorksetIterationsCompilerTest extends CompilerTestBase {
 		
 		FileDataSource invariantInput = new FileDataSource(new DummyInputFormat(), IN_FILE, "Invariant Input");
 		
-		WorksetIteration iteration = new WorksetIteration(0, ITERATION_NAME);
+		DeltaIteration iteration = new DeltaIteration(0, ITERATION_NAME);
 		iteration.setInitialSolutionSet(solutionSetInput);
 		iteration.setInitialWorkset(worksetInput);
 		iteration.setMaximumNumberOfIterations(100);

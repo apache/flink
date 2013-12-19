@@ -49,7 +49,7 @@ class TransitiveClosureRD extends Serializable {
 
       (c1, x1)
     }
-    val transitiveClosure = vertices.iterateWithWorkset(edges, { p => (p.from, p.to) }, createClosure, 10)
+    val transitiveClosure = vertices.iterateWithDelta(edges, { p => (p.from, p.to) }, createClosure, 10)
 
     val output = transitiveClosure.write(pathsOutput, DelimitedOutputFormat(formatOutput))
 

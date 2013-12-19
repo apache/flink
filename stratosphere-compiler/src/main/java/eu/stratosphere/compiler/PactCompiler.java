@@ -33,10 +33,10 @@ import eu.stratosphere.api.common.operators.BulkIteration;
 import eu.stratosphere.api.common.operators.GenericDataSink;
 import eu.stratosphere.api.common.operators.GenericDataSource;
 import eu.stratosphere.api.common.operators.Operator;
-import eu.stratosphere.api.common.operators.WorksetIteration;
+import eu.stratosphere.api.common.operators.DeltaIteration;
 import eu.stratosphere.api.common.operators.BulkIteration.PartialSolutionPlaceHolder;
-import eu.stratosphere.api.common.operators.WorksetIteration.SolutionSetPlaceHolder;
-import eu.stratosphere.api.common.operators.WorksetIteration.WorksetPlaceHolder;
+import eu.stratosphere.api.common.operators.DeltaIteration.SolutionSetPlaceHolder;
+import eu.stratosphere.api.common.operators.DeltaIteration.WorksetPlaceHolder;
 import eu.stratosphere.api.common.operators.base.CoGroupOperatorBase;
 import eu.stratosphere.api.common.operators.base.CrossOperatorBase;
 import eu.stratosphere.api.common.operators.base.JoinOperatorBase;
@@ -847,8 +847,8 @@ public class PactCompiler {
 			else if (c instanceof BulkIteration) {
 				n = new BulkIterationNode((BulkIteration) c);
 			}
-			else if (c instanceof WorksetIteration) {
-				n = new WorksetIterationNode((WorksetIteration) c);
+			else if (c instanceof DeltaIteration) {
+				n = new WorksetIterationNode((DeltaIteration) c);
 			}
 			else if (c instanceof PartialSolutionPlaceHolder) {
 				final PartialSolutionPlaceHolder holder = (PartialSolutionPlaceHolder) c;
@@ -868,7 +868,7 @@ public class PactCompiler {
 			}
 			else if (c instanceof WorksetPlaceHolder) {
 				final WorksetPlaceHolder holder = (WorksetPlaceHolder) c;
-				final WorksetIteration enclosingIteration = holder.getContainingWorksetIteration();
+				final DeltaIteration enclosingIteration = holder.getContainingWorksetIteration();
 				final WorksetIterationNode containingIterationNode =
 							(WorksetIterationNode) this.parent.con2node.get(enclosingIteration);
 				
@@ -884,7 +884,7 @@ public class PactCompiler {
 			}
 			else if (c instanceof SolutionSetPlaceHolder) {
 				final SolutionSetPlaceHolder holder = (SolutionSetPlaceHolder) c;
-				final WorksetIteration enclosingIteration = holder.getContainingWorksetIteration();
+				final DeltaIteration enclosingIteration = holder.getContainingWorksetIteration();
 				final WorksetIterationNode containingIterationNode =
 							(WorksetIterationNode) this.parent.con2node.get(enclosingIteration);
 				
@@ -993,7 +993,7 @@ public class PactCompiler {
 			}
 			else if (n instanceof WorksetIterationNode) {
 				final WorksetIterationNode iterNode = (WorksetIterationNode) n;
-				final WorksetIteration iter = iterNode.getIterationContract();
+				final DeltaIteration iter = iterNode.getIterationContract();
 				
 				// first, recursively build the data flow for the step function
 				final GraphCreatingVisitor recursiveCreator = new GraphCreatingVisitor(this, true,

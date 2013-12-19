@@ -14,7 +14,7 @@
 package eu.stratosphere.pact.compiler.util;
 
 
-import eu.stratosphere.api.record.io.DelimitedOutputFormat;
+import eu.stratosphere.api.java.record.io.DelimitedOutputFormat;
 import eu.stratosphere.types.Record;
 
 

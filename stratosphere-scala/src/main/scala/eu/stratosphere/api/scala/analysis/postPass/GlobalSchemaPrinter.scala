@@ -155,7 +155,7 @@ object GlobalSchemaPrinter {
               udf.outputFields
             )
           }
-          case WorksetIterationNode(udf, key, input1, input2) => {
+          case DeltaIterationNode(udf, key, input1, input2) => {
 
             printInfo(node, "WorksetIterate",
               Seq(("", key)),

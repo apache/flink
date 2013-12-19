@@ -18,7 +18,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
-import eu.stratosphere.api.common.operators.WorksetIteration;
+import eu.stratosphere.api.common.operators.DeltaIteration;
 import eu.stratosphere.api.common.operators.util.FieldList;
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.DataStatistics;
@@ -82,7 +82,7 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 	 * 
 	 * @param pactContract The PACT that the node represents.
 	 */
-	public WorksetIterationNode(WorksetIteration iteration) {
+	public WorksetIterationNode(DeltaIteration iteration) {
 		super(iteration);
 		
 		final int[] ssKeys = iteration.getSolutionSetKeyFields();
@@ -101,8 +101,8 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 
 	// --------------------------------------------------------------------------------------------
 	
-	public WorksetIteration getIterationContract() {
-		return (WorksetIteration) getPactContract();
+	public DeltaIteration getIterationContract() {
+		return (DeltaIteration) getPactContract();
 	}
 	
 	public SolutionSetNode getSolutionSetNode() {

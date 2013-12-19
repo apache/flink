@@ -31,7 +31,7 @@ import org.junit.Test;
 import eu.stratosphere.api.common.typeutils.TypeComparator;
 import eu.stratosphere.api.common.typeutils.TypePairComparator;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
-import eu.stratosphere.api.record.functions.JoinFunction;
+import eu.stratosphere.api.java.record.functions.JoinFunction;
 import eu.stratosphere.core.memory.MemorySegment;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;

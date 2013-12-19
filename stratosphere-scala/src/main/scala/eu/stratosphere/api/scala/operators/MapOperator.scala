@@ -16,7 +16,7 @@ package eu.stratosphere.api.scala.operators
 import language.experimental.macros
 import scala.reflect.macros.Context
 
-import eu.stratosphere.api.record.operators.MapOperator
+import eu.stratosphere.api.java.record.operators.MapOperator
 import eu.stratosphere.types.Record
 import eu.stratosphere.api.common.operators.Operator
 import eu.stratosphere.configuration.Configuration;

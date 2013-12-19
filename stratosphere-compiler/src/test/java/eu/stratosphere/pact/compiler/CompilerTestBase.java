@@ -29,7 +29,7 @@ import eu.stratosphere.api.common.functions.Function;
 import eu.stratosphere.api.common.operators.BulkIteration;
 import eu.stratosphere.api.common.operators.GenericDataSource;
 import eu.stratosphere.api.common.operators.Operator;
-import eu.stratosphere.api.common.operators.WorksetIteration;
+import eu.stratosphere.api.common.operators.DeltaIteration;
 import eu.stratosphere.api.common.io.FileInputFormat.FileBaseStatistics;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;
@@ -299,9 +299,9 @@ public abstract class CompilerTestBase {
 				// recurse into bulk iterations
 				if (visitable instanceof BulkIteration) {
 					((BulkIteration) visitable).getNextPartialSolution().accept(this);
-				} else if (visitable instanceof WorksetIteration) {
-					((WorksetIteration) visitable).getSolutionSetDelta().accept(this);
-					((WorksetIteration) visitable).getNextWorkset().accept(this);
+				} else if (visitable instanceof DeltaIteration) {
+					((DeltaIteration) visitable).getSolutionSetDelta().accept(this);
+					((DeltaIteration) visitable).getNextWorkset().accept(this);
 				}
 				
 				return true;
