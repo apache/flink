@@ -17,41 +17,41 @@
 bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
 
-# get nephele config
+# get stratosphere config
 . "$bin"/config.sh
 
-if [ "$NEPHELE_IDENT_STRING" = "" ]; then
-        NEPHELE_IDENT_STRING="$USER"
+if [ "$STRATOSPHERE_IDENT_STRING" = "" ]; then
+        STRATOSPHERE_IDENT_STRING="$USER"
 fi
 
-NEPHELE_LIB_CLIENTS_DIR=$NEPHELE_ROOT_DIR/lib_clients
+STRATOSPHERE_LIB_CLIENTS_DIR=$STRATOSPHERE_ROOT_DIR/lib_clients
 
 JVM_ARGS="$JVM_ARGS -Xmx512m"
 
 # auxilliary function to construct a lightweight classpath for the
-# PACT CLI client
-constructPactCLIClientClassPath() {
+# Stratosphere CLI client
+constructCLIClientClassPath() {
 
-	for jarfile in $NEPHELE_LIB_DIR/*.jar ; do
-		if [[ $PACT_CC_CLASSPATH = "" ]]; then
-			PACT_CC_CLASSPATH=$jarfile;
+	for jarfile in $STRATOSPHERE_LIB_DIR/*.jar ; do
+		if [[ $CC_CLASSPATH = "" ]]; then
+			CC_CLASSPATH=$jarfile;
 		else
-			PACT_CC_CLASSPATH=$PACT_CC_CLASSPATH:$jarfile
+			CC_CLASSPATH=$CC_CLASSPATH:$jarfile
 		fi
 	done
 	
-	for jarfile in $NEPHELE_LIB_CLIENTS_DIR/*.jar ; do
-		PACT_CC_CLASSPATH=$PACT_CC_CLASSPATH:$jarfile
+	for jarfile in $STRATOSPHERE_LIB_CLIENTS_DIR/*.jar ; do
+		CC_CLASSPATH=$CC_CLASSPATH:$jarfile
 	done
 
-	echo $PACT_CC_CLASSPATH
+	echo $CC_CLASSPATH
 }
 
-PACT_CC_CLASSPATH=`manglePathList $(constructPactCLIClientClassPath)`
+CC_CLASSPATH=`manglePathList $(constructCLIClientClassPath)`
 
-log=$NEPHELE_LOG_DIR/nephele-$NEPHELE_IDENT_STRING-pact-run-$HOSTNAME.log
-log_setting="-Dlog.file="$log" -Dlog4j.configuration=file:"$NEPHELE_CONF_DIR"/log4j.properties"
+log=$STRATOSPHERE_LOG_DIR/stratosphere-$STRATOSPHERE_IDENT_STRING-stratosphere-client-$HOSTNAME.log
+log_setting="-Dlog.file="$log" -Dlog4j.configuration=file:"$STRATOSPHERE_CONF_DIR"/log4j.properties"
 
-export NEPHELE_CONF_DIR
+export STRATOSPHERE_CONF_DIR
 
-$JAVA_RUN $JVM_ARGS $log_setting -classpath $PACT_CC_CLASSPATH eu.stratosphere.client.CliFrontend $*
+$JAVA_RUN $JVM_ARGS $log_setting -classpath $CC_CLASSPATH eu.stratosphere.client.CliFrontend $*

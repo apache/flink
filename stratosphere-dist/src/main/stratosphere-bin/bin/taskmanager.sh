@@ -26,7 +26,7 @@ if [ "$STRATOSPHERE_IDENT_STRING" = "" ]; then
 fi
 
 # auxilliary function to construct a lightweight classpath for the
-# Nephele TaskManager
+# Stratosphere TaskManager
 constructTaskManagerClassPath() {
 
     for jarfile in $STRATOSPHERE_LIB_DIR/*.jar ; do
