@@ -16,7 +16,6 @@ package eu.stratosphere.nephele.io.channels;
 /**
  * An enumeration for declaring the type of channel.
  * 
- * @author warneke
  */
 public enum ChannelType {
 	

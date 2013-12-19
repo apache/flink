@@ -26,7 +26,6 @@ import eu.stratosphere.util.StringUtils;
 /**
  * Objects of this class uniquely identify a connection to a remote {@link TaskManager}.
  * 
- * @author warneke
  */
 public final class RemoteReceiver implements IOReadableWritable {
 

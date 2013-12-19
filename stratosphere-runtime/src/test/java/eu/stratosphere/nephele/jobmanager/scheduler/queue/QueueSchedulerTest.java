@@ -42,7 +42,6 @@ import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.util.StringUtils;
 
 /**
- * @author marrus
  *         This class checks the functionality of the {@link QueueScheduler} class
  */
 public class QueueSchedulerTest {
@@ -50,7 +49,6 @@ public class QueueSchedulerTest {
 	/**
 	 * Test input task.
 	 * 
-	 * @author warneke
 	 */
 	public static final class InputTask extends AbstractGenericInputTask {
 
@@ -75,7 +73,6 @@ public class QueueSchedulerTest {
 	/**
 	 * Test output task.
 	 * 
-	 * @author warneke
 	 */
 	public static final class OutputTask extends AbstractOutputTask {
 

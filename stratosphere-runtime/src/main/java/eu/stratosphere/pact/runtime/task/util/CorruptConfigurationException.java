@@ -17,7 +17,6 @@ package eu.stratosphere.pact.runtime.task.util;
  * Exception indicating that the parsed configuration was corrupt.
  * Corruption typically means missing or invalid values.
  * 
- * @author Stephan Ewen
  */
 public class CorruptConfigurationException extends RuntimeException
 {

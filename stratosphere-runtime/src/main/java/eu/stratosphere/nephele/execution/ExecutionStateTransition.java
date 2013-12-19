@@ -21,7 +21,6 @@ import eu.stratosphere.util.StringUtils;
 /**
  * This class is a utility class to check the consistency of Nephele's execution state model.
  * 
- * @author warneke
  */
 public final class ExecutionStateTransition {
 

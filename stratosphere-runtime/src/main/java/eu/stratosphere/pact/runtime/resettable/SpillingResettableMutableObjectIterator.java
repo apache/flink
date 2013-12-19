@@ -36,8 +36,6 @@ import eu.stratosphere.util.MutableObjectIterator;
  * Implementation of a resettable iterator. While iterating the first time over the data, the iterator writes the
  * records to a spillable buffer. Any subsequent iteration re-reads the data from that buffer.
  * 
- * @author Stephan Ewen
- * @author Matthias Ringwald
  * 
  * @param <T> The type of record that the iterator handles.
  */

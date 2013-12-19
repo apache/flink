@@ -20,7 +20,6 @@ import java.util.NoSuchElementException;
 /**
  * An empty iterator that never returns anything.
  *
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
 public final class EmptyIterator<E> implements Iterator<E> {
 

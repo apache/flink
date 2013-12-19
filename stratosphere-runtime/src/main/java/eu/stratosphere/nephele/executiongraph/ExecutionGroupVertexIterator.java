@@ -28,7 +28,6 @@ import java.util.Stack;
  * <p>
  * This class is not thread-safe.
  * 
- * @author warneke
  */
 public class ExecutionGroupVertexIterator implements Iterator<ExecutionGroupVertex> {
 
@@ -65,7 +64,6 @@ public class ExecutionGroupVertexIterator implements Iterator<ExecutionGroupVert
 	/**
 	 * Auxiliary class which stores which vertices have already been visited.
 	 * 
-	 * @author warneke
 	 */
 	private static class TraversalEntry {
 

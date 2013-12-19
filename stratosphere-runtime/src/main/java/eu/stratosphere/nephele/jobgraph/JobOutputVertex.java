@@ -20,7 +20,6 @@ import eu.stratosphere.nephele.template.AbstractOutputTask;
  * for Nephele tasks which sink data in a not further specified way. As every job output vertex,
  * a JobOutputVertex must not have any further output.
  * 
- * @author warneke
  */
 public class JobOutputVertex extends AbstractJobOutputVertex {
 

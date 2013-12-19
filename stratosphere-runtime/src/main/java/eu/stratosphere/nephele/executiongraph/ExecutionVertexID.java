@@ -19,7 +19,6 @@ import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
 /**
  * A class for statistically unique execution vertex IDs.
  * 
- * @author warneke
  */
 public class ExecutionVertexID extends AbstractID {
 

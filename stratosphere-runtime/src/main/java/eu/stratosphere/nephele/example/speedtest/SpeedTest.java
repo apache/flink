@@ -35,7 +35,6 @@ import eu.stratosphere.nephele.util.JarFileCreator;
  * This class implements a speed test for Nephele. It's primary purpose is to benchmark the performance of Nephele's
  * network channels with different degrees of parallelism.
  * 
- * @author warneke
  */
 public final class SpeedTest {
 

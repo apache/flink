@@ -19,7 +19,6 @@ package eu.stratosphere.nephele.jobgraph;
  * <p>
  * This class is thread-safe.
  * 
- * @author warneke
  */
 public enum JobStatus {
 

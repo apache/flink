@@ -25,7 +25,6 @@ import java.io.InputStream;
 /**
  * Interface for a data input stream to a file on a {@link FileSystem}.
  * 
- * @author warneke
  */
 public abstract class FSDataInputStream extends InputStream {
 

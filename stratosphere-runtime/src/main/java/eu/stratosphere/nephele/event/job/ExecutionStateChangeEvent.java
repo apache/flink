@@ -24,7 +24,6 @@ import eu.stratosphere.nephele.util.EnumUtils;
 /**
  * An {@link ExecutionStateChangeEvent} can be used to notify other objects about an execution state change of a vertex.
  * 
- * @author warneke
  */
 public final class ExecutionStateChangeEvent extends AbstractEvent implements ManagementEvent {
 

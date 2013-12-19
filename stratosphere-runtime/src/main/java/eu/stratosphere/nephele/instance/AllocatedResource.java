@@ -32,7 +32,6 @@ import eu.stratosphere.nephele.instance.AllocationID;
  * <p>
  * The class is thread-safe.
  * 
- * @author warneke
  */
 public final class AllocatedResource {
 

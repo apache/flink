@@ -32,7 +32,6 @@ import eu.stratosphere.util.StringUtils;
 /**
  * This class contains unit tests for the {@link GateDeploymentDescriptor} class.
  * 
- * @author warneke
  */
 public class GateDeploymentDescriptorTest {
 

@@ -21,7 +21,6 @@ import eu.stratosphere.nephele.io.channels.ChannelID;
  * <p>
  * This class is not thread-safe.
  * 
- * @author Bjoern Lohrmann
  */
 public class ManagementEdgeID extends AbstractID {
 

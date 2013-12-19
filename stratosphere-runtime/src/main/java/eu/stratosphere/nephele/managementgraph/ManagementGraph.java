@@ -39,7 +39,6 @@ import eu.stratosphere.nephele.util.EnumUtils;
  * <p>
  * This class is not thread-safe.
  * 
- * @author warneke
  */
 public final class ManagementGraph extends ManagementAttachment implements IOReadableWritable {
 

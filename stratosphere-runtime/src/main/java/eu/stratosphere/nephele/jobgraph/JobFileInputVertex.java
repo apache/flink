@@ -30,7 +30,6 @@ import eu.stratosphere.util.StringUtils;
  * for Nephele tasks which read data from a local or distributed file system. As every job input vertex
  * A JobFileInputVertex must not have any further input.
  * 
- * @author warneke
  */
 public final class JobFileInputVertex extends AbstractJobInputVertex {
 

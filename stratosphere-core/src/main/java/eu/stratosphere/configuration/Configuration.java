@@ -33,7 +33,6 @@ import eu.stratosphere.core.io.StringRecord;
  * be transported via Nephele's IPC system to distribute configuration data at runtime.
  * This class is thread-safe.
  * 
- * @author warneke
  */
 public class Configuration implements IOReadableWritable {
 

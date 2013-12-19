@@ -25,7 +25,6 @@ import eu.stratosphere.core.io.StringRecord;
  * to its type an instance has a specific number of CPU cores, computation units, a certain
  * amount of main memory and disk space. In addition, it has a specific price per hour.
  * 
- * @author warneke
  */
 public final class InstanceType implements IOReadableWritable {
 

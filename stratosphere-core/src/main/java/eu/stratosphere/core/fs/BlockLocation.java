@@ -19,7 +19,6 @@ import java.io.IOException;
  * A BlockLocation lists hosts, offset and length
  * of block.
  * 
- * @author warneke
  */
 public interface BlockLocation extends Comparable<BlockLocation> {
 

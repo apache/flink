@@ -30,7 +30,6 @@ import eu.stratosphere.util.MutableObjectIterator;
 /**
  * A simple iterator over the input read though an I/O channel.
  *
- * @author Stephan Ewen
  */
 public class ChannelReaderInputViewIterator<E> implements MutableObjectIterator<E>
 {

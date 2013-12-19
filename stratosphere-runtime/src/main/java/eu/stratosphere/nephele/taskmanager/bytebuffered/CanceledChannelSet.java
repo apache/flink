@@ -27,7 +27,6 @@ import eu.stratosphere.nephele.io.channels.ChannelID;
  * <p>
  * This class is thread-safe.
  * 
- * @author warneke
  */
 public final class CanceledChannelSet implements Set<ChannelID> {
 

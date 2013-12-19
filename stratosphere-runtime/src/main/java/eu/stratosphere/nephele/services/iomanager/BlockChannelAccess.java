@@ -29,7 +29,6 @@ import eu.stratosphere.core.memory.MemorySegment;
  * <p>
  * The asynchrony of the access makes it possible to implement read-ahead or write-behind types of I/O accesses.
  * 
- * @author Stephan Ewen
  * 
  * @param <R> The type of request (e.g. <tt>ReadRequest</tt> or <tt>WriteRequest</tt> issued by this access to
  *            the I/O threads.

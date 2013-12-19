@@ -32,7 +32,6 @@ import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
  * <p>
  * This class is thread-safe.
  * 
- * @author warneke
  */
 public final class NetworkConnectionManager {
 

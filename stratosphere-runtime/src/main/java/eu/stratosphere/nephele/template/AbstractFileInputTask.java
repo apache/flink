@@ -30,7 +30,6 @@ import eu.stratosphere.core.fs.Path;
  * a file. In addition to {@link AbstractInputTask} this class includes a method to query file splits
  * which should be read during the task's execution.
  * 
- * @author warneke
  */
 public abstract class AbstractFileInputTask extends AbstractInputTask<FileInputSplit> {
 

@@ -18,7 +18,6 @@ import eu.stratosphere.nephele.io.AbstractID;
 /**
  * A class for statistically unique channel IDs.
  * 
- * @author warneke
  */
 public class ChannelID extends AbstractID {
 

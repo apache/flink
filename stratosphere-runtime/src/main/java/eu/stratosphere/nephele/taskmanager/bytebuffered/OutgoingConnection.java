@@ -35,7 +35,6 @@ import eu.stratosphere.nephele.taskmanager.transferenvelope.DefaultSerializer;
  * additional network thread then takes the envelopes from the queue and transmits them to the respective destination
  * host.
  * 
- * @author warneke
  */
 public class OutgoingConnection {
 

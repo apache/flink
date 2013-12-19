@@ -25,7 +25,6 @@ import eu.stratosphere.configuration.ConfigConstants;
  * Main entry point for the web frontend. Creates a web server according to the configuration
  * in the given directory.
  * 
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
 public class WebFrontend {
 	/**

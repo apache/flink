@@ -16,7 +16,6 @@ package eu.stratosphere.nephele.io;
 /**
  * A class for statistically unique gate IDs.
  * 
- * @author warneke
  */
 public final class GateID extends AbstractID {
 

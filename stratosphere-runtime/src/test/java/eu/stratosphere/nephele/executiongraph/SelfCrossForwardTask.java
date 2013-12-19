@@ -22,7 +22,6 @@ import eu.stratosphere.nephele.template.AbstractTask;
 /**
  * This class represents the cross task in the self cross unit test.
  * 
- * @author warneke
  */
 public class SelfCrossForwardTask extends AbstractTask {
 

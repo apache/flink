@@ -22,7 +22,6 @@ import eu.stratosphere.nephele.jobgraph.JobID;
  * <p>
  * This class is thread-safe.
  * 
- * @author Dominic Battre
  */
 class AllocatedSlice {
 

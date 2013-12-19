@@ -23,7 +23,6 @@ package eu.stratosphere.core.fs;
  * Interface that represents the client side information for a file
  * independent of the file system.
  * 
- * @author warneke
  */
 public interface FileStatus {
 

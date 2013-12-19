@@ -16,7 +16,6 @@ package eu.stratosphere.nephele.jobgraph;
 /**
  * An abstract base class for output vertices in Nephele.
  * 
- * @author warneke
  */
 public abstract class AbstractJobOutputVertex extends AbstractJobVertex {
 

@@ -34,7 +34,6 @@ import eu.stratosphere.util.StringUtils;
  * <p>
  * This class is not thread-safe.
  * 
- * @author warneke
  */
 public final class ManagementGroupVertex extends ManagementAttachment implements IOReadableWritable {
 

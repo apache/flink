@@ -35,7 +35,6 @@ import eu.stratosphere.nephele.template.AbstractInvokable;
  * <p>
  * This class is thread-safe.
  * 
- * @author warneke
  */
 public final class LocatableInputSplitAssigner implements InputSplitAssigner {
 

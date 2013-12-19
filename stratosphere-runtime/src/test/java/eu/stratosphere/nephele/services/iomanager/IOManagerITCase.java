@@ -42,7 +42,6 @@ import eu.stratosphere.nephele.template.AbstractInvokable;
  * Integration test case for the I/O manager.
  *
  *
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
 public class IOManagerITCase {
 	

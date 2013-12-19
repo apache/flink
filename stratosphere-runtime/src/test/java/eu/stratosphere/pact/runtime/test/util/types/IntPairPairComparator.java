@@ -17,7 +17,6 @@ import eu.stratosphere.api.common.typeutils.TypePairComparator;
 
 
 /**
- * @author Stephan Ewen
  */
 public class IntPairPairComparator extends TypePairComparator<IntPair, IntPair>
 {

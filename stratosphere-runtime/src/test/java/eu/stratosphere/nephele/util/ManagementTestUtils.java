@@ -27,7 +27,6 @@ import eu.stratosphere.core.io.IOReadableWritable;
 /**
  * This class contains auxiliary methods for unit tests in the Nephele management module.
  * 
- * @author warneke
  */
 public final class ManagementTestUtils {
 

@@ -26,7 +26,6 @@ import eu.stratosphere.nephele.taskmanager.bytebuffered.RemoteReceiver;
  * Each physical node (instance) within a multicast tree is represented by a TreeNode object.
  * It contains the connection info for the certain node and a list of the local output channels.
  * 
- * @author casp
  */
 
 public class TreeNode implements Comparable<TreeNode> {

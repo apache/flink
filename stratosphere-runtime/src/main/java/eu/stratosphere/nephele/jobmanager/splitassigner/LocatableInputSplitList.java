@@ -36,7 +36,6 @@ import eu.stratosphere.nephele.instance.AbstractInstance;
  * <p>
  * This class is not thread-safe.
  * 
- * @author warneke
  */
 public final class LocatableInputSplitList {
 
@@ -59,7 +58,6 @@ public final class LocatableInputSplitList {
 	 * This is an auxiliary class to store the minimum distance between a file input split's storage locations and an
 	 * {@link AbstractInstance}.
 	 * 
-	 * @author warneke
 	 */
 	private final class QueueElem implements Comparable<QueueElem> {
 

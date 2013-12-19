@@ -16,7 +16,6 @@ package eu.stratosphere.pact.runtime.hash.util;
 /**
  * Interface for defining which hash code will be placed in which bucket
  * 
- * @author Matthias Ringwald
  * 
  */
 public interface RangeCalculator {

@@ -24,7 +24,6 @@ import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
  * This interface is a base interface for profiling data which
  * pertains to the execution of tasks.
  * 
- * @author stanik
  */
 public abstract class VertexProfilingEvent extends ProfilingEvent {
 

@@ -23,7 +23,6 @@ import eu.stratosphere.util.MutableObjectIterator;
  * The KeyValueIterator returns a key and all values that belong to the key (share the same key).
  * A sub-iterator over all values with the same key is provided.
  * 
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
 public final class KeyGroupedMutableObjectIterator<E>
 {

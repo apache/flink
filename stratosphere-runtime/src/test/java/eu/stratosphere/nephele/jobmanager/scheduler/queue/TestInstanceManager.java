@@ -45,7 +45,6 @@ import eu.stratosphere.util.StringUtils;
  * <p>
  * This class is thread-safe.
  * 
- * @author warneke
  */
 public final class TestInstanceManager implements InstanceManager {
 
@@ -77,7 +76,6 @@ public final class TestInstanceManager implements InstanceManager {
 	/**
 	 * Test implementation of {@link AbstractInstance}.
 	 * 
-	 * @author warneke
 	 */
 	private static final class TestInstance extends AbstractInstance {
 

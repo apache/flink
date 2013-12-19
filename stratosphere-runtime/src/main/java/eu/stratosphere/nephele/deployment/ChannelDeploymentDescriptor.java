@@ -26,7 +26,6 @@ import eu.stratosphere.nephele.io.channels.ChannelID;
  * <p>
  * This class is not thread-safe in general.
  * 
- * @author warneke
  */
 public final class ChannelDeploymentDescriptor implements IOReadableWritable {
 

@@ -26,7 +26,6 @@ import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
  * <p>
  * This class is not thread-safe.
  * 
- * @author stanik
  */
 public final class OutputGateProfilingEvent extends VertexProfilingEvent {
 

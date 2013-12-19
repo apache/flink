@@ -20,7 +20,6 @@ import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPool;
  * The memory buffer pool connector provides a connection between {@link MemoryBuffer} and the {@link LocalBufferPool}
  * the memory buffer's encapsulated byte buffer has originally been taken from.
  * 
- * @author warneke
  */
 public interface MemoryBufferPoolConnector {
 

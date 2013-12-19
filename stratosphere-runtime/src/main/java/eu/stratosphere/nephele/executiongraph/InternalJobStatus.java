@@ -21,7 +21,6 @@ import eu.stratosphere.nephele.jobgraph.JobStatus;
  * <p>
  * This class is thread-safe.
  * 
- * @author warneke
  */
 public enum InternalJobStatus {
 

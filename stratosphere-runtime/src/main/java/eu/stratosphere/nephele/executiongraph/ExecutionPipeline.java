@@ -26,7 +26,6 @@ import eu.stratosphere.nephele.util.UnmodifiableIterator;
  * <p>
  * This class is thread-safe.
  * 
- * @author warneke
  */
 public final class ExecutionPipeline {
 

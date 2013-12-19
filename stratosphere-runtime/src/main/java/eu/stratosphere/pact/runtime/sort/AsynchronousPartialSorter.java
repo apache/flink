@@ -32,8 +32,6 @@ import eu.stratosphere.util.MutableObjectIterator;
  * bulks inside its buffers, and returns them directly, without merging them. Therefore,
  * it establishes an order within certain windows, but not across them.
  * 
- * @author Fabian Hueske
- * @author Stephan Ewen
  */
 public class AsynchronousPartialSorter<E> extends UnilateralSortMerger<E>
 {

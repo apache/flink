@@ -49,7 +49,6 @@ import eu.stratosphere.nephele.types.IntegerRecord;
 /**
  *
  *
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
 public class IOManagerPerformanceBenchmark
 {

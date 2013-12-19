@@ -22,7 +22,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 /**
  * A {@link LinkedBlockingQueue} that is extended with closing methods.
  *
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
 public final class RequestQueue<E> extends LinkedBlockingQueue<E> implements Closeable
 {

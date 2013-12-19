@@ -18,7 +18,6 @@ import java.util.Random;
 import eu.stratosphere.core.io.IOReadableWritable;
 
 /**
- * @author Stephan Ewen
  */
 public interface SerializationTestType extends IOReadableWritable
 {

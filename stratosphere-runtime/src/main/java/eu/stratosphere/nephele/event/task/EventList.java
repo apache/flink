@@ -19,7 +19,6 @@ import eu.stratosphere.nephele.util.SerializableArrayList;
  * Objects of this class can store and serialize/deserialize {@link eu.stratosphere.nephele.event.task.AbstractEvent}
  * objects.
  * 
- * @author warneke
  */
 public class EventList extends SerializableArrayList<AbstractEvent> {
 

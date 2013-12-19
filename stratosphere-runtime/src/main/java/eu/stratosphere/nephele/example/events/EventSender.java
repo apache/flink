@@ -37,7 +37,6 @@ import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractTask;
 
 /**
- * @author casp
  */
 public class EventSender extends AbstractTask {
 

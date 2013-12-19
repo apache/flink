@@ -30,7 +30,6 @@ import eu.stratosphere.core.io.StringRecord;
  * A file input split provides information on a particular part of a file, possibly
  * hosted on a distributed file system and replicated among several hosts.
  * 
- * @author warneke
  */
 public class FileInputSplit implements InputSplit {
 

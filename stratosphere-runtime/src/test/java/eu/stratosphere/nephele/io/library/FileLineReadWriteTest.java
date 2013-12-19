@@ -45,7 +45,6 @@ import eu.stratosphere.nephele.template.InputSplitProvider;
 /**
  * This class checks the functionality of the {@link FileLineReader} and the {@link FileLineWriter} class.
  * 
- * @author marrus
  */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(FileLineReader.class)

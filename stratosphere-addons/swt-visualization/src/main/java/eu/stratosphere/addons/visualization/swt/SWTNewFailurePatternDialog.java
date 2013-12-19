@@ -33,7 +33,6 @@ import org.eclipse.swt.events.KeyEvent;
 /**
  * This class implements a dialogue for creating a new failure pattern.
  * 
- * @author warneke
  */
 public final class SWTNewFailurePatternDialog {
 

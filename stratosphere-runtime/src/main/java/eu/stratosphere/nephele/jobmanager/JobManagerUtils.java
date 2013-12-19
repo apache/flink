@@ -27,7 +27,6 @@ import eu.stratosphere.util.StringUtils;
 /**
  * This class provides static utility methods for the {@link JobManager}.
  * 
- * @author warneke
  */
 public class JobManagerUtils {
 

@@ -20,7 +20,6 @@ import eu.stratosphere.nephele.template.AbstractTask;
  * A JobTaskVertex is the vertex type for regular tasks (with both input and output) in Nephele.
  * Tasks running inside a JobTaskVertex must specify at least one record reader and one record writer.
  * 
- * @author warneke
  */
 public class JobTaskVertex extends AbstractJobVertex {
 

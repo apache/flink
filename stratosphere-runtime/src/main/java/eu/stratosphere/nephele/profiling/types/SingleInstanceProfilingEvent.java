@@ -23,7 +23,6 @@ import eu.stratosphere.nephele.jobgraph.JobID;
 /**
  * A single instance profiling event encapsulates profiling information for one particular instance.
  * 
- * @author warneke
  */
 public final class SingleInstanceProfilingEvent extends InstanceProfilingEvent {
 

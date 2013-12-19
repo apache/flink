@@ -19,7 +19,6 @@ import java.io.IOException;
 /**
  * Basic interface that I/O requests that are sent to the threads of the I/O manager need to implement.
  *
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
 interface IORequest
 {

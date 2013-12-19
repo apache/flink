@@ -17,7 +17,6 @@ package eu.stratosphere.pact.runtime.util;
 /**
  * Collection of simple mathematical routines.
  *
- * @author Stephan Ewen
  */
 public final class MathUtils
 {

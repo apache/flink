@@ -25,7 +25,6 @@ import eu.stratosphere.nephele.instance.InstanceType;
  * <p>
  * This class is not thread-safe.
  * 
- * @author warneke
  */
 public final class PendingRequestsMap {
 

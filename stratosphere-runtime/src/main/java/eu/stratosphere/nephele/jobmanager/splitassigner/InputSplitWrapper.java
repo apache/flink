@@ -28,7 +28,6 @@ import eu.stratosphere.util.StringUtils;
  * An input split wrapper object wraps an input split for RPC calls. In particular, the input split wrapper ensures that
  * the right class loader is used to instantiate the wrapped input split object.
  * 
- * @author warneke
  */
 public final class InputSplitWrapper implements IOReadableWritable {
 

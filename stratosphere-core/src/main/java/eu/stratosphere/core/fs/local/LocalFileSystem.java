@@ -41,7 +41,6 @@ import eu.stratosphere.util.OperatingSystem;
  * The class <code>LocalFile</code> provides an implementation of the {@link FileSystem} interface for the local file
  * system.
  * 
- * @author warneke
  */
 public class LocalFileSystem extends FileSystem {
 

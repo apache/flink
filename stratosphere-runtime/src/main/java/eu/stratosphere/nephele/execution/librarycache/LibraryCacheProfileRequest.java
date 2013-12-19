@@ -25,7 +25,6 @@ import eu.stratosphere.core.io.StringRecord;
  * libraries
  * are currently available in its local cache.
  * 
- * @author warneke
  */
 public class LibraryCacheProfileRequest implements IOReadableWritable {
 

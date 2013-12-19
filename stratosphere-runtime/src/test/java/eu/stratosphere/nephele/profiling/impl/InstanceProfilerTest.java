@@ -39,7 +39,6 @@ import eu.stratosphere.nephele.profiling.ProfilingException;
 import eu.stratosphere.nephele.profiling.impl.types.InternalInstanceProfilingData;
 
 /**
- * @author Mathias Peters <mathias.peters@informatik.hu-berlin.de>
  */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(InstanceProfiler.class)

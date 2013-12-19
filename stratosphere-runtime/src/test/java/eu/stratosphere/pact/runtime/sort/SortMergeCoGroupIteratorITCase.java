@@ -40,7 +40,6 @@ import eu.stratosphere.types.Record;
 import eu.stratosphere.util.MutableObjectIterator;
 
 /**
- * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  */
 public class SortMergeCoGroupIteratorITCase
 {

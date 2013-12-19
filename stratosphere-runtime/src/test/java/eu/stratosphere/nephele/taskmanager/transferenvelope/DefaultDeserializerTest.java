@@ -70,7 +70,6 @@ public class DefaultDeserializerTest {
 	 * <p>
 	 * This class is not thread-safe.
 	 * 
-	 * @author warneke
 	 */
 	private static final class TestBufferProvider implements BufferProvider {
 

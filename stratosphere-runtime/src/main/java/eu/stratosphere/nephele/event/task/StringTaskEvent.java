@@ -38,7 +38,6 @@ import eu.stratosphere.core.io.StringRecord;
 /**
  * This class provides a simple implementation of an event that holds a string value.
  * 
- * @author casp
  */
 public class StringTaskEvent extends AbstractTaskEvent {
 

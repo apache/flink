@@ -29,7 +29,6 @@ import org.apache.commons.logging.LogFactory;
  * <p>
  * This class is not thread-safe.
  * 
- * @author warneke
  */
 public final class ManagementGraphIterator implements Iterator<ManagementVertex> {
 
@@ -76,7 +75,6 @@ public final class ManagementGraphIterator implements Iterator<ManagementVertex>
 	/**
 	 * Auxiliary class which stores which vertices have already been visited.
 	 * 
-	 * @author warneke
 	 */
 	private static class TraversalEntry {
 

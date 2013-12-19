@@ -17,7 +17,6 @@ package eu.stratosphere.nephele.io;
  * A distribution pattern determines which subtasks of a producing Nephele task a wired to which
  * subtasks of a consuming subtask.
  * 
- * @author warneke
  */
 
 public enum DistributionPattern {

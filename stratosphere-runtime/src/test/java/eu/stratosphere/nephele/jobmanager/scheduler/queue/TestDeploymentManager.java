@@ -26,7 +26,6 @@ import eu.stratosphere.nephele.jobmanager.DeploymentManager;
  * <p>
  * This class is thread-safe.
  * 
- * @author warneke
  */
 public class TestDeploymentManager implements DeploymentManager {
 

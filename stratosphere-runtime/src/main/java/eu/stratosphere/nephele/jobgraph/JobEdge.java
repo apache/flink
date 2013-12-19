@@ -20,7 +20,6 @@ import eu.stratosphere.nephele.io.channels.ChannelType;
  * Objects of this class represent edges in the user's job graph.
  * The edges can be annotated by a specific channel and compression level.
  * 
- * @author warneke
  */
 public class JobEdge {
 

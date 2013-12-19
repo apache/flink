@@ -35,8 +35,6 @@ import eu.stratosphere.util.MutableObjectIterator;
  * @see TypeSerializer#setReference(Object)
  * @see TypeSerializer#compareToReference(TypeSerializer)
  * 
- * @author Erik Nijkamp
- * @author Stephan Ewen
  */
 public class MergeIterator<E> implements MutableObjectIterator<E>
 {

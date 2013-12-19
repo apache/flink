@@ -27,7 +27,6 @@ import java.util.Stack;
  * search.
  * This class is not thread-safe.
  * 
- * @author warneke
  */
 public final class ManagementGroupVertexIterator implements Iterator<ManagementGroupVertex> {
 
@@ -64,7 +63,6 @@ public final class ManagementGroupVertexIterator implements Iterator<ManagementG
 	/**
 	 * Auxiliary class which stores which vertices have already been visited.
 	 * 
-	 * @author warneke
 	 */
 	private static class TraversalEntry {
 

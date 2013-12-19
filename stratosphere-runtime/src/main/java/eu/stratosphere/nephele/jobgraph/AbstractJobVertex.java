@@ -32,7 +32,6 @@ import eu.stratosphere.util.StringUtils;
 /**
  * An abstract base class for a job vertex in Nephele.
  * 
- * @author warneke
  */
 public abstract class AbstractJobVertex implements IOReadableWritable {
 

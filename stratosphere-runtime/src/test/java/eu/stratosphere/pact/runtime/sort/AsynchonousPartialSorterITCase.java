@@ -42,8 +42,6 @@ import eu.stratosphere.types.Record;
 import eu.stratosphere.util.MutableObjectIterator;
 
 /**
- * @author Erik Nijkamp
- * @author Stephan Ewen
  */
 public class AsynchonousPartialSorterITCase
 {

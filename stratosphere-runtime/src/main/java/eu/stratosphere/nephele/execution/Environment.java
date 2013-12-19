@@ -35,7 +35,6 @@ import eu.stratosphere.nephele.template.InputSplitProvider;
  * important services to the task. It keeps track of setting up the communication channels and provides access to input
  * splits, memory manager, etc.
  * 
- * @author warneke
  */
 public interface Environment {
 	/**

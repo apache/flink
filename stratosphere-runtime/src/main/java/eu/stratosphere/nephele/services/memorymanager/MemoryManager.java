@@ -28,8 +28,6 @@ import eu.stratosphere.nephele.template.AbstractInvokable;
  * means it assigns portions of the arrays to tasks. If memory is released, it means that this part of the memory can
  * be assigned to other tasks.
  *
- * @author Alexander Alexandrov
- * @author Stephan Ewen
  */
 public interface MemoryManager
 {

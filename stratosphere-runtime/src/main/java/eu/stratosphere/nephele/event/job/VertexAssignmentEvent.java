@@ -24,7 +24,6 @@ import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
  * A {@link VertexAssignmentEvent} can be used to notify other objects about changes in the assignment of vertices to
  * instances.
  * 
- * @author warneke
  */
 public final class VertexAssignmentEvent extends AbstractEvent implements ManagementEvent {
 

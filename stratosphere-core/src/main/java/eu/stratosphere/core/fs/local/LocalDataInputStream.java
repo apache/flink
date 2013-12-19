@@ -23,7 +23,6 @@ import eu.stratosphere.core.fs.FSDataInputStream;
  * The <code>LocalDataInputStream</code> class is a wrapper class for a data
  * input stream to the local file system.
  * 
- * @author warneke
  */
 public class LocalDataInputStream extends FSDataInputStream {
 

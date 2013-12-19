@@ -21,7 +21,6 @@ import eu.stratosphere.nephele.execution.Environment;
  * Default implementation of the {@link ExecutionContext} that delegates the calls to the nephele task
  * environment.
  *
- * @author Stephan Ewen
  */
 public class RuntimeExecutionContext implements ExecutionContext
 {

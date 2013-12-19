@@ -29,7 +29,6 @@ import java.util.Queue;
  * <p>
  * This class is not thread-safe.
  * 
- * @author warneke
  */
 public class InterruptibleByteChannel implements ReadableByteChannel, WritableByteChannel {
 

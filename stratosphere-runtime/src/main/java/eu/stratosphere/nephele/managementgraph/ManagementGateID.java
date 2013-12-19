@@ -20,7 +20,6 @@ import eu.stratosphere.nephele.io.AbstractID;
  * <p>
  * This class is not thread-safe.
  * 
- * @author Bjoern Lohrmann
  */
 public final class ManagementGateID extends AbstractID {
 

@@ -27,7 +27,6 @@ import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
  * An unknown receiver event can be used by the framework to inform a sender task that the delivery of a
  * {@link TransferEnvelope} has failed since the receiver could not be found.
  * 
- * @author warneke
  */
 public final class ReceiverNotFoundEvent extends AbstractEvent {
 

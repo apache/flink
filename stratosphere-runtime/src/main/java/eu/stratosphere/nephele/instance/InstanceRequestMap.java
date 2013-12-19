@@ -29,7 +29,6 @@ import java.util.Map;
  * <p>
  * This class is not thread-safe.
  * 
- * @author warneke
  */
 public final class InstanceRequestMap {
 

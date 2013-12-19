@@ -284,7 +284,6 @@ public class SequentialFormatTest {
 	/**
 	 * Counts the bytes that would be written.
 	 * 
-	 * @author Arvid Heise
 	 */
 	private static final class ByteCounter extends OutputStream {
 		int length = 0;

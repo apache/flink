@@ -19,7 +19,6 @@ package eu.stratosphere.nephele.managementgraph;
  * <p>
  * This class is not thread-safe.
  * 
- * @author warneke
  */
 public abstract class ManagementAttachment {
 

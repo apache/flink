@@ -26,7 +26,6 @@ import eu.stratosphere.util.StringUtils;
 /**
  * This class encapsulates all connection information necessary to connect to the instance's task manager.
  * 
- * @author warneke
  */
 public class InstanceConnectionInfo implements IOReadableWritable, Comparable<InstanceConnectionInfo> {
 

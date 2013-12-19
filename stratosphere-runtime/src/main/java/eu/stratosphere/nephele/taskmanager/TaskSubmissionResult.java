@@ -20,7 +20,6 @@ import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
  * of a task submission. It contains the ID of the submitted task, a return code and
  * a description. In case of a submission error the description includes an error message.
  * 
- * @author warneke
  */
 public class TaskSubmissionResult extends AbstractTaskResult {
 

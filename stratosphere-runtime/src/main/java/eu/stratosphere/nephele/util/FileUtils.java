@@ -16,7 +16,6 @@ package eu.stratosphere.nephele.util;
 /**
  * This is a utility class to deal with temporary files.
  * 
- * @author warneke
  */
 public final class FileUtils {
 

@@ -29,7 +29,6 @@ import eu.stratosphere.util.StringUtils;
  * for Nephele tasks which sink data in a not further specified way. As every job output vertex,
  * a JobGenericOutputVertex must not have any further output.
  * 
- * @author warneke
  */
 public class JobGenericOutputVertex extends JobOutputVertex {
 

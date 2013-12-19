@@ -26,7 +26,6 @@ import eu.stratosphere.types.Key;
  * <p>
  * This class is a wrapper for the key part of the integer number.
  * 
- * @author warneke
  */
 public final class TeraKey implements Key {
 	private static final long serialVersionUID = 1L;

@@ -27,7 +27,6 @@ import eu.stratosphere.nephele.jobgraph.JobID;
 /**
  * This class implements a tooltip for Nephele jobs.
  * 
- * @author warneke
  */
 public class SWTJobToolTip extends SWTToolTip {
 

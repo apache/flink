@@ -23,8 +23,6 @@ import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
 
 /**
- * @author Mathias Peters <mathias.peters@informatik.hu-berlin.de>
- * @author Moritz Kaufmann <moritz.kaufmann@campus.tu-berlin.de>
  */
 public class GroupByReturnFlag extends ReduceFunction {
 

@@ -23,7 +23,6 @@ import eu.stratosphere.types.Record;
  * The class is responsible for converting a two field record back into a line which is afterward written back to disk.
  * Each line ends with a newline character.
  * 
- * @author warneke
  */
 public final class TeraOutputFormat extends FileOutputFormat {
 	private static final long serialVersionUID = 1L;

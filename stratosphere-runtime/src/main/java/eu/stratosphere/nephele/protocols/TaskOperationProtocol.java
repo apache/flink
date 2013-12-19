@@ -33,7 +33,6 @@ import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
  * to submit and cancel tasks, as well as to query the task manager for cached libraries and submit
  * these if necessary.
  * 
- * @author warneke
  */
 public interface TaskOperationProtocol extends VersionedProtocol {
 

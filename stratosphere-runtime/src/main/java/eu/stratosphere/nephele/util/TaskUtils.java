@@ -19,7 +19,6 @@ import eu.stratosphere.nephele.template.AbstractInvokable;
 /**
  * This class implements several convenience methods to determine properties of Nephele task classes.
  * 
- * @author warneke
  */
 public class TaskUtils {
 

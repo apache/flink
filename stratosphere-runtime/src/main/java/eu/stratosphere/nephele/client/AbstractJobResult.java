@@ -26,14 +26,12 @@ import eu.stratosphere.nephele.util.EnumUtils;
  * to report the job operation. It contains a return code and an
  * optional description.
  * 
- * @author Alexander Stanik
  */
 public abstract class AbstractJobResult implements IOReadableWritable {
 
 	/**
 	 * The possible return codes for a job operation.
 	 * 
-	 * @author warneke
 	 */
 	public enum ReturnCode {
 

@@ -39,9 +39,6 @@ import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
 
 /**
- * @author rico
- * @author Matthias Ringwald
- * @author Stephan Ewen
  */
 public class TPCHQuery10 implements Program, ProgramDescription
 {

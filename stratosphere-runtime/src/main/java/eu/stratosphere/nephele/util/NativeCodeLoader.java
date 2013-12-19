@@ -24,7 +24,6 @@ import java.util.Set;
 /**
  * Utility class to deal with native libraries.
  * 
- * @author warneke
  */
 public final class NativeCodeLoader {
 

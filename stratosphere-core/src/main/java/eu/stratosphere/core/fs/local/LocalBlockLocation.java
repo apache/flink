@@ -21,7 +21,6 @@ import eu.stratosphere.core.fs.BlockLocation;
  * Implementation of the {@link BlockLocation} interface for a
  * local file system.
  * 
- * @author warneke
  */
 public class LocalBlockLocation implements BlockLocation {
 

@@ -25,8 +25,6 @@ import java.nio.channels.FileChannel;
  * Requests handled by channels that inherit from this class are executed asynchronously, which allows
  * write-behind for writers and pre-fetching for readers.
  * 
- * @author Alexander Alexandrov
- * @author Stephan Ewen
  * 
  * @param <T> The buffer type used for the underlying IO operations.
  */

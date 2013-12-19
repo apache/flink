@@ -52,7 +52,6 @@ import eu.stratosphere.nephele.jobgraph.JobGraph;
 /**
  * Simple and maybe stupid test to check the {@link Client} class.
  * However, the use of mocks can be copied copied easily from this example.
- * @author Mathias Peters <mathias.peters@informatik.hu-berlin.de>
  *
  */
 @RunWith(PowerMockRunner.class)

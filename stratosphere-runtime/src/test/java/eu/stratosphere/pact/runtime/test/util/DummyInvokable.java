@@ -18,7 +18,6 @@ import eu.stratosphere.nephele.template.AbstractTask;
 /**
  * An invokable that does nothing.
  *
- * @author Stephan Ewen
  */
 public class DummyInvokable extends AbstractTask
 {

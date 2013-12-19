@@ -19,7 +19,6 @@ import java.util.Random;
 /**
  * Gives a number of random integer values
  * 
- * @author Matthias Ringwald
  * 
  */
 public class RandomIterator implements Iterator<Integer> {

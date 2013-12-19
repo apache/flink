@@ -22,7 +22,6 @@ import eu.stratosphere.util.StringUtils;
  * A Channel represents a collection of files that belong logically to the same resource. An example is a collection of
  * files that contain sorted runs of data from the same stream, that will later on be merged together.
  * 
- * @author Alexander Alexandrov
  */
 public final class Channel
 {
@@ -31,7 +30,6 @@ public final class Channel
 	/**
 	 * An ID identifying an underlying fileChannel.
 	 * 
-	 * @author Alexander Alexandrov
 	 */
 	public static class ID
 	{

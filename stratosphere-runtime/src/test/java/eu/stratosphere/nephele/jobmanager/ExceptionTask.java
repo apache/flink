@@ -22,7 +22,6 @@ import eu.stratosphere.nephele.template.AbstractTask;
  * This task is used during the unit tests to generate a custom exception and check the proper response of the execution
  * engine.
  * 
- * @author warneke
  */
 public class ExceptionTask extends AbstractTask {
 
@@ -34,7 +33,6 @@ public class ExceptionTask extends AbstractTask {
 	/**
 	 * The custom exception thrown by the this task.
 	 * 
-	 * @author warneke
 	 */
 	public static class TestException extends Exception {
 

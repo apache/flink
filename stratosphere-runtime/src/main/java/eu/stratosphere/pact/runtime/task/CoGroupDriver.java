@@ -35,7 +35,6 @@ import eu.stratosphere.util.MutableObjectIterator;
  * were pair with that key of both inputs are handed to the <code>coGroup()</code> method of the CoGroupFunction.
  * 
  * @see eu.stratosphere.api.java.record.functions.CoGroupFunction
- * @author Stephan Ewen
  */
 public class CoGroupDriver<IT1, IT2, OT> implements PactDriver<GenericCoGrouper<IT1, IT2, OT>, OT>
 {

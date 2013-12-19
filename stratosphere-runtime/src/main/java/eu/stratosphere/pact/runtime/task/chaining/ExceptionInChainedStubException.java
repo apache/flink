@@ -18,7 +18,6 @@ package eu.stratosphere.pact.runtime.task.chaining;
  * A special exception to indicate that an exception occurred in the nested call of a chained stub.
  * The exception's only purpose is to be  identifiable as such and to carry the cause exception.
  *
- * @author Stephan Ewen
  */
 public class ExceptionInChainedStubException extends RuntimeException
 {

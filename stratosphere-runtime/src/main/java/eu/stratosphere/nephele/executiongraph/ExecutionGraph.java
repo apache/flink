@@ -63,7 +63,6 @@ import eu.stratosphere.util.StringUtils;
  * <p>
  * This class is thread-safe.
  * 
- * @author warneke
  */
 public class ExecutionGraph implements ExecutionListener {
 

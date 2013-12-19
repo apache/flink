@@ -47,8 +47,6 @@ import eu.stratosphere.nephele.template.AbstractInvokable;
  * access methods in the {@link DefaultMemorySegment} fast and simple, the actual allocated memory segments must not
  * exceed 2GB and must be contained in a single memory chunk.
  * 
- * @author Alexander Alexandrov
- * @author Stephan Ewen
  */
 public class DefaultMemoryManager implements MemoryManager
 {

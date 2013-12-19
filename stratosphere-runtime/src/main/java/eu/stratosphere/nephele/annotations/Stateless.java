@@ -20,7 +20,6 @@ import java.lang.annotation.Target;
 /**
  * This annotation can be used to indicate a stateless task.
  * 
- * @author marrus
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)

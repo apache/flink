@@ -25,7 +25,6 @@ import eu.stratosphere.pact.runtime.util.MathUtils;
 /**
  *
  *
- * @author Stephan Ewen
  */
 public class RandomAccessInputView extends AbstractPagedInputView implements SeekableDataInputView
 {	

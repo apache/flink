@@ -21,7 +21,6 @@ import eu.stratosphere.nephele.io.AbstractID;
  * {@link AbstractInstance}s
  * without the knowledge of Nephele's scheduler.
  * 
- * @author warneke
  */
 public class AllocationID extends AbstractID {
 }

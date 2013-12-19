@@ -22,7 +22,6 @@ import java.util.TreeSet;
  * <p>
  * This class is not thread-safe.
  * 
- * @author warneke
  */
 public final class JobFailurePattern {
 

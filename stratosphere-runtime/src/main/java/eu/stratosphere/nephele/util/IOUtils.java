@@ -24,7 +24,6 @@ import org.apache.commons.logging.Log;
 /**
  * An utility class for I/O related functionality.
  * 
- * @author warneke
  */
 public final class IOUtils {
 

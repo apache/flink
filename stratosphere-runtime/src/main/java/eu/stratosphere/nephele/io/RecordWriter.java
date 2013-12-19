@@ -22,7 +22,6 @@ import eu.stratosphere.nephele.template.AbstractTask;
  * of emit (send out) to the output gate. The output gate will then take care of distributing
  * the emitted records among the output channels.
  * 
- * @author warneke
  * @param <T>
  *        the type of the record that can be emitted with this record writer
  */

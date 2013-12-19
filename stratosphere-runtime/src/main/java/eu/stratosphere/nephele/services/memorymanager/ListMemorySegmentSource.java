@@ -21,7 +21,6 @@ import eu.stratosphere.core.memory.MemorySegmentSource;
 /**
  * Simple memory segment source that draws segments from a list.
  * 
- * @author Stephan Ewen
  */
 public class ListMemorySegmentSource implements MemorySegmentSource
 {

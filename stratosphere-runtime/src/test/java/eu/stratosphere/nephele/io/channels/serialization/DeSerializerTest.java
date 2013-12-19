@@ -34,7 +34,6 @@ import eu.stratosphere.nephele.io.channels.SerializationBuffer;
 
 
 /**
- * @author Stephan Ewen
  */
 public class DeSerializerTest
 {

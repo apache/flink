@@ -43,7 +43,6 @@ import eu.stratosphere.util.ClassUtils;
  * A job graph represents an entire job in Nephele. A job graph must consists at least of one job vertex
  * and must be acyclic.
  * 
- * @author warneke
  */
 public class JobGraph implements IOReadableWritable {
 

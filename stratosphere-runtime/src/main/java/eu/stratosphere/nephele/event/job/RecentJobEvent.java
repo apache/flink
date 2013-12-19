@@ -25,7 +25,6 @@ import eu.stratosphere.nephele.util.EnumUtils;
 /**
  * A {@link RecentJobEvent} provides a summary of a job which is either currently running or has been running recently.
  * 
- * @author warneke
  */
 public final class RecentJobEvent extends AbstractEvent implements ManagementEvent {
 

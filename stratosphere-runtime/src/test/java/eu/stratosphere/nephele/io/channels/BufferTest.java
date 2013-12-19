@@ -33,7 +33,6 @@ import eu.stratosphere.nephele.types.IntegerRecord;
  * This class checks the functionality of the {@link SerializationBuffer} class and the {@link DefaultDeserializer}
  * class
  * 
- * @author marrus
  */
 public class BufferTest
 {

@@ -22,7 +22,6 @@ import eu.stratosphere.nephele.io.AbstractID;
  * <p>
  * This class is not thread-safe.
  * 
- * @author warneke
  */
 public final class ManagementGroupVertexID extends AbstractID {
 	

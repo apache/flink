@@ -21,7 +21,6 @@ import java.util.concurrent.atomic.AtomicReference;
  * <p>
  * This class is thread-safe.
  * 
- * @author warneke
  */
 public final class AtomicEnum<T extends Enum<T>> {
 

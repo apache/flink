@@ -37,7 +37,6 @@ import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
  * <p>
  * This class is thread-safe.
  * 
- * @author warneke
  */
 final class InputSplitTracker {
 

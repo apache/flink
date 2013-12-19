@@ -22,7 +22,6 @@ import java.io.IOException;
  * of a job submission. It contains a return code and a description.
  * In case of a submission error the description includes an error message.
  * 
- * @author warneke
  */
 public class JobSubmissionResult extends AbstractJobResult {
 

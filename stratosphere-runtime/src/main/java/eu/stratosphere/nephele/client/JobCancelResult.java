@@ -18,7 +18,6 @@ package eu.stratosphere.nephele.client;
  * of a job cancel request. It contains a return code and a description.
  * In case of a submission error the description includes an error message.
  * 
- * @author warneke
  */
 public class JobCancelResult extends AbstractJobResult {
 

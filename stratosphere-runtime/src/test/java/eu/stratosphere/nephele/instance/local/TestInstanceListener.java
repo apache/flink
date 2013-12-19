@@ -27,7 +27,6 @@ import eu.stratosphere.nephele.jobgraph.JobID;
  * <p>
  * This class is thread-safe.
  * 
- * @author warneke
  */
 public final class TestInstanceListener implements InstanceListener {
 

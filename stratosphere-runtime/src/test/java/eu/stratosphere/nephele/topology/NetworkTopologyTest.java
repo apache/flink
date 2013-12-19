@@ -30,7 +30,6 @@ import eu.stratosphere.nephele.util.ManagementTestUtils;
 /**
  * This class contains unit tests which address the correctness of the network topology implementation.
  * 
- * @author warneke
  */
 public class NetworkTopologyTest {
 

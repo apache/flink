@@ -19,7 +19,6 @@ import eu.stratosphere.util.MutableObjectIterator;
 /**
  * An empty mutable object iterator that never returns anything.
  *
- * @author Stephan Ewen
  */
 public final class EmptyMutableObjectIterator<E> implements MutableObjectIterator<E> {
 

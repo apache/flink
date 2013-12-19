@@ -17,7 +17,6 @@ package eu.stratosphere.nephele.event.task;
  * This type of event can be used to exchange notification messages between
  * different tasks at runtime using the existing communication channels.
  * 
- * @author warneke
  */
 public abstract class AbstractTaskEvent extends AbstractEvent {
 

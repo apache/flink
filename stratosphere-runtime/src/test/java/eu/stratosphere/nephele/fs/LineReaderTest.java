@@ -31,7 +31,6 @@ import eu.stratosphere.runtime.fs.LineReader;
 /**
  * This class tests the functionality of the LineReader class using a local filesystem.
  * 
- * @author casp
  */
 
 public class LineReaderTest {

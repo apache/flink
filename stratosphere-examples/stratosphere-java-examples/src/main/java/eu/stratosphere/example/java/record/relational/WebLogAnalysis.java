@@ -75,7 +75,6 @@ import eu.stratosphere.util.Collector;
  * 					duration INT );
  * </pre></code>
  * 
- * @author Fabian Hueske
  */
 public class WebLogAnalysis implements Program, ProgramDescription
 {

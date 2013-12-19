@@ -28,7 +28,6 @@ import eu.stratosphere.nephele.util.ServerTestUtils;
 /**
  * Tests for the {@link LocalInstanceManager}.
  * 
- * @author warneke
  */
 public class LocalInstanceManagerTest {
 

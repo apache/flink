@@ -35,7 +35,6 @@ import eu.stratosphere.example.java.record.sort.terasort.TeraOutputFormat;
  * Note: this example job is currently not included in the build, because of problems with the RangePartioner (see
  * https://github.com/stratosphere/stratosphere/issues/7). It should be included again after fixing the issue.
  *
- * @author warneke
  */
 public final class TeraSort implements Program, ProgramDescription {
 

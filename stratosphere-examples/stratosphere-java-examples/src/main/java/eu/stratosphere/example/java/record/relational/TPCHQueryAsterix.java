@@ -52,7 +52,6 @@ import eu.stratosphere.util.Collector;
  *   WHERE c_custkey = o_custkey
  * GROUP BY c_mktsegment;
  * 
- * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  */
 
 public class TPCHQueryAsterix implements Program, ProgramDescription {

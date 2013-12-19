@@ -19,7 +19,6 @@ import eu.stratosphere.nephele.jobgraph.JobID;
 /**
  * This class contains utility methods used during the tests of the {@link ClusterManager} implementation.
  * 
- * @author warneke
  */
 public class ClusterManagerTestUtils {
 

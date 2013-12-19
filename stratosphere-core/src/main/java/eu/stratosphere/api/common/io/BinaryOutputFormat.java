@@ -106,7 +106,6 @@ public abstract class BinaryOutputFormat<T extends IOReadableWritable> extends F
 	 * Writes a block info at the end of the blocks.<br>
 	 * Current implementation uses only int and not long.
 	 * 
-	 * @author Arvid Heise
 	 */
 	protected class BlockBasedOutput extends FilterOutputStream {
 

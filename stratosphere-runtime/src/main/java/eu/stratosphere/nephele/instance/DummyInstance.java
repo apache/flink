@@ -18,7 +18,6 @@ package eu.stratosphere.nephele.instance;
  * Dummy instances are used to plan a job execution but must be replaced with
  * concrete instances before the job execution starts.
  * 
- * @author warneke
  */
 public class DummyInstance extends AbstractInstance {
 

@@ -30,7 +30,6 @@ import eu.stratosphere.util.MutableObjectIterator;
  * In contract to the {@link AsynchronousPartialSorter}, this class has no dedicated reading thread that
  * pulls records from an iterator, but offers a collector into which data to be sorted is pushed.
  * 
- * @author Stephan Ewen
  */
 public class AsynchronousPartialSorterCollector<E> extends AsynchronousPartialSorter<E>
 {

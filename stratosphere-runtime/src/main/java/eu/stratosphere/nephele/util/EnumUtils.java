@@ -22,7 +22,6 @@ import eu.stratosphere.core.io.StringRecord;
 /**
  * Auxiliary class to (de)serialize enumeration values.
  * 
- * @author warneke
  */
 public final class EnumUtils {
 

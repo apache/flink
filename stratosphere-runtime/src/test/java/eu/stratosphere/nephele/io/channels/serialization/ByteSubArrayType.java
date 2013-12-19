@@ -20,7 +20,6 @@ import java.util.Arrays;
 import java.util.Random;
 
 /**
- * @author Stephan Ewen
  */
 public class ByteSubArrayType implements SerializationTestType
 {

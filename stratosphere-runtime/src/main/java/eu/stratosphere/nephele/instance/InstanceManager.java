@@ -27,7 +27,6 @@ import eu.stratosphere.nephele.topology.NetworkTopology;
  * compute resources in order
  * to report unexpected resource outages.
  * 
- * @author warneke
  */
 public interface InstanceManager {
 

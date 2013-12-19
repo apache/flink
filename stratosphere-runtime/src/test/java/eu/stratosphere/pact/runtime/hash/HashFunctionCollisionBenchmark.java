@@ -35,7 +35,6 @@ import eu.stratosphere.pact.runtime.hash.util.StepRangeIterator;
 /**
  * Test distribution of hash function for multiple levels
  * 
- * @author Matthias Ringwald
  * 
  */
 public class HashFunctionCollisionBenchmark {
@@ -385,7 +384,6 @@ class MultiLevelHashTester {
 	/**
 	 * Expected results for bucket sizes per level
 	 * 
-	 * @author Matthias Ringwald
 	 *
 	 */
 	static class BucketBoundaries {

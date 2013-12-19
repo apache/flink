@@ -27,7 +27,6 @@ import eu.stratosphere.test.testPrograms.util.StringTupleDataOutFormat;
 import eu.stratosphere.types.StringValue;
 
 /**
- * @author Mathias Peters <mathias.peters@informatik.hu-berlin.de>
  *
  */
 public class TPCHQuery1 implements Program, ProgramDescription {

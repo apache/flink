@@ -29,7 +29,6 @@ import eu.stratosphere.core.io.IOReadableWritable;
 /**
  * This class contains auxiliary methods for unit tests in the Nephele common module.
  * 
- * @author warneke
  */
 public class CommonTestUtils {
 

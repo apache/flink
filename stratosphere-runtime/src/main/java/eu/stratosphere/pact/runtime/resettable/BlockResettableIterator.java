@@ -30,8 +30,6 @@ import eu.stratosphere.pact.runtime.util.ResettableIterator;
  * Implementation of an iterator that fetches a block of data into main memory and offers resettable
  * access to the data in that block.
  * 
- * @author Stephan Ewen
- * @author Fabian Hueske
  */
 public class BlockResettableIterator<T> extends AbstractBlockResettableIterator<T> implements ResettableIterator<T>
 {

@@ -20,7 +20,6 @@ import eu.stratosphere.nephele.execution.Environment;
 /**
  * Abstract base class for every task class in Nephele.
  * 
- * @author warneke
  */
 public abstract class AbstractInvokable {
 

@@ -20,7 +20,6 @@ import eu.stratosphere.core.io.IOReadableWritable;
  * different {@link TaskManager} objects at runtime using the communication
  * channels Nephele has established between different tasks.
  * 
- * @author warneke
  */
 public abstract class AbstractEvent implements IOReadableWritable {
 

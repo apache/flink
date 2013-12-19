@@ -18,7 +18,6 @@ package eu.stratosphere.nephele.instance;
  * <p>
  * This class is thread-safe.
  * 
- * @author warneke
  */
 public class InstanceTypeDescriptionFactory {
 

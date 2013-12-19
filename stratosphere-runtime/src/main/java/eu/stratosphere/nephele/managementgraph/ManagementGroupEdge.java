@@ -21,7 +21,6 @@ import eu.stratosphere.nephele.io.channels.ChannelType;
  * <p>
  * This class is not thread-safe.
  * 
- * @author warneke
  */
 public final class ManagementGroupEdge extends ManagementAttachment {
 

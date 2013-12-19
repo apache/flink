@@ -24,7 +24,6 @@ import eu.stratosphere.nephele.template.AbstractFileOutputTask;
 /**
  * A file line writer reads string records its input gate and writes them to the associated output file.
  * 
- * @author warneke
  */
 public class FileLineWriter extends AbstractFileOutputTask {
 

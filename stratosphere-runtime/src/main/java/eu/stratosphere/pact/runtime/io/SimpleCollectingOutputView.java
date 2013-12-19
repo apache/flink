@@ -28,7 +28,6 @@ import eu.stratosphere.pact.runtime.util.MathUtils;
  * The list with the full segments contains at any point all completely full segments, plus the segment that is
  * currently filled.
  *
- * @author Stephan Ewen
  */
 public class SimpleCollectingOutputView extends AbstractPagedOutputView
 {	

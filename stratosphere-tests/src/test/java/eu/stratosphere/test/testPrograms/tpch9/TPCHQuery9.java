@@ -59,7 +59,6 @@ import eu.stratosphere.types.IntValue;
  * 
  * <b>Attention:</b> The "order by" part is not implemented!
  * 
- * @author Dennis Schneider <dschneid@informatik.hu-berlin.de>
  */
 
 public class TPCHQuery9 implements Program, ProgramDescription {

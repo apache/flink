@@ -20,7 +20,6 @@ import eu.stratosphere.core.fs.Path;
  * Specialized subtype of {@link AbstractOutputTask} for tasks which are supposed to write output to
  * a file.
  * 
- * @author warneke
  */
 public abstract class AbstractFileOutputTask extends AbstractOutputTask {
 

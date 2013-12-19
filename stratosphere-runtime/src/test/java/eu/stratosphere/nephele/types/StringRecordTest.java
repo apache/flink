@@ -34,7 +34,6 @@ import eu.stratosphere.nephele.util.CommonTestUtils;
 
 
 /**
- * @author Mathias Peters <mathias.peters@informatik.hu-berlin.de>
  *         TODO: {@link StringRecord} has a lot of public methods that need to be tested.
  */
 public class StringRecordTest {

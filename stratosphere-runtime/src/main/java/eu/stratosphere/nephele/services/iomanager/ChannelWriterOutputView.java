@@ -27,7 +27,6 @@ import eu.stratosphere.nephele.services.memorymanager.AbstractPagedOutputView;
  * stream. The view writes it data in blocks to the underlying channel, adding a minimal header to each block.
  * The data can be re-read by a {@link ChannelReaderInputView}, if it uses the same block size.
  *
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
 public final class ChannelWriterOutputView extends AbstractPagedOutputView
 {

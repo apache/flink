@@ -58,7 +58,6 @@ import eu.stratosphere.util.StringUtils;
  * job at the {@link eu.stratosphere.nephele.instance.InstanceManager}, the scheduler is in charge of assigning the
  * individual tasks to the instances.
  * 
- * @author warneke
  */
 public abstract class AbstractScheduler implements InstanceListener {
 

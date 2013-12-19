@@ -22,7 +22,6 @@ import eu.stratosphere.core.io.StringRecord;
 /**
  * This class checks the functionality of the {@link DefaultChannelSelector} class.
  * 
- * @author marrus
  */
 public class DefaultChannelSelectorTest {
 

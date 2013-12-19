@@ -18,7 +18,6 @@ import java.util.Iterator;
 /**
  * Iterates over a range of integer values
  * 
- * @author Matthias Ringwald
  * 
  */
 public class RangeIterator implements Iterator<Integer> {

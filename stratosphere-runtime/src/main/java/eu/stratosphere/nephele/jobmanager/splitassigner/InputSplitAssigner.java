@@ -21,7 +21,6 @@ import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
  * The input split assigner interface must be implemented by every component which is supposed to dynamically offer
  * input splits to the input vertices of a job at runtime.
  * 
- * @author warneke
  */
 public interface InputSplitAssigner {
 

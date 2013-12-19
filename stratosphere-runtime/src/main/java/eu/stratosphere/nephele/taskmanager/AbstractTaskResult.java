@@ -27,7 +27,6 @@ import eu.stratosphere.nephele.util.EnumUtils;
  * of a task related operation. It contains the ID of the corresponding task, a return code and
  * a description. In case of an error the description includes an error message.
  * 
- * @author warneke
  */
 public abstract class AbstractTaskResult implements IOReadableWritable {
 

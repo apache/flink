@@ -21,7 +21,6 @@ import eu.stratosphere.util.MutableObjectIterator;
 /**
  * A simple iterator provider that returns a supplied iterator and does nothing when closed.
  *
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
 public class SimpleCloseableInputProvider<E> implements CloseableInputProvider<E>
 {

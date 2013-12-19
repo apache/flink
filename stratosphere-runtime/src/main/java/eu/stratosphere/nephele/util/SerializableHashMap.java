@@ -31,7 +31,6 @@ import eu.stratosphere.util.StringUtils;
  * <p>
  * This class is not thread-safe.
  * 
- * @author warneke
  * @param <K>
  *        the type of the key used in this hash map
  * @param <V>

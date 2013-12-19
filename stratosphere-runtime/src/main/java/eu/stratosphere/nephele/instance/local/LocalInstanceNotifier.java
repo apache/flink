@@ -27,7 +27,6 @@ import eu.stratosphere.nephele.jobgraph.JobID;
  * for a vertex and switching to the state ASSINING could not be guaranteed.
  * This class is thread-safe.
  * 
- * @author warneke
  */
 public class LocalInstanceNotifier extends Thread {
 

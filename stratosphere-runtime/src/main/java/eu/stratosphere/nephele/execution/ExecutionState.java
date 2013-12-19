@@ -16,7 +16,6 @@ package eu.stratosphere.nephele.execution;
 /**
  * This enumerations includes all possible states during a task's lifetime.
  * 
- * @author warneke
  */
 public enum ExecutionState {
 

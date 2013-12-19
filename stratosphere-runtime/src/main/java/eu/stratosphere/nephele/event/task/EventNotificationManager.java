@@ -24,7 +24,6 @@ import java.util.Map;
  * particular event types. Moreover, it handles the dispatching of the events.
  * This class is thread-safe.
  * 
- * @author warneke
  */
 public class EventNotificationManager {
 

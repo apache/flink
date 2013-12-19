@@ -81,8 +81,6 @@ import eu.stratosphere.util.StringUtils;
  * <p>
  * This class is thread-safe.
  * 
- * @author battre
- * @author warneke
  */
 public class ClusterManager implements InstanceManager {
 

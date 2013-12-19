@@ -53,7 +53,6 @@ import eu.stratosphere.util.StringUtils;
  * This class provides a {@link FileSystem} implementation which is backed by Amazon's Simple Storage Service (S3). The
  * implementation uses the REST API of Amazon S3 to facilitate the communication and read/write the data.
  * 
- * @author warneke
  */
 public final class S3FileSystem extends FileSystem {
 

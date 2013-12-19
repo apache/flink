@@ -34,7 +34,6 @@ import eu.stratosphere.nephele.jobgraph.JobID;
  * <p>
  * This class is thread-safe.
  * 
- * @author warneke
  */
 public class DefaultInputSplitAssigner implements InputSplitAssigner {
 

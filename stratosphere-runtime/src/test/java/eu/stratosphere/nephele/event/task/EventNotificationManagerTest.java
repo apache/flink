@@ -21,14 +21,12 @@ import org.junit.Test;
 /**
  * This class contains unit tests for the {@link EventNotificationManager}.
  * 
- * @author warneke
  */
 public class EventNotificationManagerTest {
 
 	/**
 	 * A test implementation of an {@link EventListener}.
 	 * 
-	 * @author warneke
 	 */
 	private static class TestEventListener implements EventListener {
 

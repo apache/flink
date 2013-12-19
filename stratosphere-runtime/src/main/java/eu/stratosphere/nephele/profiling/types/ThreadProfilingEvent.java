@@ -24,7 +24,6 @@ import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
  * Through this interface it is possible to access profiling data about the CPU utilization
  * of the corresponding execution thread during its execution.
  * 
- * @author stanik
  */
 public class ThreadProfilingEvent extends VertexProfilingEvent {
 

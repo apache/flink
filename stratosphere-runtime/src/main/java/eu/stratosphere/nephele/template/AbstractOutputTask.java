@@ -16,7 +16,6 @@ package eu.stratosphere.nephele.template;
 /**
  * Abstract base class for tasks submitted as a part of a job output vertex.
  * 
- * @author warneke
  */
 public abstract class AbstractOutputTask extends AbstractInvokable {
 

@@ -46,7 +46,6 @@ import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
 
 /**
- * @author Fabian Hueske
  */
 @RunWith(Parameterized.class)
 public class CrossITCase extends TestBase

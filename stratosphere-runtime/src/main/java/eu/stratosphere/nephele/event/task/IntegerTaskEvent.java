@@ -37,7 +37,6 @@ import java.io.IOException;
 /**
  * This class provides a simple implementation of an event that holds an integer value.
  * 
- * @author casp
  */
 public class IntegerTaskEvent extends AbstractTaskEvent {
 

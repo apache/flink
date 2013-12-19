@@ -19,7 +19,6 @@ import java.nio.channels.ReadableByteChannel;
 /**
  * This interface must be implemented by classes which transfer bytes streams back into {@link Record} objects.
  * 
- * @author Stephan Ewen
  * @param <T> The type of record this record deserializer works with.
  */
 public interface RecordDeserializer<T>

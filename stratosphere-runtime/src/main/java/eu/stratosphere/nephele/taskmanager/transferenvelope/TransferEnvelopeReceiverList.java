@@ -29,7 +29,6 @@ import eu.stratosphere.nephele.taskmanager.bytebuffered.RemoteReceiver;
  * <p>
  * This class is thread-safe.
  * 
- * @author warneke
  */
 public class TransferEnvelopeReceiverList {
 

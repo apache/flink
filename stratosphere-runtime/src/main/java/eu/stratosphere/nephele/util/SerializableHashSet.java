@@ -30,7 +30,6 @@ import eu.stratosphere.util.StringUtils;
  * <p>
  * This class is not thread-safe.
  * 
- * @author warneke
  * @param <T>
  *        the type used in this hash set
  */

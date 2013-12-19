@@ -24,7 +24,6 @@ import java.util.Queue;
  * <p>
  * This class is not thread-safe.
  * 
- * @author warneke
  * @param <E>
  *        the type of the elements stored in this queue
  */
@@ -257,7 +256,6 @@ public final class CapacityConstrainedArrayQueue<E> implements Queue<E> {
 	/**
 	 * This class implements an iterator for the capacity-constrained array queue.
 	 * 
-	 * @author warneke
 	 */
 	private final class CapacityConstrainedArrayQueueIterator implements Iterator<E> {
 

@@ -21,7 +21,6 @@ import eu.stratosphere.types.Key;
 /**
  * A generic comparator for two keys, which returns a result as defined by the keys compareTo methods.
  *
- * @author Stephan Ewen
  */
 public class KeyComparator implements Comparator<Key>
 {

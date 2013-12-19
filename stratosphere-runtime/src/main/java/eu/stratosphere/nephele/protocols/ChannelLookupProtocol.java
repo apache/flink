@@ -25,7 +25,6 @@ import eu.stratosphere.nephele.taskmanager.bytebuffered.ConnectionInfoLookupResp
  * The channel lookup protocol can be used to resolve the ID of an output channel to all recipients which shall receive
  * the data of this channel.
  * 
- * @author warneke
  */
 public interface ChannelLookupProtocol extends VersionedProtocol {
 

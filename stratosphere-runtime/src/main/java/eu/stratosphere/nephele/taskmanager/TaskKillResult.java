@@ -20,7 +20,6 @@ import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
  * of a task kill attempt. It contains the ID of the task to be killed, a return code and
  * a description. In case of an error during the kill operation the description includes an error message.
  * 
- * @author warneke
  */
 public class TaskKillResult extends AbstractTaskResult {
 

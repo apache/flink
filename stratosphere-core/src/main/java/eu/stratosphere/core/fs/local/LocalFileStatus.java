@@ -23,7 +23,6 @@ import eu.stratosphere.core.fs.Path;
  * The class <code>LocalFileStatus</code> provides an implementation of the {@link FileStatus} interface
  * for the local file system.
  * 
- * @author warneke
  */
 public class LocalFileStatus implements FileStatus {
 

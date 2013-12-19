@@ -19,7 +19,6 @@ import java.io.IOException;
 import java.util.Random;
 
 /**
- * @author Stephan Ewen
  */
 public class ShortType implements SerializationTestType
 {

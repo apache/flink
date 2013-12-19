@@ -34,7 +34,6 @@ import eu.stratosphere.test.util.TestBase;
 
 /**
  * 
- * @author Mathias Peters <mathias.peters@informatik.hu-berlin.de>
  *
  */
 @RunWith(Parameterized.class)

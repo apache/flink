@@ -29,7 +29,6 @@ import eu.stratosphere.nephele.io.RecordDeserializer;
  * A class for deserializing a portion of binary data into records of type <code>T</code>. The internal
  * buffer grows dynamically to the size that is required for deserialization.
  * 
- * @author warneke
  * @param <T>
  *        The type of the record this deserialization buffer can be used for.
  */

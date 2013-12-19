@@ -21,7 +21,6 @@ import eu.stratosphere.nephele.io.channels.ChannelType;
  * Objects of this class represent a pair of {@link AbstractInputChannel} and {@link AbstractOutputChannel} objects
  * within an {@link ExecutionGraph}, Nephele's internal scheduling representation for jobs.
  * 
- * @author warneke
  */
 public final class ExecutionEdge {
 

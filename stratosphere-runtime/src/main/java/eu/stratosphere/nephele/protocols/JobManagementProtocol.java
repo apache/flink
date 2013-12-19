@@ -27,7 +27,6 @@ import eu.stratosphere.nephele.types.IntegerRecord;
  * The JobManagementProtocol specifies methods required to manage
  * Nephele jobs from a job client.
  * 
- * @author warneke
  */
 public interface JobManagementProtocol extends VersionedProtocol {
 

@@ -18,7 +18,6 @@ import java.io.IOException;
 /**
  * A transfer envelope dispatcher receives {@link TransferEnvelopes} and sends them to all of this destinations.
  * 
- * @author warneke
  */
 public interface TransferEnvelopeDispatcher {
 

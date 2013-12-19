@@ -27,7 +27,6 @@ import eu.stratosphere.nephele.util.EnumUtils;
  * to the job client in order to inform the user about
  * changes in terms of a tasks execution state.
  * 
- * @author warneke
  */
 public class VertexEvent extends AbstractEvent {
 

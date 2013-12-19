@@ -30,7 +30,6 @@ import eu.stratosphere.nephele.util.CommonTestUtils;
  * This class contains tests concerning the serialization/deserialization of job events which have been derived from
  * {@link eu.stratosphere.nephele.event.job.AbstractEvent}.
  * 
- * @author warneke
  */
 public class JobEventTest {
 

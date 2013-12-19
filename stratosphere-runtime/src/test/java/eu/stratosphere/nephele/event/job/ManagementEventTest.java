@@ -27,7 +27,6 @@ import eu.stratosphere.nephele.util.ManagementTestUtils;
 /**
  * This test checks the proper serialization and deserialization of job events.
  * 
- * @author warneke
  */
 public class ManagementEventTest {
 

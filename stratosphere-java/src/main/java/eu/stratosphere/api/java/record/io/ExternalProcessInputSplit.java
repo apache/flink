@@ -15,7 +15,6 @@
  * 
  * 
  * 
- * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  */
 package eu.stratosphere.api.java.record.io;
 
@@ -32,7 +31,6 @@ import eu.stratosphere.core.io.StringRecord;
  * Each parallel instance of an InputFormat starts an external process and reads its output.
  * The command to start the external process must be executable on all nodes.
  *   
- * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  * 
  * @see ExternalProcessInputFormat
  * @see ExternalProcessFixedLengthInputFormat

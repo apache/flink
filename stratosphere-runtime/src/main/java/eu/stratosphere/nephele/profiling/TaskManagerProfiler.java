@@ -22,7 +22,6 @@ import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTask;
  * This interface must be implemented by profiling components
  * for the task manager manager.
  * 
- * @author warneke
  */
 public interface TaskManagerProfiler {
 

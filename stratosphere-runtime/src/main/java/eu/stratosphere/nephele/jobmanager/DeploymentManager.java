@@ -25,7 +25,6 @@ import eu.stratosphere.nephele.jobmanager.scheduler.AbstractScheduler;
  * {@link AbstractInstance}. It is called by a {@link AbstractScheduler} implementation whenever at least one
  * {@link ExecutionVertex} has become ready to be executed.
  * 
- * @author warneke
  */
 public interface DeploymentManager {
 

@@ -31,7 +31,6 @@ import eu.stratosphere.nephele.util.SerializableArrayList;
 /**
  * This class contains test concerning all classes which are derived from {@link AbstractJobResult}.
  * 
- * @author warneke
  */
 public class JobResultTest {
 

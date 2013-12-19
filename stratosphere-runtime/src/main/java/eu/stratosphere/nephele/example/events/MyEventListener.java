@@ -34,7 +34,6 @@ import eu.stratosphere.nephele.event.task.EventListener;
 import eu.stratosphere.nephele.event.task.StringTaskEvent;
 
 /**
- * @author casp
  */
 public class MyEventListener implements EventListener {
 

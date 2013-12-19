@@ -33,7 +33,6 @@ import eu.stratosphere.nephele.topology.NetworkTopology;
  * internal scheduling information, the network topology, or profiling
  * information about thread or instance utilization.
  * 
- * @author warneke
  */
 public interface ExtendedManagementProtocol extends JobManagementProtocol {
 

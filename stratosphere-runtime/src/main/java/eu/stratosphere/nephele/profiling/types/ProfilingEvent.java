@@ -27,7 +27,6 @@ import eu.stratosphere.nephele.jobgraph.JobID;
  * <p>
  * This class is not thread-safe.
  * 
- * @author warneke
  */
 public abstract class ProfilingEvent extends AbstractEvent implements ManagementEvent {
 

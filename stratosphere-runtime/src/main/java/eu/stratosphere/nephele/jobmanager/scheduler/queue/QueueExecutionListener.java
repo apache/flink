@@ -23,7 +23,6 @@ import eu.stratosphere.nephele.jobmanager.scheduler.AbstractExecutionListener;
  * <p>
  * This class is thread-safe.
  * 
- * @author warneke
  */
 public final class QueueExecutionListener extends AbstractExecutionListener {
 

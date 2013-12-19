@@ -33,8 +33,6 @@ import eu.stratosphere.util.Collector;
  * 
  * In prepration of the following reduce step (see {@link GroupByReturnFlag}) the key has to be set to &quot;return flag&quot;
  * 
- * @author Mathias Peters <mathias.peters@informatik.hu-berlin.de>
- * @author Moritz Kaufmann <moritz.kaufmann@campus.tu-berlin.de>
  */
 public class LineItemFilter extends MapFunction {
 

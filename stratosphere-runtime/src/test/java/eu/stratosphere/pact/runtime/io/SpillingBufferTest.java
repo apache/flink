@@ -39,7 +39,6 @@ import eu.stratosphere.types.Record;
 
 
 /**
- * @author Stephan Ewen 
  */
 public class SpillingBufferTest
 {

@@ -21,7 +21,6 @@ import java.util.Iterator;
  * <p>
  * This class is thread-safe.
  * 
- * @author warneke
  * @param <T>
  *        the type of the encapsulated iterator
  */

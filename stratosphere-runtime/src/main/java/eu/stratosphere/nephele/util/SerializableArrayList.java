@@ -30,7 +30,6 @@ import eu.stratosphere.util.StringUtils;
  * <p>
  * This class is not thread-safe.
  * 
- * @author warneke
  * @param <E>
  *        the type of object stored inside this array list
  */

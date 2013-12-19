@@ -22,7 +22,6 @@ import eu.stratosphere.core.io.InputSplit;
  * consume. Internally, the input split iterator calls an {@link InputSplitProvider} on each <code>next</code> call in
  * order to facilitate lazy split assignment.
  * 
- * @author warneke
  * @param <T>
  */
 public class InputSplitIterator<T extends InputSplit> implements Iterator<T> {

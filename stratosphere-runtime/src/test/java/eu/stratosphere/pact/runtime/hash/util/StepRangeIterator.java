@@ -18,7 +18,6 @@ import java.util.Iterator;
 /**
  * Iterates over a range of integer values with a certain step width
  * 
- * @author Matthias Ringwald
  * 
  */
 public class StepRangeIterator implements Iterator<Integer> {

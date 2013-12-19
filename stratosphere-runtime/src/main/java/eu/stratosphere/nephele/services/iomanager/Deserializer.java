@@ -26,7 +26,6 @@ import java.io.InputStream;
  * to {@link #deserialize(Object)}.
  * </p>
  * 
- * @author Erik Nijkamp
  * @param <T>
  */
 public interface Deserializer<T> {

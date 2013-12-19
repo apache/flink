@@ -25,8 +25,6 @@ import eu.stratosphere.util.Collector;
  * <i>open/next/close</i> principle. The <i>next</i> logic here calls the match stub with all
  * value pairs that share the same key.
  *
- * @author Erik Nijkamp
- * @author Stephan Ewen
  */
 public interface JoinTaskIterator<V1, V2, O>
 {

@@ -35,8 +35,6 @@ import eu.stratosphere.util.MutableObjectIterator;
  * 
  * @see eu.stratosphere.api.java.record.functions.CrossFunction
  * 
- * @author Stephan Ewen
- * @author Fabian Hueske
  */
 public class CrossDriver<T1, T2, OT> implements PactDriver<GenericCrosser<T1, T2, OT>, OT>
 {

@@ -26,7 +26,6 @@ import eu.stratosphere.nephele.util.ManagementTestUtils;
 /**
  * This class contains tests concerning the {@link ManagementGraph} and its components.
  * 
- * @author warneke
  */
 public class ManagementGraphTest {
 

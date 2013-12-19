@@ -17,7 +17,6 @@ package eu.stratosphere.nephele.executiongraph;
  * This interface allows objects to receive notifications
  * when the status of an observed job has changed.
  * 
- * @author warneke
  */
 public interface JobStatusListener {
 

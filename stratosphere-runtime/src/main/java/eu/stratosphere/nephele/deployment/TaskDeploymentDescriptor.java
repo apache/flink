@@ -32,7 +32,6 @@ import eu.stratosphere.util.StringUtils;
  * <p>
  * This class is not thread-safe in general.
  * 
- * @author warneke
  */
 public final class TaskDeploymentDescriptor implements IOReadableWritable {
 

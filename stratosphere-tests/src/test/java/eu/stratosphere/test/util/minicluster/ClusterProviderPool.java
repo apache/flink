@@ -24,8 +24,6 @@ import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.test.util.Constants;
 
 /**
- * @author Erik Nijkamp
- * @author Fabian Hueske
  */
 public class ClusterProviderPool {
 

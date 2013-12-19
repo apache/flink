@@ -16,7 +16,6 @@ package eu.stratosphere.nephele.profiling;
 /**
  * A profiling exception is thrown if an error occur during profiling execution.
  * 
- * @author Alexander Stanik
  */
 public class ProfilingException extends Exception {
 

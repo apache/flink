@@ -20,7 +20,6 @@ import eu.stratosphere.nephele.jobgraph.JobID;
  * This interface must be implemented by classes which should be able to receive notifications about
  * changes of a task's execution state.
  * 
- * @author warneke
  */
 public interface ExecutionListener {
 

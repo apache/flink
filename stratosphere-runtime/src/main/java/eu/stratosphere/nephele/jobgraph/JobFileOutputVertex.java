@@ -30,7 +30,6 @@ import eu.stratosphere.nephele.template.AbstractInvokable;
  * for Nephele tasks which write data to a local or distributed file system. As every job output vertex
  * A JobFileOutputVertex must not have any further output.
  * 
- * @author warneke
  */
 public class JobFileOutputVertex extends AbstractJobOutputVertex {
 

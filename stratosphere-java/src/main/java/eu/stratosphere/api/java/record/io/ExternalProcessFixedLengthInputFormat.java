@@ -29,7 +29,6 @@ import eu.stratosphere.types.Record;
  * 
  * <b>Warning:</b> This format does not consume the standard error stream (stderr) of the started process. This might cause deadlocks. 
  * 
- * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  *
  * @param <T>, The type of the input split (must extend ExternalProcessInputSplit)
  * 

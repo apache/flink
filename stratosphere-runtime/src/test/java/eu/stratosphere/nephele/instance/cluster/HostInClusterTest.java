@@ -38,8 +38,6 @@ import eu.stratosphere.nephele.topology.NetworkTopology;
 /**
  * Tests for {@link ClusterInstance}.
  * 
- * @author Dominic Battre
- * @author warneke
  */
 public class HostInClusterTest {
 

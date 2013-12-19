@@ -19,7 +19,6 @@ import eu.stratosphere.nephele.services.ServiceException;
  * An exception to be thrown when a memory allocation operation is not
  * successful.
  * 
- * @author Alexander Alexandrov
  */
 public class MemoryAllocationException extends ServiceException
 {

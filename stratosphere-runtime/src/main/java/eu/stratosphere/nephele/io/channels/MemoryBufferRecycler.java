@@ -27,7 +27,6 @@ import eu.stratosphere.core.memory.MemorySegment;
  * <p>
  * This class is thread-safe.
  * 
- * @author warneke
  */
 public final class MemoryBufferRecycler {
 

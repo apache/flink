@@ -53,8 +53,6 @@ import eu.stratosphere.util.Collector;
  * 
  * The RDF input format is used if the 4th parameter of the getPlan() method is set to "true". If set to "false" the path input format is used. 
  *  
- * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
- * @author Moritz Kaufmann (moritz.kaufmann@campus.tu-berlin.de)
  *
  */
 public class PairwiseSP implements Program, ProgramDescription {
@@ -164,7 +162,6 @@ public class PairwiseSP implements Program, ProgramDescription {
 	 * In order, the from-node, the to-node, the length, the hop list are written out.
 	 * Elements are separated by the pipe character ('|').  
 	 * 
-	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
 	 *
 	 */
 	public static class PathOutFormat extends FileOutputFormat {
@@ -261,7 +258,6 @@ public class PairwiseSP implements Program, ProgramDescription {
 	 * Gets two lists of paths as input and emits for each included from-node/to-node combination the shortest path(s).
 	 * If for a combination more than one shortest path exists, all shortest paths are emitted. 
 	 * 
-	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
 	 *
 	 */
 	@ConstantFieldsFirst({0,1})

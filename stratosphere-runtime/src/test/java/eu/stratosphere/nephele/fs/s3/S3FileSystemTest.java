@@ -41,7 +41,6 @@ import eu.stratosphere.runtime.fs.s3.S3FileSystem;
 /**
  * This test checks the S3 implementation of the {@link FileSystem} interface.
  * 
- * @author warneke
  */
 public class S3FileSystemTest {
 

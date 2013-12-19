@@ -29,7 +29,6 @@ import java.util.jar.Manifest;
  * <p>
  * This class is thread-safe.
  * 
- * @author warneke
  */
 public class JarFileCreator {
 

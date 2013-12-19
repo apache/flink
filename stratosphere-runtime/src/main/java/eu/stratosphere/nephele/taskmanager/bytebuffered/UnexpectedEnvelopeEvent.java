@@ -26,7 +26,6 @@ import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
  * being replayed from a checkpoint. With the help of this event it is possible to request the sender to skip sending
  * transfer envelopes up to the given expected sequence number.
  * 
- * @author warneke
  */
 public final class UnexpectedEnvelopeEvent extends AbstractEvent {
 

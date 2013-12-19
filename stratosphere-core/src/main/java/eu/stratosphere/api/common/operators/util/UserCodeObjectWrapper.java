@@ -23,7 +23,6 @@ import com.google.common.base.Preconditions;
 
 /**
  * This holds an actual object containing user defined code.
- * @author Aljoscha Krettek
  *
  */
 public class UserCodeObjectWrapper<T> implements UserCodeWrapper<T> {

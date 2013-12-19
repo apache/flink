@@ -18,7 +18,6 @@ import eu.stratosphere.nephele.template.AbstractTask;
 /**
  * This task throws a {@link RuntimeException} when the method <code>registerInputOutput</code> is called.
  * 
- * @author warneke
  */
 public class RuntimeExceptionTask extends AbstractTask {
 

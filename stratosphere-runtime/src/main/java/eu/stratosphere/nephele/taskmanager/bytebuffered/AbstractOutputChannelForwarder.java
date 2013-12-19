@@ -25,7 +25,6 @@ import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
  * an {@link AbstractByteBufferedOutputChannel}. The component can decide based on the transfer envelope whether to
  * forward the envelope, discard it, or to store it.
  * 
- * @author warneke
  */
 public abstract class AbstractOutputChannelForwarder {
 

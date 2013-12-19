@@ -24,7 +24,6 @@ import eu.stratosphere.core.io.IOReadableWritable;
  * the instance type description (as provided by the operator/administrator of the instance) as well as the actual
  * hardware description which has been determined on the compute instance itself.
  * 
- * @author warneke
  */
 public final class InstanceTypeDescription implements IOReadableWritable {
 

@@ -25,7 +25,6 @@ import eu.stratosphere.nephele.io.channels.ChannelType;
  * <p>
  * This class is thread-safe.
  * 
- * @author warneke
  */
 public final class ExecutionGate {
 

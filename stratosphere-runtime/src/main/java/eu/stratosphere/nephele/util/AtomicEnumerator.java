@@ -17,7 +17,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 
 /**
- * @author Stephan Ewen 
  */
 public class AtomicEnumerator<E>
 {

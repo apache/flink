@@ -18,7 +18,6 @@ package eu.stratosphere.nephele.taskmanager.bufferprovider;
  * {@link Buffer} has
  * become available again.
  * 
- * @author warneke
  */
 public interface BufferAvailabilityListener {
 

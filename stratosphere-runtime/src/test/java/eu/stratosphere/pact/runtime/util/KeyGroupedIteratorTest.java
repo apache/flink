@@ -34,7 +34,6 @@ import eu.stratosphere.util.MutableObjectIterator;
  * Test for the key grouped iterator, which advances in windows containing the same key and provides a sub-iterator
  * over the records with the same key.
  * 
- * @author Stephan Ewen
  */
 public class KeyGroupedIteratorTest
 {

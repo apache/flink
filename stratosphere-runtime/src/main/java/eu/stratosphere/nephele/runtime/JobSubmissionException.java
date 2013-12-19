@@ -17,7 +17,6 @@ package eu.stratosphere.nephele.runtime;
  * A job submission exception is thrown if an error occurs while submitting
  * a job from the client to the job manager.
  * 
- * @author warneke
  */
 public class JobSubmissionException extends Exception {
 

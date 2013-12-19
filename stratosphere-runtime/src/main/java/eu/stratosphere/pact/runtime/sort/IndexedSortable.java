@@ -14,7 +14,6 @@
 package eu.stratosphere.pact.runtime.sort;
 
 /**
- * @author Erik Nijkamp
  */
 public interface IndexedSortable {
 

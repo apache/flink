@@ -31,7 +31,6 @@ import org.eclipse.swt.widgets.Composite;
 /**
  * The class implements a combo box with auto-completion features.
  * 
- * @author warneke
  */
 public final class AutoCompletionCombo extends Composite implements KeyListener, SelectionListener {
 

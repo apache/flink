@@ -27,7 +27,6 @@ import eu.stratosphere.util.StringUtils;
  * This class contains utility functions to load and configure Nephele's
  * profiling component.
  * 
- * @author warneke
  */
 public class ProfilingUtils {
 

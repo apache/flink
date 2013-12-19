@@ -27,7 +27,6 @@ import eu.stratosphere.core.memory.MemorySegment;
  * blocks. It therefore requires specification of the number of blocks and the number of
  * bytes in the last block.
  *
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
 public class HeaderlessChannelReaderInputView extends ChannelReaderInputView
 {

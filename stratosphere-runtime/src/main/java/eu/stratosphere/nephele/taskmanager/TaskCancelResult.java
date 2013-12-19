@@ -20,7 +20,6 @@ import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
  * of a task cancel attempt. It contains the ID of the task to be canceled, a return code and
  * a description. In case of an error during the cancel operation the description includes an error message.
  * 
- * @author warneke
  */
 public class TaskCancelResult extends AbstractTaskResult {
 

@@ -23,7 +23,6 @@ import eu.stratosphere.core.fs.BlockLocation;
  * Implementation of the {@link BlockLocation} interface for the
  * Hadoop Distributed File System.
  * 
- * @author warneke
  */
 public final class DistributedBlockLocation implements BlockLocation {
 

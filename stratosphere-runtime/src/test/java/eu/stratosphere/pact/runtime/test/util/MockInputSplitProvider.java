@@ -28,7 +28,6 @@ import eu.stratosphere.nephele.template.InputSplitProvider;
  * <p>
  * This class is thread-safe.
  * 
- * @author warneke
  */
 public class MockInputSplitProvider implements InputSplitProvider {
 

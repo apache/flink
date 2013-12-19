@@ -46,7 +46,6 @@ import eu.stratosphere.nephele.taskmanager.bytebuffered.ConnectionInfoLookupResp
  * The MulticastManager is responsible for the creation and storage of application-layer multicast trees used to
  * broadcast records to multiple target vertices.
  * 
- * @author casp
  */
 
 public final class MulticastManager implements ChannelLookupProtocol {

@@ -20,7 +20,6 @@ package eu.stratosphere.runtime.fs.s3;
  * <p>
  * This class is thread-safe.
  * 
- * @author warneke
  */
 public final class S3BucketObjectPair {
 

@@ -33,7 +33,6 @@ import eu.stratosphere.test.testPrograms.tpch10.TPCHQuery10;
 import eu.stratosphere.test.util.TestBase;
 
 /**
- * @author rico
  */
 @RunWith(Parameterized.class)
 public class TPCHQuery10ITCase extends TestBase {

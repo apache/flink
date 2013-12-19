@@ -22,7 +22,6 @@ import eu.stratosphere.nephele.template.AbstractTask;
  * of emit (send out) to the output gate. The broadcast record writer will make sure that each emitted record will be
  * transfered via all connected output channels.
  * 
- * @author warneke
  * @param <T>
  *        the type of the record that can be emitted with this record writer
  */

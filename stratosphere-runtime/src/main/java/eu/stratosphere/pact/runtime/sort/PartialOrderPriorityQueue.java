@@ -30,7 +30,6 @@ import java.util.Queue;
  * ordering of its elements such that the+ least element can always be found
  * in constant time. Put()'s and pop()'s require log(size) time.
  * 
- * @author Erik Nijkamp
  */
 public class PartialOrderPriorityQueue<T> extends AbstractQueue<T> implements Queue<T> {
 	/**

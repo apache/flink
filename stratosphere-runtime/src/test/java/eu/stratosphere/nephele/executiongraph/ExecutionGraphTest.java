@@ -60,7 +60,6 @@ import eu.stratosphere.nephele.util.ServerTestUtils;
 /**
  * This class contains test concerning the correct conversion from {@link JobGraph} to {@link ExecutionGraph} objects.
  * 
- * @author warneke
  */
 public class ExecutionGraphTest {
 
@@ -72,7 +71,6 @@ public class ExecutionGraphTest {
 	/**
 	 * A test implementation of an {@link InstanceManager} which is used as a stub in these tests.
 	 * 
-	 * @author warneke
 	 */
 	private static final class TestInstanceManager implements InstanceManager {
 

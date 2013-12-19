@@ -21,7 +21,6 @@ import eu.stratosphere.nephele.jobgraph.JobID;
  * Classes implementing the {@link InstanceListener} interface can be notified about
  * the availability or the unexpected failure of an instance.
  * 
- * @author warneke
  */
 public interface InstanceListener {
 

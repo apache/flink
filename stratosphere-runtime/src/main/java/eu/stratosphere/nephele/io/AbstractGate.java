@@ -28,7 +28,6 @@ import eu.stratosphere.nephele.jobgraph.JobID;
  * <p>
  * This class in general is not thread-safe.
  * 
- * @author warneke
  * @param <T>
  *        the record type to be transported from this gate
  */

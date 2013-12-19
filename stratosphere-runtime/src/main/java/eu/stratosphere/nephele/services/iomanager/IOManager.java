@@ -27,8 +27,6 @@ import eu.stratosphere.core.memory.MemorySegment;
 /**
  * The facade for the provided I/O manager services.
  * 
- * @author Alexander Alexandrov
- * @author Stephan Ewen
  */
 public final class IOManager implements UncaughtExceptionHandler
 {
@@ -473,8 +471,6 @@ public final class IOManager implements UncaughtExceptionHandler
 	/**
 	 * A worker thread for asynchronous read.
 	 * 
-	 * @author Alexander Alexandrov
-	 * @author Stephan Ewen
 	 */
 	private static final class ReaderThread extends Thread
 	{

@@ -46,7 +46,6 @@ import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import java.io.IOException;
 
 /**
- * @author casp
  */
 public class EventExample {
 

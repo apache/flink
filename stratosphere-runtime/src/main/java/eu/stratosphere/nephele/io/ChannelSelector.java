@@ -20,7 +20,6 @@ import eu.stratosphere.core.io.IOReadableWritable;
  * gate, the channel selector object is called to determine to which {@link AbstractOutputChannel} objects the record
  * shall be passed on.
  * 
- * @author warneke
  * @param <T>
  *        the type of record which is sent through the attached output gate
  */

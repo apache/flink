@@ -20,7 +20,6 @@ import eu.stratosphere.nephele.jobgraph.JobID;
  * This interface must be implemented by profiling components
  * for the job manager.
  * 
- * @author warneke
  */
 public interface JobManagerProfiler {
 

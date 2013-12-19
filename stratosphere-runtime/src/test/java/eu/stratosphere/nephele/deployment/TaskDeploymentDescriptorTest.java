@@ -34,7 +34,6 @@ import eu.stratosphere.util.StringUtils;
 /**
  * This class contains unit tests for the {@link TaskDeploymentDescriptor} class.
  * 
- * @author warneke
  */
 public class TaskDeploymentDescriptorTest {
 

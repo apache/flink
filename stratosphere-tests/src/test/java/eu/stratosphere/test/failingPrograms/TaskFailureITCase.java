@@ -47,7 +47,6 @@ import eu.stratosphere.util.Collector;
 /**
  * Tests whether the system recovers from a runtime exception from the PACT user code.
  * 
- * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  *
  */
 @RunWith(Parameterized.class)
@@ -208,7 +207,6 @@ public class TaskFailureITCase extends FailingTestBase {
 	/**
 	 * Map stub implementation for working program
 	 * 
-	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
 	 *
 	 */
 	public static class TestMapper extends MapFunction {
@@ -241,7 +239,6 @@ public class TaskFailureITCase extends FailingTestBase {
 	/**
 	 * Map stub implementation that fails with a {@link RuntimeException}.
 	 * 
-	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
 	 *
 	 */
 	public static class FailingMapper extends MapFunction {

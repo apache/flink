@@ -35,8 +35,6 @@ import eu.stratosphere.pact.runtime.util.MemoryBlockIterator;
  * Base class for iterators that fetch a block of data into main memory and offer resettable
  * access to the data in that block.
  * 
- * @author Stephan Ewen
- * @author Fabian Hueske
  */
 abstract class AbstractBlockResettableIterator<T> implements MemoryBlockIterator
 {

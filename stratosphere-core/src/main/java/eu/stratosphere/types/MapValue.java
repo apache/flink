@@ -34,7 +34,6 @@ import eu.stratosphere.util.ReflectionUtil;
  * @param <K> Type of the map's key element.
  * @param <V> Type of the map's value element.
  * 
- * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  * 
  */
 public abstract class MapValue<K extends Value, V extends Value> implements Value, Map<K, V> {

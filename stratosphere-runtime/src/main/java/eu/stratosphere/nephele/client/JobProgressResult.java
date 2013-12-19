@@ -25,7 +25,6 @@ import eu.stratosphere.nephele.util.SerializableArrayList;
  * A <code>JobProgressResult</code> is used to report the current progress
  * of a job.
  * 
- * @author warneke
  */
 public class JobProgressResult extends AbstractJobResult {
 

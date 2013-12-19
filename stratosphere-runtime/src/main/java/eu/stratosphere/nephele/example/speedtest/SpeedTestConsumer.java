@@ -19,7 +19,6 @@ import eu.stratosphere.nephele.template.AbstractOutputTask;
 /**
  * This class implements the consumer task of the speed test. The consumer task simply drops all received records.
  * 
- * @author warneke
  */
 public class SpeedTestConsumer extends AbstractOutputTask {
 

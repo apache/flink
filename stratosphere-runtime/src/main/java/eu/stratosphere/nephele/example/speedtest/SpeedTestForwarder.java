@@ -21,7 +21,6 @@ import eu.stratosphere.nephele.template.AbstractTask;
  * This class implements a forwarder task for the speed test. The forwarder task immediately outputs every record it
  * reads.
  * 
- * @author warneke
  */
 public final class SpeedTestForwarder extends AbstractTask {
 

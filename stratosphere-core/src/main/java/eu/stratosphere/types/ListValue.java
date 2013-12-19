@@ -34,7 +34,6 @@ import eu.stratosphere.util.ReflectionUtil;
  * 
  * @param <V> Type of the list elements.
  * 
- * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  * 
  */
 public abstract class ListValue<V extends Value> implements Value, List<V> {

@@ -25,7 +25,6 @@ import eu.stratosphere.core.io.StringRecord;
  * library names originally included in the request message and additionally a bit vector stating which of them
  * are available in the respective task manager's local cache.
  * 
- * @author warneke
  */
 public class LibraryCacheProfileResponse implements IOReadableWritable {
 

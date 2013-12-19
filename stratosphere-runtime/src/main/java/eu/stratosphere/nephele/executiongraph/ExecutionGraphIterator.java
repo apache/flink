@@ -29,7 +29,6 @@ import org.apache.commons.logging.LogFactory;
  * <p>
  * This class is not thread-safe.
  * 
- * @author warneke
  */
 public class ExecutionGraphIterator implements Iterator<ExecutionVertex> {
 
@@ -76,7 +75,6 @@ public class ExecutionGraphIterator implements Iterator<ExecutionVertex> {
 	/**
 	 * Auxiliary class which stores which vertices have already been visited.
 	 * 
-	 * @author warneke
 	 */
 	private static class TraversalEntry {
 

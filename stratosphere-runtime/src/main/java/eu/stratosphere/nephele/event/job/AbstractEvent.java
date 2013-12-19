@@ -26,7 +26,6 @@ import eu.stratosphere.core.io.IOReadableWritable;
  * An abstract event is transmitted from the job manager to the
  * job client in order to inform the user about the job progress.
  * 
- * @author warneke
  */
 public abstract class AbstractEvent implements IOReadableWritable {
 

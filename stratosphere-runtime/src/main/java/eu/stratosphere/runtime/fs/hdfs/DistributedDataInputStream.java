@@ -21,7 +21,6 @@ import eu.stratosphere.core.fs.FSDataInputStream;
  * Concrete implementation of the {@link FSDataInputStream} for the
  * Hadoop Distributed File System.
  * 
- * @author warneke
  */
 public final class DistributedDataInputStream extends FSDataInputStream {
 

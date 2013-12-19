@@ -40,7 +40,6 @@ import eu.stratosphere.util.StringUtils;
 /**
  * The queue scheduler mains of queue of all submitted jobs and executes one job at a time.
  * 
- * @author warneke
  */
 public class QueueScheduler extends AbstractScheduler implements JobStatusListener, ExecutionStageListener {
 

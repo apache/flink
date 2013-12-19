@@ -45,7 +45,6 @@ import static org.junit.Assert.*;
 
 /**
  * This class contains tests related to the JobGraph
- * @author casp
  */
 public class JobGraphTest {
 

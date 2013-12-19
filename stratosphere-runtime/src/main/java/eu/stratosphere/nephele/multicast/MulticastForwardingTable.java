@@ -23,7 +23,6 @@ import eu.stratosphere.nephele.taskmanager.bytebuffered.ConnectionInfoLookupResp
  * This class contains ConnectionInfoLookupResponse objects containing local, as well as remote receivers for all
  * instances within a certain job-specific multicast tree.
  * 
- * @author casp
  */
 public class MulticastForwardingTable {
 

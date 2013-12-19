@@ -48,8 +48,6 @@ import eu.stratosphere.util.Collector;
 import eu.stratosphere.util.MutableObjectIterator;
 
 /**
- * @author Erik Nijkamp
- * @author Stephan Ewen
  */
 public class SortMergeMatchIteratorITCase
 {

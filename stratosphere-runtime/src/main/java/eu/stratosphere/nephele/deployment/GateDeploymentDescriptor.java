@@ -31,7 +31,6 @@ import eu.stratosphere.nephele.util.EnumUtils;
  * <p>
  * This class is not thread-safe in general.
  * 
- * @author warneke
  */
 public final class GateDeploymentDescriptor implements IOReadableWritable {
 

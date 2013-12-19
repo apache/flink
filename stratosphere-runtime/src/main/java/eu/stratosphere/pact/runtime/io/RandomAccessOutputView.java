@@ -24,7 +24,6 @@ import eu.stratosphere.pact.runtime.util.MathUtils;
 /**
  *
  *
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
 public class RandomAccessOutputView extends AbstractPagedOutputView implements SeekableDataOutputView
 {

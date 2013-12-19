@@ -22,7 +22,6 @@ import org.apache.commons.logging.LogFactory;
 /**
  * This factory constructs {@link InstanceType} objects.
  * 
- * @author warneke
  */
 public class InstanceTypeFactory {
 

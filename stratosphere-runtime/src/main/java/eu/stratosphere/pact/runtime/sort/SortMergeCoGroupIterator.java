@@ -25,9 +25,6 @@ import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
 import eu.stratosphere.util.MutableObjectIterator;
 
 /**
- * @author Fabian Hueske
- * @author Stephan Ewen
- * @author Erik Nijkamp
  */
 public class SortMergeCoGroupIterator<T1, T2> implements CoGroupTaskIterator<T1, T2>
 {

@@ -58,7 +58,6 @@ import eu.stratosphere.nephele.topology.NetworkTopology;
  * <p>
  * This class is thread-safe.
  * 
- * @author warneke
  */
 public final class EventCollector extends TimerTask implements ProfilingListener {
 
@@ -69,7 +68,6 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 	 * However, these IDs are needed to create the construct the {@link VertexEvent} and the
 	 * {@link ExecutionStateChangeEvent}.
 	 * 
-	 * @author warneke
 	 */
 	private static final class ExecutionListenerWrapper implements ExecutionListener {
 
@@ -156,7 +154,6 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 	 * method. However, this job name
 	 * is needed to create the construct the {@link RecentJobEvent}.
 	 * 
-	 * @author warneke
 	 */
 	private static final class JobStatusListenerWrapper implements JobStatusListener {
 
@@ -233,7 +230,6 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 	 * because the job ID cannot be accessed from the data provided by the <code>vertexAssignmentChanged</code> callback
 	 * method. However, this job ID is needed to prepare the {@link VertexAssignmentEvent} for transmission.
 	 * 
-	 * @author warneke
 	 */
 	private static final class VertexAssignmentListenerWrapper implements VertexAssignmentListener {
 

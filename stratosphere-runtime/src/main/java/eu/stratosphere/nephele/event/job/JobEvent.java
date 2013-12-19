@@ -25,7 +25,6 @@ import eu.stratosphere.nephele.util.EnumUtils;
  * A job event object is used by the job manager to inform a client about
  * changes of the job's status.
  * 
- * @author warneke
  */
 public class JobEvent extends AbstractEvent {
 

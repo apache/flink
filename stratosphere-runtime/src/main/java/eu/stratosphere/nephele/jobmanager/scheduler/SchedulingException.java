@@ -17,7 +17,6 @@ package eu.stratosphere.nephele.jobmanager.scheduler;
  * Scheduling exceptions are thrown to indicate problems or errors
  * related to Nephele's scheduler.
  * 
- * @author warneke
  */
 public class SchedulingException extends Exception {
 

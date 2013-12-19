@@ -21,7 +21,6 @@ import java.util.LinkedList;
 /**
  * This class represents a cluster of hosts within a multicast-tree.
  * 
- * @author casp
  */
 
 public class MulticastCluster {

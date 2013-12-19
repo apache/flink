@@ -17,7 +17,6 @@ import java.io.File;
 import java.io.PrintWriter;
 
 /**
- * @author Erik Nijkamp
  */
 public class FileWriter {
 	private PrintWriter out;

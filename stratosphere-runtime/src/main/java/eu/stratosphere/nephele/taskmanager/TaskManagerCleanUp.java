@@ -17,7 +17,6 @@ package eu.stratosphere.nephele.taskmanager;
  * This is an auxiliary thread to facilitate the shutdown of the
  * task manager through a shutdown hook.
  * 
- * @author warneke
  */
 public class TaskManagerCleanUp extends Thread {
 

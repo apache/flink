@@ -51,7 +51,6 @@ import eu.stratosphere.nephele.util.SerializableHashMap;
  * <p>
  * This class is thread-safe.
  * 
- * @author warneke
  */
 public class LocalInstanceManager implements InstanceManager {
 

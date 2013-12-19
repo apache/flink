@@ -44,7 +44,6 @@ import eu.stratosphere.util.StringUtils;
  * <p>
  * This class is thread-safe.
  * 
- * @author warneke
  */
 public final class LibraryCacheManager {
 
@@ -676,7 +675,6 @@ public final class LibraryCacheManager {
 	 * Auxiliary class that stores the class loader object as well as the names of the required
 	 * libraries for a job vertex.
 	 * 
-	 * @author warneke
 	 */
 	private static class LibraryManagerEntry {
 
@@ -742,7 +740,6 @@ public final class LibraryCacheManager {
 	 * for a vertex
 	 * and the internal names used by the library cache manager.
 	 * 
-	 * @author warneke
 	 */
 	private static class LibraryTranslationKey {
 

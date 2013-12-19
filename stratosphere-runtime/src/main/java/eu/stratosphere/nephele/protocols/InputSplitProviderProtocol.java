@@ -25,7 +25,6 @@ import eu.stratosphere.nephele.types.IntegerRecord;
  * The input split provider protocol is used to facilitate RPC calls related to the lazy split assignment which Nephele
  * applies to provide better load balancing properties.
  * 
- * @author warneke
  */
 public interface InputSplitProviderProtocol extends VersionedProtocol {
 

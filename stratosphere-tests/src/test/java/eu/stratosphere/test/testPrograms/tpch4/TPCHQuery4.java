@@ -45,8 +45,6 @@ import eu.stratosphere.util.Collector;
 /**
  * Implementation of the TPC-H Query 4 as a PACT program.
  * 
- * @author Mathias Peters <mathias.peters@informatik.hu-berlin.de>
- * @author Moritz Kaufmann <moritz.kaufmann@campus.tu-berlin.de>
  */
 public class TPCHQuery4 implements Program, ProgramDescription {
 

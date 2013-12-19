@@ -29,8 +29,6 @@ import eu.stratosphere.util.MutableObjectIterator;
  * Implementation of an iterator that fetches a block of data into main memory and offers resettable
  * access to the data in that block.
  * 
- * @author Stephan Ewen
- * @author Fabian Hueske
  */
 public class BlockResettableMutableObjectIterator<T> extends AbstractBlockResettableIterator<T>
 implements ResettableMutableObjectIterator<T>

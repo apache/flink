@@ -28,7 +28,6 @@ import eu.stratosphere.nephele.util.CommonTestUtils;
  * This class contains serialization tests concerning task events derived from
  * {@link eu.stratosphere.nephele.event.task.AbstractEvent}.
  * 
- * @author warneke
  */
 public class TaskEventTest {
 

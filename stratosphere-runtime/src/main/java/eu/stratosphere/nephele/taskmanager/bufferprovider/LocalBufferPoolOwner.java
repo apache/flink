@@ -17,7 +17,6 @@ package eu.stratosphere.nephele.taskmanager.bufferprovider;
  * A local buffer pool owner is an object which initially retrieves its buffers from the {@link GlobalBufferPool} and
  * manages its fraction of the overall buffer pool locally by means of a {@link LocalBufferPool}.
  * 
- * @author warneke
  */
 public interface LocalBufferPoolOwner {
 

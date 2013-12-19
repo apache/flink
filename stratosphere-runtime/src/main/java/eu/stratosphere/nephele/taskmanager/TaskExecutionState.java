@@ -28,7 +28,6 @@ import eu.stratosphere.nephele.util.EnumUtils;
  * This class can be used to propagate updates about a task's execution state from the
  * task manager to the job manager.
  * 
- * @author warneke
  */
 public class TaskExecutionState implements IOReadableWritable {
 

@@ -19,7 +19,6 @@ package eu.stratosphere.addons.visualization.swt;
  * <p>
  * This class is thread-safe.
  * 
- * @author warneke
  */
 public final class VertexFailureEvent extends AbstractFailureEvent {
 

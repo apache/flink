@@ -34,7 +34,6 @@ import eu.stratosphere.nephele.topology.NetworkTopology;
  * <p>
  * This class is thread-safe.
  * 
- * @author Dominic Battre
  */
 class ClusterInstance extends AbstractInstance {
 

@@ -30,7 +30,6 @@ import eu.stratosphere.core.io.GenericInputSplit;
  * You must take care to read from (and process) both output streams of the process, standard out (stdout) and standard error (stderr). 
  * Otherwise, the input format might get deadlocked! 
  * 
- * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  *
  * @param <T>, The type of the input split (must extend ExternalProcessInputSplit)
  */
