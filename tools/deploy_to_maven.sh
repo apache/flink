@@ -94,8 +94,12 @@ if [[ $TRAVIS_PULL_REQUEST == "false" ]] ; then
 		cp -r stratosphere-dist/target/stratosphere-dist-$CURRENT_STRATOSPHERE_VERSION-bin/stratosphere-$CURRENT_STRATOSPHERE_VERSION/* stratosphere/
 		tar -czf stratosphere-$CURRENT_STRATOSPHERE_VERSION.tgz stratosphere
 		
-
-		sshpass -p "$DOPA_PASS" scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -r stratosphere-$CURRENT_STRATOSPHERE_VERSION.tgz $UBER_JAR $DOPA_USER@dopa.dima.tu-berlin.de:bin/
+		# upload the two in parallel
+		if [[ $TRAVIS_JOB_NUMBER == *5 ]] ; then
+			travis-artifacts upload --path $UBER_JAR  --target-path / 
+		fi
+		travis-artifacts upload --path stratosphere-$CURRENT_STRATOSPHERE_VERSION.tgz   --target-path / 
+		#sshpass -p "$DOPA_PASS" scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -r stratosphere-$CURRENT_STRATOSPHERE_VERSION.tgz $UBER_JAR $DOPA_USER@dopa.dima.tu-berlin.de:bin/
 	fi
 
 fi # pull request check

@@ -1,3 +1,5 @@
+# s3 deployment based on http://about.travis-ci.org/blog/2012-12-18-travis-artifacts/
+
 language: java
 jdk:
   - oraclejdk7
@@ -11,9 +13,17 @@ env:
         # DOPA_USER and DOPA_PASS
         - secure: "pa6c+tdIp4OVRH4sTw9aIfB26Xzj3TBL0u4WNlNdEaqa43Dz4dZGvg541q9+fyGk5FWVPbNwAiCjV4GgWnULFbYSfD1AHgluP+PpG/sXyES54X/EAjYkov2soX7/iVxsLe7cbVdfosh3vgEazvZq/nLcybs9f4h5+bZkMOnNEEI="
         - secure: "kMPswo+PvtXpNsfkpwPVgZ33+bOZf5z7BC5Gv7+qHtDqgUom9PJtFsG4wUMU4hb9xx7sE125v2VfxIkDckOLNmAPRGawha7oNpdqBYrRhJPIsnrU/ruZIaKz/c2hWGOiICSgYhJPoac492bt3lBQb3fdo2ioHxzN/GYzT3SKpEk="
+        # New s3 deployment
+        - ARTIFACTS_S3_BUCKET="stratosphere-bin"
+        - secure: "An/pEveBDMBl6FcZimTfZBAvevAVgkwS2tSAzFblJzp5aofghPORIXiqW/2Dy4ksFkGDK2Yb6QaGXbqC3mbWcPQh7YYeiPbvRipDXe4D+emgoUAiuuxCGvqtgzKxb0VeBeCqrMuNOoO4yLeCXgNZBuZ3B8LjQQCpAyyCWW1f/yo="
+        - secure: "fT1qY3/JbDCL+o+XXkU92fuMrZehkLntu8DRNyCeq1eB9SOH/QA7+3S6S2kZZ++aWaTxXKy65V9rO9DWra+KMgeDDkM+ykoSq4CeTjZso5ZXf0GDa2RcnZ5d5BN8UVV/2iyp79ZrQPy7Yer9MrGhrjC5Mo5cFbxoNbn5UV7Y9Uc="
     matrix:
         - PROFILE=
         - PROFILE="-Dhadoop.profile=2"
+
+before_script:
+   - "gem install travis-artifacts & "
+
 
 install: true
 
