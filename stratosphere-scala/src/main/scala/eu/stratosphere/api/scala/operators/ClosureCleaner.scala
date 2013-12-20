@@ -97,47 +97,47 @@ object ClosureCleaner {
   }
 
   def clean[F <: AnyRef](func: F): F = {
-    // TODO: cache outerClasses / innerClasses / accessedFields
-    val outerClasses = getOuterClasses(func)
-    val innerClasses = getInnerClasses(func)
-    val outerObjects = getOuterObjects(func)
-    val accessedFields = Map[Class[_], Set[String]]()
-    for (cls <- func.getClass :: outerClasses)
-      accessedFields(cls) = Set[String]()
-    for (cls <- func.getClass :: innerClasses)
-      getClassReader(cls).accept(new FieldAccessFinder(accessedFields), 0)
-
-    // Nullify all the fields that are not used, keep $outer, though.
-    // Also, do not mess with the first outer that is not a closure, this
-    // is mostly the outer class/object of the user.
-    var outer: AnyRef = func
-    while (outer != null && isClosure(outer.getClass)) {
-      //      outer = instantiateClass(cls, outer, inInterpreter)
-      val cls = outer.getClass
-      val newOuter = cls.getDeclaredFields.toList.find( _.getName == "$outer")
-        .map { f => f.setAccessible(true); if (f.get(outer) != null) f.get(outer) else null }
-        .getOrElse(null)
-
-      for (field <- cls.getDeclaredFields if !accessedFields(cls).contains(field.getName) &&
-        !Modifier.isStatic(field.getModifiers) && field.getName != "$outer") {
-        field.setAccessible(true)
-        if (field.get(outer) != null) {
-          field.set(outer, null)
-        }
-      }
-//      // when newOuter is the first non-closure, remove the outer pointer,
-//      // this would mostly be the outer user code object/class
-//      if (newOuter != null && !isClosure(newOuter.getClass)) {
-//        for (field <- cls.getDeclaredFields if !accessedFields(cls).contains(field.getName) &&
-//          !Modifier.isStatic(field.getModifiers)) {
-//          field.setAccessible(true)
-//          if (field.get(outer) != null) {
-//            field.set(outer, null)
-//          }
+//    // TODO: cache outerClasses / innerClasses / accessedFields
+//    val outerClasses = getOuterClasses(func)
+//    val innerClasses = getInnerClasses(func)
+//    val outerObjects = getOuterObjects(func)
+//    val accessedFields = Map[Class[_], Set[String]]()
+//    for (cls <- func.getClass :: outerClasses)
+//      accessedFields(cls) = Set[String]()
+//    for (cls <- func.getClass :: innerClasses)
+//      getClassReader(cls).accept(new FieldAccessFinder(accessedFields), 0)
+//
+//    // Nullify all the fields that are not used, keep $outer, though.
+//    // Also, do not mess with the first outer that is not a closure, this
+//    // is mostly the outer class/object of the user.
+//    var outer: AnyRef = func
+//    while (outer != null && isClosure(outer.getClass)) {
+//      //      outer = instantiateClass(cls, outer, inInterpreter)
+//      val cls = outer.getClass
+//      val newOuter = cls.getDeclaredFields.toList.find( _.getName == "$outer")
+//        .map { f => f.setAccessible(true); if (f.get(outer) != null) f.get(outer) else null }
+//        .getOrElse(null)
+//
+//      for (field <- cls.getDeclaredFields if !accessedFields(cls).contains(field.getName) &&
+//        !Modifier.isStatic(field.getModifiers) && field.getName != "$outer") {
+//        field.setAccessible(true)
+//        if (field.get(outer) != null) {
+//          field.set(outer, null)
 //        }
 //      }
-      outer = newOuter
-    }
+////      // when newOuter is the first non-closure, remove the outer pointer,
+////      // this would mostly be the outer user code object/class
+////      if (newOuter != null && !isClosure(newOuter.getClass)) {
+////        for (field <- cls.getDeclaredFields if !accessedFields(cls).contains(field.getName) &&
+////          !Modifier.isStatic(field.getModifiers)) {
+////          field.setAccessible(true)
+////          if (field.get(outer) != null) {
+////            field.set(outer, null)
+////          }
+////        }
+////      }
+//      outer = newOuter
+//    }
     func
   }
 
