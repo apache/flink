@@ -89,8 +89,10 @@ public class CliFrontend {
 	private static final Option ID_OPTION = new Option("i", "jobid", true, "JobID to cancel");
 	
 	// config dir parameters
-	private static final String DEFAULT_CONFIG_DIRECTORY = "../conf";
-	private static final String ENV_CONFIG_DIRECTORY = "NEPHELE_CONF_DIR";
+	private static final String ENV_CONFIG_DIRECTORY = "STRATOSPHERE_CONF_DIR";
+	private static final String CONFIG_DIRECTORY_FALLBACK_1 = "../conf";
+	private static final String CONFIG_DIRECTORY_FALLBACK_2 = "conf";
+	
 
 	private CommandLineParser parser;
 	private Map<String,Options> options;
@@ -688,16 +690,21 @@ public class CliFrontend {
 
 	/**
 	 * Reads configuration settings. The default path can be overridden
-	 * by setting the ENV variable "NEPHELE_CONF_DIR".
+	 * by setting the ENV variable "STRATOSPHERE_CONF_DIR".
 	 * 
-	 * @return Nephele's configuration
+	 * @return Stratosphere's global configuration
 	 */
 	private Configuration getConfiguration() {
 		String location = null;
 		if (System.getenv(ENV_CONFIG_DIRECTORY) != null) {
 			location = System.getenv(ENV_CONFIG_DIRECTORY);
+		} else if (new File(CONFIG_DIRECTORY_FALLBACK_1).exists()) {
+			location = CONFIG_DIRECTORY_FALLBACK_1;
+		} else if (new File(CONFIG_DIRECTORY_FALLBACK_2).exists()) {
+			location = CONFIG_DIRECTORY_FALLBACK_2;
 		} else {
-			location = DEFAULT_CONFIG_DIRECTORY;
+			throw new RuntimeException("The configuration directory was not found. Please configure the '" + 
+					ENV_CONFIG_DIRECTORY + "' environment variable properly.");
 		}
 
 		GlobalConfiguration.loadConfiguration(location);
