@@ -309,7 +309,7 @@ public final class GlobalConfiguration {
 
 		final File confDirFile = new File(configDir);
 		if (!(confDirFile.exists())) {
-			LOG.warn("The given configuration directory name '" + configDir + "'(" + confDirFile.getAbsolutePath()
+			LOG.warn("The given configuration directory name '" + configDir + "' (" + confDirFile.getAbsolutePath()
 				+ ") does not describe an existing directory.");
 			return;
 		}

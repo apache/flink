@@ -411,7 +411,7 @@ public class CliFrontend {
 			}
 			
 			if (descr != null) {
-				System.out.println("------------------ PACT Program Description ------------------");
+				System.out.println("-------------------- Program Description ---------------------");
 				System.out.println(descr);
 				System.out.println("--------------------------------------------------------------");
 			} else {
@@ -438,7 +438,7 @@ public class CliFrontend {
 			}
 			
 			if(jsonPlan != null) {
-				System.out.println("-------------------- PACT Execution Plan ---------------------");
+				System.out.println("----------------------- Execution Plan -----------------------");
 				System.out.println(jsonPlan);
 				System.out.println("--------------------------------------------------------------");
 			} else {
@@ -634,19 +634,19 @@ public class CliFrontend {
 		formatter.setSyntaxPrefix("  general options:");
 		formatter.printHelp(" ",this.options.get(GENERAL_OPTS));
 		
-		System.out.println("\nAction \"run\" compiles and submits a PACT program.");
+		System.out.println("\nAction \"run\" compiles and submits a program.");
 		formatter.setSyntaxPrefix("  \"run\" action arguments:");
 		formatter.printHelp(" ", this.options.get(ACTION_RUN));
 		
-		System.out.println("\nAction \"info\" displays information about a PACT program.");
+		System.out.println("\nAction \"info\" displays information about a program.");
 		formatter.setSyntaxPrefix("  \"info\" action arguments:");
 		formatter.printHelp(" ", this.options.get(ACTION_INFO));
 		
-		System.out.println("\nAction \"list\" lists submitted PACT programs.");
+		System.out.println("\nAction \"list\" lists submitted programs.");
 		formatter.setSyntaxPrefix("  \"list\" action arguments:");
 		formatter.printHelp(" ", this.options.get(ACTION_LIST));
 		
-		System.out.println("\nAction \"cancel\" cancels a submitted PACT program.");
+		System.out.println("\nAction \"cancel\" cancels a submitted program.");
 		formatter.setSyntaxPrefix("  \"cancel\" action arguments:");
 		formatter.printHelp(" ", this.options.get(ACTION_CANCEL));
 		
