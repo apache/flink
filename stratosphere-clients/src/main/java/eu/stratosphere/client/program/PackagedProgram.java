@@ -276,16 +276,16 @@ public class PackagedProgram {
 			return Class.forName(className, true, cl).asSubclass(Program.class);
 		}
 		catch (ClassNotFoundException e) {
-			throw new ProgramInvocationException("The pact plan assembler class '" + className
+			throw new ProgramInvocationException("The program class '" + className
 				+ "' was not found in the jar file '" + jarFile.getPath() + "'.", e);
 		}
 		catch (ClassCastException e) {
-			throw new ProgramInvocationException("The pact plan assembler class '" + className
+			throw new ProgramInvocationException("The program class '" + className
 				+ "' cannot be cast to Program.", e);
 		}
 		catch (Throwable t) {
 			throw new ProgramInvocationException("An unknown problem ocurred during the instantiation of the "
-				+ "program assembler: " + t, t);
+				+ "program: " + t, t);
 		}
 	}
 	
@@ -333,11 +333,11 @@ public class PackagedProgram {
 		try {
 			return clazz.newInstance();
 		} catch (InstantiationException e) {
-			throw new ProgramInvocationException("ERROR: The pact plan assembler class could not be instantiated. "
+			throw new ProgramInvocationException("ERROR: The program class could not be instantiated. "
 				+ "Make sure that the class is a proper class (not abstract/interface) and has a "
 				+ "public constructor with no arguments.", e);
 		} catch (IllegalAccessException e) {
-			throw new ProgramInvocationException("ERROR: The pact plan assembler class could not be instantiated. "
+			throw new ProgramInvocationException("ERROR: The program class could not be instantiated. "
 				+ "Make sure that the class has a public constructor with no arguments.", e);
 		} catch (Throwable t) {
 			throw new ProgramInvocationException("An error ocurred during the instantiation of the "
