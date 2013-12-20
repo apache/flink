@@ -56,6 +56,7 @@ public class JDBCInputFormatTest {
     }
 
     private static void prepareDerbyDatabase() throws ClassNotFoundException {
+    	System.setProperty("derby.stream.error.field","eu.stratosphere.api.io.jdbc.util.DevNullLogStream.DEV_NULL");
         String dbURL = "jdbc:derby:memory:ebookshop;create=true";
         createConnection(dbURL);
     }
