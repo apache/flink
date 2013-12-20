@@ -80,7 +80,7 @@ public class JobClient {
 	private long lastProcessedEventSequenceNumber = -1;
 	
 	
-	private PrintStream console = System.out;
+	private PrintStream console;
 
 	/**
 	 * Inner class used to perform clean up tasks when the
@@ -317,6 +317,9 @@ public class JobClient {
 				}
 
 				LOG.info(event.toString());
+				if (this.console != null) {
+					this.console.println(event.toString());
+				}
 
 				this.lastProcessedEventSequenceNumber = event.getSequenceNumber();
 
@@ -330,7 +333,6 @@ public class JobClient {
 					if (jobStatus == JobStatus.FINISHED) {
 						Runtime.getRuntime().removeShutdownHook(this.jobCleanUp);
 						final long jobDuration = jobEvent.getTimestamp() - startTimestamp;
-						this.console.println("Job duration (in ms): " + jobDuration);
 						
 						// Request accumulators
 						Map<String, Object> accumulators = null;

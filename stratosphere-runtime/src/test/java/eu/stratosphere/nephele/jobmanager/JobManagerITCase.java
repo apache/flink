@@ -20,8 +20,6 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.OutputStream;
-import java.io.PrintStream;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -278,7 +276,6 @@ public class JobManagerITCase {
 
 			// Create job client and launch job
 			jobClient = new JobClient(jg, configuration);
-			jobClient.setConsoleStreamForReporting(getNullPrintStream());
 			jobClient.submitJobAndWait();
 
 			// Finally, compare output file to initial number sequence
@@ -378,7 +375,6 @@ public class JobManagerITCase {
 
 			// Create job client and launch job
 			jobClient = new JobClient(jg, configuration);
-			jobClient.setConsoleStreamForReporting(getNullPrintStream());
 			
 			// deactivate logging of expected test exceptions
 			Logger rtLogger = Logger.getLogger(RuntimeTask.class);
@@ -475,7 +471,6 @@ public class JobManagerITCase {
 
 			// Create job client and launch job
 			jobClient = new JobClient(jg, configuration);
-			jobClient.setConsoleStreamForReporting(getNullPrintStream());
 			
 			// deactivate logging of expected test exceptions
 			Logger jcLogger = Logger.getLogger(JobClient.class);
@@ -589,7 +584,6 @@ public class JobManagerITCase {
 
 			// Create job client and launch job
 			jobClient = new JobClient(jg, configuration);
-			jobClient.setConsoleStreamForReporting(getNullPrintStream());
 			
 			try {
 				jobClient.submitJobAndWait();
@@ -678,7 +672,6 @@ public class JobManagerITCase {
 
 			// Create job client and launch job
 			jobClient = new JobClient(jg, configuration);
-			jobClient.setConsoleStreamForReporting(getNullPrintStream());
 			jobClient.submitJobAndWait();
 
 		} catch (JobExecutionException e) {
@@ -751,7 +744,6 @@ public class JobManagerITCase {
 
 			// Create job client and launch job
 			jobClient = new JobClient(jg, configuration);
-			jobClient.setConsoleStreamForReporting(getNullPrintStream());
 			jobClient.submitJobAndWait();
 
 		} catch (JobExecutionException e) {
@@ -848,7 +840,6 @@ public class JobManagerITCase {
 
 			// Create job client and launch job
 			jobClient = new JobClient(jg, configuration);
-			jobClient.setConsoleStreamForReporting(getNullPrintStream());
 
 			try {
 				jobClient.submitJobAndWait();
@@ -1000,7 +991,6 @@ public class JobManagerITCase {
 
 			// Create job client and launch job
 			jobClient = new JobClient(jg, configuration);
-			jobClient.setConsoleStreamForReporting(getNullPrintStream());
 			
 			// disable logging for the taskmanager and the client, as they will have many
 			// expected test errors they will log.
@@ -1057,12 +1047,5 @@ public class JobManagerITCase {
 				jobClient.close();
 			}
 		}
-	}
-	
-	private static PrintStream getNullPrintStream() {
-		return new PrintStream(new OutputStream() {
-			@Override
-			public void write(int b) throws IOException {}
-		});
 	}
 }

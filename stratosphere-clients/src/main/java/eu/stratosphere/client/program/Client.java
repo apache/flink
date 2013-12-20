@@ -49,6 +49,8 @@ public class Client {
 	
 	private final PactCompiler compiler;		// the compiler to compile the jobs
 
+	private boolean printStatusDuringExecution;
+	
 	// ------------------------------------------------------------------------
 	//                            Construction
 	// ------------------------------------------------------------------------
@@ -89,6 +91,10 @@ public class Client {
 
 		final InetSocketAddress jobManagerAddress = new InetSocketAddress(address, port);
 		this.compiler = new PactCompiler(new DataStatistics(), new DefaultCostEstimator(), jobManagerAddress);
+	}
+	
+	public void setPrintStatusDuringExecution(boolean print) {
+		this.printStatusDuringExecution = print;
 	}
 
 	
@@ -306,6 +312,8 @@ public class Client {
 		catch (IOException e) {
 			throw new ProgramInvocationException("Could not open job manager: " + e.getMessage());
 		}
+		
+		client.setConsoleStreamForReporting(this.printStatusDuringExecution ? System.out : null);
 
 		try {
 			if (wait) {

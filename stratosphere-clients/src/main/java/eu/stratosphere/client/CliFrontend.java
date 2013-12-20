@@ -296,6 +296,8 @@ public class CliFrontend {
 		} else {
 			client = new Client(configuration);
 		}
+		client.setPrintStatusDuringExecution(true);
+		
 		JobExecutionResult execResult = null;
 		try {
 			execResult = client.run(program.getPlanWithJars(), wait);
