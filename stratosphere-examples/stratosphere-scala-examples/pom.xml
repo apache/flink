@@ -247,7 +247,7 @@
 							<classifier>ConnectedComponents</classifier>
 							<archive>
 								<manifestEntries>
-									<program-class>eu.stratosphere.examples.scala.graph.ConnectedComponentsDescriptor</program-class>
+									<program-class>eu.stratosphere.examples.scala.graph.ConnectedComponents</program-class>
 								</manifestEntries>
 							</archive>
 							<includes>

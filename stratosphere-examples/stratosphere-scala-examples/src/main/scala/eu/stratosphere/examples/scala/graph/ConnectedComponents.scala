@@ -18,11 +18,10 @@ import eu.stratosphere.api.common.Program
 import eu.stratosphere.api.common.ProgramDescription
 import eu.stratosphere.api.scala.analysis.GlobalSchemaPrinter
 import eu.stratosphere.api.common.operators.DeltaIteration
-
 import scala.math._
-
 import eu.stratosphere.api.scala._
 import eu.stratosphere.api.scala.operators._
+import eu.stratosphere.api.common.Plan
 
 object RunConnectedComponents {
  def main(pArgs: Array[String]) {
@@ -37,9 +36,15 @@ object RunConnectedComponents {
   }
 }
 
-class ConnectedComponents extends Serializable {
+class ConnectedComponents extends Program with Serializable {
   
-  def getPlan(verticesInput: String, edgesInput: String, componentsOutput: String, maxIterations: Int = 10) = {
+    override def getPlan(args: String*) = {
+      val plan = getScalaPlan(args(1), args(2), args(3), args(4).toInt)
+      plan.setDefaultParallelism(args(0).toInt)
+      plan
+  }
+  
+  def getScalaPlan(verticesInput: String, edgesInput: String, componentsOutput: String, maxIterations: Int = 10) = {
 
   val vertices = DataSource(verticesInput, DelimitedInputFormat(parseVertex))
   val directedEdges = DataSource(edgesInput, DelimitedInputFormat(parseEdge))
