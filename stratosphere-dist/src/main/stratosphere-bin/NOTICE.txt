@@ -5,6 +5,7 @@ A copy of the Apache License is included with the distribution.
 Specifically, this product copies, uses, modifies, and/or redistributes 
 source code from the following projects under the Apache License 2.0:
  - Apache Hadoop (Version 0.20.2 and Version 2.2.0)
+ - Apache Spark (Version 0.8)
  - CHAP Links library, Timeline (Version 2.5.0)
  - The YARN integration is based on code from https://github.com/hortonworks/simple-yarn-app
 
