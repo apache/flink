@@ -157,8 +157,8 @@ Some of our colleagues are also in the #dima irc channel on freenode.
 
 ## Documentation
 
-There is our (old) [official Wiki](https://stratosphere.eu/wiki/doku).
-We are in the progress of migrating it to the [GitHub Wiki](https://github.com/stratosphere/stratosphere/wiki/_pages)
+The [Documentation Website]](http://stratosphere.eu/docs/0.4/) has comprehensive documentation for users and contributors.
+The [GitHub Wiki](https://github.com/stratosphere/stratosphere/wiki/_pages) has a collection of topics that are in the process of being fleshed out.
 
 Please make edits to the Wiki if you find inconsistencies or [Open an issue](https://github.com/stratosphere/stratosphere/issues/new) 
 
