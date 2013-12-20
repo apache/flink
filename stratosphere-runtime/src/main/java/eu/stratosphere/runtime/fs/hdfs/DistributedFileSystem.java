@@ -20,7 +20,6 @@ import java.net.URI;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.conf.Configuration;
 
 import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.configuration.GlobalConfiguration;
@@ -30,7 +29,7 @@ import eu.stratosphere.core.fs.FSDataOutputStream;
 import eu.stratosphere.core.fs.FileStatus;
 import eu.stratosphere.core.fs.FileSystem;
 import eu.stratosphere.core.fs.Path;
-import eu.stratosphere.util.StringUtils;
+import eu.stratosphere.util.InstantiationUtil;
 
 /**
  * Concrete implementation of the {@Link FileSystem} base class for the Hadoop Distribution File System. The
@@ -39,16 +38,19 @@ import eu.stratosphere.util.StringUtils;
 public final class DistributedFileSystem extends FileSystem {
 	
 	private static final Log LOG = LogFactory.getLog(DistributedFileSystem.class);
-
-	private final Configuration conf;
-
-	private org.apache.hadoop.fs.FileSystem fs;
+	
+	private static final String DEFAULT_HDFS_CLASS = "org.apache.hadoop.hdfs.DistributedFileSystem";
 	
 	/**
-	 * Configuration value name for the DFS implementation name. Usually
-	 * not specified in hadoop configurations.
+	 * Configuration value name for the DFS implementation name. Usually not specified in hadoop configurations.
 	 */
-	public static final String HDFS_IMPLEMENTATION_KEY = "fs.hdfs.impl";
+	private static final String HDFS_IMPLEMENTATION_KEY = "fs.hdfs.impl";
+	
+
+	private final org.apache.hadoop.conf.Configuration conf;
+
+	private final org.apache.hadoop.fs.FileSystem fs;
+
 
 	/**
 	 * Creates a new DistributedFileSystem object to access HDFS
@@ -59,7 +61,7 @@ public final class DistributedFileSystem extends FileSystem {
 	public DistributedFileSystem() throws IOException {
 
 		// Create new Hadoop configuration object
-		this.conf = new Configuration();
+		this.conf = new org.apache.hadoop.conf.Configuration();
 
 		// We need to load both core-site.xml and hdfs-site.xml to determine the default fs path and
 		// the hdfs configuration
@@ -83,53 +85,134 @@ public final class DistributedFileSystem extends FileSystem {
 		String[] possibleHadoopConfPaths = new String[4]; 
 		possibleHadoopConfPaths[0] = GlobalConfiguration.getString(ConfigConstants.PATH_HADOOP_CONFIG, null);
 		possibleHadoopConfPaths[1] = System.getenv("HADOOP_CONF_DIR");
-		if(System.getenv("HADOOP_HOME") != null) {
+		
+		if (System.getenv("HADOOP_HOME") != null) {
 			possibleHadoopConfPaths[2] = System.getenv("HADOOP_HOME")+"/conf";
 			possibleHadoopConfPaths[3] = System.getenv("HADOOP_HOME")+"/etc/hadoop"; // hadoop 2.2
 		}
-		for(int i = 0; i < possibleHadoopConfPaths.length; i++) {
-			if(possibleHadoopConfPaths[i] == null) {
+		
+		for (int i = 0; i < possibleHadoopConfPaths.length; i++) {
+			if (possibleHadoopConfPaths[i] == null) {
 				continue;
 			}
-			if(new File(possibleHadoopConfPaths[i]).exists()) {
-				if(new File(possibleHadoopConfPaths[i]+"/core-site.xml").exists()) {
+			
+			if (new File(possibleHadoopConfPaths[i]).exists()) {
+				if (new File(possibleHadoopConfPaths[i]+"/core-site.xml").exists()) {
 					conf.addResource(new org.apache.hadoop.fs.Path(possibleHadoopConfPaths[i]+"/core-site.xml"));
-					LOG.debug("Adding "+possibleHadoopConfPaths[i]+"/core-site.xml to hadoop configuration");
+					
+					if (LOG.isDebugEnabled())
+						LOG.debug("Adding "+possibleHadoopConfPaths[i]+"/core-site.xml to hadoop configuration");
 				}
-				if(new File(possibleHadoopConfPaths[i]+"/hdfs-site.xml").exists()) {
+				if (new File(possibleHadoopConfPaths[i]+"/hdfs-site.xml").exists()) {
 					conf.addResource(new org.apache.hadoop.fs.Path(possibleHadoopConfPaths[i]+"/hdfs-site.xml"));
-					LOG.debug("Adding "+possibleHadoopConfPaths[i]+"/hdfs-site.xml to hadoop configuration");
+					
+					if (LOG.isDebugEnabled())
+						LOG.debug("Adding "+possibleHadoopConfPaths[i]+"/hdfs-site.xml to hadoop configuration");
 				}
 			}
-		}
-		
-		// 3. approach: just set some configuration values if they are still not defined
-		if(conf.get(HDFS_IMPLEMENTATION_KEY,null) == null) {
-			conf.set(HDFS_IMPLEMENTATION_KEY, "org.apache.hadoop.hdfs.DistributedFileSystem");
 		}
 
-		Class<?> clazz = null;
+		Class<? extends org.apache.hadoop.fs.FileSystem> fsClass = null;
 		
 		// try to get the FileSystem implementation class Hadoop 2.0.0 style
-		try {
-			Method newApi = org.apache.hadoop.fs.FileSystem.class.getMethod("getFileSystemClass", String.class, org.apache.hadoop.conf.Configuration.class);
-			clazz = (Class<?>) newApi.invoke(null, "hdfs",conf);
-		} catch (Exception e) {
-			// if we can't find the FileSystem class using the new API,
-			// clazz will still be null, we assume we're running on an older Hadoop version
-		}
-		if (clazz == null) {
-			clazz = conf.getClass(HDFS_IMPLEMENTATION_KEY, null);
-			if (clazz == null) {
-				this.fs = org.apache.hadoop.fs.FileSystem.get(conf);
-			}
-		} else {
+		{
+			LOG.debug("Trying to load HDFS class Hadoop 2.x style.");
+			
+			Object fsHandle = null;
 			try {
-				this.fs = (org.apache.hadoop.fs.FileSystem) clazz.newInstance();
-			} catch (InstantiationException e) {
-				throw new IOException("InstantiationException occured: " + StringUtils.stringifyException(e));
-			} catch (IllegalAccessException e) {
-				throw new IOException("IllegalAccessException occured: " + StringUtils.stringifyException(e));
+				Method newApi = org.apache.hadoop.fs.FileSystem.class.getMethod("getFileSystemClass", String.class, org.apache.hadoop.conf.Configuration.class);
+				fsHandle = newApi.invoke(null, "hdfs", conf); 
+			} catch (Exception e) {
+				// if we can't find the FileSystem class using the new API,
+				// clazz will still be null, we assume we're running on an older Hadoop version
+			}
+			
+			if (fsHandle != null) {
+				if (fsHandle instanceof Class && org.apache.hadoop.fs.FileSystem.class.isAssignableFrom((Class<?>) fsHandle)) {
+					fsClass = ((Class<?>) fsHandle).asSubclass(org.apache.hadoop.fs.FileSystem.class);
+					
+					if (LOG.isDebugEnabled())
+						LOG.debug("Loaded '" + fsClass.getName() + "' as HDFS class.");
+				}
+				else {
+					LOG.debug("Unexpected return type from 'org.apache.hadoop.fs.FileSystem.getFileSystemClass(String, Configuration)'.");
+					throw new RuntimeException("The value returned from org.apache.hadoop.fs.FileSystem.getFileSystemClass(String, Configuration) is not a valid subclass of org.apache.hadoop.fs.FileSystem.");
+				}
+			}
+		}
+		
+		// fall back to an older Hadoop version
+		if (fsClass == null)
+		{
+			// first of all, check for a user-defined hdfs class
+			if (LOG.isDebugEnabled())
+				LOG.debug("Falling back to loading HDFS class old Hadoop style. Looking for HDFS class configuration entry '"
+						+ HDFS_IMPLEMENTATION_KEY + "'.");
+
+			Class<?> classFromConfig = conf.getClass(HDFS_IMPLEMENTATION_KEY, null);
+			
+			if (classFromConfig != null)
+			{
+				if (org.apache.hadoop.fs.FileSystem.class.isAssignableFrom(classFromConfig)) {
+					fsClass = classFromConfig.asSubclass(org.apache.hadoop.fs.FileSystem.class);
+					
+					if (LOG.isDebugEnabled())
+						LOG.debug("Loaded HDFS class '" + fsClass.getName() + "' as specified in configuration.");
+				}
+				else {
+					if (LOG.isDebugEnabled())
+						LOG.debug("HDFS class specified by " + HDFS_IMPLEMENTATION_KEY + " is of wrong type.");
+					
+					throw new IOException("HDFS class specified by " + HDFS_IMPLEMENTATION_KEY +
+						" cannot be cast to a FileSystem type.");
+				}
+			}
+			else {
+				// load the default HDFS class
+				if (LOG.isDebugEnabled())
+					LOG.debug("Trying to load default HDFS implementation " + DEFAULT_HDFS_CLASS);
+				
+				try {
+					Class <?> reflectedClass = Class.forName(DEFAULT_HDFS_CLASS);
+					if (org.apache.hadoop.fs.FileSystem.class.isAssignableFrom(reflectedClass)) {
+						fsClass = reflectedClass.asSubclass(org.apache.hadoop.fs.FileSystem.class);
+					} else {
+						if (LOG.isDebugEnabled())
+							LOG.debug("Default HDFS class is of wrong type.");
+						
+						throw new IOException("The default HDFS class '" + DEFAULT_HDFS_CLASS + 
+							"' cannot be cast to a FileSystem type.");
+					}
+				}
+				catch (ClassNotFoundException e) {
+					if (LOG.isDebugEnabled())
+						LOG.debug("Default HDFS class cannot be loaded.");
+					
+					throw new IOException("No HDFS class has been configured and the default class '" +
+							DEFAULT_HDFS_CLASS + "' cannot be loaded.");
+				}
+			}
+		}
+		
+		this.fs = instantiateFileSystem(fsClass);
+	}
+	
+	private org.apache.hadoop.fs.FileSystem instantiateFileSystem(Class<? extends org.apache.hadoop.fs.FileSystem> fsClass)
+		throws IOException
+	{
+		try {
+			return fsClass.newInstance();
+		}
+		catch (ExceptionInInitializerError e) {
+			throw new IOException("The filesystem class '" + fsClass.getName() + "' throw an exception upon initialization.", e.getException());
+		}
+		catch (Throwable t) {
+			String errorMessage = InstantiationUtil.checkForInstantiationError(fsClass);
+			if (errorMessage != null) {
+				throw new IOException("The filesystem class '" + fsClass.getName() + "' cannot be instantiated: " + errorMessage);
+			} else {
+				throw new IOException("An error occurred while instantiating the filesystem class '" +
+						fsClass.getName() + "'.", t);
 			}
 		}
 	}
@@ -151,11 +234,13 @@ public final class DistributedFileSystem extends FileSystem {
 		if (path.getAuthority() == null) {
 			
 			String configEntry = this.conf.get("fs.default.name", null);
-			if(configEntry == null) {
-				// fs.default.name depricated as of hadoop 2.2.0 http://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-common/DeprecatedProperties.html
+			if (configEntry == null) {
+				// fs.default.name deprecated as of hadoop 2.2.0 http://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-common/DeprecatedProperties.html
 				configEntry = this.conf.get("fs.defaultFS", null);
 			}
-			LOG.debug("fs.defaultFS is set to "+configEntry);
+			
+			if (LOG.isDebugEnabled())
+					LOG.debug("fs.defaultFS is set to " + configEntry);
 			
 			if (configEntry == null) {
 				throw new IOException(getMissingAuthorityErrorPrefix(path) + "Either no default hdfs configuration was registered, " +
@@ -169,7 +254,7 @@ public final class DistributedFileSystem extends FileSystem {
 								"or the provided configuration contains no valid hdfs namenode address (fs.default.name) describing the hdfs namenode host and port.");
 					} else if (!initURI.getScheme().equalsIgnoreCase("hdfs")) {
 						throw new IOException(getMissingAuthorityErrorPrefix(path) + "Either no default hdfs configuration was registered, " +
-								"or the provided configuration describes a file system with scheme '" + initURI.getScheme() + "'other than the Hadoop Distributed File System (HDFS).");
+								"or the provided configuration describes a file system with scheme '" + initURI.getScheme() + "' other than the Hadoop Distributed File System (HDFS).");
 					} else {
 						try {
 							this.fs.initialize(initURI, this.conf);

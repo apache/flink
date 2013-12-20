@@ -176,22 +176,24 @@ public class InstantiationUtil {
 	 * @throws RuntimeException Thrown, if the class cannot be instantiated by {@code Class#newInstance()}.
 	 */
 	public static void checkForInstantiation(Class<?> clazz) {
-		final String errorMessage;
-		
-		if (!isPublic(clazz)) {
-			errorMessage = "The class is not public.";
-		} else if (!isProperClass(clazz)) {
-			errorMessage = "The class is no proper class, it is either abstract, an interface, or a primitive type.";
-		} else if (isNonStaticInnerClass(clazz)) {
-			errorMessage = "The class is an inner class, but not statically accessible.";
-		} else if (!hasPublicNullaryConstructor(clazz)) {
-			errorMessage = "The class has no (implicit) public nullary constructor, i.e. a constructor without arguments.";
-		} else {
-			errorMessage = null; 
-		}
+		final String errorMessage = checkForInstantiationError(clazz);
 		
 		if (errorMessage != null) {
 			throw new RuntimeException("The class '" + clazz.getName() + "' is not instantiable: " + errorMessage);
+		}
+	}
+	
+	public static String checkForInstantiationError(Class<?> clazz) {
+		if (!isPublic(clazz)) {
+			return "The class is not public.";
+		} else if (!isProperClass(clazz)) {
+			return "The class is no proper class, it is either abstract, an interface, or a primitive type.";
+		} else if (isNonStaticInnerClass(clazz)) {
+			return "The class is an inner class, but not statically accessible.";
+		} else if (!hasPublicNullaryConstructor(clazz)) {
+			return "The class has no (implicit) public nullary constructor, i.e. a constructor without arguments.";
+		} else {
+			return null; 
 		}
 	}
 	
