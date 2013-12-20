@@ -251,7 +251,7 @@ public final class DistributedFileSystem extends FileSystem {
 					
 					if (initURI.getAuthority() == null) {
 						throw new IOException(getMissingAuthorityErrorPrefix(path) + "Either no default hdfs configuration was registered, " +
-								"or the provided configuration contains no valid hdfs namenode address (fs.default.name) describing the hdfs namenode host and port.");
+								"or the provided configuration contains no valid hdfs namenode address (fs.default.name or fs.defaultFS) describing the hdfs namenode host and port.");
 					} else if (!initURI.getScheme().equalsIgnoreCase("hdfs")) {
 						throw new IOException(getMissingAuthorityErrorPrefix(path) + "Either no default hdfs configuration was registered, " +
 								"or the provided configuration describes a file system with scheme '" + initURI.getScheme() + "' other than the Hadoop Distributed File System (HDFS).");
@@ -266,7 +266,7 @@ public final class DistributedFileSystem extends FileSystem {
 					}
 				}
 				catch (IllegalArgumentException e) {
-					throw new IOException(getMissingAuthorityErrorPrefix(path) + "The configuration contains an invalid hdfs default name (fs.default.name): " + configEntry);
+					throw new IOException(getMissingAuthorityErrorPrefix(path) + "The configuration contains an invalid hdfs default name (fs.default.name or fs.defaultFS): " + configEntry);
 				}
 			} 
 		}
