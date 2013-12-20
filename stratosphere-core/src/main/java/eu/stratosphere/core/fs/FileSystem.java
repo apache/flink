@@ -49,6 +49,15 @@ public abstract class FileSystem {
 	private static final Object SYNCHRONIZATION_OBJECT = new Object();
 
 	/**
+	 * Enumeration for write modes. 
+	 *
+	 */
+	public static enum WriteMode {
+		CREATE,    // creates write path if it does not exist. Does not overwrite existing files and directories.
+		OVERWRITE  // creates write path if it does not exist. Overwrites existing files and directories. 
+	}
+	
+	/**
 	 * An auxiliary class to identify a file system by its scheme
 	 * and its authority.
 	 * 
@@ -390,13 +399,191 @@ public abstract class FileSystem {
 	 */
 	public abstract boolean rename(Path src, Path dst) throws IOException;
 
+	
+	/**
+	 * Initializes output directories on local file systems according to the given write mode.
+	 * 
+	 * WriteMode.CREATE & parallel output:
+	 *  - A directory is created if the output path does not exist.
+	 *  - An existing directory is reused, files contained in the directory are NOT deleted.
+	 *  - An existing file raises an exception.
+	 *    
+	 * WriteMode.CREATE & NONE parallel output:
+	 *  - An existing file or directory raises an exception.
+	 *  
+	 * WriteMode.OVERWRITE & parallel output:
+	 *  - A directory is created if the output path does not exist.
+	 *  - An existing directory is reused, files contained in the directory are NOT deleted.
+	 *  - An existing file is deleted and replaced by a new directory.
+	 *  
+	 * WriteMode.OVERWRITE & NONE parallel output:
+	 *  - An existing file or directory (and all its content) is deleted
+	 * 
+	 * Files contained in an existing directory are not deleted, because multiple instances of a 
+	 * DataSinkTask might call this function at the same time and hence might perform concurrent 
+	 * delete operations on the file system (possibly deleting output files of concurrently running tasks). 
+	 * Since concurrent DataSinkTasks are not aware of each other, coordination of delete and create
+	 * operations would be difficult.
+	 * 
+	 * @param outPath Output path that should be prepared.
+	 * @param writeMode Write mode to consider. 
+	 * @param parallelOutput True, if it will be written to the output path in parallel, false otherwise.
+	 * @return True, if the path was successfully prepared, false otherwise.
+	 * @throws IOException
+	 */
+	public boolean initOutPathLocalFS(Path outPath, WriteMode writeMode, boolean parallelOutput) throws IOException {
+		if(this.isDistributedFS()) {
+			return false;
+		}
+		
+		// check if path exists
+		if(this.exists(outPath)) {
+			// path exists, check write mode
+			switch(writeMode) {
+			case CREATE:
+				if(this.getFileStatus(outPath).isDir()) {
+					return true;
+				} else {
+					// file may not be overwritten
+					throw new IOException("Existing file or directory on output path may not be overwritten in CREATE write mode.");
+				}
+			case OVERWRITE:
+				if(this.getFileStatus(outPath).isDir()) {
+					if(parallelOutput) {
+						// directory exists and does not need to be created
+						return true;
+					} else {
+						// we will write in a single file, delete directory (there is also no other thread trying to delete the directory).
+						try {
+							this.delete(outPath, true);
+						} catch(IOException ioe) {
+							throw new IOException("Could not prepare output path. ",ioe);
+						}
+					}
+				} else {
+					// delete file
+					try {
+						this.delete(outPath, false);
+					} catch(IOException ioe) {
+						// Some other thread might already have deleted the file.
+						// If - for some other reason - the file could not be deleted,  
+						// the error will be handled later.
+					}
+				}
+				break;
+			default:
+				throw new IllegalArgumentException("Invalid write mode: "+writeMode);
+			}
+		}
+		
+		if(parallelOutput) {
+			// Output directory needs to be created
+			try {
+				if(!this.exists(outPath)) {
+					this.mkdirs(outPath);
+				}
+			} catch(IOException ioe) {
+				// Some other thread might already have created the directory.
+				// If - for some other reason - the directory could not be created  
+				// and the path does not exist, this will be handled later.
+			}
+	
+			// double check that the output directory exists
+			return this.exists(outPath) && this.getFileStatus(outPath).isDir();
+		} else {
+			
+			// check that the output path does not exist and an output file can be created by the output format.
+			return !this.exists(outPath);
+		}
+	}
+	
+	/**
+	 * Initializes output directories on distributed file systems according to the given write mode.
+	 * 
+	 * WriteMode.CREATE & parallel output:
+	 *  - A directory is created if the output path does not exist.
+	 *  - An existing file or directory raises an exception.
+	 * 
+	 * WriteMode.CREATE & NONE parallel output:
+	 *  - An existing file or directory raises an exception. 
+	 *    
+	 * WriteMode.OVERWRITE & parallel output:
+	 *  - A directory is created if the output path does not exist.
+	 *  - An existing directory and its content is deleted and a new directory is created.
+	 *  - An existing file is deleted and replaced by a new directory.
+	 *  
+	 *  WriteMode.OVERWRITE & NONE parallel output:
+	 *  - An existing file or directory is deleted and replaced by a new directory.
+	 * 
+	 * @param outPath Output path that should be prepared.
+	 * @param writeMode Write mode to consider. 
+	 * @param parallelOutput True, if it will be written to the output path in parallel, false otherwise.
+	 * @return True, if the path was successfully prepared, false otherwise.
+	 * @throws IOException
+	 */
+	public boolean initOutPathDistFS(Path outPath, WriteMode writeMode, boolean parallelOutput) throws IOException {
+		if(!this.isDistributedFS()) {
+			return false;
+		}
+		
+		// check if path exists
+		if(this.exists(outPath)) {
+			// path exists, check write mode
+			switch(writeMode) {
+			case CREATE:
+				// file or directory may not be overwritten
+				throw new IOException("Existing file or directory on output path may not be overwritten in CREATE write mode.");
+			case OVERWRITE:
+				// output path exists. We delete it and all contained files in case of a directory.
+				try {
+					this.delete(outPath, true);
+				} catch(IOException ioe) {
+					// Some other thread might already have deleted the path.
+					// If - for some other reason - the path could not be deleted,  
+					// this will be handled later.
+				}
+				break;
+			default:
+				throw new IllegalArgumentException("Invalid write mode: "+writeMode);
+			}
+		}
+		
+		if(parallelOutput) {
+			// Output directory needs to be created
+			try {
+				if(!this.exists(outPath)) {
+					this.mkdirs(outPath);
+				}
+			} catch(IOException ioe) {
+				// Some other thread might already have created the directory.
+				// If - for some other reason - the directory could not be created  
+				// and the path does not exist, this will be handled later.
+			}
+			
+			// double check that the output directory exists
+			return this.exists(outPath) && this.getFileStatus(outPath).isDir();
+		} else {
+			
+			// check that the output path does not exist and an output file can be created by the output format.
+			return !this.exists(outPath);
+		}
+			
+	}
+	
+	/**
+	 * Returns true if this is a distributed file system, false otherwise.
+	 * 
+	 * @return True if this is a distributed file system, false otherwise.
+	 */
+	public abstract boolean isDistributedFS();
+	
 	/**
 	 * Returns the number of blocks this file/directory consists of
 	 * assuming the file system's standard block size.
 	 * 
 	 * @param file
 	 *        the file
-	 * @return the number of block's thie file/directory consists of
+	 * @return the number of block's the file/directory consists of
 	 * @throws IOException
 	 */
 	public int getNumberOfBlocks(final FileStatus file) throws IOException {

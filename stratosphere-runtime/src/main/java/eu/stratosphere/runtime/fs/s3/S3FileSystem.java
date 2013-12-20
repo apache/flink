@@ -757,4 +757,9 @@ public final class S3FileSystem extends FileSystem {
 
 		throw new UnsupportedOperationException("This method is not yet implemented");
 	}
+	
+	@Override
+	public boolean isDistributedFS() {
+		return true;
+	}
 }

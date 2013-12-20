@@ -103,7 +103,7 @@ public class JDBCOutputFormat implements OutputFormat<Record> {
      * I/O problem.
      */
     @Override
-    public void open(int taskNumber) throws IOException {
+    public void open(int taskNumber, int numTasks) throws IOException {
         try {
             establishConnection();
             upload = dbConn.prepareStatement(query);

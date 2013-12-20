@@ -99,10 +99,10 @@ public abstract class DelimitedOutputFormat extends FileOutputFormat {
 		}
 	}
 	
-
-	public void open(int taskNumber) throws IOException
+	@Override
+	public void open(int taskNumber, int numTasks) throws IOException
 	{
-		super.open(taskNumber);
+		super.open(taskNumber, numTasks);
 		
 		if (this.buffer == null) {
 			this.buffer = new byte[this.bufferSize];

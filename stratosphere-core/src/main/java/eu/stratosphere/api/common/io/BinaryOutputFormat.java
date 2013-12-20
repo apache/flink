@@ -41,10 +41,6 @@ public abstract class BinaryOutputFormat<T extends IOReadableWritable> extends F
 
 	private BlockBasedOutput blockBasedInput;
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.io.FileOutputFormat#close()
-	 */
 	@Override
 	public void close() throws IOException {
 		this.dataOutputStream.close();
@@ -54,11 +50,6 @@ public abstract class BinaryOutputFormat<T extends IOReadableWritable> extends F
 	protected void complementBlockInfo(BlockInfo blockInfo) throws IOException {
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see
-	 * eu.stratosphere.pact.common.io.FileInputFormat#configure(eu.stratosphere.nephele.configuration.Configuration)
-	 */
 	@Override
 	public void configure(Configuration parameters) {
 		super.configure(parameters);
@@ -75,13 +66,9 @@ public abstract class BinaryOutputFormat<T extends IOReadableWritable> extends F
 		return new BlockInfo();
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.io.FileOutputFormat#open(int)
-	 */
 	@Override
-	public void open(int taskNumber) throws IOException {
-		super.open(taskNumber);
+	public void open(int taskNumber, int numTasks) throws IOException {
+		super.open(taskNumber, numTasks);
 
 		final long blockSize = this.blockSize == NATIVE_BLOCK_SIZE ?
 			this.outputFilePath.getFileSystem().getDefaultBlockSize() : this.blockSize;
@@ -92,10 +79,6 @@ public abstract class BinaryOutputFormat<T extends IOReadableWritable> extends F
 
 	protected abstract void serialize(T record, DataOutput dataOutput) throws IOException;
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.io.OutputFormat#writeRecord(eu.stratosphere.pact.common.type.Record)
-	 */
 	@Override
 	public void writeRecord(T record) throws IOException {
 		this.blockBasedInput.startRecord();
@@ -109,9 +92,6 @@ public abstract class BinaryOutputFormat<T extends IOReadableWritable> extends F
 	 */
 	protected class BlockBasedOutput extends FilterOutputStream {
 
-		/**
-		 * 
-		 */
 		private static final int NO_RECORD = -1;
 
 		private final int maxPayloadSize;
@@ -132,10 +112,6 @@ public abstract class BinaryOutputFormat<T extends IOReadableWritable> extends F
 			this.maxPayloadSize = blockSize - this.blockInfo.getInfoSize();
 		}
 
-		/*
-		 * (non-Javadoc)
-		 * @see java.io.FilterOutputStream#close()
-		 */
 		@Override
 		public void close() throws IOException {
 			if (this.blockPos > 0)
@@ -151,19 +127,11 @@ public abstract class BinaryOutputFormat<T extends IOReadableWritable> extends F
 			this.totalCount++;
 		}
 
-		/*
-		 * (non-Javadoc)
-		 * @see java.io.FilterOutputStream#write(byte[])
-		 */
 		@Override
 		public void write(byte[] b) throws IOException {
 			this.write(b, 0, b.length);
 		}
 
-		/*
-		 * (non-Javadoc)
-		 * @see java.io.FilterOutputStream#write(byte[], int, int)
-		 */
 		@Override
 		public void write(byte[] b, int off, int len) throws IOException {
 
@@ -179,10 +147,6 @@ public abstract class BinaryOutputFormat<T extends IOReadableWritable> extends F
 			}
 		}
 
-		/*
-		 * (non-Javadoc)
-		 * @see java.io.FilterOutputStream#write(int)
-		 */
 		@Override
 		public void write(int b) throws IOException {
 			super.write(b);

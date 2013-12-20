@@ -13,20 +13,19 @@
 
 package eu.stratosphere.pact.runtime.task;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.api.common.io.FileOutputFormat;
+import eu.stratosphere.api.common.io.OutputFormat;
 import eu.stratosphere.api.common.typeutils.TypeComparatorFactory;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
-import eu.stratosphere.api.common.io.FileOutputFormat;
-import eu.stratosphere.api.common.io.OutputFormat;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.core.fs.FileStatus;
 import eu.stratosphere.core.fs.FileSystem;
+import eu.stratosphere.core.fs.FileSystem.WriteMode;
 import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
@@ -163,7 +162,7 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 			}
 
 			// open
-			format.open(this.getEnvironment().getIndexInSubtaskGroup() + 1);
+			format.open(this.getEnvironment().getIndexInSubtaskGroup(), this.getEnvironment().getCurrentNumberOfSubtasks());
 
 			// work!
 			// special case the pact record / file variant
@@ -369,6 +368,7 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 		// ----------------- This code applies only to file inputs ------------------
 		
 		final String pathName = this.config.getStubParameter(FileOutputFormat.FILE_PARAMETER_KEY, null);
+		final WriteMode writeMode = ((FileOutputFormat<?>)this.format).getWriteMode();
 		final Path path;
 		
 		if (pathName == null) {
@@ -382,47 +382,36 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 			return 0;
 		}
 
-		// Check if the path is valid
+		// Prepare output path and determine max DOP		
 		try {
+			
+			int dop = getTaskConfiguration().getInteger(DEGREE_OF_PARALLELISM_KEY, -1);
 			final FileSystem fs = path.getFileSystem();
-			try {
-				final FileStatus f = fs.getFileStatus(path);
-				if (f == null) {
-					return 1;
-				}
-				// If the path points to a directory we allow an infinity number of subtasks
-				if (f.isDir()) {
-					return -1;
-				}
-				else {
-					// path points to an existing file. delete it to be able to replace the
-					// file with a directory
-					fs.delete(path, false);
-					int dop = getTaskConfiguration().getInteger(DEGREE_OF_PARALLELISM_KEY, -1);
-					if (dop == 1) {
-						// a none existing file and a degree of parallelism that is one
-						return 1;
-					} else {
-						// a degree of parallelism greater one, or an unspecified one. in all cases, create a directory
-						// the output
-						fs.mkdirs(path);
-						return -1;
+			
+			if(dop == 1) {
+				
+				if(fs.isDistributedFS()) {
+					// prepare distributed output path
+					// checks for write mode and removes existing files in case of OVERWRITE mode
+					if(!fs.initOutPathDistFS(path, writeMode, false)) {
+						// output preparation failed! Cancel task.
+						throw new IOException("Output path could not be initialized.");
 					}
 				}
-			}
-			catch (FileNotFoundException fnfex) {
-				// The exception is thrown if the requested file/directory does not exist.
-				// if the degree of parallelism is > 1, we create a directory for this path
-				int dop = getTaskConfiguration().getInteger(DEGREE_OF_PARALLELISM_KEY, -1);
-				if (dop == 1) {
-					// a none existing file and a degree of parallelism that is one
-					return 1;
+				
+				return 1;
+				
+			} else {
+				
+				if(fs.isDistributedFS()) {
+					// only distributed file systems can be initialized at start-up time.
+					if(!fs.initOutPathDistFS(path, writeMode, true)) {
+						throw new IOException("Output directory could not be created.");
+					}
 				}
-
-				// a degree of parallelism greater one, or an unspecified one. in all cases, create a directory
-				// the output
-				fs.mkdirs(path);
+				
 				return -1;
+				
 			}
 		}
 		catch (IOException e) {

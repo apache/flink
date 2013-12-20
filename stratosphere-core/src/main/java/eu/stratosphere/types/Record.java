@@ -28,7 +28,7 @@ import eu.stratosphere.util.InstantiationUtil;
 
 
 /**
- * The Pact Record is the basic data record that flows between functions in a Pact program. The record is a tuple of
+ * Record is the basic data record that flows between functions in a Stratosphere program. The record is a tuple of
  * arbitrary values. It implements a sparse tuple model, meaning that the record can contain many fields which are
  * actually null and not represented in the record. It has internally a bitmap marking which fields are set and which
  * are not.
@@ -105,7 +105,7 @@ public final class Record implements Value {
 	}
 	
 	/**
-	 * Creates a new pact record, containing the given number of fields. The fields are initially all nulls.
+	 * Creates a new record, containing the given number of fields. The fields are initially all nulls.
 	 *  
 	 * @param numFields The number of fields for the record.
 	 */

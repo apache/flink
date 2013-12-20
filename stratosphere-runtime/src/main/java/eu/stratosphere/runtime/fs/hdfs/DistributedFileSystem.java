@@ -385,4 +385,9 @@ public final class DistributedFileSystem extends FileSystem {
 	public long getDefaultBlockSize() {
 		return this.fs.getDefaultBlockSize();
 	}
+
+	@Override
+	public boolean isDistributedFS() {
+		return true;
+	}
 }

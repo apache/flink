@@ -23,6 +23,7 @@ import eu.stratosphere.api.common.operators.FileDataSink;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.fs.FSDataOutputStream;
 import eu.stratosphere.core.fs.FileSystem;
+import eu.stratosphere.core.fs.FileSystem.WriteMode;
 import eu.stratosphere.core.fs.Path;
 
 
@@ -44,6 +45,17 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT> {
 	public static final String FILE_PARAMETER_KEY = "pact.output.file";
 	
 	/**
+	 * The key under which the write mode is stored in the configuration
+	 */
+	public static final String WRITEMODE_PARAMETER_KEY = "pact.output.writemode";
+
+	/**
+	 * Value keys for the write modes
+	 */
+	public static final String WRITEMODE_CREATE = "stratosphere.output.writemode.create";
+	public static final String WRITEMODE_OVERWRITE = "stratosphere.output.writemode.overwrite";
+		
+	/**
 	 * The config parameter for the opening timeout in milliseconds.
 	 */
 	public static final String OUTPUT_STREAM_OPEN_TIMEOUT_KEY = "pact.output.file.timeout";
@@ -52,6 +64,11 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT> {
 	 * The path of the file to be written.
 	 */
 	protected Path outputFilePath;
+	
+	/**
+	 * The write mode of the output.	
+	 */
+	protected WriteMode writeMode;
 	
 	/**
 	 * The stream to which the data is written;
@@ -81,6 +98,16 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT> {
 			throw new RuntimeException("Could not create a valid URI from the given file path name: " + rex.getMessage()); 
 		}
 		
+		// get the write mode parameter
+		String writeModeParam = parameters.getString(WRITEMODE_PARAMETER_KEY, WRITEMODE_OVERWRITE);
+		if(writeModeParam.equals(WRITEMODE_OVERWRITE)) {
+			this.writeMode = WriteMode.OVERWRITE;
+		} else if(writeModeParam.equals(WRITEMODE_CREATE)) {
+			this.writeMode = WriteMode.CREATE;
+		} else {
+			throw new RuntimeException("Invalid write mode configuration: "+writeModeParam);
+		}
+		
 		// get timeout for stream opening
 		this.openTimeout = parameters.getLong(OUTPUT_STREAM_OPEN_TIMEOUT_KEY, FileInputFormat.DEFAULT_OPENING_TIMEOUT);
 		if (this.openTimeout < 0) {
@@ -95,9 +122,9 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT> {
 
 
 	@Override
-	public void open(int taskNumber) throws IOException {
+	public void open(int taskNumber, int numTasks) throws IOException {
 		// obtain FSDataOutputStream asynchronously, since HDFS client can not handle InterruptedExceptions
-		OutputPathOpenThread opot = new OutputPathOpenThread(this.outputFilePath, taskNumber, this.openTimeout);
+		OutputPathOpenThread opot = new OutputPathOpenThread(this.outputFilePath, this.writeMode, (taskNumber + 1), numTasks, this.openTimeout);
 		opot.start();
 		
 		try {
@@ -120,6 +147,10 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT> {
 		}
 	}
 	
+	public WriteMode getWriteMode() {
+		return this.writeMode;
+	}
+	
 	// ============================================================================================
 	
 	private static final class OutputPathOpenThread extends Thread {
@@ -127,6 +158,10 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT> {
 		private final Path path;
 		
 		private final int taskIndex;
+		
+		private final int numTasks;
+		
+		private final WriteMode writeMode;
 		
 		private final long timeoutMillies;
 		
@@ -137,29 +172,68 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT> {
 		private volatile boolean aborted;
 
 		
-		public OutputPathOpenThread(Path path, int taskIndex, long timeoutMillies) {
+		public OutputPathOpenThread(Path path, WriteMode writeMode, int taskIndex, int numTasks, long timeoutMillies) {
 			this.path = path;
+			this.writeMode = writeMode;
 			this.timeoutMillies = timeoutMillies;
 			this.taskIndex = taskIndex;
+			this.numTasks = numTasks;
 		}
 
 		@Override
 		public void run() {
+			
 			try {
 				Path p = this.path;
 				final FileSystem fs = p.getFileSystem();
-				
-				// if the output is a directory, suffix the path with the parallel instance index
-				if (fs.exists(p) && fs.getFileStatus(p).isDir()) {
+
+				if(this.numTasks == 1) {
+					// output is not written in parallel
+					
+					if(!fs.isDistributedFS()) {
+						// prepare local output path
+						// checks for write mode and removes existing files in case of OVERWRITE mode
+						if(!fs.initOutPathLocalFS(p, writeMode, false)) {
+							// output preparation failed! Cancel task.
+							throw new IOException("Output path could not be initialized. Canceling task.");
+						}
+					}
+					
+					// create output file
+					this.fdos = fs.create(p, false);
+					
+				} else if(this.numTasks > 1) {
+					// output is written in parallel
+					
+					if(!fs.isDistributedFS()) {
+						// File system is not distributed.
+						// We need to prepare the output path on each executing node.
+						if(!fs.initOutPathLocalFS(p, writeMode, true)) {
+							// output preparation failed! Cancel task.
+							throw new IOException("Output directory could not be created. Canceling task.");
+						}
+					}
+					
+					// Suffix the path with the parallel instance index
 					p = p.suffix("/" + this.taskIndex);
+					
+					// create output file
+					switch(writeMode) {
+					case CREATE: 
+						this.fdos = fs.create(p, false);
+						break;
+					case OVERWRITE:
+						this.fdos = fs.create(p, true);
+						break;
+					default:
+						throw new IllegalArgumentException("Invalid write mode: "+writeMode);
+					}
+					this.fdos = fs.create(p, true);
+						
+				} else {
+					// invalid number of subtasks (<= 0)
+					throw new IllegalArgumentException("Invalid number of subtasks. Canceling task.");
 				}
-				
-				// remove the existing file before creating the output stream
-				if (fs.exists(p)) {
-					fs.delete(p, false);
-				}
-				
-				this.fdos = fs.create(p, true);
 				
 				// check for canceling and close the stream in that case, because no one will obtain it
 				if (this.aborted) {

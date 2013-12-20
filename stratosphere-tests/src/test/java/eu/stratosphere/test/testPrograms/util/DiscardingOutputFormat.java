@@ -32,7 +32,7 @@ public class DiscardingOutputFormat implements OutputFormat<Record> {
 
 
 	@Override
-	public void open(int taskNumber) throws IOException
+	public void open(int taskNumber, int numTasks) throws IOException
 	{}
 
 

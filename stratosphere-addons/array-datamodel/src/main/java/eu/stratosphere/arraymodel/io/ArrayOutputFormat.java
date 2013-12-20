@@ -64,8 +64,8 @@ public abstract class ArrayOutputFormat extends FileOutputFormat<Value[]> implem
 	}
 	
 	@Override
-	public void open(int taskNumber) throws IOException {
-		super.open(taskNumber);
+	public void open(int taskNumber, int numTasks) throws IOException {
+		super.open(taskNumber, numTasks);
 		this.wrt = this.charsetName == null ? new OutputStreamWriter(new BufferedOutputStream(this.stream, 4096)) :
 				new OutputStreamWriter(new BufferedOutputStream(this.stream, 4096), this.charsetName);
 	}

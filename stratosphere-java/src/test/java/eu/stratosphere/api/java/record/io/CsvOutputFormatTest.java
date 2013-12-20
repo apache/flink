@@ -171,7 +171,7 @@ public class CsvOutputFormatTest {
 			format.configure(config);
 			
 			try {
-				format.open(0);
+				format.open(0, 1);
 			} catch (IOException e) {
 				fail(e.getMessage());
 			}
@@ -219,7 +219,7 @@ public class CsvOutputFormatTest {
 			format.configure(config);
 			
 			try {
-				format.open(0);
+				format.open(0, 1);
 			} catch (IOException e) {
 				fail(e.getMessage());
 			}
@@ -267,7 +267,7 @@ public class CsvOutputFormatTest {
 			format.configure(config);
 			
 			try {
-				format.open(0);
+				format.open(0, 1);
 			} catch (IOException e) {
 				fail(e.getMessage());
 			}
@@ -317,7 +317,7 @@ public class CsvOutputFormatTest {
 			format.configure(config);
 			
 			try {
-				format.open(0);
+				format.open(0, 1);
 			} catch (IOException e) {
 				fail(e.getMessage());
 			}
@@ -369,7 +369,7 @@ public class CsvOutputFormatTest {
 			format.configure(config);
 			
 			try {
-				format.open(0);
+				format.open(0, 1);
 			} catch (IOException e) {
 				fail(e.getMessage());
 			}
@@ -422,7 +422,7 @@ public class CsvOutputFormatTest {
 			format.configure(config);
 			
 			try {
-				format.open(0);
+				format.open(0, 1);
 			} catch (IOException e) {
 				fail(e.getMessage());
 			}

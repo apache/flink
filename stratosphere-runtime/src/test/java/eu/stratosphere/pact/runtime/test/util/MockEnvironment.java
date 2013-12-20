@@ -151,12 +151,12 @@ public class MockEnvironment implements Environment {
 
 	@Override
 	public int getCurrentNumberOfSubtasks() {
-		return 0;
+		return 1;
 	}
 
 	@Override
 	public int getIndexInSubtaskGroup() {
-		return 1;
+		return 0;
 	}
 
 	@Override

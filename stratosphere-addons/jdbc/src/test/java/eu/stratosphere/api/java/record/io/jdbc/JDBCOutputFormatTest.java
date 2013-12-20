@@ -173,7 +173,7 @@ public class JDBCOutputFormatTest {
 
         jdbcOutputFormat = new JDBCOutputFormat();
         jdbcOutputFormat.configure(cfg);
-        jdbcOutputFormat.open(1);
+        jdbcOutputFormat.open(0,1);
 
         jdbcInputFormat = new JDBCInputFormat(
                 driverPath,

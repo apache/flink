@@ -38,8 +38,8 @@ import eu.stratosphere.pact.runtime.test.util.InfiniteInputIterator;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 import eu.stratosphere.pact.runtime.test.util.UniformRecordGenerator;
-import eu.stratosphere.types.Key;
 import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Key;
 import eu.stratosphere.types.Record;
 
 public class DataSinkTaskTest extends TaskTestBase
@@ -437,6 +437,11 @@ public class DataSinkTaskTest extends TaskTestBase
 		final StringBuilder bld = new StringBuilder();
 		
 		@Override
+		public void configure(Configuration parameters) {
+			super.configure(parameters);
+		}
+		
+		@Override
 		public int serializeRecord(Record rec, byte[] target) throws Exception
 		{
 			IntValue key = rec.getField(0, IntValue.class);
@@ -462,6 +467,11 @@ public class DataSinkTaskTest extends TaskTestBase
 		private static final long serialVersionUID = 1L;
 
 		int cnt = 0;
+		
+		@Override
+		public void configure(Configuration parameters) {
+			super.configure(parameters);
+		}
 		
 		@Override
 		public int serializeRecord(Record rec, byte[] target) throws Exception

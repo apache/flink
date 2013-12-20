@@ -153,7 +153,7 @@ public class FormatUtil {
 		configuration.setString(FileOutputFormat.FILE_PARAMETER_KEY, path);
 		configuration.setLong(FileOutputFormat.OUTPUT_STREAM_OPEN_TIMEOUT_KEY, 0);
 		outputFormat.configure(configuration);
-		outputFormat.open(1);
+		outputFormat.open(0, 1);
 		return outputFormat;
 	}
 

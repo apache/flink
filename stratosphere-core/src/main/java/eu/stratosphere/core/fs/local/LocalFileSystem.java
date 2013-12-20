@@ -118,10 +118,7 @@ public class LocalFileSystem extends FileSystem {
 
 
 	@Override
-	public void initialize(final URI name) throws IOException {
-		// TODO Auto-generated method stub
-
-	}
+	public void initialize(final URI name) throws IOException {	}
 
 
 	@Override
@@ -264,5 +261,10 @@ public class LocalFileSystem extends FileSystem {
 		final File dstFile = pathToFile(dst);
 
 		return srcFile.renameTo(dstFile);
+	}
+
+	@Override
+	public boolean isDistributedFS() {
+		return false;
 	}
 }

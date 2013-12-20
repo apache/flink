@@ -156,9 +156,9 @@ public class CsvOutputFormat extends FileOutputFormat {
 	
 
 	@Override
-	public void open(int taskNumber) throws IOException
+	public void open(int taskNumber, int numTasks) throws IOException
 	{
-		super.open(taskNumber);
+		super.open(taskNumber, numTasks);
 		this.wrt = this.charsetName == null ? new OutputStreamWriter(new BufferedOutputStream(this.stream, 4096)) :
 				new OutputStreamWriter(new BufferedOutputStream(this.stream, 4096), this.charsetName);
 	}
