@@ -49,12 +49,12 @@ if [[ $TRAVIS_PULL_REQUEST == "false" ]] ; then
 	# It will deploy both a hadoop v1 and a hadoop v2 (yarn) artifact
 	# 
 
-	if [[ $TRAVIS_JOB_NUMBER == *1 ]] && [[ $TRAVIS_PULL_REQUEST == "false" ]] ; then 
+	if [[ $TRAVIS_JOB_NUMBER == *1 ]] && [[ $TRAVIS_PULL_REQUEST == "false" ]] && [[ $CURRENT_STRATOSPHERE_VERSION == *SNAPSHOT* ]] ; then 
 		# Deploy regular hadoop v1 to maven
 		mvn -DskipTests deploy --settings deploysettings.xml; 
 	fi
 
-	if [[ $TRAVIS_JOB_NUMBER == *4 ]] && [[ $TRAVIS_PULL_REQUEST == "false" ]] ; then 
+	if [[ $TRAVIS_JOB_NUMBER == *4 ]] && [[ $TRAVIS_PULL_REQUEST == "false" ]] && [[ $CURRENT_STRATOSPHERE_VERSION == *SNAPSHOT* ]] ; then 
 		# deploy hadoop v2 (yarn)
 		echo "Generating poms for hadoop-yarn."
 		./tools/generate_specific_pom.sh $CURRENT_STRATOSPHERE_VERSION $CURRENT_STRATOSPHERE_VERSION_YARN
