@@ -71,22 +71,22 @@ public class CliFrontend {
 	private static final Option VERBOSE_OPTION = new Option("v", "verbose", false, "Print more detailed error messages.");
 	
 	// run options
-	private static final Option JAR_OPTION = new Option("j", "jarfile", true, "Pact program JAR file");
-	private static final Option CLASS_OPTION = new Option("c", "class", true, "Pact program assembler class");
-	private static final Option ARGS_OPTION = new Option("a", "arguments", true, "Pact program arguments");
-	private static final Option WAIT_OPTION = new Option("w", "wait", false, "Wait until program finishes");
-	private static final Option ADDRESS_OPTION = new Option("m", "jobmanager", true, "Hostname:port of JobManager [optional]");
+	private static final Option JAR_OPTION = new Option("j", "jarfile", true, "Stratosphere program JAR file");
+	private static final Option CLASS_OPTION = new Option("c", "class", true, "Program class");
+	private static final Option ARGS_OPTION = new Option("a", "arguments", true, "Program arguments");
+	private static final Option WAIT_OPTION = new Option("w", "wait", false, "Wait for program to finish");
+	private static final Option ADDRESS_OPTION = new Option("m", "jobmanager", true, "Jobmanager to which the program is submitted");
 	
 	// info options
-	private static final Option DESCR_OPTION = new Option("d", "description", false, "Show argument description of pact program");
-	private static final Option PLAN_OPTION = new Option("p", "plan", false, "Show execution plan of the pact program");
+	private static final Option DESCR_OPTION = new Option("d", "description", false, "Show description of expected program arguments");
+	private static final Option PLAN_OPTION = new Option("p", "plan", false, "Show optimized execution plan of the program (JSON)");
 	
 	// list options
-	private static final Option RUNNING_OPTION = new Option("r", "running", false, "Show running jobs");
-	private static final Option SCHEDULED_OPTION = new Option("s", "scheduled", false, "Show scheduled jobs");
+	private static final Option RUNNING_OPTION = new Option("r", "running", false, "Show running programs and their JobIDs");
+	private static final Option SCHEDULED_OPTION = new Option("s", "scheduled", false, "Show scheduled prorgrams and their JobIDs");
 	
 	// cancel options
-	private static final Option ID_OPTION = new Option("i", "jobid", true, "JobID to cancel");
+	private static final Option ID_OPTION = new Option("i", "jobid", true, "JobID of program to cancel");
 	
 	// config dir parameters
 	private static final String ENV_CONFIG_DIRECTORY = "STRATOSPHERE_CONF_DIR";
@@ -148,6 +148,7 @@ public class CliFrontend {
 		WAIT_OPTION.setRequired(false);
 		options.addOption(WAIT_OPTION);
 		ADDRESS_OPTION.setRequired(false);
+		ADDRESS_OPTION.setArgName("host:port");
 		options.addOption(ADDRESS_OPTION);
 		
 		return options;
@@ -633,24 +634,24 @@ public class CliFrontend {
 		HelpFormatter formatter = new HelpFormatter();
 		formatter.setLeftPadding(5);
 		
-		System.out.println("./pact-client [ACTION] [GENERAL_OPTIONS] [ACTION_ARGUMENTS]");
+		System.out.println("./stratosphere [ACTION] [GENERAL_OPTIONS] [ACTION_ARGUMENTS]");
 		
 		formatter.setSyntaxPrefix("  general options:");
 		formatter.printHelp(" ",this.options.get(GENERAL_OPTS));
 		
-		System.out.println("\nAction \"run\" compiles and submits a program.");
+		System.out.println("\nAction \"run\" compiles and submits a Stratosphere program.");
 		formatter.setSyntaxPrefix("  \"run\" action arguments:");
 		formatter.printHelp(" ", this.options.get(ACTION_RUN));
 		
-		System.out.println("\nAction \"info\" displays information about a program.");
+		System.out.println("\nAction \"info\" displays information about a Stratosphere program.");
 		formatter.setSyntaxPrefix("  \"info\" action arguments:");
 		formatter.printHelp(" ", this.options.get(ACTION_INFO));
 		
-		System.out.println("\nAction \"list\" lists submitted programs.");
+		System.out.println("\nAction \"list\" lists submitted Stratosphere programs.");
 		formatter.setSyntaxPrefix("  \"list\" action arguments:");
 		formatter.printHelp(" ", this.options.get(ACTION_LIST));
 		
-		System.out.println("\nAction \"cancel\" cancels a submitted program.");
+		System.out.println("\nAction \"cancel\" cancels a submitted Stratosphere program.");
 		formatter.setSyntaxPrefix("  \"cancel\" action arguments:");
 		formatter.printHelp(" ", this.options.get(ACTION_CANCEL));
 		
