@@ -528,7 +528,7 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 
 				// Only remove jobs from the list which have stopped running
 				if (jobStatus != JobStatus.FINISHED && jobStatus != JobStatus.CANCELED
-					&& jobStatus != JobStatus.FINISHED) {
+					&& jobStatus != JobStatus.FAILED) {
 					continue;
 				}
 
