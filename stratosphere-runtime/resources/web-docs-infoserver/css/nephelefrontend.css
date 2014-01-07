@@ -216,7 +216,8 @@ table{
 td, th {
     color: #000000;
     font-size: 12px;
-    line-height: 24px;
+    line-height: 26px;
+    height: 26px;
 }
 
 th {
