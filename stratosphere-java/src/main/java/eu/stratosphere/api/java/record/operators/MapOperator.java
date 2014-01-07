@@ -14,7 +14,9 @@
 package eu.stratosphere.api.java.record.operators;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.common.operators.base.MapOperatorBase;
@@ -60,6 +62,7 @@ public class MapOperator extends MapOperatorBase<MapFunction> implements RecordO
 	protected MapOperator(Builder builder) {
 		super(builder.udf, builder.name);
 		setInputs(builder.inputs);
+		setBroadcastVariables(builder.broadcastInputs);
 	}
 	
 
@@ -80,6 +83,7 @@ public class MapOperator extends MapOperatorBase<MapFunction> implements RecordO
 		
 		/* The optional parameters */
 		private List<Operator> inputs;
+		private Map<String, Operator> broadcastInputs;
 		private String name = DEFAULT_NAME;
 		
 		/**
@@ -90,6 +94,7 @@ public class MapOperator extends MapOperatorBase<MapFunction> implements RecordO
 		private Builder(UserCodeWrapper<MapFunction> udf) {
 			this.udf = udf;
 			this.inputs = new ArrayList<Operator>();
+			this.broadcastInputs = new HashMap<String, Operator>();
 		}
 		
 		/**
@@ -112,6 +117,24 @@ public class MapOperator extends MapOperatorBase<MapFunction> implements RecordO
 		 */
 		public Builder inputs(List<Operator> inputs) {
 			this.inputs = inputs;
+			return this;
+		}
+		
+		/**
+		 * Binds the result produced by a plan rooted at {@code root} to a 
+		 * variable used by the UDF wrapped in this operator.
+		 */
+		public Builder setBroadcastVariable(String name, Operator input) {
+			this.broadcastInputs.put(name, input);
+			return this;
+		}
+		
+		/**
+		 * Binds multiple broadcast variables.
+		 */
+		public Builder setBroadcastVariables(Map<String, Operator> inputs) {
+			this.broadcastInputs.clear();
+			this.broadcastInputs.putAll(inputs);
 			return this;
 		}
 		

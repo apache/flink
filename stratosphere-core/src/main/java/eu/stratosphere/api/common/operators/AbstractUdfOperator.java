@@ -13,11 +13,14 @@
 
 package eu.stratosphere.api.common.operators;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import eu.stratosphere.api.common.functions.Function;
 import eu.stratosphere.api.common.operators.util.UserCodeWrapper;
 
 /**
- * Abstract superclass for all contracts that represent actual Pacts.
+ * Abstract superclass for all contracts that represent actual operators.
  */
 public abstract class AbstractUdfOperator<T extends Function> extends Operator {
 	
@@ -26,13 +29,18 @@ public abstract class AbstractUdfOperator<T extends Function> extends Operator {
 	 */
 	protected final UserCodeWrapper<T> stub;
 	
+	/**
+	 * The extra inputs which parameterize the user function.
+	 */
+	protected final Map<String, Operator> broadcastInputs = new HashMap<String, Operator>();
+	
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * Creates a new abstract Pact with the given name wrapping the given user function.
+	 * Creates a new abstract operator with the given name wrapping the given user function.
 	 *
 	 * @param stub The object containing the user function.
-	 * @param name The given name for the Pact, used in plans, logs and progress messages.
+	 * @param name The given name for the operator, used in plans, logs and progress messages.
 	 */
 	protected AbstractUdfOperator(UserCodeWrapper<T> stub, String name) {
 		super(name);
@@ -40,7 +48,7 @@ public abstract class AbstractUdfOperator<T extends Function> extends Operator {
 	}
 	
 	// --------------------------------------------------------------------------------------------
-
+	
 	/**
 	 * Gets the stub that is wrapped by this contract. The stub is the actual implementation of the
 	 * user code.
@@ -48,7 +56,7 @@ public abstract class AbstractUdfOperator<T extends Function> extends Operator {
 	 * This throws an exception if the pact does not contain an object but a class for the user
 	 * code.
 	 * 
-	 * @return The object with the user function for this Pact.
+	 * @return The object with the user function for this operator.
 	 *
 	 * @see eu.stratosphere.api.common.operators.Operator#getUserCodeWrapper()
 	 */
@@ -59,10 +67,53 @@ public abstract class AbstractUdfOperator<T extends Function> extends Operator {
 	
 	// --------------------------------------------------------------------------------------------
 	
+	// TODO: add delegates for the parameter input setters to the Operator builders
+	
 	/**
-	 * Gets the number of inputs for this Pact.
+	 * Returns the input, or null, if none is set.
 	 * 
-	 * @return The number of inputs for this Pact.
+	 * @return The broadcast input root operator.
+	 */
+	public Map<String, Operator> getBroadcastInputs() {
+		return this.broadcastInputs;
+	}
+	
+	/**
+	 * Binds the result produced by a plan rooted at {@code root} to a variable 
+	 * used by the UDF wrapped in this operator.
+	 * 
+	 * @param root The root of the plan producing this input.
+	 */
+	public void setBroadcastVariable(String name, Operator root) {
+		if (name == null) {
+			throw new IllegalArgumentException("The broadcast input name may not be null.");
+		}
+		if (root == null) {
+			throw new IllegalArgumentException("The broadcast input root operator may not be null.");
+		}
+		
+		this.broadcastInputs.put(name, root);
+	}
+	
+	/**
+	 * Clears all previous broadcast inputs and binds the given inputs as
+	 * broadcast variables of this operator.
+	 * 
+	 * @param inputs The <name, root> pairs to be set as broadcast inputs.
+	 */
+	public void setBroadcastVariables(Map<String, Operator> roots) {
+		this.broadcastInputs.clear();
+		for (Map.Entry<String, Operator> e: roots.entrySet()) {
+			setBroadcastVariable(e.getKey(), e.getValue());
+		}
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * Gets the number of inputs for this operator.
+	 * 
+	 * @return The number of inputs for this operator.
 	 */
 	public abstract int getNumberOfInputs();
 	
@@ -84,7 +135,7 @@ public abstract class AbstractUdfOperator<T extends Function> extends Operator {
 	 */
 	protected static final <U> Class<U>[] asArray(Class<U> clazz) {
 		@SuppressWarnings("unchecked")
-		Class<U>[] array = (Class<U>[]) new Class[] { clazz };
+		Class<U>[] array = new Class[] { clazz };
 		return array;
 	}
 	
@@ -96,7 +147,7 @@ public abstract class AbstractUdfOperator<T extends Function> extends Operator {
 	 */
 	protected static final <U> Class<U>[] emptyClassArray() {
 		@SuppressWarnings("unchecked")
-		Class<U>[] array = (Class<U>[]) new Class[0];
+		Class<U>[] array = new Class[0];
 		return array;
 	}
 }

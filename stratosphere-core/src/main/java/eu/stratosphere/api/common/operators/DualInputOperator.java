@@ -261,6 +261,9 @@ public abstract class DualInputOperator<T extends Function> extends AbstractUdfO
 			for (Operator c : this.input2) {
 				c.accept(visitor);
 			}
+			for (Operator c : this.broadcastInputs.values()) {
+				c.accept(visitor);
+			}
 			visitor.postVisit(this);
 		}
 	}

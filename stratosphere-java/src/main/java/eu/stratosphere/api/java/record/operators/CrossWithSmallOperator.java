@@ -76,6 +76,7 @@ public class CrossWithSmallOperator extends CrossOperator implements CrossWithSm
 		 * 
 		 * @return The created contract
 		 */
+		@Override
 		public CrossWithSmallOperator build() {
 			return new CrossWithSmallOperator(this);
 		}

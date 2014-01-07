@@ -18,7 +18,9 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.common.operators.Ordering;
@@ -27,7 +29,6 @@ import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
 import eu.stratosphere.api.common.operators.util.UserCodeObjectWrapper;
 import eu.stratosphere.api.common.operators.util.UserCodeWrapper;
 import eu.stratosphere.api.java.record.functions.CoGroupFunction;
-import eu.stratosphere.api.java.record.functions.JoinFunction;
 import eu.stratosphere.types.Key;
 
 /**
@@ -92,6 +93,7 @@ public class CoGroupOperator extends CoGroupOperatorBase<CoGroupFunction> implem
 		this.keyTypes = builder.getKeyClassesArray();
 		setFirstInputs(builder.inputs1);
 		setSecondInputs(builder.inputs2);
+		setBroadcastVariables(builder.broadcastInputs);
 		setGroupOrderForInputOne(builder.secondaryOrder1);
 		setGroupOrderForInputTwo(builder.secondaryOrder2);
 	}
@@ -209,6 +211,7 @@ public class CoGroupOperator extends CoGroupOperatorBase<CoGroupFunction> implem
 		/* The optional parameters */
 		private List<Operator> inputs1;
 		private List<Operator> inputs2;
+		private Map<String, Operator> broadcastInputs;
 		private Ordering secondaryOrder1 = null;
 		private Ordering secondaryOrder2 = null;
 		private String name = DEFAULT_NAME;
@@ -233,9 +236,8 @@ public class CoGroupOperator extends CoGroupOperatorBase<CoGroupFunction> implem
 			this.keyColumns2.add(keyColumn2);
 			this.inputs1 = new ArrayList<Operator>();
 			this.inputs2 = new ArrayList<Operator>();
+			this.broadcastInputs = new HashMap<String, Operator>();
 		}
-		
-		
 		
 		/**
 		 * Creates a Builder with the provided {@link JoinFunction} implementation. This method is intended 
@@ -250,6 +252,7 @@ public class CoGroupOperator extends CoGroupOperatorBase<CoGroupFunction> implem
 			this.keyColumns2 = new ArrayList<Integer>();
 			this.inputs1 = new ArrayList<Operator>();
 			this.inputs2 = new ArrayList<Operator>();
+			this.broadcastInputs = new HashMap<String, Operator>();
 		}
 		
 		private int[] getKeyColumnsArray1() {
@@ -349,6 +352,24 @@ public class CoGroupOperator extends CoGroupOperatorBase<CoGroupFunction> implem
 		 */
 		public Builder inputs2(List<Operator> inputs) {
 			this.inputs2 = inputs;
+			return this;
+		}
+		
+		/**
+		 * Binds the result produced by a plan rooted at {@code root} to a 
+		 * variable used by the UDF wrapped in this operator.
+		 */
+		public Builder setBroadcastVariable(String name, Operator input) {
+			this.broadcastInputs.put(name, input);
+			return this;
+		}
+		
+		/**
+		 * Binds multiple broadcast variables.
+		 */
+		public Builder setBroadcastVariables(Map<String, Operator> inputs) {
+			this.broadcastInputs.clear();
+			this.broadcastInputs.putAll(inputs);
 			return this;
 		}
 		

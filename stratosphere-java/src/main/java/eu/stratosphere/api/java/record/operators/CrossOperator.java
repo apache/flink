@@ -14,7 +14,9 @@
 package eu.stratosphere.api.java.record.operators;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.common.operators.base.CrossOperatorBase;
@@ -62,6 +64,7 @@ public class CrossOperator extends CrossOperatorBase<CrossFunction> implements R
 		super(builder.udf, builder.name);
 		setFirstInputs(builder.inputs1);
 		setSecondInputs(builder.inputs2);
+		setBroadcastVariables(builder.broadcastInputs);
 	}
 	
 
@@ -83,6 +86,7 @@ public class CrossOperator extends CrossOperatorBase<CrossFunction> implements R
 		/* The optional parameters */
 		private List<Operator> inputs1;
 		private List<Operator> inputs2;
+		private Map<String, Operator> broadcastInputs;
 		private String name = DEFAULT_NAME;
 		
 		/**
@@ -94,6 +98,7 @@ public class CrossOperator extends CrossOperatorBase<CrossFunction> implements R
 			this.udf = udf;
 			this.inputs1 = new ArrayList<Operator>();
 			this.inputs2 = new ArrayList<Operator>();
+			this.broadcastInputs = new HashMap<String, Operator>();
 		}
 		
 		/**
@@ -139,6 +144,24 @@ public class CrossOperator extends CrossOperatorBase<CrossFunction> implements R
 		 */
 		public Builder inputs2(List<Operator> inputs) {
 			this.inputs2 = inputs;
+			return this;
+		}
+		
+		/**
+		 * Binds the result produced by a plan rooted at {@code root} to a 
+		 * variable used by the UDF wrapped in this operator.
+		 */
+		public Builder setBroadcastVariable(String name, Operator input) {
+			this.broadcastInputs.put(name, input);
+			return this;
+		}
+		
+		/**
+		 * Binds multiple broadcast variables.
+		 */
+		public Builder setBroadcastVariables(Map<String, Operator> inputs) {
+			this.broadcastInputs.clear();
+			this.broadcastInputs.putAll(inputs);
 			return this;
 		}
 		

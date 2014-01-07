@@ -163,6 +163,9 @@ public abstract class SingleInputOperator<T extends Function> extends AbstractUd
 			for (Operator c : this.input) {
 				c.accept(visitor);
 			}
+			for (Operator c : this.broadcastInputs.values()) {
+				c.accept(visitor);
+			}
 			visitor.postVisit(this);
 		}
 	}

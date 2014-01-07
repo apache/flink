@@ -12,6 +12,7 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.common.functions;
 
+import java.util.Collection;
 import java.util.HashMap;
 
 import eu.stratosphere.api.common.accumulators.Accumulator;
@@ -19,6 +20,7 @@ import eu.stratosphere.api.common.accumulators.DoubleCounter;
 import eu.stratosphere.api.common.accumulators.Histogram;
 import eu.stratosphere.api.common.accumulators.IntCounter;
 import eu.stratosphere.api.common.accumulators.LongCounter;
+import eu.stratosphere.types.Record;
 
 /**
  *
@@ -30,6 +32,8 @@ public interface RuntimeContext {
 	int getNumberOfParallelSubtasks();
 
 	int getIndexOfThisSubtask();
+	
+	// --------------------------------------------------------------------------------------------
 
 	/**
 	 * Add this accumulator. Throws an exception if the counter is already
@@ -56,18 +60,23 @@ public interface RuntimeContext {
 	HashMap<String, Accumulator<?, ?>> getAllAccumulators();
 
 	/**
-	 * Convenience function to create a counter object for integers. This
-	 * creates an accumulator object for double values internally.
-	 * 
-	 * @param name
-	 * @return
+	 * Convenience function to create a counter object for integers.
 	 */
 	IntCounter getIntCounter(String name);
 
+	/**
+	 * Convenience function to create a counter object for longs.
+	 */
 	LongCounter getLongCounter(String name);
 
+	/**
+	 * Convenience function to create a counter object for doubles.
+	 */
 	DoubleCounter getDoubleCounter(String name);
 
+	/**
+	 * Convenience function to create a counter object for histograms.
+	 */
 	Histogram getHistogram(String name);
 
 //	/**
@@ -97,5 +106,18 @@ public interface RuntimeContext {
 //	 */
 //	<T> SimpleAccumulator<T> getSimpleAccumulator(String name,
 //			Class<? extends SimpleAccumulator<T>> accumulatorClass);
+	
+	// --------------------------------------------------------------------------------------------
 
+	/**
+	 * Sets the value of the broadcast variable identified by the given 
+	 * {@code name}.
+	 */
+	void setBroadcastVariable(String name, Collection<?> value);
+
+	/**
+	 * Returns the result bound to the broadcast variable identified by the 
+	 * given {@code name}.
+	 */
+	<RT> Collection<RT> getBroadcastVariable(String name);
 }

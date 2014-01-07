@@ -18,7 +18,9 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.common.operators.Ordering;
@@ -99,6 +101,7 @@ public class ReduceOperator extends ReduceOperatorBase<ReduceFunction> implement
 		this.keyTypes = builder.getKeyClassesArray();
 		setInputs(builder.inputs);
 		setGroupOrder(builder.secondaryOrder);
+		setBroadcastVariables(builder.broadcastInputs);
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -191,6 +194,7 @@ public class ReduceOperator extends ReduceOperatorBase<ReduceFunction> implement
 		/* The optional parameters */
 		private Ordering secondaryOrder = null;
 		private List<Operator> inputs;
+		private Map<String, Operator> broadcastInputs;
 		private String name = DEFAULT_NAME;
 		
 		/**
@@ -203,6 +207,7 @@ public class ReduceOperator extends ReduceOperatorBase<ReduceFunction> implement
 			this.keyClasses = new ArrayList<Class<? extends Key>>();
 			this.keyColumns = new ArrayList<Integer>();
 			this.inputs = new ArrayList<Operator>();
+			this.broadcastInputs = new HashMap<String, Operator>();
 		}
 		
 		/**
@@ -219,6 +224,7 @@ public class ReduceOperator extends ReduceOperatorBase<ReduceFunction> implement
 			this.keyColumns = new ArrayList<Integer>();
 			this.keyColumns.add(keyColumn);
 			this.inputs = new ArrayList<Operator>();
+			this.broadcastInputs = new HashMap<String, Operator>();
 		}
 		
 		private int[] getKeyColumnsArray() {
@@ -276,6 +282,24 @@ public class ReduceOperator extends ReduceOperatorBase<ReduceFunction> implement
 		 */
 		public Builder inputs(List<Operator> inputs) {
 			this.inputs = inputs;
+			return this;
+		}
+		
+		/**
+		 * Binds the result produced by a plan rooted at {@code root} to a 
+		 * variable used by the UDF wrapped in this operator.
+		 */
+		public Builder setBroadcastVariable(String name, Operator input) {
+			this.broadcastInputs.put(name, input);
+			return this;
+		}
+		
+		/**
+		 * Binds multiple broadcast variables.
+		 */
+		public Builder setBroadcastVariables(Map<String, Operator> inputs) {
+			this.broadcastInputs.clear();
+			this.broadcastInputs.putAll(inputs);
 			return this;
 		}
 		

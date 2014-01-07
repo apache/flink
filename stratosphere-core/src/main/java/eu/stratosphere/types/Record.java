@@ -93,7 +93,7 @@ public final class Record implements Value {
 	}
 	
 	/**
-	 * Creates a new record containing exactly to fields, which are the given values.
+	 * Creates a new record containing exactly two fields, which are the given values.
 	 * 
 	 * @param val1 The value for the first field.
 	 * @param val2 The value for the second field.

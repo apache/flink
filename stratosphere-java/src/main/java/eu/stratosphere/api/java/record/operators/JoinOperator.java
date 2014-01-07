@@ -14,7 +14,9 @@
 package eu.stratosphere.api.java.record.operators;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.common.operators.base.JoinOperatorBase;
@@ -76,6 +78,7 @@ public class JoinOperator extends JoinOperatorBase<JoinFunction> implements Reco
 		this.keyTypes = builder.getKeyClassesArray();
 		setFirstInputs(builder.inputs1);
 		setSecondInputs(builder.inputs2);
+		setBroadcastVariables(builder.broadcastInputs);
 	}
 	
 	@Override
@@ -99,6 +102,7 @@ public class JoinOperator extends JoinOperatorBase<JoinFunction> implements Reco
 		/* The optional parameters */
 		private List<Operator> inputs1;
 		private List<Operator> inputs2;
+		private Map<String, Operator> broadcastInputs;
 		private String name = DEFAULT_NAME;
 		
 		
@@ -120,6 +124,7 @@ public class JoinOperator extends JoinOperatorBase<JoinFunction> implements Reco
 			this.keyColumns2.add(keyColumn2);
 			this.inputs1 = new ArrayList<Operator>();
 			this.inputs2 = new ArrayList<Operator>();
+			this.broadcastInputs = new HashMap<String, Operator>();
 		}
 		
 		/**
@@ -135,6 +140,7 @@ public class JoinOperator extends JoinOperatorBase<JoinFunction> implements Reco
 			this.keyColumns2 = new ArrayList<Integer>();
 			this.inputs1 = new ArrayList<Operator>();
 			this.inputs2 = new ArrayList<Operator>();
+			this.broadcastInputs = new HashMap<String, Operator>();
 		}
 		
 		private int[] getKeyColumnsArray1() {
@@ -219,9 +225,25 @@ public class JoinOperator extends JoinOperatorBase<JoinFunction> implements Reco
 		}
 		
 		/**
+		 * Binds the result produced by a plan rooted at {@code root} to a 
+		 * variable used by the UDF wrapped in this operator.
+		 */
+		public Builder setBroadcastVariable(String name, Operator input) {
+			this.broadcastInputs.put(name, input);
+			return this;
+		}
+		
+		/**
+		 * Binds multiple broadcast variables.
+		 */
+		public Builder setBroadcastVariables(Map<String, Operator> inputs) {
+			this.broadcastInputs.clear();
+			this.broadcastInputs.putAll(inputs);
+			return this;
+		}
+		
+		/**
 		 * Sets the name of this contract.
-		 * 
-		 * @param name
 		 */
 		public Builder name(String name) {
 			this.name = name;

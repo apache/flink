@@ -76,6 +76,7 @@ public class CrossWithLargeOperator extends CrossOperator implements CrossWithLa
 		 * 
 		 * @return The created contract
 		 */
+		@Override
 		public CrossWithLargeOperator build() {
 			return new CrossWithLargeOperator(this);
 		}
