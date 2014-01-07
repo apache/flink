@@ -147,7 +147,7 @@ public class MatchTaskExternalITCase extends DriverTestBase<GenericJoiner<Record
 	public static final class MockMatchStub extends JoinFunction
 	{
 		@Override
-		public void match(Record value1, Record value2, Collector<Record> out) throws Exception {
+		public void join(Record value1, Record value2, Collector<Record> out) throws Exception {
 			out.collect(value1);
 		}
 	}

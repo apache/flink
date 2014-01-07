@@ -20,17 +20,7 @@ import eu.stratosphere.api.common.functions.GenericCoGrouper;
 import eu.stratosphere.types.Value;
 import eu.stratosphere.util.Collector;
 
-/**
- * The CoGroupFunction must be extended to provide a co-grouper implementation which is called by a CoGroup PACT.
- * By definition, a CoGroup PACT has two input sets of records. It calls the co-grouper implementation once for each
- * distinct key in its inputs. Together with the key, two iterators over the records containing that key from both
- * inputs are handed to the <code>coGroup()</code> method.
- * For details on the CoGroup PACT read the documentation of the PACT programming model.
- * <p>
- * The CoGroupFunction extension must be parameterized with the type of the key of its input.
- * <p>
- * For a coGroup implementation, the <code>coGroup()</code> method must be implemented.
- */
+
 public abstract class CoGroupFunction extends AbstractArrayModelFunction implements GenericCoGrouper<Value[], Value[], Value[]> {
 	
 	/**

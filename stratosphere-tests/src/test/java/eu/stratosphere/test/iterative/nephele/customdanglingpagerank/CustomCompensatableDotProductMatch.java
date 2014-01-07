@@ -47,7 +47,7 @@ public class CustomCompensatableDotProductMatch extends AbstractFunction impleme
 	}
 
 	@Override
-	public void match(VertexWithRankAndDangling pageWithRank, VertexWithAdjacencyList adjacencyList, Collector<VertexWithRank> collector)
+	public void join(VertexWithRankAndDangling pageWithRank, VertexWithAdjacencyList adjacencyList, Collector<VertexWithRank> collector)
 	throws Exception
 	{
 		double rank = pageWithRank.getRank();

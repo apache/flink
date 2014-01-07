@@ -101,7 +101,7 @@ public class ConnectedComponentsWithSolutionSetFirstITCase extends TestBase2 {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void match(Record currentVertexWithComponent, Record newVertexWithComponent, Collector<Record> out){
+		public void join(Record currentVertexWithComponent, Record newVertexWithComponent, Collector<Record> out){
 	
 			long candidateComponentID = newVertexWithComponent.getField(1, LongValue.class).getValue();
 			long currentComponentID = currentVertexWithComponent.getField(1, LongValue.class).getValue();

@@ -164,7 +164,7 @@ public class ConnectedComponentsWithDeferredUpdateITCase extends TestBase2 {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void match(Record newVertexWithComponent, Record currentVertexWithComponent, Collector<Record> out){
+		public void join(Record newVertexWithComponent, Record currentVertexWithComponent, Collector<Record> out){
 	
 			long candidateComponentID = newVertexWithComponent.getField(1, LongValue.class).getValue();
 			long currentComponentID = currentVertexWithComponent.getField(1, LongValue.class).getValue();

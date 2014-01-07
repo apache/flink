@@ -190,7 +190,7 @@ public class WebLogAnalysis implements Program, ProgramDescription
 		 * 2: AVG_DURATION
 		 */
 		@Override
-		public void match(Record document, Record rank, Collector<Record> out) throws Exception {
+		public void join(Record document, Record rank, Collector<Record> out) throws Exception {
 			out.collect(rank);	
 		}
 	}

@@ -34,7 +34,7 @@ public class PartJoin extends JoinFunction {
 	 *
 	 */
 	@Override
-	public void match(Record value1, Record value2, Collector<Record> out)
+	public void join(Record value1, Record value2, Collector<Record> out)
 			throws Exception {
 
 		IntValue partKey = value1.getField(0, this.partKey);

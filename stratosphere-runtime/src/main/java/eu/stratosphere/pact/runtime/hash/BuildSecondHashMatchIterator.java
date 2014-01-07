@@ -115,22 +115,22 @@ public final class BuildSecondHashMatchIterator<V1, V2, O> implements JoinTaskIt
 					this.probeSideSerializer.copyTo(probeRecord, probeCopy);
 					
 					// call match on the first pair
-					matchFunction.match(probeCopy, nextBuildSideRecord, collector);
+					matchFunction.join(probeCopy, nextBuildSideRecord, collector);
 					
 					// call match on the second pair
 					this.probeSideSerializer.copyTo(probeRecord, probeCopy);
-					matchFunction.match(probeCopy, tmpRec, collector);
+					matchFunction.join(probeCopy, tmpRec, collector);
 					
 					while (this.running && buildSideIterator.next(nextBuildSideRecord)) {
 						// call match on the next pair
 						// make sure we restore the value of the probe side record
 						this.probeSideSerializer.copyTo(probeRecord, probeCopy);
-						matchFunction.match(probeCopy, nextBuildSideRecord, collector);
+						matchFunction.join(probeCopy, nextBuildSideRecord, collector);
 					}
 				}
 				else {
 					// only single pair matches
-					matchFunction.match(probeRecord, nextBuildSideRecord, collector);
+					matchFunction.join(probeRecord, nextBuildSideRecord, collector);
 				}
 			}
 			return true;

@@ -44,7 +44,7 @@ import eu.stratosphere.api.common.io.OutputFormat;
 /**
  * Convenience methods when dealing with {@link Operator}s.
  */
-public class ContractUtil {
+public class OperatorUtil {
 	private final static Map<Class<?>, Class<? extends Operator>> STUB_CONTRACTS =
 		new LinkedHashMap<Class<?>, Class<? extends Operator>>();
 

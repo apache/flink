@@ -159,7 +159,7 @@ public class TPCHQuery4 implements Program, ProgramDescription {
 	public static class JoinLiO extends JoinFunction {
 		
 		@Override
-		public void match(Record order, Record line, Collector<Record> out)
+		public void join(Record order, Record line, Collector<Record> out)
 				throws Exception {
 			Tuple orderTuple = order.getField(1, Tuple.class);
 			

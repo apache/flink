@@ -155,7 +155,7 @@ public class TPCHQuery10 implements Program, ProgramDescription
 	public static class JoinOL extends JoinFunction
 	{
 		@Override
-		public void match(Record order, Record lineitem, Collector<Record> out) throws Exception {
+		public void join(Record order, Record lineitem, Collector<Record> out) throws Exception {
 			lineitem.setField(0, order.getField(1, IntValue.class));
 			out.collect(lineitem);
 		}
@@ -169,7 +169,7 @@ public class TPCHQuery10 implements Program, ProgramDescription
 		private final DoubleValue d = new DoubleValue();
 		
 		@Override
-		public void match(Record custRecord, Record olRecord, Collector<Record> out) throws Exception
+		public void join(Record custRecord, Record olRecord, Collector<Record> out) throws Exception
 		{
 			final Tuple t = olRecord.getField(1, Tuple.class);
 			final double extPrice = Double.parseDouble(t.getStringValueAt(0));
@@ -188,7 +188,7 @@ public class TPCHQuery10 implements Program, ProgramDescription
 	public static class JoinNCOL extends JoinFunction
 	{
 		@Override
-		public void match(Record colRecord, Record nation, Collector<Record> out) throws Exception {
+		public void join(Record colRecord, Record nation, Collector<Record> out) throws Exception {
 			colRecord.setField(4, nation.getField(1, StringValue.class));
 			out.collect(colRecord);
 		}

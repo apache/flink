@@ -243,6 +243,6 @@ public class HashVsSortMiniBenchmark {
 	
 	private static final class NoOpMatcher extends JoinFunction {
 		@Override
-		public void match(Record rec1, Record rec2, Collector<Record> out) {}
+		public void join(Record rec1, Record rec2, Collector<Record> out) {}
 	}
 }

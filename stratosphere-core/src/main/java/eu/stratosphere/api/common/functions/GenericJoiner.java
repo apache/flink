@@ -16,8 +16,7 @@ package eu.stratosphere.api.common.functions;
 import eu.stratosphere.util.Collector;
 
 
-
-public interface GenericJoiner<V1, V2, O> extends Function
-{
-	void match(V1 value1, V2 value2, Collector<O> out) throws Exception;
+public interface GenericJoiner<V1, V2, O> extends Function {
+	
+	void join(V1 value1, V2 value2, Collector<O> out) throws Exception;
 }

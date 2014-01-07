@@ -19,13 +19,6 @@ import eu.stratosphere.api.common.functions.GenericMapper;
 import eu.stratosphere.types.Value;
 import eu.stratosphere.util.Collector;
 
-/**
- * The MapFunction must be extended to provide a mapper implementation which is called by a Map PACT.
- * By definition, the Map PACT calls the mapper implementation for each individual input record.
- * For details on the Map PACT read the documentation of the PACT programming model.
- * <p>
- * For a mapper implementation, the <code>map()</code> method must be implemented.
- */
 public abstract class MapFunction extends AbstractArrayModelFunction implements GenericMapper<Value[], Value[]> {
 	
 	/**

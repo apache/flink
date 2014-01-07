@@ -15,25 +15,18 @@ package eu.stratosphere.api.java.record.functions;
 
 import eu.stratosphere.api.common.functions.AbstractFunction;
 import eu.stratosphere.api.common.functions.GenericJoiner;
+import eu.stratosphere.api.java.record.operators.JoinOperator;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 /**
- * The JoinFunction must be extended to provide a matcher implementation which is
- * called by a Match PACT. By definition, a Match PACT has two input sets of
- * key-value pairs. It calls the match implementation once for each two pairs
- * that share the same key and come from different input sets. It resembles an
- * equality join of both inputs on their keys. For details on the Match PACT
- * read the documentation of the PACT programming model.
- * <p>
- * The JoinFunction extension must be parameterized with the type of the key that is matched on.
- * <p>
- * For a match implementation, the <code>match()</code> method must be implemented.
+ * The JoinFunction must implementation by functions of a {@link JoinOperator}.
+ * It resembles an equality join of both inputs on their key fields.
  */
 public abstract class JoinFunction extends AbstractFunction implements GenericJoiner<Record, Record, Record> {
 	
 	/**
-	 * This method must be implemented to provide a user implementation of a matcher.
+	 * This method must be implemented to provide a user implementation of a join.
 	 * It is called for each two records that share the same key and come from different inputs.
 	 * 
 	 * @param value1 The record that comes from the first input.
@@ -45,5 +38,5 @@ public abstract class JoinFunction extends AbstractFunction implements GenericJo
 	 *                   decide whether to retry the combiner execution.
 	 */
 	@Override
-	public abstract void match(Record value1, Record value2, Collector<Record> out) throws Exception;
+	public abstract void join(Record value1, Record value2, Collector<Record> out) throws Exception;
 }

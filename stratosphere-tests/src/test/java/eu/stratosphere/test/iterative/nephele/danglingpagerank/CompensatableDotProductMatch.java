@@ -58,7 +58,7 @@ public class CompensatableDotProductMatch extends JoinFunction {
   }
 
   @Override
-  public void match(Record pageWithRank, Record adjacencyList, Collector<Record> collector)
+  public void join(Record pageWithRank, Record adjacencyList, Collector<Record> collector)
       throws Exception {
 
     rank = pageWithRank.getField(1, rank);

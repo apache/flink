@@ -30,7 +30,7 @@ public class OrderedPartsJoin extends JoinFunction
 	 *
 	 */
 	@Override
-	public void match(Record value1, Record value2, Collector<Record> out)
+	public void join(Record value1, Record value2, Collector<Record> out)
 			throws Exception {
 
 		IntValue year = value1.getField(1, IntValue.class);

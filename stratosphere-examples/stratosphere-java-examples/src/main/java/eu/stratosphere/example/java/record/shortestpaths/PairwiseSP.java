@@ -210,7 +210,7 @@ public class PairwiseSP implements Program, ProgramDescription {
 		private final StringValue hopList = new StringValue();
 		
 		@Override
-		public void match(Record rec1, Record rec2, Collector<Record> out) throws Exception {
+		public void join(Record rec1, Record rec2, Collector<Record> out) throws Exception {
 
 			// rec1 has matching start, rec2 matching end
 			// Therefore, rec2's end node and rec1's start node are identical
