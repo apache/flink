@@ -34,7 +34,7 @@ public class PartListJoin extends JoinFunction{
 	 *
 	 */
 	@Override
-	public void match(Record value1, Record value2, Collector<Record> out) throws Exception
+	public void join(Record value1, Record value2, Collector<Record> out) throws Exception
 	{
 		StringIntPair amountYearPair = value1.getField(1, this.amountYearPair);
 		StringValue nationName = value2.getField(1, this.nationName);

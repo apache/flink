@@ -71,7 +71,7 @@ public class TPCHQueryAsterix implements Program, ProgramDescription {
 		 *  1: C_MKTSEGMENT
 		 */
 		@Override
-		public void match(Record order, Record cust, Collector<Record> out)
+		public void join(Record order, Record cust, Collector<Record> out)
 				throws Exception {
 			cust.setField(0, one);
 			out.collect(cust);

@@ -142,7 +142,7 @@ public abstract class JoinWithSolutionSetMatchDriver<IT1, IT2, OT> implements Re
 			while (this.running && probeSideInput.next(probeSideRecord)) {
 				final MutableHashTable.HashBucketIterator<IT1, IT2> bucket = join.getMatchesFor(probeSideRecord);
 				if (bucket.next(buildSideRecord)) {
-					matchStub.match(buildSideRecord, probeSideRecord, collector);
+					matchStub.join(buildSideRecord, probeSideRecord, collector);
 				} else {
 					// no match found, this is for now an error case
 					throw new RuntimeException("No Match found in solution set.");
@@ -159,7 +159,7 @@ public abstract class JoinWithSolutionSetMatchDriver<IT1, IT2, OT> implements Re
 			while (this.running && probeSideInput.next(probeSideRecord)) {
 				final MutableHashTable.HashBucketIterator<IT2, IT1> bucket = join.getMatchesFor(probeSideRecord);
 				if (bucket.next(buildSideRecord)) {
-					matchStub.match(probeSideRecord, buildSideRecord, collector);
+					matchStub.join(probeSideRecord, buildSideRecord, collector);
 				} else {
 					// no match found, this is for now an error case
 					throw new RuntimeException("No Match found in solution set.");

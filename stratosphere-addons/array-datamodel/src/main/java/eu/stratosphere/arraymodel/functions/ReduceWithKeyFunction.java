@@ -23,15 +23,7 @@ import eu.stratosphere.types.Value;
 import eu.stratosphere.util.Collector;
 import eu.stratosphere.util.InstantiationUtil;
 
-/**
- * The ReduceFunction must be extended to provide a reducer implementation which is called by a Reduce PACT.
- * By definition, the Reduce PACT calls the reduce implementation once for each distinct key and all records
- * that come with that key. For details on the Reduce PACT read the documentation of the PACT programming model.
- * <p>
- * The ReduceFunction extension must be parameterized with the types of its input keys.
- * <p>
- * For a reduce implementation, the <code>reduce()</code> method must be implemented.
- */
+
 public abstract class ReduceWithKeyFunction extends AbstractArrayModelFunction implements GenericReducer<Value[], Value[]> {
 	
 	public abstract void reduce(Value key, Iterator<Value[]> records, Collector<Value[]> out);

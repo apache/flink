@@ -37,7 +37,7 @@ public class FilteredPartsJoin extends JoinFunction {
 	 *
 	 */
 	@Override
-	public void match(Record value1, Record value2, Collector<Record> out)
+	public void join(Record value1, Record value2, Collector<Record> out)
 			throws Exception {
 		IntPair partAndSupplierKey = value1.getField(0, this.partAndSupplierKey);
 		StringValue supplyCostStr = value1.getField(1, this.supplyCostStr);

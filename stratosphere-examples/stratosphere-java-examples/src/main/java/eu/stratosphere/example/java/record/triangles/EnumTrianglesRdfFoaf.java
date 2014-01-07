@@ -226,7 +226,7 @@ public class EnumTrianglesRdfFoaf implements Program, ProgramDescription {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void match(Record triad, Record missingEdge, Collector<Record> out) throws Exception {
+		public void join(Record triad, Record missingEdge, Collector<Record> out) throws Exception {
 			// emit triangle (already contains missing edge at field 0
 			out.collect(triad);
 		}

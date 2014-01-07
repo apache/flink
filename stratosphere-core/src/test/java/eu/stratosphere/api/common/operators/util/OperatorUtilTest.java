@@ -30,84 +30,84 @@ import eu.stratosphere.api.common.operators.base.CrossOperatorBase;
 import eu.stratosphere.api.common.operators.base.JoinOperatorBase;
 import eu.stratosphere.api.common.operators.base.MapOperatorBase;
 import eu.stratosphere.api.common.operators.base.ReduceOperatorBase;
-import eu.stratosphere.api.common.operators.util.ContractUtil;
+import eu.stratosphere.api.common.operators.util.OperatorUtil;
 import eu.stratosphere.api.common.io.DelimitedInputFormat;
 import eu.stratosphere.api.common.io.FileOutputFormat;
 import eu.stratosphere.types.IntValue;
 
 /**
- * Tests {@link ContractUtil}.
+ * Tests {@link OperatorUtil}.
  */
-public class ContractUtilTest {
+public class OperatorUtilTest {
 	/**
-	 * Test {@link ContractUtil#getContractClass(Class)}
+	 * Test {@link OperatorUtil#getContractClass(Class)}
 	 */
 	@Test
 	public void getContractClassShouldReturnCoGroupForCoGroupStub() {
-		final Class<?> result = ContractUtil.getContractClass(CoGrouper.class);
+		final Class<?> result = OperatorUtil.getContractClass(CoGrouper.class);
 		assertEquals(CoGroupOperatorBase.class, result);
 	}
 
 	/**
-	 * Test {@link ContractUtil#getContractClass(Class)}
+	 * Test {@link OperatorUtil#getContractClass(Class)}
 	 */
 	@Test
 	public void getContractClassShouldReturnCrossForCrossStub() {
-		final Class<?> result = ContractUtil.getContractClass(Crosser.class);
+		final Class<?> result = OperatorUtil.getContractClass(Crosser.class);
 		assertEquals(CrossOperatorBase.class, result);
 	}
 
 	/**
-	 * Test {@link ContractUtil#getContractClass(Class)}
+	 * Test {@link OperatorUtil#getContractClass(Class)}
 	 */
 	@Test
 	public void getContractClassShouldReturnMapForMapStub() {
-		final Class<?> result = ContractUtil.getContractClass(Mapper.class);
+		final Class<?> result = OperatorUtil.getContractClass(Mapper.class);
 		assertEquals(MapOperatorBase.class, result);
 	}
 
 	/**
-	 * Test {@link ContractUtil#getContractClass(Class)}
+	 * Test {@link OperatorUtil#getContractClass(Class)}
 	 */
 	@Test
 	public void getContractClassShouldReturnMatchForMatchStub() {
-		final Class<?> result = ContractUtil.getContractClass(Matcher.class);
+		final Class<?> result = OperatorUtil.getContractClass(Matcher.class);
 		assertEquals(JoinOperatorBase.class, result);
 	}
 
 	/**
-	 * Test {@link ContractUtil#getContractClass(Class)}
+	 * Test {@link OperatorUtil#getContractClass(Class)}
 	 */
 	@Test
 	public void getContractClassShouldReturnNullForStub() {
-		final Class<?> result = ContractUtil.getContractClass(Function.class);
+		final Class<?> result = OperatorUtil.getContractClass(Function.class);
 		assertEquals(null, result);
 	}
 
 	/**
-	 * Test {@link ContractUtil#getContractClass(Class)}
+	 * Test {@link OperatorUtil#getContractClass(Class)}
 	 */
 	@Test
 	public void getContractClassShouldReturnReduceForReduceStub() {
-		final Class<?> result = ContractUtil.getContractClass(Reducer.class);
+		final Class<?> result = OperatorUtil.getContractClass(Reducer.class);
 		assertEquals(ReduceOperatorBase.class, result);
 	}
 
 	/**
-	 * Test {@link ContractUtil#getContractClass(Class)}
+	 * Test {@link OperatorUtil#getContractClass(Class)}
 	 */
 	@Test
 	public void getContractClassShouldReturnSinkForOutputFormat() {
-		final Class<?> result = ContractUtil.getContractClass(FileOutputFormat.class);
+		final Class<?> result = OperatorUtil.getContractClass(FileOutputFormat.class);
 		assertEquals(GenericDataSink.class, result);
 	}
 
 	/**
-	 * Test {@link ContractUtil#getContractClass(Class)}
+	 * Test {@link OperatorUtil#getContractClass(Class)}
 	 */
 	@Test
 	public void getContractClassShouldReturnSourceForInputFormat() {
-		final Class<?> result = ContractUtil.getContractClass(DelimitedInputFormat.class);
+		final Class<?> result = OperatorUtil.getContractClass(DelimitedInputFormat.class);
 		assertEquals(GenericDataSource.class, result);
 	}
 

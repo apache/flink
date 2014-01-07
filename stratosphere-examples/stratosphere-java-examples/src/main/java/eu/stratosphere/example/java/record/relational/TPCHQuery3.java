@@ -135,7 +135,7 @@ public class TPCHQuery3 implements Program, ProgramDescription {
 		 *   2:EXTENDEDPRICE
 		 */
 		@Override
-		public void match(Record order, Record lineitem, Collector<Record> out) {
+		public void join(Record order, Record lineitem, Collector<Record> out) {
 			order.setField(2, lineitem.getField(1, DoubleValue.class));
 			out.collect(order);
 		}

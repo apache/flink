@@ -664,7 +664,7 @@ public class HashMatchIteratorITCase {
 		}
 		
 		@Override
-		public void match(Record rec1, Record rec2, Collector<Record> out)
+		public void join(Record rec1, Record rec2, Collector<Record> out)
 		{
 			TestData.Key key = rec1.getField(0, TestData.Key.class);
 			TestData.Value value1 = rec1.getField(1, TestData.Value.class);
@@ -693,7 +693,7 @@ public class HashMatchIteratorITCase {
 		}
 		
 		@Override
-		public void match(IntPair rec1, Record rec2, Collector<Record> out)
+		public void join(IntPair rec1, Record rec2, Collector<Record> out)
 		{
 			final int k = rec1.getKey();
 			final int v = rec1.getValue(); 

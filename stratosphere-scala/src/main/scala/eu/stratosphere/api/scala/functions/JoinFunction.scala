@@ -36,7 +36,7 @@ abstract class JoinFunctionBase[LeftIn: UDT, RightIn: UDT, Out: UDT] extends JJo
 }
 
 abstract class JoinFunction[LeftIn: UDT, RightIn: UDT, Out: UDT] extends JoinFunctionBase[LeftIn, RightIn, Out] with Function2[LeftIn, RightIn, Out] {
-  override def `match`(leftRecord: Record, rightRecord: Record, out: Collector[Record]) = {
+  override def join(leftRecord: Record, rightRecord: Record, out: Collector[Record]) = {
     val left = leftDeserializer.deserializeRecyclingOn(leftRecord)
     val right = rightDeserializer.deserializeRecyclingOn(rightRecord)
     val output = apply(left, right)
@@ -54,7 +54,7 @@ abstract class JoinFunction[LeftIn: UDT, RightIn: UDT, Out: UDT] extends JoinFun
 }
 
 abstract class FlatJoinFunction[LeftIn: UDT, RightIn: UDT, Out: UDT] extends JoinFunctionBase[LeftIn, RightIn, Out] with Function2[LeftIn, RightIn, Iterator[Out]] {
-  override def `match`(leftRecord: Record, rightRecord: Record, out: Collector[Record]) = {
+  override def join(leftRecord: Record, rightRecord: Record, out: Collector[Record]) = {
     val left = leftDeserializer.deserializeRecyclingOn(leftRecord)
     val right = rightDeserializer.deserializeRecyclingOn(rightRecord)
     val output = apply(left, right)

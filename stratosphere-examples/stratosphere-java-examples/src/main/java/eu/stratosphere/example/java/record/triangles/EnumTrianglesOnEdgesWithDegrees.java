@@ -119,7 +119,7 @@ public class EnumTrianglesOnEdgesWithDegrees implements Program, ProgramDescript
 	public static class CloseTriads extends JoinFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 		@Override
-		public void match(Record triangle, Record missingEdge, Collector<Record> out) throws Exception {
+		public void join(Record triangle, Record missingEdge, Collector<Record> out) throws Exception {
 			out.collect(triangle);
 		}
 	}

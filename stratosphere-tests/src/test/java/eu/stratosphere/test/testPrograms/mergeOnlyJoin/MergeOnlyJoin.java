@@ -37,7 +37,7 @@ public class MergeOnlyJoin implements Program, ProgramDescription {
 	@ConstantFieldsFirstExcept(2)
 	public static class JoinInputs extends JoinFunction {
 		@Override
-		public void match(Record input1, Record input2, Collector<Record> out) {
+		public void join(Record input1, Record input2, Collector<Record> out) {
 			input1.setField(2, input2.getField(1, IntValue.class));
 			out.collect(input1);
 		}

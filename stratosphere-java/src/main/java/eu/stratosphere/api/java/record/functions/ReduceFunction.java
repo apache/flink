@@ -17,17 +17,13 @@ import java.util.Iterator;
 
 import eu.stratosphere.api.common.functions.AbstractFunction;
 import eu.stratosphere.api.common.functions.GenericReducer;
+import eu.stratosphere.api.java.record.operators.ReduceOperator;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 /**
- * The ReduceFunction must be extended to provide a reducer implementation which is called by a Reduce PACT.
- * By definition, the Reduce PACT calls the reduce implementation once for each distinct key and all records
- * that come with that key. For details on the Reduce PACT read the documentation of the PACT programming model.
- * <p>
- * The ReduceFunction extension must be parameterized with the types of its input keys.
- * <p>
- * For a reduce implementation, the <code>reduce()</code> method must be implemented.
+ * The ReduceFunction must be extended to provide a reducer implementation, as invoked by a
+ * {@link ReduceOperator}.
  */
 public abstract class ReduceFunction extends AbstractFunction implements GenericReducer<Record, Record> {
 	

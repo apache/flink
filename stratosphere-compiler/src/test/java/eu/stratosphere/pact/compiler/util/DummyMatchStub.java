@@ -25,7 +25,7 @@ public class DummyMatchStub extends JoinFunction implements Serializable {
 	private static final long serialVersionUID = 1L;
 
 	@Override
-	public void match(Record value1, Record value2, Collector<Record> out) throws Exception {
+	public void join(Record value1, Record value2, Collector<Record> out) throws Exception {
 		out.collect(value1);
 	}
 }

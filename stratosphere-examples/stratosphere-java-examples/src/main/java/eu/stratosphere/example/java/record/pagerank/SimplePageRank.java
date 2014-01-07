@@ -51,7 +51,7 @@ public class SimplePageRank implements Program, ProgramDescription {
 		private LongArrayView adjacentNeighbors = new LongArrayView();
 		
 		@Override
-		public void match(Record pageWithRank, Record edges, Collector<Record> out) throws Exception {
+		public void join(Record pageWithRank, Record edges, Collector<Record> out) throws Exception {
 			rank = pageWithRank.getField(1, rank);
 			adjacentNeighbors = edges.getField(1, adjacentNeighbors);
 			int numNeighbors = adjacentNeighbors.size();

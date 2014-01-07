@@ -36,7 +36,7 @@ public class SuppliersJoin extends JoinFunction {
 	 *
 	 */
 	@Override
-	public void match(Record value1, Record value2, Collector<Record> out)
+	public void join(Record value1, Record value2, Collector<Record> out)
 			throws Exception {
 		suppKey = value1.getField(1, suppKey);
 		nationVal = value2.getField(1, nationVal);

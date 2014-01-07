@@ -205,7 +205,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase {
 	public static final class SimpleMatcher extends JoinFunction {
 		
 		@Override
-		public void match(Record value1, Record value2, Collector<Record> out) throws Exception {
+		public void join(Record value1, Record value2, Collector<Record> out) throws Exception {
 			value1.setField(1, value2.getField(0, IntValue.class));
 			out.collect(value1);
 		}
@@ -216,7 +216,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase {
 		private static final int WAIT_TIME_PER_RECORD = 10 * 1000; // 10 sec.
 
 		@Override
-		public void match(Record value1, Record value2, Collector<Record> out) throws Exception {
+		public void join(Record value1, Record value2, Collector<Record> out) throws Exception {
 			Thread.sleep(WAIT_TIME_PER_RECORD);
 			value1.setField(1, value2.getField(0, IntValue.class));
 			out.collect(value1);
@@ -228,7 +228,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase {
 		private static final int WAIT_TIME_PER_RECORD = 5 * 1000; // 5 sec.
 		
 		@Override
-		public void match(Record value1, Record value2, Collector<Record> out) throws Exception {
+		public void join(Record value1, Record value2, Collector<Record> out) throws Exception {
 			value1.setField(1, value2.getField(0, IntValue.class));
 			
 			final long start = System.currentTimeMillis();
@@ -253,7 +253,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase {
 		}
 
 		@Override
-		public void match(Record value1, Record value2, Collector<Record> out) throws Exception {
+		public void join(Record value1, Record value2, Collector<Record> out) throws Exception {
 			value1.setField(1, value2.getField(0, IntValue.class));
 			out.collect(value1);
 		}

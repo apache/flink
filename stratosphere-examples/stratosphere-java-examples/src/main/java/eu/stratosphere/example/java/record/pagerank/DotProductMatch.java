@@ -37,7 +37,7 @@ public class DotProductMatch extends JoinFunction implements Serializable {
 	private LongArrayView adjacentNeighbors = new LongArrayView();
 
 	@Override
-	public void match(Record pageWithRank, Record adjacencyList, Collector<Record> collector) throws Exception {
+	public void join(Record pageWithRank, Record adjacencyList, Collector<Record> collector) throws Exception {
 
 		rank = pageWithRank.getField(1, rank);
 		adjacentNeighbors = adjacencyList.getField(1, adjacentNeighbors);

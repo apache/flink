@@ -30,7 +30,7 @@ public class PRDependenciesComputationMatchDelta extends JoinFunction {
 	 * 
 	 */
 	@Override
-	public void match(Record vertexWithRank, Record edgeWithWeight, Collector<Record> out) throws Exception {
+	public void join(Record vertexWithRank, Record edgeWithWeight, Collector<Record> out) throws Exception {
 		
 		result.setField(0, edgeWithWeight.getField(1, LongValue.class));
 		final long outLinks = edgeWithWeight.getField(2, LongValue.class).getValue();

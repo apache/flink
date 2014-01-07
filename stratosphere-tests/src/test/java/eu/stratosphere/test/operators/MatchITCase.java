@@ -108,7 +108,7 @@ public class MatchITCase extends TestBase
 		private StringValue valueString = new StringValue();
 		
 		@Override
-		public void match(Record value1, Record value2, Collector<Record> out)
+		public void join(Record value1, Record value2, Collector<Record> out)
 				throws Exception {
 			keyString = value1.getField(0, keyString);
 			keyString.setValue(""+ (Integer.parseInt(keyString.getValue())+1));

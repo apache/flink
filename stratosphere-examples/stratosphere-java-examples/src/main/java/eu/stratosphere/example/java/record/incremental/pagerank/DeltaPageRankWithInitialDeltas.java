@@ -43,7 +43,7 @@ public class DeltaPageRankWithInitialDeltas implements Program, ProgramDescripti
 		private final DoubleValue newRank = new DoubleValue();
 		
 		@Override
-		public void match(Record vertexWithDelta, Record vertexWithOldRank, Collector<Record> out) throws Exception {			
+		public void join(Record vertexWithDelta, Record vertexWithOldRank, Collector<Record> out) throws Exception {			
 			DoubleValue deltaVal = vertexWithDelta.getField(1, DoubleValue.class);
 			DoubleValue currentVal = vertexWithOldRank.getField(1, DoubleValue.class);
 			

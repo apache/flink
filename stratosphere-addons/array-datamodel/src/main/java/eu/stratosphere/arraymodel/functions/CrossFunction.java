@@ -19,14 +19,6 @@ import eu.stratosphere.api.common.functions.GenericCrosser;
 import eu.stratosphere.types.Value;
 import eu.stratosphere.util.Collector;
 
-/**
- * The CrossFunction must be extended to provide a cross implementation which is called by a Cross PACT.
- * By definition, a Cross PACT has two input sets of records. It calls the cross implementation for each
- * element of the Cartesian product of both input sets. For details on the Cross PACT read the
- * documentation of the PACT programming model.
- * <p>
- * For a cross implementation, the <code>cross()</code> method must be implemented.
- */
 public abstract class CrossFunction extends AbstractArrayModelFunction implements GenericCrosser<Value[], Value[], Value[]> {
 	
 	/**

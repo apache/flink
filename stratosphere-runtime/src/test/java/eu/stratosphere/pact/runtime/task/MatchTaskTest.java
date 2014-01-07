@@ -924,7 +924,7 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 	public static final class MockMatchStub extends JoinFunction
 	{
 		@Override
-		public void match(Record record1, Record record2, Collector<Record> out) throws Exception {
+		public void join(Record record1, Record record2, Collector<Record> out) throws Exception {
 			out.collect(record1);
 		}
 	}
@@ -934,7 +934,7 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 		private int cnt = 0;
 		
 		@Override
-		public void match(Record record1, Record record2, Collector<Record> out) {
+		public void join(Record record1, Record record2, Collector<Record> out) {
 			if (++this.cnt >= 10) {
 				throw new ExpectedTestException();
 			}
@@ -946,7 +946,7 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 	public static final class MockDelayingMatchStub extends JoinFunction
 	{
 		@Override
-		public void match(Record record1, Record record2, Collector<Record> out) {
+		public void join(Record record1, Record record2, Collector<Record> out) {
 			try {
 				Thread.sleep(100);
 			} catch (InterruptedException e) { }

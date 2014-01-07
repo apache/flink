@@ -17,19 +17,12 @@ import java.util.Iterator;
 
 import eu.stratosphere.api.common.functions.AbstractFunction;
 import eu.stratosphere.api.common.functions.GenericCoGrouper;
+import eu.stratosphere.api.java.record.operators.CoGroupOperator;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 /**
- * The CoGroupFunction must be extended to provide a co-grouper implementation which is called by a CoGroup PACT.
- * By definition, a CoGroup PACT has two input sets of records. It calls the co-grouper implementation once for each
- * distinct key in its inputs. Together with the key, two iterators over the records containing that key from both
- * inputs are handed to the <code>coGroup()</code> method.
- * For details on the CoGroup PACT read the documentation of the PACT programming model.
- * <p>
- * The CoGroupFunction extension must be parameterized with the type of the key of its input.
- * <p>
- * For a coGroup implementation, the <code>coGroup()</code> method must be implemented.
+ * The CoGroupFunction is the base class for functions that are invoked by a {@link CoGroupOperator}.
  */
 public abstract class CoGroupFunction extends AbstractFunction implements GenericCoGrouper<Record, Record, Record> {
 	
