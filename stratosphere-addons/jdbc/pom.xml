@@ -26,6 +26,12 @@
 		
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
+			<artifactId>stratosphere-core</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+				
+		<dependency>
+			<groupId>eu.stratosphere</groupId>
 			<artifactId>stratosphere-clients</artifactId>
 			<version>${project.version}</version>
 		</dependency>
@@ -37,5 +43,4 @@
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
-
 </project>

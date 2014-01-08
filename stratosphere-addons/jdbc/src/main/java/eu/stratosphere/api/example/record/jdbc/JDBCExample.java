@@ -12,22 +12,21 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.pact.example.jdbc;
+package eu.stratosphere.api.example.record.jdbc;
 
+import eu.stratosphere.api.common.Plan;
+import eu.stratosphere.api.common.Program;
+import eu.stratosphere.api.common.ProgramDescription;
+import eu.stratosphere.api.common.operators.GenericDataSink;
+import eu.stratosphere.api.common.operators.GenericDataSource;
+import eu.stratosphere.api.io.jdbc.JDBCInputFormat;
+import eu.stratosphere.api.io.jdbc.JDBCOutputFormat;
+import eu.stratosphere.client.LocalExecutor;
 import eu.stratosphere.nephele.client.JobExecutionResult;
+import eu.stratosphere.types.*;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.Statement;
-
-import eu.stratosphere.pact.client.LocalExecutor;
-import eu.stratosphere.pact.common.contract.GenericDataSink;
-import eu.stratosphere.pact.common.contract.GenericDataSource;
-import eu.stratosphere.pact.common.io.JDBCInputFormat;
-import eu.stratosphere.pact.common.io.JDBCOutputFormat;
-import eu.stratosphere.pact.common.plan.Plan;
-import eu.stratosphere.pact.common.plan.PlanAssembler;
-import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
-import eu.stratosphere.pact.common.type.base.*;
 
 /**
  * Stand-alone example for the JDBC connector.
@@ -36,7 +35,7 @@ import eu.stratosphere.pact.common.type.base.*;
  * See the Maven file (pom.xml) for a reference to the derby dependency. You can
  * simply Change the scope of the Maven dependency from test to compile.
  */
-public class JDBCExample implements PlanAssembler, PlanAssemblerDescription {
+public class JDBCExample implements Program, ProgramDescription {
 
     @Override
     public Plan getPlan(String[] args) {
@@ -57,11 +56,11 @@ public class JDBCExample implements PlanAssembler, PlanAssemblerDescription {
                 .setDriver("org.apache.derby.jdbc.EmbeddedDriver")
                 .setUrl("jdbc:derby:memory:ebookshop")
                 .setQuery("insert into newbooks (id,title,author,price,qty) values (?,?,?,?,?)")
-                .setClass(PactInteger.class)
-                .setClass(PactString.class)
-                .setClass(PactString.class)
-                .setClass(PactFloat.class)
-                .setClass(PactInteger.class);
+                .setClass(IntValue.class)
+                .setClass(StringValue.class)
+                .setClass(StringValue.class)
+                .setClass(FloatValue.class)
+                .setClass(IntValue.class);
 
         sink.addInput(source);
         return new Plan(sink, "JDBC Example Job");
@@ -105,7 +104,9 @@ public class JDBCExample implements PlanAssembler, PlanAssemblerDescription {
         sqlQueryBuilder = new StringBuilder("CREATE TABLE newbooks (");
         sqlQueryBuilder.append("id INT NOT NULL DEFAULT 0,");
         sqlQueryBuilder.append("title VARCHAR(50) DEFAULT NULL,");
-        sqlQueryBuilder.append("content BLOB(10K) DEFAULT NULL,");
+        sqlQueryBuilder.append("author VARCHAR(50) DEFAULT NULL,");
+        sqlQueryBuilder.append("price FLOAT DEFAULT NULL,");
+        sqlQueryBuilder.append("qty INT DEFAULT NULL,");
         sqlQueryBuilder.append("PRIMARY KEY (id))");
 
         stat = conn.createStatement();
@@ -122,5 +123,7 @@ public class JDBCExample implements PlanAssembler, PlanAssemblerDescription {
         stat = conn.createStatement();
         stat.execute(sqlQueryBuilder.toString());
         stat.close();
+        
+        conn.close();
     }
 }

@@ -12,21 +12,20 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.pact.common.io;
+package eu.stratosphere.api.io.jdbc;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.contract.GenericDataSink;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.common.type.base.*;
-import eu.stratosphere.pact.generic.io.OutputFormat;
+import eu.stratosphere.api.common.io.FileOutputFormat;
+import eu.stratosphere.api.common.io.OutputFormat;
+import eu.stratosphere.api.common.operators.GenericDataSink;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.types.*;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
-public class JDBCOutputFormat implements OutputFormat<PactRecord> {
+public class JDBCOutputFormat implements OutputFormat<Record> {
     public static final String DRIVER_KEY = "driver";
     public static final String USERNAME_KEY = "username";
     public static final String PASSWORD_KEY = "password";
@@ -46,9 +45,6 @@ public class JDBCOutputFormat implements OutputFormat<PactRecord> {
     private String query;
     private int fieldCount;
     private Class<? extends Value>[] fieldClasses;
-
-    public JDBCOutputFormat() {
-    }
 
     /**
      * Configures this JDBCOutputFormat.
@@ -118,7 +114,7 @@ public class JDBCOutputFormat implements OutputFormat<PactRecord> {
      * I/O problem.
      */
     @Override
-    public void writeRecord(PactRecord record) throws IOException {
+    public void writeRecord(Record record) throws IOException {
         try {
             for (int x = 0; x < record.getNumFields(); x++) {
                 Value temp = record.getField(x, fieldClasses[x]);
@@ -133,51 +129,51 @@ public class JDBCOutputFormat implements OutputFormat<PactRecord> {
     }
 
     private enum pactType {
-        PactBoolean,
-        PactByte,
-        PactCharacter,
-        PactDouble,
-        PactFloat,
-        PactInteger,
-        PactLong,
-        PactShort,
-        PactString
+        BooleanValue,
+        ByteValue,
+        CharValue,
+        DoubleValue,
+        FloatValue,
+        IntValue,
+        LongValue,
+        ShortValue,
+        StringValue
     }
 
-    private void addValue(int index, Value x) throws SQLException {
+    private void addValue(int index, Value value) throws SQLException {
         pactType type;
         try {
-            type = pactType.valueOf(x.getClass().getSimpleName());
+            type = pactType.valueOf(value.getClass().getSimpleName());
         } catch (IllegalArgumentException iae) {
             throw new IllegalArgumentException("PactType not supported:\t", iae);
         }
         switch (type) {
-            case PactBoolean:
-                upload.setBoolean(index, ((PactBoolean) x).getValue());
+            case BooleanValue:
+                upload.setBoolean(index, ((BooleanValue) value).getValue());
                 break;
-            case PactByte:
-                upload.setByte(index, ((PactByte) x).getValue());
+            case ByteValue:
+                upload.setByte(index, ((ByteValue) value).getValue());
                 break;
-            case PactCharacter:
-                upload.setString(index, ((PactCharacter) x).getValue() + "");
+            case CharValue:
+                upload.setString(index, String.valueOf(((CharValue) value).getValue()));
                 break;
-            case PactDouble:
-                upload.setDouble(index, ((PactDouble) x).getValue());
+            case DoubleValue:
+                upload.setDouble(index, ((DoubleValue) value).getValue());
                 break;
-            case PactFloat:
-                upload.setFloat(index, ((PactFloat) x).getValue());
+            case FloatValue:
+                upload.setFloat(index, ((FloatValue) value).getValue());
                 break;
-            case PactInteger:
-                upload.setInt(index, ((PactInteger) x).getValue());
+            case IntValue:
+                upload.setInt(index, ((IntValue) value).getValue());
                 break;
-            case PactLong:
-                upload.setLong(index, ((PactLong) x).getValue());
+            case LongValue:
+                upload.setLong(index, ((LongValue) value).getValue());
                 break;
-            case PactShort:
-                upload.setShort(index, ((PactShort) x).getValue());
+            case ShortValue:
+                upload.setShort(index, ((ShortValue) value).getValue());
                 break;
-            case PactString:
-                upload.setString(index, ((PactString) x).getValue());
+            case StringValue:
+                upload.setString(index, ((StringValue) value).getValue());
                 break;
         }
     }
