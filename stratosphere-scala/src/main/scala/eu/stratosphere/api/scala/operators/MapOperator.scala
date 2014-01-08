@@ -25,7 +25,7 @@ import eu.stratosphere.util.Collector
 import eu.stratosphere.api.scala.codegen.{MacroContextHolder, Util}
 import eu.stratosphere.api.scala._
 import eu.stratosphere.api.scala.analysis._
-import eu.stratosphere.api.scala.functions.{MapFunction, FlatMapFunction, FilterStub, MapFunctionBase}
+import eu.stratosphere.api.scala.functions.{MapFunction, FlatMapFunction, FilterFunction, MapFunctionBase}
 
 object MapMacros {
 
@@ -149,7 +149,7 @@ object MapMacros {
 
     val (udtIn, createUdtIn) = slave.mkUdtClass[In]
 
-    val stub: c.Expr[MapFunctionBase[In, In]] = if (fun.actualType <:< weakTypeOf[FilterStub[In, In]])
+    val stub: c.Expr[MapFunctionBase[In, In]] = if (fun.actualType <:< weakTypeOf[FilterFunction[In, In]])
       reify { fun.splice.asInstanceOf[MapFunctionBase[In, In]] }
     else reify {
       implicit val inputUDT: UDT[In] = c.Expr[UDT[In]](createUdtIn).splice

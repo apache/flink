@@ -65,7 +65,7 @@ abstract class FlatMapFunction[In: UDT, Out: UDT] extends MapFunctionBase[In, Ou
   }
 }
 
-abstract class FilterStub[In: UDT, Out: UDT] extends MapFunctionBase[In, Out] with Function1[In, Boolean]  {
+abstract class FilterFunction[In: UDT, Out: UDT] extends MapFunctionBase[In, Out] with Function1[In, Boolean]  {
   override def map(record: Record, out: Collector[Record]) = {
     val input = deserializer.deserializeRecyclingOn(record)
     if (apply(input)) {
