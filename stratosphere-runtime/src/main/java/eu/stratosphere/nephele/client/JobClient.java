@@ -393,10 +393,6 @@ public class JobClient {
 	}
 	
 	public void setConsoleStreamForReporting(PrintStream stream) {
-		if (stream == null) {
-			throw new IllegalArgumentException("Console stream must not be null.");
-		}
-		
 		this.console = stream;
 	}
 
