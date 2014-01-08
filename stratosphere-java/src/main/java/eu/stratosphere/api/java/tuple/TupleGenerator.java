@@ -16,6 +16,8 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Scanner;
 
 import com.google.common.base.Charsets;
@@ -31,6 +33,8 @@ public class TupleGenerator {
 	private static final String ROOT_DIRECTORY = "./src/main/java";
 
 	private static final String PACKAGE = "eu.stratosphere.api.java.tuple";
+	
+	private static final String BUILDER_SUFFIX = "builder";
 
 	private static final String GEN_TYPE_PREFIX = "T";
 
@@ -63,6 +67,8 @@ public class TupleGenerator {
 		File root = new File(ROOT_DIRECTORY);
 
 		createTupleClasses(root);
+		
+		createTupleBuilderClasses(root);
 
 		modifyCsvReader(root);
 		
@@ -173,11 +179,11 @@ public class TupleGenerator {
 			sb.append("};\n");
 			
 			// check number of types and extract field types
-			sb.append("\t\t\tif(types.length != this.fields.length) {\n");
+			sb.append("\t\t\tif(types.length != this.fieldIndexes.length) {\n");
 			sb.append("\t\t\t\tthrow new IllegalArgumentException(\"Numbers of projected fields and types do not match.\");\n");
 			sb.append("\t\t\t}\n");
 			sb.append("\t\t\t\n");
-			sb.append("\t\t\tTypeInformation<?>[] fTypes = extractFieldTypes(fields, types, ds.getType());\n");
+			sb.append("\t\t\tTypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types, ds.getType());\n");
 			
 			// create new tuple type info
 			sb.append("\t\t\tTupleTypeInfo<Tuple"+numFields+"<");
@@ -189,7 +195,7 @@ public class TupleGenerator {
 			// create and return new project operator
 			sb.append("\t\t\treturn new ProjectOperator<T, Tuple"+numFields+"<");
 			appendTupleTypeGenerics(sb, numFields);
-			sb.append(">>(this.ds, this.fields, tType);\n");
+			sb.append(">>(this.ds, this.fieldIndexes, tType);\n");
 			
 			// method end
 			sb.append("\t\t}\n");
@@ -451,7 +457,95 @@ public class TupleGenerator {
 		// foot
 		w.println("}");
 	}
+	
+	private static void createTupleBuilderClasses(File root) throws FileNotFoundException {
+		File dir = getPackage(root, PACKAGE+"."+BUILDER_SUFFIX);
 
+		for (int i = FIRST; i <= LAST; i++) {
+			File tupleFile = new File(dir, "Tuple" + i + "Builder.java");
+			PrintWriter writer = new PrintWriter(tupleFile);
+			writeTupleBuilderClass(writer, i);
+			writer.flush();
+			writer.close();
+		}
+	}
+	
+	private static void printGenericsString(PrintWriter w, int numFields){
+		w.print("<");
+		for (int i = 0; i < numFields; i++) {
+			if (i > 0) {
+				w.print(", ");
+			}
+			w.print(GEN_TYPE_PREFIX + i);
+		}
+		w.print(">");
+	}
+	
+	private static void writeTupleBuilderClass(PrintWriter w, int numFields) {
+		final String className = "Tuple" + numFields + "Builder";
+
+		// head 
+		w.print(HEADER);
+
+		// package and imports
+		w.println("package " + PACKAGE + "." + BUILDER_SUFFIX + ';');
+		w.println();
+		w.println("import java.util.List;");
+		w.println("import java.util.LinkedList;");
+		w.println("import " + PACKAGE + ".Tuple" + numFields + ";");
+		w.println();
+
+		// class declaration
+		w.print("public class " + className);
+		printGenericsString(w, numFields);
+		w.println(" {");
+		w.println();
+
+		// Class-Attributes - a list of tuples
+		w.print("\tprivate List<Tuple" + numFields);
+		printGenericsString(w, numFields);
+		w.print("> tuples = new LinkedList<Tuple" + numFields );
+		printGenericsString(w, numFields);
+		w.println(">();");
+		w.println();
+
+		// add(...) function for adding a single tuple 
+		w.print("\tpublic " + className);
+		printGenericsString(w, numFields);
+		w.print(" add(");
+		for (int i = 0; i < numFields; i++) {
+			if (i > 0) {
+				w.print(", ");
+			}
+			w.print(GEN_TYPE_PREFIX + i + " value" + i);
+		}
+		w.println("){");
+		w.print("\t\ttuples.add(new Tuple" + numFields);
+		printGenericsString(w, numFields);
+		w.print("(");
+		for (int i = 0; i < numFields; i++) {
+			if (i > 0) {
+				w.print(", ");
+			}
+			w.print("value" + i);
+		}
+		w.println("));");
+		w.println("\t\treturn this;");
+		w.println("\t}");
+		w.println();
+		
+		// build() function, returns an array of tuples
+		w.println("\t@SuppressWarnings(\"unchecked\")");
+		w.print("\tpublic Tuple" + numFields);
+		printGenericsString(w, numFields);
+		w.println("[] build(){");
+		w.println("\t\treturn tuples.toArray(new Tuple" + numFields + "[tuples.size()]);");
+		w.println("\t}");
+		
+		// foot
+		w.println("}");
+	}
+	
 	private static String HEADER = 
 		"/***********************************************************************************************************************\n" +
 		" *\n" +
