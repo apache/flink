@@ -81,7 +81,7 @@ public class BlockResettableIteratorTest
 		final AbstractInvokable memOwner = new DummyInvokable();
 		// create the resettable Iterator
 		final BlockResettableIterator<Record> iterator = new BlockResettableIterator<Record>(
-				this.memman, this.reader, this.serializer, this.memman.getPageSize(), memOwner);
+				this.memman, this.reader, this.serializer, 1, memOwner);
 		// open the iterator
 		iterator.open();
 		
@@ -120,7 +120,7 @@ public class BlockResettableIteratorTest
 		final AbstractInvokable memOwner = new DummyInvokable();
 		// create the resettable Iterator
 		final BlockResettableIterator<Record> iterator = new BlockResettableIterator<Record>(
-				this.memman, this.reader, this.serializer, 2 * this.memman.getPageSize(), memOwner);
+				this.memman, this.reader, this.serializer, 2, memOwner);
 		// open the iterator
 		iterator.open();
 		
@@ -160,7 +160,7 @@ public class BlockResettableIteratorTest
 		final AbstractInvokable memOwner = new DummyInvokable();
 		// create the resettable Iterator
 		final BlockResettableIterator<Record> iterator = new BlockResettableIterator<Record>(
-				this.memman, this.reader, this.serializer, 12 * this.memman.getPageSize(), memOwner);
+				this.memman, this.reader, this.serializer, 12, memOwner);
 		// open the iterator
 		iterator.open();
 		

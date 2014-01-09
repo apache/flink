@@ -27,17 +27,12 @@ import eu.stratosphere.nephele.template.AbstractInvokable;
  * Internally, memory is represented as byte arrays. The memory manager acts like a distributer for memory, which
  * means it assigns portions of the arrays to tasks. If memory is released, it means that this part of the memory can
  * be assigned to other tasks.
- *
  */
-public interface MemoryManager
-{
+public interface MemoryManager {
+	
 	List<MemorySegment> allocatePages(AbstractInvokable owner, int numPages) throws MemoryAllocationException;
 	
 	void allocatePages(AbstractInvokable owner, List<MemorySegment> target, int numPages) throws MemoryAllocationException;
-	
-	List<MemorySegment> allocatePages(AbstractInvokable owner, long numBytes) throws MemoryAllocationException;
-	
-	void allocatePages(AbstractInvokable owner, List<MemorySegment> target, long numBytes) throws MemoryAllocationException;
 	
 	/**
 	 * Tries to release the memory for the specified segment. If the <code>segment</code> has already been released or

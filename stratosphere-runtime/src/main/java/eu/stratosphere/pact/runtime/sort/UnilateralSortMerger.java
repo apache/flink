@@ -44,7 +44,6 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.pact.runtime.io.ChannelReaderInputViewIterator;
 import eu.stratosphere.pact.runtime.util.EmptyMutableObjectIterator;
-import eu.stratosphere.pact.runtime.util.MathUtils;
 import eu.stratosphere.util.Collector;
 import eu.stratosphere.util.MutableObjectIterator;
 
@@ -267,8 +266,7 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 		this.memoryManager = memoryManager;
 		
 		// adjust the memory quotas to the page size
-		totalMemory = memoryManager.roundDownToPageSizeMultiple(totalMemory);
-		final int numPagesTotal = MathUtils.checkedDownCast(totalMemory / memoryManager.getPageSize());
+		final int numPagesTotal = memoryManager.computeNumberOfPages(totalMemory);
 
 		if (numPagesTotal < MIN_NUM_WRITE_BUFFERS + MIN_NUM_SORT_MEM_SEGMENTS) {
 			throw new IllegalArgumentException("Too little memory provided to sorter to perform task. " +

@@ -31,8 +31,8 @@ import eu.stratosphere.pact.runtime.util.ResettableIterator;
  * access to the data in that block.
  * 
  */
-public class BlockResettableIterator<T> extends AbstractBlockResettableIterator<T> implements ResettableIterator<T>
-{
+public class BlockResettableIterator<T> extends AbstractBlockResettableIterator<T> implements ResettableIterator<T> {
+	
 	public static final Log LOG = LogFactory.getLog(BlockResettableIterator.class);
 	
 	// ------------------------------------------------------------------------
@@ -52,26 +52,25 @@ public class BlockResettableIterator<T> extends AbstractBlockResettableIterator<
 	// ------------------------------------------------------------------------
 	
 	public BlockResettableIterator(MemoryManager memoryManager, Iterator<T> input,
-			TypeSerializer<T> serializer, long availableMemory, AbstractInvokable ownerTask)
+			TypeSerializer<T> serializer, int numPages, AbstractInvokable ownerTask)
 	throws MemoryAllocationException
 	{
-		this(memoryManager, serializer, availableMemory, ownerTask);
+		this(memoryManager, serializer, numPages, ownerTask);
 		this.input = input;
 	}
 	
 	public BlockResettableIterator(MemoryManager memoryManager,
-			TypeSerializer<T> serializer, long availableMemory, AbstractInvokable ownerTask)
+			TypeSerializer<T> serializer, int numPages, AbstractInvokable ownerTask)
 	throws MemoryAllocationException
 	{
-		super(serializer, memoryManager, availableMemory, ownerTask);
+		super(serializer, memoryManager, numPages, ownerTask);
 		
 		this.stagingElement = serializer.createInstance();
 	}
 	
 	// ------------------------------------------------------------------------
 	
-	public void reopen(Iterator<T> input) throws IOException
-	{
+	public void reopen(Iterator<T> input) throws IOException {
 		this.input = input;
 		
 		this.noMoreBlocks = false;
@@ -83,8 +82,7 @@ public class BlockResettableIterator<T> extends AbstractBlockResettableIterator<
 	
 
 	@Override
-	public boolean hasNext()
-	{
+	public boolean hasNext() {
 		try {
 			if (this.nextElement == null) {
 				if (this.readPhase) {
@@ -120,8 +118,7 @@ public class BlockResettableIterator<T> extends AbstractBlockResettableIterator<
 	
 
 	@Override
-	public T next()
-	{
+	public T next() {
 		if (this.nextElement == null) {
 			if (!hasNext()) {
 				throw new NoSuchElementException();
@@ -140,8 +137,7 @@ public class BlockResettableIterator<T> extends AbstractBlockResettableIterator<
 	}
 	
 
-	public void reset()
-	{
+	public void reset() {
 		// a reset always goes to the read phase
 		this.readPhase = true;
 		super.reset();
@@ -149,8 +145,7 @@ public class BlockResettableIterator<T> extends AbstractBlockResettableIterator<
 	
 
 	@Override
-	public boolean nextBlock() throws IOException
-	{
+	public boolean nextBlock() throws IOException {
 		// check the state
 		if (this.closed) {
 			throw new IllegalStateException("Iterator has been closed.");
@@ -195,14 +190,12 @@ public class BlockResettableIterator<T> extends AbstractBlockResettableIterator<
 	 * 
 	 * @return True, if there will be more data, false otherwise.
 	 */
-	public boolean hasFurtherInput()
-	{
+	public boolean hasFurtherInput() {
 		return !this.noMoreBlocks; 
 	}
 	
 
-	public void close()
-	{
+	public void close() {
 		// suggest that we are in the read phase. because nothing is in the current block,
 		// read requests will fail
 		this.readPhase = true;

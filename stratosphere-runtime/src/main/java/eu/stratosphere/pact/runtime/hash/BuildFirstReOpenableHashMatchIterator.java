@@ -52,8 +52,7 @@ public class BuildFirstReOpenableHashMatchIterator<V1, V2, O> extends BuildFirst
 			MemoryManager memManager, IOManager ioManager, AbstractInvokable ownerTask, long totalMemory)
 	throws MemoryAllocationException
 	{
-		totalMemory = memManager.roundDownToPageSizeMultiple(totalMemory);
-		final int numPages = (int) (totalMemory / memManager.getPageSize());
+		final int numPages = memManager.computeNumberOfPages(totalMemory);
 		final List<MemorySegment> memorySegments = memManager.allocatePages(ownerTask, numPages);
 		return new ReOpenableMutableHashTable<BT, PT>(buildSideSerializer, probeSideSerializer, buildSideComparator, probeSideComparator, pairComparator, memorySegments, ioManager);
 	}

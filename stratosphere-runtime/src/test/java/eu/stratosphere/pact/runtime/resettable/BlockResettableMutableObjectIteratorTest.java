@@ -84,7 +84,7 @@ public class BlockResettableMutableObjectIteratorTest
 			// create the resettable Iterator
 			final BlockResettableMutableObjectIterator<Record> iterator = 
 						new BlockResettableMutableObjectIterator<Record>(this.memman, this.reader, 
-								this.serializer, this.memman.getPageSize(), memOwner);
+								this.serializer, 1, memOwner);
 			// open the iterator
 			iterator.open();
 			
@@ -128,7 +128,7 @@ public class BlockResettableMutableObjectIteratorTest
 			// create the resettable Iterator
 			final BlockResettableMutableObjectIterator<Record> iterator = 
 						new BlockResettableMutableObjectIterator<Record>(this.memman, this.reader, 
-								this.serializer, 2 * this.memman.getPageSize(), memOwner);
+								this.serializer, 2, memOwner);
 			// open the iterator
 			iterator.open();
 			
@@ -172,7 +172,7 @@ public class BlockResettableMutableObjectIteratorTest
 			// create the resettable Iterator
 			final BlockResettableMutableObjectIterator<Record> iterator = 
 						new BlockResettableMutableObjectIterator<Record>(this.memman, this.reader, 
-								this.serializer, 12 * this.memman.getPageSize(), memOwner);
+								this.serializer, 12, memOwner);
 			// open the iterator
 			iterator.open();
 			

@@ -72,10 +72,10 @@ public class SpillingResettableIterator<T> implements ResettableIterator<T>
 
 	public SpillingResettableIterator(Iterator<T> input, TypeSerializer<T> serializer, 
 			MemoryManager memoryManager, IOManager ioManager,
-			long availableMemory, AbstractInvokable parentTask)
+			int numPages, AbstractInvokable parentTask)
 	throws MemoryAllocationException
 	{
-		this(input, serializer, memoryManager, ioManager, memoryManager.allocatePages(parentTask, availableMemory), true);
+		this(input, serializer, memoryManager, ioManager, memoryManager.allocatePages(parentTask, numPages), true);
 	}
 	
 	public SpillingResettableIterator(Iterator<T> input, TypeSerializer<T> serializer,
