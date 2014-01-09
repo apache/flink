@@ -189,7 +189,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 	/**
 	 * The amount of memory per input that is dedicated to the materialization.
 	 */
-	private long[] materializationMemory;
+	private int[] materializationMemory;
 
 	/**
 	 * The flag that tags the task as still running. Checked periodically to abort processing.
@@ -661,7 +661,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 		this.excludeFromReset = new boolean[numInputs];
 		this.inputIsCached = new boolean[numInputs];
 		this.inputIsAsyncMaterialized = new boolean[numInputs];
-		this.materializationMemory = new long[numInputs];
+		this.materializationMemory = new int[numInputs];
 		
 		// set up the local strategies first, such that the can work before any temp barrier is created
 		for (int i = 0; i < numInputs; i++) {
@@ -680,7 +680,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 		this.tempBarriers = new TempBarrier[numInputs];
 		
 		for (int i = 0; i < numInputs; i++) {
-			final long memory;
+			final int memoryPages;
 			final boolean async = this.config.isInputAsynchronouslyMaterialized(i);
 			final boolean cached =  this.config.isInputCached(i);
 			
@@ -688,26 +688,25 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 			this.inputIsCached[i] = cached;
 			
 			if (async || cached) {
-				memory = this.config.getInputMaterializationMemory(i);
-				if (memory <= 0) {
+				memoryPages = memMan.computeNumberOfPages(this.config.getInputMaterializationMemory(i));
+				if (memoryPages <= 0) {
 					throw new Exception("Input marked as materialized/cached, but no memory for materialization provided.");
 				}
-				this.materializationMemory[i] = memory;
+				this.materializationMemory[i] = memoryPages;
 			} else {
-				memory = 0;
+				memoryPages = 0;
 			}
 			
 			if (async) {
-				final int pages = memMan.computeNumberOfPages(memory);
 				@SuppressWarnings({ "unchecked", "rawtypes" })
-				TempBarrier<?> barrier = new TempBarrier(this, getInput(i), this.inputSerializers[i], memMan, ioMan, pages);
+				TempBarrier<?> barrier = new TempBarrier(this, getInput(i), this.inputSerializers[i], memMan, ioMan, memoryPages);
 				barrier.startReading();
 				this.tempBarriers[i] = barrier;
 				this.inputs[i] = null;
 			} else if (cached) {
 				@SuppressWarnings({ "unchecked", "rawtypes" })
 				SpillingResettableMutableObjectIterator<?> iter = new SpillingResettableMutableObjectIterator(
-					getInput(i), this.inputSerializers[i], getMemoryManager(), getIOManager(), memory, this);
+					getInput(i), this.inputSerializers[i], getMemoryManager(), getIOManager(), memoryPages, this);
 				this.resettableInputs[i] = iter;
 				this.inputs[i] = iter;
 			}
@@ -760,8 +759,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 					initInputLocalStrategy(i);
 					
 					if (this.inputIsAsyncMaterialized[i]) {
-						final long memory = this.materializationMemory[i];
-						final int pages = memMan.computeNumberOfPages(memory);
+						final int pages = this.materializationMemory[i];
 						@SuppressWarnings({ "unchecked", "rawtypes" })
 						TempBarrier<?> barrier = new TempBarrier(this, getInput(i), this.inputSerializers[i], memMan, ioMan, pages);
 						barrier.startReading();

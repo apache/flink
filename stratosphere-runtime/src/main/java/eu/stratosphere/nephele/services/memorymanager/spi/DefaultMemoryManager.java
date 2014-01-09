@@ -234,25 +234,6 @@ public class DefaultMemoryManager implements MemoryManager
 		// -------------------- END CRITICAL SECTION -------------------
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.services.memorymanager.MemoryManager#allocatePages(eu.stratosphere.nephele.template.AbstractInvokable, long)
-	 */
-	@Override
-	public List<MemorySegment> allocatePages(AbstractInvokable owner, long numBytes) throws MemoryAllocationException
-	{
-		return allocatePages(owner, getNumPages(numBytes));
-	}
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.services.memorymanager.MemoryManager#allocatePages(eu.stratosphere.nephele.template.AbstractInvokable, java.util.List, long)
-	 */
-	@Override
-	public void allocatePages(AbstractInvokable owner, List<MemorySegment> target, long numBytes)
-			throws MemoryAllocationException
-	{
-		allocatePages(owner, target, getNumPages(numBytes));
-	}
-	
 	// ------------------------------------------------------------------------
 	
 

@@ -67,10 +67,10 @@ public class SpillingResettableMutableObjectIterator<T> implements ResettableMut
 
 	public SpillingResettableMutableObjectIterator(MutableObjectIterator<T> input, TypeSerializer<T> serializer, 
 			MemoryManager memoryManager, IOManager ioManager,
-			long availableMemory, AbstractInvokable parentTask)
+			int numPages, AbstractInvokable parentTask)
 	throws MemoryAllocationException
 	{
-		this(input, serializer, memoryManager, ioManager, memoryManager.allocatePages(parentTask, availableMemory), true);
+		this(input, serializer, memoryManager, ioManager, memoryManager.allocatePages(parentTask, numPages), true);
 	}
 	
 	public SpillingResettableMutableObjectIterator(MutableObjectIterator<T> input, TypeSerializer<T> serializer,

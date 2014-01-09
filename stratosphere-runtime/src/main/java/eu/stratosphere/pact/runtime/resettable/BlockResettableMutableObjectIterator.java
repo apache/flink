@@ -31,7 +31,7 @@ import eu.stratosphere.util.MutableObjectIterator;
  * 
  */
 public class BlockResettableMutableObjectIterator<T> extends AbstractBlockResettableIterator<T>
-implements ResettableMutableObjectIterator<T>
+	implements ResettableMutableObjectIterator<T>
 {
 	public static final Log LOG = LogFactory.getLog(BlockResettableMutableObjectIterator.class);
 	
@@ -53,10 +53,10 @@ implements ResettableMutableObjectIterator<T>
 	
 	public BlockResettableMutableObjectIterator(MemoryManager memoryManager,
 			MutableObjectIterator<T> input,	TypeSerializer<T> serializer,
-			long availableMemory, AbstractInvokable ownerTask)
+			int numMemoryPages, AbstractInvokable ownerTask)
 	throws MemoryAllocationException
 	{
-		super(serializer, memoryManager, availableMemory, ownerTask);
+		super(serializer, memoryManager, numMemoryPages, ownerTask);
 		
 		this.input = input;
 		this.leftOverRecord = serializer.createInstance();
@@ -67,8 +67,7 @@ implements ResettableMutableObjectIterator<T>
 
 
 	@Override
-	public boolean next(T target) throws IOException
-	{
+	public boolean next(T target) throws IOException {
 		// check for the left over element
 		if (this.readPhase) {
 			return getNextRecord(target);
@@ -101,8 +100,7 @@ implements ResettableMutableObjectIterator<T>
 	}
 	
 
-	public void reset()
-	{
+	public void reset() {
 		// a reset always goes to the read phase
 		this.readPhase = true;
 		super.reset();
@@ -110,8 +108,7 @@ implements ResettableMutableObjectIterator<T>
 	
 
 	@Override
-	public boolean nextBlock() throws IOException
-	{
+	public boolean nextBlock() throws IOException {
 		// check the state
 		if (this.closed) {
 			throw new IllegalStateException("Iterator has been closed.");
@@ -155,14 +152,12 @@ implements ResettableMutableObjectIterator<T>
 	 * 
 	 * @return True, if there will be more data, false otherwise.
 	 */
-	public boolean hasFurtherInput()
-	{
+	public boolean hasFurtherInput() {
 		return !this.noMoreBlocks; 
 	}
 	
 
-	public void close()
-	{
+	public void close() {
 		// suggest that we are in the read phase. because nothing is in the current block,
 		// read requests will fail
 		this.readPhase = true;

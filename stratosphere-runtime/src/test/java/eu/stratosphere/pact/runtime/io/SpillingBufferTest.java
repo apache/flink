@@ -38,10 +38,8 @@ import eu.stratosphere.pact.runtime.test.util.TestData.Generator.ValueMode;
 import eu.stratosphere.types.Record;
 
 
-/**
- */
-public class SpillingBufferTest
-{
+public class SpillingBufferTest {
+	
 	private static final long SEED = 649180756312423613L;
 
 	private static final int KEY_MAX = Integer.MAX_VALUE;

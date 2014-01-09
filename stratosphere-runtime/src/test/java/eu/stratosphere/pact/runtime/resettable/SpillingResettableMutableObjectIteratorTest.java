@@ -49,10 +49,9 @@ public class SpillingResettableMutableObjectIteratorTest
 
 
 	@Before
-	public void startup()
-	{
+	public void startup() {
 		// set up IO and memory manager
-		this.memman = new DefaultMemoryManager(MEMORY_CAPACITY);
+		this.memman = new DefaultMemoryManager(MEMORY_CAPACITY, 32 * 1024);
 		this.ioman = new IOManager();
 
 		// create test objects
@@ -66,8 +65,7 @@ public class SpillingResettableMutableObjectIteratorTest
 	}
 
 	@After
-	public void shutdown()
-	{
+	public void shutdown() {
 		this.ioman.shutdown();
 		if (!this.ioman.isProperlyShutDown()) {
 			Assert.fail("I/O Manager Shutdown was not completed properly.");
@@ -86,14 +84,13 @@ public class SpillingResettableMutableObjectIteratorTest
 	 * has to be written to disk.
 	 */
 	@Test
-	public void testResettableIterator()
-	{
+	public void testResettableIterator() {
 		try {
 			final AbstractInvokable memOwner = new DummyInvokable();
 	
 			// create the resettable Iterator
 			SpillingResettableMutableObjectIterator<Record> iterator = new SpillingResettableMutableObjectIterator<Record>(
-				this.reader, this.serializer, this.memman, this.ioman, 2 * 32 * 1024, memOwner);
+				this.reader, this.serializer, this.memman, this.ioman, 2, memOwner);
 	
 			// open the iterator
 			try {
@@ -131,14 +128,13 @@ public class SpillingResettableMutableObjectIteratorTest
 	 * Tests the resettable iterator with enough memory so that all data is kept locally in memory.
 	 */
 	@Test
-	public void testResettableIteratorInMemory()
-	{
+	public void testResettableIteratorInMemory() {
 		try {
 			final AbstractInvokable memOwner = new DummyInvokable();
 	
 			// create the resettable Iterator
 			SpillingResettableMutableObjectIterator<Record> iterator = new SpillingResettableMutableObjectIterator<Record>(
-				this.reader, this.serializer, this.memman, this.ioman, 20 * 32 * 1024, memOwner);
+				this.reader, this.serializer, this.memman, this.ioman, 20, memOwner);
 			// open the iterator
 			try {
 				iterator.open();

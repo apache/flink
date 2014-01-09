@@ -136,12 +136,12 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 	private BlockingBackChannel initBackChannel() throws Exception {
 
 		/* get the size of the memory available to the backchannel */
-		long backChannelMemorySize = this.config.getBackChannelMemory();
+		int backChannelMemoryPages = getMemoryManager().computeNumberOfPages(this.config.getBackChannelMemory());
 
 		/* allocate the memory available to the backchannel */
 		List<MemorySegment> segments = new ArrayList<MemorySegment>();
 		int segmentSize = getMemoryManager().getPageSize();
-		getMemoryManager().allocatePages(this, segments, backChannelMemorySize);
+		getMemoryManager().allocatePages(this, segments, backChannelMemoryPages);
 
 		/* instantiate the backchannel */
 		BlockingBackChannel backChannel = new BlockingBackChannel(new SerializedUpdateBuffer(segments, segmentSize,
@@ -178,7 +178,8 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 		List<MemorySegment> memSegments = null;
 		boolean success = false;
 		try {
-			memSegments = getMemoryManager().allocatePages(getOwningNepheleTask(), hashjoinMemorySize);
+			int numPages = getMemoryManager().computeNumberOfPages(hashjoinMemorySize);
+			memSegments = getMemoryManager().allocatePages(getOwningNepheleTask(), numPages);
 			hashTable = new MutableHashTable<BT, PT>(solutionTypeSerializer, probeSideSerializer,
 				solutionTypeComparator,
 				probeSideComparator, pairComparator, memSegments, getIOManager());

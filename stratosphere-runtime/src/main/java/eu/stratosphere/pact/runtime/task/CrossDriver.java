@@ -34,10 +34,9 @@ import eu.stratosphere.util.MutableObjectIterator;
  * the <code>cross()</code> method of the CrossFunction.
  * 
  * @see eu.stratosphere.api.java.record.functions.CrossFunction
- * 
  */
-public class CrossDriver<T1, T2, OT> implements PactDriver<GenericCrosser<T1, T2, OT>, OT>
-{
+public class CrossDriver<T1, T2, OT> implements PactDriver<GenericCrosser<T1, T2, OT>, OT> {
+	
 	private static final Log LOG = LogFactory.getLog(CrossDriver.class);
 	
 	
@@ -49,9 +48,9 @@ public class CrossDriver<T1, T2, OT> implements PactDriver<GenericCrosser<T1, T2
 	
 	private BlockResettableMutableObjectIterator<?> blockIter;
 	
-	private long memForBlockSide;
+	private int  memPagesForBlockSide;
 	
-	private long memForSpillingSide;
+	private int memPagesForSpillingSide;
 
 	private boolean blocked;
 	
@@ -90,8 +89,7 @@ public class CrossDriver<T1, T2, OT> implements PactDriver<GenericCrosser<T1, T2
 
 
 	@Override
-	public void prepare() throws Exception
-	{
+	public void prepare() throws Exception {
 		final TaskConfig config = this.taskContext.getTaskConfig();
 		final DriverStrategy ls = config.getDriverStrategy();
 		
@@ -128,22 +126,21 @@ public class CrossDriver<T1, T2, OT> implements PactDriver<GenericCrosser<T1, T2
 		
 		// divide memory between spilling and blocking side
 		if (ls == DriverStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST || ls == DriverStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND) {
-			this.memForSpillingSide = totalAvailableMemory;
-			this.memForBlockSide = 0;
+			this.memPagesForSpillingSide = numPages;
+			this.memPagesForBlockSide = 0;
 		} else {
 			if (numPages > 32) {
-				this.memForSpillingSide = 2 * this.memManager.getPageSize();
+				this.memPagesForSpillingSide = 2;
 			} else {
-				this.memForSpillingSide =  this.memManager.getPageSize();
+				this.memPagesForSpillingSide =  1;
 			}
-			this.memForBlockSide = totalAvailableMemory - this.memForSpillingSide;
+			this.memPagesForBlockSide = numPages - this.memPagesForSpillingSide;
 		}
 	}
 
 
 	@Override
-	public void run() throws Exception
-	{
+	public void run() throws Exception {
 		if (this.blocked) {
 			if (this.firstIsOuter) {
 				runBlockedOuterFirst();
@@ -161,8 +158,7 @@ public class CrossDriver<T1, T2, OT> implements PactDriver<GenericCrosser<T1, T2
 
 
 	@Override
-	public void cleanup() throws Exception
-	{
+	public void cleanup() throws Exception {
 		if (this.spillIter != null) {
 			this.spillIter.close();
 			this.spillIter = null;
@@ -179,8 +175,7 @@ public class CrossDriver<T1, T2, OT> implements PactDriver<GenericCrosser<T1, T2
 		this.running = false;
 	}
 
-	private void runBlockedOuterFirst() throws Exception
-	{
+	private void runBlockedOuterFirst() throws Exception {
 		if (LOG.isDebugEnabled())  {
 			LOG.debug(this.taskContext.formatLogString("Running Cross with Block-Nested-Loops: " +
 					"First input is outer (blocking) side, second input is inner (spilling) side."));
@@ -193,12 +188,12 @@ public class CrossDriver<T1, T2, OT> implements PactDriver<GenericCrosser<T1, T2
 		final TypeSerializer<T2> serializer2 = this.taskContext.getInputSerializer(1);
 		
 		final BlockResettableMutableObjectIterator<T1> blockVals = 
-				new BlockResettableMutableObjectIterator<T1>(this.memManager, in1, serializer1, this.memForBlockSide,
+				new BlockResettableMutableObjectIterator<T1>(this.memManager, in1, serializer1, this.memPagesForBlockSide,
 							this.taskContext.getOwningNepheleTask());
 		this.blockIter = blockVals;
 		
 		final SpillingResettableMutableObjectIterator<T2> spillVals = new SpillingResettableMutableObjectIterator<T2>(
-				in2, serializer2, this.memManager, this.taskContext.getIOManager(), this.memForSpillingSide,
+				in2, serializer2, this.memManager, this.taskContext.getIOManager(), this.memPagesForSpillingSide,
 				this.taskContext.getOwningNepheleTask());
 		this.spillIter = spillVals;
 		
@@ -225,8 +220,7 @@ public class CrossDriver<T1, T2, OT> implements PactDriver<GenericCrosser<T1, T2
 		while (this.running && blockVals.nextBlock());
 	}
 	
-	private void runBlockedOuterSecond() throws Exception
-	{
+	private void runBlockedOuterSecond() throws Exception {
 		if (LOG.isDebugEnabled())  {
 			LOG.debug(this.taskContext.formatLogString("Running Cross with Block-Nested-Loops: " +
 					"First input is inner (spilling) side, second input is outer (blocking) side."));
@@ -239,12 +233,12 @@ public class CrossDriver<T1, T2, OT> implements PactDriver<GenericCrosser<T1, T2
 		final TypeSerializer<T2> serializer2 = this.taskContext.getInputSerializer(1);
 		
 		final SpillingResettableMutableObjectIterator<T1> spillVals = new SpillingResettableMutableObjectIterator<T1>(
-				in1, serializer1, this.memManager, this.taskContext.getIOManager(), this.memForSpillingSide,
+				in1, serializer1, this.memManager, this.taskContext.getIOManager(), this.memPagesForSpillingSide,
 				this.taskContext.getOwningNepheleTask());
 		this.spillIter = spillVals;
 		
 		final BlockResettableMutableObjectIterator<T2> blockVals = 
-				new BlockResettableMutableObjectIterator<T2>(this.memManager, in2, serializer2, this.memForBlockSide,
+				new BlockResettableMutableObjectIterator<T2>(this.memManager, in2, serializer2, this.memPagesForBlockSide,
 						this.taskContext.getOwningNepheleTask());
 		this.blockIter = blockVals;
 		
@@ -271,8 +265,7 @@ public class CrossDriver<T1, T2, OT> implements PactDriver<GenericCrosser<T1, T2
 		while (this.running && blockVals.nextBlock());
 	}
 	
-	private void runStreamedOuterFirst() throws Exception
-	{
+	private void runStreamedOuterFirst() throws Exception {
 		if (LOG.isDebugEnabled())  {
 			LOG.debug(this.taskContext.formatLogString("Running Cross with Nested-Loops: " +
 					"First input is outer side, second input is inner (spilling) side."));
@@ -285,7 +278,7 @@ public class CrossDriver<T1, T2, OT> implements PactDriver<GenericCrosser<T1, T2
 		final TypeSerializer<T2> serializer2 = this.taskContext.getInputSerializer(1);
 		
 		final SpillingResettableMutableObjectIterator<T2> spillVals = new SpillingResettableMutableObjectIterator<T2>(
-				in2, serializer2, this.memManager, this.taskContext.getIOManager(), this.memForSpillingSide,
+				in2, serializer2, this.memManager, this.taskContext.getIOManager(), this.memPagesForSpillingSide,
 				this.taskContext.getOwningNepheleTask());
 		this.spillIter = spillVals;
 		
@@ -307,8 +300,7 @@ public class CrossDriver<T1, T2, OT> implements PactDriver<GenericCrosser<T1, T2
 		}
 	}
 	
-	private void runStreamedOuterSecond() throws Exception
-	{
+	private void runStreamedOuterSecond() throws Exception {
 		if (LOG.isDebugEnabled())  {
 			LOG.debug(this.taskContext.formatLogString("Running Cross with Nested-Loops: " +
 					"First input is inner (spilling) side, second input is outer side."));
@@ -320,7 +312,7 @@ public class CrossDriver<T1, T2, OT> implements PactDriver<GenericCrosser<T1, T2
 		final TypeSerializer<T2> serializer2 = this.taskContext.getInputSerializer(1);
 		
 		final SpillingResettableMutableObjectIterator<T1> spillVals = new SpillingResettableMutableObjectIterator<T1>(
-				in1, serializer1, this.memManager, this.taskContext.getIOManager(), this.memForSpillingSide,
+				in1, serializer1, this.memManager, this.taskContext.getIOManager(), this.memPagesForSpillingSide,
 				this.taskContext.getOwningNepheleTask());
 		this.spillIter = spillVals;
 		

@@ -81,10 +81,10 @@ public class MergeMatchIterator<T1, T2, O> implements JoinTaskIterator<T1, T2, O
 	public MergeMatchIterator(MutableObjectIterator<T1> input1, MutableObjectIterator<T2> input2,
 			TypeSerializer<T1> serializer1, TypeComparator<T1> comparator1,
 			TypeSerializer<T2> serializer2, TypeComparator<T2> comparator2, TypePairComparator<T1, T2> pairComparator,
-			MemoryManager memoryManager, IOManager ioManager, int pagesForBNLJ, AbstractInvokable parentTask)
+			MemoryManager memoryManager, IOManager ioManager, int numMemoryPages, AbstractInvokable parentTask)
 	throws MemoryAllocationException
 	{
-		if (pagesForBNLJ < 2) {
+		if (numMemoryPages < 2) {
 			throw new IllegalArgumentException("Merger needs at least 2 memory pages.");
 		}
 		
@@ -103,9 +103,9 @@ public class MergeMatchIterator<T1, T2, O> implements JoinTaskIterator<T1, T2, O
 		this.iterator1 = new KeyGroupedIterator<T1>(input1, this.serializer1, comparator1.duplicate());
 		this.iterator2 = new KeyGroupedIterator<T2>(input2, this.serializer2, comparator2.duplicate());
 		
-		final int numPagesForSpiller = pagesForBNLJ > 20 ? 2 : 1;
+		final int numPagesForSpiller = numMemoryPages > 20 ? 2 : 1;
 		this.blockIt = new BlockResettableIterator<T2>(this.memoryManager, this.serializer2,
-			(pagesForBNLJ - numPagesForSpiller) * memoryManager.getPageSize(), parentTask);
+			(numMemoryPages - numPagesForSpiller), parentTask);
 		this.memoryForSpillingIterator = memoryManager.allocatePages(parentTask, numPagesForSpiller);
 	}
 

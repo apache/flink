@@ -28,19 +28,15 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.pact.runtime.io.RandomAccessInputView;
 import eu.stratosphere.pact.runtime.io.SimpleCollectingOutputView;
-import eu.stratosphere.pact.runtime.util.MathUtils;
 import eu.stratosphere.pact.runtime.util.MemoryBlockIterator;
 
 /**
  * Base class for iterators that fetch a block of data into main memory and offer resettable
  * access to the data in that block.
- * 
  */
-abstract class AbstractBlockResettableIterator<T> implements MemoryBlockIterator
-{
-	protected static final Log LOG = LogFactory.getLog(AbstractBlockResettableIterator.class);
+abstract class AbstractBlockResettableIterator<T> implements MemoryBlockIterator {
 	
-	protected static final int MIN_BUFFER_SIZE = 8 * 1024;
+	protected static final Log LOG = LogFactory.getLog(AbstractBlockResettableIterator.class);
 	
 	// ------------------------------------------------------------------------
 	
@@ -65,21 +61,14 @@ abstract class AbstractBlockResettableIterator<T> implements MemoryBlockIterator
 	// ------------------------------------------------------------------------
 	
 	protected AbstractBlockResettableIterator(TypeSerializer<T> serializer, MemoryManager memoryManager,
-			long availableMemory, AbstractInvokable ownerTask)
+			int numPages, AbstractInvokable ownerTask)
 	throws MemoryAllocationException
 	{
-		if (availableMemory < memoryManager.getPageSize()) {
+		if (numPages < 1)
 			throw new IllegalArgumentException("Block Resettable iterator requires at leat one page of memory");
-		}
 		
 		this.memoryManager = memoryManager;
 		this.serializer = serializer;
-		
-		availableMemory = memoryManager.roundDownToPageSizeMultiple(availableMemory);
-		final int numPages = MathUtils.checkedDownCast(availableMemory / memoryManager.getPageSize());
-		if (numPages < 1) {
-			throw new IllegalArgumentException("The given amount of memory is smaller than one memory page.");
-		}
 		
 		this.emptySegments = new ArrayList<MemorySegment>(numPages);
 		this.fullSegments = new ArrayList<MemorySegment>(numPages);
@@ -90,7 +79,7 @@ abstract class AbstractBlockResettableIterator<T> implements MemoryBlockIterator
 		this.readView = new RandomAccessInputView(this.fullSegments, memoryManager.getPageSize());
 		
 		if (LOG.isDebugEnabled())
-			LOG.debug("Iterator initalized using " + numPages + " memory buffers (" + availableMemory + " bytes of memory.");
+			LOG.debug("Iterator initalized using " + numPages + " memory buffers.");
 	}
 	
 	// --------------------------------------------------------------------------------------------

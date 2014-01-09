@@ -81,7 +81,7 @@ public class SynchronousChainedCombineDriver<T> extends ChainedDriver<T, T> {
 		// ----------------- Set up the asynchronous sorter -------------------------
 
 		this.memManager = this.parent.getEnvironment().getMemoryManager();
-		final long availableMemory = this.config.getMemoryDriver();
+		final int numMemoryPages = memManager.computeNumberOfPages(this.config.getMemoryDriver());
 
 		// instantiate the serializer / comparator
 		final TypeSerializerFactory<T> serializerFactory = this.config.getInputSerializer(0, this.userCodeClassLoader);
@@ -89,7 +89,7 @@ public class SynchronousChainedCombineDriver<T> extends ChainedDriver<T, T> {
 		this.serializer = serializerFactory.getSerializer();
 		this.comparator = comparatorFactory.createComparator();
 
-		final List<MemorySegment> memory = this.memManager.allocatePages(this.parent, availableMemory);
+		final List<MemorySegment> memory = this.memManager.allocatePages(this.parent, numMemoryPages);
 
 		// instantiate a fix-length in-place sorter, if possible, otherwise the out-of-place sorter
 		if (this.comparator.supportsSerializationWithKeyNormalization() &&

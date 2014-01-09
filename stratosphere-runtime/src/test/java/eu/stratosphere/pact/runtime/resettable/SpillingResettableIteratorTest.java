@@ -53,7 +53,7 @@ public class SpillingResettableIteratorTest {
 	@Before
 	public void startup() {
 		// set up IO and memory manager
-		this.memman = new DefaultMemoryManager(MEMORY_CAPACITY);
+		this.memman = new DefaultMemoryManager(MEMORY_CAPACITY, 32 * 1024);
 		this.ioman = new IOManager();
 
 		// create test objects
@@ -92,7 +92,7 @@ public class SpillingResettableIteratorTest {
 		try {
 			// create the resettable Iterator
 			SpillingResettableIterator<IntValue> iterator = new SpillingResettableIterator<IntValue>(
-					this.reader, this.serializer, this.memman, this.ioman, 2 * 32 * 1024, this.memOwner);
+					this.reader, this.serializer, this.memman, this.ioman, 2, this.memOwner);
 			// open the iterator
 			try {
 				iterator.open();
@@ -134,7 +134,7 @@ public class SpillingResettableIteratorTest {
 		try {
 			// create the resettable Iterator
 			SpillingResettableIterator<IntValue> iterator = new SpillingResettableIterator<IntValue>(
-					this.reader, this.serializer, this.memman, this.ioman, 20 * 32 * 1024, this.memOwner);
+					this.reader, this.serializer, this.memman, this.ioman, 20, this.memOwner);
 			// open the iterator
 			try {
 				iterator.open();
@@ -175,7 +175,7 @@ public class SpillingResettableIteratorTest {
 		try {
 			// create the resettable Iterator
 			SpillingResettableIterator<IntValue> iterator = new SpillingResettableIterator<IntValue>(
-					this.reader, this.serializer, this.memman, this.ioman, 2 * 32 * 1024, this.memOwner);
+					this.reader, this.serializer, this.memman, this.ioman, 2, this.memOwner);
 			// open the iterator
 			try {
 				iterator.open();
@@ -209,7 +209,7 @@ public class SpillingResettableIteratorTest {
 		try {
 			// create the resettable Iterator
 			SpillingResettableIterator<IntValue> iterator = new SpillingResettableIterator<IntValue>(
-					this.reader, this.serializer, this.memman, this.ioman, 2 * 32 * 1024, this.memOwner);
+					this.reader, this.serializer, this.memman, this.ioman, 2, this.memOwner);
 			// open the iterator
 			try {
 				iterator.open();
