@@ -30,12 +30,7 @@ import eu.stratosphere.api.java.record.functions.ReduceFunction;
 import eu.stratosphere.types.Key;
 
 /**
- * ReduceOperator represents a Pact with a Reduce Input Operator.
- * InputContracts are second-order functions. They have one or multiple input sets of records and a first-order
- * user function (stub implementation).
- * <p> 
- * Reduce works on a single input and calls the first-order user function of a {@link ReduceFunction} for each group of 
- * records that share the same key.
+ * ReduceOperator evaluating a {@link ReduceFunction} over each group of records that share the same key.
  * 
  * @see ReduceFunction
  */
