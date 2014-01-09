@@ -50,11 +50,9 @@ public class LocalExecutor implements PlanExecutor {
 
 	
 	public LocalExecutor() {
-		Logger root = Logger.getRootLogger();
-		PatternLayout layout = new PatternLayout("%d{HH:mm:ss,SSS} %-5p %-60c %x - %m%n");
-		ConsoleAppender appender = new ConsoleAppender(layout, "System.err");
-		root.addAppender(appender);
-		root.setLevel(Level.WARN);
+		if (System.getProperty("log4j.configuration") == null) {
+			setLoggingLevel(Level.INFO);
+		}
 	}
 	
 	public void start() throws Exception {
@@ -185,5 +183,17 @@ public class LocalExecutor implements PlanExecutor {
 		PlanJSONDumpGenerator gen = new PlanJSONDumpGenerator();
 		List<DataSinkNode> sinks = PactCompiler.createPreOptimizedPlan(plan);
 		return gen.getPactPlanAsJSON(sinks);
+	}
+	
+	/**
+	 * Utility method for logging
+	 */
+	public static void setLoggingLevel(Level lvl) {
+		Logger root = Logger.getRootLogger();
+		root.removeAllAppenders();
+		PatternLayout layout = new PatternLayout("%d{HH:mm:ss,SSS} %-5p %-60c %x - %m%n");
+		ConsoleAppender appender = new ConsoleAppender(layout, "System.err");
+		root.addAppender(appender);
+		root.setLevel(lvl);
 	}
 }

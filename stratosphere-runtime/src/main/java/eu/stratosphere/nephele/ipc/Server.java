@@ -333,7 +333,7 @@ public abstract class Server {
 
 		@Override
 		public void run() {
-			LOG.info(getName() + ": starting");
+			LOG.debug(getName() + ": starting");
 			SERVER.set(Server.this);
 			while (running) {
 				SelectionKey key = null;
@@ -374,7 +374,7 @@ public abstract class Server {
 				}
 				cleanupConnections(false);
 			}
-			LOG.info("Stopping " + this.getName());
+			LOG.debug("Stopping " + this.getName());
 
 			synchronized (this) {
 				try {
@@ -494,7 +494,7 @@ public abstract class Server {
 
 		@Override
 		public void run() {
-			LOG.info(getName() + ": starting");
+			LOG.debug(getName() + ": starting");
 			SERVER.set(Server.this);
 			long lastPurgeTime = 0; // last check for old calls.
 
@@ -560,7 +560,7 @@ public abstract class Server {
 					LOG.warn("Exception in Responder " + e.toString());
 				}
 			}
-			LOG.info("Stopping " + this.getName());
+			LOG.debug("Stopping " + this.getName());
 
 			this.shutDown = true;
 		}
@@ -928,7 +928,7 @@ public abstract class Server {
 
 		@Override
 		public void run() {
-			LOG.info(getName() + ": starting");
+			LOG.debug(getName() + ": starting");
 			SERVER.set(Server.this);
 			ByteArrayOutputStream buf = new ByteArrayOutputStream(10240);
 			while (running) {
@@ -955,7 +955,7 @@ public abstract class Server {
 					LOG.info(getName() + " caught: ", e);
 				}
 			}
-			LOG.info(getName() + ": exiting");
+			LOG.debug(getName() + ": exiting");
 
 			this.shutDown = true;
 		}
@@ -1069,7 +1069,7 @@ public abstract class Server {
 
 	/** Stops the service. No new calls will be handled after this is called. */
 	public synchronized void stop() {
-		LOG.info("Stopping server on " + port);
+		LOG.debug("Stopping server on " + port);
 		running = false;
 		if (handlers != null) {
 			for (int i = 0; i < handlerCount; i++) {

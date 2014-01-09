@@ -14,12 +14,17 @@
 package eu.stratosphere.example.java.record.wordcount;
 
 import java.io.Serializable;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.StringTokenizer;
+
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
 
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.Program;
 import eu.stratosphere.api.common.ProgramDescription;
+import eu.stratosphere.api.common.accumulators.AccumulatorHelper;
 import eu.stratosphere.api.common.operators.FileDataSink;
 import eu.stratosphere.api.common.operators.FileDataSource;
 import eu.stratosphere.api.java.record.functions.MapFunction;
@@ -31,6 +36,7 @@ import eu.stratosphere.api.java.record.operators.MapOperator;
 import eu.stratosphere.api.java.record.operators.ReduceOperator;
 import eu.stratosphere.api.java.record.operators.ReduceOperator.Combinable;
 import eu.stratosphere.client.LocalExecutor;
+import eu.stratosphere.nephele.client.JobExecutionResult;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;
@@ -148,7 +154,8 @@ public class WordCount implements Program, ProgramDescription {
 		
 		// This will execute the word-count embedded in a local context. replace this line by the commented
 		// succeeding line to send the job to a local installation or to a cluster for execution
-		LocalExecutor.execute(plan);
+		JobExecutionResult result = LocalExecutor.execute(plan);
+		System.err.println("Total runtime: "+result.getNetRuntime());
 //		PlanExecutor ex = new RemoteExecutor("localhost", 6123, "target/pact-examples-0.4-SNAPSHOT-WordCount.jar");
 //		ex.executePlan(plan);
 	}
