@@ -26,19 +26,14 @@ import eu.stratosphere.types.Key;
 
 
 /**
- * JoinOperator represents a Match InputContract of the PACT Programming Model.
- * InputContracts are second-order functions. They have one or multiple input sets of records and a first-order
- * user function (stub implementation).
- * <p> 
- * Match works on two inputs and calls the first-order function of a {@link JoinStub} 
- * for each combination of record from both inputs that share the same key independently. In that sense, it is very
- * similar to an inner join.
+ * JoinOperator that applies a {@link JoinFunction} to each pair of records from both inputs
+ * that have matching keys.
  * 
  * @see JoinStub
  */
 public class JoinOperator extends JoinOperatorBase<JoinFunction> implements RecordOperator {
 	
-	private static String DEFAULT_NAME = "<Unnamed Matcher>";		// the default name for contracts
+	private static String DEFAULT_NAME = "<Unnamed Join>";		// the default name for operations
 	
 	/**
 	 * The types of the keys that the contract operates on.
@@ -50,7 +45,7 @@ public class JoinOperator extends JoinOperatorBase<JoinFunction> implements Reco
 	/**
 	 * Creates a Builder with the provided {@link JoinFunction} implementation
 	 * 
-	 * @param udf The {@link JoinFunction} implementation for this Match contract.
+	 * @param udf The {@link JoinFunction} implementation for this join.
 	 * @param keyClass The class of the key data type.
 	 * @param keyColumn1 The position of the key in the first input's records.
 	 * @param keyColumn2 The position of the key in the second input's records.

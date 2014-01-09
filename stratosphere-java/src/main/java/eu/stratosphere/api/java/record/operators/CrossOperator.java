@@ -26,12 +26,7 @@ import eu.stratosphere.types.Key;
 
 
 /**
- * CrossOperator represents a Cross InputContract of the PACT Programming Model.
- *  InputContracts are second-order functions. They have one or multiple input sets of records and a first-order
- *  user function (stub implementation).
- * <p> 
- * Cross works on two inputs and calls the first-order function of a {@link CrossFunction} 
- * for each combination of record from both inputs (each element of the Cartesian Product) independently.
+ * CrossOperator that applies a {@link CrossFunction} to each element of the Cartesian Product.
  * 
  * @see CrossFunction
  */

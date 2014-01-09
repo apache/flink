@@ -110,23 +110,23 @@ public class PactCompiler {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Compiler hint key for the input channel's shipping strategy. This String is a key to the contract's stub
+	 * Compiler hint key for the input channel's shipping strategy. This String is a key to the operator's stub
 	 * parameters. The corresponding value tells the compiler which shipping strategy to use for the input channel.
-	 * If the contract has two input channels, the shipping strategy is applied to both input channels.
+	 * If the operator has two input channels, the shipping strategy is applied to both input channels.
 	 */
 	public static final String HINT_SHIP_STRATEGY = "INPUT_SHIP_STRATEGY";
 
 	/**
 	 * Compiler hint key for the <b>first</b> input channel's shipping strategy. This String is a key to
-	 * the contract's stub parameters. The corresponding value tells the compiler which shipping strategy
-	 * to use for the <b>first</b> input channel. Only applicable to contracts with two inputs.
+	 * the operator's stub parameters. The corresponding value tells the compiler which shipping strategy
+	 * to use for the <b>first</b> input channel. Only applicable to operators with two inputs.
 	 */
 	public static final String HINT_SHIP_STRATEGY_FIRST_INPUT = "INPUT_LEFT_SHIP_STRATEGY";
 
 	/**
 	 * Compiler hint key for the <b>second</b> input channel's shipping strategy. This String is a key to
-	 * the contract's stub parameters. The corresponding value tells the compiler which shipping strategy
-	 * to use for the <b>second</b> input channel. Only applicable to contracts with two inputs.
+	 * the operator's stub parameters. The corresponding value tells the compiler which shipping strategy
+	 * to use for the <b>second</b> input channel. Only applicable to operators with two inputs.
 	 */
 	public static final String HINT_SHIP_STRATEGY_SECOND_INPUT = "INPUT_RIGHT_SHIP_STRATEGY";
 
@@ -178,18 +178,18 @@ public class PactCompiler {
 	public static final String HINT_SHIP_STRATEGY_BROADCAST = "SHIP_BROADCAST";
 
 	/**
-	 * Compiler hint key for the contract's local strategy. This String is a key to the contract's stub
+	 * Compiler hint key for the operator's local strategy. This String is a key to the operator's stub
 	 * parameters. The corresponding value tells the compiler which local strategy to use to process the
 	 * data inside one partition.
 	 * <p>
-	 * This hint is ignored by contracts that do not have a local strategy (such as <i>Map</i>), or by contracts that
+	 * This hint is ignored by operators that do not have a local strategy (such as <i>Map</i>), or by operators that
 	 * have no choice in their local strategy (such as <i>Cross</i>).
 	 */
 	public static final String HINT_LOCAL_STRATEGY = "LOCAL_STRATEGY";
 
 	/**
 	 * Value for the local strategy compiler hint that enforces a <b>sort based</b> local strategy.
-	 * For example, a <i>Reduce</i> contract will sort the data to group it.
+	 * For example, a <i>Reduce</i> operator will sort the data to group it.
 	 * 
 	 * @see #HINT_LOCAL_STRATEGY
 	 */
@@ -198,7 +198,7 @@ public class PactCompiler {
 	/**
 	 * Value for the local strategy compiler hint that enforces a <b>sort based</b> local strategy.
 	 * During sorting a combine method is repeatedly applied to reduce the data volume.
-	 * For example, a <i>Reduce</i> contract will sort the data to group it.
+	 * For example, a <i>Reduce</i> operator will sort the data to group it.
 	 * 
 	 * @see #HINT_LOCAL_STRATEGY
 	 */
@@ -207,7 +207,7 @@ public class PactCompiler {
 	/**
 	 * Value for the local strategy compiler hint that enforces a <b>sort merge based</b> local strategy on both
 	 * inputs with subsequent merging of inputs. 
-	 * For example, a <i>Match</i> or <i>CoGroup</i> contract will use a sort-merge strategy to find pairs 
+	 * For example, a <i>Match</i> or <i>CoGroup</i> operator will use a sort-merge strategy to find pairs 
 	 * of matching keys.
 	 * 
 	 * @see #HINT_LOCAL_STRATEGY
@@ -217,7 +217,7 @@ public class PactCompiler {
 	/**
 	 * Value for the local strategy compiler hint that enforces a <b>sort merge based</b> local strategy.
 	 * The the first input is sorted, the second input is assumed to be sorted. After sorting both inputs are merged. 
-	 * For example, a <i>Match</i> or <i>CoGroup</i> contract will use a sort-merge strategy to find pairs 
+	 * For example, a <i>Match</i> or <i>CoGroup</i> operator will use a sort-merge strategy to find pairs 
 	 * of matching keys.
 	 * 
 	 * @see #HINT_LOCAL_STRATEGY
@@ -227,7 +227,7 @@ public class PactCompiler {
 	/**
 	 * Value for the local strategy compiler hint that enforces a <b>sort merge based</b> local strategy.
 	 * The the second input is sorted, the first input is assumed to be sorted. After sorting both inputs are merged. 
-	 * For example, a <i>Match</i> or <i>CoGroup</i> contract will use a sort-merge strategy to find pairs 
+	 * For example, a <i>Match</i> or <i>CoGroup</i> operator will use a sort-merge strategy to find pairs 
 	 * of matching keys.
 	 * 
 	 * @see #HINT_LOCAL_STRATEGY
@@ -237,7 +237,7 @@ public class PactCompiler {
 	/**
 	 * Value for the local strategy compiler hint that enforces a <b>merge based</b> local strategy.
 	 * Both inputs are assumed to be sorted and are merged. 
-	 * For example, a <i>Match</i> or <i>CoGroup</i> contract will use a merge strategy to find pairs 
+	 * For example, a <i>Match</i> or <i>CoGroup</i> operator will use a merge strategy to find pairs 
 	 * of matching keys.
 	 * 
 	 * @see #HINT_LOCAL_STRATEGY
@@ -247,7 +247,7 @@ public class PactCompiler {
 	
 	/**
 	 * Value for the local strategy compiler hint that enforces a <b>hash based</b> local strategy.
-	 * For example, a <i>Match</i> contract will use a hybrid-hash-join strategy to find pairs of
+	 * For example, a <i>Match</i> operator will use a hybrid-hash-join strategy to find pairs of
 	 * matching keys. The <b>first</b> input will be used to build the hash table, the second input will be
 	 * used to probe the table.
 	 * 
@@ -257,7 +257,7 @@ public class PactCompiler {
 
 	/**
 	 * Value for the local strategy compiler hint that enforces a <b>hash based</b> local strategy.
-	 * For example, a <i>Match</i> contract will use a hybrid-hash-join strategy to find pairs of
+	 * For example, a <i>Match</i> operator will use a hybrid-hash-join strategy to find pairs of
 	 * matching keys. The <b>second</b> input will be used to build the hash table, the first input will be
 	 * used to probe the table.
 	 * 
@@ -267,7 +267,7 @@ public class PactCompiler {
 
 	/**
 	 * Value for the local strategy compiler hint that chooses the outer side of the <b>nested-loop</b> local strategy.
-	 * A <i>Cross</i> contract will process the data of the <b>first</b> input in the outer-loop of the nested loops.
+	 * A <i>Cross</i> operator will process the data of the <b>first</b> input in the outer-loop of the nested loops.
 	 * Hence, the data of the first input will be is streamed though, while the data of the second input is stored on
 	 * disk
 	 * and repeatedly read.
@@ -278,7 +278,7 @@ public class PactCompiler {
 
 	/**
 	 * Value for the local strategy compiler hint that chooses the outer side of the <b>nested-loop</b> local strategy.
-	 * A <i>Cross</i> contract will process the data of the <b>second</b> input in the outer-loop of the nested loops.
+	 * A <i>Cross</i> operator will process the data of the <b>second</b> input in the outer-loop of the nested loops.
 	 * Hence, the data of the second input will be is streamed though, while the data of the first input is stored on
 	 * disk
 	 * and repeatedly read.
@@ -289,7 +289,7 @@ public class PactCompiler {
 
 	/**
 	 * Value for the local strategy compiler hint that chooses the outer side of the <b>nested-loop</b> local strategy.
-	 * A <i>Cross</i> contract will process the data of the <b>first</b> input in the outer-loop of the nested loops.
+	 * A <i>Cross</i> operator will process the data of the <b>first</b> input in the outer-loop of the nested loops.
 	 * Further more, the first input, being the outer side, will be processed in blocks, and for each block, the second
 	 * input,
 	 * being the inner side, will read repeatedly from disk.
@@ -300,7 +300,7 @@ public class PactCompiler {
 
 	/**
 	 * Value for the local strategy compiler hint that chooses the outer side of the <b>nested-loop</b> local strategy.
-	 * A <i>Cross</i> contract will process the data of the <b>second</b> input in the outer-loop of the nested loops.
+	 * A <i>Cross</i> operator will process the data of the <b>second</b> input in the outer-loop of the nested loops.
 	 * Further more, the second input, being the outer side, will be processed in blocks, and for each block, the first
 	 * input,
 	 * being the inner side, will read repeatedly from disk.
@@ -766,7 +766,7 @@ public class PactCompiler {
 	 */
 	private static final class GraphCreatingVisitor implements Visitor<Operator> {
 		
-		private final Map<Operator, OptimizerNode> con2node; // map from the contract objects to their
+		private final Map<Operator, OptimizerNode> con2node; // map from the operator objects to their
 																// corresponding optimizer nodes
 
 		private final List<DataSourceNode> sources; // all data source nodes in the optimizer plan
@@ -899,7 +899,7 @@ public class PactCompiler {
 				n = p;
 			}
 			else {
-				throw new IllegalArgumentException("Unknown contract type.");
+				throw new IllegalArgumentException("Unknown operator type.");
 			}
 
 			this.con2node.put(c, n);

@@ -427,7 +427,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 					conf.setDriver(inputNum == 0 ? SolutionSetFirstCoGroupDriver.class : SolutionSetSecondCoGroupDriver.class);
 				}
 				else {
-					throw new CompilerException("Found join with solution set using incompatible operator (only Match/CoGroup are valid.");
+					throw new CompilerException("Found join with solution set using incompatible operator (only Join/CoGroup are valid.");
 				}
 				
 				// set the serializer / comparator information

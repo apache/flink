@@ -25,12 +25,7 @@ import eu.stratosphere.api.java.record.functions.MapFunction;
 import eu.stratosphere.types.Key;
 
 /**
- * MapOperator represents a Pact with a Map Input Operator.
- * InputContracts are second-order functions. They have one or multiple input sets of records and a first-order
- * user function (stub implementation).
- * <p> 
- * Map works on a single input and calls the first-order user function of a {@link MapFunction}  
- * for each record independently.
+ * MapOperator that applies a {@link MapFunction} to each record independently.
  * 
  * @see MapFunction
  */
