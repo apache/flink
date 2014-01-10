@@ -20,10 +20,13 @@ import eu.stratosphere.types.parser._
 import eu.stratosphere.api.common.io.InputFormat
 import eu.stratosphere.api.common.operators.GenericDataSource
 import eu.stratosphere.api.common.operators.FileDataSource
+import eu.stratosphere.api.common.operators.{CollectionDataSource => JavaCollectionDataSource}
 import eu.stratosphere.configuration.Configuration
 import eu.stratosphere.api.common.io.FileInputFormat
 import eu.stratosphere.api.common.io.GenericInputFormat
 import eu.stratosphere.api.scala.operators.TextInputFormat
+import collection.JavaConversions._
+import eu.stratosphere.api.common.operators.util.SerializableIterator;
 
 object DataSource {
 
@@ -60,12 +63,54 @@ object DataSource {
   }
 }
 
+object CollectionDataSource {
+  /*
+  constructor for collection input
+   */
+  def apply[Out: UDT](data: Iterable[Out]):DataSet[Out] with OutputHintable[Out] = {
+    /*
+    reuse the java implementation of collection data by adding scala operator
+    */
+    val js:java.util.Collection[Out] = data
+    val ret = new JavaCollectionDataSource(js)
+    	with ScalaOperator[Out]{
+       
+       val udf = new UDF0(implicitly[UDT[Out]])
+       override def getUDF = udf
+
+    }
+    
+    new DataSet[Out](ret) with OutputHintable[Out] {}
+  }
+  
+  /*
+  constructor for {@link SerializableIterator} input
+   */
+  def apply[Out: UDT](data: SerializableIterator[Out]) = {
+
+    /*
+    reuse the java implementation of collection data by adding scala operator
+     */
+    val ret = new JavaCollectionDataSource(data)
+    	with ScalaOperator[Out]{
+       
+       val udf = new UDF0(implicitly[UDT[Out]])
+       override def getUDF = udf
+
+    }
+    
+    new DataSet[Out](ret) with OutputHintable[Out] {}
+  }
+}
+
+
 
 trait ScalaInputFormat[Out] { this: InputFormat[_, _] =>
   def getUDF: UDF0[Out]
   def persistConfiguration(config: Configuration) = {}
   def configure(config: Configuration)
 }
+
 
 object TextFile {
   def apply(url: String): DataSet[String] with OutputHintable[String] = DataSource(url, TextInputFormat())
