@@ -22,6 +22,6 @@ SET JVM_ARGS=-Xmx512m
 
 SET NEPHELE_JM_CLASSPATH=%NEPHELE_LIB_DIR%\*
 
-java %JVM_ARGS% -cp %NEPHELE_JM_CLASSPATH% eu.stratosphere.client.CliFrontend %*
+java %JVM_ARGS% -cp "%NEPHELE_JM_CLASSPATH%" eu.stratosphere.client.CliFrontend %*
 
 endlocal
