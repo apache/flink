@@ -73,6 +73,8 @@ public class TaskConfig {
 
 	private static final String NUM_INPUTS = "pact.in.num";
 	
+	private static final String NUM_BROADCAST_INPUTS = "pact.in.broadcast.num";
+	
 	/*
 	 * If one input has multiple predecessors (bag union), multiple
 	 * inputs must be grouped together. For a map or reduce there is
@@ -86,9 +88,15 @@ public class TaskConfig {
 	 */
 	private static final String INPUT_GROUP_SIZE_PREFIX = "pact.in.groupsize.";
 	
+	private static final String BROADCAST_INPUT_GROUP_SIZE_PREFIX = "pact.in.broadcast.groupsize.";
+	
 	private static final String INPUT_TYPE_SERIALIZER_FACTORY_PREFIX = "pact.in.serializer.";
 	
+	private static final String BROADCAST_INPUT_TYPE_SERIALIZER_FACTORY_PREFIX = "pact.in.broadcast.serializer.";
+	
 	private static final String INPUT_TYPE_SERIALIZER_PARAMETERS_PREFIX = "pact.in.serializer.param.";
+	
+	private static final String BROADCAST_INPUT_TYPE_SERIALIZER_PARAMETERS_PREFIX = "pact.in.broadcast.serializer.param.";
 	
 	private static final String INPUT_LOCAL_STRATEGY_PREFIX = "pact.in.strategy.";
 	
@@ -101,6 +109,8 @@ public class TaskConfig {
 	private static final String INPUT_REPLAYABLE_PREFIX = "pact.in.dam.replay.";
 	
 	private static final String INPUT_DAM_MEMORY_PREFIX = "pact.in.dam.mem.";
+	
+	private static final String BROADCAST_INPUT_NAME_PREFIX = "pact.in.broadcast.name.";
 	
 	
 	// -------------------------------------- Outputs ---------------------------------------------
@@ -384,9 +394,19 @@ public class TaskConfig {
 			INPUT_TYPE_SERIALIZER_PARAMETERS_PREFIX + inputNum + SEPARATOR);
 	}
 	
+	public void setBroadcastInputSerializer(TypeSerializerFactory<?> factory, int inputNum) {
+		setTypeSerializerFactory(factory, BROADCAST_INPUT_TYPE_SERIALIZER_FACTORY_PREFIX + inputNum,
+			BROADCAST_INPUT_TYPE_SERIALIZER_PARAMETERS_PREFIX + inputNum + SEPARATOR);
+	}
+	
 	public <T> TypeSerializerFactory<T> getInputSerializer(int inputNum, ClassLoader cl) {
 		return getTypeSerializerFactory(INPUT_TYPE_SERIALIZER_FACTORY_PREFIX + inputNum,
 			INPUT_TYPE_SERIALIZER_PARAMETERS_PREFIX + inputNum + SEPARATOR, cl);
+	}
+	
+	public <T> TypeSerializerFactory<T> getBroadcastInputSerializer(int inputNum, ClassLoader cl) {
+		return getTypeSerializerFactory(BROADCAST_INPUT_TYPE_SERIALIZER_FACTORY_PREFIX + inputNum,
+			BROADCAST_INPUT_TYPE_SERIALIZER_PARAMETERS_PREFIX + inputNum + SEPARATOR, cl);
 	}
 	
 	public void setInputComparator(TypeComparatorFactory<?> factory, int inputNum) {
@@ -403,14 +423,28 @@ public class TaskConfig {
 		return this.config.getInteger(NUM_INPUTS, 0);
 	}
 	
+	public int getNumBroadcastInputs() {
+		return this.config.getInteger(NUM_BROADCAST_INPUTS, 0);
+	}
+	
 	public int getGroupSize(int groupIndex) {
 		return this.config.getInteger(INPUT_GROUP_SIZE_PREFIX + groupIndex, -1);
+	}
+	
+	public int getBroadcastGroupSize(int groupIndex) {
+		return this.config.getInteger(BROADCAST_INPUT_GROUP_SIZE_PREFIX + groupIndex, -1);
 	}
 	
 	public void addInputToGroup(int groupIndex) {
 		final String grp = INPUT_GROUP_SIZE_PREFIX + groupIndex;
 		this.config.setInteger(grp, this.config.getInteger(grp, 0) + 1);
 		this.config.setInteger(NUM_INPUTS, this.config.getInteger(NUM_INPUTS, 0) + 1);
+	}
+	
+	public void addBroadcastInputToGroup(int groupIndex) {
+		final String grp = BROADCAST_INPUT_GROUP_SIZE_PREFIX + groupIndex;
+		this.config.setInteger(grp, this.config.getInteger(grp, 0) + 1);
+		this.config.setInteger(NUM_BROADCAST_INPUTS, this.config.getInteger(NUM_BROADCAST_INPUTS, 0) + 1);
 	}
 	
 	public void setInputAsynchronouslyMaterialized(int inputNum, boolean temp) {
@@ -435,6 +469,14 @@ public class TaskConfig {
 	
 	public long getInputMaterializationMemory(int inputNum) {
 		return this.config.getLong(INPUT_DAM_MEMORY_PREFIX + inputNum, -1);
+	}
+	
+	public void setBroadcastInputName(String name, int groupIndex) {
+		this.config.setString(BROADCAST_INPUT_NAME_PREFIX + groupIndex, name);
+	}
+	
+	public String getBroadcastInputName(int groupIndex) {
+		return this.config.getString(BROADCAST_INPUT_NAME_PREFIX + groupIndex, String.format("broadcastVar%04d", groupIndex));
 	}
 	
 	// --------------------------------------------------------------------------------------------

@@ -15,6 +15,7 @@ package eu.stratosphere.pact.runtime.task;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -99,7 +100,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 	 * The instantiated user code of this task's main driver.
 	 */
 	protected S stub;
-	
+
 	/**
 	 * The collector that forwards the user code's results. May forward to a channel or to chained drivers within
 	 * this task.
@@ -118,9 +119,20 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 	protected MutableReader<?>[] inputReaders;
 	
 	/**
+	 * The input readers for the configured broadcast variables for this task.
+	 */
+	protected MutableReader<?>[] broadcastInputReaders;
+	
+	/**
 	 * The inputs reader, wrapped in an iterator. Prior to the local strategies, etc...
 	 */
 	protected MutableObjectIterator<?>[] inputIterators;
+	
+	/**
+	 * The input readers for the configured broadcast variables, wrapped in an iterator. 
+	 * Prior to the local strategies, etc...
+	 */
+	protected MutableObjectIterator<?>[] broadcastInputIterators;
 	
 	/**
 	 * The local strategies that are applied on the inputs.
@@ -143,11 +155,17 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 	 * and the temp-table barrier.
 	 */
 	protected MutableObjectIterator<?>[] inputs;
+	
 
 	/**
 	 * The serializers for the input data type.
 	 */
 	protected TypeSerializer<?>[] inputSerializers;
+
+	/**
+	 * The serializers for the broadcast input data types.
+	 */
+	protected TypeSerializer<?>[] broadcastInputSerializers;
 
 	/**
 	 * The comparators for the central driver.
@@ -234,6 +252,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 		// however, this does not trigger any local processing.
 		try {
 			initInputReaders();
+			initBroadcastInputReaders();
 		} catch (Exception e) {
 			throw new RuntimeException("Initializing the input streams failed" +
 				e.getMessage() == null ? "." : ": " + e.getMessage(), e);
@@ -274,7 +293,9 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 			// the local processing includes building the dams / caches
 			try {
 				int numInputs = driver.getNumberOfInputs();
+				int numBroadcastInputs = this.config.getNumBroadcastInputs();
 				initInputsSerializersAndComparators(numInputs);
+				initBroadcastInputsSerializers(numBroadcastInputs);
 				initLocalStrategies(numInputs);
 			} catch (Exception e) {
 				throw new RuntimeException("Initializing the input processing failed" +
@@ -384,6 +405,23 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 				return;
 			}
 
+			// drain the broadcast inputs
+			for (int i = 0; i < this.config.getNumBroadcastInputs(); i++) {
+				final String name = this.config.getBroadcastInputName(i);
+				@SuppressWarnings("unchecked")
+				final MutableObjectIterator<Object> reader =  (MutableObjectIterator<Object>) this.broadcastInputIterators[i];
+				@SuppressWarnings("unchecked")
+				final TypeSerializer<Object> serializer =  (TypeSerializer<Object>) this.broadcastInputSerializers[i];
+
+				Collection<Object> collection = new ArrayList<Object>();
+				Object record = serializer.createInstance();
+				while (this.running && reader.next(record)) {
+					collection.add(record);
+					record = serializer.createInstance();
+				}
+				this.stub.getRuntimeContext().setBroadcastVariable(name, collection);
+			}
+
 			// start all chained tasks
 			RegularPactTask.openChainedTasks(this.chainedTasks, this);
 
@@ -417,9 +455,9 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 			// JobManager. close() has been called earlier for all involved UDFs
 			// (using this.stub.close() and closeChainedTasks()), so UDFs can no longer
 			// modify accumulators.ll;
-			if (stub != null) {
+			if (this.stub != null) {
 				// collect the counters from the stub
-				Map<String, Accumulator<?,?>> accumulators = stub.getRuntimeContext().getAllAccumulators();
+				Map<String, Accumulator<?,?>> accumulators = this.stub.getRuntimeContext().getAllAccumulators();
 				RegularPactTask.reportAndClearAccumulators(getEnvironment(), accumulators, this.chainedTasks);
 			}
 		}
@@ -622,13 +660,44 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 	}
 	
 	/**
+	 * Creates the record readers for the extra broadcast inputs as configured by {@link TaskConfig#getNumBroadcastInputs()}.
+	 *
+	 * This method requires that the task configuration, the driver, and the user-code class loader are set.
+	 */
+	@SuppressWarnings("unchecked")
+	protected void initBroadcastInputReaders() throws Exception {
+		final int numBroadcastInputs = this.config.getNumBroadcastInputs();
+		final MutableReader<?>[] broadcastInputReaders = new MutableReader[numBroadcastInputs];
+		
+		for (int i = 0; i < this.config.getNumBroadcastInputs(); i++) {
+			//  ---------------- create the input readers ---------------------
+			// in case where a logical input unions multiple physical inputs, create a union reader
+			final int groupSize = this.config.getBroadcastGroupSize(i);
+			if (groupSize == 1) {
+				// non-union case
+				broadcastInputReaders[i] = new MutableRecordReader<IOReadableWritable>(this);
+			} else if (groupSize > 1){
+				// union case
+				MutableRecordReader<IOReadableWritable>[] readers = new MutableRecordReader[groupSize];
+				for (int j = 0; j < groupSize; ++j) {
+					readers[j] = new MutableRecordReader<IOReadableWritable>(this);
+				}
+				broadcastInputReaders[i] = new MutableUnionRecordReader<IOReadableWritable>(readers);
+			} else {
+				throw new Exception("Illegal input group size in task configuration: " + groupSize);
+			}
+		}
+		this.broadcastInputReaders = broadcastInputReaders;
+	}
+	
+	/**
 	 * Creates all the serializers and comparators.
 	 */
 	protected void initInputsSerializersAndComparators(int numInputs) throws Exception {
 		this.inputSerializers = new TypeSerializer[numInputs];
 		this.inputComparators = this.driver.requiresComparatorOnInput() ? new TypeComparator[numInputs] : null;
 		this.inputIterators = new MutableObjectIterator[numInputs];
-
+		
 		for (int i = 0; i < numInputs; i++) {
 			//  ---------------- create the serializer first ---------------------
 			final TypeSerializerFactory<?> serializerFactory = this.config.getInputSerializer(i, this.userCodeClassLoader);
@@ -641,6 +710,22 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 			}
 			
 			this.inputIterators[i] = createInputIterator(i, this.inputReaders[i], this.inputSerializers[i]);
+		}
+	}
+	
+	/**
+	 * Creates all the serializers and iterators for the broadcast inputs.
+	 */
+	protected void initBroadcastInputsSerializers(int numBroadcastInputs) throws Exception {
+		this.broadcastInputSerializers = new TypeSerializer[numBroadcastInputs];
+		this.broadcastInputIterators = new MutableObjectIterator[numBroadcastInputs];
+
+		for (int i = 0; i < numBroadcastInputs; i++) {
+			//  ---------------- create the serializer first ---------------------
+			final TypeSerializerFactory<?> serializerFactory = this.config.getInputSerializer(i, this.userCodeClassLoader);
+			this.broadcastInputSerializers[i] = serializerFactory.getSerializer();
+
+			this.broadcastInputIterators[i] = createInputIterator(i, this.broadcastInputReaders[i], this.broadcastInputSerializers[i]);
 		}
 	}
 	
