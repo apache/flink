@@ -21,7 +21,7 @@ import java.io.IOException;
 
 import org.junit.Test;
 
-import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.runtime.io.channels.ChannelID;
 import eu.stratosphere.nephele.util.ServerTestUtils;
 import eu.stratosphere.util.StringUtils;
 

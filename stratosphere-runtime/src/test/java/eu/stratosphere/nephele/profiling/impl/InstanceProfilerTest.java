@@ -74,7 +74,7 @@ public class InstanceProfilerTest {
 	@Before
 	public void setUp() throws Exception {
 		initMocks(this);
-		when(this.infoMock.getAddress()).thenReturn(this.addressMock);
+		when(this.infoMock.address()).thenReturn(this.addressMock);
 		when(this.addressMock.getHostAddress()).thenReturn("192.168.1.1");
 
 		whenNew(FileReader.class).withArguments(InstanceProfiler.PROC_STAT).thenReturn(this.cpuReaderMock);

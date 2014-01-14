@@ -13,7 +13,7 @@
 
 package eu.stratosphere.pact.runtime.iterative.io;
 
-import eu.stratosphere.nephele.io.MutableRecordReader;
+import eu.stratosphere.runtime.io.api.MutableRecordReader;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.types.Record;
 

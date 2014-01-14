@@ -24,7 +24,6 @@ import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.managementgraph.ManagementGraph;
-import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
 import eu.stratosphere.nephele.topology.NetworkTopology;
 
 /**
@@ -80,18 +79,6 @@ public interface ExtendedManagementProtocol extends JobManagementProtocol {
 	 *         thrown if an error occurs while retrieving the list of events
 	 */
 	List<AbstractEvent> getEvents(JobID jobID) throws IOException;
-
-	/**
-	 * Kills the task with the given vertex ID.
-	 * 
-	 * @param jobID
-	 *        the ID of the job the vertex to be killed belongs to
-	 * @param id
-	 *        the vertex ID which identified the task be killed
-	 * @throws IOException
-	 *         thrown if an error occurs while transmitting the kill request
-	 */
-	void killTask(JobID jobID, ManagementVertexID id) throws IOException;
 
 	/**
 	 * Kills the instance with the given name (i.e. shuts down its task manager).

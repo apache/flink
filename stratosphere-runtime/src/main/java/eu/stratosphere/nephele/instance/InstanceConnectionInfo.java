@@ -154,7 +154,8 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 	 * 
 	 * @return the port instance's task manager runs its IPC service on
 	 */
-	public int getIPCPort() {
+	public int ipcPort() {
+
 		return this.ipcPort;
 	}
 
@@ -163,7 +164,8 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 	 * 
 	 * @return the port instance's task manager expects to receive transfer envelopes on
 	 */
-	public int getDataPort() {
+	public int dataPort() {
+
 		return this.dataPort;
 	}
 
@@ -172,7 +174,8 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 	 * 
 	 * @return the network address the instance's task manager binds its sockets to
 	 */
-	public InetAddress getAddress() {
+	public InetAddress address() {
+
 		return this.inetAddress;
 	}
 
@@ -182,7 +185,8 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 	 * 
 	 * @return the host name of the instance
 	 */
-	public String getHostName() {
+	public String hostname() {
+
 		return this.hostName;
 	}
 
@@ -191,7 +195,8 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 	 * 
 	 * @return the domain name of the instance or <code>null</code> if the domain name could not be determined
 	 */
-	public String getDomainName() {
+	public String domainName() {
+
 		return this.domainName;
 	}
 
@@ -251,15 +256,15 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 		if (obj instanceof InstanceConnectionInfo) {
 
 			InstanceConnectionInfo ici = (InstanceConnectionInfo) obj;
-			if (!this.inetAddress.equals(ici.getAddress())) {
+			if (!this.inetAddress.equals(ici.address())) {
 				return false;
 			}
 
-			if (this.ipcPort != ici.getIPCPort()) {
+			if (this.ipcPort != ici.ipcPort()) {
 				return false;
 			}
 
-			if (this.dataPort != ici.getDataPort()) {
+			if (this.dataPort != ici.dataPort()) {
 				return false;
 			}
 
@@ -278,7 +283,9 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 
 	@Override
 	public int compareTo(final InstanceConnectionInfo o) {
-		return this.getAddress().getHostName().compareTo(((InstanceConnectionInfo) o).getAddress().getHostName());
+
+		return this.address().getHostName()
+			.compareTo(((InstanceConnectionInfo) o).address().getHostName());
 	}
 
 }

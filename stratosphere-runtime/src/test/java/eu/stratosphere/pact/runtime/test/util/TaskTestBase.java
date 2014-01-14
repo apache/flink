@@ -49,10 +49,10 @@ public abstract class TaskTestBase {
 
 	protected MockEnvironment mockEnv;
 
-	public void initEnvironment(long memorySize) {
+	public void initEnvironment(long memorySize, int bufferSize) {
 		this.memorySize = memorySize;
 		this.inputSplitProvider = new MockInputSplitProvider();
-		this.mockEnv = new MockEnvironment(this.memorySize, this.inputSplitProvider);
+		this.mockEnv = new MockEnvironment(this.memorySize, this.inputSplitProvider, bufferSize);
 	}
 
 	public void addInput(MutableObjectIterator<Record> input, int groupId) {

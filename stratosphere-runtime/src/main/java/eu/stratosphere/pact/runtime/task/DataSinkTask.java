@@ -15,6 +15,7 @@ package eu.stratosphere.pact.runtime.task;
 
 import java.io.IOException;
 
+import eu.stratosphere.pact.runtime.task.chaining.ExceptionInChainedStubException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -29,10 +30,11 @@ import eu.stratosphere.core.fs.FileSystem;
 import eu.stratosphere.core.fs.FileSystem.WriteMode;
 import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.core.io.IOReadableWritable;
+import eu.stratosphere.nephele.execution.CancelTaskException;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
-import eu.stratosphere.nephele.io.MutableReader;
-import eu.stratosphere.nephele.io.MutableRecordReader;
-import eu.stratosphere.nephele.io.MutableUnionRecordReader;
+import eu.stratosphere.runtime.io.api.MutableReader;
+import eu.stratosphere.runtime.io.api.MutableRecordReader;
+import eu.stratosphere.runtime.io.api.MutableUnionRecordReader;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.pact.runtime.plugable.DeserializationDelegate;
 import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger;
@@ -183,11 +185,16 @@ public class DataSinkTask<IT> extends AbstractOutputTask {
 			}
 		}
 		catch (Exception ex) {
+			ex = ExceptionInChainedStubException.exceptionUnwrap(ex);
+
+			if (ex instanceof CancelTaskException) {
+				// forward canceling exception
+				throw ex;
+			}
 			// drop, if the task was canceled
-			if (!this.taskCanceled) {
-				if (LOG.isErrorEnabled()) {
+			else if (!this.taskCanceled) {
+				if (LOG.isErrorEnabled())
 					LOG.error(getLogString("Error in user code: " + ex.getMessage()), ex);
-				}
 				throw ex;
 			}
 		}

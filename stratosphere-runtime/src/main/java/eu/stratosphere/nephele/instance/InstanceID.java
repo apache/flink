@@ -13,7 +13,7 @@
 
 package eu.stratosphere.nephele.instance;
 
-import eu.stratosphere.nephele.io.AbstractID;
+import eu.stratosphere.nephele.AbstractID;
 
 /**
  * Class for statistically unique instance IDs.

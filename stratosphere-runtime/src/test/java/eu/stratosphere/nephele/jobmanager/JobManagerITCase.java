@@ -13,8 +13,35 @@
 
 package eu.stratosphere.nephele.jobmanager;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import eu.stratosphere.configuration.ConfigConstants;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.configuration.GlobalConfiguration;
+import eu.stratosphere.core.fs.Path;
+import eu.stratosphere.nephele.client.JobClient;
+import eu.stratosphere.nephele.client.JobExecutionException;
+import eu.stratosphere.nephele.jobgraph.DistributionPattern;
+import eu.stratosphere.runtime.io.channels.ChannelType;
+import eu.stratosphere.nephele.jobgraph.JobFileInputVertex;
+import eu.stratosphere.nephele.jobgraph.JobFileOutputVertex;
+import eu.stratosphere.nephele.jobgraph.JobGraph;
+import eu.stratosphere.nephele.jobgraph.JobGraphDefinitionException;
+import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
+import eu.stratosphere.nephele.jobmanager.JobManager.ExecutionMode;
+import eu.stratosphere.nephele.taskmanager.Task;
+import eu.stratosphere.nephele.taskmanager.TaskManager;
+import eu.stratosphere.nephele.util.FileLineReader;
+import eu.stratosphere.nephele.util.FileLineWriter;
+import eu.stratosphere.nephele.util.JarFileCreator;
+import eu.stratosphere.nephele.util.ServerTestUtils;
+import eu.stratosphere.util.LogUtils;
+import eu.stratosphere.util.StringUtils;
+import org.apache.log4j.ConsoleAppender;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
+import org.apache.log4j.PatternLayout;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -24,33 +51,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
-import eu.stratosphere.configuration.ConfigConstants;
-import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.configuration.GlobalConfiguration;
-import eu.stratosphere.core.fs.Path;
-import eu.stratosphere.nephele.client.JobClient;
-import eu.stratosphere.nephele.client.JobExecutionException;
-import eu.stratosphere.nephele.io.DistributionPattern;
-import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.library.FileLineReader;
-import eu.stratosphere.nephele.io.library.FileLineWriter;
-import eu.stratosphere.nephele.jobgraph.JobFileInputVertex;
-import eu.stratosphere.nephele.jobgraph.JobFileOutputVertex;
-import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.nephele.jobgraph.JobGraphDefinitionException;
-import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
-import eu.stratosphere.nephele.jobmanager.JobManager.ExecutionMode;
-import eu.stratosphere.nephele.taskmanager.TaskManager;
-import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTask;
-import eu.stratosphere.nephele.util.JarFileCreator;
-import eu.stratosphere.nephele.util.ServerTestUtils;
-import eu.stratosphere.util.LogUtils;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 /**
  * This test is intended to cover the basic functionality of the {@link JobManager}.
@@ -185,8 +187,8 @@ public class JobManagerITCase {
 			// connect vertices
 			try {
 				i1.connectTo(t1, ChannelType.NETWORK);
-				t1.connectTo(t2, ChannelType.INMEMORY);
-				t2.connectTo(o1, ChannelType.INMEMORY);
+				t1.connectTo(t2, ChannelType.IN_MEMORY);
+				t2.connectTo(o1, ChannelType.IN_MEMORY);
 			} catch (JobGraphDefinitionException e) {
 				e.printStackTrace();
 			}
@@ -286,8 +288,8 @@ public class JobManagerITCase {
 			o1.setVertexToShareInstancesWith(i1);
 
 			// connect vertices
-			i1.connectTo(t1, ChannelType.INMEMORY);
-			t1.connectTo(o1, ChannelType.INMEMORY);
+			i1.connectTo(t1, ChannelType.IN_MEMORY);
+			t1.connectTo(o1, ChannelType.IN_MEMORY);
 
 			// add jar
 			jg.addJar(new Path(new File(ServerTestUtils.getTempDir() + File.separator + exceptionClassName + ".jar")
@@ -297,7 +299,7 @@ public class JobManagerITCase {
 			jobClient = new JobClient(jg, configuration);
 			
 			// deactivate logging of expected test exceptions
-			Logger rtLogger = Logger.getLogger(RuntimeTask.class);
+			Logger rtLogger = Logger.getLogger(Task.class);
 			Level rtLevel = rtLogger.getEffectiveLevel();
 			rtLogger.setLevel(Level.OFF);
 			
@@ -382,8 +384,8 @@ public class JobManagerITCase {
 			o1.setVertexToShareInstancesWith(i1);
 
 			// connect vertices
-			i1.connectTo(t1, ChannelType.INMEMORY);
-			t1.connectTo(o1, ChannelType.INMEMORY);
+			i1.connectTo(t1, ChannelType.IN_MEMORY);
+			t1.connectTo(o1, ChannelType.IN_MEMORY);
 
 			// add jar
 			jg.addJar(new Path(new File(ServerTestUtils.getTempDir() + File.separator + runtimeExceptionClassName
@@ -492,8 +494,8 @@ public class JobManagerITCase {
 			// connect vertices
 			try {
 				i1.connectTo(t1, ChannelType.NETWORK);
-				t1.connectTo(t2, ChannelType.INMEMORY);
-				t2.connectTo(o1, ChannelType.INMEMORY);
+				t1.connectTo(t2, ChannelType.IN_MEMORY);
+				t2.connectTo(o1, ChannelType.IN_MEMORY);
 			} catch (JobGraphDefinitionException e) {
 				e.printStackTrace();
 			}
@@ -583,9 +585,9 @@ public class JobManagerITCase {
 			o1.setVertexToShareInstancesWith(i1);
 
 			// connect vertices
-			i1.connectTo(t1, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
+			i1.connectTo(t1, ChannelType.IN_MEMORY, DistributionPattern.POINTWISE);
 			i1.connectTo(t1, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
-			t1.connectTo(o1, ChannelType.INMEMORY);
+			t1.connectTo(o1, ChannelType.IN_MEMORY);
 
 			// add jar
 			jg.addJar(new Path(jarFile.toURI()));
@@ -657,7 +659,7 @@ public class JobManagerITCase {
 			o1.setVertexToShareInstancesWith(i1);
 
 			// connect vertices
-			i1.connectTo(o1, ChannelType.INMEMORY);
+			i1.connectTo(o1, ChannelType.IN_MEMORY);
 
 			// add jar
 			jg.addJar(new Path(jarFile.toURI()));
@@ -751,9 +753,9 @@ public class JobManagerITCase {
 			u1.setVertexToShareInstancesWith(o1);
 
 			// connect vertices
-			i1.connectTo(u1, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
-			i2.connectTo(u1, ChannelType.INMEMORY);
-			u1.connectTo(o1, ChannelType.INMEMORY);
+			i1.connectTo(u1, ChannelType.IN_MEMORY, DistributionPattern.POINTWISE);
+			i2.connectTo(u1, ChannelType.IN_MEMORY);
+			u1.connectTo(o1, ChannelType.IN_MEMORY);
 
 			// add jar
 			jg.addJar(new Path(jarFile.toURI()));

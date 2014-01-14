@@ -17,7 +17,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 
+import eu.stratosphere.pact.runtime.task.chaining.ExceptionInChainedStubException;
+import eu.stratosphere.runtime.io.api.BufferWriter;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -27,6 +30,7 @@ import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.io.InputSplit;
+import eu.stratosphere.nephele.execution.CancelTaskException;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.pact.runtime.shipping.OutputCollector;
@@ -41,12 +45,14 @@ import eu.stratosphere.util.Collector;
  * DataSourceTask which is executed by a Nephele task manager. The task reads data and uses an 
  * {@link InputFormat} to create records from the input.
  * 
- * @see eu.stratosphere.api.io.InputFormat
+ * @see eu.stratosphere.api.common.io.InputFormat
  */
 public class DataSourceTask<OT> extends AbstractInputTask<InputSplit> {
 	
 	// Obtain DataSourceTask Logger
 	private static final Log LOG = LogFactory.getLog(DataSourceTask.class);
+
+	private List<BufferWriter> eventualOutputs;
 
 	// Output collector
 	private Collector<OT> output;
@@ -116,6 +122,9 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit> {
 		final TypeSerializer<OT> serializer = this.serializerFactory.getSerializer();
 		
 		try {
+			// initialize the serializers (one per channel) of the record writers
+			RegularPactTask.initOutputWriters(this.eventualOutputs);
+
 			// start all chained tasks
 			RegularPactTask.openChainedTasks(this.chainedTasks, this);
 			
@@ -249,8 +258,14 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit> {
 			
 			RegularPactTask.cancelChainedTasks(this.chainedTasks);
 			
-			// drop exception, if the task was canceled
-			if (!this.taskCanceled) {
+			ex = ExceptionInChainedStubException.exceptionUnwrap(ex);
+
+			if (ex instanceof CancelTaskException) {
+				// forward canceling exception
+				throw ex;
+			}
+			else if (!this.taskCanceled) {
+				// drop exception, if the task was canceled
 				RegularPactTask.logAndThrowException(ex, this);
 			}
 		}
@@ -315,7 +330,8 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit> {
 	 */
 	private void initOutputs(ClassLoader cl) throws Exception {
 		this.chainedTasks = new ArrayList<ChainedDriver<?, ?>>();
-		this.output = RegularPactTask.initOutputs(this, cl, this.config, this.chainedTasks, null);
+		this.eventualOutputs = new ArrayList<BufferWriter>();
+		this.output = RegularPactTask.initOutputs(this, cl, this.config, this.chainedTasks, this.eventualOutputs);
 	}
 	
 	// ------------------------------------------------------------------------

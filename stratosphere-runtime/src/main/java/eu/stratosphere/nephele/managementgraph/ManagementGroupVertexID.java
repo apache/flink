@@ -15,7 +15,7 @@ package eu.stratosphere.nephele.managementgraph;
 
 import javax.xml.bind.DatatypeConverter;
 
-import eu.stratosphere.nephele.io.AbstractID;
+import eu.stratosphere.nephele.AbstractID;
 
 /**
  * A management group vertex ID uniquely identifies a {@link ManagementGroupVertex}.

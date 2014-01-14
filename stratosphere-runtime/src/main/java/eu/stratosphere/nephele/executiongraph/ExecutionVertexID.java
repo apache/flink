@@ -13,7 +13,7 @@
 
 package eu.stratosphere.nephele.executiongraph;
 
-import eu.stratosphere.nephele.io.AbstractID;
+import eu.stratosphere.nephele.AbstractID;
 import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
 
 /**
