@@ -103,6 +103,11 @@ public class MemorySegment {
 	public final boolean isFreed() {
 		return this.memory == null;
 	}
+
+	public final void free() {
+		this.wrapper = null;
+		this.memory = null;
+	}
 	
 	/**
 	 * Gets the size of the memory segment, in bytes. Because segments

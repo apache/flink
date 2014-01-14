@@ -27,7 +27,7 @@ import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.DummyInstance;
 import eu.stratosphere.nephele.instance.InstanceRequestMap;
 import eu.stratosphere.nephele.instance.InstanceType;
-import eu.stratosphere.nephele.io.channels.ChannelType;
+import eu.stratosphere.runtime.io.channels.ChannelType;
 
 /**
  * An execution stage contains all execution group vertices (and as a result all execution vertices) which
@@ -401,7 +401,7 @@ public final class ExecutionStage {
 						recurse = true;
 					}
 
-					if (channelType == ChannelType.INMEMORY
+					if (channelType == ChannelType.IN_MEMORY
 						&& !pipeline.equals(connectedVertex.getExecutionPipeline())) {
 
 						connectedVertex.setExecutionPipeline(pipeline);
@@ -432,7 +432,7 @@ public final class ExecutionStage {
 						recurse = true;
 					}
 
-					if (channelType == ChannelType.INMEMORY
+					if (channelType == ChannelType.IN_MEMORY
 						&& !pipeline.equals(connectedVertex.getExecutionPipeline())) {
 
 						connectedVertex.setExecutionPipeline(pipeline);

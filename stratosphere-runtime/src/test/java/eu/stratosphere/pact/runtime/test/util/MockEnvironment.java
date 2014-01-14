@@ -13,38 +13,40 @@
 
 package eu.stratosphere.pact.runtime.test.util;
 
-import java.io.IOException;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.FutureTask;
-
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.core.io.IOReadableWritable;
+import eu.stratosphere.core.memory.MemorySegment;
 import eu.stratosphere.nephele.execution.Environment;
-import eu.stratosphere.nephele.io.ChannelSelector;
-import eu.stratosphere.nephele.io.GateID;
-import eu.stratosphere.nephele.io.InputChannelResult;
-import eu.stratosphere.nephele.io.InputGate;
-import eu.stratosphere.nephele.io.MutableRecordDeserializerFactory;
-import eu.stratosphere.nephele.io.OutputGate;
-import eu.stratosphere.nephele.io.RecordAvailabilityListener;
-import eu.stratosphere.nephele.io.RecordDeserializerFactory;
-import eu.stratosphere.nephele.io.RuntimeInputGate;
-import eu.stratosphere.nephele.io.RuntimeOutputGate;
-import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.runtime.io.gates.InputChannelResult;
+import eu.stratosphere.runtime.io.gates.RecordAvailabilityListener;
+import eu.stratosphere.runtime.io.serialization.AdaptiveSpanningRecordDeserializer;
+import eu.stratosphere.runtime.io.Buffer;
+import eu.stratosphere.runtime.io.channels.ChannelID;
+import eu.stratosphere.runtime.io.gates.GateID;
+import eu.stratosphere.runtime.io.gates.InputGate;
+import eu.stratosphere.runtime.io.gates.OutputGate;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.protocols.AccumulatorProtocol;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
+import eu.stratosphere.runtime.io.network.bufferprovider.BufferAvailabilityListener;
+import eu.stratosphere.runtime.io.network.bufferprovider.BufferProvider;
+import eu.stratosphere.runtime.io.network.bufferprovider.GlobalBufferPool;
+import eu.stratosphere.runtime.io.network.bufferprovider.LocalBufferPoolOwner;
 import eu.stratosphere.nephele.template.InputSplitProvider;
+import eu.stratosphere.runtime.io.serialization.RecordDeserializer;
+import eu.stratosphere.runtime.io.serialization.RecordDeserializer.DeserializationResult;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.MutableObjectIterator;
 
-public class MockEnvironment implements Environment {
+import java.io.IOException;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Set;
+
+public class MockEnvironment implements Environment, BufferProvider, LocalBufferPoolOwner {
 	
 	private final MemoryManager memManager;
 
@@ -56,21 +58,24 @@ public class MockEnvironment implements Environment {
 
 	private final Configuration taskConfiguration;
 
-	private final List<RuntimeInputGate<Record>> inputs;
+	private final List<InputGate<Record>> inputs;
 
-	private final List<RuntimeOutputGate<Record>> outputs;
+	private final List<OutputGate> outputs;
 
 	private final JobID jobID = new JobID();
 
-	public MockEnvironment(long memorySize, MockInputSplitProvider inputSplitProvider) {
+	private final Buffer mockBuffer;
+
+	public MockEnvironment(long memorySize, MockInputSplitProvider inputSplitProvider, int bufferSize) {
 		this.jobConfiguration = new Configuration();
 		this.taskConfiguration = new Configuration();
-		this.inputs = new LinkedList<RuntimeInputGate<Record>>();
-		this.outputs = new LinkedList<RuntimeOutputGate<Record>>();
+		this.inputs = new LinkedList<InputGate<Record>>();
+		this.outputs = new LinkedList<OutputGate>();
 
 		this.memManager = new DefaultMemoryManager(memorySize);
 		this.ioManager = new IOManager(System.getProperty("java.io.tmpdir"));
 		this.inputSplitProvider = inputSplitProvider;
+		this.mockBuffer = new Buffer(new MemorySegment(new byte[bufferSize]), bufferSize, null);
 	}
 
 	public void addInput(MutableObjectIterator<Record> inputIterator) {
@@ -103,13 +108,62 @@ public class MockEnvironment implements Environment {
 		return this.jobID;
 	}
 
+	@Override
+	public Buffer requestBuffer(int minBufferSize) throws IOException {
+		return mockBuffer;
+	}
 
-	private static class MockInputGate extends RuntimeInputGate<Record> {
+	@Override
+	public Buffer requestBufferBlocking(int minBufferSize) throws IOException, InterruptedException {
+		return mockBuffer;
+	}
+
+	@Override
+	public int getBufferSize() {
+		return this.mockBuffer.size();
+	}
+
+	@Override
+	public boolean registerBufferAvailabilityListener(BufferAvailabilityListener listener) {
+		return false;
+	}
+
+	@Override
+	public int getNumberOfChannels() {
+		return 1;
+	}
+
+	@Override
+	public void setDesignatedNumberOfBuffers(int numBuffers) {
+
+	}
+
+	@Override
+	public void clearLocalBufferPool() {
+
+	}
+
+	@Override
+	public void registerGlobalBufferPool(GlobalBufferPool globalBufferPool) {
+
+	}
+
+	@Override
+	public void logBufferUtilization() {
+
+	}
+
+	@Override
+	public void reportAsynchronousEvent() {
+
+	}
+
+	private static class MockInputGate extends InputGate<Record> {
 		
 		private MutableObjectIterator<Record> it;
 
 		public MockInputGate(int id, MutableObjectIterator<Record> it) {
-			super(new JobID(), new GateID(), MutableRecordDeserializerFactory.<Record>get(), id);
+			super(new JobID(), new GateID(), id);
 			this.it = it;
 		}
 
@@ -132,18 +186,43 @@ public class MockEnvironment implements Environment {
 		}
 	}
 
-	private static class MockOutputGate extends RuntimeOutputGate<Record> {
+	private class MockOutputGate extends OutputGate {
 		
 		private List<Record> out;
 
+		private RecordDeserializer<Record> deserializer;
+
+		private Record record;
+
 		public MockOutputGate(int index, List<Record> outList) {
-			super(new JobID(), new GateID(), Record.class, index, null, false);
+			super(new JobID(), new GateID(), index);
 			this.out = outList;
+			this.deserializer = new AdaptiveSpanningRecordDeserializer<Record>();
+			this.record = new Record();
 		}
 
 		@Override
-		public void writeRecord(Record record) throws IOException, InterruptedException {
-			out.add(record.createCopy());
+		public void sendBuffer(Buffer buffer, int targetChannel) throws IOException, InterruptedException {
+
+			this.deserializer.setNextMemorySegment(MockEnvironment.this.mockBuffer.getMemorySegment(), MockEnvironment.this.mockBuffer.size());
+
+			while (this.deserializer.hasUnfinishedData()) {
+				DeserializationResult result = this.deserializer.getNextRecord(this.record);
+
+				if (result.isFullRecord()) {
+					this.out.add(this.record.createCopy());
+				}
+
+				if (result == DeserializationResult.LAST_RECORD_FROM_BUFFER ||
+					result == DeserializationResult.PARTIAL_RECORD) {
+					break;
+				}
+			}
+		}
+
+		@Override
+		public int getNumChannels() {
+			return 1;
 		}
 	}
 
@@ -188,11 +267,6 @@ public class MockEnvironment implements Environment {
 	}
 
 	@Override
-	public GateID getNextUnboundOutputGateID() {
-		return null;
-	}
-
-	@Override
 	public int getNumberOfOutputGates() {
 		return this.outputs.size();
 	}
@@ -200,16 +274,6 @@ public class MockEnvironment implements Environment {
 	@Override
 	public int getNumberOfInputGates() {
 		return this.inputs.size();
-	}
-
-	@Override
-	public void registerOutputGate(final OutputGate<? extends IOReadableWritable> outputGate) {
-		// Nothing to do here
-	}
-
-	@Override
-	public void registerInputGate(final InputGate<? extends IOReadableWritable> inputGate) {
-		// Nothing to do here
 	}
 
 	@Override
@@ -242,18 +306,14 @@ public class MockEnvironment implements Environment {
 		throw new IllegalStateException("getInputChannelIDsOfGate called on MockEnvironment");
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
-	public <T extends IOReadableWritable> OutputGate<T> createOutputGate(GateID gateID, Class<T> outputClass,
-			ChannelSelector<T> selector, boolean isBroadcast)
+	public OutputGate createAndRegisterOutputGate()
 	{
-		return (OutputGate<T>) this.outputs.remove(0);
+		return this.outputs.remove(0);
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
-	public <T extends IOReadableWritable> InputGate<T> createInputGate(GateID gateID,
-			RecordDeserializerFactory<T> deserializerFactory)
+	public <T extends IOReadableWritable> InputGate<T> createAndRegisterInputGate()
 	{
 		return (InputGate<T>) this.inputs.remove(0);
 	}
@@ -275,8 +335,7 @@ public class MockEnvironment implements Environment {
 	}
 
 	@Override
-	public 	Map<String, FutureTask<Path>> getCopyTask() {
-		return null;
+	public BufferProvider getOutputBufferProvider() {
+		return this;
 	}
-
 }

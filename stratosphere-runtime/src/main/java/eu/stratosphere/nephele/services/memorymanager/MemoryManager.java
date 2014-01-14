@@ -56,8 +56,7 @@ public interface MemoryManager {
 	
 	/**
 	 * Releases all memory segments for the given task. 
-	 * 
-	 * @param <T> The type of memory segment.
+	 *
 	 * @param task The task whose memory segments are to be released.
 	 */
 	void releaseAll(AbstractInvokable task);

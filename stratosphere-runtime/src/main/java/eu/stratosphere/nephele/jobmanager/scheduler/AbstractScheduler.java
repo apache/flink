@@ -210,7 +210,7 @@ public abstract class AbstractScheduler implements InstanceListener {
 			case NETWORK:
 				deployTarget = false;
 				break;
-			case INMEMORY:
+			case IN_MEMORY:
 				deployTarget = true;
 				break;
 			default:

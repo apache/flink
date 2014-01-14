@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2014 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -13,30 +13,25 @@
 
 package eu.stratosphere.nephele.execution;
 
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.FutureTask;
-
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.core.io.IOReadableWritable;
-import eu.stratosphere.nephele.io.ChannelSelector;
-import eu.stratosphere.nephele.io.GateID;
-import eu.stratosphere.nephele.io.InputGate;
-import eu.stratosphere.nephele.io.OutputGate;
-import eu.stratosphere.nephele.io.RecordDeserializerFactory;
-import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.runtime.io.channels.ChannelID;
+import eu.stratosphere.runtime.io.gates.GateID;
+import eu.stratosphere.runtime.io.gates.InputGate;
+import eu.stratosphere.runtime.io.gates.OutputGate;
+import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.protocols.AccumulatorProtocol;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
+import eu.stratosphere.runtime.io.network.bufferprovider.BufferProvider;
 import eu.stratosphere.nephele.template.InputSplitProvider;
 
 /**
  * The user code of every Nephele task runs inside an <code>Environment</code> object. The environment provides
  * important services to the task. It keeps track of setting up the communication channels and provides access to input
  * splits, memory manager, etc.
- * 
  */
 public interface Environment {
 	/**
@@ -49,9 +44,9 @@ public interface Environment {
 	JobID getJobID();
 
 	/**
-	 * Returns the task configuration object which was attached to the original {@link JobVertex}.
+	 * Returns the task configuration object which was attached to the original JobVertex.
 	 * 
-	 * @return the task configuration object which was attached to the original {@link JobVertex}
+	 * @return the task configuration object which was attached to the original JobVertex.
 	 */
 	Configuration getTaskConfiguration();
 
@@ -128,13 +123,6 @@ public interface Environment {
 	GateID getNextUnboundInputGateID();
 
 	/**
-	 * Returns the next unbound output gate ID or <code>null</code> if no such ID exists
-	 * 
-	 * @return the next unbound output gate ID or <code>null</code> if no such ID exists
-	 */
-	GateID getNextUnboundOutputGateID();
-
-	/**
 	 * Returns the number of output gates registered with this environment.
 	 * 
 	 * @return the number of output gates registered with this environment
@@ -163,46 +151,16 @@ public interface Environment {
 	int getNumberOfInputChannels();
 
 	/**
-	 * Creates an output gate.
-	 * 
-	 * @param gateID
-	 * @param outputClass
-	 * @param selector
-	 * @param isBroadcast
-	 * @param <T>
-	 *        The type of the record consumed by the output gate.
-	 * @return The created output gate.
+	 * Creates a new OutputGate and registers it with the Environment.
+	 *
+	 * @return the newly created output gate
 	 */
-	<T extends IOReadableWritable> OutputGate<T> createOutputGate(GateID gateID, Class<T> outputClass,
-															ChannelSelector<T> selector, boolean isBroadcast);
+	OutputGate createAndRegisterOutputGate();
 
 	/**
-	 * Creates an input gate.
-	 * 
-	 * @param gateID
-	 * @param deserializer
-	 * @param distributionPattern
-	 * @param <T>
-	 *        The type of the record read from the input gate.
-	 * @return The created input gate.
+	 * Creates a new InputGate and registers it with the Environment.
 	 */
-	<T extends IOReadableWritable> InputGate<T> createInputGate(GateID gateID, RecordDeserializerFactory<T> deserializerFactory);
-
-	/**
-	 * Registers an output gate with this environment.
-	 * 
-	 * @param outputGate
-	 *        the output gate to be registered
-	 */
-	void registerOutputGate(OutputGate<? extends IOReadableWritable> outputGate);
-
-	/**
-	 * Registers an input gate with this environment.
-	 * 
-	 * @param inputGate
-	 *        the input gate to be registered
-	 */
-	void registerInputGate(InputGate<? extends IOReadableWritable> inputGate);
+	<T extends IOReadableWritable> InputGate<T> createAndRegisterInputGate();
 
 	/**
 	 * Returns the IDs of all output channels connected to this environment.
@@ -255,5 +213,13 @@ public interface Environment {
 	 */
 	AccumulatorProtocol getAccumulatorProtocolProxy();
 
-	Map<String, FutureTask<Path>> getCopyTask();
+	/**
+	 * Returns the buffer provider for this environment.
+	 * <p>
+	 * The returned buffer provider is used by the output side of the network stack.
+	 *
+	 * @return Buffer provider for the output side of the network stack
+	 * @see eu.stratosphere.runtime.io.api.RecordWriter
+	 */
+	BufferProvider getOutputBufferProvider();
 }

@@ -40,17 +40,17 @@ import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.DummyInstance;
 import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.instance.InstanceType;
-import eu.stratosphere.nephele.io.DistributionPattern;
-import eu.stratosphere.nephele.io.GateID;
-import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.io.channels.ChannelType;
+import eu.stratosphere.nephele.jobgraph.DistributionPattern;
+import eu.stratosphere.runtime.io.gates.GateID;
+import eu.stratosphere.runtime.io.channels.ChannelID;
+import eu.stratosphere.runtime.io.channels.ChannelType;
 import eu.stratosphere.nephele.jobgraph.AbstractJobInputVertex;
 import eu.stratosphere.nephele.jobgraph.AbstractJobVertex;
 import eu.stratosphere.nephele.jobgraph.JobEdge;
 import eu.stratosphere.nephele.jobgraph.JobFileOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.taskmanager.runtime.ExecutorThreadFactory;
+import eu.stratosphere.nephele.taskmanager.ExecutorThreadFactory;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.util.StringUtils;
@@ -412,9 +412,6 @@ public class ExecutionGraph implements ExecutionListener {
 
 			// First, build the group edges
 			for (int i = 0; i < sjv.getNumberOfForwardConnections(); ++i) {
-
-				final boolean isBroadcast = sgv.getEnvironment().getOutputGate(i).isBroadcast();
-
 				final JobEdge edge = sjv.getForwardConnection(i);
 				final AbstractJobVertex tjv = edge.getConnectedVertex();
 
@@ -427,13 +424,12 @@ public class ExecutionGraph implements ExecutionListener {
 					userDefinedChannelType = false;
 					channelType = ChannelType.NETWORK;
 				}
-				// Use NO_COMPRESSION as default compression level if nothing else is defined by the user
 
 				final DistributionPattern distributionPattern = edge.getDistributionPattern();
 
 				// Connect the corresponding group vertices and copy the user settings from the job edge
 				final ExecutionGroupEdge groupEdge = sgv.wireTo(tgv, edge.getIndexOfInputGate(), i, channelType,
-					userDefinedChannelType,distributionPattern, isBroadcast);
+					userDefinedChannelType,distributionPattern);
 
 				final ExecutionGate outputGate = new ExecutionGate(new GateID(), sev, groupEdge, false);
 				sev.insertOutputGate(i, outputGate);
@@ -970,7 +966,7 @@ public class ExecutionGraph implements ExecutionListener {
 
 				final ExecutionGate outputGate = sourceVertex.getOutputGate(i);
 				final ChannelType channelType = outputGate.getChannelType();
-				if (channelType == ChannelType.INMEMORY) {
+				if (channelType == ChannelType.IN_MEMORY) {
 					final int numberOfOutputChannels = outputGate.getNumberOfEdges();
 					for (int j = 0; j < numberOfOutputChannels; ++j) {
 						final ExecutionEdge outputChannel = outputGate.getEdge(j);
@@ -990,7 +986,7 @@ public class ExecutionGraph implements ExecutionListener {
 
 				final ExecutionGate inputGate = targetVertex.getInputGate(i);
 				final ChannelType channelType = inputGate.getChannelType();
-				if (channelType == ChannelType.INMEMORY) {
+				if (channelType == ChannelType.IN_MEMORY) {
 					final int numberOfInputChannels = inputGate.getNumberOfEdges();
 					for (int j = 0; j < numberOfInputChannels; ++j) {
 						final ExecutionEdge inputChannel = inputGate.getEdge(j);

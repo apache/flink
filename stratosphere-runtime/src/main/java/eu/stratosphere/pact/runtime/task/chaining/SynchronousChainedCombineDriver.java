@@ -165,6 +165,8 @@ public class SynchronousChainedCombineDriver<T> extends ChainedDriver<T, T> {
 		} catch (Exception e) {
 			throw new ExceptionInChainedStubException(this.taskName, e);
 		}
+
+		this.outputCollector.close();
 	}
 
 	private void sortAndCombine() throws Exception {

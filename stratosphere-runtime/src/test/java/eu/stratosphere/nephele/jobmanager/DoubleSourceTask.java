@@ -19,7 +19,7 @@ import eu.stratosphere.core.fs.FSDataInputStream;
 import eu.stratosphere.core.fs.FileInputSplit;
 import eu.stratosphere.core.fs.FileSystem;
 import eu.stratosphere.core.io.StringRecord;
-import eu.stratosphere.nephele.io.RecordWriter;
+import eu.stratosphere.runtime.io.api.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractFileInputTask;
 import eu.stratosphere.runtime.fs.LineReader;
 
@@ -31,6 +31,8 @@ public class DoubleSourceTask extends AbstractFileInputTask {
 
 	@Override
 	public void invoke() throws Exception {
+		this.output1.initializeSerializers();
+		this.output2.initializeSerializers();
 
 		final Iterator<FileInputSplit> splitIterator = getFileInputSplits();
 
@@ -65,12 +67,15 @@ public class DoubleSourceTask extends AbstractFileInputTask {
 			// Close the stream;
 			lineReader.close();
 		}
+
+		this.output1.flush();
+		this.output2.flush();
 	}
 
 	@Override
 	public void registerInputOutput() {
-		this.output1 = new RecordWriter<StringRecord>(this, StringRecord.class);
-		this.output2 = new RecordWriter<StringRecord>(this, StringRecord.class);
+		this.output1 = new RecordWriter<StringRecord>(this);
+		this.output2 = new RecordWriter<StringRecord>(this);
 	}
 
 }

@@ -155,6 +155,7 @@ public class SpargelIteration {
 
 		@Override
 		public void coGroup(Iterator<Record> messages, Iterator<Record> vertex, Collector<Record> out) throws Exception {
+
 			if (vertex.hasNext()) {
 				Record first = vertex.next();
 				first.getFieldInto(0, vertexKey);

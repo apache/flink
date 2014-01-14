@@ -26,6 +26,7 @@ import org.apache.commons.lang.NotImplementedException;
 import org.junit.Test;
 
 import eu.stratosphere.api.common.typeutils.TypeComparator;
+import eu.stratosphere.runtime.io.api.ChannelSelector;
 import eu.stratosphere.api.common.typeutils.base.IntSerializer;
 import eu.stratosphere.api.java.typeutils.runtime.record.RecordComparatorFactory;
 import eu.stratosphere.api.java.typeutils.runtime.record.RecordSerializerFactory;
