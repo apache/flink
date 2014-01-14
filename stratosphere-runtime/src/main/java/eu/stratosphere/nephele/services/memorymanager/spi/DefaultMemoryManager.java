@@ -13,7 +13,6 @@
 
 package eu.stratosphere.nephele.services.memorymanager.spi;
 
-
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -125,7 +124,6 @@ public class DefaultMemoryManager implements MemoryManager {
 		}
 	}
 
-
 	@Override
 	public void shutdown() {
 		// -------------------- BEGIN CRITICAL SECTION -------------------
@@ -150,7 +148,6 @@ public class DefaultMemoryManager implements MemoryManager {
 		}
 		// -------------------- END CRITICAL SECTION -------------------
 	}
-	
 
 	public boolean verifyEmpty() {
 		synchronized (this.lock) {
@@ -161,7 +158,7 @@ public class DefaultMemoryManager implements MemoryManager {
 	// ------------------------------------------------------------------------
 	//                 MemoryManager interface implementation
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public List<MemorySegment> allocatePages(AbstractInvokable owner, int numPages) throws MemoryAllocationException {
 		final ArrayList<MemorySegment> segs = new ArrayList<MemorySegment>(numPages);
@@ -212,7 +209,6 @@ public class DefaultMemoryManager implements MemoryManager {
 	}
 	
 	// ------------------------------------------------------------------------
-	
 
 	@Override
 	public void release(MemorySegment segment) {
@@ -253,7 +249,6 @@ public class DefaultMemoryManager implements MemoryManager {
 		}
 		// -------------------- END CRITICAL SECTION -------------------
 	}
-
 
 	@Override
 	public <T extends MemorySegment> void release(Collection<T> segments) {
@@ -317,7 +312,6 @@ public class DefaultMemoryManager implements MemoryManager {
 		// -------------------- END CRITICAL SECTION -------------------
 	}
 
-
 	@Override
 	public void releaseAll(AbstractInvokable owner) {
 		// -------------------- BEGIN CRITICAL SECTION -------------------
@@ -326,28 +320,27 @@ public class DefaultMemoryManager implements MemoryManager {
 			if (this.isShutDown) {
 				throw new IllegalStateException("Memory manager has been shut down.");
 			}
-			
+
 			// get all segments
 			final Set<DefaultMemorySegment> segments = this.allocatedSegments.remove(owner);
-			
+
 			// all segments may have been freed previously individually
 			if (segments == null || segments.isEmpty()) {
 				return;
 			}
-			
+
 			// free each segment
 			for (DefaultMemorySegment seg : segments) {
 				final byte[] buffer = seg.destroy();
 				this.freeSegments.add(buffer);
 			}
-			
+
 			segments.clear();
 		}
 		// -------------------- END CRITICAL SECTION -------------------
 	}
 	
 	// ------------------------------------------------------------------------
-	
 
 	@Override
 	public int getPageSize() {

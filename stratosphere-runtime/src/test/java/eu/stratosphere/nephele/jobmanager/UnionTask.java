@@ -14,9 +14,9 @@
 package eu.stratosphere.nephele.jobmanager;
 
 import eu.stratosphere.core.io.StringRecord;
-import eu.stratosphere.nephele.io.MutableRecordReader;
-import eu.stratosphere.nephele.io.RecordWriter;
-import eu.stratosphere.nephele.io.UnionRecordReader;
+import eu.stratosphere.runtime.io.api.MutableRecordReader;
+import eu.stratosphere.runtime.io.api.RecordWriter;
+import eu.stratosphere.runtime.io.api.UnionRecordReader;
 import eu.stratosphere.nephele.template.AbstractTask;
 
 /**
@@ -41,13 +41,17 @@ public class UnionTask extends AbstractTask {
 		recordReaders[1] = new MutableRecordReader<StringRecord>(this);
 		this.unionReader = new UnionRecordReader<StringRecord>(recordReaders, StringRecord.class);
 		
-		this.writer = new RecordWriter<StringRecord>(this, StringRecord.class);
+		this.writer = new RecordWriter<StringRecord>(this);
 	}
 
 	@Override
 	public void invoke() throws Exception {
+		this.writer.initializeSerializers();
+
 		while (this.unionReader.hasNext()) {
 			this.writer.emit(this.unionReader.next());
 		}
+
+		this.writer.flush();
 	}
 }

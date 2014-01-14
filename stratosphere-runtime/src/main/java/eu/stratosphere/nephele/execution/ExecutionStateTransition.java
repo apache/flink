@@ -97,29 +97,9 @@ public final class ExecutionStateTransition {
 			unexpectedStateChange = false;
 		}
 
-		// This transition can appear if a task cannot be deployed at the assigned task manager.
-		else if (oldState == ExecutionState.STARTING && newState == ExecutionState.FAILED) {
-			unexpectedStateChange = false;
-		}
-
 		// -------------- error cases --------------
-		else if (newState == FAILED) {
-			// any state may fail
-			unexpectedStateChange = false;
-		}
-		
-		// This is a regular transition as a result of a cancel operation.
-		else if (oldState == ExecutionState.RUNNING && newState == ExecutionState.CANCELING) {
-			unexpectedStateChange = false;
-		}
-
-		// This is a regular transition as a result of a cancel operation.
-		else if (oldState == ExecutionState.FINISHING && newState == ExecutionState.CANCELING) {
-			unexpectedStateChange = false;
-		}
-
-		// This is a regular transition as a result of a cancel operation.
-		else if (oldState == ExecutionState.CANCELING && newState == ExecutionState.CANCELED) {
+		else if (newState == FAILED || newState == CANCELED || newState == CANCELING) {
+			// any state may fail or cancel itself
 			unexpectedStateChange = false;
 		}
 

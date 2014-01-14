@@ -13,20 +13,6 @@
 
 package eu.stratosphere.nephele.profiling.impl;
 
-import java.io.IOException;
-import java.lang.management.ManagementFactory;
-import java.lang.management.ThreadMXBean;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Timer;
-import java.util.TimerTask;
-
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.execution.Environment;
@@ -40,8 +26,21 @@ import eu.stratosphere.nephele.profiling.TaskManagerProfiler;
 import eu.stratosphere.nephele.profiling.impl.types.InternalExecutionVertexThreadProfilingData;
 import eu.stratosphere.nephele.profiling.impl.types.InternalInstanceProfilingData;
 import eu.stratosphere.nephele.profiling.impl.types.ProfilingDataContainer;
-import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTask;
+import eu.stratosphere.nephele.taskmanager.Task;
 import eu.stratosphere.util.StringUtils;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
+import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadMXBean;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
 
 public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerProfiler {
 
@@ -99,7 +98,7 @@ public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerPro
 
 
 	@Override
-	public void registerExecutionListener(final RuntimeTask task, final Configuration jobConfiguration) {
+	public void registerExecutionListener(final Task task, final Configuration jobConfiguration) {
 
 		// Register profiling hook for the environment
 		task.registerExecutionListener(new EnvironmentListenerImpl(this, task.getRuntimeEnvironment()));

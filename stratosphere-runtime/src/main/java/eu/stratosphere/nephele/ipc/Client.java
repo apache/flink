@@ -19,6 +19,16 @@
 
 package eu.stratosphere.nephele.ipc;
 
+import eu.stratosphere.core.io.IOReadableWritable;
+import eu.stratosphere.core.io.StringRecord;
+import eu.stratosphere.nephele.net.NetUtils;
+import eu.stratosphere.nephele.util.IOUtils;
+import eu.stratosphere.runtime.io.serialization.DataOutputSerializer;
+import eu.stratosphere.util.ClassUtils;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
+import javax.net.SocketFactory;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.DataInputStream;
@@ -31,23 +41,12 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
+import java.nio.ByteBuffer;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-
-import javax.net.SocketFactory;
-
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
-import eu.stratosphere.core.io.IOReadableWritable;
-import eu.stratosphere.core.io.StringRecord;
-import eu.stratosphere.nephele.io.DataOutputBuffer;
-import eu.stratosphere.nephele.net.NetUtils;
-import eu.stratosphere.nephele.util.IOUtils;
-import eu.stratosphere.util.ClassUtils;
 
 /**
  * A client for an IPC service. IPC calls take a single {@link Writable} as a
@@ -379,13 +378,14 @@ public class Client {
 			out.write(Server.HEADER.array());
 
 			// Write out the ConnectionHeader
-			DataOutputBuffer buf = new DataOutputBuffer();
+			DataOutputSerializer buf = new DataOutputSerializer(4 + header.getProtocol().getBytes().length + 1);
 			header.write(buf);
 
 			// Write out the payload length
-			int bufLen = buf.getLength();
+			ByteBuffer wrapper = buf.wrapAsByteBuffer();
+			int bufLen = wrapper.limit();
 			out.writeInt(bufLen);
-			out.write(buf.getData().array(), 0, bufLen);
+			out.write(wrapper.array(), 0, bufLen);
 		}
 
 		/*
@@ -456,30 +456,27 @@ public class Client {
 				return;
 			}
 
-			DataOutputBuffer d = null;
+			DataOutputSerializer d = null;
 			try {
 				synchronized (this.out) {
 
 					// for serializing the
 					// data to be written
-					d = new DataOutputBuffer();
+					d = new DataOutputSerializer(64);
 					// First, write call id to buffer d
 					d.writeInt(call.id);
 					// Then write RPC data (the actual call) to buffer d
 					call.param.write(d);
 
-					byte[] data = d.getData().array();
-					int dataLength = d.getLength();
+					ByteBuffer wrapper = d.wrapAsByteBuffer();
+					byte[] data = wrapper.array();
+					int dataLength = wrapper.limit();
 					out.writeInt(dataLength); // first put the data length
 					out.write(data, 0, dataLength);// write the data
 					out.flush();
 				}
 			} catch (IOException e) {
 				markClosed(e);
-			} finally {
-				// the buffer is just an in-memory buffer, but it is still polite to
-				// close early
-				IOUtils.closeStream(d);
 			}
 		}
 

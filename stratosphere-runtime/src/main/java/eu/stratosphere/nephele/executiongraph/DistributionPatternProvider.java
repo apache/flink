@@ -13,7 +13,7 @@
 
 package eu.stratosphere.nephele.executiongraph;
 
-import eu.stratosphere.nephele.io.DistributionPattern;
+import eu.stratosphere.nephele.jobgraph.DistributionPattern;
 
 public final class DistributionPatternProvider {
 

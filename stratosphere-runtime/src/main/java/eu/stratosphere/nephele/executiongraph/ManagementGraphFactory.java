@@ -18,7 +18,7 @@ import java.util.Iterator;
 import java.util.Map;
 
 import eu.stratosphere.nephele.instance.AbstractInstance;
-import eu.stratosphere.nephele.io.channels.ChannelType;
+import eu.stratosphere.runtime.io.channels.ChannelType;
 import eu.stratosphere.nephele.managementgraph.ManagementEdge;
 import eu.stratosphere.nephele.managementgraph.ManagementEdgeID;
 import eu.stratosphere.nephele.managementgraph.ManagementGate;

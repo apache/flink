@@ -396,14 +396,14 @@ public class ClusterManager implements InstanceManager {
 			final HardwareDescription hardwareDescription) {
 
 		// Check if there is a user-defined instance type for this IP address
-		InstanceType instanceType = this.ipToInstanceTypeMapping.get(instanceConnectionInfo.getAddress());
+		InstanceType instanceType = this.ipToInstanceTypeMapping.get(instanceConnectionInfo.address());
 		if (instanceType != null) {
 			LOG.info("Found user-defined instance type for cluster instance with IP "
-				+ instanceConnectionInfo.getAddress() + ": " + instanceType);
+				+ instanceConnectionInfo.address() + ": " + instanceType);
 		} else {
 			instanceType = matchHardwareDescriptionWithInstanceType(hardwareDescription);
 			if (instanceType != null) {
-				LOG.info("Hardware profile of cluster instance with IP " + instanceConnectionInfo.getAddress()
+				LOG.info("Hardware profile of cluster instance with IP " + instanceConnectionInfo.address()
 					+ " matches with instance type " + instanceType);
 			} else {
 				LOG.error("No matching instance type, cannot create cluster instance");
@@ -412,7 +412,7 @@ public class ClusterManager implements InstanceManager {
 		}
 
 		// Try to match new host with a stub host from the existing topology
-		String instanceName = instanceConnectionInfo.getHostName();
+		String instanceName = instanceConnectionInfo.hostname();
 		NetworkNode parentNode = this.networkTopology.getRootNode();
 		NetworkNode currentStubNode = null;
 
@@ -439,7 +439,7 @@ public class ClusterManager implements InstanceManager {
 
 		// Try to match the new host using the IP address
 		if (currentStubNode == null) {
-			instanceName = instanceConnectionInfo.getAddress().toString();
+			instanceName = instanceConnectionInfo.address().toString();
 			instanceName = instanceName.replaceAll("/", ""); // Remove any / characters
 			currentStubNode = this.networkTopology.getNodeByName(instanceName);
 		}

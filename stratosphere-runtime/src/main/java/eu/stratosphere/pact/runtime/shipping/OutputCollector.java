@@ -19,7 +19,7 @@ import java.util.Collections;
 import java.util.List;
 
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
-import eu.stratosphere.nephele.io.AbstractRecordWriter;
+import eu.stratosphere.runtime.io.api.RecordWriter;
 import eu.stratosphere.pact.runtime.plugable.SerializationDelegate;
 import eu.stratosphere.util.Collector;
 
@@ -30,7 +30,7 @@ import eu.stratosphere.util.Collector;
 public class OutputCollector<T> implements Collector<T>
 {	
 	// list of writers
-	protected AbstractRecordWriter<SerializationDelegate<T>>[] writers; 
+	protected RecordWriter<SerializationDelegate<T>>[] writers;
 
 	private final SerializationDelegate<T> delegate;
 
@@ -43,10 +43,10 @@ public class OutputCollector<T> implements Collector<T>
 	 * @param writers List of all writers.
 	 */
 	@SuppressWarnings("unchecked")
-	public OutputCollector(List<AbstractRecordWriter<SerializationDelegate<T>>> writers, TypeSerializer<T> serializer)
+	public OutputCollector(List<RecordWriter<SerializationDelegate<T>>> writers, TypeSerializer<T> serializer)
 	{
 		this.delegate = new SerializationDelegate<T>(serializer);
-		this.writers = (AbstractRecordWriter<SerializationDelegate<T>>[]) writers.toArray(new AbstractRecordWriter[writers.size()]);
+		this.writers = (RecordWriter<SerializationDelegate<T>>[]) writers.toArray(new RecordWriter[writers.size()]);
 	}
 	
 	/**
@@ -56,14 +56,14 @@ public class OutputCollector<T> implements Collector<T>
 	 */
 
 	@SuppressWarnings("unchecked")
-	public void addWriter(AbstractRecordWriter<SerializationDelegate<T>> writer)
+	public void addWriter(RecordWriter<SerializationDelegate<T>> writer)
 	{
 		// avoid using the array-list here to reduce one level of object indirection
 		if (this.writers == null) {
-			this.writers = new AbstractRecordWriter[] {writer};
+			this.writers = new RecordWriter[] {writer};
 		}
 		else {
-			AbstractRecordWriter<SerializationDelegate<T>>[] ws = new AbstractRecordWriter[this.writers.length + 1];
+			RecordWriter<SerializationDelegate<T>>[] ws = new RecordWriter[this.writers.length + 1];
 			System.arraycopy(this.writers, 0, ws, 0, this.writers.length);
 			ws[this.writers.length] = writer;
 			this.writers = ws;
@@ -79,7 +79,7 @@ public class OutputCollector<T> implements Collector<T>
 		this.delegate.setInstance(record);
 		try {
 			for (int i = 0; i < writers.length; i++) {
-				this.writers[i].emit(this.delegate);	
+				this.writers[i].emit(this.delegate);
 			}
 		}
 		catch (IOException e) {
@@ -90,19 +90,24 @@ public class OutputCollector<T> implements Collector<T>
 		}
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.stub.Collector#close()
-	 */
 	@Override
 	public void close() {
+		for (RecordWriter<?> writer : writers) {
+			try {
+				writer.flush();
+			} catch (IOException e) {
+				throw new RuntimeException(e.getMessage(), e);
+			} catch (InterruptedException e) {
+				throw new RuntimeException(e.getMessage(), e);
+			}
+		}
 	}
 
 	/**
 	 * List of writers that are associated with this output collector
 	 * @return list of writers
 	 */
-	public List<AbstractRecordWriter<SerializationDelegate<T>>> getWriters() {
+	public List<RecordWriter<SerializationDelegate<T>>> getWriters() {
 		return Collections.unmodifiableList(Arrays.asList(this.writers));
 	}
 }

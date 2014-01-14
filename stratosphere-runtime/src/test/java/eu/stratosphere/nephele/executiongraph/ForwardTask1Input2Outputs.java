@@ -14,8 +14,8 @@
 package eu.stratosphere.nephele.executiongraph;
 
 import eu.stratosphere.core.io.StringRecord;
-import eu.stratosphere.nephele.io.RecordReader;
-import eu.stratosphere.nephele.io.RecordWriter;
+import eu.stratosphere.runtime.io.api.RecordReader;
+import eu.stratosphere.runtime.io.api.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractTask;
 
 public class ForwardTask1Input2Outputs extends AbstractTask {
@@ -29,18 +29,24 @@ public class ForwardTask1Input2Outputs extends AbstractTask {
 	@Override
 	public void invoke() throws Exception {
 
+		this.output1.initializeSerializers();
+		this.output2.initializeSerializers();
+
 		while (this.input.hasNext()) {
 
 			StringRecord s = input.next();
 			this.output1.emit(s);
 			this.output2.emit(s);
 		}
+
+		this.output1.flush();
+		this.output2.flush();
 	}
 
 	@Override
 	public void registerInputOutput() {
 		this.input = new RecordReader<StringRecord>(this, StringRecord.class);
-		this.output1 = new RecordWriter<StringRecord>(this, StringRecord.class);
-		this.output2 = new RecordWriter<StringRecord>(this, StringRecord.class);
+		this.output1 = new RecordWriter<StringRecord>(this);
+		this.output2 = new RecordWriter<StringRecord>(this);
 	}
 }

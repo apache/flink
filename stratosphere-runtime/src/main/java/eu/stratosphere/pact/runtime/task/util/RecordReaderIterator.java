@@ -15,7 +15,7 @@ package eu.stratosphere.pact.runtime.task.util;
 
 import java.io.IOException;
 
-import eu.stratosphere.nephele.io.MutableReader;
+import eu.stratosphere.runtime.io.api.MutableReader;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.MutableObjectIterator;
 

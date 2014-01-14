@@ -21,12 +21,12 @@ import static org.mockito.MockitoAnnotations.initMocks;
 import java.util.ArrayList;
 import java.util.List;
 
+import eu.stratosphere.runtime.io.api.RecordWriter;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 
-import eu.stratosphere.nephele.io.AbstractRecordWriter;
 import eu.stratosphere.pact.runtime.shipping.RecordOutputCollector;
 import eu.stratosphere.test.recordJobs.util.Tuple;
 import eu.stratosphere.types.IntValue;
@@ -39,9 +39,9 @@ public class LineItemFilterTest {
 	private static final String RETURN_FLAG = "N";
 	
 	@Mock
-	AbstractRecordWriter<Record> recordWriterMock; 
+	RecordWriter<Record> recordWriterMock;
 	
-	private List<AbstractRecordWriter<Record>> writerList = new ArrayList<AbstractRecordWriter<Record>>();
+	private List<RecordWriter<Record>> writerList = new ArrayList<RecordWriter<Record>>();
 	
 	@Before
 	public void setUp()

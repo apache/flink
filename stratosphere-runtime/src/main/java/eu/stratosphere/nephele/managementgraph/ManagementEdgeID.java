@@ -13,8 +13,8 @@
 
 package eu.stratosphere.nephele.managementgraph;
 
-import eu.stratosphere.nephele.io.AbstractID;
-import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.AbstractID;
+import eu.stratosphere.runtime.io.channels.ChannelID;
 
 /**
  * A management edge ID uniquely identifies a {@link ManagementEdge}.

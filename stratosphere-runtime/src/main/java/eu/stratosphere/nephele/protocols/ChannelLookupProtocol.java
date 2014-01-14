@@ -17,9 +17,9 @@ import java.io.IOException;
 
 import eu.stratosphere.core.protocols.VersionedProtocol;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
-import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.runtime.io.channels.ChannelID;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.ConnectionInfoLookupResponse;
+import eu.stratosphere.runtime.io.network.ConnectionInfoLookupResponse;
 
 /**
  * The channel lookup protocol can be used to resolve the ID of an output channel to all recipients which shall receive

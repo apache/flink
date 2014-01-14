@@ -20,6 +20,7 @@ import static org.junit.Assert.fail;
 import java.io.IOException;
 import java.util.List;
 
+import eu.stratosphere.runtime.io.api.RecordWriter;
 import org.junit.Test;
 
 import eu.stratosphere.core.io.StringRecord;
@@ -29,9 +30,8 @@ import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.executiongraph.GraphConversionException;
 import eu.stratosphere.nephele.instance.InstanceManager;
-import eu.stratosphere.nephele.io.RecordReader;
-import eu.stratosphere.nephele.io.RecordWriter;
-import eu.stratosphere.nephele.io.channels.ChannelType;
+import eu.stratosphere.runtime.io.api.RecordReader;
+import eu.stratosphere.runtime.io.channels.ChannelType;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobGraphDefinitionException;
 import eu.stratosphere.nephele.jobgraph.JobInputVertex;
@@ -57,7 +57,7 @@ public class QueueSchedulerTest {
 		 */
 		@Override
 		public void registerInputOutput() {
-			new RecordWriter<StringRecord>(this, StringRecord.class);
+			new RecordWriter<StringRecord>(this);
 		}
 
 		/**
@@ -145,7 +145,7 @@ public class QueueSchedulerTest {
 		final TestDeploymentManager tdm = new TestDeploymentManager();
 		final QueueScheduler scheduler = new QueueScheduler(tdm, tim);
 
-		final ExecutionGraph executionGraph = createExecutionGraph(ChannelType.INMEMORY, tim);
+		final ExecutionGraph executionGraph = createExecutionGraph(ChannelType.IN_MEMORY, tim);
 
 		try {
 			try {
