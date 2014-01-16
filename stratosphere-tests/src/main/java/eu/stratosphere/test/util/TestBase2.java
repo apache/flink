@@ -60,7 +60,7 @@ public abstract class TestBase2 {
 	
 	private final List<File> tempFiles;
 	
-	private NepheleMiniCluster executer;
+	private NepheleMiniCluster executor;
 	
 	protected boolean printPlan = false;
 	
@@ -84,16 +84,16 @@ public abstract class TestBase2 {
 
 	@Before
 	public void startCluster() throws Exception {
-		this.executer = new NepheleMiniCluster();
-		this.executer.start();
+		this.executor = new NepheleMiniCluster();
+		this.executor.start();
 	}
 
 	@After
 	public void stopCluster() throws Exception {
 		try {
-			if (this.executer != null) {
-				this.executer.stop();
-				this.executer = null;
+			if (this.executor != null) {
+				this.executor.stop();
+				this.executor = null;
 				FileSystem.closeAll();
 				System.gc();
 			}
@@ -126,7 +126,7 @@ public abstract class TestBase2 {
 		Assert.assertNotNull("Obtained null JobGraph", jobGraph);
 		
 		try {
-			JobClient client = this.executer.getJobClient(jobGraph);
+			JobClient client = this.executor.getJobClient(jobGraph);
 			client.setConsoleStreamForReporting(getNullPrintStream());
 			this.jobExecutionResult = client.submitJobAndWait();
 			

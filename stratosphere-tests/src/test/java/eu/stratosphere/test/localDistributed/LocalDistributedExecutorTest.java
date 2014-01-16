@@ -12,23 +12,22 @@
  **********************************************************************************************************************/
 package eu.stratosphere.test.localDistributed;
 
-import java.io.File;
-import java.io.FileWriter;
-
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
-
 import eu.stratosphere.client.localDistributed.LocalDistributedExecutor;
 import eu.stratosphere.example.java.record.wordcount.WordCount;
 import eu.stratosphere.test.exampleRecordPrograms.WordCountITCase;
+import org.junit.Assert;
+import org.junit.Test;
 
+import java.io.File;
+import java.io.FileWriter;
 
 public class LocalDistributedExecutorTest {
 
 	@Test
 	public void testLocalDistributedExecutorWithWordCount() {
+
+		LocalDistributedExecutor lde = new LocalDistributedExecutor();
+
 		try {
 			// set up the files
 			File inFile = File.createTempFile("wctext", ".in");
@@ -42,31 +41,19 @@ public class LocalDistributedExecutorTest {
 			
 			// run WordCount
 			WordCount wc = new WordCount();
-			LocalDistributedExecutor lde = new LocalDistributedExecutor();
-			lde.startNephele(2);
-			lde.run( wc.getPlan("4", "file://" + inFile.getAbsolutePath(), "file://" + outFile.getAbsolutePath()));
-			
+
+			lde.start(2);
+			lde.run(wc.getPlan("4", "file://" + inFile.getAbsolutePath(), "file://" + outFile.getAbsolutePath()));
 		} catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail(e.getMessage());
+		} finally {
+			try {
+				lde.stop();
+			} catch (Exception e) {
+				e.printStackTrace();
+				Assert.fail(e.getMessage());
+			}
 		}
-	}
-	
-	@Before
-	public void cool() {
-		System.err.println("Cooling");
-		try {
-			Thread.sleep(1000);
-			System.gc();
-			Thread.sleep(1000);
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
-	}
-	
-	@After
-	public void coolDownGC() {
-		cool();
-		System.exit(0);
 	}
 }
