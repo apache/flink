@@ -492,7 +492,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	 * @param fileStatus
 	 * @return true, if the given file or directory is accepted
 	 */
-	private boolean acceptFile(FileStatus fileStatus) {
+	protected boolean acceptFile(FileStatus fileStatus) {
 		final String name = fileStatus.getPath().getName();
 		return !name.startsWith("_") && !name.startsWith(".");
 	}

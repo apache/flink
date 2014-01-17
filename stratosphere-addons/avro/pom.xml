@@ -37,6 +37,22 @@
 		</dependency>
 	</dependencies>
 
+	<profiles>
+		<profile>
+			<!-- A bug with java6 is causing the javadoc generation
+			to fail because the test case contains junit?
+			See https://github.com/stratosphere/stratosphere/pull/405#issuecomment-32591978
+			for further links -->
+			<id>disable-javadocs-in-java6</id>
+			<activation>
+				 <jdk>(,1.6]</jdk> <!-- disable javadocs for java6 or lower. -->
+			</activation>
+			<properties>
+				<maven.javadoc.skip>true</maven.javadoc.skip>
+			</properties>
+		</profile>
+	</profiles>
+
 	<build>
 		<plugins>
 			<plugin>
@@ -56,7 +72,6 @@
 					</execution>
 				</executions>
 			</plugin>
-			
 		</plugins>
 	</build>
 </project>

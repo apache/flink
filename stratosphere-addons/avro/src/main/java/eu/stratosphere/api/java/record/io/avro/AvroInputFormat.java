@@ -54,8 +54,7 @@ public class AvroInputFormat extends FileInputFormat {
 	public void open(FileInputSplit split) throws IOException {
 		super.open(split);
 		DatumReader<GenericRecord> datumReader = new GenericDatumReader<GenericRecord>();
-		SeekableInput in = new FSDataInputStreamWrapper(stream,
-				(int) split.getLength());
+		SeekableInput in = new FSDataInputStreamWrapper(stream, (int) split.getLength());
 		LOG.info("Opening split " + split);
 		dataFileReader = DataFileReader.openReader(in, datumReader);
 		dataFileReader.sync(split.getStart());
@@ -77,8 +76,7 @@ public class AvroInputFormat extends FileInputFormat {
 		reuseAvroRecord = dataFileReader.next(reuseAvroRecord);
 		final List<Field> fields = reuseAvroRecord.getSchema().getFields();
 		for (Field field : fields) {
-			final Value value = convertAvroToPactValue(field,
-					reuseAvroRecord.get(field.pos()));
+			final Value value = convertAvroToPactValue(field, reuseAvroRecord.get(field.pos()));
 			record.setField(field.pos(), value);
 			record.updateBinaryRepresenation();
 		}
@@ -86,21 +84,10 @@ public class AvroInputFormat extends FileInputFormat {
 		return true;
 	}
 
-	/**
-	 * Converts an Avro GenericRecord to a Value.
-	 * 
-	 * @return
-	 */
-	private StringValue sString = new StringValue();
-	private IntValue sInt = new IntValue();
-	private BooleanValue sBool = new BooleanValue();
-	private DoubleValue sDouble = new DoubleValue();
-	private FloatValue sFloat = new FloatValue();
-	private LongValue sLong = new LongValue();
+
 
 	@SuppressWarnings("unchecked")
-	private final Value convertAvroToPactValue(final Field field,
-			final Object avroRecord) {
+	private final Value convertAvroToPactValue(final Field field, final Object avroRecord) {
 		if (avroRecord == null) {
 			return null;
 		}
@@ -109,116 +96,124 @@ public class AvroInputFormat extends FileInputFormat {
 		// check for complex types
 		// (complex type FIXED is not yet supported)
 		switch (type) {
-		case ARRAY:
-			final Type elementType = field.schema().getElementType().getType();
-			final List<?> avroList = (List<?>) avroRecord;
-			return convertAvroArrayToListValue(elementType, avroList);
-		case ENUM:
-			final List<String> symbols = field.schema().getEnumSymbols();
-			final String avroRecordString = avroRecord.toString();
-			if (!symbols.contains(avroRecordString)) {
-				throw new RuntimeException(
-						"The given Avro file contains field with a invalid enum symbol");
-			}
-			sString.setValue(avroRecordString);
-			return sString;
-		case MAP:
-			final Type valueType = field.schema().getValueType().getType();
-			final Map<CharSequence, ?> avroMap = (Map<CharSequence, ?>) avroRecord;
-			return convertAvroMapToMapValue(valueType, avroMap);
-
+			case ARRAY:
+				final Type elementType = field.schema().getElementType().getType();
+				final List<?> avroList = (List<?>) avroRecord;
+				return convertAvroArrayToListValue(elementType, avroList);
+			case ENUM:
+				final List<String> symbols = field.schema().getEnumSymbols();
+				final String avroRecordString = avroRecord.toString();
+				if (!symbols.contains(avroRecordString)) {
+					throw new RuntimeException("The given Avro file contains field with a invalid enum symbol");
+				}
+				sString.setValue(avroRecordString);
+				return sString;
+			case MAP:
+				final Type valueType = field.schema().getValueType().getType();
+				final Map<CharSequence, ?> avroMap = (Map<CharSequence, ?>) avroRecord;
+				return convertAvroMapToMapValue(valueType, avroMap);
+	
 			// primitive type
-		default:
-			return convertAvroPrimitiveToValue(type, avroRecord);
+			default:
+				return convertAvroPrimitiveToValue(type, avroRecord);
 
 		}
 	}
 
-	private final ListValue<?> convertAvroArrayToListValue(Type elementType,
-			List<?> avroList) {
+	private final ListValue<?> convertAvroArrayToListValue(Type elementType, List<?> avroList) {
 		switch (elementType) {
 		case STRING:
 			StringListValue sl = new StringListValue();
-			for (Object item : avroList)
+			for (Object item : avroList) {
 				sl.add(new StringValue((CharSequence) item));
+			}
 			return sl;
 		case INT:
 			IntListValue il = new IntListValue();
-			for (Object item : avroList)
+			for (Object item : avroList) {
 				il.add(new IntValue((Integer) item));
+			}
 			return il;
 		case BOOLEAN:
 			BooleanListValue bl = new BooleanListValue();
-			for (Object item : avroList)
+			for (Object item : avroList) {
 				bl.add(new BooleanValue((Boolean) item));
+			}
 			return bl;
 		case DOUBLE:
 			DoubleListValue dl = new DoubleListValue();
-			for (Object item : avroList)
+			for (Object item : avroList) {
 				dl.add(new DoubleValue((Double) item));
+			}
 			return dl;
 		case FLOAT:
 			FloatListValue fl = new FloatListValue();
-			for (Object item : avroList)
+			for (Object item : avroList) {
 				fl.add(new FloatValue((Float) item));
+			}
 			return fl;
 		case LONG:
 			LongListValue ll = new LongListValue();
-			for (Object item : avroList)
+			for (Object item : avroList) {
 				ll.add(new LongValue((Long) item));
+			}
 			return ll;
 		default:
-			throw new RuntimeException("Elements of type " + elementType
-					+ " are not supported for Avro arrays.");
+			throw new RuntimeException("Elements of type " + elementType + " are not supported for Avro arrays.");
 		}
 	}
 
-	private final MapValue<StringValue, ?> convertAvroMapToMapValue(
-			Type mapValueType, Map<CharSequence, ?> avroMap) {
+	private final MapValue<StringValue, ?> convertAvroMapToMapValue(Type mapValueType, Map<CharSequence, ?> avroMap) {
 		switch (mapValueType) {
 		case STRING:
 			StringMapValue sm = new StringMapValue();
-			for (Map.Entry<CharSequence, ?> entry : avroMap.entrySet())
-				sm.put(new StringValue((CharSequence) entry.getKey()),
-						new StringValue((String) entry.getValue()));
+			for (Map.Entry<CharSequence, ?> entry : avroMap.entrySet()) {
+				sm.put(new StringValue((CharSequence) entry.getKey()), new StringValue((String) entry.getValue()));
+			}
 			return sm;
 		case INT:
 			IntMapValue im = new IntMapValue();
-			for (Map.Entry<CharSequence, ?> entry : avroMap.entrySet())
-				im.put(new StringValue((CharSequence) entry.getKey()), new IntValue(
-						(Integer) entry.getValue()));
+			for (Map.Entry<CharSequence, ?> entry : avroMap.entrySet()) {
+				im.put(new StringValue((CharSequence) entry.getKey()), new IntValue((Integer) entry.getValue()));
+			}
 			return im;
 		case BOOLEAN:
 			BooleanMapValue bm = new BooleanMapValue();
-			for (Map.Entry<CharSequence, ?> entry : avroMap.entrySet())
-				bm.put(new StringValue((CharSequence) entry.getKey()),
-						new BooleanValue((Boolean) entry.getValue()));
+			for (Map.Entry<CharSequence, ?> entry : avroMap.entrySet()) {
+				bm.put(new StringValue((CharSequence) entry.getKey()), new BooleanValue((Boolean) entry.getValue()));
+			}
 			return bm;
 		case DOUBLE:
 			DoubleMapValue dm = new DoubleMapValue();
-			for (Map.Entry<CharSequence, ?> entry : avroMap.entrySet())
-				dm.put(new StringValue((CharSequence) entry.getKey()),
-						new DoubleValue((Double) entry.getValue()));
+			for (Map.Entry<CharSequence, ?> entry : avroMap.entrySet()) {
+				dm.put(new StringValue((CharSequence) entry.getKey()), new DoubleValue((Double) entry.getValue()));
+			}
 			return dm;
 		case FLOAT:
 			FloatMapValue fm = new FloatMapValue();
-			for (Map.Entry<CharSequence, ?> entry : avroMap.entrySet())
-				fm.put(new StringValue((CharSequence) entry.getKey()),
-						new FloatValue((Float) entry.getValue()));
+			for (Map.Entry<CharSequence, ?> entry : avroMap.entrySet()) {
+				fm.put(new StringValue((CharSequence) entry.getKey()), new FloatValue((Float) entry.getValue()));
+			}
 			return fm;
 		case LONG:
 			LongMapValue lm = new LongMapValue();
-			for (Map.Entry<CharSequence, ?> entry : avroMap.entrySet())
-				lm.put(new StringValue((CharSequence) entry.getKey()), new LongValue(
-						(Long) entry.getValue()));
+			for (Map.Entry<CharSequence, ?> entry : avroMap.entrySet()) {
+				lm.put(new StringValue((CharSequence) entry.getKey()), new LongValue((Long) entry.getValue()));
+			}
 			return lm;
 
 		default:
-			throw new RuntimeException("Map values of type " + mapValueType
-					+ " are not supported for Avro map.");
+			throw new RuntimeException("Map values of type " + mapValueType + " are not supported for Avro map.");
 		}
 	}
 
+	private StringValue sString = new StringValue();
+	private IntValue sInt = new IntValue();
+	private BooleanValue sBool = new BooleanValue();
+	private DoubleValue sDouble = new DoubleValue();
+	private FloatValue sFloat = new FloatValue();
+	private LongValue sLong = new LongValue();
+	
 	private final Value convertAvroPrimitiveToValue(Type type, Object avroRecord) {
 		switch (type) {
 		case STRING:
@@ -252,30 +247,25 @@ public class AvroInputFormat extends FileInputFormat {
 	private final Type checkTypeConstraintsAndGetType(final Schema schema) {
 		final Type type = schema.getType();
 		if (type == Type.RECORD) {
-			throw new RuntimeException(
-					"The given Avro file contains complex data types which are not supported right now");
+			throw new RuntimeException("The given Avro file contains complex data types which are not supported right now");
 		}
 
 		if (type == Type.UNION) {
 			List<Schema> types = schema.getTypes();
 			if (types.size() > 2) {
-				throw new RuntimeException(
-						"The given Avro file contains a union that has more than two elements");
+				throw new RuntimeException("The given Avro file contains a union that has more than two elements");
 			}
 			if (types.size() == 1 && types.get(0).getType() != Type.UNION) {
 				return types.get(0).getType();
 			}
-			if (types.get(0).getType() == Type.UNION
-					|| types.get(1).getType() == Type.UNION) {
-				throw new RuntimeException(
-						"The given Avro file contains a nested union");
+			if (types.get(0).getType() == Type.UNION || types.get(1).getType() == Type.UNION) {
+				throw new RuntimeException("The given Avro file contains a nested union");
 			}
 			if (types.get(0).getType() == Type.NULL) {
 				return types.get(1).getType();
 			} else {
 				if (types.get(1).getType() != Type.NULL) {
-					throw new RuntimeException(
-							"The given Avro file is contains a union with two non-null types.");
+					throw new RuntimeException("The given Avro file is contains a union with two non-null types.");
 				}
 				return types.get(0).getType();
 			}
@@ -287,8 +277,7 @@ public class AvroInputFormat extends FileInputFormat {
 	 * Set minNumSplits to number of files.
 	 */
 	@Override
-	public FileInputSplit[] createInputSplits(int minNumSplits)
-			throws IOException {
+	public FileInputSplit[] createInputSplits(int minNumSplits) throws IOException {
 		int numAvroFiles = 0;
 		final Path path = this.filePath;
 		// get all the files that are involved in the splits
@@ -296,8 +285,7 @@ public class AvroInputFormat extends FileInputFormat {
 		final FileStatus pathFile = fs.getFileStatus(path);
 
 		if (!acceptFile(pathFile)) {
-			throw new IOException(
-					"The given file does not pass the file-filter");
+			throw new IOException("The given file does not pass the file-filter");
 		}
 		if (pathFile.isDir()) {
 			// input is directory. list all contained files
@@ -311,12 +299,6 @@ public class AvroInputFormat extends FileInputFormat {
 			numAvroFiles = 1;
 		}
 		return super.createInputSplits(numAvroFiles);
-	}
-
-	// dirty hack. needs a fix!	
-	private boolean acceptFile(FileStatus fileStatus) {
-		final String name = fileStatus.getPath().getName();
-		return !name.startsWith("_") && !name.startsWith(".");
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -347,8 +329,7 @@ public class AvroInputFormat extends FileInputFormat {
 		private static final long serialVersionUID = 1L;
 	}
 
-	public static class StringMapValue extends
-			MapValue<StringValue, StringValue> {
+	public static class StringMapValue extends MapValue<StringValue, StringValue> {
 		private static final long serialVersionUID = 1L;
 	}
 
@@ -356,13 +337,11 @@ public class AvroInputFormat extends FileInputFormat {
 		private static final long serialVersionUID = 1L;
 	}
 
-	public static class BooleanMapValue extends
-			MapValue<StringValue, BooleanValue> {
+	public static class BooleanMapValue extends MapValue<StringValue, BooleanValue> {
 		private static final long serialVersionUID = 1L;
 	}
 
-	public static class DoubleMapValue extends
-			MapValue<StringValue, DoubleValue> {
+	public static class DoubleMapValue extends MapValue<StringValue, DoubleValue> {
 		private static final long serialVersionUID = 1L;
 	}
 
