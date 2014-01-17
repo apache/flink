@@ -172,10 +172,14 @@ object CoGroupMacros {
       new CoGroupFunctionBase[LeftIn, RightIn, Out] {
         override def coGroup(leftRecords: JIterator[Record], rightRecords: JIterator[Record], out: Collector[Record]) = {
           val firstLeftRecord = leftIterator.initialize(leftRecords)
-          outputRecord.copyFrom(firstLeftRecord, leftForwardFrom, leftForwardTo)
-
           val firstRightRecord = rightIterator.initialize(rightRecords)
-          outputRecord.copyFrom(firstRightRecord, rightForwardFrom, rightForwardTo)
+
+          if (firstRightRecord != null) {
+            outputRecord.copyFrom(firstRightRecord, rightForwardFrom, rightForwardTo)
+          }
+          if (firstLeftRecord != null) {
+            outputRecord.copyFrom(firstLeftRecord, leftForwardFrom, leftForwardTo)
+          }
 
           val output = fun.splice.apply(leftIterator, rightIterator)
 
