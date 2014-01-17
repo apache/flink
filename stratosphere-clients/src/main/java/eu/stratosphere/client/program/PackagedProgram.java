@@ -220,6 +220,7 @@ public class PackagedProgram {
 	 */
 	private Plan getPlan() throws ProgramInvocationException, JobInstantiationException {
 		if (this.plan == null) {
+			Thread.currentThread().setContextClassLoader(this.userCodeClassLoader);
 			this.plan = createPlanFromProgram(this.planAssembler, this.args);
 		}
 		

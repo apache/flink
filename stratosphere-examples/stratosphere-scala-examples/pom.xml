@@ -127,7 +127,7 @@
 				<artifactId>maven-jar-plugin</artifactId>
 				<version>2.4</version>
 				<executions>
-		
+
 					<execution>
 						<id>KMeans</id>
 						<phase>package</phase>
@@ -148,6 +148,27 @@
 							</includes>
 						</configuration>
 					</execution>
+
+                    <execution>
+                        <id>KMeansForTest</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+
+                        <configuration>
+                            <classifier>KMeansForTest</classifier>
+                            <archive>
+                                <manifestEntries>
+                                    <program-class>eu.stratosphere.examples.scala.datamining.KMeansForTest</program-class>
+                                </manifestEntries>
+                            </archive>
+
+                            <includes>
+                                <include>**/datamining/KMeansForTest*.class</include>
+                            </includes>
+                        </configuration>
+                    </execution>
 		
 					<execution>
 						<id>ComputeEdgeDegrees</id>

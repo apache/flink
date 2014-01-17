@@ -86,17 +86,15 @@ class KMeans extends Program with ProgramDescription with Serializable {
   def getScalaPlan(numSubTasks: Int, dataPointInput: String, clusterInput: String, clusterOutput: String, numIterations: Int) = {
     val dataPoints = DataSource(dataPointInput, DelimitedInputFormat(parseInput))
     val clusterPoints = DataSource(clusterInput, DelimitedInputFormat(parseInput))
-    
-    def kMeansStep(centers: DataSet[(Int, Point)]) = {
+
+    val finalCenters = clusterPoints.iterate(numIterations, { centers =>
 
       val distances = dataPoints cross centers map computeDistance
       val nearestCenters = distances groupBy { case (pid, _) => pid } reduceGroup { ds => ds.minBy(_._2.distance) } map asPointSum.tupled
       val newCenters = nearestCenters groupBy { case (cid, _) => cid } reduceGroup sumPointSums map { case (cid, pSum) => cid -> pSum.toPoint() }
 
       newCenters
-    }
-
-    val finalCenters = clusterPoints.iterate(numIterations, kMeansStep)
+    })
 
     val output = finalCenters.write(clusterOutput, DelimitedOutputFormat(formatOutput.tupled))
 

@@ -13,6 +13,7 @@
 
 package eu.stratosphere.client;
 
+import java.io.File;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -22,6 +23,7 @@ import java.util.List;
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.client.program.Client;
 import eu.stratosphere.client.program.JobWithJars;
+import eu.stratosphere.client.program.PackagedProgram;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.client.JobExecutionResult;
 
@@ -72,5 +74,11 @@ public class RemoteExecutor implements PlanExecutor {
 	public JobExecutionResult executePlan(Plan plan) throws Exception {
 		JobWithJars p = new JobWithJars(plan, this.jarFiles);
 		return this.client.run(p, true);
+	}
+
+	public JobExecutionResult executeJar(String jarPath, String assemblerClass, String[] args) throws Exception {
+		File jarFile = new File(jarPath);
+		PackagedProgram program = new PackagedProgram(jarFile, assemblerClass, args);
+		return this.client.run(program.getPlanWithJars(), true);
 	}
 }
