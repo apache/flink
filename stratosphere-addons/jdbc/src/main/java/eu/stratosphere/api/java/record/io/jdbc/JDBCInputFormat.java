@@ -55,31 +55,21 @@ public class JDBCInputFormat extends GenericInputFormat implements UnsplittableI
 	
 
 	public final String DRIVER_KEY = "driver";
-
 	public final String USERNAME_KEY = "username";
-
 	public final String PASSWORD_KEY = "password";
-
 	public final String URL_KEY = "url";
-
 	public final String QUERY_KEY = "query";
 
 
 	private String username;
-
 	private String password;
-
 	private String driverName;
-
 	private String dbURL;
-
 	private String query;
 
 	
 	private transient Connection dbConn;
-
 	private transient Statement statement;
-
 	private transient ResultSet resultSet;
 
 

@@ -28,7 +28,6 @@ import java.sql.Statement;
 import junit.framework.Assert;
 
 import org.junit.After;
-import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -48,14 +47,31 @@ public class JDBCOutputFormatTest {
     @BeforeClass
     public static void setUpClass() {
         try {
-            System.setProperty("derby.stream.error.field", "eu.stratosphere.api.io.jdbc.util.DevNullLogStream.DEV_NULL");
+            System.setProperty("derby.stream.error.field", "eu.stratosphere.api.java.record.io.jdbc.DevNullLogStream.DEV_NULL");
             prepareDerbyInputDatabase();
             prepareDerbyOutputDatabase();
         } catch (ClassNotFoundException e) {
+        	e.printStackTrace();
             Assert.fail();
         }
     }
 
+    private static void cleanUpDerbyDatabases() {
+    	 try {
+             String dbURL = "jdbc:derby:memory:ebookshop;create=true";
+             Class.forName("org.apache.derby.jdbc.EmbeddedDriver");
+             conn = DriverManager.getConnection(dbURL);
+             Statement stat = conn.createStatement();
+             stat.executeUpdate("DROP TABLE books");
+             stat.executeUpdate("DROP TABLE newbooks");
+             stat.close();
+             conn.close();
+         } catch (Exception e) {
+        	 e.printStackTrace();
+             Assert.fail();
+         } 
+    }
+    
     private static void prepareDerbyInputDatabase() throws ClassNotFoundException {
         try {
             String dbURL = "jdbc:derby:memory:ebookshop;create=true";
@@ -65,8 +81,10 @@ public class JDBCOutputFormatTest {
             insertDataToSQLTables();
             conn.close();
         } catch (ClassNotFoundException e) {
+        	e.printStackTrace();
             Assert.fail();
         } catch (SQLException e) {
+        	e.printStackTrace();
             Assert.fail();
         }
     }
@@ -79,8 +97,10 @@ public class JDBCOutputFormatTest {
             createTableNewBooks();
             conn.close();
         } catch (ClassNotFoundException e) {
+        	e.printStackTrace();
             Assert.fail();
         } catch (SQLException e) {
+        	e.printStackTrace();
             Assert.fail();
         }
     }
@@ -126,13 +146,11 @@ public class JDBCOutputFormatTest {
         stat.close();
     }
 
-    @Before
-    public void setUp() {
-    }
 
     @After
     public void tearDown() {
         jdbcOutputFormat = null;
+        cleanUpDerbyDatabases();
     }
 
     @Test

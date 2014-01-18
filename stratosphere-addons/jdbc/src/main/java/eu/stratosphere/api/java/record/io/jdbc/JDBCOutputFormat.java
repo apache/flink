@@ -26,6 +26,10 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
 public class JDBCOutputFormat implements OutputFormat<Record> {
+	private static final long serialVersionUID = 1L;
+
+	private static final int DEFAULT_BATCH_INTERVERAL = 5000;
+	
     public static final String DRIVER_KEY = "driver";
     public static final String USERNAME_KEY = "username";
     public static final String PASSWORD_KEY = "password";
@@ -33,6 +37,7 @@ public class JDBCOutputFormat implements OutputFormat<Record> {
     public static final String QUERY_KEY = "query";
     public static final String FIELD_COUNT_KEY = "fields";
     public static final String FIELD_TYPE_KEY = "type";
+    public static final String BATCH_INTERVAL = "batchInt";
 
     private Connection dbConn;
     private PreparedStatement upload;
@@ -45,6 +50,19 @@ public class JDBCOutputFormat implements OutputFormat<Record> {
     private String query;
     private int fieldCount;
     private Class<? extends Value>[] fieldClasses;
+    
+    /**
+     * Variable indicating the current number of insert sets in a batch.
+     */
+    private int batchCount = 0;
+    
+    /**
+     * Commit interval of batches.
+     * High batch interval: faster inserts, more memory required (reduce if OutOfMemoryExceptions occur)
+     * low batch interval: slower inserts, less memory.
+     */
+    private int batchInterval = DEFAULT_BATCH_INTERVERAL;
+    
 
     /**
      * Configures this JDBCOutputFormat.
@@ -60,6 +78,7 @@ public class JDBCOutputFormat implements OutputFormat<Record> {
         this.dbURL = parameters.getString(URL_KEY, null);
         this.query = parameters.getString(QUERY_KEY, null);
         this.fieldCount = parameters.getInteger(FIELD_COUNT_KEY, 0);
+        this.batchInterval = parameters.getInteger(BATCH_INTERVAL, DEFAULT_BATCH_INTERVERAL);
 
         @SuppressWarnings("unchecked")
         Class<Value>[] classes = new Class[this.fieldCount];
@@ -113,6 +132,7 @@ public class JDBCOutputFormat implements OutputFormat<Record> {
      * @throws IOException Thrown, if the records could not be added due to an
      * I/O problem.
      */
+    
     @Override
     public void writeRecord(Record record) throws IOException {
         try {
@@ -121,6 +141,11 @@ public class JDBCOutputFormat implements OutputFormat<Record> {
                 addValue(x + 1, temp);
             }
             upload.addBatch();
+            batchCount++;
+            if(batchCount >= batchInterval) {
+            	upload.executeBatch();
+            	batchCount = 0;
+            }
         } catch (SQLException sqe) {
             throw new IllegalArgumentException("writeRecord() failed:\t", sqe);
         } catch (IllegalArgumentException iae) {
@@ -187,6 +212,7 @@ public class JDBCOutputFormat implements OutputFormat<Record> {
     public void close() throws IOException {
         try {
             upload.executeBatch();
+            batchCount = 0;
             upload.close();
             dbConn.close();
         } catch (SQLException sqe) {

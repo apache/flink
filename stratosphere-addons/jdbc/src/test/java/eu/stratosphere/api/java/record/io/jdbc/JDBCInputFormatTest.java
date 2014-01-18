@@ -22,7 +22,6 @@ import java.sql.Statement;
 import junit.framework.Assert;
 
 import org.junit.After;
-import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -49,32 +48,44 @@ public class JDBCInputFormatTest {
     public static void setUpClass() {
         try {
             prepareDerbyDatabase();
-        } catch (ClassNotFoundException e) {
+        } catch (Exception e) {
             e.printStackTrace();
             Assert.fail();
         }
     }
 
     private static void prepareDerbyDatabase() throws ClassNotFoundException {
-    	System.setProperty("derby.stream.error.field","eu.stratosphere.api.io.jdbc.util.DevNullLogStream.DEV_NULL");
+    	System.setProperty("derby.stream.error.field","eu.stratosphere.api.java.record.io.jdbc.DevNullLogStream.DEV_NULL");
         String dbURL = "jdbc:derby:memory:ebookshop;create=true";
         createConnection(dbURL);
     }
 
+    private static void cleanUpDerbyDatabases() {
+   	try {
+            String dbURL = "jdbc:derby:memory:ebookshop;create=true";
+            Class.forName("org.apache.derby.jdbc.EmbeddedDriver");
+            conn = DriverManager.getConnection(dbURL);
+            Statement stat = conn.createStatement();
+            stat.executeUpdate("DROP TABLE books");
+            stat.close();
+            conn.close();
+        } catch (Exception e) {
+       	 e.printStackTrace();
+            Assert.fail();
+        } 
+   }
+    
     /*
      Loads JDBC derby driver ; creates(if necessary) and populates database.
      */
     private static void createConnection(String dbURL) {
         try {
-            Class.forName("org.apache.derby.jdbc.EmbeddedDriver");
+        	Class.forName("org.apache.derby.jdbc.EmbeddedDriver");
             conn = DriverManager.getConnection(dbURL);
             createTable();
             insertDataToSQLTables();
             conn.close();
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
-            Assert.fail();
-        } catch (SQLException e) {
+        } catch (Exception e) {
             e.printStackTrace();
             Assert.fail();
         }
@@ -128,9 +139,6 @@ public class JDBCInputFormatTest {
         stat.close();
     }
 
-    @Before
-    public void setUp() {
-    }
 
     @After
     public void tearDown() {
@@ -196,6 +204,8 @@ public class JDBCInputFormatTest {
             recordCount++;
         }
         Assert.assertEquals(5, recordCount);
+        
+        cleanUpDerbyDatabases();
     }
 
 }
