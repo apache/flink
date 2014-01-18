@@ -1,4 +1,4 @@
-package eu.stratosphere.api.io.jdbc.util;
+package eu.stratosphere.api.java.record.io.jdbc;
 
 import java.io.OutputStream;
 

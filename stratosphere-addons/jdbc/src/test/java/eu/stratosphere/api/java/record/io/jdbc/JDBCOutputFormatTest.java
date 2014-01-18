@@ -12,16 +12,21 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.api.io.jdbc;
+package eu.stratosphere.api.java.record.io.jdbc;
 
+import eu.stratosphere.api.java.record.io.jdbc.JDBCInputFormat;
+import eu.stratosphere.api.java.record.io.jdbc.JDBCOutputFormat;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.types.*;
+
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
+
 import junit.framework.Assert;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;

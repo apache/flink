@@ -11,7 +11,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package eu.stratosphere.api.io.jdbc;
+package eu.stratosphere.api.java.record.io.jdbc;
 
 import java.io.IOException;
 import java.sql.Connection;
@@ -26,7 +26,7 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import eu.stratosphere.api.io.jdbc.JDBCInputFormat;
+import eu.stratosphere.api.java.record.io.jdbc.JDBCInputFormat;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.types.DoubleValue;
 import eu.stratosphere.types.IntValue;

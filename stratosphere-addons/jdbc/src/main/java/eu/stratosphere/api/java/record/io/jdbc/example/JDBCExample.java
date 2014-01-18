@@ -12,18 +12,19 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.api.example.record.jdbc;
+package eu.stratosphere.api.java.record.io.jdbc.example;
 
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.Program;
 import eu.stratosphere.api.common.ProgramDescription;
 import eu.stratosphere.api.common.operators.GenericDataSink;
 import eu.stratosphere.api.common.operators.GenericDataSource;
-import eu.stratosphere.api.io.jdbc.JDBCInputFormat;
-import eu.stratosphere.api.io.jdbc.JDBCOutputFormat;
+import eu.stratosphere.api.java.record.io.jdbc.JDBCInputFormat;
+import eu.stratosphere.api.java.record.io.jdbc.JDBCOutputFormat;
 import eu.stratosphere.client.LocalExecutor;
 import eu.stratosphere.nephele.client.JobExecutionResult;
 import eu.stratosphere.types.*;
+
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.Statement;
