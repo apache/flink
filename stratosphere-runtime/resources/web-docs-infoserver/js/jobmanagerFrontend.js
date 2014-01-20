@@ -12,7 +12,7 @@ var recentjobs = new Array();
  * Initializes global job table
  */
 function init() {
-	$.ajax({ url : "/jobsInfo", type : "GET", cache: false, success : function(json) {
+	$.ajax({ url : "jobsInfo", type : "GET", cache: false, success : function(json) {
 		
 		// If no job running, poll for new jobs
 		if(json == "")
@@ -51,7 +51,7 @@ function poll(jobId) {
  * Polls the job history on page load
  */
 (function pollArchive() {
-	$.ajax({ url : "/jobsInfo?get=archive", cache: false, type : "GET",
+	$.ajax({ url : "jobsInfo?get=archive", cache: false, type : "GET",
 	    success : function(json) {
 	    	
 		// Fill Table	
@@ -65,7 +65,7 @@ function poll(jobId) {
  * Polls the number of taskmanagers on page load
  */
 (function pollTaskmanagers() {
-	$.ajax({ url : "/jobsInfo?get=taskmanagers", cache: false, type : "GET",
+	$.ajax({ url : "jobsInfo?get=taskmanagers", cache: false, type : "GET",
 	    success : function(json) {
 		$("#stat-taskmanagers").html(json.taskmanagers);
 	    }, dataType : "json",
@@ -88,7 +88,7 @@ $(".opensub").live("click", function() {
  */
 $(".cancel").live("click", function() {
 	var id = $(this).attr("job");
-	$.ajax({ url : "/jobsInfo?get=cancel&job=" + id, cache: false, type : "GET",
+	$.ajax({ url : "jobsInfo?get=cancel&job=" + id, cache: false, type : "GET",
 	    success : function(json) {
 	    }
 	});
@@ -379,9 +379,15 @@ function fillTableArchive(table, json) {
  * Adds one row to job history table
  */
 function _fillTableArchive(table, job, prepend) {
+	
+	// no duplicates
+	if($("#"+job.jobid+"_archive").length > 0) {
+		return false;
+	}
+	
 	if(prepend)
 		$(table).prepend(
-				"<li><a href=\"/analyze.html?job=" + job.jobid + "\">"
+				"<li id=\""+job.jobid+"_archive\"><a href=\"/analyze.html?job=" + job.jobid + "\">"
 						+ job.jobname + " (time: "
 						+ formattedTimeFromTimestamp(parseInt(job.time))
 						+ ")</a></li>");
