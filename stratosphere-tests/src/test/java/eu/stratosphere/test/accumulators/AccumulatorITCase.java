@@ -137,12 +137,9 @@ public class AccumulatorITCase extends TestBase2 {
 			.input(mapper)
 			.name("Count Words")
 			.build();
-		FileDataSink out = new FileDataSink(new CsvOutputFormat(), output, reducer, "Word Counts");
-		CsvOutputFormat.configureRecordFormat(out)
-			.recordDelimiter('\n')
-			.fieldDelimiter(' ')
-			.field(StringValue.class, 0)
-			.field(IntValue.class, 1);
+		@SuppressWarnings("unchecked")
+		FileDataSink out = new FileDataSink(new CsvOutputFormat("\n"," ", StringValue.class, IntValue.class), output, reducer, "Word Counts");
+
 		Plan plan = new Plan(out, "WordCount Example");
 		plan.setDefaultParallelism(numSubTasks);
 		

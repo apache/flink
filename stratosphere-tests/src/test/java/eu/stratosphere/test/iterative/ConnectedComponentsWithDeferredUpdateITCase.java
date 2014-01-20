@@ -147,12 +147,7 @@ public class ConnectedComponentsWithDeferredUpdateITCase extends TestBase2 {
 		iteration.setNextWorkset(updateComponentId);
 
 		// sink is the iteration result
-		FileDataSink result = new FileDataSink(new CsvOutputFormat(), output, iteration, "Result");
-		CsvOutputFormat.configureRecordFormat(result)
-			.recordDelimiter('\n')
-			.fieldDelimiter(' ')
-			.field(LongValue.class, 0)
-			.field(LongValue.class, 1);
+		FileDataSink result = new FileDataSink(new CsvOutputFormat("\n", " ", LongValue.class, LongValue.class), output, iteration, "Result");
 
 		// return the PACT plan
 		Plan plan = new Plan(result, "Workset Connected Components");

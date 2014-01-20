@@ -98,11 +98,8 @@ public class AccumulatorIterativeITCase extends TestBase2 {
 		
 		iteration.setNextPartialSolution(sumReduce);
 
-		FileDataSink finalResult = new FileDataSink(CsvOutputFormat.class, output, iteration, "Output");
-		CsvOutputFormat.configureRecordFormat(finalResult)
-    		.recordDelimiter('\n')
-    		.fieldDelimiter(' ')
-    		.field(StringValue.class, 0);
+		@SuppressWarnings("unchecked")
+		FileDataSink finalResult = new FileDataSink(new CsvOutputFormat("\n",  " ", StringValue.class), output, iteration, "Output");
 
 		Plan plan = new Plan(finalResult, "Iteration with AllReducer (keyless Reducer)");
 		plan.setDefaultParallelism(numSubTasks);
