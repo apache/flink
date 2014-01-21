@@ -13,7 +13,12 @@
 
 package eu.stratosphere.nephele.executiongraph;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.io.File;
 import java.io.IOException;
@@ -21,18 +26,14 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.log4j.Level;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
-import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
-import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
-import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
-import eu.stratosphere.nephele.executiongraph.ExecutionStage;
-import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
-import eu.stratosphere.nephele.executiongraph.GraphConversionException;
 import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.HardwareDescription;
@@ -56,6 +57,7 @@ import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.nephele.topology.NetworkTopology;
 import eu.stratosphere.nephele.util.ServerTestUtils;
+import eu.stratosphere.util.LogUtils;
 
 /**
  * This class contains test concerning the correct conversion from {@link JobGraph} to {@link ExecutionGraph} objects.
@@ -208,6 +210,11 @@ public class ExecutionGraphTest {
 
 	private static final InstanceManager INSTANCE_MANAGER = new TestInstanceManager();
 
+	@BeforeClass
+	public static void reduceLogLevel() {
+		LogUtils.initializeDefaultConsoleLogger(Level.WARN);
+	}
+	
 	/*
 	 * input1 -> task1 -> output1
 	 * output1 shares instance with input1
@@ -459,7 +466,6 @@ public class ExecutionGraphTest {
 			// input vertex
 			final JobFileInputVertex i1 = new JobFileInputVertex("Input 1", jg);
 			i1.setFileInputClass(FileLineReader.class);
-			System.out.println("URI " + inputFile.toURI());
 			i1.setFilePath(new Path(inputFile.toURI()));
 
 			// task vertex
@@ -557,12 +563,14 @@ public class ExecutionGraphTest {
 
 		File inputFile1 = null;
 		File inputFile2 = null;
+		File outputFile = null;
 		JobID jobID = null;
 
 		try {
 
 			inputFile1 = ServerTestUtils.createInputFile(0);
 			inputFile2 = ServerTestUtils.createInputFile(0);
+			outputFile = new File(ServerTestUtils.getRandomFilename());
 
 			// create job graph
 			final JobGraph jg = new JobGraph("Job Graph 1");
@@ -589,10 +597,11 @@ public class ExecutionGraphTest {
 			t3.setTaskClass(ForwardTask2Inputs1Output.class);
 			t3.setNumberOfSubtasks(2);
 
+			
 			// output vertex
 			final JobFileOutputVertex o1 = new JobFileOutputVertex("Output 1", jg);
 			o1.setFileOutputClass(FileLineWriter.class);
-			o1.setFilePath(new Path(new File(ServerTestUtils.getRandomFilename()).toURI()));
+			o1.setFilePath(new Path(outputFile.toURI()));
 			o1.setNumberOfSubtasks(2);
 			i1.setVertexToShareInstancesWith(t1);
 			t1.setVertexToShareInstancesWith(t3);
@@ -774,6 +783,9 @@ public class ExecutionGraphTest {
 			if (inputFile2 != null) {
 				inputFile2.delete();
 			}
+			if (outputFile != null) {
+				outputFile.delete();
+			}
 			if (jobID != null) {
 				try {
 					LibraryCacheManager.unregister(jobID);
@@ -796,12 +808,16 @@ public class ExecutionGraphTest {
 
 		File inputFile1 = null;
 		File inputFile2 = null;
+		File outputFile1 = null;
+		File outputFile2 = null;
 		JobID jobID = null;
 
 		try {
 
 			inputFile1 = ServerTestUtils.createInputFile(0);
 			inputFile2 = ServerTestUtils.createInputFile(0);
+			outputFile1 = new File(ServerTestUtils.getRandomFilename());
+			outputFile2 = new File(ServerTestUtils.getRandomFilename());
 
 			// create job graph
 			final JobGraph jg = new JobGraph("Job Graph 1");
@@ -838,12 +854,12 @@ public class ExecutionGraphTest {
 			// output vertex
 			final JobFileOutputVertex o1 = new JobFileOutputVertex("Output 1", jg);
 			o1.setFileOutputClass(FileLineWriter.class);
-			o1.setFilePath(new Path(new File(ServerTestUtils.getRandomFilename()).toURI()));
+			o1.setFilePath(new Path(outputFile1.toURI()));
 			o1.setNumberOfSubtasks(4);
 			o1.setNumberOfSubtasksPerInstance(2);
 			final JobFileOutputVertex o2 = new JobFileOutputVertex("Output 2", jg);
 			o2.setFileOutputClass(FileLineWriter.class);
-			o2.setFilePath(new Path(new File(ServerTestUtils.getRandomFilename()).toURI()));
+			o2.setFilePath(new Path(outputFile2.toURI()));
 			o2.setNumberOfSubtasks(4);
 			o2.setNumberOfSubtasksPerInstance(2);
 			o1.setVertexToShareInstancesWith(o2);
@@ -901,6 +917,12 @@ public class ExecutionGraphTest {
 			if (inputFile2 != null) {
 				inputFile2.delete();
 			}
+			if (outputFile1 != null) {
+				outputFile1.delete();
+			}
+			if (outputFile2 != null) {
+				outputFile2.delete();
+			}
 			if (jobID != null) {
 				try {
 					LibraryCacheManager.unregister(jobID);
@@ -921,11 +943,13 @@ public class ExecutionGraphTest {
 		final String outputTaskName = "Self Cross Output";
 		final int degreeOfParallelism = 4;
 		File inputFile1 = null;
+		File outputFile1 = null;
 		JobID jobID = null;
 
 		try {
 
 			inputFile1 = ServerTestUtils.createInputFile(0);
+			outputFile1 = new File(ServerTestUtils.getRandomFilename());
 
 			// create job graph
 			final JobGraph jg = new JobGraph("Self Cross Test Job");
@@ -945,7 +969,7 @@ public class ExecutionGraphTest {
 			// output vertex
 			final JobFileOutputVertex output = new JobFileOutputVertex(outputTaskName, jg);
 			output.setFileOutputClass(FileLineWriter.class);
-			output.setFilePath(new Path(new File(ServerTestUtils.getRandomFilename()).toURI()));
+			output.setFilePath(new Path(outputFile1.toURI()));
 			output.setNumberOfSubtasks(degreeOfParallelism);
 
 			// connect vertices
@@ -1028,6 +1052,9 @@ public class ExecutionGraphTest {
 			if (inputFile1 != null) {
 				inputFile1.delete();
 			}
+			if (outputFile1 != null) {
+				outputFile1.delete();
+			}
 			if (jobID != null) {
 				try {
 					LibraryCacheManager.unregister(jobID);
@@ -1046,11 +1073,13 @@ public class ExecutionGraphTest {
 
 		final int degreeOfParallelism = 4;
 		File inputFile1 = null;
+		File outputFile1 = null;
 		JobID jobID = null;
 
 		try {
 
 			inputFile1 = ServerTestUtils.createInputFile(0);
+			outputFile1 = new File(ServerTestUtils.getRandomFilename());
 
 			// create job graph
 			final JobGraph jg = new JobGraph("Instance Sharing Test Job");
@@ -1080,7 +1109,7 @@ public class ExecutionGraphTest {
 			// output vertex
 			final JobFileOutputVertex output1 = new JobFileOutputVertex("Output 1", jg);
 			output1.setFileOutputClass(FileLineWriter.class);
-			output1.setFilePath(new Path(new File(ServerTestUtils.getRandomFilename()).toURI()));
+			output1.setFilePath(new Path(outputFile1.toURI()));
 			output1.setNumberOfSubtasks(degreeOfParallelism);
 
 			// connect vertices
@@ -1130,6 +1159,9 @@ public class ExecutionGraphTest {
 		} finally {
 			if (inputFile1 != null) {
 				inputFile1.delete();
+			}
+			if (outputFile1 != null) {
+				outputFile1.delete();
 			}
 			if (jobID != null) {
 				try {
