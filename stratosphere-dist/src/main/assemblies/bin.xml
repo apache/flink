@@ -131,6 +131,13 @@
 				<exclude>*etc/users</exclude>
 			</excludes>
 		</fileSet>
+		
+		<!-- copy the tools -->
+		<fileSet>
+			<directory>src/main/stratosphere-bin/tools</directory>
+			<outputDirectory>tools</outputDirectory>
+			<fileMode>0644</fileMode>
+		</fileSet>
 
 		<fileSet>
 			<!-- copy jar files of java examples -->
