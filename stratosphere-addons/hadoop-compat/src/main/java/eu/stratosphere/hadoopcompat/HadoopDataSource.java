@@ -2,22 +2,41 @@ package eu.stratosphere.hadoopcompat;
 
 import java.lang.annotation.Annotation;
 
+import org.apache.hadoop.mapred.JobConf;
+
 import eu.stratosphere.api.common.operators.GenericDataSource;
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.util.Visitor;
 
-public class HadoopDataSource extends GenericDataSource {
+public class HadoopDataSource extends GenericDataSource<HadoopInputFormatWrapper<?,?,?>> {
 
-	@Override
-	public void addStubAnnotation(Class<? extends Annotation> clazz) {
-		// TODO Auto-generated method stub
-
+	private static String DEFAULT_NAME = "<Unnamed File Data Source>";
+	
+	protected final String filePath;
+	private String name;
+	
+	
+	public HadoopDataSource(
+			HadoopInputFormatWrapper<?, ?, ?> format, String filePath, String name) {
+		super(format,name);
+		this.filePath=filePath;
+		format.setFilePath(filePath);
+		this.name = name;
+	}
+	
+	public HadoopDataSource(HadoopInputFormatWrapper<?, ?, ?> format, String filePath) {
+		this(format,filePath,DEFAULT_NAME);
 	}
 
-	@Override
-	public void accept(Visitor<Operator> visitor) {
-		// TODO Auto-generated method stub
-
+	public String getFilePath() {
+		return this.filePath;
 	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	public String toString() {
+		return this.filePath;
+	}
+	
 
 }

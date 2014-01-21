@@ -46,7 +46,7 @@ public class UserCodeObjectWrapper<T> implements UserCodeWrapper<T> {
 
                     }
 
-                    if (!Modifier.isStatic(f.getModifiers()) && f.get(current) != null &&  !(f.get(current) instanceof Serializable)) {
+                    if (!Modifier.isTransient(f.getModifiers()) &&!Modifier.isStatic(f.getModifiers()) && f.get(current) != null &&  !(f.get(current) instanceof Serializable)) {
                         throw new RuntimeException("User code object " +
                                 userCodeObject + " contains non-serializable field " + f.getName() + " = " + f.get(current));
                     }
