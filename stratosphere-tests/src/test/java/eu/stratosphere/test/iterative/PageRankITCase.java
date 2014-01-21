@@ -56,7 +56,7 @@ public class PageRankITCase extends TestBase2 {
 			edgesPath,
 			resultPath,
 			config.getString("NumIterations", "5"),	// max iterations
-			"10");	// num dangling vertices
+			"10");	// num vertices
 		return plan;
 	}
 
