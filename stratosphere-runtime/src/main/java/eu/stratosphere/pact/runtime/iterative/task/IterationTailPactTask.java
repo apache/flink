@@ -13,18 +13,20 @@
 
 package eu.stratosphere.pact.runtime.iterative.task;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import eu.stratosphere.api.common.functions.Function;
+import eu.stratosphere.pact.runtime.hash.MutableHashTable;
 import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannel;
 import eu.stratosphere.pact.runtime.iterative.concurrent.SolutionSetUpdateBarrier;
 import eu.stratosphere.pact.runtime.iterative.concurrent.SolutionSetUpdateBarrierBroker;
 import eu.stratosphere.pact.runtime.iterative.io.WorksetUpdateOutputCollector;
-import eu.stratosphere.pact.runtime.hash.MutableHashTable;
+import eu.stratosphere.pact.runtime.shipping.RecordOutputCollector;
 import eu.stratosphere.pact.runtime.task.PactDriver;
 import eu.stratosphere.pact.runtime.task.PactTaskContext;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
-
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 
 /**
  * An iteration tail, which runs a {@link PactDriver} inside.
@@ -71,7 +73,18 @@ public class IterationTailPactTask<S extends Function, OT> extends AbstractItera
 		}
 
 		if (isSolutionSetUpdate) {
-			outputCollector = createSolutionSetUpdateOutputCollector(outputCollector);
+			if (isWorksetIteration) {
+				outputCollector = createSolutionSetUpdateOutputCollector(outputCollector);
+			}
+			// Bulk iteration with termination criterion
+			else {
+				outputCollector = new Collector<OT>() {
+					@Override
+					public void collect(OT record) {}
+					@Override
+					public void close() {}
+				};
+			}
 
 			if (!isWorksetUpdate) {
 				solutionSetUpdateBarrier = SolutionSetUpdateBarrierBroker.instance().get(brokerKey());

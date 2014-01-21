@@ -763,6 +763,15 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 					chaining = false;
 				}
 			}
+			// cannot chain the nodes that produce the next workset in a bulk iteration if a termination criterion follows
+			if (this.currentIteration != null && this.currentIteration instanceof BulkIterationPlanNode &&
+					node.getOutgoingChannels().size() > 0)
+			{
+				BulkIterationPlanNode wspn = (BulkIterationPlanNode) this.currentIteration;
+				if (wspn.getRootOfStepFunction() == pred || wspn.getRootOfTerminationCriterion() == pred) {
+					chaining = false;
+				}
+			}
 		}
 		
 		final JobTaskVertex vertex;
@@ -1176,8 +1185,11 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		
 		
 		// ----------------------------- create the iteration tail ------------------------------
+		
+		final PlanNode rootOfTerminationCriterion = bulkNode.getRootOfTerminationCriterion();
 		final PlanNode rootOfStepFunction = bulkNode.getRootOfStepFunction();
 		final TaskConfig tailConfig;
+		
 		JobTaskVertex rootOfStepFunctionVertex = (JobTaskVertex) this.vertices.get(rootOfStepFunction);
 		if (rootOfStepFunctionVertex == null) {
 			// last op is chained
@@ -1192,23 +1204,76 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		} else {
 			tailConfig = new TaskConfig(rootOfStepFunctionVertex.getConfiguration());
 		}
-		rootOfStepFunctionVertex.setTaskClass(IterationTailPactTask.class);
+		
 		tailConfig.setIsWorksetUpdate();
-		tailConfig.setOutputSerializer(bulkNode.getSerializerForIterationChannel());
-		tailConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
 		
-		// create the fake output task
-		JobOutputVertex fakeTail = new JobOutputVertex("Fake Tail", this.jobGraph);
-		fakeTail.setOutputClass(FakeOutputTask.class);
-		fakeTail.setNumberOfSubtasks(headVertex.getNumberOfSubtasks());
-		fakeTail.setNumberOfSubtasksPerInstance(headVertex.getNumberOfSubtasksPerInstance());
-		this.auxVertices.add(fakeTail);
+		// No following termination criterion
+		if(rootOfStepFunction.getOutgoingChannels().isEmpty()) {
+			
+			rootOfStepFunctionVertex.setTaskClass(IterationTailPactTask.class);
+			
+			tailConfig.setOutputSerializer(bulkNode.getSerializerForIterationChannel());
+			tailConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
+			
+			// create the fake output task
+			JobOutputVertex fakeTail = new JobOutputVertex("Fake Tail", this.jobGraph);
+			fakeTail.setOutputClass(FakeOutputTask.class);
+			fakeTail.setNumberOfSubtasks(headVertex.getNumberOfSubtasks());
+			fakeTail.setNumberOfSubtasksPerInstance(headVertex.getNumberOfSubtasksPerInstance());
+			this.auxVertices.add(fakeTail);
+			
+			// connect the fake tail
+			try {
+				rootOfStepFunctionVertex.connectTo(fakeTail, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
+			} catch (JobGraphDefinitionException e) {
+				throw new CompilerException("Bug: Cannot connect iteration tail vertex fake tail task");
+			}
+			
+		}
 		
-		// connect the fake tail
-		try {
-			rootOfStepFunctionVertex.connectTo(fakeTail, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
-		} catch (JobGraphDefinitionException e) {
-			throw new CompilerException("Bug: Cannot connect iteration tail vertex fake tail task");
+		
+		// create the fake output task for termination criterion, if needed
+		final TaskConfig tailConfigOfTerminationCriterion;
+		// If we have a termination criterion and it is not an intermediate node
+		if(rootOfTerminationCriterion != null && rootOfTerminationCriterion.getOutgoingChannels().isEmpty()) {
+			JobTaskVertex rootOfTerminationCriterionVertex = (JobTaskVertex) this.vertices.get(rootOfTerminationCriterion);
+			
+			
+			if (rootOfTerminationCriterionVertex == null) {
+				// last op is chained
+				final TaskInChain taskInChain = this.chainedTasks.get(rootOfTerminationCriterion);
+				if (taskInChain == null) {
+					throw new CompilerException("Bug: Tail of termination criterion not found as vertex or chained task.");
+				}
+				rootOfTerminationCriterionVertex = (JobTaskVertex) taskInChain.getContainingVertex();
+
+				// the fake channel is statically typed to pact record. no data is sent over this channel anyways.
+				tailConfigOfTerminationCriterion = taskInChain.getTaskConfig();
+			} else {
+				tailConfigOfTerminationCriterion = new TaskConfig(rootOfTerminationCriterionVertex.getConfiguration());
+			}
+			
+			rootOfTerminationCriterionVertex.setTaskClass(IterationTailPactTask.class);
+			// Hack
+			tailConfigOfTerminationCriterion.setIsSolutionSetUpdate();
+			tailConfigOfTerminationCriterion.setOutputSerializer(bulkNode.getSerializerForIterationChannel());
+			tailConfigOfTerminationCriterion.addOutputShipStrategy(ShipStrategyType.FORWARD);
+			
+			JobOutputVertex fakeTailTerminationCriterion = new JobOutputVertex("Fake Tail for Termination Criterion", this.jobGraph);
+			fakeTailTerminationCriterion.setOutputClass(FakeOutputTask.class);
+			fakeTailTerminationCriterion.setNumberOfSubtasks(headVertex.getNumberOfSubtasks());
+			fakeTailTerminationCriterion.setNumberOfSubtasksPerInstance(headVertex.getNumberOfSubtasksPerInstance());
+			this.auxVertices.add(fakeTailTerminationCriterion);
+		
+			// connect the fake tail
+			try {
+				rootOfTerminationCriterionVertex.connectTo(fakeTailTerminationCriterion, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
+			} catch (JobGraphDefinitionException e) {
+				throw new CompilerException("Bug: Cannot connect iteration tail vertex fake tail task for termination criterion");
+			}
+			
+			// tell the head that it needs to wait for the solution set updates
+			headConfig.setWaitForSolutionSetUpdate();
 		}
 		
 		// ------------------- register the aggregators -------------------

@@ -128,6 +128,17 @@ public abstract class GenericFlatTypePostPass<X, T extends AbstractSchema<X>> im
 				throw new CompilerException("Optimizer cannot compile an iteration step function where next partial solution is created by a Union node.");
 			}
 			
+			// traverse the termination criterion for the first time. create schema only, no utilities. Needed in case of intermediate termination criterion
+			if (iterationNode.getRootOfTerminationCriterion() != null) {
+				SingleInputPlanNode addMapper = (SingleInputPlanNode) iterationNode.getRootOfTerminationCriterion();
+				traverse(addMapper.getInput().getSource(), createEmptySchema(), false);
+				try {
+					addMapper.getInput().setSerializer(createSerializer(createEmptySchema()));
+				} catch (MissingFieldTypeInfoException e) {
+					throw new RuntimeException(e);
+				}
+			}
+			
 			// traverse the step function for the first time. create schema only, no utilities
 			traverse(iterationNode.getRootOfStepFunction(), schema, false);
 			
@@ -138,6 +149,16 @@ public abstract class GenericFlatTypePostPass<X, T extends AbstractSchema<X>> im
 			
 			// traverse the step function for the second time, taking the schema of the partial solution
 			traverse(iterationNode.getRootOfStepFunction(), pss, createUtilities);
+			
+			if (iterationNode.getRootOfTerminationCriterion() != null) {
+				SingleInputPlanNode addMapper = (SingleInputPlanNode) iterationNode.getRootOfTerminationCriterion();
+				traverse(addMapper.getInput().getSource(), createEmptySchema(), createUtilities);
+				try {
+					addMapper.getInput().setSerializer(createSerializer(createEmptySchema()));
+				} catch (MissingFieldTypeInfoException e) {
+					throw new RuntimeException(e);
+				}
+			}
 			
 			// take the schema from the partial solution node and add its fields to the iteration result schema.
 			// input and output schema need to be identical, so this is essentially a sanity check

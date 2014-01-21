@@ -438,9 +438,9 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 		}
 	}
 	
-	private static class SingleRootJoiner extends TwoInputNode {
+	public static class SingleRootJoiner extends TwoInputNode {
 		
-		private SingleRootJoiner() {
+		SingleRootJoiner() {
 			super(NoOpBinaryUdfOp.INSTANCE);
 			
 			setDegreeOfParallelism(1);

@@ -506,6 +506,7 @@ public class ConnectedComponentsNepheleITCase extends TestBase2 {
         {
             ssTailConfig.setIterationId(ITERATION_ID);
             ssTailConfig.setIsSolutionSetUpdate();
+            ssTailConfig.setIsWorksetIteration();
 
             // inputs and driver
             ssTailConfig.addInputToGroup(0);
@@ -655,6 +656,7 @@ public class ConnectedComponentsNepheleITCase extends TestBase2 {
         {
             ssTailConfig.setIterationId(ITERATION_ID);
             ssTailConfig.setIsSolutionSetUpdate();
+            ssTailConfig.setIsWorksetIteration();
 
             // inputs and driver
             ssTailConfig.addInputToGroup(0);

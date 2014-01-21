@@ -935,17 +935,40 @@ public class PactCompiler {
 				// first, recursively build the data flow for the step function
 				final GraphCreatingVisitor recursiveCreator = new GraphCreatingVisitor(this, true,
 					this.maxMachines, iterNode.getDegreeOfParallelism());
+				
+				BulkPartialSolutionNode partialSolution = null;
+				
 				iter.getNextPartialSolution().accept(recursiveCreator);
 				
+				partialSolution =  (BulkPartialSolutionNode) recursiveCreator.con2node.get(iter.getPartialSolution());
 				OptimizerNode rootOfStepFunction = recursiveCreator.con2node.get(iter.getNextPartialSolution());
-				BulkPartialSolutionNode partialSolution = 
-						(BulkPartialSolutionNode) recursiveCreator.con2node.get(iter.getPartialSolution());
 				if (partialSolution == null) {
-					throw new CompilerException("Invalid Bulk iteration: The result of the iterative step functions result does not depend on the partial solution.");
+					throw new CompilerException("Error: The step functions result does not depend on the partial solution.");
 				}
 				
-				// add an outgoing connection to the root of the step function				
-				iterNode.setNextPartialSolution(rootOfStepFunction);
+				
+				OptimizerNode terminationCriterion = null;
+				if(iter.getTerminationCriterion() != null) {
+					terminationCriterion = recursiveCreator.con2node.get(iter.getTerminationCriterion());
+					
+					// no intermediate node
+					if(terminationCriterion == null) {
+						iter.getTerminationCriterion().accept(recursiveCreator);
+						terminationCriterion = recursiveCreator.con2node.get(iter.getTerminationCriterion());
+						partialSolution =  (BulkPartialSolutionNode) recursiveCreator.con2node.get(iter.getPartialSolution());
+						
+						if (partialSolution == null) {
+							throw new CompilerException("Error: The termination criterion result does not depend on the partial solution.");
+						}
+					}
+				}
+				
+				
+				// add an outgoing connection to the root of the step function
+				//PactConnection rootConn = new PactConnection(rootOfStepFunction);
+				//rootOfStepFunction.addOutgoingConnection(rootConn);
+				
+				iterNode.setNextPartialSolution(rootOfStepFunction, terminationCriterion);
 				iterNode.setPartialSolution(partialSolution);
 				
 				// account for the nested memory consumers

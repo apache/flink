@@ -23,12 +23,15 @@ import eu.stratosphere.api.common.operators.BulkIteration;
 import eu.stratosphere.api.common.operators.FileDataSink;
 import eu.stratosphere.api.common.operators.FileDataSource;
 import eu.stratosphere.api.java.record.functions.JoinFunction;
+import eu.stratosphere.api.java.record.functions.MapFunction;
 import eu.stratosphere.api.java.record.functions.ReduceFunction;
 import eu.stratosphere.api.java.record.functions.FunctionAnnotation.ConstantFields;
 import eu.stratosphere.api.java.record.operators.JoinOperator;
+import eu.stratosphere.api.java.record.operators.MapOperator;
 import eu.stratosphere.api.java.record.operators.ReduceOperator;
 import eu.stratosphere.api.java.record.operators.ReduceOperator.Combinable;
 import eu.stratosphere.types.DoubleValue;
+import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.LongValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
@@ -62,7 +65,7 @@ public class SimplePageRank implements Program, ProgramDescription {
 
 			partialRank.setValue(rankToDistribute);
 			record.setField(1, partialRank);
-
+			
 			for (int n = 0; n < numNeighbors; n++) {
 				vertexID.setValue(adjacentNeighbors.getQuick(n));
 				record.setField(0, vertexID);
@@ -82,13 +85,40 @@ public class SimplePageRank implements Program, ProgramDescription {
 		public void reduce(Iterator<Record> pageWithPartialRank, Collector<Record> out) throws Exception {
 			Record rec = null;
 			double rankSum = 0.0;
+			
 			while (pageWithPartialRank.hasNext()) {
 				rec = pageWithPartialRank.next();
 				rankSum += rec.getField(1, DoubleValue.class).getValue();
 			}
 			sum.setValue(rankSum);
+			
 			rec.setField(1, sum);
 			out.collect(rec);
+		}
+	}
+	
+	public static final class JoinOldAndNew extends JoinFunction implements Serializable {
+		private static final long serialVersionUID = 1L;
+
+		private Record record = new Record();
+		private LongValue vertexID = new LongValue();
+		private DoubleValue newRank = new DoubleValue();
+		private DoubleValue rank = new DoubleValue();
+		
+		@Override
+		public void join(Record pageWithRank, Record newPageWithRank, Collector<Record> out) throws Exception {
+			rank = pageWithRank.getField(1, rank);
+			newRank = newPageWithRank.getField(1, newRank);
+			vertexID = pageWithRank.getField(0, vertexID);
+			
+			double epsilon = 0.05;
+			double criterion = rank.getValue() - newRank.getValue();
+			
+			if(Math.abs(criterion) > epsilon)
+			{
+				record.setField(0, new IntValue(1));
+				out.collect(record);
+			}
 		}
 	}
 	
@@ -134,6 +164,14 @@ public class SimplePageRank implements Program, ProgramDescription {
 		
 		iteration.setNextPartialSolution(rankAggregation);
 		iteration.setMaximumNumberOfIterations(numIterations);
+		
+		JoinOperator termination = JoinOperator.builder(new JoinOldAndNew(), LongValue.class, 0, 0)
+				.input1(iteration.getPartialSolution())
+				.input2(rankAggregation)
+				.name("Join Old and New")
+				.build();
+		
+		iteration.setTerminationCriterion(termination);
 		
 		FileDataSink out = new FileDataSink(new PageWithRankOutFormat(), outputPath, iteration, "Final Ranks");
 

@@ -31,6 +31,8 @@ public class BulkIterationPlanNode extends SingleInputPlanNode implements Iterat
 	
 	private final PlanNode rootOfStepFunction;
 	
+	private PlanNode rootOfTerminationCriterion;
+	
 	private TypeSerializerFactory<?> serializerForIterationChannel;
 	
 	// --------------------------------------------------------------------------------------------
@@ -40,6 +42,14 @@ public class BulkIterationPlanNode extends SingleInputPlanNode implements Iterat
 		super(template, nodeName, input, DriverStrategy.NONE);
 		this.partialSolutionPlanNode = pspn;
 		this.rootOfStepFunction = rootOfStepFunction;
+	}
+	
+	public BulkIterationPlanNode(BulkIterationNode template, String nodeName, Channel input,
+			BulkPartialSolutionPlanNode pspn, PlanNode rootOfStepFunction, PlanNode rootOfTerminationCriterion) {
+		this(template, nodeName, input, pspn, rootOfStepFunction);
+		// HACK!
+		//this.rootOfTerminationCriterion = rootOfTerminationCriterion.getInputs().next().getSource();
+		this.rootOfTerminationCriterion = rootOfTerminationCriterion;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -60,6 +70,10 @@ public class BulkIterationPlanNode extends SingleInputPlanNode implements Iterat
 		return this.rootOfStepFunction;
 	}
 	
+	public PlanNode getRootOfTerminationCriterion() {
+		return this.rootOfTerminationCriterion;
+	}
+	
 	// --------------------------------------------------------------------------------------------
 
 	
@@ -74,6 +88,8 @@ public class BulkIterationPlanNode extends SingleInputPlanNode implements Iterat
 	public void setCosts(Costs nodeCosts) {
 		// add the costs from the step function
 		nodeCosts.addCosts(this.rootOfStepFunction.getCumulativeCosts());
+		if(rootOfTerminationCriterion != null)
+			nodeCosts.addCosts(this.rootOfTerminationCriterion.getCumulativeCosts());
 		super.setCosts(nodeCosts);
 	}
 	
@@ -101,5 +117,9 @@ public class BulkIterationPlanNode extends SingleInputPlanNode implements Iterat
 	@Override
 	public void acceptForStepFunction(Visitor<PlanNode> visitor) {
 		this.rootOfStepFunction.accept(visitor);
+		
+		if(this.rootOfTerminationCriterion != null)
+			this.rootOfTerminationCriterion.accept(visitor);
+		
 	}
 }

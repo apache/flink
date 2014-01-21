@@ -267,6 +267,12 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 				@SuppressWarnings("unchecked")
 				TypeSerializer<X> solSer = (TypeSerializer<X>) feedbackTypeSerializer;
 				solutionTypeSerializer = solSer;
+				
+				// = termination Criterion tail
+				if (waitForSolutionSetUpdate) {
+					solutionSetUpdateBarrier = new SolutionSetUpdateBarrier();
+					SolutionSetUpdateBarrierBroker.instance().handIn(brokerKey, solutionSetUpdateBarrier);
+				}
 			}
 
 			// instantiate all aggregators and register them at the iteration global registry
