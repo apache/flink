@@ -26,7 +26,6 @@ import eu.stratosphere.api.common.io.FileInputFormat
 import eu.stratosphere.api.common.io.GenericInputFormat
 import eu.stratosphere.api.scala.operators.TextInputFormat
 import collection.JavaConversions._
-import eu.stratosphere.api.common.operators.util.SerializableIterator;
 
 object DataSource {
 
@@ -84,9 +83,9 @@ object CollectionDataSource {
   }
   
   /*
-  constructor for {@link SerializableIterator} input
+  constructor for serializable iterator input
    */
-  def apply[Out: UDT](data: SerializableIterator[Out]) = {
+  def apply[Out: UDT](data: Iterator[Out] with Serializable) = {
 
     /*
     reuse the java implementation of collection data by adding scala operator
