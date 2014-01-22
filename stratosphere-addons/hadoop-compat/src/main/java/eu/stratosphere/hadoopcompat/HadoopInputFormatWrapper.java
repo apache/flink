@@ -14,12 +14,10 @@ import eu.stratosphere.api.common.io.InputFormat;
 import eu.stratosphere.api.common.io.statistics.BaseStatistics;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.hadoopcompat.datatypes.HadoopTypeConverter;
-import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.Record;
-import eu.stratosphere.types.StringValue;
 import eu.stratosphere.types.Value;
 
-public class HadoopInputFormatWrapper<OT,K,V> implements InputFormat<OT, HadoopInputSplitWrapper> {
+public class HadoopInputFormatWrapper<OT extends Record,K,V> implements InputFormat<Record, HadoopInputSplitWrapper> {
 
 	/**
 	 * 
@@ -33,7 +31,7 @@ public class HadoopInputFormatWrapper<OT,K,V> implements InputFormat<OT, HadoopI
 	public transient K key;
 	public transient V value;
 	private String filePath;
-	public RecordReader recordReader;
+	public RecordReader<K,V> recordReader;
 	private boolean end=false;
 		
 	public HadoopInputFormatWrapper() {
@@ -46,6 +44,16 @@ public class HadoopInputFormatWrapper<OT,K,V> implements InputFormat<OT, HadoopI
 		this.hadoopInputFormatName = hadoopInputFormat.getClass().getName();
 		this.jobConf = job;
 		ReflectionUtils.setConf(this.hadoopInputFormat, jobConf);
+		// TODO Auto-generated constructor stub
+	}
+	
+	public HadoopInputFormatWrapper(org.apache.hadoop.mapred.InputFormat<K,V> hadoopInputFormat, JobConf job, String filePath) {
+		super();
+		this.hadoopInputFormat = hadoopInputFormat;
+		this.hadoopInputFormatName = hadoopInputFormat.getClass().getName();
+		this.jobConf = job;
+		ReflectionUtils.setConf(this.hadoopInputFormat, jobConf);
+		this.setFilePath(filePath);
 		// TODO Auto-generated constructor stub
 	}
 
@@ -66,8 +74,7 @@ public class HadoopInputFormatWrapper<OT,K,V> implements InputFormat<OT, HadoopI
 			throws IOException {
 		org.apache.hadoop.mapred.InputSplit[] splitArray = hadoopInputFormat.getSplits(jobConf, minNumSplits);
 		HadoopInputSplitWrapper[] hiSplit = new HadoopInputSplitWrapper[splitArray.length];
-		for(int i=0;i<splitArray.length;i++)
-		{
+		for(int i=0;i<splitArray.length;i++){
 			hiSplit[i] = new HadoopInputSplitWrapper(splitArray[i], jobConf);
 		}
 		return hiSplit;
@@ -92,7 +99,7 @@ public class HadoopInputFormatWrapper<OT,K,V> implements InputFormat<OT, HadoopI
 	}
 
 	@Override
-	public boolean nextRecord(OT record) throws IOException {
+	public boolean nextRecord(Record record) throws IOException {
 //		Object key,value;
 		if(converter==null)
 		{
@@ -103,7 +110,7 @@ public class HadoopInputFormatWrapper<OT,K,V> implements InputFormat<OT, HadoopI
 		{
 			Value value1 = converter.convert(key);
 			Value value2 = converter.convert(value);
-			((Record)record).setField(0, value1); 
+			record.setField(0, value1); 
 			((Record)record).setField(1, value2); 
 			return true;
 		}
@@ -113,7 +120,7 @@ public class HadoopInputFormatWrapper<OT,K,V> implements InputFormat<OT, HadoopI
 
 	@Override
 	public void close() throws IOException {
-		
+		this.recordReader.close();
 	}
 	
 	
@@ -178,4 +185,5 @@ public class HadoopInputFormatWrapper<OT,K,V> implements InputFormat<OT, HadoopI
 	public String getFilePath() {
 		return filePath;
 	}
+
 }

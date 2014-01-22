@@ -1,3 +1,4 @@
+package eu.stratosphere.hadoopcompat.example;
 /***********************************************************************************************************************
  * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
  *
@@ -113,8 +114,9 @@ public class WordCount implements Program, ProgramDescription {
 		String output    = (args.length > 2 ? args[2] : "");
 		
 
-		HadoopDataSource source = new HadoopDataSource(new HadoopInputFormatWrapper(new org.apache.hadoop.mapred.TextInputFormat(), new JobConf()), dataInput, "Input Lines");
-//        FileDataSource source = new FileDataSource(new TextInputFormat(), dataInput, "Input Lines");
+//		HadoopDataSource source = new HadoopDataSource(new HadoopInputFormatWrapper(new org.apache.hadoop.mapred.TextInputFormat(), new JobConf()), dataInput, "Input Lines");
+		HadoopDataSource source = new HadoopDataSource(new org.apache.hadoop.mapred.TextInputFormat(), new JobConf(), dataInput, "Input Lines");
+//      FileDataSource source = new FileDataSource(new TextInputFormat(), dataInput, "Input Lines");
 		MapOperator mapper = MapOperator.builder(new TokenizeLine())
 			.input(source)
 			.name("Tokenize Lines")
