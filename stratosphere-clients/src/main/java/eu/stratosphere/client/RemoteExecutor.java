@@ -32,16 +32,12 @@ public class RemoteExecutor implements PlanExecutor {
 	private Client client;
 
 	private List<String> jarFiles;
-
-	public RemoteExecutor(InetSocketAddress inet, List<String> jarFiles) {
-		this.client = new Client(inet, new Configuration());
-		this.jarFiles = jarFiles;
+	
+	
+	public RemoteExecutor(String hostname, int port) {
+		this(hostname, port, Collections.<String>emptyList());
 	}
 	
-	public RemoteExecutor(String hostname, int port, List<String> jarFiles) {
-		this(new InetSocketAddress(hostname, port), jarFiles);
-	}
-
 	public RemoteExecutor(String hostname, int port, String jarFile) {
 		this(hostname, port, Collections.singletonList(jarFile));
 	}
@@ -49,6 +45,16 @@ public class RemoteExecutor implements PlanExecutor {
 	public RemoteExecutor(String hostport, String jarFile) {
 		this(getInetFromHostport(hostport), Collections.singletonList(jarFile));
 	}
+	
+	public RemoteExecutor(String hostname, int port, List<String> jarFiles) {
+		this(new InetSocketAddress(hostname, port), jarFiles);
+	}
+
+	public RemoteExecutor(InetSocketAddress inet, List<String> jarFiles) {
+		this.client = new Client(inet, new Configuration());
+		this.jarFiles = jarFiles;
+	}
+
 	
 	public static InetSocketAddress getInetFromHostport(String hostport) {
 		// from http://stackoverflow.com/questions/2345063/java-common-way-to-validate-and-convert-hostport-to-inetsocketaddress
@@ -66,9 +72,11 @@ public class RemoteExecutor implements PlanExecutor {
 		return new InetSocketAddress(host, port);
 	}
 
+	
 	public JobExecutionResult executePlanWithJars(JobWithJars p) throws Exception {
 		return this.client.run(p, true);
 	}
+	
 	
 	@Override
 	public JobExecutionResult executePlan(Plan plan) throws Exception {
