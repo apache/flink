@@ -427,11 +427,11 @@ public abstract class FileSystem {
 	 * 
 	 * @param outPath Output path that should be prepared.
 	 * @param writeMode Write mode to consider. 
-	 * @param parallelOutput True, if it will be written to the output path in parallel, false otherwise.
+	 * @param createDirectory True, to initialize a directory at the given path, false otherwise.
 	 * @return True, if the path was successfully prepared, false otherwise.
 	 * @throws IOException
 	 */
-	public boolean initOutPathLocalFS(Path outPath, WriteMode writeMode, boolean parallelOutput) throws IOException {
+	public boolean initOutPathLocalFS(Path outPath, WriteMode writeMode, boolean createDirectory) throws IOException {
 		if(this.isDistributedFS()) {
 			return false;
 		}
@@ -449,7 +449,7 @@ public abstract class FileSystem {
 				}
 			case OVERWRITE:
 				if(this.getFileStatus(outPath).isDir()) {
-					if(parallelOutput) {
+					if(createDirectory) {
 						// directory exists and does not need to be created
 						return true;
 					} else {
@@ -476,7 +476,7 @@ public abstract class FileSystem {
 			}
 		}
 		
-		if(parallelOutput) {
+		if(createDirectory) {
 			// Output directory needs to be created
 			try {
 				if(!this.exists(outPath)) {
@@ -517,11 +517,11 @@ public abstract class FileSystem {
 	 * 
 	 * @param outPath Output path that should be prepared.
 	 * @param writeMode Write mode to consider. 
-	 * @param parallelOutput True, if it will be written to the output path in parallel, false otherwise.
+	 * @param createDirectory True, to initialize a directory at the given path, false otherwise.
 	 * @return True, if the path was successfully prepared, false otherwise.
 	 * @throws IOException
 	 */
-	public boolean initOutPathDistFS(Path outPath, WriteMode writeMode, boolean parallelOutput) throws IOException {
+	public boolean initOutPathDistFS(Path outPath, WriteMode writeMode, boolean createDirectory) throws IOException {
 		if(!this.isDistributedFS()) {
 			return false;
 		}
@@ -548,7 +548,7 @@ public abstract class FileSystem {
 			}
 		}
 		
-		if(parallelOutput) {
+		if(createDirectory) {
 			// Output directory needs to be created
 			try {
 				if(!this.exists(outPath)) {

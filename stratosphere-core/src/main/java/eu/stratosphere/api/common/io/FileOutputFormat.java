@@ -56,6 +56,17 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT> {
 	public static final String WRITEMODE_OVERWRITE = "stratosphere.output.writemode.overwrite";
 	
 	/**
+     * The key under which the output directory mode parameter is stored in the configuration
+     */
+    public static final String OUT_DIRECTORY_PARAMETER_KEY = "stratosphere.output.directory";
+    
+    /**
+     * Value keys for the output directory modes
+     */
+    public static final String OUT_DIRECTORY_ALWAYS = "stratosphere.output.directory.always";
+    public static final String OUT_DIRECTORY_PARONLY = "stratosphere.output.directory.paronly";
+    
+	/**
 	 * The config parameter for the opening timeout in milliseconds.
 	 */
 	public static final String OUTPUT_STREAM_OPEN_TIMEOUT_KEY = "stratosphere.output.file.timeout";
@@ -71,6 +82,11 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT> {
 	protected WriteMode writeMode;
 	
 	/**
+	 * The output directory mode
+	 */
+	protected OutputDirectoryMode outDirMode;
+	
+	/**
 	 * The stream to which the data is written;
 	 */
 	protected FSDataOutputStream stream;
@@ -82,7 +98,16 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT> {
 
 	// --------------------------------------------------------------------------------------------
 
-
+	/**
+	 * Defines the behavior for creating output directories. 
+	 *
+	 */
+	public static enum OutputDirectoryMode {
+		ALWAYS,			// A directory is always created, regardless of number of write tasks
+		PARONLY			// A directory is only created for parallel output tasks, i.e., number of output tasks > 1.
+						// If number of output tasks = 1, the output is written to a single file.
+	}
+	
 	@Override
 	public void configure(Configuration parameters) {
 		// get the file parameter
@@ -108,6 +133,16 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT> {
 			throw new RuntimeException("Invalid write mode configuration: "+writeModeParam);
 		}
 		
+		// get the output directory parameter
+		String outDirParam = parameters.getString(OUT_DIRECTORY_PARAMETER_KEY, OUT_DIRECTORY_PARONLY);
+		if(outDirParam.equals(OUT_DIRECTORY_ALWAYS)) {
+			this.outDirMode = OutputDirectoryMode.ALWAYS;
+		} else if(outDirParam.equals(OUT_DIRECTORY_PARONLY)) {
+			this.outDirMode = OutputDirectoryMode.PARONLY;
+		} else {
+			throw new RuntimeException("Invalid output directory mode configuration: "+outDirParam);
+		}
+		
 		// get timeout for stream opening
 		this.openTimeout = parameters.getLong(OUTPUT_STREAM_OPEN_TIMEOUT_KEY, FileInputFormat.DEFAULT_OPENING_TIMEOUT);
 		if (this.openTimeout < 0) {
@@ -124,7 +159,7 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT> {
 	@Override
 	public void open(int taskNumber, int numTasks) throws IOException {
 		// obtain FSDataOutputStream asynchronously, since HDFS client can not handle InterruptedExceptions
-		OutputPathOpenThread opot = new OutputPathOpenThread(this.outputFilePath, this.writeMode, (taskNumber + 1), numTasks, this.openTimeout);
+		OutputPathOpenThread opot = new OutputPathOpenThread(this, (taskNumber + 1), numTasks);
 		opot.start();
 		
 		try {
@@ -147,8 +182,20 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT> {
 		}
 	}
 	
+	public Path getOutputFilePath() {
+		return this.outputFilePath;
+	}
+	
 	public WriteMode getWriteMode() {
 		return this.writeMode;
+	}
+	
+	public OutputDirectoryMode getOutDirMode() {
+		return this.outDirMode;
+	}
+	
+	public long getOpenTimeout() {
+		return this.openTimeout;
 	}
 	
 	// ============================================================================================
@@ -163,6 +210,8 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT> {
 		
 		private final WriteMode writeMode;
 		
+		private final OutputDirectoryMode outDirMode;
+		
 		private final long timeoutMillies;
 		
 		private volatile FSDataOutputStream fdos;
@@ -172,10 +221,11 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT> {
 		private volatile boolean aborted;
 
 		
-		public OutputPathOpenThread(Path path, WriteMode writeMode, int taskIndex, int numTasks, long timeoutMillies) {
-			this.path = path;
-			this.writeMode = writeMode;
-			this.timeoutMillies = timeoutMillies;
+		public OutputPathOpenThread(FileOutputFormat<?> fof, int taskIndex, int numTasks) {
+			this.path = fof.getOutputFilePath();
+			this.writeMode = fof.getWriteMode();
+			this.outDirMode = fof.getOutDirMode();
+			this.timeoutMillies = fof.getOpenTimeout();
 			this.taskIndex = taskIndex;
 			this.numTasks = numTasks;
 		}
@@ -187,8 +237,9 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT> {
 				Path p = this.path;
 				final FileSystem fs = p.getFileSystem();
 
-				if(this.numTasks == 1) {
-					// output is not written in parallel
+				// initialize output path. 
+				if(this.numTasks == 1 && outDirMode == OutputDirectoryMode.PARONLY) {
+					// output is not written in parallel and should go to a single file
 					
 					if(!fs.isDistributedFS()) {
 						// prepare local output path
@@ -199,11 +250,8 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT> {
 						}
 					}
 					
-					// create output file
-					this.fdos = fs.create(p, false);
-					
-				} else if(this.numTasks > 1) {
-					// output is written in parallel
+				} else if(this.numTasks > 1 || outDirMode == OutputDirectoryMode.ALWAYS) {
+					// output is written in parallel into a directory or should always be written to a directory
 					
 					if(!fs.isDistributedFS()) {
 						// File system is not distributed.
@@ -217,22 +265,21 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT> {
 					// Suffix the path with the parallel instance index
 					p = p.suffix("/" + this.taskIndex);
 					
-					// create output file
-					switch(writeMode) {
-					case CREATE: 
-						this.fdos = fs.create(p, false);
-						break;
-					case OVERWRITE:
-						this.fdos = fs.create(p, true);
-						break;
-					default:
-						throw new IllegalArgumentException("Invalid write mode: "+writeMode);
-					}
-					this.fdos = fs.create(p, true);
-						
 				} else {
 					// invalid number of subtasks (<= 0)
 					throw new IllegalArgumentException("Invalid number of subtasks. Canceling task.");
+				}
+					
+				// create output file
+				switch(writeMode) {
+				case CREATE: 
+					this.fdos = fs.create(p, false);
+					break;
+				case OVERWRITE:
+					this.fdos = fs.create(p, true);
+					break;
+				default:
+					throw new IllegalArgumentException("Invalid write mode: "+writeMode);
 				}
 				
 				// check for canceling and close the stream in that case, because no one will obtain it

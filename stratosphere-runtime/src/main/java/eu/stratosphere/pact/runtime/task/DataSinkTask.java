@@ -19,6 +19,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.api.common.io.FileOutputFormat;
+import eu.stratosphere.api.common.io.FileOutputFormat.OutputDirectoryMode;
 import eu.stratosphere.api.common.io.OutputFormat;
 import eu.stratosphere.api.common.typeutils.TypeComparatorFactory;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
@@ -369,6 +370,7 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 		
 		final String pathName = this.config.getStubParameter(FileOutputFormat.FILE_PARAMETER_KEY, null);
 		final WriteMode writeMode = ((FileOutputFormat<?>)this.format).getWriteMode();
+		final OutputDirectoryMode outDirMode = ((FileOutputFormat<?>)this.format).getOutDirMode();
 		final Path path;
 		
 		if (pathName == null) {
@@ -388,11 +390,11 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 			int dop = getTaskConfiguration().getInteger(DEGREE_OF_PARALLELISM_KEY, -1);
 			final FileSystem fs = path.getFileSystem();
 			
-			if(dop == 1) {
+			if(dop == 1 && outDirMode == OutputDirectoryMode.PARONLY) {
+				// output is not written in parallel and should be written to a single file.
 				
 				if(fs.isDistributedFS()) {
 					// prepare distributed output path
-					// checks for write mode and removes existing files in case of OVERWRITE mode
 					if(!fs.initOutPathDistFS(path, writeMode, false)) {
 						// output preparation failed! Cancel task.
 						throw new IOException("Output path could not be initialized.");
@@ -402,6 +404,7 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 				return 1;
 				
 			} else {
+				// output should be written to a directory
 				
 				if(fs.isDistributedFS()) {
 					// only distributed file systems can be initialized at start-up time.
