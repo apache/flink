@@ -42,23 +42,23 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT> {
 	/**
 	 * The key under which the name of the target path is stored in the configuration. 
 	 */
-	public static final String FILE_PARAMETER_KEY = "pact.output.file";
+	public static final String FILE_PARAMETER_KEY = "stratosphere.output.file";
 	
 	/**
 	 * The key under which the write mode is stored in the configuration
 	 */
-	public static final String WRITEMODE_PARAMETER_KEY = "pact.output.writemode";
+	public static final String WRITEMODE_PARAMETER_KEY = "stratosphere.output.writemode";
 
 	/**
 	 * Value keys for the write modes
 	 */
 	public static final String WRITEMODE_CREATE = "stratosphere.output.writemode.create";
 	public static final String WRITEMODE_OVERWRITE = "stratosphere.output.writemode.overwrite";
-		
+	
 	/**
 	 * The config parameter for the opening timeout in milliseconds.
 	 */
-	public static final String OUTPUT_STREAM_OPEN_TIMEOUT_KEY = "pact.output.file.timeout";
+	public static final String OUTPUT_STREAM_OPEN_TIMEOUT_KEY = "stratosphere.output.file.timeout";
 	
 	/**
 	 * The path of the file to be written.
