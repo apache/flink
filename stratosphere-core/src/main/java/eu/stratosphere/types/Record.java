@@ -425,6 +425,37 @@ public final class Record implements Value {
 		return this.firstModifiedPos != Integer.MAX_VALUE;
 	}
 	
+	/**
+	 * Removes the field at the given position.
+	 * 
+	 * @param field The index number of the field to be removed.
+	 * @throws IndexOutOfBoundsException Thrown, when the position is not between 0 (inclusive) and the
+	 *                                   number of fields (exclusive).
+	 */
+	public void removeField(int field)
+	{
+		// range check
+		if (field < 0 || field >= this.numFields) {
+			throw new IndexOutOfBoundsException();
+		}
+		int lastIndex = this.numFields - 1;		
+
+		if (field < lastIndex) {
+			int len = lastIndex - field;
+			System.arraycopy(this.offsets, field + 1, this.offsets, field, len);
+			System.arraycopy(this.lengths, field + 1, this.lengths, field, len);
+			System.arraycopy(this.readFields, field + 1, this.readFields, field, len);
+			System.arraycopy(this.writeFields, field + 1, this.writeFields, field, len);
+			//System.arraycopy(this.fields, field + 1, this.fields, field, len);
+			markModified(field);
+		}
+		this.offsets[lastIndex] = NULL_INDICATOR_OFFSET;
+		this.lengths[lastIndex] = 0;
+		this.writeFields[lastIndex] = null;
+
+		setNumFields(lastIndex);
+	}
+	
 	public final boolean isNull(int fieldNum) {
 		// range check
 		if (fieldNum < 0 || fieldNum >= this.numFields) {
