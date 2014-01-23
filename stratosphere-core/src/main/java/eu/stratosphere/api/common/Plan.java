@@ -29,6 +29,8 @@ import eu.stratosphere.util.Visitor;
  * from which a traversal reaches all connected nodes of the job.
  */
 public class Plan implements Visitable<Operator> {
+
+	private static final int DEFAULT_PARALELLISM = -1;
 	
 	/**
 	 * A collection of all sinks in the plan. Since the plan is traversed from the sinks to the sources, this
@@ -44,7 +46,7 @@ public class Plan implements Visitable<Operator> {
 	/**
 	 * The default parallelism to use for nodes that have no explicitly specified parallelism.
 	 */
-	protected int defaultParallelism = -1;
+	protected int defaultParallelism = DEFAULT_PARALELLISM;
 	
 	/**
 	 * The maximal number of machines to use in the job.
@@ -64,8 +66,24 @@ public class Plan implements Visitable<Operator> {
 	 * @param jobName The name to display for the job.
 	 */
 	public Plan(Collection<GenericDataSink> sinks, String jobName) {
+		this(sinks, jobName, DEFAULT_PARALELLISM);
+	}
+
+	/**
+	 * Creates a new Stratosphere job with the given name and default parallelism, describing the data flow that ends
+	 * at the given data sinks.
+	 * <p>
+	 * If not all of the sinks of a data flow are given to the plan, the flow might
+	 * not be translated entirely.
+	 *
+	 * @param sinks The collection will the sinks of the job's data flow.
+	 * @param jobName The name to display for the job.
+	 * @param defaultParallelism The default degree of parallelism for the job.
+	 */
+	public Plan(Collection<GenericDataSink> sinks, String jobName, int defaultParallelism) {
 		this.sinks = sinks;
 		this.jobName = jobName;
+		this.defaultParallelism = defaultParallelism;
 	}
 
 	/**
@@ -79,9 +97,26 @@ public class Plan implements Visitable<Operator> {
 	 * @param jobName The name to display for the job.
 	 */
 	public Plan(GenericDataSink sink, String jobName) {
+		this(sink, jobName, DEFAULT_PARALELLISM);
+	}
+
+	/**
+	 * Creates a new Stratosphere job with the given name and default parallelism, containing initially a single data
+	 * sink.
+	 * <p>
+	 * If not all of the sinks of a data flow are given, the flow might
+	 * not be translated entirely, but only the parts of the flow reachable by traversing backwards
+	 * from the given data sinks.
+	 *
+	 * @param sink The data sink of the data flow.
+	 * @param jobName The name to display for the job.
+	 * @param defaultParallelism The default degree of parallelism for the job.
+	 */
+	public Plan(GenericDataSink sink, String jobName, int defaultParallelism) {
 		this.sinks = new ArrayList<GenericDataSink>();
 		this.sinks.add(sink);
 		this.jobName = jobName;
+		this.defaultParallelism = defaultParallelism;
 	}
 
 	/**
@@ -95,7 +130,22 @@ public class Plan implements Visitable<Operator> {
 	 * @param sinks The collection will the sinks of the data flow.
 	 */
 	public Plan(Collection<GenericDataSink> sinks) {
-		this(sinks, "Stratosphere Job at " + Calendar.getInstance().getTime());
+		this(sinks, DEFAULT_PARALELLISM);
+	}
+
+	/**
+	 * Creates a new Stratosphere job with the given default parallelism, describing the data flow that ends at the
+	 * given data sinks. The display name for the job is generated using a timestamp.
+	 * <p>
+	 * If not all of the sinks of a data flow are given, the flow might
+	 * not be translated entirely, but only the parts of the flow reachable by traversing backwards
+	 * from the given data sinks.
+	 *
+	 * @param sinks The collection will the sinks of the data flow.
+	 * @param defaultParallelism The default degree of parallelism for the job.
+	 */
+	public Plan(Collection<GenericDataSink> sinks, int defaultParallelism) {
+		this(sinks, "Stratosphere Job at " + Calendar.getInstance().getTime(), defaultParallelism);
 	}
 
 	/**
@@ -108,7 +158,21 @@ public class Plan implements Visitable<Operator> {
 	 * @param sink The data sink of the data flow.
 	 */
 	public Plan(GenericDataSink sink) {
-		this(sink, "Stratosphere Job at " + Calendar.getInstance().getTime());
+		this(sink, DEFAULT_PARALELLISM);
+	}
+
+	/**
+	 * Creates a new Stratosphere Job with single data sink and the given default parallelism.
+	 * The display name for the job is generated using a timestamp.
+	 * <p>
+	 * If not all of the sinks of a data flow are given to the plan, the flow might
+	 * not be translated entirely.
+	 *
+	 * @param sink The data sink of the data flow.
+	 * @param defaultParallelism The default degree of parallelism for the job.
+	 */
+	public Plan(GenericDataSink sink, int defaultParallelism) {
+		this(sink, "Stratosphere Job at " + Calendar.getInstance().getTime(), defaultParallelism);
 	}
 
 	// ------------------------------------------------------------------------
