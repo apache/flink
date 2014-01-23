@@ -1286,6 +1286,10 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 		code = (code ^ 0xb55a4f09) ^ (code >>> 16);
 		return code >= 0 ? code : -(code + 1);
 	}
+
+	public TypeComparator<PT> getProbeSideComparator () {
+		return this.probeSideComparator;
+	}
 	
 	// ======================================================================================================
 	

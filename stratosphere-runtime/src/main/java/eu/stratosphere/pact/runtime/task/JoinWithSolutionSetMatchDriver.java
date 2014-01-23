@@ -19,7 +19,10 @@ import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
 import eu.stratosphere.pact.runtime.hash.MutableHashTable;
 import eu.stratosphere.pact.runtime.iterative.concurrent.SolutionSetBroker;
 import eu.stratosphere.pact.runtime.iterative.task.AbstractIterativePactTask;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparator;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
+import eu.stratosphere.types.Key;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 import eu.stratosphere.util.MutableObjectIterator;
 
@@ -111,8 +114,8 @@ public abstract class JoinWithSolutionSetMatchDriver<IT1, IT2, OT> implements Re
 		// grab a handle to the hash table from the iteration broker
 		if (taskContext instanceof AbstractIterativePactTask) {
 			AbstractIterativePactTask<?, ?> iterativeTaskContext = (AbstractIterativePactTask<?, ?>) taskContext;
-			String identifyer = iterativeTaskContext.brokerKey();
-			this.hashTable = SolutionSetBroker.instance().get(identifyer);
+			String identifier = iterativeTaskContext.brokerKey();
+			this.hashTable = SolutionSetBroker.instance().get(identifier);
 		} else {
 			throw new Exception("The task context of this driver is no iterative task context.");
 		}
@@ -145,7 +148,7 @@ public abstract class JoinWithSolutionSetMatchDriver<IT1, IT2, OT> implements Re
 					matchStub.join(buildSideRecord, probeSideRecord, collector);
 				} else {
 					// no match found, this is for now an error case
-					throw new RuntimeException("No Match found in solution set.");
+					throwNoMatchFoundException(join, probeSideRecord);
 				}
 			}
 		} else if (getSolutionSetInputIndex() == 1) {
@@ -162,12 +165,35 @@ public abstract class JoinWithSolutionSetMatchDriver<IT1, IT2, OT> implements Re
 					matchStub.join(probeSideRecord, buildSideRecord, collector);
 				} else {
 					// no match found, this is for now an error case
-					throw new RuntimeException("No Match found in solution set.");
+					throwNoMatchFoundException(join, probeSideRecord);
 				}
 			}
 		} else {
 			throw new Exception();
 		}
+	}
+
+	private <PT> void throwNoMatchFoundException (MutableHashTable<?, PT> join, PT probeSideRecord) {
+		if (probeSideRecord instanceof Record) {
+			Record record = (Record) probeSideRecord;
+			RecordComparator comparator = (RecordComparator) join.getProbeSideComparator();
+
+			int[] keys = comparator.getKeyPositions();
+			Class<? extends Key>[] keyTypes = comparator.getKeyTypes();
+
+			StringBuilder str = new StringBuilder();
+			for (int i = 0; i < keys.length; i++) {
+				str.append(record.getField(keys[i], keyTypes[i]).toString());
+				str.append(" (field ");
+				str.append(keys[i]);
+				str.append(")");
+				str.append(i == keys.length-1 ? "" : ", ");
+			}
+
+			throw new RuntimeException("No match found in solution set for record with key " + str.toString());
+		}
+
+		throw new RuntimeException("No match found in solution set");
 	}
 
 	@Override

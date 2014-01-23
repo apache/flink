@@ -308,7 +308,7 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 				}
 
 				sendEventToSync(new WorkerDoneEvent(workerIndex, aggregatorRegistry.getAllAggregators()));
-;
+
 				if (log.isInfoEnabled()) {
 					log.info(formatLogString("waiting for other workers in iteration [" + currentIteration() + "]"));
 				}
