@@ -46,7 +46,6 @@ public class SpargelConnectedComponents implements Program, ProgramDescription {
 		FileDataSource initialVertices = new FileDataSource(DuplicateLongInputFormat.class, verticesPath, "Vertices");
 		FileDataSource edges = new FileDataSource(new CsvInputFormat(' ', LongValue.class, LongValue.class), edgesPath, "Edges");
 		
-		// create DataSinkContract for writing the new cluster positions
 		FileDataSink result = new FileDataSink(CsvOutputFormat.class, resultPath, "Result");
 		CsvOutputFormat.configureRecordFormat(result)
 			.recordDelimiter('\n')
