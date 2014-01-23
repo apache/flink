@@ -35,7 +35,7 @@ public abstract class VertexUpdateFunction<VertexKey extends Key, VertexValue ex
 	//  Public API Methods
 	// --------------------------------------------------------------------------------------------
 	
-	public abstract void updateVertex(VertexKey vertexKey, VertexValue vertexValue, Iterator<Message> inMessages) throws Exception;
+	public abstract void updateVertex(VertexKey vertexKey, VertexValue vertexValue, Iterable<Message> inMessages) throws Exception;
 	
 	public void setup(Configuration config) throws Exception {}
 	

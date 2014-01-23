@@ -17,8 +17,7 @@ import java.util.Iterator;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.Value;
 
-
-public final class MessageIterator<Message extends Value> implements Iterator<Message> {
+public final class MessageIterator<Message extends Value> implements Iterator<Message>, Iterable<Message> {
 
 	private final Message instance;
 	private Iterator<Record> source;
@@ -45,5 +44,10 @@ public final class MessageIterator<Message extends Value> implements Iterator<Me
 	@Override
 	public final void remove() {
 		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public Iterator<Message> iterator() {
+		return this;
 	}
 }

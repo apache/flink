@@ -29,7 +29,6 @@ import eu.stratosphere.util.Collector;
 import eu.stratosphere.util.InstantiationUtil;
 import eu.stratosphere.util.ReflectionUtil;
 
-
 public class SpargelIteration {
 	
 	private static final String DEFAULT_NAME = "<unnamed vertex-centric iteration>";

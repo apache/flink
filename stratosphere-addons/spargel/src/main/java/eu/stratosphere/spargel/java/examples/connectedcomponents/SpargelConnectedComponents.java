@@ -72,10 +72,10 @@ public class SpargelConnectedComponents implements Program, ProgramDescription {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void updateVertex(LongValue vertexKey, LongValue vertexValue, Iterator<LongValue> inMessages) {
+		public void updateVertex(LongValue vertexKey, LongValue vertexValue, Iterable<LongValue> inMessages) {
 			long min = Long.MAX_VALUE;
-			while (inMessages.hasNext()) {
-				long next = inMessages.next().getValue();
+			for (LongValue msg : inMessages) {
+				long next = msg.getValue();
 				min = Math.min(min, next);
 			}
 			if (min < vertexValue.getValue()) {
