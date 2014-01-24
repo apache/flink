@@ -12,8 +12,8 @@
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>hadoop-compat</artifactId>
-	<name>hadoop-compat</name>
+	<artifactId>hadoop-compatibility</artifactId>
+	<name>hadoop-compatibility</name>
 
 	<packaging>jar</packaging>
 
@@ -31,4 +31,22 @@
 		</dependency>
 	</dependencies>
 
+	<profiles>
+		<profile>
+			<id>hadoop-2</id>
+			<activation>
+				<property>
+					<!-- Please do not remove the 'hadoop1' comment. See ./tools/generate_specific_pom.sh -->
+					<!--hadoop2--><name>hadoop.profile</name><value>2</value>
+				</property>
+			</activation>
+			<dependencies>
+				<dependency>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-mapreduce-client-core</artifactId>
+					<version>${hadoop.version}</version>
+				</dependency>
+			</dependencies>
+		</profile>
+	</profiles>
 </project>

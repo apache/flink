@@ -18,7 +18,9 @@ import java.util.Iterator;
 import java.util.StringTokenizer;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.TextInputFormat;
 
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.Program;
@@ -29,7 +31,6 @@ import eu.stratosphere.api.java.record.functions.MapFunction;
 import eu.stratosphere.api.java.record.functions.ReduceFunction;
 import eu.stratosphere.api.java.record.functions.FunctionAnnotation.ConstantFields;
 import eu.stratosphere.api.java.record.io.CsvOutputFormat;
-import eu.stratosphere.api.java.record.io.TextInputFormat;
 import eu.stratosphere.api.java.record.operators.MapOperator;
 import eu.stratosphere.api.java.record.operators.ReduceOperator;
 import eu.stratosphere.api.java.record.operators.ReduceOperator.Combinable;
@@ -59,7 +60,6 @@ public class WordCount implements Program, ProgramDescription {
 		public void map(Record record, Collector<Record> collector) {
 			// get the first field (as type StringValue) from the record
 			String line = record.getField(1, StringValue.class).getValue();
-
 			// normalize the line
 			line = line.replaceAll("\\W+", " ").toLowerCase();
 			
@@ -114,9 +114,9 @@ public class WordCount implements Program, ProgramDescription {
 		String output    = (args.length > 2 ? args[2] : "");
 		
 
-//		HadoopDataSource source = new HadoopDataSource(new HadoopInputFormatWrapper(new org.apache.hadoop.mapred.TextInputFormat(), new JobConf()), dataInput, "Input Lines");
-		HadoopDataSource source = new HadoopDataSource(new org.apache.hadoop.mapred.TextInputFormat(), new JobConf(), dataInput, "Input Lines");
-//      FileDataSource source = new FileDataSource(new TextInputFormat(), dataInput, "Input Lines");
+		HadoopDataSource source = new HadoopDataSource(new TextInputFormat(), new JobConf(), "Input Lines");
+		TextInputFormat.addInputPath(source.getJobConf(), new Path(dataInput));
+		
 		MapOperator mapper = MapOperator.builder(new TokenizeLine())
 			.input(source)
 			.name("Tokenize Lines")

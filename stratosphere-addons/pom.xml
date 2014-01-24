@@ -21,7 +21,7 @@
 		<module>jdbc</module>
 		<module>spargel</module>
 		<module>swt-visualization</module>
-		<module>hadoop-compat</module>
+		<module>hadoop-compatibility</module>
 	</modules>
 	
 	<!-- See main pom.xml for explanation of profiles -->

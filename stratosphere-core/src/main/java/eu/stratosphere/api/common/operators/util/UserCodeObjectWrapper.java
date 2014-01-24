@@ -15,6 +15,7 @@ package eu.stratosphere.api.common.operators.util;
 import java.io.Serializable;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 
 import org.apache.commons.lang3.SerializationUtils;
@@ -33,30 +34,47 @@ public class UserCodeObjectWrapper<T> implements UserCodeWrapper<T> {
 	public UserCodeObjectWrapper(T userCodeObject) {
 		Preconditions.checkArgument(userCodeObject instanceof Serializable, "User code object is not serializable: " + userCodeObject.getClass());
 		this.userCodeObject = userCodeObject;
-                // Remove unserializable objects from the user code object as well as from outer objects
-        Object current = userCodeObject;
-        try {
-            while (null != current) {
-                Object newCurrent = null;
-                for (Field f : current.getClass().getDeclaredFields()) {
-                    f.setAccessible(true);
+		// Remove unserializable objects from the user code object as well as from outer objects
+		Object current = userCodeObject;
+		try {
+			while (null != current) {
+				Object newCurrent = null;
+				/**
+				 * Check if the usercode class has custom serialization methods.
+				 * (See http://docs.oracle.com/javase/7/docs/api/java/io/Serializable.html for details).
+				 * We can not guarantee that the user handles serialization correctly in this case.
+				 */
+				boolean hasCustomSerialization = false;
+				Method customSerializer = null;
+				Method customDeserializer = null;
+				try {
+					customSerializer = current.getClass().getDeclaredMethod("writeObject", java.io.ObjectOutputStream.class);
+					customDeserializer = current.getClass().getDeclaredMethod("readObject", java.io.ObjectInputStream.class);
+				} catch (Exception e) {
+					// we can ignore exceptions here.
+				}
+				if(customSerializer != null && customDeserializer != null) {
+					hasCustomSerialization = true;
+				}
 
-                    if (f.getName().contains("$outer")) {
-                        newCurrent = f.get(current);
+				for (Field f : current.getClass().getDeclaredFields()) {
+					f.setAccessible(true);
 
-                    }
+					if (f.getName().contains("$outer")) {
+						newCurrent = f.get(current);
+					}
 
-                    if (!Modifier.isTransient(f.getModifiers()) &&!Modifier.isStatic(f.getModifiers()) && f.get(current) != null &&  !(f.get(current) instanceof Serializable)) {
-                        throw new RuntimeException("User code object " +
-                                userCodeObject + " contains non-serializable field " + f.getName() + " = " + f.get(current));
-                    }
-                }
-                current = newCurrent;
-            }
-        } catch (IllegalAccessException e) {
-            // this cannot occur since we call setAccessible(true)
-            e.printStackTrace();
-        }
+					if (!hasCustomSerialization && !Modifier.isStatic(f.getModifiers()) && f.get(current) != null &&  !(f.get(current) instanceof Serializable)) {
+						throw new RuntimeException("User code object " +
+								userCodeObject + " contains non-serializable field " + f.getName() + " = " + f.get(current));
+					}
+				}
+				current = newCurrent;
+			}
+		} catch (IllegalAccessException e) {
+			// this cannot occur since we call setAccessible(true)
+			e.printStackTrace();
+		}
 
 	}
 	
