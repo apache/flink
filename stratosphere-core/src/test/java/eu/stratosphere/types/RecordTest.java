@@ -163,46 +163,46 @@ public class RecordTest {
 //		}
 //	}
 
-//	@Test
-//	public void testRemoveField() {		
-//		Record record = null;
-//		int oldLen = 0;
-//
-//		// Create filled record and remove field from the middle
-//		record = new Record(this.origVal1, this.origVal2);
-//		record.addField(this.origVal3);
-//		record.removeField(1);
-//
-//		assertTrue(record.getNumFields() == 2);
-//
-//		StringValue recVal1 = record.getField(0, StringValue.class);
-//		IntValue recVal2 = record.getField(1, IntValue.class);
-//
-//		assertTrue(recVal1.getValue().equals(this.origVal1.getValue()));
-//		assertTrue(recVal2.getValue() == this.origVal3.getValue());
-//
-//		record = this.generateFilledDenseRecord(100);
-//
-//		// Remove field from the first position of the record
-//		oldLen = record.getNumFields();
-//		record.removeField(0);
-//		assertTrue(record.getNumFields() == oldLen - 1);
-//
-//		// Remove field from the end of the record
-//		oldLen = record.getNumFields();
-//		record.removeField(oldLen - 1);
-//		assertTrue(record.getNumFields() == oldLen - 1);
-//
-//		// Insert several random fields into the record
-//		record = this.generateFilledDenseRecord(100);
-//
-//		for (int i = 0; i < 100; i++) {
-//			oldLen = record.getNumFields();
-//			int pos = rand.nextInt(record.getNumFields());
-//			record.removeField(pos);
-//			assertTrue(record.getNumFields() == oldLen - 1);
-//		}
-//	}
+	@Test
+	public void testRemoveField() {		
+		Record record = null;
+		int oldLen = 0;
+
+		// Create filled record and remove field from the middle
+		record = new Record(this.origVal1, this.origVal2);
+		record.addField(this.origVal3);
+		record.removeField(1);
+
+		assertTrue(record.getNumFields() == 2);
+
+		StringValue recVal1 = record.getField(0, StringValue.class);
+		IntValue recVal2 = record.getField(1, IntValue.class);
+
+		assertTrue(recVal1.getValue().equals(this.origVal1.getValue()));
+		assertTrue(recVal2.getValue() == this.origVal3.getValue());
+
+		record = this.generateFilledDenseRecord(100);
+
+		// Remove field from the first position of the record
+		oldLen = record.getNumFields();
+		record.removeField(0);
+		assertTrue(record.getNumFields() == oldLen - 1);
+
+		// Remove field from the end of the record
+		oldLen = record.getNumFields();
+		record.removeField(oldLen - 1);
+		assertTrue(record.getNumFields() == oldLen - 1);
+
+		// Insert several random fields into the record
+		record = this.generateFilledDenseRecord(100);
+
+		for (int i = 0; i < 100; i++) {
+			oldLen = record.getNumFields();
+			int pos = this.rand.nextInt(record.getNumFields());
+			record.removeField(pos);
+			assertTrue(record.getNumFields() == oldLen - 1);
+		}
+	}
 
 //	@Test
 //	public void testProjectLong() {		

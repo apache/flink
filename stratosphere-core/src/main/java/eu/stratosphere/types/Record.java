@@ -426,28 +426,31 @@ public final class Record implements Value {
 	}
 	
 	/**
-	 * Removes the field at the given position.
+	 * Removes the field at the given position. 
+	 * <p>
+	 * This method should be used carefully. Be aware that as the field is actually removed from the record, the
+	 * total number of fields is modified, and all fields to the right of the field removed shift one position to
+	 * the left.
 	 * 
-	 * @param field The index number of the field to be removed.
+	 * @param fieldNum The position of the field to be removed, starting at zero.
 	 * @throws IndexOutOfBoundsException Thrown, when the position is not between 0 (inclusive) and the
 	 *                                   number of fields (exclusive).
 	 */
-	public void removeField(int field)
+	public void removeField(int fieldNum)
 	{
 		// range check
-		if (field < 0 || field >= this.numFields) {
+		if (fieldNum < 0 || fieldNum >= this.numFields) {
 			throw new IndexOutOfBoundsException();
 		}
 		int lastIndex = this.numFields - 1;		
 
-		if (field < lastIndex) {
-			int len = lastIndex - field;
-			System.arraycopy(this.offsets, field + 1, this.offsets, field, len);
-			System.arraycopy(this.lengths, field + 1, this.lengths, field, len);
-			System.arraycopy(this.readFields, field + 1, this.readFields, field, len);
-			System.arraycopy(this.writeFields, field + 1, this.writeFields, field, len);
-			//System.arraycopy(this.fields, field + 1, this.fields, field, len);
-			markModified(field);
+		if (fieldNum < lastIndex) {
+			int len = lastIndex - fieldNum;
+			System.arraycopy(this.offsets, fieldNum + 1, this.offsets, fieldNum, len);
+			System.arraycopy(this.lengths, fieldNum + 1, this.lengths, fieldNum, len);
+			System.arraycopy(this.readFields, fieldNum + 1, this.readFields, fieldNum, len);
+			System.arraycopy(this.writeFields, fieldNum + 1, this.writeFields, fieldNum, len);
+			markModified(fieldNum);
 		}
 		this.offsets[lastIndex] = NULL_INDICATOR_OFFSET;
 		this.lengths[lastIndex] = 0;
