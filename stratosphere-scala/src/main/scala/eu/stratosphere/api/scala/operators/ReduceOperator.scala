@@ -119,14 +119,15 @@ object ReduceMacros {
         }
 
         override def reduce(records: JIterator[Record], out: Collector[Record]) = {
+          if (records.hasNext) {
+            val firstRecord = reduceIterator.initialize(records)
+            reduceRecord.copyFrom(firstRecord, reduceForwardFrom, reduceForwardTo)
 
-          val firstRecord = reduceIterator.initialize(records)
-          reduceRecord.copyFrom(firstRecord, reduceForwardFrom, reduceForwardTo)
+            val output = reduceIterator.reduce(fun.splice)
 
-          val output = reduceIterator.reduce(fun.splice)
-
-          reduceSerializer.serialize(output, reduceRecord)
-          out.collect(reduceRecord)
+            reduceSerializer.serialize(output, reduceRecord)
+            out.collect(reduceRecord)
+          }
         }
       }
 
@@ -179,13 +180,15 @@ object ReduceMacros {
 
       new ReduceFunctionBase[In, Out] {
         override def reduce(records: JIterator[Record], out: Collector[Record]) = {
-          val firstRecord = reduceIterator.initialize(records)
-          reduceRecord.copyFrom(firstRecord, reduceForwardFrom, reduceForwardTo)
+          if (records.hasNext) {
+            val firstRecord = reduceIterator.initialize(records)
+            reduceRecord.copyFrom(firstRecord, reduceForwardFrom, reduceForwardTo)
 
-          val output = fun.splice.apply(reduceIterator)
+            val output = fun.splice.apply(reduceIterator)
 
-          reduceSerializer.serialize(output, reduceRecord)
-          out.collect(reduceRecord)
+            reduceSerializer.serialize(output, reduceRecord)
+            out.collect(reduceRecord)
+          }
         }
       }
     }
