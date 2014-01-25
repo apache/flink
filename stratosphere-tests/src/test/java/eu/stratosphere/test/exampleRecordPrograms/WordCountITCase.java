@@ -15,6 +15,7 @@ package eu.stratosphere.test.exampleRecordPrograms;
 
 import java.util.Collection;
 
+import eu.stratosphere.example.java.record.wordcount.AnonymousWordCount;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
@@ -180,7 +181,7 @@ public class WordCountITCase extends TestBase2 {
 
 	@Override
 	protected Plan getTestJob() {
-		WordCount wc = new WordCount();
+		AnonymousWordCount wc = new AnonymousWordCount();
 		return wc.getPlan(config.getString("WordCountTest#NumSubtasks", "1"),
 				textPath, resultPath);
 	}

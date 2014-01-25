@@ -15,10 +15,12 @@ package eu.stratosphere.api.common.functions;
 
 import eu.stratosphere.configuration.Configuration;
 
+import java.io.Serializable;
+
 /**
  * An abstract stub implementation that does nothing when opened or closed.
  */
-public abstract class AbstractFunction implements Function {
+public abstract class AbstractFunction implements Function, Serializable {
 	
 	// --------------------------------------------------------------------------------------------
 	//  Runtime context access

@@ -13,11 +13,13 @@
 
 package eu.stratosphere.api.common;
 
+import java.io.Serializable;
+
 /**
  * Interface for classes that represent Stratosphere programs. The program creates the {@link Plan}, which is the
  * instance of the program that will be executed.l
  */
-public interface Program {
+public interface Program extends Serializable {
 	
 	/**
 	 * The method which is invoked by the compiler to get the job that is then compiled into an
