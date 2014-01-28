@@ -49,8 +49,8 @@ public class KMeansSampleDataGenerator {
 	public static void main(String[] args) throws IOException {
 
 		// check parameter count
-		if (args.length < 2) {
-			System.out.println("KMeansDataGenerator <numberOfDataPoints> <numberOfClusterCenters> [<centroid range>] [<seed>]");
+		if (args.length < 3) {
+			System.out.println("KMeansDataGenerator <numberOfDataPoints> <numberOfClusterCenters> [<relative stddev>] [<centroid range>] [<seed>]");
 			System.exit(1);
 		}
 
@@ -58,11 +58,12 @@ public class KMeansSampleDataGenerator {
 		final int numDataPoints = Integer.parseInt(args[0]);
 		final int k = Integer.parseInt(args[1]);
 		
-		final double range = args.length > 2 ? Double.parseDouble(args[2]) : DEFAULT_VALUE_RANGE;
-		final long firstSeed = args.length > 3 ? Long.parseLong(args[3]) : DEFAULT_SEED;
+		final double stddev = args.length > 2 ? Double.parseDouble(args[2]) : RELATIVE_STDDEV;
+		final double range = args.length > 3 ? Double.parseDouble(args[4]) : DEFAULT_VALUE_RANGE;
+		final long firstSeed = args.length > 4 ? Long.parseLong(args[4]) : DEFAULT_SEED;
 		
 		// generate the centers first
-		final double absoluteStdDev = RELATIVE_STDDEV * range;
+		final double absoluteStdDev = stddev * range;
 		final Random random = new Random(firstSeed);
 		
 		
