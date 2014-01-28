@@ -58,6 +58,14 @@ public class IterativeKMeansITCase extends KMeansStepITCase {
 		return CENTERS_AFTER_20_ITERATIONS;
 	}
 	
+	@Override
+	protected void postSubmit() throws Exception {
+		super.resultPath = super.resultPath+"/centers";
+		super.postSubmit();
+	}
+	
+	
+	
 	private static final String CENTERS_AFTER_20_ITERATIONS =
 			"0|38.25|54.52|19.34|\n" +
 			"1|32.14|83.04|50.35|\n" +

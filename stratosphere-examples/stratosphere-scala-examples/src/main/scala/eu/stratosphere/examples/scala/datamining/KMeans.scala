@@ -73,7 +73,8 @@ class KMeans extends Program with ProgramDescription with Serializable {
     (id.toInt, Point(x.toDouble, y.toDouble, z.toDouble))
   }
 
-  def formatOutput = (cid: Int, p: Point) => "%d|%.2f|%.2f|%.2f|".format(cid, p.x, p.y, p.z)
+  def formatCenterOutput = (cid: Int, p: Point) => "%d|%.2f|%.2f|%.2f|".format(cid, p.x, p.y, p.z)
+  def formatPointOutput = (cid: Int, ps: PointSum) => "%d|%.2f|%.2f|%.2f|".format(cid, ps.pointSum.x, ps.pointSum.y, ps.pointSum.z )
   
   def computeDistance(p: (Int, Point), c: (Int, Point)) = {
     val ((pid, dataPoint), (cid, clusterPoint)) = (p, c)
@@ -95,10 +96,15 @@ class KMeans extends Program with ProgramDescription with Serializable {
 
       newCenters
     })
+    
+    val dataPoints2 = DataSource(dataPointInput, DelimitedInputFormat(parseInput))
+    val distances2 = dataPoints2 cross finalCenters map computeDistance
+    val nearestCenters2 = distances2 groupBy { case (pid, _) => pid } reduceGroup { ds => ds.minBy(_._2.distance) } map asPointSum.tupled
 
-    val output = finalCenters.write(clusterOutput, DelimitedOutputFormat(formatOutput.tupled))
+    val output = finalCenters.write(clusterOutput+"/centers", DelimitedOutputFormat(formatCenterOutput.tupled))
+    val output2 = nearestCenters2.write(clusterOutput+"/points", DelimitedOutputFormat(formatPointOutput.tupled))
 
-    val plan = new ScalaPlan(Seq(output), "KMeans Iteration (Immutable)")
+    val plan = new ScalaPlan(Seq(output,output2), "KMeans Iteration (Immutable)")
     plan.setDefaultParallelism(numSubTasks)
     plan
   }

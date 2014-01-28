@@ -35,7 +35,7 @@ public class KMeansSampleDataGenerator {
 	
 	private static final double DEFAULT_VALUE_RANGE = 100.0;
 	
-	private static final double RELATIVE_STDDEV = 0.01;
+	private static final double RELATIVE_STDDEV = 0.15;
 	
 	private static final int DIMENSIONALITY = 2;
 	

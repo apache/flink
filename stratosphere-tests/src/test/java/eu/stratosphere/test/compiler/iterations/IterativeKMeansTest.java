@@ -49,7 +49,7 @@ public class IterativeKMeansTest extends CompilerTestBase {
 	private static final String NEAREST_CENTER_REDUCER = "Find Nearest Centers";
 	private static final String RECOMPUTE_CENTERS_REDUCER = "Recompute Center Positions";
 	
-	private static final String SINK = "New Center Positions";
+	private static final String SINK = "Cluster Positions";
 	
 	private final FieldList set0 = new FieldList(0);
 	
