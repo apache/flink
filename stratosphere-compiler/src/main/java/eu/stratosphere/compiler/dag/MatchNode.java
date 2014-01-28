@@ -14,7 +14,6 @@
 package eu.stratosphere.compiler.dag;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import eu.stratosphere.api.common.operators.base.JoinOperatorBase;
@@ -80,7 +79,9 @@ public class MatchNode extends TwoInputNode {
 			} else {
 				throw new CompilerException("Invalid local strategy hint for match contract: " + localStrategy);
 			}
-			return Collections.singletonList(fixedDriverStrat);
+			ArrayList<OperatorDescriptorDual> list = new ArrayList<OperatorDescriptorDual>();
+			list.add(fixedDriverStrat);
+			return list;
 		} else {
 			ArrayList<OperatorDescriptorDual> list = new ArrayList<OperatorDescriptorDual>();
 			list.add(new SortMergeJoinDescriptor(this.keys1, this.keys2));
