@@ -38,7 +38,7 @@ public class WritableWrapper implements Value {
 		wrappedType = in.readUTF();
 		try {
 			Class wrClass = Class.forName(wrappedType);
-			wrapped = InstantiationUtil.instantiate(wrClass, Writable.class);
+			wrapped = (Writable) InstantiationUtil.instantiate(wrClass, Writable.class);
 		} catch (ClassNotFoundException e) {
 			throw new RuntimeException("Error cerating the WritableWrapper");
 		}
