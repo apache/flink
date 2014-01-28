@@ -61,9 +61,40 @@ public class CrossNode extends TwoInputNode {
 	
 	@Override
 	protected List<OperatorDescriptorDual> getPossibleProperties() {
+		
 		CrossOperatorBase<?> operation = getPactContract();
 		
+		// check small / large hints to decide upon which side is to be broadcasted
+		boolean allowBCfirst = true;
+		boolean allowBCsecond = true;
+		
 		if (operation instanceof CrossOperatorBase.CrossWithSmall) {
+			allowBCfirst = false;
+		}
+		else if (operation instanceof CrossOperatorBase.CrossWithLarge) {
+			allowBCsecond = false;
+		}
+		
+		Configuration conf = operation.getParameters();
+		String localStrategy = conf.getString(PactCompiler.HINT_LOCAL_STRATEGY, null);
+	
+		if (localStrategy != null) {
+			final OperatorDescriptorDual fixedDriverStrat;
+			if (PactCompiler.HINT_LOCAL_STRATEGY_NESTEDLOOP_BLOCKED_OUTER_FIRST.equals(localStrategy)) {
+				fixedDriverStrat = new CrossBlockOuterFirstDescriptor(allowBCfirst, allowBCsecond);
+			} else if (PactCompiler.HINT_LOCAL_STRATEGY_NESTEDLOOP_BLOCKED_OUTER_SECOND.equals(localStrategy)) {
+				fixedDriverStrat = new CrossBlockOuterSecondDescriptor(allowBCfirst, allowBCsecond);
+			} else if (PactCompiler.HINT_LOCAL_STRATEGY_NESTEDLOOP_STREAMED_OUTER_FIRST.equals(localStrategy)) {
+				fixedDriverStrat = new CrossStreamOuterFirstDescriptor(allowBCfirst, allowBCsecond);
+			} else if (PactCompiler.HINT_LOCAL_STRATEGY_NESTEDLOOP_STREAMED_OUTER_SECOND.equals(localStrategy)) {
+				fixedDriverStrat = new CrossStreamOuterSecondDescriptor(allowBCfirst, allowBCsecond);
+			} else {
+				throw new CompilerException("Invalid local strategy hint for cross contract: " + localStrategy);
+			}
+			
+			return Collections.singletonList(fixedDriverStrat);
+		}
+		else if (operation instanceof CrossOperatorBase.CrossWithSmall) {
 			ArrayList<OperatorDescriptorDual> list = new ArrayList<OperatorDescriptorDual>();
 			list.add(new CrossBlockOuterSecondDescriptor(false, true));
 			list.add(new CrossStreamOuterFirstDescriptor(false, true));
@@ -76,32 +107,12 @@ public class CrossNode extends TwoInputNode {
 			return list;
 		}
 		else {
-			Configuration conf = operation.getParameters();
-			String localStrategy = conf.getString(PactCompiler.HINT_LOCAL_STRATEGY, null);
-	
-			if (localStrategy != null) {
-				final OperatorDescriptorDual fixedDriverStrat;
-				if (PactCompiler.HINT_LOCAL_STRATEGY_NESTEDLOOP_BLOCKED_OUTER_FIRST.equals(localStrategy)) {
-					fixedDriverStrat = new CrossBlockOuterFirstDescriptor();
-				} else if (PactCompiler.HINT_LOCAL_STRATEGY_NESTEDLOOP_BLOCKED_OUTER_SECOND.equals(localStrategy)) {
-					fixedDriverStrat = new CrossBlockOuterSecondDescriptor();
-				} else if (PactCompiler.HINT_LOCAL_STRATEGY_NESTEDLOOP_STREAMED_OUTER_FIRST.equals(localStrategy)) {
-					fixedDriverStrat = new CrossStreamOuterFirstDescriptor();
-				} else if (PactCompiler.HINT_LOCAL_STRATEGY_NESTEDLOOP_STREAMED_OUTER_SECOND.equals(localStrategy)) {
-					fixedDriverStrat = new CrossStreamOuterSecondDescriptor();
-				} else {
-					throw new CompilerException("Invalid local strategy hint for cross contract: " + localStrategy);
-				}
-				
-				return Collections.singletonList(fixedDriverStrat);
-			} else {
-				ArrayList<OperatorDescriptorDual> list = new ArrayList<OperatorDescriptorDual>();
-				list.add(new CrossBlockOuterFirstDescriptor());
-				list.add(new CrossBlockOuterSecondDescriptor());
-				list.add(new CrossStreamOuterFirstDescriptor());
-				list.add(new CrossStreamOuterSecondDescriptor());
-				return list;
-			}
+			ArrayList<OperatorDescriptorDual> list = new ArrayList<OperatorDescriptorDual>();
+			list.add(new CrossBlockOuterFirstDescriptor());
+			list.add(new CrossBlockOuterSecondDescriptor());
+			list.add(new CrossStreamOuterFirstDescriptor());
+			list.add(new CrossStreamOuterSecondDescriptor());
+			return list;
 		}
 	}
 
