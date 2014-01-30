@@ -17,17 +17,12 @@ import java.io.FileWriter;
 import java.net.URL;
 import java.util.LinkedList;
 
-import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.client.RemoteExecutor;
-import eu.stratosphere.test.exampleRecordPrograms.KMeansStepITCase;
-import org.junit.After;
 import org.junit.Assert;
-import org.junit.Before;
 import org.junit.Test;
 
+import eu.stratosphere.client.RemoteExecutor;
 import eu.stratosphere.client.localDistributed.LocalDistributedExecutor;
-import eu.stratosphere.example.java.record.wordcount.WordCount;
-import eu.stratosphere.test.exampleRecordPrograms.WordCountITCase;
+import eu.stratosphere.test.exampleRecordPrograms.KMeansStepITCase;
 
 // When the API changes WordCountForTest needs to be rebuilt and the WordCountForTest.jar in resources needs
 // to be replaced with the new one.
@@ -45,7 +40,8 @@ public class PackagedProgramEndToEndTest {
 			points.deleteOnExit();
 			clusters.deleteOnExit();
 			outFile.deleteOnExit();
-
+			outFile.delete();
+			
 			FileWriter fwPoints = new FileWriter(points);
 			fwPoints.write(KMeansStepITCase.DATAPOINTS);
 			fwPoints.close();
@@ -70,6 +66,10 @@ public class PackagedProgramEndToEndTest {
 							"file://" + outFile.getAbsolutePath(),
 							"1"});
 
+			points.delete();
+			clusters.delete();
+			outFile.delete();
+			
 		} catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail(e.getMessage());

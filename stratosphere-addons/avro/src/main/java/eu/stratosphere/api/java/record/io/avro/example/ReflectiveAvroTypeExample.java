@@ -140,7 +140,7 @@ public class ReflectiveAvroTypeExample {
 		public void configure(Configuration parameters) {}
 
 		@Override
-		public void open(int taskNumber) throws IOException {}
+		public void open(int taskNumber, int numTasks) throws IOException {}
 
 		@Override
 		public void writeRecord(Record record) throws IOException {
