@@ -7,6 +7,8 @@ import org.apache.hadoop.io.FloatWritable;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.Writable;
+import org.apache.hadoop.io.WritableComparable;
 
 import eu.stratosphere.types.BooleanValue;
 import eu.stratosphere.types.ByteValue;
@@ -24,11 +26,11 @@ import eu.stratosphere.types.Value;
  * Key will be in field 0, Value in field 1 of a Stratosphere Record.
  *
  */
-public class DefaultHadoopTypeConverter implements HadoopTypeConverter {
+public class DefaultHadoopTypeConverter<K extends WritableComparable<?> , V extends Writable> implements HadoopTypeConverter<K, V> {
 	private static final long serialVersionUID = 1L;
 
 	@Override
-	public void convert(Record stratosphereRecord, Object hadoopKey, Object hadoopValue) {
+	public void convert(Record stratosphereRecord, K hadoopKey, V hadoopValue) {
 		stratosphereRecord.setField(0, convert(hadoopKey)); 
 		stratosphereRecord.setField(1, convert(hadoopValue)); 
 	}

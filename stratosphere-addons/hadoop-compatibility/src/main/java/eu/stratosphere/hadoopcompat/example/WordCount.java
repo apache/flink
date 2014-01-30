@@ -19,6 +19,8 @@ import java.util.StringTokenizer;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.TextInputFormat;
 
@@ -37,6 +39,7 @@ import eu.stratosphere.api.java.record.operators.ReduceOperator.Combinable;
 import eu.stratosphere.client.LocalExecutor;
 import eu.stratosphere.hadoopcompat.HadoopDataSource;
 import eu.stratosphere.hadoopcompat.HadoopInputFormatWrapper;
+import eu.stratosphere.hadoopcompat.datatypes.WritableWrapperConverter;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;
@@ -115,6 +118,10 @@ public class WordCount implements Program, ProgramDescription {
 		
 
 		HadoopDataSource source = new HadoopDataSource(new TextInputFormat(), new JobConf(), "Input Lines");
+		TextInputFormat.addInputPath(source.getJobConf(), new Path(dataInput));
+		
+		// Example with Wrapper Converter
+		HadoopDataSource sourceHadoopType = new HadoopDataSource(new TextInputFormat(), new JobConf(), "Input Lines", new WritableWrapperConverter<LongWritable, Text>());
 		TextInputFormat.addInputPath(source.getJobConf(), new Path(dataInput));
 		
 		MapOperator mapper = MapOperator.builder(new TokenizeLine())

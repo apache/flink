@@ -9,21 +9,22 @@ import org.apache.hadoop.io.Writable;
 import eu.stratosphere.types.Value;
 import eu.stratosphere.util.InstantiationUtil;
 
-public class WritableWrapper implements Value {
-	private static final long serialVersionUID = 1L;
+public class WritableWrapper<T extends Writable> implements Value {
+	private static final long serialVersionUID = 2L;
 	
-	private Writable wrapped;
+	private T wrapped;
 	private String wrappedType;
+	private ClassLoader cl;
 	
 	public WritableWrapper() {
 	}
 	
-	public WritableWrapper(Writable toWrap) {
+	public WritableWrapper(T toWrap) {
 		wrapped = toWrap;
 		wrappedType = toWrap.getClass().getCanonicalName();
 	}
 
-	public Writable value() {
+	public T value() {
 		return wrapped;
 	}
 	
@@ -35,14 +36,16 @@ public class WritableWrapper implements Value {
 
 	@Override
 	public void read(DataInput in) throws IOException {
+		if(cl == null) {
+			cl = Thread.currentThread().getContextClassLoader();
+		}
 		wrappedType = in.readUTF();
 		try {
-			Class wrClass = Class.forName(wrappedType);
-			wrapped = (Writable) InstantiationUtil.instantiate(wrClass, Writable.class);
+			Class wrClass = Class.forName(wrappedType, true, cl);
+			wrapped = (T) InstantiationUtil.instantiate(wrClass, Writable.class);
 		} catch (ClassNotFoundException e) {
 			throw new RuntimeException("Error cerating the WritableWrapper");
 		}
-		
 		wrapped.readFields(in);
 	}
 

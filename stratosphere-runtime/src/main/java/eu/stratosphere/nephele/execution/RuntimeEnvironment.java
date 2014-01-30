@@ -31,6 +31,7 @@ import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.nephele.deployment.ChannelDeploymentDescriptor;
 import eu.stratosphere.nephele.deployment.GateDeploymentDescriptor;
 import eu.stratosphere.nephele.deployment.TaskDeploymentDescriptor;
+import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.InputGate;
@@ -339,6 +340,8 @@ public class RuntimeEnvironment implements Environment, Runnable {
 
 			// Activate input channels
 			// activateInputChannels();
+			ClassLoader cl = LibraryCacheManager.getClassLoader(jobID);
+			Thread.currentThread().setContextClassLoader(cl);
 			this.invokable.invoke();
 
 			// Make sure, we enter the catch block when the task has been canceled
