@@ -1,4 +1,4 @@
-package eu.stratosphere.hadoopcompat;
+package eu.stratosphere.hadoopcompatibility;
 
 import java.io.DataInput;
 import java.io.DataOutput;

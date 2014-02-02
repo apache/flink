@@ -1,4 +1,4 @@
-package eu.stratosphere.hadoopcompat;
+package eu.stratosphere.hadoopcompatibility;
 
 import org.apache.hadoop.mapred.Counters.Counter;
 import org.apache.hadoop.mapred.InputSplit;

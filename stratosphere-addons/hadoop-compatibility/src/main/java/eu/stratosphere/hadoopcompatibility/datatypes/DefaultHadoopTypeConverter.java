@@ -1,4 +1,4 @@
-package eu.stratosphere.hadoopcompat.datatypes;
+package eu.stratosphere.hadoopcompatibility.datatypes;
 
 import org.apache.hadoop.io.BooleanWritable;
 import org.apache.hadoop.io.ByteWritable;
@@ -7,8 +7,6 @@ import org.apache.hadoop.io.FloatWritable;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.io.Writable;
-import org.apache.hadoop.io.WritableComparable;
 
 import eu.stratosphere.types.BooleanValue;
 import eu.stratosphere.types.ByteValue;
@@ -26,7 +24,7 @@ import eu.stratosphere.types.Value;
  * Key will be in field 0, Value in field 1 of a Stratosphere Record.
  *
  */
-public class DefaultHadoopTypeConverter<K extends WritableComparable<?> , V extends Writable> implements HadoopTypeConverter<K, V> {
+public class DefaultHadoopTypeConverter<K, V> implements HadoopTypeConverter<K, V> {
 	private static final long serialVersionUID = 1L;
 
 	@Override

@@ -20,6 +20,7 @@ import java.net.URI;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.conf.Configuration;
 
 import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.configuration.GlobalConfiguration;
@@ -61,56 +62,7 @@ public final class DistributedFileSystem extends FileSystem {
 	public DistributedFileSystem() throws IOException {
 
 		// Create new Hadoop configuration object
-		this.conf = new org.apache.hadoop.conf.Configuration();
-
-		// We need to load both core-site.xml and hdfs-site.xml to determine the default fs path and
-		// the hdfs configuration
-		// Try to load HDFS configuration from Hadoop's own configuration files
-		// 1. approach: Stratosphere configuration
-		final String hdfsDefaultPath = GlobalConfiguration.getString(ConfigConstants.HDFS_DEFAULT_CONFIG, null);
-		if (hdfsDefaultPath != null) {
-			this.conf.addResource(new org.apache.hadoop.fs.Path(hdfsDefaultPath));
-		} else {
-			LOG.debug("Cannot find hdfs-default configuration file");
-		}
-
-		final String hdfsSitePath = GlobalConfiguration.getString(ConfigConstants.HDFS_SITE_CONFIG, null);
-		if (hdfsSitePath != null) {
-			conf.addResource(new org.apache.hadoop.fs.Path(hdfsSitePath));
-		} else {
-			LOG.debug("Cannot find hdfs-site configuration file");
-		}
-		
-		// 2. Approach environment variables
-		String[] possibleHadoopConfPaths = new String[4]; 
-		possibleHadoopConfPaths[0] = GlobalConfiguration.getString(ConfigConstants.PATH_HADOOP_CONFIG, null);
-		possibleHadoopConfPaths[1] = System.getenv("HADOOP_CONF_DIR");
-		
-		if (System.getenv("HADOOP_HOME") != null) {
-			possibleHadoopConfPaths[2] = System.getenv("HADOOP_HOME")+"/conf";
-			possibleHadoopConfPaths[3] = System.getenv("HADOOP_HOME")+"/etc/hadoop"; // hadoop 2.2
-		}
-		
-		for (int i = 0; i < possibleHadoopConfPaths.length; i++) {
-			if (possibleHadoopConfPaths[i] == null) {
-				continue;
-			}
-			
-			if (new File(possibleHadoopConfPaths[i]).exists()) {
-				if (new File(possibleHadoopConfPaths[i]+"/core-site.xml").exists()) {
-					conf.addResource(new org.apache.hadoop.fs.Path(possibleHadoopConfPaths[i]+"/core-site.xml"));
-					
-					if (LOG.isDebugEnabled())
-						LOG.debug("Adding "+possibleHadoopConfPaths[i]+"/core-site.xml to hadoop configuration");
-				}
-				if (new File(possibleHadoopConfPaths[i]+"/hdfs-site.xml").exists()) {
-					conf.addResource(new org.apache.hadoop.fs.Path(possibleHadoopConfPaths[i]+"/hdfs-site.xml"));
-					
-					if (LOG.isDebugEnabled())
-						LOG.debug("Adding "+possibleHadoopConfPaths[i]+"/hdfs-site.xml to hadoop configuration");
-				}
-			}
-		}
+		this.conf = getHadoopConfiguration();
 
 		Class<? extends org.apache.hadoop.fs.FileSystem> fsClass = null;
 		
@@ -195,6 +147,65 @@ public final class DistributedFileSystem extends FileSystem {
 		}
 		
 		this.fs = instantiateFileSystem(fsClass);
+	}
+	
+	/**
+	 * Returns a new Hadoop Configuration object using the path to the hadoop conf configured 
+	 * in the Stratosphere configuration.
+	 * This method is public because its being used in the HadoopDataSource.
+	 */
+	public static org.apache.hadoop.conf.Configuration getHadoopConfiguration() {
+		Configuration retConf = new org.apache.hadoop.conf.Configuration();
+
+		// We need to load both core-site.xml and hdfs-site.xml to determine the default fs path and
+		// the hdfs configuration
+		// Try to load HDFS configuration from Hadoop's own configuration files
+		// 1. approach: Stratosphere configuration
+		final String hdfsDefaultPath = GlobalConfiguration.getString(ConfigConstants.HDFS_DEFAULT_CONFIG, null);
+		if (hdfsDefaultPath != null) {
+			retConf.addResource(new org.apache.hadoop.fs.Path(hdfsDefaultPath));
+		} else {
+			LOG.debug("Cannot find hdfs-default configuration file");
+		}
+
+		final String hdfsSitePath = GlobalConfiguration.getString(ConfigConstants.HDFS_SITE_CONFIG, null);
+		if (hdfsSitePath != null) {
+			retConf.addResource(new org.apache.hadoop.fs.Path(hdfsSitePath));
+		} else {
+			LOG.debug("Cannot find hdfs-site configuration file");
+		}
+		
+		// 2. Approach environment variables
+		String[] possibleHadoopConfPaths = new String[4]; 
+		possibleHadoopConfPaths[0] = GlobalConfiguration.getString(ConfigConstants.PATH_HADOOP_CONFIG, null);
+		possibleHadoopConfPaths[1] = System.getenv("HADOOP_CONF_DIR");
+		
+		if (System.getenv("HADOOP_HOME") != null) {
+			possibleHadoopConfPaths[2] = System.getenv("HADOOP_HOME")+"/conf";
+			possibleHadoopConfPaths[3] = System.getenv("HADOOP_HOME")+"/etc/hadoop"; // hadoop 2.2
+		}
+		
+		for (int i = 0; i < possibleHadoopConfPaths.length; i++) {
+			if (possibleHadoopConfPaths[i] == null) {
+				continue;
+			}
+			
+			if (new File(possibleHadoopConfPaths[i]).exists()) {
+				if (new File(possibleHadoopConfPaths[i]+"/core-site.xml").exists()) {
+					retConf.addResource(new org.apache.hadoop.fs.Path(possibleHadoopConfPaths[i]+"/core-site.xml"));
+					
+					if (LOG.isDebugEnabled())
+						LOG.debug("Adding "+possibleHadoopConfPaths[i]+"/core-site.xml to hadoop configuration");
+				}
+				if (new File(possibleHadoopConfPaths[i]+"/hdfs-site.xml").exists()) {
+					retConf.addResource(new org.apache.hadoop.fs.Path(possibleHadoopConfPaths[i]+"/hdfs-site.xml"));
+					
+					if (LOG.isDebugEnabled())
+						LOG.debug("Adding "+possibleHadoopConfPaths[i]+"/hdfs-site.xml to hadoop configuration");
+				}
+			}
+		}
+		return retConf;
 	}
 	
 	private org.apache.hadoop.fs.FileSystem instantiateFileSystem(Class<? extends org.apache.hadoop.fs.FileSystem> fsClass)

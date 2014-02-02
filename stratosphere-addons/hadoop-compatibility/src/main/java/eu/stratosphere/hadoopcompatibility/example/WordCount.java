@@ -1,4 +1,4 @@
-package eu.stratosphere.hadoopcompat.example;
+package eu.stratosphere.hadoopcompatibility.example;
 /***********************************************************************************************************************
  * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
  *
@@ -37,9 +37,9 @@ import eu.stratosphere.api.java.record.operators.MapOperator;
 import eu.stratosphere.api.java.record.operators.ReduceOperator;
 import eu.stratosphere.api.java.record.operators.ReduceOperator.Combinable;
 import eu.stratosphere.client.LocalExecutor;
-import eu.stratosphere.hadoopcompat.HadoopDataSource;
-import eu.stratosphere.hadoopcompat.HadoopInputFormatWrapper;
-import eu.stratosphere.hadoopcompat.datatypes.WritableWrapperConverter;
+import eu.stratosphere.hadoopcompatibility.HadoopDataSource;
+import eu.stratosphere.hadoopcompatibility.HadoopInputFormatWrapper;
+import eu.stratosphere.hadoopcompatibility.datatypes.WritableWrapperConverter;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;
@@ -121,7 +121,7 @@ public class WordCount implements Program, ProgramDescription {
 		TextInputFormat.addInputPath(source.getJobConf(), new Path(dataInput));
 		
 		// Example with Wrapper Converter
-		HadoopDataSource sourceHadoopType = new HadoopDataSource(new TextInputFormat(), new JobConf(), "Input Lines", new WritableWrapperConverter<LongWritable, Text>());
+		HadoopDataSource<LongWritable,Text> sourceHadoopType = new HadoopDataSource<LongWritable, Text>(new TextInputFormat(), new JobConf(), "Input Lines", new WritableWrapperConverter<LongWritable, Text>());
 		TextInputFormat.addInputPath(source.getJobConf(), new Path(dataInput));
 		
 		MapOperator mapper = MapOperator.builder(new TokenizeLine())

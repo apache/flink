@@ -1,4 +1,4 @@
-package eu.stratosphere.hadoopcompat;
+package eu.stratosphere.hadoopcompatibility;
 
 
 import org.apache.hadoop.mapred.InputFormat;
@@ -7,8 +7,8 @@ import org.apache.hadoop.mapred.JobConf;
 import com.google.common.base.Preconditions;
 
 import eu.stratosphere.api.common.operators.GenericDataSource;
-import eu.stratosphere.hadoopcompat.datatypes.DefaultHadoopTypeConverter;
-import eu.stratosphere.hadoopcompat.datatypes.HadoopTypeConverter;
+import eu.stratosphere.hadoopcompatibility.datatypes.DefaultHadoopTypeConverter;
+import eu.stratosphere.hadoopcompatibility.datatypes.HadoopTypeConverter;
 
 /**
  * The HadoopDataSource is a generic wrapper for all Hadoop InputFormats.
@@ -26,7 +26,7 @@ import eu.stratosphere.hadoopcompat.datatypes.HadoopTypeConverter;
  * * DefaultHadoopTypeConverter: Converts the standard hadoop types (longWritable, Text) to Stratosphere's standard types.
  *
  */
-public class HadoopDataSource extends GenericDataSource<HadoopInputFormatWrapper> {
+public class HadoopDataSource<K,V> extends GenericDataSource<HadoopInputFormatWrapper<K,V>> {
 
 	private static String DEFAULT_NAME = "<Unnamed Hadoop Data Source>";
 	
@@ -39,8 +39,8 @@ public class HadoopDataSource extends GenericDataSource<HadoopInputFormatWrapper
 	 * @param name Name of the DataSource
 	 * @param conv Definition of a custom type converter {@link DefaultHadoopTypeConverter}.
 	 */
-	public HadoopDataSource(InputFormat hadoopFormat, JobConf jobConf, String name, HadoopTypeConverter conv) {
-		super(new HadoopInputFormatWrapper(hadoopFormat, jobConf, conv),name);
+	public HadoopDataSource(InputFormat<K,V> hadoopFormat, JobConf jobConf, String name, HadoopTypeConverter<K,V> conv) {
+		super(new HadoopInputFormatWrapper<K,V>(hadoopFormat, jobConf, conv),name);
 		Preconditions.checkNotNull(hadoopFormat);
 		Preconditions.checkNotNull(jobConf);
 		Preconditions.checkNotNull(conv);
@@ -48,14 +48,14 @@ public class HadoopDataSource extends GenericDataSource<HadoopInputFormatWrapper
 		this.jobConf = jobConf;
 	}
 	
-	public HadoopDataSource(InputFormat hadoopFormat, JobConf jobConf, String name) {
-		this(hadoopFormat, jobConf, name, new DefaultHadoopTypeConverter() );
+	public HadoopDataSource(InputFormat<K,V> hadoopFormat, JobConf jobConf, String name) {
+		this(hadoopFormat, jobConf, name, new DefaultHadoopTypeConverter<K,V>() );
 	}
-	public HadoopDataSource(InputFormat hadoopFormat, JobConf jobConf) {
+	public HadoopDataSource(InputFormat<K,V> hadoopFormat, JobConf jobConf) {
 		this(hadoopFormat, jobConf, DEFAULT_NAME);
 	}
 	
-	public HadoopDataSource(InputFormat hadoopFormat) {
+	public HadoopDataSource(InputFormat<K,V> hadoopFormat) {
 		this(hadoopFormat, new JobConf(), DEFAULT_NAME);
 	}
 

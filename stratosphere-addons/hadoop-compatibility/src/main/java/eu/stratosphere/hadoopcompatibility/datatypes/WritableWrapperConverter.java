@@ -1,4 +1,4 @@
-package eu.stratosphere.hadoopcompat.datatypes;
+package eu.stratosphere.hadoopcompatibility.datatypes;
 
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableComparable;
@@ -6,7 +6,7 @@ import org.apache.hadoop.io.WritableComparable;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.Value;
 
-public class WritableWrapperConverter<K extends WritableComparable<?> , V extends Writable> implements HadoopTypeConverter<K,V> {
+public class WritableWrapperConverter<K extends WritableComparable, V extends Writable> implements HadoopTypeConverter<K,V> {
 	private static final long serialVersionUID = 1L;
 
 	@Override
@@ -22,5 +22,4 @@ public class WritableWrapperConverter<K extends WritableComparable<?> , V extend
 	private final Value convertValue(V in) {
 		return new WritableWrapper<V>(in);
 	}
-	
 }

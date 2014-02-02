@@ -1,10 +1,10 @@
-package eu.stratosphere.hadoopcompat.datatypes;
+package eu.stratosphere.hadoopcompatibility.datatypes;
 
 import org.apache.hadoop.io.WritableComparable;
 
 import eu.stratosphere.types.Key;
 
-public class WritableComparableWrapper<T extends WritableComparable<?>> extends WritableWrapper<T> implements Key {
+public class WritableComparableWrapper<T extends WritableComparable> extends WritableWrapper<T> implements Key {
 	private static final long serialVersionUID = 1L;
 	
 	public WritableComparableWrapper() {

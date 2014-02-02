@@ -1,9 +1,6 @@
-package eu.stratosphere.hadoopcompat.datatypes;
+package eu.stratosphere.hadoopcompatibility.datatypes;
 
 import java.io.Serializable;
-
-import org.apache.hadoop.io.Writable;
-import org.apache.hadoop.io.WritableComparable;
 
 import eu.stratosphere.types.Record;
 
@@ -17,7 +14,7 @@ import eu.stratosphere.types.Record;
  * Stratosphere provides a DefaultHadoopTypeConverter. Custom implementations should
  * chain the type converters.
  */
-public interface HadoopTypeConverter<K extends WritableComparable<?>, V extends Writable> extends Serializable {
+public interface HadoopTypeConverter<K, V> extends Serializable {
 	
 	/**
 	 * Convert a Hadoop type to a Stratosphere type.

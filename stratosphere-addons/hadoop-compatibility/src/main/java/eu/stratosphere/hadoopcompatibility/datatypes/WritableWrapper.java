@@ -1,4 +1,4 @@
-package eu.stratosphere.hadoopcompat.datatypes;
+package eu.stratosphere.hadoopcompatibility.datatypes;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -24,8 +24,8 @@ public class WritableWrapper<T extends Writable> implements Value {
 		wrappedType = toWrap.getClass().getCanonicalName();
 	}
 
-	public T value() {
-		return wrapped;
+	public <X extends Writable> X value() {
+		return (X) wrapped;
 	}
 	
 	@Override
@@ -44,7 +44,7 @@ public class WritableWrapper<T extends Writable> implements Value {
 			Class wrClass = Class.forName(wrappedType, true, cl);
 			wrapped = (T) InstantiationUtil.instantiate(wrClass, Writable.class);
 		} catch (ClassNotFoundException e) {
-			throw new RuntimeException("Error cerating the WritableWrapper");
+			throw new RuntimeException("Error creating the WritableWrapper", e);
 		}
 		wrapped.readFields(in);
 	}
