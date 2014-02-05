@@ -20,11 +20,14 @@ import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.examples.scala.datamining.KMeans;
 
+import java.util.Locale;
+
 @RunWith(Parameterized.class)
 public class IterativeKMeansITCase extends eu.stratosphere.test.iterative.IterativeKMeansITCase {
 
 	public IterativeKMeansITCase(Configuration config) {
 		super(config);
+		Locale.setDefault(Locale.US);
 	}
 
 	@Override

@@ -20,11 +20,14 @@ import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.examples.scala.relational.TPCHQuery3;
 
+import java.util.Locale;
+
 @RunWith(Parameterized.class)
 public class TPCHQuery3ITCase extends eu.stratosphere.test.exampleRecordPrograms.TPCHQuery3ITCase {
 
 	public TPCHQuery3ITCase(Configuration config) {
 		super(config);
+		Locale.setDefault(Locale.US);
 	}
 
 	@Override
