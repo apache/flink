@@ -46,7 +46,7 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 	
 	private PactConnection rootConnection;
 	
-	private int costWeight;
+	private final int costWeight;
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -62,7 +62,10 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 			throw new CompilerException("BulkIteration must have a maximum number of iterations specified.");
 		}
 		
-		this.costWeight = iteration.getMaximumNumberOfIterations();
+		int numIters = iteration.getMaximumNumberOfIterations();
+		
+		this.costWeight = (numIters > 0 && numIters < OptimizerNode.MAX_DYNAMIC_PATH_COST_WEIGHT) ?
+			numIters : OptimizerNode.MAX_DYNAMIC_PATH_COST_WEIGHT; 
 	}
 
 	// --------------------------------------------------------------------------------------------

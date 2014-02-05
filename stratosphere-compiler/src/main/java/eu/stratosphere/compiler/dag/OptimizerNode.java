@@ -47,6 +47,8 @@ import eu.stratosphere.util.Visitor;
  */
 public abstract class OptimizerNode implements Visitable<OptimizerNode>, EstimateProvider, DumpableNode<OptimizerNode> {
 	
+	public static final int MAX_DYNAMIC_PATH_COST_WEIGHT = 100;
+	
 	// --------------------------------------------------------------------------------------------
 	//                                      Members
 	// --------------------------------------------------------------------------------------------

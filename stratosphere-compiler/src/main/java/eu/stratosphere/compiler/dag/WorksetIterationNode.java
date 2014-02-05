@@ -73,7 +73,7 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 	
 	private boolean solutionDeltaImmediatelyAfterSolutionJoin;
 	
-	private int costWeight;
+	private final int costWeight;
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -93,8 +93,13 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 		this.partitionedProperties = new GlobalProperties();
 		this.partitionedProperties.setHashPartitioned(this.solutionSetKeyFields);
 		
-		this.costWeight = iteration.getMaximumNumberOfIterations() > 0 ? 
+		int weight = iteration.getMaximumNumberOfIterations() > 0 ? 
 			iteration.getMaximumNumberOfIterations() : DEFAULT_COST_WEIGHT;
+			
+		if (weight > OptimizerNode.MAX_DYNAMIC_PATH_COST_WEIGHT) {
+			weight = OptimizerNode.MAX_DYNAMIC_PATH_COST_WEIGHT;
+		}
+		this.costWeight = weight; 
 		
 		this.possibleProperties.add(new WorksetOpDescriptor(this.solutionSetKeyFields));
 	}
