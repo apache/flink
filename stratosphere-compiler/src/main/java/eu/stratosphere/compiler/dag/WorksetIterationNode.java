@@ -149,21 +149,19 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 		// attach an extra node to the solution set delta for the cases where we need to repartition
 		UnaryOperatorNode solutionSetDeltaUpdateAux = new UnaryOperatorNode("Solution-Set Delta", getSolutionSetKeyFields(),
 				new SolutionSetDeltaOperator(getSolutionSetKeyFields()));
-		
-		PactConnection conn = new PactConnection(solutionSetDelta, solutionSetDeltaUpdateAux, -1);
-//		conn.setShipStrategy(ShipStrategyType.PARTITION_HASH);
-		solutionSetDeltaUpdateAux.setIncomingConnection(conn);
-		solutionSetDelta.addOutgoingConnection(conn);
-		
 		solutionSetDeltaUpdateAux.setDegreeOfParallelism(getDegreeOfParallelism());
 		solutionSetDeltaUpdateAux.setSubtasksPerInstance(getSubtasksPerInstance());
+		
+		PactConnection conn = new PactConnection(solutionSetDelta, solutionSetDeltaUpdateAux);
+		solutionSetDeltaUpdateAux.setIncomingConnection(conn);
+		solutionSetDelta.addOutgoingConnection(conn);
 		
 		this.solutionSetDelta = solutionSetDeltaUpdateAux;
 		this.nextWorkset = nextWorkset;
 		
 		this.singleRoot = new SingleRootJoiner();
-		this.solutionSetDeltaRootConnection = new PactConnection(solutionSetDeltaUpdateAux, this.singleRoot, -1);
-		this.nextWorksetRootConnection = new PactConnection(nextWorkset, this.singleRoot, -1);
+		this.solutionSetDeltaRootConnection = new PactConnection(solutionSetDeltaUpdateAux, this.singleRoot);
+		this.nextWorksetRootConnection = new PactConnection(nextWorkset, this.singleRoot);
 		this.singleRoot.setInputs(this.solutionSetDeltaRootConnection, this.nextWorksetRootConnection);
 		
 		solutionSetDeltaUpdateAux.addOutgoingConnection(this.solutionSetDeltaRootConnection);
@@ -180,6 +178,14 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 	
 	public FieldList getSolutionSetKeyFields() {
 		return this.solutionSetKeyFields;
+	}
+	
+	public OptimizerNode getInitialSolutionSetPredecessorNode() {
+		return getFirstPredecessorNode();
+	}
+	
+	public OptimizerNode getInitialWorksetPredecessorNode() {
+		return getSecondPredecessorNode();
 	}
 
 	// --------------------------------------------------------------------------------------------

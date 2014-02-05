@@ -26,38 +26,29 @@ import eu.stratosphere.compiler.plan.Channel;
 import eu.stratosphere.compiler.plan.SingleInputPlanNode;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
-/**
- *
- */
-public class MapDescriptor extends OperatorDescriptorSingle
-{
+
+public class MapDescriptor extends OperatorDescriptorSingle {
 
 	@Override
 	public DriverStrategy getStrategy() {
 		return DriverStrategy.MAP;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.dataproperties.DriverPropertiesHandlerSingle#instantiate(eu.stratosphere.pact.compiler.plan.candidate.Channel, eu.stratosphere.pact.compiler.plan.SingleInputNode, eu.stratosphere.pact.common.util.FieldList)
-	 */
 	@Override
 	public SingleInputPlanNode instantiate(Channel in, SingleInputNode node) {
 		return new SingleInputPlanNode(node, "Map("+node.getPactContract().getName()+")", in, DriverStrategy.MAP);
 	}
-
 
 	@Override
 	protected List<RequestedGlobalProperties> createPossibleGlobalProperties() {
 		return Collections.singletonList(new RequestedGlobalProperties());
 	}
 
-
 	@Override
 	protected List<RequestedLocalProperties> createPossibleLocalProperties() {
 		return Collections.singletonList(new RequestedLocalProperties());
 	}
 	
-
 	@Override
 	public GlobalProperties computeGlobalProperties(GlobalProperties gProps) {
 		if (gProps.getUniqueFieldCombination() != null && gProps.getUniqueFieldCombination().size() > 0 &&
@@ -69,7 +60,6 @@ public class MapDescriptor extends OperatorDescriptorSingle
 		return gProps;
 	}
 	
-
 	@Override
 	public LocalProperties computeLocalProperties(LocalProperties lProps) {
 		lProps.clearUniqueFieldSets();

@@ -79,6 +79,11 @@ public abstract class SingleInputNode extends OptimizerNode {
 		this.keys = keys;
 	}
 	
+	protected SingleInputNode() {
+		super(NoOpUnaryUdfOp.INSTANCE);
+		this.keys = null;
+	}
+	
 	protected SingleInputNode(SingleInputNode contractToCopy) {
 		super(contractToCopy);
 		
@@ -177,13 +182,13 @@ public abstract class SingleInputNode extends OptimizerNode {
 			throw new CompilerException("Error: Node for '" + getPactContract().getName() + "' has no inputs.");
 		} else if (children.size() == 1) {
 			pred = contractToNode.get(children.get(0));
-			conn = new PactConnection(pred, this, pred.getMaxDepth() + 1);
+			conn = new PactConnection(pred, this);
 			if (preSet != null) {
 				conn.setShipStrategy(preSet);
 			}
 		} else {
 			pred = createdUnionCascade(children, contractToNode, preSet);
-			conn = new PactConnection(pred, this, pred.getMaxDepth() + 1);
+			conn = new PactConnection(pred, this);
 			conn.setShipStrategy(ShipStrategyType.FORWARD);
 		}
 		// create the connection and add it

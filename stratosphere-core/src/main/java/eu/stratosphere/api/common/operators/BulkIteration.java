@@ -134,16 +134,15 @@ public class BulkIteration extends SingleInputOperator<AbstractFunction> impleme
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * Specialized contract to use as a recognizable place-holder for the input to the
+	 * Specialized operator to use as a recognizable place-holder for the input to the
 	 * step function when composing the nested data flow.
 	 */
-	// Integer is only a dummy here but this whole placeholder shtick seems a tad bogus.
 	public static class PartialSolutionPlaceHolder extends Operator {
 		
 		private final BulkIteration containingIteration;
 		
 		public PartialSolutionPlaceHolder(BulkIteration container) {
-			super("Partial Solution Place Holder");
+			super("Partial Solution");
 			this.containingIteration = container;
 		}
 		

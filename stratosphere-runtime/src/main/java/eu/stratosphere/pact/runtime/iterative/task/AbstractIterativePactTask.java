@@ -43,6 +43,7 @@ import eu.stratosphere.util.MutableObjectIterator;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -59,8 +60,8 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 	private final AtomicBoolean terminationRequested = new AtomicBoolean(false);
 
 	private RuntimeAggregatorRegistry iterationAggregators;
-
-	private List<MutableReader<?>> iterativeInputs = new ArrayList<MutableReader<?>>();
+	
+	private List<Integer> iterativeInputs = new ArrayList<Integer>();
 
 	private String brokerKey;
 
@@ -155,7 +156,7 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 		}
 		else if (numberOfEventsUntilInterrupt > 0) {
 			inputReader.setIterative(numberOfEventsUntilInterrupt);
-			this.iterativeInputs.add(inputReader);
+			this.iterativeInputs.add(i);
 
 			if (log.isDebugEnabled()) {
 				log.debug(formatLogString("Input [" + i + "] reads in supersteps with [" +
@@ -220,7 +221,7 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 		return this.iterationAggregators;
 	}
 
-	protected void checkForTerminationAndResetEndOfSuperstepState() {
+	protected void checkForTerminationAndResetEndOfSuperstepState() throws IOException {
 		// sanity check that there is at least one iterative input reader
 		if (this.iterativeInputs.isEmpty())
 			throw new IllegalStateException();
@@ -229,15 +230,37 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 		boolean anyClosed = false;
 		boolean allClosed = true;
 
-		for (MutableReader<?> reader : this.iterativeInputs) {
+		for (int inputNum : this.iterativeInputs) {
+			MutableReader<?> reader = this.inputReaders[inputNum];
+
 			if (reader.isInputClosed()) {
 				anyClosed = true;
-			} else {
-				allClosed = false;
 			}
-
-			// also reset the end-of-superstep state
-			reader.startNextSuperstep();
+			else {
+				// check if reader has reached the end of superstep, or if the operation skipped out early
+				if (reader.hasReachedEndOfSuperstep()) {
+					allClosed = false;
+					
+					// also reset the end-of-superstep state
+					reader.startNextSuperstep();
+				}
+				else {
+					// need to read and drop all non-consumed data until we reach the end-of-superstep
+					@SuppressWarnings("unchecked")
+					MutableObjectIterator<Object> inIter = (MutableObjectIterator<Object>) this.inputIterators[inputNum];
+					Object o = this.inputSerializers[inputNum].createInstance();
+					while (inIter.next(o));
+					
+					if (reader.isInputClosed()) {
+						anyClosed = true;
+					} else {
+						allClosed = false;
+						
+						// also reset the end-of-superstep state
+						reader.startNextSuperstep();
+					}
+				}
+			}
 		}
 
 		// sanity check whether we saw the same state (end-of-superstep or termination) on all inputs

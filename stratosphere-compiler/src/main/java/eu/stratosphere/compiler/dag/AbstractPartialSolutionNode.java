@@ -18,7 +18,6 @@ import java.util.List;
 import java.util.Map;
 
 import eu.stratosphere.api.common.operators.Operator;
-import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.costs.CostEstimator;
 import eu.stratosphere.compiler.plan.PlanNode;
 import eu.stratosphere.util.Visitor;
@@ -26,8 +25,7 @@ import eu.stratosphere.util.Visitor;
 /**
  * The optimizer's internal representation of the partial solution that is input to a bulk iteration.
  */
-public abstract class AbstractPartialSolutionNode extends OptimizerNode
-{
+public abstract class AbstractPartialSolutionNode extends OptimizerNode {
 	
 	protected AbstractPartialSolutionNode(Operator contract) {
 		super(contract);
@@ -35,7 +33,7 @@ public abstract class AbstractPartialSolutionNode extends OptimizerNode
 
 	// --------------------------------------------------------------------------------------------
 	
-	public void copyEstimates(OptimizerNode node) {
+	protected void copyEstimates(OptimizerNode node) {
 		this.estimatedCardinality = node.estimatedCardinality;
 		this.estimatedNumRecords = node.estimatedNumRecords;
 		this.estimatedOutputSize = node.estimatedOutputSize;
@@ -66,11 +64,6 @@ public abstract class AbstractPartialSolutionNode extends OptimizerNode
 
 	@Override
 	public void setInputs(Map<Operator, OptimizerNode> contractToNode) {}
-
-	@Override
-	public void computeOutputEstimates(DataStatistics statistics) {
-		// do nothing. we obtain the estimates another way from the enclosing iteration
-	}
 
 	@Override
 	public void computeInterestingPropertiesForInputs(CostEstimator estimator) {

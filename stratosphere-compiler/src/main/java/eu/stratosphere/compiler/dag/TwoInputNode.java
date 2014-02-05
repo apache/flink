@@ -231,13 +231,13 @@ public abstract class TwoInputNode extends OptimizerNode {
 			throw new CompilerException("Error: Node for '" + getPactContract().getName() + "' has no input set for first input.");
 		} else if (leftPreds.size() == 1) {
 			pred1 = contractToNode.get(leftPreds.get(0));
-			conn1 = new PactConnection(pred1, this, pred1.getMaxDepth() + 1);
+			conn1 = new PactConnection(pred1, this);
 			if (preSet1 != null) {
 				conn1.setShipStrategy(preSet1);
 			}
 		} else {
 			pred1 = createdUnionCascade(leftPreds, contractToNode, preSet1);
-			conn1 = new PactConnection(pred1, this, pred1.getMaxDepth() + 1);
+			conn1 = new PactConnection(pred1, this);
 			conn1.setShipStrategy(ShipStrategyType.FORWARD);
 		}
 		// create the connection and add it
@@ -250,13 +250,13 @@ public abstract class TwoInputNode extends OptimizerNode {
 			throw new CompilerException("Error: Node for '" + getPactContract().getName() + "' has no input set for second input.");
 		} else if (rightPreds.size() == 1) {
 			pred2 = contractToNode.get(rightPreds.get(0));
-			conn2 = new PactConnection(pred2, this, pred2.getMaxDepth() + 1);
+			conn2 = new PactConnection(pred2, this);
 			if (preSet2 != null) {
 				conn2.setShipStrategy(preSet2);
 			}
 		} else {
 			pred2 = createdUnionCascade(rightPreds, contractToNode, preSet1);
-			conn2 = new PactConnection(pred2, this, pred2.getMaxDepth() + 1);
+			conn2 = new PactConnection(pred2, this);
 			conn2.setShipStrategy(ShipStrategyType.FORWARD);
 		}
 		// create the connection and add it

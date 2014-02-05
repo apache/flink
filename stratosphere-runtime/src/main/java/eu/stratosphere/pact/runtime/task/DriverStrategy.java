@@ -25,7 +25,7 @@ import static eu.stratosphere.pact.runtime.task.DamBehavior.*;
 public enum DriverStrategy {
 	// no local strategy, as for sources and sinks
 	NONE(null, null, PIPELINED, false),
-	// a binary no-op operator
+	// a unary no-op operator
 	UNARY_NO_OP(NoOpDriver.class, null, PIPELINED, PIPELINED, false),
 	// a binary no-op operator
 	BINARY_NO_OP(null, null, PIPELINED, PIPELINED, false),

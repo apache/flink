@@ -108,9 +108,29 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 	 *
 	 * @param nextPartialSolution The nextPartialSolution to set.
 	 */
-	public void setNextPartialSolution(OptimizerNode nextPartialSolution, PactConnection rootingConnection) {
+	public void setNextPartialSolution(OptimizerNode nextPartialSolution) {
+		
+		// check if the root of the step function has the same DOP as the iteration
+		if (nextPartialSolution.getDegreeOfParallelism() != getDegreeOfParallelism() ||
+			nextPartialSolution.getSubtasksPerInstance() != getSubtasksPerInstance() )
+		{
+			// add a no-op to the root to express the re-partitioning
+			NoOpNode noop = new NoOpNode();
+			noop.setDegreeOfParallelism(getDegreeOfParallelism());
+			noop.setSubtasksPerInstance(getSubtasksPerInstance());
+			
+			PactConnection noOpConn = new PactConnection(nextPartialSolution, noop);
+			noop.setIncomingConnection(noOpConn);
+			nextPartialSolution.addOutgoingConnection(noOpConn);
+			
+			nextPartialSolution = noop;
+		}
+		
+		PactConnection rootConn = new PactConnection(nextPartialSolution);
+		nextPartialSolution.addOutgoingConnection(rootConn);
+		
 		this.nextPartialSolution = nextPartialSolution;
-		this.rootConnection = rootingConnection;
+		this.rootConnection = rootConn;
 	}
 	
 	public int getCostWeight() {

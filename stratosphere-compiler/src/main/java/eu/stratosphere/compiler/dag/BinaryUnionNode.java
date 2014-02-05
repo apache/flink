@@ -36,9 +36,7 @@ import eu.stratosphere.compiler.plan.PlanNode;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 
 /**
- * The Optimizer representation of a <i>Union</i>. A Union is automatically
- * inserted before any node which has more than one incoming connection per
- * input.
+ * The Optimizer representation of a binary <i>Union</i>.
  */
 public class BinaryUnionNode extends TwoInputNode {
 	
@@ -47,8 +45,8 @@ public class BinaryUnionNode extends TwoInputNode {
 	public BinaryUnionNode(OptimizerNode pred1, OptimizerNode pred2) {
 		super(new UnionPlaceholderContract());
 		
-		this.input1 = new PactConnection(pred1, this, pred1.getMaxDepth() + 1);
-		this.input2 = new PactConnection(pred2, this, pred2.getMaxDepth() + 1);
+		this.input1 = new PactConnection(pred1, this);
+		this.input2 = new PactConnection(pred2, this);
 		
 		pred1.addOutgoingConnection(this.input1);
 		pred2.addOutgoingConnection(this.input2);

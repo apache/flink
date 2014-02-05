@@ -25,23 +25,17 @@ import eu.stratosphere.compiler.plan.Channel;
 import eu.stratosphere.compiler.plan.SingleInputPlanNode;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
-/**
- *
- */
-public class NoOpDescriptor extends OperatorDescriptorSingle
-{
+
+public class NoOpDescriptor extends OperatorDescriptorSingle {
 
 	@Override
 	public DriverStrategy getStrategy() {
-		return DriverStrategy.NONE;
+		return DriverStrategy.UNARY_NO_OP;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.dataproperties.DriverPropertiesHandlerSingle#instantiate(eu.stratosphere.pact.compiler.plan.candidate.Channel, eu.stratosphere.pact.compiler.plan.SingleInputNode, eu.stratosphere.pact.common.util.FieldList)
-	 */
 	@Override
 	public SingleInputPlanNode instantiate(Channel in, SingleInputNode node) {
-		throw new UnsupportedOperationException();
+		return new SingleInputPlanNode(node, "Pipe", in, DriverStrategy.UNARY_NO_OP);
 	}
 
 

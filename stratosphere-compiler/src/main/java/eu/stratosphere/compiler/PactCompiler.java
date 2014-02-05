@@ -657,7 +657,7 @@ public class PactCompiler {
 		// 4) It makes estimates about the data volume of the data sources and
 		// propagates those estimates through the plan
 
-		GraphCreatingVisitor graphCreator = new GraphCreatingVisitor(this.statistics, maxMachinesJob, defaultParallelism, true);
+		GraphCreatingVisitor graphCreator = new GraphCreatingVisitor(maxMachinesJob, defaultParallelism);
 		pactPlan.accept(graphCreator);
 
 		// if we have a plan with multiple data sinks, add logical optimizer nodes that have two data-sinks as children
@@ -669,11 +669,9 @@ public class PactCompiler {
 		} else if (graphCreator.sinks.size() > 1) {
 			Iterator<DataSinkNode> iter = graphCreator.sinks.iterator();
 			rootNode = iter.next();
-			int id = graphCreator.getId();
 
 			while (iter.hasNext()) {
 				rootNode = new SinkJoiner(rootNode, iter.next());
-				rootNode.setId(id++);
 			}
 		} else {
 			throw new CompilerException("Bug: The optimizer plan representation has no sinks.");
@@ -682,7 +680,7 @@ public class PactCompiler {
 		// now that we have all nodes created and recorded which ones consume memory, tell the nodes their minimal
 		// guaranteed memory, for further cost estimations. we assume an equal distribution of memory among consumer tasks
 		
-		rootNode.accept(new MemoryDistributer(
+		rootNode.accept(new IdAndMemoryAndEstimatesVisitor(this.statistics,
 			graphCreator.getMemoryConsumerCount() == 0 ? 0 : memoryPerInstance / graphCreator.getMemoryConsumerCount()));
 		
 		// Now that the previous step is done, the next step is to traverse the graph again for the two
@@ -745,7 +743,7 @@ public class PactCompiler {
 	 *         from the plan can be traversed.
 	 */
 	public static List<DataSinkNode> createPreOptimizedPlan(Plan pactPlan) {
-		GraphCreatingVisitor graphCreator = new GraphCreatingVisitor(null, -1, 1, false);
+		GraphCreatingVisitor graphCreator = new GraphCreatingVisitor(-1, 1);
 		pactPlan.accept(graphCreator);
 		return graphCreator.sinks;
 	}
@@ -773,38 +771,27 @@ public class PactCompiler {
 
 		private final List<DataSinkNode> sinks; // all data sink nodes in the optimizer plan
 
-		private final DataStatistics statistics; // used to access basic file statistics
-
 		private final int maxMachines; // the maximum number of machines to use
 
 		private final int defaultParallelism; // the default degree of parallelism
-
-		private int id; // the incrementing id for the nodes.
 		
 		private int numMemoryConsumers;
-
-		private final boolean computeEstimates; // flag indicating whether to compute additional info
 		
 		private final GraphCreatingVisitor parent;	// reference to enclosing creator, in case of a recursive translation
 		
 		private final boolean forceDOP;
 
 		
-		GraphCreatingVisitor(DataStatistics statistics, int maxMachines, int defaultParallelism, boolean computeEstimates) {
-			this(null, false, statistics, maxMachines, defaultParallelism, computeEstimates);
+		GraphCreatingVisitor(int maxMachines, int defaultParallelism) {
+			this(null, false, maxMachines, defaultParallelism);
 		}
 		
-		GraphCreatingVisitor(GraphCreatingVisitor parent, boolean forceDOP,
-			DataStatistics statistics, int maxMachines, int defaultParallelism, boolean computeEstimates)
-		{
+		GraphCreatingVisitor(GraphCreatingVisitor parent, boolean forceDOP, int maxMachines, int defaultParallelism) {
 			this.con2node = new HashMap<Operator, OptimizerNode>();
 			this.sources = new ArrayList<DataSourceNode>(4);
 			this.sinks = new ArrayList<DataSinkNode>(2);
-			this.statistics = statistics;
 			this.maxMachines = maxMachines;
 			this.defaultParallelism = defaultParallelism;
-			this.id = 1;
-			this.computeEstimates = computeEstimates;
 			this.parent = parent;
 			this.forceDOP = forceDOP;
 		}
@@ -860,10 +847,6 @@ public class PactCompiler {
 				BulkPartialSolutionNode p = new BulkPartialSolutionNode(holder, containingIterationNode);
 				p.setDegreeOfParallelism(containingIterationNode.getDegreeOfParallelism());
 				p.setSubtasksPerInstance(containingIterationNode.getSubtasksPerInstance());
-				
-				// we need to manually set the estimates to the estimates from the initial partial solution
-				// we need to do this now, such that all successor nodes can compute their estimates properly
-				p.copyEstimates(containingIterationNode);
 				n = p;
 			}
 			else if (c instanceof WorksetPlaceHolder) {
@@ -876,10 +859,6 @@ public class PactCompiler {
 				WorksetNode p = new WorksetNode(holder, containingIterationNode);
 				p.setDegreeOfParallelism(containingIterationNode.getDegreeOfParallelism());
 				p.setSubtasksPerInstance(containingIterationNode.getSubtasksPerInstance());
-				
-				// we need to manually set the estimates to the estimates from the initial partial solution
-				// we need to do this now, such that all successor nodes can compute their estimates properly
-				p.copyEstimates(containingIterationNode);
 				n = p;
 			}
 			else if (c instanceof SolutionSetPlaceHolder) {
@@ -892,10 +871,6 @@ public class PactCompiler {
 				SolutionSetNode p = new SolutionSetNode(holder, containingIterationNode);
 				p.setDegreeOfParallelism(containingIterationNode.getDegreeOfParallelism());
 				p.setSubtasksPerInstance(containingIterationNode.getSubtasksPerInstance());
-				
-				// we need to manually set the estimates to the estimates from the initial partial solution
-				// we need to do this now, such that all successor nodes can compute their estimates properly
-				p.copyEstimates(containingIterationNode);
 				n = p;
 			}
 			else {
@@ -944,22 +919,8 @@ public class PactCompiler {
 		public void postVisit(Operator c) {
 			OptimizerNode n = this.con2node.get(c);
 
-			// check if we have been here before
-			if (n.getId() > 0) {
-				return;
-			}
-			n.setId(this.id);
-
 			// first connect to the predecessors
 			n.setInputs(this.con2node);
-
-			// read id again as it might have been incremented for newly created union nodes
-			this.id = n.getId() + 1;
-			
-			// now compute the output estimates
-			if (this.computeEstimates) {
-				n.computeOutputEstimates(this.statistics);
-			}
 			
 			// if the node represents a bulk iteration, we recursively translate the data flow now
 			if (n instanceof BulkIterationNode) {
@@ -968,21 +929,18 @@ public class PactCompiler {
 				
 				// first, recursively build the data flow for the step function
 				final GraphCreatingVisitor recursiveCreator = new GraphCreatingVisitor(this, true,
-					this.statistics, this.maxMachines, iterNode.getDegreeOfParallelism(), this.computeEstimates);
+					this.maxMachines, iterNode.getDegreeOfParallelism());
 				iter.getNextPartialSolution().accept(recursiveCreator);
 				
 				OptimizerNode rootOfStepFunction = recursiveCreator.con2node.get(iter.getNextPartialSolution());
 				BulkPartialSolutionNode partialSolution = 
 						(BulkPartialSolutionNode) recursiveCreator.con2node.get(iter.getPartialSolution());
 				if (partialSolution == null) {
-					throw new CompilerException("Error: The step functions result does not depend on the partial solution.");
+					throw new CompilerException("Invalid Bulk iteration: The result of the iterative step functions result does not depend on the partial solution.");
 				}
 				
-				// add an outgoing connection to the root of the step function
-				PactConnection rootConn = new PactConnection(rootOfStepFunction);
-				rootOfStepFunction.addOutgoingConnection(rootConn);
-				
-				iterNode.setNextPartialSolution(rootOfStepFunction, rootConn);
+				// add an outgoing connection to the root of the step function				
+				iterNode.setNextPartialSolution(rootOfStepFunction);
 				iterNode.setPartialSolution(partialSolution);
 				
 				// account for the nested memory consumers
@@ -997,7 +955,7 @@ public class PactCompiler {
 				
 				// first, recursively build the data flow for the step function
 				final GraphCreatingVisitor recursiveCreator = new GraphCreatingVisitor(this, true,
-					this.statistics, this.maxMachines, iterNode.getDegreeOfParallelism(), this.computeEstimates);
+					this.maxMachines, iterNode.getDegreeOfParallelism());
 				// descend from the solution set delta. check that it depends on both the workset
 				// and the solution set. If it does depend on both, this descend should create both nodes
 				iter.getSolutionSetDelta().accept(recursiveCreator);
@@ -1065,10 +1023,6 @@ public class PactCompiler {
 				solutionSetDeltaNode.accept(pathIdentifier);
 			}
 		}
-
-		int getId() {
-			return this.id;
-		}
 		
 		int getMemoryConsumerCount() {
 			return this.numMemoryConsumers;
@@ -1081,7 +1035,7 @@ public class PactCompiler {
 		
 		private final int costWeight;
 		
-		StaticDynamicPathIdentifier(int costWeight) {
+		private StaticDynamicPathIdentifier(int costWeight) {
 			this.costWeight = costWeight;
 		}
 		
@@ -1100,35 +1054,54 @@ public class PactCompiler {
 	 * Simple visitor that sets the minimal guaranteed memory per task based on the amount of available memory,
 	 * the number of memory consumers, and on the task's degree of parallelism.
 	 */
-	private static final class MemoryDistributer implements Visitor<OptimizerNode> {
+	private static final class IdAndMemoryAndEstimatesVisitor implements Visitor<OptimizerNode> {
+		
+		private final DataStatistics statistics;
 		
 		private final long memoryPerTaskPerInstance;
 		
-		MemoryDistributer(long memoryPerTaskPerInstance) {
+		private int id = 1;
+		
+		private IdAndMemoryAndEstimatesVisitor(DataStatistics statistics, long memoryPerTaskPerInstance) {
+			this.statistics = statistics;
 			this.memoryPerTaskPerInstance = memoryPerTaskPerInstance;
 		}
 
 
 		@Override
 		public boolean preVisit(OptimizerNode visitable) {
-			// if required, recurse into the step function
-			if (visitable instanceof IterationNode) {
-				((IterationNode) visitable).acceptForStepFunction(this);
-			}
-			
-			if (visitable.getMinimalMemoryPerSubTask() == -1) {
-				final long mem = visitable.isMemoryConsumer() ? 
-					this.memoryPerTaskPerInstance / visitable.getSubtasksPerInstance() : 0;
-				visitable.setMinimalMemoryPerSubTask(mem);
-				return true;
-			} else {
+			if (visitable.getId() != -1) {
+				// been here before
 				return false;
 			}
+			
+			// assign minimum memory share, for lower bound estimates
+			final long mem = visitable.isMemoryConsumer() ? 
+					this.memoryPerTaskPerInstance / visitable.getSubtasksPerInstance() : 0;
+			visitable.setMinimalMemoryPerSubTask(mem);
+			
+			return true;
 		}
 
 
 		@Override
-		public void postVisit(OptimizerNode visitable) {}
+		public void postVisit(OptimizerNode visitable) {
+			// the node ids
+			visitable.initId(this.id++);
+			
+			// connections need to figure out their maximum path depths
+			for (PactConnection conn : visitable.getIncomingConnections()) {
+				conn.initMaxDepth();
+			}
+			
+			// the estimates
+			visitable.computeOutputEstimates(this.statistics);
+			
+			// if required, recurse into the step function
+			if (visitable instanceof IterationNode) {
+				((IterationNode) visitable).acceptForStepFunction(this);
+			}
+		}
 	}
 	
 	/**
