@@ -32,9 +32,13 @@ public class DataInputDecoder extends Decoder {
 		this.in = in;
 	}
 
+	// --------------------------------------------------------------------------------------------
+	// primitives
+	// --------------------------------------------------------------------------------------------
 	
 	@Override
-	public void readNull() throws IOException {}
+	public void readNull() {}
+	
 
 	@Override
 	public boolean readBoolean() throws IOException {
@@ -60,15 +64,63 @@ public class DataInputDecoder extends Decoder {
 	public double readDouble() throws IOException {
 		return in.readDouble();
 	}
+	
+	@Override
+	public int readEnum() throws IOException {
+		return readInt();
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	// bytes
+	// --------------------------------------------------------------------------------------------
 
+	@Override
+	public void readFixed(byte[] bytes, int start, int length) throws IOException {
+		in.readFully(bytes, start, length);
+	}
+	
+	@Override
+	public ByteBuffer readBytes(ByteBuffer old) throws IOException {
+		int length = readInt();
+		ByteBuffer result;
+		if (old != null && length <= old.capacity() && old.hasArray()) {
+			result = old;
+			result.clear();
+		} else {
+			result = ByteBuffer.allocate(length);
+		}
+		in.readFully(result.array(), result.arrayOffset() + result.position(), length);
+		result.limit(length);
+		return result;
+	}
+	
+	
+	@Override
+	public void skipFixed(int length) throws IOException {
+		skipBytes(length);
+	}
+	
+	@Override
+	public void skipBytes() throws IOException {
+		int num = readInt();
+		skipBytes(num);
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	// strings
+	// --------------------------------------------------------------------------------------------
+	
+	
 	@Override
 	public Utf8 readString(Utf8 old) throws IOException {
 		int length = readInt();
 		Utf8 result = (old != null ? old : new Utf8());
 		result.setByteLength(length);
-		if (0 != length) {
-			readBytedChecked(result.getBytes(), 0, length);
+		
+		if (length > 0) {
+			in.readFully(result.getBytes(), 0, length);
 		}
+		
 		return result;
 	}
 
@@ -83,83 +135,52 @@ public class DataInputDecoder extends Decoder {
 		skipBytes(len);
 	}
 
-	@Override
-	public ByteBuffer readBytes(ByteBuffer old) throws IOException {
-		int length = readInt();
-		ByteBuffer result;
-		if (old != null && length <= old.capacity() && old.hasArray()) {
-			result = old;
-			result.clear();
-		} else {
-			result = ByteBuffer.allocate(length);
-		}
-		readBytedChecked(result.array(), result.position(), length);
-		result.limit(length);
-		return result;
-	}
-
-	@Override
-	public void skipBytes() throws IOException {
-		int num = readInt();
-		skipBytes(num);
-	}
-
-	@Override
-	public void readFixed(byte[] bytes, int start, int length) throws IOException {
-		readBytedChecked(bytes, start, length);
-	}
-
-	@Override
-	public void skipFixed(int length) throws IOException {
-		skipBytes(length);
-	}
-
-	@Override
-	public int readEnum() throws IOException {
-		return readInt();
-	}
+	// --------------------------------------------------------------------------------------------
+	// collection types
+	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public long readArrayStart() throws IOException {
-		return readLong();
+		return readVarLongCount(in);
 	}
 
 	@Override
 	public long arrayNext() throws IOException {
-		return readLong();
+		return readVarLongCount(in);
 	}
 
 	@Override
 	public long skipArray() throws IOException {
-		return skipItems();
+		return readVarLongCount(in);
 	}
 
 	@Override
 	public long readMapStart() throws IOException {
-		return readLong();
+		return readVarLongCount(in);
 	}
 
 	@Override
 	public long mapNext() throws IOException {
-		return readLong();
+		return readVarLongCount(in);
 	}
 
 	@Override
 	public long skipMap() throws IOException {
-		return skipItems();
+		return readVarLongCount(in);
 	}
+	
+	// --------------------------------------------------------------------------------------------
+	// union
+	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public int readIndex() throws IOException {
 		return readInt();
 	}
 	
-	private void readBytedChecked(byte[] bytes, int start, int length) throws IOException {
-		if (length < 0)
-			throw new IOException("Malformed input.");
-		
-		in.readFully(bytes, start, length);
-	}
+	// --------------------------------------------------------------------------------------------
+	// utils
+	// --------------------------------------------------------------------------------------------
 	
 	private void skipBytes(int num) throws IOException {
 		while (num > 0) {
@@ -167,19 +188,22 @@ public class DataInputDecoder extends Decoder {
 		}
 	}
 	
-	private void skipBytes(long num) throws IOException {
-		while (num > 0) {
-			num -= in.skipBytes((int) (num < Integer.MAX_VALUE ? num : Integer.MAX_VALUE));
+	public static long readVarLongCount(DataInput in) throws IOException {
+		long value = in.readUnsignedByte();
+
+		if ((value & 0x80) == 0) {
+			return value;
 		}
-	}
-	
-	private long skipItems() throws IOException {
-		long result = readInt();
-		while (result < 0) {
-			long bytecount = readLong();
-			skipBytes(bytecount);
-			result = readInt();
+		else {
+			long curr;
+			int shift = 7;
+			value = value & 0x7f;
+			while (((curr = in.readUnsignedByte()) & 0x80) != 0){
+				value |= (curr & 0x7f) << shift;
+				shift += 7;
+			}
+			value |= curr << shift;
+			return value;
 		}
-		return result;
 	}
 }

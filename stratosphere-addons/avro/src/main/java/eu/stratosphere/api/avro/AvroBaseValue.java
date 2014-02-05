@@ -132,7 +132,7 @@ public abstract class AvroBaseValue<T> extends AvroValue<T> implements Key {
 	
 	@Override
 	public String toString() {
-		return "SAvroValue (" + datum() + ")";
+		return "AvroBaseValue (" + datum() + ")";
 	}
 	
 	@SuppressWarnings("unchecked")
