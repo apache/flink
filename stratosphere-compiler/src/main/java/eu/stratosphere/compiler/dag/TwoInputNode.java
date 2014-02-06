@@ -307,6 +307,10 @@ public abstract class TwoInputNode extends OptimizerNode {
 		}
 		this.input1.setInterestingProperties(props1);
 		this.input2.setInterestingProperties(props2);
+		
+		for (PactConnection conn : getBroadcastConnections()) {
+			conn.setInterestingProperties(new InterestingProperties());
+		}
 	}
 
 	@Override
@@ -323,6 +327,12 @@ public abstract class TwoInputNode extends OptimizerNode {
 		// calculate alternative sub-plans for predecessor
 		final Set<RequestedGlobalProperties> intGlobal1 = this.input1.getInterestingProperties().getGlobalProperties();
 		final Set<RequestedGlobalProperties> intGlobal2 = this.input2.getInterestingProperties().getGlobalProperties();
+		
+		// calculate alternative sub-plans for broadcast inputs
+		final List<List<? extends PlanNode>> broadcastPlans = new ArrayList<List<? extends PlanNode>>();
+		for (PactConnection broadcastConnection: getBroadcastConnections()) {
+			broadcastPlans.add(broadcastConnection.getSource().getAlternativePlans(estimator));
+		}
 		
 		final GlobalPropertiesPair[] allGlobalPairs;
 		final LocalPropertiesPair[] allLocalPairs;
@@ -531,7 +541,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 	{
 		placePipelineBreakersIfNecessary(operator.getStrategy(), in1, in2);
 		
-		DualInputPlanNode node = operator.instantiate(in1, in2, this);
+		DualInputPlanNode node = operator.instantiate(in1, in2, this); //FIXME
 		
 		GlobalProperties gp1 = in1.getGlobalProperties().clone().filterByNodesConstantSet(this, 0);
 		GlobalProperties gp2 = in2.getGlobalProperties().clone().filterByNodesConstantSet(this, 1);
@@ -778,6 +788,9 @@ public abstract class TwoInputNode extends OptimizerNode {
 				throw new CompilerException();
 			getFirstPredecessorNode().accept(visitor);
 			getSecondPredecessorNode().accept(visitor);
+			for (PactConnection connection : getBroadcastConnections()) {
+				connection.getSource().accept(visitor);
+			}
 			visitor.postVisit(this);
 		}
 	}

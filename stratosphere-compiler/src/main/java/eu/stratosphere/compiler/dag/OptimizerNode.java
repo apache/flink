@@ -55,6 +55,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 
 	private final Operator pactContract; // The contract (Reduce / Match / DataSource / ...)
 	
+	private List<PactConnection> broadcastConnections = new ArrayList<PactConnection>(); // the broadcast inputs of this node
+	
 	private List<PactConnection> outgoingConnections; // The links to succeeding nodes
 
 	private InterestingProperties intProps; // the interesting properties of this node
@@ -168,6 +170,35 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 *        The map to translate the contracts to their corresponding optimizer nodes.
 	 */
 	public abstract void setInputs(Map<Operator, OptimizerNode> contractToNode);
+
+	/**
+	 * This function is for plan translation purposes. Upon invocation, this method creates a {@link PactConnection}
+	 * for each one of the broadcast inputs associated with the {@code Operator} referenced by this node.
+	 * <p>
+	 * The {@code PactConnections} must set its shipping strategy type to BROADCAST.
+	 * 
+	 * @param operatorToNode
+	 *        The map associating operators with their corresponding optimizer nodes.
+	 * @throws CompilerException
+	 */
+	public void setBroadcastInputs(Map<Operator, OptimizerNode> operatorToNode) throws CompilerException {
+
+		// skip for Operators that don't support broadcast variables 
+		if (!(getPactContract() instanceof AbstractUdfOperator<?>)) {
+			return;
+		}
+
+		// get all broadcast inputs
+		AbstractUdfOperator<?> operator = ((AbstractUdfOperator<?>) getPactContract());
+
+		// create connections and add them
+		for (Map.Entry<String, Operator> input: operator.getBroadcastInputs().entrySet()) {
+			OptimizerNode predecessor = operatorToNode.get(input.getValue());
+			PactConnection connection = new PactConnection(predecessor, this, ShipStrategyType.BROADCAST, predecessor.getMaxDepth() + 1);
+			addBroadcastConnection(connection);
+			predecessor.addOutgoingConnection(connection);
+		}
+	}
 
 	/**
 	 * This method needs to be overridden by subclasses to return the children.
@@ -289,6 +320,24 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		} else {
 			throw new IllegalStateException("Id has already been initialized.");
 		}
+	}
+
+	/**
+	 * Adds a new broadcast connection to this node.
+	 * 
+	 * @param broadcastConnection
+	 *        The connection to add.
+	 */
+	public void addBroadcastConnection(PactConnection broadcastConnection) {
+		this.broadcastConnections.add(broadcastConnection);
+	}
+
+	/**
+	 * Return the list of inputs associated with broadcast variables for this node.
+	 * @return
+	 */
+	public List<PactConnection> getBroadcastConnections() {
+		return this.broadcastConnections;
 	}
 
 	/**

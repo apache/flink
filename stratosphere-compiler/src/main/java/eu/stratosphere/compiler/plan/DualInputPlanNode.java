@@ -215,6 +215,9 @@ public class DualInputPlanNode extends PlanNode {
 		if (visitor.preVisit(this)) {
 			this.input1.getSource().accept(visitor);
 			this.input2.getSource().accept(visitor);
+			for (Channel broadcastInput : this.broadcastInputs) {
+				broadcastInput.getSource().accept(visitor);
+			}
 			visitor.postVisit(this);
 		}
 	}

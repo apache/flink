@@ -921,6 +921,7 @@ public class PactCompiler {
 
 			// first connect to the predecessors
 			n.setInputs(this.con2node);
+			n.setBroadcastInputs(this.con2node);
 			
 			// if the node represents a bulk iteration, we recursively translate the data flow now
 			if (n instanceof BulkIterationNode) {

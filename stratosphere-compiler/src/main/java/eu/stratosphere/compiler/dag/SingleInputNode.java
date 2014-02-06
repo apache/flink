@@ -235,6 +235,10 @@ public abstract class SingleInputNode extends OptimizerNode {
 			}
 		}
 		this.inConn.setInterestingProperties(props);
+		
+		for (PactConnection conn : getBroadcastConnections()) {
+			conn.setInterestingProperties(new InterestingProperties());
+		}
 	}
 	
 
@@ -248,7 +252,12 @@ public abstract class SingleInputNode extends OptimizerNode {
 		// calculate alternative sub-plans for predecessor
 		final List<? extends PlanNode> subPlans = getPredecessorNode().getAlternativePlans(estimator);
 		final Set<RequestedGlobalProperties> intGlobal = this.inConn.getInterestingProperties().getGlobalProperties();
-		
+		// calculate alternative sub-plans for broadcast inputs
+		final List<List<? extends PlanNode>> broadcastPlans = new ArrayList<List<? extends PlanNode>>();
+		for (PactConnection broadcastConnection: getBroadcastConnections()) {
+			broadcastPlans.add(broadcastConnection.getSource().getAlternativePlans(estimator));
+		}
+
 		final RequestedGlobalProperties[] allValidGlobals;
 		{
 			Set<RequestedGlobalProperties> pairs = new HashSet<RequestedGlobalProperties>();
@@ -475,6 +484,9 @@ public abstract class SingleInputNode extends OptimizerNode {
 				getPredecessorNode().accept(visitor);
 			} else {
 				throw new CompilerException();
+			}
+			for (PactConnection connection : getBroadcastConnections()) {
+				connection.getSource().accept(visitor);
 			}
 			visitor.postVisit(this);
 		}
