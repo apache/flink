@@ -40,7 +40,7 @@ import eu.stratosphere.util.LogUtils;
 @RunWith(Parameterized.class)
 public class IterationWithAllReducerITCase extends TestBase2 {
 
-	private static final String INPUT = "1\n" + "2\n" + "3\n" + "4\n" + "5\n" + "6\n" + "7\n" + "8\n";
+	private static final String INPUT = "1\n" + "1\n" + "1\n" + "1\n" + "1\n" + "1\n" + "1\n" + "1\n";
 	private static final String EXPECTED = "1\n";
 
 	protected String dataPath;
