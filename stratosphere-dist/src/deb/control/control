@@ -1,8 +1,8 @@
 Package: [[name]]
-Version: 0.2
+Version: [[version]]
 Section: misc
-Depends: java6-runtime
+Depends: default-jre
 Priority: low
 Architecture: all
-Description: [[description]]
-Maintainer: christian_richter@gmx.de
+Description: Stratosphere is a distributed parallel data processing system
+Maintainer: Stratosphere team <contact@getstratosphere.org>

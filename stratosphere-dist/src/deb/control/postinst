@@ -38,6 +38,8 @@ case "$1" in
             chown -R stratosphere:stratosphere /var/log/stratosphere-dist
         fi
 	sed -i s'#./resources/web-docs#/usr/share/stratosphere-dist/resources/web-docs#' /usr/share/stratosphere-dist/conf/stratosphere-conf.yaml
+    # append infoserver configuration
+    echo "jobmanager.web.rootpath: /usr/share/stratosphere-dist/resources/web-docs-infoserver" >> /usr/share/stratosphere-dist/conf/stratosphere-conf.yaml
     ;;
 
     abort-upgrade|abort-remove|abort-deconfigure)
