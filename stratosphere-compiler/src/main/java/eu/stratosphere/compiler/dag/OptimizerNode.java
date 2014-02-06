@@ -55,6 +55,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 
 	private final Operator pactContract; // The contract (Reduce / Match / DataSource / ...)
 	
+	private List<String> broadcastConnectionNames = new ArrayList<String>(); // the broadcast inputs names of this node
+	
 	private List<PactConnection> broadcastConnections = new ArrayList<PactConnection>(); // the broadcast inputs of this node
 	
 	private List<PactConnection> outgoingConnections; // The links to succeeding nodes
@@ -195,7 +197,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		for (Map.Entry<String, Operator> input: operator.getBroadcastInputs().entrySet()) {
 			OptimizerNode predecessor = operatorToNode.get(input.getValue());
 			PactConnection connection = new PactConnection(predecessor, this, ShipStrategyType.BROADCAST, predecessor.getMaxDepth() + 1);
-			addBroadcastConnection(connection);
+			addBroadcastConnection(input.getKey(), connection);
 			predecessor.addOutgoingConnection(connection);
 		}
 	}
@@ -323,18 +325,25 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	}
 
 	/**
-	 * Adds a new broadcast connection to this node.
+	 * Adds the broadcast connection identified by the given {@code name} to this node.
 	 * 
 	 * @param broadcastConnection
 	 *        The connection to add.
 	 */
-	public void addBroadcastConnection(PactConnection broadcastConnection) {
+	public void addBroadcastConnection(String name, PactConnection broadcastConnection) {
+		this.broadcastConnectionNames.add(name);
 		this.broadcastConnections.add(broadcastConnection);
 	}
 
 	/**
+	 * Return the list of names associated with broadcast inputs for this node.
+	 */
+	public List<String> getBroadcastConnectionNames() {
+		return this.broadcastConnectionNames;
+	}
+
+	/**
 	 * Return the list of inputs associated with broadcast variables for this node.
-	 * @return
 	 */
 	public List<PactConnection> getBroadcastConnections() {
 		return this.broadcastConnections;

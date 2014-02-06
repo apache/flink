@@ -47,7 +47,7 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 	
 	protected final List<Channel> outChannels;
 	
-	protected List<Channel> broadcastInputs;
+	protected List<NamedChannel> broadcastInputs;
 	
 	private final String nodeName; 
 	
@@ -71,7 +71,7 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 	
 	public PlanNode(OptimizerNode template, String nodeName, DriverStrategy strategy) {
 		this.outChannels = new ArrayList<Channel>(2);
-		this.broadcastInputs = new ArrayList<Channel>();
+		this.broadcastInputs = new ArrayList<NamedChannel>();
 		this.template = template;
 		this.nodeName = nodeName;
 		this.driverStrategy = strategy;
@@ -237,7 +237,7 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 	/**
 	 * Sets a list of all broadcast inputs attached to this node.
 	 */
-	public void setBroadcastInputs(List<Channel> broadcastInputs) {
+	public void setBroadcastInputs(List<NamedChannel> broadcastInputs) {
 		if (broadcastInputs == null) {
 			return;
 		}
@@ -247,7 +247,7 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 	/**
 	 * Gets a list of all broadcast inputs attached to this node.
 	 */
-	public List<Channel> getBroadcastInputs() {
+	public List<NamedChannel> getBroadcastInputs() {
 		return this.broadcastInputs;
 	}
 	

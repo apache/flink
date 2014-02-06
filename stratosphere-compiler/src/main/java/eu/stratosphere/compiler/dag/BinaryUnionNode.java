@@ -14,6 +14,7 @@
 package eu.stratosphere.compiler.dag;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -32,6 +33,7 @@ import eu.stratosphere.compiler.dataproperties.RequestedLocalProperties;
 import eu.stratosphere.compiler.operators.BinaryUnionOpDescriptor;
 import eu.stratosphere.compiler.operators.OperatorDescriptorDual;
 import eu.stratosphere.compiler.plan.Channel;
+import eu.stratosphere.compiler.plan.NamedChannel;
 import eu.stratosphere.compiler.plan.PlanNode;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 
@@ -108,6 +110,24 @@ public class BinaryUnionNode extends TwoInputNode {
 		// step down to all producer nodes and calculate alternative plans
 		final List<? extends PlanNode> subPlans1 = getFirstPredecessorNode().getAlternativePlans(estimator);
 		final List<? extends PlanNode> subPlans2 = getSecondPredecessorNode().getAlternativePlans(estimator);
+		
+		// calculate alternative sub-plans for broadcast inputs
+		final List<Set<? extends NamedChannel>> broadcastPlanChannels = new ArrayList<Set<? extends NamedChannel>>();
+		List<PactConnection> broadcastConnections = getBroadcastConnections();
+		List<String> broadcastConnectionNames = getBroadcastConnectionNames();
+		for (int i = 0; i < broadcastConnections.size(); i++ ) {
+			PactConnection broadcastConnection = broadcastConnections.get(i);
+			String broadcastConnectionName = broadcastConnectionNames.get(i);
+			List<PlanNode> broadcastPlanCandidates = broadcastConnection.getSource().getAlternativePlans(estimator);
+			// wrap the plan candidates in named channels 
+			HashSet<NamedChannel> broadcastChannels = new HashSet<NamedChannel>(broadcastPlanCandidates.size());
+			for (PlanNode plan: broadcastPlanCandidates) {
+				final NamedChannel c = new NamedChannel(broadcastConnectionName, plan);
+				c.setShipStrategy(ShipStrategyType.BROADCAST);
+				broadcastChannels.add(c);
+			}
+			broadcastPlanChannels.add(broadcastChannels);
+		}
 		
 		final ArrayList<PlanNode> outputPlans = new ArrayList<PlanNode>();
 		
@@ -239,7 +259,7 @@ public class BinaryUnionNode extends TwoInputNode {
 						}
 					}
 					
-					instantiate(operator, c1, c2, outputPlans, estimator, igps, igps, noLocalProps, noLocalProps);
+					instantiate(operator, c1, c2, broadcastPlanChannels, outputPlans, estimator, igps, igps, noLocalProps, noLocalProps);
 				}
 			}
 		}

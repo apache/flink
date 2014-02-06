@@ -20,6 +20,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.google.common.collect.Sets;
+
 import eu.stratosphere.api.common.operators.CompilerHints;
 import eu.stratosphere.api.common.operators.DualInputOperator;
 import eu.stratosphere.api.common.operators.Operator;
@@ -42,6 +44,7 @@ import eu.stratosphere.compiler.operators.OperatorDescriptorDual.GlobalPropertie
 import eu.stratosphere.compiler.operators.OperatorDescriptorDual.LocalPropertiesPair;
 import eu.stratosphere.compiler.plan.Channel;
 import eu.stratosphere.compiler.plan.DualInputPlanNode;
+import eu.stratosphere.compiler.plan.NamedChannel;
 import eu.stratosphere.compiler.plan.PlanNode;
 import eu.stratosphere.compiler.plan.PlanNode.SourceAndDamReport;
 import eu.stratosphere.configuration.Configuration;
@@ -329,9 +332,21 @@ public abstract class TwoInputNode extends OptimizerNode {
 		final Set<RequestedGlobalProperties> intGlobal2 = this.input2.getInterestingProperties().getGlobalProperties();
 		
 		// calculate alternative sub-plans for broadcast inputs
-		final List<List<? extends PlanNode>> broadcastPlans = new ArrayList<List<? extends PlanNode>>();
-		for (PactConnection broadcastConnection: getBroadcastConnections()) {
-			broadcastPlans.add(broadcastConnection.getSource().getAlternativePlans(estimator));
+		final List<Set<? extends NamedChannel>> broadcastPlanChannels = new ArrayList<Set<? extends NamedChannel>>();
+		List<PactConnection> broadcastConnections = getBroadcastConnections();
+		List<String> broadcastConnectionNames = getBroadcastConnectionNames();
+		for (int i = 0; i < broadcastConnections.size(); i++ ) {
+			PactConnection broadcastConnection = broadcastConnections.get(i);
+			String broadcastConnectionName = broadcastConnectionNames.get(i);
+			List<PlanNode> broadcastPlanCandidates = broadcastConnection.getSource().getAlternativePlans(estimator);
+			// wrap the plan candidates in named channels 
+			HashSet<NamedChannel> broadcastChannels = new HashSet<NamedChannel>(broadcastPlanCandidates.size());
+			for (PlanNode plan: broadcastPlanCandidates) {
+				final NamedChannel c = new NamedChannel(broadcastConnectionName, plan);
+				c.setShipStrategy(ShipStrategyType.BROADCAST);
+				broadcastChannels.add(c);
+			}
+			broadcastPlanChannels.add(broadcastChannels);
 		}
 		
 		final GlobalPropertiesPair[] allGlobalPairs;
@@ -451,7 +466,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 							{
 								// we form a valid combination, so create the local candidates
 								// for this
-								addLocalCandidates(c1, c2, igps1, igps2, outputPlans, allLocalPairs, estimator);
+								addLocalCandidates(c1, c2, broadcastPlanChannels, igps1, igps2, outputPlans, allLocalPairs, estimator);
 								break;
 							}
 						}
@@ -485,7 +500,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 		return outputPlans;
 	}
 	
-	protected void addLocalCandidates(Channel template1, Channel template2, 
+	protected void addLocalCandidates(Channel template1, Channel template2, List<Set<? extends NamedChannel>> broadcastPlanChannels, 
 			RequestedGlobalProperties rgps1, RequestedGlobalProperties rgps2,
 			List<PlanNode> target, LocalPropertiesPair[] validLocalCombinations, CostEstimator estimator)
 	{
@@ -521,7 +536,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 								in1.getLocalProperties(), in2.getLocalProperties()))
 							{
 								// all right, co compatible
-								instantiate(dps, in1, in2, target, estimator, rgps1, rgps2, ilp1, ilp2);
+								instantiate(dps, in1, in2, broadcastPlanChannels, target, estimator, rgps1, rgps2, ilp1, ilp2);
 								break allPossibleLoop;
 							} else {
 								// meet, but not co-compatible
@@ -535,25 +550,28 @@ public abstract class TwoInputNode extends OptimizerNode {
 	}
 	
 	protected void instantiate(OperatorDescriptorDual operator, Channel in1, Channel in2,
-			List<PlanNode> target, CostEstimator estimator,
-			RequestedGlobalProperties globPropsReq1,RequestedGlobalProperties globPropsReq2,
+			List<Set<? extends NamedChannel>> broadcastPlanChannels, List<PlanNode> target, CostEstimator estimator,
+			RequestedGlobalProperties globPropsReq1, RequestedGlobalProperties globPropsReq2,
 			RequestedLocalProperties locPropsReq1, RequestedLocalProperties locPropsReq2)
 	{
-		placePipelineBreakersIfNecessary(operator.getStrategy(), in1, in2);
-		
-		DualInputPlanNode node = operator.instantiate(in1, in2, this); //FIXME
-		
-		GlobalProperties gp1 = in1.getGlobalProperties().clone().filterByNodesConstantSet(this, 0);
-		GlobalProperties gp2 = in2.getGlobalProperties().clone().filterByNodesConstantSet(this, 1);
-		GlobalProperties combined = operator.computeGlobalProperties(gp1, gp2);
+		for (List<NamedChannel> broadcastChannelsCombination: Sets.cartesianProduct(broadcastPlanChannels)) {
+			placePipelineBreakersIfNecessary(operator.getStrategy(), in1, in2);
+			
+			DualInputPlanNode node = operator.instantiate(in1, in2, this);
+			node.setBroadcastInputs(broadcastChannelsCombination);
+			
+			GlobalProperties gp1 = in1.getGlobalProperties().clone().filterByNodesConstantSet(this, 0);
+			GlobalProperties gp2 = in2.getGlobalProperties().clone().filterByNodesConstantSet(this, 1);
+			GlobalProperties combined = operator.computeGlobalProperties(gp1, gp2);
 
-		LocalProperties lp1 = in1.getLocalProperties().clone().filterByNodesConstantSet(this, 0);
-		LocalProperties lp2 = in2.getLocalProperties().clone().filterByNodesConstantSet(this, 1);
-		LocalProperties locals = operator.computeLocalProperties(lp1, lp2);
-		
-		node.initProperties(combined, locals);
-		node.updatePropertiesWithUniqueSets(getUniqueFields());
-		target.add(node);
+			LocalProperties lp1 = in1.getLocalProperties().clone().filterByNodesConstantSet(this, 0);
+			LocalProperties lp2 = in2.getLocalProperties().clone().filterByNodesConstantSet(this, 1);
+			LocalProperties locals = operator.computeLocalProperties(lp1, lp2);
+			
+			node.initProperties(combined, locals);
+			node.updatePropertiesWithUniqueSets(getUniqueFields());
+			target.add(node);
+		}
 	}
 	
 	protected void placePipelineBreakersIfNecessary(DriverStrategy strategy, Channel in1, Channel in2) {

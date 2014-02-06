@@ -20,6 +20,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.google.common.collect.Sets;
+
 import eu.stratosphere.api.common.operators.CompilerHints;
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.common.operators.SingleInputOperator;
@@ -36,6 +38,7 @@ import eu.stratosphere.compiler.dataproperties.RequestedGlobalProperties;
 import eu.stratosphere.compiler.dataproperties.RequestedLocalProperties;
 import eu.stratosphere.compiler.operators.OperatorDescriptorSingle;
 import eu.stratosphere.compiler.plan.Channel;
+import eu.stratosphere.compiler.plan.NamedChannel;
 import eu.stratosphere.compiler.plan.PlanNode;
 import eu.stratosphere.compiler.plan.SingleInputPlanNode;
 import eu.stratosphere.compiler.util.NoOpUnaryUdfOp;
@@ -252,10 +255,23 @@ public abstract class SingleInputNode extends OptimizerNode {
 		// calculate alternative sub-plans for predecessor
 		final List<? extends PlanNode> subPlans = getPredecessorNode().getAlternativePlans(estimator);
 		final Set<RequestedGlobalProperties> intGlobal = this.inConn.getInterestingProperties().getGlobalProperties();
+		
 		// calculate alternative sub-plans for broadcast inputs
-		final List<List<? extends PlanNode>> broadcastPlans = new ArrayList<List<? extends PlanNode>>();
-		for (PactConnection broadcastConnection: getBroadcastConnections()) {
-			broadcastPlans.add(broadcastConnection.getSource().getAlternativePlans(estimator));
+		final List<Set<? extends NamedChannel>> broadcastPlanChannels = new ArrayList<Set<? extends NamedChannel>>();
+		List<PactConnection> broadcastConnections = getBroadcastConnections();
+		List<String> broadcastConnectionNames = getBroadcastConnectionNames();
+		for (int i = 0; i < broadcastConnections.size(); i++ ) {
+			PactConnection broadcastConnection = broadcastConnections.get(i);
+			String broadcastConnectionName = broadcastConnectionNames.get(i);
+			List<PlanNode> broadcastPlanCandidates = broadcastConnection.getSource().getAlternativePlans(estimator);
+			// wrap the plan candidates in named channels 
+			HashSet<NamedChannel> broadcastChannels = new HashSet<NamedChannel>(broadcastPlanCandidates.size());
+			for (PlanNode plan: broadcastPlanCandidates) {
+				final NamedChannel c = new NamedChannel(broadcastConnectionName, plan);
+				c.setShipStrategy(ShipStrategyType.BROADCAST);
+				broadcastChannels.add(c);
+			}
+			broadcastPlanChannels.add(broadcastChannels);
 		}
 
 		final RequestedGlobalProperties[] allValidGlobals;
@@ -302,7 +318,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 					// requested properties
 					for (RequestedGlobalProperties rgps: allValidGlobals) {
 						if (rgps.isMetBy(c.getGlobalProperties())) {
-							addLocalCandidates(c, igps, outputPlans, estimator);
+							addLocalCandidates(c, broadcastPlanChannels, igps, outputPlans, estimator);
 							break;
 						}
 					}
@@ -325,7 +341,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 				// check whether we meet any of the accepted properties
 				for (RequestedGlobalProperties rgps: allValidGlobals) {
 					if (rgps.isMetBy(c.getGlobalProperties())) {
-						addLocalCandidates(c, rgps, outputPlans, estimator);
+						addLocalCandidates(c, broadcastPlanChannels, rgps, outputPlans, estimator);
 						break;
 					}
 				}
@@ -343,7 +359,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 		return outputPlans;
 	}
 	
-	protected void addLocalCandidates(Channel template, RequestedGlobalProperties rgps,
+	protected void addLocalCandidates(Channel template, List<Set<? extends NamedChannel>> broadcastPlanChannels, RequestedGlobalProperties rgps,
 			List<PlanNode> target, CostEstimator estimator)
 	{
 		final LocalProperties lp = template.getLocalPropertiesAfterShippingOnly();
@@ -359,33 +375,36 @@ public abstract class SingleInputNode extends OptimizerNode {
 			for (OperatorDescriptorSingle dps: getPossibleProperties()) {
 				for (RequestedLocalProperties ilps : dps.getPossibleLocalProperties()) {
 					if (ilps.isMetBy(in.getLocalProperties())) {
-						instantiateCandidate(dps, in, target, estimator, rgps, ilp);
+						instantiateCandidate(dps, in, broadcastPlanChannels, target, estimator, rgps, ilp);
 						break;
 					}
 				}
 			}
 		}
 	}
-	
-	protected void instantiateCandidate(OperatorDescriptorSingle dps, Channel in, List<PlanNode> target,
-			CostEstimator estimator, RequestedGlobalProperties globPropsReq, RequestedLocalProperties locPropsReq)
+
+	protected void instantiateCandidate(OperatorDescriptorSingle dps, Channel in, List<Set<? extends NamedChannel>> broadcastPlanChannels,
+			List<PlanNode> target, CostEstimator estimator, RequestedGlobalProperties globPropsReq, RequestedLocalProperties locPropsReq)
 	{
-		final SingleInputPlanNode node = dps.instantiate(in, this);
-		
-		// compute how the strategy affects the properties
-		GlobalProperties gProps = in.getGlobalProperties().clone();
-		LocalProperties lProps = in.getLocalProperties().clone();
-		gProps = dps.computeGlobalProperties(gProps);
-		lProps = dps.computeLocalProperties(lProps);
-		
-		// filter by the user code field copies
-		gProps = gProps.filterByNodesConstantSet(this, 0);
-		lProps = lProps.filterByNodesConstantSet(this, 0);
-		
-		// apply
-		node.initProperties(gProps, lProps);
-		node.updatePropertiesWithUniqueSets(getUniqueFields());
-		target.add(node);
+		for (List<NamedChannel> broadcastChannelsCombination: Sets.cartesianProduct(broadcastPlanChannels)) {
+			final SingleInputPlanNode node = dps.instantiate(in, this);
+			node.setBroadcastInputs(broadcastChannelsCombination);
+			
+			// compute how the strategy affects the properties
+			GlobalProperties gProps = in.getGlobalProperties().clone();
+			LocalProperties lProps = in.getLocalProperties().clone();
+			gProps = dps.computeGlobalProperties(gProps);
+			lProps = dps.computeLocalProperties(lProps);
+			
+			// filter by the user code field copies
+			gProps = gProps.filterByNodesConstantSet(this, 0);
+			lProps = lProps.filterByNodesConstantSet(this, 0);
+			
+			// apply
+			node.initProperties(gProps, lProps);
+			node.updatePropertiesWithUniqueSets(getUniqueFields());
+			target.add(node);
+		}
 	}
 	
 	// --------------------------------------------------------------------------------------------

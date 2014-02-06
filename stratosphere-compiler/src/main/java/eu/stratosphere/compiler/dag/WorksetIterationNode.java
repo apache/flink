@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 
 import eu.stratosphere.api.common.operators.DeltaIteration;
 import eu.stratosphere.api.common.operators.util.FieldList;
@@ -34,6 +35,7 @@ import eu.stratosphere.compiler.operators.OperatorDescriptorDual;
 import eu.stratosphere.compiler.operators.SolutionSetDeltaOperator;
 import eu.stratosphere.compiler.plan.Channel;
 import eu.stratosphere.compiler.plan.DualInputPlanNode;
+import eu.stratosphere.compiler.plan.NamedChannel;
 import eu.stratosphere.compiler.plan.PlanNode;
 import eu.stratosphere.compiler.plan.SingleInputPlanNode;
 import eu.stratosphere.compiler.plan.SolutionSetPlanNode;
@@ -277,7 +279,7 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 	
 	@Override
 	protected void instantiate(OperatorDescriptorDual operator, Channel solutionSetIn, Channel worksetIn,
-			List<PlanNode> target, CostEstimator estimator,
+			List<Set<? extends NamedChannel>> broadcastPlanChannels, List<PlanNode> target, CostEstimator estimator,
 			RequestedGlobalProperties globPropsReqSolutionSet,RequestedGlobalProperties globPropsReqWorkset,
 			RequestedLocalProperties locPropsReqSolutionSet, RequestedLocalProperties locPropsReqWorkset)
 	{

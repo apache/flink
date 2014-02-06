@@ -16,6 +16,7 @@ package eu.stratosphere.compiler.dag;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 
 import eu.stratosphere.api.common.operators.BulkIteration;
 import eu.stratosphere.compiler.CompilerException;
@@ -32,6 +33,7 @@ import eu.stratosphere.compiler.operators.OperatorDescriptorSingle;
 import eu.stratosphere.compiler.plan.BulkIterationPlanNode;
 import eu.stratosphere.compiler.plan.BulkPartialSolutionPlanNode;
 import eu.stratosphere.compiler.plan.Channel;
+import eu.stratosphere.compiler.plan.NamedChannel;
 import eu.stratosphere.compiler.plan.PlanNode;
 import eu.stratosphere.util.Visitor;
 
@@ -206,8 +208,8 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 	}
 	
 	@Override
-	protected void instantiateCandidate(OperatorDescriptorSingle dps, Channel in, List<PlanNode> target,
-			CostEstimator estimator, RequestedGlobalProperties globPropsReq, RequestedLocalProperties locPropsReq)
+	protected void instantiateCandidate(OperatorDescriptorSingle dps, Channel in, List<Set<? extends NamedChannel>> broadcastPlanChannels, 
+			List<PlanNode> target, CostEstimator estimator, RequestedGlobalProperties globPropsReq, RequestedLocalProperties locPropsReq)
 	{
 		// NOTES ON THE ENUMERATION OF THE STEP FUNCTION PLANS:
 		// Whenever we instantiate the iteration, we enumerate new candidates for the step function.
