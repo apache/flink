@@ -16,6 +16,7 @@ package eu.stratosphere.compiler.dag;
 import java.util.Collections;
 
 import eu.stratosphere.api.common.operators.BulkIteration.PartialSolutionPlaceHolder;
+import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.compiler.plan.BulkPartialSolutionPlanNode;
@@ -24,8 +25,8 @@ import eu.stratosphere.compiler.plan.PlanNode;
 /**
  * The optimizer's internal representation of the partial solution that is input to a bulk iteration.
  */
-public class BulkPartialSolutionNode extends AbstractPartialSolutionNode
-{
+public class BulkPartialSolutionNode extends AbstractPartialSolutionNode {
+	
 	private final BulkIterationNode iterationNode;
 	
 	
@@ -54,6 +55,11 @@ public class BulkPartialSolutionNode extends AbstractPartialSolutionNode
 	
 	public BulkIterationNode getIterationNode() {
 		return this.iterationNode;
+	}
+	
+	@Override
+	public void computeOutputEstimates(DataStatistics statistics) {
+		copyEstimates(this.iterationNode.getPredecessorNode());
 	}
 	
 	// --------------------------------------------------------------------------------------------

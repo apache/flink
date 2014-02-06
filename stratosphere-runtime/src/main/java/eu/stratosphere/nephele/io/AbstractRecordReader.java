@@ -71,7 +71,15 @@ public abstract class AbstractRecordReader implements ReaderBase {
 		if (this.numEventsUntilEndOfSuperstep == -1) {
 			throw new IllegalStateException("Called 'startNextSuperstep()' in a non-iterative reader.");
 		}
+		else if (endOfSuperstepEventsCount < numEventsUntilEndOfSuperstep) {
+			throw new IllegalStateException("Premature 'startNextSuperstep()'. Not yet reached the end-of-superstep.");
+		}
 		this.endOfSuperstepEventsCount = 0;
+	}
+	
+	@Override
+	public boolean hasReachedEndOfSuperstep() {
+		return endOfSuperstepEventsCount== numEventsUntilEndOfSuperstep;
 	}
 	
 	protected boolean incrementEndOfSuperstepEventAndCheck() {

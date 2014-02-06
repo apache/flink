@@ -61,5 +61,7 @@ public interface ReaderBase {
 	void setIterative(int numEventsUntilEndOfSuperstep);
 
 	
-	public void startNextSuperstep();
+	void startNextSuperstep();
+	
+	boolean hasReachedEndOfSuperstep();
 }

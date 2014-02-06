@@ -16,6 +16,7 @@ package eu.stratosphere.compiler.dag;
 import java.util.Collections;
 
 import eu.stratosphere.api.common.operators.DeltaIteration.WorksetPlaceHolder;
+import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.compiler.plan.PlanNode;
@@ -54,6 +55,11 @@ public class WorksetNode extends AbstractPartialSolutionNode {
 	
 	public WorksetIterationNode getIterationNode() {
 		return this.iterationNode;
+	}
+	
+	@Override
+	public void computeOutputEstimates(DataStatistics statistics) {
+		copyEstimates(this.iterationNode.getInitialWorksetPredecessorNode());
 	}
 	
 	// --------------------------------------------------------------------------------------------

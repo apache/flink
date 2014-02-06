@@ -255,7 +255,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 				if (root.getDegreeOfParallelism() != node.getDegreeOfParallelism() || 
 						root.getSubtasksPerInstance() != node.getSubtasksPerInstance()) 
 				{
-					throw new CompilerException("It is currently not supported that the final operator of the step " +
+					throw new CompilerException("Error: The final operator of the step " +
 							"function has a different degree of parallelism than the iteration operator itself.");
 				}
 				
@@ -337,11 +337,11 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			if (this.currentIteration != null) {
 				// check that the task has the same DOP as the iteration as such
 				PlanNode iterationNode = (PlanNode) this.currentIteration;
-				if (iterationNode.getDegreeOfParallelism() != pd) {
-					throw new CompilerException("Error: All functions that are part of an iteration must have the same degree-of-parallelism as that iteration.");
+				if (iterationNode.getDegreeOfParallelism() < pd) {
+					throw new CompilerException("Error: All functions that are part of an iteration must have the same, or a lower, degree-of-parallelism than the iteration operator.");
 				}
-				if (iterationNode.getSubtasksPerInstance() != node.getSubtasksPerInstance()) {
-					throw new CompilerException("Error: All functions that are part of an iteration must have the same subtasks-per-instance as that iteration.");
+				if (iterationNode.getSubtasksPerInstance() < node.getSubtasksPerInstance()) {
+					throw new CompilerException("Error: All functions that are part of an iteration must have the same, or a lower, number of subtasks-per-node than the iteration operator.");
 				}
 				
 				// store the id of the iterations the step functions participate in
@@ -698,8 +698,16 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			return numSenders;
 		} else if (pattern == DistributionPattern.POINTWISE) {
 			if (numSenders != numReceivers) {
-				throw new CompilerException("Error: A changing degree of parallelism is currently " +
-						"not supported between tasks within an iteration.");
+				if (numReceivers == 1) {
+					return numSenders;
+				}
+				else if (numSenders == 1) {
+					return 1;
+				}
+				else {
+					throw new CompilerException("Error: A changing degree of parallelism is currently " +
+							"not supported between tasks within an iteration.");
+				}
 			} else {
 				return 1;
 			}

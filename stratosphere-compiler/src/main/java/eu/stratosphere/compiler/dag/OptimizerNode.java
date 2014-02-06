@@ -280,8 +280,15 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 * @param id
 	 *        The id for this node.
 	 */
-	public void setId(int id) {
-		this.id = id;
+	public void initId(int id) {
+		if (id <= 0)
+			throw new IllegalArgumentException();
+		
+		if (this.id == -1) {
+			this.id = id;
+		} else {
+			throw new IllegalStateException("Id has already been initialized.");
+		}
 	}
 
 	/**
@@ -837,10 +844,6 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 			
 			lastUnion.setDegreeOfParallelism(getDegreeOfParallelism());
 			lastUnion.setSubtasksPerInstance(getSubtasksPerInstance());
-			
-			//push id down to newly created union node
-			lastUnion.setId(this.id);
-			this.id++;
 		}
 		
 		return lastUnion;

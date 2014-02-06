@@ -16,6 +16,7 @@ package eu.stratosphere.compiler.dag;
 import java.util.Collections;
 
 import eu.stratosphere.api.common.operators.DeltaIteration.SolutionSetPlaceHolder;
+import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.compiler.plan.PlanNode;
@@ -24,8 +25,8 @@ import eu.stratosphere.compiler.plan.SolutionSetPlanNode;
 /**
  * The optimizer's internal representation of the solution set of a workset iteration.
  */
-public class SolutionSetNode extends AbstractPartialSolutionNode
-{
+public class SolutionSetNode extends AbstractPartialSolutionNode {
+	
 	private final WorksetIterationNode iterationNode;
 	
 	
@@ -54,6 +55,11 @@ public class SolutionSetNode extends AbstractPartialSolutionNode
 	
 	public WorksetIterationNode getIterationNode() {
 		return this.iterationNode;
+	}
+	
+	@Override
+	public void computeOutputEstimates(DataStatistics statistics) {
+		copyEstimates(this.iterationNode.getInitialSolutionSetPredecessorNode());
 	}
 	
 	// --------------------------------------------------------------------------------------------

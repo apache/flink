@@ -10,26 +10,23 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
-package eu.stratosphere.compiler.util;
 
-import eu.stratosphere.api.common.operators.SingleInputOperator;
-import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
-import eu.stratosphere.api.java.record.operators.RecordOperator;
-import eu.stratosphere.types.Key;
+package eu.stratosphere.compiler.dag;
 
+import eu.stratosphere.api.common.operators.util.FieldSet;
+import eu.stratosphere.compiler.operators.NoOpDescriptor;
 
-public class NoOpUnaryUdfOp extends SingleInputOperator<NoOpStub> implements RecordOperator {
+/**
+ * The optimizer's internal representation of a <i>No Operation</i> node.
+ */
+public class NoOpNode extends UnaryOperatorNode {
 	
-	public static final NoOpUnaryUdfOp INSTANCE = new NoOpUnaryUdfOp();
-	
-	private NoOpUnaryUdfOp() {
-		super(new UserCodeClassWrapper<NoOpStub>(NoOpStub.class), "");
-	}
-
-	@SuppressWarnings("unchecked")
-	@Override
-	public Class<? extends Key>[] getKeyClasses() {
-		return (Class<? extends Key>[]) new Class[0];
+	/**
+	 * Creates a new MapNode for the given contract.
+	 * 
+	 * @param pactContract The map contract object.
+	 */
+	public NoOpNode() {
+		super("No Op", new FieldSet(), new NoOpDescriptor());
 	}
 }
-

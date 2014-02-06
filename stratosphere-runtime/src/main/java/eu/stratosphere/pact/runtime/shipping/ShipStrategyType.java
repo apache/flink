@@ -17,8 +17,8 @@ package eu.stratosphere.pact.runtime.shipping;
  * Enumeration defining the different shipping types of the output, such as local forward, re-partitioning by hash,
  * or re-partitioning by range.
  */
-public enum ShipStrategyType
-{
+public enum ShipStrategyType {
+	
 	/**
 	 * Constant used as an indicator for an unassigned ship strategy.
 	 */

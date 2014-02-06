@@ -89,9 +89,11 @@ public class AllReduceDriver<IT, OT> implements PactDriver<GenericReducer<IT, OT
 		final GenericReducer<IT, OT> stub = this.taskContext.getStub();
 		final Collector<OT> output = this.taskContext.getOutputCollector();
 		final MutableToRegularIteratorWrapper<IT> inIter = new MutableToRegularIteratorWrapper<IT>(this.input, this.serializer);
-		
+
 		// single UDF call with the single group
-		stub.reduce(inIter, output);
+		if (inIter.hasNext()) {
+			stub.reduce(inIter, output);
+		}
 	}
 
 	@Override

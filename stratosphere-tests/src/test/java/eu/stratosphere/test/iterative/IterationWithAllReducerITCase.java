@@ -35,18 +35,22 @@ import eu.stratosphere.test.util.TestBase2;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
+import eu.stratosphere.util.LogUtils;
 
 @RunWith(Parameterized.class)
 public class IterationWithAllReducerITCase extends TestBase2 {
 
-	private static final String INPUT = "1\n" + "2\n" + "3\n";
-	private static final String EXPECTED = "6\n";
+	private static final String INPUT = "1\n" + "1\n" + "1\n" + "1\n" + "1\n" + "1\n" + "1\n" + "1\n";
+	private static final String EXPECTED = "1\n";
 
 	protected String dataPath;
 	protected String resultPath;
+
 	
 	public IterationWithAllReducerITCase(Configuration config) {
 		super(config);
+		
+		LogUtils.initializeDefaultConsoleLogger();
 	}
 
 	@Override
@@ -62,29 +66,28 @@ public class IterationWithAllReducerITCase extends TestBase2 {
 
 	@Override
 	protected Plan getTestJob() {
-		Plan plan = getTestPlanPlan(config.getInteger("IterationAllReducer#NoSubtasks", 1), dataPath, resultPath);
+		Plan plan = getTestPlanPlan(config.getInteger("DOP", 1), dataPath, resultPath);
 		return plan;
 	}
 
 	@Parameters
 	public static Collection<Object[]> getConfigurations() {
-		Configuration config1 = new Configuration();
-		
-		// patch for now to keep this test included
-		config1.setInteger("IterationAllReducer#NoSubtasks", 1);
-		return toParameterList(config1);
+		Configuration config = new Configuration();
+		config.setInteger("DOP", 4);
+		return toParameterList(config);
 	}
 	
-	static Plan getTestPlanPlan(int numSubTasks, String input, String output) {
+	private static Plan getTestPlanPlan(int numSubTasks, String input, String output) {
 
 		FileDataSource initialInput = new FileDataSource(TextInputFormat.class, input, "input");
 		
 		BulkIteration iteration = new BulkIteration("Loop");
 		iteration.setInput(initialInput);
-		iteration.setMaximumNumberOfIterations(2);
+		iteration.setMaximumNumberOfIterations(5);
+		
 		Assert.assertTrue(iteration.getMaximumNumberOfIterations() > 1);
 
-		ReduceOperator sumReduce = ReduceOperator.builder(new SumReducer())
+		ReduceOperator sumReduce = ReduceOperator.builder(new PickOneReducer())
 				.input(iteration.getPartialSolution())
 				.name("Compute sum (Reduce)")
 				.build();
@@ -93,29 +96,24 @@ public class IterationWithAllReducerITCase extends TestBase2 {
 
 		FileDataSink finalResult = new FileDataSink(CsvOutputFormat.class, output, iteration, "Output");
 		CsvOutputFormat.configureRecordFormat(finalResult)
-    		.recordDelimiter('\n')
-    		.fieldDelimiter(' ')
-    		.field(StringValue.class, 0);
+			.recordDelimiter('\n')
+			.fieldDelimiter(' ')
+			.field(StringValue.class, 0);
 
 		Plan plan = new Plan(finalResult, "Iteration with AllReducer (keyless Reducer)");
+		
 		plan.setDefaultParallelism(numSubTasks);
-//		Assert.assertTrue(plan.getDefaultParallelism() > 1);
+		Assert.assertTrue(plan.getDefaultParallelism() > 1);
+		
 		return plan;
 	}
 	
-	static final class SumReducer extends ReduceFunction implements Serializable {
-		
+	public static final class PickOneReducer extends ReduceFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 		
 		@Override
 		public void reduce(Iterator<Record> it, Collector<Record> out) {
-			// Compute the sum
-			int sum = 0;
-			while (it.hasNext()) {
-				sum += Integer.parseInt(it.next().getField(0, StringValue.class).getValue());
-			}
-			out.collect(new Record(new StringValue(Integer.toString(sum))));
+			out.collect(it.next());
 		}
 	}
-
 }

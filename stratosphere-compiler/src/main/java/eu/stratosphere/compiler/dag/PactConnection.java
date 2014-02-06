@@ -40,7 +40,7 @@ public class PactConnection implements EstimateProvider, DumpableConnection<Opti
 	
 	private TempMode materializationMode = TempMode.NONE;
 	
-	private final int maxDepth;
+	private int maxDepth = -1;
 
 	/**
 	 * Creates a new Connection between two nodes. The shipping strategy is by default <tt>NONE</tt>.
@@ -51,8 +51,8 @@ public class PactConnection implements EstimateProvider, DumpableConnection<Opti
 	 * @param target
 	 *        The target node.
 	 */
-	public PactConnection(OptimizerNode source, OptimizerNode target, int maxDepth) {
-		this(source, target, null, maxDepth);
+	public PactConnection(OptimizerNode source, OptimizerNode target) {
+		this(source, target, null);
 	}
 
 	/**
@@ -65,14 +65,13 @@ public class PactConnection implements EstimateProvider, DumpableConnection<Opti
 	 * @param shipStrategy
 	 *        The shipping strategy.
 	 */
-	public PactConnection(OptimizerNode source, OptimizerNode target, ShipStrategyType shipStrategy, int maxDepth) {
+	public PactConnection(OptimizerNode source, OptimizerNode target, ShipStrategyType shipStrategy) {
 		if (source == null || target == null) {
 			throw new NullPointerException("Source and target must not be null.");
 		}
 		this.source = source;
 		this.target = target;
 		this.shipStrategy = shipStrategy;
-		this.maxDepth = maxDepth;
 	}
 	
 	/**
@@ -92,7 +91,6 @@ public class PactConnection implements EstimateProvider, DumpableConnection<Opti
 		this.source = source;
 		this.target = null;
 		this.shipStrategy = ShipStrategyType.NONE;
-		this.maxDepth = -1;
 	}
 
 	/**
@@ -160,8 +158,21 @@ public class PactConnection implements EstimateProvider, DumpableConnection<Opti
 		this.interestingProps = null;
 	}
 	
+	public void initMaxDepth() {
+		
+		if (this.maxDepth == -1) {
+			this.maxDepth = this.source.getMaxDepth() + 1;
+		} else {
+			throw new IllegalStateException("Maximum path depth has already been initialized.");
+		}
+	}
+	
 	public int getMaxDepth() {
-		return this.maxDepth;
+		if (this.maxDepth != -1) {
+			return this.maxDepth;
+		} else {
+			throw new IllegalStateException("Maximum path depth has not been initialized.");
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------
