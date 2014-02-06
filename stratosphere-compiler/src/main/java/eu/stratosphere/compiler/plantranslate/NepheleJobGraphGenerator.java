@@ -39,6 +39,7 @@ import eu.stratosphere.compiler.plan.Channel;
 import eu.stratosphere.compiler.plan.DualInputPlanNode;
 import eu.stratosphere.compiler.plan.IterationPlanNode;
 import eu.stratosphere.compiler.plan.NAryUnionPlanNode;
+import eu.stratosphere.compiler.plan.NamedChannel;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
 import eu.stratosphere.compiler.plan.PlanNode;
 import eu.stratosphere.compiler.plan.SingleInputPlanNode;
@@ -397,7 +398,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 					TaskConfig headConfig = new TaskConfig(headVertex.getConfiguration());
 					int inputIndex = headConfig.getDriverStrategy().getNumInputs();
 					headConfig.setIterationHeadSolutionSetInputIndex(inputIndex);
-					translateChannel(wsNode.getInitialSolutionSetInput(), inputIndex, headVertex, headConfig);
+					translateChannel(wsNode.getInitialSolutionSetInput(), inputIndex, headVertex, headConfig, false);
 				}
 				
 				return;
@@ -557,7 +558,15 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			int inputIndex = 0;
 			while (inConns.hasNext()) {
 				Channel input = inConns.next();
-				inputIndex += translateChannel(input, inputIndex, targetVertex,targetVertexConfig);
+				inputIndex += translateChannel(input, inputIndex, targetVertex, targetVertexConfig, false);
+			}
+			// broadcast variables
+			int broadcastInputIndex = 0;
+			for (NamedChannel broadcastInput: node.getBroadcastInputs()) {
+				int broadcastInputIndexDelta = translateChannel(broadcastInput, broadcastInputIndex, targetVertex, targetVertexConfig, true);
+				targetVertexConfig.setBroadcastInputName(broadcastInput.getName(), broadcastInputIndex);
+				targetVertexConfig.setBroadcastInputSerializer(broadcastInput.getSerializer(), broadcastInputIndex);
+				broadcastInputIndex += broadcastInputIndexDelta;
 			}
 		} catch (Exception e) {
 			throw new CompilerException(
@@ -566,7 +575,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 	}
 	
 	private int translateChannel(Channel input, int inputIndex, AbstractJobVertex targetVertex,
-			TaskConfig targetVertexConfig) throws Exception
+			TaskConfig targetVertexConfig, boolean isBroadcast) throws Exception
 	{
 		final PlanNode inputPlanNode = input.getSource();
 		final Iterator<Channel> allInChannels;
@@ -666,7 +675,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 				sourceVertexConfig = new TaskConfig(sourceVertex.getConfiguration());
 			}
 			DistributionPattern pattern = connectJobVertices(
-				inConn, inputIndex, sourceVertex, sourceVertexConfig, targetVertex, targetVertexConfig);
+				inConn, inputIndex, sourceVertex, sourceVertexConfig, targetVertex, targetVertexConfig, isBroadcast);
 			
 			// accounting on channels and senders
 			numChannelsTotal++;
@@ -737,7 +746,8 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 					inConn.getLocalStrategy() == LocalStrategy.NONE &&
 					pred.getOutgoingChannels().size() == 1 &&
 					node.getDegreeOfParallelism() == pred.getDegreeOfParallelism() && 
-					node.getSubtasksPerInstance() == pred.getSubtasksPerInstance();
+					node.getSubtasksPerInstance() == pred.getSubtasksPerInstance() &&
+					node.getBroadcastInputs().isEmpty();
 			
 			// cannot chain the nodes that produce the next workset or the next solution set, if they are not the
 			// in a tail 
@@ -1018,7 +1028,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 	 */
 	private DistributionPattern connectJobVertices(Channel channel, int inputNumber,
 			final AbstractJobVertex sourceVertex, final TaskConfig sourceConfig,
-			final AbstractJobVertex targetVertex, final TaskConfig targetConfig)
+			final AbstractJobVertex targetVertex, final TaskConfig targetConfig, boolean isBroadcast)
 	throws JobGraphDefinitionException, CompilerException
 	{
 		// ------------ connect the vertices to the job graph --------------
@@ -1072,7 +1082,11 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 //		}
 		
 		// ---------------- configure the receiver -------------------
-		targetConfig.addInputToGroup(inputNumber);
+		if (isBroadcast) {
+			targetConfig.addBroadcastInputToGroup(inputNumber);
+		} else {
+			targetConfig.addInputToGroup(inputNumber);
+		}
 		return distributionPattern;
 	}
 	

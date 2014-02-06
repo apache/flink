@@ -294,6 +294,16 @@ public abstract class GenericFlatTypePostPass<X, T extends AbstractSchema<X>> im
 				throw new CompilerPostPassException("Could not set up runtime strategy for input channel to node '" +
 					optNode.getPactContract().getName() + "'. Missing type information for field " + e.getFieldNumber());
 			}
+			
+			// don't forget the broadcast inputs
+			for (Channel c: sn.getBroadcastInputs()) {
+				try {
+					propagateToChannel(createEmptySchema(), c, createUtilities);
+				} catch (MissingFieldTypeInfoException e) {
+					throw new CompilerPostPassException("Could not set up runtime strategy for broadcast channel in node '" +
+						optNode.getPactContract().getName() + "'. Missing type information for field " + e.getFieldNumber());
+				}
+			}
 		}
 		else if (node instanceof DualInputPlanNode) {
 			DualInputPlanNode dn = (DualInputPlanNode) node;
@@ -369,6 +379,16 @@ public abstract class GenericFlatTypePostPass<X, T extends AbstractSchema<X>> im
 			} catch (MissingFieldTypeInfoException e) {
 				throw new CompilerPostPassException("Could not set up runtime strategy for the second input channel to node '"
 					+ optNode.getPactContract().getName() + "'. Missing type information for field " + e.getFieldNumber());
+			}
+			
+			// don't forget the broadcast inputs
+			for (Channel c: dn.getBroadcastInputs()) {
+				try {
+					propagateToChannel(createEmptySchema(), c, createUtilities);
+				} catch (MissingFieldTypeInfoException e) {
+					throw new CompilerPostPassException("Could not set up runtime strategy for broadcast channel in node '" +
+						optNode.getPactContract().getName() + "'. Missing type information for field " + e.getFieldNumber());
+				}
 			}
 		}
 		else if (node instanceof NAryUnionPlanNode) {
