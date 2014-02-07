@@ -41,6 +41,14 @@
 			<artifactId>avro-mapred</artifactId>
 			<version>1.7.5</version>
 		</dependency>
+		
+		<dependency>
+			<groupId>eu.stratosphere</groupId>
+			<artifactId>stratosphere-tests</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+		
 	</dependencies>
 
 	<profiles>

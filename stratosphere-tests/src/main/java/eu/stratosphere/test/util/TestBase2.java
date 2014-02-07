@@ -66,6 +66,11 @@ public abstract class TestBase2 {
 	
 	private JobExecutionResult jobExecutionResult;
 	
+	
+	public TestBase2() {
+		this(new Configuration());
+	}
+	
 	public TestBase2(Configuration config) {
 		verifyJvmOptions();
 		this.config = config;
