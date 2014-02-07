@@ -10,14 +10,29 @@ import eu.stratosphere.api.common.io.GenericInputFormat;
 
 /**
  * Operator for input nodes which reads data from collection or iterator.
- *
+ * Use this operator if you want to pass data from the application submitting the 
+ * Stratosphere job to the cluster.
+ * 
+ * There are two main ways to use the CollectionDataSource:
+ * * Using a @link {@link SerializableIterator}
+ *  <pre>
+ *  	CollectionDataSource source = new CollectionDataSource(new SerializableIteratorTest(), "IterSource");
+ *  </pre>
+ *  
+ * * Using a Collection of Java Objects.
+ * <pre>
+ * 		CollectionDataSource source2 = new CollectionDataSource(new List<String>(), "Collection source");
+ * </pre>
+ * Note that you can as many elements as you want to the constructor:
+ * <pre>
+ *  	CollectionDataSource("Varargs String source", "some", "strings", "that", "get", "distributed");
+ * </pre>
+ * The only limitation is that the elements need to have the same type.
+ * 
  */
 public class CollectionDataSource extends GenericDataSource<GenericInputFormat<?>> {
 
     private static String DEFAULT_NAME = "<Unnamed Collection Data Source>";
-
-
-    // --------------------------------------------------------------------------------------------
 
     /**
      * Creates a new instance for the given input using the given input format.
@@ -26,8 +41,6 @@ public class CollectionDataSource extends GenericDataSource<GenericInputFormat<?
      * @param data The input data. It should be a collection, an array or a serializable iterator.
      * @param name The given name for the Pact, used in plans, logs and progress messages.
      */
-
-
     public CollectionDataSource(CollectionInputFormat f, String name, Object... data) {
         super(f, name);
         Collection<Object> tmp = new ArrayList<Object>();
@@ -58,10 +71,6 @@ public class CollectionDataSource extends GenericDataSource<GenericInputFormat<?
         super(f, name);
         f.setIter(data);
     }
-
-
-
-
 
     /**
      * Creates a new instance for the given input using the given input format. The contract has the default name.
@@ -134,7 +143,6 @@ public class CollectionDataSource extends GenericDataSource<GenericInputFormat<?
                 type = o.getClass();
             }
 
-
             //check the input types for 2-dimension array
             if (typeList.size() == 0 && o.getClass().isArray()) {
                 for (Object s: (Object[])o) {
@@ -146,10 +154,11 @@ public class CollectionDataSource extends GenericDataSource<GenericInputFormat<?
                 if (((Object[])o).length != typeList.size()) {
                     throw new RuntimeException("elements of input list should have the same size");
                 }
-                for (Object s:(Object[])o)
+                for (Object s:(Object[])o) {
                     if (!s.getClass().equals(typeList.get(index++))) {
                         throw new RuntimeException("elements of input list should have the same type");
                     }
+                }
             }
 
             //check the input types for 2-dimension collection

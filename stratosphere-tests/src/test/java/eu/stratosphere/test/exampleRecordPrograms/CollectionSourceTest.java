@@ -95,7 +95,6 @@ public class CollectionSourceTest extends TestBase2 {
     protected String resultPath;
 
     public static class Join extends JoinFunction {
-
         @Override
         public void join(Record value1, Record value2, Collector<Record> out) throws Exception {
             out.collect(new Record(value1.getField(1,StringValue.class),value2.getField(1, IntValue.class)));
@@ -128,7 +127,6 @@ public class CollectionSourceTest extends TestBase2 {
         int numSubTasks   = Integer.parseInt(arg1);
         String output    = arg2;
 
-
         List<Object> tmp= new ArrayList<Object>();
         int pos = 0;
         for (String s: COUNTS.split("\n")) {
@@ -143,11 +141,8 @@ public class CollectionSourceTest extends TestBase2 {
         //test collection input, the input record is {id, count}
         CollectionDataSource source2 = new CollectionDataSource(tmp, "test_collection");
 
-
-
         JoinOperator join = JoinOperator.builder(Join.class, IntValue.class, 0, 0)
                 .input1(source).input2(source2).build();
-
 
         FileDataSink out = new FileDataSink(new CsvOutputFormat(), output, join, "Collection Join");
         CsvOutputFormat.configureRecordFormat(out)
@@ -161,12 +156,9 @@ public class CollectionSourceTest extends TestBase2 {
         return plan;
     }
 
-
     public CollectionSourceTest(Configuration config) {
         super(config);
     }
-
-
 
     @Override
     protected void preSubmit() throws Exception {
@@ -190,5 +182,4 @@ public class CollectionSourceTest extends TestBase2 {
         config.setInteger("CollectionDataSource#NumSubtasks", 4);
         return toParameterList(config);
     }
-
 }

@@ -1,12 +1,13 @@
 package eu.stratosphere.types;
 
 /**
- * convert the java.lang type into stratosphere type
+ * convert the java.lang type into Stratosphere type
  */
 public class ValueUtil {
-
 	public static Value toStratosphere(Object java)  {
-		
+		if (java == null) {
+		    return NullValue.getInstance();
+        }
 		if (java.getClass() == java.lang.Boolean.class) {
 			return new BooleanValue(((java.lang.Boolean)java).booleanValue());
         }
@@ -34,10 +35,6 @@ public class ValueUtil {
 		if (java.getClass() == java.lang.String.class) {
 			return new StringValue(((java.lang.String)java).toString());
         }
-		if (java == null) {
-		    return NullValue.getInstance();
-        }
-		throw new IllegalArgumentException("unsupported java value");
-		
+		throw new IllegalArgumentException("unsupported Java value");
 	}
 }

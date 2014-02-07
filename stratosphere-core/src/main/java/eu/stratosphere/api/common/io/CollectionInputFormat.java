@@ -14,7 +14,6 @@ import eu.stratosphere.types.ValueUtil;
  */
 public class CollectionInputFormat extends GenericInputFormat<Record> implements UnsplittableInput {
 
-
 	private static final long serialVersionUID = 1L;
 
 	private Collection<?> dataSet;		//input data as collection
@@ -76,5 +75,4 @@ public class CollectionInputFormat extends GenericInputFormat<Record> implements
 	public<T extends Iterator<?>,Serializable> void setIter(T iter)  {
 		this.serializableIter = iter;
 	}
-
 }

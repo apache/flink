@@ -19,7 +19,6 @@ public class CollectionValidationTest {
          */
         try {
             CollectionDataSource source = new CollectionDataSource("test_1d_valid_array","a","b","c");
-
         } catch (Exception e) {
             e.printStackTrace();
             Assert.fail(e.getMessage());
@@ -27,7 +26,6 @@ public class CollectionValidationTest {
 
         try {
             CollectionDataSource source = new CollectionDataSource("test_2d_valid_array",new Object[][]{{1,"a"},{2,"b"},{3,"c"}});
-
         } catch (Exception e) {
             e.printStackTrace();
             Assert.fail(e.getMessage());
@@ -40,7 +38,6 @@ public class CollectionValidationTest {
             CollectionDataSource source = new CollectionDataSource("test_1d_invalid_array",1,"b","c");
             Assert.fail("input type is different");
         } catch (Exception e) {
-
         }
 
         try {
@@ -54,7 +51,7 @@ public class CollectionValidationTest {
     @Test
     public void TestCollectionInputValidation() throws Exception {
         /*
-        valid collection input
+        	valid collection input
          */
         try {
             List<Object> tmp= new ArrayList<Object>();
