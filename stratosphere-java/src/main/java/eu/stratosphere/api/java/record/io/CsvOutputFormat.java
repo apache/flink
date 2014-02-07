@@ -159,8 +159,9 @@ public class CsvOutputFormat extends FileOutputFormat {
 		this.numFields = types.length;
 		this.recordPositions = new int[types.length];
 		for (int i = 0; i < types.length; i++) {
-			if (types[i] == null)
+			if (types[i] == null) {
 				throw new IllegalArgumentException("Invalid Constructor Parameter: No type class for parameter " + (2 * i));
+			}
 			this.recordPositions[i] = i;
 		}
 		
@@ -215,22 +216,16 @@ public class CsvOutputFormat extends FileOutputFormat {
 		boolean allRecordPosDefined = true;
 
 		for (int i = 0; i < this.numFields; i++) {
-
 			int pos = parameters.getInteger(RECORD_POSITION_PARAMETER_PREFIX + i, Integer.MIN_VALUE);
-
 			if (pos != Integer.MIN_VALUE) {
 				anyRecordPosDefined = true;
-
 				if (pos < 0) {
 					throw new IllegalArgumentException("Invalid configuration for CsvOutputFormat: "
 							+ "Invalid record position for parameter " + i);
 				}
-
 				this.recordPositions[i] = pos;
-
 			} else {
 				allRecordPosDefined = false;
-
 				this.recordPositions[i] = i;
 			}
 		}
@@ -273,22 +268,19 @@ public class CsvOutputFormat extends FileOutputFormat {
 		int readPos;
 
 		for (int i = 0; i < this.numFields; i++) {
-
 			readPos = this.recordPositions[i];
-
 			if (readPos < numRecFields) {
-
 				Value v = record.getField(this.recordPositions[i], this.classes[i]);
-
 				if (v != null) {
-					if (i != 0)
+					if (i != 0) {
 						this.wrt.write(this.fieldDelimiter);
+					}
 					this.wrt.write(v.toString());
-
 				} else {
 					if (this.lenient) {
-						if (i != 0)
+						if (i != 0) {
 							this.wrt.write(this.fieldDelimiter);
+						}
 					} else {
 						throw new RuntimeException("Cannot serialize record with <null> value at position: " + readPos);
 					}
@@ -296,8 +288,9 @@ public class CsvOutputFormat extends FileOutputFormat {
 
 			} else {
 				if (this.lenient) {
-					if (i != 0)
+					if (i != 0) {
 						this.wrt.write(this.fieldDelimiter);
+					}
 				} else {
 					throw new RuntimeException("Cannot serialize record with out field at position: " + readPos);
 				}
@@ -471,6 +464,5 @@ public class CsvOutputFormat extends FileOutputFormat {
 		protected ConfigBuilder(Configuration targetConfig) {
 			super(targetConfig);
 		}
-
 	}
 }
