@@ -13,11 +13,11 @@
 package eu.stratosphere.spargel.java;
 
 import java.io.Serializable;
-import java.util.Iterator;
 
 import eu.stratosphere.api.common.aggregators.Aggregator;
 import eu.stratosphere.api.common.functions.IterationRuntimeContext;
 import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.spargel.java.util.MessageIterator;
 import eu.stratosphere.types.Key;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.Value;
@@ -35,7 +35,7 @@ public abstract class VertexUpdateFunction<VertexKey extends Key, VertexValue ex
 	//  Public API Methods
 	// --------------------------------------------------------------------------------------------
 	
-	public abstract void updateVertex(VertexKey vertexKey, VertexValue vertexValue, Iterable<Message> inMessages) throws Exception;
+	public abstract void updateVertex(VertexKey vertexKey, VertexValue vertexValue, MessageIterator<Message> inMessages) throws Exception;
 	
 	public void setup(Configuration config) throws Exception {}
 	

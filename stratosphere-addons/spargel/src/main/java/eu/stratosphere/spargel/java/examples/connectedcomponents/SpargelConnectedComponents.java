@@ -12,8 +12,6 @@
  **********************************************************************************************************************/
 package eu.stratosphere.spargel.java.examples.connectedcomponents;
 
-import java.util.Iterator;
-
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.Program;
 import eu.stratosphere.api.common.ProgramDescription;
@@ -25,6 +23,7 @@ import eu.stratosphere.client.LocalExecutor;
 import eu.stratosphere.spargel.java.MessagingFunction;
 import eu.stratosphere.spargel.java.SpargelIteration;
 import eu.stratosphere.spargel.java.VertexUpdateFunction;
+import eu.stratosphere.spargel.java.util.MessageIterator;
 import eu.stratosphere.types.LongValue;
 import eu.stratosphere.types.NullValue;
 
@@ -71,7 +70,7 @@ public class SpargelConnectedComponents implements Program, ProgramDescription {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void updateVertex(LongValue vertexKey, LongValue vertexValue, Iterable<LongValue> inMessages) {
+		public void updateVertex(LongValue vertexKey, LongValue vertexValue, MessageIterator<LongValue> inMessages) {
 			long min = Long.MAX_VALUE;
 			for (LongValue msg : inMessages) {
 				long next = msg.getValue();
