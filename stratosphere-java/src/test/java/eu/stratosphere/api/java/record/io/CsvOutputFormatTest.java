@@ -76,6 +76,8 @@ public class CsvOutputFormatTest {
 				format.configure(config);
 			} catch(IllegalArgumentException iae) {
 				validConfig = false;
+			} catch(IllegalStateException ise) {
+				validConfig = false;
 			}
 			assertFalse(validConfig);
 			
@@ -85,6 +87,8 @@ public class CsvOutputFormatTest {
 			try {
 				format.configure(config);
 			} catch(IllegalArgumentException iae) {
+				validConfig = false;
+			} catch(IllegalStateException ise) {
 				validConfig = false;
 			}
 			assertFalse(validConfig);

@@ -84,6 +84,8 @@ public class CsvOutputFormat extends FileOutputFormat {
 	private String charsetName;
 
 	private boolean lenient;
+	
+	private boolean ctorInstantiation = false;
 
 	// --------------------------------------------------------------------------------------------
 	// Constructors and getters/setters for the configurable parameters
@@ -152,6 +154,7 @@ public class CsvOutputFormat extends FileOutputFormat {
 		this.lenient = false;
 
 		setTypes(types);
+		ctorInstantiation = true;
 	}
 	
 	public void setTypes(Class<? extends Value>... types) {
@@ -184,7 +187,7 @@ public class CsvOutputFormat extends FileOutputFormat {
 
 		int configNumFields = parameters.getInteger(NUM_FIELDS_PARAMETER, -1);
 		
-		if (this.classes != null) {						//instantiated with parameters
+		if (ctorInstantiation) {
 			if (configNumFields > 0) {
 				throw new IllegalStateException("CsvOutputFormat instantiated via both parameters and config.");
 			}				
@@ -240,7 +243,7 @@ public class CsvOutputFormat extends FileOutputFormat {
 			throw new IllegalArgumentException("The delimiter in the DelimitedOutputFormat must not be null.");
 		}
 		this.charsetName = parameters.getString(RECORD_DELIMITER_ENCODING, null);
-		this.fieldDelimiter = parameters.getString(FIELD_DELIMITER_PARAMETER, "|");
+		this.fieldDelimiter = parameters.getString(FIELD_DELIMITER_PARAMETER, ",");
 		this.lenient = parameters.getBoolean(LENIENT_PARSING, false);
 	}
 
