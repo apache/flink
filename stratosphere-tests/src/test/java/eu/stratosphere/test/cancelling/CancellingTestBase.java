@@ -22,6 +22,7 @@ import junit.framework.Assert;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.log4j.Level;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -75,7 +76,7 @@ public abstract class CancellingTestBase {
 
 	@BeforeClass
 	public static void initLogging() {
-		LogUtils.initializeDefaultTestConsoleLogger();
+		LogUtils.initializeDefaultConsoleLogger(Level.ERROR);
 	}
 	
 	@Before

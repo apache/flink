@@ -20,19 +20,6 @@ import eu.stratosphere.api.common.ProgramDescription
 import eu.stratosphere.api.scala._
 import eu.stratosphere.api.scala.operators._
 
-object RunComputeEdgeDegrees {
-  def main(args: Array[String]) {
-    val ced = new ComputeEdgeDegrees
-    if (args.size < 3) {
-      println(ced.getDescription)
-      return
-    }
-    val plan = ced.getScalaPlan(args(0).toInt, args(1), args(2))
-    LocalExecutor.execute(plan)
-    System.exit(0)
-  }
-}
-
 /**
  * Annotates edges with associated vertex degrees.
  */
@@ -114,4 +101,17 @@ class ComputeEdgeDegrees extends Program with ProgramDescription with Serializab
     plan.setDefaultParallelism(numSubTasks)
     plan
   }
+  
+  object RunComputeEdgeDegrees {
+  def main(args: Array[String]) {
+    val ced = new ComputeEdgeDegrees
+    if (args.size < 3) {
+      println(ced.getDescription)
+      return
+    }
+    val plan = ced.getScalaPlan(args(0).toInt, args(1), args(2))
+    LocalExecutor.execute(plan)
+    System.exit(0)
+  }
+}
 }

@@ -18,14 +18,14 @@ import org.junit.runners.Parameterized;
 
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.examples.scala.relational.TPCHQuery3;
+import eu.stratosphere.examples.scala.relational.RelationalQuery;
 
 import java.util.Locale;
 
 @RunWith(Parameterized.class)
-public class TPCHQuery3ITCase extends eu.stratosphere.test.exampleRecordPrograms.TPCHQuery3ITCase {
+public class RelationalQueryITCase extends eu.stratosphere.test.exampleRecordPrograms.TPCHQuery3ITCase {
 
-	public TPCHQuery3ITCase(Configuration config) {
+	public RelationalQueryITCase(Configuration config) {
 		super(config);
 		Locale.setDefault(Locale.US);
 	}
@@ -33,9 +33,9 @@ public class TPCHQuery3ITCase extends eu.stratosphere.test.exampleRecordPrograms
 	@Override
 	protected Plan getTestJob()  {
 
-		TPCHQuery3 tpch3 = new TPCHQuery3();
+		RelationalQuery tpch3 = new RelationalQuery();
 		return tpch3.getScalaPlan(
-				config.getInteger("TPCHQuery3Test#NoSubtasks", 1),
+				config.getInteger("dop", 1),
 				ordersPath,
 				lineitemsPath,
 				resultPath,

@@ -14,13 +14,9 @@
 package eu.stratosphere.test.iterative;
 
 import java.io.Serializable;
-import java.util.Collection;
 import java.util.Iterator;
 
 import org.junit.Assert;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.operators.BulkIteration;
@@ -30,14 +26,12 @@ import eu.stratosphere.api.java.record.functions.ReduceFunction;
 import eu.stratosphere.api.java.record.io.CsvOutputFormat;
 import eu.stratosphere.api.java.record.io.TextInputFormat;
 import eu.stratosphere.api.java.record.operators.ReduceOperator;
-import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.test.util.TestBase2;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
-import eu.stratosphere.util.LogUtils;
 
-@RunWith(Parameterized.class)
+
 public class IterationWithAllReducerITCase extends TestBase2 {
 
 	private static final String INPUT = "1\n" + "1\n" + "1\n" + "1\n" + "1\n" + "1\n" + "1\n" + "1\n";
@@ -47,11 +41,6 @@ public class IterationWithAllReducerITCase extends TestBase2 {
 	protected String resultPath;
 
 	
-	public IterationWithAllReducerITCase(Configuration config) {
-		super(config);
-		
-		LogUtils.initializeDefaultConsoleLogger();
-	}
 
 	@Override
 	protected void preSubmit() throws Exception {
@@ -66,16 +55,10 @@ public class IterationWithAllReducerITCase extends TestBase2 {
 
 	@Override
 	protected Plan getTestJob() {
-		Plan plan = getTestPlanPlan(config.getInteger("DOP", 1), dataPath, resultPath);
+		Plan plan = getTestPlanPlan(4, dataPath, resultPath);
 		return plan;
 	}
 
-	@Parameters
-	public static Collection<Object[]> getConfigurations() {
-		Configuration config = new Configuration();
-		config.setInteger("DOP", 4);
-		return toParameterList(config);
-	}
 	
 	private static Plan getTestPlanPlan(int numSubTasks, String input, String output) {
 

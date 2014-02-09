@@ -25,6 +25,14 @@ import eu.stratosphere.api.scala._
 import eu.stratosphere.api.scala.operators._
 import eu.stratosphere.api.common.Plan
 
+/**
+ * An example program computing the page rank for each vertex in a graph.
+ * The graph is initially represented by vertices and edges. Vertices are numeric identifiers, while
+ * edges are pairs of identifiers that represent the source and target vertex.
+ * 
+ * This variant of page rank assumes that all edges that originate at one vertex have an equal
+ * probability of being chosen.
+ */
 class PageRank extends Program with Serializable {
 
   def getScalaPlan(verticesPath: String, edgesPath: String, outputPath: String, numVertices: Long, maxIterations: Int) = {
@@ -33,15 +41,19 @@ class PageRank extends Program with Serializable {
     case class Edge(from: Long, to: Long)
     case class Adjacency(vertex: Long, neighbors: List[Long])
 
+    // read the pages and edges. the pages are only single decimal identifiers, the edges pairs of identifiers
     val pages = DataSource(verticesPath, CsvInputFormat[Long]())
     val edges = DataSource(edgesPath, CsvInputFormat[Edge]("\n", ' '))
 
+    // some constants used in the specific rank computation
     val dampening = 0.85
     val randomJump = (1.0 - dampening) / numVertices
     val initialRank = 1.0 / numVertices
 
+    // assign the initial uniform rank to all pages
     val pagesWithRank = pages map { p => PageWithRank(p, initialRank) }
     
+    // transform the edges from a list of (from -> target) pairs to an adjacency list (from -> [all-targets])
     val adjacencies = edges.groupBy(_.from).reduceGroup(x => x.foldLeft(Adjacency(0, List[Long]()))((a, e) => Adjacency(e.from, e.to :: a.neighbors)));
 
     def computeRank(ranks: DataSet[PageWithRank]) = {
@@ -63,7 +75,7 @@ class PageRank extends Program with Serializable {
 
     val output = finalRanks.write(outputPath, CsvOutputFormat())
 
-    new ScalaPlan(Seq(output), "Connected Components")
+    new ScalaPlan(Seq(output), "Page Rank")
   }
 
   override def getPlan(args: String*) = {

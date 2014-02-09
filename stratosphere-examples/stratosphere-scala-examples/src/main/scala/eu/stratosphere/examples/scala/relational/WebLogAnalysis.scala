@@ -20,19 +20,6 @@ import eu.stratosphere.api.common.ProgramDescription
 import eu.stratosphere.api.scala._
 import eu.stratosphere.api.scala.operators._
 
-object RunWebLogAnalysis {
-  def main(args: Array[String]) {
-    val webLogAnalysis = new WebLogAnalysis
-    if (args.size < 5) {
-      println(webLogAnalysis.getDescription)
-      return
-    }
-    val plan = webLogAnalysis.getScalaPlan(args(0).toInt, args(1), args(2), args(3), args(4))
-    LocalExecutor.execute(plan)
-    System.exit(0)
-  }
-}
-
 /**
  * Implements the following relational OLAP query as PACT program:
  * 
@@ -137,6 +124,22 @@ class WebLogAnalysis extends Program with ProgramDescription with Serializable {
     plan.setDefaultParallelism(numSubTasks)
     plan
   }
+}
 
+
+/**
+ * Entry point to make the example standalone runnable with the local executor
+ */
+object RunWebLogAnalysis {
+  def main(args: Array[String]) {
+    val webLogAnalysis = new WebLogAnalysis
+    if (args.size < 5) {
+      println(webLogAnalysis.getDescription)
+      return
+    }
+    val plan = webLogAnalysis.getScalaPlan(args(0).toInt, args(1), args(2), args(3), args(4))
+    LocalExecutor.execute(plan)
+    System.exit(0)
+  }
 }
 

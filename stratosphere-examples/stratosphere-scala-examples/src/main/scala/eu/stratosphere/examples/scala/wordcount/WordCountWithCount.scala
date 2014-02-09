@@ -20,18 +20,10 @@ import eu.stratosphere.api.common.ProgramDescription
 import eu.stratosphere.api.scala._
 import eu.stratosphere.api.scala.operators._
 
-object RunWordCountWithCount {
-  def main(args: Array[String]) {
-    val wc = new WordCountWithCount
-    if (args.size < 3) {
-      println(wc.getDescription)
-      return
-    }
-    val plan = wc.getScalaPlan(args(0).toInt, args(1), args(2))
-    LocalExecutor.execute(plan)
-  }
-}
 
+/**
+ * Implementation of word count in Scala. This example uses the built in count function for tuples.
+ */
 class WordCountWithCount extends WordCount {
 
   override def getScalaPlan(numSubTasks: Int, textInput: String, wordsOutput: String) = {
@@ -45,5 +37,21 @@ class WordCountWithCount extends WordCount {
     val plan = new ScalaPlan(Seq(output), "Word Count")
     plan.setDefaultParallelism(numSubTasks)
     plan
+  }
+}
+
+
+/**
+ * Entry point to make the example standalone runnable with the local executor.
+ */
+object RunWordCountWithCount {
+  def main(args: Array[String]) {
+    val wc = new WordCountWithCount
+    if (args.size < 3) {
+      println(wc.getDescription)
+      return
+    }
+    val plan = wc.getScalaPlan(args(0).toInt, args(1), args(2))
+    LocalExecutor.execute(plan)
   }
 }

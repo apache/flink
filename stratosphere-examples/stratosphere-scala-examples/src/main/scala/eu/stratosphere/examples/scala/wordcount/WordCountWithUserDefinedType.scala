@@ -23,41 +23,31 @@ import eu.stratosphere.types.StringValue
 import eu.stratosphere.api.scala._
 import eu.stratosphere.api.scala.operators._
 
-object RunWordCountWithUserDefinedType {
-  def main(args: Array[String]) {
-    val wc = new WordCountWithUserDefinedType
-    if (args.size < 3) {
-      println(wc.getDescription)
-      return
-    }
-    val plan = wc.getScalaPlan(args(0).toInt, args(1), args(2))
-    LocalExecutor.execute(plan)
-    System.exit(0)
-  }
-}
 
-class WordCountWithUserDefinedType extends Program with ProgramDescription with Serializable {
-  override def getDescription() = {
-    "Parameters: [numSubStasks] [input] [output]"
-  }
-  override def getPlan(args: String*) = {
-    getScalaPlan(args(0).toInt, args(1), args(2))
-  }
-
-  def formatOutput = (word: StringValue, count: IntValue) => "%s %d".format(word.toString, count.getValue)
+/**
+ * Implementation of word count in Scala, using a user defined type rather than one of the
+ * built-in supported types like primitives, tuples, or other (nested) case classes.
+ */
+class WordCountWithUserDefinedType extends Program with Serializable {
 
   def getScalaPlan(numSubTasks: Int, textInput: String, wordsOutput: String) = {
     val input = TextFile(textInput)
 
     val words = input flatMap { _.toLowerCase().split("""\W+""") filter { _ != "" } map { w => (new StringValue(w), new IntValue(1)) } }
+    
     val counts = words
       .groupBy { case (word, _) => word }
       .reduce { (w1, w2) => (w1._1, new IntValue(w1._2.getValue + w2._2.getValue)) }
 
-    val output = counts.write(wordsOutput, DelimitedOutputFormat(formatOutput.tupled))
+    val output = counts.write(wordsOutput, CsvOutputFormat("\n", " "))
   
     val plan = new ScalaPlan(Seq(output), "Word Count (immutable)")
     plan.setDefaultParallelism(numSubTasks)
     plan
+  }
+  
+
+  override def getPlan(args: String*) = {
+    getScalaPlan(args(0).toInt, args(1), args(2))
   }
 }

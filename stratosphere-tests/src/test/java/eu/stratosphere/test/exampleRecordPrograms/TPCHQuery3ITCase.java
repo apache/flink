@@ -136,7 +136,7 @@ public class TPCHQuery3ITCase extends TestBase2 {
 
 		TPCHQuery3 tpch3 = new TPCHQuery3();
 		return tpch3.getPlan(
-				config.getString("TPCHQuery3Test#NoSubtasks", "1"), 
+				config.getString("dop", "1"), 
 				ordersPath,
 				lineitemsPath,
 				resultPath);
@@ -150,7 +150,7 @@ public class TPCHQuery3ITCase extends TestBase2 {
 	@Parameters
 	public static Collection<Object[]> getConfigurations() {
 		Configuration config = new Configuration();
-		config.setInteger("TPCHQuery3Test#NoSubtasks", 4);
+		config.setInteger("dop", 4);
 		return toParameterList(config);
 	}
 }

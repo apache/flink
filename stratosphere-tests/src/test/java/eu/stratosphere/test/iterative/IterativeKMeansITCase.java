@@ -66,7 +66,7 @@ public class IterativeKMeansITCase extends KMeansStepITCase {
 	
 	
 	
-	private static final String CENTERS_AFTER_20_ITERATIONS =
+	public static final String CENTERS_AFTER_20_ITERATIONS =
 			"0|38.25|54.52|19.34|\n" +
 			"1|32.14|83.04|50.35|\n" +
 			"2|87.48|56.57|20.27|\n" +
