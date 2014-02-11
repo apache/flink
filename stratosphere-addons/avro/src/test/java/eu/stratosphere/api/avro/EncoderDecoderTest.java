@@ -126,9 +126,37 @@ public class EncoderDecoderTest {
 	}
 	
 	@Test
+	public void testEmptyArray() {
+		{
+			int[] array = new int[0];
+			testObjectSerialization(array);
+		}
+		{
+			long[] array = new long[0];
+			testObjectSerialization(array);
+		}
+		{
+			float[] array = new float[0];
+			testObjectSerialization(array);
+		}
+		{
+			double[] array = new double[0];
+			testObjectSerialization(array);
+		}
+		{
+			String[] array = new String[0];
+			testObjectSerialization(array);
+		}
+	}
+	
+	@Test
 	public void testObjects() {
-		testObjectSerialization(new Book(976243875L, "The Serialization Odysse", 42));
+		// simple object containing only primitives
+		{
+			testObjectSerialization(new Book(976243875L, "The Serialization Odysse", 42));
+		}
 		
+		// object with collection
 		{
 			ArrayList<String> list = new ArrayList<String>();
 			list.add("A");
@@ -138,6 +166,12 @@ public class EncoderDecoderTest {
 			list.add("E");
 			
 			testObjectSerialization(new BookAuthor(976243875L, list, "Arno Nym"));
+		}
+		
+		// object with empty collection
+		{
+			ArrayList<String> list = new ArrayList<String>();
+			testObjectSerialization(new BookAuthor(987654321L, list, "The Saurus"));
 		}
 	}
 	

@@ -44,7 +44,7 @@ import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
 
 
-public class AvroEndToEndTest extends TestBase2 {
+public class AvroEndToEndITCase extends TestBase2 {
 	
 	@Override
 	protected Plan getTestJob() {
@@ -189,7 +189,6 @@ public class AvroEndToEndTest extends TestBase2 {
 		}
 		
 		@Override
-		public void close() {
-		}
+		public void close() {}
 	}
 }

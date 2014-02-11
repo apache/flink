@@ -126,7 +126,9 @@ public final class DataOutputEncoder extends Encoder {
 
 	@Override
 	public void setItemCount(long itemCount) throws IOException {
-		writeVarLongCount(out, itemCount);
+		if (itemCount > 0) {
+			writeVarLongCount(out, itemCount);
+		}
 	}
 
 	@Override
