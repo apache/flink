@@ -15,10 +15,7 @@ package eu.stratosphere.nephele.jobmanager.web;
 
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
 
 import javax.servlet.ServletException;
@@ -26,6 +23,8 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import eu.stratosphere.nephele.jobmanager.JobManagerUtils;
+import eu.stratosphere.nephele.managementgraph.*;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.eclipse.jetty.io.EofException;
@@ -40,10 +39,6 @@ import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobgraph.JobStatus;
 import eu.stratosphere.nephele.jobmanager.JobManager;
-import eu.stratosphere.nephele.managementgraph.ManagementGraph;
-import eu.stratosphere.nephele.managementgraph.ManagementGroupVertex;
-import eu.stratosphere.nephele.managementgraph.ManagementGroupVertexID;
-import eu.stratosphere.nephele.managementgraph.ManagementVertex;
 import eu.stratosphere.nephele.services.accumulators.AccumulatorEvent;
 import eu.stratosphere.util.StringUtils;
 
@@ -239,7 +234,28 @@ public class JobmanagerInfoServlet extends HttpServlet {
 			wrt.write("\"FAILED\": "+ jobmanager.getArchive().getJobTime(jobEvent.getJobID(), JobStatus.FAILED) + ",");
 			wrt.write("\"CANCELED\": "+ jobmanager.getArchive().getJobTime(jobEvent.getJobID(), JobStatus.CANCELED) + ",");
 			wrt.write("\"CREATED\": " + jobmanager.getArchive().getJobTime(jobEvent.getJobID(), JobStatus.CREATED)+",");
-			
+
+			if (jobEvent.getJobStatus() == JobStatus.FAILED) {
+			ManagementGraphIterator managementGraphIterator =  new ManagementGraphIterator(jobManagementGraph,true);
+			wrt.write("\"failednodes\": [");
+			HashSet<String> map = new HashSet<String>();
+			boolean first = true;
+			while (managementGraphIterator.hasNext()) {
+				ManagementVertex managementVertex = managementGraphIterator.next();
+				String instanceName = managementVertex.getInstanceName();
+				if (managementVertex.getExecutionState() == ExecutionState.FAILED && !map.contains(instanceName)) {
+					if (first) {
+						first = false;
+					} else {
+						wrt.write(",");
+					}
+					wrt.write("{\"node\": \"" + instanceName + "\"}");
+					map.add(instanceName);
+				}
+			}
+			wrt.write("],");
+			}
+
 			// Serialize ManagementGraph to json
 			wrt.write("\"groupvertices\": [");
 			boolean first = true;
@@ -339,7 +355,7 @@ public class JobmanagerInfoServlet extends HttpServlet {
 	 * Writes all updates (events) for a given job since a given time
 	 * 
 	 * @param wrt
-	 * @param jobEvent
+	 * @param jobId
 	 */
 	private void writeJsonUpdatesForJob(PrintWriter wrt, JobID jobId) {
 		

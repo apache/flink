@@ -58,6 +58,20 @@ function analyzeTime(json, stacked) {
 		$("#run").html(convertTime(job[job.status] - job.SCHEDULED));
 		$("#status").html(job.status);
 		$("#jobtitle").html(job.jobname);
+
+		//create failed table
+		if (job.status == "FAILED") {
+			failed = "<ul>";
+			$.each(job.failednodes, function(j, failednode) {
+				failed += "<li>" + failednode.node + "</li>";
+			});
+			failed += "</ul>";
+
+			$("#page-content").append("<div class=\"contentbox\"><h3 class=\"contentbox-header\"><span>Failed Nodes</span>" +
+									 "</h3><div id=\"failednodes\" class=\"contentbox-wrapper\">" +
+									 failed +
+									 "</div></div>");
+		}
 		// create accumulators table
 		if($.isArray(job.accumulators)  && job.accumulators.length > 0) {
 			accuTable = "<table><tr><td><b>Name</b></td><td><b>Value</b></td></tr>";
@@ -67,6 +81,7 @@ function analyzeTime(json, stacked) {
 			accuTable += "</table>";
 			$("#accumulators").html(accuTable);
 		}
+
 
 		var data = new google.visualization.DataTable();
 		data.addColumn('datetime', 'start');
