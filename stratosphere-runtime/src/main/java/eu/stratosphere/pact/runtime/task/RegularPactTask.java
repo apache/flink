@@ -969,7 +969,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 		this.output = initOutputs(this, this.userCodeClassLoader, this.config, this.chainedTasks, this.eventualOutputs);
 	}
 	
-	public RuntimeContext getRuntimeContext(String taskName) {
+	public RuntimeUDFContext getRuntimeContext(String taskName) {
 		Environment env = getEnvironment();
 		return new RuntimeUDFContext(taskName, env.getCurrentNumberOfSubtasks(), env.getIndexInSubtaskGroup());
 	}

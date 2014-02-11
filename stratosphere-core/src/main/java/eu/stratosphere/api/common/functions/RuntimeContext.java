@@ -20,17 +20,37 @@ import eu.stratosphere.api.common.accumulators.DoubleCounter;
 import eu.stratosphere.api.common.accumulators.Histogram;
 import eu.stratosphere.api.common.accumulators.IntCounter;
 import eu.stratosphere.api.common.accumulators.LongCounter;
-import eu.stratosphere.types.Record;
 
 /**
- *
+ * A RuntimeContext contains information about the context in which functions are executed. Each parallel instance
+ * of the function will have a context through which it can access static contextual information (such as 
+ * the current degree of parallelism) and other constructs like accumulators and broadcast variables.
+ * <p>
+ * A function can, during runtime, obtain the RuntimeContext via a call to
+ * {@link eu.stratosphere.api.common.functions.AbstractFunction#getRuntimeContext()}.
  */
 public interface RuntimeContext {
 
+	/**
+	 * Returns the name of the task in which the UDF runs, as assigned during plan construction.
+	 * 
+	 * @return The name of the task in which the UDF runs.
+	 */
 	String getTaskName();
 
+	/**
+	 * Gets the degree of parallelism with which the parallel task runs.
+	 * 
+	 * @return The degree of parallelism with which the parallel task runs.
+	 */
 	int getNumberOfParallelSubtasks();
 
+	/**
+	 * Gets the number of the parallel subtask. The numbering starts from 1 and goes up to the degree-of-parallelism,
+	 * as returned by {@link #getNumberOfParallelSubtasks()}.
+	 * 
+	 * @return The number of the parallel subtask.
+	 */
 	int getIndexOfThisSubtask();
 	
 	// --------------------------------------------------------------------------------------------
@@ -108,12 +128,6 @@ public interface RuntimeContext {
 //			Class<? extends SimpleAccumulator<T>> accumulatorClass);
 	
 	// --------------------------------------------------------------------------------------------
-
-	/**
-	 * Sets the value of the broadcast variable identified by the given 
-	 * {@code name}.
-	 */
-	void setBroadcastVariable(String name, Collection<?> value);
 
 	/**
 	 * Returns the result bound to the broadcast variable identified by the 

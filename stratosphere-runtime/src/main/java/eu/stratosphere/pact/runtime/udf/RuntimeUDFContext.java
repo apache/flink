@@ -22,7 +22,6 @@ import eu.stratosphere.api.common.accumulators.Histogram;
 import eu.stratosphere.api.common.accumulators.IntCounter;
 import eu.stratosphere.api.common.accumulators.LongCounter;
 import eu.stratosphere.api.common.functions.RuntimeContext;
-import eu.stratosphere.types.Record;
 
 /**
  *
@@ -122,10 +121,9 @@ public class RuntimeUDFContext implements RuntimeContext {
 		return this.accumulators;
 	}
 
-	@Override
 	public void setBroadcastVariable(String name, Collection<?> value) {
 		if (this.broadcastVars.containsKey(name)) {
-			throw new UnsupportedOperationException("The broadcast variable '" + name
+			throw new IllegalArgumentException("The broadcast variable '" + name
 					+ "' already exists and cannot be added.");
 		}
 		this.broadcastVars.put(name, value);
@@ -136,7 +134,7 @@ public class RuntimeUDFContext implements RuntimeContext {
 	@SuppressWarnings("unchecked")
 	public <RT> Collection<RT> getBroadcastVariable(String name) {
 		if (!this.broadcastVars.containsKey(name)) {
-			throw new UnsupportedOperationException("Trying to access an unbound broadcast variable '" 
+			throw new IllegalArgumentException("Trying to access an unbound broadcast variable '" 
 					+ name + "'.");
 		}
 		return (Collection<RT>) this.broadcastVars.get(name);

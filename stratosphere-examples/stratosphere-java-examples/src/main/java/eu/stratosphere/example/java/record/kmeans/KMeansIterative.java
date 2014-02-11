@@ -13,8 +13,6 @@
 
 package eu.stratosphere.example.java.record.kmeans;
 
-import java.util.ArrayList;
-import java.util.List;
 
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.Program;
@@ -22,88 +20,57 @@ import eu.stratosphere.api.common.ProgramDescription;
 import eu.stratosphere.api.common.operators.BulkIteration;
 import eu.stratosphere.api.common.operators.FileDataSink;
 import eu.stratosphere.api.common.operators.FileDataSource;
-import eu.stratosphere.api.common.operators.GenericDataSink;
-import eu.stratosphere.api.java.record.operators.CrossOperator;
+import eu.stratosphere.api.java.record.operators.MapOperator;
 import eu.stratosphere.api.java.record.operators.ReduceOperator;
-import eu.stratosphere.client.LocalExecutor;
-import eu.stratosphere.example.java.record.kmeans.udfs.ComputeDistance;
-import eu.stratosphere.example.java.record.kmeans.udfs.FindNearestCenter;
+import eu.stratosphere.example.java.record.kmeans.KMeansSingleStep.RecomputeClusterCenter;
+import eu.stratosphere.example.java.record.kmeans.KMeansSingleStep.SelectNearestCenter;
 import eu.stratosphere.example.java.record.kmeans.udfs.PointInFormat;
 import eu.stratosphere.example.java.record.kmeans.udfs.PointOutFormat;
-import eu.stratosphere.example.java.record.kmeans.udfs.RecomputeClusterCenter;
 import eu.stratosphere.types.IntValue;
 
 
 public class KMeansIterative implements Program, ProgramDescription {
 	
+
 	@Override
 	public Plan getPlan(String... args) {
 		// parse job parameters
-		final int numSubTasks = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
-		final String dataPointInput = (args.length > 1 ? args[1] : "");
-		final String clusterInput = (args.length > 2 ? args[2] : "");
-		final String output = (args.length > 3 ? args[3] : "");
-		final int numIterations = (args.length > 4 ? Integer.parseInt(args[4]) : 1);
+		int numSubTasks = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
+		String dataPointInput = (args.length > 1 ? args[1] : "");
+		String clusterInput = (args.length > 2 ? args[2] : "");
+		String output = (args.length > 3 ? args[3] : "");
+		int numIterations = (args.length > 4 ? Integer.parseInt(args[4]) : 2);
 
-		// create DataSourceContract for cluster center input
-		FileDataSource initialClusterPoints = new FileDataSource(new PointInFormat(), clusterInput, "Centers");
-		initialClusterPoints.setDegreeOfParallelism(1);
-		
-		BulkIteration iteration = new BulkIteration("K-Means Loop");
-		iteration.setInput(initialClusterPoints);
-		iteration.setMaximumNumberOfIterations(numIterations);
-		
 		// create DataSourceContract for data point input
 		FileDataSource dataPoints = new FileDataSource(new PointInFormat(), dataPointInput, "Data Points");
 
-		// create CrossOperator for distance computation
-		CrossOperator computeDistance = CrossOperator.builder(new ComputeDistance())
-				.input1(dataPoints)
-				.input2(iteration.getPartialSolution())
-				.name("Compute Distances")
-				.build();
+		// create DataSourceContract for cluster center input
+		FileDataSource clusterPoints = new FileDataSource(new PointInFormat(), clusterInput, "Centers");
+		
+		BulkIteration iter = new BulkIteration("k-means loop");
+		iter.setInput(clusterPoints);
+		iter.setMaximumNumberOfIterations(numIterations);
 
-		// create ReduceOperator for finding the nearest cluster centers
-		ReduceOperator findNearestClusterCenters = ReduceOperator.builder(new FindNearestCenter(), IntValue.class, 0)
-				.input(computeDistance)
-				.name("Find Nearest Centers")
-				.build();
+		// create CrossOperator for distance computation
+		MapOperator findNearestClusterCenters = MapOperator.builder(new SelectNearestCenter())
+			.setBroadcastVariable("centers", iter.getPartialSolution())
+			.input(dataPoints)
+			.name("Find Nearest Centers")
+			.build();
 
 		// create ReduceOperator for computing new cluster positions
 		ReduceOperator recomputeClusterCenter = ReduceOperator.builder(new RecomputeClusterCenter(), IntValue.class, 0)
-				.input(findNearestClusterCenters)
-				.name("Recompute Center Positions")
-				.build();
-		iteration.setNextPartialSolution(recomputeClusterCenter);
+			.input(findNearestClusterCenters)
+			.name("Recompute Center Positions")
+			.build();
 		
-		// create DataSourceContract for data point input
-		FileDataSource dataPoints2 = new FileDataSource(new PointInFormat(), dataPointInput, "Data Points 2");
-		
-		// compute distance of points to final clusters 
-		CrossOperator computeFinalDistance = CrossOperator.builder(new ComputeDistance())
-				.input1(dataPoints2)
-				.input2(iteration)
-				.name("Compute Final Distances")
-				.build();
-
-		// find nearest final cluster for point
-		ReduceOperator findNearestFinalCluster = ReduceOperator.builder(new FindNearestCenter(), IntValue.class, 0)
-				.input(computeFinalDistance)
-				.name("Find Nearest Final Centers")
-				.build();
+		iter.setNextPartialSolution(recomputeClusterCenter);
 
 		// create DataSinkContract for writing the new cluster positions
-		FileDataSink finalClusters = new FileDataSink(new PointOutFormat(), output+"/centers", iteration, "Cluster Positions");
+		FileDataSink newClusterPoints = new FileDataSink(new PointOutFormat(), output, recomputeClusterCenter, "New Center Positions");
 
-		// write assigned clusters
-		FileDataSink clusterAssignments = new FileDataSink(new PointOutFormat(), output+"/points", findNearestFinalCluster, "Cluster Assignments");
-		
-		List<GenericDataSink> sinks = new ArrayList<GenericDataSink>();
-		sinks.add(finalClusters);
-		sinks.add(clusterAssignments);
-		
 		// return the PACT plan
-		Plan plan = new Plan(sinks, "Iterative KMeans");
+		Plan plan = new Plan(newClusterPoints, "KMeans Iteration");
 		plan.setDefaultParallelism(numSubTasks);
 		return plan;
 	}
@@ -111,20 +78,5 @@ public class KMeansIterative implements Program, ProgramDescription {
 	@Override
 	public String getDescription() {
 		return "Parameters: <numSubStasks> <dataPoints> <clusterCenters> <output> <numIterations>";
-	}
-	
-	public static void main(String[] args) throws Exception {
-		KMeansIterative kmi = new KMeansIterative();
-		
-		if (args.length < 5) {
-			System.err.println(kmi.getDescription());
-			System.exit(1);
-		}
-		
-		Plan plan = kmi.getPlan(args);
-		
-		// This will execute the kMeans clustering job embedded in a local context.
-		LocalExecutor.execute(plan);
-
 	}
 }

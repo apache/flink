@@ -17,7 +17,6 @@ import eu.stratosphere.api.common.aggregators.Aggregator;
 import eu.stratosphere.api.common.aggregators.LongSumAggregator;
 import eu.stratosphere.api.common.functions.Function;
 import eu.stratosphere.api.common.functions.IterationRuntimeContext;
-import eu.stratosphere.api.common.functions.RuntimeContext;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
 import eu.stratosphere.core.memory.DataOutputView;
@@ -166,7 +165,8 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 		return inIter;
 	}
 
-	public RuntimeContext getRuntimeContext(String taskName) {
+	@Override
+	public RuntimeUDFContext getRuntimeContext(String taskName) {
 		Environment env = getEnvironment();
 		return new IterativeRuntimeUdfContext(taskName, env.getCurrentNumberOfSubtasks(), env.getIndexInSubtaskGroup());
 	}

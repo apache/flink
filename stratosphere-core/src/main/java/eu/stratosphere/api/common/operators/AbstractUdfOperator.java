@@ -67,8 +67,6 @@ public abstract class AbstractUdfOperator<T extends Function> extends Operator {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	// TODO: add delegates for the parameter input setters to the Operator builders
-	
 	/**
 	 * Returns the input, or null, if none is set.
 	 * 
