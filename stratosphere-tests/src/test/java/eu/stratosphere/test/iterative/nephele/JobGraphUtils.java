@@ -15,7 +15,6 @@ package eu.stratosphere.test.iterative.nephele;
 
 import java.io.IOException;
 
-import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
 import eu.stratosphere.api.common.operators.util.UserCodeObjectWrapper;
 import eu.stratosphere.api.common.operators.util.UserCodeWrapper;
 import eu.stratosphere.api.common.io.FileInputFormat;
@@ -55,15 +54,10 @@ public class JobGraphUtils {
 			int degreeOfParallelism, int numSubTasksPerInstance)
 	{
 		stub.setFilePath(path);
-		return createInput(new UserCodeObjectWrapper<T>(stub), null, name, graph, degreeOfParallelism, numSubTasksPerInstance);
-	}
-	
-	public static <T extends InputFormat<?,?>> JobInputVertex createInput(Class<? extends T> stub, String path, String name, JobGraph graph,
-			int degreeOfParallelism, int numSubTasksPerInstance) {
-		return createInput(new UserCodeClassWrapper<T>(stub), path, name, graph, degreeOfParallelism, numSubTasksPerInstance);
+		return createInput(new UserCodeObjectWrapper<T>(stub), name, graph, degreeOfParallelism, numSubTasksPerInstance);
 	}
 
-	private static <T extends InputFormat<?,?>> JobInputVertex createInput(UserCodeWrapper<T> stub, String configPath, String name, JobGraph graph,
+	private static <T extends InputFormat<?,?>> JobInputVertex createInput(UserCodeWrapper<T> stub, String name, JobGraph graph,
 			int degreeOfParallelism, int numSubTasksPerInstance)
 	{
 		JobInputVertex inputVertex = new JobInputVertex(name, graph);
@@ -77,9 +71,6 @@ public class JobGraphUtils {
 		
 		TaskConfig inputConfig = new TaskConfig(inputVertex.getConfiguration());
 		inputConfig.setStubWrapper(stub);
-		if (configPath != null) {
-			inputConfig.setStubParameter("pact.input.file.path", configPath);
-		}
 		
 		return inputVertex;
 	}

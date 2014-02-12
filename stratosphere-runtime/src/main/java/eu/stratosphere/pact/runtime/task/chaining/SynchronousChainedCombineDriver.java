@@ -69,7 +69,7 @@ public class SynchronousChainedCombineDriver<T> extends ChainedDriver<T, T> {
 		final GenericReducer<T, ?> combiner =
 			RegularPactTask.instantiateUserCode(this.config, userCodeClassLoader, GenericReducer.class);
 		this.combiner = combiner;
-		combiner.setRuntimeContext(getRuntimeContext(parent, this.taskName));
+		combiner.setRuntimeContext(getUdfRuntimeContext());
 	}
 
 	@Override

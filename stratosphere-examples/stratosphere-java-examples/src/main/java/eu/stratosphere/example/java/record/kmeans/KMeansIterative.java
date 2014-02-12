@@ -20,17 +20,20 @@ import eu.stratosphere.api.common.ProgramDescription;
 import eu.stratosphere.api.common.operators.BulkIteration;
 import eu.stratosphere.api.common.operators.FileDataSink;
 import eu.stratosphere.api.common.operators.FileDataSource;
+import eu.stratosphere.api.java.record.io.CsvInputFormat;
 import eu.stratosphere.api.java.record.operators.MapOperator;
 import eu.stratosphere.api.java.record.operators.ReduceOperator;
+import eu.stratosphere.example.java.record.kmeans.KMeansSingleStep.PointBuilder;
 import eu.stratosphere.example.java.record.kmeans.KMeansSingleStep.RecomputeClusterCenter;
 import eu.stratosphere.example.java.record.kmeans.KMeansSingleStep.SelectNearestCenter;
-import eu.stratosphere.example.java.record.kmeans.udfs.PointInFormat;
 import eu.stratosphere.example.java.record.kmeans.udfs.PointOutFormat;
+import eu.stratosphere.types.DoubleValue;
 import eu.stratosphere.types.IntValue;
 
 
 public class KMeansIterative implements Program, ProgramDescription {
 	
+	private static final long serialVersionUID = 1L;
 
 	@Override
 	public Plan getPlan(String... args) {
@@ -42,10 +45,16 @@ public class KMeansIterative implements Program, ProgramDescription {
 		int numIterations = (args.length > 4 ? Integer.parseInt(args[4]) : 2);
 
 		// create DataSourceContract for data point input
-		FileDataSource dataPoints = new FileDataSource(new PointInFormat(), dataPointInput, "Data Points");
+		@SuppressWarnings("unchecked")
+		FileDataSource pointsSource = new FileDataSource(new CsvInputFormat('|', IntValue.class, DoubleValue.class, DoubleValue.class, DoubleValue.class), dataPointInput, "Data Points");
 
 		// create DataSourceContract for cluster center input
-		FileDataSource clusterPoints = new FileDataSource(new PointInFormat(), clusterInput, "Centers");
+		@SuppressWarnings("unchecked")
+		FileDataSource clustersSource = new FileDataSource(new CsvInputFormat('|', IntValue.class, DoubleValue.class, DoubleValue.class, DoubleValue.class), clusterInput, "Centers");
+		
+		MapOperator dataPoints = MapOperator.builder(new PointBuilder()).name("Build data points").input(pointsSource).build();
+		
+		MapOperator clusterPoints = MapOperator.builder(new PointBuilder()).name("Build cluster points").input(clustersSource).build();
 		
 		BulkIteration iter = new BulkIteration("k-means loop");
 		iter.setInput(clusterPoints);

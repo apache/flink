@@ -17,7 +17,7 @@ import java.util.Locale;
 
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.examples.scala.datamining.KMeans;
-import eu.stratosphere.test.exampleRecordPrograms.KMeansStepITCase;
+import eu.stratosphere.test.testdata.KMeansData;
 import eu.stratosphere.test.util.TestBase2;
 
 public class IterativeKMeansITCase extends TestBase2 {
@@ -33,14 +33,14 @@ public class IterativeKMeansITCase extends TestBase2 {
 	
 	@Override
 	protected void preSubmit() throws Exception {
-		pointsPath = createTempFile("datapoints.txt", KMeansStepITCase.DATAPOINTS);
-		clusterPath = createTempFile("initial_centers.txt", KMeansStepITCase.CLUSTERCENTERS);
+		pointsPath = createTempFile("datapoints.txt", KMeansData.DATAPOINTS);
+		clusterPath = createTempFile("initial_centers.txt", KMeansData.INITIAL_CENTERS);
 		resultPath = getTempDirPath("resulting_centers");
 	}
 	
 	@Override
 	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(CENTERS_AFTER_20_ITERATIONS, resultPath);
+		compareResultsByLinesInMemory(KMeansData.CENTERS_AFTER_20_ITERATIONS_SINGLE_DIGIT, resultPath);
 	}
 	
 
@@ -49,14 +49,4 @@ public class IterativeKMeansITCase extends TestBase2 {
 		KMeans kmi = new KMeans();
 		return kmi.getScalaPlan(4, pointsPath, clusterPath, resultPath, 20);
 	}
-	
-	
-	private static final String CENTERS_AFTER_20_ITERATIONS =
-			"0|38.3|54.5|19.3|\n" +
-			"1|32.1|83.0|50.4|\n" +
-			"2|87.5|56.6|20.3|\n" +
-			"3|75.4|18.6|67.5|\n" +
-			"4|24.9|29.2|77.6|\n" +
-			"5|78.7|66.1|70.8|\n" +
-			"6|39.5|14.0|18.7|\n";
 }

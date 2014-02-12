@@ -249,9 +249,10 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 				solutionSet = initHashTable();
 
 				// read the initial solution set
-				@SuppressWarnings("unchecked")
-				MutableObjectIterator<X> solutionSetInput = (MutableObjectIterator<X>) createInputIterator(
-					initialSolutionSetInput, inputReaders[initialSolutionSetInput], solutionTypeSerializer);
+//				@SuppressWarnings("unchecked")
+//				MutableObjectIterator<X> solutionSetInput = (MutableObjectIterator<X>) createInputIterator(
+//					initialSolutionSetInput, inputReaders[initialSolutionSetInput], solutionTypeSerializer);
+				MutableObjectIterator<X> solutionSetInput = getInput(initialSolutionSetInput);
 				readInitialSolutionSet(solutionSet, solutionSetInput);
 
 				SolutionSetBroker.instance().handIn(brokerKey, solutionSet);

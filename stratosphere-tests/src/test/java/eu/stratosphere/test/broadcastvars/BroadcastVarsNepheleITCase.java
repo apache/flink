@@ -67,9 +67,8 @@ public class BroadcastVarsNepheleITCase extends TestBase2 {
 
 	protected String resultPath;
 
-	public BroadcastVarsNepheleITCase() {
-		super(new Configuration());
-	}
+
+	
 
 	public static final String getInputPoints(int numPoints, int numDimensions, long seed) {
 		if (numPoints < 1 || numPoints > 1000000)
@@ -175,6 +174,8 @@ public class BroadcastVarsNepheleITCase extends TestBase2 {
 	// -------------------------------------------------------------------------------------------------------------
 
 	public static final class DotProducts extends MapFunction {
+
+		private static final long serialVersionUID = 1L;
 
 		private final Record result = new Record(3);
 

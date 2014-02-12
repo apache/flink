@@ -31,7 +31,7 @@ public class ChainedMapDriver<IT, OT> extends ChainedDriver<IT, OT> {
 		final GenericMapper<IT, OT> mapper =
 			RegularPactTask.instantiateUserCode(this.config, userCodeClassLoader, GenericMapper.class);
 		this.mapper = mapper;
-		mapper.setRuntimeContext(getRuntimeContext(parent, this.taskName));
+		mapper.setRuntimeContext(getUdfRuntimeContext());
 	}
 
 	@Override

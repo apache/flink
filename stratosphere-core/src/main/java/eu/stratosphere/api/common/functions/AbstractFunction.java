@@ -22,6 +22,8 @@ import java.io.Serializable;
  */
 public abstract class AbstractFunction implements Function, Serializable {
 	
+	private static final long serialVersionUID = 1L;
+	
 	// --------------------------------------------------------------------------------------------
 	//  Runtime context access
 	// --------------------------------------------------------------------------------------------

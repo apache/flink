@@ -49,31 +49,31 @@ import eu.stratosphere.util.InstantiationUtil;
  */
 public class TaskConfig {
 	
-	private static final String TASK_NAME = "pact.task.name";
+	private static final String TASK_NAME = "taskname";
 	
 	// ------------------------------------ User Code ---------------------------------------------
 	
-	private static final String STUB_OBJECT = "pact.stub.udf-object";
+	private static final String STUB_OBJECT = "udf";
 	
-	private static final String STUB_PARAM_PREFIX = "pact.stub.param.";
+	private static final String STUB_PARAM_PREFIX = "udf.param.";
 	
 	// -------------------------------------- Driver ----------------------------------------------
 	
-	private static final String DRIVER_CLASS = "pact.driver.class";
+	private static final String DRIVER_CLASS = "driver.class";
 	
-	private static final String DRIVER_STRATEGY = "pact.driver.strategy";
+	private static final String DRIVER_STRATEGY = "driver.strategy";
 	
-	private static final String DRIVER_COMPARATOR_FACTORY_PREFIX = "pact.driver.comp.";
+	private static final String DRIVER_COMPARATOR_FACTORY_PREFIX = "driver.comp.";
 	
-	private static final String DRIVER_COMPARATOR_PARAMETERS_PREFIX = "pact.driver.comp.params.";
+	private static final String DRIVER_COMPARATOR_PARAMETERS_PREFIX = "driver.comp.params.";
 	
-	private static final String DRIVER_PAIR_COMPARATOR_FACTORY = "pact.driver.paircomp";
+	private static final String DRIVER_PAIR_COMPARATOR_FACTORY = "driver.paircomp";
 
 	// -------------------------------------- Inputs ----------------------------------------------
 
-	private static final String NUM_INPUTS = "pact.in.num";
+	private static final String NUM_INPUTS = "in.num";
 	
-	private static final String NUM_BROADCAST_INPUTS = "pact.in.broadcast.num";
+	private static final String NUM_BROADCAST_INPUTS = "in.bc.num";
 	
 	/*
 	 * If one input has multiple predecessors (bag union), multiple
@@ -86,132 +86,134 @@ public class TaskConfig {
 	 * Hence, "pact.in.num" would be 3, "pact.size.inputGroup.0"
 	 * would be 2, and "pact.size.inputGroup.1" would be 1.
 	 */
-	private static final String INPUT_GROUP_SIZE_PREFIX = "pact.in.groupsize.";
+	private static final String INPUT_GROUP_SIZE_PREFIX = "in.groupsize.";
 	
-	private static final String BROADCAST_INPUT_GROUP_SIZE_PREFIX = "pact.in.broadcast.groupsize.";
+	private static final String BROADCAST_INPUT_GROUP_SIZE_PREFIX = "in.bc.groupsize.";
 	
-	private static final String INPUT_TYPE_SERIALIZER_FACTORY_PREFIX = "pact.in.serializer.";
+	private static final String INPUT_TYPE_SERIALIZER_FACTORY_PREFIX = "in.serializer.";
 	
-	private static final String BROADCAST_INPUT_TYPE_SERIALIZER_FACTORY_PREFIX = "pact.in.broadcast.serializer.";
+	private static final String BROADCAST_INPUT_TYPE_SERIALIZER_FACTORY_PREFIX = "in.bc.serializer.";
 	
-	private static final String INPUT_TYPE_SERIALIZER_PARAMETERS_PREFIX = "pact.in.serializer.param.";
+	private static final String INPUT_TYPE_SERIALIZER_PARAMETERS_PREFIX = "in.serializer.param.";
 	
-	private static final String BROADCAST_INPUT_TYPE_SERIALIZER_PARAMETERS_PREFIX = "pact.in.broadcast.serializer.param.";
+	private static final String BROADCAST_INPUT_TYPE_SERIALIZER_PARAMETERS_PREFIX = "in.bc.serializer.param.";
 	
-	private static final String INPUT_LOCAL_STRATEGY_PREFIX = "pact.in.strategy.";
+	private static final String INPUT_LOCAL_STRATEGY_PREFIX = "in.strategy.";
 	
-	private static final String INPUT_STRATEGY_COMPARATOR_FACTORY_PREFIX = "pact.in.comparator.";
+	private static final String INPUT_STRATEGY_COMPARATOR_FACTORY_PREFIX = "in.comparator.";
 	
-	private static final String INPUT_STRATEGY_COMPARATOR_PARAMETERS_PREFIX = "pact.in.comparator.param.";
+	private static final String INPUT_STRATEGY_COMPARATOR_PARAMETERS_PREFIX = "in.comparator.param.";
 	
-	private static final String INPUT_DAM_PREFIX = "pact.in.dam.";
+	private static final String INPUT_DAM_PREFIX = "in.dam.";
 	
-	private static final String INPUT_REPLAYABLE_PREFIX = "pact.in.dam.replay.";
+	private static final String INPUT_REPLAYABLE_PREFIX = "in.dam.replay.";
 	
-	private static final String INPUT_DAM_MEMORY_PREFIX = "pact.in.dam.mem.";
+	private static final String INPUT_DAM_MEMORY_PREFIX = "in.dam.mem.";
 	
-	private static final String BROADCAST_INPUT_NAME_PREFIX = "pact.in.broadcast.name.";
+	private static final String BROADCAST_INPUT_NAME_PREFIX = "in.broadcast.name.";
 	
 	
 	// -------------------------------------- Outputs ---------------------------------------------
 	
-	private static final String OUTPUTS_NUM = "pact.out.num";
+	private static final String OUTPUTS_NUM = "out.num";
 	
-	private static final String OUTPUT_TYPE_SERIALIZER_FACTORY = "pact.out.serializer";
+	private static final String OUTPUT_TYPE_SERIALIZER_FACTORY = "out.serializer";
 	
-	private static final String OUTPUT_TYPE_SERIALIZER_PARAMETERS_PREFIX = "pact.out.serializer.param.";
+	private static final String OUTPUT_TYPE_SERIALIZER_PARAMETERS_PREFIX = "out.serializer.param.";
 	
-	private static final String OUTPUT_SHIP_STRATEGY_PREFIX = "pact.out.shipstrategy.";
+	private static final String OUTPUT_SHIP_STRATEGY_PREFIX = "out.shipstrategy.";
 	
-	private static final String OUTPUT_TYPE_COMPARATOR_FACTORY_PREFIX = "pact.out.comp.";
+	private static final String OUTPUT_TYPE_COMPARATOR_FACTORY_PREFIX = "out.comp.";
 	
-	private static final String OUTPUT_TYPE_COMPARATOR_PARAMETERS_PREFIX = "pact.out.comp.param.";
+	private static final String OUTPUT_TYPE_COMPARATOR_PARAMETERS_PREFIX = "out.comp.param.";
 	
-	private static final String OUTPUT_DATA_DISTRIBUTION_CLASS = "pact.out.distribution.class";
+	private static final String OUTPUT_DATA_DISTRIBUTION_CLASS = "out.distribution.class";
 	
-	private static final String OUTPUT_DATA_DISTRIBUTION_PREFIX = "pact.out.distribution.";
+	private static final String OUTPUT_DATA_DISTRIBUTION_PREFIX = "out.distribution.";
 	
 	// ------------------------------------- Chaining ---------------------------------------------
 	
-	private static final String CHAINING_NUM_STUBS = "pact.chaining.num";
+	private static final String CHAINING_NUM_STUBS = "chaining.num";
 	
-	private static final String CHAINING_TASKCONFIG_PREFIX = "pact.chaining.taskconfig.";
+	private static final String CHAINING_TASKCONFIG_PREFIX = "chaining.taskconfig.";
 	
-	private static final String CHAINING_TASK_PREFIX = "pact.chaining.task.";
+	private static final String CHAINING_TASK_PREFIX = "chaining.task.";
 	
-	private static final String CHAINING_TASKNAME_PREFIX = "pact.chaining.taskname.";
+	private static final String CHAINING_TASKNAME_PREFIX = "chaining.taskname.";
 	
 	// ------------------------------------ Memory & Co -------------------------------------------
 	
-	private static final String MEMORY_DRIVER = "pact.memory.driver";
+	private static final String MEMORY_DRIVER = "memory.driver";
 	
-	private static final String MEMORY_INPUT_PREFIX = "pact.memory.input.";
+	private static final String MEMORY_INPUT_PREFIX = "memory.input.";
 	
-	private static final String FILEHANDLES_DRIVER = "pact.filehandles.driver";
+	private static final String FILEHANDLES_DRIVER = "filehandles.driver";
 	
-	private static final String FILEHANDLES_INPUT_PREFIX = "pact.filehandles.input.";
+	private static final String FILEHANDLES_INPUT_PREFIX = "filehandles.input.";
 	
-	private static final String SORT_SPILLING_THRESHOLD_DRIVER = "pact.sort-spill-threshold.driver";
+	private static final String SORT_SPILLING_THRESHOLD_DRIVER = "sort-spill-threshold.driver";
 	
-	private static final String SORT_SPILLING_THRESHOLD_INPUT_PREFIX = "pact.sort-spill-threshold.input.";
+	private static final String SORT_SPILLING_THRESHOLD_INPUT_PREFIX = "sort-spill-threshold.input.";
 	
 	// ----------------------------------- Iterations ---------------------------------------------
 	
-	private static final String NUMBER_OF_ITERATIONS = "pact.iterative.num-iterations";
+	private static final String NUMBER_OF_ITERATIONS = "iterative.num-iterations";
 	
-	private static final String NUMBER_OF_EOS_EVENTS_PREFIX = "pact.iterative.num-eos-events.";
+	private static final String NUMBER_OF_EOS_EVENTS_PREFIX = "iterative.num-eos-events.";
 	
-	private static final String ITERATION_HEAD_ID = "pact.iterative.head.id";
+	private static final String NUMBER_OF_EOS_EVENTS_BROADCAST_PREFIX = "iterative.num-eos-events.bc.";
 	
-	private static final String ITERATION_WORKSET_MARKER = "pact.iterative.is-workset";
+	private static final String ITERATION_HEAD_ID = "iterative.head.id";
 	
-	private static final String ITERATION_HEAD_INDEX_OF_PARTIAL_SOLUTION = "pact.iterative.head.ps-input-index";
+	private static final String ITERATION_WORKSET_MARKER = "iterative.is-workset";
 	
-	private static final String ITERATION_HEAD_INDEX_OF_SOLUTIONSET = "pact.iterative.head.ss-input-index";
+	private static final String ITERATION_HEAD_INDEX_OF_PARTIAL_SOLUTION = "iterative.head.ps-input-index";
 	
-	private static final String ITERATION_HEAD_BACKCHANNEL_MEMORY = "pact.iterative.head.backchannel-memory";
+	private static final String ITERATION_HEAD_INDEX_OF_SOLUTIONSET = "iterative.head.ss-input-index";
 	
-	private static final String ITERATION_HEAD_SOLUTION_SET_MEMORY = "pact.iterative.head.solutionset-memory";
+	private static final String ITERATION_HEAD_BACKCHANNEL_MEMORY = "iterative.head.backchannel-memory";
 	
-	private static final String ITERATION_HEAD_FINAL_OUT_CONFIG_PREFIX = "pact.iterative.head.out.";
+	private static final String ITERATION_HEAD_SOLUTION_SET_MEMORY = "iterative.head.solutionset-memory";
 	
-	private static final String ITERATION_HEAD_SYNC_OUT_INDEX = "pact.iterative.head.sync-index.";
+	private static final String ITERATION_HEAD_FINAL_OUT_CONFIG_PREFIX = "iterative.head.out.";
 	
-	private static final String ITERATION_CONVERGENCE_CRITERION = "pact.iterative.terminationCriterion";
+	private static final String ITERATION_HEAD_SYNC_OUT_INDEX = "iterative.head.sync-index.";
 	
-	private static final String ITERATION_CONVERGENCE_CRITERION_AGG_NAME = "pact.iterative.terminationCriterion.agg.name";
+	private static final String ITERATION_CONVERGENCE_CRITERION = "iterative.terminationCriterion";
 	
-	private static final String ITERATION_NUM_AGGREGATORS = "pact.iterative.num-aggs";
+	private static final String ITERATION_CONVERGENCE_CRITERION_AGG_NAME = "iterative.terminationCriterion.agg.name";
 	
-	private static final String ITERATION_AGGREGATOR_NAME_PREFIX = "pact.iterative.agg.name.";
+	private static final String ITERATION_NUM_AGGREGATORS = "iterative.num-aggs";
 	
-	private static final String ITERATION_AGGREGATOR_PREFIX = "pact.iterative.agg.data.";
+	private static final String ITERATION_AGGREGATOR_NAME_PREFIX = "iterative.agg.name.";
 	
-	private static final String ITERATION_SOLUTION_SET_SERIALIZER = "pact.iterative.ss-serializer";
+	private static final String ITERATION_AGGREGATOR_PREFIX = "iterative.agg.data.";
 	
-	private static final String ITERATION_SOLUTION_SET_SERIALIZER_PARAMETERS = "pact.iterative.ss-serializer.params";
+	private static final String ITERATION_SOLUTION_SET_SERIALIZER = "iterative.ss-serializer";
 	
-	private static final String ITERATION_SOLUTION_SET_COMPARATOR = "pact.iterative.ss-comparator";
+	private static final String ITERATION_SOLUTION_SET_SERIALIZER_PARAMETERS = "iterative.ss-serializer.params";
 	
-	private static final String ITERATION_SOLUTION_SET_COMPARATOR_PARAMETERS = "pact.iterative.ss-comparator.params";
+	private static final String ITERATION_SOLUTION_SET_COMPARATOR = "iterative.ss-comparator";
 	
-	private static final String ITERATION_SOLUTION_SET_PROBER_SERIALIZER = "pact.iterative.ss-prober-serializer";
+	private static final String ITERATION_SOLUTION_SET_COMPARATOR_PARAMETERS = "iterative.ss-comparator.params";
 	
-	private static final String ITERATION_SOLUTION_SET_PROBER_SERIALIZER_PARAMETERS = "pact.iterative.ss-prober-serializer.params";
+	private static final String ITERATION_SOLUTION_SET_PROBER_SERIALIZER = "iterative.ss-prober-serializer";
 	
-	private static final String ITERATION_SOLUTION_SET_PROBER_COMPARATOR = "pact.iterative.ss-prober-comparator";
+	private static final String ITERATION_SOLUTION_SET_PROBER_SERIALIZER_PARAMETERS = "iterative.ss-prober-serializer.params";
 	
-	private static final String ITERATION_SOLUTION_SET_PROBER_COMPARATOR_PARAMETERS = "pact.iterative.ss-prober-comparator.params";
+	private static final String ITERATION_SOLUTION_SET_PROBER_COMPARATOR = "iterative.ss-prober-comparator";
 	
-	private static final String ITERATION_SOLUTION_SET_PAIR_COMPARATOR = "pact.iterative.ss-pair-comparator";
+	private static final String ITERATION_SOLUTION_SET_PROBER_COMPARATOR_PARAMETERS = "iterative.ss-prober-comparator.params";
 	
-	private static final String ITERATION_SOLUTION_SET_UPDATE = "pact.iterative.ss-update";
+	private static final String ITERATION_SOLUTION_SET_PAIR_COMPARATOR = "iterative.ss-pair-comparator";
 	
-	private static final String ITERATION_SOLUTION_SET_UPDATE_SKIP_REPROBE = "pact.iterative.ss-update-fast";
+	private static final String ITERATION_SOLUTION_SET_UPDATE = "iterative.ss-update";
+	
+	private static final String ITERATION_SOLUTION_SET_UPDATE_SKIP_REPROBE = "iterative.ss-update-fast";
 
-    private static final String ITERATION_SOLUTION_SET_UPDATE_WAIT = "pact.iterative.ss-wait";
+    private static final String ITERATION_SOLUTION_SET_UPDATE_WAIT = "iterative.ss-wait";
 
-    private static final String ITERATION_WORKSET_UPDATE = "pact.iterative.ws-update";
+    private static final String ITERATION_WORKSET_UPDATE = "iterative.ws-update";
 
 	// ---------------------------------- Miscellaneous -------------------------------------------
 	
@@ -265,8 +267,7 @@ public class TaskConfig {
 	}
 
 	@SuppressWarnings("unchecked")
-	public <T> UserCodeWrapper<T> getStubWrapper(ClassLoader cl)
-	{
+	public <T> UserCodeWrapper<T> getStubWrapper(ClassLoader cl) {
 		try {
 			return (UserCodeWrapper<T>) InstantiationUtil.readObjectFromConfig(this.config, STUB_OBJECT, cl);
 		} catch (ClassNotFoundException e) {
@@ -789,6 +790,23 @@ public class TaskConfig {
 			throw new IllegalArgumentException();
 		}
 		return this.config.getInteger(NUMBER_OF_EOS_EVENTS_PREFIX + inputGateIndex, 0);
+	}
+	
+	public void setBroadcastGateIterativeWithNumberOfEventsUntilInterrupt(int bcGateIndex, int numEvents) {
+		if (bcGateIndex < 0) {
+			throw new IllegalArgumentException();
+		}
+		if (numEvents <= 0) {
+			throw new IllegalArgumentException();
+		}
+		this.config.setInteger(NUMBER_OF_EOS_EVENTS_BROADCAST_PREFIX + bcGateIndex, numEvents);
+	}
+
+	public int getNumberOfEventsUntilInterruptInIterativeBroadcastGate(int bcGateIndex) {
+		if (bcGateIndex < 0) {
+			throw new IllegalArgumentException();
+		}
+		return this.config.getInteger(NUMBER_OF_EOS_EVENTS_BROADCAST_PREFIX + bcGateIndex, 0);
 	}
 	
 	public void setIterationId(int id) {

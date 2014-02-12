@@ -122,10 +122,6 @@ public class RuntimeUDFContext implements RuntimeContext {
 	}
 
 	public void setBroadcastVariable(String name, Collection<?> value) {
-		if (this.broadcastVars.containsKey(name)) {
-			throw new IllegalArgumentException("The broadcast variable '" + name
-					+ "' already exists and cannot be added.");
-		}
 		this.broadcastVars.put(name, value);
 	}
 

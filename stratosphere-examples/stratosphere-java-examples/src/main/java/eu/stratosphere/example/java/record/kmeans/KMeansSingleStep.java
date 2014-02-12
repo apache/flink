@@ -30,11 +30,12 @@ import eu.stratosphere.api.common.operators.FileDataSink;
 import eu.stratosphere.api.common.operators.FileDataSource;
 import eu.stratosphere.api.java.record.functions.MapFunction;
 import eu.stratosphere.api.java.record.functions.ReduceFunction;
+import eu.stratosphere.api.java.record.io.CsvInputFormat;
+import eu.stratosphere.api.java.record.io.DelimitedOutputFormat;
 import eu.stratosphere.api.java.record.operators.MapOperator;
 import eu.stratosphere.api.java.record.operators.ReduceOperator;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.example.java.record.kmeans.udfs.PointInFormat;
-import eu.stratosphere.example.java.record.kmeans.udfs.PointOutFormat;
+import eu.stratosphere.types.DoubleValue;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.Value;
@@ -43,6 +44,7 @@ import eu.stratosphere.util.Collector;
 
 public class KMeansSingleStep implements Program, ProgramDescription {
 	
+	private static final long serialVersionUID = 1L;
 
 	@Override
 	public Plan getPlan(String... args) {
@@ -53,10 +55,16 @@ public class KMeansSingleStep implements Program, ProgramDescription {
 		String output = (args.length > 3 ? args[3] : "");
 
 		// create DataSourceContract for data point input
-		FileDataSource dataPoints = new FileDataSource(new PointInFormat(), dataPointInput, "Data Points");
+		@SuppressWarnings("unchecked")
+		FileDataSource pointsSource = new FileDataSource(new CsvInputFormat('|', IntValue.class, DoubleValue.class, DoubleValue.class, DoubleValue.class), dataPointInput, "Data Points");
 
 		// create DataSourceContract for cluster center input
-		FileDataSource clusterPoints = new FileDataSource(new PointInFormat(), clusterInput, "Centers");
+		@SuppressWarnings("unchecked")
+		FileDataSource clustersSource = new FileDataSource(new CsvInputFormat('|', IntValue.class, DoubleValue.class, DoubleValue.class, DoubleValue.class), clusterInput, "Centers");
+		
+		MapOperator dataPoints = MapOperator.builder(new PointBuilder()).name("Build data points").input(pointsSource).build();
+		
+		MapOperator clusterPoints = MapOperator.builder(new PointBuilder()).name("Build cluster points").input(clustersSource).build();
 
 		// create CrossOperator for distance computation
 		MapOperator findNearestClusterCenters = MapOperator.builder(new SelectNearestCenter())
@@ -175,6 +183,7 @@ public class KMeansSingleStep implements Program, ProgramDescription {
 		public void open(Configuration parameters) throws Exception {
 			Collection<Record> clusterCenters = this.getRuntimeContext().getBroadcastVariable("centers");
 			
+			centers.clear();
 			for (Record r : clusterCenters) {
 				centers.add(new PointWithId(r.getField(0, IntValue.class).getValue(), r.getField(1, Point.class)));
 			}
@@ -190,7 +199,7 @@ public class KMeansSingleStep implements Program, ProgramDescription {
 		 */
 		@Override
 		public void map(Record dataPointRecord, Collector<Record> out) {
-			Point p = dataPointRecord.getField(0, Point.class);
+			Point p = dataPointRecord.getField(1, Point.class);
 			
 			double nearestDistance = Double.MAX_VALUE;
 			int centerId = -1;
@@ -202,6 +211,7 @@ public class KMeansSingleStep implements Program, ProgramDescription {
 				
 				// update nearest cluster if necessary 
 				if (distance < nearestDistance) {
+					nearestDistance = distance;
 					centerId = center.id;
 				}
 			}
@@ -255,6 +265,42 @@ public class KMeansSingleStep implements Program, ProgramDescription {
 			next.setField(1, p);
 			next.setField(2, new IntValue(count));
 			return next;
+		}
+	}
+	
+	public static final class PointBuilder extends MapFunction {
+
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public void map(Record record, Collector<Record> out) throws Exception {
+			double x = record.getField(1, DoubleValue.class).getValue();
+			double y = record.getField(2, DoubleValue.class).getValue();
+			double z = record.getField(3, DoubleValue.class).getValue();
+			
+			record.setField(1, new Point(x, y, z));
+			out.collect(record);
+		}
+	}
+	
+	public static final class PointOutFormat extends DelimitedOutputFormat {
+
+		private static final long serialVersionUID = 1L;
+		
+		private static final String format = "%d|%.1f|%.1f|%.1f|";
+
+		@Override
+		public int serializeRecord(Record rec, byte[] target) throws Exception {
+			int id = rec.getField(0, IntValue.class).getValue();
+			Point p = rec.getField(1, Point.class);
+			
+			byte[] bytes = String.format(format, id, p.x, p.y, p.z).getBytes();
+			if (bytes.length > target.length) {
+				return -bytes.length;
+			} else {
+				System.arraycopy(bytes, 0, target, 0, bytes.length);
+				return bytes.length;
+			}
 		}
 	}
 }

@@ -54,7 +54,7 @@ public class ChainedCombineDriver<T> extends ChainedDriver<T, T> {
 
 		@SuppressWarnings("unchecked")
 		final GenericReducer<T, ?> combiner = RegularPactTask.instantiateUserCode(config, userCodeClassLoader, GenericReducer.class);
-		combiner.setRuntimeContext(getRuntimeContext(parent, taskName));
+		combiner.setRuntimeContext(getUdfRuntimeContext());
 		this.combiner = combiner;
 	}
 

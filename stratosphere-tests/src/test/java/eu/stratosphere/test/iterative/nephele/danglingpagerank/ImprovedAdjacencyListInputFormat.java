@@ -13,11 +13,11 @@
 
 package eu.stratosphere.test.iterative.nephele.danglingpagerank;
 
-import eu.stratosphere.api.java.record.io.TextInputFormat;
+import eu.stratosphere.api.java.record.io.DelimitedInputFormat;
 import eu.stratosphere.types.LongValue;
 import eu.stratosphere.types.Record;
 
-public class ImprovedAdjacencyListInputFormat extends TextInputFormat {
+public class ImprovedAdjacencyListInputFormat extends DelimitedInputFormat {
   private static final long serialVersionUID = 1L;
 
   private final LongValue vertexID = new LongValue();

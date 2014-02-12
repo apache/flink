@@ -43,9 +43,6 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * The base class for all tasks able to participate in an iteration.
@@ -54,30 +51,28 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 		implements Terminable
 {
 	private static final Log log = LogFactory.getLog(AbstractIterativePactTask.class);
-
-
-	private final AtomicBoolean terminationRequested = new AtomicBoolean(false);
-
-	private RuntimeAggregatorRegistry iterationAggregators;
 	
-	private List<Integer> iterativeInputs = new ArrayList<Integer>();
+	protected LongSumAggregator worksetAggregator;
 
-	private String brokerKey;
-
-	private int superstepNum = 1;
+	protected BlockingBackChannel worksetBackChannel;
 
 	protected boolean isWorksetIteration;
 
 	protected boolean isWorksetUpdate;
 
 	protected boolean isSolutionSetUpdate;
+	
 
-	protected LongSumAggregator worksetAggregator;
+	private RuntimeAggregatorRegistry iterationAggregators;
 
-	protected BlockingBackChannel worksetBackChannel;
+	private String brokerKey;
+
+	private int superstepNum = 1;
+	
+	private volatile boolean terminationRequested;
 
 	// --------------------------------------------------------------------------------------------
-	// Wrapping methods to supplement behavior of the regular Pact Task
+	// Main life cycle methods that implement the iterative behavior
 	// --------------------------------------------------------------------------------------------
 
 	@Override
@@ -93,8 +88,6 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 					excludeFromReset(i);
 				}
 			}
-			// initialize the repeatable driver
-			resDriver.initialize();
 		}
 		
 		TaskConfig config = getLastTasksConfig();
@@ -118,9 +111,20 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 
 	@Override
 	public void run() throws Exception {
-		if (!inFirstIteration()) {
+		if (inFirstIteration()) {
+			if (this.driver instanceof ResettablePactDriver) {
+				// initialize the repeatable driver
+				((ResettablePactDriver<?, ?>) this.driver).initialize();
+			}
+		} else {
 			reinstantiateDriver();
 			resetAllInputs();
+			
+			// re-read the iterative broadcast variables
+			for (int i : this.iterativeBroadcastInputs) {
+				final String name = getTaskConfig().getBroadcastInputName(i);
+				readAndSetBroadcastInput(i, name, this.runtimeUdfContext);
+			}
 		}
 
 		// call the parent to execute the superstep
@@ -138,35 +142,14 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 				try {
 					resDriver.teardown();
 				} catch (Throwable t) {
-					log.error("Error shutting down a resettable driver.", t);
+					log.error("Error while shutting down an iterative operator.", t);
 				}
 			}
 		}
 	}
 
 	@Override
-	protected MutableObjectIterator<?> createInputIterator(int i, MutableReader<?> inputReader, TypeSerializer<?> serializer) {
-
-		final MutableObjectIterator<?> inIter = super.createInputIterator(i, inputReader, serializer);
-		final int numberOfEventsUntilInterrupt = getTaskConfig().getNumberOfEventsUntilInterruptInIterativeGate(i);
-
-		if (numberOfEventsUntilInterrupt < 0) {
-			throw new IllegalArgumentException();
-		}
-		else if (numberOfEventsUntilInterrupt > 0) {
-			inputReader.setIterative(numberOfEventsUntilInterrupt);
-			this.iterativeInputs.add(i);
-
-			if (log.isDebugEnabled()) {
-				log.debug(formatLogString("Input [" + i + "] reads in supersteps with [" +
-						+ numberOfEventsUntilInterrupt + "] event(s) till next superstep."));
-			}
-		}
-		return inIter;
-	}
-
-	@Override
-	public RuntimeUDFContext getRuntimeContext(String taskName) {
+	public RuntimeUDFContext createRuntimeContext(String taskName) {
 		Environment env = getEnvironment();
 		return new IterativeRuntimeUdfContext(taskName, env.getCurrentNumberOfSubtasks(), env.getIndexInSubtaskGroup());
 	}
@@ -223,7 +206,7 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 
 	protected void checkForTerminationAndResetEndOfSuperstepState() throws IOException {
 		// sanity check that there is at least one iterative input reader
-		if (this.iterativeInputs.isEmpty())
+		if (this.iterativeInputs.length == 0 && this.iterativeBroadcastInputs.length == 0)
 			throw new IllegalStateException();
 
 		// check whether this step ended due to end-of-superstep, or proper close
@@ -262,6 +245,23 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 				}
 			}
 		}
+		
+		for (int inputNum : this.iterativeBroadcastInputs) {
+			MutableReader<?> reader = this.broadcastInputReaders[inputNum];
+
+			if (reader.isInputClosed()) {
+				anyClosed = true;
+			}
+			else {
+				// sanity check that the BC input is at the end of teh superstep
+				if (!reader.hasReachedEndOfSuperstep()) {
+					throw new IllegalStateException("An iterative broadcast input has not been fully consumed.");
+				}
+				
+				allClosed = false;
+				reader.startNextSuperstep();
+			}
+		}
 
 		// sanity check whether we saw the same state (end-of-superstep or termination) on all inputs
 		if (allClosed != anyClosed) {
@@ -275,12 +275,12 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 
 	@Override
 	public boolean terminationRequested() {
-		return this.terminationRequested.get();
+		return this.terminationRequested;
 	}
 
 	@Override
 	public void requestTermination() {
-		this.terminationRequested.set(true);
+		this.terminationRequested = true;
 	}
 
 	@Override

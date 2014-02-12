@@ -34,9 +34,14 @@ public abstract class AbstractCachedBuildSideMatchDriver<IT1, IT2, OT> extends M
 	protected volatile MutableHashTable<?, ?> hashJoin;
 
 	
-	protected abstract int getBuildSideIndex();
+	private final int buildSideIndex;
 	
-	protected abstract int getProbeSideIndex();
+	private final int probeSideIndex;
+	
+	protected AbstractCachedBuildSideMatchDriver(int buildSideIndex, int probeSideIndex) {
+		this.buildSideIndex = buildSideIndex;
+		this.probeSideIndex = probeSideIndex;
+	}
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -45,7 +50,7 @@ public abstract class AbstractCachedBuildSideMatchDriver<IT1, IT2, OT> extends M
 		if (inputNum < 0 || inputNum > 1) {
 			throw new IndexOutOfBoundsException();
 		}
-		return inputNum == getBuildSideIndex();
+		return inputNum == buildSideIndex;
 	}
 
 	@Override
@@ -66,12 +71,12 @@ public abstract class AbstractCachedBuildSideMatchDriver<IT1, IT2, OT> extends M
 		List<MemorySegment> memSegments = this.taskContext.getMemoryManager().allocatePages(
 			this.taskContext.getOwningNepheleTask(), numMemoryPages);
 
-		if (getBuildSideIndex() == 0 && getProbeSideIndex() == 1) {
+		if (buildSideIndex == 0 && probeSideIndex == 1) {
 			MutableHashTable<IT1, IT2> hashJoin = new MutableHashTable<IT1, IT2>(serializer1, serializer2, comparator1, comparator2,
 					pairComparatorFactory.createComparator21(comparator1, comparator2), memSegments, this.taskContext.getIOManager());
 			this.hashJoin = hashJoin;
 			hashJoin.open(input1, EmptyMutableObjectIterator.<IT2>get());
-		} else if (getBuildSideIndex() == 1 && getProbeSideIndex() == 0) {
+		} else if (buildSideIndex == 1 && probeSideIndex == 0) {
 			MutableHashTable<IT2, IT1> hashJoin = new MutableHashTable<IT2, IT1>(serializer2, serializer1, comparator2, comparator1,
 					pairComparatorFactory.createComparator12(comparator1, comparator2), memSegments, this.taskContext.getIOManager());
 			this.hashJoin = hashJoin;
@@ -92,7 +97,7 @@ public abstract class AbstractCachedBuildSideMatchDriver<IT1, IT2, OT> extends M
 		final GenericJoiner<IT1, IT2, OT> matchStub = this.taskContext.getStub();
 		final Collector<OT> collector = this.taskContext.getOutputCollector();
 		
-		if (getBuildSideIndex() == 0) {
+		if (buildSideIndex == 0) {
 			final TypeSerializer<IT1> buildSideSerializer = taskContext.<IT1> getInputSerializer(0);
 			final TypeSerializer<IT2> probeSideSerializer = taskContext.<IT2> getInputSerializer(1);
 			
@@ -117,7 +122,7 @@ public abstract class AbstractCachedBuildSideMatchDriver<IT1, IT2, OT> extends M
 					matchStub.join(buildSideRecordFirst, probeSideRecord, collector);
 				}
 			}
-		} else if (getBuildSideIndex() == 1) {
+		} else if (buildSideIndex == 1) {
 			final TypeSerializer<IT2> buildSideSerializer = taskContext.<IT2> getInputSerializer(1);
 			final TypeSerializer<IT1> probeSideSerializer = taskContext.<IT1> getInputSerializer(0);
 			

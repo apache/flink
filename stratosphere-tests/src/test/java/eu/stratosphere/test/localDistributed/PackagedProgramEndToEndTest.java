@@ -22,7 +22,7 @@ import org.junit.Test;
 
 import eu.stratosphere.client.RemoteExecutor;
 import eu.stratosphere.client.localDistributed.LocalDistributedExecutor;
-import eu.stratosphere.test.exampleRecordPrograms.KMeansStepITCase;
+import eu.stratosphere.test.testdata.KMeansData;
 
 // When the API changes WordCountForTest needs to be rebuilt and the WordCountForTest.jar in resources needs
 // to be replaced with the new one.
@@ -43,11 +43,11 @@ public class PackagedProgramEndToEndTest {
 			outFile.delete();
 			
 			FileWriter fwPoints = new FileWriter(points);
-			fwPoints.write(KMeansStepITCase.DATAPOINTS);
+			fwPoints.write(KMeansData.DATAPOINTS);
 			fwPoints.close();
 
 			FileWriter fwClusters = new FileWriter(clusters);
-			fwClusters.write(KMeansStepITCase.CLUSTERCENTERS);
+			fwClusters.write(KMeansData.INITIAL_CENTERS);
 			fwClusters.close();
 
 			URL jarFileURL = getClass().getResource("/KMeansForTest.jar");
@@ -61,9 +61,9 @@ public class PackagedProgramEndToEndTest {
 			ex.executeJar(jarPath,
 					"eu.stratosphere.examples.scala.datamining.KMeansForTest",
 					new String[] {"4",
-							"file://" + points.getAbsolutePath(),
-							"file://" + clusters.getAbsolutePath(),
-							"file://" + outFile.getAbsolutePath(),
+							points.toURI().toString(),
+							clusters.toURI().toString(),
+							outFile.toURI().toString(),
 							"1"});
 
 			points.delete();

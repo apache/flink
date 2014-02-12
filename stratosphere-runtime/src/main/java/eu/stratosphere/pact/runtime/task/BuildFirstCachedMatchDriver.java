@@ -15,13 +15,7 @@ package eu.stratosphere.pact.runtime.task;
 
 public class BuildFirstCachedMatchDriver<IT1, IT2, OT> extends AbstractCachedBuildSideMatchDriver<IT1, IT2, OT> {
 
-	@Override
-	protected int getBuildSideIndex() {
-		return 0;
-	}
-
-	@Override
-	protected int getProbeSideIndex() {
-		return 1;
+	public BuildFirstCachedMatchDriver() {
+		super(0, 1);
 	}
 }
