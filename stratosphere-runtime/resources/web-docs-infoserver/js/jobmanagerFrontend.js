@@ -387,13 +387,13 @@ function _fillTableArchive(table, job, prepend) {
 	
 	if(prepend)
 		$(table).prepend(
-				"<li id=\""+job.jobid+"_archive\"><a href=\"/analyze.html?job=" + job.jobid + "\">"
+				"<li id=\""+job.jobid+"_archive\"><a href=\"analyze.html?job=" + job.jobid + "\">"
 						+ job.jobname + " (time: "
 						+ formattedTimeFromTimestamp(parseInt(job.time))
 						+ ")</a></li>");
 	else
 		$(table).append(
-				"<li><a href=\"/analyze.html?job=" + job.jobid + "\">"
+				"<li><a href=\"analyze.html?job=" + job.jobid + "\">"
 						+ job.jobname + " (time: "
 						+ formattedTimeFromTimestamp(parseInt(job.time))
 						+ ")</a></li>");
