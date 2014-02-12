@@ -25,7 +25,9 @@ import eu.stratosphere.util.Collector;
  * The CoGroupFunction is the base class for functions that are invoked by a {@link CoGroupOperator}.
  */
 public abstract class CoGroupFunction extends AbstractFunction implements GenericCoGrouper<Record, Record, Record> {
-	
+
+	private static final long serialVersionUID = 1L;
+
 	/**
 	 * This method must be implemented to provide a user implementation of a
 	 * matcher. It is called for each two key-value pairs that share the same

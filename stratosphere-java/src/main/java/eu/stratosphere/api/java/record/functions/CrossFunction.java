@@ -24,6 +24,8 @@ import eu.stratosphere.util.Collector;
  */
 public abstract class CrossFunction extends AbstractFunction implements GenericCrosser<Record, Record, Record> {
 	
+	private static final long serialVersionUID = 1L;
+	
 	/**
 	 * This method must be implemented to provide a user implementation of a cross.
 	 * It is called for each element of the Cartesian product of both input sets.

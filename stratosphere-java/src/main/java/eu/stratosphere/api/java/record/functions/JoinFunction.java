@@ -25,6 +25,8 @@ import eu.stratosphere.util.Collector;
  */
 public abstract class JoinFunction extends AbstractFunction implements GenericJoiner<Record, Record, Record> {
 	
+	private static final long serialVersionUID = 1L;
+	
 	/**
 	 * This method must be implemented to provide a user implementation of a join.
 	 * It is called for each two records that share the same key and come from different inputs.
