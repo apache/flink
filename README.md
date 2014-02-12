@@ -142,7 +142,6 @@ public class Tutorial implements Program {
         Plan toExecute = tut.getPlan(args);
         long runtime = LocalExecutor.execute(toExecute);
         System.out.println("Runime: " + runtime);
-        System.exit(0);
     }
 }
 ```
