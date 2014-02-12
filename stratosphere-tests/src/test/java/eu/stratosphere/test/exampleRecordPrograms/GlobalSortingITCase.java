@@ -135,6 +135,8 @@ public class GlobalSortingITCase extends TestBase {
 	
 	private static class GlobalSort implements Program {
 		
+		private static final long serialVersionUID = 1L;
+
 		@Override
 		public Plan getPlan(String... args) throws IllegalArgumentException {
 			// parse program parameters

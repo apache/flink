@@ -160,7 +160,10 @@ public abstract class AbstractCachedBuildSideMatchDriver<IT1, IT2, OT> extends M
 
 	@Override
 	public void teardown() {
-		this.hashJoin.close();
+		MutableHashTable<?, ?> ht = this.hashJoin;
+		if (ht != null) {
+			ht.close();
+		}
 	}
 
 	@Override

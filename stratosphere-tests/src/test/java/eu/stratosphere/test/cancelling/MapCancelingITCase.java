@@ -99,6 +99,8 @@ public class MapCancelingITCase extends CancellingTestBase {
 	// --------------------------------------------------------------------------------------------
 	
 	public static final class IdentityMapper extends MapFunction {
+		private static final long serialVersionUID = 1L;
+
 		@Override
 		public void map(Record record, Collector<Record> out) throws Exception {
 			out.collect(record);
@@ -106,6 +108,7 @@ public class MapCancelingITCase extends CancellingTestBase {
 	}
 	
 	public static final class DelayingIdentityMapper extends MapFunction {
+		private static final long serialVersionUID = 1L;
 		
 		private static final int WAIT_TIME_PER_RECORD = 10 * 1000; // 10 sec.
 
@@ -117,6 +120,7 @@ public class MapCancelingITCase extends CancellingTestBase {
 	}
 	
 	public static final class LongCancelTimeIdentityMapper extends MapFunction {
+		private static final long serialVersionUID = 1L;
 		
 		private static final int WAIT_TIME_PER_RECORD = 5 * 1000; // 5 sec.
 
@@ -135,6 +139,7 @@ public class MapCancelingITCase extends CancellingTestBase {
 	}
 	
 	public static final class StuckInOpenIdentityMapper extends MapFunction {
+		private static final long serialVersionUID = 1L;
 		
 		@Override
 		public void open(Configuration parameters) throws Exception {

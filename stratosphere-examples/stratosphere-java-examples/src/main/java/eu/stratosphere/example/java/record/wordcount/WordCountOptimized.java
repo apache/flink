@@ -42,12 +42,16 @@ import eu.stratosphere.util.Collector;
  */
 public class WordCountOptimized implements Program, ProgramDescription {
 	
+	private static final long serialVersionUID = 1L;
+
 	/**
 	 * Converts a Record containing one string in to multiple string/integer pairs.
 	 * The string is tokenized by whitespaces. For each token a new record is emitted,
 	 * where the token is the first field and an Integer(1) is the second field.
 	 */
 	public static class TokenizeLine extends MapFunction {
+		
+		private static final long serialVersionUID = 1L;
 		
 		// initialize reusable mutable objects
 		private final Record outputRecord = new Record();
@@ -85,6 +89,8 @@ public class WordCountOptimized implements Program, ProgramDescription {
 	@Combinable
 	@ConstantFields(0)
 	public static class CountWords extends ReduceFunction {
+		
+		private static final long serialVersionUID = 1L;
 		
 		private final IntValue cnt = new IntValue();
 		
@@ -151,6 +157,5 @@ public class WordCountOptimized implements Program, ProgramDescription {
 		WordCountOptimized wc = new WordCountOptimized();
 		Plan plan = wc.getPlan("1", "file:///path/to/input", "file:///path/to/output");
 		LocalExecutor.execute(plan);
-		System.exit(0);
 	}
 }

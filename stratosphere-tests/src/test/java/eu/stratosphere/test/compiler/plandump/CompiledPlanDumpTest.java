@@ -55,10 +55,10 @@ public class CompiledPlanDumpTest extends CompilerTestBase {
 		dump(new WebLogAnalysis().getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, IN_FILE, OUT_FILE));
 	}
 
-	@Test
-	public void dumpBulkIterationKMeans() {
-		dump(new KMeansIterative().getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, OUT_FILE));
-	}
+//	@Test
+//	public void dumpBulkIterationKMeans() {
+//		dump(new KMeansIterative().getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, OUT_FILE));
+//	}
 	
 	@Test
 	public void dumpWorksetConnectedComponents() {

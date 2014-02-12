@@ -13,23 +13,17 @@
 
 package eu.stratosphere.example.java.record.wordcount;
 
-import java.io.Serializable;
-import java.util.Date;
 import java.util.Iterator;
 import java.util.StringTokenizer;
-
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
 
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.Program;
 import eu.stratosphere.api.common.ProgramDescription;
-import eu.stratosphere.api.common.accumulators.AccumulatorHelper;
 import eu.stratosphere.api.common.operators.FileDataSink;
 import eu.stratosphere.api.common.operators.FileDataSource;
+import eu.stratosphere.api.java.record.functions.FunctionAnnotation.ConstantFields;
 import eu.stratosphere.api.java.record.functions.MapFunction;
 import eu.stratosphere.api.java.record.functions.ReduceFunction;
-import eu.stratosphere.api.java.record.functions.FunctionAnnotation.ConstantFields;
 import eu.stratosphere.api.java.record.io.CsvOutputFormat;
 import eu.stratosphere.api.java.record.io.TextInputFormat;
 import eu.stratosphere.api.java.record.operators.MapOperator;
@@ -48,12 +42,15 @@ import eu.stratosphere.util.Collector;
  */
 public class WordCount implements Program, ProgramDescription {
 	
+	private static final long serialVersionUID = 1L;
+
+
 	/**
 	 * Converts a Record containing one string in to multiple string/integer pairs.
 	 * The string is tokenized by whitespaces. For each token a new record is emitted,
 	 * where the token is the first field and an Integer(1) is the second field.
 	 */
-	public static class TokenizeLine extends MapFunction implements Serializable {
+	public static class TokenizeLine extends MapFunction {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -81,7 +78,7 @@ public class WordCount implements Program, ProgramDescription {
 	 */
 	@Combinable
 	@ConstantFields(0)
-	public static class CountWords extends ReduceFunction implements Serializable {
+	public static class CountWords extends ReduceFunction {
 		
 		private static final long serialVersionUID = 1L;
 		
@@ -134,7 +131,7 @@ public class WordCount implements Program, ProgramDescription {
 
 	@Override
 	public String getDescription() {
-		return "Parameters: [numSubStasks] [input] [output]";
+		return "Parameters: <numSubStasks> <input> <output>";
 	}
 
 	

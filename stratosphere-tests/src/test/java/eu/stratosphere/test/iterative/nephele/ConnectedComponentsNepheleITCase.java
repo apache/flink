@@ -219,7 +219,9 @@ public class ConnectedComponentsNepheleITCase extends TestBase2 {
 
     public static final class IdDuplicator extends MapFunction {
 
-        @Override
+		private static final long serialVersionUID = 1L;
+
+		@Override
         public void map(Record record, Collector<Record> out) throws Exception {
             record.setField(1, record.getField(0, LongValue.class));
             out.collect(record);
@@ -437,10 +439,8 @@ public class ConnectedComponentsNepheleITCase extends TestBase2 {
 
     public JobGraph createJobGraphUnifiedTails(
             String verticesPath, String edgesPath, String resultPath, int numSubTasks, int maxIterations)
-            throws JobGraphDefinitionException {
-    	
-    	numSubTasks = 1;
-
+            throws JobGraphDefinitionException
+    {
         // -- init -------------------------------------------------------------------------------------------------
         final TypeSerializerFactory<?> serializer = RecordSerializerFactory.get();
         @SuppressWarnings("unchecked")
@@ -908,10 +908,13 @@ public class ConnectedComponentsNepheleITCase extends TestBase2 {
         return jobGraph;
     }
 
-    public static final class DummyMapper extends MapFunction {
-        @Override
-        public void map(Record rec, Collector<Record> out) {
-            out.collect(rec);
-        }
-    }
+	public static final class DummyMapper extends MapFunction {
+
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public void map(Record rec, Collector<Record> out) {
+			out.collect(rec);
+		}
+	}
 }

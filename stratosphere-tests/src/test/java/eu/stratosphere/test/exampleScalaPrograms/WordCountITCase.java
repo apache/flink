@@ -13,27 +13,15 @@
 
 package eu.stratosphere.test.exampleScalaPrograms;
 
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.configuration.Configuration;
+
 import eu.stratosphere.examples.scala.wordcount.WordCount;
 
-@RunWith(Parameterized.class)
 public class WordCountITCase extends eu.stratosphere.test.exampleRecordPrograms.WordCountITCase {
-
-	public WordCountITCase(Configuration config) {
-		super(config);
-	}
 
 	@Override
 	protected Plan getTestJob() {
 		WordCount wc = new WordCount();
-		return wc.getScalaPlan(
-			config.getInteger("WordCountTest#NumSubtasks", 1),
-			textPath, resultPath);
+		return wc.getScalaPlan(4, textPath, resultPath);
 	}
-
-	
 }

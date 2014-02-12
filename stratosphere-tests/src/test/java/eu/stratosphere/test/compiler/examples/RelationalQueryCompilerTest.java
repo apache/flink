@@ -34,7 +34,7 @@ import eu.stratosphere.test.compiler.CompilerTestBase;
 /**
  * Tests TPCH Q3 (simplified) under various input conditions.
  */
-public class TPCHQuery3CompilerTest extends CompilerTestBase {
+public class RelationalQueryCompilerTest extends CompilerTestBase {
 	
 	private static final String ORDERS = "Orders";
 	private static final String LINEITEM = "LineItems";

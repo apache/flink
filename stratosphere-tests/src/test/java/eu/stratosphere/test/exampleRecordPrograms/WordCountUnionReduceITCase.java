@@ -22,7 +22,6 @@ import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.Program;
-import eu.stratosphere.api.common.ProgramDescription;
 import eu.stratosphere.api.common.operators.FileDataSink;
 import eu.stratosphere.api.common.operators.FileDataSource;
 import eu.stratosphere.api.java.record.io.CsvOutputFormat;
@@ -34,6 +33,7 @@ import eu.stratosphere.example.java.record.wordcount.WordCount.CountWords;
 import eu.stratosphere.example.java.record.wordcount.WordCount.TokenizeLine;
 import eu.stratosphere.nephele.io.MutableUnionRecordReader;
 import eu.stratosphere.nephele.io.UnionRecordReader;
+import eu.stratosphere.test.testdata.WordCountData;
 import eu.stratosphere.test.util.TestBase2;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.StringValue;
@@ -51,10 +51,6 @@ import eu.stratosphere.types.StringValue;
  */
 @RunWith(Parameterized.class)
 public class WordCountUnionReduceITCase extends TestBase2 {
-
-	private final String INPUT = WordCountITCase.TEXT;
-
-	private final String EXPECTED_COUNTS = WordCountITCase.COUNTS;
 
 	private String inputPath;
 
@@ -83,7 +79,7 @@ public class WordCountUnionReduceITCase extends TestBase2 {
 
 	@Override
 	protected void preSubmit() throws Exception {
-		String input = repeatString(INPUT, this.config.getInteger("WordCountUnionReduce#InputSizeFactor", 1));
+		String input = repeatString(WordCountData.TEXT, this.config.getInteger("WordCountUnionReduce#InputSizeFactor", 1));
 
 		this.inputPath = createTempFile("input.txt", input);
 		this.outputPath = getTempDirPath("output");
@@ -99,7 +95,7 @@ public class WordCountUnionReduceITCase extends TestBase2 {
 	@Override
 	protected void postSubmit() throws Exception {
 		String expectedCounts =
-			multiplyIntegersInString(EXPECTED_COUNTS,
+			multiplyIntegersInString(WordCountData.COUNTS,
 				// adjust counts to string repetition (InputSizeFactor) and two mappers (*2)
 				this.config.getInteger("WordCountUnionReduce#InputSizeFactor", 1) * 2);
 		compareResultsByLinesInMemory(expectedCounts, this.outputPath);
@@ -110,12 +106,9 @@ public class WordCountUnionReduceITCase extends TestBase2 {
 	 * 
 	 * @see {@link https://github.com/stratosphere/stratosphere/issues/192}
 	 */
-	private class WordCountUnionReduce implements Program, ProgramDescription {
+	private class WordCountUnionReduce implements Program {
 
-		@Override
-		public String getDescription() {
-			return "Usage: [input path] [output path] [num subtasks]";
-		}
+		private static final long serialVersionUID = 1L;
 
 		/**
 		 * <pre>

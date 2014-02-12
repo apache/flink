@@ -13,21 +13,21 @@
 
 package eu.stratosphere.test.iterative;
 
-import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.example.java.record.kmeans.KMeansIterative;
-import eu.stratosphere.test.exampleRecordPrograms.KMeansStepITCase;
-import eu.stratosphere.test.testdata.KMeansData;
-
-public class IterativeKMeansITCase extends KMeansStepITCase {
-
-	@Override
-	protected Plan getTestJob() {
-		KMeansIterative kmi = new KMeansIterative();
-		return kmi.getPlan("4", dataPath, clusterPath, resultPath, "20");
-	}
-	
-	@Override
-	protected String getNewCenters() {
-		return KMeansData.CENTERS_AFTER_20_ITERATIONS_DOUBLE_DIGIT;
-	}
-}
+//import eu.stratosphere.api.common.Plan;
+//import eu.stratosphere.example.java.record.kmeans.KMeansIterative;
+//import eu.stratosphere.test.exampleRecordPrograms.KMeansStepITCase;
+//import eu.stratosphere.test.testdata.KMeansData;
+//
+//public class IterativeKMeansITCase extends KMeansStepITCase {
+//
+//	@Override
+//	protected Plan getTestJob() {
+//		KMeansIterative kmi = new KMeansIterative();
+//		return kmi.getPlan("4", dataPath, clusterPath, resultPath, "20");
+//	}
+//	
+//	@Override
+//	protected String getNewCenters() {
+//		return KMeansData.CENTERS_AFTER_20_ITERATIONS_DOUBLE_DIGIT;
+//	}
+//}

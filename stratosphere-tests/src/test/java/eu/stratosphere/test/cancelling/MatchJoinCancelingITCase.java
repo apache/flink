@@ -203,6 +203,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase {
 	// --------------------------------------------------------------------------------------------
 	
 	public static final class SimpleMatcher extends JoinFunction {
+		private static final long serialVersionUID = 1L;
 		
 		@Override
 		public void join(Record value1, Record value2, Collector<Record> out) throws Exception {
@@ -212,6 +213,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase {
 	}
 	
 	public static final class DelayingMatcher extends JoinFunction {
+		private static final long serialVersionUID = 1L;
 		
 		private static final int WAIT_TIME_PER_RECORD = 10 * 1000; // 10 sec.
 
@@ -224,6 +226,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase {
 	}
 	
 	public static final class LongCancelTimeMatcher extends JoinFunction {
+		private static final long serialVersionUID = 1L;
 		
 		private static final int WAIT_TIME_PER_RECORD = 5 * 1000; // 5 sec.
 		
@@ -244,6 +247,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase {
 	}
 	
 	public static final class StuckInOpenMatcher extends JoinFunction {
+		private static final long serialVersionUID = 1L;
 		
 		@Override
 		public void open(Configuration parameters) throws Exception {

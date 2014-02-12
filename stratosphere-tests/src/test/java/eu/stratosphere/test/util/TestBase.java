@@ -167,7 +167,6 @@ public abstract class TestBase {
 		}
 
 		if (clusterConfigs.isEmpty()) {
-			LOG.warn("No test config defined for test-class '" + testClassName + "'. Using default config: '"+Constants.DEFAULT_TEST_CONFIG+"'.");	
 			clusterConfigs.add(Constants.DEFAULT_TEST_CONFIG);
 		}
 

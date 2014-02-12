@@ -255,14 +255,18 @@ public class IterationWithChainingNepheleITCase extends TestBase2 {
     }
 
     public static final class DummyMapper extends MapFunction {
-        @Override
+		private static final long serialVersionUID = 1L;
+
+		@Override
         public void map(Record rec, Collector<Record> out) {
             out.collect(rec);
         }
     }
 
     public static final class DummyReducer extends ReduceFunction {
-        @Override
+		private static final long serialVersionUID = 1L;
+
+		@Override
         public void reduce(Iterator<Record> it, Collector<Record> out) {
             while (it.hasNext()) {
                 out.collect(it.next());
@@ -271,7 +275,9 @@ public class IterationWithChainingNepheleITCase extends TestBase2 {
     }
 
     public static final class IncrementCoordinatesMapper extends MapFunction {
-        @Override
+		private static final long serialVersionUID = 1L;
+
+		@Override
         public void map(Record rec, Collector<Record> out) {
             CoordVector coord = rec.getField(1, CoordVector.class);
 
@@ -284,5 +290,4 @@ public class IterationWithChainingNepheleITCase extends TestBase2 {
             out.collect(rec);
         }
     }
-
 }

@@ -15,7 +15,6 @@ package eu.stratosphere.test.compiler.iterations;
 import java.util.Arrays;
 
 import org.junit.Assert;
-import org.junit.Test;
 
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.operators.FileDataSource;
@@ -57,7 +56,7 @@ public class IterativeKMeansTest extends CompilerTestBase {
 	//  K-Means (Bulk Iteration)
 	// --------------------------------------------------------------------------------------------
 	
-	@Test
+//	@Test
 	public void testCompileKMeansWithStats() {
 		
 		KMeansIterative kmi = new KMeansIterative();
@@ -97,7 +96,7 @@ public class IterativeKMeansTest extends CompilerTestBase {
 		jobGen.compileJobGraph(plan);
 	}
 	
-	@Test
+//	@Test
 	public void testCompileKMeansIterationForwardCenters() {
 		
 		KMeansIterative kmi = new KMeansIterative();

@@ -15,16 +15,18 @@ package eu.stratosphere.test.clients.examples;
 import java.io.File;
 import java.io.FileWriter;
 
+import org.apache.log4j.Level;
 import org.junit.Assert;
 import org.junit.Test;
 
 import eu.stratosphere.client.LocalExecutor;
 import eu.stratosphere.example.java.record.wordcount.WordCount;
-import eu.stratosphere.test.exampleRecordPrograms.WordCountITCase;
+import eu.stratosphere.test.testdata.WordCountData;
+import eu.stratosphere.util.LogUtils;
 
 
 public class LocalExecutorTest {
-
+	
 	@Test
 	public void testLocalExecutorWithWordCount() {
 		try {
@@ -35,12 +37,19 @@ public class LocalExecutorTest {
 			outFile.deleteOnExit();
 			
 			FileWriter fw = new FileWriter(inFile);
-			fw.write(WordCountITCase.TEXT);
+			fw.write(WordCountData.TEXT);
 			fw.close();
 			
 			// run WordCount
 			WordCount wc = new WordCount();
-			LocalExecutor.execute(wc, "4", inFile.toURI().toString(), outFile.toURI().toString());
+			
+			LocalExecutor executor = new LocalExecutor();
+			
+			LogUtils.initializeDefaultConsoleLogger(Level.ERROR);
+			
+			executor.start();
+			executor.executePlan(wc.getPlan("4", inFile.toURI().toString(), outFile.toURI().toString()));
+			executor.stop();
 		} catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail(e.getMessage());

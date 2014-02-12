@@ -13,7 +13,7 @@
 
 package eu.stratosphere.test.util;
 
-import org.junit.BeforeClass;
+import org.apache.log4j.Level;
 
 import junit.framework.Assert;
 import eu.stratosphere.configuration.Configuration;
@@ -42,13 +42,10 @@ public abstract class FailingTestBase extends TestBase {
 	 */
 	public FailingTestBase(Configuration config, String clusterConfig) {
 		super(config,clusterConfig);
+		
+		// no logging here, since it would otherwise print all the purposeful user code errors to the test logs
+		LogUtils.initializeDefaultConsoleLogger(Level.OFF);
 	}
-	
-	@BeforeClass
-	public static void initLogging() {
-		LogUtils.initializeDefaultTestConsoleLogger();
-	}
-	
 	
 	/**
 	 * Returns the {@link JobGraph} of the failing job. 

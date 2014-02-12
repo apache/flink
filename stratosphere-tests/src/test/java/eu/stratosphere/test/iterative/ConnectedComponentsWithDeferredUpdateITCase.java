@@ -172,6 +172,8 @@ public class ConnectedComponentsWithDeferredUpdateITCase extends TestBase2 {
 	
 	public static final class IdentityMap extends MapFunction {
 
+		private static final long serialVersionUID = 1L;
+
 		@Override
 		public void map(Record record, Collector<Record> out) throws Exception {
 			out.collect(record);

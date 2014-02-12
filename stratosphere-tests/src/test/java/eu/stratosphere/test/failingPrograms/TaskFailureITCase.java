@@ -45,9 +45,7 @@ import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
 
 /**
- * Tests whether the system recovers from a runtime exception from the PACT user code.
- * 
- *
+ * Tests whether the system recovers from a runtime exception from the user code.
  */
 @RunWith(Parameterized.class)
 public class TaskFailureITCase extends FailingTestBase {
@@ -211,6 +209,8 @@ public class TaskFailureITCase extends FailingTestBase {
 	 */
 	public static class TestMapper extends MapFunction {
 
+		private static final long serialVersionUID = 1L;
+		
 		private final StringValue string = new StringValue();
 		private final IntValue integer = new IntValue();
 
@@ -243,11 +243,11 @@ public class TaskFailureITCase extends FailingTestBase {
 	 */
 	public static class FailingMapper extends MapFunction {
 
+		private static final long serialVersionUID = 1L;
+
 		@Override
 		public void map(Record record, Collector<Record> out) throws Exception {
 			throw new RuntimeException("This is an expected Test Exception");
 		}
-		
 	}
-	
 }

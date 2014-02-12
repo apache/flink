@@ -62,7 +62,7 @@ public class KMeansIterativeNepheleITCase extends TestBase2 {
 	protected String resultPath;
 	
 	public KMeansIterativeNepheleITCase() {
-		LogUtils.initializeDefaultConsoleLogger();
+		LogUtils.initializeDefaultTestConsoleLogger();
 	}
 
 	@Override
@@ -79,7 +79,7 @@ public class KMeansIterativeNepheleITCase extends TestBase2 {
 
 	@Override
 	protected JobGraph getJobGraph() throws Exception {
-		return createJobGraph(dataPath, clusterPath, this.resultPath, 1, 20);
+		return createJobGraph(dataPath, clusterPath, this.resultPath, 4, 20);
 	}
 
 	// -------------------------------------------------------------------------------------------------------------

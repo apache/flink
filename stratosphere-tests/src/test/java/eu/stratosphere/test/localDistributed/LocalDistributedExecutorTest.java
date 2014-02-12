@@ -14,7 +14,8 @@ package eu.stratosphere.test.localDistributed;
 
 import eu.stratosphere.client.localDistributed.LocalDistributedExecutor;
 import eu.stratosphere.example.java.record.wordcount.WordCount;
-import eu.stratosphere.test.exampleRecordPrograms.WordCountITCase;
+import eu.stratosphere.test.testdata.WordCountData;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -36,7 +37,7 @@ public class LocalDistributedExecutorTest {
 			outFile.deleteOnExit();
 			
 			FileWriter fw = new FileWriter(inFile);
-			fw.write(WordCountITCase.TEXT);
+			fw.write(WordCountData.TEXT);
 			fw.close();
 			
 			// run WordCount
