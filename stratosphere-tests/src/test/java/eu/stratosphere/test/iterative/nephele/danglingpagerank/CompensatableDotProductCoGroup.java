@@ -26,6 +26,9 @@ import java.util.Set;
 
 public class CompensatableDotProductCoGroup extends CoGroupFunction {
 	
+	private static final long serialVersionUID = 1L;
+	
+
 	public static final String AGGREGATOR_NAME = "pagerank.aggregator";
 
 	private Record accumulator = new Record();
@@ -59,7 +62,7 @@ public class CompensatableDotProductCoGroup extends CoGroupFunction {
 	private DoubleValue doubleInstance = new DoubleValue();
 
 	@Override
-	public void open(Configuration parameters) throws Exception {
+	public void open(Configuration parameters) {
 		workerIndex = getRuntimeContext().getIndexOfThisSubtask();
 		currentIteration = getIterationRuntimeContext().getSuperstepNumber();
 		
@@ -81,8 +84,7 @@ public class CompensatableDotProductCoGroup extends CoGroupFunction {
 	}
 
 	@Override
-	public void coGroup(Iterator<Record> currentPageRankIterator, Iterator<Record> partialRanks,
-			Collector<Record> collector) {
+	public void coGroup(Iterator<Record> currentPageRankIterator, Iterator<Record> partialRanks, Collector<Record> collector) {
 
 		if (!currentPageRankIterator.hasNext()) {
 			long missingVertex = partialRanks.next().getField(0, LongValue.class).getValue();

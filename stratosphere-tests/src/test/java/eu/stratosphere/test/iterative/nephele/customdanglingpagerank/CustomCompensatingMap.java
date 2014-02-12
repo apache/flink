@@ -25,6 +25,9 @@ import java.util.Set;
 
 public class CustomCompensatingMap extends AbstractFunction implements GenericMapper<VertexWithRankAndDangling, VertexWithRankAndDangling> {
 	
+	private static final long serialVersionUID = 1L;
+	
+	
 	private boolean isFailureIteration;
 
 	private boolean isFailingWorker;

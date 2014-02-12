@@ -13,35 +13,31 @@
 
 package eu.stratosphere.example.java.record.wordcount;
 
+import java.util.Iterator;
+import java.util.StringTokenizer;
+
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.Program;
-import eu.stratosphere.api.common.ProgramDescription;
 import eu.stratosphere.api.common.operators.FileDataSink;
 import eu.stratosphere.api.common.operators.FileDataSource;
-import eu.stratosphere.api.java.record.functions.FunctionAnnotation.ConstantFields;
 import eu.stratosphere.api.java.record.functions.MapFunction;
 import eu.stratosphere.api.java.record.functions.ReduceFunction;
 import eu.stratosphere.api.java.record.io.CsvOutputFormat;
 import eu.stratosphere.api.java.record.io.TextInputFormat;
 import eu.stratosphere.api.java.record.operators.MapOperator;
 import eu.stratosphere.api.java.record.operators.ReduceOperator;
-import eu.stratosphere.api.java.record.operators.ReduceOperator.Combinable;
-import eu.stratosphere.client.LocalExecutor;
-import eu.stratosphere.nephele.client.JobExecutionResult;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
-
-import java.io.Serializable;
-import java.util.Iterator;
-import java.util.StringTokenizer;
 
 /**
  * Implements a word count which takes the input file and counts the number of
  * the occurrences of each word in the file.
  */
 public class AnonymousWordCount implements Program {
+
+	private static final long serialVersionUID = 1L;
 
 	@Override
 	public Plan getPlan(String... args) {
@@ -53,6 +49,9 @@ public class AnonymousWordCount implements Program {
 		FileDataSource source = new FileDataSource(new TextInputFormat(), inputPath);
 
 		MapOperator mapper = MapOperator.builder(new MapFunction() {
+			
+			private static final long serialVersionUID = 1L;
+
 			public void map(Record record, Collector<Record> collector) throws Exception {
 				String line = record.getField(0, StringValue.class).getValue();
 
@@ -71,6 +70,9 @@ public class AnonymousWordCount implements Program {
 		}).input(source).build();
 
 		ReduceOperator reducer = ReduceOperator.builder(new ReduceFunction() {
+
+			private static final long serialVersionUID = 1L;
+
 			public void reduce(Iterator<Record> records, Collector<Record> collector) {
 				Record element = null;
 				int sum = 0;

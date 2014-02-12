@@ -26,66 +26,70 @@ import java.util.Set;
 
 public class CompensatableDotProductMatch extends JoinFunction {
 
-  private Record record;
-  private LongValue vertexID;
-  private DoubleValue partialRank;
+	private static final long serialVersionUID = 1L;
 
-  private DoubleValue rank = new DoubleValue();
-  private LongArrayView adjacentNeighbors = new LongArrayView();
+	private Record record;
 
-  private int workerIndex;
-  private int currentIteration;
-  private int failingIteration;
+	private LongValue vertexID;
 
-  private Set<Integer> failingWorkers;
-  private double messageLoss;
+	private DoubleValue partialRank;
 
-  private Random random;
+	private DoubleValue rank = new DoubleValue();
 
-  @Override
-  public void open(Configuration parameters) throws Exception {
-    record = new Record();
-    vertexID = new LongValue();
-    partialRank = new DoubleValue();
+	private LongArrayView adjacentNeighbors = new LongArrayView();
 
-    workerIndex = getRuntimeContext().getIndexOfThisSubtask();
-    currentIteration = getIterationRuntimeContext().getSuperstepNumber();
-    failingIteration = ConfigUtils.asInteger("compensation.failingIteration", parameters);
-    failingWorkers = ConfigUtils.asIntSet("compensation.failingWorker", parameters);
-    messageLoss = ConfigUtils.asDouble("compensation.messageLoss", parameters);
+	private int workerIndex;
 
-    random = new Random();
-  }
+	private int currentIteration;
 
-  @Override
-  public void join(Record pageWithRank, Record adjacencyList, Collector<Record> collector)
-      throws Exception {
+	private int failingIteration;
 
-    rank = pageWithRank.getField(1, rank);
-    adjacentNeighbors = adjacencyList.getField(1, adjacentNeighbors);
-    int numNeighbors = adjacentNeighbors.size();
+	private Set<Integer> failingWorkers;
 
-    double rankToDistribute = rank.getValue() / (double) numNeighbors;
+	private double messageLoss;
 
-    partialRank.setValue(rankToDistribute);
-    record.setField(1, partialRank);
+	private Random random;
 
-    boolean isFailure = currentIteration == failingIteration && failingWorkers.contains(workerIndex);
+	@Override
+	public void open(Configuration parameters) {
+		record = new Record();
+		vertexID = new LongValue();
+		partialRank = new DoubleValue();
 
-    for (int n = 0; n < numNeighbors; n++) {
-      vertexID.setValue(adjacentNeighbors.getQuick(n));
-      record.setField(0, vertexID);
+		workerIndex = getRuntimeContext().getIndexOfThisSubtask();
+		currentIteration = getIterationRuntimeContext().getSuperstepNumber();
+		failingIteration = ConfigUtils.asInteger("compensation.failingIteration", parameters);
+		failingWorkers = ConfigUtils.asIntSet("compensation.failingWorker", parameters);
+		messageLoss = ConfigUtils.asDouble("compensation.messageLoss", parameters);
 
-      if (isFailure) {
-        if (random.nextDouble() >= messageLoss) {
-          collector.collect(record);
-        }
-      } else {
-        collector.collect(record);
-      }
-    }
+		random = new Random();
+	}
 
-  }
+	@Override
+	public void join(Record pageWithRank, Record adjacencyList, Collector<Record> collector) {
 
+		rank = pageWithRank.getField(1, rank);
+		adjacentNeighbors = adjacencyList.getField(1, adjacentNeighbors);
+		int numNeighbors = adjacentNeighbors.size();
 
+		double rankToDistribute = rank.getValue() / (double) numNeighbors;
+
+		partialRank.setValue(rankToDistribute);
+		record.setField(1, partialRank);
+
+		boolean isFailure = currentIteration == failingIteration && failingWorkers.contains(workerIndex);
+
+		for (int n = 0; n < numNeighbors; n++) {
+			vertexID.setValue(adjacentNeighbors.getQuick(n));
+			record.setField(0, vertexID);
+
+			if (isFailure) {
+				if (random.nextDouble() >= messageLoss) {
+					collector.collect(record);
+				}
+			} else {
+				collector.collect(record);
+			}
+		}
+	}
 }

@@ -480,6 +480,12 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 			allDynamic &= dynamicIn;
 		}
 		
+		for (PactConnection conn : getBroadcastConnections()) {
+			boolean dynamicIn = conn.isOnDynamicPath();
+			anyDynamic |= dynamicIn;
+			allDynamic &= dynamicIn;
+		}
+		
 		if (anyDynamic) {
 			this.onDynamicPath = true;
 			this.costWeight = costWeight;
@@ -491,6 +497,9 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 						conn.setMaterializationMode(conn.getMaterializationMode().makeCached());
 					}
 				}
+				
+				// broadcast variables are simply not re-built. they stay unchanged available in the
+				// runtime context of the functions
 			}
 		}
 	}
@@ -504,6 +513,10 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		for (PactConnection conn : getIncomingConnections()) {
 			maxDepth = Math.max(maxDepth, conn.getMaxDepth());
 		}
+		for (PactConnection conn : getBroadcastConnections()) {
+			maxDepth = Math.max(maxDepth, conn.getMaxDepth());
+		}
+		
 		return maxDepth;
 	}
 
@@ -598,6 +611,9 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	public void clearInterestingProperties() {
 		this.intProps = null;
 		for (PactConnection conn : getIncomingConnections()) {
+			conn.clearInterestingProperties();
+		}
+		for (PactConnection conn : getBroadcastConnections()) {
 			conn.clearInterestingProperties();
 		}
 	}

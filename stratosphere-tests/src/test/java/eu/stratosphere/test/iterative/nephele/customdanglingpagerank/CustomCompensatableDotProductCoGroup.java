@@ -28,6 +28,8 @@ import java.util.Set;
 
 public class CustomCompensatableDotProductCoGroup extends AbstractFunction implements GenericCoGrouper<VertexWithRankAndDangling, VertexWithRank, VertexWithRankAndDangling> {
 
+	private static final long serialVersionUID = 1L;
+
 	public static final String AGGREGATOR_NAME = "pagerank.aggregator";
 	
 	private VertexWithRankAndDangling accumulator = new VertexWithRankAndDangling();

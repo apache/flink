@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.Iterator;
 import java.util.Set;
+import java.util.StringTokenizer;
 
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.Program;
@@ -44,73 +45,69 @@ import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;
 import eu.stratosphere.types.Value;
-import eu.stratosphere.util.AsciiUtils;
 import eu.stratosphere.util.Collector;
 
 /**
  * This is similar to the WordCount example and additionally demonstrates how to
  * use custom accumulators (built-in or custom).
  */
-public class WordCountAccumulators implements Program,
-		ProgramDescription {
+public class WordCountAccumulators implements Program, ProgramDescription {
+	
+	private static final long serialVersionUID = 1L;
 
 	public static class TokenizeLine extends MapFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 
-		private final Record outputRecord = new Record();
-		private final StringValue word = new StringValue();
-		private final IntValue one = new IntValue(1);
-
-		private final AsciiUtils.WhitespaceTokenizer tokenizer = new AsciiUtils.WhitespaceTokenizer();
-
-		// For efficiency it is recommended to have member variables for the
-		// accumulators
+		// For efficiency it is recommended to have member variables for the accumulators
 		public static final String ACCUM_NUM_LINES = "accumulator.num-lines";
 		private LongCounter numLines = new LongCounter();
 
-		// This histogram accumulator collects the distribution of number of words
-		// per line
+		// This histogram accumulator collects the distribution of number of words per line
 		public static final String ACCUM_WORDS_PER_LINE = "accumulator.words-per-line";
 		private Histogram wordsPerLine = new Histogram();
 
 		public static final String ACCUM_DISTINCT_WORDS = "accumulator.distinct-words";
 		private SetAccumulator<StringValue> distinctWords = new SetAccumulator<StringValue>();
 
+		
 		@Override
 		public void open(Configuration parameters) throws Exception {
 
 			// Accumulators have to be registered to the system
 			getRuntimeContext().addAccumulator(ACCUM_NUM_LINES, this.numLines);
-			getRuntimeContext().addAccumulator(ACCUM_WORDS_PER_LINE,
-					this.wordsPerLine);
-			getRuntimeContext().addAccumulator(ACCUM_DISTINCT_WORDS,
-					this.distinctWords);
+			getRuntimeContext().addAccumulator(ACCUM_WORDS_PER_LINE, this.wordsPerLine);
+			getRuntimeContext().addAccumulator(ACCUM_DISTINCT_WORDS, this.distinctWords);
 
 			// You could also write to accumulators in open() or close()
 		}
 
+		
 		@Override
 		public void map(Record record, Collector<Record> collector) {
-
+			
 			// Increment counter
 			numLines.add(1L);
+						
+			// get the first field (as type StringValue) from the record
+			String line = record.getField(0, StringValue.class).getValue();
 
-			StringValue line = record.getField(0, StringValue.class);
-
-			AsciiUtils.replaceNonWordChars(line, ' ');
-			AsciiUtils.toLowerCase(line);
-
-			this.tokenizer.setStringToTokenize(line);
+			// normalize the line
+			line = line.replaceAll("\\W+", " ").toLowerCase();
+			
+			// tokenize the line
+			StringTokenizer tokenizer = new StringTokenizer(line);
 			int numWords = 0;
-			while (tokenizer.next(this.word)) {
-				distinctWords.add(new StringValue(this.word));
-
+			
+			while (tokenizer.hasMoreTokens()) {
+				String word = tokenizer.nextToken();
+				
+				distinctWords.add(new StringValue(word));
 				++numWords;
-				this.outputRecord.setField(0, this.word);
-				this.outputRecord.setField(1, this.one);
-				collector.collect(this.outputRecord);
+				
+				// we emit a (word, 1) pair 
+				collector.collect(new Record(new StringValue(word), new IntValue(1)));
 			}
-
+			
 			// Add a value to the histogram accumulator
 			this.wordsPerLine.add(numWords);
 		}
@@ -125,8 +122,7 @@ public class WordCountAccumulators implements Program,
 		private final IntValue cnt = new IntValue();
 
 		@Override
-		public void reduce(Iterator<Record> records, Collector<Record> out)
-				throws Exception {
+		public void reduce(Iterator<Record> records, Collector<Record> out) {
 			Record element = null;
 			int sum = 0;
 			while (records.hasNext()) {
@@ -139,12 +135,6 @@ public class WordCountAccumulators implements Program,
 			element.setField(1, this.cnt);
 			out.collect(element);
 		}
-
-		@Override
-		public void combine(Iterator<Record> records, Collector<Record> out)
-				throws Exception {
-			reduce(records, out);
-		}
 	}
 
 	@Override
@@ -153,16 +143,15 @@ public class WordCountAccumulators implements Program,
 		String dataInput = (args.length > 1 ? args[1] : "");
 		String output = (args.length > 2 ? args[2] : "");
 
-		FileDataSource source = new FileDataSource(new TextInputFormat(),
-				dataInput, "Input Lines");
-		source.setParameter(TextInputFormat.CHARSET_NAME, "ASCII"); // comment out this line for UTF-8 inputs
-		MapOperator mapper = MapOperator.builder(new TokenizeLine()).input(source)
-				.name("Tokenize Lines").build();
-		ReduceOperator reducer = ReduceOperator
-				.builder(CountWords.class, StringValue.class, 0).input(mapper)
+		FileDataSource source = new FileDataSource(new TextInputFormat(), dataInput, "Input Lines");
+
+		MapOperator mapper = MapOperator.builder(new TokenizeLine()).input(source).name("Tokenize Lines").build();
+		
+		ReduceOperator reducer = ReduceOperator.builder(CountWords.class, StringValue.class, 0).input(mapper)
 				.name("Count Words").build();
-		FileDataSink out = new FileDataSink(new CsvOutputFormat(), output,
-				reducer, "Word Counts");
+		
+		FileDataSink out = new FileDataSink(new CsvOutputFormat(), output, reducer, "Word Counts");
+		
 		CsvOutputFormat.configureRecordFormat(out).recordDelimiter('\n')
 				.fieldDelimiter(' ').field(StringValue.class, 0)
 				.field(IntValue.class, 1);
@@ -187,29 +176,18 @@ public class WordCountAccumulators implements Program,
 
 		Plan plan = wc.getPlan(args);
 
-		// This will execute the word-count embedded in a local context. replace
-		// this line by the commented
-		// succeeding line to send the job to a local installation or to a cluster
-		// for execution
 		JobExecutionResult result = LocalExecutor.execute(plan);
-		// PlanExecutor ex = new RemoteExecutor("localhost", 6123,
-		// "target/pact-examples-0.4-SNAPSHOT-WordCountAccumulators.jar");
-		// JobExecutionResult result = ex.executePlan(plan);
 
 		// Accumulators can be accessed by their name. 
-		System.out.println("Number of lines counter: "
-				+ result.getAccumulatorResult(TokenizeLine.ACCUM_NUM_LINES));
-		System.out.println("Words per line histogram: "
-				+ result.getAccumulatorResult(TokenizeLine.ACCUM_WORDS_PER_LINE));
-		System.out.println("Distinct words: "
-				+ result.getAccumulatorResult(TokenizeLine.ACCUM_DISTINCT_WORDS));
+		System.out.println("Number of lines counter: "+ result.getAccumulatorResult(TokenizeLine.ACCUM_NUM_LINES));
+		System.out.println("Words per line histogram: " + result.getAccumulatorResult(TokenizeLine.ACCUM_WORDS_PER_LINE));
+		System.out.println("Distinct words: " + result.getAccumulatorResult(TokenizeLine.ACCUM_DISTINCT_WORDS));
 	}
 
 	/**
 	 * Custom accumulator
 	 */
-	public static class SetAccumulator<T extends Value> implements
-			Accumulator<T, Set<T>> {
+	public static class SetAccumulator<T extends Value> implements Accumulator<T, Set<T>> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -245,6 +223,5 @@ public class WordCountAccumulators implements Program,
 		public void read(DataInput in) throws IOException {
 			this.set.read(in);
 		}
-
 	}
 }

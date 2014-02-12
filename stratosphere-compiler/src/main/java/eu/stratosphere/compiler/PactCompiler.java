@@ -91,9 +91,9 @@ import eu.stratosphere.util.InstantiationUtil;
 import eu.stratosphere.util.Visitor;
 
 /**
- * The optimizer that takes the user specified pact plan and creates an optimized plan that contains
+ * The optimizer that takes the user specified program plan and creates an optimized plan that contains
  * exact descriptions about how the physical execution will take place. It first translates the user
- * pact program into an internal optimizer representation and then chooses between different alternatives
+ * program into an internal optimizer representation and then chooses between different alternatives
  * for shipping strategies and local strategies.
  * <p>
  * The basic principle is taken from optimizer works in systems such as Volcano/Cascades and Selinger/System-R/DB2. The
@@ -356,7 +356,7 @@ public class PactCompiler {
 	/**
 	 * Creates a new compiler instance. The compiler has no access to statistics about the
 	 * inputs and can hence not determine any properties. It will perform all optimization with
-	 * unknown sizes and default to the most robust strategy to fulfill the PACTs. The
+	 * unknown sizes and default to the most robust execution strategies. The
 	 * compiler also uses conservative default estimates for the operator costs, since
 	 * it has no access to another cost estimator.
 	 * <p>
@@ -384,7 +384,7 @@ public class PactCompiler {
 	/**
 	 * Creates a new compiler instance. The compiler has no access to statistics about the
 	 * inputs and can hence not determine any properties. It will perform all optimization with
-	 * unknown sizes and default to the most robust strategy to fulfill the PACTs. It uses
+	 * unknown sizes and default to the most robust execution strategies. It uses
 	 * however the given cost estimator to compute the costs of the individual operations.
 	 * <p>
 	 * The address of the job manager (to obtain system characteristics) is determined via the global configuration.
@@ -518,40 +518,40 @@ public class PactCompiler {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Translates the given pact plan in to an OptimizedPlan, where all nodes have their local strategy assigned
+	 * Translates the given plan in to an OptimizedPlan, where all nodes have their local strategy assigned
 	 * and all channels have a shipping strategy assigned. The compiler connects to the job manager to obtain information
 	 * about the available instances and their memory and then chooses an instance type to schedule the execution on.
 	 * <p>
 	 * The compilation process itself goes through several phases:
 	 * <ol>
-	 * <li>Create <tt>OptimizerNode</tt> representations of the PACTs, assign parallelism and compute size estimates.</li>
+	 * <li>Create an optimizer data flow representation of the program, assign parallelism and compute size estimates.</li>
 	 * <li>Compute interesting properties and auxiliary structures.</li>
 	 * <li>Enumerate plan alternatives. This cannot be done in the same step as the interesting property computation (as
 	 * opposed to the Database approaches), because we support plans that are not trees.</li>
 	 * </ol>
 	 * 
-	 * @param pactPlan The PACT plan to be translated.
+	 * @param program The program to be translated.
 	 * @return The optimized plan.
 	 * @throws CompilerException
 	 *         Thrown, if the plan is invalid or the optimizer encountered an inconsistent
 	 *         situation during the compilation process.
 	 */
-	public OptimizedPlan compile(Plan pactPlan) throws CompilerException {
+	public OptimizedPlan compile(Plan program) throws CompilerException {
 		// -------------------- try to get the connection to the job manager ----------------------
 		// --------------------------to obtain instance information --------------------------------
-		final OptimizerPostPass postPasser = getPostPassFromPlan(pactPlan);
-		return compile(pactPlan, getInstanceTypeInfo(), postPasser);
+		final OptimizerPostPass postPasser = getPostPassFromPlan(program);
+		return compile(program, getInstanceTypeInfo(), postPasser);
 	}
 	
-	public OptimizedPlan compile(Plan pactPlan, OptimizerPostPass postPasser) throws CompilerException {
+	public OptimizedPlan compile(Plan program, OptimizerPostPass postPasser) throws CompilerException {
 		// -------------------- try to get the connection to the job manager ----------------------
 		// --------------------------to obtain instance information --------------------------------
-		return compile(pactPlan, getInstanceTypeInfo(), postPasser);
+		return compile(program, getInstanceTypeInfo(), postPasser);
 	}
 	
-	public OptimizedPlan compile(Plan pactPlan, InstanceTypeDescription type) throws CompilerException {
-		final OptimizerPostPass postPasser = getPostPassFromPlan(pactPlan);
-		return compile(pactPlan, type, postPasser);
+	public OptimizedPlan compile(Plan program, InstanceTypeDescription type) throws CompilerException {
+		final OptimizerPostPass postPasser = getPostPassFromPlan(program);
+		return compile(program, type, postPasser);
 	}
 	
 	/**
@@ -564,7 +564,7 @@ public class PactCompiler {
 	 * opposed to the Database approaches), because we support plans that are not trees.</li>
 	 * </ol>
 	 * 
-	 * @param pactPlan The PACT plan to be translated.
+	 * @param program The program to be translated.
 	 * @param type The instance type to schedule the execution on. Used also to determine the amount of memory
 	 *             available to the tasks.
 	 * @param postPasser The function to be used for post passing the optimizer's plan and setting the
@@ -575,9 +575,9 @@ public class PactCompiler {
 	 *         Thrown, if the plan is invalid or the optimizer encountered an inconsistent
 	 *         situation during the compilation process.
 	 */
-	public OptimizedPlan compile(Plan pactPlan, InstanceTypeDescription type, OptimizerPostPass postPasser) throws CompilerException {
+	public OptimizedPlan compile(Plan program, InstanceTypeDescription type, OptimizerPostPass postPasser) throws CompilerException {
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("Beginning compilation of PACT program '" + pactPlan.getJobName() + '\'');
+			LOG.debug("Beginning compilation of program '" + program.getJobName() + '\'');
 		}
 		
 		final String instanceName = type.getInstanceType().getIdentifier();
@@ -587,16 +587,16 @@ public class PactCompiler {
 		final int numInstances = type.getMaximumNumberOfAvailableInstances();
 		
 		// determine the maximum number of machines to use
-		int maxMachinesJob = pactPlan.getMaxNumberMachines();
+		int maxMachinesJob = program.getMaxNumberMachines();
 
 		if (maxMachinesJob < 1) {
 			maxMachinesJob = this.maxMachines;
 		} else if (this.maxMachines >= 1) {
 			// check if the program requested more than the global config allowed
 			if (maxMachinesJob > this.maxMachines && LOG.isWarnEnabled()) {
-				LOG.warn("Maximal number of machines specified in PACT program (" + maxMachinesJob
+				LOG.warn("Maximal number of machines specified in program (" + maxMachinesJob
 					+ ") exceeds the maximum number in the global configuration (" + this.maxMachines
-					+ "). Using the value given in the global configuration.");
+					+ "). Using the global configuration value.");
 			}
 
 			maxMachinesJob = Math.min(maxMachinesJob, this.maxMachines);
@@ -614,8 +614,8 @@ public class PactCompiler {
 		}
 
 		// set the default degree of parallelism
-		int defaultParallelism = pactPlan.getDefaultParallelism() > 0 ?
-			pactPlan.getDefaultParallelism() : this.defaultDegreeOfParallelism;
+		int defaultParallelism = program.getDefaultParallelism() > 0 ?
+			program.getDefaultParallelism() : this.defaultDegreeOfParallelism;
 		
 		if (this.maxIntraNodeParallelism > 0) {
 			if (defaultParallelism < 1) {
@@ -650,7 +650,7 @@ public class PactCompiler {
 
 		// the first step in the compilation is to create the optimizer plan representation
 		// this step does the following:
-		// 1) It creates an optimizer plan node for each pact
+		// 1) It creates an optimizer plan node for each operator
 		// 2) It connects them via channels
 		// 3) It looks for hints about local strategies and channel types and
 		// sets the types and strategies accordingly
@@ -658,7 +658,7 @@ public class PactCompiler {
 		// propagates those estimates through the plan
 
 		GraphCreatingVisitor graphCreator = new GraphCreatingVisitor(maxMachinesJob, defaultParallelism);
-		pactPlan.accept(graphCreator);
+		program.accept(graphCreator);
 
 		// if we have a plan with multiple data sinks, add logical optimizer nodes that have two data-sinks as children
 		// each until we have only a single root node. This allows to transparently deal with the nodes with
@@ -721,7 +721,7 @@ public class PactCompiler {
 		}
 
 		// finalize the plan
-		OptimizedPlan plan = new PlanFinalizer().createFinalPlan(bestPlanSinks, pactPlan.getJobName(), pactPlan, memoryPerInstance);
+		OptimizedPlan plan = new PlanFinalizer().createFinalPlan(bestPlanSinks, program.getJobName(), program, memoryPerInstance);
 		plan.setInstanceTypeName(instanceName);
 		
 		// swap the binary unions for n-ary unions. this changes no strategies or memory consumers whatsoever, so
@@ -738,13 +738,13 @@ public class PactCompiler {
 	 * This function performs only the first step to the compilation process - the creation of the optimizer
 	 * representation of the plan. No estimations or enumerations of alternatives are done here.
 	 * 
-	 * @param pactPlan The plan to generate the optimizer representation for.
+	 * @param program The plan to generate the optimizer representation for.
 	 * @return The optimizer representation of the plan, as a collection of all data sinks
 	 *         from the plan can be traversed.
 	 */
-	public static List<DataSinkNode> createPreOptimizedPlan(Plan pactPlan) {
+	public static List<DataSinkNode> createPreOptimizedPlan(Plan program) {
 		GraphCreatingVisitor graphCreator = new GraphCreatingVisitor(-1, 1);
-		pactPlan.accept(graphCreator);
+		program.accept(graphCreator);
 		return graphCreator.sinks;
 	}
 	
@@ -753,9 +753,9 @@ public class PactCompiler {
 	// ------------------------------------------------------------------------
 	
 	/**
-	 * This utility class performs the translation from the user specified PACT job to the optimizer plan.
+	 * This utility class performs the translation from the user specified program to the optimizer plan.
 	 * It works as a visitor that walks the user's job in a depth-first fashion. During the descend, it creates
-	 * an optimizer node for each pact, respectively data source or -sink. During the ascend, it connects
+	 * an optimizer node for each operator, respectively data source or -sink. During the ascend, it connects
 	 * the nodes to the full graph.
 	 * <p>
 	 * This translator relies on the <code>setInputs</code> method in the nodes. As that method implements the size
@@ -782,11 +782,11 @@ public class PactCompiler {
 		private final boolean forceDOP;
 
 		
-		GraphCreatingVisitor(int maxMachines, int defaultParallelism) {
+		private GraphCreatingVisitor(int maxMachines, int defaultParallelism) {
 			this(null, false, maxMachines, defaultParallelism);
 		}
 		
-		GraphCreatingVisitor(GraphCreatingVisitor parent, boolean forceDOP, int maxMachines, int defaultParallelism) {
+		private GraphCreatingVisitor(GraphCreatingVisitor parent, boolean forceDOP, int maxMachines, int defaultParallelism) {
 			this.con2node = new HashMap<Operator, OptimizerNode>();
 			this.sources = new ArrayList<DataSourceNode>(4);
 			this.sinks = new ArrayList<DataSinkNode>(2);
@@ -805,7 +805,7 @@ public class PactCompiler {
 
 			final OptimizerNode n;
 
-			// create a node for the pact (or sink or source) if we have not been here before
+			// create a node for the operator (or sink or source) if we have not been here before
 			if (c instanceof GenericDataSink) {
 				DataSinkNode dsn = new DataSinkNode((GenericDataSink) c);
 				this.sinks.add(dsn);
@@ -1094,6 +1094,9 @@ public class PactCompiler {
 			for (PactConnection conn : visitable.getIncomingConnections()) {
 				conn.initMaxDepth();
 			}
+			for (PactConnection conn : visitable.getBroadcastConnections()) {
+				conn.initMaxDepth();
+			}
 			
 			// the estimates
 			visitable.computeOutputEstimates(this.statistics);
@@ -1124,11 +1127,6 @@ public class PactCompiler {
 			this.estimator = estimator;
 		}
 		
-		/*
-		 * (non-Javadoc)
-		 * @see
-		 * eu.stratosphere.pact.common.plan.Visitor#preVisit(eu.stratosphere.pact.common.plan.Visitable)
-		 */
 		@Override
 		public boolean preVisit(OptimizerNode node) {
 			// The interesting properties must be computed on the descend. In case a node has multiple outputs,
@@ -1157,21 +1155,11 @@ public class PactCompiler {
 	 */
 	private static final class BranchesVisitor implements Visitor<OptimizerNode> {
 		
-		/*
-		 * (non-Javadoc)
-		 * @see
-		 * eu.stratosphere.pact.common.plan.Visitor#preVisit(eu.stratosphere.pact.common.plan.Visitable)
-		 */
 		@Override
 		public boolean preVisit(OptimizerNode node) {
 			return node.getOpenBranches() == null;
 		}
 
-		/*
-		 * (non-Javadoc)
-		 * @see
-		 * eu.stratosphere.pact.common.plan.Visitor#postVisit(eu.stratosphere.pact.common.plan.Visitable)
-		 */
 		@Override
 		public void postVisit(OptimizerNode node) {
 			node.computeUnclosedBranchStack();
@@ -1279,9 +1267,11 @@ public class PactCompiler {
 			
 			if (visitable instanceof SinkPlanNode) {
 				this.sinks.add((SinkPlanNode) visitable);
-			} else if (visitable instanceof SourcePlanNode) {
+			}
+			else if (visitable instanceof SourcePlanNode) {
 				this.sources.add((SourcePlanNode) visitable);
-			} else if (visitable instanceof BulkPartialSolutionPlanNode) {
+			}
+			else if (visitable instanceof BulkPartialSolutionPlanNode) {
 				// tell the partial solution about the iteration node that contains it
 				final BulkPartialSolutionPlanNode pspn = (BulkPartialSolutionPlanNode) visitable;
 				final IterationPlanNode iteration = this.stackOfIterationNodes.peekLast();
@@ -1292,7 +1282,8 @@ public class PactCompiler {
 							"Cannot associate the node for a partial solutions with its containing iteration.");
 				}
 				pspn.setContainingIterationNode((BulkIterationPlanNode) iteration);
-			} else if (visitable instanceof WorksetPlanNode) {
+			}
+			else if (visitable instanceof WorksetPlanNode) {
 				// tell the partial solution about the iteration node that contains it
 				final WorksetPlanNode wspn = (WorksetPlanNode) visitable;
 				final IterationPlanNode iteration = this.stackOfIterationNodes.peekLast();
@@ -1303,7 +1294,8 @@ public class PactCompiler {
 							"Cannot associate the node for a partial solutions with its containing iteration.");
 				}
 				wspn.setContainingIterationNode((WorksetIterationPlanNode) iteration);
-			} else if (visitable instanceof SolutionSetPlanNode) {
+			}
+			else if (visitable instanceof SolutionSetPlanNode) {
 				// tell the partial solution about the iteration node that contains it
 				final SolutionSetPlanNode sspn = (SolutionSetPlanNode) visitable;
 				final IterationPlanNode iteration = this.stackOfIterationNodes.peekLast();
@@ -1316,16 +1308,31 @@ public class PactCompiler {
 				sspn.setContainingIterationNode((WorksetIterationPlanNode) iteration);
 			}
 			
+			// double-connect the connections. previously, only parents knew their children, because
+			// one child candidate could have been referenced by multiple parents.
 			for (Iterator<Channel> iter = visitable.getInputs(); iter.hasNext();) {
 				final Channel conn = iter.next();
 				conn.setTarget(visitable);
 				conn.getSource().addOutgoingChannel(conn);
+			}
+			
+			for (Channel c : visitable.getBroadcastInputs()) {
+				c.setTarget(visitable);
+				c.getSource().addOutgoingChannel(c);
 			}
 
 			// count the memory consumption
 			this.memoryConsumerWeights += visitable.getMemoryConsumerWeight();
 			for (Iterator<Channel> channels = visitable.getInputs(); channels.hasNext();) {
 				final Channel c = channels.next();
+				if (c.getLocalStrategy().dams()) {
+					this.memoryConsumerWeights++;
+				}
+				if (c.getTempMode() != TempMode.NONE) {
+					this.memoryConsumerWeights++;
+				}
+			}
+			for (Channel c : visitable.getBroadcastInputs()) {
 				if (c.getLocalStrategy().dams()) {
 					this.memoryConsumerWeights++;
 				}
@@ -1445,8 +1452,8 @@ public class PactCompiler {
 	// Miscellaneous
 	// ------------------------------------------------------------------------
 	
-	private OptimizerPostPass getPostPassFromPlan(Plan pactPlan) {
-		final String className =  pactPlan.getPostPassClassName();
+	private OptimizerPostPass getPostPassFromPlan(Plan program) {
+		final String className =  program.getPostPassClassName();
 		if (className == null) {
 			throw new CompilerException("Optimizer Post Pass class description is null");
 		}
@@ -1501,8 +1508,7 @@ public class PactCompiler {
 	}
 	
 	/**
-	 * This utility method picks the instance type to be used for scheduling PACT processor
-	 * instances.
+	 * This utility method picks the instance type to be used for executing programs.
 	 * <p>
 	 * 
 	 * @param types The available types.

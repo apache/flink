@@ -26,8 +26,11 @@ import java.util.Random;
 import java.util.Set;
 
 public class CustomCompensatableDotProductMatch extends AbstractFunction implements
-		GenericJoiner<VertexWithRankAndDangling, VertexWithAdjacencyList, VertexWithRank> {
-
+		GenericJoiner<VertexWithRankAndDangling, VertexWithAdjacencyList, VertexWithRank>
+{
+	private static final long serialVersionUID = 1L;
+	
+	
 	private VertexWithRank record = new VertexWithRank();
 
 	private Random random = new Random();

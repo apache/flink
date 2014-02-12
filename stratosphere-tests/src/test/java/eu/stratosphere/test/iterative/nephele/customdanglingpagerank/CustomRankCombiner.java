@@ -20,11 +20,10 @@ import eu.stratosphere.test.iterative.nephele.customdanglingpagerank.types.Verte
 import eu.stratosphere.util.Collector;
 
 
-/**
- *
- */
 public class CustomRankCombiner extends AbstractFunction implements GenericReducer<VertexWithRank, VertexWithRank> {
 
+	private static final long serialVersionUID = 1L;
+	
 	private final VertexWithRank accumulator = new VertexWithRank();
 	
 	@Override

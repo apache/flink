@@ -14,6 +14,13 @@
  **********************************************************************************************************************/
 package eu.stratosphere.test.testdata;
 
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.StringTokenizer;
+
+import org.junit.Assert;
+
 
 public class KMeansData {
 
@@ -98,6 +105,76 @@ public class KMeansData {
 			"5|78.67|66.07|70.82|\n" +
 			"6|39.51|14.04|18.74|\n";
 	
+	
+	public static void checkResultsWithDelta(String expectedResults, List<String> resultLines, final double maxDelta) {
+		
+		Comparator<String> deltaComp = new Comparator<String>() {
+
+			@Override
+			public int compare(String o1, String o2) {
+				
+				StringTokenizer st1 = new StringTokenizer(o1, "|");
+				StringTokenizer st2 = new StringTokenizer(o2, "|");
+				
+				if(st1.countTokens() != st2.countTokens()) {
+					return st1.countTokens() - st2.countTokens();
+				}
+				
+				// first token is ID
+				String t1 = st1.nextToken();
+				String t2 = st2.nextToken();
+				if(!t1.equals(t2)) {
+					return t1.compareTo(t2);
+				}
+				
+				while(st1.hasMoreTokens()) {
+					t1 = st1.nextToken();
+					t2 = st2.nextToken();
+					
+					double d1 = Double.parseDouble(t1);
+					double d2 = Double.parseDouble(t2);
+					
+					if (Math.abs(d1-d2) > maxDelta) {
+						return d1 < d2 ? -1 : 1;
+					}
+				}
+				
+				return 0;
+			}
+		};
+		
+		// ------- Test results -----------
+		
+		Collections.sort(resultLines, deltaComp);
+		
+		final String[] should = expectedResults.split("\n");
+		final String[] is = (String[]) resultLines.toArray(new String[resultLines.size()]);
+		
+		Assert.assertEquals("Wrong number of result lines.", should.length, is.length);
+		
+		for (int i = 0; i < should.length; i++) {
+			StringTokenizer shouldRecord = new StringTokenizer(should[i], "|");
+			StringTokenizer isRecord = new StringTokenizer(is[i], "|");
+			
+			Assert.assertEquals("Records don't match.", shouldRecord.countTokens(), isRecord.countTokens());
+			
+			// first token is ID
+			String shouldToken = shouldRecord.nextToken();
+			String isToken = isRecord.nextToken();
+			
+			Assert.assertEquals("Records don't match.", shouldToken, isToken);
+
+			while (shouldRecord.hasMoreTokens()) {
+				shouldToken = shouldRecord.nextToken();
+				isToken = isRecord.nextToken();
+				
+				double shouldDouble = Double.parseDouble(shouldToken);
+				double isDouble = Double.parseDouble(isToken);
+				
+				Assert.assertTrue("Value " + isDouble + " is out of range of " + shouldDouble + " +/- " + maxDelta, shouldDouble - maxDelta <= isDouble && shouldDouble + maxDelta >= isDouble);
+			}
+		}
+	}
 	
 	
 	private KMeansData() {}

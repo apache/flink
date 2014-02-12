@@ -24,53 +24,58 @@ import java.util.Set;
 
 public class CompensatingMap extends MapFunction {
 
-  private int workerIndex;
-  private int currentIteration;
+	private static final long serialVersionUID = 1L;
 
-  private long numVertices;
+	private int workerIndex;
 
-  private int failingIteration;
-  private Set<Integer> failingWorkers;
+	private int currentIteration;
 
-  private double uniformRank;
-  private double rescaleFactor;
+	private long numVertices;
 
-  private DoubleValue rank = new DoubleValue();
+	private int failingIteration;
 
-  @Override
-  public void open(Configuration parameters) throws Exception {
+	private Set<Integer> failingWorkers;
 
-    workerIndex = getRuntimeContext().getIndexOfThisSubtask();
-    currentIteration = getIterationRuntimeContext().getSuperstepNumber();
-    failingIteration = ConfigUtils.asInteger("compensation.failingIteration", parameters);
-    failingWorkers = ConfigUtils.asIntSet("compensation.failingWorker", parameters);
-    numVertices = ConfigUtils.asLong("pageRank.numVertices", parameters);
+	private double uniformRank;
 
-    if (currentIteration > 1) {
-    	PageRankStats stats = (PageRankStats) getIterationRuntimeContext().getPreviousIterationAggregate(CompensatableDotProductCoGroup.AGGREGATOR_NAME);
+	private double rescaleFactor;
 
-      uniformRank = 1d / (double) numVertices;
-      double lostMassFactor = (numVertices - stats.numVertices()) / (double) numVertices;
-      rescaleFactor = (1 - lostMassFactor) / stats.rank();
-    }
-  }
+	private DoubleValue rank = new DoubleValue();
 
-  @Override
-  public void map(Record pageWithRank, Collector<Record> out) throws Exception {
+	@Override
+	public void open(Configuration parameters) {
 
-    if (currentIteration == failingIteration + 1) {
+		workerIndex = getRuntimeContext().getIndexOfThisSubtask();
+		currentIteration = getIterationRuntimeContext().getSuperstepNumber();
+		failingIteration = ConfigUtils.asInteger("compensation.failingIteration", parameters);
+		failingWorkers = ConfigUtils.asIntSet("compensation.failingWorker", parameters);
+		numVertices = ConfigUtils.asLong("pageRank.numVertices", parameters);
 
-      rank = pageWithRank.getField(1, rank);
+		if (currentIteration > 1) {
+			PageRankStats stats = (PageRankStats) getIterationRuntimeContext().getPreviousIterationAggregate(
+				CompensatableDotProductCoGroup.AGGREGATOR_NAME);
 
-      if (failingWorkers.contains(workerIndex)) {
-         rank.setValue(uniformRank);
-       } else {
-        rank.setValue(rank.getValue() * rescaleFactor);
-       }
-      pageWithRank.setField(1, rank);
-    }
+			uniformRank = 1d / (double) numVertices;
+			double lostMassFactor = (numVertices - stats.numVertices()) / (double) numVertices;
+			rescaleFactor = (1 - lostMassFactor) / stats.rank();
+		}
+	}
 
-    out.collect(pageWithRank);
-  }
+	@Override
+	public void map(Record pageWithRank, Collector<Record> out) {
 
+		if (currentIteration == failingIteration + 1) {
+
+			rank = pageWithRank.getField(1, rank);
+
+			if (failingWorkers.contains(workerIndex)) {
+				rank.setValue(uniformRank);
+			} else {
+				rank.setValue(rank.getValue() * rescaleFactor);
+			}
+			pageWithRank.setField(1, rank);
+		}
+		
+		out.collect(pageWithRank);
+	}
 }

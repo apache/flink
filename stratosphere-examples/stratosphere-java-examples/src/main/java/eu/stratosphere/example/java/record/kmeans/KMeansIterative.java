@@ -76,7 +76,7 @@ public class KMeansIterative implements Program, ProgramDescription {
 		iter.setNextPartialSolution(recomputeClusterCenter);
 
 		// create DataSinkContract for writing the new cluster positions
-		FileDataSink newClusterPoints = new FileDataSink(new PointOutFormat(), output, recomputeClusterCenter, "New Center Positions");
+		FileDataSink newClusterPoints = new FileDataSink(new PointOutFormat(), output, iter, "New Center Positions");
 
 		// return the PACT plan
 		Plan plan = new Plan(newClusterPoints, "KMeans Iteration");

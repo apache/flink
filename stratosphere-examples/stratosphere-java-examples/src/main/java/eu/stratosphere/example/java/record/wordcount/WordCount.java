@@ -149,7 +149,7 @@ public class WordCount implements Program, ProgramDescription {
 		// succeeding line to send the job to a local installation or to a cluster for execution
 		JobExecutionResult result = LocalExecutor.execute(plan);
 		System.err.println("Total runtime: " + result.getNetRuntime());
-//		PlanExecutor ex = new RemoteExecutor("localhost", 6123, "target/pact-examples-0.4-SNAPSHOT-WordCount.jar");
+//		PlanExecutor ex = new RemoteExecutor("localhost", 6123, "stratosphere-java-examples-0.4-WordCount.jar");
 //		ex.executePlan(plan);
 	}
 }

@@ -14,6 +14,8 @@ package eu.stratosphere.test.compiler.examples;
 
 import static org.junit.Assert.*;
 
+import java.util.Arrays;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -42,9 +44,6 @@ public class KMeansSingleStepTest extends CompilerTestBase {
 	
 	private final FieldList set0 = new FieldList(0);
 	
-	// --------------------------------------------------------------------------------------------
-	//  K-Means Single Step
-	// --------------------------------------------------------------------------------------------
 	
 	@Test
 	public void testCompileKMeansSingleStepWithStats() {
@@ -72,6 +71,7 @@ public class KMeansSingleStepTest extends CompilerTestBase {
 		OptimizedPlan plan = compileNoStats(p);
 		checkPlan(plan);
 	}
+	
 	
 	private void checkPlan(OptimizedPlan plan) {
 		
@@ -113,6 +113,7 @@ public class KMeansSingleStepTest extends CompilerTestBase {
 		assertEquals(DriverStrategy.SORTED_GROUP, reducer.getDriverStrategy());
 		assertEquals(set0, reducer.getKeys());
 		assertEquals(set0, reducer.getInput().getLocalStrategyKeys());
+		assertTrue(Arrays.equals(reducer.getInput().getLocalStrategySortOrder(), reducer.getSortOrders()));
 		
 		// check the sink
 		assertEquals(ShipStrategyType.FORWARD, sink.getInput().getShipStrategy());
