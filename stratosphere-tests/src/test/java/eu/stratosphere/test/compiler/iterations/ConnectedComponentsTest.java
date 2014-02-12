@@ -53,7 +53,7 @@ import eu.stratosphere.util.Collector;
 /**
  *
  */
-public class WorksetConnectedComponentsTest extends CompilerTestBase {
+public class ConnectedComponentsTest extends CompilerTestBase {
 	
 	private static final String VERTEX_SOURCE = "Vertices";
 	

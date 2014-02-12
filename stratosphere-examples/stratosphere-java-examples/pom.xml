@@ -101,7 +101,6 @@
 								<include>**/kmeans/KMeansSingleStep.class</include>
 								<include>**/kmeans/KMeansSingleStep$*.class</include>
 								<include>**/kmeans/KMeansSampleDataGenerator.class</include>
-								<include>**/kmeans/udfs/*.class</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -125,9 +124,9 @@
 
 							<includes>
 								<include>**/kmeans/KMeansIterative.class</include>
-								<include>**/kmeans/KMeansSampleDataGenerator.class</include>
 								<include>**/kmeans/KMeansIterative$*.class</include>
-								<include>**/kmeans/udfs/*.class</include>
+								<include>**/kmeans/KMeansSingleStep$*.class</include>
+								<include>**/kmeans/KMeansSampleDataGenerator.class</include>
 							</includes>
 						</configuration>
 					</execution>

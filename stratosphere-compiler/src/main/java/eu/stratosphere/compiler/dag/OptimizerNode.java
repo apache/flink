@@ -107,10 +107,10 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	/**
 	 * Creates a new node for the optimizer plan.
 	 * 
-	 * @param pactContract The PACT that the node represents.
+	 * @param op The operator that the node represents.
 	 */
-	public OptimizerNode(Operator pactContract) {
-		this.pactContract = pactContract;
+	public OptimizerNode(Operator op) {
+		this.pactContract = op;
 		readStubAnnotations();
 		
 		if (this.pactContract instanceof AbstractUdfOperator) {
@@ -196,7 +196,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		// create connections and add them
 		for (Map.Entry<String, Operator> input: operator.getBroadcastInputs().entrySet()) {
 			OptimizerNode predecessor = operatorToNode.get(input.getValue());
-			PactConnection connection = new PactConnection(predecessor, this, ShipStrategyType.BROADCAST, predecessor.getMaxDepth() + 1);
+			PactConnection connection = new PactConnection(predecessor, this, ShipStrategyType.BROADCAST);
 			addBroadcastConnection(input.getKey(), connection);
 			predecessor.addOutgoingConnection(connection);
 		}

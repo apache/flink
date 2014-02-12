@@ -25,16 +25,16 @@ import eu.stratosphere.compiler.plan.SourcePlanNode;
 import eu.stratosphere.compiler.plan.WorksetIterationPlanNode;
 import eu.stratosphere.compiler.plandump.PlanJSONDumpGenerator;
 import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
-import eu.stratosphere.example.java.record.connectedcomponents.WorksetConnectedComponentsWithCoGroup;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.test.compiler.CompilerTestBase;
+import eu.stratosphere.test.testPrograms.WorksetConnectedComponentsWithCoGroup;
 
 /**
  *
  */
-public class WorksetConnectedComponentsCoGroupTest extends CompilerTestBase {
+public class ConnectedComponentsCoGroupTest extends CompilerTestBase {
 	
 	private static final String VERTEX_SOURCE = "Vertices";
 	

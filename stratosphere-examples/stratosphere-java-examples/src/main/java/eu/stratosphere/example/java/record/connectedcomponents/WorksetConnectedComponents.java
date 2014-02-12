@@ -42,6 +42,8 @@ import eu.stratosphere.util.Collector;
  */
 public class WorksetConnectedComponents implements Program, ProgramDescription {
 	
+	private static final long serialVersionUID = 1L;
+
 	public static final class DuplicateLongMap extends MapFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 

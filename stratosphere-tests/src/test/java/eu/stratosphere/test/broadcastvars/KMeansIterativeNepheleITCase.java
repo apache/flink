@@ -49,7 +49,7 @@ import eu.stratosphere.test.testdata.KMeansData;
 import eu.stratosphere.test.util.TestBase2;
 import eu.stratosphere.types.DoubleValue;
 import eu.stratosphere.types.IntValue;
-import eu.stratosphere.util.LogUtils;
+
 
 public class KMeansIterativeNepheleITCase extends TestBase2 {
 
@@ -60,10 +60,6 @@ public class KMeansIterativeNepheleITCase extends TestBase2 {
 	protected String dataPath;
 	protected String clusterPath;
 	protected String resultPath;
-	
-	public KMeansIterativeNepheleITCase() {
-		LogUtils.initializeDefaultTestConsoleLogger();
-	}
 
 	@Override
 	protected void preSubmit() throws Exception {

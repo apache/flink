@@ -37,8 +37,13 @@ import eu.stratosphere.types.LongValue;
 
 public class DeltaPageRankWithInitialDeltas implements Program, ProgramDescription {
 
+	private static final long serialVersionUID = 1L;
+
+
 	@ConstantFieldsSecond(0)
 	public static final class RankComparisonMatch extends JoinFunction {
+		
+		private static final long serialVersionUID = 1L;
 		
 		private final DoubleValue newRank = new DoubleValue();
 		
@@ -57,6 +62,8 @@ public class DeltaPageRankWithInitialDeltas implements Program, ProgramDescripti
 	@Combinable
 	@ConstantFields(0)
 	public static final class UpdateRankReduceDelta extends ReduceFunction {
+		
+		private static final long serialVersionUID = 1L;
 		
 		private final DoubleValue newRank = new DoubleValue();
 		
@@ -79,6 +86,28 @@ public class DeltaPageRankWithInitialDeltas implements Program, ProgramDescripti
 				rec.setField(1, newRank);
 				out.collect(rec);
 			}
+		}
+	}
+	
+	public class PRDependenciesComputationMatchDelta extends JoinFunction {
+
+		private static final long serialVersionUID = 1L;
+		
+		private final Record result = new Record();
+		private final DoubleValue partRank = new DoubleValue();
+		
+		/*
+		 * (srcId, trgId, weight) x (vId, rank) => (trgId, rank / weight)
+		 */
+		@Override
+		public void join(Record vertexWithRank, Record edgeWithWeight, Collector<Record> out) throws Exception {
+			result.setField(0, edgeWithWeight.getField(1, LongValue.class));
+			final long outLinks = edgeWithWeight.getField(2, LongValue.class).getValue();
+			final double rank = vertexWithRank.getField(1, DoubleValue.class).getValue();
+			partRank.setValue(rank / (double) outLinks);
+			result.setField(1, partRank);
+			
+			out.collect(result);
 		}
 	}
 	
@@ -148,5 +177,4 @@ public class DeltaPageRankWithInitialDeltas implements Program, ProgramDescripti
 	public String getDescription() {
 		return "Parameters: <numberOfSubTasks> <initialSolutionSet(pageId, rank)> <deltas(pageId, delta)> <dependencySet(srcId, trgId, out_links)> <out> <maxIterations>";
 	}
-
 }

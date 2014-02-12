@@ -14,19 +14,13 @@
 package eu.stratosphere.test.iterative;
 
 import java.io.BufferedReader;
-import java.util.Collection;
-
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.example.java.record.connectedcomponents.WorksetConnectedComponents;
-import eu.stratosphere.test.iterative.nephele.ConnectedComponentsNepheleITCase;
+import eu.stratosphere.test.testdata.ConnectedComponentsData;
 import eu.stratosphere.test.util.TestBase2;
 
-@RunWith(Parameterized.class)
+
 public class ConnectedComponentsITCase extends TestBase2 {
 	
 	private static final long SEED = 0xBADC0FFEEBEEFL;
@@ -41,39 +35,23 @@ public class ConnectedComponentsITCase extends TestBase2 {
 	protected String resultPath;
 	
 	
-	public ConnectedComponentsITCase(Configuration config) {
-		super(config);
-	}
-	
 	@Override
 	protected void preSubmit() throws Exception {
-		verticesPath = createTempFile("vertices.txt", ConnectedComponentsNepheleITCase.getEnumeratingVertices(NUM_VERTICES));
-		edgesPath = createTempFile("edges.txt", ConnectedComponentsNepheleITCase.getRandomOddEvenEdges(NUM_EDGES, NUM_VERTICES, SEED));
+		verticesPath = createTempFile("vertices.txt", ConnectedComponentsData.getEnumeratingVertices(NUM_VERTICES));
+		edgesPath = createTempFile("edges.txt", ConnectedComponentsData.getRandomOddEvenEdges(NUM_EDGES, NUM_VERTICES, SEED));
 		resultPath = getTempFilePath("results");
 	}
 	
 	@Override
 	protected Plan getTestJob() {
-		int dop = config.getInteger("ConnectedComponents#NumSubtasks", 1);
-		int maxIterations = config.getInteger("ConnectedComponents#NumIterations", 1);
-		String[] params = { String.valueOf(dop) , verticesPath, edgesPath, resultPath, String.valueOf(maxIterations) };
-		
 		WorksetConnectedComponents cc = new WorksetConnectedComponents();
-		return cc.getPlan(params);
+		return cc.getPlan("4",  verticesPath, edgesPath, resultPath, "100");
 	}
 
 	@Override
 	protected void postSubmit() throws Exception {
 		for (BufferedReader reader : getResultReader(resultPath)) {
-			ConnectedComponentsNepheleITCase.checkOddEvenResult(reader);
+			ConnectedComponentsData.checkOddEvenResult(reader);
 		}
-	}
-
-	@Parameters
-	public static Collection<Object[]> getConfigurations() {
-		Configuration config1 = new Configuration();
-		config1.setInteger("ConnectedComponents#NumSubtasks", 4);
-		config1.setInteger("ConnectedComponents#NumIterations", 100);
-		return toParameterList(config1);
 	}
 }

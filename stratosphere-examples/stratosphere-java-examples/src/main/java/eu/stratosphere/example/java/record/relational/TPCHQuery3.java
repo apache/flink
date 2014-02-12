@@ -45,7 +45,8 @@ import eu.stratosphere.util.Collector;
  * Its documentation and the data generator (DBGEN) can be found
  * on http://www.tpc.org/tpch/ .This implementation is tested with
  * the DB2 data format.  
- * The PACT program implements a modified version of the query 3 of 
+ * 
+ * This program implements a modified version of the query 3 of 
  * the TPC-H benchmark including one join, some filtering and an
  * aggregation.
  * 
@@ -59,6 +60,8 @@ import eu.stratosphere.util.Collector;
  */
 public class TPCHQuery3 implements Program, ProgramDescription {
 
+	private static final long serialVersionUID = 1L;
+	
 	public static final String YEAR_FILTER = "parameter.YEAR_FILTER";
 	public static final String PRIO_FILTER = "parameter.PRIO_FILTER";
 

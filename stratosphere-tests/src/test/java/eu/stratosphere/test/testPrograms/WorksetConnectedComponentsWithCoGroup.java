@@ -11,14 +11,13 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-package eu.stratosphere.example.java.record.connectedcomponents;
+package eu.stratosphere.test.testPrograms;
 
 import java.io.Serializable;
 import java.util.Iterator;
 
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.Program;
-import eu.stratosphere.api.common.ProgramDescription;
 import eu.stratosphere.api.common.operators.FileDataSink;
 import eu.stratosphere.api.common.operators.FileDataSource;
 import eu.stratosphere.api.common.operators.DeltaIteration;
@@ -41,8 +40,10 @@ import eu.stratosphere.example.java.record.connectedcomponents.WorksetConnectedC
 /**
  *
  */
-public class WorksetConnectedComponentsWithCoGroup implements Program, ProgramDescription {
+public class WorksetConnectedComponentsWithCoGroup implements Program {
 	
+	private static final long serialVersionUID = 1L;
+
 	@CombinableFirst
 	@ConstantFieldsFirst(0)
 	@ConstantFieldsSecond(0)
@@ -141,10 +142,5 @@ public class WorksetConnectedComponentsWithCoGroup implements Program, ProgramDe
 		Plan plan = new Plan(result, "Workset Connected Components");
 		plan.setDefaultParallelism(numSubTasks);
 		return plan;
-	}
-
-	@Override
-	public String getDescription() {
-		return "Parameters: <numberOfSubTasks> <vertices> <edges> <out> <maxIterations>";
 	}
 }

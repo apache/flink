@@ -36,9 +36,8 @@ import eu.stratosphere.util.Collector;
  */
 public class LineItemFilter extends MapFunction {
 
-	// used later on when the interval will be randomized
-	// private static final String DATE_CONSTANT = "1998-12-01";
-
+	private static final long serialVersionUID = 1L;
+	
 	private static final Logger LOGGER = Logger.getLogger(LineItemFilter.class);
 	private static final String DATE_CONSTANT = "1998-09-03";
 	

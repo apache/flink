@@ -14,25 +14,15 @@
 package eu.stratosphere.test.exampleScalaPrograms;
 
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.examples.scala.graph.ConnectedComponents;
 
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-
-@RunWith(Parameterized.class)
 public class ConnectedComponentsITCase extends eu.stratosphere.test.iterative.ConnectedComponentsITCase {
-    public ConnectedComponentsITCase(Configuration config) {
-        super(config);
-    }
 
-    @Override
-    protected Plan getTestJob() {
-        int dop = config.getInteger("ConnectedComponents#NumSubtasks", 1);
-        int maxIterations = config.getInteger("ConnectedComponents#NumIterations", 1);
-        ConnectedComponents cc = new ConnectedComponents();
-        Plan plan = cc.getScalaPlan(verticesPath, edgesPath, resultPath, maxIterations);
-        plan.setDefaultParallelism(dop);
-        return plan;
-    }
+	@Override
+	protected Plan getTestJob() {
+		ConnectedComponents cc = new ConnectedComponents();
+		Plan plan = cc.getScalaPlan(verticesPath, edgesPath, resultPath, 100);
+		plan.setDefaultParallelism(4);
+		return plan;
+	}
 }

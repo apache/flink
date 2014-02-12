@@ -36,7 +36,7 @@ import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.example.java.record.connectedcomponents.WorksetConnectedComponents.DuplicateLongMap;
 import eu.stratosphere.example.java.record.connectedcomponents.WorksetConnectedComponents.MinimumComponentIDReduce;
 import eu.stratosphere.example.java.record.connectedcomponents.WorksetConnectedComponents.NeighborWithComponentIDJoin;
-import eu.stratosphere.test.iterative.nephele.ConnectedComponentsNepheleITCase;
+import eu.stratosphere.test.testdata.ConnectedComponentsData;
 import eu.stratosphere.test.util.TestBase2;
 import eu.stratosphere.types.LongValue;
 import eu.stratosphere.types.Record;
@@ -63,38 +63,31 @@ public class ConnectedComponentsWithDeferredUpdateITCase extends TestBase2 {
 	
 	@Override
 	protected void preSubmit() throws Exception {
-		verticesPath = createTempFile("vertices.txt", ConnectedComponentsNepheleITCase.getEnumeratingVertices(NUM_VERTICES));
-		edgesPath = createTempFile("edges.txt", ConnectedComponentsNepheleITCase.getRandomOddEvenEdges(NUM_EDGES, NUM_VERTICES, SEED));
+		verticesPath = createTempFile("vertices.txt", ConnectedComponentsData.getEnumeratingVertices(NUM_VERTICES));
+		edgesPath = createTempFile("edges.txt", ConnectedComponentsData.getRandomOddEvenEdges(NUM_EDGES, NUM_VERTICES, SEED));
 		resultPath = getTempFilePath("results");
 	}
 	
 	@Override
 	protected Plan getTestJob() {
-		int dop = config.getInteger("ConnectedComponents#NumSubtasks", 1);
-		int maxIterations = config.getInteger("ConnectedComponents#NumIterations", 1);
-		boolean extraMapper = config.getBoolean("ConnectedComponents#ExtraMapper", false);
-		
-		return getPlan(dop, verticesPath, edgesPath, resultPath, maxIterations, extraMapper);
+		boolean extraMapper = config.getBoolean("ExtraMapper", false);
+		return getPlan(4, verticesPath, edgesPath, resultPath, 100, extraMapper);
 	}
 
 	@Override
 	protected void postSubmit() throws Exception {
 		for (BufferedReader reader : getResultReader(resultPath)) {
-			ConnectedComponentsNepheleITCase.checkOddEvenResult(reader);
+			ConnectedComponentsData.checkOddEvenResult(reader);
 		}
 	}
 
 	@Parameters
 	public static Collection<Object[]> getConfigurations() {
 		Configuration config1 = new Configuration();
-		config1.setInteger("ConnectedComponents#NumSubtasks", 4);
-		config1.setInteger("ConnectedComponents#NumIterations", 100);
-		config1.setBoolean("ConnectedComponents#ExtraMapper", false);
+		config1.setBoolean("ExtraMapper", false);
 		
 		Configuration config2 = new Configuration();
-		config2.setInteger("ConnectedComponents#NumSubtasks", 4);
-		config2.setInteger("ConnectedComponents#NumIterations", 100);
-		config2.setBoolean("ConnectedComponents#ExtraMapper", true);
+		config2.setBoolean("ExtraMapper", true);
 		
 		return toParameterList(config1, config2);
 	}
@@ -171,7 +164,6 @@ public class ConnectedComponentsWithDeferredUpdateITCase extends TestBase2 {
 	}
 	
 	public static final class IdentityMap extends MapFunction {
-
 		private static final long serialVersionUID = 1L;
 
 		@Override

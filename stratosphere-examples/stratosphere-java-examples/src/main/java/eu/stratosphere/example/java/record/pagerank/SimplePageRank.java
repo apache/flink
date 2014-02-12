@@ -36,6 +36,8 @@ import eu.stratosphere.util.Collector;
 
 public class SimplePageRank implements Program, ProgramDescription {
 	
+	private static final long serialVersionUID = 1L;
+	
 	private static final String NUM_VERTICES_CONFIG_PARAM = "pageRank.numVertices";
 	
 	// --------------------------------------------------------------------------------------------

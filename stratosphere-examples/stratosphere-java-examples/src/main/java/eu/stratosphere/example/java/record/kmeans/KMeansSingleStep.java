@@ -17,7 +17,6 @@ package eu.stratosphere.example.java.record.kmeans;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
@@ -34,6 +33,7 @@ import eu.stratosphere.api.java.record.io.CsvInputFormat;
 import eu.stratosphere.api.java.record.io.DelimitedOutputFormat;
 import eu.stratosphere.api.java.record.operators.MapOperator;
 import eu.stratosphere.api.java.record.operators.ReduceOperator;
+import eu.stratosphere.api.java.record.operators.ReduceOperator.Combinable;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.types.DoubleValue;
 import eu.stratosphere.types.IntValue;
@@ -66,14 +66,14 @@ public class KMeansSingleStep implements Program, ProgramDescription {
 		
 		MapOperator clusterPoints = MapOperator.builder(new PointBuilder()).name("Build cluster points").input(clustersSource).build();
 
-		// create CrossOperator for distance computation
+		// the mapper computes the distance to all points, which it draws from a broadcast variable
 		MapOperator findNearestClusterCenters = MapOperator.builder(new SelectNearestCenter())
 			.setBroadcastVariable("centers", clusterPoints)
 			.input(dataPoints)
 			.name("Find Nearest Centers")
 			.build();
 
-		// create ReduceOperator for computing new cluster positions
+		// create reducer recomputes the cluster centers as the  average of all associated data points
 		ReduceOperator recomputeClusterCenter = ReduceOperator.builder(new RecomputeClusterCenter(), IntValue.class, 0)
 			.input(findNearestClusterCenters)
 			.name("Recompute Center Positions")
@@ -82,7 +82,7 @@ public class KMeansSingleStep implements Program, ProgramDescription {
 		// create DataSinkContract for writing the new cluster positions
 		FileDataSink newClusterPoints = new FileDataSink(new PointOutFormat(), output, recomputeClusterCenter, "New Center Positions");
 
-		// return the PACT plan
+		// return the plan
 		Plan plan = new Plan(newClusterPoints, "KMeans Iteration");
 		plan.setDefaultParallelism(numSubTasks);
 		return plan;
@@ -168,7 +168,7 @@ public class KMeansSingleStep implements Program, ProgramDescription {
 	/**
 	 * Determines the closest cluster center for a data point.
 	 */
-	public static final class SelectNearestCenter extends MapFunction implements Serializable {
+	public static final class SelectNearestCenter extends MapFunction {
 		private static final long serialVersionUID = 1L;
 
 		private final IntValue one = new IntValue(1);
@@ -226,7 +226,8 @@ public class KMeansSingleStep implements Program, ProgramDescription {
 		}
 	}
 	
-	public static final class RecomputeClusterCenter extends ReduceFunction implements Serializable {
+	@Combinable
+	public static final class RecomputeClusterCenter extends ReduceFunction {
 		private static final long serialVersionUID = 1L;
 		
 		private final Point p = new Point();

@@ -26,6 +26,8 @@ import eu.stratosphere.types.LongValue;
 
 public class DanglingPageRank implements Program, ProgramDescription {
 	
+	private static final long serialVersionUID = 1L;
+	
 	public static final String NUM_VERTICES_CONFIG_PARAM = "pageRank.numVertices";
 		
 	public Plan getPlan(String ... args) {

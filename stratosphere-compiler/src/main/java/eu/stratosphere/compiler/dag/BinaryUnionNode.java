@@ -320,7 +320,9 @@ public class BinaryUnionNode extends TwoInputNode {
 	//  Mock classes that represents a contract without behavior.
 	// ------------------------------------------------------------------------
 	
-	private static final class MockStub extends AbstractFunction {}
+	private static final class MockStub extends AbstractFunction {
+		private static final long serialVersionUID = 1L;
+	}
 	
 	private static final class UnionPlaceholderContract extends DualInputOperator<MockStub> {
 		private UnionPlaceholderContract() {

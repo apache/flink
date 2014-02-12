@@ -76,9 +76,11 @@ import eu.stratosphere.util.Collector;
  * </pre></code>
  * 
  */
-public class WebLogAnalysis implements Program, ProgramDescription
-{
+public class WebLogAnalysis implements Program, ProgramDescription {
 	
+	private static final long serialVersionUID = 1L;
+
+
 	/**
 	 * MapFunction that filters for documents that contain a certain set of
 	 * keywords. 

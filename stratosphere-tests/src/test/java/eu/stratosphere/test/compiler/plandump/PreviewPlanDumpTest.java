@@ -70,11 +70,11 @@ public class PreviewPlanDumpTest {
 		dump(new WebLogAnalysis().getPlan(NO_ARGS));
 	}
 	
-//	@Test
-//	public void dumpBulkIterationKMeans() {
-//		dump(new KMeansIterative().getPlan("4", IN_FILE, OUT_FILE));
-//		dump(new KMeansIterative().getPlan(NO_ARGS));
-//	}
+	@Test
+	public void dumpBulkIterationKMeans() {
+		dump(new KMeansIterative().getPlan("4", IN_FILE, OUT_FILE));
+		dump(new KMeansIterative().getPlan(NO_ARGS));
+	}
 	
 	@Test
 	public void dumpWorksetConnectedComponents() {

@@ -28,8 +28,8 @@ import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
 import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.example.java.record.relational.TPCHQueryAsterix;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
+import eu.stratosphere.test.testPrograms.TPCHQueryAsterix;
 import eu.stratosphere.test.util.TestBase;
 
 @RunWith(Parameterized.class)

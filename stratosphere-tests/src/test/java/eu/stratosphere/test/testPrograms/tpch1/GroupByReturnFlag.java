@@ -22,13 +22,10 @@ import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
 
-/**
- */
 public class GroupByReturnFlag extends ReduceFunction {
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.stub.ReduceStub#reduce(eu.stratosphere.pact.common.type.Key, java.util.Iterator, eu.stratosphere.pact.common.stub.Collector)
-	 */
+	private static final long serialVersionUID = 1L;
+
 	@Override
 	public void reduce(Iterator<Record> records, Collector<Record> out) throws Exception {
 		Record outRecord = new Record();
@@ -62,5 +59,4 @@ public class GroupByReturnFlag extends ReduceFunction {
 		outRecord.setField(1, returnTuple);
 		out.collect(outRecord);
 	}
-
 }

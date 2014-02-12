@@ -11,7 +11,7 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-package eu.stratosphere.example.java.record.relational;
+package eu.stratosphere.test.testPrograms;
 
 import java.io.Serializable;
 import java.util.Iterator;
@@ -42,10 +42,9 @@ import eu.stratosphere.util.Collector;
  * on http://www.tpc.org/tpch/ .This implementation is tested with
  * the DB2 data format.  
  * 
- * This PACT program implements a query on the TPC-H schema 
+ * This program implements a query on the TPC-H schema 
  * including one join and an aggregation.
- * This query is used as example in the Asterix project
- * (http://asterix.ics.uci.edu/).
+ * This query is used as example in the Asterix project (http://asterix.ics.uci.edu/).
  * 
  * SELECT c_mktsegment, COUNT(o_orderkey)
  *   FROM orders, customer
@@ -55,6 +54,9 @@ import eu.stratosphere.util.Collector;
  */
 
 public class TPCHQueryAsterix implements Program, ProgramDescription {
+
+	private static final long serialVersionUID = 1L;
+
 
 	/**
 	 * Realizes the join between Customers and Order table.

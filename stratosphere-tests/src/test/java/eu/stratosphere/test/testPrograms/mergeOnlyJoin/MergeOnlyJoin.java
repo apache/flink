@@ -17,7 +17,6 @@ import java.util.Iterator;
 
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.Program;
-import eu.stratosphere.api.common.ProgramDescription;
 import eu.stratosphere.api.common.operators.FileDataSink;
 import eu.stratosphere.api.common.operators.FileDataSource;
 import eu.stratosphere.api.java.record.functions.JoinFunction;
@@ -32,10 +31,14 @@ import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
-public class MergeOnlyJoin implements Program, ProgramDescription {
+public class MergeOnlyJoin implements Program {
+
+	private static final long serialVersionUID = 1L;
 
 	@ConstantFieldsFirstExcept(2)
 	public static class JoinInputs extends JoinFunction {
+		private static final long serialVersionUID = 1L;
+
 		@Override
 		public void join(Record input1, Record input2, Collector<Record> out) {
 			input1.setField(2, input2.getField(1, IntValue.class));
@@ -45,7 +48,8 @@ public class MergeOnlyJoin implements Program, ProgramDescription {
 
 	@ConstantFieldsExcept({})
 	public static class DummyReduce extends ReduceFunction {
-		
+		private static final long serialVersionUID = 1L;
+
 		@Override
 		public void reduce(Iterator<Record> values, Collector<Record> out) {
 			while (values.hasNext()) {
@@ -108,10 +112,5 @@ public class MergeOnlyJoin implements Program, ProgramDescription {
 		Plan plan = new Plan(result, "Merge Only Join");
 		plan.setDefaultParallelism(numSubtasks);
 		return plan;
-	}
-
-	@Override
-	public String getDescription() {
-		return "Parameters: [numSubTasks], [input], [input2], [output], [numSubTasksInput2]";
 	}
 }

@@ -13,8 +13,6 @@
 
 package eu.stratosphere.test.testPrograms.tpch1;
 
-import org.apache.log4j.Logger;
-
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.Program;
 import eu.stratosphere.api.common.ProgramDescription;
@@ -26,22 +24,15 @@ import eu.stratosphere.test.testPrograms.util.IntTupleDataInFormat;
 import eu.stratosphere.test.testPrograms.util.StringTupleDataOutFormat;
 import eu.stratosphere.types.StringValue;
 
-/**
- *
- */
+
 public class TPCHQuery1 implements Program, ProgramDescription {
 
-	@SuppressWarnings("unused")
-	private static Logger LOGGER = Logger.getLogger(TPCHQuery1.class);
-	
+	private static final long serialVersionUID = 1L;
+
 	private int degreeOfParallelism = 1;
 	private String lineItemInputPath;
 	private String outputPath;
 	
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.plan.PlanAssembler#getPlan(java.lang.String[])
-	 */
 	@Override
 	public Plan getPlan(String... args) throws IllegalArgumentException {
 		
@@ -83,10 +74,8 @@ public class TPCHQuery1 implements Program, ProgramDescription {
 		return new Plan(result, "TPC-H 1");
 	}
 
-
 	@Override
 	public String getDescription() {
 		return "Parameters: [dop] [lineitem-input] [output]";
 	}
-
 }

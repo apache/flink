@@ -137,10 +137,12 @@ public class SpargelIteration {
 	@ConstantFieldsFirst(0)
 	public static final class VertexUpdateDriver<K extends Key, V extends Value, M extends Value> extends CoGroupFunction {
 		
-		private static final String UDF_PARAM = "pact.vertex.udf";
-		private static final String KEY_PARAM = "pact.vertex.key-type";
-		private static final String VALUE_PARAM = "pact.vertex.value-type";
-		private static final String MESSAGE_PARAM = "pact.vertex.message-type";
+		private static final long serialVersionUID = 1L;
+		
+		private static final String UDF_PARAM = "spargel.udf";
+		private static final String KEY_PARAM = "spargel.key-type";
+		private static final String VALUE_PARAM = "spargel.value-type";
+		private static final String MESSAGE_PARAM = "spargel.message-type";
 		
 		private VertexUpdateFunction<K, V, M> vertexUpdateFunction;
 		
@@ -206,11 +208,13 @@ public class SpargelIteration {
 	
 	public static final class MessagingDriver<K extends Key, V extends Value, M extends Value, E extends Value> extends CoGroupFunction {
 
-		private static final String UDF_PARAM = "stratosphere.spargel.udf";
-		private static final String KEY_PARAM = "stratosphere.spargel.key-type";
-		private static final String VALUE_PARAM = "stratosphere.spargel.value-type";
-		private static final String MESSAGE_PARAM = "stratosphere.spargel.message-type";
-		private static final String EDGE_PARAM = "stratosphere.spargel.edge-value";
+		private static final long serialVersionUID = 1L;
+		
+		private static final String UDF_PARAM = "spargel.udf";
+		private static final String KEY_PARAM = "spargel.key-type";
+		private static final String VALUE_PARAM = "spargel.value-type";
+		private static final String MESSAGE_PARAM = "spargel.message-type";
+		private static final String EDGE_PARAM = "spargel.edge-value";
 		
 		
 		private MessagingFunction<K, V, M, E> messagingFunction;
