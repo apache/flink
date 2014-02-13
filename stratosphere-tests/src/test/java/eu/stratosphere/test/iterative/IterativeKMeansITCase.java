@@ -17,7 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.example.java.record.kmeans.KMeansIterative;
+import eu.stratosphere.example.java.record.kmeans.KMeans;
 import eu.stratosphere.test.testdata.KMeansData;
 import eu.stratosphere.test.util.TestBase2;
 
@@ -37,7 +37,7 @@ public class IterativeKMeansITCase extends TestBase2 {
 	
 	@Override
 	protected Plan getTestJob() {
-		KMeansIterative kmi = new KMeansIterative();
+		KMeans kmi = new KMeans();
 		return kmi.getPlan("4", dataPath, clusterPath, resultPath, "20");
 	}
 

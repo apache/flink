@@ -25,7 +25,7 @@ import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.dag.DataSinkNode;
 import eu.stratosphere.compiler.plandump.PlanJSONDumpGenerator;
 import eu.stratosphere.example.java.record.connectedcomponents.WorksetConnectedComponents;
-import eu.stratosphere.example.java.record.kmeans.KMeansIterative;
+import eu.stratosphere.example.java.record.kmeans.KMeans;
 import eu.stratosphere.example.java.record.kmeans.KMeansSingleStep;
 import eu.stratosphere.example.java.record.relational.TPCHQuery3;
 import eu.stratosphere.example.java.record.relational.WebLogAnalysis;
@@ -72,8 +72,8 @@ public class PreviewPlanDumpTest {
 	
 	@Test
 	public void dumpBulkIterationKMeans() {
-		dump(new KMeansIterative().getPlan("4", IN_FILE, OUT_FILE));
-		dump(new KMeansIterative().getPlan(NO_ARGS));
+		dump(new KMeans().getPlan("4", IN_FILE, OUT_FILE));
+		dump(new KMeans().getPlan(NO_ARGS));
 	}
 	
 	@Test

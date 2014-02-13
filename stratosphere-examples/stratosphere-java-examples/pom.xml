@@ -57,7 +57,7 @@
 						</configuration>
 					</execution>
 		
-					<!-- DanglingPageRank -->
+					<!-- PageRank -->
 					<execution>
 						<id>DanglingPageRank</id>
 						<phase>package</phase>
@@ -79,33 +79,33 @@
 							</includes>
 						</configuration>
 					</execution>
-
-					<!-- KMeansSingleStep -->
+					
+					<!-- KMeans -->
 					<execution>
-						<id>KMeansSingleStep</id>
+						<id>KMeans</id>
 						<phase>package</phase>
 						<goals>
 							<goal>jar</goal>
 						</goals>
 
 						<configuration>
-							<classifier>KMeansSingleStep</classifier>
+							<classifier>KMeans</classifier>
 
 							<archive>
 								<manifestEntries>
-									<program-class>eu.stratosphere.example.java.record.kmeans.KMeansSingleStep</program-class>
+									<program-class>eu.stratosphere.example.java.record.kmeans.KMeans</program-class>
 								</manifestEntries>
 							</archive>
 
 							<includes>
-								<include>**/kmeans/KMeansSingleStep.class</include>
-								<include>**/kmeans/KMeansSingleStep$*.class</include>
+								<include>**/kmeans/KMeans.class</include>
+								<include>**/kmeans/KMeans$*.class</include>
 								<include>**/kmeans/KMeansSampleDataGenerator.class</include>
 							</includes>
 						</configuration>
 					</execution>
 					
-					<!-- KMeansIterative -->
+					<!-- KMeans with tagged points for the demo -->
 					<execution>
 						<id>KMeansIterative</id>
 						<phase>package</phase>
@@ -124,9 +124,9 @@
 
 							<includes>
 								<include>**/kmeans/KMeansIterative.class</include>
-								<include>**/kmeans/KMeansIterative$*.class</include>
-								<include>**/kmeans/KMeansSingleStep$*.class</include>
 								<include>**/kmeans/KMeansSampleDataGenerator.class</include>
+								<include>**/kmeans/KMeansIterative$*.class</include>
+								<include>**/kmeans/udfs/*.class</include>
 							</includes>
 						</configuration>
 					</execution>

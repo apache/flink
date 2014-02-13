@@ -22,7 +22,7 @@ import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
 import eu.stratosphere.compiler.plandump.PlanJSONDumpGenerator;
 import eu.stratosphere.example.java.record.connectedcomponents.WorksetConnectedComponents;
-import eu.stratosphere.example.java.record.kmeans.KMeansIterative;
+import eu.stratosphere.example.java.record.kmeans.KMeans;
 import eu.stratosphere.example.java.record.kmeans.KMeansSingleStep;
 import eu.stratosphere.example.java.record.relational.TPCHQuery3;
 import eu.stratosphere.example.java.record.relational.WebLogAnalysis;
@@ -57,7 +57,7 @@ public class CompiledPlanDumpTest extends CompilerTestBase {
 
 	@Test
 	public void dumpBulkIterationKMeans() {
-		dump(new KMeansIterative().getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, OUT_FILE));
+		dump(new KMeans().getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, OUT_FILE));
 	}
 	
 	@Test
