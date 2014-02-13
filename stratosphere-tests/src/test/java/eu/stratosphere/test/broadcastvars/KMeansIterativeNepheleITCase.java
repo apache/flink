@@ -239,7 +239,7 @@ public class KMeansIterativeNepheleITCase extends TestBase2 {
 		return tail;
 	}
 	
-	public JobOutputVertex createSync(JobGraph jobGraph, int numIterations, int dop) {
+	private static JobOutputVertex createSync(JobGraph jobGraph, int numIterations, int dop) {
 		JobOutputVertex sync = JobGraphUtils.createSync(jobGraph, dop);
 		TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());
 		syncConfig.setNumberOfIterations(numIterations);
@@ -251,7 +251,7 @@ public class KMeansIterativeNepheleITCase extends TestBase2 {
 	// Unified solution set and workset tail update
 	// -------------------------------------------------------------------------------------------------------------
 
-	private JobGraph createJobGraph(String pointsPath, String centersPath, String resultPath, int numSubTasks, int numIterations) throws JobGraphDefinitionException {
+	private static JobGraph createJobGraph(String pointsPath, String centersPath, String resultPath, int numSubTasks, int numIterations) throws JobGraphDefinitionException {
 
 		// -- init -------------------------------------------------------------------------------------------------
 		final TypeSerializerFactory<?> serializer = RecordSerializerFactory.get();
