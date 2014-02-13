@@ -13,21 +13,40 @@
 
 package eu.stratosphere.test.iterative;
 
-//import eu.stratosphere.api.common.Plan;
-//import eu.stratosphere.example.java.record.kmeans.KMeansIterative;
-//import eu.stratosphere.test.exampleRecordPrograms.KMeansStepITCase;
-//import eu.stratosphere.test.testdata.KMeansData;
-//
-//public class IterativeKMeansITCase extends KMeansStepITCase {
-//
-//	@Override
-//	protected Plan getTestJob() {
-//		KMeansIterative kmi = new KMeansIterative();
-//		return kmi.getPlan("4", dataPath, clusterPath, resultPath, "20");
-//	}
-//	
-//	@Override
-//	protected String getNewCenters() {
-//		return KMeansData.CENTERS_AFTER_20_ITERATIONS_DOUBLE_DIGIT;
-//	}
-//}
+import java.util.ArrayList;
+import java.util.List;
+
+import eu.stratosphere.api.common.Plan;
+import eu.stratosphere.example.java.record.kmeans.KMeansIterative;
+import eu.stratosphere.test.testdata.KMeansData;
+import eu.stratosphere.test.util.TestBase2;
+
+
+public class IterativeKMeansITCase extends TestBase2 {
+
+	protected String dataPath;
+	protected String clusterPath;
+	protected String resultPath;
+	
+	@Override
+	protected void preSubmit() throws Exception {
+		dataPath = createTempFile("datapoints.txt", KMeansData.DATAPOINTS);
+		clusterPath = createTempFile("initial_centers.txt", KMeansData.INITIAL_CENTERS);
+		resultPath = getTempDirPath("result");
+	}
+	
+	@Override
+	protected Plan getTestJob() {
+		KMeansIterative kmi = new KMeansIterative();
+		return kmi.getPlan("4", dataPath, clusterPath, resultPath, "20");
+	}
+
+
+	@Override
+	protected void postSubmit() throws Exception {
+		List<String> resultLines = new ArrayList<String>();
+		readAllResultLines(resultLines, resultPath);
+		
+		KMeansData.checkResultsWithDelta(KMeansData.CENTERS_AFTER_20_ITERATIONS_SINGLE_DIGIT, resultLines, 0.1);
+	}
+}

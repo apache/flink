@@ -148,12 +148,12 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 	 * {@link eu.stratosphere.nephele.jobgraph.JobGraph}.
 	 * This is an 1-to-1 mapping. No optimization whatsoever is applied.
 	 * 
-	 * @param pactPlan
+	 * @param program
 	 *        Optimized PACT plan that is translated into a JobGraph.
 	 * @return JobGraph generated from PACT plan.
 	 */
-	public JobGraph compileJobGraph(OptimizedPlan pactPlan) {
-		this.jobGraph = new JobGraph(pactPlan.getJobName());
+	public JobGraph compileJobGraph(OptimizedPlan program) {
+		this.jobGraph = new JobGraph(program.getJobName());
 		this.vertices = new HashMap<PlanNode, AbstractJobVertex>();
 		this.chainedTasks = new HashMap<PlanNode, TaskInChain>();
 		this.chainedTasksInSequence = new ArrayList<TaskInChain>();
@@ -162,7 +162,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		this.maxDegreeVertex = null;
 		
 		// generate Nephele job graph
-		pactPlan.accept(this);
+		program.accept(this);
 		
 		// finalize the iterations
 		for (IterationDescriptor iteration : this.iterations.values()) {
@@ -185,10 +185,10 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 
 		// now that all have been created, make sure that all share their instances with the one
 		// with the highest degree of parallelism
-		if (pactPlan.getInstanceTypeName() != null) {
-			this.maxDegreeVertex.setInstanceType(pactPlan.getInstanceTypeName());
+		if (program.getInstanceTypeName() != null) {
+			this.maxDegreeVertex.setInstanceType(program.getInstanceTypeName());
 		} else {
-			LOG.warn("No instance type assigned to Nephele JobVertex.");
+			LOG.warn("No instance type assigned to JobVertex.");
 		}
 		for (AbstractJobVertex vertex : this.vertices.values()) {
 			if (vertex != this.maxDegreeVertex) {
@@ -693,7 +693,11 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			throw new CompilerException("Error: It is currently not supported to union between dynamic and static path in an iteration.");
 		}
 		if (numDynamicSenderTasksTotal > 0) {
-			targetVertexConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(inputIndex, numDynamicSenderTasksTotal);
+			if (isBroadcast) {
+				targetVertexConfig.setBroadcastGateIterativeWithNumberOfEventsUntilInterrupt(inputIndex, numDynamicSenderTasksTotal);
+			} else {
+				targetVertexConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(inputIndex, numDynamicSenderTasksTotal);
+			}
 		}
 		
 		// the local strategy is added only once. in non-union case that is the actual edge,
@@ -904,7 +908,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			// instantiate the head vertex and give it a no-op driver as the driver strategy.
 			// everything else happens in the post visit, after the input (the initial partial solution)
 			// is connected.
-			headVertex = new JobTaskVertex("PartialSolution("+iteration.getNodeName()+")", this.jobGraph);
+			headVertex = new JobTaskVertex("PartialSolution ("+iteration.getNodeName()+")", this.jobGraph);
 			headVertex.setTaskClass(IterationHeadPactTask.class);
 			headConfig = new TaskConfig(headVertex.getConfiguration());
 			headConfig.setDriver(NoOpDriver.class);

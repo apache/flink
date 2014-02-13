@@ -20,15 +20,9 @@ import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.example.java.record.kmeans.KMeansSingleStep;
 import eu.stratosphere.test.testdata.KMeansData;
 import eu.stratosphere.test.util.TestBase2;
-import eu.stratosphere.util.LogUtils;
 
 public class KMeansStepITCase extends TestBase2 {
 
-	public KMeansStepITCase() {
-		LogUtils.initializeDefaultConsoleLogger();
-	}
-	
-	
 	protected String dataPath;
 	protected String clusterPath;
 	protected String resultPath;

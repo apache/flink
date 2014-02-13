@@ -24,9 +24,9 @@ import eu.stratosphere.api.java.record.io.CsvInputFormat;
 import eu.stratosphere.api.java.record.operators.MapOperator;
 import eu.stratosphere.api.java.record.operators.ReduceOperator;
 import eu.stratosphere.example.java.record.kmeans.KMeansSingleStep.PointBuilder;
+import eu.stratosphere.example.java.record.kmeans.KMeansSingleStep.PointOutFormat;
 import eu.stratosphere.example.java.record.kmeans.KMeansSingleStep.RecomputeClusterCenter;
 import eu.stratosphere.example.java.record.kmeans.KMeansSingleStep.SelectNearestCenter;
-import eu.stratosphere.example.java.record.kmeans.udfs.PointOutFormat;
 import eu.stratosphere.types.DoubleValue;
 import eu.stratosphere.types.IntValue;
 

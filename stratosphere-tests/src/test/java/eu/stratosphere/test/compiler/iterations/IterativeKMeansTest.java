@@ -26,6 +26,7 @@ import eu.stratosphere.compiler.plan.BulkIterationPlanNode;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
 import eu.stratosphere.compiler.plan.SingleInputPlanNode;
 import eu.stratosphere.compiler.plan.SinkPlanNode;
+import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.example.java.record.kmeans.KMeansIterative;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
@@ -66,6 +67,8 @@ public class IterativeKMeansTest extends CompilerTestBase {
 		
 		OptimizedPlan plan = compileWithStats(p);
 		checkPlan(plan);
+		
+		new NepheleJobGraphGenerator().compileJobGraph(plan);
 	}
 
 	@Test
@@ -76,6 +79,8 @@ public class IterativeKMeansTest extends CompilerTestBase {
 		
 		OptimizedPlan plan = compileNoStats(p);
 		checkPlan(plan);
+		
+		new NepheleJobGraphGenerator().compileJobGraph(plan);
 	}
 	
 	private void checkPlan(OptimizedPlan plan) {
@@ -108,6 +113,7 @@ public class IterativeKMeansTest extends CompilerTestBase {
 		assertEquals(ShipStrategyType.BROADCAST, mapper.getBroadcastInputs().get(0).getShipStrategy());
 		assertFalse(mapper.getInput().isOnDynamicPath());
 		assertTrue(mapper.getBroadcastInputs().get(0).isOnDynamicPath());
+		assertTrue(mapper.getInput().getTempMode().isCached());
 		
 		assertEquals(LocalStrategy.NONE, mapper.getInput().getLocalStrategy());
 		assertEquals(LocalStrategy.NONE, mapper.getBroadcastInputs().get(0).getLocalStrategy());

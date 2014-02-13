@@ -299,7 +299,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 			if (this.inConn.getShipStrategy() == null) {
 				// pick the strategy ourselves
 				for (RequestedGlobalProperties igps: intGlobal) {
-					final Channel c = new Channel(child);
+					final Channel c = new Channel(child, this.inConn.getMaterializationMode());
 					igps.parameterizeChannel(c, globalDopChange, localDopChange);
 					
 					// if the DOP changed, make sure that we cancel out properties, unless the
@@ -325,7 +325,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 				}
 			} else {
 				// hint fixed the strategy
-				final Channel c = new Channel(child);
+				final Channel c = new Channel(child, this.inConn.getMaterializationMode());
 				if (this.keys != null) {
 					c.setShipStrategy(this.inConn.getShipStrategy(), this.keys.toFieldList());
 				} else {

@@ -498,7 +498,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 					}
 				}
 				
-				// broadcast variables are simply not re-built. they stay unchanged available in the
+				// broadcast variables are always cached, because they stay unchanged available in the
 				// runtime context of the functions
 			}
 		}
