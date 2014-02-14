@@ -299,8 +299,8 @@ public class Client {
 		// Setup jar for ApplicationMaster
 		LocalResource appMasterJar = Records.newRecord(LocalResource.class);
 		LocalResource stratosphereConf = Records.newRecord(LocalResource.class);
-		Path remotePathJar = Utils.setupLocalResource(conf, fs, appId.getId(), localJarPath, appMasterJar);
-		Utils.setupLocalResource(conf, fs, appId.getId(), confPath, stratosphereConf);
+		Path remotePathJar = Utils.setupLocalResource(conf, fs, appId.toString(), localJarPath, appMasterJar);
+		Utils.setupLocalResource(conf, fs, appId.toString(), confPath, stratosphereConf);
 		
 		Map<String, LocalResource> localResources = new HashMap<String, LocalResource>(2);
 		localResources.put("stratosphere.jar", appMasterJar);
@@ -318,7 +318,7 @@ public class Client {
 		appMasterEnv.put(Client.ENV_TM_CORES, String.valueOf(tmCores));
 		appMasterEnv.put(Client.ENV_TM_MEMORY, String.valueOf(tmMemory));
 		appMasterEnv.put(Client.STRATOSPHERE_JAR_PATH, remotePathJar.toString() );
-		appMasterEnv.put(Client.ENV_APP_ID, String.valueOf(appId.getId()));
+		appMasterEnv.put(Client.ENV_APP_ID, appId.toString());
 		
 		amContainer.setEnvironment(appMasterEnv);
 

@@ -151,12 +151,14 @@ public class Utils {
 	 * @return Path to remote file (usually hdfs)
 	 * @throws IOException
 	 */
-	public static Path setupLocalResource(Configuration conf, FileSystem fs, int appId, Path localRsrcPath, LocalResource appMasterJar)
+	public static Path setupLocalResource(Configuration conf, FileSystem fs, String appId, Path localRsrcPath, LocalResource appMasterJar)
 			throws IOException {
 		// copy to HDFS
 		String suffix = ".stratosphere/" + appId + "/" + localRsrcPath.getName();
 		
 	    Path dst = new Path(fs.getHomeDirectory(), suffix);
+	    
+	    LOG.debug("Copying from "+localRsrcPath+" to "+dst );
 	    
 	    fs.copyFromLocalFile(localRsrcPath, dst);
 	    registerLocalResource(fs, dst, appMasterJar);
