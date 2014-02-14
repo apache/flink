@@ -12,6 +12,7 @@ import org.junit.Test;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.util.LogUtils;
+import eu.stratosphere.util.OperatingSystem;
 
 public class FileOutputFormatTest {
 
@@ -32,7 +33,7 @@ public class FileOutputFormatTest {
 			throw new RuntimeException("Test in error", e);
 		}
 		
-		String tmpFilePath = "file://"+tmpOutPath.getAbsolutePath();
+		String tmpFilePath = tmpOutPath.toURI().toString();
 		
 		Configuration config = new Configuration();
 		config.setString(FileOutputFormat.FILE_PARAMETER_KEY, tmpFilePath);
@@ -169,7 +170,7 @@ public class FileOutputFormatTest {
 			throw new RuntimeException("Test in error", e);
 		}
 		
-		String tmpFilePath = "file://"+tmpOutPath.getAbsolutePath();
+		String tmpFilePath = tmpOutPath.toURI().toString();
 		
 		Configuration config = new Configuration();
 		config.setString(FileOutputFormat.FILE_PARAMETER_KEY, tmpFilePath);
@@ -255,7 +256,7 @@ public class FileOutputFormatTest {
 			throw new RuntimeException("Test in error", e);
 		}
 		
-		String tmpFilePath = "file://"+tmpOutPath.getAbsolutePath();
+		String tmpFilePath = tmpOutPath.toURI().toString();
 		
 		Configuration config = new Configuration();
 		config.setString(FileOutputFormat.FILE_PARAMETER_KEY, tmpFilePath);
@@ -399,7 +400,7 @@ public class FileOutputFormatTest {
 			throw new RuntimeException("Test in error", e);
 		}
 		
-		String tmpFilePath = "file://"+tmpOutPath.getAbsolutePath();
+		String tmpFilePath = tmpOutPath.toURI().toString();
 		
 		Configuration config = new Configuration();
 		config.setString(FileOutputFormat.FILE_PARAMETER_KEY, tmpFilePath);

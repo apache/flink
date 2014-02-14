@@ -79,6 +79,9 @@ public class ExternalProcessInputFormatTest {
 	@Test
 	public void testCheckExitCode() {
 		
+		if(OperatingSystem.isWindows())
+			return;
+		
 		Configuration config = new Configuration();
 		ExternalProcessInputSplit split = new ExternalProcessInputSplit(1, failingCommand);
 		
@@ -122,6 +125,9 @@ public class ExternalProcessInputFormatTest {
 	@Test
 	public void testUserCodeTermination() {
 		
+		if(OperatingSystem.isWindows())
+			return;
+		
 		Configuration config = new Configuration();
 		config.setInteger(MyExternalProcessTestInputFormat.FAILCOUNT_PARAMETER_KEY, 100);
 		ExternalProcessInputSplit split = new ExternalProcessInputSplit(1, this.neverEndingCommand);
@@ -154,6 +160,9 @@ public class ExternalProcessInputFormatTest {
 	
 	@Test
 	public void testReadStream() {
+		
+		if(OperatingSystem.isWindows())
+			return;
 		
 		Configuration config = new Configuration();
 		ExternalProcessInputSplit split = new ExternalProcessInputSplit(1, this.thousandRecordsCommand);

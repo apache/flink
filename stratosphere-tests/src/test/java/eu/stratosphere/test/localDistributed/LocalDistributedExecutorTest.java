@@ -15,6 +15,7 @@ package eu.stratosphere.test.localDistributed;
 import eu.stratosphere.client.localDistributed.LocalDistributedExecutor;
 import eu.stratosphere.example.java.record.wordcount.WordCount;
 import eu.stratosphere.test.testdata.WordCountData;
+import eu.stratosphere.util.OperatingSystem;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -44,7 +45,7 @@ public class LocalDistributedExecutorTest {
 			WordCount wc = new WordCount();
 
 			lde.start(2);
-			lde.run(wc.getPlan("4", "file://" + inFile.getAbsolutePath(), "file://" + outFile.getAbsolutePath()));
+			lde.run(wc.getPlan("4", inFile.toURI().toString(), outFile.toURI().toString()));
 		} catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail(e.getMessage());

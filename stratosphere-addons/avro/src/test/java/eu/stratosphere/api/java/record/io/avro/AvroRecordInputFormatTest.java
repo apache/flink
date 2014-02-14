@@ -23,6 +23,7 @@ import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.fs.FileInputSplit;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;
+import eu.stratosphere.util.OperatingSystem;
 
 
 /**
@@ -105,7 +106,7 @@ public class AvroRecordInputFormatTest {
 	@Test
 	public void testDeserialisation() throws IOException {
 		Configuration parameters = new Configuration();
-		format.setFilePath("file://"+testFile.getAbsolutePath());
+		format.setFilePath(testFile.toURI().toString());
 		format.configure(parameters);
 		FileInputSplit[] splits = format.createInputSplits(1);
 		Assert.assertEquals(splits.length, 1);
