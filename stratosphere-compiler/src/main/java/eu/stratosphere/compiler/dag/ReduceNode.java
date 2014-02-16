@@ -16,10 +16,8 @@ package eu.stratosphere.compiler.dag;
 import java.util.Collections;
 import java.util.List;
 
-import eu.stratosphere.api.common.operators.CompilerHints;
 import eu.stratosphere.api.common.operators.Ordering;
 import eu.stratosphere.api.common.operators.base.ReduceOperatorBase;
-import eu.stratosphere.api.common.operators.util.FieldSet;
 import eu.stratosphere.api.java.record.operators.ReduceOperator;
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.DataStatistics;
@@ -127,92 +125,9 @@ public class ReduceNode extends SingleInputNode {
 	//  Estimates
 	// --------------------------------------------------------------------------------------------
 	
-	/**
-	 * Computes the number of keys that are processed by the PACT.
-	 * 
-	 * @return the number of keys processed by the PACT.
-	 */
 	@Override
-	protected long computeNumberOfProcessedKeys() {
-
-		if (getPredecessorNode() != null) {
-			// return key count of predecessor
-			return getPredecessorNode().getEstimatedCardinality(this.keys);
-		} else
-			return -1;
-	}
-	
-	/**
-	 * Computes the number of stub calls for one processed key. 
-	 * 
-	 * @return the number of stub calls for one processed key.
-	 */
-	@Override
-	protected double computeStubCallsPerProcessedKey() {
-		// the stub is called once for each key.
-		return 1;
-	}
-
-//	private void computeCombinerReducingFactor() {
-//		if (!isCombineable())
-//			return;
-//		
-//		long numRecords = 0;
-//		
-//		if (getPredecessorNode() != null && getPredecessorNode().estimatedNumRecords != -1)
-//			numRecords = getPredecessorNode().estimatedNumRecords;
-//		else
-//			return;
-//		
-//		long numKeys = computeNumberOfProcessedKeys();
-//		if(numKeys == -1)
-//			return;
-//		
-//		int parallelism = getDegreeOfParallelism();
-//		if (parallelism < 1)
-//			parallelism = 32;
-//
-//		float inValsPerKey = numRecords / (float)numKeys;
-//		float valsPerNode = inValsPerKey / parallelism;
-//		// each node will process at least one key 
-//		if (valsPerNode < 1)
-//			valsPerNode = 1;
-//
-//		this.combinerReducingFactor = 1 / valsPerNode;
-//	}
-
-	/**
-	 * Computes the number of stub calls.
-	 * 
-	 * @return the number of stub calls.
-	 */
-	@Override
-	protected long computeNumberOfStubCalls() {
-		// the stub is called once per key
-		return this.computeNumberOfProcessedKeys();
-	}
-	
-
-	@Override
-	public void computeOutputEstimates(DataStatistics statistics) {
-		CompilerHints hints = getPactContract().getCompilerHints();
-		
-		// special hint handling for Reduce:
-		// In case of SameKey OutputContract, avgNumValuesPerKey and avgRecordsEmittedPerStubCall are identical, 
-		// since the stub is called once per key
-		int[] keyColumns = getConstantKeySet(0); 
-		if (keyColumns != null) {
-			FieldSet keySet = new FieldSet(keyColumns);
-			if (hints.getAvgNumRecordsPerDistinctFields(keySet) != -1 && hints.getAvgRecordsEmittedPerStubCall() == -1) {
-				hints.setAvgRecordsEmittedPerStubCall(hints.getAvgNumRecordsPerDistinctFields(keySet));
-			}
-			if (hints.getAvgRecordsEmittedPerStubCall() != -1 && hints.getAvgNumRecordsPerDistinctFields(keySet) == -1) {
-				hints.setAvgNumRecordsPerDistinctFields(keySet, hints.getAvgRecordsEmittedPerStubCall());
-			}
-		}
-		super.computeOutputEstimates(statistics);
-		// check if preceding node is available
-//		this.computeCombinerReducingFactor();
+	protected void computeOperatorSpecificDefaultEstimates(DataStatistics statistics) {
+		// no real estimates possible for a reducer.
 	}
 	
 	public ReduceNode getCombinerUtilityNode() {

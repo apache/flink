@@ -70,8 +70,10 @@ class WebLogAnalysis extends Program with ProgramDescription with Serializable {
   
   // document tuple
   case class Doc(url: String, text: String)
+  
   // rank tuple
   case class Rank(rank: Int, url: String, avgDuration: Int)
+  
   // visit tuple
   case class Visit(url: String, date: String)
   
@@ -89,31 +91,29 @@ class WebLogAnalysis extends Program with ProgramDescription with Serializable {
 
     // filter on documents that contain certain key words and project to URL
     val filteredDocs = docs filter {d => d.text.contains(" editors ") && d.text.contains(" oscillations ") && d.text.contains(" convection ")} map { d => d.url }
-    filteredDocs.avgRecordsEmittedPerCall(.15f).avgBytesPerRecord(60).uniqueKey({url => url})
+    filteredDocs.filterFactor(.15f)
     filteredDocs.observes(d => (d.text))
     filteredDocs.preserves({d => d.url}, {url => url} )
     
     // filter on ranks that have a certain minimum rank
     val filteredRanks = ranks filter {r => r.rank > 50}
-    filteredRanks.avgRecordsEmittedPerCall(.25f).uniqueKey(_.url)
+    filteredRanks.filterFactor(.25f)
     filteredRanks.observes(r => (r.rank))
     filteredRanks.preserves({r => r}, {r => r} )
     
     // filter on visits of the year 2010 and project to URL
     val filteredVisits = visits filter {v => v.date.substring(0,4).equals("2010")} map { v => v.url }
-    filteredVisits.avgRecordsEmittedPerCall(.2f).avgBytesPerRecord(60)
+    filteredVisits.filterFactor(.2f)
     filteredVisits.observes(v => (v.date))
     filteredVisits.preserves( {v => v.url}, {url => url} )
     
     // filter for ranks on documents that contain certain key words 
     val ranksFilteredByDocs = filteredDocs join filteredRanks where {url => url} isEqualTo {r => r.url} map ((d,r) => r)
-    ranksFilteredByDocs.avgRecordsEmittedPerCall(1.0f)
     ranksFilteredByDocs.left.neglects( {d => d} )
     ranksFilteredByDocs.right.preserves( {r => r}, {r => r} )
     
     // filter for ranks on documents that have not been visited in 2010
     val ranksFilteredByDocsAndVisits = ranksFilteredByDocs cogroup filteredVisits where {r => r.url} isEqualTo {url => url} map ( (rs, vs) => if (vs.hasNext) Nil else rs.toList ) flatMap {rs => rs.iterator }
-    ranksFilteredByDocsAndVisits.avgRecordsEmittedPerCall(.8f)
     ranksFilteredByDocs.left.preserves( {r => r}, {r => r} )
     ranksFilteredByDocs.right.neglects( {v => v} )
     

@@ -59,30 +59,30 @@ trait OutputHintable[Out] { this: DataSet[Out] =>
   def degreeOfParallelism = contract.getDegreeOfParallelism()
   def degreeOfParallelism_=(value: Int) = contract.setDegreeOfParallelism(value)
   def degreeOfParallelism(value: Int): this.type = { contract.setDegreeOfParallelism(value); this }
+    
+  def outputSize = contract.getCompilerHints().getOutputSize()
+  def outputSize_=(value: Long) = contract.getCompilerHints().setOutputSize(value)
+  def outputSize(value: Long): this.type = { contract.getCompilerHints().setOutputSize(value); this }
+  
+  def outputCardinality = contract.getCompilerHints().getOutputCardinality()
+  def outputCardinality_=(value: Long) = contract.getCompilerHints().setOutputCardinality(value)
+  def outputCardinality(value: Long): this.type = { contract.getCompilerHints().setOutputCardinality(value); this }
+  
+  def avgBytesPerRecord = contract.getCompilerHints().getAvgBytesPerOutputRecord()
+  def avgBytesPerRecord_=(value: Float) = contract.getCompilerHints().setAvgBytesPerOutputRecord(value)
+  def avgBytesPerRecord(value: Float): this.type = { contract.getCompilerHints().setAvgBytesPerOutputRecord(value); this }
 
-  def avgBytesPerRecord = contract.getCompilerHints().getAvgBytesPerRecord()
-  def avgBytesPerRecord_=(value: Float) = contract.getCompilerHints().setAvgBytesPerRecord(value)
-  def avgBytesPerRecord(value: Float): this.type = { contract.getCompilerHints().setAvgBytesPerRecord(value); this }
-
-  def avgRecordsEmittedPerCall = contract.getCompilerHints().getAvgRecordsEmittedPerStubCall()
-  def avgRecordsEmittedPerCall_=(value: Float) = contract.getCompilerHints().setAvgRecordsEmittedPerStubCall(value)
-  def avgRecordsEmittedPerCall(value: Float): this.type = { contract.getCompilerHints().setAvgRecordsEmittedPerStubCall(value); this }
+  def filterFactor = contract.getCompilerHints().getFilterFactor()
+  def filterFactor_=(value: Float) = contract.getCompilerHints().setFilterFactor(value)
+  def filterFactor(value: Float): this.type = { contract.getCompilerHints().setFilterFactor(value); this }
 
   def uniqueKey[Key](fields: Out => Key) = macro OutputHintableMacros.uniqueKey[Out, Key]
-  def uniqueKey[Key](fields: Out => Key, distinctCount: Long) = macro OutputHintableMacros.uniqueKeyWithDistinctCount[Out, Key]
-
-  def cardinality[Key](fields: Out => Key) = macro OutputHintableMacros.cardinality[Out, Key]
-  def cardinality[Key](fields: Out => Key, distinctCount: Long) = macro OutputHintableMacros.cardinalityWithDistinctCount[Out, Key]
-  def cardinality[Key](fields: Out => Key, avgNumRecords: Float) = macro OutputHintableMacros.cardinalityWithAvgNumRecords[Out, Key]
-  def cardinality[Key](fields: Out => Key, distinctCount: Long, avgNumRecords: Float) = macro OutputHintableMacros.cardinalityWithAll[Out, Key]
 
   def applyHints(contract: Operator with ScalaOperator[_]): Unit = {
     val hints = contract.getCompilerHints
 
     if (hints.getUniqueFields != null)
       hints.getUniqueFields.clear()
-    hints.getDistinctCounts.clear()
-    hints.getAvgNumRecordsPerDistinctFields.clear()
 
     _cardinalities.foreach { card =>
 
@@ -91,9 +91,6 @@ trait OutputHintable[Out] { this: DataSet[Out] =>
       if (card.isUnique) {
         hints.addUniqueField(fieldSet)
       }
-
-      card.distinctCount.foreach(hints.setDistinctCount(fieldSet, _))
-      card.avgNumRecords.foreach(hints.setAvgNumRecordsPerDistinctFields(fieldSet, _))
     }
   }
 }

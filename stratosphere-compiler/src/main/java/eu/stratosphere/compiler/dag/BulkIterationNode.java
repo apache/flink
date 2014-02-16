@@ -151,15 +151,12 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 		return false;
 	}
 	
-	protected void readStubAnnotations() {
-	}
+	protected void readStubAnnotations() {}
 	
-	public void computeOutputEstimates(DataStatistics statistics) {
-		// simply copy from the inputs
-		final OptimizerNode n = this.inConn.getSource();
-		this.estimatedCardinality = n.estimatedCardinality;
-		this.estimatedOutputSize = n.estimatedOutputSize;
-		this.estimatedNumRecords = n.estimatedNumRecords;
+	@Override
+	protected void computeOperatorSpecificDefaultEstimates(DataStatistics statistics) {
+		this.estimatedOutputSize = getPredecessorNode().getEstimatedOutputSize();
+		this.estimatedNumRecords = getPredecessorNode().getEstimatedNumRecords();
 	}
 	
 	// --------------------------------------------------------------------------------------------

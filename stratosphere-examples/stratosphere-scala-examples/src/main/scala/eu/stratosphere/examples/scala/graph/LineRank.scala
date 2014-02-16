@@ -22,28 +22,11 @@ import eu.stratosphere.api.scala.operators._
 import eu.stratosphere.api.common.{ ProgramDescription, Program }
 import eu.stratosphere.api.scala.operators.CsvInputFormat
 
-object RunLineRankLocal {
-  
-  def main(args: Array[String]) {
-
-    val job = new LineRank
-
-    val plan = job.getScalaPlan(
-      2,
-      "file:///home/cicero/Desktop/centralities/src/main/resources/sourceIncidence.csv",
-      "file:///home/cicero/Desktop/centralities/src/main/resources/targetIncidence.csv",
-      9,
-      "file:///tmp/centralities")
-
-//    LocalExecutor.execute(plan)
-    println(LocalExecutor.optimizerPlanAsJSON(plan));
-  }
-}
-
-case class Edge(source: Int, target: Int, weight: Double)
-case class VectorElement(index: Int, value: Double)
 
 class LineRank extends Program with Serializable {
+  
+  case class Edge(source: Int, target: Int, weight: Double)
+  case class VectorElement(index: Int, value: Double)
 
   override def getPlan(args: String*) = {
     getScalaPlan(args(0).toInt, args(1), args(2), args(3).toInt, args(4))

@@ -13,9 +13,6 @@
 
 package eu.stratosphere.compiler.dag;
 
-import java.util.Map;
-
-import eu.stratosphere.api.common.operators.util.FieldSet;
 import eu.stratosphere.compiler.dataproperties.InterestingProperties;
 import eu.stratosphere.compiler.plandump.DumpableConnection;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
@@ -186,15 +183,10 @@ public class PactConnection implements EstimateProvider, DumpableConnection<Opti
 	public long getEstimatedNumRecords() {
 		return this.source.getEstimatedNumRecords();
 	}
-
+	
 	@Override
-	public Map<FieldSet, Long> getEstimatedCardinalities() {
-		return this.source.getEstimatedCardinalities();
-	}
-
-	@Override
-	public long getEstimatedCardinality(FieldSet cP) {
-		return this.source.getEstimatedCardinality(cP);
+	public float getEstimatedAvgWidthPerOutputRecord() {
+		return this.source.getEstimatedAvgWidthPerOutputRecord();
 	}
 	
 	// --------------------------------------------------------------------------------------------

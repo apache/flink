@@ -13,15 +13,9 @@
 
 package eu.stratosphere.compiler.dag;
 
-import java.util.Map;
 
-import eu.stratosphere.api.common.operators.util.FieldSet;
-
-/**
- * 
- */
-public interface EstimateProvider
-{
+public interface EstimateProvider {
+	
 	/**
 	 * Gets the estimated output size from this node.
 	 * 
@@ -35,9 +29,11 @@ public interface EstimateProvider
 	 * @return The estimated number of records.
 	 */
 	long getEstimatedNumRecords();
-
 	
-	Map<FieldSet, Long> getEstimatedCardinalities();
-	
-	long getEstimatedCardinality(FieldSet cP);
+	/**
+	 * Gets the estimated number of bytes per record.
+	 * 
+	 * @return The estimated number of bytes per record.
+	 */
+	float getEstimatedAvgWidthPerOutputRecord();
 }

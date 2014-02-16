@@ -51,6 +51,7 @@ import eu.stratosphere.types.StringValue;
  */
 public class TPCHQuery3Unioned implements Program, ProgramDescription {
 
+	private static final long serialVersionUID = 1L;
 
 	@Override
 	public Plan getPlan(final String... args) {
@@ -101,7 +102,7 @@ public class TPCHQuery3Unioned implements Program, ProgramDescription {
 		// filter configuration
 		filterO1.setParameter(TPCHQuery3.YEAR_FILTER, 1993);
 		filterO1.setParameter(TPCHQuery3.PRIO_FILTER, "5");
-		filterO1.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.05f);
+		filterO1.getCompilerHints().setFilterFactor(0.05f);
 		
 		// create MapOperator for filtering Orders tuples
 		MapOperator filterO2 = MapOperator.builder(new FilterO())
@@ -111,7 +112,6 @@ public class TPCHQuery3Unioned implements Program, ProgramDescription {
 		// filter configuration
 		filterO2.setParameter(TPCHQuery3.YEAR_FILTER, 1993);
 		filterO2.setParameter(TPCHQuery3.PRIO_FILTER, "5");
-		filterO2.getCompilerHints().setAvgRecordsEmittedPerStubCall(1.0f);
 
 		// create JoinOperator for joining Orders and LineItems
 		JoinOperator joinLiO = JoinOperator.builder(new JoinLiO(), LongValue.class, 0, 0)

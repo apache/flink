@@ -22,7 +22,6 @@ import java.util.Set;
 
 import com.google.common.collect.Sets;
 
-import eu.stratosphere.api.common.operators.CompilerHints;
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.common.operators.SingleInputOperator;
 import eu.stratosphere.api.common.operators.util.FieldSet;
@@ -419,45 +418,6 @@ public abstract class SingleInputNode extends OptimizerNode {
 
 		addClosedBranches(getPredecessorNode().closedBranchingNodes);
 		this.openBranches = getPredecessorNode().getBranchesForParent(this.inConn);
-	}
-	
-	// --------------------------------------------------------------------------------------------
-	//                                   Estimates Computation
-	// --------------------------------------------------------------------------------------------
-	
-	/**
-	 * Computes the width of output records.
-	 * 
-	 * @return width of output records
-	 */
-	protected double computeAverageRecordWidth() {
-		
-		CompilerHints hints = getPactContract().getCompilerHints();
-		
-		// use hint if available
-		if (hints != null && hints.getAvgBytesPerRecord() != -1) {
-			return hints.getAvgBytesPerRecord();
-		}
-
-		// compute width from output size and cardinality
-		final long numRecords = computeNumberOfStubCalls();
-		
-		long outputSize = 0;
-		if (getPredecessorNode() != null) {
-			outputSize = getPredecessorNode().estimatedOutputSize;
-		}
-		
-		// compute width only if we have information
-		if (numRecords == -1 || outputSize == -1)
-			return -1;
-		
-		final double width = outputSize / (double)numRecords;
-
-		// a record must have at least one byte...
-		if (width < 1)
-			return 1;
-		else 
-			return width;
 	}
 	
 	// --------------------------------------------------------------------------------------------

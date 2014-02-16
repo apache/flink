@@ -17,8 +17,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import eu.stratosphere.api.common.operators.base.JoinOperatorBase;
-import eu.stratosphere.api.common.operators.util.FieldSet;
 import eu.stratosphere.compiler.CompilerException;
+import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.operators.HashJoinBuildFirstProperties;
 import eu.stratosphere.compiler.operators.HashJoinBuildSecondProperties;
@@ -90,108 +90,6 @@ public class MatchNode extends TwoInputNode {
 			return list;
 		}
 	}
-
-	/**
-	 * Computes the number of keys that are processed by the PACT.
-	 * 
-	 * @return the number of keys processed by the PACT.
-	 */
-	protected long computeNumberOfProcessedKeys() {
-		// Match processes only keys that appear in both input sets
-		
-		long numKey1 = this.getFirstPredecessorNode().getEstimatedCardinality(new FieldSet(this.keys1));
-		long numKey2 = this.getSecondPredecessorNode().getEstimatedCardinality(new FieldSet(this.keys2));
-		
-		if(numKey1 == -1 && numKey2 == -2) {
-			// both key cars unknown.
-			return -1;
-		} else if(numKey1 == -1) {
-			// key card of 1st input unknown. Use key card of 2nd input as upper bound
-			return numKey2;
-		} else if(numKey2 == -1) {
-			// key card of 2nd input unknown. Use key card of 1st input as upper bound
-			return numKey1;
-		} else {
-			// key card of both inputs known. Use minimum as upper bound
-			return Math.min(numKey1, numKey2);
-		}
-	}
-	
-	/**
-	 * Computes the number of stub calls for one processed key. 
-	 * 
-	 * @return the number of stub calls for one processed key.
-	 */
-	protected double computeStubCallsPerProcessedKey() {
-		
-		long numKey1 = this.getFirstPredecessorNode().getEstimatedCardinality(new FieldSet(this.keys1));
-		long numRecords1 = this.getFirstPredecessorNode().getEstimatedNumRecords();
-		long numKey2 = this.getSecondPredecessorNode().getEstimatedCardinality(new FieldSet(this.keys2));
-		long numRecords2 = this.getSecondPredecessorNode().getEstimatedNumRecords();
-		
-		if(numKey1 == -1 && numKey2 == -1)
-			return -1;
-		
-		double callsPerKey = 1;
-		
-		if(numKey1 != -1) {
-			callsPerKey *= (double)numRecords1 / numKey1;
-		}
-		
-		if(numKey2 != -1) {
-			callsPerKey *= (double)numRecords2 / numKey2;
-		}
-
-		return callsPerKey;
-	}
-
-	
-	/**
-	 * Computes the number of stub calls.
-	 * 
-	 * @return the number of stub calls.
-	 */
-	protected long computeNumberOfStubCalls() {
-
-		long processedKeys = this.computeNumberOfProcessedKeys();
-		double stubCallsPerKey = this.computeStubCallsPerProcessedKey();
-		
-		if(processedKeys != -1 && stubCallsPerKey != -1) {
-			return (long) (processedKeys * stubCallsPerKey);
-		} else {
-			return -1;
-		}
-	}
-	
-	public boolean keepsUniqueProperty(FieldSet uniqueSet, int input) {
-		
-		return false;
-		
-//		FieldSet keyColumnsOtherInput;
-//		
-//		switch (input) {
-//		case 0:
-//			keyColumnsOtherInput = new FieldSet(keySet2);
-//			break;
-//		case 1:
-//			keyColumnsOtherInput = new FieldSet(keySet1);
-//			break;
-//		default:
-//			throw new RuntimeException("Input num out of bounds");
-//		}
-//		
-//		Set<FieldSet> uniqueInChild = getUniqueFieldsForInput(1-input);
-//		
-//		boolean otherKeyIsUnique = false;
-//		for (FieldSet uniqueFields : uniqueInChild) {
-//			if (keyColumnsOtherInput.containsAll(uniqueFields)) {
-//				otherKeyIsUnique = true;
-//				break;
-//			}
-//		}
-//		
-//		return otherKeyIsUnique;
-	}
 	
 	public void fixDriverStrategy(DriverStrategy strategy) {
 		if (strategy == DriverStrategy.MERGE) {
@@ -205,6 +103,28 @@ public class MatchNode extends TwoInputNode {
 			this.possibleProperties.add(new HashJoinBuildSecondProperties(this.keys1, this.keys2));
 		} else {
 			throw new IllegalArgumentException("Incompatible driver strategy.");
+		}
+	}
+	
+	/**
+	 * The default estimates build on the principle of inclusion: The smaller input key domain is included in the larger
+	 * input key domain. We also assume that every key from the larger input has one join partner in the smaller input.
+	 * The result cardinality is hence the larger one.
+	 */
+	@Override
+	protected void computeOperatorSpecificDefaultEstimates(DataStatistics statistics) {
+		long card1 = getFirstPredecessorNode().getEstimatedNumRecords();
+		long card2 = getSecondPredecessorNode().getEstimatedNumRecords();
+		this.estimatedNumRecords = (card1 < 0 || card2 < 0) ? -1 : Math.max(card1, card2);
+		
+		if (this.estimatedNumRecords >= 0) {
+			float width1 = getFirstPredecessorNode().getEstimatedAvgWidthPerOutputRecord();
+			float width2 = getSecondPredecessorNode().getEstimatedAvgWidthPerOutputRecord();
+			float width = (width1 <= 0 || width2 <= 0) ? -1 : width1 + width2;
+			
+			if (width > 0) {
+				this.estimatedOutputSize = (long) (width * this.estimatedNumRecords);
+			}
 		}
 	}
 }

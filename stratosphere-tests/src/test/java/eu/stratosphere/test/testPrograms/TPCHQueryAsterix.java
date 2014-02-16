@@ -21,7 +21,6 @@ import eu.stratosphere.api.common.Program;
 import eu.stratosphere.api.common.ProgramDescription;
 import eu.stratosphere.api.common.operators.FileDataSink;
 import eu.stratosphere.api.common.operators.FileDataSource;
-import eu.stratosphere.api.common.operators.util.FieldSet;
 import eu.stratosphere.api.java.record.functions.JoinFunction;
 import eu.stratosphere.api.java.record.functions.ReduceFunction;
 import eu.stratosphere.api.java.record.functions.FunctionAnnotation.ConstantFields;
@@ -147,9 +146,6 @@ public class TPCHQueryAsterix implements Program, ProgramDescription {
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
 			.field(IntValue.class, 1);
-		// compiler hints
-		orders.getCompilerHints().setAvgBytesPerRecord(5);
-		orders.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(new int[]{0}), 10);
 		
 		/*
 		 * Output Schema:
@@ -164,26 +160,18 @@ public class TPCHQueryAsterix implements Program, ProgramDescription {
 			.fieldDelimiter('|')
 			.field(IntValue.class, 0)
 			.field(StringValue.class, 6);
-		// compiler hints
-		customers.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(new int[]{0}), 1);
-		customers.getCompilerHints().setAvgBytesPerRecord(20);
 		
 		// create JoinOperator for joining Orders and LineItems
 		JoinOperator joinCO = JoinOperator.builder(new JoinCO(), IntValue.class, 0, 0)
 			.name("JoinCO")
 			.build();
 		joinCO.setDegreeOfParallelism(numSubtasks);
-		// compiler hints
-		joinCO.getCompilerHints().setAvgBytesPerRecord(17);
 
 		// create ReduceOperator for aggregating the result
 		ReduceOperator aggCO = ReduceOperator.builder(new AggCO(), StringValue.class, 1)
 			.name("AggCo")
 			.build();
 		aggCO.setDegreeOfParallelism(numSubtasks);
-		// compiler hints
-		aggCO.getCompilerHints().setAvgBytesPerRecord(17);
-		aggCO.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(new int[]{0}), 1);
 
 		// create DataSinkContract for writing the result
 		FileDataSink result = new FileDataSink(new CsvOutputFormat(), output, "Output");

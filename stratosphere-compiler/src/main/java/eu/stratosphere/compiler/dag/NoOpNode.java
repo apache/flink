@@ -14,6 +14,7 @@
 package eu.stratosphere.compiler.dag;
 
 import eu.stratosphere.api.common.operators.util.FieldSet;
+import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.operators.NoOpDescriptor;
 
 /**
@@ -21,12 +22,17 @@ import eu.stratosphere.compiler.operators.NoOpDescriptor;
  */
 public class NoOpNode extends UnaryOperatorNode {
 	
-	/**
-	 * Creates a new MapNode for the given contract.
-	 * 
-	 * @param pactContract The map contract object.
-	 */
 	public NoOpNode() {
 		super("No Op", new FieldSet(), new NoOpDescriptor());
+	}
+	
+	public NoOpNode(String name) {
+		super(name, new FieldSet(), new NoOpDescriptor());
+	}
+	
+	@Override
+	protected void computeOperatorSpecificDefaultEstimates(DataStatistics statistics) {
+		this.estimatedNumRecords = getPredecessorNode().getEstimatedNumRecords();
+		this.estimatedOutputSize = getPredecessorNode().getEstimatedOutputSize();
 	}
 }

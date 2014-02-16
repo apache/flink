@@ -16,13 +16,11 @@ package eu.stratosphere.compiler.dag;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.Map.Entry;
 
 import eu.stratosphere.api.common.operators.AbstractUdfOperator;
 import eu.stratosphere.api.common.operators.CompilerHints;
@@ -74,13 +72,11 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 
 	// ---------------------------- Estimates and Annotations -------------------------------------
 	
-	protected Set<FieldSet> uniqueFields; // set of attributes that will always be unique after this node
-	
-	protected Map<FieldSet, Long> estimatedCardinality = new HashMap<FieldSet, Long>(); // the estimated number of distinct keys in the output
-	
 	protected long estimatedOutputSize = -1; // the estimated size of the output (bytes)
 
 	protected long estimatedNumRecords = -1; // the estimated number of key/value pairs in the output
+	
+	protected Set<FieldSet> uniqueFields; // set of attributes that will always be unique after this node
 
 	// --------------------------------- General Parameters ---------------------------------------
 	
@@ -137,7 +133,6 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		
 		this.estimatedOutputSize = toCopy.estimatedOutputSize;
 		this.estimatedNumRecords = toCopy.estimatedNumRecords;
-		this.estimatedCardinality = toCopy.estimatedCardinality;
 		
 		this.degreeOfParallelism = toCopy.degreeOfParallelism;
 		this.subtasksPerInstance = toCopy.subtasksPerInstance;
@@ -528,33 +523,22 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	public InterestingProperties getInterestingProperties() {
 		return this.intProps;
 	}
-
-	/**
-	 * Gets the estimated output size from this node.
-	 * 
-	 * @return The estimated output size.
-	 */
+	
+	
 	public long getEstimatedOutputSize() {
 		return this.estimatedOutputSize;
 	}
 
-	/**
-	 * Gets the estimated number of records in the output of this node.
-	 * 
-	 * @return The estimated number of records.
-	 */
 	public long getEstimatedNumRecords() {
 		return this.estimatedNumRecords;
 	}
-
 	
-	public Map<FieldSet, Long> getEstimatedCardinalities() {
-		return estimatedCardinality;
-	}
-	
-	public long getEstimatedCardinality(FieldSet cP) {
-		Long estimate = estimatedCardinality.get(cP);
-		return estimate == null ? -1L : estimate.longValue();
+	public float getEstimatedAvgWidthPerOutputRecord() {
+		if (this.estimatedOutputSize > 0 && this.estimatedNumRecords > 0) {
+			return ((float) this.estimatedOutputSize) / this.estimatedNumRecords;
+		} else {
+			return -1.0f;
+		}
 	}
 
 	/**
@@ -636,168 +620,45 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 			}
 		}
 		
-		// 
+		// let every operator do its computation
+		computeOperatorSpecificDefaultEstimates(statistics);
+		
+		// overwrite default estimates with hints, if given
+		if (getPactContract() == null || getPactContract().getCompilerHints() == null) {
+			return ;
+		}
+		
 		CompilerHints hints = getPactContract().getCompilerHints();
-
-		computeUniqueFields();
-		
-		// ############# output cardinality estimation ##############
-		
-		boolean outputCardEstimated = true;
-			
-		this.estimatedNumRecords = 0;
-		int count = 0;
-
-		//If we have cardinalities and avg num values available for some fields, calculate 
-		//the average of those
-		for (Entry<FieldSet, Long> cardinality : hints.getDistinctCounts().entrySet()) {
-			float avgNumValues = hints.getAvgNumRecordsPerDistinctFields(cardinality.getKey());
-			if (avgNumValues != -1) {
-				this.estimatedNumRecords += cardinality.getValue() * avgNumValues;
-				count++;
-			}
+		if (hints.getOutputSize() >= 0) {
+			this.estimatedOutputSize = hints.getOutputSize();
 		}
 		
-		if (count > 0) {
-			this.estimatedNumRecords = (this.estimatedNumRecords /count) >= 1 ?
-					(this.estimatedNumRecords /count) : 1;
-		}
-		else {
-
-			// default output cardinality is equal to number of stub calls
-			this.estimatedNumRecords = this.computeNumberOfStubCalls();
-			
-			if(hints.getAvgRecordsEmittedPerStubCall() != -1.0 && this.computeNumberOfStubCalls() != -1) {
-				// we know how many records are in average emitted per stub call
-				this.estimatedNumRecords = (this.computeNumberOfStubCalls() * hints.getAvgRecordsEmittedPerStubCall() >= 1) ?
-						(long) (this.computeNumberOfStubCalls() * hints.getAvgRecordsEmittedPerStubCall()) : 1;
-			} else {
-				outputCardEstimated = false;
-			}
-		}
-					
-		// ############# output key cardinality estimation ##########
-
-		this.estimatedCardinality.putAll(hints.getDistinctCounts());	
-
-		
-		for (FieldSet uniqueFieldSet : getUniqueFields()) {
-			if (this.estimatedCardinality.get(uniqueFieldSet) == null) {
-				this.estimatedCardinality.put(uniqueFieldSet, this.estimatedNumRecords);
-			}
+		if (hints.getOutputCardinality() >= 0) {
+			this.estimatedNumRecords = hints.getOutputCardinality();
 		}
 		
-		for (int input = 0; input < getIncomingConnections().size(); input++) {
-			int[] keyColumns;
-			if ((keyColumns = getConstantKeySet(input)) != null) {
-				long estimatedKeyCardinality; 
-				if(hints.getAvgRecordsEmittedPerStubCall() > 1.0) {
-					// in average less than one record is emitted per stub call
-					
-					// compute the probability that at least one stub call emits a record for a given key 
-					double probToKeepKey = 1.0 - Math.pow((1.0 - hints.getAvgRecordsEmittedPerStubCall()), this.computeStubCallsPerProcessedKey());
-
-					estimatedKeyCardinality = (this.computeNumberOfProcessedKeys() * probToKeepKey >= 1) ?
-							(long) (this.computeNumberOfProcessedKeys() * probToKeepKey) : 1;
-				} else {
-					// in average more than one record is emitted per stub call. We assume all keys are kept.
-					estimatedKeyCardinality = this.computeNumberOfProcessedKeys();
-				}
-				
-				FieldSet fieldSet = new FieldSet(keyColumns);
-				if (estimatedCardinality.get(fieldSet) == null) {
-					estimatedCardinality.put(fieldSet, estimatedKeyCardinality);	
+		if (hints.getFilterFactor() >= 0.0f) {
+			if (this instanceof SingleInputNode) {
+				OptimizerNode pred = ((SingleInputNode) this).getPredecessorNode();
+				if (pred != null && pred.getEstimatedNumRecords() >= 0) {
+					this.estimatedNumRecords = (long) (pred.getEstimatedNumRecords() * hints.getFilterFactor());
 				}
 			}
 		}
 		
-		if (this.estimatedNumRecords != -1) {
-			for (Entry<FieldSet, Float> avgNumValues : hints.getAvgNumRecordsPerDistinctFields().entrySet()) {
-				if (estimatedCardinality.get(avgNumValues.getKey()) == null) {
-					long estimatedCard = (this.estimatedNumRecords / avgNumValues.getValue() >= 1) ? 
-							(long) (this.estimatedNumRecords / avgNumValues.getValue()) : 1;
-					estimatedCardinality.put(avgNumValues.getKey(), estimatedCard);
-				}
+		// use the width to infer the cardinality (given size) and vice versa
+		if (hints.getAvgBytesPerOutputRecord() >= 1) {
+			// the estimated number of rows based on size
+			if (this.estimatedNumRecords == -1 && this.estimatedOutputSize >= 0) {
+				this.estimatedNumRecords = (long) (this.estimatedOutputSize / hints.getAvgBytesPerOutputRecord());
 			}
-		}
-		 
-		// try to reversely estimate output cardinality from key cardinality
-		if (!outputCardEstimated) { //this.estimatedKeyCardinality != -1 &&
-			// we could derive an estimate for key cardinality but could not derive an estimate for the output cardinality
-			
-			long newEstimatedNumRecords = 0;
-			count = 0;
-			
-			for (Entry<FieldSet, Long> cardinality : estimatedCardinality.entrySet()) {
-				float avgNumValues = hints.getAvgNumRecordsPerDistinctFields(cardinality.getKey());
-				if (avgNumValues != -1) {
-					// we have a hint for average values per key
-					newEstimatedNumRecords += cardinality.getValue() * avgNumValues;
-					count++;
-				}
-			}
-			
-			if (count > 0) {
-				newEstimatedNumRecords = (newEstimatedNumRecords /count) >= 1 ?
-						(newEstimatedNumRecords /count) : 1;
-			}
-		}
-		
-			
-		// ############# output size estimation #####################
-
-		double estAvgRecordWidth = this.computeAverageRecordWidth();
-		
-		if(this.estimatedNumRecords != -1 && estAvgRecordWidth != -1) {
-			// we have a cardinality estimate and width estimate
-
-			this.estimatedOutputSize = (this.estimatedNumRecords * estAvgRecordWidth) >= 1 ? 
-					(long)(this.estimatedNumRecords * estAvgRecordWidth) : 1;
-		}
-		
-		// check that the key-card is maximally as large as the number of rows
-		for (Entry<FieldSet, Long> cardinality : this.estimatedCardinality.entrySet()) {
-			if (cardinality.getValue() > this.estimatedNumRecords) {
-				cardinality.setValue(this.estimatedNumRecords);
+			else if (this.estimatedOutputSize == -1 && this.estimatedNumRecords >= 0) {
+				this.estimatedOutputSize = (long) (this.estimatedNumRecords * hints.getAvgBytesPerOutputRecord());
 			}
 		}
 	}
 	
-	/**
-	 * Computes the width of output records
-	 * 
-	 * @return width of output records
-	 */
-	protected double computeAverageRecordWidth() {
-		return -1;
-	}
-	
-	/**
-	 * Computes the number of stub calls.
-	 * 
-	 * @return the number of stub calls.
-	 */
-	protected long computeNumberOfStubCalls() {
-		return -1;
-	}
-	
-	/**
-	 * Computes the number of keys that are processed by the PACT.
-	 * 
-	 * @return the number of keys processed by the PACT.
-	 */
-	protected long computeNumberOfProcessedKeys() {
-		return -1;
-	}
-	
-	/**
-	 * Computes the number of stub calls for one processed key. 
-	 * 
-	 * @return the number of stub calls for one processed key.
-	 */
-	protected double computeStubCallsPerProcessedKey() {
-		return -1;
-	}
+	protected abstract void computeOperatorSpecificDefaultEstimates(DataStatistics statistics);
 	
 	// ------------------------------------------------------------------------
 	// Reading of stub annotations
@@ -853,24 +714,6 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 			}
 		}
 		return null;
-	}
-	
-	/**
-	 * 
-	 */
-	private void computeUniqueFields() {
-//		if (this.stubOutCardUB > 1 || this.stubOutCardUB < 0) {
-//			return;
-//		}
-//		
-//		//check which uniqueness properties are created by this node
-//		List<FieldSet> uniqueFields = createUniqueFieldsForNode();
-//		if (uniqueFields != null) {
-//			if (this.uniqueFields == null) {
-//				this.uniqueFields = new HashSet<FieldSet>();
-//			}
-//			this.uniqueFields.addAll(uniqueFields);
-//		}
 	}
 	
 	/**

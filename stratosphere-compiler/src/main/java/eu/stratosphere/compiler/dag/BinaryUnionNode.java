@@ -79,6 +79,17 @@ public class BinaryUnionNode extends TwoInputNode {
 	}
 	
 	@Override
+	protected void computeOperatorSpecificDefaultEstimates(DataStatistics statistics) {
+		long card1 = getFirstPredecessorNode().getEstimatedNumRecords();
+		long card2 = getSecondPredecessorNode().getEstimatedNumRecords();
+		this.estimatedNumRecords = (card1 < 0 || card2 < 0) ? -1 : card1 + card2;
+		
+		long size1 = getFirstPredecessorNode().getEstimatedOutputSize();
+		long size2 = getSecondPredecessorNode().getEstimatedOutputSize();
+		this.estimatedOutputSize = (size1 < 0 || size2 < 0) ? -1 : size1 + size2;
+	}
+	
+	@Override
 	public void computeUnionOfInterestingPropertiesFromSuccessors() {
 		super.computeUnionOfInterestingPropertiesFromSuccessors();
 		// clear all local properties, as they are destroyed anyways
@@ -295,25 +306,6 @@ public class BinaryUnionNode extends TwoInputNode {
 				in1.estimatedNumRecords + in2.estimatedNumRecords : -1;
 		this.estimatedOutputSize = in1.estimatedOutputSize > 0 && in2.estimatedOutputSize > 0 ?
 			in1.estimatedOutputSize + in2.estimatedOutputSize : -1;
-	}
-	
-	@Override
-	protected long computeNumberOfStubCalls() {
-		return this.estimatedNumRecords;
-	}
-	
-	@Override
-	protected double computeAverageRecordWidth() {
-		if (this.estimatedNumRecords == -1 || this.estimatedOutputSize == -1) return -1;
-		
-		final double width = this.estimatedOutputSize / (double) this.estimatedNumRecords;
-
-		// a record must have at least one byte...
-		if(width < 1) {
-			return 1;
-		} else {
-			return width;
-		}
 	}
 	
 	// ------------------------------------------------------------------------

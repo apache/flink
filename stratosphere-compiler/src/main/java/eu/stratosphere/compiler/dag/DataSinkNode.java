@@ -132,24 +132,10 @@ public class DataSinkNode extends OptimizerNode {
 
 	/**
 	 * Computes the estimated outputs for the data sink. Since the sink does not modify anything, it simply
-	 * copies the output estimates from its direct predecessor. Any compiler hints on the data sink are
-	 * ignored.
-	 * 
-	 * @param statistics
-	 *        The statistics wrapper to be used to obtain additional knowledge. Ignored.
-	 * @see eu.stratosphere.compiler.dag.OptimizerNode#computeOutputEstimates(eu.stratosphere.compiler.DataStatistics)
+	 * copies the output estimates from its direct predecessor.
 	 */
 	@Override
-	public void computeOutputEstimates(DataStatistics statistics) {
-		// we copy the output estimates from the input
-		if (this.getPredecessorNode() == null) {
-			throw new CompilerException();
-		}
-		
-		if (this.estimatedCardinality.size() > 0)
-			this.estimatedCardinality.clear();
-		
-		this.estimatedCardinality.putAll(getPredecessorNode().getEstimatedCardinalities());
+	protected void computeOperatorSpecificDefaultEstimates(DataStatistics statistics) {
 		this.estimatedNumRecords = getPredecessorNode().getEstimatedNumRecords();
 		this.estimatedOutputSize = getPredecessorNode().getEstimatedOutputSize();
 	}

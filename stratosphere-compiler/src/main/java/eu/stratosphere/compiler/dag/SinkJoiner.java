@@ -95,4 +95,9 @@ public class SinkJoiner extends TwoInputNode {
 	public void computeOutputEstimates(DataStatistics statistics) {
 		// nothing to be done here
 	}
+
+	@Override
+	protected void computeOperatorSpecificDefaultEstimates(DataStatistics statistics) {
+		// no estimates needed at this point
+	}
 }

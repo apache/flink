@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 
 import eu.stratosphere.api.common.operators.Operator;
+import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.costs.CostEstimator;
 import eu.stratosphere.compiler.plan.PlanNode;
 import eu.stratosphere.util.Visitor;
@@ -34,7 +35,6 @@ public abstract class AbstractPartialSolutionNode extends OptimizerNode {
 	// --------------------------------------------------------------------------------------------
 	
 	protected void copyEstimates(OptimizerNode node) {
-		this.estimatedCardinality = node.estimatedCardinality;
 		this.estimatedNumRecords = node.estimatedNumRecords;
 		this.estimatedOutputSize = node.estimatedOutputSize;
 	}
@@ -65,6 +65,11 @@ public abstract class AbstractPartialSolutionNode extends OptimizerNode {
 	@Override
 	public void setInputs(Map<Operator, OptimizerNode> contractToNode) {}
 
+	@Override
+	protected void computeOperatorSpecificDefaultEstimates(DataStatistics statistics) {
+		// we do nothing here, because the estimates can only be copied from the iteration input
+	}
+	
 	@Override
 	public void computeInterestingPropertiesForInputs(CostEstimator estimator) {
 		// no children, so nothing to compute

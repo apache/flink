@@ -16,6 +16,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import eu.stratosphere.api.common.operators.util.FieldSet;
+import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.operators.OperatorDescriptorSingle;
 
 
@@ -53,5 +54,10 @@ public class UnaryOperatorNode extends SingleInputNode {
 			throw new IndexOutOfBoundsException();
 		}
 		return true;
+	}
+
+	@Override
+	protected void computeOperatorSpecificDefaultEstimates(DataStatistics statistics) {
+		// we have no estimates by default
 	}
 }

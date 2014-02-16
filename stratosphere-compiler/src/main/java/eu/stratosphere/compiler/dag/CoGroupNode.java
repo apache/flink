@@ -16,10 +16,8 @@ package eu.stratosphere.compiler.dag;
 import java.util.ArrayList;
 import java.util.List;
 
-import eu.stratosphere.api.common.operators.CompilerHints;
 import eu.stratosphere.api.common.operators.Ordering;
 import eu.stratosphere.api.common.operators.base.CoGroupOperatorBase;
-import eu.stratosphere.api.common.operators.util.FieldSet;
 import eu.stratosphere.api.java.record.operators.CoGroupOperator;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.operators.CoGroupDescriptor;
@@ -28,16 +26,10 @@ import eu.stratosphere.compiler.operators.CoGroupWithSolutionSetSecondDescriptor
 import eu.stratosphere.compiler.operators.OperatorDescriptorDual;
 
 /**
- * The Optimizer representation of a <i>CoGroup</i> contract node.
+ * The Optimizer representation of a <i>CoGroup</i> operator.
  */
 public class CoGroupNode extends TwoInputNode {
 	
-	/**
-	 * Creates a new CoGroupNode for the given contract.
-	 * 
-	 * @param pactContract
-	 *        The CoGroup contract object.
-	 */
 	public CoGroupNode(CoGroupOperatorBase<?> pactContract) {
 		super(pactContract);
 	}
@@ -45,9 +37,9 @@ public class CoGroupNode extends TwoInputNode {
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Gets the contract object for this CoGroup node.
+	 * Gets the operator for this CoGroup node.
 	 * 
-	 * @return The contract.
+	 * @return The CoGroup operator.
 	 */
 	@Override
 	public CoGroupOperatorBase<?> getPactContract() {
@@ -95,123 +87,9 @@ public class CoGroupNode extends TwoInputNode {
 		this.possibleProperties.add(op);
 	}
 
-	// --------------------------------------------------------------------------------------------
-	// Estimates
-	// --------------------------------------------------------------------------------------------
-	
-	/**
-	 * Computes the number of keys that are processed by the PACT.
-	 * 
-	 * @return the number of keys processed by the PACT.
-	 */
-	protected long computeNumberOfProcessedKeys() {
-		long numKey1 = this.getFirstPredecessorNode().getEstimatedCardinality(new FieldSet(this.keys1));
-		long numKey2 = this.getSecondPredecessorNode().getEstimatedCardinality(new FieldSet(this.keys2));
-
-		if(numKey1 == -1 && numKey2 == -1)
-			// key card of both inputs unknown. Return -1
-			return -1;
-		
-		if(numKey1 == -1)
-			// key card of 1st input unknown. Use key card of 2nd input as lower bound
-			return numKey2;
-		
-		if(numKey2 == -1)
-			// key card of 2nd input unknown. Use key card of 1st input as lower bound
-			return numKey1;
-
-		// key card of both inputs known. Use maximum as lower bound
-		return Math.max(numKey1, numKey2);
-	}
-	
-	/**
-	 * Computes the number of stub calls for one processed key. 
-	 * 
-	 * @return the number of stub calls for one processed key.
-	 */
-	protected double computeStubCallsPerProcessedKey() {
-		// the stub is called once for each key.
-		return 1;
-	}
-	
-	/**
-	 * Computes the number of stub calls.
-	 * 
-	 * @return the number of stub calls.
-	 */
-	protected long computeNumberOfStubCalls() {
-		// the stub is called once per key
-		return this.computeNumberOfProcessedKeys();
-	}
 
 	@Override
-	public void computeOutputEstimates(DataStatistics statistics) {
-		CompilerHints hints = getPactContract().getCompilerHints();
-
-		// special hint handling for CoGroup:
-		// In case of SameKey OutputContract, avgNumValuesPerKey and avgRecordsEmittedPerStubCall are identical, 
-		// since the stub is called once per key
-		int[] keyColumns = getConstantKeySet(0); 
-		if (keyColumns != null) {
-			FieldSet keySet = new FieldSet(keyColumns);
-			if (hints.getAvgNumRecordsPerDistinctFields(keySet) != -1 && hints.getAvgRecordsEmittedPerStubCall() == -1) {
-				hints.setAvgRecordsEmittedPerStubCall(hints.getAvgNumRecordsPerDistinctFields(keySet));
-			}
-			if(hints.getAvgRecordsEmittedPerStubCall() != -1 && hints.getAvgNumRecordsPerDistinctFields(keySet) == -1) {
-				hints.setAvgNumRecordsPerDistinctFields(keySet, hints.getAvgRecordsEmittedPerStubCall());
-			}
-		}
-		
-		keyColumns = getConstantKeySet(1); 
-		if (keyColumns != null) {
-			FieldSet keySet = new FieldSet(keyColumns);
-			if (hints.getAvgNumRecordsPerDistinctFields(keySet) != -1 && hints.getAvgRecordsEmittedPerStubCall() == -1) {
-				hints.setAvgRecordsEmittedPerStubCall(hints.getAvgNumRecordsPerDistinctFields(keySet));
-			}
-			if(hints.getAvgRecordsEmittedPerStubCall() != -1 && hints.getAvgNumRecordsPerDistinctFields(keySet) == -1) {
-				hints.setAvgNumRecordsPerDistinctFields(keySet, hints.getAvgRecordsEmittedPerStubCall());
-			}
-		}
-		
-		
-		super.computeOutputEstimates(statistics);
-	}
-	
-	@Override
-	public List<FieldSet> createUniqueFieldsForNode() {
-		List<FieldSet> uniqueFields = null;
-		if (keys1 != null) {
-			boolean isKept = true;
-			for (int keyField : keys1) {
-				if (!isFieldConstant(0, keyField)) {
-					isKept = false;
-					break;
-				}
-			}
-			
-			if (isKept) {
-				uniqueFields = new ArrayList<FieldSet>();
-				uniqueFields.add(new FieldSet(keys1));
-			}
-		}
-		
-		if (keys2 != null) {
-			boolean isKept = true;
-			for (int keyField : keys2) {
-				if (!isFieldConstant(1, keyField)) {
-					isKept = false;
-					break;
-				}
-			}
-			
-			if (isKept) {
-				if (uniqueFields == null) {
-					uniqueFields = new ArrayList<FieldSet>();	
-				}
-				uniqueFields.add(new FieldSet(keys2));
-			}
-		}
-		
-		return uniqueFields;
+	protected void computeOperatorSpecificDefaultEstimates(DataStatistics statistics) {
+		// for CoGroup, we currently make no reasonable default estimates
 	}
 }

@@ -17,15 +17,12 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 
-import eu.stratosphere.api.common.io.statistics.BaseStatistics;
-import eu.stratosphere.api.common.operators.CompilerHints;
-import eu.stratosphere.api.common.operators.GenericDataSource;
-import eu.stratosphere.api.common.operators.Operator;
-import eu.stratosphere.api.common.operators.util.FieldSet;
 import eu.stratosphere.api.common.io.InputFormat;
 import eu.stratosphere.api.common.io.UnsplittableInput;
+import eu.stratosphere.api.common.io.statistics.BaseStatistics;
+import eu.stratosphere.api.common.operators.GenericDataSource;
+import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.java.record.io.FileInputFormat;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;
@@ -40,8 +37,6 @@ import eu.stratosphere.util.Visitor;
  * The optimizer's internal representation of a data source.
  */
 public class DataSourceNode extends OptimizerNode {
-	
-	private long inputSize;			//the size of the input in bytes
 	
 	private final boolean unsplittable;
 
@@ -111,24 +106,10 @@ public class DataSourceNode extends OptimizerNode {
 	}
 
 	@Override
-	public void setInputs(Map<Operator, OptimizerNode> contractToNode) {
-		// do nothing
-	}
+	public void setInputs(Map<Operator, OptimizerNode> contractToNode) {}
 
-	/**
-	 * Causes this node to compute its output estimates (such as number of rows, size in bytes)
-	 * based on the file size and the compiler hints. The compiler hints are instantiated with
-	 * conservative default values which are used if no other values are provided.
-	 */
 	@Override
-	public void computeOutputEstimates(DataStatistics statistics) {
-		final CompilerHints hints = getPactContract().getCompilerHints();
-		
-		// initialize basic estimates to unknown
-		this.estimatedOutputSize = -1;
-		this.inputSize = -1;
-		this.estimatedNumRecords = -1;
-
+	protected void computeOperatorSpecificDefaultEstimates(DataStatistics statistics) {
 		// see, if we have a statistics object that can tell us a bit about the file
 		if (statistics != null) {
 			// instantiate the input format, as this is needed by the statistics 
@@ -143,7 +124,7 @@ public class DataSourceNode extends OptimizerNode {
 			}
 			catch (Throwable t) {
 				if (PactCompiler.LOG.isWarnEnabled())
-					PactCompiler.LOG.warn("Could not instantiate input format to obtain statistics."
+					PactCompiler.LOG.warn("Could not instantiate InputFormat to obtain statistics."
 						+ " Limited statistics will be available.", t);
 				return;
 			}
@@ -168,16 +149,11 @@ public class DataSourceNode extends OptimizerNode {
 			if (bs != null) {
 				final long len = bs.getTotalInputSize();
 				if (len == BaseStatistics.SIZE_UNKNOWN) {
-					if (PactCompiler.LOG.isWarnEnabled())
-						PactCompiler.LOG.warn("Pact compiler could not determine the size of input '" + inFormatDescription + "'.");
+					if (PactCompiler.LOG.isInfoEnabled())
+						PactCompiler.LOG.info("Compiler could not determine the size of input '" + inFormatDescription + "'. Using default estimates.");
 				}
 				else if (len >= 0) {
-					this.inputSize = len;
-				}
-				
-				final float avgBytes = bs.getAverageRecordWidth();
-				if (avgBytes != BaseStatistics.AVG_RECORD_BYTES_UNKNOWN && hints.getAvgBytesPerRecord() <= 0.0f) {
-					hints.setAvgBytesPerRecord(avgBytes);
+					this.estimatedOutputSize = len;
 				}
 				
 				final long card = bs.getNumberOfRecords();
@@ -185,58 +161,6 @@ public class DataSourceNode extends OptimizerNode {
 					this.estimatedNumRecords = card;
 				}
 			}
-		}
-
-		// the estimated number of rows is depending on the average row width
-		if (this.estimatedNumRecords == -1 && hints.getAvgBytesPerRecord() != -1.0f && this.inputSize > 0) {
-			this.estimatedNumRecords = (long) (this.inputSize / hints.getAvgBytesPerRecord()) + 1;
-		}
-
-		// the key cardinality is either explicitly specified, derived from an avgNumValuesPerKey hint, 
-		// or we assume for robustness reasons that every record has a unique key. 
-		// Key cardinality overestimation results in more robust plans
-		
-		this.estimatedCardinality.putAll(hints.getDistinctCounts());
-		
-		if(this.estimatedNumRecords != -1) {
-			for (Entry<FieldSet, Float> avgNumValues : hints.getAvgNumRecordsPerDistinctFields().entrySet()) {
-				if (estimatedCardinality.get(avgNumValues.getKey()) == null) {
-					long estimatedCard = (this.estimatedNumRecords / avgNumValues.getValue() >= 1) ? 
-							(long) (this.estimatedNumRecords / avgNumValues.getValue()) : 1;
-					estimatedCardinality.put(avgNumValues.getKey(), estimatedCard);
-				}
-			}
-		}
-		else {
-			// if we have the key cardinality and an average number of values per key, we can estimate the number
-			// of rows
-			this.estimatedNumRecords = 0;
-			int count = 0;
-			
-			for (Entry<FieldSet, Long> cardinality : hints.getDistinctCounts().entrySet()) {
-				float avgNumValues = hints.getAvgNumRecordsPerDistinctFields(cardinality.getKey());
-				if (avgNumValues != -1) {
-					this.estimatedNumRecords += cardinality.getValue() * avgNumValues;
-					count++;
-				}
-			}
-			
-			if (count > 0) {
-				this.estimatedNumRecords = (this.estimatedNumRecords /count) >= 1 ?
-						(this.estimatedNumRecords /count) : 1;
-			}
-			else {
-				this.estimatedNumRecords = -1;
-			}
-		}
-		
-		
-		// Estimate output size
-		if (this.estimatedNumRecords != -1 && hints.getAvgBytesPerRecord() != -1.0f) {
-			this.estimatedOutputSize = (this.estimatedNumRecords * hints.getAvgBytesPerRecord()) >= 1 ? 
-				(long) (this.estimatedNumRecords * hints.getAvgBytesPerRecord()) : 1;
-		} else {
-			this.estimatedOutputSize = this.inputSize;
 		}
 	}
 
@@ -261,8 +185,10 @@ public class DataSourceNode extends OptimizerNode {
 		candidate.updatePropertiesWithUniqueSets(getUniqueFields());
 		
 		final Costs costs = new Costs();
-		if (FileInputFormat.class.isAssignableFrom(getPactContract().getFormatWrapper().getUserCodeObject().getClass())) {
-			estimator.addFileInputCost(this.inputSize, costs);
+		if (FileInputFormat.class.isAssignableFrom(getPactContract().getFormatWrapper().getUserCodeObject().getClass()) &&
+				this.estimatedOutputSize >= 0)
+		{
+			estimator.addFileInputCost(this.estimatedOutputSize, costs);
 		}
 		candidate.setCosts(costs);
 

@@ -204,13 +204,10 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 	
 	protected void readStubAnnotations() {}
 	
-	public void computeOutputEstimates(DataStatistics statistics) {
-		// copy from the partial solution input.
-		// NOTE: This assumes that the solution set is not inflationary, but constant!
-		final OptimizerNode n = this.input1.getSource();
-		this.estimatedCardinality = n.estimatedCardinality;
-		this.estimatedOutputSize = n.estimatedOutputSize;
-		this.estimatedNumRecords = n.estimatedNumRecords;
+	@Override
+	protected void computeOperatorSpecificDefaultEstimates(DataStatistics statistics) {
+		this.estimatedOutputSize = getFirstPredecessorNode().getEstimatedOutputSize();
+		this.estimatedNumRecords = getFirstPredecessorNode().getEstimatedNumRecords();
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -463,6 +460,11 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 		@Override
 		protected List<OperatorDescriptorDual> getPossibleProperties() {
 			return Collections.emptyList();
+		}
+
+		@Override
+		protected void computeOperatorSpecificDefaultEstimates(DataStatistics statistics) {
+			// no estimates are needed here
 		}
 	}
 }

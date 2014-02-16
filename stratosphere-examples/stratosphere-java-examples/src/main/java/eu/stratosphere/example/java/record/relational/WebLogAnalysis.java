@@ -21,7 +21,6 @@ import eu.stratosphere.api.common.Program;
 import eu.stratosphere.api.common.ProgramDescription;
 import eu.stratosphere.api.common.operators.FileDataSink;
 import eu.stratosphere.api.common.operators.FileDataSource;
-import eu.stratosphere.api.common.operators.util.FieldSet;
 import eu.stratosphere.api.java.record.functions.CoGroupFunction;
 import eu.stratosphere.api.java.record.functions.JoinFunction;
 import eu.stratosphere.api.java.record.functions.MapFunction;
@@ -279,25 +278,19 @@ public class WebLogAnalysis implements Program, ProgramDescription {
 			.input(docs)
 			.name("Filter Docs")
 			.build();
-		filterDocs.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.15f);
-		filterDocs.getCompilerHints().setAvgBytesPerRecord(60);
-		filterDocs.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(new int[]{0}), 1);
+		filterDocs.getCompilerHints().setFilterFactor(0.15f);
 
 		// Create MapOperator for filtering the entries from the ranks relation
 		MapOperator filterRanks = MapOperator.builder(new FilterRanks())
 			.input(ranks)
 			.name("Filter Ranks")
 			.build();
-		filterRanks.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.25f);
-		filterRanks.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(new int[]{0}), 1);
 
 		// Create MapOperator for filtering the entries from the visits relation
 		MapOperator filterVisits = MapOperator.builder(new FilterVisits())
 			.input(visits)
 			.name("Filter Visits")
 			.build();
-		filterVisits.getCompilerHints().setAvgBytesPerRecord(60);
-		filterVisits.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.2f);
 
 		// Create JoinOperator to join the filtered documents and ranks
 		// relation
@@ -306,7 +299,6 @@ public class WebLogAnalysis implements Program, ProgramDescription {
 			.input2(filterRanks)
 			.name("Join Docs Ranks")
 			.build();
-		joinDocsRanks.setDegreeOfParallelism(numSubTasks);
 
 		// Create CoGroupOperator to realize a anti join between the joined
 		// documents and ranks relation and the filtered visits relation
@@ -315,7 +307,6 @@ public class WebLogAnalysis implements Program, ProgramDescription {
 			.input2(filterVisits)
 			.name("Antijoin DocsVisits")
 			.build();
-		antiJoinVisits.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.8f);
 
 		// Create DataSinkContract for writing the result of the OLAP query
 		FileDataSink result = new FileDataSink(new CsvOutputFormat(), output, antiJoinVisits, "Result");

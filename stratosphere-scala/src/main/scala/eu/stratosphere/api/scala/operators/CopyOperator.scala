@@ -66,8 +66,8 @@ object CopyOperator {
           .filter( z => z._1 == z._2).map { _._1}))
       persistHints = { () =>
         this.setName("Copy " + source.getName())
-        if (source.getCompilerHints().getAvgBytesPerRecord() >= 0)
-          this.getCompilerHints().setAvgBytesPerRecord(source.getCompilerHints().getAvgBytesPerRecord())
+        if (source.getCompilerHints().getAvgBytesPerOutputRecord() >= 0)
+          this.getCompilerHints().setAvgBytesPerOutputRecord(source.getCompilerHints().getAvgBytesPerOutputRecord())
       }
     }
     new DataSet[Nothing](ret)

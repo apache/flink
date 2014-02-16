@@ -329,8 +329,8 @@ public class CsvInputFormat extends GenericCsvInputFormat<Record> {
 		}
 
 		@Override
-		public float getAvgBytesPerRecord() {
-			float superWidth = super.getAvgBytesPerRecord();
+		public float getAvgBytesPerOutputRecord() {
+			float superWidth = super.getAvgBytesPerOutputRecord();
 			if (superWidth > 0.0f || this.width <= 0.0f) {
 				return superWidth;
 			} else {

@@ -17,11 +17,12 @@ import java.util.Collections;
 import java.util.List;
 
 import eu.stratosphere.api.common.operators.base.MapOperatorBase;
+import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.operators.MapDescriptor;
 import eu.stratosphere.compiler.operators.OperatorDescriptorSingle;
 
 /**
- * The optimizer's internal representation of a <i>Map</i> contract node.
+ * The optimizer's internal representation of a <i>Map</i> operator node.
  */
 public class MapNode extends SingleInputNode {
 	
@@ -34,11 +35,6 @@ public class MapNode extends SingleInputNode {
 		super(pactContract);
 	}
 
-	/**
-	 * Gets the contract object for this map node.
-	 * 
-	 * @return The contract.
-	 */
 	@Override
 	public MapOperatorBase<?> getPactContract() {
 		return (MapOperatorBase<?>) super.getPactContract();
@@ -49,20 +45,17 @@ public class MapNode extends SingleInputNode {
 		return "Map";
 	}
 
-	/**
-	 * Computes the number of stub calls.
-	 * 
-	 * @return the number of stub calls.
-	 */
-	protected long computeNumberOfStubCalls() {
-		if (getPredecessorNode() != null)
-			return getPredecessorNode().estimatedNumRecords;
-		else
-			return -1;
-	}
-
 	@Override
 	protected List<OperatorDescriptorSingle> getPossibleProperties() {
 		return Collections.<OperatorDescriptorSingle>singletonList(new MapDescriptor());
+	}
+
+	/**
+	 * Computes the estimates for the Map operator. Map takes one value and transforms it into another value.
+	 * The cardinality consequently stays the same.
+	 */
+	@Override
+	protected void computeOperatorSpecificDefaultEstimates(DataStatistics statistics) {
+		this.estimatedNumRecords = getPredecessorNode().getEstimatedNumRecords();
 	}
 }

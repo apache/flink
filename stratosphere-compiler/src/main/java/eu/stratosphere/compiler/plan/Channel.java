@@ -13,12 +13,8 @@
 
 package eu.stratosphere.compiler.plan;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import eu.stratosphere.api.common.distributions.DataDistribution;
 import eu.stratosphere.api.common.operators.util.FieldList;
-import eu.stratosphere.api.common.operators.util.FieldSet;
 import eu.stratosphere.api.common.typeutils.TypeComparatorFactory;
 import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
 import eu.stratosphere.compiler.CompilerException;
@@ -318,27 +314,14 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 		return this.source.template.getEstimatedOutputSize() * this.replicationFactor;
 	}
 
-
 	@Override
 	public long getEstimatedNumRecords() {
 		return this.source.template.getEstimatedNumRecords() * this.replicationFactor;
 	}
-
-
+	
 	@Override
-	public Map<FieldSet, Long> getEstimatedCardinalities() {
-		final Map<FieldSet, Long> m = this.source.template.getEstimatedCardinalities();
-		final Map<FieldSet, Long> res = new HashMap<FieldSet, Long>();
-		for (Map.Entry<FieldSet, Long> entry : m.entrySet()) {
-			res.put(entry.getKey(), entry.getValue() * this.replicationFactor);
-		}
-		return res;
-	}
-
-
-	@Override
-	public long getEstimatedCardinality(FieldSet cP) {
-		return this.source.template.getEstimatedCardinality(cP) * this.replicationFactor;
+	public float getEstimatedAvgWidthPerOutputRecord() {
+		return this.source.template.getEstimatedAvgWidthPerOutputRecord();
 	}
 	
 	// --------------------------------------------------------------------------------------------

@@ -226,7 +226,7 @@ public class TPCHQuery3 implements Program, ProgramDescription {
 		filterO.setParameter(YEAR_FILTER, 1993);
 		filterO.setParameter(PRIO_FILTER, "5");
 		// compiler hints
-		filterO.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.05f);
+		filterO.getCompilerHints().setFilterFactor(0.05f);
 
 		// create JoinOperator for joining Orders and LineItems
 		JoinOperator joinLiO = JoinOperator.builder(new JoinLiO(), LongValue.class, 0, 0)

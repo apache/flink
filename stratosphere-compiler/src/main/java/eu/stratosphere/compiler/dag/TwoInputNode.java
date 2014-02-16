@@ -22,7 +22,6 @@ import java.util.Set;
 
 import com.google.common.collect.Sets;
 
-import eu.stratosphere.api.common.operators.CompilerHints;
 import eu.stratosphere.api.common.operators.DualInputOperator;
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.common.operators.util.FieldList;
@@ -715,42 +714,6 @@ public abstract class TwoInputNode extends OptimizerNode {
 		if (this.notConstant2 != null && this.constant2 != null) {
 			throw new CompilerException("Either ConstantFieldsSecond or ConstantFieldsSecondExcept can be specified, not both.");
 		}
-	}
-	
-	/**
-	 * Computes the width of output records
-	 * 
-	 * @return width of output records
-	 */
-	protected double computeAverageRecordWidth() {
-		CompilerHints hints = getPactContract().getCompilerHints();
-
-		if(hints.getAvgBytesPerRecord() != -1) {
-			// use hint if available
-			return hints.getAvgBytesPerRecord();
-		}
-	
-		double avgRecordWidth = -1;
-		
-		if (this.getFirstPredecessorNode() != null && this.getFirstPredecessorNode().estimatedOutputSize != -1 &&
-				this.getFirstPredecessorNode().estimatedNumRecords > 0)
-		{
-			avgRecordWidth = (this.getFirstPredecessorNode().estimatedOutputSize / this.getFirstPredecessorNode().estimatedNumRecords);
-		} else {
-			return -1;
-		}
-		
-		if(this.getSecondPredecessorNode() != null && 
-				this.getSecondPredecessorNode().estimatedOutputSize != -1 &&
-				this.getSecondPredecessorNode().estimatedNumRecords != -1) {
-			
-			avgRecordWidth += (this.getSecondPredecessorNode().estimatedOutputSize / this.getSecondPredecessorNode().estimatedNumRecords);
-			
-		} else {
-			return -1;
-		}
-
-		return (avgRecordWidth < 1) ? 1 : avgRecordWidth;
 	}
 
 	/**

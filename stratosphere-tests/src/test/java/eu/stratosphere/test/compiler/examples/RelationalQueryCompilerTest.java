@@ -113,7 +113,7 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 		// set compiler hints
 		ContractResolver cr = getContractResolver(p);
 		JoinOperator match = cr.getNode("JoinLiO");
-		match.getCompilerHints().setAvgRecordsEmittedPerStubCall(100f);
+		match.getCompilerHints().setFilterFactor(100f);
 		
 		testQueryGeneric(100l*1024*1024*1024*1024, 100l*1024*1024*1024*1024, false, true, false, false, true);
 	}

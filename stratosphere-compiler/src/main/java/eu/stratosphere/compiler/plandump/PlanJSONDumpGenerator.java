@@ -25,10 +25,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 
 import eu.stratosphere.api.common.operators.CompilerHints;
-import eu.stratosphere.api.common.operators.util.FieldSet;
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.dag.BinaryUnionNode;
 import eu.stratosphere.compiler.dag.BulkIterationNode;
@@ -506,15 +504,6 @@ public class PlanJSONDumpGenerator {
 			: formatNumber(n.getEstimatedOutputSize(), "B"), true);
 		addProperty(writer, "Est. Cardinality", n.getEstimatedNumRecords() == -1 ? "(unknown)"
 			: formatNumber(n.getEstimatedNumRecords()), false);
-		String estCardinality = "(unknown)";
-		if (n.getEstimatedCardinalities().size() > 0) {
-			estCardinality = "";
-			for (Entry<FieldSet, Long> entry : n.getEstimatedCardinalities().entrySet()) {
-				estCardinality += "[" + entry.getKey().toString() + "->" + entry.getValue() + "]"; 
-			}
-		}
-		addProperty(writer, "Est. Cardinality/fields", estCardinality, false);
-
 
 		writer.print("\t\t]");
 
@@ -547,35 +536,17 @@ public class PlanJSONDumpGenerator {
 			CompilerHints hints = n.getPactContract().getCompilerHints();
 			CompilerHints defaults = new CompilerHints();
 
+			String size = hints.getOutputSize() == defaults.getOutputSize() ? "(none)" : String.valueOf(hints.getOutputSize());
+			String card = hints.getOutputCardinality() == defaults.getOutputCardinality() ? "(none)" : String.valueOf(hints.getOutputCardinality());
+			String width = hints.getAvgBytesPerOutputRecord() == defaults.getAvgBytesPerOutputRecord() ? "(none)" : String.valueOf(hints.getAvgBytesPerOutputRecord());
+			String filter = hints.getFilterFactor() == defaults.getFilterFactor() ? "(none)" : String.valueOf(hints.getFilterFactor());
+			
 			writer.print(",\n\t\t\"compiler_hints\": [\n");
 
-			String hintCardinality;
-			if (hints.getDistinctCounts().size() > 0) {
-				hintCardinality = "";
-				for (Entry<FieldSet, Long> entry : hints.getDistinctCounts().entrySet()) {
-					hintCardinality += "[" + entry.getKey().toString() + "->" + entry.getValue() + "]"; 
-				}
-			} else {
-				hintCardinality = "(none)";
-			}
-			addProperty(writer, "Cardinality", hintCardinality, true);
-			
-			addProperty(writer, "Avg. Records/StubCall", hints.getAvgRecordsEmittedPerStubCall() == defaults.
-					getAvgRecordsEmittedPerStubCall() ? "(none)" : String.valueOf(hints.getAvgRecordsEmittedPerStubCall()), false);
-			
-			String valuesKey;
-			if (hints.getAvgNumRecordsPerDistinctFields().size() > 0) {
-				valuesKey = "";
-				for (Entry<FieldSet, Float> entry : hints.getAvgNumRecordsPerDistinctFields().entrySet()) {
-					valuesKey += "[" + entry.getKey().toString() + "->" + entry.getValue() + "]"; 
-				}
-			} else {
-				valuesKey = "(none)";
-			}
-			addProperty(writer, "Avg. Values/Distinct fields", valuesKey, false);
-			
-			addProperty(writer, "Avg. Width (bytes)", hints.getAvgBytesPerRecord() == defaults
-				.getAvgBytesPerRecord() ? "(none)" : String.valueOf(hints.getAvgBytesPerRecord()), false);
+			addProperty(writer, "Output Size", size, true);
+			addProperty(writer, "Output Cardinality", card, false);
+			addProperty(writer, "Output avg. width (bytes)", width, false);
+			addProperty(writer, "Filter Factor", filter, false);
 
 			writer.print("\t\t]");
 		}

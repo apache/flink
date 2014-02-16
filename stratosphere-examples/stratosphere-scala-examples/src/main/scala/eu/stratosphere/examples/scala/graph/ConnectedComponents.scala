@@ -72,10 +72,6 @@ class ConnectedComponents extends Program with Serializable {
     val components = vertices.iterateWithDelta(vertices, { _._1 }, propagateComponent, maxIterations)
     val output = components.write(componentsOutput, DelimitedOutputFormat(formatOutput.tupled))
 
-    vertices.avgBytesPerRecord(8)
-    directedEdges.avgBytesPerRecord(8)
-    undirectedEdges.avgBytesPerRecord(8).avgRecordsEmittedPerCall(2)
-
     val plan = new ScalaPlan(Seq(output), "Connected Components")
     GlobalSchemaPrinter.printSchema(plan)
     plan
