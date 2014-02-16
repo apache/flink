@@ -21,6 +21,7 @@ import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.operators.FileDataSource;
 import eu.stratosphere.api.common.operators.util.FieldList;
 import eu.stratosphere.api.java.record.operators.JoinOperator;
+import eu.stratosphere.api.java.record.operators.MapOperator;
 import eu.stratosphere.compiler.plan.DualInputPlanNode;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
 import eu.stratosphere.compiler.plan.SingleInputPlanNode;
@@ -38,6 +39,8 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 	
 	private static final String ORDERS = "Orders";
 	private static final String LINEITEM = "LineItems";
+	private static final String MAPPER_NAME = "FilterO";
+	private static final String JOIN_NAME = "JoinLiO";
 	
 	private final FieldList set0 = new FieldList(0);
 	private final FieldList set01 = new FieldList(new int[] {0,1});
@@ -82,30 +85,38 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 	 */
 	@Test
 	public void testQueryAnyValidPlan() {
-		testQueryGeneric(1024*1024*1024L, 8*1024*1024*1024L, true, true, true, false, true);
+		testQueryGeneric(1024*1024*1024L, 8*1024*1024*1024L, 0.05f, true, true, true, false, true);
+	}
+	
+	/**
+	 * Verifies that the plan compiles in the presence of empty size=0 estimates.
+	 */
+	@Test
+	public void testQueryWithSizeZeroInputs() {
+		testQueryGeneric(0, 0, 0.5f, true, true, true, false, true);
 	}
 	
 	/**
 	 * Statistics that push towards a broadcast join.
 	 */
-//	@Test
+	@Test
 	public void testQueryWithStatsForBroadcastHash() {
-		testQueryGeneric(1024l*1024*1024*1024, 100l*1024*1024*1024*1024, true, false, true, false, false);
+		testQueryGeneric(1024l*1024*1024*1024, 1024l*1024*1024*1024, 0.05f, true, false, true, false, false);
 	}
 	
 	/**
 	 * Statistics that push towards a broadcast join.
 	 */
-//	@Test
+	@Test
 	public void testQueryWithStatsForRepartitionAny() {
-		testQueryGeneric(100l*1024*1024*1024*1024, 100l*1024*1024*1024*1024, false, true, true, true, true);
+		testQueryGeneric(100l*1024*1024*1024*1024, 100l*1024*1024*1024*1024, 0.5f, false, true, true, true, true);
 	}
 	
 	/**
 	 * Statistics that push towards a repartition merge join. If the join blows the data volume up significantly,
 	 * re-exploiting the sorted order is cheaper.
 	 */
-//	@Test
+	@Test
 	public void testQueryWithStatsForRepartitionMerge() {
 		TPCHQuery3 query = new TPCHQuery3();
 		Plan p = query.getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE);
@@ -115,20 +126,32 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 		JoinOperator match = cr.getNode("JoinLiO");
 		match.getCompilerHints().setFilterFactor(100f);
 		
-		testQueryGeneric(100l*1024*1024*1024*1024, 100l*1024*1024*1024*1024, false, true, false, false, true);
+		testQueryGeneric(100l*1024*1024*1024*1024, 100l*1024*1024*1024*1024, 0.05f, 100f, false, true, false, false, true);
 	}
 	
 	// ------------------------------------------------------------------------
-
-	private void testQueryGeneric(long orderSize, long lineItemSize, boolean broadcastOkay, boolean partitionedOkay,
+	
+	private void testQueryGeneric(long orderSize, long lineItemSize, 
+			float ordersFilterFactor, 
+			boolean broadcastOkay, boolean partitionedOkay,
+			boolean hashJoinFirstOkay, boolean hashJoinSecondOkay, boolean mergeJoinOkay)
+	{
+		testQueryGeneric(orderSize, lineItemSize, ordersFilterFactor, ordersFilterFactor, broadcastOkay, partitionedOkay, hashJoinFirstOkay, hashJoinSecondOkay, mergeJoinOkay);
+	}
+	
+	private void testQueryGeneric(long orderSize, long lineItemSize, 
+			float ordersFilterFactor, float joinFilterFactor,
+			boolean broadcastOkay, boolean partitionedOkay,
 			boolean hashJoinFirstOkay, boolean hashJoinSecondOkay, boolean mergeJoinOkay)
 	{
 		TPCHQuery3 query = new TPCHQuery3();
 		Plan p = query.getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE);
-		testQueryGeneric(p, orderSize, lineItemSize, broadcastOkay, partitionedOkay, hashJoinFirstOkay, hashJoinSecondOkay, mergeJoinOkay);
+		testQueryGeneric(p, orderSize, lineItemSize, ordersFilterFactor, joinFilterFactor, broadcastOkay, partitionedOkay, hashJoinFirstOkay, hashJoinSecondOkay, mergeJoinOkay);
 	}
 		
-	private void testQueryGeneric(Plan p, long orderSize, long lineitemSize, boolean broadcastOkay, boolean partitionedOkay,
+	private void testQueryGeneric(Plan p, long orderSize, long lineitemSize, 
+			float orderSelectivity, float joinSelectivity, 
+			boolean broadcastOkay, boolean partitionedOkay,
 			boolean hashJoinFirstOkay, boolean hashJoinSecondOkay, boolean mergeJoinOkay)
 	{
 		try {
@@ -136,8 +159,13 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 			ContractResolver cr = getContractResolver(p);
 			FileDataSource ordersSource = cr.getNode(ORDERS);
 			FileDataSource lineItemSource = cr.getNode(LINEITEM);
+			MapOperator mapper = cr.getNode(MAPPER_NAME);
+			JoinOperator joiner = cr.getNode(JOIN_NAME);
 			setSourceStatistics(ordersSource, orderSize, 100f);
 			setSourceStatistics(lineItemSource, lineitemSize, 140f);
+			mapper.getCompilerHints().setAvgBytesPerOutputRecord(16f);
+			mapper.getCompilerHints().setFilterFactor(orderSelectivity);
+			joiner.getCompilerHints().setFilterFactor(joinSelectivity);
 			
 			// compile
 			final OptimizedPlan plan = compileWithStats(p);

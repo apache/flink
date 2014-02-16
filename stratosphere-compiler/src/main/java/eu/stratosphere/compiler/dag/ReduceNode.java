@@ -133,6 +133,10 @@ public class ReduceNode extends SingleInputNode {
 	public ReduceNode getCombinerUtilityNode() {
 		if (this.combinerUtilityNode == null) {
 			this.combinerUtilityNode = new ReduceNode(this);
+			
+			// we conservatively assume the combiner returns the same data size as it consumes 
+			this.combinerUtilityNode.estimatedOutputSize = getPredecessorNode().getEstimatedOutputSize();
+			this.combinerUtilityNode.estimatedNumRecords = getPredecessorNode().getEstimatedNumRecords();
 		}
 		return this.combinerUtilityNode;
 	}

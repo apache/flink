@@ -638,7 +638,14 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		}
 		
 		if (hints.getFilterFactor() >= 0.0f) {
-			if (this instanceof SingleInputNode) {
+			if (this.estimatedNumRecords >= 0) {
+				this.estimatedNumRecords = (long) (this.estimatedNumRecords * hints.getFilterFactor());
+				
+				if (this.estimatedOutputSize >= 0) {
+					this.estimatedOutputSize = (long) (this.estimatedOutputSize * hints.getFilterFactor());
+				}
+			}
+			else if (this instanceof SingleInputNode) {
 				OptimizerNode pred = ((SingleInputNode) this).getPredecessorNode();
 				if (pred != null && pred.getEstimatedNumRecords() >= 0) {
 					this.estimatedNumRecords = (long) (pred.getEstimatedNumRecords() * hints.getFilterFactor());
