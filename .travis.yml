@@ -19,6 +19,7 @@ env:
         - PROFILE="-Dhadoop.profile=2"
 
 before_script:
+   - "gem install --version 0.8.9 faraday"
    - "gem install travis-artifacts & "
 
 
