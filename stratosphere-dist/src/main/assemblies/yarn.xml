@@ -1,0 +1,113 @@
+<assembly
+	xmlns="http://maven.apache.org/plugins/maven-assembly-plugin/assembly/1.1.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/plugins/maven-assembly-plugin/assembly/1.1.0 http://maven.apache.org/xsd/assembly-1.1.0.xsd">
+	<id>bin</id>
+	<formats>
+		<format>tar.gz</format>
+		<!--
+		<format>tar.gz</format>
+		<format>zip</format>
+		-->
+	</formats>
+
+	<includeBaseDirectory>true</includeBaseDirectory>
+	<baseDirectory>stratosphere-yarn-${project.version}</baseDirectory>
+
+	<files>
+		<!-- copy default configuration -->
+		<file>
+			<source>src/main/stratosphere-bin/conf/stratosphere-conf.yaml</source>
+			<outputDirectory>conf</outputDirectory>
+			<fileMode>0644</fileMode>
+		</file>
+		<file>
+			<source>src/main/stratosphere-bin/conf/log4j.properties</source>
+			<outputDirectory>conf</outputDirectory>
+			<fileMode>0644</fileMode>
+		</file>
+
+		<!-- copy uberjar -->
+		<file>
+			<source>target/stratosphere-dist-${project.version}-yarn-uberjar.jar</source>
+			<outputDirectory>lib/</outputDirectory>
+			<fileMode>0644</fileMode>
+		</file>
+
+		<!-- copy stratosphere client -->
+		<file>
+			<source>src/main/stratosphere-bin/bin/stratosphere</source>
+			<outputDirectory>bin/</outputDirectory>
+			<fileMode>0644</fileMode>
+		</file>
+		<file>
+			<source>src/main/stratosphere-bin/bin/config.sh</source>
+			<outputDirectory>bin/</outputDirectory>
+			<fileMode>0644</fileMode>
+		</file>
+	</files>
+
+	<fileSets>
+
+		<fileSet>
+			<!-- copy start scripts -->
+			<directory>src/main/stratosphere-bin/yarn-bin</directory>
+			<outputDirectory>bin</outputDirectory>
+			<fileMode>0755</fileMode>
+		</fileSet>
+		<fileSet>
+			<!-- create an empty log directory -->
+			<directory>src/main/stratosphere-bin/</directory>
+			<outputDirectory>log</outputDirectory>
+			<fileMode>0644</fileMode>
+			<excludes>
+				<exclude>**/*</exclude>
+			</excludes>
+		</fileSet>
+		<fileSet>
+			<!-- copy *.txt files -->
+			<directory>src/main/stratosphere-bin/</directory>
+			<outputDirectory></outputDirectory>
+			<fileMode>0644</fileMode>
+			<includes>
+				<include>*.txt</include>
+				<include>*.properties</include>
+			</includes>
+		</fileSet>
+		
+		<!-- copy the tools -->
+		<fileSet>
+			<directory>src/main/stratosphere-bin/tools</directory>
+			<outputDirectory>tools</outputDirectory>
+			<fileMode>0644</fileMode>
+		</fileSet>
+
+		<fileSet>
+			<!-- copy jar files of java examples -->
+			<directory>../stratosphere-examples/stratosphere-java-examples/target</directory>
+			<outputDirectory>examples</outputDirectory>
+			<fileMode>0644</fileMode>
+			<includes>
+				<include>*.jar</include>
+			</includes>
+			<excludes>
+				<exclude>stratosphere-java-examples-${project.version}.jar</exclude>
+				<exclude>stratosphere-java-examples-${project.version}-sources.jar</exclude>
+			</excludes>
+		</fileSet>
+
+		<fileSet>
+			<!-- copy jar files of scala examples -->
+			<directory>../stratosphere-examples/stratosphere-scala-examples/target</directory>
+			<outputDirectory>examples</outputDirectory>
+			<fileMode>0644</fileMode>
+			<includes>
+				<include>*.jar</include>
+			</includes>
+			<excludes>
+				<exclude>stratosphere-scala-examples-${project.version}.jar</exclude>
+				<exclude>stratosphere-scala-examples-${project.version}-sources.jar</exclude>
+			</excludes>
+		</fileSet>
+	</fileSets>
+</assembly>

@@ -128,6 +128,7 @@
 									</archive>
 									<descriptors>
 										<descriptor>src/main/assemblies/yarn-uberjar.xml</descriptor>
+										<descriptor>src/main/assemblies/yarn.xml</descriptor>
 									</descriptors>
 								</configuration>
 							</execution>

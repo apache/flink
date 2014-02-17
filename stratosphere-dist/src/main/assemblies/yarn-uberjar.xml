@@ -4,7 +4,6 @@
 
 	<!-- Note: This file has been copied and adapted from: http://maven.apache.org/plugins/maven-assembly-plugin/descriptor-refs.html#jar-with-dependencies -->
 
-	<!-- TODO: a jarjar format would be better -->
  	<id>yarn-uberjar</id>
 	<formats>
 		<format>jar</format>
