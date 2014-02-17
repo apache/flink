@@ -10,9 +10,6 @@ env:
         # username and password for sonatype (maven delpoy)
         - secure: "QoLd3npmApUw20q+KTt+6Il07bn/edl5pP3jmEqR+rXQXVA2kogjkZerZ5QdM2iQJha7D1M2Y4BTcsJ2Ty7biTxUZkDl+RXz6kpeHPX2alax/KO7mqrJuEfuPAQvaIdHNmKEmdiU/fLMn2q2HllE5MP7FzUNKD5YJIzh1IekPA8="
         - secure: "WzMGwNwWwWw62kwvknMGS4W1zy3oRVihitCjjd5wqk/4JMTeWr+oAMv0GfA8GbOuOcYwA7JNxGXQlBMtn45+/PMLJgnsLxYUbqCD2ybwMBLlnembGYoRPABp5zkuzRmU3G2cbMdu/7VwvlTffEPPG/jqAFLKxmvG0oIOtPtk3lg="
-        # DOPA_USER and DOPA_PASS
-        - secure: "pa6c+tdIp4OVRH4sTw9aIfB26Xzj3TBL0u4WNlNdEaqa43Dz4dZGvg541q9+fyGk5FWVPbNwAiCjV4GgWnULFbYSfD1AHgluP+PpG/sXyES54X/EAjYkov2soX7/iVxsLe7cbVdfosh3vgEazvZq/nLcybs9f4h5+bZkMOnNEEI="
-        - secure: "kMPswo+PvtXpNsfkpwPVgZ33+bOZf5z7BC5Gv7+qHtDqgUom9PJtFsG4wUMU4hb9xx7sE125v2VfxIkDckOLNmAPRGawha7oNpdqBYrRhJPIsnrU/ruZIaKz/c2hWGOiICSgYhJPoac492bt3lBQb3fdo2ioHxzN/GYzT3SKpEk="
         # New s3 deployment
         - ARTIFACTS_S3_BUCKET="stratosphere-bin"
         - secure: "An/pEveBDMBl6FcZimTfZBAvevAVgkwS2tSAzFblJzp5aofghPORIXiqW/2Dy4ksFkGDK2Yb6QaGXbqC3mbWcPQh7YYeiPbvRipDXe4D+emgoUAiuuxCGvqtgzKxb0VeBeCqrMuNOoO4yLeCXgNZBuZ3B8LjQQCpAyyCWW1f/yo="

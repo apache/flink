@@ -4,12 +4,15 @@
 
 # Build Responsibilities
 # 1. Deploy to sonatype (old hadoop)
-# 2. Deploy to dopa (old hadoop)
-# 3. Nothing
+# 2. Nothing
+# 3. Deploy to s3 (old hadoop)
 # 4. deploy to sonatype (yarn hadoop)
-# 5. deploy to dopa (yarn hadoop)
-# 6. Nothing
+# 5. Nothing
+# 6. deploy to s3 (yarn hadoop)
 
+# Changes (since travis changed the id assignment)
+# switched 2. with 3.
+# switched 5. with 6.
 
 echo "install lifecylce mapping fake plugin"
 git clone https://github.com/mfriedenhagen/dummy-lifecycle-mapping-plugin.git
@@ -77,14 +80,14 @@ if [[ $TRAVIS_PULL_REQUEST == "false" ]] ; then
 	#
 
 	UBER_JAR=""
-	if [[ $TRAVIS_JOB_NUMBER == *5 ]] ; then 
+	if [[ $TRAVIS_JOB_NUMBER == *6 ]] ; then 
 		#generate yarn poms & build for yarn.
 		./tools/generate_specific_pom.sh $CURRENT_STRATOSPHERE_VERSION $CURRENT_STRATOSPHERE_VERSION_YARN pom.xml
 		mvn -B -DskipTests clean install
 		CURRENT_STRATOSPHERE_VERSION=$CURRENT_STRATOSPHERE_VERSION_YARN
 		UBER_JAR="stratosphere-dist/target/*yarn*.jar"
 	fi
-	if [[ $TRAVIS_JOB_NUMBER == *2 ]] || [[ $TRAVIS_JOB_NUMBER == *5 ]] ; then 
+	if [[ $TRAVIS_JOB_NUMBER == *3 ]] || [[ $TRAVIS_JOB_NUMBER == *6 ]] ; then 
 		sudo apt-get install sshpass
 		cd stratosphere-dist
 		mvn -B -DskipTests -Pdebian-package package
@@ -95,7 +98,7 @@ if [[ $TRAVIS_PULL_REQUEST == "false" ]] ; then
 		tar -czf stratosphere-$CURRENT_STRATOSPHERE_VERSION.tgz stratosphere
 		
 		# upload the two in parallel
-		if [[ $TRAVIS_JOB_NUMBER == *5 ]] ; then
+		if [[ $TRAVIS_JOB_NUMBER == *6 ]] ; then
 			travis-artifacts upload --path $UBER_JAR  --target-path / 
 		fi
 		travis-artifacts upload --path stratosphere-$CURRENT_STRATOSPHERE_VERSION.tgz   --target-path / 
