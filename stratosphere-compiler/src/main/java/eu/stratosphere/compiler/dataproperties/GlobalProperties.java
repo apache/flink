@@ -233,6 +233,11 @@ public class GlobalProperties implements Cloneable
 				return gp;
 			}
 		}
+		
+		if (this.partitioning == PartitioningProperty.FULL_REPLICATION) {
+			return new GlobalProperties();
+		}
+		
 		return this;
 	}
 	

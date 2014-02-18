@@ -163,8 +163,7 @@ public final class RequestedGlobalProperties implements Cloneable
 	 * @param input The index of the input.
 	 * @return True, if any non-default value is preserved, false otherwise.
 	 */
-	public RequestedGlobalProperties filterByNodesConstantSet(OptimizerNode node, int input)
-	{
+	public RequestedGlobalProperties filterByNodesConstantSet(OptimizerNode node, int input) {
 		// check if partitioning survives
 		if (this.ordering != null) {
 			for (int col : this.ordering.getInvolvedIndexes()) {
@@ -179,6 +178,11 @@ public final class RequestedGlobalProperties implements Cloneable
 				}
 			}
 		}
+		
+		if (this.partitioning == PartitioningProperty.FULL_REPLICATION) {
+			return null;
+		}
+		
 		return this;
 	}
 
