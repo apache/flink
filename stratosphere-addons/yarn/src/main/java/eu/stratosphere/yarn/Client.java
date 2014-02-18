@@ -294,7 +294,7 @@ public class Client {
 		
 		// Set-up ApplicationSubmissionContext for the application
 		ApplicationSubmissionContext appContext = app.getApplicationSubmissionContext();
-		ApplicationId appId = appContext.getApplicationId();
+		final ApplicationId appId = appContext.getApplicationId();
 		
 		// Setup jar for ApplicationMaster
 		LocalResource appMasterJar = Records.newRecord(LocalResource.class);
@@ -337,9 +337,19 @@ public class Client {
 		LOG.info("Submitting application master " + appId);
 		yarnClient.submitApplication(appContext);
 		
+		
+		
 		 Runtime.getRuntime().addShutdownHook(new Thread() {
 		   @Override
 		   public void run() {
+		    try {
+		    	LOG.info("Killing the YARN instance.");
+				yarnClient.killApplication(appId);
+			} catch (YarnException e) {
+				e.printStackTrace();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
 		    LOG.info("YARN Client is shutting down");
 		    yarnClient.stop();
 		   }
@@ -393,9 +403,9 @@ public class Client {
 		formatter.setSyntaxPrefix("   Optional");
 		Options opt = new Options();
 		opt.addOption(VERBOSE);
-		opt.addOption(GEN_CONF);
-		opt.addOption(STRATOSPHERE_CONF);
-		opt.addOption(STRATOSPHERE_JAR);
+	//	opt.addOption(GEN_CONF);
+	//	opt.addOption(STRATOSPHERE_CONF);
+	//	opt.addOption(STRATOSPHERE_JAR);
 		opt.addOption(JM_MEMORY);
 		opt.addOption(TM_MEMORY);
 		opt.addOption(TM_CORES);

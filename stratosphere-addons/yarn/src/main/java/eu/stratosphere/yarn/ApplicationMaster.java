@@ -19,7 +19,6 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileWriter;
-import java.io.FilenameFilter;
 import java.io.InputStreamReader;
 import java.io.Writer;
 import java.util.Collections;
@@ -163,8 +162,6 @@ public class ApplicationMaster {
 			LOG.info("Requesting TaskManager container " + i);
 			rmClient.addContainerRequest(containerAsk);
 		}
-
-		
 		
 		LocalResource stratosphereJar = Records.newRecord(LocalResource.class);
 		LocalResource stratosphereConf = Records.newRecord(LocalResource.class);

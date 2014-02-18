@@ -17,6 +17,9 @@
 			<useProjectArtifact>true</useProjectArtifact>
 			<unpack>true</unpack>
 			<scope>runtime</scope>
+			<excludes>
+				<exclude>eu.stratosphere:stratosphere-examples:*</exclude>
+			</excludes>
 		</dependencySet>
 	</dependencySets>
 

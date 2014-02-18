@@ -2,7 +2,7 @@
 	xmlns="http://maven.apache.org/plugins/maven-assembly-plugin/assembly/1.1.0"
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/plugins/maven-assembly-plugin/assembly/1.1.0 http://maven.apache.org/xsd/assembly-1.1.0.xsd">
-	<id>bin</id>
+	<id>yarn</id>
 	<formats>
 		<format>tar.gz</format>
 		<!--
@@ -14,41 +14,7 @@
 	<includeBaseDirectory>true</includeBaseDirectory>
 	<baseDirectory>stratosphere-yarn-${project.version}</baseDirectory>
 
-	<files>
-		<!-- copy default configuration -->
-		<file>
-			<source>src/main/stratosphere-bin/conf/stratosphere-conf.yaml</source>
-			<outputDirectory>conf</outputDirectory>
-			<fileMode>0644</fileMode>
-		</file>
-		<file>
-			<source>src/main/stratosphere-bin/conf/log4j.properties</source>
-			<outputDirectory>conf</outputDirectory>
-			<fileMode>0644</fileMode>
-		</file>
-
-		<!-- copy uberjar -->
-		<file>
-			<source>target/stratosphere-dist-${project.version}-yarn-uberjar.jar</source>
-			<outputDirectory>lib/</outputDirectory>
-			<fileMode>0644</fileMode>
-		</file>
-
-		<!-- copy stratosphere client -->
-		<file>
-			<source>src/main/stratosphere-bin/bin/stratosphere</source>
-			<outputDirectory>bin/</outputDirectory>
-			<fileMode>0644</fileMode>
-		</file>
-		<file>
-			<source>src/main/stratosphere-bin/bin/config.sh</source>
-			<outputDirectory>bin/</outputDirectory>
-			<fileMode>0644</fileMode>
-		</file>
-	</files>
-
 	<fileSets>
-
 		<fileSet>
 			<!-- copy start scripts -->
 			<directory>src/main/stratosphere-bin/yarn-bin</directory>
@@ -110,4 +76,37 @@
 			</excludes>
 		</fileSet>
 	</fileSets>
+
+	<files>
+		<!-- copy default configuration -->
+		<file>
+			<source>src/main/stratosphere-bin/conf/stratosphere-conf.yaml</source>
+			<outputDirectory>conf</outputDirectory>
+			<fileMode>0644</fileMode>
+		</file>
+		<file>
+			<source>src/main/stratosphere-bin/conf/log4j.properties</source>
+			<outputDirectory>conf</outputDirectory>
+			<fileMode>0644</fileMode>
+		</file>
+
+		<!-- copy uberjar -->
+		<file>
+			<source>target/stratosphere-dist-${project.version}-yarn-uberjar.jar</source>
+			<outputDirectory>lib/</outputDirectory>
+			<fileMode>0644</fileMode>
+		</file>
+
+		<!-- copy stratosphere client -->
+		<file>
+			<source>src/main/stratosphere-bin/bin/stratosphere</source>
+			<outputDirectory>bin/</outputDirectory>
+			<fileMode>0644</fileMode>
+		</file>
+		<file>
+			<source>src/main/stratosphere-bin/bin/config.sh</source>
+			<outputDirectory>bin/</outputDirectory>
+			<fileMode>0755</fileMode>
+		</file>
+	</files>
 </assembly>
