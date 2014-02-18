@@ -343,12 +343,10 @@ public class Client {
 		   @Override
 		   public void run() {
 		    try {
-		    	LOG.info("Killing the YARN instance.");
+		    	LOG.info("Killing the Stratosphere-YARN application.");
 				yarnClient.killApplication(appId);
-			} catch (YarnException e) {
-				e.printStackTrace();
-			} catch (IOException e) {
-				e.printStackTrace();
+			} catch (Exception e) {
+				LOG.warn("Exception while killing the YARN application", e);
 			}
 		    LOG.info("YARN Client is shutting down");
 		    yarnClient.stop();

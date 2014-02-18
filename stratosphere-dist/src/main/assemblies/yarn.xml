@@ -101,7 +101,7 @@
 		<file>
 			<source>src/main/stratosphere-bin/bin/stratosphere</source>
 			<outputDirectory>bin/</outputDirectory>
-			<fileMode>0644</fileMode>
+			<fileMode>0755</fileMode>
 		</file>
 		<file>
 			<source>src/main/stratosphere-bin/bin/config.sh</source>
