@@ -70,12 +70,6 @@
 			<artifactId>stratosphere-scala-examples</artifactId>
 			<version>${project.version}</version>
 		</dependency>
-
-		<dependency>
-			<groupId>eu.stratosphere</groupId>
-			<artifactId>swt-visualization</artifactId>
-			<version>${project.version}</version>
-		</dependency>
 	</dependencies>
 
 	<!-- See main pom.xml for explanation of profiles -->

@@ -19,7 +19,6 @@
 		<module>avro</module>
 		<module>jdbc</module>
 		<module>spargel</module>
-		<module>swt-visualization</module>
 		<module>hadoop-compatibility</module>
 	</modules>
 	
