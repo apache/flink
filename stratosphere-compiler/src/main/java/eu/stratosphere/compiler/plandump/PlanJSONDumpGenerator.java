@@ -538,14 +538,14 @@ public class PlanJSONDumpGenerator {
 
 			String size = hints.getOutputSize() == defaults.getOutputSize() ? "(none)" : String.valueOf(hints.getOutputSize());
 			String card = hints.getOutputCardinality() == defaults.getOutputCardinality() ? "(none)" : String.valueOf(hints.getOutputCardinality());
-			String width = hints.getAvgBytesPerOutputRecord() == defaults.getAvgBytesPerOutputRecord() ? "(none)" : String.valueOf(hints.getAvgBytesPerOutputRecord());
+			String width = hints.getAvgOutputRecordSize() == defaults.getAvgOutputRecordSize() ? "(none)" : String.valueOf(hints.getAvgOutputRecordSize());
 			String filter = hints.getFilterFactor() == defaults.getFilterFactor() ? "(none)" : String.valueOf(hints.getFilterFactor());
 			
 			writer.print(",\n\t\t\"compiler_hints\": [\n");
 
-			addProperty(writer, "Output Size", size, true);
+			addProperty(writer, "Output Size (bytes)", size, true);
 			addProperty(writer, "Output Cardinality", card, false);
-			addProperty(writer, "Output avg. width (bytes)", width, false);
+			addProperty(writer, "Avg. Output Record Size (bytes)", width, false);
 			addProperty(writer, "Filter Factor", filter, false);
 
 			writer.print("\t\t]");

@@ -21,7 +21,7 @@ import eu.stratosphere.api.common.operators.util.FieldSet;
 /**
  * A class encapsulating compiler hints describing the behavior of the user function.
  * If set, the optimizer will use them to estimate the sizes of the intermediate results.
- * Not that these values are optional hints, the optimizer will always generate a valid plan without
+ * Note that these values are optional hints, the optimizer will always generate a valid plan without
  * them as well. The hints may help, however, to improve the plan choice.
  */
 public class CompilerHints {
@@ -30,7 +30,7 @@ public class CompilerHints {
 	
 	private long outputCardinality = -1;
 	
-	private float avgBytesPerOutputRecord = -1.0f; 
+	private float avgOutputRecordSize = -1.0f; 
 	
 	private float filterFactor = -1.0f;
 
@@ -62,15 +62,15 @@ public class CompilerHints {
 		this.outputCardinality = outputCardinality;
 	}
 	
-	public float getAvgBytesPerOutputRecord() {
-		return this.avgBytesPerOutputRecord;
+	public float getAvgOutputRecordSize() {
+		return this.avgOutputRecordSize;
 	}
 	
-	public void setAvgBytesPerOutputRecord(float avgBytesPerOutputRecord) {
-		if (avgBytesPerOutputRecord <= 0)
+	public void setAvgOutputRecordSize(float avgOutputRecordSize) {
+		if (avgOutputRecordSize <= 0)
 			throw new IllegalArgumentException("The size of produced records must be positive.");
 		
-		this.avgBytesPerOutputRecord = avgBytesPerOutputRecord;
+		this.avgOutputRecordSize = avgOutputRecordSize;
 	}
 	
 	public float getFilterFactor() {
@@ -146,7 +146,7 @@ public class CompilerHints {
 	protected void copyFrom(CompilerHints source) {
 		this.outputSize = source.outputSize;
 		this.outputCardinality = source.outputCardinality;
-		this.avgBytesPerOutputRecord = source.avgBytesPerOutputRecord;
+		this.avgOutputRecordSize = source.avgOutputRecordSize;
 		this.filterFactor = source.filterFactor;
 		
 		if (source.uniqueFields != null && source.uniqueFields.size() > 0) {

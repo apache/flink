@@ -68,9 +68,9 @@ trait OutputHintable[Out] { this: DataSet[Out] =>
   def outputCardinality_=(value: Long) = contract.getCompilerHints().setOutputCardinality(value)
   def outputCardinality(value: Long): this.type = { contract.getCompilerHints().setOutputCardinality(value); this }
   
-  def avgBytesPerRecord = contract.getCompilerHints().getAvgBytesPerOutputRecord()
-  def avgBytesPerRecord_=(value: Float) = contract.getCompilerHints().setAvgBytesPerOutputRecord(value)
-  def avgBytesPerRecord(value: Float): this.type = { contract.getCompilerHints().setAvgBytesPerOutputRecord(value); this }
+  def avgBytesPerRecord = contract.getCompilerHints().getAvgOutputRecordSize()
+  def avgBytesPerRecord_=(value: Float) = contract.getCompilerHints().setAvgOutputRecordSize(value)
+  def avgBytesPerRecord(value: Float): this.type = { contract.getCompilerHints().setAvgOutputRecordSize(value); this }
 
   def filterFactor = contract.getCompilerHints().getFilterFactor()
   def filterFactor_=(value: Float) = contract.getCompilerHints().setFilterFactor(value)

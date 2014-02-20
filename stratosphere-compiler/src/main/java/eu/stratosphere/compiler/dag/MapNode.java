@@ -51,7 +51,8 @@ public class MapNode extends SingleInputNode {
 	}
 
 	/**
-	 * Computes the estimates for the Map operator. Map takes one value and transforms it into another value.
+	 * Computes the estimates for the Map operator. 
+	 * We assume that by default, Map takes one value and transforms it into another value.
 	 * The cardinality consequently stays the same.
 	 */
 	@Override

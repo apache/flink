@@ -654,13 +654,13 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		}
 		
 		// use the width to infer the cardinality (given size) and vice versa
-		if (hints.getAvgBytesPerOutputRecord() >= 1) {
+		if (hints.getAvgOutputRecordSize() >= 1) {
 			// the estimated number of rows based on size
 			if (this.estimatedNumRecords == -1 && this.estimatedOutputSize >= 0) {
-				this.estimatedNumRecords = (long) (this.estimatedOutputSize / hints.getAvgBytesPerOutputRecord());
+				this.estimatedNumRecords = (long) (this.estimatedOutputSize / hints.getAvgOutputRecordSize());
 			}
 			else if (this.estimatedOutputSize == -1 && this.estimatedNumRecords >= 0) {
-				this.estimatedOutputSize = (long) (this.estimatedNumRecords * hints.getAvgBytesPerOutputRecord());
+				this.estimatedOutputSize = (long) (this.estimatedNumRecords * hints.getAvgOutputRecordSize());
 			}
 		}
 	}

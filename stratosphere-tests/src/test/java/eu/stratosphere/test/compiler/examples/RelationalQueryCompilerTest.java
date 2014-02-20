@@ -163,7 +163,7 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 			JoinOperator joiner = cr.getNode(JOIN_NAME);
 			setSourceStatistics(ordersSource, orderSize, 100f);
 			setSourceStatistics(lineItemSource, lineitemSize, 140f);
-			mapper.getCompilerHints().setAvgBytesPerOutputRecord(16f);
+			mapper.getCompilerHints().setAvgOutputRecordSize(16f);
 			mapper.getCompilerHints().setFilterFactor(orderSelectivity);
 			joiner.getCompilerHints().setFilterFactor(joinSelectivity);
 			

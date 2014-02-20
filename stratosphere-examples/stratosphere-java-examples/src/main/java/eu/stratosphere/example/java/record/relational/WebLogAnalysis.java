@@ -285,12 +285,14 @@ public class WebLogAnalysis implements Program, ProgramDescription {
 			.input(ranks)
 			.name("Filter Ranks")
 			.build();
+		filterRanks.getCompilerHints().setFilterFactor(0.25f);
 
 		// Create MapOperator for filtering the entries from the visits relation
 		MapOperator filterVisits = MapOperator.builder(new FilterVisits())
 			.input(visits)
 			.name("Filter Visits")
 			.build();
+		filterVisits.getCompilerHints().setFilterFactor(0.2f);
 
 		// Create JoinOperator to join the filtered documents and ranks
 		// relation
