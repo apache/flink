@@ -24,21 +24,24 @@ import com.google.common.base.Preconditions;
 
 /**
  * This holds an actual object containing user defined code.
- *
  */
 public class UserCodeObjectWrapper<T> implements UserCodeWrapper<T> {
 	private static final long serialVersionUID = 1L;
 	
-	private T userCodeObject;
+	private final T userCodeObject;
 	
 	public UserCodeObjectWrapper(T userCodeObject) {
-		Preconditions.checkArgument(userCodeObject instanceof Serializable, "User code object is not serializable: " + userCodeObject.getClass());
+		Preconditions.checkNotNull(userCodeObject, "The user code object may not be null.");
+		Preconditions.checkArgument(userCodeObject instanceof Serializable, "User code object is not serializable: " + userCodeObject.getClass().getName());
+		
 		this.userCodeObject = userCodeObject;
-		// Remove unserializable objects from the user code object as well as from outer objects
+		
+		// Remove non serializable objects from the user code object as well as from outer objects
 		Object current = userCodeObject;
 		try {
 			while (null != current) {
 				Object newCurrent = null;
+				
 				/**
 				 * Check if the usercode class has custom serialization methods.
 				 * (See http://docs.oracle.com/javase/7/docs/api/java/io/Serializable.html for details).
@@ -53,7 +56,8 @@ public class UserCodeObjectWrapper<T> implements UserCodeWrapper<T> {
 				} catch (Exception e) {
 					// we can ignore exceptions here.
 				}
-				if(customSerializer != null && customDeserializer != null) {
+				
+				if (customSerializer != null && customDeserializer != null) {
 					hasCustomSerialization = true;
 				}
 
@@ -64,18 +68,26 @@ public class UserCodeObjectWrapper<T> implements UserCodeWrapper<T> {
 						newCurrent = f.get(current);
 					}
 
-					if (!hasCustomSerialization && !Modifier.isStatic(f.getModifiers()) && f.get(current) != null &&  !(f.get(current) instanceof Serializable)) {
-						throw new RuntimeException("User code object " +
-								userCodeObject + " contains non-serializable field " + f.getName() + " = " + f.get(current));
+					if (hasCustomSerialization || Modifier.isTransient(f.getModifiers()) || Modifier.isStatic(f.getModifiers())) {
+						// field not relevant for serialization
+						continue;
+					}
+					
+					Object fieldContents = f.get(current);
+					if (fieldContents != null &&  !(fieldContents instanceof Serializable)) {
+						throw new RuntimeException("User-defined object " + userCodeObject + " (" + 
+							userCodeObject.getClass().getName() + ") contains non-serializable field " +
+							f.getName() + " = " + f.get(current));
 					}
 				}
 				current = newCurrent;
 			}
-		} catch (IllegalAccessException e) {
-			// this cannot occur since we call setAccessible(true)
-			e.printStackTrace();
 		}
-
+		catch (Exception e) {
+			// should never happen, since we make the fields accessible.
+			// anyways, do not swallow the exception, but report it
+			throw new RuntimeException("Could not access the fields of the user defined class while checking for serializability.", e);
+		}
 	}
 	
 	@Override
@@ -91,7 +103,6 @@ public class UserCodeObjectWrapper<T> implements UserCodeWrapper<T> {
 		Serializable ser = (Serializable) userCodeObject;
 		T cloned = (T) SerializationUtils.clone(ser);
 		return cloned;
-		
 	}
 
 	@Override
