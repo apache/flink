@@ -34,6 +34,7 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.PosixParser;
 import org.apache.commons.cli.UnrecognizedOptionException;
+import org.apache.commons.io.FileUtils;
 
 import eu.stratosphere.api.common.accumulators.AccumulatorHelper;
 import eu.stratosphere.client.program.Client;
@@ -240,7 +241,7 @@ public class CliFrontend {
 		
 		if( line.hasOption(ADDRESS_OPTION.getOpt())) {
 			address = line.getOptionValue(ADDRESS_OPTION.getOpt());
-		} 
+		}
 		
 		// Get jar file
 		if (line.hasOption(JAR_OPTION.getOpt())) {
@@ -271,6 +272,16 @@ public class CliFrontend {
 		// get program arguments
 		if(line.hasOption(ARGS_OPTION.getOpt())) {
 			programArgs = line.getOptionValues(ARGS_OPTION.getOpt());
+		}
+		
+		// see if there is a file containing the jobManager address.
+		String loc = getConfigurationDirectory();
+		File jmAddressFile = new File(loc+"/.yarn-jobmanager");
+		if(jmAddressFile.exists()) {
+			try {
+				address = FileUtils.readFileToString(jmAddressFile).trim();
+				System.out.println("Found a .yarn-jobmanager file, using \""+address+"\" to connect to the JobManager");
+			} catch (IOException e) {}
 		}
 		
 		// get wait flag
@@ -691,13 +702,7 @@ public class CliFrontend {
 		System.exit(1);
 	}
 
-	/**
-	 * Reads configuration settings. The default path can be overridden
-	 * by setting the ENV variable "STRATOSPHERE_CONF_DIR".
-	 * 
-	 * @return Stratosphere's global configuration
-	 */
-	private Configuration getConfiguration() {
+	private String getConfigurationDirectory() {
 		String location = null;
 		if (System.getenv(ENV_CONFIG_DIRECTORY) != null) {
 			location = System.getenv(ENV_CONFIG_DIRECTORY);
@@ -709,7 +714,16 @@ public class CliFrontend {
 			throw new RuntimeException("The configuration directory was not found. Please configure the '" + 
 					ENV_CONFIG_DIRECTORY + "' environment variable properly.");
 		}
-
+		return location;
+	}
+	/**
+	 * Reads configuration settings. The default path can be overridden
+	 * by setting the ENV variable "STRATOSPHERE_CONF_DIR".
+	 * 
+	 * @return Stratosphere's global configuration
+	 */
+	private Configuration getConfiguration() {
+		final String location = getConfigurationDirectory();
 		GlobalConfiguration.loadConfiguration(location);
 		Configuration config = GlobalConfiguration.getConfiguration();
 

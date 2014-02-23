@@ -30,6 +30,17 @@
 				<exclude>**/*</exclude>
 			</excludes>
 		</fileSet>
+
+		<fileSet>
+			<!-- create an empty ship directory -->
+			<directory>src/main/stratosphere-bin/</directory>
+			<outputDirectory>ship</outputDirectory>
+			<fileMode>0644</fileMode>
+			<excludes>
+				<exclude>**/*</exclude>
+			</excludes>
+		</fileSet>
+
 		<fileSet>
 			<!-- copy *.txt files -->
 			<directory>src/main/stratosphere-bin/</directory>

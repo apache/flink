@@ -19,8 +19,10 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileWriter;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Writer;
+import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -30,6 +32,9 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.DataOutputBuffer;
+import org.apache.hadoop.security.Credentials;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
 import org.apache.hadoop.yarn.api.protocolrecords.AllocateResponse;
@@ -44,6 +49,8 @@ import org.apache.hadoop.yarn.client.api.AMRMClient;
 import org.apache.hadoop.yarn.client.api.AMRMClient.ContainerRequest;
 import org.apache.hadoop.yarn.client.api.NMClient;
 import org.apache.hadoop.yarn.util.Records;
+
+import com.google.common.base.Preconditions;
 
 import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.configuration.GlobalConfiguration;
@@ -77,26 +84,35 @@ public class ApplicationMaster {
 		}
 	}
 	public static void main(String[] args) throws Exception {
-		
+		//Utils.logFilesInCurrentDirectory(LOG);
 		// Initialize clients to ResourceManager and NodeManagers
 		Configuration conf = Utils.initializeYarnConfiguration();
 		FileSystem fs = FileSystem.get(conf);
 		Map<String, String> envs = System.getenv();
 		final String currDir = envs.get(Environment.PWD.key());
+		final String logDirs =  envs.get(Environment.LOG_DIRS.key());
 		final String ownHostname = envs.get(Environment.NM_HOST.key());
 		final String appId = envs.get(Client.ENV_APP_ID);
 		final String localDirs = envs.get(Environment.LOCAL_DIRS.key());
+		final String clientHomeDir = envs.get(Client.ENV_CLIENT_HOME_DIR);
 		final String applicationMasterHost = envs.get(Environment.NM_HOST.key());
 		final String remoteStratosphereJarPath = envs.get(Client.STRATOSPHERE_JAR_PATH);
+		final String shipListString = envs.get(Client.ENV_CLIENT_SHIP_FILES);
 		final int taskManagerCount = Integer.valueOf(envs.get(Client.ENV_TM_COUNT));
 		final int memoryPerTaskManager = Integer.valueOf(envs.get(Client.ENV_TM_MEMORY));
 		final int coresPerTaskManager = Integer.valueOf(envs.get(Client.ENV_TM_CORES));
 		
 		final int heapLimit = (int)((float)memoryPerTaskManager*0.7);
 		
-		if(currDir == null) throw new RuntimeException("Current directory unknown");
-		if(ownHostname == null) throw new RuntimeException("Own hostname ("+Environment.NM_HOST+") not set.");
+		if(currDir == null) {
+			throw new RuntimeException("Current directory unknown");
+		}
+		if(ownHostname == null) {
+			throw new RuntimeException("Own hostname ("+Environment.NM_HOST+") not set.");
+		}
 		LOG.info("Working directory "+currDir);
+		// load Stratosphere configuration.
+		Utils.getStratosphereConfiguration(currDir);
 		
 		final String localWebInterfaceDir = currDir+"/resources/"+ConfigConstants.DEFAULT_JOB_MANAGER_WEB_PATH_NAME;
 		
@@ -119,7 +135,10 @@ public class ApplicationMaster {
 		// just to make sure.
 		output.append(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY+": "+ownHostname+"\n");
 		output.append(ConfigConstants.JOB_MANAGER_WEB_ROOT_PATH_KEY+": "+localWebInterfaceDir+"\n");
-		if(localDirs != null) output.append(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY+": "+localDirs+"\n");
+		output.append(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY+": "+logDirs+"\n");
+		if(localDirs != null) {
+			output.append(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY+": "+localDirs+"\n");
+		}
 		output.close();
 		br.close();
 		File newConf = new File(currDir+"/stratosphere-conf-modified.yaml");
@@ -169,31 +188,58 @@ public class ApplicationMaster {
 		// register Stratosphere Jar with remote HDFS
 		final Path remoteJarPath = new Path(remoteStratosphereJarPath);
 		Utils.registerLocalResource(fs, remoteJarPath, stratosphereJar);
-	//	Utils.setupLocalResource(conf, fs, appId, new Path("file://"+currDir+"/stratosphere.jar"), stratosphereJar);
 		
 		// register conf with local fs.
-		Utils.setupLocalResource(conf, fs, appId, new Path("file://"+currDir+"/stratosphere-conf-modified.yaml"), stratosphereConf);
+		Path remoteConfPath = Utils.setupLocalResource(conf, fs, appId, new Path("file://"+currDir+"/stratosphere-conf-modified.yaml"), stratosphereConf, new Path(clientHomeDir));
 		LOG.info("Prepared localresource for modified yaml: "+stratosphereConf);
 		
+		
+		boolean hasLog4j = new File(currDir+"/log4j.properties").exists();
+		// prepare the files to ship
+		LocalResource[] remoteShipRsc = null;
+		String[] remoteShipPaths = shipListString.split(",");
+		if(!shipListString.isEmpty()) {
+			remoteShipRsc = new LocalResource[remoteShipPaths.length]; 
+			{ // scope for i
+				int i = 0;
+				for(String remoteShipPathStr : remoteShipPaths) {
+					if(remoteShipPathStr == null || remoteShipPathStr.isEmpty()) {
+						continue;
+					}
+					remoteShipRsc[i] = Records.newRecord(LocalResource.class);
+					Path remoteShipPath = new Path(remoteShipPathStr);
+					Utils.registerLocalResource(fs, remoteShipPath, remoteShipRsc[i]);
+					i++;
+				}
+			}
+		}
+		
+		// respect custom JVM options in the YAML file
+		final String javaOpts = GlobalConfiguration.getString(ConfigConstants.STRATOSPHERE_JVM_OPTIONS, "");
+				
 		// Obtain allocated containers and launch
 		int allocatedContainers = 0;
 		int completedContainers = 0;
 		while (allocatedContainers < taskManagerCount) {
 			AllocateResponse response = rmClient.allocate(0);
 			for (Container container : response.getAllocatedContainers()) {
+				LOG.info("Got new Container for TM "+container.getId()+" on host "+container.getNodeId().getHost());
 				++allocatedContainers;
 
 				// Launch container by create ContainerLaunchContext
 				ContainerLaunchContext ctx = Records.newRecord(ContainerLaunchContext.class);
 				
-				String tmCommand = "$JAVA_HOME/bin/java -Xmx"+heapLimit+"m " 
-						+ " eu.stratosphere.nephele.taskmanager.TaskManager -configDir . "
+				String tmCommand = "$JAVA_HOME/bin/java -Xmx"+heapLimit+"m " + javaOpts ;
+				if(hasLog4j) {
+					tmCommand += " -Dlog.file=\""+ApplicationConstants.LOG_DIR_EXPANSION_VAR +"/taskmanager-log4j.log\" -Dlog4j.configuration=file:log4j.properties";
+				}
+				tmCommand	+= " eu.stratosphere.nephele.taskmanager.TaskManager -configDir . "
 						+ " 1>"
 						+ ApplicationConstants.LOG_DIR_EXPANSION_VAR
-						+ "/stdout" 
+						+ "/taskmanager-stdout.log" 
 						+ " 2>"
 						+ ApplicationConstants.LOG_DIR_EXPANSION_VAR
-						+ "/stderr";
+						+ "/taskmanager-stderr.log";
 				ctx.setCommands(Collections.singletonList(tmCommand));
 				
 				LOG.info("Starting TM with command="+tmCommand);
@@ -203,19 +249,42 @@ public class ApplicationMaster {
 				localResources.put("stratosphere.jar", stratosphereJar);
 				localResources.put("stratosphere-conf.yaml", stratosphereConf);
 				
+				// add ship resources
+				if(!shipListString.isEmpty()) {
+					Preconditions.checkNotNull(remoteShipRsc);
+					for( int i = 0; i < remoteShipPaths.length; i++) {
+						localResources.put(new Path(remoteShipPaths[i]).getName(), remoteShipRsc[i]);
+					}
+				}
+				
+				
 				ctx.setLocalResources(localResources);
 				
 				// Setup CLASSPATH for Container (=TaskTracker)
 				Map<String, String> containerEnv = new HashMap<String, String>();
 				Utils.setupEnv(conf, containerEnv); //add stratosphere.jar to class path.
 				ctx.setEnvironment(containerEnv);
+
+				UserGroupInformation user = UserGroupInformation.getCurrentUser();
+				try {
+					Credentials credentials = user.getCredentials();
+					DataOutputBuffer dob = new DataOutputBuffer();
+					credentials.writeTokenStorageToStream(dob);
+					ByteBuffer securityTokens = ByteBuffer.wrap(dob.getData(),
+							0, dob.getLength());
+					ctx.setTokens(securityTokens);
+				} catch (IOException e) {
+					LOG.warn("Getting current user info failed when trying to launch the container"
+							+ e.getMessage());
+				}
 				
 				LOG.info("Launching container " + allocatedContainers);
 				nmClient.startContainer(container, ctx);
 			}
 			for (ContainerStatus status : response.getCompletedContainersStatuses()) {
 				++completedContainers;
-				LOG.info("Completed container "+status.getContainerId()+". Total Completed:" + completedContainers);
+				LOG.info("Completed container (while allocating) "+status.getContainerId()+". Total Completed:" + completedContainers);
+				LOG.info("Diagnostics "+status.getDiagnostics());
 			}
 			Thread.sleep(100);
 		}
@@ -228,10 +297,11 @@ public class ApplicationMaster {
 			for (ContainerStatus status : response.getCompletedContainersStatuses()) {
 				++completedContainers;
 				LOG.info("Completed container "+status.getContainerId()+". Total Completed:" + completedContainers);
+				LOG.info("Diagnostics "+status.getDiagnostics());
 			}
 			Thread.sleep(5000);
 		}
-		
+		LOG.info("Shutting down JobManager");
 		jmr.shutdown();
 		jmr.join(500);
 		

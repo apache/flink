@@ -20,6 +20,9 @@ import java.io.FileOutputStream;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -38,6 +41,9 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.FsAction;
+import org.apache.hadoop.fs.permission.FsPermission;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.protocolrecords.GetNewApplicationResponse;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
@@ -67,6 +73,8 @@ import eu.stratosphere.configuration.GlobalConfiguration;
  * https://github.com/apache/hadoop-common/blob/trunk/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-applications/hadoop-yarn-applications-distributedshell/src/main/java/org/apache/hadoop/yarn/applications/distributedshell/Client.java?source=cc
  * and
  * https://github.com/hortonworks/simple-yarn-app
+ * and 
+ * https://github.com/yahoo/storm-yarn/blob/master/src/main/java/com/yahoo/storm/yarn/StormOnYarn.java
  * 
  * The Stratosphere jar is uploaded to HDFS by this client. 
  * The application master and all the TaskManager containers get the jar file downloaded
@@ -84,7 +92,8 @@ public class Client {
 	private static final Option VERBOSE = new Option("v","verbose",false, "Verbose debug mode");
 	private static final Option GEN_CONF = new Option("g","generateConf",false, "Place default configuration file in current directory");
 	private static final Option QUEUE = new Option("qu","queue",true, "Specify YARN queue.");
-	private static final Option STRATOSPHERE_CONF = new Option("c","conf",true, "Path to Stratosphere configuration file");
+	private static final Option SHIP_PATH = new Option("s","ship",true, "Ship files in the specified directory");
+	private static final Option STRATOSPHERE_CONF_DIR = new Option("c","confDir",true, "Path to Stratosphere configuration directory");
 	private static final Option STRATOSPHERE_JAR = new Option("j","jar",true, "Path to Stratosphere jar file");
 	private static final Option JM_MEMORY = new Option("jm","jobManagerMemory",true, "Memory for JobManager Container [in MB]");
 	private static final Option TM_MEMORY = new Option("tm","taskManagerMemory",true, "Memory per TaskManager Container [in MB]");
@@ -101,17 +110,21 @@ public class Client {
 	public final static String ENV_TM_COUNT = "_CLIENT_TM_COUNT";
 	public final static String ENV_APP_ID = "_APP_ID";
 	public final static String STRATOSPHERE_JAR_PATH = "_STRATOSPHERE_JAR_PATH"; // the stratosphere jar resource location (in HDFS).
+	public static final String ENV_CLIENT_HOME_DIR = "_CLIENT_HOME_DIR";
+	public static final String ENV_CLIENT_SHIP_FILES = "_CLIENT_SHIP_FILES";
+	
+	private static final String CONFIG_FILE_NAME = "stratosphere-conf.yaml";
 	
 	private Configuration conf;
 
 	public void run(String[] args) throws Exception {
-		
+		//Utils.logFilesInCurrentDirectory(LOG);
 		//
 		//	Command Line Options
 		//
 		Options options = new Options();
 		options.addOption(VERBOSE);
-		options.addOption(STRATOSPHERE_CONF);
+		options.addOption(STRATOSPHERE_CONF_DIR);
 		options.addOption(STRATOSPHERE_JAR);
 		options.addOption(JM_MEMORY);
 		options.addOption(TM_MEMORY);
@@ -120,6 +133,7 @@ public class Client {
 		options.addOption(GEN_CONF);
 		options.addOption(QUEUE);
 		options.addOption(QUERY);
+		options.addOption(SHIP_PATH);
 		
 		CommandLineParser parser = new PosixParser();
 		CommandLine cmd = null;
@@ -167,9 +181,15 @@ public class Client {
 		
 		// Conf Path 
 		Path confPath = null;
-		
-		if(cmd.hasOption(STRATOSPHERE_CONF.getOpt())) {
-			confPath = new Path(cmd.getOptionValue(STRATOSPHERE_CONF.getOpt()));
+		String confDirPath = "";
+		if(cmd.hasOption(STRATOSPHERE_CONF_DIR.getOpt())) {
+			confDirPath = cmd.getOptionValue(STRATOSPHERE_CONF_DIR.getOpt())+"/";
+			File confFile = new File(confDirPath+CONFIG_FILE_NAME);
+			if(!confFile.exists()) {
+				LOG.fatal("Unable to locate configuration file in "+confFile);
+				System.exit(1);
+			}
+			confPath = new Path(confFile.getAbsolutePath());
 		} else {
 			System.out.println("No configuration file has been specified");
 			
@@ -197,10 +217,36 @@ public class Client {
 				} 
 			}
 		}
+		List<File> shipFiles = null;
+		// path to directory to ship
+		if(cmd.hasOption(SHIP_PATH.getOpt())) {
+			String shipPath = cmd.getOptionValue(SHIP_PATH.getOpt());
+			File shipDir = new File(shipPath);
+			if(shipDir.isDirectory()) {
+				shipFiles = new ArrayList<File>(Arrays.asList(shipDir.listFiles(new FilenameFilter() {
+					@Override
+					public boolean accept(File dir, String name) {
+						return !(name.equals(".") || name.equals("..") );
+					}
+				})));
+			} else {
+				LOG.warn("Ship directory is not a directory!");
+			}
+		}
+		boolean hasLog4j = false;
+		//check if there is a log4j file
+		if(confDirPath != null) {
+			File l4j = new File(confDirPath+"/log4j.properties");
+			if(l4j.exists()) {
+				shipFiles.add(l4j);
+				hasLog4j = true;
+			}
+		}
+		
 		// queue
 		String queue = "default";
-		if(cmd.hasOption(QUERY.getOpt())) {
-			queue = cmd.getOptionValue(QUERY.getOpt());
+		if(cmd.hasOption(QUEUE.getOpt())) {
+			queue = cmd.getOptionValue(QUEUE.getOpt());
 		}
 		
 		// JobManager Memory
@@ -210,7 +256,7 @@ public class Client {
 		}
 		
 		// Task Managers memory
-		int tmMemory = 1000;
+		int tmMemory = 1024;
 		if(cmd.hasOption(TM_MEMORY.getOpt())) {
 			tmMemory = Integer.valueOf(cmd.getOptionValue(TM_MEMORY.getOpt()));
 		}
@@ -232,9 +278,8 @@ public class Client {
 	    LOG.info("Copy App Master jar from local filesystem and add to local environment");
 	    // Copy the application master jar to the filesystem 
 	    // Create a local resource to point to the destination jar path 
-	    FileSystem fs = FileSystem.get(conf);
+	    final FileSystem fs = FileSystem.get(conf);
 	    
-		
 	    // Create yarnClient
 		final YarnClient yarnClient = YarnClient.createYarnClient();
 		yarnClient.init(conf);
@@ -278,18 +323,25 @@ public class Client {
 			yarnClient.stop();
 			System.exit(1);
 		}
-
+		
+		// respect custom JVM options in the YAML file
+		final String javaOpts = GlobalConfiguration.getString(ConfigConstants.STRATOSPHERE_JVM_OPTIONS, "");
+		
 		// Set up the container launch context for the application master
 		ContainerLaunchContext amContainer = Records
 				.newRecord(ContainerLaunchContext.class);
-		final String amCommand = "$JAVA_HOME/bin/java"
-				+ " -Xmx"+jmMemory+"M" + " eu.stratosphere.yarn.ApplicationMaster" + " "
-				+ " 1>"
-				+ ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stdout"
-				+ " 2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR
-				+ "/stderr";
+		
+		String amCommand = "$JAVA_HOME/bin/java"
+					+ " -Xmx"+jmMemory+"M " +javaOpts;
+		if(hasLog4j) {
+			amCommand 	+= " -Dlog.file=\""+ApplicationConstants.LOG_DIR_EXPANSION_VAR +"/jobmanager-log4j.log\" -Dlog4j.configuration=file:log4j.properties";
+		}
+		amCommand 	+= " eu.stratosphere.yarn.ApplicationMaster" + " "
+					+ " 1>"
+					+ ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager-stdout.log"
+					+ " 2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager-stderr.log";
 		amContainer.setCommands(Collections.singletonList(amCommand));
-
+		
 		System.err.println("amCommand="+amCommand);
 		
 		// Set-up ApplicationSubmissionContext for the application
@@ -299,16 +351,41 @@ public class Client {
 		// Setup jar for ApplicationMaster
 		LocalResource appMasterJar = Records.newRecord(LocalResource.class);
 		LocalResource stratosphereConf = Records.newRecord(LocalResource.class);
-		Path remotePathJar = Utils.setupLocalResource(conf, fs, appId.toString(), localJarPath, appMasterJar);
-		Utils.setupLocalResource(conf, fs, appId.toString(), confPath, stratosphereConf);
-		
+		Path remotePathJar = Utils.setupLocalResource(conf, fs, appId.toString(), localJarPath, appMasterJar, fs.getHomeDirectory());
+		Path remotePathConf = Utils.setupLocalResource(conf, fs, appId.toString(), confPath, stratosphereConf, fs.getHomeDirectory());
 		Map<String, LocalResource> localResources = new HashMap<String, LocalResource>(2);
 		localResources.put("stratosphere.jar", appMasterJar);
 		localResources.put("stratosphere-conf.yaml", stratosphereConf);
 		
-				
-		amContainer.setLocalResources(localResources);
 		
+		// setup security tokens (code from apache storm)
+		final Path[] paths = new Path[3 + shipFiles.size()];
+		StringBuffer envShipFileList = new StringBuffer();
+		// upload ship files
+		for (int i = 0; i < shipFiles.size(); i++) {
+			File shipFile = shipFiles.get(i);
+			LocalResource shipResources = Records.newRecord(LocalResource.class);
+			Path shipLocalPath = new Path("file://" + shipFile.getAbsolutePath());
+			paths[3 + i] = Utils.setupLocalResource(conf, fs, appId.toString(),
+					shipLocalPath, shipResources, fs.getHomeDirectory());
+			localResources.put(shipFile.getName(), shipResources);
+			
+			envShipFileList.append(paths[3 + i]);
+			if(i+1 < shipFiles.size()) {
+				envShipFileList.append(',');
+			}
+		}
+
+		paths[0] = remotePathJar;
+		paths[1] = remotePathConf;
+		paths[2] = new Path(fs.getHomeDirectory(), ".stratosphere/" + appId.toString() + "/");
+		FsPermission permission = new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL);
+		fs.setPermission(paths[2], permission); // set permission for path.
+		Utils.setTokensFor(amContainer, paths, this.conf);
+		LOG.debug("Security is enabled: "+ UserGroupInformation.isSecurityEnabled());
+         
+		amContainer.setLocalResources(localResources);
+		fs.close();
 
 		// Setup CLASSPATH for ApplicationMaster
 		Map<String, String> appMasterEnv = new HashMap<String, String>();
@@ -319,6 +396,8 @@ public class Client {
 		appMasterEnv.put(Client.ENV_TM_MEMORY, String.valueOf(tmMemory));
 		appMasterEnv.put(Client.STRATOSPHERE_JAR_PATH, remotePathJar.toString() );
 		appMasterEnv.put(Client.ENV_APP_ID, appId.toString());
+		appMasterEnv.put(Client.ENV_CLIENT_HOME_DIR, fs.getHomeDirectory().toString());
+		appMasterEnv.put(Client.ENV_CLIENT_SHIP_FILES, envShipFileList.toString() );
 		
 		amContainer.setEnvironment(appMasterEnv);
 
@@ -326,25 +405,22 @@ public class Client {
 		Resource capability = Records.newRecord(Resource.class);
 		capability.setMemory(jmMemory);
 		capability.setVirtualCores(1);
-
 		
 		appContext.setApplicationName("Stratosphere"); // application name
 		appContext.setAMContainerSpec(amContainer);
 		appContext.setResource(capability);
 		appContext.setQueue(queue);
 
-				
-		LOG.info("Submitting application master " + appId);
-		yarnClient.submitApplication(appContext);
-		
-		
-		
-		 Runtime.getRuntime().addShutdownHook(new Thread() {
+		Runtime.getRuntime().addShutdownHook(new Thread() {
 		   @Override
 		   public void run() {
 		    try {
 		    	LOG.info("Killing the Stratosphere-YARN application.");
 				yarnClient.killApplication(appId);
+				LOG.info("Deleting files in "+paths[2]);
+				FileSystem shutFS = FileSystem.get(conf);
+				shutFS.delete(paths[2], true); // delete conf and jar file.
+				shutFS.close();
 			} catch (Exception e) {
 				LOG.warn("Exception while killing the YARN application", e);
 			}
@@ -352,30 +428,34 @@ public class Client {
 		    yarnClient.stop();
 		   }
 		  });
+		
+		LOG.info("Submitting application master " + appId);
+		yarnClient.submitApplication(appContext);
 		ApplicationReport appReport = yarnClient.getApplicationReport(appId);
 		YarnApplicationState appState = appReport.getYarnApplicationState();
 		boolean told = false;
+		char[] el = { '/', '|', '\\', '-'};
+		int i = 0; 
 		while (appState != YarnApplicationState.FINISHED
 				&& appState != YarnApplicationState.KILLED
 				&& appState != YarnApplicationState.FAILED) {
 			if(!told && appState ==  YarnApplicationState.RUNNING) {
-				System.err.println("JobManager is now running on "+appReport.getHost()+":"+jmPort);
+				System.err.println("Stratosphere JobManager is now running on "+appReport.getHost()+":"+jmPort);
+				System.err.println("JobManager Web Interface: "+appReport.getTrackingUrl());
+				// write jobmanager connect information
+				PrintWriter out = new PrintWriter(confDirPath+".yarn-jobmanager");
+				out.println(appReport.getHost()+":"+jmPort);
+				out.close();
 				told = true;
 			}
-			System.err.println("JobManager is now running on "+appReport.getHost()+":"+jmPort+"\n"
-					+ "Application report from ASM: \n" +
-			        "\t application identifier: " + appId.toString() + "\n" +
-			        "\t appId: " + appId.getId() + "\n" +
-			        "\t appDiagnostics: " + appReport.getDiagnostics() + "\n" +
-			        "\t appMasterHost: " + appReport.getHost() + "\n" +
-			        "\t appQueue: " + appReport.getQueue() + "\n" +
-			        "\t appMasterRpcPort: " + appReport.getRpcPort() + "\n" +
-			        "\t appStartTime: " + appReport.getStartTime() + "\n" +
-			        "\t yarnAppState: " + appReport.getYarnApplicationState() + "\n" +
-			        "\t distributedFinalState: " + appReport.getFinalApplicationStatus() + "\n" +
-			        "\t appTrackingUrl: " + appReport.getTrackingUrl() + "\n" +
-			        "\t appUser: " + appReport.getUser());
-			Thread.sleep(5000);
+			if(!told) {
+				System.err.print(el[i++]+"\r");
+				if(i == el.length) i = 0;
+				Thread.sleep(500); // wait for the application to switch to RUNNING
+			} else {
+				Thread.sleep(5000);
+			}
+			
 			appReport = yarnClient.getApplicationReport(appId);
 			appState = appReport.getYarnApplicationState();
 		}

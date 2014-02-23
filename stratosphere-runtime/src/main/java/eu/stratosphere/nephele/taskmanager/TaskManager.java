@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
+import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketAddress;
 import java.net.UnknownHostException;
@@ -147,9 +148,7 @@ public class TaskManager implements TaskOperationProtocol {
 	 * {@link GlobalConfiguration}, which must be loaded prior to instantiating the task manager.
 	 */
 	public TaskManager(final int taskManagersPerJVM) throws Exception {
-		
 		// IMPORTANT! At this point, the GlobalConfiguration must have been read!
-
 		final String address = GlobalConfiguration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
 		InetSocketAddress jobManagerAddress = null;
 		if (address == null) {
@@ -168,12 +167,6 @@ public class TaskManager implements TaskOperationProtocol {
 			throw new Exception("Failed to locate job manager based on configuration: " + e.getMessage(), e);
 		}
 		LOG.info("Job manager address: " + jobManagerAddress);
-
-		// Determine interface address that is announced to the job manager
-		final int ipcPort = GlobalConfiguration.getInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY,
-			ConfigConstants.DEFAULT_TASK_MANAGER_IPC_PORT);
-		final int dataPort = GlobalConfiguration.getInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY,
-			ConfigConstants.DEFAULT_TASK_MANAGER_DATA_PORT);
 
 		InetAddress taskManagerAddress = null;
 
@@ -194,6 +187,14 @@ public class TaskManager implements TaskOperationProtocol {
 			throw new RuntimeException("The TaskManager failed to determine its own network address", ioe);
 		}
 
+		int ipcPort = GlobalConfiguration.getInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, 0);
+		int dataPort = GlobalConfiguration.getInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, 0);
+		if(ipcPort == 0) {
+			ipcPort = getAvailablePort();
+		}
+		if(dataPort == 0) {
+			dataPort = getAvailablePort();
+		}
 		this.localInstanceConnectionInfo = new InstanceConnectionInfo(taskManagerAddress, ipcPort, dataPort);
 		LOG.info("Announcing connection information " + this.localInstanceConnectionInfo + " to job manager");
 		
@@ -229,6 +230,7 @@ public class TaskManager implements TaskOperationProtocol {
 		}
 		this.accumulatorProtocolProxy = accumulatorProtocolStub;
 
+		
 		// Start local RPC server
 		Server taskManagerServer = null;
 		try {
@@ -297,11 +299,34 @@ public class TaskManager implements TaskOperationProtocol {
 				+ " megabytes of memory", rte);
 			throw rte;
 		}
-
 		this.ioManager = new IOManager(tmpDirPaths);
-
 		// Add shutdown hook for clean up tasks
 		Runtime.getRuntime().addShutdownHook(new TaskManagerCleanUp(this));
+	}
+
+	private int getAvailablePort() {
+		ServerSocket serverSocket = null;
+		int port = 0;
+		for(int i = 0; i < 50; i++){
+			try {
+			serverSocket = new ServerSocket(0);
+			port = serverSocket.getLocalPort();
+			if(port != 0) {
+				serverSocket.close();
+				break;
+			}
+			} catch (IOException e) {
+				LOG.debug("Unable to allocate port "+e.getMessage(), e);
+			}
+		}
+		if(!serverSocket.isClosed()) {
+			try {
+				serverSocket.close();
+			} catch (IOException e) {
+				LOG.debug("error closing port",e);
+			}
+		}
+		return port;
 	}
 
 	/**
@@ -341,10 +366,9 @@ public class TaskManager implements TaskOperationProtocol {
 			LOG.fatal("Taskmanager startup failed:" + StringUtils.stringifyException(e));
 			System.exit(FAILURERETURNCODE);
 		}
-
 		// Run the main I/O loop
 		taskManager.runIOLoop();
-
+		
 		// Shut down
 		taskManager.shutdown();
 	}
@@ -367,6 +391,7 @@ public class TaskManager implements TaskOperationProtocol {
 
 			// Send heartbeat
 			try {
+				LOG.debug("heartbeat");
 				this.jobManager.sendHeartbeat(this.localInstanceConnectionInfo, this.hardwareDescription);
 			} catch (IOException e) {
 				e.printStackTrace();
@@ -863,14 +888,12 @@ public class TaskManager implements TaskOperationProtocol {
 
 	@Override
 	public void killTaskManager() throws IOException {
-
 		// Kill the entire JVM after a delay of 10ms, so this RPC will finish properly before
 		final Timer timer = new Timer();
 		final TimerTask timerTask = new TimerTask() {
 
 			@Override
 			public void run() {
-
 				System.exit(0);
 			}
 		};

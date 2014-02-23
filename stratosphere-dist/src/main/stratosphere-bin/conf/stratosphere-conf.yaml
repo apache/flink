@@ -50,6 +50,9 @@ jobmanager.web.history: 5
 #                                                   TASK MANAGER (WORKERs)
 #=======================================================================================================================
 
+# Stratosphere chooses a port automatically, if this value is not set.
+# If setting this variable when using YARN, beware that there might be conflicts when multiple
+# TaskManagers are running on the same machine.
 #taskmanager.rpc.port: 6122
 
 # JVM heap size in MB

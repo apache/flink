@@ -16,11 +16,13 @@ package eu.stratosphere.yarn;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.ByteBuffer;
 import java.util.Enumeration;
 import java.util.Map;
 import java.util.jar.JarEntry;
@@ -32,8 +34,12 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.DataOutputBuffer;
+import org.apache.hadoop.mapreduce.security.TokenCache;
+import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.util.Shell;
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
+import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
@@ -151,27 +157,45 @@ public class Utils {
 	 * @return Path to remote file (usually hdfs)
 	 * @throws IOException
 	 */
-	public static Path setupLocalResource(Configuration conf, FileSystem fs, String appId, Path localRsrcPath, LocalResource appMasterJar)
+	public static Path setupLocalResource(Configuration conf, FileSystem fs, String appId, Path localRsrcPath, LocalResource appMasterJar, Path homedir)
 			throws IOException {
 		// copy to HDFS
 		String suffix = ".stratosphere/" + appId + "/" + localRsrcPath.getName();
 		
-	    Path dst = new Path(fs.getHomeDirectory(), suffix);
+	    Path dst = new Path(homedir, suffix);
 	    
-	    LOG.debug("Copying from "+localRsrcPath+" to "+dst );
-	    
+	    LOG.info("Copying from "+localRsrcPath+" to "+dst );
 	    fs.copyFromLocalFile(localRsrcPath, dst);
 	    registerLocalResource(fs, dst, appMasterJar);
 	    return dst;
 	}
 	
-	public static void registerLocalResource(FileSystem fs, Path remoteRsrcPath, LocalResource appMasterJar) throws IOException {
+	public static void registerLocalResource(FileSystem fs, Path remoteRsrcPath, LocalResource localResource) throws IOException {
 		FileStatus jarStat = fs.getFileStatus(remoteRsrcPath);
-		appMasterJar.setResource(ConverterUtils.getYarnUrlFromURI(remoteRsrcPath.toUri()));
-		appMasterJar.setSize(jarStat.getLen());
-		appMasterJar.setTimestamp(jarStat.getModificationTime());
-		appMasterJar.setType(LocalResourceType.FILE);
-		appMasterJar.setVisibility(LocalResourceVisibility.APPLICATION);
+		localResource.setResource(ConverterUtils.getYarnUrlFromURI(remoteRsrcPath.toUri()));
+		localResource.setSize(jarStat.getLen());
+		localResource.setTimestamp(jarStat.getModificationTime());
+		localResource.setType(LocalResourceType.FILE);
+		localResource.setVisibility(LocalResourceVisibility.PUBLIC);
+	}
+
+	public static void setTokensFor(ContainerLaunchContext amContainer, Path[] paths, Configuration conf) throws IOException {
+		Credentials credentials = new Credentials();
+        TokenCache.obtainTokensForNamenodes(credentials, paths, conf);
+        DataOutputBuffer dob = new DataOutputBuffer();
+        credentials.writeTokenStorageToStream(dob);
+        ByteBuffer securityTokens = ByteBuffer.wrap(dob.getData(), 0, dob.getLength());
+        amContainer.setTokens(securityTokens);
 	}
 	
+	public static void logFilesInCurrentDirectory(final Log logger) {
+		new File(".").list(new FilenameFilter() {
+			
+			@Override
+			public boolean accept(File dir, String name) {
+				logger.info(dir.getAbsolutePath()+"/"+name);
+				return true;
+			}
+		});
+	}
 }

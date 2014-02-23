@@ -51,7 +51,9 @@ public class LogfileInfoServlet extends HttpServlet {
 				// Find current stdtout file
 				for(File f : logDir.listFiles()) {
 					// contains "jobmanager" ".log" and no number in the end ->needs improvement
-					if(f.getName().indexOf("jobmanager") != -1 && f.getName().indexOf(".out") != -1 && ! Character.isDigit(f.getName().charAt(f.getName().length() - 1) )) {
+					if( f.getName().equals("jobmanager-stdout.log") ||
+							(f.getName().indexOf("jobmanager") != -1 && f.getName().indexOf(".out") != -1 && ! Character.isDigit(f.getName().charAt(f.getName().length() - 1) ))
+							) {
 						
 						resp.setStatus(HttpServletResponse.SC_OK);
 						resp.setContentType("text/plain ");
@@ -64,7 +66,8 @@ public class LogfileInfoServlet extends HttpServlet {
 				// Find current logfile
 				for(File f : logDir.listFiles()) {
 					// contains "jobmanager" ".log" and no number in the end ->needs improvement
-					if(f.getName().indexOf("jobmanager") != -1 && f.getName().indexOf(".log") != -1 && ! Character.isDigit(f.getName().charAt(f.getName().length() - 1) )) {
+					if( f.getName().equals("jobmanager-stderr.log") ||
+							(f.getName().indexOf("jobmanager") != -1 && f.getName().indexOf(".log") != -1 && ! Character.isDigit(f.getName().charAt(f.getName().length() - 1) ))) {
 						
 						resp.setStatus(HttpServletResponse.SC_OK);
 						resp.setContentType("text/plain ");

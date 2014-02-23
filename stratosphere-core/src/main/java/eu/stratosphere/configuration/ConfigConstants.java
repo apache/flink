@@ -198,6 +198,9 @@ public final class ConfigConstants {
 	 */
 	public static final String JOB_MANAGER_WEB_ARCHIVE_COUNT = "jobmanager.web.history";
 	
+	public static final String JOB_MANAGER_WEB_LOG_PATH_KEY = "jobmanager.web.logpath";
+	
+	
 	// ------------------------------ Web Client ------------------------------
 	
 	/**
@@ -236,6 +239,10 @@ public final class ConfigConstants {
 	 * The key for Stratosphere's base directory path
 	 */
 	public static final String STRATOSPHERE_BASE_DIR_PATH_KEY = "stratosphere.base.dir.path";
+	
+	public static final String STRATOSPHERE_JVM_OPTIONS = "env.java.opts";
+	
+	
 
 	
 	
@@ -404,6 +411,7 @@ public final class ConfigConstants {
 	 * The default directory to store uploaded jobs in.
 	 */
 	public static final String DEFAULT_WEB_JOB_STORAGE_DIR = DEFAULT_WEB_TMP_DIR + "/webclient-jobs/";
+	
 
 	/**
 	 * The default path to the file containing the list of access privileged users and passwords.
@@ -416,12 +424,13 @@ public final class ConfigConstants {
 	/**
 	 * The default definition for an instance type, if no other configuration is provided.
 	 */
-	public static final String DEFAULT_INSTANCE_TYPE = "default,2,1,1024,10,10";
+	public static final String DEFAULT_INSTANCE_TYPE = "default,1,1,1,1,0"; // minimalistic instance type until "cloud" model is fully removed.
 
 	/**
 	 * The default index for the default instance type.
 	 */
 	public static final int DEFAULT_DEFAULT_INSTANCE_TYPE_INDEX = 1;
+
 	
 	// ------------------------------------------------------------------------
 	

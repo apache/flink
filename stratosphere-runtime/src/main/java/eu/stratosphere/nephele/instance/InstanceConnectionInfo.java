@@ -238,11 +238,13 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 	public String toString() {
 
 		String iaString;
+		String portsString = " (ipcPort="+ipcPort+", dataPort="+dataPort+")";
 		if (this.hostName != null) {
-			iaString = this.hostName;
+			iaString = this.hostName+portsString;
 		} else {
 			iaString = inetAddress.toString();
 			iaString = iaString.replace("/", "");
+			iaString += portsString;
 		}
 
 		return iaString;

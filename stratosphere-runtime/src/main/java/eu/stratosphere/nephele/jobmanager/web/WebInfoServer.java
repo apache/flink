@@ -77,6 +77,8 @@ public class WebInfoServer {
 		// get base path of Stratosphere installation
 		String basePath = nepheleConfig.getString(ConfigConstants.STRATOSPHERE_BASE_DIR_PATH_KEY, "");
 		String webDirPath = nepheleConfig.getString(ConfigConstants.JOB_MANAGER_WEB_ROOT_PATH_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_WEB_ROOT_PATH);
+		String logDirPath = nepheleConfig.getString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, 
+				basePath+"/log");
 		
 		File webDir;
 		if(webDirPath.startsWith("/")) {
@@ -110,7 +112,7 @@ public class WebInfoServer {
 		ServletContextHandler servletContext = new ServletContextHandler(ServletContextHandler.SESSIONS);
 		servletContext.setContextPath("/");
 		servletContext.addServlet(new ServletHolder(new JobmanagerInfoServlet(jobmanager)), "/jobsInfo");
-		servletContext.addServlet(new ServletHolder(new LogfileInfoServlet(new File(basePath+"/log"))), "/logInfo");
+		servletContext.addServlet(new ServletHolder(new LogfileInfoServlet(new File(logDirPath))), "/logInfo");
 
 
 		// ----- the handler serving all the static files -----
