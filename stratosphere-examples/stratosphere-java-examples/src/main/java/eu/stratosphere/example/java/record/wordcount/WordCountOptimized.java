@@ -55,7 +55,7 @@ public class WordCountOptimized implements Program, ProgramDescription {
 		
 		// initialize reusable mutable objects
 		private final Record outputRecord = new Record();
-		private final StringValue word = new StringValue();
+		private StringValue word = new StringValue();
 		private final IntValue one = new IntValue(1);
 		
 		private final AsciiUtils.WhitespaceTokenizer tokenizer =
@@ -72,7 +72,7 @@ public class WordCountOptimized implements Program, ProgramDescription {
 			
 			// tokenize the line
 			this.tokenizer.setStringToTokenize(line);
-			while (tokenizer.next(this.word))
+			while ((this.word = tokenizer.next(this.word)) != null)
 			{
 				// we emit a (word, 1) pair 
 				this.outputRecord.setField(0, this.word);

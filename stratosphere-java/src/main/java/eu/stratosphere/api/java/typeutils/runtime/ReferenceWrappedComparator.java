@@ -99,7 +99,7 @@ public class ReferenceWrappedComparator<T> extends TypeComparator<Reference<T>> 
 	}
 
 	@Override
-	public void readWithKeyDenormalization(Reference<T> record, DataInputView source) throws IOException {
+	public Reference<T> readWithKeyDenormalization(Reference<T> reuse, DataInputView source) throws IOException {
 		throw new UnsupportedOperationException();
 	}
 

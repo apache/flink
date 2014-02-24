@@ -41,10 +41,15 @@ public final class ReaderIterator<T> implements MutableObjectIterator<T> {
 	}
 
 	@Override
-	public boolean next(T target) throws IOException {
+	public T next(T target) throws IOException {
 		this.delegate.setInstance(target);
 		try {
-			return this.reader.next(this.delegate);
+			if (this.reader.next(this.delegate)) {
+				return this.delegate.getInstance();
+			} else {
+				return null;
+			}
+
 		}
 		catch (InterruptedException e) {
 			throw new IOException("Reader interrupted.", e);

@@ -60,13 +60,13 @@ public class MergeMatchIterator<T1, T2, O> implements JoinTaskIterator<T1, T2, O
 	
 	private final TypeSerializer<T2> serializer2;
 	
-	private final T1 copy1;
+	private T1 copy1;
 	
-	private final T1 spillHeadCopy;
+	private T1 spillHeadCopy;
 	
-	private final T2 copy2;
+	private T2 copy2;
 	
-	private final T2 blockHeadCopy;
+	private T2 blockHeadCopy;
 	
 	private final BlockResettableIterator<T2> blockIt;				// for N:M cross products with same key
 	
@@ -230,7 +230,7 @@ public class MergeMatchIterator<T1, T2, O> implements JoinTaskIterator<T1, T2, O
 			final Iterator<T2> valsN, final GenericJoiner<T1, T2, O> matchFunction, final Collector<O> collector)
 	throws Exception
 	{
-		this.serializer1.copyTo(val1, this.copy1);
+		this.copy1 = this.serializer1.copy(val1, this.copy1);
 		matchFunction.join(this.copy1, firstValN, collector);
 		
 		// set copy and match first element
@@ -239,7 +239,7 @@ public class MergeMatchIterator<T1, T2, O> implements JoinTaskIterator<T1, T2, O
 			final T2 nRec = valsN.next();
 			
 			if (valsN.hasNext()) {
-				this.serializer1.copyTo(val1, this.copy1);
+				this.copy1 = this.serializer1.copy(val1, this.copy1);
 				matchFunction.join(this.copy1, nRec, collector);
 			} else {
 				matchFunction.join(val1, nRec, collector);
@@ -263,7 +263,7 @@ public class MergeMatchIterator<T1, T2, O> implements JoinTaskIterator<T1, T2, O
 			Iterator<T1> valsN, GenericJoiner<T1, T2, O> matchFunction, Collector<O> collector)
 	throws Exception
 	{
-		this.serializer2.copyTo(val1, this.copy2);
+		this.copy2 = this.serializer2.copy(val1, this.copy2);
 		matchFunction.join(firstValN, this.copy2, collector);
 		
 		// set copy and match first element
@@ -272,7 +272,7 @@ public class MergeMatchIterator<T1, T2, O> implements JoinTaskIterator<T1, T2, O
 			final T1 nRec = valsN.next();
 			
 			if (valsN.hasNext()) {
-				this.serializer2.copyTo(val1, this.copy2);
+				this.copy2 = this.serializer2.copy(val1, this.copy2);
 				matchFunction.join(nRec, this.copy2, collector);
 			} else {
 				matchFunction.join(nRec, val1, collector);
@@ -310,8 +310,8 @@ public class MergeMatchIterator<T1, T2, O> implements JoinTaskIterator<T1, T2, O
 		// 6) cross the spilling iterator with the next block.
 		
 		// match the first values first
-		this.serializer1.copyTo(firstV1, this.copy1);
-		this.serializer2.copyTo(firstV2, this.blockHeadCopy);
+		this.copy1 = this.serializer1.copy(firstV1, this.copy1);
+		this.blockHeadCopy = this.serializer2.copy(firstV2, this.blockHeadCopy);
 		
 		// --------------- 1) Cross the heads -------------------
 		matchFunction.join(this.copy1, firstV2, collector);
@@ -326,7 +326,7 @@ public class MergeMatchIterator<T1, T2, O> implements JoinTaskIterator<T1, T2, O
 			// ------------- 2) cross the head of the spilling side with the first block ------------------
 			while (this.blockIt.hasNext()) {
 				final T2 nextBlockRec = this.blockIt.next();
-				this.serializer1.copyTo(firstV1, this.copy1);
+				this.copy1 = this.serializer1.copy(firstV1, this.copy1);
 				matchFunction.join(this.copy1, nextBlockRec, collector);
 			}
 			this.blockIt.reset();
@@ -344,7 +344,7 @@ public class MergeMatchIterator<T1, T2, O> implements JoinTaskIterator<T1, T2, O
 				leftSideIter = spillIt;
 				spillIt.open();
 				
-				this.serializer1.copyTo(firstV1, this.spillHeadCopy);
+				this.spillHeadCopy = this.serializer1.copy(firstV1, this.spillHeadCopy);
 			}
 			else {
 				leftSideIter = spillVals;
@@ -354,11 +354,11 @@ public class MergeMatchIterator<T1, T2, O> implements JoinTaskIterator<T1, T2, O
 			
 			while (leftSideIter.hasNext()) {
 				final T1 nextSpillVal = leftSideIter.next();
-				this.serializer1.copyTo(nextSpillVal, this.copy1);
+				this.copy1 = this.serializer1.copy(nextSpillVal, this.copy1);
 				
 				
 				// -------- 3) cross the iterator of the spilling side with the head of the block side --------
-				this.serializer2.copyTo(this.blockHeadCopy, this.copy2);
+				this.copy2 = this.serializer2.copy(this.blockHeadCopy, this.copy2);
 				matchFunction.join(this.copy1, this.copy2, collector);
 				
 				// -------- 4) cross the iterator of the spilling side with the first block --------
@@ -366,7 +366,7 @@ public class MergeMatchIterator<T1, T2, O> implements JoinTaskIterator<T1, T2, O
 					T2 nextBlockRec = this.blockIt.next();
 					
 					// get instances of key and block value
-					this.serializer1.copyTo(nextSpillVal, this.copy1);
+					this.copy1 = this.serializer1.copy(nextSpillVal, this.copy1);
 					matchFunction.join(this.copy1, nextBlockRec, collector);
 				}
 				// reset block iterator
@@ -388,7 +388,7 @@ public class MergeMatchIterator<T1, T2, O> implements JoinTaskIterator<T1, T2, O
 				
 				// ------------- 5) cross the head of the spilling side with the next block ------------
 				while (this.blockIt.hasNext()) {
-					this.serializer1.copyTo(this.spillHeadCopy, this.copy1);
+					this.copy1 = this.serializer1.copy(this.spillHeadCopy, this.copy1);
 					final T2 nextBlockVal = blockIt.next();
 					matchFunction.join(this.copy1, nextBlockVal, collector);
 				}
@@ -403,7 +403,7 @@ public class MergeMatchIterator<T1, T2, O> implements JoinTaskIterator<T1, T2, O
 					while (this.blockIt.hasNext()) {
 						// get instances of key and block value
 						final T2 nextBlockVal = this.blockIt.next();
-						this.serializer1.copyTo(nextSpillVal, this.copy1);
+						this.copy1 = this.serializer1.copy(nextSpillVal, this.copy1);
 						matchFunction.join(this.copy1, nextBlockVal, collector);	
 					}
 					

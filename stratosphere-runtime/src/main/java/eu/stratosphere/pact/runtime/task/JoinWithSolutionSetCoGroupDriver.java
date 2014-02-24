@@ -137,7 +137,7 @@ public abstract class JoinWithSolutionSetCoGroupDriver<IT1, IT2, OT> implements 
 		final Collector<OT> collector = taskContext.getOutputCollector();
 		
 		if (getSolutionSetInputIndex() == 0) {
-			final IT1 buildSideRecord = rec1;
+			IT1 buildSideRecord = rec1;
 			
 			@SuppressWarnings("unchecked")
 			final MutableHashTable<IT1, IT2> join = (MutableHashTable<IT1, IT2>) hashTable;
@@ -148,7 +148,7 @@ public abstract class JoinWithSolutionSetCoGroupDriver<IT1, IT2, OT> implements 
 			while (this.running && probeSideInput.nextKey()) {
 				IT2 current = probeSideInput.getCurrent();
 				final MutableHashTable.HashBucketIterator<IT1, IT2> bucket = join.getMatchesFor(current);
-				if (bucket.next(buildSideRecord)) {
+				if ((buildSideRecord = bucket.next(buildSideRecord)) != null) {
 					siIter.set(buildSideRecord);
 					coGroupStub.coGroup(siIter, probeSideInput.getValues(), collector);
 				}
@@ -158,7 +158,7 @@ public abstract class JoinWithSolutionSetCoGroupDriver<IT1, IT2, OT> implements 
 				}
 			}
 		} else if (getSolutionSetInputIndex() == 1) {
-			final IT2 buildSideRecord = rec2;
+			IT2 buildSideRecord = rec2;
 			
 			@SuppressWarnings("unchecked")
 			final MutableHashTable<IT2, IT1> join = (MutableHashTable<IT2, IT1>) hashTable;
@@ -169,7 +169,7 @@ public abstract class JoinWithSolutionSetCoGroupDriver<IT1, IT2, OT> implements 
 			while (this.running && probeSideInput.nextKey()) {
 				IT1 current = probeSideInput.getCurrent();
 				final MutableHashTable.HashBucketIterator<IT2, IT1> bucket = join.getMatchesFor(current);
-				if (bucket.next(buildSideRecord)) {
+				if ((buildSideRecord = bucket.next(buildSideRecord)) != null) {
 					siIter.set(buildSideRecord);
 					coGroupStub.coGroup(probeSideInput.getValues(), siIter, collector);
 				}

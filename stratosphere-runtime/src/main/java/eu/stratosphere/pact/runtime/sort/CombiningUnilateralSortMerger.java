@@ -501,7 +501,7 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 		
 		private final InMemorySorter<E> buffer; // the buffer from which values are returned
 		
-		private final E record;
+		private E record;
 
 		private int last; // the position of the last value to be returned
 
@@ -540,7 +540,7 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 		public E next() {
 			if (this.position <= this.last) {
 				try {
-					this.buffer.getRecord(this.record, this.position);					
+					this.record = this.buffer.getRecord(this.record, this.position);
 					this.position++;
 					return this.record;
 				}

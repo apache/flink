@@ -101,22 +101,26 @@ public abstract class AbstractCachedBuildSideMatchDriver<IT1, IT2, OT> extends M
 			final TypeSerializer<IT1> buildSideSerializer = taskContext.<IT1> getInputSerializer(0);
 			final TypeSerializer<IT2> probeSideSerializer = taskContext.<IT2> getInputSerializer(1);
 			
-			final IT1 buildSideRecordFirst = buildSideSerializer.createInstance();
-			final IT1 buildSideRecordOther = buildSideSerializer.createInstance();
-			final IT2 probeSideRecord = probeSideSerializer.createInstance();
-			final IT2 probeSideRecordCopy = probeSideSerializer.createInstance();
+			IT1 buildSideRecordFirst;
+			IT1 buildSideRecordOther;
+			IT2 probeSideRecord;
+			IT2 probeSideRecordCopy;
+			final IT1 buildSideRecordFirstReuse = buildSideSerializer.createInstance();
+			final IT1 buildSideRecordOtherReuse = buildSideSerializer.createInstance();
+			final IT2 probeSideRecordReuse = probeSideSerializer.createInstance();
+			final IT2 probeSideRecordCopyReuse = probeSideSerializer.createInstance();
 			
 			@SuppressWarnings("unchecked")
 			final MutableHashTable<IT1, IT2> join = (MutableHashTable<IT1, IT2>) this.hashJoin;
 			
 			final MutableObjectIterator<IT2> probeSideInput = taskContext.<IT2>getInput(1);
 			
-			while (this.running && probeSideInput.next(probeSideRecord)) {
+			while (this.running && ((probeSideRecord = probeSideInput.next(probeSideRecordReuse)) != null)) {
 				final MutableHashTable.HashBucketIterator<IT1, IT2> bucket = join.getMatchesFor(probeSideRecord);
 				
-				if (bucket.next(buildSideRecordFirst)) {
-					while (bucket.next(buildSideRecordOther)) {
-						probeSideSerializer.copyTo(probeSideRecord, probeSideRecordCopy);
+				if ((buildSideRecordFirst = bucket.next(buildSideRecordFirstReuse)) != null) {
+					while ((buildSideRecordOther = bucket.next(buildSideRecordOtherReuse)) != null) {
+						probeSideRecordCopy = probeSideSerializer.copy(probeSideRecord, probeSideRecordCopyReuse);
 						matchStub.join(buildSideRecordOther, probeSideRecordCopy, collector);
 					}
 					matchStub.join(buildSideRecordFirst, probeSideRecord, collector);
@@ -126,22 +130,26 @@ public abstract class AbstractCachedBuildSideMatchDriver<IT1, IT2, OT> extends M
 			final TypeSerializer<IT2> buildSideSerializer = taskContext.<IT2> getInputSerializer(1);
 			final TypeSerializer<IT1> probeSideSerializer = taskContext.<IT1> getInputSerializer(0);
 			
-			final IT2 buildSideRecordFirst = buildSideSerializer.createInstance();
-			final IT2 buildSideRecordOther = buildSideSerializer.createInstance();
-			final IT1 probeSideRecord = probeSideSerializer.createInstance();
-			final IT1 probeSideRecordCopy = probeSideSerializer.createInstance();
-			
+			IT2 buildSideRecordFirst;
+			IT2 buildSideRecordOther;
+			IT1 probeSideRecord;
+			IT1 probeSideRecordCopy;
+			final IT2 buildSideRecordFirstReuse = buildSideSerializer.createInstance();
+			final IT2 buildSideRecordOtherReuse = buildSideSerializer.createInstance();
+			final IT1 probeSideRecordReuse = probeSideSerializer.createInstance();
+			final IT1 probeSideRecordCopyReuse = probeSideSerializer.createInstance();
+
 			@SuppressWarnings("unchecked")
 			final MutableHashTable<IT2, IT1> join = (MutableHashTable<IT2, IT1>) this.hashJoin;
 			
 			final MutableObjectIterator<IT1> probeSideInput = taskContext.<IT1>getInput(0);
 			
-			while (this.running && probeSideInput.next(probeSideRecord)) {
+			while (this.running && ((probeSideRecord = probeSideInput.next(probeSideRecordReuse)) != null)) {
 				final MutableHashTable.HashBucketIterator<IT2, IT1> bucket = join.getMatchesFor(probeSideRecord);
 				
-				if (bucket.next(buildSideRecordFirst)) {
-					while (bucket.next(buildSideRecordOther)) {
-						probeSideSerializer.copyTo(probeSideRecord, probeSideRecordCopy);
+				if ((buildSideRecordFirst = bucket.next(buildSideRecordFirstReuse)) != null) {
+					while ((buildSideRecordOther = bucket.next(buildSideRecordOtherReuse)) != null) {
+						probeSideRecordCopy = probeSideSerializer.copy(probeSideRecord, probeSideRecordCopyReuse);
 						matchStub.join(probeSideRecordCopy, buildSideRecordOther, collector);
 					}
 					matchStub.join(probeSideRecord, buildSideRecordFirst, collector);

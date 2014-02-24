@@ -40,8 +40,10 @@ public class BlockResettableIterator<T> extends AbstractBlockResettableIterator<
 	protected Iterator<T> input;
 	
 	private T nextElement;
+
+	private final T reuseElement;
 	
-	private final T stagingElement;
+	private T stagingElement;
 	
 	private T leftOverElement;
 	
@@ -65,7 +67,7 @@ public class BlockResettableIterator<T> extends AbstractBlockResettableIterator<
 	{
 		super(serializer, memoryManager, numPages, ownerTask);
 		
-		this.stagingElement = serializer.createInstance();
+		this.reuseElement = serializer.createInstance();
 	}
 	
 	// ------------------------------------------------------------------------
@@ -87,7 +89,8 @@ public class BlockResettableIterator<T> extends AbstractBlockResettableIterator<
 			if (this.nextElement == null) {
 				if (this.readPhase) {
 					// read phase, get next element from buffer
-					if (getNextRecord(this.stagingElement)) {
+					this.stagingElement = getNextRecord(this.reuseElement);
+					if (this.stagingElement != null) {
 						this.nextElement = this.stagingElement;
 						return true;
 					} else {

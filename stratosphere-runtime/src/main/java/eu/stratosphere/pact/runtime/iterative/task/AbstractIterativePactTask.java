@@ -232,7 +232,7 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 					@SuppressWarnings("unchecked")
 					MutableObjectIterator<Object> inIter = (MutableObjectIterator<Object>) this.inputIterators[inputNum];
 					Object o = this.inputSerializers[inputNum].createInstance();
-					while (inIter.next(o));
+					while ((o = inIter.next(o)) != null);
 					
 					if (reader.isInputClosed()) {
 						anyClosed = true;

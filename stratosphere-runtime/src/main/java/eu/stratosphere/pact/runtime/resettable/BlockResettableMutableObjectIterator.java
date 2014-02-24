@@ -47,7 +47,7 @@ public class BlockResettableMutableObjectIterator<T> extends AbstractBlockResett
 	
 	private boolean noMoreBlocks;
 	
-	private final T leftOverRecord;
+	private T leftOverRecord;
 	
 	// ------------------------------------------------------------------------
 	
@@ -67,7 +67,7 @@ public class BlockResettableMutableObjectIterator<T> extends AbstractBlockResett
 
 
 	@Override
-	public boolean next(T target) throws IOException {
+	public T next(T target) throws IOException {
 		// check for the left over element
 		if (this.readPhase) {
 			return getNextRecord(target);
@@ -75,26 +75,26 @@ public class BlockResettableMutableObjectIterator<T> extends AbstractBlockResett
 			// writing phase. check for leftover first
 			if (this.leftOverReturned) {
 				// get next record
-				if (this.input.next(target)) {
+				if ((target = this.input.next(target)) != null) {
 					if (writeNextRecord(target)) {
-						return true;
+						return target;
 					} else {
 						// did not fit into memory, keep as leftover
-						this.serializer.copyTo(target, this.leftOverRecord);
+						this.leftOverRecord = this.serializer.copy(target, this.leftOverRecord);
 						this.leftOverReturned = false;
 						this.fullWriteBuffer = true;
-						return false;
+						return null;
 					}
 				} else {
 					this.noMoreBlocks = true;
-					return false;
+					return null;
 				}
 			} else if (this.fullWriteBuffer) {
-				return false;
+				return null;
 			} else {
 				this.leftOverReturned = true;
-				this.serializer.copyTo(this.leftOverRecord, target);
-				return true;
+				target = this.serializer.copy(this.leftOverRecord, target);
+				return target;
 			}
 		}
 	}
@@ -124,7 +124,7 @@ public class BlockResettableMutableObjectIterator<T> extends AbstractBlockResett
 		
 		// if there is no leftover record, get a record such that we guarantee to advance
 		if (this.leftOverReturned || !this.fullWriteBuffer) {
-			if (this.input.next(this.leftOverRecord)) {
+			if ((this.leftOverRecord = this.input.next(this.leftOverRecord)) != null) {
 				this.leftOverReturned = false;
 			} else {
 				this.noMoreBlocks = true;

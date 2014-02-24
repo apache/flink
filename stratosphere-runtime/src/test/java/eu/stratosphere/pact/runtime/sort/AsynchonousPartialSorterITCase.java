@@ -210,8 +210,8 @@ public class AsynchonousPartialSorterITCase
 		Record rec2 = new Record();
 		
 		LOG.debug("Checking results...");
-		Assert.assertTrue(iterator.next(rec1));
-		while (iterator.next(rec2))
+		Assert.assertTrue((rec1 = iterator.next(rec1)) != null);
+		while ((rec2 = iterator.next(rec2)) != null)
 		{
 			final TestData.Key k1 = rec1.getField(0, TestData.Key.class);
 			final TestData.Key k2 = rec2.getField(0, TestData.Key.class);

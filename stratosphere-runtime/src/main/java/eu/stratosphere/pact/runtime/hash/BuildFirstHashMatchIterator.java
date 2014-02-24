@@ -102,30 +102,30 @@ public class BuildFirstHashMatchIterator<V1, V2, O> implements JoinTaskIterator<
 		{
 			// we have a next record, get the iterators to the probe and build side values
 			final MutableHashTable.HashBucketIterator<V1, V2> buildSideIterator = this.hashJoin.getBuildSideIterator();
-			final V1 nextBuildSideRecord = this.nextBuildSideObject;
+			V1 nextBuildSideRecord = this.nextBuildSideObject;
 			
 			// get the first build side value
-			if (buildSideIterator.next(nextBuildSideRecord)) {
-				final V1 tmpRec = this.tempBuildSideRecord;
+			if ((nextBuildSideRecord = buildSideIterator.next(nextBuildSideRecord)) != null) {
+				V1 tmpRec = this.tempBuildSideRecord;
 				final V2 probeRecord = this.hashJoin.getCurrentProbeRecord();
 				
 				// check if there is another build-side value
-				if (buildSideIterator.next(tmpRec)) {
+				if ((tmpRec = buildSideIterator.next(tmpRec)) != null) {
 					// more than one build-side value --> copy the probe side
-					final V2 probeCopy = this.probeCopy;
-					this.probeSideSerializer.copyTo(probeRecord, probeCopy);
+					V2 probeCopy = this.probeCopy;
+					probeCopy = this.probeSideSerializer.copy(probeRecord, probeCopy);
 					
 					// call match on the first pair
 					matchFunction.join(nextBuildSideRecord, probeCopy, collector);
 					
 					// call match on the second pair
-					this.probeSideSerializer.copyTo(probeRecord, probeCopy);
+					probeCopy = this.probeSideSerializer.copy(probeRecord, probeCopy);
 					matchFunction.join(tmpRec, probeCopy, collector);
 					
-					while (this.running && buildSideIterator.next(nextBuildSideRecord)) {
+					while (this.running && ((nextBuildSideRecord = buildSideIterator.next(nextBuildSideRecord)) != null)) {
 						// call match on the next pair
 						// make sure we restore the value of the probe side record
-						this.probeSideSerializer.copyTo(probeRecord, probeCopy);
+						probeCopy = this.probeSideSerializer.copy(probeRecord, probeCopy);
 						matchFunction.join(nextBuildSideRecord, probeCopy, collector);
 					}
 				}

@@ -293,7 +293,7 @@ public class SortMergeMatchIteratorITCase
 		Map<TestData.Key, Collection<TestData.Value>> map = new HashMap<TestData.Key, Collection<TestData.Value>>();
 		Record pair = new Record();
 		
-		while (iter.next(pair)) {
+		while ((pair = iter.next(pair)) != null) {
 			TestData.Key key = pair.getField(0, TestData.Key.class);
 			
 			if (!map.containsKey(key)) {

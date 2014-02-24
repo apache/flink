@@ -230,7 +230,7 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 	 * can be used to address the written record in this partition, if it is in-memory. The returned
 	 * pointers have no expressiveness in the case where the partition is spilled.
 	 * 
-	 * @param object The object to be written to the partition.
+	 * @param record The object to be written to the partition.
 	 * @return A pointer to the object in the partition, or <code>-1</code>, if the partition is spilled.
 	 * @throws IOException Thrown, when this is a spilled partition and the write failed.
 	 */
@@ -253,7 +253,7 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 	 * Inserts the given record into the probe side buffers. This method is only applicable when the
 	 * partition was spilled while processing the build side.
 	 * <p>
-	 * If this method is invoked when the partition is still being built, it has undefined behavior.
+	 * If this method is invoked when the partition is still beHhing built, it has undefined behavior.
 	 *   
 	 * @param object The record to be inserted into the probe side buffers.
 	 * @throws IOException Thrown, if the buffer is full, needs to be spilled, and spilling causes an error.
@@ -606,7 +606,7 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 		}
 		
 		
-		public final boolean next(BT record) throws IOException
+		public final BT next(BT reuse) throws IOException
 		{
 			final int pos = getCurrentPositionInSegment();
 			final int buffer = HashPartition.this.currentBufferNum;
@@ -614,11 +614,11 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 			this.currentPointer = (((long) buffer) << HashPartition.this.segmentSizeBits) + pos;
 			
 			try {
-				HashPartition.this.buildSideSerializer.deserialize(record, HashPartition.this);
-				this.currentHashCode = this.comparator.hash(record);
-				return true;
+				reuse = HashPartition.this.buildSideSerializer.deserialize(reuse, HashPartition.this);
+				this.currentHashCode = this.comparator.hash(reuse);
+				return reuse;
 			} catch (EOFException eofex) {
-				return false;
+				return null;
 			}
 		}
 		

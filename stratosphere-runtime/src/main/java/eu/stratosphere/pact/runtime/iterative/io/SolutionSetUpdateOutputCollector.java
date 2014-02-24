@@ -37,7 +37,7 @@ public class SolutionSetUpdateOutputCollector<T> implements Collector<T> {
 
 	private final MutableHashTable<T, T> solutionSet;
 
-	private final T buildSideRecord;
+	private T buildSideRecord;
 
 	public SolutionSetUpdateOutputCollector(MutableHashTable<T, T> solutionSet, TypeSerializer<T> serializer) {
 		this(solutionSet, serializer, null);
@@ -55,7 +55,7 @@ public class SolutionSetUpdateOutputCollector<T> implements Collector<T> {
 		try {
 			MutableHashTable.HashBucketIterator<T, T> bucket = solutionSet.getMatchesFor(record);
 
-			if (bucket.next(buildSideRecord)) {
+			if ((buildSideRecord = bucket.next(buildSideRecord)) != null) {
 				bucket.writeBack(record);
 
 				if (delegate != null) {

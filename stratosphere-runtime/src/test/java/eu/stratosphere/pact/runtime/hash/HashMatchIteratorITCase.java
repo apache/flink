@@ -560,7 +560,7 @@ public class HashMatchIteratorITCase {
 		Map<TestData.Key, Collection<TestData.Value>> map = new HashMap<TestData.Key, Collection<TestData.Value>>();
 		Record pair = new Record();
 		
-		while (iter.next(pair)) {
+		while ((pair = iter.next(pair)) != null) {
 
 			TestData.Key key = pair.getField(0, TestData.Key.class);
 			if (!map.containsKey(key)) {
@@ -580,7 +580,7 @@ public class HashMatchIteratorITCase {
 		Map<Integer, Collection<Integer>> map = new HashMap<Integer, Collection<Integer>>();
 		IntPair pair = new IntPair();
 		
-		while (iter.next(pair)) {
+		while ((pair = iter.next(pair)) != null) {
 
 			final int key = pair.getKey();
 			final int value = pair.getValue();

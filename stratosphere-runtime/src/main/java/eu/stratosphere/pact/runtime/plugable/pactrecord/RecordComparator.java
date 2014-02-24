@@ -325,7 +325,7 @@ public final class RecordComparator extends TypeComparator<Record> {
 	 * @see eu.stratosphere.pact.generic.types.TypeComparator#readWithKeyDenormalization(java.lang.Object, eu.stratosphere.nephele.services.memorymanager.DataInputView)
 	 */
 	@Override
-	public void readWithKeyDenormalization(Record record, DataInputView source) {
+	public Record readWithKeyDenormalization(Record reuse, DataInputView source) {
 		throw new UnsupportedOperationException();
 	}
 	

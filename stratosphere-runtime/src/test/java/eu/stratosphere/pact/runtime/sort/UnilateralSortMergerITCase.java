@@ -127,8 +127,8 @@ public class UnilateralSortMergerITCase {
 		Record rec1 = new Record();
 		Record rec2 = new Record();
 		
-		Assert.assertTrue(iterator.next(rec1));
-		while (iterator.next(rec2)) {
+		Assert.assertTrue((rec1 = iterator.next(rec1)) != null);
+		while ((rec2 = iterator.next(rec2)) != null) {
 			final Key k1 = rec1.getField(0, TestData.Key.class);
 			final Key k2 = rec2.getField(0, TestData.Key.class);
 			pairsEmitted++;
@@ -173,8 +173,8 @@ public class UnilateralSortMergerITCase {
 		Record rec1 = new Record();
 		Record rec2 = new Record();
 		
-		Assert.assertTrue(iterator.next(rec1));
-		while (iterator.next(rec2)) {
+		Assert.assertTrue((rec1 = iterator.next(rec1)) != null);
+		while ((rec2 = iterator.next(rec2)) != null) {
 			final Key k1 = rec1.getField(0, TestData.Key.class);
 			final Key k2 = rec2.getField(0, TestData.Key.class);
 			pairsEmitted++;
@@ -219,8 +219,8 @@ public class UnilateralSortMergerITCase {
 		Record rec1 = new Record();
 		Record rec2 = new Record();
 		
-		Assert.assertTrue(iterator.next(rec1));
-		while (iterator.next(rec2)) {
+		Assert.assertTrue((rec1 = iterator.next(rec1)) != null);
+		while ((rec2 = iterator.next(rec2)) != null) {
 			final Key k1 = rec1.getField(0, TestData.Key.class);
 			final Key k2 = rec2.getField(0, TestData.Key.class);
 			pairsEmitted++;
@@ -269,8 +269,8 @@ public class UnilateralSortMergerITCase {
 		Record rec1 = new Record();
 		Record rec2 = new Record();
 		
-		Assert.assertTrue(iterator.next(rec1));
-		while (iterator.next(rec2)) {
+		Assert.assertTrue((rec1 = iterator.next(rec1)) != null);
+		while ((rec2 = iterator.next(rec2)) != null) {
 			final Key k1 = rec1.getField(0, TestData.Key.class);
 			final Key k2 = rec2.getField(0, TestData.Key.class);
 			pairsRead++;
@@ -322,9 +322,9 @@ public class UnilateralSortMergerITCase {
 		IntPair rec1 = new IntPair();
 		IntPair rec2 = new IntPair();
 		
-		Assert.assertTrue(iterator.next(rec1));
+		Assert.assertTrue((rec1 = iterator.next(rec1)) != null);
 		
-		while (iterator.next(rec2)) {
+		while ((rec2 = iterator.next(rec2)) != null) {
 			final int k1 = rec1.getKey();
 			final int k2 = rec2.getKey();
 			pairsRead++;

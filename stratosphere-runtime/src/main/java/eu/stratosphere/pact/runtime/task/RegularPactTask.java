@@ -454,7 +454,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 		ArrayList<X> collection = new ArrayList<X>();
 		
 		X record = serializer.createInstance();
-		while (this.running && reader.next(record)) {
+		while (this.running && ((record = reader.next(record)) != null)) {
 			collection.add(record);
 			record = serializer.createInstance();
 		}

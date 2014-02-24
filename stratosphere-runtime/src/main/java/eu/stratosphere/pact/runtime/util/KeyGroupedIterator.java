@@ -78,7 +78,7 @@ public final class KeyGroupedIterator<E>
 				return false;
 			}
 			this.current = this.serializer.createInstance();
-			if (this.iterator.next(this.current)) {
+			if ((this.current = this.iterator.next(this.current)) != null) {
 				this.comparator.setReference(this.current);
 				this.lookAheadHasNext = false;
 				this.valuesIterator = new ValuesIterator();
@@ -106,7 +106,7 @@ public final class KeyGroupedIterator<E>
 		// try to move to next key.
 		// Required if user code / reduce() method did not read the whole value iterator.
 		while (true) {
-			if (!this.done && this.iterator.next(this.current)) {
+			if (!this.done && ((this.current = this.iterator.next(this.current)) != null)) {
 				if (!this.comparator.equalToReference(this.current)) {
 					// the keys do not match, so we have a new group. store the current keys
 					this.comparator.setReference(this.current);
@@ -168,7 +168,9 @@ public final class KeyGroupedIterator<E>
 			try {
 				// read the next value into the staging record to make sure we keep the
 				// current as it is in case the key changed
-				if (KeyGroupedIterator.this.iterator.next(this.staging)) {
+				E stagingStaging = KeyGroupedIterator.this.iterator.next(this.staging);
+				if (stagingStaging != null) {
+					this.staging = stagingStaging;
 					if (this.comparator.equalToReference(this.staging)) {
 						// same key, next value is in staging, so exchange staging with current
 						final E tmp = this.staging;

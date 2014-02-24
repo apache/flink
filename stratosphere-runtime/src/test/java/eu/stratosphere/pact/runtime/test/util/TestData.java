@@ -163,14 +163,14 @@ public final class TestData {
 			this.value = constant == null ? new Value() : constant;
 		}
 
-		public boolean next(Record target) {
+		public Record next(Record reuse) {
 			this.key.setKey(keyMode == KeyMode.SORTED ? ++counter : Math.abs(random.nextInt() % keyMax) + 1);
 			if (this.valueMode != ValueMode.CONSTANT) {
 				this.value.setValue(randomString());
 			}
-			target.setField(0, this.key);
-			target.setField(1, this.value);
-			return true;
+			reuse.setField(0, this.key);
+			reuse.setField(1, this.value);
+			return reuse;
 		}
 
 		public boolean next(eu.stratosphere.types.Value[] target) {
@@ -247,13 +247,13 @@ public final class TestData {
 		}
 
 		@Override
-		public boolean next(Record target) {
+		public Record next(Record target) {
 			if (counter < numberOfRecords) {
 				counter++;
 				return generator.next(target);
 			}
 			else {
-				return false;
+				return null;
 			}
 		}
 		
@@ -286,16 +286,16 @@ public final class TestData {
 		}
 		
 		@Override
-		public boolean next(Record target) {
+		public Record next(Record reuse) {
 			if (pos < this.numPairs) {
 				this.value.setValue(this.valueValue + ' ' + pos);
-				target.setField(0, this.key);
-				target.setField(1, this.value);
+				reuse.setField(0, this.key);
+				reuse.setField(1, this.value);
 				pos++;
-				return true;
+				return reuse;
 			}
 			else {
-				return false;
+				return null;
 			}
 		}
 		

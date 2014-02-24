@@ -167,12 +167,13 @@ public class HashTableITCase
 			memSegments, ioManager);
 		join.open(buildInput, probeInput);
 		
-		final Record record = new Record();
+		Record record;
+		final Record recordReuse = new Record();
 		int numRecordsInJoinResult = 0;
 		
 		while (join.nextRecord()) {
 			HashBucketIterator<Record, Record> buildSide = join.getBuildSideIterator();
-			while (buildSide.next(record)) {
+			while ((record = buildSide.next(recordReuse)) != null) {
 				numRecordsInJoinResult++;
 			}
 		}
@@ -217,12 +218,13 @@ public class HashTableITCase
 				memSegments, ioManager);
 		join.open(buildInput, probeInput);
 		
-		final Record record = new Record();
+		Record record;
+		final Record recordReuse = new Record();
 		int numRecordsInJoinResult = 0;
 		
 		while (join.nextRecord()) {
 			HashBucketIterator<Record, Record> buildSide = join.getBuildSideIterator();
-			while (buildSide.next(record)) {
+			while ((record = buildSide.next(recordReuse)) != null) {
 				numRecordsInJoinResult++;
 			}
 		}
@@ -269,8 +271,9 @@ public class HashTableITCase
 				memSegments, ioManager);
 		join.open(buildInput, probeInput);
 	
-		final Record record = new Record();
-		
+		Record record;
+		final Record recordReuse = new Record();
+
 		while (join.nextRecord())
 		{
 			int numBuildValues = 0;
@@ -278,14 +281,14 @@ public class HashTableITCase
 			int key = 0;
 			
 			HashBucketIterator<Record, Record> buildSide = join.getBuildSideIterator();
-			if (buildSide.next(record)) {
+			if ((record = buildSide.next(recordReuse)) != null) {
 				numBuildValues = 1;
 				key = record.getField(0, IntValue.class).getValue();
 			}
 			else {
 				fail("No build side values found for a probe key.");
 			}
-			while (buildSide.next(record)) {
+			while ((record = buildSide.next(recordReuse)) != null) {
 				numBuildValues++;
 			}
 			
@@ -380,8 +383,9 @@ public class HashTableITCase
 				memSegments, ioManager);
 		join.open(buildInput, probeInput);
 	
-		final Record record = new Record();
-		
+		Record record;
+		final Record recordReuse = new Record();
+
 		while (join.nextRecord())
 		{	
 			int numBuildValues = 0;
@@ -390,14 +394,14 @@ public class HashTableITCase
 			int key = probeRec.getField(0, IntValue.class).getValue();
 			
 			HashBucketIterator<Record, Record> buildSide = join.getBuildSideIterator();
-			if (buildSide.next(record)) {
+			if ((record = buildSide.next(recordReuse)) != null) {
 				numBuildValues = 1;
 				Assert.assertEquals("Probe-side key was different than build-side key.", key, record.getField(0, IntValue.class).getValue()); 
 			}
 			else {
 				fail("No build side values found for a probe key.");
 			}
-			while (buildSide.next(record)) {
+			while ((record = buildSide.next(recordReuse)) != null) {
 				numBuildValues++;
 				Assert.assertEquals("Probe-side key was different than build-side key.", key, record.getField(0, IntValue.class).getValue());
 			}
@@ -492,8 +496,9 @@ public class HashTableITCase
 				memSegments, ioManager);
 		join.open(buildInput, probeInput);
 		
-		final Record record = new Record();
-		
+		Record record;
+		final Record recordReuse = new Record();
+
 		while (join.nextRecord())
 		{	
 			int numBuildValues = 0;
@@ -502,14 +507,14 @@ public class HashTableITCase
 			int key = probeRec.getField(0, IntValue.class).getValue();
 			
 			HashBucketIterator<Record, Record> buildSide = join.getBuildSideIterator();
-			if (buildSide.next(record)) {
+			if ((record = buildSide.next(recordReuse)) != null) {
 				numBuildValues = 1;
 				Assert.assertEquals("Probe-side key was different than build-side key.", key, record.getField(0, IntValue.class).getValue()); 
 			}
 			else {
 				fail("No build side values found for a probe key.");
 			}
-			while (buildSide.next(record)) {
+			while ((record = buildSide.next(recordReuse)) != null) {
 				numBuildValues++;
 				Assert.assertEquals("Probe-side key was different than build-side key.", key, record.getField(0, IntValue.class).getValue());
 			}
@@ -600,16 +605,17 @@ public class HashTableITCase
 				memSegments, ioManager);
 		join.open(buildInput, probeInput);
 		
-		final Record record = new Record();
-		
+		Record record;
+		final Record recordReuse = new Record();
+
 		try {
 			while (join.nextRecord())
 			{	
 				HashBucketIterator<Record, Record> buildSide = join.getBuildSideIterator();
-				if (!buildSide.next(record)) {
+				if ((record = buildSide.next(recordReuse)) == null) {
 					fail("No build side values found for a probe key.");
 				}
-				while (buildSide.next(record));
+				while ((record = buildSide.next(recordReuse)) != null);
 			}
 			
 			fail("Hash Join must have failed due to too many recursions.");
@@ -659,12 +665,13 @@ public class HashTableITCase
 		int expectedNumResults = (Math.min(NUM_PROBE_KEYS, NUM_BUILD_KEYS) * NUM_BUILD_VALS)
 				* NUM_PROBE_VALS;
 
-		final Record record = new Record();
+		Record record;
+		final Record recordReuse = new Record();
 		int numRecordsInJoinResult = 0;
 		
 		while (join.nextRecord()) {
 			HashBucketIterator<Record, Record> buildSide = join.getBuildSideIterator();
-			while (buildSide.next(record)) {
+			while ((record = buildSide.next(recordReuse)) != null) {
 				numRecordsInJoinResult++;
 			}
 		}
@@ -705,7 +712,8 @@ public class HashTableITCase
 				memSegments, ioManager);
 		join.open(buildInput, new UniformRecordGenerator(NUM_PROBE_KEYS, NUM_PROBE_VALS, true));
 		
-		final Record record = new Record();
+		Record record;
+		final Record recordReuse = new Record();
 		int numRecordsInJoinResult = 0;
 		
 		int expectedNumResults = (Math.min(NUM_PROBE_KEYS, NUM_BUILD_KEYS) * NUM_BUILD_VALS)
@@ -713,7 +721,7 @@ public class HashTableITCase
 		
 		while (join.nextRecord()) {
 			HashBucketIterator<Record, Record> buildSide = join.getBuildSideIterator();
-			while (buildSide.next(record)) {
+			while ((record = buildSide.next(recordReuse)) != null) {
 				numRecordsInJoinResult++;
 			}
 		}
@@ -763,12 +771,13 @@ public class HashTableITCase
 			memSegments, ioManager);
 		join.open(buildInput, probeInput);
 		
-		final IntPair record = new IntPair();
+		IntPair record;
+		final IntPair recordReuse = new IntPair();
 		int numRecordsInJoinResult = 0;
 		
 		while (join.nextRecord()) {
 			HashBucketIterator<IntPair, IntPair> buildSide = join.getBuildSideIterator();
-			while (buildSide.next(record)) {
+			while ((record = buildSide.next(recordReuse)) != null) {
 				numRecordsInJoinResult++;
 			}
 		}
@@ -812,12 +821,13 @@ public class HashTableITCase
 				memSegments, ioManager);
 		join.open(buildInput, probeInput);
 		
-		final IntPair record = new IntPair();
+		IntPair record;
+		final IntPair recordReuse = new IntPair();
 		int numRecordsInJoinResult = 0;
 		
 		while (join.nextRecord()) {
 			HashBucketIterator<IntPair, IntPair> buildSide = join.getBuildSideIterator();
-			while (buildSide.next(record)) {
+			while ((record = buildSide.next(recordReuse)) != null) {
 				numRecordsInJoinResult++;
 			}
 		}
@@ -867,8 +877,9 @@ public class HashTableITCase
 				memSegments, ioManager);
 		join.open(buildInput, probeInput);
 	
-		final IntPair record = new IntPair();
-		
+		IntPair record;
+		final IntPair recordReuse = new IntPair();
+
 		while (join.nextRecord())
 		{
 			int numBuildValues = 0;
@@ -876,14 +887,14 @@ public class HashTableITCase
 			int key = 0;
 			
 			HashBucketIterator<IntPair, IntPair> buildSide = join.getBuildSideIterator();
-			if (buildSide.next(record)) {
+			if ((record = buildSide.next(recordReuse)) != null) {
 				numBuildValues = 1;
 				key = record.getKey();
 			}
 			else {
 				fail("No build side values found for a probe key.");
 			}
-			while (buildSide.next(record)) {
+			while ((record = buildSide.next(recordReuse)) != null) {
 				numBuildValues++;
 			}
 			
@@ -981,8 +992,9 @@ public class HashTableITCase
 				memSegments, ioManager);
 		join.open(buildInput, probeInput);
 	
-		final IntPair record = new IntPair();
-		
+		IntPair record;
+		final IntPair recordReuse = new IntPair();
+
 		while (join.nextRecord())
 		{	
 			int numBuildValues = 0;
@@ -991,14 +1003,14 @@ public class HashTableITCase
 			int key = probeRec.getKey();
 			
 			HashBucketIterator<IntPair, IntPair> buildSide = join.getBuildSideIterator();
-			if (buildSide.next(record)) {
+			if ((record = buildSide.next(recordReuse)) != null) {
 				numBuildValues = 1;
 				Assert.assertEquals("Probe-side key was different than build-side key.", key, record.getKey()); 
 			}
 			else {
 				fail("No build side values found for a probe key.");
 			}
-			while (buildSide.next(record)) {
+			while ((record = buildSide.next(recordReuse)) != null) {
 				numBuildValues++;
 				Assert.assertEquals("Probe-side key was different than build-side key.", key, record.getKey());
 			}
@@ -1092,8 +1104,9 @@ public class HashTableITCase
 				memSegments, ioManager);
 		join.open(buildInput, probeInput);
 		
-		final IntPair record = new IntPair();
-		
+		IntPair record;
+		final IntPair recordReuse = new IntPair();
+
 		while (join.nextRecord())
 		{	
 			int numBuildValues = 0;
@@ -1102,14 +1115,14 @@ public class HashTableITCase
 			int key = probeRec.getKey();
 			
 			HashBucketIterator<IntPair, IntPair> buildSide = join.getBuildSideIterator();
-			if (buildSide.next(record)) {
+			if ((record = buildSide.next(recordReuse)) != null) {
 				numBuildValues = 1;
 				Assert.assertEquals("Probe-side key was different than build-side key.", key, record.getKey()); 
 			}
 			else {
 				fail("No build side values found for a probe key.");
 			}
-			while (buildSide.next(record)) {
+			while ((record = buildSide.next(recordReuse)) != null) {
 				numBuildValues++;
 				Assert.assertEquals("Probe-side key was different than build-side key.", key, record.getKey());
 			}
@@ -1199,16 +1212,17 @@ public class HashTableITCase
 				memSegments, ioManager);
 		join.open(buildInput, probeInput);
 		
-		final IntPair record = new IntPair();
-		
+		IntPair record;
+		final IntPair recordReuse = new IntPair();
+
 		try {
 			while (join.nextRecord())
 			{	
 				HashBucketIterator<IntPair, IntPair> buildSide = join.getBuildSideIterator();
-				if (!buildSide.next(record)) {
+				if ((record = buildSide.next(recordReuse)) == null) {
 					fail("No build side values found for a probe key.");
 				}
-				while (buildSide.next(record));
+				while ((record = buildSide.next(recordReuse)) != null);
 			}
 			
 			fail("Hash Join must have failed due to too many recursions.");
@@ -1257,12 +1271,13 @@ public class HashTableITCase
 		int expectedNumResults = (Math.min(NUM_PROBE_KEYS, NUM_BUILD_KEYS) * NUM_BUILD_VALS)
 				* NUM_PROBE_VALS;
 
-		final IntPair record = new IntPair();
+		IntPair record;
+		final IntPair recordReuse = new IntPair();
 		int numRecordsInJoinResult = 0;
 		
 		while (join.nextRecord()) {
 			HashBucketIterator<IntPair, IntPair> buildSide = join.getBuildSideIterator();
-			while (buildSide.next(record)) {
+			while ((record = buildSide.next(recordReuse)) != null) {
 				numRecordsInJoinResult++;
 			}
 		}
@@ -1303,7 +1318,8 @@ public class HashTableITCase
 				memSegments, ioManager);
 		join.open(buildInput, new UniformIntPairGenerator(NUM_PROBE_KEYS, NUM_PROBE_VALS, true));
 		
-		final IntPair record = new IntPair();
+		IntPair record;
+		final IntPair recordReuse = new IntPair();
 		int numRecordsInJoinResult = 0;
 		
 		int expectedNumResults = (Math.min(NUM_PROBE_KEYS, NUM_BUILD_KEYS) * NUM_BUILD_VALS)
@@ -1311,7 +1327,7 @@ public class HashTableITCase
 		
 		while (join.nextRecord()) {
 			HashBucketIterator<IntPair, IntPair> buildSide = join.getBuildSideIterator();
-			while (buildSide.next(record)) {
+			while ((record = buildSide.next(recordReuse)) != null) {
 				numRecordsInJoinResult++;
 			}
 		}
@@ -1353,12 +1369,13 @@ public class HashTableITCase
 			memSegments, ioManager);
 		join.open(buildInput, probeInput);
 		
-		final IntPair record = new IntPair();
+		IntPair record;
+		final IntPair recordReuse = new IntPair();
 		int numRecordsInJoinResult = 0;
 		
 		while (join.nextRecord()) {
 			HashBucketIterator<IntPair, IntPair> buildSide = join.getBuildSideIterator();
-			while (buildSide.next(record)) {
+			while ((record = buildSide.next(recordReuse)) != null) {
 				numRecordsInJoinResult++;
 			}
 		}
@@ -1381,7 +1398,7 @@ public class HashTableITCase
 		
 		while (join.nextRecord()) {
 			HashBucketIterator<IntPair, IntPair> buildSide = join.getBuildSideIterator();
-			while (buildSide.next(record)) {
+			while ((record = buildSide.next(recordReuse)) != null) {
 				numRecordsInJoinResult++;
 			}
 		}
@@ -1414,16 +1431,16 @@ public class HashTableITCase
 		}
 
 		@Override
-		public boolean next(Record target) {
+		public Record next(Record reuse) {
 			if (this.numLeft > 0) {
 				this.numLeft--;
-				target.clear();
-				target.setField(0, this.key);
-				target.setField(1, this.value);
-				return true;
+				reuse.clear();
+				reuse.setField(0, this.key);
+				reuse.setField(1, this.value);
+				return reuse;
 			}
 			else {
-				return false;
+				return null;
 			}
 		}
 	}
@@ -1448,15 +1465,15 @@ public class HashTableITCase
 		}
 
 		@Override
-		public boolean next(IntPair target) {
+		public IntPair next(IntPair reuse) {
 			if (this.numLeft > 0) {
 				this.numLeft--;
-				target.setKey(this.key);
-				target.setValue(this.value);
-				return true;
+				reuse.setKey(this.key);
+				reuse.setValue(this.value);
+				return reuse;
 			}
 			else {
-				return false;
+				return null;
 			}
 		}
 	}

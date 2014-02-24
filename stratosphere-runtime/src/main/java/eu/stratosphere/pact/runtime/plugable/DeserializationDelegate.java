@@ -39,7 +39,11 @@ public class DeserializationDelegate<T> implements IOReadableWritable {
 	public void setInstance(T instance) {
 		this.instance = instance;
 	}
-	
+
+	public T getInstance() {
+		return instance;
+	}
+
 	@Override
 	public void write(DataOutput out) throws IOException {
 		throw new IllegalStateException("Serialization method called on DeserializationDelegate.");
@@ -48,7 +52,7 @@ public class DeserializationDelegate<T> implements IOReadableWritable {
 	@Override
 	public void read(DataInput in) throws IOException {
 		this.wrapper.setDelegate(in);
-		this.serializer.deserialize(this.instance, this.wrapper);
+		this.instance = this.serializer.deserialize(this.instance, this.wrapper);
 	}
 	
 	// --------------------------------------------------------------------------------------------

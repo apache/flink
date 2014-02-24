@@ -111,8 +111,9 @@ public class IntPairComparator extends TypeComparator<IntPair>
 	}
 
 	@Override
-	public void readWithKeyDenormalization(IntPair record, DataInputView source) throws IOException {
-		record.setKey(source.readInt() + Integer.MIN_VALUE);
-		record.setValue(source.readInt());
+	public IntPair readWithKeyDenormalization(IntPair reuse, DataInputView source) throws IOException {
+		reuse.setKey(source.readInt() + Integer.MIN_VALUE);
+		reuse.setValue(source.readInt());
+		return reuse;
 	}
 }

@@ -72,9 +72,9 @@ public class FlatMapDriver<IT, OT> implements PactDriver<GenericFlatMap<IT, OT>,
 		final GenericFlatMap<IT, OT> function = this.taskContext.getStub();
 		final Collector<OT> output = this.taskContext.getOutputCollector();
 
-		final IT record = this.taskContext.<IT>getInputSerializer(0).createInstance();
+		IT record = this.taskContext.<IT>getInputSerializer(0).createInstance();
 
-		while (this.running && input.next(record)) {
+		while (this.running && ((record = input.next(record)) != null)) {
 			function.flatMap(record, output);
 		}
 	}

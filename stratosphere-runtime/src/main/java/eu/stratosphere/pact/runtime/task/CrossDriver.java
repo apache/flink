@@ -33,7 +33,7 @@ import eu.stratosphere.util.MutableObjectIterator;
  * The CrossTask builds the Cartesian product of the pairs of its two inputs. Each element (pair of pairs) is handed to
  * the <code>cross()</code> method of the CrossFunction.
  * 
- * @see eu.stratosphere.api.java.record.functions.CrossFunction
+ * @see eu.stratosphere.api.java.functions.CrossFunction
  */
 public class CrossDriver<T1, T2, OT> implements PactDriver<GenericCrosser<T1, T2, OT>, OT> {
 	
@@ -197,9 +197,11 @@ public class CrossDriver<T1, T2, OT> implements PactDriver<GenericCrosser<T1, T2
 				this.taskContext.getOwningNepheleTask());
 		this.spillIter = spillVals;
 		
-		final T1 val1 = serializer1.createInstance();
-		final T2 val2 = serializer2.createInstance();
-		final T2 val2Copy = serializer2.createInstance();
+		T1 val1;
+		final T1 val1Reuse = serializer1.createInstance();
+		T2 val2;
+		final T2 val2Reuse = serializer2.createInstance();
+		T2 val2Copy = serializer2.createInstance();
 		
 		final GenericCrosser<T1, T2, OT> crosser = this.taskContext.getStub();
 		final Collector<OT> collector = this.taskContext.getOutputCollector();
@@ -207,10 +209,10 @@ public class CrossDriver<T1, T2, OT> implements PactDriver<GenericCrosser<T1, T2
 		// for all blocks
 		do {
 			// for all values from the spilling side
-			while (this.running && spillVals.next(val2)) {
+			while (this.running && ((val2 = spillVals.next(val2Reuse)) != null)) {
 				// for all values in the block
-				while (blockVals.next(val1)) {
-					serializer2.copyTo(val2, val2Copy);
+				while ((val1 = blockVals.next(val1Reuse)) != null) {
+					val2Copy = serializer2.copy(val2, val2Copy);
 					crosser.cross(val1, val2Copy, collector);
 				}
 				blockVals.reset();
@@ -242,20 +244,22 @@ public class CrossDriver<T1, T2, OT> implements PactDriver<GenericCrosser<T1, T2
 						this.taskContext.getOwningNepheleTask());
 		this.blockIter = blockVals;
 		
-		final T1 val1 = serializer1.createInstance();
-		final T1 val1Copy = serializer1.createInstance();
-		final T2 val2 = serializer2.createInstance();
-		
+		T1 val1;
+		final T1 val1Reuse = serializer1.createInstance();
+		T1 val1Copy = serializer1.createInstance();
+		T2 val2;
+		final T2 val2Reuse = serializer2.createInstance();
+
 		final GenericCrosser<T1, T2, OT> crosser = this.taskContext.getStub();
 		final Collector<OT> collector = this.taskContext.getOutputCollector();
 		
 		// for all blocks
 		do {
 			// for all values from the spilling side
-			while (this.running && spillVals.next(val1)) {
+			while (this.running && ((val1 = spillVals.next(val1Reuse)) != null)) {
 				// for all values in the block
-				while (this.running && blockVals.next(val2)) {
-					serializer1.copyTo(val1, val1Copy);
+				while (this.running && ((val2 = blockVals.next(val2Reuse)) != null)) {
+					val1Copy = serializer1.copy(val1, val1Copy);
 					crosser.cross(val1Copy, val2, collector);
 				}
 				blockVals.reset();
@@ -282,18 +286,20 @@ public class CrossDriver<T1, T2, OT> implements PactDriver<GenericCrosser<T1, T2
 				this.taskContext.getOwningNepheleTask());
 		this.spillIter = spillVals;
 		
-		final T1 val1 = serializer1.createInstance();
-		final T1 val1Copy = serializer1.createInstance();
-		final T2 val2 = serializer2.createInstance();
-		
+		T1 val1;
+		final T1 val1Reuse = serializer1.createInstance();
+		T1 val1Copy = serializer1.createInstance();
+		T2 val2;
+		final T2 val2Reuse = serializer2.createInstance();
+
 		final GenericCrosser<T1, T2, OT> crosser = this.taskContext.getStub();
 		final Collector<OT> collector = this.taskContext.getOutputCollector();
 		
 		// for all blocks
-		while (this.running && in1.next(val1)) {
+		while (this.running && ((val1 = in1.next(val1Reuse)) != null)) {
 			// for all values from the spilling side
-			while (this.running && spillVals.next(val2)) {
-				serializer1.copyTo(val1, val1Copy);
+			while (this.running && ((val2 = spillVals.next(val2Reuse)) != null)) {
+				val1Copy = serializer1.copy(val1, val1Copy);
 				crosser.cross(val1Copy, val2, collector);
 			}
 			spillVals.reset();
@@ -316,18 +322,20 @@ public class CrossDriver<T1, T2, OT> implements PactDriver<GenericCrosser<T1, T2
 				this.taskContext.getOwningNepheleTask());
 		this.spillIter = spillVals;
 		
-		final T1 val1 = serializer1.createInstance();
-		final T2 val2 = serializer2.createInstance();
-		final T2 val2Copy = serializer2.createInstance();
+		T1 val1;
+		final T1 val1Reuse = serializer1.createInstance();
+		T2 val2;
+		final T2 val2Reuse = serializer2.createInstance();
+		T2 val2Copy = serializer2.createInstance();
 		
 		final GenericCrosser<T1, T2, OT> crosser = this.taskContext.getStub();
 		final Collector<OT> collector = this.taskContext.getOutputCollector();
 		
 		// for all blocks
-		while (this.running && in2.next(val2)) {
+		while (this.running && (val2 = in2.next(val2Reuse)) != null) {
 			// for all values from the spilling side
-			while (this.running && spillVals.next(val1)) {
-				serializer2.copyTo(val2, val2Copy);
+			while (this.running && (val1 = spillVals.next(val1Reuse)) != null) {
+				val2Copy = serializer2.copy(val2, val2Copy);
 				crosser.cross(val1, val2Copy, collector);
 			}
 			spillVals.reset();

@@ -22,7 +22,7 @@ import java.io.IOException;
 
 public class InputViewIterator<E> implements MutableObjectIterator<E>
 {
-	private final DataInputView inputView;
+	private DataInputView inputView;
 
 	private final TypeSerializer<E> serializer;
 
@@ -32,12 +32,11 @@ public class InputViewIterator<E> implements MutableObjectIterator<E>
 	}
 
 	@Override
-	public boolean next(E target) throws IOException {
+	public E next(E reuse) throws IOException {
 		try {
-			this.serializer.deserialize(target, this.inputView);
-			return true;
+			return this.serializer.deserialize(reuse, this.inputView);
 		} catch (EOFException e) {
-			return false;
+			return null;
 		}
 	}
 }

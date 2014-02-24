@@ -65,15 +65,15 @@ public class KeyGroupedIteratorTest
 			final Iterator<IntStringPair> it = source.iterator();
 			
 			@Override
-			public boolean next(Record target) throws IOException {
+			public Record next(Record reuse) throws IOException {
 				if (it.hasNext()) {
 					IntStringPair pair = it.next();
-					target.setField(0, pair.getInteger());
-					target.setField(1, pair.getString());
-					return true;
+					reuse.setField(0, pair.getInteger());
+					reuse.setField(1, pair.getString());
+					return reuse;
 				}
 				else {
-					return false;
+					return null;
 				}
 			}
 		};

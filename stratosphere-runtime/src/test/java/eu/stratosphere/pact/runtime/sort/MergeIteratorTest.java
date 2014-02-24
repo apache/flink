@@ -57,18 +57,18 @@ public class MergeIteratorTest
 			private int current = 0;
 
 			@Override
-			public boolean next(Record target)
+			public Record next(Record reuse)
 			{
 				if (current < keys.length) {
 					key.setKey(keys[current]);
 					value.setValue(values[current]);
 					current++;
-					target.setField(0, key);
-					target.setField(1, value);
-					return true;
+					reuse.setField(0, key);
+					reuse.setField(1, value);
+					return reuse;
 				}
 				else {
-					return false;
+					return null;
 				}
 			}
 		};
@@ -98,10 +98,10 @@ public class MergeIteratorTest
 		
 		int pos = 1;
 		
-		Assert.assertTrue(iterator.next(rec1));
+		Assert.assertTrue((rec1 = iterator.next(rec1)) != null);
 		Assert.assertEquals(expected[0], rec1.getField(0, TestData.Key.class).getKey());
 		
-		while (iterator.next(rec2)) {
+		while ((rec2 = iterator.next(rec2)) != null) {
 			k1.setKey(rec1.getField(0, TestData.Key.class).getKey());
 			k2.setKey(rec2.getField(0, TestData.Key.class).getKey());
 			
@@ -143,8 +143,8 @@ public class MergeIteratorTest
 		final Key k1 = new Key();
 		final Key k2 = new Key();
 		
-		Assert.assertTrue(iterator.next(rec1));
-		while (iterator.next(rec2)) {
+		Assert.assertTrue((rec1 = iterator.next(rec1)) != null);
+		while ((rec2 = iterator.next(rec2)) != null) {
 			elementsFound++;
 			k1.setKey(rec1.getField(0, TestData.Key.class).getKey());
 			k2.setKey(rec2.getField(0, TestData.Key.class).getKey());
@@ -186,8 +186,8 @@ public class MergeIteratorTest
 		Record rec1 = new Record();
 		Record rec2 = new Record();
 		
-		Assert.assertTrue(iterator.next(rec1));
-		while (iterator.next(rec2))
+		Assert.assertTrue((rec1 = iterator.next(rec1)) != null);
+		while ((rec2 = iterator.next(rec2)) != null)
 		{
 			final Key k1 = new Key();
 			final Key k2 = new Key();

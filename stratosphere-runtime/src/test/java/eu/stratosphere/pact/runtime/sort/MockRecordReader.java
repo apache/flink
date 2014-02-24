@@ -35,7 +35,7 @@ public class MockRecordReader implements MutableObjectIterator<Record> {
 	}
 
 	@Override
-	public boolean next(Record target) {
+	public Record next(Record reuse) {
 		Record r = null;
 		while (r == null) {
 			try {
@@ -52,10 +52,10 @@ public class MockRecordReader implements MutableObjectIterator<Record> {
 			} catch (InterruptedException e) {
 				throw new RuntimeException("Reader was interrupted.");
 			}
-			return false;
+			return null;
 		} else {
-			r.copyTo(target);
-			return true;
+			r.copyTo(reuse);
+			return reuse;
 		}
 	}
 

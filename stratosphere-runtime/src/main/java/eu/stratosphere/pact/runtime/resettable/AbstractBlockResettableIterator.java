@@ -163,14 +163,13 @@ abstract class AbstractBlockResettableIterator<T> implements MemoryBlockIterator
 		}
 	}
 	
-	protected boolean getNextRecord(T target) throws IOException
+	protected T getNextRecord(T reuse) throws IOException
 	{
 		if (this.numRecordsReturned < this.numRecordsInBuffer) {
 			this.numRecordsReturned++;
-			this.serializer.deserialize(target, this.readView);
-			return true;
+			return this.serializer.deserialize(reuse, this.readView);
 		} else {
-			return false;
+			return null;
 		}
 	}
 }

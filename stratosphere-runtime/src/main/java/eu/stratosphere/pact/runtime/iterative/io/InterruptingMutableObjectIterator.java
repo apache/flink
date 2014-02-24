@@ -112,13 +112,13 @@ public class InterruptingMutableObjectIterator<E> implements MutableObjectIterat
 	}
 
 	@Override
-	public boolean next(E target) throws IOException {
-		boolean recordFound = delegate.next(target);
+	public E next(E reuse) throws IOException {
+		E found = delegate.next(reuse);
 
 //		if (!recordFound && log.isInfoEnabled()) {
 //			log.info("InterruptibleIterator of " + name + " on gate [" + gateIndex + "] releases input");
 //		}
 		
-		return recordFound;
+		return found;
 	}
 }

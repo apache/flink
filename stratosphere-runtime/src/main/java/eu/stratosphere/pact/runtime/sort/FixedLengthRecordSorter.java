@@ -206,16 +206,16 @@ public final class FixedLengthRecordSorter<T> implements InMemorySorter<T> {
 	/**
 	 * Gets the record at the given logical position.
 	 * 
-	 * @param target The target object to deserialize the record into.
+	 * @param reuse The reuse object to deserialize the record into.
 	 * @param logicalPosition The logical position of the record.
 	 * @throws IOException Thrown, if an exception occurred during deserialization.
 	 */
 	@Override
-	public void getRecord(T target, int logicalPosition) throws IOException {
+	public T getRecord(T reuse, int logicalPosition) throws IOException {
 		final int buffer = logicalPosition / this.recordsPerSegment;
 		final int inBuffer = (logicalPosition % this.recordsPerSegment) * this.recordSize;
 		this.inView.set(this.sortBuffer.get(buffer), inBuffer);
-		this.comparator.readWithKeyDenormalization(target, this.inView);
+		return this.comparator.readWithKeyDenormalization(reuse, this.inView);
 	}
 
 	/**
@@ -328,7 +328,7 @@ public final class FixedLengthRecordSorter<T> implements InMemorySorter<T> {
 			private int currentSegmentIndex = 0;
 
 			@Override
-			public boolean next(T target) {
+			public T next(T reuse) {
 				if (this.currentTotal < this.numTotal) {
 					
 					if (this.currentInSegment >= this.numPerSegment) {
@@ -341,15 +341,14 @@ public final class FixedLengthRecordSorter<T> implements InMemorySorter<T> {
 					this.currentInSegment++;
 					
 					try {
-						this.comp.readWithKeyDenormalization(target, this.in);
-						return true;
+						return this.comp.readWithKeyDenormalization(reuse, this.in);
 					}
 					catch (IOException ioe) {
 						throw new RuntimeException(ioe);
 					}
 				}
 				else {
-					return false;
+					return null;
 				}
 			}
 		};
@@ -369,7 +368,7 @@ public final class FixedLengthRecordSorter<T> implements InMemorySorter<T> {
 	public void writeToOutput(final ChannelWriterOutputView output) throws IOException {
 		final TypeComparator<T> comparator = this.comparator;
 		final TypeSerializer<T> serializer = this.serializer;
-		final T record = this.recordInstance;
+		T record = this.recordInstance;
 		
 		final SingleSegmentInputView inView = this.inView;
 		
@@ -385,14 +384,14 @@ public final class FixedLengthRecordSorter<T> implements InMemorySorter<T> {
 			if (recordsLeft >= recordsPerSegment) {
 				// full segment
 				for (int numInMemSeg = 0; numInMemSeg < recordsPerSegment; numInMemSeg++) {
-					comparator.readWithKeyDenormalization(record, inView);
+					record = comparator.readWithKeyDenormalization(record, inView);
 					serializer.serialize(record, output);
 				}
 				recordsLeft -= recordsPerSegment;
 			} else {
 				// partially filled segment
 				for (; recordsLeft > 0; recordsLeft--) {
-					comparator.readWithKeyDenormalization(record, inView);
+					record = comparator.readWithKeyDenormalization(record, inView);
 					serializer.serialize(record, output);
 				}
 			}
@@ -411,7 +410,7 @@ public final class FixedLengthRecordSorter<T> implements InMemorySorter<T> {
 	public void writeToOutput(final ChannelWriterOutputView output, final int start, int num) throws IOException {
 		final TypeComparator<T> comparator = this.comparator;
 		final TypeSerializer<T> serializer = this.serializer;
-		final T record = this.recordInstance;
+		T record = this.recordInstance;
 		
 		final SingleSegmentInputView inView = this.inView;
 		
@@ -427,14 +426,14 @@ public final class FixedLengthRecordSorter<T> implements InMemorySorter<T> {
 			if (num >= recordsPerSegment && offset == 0) {
 				// full segment
 				for (int numInMemSeg = 0; numInMemSeg < recordsPerSegment; numInMemSeg++) {
-					comparator.readWithKeyDenormalization(record, inView);
+					record = comparator.readWithKeyDenormalization(record, inView);
 					serializer.serialize(record, output);
 				}
 				num -= recordsPerSegment;
 			} else {
 				// partially filled segment
 				for (; num > 0; num--) {
-					comparator.readWithKeyDenormalization(record, inView);
+					record = comparator.readWithKeyDenormalization(record, inView);
 					serializer.serialize(record, output);
 				}
 			}

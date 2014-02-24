@@ -89,9 +89,9 @@ public class ReOpenableMutableHashTable<BT, PT> extends MutableHashTable<BT, PT>
 					part.restorePartitionBuffers(ioManager, availableMemory);
 					// now, index the partition through a hash table
 					final HashPartition<BT, PT>.PartitionIterator pIter = part.getPartitionIterator(this.buildSideComparator);
-					final BT record = this.buildSideSerializer.createInstance();
+					BT record = this.buildSideSerializer.createInstance();
 					
-					while (pIter.next(record)) {
+					while ((record = pIter.next(record)) != null) {
 						final int hashCode = hash(pIter.getCurrentHashCode(), 0);
 						final int posHashCode = hashCode % initialBucketCount;
 						final long pointer = pIter.getPointer();

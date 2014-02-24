@@ -23,7 +23,7 @@ import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.core.memory.MemorySegment;
 
 
-public final class TupleSingleFieldComparator<T extends Tuple, K> extends TypeComparator<T> 
+public final class TupleSingleFieldComparator<T extends Tuple, K> extends TypeComparator<T>
 	implements java.io.Serializable
 {
 
@@ -107,7 +107,7 @@ public final class TupleSingleFieldComparator<T extends Tuple, K> extends TypeCo
 	}
 
 	@Override
-	public void readWithKeyDenormalization(T record, DataInputView source) throws IOException {
+	public T readWithKeyDenormalization(T reuse, DataInputView source) throws IOException {
 		throw new UnsupportedOperationException();
 	}
 

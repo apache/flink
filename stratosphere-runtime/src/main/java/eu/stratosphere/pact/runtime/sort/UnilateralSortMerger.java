@@ -935,7 +935,7 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 		{	
 			final MutableObjectIterator<E> reader = this.reader;
 			
-			final E current = this.readTarget;
+			E current = this.readTarget;
 			E leftoverRecord = null;
 			
 			CircularElement<E> element = null;
@@ -995,8 +995,10 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 					
 					// spilling will be triggered while this buffer is filled
 					// loop until the buffer is full or the reader is exhausted
-					while (isRunning() && (available = reader.next(current)))
+					E newCurrent;
+					while (isRunning() && (available = (newCurrent = reader.next(current)) != null))
 					{
+						current = newCurrent;
 						if (!buffer.write(current)) {
 							leftoverRecord = current;
 							fullBuffer = true;
@@ -1052,7 +1054,9 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 				// no spilling will be triggered (any more) while this buffer is being processed
 				// loop until the buffer is full or the reader is exhausted
 				if (available) {
-					while (isRunning() && reader.next(current)) {
+					E newCurrent;
+					while (isRunning() && ((newCurrent = reader.next(current)) != null)) {
+						current = newCurrent;
 						if (!buffer.write(current)) {
 							leftoverRecord = current;
 							break;
@@ -1535,8 +1539,8 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 
 			// read the merged stream and write the data back
 			final TypeSerializer<E> serializer = this.serializer;
-			final E rec = serializer.createInstance();
-			while (mergeIterator.next(rec)) {
+			E rec = serializer.createInstance();
+			while ((rec = mergeIterator.next(rec)) != null) {
 				serializer.serialize(rec, output);
 			}
 			output.close();

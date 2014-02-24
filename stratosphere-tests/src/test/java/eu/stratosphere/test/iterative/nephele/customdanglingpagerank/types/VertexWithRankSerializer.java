@@ -30,19 +30,20 @@ public final class VertexWithRankSerializer extends TypeSerializer<VertexWithRan
 	}
 
 	@Override
-	public VertexWithRank createCopy(VertexWithRank from) {
+	public VertexWithRank copy(VertexWithRank from) {
 		VertexWithRank n = new VertexWithRank();
-		copyTo(from, n);
+		n = copy(from, n);
 		return n;
 	}
 
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.generic.types.TypeSerializer#copyTo(java.lang.Object, java.lang.Object)
+	 * @see eu.stratosphere.pact.generic.types.TypeSerializer#copy(java.lang.Object, java.lang.Object)
 	 */
 	@Override
-	public void copyTo(VertexWithRank from, VertexWithRank to) {
-		to.setVertexID(from.getVertexID());
-		to.setRank(from.getRank());
+	public VertexWithRank copy(VertexWithRank from, VertexWithRank reuse) {
+		reuse.setVertexID(from.getVertexID());
+		reuse.setRank(from.getRank());
+		return reuse;
 	}
 
 	@Override
@@ -57,9 +58,10 @@ public final class VertexWithRankSerializer extends TypeSerializer<VertexWithRan
 	}
 
 	@Override
-	public void deserialize(VertexWithRank target, DataInputView source) throws IOException {
+	public VertexWithRank deserialize(VertexWithRank target, DataInputView source) throws IOException {
 		target.setVertexID(source.readLong());
 		target.setRank(source.readDouble());
+		return target;
 	}
 
 	@Override

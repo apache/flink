@@ -61,11 +61,11 @@ public interface InMemorySorter<T> extends IndexedSortable {
 	/**
 	 * Gets the record at the given logical position.
 	 * 
-	 * @param target The target object to deserialize the record into.
+	 * @param reuse The reuse object to deserialize the record into.
 	 * @param logicalPosition The logical position of the record.
 	 * @throws IOException Thrown, if an exception occurred during deserialization.
 	 */
-	void getRecord(T target, int logicalPosition) throws IOException;
+	T getRecord(T reuse, int logicalPosition) throws IOException;
 
 	/**
 	 * Writes a given record to this sort buffer. The written record will be appended and take

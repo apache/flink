@@ -55,7 +55,7 @@ public final class ArrayRecordComparator extends TypeComparator<Value[]> {
 	
 	private final Key[] keyHolders;
 	
-	private final Value[] temp1, temp2;
+	private Value[] temp1, temp2;
 	
 	private final boolean[] ascending;
 	
@@ -240,8 +240,8 @@ public final class ArrayRecordComparator extends TypeComparator<Value[]> {
 	 */
 	@Override
 	public int compare(DataInputView source1, DataInputView source2) throws IOException {
-		this.serializer.deserialize(this.temp1, source1);
-		this.serializer.deserialize(this.temp2, source2);
+		this.temp1 = this.serializer.deserialize(this.temp1, source1);
+		this.temp2 = this.serializer.deserialize(this.temp2, source2);
 		
 		for (int i = 0; i < this.keyFields.length; i++) {
 			final Key k1 = (Key) this.temp1[this.keyFields[i]];
@@ -350,7 +350,7 @@ public final class ArrayRecordComparator extends TypeComparator<Value[]> {
 	 * @see eu.stratosphere.pact.generic.types.TypeComparator#readWithKeyDenormalization(java.lang.Object, eu.stratosphere.nephele.services.memorymanager.DataInputView)
 	 */
 	@Override
-	public void readWithKeyDenormalization(Value[] record, DataInputView source) {
+	public Value[] readWithKeyDenormalization(Value[] reuse, DataInputView source) {
 		throw new UnsupportedOperationException();
 	}
 	

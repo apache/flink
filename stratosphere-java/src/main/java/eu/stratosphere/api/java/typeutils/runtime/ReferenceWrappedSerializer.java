@@ -51,15 +51,16 @@ public class ReferenceWrappedSerializer<T> extends TypeSerializer<Reference<T>> 
 	}
 
 	@Override
-	public Reference<T> createCopy(Reference<T> from) {
+	public Reference<T> copy(Reference<T> from) {
 		Reference<T> copy = createInstance();
-		copyTo(from, copy);
+		copy = copy(from, copy);
 		return copy;
 	}
 
 	@Override
-	public void copyTo(Reference<T> from, Reference<T> to) {
-		to.ref = serializer.copy(from.ref, to.ref);
+	public Reference<T> copy(Reference<T> from, Reference<T> reuse) {
+		reuse.ref = serializer.copy(from.ref, reuse.ref);
+		return reuse;
 	}
 
 	@Override
@@ -73,8 +74,9 @@ public class ReferenceWrappedSerializer<T> extends TypeSerializer<Reference<T>> 
 	}
 
 	@Override
-	public void deserialize(Reference<T> value, DataInputView source) throws IOException {
-		value.ref = this.serializer.deserialize(value.ref, source);
+	public Reference<T> deserialize(Reference<T> reuse, DataInputView source) throws IOException {
+		reuse.ref = this.serializer.deserialize(reuse.ref, source);
+		return reuse;
 	}
 
 	@Override

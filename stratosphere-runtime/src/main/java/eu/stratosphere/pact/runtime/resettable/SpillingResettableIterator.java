@@ -47,7 +47,7 @@ public class SpillingResettableIterator<T> implements ResettableIterator<T>
 
 	private T next;
 	
-	private final T instance;
+	private T instance;
 	
 	protected DataInputView inView;
 	
@@ -121,7 +121,7 @@ public class SpillingResettableIterator<T> implements ResettableIterator<T>
 			if (this.inView != null) {
 				if (this.currentElementNum < this.elementCount) {
 					try {
-						this.serializer.deserialize(this.instance, this.inView);
+						this.instance = this.serializer.deserialize(this.instance, this.inView);
 					} catch (IOException e) {
 						throw new RuntimeException("SpillingIterator: Error reading element from buffer.", e);
 					}

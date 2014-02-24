@@ -694,10 +694,11 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 		initTable(numBuckets, (byte) partitionFanOut);
 		
 		final TypeComparator<BT> buildTypeComparator = this.buildSideComparator;
-		final BT record = this.buildSideSerializer.createInstance();
-		
+		BT record;
+		final BT recordReuse = this.buildSideSerializer.createInstance();
+
 		// go over the complete input and insert every element into the hash table
-		while (this.running && input.next(record)) {
+		while (this.running && ((record = input.next(recordReuse)) != null)) {
 			final int hashCode = hash(buildTypeComparator.hash(record), 0);
 			insertIntoTable(record, hashCode);
 		}
@@ -767,9 +768,9 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 			
 			// now, index the partition through a hash table
 			final HashPartition<BT, PT>.PartitionIterator pIter = newPart.getPartitionIterator(this.buildSideComparator);
-			final BT record = this.buildSideSerializer.createInstance();
+			BT record = this.buildSideSerializer.createInstance();
 			
-			while (pIter.next(record)) {
+			while ((record = pIter.next(record)) != null) {
 				final int hashCode = hash(pIter.getCurrentHashCode(), nextRecursionLevel);
 				final int posHashCode = hashCode % this.numBuckets;
 				final long pointer = pIter.getPointer();
@@ -811,8 +812,8 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 			final ChannelReaderInputViewIterator<BT> inIter = new ChannelReaderInputViewIterator<BT>(inView, 
 					this.availableMemory, this.buildSideSerializer);
 			final TypeComparator<BT> btComparator = this.buildSideComparator;
-			final BT rec = this.buildSideSerializer.createInstance();
-			while (inIter.next(rec))
+			BT rec = this.buildSideSerializer.createInstance();
+			while ((rec = inIter.next(rec)) != null)
 			{	
 				final int hashCode = hash(btComparator.hash(rec), nextRecursionLevel);
 				insertIntoTable(rec, hashCode);
@@ -1257,7 +1258,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 	 * Assigns a partition to a bucket.
 	 * 
 	 * @param bucket
-	 * @param maxParts
+	 * @param numPartitions
 	 * @return The hash code for the integer.
 	 */
 	public static final byte assignPartition(int bucket, byte numPartitions) {
@@ -1348,7 +1349,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 		}
 		
 
-		public boolean next(BT target) {
+		public BT next(BT reuse) {
 			// loop over all segments that are involved in the bucket (original bucket plus overflow buckets)
 			while (true) {
 				
@@ -1367,10 +1368,10 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 						// deserialize the key to check whether it is really equal, or whether we had only a hash collision
 						try {
 							this.partition.setReadPosition(pointer);
-							this.accessor.deserialize(target, this.partition);
-							if (this.comparator.equalToReference(target)) {
+							reuse = this.accessor.deserialize(reuse, this.partition);
+							if (this.comparator.equalToReference(reuse)) {
 								this.lastPointer = pointer;
-								return true;
+								return reuse;
 							}
 						}
 						catch (IOException ioex) {
@@ -1386,7 +1387,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 				// this segment is done. check if there is another chained bucket
 				final long forwardPointer = this.bucket.getLong(this.bucketInSegmentOffset + HEADER_FORWARD_OFFSET);
 				if (forwardPointer == BUCKET_FORWARD_POINTER_NOT_SET) {
-					return false;
+					return null;
 				}
 				
 				final int overflowSegNum = (int) (forwardPointer >>> 32);
@@ -1508,7 +1509,9 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 		
 		private MutableObjectIterator<PT> source;
 		
-		private final PT instance;
+		private PT instance;
+
+		private PT instanceStaging;
 		
 		private PT current;
 		
@@ -1526,7 +1529,9 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 		}
 		
 		public PT next() throws IOException {
-			if (this.source.next(this.instance)) {
+			this.instanceStaging = this.source.next(this.instance);
+			if (this.instanceStaging != null) {
+				this.instance = this.instanceStaging;
 				this.current = this.instance;
 				return this.current;
 			} else {

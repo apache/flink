@@ -52,16 +52,17 @@ public final class RecordSerializer extends TypeSerializer<Record>
 
 
 	@Override
-	public Record createCopy(Record from) {
+	public Record copy(Record from) {
 		return from.createCopy();
 	}
 
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#copyTo(java.lang.Object, java.lang.Object)
+	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#copy(java.lang.Object, java.lang.Object)
 	 */
 	@Override
-	public void copyTo(Record from, Record to) {
-		from.copyTo(to);
+	public Record copy(Record from, Record reuse) {
+		from.copyTo(reuse);
+		return reuse;
 	}
 	
 
@@ -84,8 +85,9 @@ public final class RecordSerializer extends TypeSerializer<Record>
 	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#deserialize(java.lang.Object, eu.stratosphere.nephele.services.memorymanager.DataInputViewV2)
 	 */
 	@Override
-	public void deserialize(Record target, DataInputView source) throws IOException {
+	public Record deserialize(Record target, DataInputView source) throws IOException {
 		target.deserialize(source);
+		return target;
 	}
 	
 	/* (non-Javadoc)

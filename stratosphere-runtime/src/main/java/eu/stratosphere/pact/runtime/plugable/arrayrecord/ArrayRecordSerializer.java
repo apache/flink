@@ -83,21 +83,22 @@ public final class ArrayRecordSerializer extends TypeSerializer<Value[]>
 
 
 	@Override
-	public Value[] createCopy(Value[] from) {
-		final Value[] target = createInstance();
-		copyTo(from, target);
+	public Value[] copy(Value[] from) {
+		Value[] target = createInstance();
+		target = copy(from, target);
 		return target;
 	}
 
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#copyTo(java.lang.Object, java.lang.Object)
+	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#copy(java.lang.Object, java.lang.Object)
 	 */
 	@SuppressWarnings("unchecked")
 	@Override
-	public void copyTo(Value[] from, Value[] to) {
+	public Value[] copy(Value[] from, Value[] reuse) {
 		for (int i = 0; i < from.length; i++) {
-			((CopyableValue<Value>) from[i]).copyTo(to[i]);
+			((CopyableValue<Value>) from[i]).copyTo(reuse[i]);
 		}
+		return reuse;
 	}
 	
 
@@ -122,10 +123,11 @@ public final class ArrayRecordSerializer extends TypeSerializer<Value[]>
 	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#deserialize(java.lang.Object, eu.stratosphere.nephele.services.memorymanager.DataInputViewV2)
 	 */
 	@Override
-	public void deserialize(Value[] record, DataInputView source) throws IOException {
+	public Value[] deserialize(Value[] reuse, DataInputView source) throws IOException {
 		for (int i = 0; i < this.types.length; i++) {
-			record[i].read(source);
+			reuse[i].read(source);
 		}
+		return reuse;
 	}
 	
 	/* (non-Javadoc)

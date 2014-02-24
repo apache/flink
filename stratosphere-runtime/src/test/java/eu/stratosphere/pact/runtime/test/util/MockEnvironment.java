@@ -119,7 +119,7 @@ public class MockEnvironment implements Environment {
 		@Override
 		public InputChannelResult readRecord(Record target) throws IOException, InterruptedException {
 
-			if (it.next(target)) {
+			if ((target = it.next(target)) != null) {
 				// everything comes from the same source channel and buffer in this mock
 				notifyRecordIsAvailable(0);
 				return InputChannelResult.INTERMEDIATE_RECORD_FROM_BUFFER;

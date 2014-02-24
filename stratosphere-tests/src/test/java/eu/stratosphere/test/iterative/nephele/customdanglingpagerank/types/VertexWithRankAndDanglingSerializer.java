@@ -30,20 +30,21 @@ public final class VertexWithRankAndDanglingSerializer extends TypeSerializer<Ve
 	}
 
 	@Override
-	public VertexWithRankAndDangling createCopy(VertexWithRankAndDangling from) {
+	public VertexWithRankAndDangling copy(VertexWithRankAndDangling from) {
 		VertexWithRankAndDangling n = new VertexWithRankAndDangling();
-		copyTo(from, n);
+		n = copy(from, n);
 		return n;
 	}
 
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.generic.types.TypeSerializer#copyTo(java.lang.Object, java.lang.Object)
+	 * @see eu.stratosphere.pact.generic.types.TypeSerializer#copy(java.lang.Object, java.lang.Object)
 	 */
 	@Override
-	public void copyTo(VertexWithRankAndDangling from, VertexWithRankAndDangling to) {
-		to.setVertexID(from.getVertexID());
-		to.setRank(from.getRank());
-		to.setDangling(from.isDangling());
+	public VertexWithRankAndDangling copy(VertexWithRankAndDangling from, VertexWithRankAndDangling reuse) {
+		reuse.setVertexID(from.getVertexID());
+		reuse.setRank(from.getRank());
+		reuse.setDangling(from.isDangling());
+		return reuse;
 	}
 
 	@Override
@@ -59,10 +60,11 @@ public final class VertexWithRankAndDanglingSerializer extends TypeSerializer<Ve
 	}
 
 	@Override
-	public void deserialize(VertexWithRankAndDangling target, DataInputView source) throws IOException {
+	public VertexWithRankAndDangling deserialize(VertexWithRankAndDangling target, DataInputView source) throws IOException {
 		target.setVertexID(source.readLong());
 		target.setRank(source.readDouble());
 		target.setDangling(source.readBoolean());
+		return target;
 	}
 
 	@Override

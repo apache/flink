@@ -74,7 +74,7 @@ public abstract class BasicTypeComparator<T extends Comparable<T>> extends TypeC
 	}
 
 	@Override
-	public void readWithKeyDenormalization(T record, DataInputView source) throws IOException {
+	public T readWithKeyDenormalization(T reuse, DataInputView source) throws IOException {
 		throw new UnsupportedOperationException();
 	}
 }

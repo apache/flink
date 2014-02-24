@@ -36,9 +36,13 @@ public final class RecordReaderIterator implements MutableObjectIterator<Record>
 	}
 
 	@Override
-	public boolean next(Record target) throws IOException {
+	public Record next(Record reuse) throws IOException {
 		try {
-			return this.reader.next(target);
+			if (this.reader.next(reuse)) {
+				return reuse;
+			} else {
+				return null;
+			}
 		}
 		catch (InterruptedException e) {
 			throw new IOException("Reader interrupted.", e);

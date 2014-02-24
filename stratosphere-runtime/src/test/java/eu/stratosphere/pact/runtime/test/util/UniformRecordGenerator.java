@@ -44,10 +44,10 @@ public class UniformRecordGenerator implements MutableObjectIterator<Record> {
 	}
 
 	@Override
-	public boolean next(Record target) {
+	public Record next(Record reuse) {
 		if(!repeatKey) {
 			if(valCnt >= numVals+startVal) {
-				return false;
+				return null;
 			}
 			
 			key.setValue(keyCnt++);
@@ -59,7 +59,7 @@ public class UniformRecordGenerator implements MutableObjectIterator<Record> {
 			}
 		} else {
 			if(keyCnt >= numKeys+startKey) {
-				return false;
+				return null;
 			}
 			key.setValue(keyCnt);
 			value.setValue(valCnt++);
@@ -70,9 +70,9 @@ public class UniformRecordGenerator implements MutableObjectIterator<Record> {
 			}
 		}
 		
-		target.setField(0, this.key);
-		target.setField(1, this.value);
-		target.updateBinaryRepresenation();
-		return true;
+		reuse.setField(0, this.key);
+		reuse.setField(1, this.value);
+		reuse.updateBinaryRepresenation();
+		return reuse;
 	}
 }

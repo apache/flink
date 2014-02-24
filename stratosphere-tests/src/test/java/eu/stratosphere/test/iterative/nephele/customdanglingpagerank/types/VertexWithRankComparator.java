@@ -112,9 +112,10 @@ public final class VertexWithRankComparator extends TypeComparator<VertexWithRan
 	}
 
 	@Override
-	public void readWithKeyDenormalization(VertexWithRank record, DataInputView source) throws IOException {
-		record.setVertexID(source.readLong() + Long.MIN_VALUE);
-		record.setRank(source.readDouble());
+	public VertexWithRank readWithKeyDenormalization(VertexWithRank reuse, DataInputView source) throws IOException {
+		reuse.setVertexID(source.readLong() + Long.MIN_VALUE);
+		reuse.setRank(source.readDouble());
+		return reuse;
 	}
 
 	@Override

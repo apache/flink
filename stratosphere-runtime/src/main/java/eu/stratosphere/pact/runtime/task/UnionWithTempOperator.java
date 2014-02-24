@@ -60,12 +60,12 @@ public class UnionWithTempOperator<T> implements PactDriver<Function, T> {
 		
 		final Collector<T> output = this.taskContext.getOutputCollector();
 
-		final T record = this.taskContext.<T>getInputSerializer(streamedInput).createInstance();
+		T record = this.taskContext.<T>getInputSerializer(streamedInput).createInstance();
 
-		while (this.running && input.next(record)) {
+		while (this.running && ((record = input.next(record)) != null)) {
 			output.collect(record);
 		}
-		while (this.running && cache.next(record)) {
+		while (this.running && ((record = cache.next(record)) != null)) {
 			output.collect(record);
 		}
 	}

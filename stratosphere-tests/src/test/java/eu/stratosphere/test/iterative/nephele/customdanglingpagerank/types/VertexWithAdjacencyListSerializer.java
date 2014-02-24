@@ -30,7 +30,7 @@ public final class VertexWithAdjacencyListSerializer extends TypeSerializer<Vert
 	}
 
 	@Override
-	public VertexWithAdjacencyList createCopy(VertexWithAdjacencyList from) {
+	public VertexWithAdjacencyList copy(VertexWithAdjacencyList from) {
 		long[] targets = new long[from.getTargets().length];
 		System.arraycopy(from.getTargets(), 0, targets, 0, targets.length);
 		
@@ -42,14 +42,15 @@ public final class VertexWithAdjacencyListSerializer extends TypeSerializer<Vert
 	}
 
 	@Override
-	public void copyTo(VertexWithAdjacencyList from, VertexWithAdjacencyList to) {
-		if (to.getTargets().length < from.getTargets().length) {
-			to.setTargets(new long[from.getTargets().length]);
+	public VertexWithAdjacencyList copy(VertexWithAdjacencyList from, VertexWithAdjacencyList reuse) {
+		if (reuse.getTargets().length < from.getTargets().length) {
+			reuse.setTargets(new long[from.getTargets().length]);
 		}
 		
-		to.setVertexID(from.getVertexID());
-		to.setNumTargets(from.getNumTargets());
-		System.arraycopy(from.getTargets(), 0, to.getTargets(), 0, from.getNumTargets());
+		reuse.setVertexID(from.getVertexID());
+		reuse.setNumTargets(from.getNumTargets());
+		System.arraycopy(from.getTargets(), 0, reuse.getTargets(), 0, from.getNumTargets());
+		return reuse;
 	}
 
 	@Override
@@ -71,7 +72,7 @@ public final class VertexWithAdjacencyListSerializer extends TypeSerializer<Vert
 	}
 
 	@Override
-	public void deserialize(VertexWithAdjacencyList target, DataInputView source) throws IOException {
+	public VertexWithAdjacencyList deserialize(VertexWithAdjacencyList target, DataInputView source) throws IOException {
 		target.setVertexID(source.readLong());
 		
 		final int numTargets = source.readInt();
@@ -86,6 +87,7 @@ public final class VertexWithAdjacencyListSerializer extends TypeSerializer<Vert
 		for (int i = 0; i < numTargets; i++) {
 			targets[i] = source.readLong();
 		}
+		return target;
 	}
 
 	/* (non-Javadoc)

@@ -368,9 +368,9 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 
 	private void streamOutFinalOutputBulk(MutableObjectIterator<X> results) throws IOException {
 		final Collector<X> out = this.finalOutputCollector;
-		final X record = this.solutionTypeSerializer.createInstance();
+		X record = this.solutionTypeSerializer.createInstance();
 
-		while (results.next(record)) {
+		while ((record = results.next(record)) != null) {
 			out.collect(record);
 		}
 	}
@@ -379,9 +379,9 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 			InterruptedException {
 		final MutableObjectIterator<X> results = hashTable.getPartitionEntryIterator();
 		final Collector<X> output = this.finalOutputCollector;
-		final X record = solutionTypeSerializer.createInstance();
+		X record = solutionTypeSerializer.createInstance();
 
-		while (results.next(record)) {
+		while ((record = results.next(record)) != null) {
 			output.collect(record);
 		}
 	}

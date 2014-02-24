@@ -64,7 +64,7 @@ public class MergeIterator<E> implements MutableObjectIterator<E>
 	 * Gets the next smallest element, with respect to the definition of order implied by
 	 * the {@link TypeSerializer} provided to this iterator.
 	 * 
-	 * @param target The object into which the result is put. The contents of the target object
+	 * @param reuse The object into which the result is put. The contents of the reuse object
 	 *               is only valid after this method, if the method returned true. Otherwise
 	 *               the contents is undefined.
 	 * @return True, if the iterator had another element, false otherwise. 
@@ -72,12 +72,12 @@ public class MergeIterator<E> implements MutableObjectIterator<E>
 	 * @see eu.stratosphere.util.MutableObjectIterator#next(java.lang.Object)
 	 */
 	@Override
-	public boolean next(E target) throws IOException
+	public E next(E reuse) throws IOException
 	{
 		if (this.heap.size() > 0) {
 			// get the smallest element
 			final HeadStream<E> top = this.heap.peek();
-			this.serializer.copyTo(top.getHead(), target);
+			reuse = this.serializer.copy(top.getHead(), reuse);
 			
 			// read an element
 			if (!top.nextHead()) {
@@ -85,10 +85,10 @@ public class MergeIterator<E> implements MutableObjectIterator<E>
 			} else {
 				this.heap.adjustTop();
 			}
-			return true;
+			return reuse;
 		}
 		else {
-			return false;
+			return null;
 		}
 	}
 
@@ -102,7 +102,7 @@ public class MergeIterator<E> implements MutableObjectIterator<E>
 		
 		private final TypeComparator<E> comparator;
 		
-		private final E head;
+		E head;
 
 		public HeadStream(MutableObjectIterator<E> iterator, TypeSerializer<E> serializer, TypeComparator<E> comparator)
 		throws IOException
@@ -121,7 +121,7 @@ public class MergeIterator<E> implements MutableObjectIterator<E>
 
 		public boolean nextHead() throws IOException
 		{
-			if (this.iterator.next(this.head)) {
+			if ((this.head = this.iterator.next(this.head)) != null) {
 				this.comparator.setReference(this.head);
 				return true;
 			}

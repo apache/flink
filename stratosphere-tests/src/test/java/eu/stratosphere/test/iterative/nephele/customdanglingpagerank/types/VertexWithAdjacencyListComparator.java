@@ -111,7 +111,7 @@ public final class VertexWithAdjacencyListComparator extends TypeComparator<Vert
 	}
 
 	@Override
-	public void readWithKeyDenormalization(VertexWithAdjacencyList record, DataInputView source) {
+	public VertexWithAdjacencyList readWithKeyDenormalization(VertexWithAdjacencyList reuse, DataInputView source) {
 		throw new UnsupportedOperationException();
 	}
 

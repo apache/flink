@@ -263,7 +263,7 @@ public final class TupleComparator<T extends Tuple> extends TypeComparator<T> im
 	}
 
 	@Override
-	public void readWithKeyDenormalization(T record, DataInputView source) throws IOException {
+	public T readWithKeyDenormalization(T reuse, DataInputView source) throws IOException {
 		throw new UnsupportedOperationException();
 	}
 

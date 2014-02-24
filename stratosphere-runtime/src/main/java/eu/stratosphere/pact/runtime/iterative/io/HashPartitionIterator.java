@@ -41,38 +41,38 @@ public class HashPartitionIterator<BT, PT> implements MutableObjectIterator<BT> 
 	}
 
 	@Override
-	public boolean next(BT record) throws IOException {
+	public BT next(BT reuse) throws IOException {
 		if (currentPartition == null) {
 			if (!partitions.hasNext()) {
-				return false;
+				return null;
 			}
 			currentPartition = partitions.next();
 			currentPartition.setReadPosition(0);
 		}
 
 		try {
-			serializer.deserialize(record, currentPartition);
+			reuse = serializer.deserialize(reuse, currentPartition);
 		} catch (EOFException e) {
-			return advanceAndRead(record);
+			reuse =  advanceAndRead(reuse);
 		}
 
-		return true;
+		return reuse;
 	}
 
 	/* jump to the next partition and continue reading from that */
-	private boolean advanceAndRead(BT record) throws IOException {
+	private BT advanceAndRead(BT reuse) throws IOException {
 		if (!partitions.hasNext()) {
-			return false;
+			return null;
 		}
 		currentPartition = partitions.next();
 		currentPartition.setReadPosition(0);
 
 		try {
-			serializer.deserialize(record, currentPartition);
+			reuse = serializer.deserialize(reuse, currentPartition);
 		} catch (EOFException e) {
-			return advanceAndRead(record);
+			reuse = advanceAndRead(reuse);
 		}
-		return true;
+		return reuse;
 	}
 
 }

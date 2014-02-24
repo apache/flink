@@ -151,7 +151,7 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 			// read the reader and write it to the output
 			final MutableObjectIterator<IT> input = this.input;
 			final OutputFormat<IT> format = this.format;
-			final IT record = this.inputTypeSerializer.createInstance();
+			IT record = this.inputTypeSerializer.createInstance();
 			
 			// check if task has been canceled
 			if (this.taskCanceled) {
@@ -166,7 +166,7 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 			format.open(this.getEnvironment().getIndexInSubtaskGroup(), this.getEnvironment().getCurrentNumberOfSubtasks());
 
 			// work!
-			while (!this.taskCanceled && input.next(record)) {
+			while (!this.taskCanceled && ((record = input.next(record)) != null)) {
 				format.writeRecord(record);
 			}
 			

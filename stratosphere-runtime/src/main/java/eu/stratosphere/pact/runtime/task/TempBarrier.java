@@ -160,9 +160,9 @@ public class TempBarrier<T> implements CloseableInputProvider<T> {
 			final SpillingBuffer buffer = this.buffer;
 			
 			try {
-				final T record = serializer.createInstance();
+				T record = serializer.createInstance();
 				
-				while (this.running && input.next(record)) {
+				while (this.running && ((record = input.next(record)) != null)) {
 					serializer.serialize(record, buffer);
 				}
 				

@@ -34,13 +34,13 @@ public class MutableObjectIteratorWrapper implements MutableObjectIterator<Recor
 
 
 	@Override
-	public boolean next(Record target) throws IOException {
+	public Record next(Record reuse) throws IOException {
 		if (this.source.hasNext()) {
-			this.source.next().copyTo(target);
-			return true;
+			this.source.next().copyTo(reuse);
+			return reuse;
 		}
 		else {
-			return false;
+			return null;
 		}
 	}
 

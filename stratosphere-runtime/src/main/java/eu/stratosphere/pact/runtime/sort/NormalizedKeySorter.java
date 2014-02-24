@@ -234,13 +234,13 @@ public final class NormalizedKeySorter<T> implements InMemorySorter<T>
 	/**
 	 * Gets the record at the given logical position.
 	 * 
-	 * @param target The target object to deserialize the record into.
+	 * @param reuse The target object to deserialize the record into.
 	 * @param logicalPosition The logical position of the record.
 	 * @throws IOException Thrown, if an exception occurred during deserialization.
 	 */
 	@Override
-	public void getRecord(T target, int logicalPosition) throws IOException {
-		getRecordFromBuffer(target, readPointer(logicalPosition));
+	public T getRecord(T reuse, int logicalPosition) throws IOException {
+		return getRecordFromBuffer(reuse, readPointer(logicalPosition));
 	}
 
 	/**
@@ -297,9 +297,9 @@ public final class NormalizedKeySorter<T> implements InMemorySorter<T>
 		return this.sortIndex.get(bufferNum).getLong(segmentOffset * this.indexEntrySize);
 	}
 	
-	private final void getRecordFromBuffer(T target, long pointer) throws IOException {
+	private final T getRecordFromBuffer(T reuse, long pointer) throws IOException {
 		this.recordBuffer.setReadPosition(pointer);
-		this.serializer.deserialize(target, this.recordBuffer);
+		return this.serializer.deserialize(reuse, this.recordBuffer);
 	}
 	
 	private final int compareRecords(long pointer1, long pointer2) {
@@ -390,7 +390,7 @@ public final class NormalizedKeySorter<T> implements InMemorySorter<T>
 			private MemorySegment currentIndexSegment = sortIndex.get(0);
 
 			@Override
-			public boolean next(T target)
+			public T next(T target)
 			{
 				if (this.current < this.size) {
 					this.current++;
@@ -403,15 +403,14 @@ public final class NormalizedKeySorter<T> implements InMemorySorter<T>
 					this.currentOffset += indexEntrySize;
 					
 					try {
-						getRecordFromBuffer(target, pointer);
-						return true;
+						return getRecordFromBuffer(target, pointer);
 					}
 					catch (IOException ioe) {
 						throw new RuntimeException(ioe);
 					}
 				}
 				else {
-					return false;
+					return null;
 				}
 			}
 		};
@@ -462,7 +461,7 @@ public final class NormalizedKeySorter<T> implements InMemorySorter<T>
 	 * 
 	 * @param output The output view to write the records to.
 	 * @param start The logical start position of the subset.
-	 * @param len The number of elements to write.
+	 * @param num The number of elements to write.
 	 * @throws IOException Thrown, if an I/O exception occurred writing to the output view.
 	 */
 	@Override

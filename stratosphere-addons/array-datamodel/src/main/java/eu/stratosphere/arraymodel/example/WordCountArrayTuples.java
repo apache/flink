@@ -76,7 +76,8 @@ public class WordCountArrayTuples implements Program, ProgramDescription {
 			
 			// tokenize the line
 			this.tokenizer.setStringToTokenize(line);
-			while (tokenizer.next(this.word)) {
+			StringValue nextWord;
+			while ((nextWord = tokenizer.next(this.word)) != null) {
 				// we emit a (word, 1) pair 
 				collector.collect(this.outputRecord);
 			}

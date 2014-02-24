@@ -24,12 +24,12 @@ public class DelayingInfinitiveInputIterator extends InfiniteInputIterator
 	}
 	
 	@Override
-	public boolean next(Record target) {
+	public Record next(Record reuse) {
 		try {
 			Thread.sleep(delay);
 		}
 		catch (InterruptedException e) { }
-		return super.next(target);
+		return super.next(reuse);
 	}
 	
 }

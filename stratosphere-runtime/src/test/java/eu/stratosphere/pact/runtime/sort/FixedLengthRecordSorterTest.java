@@ -101,7 +101,7 @@ public class FixedLengthRecordSorterTest
 		int i = 0;
 		while (i < num) {
 			generator.next(record);
-			sorter.getRecord(readTarget, i++);
+			readTarget = sorter.getRecord(readTarget, i++);
 			
 			int rk = readTarget.getKey();
 			int gk = record.getKey();
@@ -147,7 +147,7 @@ public class FixedLengthRecordSorterTest
 		IntPair readTarget = new IntPair();
 		int count = 0;
 		
-		while (iter.next(readTarget)) {
+		while ((readTarget = iter.next(readTarget)) != null) {
 			count++;
 			
 			generator.next(record);
@@ -207,7 +207,7 @@ public class FixedLengthRecordSorterTest
 		int i = 0;
 		while (i < num) {
 			generator.next(record);
-			sorter.getRecord(readTarget, i++);
+			readTarget = sorter.getRecord(readTarget, i++);
 			
 			int rk = readTarget.getKey();
 			int gk = record.getKey();
@@ -258,7 +258,7 @@ public class FixedLengthRecordSorterTest
 		int i = num - 1;
 		while (i >= 0) {
 			generator.next(record);
-			sorter.getRecord(readTarget, i--);
+			readTarget = sorter.getRecord(readTarget, i--);
 			
 			int rk = readTarget.getKey();
 			int gk = record.getKey();
@@ -347,7 +347,7 @@ public class FixedLengthRecordSorterTest
 		//readTarget.getFieldInto(0, last);
 		last = readTarget.getKey();
 		
-		while (iter.next(readTarget)) {
+		while ((readTarget = iter.next(readTarget)) != null) {
 			current = readTarget.getKey();
 			
 			final int cmp = last - current;

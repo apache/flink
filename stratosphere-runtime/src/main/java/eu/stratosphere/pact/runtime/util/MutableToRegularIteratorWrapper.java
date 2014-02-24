@@ -48,7 +48,7 @@ public class MutableToRegularIteratorWrapper<T> implements Iterator<T> {
 			try {
 				// we always use two records such that whenever hasNext() returns (possibly with false),
 				// the previous record is always still valid.
-				if (source.next(next)) {
+				if ((next = source.next(next)) != null) {
 					
 					T tmp = current;
 					current = next;

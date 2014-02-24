@@ -95,15 +95,15 @@ public final class AsciiUtils {
 		
 		/**
 		 * Gets the next token from the string. If another token is available, the token is stored
-		 * in the given target string object and <code>true</code> is returned. Otherwise,
-		 * the target object is left unchanged and <code>false</code> is returned.
+		 * in the given reuse string object and <code>true</code> is returned. Otherwise,
+		 * the reuse object is left unchanged and <code>false</code> is returned.
 		 * 
-		 * @param target The StringValue object to store the next token in.
+		 * @param reuse The StringValue object to store the next token in.
 		 * @return True, if there was another token, false if not.
 		 * @see eu.stratosphere.util.MutableObjectIterator#next(java.lang.Object)
 		 */
 		@Override
-		public boolean next(StringValue target) {
+		public StringValue next(StringValue reuse) {
 			final char[] data = this.toTokenize.getCharArray();
 			final int limit = this.limit;
 			int pos = this.pos;
@@ -113,14 +113,14 @@ public final class AsciiUtils {
 			
 			if (pos >= limit) {
 				this.pos = pos;
-				return false;
+				return null;
 			}
 			
 			final int start = pos;
 			for (; pos < limit && !Character.isWhitespace(data[pos]); pos++);
 			this.pos = pos;
-			target.setValue(this.toTokenize, start, pos - start);
-			return true;
+			reuse.setValue(this.toTokenize, start, pos - start);
+			return reuse;
 		}
 	}
 	

@@ -103,7 +103,7 @@ public class NormalizedKeySorterTest
 		int i = 0;
 		while (i < num) {
 			generator.next(record);
-			sorter.getRecord(readTarget, i++);
+			readTarget = sorter.getRecord(readTarget, i++);
 			
 			Key rk = readTarget.getField(0, Key.class);
 			Key gk = record.getField(0, Key.class);
@@ -141,7 +141,7 @@ public class NormalizedKeySorterTest
 		MutableObjectIterator<Record> iter = sorter.getIterator();
 		Record readTarget = new Record();
 		
-		while (iter.next(readTarget)) {
+		while ((readTarget = iter.next(readTarget)) != null) {
 			generator.next(record);
 			
 			Key rk = readTarget.getField(0, Key.class);
@@ -198,7 +198,7 @@ public class NormalizedKeySorterTest
 		int i = 0;
 		while (i < num) {
 			generator.next(record);
-			sorter.getRecord(readTarget, i++);
+			readTarget = sorter.getRecord(readTarget, i++);
 			
 			Key rk = readTarget.getField(0, Key.class);
 			Key gk = record.getField(0, Key.class);
@@ -251,7 +251,7 @@ public class NormalizedKeySorterTest
 		int i = num - 1;
 		while (i >= 0) {
 			generator.next(record);
-			sorter.getRecord(readTarget, i--);
+			readTarget = sorter.getRecord(readTarget, i--);
 			
 			Key rk = readTarget.getField(0, Key.class);
 			Key gk = record.getField(0, Key.class);
@@ -344,7 +344,7 @@ public class NormalizedKeySorterTest
 		iter.next(readTarget);
 		readTarget.getFieldInto(0, last);
 		
-		while (iter.next(readTarget)) {
+		while ((readTarget = iter.next(readTarget)) != null) {
 			readTarget.getFieldInto(0, current);
 			
 			final int cmp = last.compareTo(current);
@@ -392,7 +392,7 @@ public class NormalizedKeySorterTest
 		iter.next(readTarget);
 		readTarget.getFieldInto(1, last);
 		
-		while (iter.next(readTarget)) {
+		while ((readTarget = iter.next(readTarget)) != null) {
 			readTarget.getFieldInto(1, current);
 			
 			final int cmp = last.compareTo(current);
@@ -440,7 +440,7 @@ public class NormalizedKeySorterTest
 		iter.next(readTarget);
 		readTarget.getFieldInto(1, last);
 		
-		while (iter.next(readTarget)) {
+		while ((readTarget = iter.next(readTarget)) != null) {
 			readTarget.getFieldInto(1, current);
 			
 			final int cmp = last.compareTo(current);

@@ -125,9 +125,10 @@ public class AsynchronousPartialSorter<E> extends UnilateralSortMerger<E>
 
 
 		@Override
-		public boolean next(E target) throws IOException {
-			if (this.currentIterator != null && this.currentIterator.next(target)) {
-				return true;
+		public E next(final E reuse) throws IOException {
+			E result;
+			if (this.currentIterator != null && ((result = this.currentIterator.next(reuse)) != null)) {
+				return result;
 			}
 			else if (this.closed) {
 				throw new IllegalStateException("The sorter has been closed.");
@@ -139,7 +140,7 @@ public class AsynchronousPartialSorter<E> extends UnilateralSortMerger<E>
 				
 				while (true) {
 					if (this.currentElement == endMarker()) {
-						return false;
+						return null;
 					}
 					else if (this.currentElement != null) {
 						// return the current element to the empty queue
@@ -161,7 +162,7 @@ public class AsynchronousPartialSorter<E> extends UnilateralSortMerger<E>
 							// signals the end, no more buffers will come
 							// release the memory first before returning
 							releaseSortBuffers();
-							return false;
+							return null;
 						}
 						if (this.currentElement == spillingMarker()) {
 							this.currentElement = null;
@@ -173,8 +174,8 @@ public class AsynchronousPartialSorter<E> extends UnilateralSortMerger<E>
 					}
 					
 					this.currentIterator = this.currentElement.buffer.getIterator();
-					if (this.currentIterator.next(target)) {
-						return true;
+					if ((result = this.currentIterator.next(reuse)) != null) {
+						return result;
 					}
 					this.currentIterator = null;
 				}

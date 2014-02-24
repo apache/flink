@@ -149,7 +149,7 @@ public class AccumulatorITCase extends TestBase2 {
 	public static class TokenizeLine extends MapFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 		private final Record outputRecord = new Record();
-		private final StringValue word = new StringValue();
+		private StringValue word;
 		private final IntValue one = new IntValue(1);
 		private final AsciiUtils.WhitespaceTokenizer tokenizer = new AsciiUtils.WhitespaceTokenizer();
 
@@ -211,7 +211,8 @@ public class AccumulatorITCase extends TestBase2 {
 			AsciiUtils.toLowerCase(line);
 			this.tokenizer.setStringToTokenize(line);
 			int wordsPerLine = 0;
-			while (tokenizer.next(this.word))
+			this.word = new StringValue();
+			while ((this.word = tokenizer.next(this.word)) != null)
 			{
 				// Use custom counter
 				distinctWords.add(new StringRecord(this.word.getValue()));

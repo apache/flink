@@ -135,16 +135,16 @@ public abstract class JoinWithSolutionSetMatchDriver<IT1, IT2, OT> implements Re
 		final Collector<OT> collector = taskContext.getOutputCollector();
 		
 		if (getSolutionSetInputIndex() == 0) {
-			final IT1 buildSideRecord = rec1;
-			final IT2 probeSideRecord = rec2;
+			IT1 buildSideRecord = rec1;
+			IT2 probeSideRecord = rec2;
 			
 			@SuppressWarnings("unchecked")
 			final MutableHashTable<IT1, IT2> join = (MutableHashTable<IT1, IT2>) hashTable;
 			final MutableObjectIterator<IT2> probeSideInput = taskContext.<IT2>getInput(0);
 			
-			while (this.running && probeSideInput.next(probeSideRecord)) {
+			while (this.running && ((probeSideRecord = probeSideInput.next(probeSideRecord)) != null)) {
 				final MutableHashTable.HashBucketIterator<IT1, IT2> bucket = join.getMatchesFor(probeSideRecord);
-				if (bucket.next(buildSideRecord)) {
+				if ((buildSideRecord = bucket.next(buildSideRecord)) != null) {
 					matchStub.join(buildSideRecord, probeSideRecord, collector);
 				} else {
 					// no match found, this is for now an error case
@@ -152,16 +152,16 @@ public abstract class JoinWithSolutionSetMatchDriver<IT1, IT2, OT> implements Re
 				}
 			}
 		} else if (getSolutionSetInputIndex() == 1) {
-			final IT2 buildSideRecord = rec2;
-			final IT1 probeSideRecord = rec1;
+			IT2 buildSideRecord = rec2;
+			IT1 probeSideRecord = rec1;
 			
 			@SuppressWarnings("unchecked")
 			final MutableHashTable<IT2, IT1> join = (MutableHashTable<IT2, IT1>) hashTable;
 			final MutableObjectIterator<IT1> probeSideInput = taskContext.<IT1>getInput(0);
 			
-			while (this.running && probeSideInput.next(probeSideRecord)) {
+			while (this.running && ((probeSideRecord = probeSideInput.next(probeSideRecord)) != null)) {
 				final MutableHashTable.HashBucketIterator<IT2, IT1> bucket = join.getMatchesFor(probeSideRecord);
-				if (bucket.next(buildSideRecord)) {
+				if ((buildSideRecord = bucket.next(buildSideRecord)) != null) {
 					matchStub.join(probeSideRecord, buildSideRecord, collector);
 				} else {
 					// no match found, this is for now an error case

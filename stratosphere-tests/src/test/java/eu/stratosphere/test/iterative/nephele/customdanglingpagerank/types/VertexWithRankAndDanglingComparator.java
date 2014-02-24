@@ -112,10 +112,11 @@ public final class VertexWithRankAndDanglingComparator extends TypeComparator<Ve
 	}
 
 	@Override
-	public void readWithKeyDenormalization(VertexWithRankAndDangling record, DataInputView source) throws IOException {
-		record.setVertexID(source.readLong() + Long.MIN_VALUE);
-		record.setRank(source.readDouble());
-		record.setDangling(source.readBoolean());
+	public VertexWithRankAndDangling readWithKeyDenormalization(VertexWithRankAndDangling reuse, DataInputView source) throws IOException {
+		reuse.setVertexID(source.readLong() + Long.MIN_VALUE);
+		reuse.setRank(source.readDouble());
+		reuse.setDangling(source.readBoolean());
+		return reuse;
 	}
 
 	@Override

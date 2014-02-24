@@ -208,7 +208,7 @@ public class DataSourceTaskTest extends TaskTestBase
 				bw.write("####_I_AM_INVALID_########\n");
 			
 			Record rec = new Record();
-			while (inIt.next(rec)) {
+			while ((rec = inIt.next(rec)) != null) {
 				IntValue key = rec.getField(0, IntValue.class);
 				IntValue value = rec.getField(1, IntValue.class);
 				

@@ -55,7 +55,6 @@ public class CustomImprovedDanglingPageRankInputFormat extends DelimitedInputFor
 		}
 
 		target.setRank(initialRank);
-
 		return target;
 	}
 }

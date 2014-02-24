@@ -29,13 +29,14 @@ public class IntValueSerializer extends TypeSerializer<IntValue> {
 	}
 
 	@Override
-	public IntValue createCopy(IntValue from) {
+	public IntValue copy(IntValue from) {
 		return new IntValue(from.getValue());
 	}
 
 	@Override
-	public void copyTo(IntValue from, IntValue to) {
-		to.setValue(from.getValue());
+	public IntValue copy(IntValue from, IntValue reuse) {
+		reuse.setValue(from.getValue());
+		return reuse;
 	}
 
 
@@ -50,8 +51,9 @@ public class IntValueSerializer extends TypeSerializer<IntValue> {
 	}
 
 	@Override
-	public void deserialize(IntValue target, DataInputView source) throws IOException {
-		target.setValue(source.readInt());
+	public IntValue deserialize(IntValue reuse, DataInputView source) throws IOException {
+		reuse.setValue(source.readInt());
+		return reuse;
 	}
 
 	@Override

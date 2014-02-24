@@ -344,8 +344,9 @@ public class ReOpenableHashTableITCase {
 				join.reopenProbe(probeInput);
 			}
 		
-			final Record record = new Record();
-			
+			Record record;
+			final Record recordReuse = new Record();
+
 			while (join.nextRecord())
 			{
 				int numBuildValues = 0;
@@ -354,14 +355,14 @@ public class ReOpenableHashTableITCase {
 				int key = probeRec.getField(0, IntValue.class).getValue();
 				
 				HashBucketIterator<Record, Record> buildSide = join.getBuildSideIterator();
-				if (buildSide.next(record)) {
+				if ((record = buildSide.next(recordReuse)) != null) {
 					numBuildValues = 1;
 					Assert.assertEquals("Probe-side key was different than build-side key.", key, record.getField(0, IntValue.class).getValue()); 
 				}
 				else {
 					fail("No build side values found for a probe key.");
 				}
-				while (buildSide.next(record)) {
+				while ((record = buildSide.next(record)) != null) {
 					numBuildValues++;
 					Assert.assertEquals("Probe-side key was different than build-side key.", key, record.getField(0, IntValue.class).getValue());
 				}
@@ -457,8 +458,9 @@ public class ReOpenableHashTableITCase {
 			} else {
 				join.reopenProbe(probeInput);
 			}
-			final Record record = new Record();
-			
+			Record record;
+			final Record recordReuse = new Record();
+
 			while (join.nextRecord())
 			{	
 				int numBuildValues = 0;
@@ -467,14 +469,14 @@ public class ReOpenableHashTableITCase {
 				int key = probeRec.getField(0, IntValue.class).getValue();
 				
 				HashBucketIterator<Record, Record> buildSide = join.getBuildSideIterator();
-				if (buildSide.next(record)) {
+				if ((record = buildSide.next(recordReuse)) != null) {
 					numBuildValues = 1;
 					Assert.assertEquals("Probe-side key was different than build-side key.", key, record.getField(0, IntValue.class).getValue()); 
 				}
 				else {
 					fail("No build side values found for a probe key.");
 				}
-				while (buildSide.next(record)) {
+				while ((record = buildSide.next(recordReuse)) != null) {
 					numBuildValues++;
 					Assert.assertEquals("Probe-side key was different than build-side key.", key, record.getField(0, IntValue.class).getValue());
 				}

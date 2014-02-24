@@ -220,7 +220,7 @@ public class CombiningUnilateralSortMergerITCase {
 		final TestData.Value value = new TestData.Value("1");
 		
 		for (int i = 0; i < NUM_PAIRS; i++) {
-			Assert.assertTrue(generator.next(rec));
+			Assert.assertTrue((rec = generator.next(rec)) != null);
 			final TestData.Key key = rec.getField(0, TestData.Key.class);
 			rec.setField(1, value);
 			reader.emit(rec);
@@ -238,10 +238,10 @@ public class CombiningUnilateralSortMergerITCase {
 		Record rec1 = new Record();
 		Record rec2 = new Record();
 		
-		Assert.assertTrue(iterator.next(rec1));
+		Assert.assertTrue((rec1 = iterator.next(rec1)) != null);
 		countTable.put(new TestData.Key(rec1.getField(0, TestData.Key.class).getKey()), countTable.get(rec1.getField(0, TestData.Key.class)) - (Integer.parseInt(rec1.getField(1, TestData.Value.class).toString())));
 
-		while (iterator.next(rec2)) {
+		while ((rec1 = iterator.next(rec2)) != null) {
 			final Key k1 = rec1.getField(0, TestData.Key.class);
 			final Key k2 = rec2.getField(0, TestData.Key.class);
 			

@@ -32,10 +32,10 @@ public class UniformIntPairGenerator implements MutableObjectIterator<IntPair>
 	}
 
 	@Override
-	public boolean next(IntPair target) {
+	public IntPair next(IntPair target) {
 		if(!repeatKey) {
 			if(valCnt >= numVals) {
-				return false;
+				return null;
 			}
 			
 			target.setKey(keyCnt++);
@@ -47,7 +47,7 @@ public class UniformIntPairGenerator implements MutableObjectIterator<IntPair>
 			}
 		} else {
 			if(keyCnt >= numKeys) {
-				return false;
+				return null;
 			}
 			
 			target.setKey(keyCnt);
@@ -59,6 +59,6 @@ public class UniformIntPairGenerator implements MutableObjectIterator<IntPair>
 			}
 		}
 		
-		return true;
+		return target;
 	}
 }

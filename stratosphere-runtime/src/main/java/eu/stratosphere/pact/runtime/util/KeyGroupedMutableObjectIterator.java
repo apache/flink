@@ -69,7 +69,7 @@ public final class KeyGroupedMutableObjectIterator<E>
 		// first element
 		if (this.next == null) {
 			this.next = this.serializer.createInstance();
-			if (this.iterator.next(this.next)) {
+			if ((this.next = this.iterator.next(this.next)) != null) {
 				this.comparator.setReference(this.next);
 				this.nextIsFresh = false;
 				this.valuesIterator = new ValuesIterator();
@@ -93,7 +93,7 @@ public final class KeyGroupedMutableObjectIterator<E>
 		// try to move to next key.
 		// Required if user code / reduce() method did not read the whole value iterator.
 		while (true) {
-			if (this.iterator.next(this.next)) {
+			if ((this.next = this.iterator.next(this.next)) != null) {
 				if (!this.comparator.equalToReference(this.next)) {
 					// the keys do not match, so we have a new group. store the current keys
 					this.comparator.setReference(this.next);						
@@ -130,32 +130,32 @@ public final class KeyGroupedMutableObjectIterator<E>
 		private boolean nextIsUnconsumed = false;
 
 		@Override
-		public boolean next(E target)
+		public E next(E target)
 		{
 			if (KeyGroupedMutableObjectIterator.this.next == null || KeyGroupedMutableObjectIterator.this.nextIsFresh) {
-				return false;
+				return null;
 			}
 			if (this.nextIsUnconsumed) {
-				this.serializer.copyTo(KeyGroupedMutableObjectIterator.this.next, target);
-				return true;
+				return this.serializer.copy(KeyGroupedMutableObjectIterator.this.next, target);
 			}
 			
 			try {
-				if (KeyGroupedMutableObjectIterator.this.iterator.next(target)) {
+				if ((target = KeyGroupedMutableObjectIterator.this.iterator.next(target)) != null) {
 					// check whether the keys are equal
 					if (!this.comparator.equalToReference(target)) {
 						// moved to the next key, no more values here
-						this.serializer.copyTo(target, KeyGroupedMutableObjectIterator.this.next);
+						KeyGroupedMutableObjectIterator.this.next =
+								this.serializer.copy(target, KeyGroupedMutableObjectIterator.this.next);
 						KeyGroupedMutableObjectIterator.this.nextIsFresh = true;
-						return false;
+						return null;
 					}
 					// same key, next value is in "next"
-					return true;
+					return target;
 				}
 				else {
 					// backing iterator is consumed
 					KeyGroupedMutableObjectIterator.this.next = null;
-					return false;
+					return null;
 				}
 			}
 			catch (IOException ioex) {

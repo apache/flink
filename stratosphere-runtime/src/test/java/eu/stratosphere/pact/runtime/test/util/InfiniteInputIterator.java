@@ -26,9 +26,9 @@ public class InfiniteInputIterator implements MutableObjectIterator<Record>
 	private final IntValue val2 = new IntValue(0);
 	
 	@Override
-	public boolean next(Record target) {
-		target.setField(0, val1);
-		target.setField(1, val2);
-		return true;
+	public Record next(Record reuse) {
+		reuse.setField(0, val1);
+		reuse.setField(1, val2);
+		return reuse;
 	}
 }
