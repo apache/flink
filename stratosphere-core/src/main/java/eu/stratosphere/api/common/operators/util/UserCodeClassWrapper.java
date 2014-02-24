@@ -23,38 +23,23 @@ public class UserCodeClassWrapper<T> implements UserCodeWrapper<T> {
 	private static final long serialVersionUID = 1L;
 	
 	private Class<? extends T> userCodeClass;
-	private String className;
 	
 	public UserCodeClassWrapper(Class<? extends T> userCodeClass) {
 		this.userCodeClass = userCodeClass;
-		this.className = userCodeClass.getName();
 	}
 	
-	@SuppressWarnings("unchecked")
 	@Override
 	public T getUserCodeObject(Class<? super T> superClass, ClassLoader cl) {
-		try {
-			Class<T> clazz = (Class<T>) Class.forName(className, true, cl).asSubclass(superClass);
-			return InstantiationUtil.instantiate(clazz, superClass);
-		} catch (ClassNotFoundException e) {
-			throw new RuntimeException("User code class could not be instantiated: " + e);
-		}
+		return InstantiationUtil.instantiate(userCodeClass, superClass);
 	}
 	
 	@Override
 	public T getUserCodeObject() {
-		try {
-			return userCodeClass.newInstance();
-		} catch (InstantiationException e) {
-			throw new RuntimeException("User code class could not be instantiated: " + e);
-		} catch (IllegalAccessException e) {
-			throw new RuntimeException("User code class could not be instantiated: " + e);
-		}
+		return InstantiationUtil.instantiate(userCodeClass, Object.class);
 	}
 
 	@Override
-	public <A extends Annotation> A getUserCodeAnnotation(
-			Class<A> annotationClass) {
+	public <A extends Annotation> A getUserCodeAnnotation(Class<A> annotationClass) {
 		return userCodeClass.getAnnotation(annotationClass);
 	}
 	
