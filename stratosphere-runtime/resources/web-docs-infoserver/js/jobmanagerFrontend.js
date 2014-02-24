@@ -324,20 +324,13 @@ function updateTable(json) {
 		if(event.newstate == "FINISHED" || event.newstate == "FAILED" || event.newstate == "CANCELED") {
 			// stop polling
 			pollfinished = true;
-			
-			// add to history
-			var jobjson = {};
-			jobjson.jobid = json.jobid;
-			jobjson.jobname = $("#"+json.jobid).attr("jobname");
-			jobjson.time = event.timestamp;
-			jobjson.status = event.newstate;
-			_fillTableArchive("#jobsArchive", jobjson, true);
-			
+
 			// delete table
+			var jobname = $("#"+json.jobid).attr("jobname");
 			$("#"+json.jobid).remove();
 			$("#"+json.jobid+"_title").remove();
 			$("#"+json.jobid+"_cancel").remove();
-			
+
 			// remove from internal list
 			for(var i in recentjobs){
 			    if(recentjobs[i]==json.jobid){
@@ -345,6 +338,16 @@ function updateTable(json) {
 			        break;
 			    }
 			}
+
+			// add to history
+			setTimeout(function() {
+				var jobjson = {};
+				jobjson.jobid = json.jobid;
+				jobjson.jobname = jobname;
+				jobjson.time = event.timestamp;
+				jobjson.status = event.newstate;
+				_fillTableArchive("#jobsArchive", jobjson, true);
+			}, 8000);
 		}
 	});
 

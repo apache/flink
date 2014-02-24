@@ -406,19 +406,22 @@ public class JobmanagerInfoServlet extends HttpServlet {
 			
 			wrt.write("\"jobevents\": [");
 			
-
 			first = true;
-			List<RecentJobEvent> oldJobs = jobmanager.getOldJobs();
-			for(RecentJobEvent event: oldJobs) {
-				if (first) {
-					first = false;
-				} else {
-					wrt.write(",");
+			for(AbstractEvent event: events) {
+				
+				if( event instanceof JobEvent) {
+					
+					if(first) {
+						first = false;
+					} else {
+						wrt.write(","); }
+					
+					JobEvent jobevent = (JobEvent) event;
+					wrt.write("{");
+					wrt.write("\"newstate\": \"" + jobevent.getCurrentJobStatus() + "\",");
+					wrt.write("\"timestamp\": \"" + jobevent.getTimestamp() + "\"");
+					wrt.write("}");
 				}
-				wrt.write("{");
-				wrt.write("\"newstate\": \"" + event.getJobStatus() + "\",");
-				wrt.write("\"timestamp\": \"" + event.getTimestamp() + "\"");
-				wrt.write("}");
 			}
 			
 			wrt.write("]");
