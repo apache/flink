@@ -14,9 +14,9 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import eu.stratosphere.api.java.record.io.avro.AvroInputFormat.BooleanListValue;
-import eu.stratosphere.api.java.record.io.avro.AvroInputFormat.LongMapValue;
-import eu.stratosphere.api.java.record.io.avro.AvroInputFormat.StringListValue;
+import eu.stratosphere.api.java.record.io.avro.AvroRecordInputFormat.BooleanListValue;
+import eu.stratosphere.api.java.record.io.avro.AvroRecordInputFormat.LongMapValue;
+import eu.stratosphere.api.java.record.io.avro.AvroRecordInputFormat.StringListValue;
 import eu.stratosphere.api.java.record.io.avro.generated.Colors;
 import eu.stratosphere.api.java.record.io.avro.generated.User;
 import eu.stratosphere.configuration.Configuration;
@@ -31,11 +31,11 @@ import eu.stratosphere.types.StringValue;
  * http://avro.apache.org/docs/current/gettingstartedjava.html
  * 
  */
-public class AvroInputFormatTest {
+public class AvroRecordInputFormatTest {
 	
 	private File testFile;
 	
-	private final AvroInputFormat format = new AvroInputFormat();
+	private final AvroRecordInputFormat format = new AvroRecordInputFormat();
 	final static String TEST_NAME = "Alyssa";
 	
 	final static String TEST_ARRAY_STRING_1 = "ELEMENT 1";
@@ -117,11 +117,11 @@ public class AvroInputFormatTest {
 		Assert.assertEquals("name not equal",name.getValue(), TEST_NAME);
 		
 		// check arrays
-		StringListValue sl = record.getField(7, AvroInputFormat.StringListValue.class);
+		StringListValue sl = record.getField(7, AvroRecordInputFormat.StringListValue.class);
 		Assert.assertEquals("element 0 not equal", sl.get(0).getValue(), TEST_ARRAY_STRING_1);
 		Assert.assertEquals("element 1 not equal", sl.get(1).getValue(), TEST_ARRAY_STRING_2);
 		
-		BooleanListValue bl = record.getField(8, AvroInputFormat.BooleanListValue.class);
+		BooleanListValue bl = record.getField(8, AvroRecordInputFormat.BooleanListValue.class);
 		Assert.assertEquals("element 0 not equal", bl.get(0).getValue(), TEST_ARRAY_BOOLEAN_1);
 		Assert.assertEquals("element 1 not equal", bl.get(1).getValue(), TEST_ARRAY_BOOLEAN_2);
 		
@@ -130,7 +130,7 @@ public class AvroInputFormatTest {
 		Assert.assertEquals("string representation of enum not equal", enumValue.getValue(), TEST_ENUM_COLOR.toString()); 
 		
 		// check maps
-		LongMapValue lm = record.getField(11, AvroInputFormat.LongMapValue.class);
+		LongMapValue lm = record.getField(11, AvroRecordInputFormat.LongMapValue.class);
 		Assert.assertEquals("map value of key 1 not equal", lm.get(new StringValue(TEST_MAP_KEY1)).getValue(), TEST_MAP_VALUE1);
 		Assert.assertEquals("map value of key 2 not equal", lm.get(new StringValue(TEST_MAP_KEY2)).getValue(), TEST_MAP_VALUE2);
 		
