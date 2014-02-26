@@ -54,7 +54,8 @@ public class CsvInputFormat extends GenericCsvInputFormat<Record> {
 	private transient Value[] parsedValues;
 	
 	private int[] targetPositions = new int[0];
-	
+
+	private boolean configured = false;
 	
 	// --------------------------------------------------------------------------------------------
 	//  Constructors and getters/setters for the configurable parameters
@@ -83,6 +84,10 @@ public class CsvInputFormat extends GenericCsvInputFormat<Record> {
 	@Override
 	public void configure(Configuration config) {
 		super.configure(config);
+
+		if (configured) {
+			return;
+		}
 		
 		final String fieldDelimStr = config.getString(FIELD_DELIMITER_PARAMETER, null);
 		if (fieldDelimStr != null) {
@@ -164,15 +169,19 @@ public class CsvInputFormat extends GenericCsvInputFormat<Record> {
 		}
 		else {
 			// not configured via config parameters
-			this.targetPositions = new int[getNumberOfNonNullFields()];
-			for (int i = 0; i < this.targetPositions.length; i++) {
-				this.targetPositions[i] = i;
+			if (this.targetPositions.length == 0) {
+				this.targetPositions = new int[getNumberOfNonNullFields()];
+				for (int i = 0; i < this.targetPositions.length; i++) {
+					this.targetPositions[i] = i;
+				}
 			}
 		}
 		
 		if (getNumberOfNonNullFields() == 0) {
 			throw new IllegalConfigurationException("No fields configured in the CsvInputFormat.");
 		}
+
+		this.configured = true;
 	}
 	
 	

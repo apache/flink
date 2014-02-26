@@ -16,6 +16,7 @@ package eu.stratosphere.test.exampleRecordPrograms;
 import java.util.ArrayList;
 import java.util.Collection;
 
+import eu.stratosphere.test.util.TestBase2;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -33,8 +34,7 @@ import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.test.testPrograms.tpch3Unioned.TPCHQuery3Unioned;
 import eu.stratosphere.test.util.TestBase;
 
-@RunWith(Parameterized.class)
-public class TPCHQuery3WithUnionITCase extends TestBase {
+public class TPCHQuery3WithUnionITCase extends TestBase2 {
 
 	private static final Log LOG = LogFactory.getLog(TPCHQuery3WithUnionITCase.class);
 	
@@ -140,120 +140,32 @@ public class TPCHQuery3WithUnionITCase extends TestBase {
 	
 	String EXPECTED_RESULT = "5|0|147828.97\n" + "66|0|99188.09\n";
 
-	public TPCHQuery3WithUnionITCase(Configuration config) {
-		super(config);
-	}
 
 	@Override
 	protected void preSubmit() throws Exception {
-		orders1Path = getFilesystemProvider().getTempDirPath() + "/orders1";
-		orders2Path = getFilesystemProvider().getTempDirPath() + "/orders2";
-		partJoin1Path = getFilesystemProvider().getTempDirPath() + "/partJoin1";
-		partJoin2Path = getFilesystemProvider().getTempDirPath() + "/partJoin2";
-		lineitemsPath = getFilesystemProvider().getTempDirPath() + "/lineitems";
-		resultPath = getFilesystemProvider().getTempDirPath() + "/result";
-
-		String[] splits = splitInputString(ORDERS1, '\n', 4);
-		getFilesystemProvider().createDir(orders1Path);
-		for (int i = 0; i < splits.length; i++) {
-			getFilesystemProvider().createFile(orders1Path + "/part_" + i + ".txt", splits[i]);
-			LOG.debug("Orders Part " + (i + 1) + ":\n>" + splits[i] + "<");
-		}
-		
-		splits = splitInputString(ORDERS2, '\n', 4);
-		getFilesystemProvider().createDir(orders2Path);
-		for (int i = 0; i < splits.length; i++) {
-			getFilesystemProvider().createFile(orders2Path + "/part_" + i + ".txt", splits[i]);
-			LOG.debug("Orders Part " + (i + 1) + ":\n>" + splits[i] + "<");
-		}
-		
-		splits = splitInputString(PART_JOIN_1, '\n', 4);
-		getFilesystemProvider().createDir(partJoin1Path);
-		for (int i = 0; i < splits.length; i++) {
-			getFilesystemProvider().createFile(partJoin1Path + "/part_" + i + ".txt", splits[i]);
-			LOG.debug("Part Join 1 Part " + (i + 1) + ":\n>" + splits[i] + "<");
-		}
-		
-		splits = splitInputString(PART_JOIN_2, '\n', 4);
-		getFilesystemProvider().createDir(partJoin2Path);
-		for (int i = 0; i < splits.length; i++) {
-			getFilesystemProvider().createFile(partJoin2Path + "/part_" + i + ".txt", splits[i]);
-			LOG.debug("Part Join 2 Part " + (i + 1) + ":\n>" + splits[i] + "<");
-		}
-
-		splits = splitInputString(LINEITEMS, '\n', 4);
-		getFilesystemProvider().createDir(lineitemsPath);
-		for (int i = 0; i < splits.length; i++) {
-			getFilesystemProvider().createFile(lineitemsPath + "/part_" + i + ".txt", splits[i]);
-			LOG.debug("Lineitems Part " + (i + 1) + ":\n>" + splits[i] + "<");
-		}
+		orders1Path = createTempFile("orders1",ORDERS1);
+		orders2Path = createTempFile("orders2", ORDERS2);
+		partJoin1Path = createTempFile("partJoin1", PART_JOIN_1);
+		partJoin2Path = createTempFile("partJoin2", PART_JOIN_2);
+		lineitemsPath = createTempFile("lineitems", LINEITEMS);
+		resultPath = getTempDirPath("result");
 	}
 
 	@Override
-	protected JobGraph getJobGraph() throws Exception {
+	protected Plan getTestJob() {
 		TPCHQuery3Unioned tpch3 = new TPCHQuery3Unioned();
-		Plan plan = tpch3.getPlan(
-				config.getString("TPCHQuery3Test#NoSubtasks", "1"), 
-				getFilesystemProvider().getURIPrefix()+orders1Path,
-				getFilesystemProvider().getURIPrefix()+orders2Path,
-				getFilesystemProvider().getURIPrefix()+partJoin1Path,
-				getFilesystemProvider().getURIPrefix()+partJoin2Path,
-				getFilesystemProvider().getURIPrefix()+lineitemsPath, 
-				getFilesystemProvider().getURIPrefix()+resultPath);
-
-		PactCompiler pc = new PactCompiler(new DataStatistics());
-		OptimizedPlan op = pc.compile(plan);
-
-		NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
-		return jgg.compileJobGraph(op);
+		return tpch3.getPlan(
+				"4",
+				orders1Path,
+				orders2Path,
+				partJoin1Path,
+				partJoin2Path,
+				lineitemsPath,
+				resultPath);
 	}
 
 	@Override
 	protected void postSubmit() throws Exception {
 		compareResultsByLinesInMemory(EXPECTED_RESULT, resultPath);
-	}
-	
-	@Override
-	public void stopCluster() throws Exception {
-		getFilesystemProvider().delete(orders1Path, true);
-		getFilesystemProvider().delete(orders2Path, true);
-		getFilesystemProvider().delete(partJoin1Path, true);
-		getFilesystemProvider().delete(partJoin2Path, true);
-		getFilesystemProvider().delete(lineitemsPath, true);
-		getFilesystemProvider().delete(resultPath, true);
-		super.stopCluster();
-	}
-	
-
-	@Parameters
-	public static Collection<Object[]> getConfigurations() {
-		ArrayList<Configuration> tConfigs = new ArrayList<Configuration>();
-		Configuration config = new Configuration();
-		config.setInteger("TPCHQuery3Test#NoSubtasks", 4);
-		tConfigs.add(config);
-		return toParameterList(tConfigs);
-	}
-
-	private String[] splitInputString(String inputString, char splitChar, int noSplits) {
-
-		String splitString = inputString.toString();
-		String[] splits = new String[noSplits];
-		int partitionSize = (splitString.length() / noSplits) - 2;
-
-		// split data file and copy parts
-		for (int i = 0; i < noSplits - 1; i++) {
-			int cutPos = splitString.indexOf(splitChar, (partitionSize < splitString.length() ? partitionSize
-				: (splitString.length() - 1)));
-			if (cutPos != -1) {
-				splits[i] = splitString.substring(0, cutPos) + "\n";
-				splitString = splitString.substring(cutPos + 1);	
-			}
-			else {
-				splits[i] = "";
-			}
-			
-		}
-		splits[noSplits - 1] = splitString;
-		return splits;
 	}
 }
