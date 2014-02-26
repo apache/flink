@@ -45,13 +45,16 @@ public class TextInputFormat extends DelimitedInputFormat {
 	
 	protected final StringValue theString = new StringValue();
 	
-	protected CharsetDecoder decoder;
 	
-	protected ByteBuffer byteWrapper;
+	// all fields below here are set in configure / open, so we do not serialze them
 	
-	protected boolean ascii;
+	protected transient CharsetDecoder decoder;
 	
-	protected int pos;
+	protected transient ByteBuffer byteWrapper;
+	
+	protected transient int pos;
+	
+	protected transient boolean ascii;
 	
 	// --------------------------------------------------------------------------------------------
 	
