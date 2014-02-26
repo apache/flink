@@ -36,7 +36,7 @@ public class AvroExternalJarProgramITCase {
 	private static final String TEST_DATA_FILE = "/testdata.avro";
 
 	static {
-		LogUtils.initializeDefaultConsoleLogger();
+		LogUtils.initializeDefaultTestConsoleLogger();
 	}
 	
 	@Test
