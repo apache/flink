@@ -262,7 +262,7 @@ public class TaskConfig {
 		try {
 			InstantiationUtil.writeObjectToConfig(wrapper, this.config, STUB_OBJECT);
 		} catch (IOException e) {
-			throw new CorruptConfigurationException("Could not write the user code wrapper " + wrapper.getClass() + " : " + e.toString());
+			throw new CorruptConfigurationException("Could not write the user code wrapper " + wrapper.getClass() + " : " + e.toString(), e);
 		}
 	}
 
@@ -271,9 +271,9 @@ public class TaskConfig {
 		try {
 			return (UserCodeWrapper<T>) InstantiationUtil.readObjectFromConfig(this.config, STUB_OBJECT, cl);
 		} catch (ClassNotFoundException e) {
-			throw new CorruptConfigurationException("Could not read the user code wrapper: " + e);
+			throw new CorruptConfigurationException("Could not read the user code wrapper: " + e.getMessage(), e);
 		} catch (IOException e) {
-			throw new CorruptConfigurationException("Could not read the user code wrapper: " + e);
+			throw new CorruptConfigurationException("Could not read the user code wrapper: " + e.getMessage(), e);
 		}
 	}
 	

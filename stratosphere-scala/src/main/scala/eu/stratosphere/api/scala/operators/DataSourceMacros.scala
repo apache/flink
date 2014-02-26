@@ -42,16 +42,23 @@ import eu.stratosphere.api.scala.codegen.MacroContextHolder
 
 trait ScalaInputFormatBase[Out] extends ScalaInputFormat[Out] { this: JavaInputFormat[_, _] =>
   protected val udt: UDT[Out]
+  
   lazy val udf: UDF0[Out] = new UDF0(udt)
   def getUDF: UDF0[Out] = udf
-  protected var serializer: UDTSerializer[Out] = _
-  protected var outputLength: Int = _
+  
+  @transient protected var serializer: UDTSerializer[Out] = _
+  @transient protected var outputLength: Int = _
 
   abstract override def configure(config: Configuration) {
     super.configure(config)
     this.outputLength = udf.getOutputLength
     this.serializer = udf.getOutputSerializer
   }
+  
+//  private def readObject(s: java.io.ObjectInputStream) = {
+//    s.defaultReadObject();
+//    this.udf = new UDF0(udt)
+//  }
 }
 
 object BinaryInputFormat {
