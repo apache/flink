@@ -23,12 +23,17 @@ import org.junit.Test;
 import eu.stratosphere.client.RemoteExecutor;
 import eu.stratosphere.client.localDistributed.LocalDistributedExecutor;
 import eu.stratosphere.test.testdata.KMeansData;
+import eu.stratosphere.util.LogUtils;
 
 // When the API changes WordCountForTest needs to be rebuilt and the WordCountForTest.jar in resources needs
 // to be replaced with the new one.
 
-public class PackagedProgramEndToEndTest {
+public class PackagedProgramEndToEndITCase {
 
+	static {
+		LogUtils.initializeDefaultTestConsoleLogger();
+	}
+	
 	@Test
 	public void testEverything() {
 		LocalDistributedExecutor lde = new LocalDistributedExecutor();

@@ -23,14 +23,12 @@ import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.fs.FileInputSplit;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;
-import eu.stratosphere.util.OperatingSystem;
 
 
 /**
  * Test the avro input format.
  * (The testcase is mostly the getting started tutorial of avro)
  * http://avro.apache.org/docs/current/gettingstartedjava.html
- * 
  */
 public class AvroRecordInputFormatTest {
 	
