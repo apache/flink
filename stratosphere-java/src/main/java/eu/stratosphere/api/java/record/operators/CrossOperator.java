@@ -33,11 +33,7 @@ import eu.stratosphere.types.Key;
  * @see CrossFunction
  */
 public class CrossOperator extends CrossOperatorBase<CrossFunction> implements RecordOperator {
-	
-	private static String DEFAULT_NAME = "<Unnamed Crosser>";
 
-	// --------------------------------------------------------------------------------------------
-	
 	/**
 	 * Creates a Builder with the provided {@link CrossFunction} implementation.
 	 * 
@@ -87,7 +83,7 @@ public class CrossOperator extends CrossOperatorBase<CrossFunction> implements R
 		private List<Operator> inputs1;
 		private List<Operator> inputs2;
 		private Map<String, Operator> broadcastInputs;
-		private String name = DEFAULT_NAME;
+		private String name;
 		
 		/**
 		 * Creates a Builder with the provided {@link CrossFunction} implementation.
@@ -182,7 +178,14 @@ public class CrossOperator extends CrossOperatorBase<CrossFunction> implements R
 		 * @return The created contract
 		 */
 		public CrossOperator build() {
+			setNameIfUnset();
 			return new CrossOperator(this);
+		}
+		
+		protected void setNameIfUnset() {
+			if (name == null) {
+				name = udf.getUserCodeClass().getName();
+			}
 		}
 	}
 }

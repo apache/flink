@@ -78,6 +78,7 @@ public class CrossWithLargeOperator extends CrossOperator implements CrossWithLa
 		 */
 		@Override
 		public CrossWithLargeOperator build() {
+			setNameIfUnset();
 			return new CrossWithLargeOperator(this);
 		}
 	}

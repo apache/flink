@@ -320,6 +320,9 @@ public class ReduceOperator extends ReduceOperatorBase<ReduceFunction> implement
 		 * @return The created contract
 		 */
 		public ReduceOperator build() {
+			if (name == null) {
+				name = udf.getUserCodeClass().getName();
+			}
 			return new ReduceOperator(this);
 		}
 	}

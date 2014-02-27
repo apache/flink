@@ -39,8 +39,6 @@ import eu.stratosphere.types.Key;
  */
 public class CoGroupOperator extends CoGroupOperatorBase<CoGroupFunction> implements RecordOperator {
 	
-	private static String DEFAULT_NAME = "<Unnamed CoGrouper>";		// the default name for contracts
-	
 	/**
 	 * The types of the keys that the contract operates on.
 	 */
@@ -66,8 +64,7 @@ public class CoGroupOperator extends CoGroupOperatorBase<CoGroupFunction> implem
 	 * @param keyColumn1 The position of the key in the first input's records.
 	 * @param keyColumn2 The position of the key in the second input's records.
 	 */
-	public static Builder builder(CoGroupFunction udf, Class<? extends Key> keyClass,
-			int keyColumn1, int keyColumn2) {
+	public static Builder builder(CoGroupFunction udf, Class<? extends Key> keyClass, int keyColumn1, int keyColumn2) {
 		return new Builder(new UserCodeObjectWrapper<CoGroupFunction>(udf), keyClass, keyColumn1, keyColumn2);
 	}
 	
@@ -80,7 +77,8 @@ public class CoGroupOperator extends CoGroupOperatorBase<CoGroupFunction> implem
 	 * @param keyColumn2 The position of the key in the second input's records.
 	 */
 	public static Builder builder(Class<? extends CoGroupFunction> udf, Class<? extends Key> keyClass,
-			int keyColumn1, int keyColumn2) {
+			int keyColumn1, int keyColumn2)
+	{
 		return new Builder(new UserCodeClassWrapper<CoGroupFunction>(udf), keyClass, keyColumn1, keyColumn2);
 	}
 	
@@ -212,9 +210,9 @@ public class CoGroupOperator extends CoGroupOperatorBase<CoGroupFunction> implem
 		private List<Operator> inputs1;
 		private List<Operator> inputs2;
 		private Map<String, Operator> broadcastInputs;
-		private Ordering secondaryOrder1 = null;
-		private Ordering secondaryOrder2 = null;
-		private String name = DEFAULT_NAME;
+		private Ordering secondaryOrder1;
+		private Ordering secondaryOrder2;
+		private String name;
 		
 		/**
 		 * Creates a Builder with the provided {@link CoGroupFunction} implementation.
@@ -392,6 +390,10 @@ public class CoGroupOperator extends CoGroupOperatorBase<CoGroupFunction> implem
 		public CoGroupOperator build() {
 			if (keyClasses.size() <= 0) {
 				throw new IllegalStateException("At least one key attribute has to be set.");
+			}
+			
+			if (name == null) {
+				name = udf.getUserCodeClass().getName();
 			}
 			return new CoGroupOperator(this);
 		}

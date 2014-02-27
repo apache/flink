@@ -155,6 +155,9 @@ public class MapOperator extends MapOperatorBase<MapFunction> implements RecordO
 		 * @return The created contract
 		 */
 		public MapOperator build() {
+			if (name == null) {
+				name = udf.getUserCodeClass().getName();
+			}
 			return new MapOperator(this);
 		}
 	}

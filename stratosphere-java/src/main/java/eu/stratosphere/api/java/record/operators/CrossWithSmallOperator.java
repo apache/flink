@@ -78,6 +78,7 @@ public class CrossWithSmallOperator extends CrossOperator implements CrossWithSm
 		 */
 		@Override
 		public CrossWithSmallOperator build() {
+			setNameIfUnset();
 			return new CrossWithSmallOperator(this);
 		}
 	}

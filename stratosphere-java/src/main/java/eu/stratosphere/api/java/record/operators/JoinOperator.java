@@ -35,8 +35,6 @@ import eu.stratosphere.types.Key;
  */
 public class JoinOperator extends JoinOperatorBase<JoinFunction> implements RecordOperator {
 	
-	private static String DEFAULT_NAME = "<Unnamed Join>";		// the default name for operations
-	
 	/**
 	 * The types of the keys that the contract operates on.
 	 */
@@ -103,7 +101,7 @@ public class JoinOperator extends JoinOperatorBase<JoinFunction> implements Reco
 		private List<Operator> inputs1;
 		private List<Operator> inputs2;
 		private Map<String, Operator> broadcastInputs;
-		private String name = DEFAULT_NAME;
+		private String name;
 		
 		
 		/**
@@ -259,6 +257,9 @@ public class JoinOperator extends JoinOperatorBase<JoinFunction> implements Reco
 		public JoinOperator build() {
 			if (keyClasses.size() <= 0) {
 				throw new IllegalStateException("At least one key attribute has to be set.");
+			}
+			if (name == null) {
+				name = udf.getUserCodeClass().getName();
 			}
 			return new JoinOperator(this);
 		}
