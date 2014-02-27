@@ -11,7 +11,7 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-package eu.stratosphere.example.java.record.kmeans;
+package eu.stratosphere.test.testPrograms;
 
 
 import eu.stratosphere.api.common.Plan;

@@ -25,11 +25,11 @@ import eu.stratosphere.api.common.operators.util.FieldList;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
 import eu.stratosphere.compiler.plan.SingleInputPlanNode;
 import eu.stratosphere.compiler.plan.SinkPlanNode;
-import eu.stratosphere.example.java.record.kmeans.KMeansSingleStep;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.test.compiler.CompilerTestBase;
+import eu.stratosphere.test.testPrograms.KMeansSingleStep;
 
 
 public class KMeansSingleStepTest extends CompilerTestBase {

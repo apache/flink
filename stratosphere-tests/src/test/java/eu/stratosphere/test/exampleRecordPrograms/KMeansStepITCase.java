@@ -17,7 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.example.java.record.kmeans.KMeansSingleStep;
+import eu.stratosphere.test.testPrograms.KMeansSingleStep;
 import eu.stratosphere.test.testdata.KMeansData;
 import eu.stratosphere.test.util.TestBase2;
 
