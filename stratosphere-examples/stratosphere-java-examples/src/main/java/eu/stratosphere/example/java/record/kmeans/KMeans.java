@@ -31,7 +31,7 @@ import eu.stratosphere.api.common.operators.FileDataSource;
 import eu.stratosphere.api.java.record.functions.MapFunction;
 import eu.stratosphere.api.java.record.functions.ReduceFunction;
 import eu.stratosphere.api.java.record.io.CsvInputFormat;
-import eu.stratosphere.api.java.record.io.DelimitedOutputFormat;
+import eu.stratosphere.api.java.record.io.FileOutputFormat;
 import eu.stratosphere.api.java.record.operators.MapOperator;
 import eu.stratosphere.api.java.record.operators.ReduceOperator;
 import eu.stratosphere.api.java.record.operators.ReduceOperator.Combinable;
@@ -50,17 +50,17 @@ public class KMeans implements Program, ProgramDescription {
 	@Override
 	public Plan getPlan(String... args) {
 		// parse job parameters
-		int numSubTasks = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
+		int degreeOfParallelism = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		String dataPointInput = (args.length > 1 ? args[1] : "");
 		String clusterInput = (args.length > 2 ? args[2] : "");
 		String output = (args.length > 3 ? args[3] : "");
 		int numIterations = (args.length > 4 ? Integer.parseInt(args[4]) : 2);
 
-		// create DataSourceContract for data point input
+		// data source data point input
 		@SuppressWarnings("unchecked")
 		FileDataSource pointsSource = new FileDataSource(new CsvInputFormat('|', IntValue.class, DoubleValue.class, DoubleValue.class, DoubleValue.class), dataPointInput, "Data Points");
 
-		// create DataSourceContract for cluster center input
+		// data source for cluster center input
 		@SuppressWarnings("unchecked")
 		FileDataSource clustersSource = new FileDataSource(new CsvInputFormat('|', IntValue.class, DoubleValue.class, DoubleValue.class, DoubleValue.class), clusterInput, "Centers");
 		
@@ -68,18 +68,20 @@ public class KMeans implements Program, ProgramDescription {
 		
 		MapOperator clusterPoints = MapOperator.builder(new PointBuilder()).name("Build cluster points").input(clustersSource).build();
 		
+		// ---------------------- Begin K-Means Loop ---------------------
+		
 		BulkIteration iter = new BulkIteration("k-means loop");
 		iter.setInput(clusterPoints);
 		iter.setMaximumNumberOfIterations(numIterations);
 
-		// create CrossOperator for distance computation
+		// compute the distances and select the closest center
 		MapOperator findNearestClusterCenters = MapOperator.builder(new SelectNearestCenter())
 			.setBroadcastVariable("centers", iter.getPartialSolution())
 			.input(dataPoints)
 			.name("Find Nearest Centers")
 			.build();
 
-		// create ReduceOperator for computing new cluster positions
+		// computing the new cluster positions
 		ReduceOperator recomputeClusterCenter = ReduceOperator.builder(new RecomputeClusterCenter(), IntValue.class, 0)
 			.input(findNearestClusterCenters)
 			.name("Recompute Center Positions")
@@ -87,12 +89,13 @@ public class KMeans implements Program, ProgramDescription {
 		
 		iter.setNextPartialSolution(recomputeClusterCenter);
 
+		// ---------------------- End K-Means Loop ---------------------
+		
 		// create DataSinkContract for writing the new cluster positions
 		FileDataSink newClusterPoints = new FileDataSink(new PointOutFormat(), output, iter, "New Center Positions");
 
-		// return the PACT plan
-		Plan plan = new Plan(newClusterPoints, "KMeans Iteration");
-		plan.setDefaultParallelism(numSubTasks);
+		Plan plan = new Plan(newClusterPoints, "K-Means");
+		plan.setDefaultParallelism(degreeOfParallelism);
 		return plan;
 	}
 
@@ -292,24 +295,20 @@ public class KMeans implements Program, ProgramDescription {
 		}
 	}
 	
-	public static final class PointOutFormat extends DelimitedOutputFormat {
+	public static final class PointOutFormat extends FileOutputFormat {
 
 		private static final long serialVersionUID = 1L;
 		
-		private static final String format = "%d|%.1f|%.1f|%.1f|";
+		private static final String format = "%d|%.1f|%.1f|%.1f|\n";
 
 		@Override
-		public int serializeRecord(Record rec, byte[] target) throws Exception {
-			int id = rec.getField(0, IntValue.class).getValue();
-			Point p = rec.getField(1, Point.class);
+		public void writeRecord(Record record) throws IOException {
+			int id = record.getField(0, IntValue.class).getValue();
+			Point p = record.getField(1, Point.class);
 			
 			byte[] bytes = String.format(format, id, p.x, p.y, p.z).getBytes();
-			if (bytes.length > target.length) {
-				return -bytes.length;
-			} else {
-				System.arraycopy(bytes, 0, target, 0, bytes.length);
-				return bytes.length;
-			}
+			
+			this.stream.write(bytes);
 		}
 	}
 }

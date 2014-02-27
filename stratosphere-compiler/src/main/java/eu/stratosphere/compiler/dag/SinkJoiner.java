@@ -68,7 +68,7 @@ public class SinkJoiner extends TwoInputNode {
 		// if the predecessors do not have branches, then we have multiple sinks that do not originate from
 		// a common data flow.
 		if (pred1branches == null || pred1branches.isEmpty() || pred2branches == null || pred2branches.isEmpty()) {
-			throw new CompilerException("The given Pact program contains multiple disconnected data flows.");
+			throw new CompilerException("The given program contains multiple disconnected data flows.");
 		}
 		
 		// copy the lists and merge
