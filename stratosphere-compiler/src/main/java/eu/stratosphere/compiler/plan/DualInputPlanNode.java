@@ -13,8 +13,10 @@
 
 package eu.stratosphere.compiler.plan;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.NoSuchElementException;
 
 import eu.stratosphere.api.common.operators.util.FieldList;
@@ -202,8 +204,8 @@ public class DualInputPlanNode extends PlanNode {
 		// get the cumulative costs of the last joined branching node
 		for (OptimizerNode joinedBrancher : this.template.getJoinedBranchers()) {
 			PlanNode lastCommonChild = this.input1.getSource().branchPlan.get(joinedBrancher);
-			Costs douleCounted = lastCommonChild.getCumulativeCosts();
-			getCumulativeCosts().subtractCosts(douleCounted);
+			Costs doubleCounted = lastCommonChild.getCumulativeCosts();
+			getCumulativeCosts().subtractCosts(doubleCounted);
 		}
 	}
 	
@@ -225,28 +227,41 @@ public class DualInputPlanNode extends PlanNode {
 
 	@Override
 	public Iterator<PlanNode> getPredecessors() {
-		return new Iterator<PlanNode>() {
-			private int hasLeft = 2;
-			@Override
-			public boolean hasNext() {
-				return this.hasLeft > 0;
+		if (getBroadcastInputs() == null || getBroadcastInputs().isEmpty()) {
+			return new Iterator<PlanNode>() {
+				private int hasLeft = 2;
+				@Override
+				public boolean hasNext() {
+					return this.hasLeft > 0;
+				}
+				@Override
+				public PlanNode next() {
+					if (this.hasLeft == 2) {
+						this.hasLeft = 1;
+						return DualInputPlanNode.this.input1.getSource();
+					} else if (this.hasLeft == 1) {
+						this.hasLeft = 0;
+						return DualInputPlanNode.this.input2.getSource();
+					} else
+						throw new NoSuchElementException();
+				}
+				@Override
+				public void remove() {
+					throw new UnsupportedOperationException();
+				}
+			};
+		} else {
+			List<PlanNode> preds = new ArrayList<PlanNode>();
+			
+			preds.add(input1.getSource());
+			preds.add(input2.getSource());
+
+			for (Channel c : getBroadcastInputs()) {
+				preds.add(c.getSource());
 			}
-			@Override
-			public PlanNode next() {
-				if (this.hasLeft == 2) {
-					this.hasLeft = 1;
-					return DualInputPlanNode.this.input1.getSource();
-				} else if (this.hasLeft == 1) {
-					this.hasLeft = 0;
-					return DualInputPlanNode.this.input2.getSource();
-				} else
-					throw new NoSuchElementException();
-			}
-			@Override
-			public void remove() {
-				throw new UnsupportedOperationException();
-			}
-		};
+			
+			return preds.iterator();
+		}
 	}
 
 

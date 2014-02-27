@@ -20,8 +20,8 @@ import eu.stratosphere.compiler.plan.PlanNode;
 /**
  *
  */
-public interface DumpableNode<T extends DumpableNode<T>>
-{
+public interface DumpableNode<T extends DumpableNode<T>> {
+	
 	/**
 	 * Gets an iterator over the predecessors.
 	 * 

@@ -35,6 +35,7 @@ import eu.stratosphere.api.java.record.io.FileOutputFormat;
 import eu.stratosphere.api.java.record.operators.MapOperator;
 import eu.stratosphere.api.java.record.operators.ReduceOperator;
 import eu.stratosphere.api.java.record.operators.ReduceOperator.Combinable;
+import eu.stratosphere.client.LocalExecutor;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.types.DoubleValue;
 import eu.stratosphere.types.IntValue;
@@ -310,5 +311,9 @@ public class KMeans implements Program, ProgramDescription {
 			
 			this.stream.write(bytes);
 		}
+	}
+	
+	public static void main(String[] args) throws Exception {
+		System.out.println(LocalExecutor.optimizerPlanAsJSON(new KMeans().getPlan("4", "/dev/random", "/dev/random", "/tmp", "20")));
 	}
 }

@@ -341,9 +341,18 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 
 
 	@Override
-	@SuppressWarnings("unchecked")
 	public Iterator<DumpableConnection<PlanNode>> getDumpableInputs() {
-		return (Iterator<DumpableConnection<PlanNode>>) (Iterator<?>) getInputs();
+		List<DumpableConnection<PlanNode>> allInputs = new ArrayList<DumpableConnection<PlanNode>>();
+		
+		for (Iterator<Channel> inputs = getInputs(); inputs.hasNext();) {
+			allInputs.add(inputs.next());
+		}
+		
+		for (NamedChannel c : getBroadcastInputs()) {
+			allInputs.add(c);
+		}
+		
+		return allInputs.iterator();
 	}
 	
 	public static enum SourceAndDamReport {

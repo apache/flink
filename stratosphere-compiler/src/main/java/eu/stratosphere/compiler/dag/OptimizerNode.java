@@ -274,23 +274,17 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 
 	@Override
 	public Iterator<OptimizerNode> getPredecessors() {
-		final Iterator<PactConnection> inputs = getIncomingConnections().iterator();
-		return new Iterator<OptimizerNode>() {
-			@Override
-			public boolean hasNext() {
-				return inputs.hasNext();
-			}
-
-			@Override
-			public OptimizerNode next() {
-				return inputs.next().getSource();
-			}
-
-			@Override
-			public void remove() {
-				throw new UnsupportedOperationException();
-			}
-		};
+		List<OptimizerNode> allPredecessors = new ArrayList<OptimizerNode>();
+		
+		for (Iterator<PactConnection> inputs = getIncomingConnections().iterator(); inputs.hasNext(); ){
+			allPredecessors.add(inputs.next().getSource());
+		}
+		
+		for (PactConnection conn : getBroadcastConnections()) {
+			allPredecessors.add(conn.getSource());
+		}
+		
+		return allPredecessors.iterator();
 	}
 	
 	/**
@@ -1222,9 +1216,13 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	}
 	
 	@Override
-	@SuppressWarnings("unchecked")
 	public Iterator<DumpableConnection<OptimizerNode>> getDumpableInputs() {
-		return (Iterator<DumpableConnection<OptimizerNode>>) (Iterator<?>) getIncomingConnections().iterator();
+		List<DumpableConnection<OptimizerNode>> allInputs = new ArrayList<DumpableConnection<OptimizerNode>>();
+		
+		allInputs.addAll(getIncomingConnections());
+		allInputs.addAll(getBroadcastConnections());
+		
+		return allInputs.iterator();
 	}
 	
 	@Override
