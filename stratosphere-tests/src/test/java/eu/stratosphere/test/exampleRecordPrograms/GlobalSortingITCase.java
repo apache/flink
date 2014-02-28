@@ -14,16 +14,8 @@
 package eu.stratosphere.test.exampleRecordPrograms;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
-import java.util.LinkedList;
 import java.util.Random;
-
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.Program;
@@ -34,104 +26,66 @@ import eu.stratosphere.api.common.operators.Order;
 import eu.stratosphere.api.common.operators.Ordering;
 import eu.stratosphere.api.java.record.io.CsvInputFormat;
 import eu.stratosphere.api.java.record.io.CsvOutputFormat;
-import eu.stratosphere.compiler.DataStatistics;
-import eu.stratosphere.compiler.PactCompiler;
-import eu.stratosphere.compiler.plan.OptimizedPlan;
-import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
-import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.test.util.TestBase;
+import eu.stratosphere.test.util.TestBase2;
 import eu.stratosphere.types.IntValue;
 
-@RunWith(Parameterized.class)
-public class GlobalSortingITCase extends TestBase {
-
-	private static final Log LOG = LogFactory.getLog(GlobalSortingITCase.class);
+public class GlobalSortingITCase extends TestBase2 {
 	
-	private String recordsPath = null;
-	private String resultPath = null;
+	private static final int NUM_RECORDS = 100000;
+	
+	private String recordsPath;
+	private String resultPath;
 
-	private ArrayList<Integer> records;
+	private String sortedRecords;
 
-	public GlobalSortingITCase(Configuration config) {
-		super(config);
-	}
 
 	@Override
 	protected void preSubmit() throws Exception {
 		
-		recordsPath = getFilesystemProvider().getTempDirPath() + "/records";
-		resultPath = getFilesystemProvider().getTempDirPath() + "/result";
-		
-		records = new ArrayList<Integer>();
+		ArrayList<Integer> records = new ArrayList<Integer>();
 		
 		//Generate records
 		Random rnd = new Random(1988);
-		int numRecordsPerSplit = 1000;
 		
-		getFilesystemProvider().createDir(recordsPath);
-		int numSplits = 4;
-		for (int i = 0; i < numSplits; i++) {
-			StringBuilder sb = new StringBuilder(numSplits*2);
-			for (int j = 0; j < numRecordsPerSplit; j++) {
-				int number = rnd.nextInt();
-				records.add(number);
-				sb.append(number);
-				sb.append('\n');
-			}
-			getFilesystemProvider().createFile(recordsPath + "/part_" + i + ".txt", sb.toString());
+		StringBuilder sb = new StringBuilder(NUM_RECORDS * 7);
+		
+		for (int i = 0; i < NUM_RECORDS; i++) {
+			int number = rnd.nextInt();
 			
-			if (LOG.isDebugEnabled())
-				LOG.debug("Records Part " + (i + 1) + ":\n>" + sb.toString() + "<");
+			records.add(number);
+			
+			sb.append(number);
+			sb.append('\n');
 		}
-
+		
+		recordsPath = createTempFile("records", sb.toString());
+		resultPath = getTempDirPath("result");
+		
+		
+		// create the expected sorted result
+		Collections.sort(records);
+		sb.setLength(0);
+		
+		for (Integer i : records) {
+			sb.append(i.intValue());
+			sb.append('\n');
+		}
+		
+		this.sortedRecords = sb.toString();
 	}
 
 	@Override
-	protected JobGraph getJobGraph() throws Exception {
-
+	protected Plan getTestJob() {
 		GlobalSort globalSort = new GlobalSort();
-		Plan plan = globalSort.getPlan(
-				config.getString("GlobalSortingTest#NoSubtasks", "1"), 
-				getFilesystemProvider().getURIPrefix()+recordsPath,
-				getFilesystemProvider().getURIPrefix()+resultPath);
-
-		PactCompiler pc = new PactCompiler(new DataStatistics());
-		OptimizedPlan op = pc.compile(plan);
-
-		NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
-		return jgg.compileJobGraph(op);
+		return globalSort.getPlan("4", recordsPath, resultPath);
 	}
 
 	@Override
 	protected void postSubmit() throws Exception {
-		//Construct expected result
-		Collections.sort(this.records);
-		
 		// Test results
-		compareResultsByLinesInMemoryStrictOrder(this.records, this.resultPath);
-
+		compareResultsByLinesInMemoryWithStrictOrder(this.sortedRecords, this.resultPath);
 	}
 	
-	@Override
-	public void stopCluster() throws Exception {
-		getFilesystemProvider().delete(recordsPath, true);
-		getFilesystemProvider().delete(resultPath, true);
-		super.stopCluster();
-	}
-	
-
-	@Parameters
-	public static Collection<Object[]> getConfigurations() {
-
-		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
-
-		Configuration config = new Configuration();
-		config.setInteger("GlobalSortingTest#NoSubtasks", 4);
-		tConfigs.add(config);
-
-		return toParameterList(tConfigs);
-	}
 	
 	private static class GlobalSort implements Program {
 		

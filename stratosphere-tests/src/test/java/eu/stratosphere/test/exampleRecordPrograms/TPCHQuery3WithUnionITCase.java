@@ -13,30 +13,11 @@
 
 package eu.stratosphere.test.exampleRecordPrograms;
 
-import java.util.ArrayList;
-import java.util.Collection;
-
-import eu.stratosphere.test.util.TestBase2;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
-
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.compiler.DataStatistics;
-import eu.stratosphere.compiler.PactCompiler;
-import eu.stratosphere.compiler.plan.OptimizedPlan;
-import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
-import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.test.testPrograms.tpch3Unioned.TPCHQuery3Unioned;
-import eu.stratosphere.test.util.TestBase;
+import eu.stratosphere.test.util.TestBase2;
 
 public class TPCHQuery3WithUnionITCase extends TestBase2 {
-
-	private static final Log LOG = LogFactory.getLog(TPCHQuery3WithUnionITCase.class);
 	
 	private String orders1Path = null;
 	private String orders2Path = null;
@@ -45,7 +26,7 @@ public class TPCHQuery3WithUnionITCase extends TestBase2 {
 	private String lineitemsPath = null;
 	private String resultPath = null;
 
-	private final String ORDERS1 = "1|36901|O|173665.47|1996-01-02|5-LOW|Clerk#000000951|0|nstructions sleep furiously among |\n"
+	private static final String ORDERS1 = "1|36901|O|173665.47|1996-01-02|5-LOW|Clerk#000000951|0|nstructions sleep furiously among |\n"
 		+ "2|78002|O|46929.18|1996-12-01|1-URGENT|Clerk#000000880|0| foxes. pending accounts at the pending, silent asymptot|\n"
 		+ "3|123314|F|193846.25|1993-10-14|5-LOW|Clerk#000000955|0|sly final accounts boost. carefully regular ideas cajole carefully. depos|\n"
 		+ "4|136777|O|32151.78|1995-10-11|5-LOW|Clerk#000000124|0|sits. slyly regular warthogs cajole. regular, regular theodolites acro|\n"
@@ -54,7 +35,7 @@ public class TPCHQuery3WithUnionITCase extends TestBase2 {
 		+ "7|39136|O|252004.18|1996-01-10|2-HIGH|Clerk#000000470|0|ly special requests |\n"
 		+ "32|130057|O|208660.75|1995-07-16|2-HIGH|Clerk#000000616|0|ise blithely bold, regular requests. quickly unusual dep|\n";
 	
-	private final String ORDERS2 = "33|66958|F|163243.98|1993-10-27|3-MEDIUM|Clerk#000000409|0|uriously. furiously final request|\n"
+	private static final String ORDERS2 = "33|66958|F|163243.98|1993-10-27|3-MEDIUM|Clerk#000000409|0|uriously. furiously final request|\n"
 		+ "34|61001|O|58949.67|1998-07-21|3-MEDIUM|Clerk#000000223|0|ly final packages. fluffily final deposits wake blithely ideas. spe|\n"
 		+ "35|127588|O|253724.56|1995-10-23|4-NOT SPECIFIED|Clerk#000000259|0|zzle. carefully enticing deposits nag furio|\n"
 		+ "36|115252|O|68289.96|1995-11-03|1-URGENT|Clerk#000000358|0| quick packages are blithely. slyly silent accounts wake qu|\n"
@@ -65,7 +46,7 @@ public class TPCHQuery3WithUnionITCase extends TestBase2 {
 		+ "65|16252|P|110643.60|1995-03-18|1-URGENT|Clerk#000000632|0|ular requests are blithely pending orbits-- even requests against the deposit|\n"
 		+ "66|129200|F|103740.67|1994-01-20|5-LOW|Clerk#000000743|0|y pending requests integrate|\n";
 
-	String LINEITEMS = "1|155190|7706|1|17|21168.23|0.04|0.02|N|O|1996-03-13|1996-02-12|1996-03-22|DELIVER IN PERSON|TRUCK|egular courts above the|\n"
+	private static final String LINEITEMS = "1|155190|7706|1|17|21168.23|0.04|0.02|N|O|1996-03-13|1996-02-12|1996-03-22|DELIVER IN PERSON|TRUCK|egular courts above the|\n"
 		+ "1|67310|7311|2|36|45983.16|0.09|0.06|N|O|1996-04-12|1996-02-28|1996-04-20|TAKE BACK RETURN|MAIL|ly final dependencies: slyly bold |\n"
 		+ "1|63700|3701|3|8|13309.60|0.10|0.02|N|O|1996-01-29|1996-03-05|1996-01-31|TAKE BACK RETURN|REG AIR|riously. regular, express dep|\n"
 		+ "1|2132|4633|4|28|28955.64|0.09|0.06|N|O|1996-04-21|1996-03-30|1996-05-16|NONE|AIR|lites. fluffily even de|\n"
@@ -130,15 +111,15 @@ public class TPCHQuery3WithUnionITCase extends TestBase2 {
 		+ "67|178306|824|6|29|40144.70|0.02|0.05|N|O|1997-01-25|1997-01-27|1997-01-27|DELIVER IN PERSON|FOB|ultipliers |\n";
 
 	
-	private final String PART_JOIN_1 = "5|0|50723.92|\n";
+	private static final String PART_JOIN_1 = "5|0|50723.92|\n";
 	
-	private final String PART_JOIN_2 = "5|0|23678.55|\n" +
+	private static final String PART_JOIN_2 = "5|0|23678.55|\n" +
 										"66|0|64061.68|\n" +
 										"66|0|35126.41|\n";
 										
 	
 	
-	String EXPECTED_RESULT = "5|0|147828.97\n" + "66|0|99188.09\n";
+	private static final String EXPECTED_RESULT = "5|0|147828.97\n" + "66|0|99188.09\n";
 
 
 	@Override

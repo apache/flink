@@ -15,57 +15,33 @@ package eu.stratosphere.test.exampleRecordPrograms;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
+import java.net.URI;
 
 import org.junit.Assert;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.compiler.DataStatistics;
-import eu.stratosphere.compiler.PactCompiler;
-import eu.stratosphere.compiler.plan.OptimizedPlan;
-import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
-import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.example.java.record.sort.TeraSort;
-import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.test.util.TestBase;
+import eu.stratosphere.test.util.TestBase2;
 
-@RunWith(Parameterized.class)
-public class TeraSortITCase extends TestBase {
+
+public class TeraSortITCase extends TestBase2 {
 	
 	private static final String INPUT_DATA_FILE = "/testdata/terainput.txt";
 	
 	private String resultPath;
 	
-	public TeraSortITCase(Configuration config) {
-		super(config);
-	}
 
 	@Override
 	protected void preSubmit() throws Exception {
-		resultPath = getFilesystemProvider().getTempDirPath() + "/result";
+		resultPath = getTempDirPath("result");
 	}
 
 	@Override
-	protected JobGraph getJobGraph() throws Exception {
-		URL fileURL = getClass().getResource(INPUT_DATA_FILE);
-		String inPath = "file://" + fileURL.getPath();
-			
+	protected Plan getTestJob() {
+		String testDataPath = getClass().getResource(INPUT_DATA_FILE).toString();
+		
 		TeraSort ts = new TeraSort();
-		Plan plan = ts.getPlan(this.config.getString("TeraSortITCase#NoSubtasks", "1"),
-			inPath, getFilesystemProvider().getURIPrefix() + resultPath);
-
-		PactCompiler pc = new PactCompiler(new DataStatistics());
-		OptimizedPlan op = pc.compile(plan);
-
-		NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
-		return jgg.compileJobGraph(op);
-
+		return ts.getPlan("4", testDataPath, resultPath);
 	}
 
 	@Override
@@ -76,7 +52,7 @@ public class TeraSortITCase extends TestBase {
 			previous[i] = -128;
 		}
 		
-		File parent = new File(this.resultPath);
+		File parent = new File(new URI(resultPath).getPath());
 		int num = 1;
 		while (true) {
 			File next = new File(parent, String.valueOf(num));
@@ -109,18 +85,5 @@ public class TeraSortITCase extends TestBase {
 		if (num == 1) {
 			Assert.fail("Empty result, nothing checked for Job!");
 		}
-		
-		getFilesystemProvider().delete(resultPath, true);
-	}
-
-	@Parameters
-	public static Collection<Object[]> getConfigurations() {
-		final List<Configuration> tConfigs = new ArrayList<Configuration>();
-
-		Configuration config = new Configuration();
-		config.setInteger("TeraSortITCase#NoSubtasks", 4);
-		tConfigs.add(config);
-
-		return toParameterList(tConfigs);
 	}
 }

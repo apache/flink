@@ -21,10 +21,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.PriorityQueue;
@@ -43,7 +41,6 @@ import org.junit.Test;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.test.util.TestBase2;
 import eu.stratosphere.test.util.filesystem.FilesystemProvider;
 import eu.stratosphere.test.util.minicluster.ClusterProvider;
 import eu.stratosphere.test.util.minicluster.ClusterProviderPool;
@@ -208,54 +205,6 @@ public abstract class TestBase {
 		};
 		
 		this.compareResultsByLinesInMemory(expectedResultStr, resultPath, defaultStrComp);
-	}
-	
-	protected <T> void compareResultsByLinesInMemoryStrictOrder(List<T> result, String resultPath) throws Exception
-	{
-		final ArrayList<String> resultFiles = new ArrayList<String>();
-
-		// Determine all result files
-		if (getFilesystemProvider().isDir(resultPath)) {
-			final String[] files = getFilesystemProvider().listFiles(resultPath);
-			final Comparator<String> fileNameComp = new Comparator<String>() {
-				@Override
-				public int compare(String o1, String o2) {
-					if (o1.length() < o2.length())
-						return -1;
-					else if (o1.length() > o2.length())
-						return 1;
-					else return o1.compareTo(o2);
-				}
-			};
-			Arrays.sort(files, fileNameComp);
-			
-			for (String file : files) {
-				if (!getFilesystemProvider().isDir(file)) {
-					resultFiles.add(resultPath+"/"+file);
-				}
-			}
-		} else {
-			resultFiles.add(resultPath);
-		}
-		
-		final Iterator<T> expectedLines = result.iterator();
-		
-		for (String resultFile : resultFiles) {
-			// read each result file
-			final InputStream is = getFilesystemProvider().getInputStream(resultFile);
-			final BufferedReader reader = new BufferedReader(new InputStreamReader(is));
-
-			// collect lines
-			String line = null;
-			while ((line = reader.readLine()) != null) {
-				Assert.assertTrue("More lines in result than expected lines.", expectedLines.hasNext());
-				String nextExpected = expectedLines.next().toString();
-				Assert.assertEquals("Expected result and obtained result do not match.", nextExpected, line);
-			}
-			reader.close();
-		}
-		
-		Assert.assertFalse("More expected lines than obtained lines.", expectedLines.hasNext());
 	}
 	
 	/**

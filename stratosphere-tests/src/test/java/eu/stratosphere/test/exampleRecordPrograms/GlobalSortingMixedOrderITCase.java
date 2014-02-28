@@ -17,16 +17,8 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
-import java.util.LinkedList;
 import java.util.Random;
-
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.Program;
@@ -37,109 +29,69 @@ import eu.stratosphere.api.common.operators.Order;
 import eu.stratosphere.api.common.operators.Ordering;
 import eu.stratosphere.api.java.record.io.CsvInputFormat;
 import eu.stratosphere.api.java.record.io.CsvOutputFormat;
-import eu.stratosphere.compiler.DataStatistics;
-import eu.stratosphere.compiler.PactCompiler;
-import eu.stratosphere.compiler.plan.OptimizedPlan;
-import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
-import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.test.util.TestBase;
-import eu.stratosphere.types.Key;
+import eu.stratosphere.test.util.TestBase2;
 import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Key;
 
-@RunWith(Parameterized.class)
-public class GlobalSortingMixedOrderITCase extends TestBase {
-
-	private static final Log LOG = LogFactory.getLog(GlobalSortingMixedOrderITCase.class);
+public class GlobalSortingMixedOrderITCase extends TestBase2 {
+	
+	private static final int NUM_RECORDS = 100000;
 	
 	private static final int RANGE_I1 = 100;
 	private static final int RANGE_I2 = 20;
 	private static final int RANGE_I3 = 20;
 	
-	private String recordsPath = null;
-	private String resultPath = null;
+	private String recordsPath;
+	private String resultPath;
 
-	private ArrayList<TripleInt> records;
+	private String sortedRecords;
 
-	public GlobalSortingMixedOrderITCase(Configuration config) {
-		super(config);
-	}
+
 
 	@Override
 	protected void preSubmit() throws Exception {
 		
-		this.recordsPath = getFilesystemProvider().getTempDirPath() + "/records";
-		this.resultPath = getFilesystemProvider().getTempDirPath() + "/result";
-		
-		this.records = new ArrayList<TripleInt>();
+		ArrayList<TripleInt> records = new ArrayList<TripleInt>();
 		
 		//Generate records
 		final Random rnd = new Random(1988);
-		final int numRecordsPerSplit = 1000;
+		final StringBuilder sb = new StringBuilder(NUM_RECORDS * 7);
 		
-		getFilesystemProvider().createDir(this.recordsPath);
 		
-		final int numSplits = 4;
-		for (int i = 0; i < numSplits; i++) {
-			StringBuilder sb = new StringBuilder(numSplits*2);
-			for (int j = 0; j < numRecordsPerSplit; j++) {
-				final TripleInt val = new TripleInt(rnd.nextInt(RANGE_I1), rnd.nextInt(RANGE_I2), rnd.nextInt(RANGE_I3));
-				this.records.add(val);
-				sb.append(val);
-				sb.append('\n');
-			}
-			getFilesystemProvider().createFile(recordsPath + "/part_" + i + ".txt", sb.toString());
-			
-			if (LOG.isDebugEnabled())
-				LOG.debug("Records Part " + (i + 1) + ":\n>" + sb.toString() + "<");
+		for (int j = 0; j < NUM_RECORDS; j++) {
+			TripleInt val = new TripleInt(rnd.nextInt(RANGE_I1), rnd.nextInt(RANGE_I2), rnd.nextInt(RANGE_I3));
+			records.add(val);
+			sb.append(val);
+			sb.append('\n');
 		}
+		
+		
+		this.recordsPath = createTempFile("records", sb.toString());
+		this.resultPath = getTempDirPath("result");
 
+		// create the sorted result;
+		Collections.sort(records);
+		
+		sb.setLength(0);
+		for (TripleInt val : records) {
+			sb.append(val);
+			sb.append('\n');
+		}
+		this.sortedRecords = sb.toString();
 	}
 
 	@Override
-	protected JobGraph getJobGraph() throws Exception {
-
+	protected Plan getTestJob() {
 		GlobalSort globalSort = new GlobalSort();
-		Plan plan = globalSort.getPlan(
-				config.getString("GlobalSortingTest#NoSubtasks", "1"), 
-				getFilesystemProvider().getURIPrefix()+recordsPath,
-				getFilesystemProvider().getURIPrefix()+resultPath);
-
-		PactCompiler pc = new PactCompiler(new DataStatistics());
-		OptimizedPlan op = pc.compile(plan);
-
-		NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
-		return jgg.compileJobGraph(op);
+		return globalSort.getPlan("4", recordsPath, resultPath);
 	}
 
 	@Override
 	protected void postSubmit() throws Exception {
-		//Construct expected result
-		Collections.sort(this.records);
-		
 		// Test results
-		compareResultsByLinesInMemoryStrictOrder(this.records, this.resultPath);
+		compareResultsByLinesInMemoryWithStrictOrder(this.sortedRecords, this.resultPath);
 	}
 	
-	@Override
-	public void stopCluster() throws Exception {
-		getFilesystemProvider().delete(recordsPath, true);
-		getFilesystemProvider().delete(resultPath, true);
-		super.stopCluster();
-	}
-	
-
-	@Parameters
-	public static Collection<Object[]> getConfigurations() {
-
-		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
-
-		Configuration config = new Configuration();
-		config.setInteger("GlobalSortingTest#NoSubtasks", 4);
-		tConfigs.add(config);
-
-		return toParameterList(tConfigs);
-	}
 	
 	public static class TripleIntDistribution implements DataDistribution {
 		
@@ -227,27 +179,15 @@ public class GlobalSortingMixedOrderITCase extends TestBase {
 	/**
 	 * Three integers sorting descending, ascending, descending.
 	 */
-	static final class TripleInt implements Comparable<TripleInt>
-	{
+	private static final class TripleInt implements Comparable<TripleInt> {
+		
 		private final int i1, i2, i3;
 
 		
-		TripleInt(int i1, int i2, int i3) {
+		private TripleInt(int i1, int i2, int i3) {
 			this.i1 = i1;
 			this.i2 = i2;
 			this.i3 = i3;
-		}
-
-		public int getI1() {
-			return i1;
-		}
-
-		public int getI2() {
-			return i2;
-		}
-
-		public int getI3() {
-			return i3;
 		}
 		
 		@Override
@@ -266,7 +206,6 @@ public class GlobalSortingMixedOrderITCase extends TestBase {
 			return this.i1 < o.i1 ? 1 : this.i1 > o.i1 ? -1 :
 				this.i2 < o.i2 ? -1 : this.i2 > o.i2 ? 1 :
 				this.i3 < o.i3 ? 1 : this.i3 > o.i3 ? -1 : 0;
-			
 		}
 	}
 }
