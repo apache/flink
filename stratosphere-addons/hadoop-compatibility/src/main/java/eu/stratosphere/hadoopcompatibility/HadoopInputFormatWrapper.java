@@ -52,11 +52,7 @@ public class HadoopInputFormatWrapper<K, V> implements InputFormat<Record, Hadoo
 		this.hadoopInputFormat = hadoopInputFormat;
 		this.hadoopInputFormatName = hadoopInputFormat.getClass().getName();
 		this.converter = conv;
-		// merge hadoopConf into jobConf. This is necessary for the hdfs configuration
-		org.apache.hadoop.conf.Configuration hadoopConf = DistributedFileSystem.getHadoopConfiguration();
-		for (Entry<String, String> e : hadoopConf) {
-			job.set(e.getKey(), e.getValue());
-	    }
+		HadoopConfiguration.mergeHadoopConf(job);
 		this.jobConf = job;
 	}
 
