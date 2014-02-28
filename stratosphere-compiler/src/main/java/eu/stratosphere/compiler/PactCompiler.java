@@ -30,13 +30,13 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.operators.BulkIteration;
+import eu.stratosphere.api.common.operators.BulkIteration.PartialSolutionPlaceHolder;
+import eu.stratosphere.api.common.operators.DeltaIteration;
+import eu.stratosphere.api.common.operators.DeltaIteration.SolutionSetPlaceHolder;
+import eu.stratosphere.api.common.operators.DeltaIteration.WorksetPlaceHolder;
 import eu.stratosphere.api.common.operators.GenericDataSink;
 import eu.stratosphere.api.common.operators.GenericDataSource;
 import eu.stratosphere.api.common.operators.Operator;
-import eu.stratosphere.api.common.operators.DeltaIteration;
-import eu.stratosphere.api.common.operators.BulkIteration.PartialSolutionPlaceHolder;
-import eu.stratosphere.api.common.operators.DeltaIteration.SolutionSetPlaceHolder;
-import eu.stratosphere.api.common.operators.DeltaIteration.WorksetPlaceHolder;
 import eu.stratosphere.api.common.operators.base.CoGroupOperatorBase;
 import eu.stratosphere.api.common.operators.base.CrossOperatorBase;
 import eu.stratosphere.api.common.operators.base.JoinOperatorBase;
@@ -61,6 +61,7 @@ import eu.stratosphere.compiler.dag.SolutionSetNode;
 import eu.stratosphere.compiler.dag.TempMode;
 import eu.stratosphere.compiler.dag.WorksetIterationNode;
 import eu.stratosphere.compiler.dag.WorksetNode;
+import eu.stratosphere.compiler.deadlockdetect.DeadlockPreventer;
 import eu.stratosphere.compiler.plan.BinaryUnionPlanNode;
 import eu.stratosphere.compiler.plan.BulkIterationPlanNode;
 import eu.stratosphere.compiler.plan.BulkPartialSolutionPlanNode;
@@ -719,6 +720,9 @@ public class PactCompiler {
 		} else if (bestPlanRoot instanceof SinkJoinerPlanNode) {
 			((SinkJoinerPlanNode) bestPlanRoot).getDataSinks(bestPlanSinks);
 		}
+		
+		DeadlockPreventer dp = new DeadlockPreventer();
+		dp.resolveDeadlocks(bestPlanSinks);
 
 		// finalize the plan
 		OptimizedPlan plan = new PlanFinalizer().createFinalPlan(bestPlanSinks, program.getJobName(), program, memoryPerInstance);

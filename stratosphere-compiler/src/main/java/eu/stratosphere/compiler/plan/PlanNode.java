@@ -52,7 +52,7 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 	
 	private final String nodeName; 
 	
-	private final DriverStrategy driverStrategy;	// The local strategy (sorting / hashing, ...)
+	private DriverStrategy driverStrategy;	// The local strategy (sorting / hashing, ...)
 	
 	protected LocalProperties localProps; 			// local properties of the data produced by this node
 
@@ -181,6 +181,15 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 	 */
 	public DriverStrategy getDriverStrategy() {
 		return this.driverStrategy;
+	}
+	
+	/**
+	 * Sets the driver strategy for this node. Usually should not be changed.
+	 * 
+	 * @return The driver strategy.
+	 */
+	public void setDriverStrategy(DriverStrategy newDriverStrategy) {
+		this.driverStrategy = newDriverStrategy;
 	}
 	
 	public void initProperties(GlobalProperties globals, LocalProperties locals) {
