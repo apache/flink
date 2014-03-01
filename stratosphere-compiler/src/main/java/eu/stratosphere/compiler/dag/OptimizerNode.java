@@ -51,7 +51,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	//                                      Members
 	// --------------------------------------------------------------------------------------------
 
-	private final Operator pactContract; // The contract (Reduce / Match / DataSource / ...)
+	private final Operator pactContract; // The operator (Reduce / Join / DataSource / ...)
 	
 	private List<String> broadcastConnectionNames = new ArrayList<String>(); // the broadcast inputs names of this node
 	
@@ -68,7 +68,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	protected Set<OptimizerNode> closedBranchingNodes; 	// stack of branching nodes which have already been closed
 	
 	protected List<OptimizerNode> hereJoinedBranchers;	// the branching nodes (node with multiple outputs)
-														// that both children share and that are at least partially joined
+														// that at least two children share and that are at least partially joined
 
 	// ---------------------------- Estimates and Annotations -------------------------------------
 	
@@ -221,6 +221,23 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 * no matter if there have been more branches to different paths in the meantime.
 	 */
 	public abstract void computeUnclosedBranchStack();
+	
+	
+	protected List<UnclosedBranchDescriptor> computeUnclosedBranchStackForBroadcastInputs(List<UnclosedBranchDescriptor> branchesSoFar) {
+		// handle the data flow branching for the broadcast inputs
+		for (PactConnection broadcastInput : getBroadcastConnections()) {
+			OptimizerNode bcSource = broadcastInput.getSource();
+			addClosedBranches(bcSource.closedBranchingNodes);
+			
+			List<UnclosedBranchDescriptor> bcBranches = bcSource.getBranchesForParent(broadcastInput);
+			
+			ArrayList<UnclosedBranchDescriptor> mergedBranches = new ArrayList<UnclosedBranchDescriptor>();
+			mergeLists(branchesSoFar, bcBranches, mergedBranches);
+			branchesSoFar = mergedBranches.isEmpty() ? Collections.<UnclosedBranchDescriptor>emptyList() : mergedBranches;
+		}
+		
+		return branchesSoFar;
+	}
 
 	/**
 	 * Computes the plan alternatives for this node, an implicitly for all nodes that are children of

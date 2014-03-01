@@ -1,0 +1,52 @@
+/***********************************************************************************************************************
+ * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ **********************************************************************************************************************/
+
+package eu.stratosphere.test.iterative;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import eu.stratosphere.api.common.Plan;
+import eu.stratosphere.example.java.record.kmeans.KMeansTutorialExample;
+import eu.stratosphere.test.testdata.KMeansData;
+import eu.stratosphere.test.util.TestBase2;
+
+
+public class KMeansTutorialExampleITCase extends TestBase2 {
+
+	protected String dataPath;
+	protected String clusterPath;
+	protected String resultPath;
+	
+	@Override
+	protected void preSubmit() throws Exception {
+		dataPath = createTempFile("datapoints.txt", KMeansData.DATAPOINTS_2D);
+		clusterPath = createTempFile("initial_centers.txt", KMeansData.INITIAL_CENTERS_2D);
+		resultPath = getTempDirPath("result");
+	}
+	
+	@Override
+	protected Plan getTestJob() {
+		KMeansTutorialExample kmi = new KMeansTutorialExample();
+		return kmi.getPlan("4", dataPath, clusterPath, resultPath, "1");
+	}
+
+
+	@Override
+	protected void postSubmit() throws Exception {
+		List<String> resultLines = new ArrayList<String>();
+		readAllResultLines(resultLines, resultPath + "/" + KMeansTutorialExample.CENTERS_RESULT_SUBDIRECTORY);
+		
+		KMeansData.checkResultsWithDelta(KMeansData.CENTERS_2D_AFTER_20_ITERATIONS_DOUBLE_DIGIT, resultLines, 0.02);
+	}
+}

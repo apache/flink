@@ -80,7 +80,7 @@ public class SinkJoiner extends TwoInputNode {
 		
 //		if (!didCloseSomeBranch) {
 //			// if the sink joiners do not close branches, then we have disjoint data flows.
-//			throw new CompilerException("The given Pact program contains multiple disconnected data flows.");
+//			throw new CompilerException("The given program contains multiple disconnected data flows.");
 //		}
 		
 		this.openBranches = result.isEmpty() ? Collections.<UnclosedBranchDescriptor>emptyList() : result;

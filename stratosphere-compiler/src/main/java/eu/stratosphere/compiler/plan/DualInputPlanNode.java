@@ -13,8 +13,11 @@
 
 package eu.stratosphere.compiler.plan;
 
+import static eu.stratosphere.compiler.plan.PlanNode.SourceAndDamReport.FOUND_SOURCE;
+import static eu.stratosphere.compiler.plan.PlanNode.SourceAndDamReport.FOUND_SOURCE_AND_DAM;
+import static eu.stratosphere.compiler.plan.PlanNode.SourceAndDamReport.NOT_FOUND;
+
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -22,17 +25,13 @@ import java.util.NoSuchElementException;
 import eu.stratosphere.api.common.operators.util.FieldList;
 import eu.stratosphere.api.common.typeutils.TypeComparatorFactory;
 import eu.stratosphere.api.common.typeutils.TypePairComparatorFactory;
-import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.costs.Costs;
 import eu.stratosphere.compiler.dag.OptimizerNode;
 import eu.stratosphere.compiler.dag.TwoInputNode;
-import eu.stratosphere.compiler.dag.OptimizerNode.UnclosedBranchDescriptor;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DamBehavior;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.util.Visitor;
-
-import static eu.stratosphere.compiler.plan.PlanNode.SourceAndDamReport.*;
 
 /**
  *
@@ -84,41 +83,7 @@ public class DualInputPlanNode extends PlanNode {
 			this.input2.setReplicationFactor(getDegreeOfParallelism());
 		}
 		
-		mergeBranchPlanMaps();
-	}
-	
-	private void mergeBranchPlanMaps() {
-		// merge the branchPlan maps according the the template's uncloseBranchesStack
-		if (this.template.hasUnclosedBranches()) {
-			if (this.branchPlan == null) {
-				this.branchPlan = new HashMap<OptimizerNode, PlanNode>(8);
-			}
-			
-			final PlanNode pred1 = this.input1.getSource();
-			final PlanNode pred2 = this.input2.getSource();
-	
-			for (UnclosedBranchDescriptor uc : this.template.getOpenBranches()) {
-				OptimizerNode brancher = uc.getBranchingNode();
-				PlanNode selectedCandidate = null;
-	
-				if (pred1.branchPlan != null) {
-					// predecessor 1 has branching children, see if it got the branch we are looking for
-					selectedCandidate = pred1.branchPlan.get(brancher);
-					this.branchPlan.put(brancher, selectedCandidate);
-				}
-				
-				if (selectedCandidate == null && pred2.branchPlan != null) {
-					// predecessor 2 has branching children, see if it got the branch we are looking for
-					selectedCandidate = pred2.branchPlan.get(brancher);
-					this.branchPlan.put(brancher, selectedCandidate);
-				}
-	
-				if (selectedCandidate == null) {
-					throw new CompilerException(
-						"Candidates for a node with open branches are missing information about the selected candidate ");
-				}
-			}
-		}
+		mergeBranchPlanMaps(input1.getSource(), input2.getSource());
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -217,9 +182,11 @@ public class DualInputPlanNode extends PlanNode {
 		if (visitor.preVisit(this)) {
 			this.input1.getSource().accept(visitor);
 			this.input2.getSource().accept(visitor);
-			for (Channel broadcastInput : this.broadcastInputs) {
+			
+			for (Channel broadcastInput : getBroadcastInputs()) {
 				broadcastInput.getSource().accept(visitor);
 			}
+			
 			visitor.postVisit(this);
 		}
 	}
@@ -302,25 +269,39 @@ public class DualInputPlanNode extends PlanNode {
 		SourceAndDamReport res1 = this.input1.getSource().hasDamOnPathDownTo(source);
 		if (res1 == FOUND_SOURCE_AND_DAM) {
 			return FOUND_SOURCE_AND_DAM;
-		} else if (res1 == FOUND_SOURCE) {
+		}
+		else if (res1 == FOUND_SOURCE) {
 			if (this.input1.getLocalStrategy().dams() || this.input1.getTempMode().breaksPipeline() ||
 					getDriverStrategy().firstDam() == DamBehavior.FULL_DAM) {
 				return FOUND_SOURCE_AND_DAM;
 			} else {
 				return FOUND_SOURCE;
 			}
-		} else {
+		}
+		else {
 			SourceAndDamReport res2 = this.input2.getSource().hasDamOnPathDownTo(source);
 			if (res2 == FOUND_SOURCE_AND_DAM) {
 				return FOUND_SOURCE_AND_DAM;
-			} else if (res2 == FOUND_SOURCE) {
+			}
+			else if (res2 == FOUND_SOURCE) {
 				if (this.input2.getLocalStrategy().dams() || this.input2.getTempMode().breaksPipeline() ||
 						getDriverStrategy().secondDam() == DamBehavior.FULL_DAM) {
 					return FOUND_SOURCE_AND_DAM;
 				} else {
 					return FOUND_SOURCE;
 				}
-			} else {
+			}
+			else {
+				// NOT_FOUND
+				// check the broadcast inputs
+				
+				for (NamedChannel nc : getBroadcastInputs()) {
+					SourceAndDamReport bcRes = nc.getSource().hasDamOnPathDownTo(source);
+					if (bcRes != NOT_FOUND) {
+						// broadcast inputs are always dams
+						return FOUND_SOURCE_AND_DAM;
+					}
+				}
 				return NOT_FOUND;
 			}
 		}

@@ -386,6 +386,16 @@ public abstract class SingleInputNode extends OptimizerNode {
 			List<PlanNode> target, CostEstimator estimator, RequestedGlobalProperties globPropsReq, RequestedLocalProperties locPropsReq)
 	{
 		for (List<NamedChannel> broadcastChannelsCombination: Sets.cartesianProduct(broadcastPlanChannels)) {
+			// check whether the broadcast inputs use the same plan candidate at the branching point
+			for (NamedChannel nc : broadcastChannelsCombination) {
+				PlanNode bcSource = nc.getSource();
+				PlanNode inputSource = in.getSource();
+				
+				if (!areBranchCompatible(bcSource, inputSource)) {
+					return;
+				}
+			}
+			
 			final SingleInputPlanNode node = dps.instantiate(in, this);
 			node.setBroadcastInputs(broadcastChannelsCombination);
 			
@@ -417,7 +427,12 @@ public abstract class SingleInputNode extends OptimizerNode {
 		}
 
 		addClosedBranches(getPredecessorNode().closedBranchingNodes);
-		this.openBranches = getPredecessorNode().getBranchesForParent(this.inConn);
+		List<UnclosedBranchDescriptor> fromInput = getPredecessorNode().getBranchesForParent(this.inConn);
+		
+		// handle the data flow branching for the broadcast inputs
+		List<UnclosedBranchDescriptor> result = computeUnclosedBranchStackForBroadcastInputs(fromInput);
+		
+		this.openBranches = (result == null || result.isEmpty()) ? Collections.<UnclosedBranchDescriptor>emptyList() : result;
 	}
 	
 	// --------------------------------------------------------------------------------------------

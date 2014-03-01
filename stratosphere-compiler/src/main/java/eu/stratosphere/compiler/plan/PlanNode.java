@@ -25,6 +25,7 @@ import eu.stratosphere.api.common.operators.util.FieldSet;
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.costs.Costs;
 import eu.stratosphere.compiler.dag.OptimizerNode;
+import eu.stratosphere.compiler.dag.OptimizerNode.UnclosedBranchDescriptor;
 import eu.stratosphere.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.compiler.plandump.DumpableConnection;
@@ -47,7 +48,7 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 	
 	protected final List<Channel> outChannels;
 	
-	protected List<NamedChannel> broadcastInputs;
+	private List<NamedChannel> broadcastInputs;
 	
 	private final String nodeName; 
 	
@@ -81,6 +82,41 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 		if (template.isBranching()) {
 			this.branchPlan = new HashMap<OptimizerNode, PlanNode>(6);
 			this.branchPlan.put(template, this);
+		}
+	}
+	
+	protected void mergeBranchPlanMaps(PlanNode pred1, PlanNode pred2) {
+		mergeBranchPlanMaps(pred1.branchPlan, pred2.branchPlan);
+	}
+	
+	protected void mergeBranchPlanMaps(Map<OptimizerNode, PlanNode> branchPlan1, Map<OptimizerNode, PlanNode> branchPlan2) {
+		// merge the branchPlan maps according the the template's uncloseBranchesStack
+		if (this.template.hasUnclosedBranches()) {
+			if (this.branchPlan == null) {
+				this.branchPlan = new HashMap<OptimizerNode, PlanNode>(8);
+			}
+	
+			for (UnclosedBranchDescriptor uc : this.template.getOpenBranches()) {
+				OptimizerNode brancher = uc.getBranchingNode();
+				PlanNode selectedCandidate = null;
+	
+				if (branchPlan1 != null) {
+					// predecessor 1 has branching children, see if it got the branch we are looking for
+					selectedCandidate = branchPlan1.get(brancher);
+				}
+				
+				if (selectedCandidate == null && branchPlan2 != null) {
+					// predecessor 2 has branching children, see if it got the branch we are looking for
+					selectedCandidate = branchPlan2.get(brancher);
+				}
+	
+				if (selectedCandidate == null) {
+					throw new CompilerException(
+						"Candidates for a node with open branches are missing information about the selected candidate ");
+				}
+				
+				this.branchPlan.put(brancher, selectedCandidate);
+			}
 		}
 	}
 	
@@ -242,6 +278,13 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 			return;
 		}
 		this.broadcastInputs = broadcastInputs;
+		
+		// update the branch map
+		for (NamedChannel nc : broadcastInputs) {
+			PlanNode source = nc.getSource();
+			
+			mergeBranchPlanMaps(branchPlan, source.branchPlan);
+		}
 	}
 	
 	/**

@@ -554,6 +554,17 @@ public abstract class TwoInputNode extends OptimizerNode {
 			RequestedLocalProperties locPropsReq1, RequestedLocalProperties locPropsReq2)
 	{
 		for (List<NamedChannel> broadcastChannelsCombination: Sets.cartesianProduct(broadcastPlanChannels)) {
+			// check whether the broadcast inputs use the same plan candidate at the branching point
+			for (NamedChannel nc : broadcastChannelsCombination) {
+				PlanNode bcSource = nc.getSource();
+				PlanNode inputSource1 = in1.getSource();
+				PlanNode inputSource2 = in2.getSource();
+				
+				if (!(areBranchCompatible(bcSource, inputSource1) || areBranchCompatible(bcSource, inputSource2))) {
+					return;
+				}
+			}
+			
 			placePipelineBreakersIfNecessary(operator.getStrategy(), in1, in2);
 			
 			DualInputPlanNode node = operator.instantiate(in1, in2, this);
@@ -582,7 +593,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 			boolean someDamOnRightPaths = false;
 			boolean damOnAllRightPaths = true;
 			
-			if (strategy.firstDam() == DamBehavior.FULL_DAM || in1.getLocalStrategy().dams()) {
+			if (strategy.firstDam() == DamBehavior.FULL_DAM || in1.getLocalStrategy().dams() || in1.getTempMode().breaksPipeline()) {
 				someDamOnLeftPaths = true;
 			} else {
 				for (OptimizerNode brancher : this.hereJoinedBranchers) {
@@ -600,7 +611,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 				}
 			}
 			
-			if (strategy.secondDam() == DamBehavior.FULL_DAM || in2.getLocalStrategy().dams()) {
+			if (strategy.secondDam() == DamBehavior.FULL_DAM || in2.getLocalStrategy().dams() || in2.getTempMode().breaksPipeline()) {
 				someDamOnRightPaths = true;
 			} else {
 				for (OptimizerNode brancher : this.hereJoinedBranchers) {
@@ -652,15 +663,20 @@ public abstract class TwoInputNode extends OptimizerNode {
 			return;
 		}
 
+		// handle the data flow branching for the regular inputs
 		addClosedBranches(getFirstPredecessorNode().closedBranchingNodes);
 		addClosedBranches(getSecondPredecessorNode().closedBranchingNodes);
 		
 		List<UnclosedBranchDescriptor> result1 = getFirstPredecessorNode().getBranchesForParent(getFirstIncomingConnection());
 		List<UnclosedBranchDescriptor> result2 = getSecondPredecessorNode().getBranchesForParent(getSecondIncomingConnection());
 
-		ArrayList<UnclosedBranchDescriptor> result = new ArrayList<UnclosedBranchDescriptor>();
-		mergeLists(result1, result2, result);
-		this.openBranches = result.isEmpty() ? Collections.<UnclosedBranchDescriptor>emptyList() : result;
+		ArrayList<UnclosedBranchDescriptor> inputsMerged = new ArrayList<UnclosedBranchDescriptor>();
+		mergeLists(result1, result2, inputsMerged);
+		
+		// handle the data flow branching for the broadcast inputs
+		List<UnclosedBranchDescriptor> result = computeUnclosedBranchStackForBroadcastInputs(inputsMerged);
+		
+		this.openBranches = (result == null || result.isEmpty()) ? Collections.<UnclosedBranchDescriptor>emptyList() : result;
 	}
 
 	// --------------------------------------------------------------------------------------------
