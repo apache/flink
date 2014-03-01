@@ -269,6 +269,10 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 				if (startPos >= 0) {
 					field += (skipCnt - 1);
 				}
+				else if (lenient) {
+					// no valid line, but we go on
+					return false;
+				}
 				else {
 					String lineAsString = new String(bytes, offset, numBytes);
 					throw new ParseException("Line could not be parsed: " + lineAsString);
