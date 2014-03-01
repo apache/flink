@@ -47,7 +47,7 @@ public abstract class Operator implements Visitable<Operator> {
 	 * @param name The name that is used to describe the contract.
 	 */
 	protected Operator(String name) {
-		this.name = name;
+		this.name = (name == null) ? "(null)" : name;
 		this.parameters = new Configuration();
 		this.compilerHints = new CompilerHints();
 	}

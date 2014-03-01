@@ -13,14 +13,14 @@
 
 package eu.stratosphere.api.common.operators;
 
+import com.google.common.base.Preconditions;
+
 import eu.stratosphere.api.common.io.FileInputFormat;
 
 /**
  * Operator for input nodes which read data from files.
  */
 public class FileDataSource extends GenericDataSource<FileInputFormat<?>> {
-	
-	private static String DEFAULT_NAME = "<Unnamed File Data Source>";
 	
 	protected final String filePath;
 
@@ -35,6 +35,9 @@ public class FileDataSource extends GenericDataSource<FileInputFormat<?>> {
 	 */
 	public FileDataSource(FileInputFormat<?> f, String filePath, String name) {
 		super(f, name);
+		
+		Preconditions.checkNotNull(filePath, "The file path may not be null.");
+		
 		this.filePath = filePath;
 		f.setFilePath(filePath);
 	}
@@ -46,7 +49,7 @@ public class FileDataSource extends GenericDataSource<FileInputFormat<?>> {
 	 * @param filePath The file location. The file path must be a fully qualified URI, including the address schema.
 	 */
 	public FileDataSource(FileInputFormat<?> f, String filePath) {
-		this(f, filePath, DEFAULT_NAME);
+		this(f, Preconditions.checkNotNull(filePath, "The file path may not be null."), filePath);
 	}
 	
 	/**
@@ -58,6 +61,9 @@ public class FileDataSource extends GenericDataSource<FileInputFormat<?>> {
 	 */
 	public FileDataSource(Class<? extends FileInputFormat<?>> f, String filePath, String name) {
 		super(f, name);
+		
+		Preconditions.checkNotNull(filePath, "The file path may not be null.");
+		
 		this.filePath = filePath;
 		FileInputFormat.configureFileFormat(this).filePath(filePath);
 	}
@@ -69,7 +75,7 @@ public class FileDataSource extends GenericDataSource<FileInputFormat<?>> {
 	 * @param filePath The file location. The file path must be a fully qualified URI, including the address schema.
 	 */
 	public FileDataSource(Class<? extends FileInputFormat<?>> f, String filePath) {
-		this(f, filePath, DEFAULT_NAME);
+		this(f, Preconditions.checkNotNull(filePath, "The file path may not be null."), filePath);
 	}
 
 	// --------------------------------------------------------------------------------------------
