@@ -166,7 +166,7 @@
 		</fileSet>
 
 		<fileSet>
-			<!-- copy jar files of examples -->
+			<!-- copy jar files of scala examples -->
 			<directory>../stratosphere-examples/stratosphere-scala-examples/target</directory>
 			<outputDirectory>examples</outputDirectory>
 			<fileMode>0644</fileMode>
@@ -177,6 +177,20 @@
 				<exclude>stratosphere-scala-examples-${project.version}.jar</exclude>
 				<exclude>stratosphere-scala-examples-${project.version}-sources.jar</exclude>
 			</excludes>
+		</fileSet>
+
+		<fileSet>
+			<!-- copy java examples src -->
+			<directory>../stratosphere-examples/stratosphere-java-examples/src/main/java/eu/stratosphere/example/java/record</directory>
+			<outputDirectory>examples/java-src/</outputDirectory>
+			<fileMode>0644</fileMode>
+		</fileSet>
+
+		<fileSet>
+			<!-- copy scala examples src -->
+			<directory>../stratosphere-examples/stratosphere-scala-examples/src/main/scala/eu/stratosphere/examples/scala</directory>
+			<outputDirectory>examples/scala-src/</outputDirectory>
+			<fileMode>0644</fileMode>
 		</fileSet>
 
 	</fileSets>
