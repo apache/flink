@@ -101,13 +101,9 @@ public class KMeansTutorialExample implements Program, ProgramDescription {
 		// run one additional points-to-centers assignment, to have the points tagged with the final centers they belong to
 		// create DataSourceContract for data point input
 		
-		FileDataSource finalPointsSource = new FileDataSource(new CsvInputFormat('|', IntValue.class, DoubleValue.class, DoubleValue.class, DoubleValue.class), dataPointInput, "Data Points2");
-		
-		MapOperator finalPoints = MapOperator.builder(new PointBuilder()).name("Build data points").input(finalPointsSource).build();
-		
 		MapOperator findNearestFinalCluster = MapOperator.builder(new SelectNearestCenter())
 			.setBroadcastVariable("centers", iter)
-			.input(finalPoints)
+			.input(dataPoints)
 			.name("Tag points with final centroid")
 			.build();
 

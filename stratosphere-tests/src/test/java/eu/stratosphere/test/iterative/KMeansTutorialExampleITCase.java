@@ -38,7 +38,7 @@ public class KMeansTutorialExampleITCase extends TestBase2 {
 	@Override
 	protected Plan getTestJob() {
 		KMeansTutorialExample kmi = new KMeansTutorialExample();
-		return kmi.getPlan("4", dataPath, clusterPath, resultPath, "1");
+		return kmi.getPlan("4", dataPath, clusterPath, resultPath, "20");
 	}
 
 
