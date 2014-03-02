@@ -19,4 +19,4 @@ bin=`cd "$bin"; pwd`
 
 . "$bin"/config.sh
 
-$STRATOSPHERE_BIN_DIR/webclient.sh stop
+"$STRATOSPHERE_BIN_DIR"/webclient.sh stop

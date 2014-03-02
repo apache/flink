@@ -25,13 +25,13 @@ if [ "$HOSTLIST" = "" ]; then
     HOSTLIST="${STRATOSPHERE_CONF_DIR}/slaves"
 fi
 
-if [ ! -f $HOSTLIST ]; then
+if [ ! -f "$HOSTLIST" ]; then
     echo $HOSTLIST is not a valid slave list
     exit 1
 fi
 
 # cluster mode, stop the job manager locally and stop the task manager on every slave host
-$STRATOSPHERE_BIN_DIR/jobmanager.sh stop
+"$STRATOSPHERE_BIN_DIR"/jobmanager.sh stop
 
 GOON=true
 while $GOON

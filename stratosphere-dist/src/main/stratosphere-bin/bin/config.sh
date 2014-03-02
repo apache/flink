@@ -48,7 +48,7 @@ readFromConfig() {
     
     # first extract the value with the given key (1st sed), then trim the result (2nd sed)
     # if a key exists multiple times, take the "last" one (tail)
-    local value=`sed -n "s/^[ ]*${key}[ ]*: \([^#]*\).*$/\1/p" ${configFile} | sed "s/^ *//;s/ *$//" | tail -n 1`
+    local value=`sed -n "s/^[ ]*${key}[ ]*: \([^#]*\).*$/\1/p" "${configFile}" | sed "s/^ *//;s/ *$//" | tail -n 1`
     
     [ -z "$value" ] && echo "$defaultValue" || echo "$value"
 }
@@ -110,7 +110,7 @@ STRATOSPHERE_LIB_DIR=$STRATOSPHERE_ROOT_DIR/lib
 # These need to be mangled because they are directly passed to java.
 # The above lib path is used by the shell script to retrieve jars in a 
 # directory, so it needs to be unmangled.
-STRATOSPHERE_ROOT_DIR_MANGLED=`manglePath $STRATOSPHERE_ROOT_DIR`
+STRATOSPHERE_ROOT_DIR_MANGLED=`manglePath "$STRATOSPHERE_ROOT_DIR"`
 STRATOSPHERE_CONF_DIR=$STRATOSPHERE_ROOT_DIR_MANGLED/conf
 STRATOSPHERE_BIN_DIR=$STRATOSPHERE_ROOT_DIR_MANGLED/bin
 STRATOSPHERE_LOG_DIR=$STRATOSPHERE_ROOT_DIR_MANGLED/log
@@ -121,7 +121,7 @@ YAML_CONF=${STRATOSPHERE_CONF_DIR}/stratosphere-conf.yaml
 ########################################################################################################################
 
 # read JAVA_HOME from config with no default value
-MY_JAVA_HOME=$(readFromConfig ${KEY_ENV_JAVA_HOME} "" ${YAML_CONF})  
+MY_JAVA_HOME=$(readFromConfig ${KEY_ENV_JAVA_HOME} "" "${YAML_CONF}")  
 # check if config specified JAVA_HOME
 if [ -z "${MY_JAVA_HOME}" ]; then
     # config did not specify JAVA_HOME. Use system JAVA_HOME
@@ -153,28 +153,28 @@ fi
 
 # Define STRATOSPHERE_JM_HEAP if it is not already set
 if [ -z "${STRATOSPHERE_JM_HEAP}" ]; then
-    STRATOSPHERE_JM_HEAP=$(readFromConfig ${KEY_JOBM_HEAP_MB} ${DEFAULT_JOBM_HEAP_MB} ${YAML_CONF})
+    STRATOSPHERE_JM_HEAP=$(readFromConfig ${KEY_JOBM_HEAP_MB} ${DEFAULT_JOBM_HEAP_MB} "${YAML_CONF}")
 fi
 
 # Define STRATOSPHERE_TM_HEAP if it is not already set
 if [ -z "${STRATOSPHERE_TM_HEAP}" ]; then
-    STRATOSPHERE_TM_HEAP=$(readFromConfig ${KEY_TASKM_HEAP_MB} ${DEFAULT_TASKM_HEAP_MB} ${YAML_CONF})
+    STRATOSPHERE_TM_HEAP=$(readFromConfig ${KEY_TASKM_HEAP_MB} ${DEFAULT_TASKM_HEAP_MB} "${YAML_CONF}")
 fi
 
 if [ -z "${MAX_LOG_FILE_NUMBER}" ]; then
-    MAX_LOG_FILE_NUMBER=$(readFromConfig ${KEY_ENV_LOG_MAX} ${DEFAULT_ENV_LOG_MAX} ${YAML_CONF})
+    MAX_LOG_FILE_NUMBER=$(readFromConfig ${KEY_ENV_LOG_MAX} ${DEFAULT_ENV_LOG_MAX} "${YAML_CONF}")
 fi
 
 if [ -z "${STRATOSPHERE_PID_DIR}" ]; then
-    STRATOSPHERE_PID_DIR=$(readFromConfig ${KEY_ENV_PID_DIR} "${DEFAULT_ENV_PID_DIR}" ${YAML_CONF})
+    STRATOSPHERE_PID_DIR=$(readFromConfig ${KEY_ENV_PID_DIR} "${DEFAULT_ENV_PID_DIR}" "${YAML_CONF}")
 fi
 
 if [ -z "${STRATOSPHERE_OPTS}" ]; then
-    STRATOSPHERE_OPTS=$(readFromConfig ${KEY_ENV_JAVA_OPTS} "${DEFAULT_ENV_JAVA_OPTS}" ${YAML_CONF})
+    STRATOSPHERE_OPTS=$(readFromConfig ${KEY_ENV_JAVA_OPTS} "${DEFAULT_ENV_JAVA_OPTS}" "${YAML_CONF}")
 fi
 
 if [ -z "${STRATOSPHERE_SSH_OPTS}" ]; then
-    STRATOSPHERE_OPTS=$(readFromConfig ${KEY_ENV_SSH_OPTS} "${DEFAULT_ENV_SSH_OPTS}" ${YAML_CONF})
+    STRATOSPHERE_OPTS=$(readFromConfig ${KEY_ENV_SSH_OPTS} "${DEFAULT_ENV_SSH_OPTS}" "${YAML_CONF}")
 fi
 
 # Arguments for the JVM. Used for job and task manager JVMs.

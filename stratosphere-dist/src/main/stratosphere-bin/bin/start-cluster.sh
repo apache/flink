@@ -25,13 +25,13 @@ if [ "$HOSTLIST" = "" ]; then
     HOSTLIST="${STRATOSPHERE_CONF_DIR}/slaves"
 fi
 
-if [ ! -f $HOSTLIST ]; then
+if [ ! -f "$HOSTLIST" ]; then
     echo $HOSTLIST is not a valid slave list
     exit 1
 fi
 
 # cluster mode, bring up job manager locally and a task manager on every slave host
-$STRATOSPHERE_BIN_DIR/jobmanager.sh start cluster
+"$STRATOSPHERE_BIN_DIR"/jobmanager.sh start cluster
 
 GOON=true
 while $GOON
@@ -41,4 +41,4 @@ do
         HOST=$( extractHostName $line)
         ssh -n $STRATOSPHERE_SSH_OPTS $HOST -- "nohup /bin/bash $STRATOSPHERE_BIN_DIR/taskmanager.sh start &"
     fi
-done < $HOSTLIST
+done < "$HOSTLIST"

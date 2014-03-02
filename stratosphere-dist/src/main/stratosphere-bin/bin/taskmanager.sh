@@ -29,7 +29,7 @@ fi
 # Stratosphere TaskManager
 constructTaskManagerClassPath() {
 
-    for jarfile in $STRATOSPHERE_LIB_DIR/*.jar ; do
+    for jarfile in "$STRATOSPHERE_LIB_DIR"/*.jar ; do
         if [[ $STRATOSPHERE_TM_CLASSPATH = "" ]]; then
             STRATOSPHERE_TM_CLASSPATH=$jarfile;
         else
@@ -40,12 +40,12 @@ constructTaskManagerClassPath() {
     echo $STRATOSPHERE_TM_CLASSPATH
 }
 
-STRATOSPHERE_TM_CLASSPATH=`manglePathList $(constructTaskManagerClassPath)`
+STRATOSPHERE_TM_CLASSPATH=`manglePathList "$(constructTaskManagerClassPath)"`
 
 log=$STRATOSPHERE_LOG_DIR/stratosphere-$STRATOSPHERE_IDENT_STRING-taskmanager-$HOSTNAME.log
 out=$STRATOSPHERE_LOG_DIR/stratosphere-$STRATOSPHERE_IDENT_STRING-taskmanager-$HOSTNAME.out
 pid=$STRATOSPHERE_PID_DIR/stratosphere-$STRATOSPHERE_IDENT_STRING-taskmanager.pid
-log_setting="-Dlog.file="$log" -Dlog4j.configuration=file:"$STRATOSPHERE_CONF_DIR"/log4j.properties"
+log_setting=(-Dlog.file="$log" -Dlog4j.configuration=file:"$STRATOSPHERE_CONF_DIR"/log4j.properties)
 
 JVM_ARGS="$JVM_ARGS -XX:+UseParNewGC -XX:NewRatio=8 -XX:PretenureSizeThreshold=64m -Xms"$STRATOSPHERE_TM_HEAP"m -Xmx"$STRATOSPHERE_TM_HEAP"m"
 
@@ -65,7 +65,7 @@ case $STARTSTOP in
         rotateLogFile $out
 
         echo Starting task manager on host $HOSTNAME
-        $JAVA_RUN $JVM_ARGS $STRATOSPHERE_OPTS $log_setting -classpath $STRATOSPHERE_TM_CLASSPATH eu.stratosphere.nephele.taskmanager.TaskManager -configDir $STRATOSPHERE_CONF_DIR > "$out" 2>&1 < /dev/null &
+        $JAVA_RUN $JVM_ARGS $STRATOSPHERE_OPTS "${log_setting[@]}" -classpath "$STRATOSPHERE_TM_CLASSPATH" eu.stratosphere.nephele.taskmanager.TaskManager -configDir "$STRATOSPHERE_CONF_DIR" > "$out" 2>&1 < /dev/null &
         echo $! > $pid
     ;;
 

@@ -20,4 +20,4 @@ bin=`cd "$bin"; pwd`
 . "$bin"/config.sh
 
 # local mode, only bring up job manager. The job manager will start an internal task manager
-$STRATOSPHERE_BIN_DIR/jobmanager.sh start local
+"$STRATOSPHERE_BIN_DIR"/jobmanager.sh start local

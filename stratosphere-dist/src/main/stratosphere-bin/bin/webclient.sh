@@ -33,7 +33,7 @@ JVM_ARGS="$JVM_ARGS -Xmx512m"
 # auxilliary function to construct the classpath for the webclient
 constructWebclientClassPath() {
 
-	for jarfile in $STRATOSPHERE_LIB_DIR/*.jar ; do
+	for jarfile in "$STRATOSPHERE_LIB_DIR"/*.jar ; do
 		if [[ $STRATOSPHERE_WEBCLIENT_CLASSPATH = "" ]]; then
 			STRATOSPHERE_WEBCLIENT_CLASSPATH=$jarfile;
 		else
@@ -41,19 +41,19 @@ constructWebclientClassPath() {
 		fi
 	done
 	
-	for jarfile in $STRATOSPHERE_LIB_CLIENTS_DIR/*.jar ; do
+	for jarfile in "$STRATOSPHERE_LIB_CLIENTS_DIR"/*.jar ; do
 		STRATOSPHERE_WEBCLIENT_CLASSPATH=$STRATOSPHERE_WEBCLIENT_CLASSPATH:$jarfile
 	done
 
 	echo $STRATOSPHERE_WEBCLIENT_CLASSPATH
 }
 
-STRATOSPHERE_WEBCLIENT_CLASSPATH=`manglePathList $(constructWebclientClassPath)`
+STRATOSPHERE_WEBCLIENT_CLASSPATH=`manglePathList "$(constructWebclientClassPath)"`
 
 log=$STRATOSPHERE_LOG_DIR/stratosphere-$STRATOSPHERE_IDENT_STRING-webclient-$HOSTNAME.log
 out=$STRATOSPHERE_LOG_DIR/stratosphere-$STRATOSPHERE_IDENT_STRING-webclient-$HOSTNAME.out
 pid=$STRATOSPHERE_PID_DIR/stratosphere-$STRATOSPHERE_IDENT_STRING-webclient.pid
-log_setting="-Dlog.file="$log" -Dlog4j.configuration=file:"$STRATOSPHERE_CONF_DIR"/log4j.properties"
+log_setting=(-Dlog.file="$log" -Dlog4j.configuration=file:"$STRATOSPHERE_CONF_DIR"/log4j.properties)
 
 case $STARTSTOP in
 
@@ -66,7 +66,7 @@ case $STARTSTOP in
                         fi
                 fi
                 echo Starting Stratosphere webclient
-		$JAVA_RUN $JVM_ARGS $log_setting -classpath $STRATOSPHERE_WEBCLIENT_CLASSPATH eu.stratosphere.client.WebFrontend -configDir $STRATOSPHERE_CONF_DIR > "$out" 2>&1 < /dev/null &
+		$JAVA_RUN $JVM_ARGS "${log_setting[@]}" -classpath "$STRATOSPHERE_WEBCLIENT_CLASSPATH" eu.stratosphere.client.WebFrontend -configDir "$STRATOSPHERE_CONF_DIR" > "$out" 2>&1 < /dev/null &
 		echo $! > $pid
 	;;
 

@@ -26,7 +26,7 @@ fi
 # auxilliary function to construct the classpath for the swt visualization component
 constructVisualizationClassPath() {
 
-    for jarfile in $STRATOSPHERE_LIB_DIR/*.jar ; do
+    for jarfile in "$STRATOSPHERE_LIB_DIR"/*.jar ; do
         if [[ $STRATOSPHERE_VS_CLASSPATH = "" ]]; then
             STRATOSPHERE_VS_CLASSPATH=$jarfile;
         else
@@ -38,8 +38,8 @@ constructVisualizationClassPath() {
 }
 
 log=$STRATOSPHERE_LOG_DIR/stratosphere-$STRATOSPHERE_IDENT_STRING-visualization-$HOSTNAME.log
-log_setting="-Dlog.file="$log" -Dlog4j.configuration=file://"$STRATOSPHERE_CONF_DIR"/log4j.properties"
+log_setting=(-Dlog.file="$log" -Dlog4j.configuration=file://"$STRATOSPHERE_CONF_DIR"/log4j.properties)
 
-STRATOSPHERE_VS_CLASSPATH=$(constructVisualizationClassPath)
+STRATOSPHERE_VS_CLASSPATH="$(constructVisualizationClassPath)"
 
-$JAVA_RUN $JVM_ARGS $STRATOSPHERE_OPTS $log_setting -classpath $STRATOSPHERE_VS_CLASSPATH eu.stratosphere.addons.visualization.swt.SWTVisualization -configDir $STRATOSPHERE_CONF_DIR
+$JAVA_RUN $JVM_ARGS $STRATOSPHERE_OPTS "${log_setting[@]}" -classpath "$STRATOSPHERE_VS_CLASSPATH" eu.stratosphere.addons.visualization.swt.SWTVisualization -configDir "$STRATOSPHERE_CONF_DIR"

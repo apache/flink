@@ -20,4 +20,4 @@ bin=`cd "$bin"; pwd`
 . "$bin"/config.sh
 
 # stop local job manager (has an internal task manager)
-$STRATOSPHERE_BIN_DIR/jobmanager.sh stop
+"$STRATOSPHERE_BIN_DIR"/jobmanager.sh stop
