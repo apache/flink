@@ -38,7 +38,7 @@ mvn -DskipTests clean package # this will take up to 5 minutes
 Stratosphere is now installed in `stratosphere-dist/target`
 If you’re a Debian/Ubuntu user, you’ll find a .deb package. We will continue with the generic case.
 
-	cd stratosphere-dist/target/stratosphere-dist-0.4-SNAPSHOT-bin/stratosphere-0.4-SNAPSHOT/
+	cd stratosphere-dist/target/stratosphere-dist-0.5-SNAPSHOT-bin/stratosphere-0.5-SNAPSHOT/
 
 The directory structure here looks like the contents of the official release distribution.
 
@@ -81,7 +81,7 @@ Get some test data:
 
 Start the job:
 
-	./bin/stratosphere run --jarfile ./examples/java-record-api-examples-0.4-SNAPSHOT-WordCount.jar --arguments 1 file://`pwd`/hamlet.txt file://`pwd`/wordcount-result.txt
+	./bin/stratosphere run --jarfile ./examples/stratosphere-java-examples-0.5-SNAPSHOT-WordCount.jar --arguments 1 file://`pwd`/hamlet.txt file://`pwd`/wordcount-result.txt
 
 You will find a file called `wordcount-result.txt` in your current directory.
 
@@ -94,7 +94,7 @@ You will find a file called `wordcount-result.txt` in your current directory.
 Get some test data:
 	 wget -O ~/hamlet.txt http://www.gutenberg.org/cache/epub/1787/pg1787.txt
 
-* Point your browser to to http://localhost:8080/launch.html. Upload the WordCount.jar using the upload form in the lower right box. The jar is located in `./examples/java-record-api-examples-0.4-SNAPSHOT-WordCount.jar`.
+* Point your browser to to http://localhost:8080/launch.html. Upload the WordCount.jar using the upload form in the lower right box. The jar is located in `./examples/stratosphere-java-examples-0.5-SNAPSHOT-WordCount.jar`.
 * Select the WordCount jar from the list of available jars (upper left).
 * Enter the argument line in the lower-left box: `1 file://<path to>/hamlet.txt file://<wherever you want the>/wordcount-result.txt`
 
@@ -157,6 +157,7 @@ Some of our colleagues are also in the #dima irc channel on freenode.
 ## Documentation
 
 The [Documentation Website](http://stratosphere.eu/docs/0.4/) has comprehensive documentation for users and contributors.
+The [0.5 version documentation page](http://stratosphere.eu/docs/0.5/) describe new features and changes in 0.5 version.
 The [GitHub Wiki](https://github.com/stratosphere/stratosphere/wiki/_pages) has a collection of topics that are in the process of being fleshed out.
 
 Please make edits to the Wiki if you find inconsistencies or [Open an issue](https://github.com/stratosphere/stratosphere/issues/new) 
