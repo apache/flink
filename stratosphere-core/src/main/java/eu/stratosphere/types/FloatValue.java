@@ -26,7 +26,7 @@ import eu.stratosphere.core.memory.DataOutputView;
  * 
  * @see eu.stratosphere.types.Key
  */
-public class FloatValue implements Key, CopyableValue<FloatValue> {
+public class FloatValue implements Key, ResettableValue<FloatValue>, CopyableValue<FloatValue> {
 	private static final long serialVersionUID = 1L;
 
 	private float value;
@@ -66,6 +66,11 @@ public class FloatValue implements Key, CopyableValue<FloatValue> {
 	public void setValue(float value) {
 		this.value = value;
 	}
+
+    @Override
+    public void setValue(FloatValue value) {
+        this.value = value.value;
+    }
 
 	// --------------------------------------------------------------------------------------------
 	

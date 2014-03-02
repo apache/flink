@@ -21,6 +21,7 @@ import java.nio.CharBuffer;
 import eu.stratosphere.core.memory.DataInputView;
 import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.core.memory.MemorySegment;
+import org.apache.commons.lang3.Validate;
 
 /**
  * Mutable string data type that implements the Key interface.
@@ -36,7 +37,8 @@ import eu.stratosphere.core.memory.MemorySegment;
  * @see java.lang.String
  * @see java.lang.CharSequence
  */
-public class StringValue implements Key, NormalizableKey, CharSequence, CopyableValue<StringValue>, Appendable {
+public class StringValue implements Key, NormalizableKey, CharSequence, ResettableValue<StringValue>, 
+        CopyableValue<StringValue>, Appendable {
 	private static final long serialVersionUID = 1L;
 	
 	private static final char[] EMPTY_STRING = new char[0];
@@ -137,17 +139,8 @@ public class StringValue implements Key, NormalizableKey, CharSequence, Copyable
 	 * @param value The new string value.
 	 */
 	public void setValue(CharSequence value) {
-		if (value == null)
-			throw new NullPointerException("Value must not be null");
-		
-		final int len = value.length(); 
-		ensureSize(len);
-		
-		for (int i = 0; i < len; i++) {
-			this.value[i] = value.charAt(i);
-		}
-		this.len = len;
-		this.hashCode = 0;
+        Validate.notNull(value);
+        setValue(value, 0, value.length());
 	}
 	
 	/**
@@ -155,14 +148,10 @@ public class StringValue implements Key, NormalizableKey, CharSequence, Copyable
 	 * 
 	 * @param value The new string value.
 	 */
+    @Override
 	public void setValue(StringValue value) {
-		if (value == null)
-			throw new NullPointerException("Value must not be null");
-
-		ensureSize(value.len);
-		this.len = value.len;
-		System.arraycopy(value.value, 0, this.value, 0, value.len);
-		this.hashCode = 0;
+        Validate.notNull(value);
+		setValue(value.value, 0, value.len);
 	}
 
 	/**
@@ -173,16 +162,8 @@ public class StringValue implements Key, NormalizableKey, CharSequence, Copyable
 	 * @param len The length of the substring.
 	 */
 	public void setValue(StringValue value, int offset, int len) {
-		if (value == null)
-			throw new NullPointerException();
-		
-		if (offset < 0 || len < 0 || offset > value.len - len)
-			throw new IndexOutOfBoundsException("offset: " + offset + " len: " + len + " value.len: " + value.len);
-
-		ensureSize(len);
-		this.len = len;
-		System.arraycopy(value.value, offset, this.value, 0, len);
-		this.hashCode = 0;
+        Validate.notNull(value);
+		setValue(value.value, offset, len);
 	}
 	
 	/**
@@ -193,11 +174,9 @@ public class StringValue implements Key, NormalizableKey, CharSequence, Copyable
 	 * @param len The length of the substring.
 	 */
 	public void setValue(CharSequence value, int offset, int len) {
-		if (value == null)
-			throw new NullPointerException();
-		
+        Validate.notNull(value);
 		if (offset < 0 || len < 0 || offset > value.length() - len)
-			throw new IndexOutOfBoundsException();
+            throw new IndexOutOfBoundsException("offset: " + offset + " len: " + len + " value.len: " + len);
 
 		ensureSize(len);
 		this.len = len;		
@@ -215,6 +194,7 @@ public class StringValue implements Key, NormalizableKey, CharSequence, Copyable
 	 * @param buffer The character buffer to read the characters from.
 	 */
 	public void setValue(CharBuffer buffer) {
+        Validate.notNull(buffer);
 		final int len = buffer.length();
 		ensureSize(len);
 		buffer.get(this.value, 0, len);
@@ -230,9 +210,7 @@ public class StringValue implements Key, NormalizableKey, CharSequence, Copyable
 	 * @param len The length of the substring.
 	 */
 	public void setValue(char[] chars, int offset, int len) {
-		if (chars == null)
-			throw new NullPointerException();
-
+        Validate.notNull(chars);
 		if (offset < 0 || len < 0 || offset > chars.length - len)
 			throw new IndexOutOfBoundsException();
 

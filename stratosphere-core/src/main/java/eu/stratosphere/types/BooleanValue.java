@@ -27,7 +27,7 @@ import java.io.IOException;
  * 
  * @see eu.stratosphere.types.Key
  */
-public class BooleanValue implements NormalizableKey, CopyableValue<BooleanValue> {
+public class BooleanValue implements NormalizableKey, ResettableValue<BooleanValue>, CopyableValue<BooleanValue> {
 	
 	private static final long serialVersionUID = 1L;
 	
@@ -61,6 +61,11 @@ public class BooleanValue implements NormalizableKey, CopyableValue<BooleanValue
 	public void setValue(boolean value) {
 		this.value = value;
 	}
+
+    @Override
+    public void setValue(BooleanValue value) {
+        this.value = value.value;
+    }
 	
 	// --------------------------------------------------------------------------------------------
 

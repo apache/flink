@@ -26,7 +26,7 @@ import eu.stratosphere.core.memory.DataOutputView;
  * 
  * @see eu.stratosphere.types.Key
  */
-public class DoubleValue implements Key, CopyableValue<DoubleValue> {
+public class DoubleValue implements Key, ResettableValue<DoubleValue>, CopyableValue<DoubleValue> {
 	private static final long serialVersionUID = 1L;
 
 	private double value;
@@ -66,6 +66,11 @@ public class DoubleValue implements Key, CopyableValue<DoubleValue> {
 	public void setValue(double value) {
 		this.value = value;
 	}
+
+    @Override
+    public void setValue(DoubleValue value) {
+        this.value = value.value;
+    }
 
 	// --------------------------------------------------------------------------------------------
 	

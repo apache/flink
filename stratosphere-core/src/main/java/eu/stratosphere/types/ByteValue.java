@@ -27,7 +27,7 @@ import eu.stratosphere.core.memory.MemorySegment;
  * 
  * @see eu.stratosphere.types.Key
  */
-public class ByteValue implements Key, NormalizableKey, CopyableValue<ByteValue> {
+public class ByteValue implements Key, NormalizableKey, ResettableValue<ByteValue>, CopyableValue<ByteValue> {
 	private static final long serialVersionUID = 1L;
 	
 	private byte value;
@@ -66,6 +66,11 @@ public class ByteValue implements Key, NormalizableKey, CopyableValue<ByteValue>
 	public void setValue(byte value) {
 		this.value = value;
 	}
+
+    @Override
+    public void setValue(ByteValue value) {
+        this.value = value.value;
+    }
 
 	// --------------------------------------------------------------------------------------------
 	

@@ -27,7 +27,7 @@ import eu.stratosphere.core.memory.MemorySegment;
  * 
  * @see eu.stratosphere.types.Key
  */
-public class ShortValue implements Key, NormalizableKey, CopyableValue<ShortValue> {
+public class ShortValue implements Key, NormalizableKey, ResettableValue<ShortValue>, CopyableValue<ShortValue> {
 	private static final long serialVersionUID = 1L;
 	
 	private short value;
@@ -66,6 +66,11 @@ public class ShortValue implements Key, NormalizableKey, CopyableValue<ShortValu
 	public void setValue(short value) {
 		this.value = value;
 	}
+
+    @Override
+    public void setValue(ShortValue value) {
+        this.value = value.value;
+    }
 
 	@Override
 	public String toString() {
