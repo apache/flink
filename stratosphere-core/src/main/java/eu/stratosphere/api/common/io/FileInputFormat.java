@@ -82,11 +82,16 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	/**
 	 * The timeout (in milliseconds) to wait for a filesystem stream to respond.
 	 */
-	static final long DEFAULT_OPENING_TIMEOUT;
+	private static long DEFAULT_OPENING_TIMEOUT;
 	
 	static {
+		initDefaultsFromConfiguration();
+	}
+	
+	private static final void initDefaultsFromConfiguration() {
+		
 		final long to = GlobalConfiguration.getLong(ConfigConstants.FS_STREAM_OPENING_TIMEOUT_KEY,
-				ConfigConstants.DEFAULT_FS_STREAM_OPENING_TIMEOUT);
+			ConfigConstants.DEFAULT_FS_STREAM_OPENING_TIMEOUT);
 		if (to < 0) {
 			LOG.error("Invalid timeout value for filesystem stream opening: " + to + ". Using default value of " +
 				ConfigConstants.DEFAULT_FS_STREAM_OPENING_TIMEOUT);
@@ -96,6 +101,10 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 		} else {
 			DEFAULT_OPENING_TIMEOUT = to;
 		}
+	}
+	
+	static final long getDefaultOpeningTimeout() {
+		return DEFAULT_OPENING_TIMEOUT;
 	}
 	
 	// --------------------------------------------------------------------------------------------

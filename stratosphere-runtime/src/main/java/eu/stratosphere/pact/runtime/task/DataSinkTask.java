@@ -372,11 +372,6 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 		final Path path = fileOutputFormat.getOutputFilePath();
 		final WriteMode writeMode = fileOutputFormat.getWriteMode();
 		final OutputDirectoryMode outDirMode = fileOutputFormat.getOutputDirectoryMode();
-		
-		if (writeMode != WriteMode.OVERWRITE) {
-			System.err.println("WRONG OVERWRITE VALUE READ FROM FILE OUTPUT FORMAT.");
-			throw new RuntimeException("WRONG OVERWRITE VALUE READ FROM FILE OUTPUT FORMAT.");
-		}
 
 		// Prepare output path and determine max DOP		
 		try {
