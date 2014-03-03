@@ -24,6 +24,7 @@ import eu.stratosphere.api.common.operators.util.UserCodeObjectWrapper;
 import eu.stratosphere.api.java.record.io.DelimitedInputFormat;
 import eu.stratosphere.api.java.record.io.FileOutputFormat;
 import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
@@ -36,6 +37,7 @@ import eu.stratosphere.pact.runtime.task.PactDriver;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.types.Record;
+import eu.stratosphere.util.InstantiationUtil;
 import eu.stratosphere.util.MutableObjectIterator;
 
 public abstract class TaskTestBase {
@@ -93,13 +95,17 @@ public abstract class TaskTestBase {
 		task.registerInputOutput();
 	}
 
-	public void registerFileOutputTask(AbstractOutputTask outTask,
-			Class<? extends FileOutputFormat> stubClass, String outPath)
+	public void registerFileOutputTask(AbstractOutputTask outTask, Class<? extends FileOutputFormat> stubClass, String outPath)
 	{
+		registerFileOutputTask(outTask, InstantiationUtil.instantiate(stubClass, FileOutputFormat.class), outPath);
+	}
+	
+	public void registerFileOutputTask(AbstractOutputTask outTask, FileOutputFormat outputFormat, String outPath) {
 		TaskConfig dsConfig = new TaskConfig(this.mockEnv.getTaskConfiguration());
+		
+		outputFormat.setOutputFilePath(new Path(outPath));
 
-		dsConfig.setStubWrapper(new UserCodeClassWrapper<FileOutputFormat>(stubClass));
-		dsConfig.setStubParameter(FileOutputFormat.FILE_PARAMETER_KEY, outPath);
+		dsConfig.setStubWrapper(new UserCodeObjectWrapper<FileOutputFormat>(outputFormat));
 
 		outTask.setEnvironment(this.mockEnv);
 

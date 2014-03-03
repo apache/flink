@@ -65,6 +65,7 @@ public class LocalClusterProvider extends ClusterProvider {
 		}
 
 		this.nephele = new NepheleMiniCluster();
+		this.nephele.setDefaultOverwriteFiles(true);
 		this.nephele.start();
 		this.nepheleRunning = true;
 	}

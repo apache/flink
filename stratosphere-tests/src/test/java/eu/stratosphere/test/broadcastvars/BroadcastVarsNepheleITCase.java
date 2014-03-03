@@ -22,13 +22,14 @@ import java.util.regex.Pattern;
 
 import org.junit.Assert;
 
-import eu.stratosphere.api.common.io.FileOutputFormat;
 import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
+import eu.stratosphere.api.common.operators.util.UserCodeObjectWrapper;
 import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
 import eu.stratosphere.api.java.record.functions.MapFunction;
 import eu.stratosphere.api.java.record.io.CsvInputFormat;
 import eu.stratosphere.api.java.record.io.CsvOutputFormat;
 import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
@@ -278,19 +279,11 @@ public class BroadcastVarsNepheleITCase extends TestBase2 {
 			taskConfig.addInputToGroup(0);
 			taskConfig.setInputSerializer(serializer, 0);
 
-			taskConfig.setStubWrapper(new UserCodeClassWrapper<CsvOutputFormat>(CsvOutputFormat.class));
-			taskConfig.setStubParameter(FileOutputFormat.FILE_PARAMETER_KEY, resultPath);
-
-			Configuration stubConfig = taskConfig.getStubParameters();
-			stubConfig.setString(CsvOutputFormat.RECORD_DELIMITER_PARAMETER, "\n");
-			stubConfig.setString(CsvOutputFormat.FIELD_DELIMITER_PARAMETER, " ");
-			stubConfig.setClass(CsvOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, LongValue.class);
-			stubConfig.setInteger(CsvOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 0, 0);
-			stubConfig.setClass(CsvOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, LongValue.class);
-			stubConfig.setInteger(CsvOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 1, 1);
-			stubConfig.setClass(CsvOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 2, LongValue.class);
-			stubConfig.setInteger(CsvOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 2, 2);
-			stubConfig.setInteger(CsvOutputFormat.NUM_FIELDS_PARAMETER, 3);
+			@SuppressWarnings("unchecked")
+			CsvOutputFormat outFormat = new CsvOutputFormat("\n", " ", LongValue.class, LongValue.class, LongValue.class);
+			outFormat.setOutputFilePath(new Path(resultPath));
+			
+			taskConfig.setStubWrapper(new UserCodeObjectWrapper<CsvOutputFormat>(outFormat));
 		}
 
 		return output;

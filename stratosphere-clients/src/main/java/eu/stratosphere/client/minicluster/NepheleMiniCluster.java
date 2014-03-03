@@ -51,6 +51,10 @@ public class NepheleMiniCluster {
 	private String hdfsConfigFile;
 
 	private boolean visualizerEnabled = DEFAULT_VISUALIZER_ENABLED;
+	
+	private boolean defaultOverwriteFiles = false;
+	
+	private boolean defaultAlwaysCreateDirectory = false;
 
 	
 	private Thread runner;
@@ -109,6 +113,22 @@ public class NepheleMiniCluster {
 		this.visualizerEnabled = visualizerEnabled;
 	}
 	
+	public boolean isDefaultOverwriteFiles() {
+		return defaultOverwriteFiles;
+	}
+	
+	public void setDefaultOverwriteFiles(boolean defaultOverwriteFiles) {
+		this.defaultOverwriteFiles = defaultOverwriteFiles;
+	}
+	
+	public boolean isDefaultAlwaysCreateDirectory() {
+		return defaultAlwaysCreateDirectory;
+	}
+	
+	public void setDefaultAlwaysCreateDirectory(boolean defaultAlwaysCreateDirectory) {
+		this.defaultAlwaysCreateDirectory = defaultAlwaysCreateDirectory;
+	}
+
 	
 	// ------------------------------------------------------------------------
 	// Life cycle and Job Submission
@@ -128,7 +148,7 @@ public class NepheleMiniCluster {
 				GlobalConfiguration.loadConfiguration(configDir);
 			} else {
 				Configuration conf = getMiniclusterDefaultConfig(jobManagerRpcPort, taskManagerRpcPort,
-					taskManagerDataPort, hdfsConfigFile, visualizerEnabled);
+					taskManagerDataPort, hdfsConfigFile, visualizerEnabled, defaultOverwriteFiles, defaultAlwaysCreateDirectory);
 				GlobalConfiguration.includeConfiguration(conf);
 			}
 			
@@ -188,7 +208,8 @@ public class NepheleMiniCluster {
 	}
 	
 	public static Configuration getMiniclusterDefaultConfig(int jobManagerRpcPort, int taskManagerRpcPort,
-			int taskManagerDataPort, String hdfsConfigFile, boolean visualization)
+			int taskManagerDataPort, String hdfsConfigFile, boolean visualization,
+			boolean defaultOverwriteFiles, boolean defaultAlwaysCreateDirectory)
 	{
 		final Configuration config = new Configuration();
 		
@@ -209,8 +230,13 @@ public class NepheleMiniCluster {
 		
 		// hdfs
 		if (hdfsConfigFile != null) {
-			config.setString("fs.hdfs.hdfsdefault", hdfsConfigFile);
+			config.setString(ConfigConstants.HDFS_DEFAULT_CONFIG, hdfsConfigFile);
 		}
+		
+		// file system behavior
+		config.setBoolean(ConfigConstants.FILESYSTEM_DEFAULT_OVERWRITE_KEY, defaultOverwriteFiles);
+		config.setBoolean(ConfigConstants.FILESYSTEM_OUTPUT_ALWAYS_CREATE_DIRECTORY_KEY, defaultAlwaysCreateDirectory);
+
 		return config;
 	}
 }

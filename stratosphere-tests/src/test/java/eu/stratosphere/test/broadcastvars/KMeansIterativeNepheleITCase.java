@@ -14,12 +14,12 @@
  **********************************************************************************************************************/
 package eu.stratosphere.test.broadcastvars;
 
-import eu.stratosphere.api.common.io.FileOutputFormat;
 import eu.stratosphere.api.common.operators.util.UserCodeObjectWrapper;
 import eu.stratosphere.api.common.typeutils.TypeComparatorFactory;
 import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
 import eu.stratosphere.api.java.record.io.CsvInputFormat;
 import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.example.java.record.kmeans.KMeans.PointBuilder;
 import eu.stratosphere.example.java.record.kmeans.KMeans.PointOutFormat;
 import eu.stratosphere.example.java.record.kmeans.KMeans.RecomputeClusterCenter;
@@ -134,8 +134,10 @@ public class KMeansIterativeNepheleITCase extends TestBase2 {
 			taskConfig.addInputToGroup(0);
 			taskConfig.setInputSerializer(serializer, 0);
 
-			taskConfig.setStubWrapper(new UserCodeObjectWrapper<PointOutFormat>(new PointOutFormat()));
-			taskConfig.setStubParameter(FileOutputFormat.FILE_PARAMETER_KEY, resultPath);
+			PointOutFormat outFormat = new PointOutFormat();
+			outFormat.setOutputFilePath(new Path(resultPath));
+			
+			taskConfig.setStubWrapper(new UserCodeObjectWrapper<PointOutFormat>(outFormat));
 		}
 
 		return output;

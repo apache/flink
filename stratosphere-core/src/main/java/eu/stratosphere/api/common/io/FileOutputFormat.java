@@ -13,19 +13,19 @@
 
 package eu.stratosphere.api.common.io;
 
-
 import java.io.IOException;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.api.common.operators.FileDataSink;
+import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.configuration.GlobalConfiguration;
 import eu.stratosphere.core.fs.FSDataOutputStream;
 import eu.stratosphere.core.fs.FileSystem;
 import eu.stratosphere.core.fs.FileSystem.WriteMode;
 import eu.stratosphere.core.fs.Path;
-
 
 /**
  * The abstract base class for all output formats that are file based. Contains the logic to open/close the target
@@ -33,6 +33,43 @@ import eu.stratosphere.core.fs.Path;
  */
 public abstract class FileOutputFormat<IT> implements OutputFormat<IT> {
 	private static final long serialVersionUID = 1L;
+
+	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * Defines the behavior for creating output directories. 
+	 *
+	 */
+	public static enum OutputDirectoryMode {
+		
+		/** A directory is always created, regardless of number of write tasks. */
+		ALWAYS,	
+		
+		/** A directory is only created for parallel output tasks, i.e., number of output tasks > 1.
+		 * If number of output tasks = 1, the output is written to a single file. */
+		PARONLY
+	}
+	
+	// --------------------------------------------------------------------------------------------
+
+	private static final WriteMode DEFAULT_WRITE_MODE;
+	
+	private static final OutputDirectoryMode DEFAULT_OUTPUT_DIRECTORY_MODE;
+	
+	
+	static {
+		final boolean overwrite = GlobalConfiguration.getBoolean(ConfigConstants.FILESYSTEM_DEFAULT_OVERWRITE_KEY,
+				ConfigConstants.DEFAULT_FILESYSTEM_OVERWRITE);
+		
+		DEFAULT_WRITE_MODE = overwrite ? WriteMode.OVERWRITE : WriteMode.CREATE;
+		
+		final boolean alwaysCreateDirectory = GlobalConfiguration.getBoolean(ConfigConstants.FILESYSTEM_OUTPUT_ALWAYS_CREATE_DIRECTORY_KEY,
+			ConfigConstants.DEFAULT_FILESYSTEM_ALWAYS_CREATE_DIRECTORY);
+	
+		DEFAULT_OUTPUT_DIRECTORY_MODE = alwaysCreateDirectory ? OutputDirectoryMode.ALWAYS : OutputDirectoryMode.PARONLY;
+	}
+	
+	// --------------------------------------------------------------------------------------------	
 	
 	/**
 	 * The LOG for logging messages in this class.
@@ -45,33 +82,6 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT> {
 	public static final String FILE_PARAMETER_KEY = "stratosphere.output.file";
 	
 	/**
-	 * The key under which the write mode is stored in the configuration
-	 */
-	public static final String WRITEMODE_PARAMETER_KEY = "stratosphere.output.writemode";
-
-	/**
-	 * Value keys for the write modes
-	 */
-	public static final String WRITEMODE_CREATE = "stratosphere.output.writemode.create";
-	public static final String WRITEMODE_OVERWRITE = "stratosphere.output.writemode.overwrite";
-	
-	/**
-     * The key under which the output directory mode parameter is stored in the configuration
-     */
-    public static final String OUT_DIRECTORY_PARAMETER_KEY = "stratosphere.output.directory";
-    
-    /**
-     * Value keys for the output directory modes
-     */
-    public static final String OUT_DIRECTORY_ALWAYS = "stratosphere.output.directory.always";
-    public static final String OUT_DIRECTORY_PARONLY = "stratosphere.output.directory.paronly";
-    
-	/**
-	 * The config parameter for the opening timeout in milliseconds.
-	 */
-	public static final String OUTPUT_STREAM_OPEN_TIMEOUT_KEY = "stratosphere.output.file.timeout";
-	
-	/**
 	 * The path of the file to be written.
 	 */
 	protected Path outputFilePath;
@@ -79,78 +89,58 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT> {
 	/**
 	 * The write mode of the output.	
 	 */
-	protected WriteMode writeMode;
+	private WriteMode writeMode;
 	
 	/**
 	 * The output directory mode
 	 */
-	protected OutputDirectoryMode outDirMode;
-	
-	/**
-	 * The stream to which the data is written;
-	 */
-	protected FSDataOutputStream stream;
+	private OutputDirectoryMode outputDirectoryMode;
 	
 	/**
 	 * Stream opening timeout.
 	 */
-	private long openTimeout;
+	private long openTimeout = -1;
+	
+	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * The stream to which the data is written;
+	 */
+	protected transient FSDataOutputStream stream;
 
 	// --------------------------------------------------------------------------------------------
-
-	/**
-	 * Defines the behavior for creating output directories. 
-	 *
-	 */
-	public static enum OutputDirectoryMode {
-		ALWAYS,			// A directory is always created, regardless of number of write tasks
-		PARONLY			// A directory is only created for parallel output tasks, i.e., number of output tasks > 1.
-						// If number of output tasks = 1, the output is written to a single file.
-	}
 	
 	@Override
 	public void configure(Configuration parameters) {
-		// get the file parameter
-		String filePath = parameters.getString(FILE_PARAMETER_KEY, null);
-		if (filePath == null) {
-			throw new IllegalArgumentException("Configuration file FileOutputFormat does not contain the file path.");
+		
+		// get the output file path, if it was not yet set
+		if (this.outputFilePath == null) {
+			// get the file parameter
+			String filePath = parameters.getString(FILE_PARAMETER_KEY, null);
+			if (filePath == null) {
+				throw new IllegalArgumentException("The output path has been specified neither via constructor/setters" +
+						", nor via the Configuration.");
+			}
+			
+			try {
+				this.outputFilePath = new Path(filePath);
+			}
+			catch (RuntimeException rex) {
+				throw new RuntimeException("Could not create a valid URI from the given file path name: " + rex.getMessage()); 
+			}
 		}
 		
-		try {
-			this.outputFilePath = new Path(filePath);
-		}
-		catch (RuntimeException rex) {
-			throw new RuntimeException("Could not create a valid URI from the given file path name: " + rex.getMessage()); 
+		// check if have not been set and use the defaults in that case
+		if (this.writeMode == null) {
+			this.writeMode = DEFAULT_WRITE_MODE;
 		}
 		
-		// get the write mode parameter
-		String writeModeParam = parameters.getString(WRITEMODE_PARAMETER_KEY, WRITEMODE_OVERWRITE);
-		if(writeModeParam.equals(WRITEMODE_OVERWRITE)) {
-			this.writeMode = WriteMode.OVERWRITE;
-		} else if(writeModeParam.equals(WRITEMODE_CREATE)) {
-			this.writeMode = WriteMode.CREATE;
-		} else {
-			throw new RuntimeException("Invalid write mode configuration: "+writeModeParam);
+		if (this.outputDirectoryMode == null) {
+			this.outputDirectoryMode = DEFAULT_OUTPUT_DIRECTORY_MODE;
 		}
 		
-		// get the output directory parameter
-		String outDirParam = parameters.getString(OUT_DIRECTORY_PARAMETER_KEY, OUT_DIRECTORY_PARONLY);
-		if(outDirParam.equals(OUT_DIRECTORY_ALWAYS)) {
-			this.outDirMode = OutputDirectoryMode.ALWAYS;
-		} else if(outDirParam.equals(OUT_DIRECTORY_PARONLY)) {
-			this.outDirMode = OutputDirectoryMode.PARONLY;
-		} else {
-			throw new RuntimeException("Invalid output directory mode configuration: "+outDirParam);
-		}
-		
-		// get timeout for stream opening
-		this.openTimeout = parameters.getLong(OUTPUT_STREAM_OPEN_TIMEOUT_KEY, FileInputFormat.DEFAULT_OPENING_TIMEOUT);
-		if (this.openTimeout < 0) {
+		if (this.openTimeout == -1) {
 			this.openTimeout = FileInputFormat.DEFAULT_OPENING_TIMEOUT;
-			if (LOG.isWarnEnabled())
-				LOG.warn("Ignoring invalid parameter for stream opening timeout (requires a positive value or zero=infinite): " + this.openTimeout);
-		} else if (this.openTimeout == 0) {
-			this.openTimeout = Long.MAX_VALUE;
 		}
 	}
 
@@ -158,7 +148,12 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT> {
 
 	@Override
 	public void open(int taskNumber, int numTasks) throws IOException {
-		// obtain FSDataOutputStream asynchronously, since HDFS client can not handle InterruptedExceptions
+		
+		if (LOG.isDebugEnabled())
+			LOG.debug("Openint stream for output (" + (taskNumber+1) + "/" + numTasks + "). WriteMode=" + writeMode +
+					", OutputDirectoryMode=" + outputDirectoryMode + ", timeout=" + openTimeout);
+		
+		// obtain FSDataOutputStream asynchronously, since HDFS client is vulnerable to InterruptedExceptions
 		OutputPathOpenThread opot = new OutputPathOpenThread(this, (taskNumber + 1), numTasks);
 		opot.start();
 		
@@ -182,16 +177,50 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT> {
 		}
 	}
 	
+	public void setOutputFilePath(Path path) {
+		if (path == null)
+			throw new IllegalArgumentException("Output file path may not be null.");
+		
+		this.outputFilePath = path;
+	}
+	
 	public Path getOutputFilePath() {
 		return this.outputFilePath;
+	}
+
+	
+	public void setWriteMode(WriteMode mode) {
+		if (mode == null) {
+			throw new NullPointerException();
+		}
+		
+		this.writeMode = mode;
 	}
 	
 	public WriteMode getWriteMode() {
 		return this.writeMode;
 	}
+
 	
-	public OutputDirectoryMode getOutDirMode() {
-		return this.outDirMode;
+	public void setOutputDirectoryMode(OutputDirectoryMode mode) {
+		if (mode == null) {
+			throw new NullPointerException();
+		}
+		
+		this.outputDirectoryMode = mode;
+	}
+	
+	public OutputDirectoryMode getOutputDirectoryMode() {
+		return this.outputDirectoryMode;
+	}
+	
+	
+	public void setOpenTimeout(long timeout) {
+		if (timeout < 0) {
+			throw new IllegalArgumentException("The timeout must be a nonnegative numer of milliseconds (zero for infinite).");
+		}
+		
+		this.openTimeout = (timeout == 0) ? Long.MAX_VALUE : timeout;
 	}
 	
 	public long getOpenTimeout() {
@@ -224,7 +253,7 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT> {
 		public OutputPathOpenThread(FileOutputFormat<?> fof, int taskIndex, int numTasks) {
 			this.path = fof.getOutputFilePath();
 			this.writeMode = fof.getWriteMode();
-			this.outDirMode = fof.getOutDirMode();
+			this.outDirMode = fof.getOutputDirectoryMode();
 			this.timeoutMillies = fof.getOpenTimeout();
 			this.taskIndex = taskIndex;
 			this.numTasks = numTasks;
@@ -232,7 +261,7 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT> {
 
 		@Override
 		public void run() {
-			
+
 			try {
 				Path p = this.path;
 				final FileSystem fs = p.getFileSystem();
@@ -380,22 +409,6 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT> {
 		 */
 		protected AbstractConfigBuilder(Configuration targetConfig) {
 			this.config = targetConfig;
-		}
-		
-		// --------------------------------------------------------------------
-		
-		/**
-		 * Sets the timeout after which the output format will abort the opening of the output stream,
-		 * if the stream has not responded until then.
-		 * 
-		 * @param timeoutInMillies The timeout, in milliseconds, or <code>0</code> for infinite.
-		 * @return The builder itself.
-		 */
-		public T openingTimeout(int timeoutInMillies) {
-			this.config.setLong(OUTPUT_STREAM_OPEN_TIMEOUT_KEY, timeoutInMillies);
-			@SuppressWarnings("unchecked")
-			T ret = (T) this;
-			return ret;
 		}
 	}
 	

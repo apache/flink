@@ -91,6 +91,8 @@ public abstract class TestBase2 {
 	@Before
 	public void startCluster() throws Exception {
 		this.executor = new NepheleMiniCluster();
+		this.executor.setDefaultOverwriteFiles(true);
+		
 		this.executor.start();
 	}
 

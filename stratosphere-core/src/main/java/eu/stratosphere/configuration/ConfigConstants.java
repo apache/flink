@@ -142,7 +142,19 @@ public final class ConfigConstants {
 	 * Path to Hadoop configuration
 	 */
 	public static final String PATH_HADOOP_CONFIG = "fs.hdfs.hadoopconf";
+	
+	
+	// ------------------------ File System Bahavior ------------------------
 
+	/**
+	 * Key to specify whether the file systems should simply overwrite existing files.
+	 */
+	public static final String FILESYSTEM_DEFAULT_OVERWRITE_KEY = "fs.overwrite-files";
+
+	/**
+	 * Key to specify whether the file systems should always create a directory for the output, even with a parallelism of one.
+	 */
+	public static final String FILESYSTEM_OUTPUT_ALWAYS_CREATE_DIRECTORY_KEY = "fs.output.always-create-directory";
 
 	// ---------------------------- Compiler -------------------------------
 
@@ -310,6 +322,19 @@ public final class ConfigConstants {
 	 * for broadcasts.
 	 */
 	public static final boolean DEFAULT_USE_MULTICAST_FOR_BROADCAST = false;
+	
+	
+	// ------------------------ File System Bahavior ------------------------
+
+	/**
+	 * The default behavior with respect to overwriting existing files (= not overwrite)
+	 */
+	public static final boolean DEFAULT_FILESYSTEM_OVERWRITE = false;
+
+	/**
+	 * The default behavior for output directory creating (create only directory when parallelism > 1).
+	 */
+	public static final boolean DEFAULT_FILESYSTEM_ALWAYS_CREATE_DIRECTORY = false;
 	
 	
 	// ---------------------------- Compiler -------------------------------

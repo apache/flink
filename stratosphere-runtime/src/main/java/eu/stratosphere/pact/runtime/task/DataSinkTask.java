@@ -360,29 +360,18 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 	
 
 	@Override
-	public int getMaximumNumberOfSubtasks()
-	{
+	public int getMaximumNumberOfSubtasks() {
 		if (!(this.format instanceof FileOutputFormat<?>)) {
 			return -1;
 		}
 		
+		final FileOutputFormat<?> fileOutputFormat = (FileOutputFormat<?>) this.format;
+		
 		// ----------------- This code applies only to file inputs ------------------
 		
-		final String pathName = this.config.getStubParameter(FileOutputFormat.FILE_PARAMETER_KEY, null);
-		final WriteMode writeMode = ((FileOutputFormat<?>)this.format).getWriteMode();
-		final OutputDirectoryMode outDirMode = ((FileOutputFormat<?>)this.format).getOutDirMode();
-		final Path path;
-		
-		if (pathName == null) {
-			return 0;
-		}
-		
-		try {
-			path = new Path(pathName);
-		}
-		catch (Throwable t) {
-			return 0;
-		}
+		final Path path = fileOutputFormat.getOutputFilePath();
+		final WriteMode writeMode = fileOutputFormat.getWriteMode();
+		final OutputDirectoryMode outDirMode = fileOutputFormat.getOutputDirectoryMode();
 
 		// Prepare output path and determine max DOP		
 		try {

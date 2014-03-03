@@ -104,7 +104,8 @@ public class CollectionDataSource extends GenericDataSource<GenericInputFormat<?
     }
 
 
-    public CollectionDataSource(CollectionInputFormat f, Object... data) {
+    @SuppressWarnings("unchecked")
+	public CollectionDataSource(CollectionInputFormat f, Object... data) {
         super(f, DEFAULT_NAME);
         if (data.length == 1 && data[0] instanceof Iterator) {
             f.setIter((Iterator<Object>)data[0]);

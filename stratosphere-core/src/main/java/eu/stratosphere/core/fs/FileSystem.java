@@ -43,9 +43,8 @@ public abstract class FileSystem {
 
 	private static final String S3_FILESYSTEM_CLASS = "eu.stratosphere.runtime.fs.s3.S3FileSystem";
 
-	/**
-	 * Object used to protect calls to specific methods.
-	 */
+	
+	/** Object used to protect calls to specific methods.*/
 	private static final Object SYNCHRONIZATION_OBJECT = new Object();
 
 	/**
@@ -53,14 +52,16 @@ public abstract class FileSystem {
 	 *
 	 */
 	public static enum WriteMode {
-		CREATE,    // creates write path if it does not exist. Does not overwrite existing files and directories.
-		OVERWRITE  // creates write path if it does not exist. Overwrites existing files and directories. 
+		
+		/** Creates write path if it does not exist. Does not overwrite existing files and directories. */
+		CREATE,
+		
+		/** creates write path if it does not exist. Overwrites existing files and directories. */
+		OVERWRITE 
 	}
 	
 	/**
-	 * An auxiliary class to identify a file system by its scheme
-	 * and its authority.
-	 * 
+	 * An auxiliary class to identify a file system by its scheme and its authority.
 	 */
 	public static class FSKey {
 
@@ -149,7 +150,6 @@ public abstract class FileSystem {
 	private static final Map<String, String> FSDIRECTORY = new HashMap<String, String>();
 
 	static {
-		// TODO: Use configuration to retrieve this mapping
 		FSDIRECTORY.put("hdfs", DISTRIBUTED_FILESYSTEM_CLASS);
 		FSDIRECTORY.put("file", LOCAL_FILESYSTEM_CLASS);
 		FSDIRECTORY.put("s3", S3_FILESYSTEM_CLASS);
@@ -219,10 +219,12 @@ public abstract class FileSystem {
 
 			try {
 				fs = fsClass.newInstance();
-			} catch (InstantiationException e) {
-				throw new IOException(StringUtils.stringifyException(e));
-			} catch (IllegalAccessException e) {
-				throw new IOException(StringUtils.stringifyException(e));
+			}
+			catch (InstantiationException e) {
+				throw new IOException("Could not instantiate file system class: " + e.getMessage(), e);
+			}
+			catch (IllegalAccessException e) {
+				throw new IOException("Could not instantiate file system class: " + e.getMessage(), e);
 			}
 
 			// Initialize new file system object
