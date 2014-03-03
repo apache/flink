@@ -31,6 +31,7 @@ import org.junit.Test;
 import eu.stratosphere.api.java.record.io.CsvOutputFormat;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.fs.Path;
+import eu.stratosphere.core.fs.FileSystem.WriteMode;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;
@@ -49,6 +50,7 @@ public class CsvOutputFormatTest {
 	public void setup() throws IOException {
 		this.tempFile = File.createTempFile("test_output", "tmp");
 		this.format.setOutputFilePath(new Path(tempFile.toURI()));
+		this.format.setWriteMode(WriteMode.OVERWRITE);
 	}
 	
 	@After

@@ -54,10 +54,6 @@ import eu.stratosphere.util.LogUtils;
 public class SequentialFormatTest {
 
 	public class InputSplitSorter implements Comparator<FileInputSplit> {
-		/*
-		 * (non-Javadoc)
-		 * @see java.util.Comparator#compare(java.lang.Object, java.lang.Object)
-		 */
 		@Override
 		public int compare(FileInputSplit o1, FileInputSplit o2) {
 			int pathOrder = o1.getPath().getName().compareTo(o2.getPath().getName());

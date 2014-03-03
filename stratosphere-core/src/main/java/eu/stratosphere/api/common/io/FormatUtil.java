@@ -25,6 +25,7 @@ import eu.stratosphere.core.fs.BlockLocation;
 import eu.stratosphere.core.fs.FileInputSplit;
 import eu.stratosphere.core.fs.FileStatus;
 import eu.stratosphere.core.fs.FileSystem;
+import eu.stratosphere.core.fs.FileSystem.WriteMode;
 import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.core.io.InputSplit;
 import eu.stratosphere.util.ReflectionUtil;
@@ -151,6 +152,7 @@ public class FormatUtil {
 		final F outputFormat = ReflectionUtil.newInstance(outputFormatClass);
 		outputFormat.setOutputFilePath(new Path(path));
 		outputFormat.setOpenTimeout(0);
+		outputFormat.setWriteMode(WriteMode.OVERWRITE);
 	
 		configuration = configuration == null ? new Configuration() : configuration;
 		
