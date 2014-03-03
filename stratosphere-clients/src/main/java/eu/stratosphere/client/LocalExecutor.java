@@ -34,13 +34,7 @@ import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 
 /**
- * A class for executing a {@link Plan} on a local Nephele instance. Note that
- * no HDFS instance or anything of that nature is provided. You must therefore
- * only use data sources and sinks with paths beginning with "file://" in your
- * plan.
- * 
- * When the class is instantiated a local nephele instance is started, this can
- * be stopped by calling stopNephele.
+ * A class for executing a {@link Plan} on a local embedded Stratosphere instance.
  */
 public class LocalExecutor implements PlanExecutor {
 
@@ -48,6 +42,23 @@ public class LocalExecutor implements PlanExecutor {
 	
 	private NepheleMiniCluster nephele;
 
+	// ---------------------------------- config options ------------------------------------------
+	
+	private int jobManagerRpcPort = -1;
+	
+	private int taskManagerRpcPort = -1;
+	
+	private int taskManagerDataPort = -1;
+	
+	private String configDir;
+
+	private String hdfsConfigFile;
+	
+	private boolean defaultOverwriteFiles = false;
+	
+	private boolean defaultAlwaysCreateDirectory = false;
+	
+	// --------------------------------------------------------------------------------------------
 	
 	public LocalExecutor() {
 		if (System.getProperty("log4j.configuration") == null) {
@@ -55,10 +66,95 @@ public class LocalExecutor implements PlanExecutor {
 		}
 	}
 	
+	public int getJobManagerRpcPort() {
+		return jobManagerRpcPort;
+	}
+	
+	public void setJobManagerRpcPort(int jobManagerRpcPort) {
+		this.jobManagerRpcPort = jobManagerRpcPort;
+	}
+
+	public int getTaskManagerRpcPort() {
+		return taskManagerRpcPort;
+	}
+
+	public void setTaskManagerRpcPort(int taskManagerRpcPort) {
+		this.taskManagerRpcPort = taskManagerRpcPort;
+	}
+
+	public int getTaskManagerDataPort() {
+		return taskManagerDataPort;
+	}
+
+	public void setTaskManagerDataPort(int taskManagerDataPort) {
+		this.taskManagerDataPort = taskManagerDataPort;
+	}
+	
+	public String getConfigDir() {
+		return configDir;
+	}
+
+	public void setConfigDir(String configDir) {
+		this.configDir = configDir;
+	}
+
+	public String getHdfsConfig() {
+		return hdfsConfigFile;
+	}
+	
+	public void setHdfsConfig(String hdfsConfig) {
+		this.hdfsConfigFile = hdfsConfig;
+	}
+	
+	public boolean isDefaultOverwriteFiles() {
+		return defaultOverwriteFiles;
+	}
+	
+	public void setDefaultOverwriteFiles(boolean defaultOverwriteFiles) {
+		this.defaultOverwriteFiles = defaultOverwriteFiles;
+	}
+	
+	public boolean isDefaultAlwaysCreateDirectory() {
+		return defaultAlwaysCreateDirectory;
+	}
+	
+	public void setDefaultAlwaysCreateDirectory(boolean defaultAlwaysCreateDirectory) {
+		this.defaultAlwaysCreateDirectory = defaultAlwaysCreateDirectory;
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
 	public void start() throws Exception {
 		synchronized (this.lock) {
-			this.nephele = new NepheleMiniCluster();
-			this.nephele.start();
+			if (this.nephele == null) {
+				
+				// create the embedded runtime
+				this.nephele = new NepheleMiniCluster();
+				
+				// configure it, if values were changed. otherwise the embedded runtime uses the internal defaults
+				if (jobManagerRpcPort > 0) {
+					nephele.setJobManagerRpcPort(jobManagerRpcPort);
+				}
+				if (taskManagerRpcPort > 0) {
+					nephele.setTaskManagerRpcPort(jobManagerRpcPort);
+				}
+				if (taskManagerDataPort > 0) {
+					nephele.setTaskManagerDataPort(taskManagerDataPort);
+				}
+				if (configDir != null) {
+					nephele.setConfigDir(configDir);
+				}
+				if (hdfsConfigFile != null) {
+					nephele.setHdfsConfigFile(hdfsConfigFile);
+				}
+				nephele.setDefaultOverwriteFiles(defaultOverwriteFiles);
+				nephele.setDefaultAlwaysCreateDirectory(defaultAlwaysCreateDirectory);
+				
+				// start it up
+				this.nephele.start();
+			} else {
+				throw new IllegalStateException("The local executor was already started.");
+			}
 		}
 	}
 
@@ -67,8 +163,12 @@ public class LocalExecutor implements PlanExecutor {
 	 */
 	public void stop() throws Exception {
 		synchronized (this.lock) {
-			this.nephele.stop();
-			this.nephele = null;
+			if (this.nephele != null) {
+				this.nephele.stop();
+				this.nephele = null;
+			} else {
+				throw new IllegalStateException("The local executor was not started.");
+			}
 		}
 	}
 
@@ -85,7 +185,7 @@ public class LocalExecutor implements PlanExecutor {
 	public JobExecutionResult executePlan(Plan plan) throws Exception {
 		synchronized (this.lock) {
 			if (this.nephele == null) {
-				throw new Exception("The local executor has not been started.");
+				throw new IllegalStateException("The local executor has not been started.");
 			}
 
 			PactCompiler pc = new PactCompiler(new DataStatistics());
@@ -119,7 +219,11 @@ public class LocalExecutor implements PlanExecutor {
 
 		return gen.getOptimizerPlanAsJSON(op);
 	}
-
+	
+	// --------------------------------------------------------------------------------------------
+	//  Static variants that internally bring up an instance and shut it down after the execution
+	// --------------------------------------------------------------------------------------------
+	
 	/**
 	 * Executes the program described by the given plan assembler.
 	 * 

@@ -44,6 +44,7 @@ public class LocalExecutorTest {
 			WordCount wc = new WordCount();
 			
 			LocalExecutor executor = new LocalExecutor();
+			executor.setDefaultOverwriteFiles(true);
 			
 			LogUtils.initializeDefaultConsoleLogger(Level.ERROR);
 			
