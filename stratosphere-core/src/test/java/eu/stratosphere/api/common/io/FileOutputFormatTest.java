@@ -5,20 +5,18 @@ import java.io.IOException;
 
 import junit.framework.Assert;
 
-import org.apache.log4j.Level;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.util.LogUtils;
-import eu.stratosphere.util.OperatingSystem;
 
 public class FileOutputFormatTest {
 
 	@BeforeClass
 	public static void initialize() {
-		LogUtils.initializeDefaultConsoleLogger(Level.WARN);
+		LogUtils.initializeDefaultTestConsoleLogger();
 	}
 	
 	@Test

@@ -467,7 +467,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 
 	// --------------------------------------------------------------------------------------------
 
-	private boolean readLine() throws IOException {
+	protected final boolean readLine() throws IOException {
 		if (this.stream == null || this.overLimit) {
 			return false;
 		}

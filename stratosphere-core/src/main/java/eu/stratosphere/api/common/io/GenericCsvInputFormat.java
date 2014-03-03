@@ -55,7 +55,9 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 		
 	private char fieldDelim = DEFAULT_FIELD_DELIMITER;
 	
-	private boolean lenient = false;
+	private boolean lenient;
+	
+	private boolean skipFirstLineAsHeader;
 	
 	
 	// --------------------------------------------------------------------------------------------
@@ -131,38 +133,39 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 		this.fieldTypes = denseTypeArray;
 	}
 
-    public void setFields(int[] sourceFieldIndices, Class<? extends Value>[] fieldTypes) {
-        Preconditions.checkNotNull(fieldTypes);
-        Preconditions.checkArgument(sourceFieldIndices.length == fieldTypes.length,
-                "Number of field indices and field types must match.");
+	public void setFields(int[] sourceFieldIndices, Class<? extends Value>[] fieldTypes) {
+		Preconditions.checkNotNull(fieldTypes);
+		Preconditions.checkArgument(sourceFieldIndices.length == fieldTypes.length,
+			"Number of field indices and field types must match.");
 
-        for (int i : sourceFieldIndices) {
-            if ( i < 0) {
-                throw new IllegalArgumentException("Field indices must not be smaller than zero.");
-            }
-        }
+		for (int i : sourceFieldIndices) {
+			if (i < 0) {
+				throw new IllegalArgumentException("Field indices must not be smaller than zero.");
+			}
+		}
 
-        int largestFieldIndex = Ints.max(sourceFieldIndices);
-        this.fieldIncluded = new boolean[largestFieldIndex + 1];
-        ArrayList<Class<? extends Value>> types = new ArrayList<Class<? extends Value>>();
+		int largestFieldIndex = Ints.max(sourceFieldIndices);
+		this.fieldIncluded = new boolean[largestFieldIndex + 1];
+		ArrayList<Class<? extends Value>> types = new ArrayList<Class<? extends Value>>();
 
-        // check if we support parsers for these types
-        for (int i = 0; i < fieldTypes.length; i++) {
-            Class<? extends Value> type = fieldTypes[i];
+		// check if we support parsers for these types
+		for (int i = 0; i < fieldTypes.length; i++) {
+			Class<? extends Value> type = fieldTypes[i];
 
-            if (type != null) {
-                if (FieldParser.getParserForType(type) == null) {
-                    throw new IllegalArgumentException("The type '" + type.getName() + "' is not supported for the CSV input format.");
-                }
-                types.add(type);
-                fieldIncluded[sourceFieldIndices[i]] = true;
-            }
-        }
+			if (type != null) {
+				if (FieldParser.getParserForType(type) == null) {
+					throw new IllegalArgumentException("The type '" + type.getName()
+						+ "' is not supported for the CSV input format.");
+				}
+				types.add(type);
+				fieldIncluded[sourceFieldIndices[i]] = true;
+			}
+		}
 
-        @SuppressWarnings("unchecked")
-        Class<? extends Value>[] denseTypeArray = (Class<? extends Value>[]) types.toArray(new Class[types.size()]);
-        this.fieldTypes = denseTypeArray;
-    }
+		@SuppressWarnings("unchecked")
+		Class<? extends Value>[] denseTypeArray = (Class<? extends Value>[]) types.toArray(new Class[types.size()]);
+		this.fieldTypes = denseTypeArray;
+	}
 	
 	public int getNumberOfFieldsTotal() {
 		return this.fieldIncluded.length;
@@ -189,6 +192,14 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 
 	public void setLenient(boolean lenient) {
 		this.lenient = lenient;
+	}
+	
+	public boolean isSkippingFirstLineAsHeader() {
+		return skipFirstLineAsHeader;
+	}
+
+	public void setSkipFirstLineAsHeader(boolean skipFirstLine) {
+		this.skipFirstLineAsHeader = skipFirstLine;
 	}
 	
 	protected FieldParser<Value>[] getFieldParsers() {
@@ -220,6 +231,11 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 			}
 		}
 		this.fieldParsers = parsers;
+		
+		// skip the first line, if we are at the beginning of a file and have the option set
+		if (this.skipFirstLineAsHeader && this.splitStart == 0) {
+			readLine(); // read and ignore
+		}
 	}
 	
 	protected boolean parseRecord(Value[] valueHolders, byte[] bytes, int offset, int numBytes) throws ParseException {
@@ -270,7 +286,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 					field += (skipCnt - 1);
 				}
 				else if (lenient) {
-					// no valid line, but we go on
+					// no valid line, but we do not report an exception, simply skip the line
 					return false;
 				}
 				else {

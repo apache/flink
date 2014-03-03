@@ -196,42 +196,41 @@ public class GenericCsvInputFormatTest {
 		}
 	}
 
-    @SuppressWarnings("unchecked")
-    @Test
-    public void testSparseParseWithIndices() {
-        try {
-            final String fileContent = "111|222|333|444|555|666|777|888|999|000|\n000|999|888|777|666|555|444|333|222|111|";
-            final FileInputSplit split = createTempFile(fileContent);
+	@SuppressWarnings("unchecked")
+	@Test
+	public void testSparseParseWithIndices() {
+		try {
+			final String fileContent = "111|222|333|444|555|666|777|888|999|000|\n000|999|888|777|666|555|444|333|222|111|";
+			final FileInputSplit split = createTempFile(fileContent);
 
-            final Configuration parameters = new Configuration();
+			final Configuration parameters = new Configuration();
 
-            format.setFieldDelim('|');
-            format.setFields(new int[]{0, 3, 7},
-                    (Class<? extends Value>[]) new Class[]{IntValue.class, IntValue.class, IntValue.class});
-            format.configure(parameters);
-            format.open(split);
+			format.setFieldDelim('|');
+			format.setFields(new int[] { 0, 3, 7 },
+				(Class<? extends Value>[]) new Class[] { IntValue.class, IntValue.class, IntValue.class });
+			format.configure(parameters);
+			format.open(split);
 
-            Value[] values = createIntValues(3);
+			Value[] values = createIntValues(3);
 
-            assertTrue(format.nextRecord(values));
-            assertEquals(111, ((IntValue) values[0]).getValue());
-            assertEquals(444, ((IntValue) values[1]).getValue());
-            assertEquals(888, ((IntValue) values[2]).getValue());
+			assertTrue(format.nextRecord(values));
+			assertEquals(111, ((IntValue) values[0]).getValue());
+			assertEquals(444, ((IntValue) values[1]).getValue());
+			assertEquals(888, ((IntValue) values[2]).getValue());
 
-            assertTrue(format.nextRecord(values));
-            assertEquals(000, ((IntValue) values[0]).getValue());
-            assertEquals(777, ((IntValue) values[1]).getValue());
-            assertEquals(333, ((IntValue) values[2]).getValue());
+			assertTrue(format.nextRecord(values));
+			assertEquals(000, ((IntValue) values[0]).getValue());
+			assertEquals(777, ((IntValue) values[1]).getValue());
+			assertEquals(333, ((IntValue) values[2]).getValue());
 
-            assertFalse(format.nextRecord(values));
-            assertTrue(format.reachedEnd());
-        }
-        catch (Exception ex) {
-            System.err.println(ex.getMessage());
-            ex.printStackTrace();
-            Assert.fail("Test erroneous");
-        }
-    }
+			assertFalse(format.nextRecord(values));
+			assertTrue(format.reachedEnd());
+		} catch (Exception ex) {
+			System.err.println(ex.getMessage());
+			ex.printStackTrace();
+			Assert.fail("Test erroneous");
+		}
+	}
 	
 	@SuppressWarnings("unchecked")
 	@Test
@@ -348,6 +347,37 @@ public class GenericCsvInputFormatTest {
 	
 	@SuppressWarnings("unchecked")
 	@Test
+	public void testReadInvalidContentsLenientWithSkipping() {
+		try {
+			final String fileContent = "abc|dfgsdf|777|444\n" +  // good line
+			                           "kkz|777|foobar|hhg\n" +  // wrong data type in field
+			                           "kkz|777foobarhhg  \n" +  // too short, a skipped field never ends
+			                           "xyx|ignored|42|\n";      // another good line
+			final FileInputSplit split = createTempFile(fileContent);	
+		
+			final Configuration parameters = new Configuration();
+
+			format.setFieldDelim('|');
+			format.setFieldTypes(StringValue.class, null, IntValue.class);
+			format.setLenient(true);
+			
+			format.configure(parameters);
+			format.open(split);
+			
+			Value[] values = new Value[] { new StringValue(), new IntValue()};
+			
+			assertTrue(format.nextRecord(values));
+			assertFalse(format.nextRecord(values));
+			assertFalse(format.nextRecord(values));
+			assertTrue(format.nextRecord(values));
+		}
+		catch (Exception ex) {
+			Assert.fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
+		}
+	}
+	
+	@SuppressWarnings("unchecked")
+	@Test
 	public void readWithEmptyField() {
 		try {
 			final String fileContent = "abc|def|ghijk\nabc||hhg\n|||";
@@ -383,6 +413,78 @@ public class GenericCsvInputFormatTest {
 			Assert.fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
 		}
 	}
+	
+	
+	@SuppressWarnings("unchecked")
+	@Test
+	public void readWithHeaderLine() {
+		try {
+			final String fileContent = "colname-1|colname-2|some name 3|column four|\n" +
+			                           "123|abc|456|def|\n"+
+			                           "987|xyz|654|pqr|\n";
+			
+			final FileInputSplit split = createTempFile(fileContent);
+		
+			final Configuration parameters = new Configuration();
+
+			format.setFieldDelim('|');
+			format.setFieldTypes(IntValue.class, StringValue.class, IntValue.class, StringValue.class);
+			format.setSkipFirstLineAsHeader(true);
+			
+			format.configure(parameters);
+			format.open(split);
+			
+			Value[] values = new Value[] { new IntValue(), new StringValue(), new IntValue(), new StringValue()};
+			
+			// first line is skipped as header
+			assertTrue(format.nextRecord(values));   //  first row (= second line)
+			assertTrue(format.nextRecord(values));   // second row (= third line) 
+			assertFalse(format.nextRecord(values));  // exhausted
+			assertTrue(format.reachedEnd());         // exhausted
+		}
+		catch (Exception ex) {
+			Assert.fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
+		}
+	}
+	
+	@SuppressWarnings("unchecked")
+	@Test
+	public void readWithHeaderLineAndInvalidIntermediate() {
+		try {
+			final String fileContent = "colname-1|colname-2|some name 3|column four|\n" +
+			                           "123|abc|456|def|\n"+
+			                           "colname-1|colname-2|some name 3|column four|\n" +  // repeated header in the middle
+			                           "987|xyz|654|pqr|\n";
+			
+			final FileInputSplit split = createTempFile(fileContent);
+		
+			final Configuration parameters = new Configuration();
+
+			format.setFieldDelim('|');
+			format.setFieldTypes(IntValue.class, StringValue.class, IntValue.class, StringValue.class);
+			format.setSkipFirstLineAsHeader(true);
+			
+			format.configure(parameters);
+			format.open(split);
+			
+			Value[] values = new Value[] { new IntValue(), new StringValue(), new IntValue(), new StringValue()};
+			
+			// first line is skipped as header
+			assertTrue(format.nextRecord(values));   //  first row (= second line)
+			
+			try {
+				format.nextRecord(values);
+				Assert.fail("Format accepted invalid line.");
+			}
+			catch (ParseException e) {
+				// as we expected
+			}
+		}
+		catch (Exception ex) {
+			Assert.fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
+		}
+	}
+	
 
 	private FileInputSplit createTempFile(String content) throws IOException {
 		this.tempFile = File.createTempFile("test_contents", "tmp");
