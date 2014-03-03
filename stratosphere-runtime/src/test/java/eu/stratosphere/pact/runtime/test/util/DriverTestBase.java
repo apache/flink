@@ -18,6 +18,7 @@ import java.util.List;
 
 import junit.framework.Assert;
 
+import org.apache.log4j.Level;
 import org.junit.After;
 import org.junit.BeforeClass;
 
@@ -77,7 +78,8 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 	
 	@BeforeClass
 	public static void setupLog() {
-		LogUtils.initializeDefaultTestConsoleLogger();
+		/// suppress log output, as this class produces errors on purpose to test exception handling
+		LogUtils.initializeDefaultConsoleLogger(Level.OFF);
 	}
 	
 	

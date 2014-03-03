@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import org.apache.log4j.Level;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -38,6 +39,7 @@ import eu.stratosphere.pact.runtime.test.util.UniformRecordGenerator;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
+import eu.stratosphere.util.LogUtils;
 
 
 public class ChainTaskTest extends TaskTestBase {
@@ -47,6 +49,15 @@ public class ChainTaskTest extends TaskTestBase {
 	@SuppressWarnings("unchecked")
 	private final RecordComparatorFactory compFact = new RecordComparatorFactory(new int[]{0}, new Class[]{IntValue.class}, new boolean[] {true});
 	private final RecordSerializerFactory serFact = RecordSerializerFactory.get();
+	
+	
+	
+	public ChainTaskTest() {
+		// suppress log output, as this class produces errors on purpose to test exception handling
+		LogUtils.initializeDefaultConsoleLogger(Level.OFF);
+	}
+	
+	
 	
 	@Test
 	public void testMapTask() {
@@ -164,6 +175,7 @@ public class ChainTaskTest extends TaskTestBase {
 	}
 	
 	public static final class MockFailingCombineStub extends ReduceFunction {
+		private static final long serialVersionUID = 1L;
 		
 		private int cnt = 0;
 

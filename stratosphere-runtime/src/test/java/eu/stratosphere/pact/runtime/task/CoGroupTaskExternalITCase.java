@@ -80,8 +80,9 @@ public class CoGroupTaskExternalITCase extends DriverTestBase<GenericCoGrouper<R
 		Assert.assertEquals("Wrong result set size.", expCnt, this.output.getNumberOfRecords());
 	}
 	
-	public static final class MockCoGroupStub extends CoGroupFunction
-	{
+	public static final class MockCoGroupStub extends CoGroupFunction {
+		private static final long serialVersionUID = 1L;
+		
 		private final Record res = new Record();
 		
 		@Override

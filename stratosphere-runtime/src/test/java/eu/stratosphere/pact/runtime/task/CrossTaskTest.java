@@ -572,16 +572,18 @@ public class CrossTaskTest extends DriverTestBase<GenericCrosser<Record, Record,
 		Assert.assertTrue("Exception was thrown despite proper canceling.", success.get());
 	}
 	
-	public static final class MockCrossStub extends CrossFunction
-	{
+	public static final class MockCrossStub extends CrossFunction {
+		private static final long serialVersionUID = 1L;
+		
 		@Override
 		public void cross(Record record1, Record record2, Collector<Record> out) {
 			out.collect(record1);
 		}
 	}
 	
-	public static final class MockFailingCrossStub extends CrossFunction
-	{
+	public static final class MockFailingCrossStub extends CrossFunction {
+		private static final long serialVersionUID = 1L;
+		
 		private int cnt = 0;
 		
 		@Override

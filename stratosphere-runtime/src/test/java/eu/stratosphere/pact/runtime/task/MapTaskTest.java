@@ -119,6 +119,8 @@ public class MapTaskTest extends DriverTestBase<GenericMapper<Record, Record>> {
 	}
 	
 	public static class MockMapStub extends MapFunction {
+		private static final long serialVersionUID = 1L;
+		
 		@Override
 		public void map(Record record, Collector<Record> out) throws Exception {
 			out.collect(record);
@@ -127,7 +129,8 @@ public class MapTaskTest extends DriverTestBase<GenericMapper<Record, Record>> {
 	}
 	
 	public static class MockFailingMapStub extends MapFunction {
-
+		private static final long serialVersionUID = 1L;
+		
 		private int cnt = 0;
 		
 		@Override

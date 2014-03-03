@@ -265,7 +265,8 @@ public class ReduceTaskTest extends DriverTestBase<GenericReducer<Record, Record
 	}
 	
 	public static class MockReduceStub extends ReduceFunction {
-
+		private static final long serialVersionUID = 1L;
+		
 		private final IntValue key = new IntValue();
 		private final IntValue value = new IntValue();
 
@@ -287,7 +288,8 @@ public class ReduceTaskTest extends DriverTestBase<GenericReducer<Record, Record
 	
 	@Combinable
 	public static class MockCombiningReduceStub extends ReduceFunction {
-
+		private static final long serialVersionUID = 1L;
+		
 		private final IntValue key = new IntValue();
 		private final IntValue value = new IntValue();
 		private final IntValue combineValue = new IntValue();
@@ -329,7 +331,8 @@ public class ReduceTaskTest extends DriverTestBase<GenericReducer<Record, Record
 	}
 	
 	public static class MockFailingReduceStub extends ReduceFunction {
-
+		private static final long serialVersionUID = 1L;
+		
 		private int cnt = 0;
 		
 		private final IntValue key = new IntValue();
@@ -357,7 +360,8 @@ public class ReduceTaskTest extends DriverTestBase<GenericReducer<Record, Record
 	}
 	
 	public static class MockDelayingReduceStub extends ReduceFunction {
-
+		private static final long serialVersionUID = 1L;
+		
 		@Override
 		public void reduce(Iterator<Record> records, Collector<Record> out) {
 			while(records.hasNext()) {

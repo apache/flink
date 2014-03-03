@@ -144,8 +144,9 @@ public class MatchTaskExternalITCase extends DriverTestBase<GenericJoiner<Record
 		Assert.assertEquals("Wrong result set size.", expCnt, this.output.getNumberOfRecords());
 	}
 	
-	public static final class MockMatchStub extends JoinFunction
-	{
+	public static final class MockMatchStub extends JoinFunction {
+		private static final long serialVersionUID = 1L;
+		
 		@Override
 		public void join(Record value1, Record value2, Collector<Record> out) throws Exception {
 			out.collect(value1);

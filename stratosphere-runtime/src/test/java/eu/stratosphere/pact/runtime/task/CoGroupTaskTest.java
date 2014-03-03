@@ -396,8 +396,9 @@ public class CoGroupTaskTest extends DriverTestBase<GenericCoGrouper<Record, Rec
 		Assert.assertTrue("Test threw an exception even though it was properly canceled.", success.get());
 	}
 	
-	public static class MockFailingCoGroupStub extends CoGroupFunction
-	{
+	public static class MockFailingCoGroupStub extends CoGroupFunction {
+		private static final long serialVersionUID = 1L;
+		
 		private int cnt = 0;
 		
 		@Override
@@ -435,8 +436,9 @@ public class CoGroupTaskTest extends DriverTestBase<GenericCoGrouper<Record, Rec
 	
 	}
 	
-	public static final class MockDelayingCoGroupStub extends CoGroupFunction
-	{
+	public static final class MockDelayingCoGroupStub extends CoGroupFunction {
+		private static final long serialVersionUID = 1L;
+		
 		@Override
 		public void coGroup(Iterator<Record> records1,
 				Iterator<Record> records2, Collector<Record> out) {

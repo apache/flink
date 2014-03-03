@@ -267,6 +267,7 @@ public class CombiningUnilateralSortMergerITCase {
 	// --------------------------------------------------------------------------------------------
 	
 	public static class TestCountCombiner extends ReduceFunction {
+		private static final long serialVersionUID = 1L;
 		
 		private final IntValue count = new IntValue();
 		
@@ -304,6 +305,7 @@ public class CombiningUnilateralSortMergerITCase {
 	}
 
 	public static class TestCountCombiner2 extends ReduceFunction {
+		private static final long serialVersionUID = 1L;
 		
 		public volatile boolean opened = false;
 		

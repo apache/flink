@@ -205,7 +205,8 @@ public class ReduceTaskExternalITCase extends DriverTestBase<GenericReducer<Reco
 	}
 	
 	public static class MockReduceStub extends ReduceFunction {
-
+		private static final long serialVersionUID = 1L;
+		
 		private final IntValue key = new IntValue();
 		private final IntValue value = new IntValue();
 
@@ -227,6 +228,7 @@ public class ReduceTaskExternalITCase extends DriverTestBase<GenericReducer<Reco
 	
 	@Combinable
 	public static class MockCombiningReduceStub extends ReduceFunction {
+		private static final long serialVersionUID = 1L;
 
 		private final IntValue key = new IntValue();
 		private final IntValue value = new IntValue();

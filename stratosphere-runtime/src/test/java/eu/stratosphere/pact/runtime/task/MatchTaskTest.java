@@ -921,16 +921,18 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 	
 	// =================================================================================================
 	
-	public static final class MockMatchStub extends JoinFunction
-	{
+	public static final class MockMatchStub extends JoinFunction {
+		private static final long serialVersionUID = 1L;
+		
 		@Override
 		public void join(Record record1, Record record2, Collector<Record> out) throws Exception {
 			out.collect(record1);
 		}
 	}
 	
-	public static final class MockFailingMatchStub extends JoinFunction
-	{
+	public static final class MockFailingMatchStub extends JoinFunction {
+		private static final long serialVersionUID = 1L;
+		
 		private int cnt = 0;
 		
 		@Override
@@ -943,8 +945,9 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 		}
 	}
 	
-	public static final class MockDelayingMatchStub extends JoinFunction
-	{
+	public static final class MockDelayingMatchStub extends JoinFunction {
+		private static final long serialVersionUID = 1L;
+		
 		@Override
 		public void join(Record record1, Record record2, Collector<Record> out) {
 			try {

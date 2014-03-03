@@ -337,8 +337,9 @@ public class SortMergeMatchIteratorITCase
 		}
 	}
 	
-	private static final class MatchRemovingMatcher extends JoinFunction
-	{
+	private static final class MatchRemovingMatcher extends JoinFunction {
+		private static final long serialVersionUID = 1L;
+		
 		private final Map<TestData.Key, Collection<Match>> toRemoveFrom;
 		
 		protected MatchRemovingMatcher(Map<TestData.Key, Collection<Match>> map) {

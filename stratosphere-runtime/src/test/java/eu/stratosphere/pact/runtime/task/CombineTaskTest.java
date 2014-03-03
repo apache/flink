@@ -154,8 +154,9 @@ public class CombineTaskTest extends DriverTestBase<GenericReducer<Record, ?>>
 	}
 	
 	@Combinable
-	public static class MockCombiningReduceStub extends ReduceFunction
-	{
+	public static class MockCombiningReduceStub extends ReduceFunction {
+		private static final long serialVersionUID = 1L;
+		
 		private final IntValue theInteger = new IntValue();
 
 		@Override
@@ -182,7 +183,8 @@ public class CombineTaskTest extends DriverTestBase<GenericReducer<Record, ?>>
 	
 	@Combinable
 	public static final class MockFailingCombiningReduceStub extends ReduceFunction {
-
+		private static final long serialVersionUID = 1L;
+		
 		private int cnt = 0;
 		
 		private final IntValue key = new IntValue();

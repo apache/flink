@@ -242,6 +242,8 @@ public class HashVsSortMiniBenchmark {
 	
 	
 	private static final class NoOpMatcher extends JoinFunction {
+		private static final long serialVersionUID = 1L;
+		
 		@Override
 		public void join(Record rec1, Record rec2, Collector<Record> out) {}
 	}

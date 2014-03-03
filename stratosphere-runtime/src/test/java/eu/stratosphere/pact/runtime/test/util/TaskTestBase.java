@@ -25,6 +25,7 @@ import eu.stratosphere.api.java.record.io.DelimitedInputFormat;
 import eu.stratosphere.api.java.record.io.FileOutputFormat;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.fs.Path;
+import eu.stratosphere.core.fs.FileSystem.WriteMode;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
@@ -104,6 +105,7 @@ public abstract class TaskTestBase {
 		TaskConfig dsConfig = new TaskConfig(this.mockEnv.getTaskConfiguration());
 		
 		outputFormat.setOutputFilePath(new Path(outPath));
+		outputFormat.setWriteMode(WriteMode.OVERWRITE);
 
 		dsConfig.setStubWrapper(new UserCodeObjectWrapper<FileOutputFormat>(outputFormat));
 
