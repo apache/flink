@@ -28,6 +28,7 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 
 import eu.stratosphere.api.common.Plan;
+import eu.stratosphere.client.minicluster.NepheleMiniCluster;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
@@ -41,9 +42,6 @@ import eu.stratosphere.nephele.event.job.AbstractEvent;
 import eu.stratosphere.nephele.event.job.JobEvent;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobStatus;
-import eu.stratosphere.test.util.Constants;
-import eu.stratosphere.test.util.minicluster.ClusterProvider;
-import eu.stratosphere.test.util.minicluster.ClusterProviderPool;
 import eu.stratosphere.util.LogUtils;
 import eu.stratosphere.util.StringUtils;
 
@@ -64,7 +62,7 @@ public abstract class CancellingTestBase {
 
 	// --------------------------------------------------------------------------------------------
 	
-	protected ClusterProvider cluster;
+	protected NepheleMiniCluster executor;
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -76,23 +74,27 @@ public abstract class CancellingTestBase {
 
 	@BeforeClass
 	public static void initLogging() {
+		// suppress warnings because this test prints cancel warnings
 		LogUtils.initializeDefaultConsoleLogger(Level.ERROR);
 	}
 	
 	@Before
 	public void startCluster() throws Exception {
 		verifyJvmOptions();
-		LOG.info("######################### starting cluster #########################");
-		this.cluster = ClusterProviderPool.getInstance(Constants.DEFAULT_TEST_CONFIG);
+		this.executor = new NepheleMiniCluster();
+		this.executor.setDefaultOverwriteFiles(true);
+		
+		this.executor.start();
 	}
 
 	@After
 	public void stopCluster() throws Exception {
-		LOG.info("######################### stopping cluster config #########################");
-		cluster.stopCluster();
-		ClusterProviderPool.removeInstance(Constants.DEFAULT_TEST_CONFIG);
-		FileSystem.closeAll();
-		System.gc();
+		if (this.executor != null) {
+			this.executor.stop();
+			this.executor = null;
+			FileSystem.closeAll();
+			System.gc();
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -108,7 +110,7 @@ public abstract class CancellingTestBase {
 
 			final long startingTime = System.currentTimeMillis();
 			long cancelTime = -1L;
-			final JobClient client = cluster.getJobClient(jobGraph, null);
+			final JobClient client = this.executor.getJobClient(jobGraph);
 			final JobSubmissionResult submissionResult = client.submitJob();
 			if (submissionResult.getReturnCode() != AbstractJobResult.ReturnCode.SUCCESS) {
 				throw new IllegalStateException(submissionResult.getDescription());
