@@ -1,3 +1,18 @@
+/***********************************************************************************************************************
+ *
+ * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ **********************************************************************************************************************/
+
 package eu.stratosphere.test.broadcastvars;
 
 import java.util.Collection;
@@ -10,12 +25,7 @@ import eu.stratosphere.api.java.record.functions.MapFunction;
 import eu.stratosphere.api.java.record.io.CsvInputFormat;
 import eu.stratosphere.api.java.record.operators.JoinOperator;
 import eu.stratosphere.api.java.record.operators.MapOperator;
-import eu.stratosphere.compiler.DataStatistics;
-import eu.stratosphere.compiler.PactCompiler;
-import eu.stratosphere.compiler.plan.OptimizedPlan;
-import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.test.operators.io.ContractITCaseIOFormats.ContractITCaseOutputFormat;
 import eu.stratosphere.test.util.TestBase2;
 import eu.stratosphere.types.IntValue;
@@ -54,7 +64,7 @@ public class BroadcastBranchingITCase extends TestBase2 {
 	//                      /
 	//    Sc3(id,y) --------
 	@Override
-	protected JobGraph getJobGraph() throws Exception {
+	protected Plan getTestJob() {
 		// Sc1 generates M parameters a,b,c for second degree polynomials P(x) = ax^2 + bx + c identified by id
 		FileDataSource sc1 = new FileDataSource(new CsvInputFormat(), sc1Path);
 		CsvInputFormat.configureRecordFormat(sc1).fieldDelimiter(' ').field(StringValue.class, 0).field(IntValue.class, 1)
@@ -84,19 +94,12 @@ public class BroadcastBranchingITCase extends TestBase2 {
 		output.setDegreeOfParallelism(1);
 		output.addInput(mp2);
 
-		Plan plan = new Plan(output);
-
-		PactCompiler pc = new PactCompiler(new DataStatistics());
-		OptimizedPlan op = pc.compile(plan);
-
-		NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
-		return jgg.compileJobGraph(op);
+		return new Plan(output);
 	}
 
 	@Override
 	protected void postSubmit() throws Exception {
 		compareResultsByLinesInMemory(RESULT, resultPath);
-		
 	}
 
 	public static class Jn1 extends JoinFunction {
