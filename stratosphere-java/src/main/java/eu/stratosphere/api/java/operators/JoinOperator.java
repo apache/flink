@@ -273,26 +273,32 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		}
 	}
 	
-	private static final class LeftSemiJoin<I1, I2> extends JoinOperator<I1, I2, I1> {
+	private static final class LeftSemiJoin<I1, I2> extends EquiJoin<I1, I2, I1> {
 		
 		protected LeftSemiJoin(DataSet<I1> input1, DataSet<I2> input2, Keys<I1> keys1, Keys<I2> keys2, JoinHint hint) {
-			super(input1, input2, keys1, keys2, input1.getType(), hint);
+			super(input1, input2, keys1, keys2, new LeftSemiJoinFunction<I1, I2>(), input1.getType(), hint);
 		}
 		
 		@Override
 		protected BinaryNodeTranslation translateToDataFlow() {
+			// TODO: Runtime support required. Each left tuple may be returned only once.
+			// 	     Special exec strategy (runtime + optimizer) based on hash join required. 
+			// 		 Either no duplicates of right side in HT or left tuples removed from HT after first match.
 			throw new UnsupportedOperationException("LeftSemiJoin operator currently not supported.");
 		}
 	}
 	
-	private static final class RightSemiJoin<I1, I2> extends JoinOperator<I1, I2, I2> {
+	private static final class RightSemiJoin<I1, I2> extends EquiJoin<I1, I2, I2> {
 		
 		protected RightSemiJoin(DataSet<I1> input1, DataSet<I2> input2, Keys<I1> keys1, Keys<I2> keys2, JoinHint hint) {
-			super(input1, input2, keys1, keys2, input2.getType(), hint);
+			super(input1, input2, keys1, keys2, new RightSemiJoinFunction<I1, I2>(), input2.getType(), hint);
 		}
 		
 		@Override
 		protected BinaryNodeTranslation translateToDataFlow() {
+			// TODO: Runtime support required. Each right tuple may be returned only once.
+			// 	     Special exec strategy (runtime + optimizer) based on hash join required. 
+			// 		 Either no duplicates of left side in HT or right tuples removed from HT after first match.
 			throw new UnsupportedOperationException("RightSemiJoin operator currently not supported.");
 		}
 	}
@@ -389,7 +395,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 	}
 	
 	// --------------------------------------------------------------------------------------------
-	//  default join function
+	//  default join functions
 	// --------------------------------------------------------------------------------------------
 	
 	public static final class DefaultJoinFunction<T1, T2> extends JoinFunction<T1, T2, Tuple2<T1, T2>> {
@@ -399,6 +405,26 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		@Override
 		public Tuple2<T1, T2> join(T1 first, T2 second) throws Exception {
 			return new Tuple2<T1, T2>(first, second);
+		}
+	}
+	
+	public static final class LeftSemiJoinFunction<T1, T2> extends JoinFunction<T1, T2, T1> {
+
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public T1 join(T1 left, T2 right) throws Exception {
+			return left;
+		}
+	}
+	
+	public static final class RightSemiJoinFunction<T1, T2> extends JoinFunction<T1, T2, T2> {
+
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public T2 join(T1 left, T2 right) throws Exception {
+			return right;
 		}
 	}
 }
