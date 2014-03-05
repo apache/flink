@@ -25,15 +25,19 @@ import eu.stratosphere.api.java.typeutils.runtime.TupleSingleFieldComparator;
 public class TupleTypeInfo<T extends Tuple> extends TypeInformation<T> implements CompositeType<T> {
 	
 	private final TypeInformation<?>[] types;
+	private final Class<T> tupleType;
 	
-	
-	public TupleTypeInfo(TypeInformation<?>... types) {
+	public TupleTypeInfo(Class<T> tupleType, TypeInformation<?>... types) {
 		if (types == null || types.length == 0 || types.length >= Tuple.MAX_ARITY)
 			throw new IllegalArgumentException();
 		
+		this.tupleType = tupleType;
 		this.types = types;
 	}
-
+	
+	public TupleTypeInfo(TypeInformation<?>... types) {
+		this(null, types);
+	}
 	
 	@Override
 	public boolean isBasicType() {
@@ -52,9 +56,14 @@ public class TupleTypeInfo<T extends Tuple> extends TypeInformation<T> implement
 
 	@Override
 	public Class<T> getTypeClass() {
-		@SuppressWarnings("unchecked")
-		Class<T> tc = (Class<T>) CLASSES[getArity() - 1];
-		return tc;
+		
+		if(tupleType != null) {
+			return tupleType;
+		} else {
+			@SuppressWarnings("unchecked")
+			Class<T> tc = (Class<T>) CLASSES[getArity() - 1];
+			return tc;
+		}
 	}
 
 	
