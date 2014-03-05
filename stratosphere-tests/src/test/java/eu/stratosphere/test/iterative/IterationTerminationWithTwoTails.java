@@ -14,13 +14,9 @@
 package eu.stratosphere.test.iterative;
 
 import java.io.Serializable;
-import java.util.Collection;
 import java.util.Iterator;
 
 import org.junit.Assert;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.operators.BulkIteration;
@@ -32,13 +28,12 @@ import eu.stratosphere.api.java.record.io.CsvOutputFormat;
 import eu.stratosphere.api.java.record.io.TextInputFormat;
 import eu.stratosphere.api.java.record.operators.MapOperator;
 import eu.stratosphere.api.java.record.operators.ReduceOperator;
-import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.test.util.TestBase2;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
 
-@RunWith(Parameterized.class)
+
 public class IterationTerminationWithTwoTails extends TestBase2 {
 
 	private static final String INPUT = "1\n" + "2\n" + "3\n" + "4\n" + "5\n";
@@ -46,10 +41,6 @@ public class IterationTerminationWithTwoTails extends TestBase2 {
 
 	protected String dataPath;
 	protected String resultPath;
-	
-	public IterationTerminationWithTwoTails(Configuration config) {
-		super(config);
-	}
 
 	@Override
 	protected void preSubmit() throws Exception {
@@ -64,20 +55,10 @@ public class IterationTerminationWithTwoTails extends TestBase2 {
 
 	@Override
 	protected Plan getTestJob() {
-		Plan plan = getTestPlanPlan(config.getInteger("IterationTerminationWithTwoTails#NumSubtasks", 1), dataPath, resultPath);
-		return plan;
-	}
-
-	@Parameters
-	public static Collection<Object[]> getConfigurations() {
-		Configuration config1 = new Configuration();
-		
-		// patch for now to keep this test included
-		config1.setInteger("IterationTerminationWithTwoTails#NoSubtasks", 1);
-		return toParameterList(config1);
+		return getTestPlanPlan(4, dataPath, resultPath);
 	}
 	
-	static Plan getTestPlanPlan(int numSubTasks, String input, String output) {
+	private static Plan getTestPlanPlan(int numSubTasks, String input, String output) {
 
 		FileDataSource initialInput = new FileDataSource(TextInputFormat.class, input, "input");
 		
@@ -102,13 +83,13 @@ public class IterationTerminationWithTwoTails extends TestBase2 {
 
 		FileDataSink finalResult = new FileDataSink(CsvOutputFormat.class, output, iteration, "Output");
 		CsvOutputFormat.configureRecordFormat(finalResult)
-    		.recordDelimiter('\n')
-    		.fieldDelimiter(' ')
-    		.field(StringValue.class, 0);
+			.recordDelimiter('\n')
+			.fieldDelimiter(' ')
+			.field(StringValue.class, 0);
 
 		Plan plan = new Plan(finalResult, "Iteration with AllReducer (keyless Reducer)");
 		plan.setDefaultParallelism(4);
-//		Assert.assertTrue(plan.getDefaultParallelism() > 1);
+		Assert.assertTrue(plan.getDefaultParallelism() > 1);
 		return plan;
 	}
 	

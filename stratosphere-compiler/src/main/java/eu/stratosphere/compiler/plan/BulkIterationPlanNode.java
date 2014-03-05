@@ -17,8 +17,11 @@ import static eu.stratosphere.compiler.plan.PlanNode.SourceAndDamReport.FOUND_SO
 import static eu.stratosphere.compiler.plan.PlanNode.SourceAndDamReport.FOUND_SOURCE_AND_DAM;
 
 import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
+import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.costs.Costs;
 import eu.stratosphere.compiler.dag.BulkIterationNode;
+import eu.stratosphere.compiler.dag.OptimizerNode;
+import eu.stratosphere.compiler.dag.TwoInputNode;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.util.Visitor;
 
@@ -38,17 +41,17 @@ public class BulkIterationPlanNode extends SingleInputPlanNode implements Iterat
 	// --------------------------------------------------------------------------------------------
 
 	public BulkIterationPlanNode(BulkIterationNode template, String nodeName, Channel input,
-			BulkPartialSolutionPlanNode pspn, PlanNode rootOfStepFunction) {
+			BulkPartialSolutionPlanNode pspn, PlanNode rootOfStepFunction)
+	{
 		super(template, nodeName, input, DriverStrategy.NONE);
 		this.partialSolutionPlanNode = pspn;
 		this.rootOfStepFunction = rootOfStepFunction;
 	}
 	
 	public BulkIterationPlanNode(BulkIterationNode template, String nodeName, Channel input,
-			BulkPartialSolutionPlanNode pspn, PlanNode rootOfStepFunction, PlanNode rootOfTerminationCriterion) {
+			BulkPartialSolutionPlanNode pspn, PlanNode rootOfStepFunction, PlanNode rootOfTerminationCriterion)
+	{
 		this(template, nodeName, input, pspn, rootOfStepFunction);
-		// HACK!
-		//this.rootOfTerminationCriterion = rootOfTerminationCriterion.getInputs().next().getSource();
 		this.rootOfTerminationCriterion = rootOfTerminationCriterion;
 	}
 
@@ -88,8 +91,27 @@ public class BulkIterationPlanNode extends SingleInputPlanNode implements Iterat
 	public void setCosts(Costs nodeCosts) {
 		// add the costs from the step function
 		nodeCosts.addCosts(this.rootOfStepFunction.getCumulativeCosts());
-		if(rootOfTerminationCriterion != null)
+		
+		if (rootOfTerminationCriterion != null) {
+			// add the costs for the termination criterion
 			nodeCosts.addCosts(this.rootOfTerminationCriterion.getCumulativeCosts());
+		
+			// subtract the costs that were counted twice (there must be some, since both the
+			// next partial solution and the termination criterion depend on the partial solution,
+			// i.e. have a common subexpression)ranches
+			TwoInputNode auxJoiner = (TwoInputNode) getIterationNode().getSingleRootOfStepFunction();
+			if (auxJoiner.getJoinedBranchers() == null || auxJoiner.getJoinedBranchers().isEmpty()) {
+				throw new CompilerException("Error: No branch in step function between Solution Set Delta and Next Workset.");
+			}
+
+			// get the cumulative costs of the last joined branching node
+			for (OptimizerNode joinedBrancher : auxJoiner.getJoinedBranchers()) {
+				PlanNode lastCommonChild = this.rootOfStepFunction.branchPlan.get(joinedBrancher);
+				Costs doubleCounted = lastCommonChild.getCumulativeCosts();
+				nodeCosts.subtractCosts(doubleCounted);
+			}
+		}
+		
 		super.setCosts(nodeCosts);
 	}
 	

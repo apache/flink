@@ -49,15 +49,13 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 	
 	private OptimizerNode nextPartialSolution;
 	
-	//private OptimizerNode nextTerminationCriterion;
-	
 	private PactConnection rootConnection;
 	
-	private final int costWeight;
 	private PactConnection terminationCriterionRootConnection;
 	
-	
 	private OptimizerNode singleRoot;
+	
+	private final int costWeight;
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -139,17 +137,12 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 		this.nextPartialSolution = nextPartialSolution;
 		this.terminationCriterion = terminationCriterion;
 		
-		if(terminationCriterion == null) {
+		if (terminationCriterion == null) {
 			this.singleRoot = nextPartialSolution;
 			this.rootConnection = new PactConnection(nextPartialSolution);
 		}
-		// we have a termination criterion
 		else {
-//			this.singleRoot = new SingleRootJoiner();
-//			this.singleRoot.setInputs(new PactConnection(nextPartialSolution, this.singleRoot, -1), new PactConnection(terminationCriterion, this.singleRoot, -1));
-		
-			//this.nextTerminationCriterion = terminationCriterion;
-			
+			// we have a termination criterion
 			SingleRootJoiner singleRootJoiner = new SingleRootJoiner();
 			this.rootConnection = new PactConnection(nextPartialSolution, singleRootJoiner);
 			this.terminationCriterionRootConnection = new PactConnection(terminationCriterion, singleRootJoiner);
@@ -159,18 +152,18 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 			
 			// add connection to terminationCriterion for interesting properties visitor
 			terminationCriterion.addOutgoingConnection(terminationCriterionRootConnection);
-			
-			//nextTerminationCriterion.addOutgoingConnection(this.terminationCriterionRootConnection);
 		
 		}
 		
 		nextPartialSolution.addOutgoingConnection(rootConnection);
-
-
 	}
 	
 	public int getCostWeight() {
 		return this.costWeight;
+	}
+	
+	public OptimizerNode getSingleRootOfStepFunction() {
+		return this.singleRoot;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -210,10 +203,10 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 	public void computeInterestingPropertiesForInputs(CostEstimator estimator) {
 		final InterestingProperties intProps = getInterestingProperties().clone();
 		
-		
-		if(this.terminationCriterion != null) {
-			// first propagate through termination Criterion
-			this.terminationCriterionRootConnection.setInterestingProperties(intProps);
+		if (this.terminationCriterion != null) {
+			// first propagate through termination Criterion. since it has no successors, it has no
+			// interesting properties
+			this.terminationCriterionRootConnection.setInterestingProperties(new InterestingProperties());
 			this.terminationCriterion.accept(new InterestingPropertyVisitor(estimator));
 		}
 		
@@ -231,6 +224,9 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 		intProps.getLocalProperties().addAll(partialSolutionIntProps.getLocalProperties());
 		
 		// clear all interesting properties to prepare the second traversal
+		// this clears only the path down from the next partial solution. The paths down
+		// from the termination criterion (before they meet the paths down from the next partial solution)
+		// remain unaffected by this step
 		this.rootConnection.clearInterestingProperties();
 		this.nextPartialSolution.accept(InterestingPropertiesClearer.INSTANCE);
 		
@@ -243,7 +239,6 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 		inProps.addGlobalProperties(new RequestedGlobalProperties());
 		inProps.addLocalProperties(new RequestedLocalProperties());
 		this.inConn.setInterestingProperties(inProps);
-		
 	}
 	
 	@Override
@@ -278,10 +273,8 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 			}
 		}
 		
-		// TODO Sanity Check terminationCriterionCandidates
-		
 		// 5) Create a candidate for the Iteration Node for every remaining plan of the step function.
-		if(terminationCriterion == null)
+		if (terminationCriterion == null) {
 			for (PlanNode candidate : candidates) {
 				BulkIterationPlanNode node = new BulkIterationPlanNode(this, "BulkIteration ("+this.getPactContract().getName()+")", in, pspn, candidate);
 				GlobalProperties gProps = candidate.getGlobalProperties().clone();
@@ -289,6 +282,7 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 				node.initProperties(gProps, lProps);
 				target.add(node);
 			}
+		}
 		else {
 			List<PlanNode> terminationCriterionCandidates = this.terminationCriterion.getAlternativePlans(estimator);
 
@@ -314,12 +308,6 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 	// --------------------------------------------------------------------------------------------
 
 	public void acceptForStepFunction(Visitor<OptimizerNode> visitor) {
-		// If termination criterion is defined
-		//if(this.singleRoot != null) {
-			this.singleRoot.accept(visitor);
-		//}
-		//else {
-		//	this.nextPartialSolution.accept(visitor);
-		//}
+		this.singleRoot.accept(visitor);
 	}
 }

@@ -82,7 +82,7 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 	/**
 	 * Creates a new node with a single input for the optimizer plan.
 	 * 
-	 * @param pactContract The PACT that the node represents.
+	 * @param iteration The iteration operator that the node represents.
 	 */
 	public WorksetIterationNode(DeltaIteration iteration) {
 		super(iteration);

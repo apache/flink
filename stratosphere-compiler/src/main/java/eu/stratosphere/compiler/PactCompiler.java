@@ -948,25 +948,24 @@ public class PactCompiler {
 				
 				
 				OptimizerNode terminationCriterion = null;
-				if(iter.getTerminationCriterion() != null) {
+				
+				if (iter.getTerminationCriterion() != null) {
 					terminationCriterion = recursiveCreator.con2node.get(iter.getTerminationCriterion());
 					
-					// no intermediate node
-					if(terminationCriterion == null) {
+					// no intermediate node yet, traverse from the termination criterion to build the missing parts
+					if (terminationCriterion == null) {
 						iter.getTerminationCriterion().accept(recursiveCreator);
 						terminationCriterion = recursiveCreator.con2node.get(iter.getTerminationCriterion());
-						partialSolution =  (BulkPartialSolutionNode) recursiveCreator.con2node.get(iter.getPartialSolution());
 						
-						if (partialSolution == null) {
-							throw new CompilerException("Error: The termination criterion result does not depend on the partial solution.");
-						}
+						// this does unfortunately not work, as the partial solution node is known to exist at
+						// this point (otherwise the check for the next partial solution would have failed already)
+//						partialSolution = (BulkPartialSolutionNode) recursiveCreator.con2node.get(iter.getPartialSolution());
+//						
+//						if (partialSolution == null) {
+//							throw new CompilerException("Error: The termination criterion result does not depend on the partial solution.");
+//						}
 					}
 				}
-				
-				
-				// add an outgoing connection to the root of the step function
-				//PactConnection rootConn = new PactConnection(rootOfStepFunction);
-				//rootOfStepFunction.addOutgoingConnection(rootConn);
 				
 				iterNode.setNextPartialSolution(rootOfStepFunction, terminationCriterion);
 				iterNode.setPartialSolution(partialSolution);

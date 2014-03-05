@@ -28,7 +28,7 @@ import eu.stratosphere.api.common.operators.base.MapOperatorBase;
 import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
 import eu.stratosphere.api.common.operators.util.UserCodeWrapper;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.LongValue;
 import eu.stratosphere.util.Collector;
 import eu.stratosphere.util.Visitor;
 
@@ -38,6 +38,9 @@ import eu.stratosphere.util.Visitor;
 public class BulkIteration extends SingleInputOperator<AbstractFunction> implements IterationOperator {
 	
 	private static String DEFAULT_NAME = "<Unnamed Bulk Iteration>";
+	
+	public static final String TERMINATION_CRITERION_AGGREGATOR_NAME = "terminationCriterion.aggregator";
+	
 	
 	private Operator iterationResult;
 	
@@ -68,7 +71,7 @@ public class BulkIteration extends SingleInputOperator<AbstractFunction> impleme
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * @return The contract representing the partial solution.
+	 * @return The operator representing the partial solution.
 	 */
 	public Operator getPartialSolution() {
 		return this.inputPlaceHolder;
@@ -85,14 +88,14 @@ public class BulkIteration extends SingleInputOperator<AbstractFunction> impleme
 	}
 	
 	/**
-	 * @return The contract representing the next partial solution.
+	 * @return The operator representing the next partial solution.
 	 */
 	public Operator getNextPartialSolution() {
 		return this.iterationResult;
 	}
 	
 	/**
-	 * @return The contract representing the termination criterion.
+	 * @return The operator representing the termination criterion.
 	 */
 	public Operator getTerminationCriterion() {
 		return this.terminationCriterion;
@@ -102,13 +105,11 @@ public class BulkIteration extends SingleInputOperator<AbstractFunction> impleme
 	 * @param criterion
 	 */
 	public void setTerminationCriterion(Operator criterion) {
-
 		MapOperatorBase<TerminationCriterionMapper> mapper = new MapOperatorBase<TerminationCriterionMapper>(TerminationCriterionMapper.class, "Termination Criterion Aggregation Wrapper");
 		mapper.setInput(criterion);
 		
 		this.terminationCriterion = mapper;
-		
-		this.getAggregators().registerAggregationConvergenceCriterion("terminationCriterion.aggregator", TerminationCriterionAggregator.class, TerminationCriterionAggregationConvergence.class);
+		this.getAggregators().registerAggregationConvergenceCriterion(TERMINATION_CRITERION_AGGREGATOR_NAME, TerminationCriterionAggregator.class, TerminationCriterionAggregationConvergence.class);
 	}
 	
 	/**
@@ -141,14 +142,10 @@ public class BulkIteration extends SingleInputOperator<AbstractFunction> impleme
 			throw new InvalidJobException("Operator producing the next version of the partial " +
 					"solution (iteration result) is not set.");
 		}
-		if (this.numberOfIterations <= 0) {
+		if (this.terminationCriterion == null && this.numberOfIterations <= 0) {
 			throw new InvalidJobException("No termination condition is set " +
 					"(neither fix number of iteration nor termination criterion).");
 		}
-//		if (this.terminationCriterion != null && this.numberOfIterations > 0) {
-//			throw new Exception("Termination condition is ambiguous. " +
-//				"Both a fix number of iteration and a termination criterion are set.");
-//		}
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -187,39 +184,38 @@ public class BulkIteration extends SingleInputOperator<AbstractFunction> impleme
 	 */
 	public static class TerminationCriterionMapper extends AbstractFunction implements Serializable, GenericMapper<Object, Object> {
 		private static final long serialVersionUID = 1L;
+		
 		private TerminationCriterionAggregator aggregator;
 		
 		@Override
 		public void open(Configuration parameters) {
-			
-			aggregator = (TerminationCriterionAggregator) getIterationRuntimeContext().<IntValue>getIterationAggregator("terminationCriterion.aggregator");
+			aggregator = (TerminationCriterionAggregator) getIterationRuntimeContext().<LongValue>getIterationAggregator(TERMINATION_CRITERION_AGGREGATOR_NAME);
 		}
 		
 		@Override
 		public void map(Object record, Collector<Object> collector) {
-			
-			aggregator.aggregate(1);
+			aggregator.aggregate(1L);
 		}
 	}
 	
 	/**
 	 * Aggregator that basically only adds 1 for every output tuple of the termination criterion branch
 	 */
-	public static class TerminationCriterionAggregator implements Aggregator<IntValue> {
+	public static class TerminationCriterionAggregator implements Aggregator<LongValue> {
 
-		private int count = 0;
+		private long count;
 
 		@Override
-		public IntValue getAggregate() {
-			return new IntValue(count);
+		public LongValue getAggregate() {
+			return new LongValue(count);
 		}
 
-		public void aggregate(int count) {
+		public void aggregate(long count) {
 			this.count += count;
 		}
 
 		@Override
-		public void aggregate(IntValue count) {
+		public void aggregate(LongValue count) {
 			this.count += count.getValue();
 		}
 
@@ -232,13 +228,13 @@ public class BulkIteration extends SingleInputOperator<AbstractFunction> impleme
 	/**
 	 * Convergence for the termination criterion is reached if no tuple is output at current iteration for the termination criterion branch
 	 */
-	public static class TerminationCriterionAggregationConvergence implements ConvergenceCriterion<IntValue> {
+	public static class TerminationCriterionAggregationConvergence implements ConvergenceCriterion<LongValue> {
 
 		private static final Log log = LogFactory.getLog(TerminationCriterionAggregationConvergence.class);
 
 		@Override
-		public boolean isConverged(int iteration, IntValue countAggregate) {
-			int count = countAggregate.getValue();
+		public boolean isConverged(int iteration, LongValue countAggregate) {
+			long count = countAggregate.getValue();
 
 			if (log.isInfoEnabled()) {
 				log.info("Termination criterion stats in iteration [" + iteration + "]: " + count);
