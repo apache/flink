@@ -19,19 +19,18 @@ import eu.stratosphere.api.common.operators.base.FlatMapOperatorBase;
 import eu.stratosphere.api.java.functions.FilterFunction;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
 import eu.stratosphere.util.Collector;
-import eu.stratosphere.util.Reference;
 
 /**
  *
  */
-public class PlanFilterOperator<T> extends FlatMapOperatorBase<GenericFlatMap<Reference<T>, Reference<T>>>
+public class PlanFilterOperator<T> extends FlatMapOperatorBase<GenericFlatMap<T, T>>
 	implements UnaryJavaPlanNode<T, T>
 {
 	private final TypeInformation<T> type;
 	
 	
 	public PlanFilterOperator(FilterFunction<T> udf, String name, TypeInformation<T> type) {
-		super(new ReferenceWrappingFilter<T>(udf), name);
+		super(new FlatMapFilter<T>(udf), name);
 		this.type = type;
 	}
 	
@@ -48,19 +47,19 @@ public class PlanFilterOperator<T> extends FlatMapOperatorBase<GenericFlatMap<Re
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public static final class ReferenceWrappingFilter<T> extends WrappingFunction<FilterFunction<T>>
-		implements GenericFlatMap<Reference<T>, Reference<T>>
+	public static final class FlatMapFilter<T> extends WrappingFunction<FilterFunction<T>>
+		implements GenericFlatMap<T, T>
 	{
 
 		private static final long serialVersionUID = 1L;
 		
-		private ReferenceWrappingFilter(FilterFunction<T> wrapped) {
+		private FlatMapFilter(FilterFunction<T> wrapped) {
 			super(wrapped);
 		}
 
 		@Override
-		public final void flatMap(Reference<T> value, Collector<Reference<T>> out) throws Exception {
-			if (this.wrappedFunction.filter(value.ref)) {
+		public final void flatMap(T value, Collector<T> out) throws Exception {
+			if (this.wrappedFunction.filter(value)) {
 				out.collect(value);
 			}
 		}

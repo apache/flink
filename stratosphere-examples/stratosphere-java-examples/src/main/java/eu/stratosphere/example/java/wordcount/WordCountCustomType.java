@@ -31,7 +31,7 @@ public class WordCountCustomType {
 		public int count;
 		
 		public WC() {}
-		
+
 		public WC(String word, int count) {
 			this.word = word;
 			this.count = count;

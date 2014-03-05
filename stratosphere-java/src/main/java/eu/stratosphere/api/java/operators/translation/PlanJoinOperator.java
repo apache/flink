@@ -19,10 +19,9 @@ import eu.stratosphere.api.common.operators.base.JoinOperatorBase;
 import eu.stratosphere.api.java.functions.JoinFunction;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
 import eu.stratosphere.util.Collector;
-import eu.stratosphere.util.Reference;
 
 public class PlanJoinOperator<IN1, IN2, OUT> 
-	extends JoinOperatorBase<GenericJoiner<Reference<IN1>, Reference<IN2>, Reference<OUT>>>
+	extends JoinOperatorBase<GenericJoiner<IN1, IN2, OUT>>
 	implements BinaryJavaPlanNode<IN1, IN2, OUT> {
 	
 	private final TypeInformation<IN1> inType1;
@@ -32,7 +31,7 @@ public class PlanJoinOperator<IN1, IN2, OUT>
 	public PlanJoinOperator(
 			JoinFunction<IN1, IN2, OUT> udf,
 			int[] keyPositions1, int[] keyPositions2, String name, TypeInformation<IN1> inType1, TypeInformation<IN2> inType2, TypeInformation<OUT> outType) {
-		super(new ReferenceWrappingJoiner<IN1, IN2, OUT>(udf), keyPositions1, keyPositions2, name);
+		super(udf, keyPositions1, keyPositions2, name);
 		
 		this.inType1 = inType1;
 		this.inType2 = inType2;
@@ -53,27 +52,4 @@ public class PlanJoinOperator<IN1, IN2, OUT>
 	public TypeInformation<IN2> getInputType2() {
 		return this.inType2;
 	}
-	
-	public static final class ReferenceWrappingJoiner<IN1, IN2, OUT> 
-		extends WrappingFunction<JoinFunction<IN1, IN2, OUT>>
-		implements GenericJoiner<Reference<IN1>, Reference<IN2>, Reference<OUT>>
-	{
-	
-		private static final long serialVersionUID = 1L;
-		
-		private final Reference<OUT> ref = new Reference<OUT>();
-		
-		protected ReferenceWrappingJoiner(JoinFunction<IN1, IN2, OUT> wrappedFunction) {
-			super(wrappedFunction);
-		}
-	
-		@Override
-		public void join(Reference<IN1> value1, Reference<IN2> value2, Collector<Reference<OUT>> out) throws Exception {
-	
-			this.ref.ref = this.wrappedFunction.join(value1.ref, value2.ref);
-			out.collect(ref);
-		}
-	
-	}
-
 }

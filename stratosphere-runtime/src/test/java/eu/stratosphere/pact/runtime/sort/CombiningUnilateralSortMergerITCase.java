@@ -241,7 +241,7 @@ public class CombiningUnilateralSortMergerITCase {
 		Assert.assertTrue((rec1 = iterator.next(rec1)) != null);
 		countTable.put(new TestData.Key(rec1.getField(0, TestData.Key.class).getKey()), countTable.get(rec1.getField(0, TestData.Key.class)) - (Integer.parseInt(rec1.getField(1, TestData.Value.class).toString())));
 
-		while ((rec1 = iterator.next(rec2)) != null) {
+		while ((rec2 = iterator.next(rec2)) != null) {
 			final Key k1 = rec1.getField(0, TestData.Key.class);
 			final Key k2 = rec2.getField(0, TestData.Key.class);
 			

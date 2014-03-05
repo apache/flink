@@ -30,18 +30,6 @@ public final class VertexWithAdjacencyListSerializer extends TypeSerializer<Vert
 	}
 
 	@Override
-	public VertexWithAdjacencyList copy(VertexWithAdjacencyList from) {
-		long[] targets = new long[from.getTargets().length];
-		System.arraycopy(from.getTargets(), 0, targets, 0, targets.length);
-		
-		VertexWithAdjacencyList copy = new VertexWithAdjacencyList();
-		copy.setVertexID(from.getVertexID());
-		copy.setNumTargets(from.getNumTargets());
-		copy.setTargets(targets);
-		return copy;
-	}
-
-	@Override
 	public VertexWithAdjacencyList copy(VertexWithAdjacencyList from, VertexWithAdjacencyList reuse) {
 		if (reuse.getTargets().length < from.getTargets().length) {
 			reuse.setTargets(new long[from.getTargets().length]);

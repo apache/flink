@@ -29,13 +29,6 @@ public final class VertexWithRankAndDanglingSerializer extends TypeSerializer<Ve
 		return new VertexWithRankAndDangling();
 	}
 
-	@Override
-	public VertexWithRankAndDangling copy(VertexWithRankAndDangling from) {
-		VertexWithRankAndDangling n = new VertexWithRankAndDangling();
-		n = copy(from, n);
-		return n;
-	}
-
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.generic.types.TypeSerializer#copy(java.lang.Object, java.lang.Object)
 	 */

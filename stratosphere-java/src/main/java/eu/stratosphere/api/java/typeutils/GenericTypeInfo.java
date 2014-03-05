@@ -14,7 +14,7 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.typeutils;
 
-import eu.stratosphere.api.common.typeutils.Serializer;
+import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.api.common.typeutils.TypeComparator;
 import eu.stratosphere.api.java.typeutils.runtime.AvroSerializer;
 
@@ -57,7 +57,7 @@ public class GenericTypeInfo<T> extends TypeInformation<T> implements AtomicType
 	}
 
 	@Override
-	public Serializer<T> createSerializer() {
+	public TypeSerializer<T> createSerializer() {
 		return new AvroSerializer<T>(this.typeClass);
 	}
 	

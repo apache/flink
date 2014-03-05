@@ -16,7 +16,7 @@ package eu.stratosphere.api.java.typeutils.runtime;
 
 import java.io.IOException;
 
-import eu.stratosphere.api.common.typeutils.Serializer;
+import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.core.memory.DataInputView;
 import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.types.CopyableValue;
@@ -24,7 +24,7 @@ import eu.stratosphere.types.Value;
 import eu.stratosphere.util.InstantiationUtil;
 
 
-public class CopyableValueSerializer<T extends CopyableValue<T>> extends Serializer<T> {
+public class CopyableValueSerializer<T extends CopyableValue<T>> extends TypeSerializer<T> {
 
 	private static final long serialVersionUID = 1L;
 	

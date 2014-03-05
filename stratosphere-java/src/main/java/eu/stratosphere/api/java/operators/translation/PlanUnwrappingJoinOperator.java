@@ -21,10 +21,9 @@ import eu.stratosphere.api.java.operators.Keys;
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
 import eu.stratosphere.util.Collector;
-import eu.stratosphere.util.Reference;
 
 public class PlanUnwrappingJoinOperator<I1, I2, OUT, K> 
-	extends JoinOperatorBase<GenericJoiner<Reference<Tuple2<K, I1>>,Reference<Tuple2<K, I2>>, Reference<OUT>>>
+	extends JoinOperatorBase<GenericJoiner<Tuple2<K, I1>, Tuple2<K, I2>, OUT>>
 	implements BinaryJavaPlanNode<Tuple2<K, I1>, Tuple2<K, I2>, OUT>
 {
 
@@ -38,7 +37,7 @@ public class PlanUnwrappingJoinOperator<I1, I2, OUT, K>
 			Keys.SelectorFunctionKeys<I1, K> key1, Keys.SelectorFunctionKeys<I2, K> key2, String name,
 			TypeInformation<OUT> type, TypeInformation<Tuple2<K, I1>> typeInfoWithKey1, TypeInformation<Tuple2<K, I2>> typeInfoWithKey2)
 	{
-		super(new ReferenceWrappingJoiner<I1, I2, OUT, K>(udf), key1.computeLogicalKeyPositions(), key2.computeLogicalKeyPositions(), name);
+		super(new TupleUnwrappingJoiner<I1, I2, OUT, K>(udf), key1.computeLogicalKeyPositions(), key2.computeLogicalKeyPositions(), name);
 		this.outType = type;
 		
 		this.inTypeWithKey1 = typeInfoWithKey1;
@@ -66,26 +65,22 @@ public class PlanUnwrappingJoinOperator<I1, I2, OUT, K>
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public static final class ReferenceWrappingJoiner<I1, I2, OUT, K> 
+	public static final class TupleUnwrappingJoiner<I1, I2, OUT, K>
 		extends WrappingFunction<JoinFunction<I1, I2, OUT>>
-		implements GenericJoiner<Reference<Tuple2<K, I1>>, Reference<Tuple2<K, I2>>, Reference<OUT>>
+		implements GenericJoiner<Tuple2<K, I1>, Tuple2<K, I2>, OUT>
 	{
 
 		private static final long serialVersionUID = 1L;
 		
-		private final Reference<OUT> ref = new Reference<OUT>();
-		
-		private ReferenceWrappingJoiner(JoinFunction<I1, I2, OUT> wrapped) {
+		private TupleUnwrappingJoiner(JoinFunction<I1, I2, OUT> wrapped) {
 			super(wrapped);
 		}
 
 		@SuppressWarnings("unchecked")
 		@Override
-		public void join(Reference<Tuple2<K, I1>> value1, Reference<Tuple2<K, I2>> value2, 
-				Collector<Reference<OUT>> out) throws Exception {
-			
-			ref.ref = this.wrappedFunction.join((I1)(value1.ref.getField(1)), (I2)(value2.ref.getField(1)));
-			out.collect(ref);
+		public void join(Tuple2<K, I1> value1, Tuple2<K, I2> value2,
+				Collector<OUT> out) throws Exception {
+			out.collect(wrappedFunction.join((I1)(value1.getField(1)), (I2)(value2.getField(1))));
 		}
 		
 	}

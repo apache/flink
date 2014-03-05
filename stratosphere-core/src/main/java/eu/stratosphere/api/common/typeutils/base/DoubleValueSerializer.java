@@ -14,7 +14,7 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.common.typeutils.base;
 
-import eu.stratosphere.api.common.typeutils.Serializer;
+import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.core.memory.DataInputView;
 import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.types.DoubleValue;
@@ -22,7 +22,7 @@ import eu.stratosphere.types.DoubleValue;
 import java.io.IOException;
 
 
-public class DoubleValueSerializer extends Serializer<DoubleValue> {
+public class DoubleValueSerializer extends TypeSerializer<DoubleValue> {
 
 	private static final long serialVersionUID = 1L;
 	

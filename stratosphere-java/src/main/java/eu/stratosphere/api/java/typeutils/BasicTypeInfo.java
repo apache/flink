@@ -18,8 +18,8 @@ import java.lang.reflect.Constructor;
 import java.util.HashMap;
 import java.util.Map;
 
-import eu.stratosphere.api.common.typeutils.Serializer;
 import eu.stratosphere.api.common.typeutils.TypeComparator;
+import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.api.common.typeutils.base.DoubleComparator;
 import eu.stratosphere.api.common.typeutils.base.DoubleSerializer;
 import eu.stratosphere.api.common.typeutils.base.IntComparator;
@@ -49,12 +49,12 @@ public class BasicTypeInfo<T> extends TypeInformation<T> implements AtomicType<T
 
 	private final Class<T> clazz;
 	
-	private final Serializer<T> serializer;
+	private final TypeSerializer<T> serializer;
 	
 	private final Class<? extends TypeComparator<T>> comparatorClass;
 	
 	
-	private BasicTypeInfo(Class<T> clazz, Serializer<T> serializer, Class<? extends TypeComparator<T>> comparatorClass) {
+	private BasicTypeInfo(Class<T> clazz, TypeSerializer<T> serializer, Class<? extends TypeComparator<T>> comparatorClass) {
 		this.clazz = clazz;
 		this.serializer = serializer;
 		this.comparatorClass = comparatorClass;
@@ -88,7 +88,7 @@ public class BasicTypeInfo<T> extends TypeInformation<T> implements AtomicType<T
 	}
 	
 	@Override
-	public Serializer<T> createSerializer() {
+	public TypeSerializer<T> createSerializer() {
 		return this.serializer;
 	}
 	

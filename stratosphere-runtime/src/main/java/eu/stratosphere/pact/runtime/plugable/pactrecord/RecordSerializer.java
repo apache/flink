@@ -50,12 +50,6 @@ public final class RecordSerializer extends TypeSerializer<Record>
 		return new Record(); 
 	}
 
-
-	@Override
-	public Record copy(Record from) {
-		return from.createCopy();
-	}
-
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#copy(java.lang.Object, java.lang.Object)
 	 */

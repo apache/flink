@@ -14,6 +14,7 @@
 package eu.stratosphere.api.common.typeutils;
 
 import java.io.IOException;
+import java.io.Serializable;
 
 import eu.stratosphere.core.memory.DataInputView;
 import eu.stratosphere.core.memory.DataOutputView;
@@ -42,7 +43,7 @@ import eu.stratosphere.types.NormalizableKey;
  * 
  * @param T The data type that the comparator works on.
  */
-public abstract class TypeComparator<T> {
+public abstract class TypeComparator<T> implements Serializable {
 	
 	/**
 	 * Computes a hash value for the given record. The hash value should include all fields in the record

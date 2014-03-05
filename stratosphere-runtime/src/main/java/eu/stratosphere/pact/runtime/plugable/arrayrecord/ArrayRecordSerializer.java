@@ -81,14 +81,6 @@ public final class ArrayRecordSerializer extends TypeSerializer<Value[]>
 		return vals; 
 	}
 
-
-	@Override
-	public Value[] copy(Value[] from) {
-		Value[] target = createInstance();
-		target = copy(from, target);
-		return target;
-	}
-
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#copy(java.lang.Object, java.lang.Object)
 	 */

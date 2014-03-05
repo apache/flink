@@ -17,8 +17,8 @@ package eu.stratosphere.api.java.typeutils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.api.common.typeutils.Serializer;
 import eu.stratosphere.api.java.tuple.Tuple;
+import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.types.Value;
 
 
@@ -34,7 +34,7 @@ public abstract class TypeInformation<T> {
 	
 	public abstract boolean isKeyType();
 	
-	public abstract Serializer<T> createSerializer();
+	public abstract TypeSerializer<T> createSerializer();
 	
 	protected static final Log LOG = LogFactory.getLog(TypeInformation.class);
 	

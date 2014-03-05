@@ -16,13 +16,13 @@ package eu.stratosphere.api.common.typeutils.base;
 
 import java.io.IOException;
 
-import eu.stratosphere.api.common.typeutils.Serializer;
+import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.core.memory.DataInputView;
 import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.types.LongValue;
 
 
-public class LongValueSerializer extends Serializer<LongValue> {
+public class LongValueSerializer extends TypeSerializer<LongValue> {
 
 	private static final long serialVersionUID = 1L;
 	

@@ -19,8 +19,6 @@ import java.io.IOException;
 import eu.stratosphere.api.common.io.OutputFormat;
 import eu.stratosphere.api.common.operators.GenericDataSink;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
-import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.util.Reference;
 
 
 public class PlanDataSink<T> extends GenericDataSink {
@@ -28,50 +26,11 @@ public class PlanDataSink<T> extends GenericDataSink {
 	private final TypeInformation<T> inputDataType;
 
 	public PlanDataSink(OutputFormat<T> format, String name, TypeInformation<T> inputDataType) {
-		super(new ReferenceWrappingOutputFormat<T>(format), name);
+		super(format, name);
 		this.inputDataType = inputDataType;
 	}
 	
 	public TypeInformation<T> getType() {
 		return this.inputDataType;
-	}
-	
-	// --------------------------------------------------------------------------------------------
-	// --------------------------------------------------------------------------------------------
-	
-	public static final class ReferenceWrappingOutputFormat<T> implements OutputFormat<Reference<T>> {
-
-		private static final long serialVersionUID = 1L;
-		
-		
-		private final OutputFormat<T> format;
-
-
-		public ReferenceWrappingOutputFormat(OutputFormat<T> format) {
-			this.format = format;
-		}
-
-
-
-		@Override
-		public void configure(Configuration parameters) {
-			format.configure(parameters);
-		}
-
-		@Override
-		public void open(int taskNumber, int numTasks) throws IOException {
-			format.open(taskNumber, numTasks);
-		}
-
-		@Override
-		public void writeRecord(Reference<T> record) throws IOException {
-			format.writeRecord(record.ref);
-			
-		}
-
-		@Override
-		public void close() throws IOException {
-			format.close();
-		}
 	}
 }

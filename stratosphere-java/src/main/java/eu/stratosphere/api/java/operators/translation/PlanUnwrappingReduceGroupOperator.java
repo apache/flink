@@ -21,14 +21,13 @@ import eu.stratosphere.api.java.operators.Keys;
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
 import eu.stratosphere.util.Collector;
-import eu.stratosphere.util.Reference;
 
 import java.util.Iterator;
 
 /**
  *
  */
-public class PlanUnwrappingReduceGroupOperator<IN, OUT, K> extends GroupReduceOperatorBase<GenericGroupReduce<Reference<Tuple2<K, IN>>,Reference<OUT>>>
+public class PlanUnwrappingReduceGroupOperator<IN, OUT, K> extends GroupReduceOperatorBase<GenericGroupReduce<Tuple2<K, IN>,OUT>>
 	implements UnaryJavaPlanNode<Tuple2<K, IN>, OUT>
 {
 	private final TypeInformation<OUT> outputType;
@@ -39,7 +38,7 @@ public class PlanUnwrappingReduceGroupOperator<IN, OUT, K> extends GroupReduceOp
 	public PlanUnwrappingReduceGroupOperator(GroupReduceFunction<IN, OUT> udf, Keys.SelectorFunctionKeys<IN, K> key, String name,
 			TypeInformation<IN> inType, TypeInformation<OUT> outType, TypeInformation<Tuple2<K, IN>> typeInfoWithKey)
 	{
-		super(new ReferenceWrappingGroupReducer<IN, OUT, K>(udf), key.computeLogicalKeyPositions(), name);
+		super(new TupleUnwrappingGroupReducer<IN, OUT, K>(udf), key.computeLogicalKeyPositions(), name);
 		
 		this.outputType = outType;
 		this.typeInfoWithKey = typeInfoWithKey;
@@ -59,39 +58,35 @@ public class PlanUnwrappingReduceGroupOperator<IN, OUT, K> extends GroupReduceOp
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public static final class ReferenceWrappingGroupReducer<IN, OUT, K> extends WrappingFunction<GroupReduceFunction<IN, OUT>>
-		implements GenericGroupReduce<Reference<Tuple2<K, IN>>, Reference<OUT>>
+	public static final class TupleUnwrappingGroupReducer<IN, OUT, K> extends WrappingFunction<GroupReduceFunction<IN, OUT>>
+		implements GenericGroupReduce<Tuple2<K, IN>, OUT>
 	{
 
 		private static final long serialVersionUID = 1L;
 		
-		private TupleUnwrappingIterator<IN, K> iter = new TupleUnwrappingIterator<IN, K>();
+		private TupleUnwrappingIterator<IN, K> iter;
 		
-		private ReferenceWrappingCollector<OUT> coll = new ReferenceWrappingCollector<OUT>();
-		
-
-		private ReferenceWrappingGroupReducer(GroupReduceFunction<IN, OUT> wrapped) {
+		private TupleUnwrappingGroupReducer(GroupReduceFunction<IN, OUT> wrapped) {
 			super(wrapped);
 		}
 
 
 		@Override
-		public void reduce(Iterator<Reference<Tuple2<K, IN>>> values, Collector<Reference<OUT>> out) throws Exception {
+		public void reduce(Iterator<Tuple2<K, IN>> values, Collector<OUT> out) throws Exception {
 			iter.set(values);
-			coll.set(out);
-			
-			this.wrappedFunction.reduce(iter, coll);
+
+			this.wrappedFunction.reduce(iter, out);
 		}
 
 		@Override
-		public void combine(Iterator<Reference<Tuple2<K, IN>>> values, Collector<Reference<Tuple2<K, IN>>> out) throws Exception {
+		public void combine(Iterator<Tuple2<K, IN>> values, Collector<Tuple2<K, IN>> out) throws Exception {
 //			iter.set(values);
-//			
+//
 //			@SuppressWarnings("unchecked")
 //			ReferenceWrappingCollector<IN> combColl = (ReferenceWrappingCollector<IN>) coll;
-//			
+//
 //			combColl.set(out);
-//			
+//
 //			this.wrappedFunction.reduce(iter, coll);
 		}
 	}

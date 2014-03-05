@@ -14,6 +14,7 @@
 package eu.stratosphere.api.common.typeutils;
 
 import java.io.IOException;
+import java.io.Serializable;
 
 import eu.stratosphere.core.memory.DataInputView;
 import eu.stratosphere.core.memory.DataOutputView;
@@ -28,7 +29,7 @@ import eu.stratosphere.core.memory.DataOutputView;
  * 
  * @param T The data type that the serializer serializes.
  */
-public abstract class TypeSerializer<T>
+public abstract class TypeSerializer<T> implements Serializable
 {
 	/**
 	 * Creates a new instance of the data type.
@@ -36,15 +37,7 @@ public abstract class TypeSerializer<T>
 	 * @return A new instance of the data type.
 	 */
 	public abstract T createInstance();
-	
-	/**
-	 * Creates a copy from the given element.
-	 * 
-	 * @param from The element to copy.
-	 * @return A copy of the given element.
-	 */
-	public abstract T copy(T from);
-	
+
 	/**
 	 * Creates a copy from the given element, storing the copied result in the given reuse element if type is mutable.
 	 * 

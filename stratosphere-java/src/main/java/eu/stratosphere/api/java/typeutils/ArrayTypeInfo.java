@@ -17,7 +17,7 @@ package eu.stratosphere.api.java.typeutils;
 import java.util.HashMap;
 import java.util.Map;
 
-import eu.stratosphere.api.common.typeutils.Serializer;
+import eu.stratosphere.api.common.typeutils.TypeSerializer;
 
 
 public class ArrayTypeInfo<T, C> extends TypeInformation<T> {
@@ -79,7 +79,7 @@ public class ArrayTypeInfo<T, C> extends TypeInformation<T> {
 	}
 	
 	@Override
-	public Serializer<T> createSerializer() {
+	public TypeSerializer<T> createSerializer() {
 		throw new UnsupportedOperationException("Array serialization is currently not implemented.");
 	}
 	

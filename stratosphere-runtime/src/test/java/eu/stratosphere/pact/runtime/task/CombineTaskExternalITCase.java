@@ -113,9 +113,13 @@ public class CombineTaskExternalITCase extends DriverTestBase<GenericGroupReduce
 		getTaskConfig().setFilehandlesDriver(2);
 		
 		final CombineDriver<Record> testTask = new CombineDriver<Record>();
-		
 
-		testDriver(testTask, MockCombiningReduceStub.class);
+		try {
+			testDriver(testTask, MockCombiningReduceStub.class);
+		} catch (Exception e) {
+			e.printStackTrace();
+			Assert.fail("Invoke method caused exception.");
+		}
 		
 		int expSum = 0;
 		for (int i = 1;i < valCnt; i++) {

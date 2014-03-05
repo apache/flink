@@ -15,14 +15,14 @@
 package eu.stratosphere.api.common.typeutils.base;
 
 import eu.stratosphere.api.common.typeutils.ImmutableTypeUtil;
-import eu.stratosphere.api.common.typeutils.Serializer;
+import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.core.memory.DataInputView;
 import eu.stratosphere.core.memory.DataOutputView;
 
 import java.io.IOException;
 
 
-public class DoubleSerializer extends Serializer<Double> implements ImmutableTypeUtil {
+public class DoubleSerializer extends TypeSerializer<Double> implements ImmutableTypeUtil {
 
 	private static final long serialVersionUID = 1L;
 	

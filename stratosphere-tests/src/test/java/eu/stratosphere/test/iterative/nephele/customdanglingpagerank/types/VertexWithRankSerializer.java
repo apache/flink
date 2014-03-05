@@ -29,13 +29,6 @@ public final class VertexWithRankSerializer extends TypeSerializer<VertexWithRan
 		return new VertexWithRank();
 	}
 
-	@Override
-	public VertexWithRank copy(VertexWithRank from) {
-		VertexWithRank n = new VertexWithRank();
-		n = copy(from, n);
-		return n;
-	}
-
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.generic.types.TypeSerializer#copy(java.lang.Object, java.lang.Object)
 	 */

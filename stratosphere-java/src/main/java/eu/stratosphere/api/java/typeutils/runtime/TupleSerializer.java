@@ -16,28 +16,28 @@ package eu.stratosphere.api.java.typeutils.runtime;
 
 import java.io.IOException;
 
-import eu.stratosphere.api.common.typeutils.Serializer;
+import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.core.memory.DataInputView;
 import eu.stratosphere.core.memory.DataOutputView;
 
 
-public final class TupleSerializer<T extends Tuple> extends Serializer<T> {
+public final class TupleSerializer<T extends Tuple> extends TypeSerializer<T> {
 
 	private static final long serialVersionUID = 1L;
 	
 	
 	private final Class<T> tupleClass;
 	
-	private final Serializer<Object>[] fieldSerializers;
+	private final TypeSerializer<Object>[] fieldSerializers;
 	
 	private final int arity;
 	
 	
 	@SuppressWarnings("unchecked")
-	public TupleSerializer(Class<T> tupleClass, Serializer<?>[] fieldSerializers) {
+	public TupleSerializer(Class<T> tupleClass, TypeSerializer<?>[] fieldSerializers) {
 		this.tupleClass = tupleClass;
-		this.fieldSerializers = (Serializer<Object>[]) fieldSerializers;
+		this.fieldSerializers = (TypeSerializer<Object>[]) fieldSerializers;
 		this.arity = fieldSerializers.length;
 	}
 	
@@ -57,7 +57,6 @@ public final class TupleSerializer<T extends Tuple> extends Serializer<T> {
 			throw new RuntimeException("Cannot instantiate tuple.", e);
 		}
 	}
-
 
 	@Override
 	public T copy(T from, T reuse) {

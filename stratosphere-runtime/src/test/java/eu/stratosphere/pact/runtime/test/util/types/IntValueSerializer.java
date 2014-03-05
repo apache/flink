@@ -29,11 +29,6 @@ public class IntValueSerializer extends TypeSerializer<IntValue> {
 	}
 
 	@Override
-	public IntValue copy(IntValue from) {
-		return new IntValue(from.getValue());
-	}
-
-	@Override
 	public IntValue copy(IntValue from, IntValue reuse) {
 		reuse.setValue(from.getValue());
 		return reuse;

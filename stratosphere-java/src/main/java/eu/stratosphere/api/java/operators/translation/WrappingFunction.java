@@ -29,7 +29,6 @@ import eu.stratosphere.api.common.functions.IterationRuntimeContext;
 import eu.stratosphere.api.common.functions.RuntimeContext;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.types.Value;
-import eu.stratosphere.util.Reference;
 
 
 public abstract class WrappingFunction<T extends AbstractFunction> extends AbstractFunction {
@@ -130,11 +129,11 @@ public abstract class WrappingFunction<T extends AbstractFunction> extends Abstr
 
 		@Override
 		public <RT> Collection<RT> getBroadcastVariable(String name) {
-			Collection<Reference<RT>> refColl = context.getBroadcastVariable(name);
+			Collection<RT> refColl = context.getBroadcastVariable(name);
 			
 			ArrayList<RT> list = new ArrayList<RT>(refColl.size());
-			for (Reference<RT> e : refColl) {
-				list.add(e.ref);
+			for (RT e : refColl) {
+				list.add(e);
 			}
 			
 			return list;

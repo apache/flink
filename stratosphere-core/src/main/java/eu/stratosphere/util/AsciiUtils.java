@@ -95,8 +95,8 @@ public final class AsciiUtils {
 		
 		/**
 		 * Gets the next token from the string. If another token is available, the token is stored
-		 * in the given reuse string object and <code>true</code> is returned. Otherwise,
-		 * the reuse object is left unchanged and <code>false</code> is returned.
+		 * in the given reuse string object which is also returned. Otherwise,
+		 * the reuse object is left unchanged and <code>null</code> is returned.
 		 * 
 		 * @param reuse The StringValue object to store the next token in.
 		 * @return True, if there was another token, false if not.

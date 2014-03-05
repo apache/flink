@@ -17,13 +17,13 @@ package eu.stratosphere.api.common.typeutils.base;
 import java.io.IOException;
 
 import eu.stratosphere.api.common.typeutils.ImmutableTypeUtil;
-import eu.stratosphere.api.common.typeutils.Serializer;
+import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.core.memory.DataInputView;
 import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.types.StringValue;
 
 
-public class StringSerializer extends Serializer<String> implements ImmutableTypeUtil {
+public class StringSerializer extends TypeSerializer<String> implements ImmutableTypeUtil {
 
 	private static final long serialVersionUID = 1L;
 	

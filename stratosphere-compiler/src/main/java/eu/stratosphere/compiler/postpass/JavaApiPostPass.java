@@ -18,10 +18,10 @@ import java.util.Arrays;
 
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.common.operators.util.FieldList;
-import eu.stratosphere.api.common.typeutils.Serializer;
 import eu.stratosphere.api.common.typeutils.TypeComparator;
 import eu.stratosphere.api.common.typeutils.TypeComparatorFactory;
 import eu.stratosphere.api.common.typeutils.TypePairComparatorFactory;
+import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
 import eu.stratosphere.api.java.operators.translation.BinaryJavaPlanNode;
 import eu.stratosphere.api.java.operators.translation.JavaPlanNode;
@@ -30,9 +30,9 @@ import eu.stratosphere.api.java.operators.translation.UnaryJavaPlanNode;
 import eu.stratosphere.api.java.typeutils.AtomicType;
 import eu.stratosphere.api.java.typeutils.CompositeType;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
-import eu.stratosphere.api.java.typeutils.runtime.ReferenceWrappedComparator;
-import eu.stratosphere.api.java.typeutils.runtime.ReferenceWrappedPairComparator.ReferenceWrappedPairComparatorFactory;
-import eu.stratosphere.api.java.typeutils.runtime.ReferenceWrappedSerializer;
+import eu.stratosphere.api.java.typeutils.runtime.RuntimeComparatorFactory;
+import eu.stratosphere.api.java.typeutils.runtime.RuntimePairComparatorFactory;
+import eu.stratosphere.api.java.typeutils.runtime.RuntimeSerializerFactory;
 import eu.stratosphere.compiler.CompilerPostPassException;
 import eu.stratosphere.compiler.plan.Channel;
 import eu.stratosphere.compiler.plan.DualInputPlanNode;
@@ -476,11 +476,9 @@ public class JavaApiPostPass implements OptimizerPostPass {
 
 	
 	private static <T> TypeSerializerFactory<?> createSerializer(TypeInformation<T> typeInfo) {
-		Serializer<T> serializer = typeInfo.createSerializer();
+		TypeSerializer<T> serializer = typeInfo.createSerializer();
 		
-		ReferenceWrappedSerializer<T> wrapper = new ReferenceWrappedSerializer<T>(serializer);
-		
-		return new ReferenceWrappedSerializer.ReferenceWrappedSerializerFactory<T>(wrapper);
+		return new RuntimeSerializerFactory<T>(serializer, typeInfo.getTypeClass());
 	}
 	
 	
@@ -498,14 +496,12 @@ public class JavaApiPostPass implements OptimizerPostPass {
 		else {
 			throw new RuntimeException("Unrecognized type: " + typeInfo);
 		}
-		
-		ReferenceWrappedComparator<T> wrappingComparator = new ReferenceWrappedComparator<T>(comparator);
-		
-		return new ReferenceWrappedComparator.ReferenceWrappedComparatorFactory<T>(wrappingComparator);
+
+		return new RuntimeComparatorFactory<T>(comparator);
 	}
 	
 	private static <T1, T2> TypePairComparatorFactory<?,?> createPairComparator(TypeInformation<T1> typeInfo1, TypeInformation<T2> typeInfo2) {
-		return new ReferenceWrappedPairComparatorFactory<T1,T2>();
+		return new RuntimePairComparatorFactory<T1,T2>();
 	}
 	
 	private static final boolean[] getSortOrders(FieldList keys, boolean[] orders) {

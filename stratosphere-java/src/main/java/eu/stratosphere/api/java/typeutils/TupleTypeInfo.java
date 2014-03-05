@@ -14,8 +14,8 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.typeutils;
 
-import eu.stratosphere.api.common.typeutils.Serializer;
 import eu.stratosphere.api.common.typeutils.TypeComparator;
+import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.api.java.tuple.*;
 import eu.stratosphere.api.java.typeutils.runtime.TupleComparator;
 import eu.stratosphere.api.java.typeutils.runtime.TupleSerializer;
@@ -73,8 +73,8 @@ public class TupleTypeInfo<T extends Tuple> extends TypeInformation<T> implement
 	}
 	
 	@Override
-	public Serializer<T> createSerializer() {
-		Serializer<?>[] fieldSerializers = new Serializer<?>[getArity()];
+	public TypeSerializer<T> createSerializer() {
+		TypeSerializer<?>[] fieldSerializers = new TypeSerializer<?>[getArity()];
 		for (int i = 0; i < types.length; i++) {
 			fieldSerializers[i] = types[i].createSerializer();
 		}

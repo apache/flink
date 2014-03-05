@@ -17,7 +17,7 @@ package eu.stratosphere.api.java.typeutils.runtime;
 import java.io.IOException;
 import java.lang.reflect.Array;
 
-import eu.stratosphere.api.common.typeutils.Serializer;
+import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.core.memory.DataInputView;
 import eu.stratosphere.core.memory.DataOutputView;
 
@@ -26,17 +26,17 @@ import eu.stratosphere.core.memory.DataOutputView;
  * @param <T> The array type
  * @param <T> The component type
  */
-public class GenericArraySerializer<C> extends Serializer<C[]> {
+public class GenericArraySerializer<C> extends TypeSerializer<C[]> {
 
 	private static final long serialVersionUID = 1L;
 
 	private final Class<C> componentClass;
 	
-	private final Serializer<C> componentSerializer;
+	private final TypeSerializer<C> componentSerializer;
 	
 	
 	
-	public GenericArraySerializer(Class<C> componentClass, Serializer<C> componentSerializer) {
+	public GenericArraySerializer(Class<C> componentClass, TypeSerializer<C> componentSerializer) {
 		this.componentClass = componentClass;
 		this.componentSerializer = componentSerializer;
 	}

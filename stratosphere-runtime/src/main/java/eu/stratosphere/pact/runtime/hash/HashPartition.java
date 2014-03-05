@@ -253,7 +253,7 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 	 * Inserts the given record into the probe side buffers. This method is only applicable when the
 	 * partition was spilled while processing the build side.
 	 * <p>
-	 * If this method is invoked when the partition is still beHhing built, it has undefined behavior.
+	 * If this method is invoked when the partition is still being built, it has undefined behavior.
 	 *   
 	 * @param object The record to be inserted into the probe side buffers.
 	 * @throws IOException Thrown, if the buffer is full, needs to be spilled, and spilling causes an error.

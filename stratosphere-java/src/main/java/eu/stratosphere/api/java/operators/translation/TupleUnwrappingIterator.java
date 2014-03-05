@@ -17,7 +17,6 @@ package eu.stratosphere.api.java.operators.translation;
 import java.util.Iterator;
 
 import eu.stratosphere.api.java.tuple.Tuple2;
-import eu.stratosphere.util.Reference;
 
 
 /**
@@ -28,10 +27,10 @@ public class TupleUnwrappingIterator<T, K> implements Iterator<T>, java.io.Seria
 	private static final long serialVersionUID = 1L;
 
 	
-	private Iterator<Reference<Tuple2<K, T>>> iterator;
+	private Iterator<Tuple2<K, T>> iterator;
 
 	
-	public void set(Iterator<Reference<Tuple2<K, T>>> iterator) {
+	public void set(Iterator<Tuple2<K, T>> iterator) {
 		this.iterator = iterator;
 	}
 
@@ -42,7 +41,7 @@ public class TupleUnwrappingIterator<T, K> implements Iterator<T>, java.io.Seria
 
 	@Override
 	public T next() {
-		return iterator.next().ref.T2();
+		return iterator.next().T2();
 	}
 
 	@Override

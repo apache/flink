@@ -14,7 +14,7 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.typeutils;
 
-import eu.stratosphere.api.common.typeutils.Serializer;
+import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.api.common.typeutils.TypeComparator;
 import eu.stratosphere.api.java.typeutils.runtime.CopyableValueSerializer;
 import eu.stratosphere.types.CopyableValue;
@@ -62,17 +62,17 @@ public class ValueTypeInfo<T extends Value> extends TypeInformation<T> implement
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public Serializer<T> createSerializer() {
+	public TypeSerializer<T> createSerializer() {
 		if (CopyableValue.class.isAssignableFrom(type)) {
-			return createCopyableSerializer(type.asSubclass(CopyableValue.class));
+			return (TypeSerializer<T>) createCopyableSerializer(type.asSubclass(CopyableValue.class));
 		}
 		else {
 			throw new UnsupportedOperationException("Serialization is not yet implemented for Value types that are not CopyableValue subclasses.");
 		}
 	}
 	
-	private static <X extends CopyableValue<X>> Serializer<X> createCopyableSerializer(Class<X> clazz) {
-		Serializer<X> ser = new CopyableValueSerializer<X>(clazz);
+	private static <X extends CopyableValue<X>> TypeSerializer<X> createCopyableSerializer(Class<X> clazz) {
+		TypeSerializer<X> ser = new CopyableValueSerializer<X>(clazz);
 		return ser;
 	}
 	
