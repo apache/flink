@@ -94,7 +94,7 @@ if [[ $TRAVIS_PULL_REQUEST == "false" ]] ; then
 	#	cd ..
 		echo "Uploading build to amazon s3. Job Number: $TRAVIS_JOB_NUMBER"
 		mkdir stratosphere
-		cp -r stratosphere-dist/target/stratosphere-dist-$CURRENT_STRATOSPHERE_VERSION-bin/stratosphere-$CURRENT_STRATOSPHERE_VERSION/* stratosphere/
+		cp -r stratosphere-dist/target/stratosphere-dist-*-bin/stratosphere*/* stratosphere/
 		tar -czf stratosphere-$CURRENT_STRATOSPHERE_VERSION.tgz stratosphere
 		
 		# upload the two in parallel
