@@ -16,6 +16,7 @@ package eu.stratosphere.example.java.record.wordcount;
 import java.util.Iterator;
 import java.util.StringTokenizer;
 
+import eu.stratosphere.api.common.JobExecutionResult;
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.Program;
 import eu.stratosphere.api.common.ProgramDescription;
@@ -30,7 +31,6 @@ import eu.stratosphere.api.java.record.operators.MapOperator;
 import eu.stratosphere.api.java.record.operators.ReduceOperator;
 import eu.stratosphere.api.java.record.operators.ReduceOperator.Combinable;
 import eu.stratosphere.client.LocalExecutor;
-import eu.stratosphere.nephele.client.JobExecutionResult;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;

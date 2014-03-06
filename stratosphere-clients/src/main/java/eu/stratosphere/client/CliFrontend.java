@@ -36,6 +36,7 @@ import org.apache.commons.cli.PosixParser;
 import org.apache.commons.cli.UnrecognizedOptionException;
 import org.apache.commons.io.FileUtils;
 
+import eu.stratosphere.api.common.JobExecutionResult;
 import eu.stratosphere.api.common.accumulators.AccumulatorHelper;
 import eu.stratosphere.client.program.Client;
 import eu.stratosphere.client.program.JobInstantiationException;
@@ -45,7 +46,6 @@ import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.configuration.GlobalConfiguration;
-import eu.stratosphere.nephele.client.JobExecutionResult;
 import eu.stratosphere.nephele.event.job.RecentJobEvent;
 import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.jobgraph.JobID;

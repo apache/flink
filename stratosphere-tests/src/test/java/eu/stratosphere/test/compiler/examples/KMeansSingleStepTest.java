@@ -90,7 +90,7 @@ public class KMeansSingleStepTest extends CompilerTestBase {
 		assertEquals(LocalStrategy.NONE, mapper.getInput().getLocalStrategy());
 		assertEquals(LocalStrategy.NONE, mapper.getBroadcastInputs().get(0).getLocalStrategy());
 		
-		assertEquals(DriverStrategy.MAP, mapper.getDriverStrategy());
+		assertEquals(DriverStrategy.COLLECTOR_MAP, mapper.getDriverStrategy());
 		
 		assertNull(mapper.getInput().getLocalStrategyKeys());
 		assertNull(mapper.getInput().getLocalStrategySortOrder());

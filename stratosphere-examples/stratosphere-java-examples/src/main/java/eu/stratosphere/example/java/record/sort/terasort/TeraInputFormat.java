@@ -28,10 +28,9 @@ public final class TeraInputFormat extends DelimitedInputFormat {
 	
 
 	@Override
-	public boolean readRecord(Record target, byte[] record, int offset, int numBytes)
-	{
+	public Record readRecord(Record target, byte[] record, int offset, int numBytes) throws RuntimeException {
 		if (numBytes != (TeraKey.KEY_SIZE + TeraValue.VALUE_SIZE)) {
-			return false;
+			throw new RuntimeException("Malformatted input!");
 		}
 
 		this.key.setValue(record, offset);
@@ -39,6 +38,6 @@ public final class TeraInputFormat extends DelimitedInputFormat {
 		
 		target.setField(0, this.key);
 		target.setField(1, this.value);
-		return true;
+		return target;
 	}
 }

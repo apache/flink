@@ -49,7 +49,7 @@ public class FileDataSource extends GenericDataSource<FileInputFormat<?>> {
 	 * @param filePath The file location. The file path must be a fully qualified URI, including the address schema.
 	 */
 	public FileDataSource(FileInputFormat<?> f, String filePath) {
-		this(f, Preconditions.checkNotNull(filePath, "The file path may not be null."), filePath);
+		this(f, Preconditions.checkNotNull(filePath, "The file path may not be null."), "File " + filePath);
 	}
 	
 	/**
@@ -75,7 +75,7 @@ public class FileDataSource extends GenericDataSource<FileInputFormat<?>> {
 	 * @param filePath The file location. The file path must be a fully qualified URI, including the address schema.
 	 */
 	public FileDataSource(Class<? extends FileInputFormat<?>> f, String filePath) {
-		this(f, Preconditions.checkNotNull(filePath, "The file path may not be null."), filePath);
+		this(f, Preconditions.checkNotNull(filePath, "The file path may not be null."), "File " + filePath);
 	}
 
 	// --------------------------------------------------------------------------------------------

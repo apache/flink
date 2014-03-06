@@ -31,6 +31,7 @@ import org.apache.avro.io.DatumReader;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.api.avro.FSDataInputStreamWrapper;
 import eu.stratosphere.api.java.record.io.FileInputFormat;
 import eu.stratosphere.core.fs.FileInputSplit;
 import eu.stratosphere.core.fs.FileStatus;
@@ -81,9 +82,9 @@ public class AvroRecordInputFormat extends FileInputFormat {
 	}
 
 	@Override
-	public boolean nextRecord(Record record) throws IOException {
+	public Record nextRecord(Record record) throws IOException {
 		if (!dataFileReader.hasNext()) {
-			return false;
+			return null;
 		}
 		if (record == null) {
 			throw new IllegalArgumentException("Empty PactRecord given");
@@ -96,9 +97,8 @@ public class AvroRecordInputFormat extends FileInputFormat {
 			record.updateBinaryRepresenation();
 		}
 
-		return true;
+		return record;
 	}
-
 
 
 	@SuppressWarnings("unchecked")

@@ -23,10 +23,10 @@ public class CustomImprovedAdjacencyListInputFormat extends DelimitedInputFormat
 	private final AsciiLongArrayView arrayView = new AsciiLongArrayView();
 
 	@Override
-	public boolean readRecord(VertexWithAdjacencyList target, byte[] bytes, int offset, int numBytes) {
+	public VertexWithAdjacencyList readRecord(VertexWithAdjacencyList target, byte[] bytes, int offset, int numBytes) {
 
 		if (numBytes == 0) {
-			return false;
+			return null;
 		}
 
 		arrayView.set(bytes, offset, numBytes);
@@ -55,6 +55,6 @@ public class CustomImprovedAdjacencyListInputFormat extends DelimitedInputFormat
 			throw new RuntimeException("Error parsing: " + arrayView.toString(), e);
 		}
 
-		return true;
+		return target;
 	}
 }

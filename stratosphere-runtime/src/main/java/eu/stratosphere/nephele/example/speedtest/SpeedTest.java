@@ -16,12 +16,12 @@ package eu.stratosphere.nephele.example.speedtest;
 import java.io.File;
 import java.io.IOException;
 
+import eu.stratosphere.api.common.JobExecutionResult;
 import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.client.JobExecutionException;
-import eu.stratosphere.nephele.client.JobExecutionResult;
 import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.jobgraph.JobGenericInputVertex;

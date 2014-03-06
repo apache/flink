@@ -20,8 +20,10 @@ import eu.stratosphere.types.DoubleValue;
  */
 public class DecimalTextDoubleParser extends FieldParser<DoubleValue> {
 	
+	private DoubleValue result;
+	
 	@Override
-	public int parseField(byte[] bytes, int startPos, int limit, char delim, DoubleValue field) {
+	public int parseField(byte[] bytes, int startPos, int limit, char delim, DoubleValue reusable) {
 		
 		int i = startPos;
 		final byte delByte = (byte) delim;
@@ -33,7 +35,8 @@ public class DecimalTextDoubleParser extends FieldParser<DoubleValue> {
 		String str = new String(bytes, startPos, i-startPos);
 		try {
 			double value = Double.parseDouble(str);
-			field.setValue(value);
+			reusable.setValue(value);
+			this.result = reusable;
 			return (i == limit) ? limit : i+1;
 		}
 		catch (NumberFormatException e) {
@@ -44,5 +47,10 @@ public class DecimalTextDoubleParser extends FieldParser<DoubleValue> {
 	@Override
 	public DoubleValue createValue() {
 		return new DoubleValue();
+	}
+
+	@Override
+	public DoubleValue getLastResult() {
+		return this.result;
 	}
 }

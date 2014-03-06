@@ -13,12 +13,8 @@
 
 package eu.stratosphere.api.common.operators;
 
-import java.lang.annotation.Annotation;
-import java.util.List;
-
 import eu.stratosphere.api.common.operators.util.UserCodeWrapper;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Visitable;
 
 /**
@@ -30,12 +26,10 @@ public abstract class Operator implements Visitable<Operator> {
 	
 	protected final Configuration parameters;			// the parameters to parameterize the UDF
 	
-	protected CompilerHints compilerHints;				// hints to the pact compiler
+	protected CompilerHints compilerHints;				// hints to the compiler
 	
 	protected String name;								// the name of the contract instance. optional.
-	
-	protected List<Class<? extends Annotation>> ocs;	// the output contract classes
-	
+		
 	private int degreeOfParallelism = -1;				// the number of parallel instances to use. -1, if unknown
 
 	// --------------------------------------------------------------------------------------------	
@@ -173,19 +167,6 @@ public abstract class Operator implements Visitable<Operator> {
 	 */
 	public UserCodeWrapper<?> getUserCodeWrapper() {
 		return null;
-	}
-	
-	/**
-	 * Gets an annotation that pertains to the user code class. By default, this method will look for
-	 * annotations statically present on the user code class. However, inheritors may override this
-	 * behavior to provide annotations dynamically.
-	 * 
-	 * @param annotationClass
-	 *        the Class object corresponding to the annotation type
-	 * @return the annotation, or null if no annotation of the requested type was found
-	 */
-	public <A extends Annotation> A getUserCodeAnnotation(Class<A> annotationClass) {
-		return getUserCodeWrapper().getUserCodeAnnotation(annotationClass);
 	}
 	
 	

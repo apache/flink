@@ -14,7 +14,7 @@
 package eu.stratosphere.test.iterative.nephele.customdanglingpagerank;
 
 import eu.stratosphere.api.common.functions.AbstractFunction;
-import eu.stratosphere.api.common.functions.GenericMapper;
+import eu.stratosphere.api.common.functions.GenericCollectorMap;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.test.iterative.nephele.ConfigUtils;
 import eu.stratosphere.test.iterative.nephele.customdanglingpagerank.types.VertexWithRankAndDangling;
@@ -23,7 +23,7 @@ import eu.stratosphere.util.Collector;
 
 import java.util.Set;
 
-public class CustomCompensatingMap extends AbstractFunction implements GenericMapper<VertexWithRankAndDangling, VertexWithRankAndDangling> {
+public class CustomCompensatingMap extends AbstractFunction implements GenericCollectorMap<VertexWithRankAndDangling, VertexWithRankAndDangling> {
 	
 	private static final long serialVersionUID = 1L;
 	

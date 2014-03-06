@@ -13,10 +13,7 @@
 
 package eu.stratosphere.api.java.record.io;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 import java.io.DataOutputStream;
 import java.io.File;
@@ -96,7 +93,7 @@ public class CsvInputFormatTest {
 		
 			final Configuration parameters = new Configuration();
 
-			format.setFieldDelim('|');
+			format.setFieldDelimiter('|');
 			format.setFieldTypes(StringValue.class, StringValue.class, StringValue.class);
 			
 			format.configure(parameters);
@@ -104,17 +101,17 @@ public class CsvInputFormatTest {
 			
 			Record record = new Record();
 			
-			assertTrue(format.nextRecord(record));
+			assertNotNull(format.nextRecord(record));
 			assertEquals("abc", record.getField(0, StringValue.class).getValue());
 			assertEquals("def", record.getField(1, StringValue.class).getValue());
 			assertEquals("ghijk", record.getField(2, StringValue.class).getValue());
 			
-			assertTrue(format.nextRecord(record));
+			assertNotNull(format.nextRecord(record));
 			assertEquals("abc", record.getField(0, StringValue.class).getValue());
 			assertEquals("", record.getField(1, StringValue.class).getValue());
 			assertEquals("hhg", record.getField(2, StringValue.class).getValue());
 			
-			assertTrue(format.nextRecord(record));
+			assertNotNull(format.nextRecord(record));
 			assertEquals("", record.getField(0, StringValue.class).getValue());
 			assertEquals("", record.getField(1, StringValue.class).getValue());
 			assertEquals("", record.getField(2, StringValue.class).getValue());
@@ -135,24 +132,24 @@ public class CsvInputFormatTest {
 			new CsvInputFormat.ConfigBuilder(null, parameters)
 				.field(StringValue.class, 0).field(StringValue.class, 1).field(StringValue.class, 2);
 			
-			format.setFieldDelim('|');
+			format.setFieldDelimiter('|');
 			
 			format.configure(parameters);
 			format.open(split);
 			
 			Record record = new Record();
 			
-			assertTrue(format.nextRecord(record));
+			assertNotNull(format.nextRecord(record));
 			assertEquals("abc", record.getField(0, StringValue.class).getValue());
 			assertEquals("def", record.getField(1, StringValue.class).getValue());
 			assertEquals("ghijk", record.getField(2, StringValue.class).getValue());
 			
-			assertTrue(format.nextRecord(record));
+			assertNotNull(format.nextRecord(record));
 			assertEquals("abc", record.getField(0, StringValue.class).getValue());
 			assertEquals("", record.getField(1, StringValue.class).getValue());
 			assertEquals("hhg", record.getField(2, StringValue.class).getValue());
 			
-			assertTrue(format.nextRecord(record));
+			assertNotNull(format.nextRecord(record));
 			assertEquals("", record.getField(0, StringValue.class).getValue());
 			assertEquals("", record.getField(1, StringValue.class).getValue());
 			assertEquals("", record.getField(2, StringValue.class).getValue());
@@ -180,21 +177,21 @@ public class CsvInputFormatTest {
 			
 			Record record = new Record();
 			
-			assertTrue(format.nextRecord(record));
+			assertNotNull(format.nextRecord(record));
 			assertEquals(111, record.getField(0, IntValue.class).getValue());
 			assertEquals(222, record.getField(1, IntValue.class).getValue());
 			assertEquals(333, record.getField(2, IntValue.class).getValue());
 			assertEquals(444, record.getField(3, IntValue.class).getValue());
 			assertEquals(555, record.getField(4, IntValue.class).getValue());
 			
-			assertTrue(format.nextRecord(record));
+			assertNotNull(format.nextRecord(record));
 			assertEquals(666, record.getField(0, IntValue.class).getValue());
 			assertEquals(777, record.getField(1, IntValue.class).getValue());
 			assertEquals(888, record.getField(2, IntValue.class).getValue());
 			assertEquals(999, record.getField(3, IntValue.class).getValue());
 			assertEquals(000, record.getField(4, IntValue.class).getValue());
 			
-			assertFalse(format.nextRecord(record));
+			assertNull(format.nextRecord(record));
 			assertTrue(format.reachedEnd());
 		}
 		catch (Exception ex) {
@@ -219,7 +216,7 @@ public class CsvInputFormatTest {
 			
 			Record record = new Record();
 			
-			assertTrue(format.nextRecord(record));
+			assertNotNull(format.nextRecord(record));
 			assertEquals(111, record.getField(0, IntValue.class).getValue());
 			assertEquals(222, record.getField(1, IntValue.class).getValue());
 			boolean notParsed = false;
@@ -230,7 +227,7 @@ public class CsvInputFormatTest {
 			}
 			assertTrue(notParsed);
 			
-			assertTrue(format.nextRecord(record));
+			assertNotNull(format.nextRecord(record));
 			assertEquals(666, record.getField(0, IntValue.class).getValue());
 			assertEquals(777, record.getField(1, IntValue.class).getValue());
 			notParsed = false;
@@ -241,7 +238,7 @@ public class CsvInputFormatTest {
 			}
 			assertTrue(notParsed);
 			
-			assertFalse(format.nextRecord(record));
+			assertNull(format.nextRecord(record));
 			assertTrue(format.reachedEnd());
 		}
 		catch (Exception ex) {
@@ -267,17 +264,17 @@ public class CsvInputFormatTest {
 			
 			Record record = new Record();
 			
-			assertTrue(format.nextRecord(record));
+			assertNotNull(format.nextRecord(record));
 			assertEquals(111, record.getField(0, IntValue.class).getValue());
 			assertEquals(444, record.getField(1, IntValue.class).getValue());
 			assertEquals(888, record.getField(2, IntValue.class).getValue());
 			
-			assertTrue(format.nextRecord(record));
+			assertNotNull(format.nextRecord(record));
 			assertEquals(000, record.getField(0, IntValue.class).getValue());
 			assertEquals(777, record.getField(1, IntValue.class).getValue());
 			assertEquals(333, record.getField(2, IntValue.class).getValue());
 			
-			assertFalse(format.nextRecord(record));
+			assertNull(format.nextRecord(record));
 			assertTrue(format.reachedEnd());
 		}
 		catch (Exception ex) {
@@ -302,17 +299,17 @@ public class CsvInputFormatTest {
 			
 			Record record = new Record();
 			
-			assertTrue(format.nextRecord(record));
+			assertNotNull(format.nextRecord(record));
 			assertEquals(999, record.getField(0, IntValue.class).getValue());
 			assertEquals(222, record.getField(1, IntValue.class).getValue());
 			assertEquals(444, record.getField(2, IntValue.class).getValue());
 			
-			assertTrue(format.nextRecord(record));
+			assertNotNull(format.nextRecord(record));
 			assertEquals(222, record.getField(0, IntValue.class).getValue());
 			assertEquals(999, record.getField(1, IntValue.class).getValue());
 			assertEquals(777, record.getField(2, IntValue.class).getValue());
 			
-			assertFalse(format.nextRecord(record));
+			assertNull(format.nextRecord(record));
 			assertTrue(format.reachedEnd());
 		}
 		catch (Exception ex) {

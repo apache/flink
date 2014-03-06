@@ -196,8 +196,8 @@ public class FileInputFormatTest {
 		}
 
 		@Override
-		public boolean nextRecord(IntValue record) throws IOException {
-			return false;
+		public IntValue nextRecord(IntValue record) throws IOException {
+			return null;
 		}
 	}
 }

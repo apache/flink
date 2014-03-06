@@ -19,11 +19,13 @@ import java.util.List;
 import java.util.Map;
 
 import eu.stratosphere.api.common.operators.Operator;
+import eu.stratosphere.api.common.operators.RecordOperator;
 import eu.stratosphere.api.common.operators.base.CrossOperatorBase;
 import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
 import eu.stratosphere.api.common.operators.util.UserCodeObjectWrapper;
 import eu.stratosphere.api.common.operators.util.UserCodeWrapper;
 import eu.stratosphere.api.java.record.functions.CrossFunction;
+import eu.stratosphere.api.java.record.functions.FunctionAnnotation;
 import eu.stratosphere.types.Key;
 
 
@@ -37,7 +39,7 @@ public class CrossOperator extends CrossOperatorBase<CrossFunction> implements R
 	/**
 	 * Creates a Builder with the provided {@link CrossFunction} implementation.
 	 * 
-	 * @param udf The {@link CrossFunction} implementation for this Cross contract.
+	 * @param udf The {@link CrossFunction} implementation for this Cross operator.
 	 */
 	public static Builder builder(CrossFunction udf) {
 		return new Builder(new UserCodeObjectWrapper<CrossFunction>(udf));
@@ -46,7 +48,7 @@ public class CrossOperator extends CrossOperatorBase<CrossFunction> implements R
 	/**
 	 * Creates a Builder with the provided {@link CrossFunction} implementation.
 	 * 
-	 * @param udf The {@link CrossFunction} implementation for this Cross contract.
+	 * @param udf The {@link CrossFunction} implementation for this Cross operator.
 	 */
 	public static Builder builder(Class<? extends CrossFunction> udf) {
 		return new Builder(new UserCodeClassWrapper<CrossFunction>(udf));
@@ -61,6 +63,7 @@ public class CrossOperator extends CrossOperatorBase<CrossFunction> implements R
 		setFirstInputs(builder.inputs1);
 		setSecondInputs(builder.inputs2);
 		setBroadcastVariables(builder.broadcastInputs);
+		setSemanticProperties(FunctionAnnotation.readDualConstantAnnotations(builder.udf));
 	}
 	
 
@@ -88,7 +91,7 @@ public class CrossOperator extends CrossOperatorBase<CrossFunction> implements R
 		/**
 		 * Creates a Builder with the provided {@link CrossFunction} implementation.
 		 * 
-		 * @param udf The {@link CrossFunction} implementation for this Cross contract.
+		 * @param udf The {@link CrossFunction} implementation for this Cross operator.
 		 */
 		protected Builder(UserCodeWrapper<CrossFunction> udf) {
 			this.udf = udf;
@@ -162,7 +165,7 @@ public class CrossOperator extends CrossOperatorBase<CrossFunction> implements R
 		}
 		
 		/**
-		 * Sets the name of this contract.
+		 * Sets the name of this operator.
 		 * 
 		 * @param name
 		 */
@@ -175,7 +178,7 @@ public class CrossOperator extends CrossOperatorBase<CrossFunction> implements R
 		 * Creates and returns a CrossOperator from using the values given 
 		 * to the builder.
 		 * 
-		 * @return The created contract
+		 * @return The created operator
 		 */
 		public CrossOperator build() {
 			setNameIfUnset();

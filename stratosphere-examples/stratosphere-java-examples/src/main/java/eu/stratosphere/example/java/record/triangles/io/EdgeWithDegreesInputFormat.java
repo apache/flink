@@ -46,11 +46,8 @@ public final class EdgeWithDegreesInputFormat extends DelimitedInputFormat {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.api.record.io.DelimitedInputFormat#readRecord(eu.stratosphere.pact.common.type.Record, byte[], int)
-	 */
 	@Override
-	public boolean readRecord(Record target, byte[] bytes, int offset, int numBytes) {
+	public Record readRecord(Record target, byte[] bytes, int offset, int numBytes) {
 		final int limit = offset + numBytes;
 		int firstV = 0, secondV = 0;
 		int firstD = 0, secondD = 0;
@@ -87,7 +84,7 @@ public final class EdgeWithDegreesInputFormat extends DelimitedInputFormat {
 		}
 		
 		if (firstV <= 0 || secondV <= 0 || firstV == secondV)
-			return false;
+			return null;
 		
 		v1.setValue(firstV);
 		v2.setValue(secondV);
@@ -99,7 +96,7 @@ public final class EdgeWithDegreesInputFormat extends DelimitedInputFormat {
 		target.setField(2, d1);
 		target.setField(3, d2);
 		
-		return true;
+		return target;
 	}
 	
 	// --------------------------------------------------------------------------------------------

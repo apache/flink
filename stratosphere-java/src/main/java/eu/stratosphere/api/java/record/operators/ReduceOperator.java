@@ -24,10 +24,12 @@ import java.util.Map;
 
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.common.operators.Ordering;
-import eu.stratosphere.api.common.operators.base.ReduceOperatorBase;
+import eu.stratosphere.api.common.operators.RecordOperator;
+import eu.stratosphere.api.common.operators.base.GroupReduceOperatorBase;
 import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
 import eu.stratosphere.api.common.operators.util.UserCodeObjectWrapper;
 import eu.stratosphere.api.common.operators.util.UserCodeWrapper;
+import eu.stratosphere.api.java.record.functions.FunctionAnnotation;
 import eu.stratosphere.api.java.record.functions.ReduceFunction;
 import eu.stratosphere.types.Key;
 
@@ -36,7 +38,7 @@ import eu.stratosphere.types.Key;
  * 
  * @see ReduceFunction
  */
-public class ReduceOperator extends ReduceOperatorBase<ReduceFunction> implements RecordOperator {
+public class ReduceOperator extends GroupReduceOperatorBase<ReduceFunction> implements RecordOperator {
 	
 	private static final String DEFAULT_NAME = "<Unnamed Reducer>";		// the default name for contracts
 	
@@ -44,11 +46,6 @@ public class ReduceOperator extends ReduceOperatorBase<ReduceFunction> implement
 	 * The types of the keys that the contract operates on.
 	 */
 	private final Class<? extends Key>[] keyTypes;
-	
-	/**
-	 * The ordering for the order inside a reduce group.
-	 */
-	private Ordering groupOrder;
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -102,6 +99,7 @@ public class ReduceOperator extends ReduceOperatorBase<ReduceFunction> implement
 		setInputs(builder.inputs);
 		setGroupOrder(builder.secondaryOrder);
 		setBroadcastVariables(builder.broadcastInputs);
+		setSemanticProperties(FunctionAnnotation.readSingleConstantAnnotations(builder.udf));
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -112,31 +110,11 @@ public class ReduceOperator extends ReduceOperatorBase<ReduceFunction> implement
 		return this.keyTypes;
 	}
 	
-	/**
-	 * Sets the order of the elements within a reduce group.
-	 * 
-	 * @param order The order for the elements in a reduce group.
-	 */
-	public void setGroupOrder(Ordering order) {
-		this.groupOrder = order;
-	}
-
-	/**
-	 * Gets the order of elements within a reduce group. If no such order has been
-	 * set, this method returns null.
-	 * 
-	 * @return The secondary order.
-	 */
-	public Ordering getGroupOrder() {
-		return this.groupOrder;
-	}
-	
 	// --------------------------------------------------------------------------------------------
 	
-
 	@Override
 	public boolean isCombinable() {
-		return super.isCombinable() || getUserCodeAnnotation(Combinable.class) != null;
+		return super.isCombinable() || getUserCodeWrapper().getUserCodeAnnotation(Combinable.class) != null;
 	}
 	
 	/**
@@ -181,6 +159,7 @@ public class ReduceOperator extends ReduceOperatorBase<ReduceFunction> implement
 	
 	// --------------------------------------------------------------------------------------------
 	
+
 	/**
 	 * Builder pattern, straight from Joshua Bloch's Effective Java (2nd Edition).
 	 */
@@ -304,7 +283,7 @@ public class ReduceOperator extends ReduceOperatorBase<ReduceFunction> implement
 		}
 		
 		/**
-		 * Sets the name of this contract.
+		 * Sets the name of this operator.
 		 * 
 		 * @param name
 		 */
@@ -317,7 +296,7 @@ public class ReduceOperator extends ReduceOperatorBase<ReduceFunction> implement
 		 * Creates and returns a ReduceOperator from using the values given 
 		 * to the builder.
 		 * 
-		 * @return The created contract
+		 * @return The created operator
 		 */
 		public ReduceOperator build() {
 			if (name == null) {

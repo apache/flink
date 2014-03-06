@@ -16,7 +16,7 @@ package eu.stratosphere.arraymodel.functions;
 import java.lang.reflect.Method;
 import java.util.Iterator;
 
-import eu.stratosphere.api.common.functions.GenericReducer;
+import eu.stratosphere.api.common.functions.GenericGroupReduce;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.types.CopyableValue;
 import eu.stratosphere.types.Value;
@@ -24,8 +24,10 @@ import eu.stratosphere.util.Collector;
 import eu.stratosphere.util.InstantiationUtil;
 
 
-public abstract class ReduceWithKeyFunction extends AbstractArrayModelFunction implements GenericReducer<Value[], Value[]> {
+public abstract class ReduceWithKeyFunction extends AbstractArrayModelFunction implements GenericGroupReduce<Value[], Value[]> {
 	
+	private static final long serialVersionUID = 1L;
+
 	public abstract void reduce(Value key, Iterator<Value[]> records, Collector<Value[]> out);
 	
 	public void combine(Value key, Iterator<Value[]> records, Collector<Value[]> out) {

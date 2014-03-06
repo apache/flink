@@ -147,7 +147,7 @@ public class SequentialFormatTest {
 			input.open(inputSplit);
 			Record record = new Record();
 			while (!input.reachedEnd())
-				if (input.nextRecord(record)) {
+				if (input.nextRecord(record) != null) {
 					this.checkEquals(this.getRecord(readCount), record);
 					readCount++;
 				}

@@ -95,16 +95,16 @@ public class HadoopInputFormatWrapper<K, V> implements InputFormat<Record, Hadoo
 	}
 
 	@Override
-	public boolean nextRecord(Record record) throws IOException {
+	public Record nextRecord(Record record) throws IOException {
 		if(!fetched) {
 			fetchNext();
 		}
 		if(!hasNext) {
-			return false;
+			return null;
 		}
 		converter.convert(record, key, value);
 		fetched = false;
-		return true;
+		return record;
 	}
 
 	@Override

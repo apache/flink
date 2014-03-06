@@ -36,7 +36,7 @@ public class CustomImprovedDanglingPageRankInputFormat extends DelimitedInputFor
 	}
 
 	@Override
-	public boolean readRecord(VertexWithRankAndDangling target, byte[] bytes, int offset, int numBytes) {
+	public VertexWithRankAndDangling readRecord(VertexWithRankAndDangling target, byte[] bytes, int offset, int numBytes) {
 
 		arrayView.set(bytes, offset, numBytes);
 
@@ -56,6 +56,6 @@ public class CustomImprovedDanglingPageRankInputFormat extends DelimitedInputFor
 
 		target.setRank(initialRank);
 
-		return true;
+		return target;
 	}
 }

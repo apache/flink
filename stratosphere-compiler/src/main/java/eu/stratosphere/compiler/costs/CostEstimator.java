@@ -153,7 +153,9 @@ public abstract class CostEstimator {
 		case NONE:
 		case UNARY_NO_OP:
 		case BINARY_NO_OP:	
+		case COLLECTOR_MAP:
 		case MAP:
+		case FLAT_MAP:
 			
 		case ALL_GROUP:
 			// this operation does not do any actual grouping, since every element is in the same single group

@@ -57,7 +57,7 @@ public class RecordPairComparatorFactory implements TypePairComparatorFactory<Re
 		final Class<? extends Key>[] types1 = prc1.getKeyTypes();
 		final Class<? extends Key>[] types2 = prc2.getKeyTypes();
 		
-		checlComparators(pos1, pos2, types1, types2);
+		checkComparators(pos1, pos2, types1, types2);
 		
 		return new RecordPairComparator(pos1, pos2, types1);
 	}
@@ -81,14 +81,14 @@ public class RecordPairComparatorFactory implements TypePairComparatorFactory<Re
 		final Class<? extends Key>[] types1 = prc1.getKeyTypes();
 		final Class<? extends Key>[] types2 = prc2.getKeyTypes();
 		
-		checlComparators(pos1, pos2, types1, types2);
+		checkComparators(pos1, pos2, types1, types2);
 		
 		return new RecordPairComparator(pos2, pos1, types1);
 	}
 	
 	// --------------------------------------------------------------------------------------------
 
-	private static final void checlComparators(int[] pos1, int[] pos2, 
+	private static final void checkComparators(int[] pos1, int[] pos2, 
 							Class<? extends Key>[] types1, Class<? extends Key>[] types2)
 	{
 		if (pos1.length != pos2.length || types1.length != types2.length) {

@@ -19,7 +19,6 @@ import java.util.List;
 import eu.stratosphere.compiler.dag.SingleInputNode;
 import eu.stratosphere.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.compiler.dataproperties.LocalProperties;
-import eu.stratosphere.compiler.dataproperties.PartitioningProperty;
 import eu.stratosphere.compiler.dataproperties.RequestedGlobalProperties;
 import eu.stratosphere.compiler.dataproperties.RequestedLocalProperties;
 import eu.stratosphere.compiler.plan.Channel;
@@ -36,7 +35,7 @@ public class MapDescriptor extends OperatorDescriptorSingle {
 
 	@Override
 	public SingleInputPlanNode instantiate(Channel in, SingleInputNode node) {
-		return new SingleInputPlanNode(node, "Map("+node.getPactContract().getName()+")", in, DriverStrategy.MAP);
+		return new SingleInputPlanNode(node, "Map ("+node.getPactContract().getName()+")", in, DriverStrategy.MAP);
 	}
 
 	@Override
@@ -51,18 +50,11 @@ public class MapDescriptor extends OperatorDescriptorSingle {
 	
 	@Override
 	public GlobalProperties computeGlobalProperties(GlobalProperties gProps) {
-		if (gProps.getUniqueFieldCombination() != null && gProps.getUniqueFieldCombination().size() > 0 &&
-				gProps.getPartitioning() == PartitioningProperty.RANDOM)
-		{
-			gProps.setAnyPartitioning(gProps.getUniqueFieldCombination().iterator().next().toFieldList());
-		}
-		gProps.clearUniqueFieldCombinations();
 		return gProps;
 	}
 	
 	@Override
 	public LocalProperties computeLocalProperties(LocalProperties lProps) {
-		lProps.clearUniqueFieldSets();
 		return lProps;
 	}
 }

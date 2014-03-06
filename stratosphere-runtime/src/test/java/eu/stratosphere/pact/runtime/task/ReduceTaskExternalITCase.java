@@ -23,20 +23,20 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.junit.Test;
 
-import eu.stratosphere.api.common.functions.GenericReducer;
-import eu.stratosphere.api.common.operators.base.ReduceOperatorBase.Combinable;
+import eu.stratosphere.api.common.functions.GenericGroupReduce;
 import eu.stratosphere.api.java.record.functions.ReduceFunction;
+import eu.stratosphere.api.java.record.operators.ReduceOperator.Combinable;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparator;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializer;
 import eu.stratosphere.pact.runtime.sort.CombiningUnilateralSortMerger;
 import eu.stratosphere.pact.runtime.test.util.DriverTestBase;
 import eu.stratosphere.pact.runtime.test.util.UniformRecordGenerator;
-import eu.stratosphere.types.Key;
 import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Key;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
-public class ReduceTaskExternalITCase extends DriverTestBase<GenericReducer<Record, Record>>
+public class ReduceTaskExternalITCase extends DriverTestBase<GenericGroupReduce<Record, Record>>
 {
 	private static final Log LOG = LogFactory.getLog(ReduceTaskExternalITCase.class);
 	

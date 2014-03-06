@@ -28,9 +28,20 @@ import eu.stratosphere.types.Value;
 /**
  * A FieldParser is used parse a field and fill a {@link Value} from a sequence of bytes.
  *
- * @param <T> The type of {@link Value} that is filled.
+ * @param <T> The type that is parsed.
  */
-public abstract class FieldParser<T extends Value> {
+public abstract class FieldParser<T> {
+	
+	public static enum ParseErrorState {
+		NONE,
+		NUMERIC_VALUE_OVERFLOW_UNDERFLOW,
+		NUMERIC_VALUE_ORPHAN_SIGN,
+		NUMERIC_VALUE_ILLEGAL_CHARACTER,
+		UNTERMINATED_QUOTED_STRING,
+		UNQUOTED_CHARS_AFTER_QUOTED_STRING
+	}
+	
+	private ParseErrorState errorState = ParseErrorState.NONE;
 	
 	/**
 	 * Fills a given {@link Value} with the value of a field by parsing a byte array. 
@@ -42,10 +53,13 @@ public abstract class FieldParser<T extends Value> {
 	 * @param limit The limit unto which the byte contents is valid for the parser. The limit is the
 	 *              position one after the last valid byte.
 	 * @param delim Field delimiter character
-	 * @param field The field to hold the value
+	 * @param reuse The an optional reusable field to hold the value
+	 * 
 	 * @return The index of the next delimiter, if the field was parsed correctly. A value less than 0 otherwise.
 	 */
-	public abstract int parseField(byte[] bytes, int startPos, int limit, char delim, T field);
+	public abstract int parseField(byte[] bytes, int startPos, int limit, char delim, T reuse);
+	
+	public abstract T getLastResult();
 	
 	/**
 	 * Returns an instance of the parsed value type.
@@ -55,11 +69,20 @@ public abstract class FieldParser<T extends Value> {
 	public abstract T createValue();
 	
 	
+	
+	protected void setErrorState(ParseErrorState error) {
+		this.errorState = error;
+	}
+	
+	public ParseErrorState getErrorState() {
+		return this.errorState;
+	}
+	
 	// --------------------------------------------------------------------------------------------
 	//  Mapping from types to parsers
 	// --------------------------------------------------------------------------------------------
 	
-	public static <T extends Value> Class<FieldParser<T>> getParserForType(Class<T> type) {
+	public static <T> Class<FieldParser<T>> getParserForType(Class<T> type) {
 		Class<? extends FieldParser<?>> parser = PARSERS.get(type);
 		if (parser == null) {
 			return null;
@@ -70,10 +93,20 @@ public abstract class FieldParser<T extends Value> {
 		}
 	}
 	
-	private static final Map<Class<? extends Value>, Class<? extends FieldParser<?>>> PARSERS = 
-			new HashMap<Class<? extends Value>, Class<? extends FieldParser<?>>>();
+	private static final Map<Class<?>, Class<? extends FieldParser<?>>> PARSERS = 
+			new HashMap<Class<?>, Class<? extends FieldParser<?>>>();
 	
 	static {
+		// basic types
+		PARSERS.put(Byte.class, ByteParser.class);
+		PARSERS.put(Short.class, ShortParser.class);
+		PARSERS.put(Integer.class, IntParser.class);
+		PARSERS.put(Long.class, LongParser.class);
+		PARSERS.put(String.class, AsciiStringParser.class);
+		PARSERS.put(Float.class, FloatParser.class);
+		PARSERS.put(Double.class, DoubleParser.class);
+		
+		// value types
 		PARSERS.put(ByteValue.class, DecimalTextByteParser.class);
 		PARSERS.put(ShortValue.class, DecimalTextShortParser.class);
 		PARSERS.put(IntValue.class, DecimalTextIntParser.class);

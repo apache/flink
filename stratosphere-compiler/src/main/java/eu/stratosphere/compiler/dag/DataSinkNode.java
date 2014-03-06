@@ -254,10 +254,7 @@ public class DataSinkNode extends OptimizerNode {
 	public boolean isFieldConstant(int input, int fieldNumber) {
 		return false;
 	}
-	
-	@Override
-	protected void readConstantAnnotation() {}
-	
+		
 	// --------------------------------------------------------------------------------------------
 	//                                     Miscellaneous
 	// --------------------------------------------------------------------------------------------

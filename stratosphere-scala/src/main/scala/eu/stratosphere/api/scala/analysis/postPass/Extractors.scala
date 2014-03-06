@@ -26,11 +26,11 @@ import eu.stratosphere.compiler.dag.CoGroupNode
 import eu.stratosphere.compiler.dag.CrossNode
 import eu.stratosphere.compiler.dag.DataSinkNode
 import eu.stratosphere.compiler.dag.DataSourceNode
-import eu.stratosphere.compiler.dag.MapNode
+import eu.stratosphere.compiler.dag.CollectorMapNode
 import eu.stratosphere.compiler.dag.MatchNode
 import eu.stratosphere.compiler.dag.OptimizerNode
 import eu.stratosphere.compiler.dag.PactConnection
-import eu.stratosphere.compiler.dag.ReduceNode
+import eu.stratosphere.compiler.dag.GroupReduceNode
 import eu.stratosphere.compiler.dag.SinkJoiner
 import eu.stratosphere.compiler.dag.WorksetIterationNode
 import eu.stratosphere.api.common.operators.DeltaIteration
@@ -114,7 +114,7 @@ object Extractors {
 
   object MapNode {
     def unapply(node: OptimizerNode): Option[(UDF1[_, _], PactConnection)] = node match {
-      case node: MapNode => node.getPactContract match {
+      case node: CollectorMapNode => node.getPactContract match {
         case contract: MapOperator with OneInputScalaOperator[_, _] => Some((contract.getUDF, node.getIncomingConnection))
         case _ => None
       }
@@ -124,7 +124,7 @@ object Extractors {
   
   object UnionNode {
     def unapply(node: OptimizerNode): Option[(UDF1[_, _], PactConnection)] = node match {
-      case node: MapNode => node.getPactContract match {
+      case node: CollectorMapNode => node.getPactContract match {
         case contract: MapOperator with UnionScalaOperator[_] => Some((contract.getUDF, node.getIncomingConnection))
         case _ => None
       }
@@ -134,7 +134,7 @@ object Extractors {
 
   object ReduceNode {
     def unapply(node: OptimizerNode): Option[(UDF1[_, _], FieldSelector, PactConnection)] = node match {
-      case node: ReduceNode => node.getPactContract match {
+      case node: GroupReduceNode => node.getPactContract match {
         case contract: ReduceOperator with OneInputKeyedScalaOperator[_, _] => Some((contract.getUDF, contract.key, node.getIncomingConnection))
         case contract: ReduceOperator with OneInputScalaOperator[_, _] => Some((contract.getUDF, new FieldSelector(contract.getUDF.inputUDT, Nil), node.getIncomingConnection))
         case _ => None

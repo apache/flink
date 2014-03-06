@@ -16,7 +16,7 @@ package eu.stratosphere.api.java.record.functions;
 import java.util.Iterator;
 
 import eu.stratosphere.api.common.functions.AbstractFunction;
-import eu.stratosphere.api.common.functions.GenericReducer;
+import eu.stratosphere.api.common.functions.GenericGroupReduce;
 import eu.stratosphere.api.java.record.operators.ReduceOperator;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
@@ -25,7 +25,7 @@ import eu.stratosphere.util.Collector;
  * The ReduceFunction must be extended to provide a reducer implementation, as invoked by a
  * {@link ReduceOperator}.
  */
-public abstract class ReduceFunction extends AbstractFunction implements GenericReducer<Record, Record> {
+public abstract class ReduceFunction extends AbstractFunction implements GenericGroupReduce<Record, Record> {
 	
 	private static final long serialVersionUID = 1L;
 	

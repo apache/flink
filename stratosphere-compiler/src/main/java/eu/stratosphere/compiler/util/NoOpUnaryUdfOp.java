@@ -14,16 +14,16 @@ package eu.stratosphere.compiler.util;
 
 import eu.stratosphere.api.common.operators.SingleInputOperator;
 import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
-import eu.stratosphere.api.java.record.operators.RecordOperator;
+import eu.stratosphere.api.common.operators.RecordOperator;
 import eu.stratosphere.types.Key;
 
 
-public class NoOpUnaryUdfOp extends SingleInputOperator<NoOpStub> implements RecordOperator {
+public class NoOpUnaryUdfOp extends SingleInputOperator<NoOpFunction> implements RecordOperator {
 	
 	public static final NoOpUnaryUdfOp INSTANCE = new NoOpUnaryUdfOp();
 	
 	private NoOpUnaryUdfOp() {
-		super(new UserCodeClassWrapper<NoOpStub>(NoOpStub.class), "");
+		super(new UserCodeClassWrapper<NoOpFunction>(NoOpFunction.class), "");
 	}
 
 	@SuppressWarnings("unchecked")

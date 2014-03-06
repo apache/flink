@@ -44,6 +44,11 @@ public abstract class DualInputOperator<T extends Function> extends AbstractUdfO
 	 */
 	private final int[] keyFields2;
 	
+	/**
+	 * Semantic properties of the associated function.
+	 */
+	private DualInputSemanticProperties semanticProperties;
+	
 	// --------------------------------------------------------------------------------------------
 
 	public DualInputOperator() {
@@ -59,6 +64,7 @@ public abstract class DualInputOperator<T extends Function> extends AbstractUdfO
 	protected DualInputOperator(UserCodeWrapper<T> stub, String name) {
 		super(stub, name);
 		this.keyFields1 = this.keyFields2 = new int[0];
+		this.semanticProperties = new DualInputSemanticProperties();
 	}
 	
 	/**
@@ -74,6 +80,7 @@ public abstract class DualInputOperator<T extends Function> extends AbstractUdfO
 		super(stub, name);
 		this.keyFields1 = keyPositions1;
 		this.keyFields2 = keyPositions2;
+		this.semanticProperties = new DualInputSemanticProperties();
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -228,6 +235,16 @@ public abstract class DualInputOperator<T extends Function> extends AbstractUdfO
 	public void setSecondInputs(List<Operator> inputs) {
 		this.input2.clear();
 		addSecondInputs(inputs);
+	}
+	
+	// --------------------------------------------------------------------------------------------
+
+	public DualInputSemanticProperties getSemanticProperties() {
+		return this.semanticProperties;
+	}
+	
+	public void setSemanticProperties(DualInputSemanticProperties semanticProperties) {
+		this.semanticProperties = semanticProperties;
 	}
 	
 	// --------------------------------------------------------------------------------------------

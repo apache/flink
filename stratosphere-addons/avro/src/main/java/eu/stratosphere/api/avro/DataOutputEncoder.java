@@ -22,7 +22,9 @@ import org.apache.avro.io.Encoder;
 import org.apache.avro.util.Utf8;
 
 
-public final class DataOutputEncoder extends Encoder {
+public final class DataOutputEncoder extends Encoder implements java.io.Serializable {
+	
+	private static final long serialVersionUID = 1L;
 	
 	private DataOutput out;
 	

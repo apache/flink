@@ -41,8 +41,7 @@ public class ImprovedDanglingPageRankInputFormat extends DelimitedInputFormat {
 	}
 
 	@Override
-	public boolean readRecord(Record target, byte[] bytes, int offset, int numBytes) {
-
+	public Record readRecord(Record target, byte[] bytes, int offset, int numBytes) {
 		arrayView.set(bytes, offset, numBytes);
 
 		try {
@@ -63,7 +62,6 @@ public class ImprovedDanglingPageRankInputFormat extends DelimitedInputFormat {
 		target.addField(vertexID);
 		target.addField(initialRank);
 		target.addField(isDangling);
-
-		return true;
+		return target;
 	}
 }

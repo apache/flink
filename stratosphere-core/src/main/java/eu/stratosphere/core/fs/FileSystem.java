@@ -188,14 +188,20 @@ public abstract class FileSystem {
 	 * @throws IOException
 	 *         thrown if a reference to the file system instance could not be obtained
 	 */
-	public static FileSystem get(final URI uri) throws IOException {
+	public static FileSystem get(URI uri) throws IOException {
 
 		FileSystem fs = null;
 
 		synchronized (SYNCHRONIZATION_OBJECT) {
 
 			if (uri.getScheme() == null) {
-				throw new IOException("FileSystem: Scheme is null. file:// or hdfs:// are schemes.");
+				try {
+					uri = new URI("file", null, uri.getPath(), null);
+				}
+				catch (URISyntaxException e) {
+					// we tried to repair it, but could not. report the scheme error
+					throw new IOException("FileSystem: Scheme is null. file:// or hdfs:// are example schemes.");
+				}
 			}
 
 			final FSKey key = new FSKey(uri.getScheme(), uri.getAuthority());

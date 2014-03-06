@@ -16,6 +16,8 @@ package eu.stratosphere.api.common.operators;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.google.common.base.Preconditions;
+
 import eu.stratosphere.api.common.distributions.DataDistribution;
 import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
 import eu.stratosphere.api.common.operators.util.UserCodeObjectWrapper;
@@ -55,6 +57,8 @@ public class GenericDataSink extends Operator {
 	 */
 	public GenericDataSink(OutputFormat<?> f, String name) {
 		super(name);
+		
+		Preconditions.checkNotNull(f, "The OutputFormat may not be null.");
 		this.formatWrapper = new UserCodeObjectWrapper<OutputFormat<?>>(f);
 	}
 
@@ -126,6 +130,8 @@ public class GenericDataSink extends Operator {
 	 */
 	public GenericDataSink(Class<? extends OutputFormat<?>> f, String name) {
 		super(name);
+		
+		Preconditions.checkNotNull(f, "The OutputFormat class may not be null.");
 		this.formatWrapper = new UserCodeClassWrapper<OutputFormat<?>>(f);
 	}
 
@@ -205,6 +211,7 @@ public class GenericDataSink extends Operator {
 	 * @param input the contract's input contract
 	 */
 	public void addInput(Operator input) {
+		Preconditions.checkNotNull(input, "The input may not be null.");
 		this.input.add(input);
 	}
 
@@ -214,6 +221,7 @@ public class GenericDataSink extends Operator {
 	 * @param inputs The contracts will be set as input.
 	 */
 	public void addInputs(List<Operator> inputs) {
+		Preconditions.checkNotNull(inputs, "The inputs may not be null.");
 		this.input.addAll(inputs);
 	}
 
@@ -224,6 +232,7 @@ public class GenericDataSink extends Operator {
 	 * @param input	The contract will be set as input.
 	 */
 	public void setInput(Operator input) {
+		Preconditions.checkNotNull(input, "The input may not be null.");
 		this.input.clear();
 		this.input.add(input);
 	}
@@ -235,6 +244,7 @@ public class GenericDataSink extends Operator {
 	 * @param inputs The contracts will be set as inputs.
 	 */
 	public void setInputs(List<? extends Operator> inputs) {
+		Preconditions.checkNotNull(inputs, "The inputs may not be null.");
 		this.input.clear();
 		this.input.addAll(inputs);
 	}

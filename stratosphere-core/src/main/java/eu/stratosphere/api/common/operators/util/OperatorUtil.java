@@ -24,8 +24,8 @@ import java.util.Map.Entry;
 import eu.stratosphere.api.common.functions.GenericCoGrouper;
 import eu.stratosphere.api.common.functions.GenericCrosser;
 import eu.stratosphere.api.common.functions.GenericJoiner;
-import eu.stratosphere.api.common.functions.GenericMapper;
-import eu.stratosphere.api.common.functions.GenericReducer;
+import eu.stratosphere.api.common.functions.GenericCollectorMap;
+import eu.stratosphere.api.common.functions.GenericGroupReduce;
 import eu.stratosphere.api.common.operators.DualInputOperator;
 import eu.stratosphere.api.common.operators.GenericDataSink;
 import eu.stratosphere.api.common.operators.GenericDataSource;
@@ -35,7 +35,7 @@ import eu.stratosphere.api.common.operators.base.CoGroupOperatorBase;
 import eu.stratosphere.api.common.operators.base.CrossOperatorBase;
 import eu.stratosphere.api.common.operators.base.JoinOperatorBase;
 import eu.stratosphere.api.common.operators.base.MapOperatorBase;
-import eu.stratosphere.api.common.operators.base.ReduceOperatorBase;
+import eu.stratosphere.api.common.operators.base.GroupReduceOperatorBase;
 import eu.stratosphere.api.common.io.FileInputFormat;
 import eu.stratosphere.api.common.io.FileOutputFormat;
 import eu.stratosphere.api.common.io.InputFormat;
@@ -49,8 +49,8 @@ public class OperatorUtil {
 		new LinkedHashMap<Class<?>, Class<? extends Operator>>();
 
 	static {
-		STUB_CONTRACTS.put(GenericMapper.class, MapOperatorBase.class);
-		STUB_CONTRACTS.put(GenericReducer.class, ReduceOperatorBase.class);
+		STUB_CONTRACTS.put(GenericCollectorMap.class, MapOperatorBase.class);
+		STUB_CONTRACTS.put(GenericGroupReduce.class, GroupReduceOperatorBase.class);
 		STUB_CONTRACTS.put(GenericCoGrouper.class, CoGroupOperatorBase.class);
 		STUB_CONTRACTS.put(GenericCrosser.class, CrossOperatorBase.class);
 		STUB_CONTRACTS.put(GenericJoiner.class, JoinOperatorBase.class);

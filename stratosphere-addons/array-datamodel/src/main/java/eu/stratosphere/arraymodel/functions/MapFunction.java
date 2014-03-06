@@ -15,12 +15,14 @@ package eu.stratosphere.arraymodel.functions;
 
 import java.lang.reflect.Method;
 
-import eu.stratosphere.api.common.functions.GenericMapper;
+import eu.stratosphere.api.common.functions.GenericCollectorMap;
 import eu.stratosphere.types.Value;
 import eu.stratosphere.util.Collector;
 
-public abstract class MapFunction extends AbstractArrayModelFunction implements GenericMapper<Value[], Value[]> {
+public abstract class MapFunction extends AbstractArrayModelFunction implements GenericCollectorMap<Value[], Value[]> {
 	
+	private static final long serialVersionUID = 1L;
+
 	/**
 	 * This method must be implemented to provide a user implementation of a mapper.
 	 * It is called for each individual record.

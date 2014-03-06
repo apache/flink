@@ -14,7 +14,7 @@
 package eu.stratosphere.pact.runtime.task.chaining;
 
 import eu.stratosphere.api.common.functions.Function;
-import eu.stratosphere.api.common.functions.GenericReducer;
+import eu.stratosphere.api.common.functions.GenericGroupReduce;
 import eu.stratosphere.api.common.typeutils.TypeComparator;
 import eu.stratosphere.api.common.typeutils.TypeComparatorFactory;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
@@ -36,7 +36,7 @@ public class ChainedCombineDriver<T> extends ChainedDriver<T, T> {
 	
 	private volatile Exception exception;
 	
-	private GenericReducer<T, ?> combiner;
+	private GenericGroupReduce<T, ?> combiner;
 	
 	private AsynchronousPartialSorterCollector<T> sorter;
 	
@@ -53,7 +53,7 @@ public class ChainedCombineDriver<T> extends ChainedDriver<T, T> {
 		this.parent = parent;
 
 		@SuppressWarnings("unchecked")
-		final GenericReducer<T, ?> combiner = RegularPactTask.instantiateUserCode(config, userCodeClassLoader, GenericReducer.class);
+		final GenericGroupReduce<T, ?> combiner = RegularPactTask.instantiateUserCode(config, userCodeClassLoader, GenericGroupReduce.class);
 		combiner.setRuntimeContext(getUdfRuntimeContext());
 		this.combiner = combiner;
 	}
@@ -189,7 +189,7 @@ public class ChainedCombineDriver<T> extends ChainedDriver<T, T> {
 		
 		private final TypeComparator<T> comparator;
 		
-		private final GenericReducer<T, ?> stub;
+		private final GenericGroupReduce<T, ?> stub;
 		
 		private final Collector<T> output;
 		
@@ -198,7 +198,7 @@ public class ChainedCombineDriver<T> extends ChainedDriver<T, T> {
 		
 		private CombinerThread(AsynchronousPartialSorterCollector<T> sorter,
 				TypeSerializer<T> serializer, TypeComparator<T> comparator, 
-				GenericReducer<T, ?> stub, Collector<T> output)
+				GenericGroupReduce<T, ?> stub, Collector<T> output)
 		{
 			super("Combiner Thread");
 			setDaemon(true);
@@ -227,7 +227,7 @@ public class ChainedCombineDriver<T> extends ChainedDriver<T, T> {
 				final KeyGroupedIterator<T> keyIter = new KeyGroupedIterator<T>(iterator, this.serializer, this.comparator);
 				
 				// cache references on the stack
-				final GenericReducer<T, ?> stub = this.stub;
+				final GenericGroupReduce<T, ?> stub = this.stub;
 				final Collector<T> output = this.output;
 
 				// run stub implementation

@@ -16,12 +16,16 @@ package eu.stratosphere.api.common;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 
 import eu.stratosphere.api.common.operators.GenericDataSink;
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.util.Visitable;
 import eu.stratosphere.util.Visitor;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkArgument;
 
 /**
  * This class encapsulates a single stratosphere job (an instantiated data flow), together with some parameters.
@@ -36,12 +40,12 @@ public class Plan implements Visitable<Operator> {
 	 * A collection of all sinks in the plan. Since the plan is traversed from the sinks to the sources, this
 	 * collection must contain all the sinks.
 	 */
-	protected final Collection<GenericDataSink> sinks;
+	protected final List<GenericDataSink> sinks = new ArrayList<GenericDataSink>(4);
 
 	/**
 	 * The name of the job.
 	 */
-	protected final String jobName;
+	protected String jobName;
 
 	/**
 	 * The default parallelism to use for nodes that have no explicitly specified parallelism.
@@ -81,7 +85,7 @@ public class Plan implements Visitable<Operator> {
 	 * @param defaultParallelism The default degree of parallelism for the job.
 	 */
 	public Plan(Collection<GenericDataSink> sinks, String jobName, int defaultParallelism) {
-		this.sinks = sinks;
+		this.sinks.addAll(sinks);
 		this.jobName = jobName;
 		this.defaultParallelism = defaultParallelism;
 	}
@@ -113,10 +117,7 @@ public class Plan implements Visitable<Operator> {
 	 * @param defaultParallelism The default degree of parallelism for the job.
 	 */
 	public Plan(GenericDataSink sink, String jobName, int defaultParallelism) {
-		this.sinks = new ArrayList<GenericDataSink>();
-		this.sinks.add(sink);
-		this.jobName = jobName;
-		this.defaultParallelism = defaultParallelism;
+		this(Collections.singletonList(sink), jobName, defaultParallelism);
 	}
 
 	/**
@@ -183,6 +184,8 @@ public class Plan implements Visitable<Operator> {
 	 * @param sink The data sink to add.
 	 */
 	public void addDataSink(GenericDataSink sink) {
+		checkNotNull(jobName, "The data sink must not be null.");
+		
 		if (!this.sinks.contains(sink)) {
 			this.sinks.add(sink);
 		}
@@ -205,6 +208,16 @@ public class Plan implements Visitable<Operator> {
 	public String getJobName() {
 		return this.jobName;
 	}
+	
+	/**
+	 * Sets the jobName for this Plan.
+	 *
+	 * @param jobName The jobName to set.
+	 */
+	public void setJobName(String jobName) {
+		checkNotNull(jobName, "The job name must not be null.");
+		this.jobName = jobName;
+	}
 
 	/**
 	 * Gets the maximum number of machines to be used for this job.
@@ -221,6 +234,10 @@ public class Plan implements Visitable<Operator> {
 	 * @param maxNumberMachines The the maximum number to set.
 	 */
 	public void setMaxNumberMachines(int maxNumberMachines) {
+		if (maxNumberMachines == 0 || maxNumberMachines < -1) {
+			throw new IllegalArgumentException("The maximum number of machines must be positive, or -1 if no limit is imposed.");
+		}
+		
 		this.maxNumberMachines = maxNumberMachines;
 	}
 	
@@ -241,6 +258,9 @@ public class Plan implements Visitable<Operator> {
 	 * @param defaultParallelism The default parallelism for the plan.
 	 */
 	public void setDefaultParallelism(int defaultParallelism) {
+		checkArgument(defaultParallelism >= 1 || defaultParallelism == -1,
+			"The default degree of parallelism must be positive, or -1 if the system should use the globally comfigured default.");
+		
 		this.defaultParallelism = defaultParallelism;
 	}
 	

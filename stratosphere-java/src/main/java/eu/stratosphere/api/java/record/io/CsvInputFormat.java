@@ -15,6 +15,8 @@ package eu.stratosphere.api.java.record.io;
 
 import java.io.IOException;
 
+import com.google.common.base.Preconditions;
+
 import eu.stratosphere.api.common.operators.CompilerHints;
 import eu.stratosphere.api.common.operators.FileDataSource;
 import eu.stratosphere.api.common.operators.Operator;
@@ -66,15 +68,52 @@ public class CsvInputFormat extends GenericCsvInputFormat<Record> {
 	}
 	
 	public CsvInputFormat(char fieldDelimiter) {
-		super(fieldDelimiter);
+		super();
+		setFieldDelimiter(fieldDelimiter);
 	}
 	
 	public CsvInputFormat(Class<? extends Value> ... fields) {
-		super(fields);
+		super();
+		setFieldTypes(fields);
 	}
 	
 	public CsvInputFormat(char fieldDelimiter, Class<? extends Value> ... fields) {
-		super(fieldDelimiter, fields);
+		super();
+		setFieldDelimiter(fieldDelimiter);
+		setFieldTypes(fields);
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	public void setFieldTypesArray(Class<? extends Value>[] fieldTypes) {
+		setFieldTypes(fieldTypes);
+	}
+
+	public void setFieldTypes(Class<? extends Value> ... fieldTypes) {
+		if (fieldTypes == null)
+			throw new IllegalArgumentException("Field types must not be null.");
+		
+		// sanity check
+		for (Class<? extends Value> type : fieldTypes) {
+			if (type != null && !Value.class.isAssignableFrom(type)) {
+				throw new IllegalArgumentException("The types must be subclasses if " + Value.class.getName());
+			}
+		}
+		
+		setFieldTypesGeneric(fieldTypes);
+	}
+
+	public void setFields(int[] sourceFieldIndices, Class<? extends Value>[] fieldTypes) {
+		Preconditions.checkNotNull(fieldTypes);
+		
+		// sanity check
+		for (Class<? extends Value> type : fieldTypes) {
+			if (!Value.class.isAssignableFrom(type)) {
+				throw new IllegalArgumentException("The types must be subclasses if " + Value.class.getName());
+			}
+		}
+		
+		setFieldsGeneric(sourceFieldIndices, fieldTypes);
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -95,7 +134,7 @@ public class CsvInputFormat extends GenericCsvInputFormat<Record> {
 				throw new IllegalArgumentException("Invalid configuration for CsvInputFormat: " +
 						"Field delimiter must be a single character");
 			} else {
-				setFieldDelim(fieldDelimStr.charAt(0));
+				setFieldDelimiter(fieldDelimStr.charAt(0));
 			}
 		}
 		
@@ -189,7 +228,8 @@ public class CsvInputFormat extends GenericCsvInputFormat<Record> {
 	public void open(FileInputSplit split) throws IOException {
 		super.open(split);
 		
-		FieldParser<Value>[] fieldParsers = getFieldParsers();
+		@SuppressWarnings("unchecked")
+		FieldParser<Value>[] fieldParsers = (FieldParser<Value>[]) getFieldParsers();
 		
 		// create the value holders
 		this.parsedValues = new Value[fieldParsers.length];
@@ -199,15 +239,15 @@ public class CsvInputFormat extends GenericCsvInputFormat<Record> {
 	}
 	
 	@Override
-	public boolean readRecord(Record target, byte[] bytes, int offset, int numBytes) throws ParseException {
+	public Record readRecord(Record reuse, byte[] bytes, int offset, int numBytes) throws ParseException {
 		if (parseRecord(parsedValues, bytes, offset, numBytes)) {
 			// valid parse, map values into pact record
 			for (int i = 0; i < parsedValues.length; i++) {
-				target.setField(targetPositions[i], parsedValues[i]);
+				reuse.setField(targetPositions[i], parsedValues[i]);
 			}
-			return true;
+			return reuse;
 		} else {
-			return false;
+			return null;
 		}
 	}
 	

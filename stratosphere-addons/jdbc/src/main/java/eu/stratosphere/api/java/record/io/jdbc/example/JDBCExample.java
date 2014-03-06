@@ -14,6 +14,7 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.record.io.jdbc.example;
 
+import eu.stratosphere.api.common.JobExecutionResult;
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.Program;
 import eu.stratosphere.api.common.ProgramDescription;
@@ -22,7 +23,6 @@ import eu.stratosphere.api.common.operators.GenericDataSource;
 import eu.stratosphere.api.java.record.io.jdbc.JDBCInputFormat;
 import eu.stratosphere.api.java.record.io.jdbc.JDBCOutputFormat;
 import eu.stratosphere.client.LocalExecutor;
-import eu.stratosphere.nephele.client.JobExecutionResult;
 import eu.stratosphere.types.*;
 
 import java.sql.Connection;

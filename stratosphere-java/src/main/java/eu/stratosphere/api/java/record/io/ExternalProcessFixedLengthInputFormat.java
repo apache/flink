@@ -157,20 +157,19 @@ public abstract class ExternalProcessFixedLengthInputFormat<T extends ExternalPr
 	
 
 	@Override
-	public boolean nextRecord(Record record) throws IOException {
-		
+	public Record nextRecord(Record reuse) throws IOException {
 		// check if read buffer must be filled (less than one record contained)
 		if(this.readBufferFillPos - this.readBufferReadPos < this.recordLength) {
 			// try to fill read buffer
 			if(!this.fillReadBuffer()) {
-				return false;
+				return null;
 			}
 		}
 
 		// update read buffer read marker
 		this.readBufferReadPos += this.recordLength;
 		
-		return this.readBytes(record, readBuffer, (this.readBufferReadPos-this.recordLength));
+		return this.readBytes(reuse, readBuffer, (this.readBufferReadPos-this.recordLength)) ? reuse : null;
 		
 	}
 

@@ -44,7 +44,7 @@ public class DanglingPageRankInputFormat extends TextInputFormat {
 	}
 
 	@Override
-	public boolean readRecord(Record target, byte[] bytes, int offset, int numBytes) {
+	public Record readRecord(Record target, byte[] bytes, int offset, int numBytes) {
 
 		arrayView.set(bytes, offset, numBytes);
 
@@ -67,6 +67,6 @@ public class DanglingPageRankInputFormat extends TextInputFormat {
 		target.addField(initialRank);
 		target.addField(isDangling);
 
-		return true;
+		return target;
 	}
 }

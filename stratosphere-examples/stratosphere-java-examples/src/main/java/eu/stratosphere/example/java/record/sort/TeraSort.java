@@ -38,10 +38,11 @@ import eu.stratosphere.example.java.record.sort.terasort.TeraOutputFormat;
  */
 public final class TeraSort implements Program, ProgramDescription {
 
+	private static final long serialVersionUID = 1L;
+
 
 	@Override
 	public String getDescription() {
-
 		return "Parameters: [numSubStasks] [input] [output]";
 	}
 
@@ -68,5 +69,4 @@ public final class TeraSort implements Program, ProgramDescription {
 
 		return new Plan(sink, "TeraSort");
 	}
-
 }

@@ -13,7 +13,7 @@
 
 package eu.stratosphere.api.common.operators.base;
 
-import eu.stratosphere.api.common.functions.GenericMapper;
+import eu.stratosphere.api.common.functions.GenericCollectorMap;
 import eu.stratosphere.api.common.operators.SingleInputOperator;
 import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
 import eu.stratosphere.api.common.operators.util.UserCodeObjectWrapper;
@@ -21,17 +21,10 @@ import eu.stratosphere.api.common.operators.util.UserCodeWrapper;
 
 
 /**
- * MapContract represents a Pact with a Map Input Operator.
- * InputContracts are second-order functions. They have one or multiple input sets of records and a first-order
- * user function (stub implementation).
- * <p> 
- * Map works on a single input and calls the first-order user function of a {@link GenericMapper} 
- * for each record independently.
- * 
- * @see GenericMapper
+ * @see GenericCollectorMap
  */
-public class MapOperatorBase<T extends GenericMapper<?, ?>> extends SingleInputOperator<T>
-{
+public class MapOperatorBase<T extends GenericCollectorMap<?, ?>> extends SingleInputOperator<T> {
+	
 	public MapOperatorBase(UserCodeWrapper<T> udf, String name) {
 		super(udf, name);
 	}

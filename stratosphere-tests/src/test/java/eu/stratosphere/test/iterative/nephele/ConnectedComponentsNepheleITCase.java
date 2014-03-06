@@ -51,9 +51,9 @@ import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.BuildSecondCachedMatchDriver;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.JoinWithSolutionSetMatchDriver.SolutionSetSecondJoinDriver;
-import eu.stratosphere.pact.runtime.task.MapDriver;
+import eu.stratosphere.pact.runtime.task.CollectorMapDriver;
 import eu.stratosphere.pact.runtime.task.ReduceDriver;
-import eu.stratosphere.pact.runtime.task.chaining.ChainedMapDriver;
+import eu.stratosphere.pact.runtime.task.chaining.ChainedCollectorMapDriver;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.test.testdata.ConnectedComponentsData;
@@ -168,7 +168,7 @@ public class ConnectedComponentsNepheleITCase extends TestBase2 {
             // chained mapper that duplicates the id
             TaskConfig chainedMapperConfig = new TaskConfig(new Configuration());
             chainedMapperConfig.setStubWrapper(new UserCodeClassWrapper<IdDuplicator>(IdDuplicator.class));
-            chainedMapperConfig.setDriverStrategy(DriverStrategy.MAP);
+            chainedMapperConfig.setDriverStrategy(DriverStrategy.COLLECTOR_MAP);
             chainedMapperConfig.setInputLocalStrategy(0, LocalStrategy.NONE);
             chainedMapperConfig.setInputSerializer(serializer, 0);
 
@@ -178,7 +178,7 @@ public class ConnectedComponentsNepheleITCase extends TestBase2 {
             chainedMapperConfig.setOutputComparator(comparator, 0);
             chainedMapperConfig.setOutputComparator(comparator, 1);
 
-            verticesInputConfig.addChainedTask(ChainedMapDriver.class, chainedMapperConfig, "ID Duplicator");
+            verticesInputConfig.addChainedTask(ChainedCollectorMapDriver.class, chainedMapperConfig, "ID Duplicator");
         }
 
         return verticesInput;
@@ -519,8 +519,8 @@ public class ConnectedComponentsNepheleITCase extends TestBase2 {
             ssTailConfig.setOutputSerializer(serializer);
 
             // the driver
-            ssTailConfig.setDriver(MapDriver.class);
-            ssTailConfig.setDriverStrategy(DriverStrategy.MAP);
+            ssTailConfig.setDriver(CollectorMapDriver.class);
+            ssTailConfig.setDriverStrategy(DriverStrategy.COLLECTOR_MAP);
             ssTailConfig.setStubWrapper(new UserCodeClassWrapper<DummyMapper>(DummyMapper.class));
         }
 
@@ -542,8 +542,8 @@ public class ConnectedComponentsNepheleITCase extends TestBase2 {
             wsTailConfig.setOutputSerializer(serializer);
 
             // the driver
-            wsTailConfig.setDriver(MapDriver.class);
-            wsTailConfig.setDriverStrategy(DriverStrategy.MAP);
+            wsTailConfig.setDriver(CollectorMapDriver.class);
+            wsTailConfig.setDriverStrategy(DriverStrategy.COLLECTOR_MAP);
             wsTailConfig.setStubWrapper(new UserCodeClassWrapper<DummyMapper>(DummyMapper.class));
         }
 
@@ -667,8 +667,8 @@ public class ConnectedComponentsNepheleITCase extends TestBase2 {
             ssTailConfig.setOutputSerializer(serializer);
 
             // the driver
-            ssTailConfig.setDriver(MapDriver.class);
-            ssTailConfig.setDriverStrategy(DriverStrategy.MAP);
+            ssTailConfig.setDriver(CollectorMapDriver.class);
+            ssTailConfig.setDriverStrategy(DriverStrategy.COLLECTOR_MAP);
             ssTailConfig.setStubWrapper(new UserCodeClassWrapper<DummyMapper>(DummyMapper.class));
         }
 
@@ -788,8 +788,8 @@ public class ConnectedComponentsNepheleITCase extends TestBase2 {
             wsTailConfig.setOutputSerializer(serializer);
 
             // the driver
-            wsTailConfig.setDriver(MapDriver.class);
-            wsTailConfig.setDriverStrategy(DriverStrategy.MAP);
+            wsTailConfig.setDriver(CollectorMapDriver.class);
+            wsTailConfig.setDriverStrategy(DriverStrategy.COLLECTOR_MAP);
             wsTailConfig.setStubWrapper(new UserCodeClassWrapper<DummyMapper>(DummyMapper.class));
         }
 

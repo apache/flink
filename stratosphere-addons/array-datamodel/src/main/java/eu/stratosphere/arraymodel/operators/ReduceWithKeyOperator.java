@@ -13,7 +13,7 @@
 
 package eu.stratosphere.arraymodel.operators;
 
-import eu.stratosphere.api.common.operators.base.ReduceOperatorBase;
+import eu.stratosphere.api.common.operators.base.GroupReduceOperatorBase;
 import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
 import eu.stratosphere.api.common.operators.util.UserCodeObjectWrapper;
 import eu.stratosphere.api.java.record.functions.ReduceFunction;
@@ -29,7 +29,7 @@ import eu.stratosphere.arraymodel.functions.ReduceWithKeyFunction;
  * 
  * @see ReduceFunction
  */
-public class ReduceWithKeyOperator extends ReduceOperatorBase<ReduceWithKeyFunction>
+public class ReduceWithKeyOperator extends GroupReduceOperatorBase<ReduceWithKeyFunction>
 {
 	public ReduceWithKeyOperator(Class<? extends ReduceWithKeyFunction> udf, int keyPosition, String name) {
 		super(new UserCodeClassWrapper<ReduceWithKeyFunction>(udf), new int[] {keyPosition}, name);

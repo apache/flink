@@ -350,7 +350,7 @@ public class JDBCInputFormat extends GenericInputFormat implements UnsplittableI
 	 * @return boolean value indicating that the operation was successful
 	 */
 	@Override
-	public boolean nextRecord(Record record) {
+	public Record nextRecord(Record record) {
 		try {
 			resultSet.next();
 			ResultSetMetaData rsmd = resultSet.getMetaData();
@@ -361,7 +361,7 @@ public class JDBCInputFormat extends GenericInputFormat implements UnsplittableI
 				int type = rsmd.getColumnType(pos + 1);
 				retrieveTypeAndFillRecord(pos, type, record);
 			}
-			return true;
+			return record;
 		} catch (SQLException e) {
 			throw new IllegalArgumentException("Couldn't read data:\t" + e.getMessage());
 		} catch (NotTransformableSQLFieldException e) {

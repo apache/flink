@@ -52,7 +52,7 @@ private ExternalProcessFixedLengthInputFormat<ExternalProcessInputSplit> format;
 		
 		Configuration config = new Configuration();
 		config.setInteger(ExternalProcessFixedLengthInputFormat.RECORDLENGTH_PARAMETER_KEY, 8);
-		ExternalProcessInputSplit split = new ExternalProcessInputSplit(1, this.neverEndingCommand);
+		ExternalProcessInputSplit split = new ExternalProcessInputSplit(1, 1, this.neverEndingCommand);
 	    	    
 		boolean processDestroyed = false;
 		try {
@@ -87,7 +87,7 @@ private ExternalProcessFixedLengthInputFormat<ExternalProcessInputSplit> format;
 		
 		Configuration config = new Configuration();
 		config.setInteger(ExternalProcessFixedLengthInputFormat.RECORDLENGTH_PARAMETER_KEY, 8);
-		ExternalProcessInputSplit split = new ExternalProcessInputSplit(1, failingCommand);
+		ExternalProcessInputSplit split = new ExternalProcessInputSplit(1, 1, failingCommand);
 		
 		format.configure(config);
 		boolean invalidExitCode = false;
@@ -136,7 +136,7 @@ private ExternalProcessFixedLengthInputFormat<ExternalProcessInputSplit> format;
 		Configuration config = new Configuration();
 		config.setInteger(ExternalProcessFixedLengthInputFormat.RECORDLENGTH_PARAMETER_KEY, 8);
 		config.setInteger(MyExternalProcessTestInputFormat.FAILCOUNT_PARAMETER_KEY, 100);
-		ExternalProcessInputSplit split = new ExternalProcessInputSplit(1, this.neverEndingCommand);
+		ExternalProcessInputSplit split = new ExternalProcessInputSplit(1, 1, this.neverEndingCommand);
 		Record record = new Record();
 	    	    
 		boolean userException = false;
@@ -172,7 +172,7 @@ private ExternalProcessFixedLengthInputFormat<ExternalProcessInputSplit> format;
 		
 		Configuration config = new Configuration();
 		config.setInteger(ExternalProcessFixedLengthInputFormat.RECORDLENGTH_PARAMETER_KEY, 8);
-		ExternalProcessInputSplit split = new ExternalProcessInputSplit(1, this.thousandRecordsCommand);
+		ExternalProcessInputSplit split = new ExternalProcessInputSplit(1, 1, this.thousandRecordsCommand);
 		Record record = new Record();
 
 		int cnt = 0;
@@ -180,7 +180,7 @@ private ExternalProcessFixedLengthInputFormat<ExternalProcessInputSplit> format;
 			format.configure(config);
 			format.open(split);
 			while(!format.reachedEnd()) {
-				if (format.nextRecord(record)) {
+				if (format.nextRecord(record) != null) {
 					cnt++;
 				}
 			}
@@ -201,7 +201,7 @@ private ExternalProcessFixedLengthInputFormat<ExternalProcessInputSplit> format;
 		
 		Configuration config = new Configuration();
 		config.setInteger(ExternalProcessFixedLengthInputFormat.RECORDLENGTH_PARAMETER_KEY, 8);
-		ExternalProcessInputSplit split = new ExternalProcessInputSplit(1, this.incompleteRecordsCommand);
+		ExternalProcessInputSplit split = new ExternalProcessInputSplit(1, 1, this.incompleteRecordsCommand);
 		Record record = new Record();
 
 		boolean incompleteRecordDetected = false;
@@ -211,7 +211,7 @@ private ExternalProcessFixedLengthInputFormat<ExternalProcessInputSplit> format;
 			format.configure(config);
 			format.open(split);
 			while(!format.reachedEnd()) {
-				if (format.nextRecord(record)) {
+				if (format.nextRecord(record) != null) {
 					cnt++;
 				}
 			}
@@ -284,6 +284,5 @@ private ExternalProcessFixedLengthInputFormat<ExternalProcessInputSplit> format;
 		public BaseStatistics getStatistics(BaseStatistics cachedStatistics) {
 			return null;
 		}
-
 	}
 }

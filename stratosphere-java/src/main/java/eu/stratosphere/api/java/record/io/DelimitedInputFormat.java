@@ -35,9 +35,9 @@ public abstract class DelimitedInputFormat extends eu.stratosphere.api.common.io
 	 * pair. The parsed content is then returned by setting the pair variables. If the
 	 * byte array contains invalid content the record can be skipped by returning <tt>false</tt>.
 	 * 
-	 * @param target The holder for the line that is read.
+	 * @param reuse The optional reusable holder for the line that is read.
 	 * @param bytes The serialized record.
 	 * @return returns whether the record was successfully deserialized
 	 */
-	public abstract boolean readRecord(Record target, byte[] bytes, int offset, int numBytes);
+	public abstract Record readRecord(Record reuse, byte[] bytes, int offset, int numBytes);
 }

@@ -116,7 +116,7 @@ public class ReflectiveAvroTypeExample {
 		}
 
 		@Override
-		public boolean nextRecord(Record record) throws IOException {
+		public Record nextRecord(Record record) throws IOException {
 			count++;
 			
 			User u = new User();
@@ -128,7 +128,7 @@ public class ReflectiveAvroTypeExample {
 			su.datum(u);
 			
 			record.setField(0, su);
-			return true;
+			return record;
 		}
 	}
 	

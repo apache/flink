@@ -22,6 +22,8 @@ import eu.stratosphere.types.Value;
  */
 public abstract class AbstractArrayModelFunction extends AbstractFunction {
 	
+	private static final long serialVersionUID = 1L;
+
 	public Class<? extends Value>[] getDataTypes(int input) {
 		Method m = getUDFMethod();
 		

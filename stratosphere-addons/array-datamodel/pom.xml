@@ -25,6 +25,12 @@
 
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
+			<artifactId>stratosphere-java</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>eu.stratosphere</groupId>
 			<artifactId>stratosphere-clients</artifactId>
 			<version>${project.version}</version>
 		</dependency>

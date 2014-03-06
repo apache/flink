@@ -22,6 +22,11 @@
 			<artifactId>stratosphere-core</artifactId>
 			<version>${project.version}</version>
 		</dependency>
+		<dependency>
+			<groupId>org.apache.avro</groupId>
+			<artifactId>avro</artifactId>
+			<version>1.7.5</version>
+		</dependency>
 	</dependencies>
 
 </project>

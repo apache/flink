@@ -57,6 +57,8 @@ import eu.stratosphere.util.Collector;
  */
 public class PairwiseSP implements Program, ProgramDescription {
 
+	private static final long serialVersionUID = 1L;
+
 	/**
 	 * Reads RDF triples and filters on the foaf:knows RDF predicate. The triples elements must be separated by whitespaces.
 	 * The foaf:knows RDF predicate indicates that the RDF subject knows the object (typically of type foaf:person).
@@ -81,7 +83,7 @@ public class PairwiseSP implements Program, ProgramDescription {
 		private final StringValue hopList = new StringValue(" ");
 		
 		@Override
-		public boolean readRecord(Record target, byte[] bytes, int offset, int numBytes) {
+		public Record readRecord(Record target, byte[] bytes, int offset, int numBytes) {
 			String lineStr = new String(bytes, offset, numBytes);
 			// replace reduce whitespaces and trim
 			lineStr = lineStr.replaceAll("\\s+", " ").trim();
@@ -90,7 +92,7 @@ public class PairwiseSP implements Program, ProgramDescription {
 
 			// line must have at least three elements
 			if (st.countTokens() < 3)
-				return false;
+				return null;
 
 			String rdfSubj = st.nextToken();
 			String rdfPred = st.nextToken();
@@ -98,7 +100,7 @@ public class PairwiseSP implements Program, ProgramDescription {
 
 			// we only want foaf:knows predicates
 			if (!rdfPred.equals("<http://xmlns.com/foaf/0.1/knows>"))
-				return false;
+				return null;
 
 			// build node pair from subject and object
 			fromNode.setValue(rdfSubj);
@@ -110,7 +112,7 @@ public class PairwiseSP implements Program, ProgramDescription {
 			target.setField(3, hopCnt);
 			target.setField(4, hopList);
 
-			return true;
+			return target;
 		}
 	}
 	
@@ -134,12 +136,12 @@ public class PairwiseSP implements Program, ProgramDescription {
 		private final StringValue hopList = new StringValue();
 
 		@Override
-		public boolean readRecord(Record target, byte[] bytes, int offset, int numBytes) {
+		public Record readRecord(Record target, byte[] bytes, int offset, int numBytes) {
 			String lineStr = new String(bytes, offset, numBytes);
 			StringTokenizer st = new StringTokenizer(lineStr, "|");
 			
 			// path must have exactly 5 tokens (fromNode, toNode, length, hopCnt, hopList)
-			if (st.countTokens() != 5) return false;
+			if (st.countTokens() != 5) return null;
 			
 			this.fromNode.setValue(st.nextToken());
 			this.toNode.setValue(st.nextToken());
@@ -153,7 +155,7 @@ public class PairwiseSP implements Program, ProgramDescription {
 			target.setField(3, hopCnt);
 			target.setField(4, hopList);
 			
-			return true;
+			return target;
 		}
 	}
 

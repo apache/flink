@@ -21,7 +21,7 @@ import org.apache.log4j.Level;
 import org.junit.Assert;
 import org.junit.Test;
 
-import eu.stratosphere.api.common.functions.GenericMapper;
+import eu.stratosphere.api.common.functions.GenericCollectorMap;
 import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
 import eu.stratosphere.api.java.record.functions.ReduceFunction;
 import eu.stratosphere.configuration.Configuration;
@@ -29,7 +29,7 @@ import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparatorFactory;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializerFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
-import eu.stratosphere.pact.runtime.task.MapDriver;
+import eu.stratosphere.pact.runtime.task.CollectorMapDriver;
 import eu.stratosphere.pact.runtime.task.MapTaskTest.MockMapStub;
 import eu.stratosphere.pact.runtime.task.ReduceTaskTest.MockReduceStub;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
@@ -96,9 +96,9 @@ public class ChainTaskTest extends TaskTestBase {
 			
 			// chained map+combine
 			{
-				RegularPactTask<GenericMapper<Record, Record>, Record> testTask = 
-											new RegularPactTask<GenericMapper<Record, Record>, Record>();
-				registerTask(testTask, MapDriver.class, MockMapStub.class);
+				RegularPactTask<GenericCollectorMap<Record, Record>, Record> testTask = 
+											new RegularPactTask<GenericCollectorMap<Record, Record>, Record>();
+				registerTask(testTask, CollectorMapDriver.class, MockMapStub.class);
 				
 				try {
 					testTask.invoke();
@@ -152,10 +152,10 @@ public class ChainTaskTest extends TaskTestBase {
 			
 			// chained map+combine
 			{
-				final RegularPactTask<GenericMapper<Record, Record>, Record> testTask = 
-											new RegularPactTask<GenericMapper<Record, Record>, Record>();
+				final RegularPactTask<GenericCollectorMap<Record, Record>, Record> testTask = 
+											new RegularPactTask<GenericCollectorMap<Record, Record>, Record>();
 				
-				super.registerTask(testTask, MapDriver.class, MockMapStub.class);
+				super.registerTask(testTask, CollectorMapDriver.class, MockMapStub.class);
 	
 				boolean stubFailed = false;
 				

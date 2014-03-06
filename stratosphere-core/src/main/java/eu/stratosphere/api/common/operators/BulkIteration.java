@@ -18,12 +18,12 @@ import java.io.Serializable;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.api.common.InvalidJobException;
+import eu.stratosphere.api.common.InvalidProgramException;
 import eu.stratosphere.api.common.aggregators.Aggregator;
 import eu.stratosphere.api.common.aggregators.AggregatorRegistry;
 import eu.stratosphere.api.common.aggregators.ConvergenceCriterion;
 import eu.stratosphere.api.common.functions.AbstractFunction;
-import eu.stratosphere.api.common.functions.GenericMapper;
+import eu.stratosphere.api.common.functions.GenericCollectorMap;
 import eu.stratosphere.api.common.operators.base.MapOperatorBase;
 import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
 import eu.stratosphere.api.common.operators.util.UserCodeWrapper;
@@ -134,16 +134,16 @@ public class BulkIteration extends SingleInputOperator<AbstractFunction> impleme
 	/**
 	 * @throws Exception
 	 */
-	public void validate() throws InvalidJobException {
+	public void validate() throws InvalidProgramException {
 		if (this.input == null || this.input.isEmpty()) {
 			throw new RuntimeException("Operator for initial partial solution is not set.");
 		}
 		if (this.iterationResult == null) {
-			throw new InvalidJobException("Operator producing the next version of the partial " +
+			throw new InvalidProgramException("Operator producing the next version of the partial " +
 					"solution (iteration result) is not set.");
 		}
 		if (this.terminationCriterion == null && this.numberOfIterations <= 0) {
-			throw new InvalidJobException("No termination condition is set " +
+			throw new InvalidProgramException("No termination condition is set " +
 					"(neither fix number of iteration nor termination criterion).");
 		}
 	}
@@ -182,7 +182,7 @@ public class BulkIteration extends SingleInputOperator<AbstractFunction> impleme
 	/**
 	 * Special Mapper that is added before a termination criterion and is only a container for an special aggregator
 	 */
-	public static class TerminationCriterionMapper extends AbstractFunction implements Serializable, GenericMapper<Object, Object> {
+	public static class TerminationCriterionMapper extends AbstractFunction implements Serializable, GenericCollectorMap<Object, Object> {
 		private static final long serialVersionUID = 1L;
 		
 		private TerminationCriterionAggregator aggregator;
@@ -193,7 +193,7 @@ public class BulkIteration extends SingleInputOperator<AbstractFunction> impleme
 		}
 		
 		@Override
-		public void map(Object record, Collector<Object> collector) {
+		public void map(Object record, Collector<Object> out) {
 			aggregator.aggregate(1L);
 		}
 	}

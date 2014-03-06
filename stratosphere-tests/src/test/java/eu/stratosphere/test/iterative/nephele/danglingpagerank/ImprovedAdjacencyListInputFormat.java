@@ -25,10 +25,10 @@ public class ImprovedAdjacencyListInputFormat extends DelimitedInputFormat {
   private final LongArrayView adjacentVertices = new LongArrayView();
 
   @Override
-  public boolean readRecord(Record target, byte[] bytes, int offset, int numBytes) {
+  public Record readRecord(Record target, byte[] bytes, int offset, int numBytes) {
 
     if (numBytes == 0) {
-      return false;
+      return null;
     }
 
     arrayView.set(bytes, offset, numBytes);
@@ -62,8 +62,7 @@ public class ImprovedAdjacencyListInputFormat extends DelimitedInputFormat {
     target.clear();
     target.addField(vertexID);
     target.addField(adjacentVertices);
-
-    return true;
+    return target;
   }
 }
 

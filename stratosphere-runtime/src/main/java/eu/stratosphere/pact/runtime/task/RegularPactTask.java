@@ -25,7 +25,7 @@ import eu.stratosphere.api.common.accumulators.Accumulator;
 import eu.stratosphere.api.common.accumulators.AccumulatorHelper;
 import eu.stratosphere.api.common.distributions.DataDistribution;
 import eu.stratosphere.api.common.functions.Function;
-import eu.stratosphere.api.common.functions.GenericReducer;
+import eu.stratosphere.api.common.functions.GenericGroupReduce;
 import eu.stratosphere.api.common.typeutils.TypeComparator;
 import eu.stratosphere.api.common.typeutils.TypeComparatorFactory;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
@@ -787,7 +787,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 
 		for (int i = 0; i < numBroadcastInputs; i++) {
 			//  ---------------- create the serializer first ---------------------
-			final TypeSerializerFactory<?> serializerFactory = this.config.getInputSerializer(i, this.userCodeClassLoader);
+			final TypeSerializerFactory<?> serializerFactory = this.config.getBroadcastInputSerializer(i, this.userCodeClassLoader);
 			this.broadcastInputSerializers[i] = serializerFactory.getSerializer();
 
 			this.broadcastInputIterators[i] = createInputIterator(this.broadcastInputReaders[i], this.broadcastInputSerializers[i]);
@@ -963,7 +963,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 				try {
 					final Class<S> userCodeFunctionType = this.driver.getStubType();
 					// if the class is null, the driver has no user code 
-					if (userCodeFunctionType != null && GenericReducer.class.isAssignableFrom(userCodeFunctionType)) {
+					if (userCodeFunctionType != null && GenericGroupReduce.class.isAssignableFrom(userCodeFunctionType)) {
 						localStub = initStub(userCodeFunctionType);
 					} else {
 						throw new IllegalStateException("Performing combining sort outside a reduce task!");
@@ -975,7 +975,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 
 				@SuppressWarnings({ "rawtypes", "unchecked" })
 				CombiningUnilateralSortMerger<?> cSorter = new CombiningUnilateralSortMerger(
-					(GenericReducer) localStub, getMemoryManager(), getIOManager(), this.inputIterators[inputNum], 
+					(GenericGroupReduce) localStub, getMemoryManager(), getIOManager(), this.inputIterators[inputNum], 
 					this, this.inputSerializers[inputNum], getLocalStrategyComparator(inputNum),
 					this.config.getMemoryInput(inputNum), this.config.getFilehandlesInput(inputNum),
 					this.config.getSpillingThresholdInput(inputNum));

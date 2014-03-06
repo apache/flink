@@ -24,7 +24,7 @@ import java.util.Queue;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.api.common.functions.GenericReducer;
+import eu.stratosphere.api.common.functions.GenericGroupReduce;
 import eu.stratosphere.api.common.typeutils.TypeComparator;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.configuration.Configuration;
@@ -72,7 +72,7 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 	 */
 	private static final Log LOG = LogFactory.getLog(CombiningUnilateralSortMerger.class);
 
-	private final GenericReducer<E, ?> combineStub;	// the user code stub that does the combining
+	private final GenericGroupReduce<E, ?> combineStub;	// the user code stub that does the combining
 	
 	private Configuration udfConfig;
 	
@@ -103,7 +103,7 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 	 * @throws MemoryAllocationException Thrown, if not enough memory can be obtained from the memory manager to
 	 *                                   perform the sort.
 	 */
-	public CombiningUnilateralSortMerger(GenericReducer<E, ?> combineStub, MemoryManager memoryManager, IOManager ioManager,
+	public CombiningUnilateralSortMerger(GenericGroupReduce<E, ?> combineStub, MemoryManager memoryManager, IOManager ioManager,
 			MutableObjectIterator<E> input, AbstractInvokable parentTask, 
 			TypeSerializer<E> serializer, TypeComparator<E> comparator,
 			long totalMemory, int maxNumFileHandles, float startSpillingFraction)
@@ -136,7 +136,7 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 	 * @throws MemoryAllocationException Thrown, if not enough memory can be obtained from the memory manager to
 	 *                                   perform the sort.
 	 */
-	public CombiningUnilateralSortMerger(GenericReducer<E, ?> combineStub, MemoryManager memoryManager, IOManager ioManager,
+	public CombiningUnilateralSortMerger(GenericGroupReduce<E, ?> combineStub, MemoryManager memoryManager, IOManager ioManager,
 			MutableObjectIterator<E> input, AbstractInvokable parentTask, 
 			TypeSerializer<E> serializer, TypeComparator<E> comparator,
 			long totalMemory, int numSortBuffers, int maxNumFileHandles, 
@@ -257,7 +257,7 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 			
 			// ------------------- Spilling Phase ------------------------
 			
-			final GenericReducer<E, ?> combineStub = CombiningUnilateralSortMerger.this.combineStub;
+			final GenericGroupReduce<E, ?> combineStub = CombiningUnilateralSortMerger.this.combineStub;
 			
 			// now that we are actually spilling, take the combiner, and open it
 			try {
@@ -461,7 +461,7 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 																			this.memManager.getPageSize());
 			
 			final WriterCollector<E> collector = new WriterCollector<E>(output, this.serializer);
-			final GenericReducer<E, ?> combineStub = CombiningUnilateralSortMerger.this.combineStub;
+			final GenericGroupReduce<E, ?> combineStub = CombiningUnilateralSortMerger.this.combineStub;
 
 			// combine and write to disk
 			try {

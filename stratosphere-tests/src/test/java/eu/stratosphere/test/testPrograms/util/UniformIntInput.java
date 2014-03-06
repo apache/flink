@@ -13,8 +13,6 @@
 
 package eu.stratosphere.test.testPrograms.util;
 
-import java.io.IOException;
-
 import eu.stratosphere.api.java.record.io.GenericInputFormat;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.types.IntValue;
@@ -69,8 +67,7 @@ public class UniformIntInput extends GenericInputFormat {
 
 
 	@Override
-	public boolean nextRecord(Record record) throws IOException
-	{
+	public Record nextRecord(Record record) {
 		if (this.keyInt == this.numKeys) {
 			this.keyInt = 0;
 			this.valueInt++;
@@ -85,6 +82,6 @@ public class UniformIntInput extends GenericInputFormat {
 		
 		this.keyInt++;
 		
-		return true;
+		return record;
 	}
 }

@@ -23,14 +23,11 @@ public final class DummyInputFormat extends DelimitedInputFormat {
 	
 	private final IntValue integer = new IntValue(1);
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.api.record.io.DelimitedInputFormat#readRecord(eu.stratosphere.pact.common.type.Record, byte[], int)
-	 */
 	@Override
-	public boolean readRecord(Record target, byte[] bytes, int offset, int numBytes) {
+	public Record readRecord(Record target, byte[] bytes, int offset, int numBytes) {
 		target.setField(0, this.integer);
 		target.setField(1, this.integer);
-		return true;
+		return target;
 	}
 
 	@Override

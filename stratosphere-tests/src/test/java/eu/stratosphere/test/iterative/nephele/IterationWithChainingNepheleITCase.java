@@ -31,9 +31,9 @@ import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparatorFactory;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializerFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
-import eu.stratosphere.pact.runtime.task.MapDriver;
+import eu.stratosphere.pact.runtime.task.CollectorMapDriver;
 import eu.stratosphere.pact.runtime.task.ReduceDriver;
-import eu.stratosphere.pact.runtime.task.chaining.ChainedMapDriver;
+import eu.stratosphere.pact.runtime.task.chaining.ChainedCollectorMapDriver;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.test.util.TestBase2;
@@ -159,8 +159,8 @@ public class IterationWithChainingNepheleITCase extends TestBase2 {
             headConfig.setIterationHeadIndexOfSyncOutput(2);
 
             // driver
-            headConfig.setDriver(MapDriver.class);
-            headConfig.setDriverStrategy(DriverStrategy.MAP);
+            headConfig.setDriver(CollectorMapDriver.class);
+            headConfig.setDriverStrategy(DriverStrategy.COLLECTOR_MAP);
             headConfig.setStubWrapper(new UserCodeClassWrapper<DummyMapper>(DummyMapper.class));
 
             // back channel
@@ -190,7 +190,7 @@ public class IterationWithChainingNepheleITCase extends TestBase2 {
 
             // chained mapper
             TaskConfig chainedMapperConfig = new TaskConfig(new Configuration());
-            chainedMapperConfig.setDriverStrategy(DriverStrategy.MAP);
+            chainedMapperConfig.setDriverStrategy(DriverStrategy.COLLECTOR_MAP);
             chainedMapperConfig.setStubWrapper(new UserCodeClassWrapper<IncrementCoordinatesMapper>(IncrementCoordinatesMapper.class));
 
             chainedMapperConfig.setInputLocalStrategy(0, LocalStrategy.NONE);
@@ -201,7 +201,7 @@ public class IterationWithChainingNepheleITCase extends TestBase2 {
             
             chainedMapperConfig.setIsWorksetUpdate();
 
-            tailConfig.addChainedTask(ChainedMapDriver.class, chainedMapperConfig, "Chained ID Mapper");
+            tailConfig.addChainedTask(ChainedCollectorMapDriver.class, chainedMapperConfig, "Chained ID Mapper");
         }
 
         // - output ----------------------------------------------------------------------------------------------------

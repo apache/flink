@@ -14,7 +14,7 @@
 package eu.stratosphere.api.java.record.functions;
 
 import eu.stratosphere.api.common.functions.AbstractFunction;
-import eu.stratosphere.api.common.functions.GenericMapper;
+import eu.stratosphere.api.common.functions.GenericCollectorMap;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
@@ -22,7 +22,7 @@ import eu.stratosphere.util.Collector;
  * The MapFunction must be extended to provide a mapper implementation
  * By definition, the mapper is called for each individual input record.
  */
-public abstract class MapFunction extends AbstractFunction implements GenericMapper<Record, Record> {
+public abstract class MapFunction extends AbstractFunction implements GenericCollectorMap<Record, Record> {
 	
 	private static final long serialVersionUID = 1L;
 	

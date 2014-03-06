@@ -25,7 +25,7 @@ public abstract class GenericInputTask extends AbstractInputTask<GenericInputSpl
 	public GenericInputSplit[] computeInputSplits(final int requestedMinNumber) throws Exception {
 		GenericInputSplit[] splits = new GenericInputSplit[requestedMinNumber];
 		for (int i = 0; i < requestedMinNumber; i++) {
-			splits[i] = new GenericInputSplit(i);
+			splits[i] = new GenericInputSplit(i, requestedMinNumber);
 		}
 		return splits;
 	}

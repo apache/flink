@@ -48,6 +48,8 @@ import eu.stratosphere.util.Collector;
  */
 public class EnumTrianglesRdfFoaf implements Program, ProgramDescription {
 
+	private static final long serialVersionUID = 1L;
+
 	/**
 	 * Reads RDF triples and filters on the foaf:knows RDF predicate.
 	 * The foaf:knows RDF predicate indicates that the RDF subject and object (typically of type foaf:person) know each
@@ -65,7 +67,7 @@ public class EnumTrianglesRdfFoaf implements Program, ProgramDescription {
 		private final StringValue rdfObj = new StringValue();
 		
 		@Override
-		public boolean readRecord(Record target, byte[] bytes, int offset, int numBytes) {
+		public Record readRecord(Record target, byte[] bytes, int offset, int numBytes) {
 			final int limit = offset + numBytes;
 			int startPos = offset;
 			
@@ -73,17 +75,17 @@ public class EnumTrianglesRdfFoaf implements Program, ProgramDescription {
 			startPos = parseVarLengthEncapsulatedStringField(bytes, startPos, limit, ' ', rdfSubj, '"');
 			if (startPos < 0) 
 				// invalid record, exit
-				return false;
+				return null;
 			// read RDF predicate
 			startPos = parseVarLengthEncapsulatedStringField(bytes, startPos, limit, ' ', rdfPred, '"');
 			if (startPos < 0 || !rdfPred.getValue().equals("<http://xmlns.com/foaf/0.1/knows>"))
 				// invalid record or predicate is not a foaf-knows predicate, exit
-				return false;
+				return null;
 			// read RDF object
 			startPos = parseVarLengthEncapsulatedStringField(bytes, startPos, limit, ' ', rdfObj, '"');
 			if (startPos < 0)
 				// invalid record, exit
-				return false;
+				return null;
 
 			// compare RDF subject and object
 			if (rdfSubj.compareTo(rdfObj) <= 0) {
@@ -96,7 +98,7 @@ public class EnumTrianglesRdfFoaf implements Program, ProgramDescription {
 				target.setField(1, rdfSubj);
 			}
 
-			return true;	
+			return target;	
 		}
 		
 		/*

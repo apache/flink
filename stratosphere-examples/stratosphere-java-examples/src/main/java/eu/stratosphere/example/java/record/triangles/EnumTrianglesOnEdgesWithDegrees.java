@@ -41,10 +41,12 @@ import eu.stratosphere.util.Collector;
  */
 public class EnumTrianglesOnEdgesWithDegrees implements Program, ProgramDescription {
 
+	private static final long serialVersionUID = 1L;
+	
 	// --------------------------------------------------------------------------------------------
 	//                                  Triangle Enumeration
 	// --------------------------------------------------------------------------------------------
-	
+
 	public static final class ProjectOutCounts extends MapFunction implements Serializable {
 		private static final long serialVersionUID = 1L;
 		

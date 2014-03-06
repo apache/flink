@@ -18,53 +18,61 @@ import eu.stratosphere.types.ShortValue;
 /**
  * Parses a decimal text field into a {@link ShortValue}.
  * Only characters '1' to '0' and '-' are allowed.
- * The parser does not check for the maximum value.
  */
 public class DecimalTextShortParser extends FieldParser<ShortValue> {
+	
+	private static final int OVERFLOW_BOUND = 0x7fff;
+	private static final int UNDERFLOW_BOUND = 0x8000;
+	
+	private ShortValue result;
 
 	@Override
-	public int parseField(byte[] bytes, int startPos, int limit, char delim, ShortValue field) {
-		long val = 0;
+	public int parseField(byte[] bytes, int startPos, int limit, char delimiter, ShortValue reusable) {
+		int val = 0;
 		boolean neg = false;
+		
+		this.result = reusable;
 		
 		if (bytes[startPos] == '-') {
 			neg = true;
 			startPos++;
+			
+			// check for empty field with only the sign
+			if (startPos == limit || bytes[startPos] == delimiter) {
+				setErrorState(ParseErrorState.NUMERIC_VALUE_ORPHAN_SIGN);
+				return -1;
+			}
 		}
 		
 		for (int i = startPos; i < limit; i++) {
-			if (bytes[i] == delim) {
-				return valueSet(field, val, neg, i+1);
+			if (bytes[i] == delimiter) {
+				reusable.setValue((short) (neg ? -val : val));
+				return i+1;
 			}
 			if (bytes[i] < 48 || bytes[i] > 57) {
+				setErrorState(ParseErrorState.NUMERIC_VALUE_ILLEGAL_CHARACTER);
 				return -1;
 			}
 			val *= 10;
 			val += bytes[i] - 48;
+			
+			if (val > OVERFLOW_BOUND && (!neg || val > UNDERFLOW_BOUND)) {
+				setErrorState(ParseErrorState.NUMERIC_VALUE_OVERFLOW_UNDERFLOW);
+				return -1;
+			}
 		}
 		
-		return valueSet(field, val, neg, limit);
-	}
-	
-	private final int valueSet(ShortValue field, long val, boolean negative, int position) {
-		if (negative) {
-			if (val >= Short.MIN_VALUE) {
-				field.setValue((short) -val);
-			} else {
-				return -1;
-			}
-		} else {
-			if (val <= Short.MAX_VALUE) {
-				field.setValue((short) val);
-			} else {
-				return -1;
-			}
-		}
-		return position;
+		reusable.setValue((short) (neg ? -val : val));
+		return limit;
 	}
 	
 	@Override
 	public ShortValue createValue() {
 		return new ShortValue();
+	}
+
+	@Override
+	public ShortValue getLastResult() {
+		return this.result;
 	}
 }

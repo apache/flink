@@ -20,8 +20,10 @@ import eu.stratosphere.types.FloatValue;
  */
 public class DecimalTextFloatParser extends FieldParser<FloatValue> {
 	
+	private FloatValue result;
+	
 	@Override
-	public int parseField(byte[] bytes, int startPos, int limit, char delim, FloatValue field) {
+	public int parseField(byte[] bytes, int startPos, int limit, char delim, FloatValue reusable) {
 		
 		int i = startPos;
 		final byte delByte = (byte) delim;
@@ -33,7 +35,8 @@ public class DecimalTextFloatParser extends FieldParser<FloatValue> {
 		String str = new String(bytes, startPos, i-startPos);
 		try {
 			float value = Float.parseFloat(str);
-			field.setValue(value);
+			reusable.setValue(value);
+			this.result = reusable;
 			return (i == limit) ? limit : i+1;
 		}
 		catch (NumberFormatException e) {
@@ -44,5 +47,10 @@ public class DecimalTextFloatParser extends FieldParser<FloatValue> {
 	@Override
 	public FloatValue createValue() {
 		return new FloatValue();
+	}
+
+	@Override
+	public FloatValue getLastResult() {
+		return this.result;
 	}
 }

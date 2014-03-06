@@ -16,13 +16,15 @@ package eu.stratosphere.arraymodel.functions;
 import java.lang.reflect.Method;
 import java.util.Iterator;
 
-import eu.stratosphere.api.common.functions.GenericReducer;
+import eu.stratosphere.api.common.functions.GenericGroupReduce;
 import eu.stratosphere.types.Value;
 import eu.stratosphere.util.Collector;
 
 
-public abstract class ReduceFunction extends AbstractArrayModelFunction implements GenericReducer<Value[], Value[]> {
-	
+public abstract class ReduceFunction extends AbstractArrayModelFunction implements GenericGroupReduce<Value[], Value[]> {
+
+	private static final long serialVersionUID = 1L;
+
 	/**
 	 * The central function to be implemented for a reducer. The function receives per call one
 	 * key and all the values that belong to that key. Each key is guaranteed to be processed by exactly

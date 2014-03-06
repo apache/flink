@@ -54,7 +54,7 @@ public abstract class GenericInputFormat<OT> implements InputFormat<OT, GenericI
 		numSplits = (this instanceof UnsplittableInput) ? 1 : numSplits;
 		GenericInputSplit[] splits = new GenericInputSplit[numSplits];
 		for (int i = 0; i < splits.length; i++) {
-			splits[i] = new GenericInputSplit(i);
+			splits[i] = new GenericInputSplit(i, numSplits);
 		}
 		return splits;
 	}
@@ -72,7 +72,5 @@ public abstract class GenericInputFormat<OT> implements InputFormat<OT, GenericI
 	}
 
 	@Override
-	public void close() throws IOException {
-		// nothing by default 	
-	}
+	public void close() throws IOException {}
 }

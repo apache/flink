@@ -18,40 +18,78 @@ import eu.stratosphere.types.LongValue;
 /**
  * Parses a decimal text field into a LongValue.
  * Only characters '1' to '0' and '-' are allowed.
- * The parser does not check for the overflows and underflows.
  */
 public class DecimalTextLongParser extends FieldParser<LongValue> {
 	
+	private LongValue result;
+	
 	@Override
-	public int parseField(byte[] bytes, int startPos, int length, char delim, LongValue field) {
-		
+	public int parseField(byte[] bytes, int startPos, int limit, char delimiter, LongValue reusable) {
 		long val = 0;
 		boolean neg = false;
 		
-		if(bytes[startPos] == '-') {
+		this.result = reusable;
+		
+		if (bytes[startPos] == '-') {
 			neg = true;
 			startPos++;
+			
+			// check for empty field with only the sign
+			if (startPos == limit || bytes[startPos] == delimiter) {
+				setErrorState(ParseErrorState.NUMERIC_VALUE_ORPHAN_SIGN);
+				return -1;
+			}
 		}
 		
-		for(int i=startPos; i < length; i++) {
-			if(bytes[i] == delim) {
-				field.setValue(val*(neg ? -1 : 1));
+		for (int i = startPos; i < limit; i++) {
+			if (bytes[i] == delimiter) {
+				reusable.setValue(neg ? -val : val);
 				return i+1;
 			}
-			if(bytes[i] < 48 || bytes[i] > 57) {
+			if (bytes[i] < 48 || bytes[i] > 57) {
+				setErrorState(ParseErrorState.NUMERIC_VALUE_ILLEGAL_CHARACTER);
 				return -1;
 			}
 			val *= 10;
 			val += bytes[i] - 48;
+			
+			// check for overflow / underflow
+			if (val < 0) {
+				// this is an overflow/underflow, unless we hit exactly the Long.MIN_VALUE
+				if (neg && val == Long.MIN_VALUE) {
+					reusable.setValue(Long.MIN_VALUE);
+					
+					if (i+1 >= limit) {
+						return limit; 
+					} else if (bytes[i+1] == delimiter) {
+						return i+2;
+					} else {
+						setErrorState(ParseErrorState.NUMERIC_VALUE_OVERFLOW_UNDERFLOW);
+						return -1;
+					}
+				}
+				else {
+					setErrorState(ParseErrorState.NUMERIC_VALUE_OVERFLOW_UNDERFLOW);
+					return -1;
+				}
+			}
 		}
-		field.setValue(val*(neg ? -1 : 1));
-		return length;
+		
+		reusable.setValue(neg ? -val : val);
+		return limit;
 	}
 	
 	@Override
 	public LongValue createValue() {
 		return new LongValue();
 	}
+	
+	@Override
+	public LongValue getLastResult() {
+		return this.result;
+	}
+	
+	
 	
 	public static final long parseField(byte[] bytes, int startPos, int length, char delim) {
 		if (length <= 0) {

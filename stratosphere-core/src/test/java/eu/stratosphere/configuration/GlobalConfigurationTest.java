@@ -21,18 +21,26 @@ import java.lang.reflect.Field;
 import static org.junit.Assert.fail;
 import static org.junit.Assert.assertEquals;
 
+import org.apache.log4j.Level;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.configuration.GlobalConfiguration;
 import eu.stratosphere.core.testutils.CommonTestUtils;
+import eu.stratosphere.util.LogUtils;
 
 /**
  * This class contains tests for the global configuration (parsing configuration directory information).
  */
 public class GlobalConfigurationTest {
 
+	@BeforeClass
+	public static void initLogging() {
+		LogUtils.initializeDefaultConsoleLogger(Level.OFF);
+	}
+	
 	@Before
 	public void resetSingleton() throws SecurityException, NoSuchFieldException, IllegalArgumentException,
 			IllegalAccessException {

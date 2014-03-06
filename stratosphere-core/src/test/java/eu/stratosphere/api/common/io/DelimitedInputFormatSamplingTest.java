@@ -283,7 +283,7 @@ public class DelimitedInputFormatSamplingTest {
 		private static final long serialVersionUID = 1L;
 		
 		@Override
-		public boolean readRecord(IntValue target, byte[] bytes, int offset, int numBytes) {
+		public IntValue readRecord(IntValue reuse, byte[] bytes, int offset, int numBytes) {
 			throw new UnsupportedOperationException();
 		}
 		

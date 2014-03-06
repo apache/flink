@@ -35,7 +35,7 @@ import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.BuildSecondCachedMatchDriver;
 import eu.stratosphere.pact.runtime.task.CoGroupDriver;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
-import eu.stratosphere.pact.runtime.task.MapDriver;
+import eu.stratosphere.pact.runtime.task.CollectorMapDriver;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.test.iterative.nephele.JobGraphUtils;
@@ -163,8 +163,8 @@ public class CompensatableDanglingPageRank {
 		headConfig.setNumberOfIterations(numIterations);
 		
 		// the driver 
-		headConfig.setDriver(MapDriver.class);
-		headConfig.setDriverStrategy(DriverStrategy.MAP);
+		headConfig.setDriver(CollectorMapDriver.class);
+		headConfig.setDriverStrategy(DriverStrategy.COLLECTOR_MAP);
 		headConfig.setStubWrapper(new UserCodeClassWrapper<CompensatingMap>(CompensatingMap.class));
 		headConfig.setStubParameter("pageRank.numVertices", String.valueOf(numVertices));
 		headConfig.setStubParameter("compensation.failingWorker", failingWorkers);

@@ -27,6 +27,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.api.avro.AvroBaseValue;
+import eu.stratosphere.api.avro.FSDataInputStreamWrapper;
 import eu.stratosphere.api.java.record.io.FileInputFormat;
 import eu.stratosphere.core.fs.FileInputSplit;
 import eu.stratosphere.types.Record;
@@ -92,14 +93,14 @@ public class AvroInputFormat<E> extends FileInputFormat {
 	}
 
 	@Override
-	public boolean nextRecord(Record record) throws IOException {
+	public Record nextRecord(Record record) throws IOException {
 		if (!dataFileReader.hasNext()) {
-			return false;
+			return null;
 		}
 		
 		reuseAvroValue = dataFileReader.next(reuseAvroValue);
 		wrapper.datum(reuseAvroValue);
 		record.setField(0, wrapper);
-		return true;
+		return record;
 	}
 }

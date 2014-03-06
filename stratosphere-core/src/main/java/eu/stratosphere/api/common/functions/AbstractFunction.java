@@ -30,7 +30,7 @@ public abstract class AbstractFunction implements Function, Serializable {
 	
 	private transient RuntimeContext runtimeContext;
 
-	public final void setRuntimeContext(RuntimeContext t) {
+	public void setRuntimeContext(RuntimeContext t) {
 		if (this.runtimeContext == null) {
 			this.runtimeContext = t;
 		} else {
@@ -38,7 +38,7 @@ public abstract class AbstractFunction implements Function, Serializable {
 		}
 	}
 	
-	public final RuntimeContext getRuntimeContext() {
+	public RuntimeContext getRuntimeContext() {
 		if (this.runtimeContext != null) {
 			return this.runtimeContext;
 		} else {
@@ -46,7 +46,7 @@ public abstract class AbstractFunction implements Function, Serializable {
 		}
 	}
 	
-	public final IterationRuntimeContext getIterationRuntimeContext() {
+	public IterationRuntimeContext getIterationRuntimeContext() {
 		if (this.runtimeContext == null) {
 			throw new IllegalStateException("The runtime context has not been initialized.");
 		} else if (this.runtimeContext instanceof IterationRuntimeContext) {

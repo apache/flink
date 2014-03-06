@@ -16,9 +16,8 @@ package eu.stratosphere.pact.runtime.task;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.api.common.functions.GenericReducer;
+import eu.stratosphere.api.common.functions.GenericGroupReduce;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
-import eu.stratosphere.api.java.record.functions.ReduceFunction;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.util.MutableToRegularIteratorWrapper;
 import eu.stratosphere.util.Collector;
@@ -32,13 +31,13 @@ import eu.stratosphere.util.MutableObjectIterator;
  * The ReduceTask creates a iterator over all records from its input. The iterator returns all records grouped by their
  * key. The iterator is handed to the <code>reduce()</code> method of the ReduceFunction.
  * 
- * @see ReduceFunction
+ * @see GenericGroupReduce
  */
-public class AllReduceDriver<IT, OT> implements PactDriver<GenericReducer<IT, OT>, OT> {
+public class AllReduceDriver<IT, OT> implements PactDriver<GenericGroupReduce<IT, OT>, OT> {
 	
 	private static final Log LOG = LogFactory.getLog(AllReduceDriver.class);
 
-	private PactTaskContext<GenericReducer<IT, OT>, OT> taskContext;
+	private PactTaskContext<GenericGroupReduce<IT, OT>, OT> taskContext;
 	
 	private MutableObjectIterator<IT> input;
 
@@ -47,7 +46,7 @@ public class AllReduceDriver<IT, OT> implements PactDriver<GenericReducer<IT, OT
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void setup(PactTaskContext<GenericReducer<IT, OT>, OT> context) {
+	public void setup(PactTaskContext<GenericGroupReduce<IT, OT>, OT> context) {
 		this.taskContext = context;
 	}
 	
@@ -57,9 +56,9 @@ public class AllReduceDriver<IT, OT> implements PactDriver<GenericReducer<IT, OT
 	}
 
 	@Override
-	public Class<GenericReducer<IT, OT>> getStubType() {
+	public Class<GenericGroupReduce<IT, OT>> getStubType() {
 		@SuppressWarnings("unchecked")
-		final Class<GenericReducer<IT, OT>> clazz = (Class<GenericReducer<IT, OT>>) (Class<?>) GenericReducer.class;
+		final Class<GenericGroupReduce<IT, OT>> clazz = (Class<GenericGroupReduce<IT, OT>>) (Class<?>) GenericGroupReduce.class;
 		return clazz;
 	}
 
@@ -86,7 +85,7 @@ public class AllReduceDriver<IT, OT> implements PactDriver<GenericReducer<IT, OT
 			LOG.debug(this.taskContext.formatLogString("AllReduce preprocessing done. Running Reducer code."));
 		}
 
-		final GenericReducer<IT, OT> stub = this.taskContext.getStub();
+		final GenericGroupReduce<IT, OT> stub = this.taskContext.getStub();
 		final Collector<OT> output = this.taskContext.getOutputCollector();
 		final MutableToRegularIteratorWrapper<IT> inIter = new MutableToRegularIteratorWrapper<IT>(this.input, this.serializer);
 
@@ -97,10 +96,8 @@ public class AllReduceDriver<IT, OT> implements PactDriver<GenericReducer<IT, OT
 	}
 
 	@Override
-	public void cleanup() throws Exception {
-	}
+	public void cleanup() {}
 
 	@Override
-	public void cancel() {
-	}
+	public void cancel() {}
 }

@@ -38,6 +38,8 @@ import eu.stratosphere.util.Collector;
  */
 public class ReduceGroupSort implements Program, ProgramDescription {
 	
+	private static final long serialVersionUID = 1L;
+
 	/**
 	 * Increments the first field of the first record of the reduce group by 100 and emits it.
 	 * Then all remaining records of the group are emitted.	 *

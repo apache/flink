@@ -37,7 +37,9 @@ public class BinaryInputFormatTest {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		protected void deserialize(Record record, DataInput dataInput) throws IOException {}
+		protected Record deserialize(Record record, DataInput dataInput) {
+			return record;
+		}
 	}
 	
 	@BeforeClass

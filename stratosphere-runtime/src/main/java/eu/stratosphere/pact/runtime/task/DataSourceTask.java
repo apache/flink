@@ -32,7 +32,7 @@ import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.pact.runtime.shipping.OutputCollector;
 import eu.stratosphere.pact.runtime.shipping.RecordOutputCollector;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedDriver;
-import eu.stratosphere.pact.runtime.task.chaining.ChainedMapDriver;
+import eu.stratosphere.pact.runtime.task.chaining.ChainedCollectorMapDriver;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
@@ -105,10 +105,10 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 
 
 	@Override
-	public void invoke() throws Exception
-	{
-		if (LOG.isInfoEnabled())
-			LOG.info(getLogString("Start PACT code"));
+	public void invoke() throws Exception {
+		
+		if (LOG.isDebugEnabled())
+			LOG.debug(getLogString("Starting data source operator"));
 		
 		try {
 			// start all chained tasks
@@ -116,13 +116,14 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 			
 			// get input splits to read
 			final Iterator<InputSplit> splitIterator = getInputSplits();
-			final OT record = this.serializer.createInstance();
-	
+			
 			// for each assigned input split
 			while (!this.taskCanceled && splitIterator.hasNext())
 			{
 				// get start and end
 				final InputSplit split = splitIterator.next();
+				
+				OT record = this.serializer.createInstance();
 	
 				if (LOG.isDebugEnabled())
 					LOG.debug(getLogString("Opening input split " + split.toString()));
@@ -138,7 +139,7 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 				try {
 					// ======= special-case the Record, to help the JIT and avoid some casts ======
 					if (record.getClass() == Record.class) {
-						final Record pactRecord = (Record) record;
+						Record typedRecord = (Record) record;
 						@SuppressWarnings("unchecked")
 						final InputFormat<Record, InputSplit> inFormat = (InputFormat<Record, InputSplit>) format;
 						
@@ -147,23 +148,24 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 							final RecordOutputCollector output = (RecordOutputCollector) this.output;
 							while (!this.taskCanceled && !inFormat.reachedEnd()) {
 								// build next pair and ship pair if it is valid
-								pactRecord.clear();
-								if (inFormat.nextRecord(pactRecord)) {
-									output.collect(pactRecord);
+								typedRecord.clear();
+								Record returnedRecord = null;
+								if ((returnedRecord = inFormat.nextRecord(typedRecord)) != null) {
+									output.collect(returnedRecord);
 								}
 							}
-						} else if (this.output instanceof ChainedMapDriver) {
+						} else if (this.output instanceof ChainedCollectorMapDriver) {
 							// Record going to a chained map task
 							@SuppressWarnings("unchecked")
-							final ChainedMapDriver<Record, ?> output = (ChainedMapDriver<Record, ?>) this.output;
+							final ChainedCollectorMapDriver<Record, ?> output = (ChainedCollectorMapDriver<Record, ?>) this.output;
 							
 							// as long as there is data to read
 							while (!this.taskCanceled && !inFormat.reachedEnd()) {
 								// build next pair and ship pair if it is valid
-								pactRecord.clear();
-								if (inFormat.nextRecord(pactRecord)) {
+								typedRecord.clear();
+								if ((typedRecord = inFormat.nextRecord(typedRecord)) != null) {
 									// This is where map of UDF gets called
-									output.collect(pactRecord);
+									output.collect(typedRecord);
 								}
 							}
 						} else {
@@ -173,9 +175,9 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 							// as long as there is data to read
 							while (!this.taskCanceled && !inFormat.reachedEnd()) {
 								// build next pair and ship pair if it is valid
-								pactRecord.clear();
-								if (inFormat.nextRecord(pactRecord)) {
-									output.collect(pactRecord);
+								typedRecord.clear();
+								if ((typedRecord = inFormat.nextRecord(typedRecord)) != null){
+									output.collect(typedRecord);
 								}
 							}
 						}
@@ -187,17 +189,17 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 							// as long as there is data to read
 							while (!this.taskCanceled && !format.reachedEnd()) {
 								// build next pair and ship pair if it is valid
-								if (format.nextRecord(record)) {
+								if ((record = format.nextRecord(record)) != null) {
 									output.collect(record);
 								}
 							}
-						} else if (this.output instanceof ChainedMapDriver) {
+						} else if (this.output instanceof ChainedCollectorMapDriver) {
 							@SuppressWarnings("unchecked")
-							final ChainedMapDriver<OT, ?> output = (ChainedMapDriver<OT, ?>) this.output;
+							final ChainedCollectorMapDriver<OT, ?> output = (ChainedCollectorMapDriver<OT, ?>) this.output;
 							// as long as there is data to read
 							while (!this.taskCanceled && !format.reachedEnd()) {
 								// build next pair and ship pair if it is valid
-								if (format.nextRecord(record)) {
+								if ((record = format.nextRecord(record)) != null) {
 									output.collect(record);
 								}
 							}
@@ -206,7 +208,7 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 							// as long as there is data to read
 							while (!this.taskCanceled && !format.reachedEnd()) {
 								// build next pair and ship pair if it is valid
-								if (format.nextRecord(record)) {
+								if ((record = format.nextRecord(record)) != null) {
 									output.collect(record);
 								}
 							}
@@ -247,24 +249,20 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 		}
 
 		if (!this.taskCanceled) {
-			if (LOG.isInfoEnabled())
-				LOG.info(getLogString("Finished PACT code"));
+			if (LOG.isDebugEnabled())
+				LOG.debug(getLogString("Finished data source operator"));
 		}
 		else {
-			if (LOG.isWarnEnabled())
-				LOG.warn(getLogString("PACT code cancelled"));
+			if (LOG.isDebugEnabled())
+				LOG.debug(getLogString("Data source operator cancelled"));
 		}
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.nephele.template.AbstractInvokable#cancel()
-	 */
 	@Override
 	public void cancel() throws Exception {
 		this.taskCanceled = true;
-		if (LOG.isWarnEnabled())
-			LOG.warn(getLogString("Cancelling PACT code"));
+		if (LOG.isDebugEnabled())
+			LOG.debug(getLogString("Cancelling data source operator"));
 	}
 	
 	/**

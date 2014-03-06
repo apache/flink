@@ -20,14 +20,6 @@ import eu.stratosphere.api.common.operators.util.UserCodeObjectWrapper;
 import eu.stratosphere.api.common.operators.util.UserCodeWrapper;
 
 /**
- * MatchContract represents a Match InputContract of the PACT Programming Model.
- * InputContracts are second-order functions. They have one or multiple input sets of records and a first-order
- * user function (stub implementation).
- * <p> 
- * Match works on two inputs and calls the first-order function of a {@link GenericJoiner} 
- * for each combination of record from both inputs that share the same key independently. In that sense, it is very
- * similar to an inner join.
- * 
  * @see GenericJoiner
  */
 public class JoinOperatorBase<T extends GenericJoiner<?, ?, ?>> extends DualInputOperator<T>

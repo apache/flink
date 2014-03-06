@@ -40,7 +40,7 @@ import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializerFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
-import eu.stratosphere.pact.runtime.task.MapDriver;
+import eu.stratosphere.pact.runtime.task.CollectorMapDriver;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
@@ -256,8 +256,8 @@ public class BroadcastVarsNepheleITCase extends TestBase2 {
 			taskConfig.setStubWrapper(new UserCodeClassWrapper<DotProducts>(DotProducts.class));
 			taskConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
 			taskConfig.setOutputSerializer(serializer);
-			taskConfig.setDriver(MapDriver.class);
-			taskConfig.setDriverStrategy(DriverStrategy.MAP);
+			taskConfig.setDriver(CollectorMapDriver.class);
+			taskConfig.setDriverStrategy(DriverStrategy.COLLECTOR_MAP);
 
 			taskConfig.addInputToGroup(0);
 			taskConfig.setInputLocalStrategy(0, LocalStrategy.NONE);

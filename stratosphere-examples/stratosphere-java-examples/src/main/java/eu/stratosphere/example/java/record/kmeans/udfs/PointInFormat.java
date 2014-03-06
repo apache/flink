@@ -39,7 +39,7 @@ public class PointInFormat extends DelimitedInputFormat {
 	private double[] pointValues = new double[0];
 	
 	@Override
-	public boolean readRecord(Record record, byte[] line, int offset, int numBytes) {
+	public Record readRecord(Record record, byte[] line, int offset, int numBytes) {
 		
 		final int limit = offset + numBytes;
 		
@@ -96,6 +96,6 @@ public class PointInFormat extends DelimitedInputFormat {
 		
 		this.point.setCoordinates(this.pointValues);
 		record.setField(1, this.point);
-		return true;
+		return record;
 	}
 }

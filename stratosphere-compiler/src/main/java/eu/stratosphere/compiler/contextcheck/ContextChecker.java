@@ -17,7 +17,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import eu.stratosphere.api.common.InvalidJobException;
+import eu.stratosphere.api.common.InvalidProgramException;
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.operators.BulkIteration;
 import eu.stratosphere.api.common.operators.DualInputOperator;
@@ -115,10 +115,10 @@ public class ContextChecker implements Visitor<Operator> {
 	private void checkFileDataSink(FileDataSink fileSink) {
 		String path = fileSink.getFilePath();
 		if (path == null) {
-			throw new InvalidJobException("File path of FileDataSink is null.");
+			throw new InvalidProgramException("File path of FileDataSink is null.");
 		}
 		if (path.length() == 0) {
-			throw new InvalidJobException("File path of FileDataSink is empty string.");
+			throw new InvalidProgramException("File path of FileDataSink is empty string.");
 		}
 		
 		try {
@@ -126,10 +126,10 @@ public class ContextChecker implements Visitor<Operator> {
 			String scheme = p.toUri().getScheme();
 			
 			if (scheme == null) {
-				throw new InvalidJobException("File path \"" + path + "\" of FileDataSink has no file system scheme (like 'file:// or hdfs://').");
+				throw new InvalidProgramException("File path \"" + path + "\" of FileDataSink has no file system scheme (like 'file:// or hdfs://').");
 			}
 		} catch (Exception e) {
-			throw new InvalidJobException("File path \"" + path + "\" of FileDataSink is an invalid path: " + e.getMessage());
+			throw new InvalidProgramException("File path \"" + path + "\" of FileDataSink is an invalid path: " + e.getMessage());
 		}
 		checkDataSink(fileSink);
 	}
@@ -144,10 +144,10 @@ public class ContextChecker implements Visitor<Operator> {
 	private void checkFileDataSource(FileDataSource fileSource) {
 		String path = fileSource.getFilePath();
 		if (path == null) {
-			throw new InvalidJobException("File path of FileDataSource is null.");
+			throw new InvalidProgramException("File path of FileDataSource is null.");
 		}
 		if (path.length() == 0) {
-			throw new InvalidJobException("File path of FileDataSource is empty string.");
+			throw new InvalidProgramException("File path of FileDataSource is empty string.");
 		}
 		
 		try {
@@ -155,10 +155,10 @@ public class ContextChecker implements Visitor<Operator> {
 			String scheme = p.toUri().getScheme();
 			
 			if (scheme == null) {
-				throw new InvalidJobException("File path \"" + path + "\" of FileDataSource has no file system scheme (like 'file:// or hdfs://').");
+				throw new InvalidProgramException("File path \"" + path + "\" of FileDataSource has no file system scheme (like 'file:// or hdfs://').");
 			}
 		} catch (Exception e) {
-			throw new InvalidJobException("File path \"" + path + "\" of FileDataSource is an invalid path: " + e.getMessage());
+			throw new InvalidProgramException("File path \"" + path + "\" of FileDataSource is an invalid path: " + e.getMessage());
 		}
 	}
 

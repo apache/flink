@@ -35,10 +35,12 @@ import eu.stratosphere.util.Collector;
 
 public class ComputeEdgeDegrees implements Program, ProgramDescription {
 	
+	private static final long serialVersionUID = 1L;
+	
 	// --------------------------------------------------------------------------------------------
 	//                                  Vertex Degree Computation
 	// --------------------------------------------------------------------------------------------
-	
+
 	/**
 	 * Duplicates each edge such that: (u,v) becomes (u,v),(v,u)
 	 */

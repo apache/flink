@@ -14,6 +14,8 @@
 package eu.stratosphere.pact.runtime.task;
 
 import eu.stratosphere.pact.runtime.task.chaining.ChainedDriver;
+import eu.stratosphere.pact.runtime.task.chaining.ChainedCollectorMapDriver;
+import eu.stratosphere.pact.runtime.task.chaining.ChainedFlatMapDriver;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedMapDriver;
 import eu.stratosphere.pact.runtime.task.chaining.SynchronousChainedCombineDriver;
 
@@ -29,8 +31,12 @@ public enum DriverStrategy {
 	UNARY_NO_OP(NoOpDriver.class, null, PIPELINED, PIPELINED, false),
 	// a binary no-op operator
 	BINARY_NO_OP(null, null, PIPELINED, PIPELINED, false),
-	// no special local strategy is applied
+	// the old mapper
+	COLLECTOR_MAP(CollectorMapDriver.class, ChainedCollectorMapDriver.class, PIPELINED, false),
+	// the proper mapper
 	MAP(MapDriver.class, ChainedMapDriver.class, PIPELINED, false),
+	// the flat mapper
+	FLAT_MAP(FlatMapDriver.class, ChainedFlatMapDriver.class, PIPELINED, false),
 	// grouping the inputs
 	SORTED_GROUP(ReduceDriver.class, null, PIPELINED, true),
 	// partially grouping inputs (best effort resulting possibly in duplicates --> combiner)

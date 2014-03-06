@@ -30,6 +30,7 @@ import org.junit.runners.Parameterized.Parameters;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
+import eu.stratosphere.api.common.JobExecutionResult;
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.accumulators.Accumulator;
 import eu.stratosphere.api.common.accumulators.AccumulatorHelper;
@@ -49,7 +50,6 @@ import eu.stratosphere.api.java.record.operators.ReduceOperator.Combinable;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.core.io.StringRecord;
-import eu.stratosphere.nephele.client.JobExecutionResult;
 import eu.stratosphere.nephele.util.SerializableHashSet;
 import eu.stratosphere.test.util.TestBase2;
 import eu.stratosphere.types.IntValue;

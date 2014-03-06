@@ -49,10 +49,6 @@ public class BlockInfo implements IOReadableWritable {
 		this.firstRecordStart = firstRecordStart;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.IOReadableWritable#write(java.io.DataOutput)
-	 */
 	@Override
 	public void write(DataOutput out) throws IOException {
 		out.writeLong(this.recordCount);
@@ -60,10 +56,6 @@ public class BlockInfo implements IOReadableWritable {
 		out.writeLong(this.firstRecordStart);
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.IOReadableWritable#read(java.io.DataInput)
-	 */
 	@Override
 	public void read(DataInput in) throws IOException {
 		this.recordCount = in.readLong();

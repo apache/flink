@@ -28,7 +28,7 @@ public abstract class BinaryOutputFormat<T extends IOReadableWritable> extends F
 	/**
 	 * The config parameter which defines the fixed length of a record.
 	 */
-	public static final String BLOCK_SIZE_PARAMETER_KEY = "pact.output.block_size";
+	public static final String BLOCK_SIZE_PARAMETER_KEY = "output.block_size";
 
 	public static final long NATIVE_BLOCK_SIZE = Long.MIN_VALUE;
 

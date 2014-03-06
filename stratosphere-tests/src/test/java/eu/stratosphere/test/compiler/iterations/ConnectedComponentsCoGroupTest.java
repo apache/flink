@@ -29,7 +29,7 @@ import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.test.compiler.CompilerTestBase;
-import eu.stratosphere.test.testPrograms.WorksetConnectedComponentsWithCoGroup;
+import eu.stratosphere.test.testPrograms.ConnectedComponentsWithCoGroup;
 
 /**
  *
@@ -53,7 +53,7 @@ public class ConnectedComponentsCoGroupTest extends CompilerTestBase {
 	
 	@Test
 	public void testWorksetConnectedComponents() {
-		WorksetConnectedComponentsWithCoGroup cc = new WorksetConnectedComponentsWithCoGroup();
+		ConnectedComponentsWithCoGroup cc = new ConnectedComponentsWithCoGroup();
 
 		Plan plan = cc.getPlan(String.valueOf(DEFAULT_PARALLELISM),
 				IN_FILE, IN_FILE, OUT_FILE, String.valueOf(100));

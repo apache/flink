@@ -19,10 +19,12 @@ import java.util.List;
 import java.util.Map;
 
 import eu.stratosphere.api.common.operators.Operator;
+import eu.stratosphere.api.common.operators.RecordOperator;
 import eu.stratosphere.api.common.operators.base.JoinOperatorBase;
 import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
 import eu.stratosphere.api.common.operators.util.UserCodeObjectWrapper;
 import eu.stratosphere.api.common.operators.util.UserCodeWrapper;
+import eu.stratosphere.api.java.record.functions.FunctionAnnotation;
 import eu.stratosphere.api.java.record.functions.JoinFunction;
 import eu.stratosphere.types.Key;
 
@@ -36,7 +38,7 @@ import eu.stratosphere.types.Key;
 public class JoinOperator extends JoinOperatorBase<JoinFunction> implements RecordOperator {
 	
 	/**
-	 * The types of the keys that the contract operates on.
+	 * The types of the keys that the operator operates on.
 	 */
 	private final Class<? extends Key>[] keyTypes;
 	
@@ -57,7 +59,7 @@ public class JoinOperator extends JoinOperatorBase<JoinFunction> implements Reco
 	/**
 	 * Creates a Builder with the provided {@link JoinFunction} implementation
 	 * 
-	 * @param udf The {@link JoinFunction} implementation for this Match contract.
+	 * @param udf The {@link JoinFunction} implementation for this Match operator.
 	 * @param keyClass The class of the key data type.
 	 * @param keyColumn1 The position of the key in the first input's records.
 	 * @param keyColumn2 The position of the key in the second input's records.
@@ -77,6 +79,7 @@ public class JoinOperator extends JoinOperatorBase<JoinFunction> implements Reco
 		setFirstInputs(builder.inputs1);
 		setSecondInputs(builder.inputs2);
 		setBroadcastVariables(builder.broadcastInputs);
+		setSemanticProperties(FunctionAnnotation.readDualConstantAnnotations(builder.udf));
 	}
 	
 	@Override
@@ -107,7 +110,7 @@ public class JoinOperator extends JoinOperatorBase<JoinFunction> implements Reco
 		/**
 		 * Creates a Builder with the provided {@link JoinFunction} implementation
 		 * 
-		 * @param udf The {@link JoinFunction} implementation for this Match contract.
+		 * @param udf The {@link JoinFunction} implementation for this Match operator.
 		 * @param keyClass The class of the key data type.
 		 * @param keyColumn1 The position of the key in the first input's records.
 		 * @param keyColumn2 The position of the key in the second input's records.
@@ -129,7 +132,7 @@ public class JoinOperator extends JoinOperatorBase<JoinFunction> implements Reco
 		 * Creates a Builder with the provided {@link JoinFunction} implementation. This method is intended 
 		 * for special case sub-types only.
 		 * 
-		 * @param udf The {@link JoinFunction} implementation for this Match contract.
+		 * @param udf The {@link JoinFunction} implementation for this Match operator.
 		 */
 		protected Builder(UserCodeWrapper<JoinFunction> udf) {
 			this.udf = udf;
@@ -241,7 +244,7 @@ public class JoinOperator extends JoinOperatorBase<JoinFunction> implements Reco
 		}
 		
 		/**
-		 * Sets the name of this contract.
+		 * Sets the name of this operator.
 		 */
 		public Builder name(String name) {
 			this.name = name;
@@ -252,7 +255,7 @@ public class JoinOperator extends JoinOperatorBase<JoinFunction> implements Reco
 		 * Creates and returns a JoinOperator from using the values given 
 		 * to the builder.
 		 * 
-		 * @return The created contract
+		 * @return The created operator
 		 */
 		public JoinOperator build() {
 			if (keyClasses.size() <= 0) {

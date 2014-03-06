@@ -702,7 +702,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		
 		// the local strategy is added only once. in non-union case that is the actual edge,
 		// in the union case, it is the edge between union and the target node
-		addLocalInfoFromChannelToConfig(input, targetVertexConfig, inputIndex);
+		addLocalInfoFromChannelToConfig(input, targetVertexConfig, inputIndex, isBroadcast);
 		return 1;
 	}
 	
@@ -1103,9 +1103,19 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		return distributionPattern;
 	}
 	
-	private void addLocalInfoFromChannelToConfig(Channel channel, TaskConfig config, int inputNum) {
+	private void addLocalInfoFromChannelToConfig(Channel channel, TaskConfig config, int inputNum, boolean isBroadcastChannel) {
 		// serializer
-		config.setInputSerializer(channel.getSerializer(), inputNum);
+		if (isBroadcastChannel) {
+			config.setBroadcastInputSerializer(channel.getSerializer(), inputNum);
+			
+			if (channel.getLocalStrategy() != LocalStrategy.NONE || (channel.getTempMode() != null && channel.getTempMode() != TempMode.NONE)) {
+				throw new CompilerException("Found local strategy or temp mode on a broadcast variable channel.");
+			} else {
+				return;
+			}
+		} else {
+			config.setInputSerializer(channel.getSerializer(), inputNum);
+		}
 		
 		// local strategy
 		if (channel.getLocalStrategy() != LocalStrategy.NONE) {

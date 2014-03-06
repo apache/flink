@@ -229,7 +229,7 @@ public class DataSourceTaskTest extends TaskTestBase
 		private final IntValue value = new IntValue();
 		
 		@Override
-		public boolean readRecord(Record target, byte[] record, int offset, int numBytes) {
+		public Record readRecord(Record target, byte[] record, int offset, int numBytes) {
 			
 			String line = new String(record, offset, numBytes);
 			
@@ -238,12 +238,12 @@ public class DataSourceTaskTest extends TaskTestBase
 				this.value.setValue(Integer.parseInt(line.substring(line.indexOf("_")+1,line.length())));
 			}
 			catch(RuntimeException re) {
-				return false;
+				return null;
 			}
 			
 			target.setField(0, this.key);
 			target.setField(1, this.value);
-			return true;
+			return target;
 		}
 	}
 	
@@ -254,12 +254,12 @@ public class DataSourceTaskTest extends TaskTestBase
 		private final IntValue value = new IntValue();
 		
 		@Override
-		public boolean readRecord(Record target, byte[] record, int offset, int numBytes) {
+		public Record readRecord(Record target, byte[] record, int offset, int numBytes) {
 			try {
 				Thread.sleep(100);
 			}
 			catch (InterruptedException e) {
-				return false;
+				return null;
 			}
 			
 			String line = new String(record, offset, numBytes);
@@ -269,12 +269,12 @@ public class DataSourceTaskTest extends TaskTestBase
 				this.value.setValue(Integer.parseInt(line.substring(line.indexOf("_")+1,line.length())));
 			}
 			catch(RuntimeException re) {
-				return false;
+				return null;
 			}
 			
 			target.setField(0, this.key);
 			target.setField(1, this.value);
-			return true;
+			return target;
 		}
 		
 	}
@@ -288,7 +288,7 @@ public class DataSourceTaskTest extends TaskTestBase
 		private int cnt = 0;
 		
 		@Override
-		public boolean readRecord(Record target, byte[] record, int offset, int numBytes) {
+		public Record readRecord(Record target, byte[] record, int offset, int numBytes) {
 			
 			if(this.cnt == 10) {
 				throw new RuntimeException("Excpected Test Exception.");
@@ -303,13 +303,12 @@ public class DataSourceTaskTest extends TaskTestBase
 				this.value.setValue(Integer.parseInt(line.substring(line.indexOf("_")+1,line.length())));
 			}
 			catch(RuntimeException re) {
-				return false;
+				return null;
 			}
 			
 			target.setField(0, this.key);
 			target.setField(1, this.value);
-			return true;
+			return target;
 		}
 	}
-	
 }

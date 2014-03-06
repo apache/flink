@@ -180,31 +180,28 @@ public abstract class FixedLengthInputFormat extends FileInputFormat {
 		return this.exhausted;
 	}
 	
-	/**
-	 * {@inheritDoc}
-	 * 
-	 * @throws IOException
-	 */
+
 	@Override
-	public boolean nextRecord(Record record) throws IOException {
+	public Record nextRecord(Record reuse) throws IOException {
 		// check if read buffer contains another full record
 		if (this.readBufferLimit - this.readBufferPos <= 0) {
 			// get another buffer
 			fillReadBuffer();
 			// check if source is exhausted
 			if (this.exhausted)
-				return false;
-		} else if (this.readBufferLimit - this.readBufferPos < this.recordLength) {
+				return null;
+		}
+		else if (this.readBufferLimit - this.readBufferPos < this.recordLength) {
 			throw new IOException("Unable to read full record");
 		}
 		
-		boolean val = readBytes(record, this.readBuffer, this.readBufferPos);
+		boolean val = readBytes(reuse, this.readBuffer, this.readBufferPos);
 		
 		this.readBufferPos += this.recordLength;
 		if (this.readBufferPos >= this.readBufferLimit) {
 			fillReadBuffer();
 		}
-		return val;
+		return val ? reuse : null;
 	}
 	
 	/**
@@ -213,7 +210,6 @@ public abstract class FixedLengthInputFormat extends FileInputFormat {
 	 * @throws IOException
 	 */
 	private void fillReadBuffer() throws IOException {
-		
 		int toRead = (int) Math.min(this.streamEnd - this.streamPos, this.readBufferSize);
 		if (toRead <= 0) {
 			this.exhausted = true;

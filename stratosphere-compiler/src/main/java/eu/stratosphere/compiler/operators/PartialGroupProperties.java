@@ -15,9 +15,9 @@ package eu.stratosphere.compiler.operators;
 import java.util.Collections;
 import java.util.List;
 
-import eu.stratosphere.api.common.operators.base.ReduceOperatorBase;
+import eu.stratosphere.api.common.operators.base.GroupReduceOperatorBase;
 import eu.stratosphere.api.common.operators.util.FieldSet;
-import eu.stratosphere.compiler.dag.ReduceNode;
+import eu.stratosphere.compiler.dag.GroupReduceNode;
 import eu.stratosphere.compiler.dag.SingleInputNode;
 import eu.stratosphere.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.compiler.dataproperties.LocalProperties;
@@ -42,7 +42,7 @@ public final class PartialGroupProperties extends OperatorDescriptorSingle {
 	@Override
 	public SingleInputPlanNode instantiate(Channel in, SingleInputNode node) {
 		// create in input node for combine with same DOP as input node
-		ReduceNode combinerNode = new ReduceNode((ReduceOperatorBase<?>) node.getPactContract());
+		GroupReduceNode combinerNode = new GroupReduceNode((GroupReduceOperatorBase<?>) node.getPactContract());
 		combinerNode.setDegreeOfParallelism(in.getSource().getDegreeOfParallelism());
 		combinerNode.setSubtasksPerInstance(in.getSource().getSubtasksPerInstance());
 		

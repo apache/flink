@@ -127,14 +127,14 @@ public interface InputFormat<OT, T extends InputSplit> extends Serializable {
 	 * <p>
 	 * When this method is called, the input format it guaranteed to be opened.
 	 * 
-	 * @param record Record into which the next key / value pair will be stored.
+	 * @param reuse Object that may be reused.
 	 * @return Indicates whether the record could be successfully read. A return value of <i>true</i>
 	 *         indicates that the read was successful, a return value of false indicates that the
 	 *         current record was not read successfully and should be skipped.
 	 *         
 	 * @throws IOException Thrown, if an I/O error occurred.
 	 */
-	boolean nextRecord(OT record) throws IOException;
+	OT nextRecord(OT reuse) throws IOException;
 	
 	/**
 	 * Method that marks the end of the life-cycle of an input split. Should be used to close channels and streams

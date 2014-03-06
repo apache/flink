@@ -237,12 +237,13 @@ public class TableInputFormat implements InputFormat<Record, TableInputSplit> {
 	}
 
 	@Override
-	public boolean nextRecord(Record record) throws IOException {
-		boolean result = nextResult();
-		if (result) {
+	public Record nextRecord(Record record) throws IOException {
+		if (nextResult()) {
 			mapResultToRecord(record, hbaseKey, hbaseResult);
+			return record;
+		} else {
+			return null;
 		}
-		return result;
 	}
 
 	/**

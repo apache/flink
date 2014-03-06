@@ -34,11 +34,8 @@ public final class EdgeInputFormat extends DelimitedInputFormat {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.api.record.io.DelimitedInputFormat#readRecord(eu.stratosphere.pact.common.type.Record, byte[], int)
-	 */
 	@Override
-	public boolean readRecord(Record target, byte[] bytes, int offset, int numBytes) {
+	public Record readRecord(Record target, byte[] bytes, int offset, int numBytes) {
 		final int limit = offset + numBytes;
 		int first = 0, second = 0;
 		final char delimiter = this.delimiter;
@@ -53,13 +50,13 @@ public final class EdgeInputFormat extends DelimitedInputFormat {
 		}
 		
 		if (first <= 0 || second <= 0 || first == second)
-			return false;
+			return null;
 		
 		this.i1.setValue(first);
 		this.i2.setValue(second);
 		target.setField(0, this.i1);
 		target.setField(1, this.i2);
-		return true;
+		return target;
 	}
 	
 	// --------------------------------------------------------------------------------------------

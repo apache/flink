@@ -45,7 +45,7 @@ import eu.stratosphere.util.InstantiationUtil;
  * <p>
  * This class is NOT thread-safe!
  */
-public final class Record implements Value {
+public final class Record implements Value, CopyableValue<Record> {
 	private static final long serialVersionUID = 1L;
 	
 	private static final int NULL_INDICATOR_OFFSET = Integer.MIN_VALUE;			// value marking a field as null
@@ -743,6 +743,32 @@ public final class Record implements Value {
 		target.numFields = this.numFields;
 		target.firstModifiedPos = Integer.MAX_VALUE;
 	}
+	
+	@Override
+	public int getBinaryLength() {
+		return -1;
+	}
+
+	@Override
+	public void copy(DataInputView source, DataOutputView target) throws IOException {
+		int val = source.readUnsignedByte();
+		target.writeByte(val);
+		
+		if (val >= MAX_BIT) {
+			int shift = 7;
+			int curr;
+			val = val & 0x7f;
+			while ((curr = source.readUnsignedByte()) >= MAX_BIT) {
+				target.writeByte(curr);
+				val |= (curr & 0x7f) << shift;
+				shift += 7;
+			}
+			target.writeByte(curr);
+			val |= curr << shift;
+		}
+		
+		target.write(source, val);
+	};
 	
 	/**
 	 * Creates an exact copy of this record.
@@ -1694,5 +1720,5 @@ public final class Record implements Value {
 		private static final long BASE_OFFSET = UNSAFE.arrayBaseOffset(byte[].class);
 		
 		private static final boolean LITTLE_ENDIAN = (MemoryUtils.NATIVE_BYTE_ORDER == ByteOrder.LITTLE_ENDIAN);
-	};
+	}
 }

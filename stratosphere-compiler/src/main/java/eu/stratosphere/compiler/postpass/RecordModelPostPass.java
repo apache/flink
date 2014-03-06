@@ -16,11 +16,11 @@ import eu.stratosphere.api.common.operators.DualInputOperator;
 import eu.stratosphere.api.common.operators.GenericDataSink;
 import eu.stratosphere.api.common.operators.Ordering;
 import eu.stratosphere.api.common.operators.SingleInputOperator;
+import eu.stratosphere.api.common.operators.base.CoGroupOperatorBase;
+import eu.stratosphere.api.common.operators.base.GroupReduceOperatorBase;
 import eu.stratosphere.api.common.operators.util.FieldList;
 import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
-import eu.stratosphere.api.java.record.operators.CoGroupOperator;
-import eu.stratosphere.api.java.record.operators.RecordOperator;
-import eu.stratosphere.api.java.record.operators.ReduceOperator;
+import eu.stratosphere.api.common.operators.RecordOperator;
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.CompilerPostPassException;
 import eu.stratosphere.compiler.plan.DualInputPlanNode;
@@ -84,8 +84,8 @@ public class RecordModelPostPass extends GenericFlatTypePostPass<Class<? extends
 		}
 		
 		// this is a temporary fix, we should solve this more generic
-		if (contract instanceof ReduceOperator) {
-			Ordering groupOrder = ((ReduceOperator) contract).getGroupOrder();
+		if (contract instanceof GroupReduceOperatorBase) {
+			Ordering groupOrder = ((GroupReduceOperatorBase<?>) contract).getGroupOrder();
 			if (groupOrder != null) {
 				addOrderingToSchema(groupOrder, schema);
 			}
@@ -120,9 +120,9 @@ public class RecordModelPostPass extends GenericFlatTypePostPass<Class<? extends
 		
 		
 		// this is a temporary fix, we should solve this more generic
-		if (contract instanceof CoGroupOperator) {
-			Ordering groupOrder1 = ((CoGroupOperator) contract).getGroupOrderForInputOne();
-			Ordering groupOrder2 = ((CoGroupOperator) contract).getGroupOrderForInputTwo();
+		if (contract instanceof CoGroupOperatorBase) {
+			Ordering groupOrder1 = ((CoGroupOperatorBase<?>) contract).getGroupOrderForInputOne();
+			Ordering groupOrder2 = ((CoGroupOperatorBase<?>) contract).getGroupOrderForInputTwo();
 			
 			if (groupOrder1 != null) {
 				addOrderingToSchema(groupOrder1, input1Schema);

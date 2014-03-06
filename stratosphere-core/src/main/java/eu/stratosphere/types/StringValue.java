@@ -520,64 +520,6 @@ public class StringValue implements Key, NormalizableKey, CharSequence, Resettab
 			out.write(c);
 		}
 	}
-	
-	public static final String readString(DataInput in) throws IOException {
-		int len = in.readUnsignedByte();
-
-		if (len >= HIGH_BIT) {
-			int shift = 7;
-			int curr;
-			len = len & 0x7f;
-			while ((curr = in.readUnsignedByte()) >= HIGH_BIT) {
-				len |= (curr & 0x7f) << shift;
-				shift += 7;
-			}
-			len |= curr << shift;
-		}
-		
-		final char[] data = new char[len];
-
-		for (int i = 0; i < len; i++) {
-			int c = in.readUnsignedByte();
-			if (c < HIGH_BIT)
-				data[i] = (char) c;
-			else {
-				int shift = 7;
-				int curr;
-				c = c & 0x7f;
-				while ((curr = in.readUnsignedByte()) >= HIGH_BIT) {
-					c |= (curr & 0x7f) << shift;
-					shift += 7;
-				}
-				c |= curr << shift;
-				data[i] = (char) c;
-			}
-		}
-		
-		return new String(data, 0, len);
-	}
-
-	public static final void writeString(CharSequence cs, DataOutput out) throws IOException {
-		int len = cs.length();
-
-		// write the length, variable-length encoded
-		while (len >= HIGH_BIT) {
-			out.write(len | HIGH_BIT);
-			len >>>= 7;
-		}
-		out.write(len);
-
-		// write the char data, variable length encoded
-		for (int i = 0; i < cs.length(); i++) {
-			int c = cs.charAt(i);
-
-			while (c >= HIGH_BIT) {
-				out.write(c | HIGH_BIT);
-				c >>>= 7;
-			}
-			out.write(c);
-		}
-	}
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -774,6 +716,96 @@ public class StringValue implements Key, NormalizableKey, CharSequence, Resettab
 			char[] value = new char[ Math.max(this.value.length * 3 / 2, size)];
 			System.arraycopy(this.value, 0, value, 0, this.len);
 			this.value = value;
+		}
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	//                           Static Helpers for String Serialization
+	// --------------------------------------------------------------------------------------------
+	
+	public static final String readString(DataInput in) throws IOException {
+		int len = in.readUnsignedByte();
+
+		if (len >= HIGH_BIT) {
+			int shift = 7;
+			int curr;
+			len = len & 0x7f;
+			while ((curr = in.readUnsignedByte()) >= HIGH_BIT) {
+				len |= (curr & 0x7f) << shift;
+				shift += 7;
+			}
+			len |= curr << shift;
+		}
+		
+		final char[] data = new char[len];
+
+		for (int i = 0; i < len; i++) {
+			int c = in.readUnsignedByte();
+			if (c < HIGH_BIT)
+				data[i] = (char) c;
+			else {
+				int shift = 7;
+				int curr;
+				c = c & 0x7f;
+				while ((curr = in.readUnsignedByte()) >= HIGH_BIT) {
+					c |= (curr & 0x7f) << shift;
+					shift += 7;
+				}
+				c |= curr << shift;
+				data[i] = (char) c;
+			}
+		}
+		
+		return new String(data, 0, len);
+	}
+
+	public static final void writeString(CharSequence cs, DataOutput out) throws IOException {
+		int len = cs.length();
+
+		// write the length, variable-length encoded
+		while (len >= HIGH_BIT) {
+			out.write(len | HIGH_BIT);
+			len >>>= 7;
+		}
+		out.write(len);
+
+		// write the char data, variable length encoded
+		for (int i = 0; i < cs.length(); i++) {
+			int c = cs.charAt(i);
+
+			while (c >= HIGH_BIT) {
+				out.write(c | HIGH_BIT);
+				c >>>= 7;
+			}
+			out.write(c);
+		}
+	}
+	
+	public static final void copyString(DataInput in, DataOutput out) throws IOException {
+		int len = in.readUnsignedByte();
+		out.writeByte(len);
+
+		if (len >= HIGH_BIT) {
+			int shift = 7;
+			int curr;
+			len = len & 0x7f;
+			while ((curr = in.readUnsignedByte()) >= HIGH_BIT) {
+				len |= (curr & 0x7f) << shift;
+				shift += 7;
+				out.writeByte(curr);
+			}
+			len |= curr << shift;
+		}
+
+		for (int i = 0; i < len; i++) {
+			int c = in.readUnsignedByte();
+			out.writeByte(c);
+			if (c >= HIGH_BIT) {
+				int curr;
+				while ((curr = in.readUnsignedByte()) >= HIGH_BIT) {
+					out.writeByte(curr);
+				}
+			}
 		}
 	}
 }

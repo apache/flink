@@ -114,72 +114,12 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT> {
 
 	// --------------------------------------------------------------------------------------------
 	
-	@Override
-	public void configure(Configuration parameters) {
-		
-		// get the output file path, if it was not yet set
-		if (this.outputFilePath == null) {
-			// get the file parameter
-			String filePath = parameters.getString(FILE_PARAMETER_KEY, null);
-			if (filePath == null) {
-				throw new IllegalArgumentException("The output path has been specified neither via constructor/setters" +
-						", nor via the Configuration.");
-			}
-			
-			try {
-				this.outputFilePath = new Path(filePath);
-			}
-			catch (RuntimeException rex) {
-				throw new RuntimeException("Could not create a valid URI from the given file path name: " + rex.getMessage()); 
-			}
-		}
-		
-		// check if have not been set and use the defaults in that case
-		if (this.writeMode == null) {
-			this.writeMode = DEFAULT_WRITE_MODE;
-		}
-		
-		if (this.outputDirectoryMode == null) {
-			this.outputDirectoryMode = DEFAULT_OUTPUT_DIRECTORY_MODE;
-		}
-		
-		if (this.openTimeout == -1) {
-			this.openTimeout = FileInputFormat.getDefaultOpeningTimeout();
-		}
+	public FileOutputFormat() {}
+	
+	public FileOutputFormat(Path outputPath) {
+		this.outputFilePath = outputPath;
 	}
-
-
-
-	@Override
-	public void open(int taskNumber, int numTasks) throws IOException {
-		
-		if (LOG.isDebugEnabled())
-			LOG.debug("Openint stream for output (" + (taskNumber+1) + "/" + numTasks + "). WriteMode=" + writeMode +
-					", OutputDirectoryMode=" + outputDirectoryMode + ", timeout=" + openTimeout);
-		
-		// obtain FSDataOutputStream asynchronously, since HDFS client is vulnerable to InterruptedExceptions
-		OutputPathOpenThread opot = new OutputPathOpenThread(this, (taskNumber + 1), numTasks);
-		opot.start();
-		
-		try {
-			// get FSDataOutputStream
-			this.stream = opot.waitForCompletion();
-		}
-		catch (Exception e) {
-			throw new RuntimeException("Stream to output file could not be opened: " + e.getMessage(), e);
-		}
-	}
-
-
-
-	@Override
-	public void close() throws IOException {
-		final FSDataOutputStream s = this.stream;
-		if (s != null) {
-			this.stream = null;
-			s.close();
-		}
-	}
+	
 	
 	public void setOutputFilePath(Path path) {
 		if (path == null)
@@ -229,6 +169,72 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT> {
 	
 	public long getOpenTimeout() {
 		return this.openTimeout;
+	}
+	
+	// ----------------------------------------------------------------
+
+	@Override
+	public void configure(Configuration parameters) {
+		// get the output file path, if it was not yet set
+		if (this.outputFilePath == null) {
+			// get the file parameter
+			String filePath = parameters.getString(FILE_PARAMETER_KEY, null);
+			if (filePath == null) {
+				throw new IllegalArgumentException("The output path has been specified neither via constructor/setters" +
+						", nor via the Configuration.");
+			}
+			
+			try {
+				this.outputFilePath = new Path(filePath);
+			}
+			catch (RuntimeException rex) {
+				throw new RuntimeException("Could not create a valid URI from the given file path name: " + rex.getMessage()); 
+			}
+		}
+		
+		// check if have not been set and use the defaults in that case
+		if (this.writeMode == null) {
+			this.writeMode = DEFAULT_WRITE_MODE;
+		}
+		
+		if (this.outputDirectoryMode == null) {
+			this.outputDirectoryMode = DEFAULT_OUTPUT_DIRECTORY_MODE;
+		}
+		
+		if (this.openTimeout == -1) {
+			this.openTimeout = FileInputFormat.getDefaultOpeningTimeout();
+		}
+	}
+
+	
+	@Override
+	public void open(int taskNumber, int numTasks) throws IOException {
+		
+		if (LOG.isDebugEnabled())
+			LOG.debug("Openint stream for output (" + (taskNumber+1) + "/" + numTasks + "). WriteMode=" + writeMode +
+					", OutputDirectoryMode=" + outputDirectoryMode + ", timeout=" + openTimeout);
+		
+		// obtain FSDataOutputStream asynchronously, since HDFS client is vulnerable to InterruptedExceptions
+		OutputPathOpenThread opot = new OutputPathOpenThread(this, (taskNumber + 1), numTasks);
+		opot.start();
+		
+		try {
+			// get FSDataOutputStream
+			this.stream = opot.waitForCompletion();
+		}
+		catch (Exception e) {
+			throw new RuntimeException("Stream to output file could not be opened: " + e.getMessage(), e);
+		}
+	}
+
+
+	@Override
+	public void close() throws IOException {
+		final FSDataOutputStream s = this.stream;
+		if (s != null) {
+			this.stream = null;
+			s.close();
+		}
 	}
 	
 	// ============================================================================================

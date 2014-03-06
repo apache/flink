@@ -57,7 +57,7 @@ trait ScalaOperator[T] { this: Operator =>
   
   protected def annotations: Seq[Annotation] = Seq()
 
-  override def getUserCodeAnnotation[A <: Annotation](annotationClass: Class[A]): A = {
+  def getUserCodeAnnotation[A <: Annotation](annotationClass: Class[A]): A = {
     val res = annotations find { _.annotationType().equals(annotationClass) } map { _.asInstanceOf[A] } getOrElse null.asInstanceOf[A]
 //    println("returning ANOOT: " + res + " FOR: " + annotationClass.toString)
 //    res match {

@@ -19,10 +19,10 @@ import java.util.Iterator;
 import java.util.List;
 
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.api.common.operators.CollectionDataSource;
 import eu.stratosphere.api.common.operators.FileDataSink;
 import eu.stratosphere.api.java.record.functions.JoinFunction;
 import eu.stratosphere.api.java.record.io.CsvOutputFormat;
+import eu.stratosphere.api.java.record.operators.CollectionDataSource;
 import eu.stratosphere.api.java.record.operators.JoinOperator;
 import eu.stratosphere.test.testdata.WordCountData;
 import eu.stratosphere.test.util.TestBase2;

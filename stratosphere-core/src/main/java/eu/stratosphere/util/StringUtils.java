@@ -21,6 +21,7 @@ package eu.stratosphere.util;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.Arrays;
 
 /**
  * Utility class to convert objects into strings in vice-versa.
@@ -137,6 +138,81 @@ public final class StringUtils {
 				} else {
 					sb.append(c);
 				}
+			}
+		}
+
+		return sb.toString();
+	}
+	
+	
+	public static final String arrayAwareToString(Object o) {
+		if (o == null) {
+			return "null";
+		}
+		if (o.getClass().isArray()) {
+			return arrayToString(o);
+		}
+		
+		return o.toString();
+	}
+	
+	
+	public static final String arrayToString(Object array) {
+		if (array instanceof int[]) {
+			return Arrays.toString((int[]) array);
+		}
+		if (array instanceof long[]) {
+			return Arrays.toString((long[]) array);
+		}
+		if (array instanceof Object[]) {
+			return Arrays.toString((Object[]) array);
+		}
+		if (array instanceof byte[]) {
+			return Arrays.toString((byte[]) array);
+		}
+		if (array instanceof double[]) {
+			return Arrays.toString((double[]) array);
+		}
+		if (array instanceof float[]) {
+			return Arrays.toString((float[]) array);
+		}
+		if (array instanceof boolean[]) {
+			return Arrays.toString((boolean[]) array);
+		}
+		if (array instanceof char[]) {
+			return Arrays.toString((char[]) array);
+		}
+		if (array instanceof short[]) {
+			return Arrays.toString((short[]) array);
+		}
+		
+		return "<unknown array type>";
+	}
+	
+	public static final String showControlCharacters(String str) {
+		int len = str.length();
+		StringBuilder sb = new StringBuilder();
+
+		for (int i = 0; i < len; i += 1) {
+			char c = str.charAt(i);
+			switch (c) {
+			case '\b':
+				sb.append("\\b");
+				break;
+			case '\t':
+				sb.append("\\t");
+				break;
+			case '\n':
+				sb.append("\\n");
+				break;
+			case '\f':
+				sb.append("\\f");
+				break;
+			case '\r':
+				sb.append("\\r");
+				break;
+			default:
+				sb.append(c);
 			}
 		}
 

@@ -290,9 +290,6 @@ public class BinaryUnionNode extends TwoInputNode {
 	protected void readStubAnnotations() {}
 
 	@Override
-	protected void readConstantAnnotation() {}
-
-	@Override
 	public boolean isFieldConstant(int input, int fieldNumber) {
 		return true;
 	}

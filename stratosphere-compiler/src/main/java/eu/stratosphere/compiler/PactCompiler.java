@@ -39,22 +39,28 @@ import eu.stratosphere.api.common.operators.GenericDataSource;
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.common.operators.base.CoGroupOperatorBase;
 import eu.stratosphere.api.common.operators.base.CrossOperatorBase;
+import eu.stratosphere.api.common.operators.base.FlatMapOperatorBase;
 import eu.stratosphere.api.common.operators.base.JoinOperatorBase;
 import eu.stratosphere.api.common.operators.base.MapOperatorBase;
+import eu.stratosphere.api.common.operators.base.GroupReduceOperatorBase;
+import eu.stratosphere.api.common.operators.base.PlainMapOperatorBase;
 import eu.stratosphere.api.common.operators.base.ReduceOperatorBase;
 import eu.stratosphere.compiler.costs.CostEstimator;
 import eu.stratosphere.compiler.costs.DefaultCostEstimator;
 import eu.stratosphere.compiler.dag.BulkIterationNode;
 import eu.stratosphere.compiler.dag.BulkPartialSolutionNode;
 import eu.stratosphere.compiler.dag.CoGroupNode;
+import eu.stratosphere.compiler.dag.CollectorMapNode;
 import eu.stratosphere.compiler.dag.CrossNode;
 import eu.stratosphere.compiler.dag.DataSinkNode;
 import eu.stratosphere.compiler.dag.DataSourceNode;
+import eu.stratosphere.compiler.dag.FlatMapNode;
 import eu.stratosphere.compiler.dag.IterationNode;
 import eu.stratosphere.compiler.dag.MapNode;
 import eu.stratosphere.compiler.dag.MatchNode;
 import eu.stratosphere.compiler.dag.OptimizerNode;
 import eu.stratosphere.compiler.dag.PactConnection;
+import eu.stratosphere.compiler.dag.GroupReduceNode;
 import eu.stratosphere.compiler.dag.ReduceNode;
 import eu.stratosphere.compiler.dag.SinkJoiner;
 import eu.stratosphere.compiler.dag.SolutionSetNode;
@@ -821,10 +827,19 @@ public class PactCompiler {
 				n = dsn;
 			}
 			else if (c instanceof MapOperatorBase) {
-				n = new MapNode((MapOperatorBase<?>) c);
+				n = new CollectorMapNode((MapOperatorBase<?>) c);
+			}
+			else if (c instanceof PlainMapOperatorBase) {
+				n = new MapNode((PlainMapOperatorBase<?>) c);
+			}
+			else if (c instanceof FlatMapOperatorBase) {
+				n = new FlatMapNode((FlatMapOperatorBase<?>) c);
 			}
 			else if (c instanceof ReduceOperatorBase) {
 				n = new ReduceNode((ReduceOperatorBase<?>) c);
+			}
+			else if (c instanceof GroupReduceOperatorBase) {
+				n = new GroupReduceNode((GroupReduceOperatorBase<?>) c);
 			}
 			else if (c instanceof JoinOperatorBase) {
 				n = new MatchNode((JoinOperatorBase<?>) c);

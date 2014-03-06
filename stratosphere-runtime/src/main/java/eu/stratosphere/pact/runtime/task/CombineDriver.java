@@ -16,7 +16,7 @@ package eu.stratosphere.pact.runtime.task;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.api.common.functions.GenericReducer;
+import eu.stratosphere.api.common.functions.GenericGroupReduce;
 import eu.stratosphere.api.common.typeutils.TypeComparator;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
@@ -41,12 +41,12 @@ import eu.stratosphere.util.MutableObjectIterator;
  * 
  * @param <T> The data type consumed and produced by the combiner.
  */
-public class CombineDriver<T> implements PactDriver<GenericReducer<T, ?>, T>
+public class CombineDriver<T> implements PactDriver<GenericGroupReduce<T, ?>, T>
 {
 	private static final Log LOG = LogFactory.getLog(CoGroupDriver.class);
 
 	
-	private PactTaskContext<GenericReducer<T, ?>, T> taskContext;
+	private PactTaskContext<GenericGroupReduce<T, ?>, T> taskContext;
 	
 	private CloseableInputProvider<T> input;
 
@@ -60,7 +60,7 @@ public class CombineDriver<T> implements PactDriver<GenericReducer<T, ?>, T>
 
 
 	@Override
-	public void setup(PactTaskContext<GenericReducer<T, ?>, T> context) {
+	public void setup(PactTaskContext<GenericGroupReduce<T, ?>, T> context) {
 		this.taskContext = context;
 		this.running = true;
 	}
@@ -81,9 +81,9 @@ public class CombineDriver<T> implements PactDriver<GenericReducer<T, ?>, T>
 	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#getStubType()
 	 */
 	@Override
-	public Class<GenericReducer<T, ?>> getStubType() {
+	public Class<GenericGroupReduce<T, ?>> getStubType() {
 		@SuppressWarnings("unchecked")
-		final Class<GenericReducer<T, ?>> clazz = (Class<GenericReducer<T, ?>>) (Class<?>) GenericReducer.class;
+		final Class<GenericGroupReduce<T, ?>> clazz = (Class<GenericGroupReduce<T, ?>>) (Class<?>) GenericGroupReduce.class;
 		return clazz;
 	}
 
@@ -141,7 +141,7 @@ public class CombineDriver<T> implements PactDriver<GenericReducer<T, ?>, T>
 				this.serializer, this.comparator);
 
 		// cache references on the stack
-		final GenericReducer<T, ?> stub = this.taskContext.getStub();
+		final GenericGroupReduce<T, ?> stub = this.taskContext.getStub();
 		final Collector<T> output = this.taskContext.getOutputCollector();
 
 		// run stub implementation

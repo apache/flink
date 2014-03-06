@@ -46,7 +46,7 @@ public class PackagedProgramEndToEndITCase {
 			clusters.deleteOnExit();
 			outFile.deleteOnExit();
 			outFile.delete();
-			
+
 			FileWriter fwPoints = new FileWriter(points);
 			fwPoints.write(KMeansData.DATAPOINTS);
 			fwPoints.close();
@@ -64,7 +64,7 @@ public class PackagedProgramEndToEndITCase {
 			RemoteExecutor ex = new RemoteExecutor("localhost", 6498, new LinkedList<String>());
 
 			ex.executeJar(jarPath,
-					"eu.stratosphere.examples.scala.datamining.KMeansForTest",
+					"eu.stratosphere.examples.scala.testing.KMeansForTest",
 					new String[] {"4",
 							points.toURI().toString(),
 							clusters.toURI().toString(),
@@ -74,7 +74,7 @@ public class PackagedProgramEndToEndITCase {
 			points.delete();
 			clusters.delete();
 			outFile.delete();
-			
+
 		} catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail(e.getMessage());

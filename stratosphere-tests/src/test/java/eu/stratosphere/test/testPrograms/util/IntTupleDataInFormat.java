@@ -28,8 +28,7 @@ public class IntTupleDataInFormat extends DelimitedInputFormat {
 	private final int[] offsets = new int[MAX_COLUMNS];
 
 	@Override
-	public boolean readRecord(Record target, byte[] line, int offset, int numBytes)
-	{
+	public Record readRecord(Record target, byte[] line, int offset, int numBytes) {
 		final int limit = offset + numBytes;
 		int readPos = offset;
 
@@ -50,7 +49,6 @@ public class IntTupleDataInFormat extends DelimitedInputFormat {
 		
 		target.setField(0, this.key);
 		target.setField(1, value);
-
-		return true;
+		return target;
 	}
 }

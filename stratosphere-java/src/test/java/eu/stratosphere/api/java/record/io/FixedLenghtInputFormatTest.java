@@ -13,9 +13,7 @@
 
 package eu.stratosphere.api.java.record.io;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 import java.io.DataOutputStream;
 import java.io.File;
@@ -110,31 +108,29 @@ public class FixedLenghtInputFormatTest {
 		
 		Record record = new Record();
 		
-		assertTrue(format.nextRecord(record));
+		assertNotNull(format.nextRecord(record));
 		assertEquals(1, record.getField(0, IntValue.class).getValue());
 		assertEquals(2, record.getField(1, IntValue.class).getValue());	
 		
-		assertTrue(format.nextRecord(record));
+		assertNotNull(format.nextRecord(record));
 		assertEquals(3, record.getField(0, IntValue.class).getValue());
 		assertEquals(4, record.getField(1, IntValue.class).getValue());
 		
-		assertTrue(format.nextRecord(record));
+		assertNotNull(format.nextRecord(record));
 		assertEquals(5, record.getField(0, IntValue.class).getValue());
 		assertEquals(6, record.getField(1, IntValue.class).getValue());
 		
-		assertTrue(format.nextRecord(record));
+		assertNotNull(format.nextRecord(record));
 		assertEquals(7, record.getField(0, IntValue.class).getValue());
 		assertEquals(8, record.getField(1, IntValue.class).getValue());
 		
-		assertFalse(format.nextRecord(record));
+		assertNull(format.nextRecord(record));
 		assertTrue(format.reachedEnd());
 	}
-
 	
 	
 	@Test
-	public void testReadFail() throws IOException
-	{
+	public void testReadFail() throws IOException {
 		final int[] fileContent = {1,2,3,4,5,6,7,8,9};
 		final FileInputSplit split = createTempFile(fileContent);
 		
@@ -147,25 +143,23 @@ public class FixedLenghtInputFormatTest {
 		Record record = new Record();
 
 		try {
-		
-			assertTrue(format.nextRecord(record));
+			assertNotNull(format.nextRecord(record));
 			assertEquals(1, record.getField(0, IntValue.class).getValue());
 			assertEquals(2, record.getField(1, IntValue.class).getValue());
 			
-			assertTrue(format.nextRecord(record));
+			assertNotNull(format.nextRecord(record));
 			assertEquals(3, record.getField(0, IntValue.class).getValue());
 			assertEquals(4, record.getField(1, IntValue.class).getValue());
 			
-			assertTrue(format.nextRecord(record));
+			assertNotNull(format.nextRecord(record));
 			assertEquals(5, record.getField(0, IntValue.class).getValue());
 			assertEquals(6, record.getField(1, IntValue.class).getValue());
 			
-			assertTrue(format.nextRecord(record));
+			assertNotNull(format.nextRecord(record));
 			assertEquals(7, record.getField(0, IntValue.class).getValue());
 			assertEquals(8, record.getField(1, IntValue.class).getValue());
 			
-			assertFalse(format.nextRecord(record));
-
+			assertNull(format.nextRecord(record));
 		} catch(IOException ioe) {
 			assertTrue(ioe.getMessage().equals("Unable to read full record"));
 		}

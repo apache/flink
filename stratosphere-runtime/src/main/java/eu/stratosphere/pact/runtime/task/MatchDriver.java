@@ -20,7 +20,6 @@ import eu.stratosphere.api.common.functions.GenericJoiner;
 import eu.stratosphere.api.common.typeutils.TypeComparator;
 import eu.stratosphere.api.common.typeutils.TypePairComparatorFactory;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
-import eu.stratosphere.api.java.record.functions.JoinFunction;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.pact.runtime.hash.BuildFirstHashMatchIterator;
@@ -38,7 +37,7 @@ import eu.stratosphere.util.MutableObjectIterator;
  * The MatchTask matches all pairs of records that share the same key and come from different inputs. Each pair of 
  * matching records is handed to the <code>match()</code> method of the JoinFunction.
  * 
- * @see JoinFunction
+ * @see GenericJoiner
  */
 public class MatchDriver<IT1, IT2, OT> implements PactDriver<GenericJoiner<IT1, IT2, OT>, OT> {
 	

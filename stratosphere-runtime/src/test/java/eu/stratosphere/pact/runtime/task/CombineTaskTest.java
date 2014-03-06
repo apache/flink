@@ -21,9 +21,9 @@ import junit.framework.Assert;
 
 import org.junit.Test;
 
-import eu.stratosphere.api.common.functions.GenericReducer;
-import eu.stratosphere.api.common.operators.base.ReduceOperatorBase.Combinable;
+import eu.stratosphere.api.common.functions.GenericGroupReduce;
 import eu.stratosphere.api.java.record.functions.ReduceFunction;
+import eu.stratosphere.api.java.record.operators.ReduceOperator.Combinable;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparator;
 import eu.stratosphere.pact.runtime.test.util.DelayingInfinitiveInputIterator;
 import eu.stratosphere.pact.runtime.test.util.DiscardingOutputCollector;
@@ -31,12 +31,12 @@ import eu.stratosphere.pact.runtime.test.util.DriverTestBase;
 import eu.stratosphere.pact.runtime.test.util.ExpectedTestException;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
 import eu.stratosphere.pact.runtime.test.util.UniformRecordGenerator;
-import eu.stratosphere.types.Key;
 import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Key;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
-public class CombineTaskTest extends DriverTestBase<GenericReducer<Record, ?>>
+public class CombineTaskTest extends DriverTestBase<GenericGroupReduce<Record, ?>>
 {
 	private static final long COMBINE_MEM = 3 * 1024 * 1024;
 	

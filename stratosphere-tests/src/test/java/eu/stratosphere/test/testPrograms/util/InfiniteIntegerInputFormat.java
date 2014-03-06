@@ -35,9 +35,8 @@ public class InfiniteIntegerInputFormat extends GenericInputFormat {
 
 
 	@Override
-	public boolean nextRecord(Record record) throws IOException
-	{
+	public Record nextRecord(Record record) throws IOException{
 		record.setField(0, this.one);
-		return true;
+		return record;
 	}
 }

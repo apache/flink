@@ -39,6 +39,8 @@ import eu.stratosphere.types.IntValue;
  */
 public class EnumTrianglesWithDegrees implements Program, ProgramDescription {
 	
+	private static final long serialVersionUID = 1L;
+
 	@Override
 	public Plan getPlan(String... args) {
 		// parse job parameters

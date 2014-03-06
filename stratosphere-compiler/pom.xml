@@ -30,6 +30,14 @@
 			<version>${project.version}</version>
 			<scope>compile</scope>
 		</dependency>
+		
+		<dependency>
+			<groupId>eu.stratosphere</groupId>
+			<artifactId>stratosphere-java</artifactId>
+			<version>${project.version}</version>
+			<scope>compile</scope>
+		</dependency>
+		
 	</dependencies>
 
 </project>

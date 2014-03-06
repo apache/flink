@@ -21,8 +21,7 @@ import eu.stratosphere.api.common.ProgramDescription;
 import eu.stratosphere.api.common.operators.FileDataSink;
 import eu.stratosphere.api.common.operators.FileDataSource;
 import eu.stratosphere.api.common.operators.base.MapOperatorBase;
-import eu.stratosphere.api.common.operators.base.ReduceOperatorBase;
-import eu.stratosphere.api.common.operators.base.ReduceOperatorBase.Combinable;
+import eu.stratosphere.api.common.operators.base.GroupReduceOperatorBase;
 import eu.stratosphere.api.java.record.functions.FunctionAnnotation.ConstantFields;
 import eu.stratosphere.api.java.record.io.TextInputFormat;
 import eu.stratosphere.arraymodel.ArrayModelPlan;
@@ -44,6 +43,9 @@ import eu.stratosphere.util.Collector;
  */
 public class WordCountArrayTuples implements Program, ProgramDescription {
 	
+	private static final long serialVersionUID = 1L;
+
+
 	/**
 	 * Converts a Record containing one string in to multiple string/integer pairs.
 	 * The string is tokenized by whitespaces. For each token a new record is emitted,
@@ -51,6 +53,9 @@ public class WordCountArrayTuples implements Program, ProgramDescription {
 	 */
 	
 	public static class TokenizeLine extends MapFunction {
+
+		private static final long serialVersionUID = 1L;
+
 		// initialize reusable mutable objects
 		private final StringValue word = new StringValue();
 		private final IntValue one = new IntValue(1);
@@ -82,10 +87,11 @@ public class WordCountArrayTuples implements Program, ProgramDescription {
 	 * Sums up the counts for a certain given key. The counts are assumed to be at position <code>1</code>
 	 * in the record. The other fields are not modified.
 	 */
-	@Combinable
 	@ConstantFields(0)
 	public static class CountWords extends ReduceFunction {
 		
+		private static final long serialVersionUID = 1L;
+
 		private final IntValue cnt = new IntValue();
 		private final Value[] result = new Value[] { null, cnt };
 		
@@ -118,7 +124,8 @@ public class WordCountArrayTuples implements Program, ProgramDescription {
 		MapOperatorBase<TokenizeLine> mapper = new MapOperatorBase<TokenizeLine>(TokenizeLine.class, "Tokenize Lines");
 		mapper.setInput(source);
 		
-		ReduceOperatorBase<CountWords> reducer = new ReduceOperatorBase<CountWords>(CountWords.class, new int[] {0}, "Count Words");
+		GroupReduceOperatorBase<CountWords> reducer = new GroupReduceOperatorBase<CountWords>(CountWords.class, new int[] {0}, "Count Words");
+		reducer.setCombinable(true);
 		reducer.setInput(mapper);
 		
 		FileDataSink out = new FileDataSink(new StringIntOutputFormat(), output, reducer, "Word Counts");

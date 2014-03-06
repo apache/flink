@@ -21,5 +21,4 @@ package eu.stratosphere.api.common.io;
  * @see InputFormat
  */
 public interface UnsplittableInput {
-
 }

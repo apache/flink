@@ -149,26 +149,27 @@
 						</configuration>
 					</execution>
 
-                    <execution>
-                        <id>KMeansForTest</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>jar</goal>
-                        </goals>
-
-                        <configuration>
-                            <classifier>KMeansForTest</classifier>
-                            <archive>
-                                <manifestEntries>
-                                    <program-class>eu.stratosphere.examples.scala.datamining.KMeansForTest</program-class>
-                                </manifestEntries>
-                            </archive>
-
-                            <includes>
-                                <include>**/datamining/KMeansForTest*.class</include>
-                            </includes>
-                        </configuration>
-                    </execution>
+			<!--  Uncomment to rebuild the KMeansForTest jar 
+					<execution>
+						<id>KMeansForTest</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+				
+						<configuration>
+							<classifier>KMeansForTest</classifier>
+							<archive>
+								<manifestEntries>
+									<program-class>eu.stratosphere.examples.scala.testing.KMeansForTest</program-class>
+								</manifestEntries>
+							</archive>
+				
+							<includes>
+								<include>**/testing/KMeansForTest*.class</include>
+							</includes>
+						</configuration>
+					</execution> -->
 		
 					<execution>
 						<id>ComputeEdgeDegrees</id>

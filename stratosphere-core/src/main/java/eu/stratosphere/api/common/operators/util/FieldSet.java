@@ -190,4 +190,6 @@ public class FieldSet implements Iterable<Integer> {
 	protected String getDescriptionSuffix() {
 		return ")";
 	}
+	
+	public static final FieldSet EMPTY_SET = new FieldSet();
 }

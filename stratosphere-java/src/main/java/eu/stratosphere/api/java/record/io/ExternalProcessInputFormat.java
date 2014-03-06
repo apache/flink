@@ -61,14 +61,9 @@ public abstract class ExternalProcessInputFormat<T extends ExternalProcessInputS
 	 */
 	protected int[] allowedExitCodes;
 	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.api.record.io.input.InputFormat#configure(eu.stratosphere.nephele.configuration.Configuration)
-	 */
-	@Override
-	public void configure(Configuration parameters)
-	{
 
+	@Override
+	public void configure(Configuration parameters) {
 		// get allowed exit codes
 		String allowedExitCodesList = parameters.getString(ALLOWEDEXITCODES_PARAMETER_KEY, "0");
 		
@@ -82,13 +77,8 @@ public abstract class ExternalProcessInputFormat<T extends ExternalProcessInputS
 		
 	}
 	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.api.record.io.InputFormat#close()
-	 */
 	@Override
 	public void close() throws IOException {
-		
 		try {
 			// get exit code
 			int exitCode = this.extProc.exitValue();
@@ -116,10 +106,6 @@ public abstract class ExternalProcessInputFormat<T extends ExternalProcessInputS
 		}
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.api.record.io.input.InputFormat#open(eu.stratosphere.nephele.template.InputSplit)
-	 */
 	@Override
 	public void open(GenericInputSplit split) throws IOException {
 		
@@ -148,5 +134,4 @@ public abstract class ExternalProcessInputFormat<T extends ExternalProcessInputS
 	public void waitForProcessToFinish() throws InterruptedException {
 		extProc.waitFor();
 	}
-	
 }

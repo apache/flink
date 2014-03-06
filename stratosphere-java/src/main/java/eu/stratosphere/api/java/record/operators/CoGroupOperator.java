@@ -24,11 +24,13 @@ import java.util.Map;
 
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.common.operators.Ordering;
+import eu.stratosphere.api.common.operators.RecordOperator;
 import eu.stratosphere.api.common.operators.base.CoGroupOperatorBase;
 import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
 import eu.stratosphere.api.common.operators.util.UserCodeObjectWrapper;
 import eu.stratosphere.api.common.operators.util.UserCodeWrapper;
 import eu.stratosphere.api.java.record.functions.CoGroupFunction;
+import eu.stratosphere.api.java.record.functions.FunctionAnnotation;
 import eu.stratosphere.types.Key;
 
 /**
@@ -40,26 +42,16 @@ import eu.stratosphere.types.Key;
 public class CoGroupOperator extends CoGroupOperatorBase<CoGroupFunction> implements RecordOperator {
 	
 	/**
-	 * The types of the keys that the contract operates on.
+	 * The types of the keys that the operator groups on.
 	 */
 	private final Class<? extends Key>[] keyTypes;
-	
-	/**
-	 * The ordering for the order inside a group from input one.
-	 */
-	private Ordering groupOrder1;
-	
-	/**
-	 * The ordering for the order inside a group from input two.
-	 */
-	private Ordering groupOrder2;
 	
 	// --------------------------------------------------------------------------------------------
 	
 	/**
 	 * Creates a Builder with the provided {@link CoGroupFunction} implementation.
 	 * 
-	 * @param udf The {@link CoGroupFunction} implementation for this CoGroup contract.
+	 * @param udf The {@link CoGroupFunction} implementation for this CoGroup operator.
 	 * @param keyClass The class of the key data type.
 	 * @param keyColumn1 The position of the key in the first input's records.
 	 * @param keyColumn2 The position of the key in the second input's records.
@@ -71,7 +63,7 @@ public class CoGroupOperator extends CoGroupOperatorBase<CoGroupFunction> implem
 	/**
 	 * Creates a Builder with the provided {@link CoGroupFunction} implementation.
 	 * 
-	 * @param udf The {@link CoGroupFunction} implementation for this CoGroup contract.
+	 * @param udf The {@link CoGroupFunction} implementation for this CoGroup operator.
 	 * @param keyClass The class of the key data type.
 	 * @param keyColumn1 The position of the key in the first input's records.
 	 * @param keyColumn2 The position of the key in the second input's records.
@@ -94,95 +86,26 @@ public class CoGroupOperator extends CoGroupOperatorBase<CoGroupFunction> implem
 		setBroadcastVariables(builder.broadcastInputs);
 		setGroupOrderForInputOne(builder.secondaryOrder1);
 		setGroupOrderForInputTwo(builder.secondaryOrder2);
+		setSemanticProperties(FunctionAnnotation.readDualConstantAnnotations(builder.udf));
 	}
 
 	// --------------------------------------------------------------------------------------------
 	
-
 	@Override
 	public Class<? extends Key>[] getKeyClasses() {
 		return this.keyTypes;
-	}
-	
-	/**
-	 * Sets the order of the elements within a group for the given input.
-	 * 
-	 * @param inputNum The number of the input (here either <i>0</i> or <i>1</i>).
-	 * @param order The order for the elements in a group.
-	 */
-	public void setGroupOrder(int inputNum, Ordering order) {
-		if (inputNum == 0)
-			this.groupOrder1 = order;
-		else if (inputNum == 1)
-			this.groupOrder2 = order;
-		else
-			throw new IndexOutOfBoundsException();
-	}
-	
-	/**
-	 * Sets the order of the elements within a group for the first input.
-	 * 
-	 * @param order The order for the elements in a group.
-	 */
-	public void setGroupOrderForInputOne(Ordering order) {
-		setGroupOrder(0, order);
-	}
-	
-	/**
-	 * Sets the order of the elements within a group for the second input.
-	 * 
-	 * @param order The order for the elements in a group.
-	 */
-	public void setGroupOrderForInputTwo(Ordering order) {
-		setGroupOrder(1, order);
-	}
-	
-	/**
-	 * Gets the value order for an input, i.e. the order of elements within a group.
-	 * If no such order has been set, this method returns null.
-	 * 
-	 * @param inputNum The number of the input (here either <i>0</i> or <i>1</i>).
-	 * @return The group order.
-	 */
-	public Ordering getGroupOrder(int inputNum) {
-		if (inputNum == 0)
-			return this.groupOrder1;
-		else if (inputNum == 1)
-			return this.groupOrder2;
-		else
-			throw new IndexOutOfBoundsException();
-	}
-	
-	/**
-	 * Gets the order of elements within a group for the first input.
-	 * If no such order has been set, this method returns null.
-	 * 
-	 * @return The group order for the first input.
-	 */
-	public Ordering getGroupOrderForInputOne() {
-		return getGroupOrder(0);
-	}
-	
-	/**
-	 * Gets the order of elements within a group for the second input.
-	 * If no such order has been set, this method returns null.
-	 * 
-	 * @return The group order for the second input.
-	 */
-	public Ordering getGroupOrderForInputTwo() {
-		return getGroupOrder(1);
 	}
 	
 	// ---------------------------------------------------------------------------------------
 	
 	@Override
 	public boolean isCombinableFirst() {
-		return super.isCombinableFirst() || getUserCodeAnnotation(CombinableFirst.class) != null;
+		return super.isCombinableFirst() || getUserCodeWrapper().getUserCodeAnnotation(CombinableFirst.class) != null;
 	}
 	
 	@Override
 	public boolean isCombinableSecond() {
-		return super.isCombinableSecond() || getUserCodeAnnotation(CombinableSecond.class) != null;
+		return super.isCombinableSecond() || getUserCodeWrapper().getUserCodeAnnotation(CombinableSecond.class) != null;
 	}
 	
 	@Retention(RetentionPolicy.RUNTIME)
@@ -195,6 +118,7 @@ public class CoGroupOperator extends CoGroupOperatorBase<CoGroupFunction> implem
 	
 	// --------------------------------------------------------------------------------------------
 
+	
 	/**
 	 * Builder pattern, straight from Joshua Bloch's Effective Java (2nd Edition).
 	 */
@@ -217,7 +141,7 @@ public class CoGroupOperator extends CoGroupOperatorBase<CoGroupFunction> implem
 		/**
 		 * Creates a Builder with the provided {@link CoGroupFunction} implementation.
 		 * 
-		 * @param udf The {@link CoGroupFunction} implementation for this CoGroup contract.
+		 * @param udf The {@link CoGroupFunction} implementation for this CoGroup operator.
 		 * @param keyClass The class of the key data type.
 		 * @param keyColumn1 The position of the key in the first input's records.
 		 * @param keyColumn2 The position of the key in the second input's records.
@@ -241,7 +165,7 @@ public class CoGroupOperator extends CoGroupOperatorBase<CoGroupFunction> implem
 		 * Creates a Builder with the provided {@link JoinFunction} implementation. This method is intended 
 		 * for special case sub-types only.
 		 * 
-		 * @param udf The {@link CoGroupFunction} implementation for this CoGroup contract.
+		 * @param udf The {@link CoGroupFunction} implementation for this CoGroup operator.
 		 */
 		protected Builder(UserCodeWrapper<CoGroupFunction> udf) {
 			this.udf = udf;
@@ -372,7 +296,7 @@ public class CoGroupOperator extends CoGroupOperatorBase<CoGroupFunction> implem
 		}
 		
 		/**
-		 * Sets the name of this contract.
+		 * Sets the name of this operator.
 		 * 
 		 * @param name
 		 */
@@ -385,7 +309,7 @@ public class CoGroupOperator extends CoGroupOperatorBase<CoGroupFunction> implem
 		 * Creates and returns a CoGroupOperator from using the values given 
 		 * to the builder.
 		 * 
-		 * @return The created contract
+		 * @return The created operator
 		 */
 		public CoGroupOperator build() {
 			if (keyClasses.size() <= 0) {

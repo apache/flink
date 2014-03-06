@@ -37,14 +37,13 @@ public class InfiniteIntegerInputFormatWithDelay extends GenericInputFormat {
 
 
 	@Override
-	public boolean nextRecord(Record record) throws IOException
-	{
+	public Record nextRecord(Record record) throws IOException {
 		record.setField(0, this.one);
 		
 		try {
 			Thread.sleep(DELAY);
 		} catch (InterruptedException iex) {}
 		
-		return true;
+		return record;
 	}
 }

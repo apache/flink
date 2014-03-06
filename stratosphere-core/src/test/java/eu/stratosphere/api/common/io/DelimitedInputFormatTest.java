@@ -13,10 +13,7 @@
 
 package eu.stratosphere.api.common.io;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -141,15 +138,15 @@ public class DelimitedInputFormatTest {
 		
 		Record theRecord = new Record();
 
-		assertTrue(format.nextRecord(theRecord));
+		assertNotNull(format.nextRecord(theRecord));
 		assertEquals("my key", theRecord.getField(0, StringValue.class).getValue());
 		assertEquals("my val", theRecord.getField(1, StringValue.class).getValue());
 		
-		assertTrue(format.nextRecord(theRecord));
+		assertNotNull(format.nextRecord(theRecord));
 		assertEquals("my key2\n$$ctd.$$", theRecord.getField(0, StringValue.class).getValue());
 		assertEquals("my value2", theRecord.getField(1, StringValue.class).getValue());
 		
-		assertFalse(format.nextRecord(theRecord));
+		assertNull(format.nextRecord(theRecord));
 		assertTrue(format.reachedEnd());
 	}
 	
@@ -167,15 +164,15 @@ public class DelimitedInputFormatTest {
 
 		Record theRecord = new Record();
 
-		assertTrue(format.nextRecord(theRecord));
+		assertNotNull(format.nextRecord(theRecord));
 		assertEquals("my key", theRecord.getField(0, StringValue.class).getValue());
 		assertEquals("my val$$$my key2", theRecord.getField(1, StringValue.class).getValue());
 		
-		assertTrue(format.nextRecord(theRecord));
+		assertNotNull(format.nextRecord(theRecord));
 		assertEquals("$$ctd.$$", theRecord.getField(0, StringValue.class).getValue());
 		assertEquals("my value2", theRecord.getField(1, StringValue.class).getValue());
 		
-		assertFalse(format.nextRecord(theRecord));
+		assertNull(format.nextRecord(theRecord));
 		assertTrue(format.reachedEnd());
 	}
 	
@@ -197,15 +194,15 @@ public class DelimitedInputFormatTest {
 		private final StringValue str2 = new StringValue();
 		
 		@Override
-		public boolean readRecord(Record target, byte[] bytes, int offset, int numBytes) {
+		public Record readRecord(Record reuse, byte[] bytes, int offset, int numBytes) {
 			String theRecord = new String(bytes, offset, numBytes);
 			
 			str1.setValue(theRecord.substring(0, theRecord.indexOf('|')));
 			str2.setValue(theRecord.substring(theRecord.indexOf('|') + 1));
 			
-			target.setField(0, str1);
-			target.setField(1, str2);
-			return true;
+			reuse.setField(0, str1);
+			reuse.setField(1, str2);
+			return reuse;
 		}
 	}
 }

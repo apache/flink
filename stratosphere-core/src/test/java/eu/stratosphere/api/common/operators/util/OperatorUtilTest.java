@@ -21,15 +21,15 @@ import eu.stratosphere.api.common.functions.Function;
 import eu.stratosphere.api.common.functions.GenericCoGrouper;
 import eu.stratosphere.api.common.functions.GenericCrosser;
 import eu.stratosphere.api.common.functions.GenericJoiner;
-import eu.stratosphere.api.common.functions.GenericMapper;
-import eu.stratosphere.api.common.functions.GenericReducer;
+import eu.stratosphere.api.common.functions.GenericCollectorMap;
+import eu.stratosphere.api.common.functions.GenericGroupReduce;
 import eu.stratosphere.api.common.operators.GenericDataSink;
 import eu.stratosphere.api.common.operators.GenericDataSource;
 import eu.stratosphere.api.common.operators.base.CoGroupOperatorBase;
 import eu.stratosphere.api.common.operators.base.CrossOperatorBase;
 import eu.stratosphere.api.common.operators.base.JoinOperatorBase;
 import eu.stratosphere.api.common.operators.base.MapOperatorBase;
-import eu.stratosphere.api.common.operators.base.ReduceOperatorBase;
+import eu.stratosphere.api.common.operators.base.GroupReduceOperatorBase;
 import eu.stratosphere.api.common.operators.util.OperatorUtil;
 import eu.stratosphere.api.common.io.DelimitedInputFormat;
 import eu.stratosphere.api.common.io.FileOutputFormat;
@@ -90,7 +90,7 @@ public class OperatorUtilTest {
 	@Test
 	public void getContractClassShouldReturnReduceForReduceStub() {
 		final Class<?> result = OperatorUtil.getContractClass(Reducer.class);
-		assertEquals(ReduceOperatorBase.class, result);
+		assertEquals(GroupReduceOperatorBase.class, result);
 	}
 
 	/**
@@ -115,9 +115,9 @@ public class OperatorUtilTest {
 
 	static abstract class Crosser implements GenericCrosser<IntValue, IntValue, IntValue> {}
 
-	static abstract class Mapper implements GenericMapper<IntValue, IntValue> {}
+	static abstract class Mapper implements GenericCollectorMap<IntValue, IntValue> {}
 
 	static abstract class Matcher implements GenericJoiner<IntValue, IntValue, IntValue> {}
 
-	static abstract class Reducer implements GenericReducer<IntValue, IntValue> {}
+	static abstract class Reducer implements GenericGroupReduce<IntValue, IntValue> {}
 }

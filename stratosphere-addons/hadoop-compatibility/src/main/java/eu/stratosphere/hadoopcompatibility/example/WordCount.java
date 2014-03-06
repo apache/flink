@@ -17,7 +17,6 @@ import java.io.Serializable;
 import java.util.Iterator;
 import java.util.StringTokenizer;
 
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
@@ -28,17 +27,15 @@ import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.Program;
 import eu.stratosphere.api.common.ProgramDescription;
 import eu.stratosphere.api.common.operators.FileDataSink;
-import eu.stratosphere.api.common.operators.FileDataSource;
+import eu.stratosphere.api.java.record.functions.FunctionAnnotation.ConstantFields;
 import eu.stratosphere.api.java.record.functions.MapFunction;
 import eu.stratosphere.api.java.record.functions.ReduceFunction;
-import eu.stratosphere.api.java.record.functions.FunctionAnnotation.ConstantFields;
 import eu.stratosphere.api.java.record.io.CsvOutputFormat;
 import eu.stratosphere.api.java.record.operators.MapOperator;
 import eu.stratosphere.api.java.record.operators.ReduceOperator;
 import eu.stratosphere.api.java.record.operators.ReduceOperator.Combinable;
 import eu.stratosphere.client.LocalExecutor;
 import eu.stratosphere.hadoopcompatibility.HadoopDataSource;
-import eu.stratosphere.hadoopcompatibility.HadoopInputFormatWrapper;
 import eu.stratosphere.hadoopcompatibility.datatypes.WritableWrapperConverter;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.Record;
@@ -51,6 +48,9 @@ import eu.stratosphere.util.Collector;
  */
 public class WordCount implements Program, ProgramDescription {
 	
+	private static final long serialVersionUID = 1L;
+
+
 	/**
 	 * Converts a Record containing one string in to multiple string/integer pairs.
 	 * The string is tokenized by whitespaces. For each token a new record is emitted,
@@ -109,6 +109,7 @@ public class WordCount implements Program, ProgramDescription {
 	}
 
 
+	@SuppressWarnings({ "rawtypes", "unchecked", "unused" })
 	@Override
 	public Plan getPlan(String... args) {
 		// parse job parameters
@@ -116,7 +117,7 @@ public class WordCount implements Program, ProgramDescription {
 		String dataInput = (args.length > 1 ? args[1] : "");
 		String output    = (args.length > 2 ? args[2] : "");
 		
-
+		
 		HadoopDataSource source = new HadoopDataSource(new TextInputFormat(), new JobConf(), "Input Lines");
 		TextInputFormat.addInputPath(source.getJobConf(), new Path(dataInput));
 		

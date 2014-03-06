@@ -23,33 +23,34 @@ import eu.stratosphere.types.Record;
 import java.util.regex.Pattern;
 
 public class DanglingPageGenerateRankInputFormat extends TextInputFormat {
-  private static final long serialVersionUID = 1L;
 
-  private DoubleValue initialRank;
+	private static final long serialVersionUID = 1L;
 
-  private static final Pattern SEPARATOR = Pattern.compile("[, \t]");
+	private DoubleValue initialRank;
 
-  @Override
-  public void configure(Configuration parameters) {
-    long numVertices = ConfigUtils.asLong("pageRank.numVertices", parameters);
-    initialRank = new DoubleValue(1 / (double) numVertices);
-    super.configure(parameters);
-  }
+	private static final Pattern SEPARATOR = Pattern.compile("[, \t]");
 
-  @Override
-  public boolean readRecord(Record target, byte[] bytes, int offset, int numBytes) {
-    String str = new String(bytes, offset, numBytes);
+	@Override
+	public void configure(Configuration parameters) {
+		long numVertices = ConfigUtils.asLong("pageRank.numVertices", parameters);
+		initialRank = new DoubleValue(1 / (double) numVertices);
+		super.configure(parameters);
+	}
 
-    String[] tokens = SEPARATOR.split(str);
+	@Override
+	public Record readRecord(Record target, byte[] bytes, int offset, int numBytes) {
+		String str = new String(bytes, offset, numBytes);
 
-    long vertexID = Long.parseLong(tokens[0]);
-    boolean isDangling = tokens.length > 1 && Integer.parseInt(tokens[1]) == 1;
+		String[] tokens = SEPARATOR.split(str);
 
-    target.clear();
-    target.addField(new LongValue(vertexID));
-    target.addField(initialRank);
-    target.addField(new BooleanValue(isDangling));
+		long vertexID = Long.parseLong(tokens[0]);
+		boolean isDangling = tokens.length > 1 && Integer.parseInt(tokens[1]) == 1;
 
-    return true;
-  }
+		target.clear();
+		target.addField(new LongValue(vertexID));
+		target.addField(initialRank);
+		target.addField(new BooleanValue(isDangling));
+
+		return target;
+	}
 }

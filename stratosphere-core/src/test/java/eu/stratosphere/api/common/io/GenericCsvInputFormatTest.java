@@ -13,17 +13,13 @@
 
 package eu.stratosphere.api.common.io;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
-
-import junit.framework.Assert;
 
 import org.apache.log4j.Level;
 import org.junit.After;
@@ -77,15 +73,14 @@ public class GenericCsvInputFormatTest {
 		@SuppressWarnings("unchecked")
 		Class<? extends Value>[] originalTypes = new Class[] { IntValue.class, null, null, StringValue.class, null, DoubleValue.class };
 		
-		format.setFieldTypes(originalTypes);
+		format.setFieldTypesGeneric(originalTypes);
 		assertEquals(3, format.getNumberOfNonNullFields());
 		assertEquals(6, format.getNumberOfFieldsTotal());
 		
-		assertTrue(Arrays.equals(originalTypes, format.getFieldTypes()));
+		assertTrue(Arrays.equals(originalTypes, format.getGenericFieldTypes()));
 	}
 	
 	@Test
-	@SuppressWarnings("unchecked")
 	public void testReadNoPosAll() throws IOException {
 		try {
 			final String fileContent = "111|222|333|444|555\n666|777|888|999|000|";
@@ -93,37 +88,38 @@ public class GenericCsvInputFormatTest {
 		
 			final Configuration parameters = new Configuration();
 			
-			format.setFieldDelim('|');
-			format.setFieldTypes(IntValue.class, IntValue.class, IntValue.class, IntValue.class, IntValue.class);
+			format.setFieldDelimiter('|');
+			format.setFieldTypesGeneric(IntValue.class, IntValue.class, IntValue.class, IntValue.class, IntValue.class);
 			
 			format.configure(parameters);
 			format.open(split);
 			
 			Value[] values = createIntValues(5);
 			
-			assertTrue(format.nextRecord(values));
+			values = format.nextRecord(values);
+			assertNotNull(values);
 			assertEquals(111, ((IntValue) values[0]).getValue());
 			assertEquals(222, ((IntValue) values[1]).getValue());
 			assertEquals(333, ((IntValue) values[2]).getValue());
 			assertEquals(444, ((IntValue) values[3]).getValue());
 			assertEquals(555, ((IntValue) values[4]).getValue());
 			
-			assertTrue(format.nextRecord(values));
+			values = format.nextRecord(values);
+			assertNotNull(values);
 			assertEquals(666, ((IntValue) values[0]).getValue());
 			assertEquals(777, ((IntValue) values[1]).getValue());
 			assertEquals(888, ((IntValue) values[2]).getValue());
 			assertEquals(999, ((IntValue) values[3]).getValue());
 			assertEquals(000, ((IntValue) values[4]).getValue());
 			
-			assertFalse(format.nextRecord(values));
+			assertNull(format.nextRecord(values));
 			assertTrue(format.reachedEnd());
 		}
 		catch (Exception ex) {
-			Assert.fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
+			fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
 		}
 	}
 	
-	@SuppressWarnings("unchecked")
 	@Test
 	public void testReadNoPosFirstN() throws IOException {
 		try {
@@ -132,8 +128,8 @@ public class GenericCsvInputFormatTest {
 		
 			final Configuration parameters = new Configuration();
 			
-			format.setFieldDelim('|');
-			format.setFieldTypes(IntValue.class, IntValue.class);
+			format.setFieldDelimiter('|');
+			format.setFieldTypesGeneric(IntValue.class, IntValue.class);
 			
 			format.configure(parameters);
 			format.open(split);
@@ -141,25 +137,26 @@ public class GenericCsvInputFormatTest {
 			Value[] values = createIntValues(2);
 
 			// if this would parse all, we would get an index out of bounds exception
-			assertTrue(format.nextRecord(values));
+			values = format.nextRecord(values);
+			assertNotNull(values);
 			assertEquals(111, ((IntValue) values[0]).getValue());
 			assertEquals(222, ((IntValue) values[1]).getValue());
 			
-			assertTrue(format.nextRecord(values));
+			values = format.nextRecord(values);
+			assertNotNull(values);
 			assertEquals(666, ((IntValue) values[0]).getValue());
 			assertEquals(777, ((IntValue) values[1]).getValue());
 
 			
-			assertFalse(format.nextRecord(values));
+			assertNull(format.nextRecord(values));
 			assertTrue(format.reachedEnd());
 		}
 		catch (Exception ex) {
-			Assert.fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
+			fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
 		}
 		
 	}
 	
-	@SuppressWarnings("unchecked")
 	@Test
 	public void testSparseParse() {
 		try {
@@ -168,31 +165,33 @@ public class GenericCsvInputFormatTest {
 		
 			final Configuration parameters = new Configuration();
 			
-			format.setFieldDelim('|');
-			format.setFieldTypes(IntValue.class, null, null, IntValue.class, null, null, null, IntValue.class);
+			format.setFieldDelimiter('|');
+			format.setFieldTypesGeneric(IntValue.class, null, null, IntValue.class, null, null, null, IntValue.class);
 			
 			format.configure(parameters);
 			format.open(split);
 			
 			Value[] values = createIntValues(3);
 			
-			assertTrue(format.nextRecord(values));
+			values = format.nextRecord(values);
+			assertNotNull(values);
 			assertEquals(111, ((IntValue) values[0]).getValue());
 			assertEquals(444, ((IntValue) values[1]).getValue());
 			assertEquals(888, ((IntValue) values[2]).getValue());
 			
-			assertTrue(format.nextRecord(values));
+			values = format.nextRecord(values);
+			assertNotNull(values);
 			assertEquals(000, ((IntValue) values[0]).getValue());
 			assertEquals(777, ((IntValue) values[1]).getValue());
 			assertEquals(333, ((IntValue) values[2]).getValue());
 			
-			assertFalse(format.nextRecord(values));
+			assertNull(format.nextRecord(values));
 			assertTrue(format.reachedEnd());
 		}
 		catch (Exception ex) {
 			System.err.println(ex.getMessage());
 			ex.printStackTrace();
-			Assert.fail("Test erroneous");
+			fail("Test erroneous");
 		}
 	}
 
@@ -205,34 +204,35 @@ public class GenericCsvInputFormatTest {
 
 			final Configuration parameters = new Configuration();
 
-			format.setFieldDelim('|');
-			format.setFields(new int[] { 0, 3, 7 },
+			format.setFieldDelimiter('|');
+			format.setFieldsGeneric(new int[] { 0, 3, 7 },
 				(Class<? extends Value>[]) new Class[] { IntValue.class, IntValue.class, IntValue.class });
 			format.configure(parameters);
 			format.open(split);
 
 			Value[] values = createIntValues(3);
 
-			assertTrue(format.nextRecord(values));
+			values = format.nextRecord(values);
+			assertNotNull(values);
 			assertEquals(111, ((IntValue) values[0]).getValue());
 			assertEquals(444, ((IntValue) values[1]).getValue());
 			assertEquals(888, ((IntValue) values[2]).getValue());
 
-			assertTrue(format.nextRecord(values));
+			values = format.nextRecord(values);
+			assertNotNull(values);
 			assertEquals(000, ((IntValue) values[0]).getValue());
 			assertEquals(777, ((IntValue) values[1]).getValue());
 			assertEquals(333, ((IntValue) values[2]).getValue());
 
-			assertFalse(format.nextRecord(values));
+			assertNull(format.nextRecord(values));
 			assertTrue(format.reachedEnd());
 		} catch (Exception ex) {
 			System.err.println(ex.getMessage());
 			ex.printStackTrace();
-			Assert.fail("Test erroneous");
+			fail("Test erroneous");
 		}
 	}
 	
-	@SuppressWarnings("unchecked")
 	@Test
 	public void testReadTooShortInput() throws IOException {
 		try {
@@ -240,8 +240,8 @@ public class GenericCsvInputFormatTest {
 			final FileInputSplit split = createTempFile(fileContent);	
 		
 			final Configuration parameters = new Configuration();
-			format.setFieldDelim('|');
-			format.setFieldTypes(IntValue.class, IntValue.class, IntValue.class, IntValue.class, IntValue.class);
+			format.setFieldDelimiter('|');
+			format.setFieldTypesGeneric(IntValue.class, IntValue.class, IntValue.class, IntValue.class, IntValue.class);
 			
 			format.configure(parameters);
 			format.open(split);
@@ -250,18 +250,17 @@ public class GenericCsvInputFormatTest {
 			
 			try {
 				format.nextRecord(values);
-				Assert.fail("Should have thrown a parse exception on too short input.");
+				fail("Should have thrown a parse exception on too short input.");
 			}
 			catch (ParseException e) {
 				// all is well
 			}
 		}
 		catch (Exception ex) {
-			Assert.fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
+			fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
 		}
 	}
 	
-	@SuppressWarnings("unchecked")
 	@Test
 	public void testReadTooShortInputLenient() throws IOException {
 		try {
@@ -269,8 +268,8 @@ public class GenericCsvInputFormatTest {
 			final FileInputSplit split = createTempFile(fileContent);	
 		
 			final Configuration parameters = new Configuration();
-			format.setFieldDelim('|');
-			format.setFieldTypes(IntValue.class, IntValue.class, IntValue.class, IntValue.class, IntValue.class);
+			format.setFieldDelimiter('|');
+			format.setFieldTypesGeneric(IntValue.class, IntValue.class, IntValue.class, IntValue.class, IntValue.class);
 			format.setLenient(true);
 			
 			format.configure(parameters);
@@ -278,48 +277,46 @@ public class GenericCsvInputFormatTest {
 			
 			Value[] values = createIntValues(5);
 			
-			Assert.assertTrue(format.nextRecord(values));	// line okay
-			Assert.assertFalse(format.nextRecord(values));	// line too short
-			Assert.assertTrue(format.nextRecord(values));	// line okay
+			assertNotNull(format.nextRecord(values));	// line okay
+			assertNull(format.nextRecord(values));	// line too short
+			assertNotNull(format.nextRecord(values));	// line okay
 		}
 		catch (Exception ex) {
-			Assert.fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
+			fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
 		}
 	}
 	
-	@SuppressWarnings("unchecked")
 	@Test
 	public void testReadInvalidContents() throws IOException {
 		try {
 			final String fileContent = "abc|222|def|444\nkkz|777|888|hhg";
-			final FileInputSplit split = createTempFile(fileContent);	
+			final FileInputSplit split = createTempFile(fileContent);
 		
 			final Configuration parameters = new Configuration();
 
-			format.setFieldDelim('|');
-			format.setFieldTypes(StringValue.class, IntValue.class, StringValue.class, IntValue.class);
+			format.setFieldDelimiter('|');
+			format.setFieldTypesGeneric(StringValue.class, IntValue.class, StringValue.class, IntValue.class);
 			
 			format.configure(parameters);
 			format.open(split);
 			
 			Value[] values = new Value[] { new StringValue(), new IntValue(), new StringValue(), new IntValue() };
 			
-			assertTrue(format.nextRecord(values));
+			assertNotNull(format.nextRecord(values));
 			
 			try {
 				format.nextRecord(values);
-				Assert.fail("Input format accepted on invalid input.");
+				fail("Input format accepted on invalid input.");
 			}
 			catch (ParseException e) {
 				; // all good
 			}
 		}
 		catch (Exception ex) {
-			Assert.fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
+			fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
 		}
 	}
 	
-	@SuppressWarnings("unchecked")
 	@Test
 	public void testReadInvalidContentsLenient() {
 		try {
@@ -328,8 +325,8 @@ public class GenericCsvInputFormatTest {
 		
 			final Configuration parameters = new Configuration();
 
-			format.setFieldDelim('|');
-			format.setFieldTypes(StringValue.class, IntValue.class, StringValue.class, IntValue.class);
+			format.setFieldDelimiter('|');
+			format.setFieldTypesGeneric(StringValue.class, IntValue.class, StringValue.class, IntValue.class);
 			format.setLenient(true);
 			
 			format.configure(parameters);
@@ -337,15 +334,14 @@ public class GenericCsvInputFormatTest {
 			
 			Value[] values = new Value[] { new StringValue(), new IntValue(), new StringValue(), new IntValue() };
 			
-			assertTrue(format.nextRecord(values));
-			assertFalse(format.nextRecord(values));
+			assertNotNull(format.nextRecord(values));
+			assertNull(format.nextRecord(values));
 		}
 		catch (Exception ex) {
-			Assert.fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
+			fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
 		}
 	}
 	
-	@SuppressWarnings("unchecked")
 	@Test
 	public void testReadInvalidContentsLenientWithSkipping() {
 		try {
@@ -357,8 +353,8 @@ public class GenericCsvInputFormatTest {
 		
 			final Configuration parameters = new Configuration();
 
-			format.setFieldDelim('|');
-			format.setFieldTypes(StringValue.class, null, IntValue.class);
+			format.setFieldDelimiter('|');
+			format.setFieldTypesGeneric(StringValue.class, null, IntValue.class);
 			format.setLenient(true);
 			
 			format.configure(parameters);
@@ -366,17 +362,16 @@ public class GenericCsvInputFormatTest {
 			
 			Value[] values = new Value[] { new StringValue(), new IntValue()};
 			
-			assertTrue(format.nextRecord(values));
-			assertFalse(format.nextRecord(values));
-			assertFalse(format.nextRecord(values));
-			assertTrue(format.nextRecord(values));
+			assertNotNull(format.nextRecord(values));
+			assertNull(format.nextRecord(values));
+			assertNull(format.nextRecord(values));
+			assertNotNull(format.nextRecord(values));
 		}
 		catch (Exception ex) {
-			Assert.fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
+			fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
 		}
 	}
 	
-	@SuppressWarnings("unchecked")
 	@Test
 	public void readWithEmptyField() {
 		try {
@@ -385,37 +380,38 @@ public class GenericCsvInputFormatTest {
 		
 			final Configuration parameters = new Configuration();
 
-			format.setFieldDelim('|');
-			format.setFieldTypes(StringValue.class, StringValue.class, StringValue.class);
+			format.setFieldDelimiter('|');
+			format.setFieldTypesGeneric(StringValue.class, StringValue.class, StringValue.class);
 			
 			format.configure(parameters);
 			format.open(split);
 			
 			Value[] values = new Value[] { new StringValue(), new StringValue(), new StringValue()};
 			
-			assertTrue(format.nextRecord(values));
+			values = format.nextRecord(values);
+			assertNotNull(values);
 			assertEquals("abc", ((StringValue) values[0]).getValue());
 			assertEquals("def", ((StringValue) values[1]).getValue());
 			assertEquals("ghijk", ((StringValue) values[2]).getValue());
 			
-			assertTrue(format.nextRecord(values));
+			values = format.nextRecord(values);
+			assertNotNull(values);
 			assertEquals("abc", ((StringValue) values[0]).getValue());
 			assertEquals("", ((StringValue) values[1]).getValue());
 			assertEquals("hhg", ((StringValue) values[2]).getValue());
 			
-			assertTrue(format.nextRecord(values));
+			values = format.nextRecord(values);
+			assertNotNull(values);
 			assertEquals("", ((StringValue) values[0]).getValue());
 			assertEquals("", ((StringValue) values[1]).getValue());
 			assertEquals("", ((StringValue) values[2]).getValue());
 			
 		}
 		catch (Exception ex) {
-			Assert.fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
+			fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
 		}
 	}
 	
-	
-	@SuppressWarnings("unchecked")
 	@Test
 	public void readWithHeaderLine() {
 		try {
@@ -427,8 +423,8 @@ public class GenericCsvInputFormatTest {
 		
 			final Configuration parameters = new Configuration();
 
-			format.setFieldDelim('|');
-			format.setFieldTypes(IntValue.class, StringValue.class, IntValue.class, StringValue.class);
+			format.setFieldDelimiter('|');
+			format.setFieldTypesGeneric(IntValue.class, StringValue.class, IntValue.class, StringValue.class);
 			format.setSkipFirstLineAsHeader(true);
 			
 			format.configure(parameters);
@@ -437,17 +433,16 @@ public class GenericCsvInputFormatTest {
 			Value[] values = new Value[] { new IntValue(), new StringValue(), new IntValue(), new StringValue()};
 			
 			// first line is skipped as header
-			assertTrue(format.nextRecord(values));   //  first row (= second line)
-			assertTrue(format.nextRecord(values));   // second row (= third line) 
-			assertFalse(format.nextRecord(values));  // exhausted
+			assertNotNull(format.nextRecord(values));   //  first row (= second line)
+			assertNotNull(format.nextRecord(values));   // second row (= third line) 
+			assertNull(format.nextRecord(values));  // exhausted
 			assertTrue(format.reachedEnd());         // exhausted
 		}
 		catch (Exception ex) {
-			Assert.fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
+			fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
 		}
 	}
 	
-	@SuppressWarnings("unchecked")
 	@Test
 	public void readWithHeaderLineAndInvalidIntermediate() {
 		try {
@@ -460,8 +455,8 @@ public class GenericCsvInputFormatTest {
 		
 			final Configuration parameters = new Configuration();
 
-			format.setFieldDelim('|');
-			format.setFieldTypes(IntValue.class, StringValue.class, IntValue.class, StringValue.class);
+			format.setFieldDelimiter('|');
+			format.setFieldTypesGeneric(IntValue.class, StringValue.class, IntValue.class, StringValue.class);
 			format.setSkipFirstLineAsHeader(true);
 			
 			format.configure(parameters);
@@ -470,18 +465,18 @@ public class GenericCsvInputFormatTest {
 			Value[] values = new Value[] { new IntValue(), new StringValue(), new IntValue(), new StringValue()};
 			
 			// first line is skipped as header
-			assertTrue(format.nextRecord(values));   //  first row (= second line)
+			assertNotNull(format.nextRecord(values));   //  first row (= second line)
 			
 			try {
 				format.nextRecord(values);
-				Assert.fail("Format accepted invalid line.");
+				fail("Format accepted invalid line.");
 			}
 			catch (ParseException e) {
 				// as we expected
 			}
 		}
 		catch (Exception ex) {
-			Assert.fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
+			fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
 		}
 	}
 	
@@ -512,8 +507,8 @@ public class GenericCsvInputFormatTest {
 		private static final long serialVersionUID = 2653609265252951059L;
 
 		@Override
-		public boolean readRecord(Value[] target, byte[] bytes, int offset, int numBytes) {
-			return parseRecord(target, bytes, offset, numBytes);
+		public Value[] readRecord(Value[] target, byte[] bytes, int offset, int numBytes) {
+			return parseRecord(target, bytes, offset, numBytes) ? target : null;
 		}
 	}
 }

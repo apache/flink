@@ -17,7 +17,7 @@ import java.io.IOException;
 
 /**
  * A simple iterator interface. The key differences to the {@link java.util.Iterator} are that this
- * iterator accepts an object into which it places the content, and that is consolidates the logic
+ * iterator accepts an object into which it places the content, and that it consolidates the logic
  * in a single <code>next()</code> function, rather than in two different functions such as
  * <code>hasNext()</code> and <code>next()</code>. 
  * 

@@ -99,7 +99,7 @@ public class CoGroupITCase extends TestBase {
 		private final StringValue valueString = new StringValue();
 		
 		@Override
-		public boolean readRecord(Record target, byte[] bytes, int offset, int numBytes) {
+		public Record readRecord(Record target, byte[] bytes, int offset, int numBytes) {
 			this.keyString.setValueAscii(bytes, offset, 1);
 			this.valueString.setValueAscii(bytes, offset + 2, 1);
 			target.setField(0, keyString);
@@ -107,7 +107,7 @@ public class CoGroupITCase extends TestBase {
 			
 			LOG.debug("Read in: [" + keyString.getValue() + "," + valueString.getValue() + "]");
 			
-			return true;
+			return target;
 		}
 
 	}

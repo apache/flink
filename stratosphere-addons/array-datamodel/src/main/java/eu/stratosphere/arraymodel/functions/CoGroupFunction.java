@@ -22,7 +22,9 @@ import eu.stratosphere.util.Collector;
 
 
 public abstract class CoGroupFunction extends AbstractArrayModelFunction implements GenericCoGrouper<Value[], Value[], Value[]> {
-	
+
+	private static final long serialVersionUID = 1L;
+
 	/**
 	 * This method must be implemented to provide a user implementation of a
 	 * matcher. It is called for each two key-value pairs that share the same

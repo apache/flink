@@ -40,6 +40,7 @@ import org.junit.Test;
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
 
+import eu.stratosphere.api.common.JobExecutionResult;
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.client.minicluster.NepheleMiniCluster;
 import eu.stratosphere.compiler.DataStatistics;
@@ -49,7 +50,6 @@ import eu.stratosphere.compiler.plandump.PlanJSONDumpGenerator;
 import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.client.JobClient;
-import eu.stratosphere.nephele.client.JobExecutionResult;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.util.LogUtils;
 

@@ -84,7 +84,7 @@ public class TextInputFormat extends DelimitedInputFormat {
 
 	// --------------------------------------------------------------------------------------------
 
-	public boolean readRecord(Record target, byte[] bytes, int offset, int numBytes) {
+	public Record readRecord(Record reuse, byte[] bytes, int offset, int numBytes) {
 		StringValue str = this.theString;
 		
 		if (this.ascii) {
@@ -107,12 +107,12 @@ public class TextInputFormat extends DelimitedInputFormat {
 				byte[] copy = new byte[numBytes];
 				System.arraycopy(bytes, offset, copy, 0, numBytes);
 				LOG.warn("Line could not be encoded: " + Arrays.toString(copy), e);
-				return false;
+				return null;
 			}
 		}
 		
-		target.clear();
-		target.setField(this.pos, str);
-		return true;
+		reuse.clear();
+		reuse.setField(this.pos, str);
+		return reuse;
 	}
 }

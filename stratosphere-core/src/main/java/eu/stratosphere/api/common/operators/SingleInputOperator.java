@@ -21,12 +21,12 @@ import eu.stratosphere.api.common.operators.util.UserCodeWrapper;
 import eu.stratosphere.util.Visitor;
 
 /**
- * Abstract contract superclass for for all contracts that have one input like "map" or "reduce".
+ * Abstract superclass for for all operators that have one input like "map" or "reduce".
  */
 public abstract class SingleInputOperator<T extends Function> extends AbstractUdfOperator<T> {
 	
 	/**
-	 * The input which produces the data consumed by this Pact.
+	 * The input which produces the data consumed by this operator.
 	 */
 	protected final List<Operator> input = new ArrayList<Operator>();
 	
@@ -35,14 +35,19 @@ public abstract class SingleInputOperator<T extends Function> extends AbstractUd
 	 */
 	private final int[] keyFields;
 	
+	/**
+	 * Semantic properties of the associated function.
+	 */
+	private SingleInputSemanticProperties semanticProperties;
+	
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Creates a new abstract single-input Pact with the given name wrapping the given user function.
+	 * Creates a new abstract single-input operator with the given name wrapping the given user function.
 	 * 
 	 * @param stub The object containing the user function.
 	 * @param keyPositions The field positions of the input records that act as keys.
-	 * @param name The given name for the Pact, used in plans, logs and progress messages.
+	 * @param name The given name for the operator, used in plans, logs and progress messages.
 	 */
 	protected SingleInputOperator(UserCodeWrapper<T> stub, int[] keyPositions, String name) {
 		super(stub, name);
@@ -50,11 +55,11 @@ public abstract class SingleInputOperator<T extends Function> extends AbstractUd
 	}
 	
 	/**
-	 * Creates a new abstract single-input Pact with the given name wrapping the given user function.
-	 * This constructor is specialized only for Pacts that require no keys for their processing.
+	 * Creates a new abstract single-input operator with the given name wrapping the given user function.
+	 * This constructor is specialized only for operators that require no keys for their processing.
 	 * 
 	 * @param stub The object containing the user function.
-	 * @param name The given name for the Pact, used in plans, logs and progress messages.
+	 * @param name The given name for the operator, used in plans, logs and progress messages.
 	 */
 	protected SingleInputOperator(UserCodeWrapper<T> stub, String name) {
 		super(stub, name);
@@ -131,7 +136,19 @@ public abstract class SingleInputOperator<T extends Function> extends AbstractUd
 		addInputs(inputs);
 	}
 	
+
 	// --------------------------------------------------------------------------------------------
+
+	public SingleInputSemanticProperties getSemanticProperties() {
+		return this.semanticProperties;
+	}
+	
+	public void setSemanticProperties(SingleInputSemanticProperties semanticProperties) {
+		this.semanticProperties = semanticProperties;
+	}
+	
+	// --------------------------------------------------------------------------------------------
+
 	
 	@Override
 	public final int getNumberOfInputs() {

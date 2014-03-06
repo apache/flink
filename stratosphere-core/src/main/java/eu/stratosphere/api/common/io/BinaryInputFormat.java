@@ -49,7 +49,7 @@ public abstract class BinaryInputFormat<T extends IOReadableWritable> extends Fi
 	/**
 	 * The config parameter which defines the fixed length of a record.
 	 */
-	public static final String BLOCK_SIZE_PARAMETER_KEY = "pact.input.block_size";
+	public static final String BLOCK_SIZE_PARAMETER_KEY = "input.block_size";
 
 	public static final long NATIVE_BLOCK_SIZE = Long.MIN_VALUE;
 
@@ -253,15 +253,16 @@ public abstract class BinaryInputFormat<T extends IOReadableWritable> extends Fi
 	}
 
 	@Override
-	public boolean nextRecord(T record) throws IOException {
+	public T nextRecord(T record) throws IOException {
 		if (this.reachedEnd())
-			return false;
-		this.deserialize(record, this.dataInputStream);
+			return null;
+		
+		record = this.deserialize(record, this.dataInputStream);
 		this.readRecords++;
-		return true;
+		return record;
 	}
 
-	protected abstract void deserialize(T record, DataInput dataInput) throws IOException;
+	protected abstract T deserialize(T reuse, DataInput dataInput) throws IOException;
 
 	/**
 	 * Writes a block info at the end of the blocks.<br>

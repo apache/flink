@@ -14,7 +14,7 @@
 package eu.stratosphere.pact.runtime.task.chaining;
 
 import eu.stratosphere.api.common.functions.Function;
-import eu.stratosphere.api.common.functions.GenericReducer;
+import eu.stratosphere.api.common.functions.GenericGroupReduce;
 import eu.stratosphere.api.common.typeutils.TypeComparator;
 import eu.stratosphere.api.common.typeutils.TypeComparatorFactory;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
@@ -45,7 +45,7 @@ public class SynchronousChainedCombineDriver<T> extends ChainedDriver<T, T> {
 
 	private InMemorySorter<T> sorter;
 
-	private GenericReducer<T, ?> combiner;
+	private GenericGroupReduce<T, ?> combiner;
 
 	private TypeSerializer<T> serializer;
 
@@ -66,8 +66,8 @@ public class SynchronousChainedCombineDriver<T> extends ChainedDriver<T, T> {
 		this.parent = parent;
 
 		@SuppressWarnings("unchecked")
-		final GenericReducer<T, ?> combiner =
-			RegularPactTask.instantiateUserCode(this.config, userCodeClassLoader, GenericReducer.class);
+		final GenericGroupReduce<T, ?> combiner =
+			RegularPactTask.instantiateUserCode(this.config, userCodeClassLoader, GenericGroupReduce.class);
 		this.combiner = combiner;
 		combiner.setRuntimeContext(getUdfRuntimeContext());
 	}
@@ -176,7 +176,7 @@ public class SynchronousChainedCombineDriver<T> extends ChainedDriver<T, T> {
 				this.comparator);
 
 			// cache references on the stack
-			final GenericReducer<T, ?> stub = this.combiner;
+			final GenericGroupReduce<T, ?> stub = this.combiner;
 			final Collector<T> output = this.outputCollector;
 
 			// run stub implementation

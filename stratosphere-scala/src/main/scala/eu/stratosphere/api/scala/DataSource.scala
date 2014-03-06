@@ -20,7 +20,7 @@ import eu.stratosphere.types.parser._
 import eu.stratosphere.api.common.io.InputFormat
 import eu.stratosphere.api.common.operators.GenericDataSource
 import eu.stratosphere.api.common.operators.FileDataSource
-import eu.stratosphere.api.common.operators.{CollectionDataSource => JavaCollectionDataSource}
+import eu.stratosphere.api.java.record.operators.{CollectionDataSource => JavaCollectionDataSource}
 import eu.stratosphere.configuration.Configuration
 import eu.stratosphere.api.common.io.FileInputFormat
 import eu.stratosphere.api.common.io.GenericInputFormat

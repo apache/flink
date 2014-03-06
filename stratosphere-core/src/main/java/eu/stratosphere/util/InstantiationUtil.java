@@ -40,8 +40,7 @@ public class InstantiationUtil {
 		private ClassLoader classLoader;
 
 		@Override
-		public Class<?> resolveClass(ObjectStreamClass desc)
-				throws IOException, ClassNotFoundException {
+		public Class<?> resolveClass(ObjectStreamClass desc) throws IOException, ClassNotFoundException {
 			if (classLoader != null) {
 				return Class.forName(desc.getName(), false, classLoader);
 			}
@@ -216,11 +215,11 @@ public class InstantiationUtil {
 	
 	public static void writeObjectToConfig(Object o, Configuration config, String key) throws IOException {
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-	    ObjectOutputStream oos = new ObjectOutputStream(baos);
-	    oos.writeObject(o);
-			    
-	    byte[] bytes = baos.toByteArray();
-	    config.setBytes(key, bytes);
+		ObjectOutputStream oos = new ObjectOutputStream(baos);
+		oos.writeObject(o);
+
+		byte[] bytes = baos.toByteArray();
+		config.setBytes(key, bytes);
 	}
 	
 	// --------------------------------------------------------------------------------------------

@@ -49,7 +49,7 @@ public class ExternalProcessInputFormatTest {
 			return;
 		
 		Configuration config = new Configuration();
-		ExternalProcessInputSplit split = new ExternalProcessInputSplit(1, this.neverEndingCommand);
+		ExternalProcessInputSplit split = new ExternalProcessInputSplit(1, 1, this.neverEndingCommand);
 		
 		boolean processDestroyed = false;
 		try {
@@ -83,7 +83,7 @@ public class ExternalProcessInputFormatTest {
 			return;
 		
 		Configuration config = new Configuration();
-		ExternalProcessInputSplit split = new ExternalProcessInputSplit(1, failingCommand);
+		ExternalProcessInputSplit split = new ExternalProcessInputSplit(1, 1, failingCommand);
 		
 		format.configure(config);
 		boolean invalidExitCode = false;
@@ -130,7 +130,7 @@ public class ExternalProcessInputFormatTest {
 		
 		Configuration config = new Configuration();
 		config.setInteger(MyExternalProcessTestInputFormat.FAILCOUNT_PARAMETER_KEY, 100);
-		ExternalProcessInputSplit split = new ExternalProcessInputSplit(1, this.neverEndingCommand);
+		ExternalProcessInputSplit split = new ExternalProcessInputSplit(1, 1, this.neverEndingCommand);
 		Record record = new Record();
 	    	    
 		boolean userException = false;
@@ -165,7 +165,7 @@ public class ExternalProcessInputFormatTest {
 			return;
 		
 		Configuration config = new Configuration();
-		ExternalProcessInputSplit split = new ExternalProcessInputSplit(1, this.thousandRecordsCommand);
+		ExternalProcessInputSplit split = new ExternalProcessInputSplit(1, 1, this.thousandRecordsCommand);
 		Record record = new Record();
 
 		int cnt = 0;
@@ -173,7 +173,7 @@ public class ExternalProcessInputFormatTest {
 			format.configure(config);
 			format.open(split);
 			while(!format.reachedEnd()) {
-				if (format.nextRecord(record)) {
+				if (format.nextRecord(record) != null) {
 					cnt++;
 				}
 			}
@@ -211,8 +211,7 @@ public class ExternalProcessInputFormatTest {
 		}
 		
 		@Override
-		public ExternalProcessInputSplit[] createInputSplits(int minNumSplits)
-				throws IOException {
+		public ExternalProcessInputSplit[] createInputSplits(int minNumSplits) {
 			return null;
 		}
 
@@ -227,7 +226,7 @@ public class ExternalProcessInputFormatTest {
 		}
 
 		@Override
-		public boolean nextRecord(Record record) throws IOException {
+		public Record nextRecord(Record reuse) throws IOException {
 			
 			if(cnt > failCnt) {
 				throw new RuntimeException("This is a test exception!");
@@ -240,7 +239,7 @@ public class ExternalProcessInputFormatTest {
 				
 				if(readCnt == -1) {
 					this.end = true;
-					return false;
+					return null;
 				} else {
 					totalReadCnt += readCnt;
 				}
@@ -259,12 +258,12 @@ public class ExternalProcessInputFormatTest {
 			v2 = (v2 << 8) | (0xFF & buf[6]);
 			v2 = (v2 << 8) | (0xFF & buf[7]);
 			
-			record.setField(0,new IntValue(v1));
-			record.setField(1,new IntValue(v2));
+			reuse.setField(0,new IntValue(v1));
+			reuse.setField(1,new IntValue(v2));
 			
 			this.cnt++;
 			
-			return true;
+			return reuse;
 		}
 
 		@Override

@@ -20,6 +20,7 @@ import java.io.StringWriter;
 import java.net.InetSocketAddress;
 import java.util.List;
 
+import eu.stratosphere.api.common.JobExecutionResult;
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.DataStatistics;
@@ -34,7 +35,6 @@ import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.configuration.GlobalConfiguration;
 import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.nephele.client.AbstractJobResult.ReturnCode;
-import eu.stratosphere.nephele.client.JobExecutionResult;
 import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.client.JobExecutionException;
 import eu.stratosphere.nephele.client.JobSubmissionResult;

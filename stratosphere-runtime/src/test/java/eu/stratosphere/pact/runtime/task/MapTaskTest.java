@@ -21,7 +21,7 @@ import org.apache.commons.logging.LogFactory;
 import org.junit.Test;
 import org.junit.Assert;
 
-import eu.stratosphere.api.common.functions.GenericMapper;
+import eu.stratosphere.api.common.functions.GenericCollectorMap;
 import eu.stratosphere.api.java.record.functions.MapFunction;
 import eu.stratosphere.pact.runtime.test.util.DiscardingOutputCollector;
 import eu.stratosphere.pact.runtime.test.util.DriverTestBase;
@@ -32,7 +32,7 @@ import eu.stratosphere.pact.runtime.test.util.UniformRecordGenerator;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
-public class MapTaskTest extends DriverTestBase<GenericMapper<Record, Record>> {
+public class MapTaskTest extends DriverTestBase<GenericCollectorMap<Record, Record>> {
 	
 	private static final Log LOG = LogFactory.getLog(MapTaskTest.class);
 	
@@ -51,7 +51,7 @@ public class MapTaskTest extends DriverTestBase<GenericMapper<Record, Record>> {
 		addInput(new UniformRecordGenerator(keyCnt, valCnt, false));
 		setOutput(this.output);
 		
-		final MapDriver<Record, Record> testDriver = new MapDriver<Record, Record>();
+		final CollectorMapDriver<Record, Record> testDriver = new CollectorMapDriver<Record, Record>();
 		
 		try {
 			testDriver(testDriver, MockMapStub.class);
@@ -71,7 +71,7 @@ public class MapTaskTest extends DriverTestBase<GenericMapper<Record, Record>> {
 		addInput(new UniformRecordGenerator(keyCnt, valCnt, false));
 		setOutput(new DiscardingOutputCollector());
 		
-		final MapDriver<Record, Record> testTask = new MapDriver<Record, Record>();
+		final CollectorMapDriver<Record, Record> testTask = new CollectorMapDriver<Record, Record>();
 		try {
 			testDriver(testTask, MockFailingMapStub.class);
 			Assert.fail("Function exception was not forwarded.");
@@ -88,7 +88,7 @@ public class MapTaskTest extends DriverTestBase<GenericMapper<Record, Record>> {
 		addInput(new InfiniteInputIterator());
 		setOutput(new DiscardingOutputCollector());
 		
-		final MapDriver<Record, Record> testTask = new MapDriver<Record, Record>();
+		final CollectorMapDriver<Record, Record> testTask = new CollectorMapDriver<Record, Record>();
 		
 		final AtomicBoolean success = new AtomicBoolean(false);
 		

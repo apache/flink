@@ -15,12 +15,12 @@ package eu.stratosphere.test.iterative.nephele.customdanglingpagerank;
 import java.util.Iterator;
 
 import eu.stratosphere.api.common.functions.AbstractFunction;
-import eu.stratosphere.api.common.functions.GenericReducer;
+import eu.stratosphere.api.common.functions.GenericGroupReduce;
 import eu.stratosphere.test.iterative.nephele.customdanglingpagerank.types.VertexWithRank;
 import eu.stratosphere.util.Collector;
 
 
-public class CustomRankCombiner extends AbstractFunction implements GenericReducer<VertexWithRank, VertexWithRank> {
+public class CustomRankCombiner extends AbstractFunction implements GenericGroupReduce<VertexWithRank, VertexWithRank> {
 
 	private static final long serialVersionUID = 1L;
 	

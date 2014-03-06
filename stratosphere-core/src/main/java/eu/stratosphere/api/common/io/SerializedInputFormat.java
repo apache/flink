@@ -27,7 +27,8 @@ public class SerializedInputFormat<T extends IOReadableWritable> extends BinaryI
 	private static final long serialVersionUID = 1L;
 
 	@Override
-	protected void deserialize(IOReadableWritable record, DataInput dataInput) throws IOException {
-		record.read(dataInput);		
+	protected T deserialize(T reuse, DataInput dataInput) throws IOException {
+		reuse.read(dataInput);
+		return reuse;
 	}
 }

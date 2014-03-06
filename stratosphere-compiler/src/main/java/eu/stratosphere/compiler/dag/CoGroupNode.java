@@ -18,7 +18,6 @@ import java.util.List;
 
 import eu.stratosphere.api.common.operators.Ordering;
 import eu.stratosphere.api.common.operators.base.CoGroupOperatorBase;
-import eu.stratosphere.api.java.record.operators.CoGroupOperator;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.operators.CoGroupDescriptor;
 import eu.stratosphere.compiler.operators.CoGroupWithSolutionSetFirstDescriptor;
@@ -56,17 +55,15 @@ public class CoGroupNode extends TwoInputNode {
 		Ordering groupOrder1 = null;
 		Ordering groupOrder2 = null;
 		
-		if (getPactContract() instanceof CoGroupOperator) {
-			CoGroupOperator cgc = (CoGroupOperator) getPactContract();
-			groupOrder1 = cgc.getGroupOrderForInputOne();
-			groupOrder2 = cgc.getGroupOrderForInputTwo();
+		CoGroupOperatorBase<?> cgc = getPactContract();
+		groupOrder1 = cgc.getGroupOrderForInputOne();
+		groupOrder2 = cgc.getGroupOrderForInputTwo();
 			
-			if (groupOrder1 != null && groupOrder1.getNumberOfFields() == 0) {
-				groupOrder1 = null;
-			}
-			if (groupOrder2 != null && groupOrder2.getNumberOfFields() == 0) {
-				groupOrder2 = null;
-			}
+		if (groupOrder1 != null && groupOrder1.getNumberOfFields() == 0) {
+			groupOrder1 = null;
+		}
+		if (groupOrder2 != null && groupOrder2.getNumberOfFields() == 0) {
+			groupOrder2 = null;
 		}
 		
 		List<OperatorDescriptorDual> l = new ArrayList<OperatorDescriptorDual>(1);

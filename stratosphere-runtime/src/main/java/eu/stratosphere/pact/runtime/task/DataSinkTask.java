@@ -52,7 +52,7 @@ import eu.stratosphere.util.MutableObjectIterator;
  */
 public class DataSinkTask<IT> extends AbstractOutputTask
 {
-	public static final String DEGREE_OF_PARALLELISM_KEY = "pact.sink.dop";
+	public static final String DEGREE_OF_PARALLELISM_KEY = "sink.dop";
 	
 	// Obtain DataSinkTask Logger
 	private static final Log LOG = LogFactory.getLog(DataSinkTask.class);
@@ -108,8 +108,8 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 	@Override
 	public void invoke() throws Exception
 	{
-		if (LOG.isInfoEnabled())
-			LOG.info(getLogString("Start PACT code"));
+		if (LOG.isDebugEnabled())
+			LOG.debug(getLogString("Starting data sink operator"));
 		
 		try {
 			
@@ -166,19 +166,8 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 			format.open(this.getEnvironment().getIndexInSubtaskGroup(), this.getEnvironment().getCurrentNumberOfSubtasks());
 
 			// work!
-			// special case the pact record / file variant
-			if (record.getClass() == Record.class && format instanceof eu.stratosphere.api.java.record.io.FileOutputFormat) {
-				@SuppressWarnings("unchecked")
-				final MutableObjectIterator<Record> pi = (MutableObjectIterator<Record>) input;
-				final Record pr = (Record) record;
-				final eu.stratosphere.api.java.record.io.FileOutputFormat pf = (eu.stratosphere.api.java.record.io.FileOutputFormat) format;
-				while (!this.taskCanceled && pi.next(pr)) {
-					pf.writeRecord(pr);
-				}
-			} else {
-				while (!this.taskCanceled && input.next(record)) {
-					format.writeRecord(record);
-				}
+			while (!this.taskCanceled && input.next(record)) {
+				format.writeRecord(record);
 			}
 			
 			// close. We close here such that a regular close throwing an exception marks a task as failed.
@@ -218,25 +207,18 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 		}
 
 		if (!this.taskCanceled) {
-			if (LOG.isDebugEnabled())
-				LOG.debug(getLogString("Finished producing output"));
-
-			if (LOG.isInfoEnabled())
-				LOG.info(getLogString("Finished PACT code"));
+			if (LOG.isDebugEnabled()) {
+				LOG.debug(getLogString("Finished data sink operator"));
+			}
 		}
 		else {
-			if (LOG.isWarnEnabled())
-				LOG.warn(getLogString("PACT code cancelled"));
+			if (LOG.isDebugEnabled())
+				LOG.debug(getLogString("Data sink operator cancelled"));
 		}
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.nephele.template.AbstractInvokable#cancel()
-	 */
 	@Override
-	public void cancel() throws Exception
-	{
+	public void cancel() throws Exception {
 		this.taskCanceled = true;
 		OutputFormat<IT> format = this.format;
 		if (format != null) {
@@ -245,8 +227,8 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 			} catch (Throwable t) {}
 		}
 		
-		if (LOG.isWarnEnabled())
-			LOG.warn(getLogString("Cancelling PACT code"));
+		if (LOG.isDebugEnabled())
+			LOG.debug(getLogString("Cancelling data sink operator"));
 	}
 	
 	/**
@@ -254,8 +236,7 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 	 * 
 	 * @param cl The class-loader to be used to load the user code.
 	 */
-	public void setUserCodeClassLoader(ClassLoader cl)
-	{
+	public void setUserCodeClassLoader(ClassLoader cl) {
 		this.userCodeClassLoader = cl;
 	}
 

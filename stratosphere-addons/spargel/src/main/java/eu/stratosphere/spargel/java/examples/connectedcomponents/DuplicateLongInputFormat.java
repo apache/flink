@@ -26,7 +26,7 @@ public class DuplicateLongInputFormat extends TextInputFormat {
 	private final LongValue l2 = new LongValue();
 	
 	@Override
-	public boolean readRecord(Record target, byte[] bytes, int offset, int numBytes) {
+	public Record readRecord(Record target, byte[] bytes, int offset, int numBytes) {
 		final long value = DecimalTextLongParser.parseField(bytes, offset, numBytes, (char) 0xffff);
 
 		this.l1.setValue(value);
@@ -34,6 +34,6 @@ public class DuplicateLongInputFormat extends TextInputFormat {
 		
 		target.setField(0, this.l1);
 		target.setField(1, this.l2);
-		return true;
+		return target;
 	}
 }

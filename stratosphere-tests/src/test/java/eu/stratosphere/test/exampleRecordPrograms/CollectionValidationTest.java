@@ -13,7 +13,8 @@
 
 package eu.stratosphere.test.exampleRecordPrograms;
 
-import eu.stratosphere.api.common.operators.CollectionDataSource;
+import eu.stratosphere.api.java.record.operators.CollectionDataSource;
+
 import org.junit.Assert;
 import org.junit.Test;
 

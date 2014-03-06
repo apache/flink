@@ -11,11 +11,6 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-/**
- * 
- * 
- * 
- */
 package eu.stratosphere.api.java.record.io;
 
 import java.io.DataInput;
@@ -30,11 +25,9 @@ import eu.stratosphere.core.io.StringRecord;
  * The ExternalProcessInputSplit contains all informations for {@link InputFormat} that read their data from external processes.
  * Each parallel instance of an InputFormat starts an external process and reads its output.
  * The command to start the external process must be executable on all nodes.
- *   
  * 
  * @see ExternalProcessInputFormat
  * @see ExternalProcessFixedLengthInputFormat
- *
  */
 public class ExternalProcessInputSplit extends GenericInputSplit {
 
@@ -45,43 +38,35 @@ public class ExternalProcessInputSplit extends GenericInputSplit {
 	public ExternalProcessInputSplit() { }
 	
 	/**
-	 * Instanciates an ExternalProcessInputSplit
+	 * Instantiates an ExternalProcessInputSplit
 	 * 
 	 * @param splitNumber The number of the input split
 	 * @param extProcCommand The command to be executed for the input split
 	 */
-	public ExternalProcessInputSplit(int splitNumber, String extProcCommand) {
-		super(splitNumber);
+	public ExternalProcessInputSplit(int splitNumber, int numSplits, String extProcCommand) {
+		super(splitNumber, numSplits);
 		this.extProcessCommand = extProcCommand;
 	}
 	
 	/**
 	 * Returns the command to be executed to derive the input for this split
 	 * 
-	 * @return the command to be exeucted to derive the input for this split
+	 * @return the command to be executed to derive the input for this split
 	 */
 	public String getExternalProcessCommand() {
 		return this.extProcessCommand;
 	}
 	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.IOReadableWritable#read(java.io.DataInput)
-	 */
+	
 	@Override
 	public void read(DataInput in) throws IOException {
-		super.number = in.readInt();
+		super.read(in);
 		this.extProcessCommand = StringRecord.readString(in);
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.IOReadableWritable#write(java.io.DataOutput)
-	 */
 	@Override
 	public void write(DataOutput out) throws IOException {
-		out.writeInt(super.number);
+		super.write(out);
 		StringRecord.writeString(out, this.extProcessCommand);
 	}
-
 }

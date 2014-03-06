@@ -105,6 +105,7 @@ object BinaryInputFormat {
           val output = readFunction.splice.apply(source)
           record.setNumFields(outputLength)
           serializer.serialize(output, record)
+          record
         }
       }
     }
@@ -203,15 +204,16 @@ object DelimitedInputFormat {
         
         setDelimiter((delim.splice.getOrElse("\n")));
 
-        override def readRecord(record: Record, source: Array[Byte], offset: Int, numBytes: Int): Boolean = {
+        override def readRecord(record: Record, source: Array[Byte], offset: Int, numBytes: Int): Record = {
           val output = readFunction.splice.apply(source, offset, numBytes)
 
           if (output != null) {
             record.setNumFields(outputLength)
             serializer.serialize(output, record)
+            record
+          } else {
+            null
           }
-
-          return output != null
         }
       }
       
@@ -283,7 +285,7 @@ object CsvInputFormat {
         override def getUDF = udf
         
         setDelimiter((recordDelim.splice.getOrElse("\n")))
-        setFieldDelim(fieldDelim.splice.getOrElse(','))
+        setFieldDelimiter(fieldDelim.splice.getOrElse(','))
         
         // there is a problem with the reification of Class[_ <: Value], so we work with Class[_] and convert it
         // in a function outside the reify block

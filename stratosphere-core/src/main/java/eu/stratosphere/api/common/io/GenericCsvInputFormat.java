@@ -20,7 +20,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
 
 import eu.stratosphere.core.fs.FileInputSplit;
-import eu.stratosphere.types.Value;
+import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.types.parser.FieldParser;
 import eu.stratosphere.util.InstantiationUtil;
 
@@ -29,8 +29,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 	
 	private static final long serialVersionUID = 1L;
 	
-	@SuppressWarnings("unchecked")
-	private static final Class<? extends Value>[] EMPTY_TYPES = new Class[0];
+	private static final Class<?>[] EMPTY_TYPES = new Class[0];
 	
 	private static final boolean[] EMPTY_INCLUDED = new boolean[0];
 	
@@ -42,14 +41,14 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 	//  They are all transient, because we do not want them so be serialized 
 	// --------------------------------------------------------------------------------------------
 
-	private transient FieldParser<Value>[] fieldParsers;
+	private transient FieldParser<Object>[] fieldParsers;
 	
 	
 	// --------------------------------------------------------------------------------------------
 	//  The configuration parameters. Configured on the instance and serialized to be shipped.
 	// --------------------------------------------------------------------------------------------
 	
-	private Class<? extends Value>[] fieldTypes = EMPTY_TYPES;
+	private Class<?>[] fieldTypes = EMPTY_TYPES;
 	
 	private boolean[] fieldIncluded = EMPTY_INCLUDED;
 		
@@ -64,109 +63,16 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 	//  Constructors and getters/setters for the configurable parameters
 	// --------------------------------------------------------------------------------------------
 	
-	public GenericCsvInputFormat() {
-		this(DEFAULT_FIELD_DELIMITER);
+	protected GenericCsvInputFormat() {
+		super();
 	}
 	
-	public GenericCsvInputFormat(char fieldDelimiter) {
-		setFieldDelim(fieldDelimiter);
-	}
-	
-	public GenericCsvInputFormat(Class<? extends Value> ... fields) {
-		this(DEFAULT_FIELD_DELIMITER, fields);
-	}
-	
-	public GenericCsvInputFormat(char fieldDelimiter, Class<? extends Value> ... fields) {
-		setFieldDelim(fieldDelimiter);
-		setFieldTypes(fields);
+	protected GenericCsvInputFormat(Path filePath) {
+		super(filePath);
 	}
 	
 	// --------------------------------------------------------------------------------------------
 
-	public Class<? extends Value>[] getFieldTypes() {
-		// check if we are dense, ie, we read all fields
-		if (this.fieldIncluded.length == this.fieldTypes.length) {
-			return this.fieldTypes;
-		}
-		else {
-			// sparse type array which we made dense for internal bookkeeping.
-			// create a sparse copy to return
-			@SuppressWarnings("unchecked")
-			Class<? extends Value>[] types = new Class[this.fieldIncluded.length];
-			
-			for (int i = 0, k = 0; i < this.fieldIncluded.length; i++) {
-				if (this.fieldIncluded[i]) {
-					types[i] = this.fieldTypes[k++];
-				}
-			}
-			
-			return types;
-		}
-	}
-	
-	public void setFieldTypesArray(Class<? extends Value>[] fieldTypes) {
-		setFieldTypes(fieldTypes);
-	}
-
-	public void setFieldTypes(Class<? extends Value> ... fieldTypes) {
-		if (fieldTypes == null)
-			throw new IllegalArgumentException("Field types must not be null.");
-		
-		this.fieldIncluded = new boolean[fieldTypes.length];
-		ArrayList<Class<? extends Value>> types = new ArrayList<Class<? extends Value>>();
-		
-		// check if we support parsers for these types
-		for (int i = 0; i < fieldTypes.length; i++) {
-			Class<? extends Value> type = fieldTypes[i];
-			
-			if (type != null) {
-				if (FieldParser.getParserForType(type) == null) {
-					throw new IllegalArgumentException("The type '" + type.getName() + "' is not supported for the CSV input format.");
-				}
-				types.add(type);
-				fieldIncluded[i] = true;
-			}
-		}
-		
-		@SuppressWarnings("unchecked")
-		Class<? extends Value>[] denseTypeArray = (Class<? extends Value>[]) types.toArray(new Class[types.size()]);
-		this.fieldTypes = denseTypeArray;
-	}
-
-	public void setFields(int[] sourceFieldIndices, Class<? extends Value>[] fieldTypes) {
-		Preconditions.checkNotNull(fieldTypes);
-		Preconditions.checkArgument(sourceFieldIndices.length == fieldTypes.length,
-			"Number of field indices and field types must match.");
-
-		for (int i : sourceFieldIndices) {
-			if (i < 0) {
-				throw new IllegalArgumentException("Field indices must not be smaller than zero.");
-			}
-		}
-
-		int largestFieldIndex = Ints.max(sourceFieldIndices);
-		this.fieldIncluded = new boolean[largestFieldIndex + 1];
-		ArrayList<Class<? extends Value>> types = new ArrayList<Class<? extends Value>>();
-
-		// check if we support parsers for these types
-		for (int i = 0; i < fieldTypes.length; i++) {
-			Class<? extends Value> type = fieldTypes[i];
-
-			if (type != null) {
-				if (FieldParser.getParserForType(type) == null) {
-					throw new IllegalArgumentException("The type '" + type.getName()
-						+ "' is not supported for the CSV input format.");
-				}
-				types.add(type);
-				fieldIncluded[sourceFieldIndices[i]] = true;
-			}
-		}
-
-		@SuppressWarnings("unchecked")
-		Class<? extends Value>[] denseTypeArray = (Class<? extends Value>[]) types.toArray(new Class[types.size()]);
-		this.fieldTypes = denseTypeArray;
-	}
-	
 	public int getNumberOfFieldsTotal() {
 		return this.fieldIncluded.length;
 	}
@@ -175,11 +81,11 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 		return this.fieldTypes.length;
 	}
 
-	public char getFieldDelim() {
+	public char getFieldDelimiter() {
 		return fieldDelim;
 	}
 
-	public void setFieldDelim(char fieldDelim) {
+	public void setFieldDelimiter(char fieldDelim) {
 		if (fieldDelim > Byte.MAX_VALUE)
 			throw new IllegalArgumentException("The field delimiter must be an ASCII character.");
 		
@@ -202,8 +108,89 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 		this.skipFirstLineAsHeader = skipFirstLine;
 	}
 	
-	protected FieldParser<Value>[] getFieldParsers() {
+	// --------------------------------------------------------------------------------------------
+	
+	protected FieldParser<?>[] getFieldParsers() {
 		return this.fieldParsers;
+	}
+	
+	protected Class<?>[] getGenericFieldTypes() {
+		// check if we are dense, i.e., we read all fields
+		if (this.fieldIncluded.length == this.fieldTypes.length) {
+			return this.fieldTypes;
+		}
+		else {
+			// sparse type array which we made dense for internal book keeping.
+			// create a sparse copy to return
+			Class<?>[] types = new Class<?>[this.fieldIncluded.length];
+			
+			for (int i = 0, k = 0; i < this.fieldIncluded.length; i++) {
+				if (this.fieldIncluded[i]) {
+					types[i] = this.fieldTypes[k++];
+				}
+			}
+			
+			return types;
+		}
+	}
+	
+	
+	protected void setFieldTypesGeneric(Class<?> ... fieldTypes) {
+		if (fieldTypes == null)
+			throw new IllegalArgumentException("Field types must not be null.");
+		
+		this.fieldIncluded = new boolean[fieldTypes.length];
+		ArrayList<Class<?>> types = new ArrayList<Class<?>>();
+		
+		// check if we support parsers for these types
+		for (int i = 0; i < fieldTypes.length; i++) {
+			Class<?> type = fieldTypes[i];
+			
+			if (type != null) {
+				if (FieldParser.getParserForType(type) == null) {
+					throw new IllegalArgumentException("The type '" + type.getName() + "' is not supported for the CSV input format.");
+				}
+				types.add(type);
+				fieldIncluded[i] = true;
+			}
+		}
+		
+		Class<?>[] denseTypeArray = (Class<?>[]) types.toArray(new Class[types.size()]);
+		this.fieldTypes = denseTypeArray;
+	}
+	
+	protected void setFieldsGeneric(int[] sourceFieldIndices, Class<?>[] fieldTypes) {
+		Preconditions.checkNotNull(sourceFieldIndices);
+		Preconditions.checkNotNull(fieldTypes);
+		Preconditions.checkArgument(sourceFieldIndices.length == fieldTypes.length,
+			"Number of field indices and field types must match.");
+
+		for (int i : sourceFieldIndices) {
+			if (i < 0) {
+				throw new IllegalArgumentException("Field indices must not be smaller than zero.");
+			}
+		}
+
+		int largestFieldIndex = Ints.max(sourceFieldIndices);
+		this.fieldIncluded = new boolean[largestFieldIndex + 1];
+		ArrayList<Class<?>> types = new ArrayList<Class<?>>();
+
+		// check if we support parsers for these types
+		for (int i = 0; i < fieldTypes.length; i++) {
+			Class<?> type = fieldTypes[i];
+
+			if (type != null) {
+				if (FieldParser.getParserForType(type) == null) {
+					throw new IllegalArgumentException("The type '" + type.getName()
+						+ "' is not supported for the CSV input format.");
+				}
+				types.add(type);
+				fieldIncluded[sourceFieldIndices[i]] = true;
+			}
+		}
+
+		Class<?>[] denseTypeArray = (Class<?>[]) types.toArray(new Class[types.size()]);
+		this.fieldTypes = denseTypeArray;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -216,7 +203,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 		
 		// instantiate the parsers
 		@SuppressWarnings("unchecked")
-		FieldParser<Value>[] parsers = new FieldParser[fieldTypes.length];
+		FieldParser<Object>[] parsers = new FieldParser[fieldTypes.length];
 		
 		for (int i = 0; i < fieldTypes.length; i++) {
 			if (fieldTypes[i] != null) {
@@ -225,8 +212,9 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 					throw new RuntimeException("No parser available for type '" + fieldTypes[i].getName() + "'.");
 				}
 				
+
 				@SuppressWarnings("unchecked")
-				FieldParser<Value> p = (FieldParser<Value>) InstantiationUtil.instantiate(parserType, FieldParser.class);
+				FieldParser<Object> p = (FieldParser<Object>) InstantiationUtil.instantiate(parserType, FieldParser.class);
 				parsers[i] = p;
 			}
 		}
@@ -238,7 +226,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 		}
 	}
 	
-	protected boolean parseRecord(Value[] valueHolders, byte[] bytes, int offset, int numBytes) throws ParseException {
+	protected boolean parseRecord(Object[] holders, byte[] bytes, int offset, int numBytes) throws ParseException {
 		
 		boolean[] fieldIncluded = this.fieldIncluded;
 		
@@ -258,10 +246,10 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 			
 			if (fieldIncluded[field]) {
 				// parse field
-				FieldParser<Value> parser = this.fieldParsers[output];
-				Value val = valueHolders[output];
-				
-				startPos = parser.parseField(bytes, startPos, limit, this.fieldDelim, val);
+				FieldParser<Object> parser = (FieldParser<Object>) this.fieldParsers[output];
+				Object reuse = holders[output];
+				startPos = parser.parseField(bytes, startPos, limit, this.fieldDelim, reuse);
+				holders[output] = parser.getLastResult();
 				
 				// check parse result
 				if (startPos < 0) {
@@ -276,41 +264,63 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 				output++;
 			}
 			else {
-				// skip field(s)
-				int skipCnt = 1;
-				while (!fieldIncluded[field + skipCnt]) {
-					skipCnt++;
-				}
-				startPos = skipFields(bytes, startPos, limit, fieldDelim, skipCnt);
-				if (startPos >= 0) {
-					field += (skipCnt - 1);
-				}
-				else if (lenient) {
-					// no valid line, but we do not report an exception, simply skip the line
-					return false;
-				}
-				else {
-					String lineAsString = new String(bytes, offset, numBytes);
-					throw new ParseException("Line could not be parsed: " + lineAsString);
+				// skip field
+				startPos = skipFields(bytes, startPos, limit, fieldDelim);
+				if (startPos < 0) {
+					if (!lenient) {
+						String lineAsString = new String(bytes, offset, numBytes);
+						throw new ParseException("Line could not be parsed: " + lineAsString);
+					}
 				}
 			}
 		}
 		return true;
 	}
 	
-	protected int skipFields(byte[] bytes, int startPos, int limit, char delim, int skipCnt) {
+	protected int skipFields(byte[] bytes, int startPos, int limit, char delim) {
 		int i = startPos;
 		
-		while (i < limit && skipCnt > 0) {
-			if (bytes[i] == delim) {
-				skipCnt--;
-			}
+		final byte delByte = (byte) delim;
+		byte current;
+		
+		// skip over initial whitespace lines
+		while (i < limit && ((current = bytes[i]) == ' ' || current == '\t')) {
 			i++;
 		}
-		if (skipCnt == 0) {
-			return i;
-		} else {
-			return -1;
+		
+		// first none whitespace character
+		if (i < limit && bytes[i] == '"') {
+			// quoted string
+			i++; // the quote
+			
+			while (i < limit && bytes[i] != '"') {
+				i++;
+			}
+			
+			if (i < limit) {
+				// end of the quoted field
+				i++; // the quote
+				
+				// skip trailing whitespace characters 
+				while (i < limit && (current = bytes[i]) != delByte) {
+					if (current == ' ' || current == '\t')
+						i++;
+					else
+						return -1;	// illegal case of non-whitespace characters trailing
+				}
+				
+				return (i == limit ? limit : i+1);
+			} else {
+				// exited due to line end without quote termination
+				return -1;
+			}
+		}
+		else {
+			// unquoted field
+			while (i < limit && bytes[i] != delByte) {
+				i++;
+			}
+			return (i == limit ? limit : i+1);
 		}
 	}
 }

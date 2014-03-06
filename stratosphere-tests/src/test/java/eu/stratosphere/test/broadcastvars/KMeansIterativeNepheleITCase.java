@@ -40,10 +40,10 @@ import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparatorFactory;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializerFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
-import eu.stratosphere.pact.runtime.task.MapDriver;
+import eu.stratosphere.pact.runtime.task.CollectorMapDriver;
 import eu.stratosphere.pact.runtime.task.NoOpDriver;
 import eu.stratosphere.pact.runtime.task.ReduceDriver;
-import eu.stratosphere.pact.runtime.task.chaining.ChainedMapDriver;
+import eu.stratosphere.pact.runtime.task.chaining.ChainedCollectorMapDriver;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.test.iterative.nephele.JobGraphUtils;
@@ -100,12 +100,12 @@ public class KMeansIterativeNepheleITCase extends TestBase2 {
 			taskConfig.setOutputSerializer(serializer);
 			
 			TaskConfig chainedMapper = new TaskConfig(new Configuration());
-			chainedMapper.setDriverStrategy(DriverStrategy.MAP);
+			chainedMapper.setDriverStrategy(DriverStrategy.COLLECTOR_MAP);
 			chainedMapper.setStubWrapper(new UserCodeObjectWrapper<PointBuilder>(new PointBuilder()));
 			chainedMapper.addOutputShipStrategy(ShipStrategyType.FORWARD);
 			chainedMapper.setOutputSerializer(serializer);
 			
-			taskConfig.addChainedTask(ChainedMapDriver.class, chainedMapper, "Build points");
+			taskConfig.addChainedTask(ChainedCollectorMapDriver.class, chainedMapper, "Build points");
 		}
 
 		return pointsInput;
@@ -122,12 +122,12 @@ public class KMeansIterativeNepheleITCase extends TestBase2 {
 			taskConfig.setOutputSerializer(serializer);
 
 			TaskConfig chainedMapper = new TaskConfig(new Configuration());
-			chainedMapper.setDriverStrategy(DriverStrategy.MAP);
+			chainedMapper.setDriverStrategy(DriverStrategy.COLLECTOR_MAP);
 			chainedMapper.setStubWrapper(new UserCodeObjectWrapper<PointBuilder>(new PointBuilder()));
 			chainedMapper.addOutputShipStrategy(ShipStrategyType.FORWARD);
 			chainedMapper.setOutputSerializer(serializer);
 			
-			taskConfig.addChainedTask(ChainedMapDriver.class, chainedMapper, "Build centers");
+			taskConfig.addChainedTask(ChainedCollectorMapDriver.class, chainedMapper, "Build centers");
 		}
 
 		return modelsInput;
@@ -195,8 +195,8 @@ public class KMeansIterativeNepheleITCase extends TestBase2 {
 		TaskConfig intermediateConfig = new TaskConfig(mapper.getConfiguration());
 		intermediateConfig.setIterationId(ITERATION_ID);
 		
-		intermediateConfig.setDriver(MapDriver.class);
-		intermediateConfig.setDriverStrategy(DriverStrategy.MAP);
+		intermediateConfig.setDriver(CollectorMapDriver.class);
+		intermediateConfig.setDriverStrategy(DriverStrategy.COLLECTOR_MAP);
 		intermediateConfig.addInputToGroup(0);
 		intermediateConfig.setInputSerializer(inputSerializer, 0);
 		

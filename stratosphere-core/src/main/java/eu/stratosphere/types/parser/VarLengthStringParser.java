@@ -29,9 +29,12 @@ public class VarLengthStringParser extends FieldParser<StringValue> {
 	
 	private static final byte QUOTE_DOUBLE = (byte) '"';
 	
+	private StringValue result;
 	
 	@Override
-	public int parseField(byte[] bytes, int startPos, int length, char delim, StringValue field) {
+	public int parseField(byte[] bytes, int startPos, int length, char delim, StringValue reusable) {
+		
+		this.result = reusable;
 		
 		int i = startPos;
 		
@@ -56,21 +59,25 @@ public class VarLengthStringParser extends FieldParser<StringValue> {
 			
 			if (i < length) {
 				// end of the string
-				field.setValueAscii(bytes, quoteStart, i-quoteStart);
+				reusable.setValueAscii(bytes, quoteStart, i-quoteStart);
 				
 				i++; // the quote
 				
 				// skip trailing whitespace characters 
 				while (i < length && (current = bytes[i]) != delByte) {
-					if (current == WHITESPACE_SPACE || current == WHITESPACE_TAB)
+					if (current == WHITESPACE_SPACE || current == WHITESPACE_TAB) {
 						i++;
-					else
+					}
+					else {
+						setErrorState(ParseErrorState.UNQUOTED_CHARS_AFTER_QUOTED_STRING);
 						return -1;	// illegal case of non-whitespace characters trailing
+					}
 				}
 				
 				return (i == length ? length : i+1);
 			} else {
 				// exited due to line end without quote termination
+				setErrorState(ParseErrorState.UNTERMINATED_QUOTED_STRING);
 				return -1;
 			}
 		}
@@ -81,7 +88,7 @@ public class VarLengthStringParser extends FieldParser<StringValue> {
 			}
 			
 			// set from the beginning. unquoted strings include the leading whitespaces
-			field.setValueAscii(bytes, startPos, i-startPos);
+			reusable.setValueAscii(bytes, startPos, i-startPos);
 			return (i == length ? length : i+1);
 		}
 	}
@@ -89,5 +96,10 @@ public class VarLengthStringParser extends FieldParser<StringValue> {
 	@Override
 	public StringValue createValue() {
 		return new StringValue();
+	}
+
+	@Override
+	public StringValue getLastResult() {
+		return this.result;
 	}
 }

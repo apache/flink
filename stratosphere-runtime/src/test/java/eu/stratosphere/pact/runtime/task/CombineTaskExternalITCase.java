@@ -20,7 +20,7 @@ import junit.framework.Assert;
 
 import org.junit.Test;
 
-import eu.stratosphere.api.common.functions.GenericReducer;
+import eu.stratosphere.api.common.functions.GenericGroupReduce;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparator;
 import eu.stratosphere.pact.runtime.task.CombineTaskTest.MockCombiningReduceStub;
 import eu.stratosphere.pact.runtime.test.util.DriverTestBase;
@@ -30,7 +30,7 @@ import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.Record;
 
 
-public class CombineTaskExternalITCase extends DriverTestBase<GenericReducer<Record, ?>>
+public class CombineTaskExternalITCase extends DriverTestBase<GenericGroupReduce<Record, ?>>
 {
 	private static final long COMBINE_MEM = 3 * 1024 * 1024;
 	

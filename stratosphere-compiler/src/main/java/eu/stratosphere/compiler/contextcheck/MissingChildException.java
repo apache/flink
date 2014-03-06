@@ -13,9 +13,9 @@
 
 package eu.stratosphere.compiler.contextcheck;
 
-import eu.stratosphere.api.common.InvalidJobException;
+import eu.stratosphere.api.common.InvalidProgramException;
 
-public class MissingChildException extends InvalidJobException {
+public class MissingChildException extends InvalidProgramException {
 	
 	private static final long serialVersionUID = 4206417538759568484L;
 	

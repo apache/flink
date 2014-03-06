@@ -25,8 +25,13 @@ public class GenericInputSplit implements InputSplit {
 	/**
 	 * The number of this split.
 	 */
-	protected int number;
+	protected int partitionNumber;
 
+	/**
+	 * The total number of partitions
+	 */
+	protected int totalNumberOfPartitions;
+	
 	// --------------------------------------------------------------------------------------------
 
 	/**
@@ -40,28 +45,35 @@ public class GenericInputSplit implements InputSplit {
 	 * @param number
 	 *        the number of the split
 	 */
-	public GenericInputSplit(final int number) {
-		this.number = number;
+	public GenericInputSplit(int partitionNumber, int totalNumberOfPartitions) {
+		this.partitionNumber = partitionNumber;
+		this.totalNumberOfPartitions = totalNumberOfPartitions;
 	}
 
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public void write(final DataOutput out) throws IOException {
-		out.writeInt(this.number);
+	public void write(DataOutput out) throws IOException {
+		out.writeInt(this.partitionNumber);
+		out.writeInt(this.totalNumberOfPartitions);
 	}
 
 	@Override
 	public void read(final DataInput in) throws IOException {
-		this.number = in.readInt();
+		this.partitionNumber = in.readInt();
+		this.totalNumberOfPartitions = in.readInt();
 	}
 
 	@Override
 	public int getSplitNumber() {
-		return this.number;
+		return this.partitionNumber;
+	}
+	
+	public int getTotalNumberOfSplits() {
+		return this.totalNumberOfPartitions;
 	}
 
 	public String toString() {
-		return "[" + this.number + "]";
+		return "GenericSplit (" + this.partitionNumber + "/" + this.totalNumberOfPartitions + ")";
 	}
 }

@@ -137,7 +137,7 @@ public class AvroWithEmptyArrayITCase extends TestBase2 {
 		}
 
 		@Override
-		public boolean nextRecord(Record record) throws IOException {
+		public Record nextRecord(Record record) throws IOException {
 			touched = true;
 			record.setField(0, new LongValue(26382648));
 
@@ -161,7 +161,7 @@ public class AvroWithEmptyArrayITCase extends TestBase2 {
 				record.setField(1, new SBookAuthorValue(a));
 			}
 
-			return true;
+			return record;
 		}
 	}
 

@@ -31,7 +31,7 @@ public class CrossWithSmallOperator extends CrossOperator implements CrossWithSm
 	/**
 	 * Creates a Builder with the provided {@link CrossFunction} implementation.
 	 * 
-	 * @param udf The {@link CrossFunction} implementation for this Cross contract.
+	 * @param udf The {@link CrossFunction} implementation for this Cross operator.
 	 */
 	public static Builder builder(CrossFunction udf) {
 		return new Builder(new UserCodeObjectWrapper<CrossFunction>(udf));
@@ -40,7 +40,7 @@ public class CrossWithSmallOperator extends CrossOperator implements CrossWithSm
 	/**
 	 * Creates a Builder with the provided {@link CrossFunction} implementation.
 	 * 
-	 * @param udf The {@link CrossFunction} implementation for this Cross contract.
+	 * @param udf The {@link CrossFunction} implementation for this Cross operator.
 	 */
 	public static Builder builder(Class<? extends CrossFunction> udf) {
 		return new Builder(new UserCodeClassWrapper<CrossFunction>(udf));
@@ -64,7 +64,7 @@ public class CrossWithSmallOperator extends CrossOperator implements CrossWithSm
 		/**
 		 * Creates a Builder with the provided {@link CrossFunction} implementation.
 		 * 
-		 * @param udf The {@link CrossFunction} implementation for this Cross contract.
+		 * @param udf The {@link CrossFunction} implementation for this Cross operator.
 		 */
 		private Builder(UserCodeWrapper<CrossFunction> udf) {
 			super(udf);
@@ -74,7 +74,7 @@ public class CrossWithSmallOperator extends CrossOperator implements CrossWithSm
 		 * Creates and returns a CrossOperator from using the values given 
 		 * to the builder.
 		 * 
-		 * @return The created contract
+		 * @return The created operator
 		 */
 		@Override
 		public CrossWithSmallOperator build() {
