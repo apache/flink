@@ -42,46 +42,45 @@ function pollArchive() {
 	});
 };
 
-$("#stack").live("click", function() {
+$(document).on("click", "#stack", function() {
 	analyzeTime(jsonGlobal, true);
 });
 
-$("#flow").live("click", function() {
+$(document).on("click", "#flow", function() {
 	analyzeTime(jsonGlobal, false);
 });
 
 function analyzeTime(json, stacked) {
-
 	$.each(json, function(i, job) {
 		$("#job_timeline").html("");
 		$("#time").html(formattedTimeFromTimestamp(job.SCHEDULED));
 		$("#run").html(convertTime(job[job.status] - job.SCHEDULED));
 		$("#status").html(job.status);
 		$("#jobtitle").html(job.jobname);
-
+		
 		//create failed table
 		if (job.status == "FAILED") {
-			failed = "<ul>";
+			failed = "";
 			$.each(job.failednodes, function(j, failednode) {
 				failed += "<li>" + failednode.node + "</li>";
 			});
-			failed += "</ul>";
-
-			$("#page-content").append("<div class=\"contentbox\"><h3 class=\"contentbox-header\"><span>Failed Nodes</span>" +
-									 "</h3><div id=\"failednodes\" class=\"contentbox-wrapper\">" +
+			$("#page-wrapper").append("<div class=\"panel panel-primary\"><div class=\"panel-heading\"><h3 class=\"panel-title\">Failed Nodes" +
+									 "</h3></div><div id=\"failednodes\" class=\"panel-body\">" +
 									 failed +
 									 "</div></div>");
+
 		}
 		// create accumulators table
 		if($.isArray(job.accumulators)  && job.accumulators.length > 0) {
-			accuTable = "<table><tr><td><b>Name</b></td><td><b>Value</b></td></tr>";
+			accuTable = "<div class=\"table-responsive\">" +
+					"<table class=\"table table-bordered table-hover table-striped\">" +
+					"<tr><td><b>Name</b></td><td><b>Value</b></td></tr>";
 			$.each(job.accumulators, function(i, accu) {
 				accuTable += "<tr><td>"+accu.name+"</td><td>"+accu.value+"</td></tr>";
 			});
-			accuTable += "</table>";
+			accuTable += "</table></div>";
 			$("#accumulators").html(accuTable);
 		}
-
 
 		var data = new google.visualization.DataTable();
 		data.addColumn('datetime', 'start');

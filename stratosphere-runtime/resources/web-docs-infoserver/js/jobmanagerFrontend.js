@@ -69,16 +69,14 @@ function poll(jobId) {
 	    success : function(json) {
 		$("#stat-taskmanagers").html(json.taskmanagers);
 	    }, dataType : "json",
-	//complete: setTimeout(function() {poll()}, 5000),
-	//timeout: 2000
 	});
 })();
 
 /*
  * Toggle ExecutionVectors
  */
-$(".opensub").live("click", function() {
-	var id = $(this).attr("open");
+$(document).on("click", ".opensub", function() {
+	var id = $(this).data("open");
 	$("#" + id).toggle();
 	drawDependencies();
 });
@@ -86,7 +84,7 @@ $(".opensub").live("click", function() {
 /**
  * Cancels a job
  */
-$(".cancel").live("click", function() {
+$(document).on("click", ".cancel", function() {
 	var id = $(this).attr("job");
 	$.ajax({ url : "jobsInfo?get=cancel&job=" + id, cache: false, type : "GET",
 	    success : function(json) {
@@ -144,6 +142,7 @@ function fillTable(table, json) {
 	$(table).html("");
 
 	$.each(json, function(i, job) {
+		$("#rJpH").hide();
 		var countGroups = 0;
 		var countTasks = 0;
 		var countStarting = 0;
@@ -157,11 +156,12 @@ function fillTable(table, json) {
 			timestamp = parseInt(job.time);
 		$(table).append(
 						"<h2 id=\""+job.jobid+"_title\">"+ job.jobname
-								+ " (time: "+ formattedTimeFromTimestamp(job.time) + ")"
+								+ " ("+ formattedTimeFromTimestamp(job.time) + ")"
 								+"</h2>"
-								+"<a id=\""+job.jobid+"_cancel\" class=\"cancel btn\" href=\"#\" job=\""+job.jobid+"\">cancel</a><br />");
+								+"<a id=\""+job.jobid+"_cancel\" class=\"cancel btn btn-warning\" href=\"#\" job=\""+job.jobid+"\" style=\"margin-bottom: 0.5cm\">cancel</a><br />");
 		var jobtable;
-		jobtable = "<table id=\""+job.jobid+"\" jobname=\""+job.jobname+"\">\
+		jobtable = "<div class=\"table-responsive\">";
+		jobtable += "<table class=\"table table-bordered table-hover table-striped\" id=\""+job.jobid+"\" jobname=\""+job.jobname+"\">\
 						<tr>\
 							<th>Name</th>\
 							<th>Tasks</th>\
@@ -183,31 +183,20 @@ function fillTable(table, json) {
 			countFailed += groupvertex.FAILED;
 			jobtable += "<tr>\
 							<td id=\""+groupvertex.groupvertexid+"\">\
-								<span class=\"opensub\" open=\"_"+groupvertex.groupvertexid+"\">"
+								<span class=\"opensub\" data-open=\"_"+groupvertex.groupvertexid+"\">"
 									+ groupvertex.groupvertexname
 								+ "</span>\
 							</td>\
-							<td class=\"nummembers\">"+ groupvertex.numberofgroupmembers+ "</td>\
-							<td class=\"starting\" val=\""+starting+"\"><div class=\"progressBar\"><div class=\"progressBarInner\" style=\"width:"
-							+ (starting / groupvertex.numberofgroupmembers) * widthProgressbar + "px\">"
-							+ starting
-							+ "</div></div></td>\
-							<td class=\"running\" val=\""+groupvertex.RUNNING+"\"><div class=\"progressBar\"><div class=\"progressBarInner\" style=\"width:"+ (groupvertex.RUNNING / groupvertex.numberofgroupmembers) * widthProgressbar + "px\">"
-							+ groupvertex.RUNNING
-							+ "</div></div></td>\
-							<td class=\"finished\" val=\""+(groupvertex.FINISHING + groupvertex.FINISHED)+"\"><div class=\"progressBar\"><div class=\"progressBarInner\" style=\"width:" + ((groupvertex.FINISHING + groupvertex.FINISHED) / groupvertex.numberofgroupmembers) * widthProgressbar + "px\">"
-							+ (groupvertex.FINISHING + groupvertex.FINISHED)
-							+ "</div></div></td>\
-							<td class=\"canceled\" val=\""+(groupvertex.CANCELING + groupvertex.CANCELED)+"\"><div class=\"progressBar\"><div class=\"progressBarInner\" style=\"width:" + ((groupvertex.CANCELING + groupvertex.CANCELED) / groupvertex.numberofgroupmembers) * widthProgressbar + "px\">"
-							+ (groupvertex.CANCELING + groupvertex.CANCELED)
-							+ "</div></div></td>\
-							<td class=\"failed\" val=\""+groupvertex.FAILED+"\"><div class=\"progressBar\"><div class=\"progressBarInner\" style=\"width:"
-							+ (groupvertex.FAILED / groupvertex.numberofgroupmembers) * widthProgressbar + "px\">"
-							+ groupvertex.FAILED
-							+ "</div></div></td>\
-						</tr><tr>\
+							<td class=\"nummembers\">"+ groupvertex.numberofgroupmembers+ "</td>";
+			jobtable += progressBar(groupvertex.numberofgroupmembers, starting, 'starting');
+			jobtable += progressBar(groupvertex.numberofgroupmembers, groupvertex.RUNNING, 'running');
+			jobtable += progressBar(groupvertex.numberofgroupmembers, (groupvertex.FINISHING + groupvertex.FINISHED), 'success finished');
+			jobtable += progressBar(groupvertex.numberofgroupmembers, (groupvertex.CANCELING + groupvertex.CANCELED), 'warning canceled');
+			jobtable += progressBar(groupvertex.numberofgroupmembers, groupvertex.FAILED, 'danger failed');
+			jobtable +=	"</tr><tr>\
 						<td colspan=8 id=\"_"+groupvertex.groupvertexid+"\" style=\"display:none\">\
-							<table class=\"subtable\">\
+								<div class =\"table-responsive\">\
+								<table class=\"table table-bordered table-hover table-striped tablesorter\">\
 							  	<tr>\
 							  		<th>Name</th>\
 							  		<th>status</th>\
@@ -222,31 +211,21 @@ function fillTable(table, json) {
        								<td>"+ vertex.vertexinstancetype + "</td>\
        							</tr>";
 							});
-							jobtable += "</table>\
+							jobtable += "</table></div>\
 						</td></tr>";
-						});
+		});
 
 		jobtable += "<tr id=\"sum\">\
 						<td colspan=\"2\" align=\"center\">Sum</td>\
-						<td class=\"nummebembers\">"+ countTasks + "</td>\
-						<td class=\"starting\" val=\""+countStarting+"\"><div class=\"progressBar\"><div style=\"width:" + (countStarting / countTasks) * widthProgressbar + "px\">" 
-							+ countStarting
-						+ "</div></div></td>\
-						<td class=\"running\"  val=\""+countRunning+"\"><div class=\"progressBar\"><div style=\"width:" + (countRunning / countTasks) * widthProgressbar + "px\">"
-							+ countRunning
-						+ "</div></div></td>\
-						<td class=\"finished\"  val=\""+countFinished+"\"><div class=\"progressBar\"><div style=\"width:"+ (countFinished / countTasks) * widthProgressbar + "px\">"
-							+ countFinished
-						+ "</div></div></td>\
-						<td class=\"canceled\"  val=\""+countCanceled+"\"><div class=\"progressBar\"><div style=\"width:"+ (countCanceled / countTasks) * widthProgressbar + "px\">"
-							+ countCanceled
-						+ "</div></div></td>\
-						<td class=\"failed\"  val=\""+countFailed+"\"><div class=\"progressBar\"><div style=\"width:" + (countFailed / countTasks) * widthProgressbar + "px\">"
-							+ countFailed
-						+ "</div></div></td>\
-					</tr>";
+						<td class=\"nummebembers\">"+ countTasks + "</td>";
+		jobtable += progressBar(countTasks, countStarting, 'starting');
+		jobtable += progressBar(countTasks, countRunning, 'running');
+		jobtable += progressBar(countTasks, countFinished, 'success finished');
+		jobtable += progressBar(countTasks, countCanceled, 'warning canceled');
+		jobtable += progressBar(countTasks, countFailed, 'danger failed');
+		jobtable += "</tr>";
 
-		jobtable += "</table>"
+		jobtable += "</table></div>"
 		$(table).append(jobtable);
 		$("#" + job.jobid).prepend(
 						"<tr><td width=\"100\" rowspan=" + (countGroups * 2 + 2)+ " style=\"overflow:hidden\">\
@@ -256,6 +235,44 @@ function fillTable(table, json) {
 	drawDependencies(json);
 
 }
+
+/*
+ * Generates the progress bars
+ */
+function progressBar(maximum, input, classVal) {
+	if (input != 0) {
+		return "<td class=\""+classVal+"\" val=\""+input+"\"><div class=\"progress\"><div class=\"progress-bar progress-bar-success\" role=\"progressbar\""
+		 			+ "aria-valuemin=\"0\" aria-valuemax=\""+widthProgressbar+"\" style=\"width:"
+					+ (input / maximum)*100+"%;\">"
+					+ input
+					+ "</div></div></td>";
+	} else {
+		return "<td class=\""+classVal+"\" val=\""+input+"\">"+input+"</td>";
+	}
+}
+
+
+/*
+ * Generates the progress bar without the class val
+ */
+ 
+function progressBar2(maximum, input) {
+	if (input != 0) {
+		return "<div class=\"progress\"><div class=\"progress-bar progress-bar-success\" role=\"progressbar\""
+		 			+ "aria-valuemin=\"0\" aria-valuemax=\""+widthProgressbar+"\" style=\"width:"
+					+ (input / maximum)*100+"%;\">"
+					+ input
+					+ "</div></div>";
+	}
+}
+
+/*
+ * Returns the new width for a progress bar
+ */
+function newWidth(maximum, val) {
+	return (val / maximum)*100;	
+}
+	
 
 /*
  * Updates the global running job table with newest events
@@ -288,39 +305,59 @@ function updateTable(json) {
 			// update timestamp
 			$("#"+event.vertexid).attr("lastupdate", event.timestamp);
 			
-			var nummembers = parseInt($("#"+event.vertexid).parent().parent().parent().parent().prev().children(".nummembers").html());
+			var nummembers = parseInt($("#"+event.vertexid).parent().parent().parent().parent().parent().prev().children(".nummembers").html());
 			var summembers = parseInt($("#sum").children(".nummebembers").html());
 			
 
 			if(oldstatus.toLowerCase() != newstate.toLowerCase()) {
 			
 				// adjust groupvertex
-				var oldcount = parseInt($("#"+event.vertexid).parent().parent().parent().parent().prev().children("."+oldstatus.toLowerCase()).attr("val"));
-				var oldcount2 = parseInt($("#"+event.vertexid).parent().parent().parent().parent().prev().children("."+newstate.toLowerCase()).attr("val"));
-				$("#"+event.vertexid).parent().parent().parent().parent().prev().children("."+oldstatus.toLowerCase()).attr("val", oldcount-1);
-				$("#"+event.vertexid).parent().parent().parent().parent().prev().children("."+newstate.toLowerCase()).attr("val", oldcount2+1);
+				var oldcount = parseInt($("#"+event.vertexid).parent().parent().parent().parent().parent().prev().children("."+oldstatus.toLowerCase()).attr("val"));
+				var oldcount2 = parseInt($("#"+event.vertexid).parent().parent().parent().parent().parent().prev().children("."+newstate.toLowerCase()).attr("val"));
+				$("#"+event.vertexid).parent().parent().parent().parent().parent().prev().children("."+oldstatus.toLowerCase()).attr("val", oldcount-1);
+				$("#"+event.vertexid).parent().parent().parent().parent().parent().prev().children("."+newstate.toLowerCase()).attr("val", oldcount2+1);
 				
-				// adjust progressbars
-				$("#"+event.vertexid).parent().parent().parent().parent().prev().children("."+oldstatus.toLowerCase()).first().children().first().children().first().css("width", ((oldcount-1) / nummembers * widthProgressbar)+"px").html(oldcount-1);
-				$("#"+event.vertexid).parent().parent().parent().parent().prev().children("."+newstate.toLowerCase()).first().children().first().children().first().css("width", ((oldcount2+1) / nummembers * widthProgressbar)+"px").html(oldcount2+1);
+				//adjust progressbars nummembers
+				if (oldcount == 1) {
+					$("#"+event.vertexid).parent().parent().parent().parent().parent().prev().children("."+oldstatus.toLowerCase()).children().first().remove();
+					$("#"+event.vertexid).parent().parent().parent().parent().parent().prev().children("."+oldstatus.toLowerCase()).html("0");
+					
+				} else if (oldcount > 1) {
+					$("#"+event.vertexid).parent().parent().parent().parent().parent().prev().children("."+oldstatus.toLowerCase()).first().children().first().children().first().css("width", newWidth(nummembers, (oldcount-1))+"%").html(oldcount-1);
+				}
 				
-				
+				if (oldcount2 == 0) {
+					$("#"+event.vertexid).parent().parent().parent().parent().parent().prev().children("."+newstate.toLowerCase()).html(progressBar2(nummembers, 1, newstate.toLowerCase()));
+				} else if (oldcount2 > 0) {
+					$("#"+event.vertexid).parent().parent().parent().parent().parent().prev().children("."+newstate.toLowerCase()).first().children().first().children().first().css("width", newWidth(nummembers, (oldcount2+1))+"%").html(oldcount2+1);
+				}			
 				// adjust sum
 				oldcount = parseInt($("#sum").children("."+oldstatus.toLowerCase()).attr("val"));
 				oldcount2 = parseInt($("#sum").children("."+newstate.toLowerCase()).attr("val"));
 				$("#sum").children("."+oldstatus.toLowerCase()).attr("val", oldcount-1);
 				$("#sum").children("."+newstate.toLowerCase()).attr("val", oldcount2+1);
-
-				// adjust progressbars
-				$("#sum").children("."+oldstatus.toLowerCase()).first().children().first().children().first().css("width", ((oldcount-1) / summembers * widthProgressbar)+"px").html(oldcount-1);
-				$("#sum").children("."+newstate.toLowerCase()).first().children().first().children().first().css("width", ((oldcount2+1) / summembers * widthProgressbar)+"px").html(oldcount2+1);
 				
+				//adjust progressbars summembers
+				if (oldcount == 1) {
+					$("#sum").children("."+oldstatus.toLowerCase()).children().first().remove();
+					$("#sum").children("."+oldstatus.toLowerCase()).html("0");
+				} else if (oldcount > 1) {
+					$("#sum").children("."+oldstatus.toLowerCase()).first().children().first().children().first().css("width", newWidth(summembers, (oldcount-1))+"%").html(oldcount-1);
+				}
+				
+				if (oldcount2 == 0) {
+					$("#sum").children("."+newstate.toLowerCase()).first().html(progressBar2(summembers, 1, newstate.toLowerCase()));
+				} else if (oldcount2 > 0) {
+					$("#sum").children("."+newstate.toLowerCase()).first().children().first().children().first().css("width", newWidth(summembers, (oldcount2+1))+"%").html(oldcount2+1);
+				}
 		}
 		}
 	});
 	
 	// handle jobevents
 	$.each(json.jobevents , function(i, event) {
+		console.log(event.newstate);
+		
 		if(event.newstate == "FINISHED" || event.newstate == "FAILED" || event.newstate == "CANCELED") {
 			// stop polling
 			pollfinished = true;
@@ -338,6 +375,11 @@ function updateTable(json) {
 			        break;
 			    }
 			}
+			
+			//display message if all jobs are done
+			if(recentjobs.length == 0) {
+				$("#rJpH").show();
+			}
 
 			// add to history
 			setTimeout(function() {
@@ -350,7 +392,7 @@ function updateTable(json) {
 			}, 8000);
 		}
 	});
-
+	
 	if(!pollfinished)
 		 setTimeout(function() {poll(json.jobid)}, 2000);
 	else if(recentjobs.length == 0) {
@@ -391,13 +433,13 @@ function _fillTableArchive(table, job, prepend) {
 	if(prepend)
 		$(table).prepend(
 				"<li id=\""+job.jobid+"_archive\"><a href=\"analyze.html?job=" + job.jobid + "\">"
-						+ job.jobname + " (time: "
+						+ job.jobname + " ("
 						+ formattedTimeFromTimestamp(parseInt(job.time))
 						+ ")</a></li>");
 	else
 		$(table).append(
 				"<li><a href=\"analyze.html?job=" + job.jobid + "\">"
-						+ job.jobname + " (time: "
+						+ job.jobname + " ("
 						+ formattedTimeFromTimestamp(parseInt(job.time))
 						+ ")</a></li>");
 	if (job.status == "FINISHED")
