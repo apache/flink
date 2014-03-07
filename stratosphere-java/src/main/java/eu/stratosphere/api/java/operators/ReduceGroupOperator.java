@@ -14,6 +14,8 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.operators;
 
+import eu.stratosphere.api.common.operators.Order;
+import eu.stratosphere.api.common.operators.Ordering;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.functions.GroupReduceFunction;
 import eu.stratosphere.api.java.operators.translation.KeyExtractingMapper;
@@ -85,16 +87,31 @@ public class ReduceGroupOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 		
 		
 		if (grouper.getKeys() instanceof Keys.SelectorFunctionKeys) {
-			
+		
 			@SuppressWarnings("unchecked")
 			Keys.SelectorFunctionKeys<IN, ?> selectorKeys = (Keys.SelectorFunctionKeys<IN, ?>) grouper.getKeys();
 			
 			return translateSelectorFunctionReducer(selectorKeys, function, getInputType(),getResultType(), name);
 		}
 		else if (grouper.getKeys() instanceof Keys.FieldPositionKeys) {
-			int[] logicalKeyPositions = grouper.getKeys().computeLogicalKeyPositions();
 
-			return new UnaryNodeTranslation(new PlanGroupReduceOperator<IN, OUT>(function, logicalKeyPositions, name, getInputType(), getResultType()));
+			int[] logicalKeyPositions = grouper.getKeys().computeLogicalKeyPositions();
+			PlanGroupReduceOperator<IN, OUT> reduceOp = new PlanGroupReduceOperator<IN, OUT>(function, logicalKeyPositions, name, getInputType(), getResultType());
+			
+			// set group order
+			if(grouper.getGroupSortKeyPositions() != null) {
+								
+				int[] sortKeyPositions = grouper.getGroupSortKeyPositions();
+				Order[] sortOrders = grouper.getGroupSortOrders();
+				
+				Ordering o = new Ordering();
+				for(int i=0; i < sortKeyPositions.length; i++) {
+					o.appendOrdering(sortKeyPositions[i], null, sortOrders[i]);
+				}
+				reduceOp.setGroupOrder(o);
+			}
+			
+			return new UnaryNodeTranslation(reduceOp);
 		}
 		else {
 			throw new UnsupportedOperationException("Unrecognized key type.");

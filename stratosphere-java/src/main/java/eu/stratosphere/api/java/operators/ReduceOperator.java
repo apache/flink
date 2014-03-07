@@ -14,6 +14,8 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.operators;
 
+import eu.stratosphere.api.common.operators.Order;
+import eu.stratosphere.api.common.operators.Ordering;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.functions.ReduceFunction;
 import eu.stratosphere.api.java.operators.translation.KeyExtractingMapper;
@@ -85,8 +87,22 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 		}
 		else if (grouper.getKeys() instanceof Keys.FieldPositionKeys) {
 			int[] logicalKeyPositions = grouper.getKeys().computeLogicalKeyPositions();
+			PlanReduceOperator<IN> reduceOp = new PlanReduceOperator<IN>(function, logicalKeyPositions, name, getInputType());
+			
+			// set group order
+			if(grouper.getGroupSortKeyPositions() != null) {
+								
+				int[] sortKeyPositions = grouper.getGroupSortKeyPositions();
+				Order[] sortOrders = grouper.getGroupSortOrders();
+				
+				Ordering o = new Ordering();
+				for(int i=0; i < sortKeyPositions.length; i++) {
+					o.appendOrdering(sortKeyPositions[i], null, sortOrders[i]);
+				}
+				reduceOp.setGroupOrder(o);
+			}
 
-			return new UnaryNodeTranslation(new PlanReduceOperator<IN>(function, logicalKeyPositions, name, getInputType()));
+			return new UnaryNodeTranslation(reduceOp);
 		}
 		else {
 			throw new UnsupportedOperationException("Unrecognized key type.");
