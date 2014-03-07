@@ -58,7 +58,7 @@
 
 	<pluginRepositories>
 	</pluginRepositories>
-	
+
 	<dependencies>
 		<dependency>
 			<groupId>commons-logging</groupId>
@@ -75,7 +75,7 @@
 			<type>jar</type>
 			<scope>compile</scope>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>commons-codec</groupId>
 			<artifactId>commons-codec</artifactId>
@@ -83,7 +83,7 @@
 			<type>jar</type>
 			<scope>compile</scope>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>com.google.guava</groupId>
 			<artifactId>guava</artifactId>
@@ -91,7 +91,7 @@
 			<type>jar</type>
 			<scope>compile</scope>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
@@ -99,7 +99,7 @@
 			<type>jar</type>
 			<scope>test</scope>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>org.mockito</groupId>
 			<artifactId>mockito-all</artifactId>
@@ -107,7 +107,7 @@
 			<type>jar</type>
 			<scope>test</scope>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>org.powermock</groupId>
 			<artifactId>powermock-module-junit4</artifactId>
@@ -115,7 +115,7 @@
 			<type>jar</type>
 			<scope>test</scope>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>org.powermock</groupId>
 			<artifactId>powermock-api-mockito</artifactId>
@@ -123,7 +123,7 @@
 			<type>jar</type>
 			<scope>test</scope>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>org.hamcrest</groupId>
 			<artifactId>hamcrest-all</artifactId>
@@ -131,7 +131,7 @@
 			<type>jar</type>
 			<scope>test</scope>
 		</dependency>
-		
+
 	</dependencies>
 
 	<profiles>
@@ -201,22 +201,22 @@
 		</profile>
 		<profile>
 			<id>release</id>
-			  <build>
+				<build>
 				<plugins>
-				  <plugin>
+					<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-gpg-plugin</artifactId>
 					<version>1.4</version>
 					<executions>
-					  <execution>
+						<execution>
 						<id>sign-artifacts</id>
 						<phase>verify</phase>
 						<goals>
-						  <goal>sign</goal>
+							<goal>sign</goal>
 						</goals>
-					  </execution>
+						</execution>
 					</executions>
-				  </plugin>
+					</plugin>
 				</plugins>
 				<pluginManagement>
 					<plugins>
@@ -268,7 +268,7 @@
 
 	<dependencyManagement>
 		<!-- this section defines the module versions that are used if nothing else is specified. -->
-		<dependencies>	
+		<dependencies>
 			<!-- Managed dependency required for HBase in pact-hbase  -->
 			<dependency>
 				<groupId>org.slf4j</groupId>
@@ -299,7 +299,7 @@
 					<argLine>-Xmx1024m</argLine>
 				</configuration>
 			</plugin>
-			
+
 			<!-- test coverage reports -->
 			<plugin>
 					<groupId>org.codehaus.mojo</groupId>
@@ -342,6 +342,7 @@
 						<exclude>**/stratosphere-bin/conf/slaves</exclude>
 						<!-- Administrative files in the main trunk. -->
 						<exclude>README.md</exclude>
+						<exclude>tools/checkstyle.xml</exclude>
 						<exclude>CHANGELOG</exclude>
 						<exclude>**/*.creole</exclude>
 						<exclude>CONTRIBUTORS</exclude>
@@ -353,6 +354,24 @@
 						<exclude>**/target/**</exclude>
 					</excludes>
 				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-checkstyle-plugin</artifactId>
+				<version>2.11</version>
+				<configuration>
+					<configLocation>tools/checkstyle.xml</configLocation>
+					<logViolationsToConsole>true</logViolationsToConsole>
+				</configuration>
+				<executions>
+					<execution>
+						<id>validate</id>
+						<phase>validate</phase>
+						<goals>
+							<goal>check</goal>
+						</goals>
+					</execution>
+				</executions>
 			</plugin>
 			<plugin>
 				<!-- just define the Java version to be used for compiling and plugins -->
@@ -405,12 +424,6 @@
 				</configuration>
 			</plugin>
 			<plugin>
-				<!-- plugin that tests whether the code style is appropriate -->
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-checkstyle-plugin</artifactId>
-				<version>2.6</version>
-			</plugin>
-			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-eclipse-plugin</artifactId>
 				<version>2.8</version>
@@ -424,7 +437,6 @@
 					<downloadJavadocs>true</downloadJavadocs>
 				</configuration>
 			</plugin>
-
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-enforcer-plugin</artifactId>
@@ -467,7 +479,7 @@
 		-->
 		<pluginManagement>
 			<plugins>
-				<!--This plugin's configuration is used to store Eclipse m2e settings 
+				<!--This plugin's configuration is used to store Eclipse m2e settings
 					only. It has no influence on the Maven build itself. -->
 				<plugin>
 					<groupId>org.eclipse.m2e</groupId>
