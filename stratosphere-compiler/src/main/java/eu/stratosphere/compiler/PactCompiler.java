@@ -791,11 +791,16 @@ public class PactCompiler {
 
 		
 		private GraphCreatingVisitor(int maxMachines, int defaultParallelism) {
-			this(null, false, maxMachines, defaultParallelism);
+			this(null, false, maxMachines, defaultParallelism, null);
 		}
-		
-		private GraphCreatingVisitor(GraphCreatingVisitor parent, boolean forceDOP, int maxMachines, int defaultParallelism) {
-			this.con2node = new HashMap<Operator, OptimizerNode>();
+
+		private GraphCreatingVisitor(GraphCreatingVisitor parent, boolean forceDOP, int maxMachines,
+									 int defaultParallelism, HashMap<Operator, OptimizerNode> closure) {
+			if(closure == null){
+				con2node = new HashMap<Operator, OptimizerNode>();
+			}else{
+				con2node = closure;
+			}
 			this.sources = new ArrayList<DataSourceNode>(4);
 			this.sinks = new ArrayList<DataSinkNode>(2);
 			this.maxMachines = maxMachines;
@@ -944,10 +949,13 @@ public class PactCompiler {
 			if (n instanceof BulkIterationNode) {
 				final BulkIterationNode iterNode = (BulkIterationNode) n;
 				final BulkIteration iter = iterNode.getIterationContract();
-				
+
+				// calculate closure of the anonymous function
+				HashMap<Operator, OptimizerNode> closure = new HashMap<Operator, OptimizerNode>(con2node);
+
 				// first, recursively build the data flow for the step function
 				final GraphCreatingVisitor recursiveCreator = new GraphCreatingVisitor(this, true,
-					this.maxMachines, iterNode.getDegreeOfParallelism());
+					this.maxMachines, iterNode.getDegreeOfParallelism(), closure);
 				
 				BulkPartialSolutionNode partialSolution = null;
 				
@@ -992,10 +1000,13 @@ public class PactCompiler {
 			else if (n instanceof WorksetIterationNode) {
 				final WorksetIterationNode iterNode = (WorksetIterationNode) n;
 				final DeltaIteration iter = iterNode.getIterationContract();
-				
+
+				// calculate the closure of the anonymous function
+				HashMap<Operator, OptimizerNode> closure = new HashMap<Operator, OptimizerNode>(con2node);
+
 				// first, recursively build the data flow for the step function
 				final GraphCreatingVisitor recursiveCreator = new GraphCreatingVisitor(this, true,
-					this.maxMachines, iterNode.getDegreeOfParallelism());
+					this.maxMachines, iterNode.getDegreeOfParallelism(), closure);
 				// descend from the solution set delta. check that it depends on both the workset
 				// and the solution set. If it does depend on both, this descend should create both nodes
 				iter.getSolutionSetDelta().accept(recursiveCreator);
@@ -1060,7 +1071,7 @@ public class PactCompiler {
 				// go over the contained data flow and mark the dynamic path nodes
 				StaticDynamicPathIdentifier pathIdentifier = new StaticDynamicPathIdentifier(iterNode.getCostWeight());
 				nextWorksetNode.accept(pathIdentifier);
-				solutionSetDeltaNode.accept(pathIdentifier);
+				iterNode.getSolutionSetDelta().accept(pathIdentifier);
 			}
 		}
 		
@@ -1201,11 +1212,11 @@ public class PactCompiler {
 
 		@Override
 		public void postVisit(OptimizerNode node) {
-			node.computeUnclosedBranchStack();
-			
 			if (node instanceof IterationNode) {
 				((IterationNode) node).acceptForStepFunction(this);
 			}
+
+			node.computeUnclosedBranchStack();
 		}
 	};
 	

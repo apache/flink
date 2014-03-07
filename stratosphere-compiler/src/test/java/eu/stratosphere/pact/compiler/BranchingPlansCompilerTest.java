@@ -18,15 +18,13 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import eu.stratosphere.api.common.operators.*;
+import eu.stratosphere.types.LongValue;
 import junit.framework.Assert;
 
 import org.junit.Test;
 
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.api.common.operators.BulkIteration;
-import eu.stratosphere.api.common.operators.FileDataSink;
-import eu.stratosphere.api.common.operators.FileDataSource;
-import eu.stratosphere.api.common.operators.GenericDataSink;
 import eu.stratosphere.api.java.record.operators.CoGroupOperator;
 import eu.stratosphere.api.java.record.operators.CrossOperator;
 import eu.stratosphere.api.java.record.operators.JoinOperator;
@@ -658,6 +656,110 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 			compileNoStats(plan);
 		}
 		catch (Exception e) {
+			e.printStackTrace();
+			Assert.fail(e.getMessage());
+		}
+	}
+
+	/**
+	 * Test to ensure that sourceA is inside as well as outside of the iteration the same
+	 * node.
+	 *
+	 * <pre>
+	 *       (SRC A)               (SRC B)
+	 *      /       \             /       \
+	 *  (SINK 1)   (ITERATION)    |     (SINK 2)
+	 *             /        \     /
+	 *         (SINK 3)     (CROSS => NEXT PARTIAL SOLUTION)
+	 * </pre>
+	 */
+	@Test
+	public void testClosure() {
+		FileDataSource sourceA = new FileDataSource(DummyInputFormat.class, IN_FILE, "Source 1");
+		FileDataSource sourceB = new FileDataSource(DummyInputFormat.class, IN_FILE, "Source 2");
+
+		FileDataSink sink1 = new FileDataSink(DummyOutputFormat.class, OUT_FILE, sourceA, "Sink 1");
+		FileDataSink sink2 = new FileDataSink(DummyOutputFormat.class, OUT_FILE, sourceB, "Sink 2");
+
+		BulkIteration iteration = new BulkIteration("Loop");
+		iteration.setInput(sourceA);
+		iteration.setMaximumNumberOfIterations(10);
+
+		CrossOperator stepFunction = CrossOperator.builder(DummyCrossStub.class).name("StepFunction").
+				input1(iteration.getPartialSolution()).
+				input2(sourceB).
+				build();
+
+		iteration.setNextPartialSolution(stepFunction);
+
+		FileDataSink sink3 = new FileDataSink(DummyOutputFormat.class, OUT_FILE, iteration, "Sink 3");
+
+		List<GenericDataSink> sinks = new ArrayList<GenericDataSink>();
+		sinks.add(sink1);
+		sinks.add(sink2);
+		sinks.add(sink3);
+
+		Plan plan = new Plan(sinks);
+
+		try{
+			compileNoStats(plan);
+		}catch(Exception e){
+			e.printStackTrace();
+			Assert.fail(e.getMessage());
+		}
+	}
+
+	/**
+	 * <pre>
+	 *       (SRC A)         (SRC B)          (SRC C)
+	 *      /       \       /                /       \
+	 *  (SINK 1) (DELTA ITERATION)          |     (SINK 2)
+	 *             /    |   \               /
+	 *         (SINK 3) |   (CROSS => NEXT WORKSET)
+	 *                  |             |
+	 *                (JOIN => SOLUTION SET DELTA)
+	 * </pre>
+	 */
+	@Test
+	public void testClosureDeltaIteration() {
+		FileDataSource sourceA = new FileDataSource(DummyInputFormat.class, IN_FILE, "Source 1");
+		FileDataSource sourceB = new FileDataSource(DummyInputFormat.class, IN_FILE, "Source 2");
+		FileDataSource sourceC = new FileDataSource(DummyInputFormat.class, IN_FILE, "Source 3");
+
+		FileDataSink sink1 = new FileDataSink(DummyOutputFormat.class, OUT_FILE, sourceA, "Sink 1");
+		FileDataSink sink2 = new FileDataSink(DummyOutputFormat.class, OUT_FILE, sourceC, "Sink 2");
+
+		DeltaIteration iteration = new DeltaIteration(0, "Loop");
+		iteration.setInitialSolutionSet(sourceA);
+		iteration.setInitialWorkset(sourceB);
+		iteration.setMaximumNumberOfIterations(10);
+
+		CrossOperator nextWorkset = CrossOperator.builder(DummyCrossStub.class).name("Next workset").
+				input1(iteration.getWorkset()).
+				input2(sourceC).
+				build();
+
+		JoinOperator solutionSetDelta = JoinOperator.builder(DummyMatchStub.class, LongValue.class,0,0).
+				name("Next solution set.").
+				input1(nextWorkset).
+				input2(iteration.getSolutionSet()).
+				build();
+
+		iteration.setNextWorkset(nextWorkset);
+		iteration.setSolutionSetDelta(solutionSetDelta);
+
+		FileDataSink sink3 = new FileDataSink(DummyOutputFormat.class, OUT_FILE, iteration, "Sink 3");
+
+		List<GenericDataSink> sinks = new ArrayList<GenericDataSink>();
+		sinks.add(sink1);
+		sinks.add(sink2);
+		sinks.add(sink3);
+
+		Plan plan = new Plan(sinks);
+
+		try{
+			compileNoStats(plan);
+		}catch(Exception e){
 			e.printStackTrace();
 			Assert.fail(e.getMessage());
 		}

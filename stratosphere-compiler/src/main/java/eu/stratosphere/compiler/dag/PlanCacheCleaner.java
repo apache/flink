@@ -20,7 +20,7 @@ final class PlanCacheCleaner implements Visitor<OptimizerNode> {
 
 	@Override
 	public boolean preVisit(OptimizerNode visitable) {
-		if (visitable.cachedPlans != null) {
+		if (visitable.cachedPlans != null && visitable.isOnDynamicPath()) {
 			visitable.cachedPlans = null;
 			return true;
 		} else {

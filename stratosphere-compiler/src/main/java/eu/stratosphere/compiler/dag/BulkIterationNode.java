@@ -13,10 +13,7 @@
 
 package eu.stratosphere.compiler.dag;
 
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 import eu.stratosphere.api.common.operators.BulkIteration;
 import eu.stratosphere.compiler.CompilerException;
@@ -240,8 +237,31 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 		inProps.addLocalProperties(new RequestedLocalProperties());
 		this.inConn.setInterestingProperties(inProps);
 	}
-	
+
 	@Override
+	public void computeUnclosedBranchStack() {
+		if (this.openBranches != null) {
+			return;
+		}
+
+		// handle the data flow branching for the regular inputs
+		addClosedBranches(getPredecessorNode().closedBranchingNodes);
+		addClosedBranches(getNextPartialSolution().closedBranchingNodes);
+
+		List<UnclosedBranchDescriptor> result1 = getPredecessorNode().getBranchesForParent(this.inConn);
+		List<UnclosedBranchDescriptor> result2 = getSingleRootOfStepFunction().openBranches;
+
+		ArrayList<UnclosedBranchDescriptor> inputsMerged = new ArrayList<UnclosedBranchDescriptor>();
+		mergeLists(result1, result2, inputsMerged);
+
+		// handle the data flow branching for the broadcast inputs
+		List<UnclosedBranchDescriptor> result = computeUnclosedBranchStackForBroadcastInputs(inputsMerged);
+
+		this.openBranches = (result == null || result.isEmpty()) ? Collections.<UnclosedBranchDescriptor>emptyList() : result;
+	}
+
+
+    @Override
 	protected void instantiateCandidate(OperatorDescriptorSingle dps, Channel in, List<Set<? extends NamedChannel>> broadcastPlanChannels, 
 			List<PlanNode> target, CostEstimator estimator, RequestedGlobalProperties globPropsReq, RequestedLocalProperties locPropsReq)
 	{
