@@ -234,6 +234,36 @@
 				</pluginManagement>
 			</build>
 		</profile>
+                <profile>
+                        <id>jdk8</id>
+                        <activation>
+                                <activeByDefault>false</activeByDefault>
+                                <jdk>1.8</jdk>
+                        </activation>
+                <build>
+                        <plugins>
+                                <plugin>
+                                        <groupId>org.apache.maven.plugins</groupId>
+                                        <artifactId>maven-javadoc-plugin</artifactId>
+                                        <version>2.9.1</version>
+                                        <configuration>
+                                                <quiet>true</quiet>
+                                        </configuration>
+                                        <executions>
+                                                <execution>
+                                                        <id>attach-javadocs</id>
+                                                        <goals>
+                                                                <goal>jar</goal>
+                                                        </goals>
+                                                        <configuration>
+                                                                 <additionalparam>-Xdoclint:none</additionalparam>
+                                                        </configuration>
+                                                </execution>
+                                        </executions>
+                                </plugin>
+                        </plugins>
+                </build>
+        </profile>
 	</profiles>
 
 
@@ -251,6 +281,11 @@
 		<artifactId>slf4j-log4j12</artifactId>
 		<version>1.4.3</version>
 	  </dependency>
+        <dependency>
+                <groupId>org.javassist</groupId>
+                <artifactId>javassist</artifactId>
+                <version>3.18.1-GA</version>
+        </dependency>
 		</dependencies>
 	</dependencyManagement>
 
