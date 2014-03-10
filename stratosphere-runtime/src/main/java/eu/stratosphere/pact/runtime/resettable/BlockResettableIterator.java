@@ -43,8 +43,6 @@ public class BlockResettableIterator<T> extends AbstractBlockResettableIterator<
 
 	private final T reuseElement;
 	
-	private T stagingElement;
-	
 	private T leftOverElement;
 	
 	private boolean readPhase;
@@ -89,9 +87,9 @@ public class BlockResettableIterator<T> extends AbstractBlockResettableIterator<
 			if (this.nextElement == null) {
 				if (this.readPhase) {
 					// read phase, get next element from buffer
-					this.stagingElement = getNextRecord(this.reuseElement);
-					if (this.stagingElement != null) {
-						this.nextElement = this.stagingElement;
+					T tmp = getNextRecord(this.reuseElement);
+					if (tmp != null) {
+						this.nextElement = tmp;
 						return true;
 					} else {
 						return false;

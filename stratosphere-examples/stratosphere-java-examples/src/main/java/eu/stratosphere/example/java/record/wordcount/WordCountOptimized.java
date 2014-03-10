@@ -72,8 +72,7 @@ public class WordCountOptimized implements Program, ProgramDescription {
 			
 			// tokenize the line
 			this.tokenizer.setStringToTokenize(line);
-			while ((this.word = tokenizer.next(this.word)) != null)
-			{
+			while (tokenizer.next(this.word)) {
 				// we emit a (word, 1) pair 
 				this.outputRecord.setField(0, this.word);
 				this.outputRecord.setField(1, this.one);

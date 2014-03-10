@@ -203,7 +203,6 @@ public class AccumulatorITCase extends TestBase2 {
 		
 		@Override
 		public void map(Record record, Collector<Record> collector) {
-      
 			this.cntNumLines.add(1);
 			
 			StringValue line = record.getField(0, StringValue.class);
@@ -212,7 +211,7 @@ public class AccumulatorITCase extends TestBase2 {
 			this.tokenizer.setStringToTokenize(line);
 			int wordsPerLine = 0;
 			this.word = new StringValue();
-			while ((this.word = tokenizer.next(this.word)) != null)
+			while (tokenizer.next(this.word))
 			{
 				// Use custom counter
 				distinctWords.add(new StringRecord(this.word.getValue()));

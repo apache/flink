@@ -102,7 +102,7 @@ public class MergeIterator<E> implements MutableObjectIterator<E>
 		
 		private final TypeComparator<E> comparator;
 		
-		E head;
+		private E head;
 
 		public HeadStream(MutableObjectIterator<E> iterator, TypeSerializer<E> serializer, TypeComparator<E> comparator)
 		throws IOException

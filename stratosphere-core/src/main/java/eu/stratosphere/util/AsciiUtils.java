@@ -70,7 +70,7 @@ public final class AsciiUtils {
 	 * The tokenizer is designed to have a resettable state and operate on mutable objects,
 	 * sparing object allocation and garbage collection overhead.
 	 */
-	public static final class WhitespaceTokenizer implements MutableObjectIterator<StringValue>, Serializable {
+	public static final class WhitespaceTokenizer implements Serializable {
 		private static final long serialVersionUID = 1L;
 		
 		private StringValue toTokenize;		// the string to tokenize
@@ -98,12 +98,11 @@ public final class AsciiUtils {
 		 * in the given reuse string object which is also returned. Otherwise,
 		 * the reuse object is left unchanged and <code>null</code> is returned.
 		 * 
-		 * @param reuse The StringValue object to store the next token in.
+		 * @param target The StringValue object to store the next token in.
 		 * @return True, if there was another token, false if not.
 		 * @see eu.stratosphere.util.MutableObjectIterator#next(java.lang.Object)
 		 */
-		@Override
-		public StringValue next(StringValue reuse) {
+		public boolean next(StringValue target) {
 			final char[] data = this.toTokenize.getCharArray();
 			final int limit = this.limit;
 			int pos = this.pos;
@@ -113,14 +112,14 @@ public final class AsciiUtils {
 			
 			if (pos >= limit) {
 				this.pos = pos;
-				return null;
+				return false;
 			}
 			
 			final int start = pos;
 			for (; pos < limit && !Character.isWhitespace(data[pos]); pos++);
 			this.pos = pos;
-			reuse.setValue(this.toTokenize, start, pos - start);
-			return reuse;
+			target.setValue(this.toTokenize, start, pos - start);
+			return true;
 		}
 	}
 	

@@ -694,11 +694,10 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 		initTable(numBuckets, (byte) partitionFanOut);
 		
 		final TypeComparator<BT> buildTypeComparator = this.buildSideComparator;
-		BT record;
-		final BT recordReuse = this.buildSideSerializer.createInstance();
+		BT record = this.buildSideSerializer.createInstance();
 
 		// go over the complete input and insert every element into the hash table
-		while (this.running && ((record = input.next(recordReuse)) != null)) {
+		while (this.running && ((record = input.next(record)) != null)) {
 			final int hashCode = hash(buildTypeComparator.hash(record), 0);
 			insertIntoTable(record, hashCode);
 		}
@@ -1510,10 +1509,6 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 		private MutableObjectIterator<PT> source;
 		
 		private PT instance;
-
-		private PT instanceStaging;
-		
-		private PT current;
 		
 		
 		ProbeIterator(MutableObjectIterator<PT> source, PT instance) {
@@ -1523,24 +1518,20 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 		
 		void set(MutableObjectIterator<PT> source) {
 			this.source = source;
-			if (this.current == null) {
-				this.current = this.instance;
-			}
 		}
 		
 		public PT next() throws IOException {
-			this.instanceStaging = this.source.next(this.instance);
-			if (this.instanceStaging != null) {
-				this.instance = this.instanceStaging;
-				this.current = this.instance;
-				return this.current;
+			PT retVal = this.source.next(this.instance);
+			if (retVal != null) {
+				this.instance = retVal;
+				return retVal;
 			} else {
 				return null;
 			}
 		}
 		
 		public PT getCurrent() {
-			return this.current;
+			return this.instance;
 		}
 	}
 }
