@@ -14,12 +14,17 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java;
 
+import org.apache.log4j.Level;
+
 import eu.stratosphere.api.common.JobExecutionResult;
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.PlanExecutor;
+import eu.stratosphere.util.LogUtils;
 
 
 public class LocalEnvironment extends ExecutionEnvironment {
+	
+	private boolean logging = false;
 	
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
@@ -27,6 +32,7 @@ public class LocalEnvironment extends ExecutionEnvironment {
 		p.setDefaultParallelism(getDegreeOfParallelism());
 		
 		PlanExecutor executor = PlanExecutor.createLocalExecutor();
+		initLogging();
 		return executor.executePlan(p);
 	}
 	
@@ -36,7 +42,24 @@ public class LocalEnvironment extends ExecutionEnvironment {
 		p.setDefaultParallelism(getDegreeOfParallelism());
 		
 		PlanExecutor executor = PlanExecutor.createLocalExecutor();
+		initLogging();
 		return executor.getOptimizerPlanAsJSON(p);
+	}
+	
+	public void enableLogging() {
+		this.logging = true;
+	}
+	
+	public void disableLogging() {
+		this.logging = false;
+	}
+	
+	public boolean isLoggingEnabled() {
+		return this.logging;
+	}
+	
+	private void initLogging() {
+		LogUtils.initializeDefaultConsoleLogger(logging ? Level.INFO : Level.OFF);
 	}
 	
 	@Override
