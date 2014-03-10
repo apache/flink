@@ -34,7 +34,7 @@ import eu.stratosphere.client.LocalExecutor;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.StringValue;
 import eu.stratosphere.types.Value;
-import eu.stratosphere.util.AsciiUtils;
+import eu.stratosphere.util.SimpleStringUtils;
 import eu.stratosphere.util.Collector;
 
 /**
@@ -61,8 +61,8 @@ public class WordCountArrayTuples implements Program, ProgramDescription {
 		private final IntValue one = new IntValue(1);
 		private final Value[] outputRecord = new Value[] { this.word, this.one };
 		
-		private final AsciiUtils.WhitespaceTokenizer tokenizer = 
-						new AsciiUtils.WhitespaceTokenizer();
+		private final SimpleStringUtils.WhitespaceTokenizer tokenizer = 
+						new SimpleStringUtils.WhitespaceTokenizer();
 		
 		@Override
 		@DataTypes({StringValue.class})
@@ -71,8 +71,8 @@ public class WordCountArrayTuples implements Program, ProgramDescription {
 			StringValue line = (StringValue) record[0];
 			
 			// normalize the line
-			AsciiUtils.replaceNonWordChars(line, ' ');
-			AsciiUtils.toLowerCase(line);
+			SimpleStringUtils.replaceNonWordChars(line, ' ');
+			SimpleStringUtils.toLowerCase(line);
 			
 			// tokenize the line
 			this.tokenizer.setStringToTokenize(line);

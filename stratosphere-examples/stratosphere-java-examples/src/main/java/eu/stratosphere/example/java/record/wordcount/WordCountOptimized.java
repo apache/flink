@@ -32,7 +32,7 @@ import eu.stratosphere.client.LocalExecutor;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;
-import eu.stratosphere.util.AsciiUtils;
+import eu.stratosphere.util.SimpleStringUtils;
 import eu.stratosphere.util.Collector;
 
 /**
@@ -58,8 +58,8 @@ public class WordCountOptimized implements Program, ProgramDescription {
 		private StringValue word = new StringValue();
 		private final IntValue one = new IntValue(1);
 		
-		private final AsciiUtils.WhitespaceTokenizer tokenizer =
-				new AsciiUtils.WhitespaceTokenizer();
+		private final SimpleStringUtils.WhitespaceTokenizer tokenizer =
+				new SimpleStringUtils.WhitespaceTokenizer();
 		
 		@Override
 		public void map(Record record, Collector<Record> collector) {
@@ -67,8 +67,8 @@ public class WordCountOptimized implements Program, ProgramDescription {
 			StringValue line = record.getField(0, StringValue.class);
 			
 			// normalize the line
-			AsciiUtils.replaceNonWordChars(line, ' ');
-			AsciiUtils.toLowerCase(line);
+			SimpleStringUtils.replaceNonWordChars(line, ' ');
+			SimpleStringUtils.toLowerCase(line);
 			
 			// tokenize the line
 			this.tokenizer.setStringToTokenize(line);

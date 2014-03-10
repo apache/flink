@@ -19,17 +19,14 @@ import eu.stratosphere.types.StringValue;
 
 
 /**
- * Utility class for efficient string operations on strings containing ASCII characters only. The operations are more
- * efficient, because they use a very simple encoding logic and operate on mutable objects, sparing object allocation
- * and garbage collection overhead. 
+ * Utility class for efficient string operations on strings. All methods in this class are
+ * written to be optimized for efficiency and work only on strings whose characters are
+ * representable in a single <tt>char</tt>, ie. strings without surrogate characters.
  */
-public final class AsciiUtils {
+public final class SimpleStringUtils {
 	
 	/**
 	 * Converts the given <code>StringValue</code> into a lower case variant.
-	 * <p>
-	 * NOTE: This method assumes that the string contains only characters that are valid in the
-	 * ASCII type set.
 	 * 
 	 * @param string The string to convert to lower case.
 	 */
@@ -44,7 +41,9 @@ public final class AsciiUtils {
 	
 	/**
 	 * Replaces all non-word characters in a string by a given character. The only
-	 * characters not replaced are <code>A-Z, a-z, 0-9, and _</code>.
+	 * characters not replaced are the characters that qualify as word characters
+	 * or digit characters with respect to {@link Character#isLetter(char)} or
+	 * {@link Character#isDigit(char)}, as well as the underscore character.
 	 * <p>
 	 * This operation is intended to simplify strings for counting distinct words.
 	 * 
@@ -95,12 +94,10 @@ public final class AsciiUtils {
 		
 		/**
 		 * Gets the next token from the string. If another token is available, the token is stored
-		 * in the given reuse string object which is also returned. Otherwise,
-		 * the reuse object is left unchanged and <code>null</code> is returned.
+		 * in the given target StringValue object.
 		 * 
 		 * @param target The StringValue object to store the next token in.
 		 * @return True, if there was another token, false if not.
-		 * @see eu.stratosphere.util.MutableObjectIterator#next(java.lang.Object)
 		 */
 		public boolean next(StringValue target) {
 			final char[] data = this.toTokenize.getCharArray();
@@ -128,5 +125,5 @@ public final class AsciiUtils {
 	/**
 	 * Private constructor to prevent instantiation, as this is a utility method encapsulating class.
 	 */
-	private AsciiUtils() {}
+	private SimpleStringUtils() {}
 }

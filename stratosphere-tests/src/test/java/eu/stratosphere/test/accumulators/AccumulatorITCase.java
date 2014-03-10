@@ -55,7 +55,7 @@ import eu.stratosphere.test.util.TestBase2;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;
-import eu.stratosphere.util.AsciiUtils;
+import eu.stratosphere.util.SimpleStringUtils;
 import eu.stratosphere.util.Collector;
 
 /**
@@ -151,7 +151,7 @@ public class AccumulatorITCase extends TestBase2 {
 		private final Record outputRecord = new Record();
 		private StringValue word;
 		private final IntValue one = new IntValue(1);
-		private final AsciiUtils.WhitespaceTokenizer tokenizer = new AsciiUtils.WhitespaceTokenizer();
+		private final SimpleStringUtils.WhitespaceTokenizer tokenizer = new SimpleStringUtils.WhitespaceTokenizer();
 
 		// Needs to be instantiated later since the runtime context is not yet
 		// initialized at this place
@@ -206,8 +206,8 @@ public class AccumulatorITCase extends TestBase2 {
 			this.cntNumLines.add(1);
 			
 			StringValue line = record.getField(0, StringValue.class);
-			AsciiUtils.replaceNonWordChars(line, ' ');
-			AsciiUtils.toLowerCase(line);
+			SimpleStringUtils.replaceNonWordChars(line, ' ');
+			SimpleStringUtils.toLowerCase(line);
 			this.tokenizer.setStringToTokenize(line);
 			int wordsPerLine = 0;
 			this.word = new StringValue();
