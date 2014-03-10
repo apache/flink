@@ -43,20 +43,18 @@ public class CsvInputFormat<OUT extends Tuple> extends GenericCsvInputFormat<OUT
 	
 	public CsvInputFormat(Path filePath) {
 		super(filePath);
-	}
-	
+	}	
 	
 	public CsvInputFormat(Path filePath, Class<?> ... types) {
 		this(filePath, DEFAULT_LINE_DELIMITER, DEFAULT_FIELD_DELIMITER, types);
-	}
+	}	
 	
-	
-	public CsvInputFormat(Path filePath, String lineDelimiter, char fieldDelimiter, Class<?> ... types) {
+	public CsvInputFormat(Path filePath, String lineDelimiter, char fieldDelimiter, Class<?>... types) {
 		super(filePath);
-		
+
 		setDelimiter(lineDelimiter);
 		setFieldDelimiter(fieldDelimiter);
-		
+
 		setFieldTypes(types);
 	}
 	
@@ -74,6 +72,13 @@ public class CsvInputFormat<OUT extends Tuple> extends GenericCsvInputFormat<OUT
 		checkForMonotonousOrder(sourceFieldIndices, fieldTypes);
 		
 		setFieldsGeneric(sourceFieldIndices, fieldTypes);
+	}
+	
+	public void setFields(boolean[] sourceFieldMask, Class<?>[] fieldTypes) {
+		Preconditions.checkNotNull(sourceFieldMask);
+		Preconditions.checkNotNull(fieldTypes);
+		
+		setFieldsGeneric(sourceFieldMask, fieldTypes);
 	}
 	
 	

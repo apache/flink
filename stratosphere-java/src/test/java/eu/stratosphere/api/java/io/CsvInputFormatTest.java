@@ -284,6 +284,45 @@ public class CsvInputFormatTest {
 	}
 	
 	@Test
+	public void testReadSparseWithMask() throws IOException {
+		try {
+			final String fileContent = "111|222|333|444|555|666|777|888|999|000|\n000|999|888|777|666|555|444|333|222|111|";
+			final FileInputSplit split = createTempFile(fileContent);	
+			
+			final CsvInputFormat<Tuple3<Integer, Integer, Integer>> format = new CsvInputFormat<Tuple3<Integer, Integer, Integer>>(PATH);
+			
+			format.setFieldDelimiter('|');
+
+			format.setFields(new boolean[] { true, false, false, true, false, false, false, true }, new Class<?>[] { Integer.class,
+					Integer.class, Integer.class });
+			
+			format.configure(new Configuration());
+			format.open(split);
+			
+			Tuple3<Integer, Integer, Integer> result = new Tuple3<Integer, Integer, Integer>();
+			
+			result = format.nextRecord(result);
+			assertNotNull(result);
+			assertEquals(Integer.valueOf(111), result.T1());
+			assertEquals(Integer.valueOf(444), result.T2());
+			assertEquals(Integer.valueOf(888), result.T3());
+			
+			result = format.nextRecord(result);
+			assertNotNull(result);
+			assertEquals(Integer.valueOf(000), result.T1());
+			assertEquals(Integer.valueOf(777), result.T2());
+			assertEquals(Integer.valueOf(333), result.T3());
+			
+			result = format.nextRecord(result);
+			assertNull(result);
+			assertTrue(format.reachedEnd());
+		}
+		catch (Exception ex) {
+			fail("Test failed due to a " + ex.getClass().getName() + ": " + ex.getMessage());
+		}
+	}
+	
+	@Test
 	public void testReadSparseWithShuffledPositions() throws IOException {
 		try {
 			final CsvInputFormat<Tuple3<Integer, Integer, Integer>> format = new CsvInputFormat<Tuple3<Integer, Integer, Integer>>(PATH);

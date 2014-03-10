@@ -192,6 +192,39 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 		Class<?>[] denseTypeArray = (Class<?>[]) types.toArray(new Class[types.size()]);
 		this.fieldTypes = denseTypeArray;
 	}
+	
+	protected void setFieldsGeneric(boolean[] includedMask, Class<?>[] fieldTypes) {
+		Preconditions.checkNotNull(includedMask);
+		Preconditions.checkNotNull(fieldTypes);
+
+		ArrayList<Class<?>> types = new ArrayList<Class<?>>();
+
+		// check if types are valid for included fields
+		int typeIndex = 0;
+		for (int i = 0; i < includedMask.length; i++) {
+
+			if (includedMask[i]) {
+				if (typeIndex > fieldTypes.length - 1) {
+					throw new IllegalArgumentException("Missing type for included field " + i + ".");
+				}
+				Class<?> type = fieldTypes[typeIndex++];
+
+				if (type == null) {
+					throw new IllegalArgumentException("Type for included field " + i + " should not be null.");
+				} else {
+					// check if we support parsers for this type
+					if (FieldParser.getParserForType(type) == null) {
+						throw new IllegalArgumentException("The type '" + type.getName() + "' is not supported for the CSV input format.");
+					}
+					types.add(type);
+				}
+			}
+		}
+
+		Class<?>[] denseTypeArray = (Class<?>[]) types.toArray(new Class[types.size()]);
+		this.fieldTypes = denseTypeArray;
+		this.fieldIncluded = includedMask;
+	}
 
 	// --------------------------------------------------------------------------------------------
 	//  Runtime methods

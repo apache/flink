@@ -18,7 +18,13 @@ import java.util.ArrayList;
 
 import eu.stratosphere.api.java.ExecutionEnvironment;
 import eu.stratosphere.api.java.operators.DataSource;
-import eu.stratosphere.api.java.tuple.*;
+import eu.stratosphere.api.java.tuple.Tuple;
+import eu.stratosphere.api.java.tuple.Tuple1;
+import eu.stratosphere.api.java.tuple.Tuple2;
+import eu.stratosphere.api.java.tuple.Tuple3;
+import eu.stratosphere.api.java.tuple.Tuple4;
+import eu.stratosphere.api.java.tuple.Tuple5;
+import eu.stratosphere.api.java.tuple.Tuple6;
 import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
 import eu.stratosphere.core.fs.Path;
 
@@ -99,7 +105,7 @@ public class CsvReader {
 			char c = mask.charAt(i);
 			if (c == '1' || c == 'T') {
 				this.includedMask[i] = true;
-			} else if (c != 0 && c != 'F') {
+			} else if (c != '0' && c != 'F') {
 				throw new IllegalArgumentException("Mask string may contain only '0' and '1'.");
 			}
 		}
@@ -130,34 +136,60 @@ public class CsvReader {
 	}
 	
 	// --------------------------------------------------------------------------------------------
+	// Miscellaneous
+	// --------------------------------------------------------------------------------------------
+	
+	private void configureInputFormat(CsvInputFormat<?> format, Class<?>... types) {
+		format.setDelimiter(this.lineDelimiter);
+		format.setFieldDelimiter(this.fieldDelimiter);
+		if (this.includedMask == null) {
+			format.setFieldTypes(types);
+		} else {
+			format.setFields(this.includedMask, types);
+		}
+	}
+	
+	// --------------------------------------------------------------------------------------------
 	
 	public <T1> DataSource<Tuple1<T1>> types(Class<T1> type1) {
 		TupleTypeInfo<Tuple1<T1>> types = TupleTypeInfo.getBasicTupleTypeInfo(type1);
-		return new DataSource<Tuple1<T1>>(executionContext, new CsvInputFormat<Tuple1<T1>>(path, lineDelimiter, fieldDelimiter, type1), types);
+		CsvInputFormat<Tuple1<T1>> inputFormat = new CsvInputFormat<Tuple1<T1>>(path);
+		configureInputFormat(inputFormat, type1);			
+		return new DataSource<Tuple1<T1>>(executionContext, inputFormat, types);
 	}
 	
 	public <T1, T2> DataSource<Tuple2<T1, T2>> types(Class<T1> type1, Class<T2> type2) {
 		TupleTypeInfo<Tuple2<T1, T2>> types = TupleTypeInfo.getBasicTupleTypeInfo(type1, type2);
-		return new DataSource<Tuple2<T1, T2>>(executionContext, new CsvInputFormat<Tuple2<T1, T2>>(path, lineDelimiter, fieldDelimiter, type1, type2), types);
+		CsvInputFormat<Tuple2<T1, T2>> inputFormat = new CsvInputFormat<Tuple2<T1, T2>>(path);
+		configureInputFormat(inputFormat, type1, type2);
+		return new DataSource<Tuple2<T1, T2>>(executionContext, inputFormat, types);
 	}
 	
 	public <T1, T2, T3> DataSource<Tuple3<T1, T2, T3>> types(Class<T1> type1, Class<T2> type2, Class<T3> type3) {
 		TupleTypeInfo<Tuple3<T1, T2, T3>> types = TupleTypeInfo.getBasicTupleTypeInfo(type1, type2, type3);
-		return new DataSource<Tuple3<T1, T2, T3>>(executionContext, new CsvInputFormat<Tuple3<T1, T2, T3>>(path, lineDelimiter, fieldDelimiter, type1, type2, type3), types);
+		CsvInputFormat<Tuple3<T1, T2, T3>> inputFormat = new CsvInputFormat<Tuple3<T1, T2, T3>>(path);
+		configureInputFormat(inputFormat, type1, type2, type3);
+		return new DataSource<Tuple3<T1, T2, T3>>(executionContext, inputFormat, types);
 	}
 	
 	public <T1, T2, T3, T4> DataSource<Tuple4<T1, T2, T3, T4>> types(Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4) {
 		TupleTypeInfo<Tuple4<T1, T2, T3, T4>> types = TupleTypeInfo.getBasicTupleTypeInfo(type1, type2, type3, type4);
-		return new DataSource<Tuple4<T1, T2, T3, T4>>(executionContext, new CsvInputFormat<Tuple4<T1, T2, T3, T4>>(path, lineDelimiter, fieldDelimiter, type1, type2, type3, type4), types);
+		CsvInputFormat<Tuple4<T1, T2, T3, T4>> inputFormat = new CsvInputFormat<Tuple4<T1, T2, T3, T4>>(path);
+		configureInputFormat(inputFormat, type1, type2, type3, type4);
+		return new DataSource<Tuple4<T1, T2, T3, T4>>(executionContext, inputFormat, types);
 	}
 	
 	public <T1, T2, T3, T4, T5> DataSource<Tuple5<T1, T2, T3, T4, T5>> types(Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5) {
 		TupleTypeInfo<Tuple5<T1, T2, T3, T4, T5>> types = TupleTypeInfo.getBasicTupleTypeInfo(type1, type2, type3, type4, type5);
-		return new DataSource<Tuple5<T1, T2, T3, T4, T5>>(executionContext, new CsvInputFormat<Tuple5<T1, T2, T3, T4, T5>>(path, lineDelimiter, fieldDelimiter, type1, type2, type3, type4, type5), types);
+		CsvInputFormat<Tuple5<T1, T2, T3, T4, T5>> inputFormat = new CsvInputFormat<Tuple5<T1, T2, T3, T4, T5>>(path);
+		configureInputFormat(inputFormat, type1, type2, type3, type4, type5);
+		return new DataSource<Tuple5<T1, T2, T3, T4, T5>>(executionContext, inputFormat, types);
 	}
 	
-	public <T1, T2, T3, T4, T5, T6> DataSource<Tuple6<T1, T2, T3, T4, T5, T6>> types(Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T5> type6) {
+	public <T1, T2, T3, T4, T5, T6> DataSource<Tuple6<T1, T2, T3, T4, T5, T6>> types(Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6) {
 		TupleTypeInfo<Tuple6<T1, T2, T3, T4, T5, T6>> types = TupleTypeInfo.getBasicTupleTypeInfo(type1, type2, type3, type4, type5, type6);
-		return new DataSource<Tuple6<T1, T2, T3, T4, T5, T6>>(executionContext, new CsvInputFormat<Tuple6<T1, T2, T3, T4, T5, T6>>(path, lineDelimiter, fieldDelimiter, type1, type2, type3, type4, type5, type6), types);
+		CsvInputFormat<Tuple6<T1, T2, T3, T4, T5, T6>> inputFormat = new CsvInputFormat<Tuple6<T1, T2, T3, T4, T5, T6>>(path);
+		configureInputFormat(inputFormat, type1, type2, type3, type4, type5, type6);
+		return new DataSource<Tuple6<T1, T2, T3, T4, T5, T6>>(executionContext, inputFormat, types);
 	}
 }
