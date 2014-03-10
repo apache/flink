@@ -16,7 +16,6 @@
 	<packaging>pom</packaging>
 
 	<modules>
-		<module>array-datamodel</module>
 		<module>avro</module>
 		<module>jdbc</module>
 		<module>spargel</module>
