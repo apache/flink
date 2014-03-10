@@ -260,7 +260,8 @@ public abstract class ExecutionEnvironment {
 	}
 	
 	public static ExecutionEnvironment createLocalEnvironment() {
-		return new LocalEnvironment();
+		int defaultDop = Runtime.getRuntime().availableProcessors();
+		return createLocalEnvironment(defaultDop);
 	}
 	
 	public static ExecutionEnvironment createLocalEnvironment(int degreeOfParallelism) {

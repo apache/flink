@@ -50,15 +50,12 @@ public class WordCountTuples {
 	public static void main(String[] args) throws Exception {
 		
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setDegreeOfParallelism(1);
 		
 		DataSet<String> text = env.fromElements("To be", "or not to be", "or to be still", "and certainly not to be not at all", "is that the question?");
 		
 		DataSet<Tuple2<String, Integer>> result = text.flatMap(new Tokenizer()).groupBy(0).reduce(new Counter());
 				
 		result.print();
-		
-//		System.out.println(env.getExecutionPlan());
 		env.execute();
 	}
 }
