@@ -14,15 +14,11 @@
 package eu.stratosphere.nephele.execution;
 
 import java.io.IOException;
-import java.util.ArrayDeque;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Queue;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.FutureTask;
 
+import eu.stratosphere.core.fs.Path;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -161,6 +157,8 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	 */
 	private final String taskName;
 
+	private Map<String,FutureTask<Path>> cacheCopyTasks = new HashMap<String, FutureTask<Path>>();
+
 	/**
 	 * Creates a new runtime environment object which contains the runtime information for the encapsulated Nephele
 	 * task.
@@ -216,7 +214,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	public RuntimeEnvironment(final TaskDeploymentDescriptor tdd,
 			final MemoryManager memoryManager, final IOManager ioManager,
 			final InputSplitProvider inputSplitProvider,
-			AccumulatorProtocol accumulatorProtocolProxy) throws Exception {
+			AccumulatorProtocol accumulatorProtocolProxy, Map<String, FutureTask<Path>> cpTasks) throws Exception {
 
 		this.jobID = tdd.getJobID();
 		this.taskName = tdd.getTaskName();
@@ -229,6 +227,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 		this.ioManager = ioManager;
 		this.inputSplitProvider = inputSplitProvider;
 		this.accumulatorProtocolProxy = accumulatorProtocolProxy;
+		this.cacheCopyTasks = cpTasks;
 
 		this.invokable = this.invokableClass.newInstance();
 		this.invokable.setEnvironment(this);
@@ -848,6 +847,14 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	@Override
 	public AccumulatorProtocol getAccumulatorProtocolProxy() {
 		return accumulatorProtocolProxy;
+	}
+
+	public void setCopyTaskOfCacheFile(String name, FutureTask<Path> copyTask) {
+		this.cacheCopyTasks.put(name, copyTask);
+	}
+	@Override
+	public Map<String, FutureTask<Path>> getCopyTaskOfCacheFile() {
+		return this.cacheCopyTasks;
 	}
 
 }

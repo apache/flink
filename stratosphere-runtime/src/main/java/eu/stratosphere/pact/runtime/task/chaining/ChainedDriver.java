@@ -22,6 +22,8 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.udf.RuntimeUDFContext;
 import eu.stratosphere.util.Collector;
 
+import java.util.concurrent.ExecutionException;
+
 /**
  * The interface to be implemented by drivers that do not run in an own pact task context, but are chained to other
  * tasks.
@@ -51,7 +53,7 @@ public abstract class ChainedDriver<IT, OT> implements Collector<IT> {
 			this.udfContext = ((RegularPactTask<?, ?>) parent).createRuntimeContext(taskName);
 		} else {
 			Environment env = parent.getEnvironment();
-			this.udfContext = new RuntimeUDFContext(taskName, env.getCurrentNumberOfSubtasks(), env.getIndexInSubtaskGroup());
+			this.udfContext = new RuntimeUDFContext(taskName, env.getCurrentNumberOfSubtasks(), env.getIndexInSubtaskGroup(), env.getCopyTaskOfCacheFile());
 		}
 
 		setup(parent);

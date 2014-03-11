@@ -287,4 +287,21 @@ public class Plan implements Visitable<Operator> {
 			sink.accept(visitor);
 		}
 	}
+
+	/**
+	 *  register cache files in program level
+	 * @param filePath The files must be stored in a place that can be accessed from all workers (most commonly HDFS)
+	 * @param name user defined name of that file
+	 */
+	public void registerCachedFile(String filePath, String name) {
+		this.cacheFile.put(name, filePath);
+	}
+
+	/**
+	 * return the registered caches files
+	 * @return Set of (name, filePath) pairs
+	 */
+	public Set<Entry<String,String>> getCachedFile() {
+		return this.cacheFile.entrySet();
+	}
 }

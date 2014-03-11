@@ -16,9 +16,12 @@ package eu.stratosphere.pact.runtime.test.util;
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.FutureTask;
 
 import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.io.ChannelSelector;
@@ -269,6 +272,11 @@ public class MockEnvironment implements Environment {
 	public AccumulatorProtocol getAccumulatorProtocolProxy() {
 		throw new UnsupportedOperationException(
 				"getAccumulatorProtocolProxy() is not supported by MockEnvironment");
+	}
+
+	@Override
+	public 	Map<String, FutureTask<Path>> getCopyTaskOfCacheFile() {
+		return null;
 	}
 
 }

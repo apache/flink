@@ -13,9 +13,12 @@
 
 package eu.stratosphere.nephele.execution;
 
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.FutureTask;
 
 import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.GateID;
@@ -252,4 +255,6 @@ public interface Environment {
 	 * Returns the proxy object for the accumulator protocol.
 	 */
 	AccumulatorProtocol getAccumulatorProtocolProxy();
+
+	Map<String, FutureTask<Path>> getCopyTaskOfCacheFile();
 }

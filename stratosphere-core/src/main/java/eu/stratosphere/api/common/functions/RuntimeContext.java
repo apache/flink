@@ -20,6 +20,7 @@ import eu.stratosphere.api.common.accumulators.DoubleCounter;
 import eu.stratosphere.api.common.accumulators.Histogram;
 import eu.stratosphere.api.common.accumulators.IntCounter;
 import eu.stratosphere.api.common.accumulators.LongCounter;
+import eu.stratosphere.api.common.cache.DistributedCache;
 
 /**
  * A RuntimeContext contains information about the context in which functions are executed. Each parallel instance
@@ -134,4 +135,9 @@ public interface RuntimeContext {
 	 * given {@code name}.
 	 */
 	<RT> Collection<RT> getBroadcastVariable(String name);
+
+	/**
+	 * Returns the distributed cache to get the local tmp file.
+	 */
+	DistributedCache getDistributedCache();
 }

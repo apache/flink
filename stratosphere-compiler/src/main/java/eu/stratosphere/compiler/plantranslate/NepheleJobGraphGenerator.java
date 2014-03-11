@@ -20,7 +20,9 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
+import eu.stratosphere.api.common.cache.DistributedCache;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -202,6 +204,10 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			}
 		}
 
+		// add registered cache file into job configuration
+		for (Entry<String, String> e: program.getOriginalPactPlan().getCachedFile()) {
+			DistributedCache.addCachedFile(e.getKey(), e.getValue(), this.jobGraph.getJobConfiguration());
+		}
 		JobGraph graph = this.jobGraph;
 
 		// release all references again

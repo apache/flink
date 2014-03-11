@@ -14,6 +14,8 @@ package eu.stratosphere.pact.runtime.udf;
 
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.FutureTask;
 
 import eu.stratosphere.api.common.accumulators.Accumulator;
 import eu.stratosphere.api.common.accumulators.AccumulatorHelper;
@@ -22,6 +24,9 @@ import eu.stratosphere.api.common.accumulators.Histogram;
 import eu.stratosphere.api.common.accumulators.IntCounter;
 import eu.stratosphere.api.common.accumulators.LongCounter;
 import eu.stratosphere.api.common.functions.RuntimeContext;
+import eu.stratosphere.api.common.cache.DistributedCache;
+import eu.stratosphere.core.fs.Path;
+import eu.stratosphere.nephele.jobgraph.JobID;
 
 /**
  *
@@ -34,6 +39,8 @@ public class RuntimeUDFContext implements RuntimeContext {
 
 	private final int subtaskIndex;
 
+	private DistributedCache distributedCache = new DistributedCache();
+
 	private HashMap<String, Accumulator<?, ?>> accumulators = new HashMap<String, Accumulator<?, ?>>();
 
 	private HashMap<String, Collection<?>> broadcastVars = new HashMap<String, Collection<?>>();
@@ -44,6 +51,12 @@ public class RuntimeUDFContext implements RuntimeContext {
 		this.subtaskIndex = subtaskIndex;
 	}
 
+	public RuntimeUDFContext(String name, int numParallelSubtasks, int subtaskIndex, Map<String, FutureTask<Path>> cpTasks) {
+		this.name = name;
+		this.numParallelSubtasks = numParallelSubtasks;
+		this.subtaskIndex = subtaskIndex;
+		this.distributedCache.setCopyTasks(cpTasks);
+	}
 	@Override
 	public String getTaskName() {
 		return this.name;
@@ -134,5 +147,10 @@ public class RuntimeUDFContext implements RuntimeContext {
 					+ name + "'.");
 		}
 		return (Collection<RT>) this.broadcastVars.get(name);
+	}
+
+	@Override
+	public DistributedCache getDistributedCache() {
+		return this.distributedCache;
 	}
 }
