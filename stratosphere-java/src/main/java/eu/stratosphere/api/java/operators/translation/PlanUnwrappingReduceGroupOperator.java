@@ -65,9 +65,9 @@ public class PlanUnwrappingReduceGroupOperator<IN, OUT, K> extends GroupReduceOp
 
 		private static final long serialVersionUID = 1L;
 		
-		private TupleUnwrappingIterator<IN, K> iter;
+		private TupleUnwrappingIterator<IN, K> iter = new TupleUnwrappingIterator<IN, K>();
 		
-		private ReferenceWrappingCollector<OUT> coll;
+		private ReferenceWrappingCollector<OUT> coll = new ReferenceWrappingCollector<OUT>();
 		
 
 		private ReferenceWrappingGroupReducer(GroupReduceFunction<IN, OUT> wrapped) {
