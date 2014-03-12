@@ -18,14 +18,24 @@ import java.lang.reflect.Constructor;
 import java.util.HashMap;
 import java.util.Map;
 
-import eu.stratosphere.api.common.typeutils.TypeComparator;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
+import eu.stratosphere.api.common.typeutils.TypeComparator;
+import eu.stratosphere.api.common.typeutils.base.BooleanComparator;
+import eu.stratosphere.api.common.typeutils.base.BooleanSerializer;
+import eu.stratosphere.api.common.typeutils.base.ByteComparator;
+import eu.stratosphere.api.common.typeutils.base.ByteSerializer;
+import eu.stratosphere.api.common.typeutils.base.CharComparator;
+import eu.stratosphere.api.common.typeutils.base.CharSerializer;
 import eu.stratosphere.api.common.typeutils.base.DoubleComparator;
 import eu.stratosphere.api.common.typeutils.base.DoubleSerializer;
+import eu.stratosphere.api.common.typeutils.base.FloatComparator;
+import eu.stratosphere.api.common.typeutils.base.FloatSerializer;
 import eu.stratosphere.api.common.typeutils.base.IntComparator;
 import eu.stratosphere.api.common.typeutils.base.IntSerializer;
 import eu.stratosphere.api.common.typeutils.base.LongComparator;
 import eu.stratosphere.api.common.typeutils.base.LongSerializer;
+import eu.stratosphere.api.common.typeutils.base.ShortComparator;
+import eu.stratosphere.api.common.typeutils.base.ShortSerializer;
 import eu.stratosphere.api.common.typeutils.base.StringComparator;
 import eu.stratosphere.api.common.typeutils.base.StringSerializer;
 
@@ -36,14 +46,14 @@ import eu.stratosphere.api.common.typeutils.base.StringSerializer;
 public class BasicTypeInfo<T> extends TypeInformation<T> implements AtomicType<T> {
 
 	public static final BasicTypeInfo<String> STRING_TYPE_INFO = new BasicTypeInfo<String>(String.class, StringSerializer.INSTANCE, StringComparator.class);
-	public static final BasicTypeInfo<Boolean> BOOLEAN_TYPE_INFO = new BasicTypeInfo<Boolean>(Boolean.class, null, null);
-	public static final BasicTypeInfo<Byte> BYTE_TYPE_INFO = new BasicTypeInfo<Byte>(Byte.class, null, null);
-	public static final BasicTypeInfo<Short> SHORT_TYPE_INFO = new BasicTypeInfo<Short>(Short.class, null, null);
+	public static final BasicTypeInfo<Boolean> BOOLEAN_TYPE_INFO = new BasicTypeInfo<Boolean>(Boolean.class, BooleanSerializer.INSTANCE, BooleanComparator.class);
+	public static final BasicTypeInfo<Byte> BYTE_TYPE_INFO = new BasicTypeInfo<Byte>(Byte.class, ByteSerializer.INSTANCE, ByteComparator.class);
+	public static final BasicTypeInfo<Short> SHORT_TYPE_INFO = new BasicTypeInfo<Short>(Short.class, ShortSerializer.INSTANCE, ShortComparator.class);
 	public static final BasicTypeInfo<Integer> INT_TYPE_INFO = new BasicTypeInfo<Integer>(Integer.class, IntSerializer.INSTANCE, IntComparator.class);
 	public static final BasicTypeInfo<Long> LONG_TYPE_INFO = new BasicTypeInfo<Long>(Long.class, LongSerializer.INSTANCE, LongComparator.class);
-	public static final BasicTypeInfo<Float> FLOAT_TYPE_INFO = new BasicTypeInfo<Float>(Float.class, null, null);
+	public static final BasicTypeInfo<Float> FLOAT_TYPE_INFO = new BasicTypeInfo<Float>(Float.class, FloatSerializer.INSTANCE, FloatComparator.class);
 	public static final BasicTypeInfo<Double> DOUBLE_TYPE_INFO = new BasicTypeInfo<Double>(Double.class, DoubleSerializer.INSTANCE, DoubleComparator.class);
-	public static final BasicTypeInfo<Character> CHAR_TYPE_INFO = new BasicTypeInfo<Character>(Character.class, null, null);
+	public static final BasicTypeInfo<Character> CHAR_TYPE_INFO = new BasicTypeInfo<Character>(Character.class, CharSerializer.INSTANCE, CharComparator.class);
 	
 	// --------------------------------------------------------------------------------------------
 

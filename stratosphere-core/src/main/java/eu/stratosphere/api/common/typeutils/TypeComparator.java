@@ -45,6 +45,8 @@ import eu.stratosphere.types.NormalizableKey;
  */
 public abstract class TypeComparator<T> implements Serializable {
 	
+	private static final long serialVersionUID = 1L;
+
 	/**
 	 * Computes a hash value for the given record. The hash value should include all fields in the record
 	 * relevant to the comparison.
