@@ -31,7 +31,7 @@ public abstract class BasicTypeComparator<T extends Comparable<T>> extends TypeC
 	
 
 	protected BasicTypeComparator(boolean ascending) {
-		this.ascendingComparison = !ascending;
+		this.ascendingComparison = ascending;
 	}
 
 	@Override

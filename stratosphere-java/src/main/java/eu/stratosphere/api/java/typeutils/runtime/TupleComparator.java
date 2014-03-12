@@ -233,7 +233,7 @@ public final class TupleComparator<T extends Tuple> extends TypeComparator<T> im
 			{
 				int len = this.normalizedKeyLengths[i]; 
 				len = numBytes >= len ? len : numBytes;
-				this.comparators[i].putNormalizedKey(value.getField(this.keyPositions[i]), target, offset, numBytes);
+				this.comparators[i].putNormalizedKey(value.getField(this.keyPositions[i]), target, offset, len);
 				numBytes -= len;
 				offset += len;
 			}
@@ -242,9 +242,6 @@ public final class TupleComparator<T extends Tuple> extends TypeComparator<T> im
 			throw new NullKeyFieldException(this.keyPositions[i]);
 		}
 	}
-
-
-
 
 	@Override
 	public boolean invertNormalizedKey() {
