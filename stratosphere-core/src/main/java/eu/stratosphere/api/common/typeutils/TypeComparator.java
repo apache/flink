@@ -178,12 +178,12 @@ public abstract class TypeComparator<T> {
 	public abstract int getNormalizeKeyLen();
 	
 	/**
-	 * Checks, whether the given number of bytes for a normalized suffice to determine the order of elements
+	 * Checks, whether the given number of bytes for a normalized is only a prefix to determine the order of elements
 	 * of the data type for which this comparator provides the comparison methods. For example, if the
 	 * data type is ordered with respect to an integer value it contains, then this method would return
-	 * true, if the number of key bytes was larger or equal to four.
+	 * true, if the number of key bytes is smaller than four.
 	 * 
-	 * @return True, if the given number of bytes for a normalized suffice to determine the order of elements,
+	 * @return True, if the given number of bytes is only a prefix,
 	 *         false otherwise.
 	 */
 	public abstract boolean isNormalizedKeyPrefixOnly(int keyBytes);

@@ -266,7 +266,9 @@ public final class NormalizedKeySorter<T> implements InMemorySorter<T>
 		
 		// add the pointer and the normalized key
 		this.currentSortIndexSegment.putLong(this.currentSortIndexOffset, this.currentDataBufferOffset);
-		this.comparator.putNormalizedKey(record, this.currentSortIndexSegment, this.currentSortIndexOffset + OFFSET_LEN, this.numKeyBytes);
+		if(this.numKeyBytes != 0) {
+			this.comparator.putNormalizedKey(record, this.currentSortIndexSegment, this.currentSortIndexOffset + OFFSET_LEN, this.numKeyBytes);
+		}
 		
 		// serialize the record into the data buffers
 		try {
