@@ -23,13 +23,16 @@ import eu.stratosphere.api.common.io.FileOutputFormat
 import eu.stratosphere.api.common.operators.GenericDataSink
 
 object DataSinkOperator {
+  val DEFAULT_DATASINKOPERATOR_NAME = "<Unnamed Scala Data Sink>"
 
-  def write[In](input: DataSet[In], url: String, format: ScalaOutputFormat[In]): ScalaSink[In] = {
+  def write[In](input: DataSet[In], url: String, format: ScalaOutputFormat[In],
+                name: String = DEFAULT_DATASINKOPERATOR_NAME): ScalaSink[In]
+  = {
     val uri = getUri(url)
 
     val ret = uri.getScheme match {
-      case "file" | "hdfs" => new FileDataSink(format.asInstanceOf[FileOutputFormat[_]], uri.toString, input.contract)
-          with OneInputScalaOperator[In, Nothing] {
+      case "file" | "hdfs" => new FileDataSink(format.asInstanceOf[FileOutputFormat[_]], uri.toString,
+        input.contract, name) with OneInputScalaOperator[In, Nothing] {
 
         def getUDF = format.getUDF
         override def persistConfiguration() = format.persistConfiguration(this.getParameters())

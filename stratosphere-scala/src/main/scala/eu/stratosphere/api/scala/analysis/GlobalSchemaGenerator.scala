@@ -38,6 +38,7 @@ import eu.stratosphere.api.scala.BulkIterationScalaOperator
 import eu.stratosphere.api.common.operators.DeltaIteration
 import eu.stratosphere.api.scala.DeltaIterationScalaOperator
 import eu.stratosphere.api.common.operators.GenericDataSink
+import eu.stratosphere.api.common.operators.base.MapOperatorBase
 
 class GlobalSchemaGenerator {
 
@@ -151,7 +152,7 @@ class GlobalSchemaGenerator {
         contract.getUDF.setOutputGlobalIndexes(freePos2, fixedOutputs)
       }
 
-      case contract : MapOperator with OneInputScalaOperator[_, _] => {
+      case contract : MapOperatorBase[_] with OneInputScalaOperator[_, _] => {
 
         val freePos1 = globalizeContract(contract.getInputs().get(0), Seq(contract.getUDF.inputFields), proxies, None, freePos)
 

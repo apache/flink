@@ -16,7 +16,7 @@ package eu.stratosphere.api.scala.operators
 import language.experimental.macros
 import scala.reflect.macros.Context
 import eu.stratosphere.api.scala.codegen.MacroContextHolder
-import eu.stratosphere.api.scala.ScalaOperator
+import eu.stratosphere.api.scala._
 import eu.stratosphere.api.java.record.operators.MapOperator
 import eu.stratosphere.api.scala.analysis.UDT
 import eu.stratosphere.types.Record
@@ -29,12 +29,11 @@ import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.api.common.operators.BulkIteration
 import eu.stratosphere.api.scala.analysis.UDF0
 import eu.stratosphere.api.common.functions.AbstractFunction
-import eu.stratosphere.api.scala.BulkIterationScalaOperator
-import eu.stratosphere.api.scala.DeltaIterationScalaOperator
-import eu.stratosphere.api.scala.DataSet
 import eu.stratosphere.api.scala.analysis.FieldSelector
-import eu.stratosphere.api.scala.OutputHintable
 import eu.stratosphere.api.common.operators.DeltaIteration
+import eu.stratosphere.api.scala.analysis.UDT.NothingUDT
+import eu.stratosphere.api.common.operators.BulkIteration.{TerminationCriterionAggregationConvergence, TerminationCriterionAggregator, TerminationCriterionMapper}
+import eu.stratosphere.api.common.operators.base.MapOperatorBase
 
 object IterateMacros {
 
@@ -109,6 +108,65 @@ object IterateMacros {
     }
 
     val result = c.Expr[DataSet[SolutionItem]](Block(List(udtSolution), contract.tree))
+
+    return result
+  }
+
+  def iterateWithTermination[SolutionItem: c.WeakTypeTag, TerminationItem: c.WeakTypeTag](c: Context { type
+  PrefixType =
+  DataSet[SolutionItem] })(n:
+                           c.Expr[Int], stepFunction: c.Expr[DataSet[SolutionItem] => DataSet[SolutionItem]],
+                           convergenceFunction: c.Expr[(DataSet[SolutionItem], DataSet[SolutionItem]) => DataSet[TerminationItem]]):
+  c.Expr[DataSet[SolutionItem]] = {
+    import c.universe._
+
+    val slave = MacroContextHolder.newMacroHelper(c)
+
+    val (udtSolution, createUdtSolution) = slave.mkUdtClass[SolutionItem]
+    val (udtTermination, createUdtTermination) = slave.mkUdtClass[TerminationItem]
+
+    val contract = reify {
+      val solutionUDT = c.Expr[UDT[SolutionItem]](createUdtSolution).splice
+      val terminationUDT = c.Expr[UDT[TerminationItem]](createUdtTermination).splice
+      val contract = new BulkIteration with BulkIterationScalaOperator[SolutionItem] {
+        val udf = new UDF0[SolutionItem](solutionUDT)
+        override def getUDF = udf
+        private val inputPlaceHolder2 = new BulkIteration.PartialSolutionPlaceHolder(this) with ScalaOperator[SolutionItem] with Serializable {
+          val udf = new UDF0[SolutionItem](solutionUDT)
+          override def getUDF = udf
+
+        }
+        override def getPartialSolution: Operator = inputPlaceHolder2.asInstanceOf[Operator]
+
+        override def setTerminationCriterion(criterion: Operator) {
+          val mapper = new MapOperatorBase[TerminationCriterionMapper](classOf[TerminationCriterionMapper],
+            "Termination Criterion Aggregation Wrapper") with OneInputScalaOperator[TerminationItem,
+            Nothing] with Serializable {
+            val udf = new UDF1[TerminationItem, Nothing](terminationUDT, NothingUDT)
+            override def getUDF = udf
+          }
+          mapper.setInput(criterion)
+          terminationCriterion = mapper
+          getAggregators.registerAggregationConvergenceCriterion(BulkIteration.TERMINATION_CRITERION_AGGREGATOR_NAME,
+            classOf[TerminationCriterionAggregator], classOf[TerminationCriterionAggregationConvergence])
+        }
+      }
+
+      val partialSolution = new DataSet(contract.getPartialSolution().asInstanceOf[Operator with ScalaOperator[SolutionItem]])
+
+      val output = stepFunction.splice.apply(partialSolution)
+      val convergenceCriterion = convergenceFunction.splice.apply(partialSolution, output)
+
+
+      contract.setInput(c.prefix.splice.contract)
+      contract.setNextPartialSolution(output.contract)
+      contract.setMaximumNumberOfIterations(n.splice)
+      contract.setTerminationCriterion(convergenceCriterion.contract)
+
+      new DataSet(contract)
+    }
+
+    val result = c.Expr[DataSet[SolutionItem]](Block(List(udtSolution, udtTermination), contract.tree))
 
     return result
   }
