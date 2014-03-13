@@ -113,11 +113,9 @@ object IterateMacros {
   }
 
   def iterateWithTermination[SolutionItem: c.WeakTypeTag, TerminationItem: c.WeakTypeTag](c: Context { type
-  PrefixType =
-  DataSet[SolutionItem] })(n:
-                           c.Expr[Int], stepFunction: c.Expr[DataSet[SolutionItem] => DataSet[SolutionItem]],
-                           convergenceFunction: c.Expr[(DataSet[SolutionItem], DataSet[SolutionItem]) => DataSet[TerminationItem]]):
-  c.Expr[DataSet[SolutionItem]] = {
+  PrefixType = DataSet[SolutionItem] })(n: c.Expr[Int], stepFunction: c.Expr[DataSet[SolutionItem] => 
+    DataSet[SolutionItem]], terminationFunction: c.Expr[(DataSet[SolutionItem], 
+    DataSet[SolutionItem]) => DataSet[TerminationItem]]): c.Expr[DataSet[SolutionItem]] = {
     import c.universe._
 
     val slave = MacroContextHolder.newMacroHelper(c)
@@ -155,13 +153,13 @@ object IterateMacros {
       val partialSolution = new DataSet(contract.getPartialSolution().asInstanceOf[Operator with ScalaOperator[SolutionItem]])
 
       val output = stepFunction.splice.apply(partialSolution)
-      val convergenceCriterion = convergenceFunction.splice.apply(partialSolution, output)
+      val terminationCriterion = terminationFunction.splice.apply(partialSolution, output)
 
 
       contract.setInput(c.prefix.splice.contract)
       contract.setNextPartialSolution(output.contract)
       contract.setMaximumNumberOfIterations(n.splice)
-      contract.setTerminationCriterion(convergenceCriterion.contract)
+      contract.setTerminationCriterion(terminationCriterion.contract)
 
       new DataSet(contract)
     }
