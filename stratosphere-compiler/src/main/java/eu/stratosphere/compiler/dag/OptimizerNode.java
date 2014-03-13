@@ -1108,7 +1108,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		// 2) if one side is null (or empty), the result is the other side.
 		// 3) both are set, then we need to merge.
 		if (child1open == null || child1open.isEmpty()) {
-			result.addAll(child2open);
+			if(child2open != null && !child2open.isEmpty())
+				result.addAll(child2open);
 			return false;
 		}
 		

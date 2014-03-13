@@ -307,7 +307,7 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 				target.add(node);
 			}
 		}
-		else {
+		else if(candidates.size() > 0) {
 			List<PlanNode> terminationCriterionCandidates = this.terminationCriterion.getAlternativePlans(estimator);
 
 			for (PlanNode candidate : candidates) {

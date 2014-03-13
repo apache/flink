@@ -995,7 +995,11 @@ public class PactCompiler {
 				this.numMemoryConsumers += recursiveCreator.numMemoryConsumers;
 				
 				// go over the contained data flow and mark the dynamic path nodes
-				rootOfStepFunction.accept(new StaticDynamicPathIdentifier(iterNode.getCostWeight()));
+				StaticDynamicPathIdentifier identifier = new StaticDynamicPathIdentifier(iterNode.getCostWeight());
+				rootOfStepFunction.accept(identifier);
+				if(terminationCriterion != null){
+					terminationCriterion.accept(identifier);
+				}
 			}
 			else if (n instanceof WorksetIterationNode) {
 				final WorksetIterationNode iterNode = (WorksetIterationNode) n;
