@@ -18,7 +18,6 @@ import eu.stratosphere.api.common.functions.GenericJoiner;
 import eu.stratosphere.api.common.operators.base.JoinOperatorBase;
 import eu.stratosphere.api.java.functions.JoinFunction;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
-import eu.stratosphere.util.Collector;
 
 public class PlanJoinOperator<IN1, IN2, OUT> 
 	extends JoinOperatorBase<GenericJoiner<IN1, IN2, OUT>>

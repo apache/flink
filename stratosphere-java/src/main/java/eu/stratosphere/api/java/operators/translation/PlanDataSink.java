@@ -14,8 +14,6 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.operators.translation;
 
-import java.io.IOException;
-
 import eu.stratosphere.api.common.io.OutputFormat;
 import eu.stratosphere.api.common.operators.GenericDataSink;
 import eu.stratosphere.api.java.typeutils.TypeInformation;

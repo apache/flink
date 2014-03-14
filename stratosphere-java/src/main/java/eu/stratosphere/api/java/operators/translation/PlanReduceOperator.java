@@ -14,13 +14,10 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.operators.translation;
 
-import java.util.Iterator;
-
 import eu.stratosphere.api.common.functions.GenericGroupReduce;
 import eu.stratosphere.api.common.operators.base.GroupReduceOperatorBase;
 import eu.stratosphere.api.java.functions.ReduceFunction;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
-import eu.stratosphere.util.Collector;
 
 /**
  *
@@ -33,7 +30,7 @@ public class PlanReduceOperator<T> extends GroupReduceOperatorBase<GenericGroupR
 	
 	
 	public PlanReduceOperator(ReduceFunction<T> udf, int[] logicalGroupingFields, String name, TypeInformation<T> type) {
-		super(new ReferenceWrappingReducer<T>(udf), logicalGroupingFields, name);
+		super(udf, logicalGroupingFields, name);
 		this.type = type;
 	}
 	
@@ -48,35 +45,4 @@ public class PlanReduceOperator<T> extends GroupReduceOperatorBase<GenericGroupR
 		return this.type;
 	}
 	
-	
-	// --------------------------------------------------------------------------------------------
-	
-	public static final class ReferenceWrappingReducer<T> extends WrappingFunction<ReduceFunction<T>>
-		implements GenericGroupReduce<T, T>
-	{
-
-		private static final long serialVersionUID = 1L;
-		
-		private ReferenceWrappingReducer(ReduceFunction<T> wrapped) {
-			super(wrapped);
-		}
-
-
-		@Override
-		public void reduce(Iterator<T> values, Collector<T> out) throws Exception {
-			T curr = values.next();
-			
-			while (values.hasNext()) {
-				curr = this.wrappedFunction.reduce(curr, values.next());
-			}
-			
-			out.collect(curr);
-		}
-
-		@Override
-		public void combine(Iterator<T> values, Collector<T> out) throws Exception {
-			reduce(values, out);
-		}
-
-	}
 }

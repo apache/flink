@@ -18,7 +18,6 @@ import eu.stratosphere.api.common.functions.GenericCrosser;
 import eu.stratosphere.api.common.operators.base.CrossOperatorBase;
 import eu.stratosphere.api.java.functions.CrossFunction;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
-import eu.stratosphere.util.Collector;
 
 public class PlanCrossOperator<IN1, IN2, OUT> 
 	extends CrossOperatorBase<GenericCrosser<IN1, IN2, OUT>>

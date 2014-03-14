@@ -36,10 +36,12 @@ public abstract class ReduceFunction<T> extends AbstractFunction implements Gene
 		while (values.hasNext()) {
 			curr = reduce(curr, values.next());
 		}
+		
+		out.collect(curr);
 	}
 	
 	@Override
-	public void combine(Iterator<T> values, Collector<T> out) throws Exception {
+	public final void combine(Iterator<T> values, Collector<T> out) throws Exception {
 		reduce(values, out);
 	}
 }

@@ -14,13 +14,10 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.operators.translation;
 
-import java.util.Iterator;
-
 import eu.stratosphere.api.common.functions.GenericCoGrouper;
 import eu.stratosphere.api.common.operators.base.CoGroupOperatorBase;
 import eu.stratosphere.api.java.functions.CoGroupFunction;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
-import eu.stratosphere.util.Collector;
 
 public class PlanCogroupOperator<IN1, IN2, OUT> 
 	extends CoGroupOperatorBase<GenericCoGrouper<IN1, IN2, OUT>>
