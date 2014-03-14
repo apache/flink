@@ -304,6 +304,10 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 		final FileBaseStatistics cachedFileStats = (cachedStats != null && cachedStats instanceof FileBaseStatistics) ?
 				(FileBaseStatistics) cachedStats : null;
 		
+		// store properties
+		final long oldTimeout = this.openTimeout;
+		final int oldBufferSize = this.bufferSize;
+		final int oldLineLengthLimit = this.lineLengthLimit;
 		try {
 			final Path filePath = this.filePath;
 		
@@ -341,6 +345,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 			if (numSamples < 0) {
 				throw new RuntimeException("Error: Invalid number of samples: " + numSamples);
 			}
+			
 			
 			// make sure that the sampling times out after a while if the file system does not answer in time
 			this.openTimeout = 10000;
@@ -396,6 +401,11 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 			if (LOG.isErrorEnabled())
 				LOG.error("Unexpected problen while getting the file statistics for file '" + this.filePath + "': "
 						+ t.getMessage(), t);
+		} finally {
+			// restore properties (even on return)
+			this.openTimeout = oldTimeout;
+			this.bufferSize = oldBufferSize;
+			this.lineLengthLimit = oldLineLengthLimit;
 		}
 		
 		// no statistics possible

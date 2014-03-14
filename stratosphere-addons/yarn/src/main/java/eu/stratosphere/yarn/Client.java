@@ -112,12 +112,20 @@ public class Client {
 	public final static String STRATOSPHERE_JAR_PATH = "_STRATOSPHERE_JAR_PATH"; // the stratosphere jar resource location (in HDFS).
 	public static final String ENV_CLIENT_HOME_DIR = "_CLIENT_HOME_DIR";
 	public static final String ENV_CLIENT_SHIP_FILES = "_CLIENT_SHIP_FILES";
+	public static final String ENV_CLIENT_USERNAME = "_CLIENT_USERNAME";
 	
 	private static final String CONFIG_FILE_NAME = "stratosphere-conf.yaml";
+
+	
 	
 	private Configuration conf;
 
 	public void run(String[] args) throws Exception {
+		
+		if(UserGroupInformation.isSecurityEnabled()) {
+			throw new RuntimeException("Stratosphere YARN client does not have security support right now."
+					+ "File a bug, we will fix it asap");
+		}
 		//Utils.logFilesInCurrentDirectory(LOG);
 		//
 		//	Command Line Options
@@ -217,7 +225,7 @@ public class Client {
 				} 
 			}
 		}
-		List<File> shipFiles = null;
+		List<File> shipFiles = new ArrayList<File>();
 		// path to directory to ship
 		if(cmd.hasOption(SHIP_PATH.getOpt())) {
 			String shipPath = cmd.getOptionValue(SHIP_PATH.getOpt());
@@ -235,7 +243,7 @@ public class Client {
 		}
 		boolean hasLog4j = false;
 		//check if there is a log4j file
-		if(confDirPath != null) {
+		if(confDirPath.length() > 0) {
 			File l4j = new File(confDirPath+"/log4j.properties");
 			if(l4j.exists()) {
 				shipFiles.add(l4j);
@@ -382,7 +390,7 @@ public class Client {
 		FsPermission permission = new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL);
 		fs.setPermission(paths[2], permission); // set permission for path.
 		Utils.setTokensFor(amContainer, paths, this.conf);
-		LOG.debug("Security is enabled: "+ UserGroupInformation.isSecurityEnabled());
+		
          
 		amContainer.setLocalResources(localResources);
 		fs.close();
@@ -398,9 +406,10 @@ public class Client {
 		appMasterEnv.put(Client.ENV_APP_ID, appId.toString());
 		appMasterEnv.put(Client.ENV_CLIENT_HOME_DIR, fs.getHomeDirectory().toString());
 		appMasterEnv.put(Client.ENV_CLIENT_SHIP_FILES, envShipFileList.toString() );
+		appMasterEnv.put(Client.ENV_CLIENT_USERNAME, UserGroupInformation.getCurrentUser().getShortUserName());
 		
 		amContainer.setEnvironment(appMasterEnv);
-
+		
 		// Set up resource type requirements for ApplicationMaster
 		Resource capability = Records.newRecord(Resource.class);
 		capability.setMemory(jmMemory);

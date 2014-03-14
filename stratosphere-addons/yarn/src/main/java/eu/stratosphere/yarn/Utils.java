@@ -23,8 +23,10 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.ByteBuffer;
+import java.util.Collection;
 import java.util.Enumeration;
 import java.util.Map;
+import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
@@ -35,8 +37,12 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.DataOutputBuffer;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.security.TokenCache;
 import org.apache.hadoop.security.Credentials;
+import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.hadoop.security.token.Token;
+import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.util.Shell;
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
@@ -46,6 +52,8 @@ import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.util.Apps;
 import org.apache.hadoop.yarn.util.ConverterUtils;
+
+import com.google.common.base.Preconditions;
 
 import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.configuration.GlobalConfiguration;
@@ -181,9 +189,21 @@ public class Utils {
 
 	public static void setTokensFor(ContainerLaunchContext amContainer, Path[] paths, Configuration conf) throws IOException {
 		Credentials credentials = new Credentials();
+		// for HDFS
         TokenCache.obtainTokensForNamenodes(credentials, paths, conf);
+        // for user
+        UserGroupInformation currUsr = UserGroupInformation.getCurrentUser();
+        
+        Collection<Token<? extends TokenIdentifier>> usrTok = currUsr.getTokens();
+        for(Token<? extends TokenIdentifier> token : usrTok) {
+        	final Text id = new Text(token.getIdentifier());
+        	LOG.info("Adding user token "+id+" with "+token);
+        	credentials.addToken(id, token);
+        }
         DataOutputBuffer dob = new DataOutputBuffer();
         credentials.writeTokenStorageToStream(dob);
+        LOG.debug("Wrote tokens. Credentials buffer length: "+dob.getLength());
+        
         ByteBuffer securityTokens = ByteBuffer.wrap(dob.getData(), 0, dob.getLength());
         amContainer.setTokens(securityTokens);
 	}

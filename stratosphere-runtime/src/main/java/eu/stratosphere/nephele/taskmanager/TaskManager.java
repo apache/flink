@@ -44,6 +44,7 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.security.UserGroupInformation;
 
 import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.configuration.Configuration;
@@ -148,6 +149,8 @@ public class TaskManager implements TaskOperationProtocol {
 	 * {@link GlobalConfiguration}, which must be loaded prior to instantiating the task manager.
 	 */
 	public TaskManager(final int taskManagersPerJVM) throws Exception {
+		LOG.info("Current user "+UserGroupInformation.getCurrentUser().getShortUserName());
+		LOG.info("user property: "+System.getProperty("user.name"));
 		// IMPORTANT! At this point, the GlobalConfiguration must have been read!
 		final String address = GlobalConfiguration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
 		InetSocketAddress jobManagerAddress = null;
@@ -334,10 +337,10 @@ public class TaskManager implements TaskOperationProtocol {
 	 * 
 	 * @param args
 	 *        arguments from the command line
+	 * @throws IOException 
 	 */
 	@SuppressWarnings("static-access")
-	public static void main(String[] args) {
-
+	public static void main(String[] args) throws IOException {
 		Option configDirOpt = OptionBuilder.withArgName("config directory").hasArg().withDescription(
 			"Specify configuration directory.").create("configDir");
 		configDirOpt.setRequired(true);;
@@ -358,6 +361,8 @@ public class TaskManager implements TaskOperationProtocol {
 		// First, try to load global configuration
 		GlobalConfiguration.loadConfiguration(configDir);
 
+		LOG.info("Current user "+UserGroupInformation.getCurrentUser().getShortUserName());
+		
 		// Create a new task manager object
 		TaskManager taskManager = null;
 		try {
@@ -371,11 +376,11 @@ public class TaskManager implements TaskOperationProtocol {
 		
 		// Shut down
 		taskManager.shutdown();
+				
 	}
 
 	// This method is called by the TaskManagers main thread
 	public void runIOLoop() {
-
 		long interval = GlobalConfiguration.getInteger("taskmanager.setup.periodictaskinterval",
 			DEFAULTPERIODICTASKSINTERVAL);
 

@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Writer;
 import java.nio.ByteBuffer;
+import java.security.PrivilegedAction;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -35,6 +36,8 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.DataOutputBuffer;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.hadoop.security.token.Token;
+import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
 import org.apache.hadoop.yarn.api.protocolrecords.AllocateResponse;
@@ -83,7 +86,8 @@ public class ApplicationMaster {
 			this.jm.shutdown();
 		}
 	}
-	public static void main(String[] args) throws Exception {
+	
+	private void run() throws Exception  {
 		//Utils.logFilesInCurrentDirectory(LOG);
 		// Initialize clients to ResourceManager and NodeManagers
 		Configuration conf = Utils.initializeYarnConfiguration();
@@ -98,6 +102,7 @@ public class ApplicationMaster {
 		final String applicationMasterHost = envs.get(Environment.NM_HOST.key());
 		final String remoteStratosphereJarPath = envs.get(Client.STRATOSPHERE_JAR_PATH);
 		final String shipListString = envs.get(Client.ENV_CLIENT_SHIP_FILES);
+		final String yarnClientUsername = envs.get(Client.ENV_CLIENT_USERNAME);
 		final int taskManagerCount = Integer.valueOf(envs.get(Client.ENV_TM_COUNT));
 		final int memoryPerTaskManager = Integer.valueOf(envs.get(Client.ENV_TM_MEMORY));
 		final int coresPerTaskManager = Integer.valueOf(envs.get(Client.ENV_TM_CORES));
@@ -111,6 +116,7 @@ public class ApplicationMaster {
 			throw new RuntimeException("Own hostname ("+Environment.NM_HOST+") not set.");
 		}
 		LOG.info("Working directory "+currDir);
+		
 		// load Stratosphere configuration.
 		Utils.getStratosphereConfiguration(currDir);
 		
@@ -233,7 +239,7 @@ public class ApplicationMaster {
 				if(hasLog4j) {
 					tmCommand += " -Dlog.file=\""+ApplicationConstants.LOG_DIR_EXPANSION_VAR +"/taskmanager-log4j.log\" -Dlog4j.configuration=file:log4j.properties";
 				}
-				tmCommand	+= " eu.stratosphere.nephele.taskmanager.TaskManager -configDir . "
+				tmCommand	+= " eu.stratosphere.yarn.YarnTaskManagerRunner -configDir . "
 						+ " 1>"
 						+ ApplicationConstants.LOG_DIR_EXPANSION_VAR
 						+ "/taskmanager-stdout.log" 
@@ -263,6 +269,8 @@ public class ApplicationMaster {
 				// Setup CLASSPATH for Container (=TaskTracker)
 				Map<String, String> containerEnv = new HashMap<String, String>();
 				Utils.setupEnv(conf, containerEnv); //add stratosphere.jar to class path.
+				containerEnv.put(Client.ENV_CLIENT_USERNAME, yarnClientUsername);
+				
 				ctx.setEnvironment(containerEnv);
 
 				UserGroupInformation user = UserGroupInformation.getCurrentUser();
@@ -307,5 +315,27 @@ public class ApplicationMaster {
 		
 		// Un-register with ResourceManager
 		rmClient.unregisterApplicationMaster(FinalApplicationStatus.SUCCEEDED, "", "");
+		
+		
+	}
+	public static void main(String[] args) throws Exception {
+		final String yarnClientUsername = System.getenv(Client.ENV_CLIENT_USERNAME);
+		LOG.info("YARN daemon runs as '"+UserGroupInformation.getCurrentUser().getShortUserName()+"' setting"
+				+ " user to execute Stratosphere ApplicationMaster/JobManager to '"+yarnClientUsername+"'");
+		UserGroupInformation ugi = UserGroupInformation.createRemoteUser(yarnClientUsername);
+		for(Token<? extends TokenIdentifier> toks : UserGroupInformation.getCurrentUser().getTokens()) {
+			ugi.addToken(toks);
+		}
+		ugi.doAs(new PrivilegedAction<Object>() {
+			@Override
+			public Object run() {
+				try {
+					new ApplicationMaster().run();
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+				return null;
+			}
+		});
 	}
 }

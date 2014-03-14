@@ -386,7 +386,6 @@ public final class DistributedFileSystem extends FileSystem {
 
 	@Override
 	public boolean rename(final Path src, final Path dst) throws IOException {
-
 		return this.fs.rename(new org.apache.hadoop.fs.Path(src.toString()),
 			new org.apache.hadoop.fs.Path(dst.toString()));
 	}

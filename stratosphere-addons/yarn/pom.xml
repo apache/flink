@@ -19,6 +19,12 @@
 			<groupId>eu.stratosphere</groupId>
 			<artifactId>stratosphere-runtime</artifactId>
 			<version>${project.version}</version>
+			<exclusions>
+				<exclusion>
+					<artifactId>hadoop-core</artifactId>
+					<groupId>org.apache.hadoop</groupId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>

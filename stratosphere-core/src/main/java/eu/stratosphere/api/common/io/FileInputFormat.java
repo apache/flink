@@ -97,7 +97,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 				ConfigConstants.DEFAULT_FS_STREAM_OPENING_TIMEOUT);
 			DEFAULT_OPENING_TIMEOUT = ConfigConstants.DEFAULT_FS_STREAM_OPENING_TIMEOUT;
 		} else if (to == 0) {
-			DEFAULT_OPENING_TIMEOUT = Long.MAX_VALUE;
+			DEFAULT_OPENING_TIMEOUT = 300000; // 5 minutes
 		} else {
 			DEFAULT_OPENING_TIMEOUT = to;
 		}
@@ -222,7 +222,6 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	public void setOpenTimeout(long openTimeout) {
 		if (openTimeout < 0)
 			throw new IllegalArgumentException("The timeout for opening the input splits must be positive or zero (= infinite).");
-		
 		this.openTimeout = openTimeout;
 	}
 	
@@ -734,9 +733,8 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 				for (StackTraceElement e : this.getStackTrace()) {
 					bld.append("\tat ").append(e.toString()).append('\n');
 				}
-				
 				throw new IOException("Input opening request timed out. Opener was " + (stillAlive ? "" : "NOT ") + 
-					" alive. Stack:\n" + bld.toString());
+					" alive. Stack of split open thread:\n" + bld.toString());
 			}
 		}
 		
