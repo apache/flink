@@ -50,6 +50,9 @@ public class Tuple8<T1, T2, T3, T4, T5, T6, T7, T8> extends Tuple {
 		this._8 = value8;
 	}
 
+	@Override
+	public int getArity() { return 8; }
+
 	public T1 T1() {
 		return this._1;
 	}

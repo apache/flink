@@ -52,6 +52,9 @@ public class Tuple9<T1, T2, T3, T4, T5, T6, T7, T8, T9> extends Tuple {
 		this._9 = value9;
 	}
 
+	@Override
+	public int getArity() { return 9; }
+
 	public T1 T1() {
 		return this._1;
 	}

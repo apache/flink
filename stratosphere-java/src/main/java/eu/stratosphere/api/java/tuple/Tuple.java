@@ -27,4 +27,6 @@ public abstract class Tuple implements java.io.Serializable {
 	public abstract <T> void setField(T value, int pos);
 	
 	public abstract <T> T getFieldFast(int pos);
+
+	public abstract int getArity();
 }

@@ -38,6 +38,9 @@ public class Tuple2<T1, T2> extends Tuple {
 		this._2 = value2;
 	}
 
+	@Override
+	public int getArity() { return 2; }
+
 	public T1 T1() {
 		return this._1;
 	}

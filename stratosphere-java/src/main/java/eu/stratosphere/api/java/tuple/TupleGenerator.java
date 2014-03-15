@@ -20,7 +20,7 @@ import java.io.PrintWriter;
  */
 public class TupleGenerator {
 	
-	private static final String ROOT_DIRECTORY = "./src/main/java/";
+	private static final String ROOT_DIRECTORY = "./src/main/java";
 	
 	private static final String PACKAGE = "eu.stratosphere.api.java.tuple";
 	
@@ -97,6 +97,11 @@ public class TupleGenerator {
 			w.println("\t\tthis._" + i + " = value" + i + ';');
 		}		
 		w.println("\t}");
+		w.println();
+
+		// arity accessor
+		w.println("\t@Override");
+		w.println("\tpublic int getArity() { return " + numFields + "; }");
 		w.println();
 		
 		// individual accessors
