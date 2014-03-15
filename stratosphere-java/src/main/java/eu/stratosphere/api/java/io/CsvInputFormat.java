@@ -33,9 +33,9 @@ public class CsvInputFormat<OUT extends Tuple> extends GenericCsvInputFormat<OUT
 
 	private static final long serialVersionUID = 1L;
 	
-	private static final String DEFAULT_LINE_DELIMITER = "\n";
+	public static final String DEFAULT_LINE_DELIMITER = "\n";
 	
-	private static final char DEFAULT_FIELD_DELIMITER = ',';
+	public static final char DEFAULT_FIELD_DELIMITER = ',';
 
 
 	private transient Object[] parsedValues;

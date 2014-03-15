@@ -23,6 +23,7 @@ import eu.stratosphere.api.java.functions.GroupReduceFunction;
 import eu.stratosphere.api.java.functions.KeySelector;
 import eu.stratosphere.api.java.functions.MapFunction;
 import eu.stratosphere.api.java.functions.ReduceFunction;
+import eu.stratosphere.api.java.io.CsvOutputFormat;
 import eu.stratosphere.api.java.io.PrintingOutputFormat;
 import eu.stratosphere.api.java.io.TextOutputFormat;
 import eu.stratosphere.api.java.operators.*;
@@ -32,6 +33,7 @@ import eu.stratosphere.api.java.operators.Keys;
 import eu.stratosphere.api.java.operators.MapOperator;
 import eu.stratosphere.api.java.operators.ReduceGroupOperator;
 import eu.stratosphere.api.java.operators.ReduceOperator;
+import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
 import eu.stratosphere.core.fs.Path;
 
@@ -204,7 +206,13 @@ public abstract class DataSet<T> {
 	}
 	
 	public void writeAsCsv(Path filePath, String rowDelimiter, String fieldDelimiter) {
-		
+		internalWriteAsCsv(filePath, rowDelimiter, fieldDelimiter);
+	}
+
+	@SuppressWarnings("unchecked")
+	private <X extends Tuple> void internalWriteAsCsv(Path filePath, String rowDelimiter,
+	                                                    String fieldDelimiter) {
+		output((OutputFormat<T>) new CsvOutputFormat<X>(filePath, rowDelimiter, fieldDelimiter));
 	}
 	
 	
