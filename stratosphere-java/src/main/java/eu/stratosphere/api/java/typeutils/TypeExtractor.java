@@ -77,7 +77,8 @@ public class TypeExtractor {
 	public static <X> TypeInformation<X> createTypeInfo(Type t) {
 		
 		Type curT = t;
-		if (Tuple.class.isAssignableFrom((Class<?>) curT)) {
+		if ((curT instanceof Class<?> && Tuple.class.isAssignableFrom((Class<?>) curT)) ||
+				(curT instanceof ParameterizedType && Tuple.class.isAssignableFrom((Class<?>)((ParameterizedType) curT).getRawType()))) {
 			
 			// move up the class hierarchy until we have a ParameterizedType or a Tuple
 			while(!(curT instanceof ParameterizedType) && !((Class)curT).equals(Tuple.class))  {
@@ -102,8 +103,12 @@ public class TypeExtractor {
 					// TODO: Check that type that extends Tuple does not have additional fields.
 					// Right now, these fields are not be serialized by the TupleSerializer. 
 					// We might want to add an ExtendedTupleSerializer for that. 
-					
-					return new TupleTypeInfo(((Class<? extends Tuple>)t), tupleSubTypes);
+
+					if (t instanceof Class<?>) {
+						return new TupleTypeInfo(((Class<? extends Tuple>)t), tupleSubTypes);
+					} else if (t instanceof ParameterizedType) {
+						return new TupleTypeInfo(((Class<? extends Tuple>)((ParameterizedType)t).getRawType()), tupleSubTypes);
+					}
 				}
 			}
 			
