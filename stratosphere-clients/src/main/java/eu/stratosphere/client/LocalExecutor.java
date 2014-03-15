@@ -332,6 +332,14 @@ public class LocalExecutor extends PlanExecutor {
 		LogUtils.initializeDefaultConsoleLogger(lvl);
 	}
 	
+	/**
+	 * By default, local environments do not overwrite existing files.
+	 * 
+	 * NOTE: This method must be called prior to initializing the LocalExecutor or a 
+	 * {@link eu.stratosphere.api.java.LocalEnvironment}.
+	 * 
+	 * @param overwriteByDefault True to overwrite by default, false to not overwrite by default.
+	 */
 	public static void setOverwriteFilesByDefault(boolean overwriteByDefault) {
 		DEFAULT_OVERWRITE = overwriteByDefault;
 	}

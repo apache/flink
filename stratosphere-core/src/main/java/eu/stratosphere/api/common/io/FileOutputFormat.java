@@ -61,7 +61,7 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT> {
 		final boolean overwrite = GlobalConfiguration.getBoolean(ConfigConstants.FILESYSTEM_DEFAULT_OVERWRITE_KEY,
 			ConfigConstants.DEFAULT_FILESYSTEM_OVERWRITE);
 	
-		DEFAULT_WRITE_MODE = overwrite ? WriteMode.OVERWRITE : WriteMode.CREATE;
+		DEFAULT_WRITE_MODE = overwrite ? WriteMode.OVERWRITE : WriteMode.NO_OVERWRITE;
 		
 		final boolean alwaysCreateDirectory = GlobalConfiguration.getBoolean(ConfigConstants.FILESYSTEM_OUTPUT_ALWAYS_CREATE_DIRECTORY_KEY,
 			ConfigConstants.DEFAULT_FILESYSTEM_ALWAYS_CREATE_DIRECTORY);
@@ -311,7 +311,7 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT> {
 					
 				// create output file
 				switch(writeMode) {
-				case CREATE: 
+				case NO_OVERWRITE: 
 					this.fdos = fs.create(p, false);
 					break;
 				case OVERWRITE:
