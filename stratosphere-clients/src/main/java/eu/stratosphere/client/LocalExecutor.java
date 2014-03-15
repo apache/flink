@@ -36,6 +36,8 @@ import eu.stratosphere.util.LogUtils;
  * A class for executing a {@link Plan} on a local embedded Stratosphere instance.
  */
 public class LocalExecutor extends PlanExecutor {
+	
+	private static boolean DEFAULT_OVERWRITE = false;
 
 	private final Object lock = new Object();	// we lock to ensure singleton execution
 	
@@ -53,7 +55,7 @@ public class LocalExecutor extends PlanExecutor {
 
 	private String hdfsConfigFile;
 	
-	private boolean defaultOverwriteFiles = false;
+	private boolean defaultOverwriteFiles = DEFAULT_OVERWRITE;
 	
 	private boolean defaultAlwaysCreateDirectory = false;
 	
@@ -328,5 +330,9 @@ public class LocalExecutor extends PlanExecutor {
 	 */
 	public static void setLoggingLevel(Level lvl) {
 		LogUtils.initializeDefaultConsoleLogger(lvl);
+	}
+	
+	public static void setOverwriteFilesByDefault(boolean overwriteByDefault) {
+		DEFAULT_OVERWRITE = overwriteByDefault;
 	}
 }
