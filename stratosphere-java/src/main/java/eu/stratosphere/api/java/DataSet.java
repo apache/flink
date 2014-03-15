@@ -29,10 +29,6 @@ import eu.stratosphere.api.java.io.TextOutputFormat;
 import eu.stratosphere.api.java.operators.*;
 import eu.stratosphere.api.java.operators.JoinOperator.JoinHint;
 import eu.stratosphere.api.java.operators.JoinOperator.JoinOperatorSets;
-import eu.stratosphere.api.java.operators.Keys;
-import eu.stratosphere.api.java.operators.MapOperator;
-import eu.stratosphere.api.java.operators.ReduceGroupOperator;
-import eu.stratosphere.api.java.operators.ReduceOperator;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
 import eu.stratosphere.core.fs.Path;
@@ -184,29 +180,17 @@ public abstract class DataSet<T> {
 	//  Result writing
 	// --------------------------------------------------------------------------------------------
 	
-	public void writeAsText(String path) {
-		writeAsText(new Path(path));
-	}
-	
-	public void writeAsText(Path filePath) {
-		output(new TextOutputFormat<T>(filePath));
+	public void writeAsText(String filePath) {
+		output(new TextOutputFormat<T>(new Path(filePath)));
 	}
 	
 	
 	public void writeAsCsv(String filePath) {
-		writeAsCsv(new Path(filePath));
-	}
-	
-	public void writeAsCsv(Path filePath) {
-		writeAsCsv(filePath, "\n", ",");
+		writeAsCsv(filePath, CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
 	}
 	
 	public void writeAsCsv(String filePath, String rowDelimiter, String fieldDelimiter) {
-		writeAsCsv(new Path(filePath), rowDelimiter, fieldDelimiter);
-	}
-	
-	public void writeAsCsv(Path filePath, String rowDelimiter, String fieldDelimiter) {
-		internalWriteAsCsv(filePath, rowDelimiter, fieldDelimiter);
+		internalWriteAsCsv(new Path(filePath), rowDelimiter, fieldDelimiter);
 	}
 
 	@SuppressWarnings("unchecked")

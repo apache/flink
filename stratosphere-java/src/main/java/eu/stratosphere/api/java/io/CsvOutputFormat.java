@@ -33,6 +33,12 @@ public class CsvOutputFormat<T extends Tuple> extends FileOutputFormat<T> {
 
 	@SuppressWarnings("unused")
 	private static final Log LOG = LogFactory.getLog(CsvOutputFormat.class);
+	
+	// --------------------------------------------------------------------------------------------
+	
+	public static final String DEFAULT_LINE_DELIMITER = CsvInputFormat.DEFAULT_LINE_DELIMITER;
+	
+	public static final String DEFAULT_FIELD_DELIMITER = String.valueOf(CsvInputFormat.DEFAULT_FIELD_DELIMITER);
 
 	// --------------------------------------------------------------------------------------------
 
@@ -44,7 +50,7 @@ public class CsvOutputFormat<T extends Tuple> extends FileOutputFormat<T> {
 
 	private String charsetName;
 
-	private boolean lenient;
+	private boolean allowNullValues;
 
 	private boolean quoteStrings = false;
 
@@ -57,7 +63,7 @@ public class CsvOutputFormat<T extends Tuple> extends FileOutputFormat<T> {
 	 * used. The default field delimiter is ','.
 	 */
 	public CsvOutputFormat(Path outputPath) {
-		this(outputPath, "\n", ",");
+		this(outputPath, DEFAULT_LINE_DELIMITER, DEFAULT_FIELD_DELIMITER);
 	}
 
 	/**
@@ -69,7 +75,7 @@ public class CsvOutputFormat<T extends Tuple> extends FileOutputFormat<T> {
 	 *            the record.
 	 */
 	public CsvOutputFormat(Path outputPath, String fieldDelimiter) {
-		this(outputPath, "\n", fieldDelimiter);
+		this(outputPath, DEFAULT_LINE_DELIMITER, fieldDelimiter);
 	}
 
 	/**
@@ -92,11 +98,11 @@ public class CsvOutputFormat<T extends Tuple> extends FileOutputFormat<T> {
 
 		this.fieldDelimiter = fieldDelimiter;
 		this.recordDelimiter = recordDelimiter;
-		this.lenient = false;
+		this.allowNullValues = false;
 	}
 	
-	public void setLenient(boolean lenient) {
-		this.lenient = lenient;
+	public void setAllowNullValues(boolean allowNulls) {
+		this.allowNullValues = allowNulls;
 	}
 
 	public void setCharsetName(String charsetName) {
@@ -138,9 +144,9 @@ public class CsvOutputFormat<T extends Tuple> extends FileOutputFormat<T> {
 
 				if (quoteStrings) {
 					if (v instanceof String || v instanceof StringValue) {
-						this.wrt.write("\"");
+						this.wrt.write('"');
 						this.wrt.write(v.toString());
-						this.wrt.write("\"");
+						this.wrt.write('"');
 					} else {
 						this.wrt.write(v.toString());
 					}
@@ -148,12 +154,12 @@ public class CsvOutputFormat<T extends Tuple> extends FileOutputFormat<T> {
 					this.wrt.write(v.toString());
 				}
 			} else {
-				if (this.lenient) {
+				if (this.allowNullValues) {
 					if (i != 0) {
 						this.wrt.write(this.fieldDelimiter);
 					}
 				} else {
-					throw new RuntimeException("Cannot serialize tuple with <null> value at position: " + i);
+					throw new RuntimeException("Cannot write tuple with <null> value at position: " + i);
 				}
 			}
 		}
