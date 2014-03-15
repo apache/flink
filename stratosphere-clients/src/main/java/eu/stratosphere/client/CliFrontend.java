@@ -18,17 +18,17 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Collection;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.MissingOptionException;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
@@ -39,7 +39,6 @@ import org.apache.commons.io.FileUtils;
 import eu.stratosphere.api.common.JobExecutionResult;
 import eu.stratosphere.api.common.accumulators.AccumulatorHelper;
 import eu.stratosphere.client.program.Client;
-import eu.stratosphere.client.program.JobInstantiationException;
 import eu.stratosphere.client.program.PackagedProgram;
 import eu.stratosphere.client.program.ProgramInvocationException;
 import eu.stratosphere.compiler.CompilerException;
@@ -59,35 +58,48 @@ import eu.stratosphere.util.StringUtils;
  */
 public class CliFrontend {
 
-	// actions
+	//actions
 	private static final String ACTION_RUN = "run";
 	private static final String ACTION_INFO = "info";
 	private static final String ACTION_LIST = "list";
 	private static final String ACTION_CANCEL = "cancel";
 	
-	private static final String GENERAL_OPTS = "general";
-	
 	// general options
 	private static final Option HELP_OPTION = new Option("h", "help", false, "Show the help for the CLI Frontend.");
 	private static final Option VERBOSE_OPTION = new Option("v", "verbose", false, "Print more detailed error messages.");
 	
-	// run options
+	// program (jar file) specific options
 	private static final Option JAR_OPTION = new Option("j", "jarfile", true, "Stratosphere program JAR file");
 	private static final Option CLASS_OPTION = new Option("c", "class", true, "Program class");
-	private static final Option ARGS_OPTION = new Option("a", "arguments", true, "Program arguments");
-	private static final Option WAIT_OPTION = new Option("w", "wait", false, "Wait for program to finish");
 	private static final Option ADDRESS_OPTION = new Option("m", "jobmanager", true, "Jobmanager to which the program is submitted");
+	private static final Option ARGS_OPTION = new Option("a", "arguments", true, "Program arguments. Arguments can also be added without -a, simply as trailing parameters.");
 	
-	// info options
+	// run specific options
+	private static final Option WAIT_OPTION = new Option("w", "wait", false, "Wait for program to finish");
+	
+	// info specific options
 	private static final Option DESCR_OPTION = new Option("d", "description", false, "Show description of expected program arguments");
 	private static final Option PLAN_OPTION = new Option("p", "plan", false, "Show optimized execution plan of the program (JSON)");
 	
-	// list options
+	// list specific options
 	private static final Option RUNNING_OPTION = new Option("r", "running", false, "Show running programs and their JobIDs");
 	private static final Option SCHEDULED_OPTION = new Option("s", "scheduled", false, "Show scheduled prorgrams and their JobIDs");
 	
-	// cancel options
+	// canceling
 	private static final Option ID_OPTION = new Option("i", "jobid", true, "JobID of program to cancel");
+	
+	static {
+		initOptions();
+	}
+	
+	// general options
+	private static final Options GENRAL_OPTIONS = createGeneralOptions();
+	
+	// action options all include the general options
+	private static final Options RUN_OPTIONS = getRunOptions(createGeneralOptions());
+	private static final Options INFO_OPTIONS = getInfoOptions(createGeneralOptions());
+	private static final Options LIST_OPTIONS = getListOptions(createGeneralOptions());
+	private static final Options CANCEL_OPTIONS = getCancelOptions(createGeneralOptions());
 	
 	// config dir parameters
 	private static final String ENV_CONFIG_DIRECTORY = "STRATOSPHERE_CONF_DIR";
@@ -96,35 +108,63 @@ public class CliFrontend {
 	
 
 	private CommandLineParser parser;
-	private Map<String,Options> options;
+	
 	private boolean verbose;
+	private boolean printHelp;
 
 	/**
 	 * Initializes the class
 	 */
 	public CliFrontend() {
-
 		parser = new PosixParser();
-		
-		// init options
-		options = new HashMap<String, Options>();
-		options.put(GENERAL_OPTS, getGeneralOptions());
-		options.put(ACTION_RUN, getRunOptions());
-		options.put(ACTION_INFO, getInfoOptions());
-		options.put(ACTION_LIST, getListOptions());
-		options.put(ACTION_CANCEL, getCancelOptions());
 	}
+	
+	// --------------------------------------------------------------------------------------------
+	//  Setup of options
+	// --------------------------------------------------------------------------------------------
 
-	private Options getGeneralOptions() {
-		
-		Options options = new Options();
-		
-		// general options
+	private static void initOptions() {
 		HELP_OPTION.setRequired(false);
-		options.addOption(HELP_OPTION);
 		VERBOSE_OPTION.setRequired(false);
-		options.addOption(VERBOSE_OPTION);
 		
+		JAR_OPTION.setRequired(false);
+		JAR_OPTION.setArgName("jarfile");
+		
+		CLASS_OPTION.setRequired(false);
+		CLASS_OPTION.setArgName("classname");
+		
+		ADDRESS_OPTION.setRequired(false);
+		ADDRESS_OPTION.setArgName("host:port");
+		
+		ARGS_OPTION.setRequired(false);
+		ARGS_OPTION.setArgName("programArgs");
+		ARGS_OPTION.setArgs(Option.UNLIMITED_VALUES);
+		
+		WAIT_OPTION.setRequired(false);
+		
+		PLAN_OPTION.setRequired(false);
+		DESCR_OPTION.setRequired(false);
+		
+		RUNNING_OPTION.setRequired(false);
+		SCHEDULED_OPTION.setRequired(false);
+		
+		ID_OPTION.setRequired(false);
+		ID_OPTION.setArgName("jobID");
+	}
+	
+	private static Options createGeneralOptions() {
+		Options options = new Options();
+		options.addOption(HELP_OPTION);
+		options.addOption(VERBOSE_OPTION);
+
+		return options;
+	}
+	
+	private static Options getProgramSpecificOptions(Options options) {
+		options.addOption(JAR_OPTION);
+		options.addOption(CLASS_OPTION);
+		options.addOption(ADDRESS_OPTION);
+		options.addOption(ARGS_OPTION);
 		return options;
 	}
 	
@@ -133,25 +173,9 @@ public class CliFrontend {
 	 * 
 	 * @return Command line options for the run action.
 	 */
-	private Options getRunOptions() {
-		Options options = new Options();
-		// run options
-		JAR_OPTION.setRequired(false);
-		JAR_OPTION.setArgName("jarfile");
-		options.addOption(JAR_OPTION);
-		CLASS_OPTION.setRequired(false);
-		CLASS_OPTION.setArgName("classname");
-		options.addOption(CLASS_OPTION);
-		ARGS_OPTION.setRequired(false);
-		ARGS_OPTION.setArgName("programArgs");
-		ARGS_OPTION.setArgs(Option.UNLIMITED_VALUES);
-		options.addOption(ARGS_OPTION);
-		WAIT_OPTION.setRequired(false);
+	private static Options getRunOptions(Options options) {
+		options = getProgramSpecificOptions(options);
 		options.addOption(WAIT_OPTION);
-		ADDRESS_OPTION.setRequired(false);
-		ADDRESS_OPTION.setArgName("host:port");
-		options.addOption(ADDRESS_OPTION);
-		
 		return options;
 	}
 	
@@ -160,26 +184,10 @@ public class CliFrontend {
 	 * 
 	 * @return Command line options for the info action.
 	 */
-	private Options getInfoOptions() {
-		
-		Options options = new Options();
-		
-		// info options
-		DESCR_OPTION.setRequired(false);
+	private static Options getInfoOptions(Options options) {
+		options = getProgramSpecificOptions(options);
 		options.addOption(DESCR_OPTION);
-		PLAN_OPTION.setRequired(false);
 		options.addOption(PLAN_OPTION);
-		JAR_OPTION.setRequired(false);
-		JAR_OPTION.setArgName("jarfile");
-		options.addOption(JAR_OPTION);
-		CLASS_OPTION.setRequired(false);
-		CLASS_OPTION.setArgName("classname");
-		options.addOption(CLASS_OPTION);
-		ARGS_OPTION.setRequired(false);
-		ARGS_OPTION.setArgName("programArgs");
-		ARGS_OPTION.setArgs(Option.UNLIMITED_VALUES);
-		options.addOption(ARGS_OPTION);
-		
 		return options;
 	}
 	
@@ -188,16 +196,9 @@ public class CliFrontend {
 	 * 
 	 * @return Command line options for the list action.
 	 */
-	private Options getListOptions() {
-		
-		Options options = new Options();
-		
-		// list options
-		RUNNING_OPTION.setRequired(false);
+	private static Options getListOptions(Options options) {
 		options.addOption(RUNNING_OPTION);
-		SCHEDULED_OPTION.setRequired(false);
 		options.addOption(SCHEDULED_OPTION);
-		
 		return options;
 	}
 	
@@ -206,40 +207,54 @@ public class CliFrontend {
 	 * 
 	 * @return Command line options for the cancel action.
 	 */
-	private Options getCancelOptions() {
-		
-		Options options = new Options();
-		
-		// cancel options
-		ID_OPTION.setRequired(false);
-		ID_OPTION.setArgName("jobID");
+	private static Options getCancelOptions(Options options) {
 		options.addOption(ID_OPTION);
-		
 		return options;
 	}
+	
+	// --------------------------------------------------------------------------------------------
+	//  Execut Actions
+	// --------------------------------------------------------------------------------------------
 	
 	/**
 	 * Executions the run action.
 	 * 
 	 * @param args Command line arguments for the run action.
 	 */
-	private void run(String[] args) {
+	private int run(String[] args) {
+		
+		// Parse command line options
+		CommandLine line;
+		try {
+			line = parser.parse(RUN_OPTIONS, args, false);
+			evaluateGeneralOptions(line);
+		}
+		catch (MissingOptionException e) {
+			System.out.println(e.getMessage());
+			printHelpForRun();
+			return 1;
+		}
+		catch (UnrecognizedOptionException e) {
+			System.out.println(e.getMessage());
+			printHelpForRun();
+			return 2;
+		}
+		catch (Exception e) {
+			return handleError(e);
+		}
+		
+		if (printHelp) {
+			printHelpForRun();
+			return 0;
+		}
 		
 		File jarFile = null;
-		String assemblerClass = null;
+		String entryPointClass = null;
 		String[] programArgs = null;
 		String address = null;
 		boolean wait = false;
 		
-		// Parse command line options
-		CommandLine line = null;
-		try {
-			line = parser.parse(this.options.get(ACTION_RUN), args, false);
-		} catch (Exception e) {
-			handleError(e);
-		}
-		
-		if( line.hasOption(ADDRESS_OPTION.getOpt())) {
+		if (line.hasOption(ADDRESS_OPTION.getOpt())) {
 			address = line.getOptionValue(ADDRESS_OPTION.getOpt());
 		}
 		
@@ -249,35 +264,38 @@ public class CliFrontend {
 			jarFile = new File(jarFilePath);
 			
 			// Check if JAR file exists
-			if(!jarFile.exists()) {
-				System.err.println("Error: Jar file does not exist.");
-				printHelp();
-				System.exit(1);
-			} else if(!jarFile.isFile()) {
-				System.err.println("Error: Jar file is not a file.");
-				printHelp();
-				System.exit(1);
+			if (!jarFile.exists()) {
+				System.out.println("Error: Jar file does not exist.");
+				printHelpForRun();
+				return 1;
+			}
+			else if (!jarFile.isFile()) {
+				System.out.println("Error: Jar file is not a file.");
+				printHelpForRun();
+				return 1;
 			}
 		} else {
-			System.err.println("Error: Jar file is not set.");	
-			printHelp();
-			System.exit(1);
+			System.out.println("Error: Jar file is not set.");	
+			printHelpForRun();
+			return 1;
 		}
 		
 		// Get assembler class
-		if(line.hasOption(CLASS_OPTION.getOpt())) {
-			assemblerClass = line.getOptionValue(CLASS_OPTION.getOpt());
+		if (line.hasOption(CLASS_OPTION.getOpt())) {
+			entryPointClass = line.getOptionValue(CLASS_OPTION.getOpt());
 		}
 		
 		// get program arguments
-		if(line.hasOption(ARGS_OPTION.getOpt())) {
+		if (line.hasOption(ARGS_OPTION.getOpt())) {
 			programArgs = line.getOptionValues(ARGS_OPTION.getOpt());
+		} else {
+			programArgs = line.getArgs();
 		}
 		
 		// see if there is a file containing the jobManager address.
 		String loc = getConfigurationDirectory();
 		File jmAddressFile = new File(loc+"/.yarn-jobmanager");
-		if(jmAddressFile.exists()) {
+		if (jmAddressFile.exists()) {
 			try {
 				address = FileUtils.readFileToString(jmAddressFile).trim();
 				System.out.println("Found a .yarn-jobmanager file, using \""+address+"\" to connect to the JobManager");
@@ -288,21 +306,21 @@ public class CliFrontend {
 		wait = line.hasOption(WAIT_OPTION.getOpt());
 		
 		// Try to get load plan
-		PackagedProgram program = null;
+		PackagedProgram program;
 		try {
-			if (assemblerClass == null) {
+			if (entryPointClass == null) {
 				program = new PackagedProgram(jarFile, programArgs);
 			} else {
-				program = new PackagedProgram(jarFile, assemblerClass, programArgs);
+				program = new PackagedProgram(jarFile, entryPointClass, programArgs);
 			}
 		} catch (ProgramInvocationException e) {
-			handleError(e);
+			return handleError(e);
 		}
 
 		Configuration configuration = getConfiguration();
 		Client client;
 		InetSocketAddress socket = null;
-		if(address != null && !address.isEmpty()) {
+		if (address != null && !address.isEmpty()) {
 			socket = RemoteExecutor.getInetFromHostport(address);
 			client = new Client(socket, configuration);
 		} else {
@@ -310,38 +328,40 @@ public class CliFrontend {
 		}
 		client.setPrintStatusDuringExecution(true);
 		
-		JobExecutionResult execResult = null;
+		
+		JobExecutionResult execResult;
 		try {
-			execResult = client.run(program.getPlanWithJars(), wait);
-		} catch (ProgramInvocationException e) {
-			handleError(e);
-		} catch (JobInstantiationException e) {
-			handleError(e);
-		} catch (IOException e) {
-			handleError(e);
-		} finally {
+			execResult = client.run(program, wait);
+		}
+		catch (ProgramInvocationException e) {
+			return handleError(e);
+		}
+		finally {
 			program.deleteExtractedLibraries();
 		}
-		if(wait) {
-			System.out.println("Job Runtime: "+execResult.getNetRuntime());
+		
+		if (wait && execResult != null) {
+			System.out.println("Job Runtime: " + execResult.getNetRuntime());
 			Map<String, Object> accumulatorsResult = execResult.getAllAccumulatorResults();
-			if(accumulatorsResult.size() > 0) {
+			if (accumulatorsResult.size() > 0) {
 				System.out.println("Accumulator Results: ");
 				System.out.println(AccumulatorHelper.getResultsFormated(accumulatorsResult));
 			}
-		} else {
-			if(address != null && !address.isEmpty()) {
+		}
+		else {
+			if (address != null && !address.isEmpty()) {
 				System.out.println("Job successfully submitted. Use -w (or --wait) option to track the progress here.\n"
 						+ "JobManager web interface: http://"
 						+ socket.getHostName()
-						+":"+configuration.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT));
+						+ ":" + configuration.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT));
 			} else {
 				System.out.println("Job successfully submitted. Use -w (or --wait) option to track the progress here.\n"
 					+ "JobManager web interface: http://"
 					+ configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null)
-					+":"+configuration.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT));
+					+ ":" + configuration.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT));
 			}
 		}
+		return 0;
 	}
 	
 	/**
@@ -349,7 +369,31 @@ public class CliFrontend {
 	 * 
 	 * @param args Command line arguments for the info action. 
 	 */
-	private void info(String[] args) {
+	private int info(String[] args) {
+		// Parse command line options
+		CommandLine line;
+		try {
+			line = parser.parse(INFO_OPTIONS, args, false);
+			evaluateGeneralOptions(line);
+		}
+		catch (MissingOptionException e) {
+			System.out.println(e.getMessage());
+			printHelpForInfo();
+			return 1;
+		}
+		catch (UnrecognizedOptionException e) {
+			System.out.println(e.getMessage());
+			printHelpForInfo();
+			return 2;
+		}
+		catch (Exception e) {
+			return handleError(e);
+		}
+
+		if (printHelp) {
+			printHelpForInfo();
+			return 0;
+		}
 		
 		File jarFile = null;
 		String assemblerClass = null;
@@ -358,55 +402,50 @@ public class CliFrontend {
 		boolean description;
 		boolean plan;
 		
-		// Parse command line options
-		CommandLine line = null;
-		try {
-			line = parser.parse(this.options.get(ACTION_INFO), args, false);
-		} catch (Exception e) {
-			handleError(e);
-		}
-		
 		// Get jar file
 		if (line.hasOption(JAR_OPTION.getOpt())) {
 			jarFile = new File(line.getOptionValue(JAR_OPTION.getOpt()));
 			
 			// Check if JAR file exists
-			if(!jarFile.exists()) {
-				System.err.println("Error: Jar file does not exist.");
-				printHelp();
-				System.exit(1);
-			} else if(!jarFile.isFile()) {
-				System.err.println("Error: Jar file is not a file.");
-				printHelp();
-				System.exit(1);
+			if (!jarFile.exists()) {
+				System.out.println("Error: Jar file does not exist.");
+				printHelpForInfo();
+				return 1;
+			}
+			else if (!jarFile.isFile()) {
+				System.out.println("Error: Jar file is not a file.");
+				printHelpForInfo();
+				return 1;
 			}
 		} else {
-			System.err.println("Error: Jar file is not set.");
-			printHelp();
-			System.exit(1);
+			System.out.println("Error: Jar file is not set.");
+			printHelpForInfo();
+			return 1;
 		}
 		
 		// Get assembler class
-		if(line.hasOption(CLASS_OPTION.getOpt())) {
+		if (line.hasOption(CLASS_OPTION.getOpt())) {
 			assemblerClass = line.getOptionValue(CLASS_OPTION.getOpt());
 		}
 		
 		// get program arguments
-		if(line.hasOption(ARGS_OPTION.getOpt())) {
+		if (line.hasOption(ARGS_OPTION.getOpt())) {
 			programArgs = line.getOptionValues(ARGS_OPTION.getOpt());
+		} else {
+			programArgs = line.getArgs();
 		}
 		
 		description = line.hasOption(DESCR_OPTION.getOpt());
 		plan = line.hasOption(PLAN_OPTION.getOpt());
 		
-		if(!description && !plan) {
-			System.err.println("ERROR: Specify the information to display.");
-			printHelp();
-			System.exit(1);
+		if (!description && !plan) {
+			System.out.println("ERROR: Specify the information to display.");
+			printHelpForInfo();
+			return 1;
 		}
 		
 		// Try to get load plan
-		PackagedProgram program = null;
+		PackagedProgram program;
 		try {
 			if (assemblerClass == null) {
 				program = new PackagedProgram(jarFile, programArgs);
@@ -414,54 +453,58 @@ public class CliFrontend {
 				program = new PackagedProgram(jarFile, assemblerClass, programArgs);
 			}
 		} catch (ProgramInvocationException e) {
-			handleError(e);
+			return handleError(e);
 		}
 		
-		// check for description request
-		if (description) {
-			String descr = null;
-			try {
-				descr = program.getDescription();
-			} catch (Exception e) {
-				handleError(e);
+		try {
+			// check for description request
+			if (description) {
+				String descr = null;
+				try {
+					descr = program.getDescription();
+				} catch (Exception e) {
+					return handleError(e);
+				}
+				
+				if (descr != null) {
+					System.out.println("-------------------- Program Description ---------------------");
+					System.out.println(descr);
+					System.out.println("--------------------------------------------------------------");
+				} else {
+					System.out.println("No description available for this plan.");
+				}
 			}
 			
-			if (descr != null) {
-				System.out.println("-------------------- Program Description ---------------------");
-				System.out.println(descr);
-				System.out.println("--------------------------------------------------------------");
-			} else {
-				System.err.println("No description available for this plan.");
+			// check for json plan request
+			if (plan) {
+				String jsonPlan = null;
+				
+				Configuration configuration = getConfiguration();
+				Client client = new Client(configuration);
+				try {
+					jsonPlan = client.getOptimizedPlanAsJson(program);
+				}
+				catch (ProgramInvocationException e) {
+					return handleError(e);
+				}
+				catch (CompilerException e) {
+					return handleError(e);
+				}
+				
+				if (jsonPlan != null) {
+					System.out.println("----------------------- Execution Plan -----------------------");
+					System.out.println(jsonPlan);
+					System.out.println("--------------------------------------------------------------");
+				} else {
+					System.out.println("JSON plan could not be compiled.");
+				}
 			}
+			
+			return 0;
 		}
-		
-		// check for json plan request
-		if (plan) {
-			String jsonPlan = null;
-			
-			Configuration configuration = getConfiguration();
-			Client client = new Client(configuration);
-			try {
-				jsonPlan = client.getOptimizerPlanAsJSON(program.getPlanWithJars());
-			} catch (ProgramInvocationException e) {
-				handleError(e);
-			} catch (JobInstantiationException e) {
-				handleError(e);
-			} catch (CompilerException e) {
-				handleError(e);
-			} catch (IOException e) {
-				handleError(e);
-			}
-			
-			if(jsonPlan != null) {
-				System.out.println("----------------------- Execution Plan -----------------------");
-				System.out.println(jsonPlan);
-				System.out.println("--------------------------------------------------------------");
-			} else {
-				System.err.println("JSON plan could not be compiled.");
-			}
+		finally {
+			program.deleteExtractedLibraries();
 		}
-		program.deleteExtractedLibraries();
 	}
 
 	/**
@@ -469,27 +512,39 @@ public class CliFrontend {
 	 * 
 	 * @param args Command line arguments for the list action.
 	 */
-	private void list(String[] args) {
-		
-		boolean running;
-		boolean scheduled;
-		
+	private int list(String[] args) {
 		// Parse command line options
-		CommandLine line = null;
+		CommandLine line;
 		try {
-			line = parser.parse(this.options.get(ACTION_LIST), args, false);
-		} catch (Exception e) {
-			handleError(e);
+			line = parser.parse(LIST_OPTIONS, args, false);
+		}
+		catch (MissingOptionException e) {
+			System.out.println(e.getMessage());
+			printHelpForList();
+			return 1;
+		}
+		catch (UnrecognizedOptionException e) {
+			System.out.println(e.getMessage());
+			printHelpForList();
+			return 2;
+		}
+		catch (Exception e) {
+			return handleError(e);
+		}
+		
+		if (printHelp) {
+			printHelpForList();
+			return 0;
 		}
 		
 		// get list options
-		running = line.hasOption(RUNNING_OPTION.getOpt());
-		scheduled = line.hasOption(SCHEDULED_OPTION.getOpt());
+		boolean running = line.hasOption(RUNNING_OPTION.getOpt());
+		boolean scheduled = line.hasOption(SCHEDULED_OPTION.getOpt());
 		
-		if(!running && !scheduled) {
-			System.err.println("Error: Specify the status of the jobs to list.");
-			printHelp();
-			System.exit(1);
+		if (!running && !scheduled) {
+			System.out.println("Error: Specify the status of the jobs to list.");
+			printHelpForList();
+			return 1;
 		}
 		
 		ExtendedManagementProtocol jmConn = null;
@@ -526,7 +581,7 @@ public class CliFrontend {
 				}
 			};
 			
-			if(running) {
+			if (running) {
 				if(runningJobs.size() == 0) {
 					System.out.println("No running jobs.");
 				} else {
@@ -539,7 +594,7 @@ public class CliFrontend {
 					System.out.println("--------------------------------------------------------------");
 				}
 			}
-			if(scheduled) {
+			if (scheduled) {
 				if(scheduledJobs.size() == 0) {
 					System.out.println("No scheduled jobs.");
 				} else {
@@ -552,15 +607,17 @@ public class CliFrontend {
 					System.out.println("--------------------------------------------------------------");
 				}
 			}
-			
-		} catch (Throwable t) {
-			handleError(t);
-		} finally {
+			return 0;
+		}
+		catch (Throwable t) {
+			return handleError(t);
+		}
+		finally {
 			if (jmConn != null) {
 				try {
 					RPC.stopProxy(jmConn);
 				} catch (Throwable t) {
-					System.err.println("Could not cleanly shut down connection from compiler to job manager");
+					System.out.println("Could not cleanly shut down connection from compiler to job manager");
 				}
 			}
 			jmConn = null;
@@ -573,24 +630,39 @@ public class CliFrontend {
 	 * 
 	 * @param args Command line arguments for the cancel action.
 	 */
-	private void cancel(String[] args) {
+	private int cancel(String[] args) {
+		// Parse command line options
+		CommandLine line;
+		try {
+			line = parser.parse(CANCEL_OPTIONS, args, false);
+		}
+		catch (MissingOptionException e) {
+			System.out.println(e.getMessage());
+			printHelpForCancel();
+			return 1;
+		}
+		catch (UnrecognizedOptionException e) {
+			System.out.println(e.getMessage());
+			printHelpForCancel();
+			return 2;
+		}
+		catch (Exception e) {
+			return handleError(e);
+		}
+		
+		if (printHelp) {
+			printHelpForCancel();
+			return 0;
+		}
 		
 		String jobId = null;
 		
-		// Parse command line options
-		CommandLine line = null;
-		try {
-			line = parser.parse(this.options.get(ACTION_CANCEL), args, false);
-		} catch (Exception e) {
-			handleError(e);
-		}
-		
-		if(line.hasOption(ID_OPTION.getOpt())) {
+		if (line.hasOption(ID_OPTION.getOpt())) {
 			jobId = line.getOptionValue(ID_OPTION.getOpt());
 		} else {
-			System.err.println("Error: Specify a jobID to cancel a job.");
-			printHelp();
-			System.exit(1);
+			System.out.println("Error: Specify a jobID to cancel a job.");
+			printHelpForCancel();
+			return 1;
 		}
 		
 		ExtendedManagementProtocol jmConn = null;
@@ -598,19 +670,21 @@ public class CliFrontend {
 			
 			jmConn = getJMConnection();
 			jmConn.cancelJob(new JobID(StringUtils.hexStringToByte(jobId)));
-		} catch (Throwable t) {
-			handleError(t);
-		} finally {
+			return 0;
+		}
+		catch (Throwable t) {
+			return handleError(t);
+		}
+		finally {
 			if (jmConn != null) {
 				try {
 					RPC.stopProxy(jmConn);
 				} catch (Throwable t) {
-					System.err.println("Could not cleanly shut down connection from compiler to job manager");
+					System.out.println("Could not cleanly shut down connection from compiler to job manager");
 				}
 			}
 			jmConn = null;
 		}
-		
 	}
 	
 	/**
@@ -642,64 +716,69 @@ public class CliFrontend {
 	 * @param options A map with options for actions. 
 	 */
 	private void printHelp() {
+		System.out.println("./stratosphere [ACTION] [GENERAL_OPTIONS] [ACTION_ARGUMENTS]");
+		
+		HelpFormatter formatter = new HelpFormatter();
+		formatter.setLeftPadding(5);
+		formatter.setSyntaxPrefix("  general options:");
+		formatter.printHelp(" ", GENRAL_OPTIONS);
+		
+		printHelpForRun();
+		printHelpForInfo();
+		printHelpForList();
+		printHelpForCancel();
+	}
+	
+	private void printHelpForRun() {
 		HelpFormatter formatter = new HelpFormatter();
 		formatter.setLeftPadding(5);
 		
-		System.out.println("./stratosphere [ACTION] [GENERAL_OPTIONS] [ACTION_ARGUMENTS]");
-		
-		formatter.setSyntaxPrefix("  general options:");
-		formatter.printHelp(" ",this.options.get(GENERAL_OPTS));
-		
 		System.out.println("\nAction \"run\" compiles and submits a Stratosphere program.");
 		formatter.setSyntaxPrefix("  \"run\" action arguments:");
-		formatter.printHelp(" ", this.options.get(ACTION_RUN));
+		formatter.printHelp(" ", getRunOptions(new Options()));
+	}
+	
+	private void printHelpForInfo() {
+		HelpFormatter formatter = new HelpFormatter();
+		formatter.setLeftPadding(5);
 		
 		System.out.println("\nAction \"info\" displays information about a Stratosphere program.");
 		formatter.setSyntaxPrefix("  \"info\" action arguments:");
-		formatter.printHelp(" ", this.options.get(ACTION_INFO));
+		formatter.printHelp(" ", getInfoOptions(new Options()));
+	}
+	
+	private void printHelpForList() {
+		HelpFormatter formatter = new HelpFormatter();
+		formatter.setLeftPadding(5);
 		
 		System.out.println("\nAction \"list\" lists submitted Stratosphere programs.");
 		formatter.setSyntaxPrefix("  \"list\" action arguments:");
-		formatter.printHelp(" ", this.options.get(ACTION_LIST));
+		formatter.printHelp(" ", getListOptions(new Options()));
+	}
+	
+	private void printHelpForCancel() {
+		HelpFormatter formatter = new HelpFormatter();
+		formatter.setLeftPadding(5);
 		
 		System.out.println("\nAction \"cancel\" cancels a submitted Stratosphere program.");
 		formatter.setSyntaxPrefix("  \"cancel\" action arguments:");
-		formatter.printHelp(" ", this.options.get(ACTION_CANCEL));
-		
+		formatter.printHelp(" ", getCancelOptions(new Options()));
 	}
+	
 	
 	/**
 	 * Displays exceptions.
 	 * 
 	 * @param e the exception to display.
 	 */
-	@SuppressWarnings({"unchecked"})
-	private void handleError(Throwable t) {
-		if(t instanceof UnrecognizedOptionException) {
-			
-			Options generalOptions = this.options.get(GENERAL_OPTS);
-			boolean generalOption = false;
-			for(Option o : (Collection<Option>)generalOptions.getOptions()) {
-				if(t.getMessage().startsWith("Unrecognized option: -"+o.getOpt()) || 
-						t.getMessage().contains("Unrecognized option: -"+o.getLongOpt())) {
-					generalOption = true;
-				}
-			}
-			if(generalOption) {
-				System.err.println("ERROR: General args must be placed directly after action.");
-			} else {
-				System.err.println("ERROR: "+t.getMessage());
-			}
-			printHelp();
+	private int handleError(Throwable t) {
+		System.out.println("Error: " + t.getMessage());
+		if (this.verbose) {
+			t.printStackTrace();
 		} else {
-			System.err.println("ERROR: "+t.getMessage());
-			if (this.verbose) {
-				t.printStackTrace();
-			} else {
-				System.out.println("For a more detailed error message use the '-v' option");
-			}
+			System.out.println("For a more detailed error message use the '-v' option");
 		}
-		System.exit(1);
+		return 1;
 	}
 
 	private String getConfigurationDirectory() {
@@ -730,33 +809,13 @@ public class CliFrontend {
 		return config;
 	}
 	
-	/**
-	 * Parses the general command line options and returns the verbosity mode.
-	 * 
-	 * @param args command line arguments of the action.
-	 * @return all arguments that have not been parsed as general options.
-	 * 
-	 */
-	private String[] parseGeneralOptions(String[] args) {
 
-		// Parse command line options
-		CommandLine line = null;
-		try {
-			line = parser.parse(this.options.get(GENERAL_OPTS), args, true);
-		} catch (Exception e) {
-			handleError(e);
-		}
-		
+	private void evaluateGeneralOptions(CommandLine line) {
 		// check help flag
-		if (line.hasOption(HELP_OPTION.getOpt())) {
-			printHelp();
-			System.exit(0);
-		}
-
+		this.printHelp = line.hasOption(HELP_OPTION.getOpt());
+		
 		// check verbosity flag
 		this.verbose = line.hasOption(VERBOSE_OPTION.getOpt());
-		
-		return line.getArgs();
 	}
 	
 	/**
@@ -767,8 +826,8 @@ public class CliFrontend {
 	private void parseParameters(String[] args) {
 		
 		// check for action
-		if(args.length < 1) {
-			System.err.println("ERROR: Please specify an action.");
+		if (args.length < 1) {
+			System.out.println("Please specify an action.");
 			printHelp();
 			System.exit(1);
 		}
@@ -777,26 +836,29 @@ public class CliFrontend {
 		String action = args[0];
 		
 		// remove action from parameters
-		String[] params = new String[args.length-1];
-		System.arraycopy(args, 1, params, 0, params.length);
+		String[] params = Arrays.copyOfRange(args, 1, args.length);
 		
-		params = parseGeneralOptions(params);
+		int returnCode;
 		
 		// do action
-		if(action.equals(ACTION_RUN)) {
-			run(params);
+		if (action.equals(ACTION_RUN)) {
+			returnCode = run(params);
 		} else if (action.equals(ACTION_LIST)) {
-			list(params);
+			returnCode = list(params);
 		} else if (action.equals(ACTION_INFO)) {
-			info(params);
+			returnCode = info(params);
 		} else if (action.equals(ACTION_CANCEL)) {
-			cancel(params);
-		} else {
-			System.err.println("Invalid action!");
+			returnCode = cancel(params);
+		} else if (action.equals("-h") || action.equals("--help")) {
 			printHelp();
-			System.exit(1);
+			returnCode = 0;
+		} else {
+			System.out.println("Invalid action!");
+			printHelp();
+			returnCode = 1;
 		}
 		
+		System.exit(returnCode);
 	}
 
 	
@@ -805,9 +867,7 @@ public class CliFrontend {
 	 * Submits the job based on the arguments
 	 */
 	public static void main(String[] args) throws ParseException {
-
 		CliFrontend cli = new CliFrontend();
 		cli.parseParameters(args);
-		
 	}
 }

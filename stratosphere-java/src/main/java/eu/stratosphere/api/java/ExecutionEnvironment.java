@@ -47,7 +47,9 @@ import eu.stratosphere.util.SplittableIterator;
 
 public abstract class ExecutionEnvironment {
 	
-	private static ExecutionEnvironment systemContext;
+	private static ExecutionEnvironment contextEnvironment;
+	
+	private static int defaultLocalDop = Runtime.getRuntime().availableProcessors();
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -226,42 +228,48 @@ public abstract class ExecutionEnvironment {
 	// --------------------------------------------------------------------------------------------
 	
 	public JobExecutionResult execute() throws Exception {
-		return execute(null);
+		return execute(getDefaultName());
 	}
 	
 	public abstract JobExecutionResult execute(String jobName) throws Exception;
 	
+	public abstract String getExecutionPlan() throws Exception;
 	
-	void registerDataSink(DataSink<?> sink) {
-		this.sinks.add(sink);
+	public JavaPlan createProgramPlan() {
+		return createProgramPlan(null);
 	}
 	
-	protected JavaPlan createPlan(String jobName) {
+	public JavaPlan createProgramPlan(String jobName) {
 		if (this.sinks.isEmpty()) {
 			throw new RuntimeException("No data sinks have been created yet.");
 		}
 		
 		if (jobName == null) {
-			jobName = "Stratosphere Java Job at " + Calendar.getInstance().getTime();
+			jobName = getDefaultName();
 		}
 		
 		OperatorTranslation translator = new OperatorTranslation();
 		return translator.translateToPlan(this.sinks, jobName);
 	}
 	
-	public abstract String getExecutionPlan() throws Exception;
+	void registerDataSink(DataSink<?> sink) {
+		this.sinks.add(sink);
+	}
+	
+	private static String getDefaultName() {
+		return "Stratosphere Java Job at " + Calendar.getInstance().getTime();
+	}
 	
 	// --------------------------------------------------------------------------------------------
 	//  Instantiation of Execution Contexts
 	// --------------------------------------------------------------------------------------------
 	
 	public static ExecutionEnvironment getExecutionEnvironment() {
-		return systemContext == null ? createLocalEnvironment() : systemContext;
+		return contextEnvironment == null ? createLocalEnvironment() : contextEnvironment;
 	}
 	
 	public static ExecutionEnvironment createLocalEnvironment() {
-		int defaultDop = Runtime.getRuntime().availableProcessors();
-		return createLocalEnvironment(defaultDop);
+		return createLocalEnvironment(defaultLocalDop);
 	}
 	
 	public static ExecutionEnvironment createLocalEnvironment(int degreeOfParallelism) {
@@ -280,10 +288,18 @@ public abstract class ExecutionEnvironment {
 		return rec;
 	}
 	
-	public static void initializeContextEnvironment(ExecutionEnvironment ctx) {
-		if (systemContext != null)
+	public static void setDefaultLocalParallelism(int degreeOfParallelism) {
+		defaultLocalDop = degreeOfParallelism;
+	}
+	
+	protected static void initializeContextEnvironment(ExecutionEnvironment ctx) {
+		if (contextEnvironment != null)
 			throw new IllegalStateException("System context has already been initialized.");
 		
-		systemContext = ctx;
+		contextEnvironment = ctx;
+	}
+	
+	protected boolean isContextEnvironmentSet() {
+		return contextEnvironment != null;
 	}
 }

@@ -14,8 +14,7 @@
 package eu.stratosphere.client.program;
 
 /**
- * Exception used to indicate that there is an error during the invocation of
- * the user provided pact program.
+ * Exception used to indicate that there is an error during the invocation of a stratosphere program.
  */
 public class ProgramInvocationException extends Exception {
 	/**

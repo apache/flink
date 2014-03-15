@@ -33,7 +33,6 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.client.program.Client;
-import eu.stratosphere.client.program.JobInstantiationException;
 import eu.stratosphere.client.program.PackagedProgram;
 import eu.stratosphere.client.program.ProgramInvocationException;
 import eu.stratosphere.compiler.CompilerException;
@@ -159,18 +158,14 @@ public class JobSubmissionServlet extends HttpServlet {
 				
 				optPlan = client.getOptimizedPlan(pactProgram.getPlanWithJars());
 			}
-			catch (ProgramInvocationException pie) {
-				showErrorPage(resp, "An error occurred while invoking the pact program: <br/>" + pie.getMessage());
-				return;
-			}
-			catch (JobInstantiationException eipe) {
+			catch (ProgramInvocationException e) {
 				// collect the stack trace
 				StringWriter sw = new StringWriter();
 				PrintWriter w = new PrintWriter(sw);
-				eipe.printStackTrace(w);
+				e.printStackTrace(w);
 
-				showErrorPage(resp, "An error occurred in the pact assembler class:<br/><br/>"
-					+ eipe.getMessage() + "<br/>"
+				showErrorPage(resp, "An error occurred while invoking the program:<br/><br/>"
+					+ e.getMessage() + "<br/>"
 					+ "<br/><br/><pre>" + sw.toString() + "</pre>");
 				return;
 			}

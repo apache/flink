@@ -550,12 +550,6 @@ public class PactCompiler {
 		return compile(program, getInstanceTypeInfo(), postPasser);
 	}
 	
-	public OptimizedPlan compile(Plan program, OptimizerPostPass postPasser) throws CompilerException {
-		// -------------------- try to get the connection to the job manager ----------------------
-		// --------------------------to obtain instance information --------------------------------
-		return compile(program, getInstanceTypeInfo(), postPasser);
-	}
-	
 	public OptimizedPlan compile(Plan program, InstanceTypeDescription type) throws CompilerException {
 		final OptimizerPostPass postPasser = getPostPassFromPlan(program);
 		return compile(program, type, postPasser);
@@ -582,7 +576,11 @@ public class PactCompiler {
 	 *         Thrown, if the plan is invalid or the optimizer encountered an inconsistent
 	 *         situation during the compilation process.
 	 */
-	public OptimizedPlan compile(Plan program, InstanceTypeDescription type, OptimizerPostPass postPasser) throws CompilerException {
+	private OptimizedPlan compile(Plan program, InstanceTypeDescription type, OptimizerPostPass postPasser) throws CompilerException {
+		if (program == null || type == null || postPasser == null)
+			throw new NullPointerException();
+		
+		
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Beginning compilation of program '" + program.getJobName() + '\'');
 		}

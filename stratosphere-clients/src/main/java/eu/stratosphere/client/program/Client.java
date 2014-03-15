@@ -15,13 +15,12 @@ package eu.stratosphere.client.program;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.net.InetSocketAddress;
 import java.util.List;
 
 import eu.stratosphere.api.common.JobExecutionResult;
 import eu.stratosphere.api.common.Plan;
+import eu.stratosphere.api.java.ExecutionEnvironment;
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;
@@ -41,11 +40,11 @@ import eu.stratosphere.nephele.client.JobSubmissionResult;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 
 /**
- * Encapsulates the functionality necessary to compile and submit a pact program to a nephele cluster.
+ * Encapsulates the functionality necessary to submit a program to a remote cluster.
  */
 public class Client {
 	
-	private final Configuration nepheleConfig;	// the configuration describing the job manager address
+	private final Configuration configuration;	// the configuration describing the job manager address
 	
 	private final PactCompiler compiler;		// the compiler to compile the jobs
 
@@ -56,30 +55,30 @@ public class Client {
 	// ------------------------------------------------------------------------
 	
 	/**
-	 * Creates a new instance of the class that submits the jobs to a nephele job-manager.
+	 * Creates a new instance of the class that submits the jobs to a job-manager.
 	 * at the given address using the default port.
 	 * 
 	 * @param jobManagerAddress Address and port of the job-manager.
 	 */
 	public Client(InetSocketAddress jobManagerAddress, Configuration config) {
-		this.nepheleConfig = config;
-		nepheleConfig.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, jobManagerAddress.getAddress().getHostAddress());
-		nepheleConfig.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerAddress.getPort());
+		this.configuration = config;
+		configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, jobManagerAddress.getAddress().getHostAddress());
+		configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerAddress.getPort());
 		
 		this.compiler = new PactCompiler(new DataStatistics(), new DefaultCostEstimator(), jobManagerAddress);
 	}
 
 	/**
-	 * Creates a instance that submits the pact programs to the job-manager defined in the
+	 * Creates a instance that submits the programs to the job-manager defined in the
 	 * configuration.
 	 * 
-	 * @param nepheleConfig The config used to obtain the job-manager's address.
+	 * @param config The config used to obtain the job-manager's address.
 	 */
-	public Client(Configuration nepheleConfig) {
-		this.nepheleConfig = nepheleConfig;
+	public Client(Configuration config) {
+		this.configuration = config;
 		
 		// instantiate the address to the job manager
-		final String address = nepheleConfig.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
+		final String address = config.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
 		if (address == null) {
 			throw new CompilerException("Cannot find address to job manager's RPC service in the global configuration.");
 		}
@@ -102,98 +101,55 @@ public class Client {
 	//                      Compilation and Submission
 	// ------------------------------------------------------------------------
 	
+	public String getOptimizedPlanAsJson(PackagedProgram prog) throws CompilerException, ProgramInvocationException {
+		PlanJSONDumpGenerator jsonGen = new PlanJSONDumpGenerator();
+		return jsonGen.getOptimizerPlanAsJSON(getOptimizedPlan(prog));
+	}
+	
+	public OptimizedPlan getOptimizedPlan(PackagedProgram prog) throws CompilerException, ProgramInvocationException {
+		if (prog.isUsingProgramEntryPoint()) {
+			return getOptimizedPlan(prog.getPlanWithJars());
+		}
+		else if (prog.isUsingInteractiveMode()) {
+			// temporary hack to support the optimizer plan preview
+			OptimizerPlanEnvironment env = new OptimizerPlanEnvironment(this.compiler);
+			env.setAsContext();
+			try {
+				prog.invokeInteractiveModeForExecution();
+			} catch (Throwable t) {
+				// the invocation gets aborted with the preview plan
+			}
+			return env.optimizerPlan;
+		}
+		else {
+			throw new RuntimeException();
+		}
+	}
+	
+	public OptimizedPlan getOptimizedPlan(Plan p) throws CompilerException {
+		ContextChecker checker = new ContextChecker();
+		checker.check(p);
+		return this.compiler.compile(p);
+	}
+	
+	
 	/**
-	 * Creates the optimized plan for a given pact program, using this client's compiler.
+	 * Creates the optimized plan for a given program, using this client's compiler.
 	 *  
 	 * @param prog The program to be compiled.
 	 * @return The compiled and optimized plan, as returned by the compiler.
 	 * @throws CompilerException Thrown, if the compiler encounters an illegal situation.
-	 * @throws ProgramInvocationException Thrown, if the pact program could not be instantiated from its jar file.
-	 * @throws JobInstantiationException Thrown, if the plan assembler function causes an exception.
+	 * @throws ProgramInvocationException Thrown, if the program could not be instantiated from its jar file.
 	 */
-	public OptimizedPlan getOptimizedPlan(JobWithJars prog) throws CompilerException, ProgramInvocationException, JobInstantiationException {
-		Plan plan = prog.getPlan();
-		ContextChecker checker = new ContextChecker();
-		checker.check(plan);
-		return this.compiler.compile(plan);
+	public OptimizedPlan getOptimizedPlan(JobWithJars prog) throws CompilerException, ProgramInvocationException {
+		return getOptimizedPlan(prog.getPlan());
 	}
 	
 	/**
-	 * Optimizes a given PACT program and returns the optimized plan as JSON string.
+	 * Creates the job-graph, which is ready for submission, from a compiled and optimized program.
+	 * The original program is required to access the original jar file.
 	 * 
-	 * @param prog The PACT program to be compiled to JSON.
-	 * @return A JSON string representation of the optimized input plan.
-	 * @throws CompilerException Thrown, if the compiler encounters an illegal situation.
-	 * @throws ProgramInvocationException Thrown, if the pact program could not be instantiated from its jar file.
-	 * @throws JobInstantiationException Thrown, if the plan assembler function causes an exception.
-	 */
-	public static String getPreviewAsJSON(PackagedProgram prog) throws CompilerException, ProgramInvocationException, JobInstantiationException {
-		StringWriter string = new StringWriter(1024);
-		PrintWriter pw = null;
-		try {
-			pw = new PrintWriter(string);
-			dumpPreviewAsJSON(prog, pw);
-		} finally {
-			pw.close();
-		}
-		return string.toString();
-	}
-	
-	/**
-	 * Optimizes a given PACT program and returns the optimized plan as JSON string.
-	 * 
-	 * @param prog The PACT program to be compiled to JSON.
-	 * @return A JSON string representation of the optimized input plan.
-	 * @throws CompilerException Thrown, if the compiler encounters an illegal situation.
-	 * @throws ProgramInvocationException Thrown, if the pact program could not be instantiated from its jar file.
-	 * @throws JobInstantiationException Thrown, if the plan assembler function causes an exception.
-	 */
-	public static void dumpPreviewAsJSON(PackagedProgram prog, PrintWriter out) throws CompilerException, ProgramInvocationException, JobInstantiationException {
-		PlanJSONDumpGenerator jsonGen = new PlanJSONDumpGenerator();
-		jsonGen.dumpPactPlanAsJSON(prog.getPreviewPlan(), out);
-	}
-	
-	/**
-	 * Optimizes a given PACT program and returns the optimized plan as JSON string.
-	 * 
-	 * @param prog The PACT program to be compiled to JSON.
-	 * @return A JSON string representation of the optimized input plan.
-	 * @throws CompilerException Thrown, if the compiler encounters an illegal situation.
-	 * @throws ProgramInvocationException Thrown, if the pact program could not be instantiated from its jar file.
-	 * @throws JobInstantiationException Thrown, if the plan assembler function causes an exception.
-	 */
-	public String getOptimizerPlanAsJSON(JobWithJars prog) throws CompilerException, ProgramInvocationException, JobInstantiationException {
-		StringWriter string = new StringWriter(1024);
-		PrintWriter pw = null;
-		try {
-			pw = new PrintWriter(string);
-			dumpOptimizerPlanAsJSON(prog, pw);
-		} finally {
-			pw.close();
-		}
-		return string.toString();
-	}
-	
-	/**
-	 * Optimizes a given PACT program and returns the optimized plan as JSON string.
-	 * 
-	 * @param prog The PACT program to be compiled to JSON.
-	 * @return A JSON string representation of the optimized input plan.
-	 * @throws CompilerException Thrown, if the compiler encounters an illegal situation.
-	 * @throws ProgramInvocationException Thrown, if the pact program could not be instantiated from its jar file.
-	 * @throws JobInstantiationException Thrown, if the plan assembler function causes an exception.
-	 */
-	public void dumpOptimizerPlanAsJSON(JobWithJars prog, PrintWriter out) throws CompilerException, ProgramInvocationException, JobInstantiationException {
-		PlanJSONDumpGenerator jsonGen = new PlanJSONDumpGenerator();
-		jsonGen.dumpOptimizerPlanAsJSON(getOptimizedPlan(prog), out);
-	}
-	
-	
-	/**
-	 * Creates the job-graph, which is ready for submission, from a compiled and optimized pact program.
-	 * The original pact-program is required to access the original jar file.
-	 * 
-	 * @param prog The original pact program.
+	 * @param prog The original program.
 	 * @param optPlan The optimized plan.
 	 * @return The nephele job graph, generated from the optimized plan.
 	 */
@@ -217,46 +173,61 @@ public class Client {
 	}
 	
 	
+	public JobExecutionResult run(PackagedProgram prog, boolean wait) throws ProgramInvocationException {
+		if (prog.isUsingProgramEntryPoint()) {
+			return run(prog.getPlanWithJars(), wait);
+		}
+		else if (prog.isUsingInteractiveMode()) {
+			ContextEnvironment env = new ContextEnvironment(this, prog.getAllLibraries(), prog.getUserCodeClassLoader());
+			env.setAsContext();
+			prog.invokeInteractiveModeForExecution();
+			return null;
+		}
+		else {
+			throw new RuntimeException();
+		}
+	}
+	
 	/**
-	 * Runs a pact program on the nephele system whose job-manager is configured in this client's configuration.
+	 * Runs a program on the nephele system whose job-manager is configured in this client's configuration.
 	 * This method involves all steps, from compiling, job-graph generation to submission.
 	 * 
 	 * @param prog The program to be executed.
 	 * @throws CompilerException Thrown, if the compiler encounters an illegal situation.
-	 * @throws ProgramInvocationException Thrown, if the pact program could not be instantiated from its jar file,
+	 * @throws ProgramInvocationException Thrown, if the program could not be instantiated from its jar file,
 	 *                                    or if the submission failed. That might be either due to an I/O problem,
 	 *                                    i.e. the job-manager is unreachable, or due to the fact that the execution
 	 *                                    on the nephele system failed.
 	 * @throws JobInstantiationException Thrown, if the plan assembler function causes an exception.
 	 */
-	public JobExecutionResult run(JobWithJars prog) throws CompilerException, ProgramInvocationException, JobInstantiationException {
+	public JobExecutionResult run(JobWithJars prog) throws CompilerException, ProgramInvocationException {
 		return run(prog, false);
 	}
 	
 	/**
-	 * Runs a pact program on the nephele system whose job-manager is configured in this client's configuration.
+	 * Runs a program on the nephele system whose job-manager is configured in this client's configuration.
 	 * This method involves all steps, from compiling, job-graph generation to submission.
 	 * 
 	 * @param prog The program to be executed.
 	 * @param wait A flag that indicates whether this function call should block until the program execution is done.
 	 * @throws CompilerException Thrown, if the compiler encounters an illegal situation.
-	 * @throws ProgramInvocationException Thrown, if the pact program could not be instantiated from its jar file,
+	 * @throws ProgramInvocationException Thrown, if the program could not be instantiated from its jar file,
 	 *                                    or if the submission failed. That might be either due to an I/O problem,
 	 *                                    i.e. the job-manager is unreachable, or due to the fact that the execution
 	 *                                    on the nephele system failed.
 	 * @throws JobInstantiationException Thrown, if the plan assembler function causes an exception.
 	 */
-	public JobExecutionResult run(JobWithJars prog, boolean wait) throws CompilerException, ProgramInvocationException, JobInstantiationException {
+	public JobExecutionResult run(JobWithJars prog, boolean wait) throws CompilerException, ProgramInvocationException {
 		return run(prog, getOptimizedPlan(prog), wait);
 	}
 	
 	/**
-	 * Submits the given program to the nephele job-manager for execution. The first step of teh compilation process is skipped and
+	 * Submits the given program to the nephele job-manager for execution. The first step of the compilation process is skipped and
 	 * the given compiled plan is taken.
 	 * 
-	 * @param prog The original pact program.
+	 * @param prog The original program.
 	 * @param compiledPlan The optimized plan.
-	 * @throws ProgramInvocationException Thrown, if the pact program could not be instantiated from its jar file,
+	 * @throws ProgramInvocationException Thrown, if the program could not be instantiated from its jar file,
 	 *                                    or if the submission failed. That might be either due to an I/O problem,
 	 *                                    i.e. the job-manager is unreachable, or due to the fact that the execution
 	 *                                    on the nephele system failed.
@@ -269,10 +240,10 @@ public class Client {
 	 * Submits the given program to the nephele job-manager for execution. The first step of the compilation process is skipped and
 	 * the given compiled plan is taken.
 	 * 
-	 * @param prog The original pact program.
+	 * @param prog The original program.
 	 * @param compiledPlan The optimized plan.
 	 * @param wait A flag that indicates whether this function call should block until the program execution is done.
-	 * @throws ProgramInvocationException Thrown, if the pact program could not be instantiated from its jar file,
+	 * @throws ProgramInvocationException Thrown, if the program could not be instantiated from its jar file,
 	 *                                    or if the submission failed. That might be either due to an I/O problem,
 	 *                                    i.e. the job-manager is unreachable, or due to the fact that the execution
 	 *                                    on the nephele system failed.
@@ -307,7 +278,7 @@ public class Client {
 	{
 		JobClient client;
 		try {
-			client = new JobClient(jobGraph, nepheleConfig);
+			client = new JobClient(jobGraph, configuration);
 		}
 		catch (IOException e) {
 			throw new ProgramInvocationException("Could not open job manager: " + e.getMessage());
@@ -339,5 +310,50 @@ public class Client {
 			}
 		}
 		return new JobExecutionResult(-1, null);
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	private static final class OptimizerPlanEnvironment extends ExecutionEnvironment {
+		
+		private final PactCompiler compiler;
+		
+		private OptimizedPlan optimizerPlan;
+		
+		
+		private OptimizerPlanEnvironment(PactCompiler compiler) {
+			this.compiler = compiler;
+		}
+		
+		@Override
+		public JobExecutionResult execute(String jobName) throws Exception {
+			Plan plan = createProgramPlan(jobName);
+			this.optimizerPlan = compiler.compile(plan);
+			
+			// do not go on with anything now!
+			throw new ProgramAbortException();
+		}
+
+		@Override
+		public String getExecutionPlan() throws Exception {
+			Plan plan = createProgramPlan("unused");
+			this.optimizerPlan = compiler.compile(plan);
+			
+			// do not go on with anything now!
+			throw new ProgramAbortException();
+		}
+		
+		private void setAsContext() {
+			if (isContextEnvironmentSet()) {
+				throw new RuntimeException("The context environment has already been initialized.");
+			}
+			else {
+				initializeContextEnvironment(this);
+			}
+		}
+	}
+	
+	static final class ProgramAbortException extends Error {
+		private static final long serialVersionUID = 1L;
 	}
 }

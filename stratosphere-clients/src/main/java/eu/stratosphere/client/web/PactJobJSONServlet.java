@@ -25,7 +25,6 @@ import javax.servlet.http.HttpServletResponse;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.client.program.Client;
 import eu.stratosphere.client.program.PackagedProgram;
 
 
@@ -83,7 +82,7 @@ public class PactJobJSONServlet extends HttpServlet {
 		String programDescription = null;
 		
 		try {
-			jsonPlan = Client.getPreviewAsJSON(pactProgram);
+			jsonPlan = pactProgram.getPreviewPlan();
 		}
 		catch (Throwable t) {
 			LOG.error("Failed to create json dump of pact program.", t);

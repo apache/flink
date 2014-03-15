@@ -31,7 +31,6 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.client.program.Client;
-import eu.stratosphere.client.program.JobInstantiationException;
 import eu.stratosphere.client.program.PackagedProgram;
 import eu.stratosphere.client.program.JobWithJars;
 import eu.stratosphere.client.program.ProgramInvocationException;
@@ -109,7 +108,7 @@ public class ClientTest {
 	}
 	
 	@Test
-	public void shouldSubmitToJobClient() throws ProgramInvocationException, JobInstantiationException, IOException
+	public void shouldSubmitToJobClient() throws ProgramInvocationException, IOException
 	{
 		when(jobSubmissionResultMock.getReturnCode()).thenReturn(ReturnCode.SUCCESS);
 		

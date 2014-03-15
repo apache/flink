@@ -29,8 +29,9 @@ public class JobExecutionResult {
 		return this.netRuntime;
 	}
 
-	public Object getAccumulatorResult(String accumulatorName) {
-		return this.accumulatorResults.get(accumulatorName);
+	@SuppressWarnings("unchecked")
+	public <T> T getAccumulatorResult(String accumulatorName) {
+		return (T) this.accumulatorResults.get(accumulatorName);
 	}
 
 	public Map<String, Object> getAllAccumulatorResults() {
@@ -48,10 +49,8 @@ public class JobExecutionResult {
 			return null;
 		}
 		if (!(result instanceof Integer)) {
-			throw new ClassCastException(
-					"Requested result of the accumulator '" + accumulatorName
-							+ "' should be Integer but has type "
-							+ result.getClass());
+			throw new ClassCastException("Requested result of the accumulator '" + accumulatorName
+							+ "' should be Integer but has type " + result.getClass());
 		}
 		return (Integer) result;
 	}

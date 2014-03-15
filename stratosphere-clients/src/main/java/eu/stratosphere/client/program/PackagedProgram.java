@@ -19,6 +19,11 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -29,23 +34,32 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 
+import eu.stratosphere.api.common.JobExecutionResult;
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.Program;
 import eu.stratosphere.api.common.ProgramDescription;
+import eu.stratosphere.api.java.ExecutionEnvironment;
 import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.dag.DataSinkNode;
+import eu.stratosphere.compiler.plandump.PlanJSONDumpGenerator;
+import eu.stratosphere.util.InstantiationUtil;
 
 /**
- * This class encapsulates most of the plan related functions. Based on the given jar file,
- * pact assembler class and arguments it can create the plans necessary for execution, or
- * also provide a description of the plan if available.
+ * This class encapsulates represents a program, packaged in a jar file. It supplies
+ * functionality to extract nested libraries, search for the program entry point, and extract
+ * a program plan.
  */
 public class PackagedProgram {
 
 	/**
-	 * Property name of the pact assembler definition in the JAR manifest file.
+	 * Property name of the entry in JAR manifest file that describes the stratosphere specific entry point.
 	 */
 	public static final String MANIFEST_ATTRIBUTE_ASSEMBLER_CLASS = "program-class";
+	
+	/**
+	 * Property name of the entry in JAR manifest file that describes the class with the main method.
+	 */
+	public static final String MANIFEST_ATTRIBUTE_MAIN_CLASS = "Main-Class";
 
 	// --------------------------------------------------------------------------------------------
 
@@ -53,11 +67,13 @@ public class PackagedProgram {
 
 	private final String[] args;
 	
-	private final Program planAssembler;
+	private final Program program;
 	
-	private List<File> extractedTempLibraries;
+	private final Class<?> mainClass;
 	
-	private ClassLoader userCodeClassLoader;
+	private final List<File> extractedTempLibraries;
+	
+	private final ClassLoader userCodeClassLoader;
 	
 	private Plan plan;
 
@@ -76,16 +92,7 @@ public class PackagedProgram {
 	 *         may be a missing / wrong class or manifest files.
 	 */
 	public PackagedProgram(File jarFile, String... args) throws ProgramInvocationException {
-		checkJarFile(jarFile);
-		
-		this.jarFile = jarFile;
-		this.args = args == null ? new String[0] : args;
-		
-		this.extractedTempLibraries = extractContainedLibaries(jarFile);
-		this.userCodeClassLoader = buildUserCodeClassLoader(jarFile, extractedTempLibraries, getClass().getClassLoader());
-		
-		Class<? extends Program> assemblerClass = getPactAssemblerFromJar(jarFile, userCodeClassLoader);
-		this.planAssembler = instantiateAssemblerFromClass(assemblerClass);
+		this(jarFile, null, args);
 	}
 
 	/**
@@ -105,34 +112,78 @@ public class PackagedProgram {
 	 *         This invocation is thrown if the Program can't be properly loaded. Causes
 	 *         may be a missing / wrong class or manifest files.
 	 */
-	public PackagedProgram(File jarFile, String className, String... args) throws ProgramInvocationException {
+	public PackagedProgram(File jarFile, String entryPointClassName, String... args) throws ProgramInvocationException {
+		if (jarFile == null) {
+			throw new IllegalArgumentException("The jar file must not be null.");
+		}
+		
 		checkJarFile(jarFile);
 		
 		this.jarFile = jarFile;
 		this.args = args == null ? new String[0] : args;
 		
+		// if no entryPointClassName name was given, we try and look one up through the manifest
+		if (entryPointClassName == null) {
+			entryPointClassName = getEntryPointClassNameFromJar(jarFile);
+		}
+		
+		// now that we have an entry point, we can extract the nested jar files (if any)
 		this.extractedTempLibraries = extractContainedLibaries(jarFile);
 		this.userCodeClassLoader = buildUserCodeClassLoader(jarFile, extractedTempLibraries, getClass().getClassLoader());
 		
-		Class<? extends Program> assemblerClass = getPactAssemblerFromJar(jarFile, className, userCodeClassLoader);
-		this.planAssembler = instantiateAssemblerFromClass(assemblerClass);
+		// load the entry point class
+		this.mainClass = loadMainClass(entryPointClassName, userCodeClassLoader);
+		
+		// if the entry point is a program, instantiate the class and get the plan
+		if (Program.class.isAssignableFrom(this.mainClass)) {
+			Program prg = null;
+			try {
+				prg = InstantiationUtil.instantiate(this.mainClass.asSubclass(Program.class), Program.class);
+			} catch (Exception e) {
+				// validate that the class has a main method at least.
+				// the main method possibly instantiates the program properly
+				if (!hasMainMethod(mainClass)) {
+					throw new ProgramInvocationException("The given program class implements the " + 
+							Program.class.getName() + " interface, but cannot be instantiated. " +
+							"It also declares no main(String[]) method as alternative entry point", e);
+				}
+			} catch (Throwable t) {
+				throw new ProgramInvocationException("Error while trying to instantiate program class.", t);
+			}
+			this.program = prg;
+		} else if (hasMainMethod(mainClass)) {
+			this.program = null;
+		} else {
+			throw new ProgramInvocationException("The given program class neither has a main(String[]) method, nor does it implement the " + 
+					Program.class.getName() + " interface.");
+		}
 	}
 	
+	public boolean isUsingInteractiveMode() {
+		return this.program == null;
+	}
 	
+	public boolean isUsingProgramEntryPoint() {
+		return this.program != null;
+	}
 
 	/**
 	 * Returns the plan with all required jars.
-	 * @throws IOException 
 	 * @throws JobInstantiationException 
 	 * @throws ProgramInvocationException 
 	 */
-	public JobWithJars getPlanWithJars() throws ProgramInvocationException, JobInstantiationException, IOException {
-		List<File> allJars = new ArrayList<File>();
-		
-		allJars.add(jarFile);
-		allJars.addAll(extractedTempLibraries);
-		
-		return new JobWithJars(getPlan(), allJars, userCodeClassLoader);
+	public JobWithJars getPlanWithJars() throws ProgramInvocationException {
+		if (isUsingProgramEntryPoint()) {
+			List<File> allJars = new ArrayList<File>();
+			
+			allJars.add(jarFile);
+			allJars.addAll(extractedTempLibraries);
+			
+			return new JobWithJars(getPlan(), allJars, userCodeClassLoader);
+		} else {
+			throw new ProgramInvocationException("Cannot create a " + JobWithJars.class.getSimpleName() + 
+					" for a program that is using the interactive mode.");
+		}
 	}
 
 	/**
@@ -140,20 +191,41 @@ public class PackagedProgram {
 	 * 
 	 * @return
 	 *         the analyzed plan without any optimizations.
-	 * @throws ProgramInvocationException
-	 *         This invocation is thrown if the Program can't be properly loaded. Causes
-	 *         may be a missing / wrong class or manifest files.
-	 * @throws JobInstantiationException
-	 *         Thrown if an error occurred in the user-provided pact assembler. This may indicate
+	 * @throws ProgramInvocationException Thrown if an error occurred in the
+	 *  user-provided pact assembler. This may indicate
 	 *         missing parameters for generation.
 	 */
-	public List<DataSinkNode> getPreviewPlan() throws ProgramInvocationException, JobInstantiationException {
-		Plan plan = getPlan();
-		if (plan != null) {
-			return PactCompiler.createPreOptimizedPlan(plan);
-		} else {
-			return null;
+	public String getPreviewPlan() throws ProgramInvocationException {
+		List<DataSinkNode> previewPlan;
+		
+		if (isUsingProgramEntryPoint()) {
+			previewPlan = PactCompiler.createPreOptimizedPlan(getPlan());
 		}
+		else if (isUsingInteractiveMode()) {
+			// temporary hack to support the webclient
+			PreviewPlanEnvironment env = new PreviewPlanEnvironment();
+			env.setAsContext();
+			try {
+				invokeInteractiveModeForExecution();
+			} catch (Throwable t) {
+				// the invocation gets aborted with the preview plan
+			}
+			previewPlan =  env.previewPlan;
+		}
+		else {
+			throw new RuntimeException();
+		}
+		
+		PlanJSONDumpGenerator jsonGen = new PlanJSONDumpGenerator();
+		StringWriter string = new StringWriter(1024);
+		PrintWriter pw = null;
+		try {
+			pw = new PrintWriter(string);
+			jsonGen.dumpPactPlanAsJSON(previewPlan, pw);
+		} finally {
+			pw.close();
+		}
+		return string.toString();
 	}
 
 	/**
@@ -169,16 +241,43 @@ public class PackagedProgram {
 	 *         missing parameters for generation.
 	 */
 	public String getDescription() throws ProgramInvocationException {
-		if (this.planAssembler instanceof ProgramDescription) {
+		if (ProgramDescription.class.isAssignableFrom(this.mainClass)) {
+			
+			ProgramDescription descr;
+			if (this.program != null) {
+				descr = (ProgramDescription) this.program;
+			} else {
+				try {
+					descr =  InstantiationUtil.instantiate(
+						this.mainClass.asSubclass(ProgramDescription.class), ProgramDescription.class);
+				} catch (Throwable t) {
+					return null;
+				}
+			}
+			
 			try {
-				return ((ProgramDescription) this.planAssembler).getDescription();
+				return descr.getDescription();
 			}
 			catch (Throwable t) {
 				throw new ProgramInvocationException("Error while getting the program description" + 
 						(t.getMessage() == null ? "." : ": " + t.getMessage()), t);
 			}
+			
 		} else {
 			return null;
+		}
+	}
+	
+	/**
+	 * 
+	 * This method assumes that the context environment is prepared, or the execution
+	 * will be a local execution by default.
+	 */
+	public void invokeInteractiveModeForExecution() throws ProgramInvocationException{
+		if (isUsingInteractiveMode()) {
+			callMainMethod(mainClass, args);
+		} else {
+			throw new ProgramInvocationException("Cannot invoke a plan-based program directly.");
 		}
 	}
 	
@@ -191,45 +290,95 @@ public class PackagedProgram {
 		return this.userCodeClassLoader;
 	}
 	
+	public List<File> getAllLibraries() {
+		List<File> libs = new ArrayList<File>(this.extractedTempLibraries.size() + 1);
+		libs.add(jarFile);
+		libs.addAll(this.extractedTempLibraries);
+		return libs;
+	}
+	
 	/**
 	 * Deletes all temporary files created for contained packaged libraries.
 	 */
 	public void deleteExtractedLibraries() {
-		List<File> files = this.extractedTempLibraries;
-		
-		this.userCodeClassLoader = null;
-		this.extractedTempLibraries = null;
-		
-		if (files != null) {
-			deleteExtractedLibraries(files);
-		}
+		deleteExtractedLibraries(this.extractedTempLibraries);
+		this.extractedTempLibraries.clear();
 	}
 	
 	
 	/**
 	 * Returns the plan as generated from the Pact Assembler.
 	 * 
-	 * @return
-	 *         the generated plan
-	 * @throws ProgramInvocationException
-	 *         This invocation is thrown if the Program can't be properly loaded. Causes
-	 *         may be a missing / wrong class or manifest files.
-	 * @throws JobInstantiationException
-	 *         Thrown if an error occurred in the user-provided pact assembler. This may indicate
-	 *         missing parameters for generation.
+	 * @return The program's plan.
+	 * @throws ProgramInvocationException Thrown, if an error occurred in the program while
+	 *         creating the program's {@link Plan}.
 	 */
-	private Plan getPlan() throws ProgramInvocationException, JobInstantiationException {
+	private Plan getPlan() throws ProgramInvocationException {
 		if (this.plan == null) {
 			Thread.currentThread().setContextClassLoader(this.userCodeClassLoader);
-			this.plan = createPlanFromProgram(this.planAssembler, this.args);
+			this.plan = createPlanFromProgram(this.program, this.args);
 		}
 		
 		return this.plan;
 	}
+	
+	private static boolean hasMainMethod(Class<?> entryClass) {
+		Method mainMethod;
+		try {
+			mainMethod = entryClass.getMethod("main", String[].class);
+		} catch (NoSuchMethodException e) {
+			return false;
+		}
+		catch (Throwable t) {
+			throw new RuntimeException("Could not look up the main(String[]) method from the class " + 
+					entryClass.getName() + ": " + t.getMessage(), t);
+		}
+		
+		return Modifier.isStatic(mainMethod.getModifiers()) && Modifier.isPublic(mainMethod.getModifiers());
+	}
+	
+	private static void callMainMethod(Class<?> entryClass, String[] args) throws ProgramInvocationException {
+		Method mainMethod;
+		try {
+			mainMethod = entryClass.getMethod("main", String[].class);
+		} catch (NoSuchMethodException e) {
+			throw new ProgramInvocationException("The class " + entryClass.getName() + " has no main(String[]) method.");
+		}
+		catch (Throwable t) {
+			throw new ProgramInvocationException("Could not look up the main(String[]) method from the class " + 
+					entryClass.getName() + ": " + t.getMessage(), t);
+		}
+		
+		if (!Modifier.isStatic(mainMethod.getModifiers())) {
+			throw new ProgramInvocationException("The class " + entryClass.getName() + " declares a non-static main method.");
+		}
+		if (!Modifier.isPublic(mainMethod.getModifiers())) {
+			throw new ProgramInvocationException("The class " + entryClass.getName() + " declares a non-public main method.");
+		}
+		
+		try {
+			mainMethod.invoke(null, (Object) args);
+		}
+		catch (IllegalArgumentException e) {
+			throw new ProgramInvocationException("Could not invoke the main method, arguments are not matching.", e);
+		}
+		catch (IllegalAccessException e) {
+			throw new ProgramInvocationException("Access to the main method was denied: " + e.getMessage(), e);
+		}
+		catch (InvocationTargetException e) {
+			Throwable exceptionInMethod = e.getTargetException();
+			if (exceptionInMethod instanceof Error) {
+				throw (Error) exceptionInMethod;
+			} else {
+				throw new ProgramInvocationException("The main method caused an error.", exceptionInMethod);
+			}
+		}
+		catch (Throwable t) {
+			throw new ProgramInvocationException("An error occurred while invoking the program's main method: " + t.getMessage(), t);
+		}
+	}
 
-	private static Class<? extends Program> getPactAssemblerFromJar(File jarFile, ClassLoader cl)
-			throws ProgramInvocationException
-	{
+	private static String getEntryPointClassNameFromJar(File jarFile) throws ProgramInvocationException {
 		JarFile jar = null;
 		Manifest manifest = null;
 		String className = null;
@@ -242,51 +391,66 @@ public class PackagedProgram {
 				+ ioex.getMessage(), ioex);
 		}
 
-		// Read from jar manifest
+		// jar file must be closed at the end
 		try {
-			manifest = jar.getManifest();
-		} catch (IOException ioex) {
-			throw new ProgramInvocationException("The Manifest in the JAR file could not be accessed '"
-				+ jarFile.getPath() + "'. " + ioex.getMessage(), ioex);
+			// Read from jar manifest
+			try {
+				manifest = jar.getManifest();
+			} catch (IOException ioex) {
+				throw new ProgramInvocationException("The Manifest in the jar file could not be accessed '"
+					+ jarFile.getPath() + "'. " + ioex.getMessage(), ioex);
+			}
+	
+			if (manifest == null) {
+				throw new ProgramInvocationException("No manifest found in jar file '" + jarFile.getPath() + "'. The manifest is need to point to the program's main class.");
+			}
+	
+			Attributes attributes = manifest.getMainAttributes();
+			
+			// check for a "program-class" entry first
+			className = attributes.getValue(PackagedProgram.MANIFEST_ATTRIBUTE_ASSEMBLER_CLASS);
+			if (className != null) {
+				return className;
+			}
+			
+			
+			// check for a main class
+			className = attributes.getValue(PackagedProgram.MANIFEST_ATTRIBUTE_MAIN_CLASS);
+			if (className != null) {
+				return className;
+			} else {
+				throw new ProgramInvocationException("Neither a '" + MANIFEST_ATTRIBUTE_MAIN_CLASS + "', nor a '" +
+						MANIFEST_ATTRIBUTE_ASSEMBLER_CLASS + "' entry was found in the jar file.");
+			}
 		}
-
-		if (manifest == null) {
-			throw new ProgramInvocationException("No manifest found in jar '" + jarFile.getPath() + "'");
+		finally {
+			try {
+				jar.close();
+			} catch (Throwable t) {
+				throw new ProgramInvocationException("Could not close the JAR file: " + t.getMessage(), t);
+			}
 		}
-
-		Attributes attributes = manifest.getMainAttributes();
-		className = attributes.getValue(PackagedProgram.MANIFEST_ATTRIBUTE_ASSEMBLER_CLASS);
-
-		if (className == null) {
-			throw new ProgramInvocationException("No plan assembler class defined in manifest");
-		}
-
-		try {
-			jar.close();
-		} catch (IOException ex) {
-			throw new ProgramInvocationException("Could not close JAR. " + ex.getMessage(), ex);
-		}
-
-		return getPactAssemblerFromJar(jarFile, className, cl);
 	}
-
-	private static Class<? extends Program> getPactAssemblerFromJar(File jarFile, String className, ClassLoader cl)
-			throws ProgramInvocationException
-	{
+	
+	private static Class<?> loadMainClass(String className, ClassLoader cl) throws ProgramInvocationException {
 		try {
-			return Class.forName(className, true, cl).asSubclass(Program.class);
+			return Class.forName(className, true, cl);
 		}
 		catch (ClassNotFoundException e) {
-			throw new ProgramInvocationException("The program class '" + className
-				+ "' was not found in the jar file '" + jarFile.getPath() + "'.", e);
+			throw new ProgramInvocationException("The program's entry point class '" + className
+				+ "' was not found in the jar file.", e);
 		}
-		catch (ClassCastException e) {
-			throw new ProgramInvocationException("The program class '" + className
-				+ "' cannot be cast to Program.", e);
+		catch (ExceptionInInitializerError e) {
+			throw new ProgramInvocationException("The program's entry point class '" + className
+				+ "' threw an error during initialization.", e);
+		}
+		catch (LinkageError e) {
+			throw new ProgramInvocationException("The program's entry point class '" + className
+				+ "' could not be loaded due to a linkage failure.", e);
 		}
 		catch (Throwable t) {
-			throw new ProgramInvocationException("An unknown problem ocurred during the instantiation of the "
-				+ "program: " + t, t);
+			throw new ProgramInvocationException("The program's entry point class '" + className
+				+ "' caused an exception during initialization: "+ t.getMessage(), t);
 		}
 	}
 	
@@ -301,48 +465,15 @@ public class PackagedProgram {
 	 *        the manifest.
 	 * @param options
 	 *        The options for the assembler.
-	 * @return The plan created by the assembler.
-	 * @throws ProgramInvocationException
-	 *         Thrown, if the jar file or its manifest could not be accessed, or if the assembler
-	 *         class was not found or could not be instantiated.
+	 * @return The plan created by the program.
 	 * @throws JobInstantiationException
 	 *         Thrown, if an error occurred in the user-provided pact assembler.
 	 */
-	private static Plan createPlanFromProgram(Program assembler, String[] options)
-			throws ProgramInvocationException, JobInstantiationException
-	{
+	private static Plan createPlanFromProgram(Program assembler, String[] options) throws ProgramInvocationException {
 		try {
 			return assembler.getPlan(options);
 		} catch (Throwable t) {
-			throw new JobInstantiationException("Error while creating plan: " + t, t);
-		}
-	}
-	
-	/**
-	 * Instantiates the given plan assembler class
-	 * 
-	 * @param clazz
-	 *        class that should be instantiated.
-	 * @return
-	 *         instance of the class
-	 * @throws ProgramInvocationException
-	 *         is thrown if class can't be found or instantiated
-	 */
-	private static Program instantiateAssemblerFromClass(Class<? extends Program> clazz)
-			throws ProgramInvocationException
-	{
-		try {
-			return clazz.newInstance();
-		} catch (InstantiationException e) {
-			throw new ProgramInvocationException("ERROR: The program class could not be instantiated. "
-				+ "Make sure that the class is a proper class (not abstract/interface) and has a "
-				+ "public constructor with no arguments.", e);
-		} catch (IllegalAccessException e) {
-			throw new ProgramInvocationException("ERROR: The program class could not be instantiated. "
-				+ "Make sure that the class has a public constructor with no arguments.", e);
-		} catch (Throwable t) {
-			throw new ProgramInvocationException("An error ocurred during the instantiation of the "
-				+ "program assembler: " + t.getMessage(), t);
+			throw new ProgramInvocationException("Error while calling the program: " + t.getMessage(), t);
 		}
 	}
 	
@@ -390,6 +521,7 @@ public class PackagedProgram {
 						File tempFile;
 						try {
 							tempFile = File.createTempFile(String.valueOf(Math.abs(rnd.nextInt()) + "_"), name);
+							tempFile.deleteOnExit();
 						}
 						catch (IOException e) {
 							throw new ProgramInvocationException(
@@ -466,6 +598,40 @@ public class PackagedProgram {
 		}
 		catch (Throwable t) {
 			throw new ProgramInvocationException("Cannot access jar file" + (t.getMessage() == null ? "." : ": " + t.getMessage()), t);
+		}
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	private static final class PreviewPlanEnvironment extends ExecutionEnvironment {
+
+		private List<DataSinkNode> previewPlan;
+		
+		@Override
+		public JobExecutionResult execute(String jobName) throws Exception {
+			Plan plan = createProgramPlan(jobName);
+			this.previewPlan = PactCompiler.createPreOptimizedPlan(plan);
+			
+			// do not go on with anything now!
+			throw new Client.ProgramAbortException();
+		}
+
+		@Override
+		public String getExecutionPlan() throws Exception {
+			Plan plan = createProgramPlan("unused");
+			this.previewPlan = PactCompiler.createPreOptimizedPlan(plan);
+			
+			// do not go on with anything now!
+			throw new Client.ProgramAbortException();
+		}
+		
+		private void setAsContext() {
+			if (isContextEnvironmentSet()) {
+				throw new RuntimeException("The context environment has already been initialized.");
+			}
+			else {
+				initializeContextEnvironment(this);
+			}
 		}
 	}
 }

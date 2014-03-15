@@ -26,6 +26,8 @@ import eu.stratosphere.api.common.PlanExecutor;
 import eu.stratosphere.client.program.Client;
 import eu.stratosphere.client.program.JobWithJars;
 import eu.stratosphere.client.program.PackagedProgram;
+import eu.stratosphere.compiler.plan.OptimizedPlan;
+import eu.stratosphere.compiler.plandump.PlanJSONDumpGenerator;
 import eu.stratosphere.configuration.Configuration;
 
 public class RemoteExecutor extends PlanExecutor {
@@ -79,8 +81,6 @@ public class RemoteExecutor extends PlanExecutor {
 		return this.client.run(p, true);
 	}
 	
-	
-	
 	public JobExecutionResult executePlanWithJars(JobWithJars p) throws Exception {
 		return this.client.run(p, true);
 	}
@@ -93,6 +93,8 @@ public class RemoteExecutor extends PlanExecutor {
 
 	@Override
 	public String getOptimizerPlanAsJSON(Plan plan) throws Exception {
-		return client.getOptimizerPlanAsJSON(new JobWithJars(plan, this.jarFiles));
+		OptimizedPlan op = client.getOptimizedPlan(new JobWithJars(plan, this.jarFiles));
+		PlanJSONDumpGenerator jsonGen = new PlanJSONDumpGenerator();
+		return jsonGen.getOptimizerPlanAsJSON(op);
 	}
 }

@@ -12,58 +12,62 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.api.java;
+package eu.stratosphere.client.program;
+
+import java.io.File;
+import java.util.List;
 
 import eu.stratosphere.api.common.JobExecutionResult;
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.api.common.PlanExecutor;
+import eu.stratosphere.api.java.ExecutionEnvironment;
+import eu.stratosphere.compiler.plan.OptimizedPlan;
+import eu.stratosphere.compiler.plandump.PlanJSONDumpGenerator;
 
-
-public class RemoteEnvironment extends ExecutionEnvironment {
+/**
+ *
+ */
+public class ContextEnvironment extends ExecutionEnvironment {
 	
-	private final String host;
+	private final Client client;
 	
-	private final int port;
+	private final List<File> jarFilesToAttach;
 	
-	private final String[] jarFiles;
+	private final ClassLoader userCodeClassLoader;
 	
 	
-	public RemoteEnvironment(String host, int port, String... jarFiles) {
-		super();
-		
-		if (host == null)
-			throw new NullPointerException("Host must not be null.");
-		
-		if (port < 1 || port >= 0xffff)
-			throw new IllegalArgumentException("Port out of range");
-		
-		this.host = host;
-		this.port = port;
-		this.jarFiles = jarFiles;
+	
+	public ContextEnvironment(Client remoteConnection, List<File> jarFiles, ClassLoader userCodeClassLoader) {
+		this.client = remoteConnection;
+		this.jarFilesToAttach = jarFiles;
+		this.userCodeClassLoader = userCodeClassLoader;
 	}
-	
-	
+
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
 		Plan p = createProgramPlan(jobName);
 		p.setDefaultParallelism(getDegreeOfParallelism());
 		
-		PlanExecutor executor = PlanExecutor.createRemoteExecutor(host, port, jarFiles);
-		return executor.executePlan(p);
-	}
-	
-	@Override
-	public String getExecutionPlan() throws Exception {
-		Plan p = createProgramPlan("unnamed");
-		p.setDefaultParallelism(getDegreeOfParallelism());
-		
-		PlanExecutor executor = PlanExecutor.createRemoteExecutor(host, port, jarFiles);
-		return executor.getOptimizerPlanAsJSON(p);
+		JobWithJars toRun = new JobWithJars(p, this.jarFilesToAttach, this.userCodeClassLoader);
+		return this.client.run(toRun, true);
 	}
 
 	@Override
-	public String toString() {
-		return "Remote Environment (" + this.host + ":" + this.port + " - DOP = " + 
-				(getDegreeOfParallelism() == -1 ? "default" : getDegreeOfParallelism()) + ") : " + getIdString();
+	public String getExecutionPlan() throws Exception {
+		Plan p = createProgramPlan("unnamed job");
+		p.setDefaultParallelism(getDegreeOfParallelism());
+		
+		OptimizedPlan op = this.client.getOptimizedPlan(p);
+		
+		PlanJSONDumpGenerator gen = new PlanJSONDumpGenerator();
+		return gen.getOptimizerPlanAsJSON(op);
+	}
+	
+	public void setAsContext() {
+		if (isContextEnvironmentSet()) {
+			throw new RuntimeException("The context environment has already been initialized.");
+		}
+		else {
+			initializeContextEnvironment(this);
+		}
 	}
 }

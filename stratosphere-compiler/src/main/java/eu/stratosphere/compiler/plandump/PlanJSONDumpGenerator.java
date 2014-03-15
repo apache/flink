@@ -91,6 +91,7 @@ public class PlanJSONDumpGenerator {
 		StringWriter sw = new StringWriter();
 		PrintWriter pw = new PrintWriter(sw);
 		dumpOptimizerPlanAsJSON(plan, pw);
+		pw.close();
 		return sw.toString();
 	}
 	

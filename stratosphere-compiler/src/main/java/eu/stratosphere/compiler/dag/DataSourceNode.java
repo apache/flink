@@ -119,7 +119,7 @@ public class DataSourceNode extends OptimizerNode {
 			try {
 				format = getPactContract().getFormatWrapper().getUserCodeObject();
 				Configuration config = getPactContract().getParameters();
-				config.setClassLoader(getPactContract().getClass().getClassLoader());
+				config.setClassLoader(format.getClass().getClassLoader());
 				format.configure(config);
 			}
 			catch (Throwable t) {
