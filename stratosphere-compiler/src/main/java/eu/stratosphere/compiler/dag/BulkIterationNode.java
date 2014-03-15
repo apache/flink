@@ -13,7 +13,11 @@
 
 package eu.stratosphere.compiler.dag;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Set;
 
 import eu.stratosphere.api.common.operators.BulkIteration;
 import eu.stratosphere.compiler.CompilerException;

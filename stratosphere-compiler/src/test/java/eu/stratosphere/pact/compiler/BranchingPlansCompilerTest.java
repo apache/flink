@@ -18,14 +18,16 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import eu.stratosphere.api.common.operators.*;
-import eu.stratosphere.pact.compiler.util.*;
-import eu.stratosphere.types.LongValue;
 import junit.framework.Assert;
 
 import org.junit.Test;
 
 import eu.stratosphere.api.common.Plan;
+import eu.stratosphere.api.common.operators.BulkIteration;
+import eu.stratosphere.api.common.operators.DeltaIteration;
+import eu.stratosphere.api.common.operators.FileDataSink;
+import eu.stratosphere.api.common.operators.FileDataSource;
+import eu.stratosphere.api.common.operators.GenericDataSink;
 import eu.stratosphere.api.java.record.operators.CoGroupOperator;
 import eu.stratosphere.api.java.record.operators.CrossOperator;
 import eu.stratosphere.api.java.record.operators.JoinOperator;
@@ -35,7 +37,16 @@ import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
 import eu.stratosphere.compiler.plan.SinkPlanNode;
 import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
+import eu.stratosphere.pact.compiler.util.DummyCoGroupStub;
+import eu.stratosphere.pact.compiler.util.DummyCrossStub;
+import eu.stratosphere.pact.compiler.util.DummyInputFormat;
+import eu.stratosphere.pact.compiler.util.DummyMatchStub;
+import eu.stratosphere.pact.compiler.util.DummyNonPreservingMatchStub;
+import eu.stratosphere.pact.compiler.util.DummyOutputFormat;
+import eu.stratosphere.pact.compiler.util.IdentityMap;
+import eu.stratosphere.pact.compiler.util.IdentityReduce;
 import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.LongValue;
 
 /**
  */
