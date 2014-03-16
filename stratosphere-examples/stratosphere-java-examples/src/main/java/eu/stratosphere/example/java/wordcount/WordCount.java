@@ -16,45 +16,54 @@ package eu.stratosphere.example.java.wordcount;
 
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.ExecutionEnvironment;
-import eu.stratosphere.api.java.functions.MapFunction;
+import eu.stratosphere.api.java.functions.FlatMapFunction;
 import eu.stratosphere.api.java.functions.ReduceFunction;
+import eu.stratosphere.api.java.tuple.*;
+import eu.stratosphere.util.Collector;
 
 
-public class WordCountAll {
+@SuppressWarnings("serial")
+public class WordCount {
 	
-	public static final class Tokenizer extends MapFunction<String, Integer> {
-		
-		private static final long serialVersionUID = 1L;
+	public static final class Tokenizer extends FlatMapFunction<String, Tuple2<String, Integer>> {
 
 		@Override
-		public Integer map(String value) {
+		public void flatMap(String value, Collector<Tuple2<String, Integer>> out) {
 			String[] tokens = value.toLowerCase().split("\\W");
-			return Integer.valueOf(tokens.length);
+			for (String token : tokens) {
+				if (token.length() > 0) {
+					out.collect(new Tuple2<String, Integer>(token, 1));
+				}
+			}
 		}
 	}
 	
-	public static final class Counter extends ReduceFunction<Integer> {
-		
-		private static final long serialVersionUID = 1L;
+	public static final class Counter extends ReduceFunction<Tuple2<String, Integer>> {
 
 		@Override
-		public Integer reduce(Integer val1, Integer val2) {
-			return val1 + val2;
+		public Tuple2<String, Integer> reduce(Tuple2<String, Integer> val1, Tuple2<String, Integer> val2) {
+			return new Tuple2<String, Integer>(val1.T1(), val1.T2() + val2.T2());
 		}
 	}
+	
 	
 	public static void main(String[] args) throws Exception {
+		if (args.length < 2) {
+			System.err.println("Usage: WordCount <input path> <result path>");
+			return;
+		}
+		
+		final String input = args[0];
+		final String output = args[1];
 		
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setDegreeOfParallelism(1);
 		
-		DataSet<String> text = env.fromElements("To be", "or not to be", "or to be still", "and certainly not to be not at all", "is that the question?");
+		DataSet<String> text = env.readTextFile(input);
 		
-		DataSet<Integer> result = text.map(new Tokenizer()).reduce(new Counter());
+		DataSet<Tuple2<String, Integer>> result = text.flatMap(new Tokenizer()).groupBy(0).reduce(new Counter());
 				
-		result.print();
+		result.writeAsText(output);
 		
-//		System.out.println(env.getExecutionPlan());
 		env.execute();
 	}
 }

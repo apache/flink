@@ -21,12 +21,10 @@ import eu.stratosphere.api.java.functions.ReduceFunction;
 import eu.stratosphere.api.java.tuple.*;
 import eu.stratosphere.util.Collector;
 
-
-public class WordCountTuples {
+@SuppressWarnings("serial")
+public class WordCountCollection {
 	
 	public static final class Tokenizer extends FlatMapFunction<String, Tuple2<String, Integer>> {
-		
-		private static final long serialVersionUID = 1L;
 
 		@Override
 		public void flatMap(String value, Collector<Tuple2<String, Integer>> out) {
@@ -38,8 +36,6 @@ public class WordCountTuples {
 	}
 	
 	public static final class Counter extends ReduceFunction<Tuple2<String, Integer>> {
-		
-		private static final long serialVersionUID = 1L;
 
 		@Override
 		public Tuple2<String, Integer> reduce(Tuple2<String, Integer> val1, Tuple2<String, Integer> val2) {
