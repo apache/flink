@@ -26,6 +26,8 @@ import eu.stratosphere.core.fs.Path;
 public class TextOutputFormat<T> extends FileOutputFormat<T> {
 
 	private static final long serialVersionUID = 1L;
+	
+	private static final int NEWLINE = '\n';
 
 	private String charsetName;
 	
@@ -79,6 +81,7 @@ public class TextOutputFormat<T> extends FileOutputFormat<T> {
 	public void writeRecord(T record) throws IOException {
 		byte[] bytes = record.toString().getBytes(charset);
 		this.stream.write(bytes);
+		this.stream.write(NEWLINE);
 	}
 	
 	// --------------------------------------------------------------------------------------------
