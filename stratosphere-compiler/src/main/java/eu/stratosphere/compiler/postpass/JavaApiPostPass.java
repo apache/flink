@@ -16,6 +16,7 @@ package eu.stratosphere.compiler.postpass;
 
 import java.util.Arrays;
 
+import eu.stratosphere.api.common.operators.BulkIteration;
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.common.operators.util.FieldList;
 import eu.stratosphere.api.common.typeutils.TypeComparator;
@@ -23,24 +24,16 @@ import eu.stratosphere.api.common.typeutils.TypeComparatorFactory;
 import eu.stratosphere.api.common.typeutils.TypePairComparatorFactory;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
-import eu.stratosphere.api.java.operators.translation.BinaryJavaPlanNode;
-import eu.stratosphere.api.java.operators.translation.JavaPlanNode;
-import eu.stratosphere.api.java.operators.translation.PlanDataSource;
-import eu.stratosphere.api.java.operators.translation.UnaryJavaPlanNode;
+import eu.stratosphere.api.java.operators.translation.*;
 import eu.stratosphere.api.java.typeutils.AtomicType;
 import eu.stratosphere.api.java.typeutils.CompositeType;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
 import eu.stratosphere.api.java.typeutils.runtime.RuntimeComparatorFactory;
 import eu.stratosphere.api.java.typeutils.runtime.RuntimePairComparatorFactory;
 import eu.stratosphere.api.java.typeutils.runtime.RuntimeSerializerFactory;
+import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.CompilerPostPassException;
-import eu.stratosphere.compiler.plan.Channel;
-import eu.stratosphere.compiler.plan.DualInputPlanNode;
-import eu.stratosphere.compiler.plan.OptimizedPlan;
-import eu.stratosphere.compiler.plan.PlanNode;
-import eu.stratosphere.compiler.plan.SingleInputPlanNode;
-import eu.stratosphere.compiler.plan.SinkPlanNode;
-import eu.stratosphere.compiler.plan.SourcePlanNode;
+import eu.stratosphere.compiler.plan.*;
 
 public class JavaApiPostPass implements OptimizerPostPass {
 
@@ -64,62 +57,22 @@ public class JavaApiPostPass implements OptimizerPostPass {
 			TypeInformation<?> typeInfo = getTypeInfoFromSource((SourcePlanNode) node);
 			((SourcePlanNode) node).setSerializer(createSerializer(typeInfo));
 		}
-//		else if (node instanceof BulkIterationPlanNode) {
-//			BulkIterationPlanNode iterationNode = (BulkIterationPlanNode) node;
-//			
-//			// get the nodes current schema
-//			T schema;
-//			if (iterationNode.postPassHelper == null) {
-//				schema = createEmptySchema();
-//				iterationNode.postPassHelper = schema;
-//			} else {
-//				schema = (T) iterationNode.postPassHelper;
-//			}
-//			schema.increaseNumConnectionsThatContributed();
-//			
-//			// add the parent schema to the schema
-//			if (propagateParentSchemaDown) {
-//				addSchemaToSchema(parentSchema, schema, iterationNode.getPactContract().getName());
-//			}
-//			
-//			// check whether all outgoing channels have not yet contributed. come back later if not.
-//			if (schema.getNumConnectionsThatContributed() < iterationNode.getOutgoingChannels().size()) {
-//				return;
-//			}
-//			
-//			if (iterationNode.getRootOfStepFunction() instanceof NAryUnionPlanNode) {
-//				throw new CompilerException("Optimizer cannot compile an iteration step function where next partial solution is created by a Union node.");
-//			}
-//			
-//			// traverse the step function for the first time. create schema only, no utilities
-//			traverse(iterationNode.getRootOfStepFunction(), schema, false);
-//			
-//			T pss = (T) iterationNode.getPartialSolutionPlanNode().postPassHelper;
-//			if (pss == null) {
-//				throw new CompilerException("Error in Optimizer Post Pass: Partial solution schema is null after first traversal of the step function.");
-//			}
-//			
-//			// traverse the step function for the second time, taking the schema of the partial solution
-//			traverse(iterationNode.getRootOfStepFunction(), pss, createUtilities);
-//			
-//			// take the schema from the partial solution node and add its fields to the iteration result schema.
-//			// input and output schema need to be identical, so this is essentially a sanity check
-//			addSchemaToSchema(pss, schema, iterationNode.getPactContract().getName());
-//			
-//			// set the serializer
-//			if (createUtilities) {
-//				iterationNode.setSerializerForIterationChannel(createSerializer(pss, iterationNode.getPartialSolutionPlanNode()));
-//			}
-//			
-//			// done, we can now propagate our info down
-//			try {
-//				propagateToChannel(schema, iterationNode.getInput(), createUtilities);
-//			} catch (MissingFieldTypeInfoException e) {
-//				throw new CompilerPostPassException("Could not set up runtime strategy for input channel to node '"
-//					+ iterationNode.getPactContract().getName() + "'. Missing type information for key field " + 
-//					e.getFieldNumber());
-//			}
-//		}
+		else if (node instanceof BulkIterationPlanNode) {
+			BulkIterationPlanNode iterationNode = (BulkIterationPlanNode) node;
+
+			if (iterationNode.getRootOfStepFunction() instanceof NAryUnionPlanNode) {
+				throw new CompilerException("Optimizer cannot compile an iteration step function where next partial solution is created by a Union node.");
+			}
+
+			PlanBulkIterationOperator<?> operator = (PlanBulkIterationOperator<?>) iterationNode.getPactContract();
+
+			// set the serializer
+			iterationNode.setSerializerForIterationChannel(createSerializer(operator.getReturnType()));
+
+			// done, we can now propagate our info down
+			traverseChannel(iterationNode.getInput());
+			traverse(iterationNode.getRootOfStepFunction());
+		}
 //		else if (node instanceof WorksetIterationPlanNode) {
 //			WorksetIterationPlanNode iterationNode = (WorksetIterationPlanNode) node;
 //			
@@ -377,55 +330,13 @@ public class JavaApiPostPass implements OptimizerPostPass {
 //						" a union node. Missing type information for field " + ex.getFieldNumber());
 //			}
 //		}
-//		// catch the sources of the iterative step functions
-//		else if (node instanceof BulkPartialSolutionPlanNode || 
-//				 node instanceof SolutionSetPlanNode ||
-//				 node instanceof WorksetPlanNode)
-//		{
-//			// get the nodes current schema
-//			T schema;
-//			String name;
-//			if (node instanceof BulkPartialSolutionPlanNode) {
-//				BulkPartialSolutionPlanNode psn = (BulkPartialSolutionPlanNode) node;
-//				if (psn.postPassHelper == null) {
-//					schema = createEmptySchema();
-//					psn.postPassHelper = schema;
-//				} else {
-//					schema = (T) psn.postPassHelper;
-//				}
-//				name = "partial solution of bulk iteration '" +
-//					psn.getPartialSolutionNode().getIterationNode().getPactContract().getName() + "'";
-//			}
-//			else if (node instanceof SolutionSetPlanNode) {
-//				SolutionSetPlanNode ssn = (SolutionSetPlanNode) node;
-//				if (ssn.postPassHelper == null) {
-//					schema = createEmptySchema();
-//					ssn.postPassHelper = schema;
-//				} else {
-//					schema = (T) ssn.postPassHelper;
-//				}
-//				name = "solution set of workset iteration '" +
-//						ssn.getSolutionSetNode().getIterationNode().getPactContract().getName() + "'";
-//			}
-//			else if (node instanceof WorksetPlanNode) {
-//				WorksetPlanNode wsn = (WorksetPlanNode) node;
-//				if (wsn.postPassHelper == null) {
-//					schema = createEmptySchema();
-//					wsn.postPassHelper = schema;
-//				} else {
-//					schema = (T) wsn.postPassHelper;
-//				}
-//				name = "workset of workset iteration '" +
-//						wsn.getWorksetNode().getIterationNode().getPactContract().getName() + "'";
-//			} else {
-//				throw new CompilerException();
-//			}
-//			
-//			schema.increaseNumConnectionsThatContributed();
-//			
-//			// add the parent schema to the schema
-//			addSchemaToSchema(parentSchema, schema, name);
-//		}
+		// catch the sources of the iterative step functions
+		else if (node instanceof BulkPartialSolutionPlanNode ||
+				 node instanceof SolutionSetPlanNode ||
+				 node instanceof WorksetPlanNode)
+		{
+			// Do nothing :D
+		}
 		else {
 			throw new CompilerPostPassException("Unknown node type encountered: " + node.getClass().getName());
 		}
@@ -436,12 +347,20 @@ public class JavaApiPostPass implements OptimizerPostPass {
 		PlanNode source = channel.getSource();
 		Operator javaOp = source.getPactContract();
 		
-		if (!(javaOp instanceof JavaPlanNode)) {
-			throw new RuntimeException("Wrong operator type found in post pass.");
+//		if (!(javaOp instanceof BulkIteration) && !(javaOp instanceof JavaPlanNode)) {
+//			throw new RuntimeException("Wrong operator type found in post pass: " + javaOp);
+//		}
+
+		TypeInformation<?> type = null;
+
+		if (javaOp instanceof JavaPlanNode<?>) {
+			JavaPlanNode<?> javaNode = (JavaPlanNode<?>) javaOp;
+			type = javaNode.getReturnType();
+		} else if (javaOp instanceof BulkIteration.PartialSolutionPlaceHolder) {
+			BulkIteration.PartialSolutionPlaceHolder partialSolutionPlaceHolder =
+					(BulkIteration.PartialSolutionPlaceHolder) javaOp;
+			type = ((PlanBulkIterationOperator<?>)partialSolutionPlaceHolder.getContainingBulkIteration()).getReturnType();
 		}
-		
-		JavaPlanNode<?> javaNode = (JavaPlanNode<?>) javaOp;
-		TypeInformation<?> type = javaNode.getReturnType();
 		
 		// the serializer always exists
 		channel.setSerializer(createSerializer(type));

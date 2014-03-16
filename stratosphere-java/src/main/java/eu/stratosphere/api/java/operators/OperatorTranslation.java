@@ -23,9 +23,14 @@ import eu.stratosphere.api.common.operators.AbstractUdfOperator;
 import eu.stratosphere.api.common.operators.GenericDataSink;
 import eu.stratosphere.api.common.operators.GenericDataSource;
 import eu.stratosphere.api.common.operators.Operator;
+import eu.stratosphere.api.common.operators.BulkIteration;
+
 import eu.stratosphere.api.java.DataSet;
+import eu.stratosphere.api.java.IterativeDataSet;
+import eu.stratosphere.api.java.IterativeResultDataSet;
 import eu.stratosphere.api.java.operators.translation.BinaryNodeTranslation;
 import eu.stratosphere.api.java.operators.translation.JavaPlan;
+import eu.stratosphere.api.java.operators.translation.PlanBulkIterationOperator;
 import eu.stratosphere.api.java.operators.translation.UnaryNodeTranslation;
 
 
@@ -79,8 +84,11 @@ public class OperatorTranslation {
 		else if (dataSet instanceof TwoInputOperator) {
 			dataFlowOp =  translateBinaryOp((TwoInputOperator<?, ?, ?, ?>) dataSet);
 		}
+		else if (dataSet instanceof IterativeResultDataSet<?>) {
+			dataFlowOp = translateBulkIteration((IterativeResultDataSet<?>) dataSet);
+		}
 		else {
-			throw new RuntimeException("Error while creating the data flow plan for the program: Unknown operator or data set type.");
+			throw new RuntimeException("Error while creating the data flow plan for the program: Unknown operator or data set type: " + dataSet);
 		}
 		
 		this.translated.put(dataSet, dataFlowOp);
@@ -119,6 +127,20 @@ public class OperatorTranslation {
 		translated.setInput2(input2);
 		
 		return translated.getOutputOperator();
+	}
+
+	private BulkIteration translateBulkIteration(IterativeResultDataSet<?> iterationEnd) {
+		PlanBulkIterationOperator iterationOperator = new PlanBulkIterationOperator("Unnamed Java Bulk Iteration", iterationEnd.getType());
+		IterativeDataSet<?> iterationHead = iterationEnd.getIterationHead();
+
+		translated.put(iterationHead, iterationOperator.getPartialSolution());
+
+		Operator translatedBody = translate(iterationEnd.getNextPartialSolution());
+		iterationOperator.setNextPartialSolution(translatedBody);
+		iterationOperator.setMaximumNumberOfIterations(iterationHead.getMaxIterations());
+		iterationOperator.setInput(translate(iterationHead.getInput()));
+
+		return iterationOperator;
 	}
 	
 	private void translateBcVariables(DataSet<?> setOrOp, Operator dataFlowOp) {
