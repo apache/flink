@@ -626,12 +626,7 @@ public class PackagedProgram {
 		}
 		
 		private void setAsContext() {
-			if (isContextEnvironmentSet()) {
-				throw new RuntimeException("The context environment has already been initialized.");
-			}
-			else {
-				initializeContextEnvironment(this);
-			}
+			initializeContextEnvironment(this);
 		}
 	}
 }

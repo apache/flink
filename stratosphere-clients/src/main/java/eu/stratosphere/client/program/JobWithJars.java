@@ -68,7 +68,7 @@ public class JobWithJars {
 	/**
 	 * Returns list of jar files that need to be submitted with the plan.
 	 */
-	public List<File> getJarFiles() throws IOException {
+	public List<File> getJarFiles() {
 		return this.jarFiles;
 	}
 	

@@ -110,9 +110,9 @@ public class PactJobJSONServlet extends HttpServlet {
 			if (programDescription != null) {
 				wrt.print(", \"description\": \"");
 				wrt.print(escapeString(programDescription));
+				wrt.print("\"");
 			}
 			
-			wrt.print("\"");
 			wrt.println("}");
 		}
 	}

@@ -293,9 +293,6 @@ public abstract class ExecutionEnvironment {
 	}
 	
 	protected static void initializeContextEnvironment(ExecutionEnvironment ctx) {
-		if (contextEnvironment != null)
-			throw new IllegalStateException("System context has already been initialized.");
-		
 		contextEnvironment = ctx;
 	}
 	

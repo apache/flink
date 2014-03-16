@@ -145,33 +145,20 @@ public class Client {
 		return getOptimizedPlan(prog.getPlan());
 	}
 	
-	/**
-	 * Creates the job-graph, which is ready for submission, from a compiled and optimized program.
-	 * The original program is required to access the original jar file.
-	 * 
-	 * @param prog The original program.
-	 * @param optPlan The optimized plan.
-	 * @return The nephele job graph, generated from the optimized plan.
-	 */
-	public JobGraph getJobGraph(JobWithJars prog, OptimizedPlan optPlan) throws ProgramInvocationException {
+	public JobGraph getJobGraph(PackagedProgram prog, OptimizedPlan optPlan) throws ProgramInvocationException {
+		return getJobGraph(optPlan, prog.getAllLibraries());
+	}
+	
+	private JobGraph getJobGraph(OptimizedPlan optPlan, List<File> jarFiles) {
 		NepheleJobGraphGenerator gen = new NepheleJobGraphGenerator();
 		JobGraph job = gen.compileJobGraph(optPlan);
 		
-		
-		try {
-			List<File> jarFiles = prog.getJarFiles();
-
-			for (File jar : jarFiles) {
-				job.addJar(new Path(jar.getAbsolutePath()));
-			}
-		}
-		catch (IOException ioex) {
-			throw new ProgramInvocationException("Could not extract the nested libraries: " + ioex.getMessage(), ioex);
+		for (File jar : jarFiles) {
+			job.addJar(new Path(jar.getAbsolutePath()));
 		}
 		
 		return job;
 	}
-	
 	
 	public JobExecutionResult run(PackagedProgram prog, boolean wait) throws ProgramInvocationException {
 		if (prog.isUsingProgramEntryPoint()) {
@@ -188,20 +175,9 @@ public class Client {
 		}
 	}
 	
-	/**
-	 * Runs a program on the nephele system whose job-manager is configured in this client's configuration.
-	 * This method involves all steps, from compiling, job-graph generation to submission.
-	 * 
-	 * @param prog The program to be executed.
-	 * @throws CompilerException Thrown, if the compiler encounters an illegal situation.
-	 * @throws ProgramInvocationException Thrown, if the program could not be instantiated from its jar file,
-	 *                                    or if the submission failed. That might be either due to an I/O problem,
-	 *                                    i.e. the job-manager is unreachable, or due to the fact that the execution
-	 *                                    on the nephele system failed.
-	 * @throws JobInstantiationException Thrown, if the plan assembler function causes an exception.
-	 */
-	public JobExecutionResult run(JobWithJars prog) throws CompilerException, ProgramInvocationException {
-		return run(prog, false);
+	public JobExecutionResult run(PackagedProgram prog, OptimizedPlan optimizedPlan, boolean wait) throws ProgramInvocationException {
+		return run(optimizedPlan, prog.getAllLibraries(), wait);
+
 	}
 	
 	/**
@@ -218,64 +194,16 @@ public class Client {
 	 * @throws JobInstantiationException Thrown, if the plan assembler function causes an exception.
 	 */
 	public JobExecutionResult run(JobWithJars prog, boolean wait) throws CompilerException, ProgramInvocationException {
-		return run(prog, getOptimizedPlan(prog), wait);
+		return run(getOptimizedPlan(prog), prog.getJarFiles(), wait);
 	}
 	
-	/**
-	 * Submits the given program to the nephele job-manager for execution. The first step of the compilation process is skipped and
-	 * the given compiled plan is taken.
-	 * 
-	 * @param prog The original program.
-	 * @param compiledPlan The optimized plan.
-	 * @throws ProgramInvocationException Thrown, if the program could not be instantiated from its jar file,
-	 *                                    or if the submission failed. That might be either due to an I/O problem,
-	 *                                    i.e. the job-manager is unreachable, or due to the fact that the execution
-	 *                                    on the nephele system failed.
-	 */
-	public JobExecutionResult run(JobWithJars prog, OptimizedPlan compiledPlan) throws ProgramInvocationException {
-		return run(prog, compiledPlan, false);
-	}
-	
-	/**
-	 * Submits the given program to the nephele job-manager for execution. The first step of the compilation process is skipped and
-	 * the given compiled plan is taken.
-	 * 
-	 * @param prog The original program.
-	 * @param compiledPlan The optimized plan.
-	 * @param wait A flag that indicates whether this function call should block until the program execution is done.
-	 * @throws ProgramInvocationException Thrown, if the program could not be instantiated from its jar file,
-	 *                                    or if the submission failed. That might be either due to an I/O problem,
-	 *                                    i.e. the job-manager is unreachable, or due to the fact that the execution
-	 *                                    on the nephele system failed.
-	 */
-	public JobExecutionResult run(JobWithJars prog, OptimizedPlan compiledPlan, boolean wait) throws ProgramInvocationException {
-		JobGraph job = getJobGraph(prog, compiledPlan);
-		return run(prog, job, wait);
+
+	public JobExecutionResult run(OptimizedPlan compiledPlan, List<File> libraries, boolean wait) throws ProgramInvocationException {
+		JobGraph job = getJobGraph(compiledPlan, libraries);
+		return run(job, wait);
 	}
 
-	/**
-	 * Submits the job-graph to the nephele job-manager for execution.
-	 * 
-	 * @param prog The program to be submitted.
-	 * @throws ProgramInvocationException Thrown, if the submission failed. That might be either due to an I/O problem,
-	 *                                    i.e. the job-manager is unreachable, or due to the fact that the execution
-	 *                                    on the nephele system failed.
-	 */
-	public JobExecutionResult run(JobWithJars program, JobGraph jobGraph) throws ProgramInvocationException {
-		return run(program, jobGraph, false);
-	}
-	/**
-	 * Submits the job-graph to the nephele job-manager for execution.
-	 * 
-	 * @param prog The program to be submitted.
-	 * @param wait Method will block until the job execution is finished if set to true. 
-	 *               If set to false, the method will directly return after the job is submitted. 
-	 * @throws ProgramInvocationException Thrown, if the submission failed. That might be either due to an I/O problem,
-	 *                                    i.e. the job-manager is unreachable, or due to the fact that the execution
-	 *                                    on the nephele system failed.
-	 */
-	public JobExecutionResult run(JobWithJars program, JobGraph jobGraph, boolean wait) throws ProgramInvocationException
-	{
+	public JobExecutionResult run(JobGraph jobGraph, boolean wait) throws ProgramInvocationException {
 		JobClient client;
 		try {
 			client = new JobClient(jobGraph, configuration);
@@ -344,12 +272,7 @@ public class Client {
 		}
 		
 		private void setAsContext() {
-			if (isContextEnvironmentSet()) {
-				throw new RuntimeException("The context environment has already been initialized.");
-			}
-			else {
-				initializeContextEnvironment(this);
-			}
+			initializeContextEnvironment(this);
 		}
 	}
 	

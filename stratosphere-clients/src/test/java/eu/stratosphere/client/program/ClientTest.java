@@ -113,7 +113,7 @@ public class ClientTest {
 		when(jobSubmissionResultMock.getReturnCode()).thenReturn(ReturnCode.SUCCESS);
 		
 		Client out = new Client(configMock);
-		out.run(program.getPlanWithJars());
+		out.run(program.getPlanWithJars(), false);
 		program.deleteExtractedLibraries();
 		
 		verify(this.compilerMock, times(1)).compile(planMock);
@@ -130,7 +130,7 @@ public class ClientTest {
 		when(jobSubmissionResultMock.getReturnCode()).thenReturn(ReturnCode.ERROR);
 		
 		Client out = new Client(configMock);
-		out.run(program.getPlanWithJars());
+		out.run(program.getPlanWithJars(), false);
 		program.deleteExtractedLibraries();
 		
 		verify(this.jobClientMock).submitJob();

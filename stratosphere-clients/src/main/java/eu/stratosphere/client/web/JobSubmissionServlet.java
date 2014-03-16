@@ -77,7 +77,7 @@ public class JobSubmissionServlet extends HttpServlet {
 
 	private final File planDumpDirectory;				// the directory to dump the optimizer plans to
 
-	private final Map<Long, ProgramJobGraphPair> submittedJobs;	// map from UIDs to the running jobs
+	private final Map<Long, JobGraph> submittedJobs;	// map from UIDs to the running jobs
 
 	private final Random rand;							// random number generator for UIDs
 
@@ -89,7 +89,7 @@ public class JobSubmissionServlet extends HttpServlet {
 		this.jobStoreDirectory = jobDir;
 		this.planDumpDirectory = planDir;
 
-		this.submittedJobs = Collections.synchronizedMap(new HashMap<Long, ProgramJobGraphPair>());
+		this.submittedJobs = Collections.synchronizedMap(new HashMap<Long, JobGraph>());
 
 		this.rand = new Random(System.currentTimeMillis());
 	}
@@ -144,19 +144,19 @@ public class JobSubmissionServlet extends HttpServlet {
 				params.remove(0);
 			}
 
-			// create the pact plan
+			// create the plan
 			String[] options = params.isEmpty() ? new String[0] : (String[]) params.toArray(new String[params.size()]);
-			PackagedProgram pactProgram = null;
-			OptimizedPlan optPlan = null;
+			PackagedProgram program;
+			OptimizedPlan optPlan;
 			
 			try {
 				if (assemblerClass == null) {
-					pactProgram = new PackagedProgram(jarFile, options);
+					program = new PackagedProgram(jarFile, options);
 				} else {
-					pactProgram = new PackagedProgram(jarFile, assemblerClass, options);
+					program = new PackagedProgram(jarFile, assemblerClass, options);
 				}
 				
-				optPlan = client.getOptimizedPlan(pactProgram.getPlanWithJars());
+				optPlan = client.getOptimizedPlan(program);
 			}
 			catch (ProgramInvocationException e) {
 				// collect the stack trace
@@ -210,18 +210,17 @@ public class JobSubmissionServlet extends HttpServlet {
 				// submit the job only, if it should not be suspended
 				if (!suspend) {
 					try {
-						this.client.run(pactProgram.getPlanWithJars(), optPlan);
+						this.client.run(program, optPlan, false);
 					} catch (Throwable t) {
 						LOG.error("Error submitting job to the job-manager.", t);
 						showErrorPage(resp, t.getMessage());
 						return;
 					} finally {
-						pactProgram.deleteExtractedLibraries();
+						program.deleteExtractedLibraries();
 					}
 				} else {
 					try {
-						this.submittedJobs.put(uid, 
-							new ProgramJobGraphPair(pactProgram, this.client.getJobGraph(pactProgram.getPlanWithJars(), optPlan)));
+						this.submittedJobs.put(uid, this.client.getJobGraph(program, optPlan));
 					}
 					catch (ProgramInvocationException piex) {
 						LOG.error("Error creating JobGraph from optimized plan.", piex);
@@ -241,7 +240,7 @@ public class JobSubmissionServlet extends HttpServlet {
 				// don't show any plan. directly submit the job and redirect to the
 				// nephele runtime monitor
 				try {
-					client.run(pactProgram.getPlanWithJars());
+					client.run(program, false);
 				} catch (Exception ex) {
 					LOG.error("Error submitting job to the job-manager.", ex);
 					// HACK: Is necessary because Message contains whole stack trace
@@ -249,7 +248,7 @@ public class JobSubmissionServlet extends HttpServlet {
 					showErrorPage(resp, errorMessage);
 					return;
 				} finally {
-					pactProgram.deleteExtractedLibraries();
+					program.deleteExtractedLibraries();
 				}
 				resp.sendRedirect(START_PAGE_URL);
 			}
@@ -271,7 +270,7 @@ public class JobSubmissionServlet extends HttpServlet {
 			}
 
 			// get the retained job
-			ProgramJobGraphPair job = submittedJobs.remove(uid);
+			JobGraph job = submittedJobs.remove(uid);
 			if (job == null) {
 				resp.sendError(HttpServletResponse.SC_BAD_REQUEST,
 					"No job with the given uid was retained for later submission.");
@@ -280,7 +279,7 @@ public class JobSubmissionServlet extends HttpServlet {
 
 			// submit the job
 			try {
-				client.run(job.getProgram().getPlanWithJars(), job.getJobGraph());
+				client.run(job, false);
 			} catch (Exception ex) {
 				LOG.error("Error submitting job to the job-manager.", ex);
 				resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
@@ -289,8 +288,6 @@ public class JobSubmissionServlet extends HttpServlet {
 				resp.getWriter().print(errorMessage);
 				// resp.sendError(HttpServletResponse.SC_BAD_REQUEST, ex.getMessage());
 				return;
-			} finally {
-				job.getProgram().deleteExtractedLibraries();
 			}
 
 			// redirect to the start page
@@ -428,29 +425,5 @@ public class JobSubmissionServlet extends HttpServlet {
 		}
 
 		return list;
-	}
-	
-	// ============================================================================================
-	
-	private static final class ProgramJobGraphPair
-	{
-		private final PackagedProgram program;
-		
-		private final JobGraph jobGraph;
-
-		
-		public ProgramJobGraphPair(PackagedProgram program, JobGraph jobGraph) {
-			this.program = program;
-			this.jobGraph = jobGraph;
-		}
-
-		
-		public PackagedProgram getProgram() {
-			return program;
-		}
-
-		public JobGraph getJobGraph() {
-			return jobGraph;
-		}
 	}
 }
