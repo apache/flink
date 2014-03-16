@@ -275,7 +275,7 @@ public class MockEnvironment implements Environment {
 	}
 
 	@Override
-	public 	Map<String, FutureTask<Path>> getCopyTaskOfCacheFile() {
+	public 	Map<String, FutureTask<Path>> getCopyTask() {
 		return null;
 	}
 

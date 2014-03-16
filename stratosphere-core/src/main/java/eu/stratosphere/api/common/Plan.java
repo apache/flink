@@ -57,6 +57,8 @@ public class Plan implements Visitable<Operator> {
 	 */
 	protected int maxNumberMachines;
 
+	protected HashMap<String, String> cacheFile = new HashMap<String, String>();
+
 	// ------------------------------------------------------------------------
 
 	/**
@@ -293,15 +295,19 @@ public class Plan implements Visitable<Operator> {
 	 * @param filePath The files must be stored in a place that can be accessed from all workers (most commonly HDFS)
 	 * @param name user defined name of that file
 	 */
-	public void registerCachedFile(String filePath, String name) {
-		this.cacheFile.put(name, filePath);
+	public void registerCachedFile(String filePath, String name) throws RuntimeException{
+		if (!this.cacheFile.containsKey(name)) {
+			this.cacheFile.put(name, filePath);
+		} else {
+			throw new RuntimeException("cache file " + name + "already exists!");
+		}
 	}
 
 	/**
 	 * return the registered caches files
 	 * @return Set of (name, filePath) pairs
 	 */
-	public Set<Entry<String,String>> getCachedFile() {
+	public Set<Entry<String,String>> getCachedFiles() {
 		return this.cacheFile.entrySet();
 	}
 }

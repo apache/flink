@@ -256,5 +256,5 @@ public interface Environment {
 	 */
 	AccumulatorProtocol getAccumulatorProtocolProxy();
 
-	Map<String, FutureTask<Path>> getCopyTaskOfCacheFile();
+	Map<String, FutureTask<Path>> getCopyTask();
 }

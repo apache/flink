@@ -13,17 +13,20 @@ import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 
-import java.io.*;
-import java.util.*;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.IOException;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.util.HashSet;
+import java.util.Set;
+
 
 /**
  * Test the distributed cache via using the cache file to do a selection on the input
  */
-public class distributedCacheTest extends TestBase2 {
+public class DistributedCacheTest extends TestBase2 {
 
 	public static final String cacheData = "machen\n" + "zeit\n" + "heerscharen\n" + "keiner\n" + "meine\n"
 		+ "fuehr\n" + "triumph\n" + "kommst\n" + "frei\n" + "schaffen\n" + "gesinde\n"
@@ -107,24 +110,10 @@ public class distributedCacheTest extends TestBase2 {
 	}
 
 
-
-	public void uploadToHDFS(String localFile) throws Exception {
-
-		Configuration conf=new Configuration();
-		conf.set("fs.default.name", "hdfs://192.168.2.102:54320");
-		FileSystem hdfs=FileSystem.get(conf);
-		Path src =new Path(localFile);
-		Path dst =new Path("/");
-		hdfs.copyFromLocalFile(src, dst);
-
-	}
-
-
 	@Override
 	protected void preSubmit() throws Exception {
 		textPath = createTempFile("count.txt", WordCountData.COUNTS);
 		cachePath = createTempFile("cache.txt", cacheData);
-//		uploadToHDFS(cachePath);
 		resultPath = getTempDirPath("result");
 	}
 

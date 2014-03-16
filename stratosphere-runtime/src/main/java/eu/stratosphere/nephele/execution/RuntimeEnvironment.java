@@ -14,7 +14,15 @@
 package eu.stratosphere.nephele.execution;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayDeque;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Queue;
+import java.util.Set;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.FutureTask;
 
@@ -849,11 +857,11 @@ public class RuntimeEnvironment implements Environment, Runnable {
 		return accumulatorProtocolProxy;
 	}
 
-	public void setCopyTaskOfCacheFile(String name, FutureTask<Path> copyTask) {
+	public void addCopyTaskForCacheFile(String name, FutureTask<Path> copyTask) {
 		this.cacheCopyTasks.put(name, copyTask);
 	}
 	@Override
-	public Map<String, FutureTask<Path>> getCopyTaskOfCacheFile() {
+	public Map<String, FutureTask<Path>> getCopyTask() {
 		return this.cacheCopyTasks;
 	}
 

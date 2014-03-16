@@ -1035,7 +1035,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 	
 	public RuntimeUDFContext createRuntimeContext(String taskName) {
 		Environment env = getEnvironment();
-		return new RuntimeUDFContext(taskName, env.getCurrentNumberOfSubtasks(), env.getIndexInSubtaskGroup(), env.getCopyTaskOfCacheFile());
+		return new RuntimeUDFContext(taskName, env.getCurrentNumberOfSubtasks(), env.getIndexInSubtaskGroup(), env.getCopyTask());
 	}
 
 	// --------------------------------------------------------------------------------------------

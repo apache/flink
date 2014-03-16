@@ -205,7 +205,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		}
 
 		// add registered cache file into job configuration
-		for (Entry<String, String> e: program.getOriginalPactPlan().getCachedFile()) {
+		for (Entry<String, String> e: program.getOriginalPactPlan().getCachedFiles()) {
 			DistributedCache.addCachedFile(e.getKey(), e.getValue(), this.jobGraph.getJobConfiguration());
 		}
 		JobGraph graph = this.jobGraph;
