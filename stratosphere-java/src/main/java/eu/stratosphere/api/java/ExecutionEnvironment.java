@@ -268,11 +268,11 @@ public abstract class ExecutionEnvironment {
 		return contextEnvironment == null ? createLocalEnvironment() : contextEnvironment;
 	}
 	
-	public static ExecutionEnvironment createLocalEnvironment() {
+	public static LocalEnvironment createLocalEnvironment() {
 		return createLocalEnvironment(defaultLocalDop);
 	}
 	
-	public static ExecutionEnvironment createLocalEnvironment(int degreeOfParallelism) {
+	public static LocalEnvironment createLocalEnvironment(int degreeOfParallelism) {
 		LocalEnvironment lee = new LocalEnvironment();
 		lee.setDegreeOfParallelism(degreeOfParallelism);
 		return lee;
