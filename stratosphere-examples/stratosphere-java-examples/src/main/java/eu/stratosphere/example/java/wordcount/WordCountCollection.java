@@ -16,7 +16,6 @@ package eu.stratosphere.example.java.wordcount;
 
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.ExecutionEnvironment;
-import eu.stratosphere.api.java.LocalEnvironment;
 import eu.stratosphere.api.java.functions.FlatMapFunction;
 import eu.stratosphere.api.java.functions.ReduceFunction;
 import eu.stratosphere.api.java.tuple.*;
@@ -48,7 +47,7 @@ public class WordCountCollection {
 	
 	public static void main(String[] args) throws Exception {
 		
-		final LocalEnvironment env = ExecutionEnvironment.createLocalEnvironment(2);
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		
 		DataSet<String> text = env.fromElements("To be", "or not to be", "or to be still", "and certainly not to be not at all", "is that the question?");
 		
