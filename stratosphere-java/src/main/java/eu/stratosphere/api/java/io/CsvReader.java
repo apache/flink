@@ -46,6 +46,8 @@ public class CsvReader {
 	private String lineDelimiter = "\n";
 	
 	private char fieldDelimiter = ',';
+
+	private boolean skipFirstLineAsHeader = false;
 	
 	
 	// --------------------------------------------------------------------------------------------
@@ -134,6 +136,11 @@ public class CsvReader {
 		
 		return this;
 	}
+
+	public CsvReader ignoreFirstLine() {
+		skipFirstLineAsHeader = true;
+		return this;
+	}
 	
 	// --------------------------------------------------------------------------------------------
 	// Miscellaneous
@@ -142,6 +149,7 @@ public class CsvReader {
 	private void configureInputFormat(CsvInputFormat<?> format, Class<?>... types) {
 		format.setDelimiter(this.lineDelimiter);
 		format.setFieldDelimiter(this.fieldDelimiter);
+		format.setSkipFirstLineAsHeader(skipFirstLineAsHeader);
 		if (this.includedMask == null) {
 			format.setFieldTypes(types);
 		} else {
