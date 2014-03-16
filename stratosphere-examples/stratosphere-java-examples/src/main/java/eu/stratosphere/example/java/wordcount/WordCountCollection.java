@@ -16,10 +16,13 @@ package eu.stratosphere.example.java.wordcount;
 
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.ExecutionEnvironment;
+import eu.stratosphere.api.java.LocalEnvironment;
 import eu.stratosphere.api.java.functions.FlatMapFunction;
 import eu.stratosphere.api.java.functions.ReduceFunction;
 import eu.stratosphere.api.java.tuple.*;
 import eu.stratosphere.util.Collector;
+
+import static eu.stratosphere.api.java.aggregation.Aggregations.*;
 
 @SuppressWarnings("serial")
 public class WordCountCollection {
@@ -45,11 +48,11 @@ public class WordCountCollection {
 	
 	public static void main(String[] args) throws Exception {
 		
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		final LocalEnvironment env = ExecutionEnvironment.createLocalEnvironment(2);
 		
 		DataSet<String> text = env.fromElements("To be", "or not to be", "or to be still", "and certainly not to be not at all", "is that the question?");
 		
-		DataSet<Tuple2<String, Integer>> result = text.flatMap(new Tokenizer()).groupBy(0).reduce(new Counter());
+		DataSet<Tuple2<String, Integer>> result = text.flatMap(new Tokenizer()).groupBy(0).aggregate(SUM, 1);
 				
 		result.print();
 		env.execute();

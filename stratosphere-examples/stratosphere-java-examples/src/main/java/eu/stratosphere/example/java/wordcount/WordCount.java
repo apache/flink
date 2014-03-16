@@ -16,8 +16,8 @@ package eu.stratosphere.example.java.wordcount;
 
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.ExecutionEnvironment;
+import eu.stratosphere.api.java.aggregation.Aggregations;
 import eu.stratosphere.api.java.functions.FlatMapFunction;
-import eu.stratosphere.api.java.functions.ReduceFunction;
 import eu.stratosphere.api.java.tuple.*;
 import eu.stratosphere.util.Collector;
 
@@ -38,14 +38,6 @@ public class WordCount {
 		}
 	}
 	
-	public static final class Counter extends ReduceFunction<Tuple2<String, Integer>> {
-
-		@Override
-		public Tuple2<String, Integer> reduce(Tuple2<String, Integer> val1, Tuple2<String, Integer> val2) {
-			return new Tuple2<String, Integer>(val1.T1(), val1.T2() + val2.T2());
-		}
-	}
-	
 	
 	public static void main(String[] args) throws Exception {
 		if (args.length < 2) {
@@ -60,10 +52,11 @@ public class WordCount {
 		
 		DataSet<String> text = env.readTextFile(input);
 		
-		DataSet<Tuple2<String, Integer>> result = text.flatMap(new Tokenizer()).groupBy(0).reduce(new Counter());
-				
-		result.writeAsText(output);
+		DataSet<Tuple2<String, Integer>> words = text.flatMap(new Tokenizer());
 		
-		env.execute();
+		DataSet<Tuple2<String, Integer>> result = words.groupBy(0).aggregate(Aggregations.SUM, 1);
+		
+		result.writeAsText(output);
+		env.execute("Word Count");
 	}
 }
