@@ -63,20 +63,12 @@ import eu.stratosphere.api.java.tuple.Tuple6;
 public class TPCHQuery10 {
 
 	public static void main(String[] args) throws Exception {
-
-		final String customerPath;
-		final String ordersPath;
-		final String lineitemPath;
-		final String nationPath;
-
-		if (args.length < 4) {
-			throw new IllegalArgumentException("Invalid number of parameters: [customer.tbl] [orders.tbl] [lineitem.tbl] [nation.tbl]");
-		} else {
-			customerPath = args[0];
-			ordersPath = args[1];
-			lineitemPath = args[2];
-			nationPath = args[3];
-		}
+		
+		String customerPath = (args.length > 0 ? args[0] : TPCHQuery10.class.getResource("/Testdata/customer.tbl").toString());
+		String ordersPath =  (args.length > 1 ? args[1] : TPCHQuery10.class.getResource("/Testdata/orders.tbl").toString());
+		String lineitemPath =  (args.length > 2 ? args[2] : TPCHQuery10.class.getResource("/Testdata/lineitem.tbl").toString());
+		String nationPath =  (args.length > 3 ? args[3] : TPCHQuery10.class.getResource("/Testdata/nation.tbl").toString());		
+		String outPath = (args.length > 4 ? args[4] : "STDOUT");
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -214,7 +206,11 @@ public class TPCHQuery10 {
 				});
 
 		// print the result and execute
-		customerWithRevenue.print();
+		if (outPath.equals("STDOUT")) {
+			customerWithRevenue.print();
+		} else {
+			customerWithRevenue.writeAsCsv(outPath);
+		}
 		env.execute();
 	}
 }
