@@ -15,7 +15,7 @@
 package eu.stratosphere.api.java;
 
 import org.apache.commons.lang3.Validate;
-
+import java.util.Arrays;
 import eu.stratosphere.api.common.io.FileOutputFormat;
 import eu.stratosphere.api.common.io.OutputFormat;
 import eu.stratosphere.api.java.aggregation.Aggregations;
@@ -28,11 +28,24 @@ import eu.stratosphere.api.java.functions.ReduceFunction;
 import eu.stratosphere.api.java.io.CsvOutputFormat;
 import eu.stratosphere.api.java.io.PrintingOutputFormat;
 import eu.stratosphere.api.java.io.TextOutputFormat;
-import eu.stratosphere.api.java.operators.*;
+import eu.stratosphere.api.java.operators.AggregateOperator;
+import eu.stratosphere.api.java.operators.CoGroupOperator;
+import eu.stratosphere.api.java.operators.CrossOperator;
+import eu.stratosphere.api.java.operators.DataSink;
+import eu.stratosphere.api.java.operators.DistinctOperator;
+import eu.stratosphere.api.java.operators.FilterOperator;
+import eu.stratosphere.api.java.operators.FlatMapOperator;
+import eu.stratosphere.api.java.operators.Grouping;
 import eu.stratosphere.api.java.operators.JoinOperator.JoinHint;
 import eu.stratosphere.api.java.operators.JoinOperator.JoinOperatorSets;
+import eu.stratosphere.api.java.operators.Keys;
+import eu.stratosphere.api.java.operators.MapOperator;
+import eu.stratosphere.api.java.operators.ProjectOperator.Projection;
+import eu.stratosphere.api.java.operators.ReduceGroupOperator;
+import eu.stratosphere.api.java.operators.ReduceOperator;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.typeutils.InputTypeConfigurable;
+import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
 import eu.stratosphere.core.fs.Path;
 
@@ -82,7 +95,87 @@ public abstract class DataSet<T> {
 	public FilterOperator<T> filter(FilterFunction<T> filter) {
 		return new FilterOperator<T>(this, filter);
 	}
-
+	
+	/**
+	 * Selects a subset of fields of a Tuple to create new Tuples. 
+	 * 
+	 * @param fieldIndexes The field indexes select the fields of an input tuple that are kept in an output tuple.
+	 * 					   The order of fields in the output tuple depends on the order of field indexes.
+	 * @return Returns a Projection. Call the types() method with the correct number of class parameters 
+	 *         to create a ProjectOperator. 
+	 */
+	public Projection<T> project(int... fieldIndexes) {
+		
+		if(!(this.getType() instanceof TupleTypeInfo)) {
+			throw new UnsupportedOperationException("project() can only be applied to DataSets of Tuples.");
+		}
+		
+		if(fieldIndexes.length == 0) {
+			throw new IllegalArgumentException("project() needs to select at least one (1) field.");
+		} else if(fieldIndexes.length > 22) {
+			throw new IllegalArgumentException("project() may to select at most twenty-two (22) fields.");
+		}
+		
+		int maxFieldIndex = ((TupleTypeInfo<?>)this.getType()).getArity();
+		for(int i=0; i<fieldIndexes.length; i++) {
+			if(fieldIndexes[i] > maxFieldIndex - 1) {
+				throw new IndexOutOfBoundsException("Provided field index is out of bounds of input tuple.");
+			}
+		}
+		
+		return new Projection<T>(this, fieldIndexes);
+	}
+	
+	/**
+	 * Selects a subset of fields of a Tuple to create new Tuples. 
+	 * 
+	 * @param fieldMask The field mask indicates which fields of an input tuple that are kept ('1' or 'T') 
+	 * 					in an output tuple and which are removed ('0', 'F').
+	 * 				    The order of fields in the output tuple is the same as in the input tuple.
+	 * @return Returns a Projection. Call the types() method with the correct number of class parameters 
+	 *         to create a ProjectOperator. 
+	 */
+	public Projection<T> project(String fieldMask) {
+		int[] fieldIndexes = new int[fieldMask.length()];
+		int fieldCnt = 0;
+		
+		fieldMask = fieldMask.toUpperCase();
+		for (int i = 0; i < fieldMask.length(); i++) {
+			char c = fieldMask.charAt(i);
+			if (c == '1' || c == 'T') {
+				fieldIndexes[fieldCnt++] = i;
+			} else if (c != '0' && c != 'F') {
+				throw new IllegalArgumentException("Mask string may contain only '0' and '1'.");
+			}
+		}
+		fieldIndexes = Arrays.copyOf(fieldIndexes, fieldCnt);
+		
+		return project(fieldIndexes);
+	}
+	
+	/**
+	 * Selects a subset of fields of a Tuple to create new Tuples. 
+	 * 
+	 * @param fieldMask The field flags indicates which fields of an input tuple that are kept (TRUE) 
+	 * 					in an output tuple and which are removed (FALSE).
+	 * 				    The order of fields in the output tuple is the same as in the input tuple.
+	 * @return Returns a Projection. Call the types() method with the correct number of class parameters 
+	 *         to create a ProjectOperator. 
+	 */
+	public Projection<T> project(boolean... fieldFlags) {
+		int[] fieldIndexes = new int[fieldFlags.length];
+		int fieldCnt = 0;
+		
+		for (int i = 0; i < fieldFlags.length; i++) {
+			if (fieldFlags[i]) {
+				fieldIndexes[fieldCnt++] = i;
+			}
+		}
+		fieldIndexes = Arrays.copyOf(fieldIndexes, fieldCnt);
+		
+		return project(fieldIndexes);
+	}
+	
 	// --------------------------------------------------------------------------------------------
 	//  Non-grouped aggregations
 	// --------------------------------------------------------------------------------------------
