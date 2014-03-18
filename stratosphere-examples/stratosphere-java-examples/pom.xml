@@ -32,8 +32,33 @@
 				<version>2.4</version>
 				<executions>
 				
+				    <!-- EXAMPLES FOR THE NEW JAVA API -->
+				    
+				    <!-- TPC-H Query 10 -->
+				    <execution>
+						<id>TPCHQuery10</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+						<configuration>
+							<classifier>TPCHQuery10</classifier>
+
+							<archive>
+								<manifestEntries>
+									<program-class>eu.stratosphere.example.java.relational.TPCHQuery10</program-class>
+								</manifestEntries>
+							</archive>
+							<includes>
+								<include>**/java/relational/TPCHQuery10.class</include>
+								<include>**/java/relational/TPCHQuery10$*.class</include>
+								<include>**/Testdata/*</include>
+							</includes>
+						</configuration>
+					</execution>
 				
-					<!-- EXAMPLE FOR THE JAVA RECORD API -->
+				
+					<!-- EXAMPLES FOR THE JAVA RECORD API -->
 
 					<!-- Connected Components -->
 					<execution>
@@ -43,7 +68,7 @@
 							<goal>jar</goal>
 						</goals>
 						<configuration>
-							<classifier>ConnectedComponents</classifier>
+							<classifier>Record-ConnectedComponents</classifier>
 
 							<archive>
 								<manifestEntries>
@@ -52,7 +77,7 @@
 							</archive>
 
 							<includes>
-								<include>**/connectedcomponents/*.class</include>
+								<include>**/record/connectedcomponents/*.class</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -65,7 +90,7 @@
 							<goal>jar</goal>
 						</goals>
 						<configuration>
-							<classifier>DanglingPageRank</classifier>
+							<classifier>Record-DanglingPageRank</classifier>
 
 							<archive>
 								<manifestEntries>
@@ -74,8 +99,8 @@
 							</archive>
 
 							<includes>
-								<include>**/pagerank/*.class</include>
-								<include>**/util/ConfigUtils.class</include>
+								<include>**/record/pagerank/*.class</include>
+								<include>**/record/util/ConfigUtils.class</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -89,7 +114,7 @@
 						</goals>
 
 						<configuration>
-							<classifier>KMeans</classifier>
+							<classifier>Record-KMeans</classifier>
 
 							<archive>
 								<manifestEntries>
@@ -98,9 +123,9 @@
 							</archive>
 
 							<includes>
-								<include>**/kmeans/KMeans.class</include>
-								<include>**/kmeans/KMeans$*.class</include>
-								<include>**/kmeans/KMeansSampleDataGenerator.class</include>
+								<include>**/record/kmeans/KMeans.class</include>
+								<include>**/record/kmeans/KMeans$*.class</include>
+								<include>**/record/kmeans/KMeansSampleDataGenerator.class</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -114,7 +139,7 @@
 						</goals>
 
 						<configuration>
-							<classifier>KMeansIterative</classifier>
+							<classifier>Record-KMeansIterative</classifier>
 
 							<archive>
 								<manifestEntries>
@@ -123,10 +148,10 @@
 							</archive>
 
 							<includes>
-								<include>**/kmeans/KMeansIterative.class</include>
-								<include>**/kmeans/KMeansSampleDataGenerator.class</include>
-								<include>**/kmeans/KMeansIterative$*.class</include>
-								<include>**/kmeans/udfs/*.class</include>
+								<include>**/record/kmeans/KMeansIterative.class</include>
+								<include>**/record/kmeans/KMeansSampleDataGenerator.class</include>
+								<include>**/record/kmeans/KMeansIterative$*.class</include>
+								<include>**/record/kmeans/udfs/*.class</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -139,7 +164,7 @@
 							<goal>jar</goal>
 						</goals>
 						<configuration>
-							<classifier>PairwiseSP</classifier>
+							<classifier>Record-PairwiseSP</classifier>
 
 							<archive>
 								<manifestEntries>
@@ -148,8 +173,8 @@
 							</archive>
 
 							<includes>
-								<include>**/shortestpaths/PairwiseSP.class</include>
-								<include>**/shortestpaths/PairwiseSP$*.class</include>
+								<include>**/record/shortestpaths/PairwiseSP.class</include>
+								<include>**/record/shortestpaths/PairwiseSP$*.class</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -162,7 +187,7 @@
 							<goal>jar</goal>
 						</goals>
 						<configuration>
-							<classifier>EnumTrianglesOnEdgesWithDegrees</classifier>
+							<classifier>Record-EnumTrianglesOnEdgesWithDegrees</classifier>
 
 							<archive>
 								<manifestEntries>
@@ -171,13 +196,13 @@
 							</archive>
 
 							<includes>
-								<include>**/triangles/EnumTrianglesWithDegrees.class</include>
-								<include>**/triangles/EnumTrianglesWithDegrees$*.class</include>
-								<include>**/triangles/ComputeEdgeDegrees.class</include>
-								<include>**/triangles/ComputeEdgeDegrees$*.class</include>
-								<include>**/triangles/EnumTrianglesOnEdgesWithDegrees.class</include>
-								<include>**/triangles/EnumTrianglesOnEdgesWithDegrees$*.class</include>
-								<include>**/triangles/io/*.class</include>
+								<include>**/record/triangles/EnumTrianglesWithDegrees.class</include>
+								<include>**/record/triangles/EnumTrianglesWithDegrees$*.class</include>
+								<include>**/record/triangles/ComputeEdgeDegrees.class</include>
+								<include>**/record/triangles/ComputeEdgeDegrees$*.class</include>
+								<include>**/record/triangles/EnumTrianglesOnEdgesWithDegrees.class</include>
+								<include>**/record/triangles/EnumTrianglesOnEdgesWithDegrees$*.class</include>
+								<include>**/record/triangles/io/*.class</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -190,7 +215,7 @@
 							<goal>jar</goal>
 						</goals>
 						<configuration>
-							<classifier>EnumTrianglesWithDegrees</classifier>
+							<classifier>Record-EnumTrianglesWithDegrees</classifier>
 
 							<archive>
 								<manifestEntries>
@@ -199,13 +224,13 @@
 							</archive>
 
 							<includes>
-								<include>**/triangles/EnumTrianglesWithDegrees.class</include>
-								<include>**/triangles/EnumTrianglesWithDegrees$*.class</include>
-								<include>**/triangles/ComputeEdgeDegrees.class</include>
-								<include>**/triangles/ComputeEdgeDegrees$*.class</include>
-								<include>**/triangles/EnumTrianglesOnEdgesWithDegrees.class</include>
-								<include>**/triangles/EnumTrianglesOnEdgesWithDegrees$*.class</include>
-								<include>**/triangles/io/*.class</include>
+								<include>**/record/triangles/EnumTrianglesWithDegrees.class</include>
+								<include>**/record/triangles/EnumTrianglesWithDegrees$*.class</include>
+								<include>**/record/triangles/ComputeEdgeDegrees.class</include>
+								<include>**/record/triangles/ComputeEdgeDegrees$*.class</include>
+								<include>**/record/triangles/EnumTrianglesOnEdgesWithDegrees.class</include>
+								<include>**/record/triangles/EnumTrianglesOnEdgesWithDegrees$*.class</include>
+								<include>**/record/triangles/io/*.class</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -218,7 +243,7 @@
 							<goal>jar</goal>
 						</goals>
 						<configuration>
-							<classifier>EnumTrianglesRdfFoaf</classifier>
+							<classifier>Record-EnumTrianglesRdfFoaf</classifier>
 
 							<archive>
 								<manifestEntries>
@@ -227,8 +252,8 @@
 							</archive>
 
 							<includes>
-								<include>**/triangles/EnumTrianglesRdfFoaf.class</include>
-								<include>**/triangles/EnumTrianglesRdfFoaf$*.class</include>
+								<include>**/record/triangles/EnumTrianglesRdfFoaf.class</include>
+								<include>**/record/triangles/EnumTrianglesRdfFoaf$*.class</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -241,7 +266,7 @@
 							<goal>jar</goal>
 						</goals>
 						<configuration>
-							<classifier>TPCHQuery3</classifier>
+							<classifier>Record-TPCHQuery3</classifier>
 
 							<archive>
 								<manifestEntries>
@@ -250,8 +275,8 @@
 							</archive>
 
 							<includes>
-								<include>**/relational/TPCHQuery3.class</include>
-								<include>**/relational/TPCHQuery3$*.class</include>
+								<include>**/record/relational/TPCHQuery3.class</include>
+								<include>**/record/relational/TPCHQuery3$*.class</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -264,7 +289,7 @@
 							<goal>jar</goal>
 						</goals>
 						<configuration>
-							<classifier>WebLogAnalysis</classifier>
+							<classifier>Record-WebLogAnalysis</classifier>
 
 							<archive>
 								<manifestEntries>
@@ -273,8 +298,8 @@
 							</archive>
 
 							<includes>
-								<include>**/relational/WebLogAnalysis.class</include>
-								<include>**/relational/WebLogAnalysis$*.class</include>
+								<include>**/record/relational/WebLogAnalysis.class</include>
+								<include>**/record/relational/WebLogAnalysis$*.class</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -287,7 +312,7 @@
 							<goal>jar</goal>
 						</goals>
 						<configuration>
-							<classifier>WordCount</classifier>
+							<classifier>Record-WordCount</classifier>
 
 							<archive>
 								<manifestEntries>
@@ -296,7 +321,7 @@
 							</archive>
 
 							<includes>
-								<include>**/wordcount/*.class</include>
+								<include>**/record/wordcount/*.class</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -309,7 +334,7 @@
 							<goal>jar</goal>
 						</goals>
 						<configuration>
-							<classifier>TeraSort</classifier>
+							<classifier>Record-TeraSort</classifier>
 
 							<archive>
 								<manifestEntries>
@@ -318,8 +343,8 @@
 							</archive>
 
 							<includes>
-								<include>**/sort/TeraSort.class</include>
-								<include>**/sort/terasort/*.class</include>
+								<include>**/record/sort/TeraSort.class</include>
+								<include>**/record/sort/terasort/*.class</include>
 							</includes>
 						</configuration>
 					</execution>

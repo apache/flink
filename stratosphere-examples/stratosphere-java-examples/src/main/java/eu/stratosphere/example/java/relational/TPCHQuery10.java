@@ -14,6 +14,12 @@
  **********************************************************************************************************************/
 package eu.stratosphere.example.java.relational;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.ExecutionEnvironment;
 import eu.stratosphere.api.java.functions.FilterFunction;
@@ -58,18 +64,22 @@ import eu.stratosphere.api.java.tuple.Tuple6;
  *        c_acctbal, 
  *        n_name, 
  *        c_address
+ *        
+ * Compared to the original TPC-H query this version does not print 
+ * c_phone and c_comment, only filters by years greater than 1990 instead of  
+ * a period of 3 months, and does not sort the result by revenue.
  * 
  */
 public class TPCHQuery10 {
-
+	
 	public static void main(String[] args) throws Exception {
 		
-		String customerPath = (args.length > 0 ? args[0] : TPCHQuery10.class.getResource("/Testdata/customer.tbl").toString());
-		String ordersPath =  (args.length > 1 ? args[1] : TPCHQuery10.class.getResource("/Testdata/orders.tbl").toString());
-		String lineitemPath =  (args.length > 2 ? args[2] : TPCHQuery10.class.getResource("/Testdata/lineitem.tbl").toString());
-		String nationPath =  (args.length > 3 ? args[3] : TPCHQuery10.class.getResource("/Testdata/nation.tbl").toString());		
-		String outPath = (args.length > 4 ? args[4] : "STDOUT");
-
+		String customerPath = (args.length > 0 ? args[0] : copyJarFileToTmp("/Testdata/customer.tbl", "customer.tbl"));
+		String ordersPath =  (args.length > 1 ? args[1] : copyJarFileToTmp("/Testdata/orders.tbl", "orders.tbl"));
+		String lineitemPath =  (args.length > 2 ? args[2] : copyJarFileToTmp("/Testdata/lineitem.tbl", "lineitem.tbl"));
+		String nationPath =  (args.length > 3 ? args[3] : copyJarFileToTmp("/Testdata/nation.tbl", "nation.tbl"));		
+		String outPath = (args.length > 4 ? args[4] : null);
+		
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		// read in customer table file
@@ -206,11 +216,28 @@ public class TPCHQuery10 {
 				});
 
 		// print the result and execute
-		if (outPath.equals("STDOUT")) {
+		if (outPath == null) {
 			customerWithRevenue.print();
 		} else {
 			customerWithRevenue.writeAsCsv(outPath);
 		}
 		env.execute();
+	}
+	
+	// Helper function to extract a testdata file from jar to the default tmp-directory
+	private static String copyJarFileToTmp(String jarPath, String tmpName) throws IOException {
+		File tmpFile = new File(System.getProperty("java.io.tmpdir"), tmpName);
+		
+		InputStream is = TPCHQuery10.class.getResourceAsStream(jarPath);
+		OutputStream os = new FileOutputStream(tmpFile);
+		int read = 0;
+		byte[] bytes = new byte[1024];
+ 
+		while ((read = is.read(bytes)) != -1) {
+			os.write(bytes, 0, read);
+		}
+		is.close();
+		os.close();
+		return "file://"+tmpFile.toString();
 	}
 }
