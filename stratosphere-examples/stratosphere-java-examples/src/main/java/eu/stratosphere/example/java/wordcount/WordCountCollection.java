@@ -17,7 +17,6 @@ package eu.stratosphere.example.java.wordcount;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.ExecutionEnvironment;
 import eu.stratosphere.api.java.functions.FlatMapFunction;
-import eu.stratosphere.api.java.functions.ReduceFunction;
 import eu.stratosphere.api.java.tuple.*;
 import eu.stratosphere.util.Collector;
 
@@ -34,14 +33,6 @@ public class WordCountCollection {
 			for (String token : tokens) {
 				out.collect(new Tuple2<String, Integer>(token, 1));
 			}
-		}
-	}
-	
-	public static final class Counter extends ReduceFunction<Tuple2<String, Integer>> {
-
-		@Override
-		public Tuple2<String, Integer> reduce(Tuple2<String, Integer> val1, Tuple2<String, Integer> val2) {
-			return new Tuple2<String, Integer>(val1.T1(), val1.T2() + val2.T2());
 		}
 	}
 	
