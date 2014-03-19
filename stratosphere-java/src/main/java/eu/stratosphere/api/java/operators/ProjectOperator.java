@@ -79,7 +79,7 @@ public class ProjectOperator<IN, OUT extends Tuple>
 				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
 			}
 			
-			TypeInformation<?>[] fTypes = extractFieldTypes(fields, ds.getType());
+			TypeInformation<?>[] fTypes = extractFieldTypes(fields, types, ds.getType());
 			TupleTypeInfo<Tuple1<T1>> tType = new TupleTypeInfo<Tuple1<T1>>(fTypes);
 			
 			return new ProjectOperator<T, Tuple1<T1>>(this.ds, this.fields, tType);
@@ -100,7 +100,7 @@ public class ProjectOperator<IN, OUT extends Tuple>
 				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
 			}
 			
-			TypeInformation<?>[] fTypes = extractFieldTypes(fields, ds.getType());
+			TypeInformation<?>[] fTypes = extractFieldTypes(fields, types, ds.getType());
 			TupleTypeInfo<Tuple2<T1, T2>> tType = new TupleTypeInfo<Tuple2<T1, T2>>(fTypes);
 			
 			return new ProjectOperator<T, Tuple2<T1, T2>>(this.ds, this.fields, tType);
@@ -122,7 +122,7 @@ public class ProjectOperator<IN, OUT extends Tuple>
 				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
 			}
 			
-			TypeInformation<?>[] fTypes = extractFieldTypes(fields, ds.getType());
+			TypeInformation<?>[] fTypes = extractFieldTypes(fields, types, ds.getType());
 			TupleTypeInfo<Tuple3<T1, T2, T3>> tType = new TupleTypeInfo<Tuple3<T1, T2, T3>>(fTypes);
 			
 			return new ProjectOperator<T, Tuple3<T1, T2, T3>>(this.ds, this.fields, tType);
@@ -145,7 +145,7 @@ public class ProjectOperator<IN, OUT extends Tuple>
 				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
 			}
 			
-			TypeInformation<?>[] fTypes = extractFieldTypes(fields, ds.getType());
+			TypeInformation<?>[] fTypes = extractFieldTypes(fields, types, ds.getType());
 			TupleTypeInfo<Tuple4<T1, T2, T3, T4>> tType = new TupleTypeInfo<Tuple4<T1, T2, T3, T4>>(fTypes);
 			
 			return new ProjectOperator<T, Tuple4<T1, T2, T3, T4>>(this.ds, this.fields, tType);
@@ -169,7 +169,7 @@ public class ProjectOperator<IN, OUT extends Tuple>
 				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
 			}
 			
-			TypeInformation<?>[] fTypes = extractFieldTypes(fields, ds.getType());
+			TypeInformation<?>[] fTypes = extractFieldTypes(fields, types, ds.getType());
 			TupleTypeInfo<Tuple5<T1, T2, T3, T4, T5>> tType = new TupleTypeInfo<Tuple5<T1, T2, T3, T4, T5>>(fTypes);
 			
 			return new ProjectOperator<T, Tuple5<T1, T2, T3, T4, T5>>(this.ds, this.fields, tType);
@@ -195,7 +195,7 @@ public class ProjectOperator<IN, OUT extends Tuple>
 				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
 			}
 			
-			TypeInformation<?>[] fTypes = extractFieldTypes(fields, ds.getType());
+			TypeInformation<?>[] fTypes = extractFieldTypes(fields, types, ds.getType());
 			TupleTypeInfo<Tuple6<T1, T2, T3, T4, T5, T6>> tType = new TupleTypeInfo<Tuple6<T1, T2, T3, T4, T5, T6>>(fTypes);
 			
 			return new ProjectOperator<T, Tuple6<T1, T2, T3, T4, T5, T6>>(this.ds, this.fields, tType);
@@ -222,7 +222,7 @@ public class ProjectOperator<IN, OUT extends Tuple>
 				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
 			}
 			
-			TypeInformation<?>[] fTypes = extractFieldTypes(fields, ds.getType());
+			TypeInformation<?>[] fTypes = extractFieldTypes(fields, types, ds.getType());
 			TupleTypeInfo<Tuple7<T1, T2, T3, T4, T5, T6, T7>> tType = new TupleTypeInfo<Tuple7<T1, T2, T3, T4, T5, T6, T7>>(fTypes);
 			
 			return new ProjectOperator<T, Tuple7<T1, T2, T3, T4, T5, T6, T7>>(this.ds, this.fields, tType);
@@ -251,7 +251,7 @@ public class ProjectOperator<IN, OUT extends Tuple>
 				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
 			}
 			
-			TypeInformation<?>[] fTypes = extractFieldTypes(fields, ds.getType());
+			TypeInformation<?>[] fTypes = extractFieldTypes(fields, types, ds.getType());
 			TupleTypeInfo<Tuple8<T1, T2, T3, T4, T5, T6, T7, T8>> tType = new TupleTypeInfo<Tuple8<T1, T2, T3, T4, T5, T6, T7, T8>>(fTypes);
 			
 			return new ProjectOperator<T, Tuple8<T1, T2, T3, T4, T5, T6, T7, T8>>(this.ds, this.fields, tType);
@@ -262,15 +262,17 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		// -----------------------------------------------------------------------------------------
 		
 			
-		private TypeInformation<?>[] extractFieldTypes(int[] fields, TypeInformation<?> inType) {
+		private TypeInformation<?>[] extractFieldTypes(int[] fields, Class<?>[] givenTypes, TypeInformation<?> inType) {
 			
 			TupleTypeInfo<?> inTupleType = (TupleTypeInfo<?>) inType;
 			TypeInformation<?>[] fieldTypes = new TypeInformation[fields.length];
 					
 			for(int i=0; i<fields.length; i++) {
-				if(fields[i] > inTupleType.getArity() - 1) {
-					throw new IndexOutOfBoundsException("Projection field not in range of input tuple fields.");
+				
+				if(inTupleType.getTypeAt(fields[i]).getTypeClass() != givenTypes[i]) {
+					throw new IllegalArgumentException("Given types do not match types of input data set.");
 				}
+					
 				fieldTypes[i] = inTupleType.getTypeAt(fields[i]);
 			}
 			
