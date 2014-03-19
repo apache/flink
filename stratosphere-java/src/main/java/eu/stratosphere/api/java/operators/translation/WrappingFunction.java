@@ -24,6 +24,7 @@ import eu.stratosphere.api.common.accumulators.Histogram;
 import eu.stratosphere.api.common.accumulators.IntCounter;
 import eu.stratosphere.api.common.accumulators.LongCounter;
 import eu.stratosphere.api.common.aggregators.Aggregator;
+import eu.stratosphere.api.common.cache.DistributedCache;
 import eu.stratosphere.api.common.functions.AbstractFunction;
 import eu.stratosphere.api.common.functions.IterationRuntimeContext;
 import eu.stratosphere.api.common.functions.RuntimeContext;
@@ -137,6 +138,11 @@ public abstract class WrappingFunction<T extends AbstractFunction> extends Abstr
 			}
 			
 			return list;
+		}
+
+		@Override
+		public DistributedCache getDistributedCache() {
+			return context.getDistributedCache();
 		}
 	}
 	

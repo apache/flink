@@ -1,3 +1,16 @@
+/***********************************************************************************************************************
+ * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ **********************************************************************************************************************/
+
 package eu.stratosphere.pact.runtime.cache;
 
 import eu.stratosphere.api.common.cache.DistributedCache;
@@ -10,6 +23,8 @@ import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.core.fs.local.LocalFileSystem;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.taskmanager.runtime.ExecutorThreadFactory;
+import eu.stratosphere.nephele.util.IOUtils;
+
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -28,7 +43,7 @@ public class FileCache {
 
 	private LocalFileSystem lfs = new LocalFileSystem();
 
-	private Map<Pair<JobID, String>, Boolean> active = new HashMap<Pair<JobID,String>, Boolean>();
+	private Map<Pair<JobID, String>, Integer> count = new HashMap<Pair<JobID,String>, Integer>();
 
 	private final ScheduledExecutorService executorService = Executors.newScheduledThreadPool(10, ExecutorThreadFactory.INSTANCE);
 
@@ -37,8 +52,13 @@ public class FileCache {
 	 */
 	public FutureTask<Path> createTmpFile(String name, String filePath, JobID jobID) {
 
-		synchronized (active) {
-			active.put(new ImmutablePair(jobID,name), true);
+		synchronized (count) {
+			Pair<JobID, String> key = new ImmutablePair(jobID,name);
+			if (count.containsKey(key)) {
+				count.put(key, count.get(key) + 1);
+			} else {
+				count.put(key, 1);
+			}
 		}
 		CopyProcess cp = new CopyProcess(name, filePath, jobID);
 		FutureTask<Path> copyTask = new FutureTask<Path>(cp);
@@ -50,10 +70,7 @@ public class FileCache {
 	 * Leave a 5 seconds delay to clear the local file.
 	 */
 	public void deleteTmpFile(String name, JobID jobID) {
-		synchronized (active) {
-			active.put(new ImmutablePair(jobID, name), false);
-		}
-		DeleteProcess dp = new DeleteProcess(name, jobID);
+		DeleteProcess dp = new DeleteProcess(name, jobID, count.get(new ImmutablePair(jobID,name)));
 		executorService.schedule(dp, 5000L, TimeUnit.MILLISECONDS);
 	}
 
@@ -68,7 +85,7 @@ public class FileCache {
 			try {
 				this.executorService.awaitTermination(5000L, TimeUnit.MILLISECONDS);
 			} catch (InterruptedException e) {
-				e.printStackTrace();
+				throw new RuntimeException("Error shutting down the file cache", e);
 			}
 		}
 	}
@@ -94,17 +111,10 @@ public class FileCache {
 					Path distributedPath = new Path(filePath);
 					FileSystem fs = distributedPath.getFileSystem();
 					FSDataInputStream fsInput = fs.open(distributedPath);
-					byte [] buffer = new byte[DistributedCache.DEFAULT_BUFFER_SIZE];
-					int num = fsInput.read(buffer);
-					while (num != -1) {
-						lfsOutput.write(buffer, 0, num);
-						num = fsInput.read(buffer);
-					}
-					fsInput.close();
-					lfsOutput.close();
+					IOUtils.copyBytes(fsInput, lfsOutput);
 				}
 			} catch (IOException e1) {
-				e1.printStackTrace();
+				throw new RuntimeException("Error copying a file from hdfs to the local fs", e1);
 			}
 			return tmp;
 		}
@@ -115,15 +125,17 @@ public class FileCache {
 	private class DeleteProcess implements Runnable {
 		private String name;
 		private JobID jobID;
+		private int oldCount;
 
-		public DeleteProcess(String name, JobID jobID) {
+		public DeleteProcess(String name, JobID jobID, int c) {
 			this.name = name;
 			this.jobID = jobID;
+			this.oldCount = c;
 		}
 
 		public void run() {
-			synchronized (active) {
-				if (active.get(new ImmutablePair(jobID, name))) {
+			synchronized (count) {
+				if (count.get(new ImmutablePair(jobID, name)) != oldCount) {
 					return;
 				}
 			}
@@ -133,7 +145,7 @@ public class FileCache {
 					lfs.delete(tmp, true);
 				}
 			} catch (IOException e1) {
-				e1.printStackTrace();
+				throw new RuntimeException("Error deleting the file", e1);
 			}
 		}
 	}

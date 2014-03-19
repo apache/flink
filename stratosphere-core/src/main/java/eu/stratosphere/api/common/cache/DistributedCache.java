@@ -1,18 +1,27 @@
+/***********************************************************************************************************************
+ * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ **********************************************************************************************************************/
+
 package eu.stratosphere.api.common.cache;
 
 
-import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.configuration.GlobalConfiguration;
 import eu.stratosphere.core.fs.Path;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
-
 import java.io.File;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
 
 /**
@@ -28,8 +37,6 @@ public class DistributedCache {
 	final static String CACHE_FILE_PATH = "DISTRIBUTED_CACHE_FILE_PATH_";
 
 	public final static String TMP_PREFIX = "tmp_";
-
-	public final static int DEFAULT_BUFFER_SIZE = 8192;
 
 	private Map<String, FutureTask<Path>> cacheCopyTasks = new HashMap<String, FutureTask<Path>>();
 
@@ -60,10 +67,8 @@ public class DistributedCache {
 		//The FutureTask.get() method will block until the file is ready.
 		try {
 			tmp = cacheCopyTasks.get(name).get();
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		} catch (ExecutionException e) {
-			e.printStackTrace();
+		} catch (Exception  e) {
+			throw new RuntimeException("Error while getting file from distributed cache", e);
 		}
 		return new File(tmp.toString());
 	}
