@@ -150,30 +150,6 @@ public class DualInputPlanNode extends PlanNode {
 		return this.input2;
 	}
 	
-	/**
-	 * This function overrides the standard behavior of computing costs in the {@link eu.stratosphere.compiler.plan.PlanNode}.
-	 * Since nodes with multiple inputs may join branched plans, care must be taken not to double-count the costs of the subtree rooted
-	 * at the last unjoined branch.
-	 * 
-	 * @see eu.stratosphere.compiler.plan.PlanNode#setCosts(eu.stratosphere.compiler.costs.Costs)
-	 */
-	@Override
-	public void setCosts(Costs nodeCosts) {
-		super.setCosts(nodeCosts);
-		
-		// check, if this node has no branch beneath it, no double-counted cost then
-		if (this.template.getJoinedBranchers() == null || this.template.getJoinedBranchers().isEmpty()) {
-			return;
-		}
-
-		// get the cumulative costs of the last joined branching node
-		for (OptimizerNode joinedBrancher : this.template.getJoinedBranchers()) {
-			PlanNode lastCommonChild = this.input1.getSource().branchPlan.get(joinedBrancher);
-			Costs doubleCounted = lastCommonChild.getCumulativeCosts();
-			getCumulativeCosts().subtractCosts(doubleCounted);
-		}
-	}
-	
 	// --------------------------------------------------------------------------------------------
 	
 

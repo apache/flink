@@ -237,6 +237,22 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 	public Costs getCumulativeCosts() {
 		return this.cumulativeCosts;
 	}
+
+	public Costs getCumulativeCostsShare() {
+		if(this.cumulativeCosts == null){
+			return null;
+		}else{
+			Costs result = cumulativeCosts.clone();
+			if(this.template != null && this.template.getOutgoingConnections() != null){
+				int outDegree = this.template.getOutgoingConnections().size();
+				if(outDegree > 0)
+					result.divideBy(outDegree);
+			}
+
+			return result;
+		}
+	}
+
 	
 	/**
 	 * Sets the basic cost for this {@code OptimizerNode}
@@ -250,7 +266,7 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 		// the cumulative costs are the node costs plus the costs of all inputs
 		this.cumulativeCosts = nodeCosts.clone();
 		for (Iterator<PlanNode> preds = getPredecessors(); preds.hasNext();) {
-			Costs parentCosts = preds.next().cumulativeCosts;
+			Costs parentCosts = preds.next().getCumulativeCostsShare();
 			if (parentCosts != null)
 				this.cumulativeCosts.addCosts(parentCosts);
 			else

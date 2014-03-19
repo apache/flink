@@ -571,11 +571,11 @@ public class PlanJSONDumpGenerator {
 		writer.print("\" }");
 	}
 
-	public static final String formatNumber(long number) {
+	public static final String formatNumber(double number) {
 		return formatNumber(number, "");
 	}
 
-	public static final String formatNumber(long number, String suffix) {
+	public static final String formatNumber(double number, String suffix) {
 		final int fractionalDigits = 2;
 
 		StringBuilder bld = new StringBuilder();

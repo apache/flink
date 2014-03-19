@@ -980,6 +980,10 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	public List<OptimizerNode> getJoinedBranchers() {
 		return this.hereJoinedBranchers;
 	}
+
+	public Set<OptimizerNode> getClosedBranchingNodes() {
+		return this.closedBranchingNodes;
+	}
 	
 	public List<UnclosedBranchDescriptor> getOpenBranches() {
 		return this.openBranches;

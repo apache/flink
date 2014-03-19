@@ -147,8 +147,8 @@ public class WorksetIterationPlanNode extends DualInputPlanNode implements Itera
 	
 	public void setCosts(Costs nodeCosts) {
 		// add the costs from the step function
-		nodeCosts.addCosts(this.solutionSetDeltaPlanNode.getCumulativeCosts());
-		nodeCosts.addCosts(this.nextWorkSetPlanNode.getCumulativeCosts());
+		nodeCosts.addCosts(this.solutionSetDeltaPlanNode.getCumulativeCostsShare());
+		nodeCosts.addCosts(this.nextWorkSetPlanNode.getCumulativeCostsShare());
 		
 		// we have to subtract that which is double. sanity check that there are branches
 		TwoInputNode auxJoiner = getIterationNode().getSingleRootOfStepFunction();
@@ -156,12 +156,6 @@ public class WorksetIterationPlanNode extends DualInputPlanNode implements Itera
 			throw new CompilerException("Error: No branch in step function between Solution Set Delta and Next Workset.");
 		}
 
-		// get the cumulative costs of the last joined branching node
-		for (OptimizerNode joinedBrancher : auxJoiner.getJoinedBranchers()) {
-			PlanNode lastCommonChild = this.solutionSetDeltaPlanNode.branchPlan.get(joinedBrancher);
-			Costs douleCounted = lastCommonChild.getCumulativeCosts();
-			nodeCosts.subtractCosts(douleCounted);
-		}
 		super.setCosts(nodeCosts);
 	}
 	

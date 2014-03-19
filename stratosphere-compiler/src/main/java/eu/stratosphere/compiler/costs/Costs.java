@@ -33,19 +33,19 @@ package eu.stratosphere.compiler.costs;
  */
 public class Costs implements Comparable<Costs>, Cloneable {
 
-	public static final long UNKNOWN = -1;
+	public static final double UNKNOWN = -1;
 	
-	private long networkCost;				// network cost, in transferred bytes
+	private double networkCost;				// network cost, in transferred bytes
 
-	private long diskCost;		// bytes to be written and read, in bytes
+	private double diskCost;		// bytes to be written and read, in bytes
 	
-	private long cpuCost;					// CPU costs
+	private double cpuCost;					// CPU costs
 	
-	private long heuristicNetworkCost;
+	private double heuristicNetworkCost;
 	
-	private long heuristicDiskCost;
+	private double heuristicDiskCost;
 	
-	private long heuristicCpuCost;
+	private double heuristicCpuCost;
 	
 	// --------------------------------------------------------------------------------------------
 
@@ -61,7 +61,7 @@ public class Costs implements Comparable<Costs>, Cloneable {
 	 * @param networkCost The network cost, in bytes to be transferred.
 	 * @param diskCost The cost for disk, in bytes to be written and read.
 	 */
-	public Costs(long networkCost, long diskCost) {
+	public Costs(double networkCost, double diskCost) {
 		setNetworkCost(networkCost);
 		setDiskCost(diskCost);
 	}
@@ -73,7 +73,7 @@ public class Costs implements Comparable<Costs>, Cloneable {
 	 * @param diskCost The cost for disk, in bytes to be written and read.
 	 * @param cpuCost The cost for CPU operations.
 	 */
-	public Costs(long networkCost, long diskCost, long cpuCost) {
+	public Costs(double networkCost, double diskCost, double cpuCost) {
 		setNetworkCost(networkCost);
 		setDiskCost(diskCost);
 		setCpuCost(cpuCost);
@@ -86,7 +86,7 @@ public class Costs implements Comparable<Costs>, Cloneable {
 	 * 
 	 * @return The network cost, in bytes to be transferred.
 	 */
-	public long getNetworkCost() {
+	public double getNetworkCost() {
 		return networkCost;
 	}
 
@@ -96,7 +96,7 @@ public class Costs implements Comparable<Costs>, Cloneable {
 	 * @param bytes
 	 *        The network cost to set, in bytes to be transferred.
 	 */
-	public void setNetworkCost(long bytes) {
+	public void setNetworkCost(double bytes) {
 		if (bytes == UNKNOWN || bytes >= 0) {
 			this.networkCost = bytes;
 		} else {
@@ -110,7 +110,7 @@ public class Costs implements Comparable<Costs>, Cloneable {
 	 * 
 	 * @param bytes The network cost to add, in bytes to be transferred.
 	 */
-	public void addNetworkCost(long bytes) {
+	public void addNetworkCost(double bytes) {
 		this.networkCost = (this.networkCost < 0 || bytes < 0) ? UNKNOWN : this.networkCost + bytes;
 	}
 
@@ -119,7 +119,7 @@ public class Costs implements Comparable<Costs>, Cloneable {
 	 * 
 	 * @return The disk cost, in bytes to be written and read.
 	 */
-	public long getDiskCost() {
+	public double getDiskCost() {
 		return diskCost;
 	}
 
@@ -128,7 +128,7 @@ public class Costs implements Comparable<Costs>, Cloneable {
 	 * 
 	 * @param bytes The disk cost to set, in bytes to be written and read.
 	 */
-	public void setDiskCost(long bytes) {
+	public void setDiskCost(double bytes) {
 		if (bytes == UNKNOWN || bytes >= 0) {
 			this.diskCost = bytes;
 		} else {
@@ -142,7 +142,7 @@ public class Costs implements Comparable<Costs>, Cloneable {
 	 * 
 	 * @param bytes The disk cost to add, in bytes to be written and read.
 	 */
-	public void addDiskCost(long bytes) {
+	public void addDiskCost(double bytes) {
 		this.diskCost = 
 			(this.diskCost < 0 || bytes < 0) ? UNKNOWN : this.diskCost + bytes;
 	}
@@ -152,7 +152,7 @@ public class Costs implements Comparable<Costs>, Cloneable {
 	 * 
 	 * @return The CPU Cost.
 	 */
-	public long getCpuCost() {
+	public double getCpuCost() {
 		return this.cpuCost;
 	}
 
@@ -161,7 +161,7 @@ public class Costs implements Comparable<Costs>, Cloneable {
 	 * 
 	 * @param cost The CPU Cost.
 	 */
-	public void setCpuCost(long cost) {
+	public void setCpuCost(double cost) {
 		if (cost == UNKNOWN || cost >= 0) {
 			this.cpuCost = cost;
 		} else {
@@ -174,7 +174,7 @@ public class Costs implements Comparable<Costs>, Cloneable {
 	 * 
 	 * @param cost The CPU cost to add.
 	 */
-	public void addCpuCost(long cost) {
+	public void addCpuCost(double cost) {
 		this.cpuCost = 
 			(this.cpuCost < 0 || cost < 0) ? UNKNOWN : this.cpuCost + cost;
 	}
@@ -186,7 +186,7 @@ public class Costs implements Comparable<Costs>, Cloneable {
 	 * 
 	 * @return The heuristic network cost, in bytes to be transferred.
 	 */
-	public long getHeuristicNetworkCost() {
+	public double getHeuristicNetworkCost() {
 		return this.heuristicNetworkCost;
 	}
 
@@ -195,7 +195,7 @@ public class Costs implements Comparable<Costs>, Cloneable {
 	 * 
 	 * @param cost The heuristic network cost to set, in bytes to be transferred.
 	 */
-	public void setHeuristicNetworkCost(long cost) {
+	public void setHeuristicNetworkCost(double cost) {
 		if (cost <= 0) {
 			throw new IllegalArgumentException("Heuristic costs must be positive.");
 		}
@@ -208,14 +208,14 @@ public class Costs implements Comparable<Costs>, Cloneable {
 	 * 
 	 * @param cost The heuristic network cost to add.
 	 */
-	public void addHeuristicNetworkCost(long cost) {
+	public void addHeuristicNetworkCost(double cost) {
 		if (cost <= 0) {
 			throw new IllegalArgumentException("Heuristic costs must be positive.");
 		}
 		this.heuristicNetworkCost += cost;
 		// check for overflow
 		if (this.heuristicNetworkCost < 0) {
-			this.heuristicNetworkCost = Long.MAX_VALUE;
+			this.heuristicNetworkCost = Double.MAX_VALUE;
 		}
 	}
 
@@ -224,7 +224,7 @@ public class Costs implements Comparable<Costs>, Cloneable {
 	 * 
 	 * @return The heuristic disk cost.
 	 */
-	public long getHeuristicDiskCost() {
+	public double getHeuristicDiskCost() {
 		return this.heuristicDiskCost;
 	}
 
@@ -233,7 +233,7 @@ public class Costs implements Comparable<Costs>, Cloneable {
 	 * 
 	 * @param cost The heuristic disk cost to set.
 	 */
-	public void setHeuristicDiskCost(long cost) {
+	public void setHeuristicDiskCost(double cost) {
 		if (cost <= 0) {
 			throw new IllegalArgumentException("Heuristic costs must be positive.");
 		}
@@ -246,14 +246,14 @@ public class Costs implements Comparable<Costs>, Cloneable {
 	 * 
 	 * @param cost The heuristic disk cost to add.
 	 */
-	public void addHeuristicDiskCost(long cost) {
+	public void addHeuristicDiskCost(double cost) {
 		if (cost <= 0) {
 			throw new IllegalArgumentException("Heuristic costs must be positive.");
 		}
 		this.heuristicDiskCost += cost;
 		// check for overflow
 		if (this.heuristicDiskCost < 0) {
-			this.heuristicDiskCost = Long.MAX_VALUE;
+			this.heuristicDiskCost = Double.MAX_VALUE;
 		}
 	}
 	
@@ -262,7 +262,7 @@ public class Costs implements Comparable<Costs>, Cloneable {
 	 * 
 	 * @return The heuristic CPU Cost.
 	 */
-	public long getHeuristicCpuCost() {
+	public double getHeuristicCpuCost() {
 		return this.heuristicCpuCost;
 	}
 
@@ -271,7 +271,7 @@ public class Costs implements Comparable<Costs>, Cloneable {
 	 * 
 	 * @param cost The heuristic CPU Cost.
 	 */
-	public void setHeuristicCpuCost(long cost) {
+	public void setHeuristicCpuCost(double cost) {
 		if (cost <= 0) {
 			throw new IllegalArgumentException("Heuristic costs must be positive.");
 		}
@@ -283,14 +283,14 @@ public class Costs implements Comparable<Costs>, Cloneable {
 	 * 
 	 * @param cost The heuristic CPU cost to add.
 	 */
-	public void addHeuristicCpuCost(long cost) {
+	public void addHeuristicCpuCost(double cost) {
 		if (cost <= 0) {
 			throw new IllegalArgumentException("Heuristic costs must be positive.");
 		}
 		this.heuristicCpuCost += cost;
 		// check for overflow
 		if (this.heuristicCpuCost < 0) {
-			this.heuristicCpuCost = Long.MAX_VALUE;
+			this.heuristicCpuCost = Double.MAX_VALUE;
 		}
 	}
 
@@ -379,6 +379,16 @@ public class Costs implements Comparable<Costs>, Cloneable {
 		this.heuristicCpuCost = this.heuristicCpuCost < 0 ? -1 : this.heuristicCpuCost * factor;
 	}
 
+	public void divideBy(int factor) {
+		this.networkCost = this.networkCost < 0 ? -1 : this.networkCost / factor;
+		this.diskCost = this.diskCost < 0 ? -1 : this.diskCost / factor;
+		this.cpuCost = this.cpuCost < 0 ? -1 : this.cpuCost / factor;
+		this.heuristicNetworkCost = this.heuristicNetworkCost < 0 ? -1 : this.heuristicNetworkCost / factor;
+		this.heuristicDiskCost = this.heuristicDiskCost < 0 ? -1 : this.heuristicDiskCost / factor;
+		this.heuristicCpuCost = this.heuristicCpuCost < 0 ? -1 : this.heuristicCpuCost / factor;
+	}
+
+
 	// --------------------------------------------------------------------------------------------
 
 	/**
@@ -427,12 +437,19 @@ public class Costs implements Comparable<Costs>, Cloneable {
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-		result = prime * result + (int) (cpuCost ^ (cpuCost >>> 32));
-		result = prime * result + (int) (heuristicCpuCost ^ (heuristicCpuCost >>> 32));
-		result = prime * result + (int) (heuristicNetworkCost ^ (heuristicNetworkCost >>> 32));
-		result = prime * result + (int) (heuristicDiskCost ^ (heuristicDiskCost >>> 32));
-		result = prime * result + (int) (networkCost ^ (networkCost >>> 32));
-		result = prime * result + (int) (diskCost ^ (diskCost >>> 32));
+		long cpuCostBits = Double.doubleToLongBits(cpuCost);
+		long heuristicCpuCostBits = Double.doubleToLongBits(heuristicCpuCost);
+		long heuristicNetworkCostBits = Double.doubleToLongBits(heuristicNetworkCost);
+		long heuristicDiskCostBits = Double.doubleToLongBits(heuristicDiskCost);
+		long networkCostBits = Double.doubleToLongBits(networkCost);
+		long diskCostBits = Double.doubleToLongBits(diskCost);
+
+		result = prime * result + (int) (cpuCostBits ^ (cpuCostBits >>> 32));
+		result = prime * result + (int) (heuristicCpuCostBits ^ (heuristicCpuCostBits >>> 32));
+		result = prime * result + (int) (heuristicNetworkCostBits ^ (heuristicNetworkCostBits >>> 32));
+		result = prime * result + (int) (heuristicDiskCostBits ^ (heuristicDiskCostBits >>> 32));
+		result = prime * result + (int) (networkCostBits ^ (networkCostBits >>> 32));
+		result = prime * result + (int) (diskCostBits ^ (diskCostBits >>> 32));
 		return result;
 	}
 
