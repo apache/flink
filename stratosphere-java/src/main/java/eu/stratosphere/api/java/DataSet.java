@@ -113,7 +113,7 @@ public abstract class DataSet<T> {
 		if(fieldIndexes.length == 0) {
 			throw new IllegalArgumentException("project() needs to select at least one (1) field.");
 		} else if(fieldIndexes.length > 22) {
-			throw new IllegalArgumentException("project() may to select at most twenty-two (22) fields.");
+			throw new IllegalArgumentException("project() may select only up to twenty-two (22) fields.");
 		}
 		
 		int maxFieldIndex = ((TupleTypeInfo<?>)this.getType()).getArity();
