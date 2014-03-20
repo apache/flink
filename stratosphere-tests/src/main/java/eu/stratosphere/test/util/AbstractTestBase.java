@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.LinkedList;
 import java.util.List;
 
 import org.apache.commons.io.FileUtils;
@@ -62,7 +63,6 @@ public abstract class AbstractTestBase {
 		
 		LogUtils.initializeDefaultConsoleLogger(Level.WARN);
 	}
-	
 
 	private void verifyJvmOptions() {
 		long heap = Runtime.getRuntime().maxMemory() >> 20;
@@ -275,6 +275,15 @@ public abstract class AbstractTestBase {
 	
 	protected static Collection<Object[]> toParameterList(Configuration ... testConfigs) {
 		ArrayList<Object[]> configs = new ArrayList<Object[]>();
+		for (Configuration testConfig : testConfigs) {
+			Object[] c = { testConfig };
+			configs.add(c);
+		}
+		return configs;
+	}
+	
+	protected static Collection<Object[]> toParameterList(List<Configuration> testConfigs) {
+		LinkedList<Object[]> configs = new LinkedList<Object[]>();
 		for (Configuration testConfig : testConfigs) {
 			Object[] c = { testConfig };
 			configs.add(c);
