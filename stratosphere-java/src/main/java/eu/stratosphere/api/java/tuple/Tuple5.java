@@ -24,68 +24,38 @@ package eu.stratosphere.api.java.tuple;
 import eu.stratosphere.util.StringUtils;
 
 @SuppressWarnings({"restriction"})
-public class Tuple5<T1, T2, T3, T4, T5> extends Tuple {
+public class Tuple5<T0, T1, T2, T3, T4> extends Tuple {
 
 	private static final long serialVersionUID = 1L;
 
-	private T1 _1;
-	private T2 _2;
-	private T3 _3;
-	private T4 _4;
-	private T5 _5;
+	public T0 f0;
+	public T1 f1;
+	public T2 f2;
+	public T3 f3;
+	public T4 f4;
 
 	public Tuple5() {}
 
-	public Tuple5(T1 value1, T2 value2, T3 value3, T4 value4, T5 value5) {
-		this._1 = value1;
-		this._2 = value2;
-		this._3 = value3;
-		this._4 = value4;
-		this._5 = value5;
+	public Tuple5(T0 value0, T1 value1, T2 value2, T3 value3, T4 value4) {
+		this.f0 = value0;
+		this.f1 = value1;
+		this.f2 = value2;
+		this.f3 = value3;
+		this.f4 = value4;
 	}
 
 	@Override
 	public int getArity() { return 5; }
 
-	public T1 T1() {
-		return this._1;
-	}
-	public T2 T2() {
-		return this._2;
-	}
-	public T3 T3() {
-		return this._3;
-	}
-	public T4 T4() {
-		return this._4;
-	}
-	public T5 T5() {
-		return this._5;
-	}
-	public void T1(T1 value) {
-		this._1 = value;
-	}
-	public void T2(T2 value) {
-		this._2 = value;
-	}
-	public void T3(T3 value) {
-		this._3 = value;
-	}
-	public void T4(T4 value) {
-		this._4 = value;
-	}
-	public void T5(T5 value) {
-		this._5 = value;
-	}
 	@Override
 	@SuppressWarnings("unchecked")
 	public <T> T getField(int pos) {
 		switch(pos) {
-			case 0: return (T) this._1;
-			case 1: return (T) this._2;
-			case 2: return (T) this._3;
-			case 3: return (T) this._4;
-			case 4: return (T) this._5;
+			case 0: return (T) this.f0;
+			case 1: return (T) this.f1;
+			case 2: return (T) this.f2;
+			case 3: return (T) this.f3;
+			case 4: return (T) this.f4;
 			default: throw new IndexOutOfBoundsException(String.valueOf(pos));
 		}
 	}
@@ -94,23 +64,31 @@ public class Tuple5<T1, T2, T3, T4, T5> extends Tuple {
 	public <T> void setField(T value, int pos) {
 		switch(pos) {
 			case 0:
-				this._1 = (T1) value;
+				this.f0 = (T0) value;
 				break;
 			case 1:
-				this._2 = (T2) value;
+				this.f1 = (T1) value;
 				break;
 			case 2:
-				this._3 = (T3) value;
+				this.f2 = (T2) value;
 				break;
 			case 3:
-				this._4 = (T4) value;
+				this.f3 = (T3) value;
 				break;
 			case 4:
-				this._5 = (T5) value;
+				this.f4 = (T4) value;
 				break;
 			default: throw new IndexOutOfBoundsException(String.valueOf(pos));
 		}
 	}
+	public void setFields(T0 value0, T1 value1, T2 value2, T3 value3, T4 value4) {
+		this.f0 = value0;
+		this.f1 = value1;
+		this.f2 = value2;
+		this.f3 = value3;
+		this.f4 = value4;
+	}
+
 
 	// -------------------------------------------------------------------------------------------------
 	// standard utilities
@@ -118,11 +96,11 @@ public class Tuple5<T1, T2, T3, T4, T5> extends Tuple {
 
 	@Override
 	public String toString() {
-		return "(" + StringUtils.arrayAwareToString(this._1)
-			+ ", " + StringUtils.arrayAwareToString(this._2)
-			+ ", " + StringUtils.arrayAwareToString(this._3)
-			+ ", " + StringUtils.arrayAwareToString(this._4)
-			+ ", " + StringUtils.arrayAwareToString(this._5)
+		return "(" + StringUtils.arrayAwareToString(this.f0)
+			+ ", " + StringUtils.arrayAwareToString(this.f1)
+			+ ", " + StringUtils.arrayAwareToString(this.f2)
+			+ ", " + StringUtils.arrayAwareToString(this.f3)
+			+ ", " + StringUtils.arrayAwareToString(this.f4)
 			+ ")";
 	}
 
@@ -141,11 +119,11 @@ public class Tuple5<T1, T2, T3, T4, T5> extends Tuple {
 
 	static {
 		try {
-			offsets[0] = UNSAFE.objectFieldOffset(Tuple5.class.getDeclaredField("_1"));
-			offsets[1] = UNSAFE.objectFieldOffset(Tuple5.class.getDeclaredField("_2"));
-			offsets[2] = UNSAFE.objectFieldOffset(Tuple5.class.getDeclaredField("_3"));
-			offsets[3] = UNSAFE.objectFieldOffset(Tuple5.class.getDeclaredField("_4"));
-			offsets[4] = UNSAFE.objectFieldOffset(Tuple5.class.getDeclaredField("_5"));
+			offsets[0] = UNSAFE.objectFieldOffset(Tuple5.class.getDeclaredField("f0"));
+			offsets[1] = UNSAFE.objectFieldOffset(Tuple5.class.getDeclaredField("f1"));
+			offsets[2] = UNSAFE.objectFieldOffset(Tuple5.class.getDeclaredField("f2"));
+			offsets[3] = UNSAFE.objectFieldOffset(Tuple5.class.getDeclaredField("f3"));
+			offsets[4] = UNSAFE.objectFieldOffset(Tuple5.class.getDeclaredField("f4"));
 		} catch (Throwable t) {
 			throw new RuntimeException("Could not initialize fast field accesses for tuple data type.");
 		}

@@ -129,7 +129,7 @@ public class BroadcastVariableJoin {
 
 		@Override
 		public User map(Tuple3<Integer, String, String> value) {
-			return new User( value.T1(), value.T2(), value.T3());
+			return new User( value.f0, value.f1, value.f2);
 		}
 	}
 	

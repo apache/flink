@@ -73,10 +73,10 @@ public class PlanUnwrappingReduceOperator<T, K> extends GroupReduceOperatorBase<
 
 		@Override
 		public void reduce(Iterator<Tuple2<K, T>> values, Collector<T> out) throws Exception {
-			T curr = values.next().T2();
+			T curr = values.next().f1;
 			
 			while (values.hasNext()) {
-				curr = this.wrappedFunction.reduce(curr, values.next().T2());
+				curr = this.wrappedFunction.reduce(curr, values.next().f1);
 			}
 			
 			out.collect(curr);
@@ -87,14 +87,14 @@ public class PlanUnwrappingReduceOperator<T, K> extends GroupReduceOperatorBase<
 			
 			Tuple2<K, T> currentTuple = values.next();
 			
-			T curr = currentTuple.T2();
+			T curr = currentTuple.f1;
 
 			while (values.hasNext()) {
 				currentTuple = values.next();
-				curr = this.wrappedFunction.reduce(curr, currentTuple.T2());
+				curr = this.wrappedFunction.reduce(curr, currentTuple.f1);
 			}
 
-			out.collect(new Tuple2<K, T>(currentTuple.T1(), curr));
+			out.collect(new Tuple2<K, T>(currentTuple.f0, curr));
 		}
 
 	}

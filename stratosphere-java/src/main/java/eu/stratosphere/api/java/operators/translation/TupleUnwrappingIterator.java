@@ -41,7 +41,7 @@ public class TupleUnwrappingIterator<T, K> implements Iterator<T>, java.io.Seria
 
 	@Override
 	public T next() {
-		return iterator.next().T2();
+		return iterator.next().f1;
 	}
 
 	@Override

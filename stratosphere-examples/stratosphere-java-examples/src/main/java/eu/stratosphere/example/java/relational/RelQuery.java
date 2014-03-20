@@ -58,9 +58,9 @@ public class RelQuery {
 			new FilterFunction<Tuple5<Long, String, String, String, String>>() {
 				@Override
 				public boolean filter(Tuple5<Long, String, String, String, String> value) throws Exception {
-					String orderStatus = value.T2();
-					String orderPrio = value.T4();
-					String orderDate = value.T3();
+					String orderStatus = value.f1;
+					String orderPrio = value.f3;
+					String orderDate = value.f2;
 					return orderStatus.equals("F") && orderPrio.startsWith(prioFilter) && 
 							Integer.parseInt(orderDate.substring(0, 4)) > yearFilter;
 				}
@@ -82,7 +82,7 @@ public class RelQuery {
 		public Tuple3<Long, String, Double> join(Tuple5<Long, String, String, String, String> first,
 				Tuple2<Long, Double> second) throws Exception
 		{
-			return new Tuple3<Long, String, Double>(first.T1(), first.T5(), second.T2());
+			return new Tuple3<Long, String, Double>(first.f0, first.f4, second.f1);
 		}
 		
 	}

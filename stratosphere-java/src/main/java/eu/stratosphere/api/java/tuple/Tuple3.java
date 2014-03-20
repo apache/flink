@@ -24,50 +24,32 @@ package eu.stratosphere.api.java.tuple;
 import eu.stratosphere.util.StringUtils;
 
 @SuppressWarnings({"restriction"})
-public class Tuple3<T1, T2, T3> extends Tuple {
+public class Tuple3<T0, T1, T2> extends Tuple {
 
 	private static final long serialVersionUID = 1L;
 
-	private T1 _1;
-	private T2 _2;
-	private T3 _3;
+	public T0 f0;
+	public T1 f1;
+	public T2 f2;
 
 	public Tuple3() {}
 
-	public Tuple3(T1 value1, T2 value2, T3 value3) {
-		this._1 = value1;
-		this._2 = value2;
-		this._3 = value3;
+	public Tuple3(T0 value0, T1 value1, T2 value2) {
+		this.f0 = value0;
+		this.f1 = value1;
+		this.f2 = value2;
 	}
 
 	@Override
 	public int getArity() { return 3; }
 
-	public T1 T1() {
-		return this._1;
-	}
-	public T2 T2() {
-		return this._2;
-	}
-	public T3 T3() {
-		return this._3;
-	}
-	public void T1(T1 value) {
-		this._1 = value;
-	}
-	public void T2(T2 value) {
-		this._2 = value;
-	}
-	public void T3(T3 value) {
-		this._3 = value;
-	}
 	@Override
 	@SuppressWarnings("unchecked")
 	public <T> T getField(int pos) {
 		switch(pos) {
-			case 0: return (T) this._1;
-			case 1: return (T) this._2;
-			case 2: return (T) this._3;
+			case 0: return (T) this.f0;
+			case 1: return (T) this.f1;
+			case 2: return (T) this.f2;
 			default: throw new IndexOutOfBoundsException(String.valueOf(pos));
 		}
 	}
@@ -76,17 +58,23 @@ public class Tuple3<T1, T2, T3> extends Tuple {
 	public <T> void setField(T value, int pos) {
 		switch(pos) {
 			case 0:
-				this._1 = (T1) value;
+				this.f0 = (T0) value;
 				break;
 			case 1:
-				this._2 = (T2) value;
+				this.f1 = (T1) value;
 				break;
 			case 2:
-				this._3 = (T3) value;
+				this.f2 = (T2) value;
 				break;
 			default: throw new IndexOutOfBoundsException(String.valueOf(pos));
 		}
 	}
+	public void setFields(T0 value0, T1 value1, T2 value2) {
+		this.f0 = value0;
+		this.f1 = value1;
+		this.f2 = value2;
+	}
+
 
 	// -------------------------------------------------------------------------------------------------
 	// standard utilities
@@ -94,9 +82,9 @@ public class Tuple3<T1, T2, T3> extends Tuple {
 
 	@Override
 	public String toString() {
-		return "(" + StringUtils.arrayAwareToString(this._1)
-			+ ", " + StringUtils.arrayAwareToString(this._2)
-			+ ", " + StringUtils.arrayAwareToString(this._3)
+		return "(" + StringUtils.arrayAwareToString(this.f0)
+			+ ", " + StringUtils.arrayAwareToString(this.f1)
+			+ ", " + StringUtils.arrayAwareToString(this.f2)
 			+ ")";
 	}
 
@@ -115,9 +103,9 @@ public class Tuple3<T1, T2, T3> extends Tuple {
 
 	static {
 		try {
-			offsets[0] = UNSAFE.objectFieldOffset(Tuple3.class.getDeclaredField("_1"));
-			offsets[1] = UNSAFE.objectFieldOffset(Tuple3.class.getDeclaredField("_2"));
-			offsets[2] = UNSAFE.objectFieldOffset(Tuple3.class.getDeclaredField("_3"));
+			offsets[0] = UNSAFE.objectFieldOffset(Tuple3.class.getDeclaredField("f0"));
+			offsets[1] = UNSAFE.objectFieldOffset(Tuple3.class.getDeclaredField("f1"));
+			offsets[2] = UNSAFE.objectFieldOffset(Tuple3.class.getDeclaredField("f2"));
 		} catch (Throwable t) {
 			throw new RuntimeException("Could not initialize fast field accesses for tuple data type.");
 		}

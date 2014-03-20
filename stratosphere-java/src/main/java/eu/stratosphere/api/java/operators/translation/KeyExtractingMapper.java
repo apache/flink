@@ -37,8 +37,8 @@ public final class KeyExtractingMapper<T, K> extends MapFunction<T, Tuple2<K, T>
 	public Tuple2<K, T> map(T value) throws Exception {
 		
 		K key = keySelector.getKey(value);
-		tuple.T1(key);
-		tuple.T2(value);
+		tuple.f0 = key;
+		tuple.f1 = value;
 		
 		return tuple;
 	}

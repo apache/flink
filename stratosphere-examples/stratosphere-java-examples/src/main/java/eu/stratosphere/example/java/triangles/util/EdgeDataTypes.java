@@ -43,8 +43,8 @@ public class EdgeDataTypes {
 		public void setSecondVertex(final Integer vertex2) { this.setField(vertex2, V2); }
 		
 		public void copyVerticesFromTuple2(Tuple2<Integer, Integer> t) {
-			this.setFirstVertex(t.T1());
-			this.setSecondVertex(t.T2());
+			this.setFirstVertex(t.f0);
+			this.setSecondVertex(t.f1);
 		}
 		
 		public void copyVerticesFromEdgeWithDegrees(EdgeWithDegrees ewd) {

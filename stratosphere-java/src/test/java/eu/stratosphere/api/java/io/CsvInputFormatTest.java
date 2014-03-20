@@ -61,21 +61,21 @@ public class CsvInputFormatTest {
 			
 			result = format.nextRecord(result);
 			assertNotNull(result);
-			assertEquals("abc", result.T1());
-			assertEquals("def", result.T2());
-			assertEquals("ghijk", result.T3());
+			assertEquals("abc", result.f0);
+			assertEquals("def", result.f1);
+			assertEquals("ghijk", result.f2);
 			
 			result = format.nextRecord(result);
 			assertNotNull(result);
-			assertEquals("abc", result.T1());
-			assertEquals("", result.T2());
-			assertEquals("hhg", result.T3());
+			assertEquals("abc", result.f0);
+			assertEquals("", result.f1);
+			assertEquals("hhg", result.f2);
 			
 			result = format.nextRecord(result);
 			assertNotNull(result);
-			assertEquals("", result.T1());
-			assertEquals("", result.T2());
-			assertEquals("", result.T3());
+			assertEquals("", result.f0);
+			assertEquals("", result.f1);
+			assertEquals("", result.f2);
 			
 			result = format.nextRecord(result);
 			assertNull(result);
@@ -105,21 +105,21 @@ public class CsvInputFormatTest {
 			
 			result = format.nextRecord(result);
 			assertNotNull(result);
-			assertEquals("abc", result.T1());
-			assertEquals("def", result.T2());
-			assertEquals("ghijk", result.T3());
+			assertEquals("abc", result.f0);
+			assertEquals("def", result.f1);
+			assertEquals("ghijk", result.f2);
 			
 			result = format.nextRecord(result);
 			assertNotNull(result);
-			assertEquals("abc", result.T1());
-			assertEquals("", result.T2());
-			assertEquals("hhg", result.T3());
+			assertEquals("abc", result.f0);
+			assertEquals("", result.f1);
+			assertEquals("hhg", result.f2);
 			
 			result = format.nextRecord(result);
 			assertNotNull(result);
-			assertEquals("", result.T1());
-			assertEquals("", result.T2());
-			assertEquals("", result.T3());
+			assertEquals("", result.f0);
+			assertEquals("", result.f1);
+			assertEquals("", result.f2);
 			
 			result = format.nextRecord(result);
 			assertNull(result);
@@ -148,19 +148,19 @@ public class CsvInputFormatTest {
 			
 			result = format.nextRecord(result);
 			assertNotNull(result);
-			assertEquals(Integer.valueOf(111), result.T1());
-			assertEquals(Integer.valueOf(222), result.T2());
-			assertEquals(Integer.valueOf(333), result.T3());
-			assertEquals(Integer.valueOf(444), result.T4());
-			assertEquals(Integer.valueOf(555), result.T5());
+			assertEquals(Integer.valueOf(111), result.f0);
+			assertEquals(Integer.valueOf(222), result.f1);
+			assertEquals(Integer.valueOf(333), result.f2);
+			assertEquals(Integer.valueOf(444), result.f3);
+			assertEquals(Integer.valueOf(555), result.f4);
 			
 			result = format.nextRecord(result);
 			assertNotNull(result);
-			assertEquals(Integer.valueOf(666), result.T1());
-			assertEquals(Integer.valueOf(777), result.T2());
-			assertEquals(Integer.valueOf(888), result.T3());
-			assertEquals(Integer.valueOf(999), result.T4());
-			assertEquals(Integer.valueOf(000), result.T5());
+			assertEquals(Integer.valueOf(666), result.f0);
+			assertEquals(Integer.valueOf(777), result.f1);
+			assertEquals(Integer.valueOf(888), result.f2);
+			assertEquals(Integer.valueOf(999), result.f3);
+			assertEquals(Integer.valueOf(000), result.f4);
 			
 			result = format.nextRecord(result);
 			assertNull(result);
@@ -189,13 +189,13 @@ public class CsvInputFormatTest {
 			
 			result = format.nextRecord(result);
 			assertNotNull(result);
-			assertEquals(Integer.valueOf(111), result.T1());
-			assertEquals(Integer.valueOf(222), result.T2());
+			assertEquals(Integer.valueOf(111), result.f0);
+			assertEquals(Integer.valueOf(222), result.f1);
 			
 			result = format.nextRecord(result);
 			assertNotNull(result);
-			assertEquals(Integer.valueOf(666), result.T1());
-			assertEquals(Integer.valueOf(777), result.T2());
+			assertEquals(Integer.valueOf(666), result.f0);
+			assertEquals(Integer.valueOf(777), result.f1);
 			
 			result = format.nextRecord(result);
 			assertNull(result);
@@ -225,15 +225,15 @@ public class CsvInputFormatTest {
 			
 			result = format.nextRecord(result);
 			assertNotNull(result);
-			assertEquals(Integer.valueOf(111), result.T1());
-			assertEquals(Integer.valueOf(444), result.T2());
-			assertEquals(Integer.valueOf(888), result.T3());
+			assertEquals(Integer.valueOf(111), result.f0);
+			assertEquals(Integer.valueOf(444), result.f1);
+			assertEquals(Integer.valueOf(888), result.f2);
 			
 			result = format.nextRecord(result);
 			assertNotNull(result);
-			assertEquals(Integer.valueOf(000), result.T1());
-			assertEquals(Integer.valueOf(777), result.T2());
-			assertEquals(Integer.valueOf(333), result.T3());
+			assertEquals(Integer.valueOf(000), result.f0);
+			assertEquals(Integer.valueOf(777), result.f1);
+			assertEquals(Integer.valueOf(333), result.f2);
 			
 			result = format.nextRecord(result);
 			assertNull(result);
@@ -264,15 +264,15 @@ public class CsvInputFormatTest {
 			
 			result = format.nextRecord(result);
 			assertNotNull(result);
-			assertEquals(Integer.valueOf(111), result.T1());
-			assertEquals(Integer.valueOf(444), result.T2());
-			assertEquals(Integer.valueOf(888), result.T3());
+			assertEquals(Integer.valueOf(111), result.f0);
+			assertEquals(Integer.valueOf(444), result.f1);
+			assertEquals(Integer.valueOf(888), result.f2);
 			
 			result = format.nextRecord(result);
 			assertNotNull(result);
-			assertEquals(Integer.valueOf(000), result.T1());
-			assertEquals(Integer.valueOf(777), result.T2());
-			assertEquals(Integer.valueOf(333), result.T3());
+			assertEquals(Integer.valueOf(000), result.f0);
+			assertEquals(Integer.valueOf(777), result.f1);
+			assertEquals(Integer.valueOf(333), result.f2);
 			
 			result = format.nextRecord(result);
 			assertNull(result);
@@ -303,15 +303,15 @@ public class CsvInputFormatTest {
 			
 			result = format.nextRecord(result);
 			assertNotNull(result);
-			assertEquals(Integer.valueOf(111), result.T1());
-			assertEquals(Integer.valueOf(444), result.T2());
-			assertEquals(Integer.valueOf(888), result.T3());
+			assertEquals(Integer.valueOf(111), result.f0);
+			assertEquals(Integer.valueOf(444), result.f1);
+			assertEquals(Integer.valueOf(888), result.f2);
 			
 			result = format.nextRecord(result);
 			assertNotNull(result);
-			assertEquals(Integer.valueOf(000), result.T1());
-			assertEquals(Integer.valueOf(777), result.T2());
-			assertEquals(Integer.valueOf(333), result.T3());
+			assertEquals(Integer.valueOf(000), result.f0);
+			assertEquals(Integer.valueOf(777), result.f1);
+			assertEquals(Integer.valueOf(333), result.f2);
 			
 			result = format.nextRecord(result);
 			assertNull(result);
@@ -344,15 +344,15 @@ public class CsvInputFormatTest {
 //			
 //			result = format.nextRecord(result);
 //			assertNotNull(result);
-//			assertEquals(Integer.valueOf(999), result.T1());
-//			assertEquals(Integer.valueOf(222), result.T2());
-//			assertEquals(Integer.valueOf(444), result.T3());
+//			assertEquals(Integer.valueOf(999), result.f0);
+//			assertEquals(Integer.valueOf(222), result.f1);
+//			assertEquals(Integer.valueOf(444), result.f2);
 //			
 //			result = format.nextRecord(result);
 //			assertNotNull(result);
-//			assertEquals(Integer.valueOf(222), result.T1());
-//			assertEquals(Integer.valueOf(999), result.T2());
-//			assertEquals(Integer.valueOf(777), result.T3());
+//			assertEquals(Integer.valueOf(222), result.f0);
+//			assertEquals(Integer.valueOf(999), result.f1);
+//			assertEquals(Integer.valueOf(777), result.f2);
 //			
 //			result = format.nextRecord(result);
 //			assertNull(result);

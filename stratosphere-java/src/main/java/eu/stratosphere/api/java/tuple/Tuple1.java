@@ -24,32 +24,26 @@ package eu.stratosphere.api.java.tuple;
 import eu.stratosphere.util.StringUtils;
 
 @SuppressWarnings({"restriction"})
-public class Tuple1<T1> extends Tuple {
+public class Tuple1<T0> extends Tuple {
 
 	private static final long serialVersionUID = 1L;
 
-	private T1 _1;
+	public T0 f0;
 
 	public Tuple1() {}
 
-	public Tuple1(T1 value1) {
-		this._1 = value1;
+	public Tuple1(T0 value0) {
+		this.f0 = value0;
 	}
 
 	@Override
 	public int getArity() { return 1; }
 
-	public T1 T1() {
-		return this._1;
-	}
-	public void T1(T1 value) {
-		this._1 = value;
-	}
 	@Override
 	@SuppressWarnings("unchecked")
 	public <T> T getField(int pos) {
 		switch(pos) {
-			case 0: return (T) this._1;
+			case 0: return (T) this.f0;
 			default: throw new IndexOutOfBoundsException(String.valueOf(pos));
 		}
 	}
@@ -58,11 +52,15 @@ public class Tuple1<T1> extends Tuple {
 	public <T> void setField(T value, int pos) {
 		switch(pos) {
 			case 0:
-				this._1 = (T1) value;
+				this.f0 = (T0) value;
 				break;
 			default: throw new IndexOutOfBoundsException(String.valueOf(pos));
 		}
 	}
+	public void setFields(T0 value0) {
+		this.f0 = value0;
+	}
+
 
 	// -------------------------------------------------------------------------------------------------
 	// standard utilities
@@ -70,7 +68,7 @@ public class Tuple1<T1> extends Tuple {
 
 	@Override
 	public String toString() {
-		return "(" + StringUtils.arrayAwareToString(this._1)
+		return "(" + StringUtils.arrayAwareToString(this.f0)
 			+ ")";
 	}
 
@@ -89,7 +87,7 @@ public class Tuple1<T1> extends Tuple {
 
 	static {
 		try {
-			offsets[0] = UNSAFE.objectFieldOffset(Tuple1.class.getDeclaredField("_1"));
+			offsets[0] = UNSAFE.objectFieldOffset(Tuple1.class.getDeclaredField("f0"));
 		} catch (Throwable t) {
 			throw new RuntimeException("Could not initialize fast field accesses for tuple data type.");
 		}

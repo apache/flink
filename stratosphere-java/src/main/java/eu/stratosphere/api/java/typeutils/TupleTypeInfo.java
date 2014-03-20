@@ -164,15 +164,15 @@ public class TupleTypeInfo<T extends Tuple> extends TypeInformation<T> implement
 		return tupleInfo;
 	}
 	
-	// --------------------------------------------------------------------------------------------
-	
+	// --------------------------------------------------------------------------------------------	
+	// The following lines are generated.
+	// --------------------------------------------------------------------------------------------	
+	// BEGIN_OF_TUPLE_DEPENDENT_CODE	
+	// GENERATED FROM eu.stratosphere.api.java.tuple.TupleGenerator.
 	private static final Class<?>[] CLASSES = new Class<?>[] {
-		Tuple1.class, Tuple2.class, Tuple3.class, Tuple4.class, Tuple5.class,
-		Tuple6.class, Tuple7.class, Tuple8.class, Tuple9.class, Tuple10.class,
-		Tuple11.class, Tuple12.class, Tuple13.class, Tuple14.class, Tuple15.class,
-		Tuple16.class, Tuple17.class, Tuple18.class, Tuple19.class, Tuple20.class,
-		Tuple21.class, Tuple22.class
+	Tuple1.class, Tuple2.class, Tuple3.class, Tuple4.class, Tuple5.class, Tuple6.class, Tuple7.class, Tuple8.class, Tuple9.class, Tuple10.class, Tuple11.class, Tuple12.class, Tuple13.class, Tuple14.class, Tuple15.class, Tuple16.class, Tuple17.class, Tuple18.class, Tuple19.class, Tuple20.class, Tuple21.class, Tuple22.class
 	};
+	// END_OF_TUPLE_DEPENDENT_CODE
 	
 	
 	private static final <T extends Tuple, K> TypeComparator<T> createSinglefieldComparator(int pos, boolean ascending, TypeInformation<?> info) {
