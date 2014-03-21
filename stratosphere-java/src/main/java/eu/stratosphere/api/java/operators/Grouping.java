@@ -50,15 +50,15 @@ public class Grouping<T> {
 		return this.dataSet;
 	}
 	
-	public Keys<T> getKeys() {
+	protected Keys<T> getKeys() {
 		return this.keys;
 	}
 	
-	public int[] getGroupSortKeyPositions() {
+	protected int[] getGroupSortKeyPositions() {
 		return this.groupSortKeyPositions;
 	}
 	
-	public Order[] getGroupSortOrders() {
+	protected Order[] getGroupSortOrders() {
 		return this.groupSortOrders;
 	}
 	
