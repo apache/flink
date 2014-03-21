@@ -35,7 +35,7 @@ import eu.stratosphere.test.util.JavaProgramTestBase;
 @RunWith(Parameterized.class)
 public class FilterITCase extends JavaProgramTestBase {
 	
-	private static int NUM_PROGRAMS = 6; 
+	private static int NUM_PROGRAMS = 7; 
 	
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -86,7 +86,7 @@ public class FilterITCase extends JavaProgramTestBase {
 				
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				
-				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.getTupleDataSet(env);
+				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 				DataSet<Tuple3<Integer, Long, String>> filterDs = ds.
 						filter(new FilterFunction<Tuple3<Integer,Long,String>>() {
 							private static final long serialVersionUID = 1L;
@@ -110,7 +110,7 @@ public class FilterITCase extends JavaProgramTestBase {
 				
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				
-				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.getTupleDataSet(env);
+				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 				DataSet<Tuple3<Integer, Long, String>> filterDs = ds.
 						filter(new FilterFunction<Tuple3<Integer,Long,String>>() {
 							private static final long serialVersionUID = 1L;
@@ -124,14 +124,27 @@ public class FilterITCase extends JavaProgramTestBase {
 				env.execute();
 				
 				// return expected result
-				return "1,10,Hi\n" +
-						"-1,11,Hello\n" +
-						"10,12,Hello world\n" +
-						"-10,13,Hello world, how are you?\n" +
-						"100,14,I am fine.\n" +
-						"1000,15,Luke Skywalker\n" +
-						"-1000,16,Random comment\n" +
-						"-100,17,LOL\n";
+				return "1,1,Hi\n" +
+						"2,2,Hello\n" +
+						"3,2,Hello world\n" +
+						"4,3,Hello world, how are you?\n" +
+						"5,3,I am fine.\n" +
+						"6,3,Luke Skywalker\n" +
+						"7,4,Comment#1\n" +
+						"8,4,Comment#2\n" +
+						"9,4,Comment#3\n" +
+						"10,4,Comment#4\n" +
+						"11,5,Comment#5\n" +
+						"12,5,Comment#6\n" +
+						"13,5,Comment#7\n" +
+						"14,5,Comment#8\n" +
+						"15,5,Comment#9\n" +
+						"16,6,Comment#10\n" +
+						"17,6,Comment#11\n" +
+						"18,6,Comment#12\n" +
+						"19,6,Comment#13\n" +
+						"20,6,Comment#14\n" +
+						"21,6,Comment#15\n";
 			}
 			case 3: {
 				/*
@@ -140,7 +153,7 @@ public class FilterITCase extends JavaProgramTestBase {
 					
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				
-				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.getTupleDataSet(env);
+				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 				DataSet<Tuple3<Integer, Long, String>> filterDs = ds.
 						filter(new FilterFunction<Tuple3<Integer,Long,String>>() {
 							private static final long serialVersionUID = 1L;
@@ -154,8 +167,8 @@ public class FilterITCase extends JavaProgramTestBase {
 				env.execute();
 				
 				// return expected result
-				return "10,12,Hello world\n" +
-					   "-10,13,Hello world, how are you?\n";
+				return "3,2,Hello world\n" +
+						"4,3,Hello world, how are you?\n";
 				
 			}
 			case 4: {
@@ -165,23 +178,30 @@ public class FilterITCase extends JavaProgramTestBase {
 					
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				
-				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.getTupleDataSet(env);
+				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 				DataSet<Tuple3<Integer, Long, String>> filterDs = ds.
 						filter(new FilterFunction<Tuple3<Integer,Long,String>>() {
 							private static final long serialVersionUID = 1L;
 
 							@Override
 							public boolean filter(Tuple3<Integer, Long, String> value) throws Exception {
-								return value.f0 < -1;
+								return (value.f0 % 2) == 0;
 							}
 						});
 				filterDs.writeAsCsv(resultPath);
 				env.execute();
 				
 				// return expected result
-				return "-10,13,Hello world, how are you?\n" +
-					   "-1000,16,Random comment\n" +
-					   "-100,17,LOL\n";
+				return "2,2,Hello\n" +
+						"4,3,Hello world, how are you?\n" +
+						"6,3,Luke Skywalker\n" +
+						"8,4,Comment#2\n" +
+						"10,4,Comment#4\n" +
+						"12,5,Comment#6\n" +
+						"14,5,Comment#8\n" +
+						"16,6,Comment#10\n" +
+						"18,6,Comment#12\n" +
+						"20,6,Comment#14\n";
 			}
 			case 5: {
 				/*
@@ -230,10 +250,47 @@ public class FilterITCase extends JavaProgramTestBase {
 				env.execute();
 				
 				// return expected result
-				return "-10,13,Hello world, how are you?\n" +
-					   "100,14,I am fine.\n" +
-					   "1000,15,Luke Skywalker\n" +
-					   "-1000,16,Random comment\n";
+				return "3,3,Hello world, how are you?\n" +
+						"3,4,I am fine.\n" +
+						"3,5,Luke Skywalker\n";
+			}
+			case 7: {
+				/*
+				 * Test filter on String tuple field.
+				 */
+					
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				
+				DataSet<Integer> ints = CollectionDataSets.getIntegerDataSet(env);
+				
+				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+				DataSet<Tuple3<Integer, Long, String>> filterDs = ds.
+						filter(new FilterFunction<Tuple3<Integer,Long,String>>() {
+							private static final long serialVersionUID = 1L;
+
+							int literal = -1;
+							
+							@Override
+							public void open(Configuration config) {
+								Collection<Integer> ints = this.getRuntimeContext().getBroadcastVariable("ints");
+								for(int i: ints) {
+									literal = literal < i ? i : literal;
+								}
+							}
+							
+							@Override
+							public boolean filter(Tuple3<Integer, Long, String> value) throws Exception {
+								return value.f0 < literal;
+							}
+						}).withBroadcastSet(ints, "ints");
+				filterDs.writeAsCsv(resultPath);
+				env.execute();
+				
+				// return expected result
+				return "1,1,Hi\n" +
+						"2,2,Hello\n" +
+						"3,2,Hello world\n" +
+						"4,3,Hello world, how are you?\n";
 			}
 			default: 
 				throw new IllegalArgumentException("Invalid program id");
