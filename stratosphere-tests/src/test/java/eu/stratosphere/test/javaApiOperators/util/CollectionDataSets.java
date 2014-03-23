@@ -63,14 +63,7 @@ public class CollectionDataSets {
 		
 		Collections.shuffle(data);
 		
-		TupleTypeInfo<Tuple3<Integer, Long, String>> type = new 
-				TupleTypeInfo<Tuple3<Integer, Long, String>>(
-						BasicTypeInfo.INT_TYPE_INFO,
-						BasicTypeInfo.LONG_TYPE_INFO,
-						BasicTypeInfo.STRING_TYPE_INFO
-				);
-		
-		return env.fromCollection(data, type);
+		return env.fromCollection(data);
 	}
 	
 	public static DataSet<Tuple5<Integer, Long, Integer, String, Long>> get5TupleDataSet(ExecutionEnvironment env) {

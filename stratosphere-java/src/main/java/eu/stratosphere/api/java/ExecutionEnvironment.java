@@ -38,6 +38,7 @@ import eu.stratosphere.api.java.operators.translation.JavaPlan;
 import eu.stratosphere.api.java.typeutils.BasicTypeInfo;
 import eu.stratosphere.api.java.typeutils.TypeExtractor;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
+import eu.stratosphere.api.java.typeutils.Typed;
 import eu.stratosphere.api.java.typeutils.ValueTypeInfo;
 import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.types.StringValue;
@@ -141,10 +142,16 @@ public abstract class ExecutionEnvironment {
 	// ----------------------------------- Generic Input Format ---------------------------------------
 	
 	public <X> DataSet<X> createInput(InputFormat<X, ?> inputFormat) {
-		if (inputFormat == null)
+		if (inputFormat == null) {
 			throw new IllegalArgumentException("InputFormat must not be null.");
+		}
 		
-		return createInput(inputFormat, TypeExtractor.extractInputFormatTypes(inputFormat));
+		@SuppressWarnings("unchecked")
+		TypeInformation<X> producedType = (inputFormat instanceof Typed) ?
+				(TypeInformation<X>) ((Typed) inputFormat).getProducedType() :
+				TypeExtractor.extractInputFormatTypes(inputFormat);
+		
+		return createInput(inputFormat, producedType);
 	}
 	
 	public <X> DataSet<X> createInput(InputFormat<X, ?> inputFormat, TypeInformation<X> producedType) {
@@ -166,10 +173,9 @@ public abstract class ExecutionEnvironment {
 		if (data.size() == 0)
 			throw new IllegalArgumentException("The size of the collection must not be empty.");
 		
-		@SuppressWarnings("unchecked")
-		Class<X> clazz = (Class<X>) data.iterator().next().getClass();
+		X firstValue = data.iterator().next();
 		
-		return fromCollection(data, TypeInformation.getForClass(clazz));
+		return fromCollection(data, TypeInformation.getForObject(firstValue));
 	}
 	
 	
@@ -202,10 +208,11 @@ public abstract class ExecutionEnvironment {
 		if (data == null) {
 			throw new IllegalArgumentException("The data must not be null.");
 		}
+		if (data.length == 0) {
+			throw new IllegalArgumentException("The number of elements must not be zero.");
+		}
 		
-		@SuppressWarnings("unchecked")
-		Class<X> componentClass = (Class<X>) data.getClass().getComponentType();
-		return fromCollection(Arrays.asList(data), TypeInformation.getForClass(componentClass));
+		return fromCollection(Arrays.asList(data), TypeInformation.getForObject(data[0]));
 	}
 	
 	

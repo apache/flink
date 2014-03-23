@@ -14,10 +14,12 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.typeutils;
 
+import org.apache.commons.lang3.Validate;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.api.java.tuple.Tuple;
+import eu.stratosphere.api.common.InvalidProgramException;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.types.Value;
 
@@ -44,6 +46,8 @@ public abstract class TypeInformation<T> {
 	
 	@SuppressWarnings("unchecked")
 	public static <X> TypeInformation<X> getForClass(Class<X> clazz) {
+		Validate.notNull(clazz);
+		
 		// check for basic types
 		{
 			TypeInformation<X> basicTypeInfo = BasicTypeInfo.getInfoFor(clazz);
@@ -60,11 +64,39 @@ public abstract class TypeInformation<T> {
 		
 		// check for subclasses of Tuple
 		if (Tuple.class.isAssignableFrom(clazz)) {
-			LOG.warn("TypeInformation extraction from class for Tuples not supported.");
+			throw new IllegalArgumentException("Type information extraction for tuples cannot be done based on the class.");
 		}
 		
 		// return a generic type
 		return new GenericTypeInfo<X>(clazz);
-	}	
+	}
 	
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	public static <X> TypeInformation<X> getForObject(X value) {
+		Validate.notNull(value);
+		
+		// check if we can extract the types from tuples, otherwise work with the class
+		if (value instanceof Tuple) {
+			Tuple t = (Tuple) value;
+			int numFields = t.getArity();
+			
+			TypeInformation<?>[] infos = new TypeInformation[numFields];
+			for (int i = 0; i < numFields; i++) {
+				Object field = t.getField(i);
+				
+				if (field == null) {
+					throw new InvalidProgramException("Automatic type extraction is not possible on canidates with null values. " +
+							"Please specify the types directly.");
+				}
+				
+				infos[i] = getForObject(field);
+			}
+			
+			
+			return (TypeInformation<X>) new TupleTypeInfo(value.getClass(), infos);
+		}
+		else {
+			return getForClass((Class<X>) value.getClass());
+		}
+	}
 }
