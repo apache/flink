@@ -16,9 +16,11 @@
 package eu.stratosphere.api.java.io;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.Collection;
 import java.util.Iterator;
 
+import eu.stratosphere.api.common.InvalidProgramException;
 import eu.stratosphere.api.common.io.GenericInputFormat;
 import eu.stratosphere.api.common.io.UnsplittableInput;
 import eu.stratosphere.core.io.GenericInputSplit;
@@ -73,6 +75,10 @@ public class CollectionInputFormat<T> extends GenericInputFormat<T> implements U
 	public static <X> void checkCollection(Collection<X> elements, Class<X> viewedAs) {
 		if (elements == null || viewedAs == null) {
 			throw new NullPointerException();
+		}
+		
+		if (!Serializable.class.isAssignableFrom(viewedAs)) {
+			throw new InvalidProgramException("The elements are not serializable (java.io.Serializable).");
 		}
 		
 		for (X elem : elements) {
