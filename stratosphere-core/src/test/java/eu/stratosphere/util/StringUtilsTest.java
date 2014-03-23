@@ -1,0 +1,59 @@
+/***********************************************************************************************************************
+ *
+ * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ **********************************************************************************************************************/
+package eu.stratosphere.util;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertArrayEquals;
+
+import org.junit.Test;
+
+public class StringUtilsTest {
+
+	@Test
+	public void testControlCharacters() {
+		String testString = "\b \t \n \f \r default";
+		String controlString = StringUtils.showControlCharacters(testString);
+		assertEquals("\\b \\t \\n \\f \\r default", controlString);
+	}
+	
+	@Test
+	public void testArrayToString() {
+		double[] array = {1.0};
+		String controlString = StringUtils.arrayToString(array );
+		assertEquals("[1.0]", controlString);
+	}
+
+	@Test
+	public void testEscapeHTML() {
+		String testString = "\b \t / \n \f \r <default>";
+		String controlString = StringUtils.escapeHtml(testString);
+		assertEquals("\\b \\t \\/ <br> \\f \\r &lt;default&gt;", controlString);
+	}
+	
+	@Test
+	public void testStringToHexArray() {
+		String hex = "019f314a";
+		byte[] hexArray = StringUtils.hexStringToByte(hex);
+		byte[] expectedArray = new byte[]{1, -97, 49, 74 };
+		assertArrayEquals(expectedArray, hexArray);
+	}
+	
+	@Test
+	public void testHexArrayToString() {
+		byte[] byteArray = new byte[]{1, -97, 49, 74 };
+		String hex = StringUtils.byteToHexString(byteArray);
+		assertEquals("019f314a", hex);
+	}
+}
