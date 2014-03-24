@@ -14,6 +14,8 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java;
 
+import org.apache.commons.lang3.Validate;
+
 import eu.stratosphere.api.common.io.FileOutputFormat;
 import eu.stratosphere.api.common.io.OutputFormat;
 import eu.stratosphere.api.java.aggregation.Aggregations;
@@ -30,6 +32,7 @@ import eu.stratosphere.api.java.operators.*;
 import eu.stratosphere.api.java.operators.JoinOperator.JoinHint;
 import eu.stratosphere.api.java.operators.JoinOperator.JoinOperatorSets;
 import eu.stratosphere.api.java.tuple.Tuple;
+import eu.stratosphere.api.java.typeutils.TypeConfigurable;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
 import eu.stratosphere.core.fs.Path;
 
@@ -104,9 +107,9 @@ public abstract class DataSet<T> {
 		return new DistinctOperator<T>(this, new Keys.SelectorFunctionKeys<T, K>(keyExtractor, getType()));
 	}
 	
-	public DistinctOperator<T> distinct(String fieldExpression) {
-		return new DistinctOperator<T>(this, new Keys.ExpressionKeys<T>(fieldExpression, getType()));
-	}
+//	public DistinctOperator<T> distinct(String fieldExpression) {
+//		return new DistinctOperator<T>(this, new Keys.ExpressionKeys<T>(fieldExpression, getType()));
+//	}
 	
 	public DistinctOperator<T> distinct(int... fields) {
 		return new DistinctOperator<T>(this, new Keys.FieldPositionKeys<T>(fields, getType(), true));
@@ -120,9 +123,9 @@ public abstract class DataSet<T> {
 		return new Grouping<T>(this, new Keys.SelectorFunctionKeys<T, K>(keyExtractor, getType()));
 	}
 	
-	public Grouping<T> groupBy(String fieldExpression) {
-		return new Grouping<T>(this, new Keys.ExpressionKeys<T>(fieldExpression, getType()));
-	}
+//	public Grouping<T> groupBy(String fieldExpression) {
+//		return new Grouping<T>(this, new Keys.ExpressionKeys<T>(fieldExpression, getType()));
+//	}
 	
 	public Grouping<T> groupBy(int... fields) {
 		return new Grouping<T>(this, new Keys.FieldPositionKeys<T>(fields, getType(), false));
@@ -198,12 +201,12 @@ public abstract class DataSet<T> {
 	}
 	
 	public void writeAsCsv(String filePath, String rowDelimiter, String fieldDelimiter) {
+		Validate.isTrue(this.type.isTupleType(), "The writeAsCsv() method can only be used on data sets of tuples.");
 		internalWriteAsCsv(new Path(filePath), rowDelimiter, fieldDelimiter);
 	}
 
 	@SuppressWarnings("unchecked")
-	private <X extends Tuple> void internalWriteAsCsv(Path filePath, String rowDelimiter,
-	                                                    String fieldDelimiter) {
+	private <X extends Tuple> void internalWriteAsCsv(Path filePath, String rowDelimiter, String fieldDelimiter) {
 		output((OutputFormat<T>) new CsvOutputFormat<X>(filePath, rowDelimiter, fieldDelimiter));
 	}
 	
@@ -218,23 +221,26 @@ public abstract class DataSet<T> {
 	
 	
 	public void write(FileOutputFormat<T> outputFormat, String filePath) {
-		if (filePath == null)
-			throw new IllegalArgumentException("File path must not be null.");
-		
+		Validate.notNull(filePath, "File path must not be null.");
 		write(outputFormat, new Path(filePath));
 	}
 	
 	public void write(FileOutputFormat<T> outputFormat, Path filePath) {
-		if (filePath == null)
-			throw new IllegalArgumentException("File path must not be null.");
-		if (outputFormat == null)
-			throw new IllegalArgumentException("The output format must not be null.");
+		Validate.notNull(filePath, "File path must not be null.");
+		Validate.notNull(outputFormat, "The output format must not be null.");
 		
 		outputFormat.setOutputFilePath(filePath);
 		output(outputFormat);
 	}
 	
 	public DataSink<T> output(OutputFormat<T> outputFormat) {
+		Validate.notNull(outputFormat);
+		
+		// configure the type if needed
+		if (outputFormat instanceof TypeConfigurable) {
+			((TypeConfigurable) outputFormat).setInputType(this.type);
+		}
+		
 		DataSink<T> sink = new DataSink<T>(this, outputFormat, this.type);
 		this.context.registerDataSink(sink);
 		return sink;
