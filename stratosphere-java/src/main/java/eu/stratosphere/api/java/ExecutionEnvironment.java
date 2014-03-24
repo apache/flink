@@ -23,6 +23,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.UUID;
 
+import org.apache.commons.lang3.Validate;
+
+import eu.stratosphere.api.common.InvalidProgramException;
 import eu.stratosphere.api.common.JobExecutionResult;
 import eu.stratosphere.api.common.io.InputFormat;
 import eu.stratosphere.api.java.io.CollectionInputFormat;
@@ -95,15 +98,13 @@ public abstract class ExecutionEnvironment {
 	// ---------------------------------- Text Input Format ---------------------------------------
 	
 	public DataSet<String> readTextFile(String filePath) {
-		if (filePath == null)
-			throw new IllegalArgumentException("The file path may not be null.");
+		Validate.notNull(filePath, "The file path may not be null.");
 		
 		return new DataSource<String>(this, new TextInputFormat(new Path(filePath)), BasicTypeInfo.STRING_TYPE_INFO );
 	}
 	
 	public DataSet<String> readTextFile(String filePath, String charsetName) {
-		if (filePath == null)
-			throw new IllegalArgumentException("The file path may not be null.");
+		Validate.notNull(filePath, "The file path may not be null.");
 
 		TextInputFormat format = new TextInputFormat(new Path(filePath));
 		format.setCharsetName(charsetName);
@@ -113,15 +114,13 @@ public abstract class ExecutionEnvironment {
 	// -------------------------- Text Input Format With String Value------------------------------
 	
 	public DataSet<StringValue> readTextFileWithValue(String filePath) {
-		if (filePath == null)
-			throw new IllegalArgumentException("The file path may not be null.");
+		Validate.notNull(filePath, "The file path may not be null.");
 		
 		return new DataSource<StringValue>(this, new TextValueInputFormat(new Path(filePath)), new ValueTypeInfo<StringValue>(StringValue.class) );
 	}
 	
 	public DataSet<StringValue> readTextFileWithValue(String filePath, String charsetName, boolean skipInvalidLines) {
-		if (filePath == null)
-			throw new IllegalArgumentException("The file path may not be null.");
+		Validate.notNull(filePath, "The file path may not be null.");
 		
 		TextValueInputFormat format = new TextValueInputFormat(new Path(filePath));
 		format.setCharsetName(charsetName);
@@ -146,13 +145,18 @@ public abstract class ExecutionEnvironment {
 			throw new IllegalArgumentException("InputFormat must not be null.");
 		}
 		
-		
-		@SuppressWarnings("unchecked")
-		TypeInformation<X> producedType = (inputFormat instanceof ResultTypeQueryable) ?
-				((ResultTypeQueryable<X>) inputFormat).getProducedType() :
-				TypeExtractor.extractInputFormatTypes(inputFormat);
-		
-		return createInput(inputFormat, producedType);
+		try {
+			@SuppressWarnings("unchecked")
+			TypeInformation<X> producedType = (inputFormat instanceof ResultTypeQueryable) ?
+					((ResultTypeQueryable<X>) inputFormat).getProducedType() :
+					TypeExtractor.extractInputFormatTypes(inputFormat);
+			
+			return createInput(inputFormat, producedType);
+		}
+		catch (Exception e) {
+			throw new InvalidProgramException("The type returned by the input format could not be automatically determined. " +
+					"Please specify the TypeInformation of the produced type explicitly.");
+		}
 	}
 	
 	public <X> DataSet<X> createInput(InputFormat<X, ?> inputFormat, TypeInformation<X> producedType) {

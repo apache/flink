@@ -16,6 +16,8 @@ package eu.stratosphere.api.java.io;
 
 import java.util.ArrayList;
 
+import org.apache.commons.lang3.Validate;
+
 import eu.stratosphere.api.java.ExecutionEnvironment;
 import eu.stratosphere.api.java.operators.DataSource;
 import eu.stratosphere.api.java.tuple.*;
@@ -46,14 +48,16 @@ public class CsvReader {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public CsvReader(Path path, ExecutionEnvironment executionContext) {
-		this.path = path;
+	public CsvReader(Path filePath, ExecutionEnvironment executionContext) {
+		Validate.notNull(filePath, "The file path may not be null.");
+		Validate.notNull(executionContext, "The execution context may not be null.");
+		
+		this.path = filePath;
 		this.executionContext = executionContext;
 	}
 	
-	public CsvReader(String path, ExecutionEnvironment executionContext) {
-		this.path = new Path(path);
-		this.executionContext = executionContext;
+	public CsvReader(String filePath, ExecutionEnvironment executionContext) {
+		this(new Path(Validate.notNull(filePath, "The file path may not be null.")), executionContext);
 	}
 	
 	public Path getFilePath() {

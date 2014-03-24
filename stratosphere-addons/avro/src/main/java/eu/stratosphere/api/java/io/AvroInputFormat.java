@@ -30,10 +30,12 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.core.fs.FileInputSplit;
 import eu.stratosphere.api.avro.FSDataInputStreamWrapper;
 import eu.stratosphere.api.common.io.FileInputFormat;
+import eu.stratosphere.api.java.typeutils.ResultTypeQueryable;
+import eu.stratosphere.api.java.typeutils.TypeInformation;
 import eu.stratosphere.util.InstantiationUtil;
 
 
-public class AvroInputFormat<E> extends FileInputFormat<E> {
+public class AvroInputFormat<E> extends FileInputFormat<E> implements ResultTypeQueryable<E> {
 	
 	private static final long serialVersionUID = 1L;
 
@@ -42,21 +44,39 @@ public class AvroInputFormat<E> extends FileInputFormat<E> {
 	
 	private final Class<E> avroValueType;
 	
-	private final boolean reuseAvroValue;
+	private boolean reuseAvroValue = true;
 	
 
 	private transient FileReader<E> dataFileReader;
 
 	
-	
 	public AvroInputFormat(Class<E> type) {
-		this(type, true);
+		this.avroValueType = type;
 	}
 	
-	public AvroInputFormat(Class<E> type, boolean reuseAvroValue) {
-		this.avroValueType = type;
+	
+	/**
+	 * Sets the flag whether to reuse the Avro value instance for all records.
+	 * By default, the input format reuses the Avro value.
+	 *
+	 * @param reuseAvroValue True, if the input format should reuse the Avro value instance, false otherwise.
+	 */
+	public void setReuseAvroValue(boolean reuseAvroValue) {
 		this.reuseAvroValue = reuseAvroValue;
 	}
+	
+	// --------------------------------------------------------------------------------------------
+	// Typing
+	// --------------------------------------------------------------------------------------------
+	
+	@Override
+	public TypeInformation<E> getProducedType() {
+		return TypeInformation.getForClass(this.avroValueType);
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	// Input Format Methods
+	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public void open(FileInputSplit split) throws IOException {
