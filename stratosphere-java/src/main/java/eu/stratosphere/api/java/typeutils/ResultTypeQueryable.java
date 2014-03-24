@@ -18,7 +18,7 @@ package eu.stratosphere.api.java.typeutils;
  * Interface to be implemented by functions and input formats who be queries for the
  * {@link TypeInformation} of the result.
  */
-public interface Typed {
+public interface ResultTypeQueryable<T> {
 
-	TypeInformation<?> getProducedType();
+	TypeInformation<T> getProducedType();
 }

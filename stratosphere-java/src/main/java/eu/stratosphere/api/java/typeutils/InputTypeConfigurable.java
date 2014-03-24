@@ -18,7 +18,7 @@ package eu.stratosphere.api.java.typeutils;
 /**
  *
  */
-public interface TypeConfigurable {
+public interface InputTypeConfigurable {
 
 	void setInputType(TypeInformation<?> type);
 }

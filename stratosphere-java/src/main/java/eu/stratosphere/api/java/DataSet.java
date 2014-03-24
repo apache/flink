@@ -32,7 +32,7 @@ import eu.stratosphere.api.java.operators.*;
 import eu.stratosphere.api.java.operators.JoinOperator.JoinHint;
 import eu.stratosphere.api.java.operators.JoinOperator.JoinOperatorSets;
 import eu.stratosphere.api.java.tuple.Tuple;
-import eu.stratosphere.api.java.typeutils.TypeConfigurable;
+import eu.stratosphere.api.java.typeutils.InputTypeConfigurable;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
 import eu.stratosphere.core.fs.Path;
 
@@ -237,8 +237,8 @@ public abstract class DataSet<T> {
 		Validate.notNull(outputFormat);
 		
 		// configure the type if needed
-		if (outputFormat instanceof TypeConfigurable) {
-			((TypeConfigurable) outputFormat).setInputType(this.type);
+		if (outputFormat instanceof InputTypeConfigurable) {
+			((InputTypeConfigurable) outputFormat).setInputType(this.type);
 		}
 		
 		DataSink<T> sink = new DataSink<T>(this, outputFormat, this.type);

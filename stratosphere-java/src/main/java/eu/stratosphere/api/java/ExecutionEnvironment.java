@@ -38,7 +38,7 @@ import eu.stratosphere.api.java.operators.translation.JavaPlan;
 import eu.stratosphere.api.java.typeutils.BasicTypeInfo;
 import eu.stratosphere.api.java.typeutils.TypeExtractor;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
-import eu.stratosphere.api.java.typeutils.Typed;
+import eu.stratosphere.api.java.typeutils.ResultTypeQueryable;
 import eu.stratosphere.api.java.typeutils.ValueTypeInfo;
 import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.types.StringValue;
@@ -146,9 +146,10 @@ public abstract class ExecutionEnvironment {
 			throw new IllegalArgumentException("InputFormat must not be null.");
 		}
 		
+		
 		@SuppressWarnings("unchecked")
-		TypeInformation<X> producedType = (inputFormat instanceof Typed) ?
-				(TypeInformation<X>) ((Typed) inputFormat).getProducedType() :
+		TypeInformation<X> producedType = (inputFormat instanceof ResultTypeQueryable) ?
+				((ResultTypeQueryable<X>) inputFormat).getProducedType() :
 				TypeExtractor.extractInputFormatTypes(inputFormat);
 		
 		return createInput(inputFormat, producedType);
