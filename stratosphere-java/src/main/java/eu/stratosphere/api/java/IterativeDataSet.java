@@ -54,6 +54,10 @@ public class IterativeDataSet<T> extends SingleInputOperator<T, T, IterativeData
 	public DataSet<T> closeWith(DataSet<T> iterationResult) {
 		return new IterativeResultDataSet<T>(getExecutionEnvironment(), getType(), this, iterationResult);
 	}
+	
+	public DataSet<T> closeWith(DataSet<T> iterationResult, DataSet<T> terminationCriterion) {
+		return new IterativeResultDataSet<T>(getExecutionEnvironment(), getType(), this, iterationResult, terminationCriterion);
+	}
 
 	/**
 	 * Gets the maximum number of iterations.

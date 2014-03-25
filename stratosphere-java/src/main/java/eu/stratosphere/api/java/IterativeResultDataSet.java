@@ -21,6 +21,8 @@ public class IterativeResultDataSet<T> extends DataSet<T> {
 	private IterativeDataSet<T> iterationHead;
 
 	private DataSet<T> nextPartialSolution;
+	
+	private DataSet<T> terminationCriterion;
 
 	IterativeResultDataSet(ExecutionEnvironment context,
 						TypeInformation<T> type,
@@ -31,6 +33,16 @@ public class IterativeResultDataSet<T> extends DataSet<T> {
 		this.iterationHead = iterationHead;
 		this.nextPartialSolution = nextPartialSolution;
 	}
+	
+	IterativeResultDataSet(ExecutionEnvironment context,
+            TypeInformation<T> type,
+            IterativeDataSet<T> iterationHead,
+            DataSet<T> nextPartialSolution,
+            DataSet<T> terminationCriterion)
+	{
+		this(context, type, iterationHead, nextPartialSolution);
+		this.terminationCriterion = terminationCriterion;
+	}
 
 	public IterativeDataSet<T> getIterationHead() {
 		return iterationHead;
@@ -38,5 +50,9 @@ public class IterativeResultDataSet<T> extends DataSet<T> {
 
 	public DataSet<T> getNextPartialSolution() {
 		return nextPartialSolution;
+	}
+	
+	public DataSet<T> getTerminationCriterion() {
+		return terminationCriterion;
 	}
 }

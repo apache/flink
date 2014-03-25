@@ -102,6 +102,12 @@ public class JavaApiPostPass implements OptimizerPostPass {
 			if (iterationNode.getRootOfStepFunction() instanceof NAryUnionPlanNode) {
 				throw new CompilerException("Optimizer cannot compile an iteration step function where next partial solution is created by a Union node.");
 			}
+			
+			// traverse the termination criterion for the first time. create schema only, no utilities. Needed in case of intermediate termination criterion
+			if (iterationNode.getRootOfTerminationCriterion() != null) {
+				SingleInputPlanNode addMapper = (SingleInputPlanNode) iterationNode.getRootOfTerminationCriterion();
+				traverseChannel(addMapper.getInput());
+			}
 
 			PlanBulkIterationOperator<?> operator = (PlanBulkIterationOperator<?>) iterationNode.getPactContract();
 
