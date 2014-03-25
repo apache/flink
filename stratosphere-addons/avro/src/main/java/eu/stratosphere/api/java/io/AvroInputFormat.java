@@ -28,6 +28,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.core.fs.FileInputSplit;
+import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.api.avro.FSDataInputStreamWrapper;
 import eu.stratosphere.api.common.io.FileInputFormat;
 import eu.stratosphere.api.java.typeutils.ResultTypeQueryable;
@@ -50,7 +51,8 @@ public class AvroInputFormat<E> extends FileInputFormat<E> implements ResultType
 	private transient FileReader<E> dataFileReader;
 
 	
-	public AvroInputFormat(Class<E> type) {
+	public AvroInputFormat(Path filePath, Class<E> type) {
+		super(filePath);
 		this.avroValueType = type;
 	}
 	

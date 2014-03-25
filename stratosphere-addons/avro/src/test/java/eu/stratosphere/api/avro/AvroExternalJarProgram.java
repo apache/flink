@@ -23,55 +23,20 @@
 // ================================================================================================
 //package eu.stratosphere.api.avro;
 //
-//
-//import java.io.Serializable;
-//import java.util.Collections;
-//import java.util.Iterator;
+//import java.util.ArrayList;
 //import java.util.List;
 //
-//import eu.stratosphere.api.common.Plan;
-//import eu.stratosphere.api.common.Program;
-//import eu.stratosphere.api.common.io.OutputFormat;
-//import eu.stratosphere.api.common.operators.FileDataSource;
-//import eu.stratosphere.api.common.operators.GenericDataSink;
-//import eu.stratosphere.api.java.record.functions.MapFunction;
-//import eu.stratosphere.api.java.record.functions.ReduceFunction;
-//import eu.stratosphere.api.java.record.io.avro.AvroInputFormat;
-//import eu.stratosphere.api.java.record.operators.MapOperator;
-//import eu.stratosphere.api.java.record.operators.ReduceOperator;
-//import eu.stratosphere.client.LocalExecutor;
-//import eu.stratosphere.configuration.Configuration;
-//import eu.stratosphere.types.Record;
-//import eu.stratosphere.types.StringValue;
-//import eu.stratosphere.util.Collector;
+//import eu.stratosphere.api.java.DataSet;
+//import eu.stratosphere.api.java.ExecutionEnvironment;
+//import eu.stratosphere.api.java.functions.MapFunction;
+//import eu.stratosphere.api.java.functions.ReduceFunction;
+//import eu.stratosphere.api.java.io.AvroInputFormat;
+//import eu.stratosphere.api.java.io.DiscardingOuputFormat;
+//import eu.stratosphere.api.java.tuple.Tuple2;
+//import eu.stratosphere.core.fs.Path;
 //
+//public class AvroExternalJarProgram  {
 //
-//public class AvroExternalJarProgram implements Program {
-//	
-//	private static final long serialVersionUID = 1L;
-//
-//	@Override
-//	public Plan getPlan(String... args) {
-//		String inputPath = args[0];
-//		
-//		FileDataSource source = new FileDataSource(new AvroInputFormat<MyUser>(SUser.class), inputPath);
-//		
-//		MapOperator mapper = MapOperator.builder(new NameExtractor()).input(source).build();
-//		
-//		ReduceOperator reducer = ReduceOperator.builder(new NameGrouper(), StringValue.class, 0).input(mapper).build();
-//		
-//		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), reducer);
-//		
-//		Plan p = new Plan(sink);
-//		p.setDefaultParallelism(4);
-//		
-//		return p;
-//	}
-//	
-//	// --------------------------------------------------------------------------------------------
-//	
-//	// --------------------------------------------------------------------------------------------
-//	
 //	public static final class Color {
 //		
 //		private String name;
@@ -102,6 +67,11 @@
 //		public void setSaturation(double saturation) {
 //			this.saturation = saturation;
 //		}
+//		
+//		@Override
+//		public String toString() {
+//			return name + '(' + saturation + ')';
+//		}
 //	}
 //	
 //	public static final class MyUser {
@@ -111,7 +81,7 @@
 //		
 //		public MyUser() {
 //			name = "unknown";
-//			colors = Collections.emptyList();
+//			colors = new ArrayList<Color>();
 //		}
 //		
 //		public MyUser(String name, List<Color> colors) {
@@ -134,6 +104,11 @@
 //		public void setColors(List<Color> colors) {
 //			this.colors = colors;
 //		}
+//		
+//		@Override
+//		public String toString() {
+//			return name + " : " + colors;
+//		}
 //	}
 //	
 //	
@@ -152,51 +127,24 @@
 //	
 //	// --------------------------------------------------------------------------------------------
 //	
-//	public static final class NameExtractor extends MapFunction implements Serializable {
+//	public static final class NameExtractor extends MapFunction<MyUser, Tuple2<String, MyUser>> {
 //		private static final long serialVersionUID = 1L;
 //
 //		@Override
-//		public void map(Record record, Collector<Record> out) throws Exception {
-//			SUser su = record.getField(0, SUser.class);
-//			MyUser u = su.datum();
-//			
+//		public Tuple2<String, MyUser> map(MyUser u) {
 //			String namePrefix = u.getName().substring(0, 1);
-//			out.collect(new Record(new StringValue(namePrefix), su));
+//			return new Tuple2<String, MyUser>(namePrefix, u);
 //		}
-//		
 //	}
 //	
-//	public static final class NameGrouper extends ReduceFunction implements Serializable {
+//	public static final class NameGrouper extends ReduceFunction<Tuple2<String, MyUser>> {
 //		private static final long serialVersionUID = 1L;
 //
 //		@Override
-//		public void reduce(Iterator<Record> records, Collector<Record> out) throws Exception {
-//			out.collect(records.next());
+//		public Tuple2<String, MyUser> reduce(Tuple2<String, MyUser> val1, Tuple2<String, MyUser> val2) {
+//			return val1;
 //		}
-//		
 //	}
-//	
-//	public static final class DiscardingOutputFormat implements OutputFormat<Record> {
-//
-//		private static final long serialVersionUID = 1L;
-//				
-//		
-//		@Override
-//		public void configure(Configuration parameters) {}
-//
-//		@Override
-//		public void open(int taskNumber, int numTasks) {}
-//
-//		@Override
-//		public void writeRecord(Record element) {
-//			element.getField(0, StringValue.class);
-//			element.getField(1, SUser.class);
-//		}
-//		
-//		@Override
-//		public void close() {}
-//	}
-//	
 //
 //	// --------------------------------------------------------------------------------------------
 //	//  Test Data
@@ -256,7 +204,15 @@
 //	}
 //	
 //	public static void main(String[] args) throws Exception {
-//		String testDataFile = AvroExternalJarProgram.class.getResource("/testdata.avro").toString();
-//		LocalExecutor.execute(new AvroExternalJarProgram(), testDataFile);
+//		String inputPath = args[0];
+//		
+//		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+//		
+//		DataSet<MyUser> input = env.createInput(new AvroInputFormat<MyUser>(new Path(inputPath), MyUser.class));
+//	
+//		DataSet<Tuple2<String, MyUser>> result = input.map(new NameExtractor()).groupBy(0).reduce(new NameGrouper());
+//		
+//		result.output(new DiscardingOuputFormat<Tuple2<String,MyUser>>());
+//		env.execute();
 //	}
 //}

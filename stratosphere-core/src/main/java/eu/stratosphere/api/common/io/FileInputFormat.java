@@ -160,6 +160,9 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	public FileInputFormat() {}
 	
 	protected FileInputFormat(Path filePath) {
+		if (filePath == null) {
+			throw new IllegalArgumentException("The file path must not be null.");
+		}
 		this.filePath = filePath;
 	}
 	
