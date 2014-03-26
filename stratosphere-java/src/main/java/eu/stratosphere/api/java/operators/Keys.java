@@ -111,7 +111,7 @@ public abstract class Keys<T> {
 		
 		public SelectorFunctionKeys(KeySelector<T, K> keyExtractor, TypeInformation<T> type) {
 			this.keyExtractor = keyExtractor;
-			this.keyType = TypeExtractor.getKeyExtractorType(keyExtractor);
+			this.keyType = TypeExtractor.getKeyExtractorType(keyExtractor, type);
 		}
 
 		public TypeInformation<K> getKeyType() {

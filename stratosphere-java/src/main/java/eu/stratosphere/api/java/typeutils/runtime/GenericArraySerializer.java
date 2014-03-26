@@ -23,8 +23,7 @@ import eu.stratosphere.core.memory.DataOutputView;
 
 
 /**
- * @param <T> The array type
- * @param <T> The component type
+ * @param <C> The component type
  */
 public class GenericArraySerializer<C> extends TypeSerializer<C[]> {
 

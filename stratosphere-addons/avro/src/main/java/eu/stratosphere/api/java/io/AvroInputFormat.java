@@ -23,7 +23,6 @@ import org.apache.avro.file.SeekableInput;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.avro.specific.SpecificDatumReader;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -32,6 +31,7 @@ import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.api.avro.FSDataInputStreamWrapper;
 import eu.stratosphere.api.common.io.FileInputFormat;
 import eu.stratosphere.api.java.typeutils.ResultTypeQueryable;
+import eu.stratosphere.api.java.typeutils.TypeExtractor;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
 import eu.stratosphere.util.InstantiationUtil;
 
@@ -73,7 +73,7 @@ public class AvroInputFormat<E> extends FileInputFormat<E> implements ResultType
 	
 	@Override
 	public TypeInformation<E> getProducedType() {
-		return TypeInformation.getForClass(this.avroValueType);
+		return TypeExtractor.getForClass(this.avroValueType);
 	}
 	
 	// --------------------------------------------------------------------------------------------

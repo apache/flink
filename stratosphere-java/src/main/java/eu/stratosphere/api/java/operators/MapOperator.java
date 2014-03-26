@@ -31,7 +31,7 @@ public class MapOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT, MapOpe
 	
 	
 	public MapOperator(DataSet<IN> input, MapFunction<IN, OUT> function) {
-		super(input, TypeExtractor.getMapReturnTypes(function));
+		super(input, TypeExtractor.getMapReturnTypes(function, input.getType()));
 		
 		if (function == null)
 			throw new NullPointerException("Map function must not be null.");

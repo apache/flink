@@ -12,7 +12,6 @@
  **********************************************************************************************************************/
 package eu.stratosphere.spargel.java;
 
-import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -138,8 +137,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 	}
 	
 	private TypeInformation<Message> getMessageType(MessagingFunction<VertexKey, VertexValue, Message, EdgeValue> mf) {
-		Type returnType = TypeExtractor.getTemplateTypes (MessagingFunction.class, mf.getClass(), 2);
-		return TypeExtractor.createTypeInfo(returnType);
+		return TypeExtractor.createTypeInfo(MessagingFunction.class, mf.getClass(), 2, null, null);
 	}
 	
 	/**

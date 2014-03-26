@@ -63,7 +63,7 @@ public class CrossOperator<I1, I2, OUT>
 		}
 
 		public <R> CrossOperator<I1, I2, R> with(CrossFunction<I1, I2, R> function) {
-			TypeInformation<R> returnType = TypeExtractor.getCrossReturnTypes(function);
+			TypeInformation<R> returnType = TypeExtractor.getCrossReturnTypes(function, input1.getType(), input2.getType());
 			return new CrossOperator<I1, I2, R>(input1, input2, function, returnType);
 		}
 	}

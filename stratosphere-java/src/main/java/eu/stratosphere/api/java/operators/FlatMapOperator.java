@@ -31,7 +31,7 @@ public class FlatMapOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT, Fl
 	
 	
 	public FlatMapOperator(DataSet<IN> input, FlatMapFunction<IN, OUT> function) {
-		super(input, TypeExtractor.getFlatMapReturnTypes(function));
+		super(input, TypeExtractor.getFlatMapReturnTypes(function, input.getType()));
 		
 		if (function == null)
 			throw new NullPointerException("FlatMap function must not be null.");

@@ -180,7 +180,7 @@ public abstract class ExecutionEnvironment {
 		
 		X firstValue = data.iterator().next();
 		
-		return fromCollection(data, TypeInformation.getForObject(firstValue));
+		return fromCollection(data, TypeExtractor.getForObject(firstValue));
 	}
 	
 	
@@ -191,7 +191,7 @@ public abstract class ExecutionEnvironment {
 	}
 	
 	public <X> DataSet<X> fromCollection(Iterator<X> data, Class<X> type) {
-		return fromCollection(data, TypeInformation.getForClass(type));
+		return fromCollection(data, TypeExtractor.getForClass(type));
 	}
 	
 	public <X> DataSet<X> fromCollection(Iterator<X> data, TypeInformation<X> type) {
@@ -217,12 +217,12 @@ public abstract class ExecutionEnvironment {
 			throw new IllegalArgumentException("The number of elements must not be zero.");
 		}
 		
-		return fromCollection(Arrays.asList(data), TypeInformation.getForObject(data[0]));
+		return fromCollection(Arrays.asList(data), TypeExtractor.getForObject(data[0]));
 	}
 	
 	
 	public <X> DataSet<X> fromParallelCollection(SplittableIterator<X> iterator, Class<X> type) {
-		return fromParallelCollection(iterator, TypeInformation.getForClass(type));
+		return fromParallelCollection(iterator, TypeExtractor.getForClass(type));
 	}
 	
 	

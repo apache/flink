@@ -43,7 +43,7 @@ public class ReduceGroupOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 	
 	
 	public ReduceGroupOperator(DataSet<IN> input, GroupReduceFunction<IN, OUT> function) {
-		super(input, TypeExtractor.getGroupReduceReturnTypes(function));
+		super(input, TypeExtractor.getGroupReduceReturnTypes(function, input.getType()));
 		
 		if (function == null)
 			throw new NullPointerException("GroupReduce function must not be null.");
@@ -53,7 +53,7 @@ public class ReduceGroupOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 	}
 	
 	public ReduceGroupOperator(Grouping<IN> input, GroupReduceFunction<IN, OUT> function) {
-		super(input != null ? input.getDataSet() : null, TypeExtractor.getGroupReduceReturnTypes(function));
+		super(input != null ? input.getDataSet() : null, TypeExtractor.getGroupReduceReturnTypes(function, input.getDataSet().getType()));
 		
 		if (function == null)
 			throw new NullPointerException("GroupReduce function must not be null.");
