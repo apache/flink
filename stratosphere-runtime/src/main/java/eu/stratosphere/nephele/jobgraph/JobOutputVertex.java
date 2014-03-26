@@ -13,7 +13,16 @@
 
 package eu.stratosphere.nephele.jobgraph;
 
+import eu.stratosphere.api.common.io.OutputFormat;
+import eu.stratosphere.api.common.operators.util.UserCodeObjectWrapper;
+import eu.stratosphere.api.common.operators.util.UserCodeWrapper;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
+import eu.stratosphere.pact.runtime.task.util.TaskConfig;
+
+import java.io.DataInput;
+import java.io.IOException;
 
 /**
  * A JobOutputVertex is a specific subtype of a {@link AbstractJobOutputVertex} and is designed
@@ -22,6 +31,7 @@ import eu.stratosphere.nephele.template.AbstractOutputTask;
  * 
  */
 public class JobOutputVertex extends AbstractJobOutputVertex {
+	private volatile OutputFormat<?> outputFormat = null;
 
 	/**
 	 * Creates a new job file output vertex with the specified name.
@@ -78,4 +88,50 @@ public class JobOutputVertex extends AbstractJobOutputVertex {
 	public Class<? extends AbstractOutputTask> getOutputClass() {
 		return (Class<? extends AbstractOutputTask>) this.invokableClass;
 	}
+
+	public void setOutputFormat(UserCodeWrapper<? extends OutputFormat<?>> outputFormatWrapper){
+		TaskConfig config = new TaskConfig(this.getConfiguration());
+		config.setStubWrapper(outputFormatWrapper);
+		outputFormat = outputFormatWrapper.getUserCodeObject();
+	}
+
+	public void setOutputFormat(OutputFormat<?> outputFormat){
+		this.outputFormat = outputFormat;
+		UserCodeWrapper<? extends OutputFormat<?>> wrapper = new UserCodeObjectWrapper<OutputFormat<?>>
+				(outputFormat);
+		TaskConfig config = new TaskConfig(this.getConfiguration());
+		config.setStubWrapper(wrapper);
+	}
+
+	public void setOutputFormatParameters(Configuration parameters){
+		TaskConfig config = new TaskConfig(this.getConfiguration());
+		config.setStubParameters(parameters);
+
+		outputFormat.configure(parameters);
+	}
+
+	@Override
+	public void read(final DataInput input) throws IOException{
+		super.read(input);
+
+		ClassLoader cl = null;
+		try{
+			cl = LibraryCacheManager.getClassLoader(this.getJobGraph().getJobID());
+		}
+		catch (IOException ioe) {
+			throw new RuntimeException("Usercode ClassLoader could not be obtained for job: " +
+					this.getJobGraph().getJobID(), ioe);
+		}
+
+		final Configuration config = this.getConfiguration();
+		config.setClassLoader(cl);
+		final TaskConfig taskConfig = new TaskConfig(config);
+
+		if(taskConfig.hasStubWrapper()){
+			outputFormat = taskConfig.<OutputFormat<?> >getStubWrapper(cl).getUserCodeObject(OutputFormat.class,cl);
+			outputFormat.configure(taskConfig.getStubParameters());
+		}
+	}
+
+	public OutputFormat<?> getOutputFormat() { return outputFormat; }
 }

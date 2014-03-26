@@ -114,6 +114,11 @@ public final class ExecutionGroupVertex {
 	private volatile InputSplit[] inputSplits = null;
 
 	/**
+	 * Input split type
+	 */
+	private volatile Class<? extends InputSplit> inputSplitType = null;
+
+	/**
 	 * The execution stage this vertex belongs to.
 	 */
 	private volatile ExecutionStage executionStage = null;
@@ -127,11 +132,6 @@ public final class ExecutionGroupVertex {
 	 * The task class that is assigned to execution vertices of this group
 	 */
 	private final Class<? extends AbstractInvokable> invokableClass;
-
-	/**
-	 * The environment created to execute the vertex's task.
-	 */
-	private final RuntimeEnvironment environment;
 
 	/**
 	 * Constructs a new group vertex.
@@ -177,9 +177,6 @@ public final class ExecutionGroupVertex {
 		this.executionSignature = signature;
 
 		this.invokableClass = invokableClass;
-
-		this.environment = new RuntimeEnvironment(executionGraph.getJobID(), name, invokableClass, configuration,
-			executionGraph.getJobConfiguration());
 	}
 
 	/**
@@ -189,16 +186,6 @@ public final class ExecutionGroupVertex {
 	 */
 	public String getName() {
 		return this.name;
-	}
-
-	/**
-	 * Returns the environment of the instantiated {@link AbstractInvokable} object.
-	 * 
-	 * @return the environment of the instantiated {@link AbstractInvokable} object
-	 */
-	public RuntimeEnvironment getEnvironment() {
-
-		return this.environment;
 	}
 
 	/**
@@ -407,20 +394,6 @@ public final class ExecutionGroupVertex {
 			}
 		}
 
-		// Make sure the value of newNumber is valid
-		// TODO: Move these checks to some other place
-		/*
-		 * if (this.getMinimumNumberOfGroupMember() < 1) {
-		 * throw new GraphConversionException("The minimum number of members is below 1 for group vertex "
-		 * + this.getName());
-		 * }
-		 * if ((this.getMaximumNumberOfGroupMembers() != -1)
-		 * && (this.getMaximumNumberOfGroupMembers() < this.getMinimumNumberOfGroupMember())) {
-		 * throw new GraphConversionException(
-		 * "The maximum number of members is smaller than the minimum for group vertex " + this.getName());
-		 * }
-		 */
-
 		final ExecutionVertex originalVertex = this.getGroupMember(0);
 		int currentNumberOfExecutionVertices = this.getCurrentNumberOfGroupMembers();
 
@@ -453,6 +426,14 @@ public final class ExecutionGroupVertex {
 	}
 
 	/**
+	 * Sets the input split type class
+	 *
+	 * @param inputSplitType Input split type class
+	 */
+	public void setInputSplitType(final Class<? extends InputSplit> inputSplitType) { this.inputSplitType =
+			inputSplitType; }
+
+	/**
 	 * Returns the input splits assigned to this group vertex.
 	 * 
 	 * @return the input splits, possibly <code>null</code> if the group vertex does not represent an input vertex
@@ -461,6 +442,14 @@ public final class ExecutionGroupVertex {
 
 		return this.inputSplits;
 	}
+
+	/**
+	 * Returns the input split type class
+	 *
+	 * @return the input split type class, possibly <code>null</code> if the group vertex does not represent an input
+	 * vertex
+	 */
+	public Class<? extends InputSplit> getInputSplitType() { return this.inputSplitType; }
 
 	public ExecutionGroupEdge getForwardEdge(int index) {
 

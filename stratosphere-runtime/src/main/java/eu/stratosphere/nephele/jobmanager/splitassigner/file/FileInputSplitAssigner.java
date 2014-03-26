@@ -50,18 +50,8 @@ public final class FileInputSplitAssigner implements InputSplitAssigner {
 	@Override
 	public void registerGroupVertex(final ExecutionGroupVertex groupVertex) {
 
-		// Do some sanity checks first
-		final AbstractInvokable invokable = groupVertex.getEnvironment().getInvokable();
-
-		// if (!(invokable instanceof AbstractFileInputTask)) {
-		// LOG.error(groupVertex.getName() + " is not an input vertex, ignoring vertex...");
-		// return;
-		// }
-
-		@SuppressWarnings("unchecked")
-		final AbstractInputTask<? extends InputSplit> inputTask = (AbstractInputTask<? extends InputSplit>) invokable;
-		if (!FileInputSplit.class.equals(inputTask.getInputSplitType())) {
-			LOG.error(groupVertex.getName() + " produces input splits of type " + inputTask.getInputSplitType()
+		if (!FileInputSplit.class.equals(groupVertex.getInputSplitType())) {
+			LOG.error(groupVertex.getName() + " produces input splits of type " + groupVertex.getInputSplitType()
 				+ " and cannot be handled by this split assigner");
 			return;
 		}

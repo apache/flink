@@ -13,15 +13,15 @@
 
 package eu.stratosphere.nephele.jobmanager;
 
-import eu.stratosphere.core.io.StringRecord;
 import eu.stratosphere.runtime.io.api.RecordReader;
 import eu.stratosphere.runtime.io.api.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractTask;
+import eu.stratosphere.types.Record;
 
 public class ForwardTask extends AbstractTask {
 
-	private RecordReader<StringRecord> input = null;
-	private RecordWriter<StringRecord> output = null;
+	private RecordReader<Record> input = null;
+	private RecordWriter<Record> output = null;
 
 	@Override
 	public void invoke() throws Exception {
@@ -30,7 +30,7 @@ public class ForwardTask extends AbstractTask {
 
 		while (this.input.hasNext()) {
 
-			StringRecord s = input.next();
+			Record s = input.next();
 			this.output.emit(s);
 		}
 
@@ -39,7 +39,7 @@ public class ForwardTask extends AbstractTask {
 
 	@Override
 	public void registerInputOutput() {
-		this.input = new RecordReader<StringRecord>(this, StringRecord.class);
-		this.output = new RecordWriter<StringRecord>(this);
+		this.input = new RecordReader<Record>(this, Record.class);
+		this.output = new RecordWriter<Record>(this);
 	}
 }

@@ -83,6 +83,12 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 	private final List<InputGate<? extends IOReadableWritable>> inputGates = new CopyOnWriteArrayList<InputGate<? extends IOReadableWritable>>();
 
 	/**
+	 * Queue of unbound output gate IDs which are required for deserializing an environment in the course of an RPC
+	 * call.
+	 */
+	private final Queue<GateID> unboundOutputGateIDs = new ArrayDeque<GateID>();
+
+	/**
 	 * Queue of unbound input gate IDs which are required for deserializing an environment in the course of an RPC
 	 * call.
 	 */
@@ -165,46 +171,18 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 	private volatile boolean canceled;
 
 	/**
-	 * Creates a new runtime environment object which contains the runtime information for the encapsulated Nephele
-	 * task.
-	 *
-	 * @param jobID             the ID of the original Nephele job
-	 * @param taskName          the name of task running in this environment
-	 * @param invokableClass    invokableClass the class that should be instantiated as a Nephele task
-	 * @param taskConfiguration the configuration object which was attached to the original JobVertex
-	 * @param jobConfiguration  the configuration object which was attached to the original JobGraph
-	 * @throws Exception thrown if an error occurs while instantiating the invokable class
-	 */
-	public RuntimeEnvironment(final JobID jobID, final String taskName,
-							final Class<? extends AbstractInvokable> invokableClass, final Configuration taskConfiguration,
-							final Configuration jobConfiguration)
-		throws Exception
-	{
-		this.jobID = jobID;
-		this.taskName = taskName;
-		this.invokableClass = invokableClass;
-		this.taskConfiguration = taskConfiguration;
-		this.jobConfiguration = jobConfiguration;
-		this.indexInSubtaskGroup = 0;
-		this.currentNumberOfSubtasks = 0;
-		this.memoryManager = null;
-		this.ioManager = null;
-		this.inputSplitProvider = null;
-		this.cacheCopyTasks = new HashMap<String, FutureTask<Path>>();
-		
-		this.invokable = this.invokableClass.newInstance();
-		this.invokable.setEnvironment(this);
-		this.invokable.registerInputOutput();
-	}
-
-	/**
 	 * Constructs a runtime environment from a task deployment description.
-	 *
-	 * @param tdd                the task deployment description
-	 * @param memoryManager      the task manager's memory manager component
-	 * @param ioManager          the task manager's I/O manager component
-	 * @param inputSplitProvider the input split provider for this environment
-	 * @throws Exception thrown if an error occurs while instantiating the invokable class
+	 * 
+	 * @param tdd
+	 *        the task deployment description
+	 * @param memoryManager
+	 *        the task manager's memory manager component
+	 * @param ioManager
+	 *        the task manager's I/O manager component
+	 * @param inputSplitProvider
+	 *        the input split provider for this environment
+	 * @throws Exception
+	 *         thrown if an error occurs while instantiating the invokable class
 	 */
 	public RuntimeEnvironment(final TaskDeploymentDescriptor tdd,
 							final MemoryManager memoryManager, final IOManager ioManager,

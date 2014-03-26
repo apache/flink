@@ -20,7 +20,14 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
+
+import eu.stratosphere.api.common.io.InputFormat;
+import eu.stratosphere.api.common.io.OutputFormat;
+import eu.stratosphere.api.common.operators.util.UserCodeWrapper;
+import eu.stratosphere.core.io.InputSplit;
+import eu.stratosphere.nephele.template.AbstractInputTask;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.api.common.aggregators.AggregatorRegistry;
 import eu.stratosphere.api.common.aggregators.AggregatorWithName;
@@ -805,31 +812,31 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 
 	private JobInputVertex createDataSourceVertex(SourcePlanNode node) throws CompilerException {
 		final JobInputVertex vertex = new JobInputVertex(node.getNodeName(), this.jobGraph);
-		final TaskConfig config = new TaskConfig(vertex.getConfiguration());
-		
+
 		// set task class
 		@SuppressWarnings("unchecked")
-		final Class<AbstractInputTask<?>> clazz = (Class<AbstractInputTask<?>>) (Class<?>) DataSourceTask.class;
+		final Class<AbstractInputTask<?>> clazz = (Class<AbstractInputTask<?>>) (Class<?>) DataSourceTask
+				.class;
 		vertex.setInputClass(clazz);
 
 		// set user code
-		config.setStubWrapper(node.getPactContract().getUserCodeWrapper());
-		config.setStubParameters(node.getPactContract().getParameters());
-		
-		config.setOutputSerializer(node.getSerializer());
+		vertex.setInputFormat((UserCodeWrapper<? extends InputFormat<?, InputSplit>>)node.getPactContract()
+				.getUserCodeWrapper());
+		vertex.setInputFormatParameters(node.getPactContract().getParameters());
+		vertex.setOutputSerializer(node.getSerializer());
 		return vertex;
 	}
 
 	private AbstractJobOutputVertex createDataSinkVertex(SinkPlanNode node) throws CompilerException {
 		final JobOutputVertex vertex = new JobOutputVertex(node.getNodeName(), this.jobGraph);
-		final TaskConfig config = new TaskConfig(vertex.getConfiguration());
-		
+
 		vertex.setOutputClass(DataSinkTask.class);
 		vertex.getConfiguration().setInteger(DataSinkTask.DEGREE_OF_PARALLELISM_KEY, node.getDegreeOfParallelism());
-		
+
 		// set user code
-		config.setStubWrapper(node.getPactContract().getUserCodeWrapper());
-		config.setStubParameters(node.getPactContract().getParameters());
+		vertex.setOutputFormat((UserCodeWrapper<? extends OutputFormat<?>>)node.getPactContract().getUserCodeWrapper
+				());
+		vertex.setOutputFormatParameters(node.getPactContract().getParameters());
 		
 		return vertex;
 	}

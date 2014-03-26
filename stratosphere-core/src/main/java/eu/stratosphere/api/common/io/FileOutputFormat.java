@@ -437,4 +437,42 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT> {
 			super(targetConfig);
 		}
 	}
+
+	@Override
+	public void initialize(Configuration configuration){
+		final Path path = this.getOutputFilePath();
+		final WriteMode writeMode = this.getWriteMode();
+		final OutputDirectoryMode outDirMode = this.getOutputDirectoryMode();
+
+		// Prepare output path and determine max DOP
+		try {
+			final FileSystem fs = path.getFileSystem();
+
+			int dop = configuration.getInteger(DEGREE_OF_PARALLELISM_KEY, -1);
+			if(dop == 1 && outDirMode == OutputDirectoryMode.PARONLY) {
+				// output is not written in parallel and should be written to a single file.
+
+				if(fs.isDistributedFS()) {
+					// prepare distributed output path
+					if(!fs.initOutPathDistFS(path, writeMode, false)) {
+						// output preparation failed! Cancel task.
+						throw new IOException("Output path could not be initialized.");
+					}
+				}
+			} else {
+				// output should be written to a directory
+
+				if(fs.isDistributedFS()) {
+					// only distributed file systems can be initialized at start-up time.
+					if(!fs.initOutPathDistFS(path, writeMode, true)) {
+						throw new IOException("Output directory could not be created.");
+					}
+				}
+			}
+		}
+		catch (IOException e) {
+			LOG.error("Could not access the file system to detemine the status of the output.", e);
+			throw new RuntimeException("I/O Error while accessing file", e);
+		}
+	}
 }

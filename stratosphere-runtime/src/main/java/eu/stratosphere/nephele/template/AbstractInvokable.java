@@ -62,39 +62,6 @@ public abstract class AbstractInvokable {
 		return this.environment;
 	}
 
-	/**
-	 * Overwrite this method to implement task specific checks if the
-	 * respective task has been configured properly.
-	 * 
-	 * @throws IllegalConfigurationException
-	 *         thrown if the respective tasks is not configured properly
-	 */
-	public void checkConfiguration() throws IllegalConfigurationException {
-		// The default implementation does nothing
-	}
-
-	/**
-	 * Overwrite this method to provide the minimum number of subtasks the respective task
-	 * must be split into at runtime.
-	 * 
-	 * @return the minimum number of subtasks the respective task must be split into at runtime
-	 */
-	public int getMinimumNumberOfSubtasks() {
-		// The default implementation always returns 1
-		return 1;
-	}
-
-	/**
-	 * Overwrite this method to provide the maximum number of subtasks the respective task
-	 * can be split into at runtime.
-	 * 
-	 * @return the maximum number of subtasks the respective task can be split into at runtime, <code>-1</code> for
-	 *         infinity
-	 */
-	public int getMaximumNumberOfSubtasks() {
-		// The default implementation always returns -1
-		return -1;
-	}
 
 	/**
 	 * Returns the current number of subtasks the respective task is split into.

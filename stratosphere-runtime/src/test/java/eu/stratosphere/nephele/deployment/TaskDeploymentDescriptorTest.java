@@ -19,12 +19,12 @@ import static org.junit.Assert.fail;
 
 import java.io.IOException;
 
+import eu.stratosphere.pact.runtime.task.RegularPactTask;
 import org.junit.Test;
 
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
-import eu.stratosphere.nephele.util.FileLineReader;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.util.SerializableArrayList;
@@ -50,7 +50,7 @@ public class TaskDeploymentDescriptorTest {
 		final int currentNumberOfSubtasks = 1;
 		final Configuration jobConfiguration = new Configuration();
 		final Configuration taskConfiguration = new Configuration();
-		final Class<? extends AbstractInvokable> invokableClass = FileLineReader.class;
+		final Class<? extends AbstractInvokable> invokableClass =  RegularPactTask.class;
 		final SerializableArrayList<GateDeploymentDescriptor> outputGates = new SerializableArrayList<GateDeploymentDescriptor>(
 			0);
 		final SerializableArrayList<GateDeploymentDescriptor> inputGates = new SerializableArrayList<GateDeploymentDescriptor>(
@@ -85,7 +85,7 @@ public class TaskDeploymentDescriptorTest {
 		final int currentNumberOfSubtasks = 1;
 		final Configuration jobConfiguration = new Configuration();
 		final Configuration taskConfiguration = new Configuration();
-		final Class<? extends AbstractInvokable> invokableClass = FileLineReader.class;
+		final Class<? extends AbstractInvokable> invokableClass = RegularPactTask.class;
 		final SerializableArrayList<GateDeploymentDescriptor> outputGates = new SerializableArrayList<GateDeploymentDescriptor>(
 			0);
 		final SerializableArrayList<GateDeploymentDescriptor> inputGates = new SerializableArrayList<GateDeploymentDescriptor>(
@@ -239,7 +239,7 @@ public class TaskDeploymentDescriptorTest {
 		final int currentNumberOfSubtasks = 1;
 		final Configuration jobConfiguration = new Configuration();
 		final Configuration taskConfiguration = new Configuration();
-		final Class<? extends AbstractInvokable> invokableClass = FileLineReader.class;
+		final Class<? extends AbstractInvokable> invokableClass = RegularPactTask.class;
 		final SerializableArrayList<GateDeploymentDescriptor> outputGates = new SerializableArrayList<GateDeploymentDescriptor>(
 			0);
 		final SerializableArrayList<GateDeploymentDescriptor> inputGates = new SerializableArrayList<GateDeploymentDescriptor>(

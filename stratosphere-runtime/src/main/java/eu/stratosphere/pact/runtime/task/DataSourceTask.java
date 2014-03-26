@@ -78,27 +78,12 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit> {
 	@Override
 	public void registerInputOutput()
 	{
-		if (LOG.isDebugEnabled()) {
+		initInputFormat();
+
+		if (LOG.isDebugEnabled())
 			LOG.debug(getLogString("Start registering input and output"));
 		}
 
-		if (this.userCodeClassLoader == null) {
-			try {
-				this.userCodeClassLoader = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
-			}
-			catch (IOException ioe) {
-				throw new RuntimeException("Usercode ClassLoader could not be obtained for job: " + 
-							getEnvironment().getJobID(), ioe);
-			}
-		}
-		
-		// obtain task configuration (including stub parameters)
-		Configuration taskConf = getTaskConfiguration();
-		taskConf.setClassLoader(this.userCodeClassLoader);
-		this.config = new TaskConfig(taskConf);
-		
-		initInputFormat(this.userCodeClassLoader);
-		
 		try {
 			initOutputs(this.userCodeClassLoader);
 		} catch (Exception ex) {
@@ -301,17 +286,42 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit> {
 
 	/**
 	 * Initializes the InputFormat implementation and configuration.
-	 * 
+l	 * 
 	 * @throws RuntimeException
 	 *         Throws if instance of InputFormat implementation can not be
 	 *         obtained.
 	 */
-	private void initInputFormat(ClassLoader cl) {
-		// instantiate the stub
-		@SuppressWarnings("unchecked")
-		Class<InputFormat<OT, InputSplit>> superClass = (Class<InputFormat<OT, InputSplit>>) (Class<?>) InputFormat.class;
-		this.format = RegularPactTask.instantiateUserCode(this.config, cl, superClass);
-		
+	private void initInputFormat() {
+		if (this.userCodeClassLoader == null) {
+			try {
+				this.userCodeClassLoader = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
+			}
+			catch (IOException ioe) {
+				throw new RuntimeException("Usercode ClassLoader could not be obtained for job: " +
+						getEnvironment().getJobID(), ioe);
+			}
+		}
+
+		// obtain task configuration (including stub parameters)
+		Configuration taskConf = getTaskConfiguration();
+		taskConf.setClassLoader(this.userCodeClassLoader);
+		this.config = new TaskConfig(taskConf);
+
+		try {
+			this.format = config.<InputFormat<OT, InputSplit>>getStubWrapper(this.userCodeClassLoader)
+					.getUserCodeObject(InputFormat.class, this.userCodeClassLoader);
+
+			// check if the class is a subclass, if the check is required
+			if (!InputFormat.class.isAssignableFrom(this.format.getClass())) {
+				throw new RuntimeException("The class '" + this.format.getClass().getName() + "' is not a subclass of '" +
+						InputFormat.class.getName() + "' as is required.");
+			}
+		}
+		catch (ClassCastException ccex) {
+			throw new RuntimeException("The stub class is not a proper subclass of " + InputFormat.class.getName(),
+					ccex);
+		}
+
 		// configure the stub. catch exceptions here extra, to report them as originating from the user code 
 		try {
 			this.format.configure(this.config.getStubParameters());
