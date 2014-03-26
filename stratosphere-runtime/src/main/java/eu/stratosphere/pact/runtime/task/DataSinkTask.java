@@ -351,64 +351,6 @@ public class DataSinkTask<IT> extends AbstractOutputTask {
 			throw new Exception("Illegal configuration: Number of input gates and group sizes are not consistent.");
 		}
 	}
-	
-	// ------------------------------------------------------------------------
-	//                     Degree of parallelism & checks
-	// ------------------------------------------------------------------------
-	
-
-	@Override
-	public int getMaximumNumberOfSubtasks() {
-		if (!(this.format instanceof FileOutputFormat<?>)) {
-			return -1;
-		}
-		
-		final FileOutputFormat<?> fileOutputFormat = (FileOutputFormat<?>) this.format;
-		
-		// ----------------- This code applies only to file inputs ------------------
-		
-		final Path path = fileOutputFormat.getOutputFilePath();
-		final WriteMode writeMode = fileOutputFormat.getWriteMode();
-		final OutputDirectoryMode outDirMode = fileOutputFormat.getOutputDirectoryMode();
-
-		// Prepare output path and determine max DOP		
-		try {
-			
-			int dop = getTaskConfiguration().getInteger(DEGREE_OF_PARALLELISM_KEY, -1);
-			final FileSystem fs = path.getFileSystem();
-			
-			if(dop == 1 && outDirMode == OutputDirectoryMode.PARONLY) {
-				// output is not written in parallel and should be written to a single file.
-				
-				if(fs.isDistributedFS()) {
-					// prepare distributed output path
-					if(!fs.initOutPathDistFS(path, writeMode, false)) {
-						// output preparation failed! Cancel task.
-						throw new IOException("Output path could not be initialized.");
-					}
-				}
-				
-				return 1;
-				
-			} else {
-				// output should be written to a directory
-				
-				if(fs.isDistributedFS()) {
-					// only distributed file systems can be initialized at start-up time.
-					if(!fs.initOutPathDistFS(path, writeMode, true)) {
-						throw new IOException("Output directory could not be created.");
-					}
-				}
-				
-				return -1;
-				
-			}
-		}
-		catch (IOException e) {
-			LOG.error("Could not access the file system to detemine the status of the output.", e);
-			throw new RuntimeException("I/O Error while accessing file", e);
-		}
-	}
 
 	// ------------------------------------------------------------------------
 	//                               Utilities

@@ -102,18 +102,7 @@ public final class InputSplitManager {
 				continue;
 			}
 
-			final AbstractInvokable invokable = groupVertex.getEnvironment().getInvokable();
-			if (!(invokable instanceof AbstractInputTask)) {
-				LOG.error(groupVertex.getName() + " has " + inputSplits.length
-					+ " input splits, but is not of typt AbstractInputTask, ignoring...");
-				continue;
-			}
-
-			@SuppressWarnings("unchecked")
-			final AbstractInputTask<? extends InputSplit> inputTask = (AbstractInputTask<? extends InputSplit>) invokable;
-			final Class<? extends InputSplit> splitType = inputTask.getInputSplitType();
-
-			final InputSplitAssigner assigner = getAssignerByType(splitType, true);
+			final InputSplitAssigner assigner = getAssignerByType(groupVertex.getInputSplitType(), true);
 			// Add entry to cache for fast retrieval during the job execution
 			this.assignerCache.put(groupVertex, assigner);
 

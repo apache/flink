@@ -44,4 +44,7 @@ public class DiscardingOutputFormat implements OutputFormat<Record> {
 	@Override
 	public void close() throws IOException
 	{}
+
+	@Override
+	public void initialize(Configuration configuration){}
 }

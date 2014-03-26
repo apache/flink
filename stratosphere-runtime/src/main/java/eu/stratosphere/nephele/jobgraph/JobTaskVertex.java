@@ -13,7 +13,6 @@
 
 package eu.stratosphere.nephele.jobgraph;
 
-import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.AbstractTask;
 
 /**
@@ -83,21 +82,5 @@ public class JobTaskVertex extends AbstractJobVertex {
 	@SuppressWarnings("unchecked")
 	public Class<? extends AbstractTask> getTaskClass() {
 		return (Class<? extends AbstractTask>) this.invokableClass;
-	}
-
-
-	@Override
-	public int getMaximumNumberOfSubtasks(final AbstractInvokable invokable) {
-
-		// Delegate call to invokable
-		return invokable.getMaximumNumberOfSubtasks();
-	}
-
-
-	@Override
-	public int getMinimumNumberOfSubtasks(final AbstractInvokable invokable) {
-
-		// Delegate call to invokable
-		return invokable.getMinimumNumberOfSubtasks();
 	}
 }

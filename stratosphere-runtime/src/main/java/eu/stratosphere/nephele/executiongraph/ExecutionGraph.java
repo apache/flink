@@ -399,17 +399,6 @@ public class ExecutionGraph implements ExecutionListener {
 			final ExecutionVertex sev = entry.getValue();
 			final ExecutionGroupVertex sgv = sev.getGroupVertex();
 
-			// First compare number of output gates
-			if (sjv.getNumberOfForwardConnections() != sgv.getEnvironment().getNumberOfOutputGates()) {
-				throw new GraphConversionException("Job and execution vertex " + sjv.getName()
-					+ " have different number of outputs");
-			}
-
-			if (sjv.getNumberOfBackwardConnections() != sgv.getEnvironment().getNumberOfInputGates()) {
-				throw new GraphConversionException("Job and execution vertex " + sjv.getName()
-					+ " have different number of inputs");
-			}
-
 			// First, build the group edges
 			for (int i = 0; i < sjv.getNumberOfForwardConnections(); ++i) {
 				final JobEdge edge = sjv.getForwardConnection(i);
@@ -488,16 +477,13 @@ public class ExecutionGraph implements ExecutionListener {
 
 			final InputSplit[] inputSplits;
 
-			// let the task code compute the input splits
-			if (groupVertex.getEnvironment().getInvokable() instanceof AbstractInputTask) {
-				try {
-					inputSplits = ((AbstractInputTask<?>) groupVertex.getEnvironment().getInvokable())
-						.computeInputSplits(jobVertex.getNumberOfSubtasks());
-				} catch (Exception e) {
-					throw new GraphConversionException("Cannot compute input splits for " + groupVertex.getName(), e);
-				}
-			} else {
-				throw new GraphConversionException("JobInputVertex contained a task class which was not an input task.");
+			final Class<? extends InputSplit> inputSplitType = jobInputVertex.getInputSplitType();
+
+			try{
+				inputSplits = jobInputVertex.getInputSplits(jobVertex.getNumberOfSubtasks());
+			}catch(Exception e) {
+				throw new GraphConversionException("Cannot compute input splits for " + groupVertex.getName() + ": "
+						+ StringUtils.stringifyException(e));
 			}
 
 			if (inputSplits == null) {
@@ -507,13 +493,19 @@ public class ExecutionGraph implements ExecutionListener {
 					+ " input splits");
 			}
 
-			// assign input splits
+			// assign input splits and type
 			groupVertex.setInputSplits(inputSplits);
+			groupVertex.setInputSplitType(inputSplitType);
 		}
-		// TODO: This is a quick workaround, problem can be solved in a more generic way
-		if (jobVertex instanceof JobFileOutputVertex) {
-			final JobFileOutputVertex jbov = (JobFileOutputVertex) jobVertex;
-			jobVertex.getConfiguration().setString("outputPath", jbov.getFilePath().toString());
+
+		if(jobVertex instanceof JobOutputVertex){
+			final JobOutputVertex jobOutputVertex = (JobOutputVertex) jobVertex;
+
+			final OutputFormat<?> outputFormat = jobOutputVertex.getOutputFormat();
+
+			if(outputFormat != null){
+				outputFormat.initialize(groupVertex.getConfiguration());
+			}
 		}
 
 		// Add group vertex to initial execution stage
@@ -793,48 +785,6 @@ public class ExecutionGraph implements ExecutionListener {
 	 */
 	public int getIndexOfCurrentExecutionStage() {
 		return this.indexToCurrentExecutionStage;
-	}
-
-	/**
-	 * Retrieves the maximum parallel degree of the job represented by this execution graph
-	 */
-	public int getMaxNumberSubtasks() {
-		int maxDegree = 0;
-		final Iterator<ExecutionStage> stageIterator = this.stages.iterator();
-
-		while(stageIterator.hasNext()){
-			final ExecutionStage stage = stageIterator.next();
-
-			int maxPerStageDegree = stage.getMaxNumberSubtasks();
-
-			if(maxPerStageDegree > maxDegree){
-				maxDegree = maxPerStageDegree;
-			}
-		}
-
-		return maxDegree;
-	}
-
-	/**
-	 * Retrieves the number of required slots to run this execution graph
-	 * @return
-	 */
-	public int getRequiredSlots(){
-		int maxRequiredSlots = 0;
-
-		final Iterator<ExecutionStage> stageIterator = this.stages.iterator();
-
-		while(stageIterator.hasNext()){
-			final ExecutionStage stage = stageIterator.next();
-
-			int requiredSlots = stage.getRequiredSlots();
-
-			if(requiredSlots > maxRequiredSlots){
-				maxRequiredSlots = requiredSlots;
-			}
-		}
-
-		return maxRequiredSlots;
 	}
 
 	/**

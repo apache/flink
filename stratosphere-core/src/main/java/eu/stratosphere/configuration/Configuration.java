@@ -405,6 +405,18 @@ public class Configuration implements IOReadableWritable {
 			}
 		}
 	}
+
+	/**
+	 * Checks whether there is an entry with key
+	 *
+	 * @param key key of entry
+	 * @return true if entry with key is stored in the configuration, otherwise false
+	 */
+	public boolean containsKey(String key){
+		synchronized (this.confData){
+			return this.confData.containsKey(key);
+		}
+	}
 	
 	// --------------------------------------------------------------------------------------------
 	

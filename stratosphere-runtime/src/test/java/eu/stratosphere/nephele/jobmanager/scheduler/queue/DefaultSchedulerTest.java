@@ -95,6 +95,47 @@ public class DefaultSchedulerTest {
 
 	}
 
+	public static final class DummyInputFormat extends GenericInputFormat<IntValue> {
+
+		@Override
+		public boolean reachedEnd() throws IOException {
+			return true;
+		}
+
+		@Override
+		public IntValue nextRecord(IntValue reuse) throws IOException {
+			return null;
+		}
+	}
+
+	public static final class DummyOutputFormat implements OutputFormat<IntValue> {
+
+		@Override
+		public void configure(Configuration parameters) {
+
+		}
+
+		@Override
+		public void open(int taskNumber, int numTasks) throws IOException {
+
+		}
+
+		@Override
+		public void writeRecord(IntValue record) throws IOException {
+
+		}
+
+		@Override
+		public void close() throws IOException {
+
+		}
+
+		@Override
+		public void initialize(Configuration configuration) {
+
+		}
+	}
+
 	/**
 	 * Constructs a sample execution graph consisting of two vertices connected by a channel of the given type.
 	 * 
@@ -108,10 +149,12 @@ public class DefaultSchedulerTest {
 
 		final JobInputVertex inputVertex = new JobInputVertex("Input 1", jobGraph);
 		inputVertex.setInputClass(InputTask.class);
+		inputVertex.setInputFormat(new DummyInputFormat());
 		inputVertex.setNumberOfSubtasks(1);
 
 		final JobOutputVertex outputVertex = new JobOutputVertex("Output 1", jobGraph);
 		outputVertex.setOutputClass(OutputTask.class);
+		outputVertex.setOutputFormat(new DummyOutputFormat());
 		outputVertex.setNumberOfSubtasks(1);
 
 		try {

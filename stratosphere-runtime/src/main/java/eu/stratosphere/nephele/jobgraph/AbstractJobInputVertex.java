@@ -13,6 +13,10 @@
 
 package eu.stratosphere.nephele.jobgraph;
 
+import eu.stratosphere.core.io.InputSplit;
+
+import java.io.IOException;
+
 /**
  * An abstract base class for input vertices in Nephele.
  * 
@@ -34,4 +38,7 @@ public abstract class AbstractJobInputVertex extends AbstractJobVertex {
 
 		jobGraph.addVertex(this);
 	}
+
+	public abstract Class<? extends InputSplit> getInputSplitType();
+	public abstract InputSplit[] getInputSplits(int minNumSplits) throws Exception;
 }
