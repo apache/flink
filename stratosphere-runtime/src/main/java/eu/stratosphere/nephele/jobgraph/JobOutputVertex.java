@@ -31,6 +31,9 @@ import java.io.IOException;
  * 
  */
 public class JobOutputVertex extends AbstractJobOutputVertex {
+	/**
+	 * Contains the output format associated to this output vertex. It can be <pre>null</pre>.
+	 */
 	private volatile OutputFormat<?> outputFormat = null;
 
 	/**
@@ -89,12 +92,22 @@ public class JobOutputVertex extends AbstractJobOutputVertex {
 		return (Class<? extends AbstractOutputTask>) this.invokableClass;
 	}
 
+	/**
+	 * Sets the output format and writes it to the task configuration.
+	 *
+	 * @param outputFormatWrapper Wrapped output format
+	 */
 	public void setOutputFormat(UserCodeWrapper<? extends OutputFormat<?>> outputFormatWrapper){
 		TaskConfig config = new TaskConfig(this.getConfiguration());
 		config.setStubWrapper(outputFormatWrapper);
 		outputFormat = outputFormatWrapper.getUserCodeObject();
 	}
 
+	/**
+	 * Sets the output format and writes it to the task configuration.
+	 *
+	 * @param outputFormat Output format
+	 */
 	public void setOutputFormat(OutputFormat<?> outputFormat){
 		this.outputFormat = outputFormat;
 		UserCodeWrapper<? extends OutputFormat<?>> wrapper = new UserCodeObjectWrapper<OutputFormat<?>>
@@ -103,6 +116,11 @@ public class JobOutputVertex extends AbstractJobOutputVertex {
 		config.setStubWrapper(wrapper);
 	}
 
+	/**
+	 * Sets the output format parameters for the output format by writing it to the task configuration.
+	 *
+	 * @param parameters Output format parameters
+	 */
 	public void setOutputFormatParameters(Configuration parameters){
 		TaskConfig config = new TaskConfig(this.getConfiguration());
 		config.setStubParameters(parameters);
@@ -110,6 +128,14 @@ public class JobOutputVertex extends AbstractJobOutputVertex {
 		outputFormat.configure(parameters);
 	}
 
+	/**
+	 * Deserializes the output format from the deserialized configuration if it contains an output format. The output
+	 * format is always stored in the stub wrapper. If the task configuration contains an output format,
+	 * then it is configured after deserialization.
+	 *
+	 * @param input
+	 * @throws IOException
+	 */
 	@Override
 	public void read(final DataInput input) throws IOException{
 		super.read(input);
@@ -133,5 +159,10 @@ public class JobOutputVertex extends AbstractJobOutputVertex {
 		}
 	}
 
+	/**
+	 * Returns the output format. It can also be <pre>null</pre>.
+	 *
+	 * @return output format or <pre>null</pre>
+	 */
 	public OutputFormat<?> getOutputFormat() { return outputFormat; }
 }

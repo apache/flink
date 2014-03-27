@@ -438,6 +438,11 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT> {
 		}
 	}
 
+	/**
+	 * Initialization of the distributed file system if it is used.
+	 *
+	 * @param configuration The task configuration
+	 */
 	@Override
 	public void initialize(Configuration configuration){
 		final Path path = this.getOutputFilePath();

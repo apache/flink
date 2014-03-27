@@ -39,6 +39,19 @@ public abstract class AbstractJobInputVertex extends AbstractJobVertex {
 		jobGraph.addVertex(this);
 	}
 
+	/**
+	 * Returns the input split type of the input splits created by this input vertex
+	 *
+	 * @return input split type class
+	 */
 	public abstract Class<? extends InputSplit> getInputSplitType();
+
+	/**
+	 * Computes the input splits created by this input vertex
+	 *
+	 * @param minNumSplits Number of minimal input splits
+	 * @return Array of input splits
+	 * @throws Exception
+	 */
 	public abstract InputSplit[] getInputSplits(int minNumSplits) throws Exception;
 }

@@ -27,6 +27,11 @@ import java.io.DataInput;
 import java.io.IOException;
 
 public class JobInputVertex extends AbstractJobInputVertex {
+	/**
+	 * Input format associated to this JobInputVertex. It is either directly set or reconstructed from the task
+	 * configuration. Every job input vertex requires an input format to compute the input splits and the input split
+	 * type.
+	 */
 	private volatile InputFormat<?, ? extends InputSplit> inputFormat = null;
 
 	/**
@@ -85,6 +90,11 @@ public class JobInputVertex extends AbstractJobInputVertex {
 		return (Class<? extends AbstractInputTask<?>>) this.invokableClass;
 	}
 
+	/**
+	 * Sets the input format and writes it to the task configuration. It extracts it from the UserCodeWrapper.
+	 *
+	 * @param inputFormatWrapper Wrapped input format
+	 */
 	public void setInputFormat(UserCodeWrapper<? extends InputFormat<?, ? extends InputSplit>> inputFormatWrapper) {
 		TaskConfig config = new TaskConfig(this.getConfiguration());
 		config.setStubWrapper(inputFormatWrapper);
@@ -92,6 +102,11 @@ public class JobInputVertex extends AbstractJobInputVertex {
 		inputFormat = inputFormatWrapper.getUserCodeObject();
 	}
 
+	/**
+	 * Sets the input format and writes it to the task configuration.
+	 *
+	 * @param inputFormat Input format
+	 */
 	public void setInputFormat(InputFormat<?, ? extends InputSplit> inputFormat) {
 		this.inputFormat = inputFormat;
 
@@ -101,6 +116,11 @@ public class JobInputVertex extends AbstractJobInputVertex {
 		config.setStubWrapper(wrapper);
 	}
 
+	/**
+	 * Sets the input format parameters.
+	 *
+	 * @param inputFormatParameters Input format parameters
+	 */
 	public void setInputFormatParameters(Configuration inputFormatParameters){
 		TaskConfig config = new TaskConfig(this.getConfiguration());
 		config.setStubParameters(inputFormatParameters);
@@ -112,12 +132,23 @@ public class JobInputVertex extends AbstractJobInputVertex {
 		inputFormat.configure(inputFormatParameters);
 	}
 
+	/**
+	 * Sets the output serializer for the task associated to this vertex.
+	 *
+	 * @param factory Type serializer factory
+	 */
 	public void setOutputSerializer(TypeSerializerFactory<?> factory){
 		TaskConfig config = new TaskConfig(this.getConfiguration());
 		config.setOutputSerializer(factory);
 	}
 
-
+	/**
+	 * Deserializes the input format from the deserialized task configuration. It then configures the input format by
+	 * calling the configure method with the current configuration.
+	 *
+	 * @param input
+	 * @throws IOException
+	 */
 	@Override
 	public void read(final DataInput input) throws IOException{
 		super.read(input);
@@ -143,6 +174,11 @@ public class JobInputVertex extends AbstractJobInputVertex {
 		inputFormat.configure(taskConfig.getStubParameters());
 	}
 
+	/**
+	 * Gets the input split type class
+	 *
+	 * @return Input split type class
+	 */
 	@Override
 	public Class<? extends InputSplit> getInputSplitType() {
 		if(inputFormat == null){
@@ -152,6 +188,13 @@ public class JobInputVertex extends AbstractJobInputVertex {
 		return inputFormat.getInputSplitType();
 	}
 
+	/**
+	 * Gets the input splits from the input format.
+	 *
+	 * @param minNumSplits Number of minimal input splits
+	 * @return Array of input splits
+	 * @throws IOException
+	 */
 	@Override
 	public InputSplit[] getInputSplits(int minNumSplits) throws IOException {
 		if(inputFormat == null){

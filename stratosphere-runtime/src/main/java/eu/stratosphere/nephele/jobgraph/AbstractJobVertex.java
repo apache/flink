@@ -573,18 +573,6 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 	}
 
 	/**
-	 * Performs check whether the vertex has been properly configured
-	 *
-	 * @param configuration
-	 *        configuration of this vertex
-	 * @throws IllegalConfigurationException
-	 *         thrown if the respective tasks is not configured properly
-	 */
-	public void checkConfiguration(final Configuration configuration) throws IllegalConfigurationException {
-		//default configuration check
-	}
-
-	/**
 	 * Returns the invokable class which represents the task of this vertex
 	 * 
 	 * @return the invokable class, <code>null</code> if it is not set
