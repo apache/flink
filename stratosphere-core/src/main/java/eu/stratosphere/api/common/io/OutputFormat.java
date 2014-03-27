@@ -81,7 +81,8 @@ public interface OutputFormat<IT> extends Serializable {
 	void close() throws IOException;
 
 	/**
-	 * Method which is called on the master node prior to execution. It can be used to set up the output format.
+	 * Method which is called on the JobManager node prior to execution. It can be used to set up output format
+	 * related tasks.
 	 *
 	 * @param configuration The task configuration
 	 */

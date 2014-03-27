@@ -367,7 +367,7 @@ public class JobManagerITCase {
 
 		try {
 
-			inputFile = ServerTestUtils.createInputFile(0);
+			inputFile = ServerTestUtils.createInputFile(100);
 			outputFile = new File(ServerTestUtils.getTempDir() + File.separator + ServerTestUtils.getRandomFilename());
 			jarFile = ServerTestUtils.createJarFile(runtimeExceptionClassName);
 
@@ -416,6 +416,118 @@ public class JobManagerITCase {
 				}
 				if (!e.getMessage().contains(RuntimeExceptionTask.RUNTIME_EXCEPTION_MESSAGE)) {
 					fail("JobExecutionException does not contain the expected error message");
+				}
+
+				// Check if the correct error message is encapsulated in the exception
+				return;
+			}
+			finally {
+				jcLogger.setLevel(jcLevel);
+			}
+
+			fail("Expected exception but did not receive it");
+
+		} catch (JobGraphDefinitionException jgde) {
+			fail(jgde.getMessage());
+		} catch (IOException ioe) {
+			fail(ioe.getMessage());
+		} finally {
+
+			// Remove temporary files
+			if (inputFile != null) {
+				inputFile.delete();
+			}
+			if (outputFile != null) {
+				outputFile.delete();
+			}
+			if (jarFile != null) {
+				jarFile.delete();
+			}
+
+			if (jobClient != null) {
+				jobClient.close();
+			}
+		}
+	}
+
+	/**
+	 * Tests the Nephele execution when a runtime exception in the output format occurs.
+	 */
+	@Test
+	public void testExecutionWithRuntimeExceptionInOutputFormat() {
+
+		final String runtimeExceptionClassName = RuntimeExceptionTask.class.getSimpleName();
+		File inputFile = null;
+		File outputFile = null;
+		File jarFile = null;
+		JobClient jobClient = null;
+
+		try {
+
+			inputFile = ServerTestUtils.createInputFile(100);
+			outputFile = new File(ServerTestUtils.getTempDir() + File.separator + ServerTestUtils.getRandomFilename());
+			jarFile = ServerTestUtils.createJarFile(runtimeExceptionClassName);
+
+			// Create job graph
+			final JobGraph jg = new JobGraph("Job Graph for Exception Test");
+
+			// input vertex
+			final JobInputVertex i1 = new JobInputVertex("Input 1", jg);
+			i1.setNumberOfSubtasks(1);
+			Class<AbstractInputTask<?>> clazz = (Class<AbstractInputTask<?>>)(Class<?>)DataSourceTask
+					.class;
+			i1.setInputClass(clazz);
+			TextInputFormat inputFormat = new TextInputFormat();
+			inputFormat.setFilePath(new Path(inputFile.toURI()));
+			i1.setInputFormat(inputFormat);
+			i1.setInputFormat(inputFormat);
+			i1.setOutputSerializer(RecordSerializerFactory.get());
+			TaskConfig config= new TaskConfig(i1.getConfiguration());
+			config.addOutputShipStrategy(ShipStrategyType.FORWARD);
+
+			// task vertex 1
+			final JobTaskVertex t1 = new JobTaskVertex("Task with Exception", jg);
+			t1.setTaskClass(ForwardTask.class);
+
+			// output vertex
+			JobOutputVertex o1 = new JobOutputVertex("Output 1", jg);
+			o1.setNumberOfSubtasks(1);
+			o1.setOutputClass(DataSinkTask.class);
+			ExceptionOutputFormat outputFormat = new ExceptionOutputFormat();
+			o1.setOutputFormat(outputFormat);
+			TaskConfig outputConfig = new TaskConfig(o1.getConfiguration());
+			outputConfig.addInputToGroup(0);
+			outputConfig.setInputSerializer(RecordSerializerFactory.get(), 0);
+
+			t1.setVertexToShareInstancesWith(i1);
+			o1.setVertexToShareInstancesWith(i1);
+
+			// connect vertices
+			i1.connectTo(t1, ChannelType.IN_MEMORY);
+			t1.connectTo(o1, ChannelType.IN_MEMORY);
+
+			// add jar
+			jg.addJar(new Path(new File(ServerTestUtils.getTempDir() + File.separator + runtimeExceptionClassName
+					+ ".jar").toURI()));
+
+			// Create job client and launch job
+			jobClient = new JobClient(jg, configuration);
+
+			// deactivate logging of expected test exceptions
+			Logger jcLogger = Logger.getLogger(JobClient.class);
+			Level jcLevel = jcLogger.getEffectiveLevel();
+			jcLogger.setLevel(Level.OFF);
+			try {
+				jobClient.submitJobAndWait();
+			} catch (JobExecutionException e) {
+
+				// Check if the correct error message is encapsulated in the exception
+				if (e.getMessage() == null) {
+					fail("JobExecutionException does not contain an error message");
+				}
+				if (!e.getMessage().contains(RuntimeExceptionTask.RUNTIME_EXCEPTION_MESSAGE)) {
+					fail("JobExecutionException does not contain the expected error message, " +
+							"but instead: " + e.getMessage());
 				}
 
 				// Check if the correct error message is encapsulated in the exception

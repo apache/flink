@@ -465,13 +465,6 @@ public class ExecutionGraph implements ExecutionListener {
 			throw new GraphConversionException(StringUtils.stringifyException(t));
 		}
 
-		// Run the configuration check the user has provided for the vertex
-		try {
-			jobVertex.checkConfiguration(groupVertex.getEnvironment().getInvokable());
-		} catch (IllegalConfigurationException e) {
-			throw new GraphConversionException(StringUtils.stringifyException(e));
-		}
-
 		// Register input and output vertices separately
 		if (jobVertex instanceof AbstractJobInputVertex) {
 
@@ -1043,6 +1036,8 @@ public class ExecutionGraph implements ExecutionListener {
 				if (eg.jobHasFailedOrCanceledStatus()) {
 					return InternalJobStatus.CANCELED;
 				}
+			}else if(latestStateChange == ExecutionState.FAILED){
+				return InternalJobStatus.FAILING;
 			}
 			break;
 		case SCHEDULED:
@@ -1052,6 +1047,8 @@ public class ExecutionGraph implements ExecutionListener {
 				if (eg.jobHasFailedOrCanceledStatus()) {
 					return InternalJobStatus.CANCELED;
 				}
+			}else if(latestStateChange == ExecutionState.FAILED){
+				return InternalJobStatus.FAILING;
 			}
 			break;
 		case RUNNING:

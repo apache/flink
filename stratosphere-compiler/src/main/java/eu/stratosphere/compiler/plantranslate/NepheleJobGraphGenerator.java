@@ -834,8 +834,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		vertex.getConfiguration().setInteger(DataSinkTask.DEGREE_OF_PARALLELISM_KEY, node.getDegreeOfParallelism());
 
 		// set user code
-		vertex.setOutputFormat((UserCodeWrapper<? extends OutputFormat<?>>)node.getPactContract().getUserCodeWrapper
-				());
+		vertex.setOutputFormat((UserCodeWrapper<? extends OutputFormat<?>>)node.getPactContract().getUserCodeWrapper());
 		vertex.setOutputFormatParameters(node.getPactContract().getParameters());
 		
 		return vertex;
