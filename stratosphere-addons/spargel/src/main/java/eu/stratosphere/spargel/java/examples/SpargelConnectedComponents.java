@@ -18,7 +18,7 @@ import eu.stratosphere.api.java.functions.MapFunction;
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.spargel.java.MessageIterator;
 import eu.stratosphere.spargel.java.MessagingFunction;
-import eu.stratosphere.spargel.java.SpargelIteration;
+import eu.stratosphere.spargel.java.VertexCentricIteration;
 import eu.stratosphere.spargel.java.VertexUpdateFunction;
 import eu.stratosphere.types.NullValue;
 
@@ -34,12 +34,11 @@ public class SpargelConnectedComponents {
 		
 		DataSet<Tuple2<Long, Long>> initialVertices = vertexIds.map(new IdAssigner());
 		
-		DataSet<Tuple2<Long, Long>> result = initialVertices.runOperation(SpargelIteration.withPlainEdges(edges, new CCUpdater(), new CCMessager(), 100));
+		DataSet<Tuple2<Long, Long>> result = initialVertices.runOperation(VertexCentricIteration.withPlainEdges(edges, new CCUpdater(), new CCMessager(), 100));
 		
 		result.print();
 		env.execute("Spargel Connected Components");
 	}
-	
 	
 	public static final class CCUpdater extends VertexUpdateFunction<Long, Long, Long> {
 		@Override
@@ -61,10 +60,13 @@ public class SpargelConnectedComponents {
 		}
 	}
 	
+	/**
+	 * A map function that takes a Long value and creates a 2-tuple out of it:
+	 * <pre>(Long value) -> (value, value)</pre>
+	 */
 	public static final class IdAssigner extends MapFunction<Long, Tuple2<Long, Long>> {
-
 		@Override
-		public Tuple2<Long, Long> map(Long value) throws Exception {
+		public Tuple2<Long, Long> map(Long value) {
 			return new Tuple2<Long, Long>(value, value);
 		}
 	}

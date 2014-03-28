@@ -16,6 +16,10 @@ import java.util.Iterator;
 
 import eu.stratosphere.api.java.tuple.Tuple2;
 
+/**
+ * An iterator that returns messages. The iterator is {@link java.lang.Iterable} at the same time to support
+ * the <i>foreach</i> syntax.
+ */
 public final class MessageIterator<Message> implements Iterator<Message>, Iterable<Message>, java.io.Serializable {
 	private static final long serialVersionUID = 1L;
 

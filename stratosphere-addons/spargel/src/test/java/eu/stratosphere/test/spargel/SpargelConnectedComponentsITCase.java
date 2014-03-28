@@ -13,15 +13,63 @@
 
 package eu.stratosphere.test.spargel;
 
-import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.spargel.java.examples.SpargelConnectedComponents;
-import eu.stratosphere.test.iterative.ConnectedComponentsITCase;
+import java.io.BufferedReader;
 
-public class SpargelConnectedComponentsITCase extends ConnectedComponentsITCase {
+import eu.stratosphere.api.java.DataSet;
+import eu.stratosphere.api.java.ExecutionEnvironment;
+import eu.stratosphere.api.java.functions.MapFunction;
+import eu.stratosphere.api.java.tuple.Tuple2;
+import eu.stratosphere.spargel.java.VertexCentricIteration;
+import eu.stratosphere.spargel.java.examples.SpargelConnectedComponents.CCMessager;
+import eu.stratosphere.spargel.java.examples.SpargelConnectedComponents.CCUpdater;
+import eu.stratosphere.spargel.java.examples.SpargelConnectedComponents.IdAssigner;
+import eu.stratosphere.test.testdata.ConnectedComponentsData;
+import eu.stratosphere.test.util.JavaProgramTestBase;
 
-//	@Override
-//	protected Plan getTestJob() {
-//		SpargelConnectedComponents cc = new SpargelConnectedComponents();
-//		return cc.getPlan("4", verticesPath, edgesPath, resultPath, "100");
-//	}
+@SuppressWarnings("serial")
+public class SpargelConnectedComponentsITCase extends JavaProgramTestBase {
+
+	private static final long SEED = 9487520347802987L;
+	
+	private static final int NUM_VERTICES = 1000;
+	
+	private static final int NUM_EDGES = 10000;
+
+	private String resultPath;
+	
+	
+	@Override
+	protected void preSubmit() throws Exception {
+		resultPath = getTempFilePath("results");
+	}
+	
+	@Override
+	protected void testProgram() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		
+		DataSet<Long> vertexIds = env.generateSequence(1, NUM_VERTICES);
+		DataSet<String> edgeString = env.fromElements(ConnectedComponentsData.getRandomOddEvenEdges(NUM_EDGES, NUM_VERTICES, SEED).split("\n"));
+		
+		DataSet<Tuple2<Long, Long>> edges = edgeString.map(new EdgeParser());
+		
+		DataSet<Tuple2<Long, Long>> initialVertices = vertexIds.map(new IdAssigner());
+		DataSet<Tuple2<Long, Long>> result = initialVertices.runOperation(VertexCentricIteration.withPlainEdges(edges, new CCUpdater(), new CCMessager(), 100));
+		
+		result.print();
+		env.execute("Spargel Connected Components");
+	}
+
+	@Override
+	protected void postSubmit() throws Exception {
+		for (BufferedReader reader : getResultReader(resultPath)) {
+			ConnectedComponentsData.checkOddEvenResult(reader);
+		}
+	}
+	
+	public static final class EdgeParser extends MapFunction<String, Tuple2<Long, Long>> {
+		public Tuple2<Long, Long> map(String value) {
+			String[] nums = value.split(" ");
+			return new Tuple2<Long, Long>(Long.parseLong(nums[0]), Long.parseLong(nums[1]));
+		}
+	}
 }

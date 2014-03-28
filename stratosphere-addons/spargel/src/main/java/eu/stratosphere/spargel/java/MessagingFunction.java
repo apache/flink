@@ -20,11 +20,18 @@ import eu.stratosphere.api.common.functions.IterationRuntimeContext;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.api.java.tuple.Tuple3;
-import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.spargel.java.Edge;
+import eu.stratosphere.spargel.java.OutgoingEdge;
 import eu.stratosphere.types.Value;
 import eu.stratosphere.util.Collector;
 
+/**
+ * The base class for functions that produce messages between vertices as a part of a {@link VertexCentricIteration}.
+ * 
+ * @param <VertexKey> The type of the vertex key (the vertex identifier).
+ * @param <VertexValue> The type of the vertex value (the state of the vertex).
+ * @param <Message> The type of the message sent between vertices along the edges.
+ * @param <EdgeValue> The type of the values that are associated with the edges.
+ */
 public abstract class MessagingFunction<VertexKey extends Comparable<VertexKey>, VertexValue, Message, EdgeValue> implements Serializable {
 
 	private static final long serialVersionUID = 1L;
@@ -33,19 +40,42 @@ public abstract class MessagingFunction<VertexKey extends Comparable<VertexKey>,
 	//  Public API Methods
 	// --------------------------------------------------------------------------------------------
 	
+	/**
+	 * This method is invoked once per superstep for each vertex that was changed in that superstep.
+	 * It needs to produce the messages that will be received by vertices in the next superstep.
+	 * 
+	 * @param vertexKey The key of the vertex that was changed.
+	 * @param vertexValue The value (state) of the vertex that was changed.
+	 * 
+	 * @throws Exception The computation may throw exceptions, which causes the superstep to fail.
+	 */
 	public abstract void sendMessages(VertexKey vertexKey, VertexValue vertexValue) throws Exception;
 	
-	public void setup(Configuration config) throws Exception {}
-	
+	/**
+	 * This method is executed one per superstep before the vertex update function is invoked for each vertex.
+	 * 
+	 * @throws Exception Exceptions in the pre-superstep phase cause the superstep to fail.
+	 */
 	public void preSuperstep() throws Exception {}
 	
+	/**
+	 * This method is executed one per superstep after the vertex update function has been invoked for each vertex.
+	 * 
+	 * @throws Exception Exceptions in the post-superstep phase cause the superstep to fail.
+	 */
 	public void postSuperstep() throws Exception {}
 	
 	
+	/**
+	 * Gets an iterator with all outgoing edges. This method s mutually exclusive with {@link #sendMessageToAllNeighbors(Object)}
+	 * and may be called only once.
+	 * 
+	 * @return An iterator with all outgoing edges.
+	 */
 	@SuppressWarnings("unchecked")
-	public Iterator<Edge<VertexKey, EdgeValue>> getOutgoingEdges() {
+	public Iterator<OutgoingEdge<VertexKey, EdgeValue>> getOutgoingEdges() {
 		if (edgesUsed) {
-			throw new IllegalStateException("Can use either 'getOutgoingEdges()' or 'sendMessageToAllTargets()'.");
+			throw new IllegalStateException("Can use either 'getOutgoingEdges()' or 'sendMessageToAllTargets()' exactly once.");
 		}
 		edgesUsed = true;
 		
@@ -58,9 +88,15 @@ public abstract class MessagingFunction<VertexKey extends Comparable<VertexKey>,
 		}
 	}
 	
+	/**
+	 * Sends the given message to all vertices that are targets of an outgoing edge of the changed vertex.
+	 * This method is mutually exclusive to the method {@link #getOutgoingEdges()} and may be called only once.
+	 * 
+	 * @param m The message to send.
+	 */
 	public void sendMessageToAllNeighbors(Message m) {
 		if (edgesUsed) {
-			throw new IllegalStateException("Can use either 'getOutgoingEdges()' or 'sendMessageToAllTargets()'.");
+			throw new IllegalStateException("Can use either 'getOutgoingEdges()' or 'sendMessageToAllTargets()' exactly once.");
 		}
 		
 		edgesUsed = true;
@@ -75,6 +111,13 @@ public abstract class MessagingFunction<VertexKey extends Comparable<VertexKey>,
 		}
 	}
 	
+	/**
+	 * Sends the given message to the vertex identified by the given key. If the target vertex does not exist,
+	 * the next superstep will cause an exception due to a non-deliverable message.
+	 * 
+	 * @param target The key (id) of the target vertex to message.
+	 * @param m The message.
+	 */
 	public void sendMessageTo(VertexKey target, Message m) {
 		outValue.f0 = target;
 		outValue.f1 = m;
@@ -83,14 +126,32 @@ public abstract class MessagingFunction<VertexKey extends Comparable<VertexKey>,
 
 	// --------------------------------------------------------------------------------------------
 	
-	public int getSuperstep() {
+	/**
+	 * Gets the number of the superstep, starting at <tt>1</tt>.
+	 * 
+	 * @return The number of the current superstep.
+	 */
+	public int getSuperstepNumber() {
 		return this.runtimeContext.getSuperstepNumber();
 	}
 	
+	/**
+	 * Gets the iteration aggregator registered under the given name. The iteration aggregator is combines
+	 * all aggregates globally once per superstep and makes them available in the next superstep.
+	 * 
+	 * @param name The name of the aggregator.
+	 * @return The aggregator registered under this name, or null, if no aggregator was registered.
+	 */
 	public <T extends Value> Aggregator<T> getIterationAggregator(String name) {
 		return this.runtimeContext.<T>getIterationAggregator(name);
 	}
 	
+	/**
+	 * Get the aggregated value that an aggregator computed in the previous iteration.
+	 * 
+	 * @param name The name of the aggregator.
+	 * @return The aggregated value of the previous iteration.
+	 */
 	public <T extends Value> T getPreviousIterationAggregate(String name) {
 		return this.runtimeContext.<T>getPreviousIterationAggregate(name);
 	}
@@ -133,11 +194,11 @@ public abstract class MessagingFunction<VertexKey extends Comparable<VertexKey>,
 	
 	
 	
-	private static final class EdgesIteratorNoEdgeValue<VertexKey extends Comparable<VertexKey>, EdgeValue> implements Iterator<Edge<VertexKey, EdgeValue>> {
+	private static final class EdgesIteratorNoEdgeValue<VertexKey extends Comparable<VertexKey>, EdgeValue> implements Iterator<OutgoingEdge<VertexKey, EdgeValue>> {
 
 		private Iterator<Tuple2<VertexKey, VertexKey>> input;
 		
-		private Edge<VertexKey, EdgeValue> edge = new Edge<VertexKey, EdgeValue>();
+		private OutgoingEdge<VertexKey, EdgeValue> edge = new OutgoingEdge<VertexKey, EdgeValue>();
 		
 		
 		void set(Iterator<Tuple2<VertexKey, VertexKey>> input) {
@@ -150,9 +211,9 @@ public abstract class MessagingFunction<VertexKey extends Comparable<VertexKey>,
 		}
 
 		@Override
-		public Edge<VertexKey, EdgeValue> next() {
+		public OutgoingEdge<VertexKey, EdgeValue> next() {
 			Tuple2<VertexKey, VertexKey> next = input.next();
-			edge.set(next.f0, next.f1, null);
+			edge.set(next.f1, null);
 			return edge;
 		}
 
@@ -163,11 +224,11 @@ public abstract class MessagingFunction<VertexKey extends Comparable<VertexKey>,
 	}
 	
 	
-	private static final class EdgesIteratorWithEdgeValue<VertexKey extends Comparable<VertexKey>, EdgeValue> implements Iterator<Edge<VertexKey, EdgeValue>> {
+	private static final class EdgesIteratorWithEdgeValue<VertexKey extends Comparable<VertexKey>, EdgeValue> implements Iterator<OutgoingEdge<VertexKey, EdgeValue>> {
 
 		private Iterator<Tuple3<VertexKey, VertexKey, EdgeValue>> input;
 		
-		private Edge<VertexKey, EdgeValue> edge = new Edge<VertexKey, EdgeValue>();
+		private OutgoingEdge<VertexKey, EdgeValue> edge = new OutgoingEdge<VertexKey, EdgeValue>();
 		
 		void set(Iterator<Tuple3<VertexKey, VertexKey, EdgeValue>> input) {
 			this.input = input;
@@ -179,9 +240,9 @@ public abstract class MessagingFunction<VertexKey extends Comparable<VertexKey>,
 		}
 
 		@Override
-		public Edge<VertexKey, EdgeValue> next() {
+		public OutgoingEdge<VertexKey, EdgeValue> next() {
 			Tuple3<VertexKey, VertexKey, EdgeValue> next = input.next();
-			edge.set(next.f0, next.f1, next.f2);
+			edge.set(next.f1, next.f2);
 			return edge;
 		}
 

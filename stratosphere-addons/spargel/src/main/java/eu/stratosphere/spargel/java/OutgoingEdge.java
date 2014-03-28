@@ -16,35 +16,24 @@ package eu.stratosphere.spargel.java;
  * <tt>Edge</tt> objects represent edges between vertices. Edges are defined by their source and target
  * vertex id. Edges may have an associated value (for example a weight or a distance), if the
  * graph algorithm was initialized with the
- * {@link SpargelIteration#withEdgesWithValue(eu.stratosphere.api.java.DataSet, VertexUpdateFunction, MessagingFunction)}
+ * {@link VertexCentricIteration#withEdgesWithValue(eu.stratosphere.api.java.DataSet, VertexUpdateFunction, MessagingFunction)}
  * method.
  *
  * @param <VertexKey> The type of the vertex key.
  * @param <EdgeValue> The type of the value associated with the edge. For scenarios where the edges do not hold
  *                    value, this type may be arbitrary.
  */
-public final class Edge<VertexKey extends Comparable<VertexKey>, EdgeValue> implements java.io.Serializable {
+public final class OutgoingEdge<VertexKey extends Comparable<VertexKey>, EdgeValue> implements java.io.Serializable {
 	
 	private static final long serialVersionUID = 1L;
 	
-	private VertexKey source;
 	private VertexKey target;
 	
 	private EdgeValue edgeValue;
 	
-	void set(VertexKey source, VertexKey target, EdgeValue edgeValue) {
-		this.source = source;
+	void set(VertexKey target, EdgeValue edgeValue) {
 		this.target = target;
 		this.edgeValue = edgeValue;
-	}
-	
-	/**
-	 * Gets the source vertex id.
-	 * 
-	 * @return The source vertex id.
-	 */
-	public VertexKey source() {
-		return source;
 	}
 	
 	/**

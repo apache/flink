@@ -13,10 +13,13 @@
 package eu.stratosphere.spargel.java;
 
 import java.lang.reflect.Type;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 
 import org.apache.commons.lang3.Validate;
 
+import eu.stratosphere.api.common.aggregators.Aggregator;
 import eu.stratosphere.api.common.operators.DeltaIteration;
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.java.DataSet;
@@ -35,13 +38,36 @@ import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.util.Collector;
 
 /**
+ * This class represents iterative graph computations, programmed in a vertex-centric perspective.
+ * It is a special case of <i>Bulk Synchronous Parallel<i> computation. The paradigm has also been
+ * implemented by Google's <i>Pregel</i> system and by <i>Apache Giraph</i>.
+ * <p>
+ * Vertex centric algorithms operate on graphs, which are defined through vertices and edges. The 
+ * algorithms send messages along the edges and update the state of vertices based on
+ * the old state and the incoming messages. All vertices have an initial state.
+ * The computation terminates once no vertex updates it state any more.
+ * Additionally, a maximum number of iterations (supersteps) may be specified.
+ * <p>
+ * The computation is here represented by two functions:
+ * <ul>
+ *   <li>The {@link VertexUpdateFunction} receives incoming messages and may updates the state for
+ *   the vertex. If a state is updated, messages are sent from this vertex. Initially, all vertices are
+ *   considered updated.</li>
+ *   <li>The {@link MessagingFunction} takes the new vertex state and sends messages along the outgoing
+ *   edges of the vertex. The outgoing edges may optionally have an associated value, such as a weight.</li>
+ * </ul>
+ * <p>
+ * Vertex-centric graph iterations are instantiated by the
+ * {@link #withPlainEdges(DataSet, VertexUpdateFunction, MessagingFunction, int)} method, or the
+ * {@link #withValuedEdges(DataSet, VertexUpdateFunction, MessagingFunction, int)} method, depending on whether
+ * the graph's edges are carrying values.
  *
  * @param <VertexKey> The type of the vertex key (the vertex identifier).
  * @param <VertexValue> The type of the vertex value (the state of the vertex).
  * @param <Message> The type of the message sent between vertices along the edges.
  * @param <EdgeValue> The type of the values that are associated with the edges.
  */
-public class SpargelIteration<VertexKey extends Comparable<VertexKey>, VertexValue, Message, EdgeValue> 
+public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, VertexValue, Message, EdgeValue> 
 	implements CustomUnaryOperation<Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, VertexValue>>
 {
 	private final VertexUpdateFunction<VertexKey, VertexValue, Message> updateFunction;
@@ -54,13 +80,15 @@ public class SpargelIteration<VertexKey extends Comparable<VertexKey>, VertexVal
 	
 	private final TypeInformation<Message> messageType;
 	
+	private final Map<String, Class<? extends Aggregator<?>>> aggregators;
+	
 	private final int maximumNumberOfIterations;
 	
 	private DataSet<Tuple2<VertexKey, VertexValue>> initialVertices;
 		
 	// ----------------------------------------------------------------------------------
 	
-	private  SpargelIteration(VertexUpdateFunction<VertexKey, VertexValue, Message> uf,
+	private  VertexCentricIteration(VertexUpdateFunction<VertexKey, VertexValue, Message> uf,
 			MessagingFunction<VertexKey, VertexValue, Message, EdgeValue> mf,
 			DataSet<Tuple2<VertexKey, VertexKey>> edgesWithoutValue,
 			int maximumNumberOfIterations)
@@ -79,11 +107,12 @@ public class SpargelIteration<VertexKey extends Comparable<VertexKey>, VertexVal
 		this.edgesWithoutValue = edgesWithoutValue;
 		this.edgesWithValue = null;
 		this.maximumNumberOfIterations = maximumNumberOfIterations;
+		this.aggregators = new HashMap<String, Class<? extends Aggregator<?>>>();
 		
 		this.messageType = getMessageType(mf);
 	}
 	
-	private SpargelIteration(VertexUpdateFunction<VertexKey, VertexValue, Message> uf,
+	private VertexCentricIteration(VertexUpdateFunction<VertexKey, VertexValue, Message> uf,
 			MessagingFunction<VertexKey, VertexValue, Message, EdgeValue> mf,
 			DataSet<Tuple3<VertexKey, VertexKey, EdgeValue>> edgesWithValue, 
 			int maximumNumberOfIterations,
@@ -103,6 +132,7 @@ public class SpargelIteration<VertexKey extends Comparable<VertexKey>, VertexVal
 		this.edgesWithoutValue = null;
 		this.edgesWithValue = edgesWithValue;
 		this.maximumNumberOfIterations = maximumNumberOfIterations;
+		this.aggregators = new HashMap<String, Class<? extends Aggregator<?>>>();
 		
 		this.messageType = getMessageType(mf);
 	}
@@ -110,6 +140,18 @@ public class SpargelIteration<VertexKey extends Comparable<VertexKey>, VertexVal
 	private TypeInformation<Message> getMessageType(MessagingFunction<VertexKey, VertexValue, Message, EdgeValue> mf) {
 		Type returnType = TypeExtractor.getTemplateTypes (MessagingFunction.class, mf.getClass(), 2);
 		return TypeExtractor.createTypeInfo(returnType);
+	}
+	
+	/**
+	 * Registers a new aggregator. Aggregators registered here are available during the execution of the vertex updates
+	 * via {@link VertexUpdateFunction#getIterationAggregator(String)} and
+	 * {@link VertexUpdateFunction#getPreviousIterationAggregate(String)}.
+	 * 
+	 * @param name The name of the aggregator, used to retrieve it and its aggregates during execution. 
+	 * @param aggregator The aggregator.
+	 */
+	public void registerAggregator(String name, Class<? extends Aggregator<?>> aggregator) {
+		this.aggregators.put(name, aggregator);
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -143,6 +185,11 @@ public class SpargelIteration<VertexKey extends Comparable<VertexKey>, VertexVal
 		this.initialVertices = inputData;
 	}
 	
+	/**
+	 * Creates the operator that represents this vertex-centric graph computation.
+	 * 
+	 * @return The operator that represents this vertex-centric graph computation.
+	 */
 	@Override
 	public GraphIterationOperator<VertexKey, VertexValue, Message, ?> createOperator() {
 		
@@ -152,14 +199,14 @@ public class SpargelIteration<VertexKey extends Comparable<VertexKey>, VertexVal
 			// edges have no values
 			MessagingUdfNoEdgeValues<VertexKey, VertexValue, Message> messenger = new MessagingUdfNoEdgeValues<VertexKey, VertexValue, Message>(messagingFunction);
 			return new GraphIterationOperator<VertexKey, VertexValue, Message, Tuple2<VertexKey, VertexKey>>(
-					initialVertices, edgesWithoutValue, updateUdf, messenger, messageType, maximumNumberOfIterations);
+					initialVertices, edgesWithoutValue, updateUdf, messenger, messageType, aggregators, maximumNumberOfIterations);
 		}
 		else {
 			// edges have values
 			// edges have no values
 			MessagingUdfWithEdgeValues<VertexKey, VertexValue, Message, EdgeValue> messenger = new MessagingUdfWithEdgeValues<VertexKey, VertexValue, Message, EdgeValue>(messagingFunction);
 			return new GraphIterationOperator<VertexKey, VertexValue, Message, Tuple3<VertexKey, VertexKey, EdgeValue>>(
-					initialVertices, edgesWithValue, updateUdf, messenger, messageType, maximumNumberOfIterations);
+					initialVertices, edgesWithValue, updateUdf, messenger, messageType, aggregators, maximumNumberOfIterations);
 		}
 	}
 	
@@ -181,7 +228,7 @@ public class SpargelIteration<VertexKey extends Comparable<VertexKey>, VertexVal
 	 * @return An in stance of the vertex-centric graph computation operator.
 	 */
 	public static final <VertexKey extends Comparable<VertexKey>, VertexValue, Message>
-			SpargelIteration<VertexKey, VertexValue, Message, ?> withPlainEdges(
+			VertexCentricIteration<VertexKey, VertexValue, Message, ?> withPlainEdges(
 					DataSet<Tuple2<VertexKey, VertexKey>> edgesWithoutValue,
 						VertexUpdateFunction<VertexKey, VertexValue, Message> vertexUpdateFunction,
 						MessagingFunction<VertexKey, VertexValue, Message, ?> messagingFunction,
@@ -191,7 +238,7 @@ public class SpargelIteration<VertexKey extends Comparable<VertexKey>, VertexVal
 		MessagingFunction<VertexKey, VertexValue, Message, Object> tmf = 
 								(MessagingFunction<VertexKey, VertexValue, Message, Object>) messagingFunction;
 		
-		return new SpargelIteration<VertexKey, VertexValue, Message, Object>(vertexUpdateFunction, tmf, edgesWithoutValue, maximumNumberOfIterations);
+		return new VertexCentricIteration<VertexKey, VertexValue, Message, Object>(vertexUpdateFunction, tmf, edgesWithoutValue, maximumNumberOfIterations);
 	}
 	
 	/**
@@ -210,13 +257,13 @@ public class SpargelIteration<VertexKey extends Comparable<VertexKey>, VertexVal
 	 * @return An in stance of the vertex-centric graph computation operator.
 	 */
 	public static final <VertexKey extends Comparable<VertexKey>, VertexValue, Message, EdgeValue>
-			SpargelIteration<VertexKey, VertexValue, Message, EdgeValue> withValuedEdges(
+			VertexCentricIteration<VertexKey, VertexValue, Message, EdgeValue> withValuedEdges(
 					DataSet<Tuple3<VertexKey, VertexKey, EdgeValue>> edgesWithValue,
 					VertexUpdateFunction<VertexKey, VertexValue, Message> uf,
 					MessagingFunction<VertexKey, VertexValue, Message, EdgeValue> mf,
 					int maximumNumberOfIterations)
 	{
-		return new SpargelIteration<VertexKey, VertexValue, Message, EdgeValue>(uf, mf, edgesWithValue, maximumNumberOfIterations, true);
+		return new VertexCentricIteration<VertexKey, VertexValue, Message, EdgeValue>(uf, mf, edgesWithValue, maximumNumberOfIterations, true);
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -269,7 +316,6 @@ public class SpargelIteration<VertexKey extends Comparable<VertexKey>, VertexVal
 		public void open(Configuration parameters) throws Exception {
 			if (getIterationRuntimeContext().getSuperstepNumber() == 1) {
 				this.vertexUpdateFunction.init(getIterationRuntimeContext());
-				this.vertexUpdateFunction.setup(parameters);
 			}
 			this.vertexUpdateFunction.preSuperstep();
 		}
@@ -317,7 +363,6 @@ public class SpargelIteration<VertexKey extends Comparable<VertexKey>, VertexVal
 		public void open(Configuration parameters) throws Exception {
 			if (getIterationRuntimeContext().getSuperstepNumber() == 1) {
 				this.messagingFunction.init(getIterationRuntimeContext(), false);
-				this.messagingFunction.setup(parameters);
 			}
 			
 			this.messagingFunction.preSuperstep();
@@ -366,7 +411,6 @@ public class SpargelIteration<VertexKey extends Comparable<VertexKey>, VertexVal
 		public void open(Configuration parameters) throws Exception {
 			if (getIterationRuntimeContext().getSuperstepNumber() == 1) {
 				this.messagingFunction.init(getIterationRuntimeContext(), true);
-				this.messagingFunction.setup(parameters);
 			}
 			
 			this.messagingFunction.preSuperstep();
@@ -403,6 +447,8 @@ public class SpargelIteration<VertexKey extends Comparable<VertexKey>, VertexVal
 		
 		private final TypeInformation<Tuple2<VertexKey, Message>> messageType;
 		
+		private final Map<String, Class<? extends Aggregator<?>>> aggregators;
+		
 		private final int maximumNumberOfIterations;
 		
 		private GraphIterationOperator(DataSet<Tuple2<VertexKey, VertexValue>> initialVertices,
@@ -410,6 +456,7 @@ public class SpargelIteration<VertexKey extends Comparable<VertexKey>, VertexVal
 		                                            VertexUpdateUdf<VertexKey, VertexValue, Message> updateFunction,
 		                                            CoGroupFunction<EdgeType, Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, Message>> messagingFunction,
 		                                            TypeInformation<Message> messageType,
+		                                            Map<String, Class<? extends Aggregator<?>>> aggregators,
 		                                            int maximumNumberOfIterations)
 		{
 			super(initialVertices, edges, initialVertices.getType());
@@ -417,6 +464,7 @@ public class SpargelIteration<VertexKey extends Comparable<VertexKey>, VertexVal
 			this.edges = edges;
 			this.updateFunction = updateFunction;
 			this.messagingFunction = messagingFunction;
+			this.aggregators = aggregators;
 			this.maximumNumberOfIterations = maximumNumberOfIterations;
 			
 			// construct the type for the messages between the messaging function and the vertex update function
@@ -434,6 +482,10 @@ public class SpargelIteration<VertexKey extends Comparable<VertexKey>, VertexVal
 			
 			final DeltaIteration iteration = new DeltaIteration(0, name);
 			iteration.setMaximumNumberOfIterations(maximumNumberOfIterations);
+			
+			for (Map.Entry<String, Class<? extends Aggregator<?>>> entry : aggregators.entrySet()) {
+				iteration.getAggregators().registerAggregator(entry.getKey(), entry.getValue());
+			}
 			
 			final PlanCogroupOperator<EdgeType, Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, Message>> messenger =
 					new PlanCogroupOperator<EdgeType, Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, Message>>(
