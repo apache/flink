@@ -81,11 +81,28 @@ public class ValueTypeInfo<T extends Value> extends TypeInformation<T> implement
 		throw new UnsupportedOperationException("Value comparators not yet implemented.");
 	}
 	
+	// --------------------------------------------------------------------------------------------
+	
+	@Override
+	public int hashCode() {
+		return type.hashCode() ^ 0xd3a2646c;
+	}
+	
+	@Override
+	public boolean equals(Object obj) {
+		if (obj.getClass() == ValueTypeInfo.class) {
+			return type == ((ValueTypeInfo<?>) obj).type;
+		} else {
+			return false;
+		}
+	}
+	
 	@Override
 	public String toString() {
 		return "ValueType<" + type.getName() + ">";
 	}
 	
+	// --------------------------------------------------------------------------------------------
 	
 	static final <X extends Value> TypeInformation<X> getValueTypeInfo(Class<X> typeClass) {
 		if (Value.class.isAssignableFrom(typeClass)) {

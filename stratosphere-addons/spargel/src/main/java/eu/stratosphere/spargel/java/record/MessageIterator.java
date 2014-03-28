@@ -10,30 +10,44 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
+package eu.stratosphere.spargel.java.record;
 
-package eu.stratosphere.spargel.java.examples.connectedcomponents;
+import java.util.Iterator;
 
-import eu.stratosphere.api.java.record.io.TextInputFormat;
-import eu.stratosphere.types.LongValue;
 import eu.stratosphere.types.Record;
-import eu.stratosphere.types.parser.DecimalTextLongParser;
+import eu.stratosphere.types.Value;
 
-public class DuplicateLongInputFormat extends TextInputFormat {
+public final class MessageIterator<Message extends Value> implements Iterator<Message>, Iterable<Message> {
+
+	private final Message instance;
+	private Iterator<Record> source;
 	
-	private static final long serialVersionUID = 1L;
+	public MessageIterator(Message instance) {
+		this.instance = instance;
+	}
 	
-	private final LongValue l1 = new LongValue();
-	private final LongValue l2 = new LongValue();
+	public final void setSource(Iterator<Record> source) {
+		this.source = source;
+	}
 	
 	@Override
-	public Record readRecord(Record target, byte[] bytes, int offset, int numBytes) {
-		final long value = DecimalTextLongParser.parseField(bytes, offset, numBytes, (char) 0xffff);
+	public final boolean hasNext() {
+		return this.source.hasNext();
+	}
+	
+	@Override
+	public final Message next() {
+		this.source.next().getFieldInto(1, this.instance);
+		return this.instance;
+	}
 
-		this.l1.setValue(value);
-		this.l2.setValue(value);
-		
-		target.setField(0, this.l1);
-		target.setField(1, this.l2);
-		return target;
+	@Override
+	public final void remove() {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public Iterator<Message> iterator() {
+		return this;
 	}
 }

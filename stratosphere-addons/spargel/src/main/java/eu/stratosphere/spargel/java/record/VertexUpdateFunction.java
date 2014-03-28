@@ -10,14 +10,15 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
-package eu.stratosphere.spargel.java;
+package eu.stratosphere.spargel.java.record;
 
 import java.io.Serializable;
 
 import eu.stratosphere.api.common.aggregators.Aggregator;
 import eu.stratosphere.api.common.functions.IterationRuntimeContext;
-import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.types.Key;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.types.Value;
 import eu.stratosphere.util.Collector;
 
@@ -27,10 +28,8 @@ import eu.stratosphere.util.Collector;
  * <VertexValue> The vertex value type.
  * <Message> The message type.
  */
-public abstract class VertexUpdateFunction<VertexKey extends Comparable<VertexKey>, VertexValue, Message> implements Serializable {
+public abstract class VertexUpdateFunction<VertexKey extends Key, VertexValue extends Value, Message extends Value> implements Serializable {
 
-	private static final long serialVersionUID = 1L;
-	
 	// --------------------------------------------------------------------------------------------
 	//  Public API Methods
 	// --------------------------------------------------------------------------------------------
@@ -44,11 +43,11 @@ public abstract class VertexUpdateFunction<VertexKey extends Comparable<VertexKe
 	public void postSuperstep() throws Exception {}
 	
 	public void setNewVertexValue(VertexValue newValue) {
-		outVal.f1 = newValue;
+		outVal.setField(1, newValue);
 		out.collect(outVal);
 	}
 	
-	public int getSuperstepNumber() {
+	public int getSuperstep() {
 		return this.runtimeContext.getSuperstepNumber();
 	}
 	
@@ -66,17 +65,20 @@ public abstract class VertexUpdateFunction<VertexKey extends Comparable<VertexKe
 	
 	private IterationRuntimeContext runtimeContext;
 	
-	private Collector<Tuple2<VertexKey, VertexValue>> out;
+	private Collector<Record> out;
 	
-	private Tuple2<VertexKey, VertexValue> outVal;
+	private Record outVal;
 	
 	
 	void init(IterationRuntimeContext context) {
 		this.runtimeContext = context;
 	}
 	
-	void setOutput(Tuple2<VertexKey, VertexValue> val, Collector<Tuple2<VertexKey, VertexValue>> out) {
+	void setOutput(Record val, Collector<Record> out) {
 		this.out = out;
 		this.outVal = val;
 	}
+	
+	// serializability
+	private static final long serialVersionUID = 1L;
 }

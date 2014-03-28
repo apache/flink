@@ -66,6 +66,22 @@ public class GenericTypeInfo<T> extends TypeInformation<T> implements AtomicType
 		throw new UnsupportedOperationException("Generic type comparators are not yet implemented.");
 	}
 	
+	// --------------------------------------------------------------------------------------------
+	
+	@Override
+	public int hashCode() {
+		return typeClass.hashCode() ^ 0x165667b1;
+	}
+	
+	@Override
+	public boolean equals(Object obj) {
+		if (obj.getClass() == GenericTypeInfo.class) {
+			return typeClass == ((GenericTypeInfo<?>) obj).typeClass;
+		} else {
+			return false;
+		}
+	}
+	
 	@Override
 	public String toString() {
 		return "GenericType<" + typeClass.getCanonicalName() + ">";

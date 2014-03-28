@@ -10,25 +10,21 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
-package eu.stratosphere.spargel.java;
+package eu.stratosphere.spargel.java.record;
 
 import java.io.Serializable;
 import java.util.Iterator;
 
 import eu.stratosphere.api.common.aggregators.Aggregator;
 import eu.stratosphere.api.common.functions.IterationRuntimeContext;
-import eu.stratosphere.api.java.tuple.Tuple;
-import eu.stratosphere.api.java.tuple.Tuple2;
-import eu.stratosphere.api.java.tuple.Tuple3;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.spargel.java.Edge;
+import eu.stratosphere.types.Key;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.types.Value;
 import eu.stratosphere.util.Collector;
 
-public abstract class MessagingFunction<VertexKey extends Comparable<VertexKey>, VertexValue, Message, EdgeValue> implements Serializable {
+public abstract class MessagingFunction<VertexKey extends Key, VertexValue extends Value, Message extends Value, EdgeValue extends Value> implements Serializable {
 
-	private static final long serialVersionUID = 1L;
-	
 	// --------------------------------------------------------------------------------------------
 	//  Public API Methods
 	// --------------------------------------------------------------------------------------------
@@ -42,20 +38,14 @@ public abstract class MessagingFunction<VertexKey extends Comparable<VertexKey>,
 	public void postSuperstep() throws Exception {}
 	
 	
-	@SuppressWarnings("unchecked")
 	public Iterator<Edge<VertexKey, EdgeValue>> getOutgoingEdges() {
 		if (edgesUsed) {
 			throw new IllegalStateException("Can use either 'getOutgoingEdges()' or 'sendMessageToAllTargets()'.");
 		}
-		edgesUsed = true;
 		
-		if (this.edgeWithValueIter != null) {
-			this.edgeWithValueIter.set((Iterator<Tuple3<VertexKey, VertexKey, EdgeValue>>) edges);
-			return this.edgeWithValueIter;
-		} else {
-			this.edgeNoValueIter.set((Iterator<Tuple2<VertexKey, VertexKey>>) edges);
-			return this.edgeNoValueIter;
-		}
+		edgesUsed = true;
+		edgeIter.set(edges);
+		return edgeIter;
 	}
 	
 	public void sendMessageToAllNeighbors(Message m) {
@@ -64,20 +54,18 @@ public abstract class MessagingFunction<VertexKey extends Comparable<VertexKey>,
 		}
 		
 		edgesUsed = true;
-		
-		outValue.f1 = m;
-		
 		while (edges.hasNext()) {
-			Tuple next = (Tuple) edges.next();
-			VertexKey k = next.getField(0);
-			outValue.f0 = k;
+			Record next = edges.next();
+			VertexKey k = next.getField(1, this.keyClass);
+			outValue.setField(0, k);
+			outValue.setField(1, m);
 			out.collect(outValue);
 		}
 	}
 	
 	public void sendMessageTo(VertexKey target, Message m) {
-		outValue.f0 = target;
-		outValue.f1 = m;
+		outValue.setField(0, target);
+		outValue.setField(1, m);
 		out.collect(outValue);
 	}
 
@@ -99,48 +87,51 @@ public abstract class MessagingFunction<VertexKey extends Comparable<VertexKey>,
 	//  internal methods and state
 	// --------------------------------------------------------------------------------------------
 	
-	private Tuple2<VertexKey, Message> outValue;
+	private Record outValue;
 	
 	private IterationRuntimeContext runtimeContext;
 	
-	private Iterator<?> edges;
+	private Iterator<Record> edges;
 	
-	private Collector<Tuple2<VertexKey, Message>> out;
+	private Collector<Record> out;
 	
-	private EdgesIteratorNoEdgeValue<VertexKey, EdgeValue> edgeNoValueIter;
+	private EdgesIterator<VertexKey, EdgeValue> edgeIter;
 	
-	private EdgesIteratorWithEdgeValue<VertexKey, EdgeValue> edgeWithValueIter;
+	private Class<VertexKey> keyClass;
 	
 	private boolean edgesUsed;
 	
 	
-	void init(IterationRuntimeContext context, boolean hasEdgeValue) {
+	@SuppressWarnings("unchecked")
+	void init(IterationRuntimeContext context, VertexKey keyHolder, EdgeValue edgeValueHolder) {
 		this.runtimeContext = context;
-		this.outValue = new Tuple2<VertexKey, Message>();
-		
-		if (hasEdgeValue) {
-			this.edgeWithValueIter = new EdgesIteratorWithEdgeValue<VertexKey, EdgeValue>();
-		} else {
-			this.edgeNoValueIter = new EdgesIteratorNoEdgeValue<VertexKey, EdgeValue>();
-		}
+		this.edgeIter = new EdgesIterator<VertexKey, EdgeValue>(keyHolder, edgeValueHolder);
+		this.outValue = new Record();
+		this.keyClass = (Class<VertexKey>) keyHolder.getClass();
 	}
 	
-	void set(Iterator<?> edges, Collector<Tuple2<VertexKey, Message>> out) {
+	void set(Iterator<Record> edges, Collector<Record> out) {
 		this.edges = edges;
 		this.out = out;
 		this.edgesUsed = false;
 	}
 	
+	private static final long serialVersionUID = 1L;
 	
-	
-	private static final class EdgesIteratorNoEdgeValue<VertexKey extends Comparable<VertexKey>, EdgeValue> implements Iterator<Edge<VertexKey, EdgeValue>> {
+	private static final class EdgesIterator<VertexKey extends Key, EdgeValue extends Value> implements Iterator<Edge<VertexKey, EdgeValue>> {
 
-		private Iterator<Tuple2<VertexKey, VertexKey>> input;
+		private Iterator<Record> input;
+		private VertexKey keyHolder;
+		private EdgeValue edgeValueHolder;
 		
 		private Edge<VertexKey, EdgeValue> edge = new Edge<VertexKey, EdgeValue>();
 		
+		EdgesIterator(VertexKey keyHolder, EdgeValue edgeValueHolder) {
+			this.keyHolder = keyHolder;
+			this.edgeValueHolder = edgeValueHolder;
+		}
 		
-		void set(Iterator<Tuple2<VertexKey, VertexKey>> input) {
+		void set(Iterator<Record> input) {
 			this.input = input;
 		}
 		
@@ -151,37 +142,10 @@ public abstract class MessagingFunction<VertexKey extends Comparable<VertexKey>,
 
 		@Override
 		public Edge<VertexKey, EdgeValue> next() {
-			Tuple2<VertexKey, VertexKey> next = input.next();
-			edge.set(next.f0, next.f1, null);
-			return edge;
-		}
-
-		@Override
-		public void remove() {
-			throw new UnsupportedOperationException();
-		}
-	}
-	
-	
-	private static final class EdgesIteratorWithEdgeValue<VertexKey extends Comparable<VertexKey>, EdgeValue> implements Iterator<Edge<VertexKey, EdgeValue>> {
-
-		private Iterator<Tuple3<VertexKey, VertexKey, EdgeValue>> input;
-		
-		private Edge<VertexKey, EdgeValue> edge = new Edge<VertexKey, EdgeValue>();
-		
-		void set(Iterator<Tuple3<VertexKey, VertexKey, EdgeValue>> input) {
-			this.input = input;
-		}
-		
-		@Override
-		public boolean hasNext() {
-			return input.hasNext();
-		}
-
-		@Override
-		public Edge<VertexKey, EdgeValue> next() {
-			Tuple3<VertexKey, VertexKey, EdgeValue> next = input.next();
-			edge.set(next.f0, next.f1, next.f2);
+			Record next = input.next();
+			next.getFieldInto(0, keyHolder);
+			next.getFieldInto(1, edgeValueHolder);
+			edge.set(keyHolder, edgeValueHolder);
 			return edge;
 		}
 

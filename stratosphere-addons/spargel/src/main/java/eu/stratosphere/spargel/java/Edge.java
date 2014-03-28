@@ -12,25 +12,57 @@
  **********************************************************************************************************************/
 package eu.stratosphere.spargel.java;
 
-
-import eu.stratosphere.types.Key;
-import eu.stratosphere.types.Value;
-
-
-public final class Edge<VertexKey extends Key, EdgeValue extends Value> {
+/**
+ * <tt>Edge</tt> objects represent edges between vertices. Edges are defined by their source and target
+ * vertex id. Edges may have an associated value (for example a weight or a distance), if the
+ * graph algorithm was initialized with the
+ * {@link SpargelIteration#withEdgesWithValue(eu.stratosphere.api.java.DataSet, VertexUpdateFunction, MessagingFunction)}
+ * method.
+ *
+ * @param <VertexKey> The type of the vertex key.
+ * @param <EdgeValue> The type of the value associated with the edge. For scenarios where the edges do not hold
+ *                    value, this type may be arbitrary.
+ */
+public final class Edge<VertexKey extends Comparable<VertexKey>, EdgeValue> implements java.io.Serializable {
 	
+	private static final long serialVersionUID = 1L;
+	
+	private VertexKey source;
 	private VertexKey target;
+	
 	private EdgeValue edgeValue;
 	
-	void set(VertexKey target, EdgeValue edgeValue) {
+	void set(VertexKey source, VertexKey target, EdgeValue edgeValue) {
+		this.source = source;
 		this.target = target;
 		this.edgeValue = edgeValue;
 	}
 	
+	/**
+	 * Gets the source vertex id.
+	 * 
+	 * @return The source vertex id.
+	 */
+	public VertexKey source() {
+		return source;
+	}
+	
+	/**
+	 * Gets the target vertex id.
+	 * 
+	 * @return The target vertex id.
+	 */
 	public VertexKey target() {
 		return target;
 	}
 	
+	/**
+	 * Gets the value associated with the edge. The value may be null if the iteration was initialized with
+	 * an edge data set without edge values.
+	 * Typical examples of edge values are weights or distances of the path represented by the edge.
+	 *  
+	 * @return The value associated with the edge.
+	 */
 	public EdgeValue edgeValue() {
 		return edgeValue;
 	}

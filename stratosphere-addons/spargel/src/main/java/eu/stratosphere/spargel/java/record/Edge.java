@@ -10,44 +10,28 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
-package eu.stratosphere.spargel.java.util;
+package eu.stratosphere.spargel.java.record;
 
-import java.util.Iterator;
 
-import eu.stratosphere.types.Record;
+import eu.stratosphere.types.Key;
 import eu.stratosphere.types.Value;
 
-public final class MessageIterator<Message extends Value> implements Iterator<Message>, Iterable<Message> {
 
-	private final Message instance;
-	private Iterator<Record> source;
+public final class Edge<VertexKey extends Key, EdgeValue extends Value> {
 	
-	public MessageIterator(Message instance) {
-		this.instance = instance;
-	}
+	private VertexKey target;
+	private EdgeValue edgeValue;
 	
-	public final void setSource(Iterator<Record> source) {
-		this.source = source;
-	}
-	
-	@Override
-	public final boolean hasNext() {
-		return this.source.hasNext();
+	void set(VertexKey target, EdgeValue edgeValue) {
+		this.target = target;
+		this.edgeValue = edgeValue;
 	}
 	
-	@Override
-	public final Message next() {
-		this.source.next().getFieldInto(1, this.instance);
-		return this.instance;
+	public VertexKey target() {
+		return target;
 	}
-
-	@Override
-	public final void remove() {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
-	public Iterator<Message> iterator() {
-		return this;
+	
+	public EdgeValue edgeValue() {
+		return edgeValue;
 	}
 }

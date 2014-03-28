@@ -10,18 +10,39 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
+package eu.stratosphere.spargel.java;
 
-package eu.stratosphere.test.spargel;
+import java.util.Iterator;
 
-import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.spargel.java.examples.SpargelConnectedComponents;
-import eu.stratosphere.test.iterative.ConnectedComponentsITCase;
+import eu.stratosphere.api.java.tuple.Tuple2;
 
-public class SpargelConnectedComponentsITCase extends ConnectedComponentsITCase {
+public final class MessageIterator<Message> implements Iterator<Message>, Iterable<Message>, java.io.Serializable {
+	private static final long serialVersionUID = 1L;
 
-//	@Override
-//	protected Plan getTestJob() {
-//		SpargelConnectedComponents cc = new SpargelConnectedComponents();
-//		return cc.getPlan("4", verticesPath, edgesPath, resultPath, "100");
-//	}
+	private transient Iterator<Tuple2<?, Message>> source;
+	
+	
+	final void setSource(Iterator<Tuple2<?, Message>> source) {
+		this.source = source;
+	}
+	
+	@Override
+	public final boolean hasNext() {
+		return this.source.hasNext();
+	}
+	
+	@Override
+	public final Message next() {
+		return this.source.next().f1;
+	}
+
+	@Override
+	public final void remove() {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public Iterator<Message> iterator() {
+		return this;
+	}
 }

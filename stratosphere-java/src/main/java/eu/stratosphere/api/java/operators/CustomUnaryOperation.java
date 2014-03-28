@@ -1,4 +1,5 @@
 /***********************************************************************************************************************
+ *
  * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
@@ -9,19 +10,20 @@
  * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
+ *
  **********************************************************************************************************************/
+package eu.stratosphere.api.java.operators;
 
-package eu.stratosphere.test.spargel;
+import eu.stratosphere.api.java.DataSet;
 
-import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.spargel.java.examples.SpargelConnectedComponents;
-import eu.stratosphere.test.iterative.ConnectedComponentsITCase;
-
-public class SpargelConnectedComponentsITCase extends ConnectedComponentsITCase {
-
-//	@Override
-//	protected Plan getTestJob() {
-//		SpargelConnectedComponents cc = new SpargelConnectedComponents();
-//		return cc.getPlan("4", verticesPath, edgesPath, resultPath, "100");
-//	}
+/**
+ *
+ * @param <IN> The type of the data set consumed by this operator.
+ * @param <OUT> The type of the data set produced by this operator. 
+ */
+public interface CustomUnaryOperation<IN, OUT> {
+	
+	void setInput(DataSet<IN> inputData);
+	
+	Operator<OUT, ?> createOperator();
 }
