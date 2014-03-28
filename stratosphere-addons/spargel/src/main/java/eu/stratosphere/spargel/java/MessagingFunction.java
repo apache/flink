@@ -67,13 +67,13 @@ public abstract class MessagingFunction<VertexKey extends Comparable<VertexKey>,
 	
 	
 	/**
-	 * Gets an iterator with all outgoing edges. This method s mutually exclusive with {@link #sendMessageToAllNeighbors(Object)}
-	 * and may be called only once.
+	 * Gets an {@link java.lang.Iterable} with all outgoing edges. This method is mutually exclusive with
+	 * {@link #sendMessageToAllNeighbors(Object)} and may be called only once.
 	 * 
 	 * @return An iterator with all outgoing edges.
 	 */
 	@SuppressWarnings("unchecked")
-	public Iterator<OutgoingEdge<VertexKey, EdgeValue>> getOutgoingEdges() {
+	public Iterable<OutgoingEdge<VertexKey, EdgeValue>> getOutgoingEdges() {
 		if (edgesUsed) {
 			throw new IllegalStateException("Can use either 'getOutgoingEdges()' or 'sendMessageToAllTargets()' exactly once.");
 		}
@@ -194,8 +194,9 @@ public abstract class MessagingFunction<VertexKey extends Comparable<VertexKey>,
 	
 	
 	
-	private static final class EdgesIteratorNoEdgeValue<VertexKey extends Comparable<VertexKey>, EdgeValue> implements Iterator<OutgoingEdge<VertexKey, EdgeValue>> {
-
+	private static final class EdgesIteratorNoEdgeValue<VertexKey extends Comparable<VertexKey>, EdgeValue> 
+		implements Iterator<OutgoingEdge<VertexKey, EdgeValue>>, Iterable<OutgoingEdge<VertexKey, EdgeValue>>
+	{
 		private Iterator<Tuple2<VertexKey, VertexKey>> input;
 		
 		private OutgoingEdge<VertexKey, EdgeValue> edge = new OutgoingEdge<VertexKey, EdgeValue>();
@@ -221,11 +222,17 @@ public abstract class MessagingFunction<VertexKey extends Comparable<VertexKey>,
 		public void remove() {
 			throw new UnsupportedOperationException();
 		}
+
+		@Override
+		public Iterator<OutgoingEdge<VertexKey, EdgeValue>> iterator() {
+			return this;
+		}
 	}
 	
 	
-	private static final class EdgesIteratorWithEdgeValue<VertexKey extends Comparable<VertexKey>, EdgeValue> implements Iterator<OutgoingEdge<VertexKey, EdgeValue>> {
-
+	private static final class EdgesIteratorWithEdgeValue<VertexKey extends Comparable<VertexKey>, EdgeValue> 
+		implements Iterator<OutgoingEdge<VertexKey, EdgeValue>>, Iterable<OutgoingEdge<VertexKey, EdgeValue>>
+	{
 		private Iterator<Tuple3<VertexKey, VertexKey, EdgeValue>> input;
 		
 		private OutgoingEdge<VertexKey, EdgeValue> edge = new OutgoingEdge<VertexKey, EdgeValue>();
@@ -249,6 +256,10 @@ public abstract class MessagingFunction<VertexKey extends Comparable<VertexKey>,
 		@Override
 		public void remove() {
 			throw new UnsupportedOperationException();
+		}
+		@Override
+		public Iterator<OutgoingEdge<VertexKey, EdgeValue>> iterator() {
+			return this;
 		}
 	}
 }
