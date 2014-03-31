@@ -20,7 +20,6 @@ import java.util.Map;
 import org.apache.commons.lang3.Validate;
 
 import eu.stratosphere.api.common.aggregators.Aggregator;
-import eu.stratosphere.api.common.operators.DeltaIteration;
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.functions.CoGroupFunction;
@@ -28,6 +27,7 @@ import eu.stratosphere.api.java.operators.CustomUnaryOperation;
 import eu.stratosphere.api.java.operators.TwoInputOperator;
 import eu.stratosphere.api.java.operators.translation.BinaryNodeTranslation;
 import eu.stratosphere.api.java.operators.translation.PlanCogroupOperator;
+import eu.stratosphere.api.java.operators.translation.PlanDeltaIterationOperator;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.api.java.tuple.Tuple3;
@@ -433,7 +433,10 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 	// --------------------------------------------------------------------------------------------
 	
 	/*
-	 * The data flow operator.
+	 * The data flow operator. It presents itself to the outside as a two-input operator with inputs vertices and edges.
+	 * Internally, it create a delta iteration node, which is also a two input operator. But the delta iteration
+	 * node uses the vertex input (the first) for both inputs (solution set and initial workset) and uses the
+	 * second input (edges) as a data source inside the iteration.
 	 */
 	private static final class GraphIterationOperator<VertexKey extends Comparable<VertexKey>, VertexValue, Message, EdgeType extends Tuple> extends 
 		TwoInputOperator<Tuple2<VertexKey, VertexValue>, EdgeType, Tuple2<VertexKey, VertexValue>, GraphIterationOperator<VertexKey, VertexValue, Message, EdgeType>>
@@ -480,7 +483,10 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 			
 			final int[] zeroKeyPos = new int[] {0};
 			
-			final DeltaIteration iteration = new DeltaIteration(0, name);
+			final PlanDeltaIterationOperator<Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, VertexValue>> iteration = 
+					new PlanDeltaIterationOperator<Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, VertexValue>>(
+							zeroKeyPos, name, getInput1Type(), getInput1Type());
+			
 			iteration.setMaximumNumberOfIterations(maximumNumberOfIterations);
 			
 			for (Map.Entry<String, Class<? extends Aggregator<?>>> entry : aggregators.entrySet()) {

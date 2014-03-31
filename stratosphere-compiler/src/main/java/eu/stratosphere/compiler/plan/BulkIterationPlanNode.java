@@ -25,11 +25,6 @@ import eu.stratosphere.compiler.dag.TwoInputNode;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.util.Visitor;
 
-import java.util.Map;
-
-/**
- * 
- */
 public class BulkIterationPlanNode extends SingleInputPlanNode implements IterationPlanNode {
 	
 	private final BulkPartialSolutionPlanNode partialSolutionPlanNode;

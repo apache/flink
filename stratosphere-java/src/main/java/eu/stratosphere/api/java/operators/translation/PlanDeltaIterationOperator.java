@@ -14,20 +14,34 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.operators.translation;
 
-import eu.stratosphere.api.common.operators.BulkIteration;
+import eu.stratosphere.api.common.operators.DeltaIteration;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
 
-public class PlanBulkIterationOperator<T> extends BulkIteration implements JavaPlanNode<T> {
+public class PlanDeltaIterationOperator<SS, WS> extends DeltaIteration implements JavaPlanNode<SS> {
 
-	private final TypeInformation<T> type;
+	private final TypeInformation<WS> worksetType;
+	
+	private final TypeInformation<SS> solutionSetType;
 
-	public PlanBulkIterationOperator(String name, TypeInformation<T> type) {
-		super(name);
-		this.type = type;
+	
+	public PlanDeltaIterationOperator(int[] keyPositions, String name, TypeInformation<SS> solutionSetType, TypeInformation<WS> worksetType) {
+		super(keyPositions, name);
+		
+		this.solutionSetType = solutionSetType;
+		this.worksetType = worksetType;
 	}
 	
+	
 	@Override
-	public TypeInformation<T> getReturnType() {
-		return this.type;
+	public TypeInformation<SS> getReturnType() {
+		return this.solutionSetType;
+	}
+
+	public TypeInformation<WS> getWorksetType() {
+		return this.worksetType;
+	}
+	
+	public TypeInformation<SS> getSolutionsetType() {
+		return this.solutionSetType;
 	}
 }
