@@ -13,20 +13,19 @@
 
 package eu.stratosphere.hadoopcompatibility;
 
-import eu.stratosphere.api.common.io.OutputFormat;
-import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.hadoopcompatibility.datatypes.StratosphereTypeConverter;
-import eu.stratosphere.runtime.fs.hdfs.DistributedFileSystem;
-import eu.stratosphere.types.Record;
-import org.apache.hadoop.mapred.*;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+
+import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.RecordWriter;
 import org.apache.hadoop.mapred.TaskAttemptID;
 import org.apache.hadoop.util.ReflectionUtils;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.util.Map;
+import eu.stratosphere.api.common.io.OutputFormat;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.hadoopcompatibility.datatypes.StratosphereTypeConverter;
+import eu.stratosphere.types.Record;
 
 
 public class HadoopOutputFormatWrapper<K,V> implements OutputFormat<Record> {

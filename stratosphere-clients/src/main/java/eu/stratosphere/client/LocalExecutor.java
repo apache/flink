@@ -24,6 +24,7 @@ import eu.stratosphere.api.common.Program;
 import eu.stratosphere.client.minicluster.NepheleMiniCluster;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;
+import eu.stratosphere.compiler.contextcheck.ContextChecker;
 import eu.stratosphere.compiler.dag.DataSinkNode;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
 import eu.stratosphere.compiler.plandump.PlanJSONDumpGenerator;
@@ -186,6 +187,9 @@ public class LocalExecutor extends PlanExecutor {
 	public JobExecutionResult executePlan(Plan plan) throws Exception {
 		if (plan == null)
 			throw new IllegalArgumentException("The plan may not be null.");
+		
+		ContextChecker checker = new ContextChecker();
+		checker.check(plan);
 		
 		synchronized (this.lock) {
 			

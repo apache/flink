@@ -5,6 +5,14 @@ jdk:
   - oraclejdk8
   - oraclejdk7
   - openjdk6
+
+notifications:
+  webhooks:
+    urls:
+      - https://webhooks.gitter.im/e/d70a7e674cb9354c77b2
+    on_success: always  # options: [always|never|change] default: always
+    on_failure: always  # options: [always|never|change] default: always
+
 env:
     global: 
         # username and password for sonatype (maven delpoy)

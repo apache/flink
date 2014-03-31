@@ -14,10 +14,15 @@
 package eu.stratosphere.hadoopcompatibility;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
+
 import eu.stratosphere.api.common.operators.GenericDataSink;
 import eu.stratosphere.api.common.operators.Operator;
+import eu.stratosphere.compiler.contextcheck.Validatable;
 import eu.stratosphere.hadoopcompatibility.datatypes.DefaultStratosphereTypeConverter;
 import eu.stratosphere.hadoopcompatibility.datatypes.StratosphereTypeConverter;
+
+import org.apache.hadoop.mapred.FileOutputFormat;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.OutputFormat;
 
@@ -36,20 +41,14 @@ import java.util.List;
  *
  * The HadoopDataSink provides a default converter: {@link eu.stratosphere.hadoopcompatibility.datatypes.DefaultStratosphereTypeConverter}
  **/
-public class HadoopDataSink<K,V> extends GenericDataSink {
+public class HadoopDataSink<K,V> extends GenericDataSink implements Validatable {
 
 	private static String DEFAULT_NAME = "<Unnamed Hadoop Data Sink>";
 
 	private JobConf jobConf;
 
 	public HadoopDataSink(OutputFormat<K,V> hadoopFormat, JobConf jobConf, String name, Operator input, StratosphereTypeConverter<K,V> conv, Class<K> keyClass, Class<V> valueClass) {
-		super(new HadoopOutputFormatWrapper<K,V>(hadoopFormat, jobConf, conv),input, name);
-		Preconditions.checkNotNull(hadoopFormat);
-		Preconditions.checkNotNull(jobConf);
-		this.name = name;
-		this.jobConf = jobConf;
-		jobConf.setOutputKeyClass(keyClass);
-		jobConf.setOutputValueClass(valueClass);
+		this(hadoopFormat, jobConf, name, ImmutableList.of(input), conv, keyClass, valueClass);
 	}
 
 	public HadoopDataSink(OutputFormat<K,V> hadoopFormat, JobConf jobConf, String name, Operator input, Class<K> keyClass, Class<V> valueClass) {
@@ -90,6 +89,12 @@ public class HadoopDataSink<K,V> extends GenericDataSink {
 
 	public JobConf getJobConf() {
 		return this.jobConf;
+	}
+
+	@Override
+	public void check() {
+		// see for more details https://github.com/stratosphere/stratosphere/pull/531
+		Preconditions.checkNotNull(FileOutputFormat.getOutputPath(jobConf), "The HadoopDataSink currently expects a correct outputPath.");
 	}
 
 }

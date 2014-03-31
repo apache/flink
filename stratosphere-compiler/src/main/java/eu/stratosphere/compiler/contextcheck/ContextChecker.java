@@ -84,6 +84,9 @@ public class ContextChecker implements Visitor<Operator> {
 		} else if (node instanceof DualInputOperator<?>) {
 			checkDualInputContract((DualInputOperator<?>) node);
 		}
+		if(node instanceof Validatable) {
+			((Validatable) node).check();
+		}
 		return true;
 	}
 
