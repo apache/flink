@@ -15,7 +15,7 @@
 package eu.stratosphere.api.java;
 
 import org.apache.commons.lang3.Validate;
-import java.util.Arrays;
+
 import eu.stratosphere.api.common.io.FileOutputFormat;
 import eu.stratosphere.api.common.io.OutputFormat;
 import eu.stratosphere.api.java.aggregation.Aggregations;
@@ -45,7 +45,6 @@ import eu.stratosphere.api.java.operators.ReduceGroupOperator;
 import eu.stratosphere.api.java.operators.ReduceOperator;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.typeutils.InputTypeConfigurable;
-import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
 import eu.stratosphere.core.fs.Path;
 
@@ -96,6 +95,10 @@ public abstract class DataSet<T> {
 		return new FilterOperator<T>(this, filter);
 	}
 	
+	// --------------------------------------------------------------------------------------------
+	//  Projections
+	// --------------------------------------------------------------------------------------------
+	
 	/**
 	 * Selects a subset of fields of a Tuple to create new Tuples. 
 	 * 
@@ -105,24 +108,6 @@ public abstract class DataSet<T> {
 	 *         to create a ProjectOperator. 
 	 */
 	public Projection<T> project(int... fieldIndexes) {
-		
-		if(!(this.getType() instanceof TupleTypeInfo)) {
-			throw new UnsupportedOperationException("project() can only be applied to DataSets of Tuples.");
-		}
-		
-		if(fieldIndexes.length == 0) {
-			throw new IllegalArgumentException("project() needs to select at least one (1) field.");
-		} else if(fieldIndexes.length > 22) {
-			throw new IllegalArgumentException("project() may select only up to twenty-two (22) fields.");
-		}
-		
-		int maxFieldIndex = ((TupleTypeInfo<?>)this.getType()).getArity();
-		for(int i=0; i<fieldIndexes.length; i++) {
-			if(fieldIndexes[i] > maxFieldIndex - 1) {
-				throw new IndexOutOfBoundsException("Provided field index is out of bounds of input tuple.");
-			}
-		}
-		
 		return new Projection<T>(this, fieldIndexes);
 	}
 	
@@ -136,21 +121,7 @@ public abstract class DataSet<T> {
 	 *         to create a ProjectOperator. 
 	 */
 	public Projection<T> project(String fieldMask) {
-		int[] fieldIndexes = new int[fieldMask.length()];
-		int fieldCnt = 0;
-		
-		fieldMask = fieldMask.toUpperCase();
-		for (int i = 0; i < fieldMask.length(); i++) {
-			char c = fieldMask.charAt(i);
-			if (c == '1' || c == 'T') {
-				fieldIndexes[fieldCnt++] = i;
-			} else if (c != '0' && c != 'F') {
-				throw new IllegalArgumentException("Mask string may contain only '0' and '1'.");
-			}
-		}
-		fieldIndexes = Arrays.copyOf(fieldIndexes, fieldCnt);
-		
-		return project(fieldIndexes);
+		return new Projection<T>(this, fieldMask);
 	}
 	
 	/**
@@ -163,17 +134,7 @@ public abstract class DataSet<T> {
 	 *         to create a ProjectOperator. 
 	 */
 	public Projection<T> project(boolean... fieldFlags) {
-		int[] fieldIndexes = new int[fieldFlags.length];
-		int fieldCnt = 0;
-		
-		for (int i = 0; i < fieldFlags.length; i++) {
-			if (fieldFlags[i]) {
-				fieldIndexes[fieldCnt++] = i;
-			}
-		}
-		fieldIndexes = Arrays.copyOf(fieldIndexes, fieldCnt);
-		
-		return project(fieldIndexes);
+		return new Projection<T>(this, fieldFlags);
 	}
 	
 	// --------------------------------------------------------------------------------------------

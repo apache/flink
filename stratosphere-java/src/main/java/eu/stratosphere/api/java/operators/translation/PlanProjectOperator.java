@@ -17,7 +17,6 @@ package eu.stratosphere.api.java.operators.translation;
 import eu.stratosphere.api.common.functions.AbstractFunction;
 import eu.stratosphere.api.common.functions.GenericMap;
 import eu.stratosphere.api.common.operators.base.PlainMapOperatorBase;
-import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
 
@@ -30,7 +29,7 @@ public class PlanProjectOperator<T, R extends Tuple>
 	
 	
 	public PlanProjectOperator(int[] fields, String name, TypeInformation<T> inType, TypeInformation<R> outType) {
-		super(new MapProjector<T, R>(fields, outType.createSerializer()), name);
+		super(new MapProjector<T, R>(fields, outType.createSerializer().createInstance()), name);
 		this.inType = inType;
 		this.outType = outType;
 	}
@@ -57,9 +56,9 @@ public class PlanProjectOperator<T, R extends Tuple>
 		private final int[] fields;
 		private final R outTuple;
 		
-		private MapProjector(int[] fields, TypeSerializer<R> serializer) {
+		private MapProjector(int[] fields, R outTupleInstance) {
 			this.fields = fields;
-			this.outTuple = serializer.createInstance();
+			this.outTuple = outTupleInstance;
 		}
 
 		// TODO We should use code generation for this.
