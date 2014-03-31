@@ -22,6 +22,13 @@ public class PlanDeltaIterationOperator<SS, WS> extends DeltaIteration implement
 	private final TypeInformation<WS> worksetType;
 	
 	private final TypeInformation<SS> solutionSetType;
+	
+	public PlanDeltaIterationOperator(int keyPositions, String name, TypeInformation<SS> solutionSetType, TypeInformation<WS> worksetType) {
+		super(keyPositions, name);
+		
+		this.solutionSetType = solutionSetType;
+		this.worksetType = worksetType;
+	}
 
 	
 	public PlanDeltaIterationOperator(int[] keyPositions, String name, TypeInformation<SS> solutionSetType, TypeInformation<WS> worksetType) {

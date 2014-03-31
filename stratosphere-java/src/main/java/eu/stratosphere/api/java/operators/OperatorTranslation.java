@@ -20,17 +20,20 @@ import java.util.List;
 import java.util.Map;
 
 import eu.stratosphere.api.common.operators.AbstractUdfOperator;
+import eu.stratosphere.api.common.operators.DeltaIteration;
 import eu.stratosphere.api.common.operators.GenericDataSink;
 import eu.stratosphere.api.common.operators.GenericDataSource;
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.common.operators.BulkIteration;
-
 import eu.stratosphere.api.java.DataSet;
+import eu.stratosphere.api.java.DeltaIterativeDataSet;
+import eu.stratosphere.api.java.DeltaIterativeResultDataSet;
 import eu.stratosphere.api.java.IterativeDataSet;
 import eu.stratosphere.api.java.IterativeResultDataSet;
 import eu.stratosphere.api.java.operators.translation.BinaryNodeTranslation;
 import eu.stratosphere.api.java.operators.translation.JavaPlan;
 import eu.stratosphere.api.java.operators.translation.PlanBulkIterationOperator;
+import eu.stratosphere.api.java.operators.translation.PlanDeltaIterationOperator;
 import eu.stratosphere.api.java.operators.translation.UnaryNodeTranslation;
 
 
@@ -87,6 +90,9 @@ public class OperatorTranslation {
 		else if (dataSet instanceof IterativeResultDataSet<?>) {
 			dataFlowOp = translateBulkIteration((IterativeResultDataSet<?>) dataSet);
 		}
+		else if (dataSet instanceof DeltaIterativeResultDataSet<?, ?>) {
+			dataFlowOp = translateDeltaIteration((DeltaIterativeResultDataSet<?, ?>) dataSet);
+		}
 		else {
 			throw new RuntimeException("Error while creating the data flow plan for the program: Unknown operator or data set type: " + dataSet);
 		}
@@ -139,6 +145,27 @@ public class OperatorTranslation {
 		iterationOperator.setNextPartialSolution(translatedBody);
 		iterationOperator.setMaximumNumberOfIterations(iterationHead.getMaxIterations());
 		iterationOperator.setInput(translate(iterationHead.getInput()));
+
+		return iterationOperator;
+	}
+	
+	private DeltaIteration translateDeltaIteration(DeltaIterativeResultDataSet<?, ?> iterationEnd) {
+		PlanDeltaIterationOperator iterationOperator = new PlanDeltaIterationOperator(iterationEnd.getKeyPositions(), "Unnamed Java Delta Iteration", iterationEnd.getType(), iterationEnd.getWorksetType()); // always assume 0 as key position?
+		iterationOperator.setMaximumNumberOfIterations(iterationEnd.getMaxIterations());
+		
+		DeltaIterativeDataSet<?, ?> iterationHead = iterationEnd.getIterationHead();
+
+		translated.put(iterationEnd.getIterationHeadSolutionSet(), iterationOperator.getSolutionSet());
+		translated.put(iterationHead, iterationOperator.getWorkset());
+
+		Operator translatedSolutionSet = translate(iterationEnd.getNextSolutionSet());
+		Operator translatedWorkset = translate(iterationEnd.getNextWorkset());
+		
+		iterationOperator.setNextWorkset(translatedWorkset);
+		iterationOperator.setSolutionSetDelta(translatedSolutionSet);
+
+		iterationOperator.setInitialSolutionSet(translate(iterationHead.getInput1()));
+		iterationOperator.setInitialWorkset(translate(iterationHead.getInput2()));
 
 		return iterationOperator;
 	}

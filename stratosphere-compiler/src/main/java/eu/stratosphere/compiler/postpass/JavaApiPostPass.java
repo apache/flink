@@ -19,6 +19,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import eu.stratosphere.api.common.operators.BulkIteration;
+import eu.stratosphere.api.common.operators.DeltaIteration;
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.common.operators.util.FieldList;
 import eu.stratosphere.api.common.typeutils.TypeComparator;
@@ -36,6 +37,7 @@ import eu.stratosphere.api.java.typeutils.runtime.RuntimeSerializerFactory;
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.CompilerPostPassException;
 import eu.stratosphere.compiler.plan.*;
+import eu.stratosphere.compiler.util.NoOpUnaryUdfOp;
 
 public class JavaApiPostPass implements OptimizerPostPass {
 	
@@ -113,7 +115,14 @@ public class JavaApiPostPass implements OptimizerPostPass {
 			SingleInputPlanNode sn = (SingleInputPlanNode) node;
 			
 			if (!(sn.getOptimizerNode().getPactContract() instanceof UnaryJavaPlanNode)) {
-				throw new RuntimeException("Wrong operator type found in post pass.");
+				
+				// Special case for delta iterations
+				if(sn.getOptimizerNode().getPactContract() instanceof NoOpUnaryUdfOp) {
+					traverseChannel(sn.getInput());
+					return;
+				}
+				else
+					throw new RuntimeException("Wrong operator type found in post pass.");
 			}
 			
 			UnaryJavaPlanNode<?, ?> javaNode = (UnaryJavaPlanNode<?, ?>) sn.getOptimizerNode().getPactContract();
@@ -191,6 +200,20 @@ public class JavaApiPostPass implements OptimizerPostPass {
 			BulkIteration.PartialSolutionPlaceHolder partialSolutionPlaceHolder =
 					(BulkIteration.PartialSolutionPlaceHolder) javaOp;
 			type = ((PlanBulkIterationOperator<?>)partialSolutionPlaceHolder.getContainingBulkIteration()).getReturnType();
+		} else if (javaOp instanceof DeltaIteration.SolutionSetPlaceHolder) {
+			DeltaIteration.SolutionSetPlaceHolder solutionSetPlaceHolder =
+					(DeltaIteration.SolutionSetPlaceHolder) javaOp;
+			type = ((PlanDeltaIterationOperator<?, ?>) solutionSetPlaceHolder.getContainingWorksetIteration()).getReturnType();
+		}  else if (javaOp instanceof DeltaIteration.WorksetPlaceHolder) {
+			DeltaIteration.WorksetPlaceHolder worksetPlaceHolder =
+					(DeltaIteration.WorksetPlaceHolder) javaOp;
+			type = ((PlanDeltaIterationOperator<?, ?>) worksetPlaceHolder.getContainingWorksetIteration()).getReturnType();
+		}  else if (javaOp instanceof NoOpUnaryUdfOp) {
+			NoOpUnaryUdfOp op = (NoOpUnaryUdfOp) javaOp;
+			if(op.getInputs().get(0) instanceof JavaPlanNode<?>) {
+				JavaPlanNode<?> javaNode = (JavaPlanNode<?>) op.getInputs().get(0);
+				type = javaNode.getReturnType();
+			}
 		}
 		
 		// the serializer always exists

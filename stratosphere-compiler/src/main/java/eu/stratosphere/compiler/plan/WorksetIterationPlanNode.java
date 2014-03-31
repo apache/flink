@@ -53,6 +53,8 @@ public class WorksetIterationPlanNode extends DualInputPlanNode implements Itera
 	
 	public Object postPassHelper;
 	
+	private TypeSerializerFactory<?> serializerForIterationChannel;
+	
 	// --------------------------------------------------------------------------------------------
 
 	public WorksetIterationPlanNode(WorksetIterationNode template, String nodeName, Channel initialSolutionSet, Channel initialWorkset,
@@ -251,5 +253,15 @@ public class WorksetIterationPlanNode extends DualInputPlanNode implements Itera
 				this.branchPlan.put(brancher, selectedCandidate);
 			}
 		}
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	public TypeSerializerFactory<?> getSerializerForIterationChannel() {
+		return serializerForIterationChannel;
+	}
+	
+	public void setSerializerForIterationChannel(TypeSerializerFactory<?> serializerForIterationChannel) {
+		this.serializerForIterationChannel = serializerForIterationChannel;
 	}
 }
