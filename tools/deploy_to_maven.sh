@@ -19,7 +19,7 @@
 # 2. Nothing
 # 3. Deploy to s3 (old hadoop)
 # 4. deploy to sonatype (yarn hadoop) (this build will also generate specific poms for yarn hadoop)
-# 5. Nothing
+# 5. Deploy Javadocs.
 # 6. deploy to s3 (yarn hadoop)
 
 # Changes (since travis changed the id assignment)
@@ -80,7 +80,24 @@ if [[ $TRAVIS_PULL_REQUEST == "false" ]] ; then
 		mvn -B -f pom.hadoop2.xml -DskipTests -Dmaven.javadoc.skip=true deploy --settings deploysettings.xml; 
 	fi
 
-	
+	if [[ $TRAVIS_JOB_NUMBER == *5 ]] && [[ $TRAVIS_PULL_REQUEST == "false" ]] && [[ $CURRENT_STRATOSPHERE_VERSION == *SNAPSHOT* ]] ; then 
+		cd stratosphere-java
+		mvn javadoc:javadoc
+		cd target
+		cd apidocs
+		git init
+		git config --global user.email "metzgerr@web.de"
+		git config --global user.name "Travis-CI"
+		git add *
+		git commit -am "Javadocs from '$(date)'"
+		git config credential.helper "store --file=.git/credentials"
+		echo "https://$JAVADOCS_DEPLOY:@github.com" > .git/credentials
+		git push -f https://github.com/stratosphere-javadocs/stratosphere-javadocs.github.io.git master:master
+		rm .git/credentials
+		cd ..
+		cd ..
+		cd ..
+	fi
 
 	#
 	# Deploy binaries to DOPA
