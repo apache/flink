@@ -97,7 +97,7 @@ public class GlobalConfigurationTest {
 	public void testConfigurationYAML() {
 		File tmpDir = getTmpDir();
 		File confFile1 = createRandomFile(tmpDir, ".yaml");
-		File confFile2 = createRandomFile(tmpDir, ".yaml");
+		File confFile2 = createRandomFile(tmpDir, ".yml");
 
 		try {
 			try {

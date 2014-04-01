@@ -13,20 +13,7 @@
 
 package eu.stratosphere.configuration;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FilenameFilter;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
-
+import eu.stratosphere.util.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.w3c.dom.Document;
@@ -36,7 +23,18 @@ import org.w3c.dom.NodeList;
 import org.w3c.dom.Text;
 import org.xml.sax.SAXException;
 
-import eu.stratosphere.util.StringUtils;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FilenameFilter;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 
 /**
  * Global configuration object in Nephele. Similar to Java properties configuration
@@ -330,7 +328,7 @@ public final class GlobalConfiguration {
 
 		// get all XML and YAML files in the directory
 		final File[] xmlFiles = filterFilesBySuffix(confDirFile, ".xml");
-		final File[] yamlFiles = filterFilesBySuffix(confDirFile, ".yaml");
+		final File[] yamlFiles = filterFilesBySuffix(confDirFile, new String[] { ".yaml", ".yml" });
 
 		if ((xmlFiles == null || xmlFiles.length == 0) && (yamlFiles == null || yamlFiles.length == 0)) {
 			LOG.warn("Unable to get the contents of the config directory '" + configDir + "' ("
@@ -371,10 +369,9 @@ public final class GlobalConfiguration {
 	 * #113 on GitHub). If at any point in time, there is a need to go beyond simple key-value pairs syntax
 	 * compatibility will allow to introduce a YAML parser library.
 	 * 
-	 * @param file
-	 *        the YAML file
-	 * @see {@link http://www.yaml.org/spec/1.2/spec.html}
-	 * @see {@link https://github.com/stratosphere/stratosphere/issues/113}
+	 * @param file the YAML file to read from
+	 * @see <a href="http://www.yaml.org/spec/1.2/spec.html">YAML 1.2 specification</a>
+	 * @see <a href="https://github.com/stratosphere/stratosphere/issues/113">Issue #113</a>
 	 */
 	private void loadYAMLResource(final File file) {
 
@@ -651,17 +648,27 @@ public final class GlobalConfiguration {
 	/**
 	 * Filters files in directory which have the specified suffix (e.g. ".xml").
 	 * 
-	 * @param dir
+	 * @param dirToFilter
 	 *        directory to filter
 	 * @param suffix
 	 *        suffix to filter files by (e.g. ".xml")
 	 * @return files with given ending in directory
 	 */
-	private static File[] filterFilesBySuffix(final File dir, final String suffix) {
-		return dir.listFiles(new FilenameFilter() {
+	private static File[] filterFilesBySuffix(final File dirToFilter, final String suffix) {
+		return filterFilesBySuffix(dirToFilter, new String[] { suffix });
+	}
+
+	private static File[] filterFilesBySuffix(final File dirToFilter, final String[] suffixes) {
+		return dirToFilter.listFiles(new FilenameFilter() {
 			@Override
 			public boolean accept(final File dir, final String name) {
-				return dir.equals(dir) && name != null && name.endsWith(suffix);
+				for (String suffix : suffixes) {
+					if (dir.equals(dirToFilter) && name != null && name.endsWith(suffix)) {
+						return true;
+					}
+ 				}
+
+				return false;
 			}
 		});
 	}
