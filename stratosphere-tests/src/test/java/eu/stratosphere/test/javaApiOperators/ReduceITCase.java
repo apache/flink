@@ -38,7 +38,7 @@ import eu.stratosphere.test.util.JavaProgramTestBase;
 @RunWith(Parameterized.class)
 public class ReduceITCase extends JavaProgramTestBase {
 	
-	private static int NUM_PROGRAMS = 8;
+	private static int NUM_PROGRAMS = 9;
 	
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -269,10 +269,32 @@ public class ReduceITCase extends JavaProgramTestBase {
 						"65,5,55\n" +
 						"111,6,55\n";
 			}
+			case 9: {
+				/*
+				 * Reduce with UDF that returns the second input object (check mutable object handling)
+				 */
+				
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				
+				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+				DataSet<Tuple3<Integer, Long, String>> reduceDs = ds.
+						groupBy(1).reduce(new InputReturningTuple3Reduce());
+				
+				reduceDs.writeAsCsv(resultPath);
+				env.execute();
+				
+				// return expected result
+				return "1,1,Hi\n" +
+						"5,2,Hi again!\n" +
+						"15,3,Hi again!\n" +
+						"34,4,Hi again!\n" +
+						"65,5,Hi again!\n" +
+						"111,6,Hi again!\n";
+			}
 //
 //			TODO: activate once sorting is fixed
 //			
-//			case 9: {
+//			case 10: {
 //				/*
 //				 * Reduce on tuples with key field selector and descending group sorting
 //				 */
@@ -293,31 +315,6 @@ public class ReduceITCase extends JavaProgramTestBase {
 //				"34,4,Comment#4\n" +
 //				"65,5,Comment#9\n" +
 //				"111,6,Comment#15\n";
-//			}
-//
-//			TODO: activate once mutable object returning is fixed
-//
-//			case 10: {
-//				/*
-//				 * Reduce if UDF returns (first) input object (check mutable object handling)
-//				 */
-//				
-//				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-//				
-//				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-//				DataSet<Tuple3<Integer, Long, String>> reduceDs = ds.
-//						groupBy(1).reduce(new InputReturnTuple3Reduce());
-//				
-//				reduceDs.writeAsCsv(resultPath);
-//				env.execute();
-//				
-//				// return expected result
-//				return "1,1,Hi\n" +
-//						"5,2,Hi again!\n" +
-//						"15,3,Hi again!\n" +
-//						"34,4,Hi again!\n" +
-//						"65,5,Hi again!\n" +
-//						"111,6,Hi again!\n";
 //			}
 			default: 
 				throw new IllegalArgumentException("Invalid program id");
@@ -385,7 +382,7 @@ public class ReduceITCase extends JavaProgramTestBase {
 		}
 	}
 	
-	public static class InputReturnTuple3Reduce extends ReduceFunction<Tuple3<Integer, Long, String>> {
+	public static class InputReturningTuple3Reduce extends ReduceFunction<Tuple3<Integer, Long, String>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -393,9 +390,9 @@ public class ReduceITCase extends JavaProgramTestBase {
 				Tuple3<Integer, Long, String> in1,
 				Tuple3<Integer, Long, String> in2) throws Exception {
 
-			in1.f0 = in1.f0 + in2.f0;
-			in1.f2 = "Hi again!";
-			return in1;
+			in2.f0 = in1.f0 + in2.f0;
+			in2.f2 = "Hi again!";
+			return in2;
 		}
 	}
 	

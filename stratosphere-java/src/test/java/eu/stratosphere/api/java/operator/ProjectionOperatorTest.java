@@ -12,7 +12,7 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.api.operator;
+package eu.stratosphere.api.java.operator;
 
 import java.util.ArrayList;
 import java.util.List;

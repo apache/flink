@@ -157,6 +157,13 @@ public class Grouping<T> {
 		
 		int pos;
 		
+		if (!dataSet.getType().isTupleType()) {
+			throw new InvalidProgramException("Specifying order keys via field positions is only valid for tuple data types");
+		}
+		if (field >= dataSet.getType().getArity()) {
+			throw new IllegalArgumentException("Order key out of tuple bounds.");
+		}
+		
 		if(this.groupSortKeyPositions == null) {
 			this.groupSortKeyPositions = new int[1];
 			this.groupSortOrders = new Order[1];
