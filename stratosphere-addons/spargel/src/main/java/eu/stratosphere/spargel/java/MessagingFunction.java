@@ -105,7 +105,7 @@ public abstract class MessagingFunction<VertexKey extends Comparable<VertexKey>,
 		
 		while (edges.hasNext()) {
 			Tuple next = (Tuple) edges.next();
-			VertexKey k = next.getField(0);
+			VertexKey k = next.getField(1);
 			outValue.f0 = k;
 			out.collect(outValue);
 		}
