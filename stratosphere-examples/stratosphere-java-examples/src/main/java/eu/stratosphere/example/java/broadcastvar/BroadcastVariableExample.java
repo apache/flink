@@ -16,48 +16,57 @@ package eu.stratosphere.example.java.broadcastvar;
 
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.ExecutionEnvironment;
-import eu.stratosphere.api.java.functions.FlatMapFunction;
+import eu.stratosphere.api.java.functions.MapFunction;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.util.Collector;
 
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
 
-/**
- *
- */
 @SuppressWarnings("serial")
 public class BroadcastVariableExample {
 
-	public static class MultiplyingMapper extends FlatMapFunction<String, String> {
+	public static class ToUppercaseMapper extends MapFunction<String, String> {
+		// Lookup table for Strings to uppercase
+		private Set<String> toUppercase;
 
-		private int factor; 
-		
 		@Override
 		public void open(Configuration parameters) throws Exception {
-			factor = getRuntimeContext().<Integer>getBroadcastVariable("FACTOR").iterator().next();
+			// You can access broadcast variables via `getRuntimeContext().getBroadcastVariable(String)`.
+			//
+			// The broadcasted variable is registered under the previously provided name and the data set is accessed
+			// as a Collection<T> over the broadcasted data set (where T is the type of the broadcasted DataSet<T>).
+			Collection<String> broadcastedData = getRuntimeContext().getBroadcastVariable("toUppercase");
+
+			this.toUppercase = new HashSet(broadcastedData);
 		}
-		
+
 		@Override
-		public void flatMap(String value, Collector<String> out) throws Exception {
-			for (int i = 0; i < factor; i++) {
-				out.collect(value);
-			}
+		public String map(String value) throws Exception {
+			return this.toUppercase.contains(value) ? value.toUpperCase() : value;
 		}
-	}
-	
-	
-	/**
-	 * @param args
-	 */
-	public static void main(String[] args) throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		
-		DataSet<String> strings = env.fromElements("This", "example", "is", "what", "happens", "when", "creativity", "runs", "low", "at", "the", "end", "of", "the", "day");
-		
-		DataSet<Integer> count = env.fromElements(5);
-		
-		strings.flatMap(new MultiplyingMapper()).name("multplier").withBroadcastSet(count, "FACTOR").print();
-		
-		env.execute("Peter's job");
 	}
 
+	public static void main(String[] args) throws Exception {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		// This example program takes the data set `lorem` and uppercases every String, which is also included in the
+		// `toUppercase` data set.
+		//
+		// The `toUppercase` data set is BROADCASTED to the map operator, which creates a lookup table from it. The
+		// lookup tables is then used in the map method to decide whether to uppercase a given String or not.
+
+		DataSet<String> toUppercase = env.fromElements("lorem", "ipsum");
+
+		DataSet<String> lorem = env.fromElements("lorem", "ipsum", "dolor", "sit", "amet");
+
+		lorem.map(new ToUppercaseMapper())
+				// You can broadcast a data set to an operator via `withBroadcastSet(DataSet<T>, String)`.
+				//
+				// The broadcast variable will be registered at the operator under the provided name.
+				.withBroadcastSet(toUppercase, "toUppercase")
+				.print();
+
+		env.execute("Broadcast Variable Example");
+	}
 }
