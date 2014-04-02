@@ -55,7 +55,7 @@ public class SpargelConnectedComponentsITCase extends JavaProgramTestBase {
 		DataSet<Tuple2<Long, Long>> initialVertices = vertexIds.map(new IdAssigner());
 		DataSet<Tuple2<Long, Long>> result = initialVertices.runOperation(VertexCentricIteration.withPlainEdges(edges, new CCUpdater(), new CCMessager(), 100));
 		
-		result.print();
+		result.writeAsCsv(resultPath, "\n", " ");
 		env.execute("Spargel Connected Components");
 	}
 
