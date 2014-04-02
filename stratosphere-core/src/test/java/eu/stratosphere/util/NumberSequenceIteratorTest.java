@@ -50,8 +50,14 @@ public class NumberSequenceIteratorTest {
 		
 		assertEquals(numSplits, splits.length);
 		
+		// test start and end of range
 		assertEquals(iter.getCurrent(), splits[0].getCurrent());
 		assertEquals(iter.getTo(), splits[numSplits-1].getTo());
+		
+		// test continuous range
+		for (int i = 1; i < splits.length; i++) {
+			assertEquals(splits[i-1].getTo() + 1, splits[i].getCurrent());
+		}
 		
 		testMaxSplitDiff(splits);
 	}
@@ -62,7 +68,12 @@ public class NumberSequenceIteratorTest {
 		long maxSplitSize = Long.MIN_VALUE;
 		
 		for (NumberSequenceIterator iter : iters) {
-			long diff = iter.getTo() - iter.getCurrent();
+			long diff;
+			if (iter.getTo() < iter.getCurrent()) {
+				diff = 0;
+			} else {
+				diff = iter.getTo() - iter.getCurrent();
+			}
 			if (diff < 0)
 				diff = Long.MAX_VALUE;
 			

@@ -19,6 +19,12 @@ import java.util.NoSuchElementException;
 
 
 
+/**
+ *
+ */
+/**
+ *
+ */
 public class NumberSequenceIterator implements SplittableIterator<Long> {
 	
 	private static final long serialVersionUID = 1L;
@@ -33,6 +39,19 @@ public class NumberSequenceIterator implements SplittableIterator<Long> {
 		if (from > to)
 			throw new IllegalArgumentException("The 'to' value must not be smaller than the 'from' value.");
 		
+		this.current = from;
+		this.to = to;
+	}
+	
+	
+	/**
+	 * Internal constructor to allow for empty iterators.
+	 * 
+	 * @param from
+	 * @param to
+	 * @param mark
+	 */
+	private NumberSequenceIterator(long from, long to, boolean mark) {
 		this.current = from;
 		this.to = to;
 	}
@@ -78,8 +97,8 @@ public class NumberSequenceIterator implements SplittableIterator<Long> {
 		
 		long elementsPerSplit;
 		
-		if (to - current >= 0) {
-			elementsPerSplit = (to - current) / numPartitions;
+		if (to - current + 1 >= 0) {
+			elementsPerSplit = (to - current + 1) / numPartitions;
 		}
 		else {
 			// long overflow of the range.
@@ -104,7 +123,7 @@ public class NumberSequenceIterator implements SplittableIterator<Long> {
 		
 		if (elementsPerSplit < Long.MAX_VALUE) {
 			// figure out how many get one in addition
-			long numWithExtra = -(elementsPerSplit * numPartitions) + to - current;
+			long numWithExtra = -(elementsPerSplit * numPartitions) + to - current + 1;
 			
 			// based on rounding errors, we may have lost one)
 			if (numWithExtra > numPartitions) {
@@ -121,12 +140,12 @@ public class NumberSequenceIterator implements SplittableIterator<Long> {
 			int i = 0;
 			for (; i < numWithExtra; i++) {
 				long next = curr + elementsPerSplit + 1;
-				iters[i] = new NumberSequenceIterator(curr, next);
+				iters[i] = new NumberSequenceIterator(curr, next-1);
 				curr = next;
 			}
 			for (; i < numPartitions; i++) {
 				long next = curr + elementsPerSplit;
-				iters[i] = new NumberSequenceIterator(curr, next);
+				iters[i] = new NumberSequenceIterator(curr, next-1, true);
 				curr = next;
 			}
 			
