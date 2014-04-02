@@ -345,9 +345,11 @@
                         <!-- Administrative files in the main trunk. -->
                         <exclude>README.md</exclude>
                         <exclude>CHANGELOG</exclude>
+                        <exclude>**/*.creole</exclude>
                         <exclude>CONTRIBUTORS</exclude>
                         <!-- Build fiels -->
                         <exclude>**/pom.xml</exclude>
+                        <exclude>**/pom.hadoop2.xml</exclude>
                         <exclude>**/*.iml</exclude>
                         <!-- Generated content -->
                         <exclude>**/target/**</exclude>
