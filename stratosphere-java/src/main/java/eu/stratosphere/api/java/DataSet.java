@@ -19,6 +19,7 @@ import org.apache.commons.lang3.Validate;
 import eu.stratosphere.api.common.io.FileOutputFormat;
 import eu.stratosphere.api.common.io.OutputFormat;
 import eu.stratosphere.api.java.aggregation.Aggregations;
+import eu.stratosphere.api.java.functions.CoGroupFunction;
 import eu.stratosphere.api.java.functions.FilterFunction;
 import eu.stratosphere.api.java.functions.FlatMapFunction;
 import eu.stratosphere.api.java.functions.GroupReduceFunction;
@@ -30,16 +31,19 @@ import eu.stratosphere.api.java.io.PrintingOutputFormat;
 import eu.stratosphere.api.java.io.TextOutputFormat;
 import eu.stratosphere.api.java.operators.AggregateOperator;
 import eu.stratosphere.api.java.operators.CoGroupOperator;
+import eu.stratosphere.api.java.operators.CoGroupOperator.CoGroupOperatorSets;
+import eu.stratosphere.api.java.operators.CrossOperator.CrossOperatorSets;
 import eu.stratosphere.api.java.operators.CrossOperator;
 import eu.stratosphere.api.java.operators.DataSink;
-import eu.stratosphere.api.java.operators.DistinctOperator;
 import eu.stratosphere.api.java.operators.FilterOperator;
 import eu.stratosphere.api.java.operators.FlatMapOperator;
 import eu.stratosphere.api.java.operators.Grouping;
+import eu.stratosphere.api.java.operators.JoinOperator;
 import eu.stratosphere.api.java.operators.JoinOperator.JoinHint;
 import eu.stratosphere.api.java.operators.JoinOperator.JoinOperatorSets;
 import eu.stratosphere.api.java.operators.Keys;
 import eu.stratosphere.api.java.operators.MapOperator;
+import eu.stratosphere.api.java.operators.ProjectOperator;
 import eu.stratosphere.api.java.operators.ProjectOperator.Projection;
 import eu.stratosphere.api.java.operators.ReduceGroupOperator;
 import eu.stratosphere.api.java.operators.ReduceOperator;
@@ -83,14 +87,51 @@ public abstract class DataSet<T> {
 	//  Filter & Transformations
 	// --------------------------------------------------------------------------------------------
 	
+	/**
+	 * Applies a Map transformation on a {@link DataSet}.
+	 * The transformation calls a {@link MapFunction} for each element of the DataSet.
+	 * Each MapFunction call returns exactly one element.
+	 * 
+	 * @param mapper The MapFunction that is called for each element of the DataSet.
+	 * @return A MapOperator that represents the transformed DataSet.
+	 * 
+	 * @see MapFunction
+	 * @see MapOperator
+	 * @see DataSet
+	 */
 	public <R> MapOperator<T, R> map(MapFunction<T, R> mapper) {
 		return new MapOperator<T, R>(this, mapper);
 	}
 	
+	/**
+	 * Applies a FlatMap transformation on a {@link DataSet}.
+	 * The transformation calls a {@link FlatMapFunction} for each element of the DataSet.
+	 * Each FlatMapFunction call can return any number of elements including none.
+	 * 
+	 * @param flatMapper The FlatMapFunction that is called for each element of the DataSet. 
+	 * @return A FlatMapOperator that represents the transformed DataSet.
+	 * 
+	 * @see FlatMapFunction
+	 * @see FlatMapOperator
+	 * @see DataSet
+	 */
 	public <R> FlatMapOperator<T, R> flatMap(FlatMapFunction<T, R> flatMapper) {
 		return new FlatMapOperator<T, R>(this, flatMapper);
 	}
 	
+	/**
+	 * Applies a Filter transformation on a {@link DataSet}.
+	 * The transformation calls a {@link FilterFunction} for each element of the DataSet 
+	 * and retains only those element for which the function returns true. Elements for 
+	 * which the function returns false are filtered. 
+	 * 
+	 * @param filter The FilterFunction that is called for each element of the DataSet.
+	 * @return A FilterOperator that represents the filtered DataSet.
+	 * 
+	 * @see FilterFunction
+	 * @see FilterOperator
+	 * @see DataSet
+	 */
 	public FilterOperator<T> filter(FilterFunction<T> filter) {
 		return new FilterOperator<T>(this, filter);
 	}
@@ -100,38 +141,65 @@ public abstract class DataSet<T> {
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * Selects a subset of fields of a Tuple to create new Tuples. 
+	 * Initiates a Project transformation on a {@link Tuple} {@link DataSet}.
+	 * <b>Non-Tuple DataSets cannot be projected.</b></br>
+	 * The transformation projects each Tuple of the DataSet onto a (sub)set of fields.</br>
+	 * This method returns a {@link Projection} on which {@link Projection#types()} needs to 
+	 *   be called to completed the transformation.
 	 * 
-	 * @param fieldIndexes The field indexes select the fields of an input tuple that are kept in an output tuple.
-	 * 					   The order of fields in the output tuple depends on the order of field indexes.
-	 * @return Returns a Projection. Call the types() method with the correct number of class parameters 
-	 *         to create a ProjectOperator. 
+	 * @param fieldIndexes The field indexes of the input tuples that are retained.
+	 * 					   The order of fields in the output tuple corresponds to the order of field indexes.
+	 * @return A Projection that needs to be converted into a {@link ProjectOperator} to complete the 
+	 *           Project transformation by calling {@link Projection#types()}.
+	 * 
+	 * @see Tuple
+	 * @see DataSet
+	 * @see Projection
+	 * @see ProjectOperator
 	 */
 	public Projection<T> project(int... fieldIndexes) {
 		return new Projection<T>(this, fieldIndexes);
 	}
 	
 	/**
-	 * Selects a subset of fields of a Tuple to create new Tuples. 
+	 * Initiates a Project transformation on a {@link Tuple} {@link DataSet}.
+	 * <b>Non-Tuple DataSets cannot be projected.</b></br>
+	 * The transformation projects each Tuple of the DataSet onto a (sub)set of fields.</br>
+	 * This method returns a {@link Projection} on which {@link Projection#types()} needs to 
+	 *   be called to completed the transformation.
 	 * 
-	 * @param fieldMask The field mask indicates which fields of an input tuple that are kept ('1' or 'T') 
-	 * 					in an output tuple and which are removed ('0', 'F').
+	 * @param fieldMask The field mask indicates the fields of an input tuple that are retained ('1' or 'T') 
+	 * 					and that are removed ('0', 'F').
 	 * 				    The order of fields in the output tuple is the same as in the input tuple.
-	 * @return Returns a Projection. Call the types() method with the correct number of class parameters 
-	 *         to create a ProjectOperator. 
+	 * @return A Projection that needs to be converted into a {@link ProjectOperator} to complete the 
+	 *           Project transformation by calling {@link Projection#types()}.
+	 * 
+	 * @see Tuple
+	 * @see DataSet
+	 * @see Projection
+	 * @see ProjectOperator
 	 */
 	public Projection<T> project(String fieldMask) {
 		return new Projection<T>(this, fieldMask);
 	}
 	
 	/**
-	 * Selects a subset of fields of a Tuple to create new Tuples. 
+	 * Initiates a Project transformation on a {@link Tuple} {@link DataSet}.
+	 * <b>Non-Tuple DataSets cannot be projected.</b></br>
+	 * The transformation projects each Tuple of the DataSet onto a (sub)set of fields.</br>
+	 * This method returns a {@link Projection} on which {@link Projection#types()} needs to 
+	 *   be called to completed the transformation.
 	 * 
-	 * @param fieldMask The field flags indicates which fields of an input tuple that are kept (TRUE) 
-	 * 					in an output tuple and which are removed (FALSE).
+	 * @param fieldMask The field flags indicates which fields of an input tuple that are retained (true) 
+	 * 					and that are removed (false).
 	 * 				    The order of fields in the output tuple is the same as in the input tuple.
-	 * @return Returns a Projection. Call the types() method with the correct number of class parameters 
-	 *         to create a ProjectOperator. 
+	 * @return A Projection that needs to be converted into a {@link ProjectOperator} to complete the 
+	 *           Project transformation by calling {@link Projection#types()}.
+	 * 
+	 * @see Tuple
+	 * @see DataSet
+	 * @see Projection
+	 * @see ProjectOperator
 	 */
 	public Projection<T> project(boolean... fieldFlags) {
 		return new Projection<T>(this, fieldFlags);
@@ -141,14 +209,56 @@ public abstract class DataSet<T> {
 	//  Non-grouped aggregations
 	// --------------------------------------------------------------------------------------------
 	
+	/**
+	 * Applies an Aggregate transformation on a non-grouped {@link Tuple} {@link DataSet}.
+	 * <b>Non-Tuple DataSets cannot be aggregated.</b>
+	 * The transformation applies a built-in {@link Aggregations Aggregation} on a specified field 
+	 *   of a Tuple DataSet. Additional aggregation functions can be added to the resulting 
+	 *   {@link AggregateOperator} by calling {@link AggregateOperator#and(Aggregations, int)}.
+	 * 
+	 * @param agg The built-in aggregation function that is computed.
+	 * @param field The index of the Tuple field on which the aggregation function is applied.
+	 * @return An AggregateOperator that represents the aggregated DataSet. 
+	 * 
+	 * @see Tuple
+	 * @see Aggregations
+	 * @see AggregateOperator
+	 * @see DataSet
+	 */
 	public AggregateOperator<T> aggregate(Aggregations agg, int field) {
 		return new AggregateOperator<T>(this, agg, field);
 	}
 	
+	/**
+	 * Applies a Reduce transformation on a non-grouped {@link DataSet}.
+	 * The transformation consecutively calls a {@link ReduceFunction} 
+	 *   until only a single element remains which is the result of the transformation.
+	 * A ReduceFunction combines two elements into one new element of the same type.
+	 * 
+	 * @param reducer The ReduceFunction that is applied on the DataSet.
+	 * @return A ReduceOperator that represents the reduced DataSet.
+	 * 
+	 * @see ReduceFunction
+	 * @see ReduceOperator
+	 * @see DataSet
+	 */
 	public ReduceOperator<T> reduce(ReduceFunction<T> reducer) {
 		return new ReduceOperator<T>(this, reducer);
 	}
 	
+	/**
+	 * Applies a GroupReduce transformation on a non-grouped {@link DataSet}.
+	 * The transformation calls a {@link GroupReduceFunction} once with the full DataSet.
+	 * The GroupReduceFunction can iterate over all elements of the DataSet and emit any
+	 *   number of output elements including none.
+	 * 
+	 * @param reducer The GroupReduceFunction that is applied on the DataSet.
+	 * @return A GroupReduceOperator that represents the reduced DataSet.
+	 * 
+	 * @see GroupReduceFunction
+	 * @see GroupReduceOperator
+	 * @see DataSet
+	 */
 	public <R> ReduceGroupOperator<T, R> reduceGroup(GroupReduceFunction<T, R> reducer) {
 		return new ReduceGroupOperator<T, R>(this, reducer);
 	}
@@ -157,22 +267,44 @@ public abstract class DataSet<T> {
 	//  distinct
 	// --------------------------------------------------------------------------------------------
 	
-	public <K extends Comparable<K>> DistinctOperator<T> distinct(KeySelector<T, K> keyExtractor) {
-		return new DistinctOperator<T>(this, new Keys.SelectorFunctionKeys<T, K>(keyExtractor, getType()));
-	}
+//	public <K extends Comparable<K>> DistinctOperator<T> distinct(KeySelector<T, K> keyExtractor) {
+//		return new DistinctOperator<T>(this, new Keys.SelectorFunctionKeys<T, K>(keyExtractor, getType()));
+//	}
 	
 //	public DistinctOperator<T> distinct(String fieldExpression) {
 //		return new DistinctOperator<T>(this, new Keys.ExpressionKeys<T>(fieldExpression, getType()));
 //	}
 	
-	public DistinctOperator<T> distinct(int... fields) {
-		return new DistinctOperator<T>(this, new Keys.FieldPositionKeys<T>(fields, getType(), true));
-	}
+//	public DistinctOperator<T> distinct(int... fields) {
+//		return new DistinctOperator<T>(this, new Keys.FieldPositionKeys<T>(fields, getType(), true));
+//	}
 	
 	// --------------------------------------------------------------------------------------------
 	//  Grouping
 	// --------------------------------------------------------------------------------------------
 
+	/**
+	 * Groups a {@link DataSet} using a {@link KeySelector} function. 
+	 * The KeySelector function is called for each element of the DataSet and extracts a single 
+	 *   key value on which the DataSet is grouped. </br>
+	 * This method returns a {@link Grouping} on which one of the following grouping transformation 
+	 *   needs to be applied to obtain a transformed DataSet. 
+	 * <ul>
+	 *   <li>{@link Grouping#aggregate(Aggregations, int)}
+	 *   <li>{@link Grouping#reduce(ReduceFunction)}
+	 *   <li>{@link Grouping#reduceGroup(GroupReduceFunction)}
+	 * </ul>
+	 *  
+	 * @param keyExtractor The KeySelector function which extracts the key values from the DataSet on which it is grouped. 
+	 * @return A Grouping on which a transformation needs to be applied to obtain a transformed DataSet.
+	 * 
+	 * @see KeySelector
+	 * @see Grouping
+	 * @see AggregateOperator
+	 * @see ReduceOperator
+	 * @see GroupReduceOperator
+	 * @see DataSet
+	 */
 	public <K extends Comparable<K>> Grouping<T> groupBy(KeySelector<T, K> keyExtractor) {
 		return new Grouping<T>(this, new Keys.SelectorFunctionKeys<T, K>(keyExtractor, getType()));
 	}
@@ -181,22 +313,94 @@ public abstract class DataSet<T> {
 //		return new Grouping<T>(this, new Keys.ExpressionKeys<T>(fieldExpression, getType()));
 //	}
 	
+	/**
+	 * Groups a {@link Tuple} {@link DataSet} using field position keys. 
+	 * <b>Field position keys cannot be specified for non-Tuple DataSets.</b></br>
+	 * The field position keys specify the fields of Tuples on which the DataSet is grouped.
+	 * This method returns a {@link Grouping} on which one of the following grouping transformation 
+	 *   needs to be applied to obtain a transformed DataSet. 
+	 * <ul>
+	 *   <li>{@link Grouping#aggregate(Aggregations, int)}
+	 *   <li>{@link Grouping#reduce(ReduceFunction)}
+	 *   <li>{@link Grouping#reduceGroup(GroupReduceFunction)}
+	 * </ul> 
+	 * 
+	 * @param fields One or more field positions on which the DataSet will be grouped. 
+	 * @return A Grouping on which a transformation needs to be applied to obtain a transformed DataSet.
+	 * 
+	 * @see Tuple
+	 * @see Grouping
+	 * @see AggregateOperator
+	 * @see ReduceOperator
+	 * @see GroupReduceOperator
+	 * @see DataSet
+	 */
 	public Grouping<T> groupBy(int... fields) {
 		return new Grouping<T>(this, new Keys.FieldPositionKeys<T>(fields, getType(), false));
 	}
 	
 	// --------------------------------------------------------------------------------------------
-	//  Grouping  Joining
+	//  Joining
 	// --------------------------------------------------------------------------------------------
 	
+	/**
+	 * Initiates a Join transformation. A Join transformation joins the elements of two 
+	 *   {@link DataSet DataSets} on key equality and provides multiple ways to combine 
+	 *   joining elements into one DataSet.</br>
+	 * 
+	 * This method returns a {@link JoinOperatorSets} on which 
+	 *   {@link JoinOperatorSets#where()} needs to be called to define the join key of the first 
+	 *   joining (i.e., this) DataSet.
+	 *  
+	 * @param other The other DataSet with which this DataSet is joined.
+	 * @return A JoinOperatorSets to continue the definition of the Join transformation.
+	 * 
+	 * @see JoinOperatorSets
+	 * @see JoinOperator
+	 * @see DataSet
+	 */
 	public <R> JoinOperatorSets<T, R> join(DataSet<R> other) {
 		return new JoinOperatorSets<T, R>(this, other);
 	}
 	
+	/**
+	 * Initiates a Join transformation. A Join transformation joins the elements of two 
+	 *   {@link DataSet DataSets} on key equality and provides multiple ways to combine 
+	 *   joining elements into one DataSet.</br>
+	 * This method also gives the hint to the optimizer that the second DataSet to join is much
+	 *   smaller than the first one.</br>
+	 * This method returns a {@link JoinOperatorSets} on which 
+	 *   {@link JoinOperatorSets#where()} needs to be called to define the join key of the first 
+	 *   joining (i.e., this) DataSet.
+	 *  
+	 * @param other The other DataSet with which this DataSet is joined.
+	 * @return A JoinOperatorSets to continue the definition of the Join transformation.
+	 * 
+	 * @see JoinOperatorSets
+	 * @see JoinOperator
+	 * @see DataSet
+	 */
 	public <R> JoinOperatorSets<T, R> joinWithTiny(DataSet<R> other) {
 		return new JoinOperatorSets<T, R>(this, other, JoinHint.BROADCAST_HASH_SECOND);
 	}
 	
+	/**
+	 * Initiates a Join transformation. A Join transformation joins the elements of two 
+	 *   {@link DataSet DataSets} on key equality and provides multiple ways to combine 
+	 *   joining elements into one DataSet.</br>
+	 * This method also gives the hint to the optimizer that the second DataSet to join is much
+	 *   larger than the first one.</br>
+	 * This method returns a {@link JoinOperatorSets JoinOperatorSet} on which 
+	 *   {@link JoinOperatorSets#where()} needs to be called to define the join key of the first 
+	 *   joining (i.e., this) DataSet.
+	 *  
+	 * @param other The other DataSet with which this DataSet is joined.
+	 * @return A JoinOperatorSet to continue the definition of the Join transformation.
+	 * 
+	 * @see JoinOperatorSets
+	 * @see JoinOperator
+	 * @see DataSet
+	 */
 	public <R> JoinOperatorSets<T, R> joinWithHuge(DataSet<R> other) {
 		return new JoinOperatorSets<T, R>(this, other, JoinHint.BROADCAST_HASH_FIRST);
 	}
@@ -205,6 +409,25 @@ public abstract class DataSet<T> {
 	//  Co-Grouping
 	// --------------------------------------------------------------------------------------------
 
+	/**
+	 * Initiates a CoGroup transformation. A CoGroup transformation combines the elements of
+	 *   two {@link DataSet DataSets} into one DataSet. It groups each DataSet individually on a key and 
+	 *   gives groups of both DataSets with equal keys together into a {@link CoGroupFunction}.
+	 *   If a DataSet has a group with no matching key in the other DataSet, the CoGroupFunction
+	 *   is called with an empty group for the non-existing group.</br>
+	 * The CoGroupFunction can iterate over the elements of both groups and return any number 
+	 *   of elements including none.</br>
+	 * This method returns a {@link CoGroupOperatorSets} on which 
+	 *   {@link CoGroupOperatorSets#where(} needs to be called to define the grouping key of the first 
+	 *   (i.e., this) DataSet.
+	 * 
+	 * @param other The other DataSet of the CoGroup transformation.
+	 * @return A CoGroupOperatorSets to continue the definition of the CoGroup transformation.
+	 * 
+	 * @see CoGroupOperatorSets
+	 * @see CoGroupOperator
+	 * @see DataSet
+	 */
 	public <R> CoGroupOperator.CoGroupOperatorSets<T, R> coGroup(DataSet<R> other) {
 		return new CoGroupOperator.CoGroupOperatorSets<T, R>(this, other);
 	}
@@ -213,14 +436,69 @@ public abstract class DataSet<T> {
 	//  Cross
 	// --------------------------------------------------------------------------------------------
 
+	/**
+	 * Initiates a Cross transformation. A Cross transformation combines the elements of two 
+	 *   {@link DataSet DataSets} into one DataSet. It builds all pair combinations of elements of 
+	 *   both DataSets, i.e., it builds a Cartesian product, and calls a {@link CrossFunction} for
+	 *   each pair of elements.</br>
+	 * The CrossFunction returns a exactly one element for each pair of input elements.</br>
+	 * This method returns a {@link CrossOperatorSets} on which 
+	 *   {@link CrossOperatorSets#with()} needs to be called to define the CrossFunction that 
+	 *   is applied.
+	 * 
+	 * @param other The other DataSet with which this DataSet is crossed. 
+	 * @return A CrossOperatorSets to continue the definition of the Cross transformation.
+	 * 
+	 * @see CrossFunction
+	 * @see CrossOperatorSets
+	 * @see DataSet
+	 */
 	public <R> CrossOperator.CrossOperatorSets<T, R> cross(DataSet<R> other) {
 		return new CrossOperator.CrossOperatorSets<T, R>(this, other);
 	}
 	
+	/**
+	 * Initiates a Cross transformation. A Cross transformation combines the elements of two 
+	 *   {@link DataSet DataSets} into one DataSet. It builds all pair combinations of elements of 
+	 *   both DataSets, i.e., it builds a Cartesian product, and calls a {@link CrossFunction} for
+	 *   each pair of elements.</br>
+	 * The CrossFunction returns a exactly one element for each pair of input elements.</br>
+	 * This method also gives the hint to the optimizer that the second DataSet to cross is much
+	 *   smaller than the first one.</br>
+	 * This method returns a {@link CrossOperatorSets CrossOperatorSet} on which 
+	 *   {@link CrossOperatorSets#with()} needs to be called to define the CrossFunction that 
+	 *   is applied.
+	 * 
+	 * @param other The other DataSet with which this DataSet is crossed. 
+	 * @return A CrossOperatorSets to continue the definition of the Cross transformation.
+	 * 
+	 * @see CrossFunction
+	 * @see CrossOperatorSets
+	 * @see DataSet
+	 */
 	public <R> CrossOperator.CrossOperatorSets<T, R> crossWithTiny(DataSet<R> other) {
 		return new CrossOperator.CrossOperatorSets<T, R>(this, other);
 	}
 	
+	/**
+	 * Initiates a Cross transformation. A Cross transformation combines the elements of two 
+	 *   {@link DataSet DataSets} into one DataSet. It builds all pair combinations of elements of 
+	 *   both DataSets, i.e., it builds a Cartesian product, and calls a {@link CrossFunction} for
+	 *   each pair of elements.</br>
+	 * The CrossFunction returns a exactly one element for each pair of input elements.</br>
+	 * This method also gives the hint to the optimizer that the second DataSet to cross is much
+	 *   larger than the first one.</br>
+	 * This method returns a {@link CrossOperatorSets CrossOperatorSet} on which 
+	 *   {@link CrossOperatorSets#with()} needs to be called to define the CrossFunction that 
+	 *   is applied.
+	 * 
+	 * @param other The other DataSet with which this DataSet is crossed. 
+	 * @return A CrossOperatorSets to continue the definition of the Cross transformation.
+	 * 
+	 * @see CrossFunction
+	 * @see CrossOperatorSets
+	 * @see DataSet
+	 */
 	public <R> CrossOperator.CrossOperatorSets<T, R> crossWithHuge(DataSet<R> other) {
 		return new CrossOperator.CrossOperatorSets<T, R>(this, other);
 	}
