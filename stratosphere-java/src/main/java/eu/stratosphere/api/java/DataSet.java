@@ -20,6 +20,7 @@ import eu.stratosphere.api.common.io.FileOutputFormat;
 import eu.stratosphere.api.common.io.OutputFormat;
 import eu.stratosphere.api.java.aggregation.Aggregations;
 import eu.stratosphere.api.java.functions.CoGroupFunction;
+import eu.stratosphere.api.java.functions.CrossFunction;
 import eu.stratosphere.api.java.functions.FilterFunction;
 import eu.stratosphere.api.java.functions.FlatMapFunction;
 import eu.stratosphere.api.java.functions.GroupReduceFunction;
@@ -32,8 +33,8 @@ import eu.stratosphere.api.java.io.TextOutputFormat;
 import eu.stratosphere.api.java.operators.AggregateOperator;
 import eu.stratosphere.api.java.operators.CoGroupOperator;
 import eu.stratosphere.api.java.operators.CoGroupOperator.CoGroupOperatorSets;
-import eu.stratosphere.api.java.operators.CrossOperator.CrossOperatorSets;
 import eu.stratosphere.api.java.operators.CrossOperator;
+import eu.stratosphere.api.java.operators.CrossOperator.CrossOperatorSets;
 import eu.stratosphere.api.java.operators.CustomUnaryOperation;
 import eu.stratosphere.api.java.operators.DataSink;
 import eu.stratosphere.api.java.operators.FilterOperator;
@@ -54,8 +55,16 @@ import eu.stratosphere.api.java.typeutils.TypeInformation;
 import eu.stratosphere.core.fs.Path;
 
 /**
+ * A DataSet represents a collection of elements of the same type.<br/>
+ * A DataSet can be transformed into another DataSet by applying a transformation as for example 
+ * <ul>
+ *   <li>{@link DataSet#map(MapFunction)},</li>
+ *   <li>{@link DataSet#reduce(ReduceFunction)},</li>
+ *   <li>{@link DataSet#join(DataSet)}, or</li>
+ *   <li>{@link DataSet#coGroup(DataSet)}.</li>
+ * </ul>
  *
- * @param <T> The data type of the data set.
+ * @param <T> The type of the DataSet, i.e., the type of the elements of the DataSet.
  */
 public abstract class DataSet<T> {
 	
@@ -75,11 +84,24 @@ public abstract class DataSet<T> {
 		this.type = type;
 	}
 
-	
+	/**
+	 * Returns the {@link ExecutionEnvironment} in which this DataSet is registered.
+	 * 
+	 * @return The ExecutionEnvironment in which this DataSet is registered.
+	 * 
+	 * @see ExecutionEnvironment
+	 */
 	public ExecutionEnvironment getExecutionEnvironment() {
 		return this.context;
 	}
 	
+	/**
+	 * Returns the {@link TypeInformation} for the type of this DataSet.
+	 * 
+	 * @return The TypeInformation for the type of this DataSet.
+	 * 
+	 * @see TypeInformation
+	 */
 	public TypeInformation<T> getType() {
 		return this.type;
 	}
@@ -89,7 +111,7 @@ public abstract class DataSet<T> {
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * Applies a Map transformation on a {@link DataSet}.
+	 * Applies a Map transformation on a {@link DataSet}.<br/>
 	 * The transformation calls a {@link MapFunction} for each element of the DataSet.
 	 * Each MapFunction call returns exactly one element.
 	 * 
@@ -105,7 +127,7 @@ public abstract class DataSet<T> {
 	}
 	
 	/**
-	 * Applies a FlatMap transformation on a {@link DataSet}.
+	 * Applies a FlatMap transformation on a {@link DataSet}.<br/>
 	 * The transformation calls a {@link FlatMapFunction} for each element of the DataSet.
 	 * Each FlatMapFunction call can return any number of elements including none.
 	 * 
@@ -121,7 +143,7 @@ public abstract class DataSet<T> {
 	}
 	
 	/**
-	 * Applies a Filter transformation on a {@link DataSet}.
+	 * Applies a Filter transformation on a {@link DataSet}.<br/>
 	 * The transformation calls a {@link FilterFunction} for each element of the DataSet 
 	 * and retains only those element for which the function returns true. Elements for 
 	 * which the function returns false are filtered. 
@@ -142,8 +164,8 @@ public abstract class DataSet<T> {
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * Initiates a Project transformation on a {@link Tuple} {@link DataSet}.
-	 * <b>Non-Tuple DataSets cannot be projected.</b></br>
+	 * Initiates a Project transformation on a {@link Tuple} {@link DataSet}.<br/>
+	 * <b>Note: Only Tuple DataSets can be projected.</b></br>
 	 * The transformation projects each Tuple of the DataSet onto a (sub)set of fields.</br>
 	 * This method returns a {@link Projection} on which {@link Projection#types()} needs to 
 	 *   be called to completed the transformation.
@@ -163,8 +185,8 @@ public abstract class DataSet<T> {
 	}
 	
 	/**
-	 * Initiates a Project transformation on a {@link Tuple} {@link DataSet}.
-	 * <b>Non-Tuple DataSets cannot be projected.</b></br>
+	 * Initiates a Project transformation on a {@link Tuple} {@link DataSet}.<br/>
+	 * <b>Note: Only Tuple DataSet can be projected.</b></br>
 	 * The transformation projects each Tuple of the DataSet onto a (sub)set of fields.</br>
 	 * This method returns a {@link Projection} on which {@link Projection#types()} needs to 
 	 *   be called to completed the transformation.
@@ -185,8 +207,8 @@ public abstract class DataSet<T> {
 	}
 	
 	/**
-	 * Initiates a Project transformation on a {@link Tuple} {@link DataSet}.
-	 * <b>Non-Tuple DataSets cannot be projected.</b></br>
+	 * Initiates a Project transformation on a {@link Tuple} {@link DataSet}.<br/>
+	 * <b>Note: Only Tuple DataSets can be projected.</b></br>
 	 * The transformation projects each Tuple of the DataSet onto a (sub)set of fields.</br>
 	 * This method returns a {@link Projection} on which {@link Projection#types()} needs to 
 	 *   be called to completed the transformation.
@@ -211,8 +233,8 @@ public abstract class DataSet<T> {
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * Applies an Aggregate transformation on a non-grouped {@link Tuple} {@link DataSet}.
-	 * <b>Non-Tuple DataSets cannot be aggregated.</b>
+	 * Applies an Aggregate transformation on a non-grouped {@link Tuple} {@link DataSet}.<br/>
+	 * <b>Note: Only Tuple DataSets can be aggregated.</b>
 	 * The transformation applies a built-in {@link Aggregations Aggregation} on a specified field 
 	 *   of a Tuple DataSet. Additional aggregation functions can be added to the resulting 
 	 *   {@link AggregateOperator} by calling {@link AggregateOperator#and(Aggregations, int)}.
@@ -231,7 +253,7 @@ public abstract class DataSet<T> {
 	}
 	
 	/**
-	 * Applies a Reduce transformation on a non-grouped {@link DataSet}.
+	 * Applies a Reduce transformation on a non-grouped {@link DataSet}.<br/>
 	 * The transformation consecutively calls a {@link ReduceFunction} 
 	 *   until only a single element remains which is the result of the transformation.
 	 * A ReduceFunction combines two elements into one new element of the same type.
@@ -248,7 +270,7 @@ public abstract class DataSet<T> {
 	}
 	
 	/**
-	 * Applies a GroupReduce transformation on a non-grouped {@link DataSet}.
+	 * Applies a GroupReduce transformation on a non-grouped {@link DataSet}.<br/>
 	 * The transformation calls a {@link GroupReduceFunction} once with the full DataSet.
 	 * The GroupReduceFunction can iterate over all elements of the DataSet and emit any
 	 *   number of output elements including none.
@@ -315,8 +337,8 @@ public abstract class DataSet<T> {
 //	}
 	
 	/**
-	 * Groups a {@link Tuple} {@link DataSet} using field position keys. 
-	 * <b>Field position keys cannot be specified for non-Tuple DataSets.</b></br>
+	 * Groups a {@link Tuple} {@link DataSet} using field position keys.<br/> 
+	 * <b>Note: Field position keys only be specified for Tuple DataSets.</b></br>
 	 * The field position keys specify the fields of Tuples on which the DataSet is grouped.
 	 * This method returns a {@link Grouping} on which one of the following grouping transformation 
 	 *   needs to be applied to obtain a transformed DataSet. 
@@ -345,7 +367,8 @@ public abstract class DataSet<T> {
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * Initiates a Join transformation. A Join transformation joins the elements of two 
+	 * Initiates a Join transformation. <br/>
+	 * A Join transformation joins the elements of two 
 	 *   {@link DataSet DataSets} on key equality and provides multiple ways to combine 
 	 *   joining elements into one DataSet.</br>
 	 * 
@@ -365,7 +388,8 @@ public abstract class DataSet<T> {
 	}
 	
 	/**
-	 * Initiates a Join transformation. A Join transformation joins the elements of two 
+	 * Initiates a Join transformation. <br/>
+	 * A Join transformation joins the elements of two 
 	 *   {@link DataSet DataSets} on key equality and provides multiple ways to combine 
 	 *   joining elements into one DataSet.</br>
 	 * This method also gives the hint to the optimizer that the second DataSet to join is much
@@ -386,7 +410,8 @@ public abstract class DataSet<T> {
 	}
 	
 	/**
-	 * Initiates a Join transformation. A Join transformation joins the elements of two 
+	 * Initiates a Join transformation.<br/>
+	 * A Join transformation joins the elements of two 
 	 *   {@link DataSet DataSets} on key equality and provides multiple ways to combine 
 	 *   joining elements into one DataSet.</br>
 	 * This method also gives the hint to the optimizer that the second DataSet to join is much
@@ -411,7 +436,8 @@ public abstract class DataSet<T> {
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Initiates a CoGroup transformation. A CoGroup transformation combines the elements of
+	 * Initiates a CoGroup transformation.<br/>
+	 * A CoGroup transformation combines the elements of
 	 *   two {@link DataSet DataSets} into one DataSet. It groups each DataSet individually on a key and 
 	 *   gives groups of both DataSets with equal keys together into a {@link CoGroupFunction}.
 	 *   If a DataSet has a group with no matching key in the other DataSet, the CoGroupFunction
@@ -438,7 +464,8 @@ public abstract class DataSet<T> {
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Initiates a Cross transformation. A Cross transformation combines the elements of two 
+	 * Initiates a Cross transformation.<br/>
+	 * A Cross transformation combines the elements of two 
 	 *   {@link DataSet DataSets} into one DataSet. It builds all pair combinations of elements of 
 	 *   both DataSets, i.e., it builds a Cartesian product, and calls a {@link CrossFunction} for
 	 *   each pair of elements.</br>
@@ -459,7 +486,8 @@ public abstract class DataSet<T> {
 	}
 	
 	/**
-	 * Initiates a Cross transformation. A Cross transformation combines the elements of two 
+	 * Initiates a Cross transformation.<br/>
+	 * A Cross transformation combines the elements of two 
 	 *   {@link DataSet DataSets} into one DataSet. It builds all pair combinations of elements of 
 	 *   both DataSets, i.e., it builds a Cartesian product, and calls a {@link CrossFunction} for
 	 *   each pair of elements.</br>
@@ -482,7 +510,8 @@ public abstract class DataSet<T> {
 	}
 	
 	/**
-	 * Initiates a Cross transformation. A Cross transformation combines the elements of two 
+	 * Initiates a Cross transformation.<br/>
+	 * A Cross transformation combines the elements of two 
 	 *   {@link DataSet DataSets} into one DataSet. It builds all pair combinations of elements of 
 	 *   both DataSets, i.e., it builds a Cartesian product, and calls a {@link CrossFunction} for
 	 *   each pair of elements.</br>
@@ -508,6 +537,18 @@ public abstract class DataSet<T> {
 	//  Iterations
 	// --------------------------------------------------------------------------------------------
 
+	/**
+	 * Initiates an iteration with a specified number of maximum iterations. <br/>
+	 * The iteration needs to be closed by calling {@link IterativeDataSet#closeWith(DataSet)} with 
+	 * a DataSet that succeeds this DataSet. 
+	 * While iterating, the result of the DataSet with which the iteration is closed 
+	 * will be fed back to this point. 
+	 *  
+	 * @param maxIterations The maximum number of iterations.
+	 * @return An IterativeDataSet that needs to be closed by {@link IterativeDataSet#closeWith(DataSet)}.
+	 * 
+	 * @see IterativeDataSet
+	 */
 	public IterativeDataSet<T> iterate(int maxIterations) {
 		return new IterativeDataSet<T>(getExecutionEnvironment(), getType(), this, maxIterations);
 	}
@@ -545,14 +586,46 @@ public abstract class DataSet<T> {
 	//  Result writing
 	// --------------------------------------------------------------------------------------------
 	
+	/**
+	 * Writes a DataSet as a text file to the specified location.<br/>
+	 * For each element of the DataSet the result of {@link Object#toString()} is written.  
+	 * 
+	 * @param filePath The path pointing to the location the text file is written to. 
+	 * 
+	 * @see TextOutputFormat
+	 */
 	public void writeAsText(String filePath) {
 		output(new TextOutputFormat<T>(new Path(filePath)));
 	}
 	
+	/**
+	 * Writes a {@link Tuple} DataSet as a CSV file to the specified location.<br/>
+	 * <b>Note: Only a Tuple DataSet can written as a CSV file.</b><br/>
+	 * For each Tuple field the result of {@link Object#toString()} is written.
+	 * Tuple fields are separated by the default field delimiter {@link CsvOutputFormat.DEFAULT_FIELD_DELIMITER}.<br/>
+	 * Tuples are are separated by the default line delimiter {@link CsvOutputFormat.DEFAULT_LINE_DELIMITER}.
+	 * 
+	 * @param filePath The path pointing to the location the CSV file is written to.
+	 * 
+	 * @see Tuple
+	 * @see CsvOutputFormat
+	 */
 	public void writeAsCsv(String filePath) {
 		writeAsCsv(filePath, CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
 	}
 	
+	/**
+	 * Writes a {@link Tuple} DataSet as a CSV file to the specified location with the specified field and line delimiters.<br/>
+	 * <b>Note: Only a Tuple DataSet can written as a CSV file.</b><br/>
+	 * For each Tuple field the result of {@link Object#toString()} is written.
+	 * 
+	 * @param filePath The path pointing to the location the CSV file is written to.
+	 * @param rowDelimiter The row delimiter to separate Tuples.
+	 * @param fieldDelimiter The field delimiter to separate Tuple fields.
+	 * 
+	 * @see Tuple
+	 * @see CsvOutputFormat
+	 */
 	public void writeAsCsv(String filePath, String rowDelimiter, String fieldDelimiter) {
 		Validate.isTrue(this.type.isTupleType(), "The writeAsCsv() method can only be used on data sets of tuples.");
 		internalWriteAsCsv(new Path(filePath), rowDelimiter, fieldDelimiter);
@@ -563,21 +636,43 @@ public abstract class DataSet<T> {
 		output((OutputFormat<T>) new CsvOutputFormat<X>(filePath, rowDelimiter, fieldDelimiter));
 	}
 	
-	
+	/**
+	 * Writes a DataSet to the standard output stream (stdout).<br/>
+	 * For each element of the DataSet the result of {@link Object#toString()} is written. 
+	 */
 	public void print() {
 		output(new PrintingOutputFormat<T>(false));
 	}
 	
+	/**
+	 * Writes a DataSet to the standard error stream (stderr).<br/>
+	 * For each element of the DataSet the result of {@link Object#toString()} is written.
+	 */
 	public void printToErr() {
 		output(new PrintingOutputFormat<T>(true));
 	}
 	
-	
+	/**
+	 * Writes a DataSet using a {@link FileOutputFormat} to a specified location.
+	 * 
+	 * @param outputFormat The FileOutputFormat to write the DataSet.
+	 * @param filePath The path to the location where the DataSet is written.
+	 * 
+	 * @see FileOutputFormat
+	 */
 	public void write(FileOutputFormat<T> outputFormat, String filePath) {
 		Validate.notNull(filePath, "File path must not be null.");
 		write(outputFormat, new Path(filePath));
 	}
 	
+	/**
+	 * Writes a DataSet using a {@link FileOutputFormat} to a specified location.
+	 * 
+	 * @param outputFormat The FileOutputFormat to write the DataSet.
+	 * @param filePath The path to the location where the DataSet is written.
+	 * 
+	 * @see FileOutputFormat
+	 */
 	public void write(FileOutputFormat<T> outputFormat, Path filePath) {
 		Validate.notNull(filePath, "File path must not be null.");
 		Validate.notNull(outputFormat, "The output format must not be null.");
@@ -586,6 +681,15 @@ public abstract class DataSet<T> {
 		output(outputFormat);
 	}
 	
+	/**
+	 * Writes a DataSet using an {@link OutputFormat}.
+	 * 
+	 * @param outputFormat The OutputFormat to write the DataSet.
+	 * @return The DataSink that writes the DataSet.
+	 * 
+	 * @see OutputFormat
+	 * @see DataSink
+	 */
 	public DataSink<T> output(OutputFormat<T> outputFormat) {
 		Validate.notNull(outputFormat);
 		
