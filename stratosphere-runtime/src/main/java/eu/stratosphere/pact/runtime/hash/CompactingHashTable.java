@@ -27,7 +27,6 @@ import eu.stratosphere.api.common.typeutils.TypeComparator;
 import eu.stratosphere.api.common.typeutils.TypePairComparator;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.core.memory.MemorySegment;
-import eu.stratosphere.core.memory.SeekableDataOutputView;
 import eu.stratosphere.nephele.services.memorymanager.ListMemorySegmentSource;
 import eu.stratosphere.pact.runtime.util.MathUtils;
 import eu.stratosphere.util.MutableObjectIterator;
@@ -182,6 +181,9 @@ public class CompactingHashTable<BT, PT> {
 	 */
 	private final TypePairComparator<PT, BT> pairComparator;
 	
+	/**
+	 * Uninitialized prober for retrieving matching records
+	 */
 	private HashTableProber prober = null;
 	
 	/**
@@ -412,6 +414,11 @@ public class CompactingHashTable<BT, PT> {
 		return prober;
 	}
 	
+	/**
+	 * 
+	 * @return Iterator over hash table
+	 * @see EntryIterator
+	 */
 	public MutableObjectIterator<BT> getEntryIterator() {
 		return new EntryIterator(this);
 	}
@@ -727,7 +734,6 @@ public class CompactingHashTable<BT, PT> {
 	private void releaseTable() {
 		// set the counters back
 		this.numBuckets = 0;
-		
 		if (this.buckets != null) {
 			for (int i = 0; i < this.buckets.length; i++) {
 				this.availableMemory.add(this.buckets[i]);
@@ -925,11 +931,16 @@ public class CompactingHashTable<BT, PT> {
 		return code >= 0 ? code : -(code + 1);
 	}
 	
+	/**
+	 * Iterator that traverses the whole hash table once
+	 * 
+	 * If entries are inserted during iteration they may be overlooked by the iterator
+	 */
 	public class EntryIterator implements MutableObjectIterator<BT> {
 		
 		private CompactingHashTable<BT, PT> table;
 		
-		private ArrayList<BT> cache; // holds full bucket including overflow buckets
+		private ArrayList<BT> cache; // holds full bucket including its overflow buckets
 				
 		private int currentBucketIndex = 0;
 		private int currentSegmentIndex = 0;
@@ -969,7 +980,6 @@ public class CompactingHashTable<BT, PT> {
 			if(currentBucketIndex >= table.numBuckets) {
 				return false;
 			}
-			// get the bucket for the given hash code
 			MemorySegment bucket = table.buckets[currentSegmentIndex];
 			// get the basic characteristics of the bucket
 			final int partitionNumber = bucket.get(currentBucketOffset + HEADER_PARTITION_OFFSET);
@@ -1019,9 +1029,6 @@ public class CompactingHashTable<BT, PT> {
 		
 	}
 	
-	/**
-	 * @param <P> Probe record type
-	 */
 	public final class HashTableProber {
 		
 		private final TypeComparator<PT> probeTypeComparator;
