@@ -108,14 +108,17 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		// The following lines are generated.
 		// --------------------------------------------------------------------------------------------	
 		// BEGIN_OF_TUPLE_DEPENDENT_CODE	
-		// GENERATED FROM eu.stratosphere.api.java.tuple.TupleGenerator.
+	// GENERATED FROM eu.stratosphere.api.java.tuple.TupleGenerator.
 
 		/**
-		 * Projects a tuple data set to the previously selected fields. 
-		 * Requires the classes of the fields of the resulting tuples. 
+		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields. 
+		 * Requires the classes of the fields of the resulting Tuples. 
 		 * 
-		 * @param type0 The class of field '0' of the result tuples.
-		 * @return The projected data set.
+		 * @param type0 The class of field '0' of the result Tuples.
+		 * @return The projected DataSet.
+		 * 
+		 * @see Tuple
+		 * @see DataSet
 		 */
 		public <T0> ProjectOperator<T, Tuple1<T0>> types(Class<T0> type0) {
 			Class<?>[] types = {type0};
@@ -130,12 +133,15 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		}
 
 		/**
-		 * Projects a tuple data set to the previously selected fields. 
-		 * Requires the classes of the fields of the resulting tuples. 
+		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields. 
+		 * Requires the classes of the fields of the resulting Tuples. 
 		 * 
-		 * @param type0 The class of field '0' of the result tuples.
-		 * @param type1 The class of field '1' of the result tuples.
-		 * @return The projected data set.
+		 * @param type0 The class of field '0' of the result Tuples.
+		 * @param type1 The class of field '1' of the result Tuples.
+		 * @return The projected DataSet.
+		 * 
+		 * @see Tuple
+		 * @see DataSet
 		 */
 		public <T0, T1> ProjectOperator<T, Tuple2<T0, T1>> types(Class<T0> type0, Class<T1> type1) {
 			Class<?>[] types = {type0, type1};
@@ -150,13 +156,16 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		}
 
 		/**
-		 * Projects a tuple data set to the previously selected fields. 
-		 * Requires the classes of the fields of the resulting tuples. 
+		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields. 
+		 * Requires the classes of the fields of the resulting Tuples. 
 		 * 
-		 * @param type0 The class of field '0' of the result tuples.
-		 * @param type1 The class of field '1' of the result tuples.
-		 * @param type2 The class of field '2' of the result tuples.
-		 * @return The projected data set.
+		 * @param type0 The class of field '0' of the result Tuples.
+		 * @param type1 The class of field '1' of the result Tuples.
+		 * @param type2 The class of field '2' of the result Tuples.
+		 * @return The projected DataSet.
+		 * 
+		 * @see Tuple
+		 * @see DataSet
 		 */
 		public <T0, T1, T2> ProjectOperator<T, Tuple3<T0, T1, T2>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2) {
 			Class<?>[] types = {type0, type1, type2};
@@ -171,14 +180,17 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		}
 
 		/**
-		 * Projects a tuple data set to the previously selected fields. 
-		 * Requires the classes of the fields of the resulting tuples. 
+		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields. 
+		 * Requires the classes of the fields of the resulting Tuples. 
 		 * 
-		 * @param type0 The class of field '0' of the result tuples.
-		 * @param type1 The class of field '1' of the result tuples.
-		 * @param type2 The class of field '2' of the result tuples.
-		 * @param type3 The class of field '3' of the result tuples.
-		 * @return The projected data set.
+		 * @param type0 The class of field '0' of the result Tuples.
+		 * @param type1 The class of field '1' of the result Tuples.
+		 * @param type2 The class of field '2' of the result Tuples.
+		 * @param type3 The class of field '3' of the result Tuples.
+		 * @return The projected DataSet.
+		 * 
+		 * @see Tuple
+		 * @see DataSet
 		 */
 		public <T0, T1, T2, T3> ProjectOperator<T, Tuple4<T0, T1, T2, T3>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3) {
 			Class<?>[] types = {type0, type1, type2, type3};
@@ -193,15 +205,18 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		}
 
 		/**
-		 * Projects a tuple data set to the previously selected fields. 
-		 * Requires the classes of the fields of the resulting tuples. 
+		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields. 
+		 * Requires the classes of the fields of the resulting Tuples. 
 		 * 
-		 * @param type0 The class of field '0' of the result tuples.
-		 * @param type1 The class of field '1' of the result tuples.
-		 * @param type2 The class of field '2' of the result tuples.
-		 * @param type3 The class of field '3' of the result tuples.
-		 * @param type4 The class of field '4' of the result tuples.
-		 * @return The projected data set.
+		 * @param type0 The class of field '0' of the result Tuples.
+		 * @param type1 The class of field '1' of the result Tuples.
+		 * @param type2 The class of field '2' of the result Tuples.
+		 * @param type3 The class of field '3' of the result Tuples.
+		 * @param type4 The class of field '4' of the result Tuples.
+		 * @return The projected DataSet.
+		 * 
+		 * @see Tuple
+		 * @see DataSet
 		 */
 		public <T0, T1, T2, T3, T4> ProjectOperator<T, Tuple5<T0, T1, T2, T3, T4>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4) {
 			Class<?>[] types = {type0, type1, type2, type3, type4};
@@ -216,16 +231,19 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		}
 
 		/**
-		 * Projects a tuple data set to the previously selected fields. 
-		 * Requires the classes of the fields of the resulting tuples. 
+		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields. 
+		 * Requires the classes of the fields of the resulting Tuples. 
 		 * 
-		 * @param type0 The class of field '0' of the result tuples.
-		 * @param type1 The class of field '1' of the result tuples.
-		 * @param type2 The class of field '2' of the result tuples.
-		 * @param type3 The class of field '3' of the result tuples.
-		 * @param type4 The class of field '4' of the result tuples.
-		 * @param type5 The class of field '5' of the result tuples.
-		 * @return The projected data set.
+		 * @param type0 The class of field '0' of the result Tuples.
+		 * @param type1 The class of field '1' of the result Tuples.
+		 * @param type2 The class of field '2' of the result Tuples.
+		 * @param type3 The class of field '3' of the result Tuples.
+		 * @param type4 The class of field '4' of the result Tuples.
+		 * @param type5 The class of field '5' of the result Tuples.
+		 * @return The projected DataSet.
+		 * 
+		 * @see Tuple
+		 * @see DataSet
 		 */
 		public <T0, T1, T2, T3, T4, T5> ProjectOperator<T, Tuple6<T0, T1, T2, T3, T4, T5>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5) {
 			Class<?>[] types = {type0, type1, type2, type3, type4, type5};
@@ -240,17 +258,20 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		}
 
 		/**
-		 * Projects a tuple data set to the previously selected fields. 
-		 * Requires the classes of the fields of the resulting tuples. 
+		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields. 
+		 * Requires the classes of the fields of the resulting Tuples. 
 		 * 
-		 * @param type0 The class of field '0' of the result tuples.
-		 * @param type1 The class of field '1' of the result tuples.
-		 * @param type2 The class of field '2' of the result tuples.
-		 * @param type3 The class of field '3' of the result tuples.
-		 * @param type4 The class of field '4' of the result tuples.
-		 * @param type5 The class of field '5' of the result tuples.
-		 * @param type6 The class of field '6' of the result tuples.
-		 * @return The projected data set.
+		 * @param type0 The class of field '0' of the result Tuples.
+		 * @param type1 The class of field '1' of the result Tuples.
+		 * @param type2 The class of field '2' of the result Tuples.
+		 * @param type3 The class of field '3' of the result Tuples.
+		 * @param type4 The class of field '4' of the result Tuples.
+		 * @param type5 The class of field '5' of the result Tuples.
+		 * @param type6 The class of field '6' of the result Tuples.
+		 * @return The projected DataSet.
+		 * 
+		 * @see Tuple
+		 * @see DataSet
 		 */
 		public <T0, T1, T2, T3, T4, T5, T6> ProjectOperator<T, Tuple7<T0, T1, T2, T3, T4, T5, T6>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6) {
 			Class<?>[] types = {type0, type1, type2, type3, type4, type5, type6};
@@ -265,18 +286,21 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		}
 
 		/**
-		 * Projects a tuple data set to the previously selected fields. 
-		 * Requires the classes of the fields of the resulting tuples. 
+		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields. 
+		 * Requires the classes of the fields of the resulting Tuples. 
 		 * 
-		 * @param type0 The class of field '0' of the result tuples.
-		 * @param type1 The class of field '1' of the result tuples.
-		 * @param type2 The class of field '2' of the result tuples.
-		 * @param type3 The class of field '3' of the result tuples.
-		 * @param type4 The class of field '4' of the result tuples.
-		 * @param type5 The class of field '5' of the result tuples.
-		 * @param type6 The class of field '6' of the result tuples.
-		 * @param type7 The class of field '7' of the result tuples.
-		 * @return The projected data set.
+		 * @param type0 The class of field '0' of the result Tuples.
+		 * @param type1 The class of field '1' of the result Tuples.
+		 * @param type2 The class of field '2' of the result Tuples.
+		 * @param type3 The class of field '3' of the result Tuples.
+		 * @param type4 The class of field '4' of the result Tuples.
+		 * @param type5 The class of field '5' of the result Tuples.
+		 * @param type6 The class of field '6' of the result Tuples.
+		 * @param type7 The class of field '7' of the result Tuples.
+		 * @return The projected DataSet.
+		 * 
+		 * @see Tuple
+		 * @see DataSet
 		 */
 		public <T0, T1, T2, T3, T4, T5, T6, T7> ProjectOperator<T, Tuple8<T0, T1, T2, T3, T4, T5, T6, T7>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7) {
 			Class<?>[] types = {type0, type1, type2, type3, type4, type5, type6, type7};
@@ -291,19 +315,22 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		}
 
 		/**
-		 * Projects a tuple data set to the previously selected fields. 
-		 * Requires the classes of the fields of the resulting tuples. 
+		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields. 
+		 * Requires the classes of the fields of the resulting Tuples. 
 		 * 
-		 * @param type0 The class of field '0' of the result tuples.
-		 * @param type1 The class of field '1' of the result tuples.
-		 * @param type2 The class of field '2' of the result tuples.
-		 * @param type3 The class of field '3' of the result tuples.
-		 * @param type4 The class of field '4' of the result tuples.
-		 * @param type5 The class of field '5' of the result tuples.
-		 * @param type6 The class of field '6' of the result tuples.
-		 * @param type7 The class of field '7' of the result tuples.
-		 * @param type8 The class of field '8' of the result tuples.
-		 * @return The projected data set.
+		 * @param type0 The class of field '0' of the result Tuples.
+		 * @param type1 The class of field '1' of the result Tuples.
+		 * @param type2 The class of field '2' of the result Tuples.
+		 * @param type3 The class of field '3' of the result Tuples.
+		 * @param type4 The class of field '4' of the result Tuples.
+		 * @param type5 The class of field '5' of the result Tuples.
+		 * @param type6 The class of field '6' of the result Tuples.
+		 * @param type7 The class of field '7' of the result Tuples.
+		 * @param type8 The class of field '8' of the result Tuples.
+		 * @return The projected DataSet.
+		 * 
+		 * @see Tuple
+		 * @see DataSet
 		 */
 		public <T0, T1, T2, T3, T4, T5, T6, T7, T8> ProjectOperator<T, Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8) {
 			Class<?>[] types = {type0, type1, type2, type3, type4, type5, type6, type7, type8};
@@ -318,20 +345,23 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		}
 
 		/**
-		 * Projects a tuple data set to the previously selected fields. 
-		 * Requires the classes of the fields of the resulting tuples. 
+		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields. 
+		 * Requires the classes of the fields of the resulting Tuples. 
 		 * 
-		 * @param type0 The class of field '0' of the result tuples.
-		 * @param type1 The class of field '1' of the result tuples.
-		 * @param type2 The class of field '2' of the result tuples.
-		 * @param type3 The class of field '3' of the result tuples.
-		 * @param type4 The class of field '4' of the result tuples.
-		 * @param type5 The class of field '5' of the result tuples.
-		 * @param type6 The class of field '6' of the result tuples.
-		 * @param type7 The class of field '7' of the result tuples.
-		 * @param type8 The class of field '8' of the result tuples.
-		 * @param type9 The class of field '9' of the result tuples.
-		 * @return The projected data set.
+		 * @param type0 The class of field '0' of the result Tuples.
+		 * @param type1 The class of field '1' of the result Tuples.
+		 * @param type2 The class of field '2' of the result Tuples.
+		 * @param type3 The class of field '3' of the result Tuples.
+		 * @param type4 The class of field '4' of the result Tuples.
+		 * @param type5 The class of field '5' of the result Tuples.
+		 * @param type6 The class of field '6' of the result Tuples.
+		 * @param type7 The class of field '7' of the result Tuples.
+		 * @param type8 The class of field '8' of the result Tuples.
+		 * @param type9 The class of field '9' of the result Tuples.
+		 * @return The projected DataSet.
+		 * 
+		 * @see Tuple
+		 * @see DataSet
 		 */
 		public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9> ProjectOperator<T, Tuple10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9) {
 			Class<?>[] types = {type0, type1, type2, type3, type4, type5, type6, type7, type8, type9};
@@ -346,21 +376,24 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		}
 
 		/**
-		 * Projects a tuple data set to the previously selected fields. 
-		 * Requires the classes of the fields of the resulting tuples. 
+		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields. 
+		 * Requires the classes of the fields of the resulting Tuples. 
 		 * 
-		 * @param type0 The class of field '0' of the result tuples.
-		 * @param type1 The class of field '1' of the result tuples.
-		 * @param type2 The class of field '2' of the result tuples.
-		 * @param type3 The class of field '3' of the result tuples.
-		 * @param type4 The class of field '4' of the result tuples.
-		 * @param type5 The class of field '5' of the result tuples.
-		 * @param type6 The class of field '6' of the result tuples.
-		 * @param type7 The class of field '7' of the result tuples.
-		 * @param type8 The class of field '8' of the result tuples.
-		 * @param type9 The class of field '9' of the result tuples.
-		 * @param type10 The class of field '10' of the result tuples.
-		 * @return The projected data set.
+		 * @param type0 The class of field '0' of the result Tuples.
+		 * @param type1 The class of field '1' of the result Tuples.
+		 * @param type2 The class of field '2' of the result Tuples.
+		 * @param type3 The class of field '3' of the result Tuples.
+		 * @param type4 The class of field '4' of the result Tuples.
+		 * @param type5 The class of field '5' of the result Tuples.
+		 * @param type6 The class of field '6' of the result Tuples.
+		 * @param type7 The class of field '7' of the result Tuples.
+		 * @param type8 The class of field '8' of the result Tuples.
+		 * @param type9 The class of field '9' of the result Tuples.
+		 * @param type10 The class of field '10' of the result Tuples.
+		 * @return The projected DataSet.
+		 * 
+		 * @see Tuple
+		 * @see DataSet
 		 */
 		public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10> ProjectOperator<T, Tuple11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10) {
 			Class<?>[] types = {type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10};
@@ -375,22 +408,25 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		}
 
 		/**
-		 * Projects a tuple data set to the previously selected fields. 
-		 * Requires the classes of the fields of the resulting tuples. 
+		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields. 
+		 * Requires the classes of the fields of the resulting Tuples. 
 		 * 
-		 * @param type0 The class of field '0' of the result tuples.
-		 * @param type1 The class of field '1' of the result tuples.
-		 * @param type2 The class of field '2' of the result tuples.
-		 * @param type3 The class of field '3' of the result tuples.
-		 * @param type4 The class of field '4' of the result tuples.
-		 * @param type5 The class of field '5' of the result tuples.
-		 * @param type6 The class of field '6' of the result tuples.
-		 * @param type7 The class of field '7' of the result tuples.
-		 * @param type8 The class of field '8' of the result tuples.
-		 * @param type9 The class of field '9' of the result tuples.
-		 * @param type10 The class of field '10' of the result tuples.
-		 * @param type11 The class of field '11' of the result tuples.
-		 * @return The projected data set.
+		 * @param type0 The class of field '0' of the result Tuples.
+		 * @param type1 The class of field '1' of the result Tuples.
+		 * @param type2 The class of field '2' of the result Tuples.
+		 * @param type3 The class of field '3' of the result Tuples.
+		 * @param type4 The class of field '4' of the result Tuples.
+		 * @param type5 The class of field '5' of the result Tuples.
+		 * @param type6 The class of field '6' of the result Tuples.
+		 * @param type7 The class of field '7' of the result Tuples.
+		 * @param type8 The class of field '8' of the result Tuples.
+		 * @param type9 The class of field '9' of the result Tuples.
+		 * @param type10 The class of field '10' of the result Tuples.
+		 * @param type11 The class of field '11' of the result Tuples.
+		 * @return The projected DataSet.
+		 * 
+		 * @see Tuple
+		 * @see DataSet
 		 */
 		public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11> ProjectOperator<T, Tuple12<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11) {
 			Class<?>[] types = {type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11};
@@ -405,23 +441,26 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		}
 
 		/**
-		 * Projects a tuple data set to the previously selected fields. 
-		 * Requires the classes of the fields of the resulting tuples. 
+		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields. 
+		 * Requires the classes of the fields of the resulting Tuples. 
 		 * 
-		 * @param type0 The class of field '0' of the result tuples.
-		 * @param type1 The class of field '1' of the result tuples.
-		 * @param type2 The class of field '2' of the result tuples.
-		 * @param type3 The class of field '3' of the result tuples.
-		 * @param type4 The class of field '4' of the result tuples.
-		 * @param type5 The class of field '5' of the result tuples.
-		 * @param type6 The class of field '6' of the result tuples.
-		 * @param type7 The class of field '7' of the result tuples.
-		 * @param type8 The class of field '8' of the result tuples.
-		 * @param type9 The class of field '9' of the result tuples.
-		 * @param type10 The class of field '10' of the result tuples.
-		 * @param type11 The class of field '11' of the result tuples.
-		 * @param type12 The class of field '12' of the result tuples.
-		 * @return The projected data set.
+		 * @param type0 The class of field '0' of the result Tuples.
+		 * @param type1 The class of field '1' of the result Tuples.
+		 * @param type2 The class of field '2' of the result Tuples.
+		 * @param type3 The class of field '3' of the result Tuples.
+		 * @param type4 The class of field '4' of the result Tuples.
+		 * @param type5 The class of field '5' of the result Tuples.
+		 * @param type6 The class of field '6' of the result Tuples.
+		 * @param type7 The class of field '7' of the result Tuples.
+		 * @param type8 The class of field '8' of the result Tuples.
+		 * @param type9 The class of field '9' of the result Tuples.
+		 * @param type10 The class of field '10' of the result Tuples.
+		 * @param type11 The class of field '11' of the result Tuples.
+		 * @param type12 The class of field '12' of the result Tuples.
+		 * @return The projected DataSet.
+		 * 
+		 * @see Tuple
+		 * @see DataSet
 		 */
 		public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12> ProjectOperator<T, Tuple13<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11, Class<T12> type12) {
 			Class<?>[] types = {type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12};
@@ -436,24 +475,27 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		}
 
 		/**
-		 * Projects a tuple data set to the previously selected fields. 
-		 * Requires the classes of the fields of the resulting tuples. 
+		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields. 
+		 * Requires the classes of the fields of the resulting Tuples. 
 		 * 
-		 * @param type0 The class of field '0' of the result tuples.
-		 * @param type1 The class of field '1' of the result tuples.
-		 * @param type2 The class of field '2' of the result tuples.
-		 * @param type3 The class of field '3' of the result tuples.
-		 * @param type4 The class of field '4' of the result tuples.
-		 * @param type5 The class of field '5' of the result tuples.
-		 * @param type6 The class of field '6' of the result tuples.
-		 * @param type7 The class of field '7' of the result tuples.
-		 * @param type8 The class of field '8' of the result tuples.
-		 * @param type9 The class of field '9' of the result tuples.
-		 * @param type10 The class of field '10' of the result tuples.
-		 * @param type11 The class of field '11' of the result tuples.
-		 * @param type12 The class of field '12' of the result tuples.
-		 * @param type13 The class of field '13' of the result tuples.
-		 * @return The projected data set.
+		 * @param type0 The class of field '0' of the result Tuples.
+		 * @param type1 The class of field '1' of the result Tuples.
+		 * @param type2 The class of field '2' of the result Tuples.
+		 * @param type3 The class of field '3' of the result Tuples.
+		 * @param type4 The class of field '4' of the result Tuples.
+		 * @param type5 The class of field '5' of the result Tuples.
+		 * @param type6 The class of field '6' of the result Tuples.
+		 * @param type7 The class of field '7' of the result Tuples.
+		 * @param type8 The class of field '8' of the result Tuples.
+		 * @param type9 The class of field '9' of the result Tuples.
+		 * @param type10 The class of field '10' of the result Tuples.
+		 * @param type11 The class of field '11' of the result Tuples.
+		 * @param type12 The class of field '12' of the result Tuples.
+		 * @param type13 The class of field '13' of the result Tuples.
+		 * @return The projected DataSet.
+		 * 
+		 * @see Tuple
+		 * @see DataSet
 		 */
 		public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13> ProjectOperator<T, Tuple14<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11, Class<T12> type12, Class<T13> type13) {
 			Class<?>[] types = {type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13};
@@ -468,25 +510,28 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		}
 
 		/**
-		 * Projects a tuple data set to the previously selected fields. 
-		 * Requires the classes of the fields of the resulting tuples. 
+		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields. 
+		 * Requires the classes of the fields of the resulting Tuples. 
 		 * 
-		 * @param type0 The class of field '0' of the result tuples.
-		 * @param type1 The class of field '1' of the result tuples.
-		 * @param type2 The class of field '2' of the result tuples.
-		 * @param type3 The class of field '3' of the result tuples.
-		 * @param type4 The class of field '4' of the result tuples.
-		 * @param type5 The class of field '5' of the result tuples.
-		 * @param type6 The class of field '6' of the result tuples.
-		 * @param type7 The class of field '7' of the result tuples.
-		 * @param type8 The class of field '8' of the result tuples.
-		 * @param type9 The class of field '9' of the result tuples.
-		 * @param type10 The class of field '10' of the result tuples.
-		 * @param type11 The class of field '11' of the result tuples.
-		 * @param type12 The class of field '12' of the result tuples.
-		 * @param type13 The class of field '13' of the result tuples.
-		 * @param type14 The class of field '14' of the result tuples.
-		 * @return The projected data set.
+		 * @param type0 The class of field '0' of the result Tuples.
+		 * @param type1 The class of field '1' of the result Tuples.
+		 * @param type2 The class of field '2' of the result Tuples.
+		 * @param type3 The class of field '3' of the result Tuples.
+		 * @param type4 The class of field '4' of the result Tuples.
+		 * @param type5 The class of field '5' of the result Tuples.
+		 * @param type6 The class of field '6' of the result Tuples.
+		 * @param type7 The class of field '7' of the result Tuples.
+		 * @param type8 The class of field '8' of the result Tuples.
+		 * @param type9 The class of field '9' of the result Tuples.
+		 * @param type10 The class of field '10' of the result Tuples.
+		 * @param type11 The class of field '11' of the result Tuples.
+		 * @param type12 The class of field '12' of the result Tuples.
+		 * @param type13 The class of field '13' of the result Tuples.
+		 * @param type14 The class of field '14' of the result Tuples.
+		 * @return The projected DataSet.
+		 * 
+		 * @see Tuple
+		 * @see DataSet
 		 */
 		public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14> ProjectOperator<T, Tuple15<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11, Class<T12> type12, Class<T13> type13, Class<T14> type14) {
 			Class<?>[] types = {type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13, type14};
@@ -501,26 +546,29 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		}
 
 		/**
-		 * Projects a tuple data set to the previously selected fields. 
-		 * Requires the classes of the fields of the resulting tuples. 
+		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields. 
+		 * Requires the classes of the fields of the resulting Tuples. 
 		 * 
-		 * @param type0 The class of field '0' of the result tuples.
-		 * @param type1 The class of field '1' of the result tuples.
-		 * @param type2 The class of field '2' of the result tuples.
-		 * @param type3 The class of field '3' of the result tuples.
-		 * @param type4 The class of field '4' of the result tuples.
-		 * @param type5 The class of field '5' of the result tuples.
-		 * @param type6 The class of field '6' of the result tuples.
-		 * @param type7 The class of field '7' of the result tuples.
-		 * @param type8 The class of field '8' of the result tuples.
-		 * @param type9 The class of field '9' of the result tuples.
-		 * @param type10 The class of field '10' of the result tuples.
-		 * @param type11 The class of field '11' of the result tuples.
-		 * @param type12 The class of field '12' of the result tuples.
-		 * @param type13 The class of field '13' of the result tuples.
-		 * @param type14 The class of field '14' of the result tuples.
-		 * @param type15 The class of field '15' of the result tuples.
-		 * @return The projected data set.
+		 * @param type0 The class of field '0' of the result Tuples.
+		 * @param type1 The class of field '1' of the result Tuples.
+		 * @param type2 The class of field '2' of the result Tuples.
+		 * @param type3 The class of field '3' of the result Tuples.
+		 * @param type4 The class of field '4' of the result Tuples.
+		 * @param type5 The class of field '5' of the result Tuples.
+		 * @param type6 The class of field '6' of the result Tuples.
+		 * @param type7 The class of field '7' of the result Tuples.
+		 * @param type8 The class of field '8' of the result Tuples.
+		 * @param type9 The class of field '9' of the result Tuples.
+		 * @param type10 The class of field '10' of the result Tuples.
+		 * @param type11 The class of field '11' of the result Tuples.
+		 * @param type12 The class of field '12' of the result Tuples.
+		 * @param type13 The class of field '13' of the result Tuples.
+		 * @param type14 The class of field '14' of the result Tuples.
+		 * @param type15 The class of field '15' of the result Tuples.
+		 * @return The projected DataSet.
+		 * 
+		 * @see Tuple
+		 * @see DataSet
 		 */
 		public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15> ProjectOperator<T, Tuple16<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11, Class<T12> type12, Class<T13> type13, Class<T14> type14, Class<T15> type15) {
 			Class<?>[] types = {type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13, type14, type15};
@@ -535,27 +583,30 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		}
 
 		/**
-		 * Projects a tuple data set to the previously selected fields. 
-		 * Requires the classes of the fields of the resulting tuples. 
+		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields. 
+		 * Requires the classes of the fields of the resulting Tuples. 
 		 * 
-		 * @param type0 The class of field '0' of the result tuples.
-		 * @param type1 The class of field '1' of the result tuples.
-		 * @param type2 The class of field '2' of the result tuples.
-		 * @param type3 The class of field '3' of the result tuples.
-		 * @param type4 The class of field '4' of the result tuples.
-		 * @param type5 The class of field '5' of the result tuples.
-		 * @param type6 The class of field '6' of the result tuples.
-		 * @param type7 The class of field '7' of the result tuples.
-		 * @param type8 The class of field '8' of the result tuples.
-		 * @param type9 The class of field '9' of the result tuples.
-		 * @param type10 The class of field '10' of the result tuples.
-		 * @param type11 The class of field '11' of the result tuples.
-		 * @param type12 The class of field '12' of the result tuples.
-		 * @param type13 The class of field '13' of the result tuples.
-		 * @param type14 The class of field '14' of the result tuples.
-		 * @param type15 The class of field '15' of the result tuples.
-		 * @param type16 The class of field '16' of the result tuples.
-		 * @return The projected data set.
+		 * @param type0 The class of field '0' of the result Tuples.
+		 * @param type1 The class of field '1' of the result Tuples.
+		 * @param type2 The class of field '2' of the result Tuples.
+		 * @param type3 The class of field '3' of the result Tuples.
+		 * @param type4 The class of field '4' of the result Tuples.
+		 * @param type5 The class of field '5' of the result Tuples.
+		 * @param type6 The class of field '6' of the result Tuples.
+		 * @param type7 The class of field '7' of the result Tuples.
+		 * @param type8 The class of field '8' of the result Tuples.
+		 * @param type9 The class of field '9' of the result Tuples.
+		 * @param type10 The class of field '10' of the result Tuples.
+		 * @param type11 The class of field '11' of the result Tuples.
+		 * @param type12 The class of field '12' of the result Tuples.
+		 * @param type13 The class of field '13' of the result Tuples.
+		 * @param type14 The class of field '14' of the result Tuples.
+		 * @param type15 The class of field '15' of the result Tuples.
+		 * @param type16 The class of field '16' of the result Tuples.
+		 * @return The projected DataSet.
+		 * 
+		 * @see Tuple
+		 * @see DataSet
 		 */
 		public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16> ProjectOperator<T, Tuple17<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11, Class<T12> type12, Class<T13> type13, Class<T14> type14, Class<T15> type15, Class<T16> type16) {
 			Class<?>[] types = {type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13, type14, type15, type16};
@@ -570,28 +621,31 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		}
 
 		/**
-		 * Projects a tuple data set to the previously selected fields. 
-		 * Requires the classes of the fields of the resulting tuples. 
+		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields. 
+		 * Requires the classes of the fields of the resulting Tuples. 
 		 * 
-		 * @param type0 The class of field '0' of the result tuples.
-		 * @param type1 The class of field '1' of the result tuples.
-		 * @param type2 The class of field '2' of the result tuples.
-		 * @param type3 The class of field '3' of the result tuples.
-		 * @param type4 The class of field '4' of the result tuples.
-		 * @param type5 The class of field '5' of the result tuples.
-		 * @param type6 The class of field '6' of the result tuples.
-		 * @param type7 The class of field '7' of the result tuples.
-		 * @param type8 The class of field '8' of the result tuples.
-		 * @param type9 The class of field '9' of the result tuples.
-		 * @param type10 The class of field '10' of the result tuples.
-		 * @param type11 The class of field '11' of the result tuples.
-		 * @param type12 The class of field '12' of the result tuples.
-		 * @param type13 The class of field '13' of the result tuples.
-		 * @param type14 The class of field '14' of the result tuples.
-		 * @param type15 The class of field '15' of the result tuples.
-		 * @param type16 The class of field '16' of the result tuples.
-		 * @param type17 The class of field '17' of the result tuples.
-		 * @return The projected data set.
+		 * @param type0 The class of field '0' of the result Tuples.
+		 * @param type1 The class of field '1' of the result Tuples.
+		 * @param type2 The class of field '2' of the result Tuples.
+		 * @param type3 The class of field '3' of the result Tuples.
+		 * @param type4 The class of field '4' of the result Tuples.
+		 * @param type5 The class of field '5' of the result Tuples.
+		 * @param type6 The class of field '6' of the result Tuples.
+		 * @param type7 The class of field '7' of the result Tuples.
+		 * @param type8 The class of field '8' of the result Tuples.
+		 * @param type9 The class of field '9' of the result Tuples.
+		 * @param type10 The class of field '10' of the result Tuples.
+		 * @param type11 The class of field '11' of the result Tuples.
+		 * @param type12 The class of field '12' of the result Tuples.
+		 * @param type13 The class of field '13' of the result Tuples.
+		 * @param type14 The class of field '14' of the result Tuples.
+		 * @param type15 The class of field '15' of the result Tuples.
+		 * @param type16 The class of field '16' of the result Tuples.
+		 * @param type17 The class of field '17' of the result Tuples.
+		 * @return The projected DataSet.
+		 * 
+		 * @see Tuple
+		 * @see DataSet
 		 */
 		public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17> ProjectOperator<T, Tuple18<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11, Class<T12> type12, Class<T13> type13, Class<T14> type14, Class<T15> type15, Class<T16> type16, Class<T17> type17) {
 			Class<?>[] types = {type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13, type14, type15, type16, type17};
@@ -606,29 +660,32 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		}
 
 		/**
-		 * Projects a tuple data set to the previously selected fields. 
-		 * Requires the classes of the fields of the resulting tuples. 
+		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields. 
+		 * Requires the classes of the fields of the resulting Tuples. 
 		 * 
-		 * @param type0 The class of field '0' of the result tuples.
-		 * @param type1 The class of field '1' of the result tuples.
-		 * @param type2 The class of field '2' of the result tuples.
-		 * @param type3 The class of field '3' of the result tuples.
-		 * @param type4 The class of field '4' of the result tuples.
-		 * @param type5 The class of field '5' of the result tuples.
-		 * @param type6 The class of field '6' of the result tuples.
-		 * @param type7 The class of field '7' of the result tuples.
-		 * @param type8 The class of field '8' of the result tuples.
-		 * @param type9 The class of field '9' of the result tuples.
-		 * @param type10 The class of field '10' of the result tuples.
-		 * @param type11 The class of field '11' of the result tuples.
-		 * @param type12 The class of field '12' of the result tuples.
-		 * @param type13 The class of field '13' of the result tuples.
-		 * @param type14 The class of field '14' of the result tuples.
-		 * @param type15 The class of field '15' of the result tuples.
-		 * @param type16 The class of field '16' of the result tuples.
-		 * @param type17 The class of field '17' of the result tuples.
-		 * @param type18 The class of field '18' of the result tuples.
-		 * @return The projected data set.
+		 * @param type0 The class of field '0' of the result Tuples.
+		 * @param type1 The class of field '1' of the result Tuples.
+		 * @param type2 The class of field '2' of the result Tuples.
+		 * @param type3 The class of field '3' of the result Tuples.
+		 * @param type4 The class of field '4' of the result Tuples.
+		 * @param type5 The class of field '5' of the result Tuples.
+		 * @param type6 The class of field '6' of the result Tuples.
+		 * @param type7 The class of field '7' of the result Tuples.
+		 * @param type8 The class of field '8' of the result Tuples.
+		 * @param type9 The class of field '9' of the result Tuples.
+		 * @param type10 The class of field '10' of the result Tuples.
+		 * @param type11 The class of field '11' of the result Tuples.
+		 * @param type12 The class of field '12' of the result Tuples.
+		 * @param type13 The class of field '13' of the result Tuples.
+		 * @param type14 The class of field '14' of the result Tuples.
+		 * @param type15 The class of field '15' of the result Tuples.
+		 * @param type16 The class of field '16' of the result Tuples.
+		 * @param type17 The class of field '17' of the result Tuples.
+		 * @param type18 The class of field '18' of the result Tuples.
+		 * @return The projected DataSet.
+		 * 
+		 * @see Tuple
+		 * @see DataSet
 		 */
 		public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18> ProjectOperator<T, Tuple19<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11, Class<T12> type12, Class<T13> type13, Class<T14> type14, Class<T15> type15, Class<T16> type16, Class<T17> type17, Class<T18> type18) {
 			Class<?>[] types = {type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13, type14, type15, type16, type17, type18};
@@ -643,30 +700,33 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		}
 
 		/**
-		 * Projects a tuple data set to the previously selected fields. 
-		 * Requires the classes of the fields of the resulting tuples. 
+		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields. 
+		 * Requires the classes of the fields of the resulting Tuples. 
 		 * 
-		 * @param type0 The class of field '0' of the result tuples.
-		 * @param type1 The class of field '1' of the result tuples.
-		 * @param type2 The class of field '2' of the result tuples.
-		 * @param type3 The class of field '3' of the result tuples.
-		 * @param type4 The class of field '4' of the result tuples.
-		 * @param type5 The class of field '5' of the result tuples.
-		 * @param type6 The class of field '6' of the result tuples.
-		 * @param type7 The class of field '7' of the result tuples.
-		 * @param type8 The class of field '8' of the result tuples.
-		 * @param type9 The class of field '9' of the result tuples.
-		 * @param type10 The class of field '10' of the result tuples.
-		 * @param type11 The class of field '11' of the result tuples.
-		 * @param type12 The class of field '12' of the result tuples.
-		 * @param type13 The class of field '13' of the result tuples.
-		 * @param type14 The class of field '14' of the result tuples.
-		 * @param type15 The class of field '15' of the result tuples.
-		 * @param type16 The class of field '16' of the result tuples.
-		 * @param type17 The class of field '17' of the result tuples.
-		 * @param type18 The class of field '18' of the result tuples.
-		 * @param type19 The class of field '19' of the result tuples.
-		 * @return The projected data set.
+		 * @param type0 The class of field '0' of the result Tuples.
+		 * @param type1 The class of field '1' of the result Tuples.
+		 * @param type2 The class of field '2' of the result Tuples.
+		 * @param type3 The class of field '3' of the result Tuples.
+		 * @param type4 The class of field '4' of the result Tuples.
+		 * @param type5 The class of field '5' of the result Tuples.
+		 * @param type6 The class of field '6' of the result Tuples.
+		 * @param type7 The class of field '7' of the result Tuples.
+		 * @param type8 The class of field '8' of the result Tuples.
+		 * @param type9 The class of field '9' of the result Tuples.
+		 * @param type10 The class of field '10' of the result Tuples.
+		 * @param type11 The class of field '11' of the result Tuples.
+		 * @param type12 The class of field '12' of the result Tuples.
+		 * @param type13 The class of field '13' of the result Tuples.
+		 * @param type14 The class of field '14' of the result Tuples.
+		 * @param type15 The class of field '15' of the result Tuples.
+		 * @param type16 The class of field '16' of the result Tuples.
+		 * @param type17 The class of field '17' of the result Tuples.
+		 * @param type18 The class of field '18' of the result Tuples.
+		 * @param type19 The class of field '19' of the result Tuples.
+		 * @return The projected DataSet.
+		 * 
+		 * @see Tuple
+		 * @see DataSet
 		 */
 		public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19> ProjectOperator<T, Tuple20<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11, Class<T12> type12, Class<T13> type13, Class<T14> type14, Class<T15> type15, Class<T16> type16, Class<T17> type17, Class<T18> type18, Class<T19> type19) {
 			Class<?>[] types = {type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13, type14, type15, type16, type17, type18, type19};
@@ -681,31 +741,34 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		}
 
 		/**
-		 * Projects a tuple data set to the previously selected fields. 
-		 * Requires the classes of the fields of the resulting tuples. 
+		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields. 
+		 * Requires the classes of the fields of the resulting Tuples. 
 		 * 
-		 * @param type0 The class of field '0' of the result tuples.
-		 * @param type1 The class of field '1' of the result tuples.
-		 * @param type2 The class of field '2' of the result tuples.
-		 * @param type3 The class of field '3' of the result tuples.
-		 * @param type4 The class of field '4' of the result tuples.
-		 * @param type5 The class of field '5' of the result tuples.
-		 * @param type6 The class of field '6' of the result tuples.
-		 * @param type7 The class of field '7' of the result tuples.
-		 * @param type8 The class of field '8' of the result tuples.
-		 * @param type9 The class of field '9' of the result tuples.
-		 * @param type10 The class of field '10' of the result tuples.
-		 * @param type11 The class of field '11' of the result tuples.
-		 * @param type12 The class of field '12' of the result tuples.
-		 * @param type13 The class of field '13' of the result tuples.
-		 * @param type14 The class of field '14' of the result tuples.
-		 * @param type15 The class of field '15' of the result tuples.
-		 * @param type16 The class of field '16' of the result tuples.
-		 * @param type17 The class of field '17' of the result tuples.
-		 * @param type18 The class of field '18' of the result tuples.
-		 * @param type19 The class of field '19' of the result tuples.
-		 * @param type20 The class of field '20' of the result tuples.
-		 * @return The projected data set.
+		 * @param type0 The class of field '0' of the result Tuples.
+		 * @param type1 The class of field '1' of the result Tuples.
+		 * @param type2 The class of field '2' of the result Tuples.
+		 * @param type3 The class of field '3' of the result Tuples.
+		 * @param type4 The class of field '4' of the result Tuples.
+		 * @param type5 The class of field '5' of the result Tuples.
+		 * @param type6 The class of field '6' of the result Tuples.
+		 * @param type7 The class of field '7' of the result Tuples.
+		 * @param type8 The class of field '8' of the result Tuples.
+		 * @param type9 The class of field '9' of the result Tuples.
+		 * @param type10 The class of field '10' of the result Tuples.
+		 * @param type11 The class of field '11' of the result Tuples.
+		 * @param type12 The class of field '12' of the result Tuples.
+		 * @param type13 The class of field '13' of the result Tuples.
+		 * @param type14 The class of field '14' of the result Tuples.
+		 * @param type15 The class of field '15' of the result Tuples.
+		 * @param type16 The class of field '16' of the result Tuples.
+		 * @param type17 The class of field '17' of the result Tuples.
+		 * @param type18 The class of field '18' of the result Tuples.
+		 * @param type19 The class of field '19' of the result Tuples.
+		 * @param type20 The class of field '20' of the result Tuples.
+		 * @return The projected DataSet.
+		 * 
+		 * @see Tuple
+		 * @see DataSet
 		 */
 		public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20> ProjectOperator<T, Tuple21<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11, Class<T12> type12, Class<T13> type13, Class<T14> type14, Class<T15> type15, Class<T16> type16, Class<T17> type17, Class<T18> type18, Class<T19> type19, Class<T20> type20) {
 			Class<?>[] types = {type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13, type14, type15, type16, type17, type18, type19, type20};
@@ -720,32 +783,35 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		}
 
 		/**
-		 * Projects a tuple data set to the previously selected fields. 
-		 * Requires the classes of the fields of the resulting tuples. 
+		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields. 
+		 * Requires the classes of the fields of the resulting Tuples. 
 		 * 
-		 * @param type0 The class of field '0' of the result tuples.
-		 * @param type1 The class of field '1' of the result tuples.
-		 * @param type2 The class of field '2' of the result tuples.
-		 * @param type3 The class of field '3' of the result tuples.
-		 * @param type4 The class of field '4' of the result tuples.
-		 * @param type5 The class of field '5' of the result tuples.
-		 * @param type6 The class of field '6' of the result tuples.
-		 * @param type7 The class of field '7' of the result tuples.
-		 * @param type8 The class of field '8' of the result tuples.
-		 * @param type9 The class of field '9' of the result tuples.
-		 * @param type10 The class of field '10' of the result tuples.
-		 * @param type11 The class of field '11' of the result tuples.
-		 * @param type12 The class of field '12' of the result tuples.
-		 * @param type13 The class of field '13' of the result tuples.
-		 * @param type14 The class of field '14' of the result tuples.
-		 * @param type15 The class of field '15' of the result tuples.
-		 * @param type16 The class of field '16' of the result tuples.
-		 * @param type17 The class of field '17' of the result tuples.
-		 * @param type18 The class of field '18' of the result tuples.
-		 * @param type19 The class of field '19' of the result tuples.
-		 * @param type20 The class of field '20' of the result tuples.
-		 * @param type21 The class of field '21' of the result tuples.
-		 * @return The projected data set.
+		 * @param type0 The class of field '0' of the result Tuples.
+		 * @param type1 The class of field '1' of the result Tuples.
+		 * @param type2 The class of field '2' of the result Tuples.
+		 * @param type3 The class of field '3' of the result Tuples.
+		 * @param type4 The class of field '4' of the result Tuples.
+		 * @param type5 The class of field '5' of the result Tuples.
+		 * @param type6 The class of field '6' of the result Tuples.
+		 * @param type7 The class of field '7' of the result Tuples.
+		 * @param type8 The class of field '8' of the result Tuples.
+		 * @param type9 The class of field '9' of the result Tuples.
+		 * @param type10 The class of field '10' of the result Tuples.
+		 * @param type11 The class of field '11' of the result Tuples.
+		 * @param type12 The class of field '12' of the result Tuples.
+		 * @param type13 The class of field '13' of the result Tuples.
+		 * @param type14 The class of field '14' of the result Tuples.
+		 * @param type15 The class of field '15' of the result Tuples.
+		 * @param type16 The class of field '16' of the result Tuples.
+		 * @param type17 The class of field '17' of the result Tuples.
+		 * @param type18 The class of field '18' of the result Tuples.
+		 * @param type19 The class of field '19' of the result Tuples.
+		 * @param type20 The class of field '20' of the result Tuples.
+		 * @param type21 The class of field '21' of the result Tuples.
+		 * @return The projected DataSet.
+		 * 
+		 * @see Tuple
+		 * @see DataSet
 		 */
 		public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21> ProjectOperator<T, Tuple22<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11, Class<T12> type12, Class<T13> type13, Class<T14> type14, Class<T15> type15, Class<T16> type16, Class<T17> type17, Class<T18> type18, Class<T19> type19, Class<T20> type20, Class<T21> type21) {
 			Class<?>[] types = {type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13, type14, type15, type16, type17, type18, type19, type20, type21};
