@@ -16,6 +16,7 @@
 package eu.stratosphere.pact.runtime.iterative.io;
 
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
+import eu.stratosphere.pact.runtime.hash.CompactingHashTable;
 import eu.stratosphere.pact.runtime.hash.MutableHashTable;
 import eu.stratosphere.util.Collector;
 
@@ -35,15 +36,16 @@ public class SolutionSetUpdateOutputCollector<T> implements Collector<T> {
 
 	private final Collector<T> delegate;
 
-	private final MutableHashTable<T, T> solutionSet;
+	private final CompactingHashTable<T, T> solutionSet;
+	//private final MutableHashTable<T, T> solutionSet;
 
 	private T buildSideRecord;
 
-	public SolutionSetUpdateOutputCollector(MutableHashTable<T, T> solutionSet, TypeSerializer<T> serializer) {
+	public SolutionSetUpdateOutputCollector(CompactingHashTable<T, T> solutionSet, TypeSerializer<T> serializer) {
 		this(solutionSet, serializer, null);
 	}
 
-	public SolutionSetUpdateOutputCollector(MutableHashTable<T, T> solutionSet, TypeSerializer<T> serializer,
+	public SolutionSetUpdateOutputCollector(CompactingHashTable<T, T> solutionSet, TypeSerializer<T> serializer,
 			Collector<T> delegate) {
 		this.solutionSet = solutionSet;
 		this.delegate = delegate;
@@ -53,11 +55,10 @@ public class SolutionSetUpdateOutputCollector<T> implements Collector<T> {
 	@Override
 	public void collect(T record) {
 		try {
-			MutableHashTable.HashBucketIterator<T, T> bucket = solutionSet.getMatchesFor(record);
-
-			if ((buildSideRecord = bucket.next(buildSideRecord)) != null) {
-				bucket.writeBack(record);
-
+			CompactingHashTable<T,T>.HashTableProber prober = solutionSet.getProber();
+			
+			if (prober.getMatchFor(record, buildSideRecord)) {
+				solutionSet.insertOrReplaceRecord(record, buildSideRecord);
 				if (delegate != null) {
 					delegate.collect(record);
 				}

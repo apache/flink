@@ -56,7 +56,7 @@ public class HashTablePerformanceComparisonTest {
 			
 			System.out.println("Creating and filling CompactingHashMap...");
 			start = System.currentTimeMillis();
-			CompactingHashTable<IntPair> table = new CompactingHashTable<IntPair>(serializer, comparator, getMemory(NUM_MEM_PAGES, PAGE_SIZE));
+			CompactingHashTable<IntPair, IntPair> table = new CompactingHashTable<IntPair, IntPair>(serializer, serializer, comparator, comparator, pairComparator, getMemory(NUM_MEM_PAGES, PAGE_SIZE));
 			table.open();
 			
 			IntPair target = new IntPair();
@@ -68,7 +68,7 @@ public class HashTablePerformanceComparisonTest {
 			
 			System.out.println("Starting first probing run...");
 			start = System.currentTimeMillis();
-			CompactingHashTable<IntPair>.HashTableProber<IntPair> prober = table.createProber(comparator.duplicate(), pairComparator);
+			CompactingHashTable<IntPair,IntPair>.HashTableProber prober = table.getProber();
 			IntPair temp = new IntPair();
 			while(probeTester.next(target) != null) {
 				assertTrue(prober.getMatchFor(target, temp));

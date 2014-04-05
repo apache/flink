@@ -20,6 +20,7 @@ import eu.stratosphere.api.common.functions.GenericCoGrouper;
 import eu.stratosphere.api.common.typeutils.TypeComparator;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
+import eu.stratosphere.pact.runtime.hash.CompactingHashTable;
 import eu.stratosphere.pact.runtime.hash.MutableHashTable;
 import eu.stratosphere.pact.runtime.iterative.concurrent.SolutionSetBroker;
 import eu.stratosphere.pact.runtime.iterative.task.AbstractIterativePactTask;
@@ -31,7 +32,7 @@ public abstract class JoinWithSolutionSetCoGroupDriver<IT1, IT2, OT> implements 
 	
 	protected PactTaskContext<GenericCoGrouper<IT1, IT2, OT>, OT> taskContext;
 	
-	protected MutableHashTable<?, ?> hashTable;
+	protected CompactingHashTable<?, ?> hashTable;
 	
 	private TypeSerializer<IT1> serializer1;
 	private TypeSerializer<IT2> serializer2;
@@ -140,15 +141,15 @@ public abstract class JoinWithSolutionSetCoGroupDriver<IT1, IT2, OT> implements 
 			IT1 buildSideRecord = rec1;
 			
 			@SuppressWarnings("unchecked")
-			final MutableHashTable<IT1, IT2> join = (MutableHashTable<IT1, IT2>) hashTable;
+			final CompactingHashTable<IT1, IT2> join = (CompactingHashTable<IT1, IT2>) hashTable;
 			
 			final KeyGroupedIterator<IT2> probeSideInput = new KeyGroupedIterator<IT2>(taskContext.<IT2>getInput(0), serializer2, comparator2);
 			final SingleRecordIterator<IT1> siIter = new SingleRecordIterator<IT1>();
 			
+			final CompactingHashTable<IT1, IT2>.HashTableProber prober = join.getProber();
 			while (this.running && probeSideInput.nextKey()) {
 				IT2 current = probeSideInput.getCurrent();
-				final MutableHashTable.HashBucketIterator<IT1, IT2> bucket = join.getMatchesFor(current);
-				if ((buildSideRecord = bucket.next(buildSideRecord)) != null) {
+				if (prober.getMatchFor(current, buildSideRecord)) {
 					siIter.set(buildSideRecord);
 					coGroupStub.coGroup(siIter, probeSideInput.getValues(), collector);
 				}
@@ -161,15 +162,15 @@ public abstract class JoinWithSolutionSetCoGroupDriver<IT1, IT2, OT> implements 
 			IT2 buildSideRecord = rec2;
 			
 			@SuppressWarnings("unchecked")
-			final MutableHashTable<IT2, IT1> join = (MutableHashTable<IT2, IT1>) hashTable;
+			final CompactingHashTable<IT2, IT1> join = (CompactingHashTable<IT2, IT1>) hashTable;
 			
 			final KeyGroupedIterator<IT1> probeSideInput = new KeyGroupedIterator<IT1>(taskContext.<IT1>getInput(0), serializer1, comparator1);
 			final SingleRecordIterator<IT2> siIter = new SingleRecordIterator<IT2>();
 			
+			final CompactingHashTable<IT2, IT1>.HashTableProber prober = join.getProber();
 			while (this.running && probeSideInput.nextKey()) {
 				IT1 current = probeSideInput.getCurrent();
-				final MutableHashTable.HashBucketIterator<IT2, IT1> bucket = join.getMatchesFor(current);
-				if ((buildSideRecord = bucket.next(buildSideRecord)) != null) {
+				if (prober.getMatchFor(current, buildSideRecord)) {
 					siIter.set(buildSideRecord);
 					coGroupStub.coGroup(probeSideInput.getValues(), siIter, collector);
 				}

@@ -13,12 +13,12 @@
 
 package eu.stratosphere.pact.runtime.iterative.concurrent;
 
-import eu.stratosphere.pact.runtime.hash.MutableHashTable;
+import eu.stratosphere.pact.runtime.hash.CompactingHashTable;
 
 /**
  * Used to hand over the hash-join from the iteration head to the solution-set match.
  */
-public class SolutionSetBroker extends Broker<MutableHashTable<?, ?>> {
+public class SolutionSetBroker extends Broker<CompactingHashTable<?, ?>> {
 
 	/**
 	 * Singleton instance
@@ -28,7 +28,7 @@ public class SolutionSetBroker extends Broker<MutableHashTable<?, ?>> {
 	/**
 	 * Retrieve the singleton instance.
 	 */
-	public static Broker<MutableHashTable<?, ?>> instance() {
+	public static Broker<CompactingHashTable<?, ?>> instance() {
 		return INSTANCE;
 	}
 	

@@ -16,6 +16,7 @@ package eu.stratosphere.pact.runtime.task;
 import eu.stratosphere.api.common.functions.GenericJoiner;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
+import eu.stratosphere.pact.runtime.hash.CompactingHashTable;
 import eu.stratosphere.pact.runtime.hash.MutableHashTable;
 import eu.stratosphere.pact.runtime.iterative.concurrent.SolutionSetBroker;
 import eu.stratosphere.pact.runtime.iterative.task.AbstractIterativePactTask;
@@ -30,7 +31,7 @@ public abstract class JoinWithSolutionSetMatchDriver<IT1, IT2, OT> implements Re
 	
 	protected PactTaskContext<GenericJoiner<IT1, IT2, OT>, OT> taskContext;
 	
-	protected MutableHashTable<?, ?> hashTable;
+	protected CompactingHashTable<?, ?> hashTable;
 	
 	private TypeSerializer<IT1> serializer1;
 	private TypeSerializer<IT2> serializer2;
@@ -139,12 +140,13 @@ public abstract class JoinWithSolutionSetMatchDriver<IT1, IT2, OT> implements Re
 			IT2 probeSideRecord = rec2;
 			
 			@SuppressWarnings("unchecked")
-			final MutableHashTable<IT1, IT2> join = (MutableHashTable<IT1, IT2>) hashTable;
+			final CompactingHashTable<IT1, IT2> join = (CompactingHashTable<IT1, IT2>) hashTable;
 			final MutableObjectIterator<IT2> probeSideInput = taskContext.<IT2>getInput(0);
 			
+			final CompactingHashTable<IT1, IT2>.HashTableProber prober = join.getProber();
 			while (this.running && ((probeSideRecord = probeSideInput.next(probeSideRecord)) != null)) {
-				final MutableHashTable.HashBucketIterator<IT1, IT2> bucket = join.getMatchesFor(probeSideRecord);
-				if ((buildSideRecord = bucket.next(buildSideRecord)) != null) {
+				//final MutableHashTable.HashBucketIterator<IT1, IT2> bucket = join.getMatchesFor(probeSideRecord);
+				if (prober.getMatchFor(probeSideRecord, buildSideRecord)) {
 					matchStub.join(buildSideRecord, probeSideRecord, collector);
 				} else {
 					// no match found, this is for now an error case
@@ -156,12 +158,13 @@ public abstract class JoinWithSolutionSetMatchDriver<IT1, IT2, OT> implements Re
 			IT1 probeSideRecord = rec1;
 			
 			@SuppressWarnings("unchecked")
-			final MutableHashTable<IT2, IT1> join = (MutableHashTable<IT2, IT1>) hashTable;
+			final CompactingHashTable<IT2, IT1> join = (CompactingHashTable<IT2, IT1>) hashTable;
 			final MutableObjectIterator<IT1> probeSideInput = taskContext.<IT1>getInput(0);
 			
+			final CompactingHashTable<IT2, IT1>.HashTableProber prober = join.getProber();
 			while (this.running && ((probeSideRecord = probeSideInput.next(probeSideRecord)) != null)) {
-				final MutableHashTable.HashBucketIterator<IT2, IT1> bucket = join.getMatchesFor(probeSideRecord);
-				if ((buildSideRecord = bucket.next(buildSideRecord)) != null) {
+				//final MutableHashTable.HashBucketIterator<IT2, IT1> bucket = join.getMatchesFor(probeSideRecord);
+				if (prober.getMatchFor(probeSideRecord, buildSideRecord)) {
 					matchStub.join(probeSideRecord, buildSideRecord, collector);
 				} else {
 					// no match found, this is for now an error case
@@ -174,6 +177,29 @@ public abstract class JoinWithSolutionSetMatchDriver<IT1, IT2, OT> implements Re
 	}
 
 	private <PT> void throwNoMatchFoundException (MutableHashTable<?, PT> join, PT probeSideRecord) {
+		if (probeSideRecord instanceof Record) {
+			Record record = (Record) probeSideRecord;
+			RecordComparator comparator = (RecordComparator) join.getProbeSideComparator();
+
+			int[] keys = comparator.getKeyPositions();
+			Class<? extends Key>[] keyTypes = comparator.getKeyTypes();
+
+			StringBuilder str = new StringBuilder();
+			for (int i = 0; i < keys.length; i++) {
+				str.append(record.getField(keys[i], keyTypes[i]).toString());
+				str.append(" (field ");
+				str.append(keys[i]);
+				str.append(")");
+				str.append(i == keys.length-1 ? "" : ", ");
+			}
+
+			throw new RuntimeException("No match found in solution set for record with key " + str.toString());
+		}
+
+		throw new RuntimeException("No match found in solution set");
+	}
+	
+	private <PT> void throwNoMatchFoundException (CompactingHashTable<?, PT> join, PT probeSideRecord) {
 		if (probeSideRecord instanceof Record) {
 			Record record = (Record) probeSideRecord;
 			RecordComparator comparator = (RecordComparator) join.getProbeSideComparator();

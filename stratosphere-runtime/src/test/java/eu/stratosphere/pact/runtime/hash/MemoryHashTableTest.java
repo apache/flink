@@ -68,7 +68,7 @@ public class MemoryHashTableTest {
 	
 	private final TypePairComparator<IntList, IntList> pairComparatorV = new IntListPairComparator();
 	
-	private final int SIZE = 79; //FIXME 75 triggers serialization bug in testVariableLengthBuildAndRetrieve
+	private final int SIZE = 80; //FIXME 75 triggers serialization bug in testVariableLengthBuildAndRetrieve
 	
 	private final int NUM_PAIRS = 100000;
 
@@ -90,14 +90,14 @@ public class MemoryHashTableTest {
 			
 			final IntPair[] pairs = getRandomizedIntPairs(NUM_PAIRS, rnd);
 			
-			CompactingHashTable<IntPair> table = new CompactingHashTable<IntPair>(serializer, comparator, getMemory(NUM_MEM_PAGES, PAGE_SIZE));
+			CompactingHashTable<IntPair, IntPair> table = new CompactingHashTable<IntPair, IntPair>(serializer, serializer, comparator, comparator, pairComparator, getMemory(NUM_MEM_PAGES, PAGE_SIZE));
 			table.open();
 			
 			for (int i = 0; i < NUM_PAIRS; i++) {
 				table.insert(pairs[i]);
 			}
 	
-			CompactingHashTable<IntPair>.HashTableProber<IntPair> prober = table.createProber(comparator.duplicate(), pairComparator);
+			CompactingHashTable<IntPair, IntPair>.HashTableProber prober = table.getProber();
 			IntPair target = new IntPair();
 			
 			for (int i = 0; i < NUM_PAIRS; i++) {
@@ -116,13 +116,46 @@ public class MemoryHashTableTest {
 	}
 	
 	@Test
+	public void testEntryIterator() {
+		
+		try {
+			final int NUM_MEM_PAGES = SIZE * NUM_LISTS / PAGE_SIZE;
+			final IntList[] lists = getRandomizedIntLists(NUM_LISTS, rnd);
+			
+			CompactingHashTable<IntList, IntList> table = new CompactingHashTable<IntList, IntList>(serializerV, serializerV, comparatorV, comparatorV, pairComparatorV, getMemory(NUM_MEM_PAGES, PAGE_SIZE));
+			table.open();
+			int result = 0;
+			for (int i = 0; i < NUM_LISTS; i++) {
+				table.insert(lists[i]);
+				result += lists[i].getKey();
+			}
+	
+			MutableObjectIterator<IntList> iter = table.getEntryIterator();
+			IntList target = new IntList();
+			
+			int sum = 0;
+			while((target = iter.next(target)) != null) {
+				sum += target.getKey();
+			}
+			table.close();
+			
+			assertTrue(sum == result);
+			assertEquals("Memory lost", NUM_MEM_PAGES, table.getFreeMemory().size());
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail("Error: " + e.getMessage());
+		}
+	}
+	
+	@Test
 	public void testVariableLengthBuildAndRetrieve() {
 		try {
 			final int NUM_MEM_PAGES = SIZE * NUM_LISTS / PAGE_SIZE;
 			
 			final IntList[] lists = getRandomizedIntLists(NUM_LISTS, rnd);
 			
-			CompactingHashTable<IntList> table = new CompactingHashTable<IntList>(serializerV, comparatorV, getMemory(NUM_MEM_PAGES, PAGE_SIZE));
+			CompactingHashTable<IntList, IntList> table = new CompactingHashTable<IntList, IntList>(serializerV, serializerV, comparatorV, comparatorV, pairComparatorV, getMemory(NUM_MEM_PAGES, PAGE_SIZE));
 			table.open();
 			
 			for (int i = 0; i < NUM_LISTS; i++) {
@@ -134,7 +167,7 @@ public class MemoryHashTableTest {
 				}
 			}
 						
-			CompactingHashTable<IntList>.HashTableProber<IntList> prober = table.createProber(comparatorV.duplicate(), pairComparatorV);
+			CompactingHashTable<IntList, IntList>.HashTableProber prober = table.getProber();
 			IntList target = new IntList();
 			
 			for (int i = 0; i < NUM_LISTS; i++) {
@@ -171,14 +204,14 @@ public class MemoryHashTableTest {
 						
 			final IntList[] lists = getRandomizedIntLists(NUM_LISTS, rnd);
 			
-			CompactingHashTable<IntList> table = new CompactingHashTable<IntList>(serializerV, comparatorV, getMemory(NUM_MEM_PAGES, PAGE_SIZE));
+			CompactingHashTable<IntList, IntList> table = new CompactingHashTable<IntList, IntList>(serializerV, serializerV, comparatorV, comparatorV, pairComparatorV, getMemory(NUM_MEM_PAGES, PAGE_SIZE));
 			table.open();
 			
 			for (int i = 0; i < NUM_LISTS; i++) {
 				table.insert(lists[i]);
 			}
 						
-			CompactingHashTable<IntList>.HashTableProber<IntList> prober = table.createProber(comparatorV.duplicate(), pairComparatorV);
+			CompactingHashTable<IntList, IntList>.HashTableProber prober = table.getProber();
 			IntList target = new IntList();
 			
 			for (int i = 0; i < NUM_LISTS; i++) {
@@ -221,14 +254,14 @@ public class MemoryHashTableTest {
 			
 			final IntList[] lists = getRandomizedIntLists(NUM_LISTS, rnd);
 			
-			CompactingHashTable<IntList> table = new CompactingHashTable<IntList>(serializerV, comparatorV, getMemory(NUM_MEM_PAGES, PAGE_SIZE));
+			CompactingHashTable<IntList, IntList> table = new CompactingHashTable<IntList, IntList>(serializerV, serializerV, comparatorV, comparatorV, pairComparatorV, getMemory(NUM_MEM_PAGES, PAGE_SIZE));
 			table.open();
 			
 			for (int i = 0; i < NUM_LISTS; i++) {
 				table.insert(lists[i]);
 			}
 						
-			CompactingHashTable<IntList>.HashTableProber<IntList> prober = table.createProber(comparatorV.duplicate(), pairComparatorV);
+			CompactingHashTable<IntList, IntList>.HashTableProber prober = table.getProber();
 			IntList target = new IntList();
 			
 			for (int i = 0; i < NUM_LISTS; i++) {
@@ -281,7 +314,7 @@ public class MemoryHashTableTest {
 			
 			System.out.println("Creating and filling CompactingHashMap...");
 			start = System.currentTimeMillis();
-			CompactingHashTable<StringPair> table = new CompactingHashTable<StringPair>(serializerS, comparatorS, getMemory(NUM_MEM_PAGES, PAGE_SIZE));
+			CompactingHashTable<StringPair, StringPair> table = new CompactingHashTable<StringPair, StringPair>(serializerS, serializerS, comparatorS, comparatorS, pairComparatorS, getMemory(NUM_MEM_PAGES, PAGE_SIZE));
 			table.open();
 			
 			StringPair target = new StringPair();
@@ -293,7 +326,7 @@ public class MemoryHashTableTest {
 			
 			System.out.println("Starting first probing run...");
 			start = System.currentTimeMillis();
-			CompactingHashTable<StringPair>.HashTableProber<StringPair> prober = table.createProber(comparatorS.duplicate(), pairComparatorS);
+			CompactingHashTable<StringPair, StringPair>.HashTableProber prober = table.getProber();
 			StringPair temp = new StringPair();
 			while(probeTester.next(target) != null) {
 				assertTrue(prober.getMatchFor(target, temp));

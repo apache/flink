@@ -25,6 +25,7 @@ import eu.stratosphere.pact.runtime.iterative.concurrent.SolutionSetBroker;
 import eu.stratosphere.pact.runtime.iterative.concurrent.SolutionSetUpdateBarrier;
 import eu.stratosphere.pact.runtime.iterative.concurrent.SolutionSetUpdateBarrierBroker;
 import eu.stratosphere.pact.runtime.iterative.concurrent.SuperstepBarrier;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -41,6 +42,7 @@ import eu.stratosphere.core.memory.MemorySegment;
 import eu.stratosphere.nephele.io.AbstractRecordWriter;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.io.channels.bytebuffered.EndOfSuperstepEvent;
+import eu.stratosphere.pact.runtime.hash.CompactingHashTable;
 import eu.stratosphere.pact.runtime.hash.MutableHashTable;
 import eu.stratosphere.pact.runtime.io.InputViewIterator;
 import eu.stratosphere.pact.runtime.iterative.event.AllWorkersDoneEvent;
@@ -204,11 +206,67 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 			}
 		}
 	}
+	
+	private <BT, PT> CompactingHashTable<BT, PT> initCompactingHashTable() throws Exception {
+		// get some memory
+		long hashjoinMemorySize = config.getSolutionSetMemory();
+
+		TypeSerializerFactory<BT> solutionTypeSerializerFactory = config.getSolutionSetSerializer(userCodeClassLoader);
+		TypeSerializerFactory<PT> probeSideSerializerFactory = config
+			.getSolutionSetProberSerializer(userCodeClassLoader);
+		TypeComparatorFactory<BT> solutionTypeComparatorFactory = config.getSolutionSetComparator(userCodeClassLoader);
+		TypeComparatorFactory<PT> probeSideComparatorFactory = config
+			.getSolutionSetProberComparator(userCodeClassLoader);
+		TypePairComparatorFactory<BT, PT> pairComparatorFactory = config
+			.getSolutionSetPairComparatorFactory(userCodeClassLoader);
+
+		TypeSerializer<BT> solutionTypeSerializer = solutionTypeSerializerFactory.getSerializer();
+		TypeSerializer<PT> probeSideSerializer = probeSideSerializerFactory.getSerializer();
+		TypeComparator<BT> solutionTypeComparator = solutionTypeComparatorFactory.createComparator();
+		TypeComparator<PT> probeSideComparator = probeSideComparatorFactory.createComparator();
+		TypePairComparator<PT, BT> pairComparator = pairComparatorFactory.createComparator21(solutionTypeComparator,
+			probeSideComparator);
+
+		CompactingHashTable<BT, PT> hashTable = null;
+		List<MemorySegment> memSegments = null;
+		boolean success = false;
+		try {
+			int numPages = getMemoryManager().computeNumberOfPages(hashjoinMemorySize);
+			memSegments = getMemoryManager().allocatePages(getOwningNepheleTask(), numPages);
+			hashTable = new CompactingHashTable<BT, PT>(solutionTypeSerializer, probeSideSerializer,
+				solutionTypeComparator, probeSideComparator, pairComparator, memSegments);
+			success = true;
+			return hashTable;
+		} finally {
+			if (!success) {
+				if (hashTable != null) {
+					try {
+						hashTable.close();
+					} catch (Throwable t) {
+						log.error("Error closing the solution set hash table after unsuccessful creation.", t);
+					}
+				}
+				if (memSegments != null) {
+					try {
+						getMemoryManager().release(memSegments);
+					} catch (Throwable t) {
+						log.error("Error freeing memory after error during solution set hash table creation.", t);
+					}
+				}
+			}
+		}
+	}
 
 	private <T> void readInitialSolutionSet(MutableHashTable<X, T> solutionSet,
 			MutableObjectIterator<X> solutionSetInput) throws IOException {
 		MutableObjectIterator<T> emptyInput = EmptyMutableObjectIterator.get();
 		solutionSet.open(solutionSetInput, emptyInput);
+	}
+	
+	private <T> void readInitialSolutionSet(CompactingHashTable<X, T> solutionSet,
+			MutableObjectIterator<X> solutionSetInput) throws IOException {
+		solutionSet.open();
+		solutionSet.buildTable(solutionSetInput);
 	}
 
 	private SuperstepBarrier initSuperstepBarrier() {
@@ -224,8 +282,9 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 		final String brokerKey = brokerKey();
 		final int workerIndex = getEnvironment().getIndexInSubtaskGroup();
 
-		MutableHashTable<X, ?> solutionSet = null; // if workset iteration
-
+		//MutableHashTable<X, ?> solutionSet = null; // if workset iteration
+		CompactingHashTable<X, ?> solutionSet = null; // if workset iteration
+		
 		boolean waitForSolutionSetUpdate = config.getWaitForSolutionSetUpdate();
 		boolean isWorksetIteration = config.getIsWorksetIteration();
 
@@ -246,7 +305,8 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 				solutionTypeSerializer = solutionTypeSerializerFactory.getSerializer();
 
 				// setup the index for the solution set
-				solutionSet = initHashTable();
+				//solutionSet = initHashTable();
+				solutionSet = initCompactingHashTable();
 
 				// read the initial solution set
 				@SuppressWarnings("unchecked")
@@ -378,6 +438,17 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 	private void streamSolutionSetToFinalOutput(MutableHashTable<X, ?> hashTable) throws IOException,
 			InterruptedException {
 		final MutableObjectIterator<X> results = hashTable.getPartitionEntryIterator();
+		final Collector<X> output = this.finalOutputCollector;
+		X record = solutionTypeSerializer.createInstance();
+
+		while ((record = results.next(record)) != null) {
+			output.collect(record);
+		}
+	}
+	
+	private void streamSolutionSetToFinalOutput(CompactingHashTable<X, ?> hashTable) throws IOException,
+	InterruptedException {
+		final MutableObjectIterator<X> results = hashTable.getEntryIterator();
 		final Collector<X> output = this.finalOutputCollector;
 		X record = solutionTypeSerializer.createInstance();
 

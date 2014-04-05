@@ -22,6 +22,7 @@ import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
 import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.io.MutableReader;
+import eu.stratosphere.pact.runtime.hash.CompactingHashTable;
 import eu.stratosphere.pact.runtime.hash.MutableHashTable;
 import eu.stratosphere.pact.runtime.iterative.concurrent.*;
 import eu.stratosphere.pact.runtime.iterative.convergence.WorksetEmptyConvergenceCriterion;
@@ -330,20 +331,20 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 	 * @return a new {@link SolutionSetFastUpdateOutputCollector} or {@link SolutionSetUpdateOutputCollector}
 	 */
 	protected Collector<OT> createSolutionSetUpdateOutputCollector(Collector<OT> delegate) {
-		Broker<MutableHashTable<?, ?>> solutionSetBroker = SolutionSetBroker.instance();
+		Broker<CompactingHashTable<?, ?>> solutionSetBroker = SolutionSetBroker.instance();
 
-		if (config.getIsSolutionSetUpdateWithoutReprobe()) {
+		/*if (config.getIsSolutionSetUpdateWithoutReprobe()) {
 			@SuppressWarnings("unchecked")
 			MutableHashTable<OT, ?> solutionSet = (MutableHashTable<OT, ?>) solutionSetBroker.get(brokerKey());
 
 			return new SolutionSetFastUpdateOutputCollector<OT>(solutionSet, delegate);
-		} else {
+		} else {*/
 			@SuppressWarnings("unchecked")
-			MutableHashTable<OT, OT> solutionSet = (MutableHashTable<OT, OT>) solutionSetBroker.get(brokerKey());
+			CompactingHashTable<OT, OT> solutionSet = (CompactingHashTable<OT, OT>) solutionSetBroker.get(brokerKey());
 			TypeSerializer<OT> serializer = getOutputSerializer();
 
 			return new SolutionSetUpdateOutputCollector<OT>(solutionSet, serializer, delegate);
-		}
+		//}
 	}
 
 	/**

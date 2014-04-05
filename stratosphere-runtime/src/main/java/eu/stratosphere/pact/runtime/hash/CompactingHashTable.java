@@ -27,6 +27,7 @@ import eu.stratosphere.api.common.typeutils.TypeComparator;
 import eu.stratosphere.api.common.typeutils.TypePairComparator;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.core.memory.MemorySegment;
+import eu.stratosphere.core.memory.SeekableDataOutputView;
 import eu.stratosphere.nephele.services.memorymanager.ListMemorySegmentSource;
 import eu.stratosphere.pact.runtime.util.MathUtils;
 import eu.stratosphere.util.MutableObjectIterator;
@@ -72,8 +73,8 @@ import eu.stratosphere.util.MutableObjectIterator;
  * @param T record type stored in hash table
  * 
  */
-public class CompactingHashTable<T> {
-	
+public class CompactingHashTable<BT, PT> {
+
 	private static final Log LOG = LogFactory.getLog(CompactingHashTable.class);
 	
 	// ------------------------------------------------------------------------
@@ -157,14 +158,31 @@ public class CompactingHashTable<T> {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * The utilities to serialize the table data types.
+	 * The utilities to serialize the build side data types.
 	 */
-	private final TypeSerializer<T> serializer;
+	protected final TypeSerializer<BT> buildSideSerializer;
+
+	/**
+	 * The utilities to serialize the probe side data types.
+	 */
+	protected final TypeSerializer<PT> probeSideSerializer;
 	
 	/**
-	 * The utilities to hash and compare the table data type.
+	 * The utilities to hash and compare the build side data types.
 	 */
-	private final TypeComparator<T> comparator;
+	protected final TypeComparator<BT> buildSideComparator;
+
+	/**
+	 * The utilities to hash and compare the probe side data types.
+	 */
+	private final TypeComparator<PT> probeSideComparator;
+		
+	/**
+	 * The comparator used to determine (in)equality between probe side and build side records.
+	 */
+	private final TypePairComparator<PT, BT> pairComparator;
+	
+	private HashTableProber prober = null;
 	
 	/**
 	 * The free memory segments currently available to the hash join.
@@ -199,7 +217,7 @@ public class CompactingHashTable<T> {
 	/**
 	 * The partitions of the hash table.
 	 */
-	private final ArrayList<InMemoryPartition<T>> partitions;
+	private final ArrayList<InMemoryPartition<BT>> partitions;
 	
 	/**
 	 * The array of memory segments that contain the buckets which form the actual hash-table
@@ -210,7 +228,7 @@ public class CompactingHashTable<T> {
 	/**
 	 * temporary storage for partition compaction (always attempts to allocate as many segments as the largest partition)
 	 */
-	private InMemoryPartition<T> compactionMemory;
+	private InMemoryPartition<BT> compactionMemory;
 	
 	/**
 	 * The number of buckets in the current table. The bucket array is not necessarily fully
@@ -228,14 +246,15 @@ public class CompactingHashTable<T> {
 	//                         Construction and Teardown
 	// ------------------------------------------------------------------------
 	
-	public CompactingHashTable(TypeSerializer<T> serializer, TypeComparator<T> comparator,
+	public CompactingHashTable(TypeSerializer<BT> buildSideSerializer, TypeSerializer<PT> probeSideSerializer, 
+			TypeComparator<BT> buildSideComparator,TypeComparator<PT> probeSideComparator, TypePairComparator<PT, BT> pairComparator, 
 			List<MemorySegment> memorySegments)
 	{
-		this(serializer, comparator, memorySegments, DEFAULT_RECORD_LEN);
+		this(buildSideSerializer, probeSideSerializer, buildSideComparator, probeSideComparator, pairComparator, memorySegments, DEFAULT_RECORD_LEN);
 	}
 	
-	public CompactingHashTable(TypeSerializer<T> serializer, TypeComparator<T> comparator,
-			List<MemorySegment> memorySegments, int avgRecordLen)
+	public CompactingHashTable(TypeSerializer<BT> buildSideSerializer, TypeSerializer<PT> probeSideSerializer, TypeComparator<BT> buildSideComparator,
+			TypeComparator<PT> probeSideComparator, TypePairComparator<PT, BT> pairComparator, List<MemorySegment> memorySegments, int avgRecordLen)
 	{
 		// some sanity checks first
 		if (memorySegments == null) {
@@ -247,14 +266,18 @@ public class CompactingHashTable<T> {
 		}
 		
 		// assign the members
-		this.serializer = serializer;
-		this.comparator = comparator;
+		this.buildSideSerializer = buildSideSerializer;
+		this.probeSideSerializer = probeSideSerializer;
+		this.buildSideComparator = buildSideComparator;
+		this.probeSideComparator = probeSideComparator;
+		this.pairComparator = pairComparator;
+		
 		this.availableMemory = (memorySegments instanceof ArrayList) ? 
 				(ArrayList<MemorySegment>) memorySegments :
 				new ArrayList<MemorySegment>(memorySegments);
 
 		
-		this.avgRecordLen = serializer.getLength() > 0 ? serializer.getLength() : avgRecordLen;
+		this.avgRecordLen = buildSideSerializer.getLength() > 0 ? buildSideSerializer.getLength() : avgRecordLen;
 		
 		// check the size of the first buffer and record it. all further buffers must have the same size.
 		// the size must also be a power of 2
@@ -269,7 +292,7 @@ public class CompactingHashTable<T> {
 		this.bucketsPerSegmentMask = bucketsPerSegment - 1;
 		this.bucketsPerSegmentBits = MathUtils.log2strict(bucketsPerSegment);
 		
-		this.partitions = new ArrayList<InMemoryPartition<T>>();
+		this.partitions = new ArrayList<InMemoryPartition<BT>>();
 		
 		// because we allow to open and close multiple times, the state is initially closed
 		this.closed.set(true);
@@ -340,8 +363,8 @@ public class CompactingHashTable<T> {
 	}
 	
 	
-	public void buildTable(final MutableObjectIterator<T> input) throws IOException {
-		T record = this.serializer.createInstance();
+	public void buildTable(final MutableObjectIterator<BT> input) throws IOException {
+		BT record = this.buildSideSerializer.createInstance();
 		
 		// go over the complete input and insert every element into the hash table
 		while (this.running && ((record = input.next(record)) != null)) {
@@ -349,8 +372,8 @@ public class CompactingHashTable<T> {
 		}
 	}
 	
-	public final void insert(T record) throws IOException {
-		final int hashCode = hash(this.comparator.hash(record));
+	public final void insert(BT record) throws IOException {
+		final int hashCode = hash(this.buildSideComparator.hash(record));
 		final int posHashCode = hashCode % this.numBuckets;
 		
 		// get the bucket for the given hash code
@@ -360,7 +383,7 @@ public class CompactingHashTable<T> {
 		
 		// get the basic characteristics of the bucket
 		final int partitionNumber = bucket.get(bucketInSegmentPos + HEADER_PARTITION_OFFSET);
-		final InMemoryPartition<T> p = this.partitions.get(partitionNumber);
+		final InMemoryPartition<BT> p = this.partitions.get(partitionNumber);
 		
 		
 		long pointer;
@@ -382,8 +405,19 @@ public class CompactingHashTable<T> {
 	}
 	
 	
-	public <P> HashTableProber<P> createProber(TypeComparator<P> probeTypeComparator, TypePairComparator<P, T> pairComparator) {
-		return new HashTableProber<P>(probeTypeComparator, pairComparator);
+	public HashTableProber getProber() {
+		if(this.prober == null) {
+			this.prober = new HashTableProber(this.probeSideComparator, this.pairComparator);
+		}
+		return prober;
+	}
+	
+	public MutableObjectIterator<BT> getEntryIterator() {
+		return new EntryIterator(this);
+	}
+	
+	public TypeComparator<PT> getProbeSideComparator() {
+		return this.probeSideComparator;
 	}
 	
 	
@@ -395,8 +429,8 @@ public class CompactingHashTable<T> {
 	 * @param tempHolder instance of T that will be overwritten
 	 * @throws IOException
 	 */
-	public void insertOrReplaceRecord(T record, T tempHolder) throws IOException {
-		final int searchHashCode = hash(this.comparator.hash(record));
+	public void insertOrReplaceRecord(BT record, BT tempHolder) throws IOException {
+		final int searchHashCode = hash(this.buildSideComparator.hash(record));
 		final int posHashCode = searchHashCode % this.numBuckets;
 		
 		// get the bucket for the given hash code
@@ -407,10 +441,10 @@ public class CompactingHashTable<T> {
 		
 		// get the basic characteristics of the bucket
 		final int partitionNumber = bucket.get(bucketInSegmentOffset + HEADER_PARTITION_OFFSET);
-		final InMemoryPartition<T> partition = this.partitions.get(partitionNumber);
+		final InMemoryPartition<BT> partition = this.partitions.get(partitionNumber);
 		final MemorySegment[] overflowSegments = partition.overflowSegments;
 		
-		this.comparator.setReference(record);
+		this.buildSideComparator.setReference(record);
 		
 		int countInSegment = bucket.getInt(bucketInSegmentOffset + HEADER_COUNT_OFFSET);
 		int numInSegment = 0;
@@ -436,7 +470,7 @@ public class CompactingHashTable<T> {
 					// deserialize the key to check whether it is really equal, or whether we had only a hash collision
 					try {
 						partition.readRecordAt(pointer, tempHolder);
-						if (this.comparator.equalToReference(tempHolder)) {
+						if (this.buildSideComparator.equalToReference(tempHolder)) {
 							long newPointer = partition.appendRecord(record);
 							bucket.putLong(pointerOffset, newPointer);
 							partition.setCompaction(false);
@@ -488,7 +522,7 @@ public class CompactingHashTable<T> {
 		}
 	}
 
-	private final void insertBucketEntryFromStart(InMemoryPartition<T> p, MemorySegment bucket, 
+	private final void insertBucketEntryFromStart(InMemoryPartition<BT> p, MemorySegment bucket, 
 			int bucketInSegmentPos, int hashCode, long pointer)
 	throws IOException
 	{
@@ -581,7 +615,7 @@ public class CompactingHashTable<T> {
 		}
 	}
 	
-	private final void insertBucketEntryFromSearch(InMemoryPartition<T> partition, MemorySegment originalBucket, MemorySegment currentBucket, int originalBucketOffset, int currentBucketOffset, int countInCurrentBucket, long currentForwardPointer, int hashCode, long pointer) {
+	private final void insertBucketEntryFromSearch(InMemoryPartition<BT> partition, MemorySegment originalBucket, MemorySegment currentBucket, int originalBucketOffset, int currentBucketOffset, int countInCurrentBucket, long currentForwardPointer, int hashCode, long pointer) {
 		if (countInCurrentBucket < NUM_ENTRIES_PER_BUCKET) {
 			// we are good in our current bucket, put the values
 			currentBucket.putInt(currentBucketOffset + BUCKET_HEADER_LENGTH + (countInCurrentBucket * HASH_CODE_LEN), hashCode);	// hash code
@@ -648,14 +682,14 @@ public class CompactingHashTable<T> {
 		this.pageSizeInBits = MathUtils.log2strict(this.segmentSize);
 		
 		for (int i = 0; i < numPartitions; i++) {
-			this.partitions.add(new InMemoryPartition<T>(this.serializer, i, memSource, this.segmentSize, pageSizeInBits));
+			this.partitions.add(new InMemoryPartition<BT>(this.buildSideSerializer, i, memSource, this.segmentSize, pageSizeInBits));
 		}
-		this.compactionMemory = new InMemoryPartition<T>(this.serializer, -1, memSource, this.segmentSize, pageSizeInBits);
+		this.compactionMemory = new InMemoryPartition<BT>(this.buildSideSerializer, -1, memSource, this.segmentSize, pageSizeInBits);
 	}
 	
 	private void clearPartitions() {
 		for (int i = 0; i < this.partitions.size(); i++) {
-			InMemoryPartition<T> p = this.partitions.get(i);
+			InMemoryPartition<BT> p = this.partitions.get(i);
 			p.clearAllMemory(this.availableMemory);
 		}
 		this.partitions.clear();
@@ -781,8 +815,8 @@ public class CompactingHashTable<T> {
 		// release all segments owned by compaction partition
 		this.compactionMemory.clearAllMemory(availableMemory);
 		this.compactionMemory.allocateSegments(1);
-		T tempHolder = this.serializer.createInstance();
-		InMemoryPartition<T> partition = this.partitions.remove(partitionNumber);
+		BT tempHolder = this.buildSideSerializer.createInstance();
+		InMemoryPartition<BT> partition = this.partitions.remove(partitionNumber);
 		final int numPartitions = this.partitions.size() + 1; // dropped one earlier
 		long pointer = 0L;
 		int pointerOffset = 0;
@@ -808,6 +842,7 @@ public class CompactingHashTable<T> {
 				if(overflowPointer != BUCKET_FORWARD_POINTER_NOT_SET) {
 					// scan overflow buckets
 					int current = NUM_ENTRIES_PER_BUCKET;
+					bucketOffset = (int) (overflowPointer & 0xffffffff);
 					pointerOffset = ((int) (overflowPointer & 0xffffffff)) + BUCKET_POINTER_START_OFFSET;
 					int overflowSegNum = (int) (overflowPointer >>> 32);
 					count += partition.overflowSegments[overflowSegNum].getInt(bucketOffset + HEADER_COUNT_OFFSET);
@@ -824,6 +859,7 @@ public class CompactingHashTable<T> {
 								break;
 							}
 							overflowSegNum = (int) (overflowPointer >>> 32);
+							bucketOffset = (int) (overflowPointer & 0xffffffff);
 							pointerOffset = ((int) (overflowPointer & 0xffffffff)) + BUCKET_POINTER_START_OFFSET;
 						} else {
 							pointerOffset += POINTER_LEN;
@@ -844,7 +880,7 @@ public class CompactingHashTable<T> {
 		this.compactionMemory.setPartitionNumber(-1);
 		// try to allocate maximum segment count
 		int maxSegmentNumber = 0;
-		for (InMemoryPartition<T> e : this.partitions) {
+		for (InMemoryPartition<BT> e : this.partitions) {
 			if(e.getBlockCount() > maxSegmentNumber) {
 				maxSegmentNumber = e.getBlockCount();
 			}
@@ -889,31 +925,124 @@ public class CompactingHashTable<T> {
 		return code >= 0 ? code : -(code + 1);
 	}
 	
+	public class EntryIterator implements MutableObjectIterator<BT> {
+		
+		private CompactingHashTable<BT, PT> table;
+		
+		private ArrayList<BT> cache; // holds full bucket including overflow buckets
+				
+		private int currentBucketIndex = 0;
+		private int currentSegmentIndex = 0;
+		private int currentBucketOffset = 0;
+		private int bucketsPerSegment;
+		
+		private boolean done;
+		
+		private EntryIterator(CompactingHashTable<BT, PT> compactingHashTable) {
+			this.table = compactingHashTable;
+			this.cache = new ArrayList<BT>(64);
+			this.done = false;
+			this.bucketsPerSegment = table.bucketsPerSegmentMask + 1;
+		}
+
+		@Override
+		public BT next(BT reuse) throws IOException {
+			if(done) {
+				return null;
+			} else if(!cache.isEmpty()) {
+				reuse = cache.remove(cache.size()-1);
+				return reuse;
+			} else {
+				while(!done && cache.isEmpty()) {
+					done = !fillCache();
+				}
+				if(!done) {
+					reuse = cache.remove(cache.size()-1);
+					return reuse;
+				} else {
+					return null;
+				}
+			}
+		}
+
+		private boolean fillCache() throws IOException {
+			if(currentBucketIndex >= table.numBuckets) {
+				return false;
+			}
+			// get the bucket for the given hash code
+			MemorySegment bucket = table.buckets[currentSegmentIndex];
+			// get the basic characteristics of the bucket
+			final int partitionNumber = bucket.get(currentBucketOffset + HEADER_PARTITION_OFFSET);
+			final InMemoryPartition<BT> partition = table.partitions.get(partitionNumber);
+			final MemorySegment[] overflowSegments = partition.overflowSegments;
+			
+			int countInSegment = bucket.getInt(currentBucketOffset + HEADER_COUNT_OFFSET);
+			int numInSegment = 0;
+			int posInSegment = currentBucketOffset + BUCKET_POINTER_START_OFFSET;
+			int bucketOffset = currentBucketOffset;
+
+			// loop over all segments that are involved in the bucket (original bucket plus overflow buckets)
+			while (true) {
+				while (numInSegment < countInSegment) {
+					long pointer = bucket.getLong(posInSegment);
+					posInSegment += POINTER_LEN;
+					numInSegment++;
+					BT target = table.buildSideSerializer.createInstance();
+					try {
+						partition.readRecordAt(pointer, target);
+						cache.add(target);
+					} catch (IOException e) {
+							throw new RuntimeException("Error deserializing record from the hashtable: " + e.getMessage(), e);
+					}
+				}
+				// this segment is done. check if there is another chained bucket
+				final long forwardPointer = bucket.getLong(bucketOffset + HEADER_FORWARD_OFFSET);
+				if (forwardPointer == BUCKET_FORWARD_POINTER_NOT_SET) {
+					break;
+				}
+				final int overflowSegNum = (int) (forwardPointer >>> 32);
+				bucket = overflowSegments[overflowSegNum];
+				bucketOffset = (int)(forwardPointer & 0xffffffff);
+				countInSegment = bucket.getInt(bucketOffset + HEADER_COUNT_OFFSET);
+				posInSegment = bucketOffset + BUCKET_POINTER_START_OFFSET;
+				numInSegment = 0;
+			}
+			currentBucketIndex++;
+			if(currentBucketIndex % bucketsPerSegment == 0) {
+				currentSegmentIndex++;
+				currentBucketOffset = 0;
+			} else {
+				currentBucketOffset += HASH_BUCKET_SIZE;
+			}
+			return true;
+		}
+		
+	}
 	
 	/**
 	 * @param <P> Probe record type
 	 */
-	public final class HashTableProber<P> {
+	public final class HashTableProber {
 		
-		private final TypeComparator<P> probeTypeComparator;
+		private final TypeComparator<PT> probeTypeComparator;
 		
-		private final TypePairComparator<P, T> pairComparator;
+		private final TypePairComparator<PT, BT> pairComparator;
 		
 		
-		private InMemoryPartition<T> partition;
+		private InMemoryPartition<BT> partition;
 		
 		private MemorySegment bucket;
 		
 		private int pointerOffsetInBucket;
 		
 		
-		private HashTableProber(TypeComparator<P> probeTypeComparator, TypePairComparator<P, T> pairComparator)
+		private HashTableProber(TypeComparator<PT> probeSideComparator, TypePairComparator<PT, BT> pairComparator)
 		{
-			this.probeTypeComparator = probeTypeComparator;
+			this.probeTypeComparator = probeSideComparator;
 			this.pairComparator = pairComparator;
 		}
 		
-		public boolean getMatchFor(P probeSideRecord, T targetForMatch) {
+		public boolean getMatchFor(PT probeSideRecord, BT targetForMatch) {
 			final int searchHashCode = hash(this.probeTypeComparator.hash(probeSideRecord));
 			
 			final int posHashCode = searchHashCode % numBuckets;
@@ -924,7 +1053,7 @@ public class CompactingHashTable<T> {
 			
 			// get the basic characteristics of the bucket
 			final int partitionNumber = bucket.get(bucketInSegmentOffset + HEADER_PARTITION_OFFSET);
-			final InMemoryPartition<T> partition = partitions.get(partitionNumber);
+			final InMemoryPartition<BT> partition = partitions.get(partitionNumber);
 			final MemorySegment[] overflowSegments = partition.overflowSegments;
 			
 			this.pairComparator.setReference(probeSideRecord);
@@ -983,7 +1112,7 @@ public class CompactingHashTable<T> {
 			}
 		}
 		
-		public void updateMatch(T record) throws IOException {
+		public void updateMatch(BT record) throws IOException {
 			long newPointer = this.partition.appendRecord(record);
 			this.bucket.putLong(this.pointerOffsetInBucket, newPointer);
 			this.partition.setCompaction(false); //FIXME Do we really create garbage here?
