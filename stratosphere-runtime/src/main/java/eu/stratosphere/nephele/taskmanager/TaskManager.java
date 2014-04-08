@@ -386,14 +386,6 @@ public class TaskManager implements TaskOperationProtocol {
 
 		while (!Thread.interrupted()) {
 
-			// Sleep
-			try {
-				Thread.sleep(interval);
-			} catch (InterruptedException e1) {
-				LOG.debug("Heartbeat thread was interrupted");
-				break;
-			}
-
 			// Send heartbeat
 			try {
 				LOG.debug("heartbeat");
@@ -401,6 +393,14 @@ public class TaskManager implements TaskOperationProtocol {
 			} catch (IOException e) {
 				e.printStackTrace();
 				LOG.info("sending the heart beat caused an IO Exception");
+			}
+			
+			// Sleep
+			try {
+				Thread.sleep(interval);
+			} catch (InterruptedException e1) {
+				LOG.debug("Heartbeat thread was interrupted");
+				break;
 			}
 
 			// Check the status of the task threads to detect unexpected thread terminations
