@@ -22,6 +22,7 @@ package eu.stratosphere.util;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Arrays;
+import java.util.Random;
 
 /**
  * Utility class to convert objects into strings in vice-versa.
@@ -217,5 +218,24 @@ public final class StringUtils {
 		}
 
 		return sb.toString();
+	}
+	
+	/**
+	 * Creates a random string with a length within the given interval. The string contains only characters that
+	 * can be represented as a single code point.
+	 * 
+	 * @param rnd The random used to create the strings.
+	 * @param minLength The minimum string length.
+	 * @param maxLength The maximum string length.
+	 * @return A random String.
+	 */
+	public static String getRandomString(Random rnd, int minLength, int maxLength) {
+		int len = rnd.nextInt(maxLength - minLength + 1) + minLength;
+		
+		char[] data = new char[len];
+		for (int i = 0; i < data.length; i++) {
+			data[i] = (char) (rnd.nextInt(Character.MAX_VALUE) + 1);
+		}
+		return new String(data);
 	}
 }

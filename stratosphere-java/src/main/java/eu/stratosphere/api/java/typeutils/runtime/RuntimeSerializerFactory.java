@@ -75,7 +75,6 @@ public final class RuntimeSerializerFactory<T> implements TypeSerializerFactory<
 		}
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
 	public Class<T> getDataType() {
 		return clazz;
