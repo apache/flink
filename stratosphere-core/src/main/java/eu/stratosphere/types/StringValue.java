@@ -724,7 +724,12 @@ public class StringValue implements Key, NormalizableKey, CharSequence, Resettab
 	// --------------------------------------------------------------------------------------------
 	
 	public static final String readString(DataInput in) throws IOException {
+		// the length we read is offset by one, because a length of zero indicates a null value
 		int len = in.readUnsignedByte();
+		
+		if (len == 0) {
+			return null;
+		}
 
 		if (len >= HIGH_BIT) {
 			int shift = 7;
@@ -736,6 +741,9 @@ public class StringValue implements Key, NormalizableKey, CharSequence, Resettab
 			}
 			len |= curr << shift;
 		}
+		
+		// subtract one for the null length
+		len -= 1;
 		
 		final char[] data = new char[len];
 
@@ -760,24 +768,32 @@ public class StringValue implements Key, NormalizableKey, CharSequence, Resettab
 	}
 
 	public static final void writeString(CharSequence cs, DataOutput out) throws IOException {
-		int len = cs.length();
-
-		// write the length, variable-length encoded
-		while (len >= HIGH_BIT) {
-			out.write(len | HIGH_BIT);
-			len >>>= 7;
-		}
-		out.write(len);
-
-		// write the char data, variable length encoded
-		for (int i = 0; i < cs.length(); i++) {
-			int c = cs.charAt(i);
-
-			while (c >= HIGH_BIT) {
-				out.write(c | HIGH_BIT);
-				c >>>= 7;
+		if (cs != null) {
+			// the length we write is offset by one, because a length of zero indicates a null value
+			int lenToWrite = cs.length()+1;
+			if (lenToWrite < 0) {
+				throw new IllegalArgumentException("CharSequence is too long.");
 			}
-			out.write(c);
+	
+			// write the length, variable-length encoded
+			while (lenToWrite >= HIGH_BIT) {
+				out.write(lenToWrite | HIGH_BIT);
+				lenToWrite >>>= 7;
+			}
+			out.write(lenToWrite);
+	
+			// write the char data, variable length encoded
+			for (int i = 0; i < cs.length(); i++) {
+				int c = cs.charAt(i);
+	
+				while (c >= HIGH_BIT) {
+					out.write(c | HIGH_BIT);
+					c >>>= 7;
+				}
+				out.write(c);
+			}
+		} else {
+			out.write(0);
 		}
 	}
 	
@@ -790,21 +806,23 @@ public class StringValue implements Key, NormalizableKey, CharSequence, Resettab
 			int curr;
 			len = len & 0x7f;
 			while ((curr = in.readUnsignedByte()) >= HIGH_BIT) {
+				out.writeByte(curr);
 				len |= (curr & 0x7f) << shift;
 				shift += 7;
-				out.writeByte(curr);
 			}
+			out.writeByte(curr);
 			len |= curr << shift;
 		}
+
+		// note that the length is one larger than the actual length (length 0 is a null string, not a zero length string)
+		len--;
 
 		for (int i = 0; i < len; i++) {
 			int c = in.readUnsignedByte();
 			out.writeByte(c);
-			if (c >= HIGH_BIT) {
-				int curr;
-				while ((curr = in.readUnsignedByte()) >= HIGH_BIT) {
-					out.writeByte(curr);
-				}
+			while (c >= HIGH_BIT) {
+				c = in.readUnsignedByte();
+				out.writeByte(c);
 			}
 		}
 	}
