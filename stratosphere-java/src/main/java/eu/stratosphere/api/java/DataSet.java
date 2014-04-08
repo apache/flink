@@ -561,7 +561,8 @@ public abstract class DataSet<T> {
 	}
 	
 	public <R> DeltaIterativeDataSet<T, R> iterateDelta(DataSet<R> workset, int maxIterations, int [] keyPositions) {
-		return new DeltaIterativeDataSet<T, R>(getExecutionEnvironment(), getType(), this, workset, keyPositions, maxIterations);
+		Keys.FieldPositionKeys<T> keys = new Keys.FieldPositionKeys<T>(keyPositions, getType(), false);
+		return new DeltaIterativeDataSet<T, R>(getExecutionEnvironment(), getType(), this, workset, keys, maxIterations);
 	}
 
 	// --------------------------------------------------------------------------------------------

@@ -14,6 +14,7 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java;
 
+import eu.stratosphere.api.java.operators.Keys;
 import eu.stratosphere.api.java.operators.TwoInputOperator;
 import eu.stratosphere.api.java.operators.translation.BinaryNodeTranslation;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
@@ -22,15 +23,15 @@ public class DeltaIterativeDataSet<T, U> extends TwoInputOperator<T, U, T, Delta
 	
 	private DeltaIterativeDataSet<T, U> solutionSetPlaceholder;
 	
-	private int [] keyPositions ;
+	private Keys<T> keys ;
 	
 	private int maxIterations;
 
-	DeltaIterativeDataSet(ExecutionEnvironment context, TypeInformation<T> type, DataSet<T> solutionSet, DataSet<U> workset, int [] keyPositions, int maxIterations) {
+	DeltaIterativeDataSet(ExecutionEnvironment context, TypeInformation<T> type, DataSet<T> solutionSet, DataSet<U> workset, Keys<T> keys, int maxIterations) {
 		super(solutionSet, workset, type);
 		
 		solutionSetPlaceholder = new DeltaIterativeDataSet<T, U>(context, type, solutionSet, workset, true);
-		this.keyPositions = keyPositions;
+		this.keys = keys;
 		this.maxIterations = maxIterations;
 	}
 	
@@ -39,7 +40,7 @@ public class DeltaIterativeDataSet<T, U> extends TwoInputOperator<T, U, T, Delta
 	}
 
 	public DataSet<T> closeWith(DataSet<T> solutionsetResult, DataSet<U> worksetResult) {
-		return new DeltaIterativeResultDataSet<T, U>(getExecutionEnvironment(), getType(), worksetResult.getType(), this, solutionSetPlaceholder, solutionsetResult, worksetResult, keyPositions, maxIterations);
+		return new DeltaIterativeResultDataSet<T, U>(getExecutionEnvironment(), getType(), worksetResult.getType(), this, solutionSetPlaceholder, solutionsetResult, worksetResult, keys, maxIterations);
 	}
 	
 	public DataSet<T> getSolutionSet() {
