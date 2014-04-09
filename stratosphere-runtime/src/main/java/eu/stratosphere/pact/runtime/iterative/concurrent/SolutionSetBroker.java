@@ -18,7 +18,7 @@ import eu.stratosphere.pact.runtime.hash.CompactingHashTable;
 /**
  * Used to hand over the hash-join from the iteration head to the solution-set match.
  */
-public class SolutionSetBroker extends Broker<CompactingHashTable<?, ?>> {
+public class SolutionSetBroker extends Broker<CompactingHashTable<?>> {
 
 	/**
 	 * Singleton instance
@@ -28,7 +28,7 @@ public class SolutionSetBroker extends Broker<CompactingHashTable<?, ?>> {
 	/**
 	 * Retrieve the singleton instance.
 	 */
-	public static Broker<CompactingHashTable<?, ?>> instance() {
+	public static Broker<CompactingHashTable<?>> instance() {
 		return INSTANCE;
 	}
 	

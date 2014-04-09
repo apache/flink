@@ -18,10 +18,12 @@ import java.util.NoSuchElementException;
 
 import eu.stratosphere.api.common.functions.GenericCoGrouper;
 import eu.stratosphere.api.common.typeutils.TypeComparator;
+import eu.stratosphere.api.common.typeutils.TypePairComparator;
+import eu.stratosphere.api.common.typeutils.TypePairComparatorFactory;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
 import eu.stratosphere.pact.runtime.hash.CompactingHashTable;
-import eu.stratosphere.pact.runtime.hash.MutableHashTable;
+import eu.stratosphere.pact.runtime.hash.CompactingHashTable.HashTableProber;
 import eu.stratosphere.pact.runtime.iterative.concurrent.SolutionSetBroker;
 import eu.stratosphere.pact.runtime.iterative.task.AbstractIterativePactTask;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
@@ -32,12 +34,15 @@ public abstract class JoinWithSolutionSetCoGroupDriver<IT1, IT2, OT> implements 
 	
 	protected PactTaskContext<GenericCoGrouper<IT1, IT2, OT>, OT> taskContext;
 	
-	protected CompactingHashTable<?, ?> hashTable;
+	protected CompactingHashTable<?> hashTable;
 	
 	private TypeSerializer<IT1> serializer1;
 	private TypeSerializer<IT2> serializer2;
 	private TypeComparator<IT1> comparator1;
 	private TypeComparator<IT2> comparator2;
+	
+	private TypePairComparator<IT1, IT2> comp12;
+	private TypePairComparator<IT2, IT1> comp21;
 	
 	private IT1 rec1;
 	private IT2 rec2;
@@ -122,6 +127,9 @@ public abstract class JoinWithSolutionSetCoGroupDriver<IT1, IT2, OT> implements 
 		} else {
 			throw new Exception("The task context of this driver is no iterative task context.");
 		}
+		TypePairComparatorFactory<IT1, IT2> factory = taskContext.getTaskConfig().getPairComparatorFactory(taskContext.getUserCodeClassLoader());
+		comp12 = factory.createComparator12(comparator1, comparator2);
+		comp21 = factory.createComparator21(comparator1, comparator2);
 	}
 
 	@Override
@@ -141,12 +149,13 @@ public abstract class JoinWithSolutionSetCoGroupDriver<IT1, IT2, OT> implements 
 			IT1 buildSideRecord = rec1;
 			
 			@SuppressWarnings("unchecked")
-			final CompactingHashTable<IT1, IT2> join = (CompactingHashTable<IT1, IT2>) hashTable;
+			final CompactingHashTable<IT1> join = (CompactingHashTable<IT1>) hashTable;
 			
 			final KeyGroupedIterator<IT2> probeSideInput = new KeyGroupedIterator<IT2>(taskContext.<IT2>getInput(0), serializer2, comparator2);
 			final SingleRecordIterator<IT1> siIter = new SingleRecordIterator<IT1>();
 			
-			final CompactingHashTable<IT1, IT2>.HashTableProber prober = join.getProber();
+			@SuppressWarnings("unchecked")
+			final CompactingHashTable<IT1>.HashTableProber<IT2> prober = (CompactingHashTable<IT1>.HashTableProber<IT2>) join.getProber(this.comparator2, this.comp21);
 			while (this.running && probeSideInput.nextKey()) {
 				IT2 current = probeSideInput.getCurrent();
 				if (prober.getMatchFor(current, buildSideRecord)) {
@@ -162,12 +171,13 @@ public abstract class JoinWithSolutionSetCoGroupDriver<IT1, IT2, OT> implements 
 			IT2 buildSideRecord = rec2;
 			
 			@SuppressWarnings("unchecked")
-			final CompactingHashTable<IT2, IT1> join = (CompactingHashTable<IT2, IT1>) hashTable;
+			final CompactingHashTable<IT2> join = (CompactingHashTable<IT2>) hashTable;
 			
 			final KeyGroupedIterator<IT1> probeSideInput = new KeyGroupedIterator<IT1>(taskContext.<IT1>getInput(0), serializer1, comparator1);
 			final SingleRecordIterator<IT2> siIter = new SingleRecordIterator<IT2>();
 			
-			final CompactingHashTable<IT2, IT1>.HashTableProber prober = join.getProber();
+			@SuppressWarnings("unchecked")
+			final CompactingHashTable<IT2>.HashTableProber<IT1> prober = (CompactingHashTable<IT2>.HashTableProber<IT1>) join.getProber(this.comparator1, this.comp12);
 			while (this.running && probeSideInput.nextKey()) {
 				IT1 current = probeSideInput.getCurrent();
 				if (prober.getMatchFor(current, buildSideRecord)) {

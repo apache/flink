@@ -4,6 +4,7 @@ import static org.junit.Assert.*;
 
 import java.util.ArrayList;
 import java.util.List;
+
 import org.junit.Test;
 
 import eu.stratosphere.api.common.typeutils.TypeComparator;
@@ -23,7 +24,7 @@ public class HashTablePerformanceComparisonTest {
 		
 	private static final int PAGE_SIZE = 16 * 1024;
 	
-	private final int NUM_PAIRS = 2000000;
+	private final int NUM_PAIRS = 20000000;
 	
 	private final int SIZE = 36;
 		
@@ -56,7 +57,7 @@ public class HashTablePerformanceComparisonTest {
 			
 			System.out.println("Creating and filling CompactingHashMap...");
 			start = System.currentTimeMillis();
-			CompactingHashTable<IntPair, IntPair> table = new CompactingHashTable<IntPair, IntPair>(serializer, serializer, comparator, comparator, pairComparator, getMemory(NUM_MEM_PAGES, PAGE_SIZE));
+			AbstractMutableHashTable<IntPair> table = new CompactingHashTable<IntPair>(serializer, comparator, getMemory(NUM_MEM_PAGES, PAGE_SIZE));
 			table.open();
 			
 			IntPair target = new IntPair();
@@ -68,7 +69,8 @@ public class HashTablePerformanceComparisonTest {
 			
 			System.out.println("Starting first probing run...");
 			start = System.currentTimeMillis();
-			CompactingHashTable<IntPair,IntPair>.HashTableProber prober = table.getProber();
+			@SuppressWarnings("unchecked")
+			AbstractHashTableProber<IntPair, IntPair> prober = (CompactingHashTable<IntPair>.HashTableProber<IntPair>)table.getProber(comparator, pairComparator);
 			IntPair temp = new IntPair();
 			while(probeTester.next(target) != null) {
 				assertTrue(prober.getMatchFor(target, temp));

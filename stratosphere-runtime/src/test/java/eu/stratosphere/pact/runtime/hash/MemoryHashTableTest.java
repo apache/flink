@@ -90,14 +90,15 @@ public class MemoryHashTableTest {
 			
 			final IntPair[] pairs = getRandomizedIntPairs(NUM_PAIRS, rnd);
 			
-			CompactingHashTable<IntPair, IntPair> table = new CompactingHashTable<IntPair, IntPair>(serializer, serializer, comparator, comparator, pairComparator, getMemory(NUM_MEM_PAGES, PAGE_SIZE));
+			AbstractMutableHashTable<IntPair> table = new CompactingHashTable<IntPair>(serializer, comparator, getMemory(NUM_MEM_PAGES, PAGE_SIZE));
 			table.open();
 			
 			for (int i = 0; i < NUM_PAIRS; i++) {
 				table.insert(pairs[i]);
 			}
 	
-			CompactingHashTable<IntPair, IntPair>.HashTableProber prober = table.getProber();
+			@SuppressWarnings("unchecked")
+			AbstractHashTableProber<IntPair, IntPair> prober = (CompactingHashTable<IntPair>.HashTableProber<IntPair>) table.getProber(comparator, pairComparator);
 			IntPair target = new IntPair();
 			
 			for (int i = 0; i < NUM_PAIRS; i++) {
@@ -122,7 +123,7 @@ public class MemoryHashTableTest {
 			final int NUM_MEM_PAGES = SIZE * NUM_LISTS / PAGE_SIZE;
 			final IntList[] lists = getRandomizedIntLists(NUM_LISTS, rnd);
 			
-			CompactingHashTable<IntList, IntList> table = new CompactingHashTable<IntList, IntList>(serializerV, serializerV, comparatorV, comparatorV, pairComparatorV, getMemory(NUM_MEM_PAGES, PAGE_SIZE));
+			AbstractMutableHashTable<IntList> table = new CompactingHashTable<IntList>(serializerV, comparatorV, getMemory(NUM_MEM_PAGES, PAGE_SIZE));
 			table.open();
 			int result = 0;
 			for (int i = 0; i < NUM_LISTS; i++) {
@@ -155,7 +156,7 @@ public class MemoryHashTableTest {
 			
 			final IntList[] lists = getRandomizedIntLists(NUM_LISTS, rnd);
 			
-			CompactingHashTable<IntList, IntList> table = new CompactingHashTable<IntList, IntList>(serializerV, serializerV, comparatorV, comparatorV, pairComparatorV, getMemory(NUM_MEM_PAGES, PAGE_SIZE));
+			AbstractMutableHashTable<IntList> table = new CompactingHashTable<IntList>(serializerV, comparatorV, getMemory(NUM_MEM_PAGES, PAGE_SIZE));
 			table.open();
 			
 			for (int i = 0; i < NUM_LISTS; i++) {
@@ -167,7 +168,8 @@ public class MemoryHashTableTest {
 				}
 			}
 						
-			CompactingHashTable<IntList, IntList>.HashTableProber prober = table.getProber();
+			@SuppressWarnings("unchecked")
+			AbstractHashTableProber<IntList, IntList> prober = (CompactingHashTable<IntList>.HashTableProber<IntList>) table.getProber(comparatorV, pairComparatorV);
 			IntList target = new IntList();
 			
 			for (int i = 0; i < NUM_LISTS; i++) {
@@ -204,14 +206,15 @@ public class MemoryHashTableTest {
 						
 			final IntList[] lists = getRandomizedIntLists(NUM_LISTS, rnd);
 			
-			CompactingHashTable<IntList, IntList> table = new CompactingHashTable<IntList, IntList>(serializerV, serializerV, comparatorV, comparatorV, pairComparatorV, getMemory(NUM_MEM_PAGES, PAGE_SIZE));
+			AbstractMutableHashTable<IntList> table = new CompactingHashTable<IntList>(serializerV, comparatorV, getMemory(NUM_MEM_PAGES, PAGE_SIZE));
 			table.open();
 			
 			for (int i = 0; i < NUM_LISTS; i++) {
 				table.insert(lists[i]);
 			}
 						
-			CompactingHashTable<IntList, IntList>.HashTableProber prober = table.getProber();
+			@SuppressWarnings("unchecked")
+			AbstractHashTableProber<IntList, IntList> prober = (CompactingHashTable<IntList>.HashTableProber<IntList>) table.getProber(comparatorV, pairComparatorV);
 			IntList target = new IntList();
 			
 			for (int i = 0; i < NUM_LISTS; i++) {
@@ -254,14 +257,15 @@ public class MemoryHashTableTest {
 			
 			final IntList[] lists = getRandomizedIntLists(NUM_LISTS, rnd);
 			
-			CompactingHashTable<IntList, IntList> table = new CompactingHashTable<IntList, IntList>(serializerV, serializerV, comparatorV, comparatorV, pairComparatorV, getMemory(NUM_MEM_PAGES, PAGE_SIZE));
+			AbstractMutableHashTable<IntList> table = new CompactingHashTable<IntList>(serializerV, comparatorV, getMemory(NUM_MEM_PAGES, PAGE_SIZE));
 			table.open();
 			
 			for (int i = 0; i < NUM_LISTS; i++) {
 				table.insert(lists[i]);
 			}
 						
-			CompactingHashTable<IntList, IntList>.HashTableProber prober = table.getProber();
+			@SuppressWarnings("unchecked")
+			AbstractHashTableProber<IntList, IntList> prober = (CompactingHashTable<IntList>.HashTableProber<IntList>) table.getProber(comparatorV, pairComparatorV);
 			IntList target = new IntList();
 			
 			for (int i = 0; i < NUM_LISTS; i++) {
@@ -314,7 +318,7 @@ public class MemoryHashTableTest {
 			
 			System.out.println("Creating and filling CompactingHashMap...");
 			start = System.currentTimeMillis();
-			CompactingHashTable<StringPair, StringPair> table = new CompactingHashTable<StringPair, StringPair>(serializerS, serializerS, comparatorS, comparatorS, pairComparatorS, getMemory(NUM_MEM_PAGES, PAGE_SIZE));
+			AbstractMutableHashTable<StringPair> table = new CompactingHashTable<StringPair>(serializerS, comparatorS, getMemory(NUM_MEM_PAGES, PAGE_SIZE));
 			table.open();
 			
 			StringPair target = new StringPair();
@@ -326,7 +330,8 @@ public class MemoryHashTableTest {
 			
 			System.out.println("Starting first probing run...");
 			start = System.currentTimeMillis();
-			CompactingHashTable<StringPair, StringPair>.HashTableProber prober = table.getProber();
+			@SuppressWarnings("unchecked")
+			AbstractHashTableProber<StringPair, StringPair> prober = (CompactingHashTable<StringPair>.HashTableProber<StringPair>)table.getProber(comparatorS, pairComparatorS);
 			StringPair temp = new StringPair();
 			while(probeTester.next(target) != null) {
 				assertTrue(prober.getMatchFor(target, temp));

@@ -17,13 +17,14 @@ import eu.stratosphere.api.common.aggregators.Aggregator;
 import eu.stratosphere.api.common.aggregators.LongSumAggregator;
 import eu.stratosphere.api.common.functions.Function;
 import eu.stratosphere.api.common.functions.IterationRuntimeContext;
+import eu.stratosphere.api.common.typeutils.TypePairComparator;
+import eu.stratosphere.api.common.typeutils.TypePairComparatorFactory;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
 import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.io.MutableReader;
 import eu.stratosphere.pact.runtime.hash.CompactingHashTable;
-import eu.stratosphere.pact.runtime.hash.MutableHashTable;
 import eu.stratosphere.pact.runtime.iterative.concurrent.*;
 import eu.stratosphere.pact.runtime.iterative.convergence.WorksetEmptyConvergenceCriterion;
 import eu.stratosphere.pact.runtime.iterative.io.SolutionSetFastUpdateOutputCollector;
@@ -331,7 +332,7 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 	 * @return a new {@link SolutionSetFastUpdateOutputCollector} or {@link SolutionSetUpdateOutputCollector}
 	 */
 	protected Collector<OT> createSolutionSetUpdateOutputCollector(Collector<OT> delegate) {
-		Broker<CompactingHashTable<?, ?>> solutionSetBroker = SolutionSetBroker.instance();
+		Broker<CompactingHashTable<?>> solutionSetBroker = SolutionSetBroker.instance();
 
 		/*if (config.getIsSolutionSetUpdateWithoutReprobe()) {
 			@SuppressWarnings("unchecked")
@@ -340,10 +341,11 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 			return new SolutionSetFastUpdateOutputCollector<OT>(solutionSet, delegate);
 		} else {*/
 			@SuppressWarnings("unchecked")
-			CompactingHashTable<OT, OT> solutionSet = (CompactingHashTable<OT, OT>) solutionSetBroker.get(brokerKey());
+			CompactingHashTable<OT> solutionSet = (CompactingHashTable<OT>) solutionSetBroker.get(brokerKey());
 			TypeSerializer<OT> serializer = getOutputSerializer();
-
-			return new SolutionSetUpdateOutputCollector<OT>(solutionSet, serializer, delegate);
+			TypePairComparatorFactory<OT, OT> factory = this.config.getSolutionSetPairComparatorFactory(getUserCodeClassLoader());
+			TypePairComparator<OT, OT> pairComparator = factory.createComparator12(solutionSet.getBuildSideComparator(), solutionSet.getBuildSideComparator());
+			return new SolutionSetUpdateOutputCollector<OT>(solutionSet, serializer, pairComparator, delegate);
 		//}
 	}
 

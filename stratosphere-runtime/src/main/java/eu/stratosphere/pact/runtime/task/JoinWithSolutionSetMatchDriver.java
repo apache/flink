@@ -31,7 +31,7 @@ public abstract class JoinWithSolutionSetMatchDriver<IT1, IT2, OT> implements Re
 	
 	protected PactTaskContext<GenericJoiner<IT1, IT2, OT>, OT> taskContext;
 	
-	protected CompactingHashTable<?, ?> hashTable;
+	protected CompactingHashTable<?> hashTable;
 	
 	private TypeSerializer<IT1> serializer1;
 	private TypeSerializer<IT2> serializer2;
@@ -140,10 +140,10 @@ public abstract class JoinWithSolutionSetMatchDriver<IT1, IT2, OT> implements Re
 			IT2 probeSideRecord = rec2;
 			
 			@SuppressWarnings("unchecked")
-			final CompactingHashTable<IT1, IT2> join = (CompactingHashTable<IT1, IT2>) hashTable;
+			final CompactingHashTable<IT1> join = (CompactingHashTable<IT1>) hashTable;
 			final MutableObjectIterator<IT2> probeSideInput = taskContext.<IT2>getInput(0);
 			
-			final CompactingHashTable<IT1, IT2>.HashTableProber prober = join.getProber();
+			final CompactingHashTable<IT1>.HashTableProber<IT2> prober = join.getProber();
 			while (this.running && ((probeSideRecord = probeSideInput.next(probeSideRecord)) != null)) {
 				//final MutableHashTable.HashBucketIterator<IT1, IT2> bucket = join.getMatchesFor(probeSideRecord);
 				if (prober.getMatchFor(probeSideRecord, buildSideRecord)) {
@@ -158,10 +158,10 @@ public abstract class JoinWithSolutionSetMatchDriver<IT1, IT2, OT> implements Re
 			IT1 probeSideRecord = rec1;
 			
 			@SuppressWarnings("unchecked")
-			final CompactingHashTable<IT2, IT1> join = (CompactingHashTable<IT2, IT1>) hashTable;
+			final CompactingHashTable<IT2> join = (CompactingHashTable<IT2>) hashTable;
 			final MutableObjectIterator<IT1> probeSideInput = taskContext.<IT1>getInput(0);
 			
-			final CompactingHashTable<IT2, IT1>.HashTableProber prober = join.getProber();
+			final CompactingHashTable<IT2>.HashTableProber<IT1> prober = join.getProber();
 			while (this.running && ((probeSideRecord = probeSideInput.next(probeSideRecord)) != null)) {
 				//final MutableHashTable.HashBucketIterator<IT2, IT1> bucket = join.getMatchesFor(probeSideRecord);
 				if (prober.getMatchFor(probeSideRecord, buildSideRecord)) {
@@ -199,7 +199,7 @@ public abstract class JoinWithSolutionSetMatchDriver<IT1, IT2, OT> implements Re
 		throw new RuntimeException("No match found in solution set");
 	}
 	
-	private <PT> void throwNoMatchFoundException (CompactingHashTable<?, PT> join, PT probeSideRecord) {
+	private <PT> void throwNoMatchFoundException (CompactingHashTable<?> join, PT probeSideRecord) {
 		if (probeSideRecord instanceof Record) {
 			Record record = (Record) probeSideRecord;
 			RecordComparator comparator = (RecordComparator) join.getProbeSideComparator();

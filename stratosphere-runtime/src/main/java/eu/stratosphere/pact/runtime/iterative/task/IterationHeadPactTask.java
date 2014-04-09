@@ -207,34 +207,23 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 		}
 	}
 	
-	private <BT, PT> CompactingHashTable<BT, PT> initCompactingHashTable() throws Exception {
+	private <BT> CompactingHashTable<BT> initCompactingHashTable() throws Exception {
 		// get some memory
 		long hashjoinMemorySize = config.getSolutionSetMemory();
 
 		TypeSerializerFactory<BT> solutionTypeSerializerFactory = config.getSolutionSetSerializer(userCodeClassLoader);
-		TypeSerializerFactory<PT> probeSideSerializerFactory = config
-			.getSolutionSetProberSerializer(userCodeClassLoader);
 		TypeComparatorFactory<BT> solutionTypeComparatorFactory = config.getSolutionSetComparator(userCodeClassLoader);
-		TypeComparatorFactory<PT> probeSideComparatorFactory = config
-			.getSolutionSetProberComparator(userCodeClassLoader);
-		TypePairComparatorFactory<BT, PT> pairComparatorFactory = config
-			.getSolutionSetPairComparatorFactory(userCodeClassLoader);
-
+	
 		TypeSerializer<BT> solutionTypeSerializer = solutionTypeSerializerFactory.getSerializer();
-		TypeSerializer<PT> probeSideSerializer = probeSideSerializerFactory.getSerializer();
 		TypeComparator<BT> solutionTypeComparator = solutionTypeComparatorFactory.createComparator();
-		TypeComparator<PT> probeSideComparator = probeSideComparatorFactory.createComparator();
-		TypePairComparator<PT, BT> pairComparator = pairComparatorFactory.createComparator21(solutionTypeComparator,
-			probeSideComparator);
 
-		CompactingHashTable<BT, PT> hashTable = null;
+		CompactingHashTable<BT> hashTable = null;
 		List<MemorySegment> memSegments = null;
 		boolean success = false;
 		try {
 			int numPages = getMemoryManager().computeNumberOfPages(hashjoinMemorySize);
 			memSegments = getMemoryManager().allocatePages(getOwningNepheleTask(), numPages);
-			hashTable = new CompactingHashTable<BT, PT>(solutionTypeSerializer, probeSideSerializer,
-				solutionTypeComparator, probeSideComparator, pairComparator, memSegments);
+			hashTable = new CompactingHashTable<BT>(solutionTypeSerializer, solutionTypeComparator, memSegments);
 			success = true;
 			return hashTable;
 		} finally {
@@ -263,7 +252,7 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 		solutionSet.open(solutionSetInput, emptyInput);
 	}
 	
-	private <T> void readInitialSolutionSet(CompactingHashTable<X, T> solutionSet,
+	private <T> void readInitialSolutionSet(CompactingHashTable<X> solutionSet,
 			MutableObjectIterator<X> solutionSetInput) throws IOException {
 		solutionSet.open();
 		solutionSet.buildTable(solutionSetInput);
@@ -283,7 +272,7 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 		final int workerIndex = getEnvironment().getIndexInSubtaskGroup();
 
 		//MutableHashTable<X, ?> solutionSet = null; // if workset iteration
-		CompactingHashTable<X, ?> solutionSet = null; // if workset iteration
+		CompactingHashTable<X> solutionSet = null; // if workset iteration
 		
 		boolean waitForSolutionSetUpdate = config.getWaitForSolutionSetUpdate();
 		boolean isWorksetIteration = config.getIsWorksetIteration();
@@ -446,7 +435,7 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 		}
 	}
 	
-	private void streamSolutionSetToFinalOutput(CompactingHashTable<X, ?> hashTable) throws IOException,
+	private void streamSolutionSetToFinalOutput(CompactingHashTable<X> hashTable) throws IOException,
 	InterruptedException {
 		final MutableObjectIterator<X> results = hashTable.getEntryIterator();
 		final Collector<X> output = this.finalOutputCollector;

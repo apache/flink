@@ -15,8 +15,10 @@
 
 package eu.stratosphere.pact.runtime.iterative.io;
 
+import eu.stratosphere.api.common.typeutils.TypePairComparator;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.pact.runtime.hash.CompactingHashTable;
+import eu.stratosphere.pact.runtime.hash.CompactingHashTable.HashTableProber;
 import eu.stratosphere.pact.runtime.hash.MutableHashTable;
 import eu.stratosphere.util.Collector;
 
@@ -36,27 +38,29 @@ public class SolutionSetUpdateOutputCollector<T> implements Collector<T> {
 
 	private final Collector<T> delegate;
 
-	private final CompactingHashTable<T, T> solutionSet;
+	private final CompactingHashTable<T> solutionSet;
 	//private final MutableHashTable<T, T> solutionSet;
+	
+	CompactingHashTable<T>.HashTableProber<T> prober;
 
 	private T buildSideRecord;
 
-	public SolutionSetUpdateOutputCollector(CompactingHashTable<T, T> solutionSet, TypeSerializer<T> serializer) {
-		this(solutionSet, serializer, null);
+	public SolutionSetUpdateOutputCollector(CompactingHashTable<T> solutionSet, TypeSerializer<T> serializer, TypePairComparator<T, T> pairComparator) {
+		this(solutionSet, serializer, pairComparator, null);
 	}
 
-	public SolutionSetUpdateOutputCollector(CompactingHashTable<T, T> solutionSet, TypeSerializer<T> serializer,
-			Collector<T> delegate) {
+	@SuppressWarnings("unchecked")
+	public SolutionSetUpdateOutputCollector(CompactingHashTable<T> solutionSet, TypeSerializer<T> serializer, 
+			TypePairComparator<T, T> pairComparator, Collector<T> delegate) {
 		this.solutionSet = solutionSet;
 		this.delegate = delegate;
-		buildSideRecord = serializer.createInstance();
+		this.buildSideRecord = serializer.createInstance();
+		this.prober = (CompactingHashTable<T>.HashTableProber<T>) solutionSet.getProber(solutionSet.getBuildSideComparator(), pairComparator);
 	}
 
 	@Override
 	public void collect(T record) {
 		try {
-			CompactingHashTable<T,T>.HashTableProber prober = solutionSet.getProber();
-			
 			if (prober.getMatchFor(record, buildSideRecord)) {
 				solutionSet.insertOrReplaceRecord(record, buildSideRecord);
 				if (delegate != null) {
