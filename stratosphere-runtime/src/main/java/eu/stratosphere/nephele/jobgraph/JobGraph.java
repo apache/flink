@@ -424,18 +424,14 @@ public class JobGraph implements IOReadableWritable {
 	 */
 	public boolean isAcyclic() {
 
-		// Tarjan's algorithm to detect strongly connected componenent of a graph
 		final AbstractJobVertex[] reachable = getAllReachableJobVertices();
-		final HashMap<AbstractJobVertex, Integer> indexMap = new HashMap<AbstractJobVertex, Integer>();
-		final HashMap<AbstractJobVertex, Integer> lowLinkMap = new HashMap<AbstractJobVertex, Integer>();
-		final Stack<AbstractJobVertex> stack = new Stack<AbstractJobVertex>();
-		final Integer index = Integer.valueOf(0);
 
-		for (int i = 0; i < reachable.length; i++) {
-			if (!indexMap.containsKey(reachable[i])) {
-				if (!tarjan(reachable[i], index, indexMap, lowLinkMap, stack)) {
-					return false;
-				}
+		final HashSet<JobVertexID> temporarilyMarked = new HashSet<JobVertexID>();
+		final HashSet<JobVertexID> permanentlyMarked = new HashSet<JobVertexID>();
+
+		for(int i = 0; i < reachable.length; i++){
+			if(detectCycle(reachable[i], temporarilyMarked, permanentlyMarked)){
+				return false;
 			}
 		}
 
@@ -443,51 +439,35 @@ public class JobGraph implements IOReadableWritable {
 	}
 
 	/**
-	 * Auxiliary method implementing Tarjan's algorithm for strongly-connected components to determine whether the job
-	 * graph is acyclic.
+	 * Auxiliary method for cycle detection. Performs a depth-first traversal with vertex markings to detect a cycle.
+	 * If a node with a temporary marking is found, then there is a cycle. Once all children of a vertex have been
+	 * traversed the parent node cannot be part of another cycle and is thus permanently marked.
+	 *
+	 * @param jv current job vertex to check
+	 * @param temporarilyMarked set of temporarily marked nodes
+	 * @param permanentlyMarked set of permanently marked nodes
+	 * @return <code>true</code> if there is a cycle, <code>false</code> otherwise
 	 */
-	private boolean tarjan(final AbstractJobVertex jv, Integer index,
-			final HashMap<AbstractJobVertex, Integer> indexMap, final HashMap<AbstractJobVertex, Integer> lowLinkMap,
-			final Stack<AbstractJobVertex> stack) {
+	private boolean detectCycle(final AbstractJobVertex jv, final HashSet<JobVertexID> temporarilyMarked,
+								final HashSet<JobVertexID> permanentlyMarked){
+		JobVertexID vertexID = jv.getID();
 
-		indexMap.put(jv, Integer.valueOf(index));
-		lowLinkMap.put(jv, Integer.valueOf(index));
-		index = Integer.valueOf(index.intValue() + 1);
-		stack.push(jv);
+		if(permanentlyMarked.contains(vertexID)){
+			return false;
+		}else if(temporarilyMarked.contains(vertexID)){
+			return true;
+		}else{
+			temporarilyMarked.add(vertexID);
 
-		for (int i = 0; i < jv.getNumberOfForwardConnections(); i++) {
-
-			final AbstractJobVertex jv2 = jv.getForwardConnection(i).getConnectedVertex();
-			if (!indexMap.containsKey(jv2) || stack.contains(jv2)) {
-				if (!indexMap.containsKey(jv2)) {
-					if (!tarjan(jv2, index, indexMap, lowLinkMap, stack)) {
-						return false;
-					}
-				}
-				if (lowLinkMap.get(jv) > lowLinkMap.get(jv2)) {
-					lowLinkMap.put(jv, Integer.valueOf(lowLinkMap.get(jv2)));
+			for(int i = 0; i < jv.getNumberOfForwardConnections(); i++){
+				if(detectCycle(jv.getForwardConnection(i).getConnectedVertex(), temporarilyMarked, permanentlyMarked)){
+					return true;
 				}
 			}
+
+			permanentlyMarked.add(vertexID);
+			return false;
 		}
-
-		if (lowLinkMap.get(jv).equals(indexMap.get(jv))) {
-
-			int count = 0;
-			while (stack.size() > 0) {
-				final AbstractJobVertex jv2 = stack.pop();
-				if (jv == jv2) {
-					break;
-				}
-
-				count++;
-			}
-
-			if (count > 0) {
-				return false;
-			}
-		}
-
-		return true;
 	}
 
 	/**
