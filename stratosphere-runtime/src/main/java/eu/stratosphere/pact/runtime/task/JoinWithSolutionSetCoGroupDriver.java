@@ -24,7 +24,6 @@ import eu.stratosphere.api.common.typeutils.TypePairComparatorFactory;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
 import eu.stratosphere.pact.runtime.hash.CompactingHashTable;
-import eu.stratosphere.pact.runtime.hash.CompactingHashTable.HashTableProber;
 import eu.stratosphere.pact.runtime.iterative.concurrent.SolutionSetBroker;
 import eu.stratosphere.pact.runtime.iterative.task.AbstractIterativePactTask;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
