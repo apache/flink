@@ -83,12 +83,6 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 	private final List<InputGate<? extends IOReadableWritable>> inputGates = new CopyOnWriteArrayList<InputGate<? extends IOReadableWritable>>();
 
 	/**
-	 * Queue of unbound output gate IDs which are required for deserializing an environment in the course of an RPC
-	 * call.
-	 */
-	private final Queue<GateID> unboundOutputGateIDs = new ArrayDeque<GateID>();
-
-	/**
 	 * Queue of unbound input gate IDs which are required for deserializing an environment in the course of an RPC
 	 * call.
 	 */
