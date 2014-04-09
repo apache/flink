@@ -343,7 +343,7 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 			@SuppressWarnings("unchecked")
 			CompactingHashTable<OT> solutionSet = (CompactingHashTable<OT>) solutionSetBroker.get(brokerKey());
 			TypeSerializer<OT> serializer = getOutputSerializer();
-			TypePairComparatorFactory<OT, OT> factory = this.config.getSolutionSetPairComparatorFactory(getUserCodeClassLoader());
+			TypePairComparatorFactory<OT, OT> factory = this.config.getPairComparatorFactory(getUserCodeClassLoader());// FIXME config seems to be broken this is a quick fix
 			TypePairComparator<OT, OT> pairComparator = factory.createComparator12(solutionSet.getBuildSideComparator(), solutionSet.getBuildSideComparator());
 			return new SolutionSetUpdateOutputCollector<OT>(solutionSet, serializer, pairComparator, delegate);
 		//}

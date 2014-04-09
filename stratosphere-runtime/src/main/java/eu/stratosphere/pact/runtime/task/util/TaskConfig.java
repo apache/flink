@@ -902,9 +902,7 @@ public class TaskConfig {
 	}
 			
 	public <T1, T2> TypePairComparatorFactory<T1, T2> getSolutionSetPairComparatorFactory(ClassLoader cl) {
-		//final String className = this.config.getString(ITERATION_SOLUTION_SET_PAIR_COMPARATOR, null);
-		// FIXME quick and dirty fix
-		final String className = this.config.getString("driver.paircomp", null);
+		final String className = this.config.getString(ITERATION_SOLUTION_SET_PAIR_COMPARATOR, null);
 		if (className == null) {
 			return null;
 		}

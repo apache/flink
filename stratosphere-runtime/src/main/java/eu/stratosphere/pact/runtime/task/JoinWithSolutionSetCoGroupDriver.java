@@ -18,6 +18,7 @@ import java.util.NoSuchElementException;
 
 import eu.stratosphere.api.common.functions.GenericCoGrouper;
 import eu.stratosphere.api.common.typeutils.TypeComparator;
+import eu.stratosphere.api.common.typeutils.TypeComparatorFactory;
 import eu.stratosphere.api.common.typeutils.TypePairComparator;
 import eu.stratosphere.api.common.typeutils.TypePairComparatorFactory;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
@@ -100,18 +101,18 @@ public abstract class JoinWithSolutionSetCoGroupDriver<IT1, IT2, OT> implements 
 		int ssIndex = getSolutionSetInputIndex();
 		if (ssIndex == 0) {
 			TypeSerializerFactory<IT1> sSerializerFact = config.getSolutionSetSerializer(classLoader);
-//			TypeComparatorFactory<IT1> sComparatorFact = config.getSolutionSetComparator(classLoader);
+			TypeComparatorFactory<IT1> sComparatorFact = config.getDriverComparator(0, classLoader); // FIXME config seems to be broken this is a quick fix
 			serializer1 = sSerializerFact.getSerializer();
-//			comparator1 = sComparatorFact.createComparator();
+			comparator1 = sComparatorFact.createComparator();
 			serializer2 = taskContext.getInputSerializer(0);
 			comparator2 = taskContext.getInputComparator(0);
 		} else if (ssIndex == 1) {
 			TypeSerializerFactory<IT2> sSerializerFact = config.getSolutionSetSerializer(classLoader);
-//			TypeComparatorFactory<IT2> sComparatorFact = config.getSolutionSetComparator(classLoader);
+			TypeComparatorFactory<IT2> sComparatorFact = config.getDriverComparator(1, classLoader); // FIXME config seems to be broken this is a quick fix
 			serializer1 = taskContext.getInputSerializer(0);
 			comparator1 = taskContext.getInputComparator(0);
 			serializer2 = sSerializerFact.getSerializer();
-//			comparator2 = sComparatorFact.createComparator();
+			comparator2 = sComparatorFact.createComparator();
 		} else {
 			throw new Exception();
 		}
