@@ -37,6 +37,7 @@ import eu.stratosphere.api.common.operators.DeltaIteration.WorksetPlaceHolder;
 import eu.stratosphere.api.common.operators.GenericDataSink;
 import eu.stratosphere.api.common.operators.GenericDataSource;
 import eu.stratosphere.api.common.operators.Operator;
+import eu.stratosphere.api.common.operators.Union;
 import eu.stratosphere.api.common.operators.base.CoGroupOperatorBase;
 import eu.stratosphere.api.common.operators.base.CrossOperatorBase;
 import eu.stratosphere.api.common.operators.base.FlatMapOperatorBase;
@@ -47,6 +48,7 @@ import eu.stratosphere.api.common.operators.base.PlainMapOperatorBase;
 import eu.stratosphere.api.common.operators.base.ReduceOperatorBase;
 import eu.stratosphere.compiler.costs.CostEstimator;
 import eu.stratosphere.compiler.costs.DefaultCostEstimator;
+import eu.stratosphere.compiler.dag.BinaryUnionNode;
 import eu.stratosphere.compiler.dag.BulkIterationNode;
 import eu.stratosphere.compiler.dag.BulkPartialSolutionNode;
 import eu.stratosphere.compiler.dag.CoGroupNode;
@@ -859,6 +861,9 @@ public class PactCompiler {
 			else if (c instanceof DeltaIteration) {
 				n = new WorksetIterationNode((DeltaIteration) c);
 			}
+			else if(c instanceof Union){
+				n = new BinaryUnionNode((Union)c);
+			}
 			else if (c instanceof PartialSolutionPlaceHolder) {
 				final PartialSolutionPlaceHolder holder = (PartialSolutionPlaceHolder) c;
 				final BulkIteration enclosingIteration = holder.getContainingBulkIteration();
@@ -896,7 +901,7 @@ public class PactCompiler {
 				n = p;
 			}
 			else {
-				throw new IllegalArgumentException("Unknown operator type.");
+				throw new IllegalArgumentException("Unknown operator type: " + c);
 			}
 
 			this.con2node.put(c, n);
@@ -939,6 +944,7 @@ public class PactCompiler {
 
 		@Override
 		public void postVisit(Operator c) {
+			
 			OptimizerNode n = this.con2node.get(c);
 
 			// first connect to the predecessors
@@ -1438,11 +1444,12 @@ public class PactCompiler {
 
 		@Override
 		public void postVisit(PlanNode visitable) {
+			
 			if (visitable instanceof BinaryUnionPlanNode) {
 				final BinaryUnionPlanNode unionNode = (BinaryUnionPlanNode) visitable;
 				final Channel in1 = unionNode.getInput1();
 				final Channel in2 = unionNode.getInput2();
-				
+			
 				PlanNode newUnionNode;
 				
 				// if any input is cached, we keep this as a binary union and do not collapse it into a

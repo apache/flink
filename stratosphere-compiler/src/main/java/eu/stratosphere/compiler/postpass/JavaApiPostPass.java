@@ -16,11 +16,13 @@ package eu.stratosphere.compiler.postpass;
 
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Set;
 
 import eu.stratosphere.api.common.operators.BulkIteration;
 import eu.stratosphere.api.common.operators.DeltaIteration;
 import eu.stratosphere.api.common.operators.Operator;
+import eu.stratosphere.api.common.operators.Union;
 import eu.stratosphere.api.common.operators.util.FieldList;
 import eu.stratosphere.api.common.typeutils.TypeComparator;
 import eu.stratosphere.api.common.typeutils.TypeComparatorFactory;
@@ -177,6 +179,12 @@ public class JavaApiPostPass implements OptimizerPostPass {
 		{
 			// Do nothing :D
 		}
+		else if (node instanceof NAryUnionPlanNode){
+			// Traverse to all child channels
+			for (Iterator<Channel> channels = node.getInputs(); channels.hasNext(); ) {
+				traverseChannel(channels.next());
+			}
+		}
 		else {
 			throw new CompilerPostPassException("Unknown node type encountered: " + node.getClass().getName());
 		}
@@ -210,8 +218,15 @@ public class JavaApiPostPass implements OptimizerPostPass {
 			type = ((PlanDeltaIterationOperator<?, ?>) worksetPlaceHolder.getContainingWorksetIteration()).getReturnType();
 		}  else if (javaOp instanceof NoOpUnaryUdfOp) {
 			NoOpUnaryUdfOp op = (NoOpUnaryUdfOp) javaOp;
-			if(op.getInputs().get(0) instanceof JavaPlanNode<?>) {
+			if(op.getInputs().get(0) instanceof JavaPlanNode<?>) { 
 				JavaPlanNode<?> javaNode = (JavaPlanNode<?>) op.getInputs().get(0);
+				type = javaNode.getReturnType();
+			}
+		}else if(javaOp instanceof Union){
+			// Union
+			Operator op = channel.getSource().getInputs().next().getSource().getPactContract();
+			if(op instanceof JavaPlanNode<?>){
+				JavaPlanNode<?> javaNode = (JavaPlanNode<?>) op;
 				type = javaNode.getReturnType();
 			}
 		}

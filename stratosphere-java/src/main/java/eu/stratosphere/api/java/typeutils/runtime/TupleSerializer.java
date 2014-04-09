@@ -15,6 +15,7 @@
 package eu.stratosphere.api.java.typeutils.runtime;
 
 import java.io.IOException;
+import java.util.Arrays;
 
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.api.java.tuple.Tuple;
@@ -96,5 +97,21 @@ public final class TupleSerializer<T extends Tuple> extends TypeSerializer<T> {
 		for (int i = 0; i < arity; i++) {
 			fieldSerializers[i].copy(source, target);
 		}
+	}
+	
+	@Override
+	public boolean equals(Object obj) {
+		if(obj == null){
+			return false;
+		}
+		
+		if(!(obj instanceof TupleSerializer<?>)){
+			return false;
+		}
+		
+		TupleSerializer<?> otherTS = (TupleSerializer<?>) obj;
+		
+		return (otherTS.tupleClass == this.tupleClass) && 
+				Arrays.deepEquals(this.fieldSerializers,fieldSerializers);
 	}
 }

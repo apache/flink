@@ -22,7 +22,6 @@ public final class RuntimeSerializerFactory<T> implements TypeSerializerFactory<
 
 	private static final long serialVersionUID = 1L;
 
-
 	private static final String CONFIG_KEY_SER = "SER_DATA";
 
 	private static final String CONFIG_KEY_CLASS = "CLASS_DATA";
@@ -79,5 +78,21 @@ public final class RuntimeSerializerFactory<T> implements TypeSerializerFactory<
 	public Class<T> getDataType() {
 		return clazz;
 	}
+	
+	@SuppressWarnings("unchecked")
+	@Override
+	public boolean equals(Object obj) {
+		if(obj == null){
+			return false;
+		}
+		
+		if(!(obj instanceof RuntimeSerializerFactory)){
+			return false;
+		}
+		
+		RuntimeSerializerFactory<T> otherRSF = (RuntimeSerializerFactory<T>) obj;
+		return otherRSF.clazz == this.clazz && otherRSF.serializer.equals(serializer);
+	}
 
+	
 }

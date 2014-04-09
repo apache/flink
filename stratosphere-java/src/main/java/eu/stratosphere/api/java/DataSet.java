@@ -49,6 +49,7 @@ import eu.stratosphere.api.java.operators.ProjectOperator;
 import eu.stratosphere.api.java.operators.ProjectOperator.Projection;
 import eu.stratosphere.api.java.operators.ReduceGroupOperator;
 import eu.stratosphere.api.java.operators.ReduceOperator;
+import eu.stratosphere.api.java.operators.UnionOperator;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.typeutils.InputTypeConfigurable;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
@@ -533,6 +534,11 @@ public abstract class DataSet<T> {
 	public <R> CrossOperator.CrossOperatorSets<T, R> crossWithHuge(DataSet<R> other) {
 		return new CrossOperator.CrossOperatorSets<T, R>(this, other);
 	}
+	
+	public <R> UnionOperator<T> union(DataSet<T> input){
+		return new UnionOperator<T>(this, input);
+	}
+
 
 	// --------------------------------------------------------------------------------------------
 	//  Iterations

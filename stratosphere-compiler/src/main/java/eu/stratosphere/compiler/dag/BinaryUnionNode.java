@@ -16,12 +16,11 @@ package eu.stratosphere.compiler.dag;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import eu.stratosphere.api.common.functions.AbstractFunction;
 import eu.stratosphere.api.common.operators.DualInputOperator;
-import eu.stratosphere.api.common.operators.Operator;
+import eu.stratosphere.api.common.operators.Union;
 import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.DataStatistics;
@@ -44,6 +43,13 @@ public class BinaryUnionNode extends TwoInputNode {
 	
 	private Set<RequestedGlobalProperties> channelProps;
 
+	/* 
+	 * Constructor used by the new java API
+	 */
+	public BinaryUnionNode(Union union){
+		super(union);
+	}
+	
 	public BinaryUnionNode(OptimizerNode pred1, OptimizerNode pred2) {
 		super(new UnionPlaceholderContract());
 		
@@ -68,10 +74,10 @@ public class BinaryUnionNode extends TwoInputNode {
 		return "Union";
 	}
 	
-	@Override
+	/*@Override
 	public void setInputs(Map<Operator, OptimizerNode> contractToNode) {
 		throw new UnsupportedOperationException();
-	}
+	}*/
 
 	@Override
 	protected List<OperatorDescriptorDual> getPossibleProperties() {
