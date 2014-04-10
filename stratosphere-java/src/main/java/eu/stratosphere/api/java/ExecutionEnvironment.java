@@ -253,7 +253,7 @@ public abstract class ExecutionEnvironment {
 	
 	public JavaPlan createProgramPlan(String jobName) {
 		if (this.sinks.isEmpty()) {
-			throw new RuntimeException("No data sinks have been created yet.");
+			throw new RuntimeException("No data sinks have been created yet. A program needs at least one sink that consumes data. Examples are writing the data set or printing it.");
 		}
 		
 		if (jobName == null) {
