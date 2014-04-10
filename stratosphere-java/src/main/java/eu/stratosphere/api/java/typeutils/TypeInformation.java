@@ -67,6 +67,15 @@ public abstract class TypeInformation<T> {
 			throw new IllegalArgumentException("Type information extraction for tuples cannot be done based on the class.");
 		}
 		
+		// check for array types
+		if (clazz.isArray()) {
+			if (clazz.getComponentType() == String.class) {
+				return (TypeInformation<X>) ArrayTypeInfo.STRING_ARRAY_TYPE_INFO;
+			} else {
+				throw new RuntimeException("The array type " + clazz.getComponentType() + "[] is currently not supported.");
+			}
+		}
+		
 		// return a generic type
 		return new GenericTypeInfo<X>(clazz);
 	}

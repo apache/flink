@@ -18,6 +18,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
+import eu.stratosphere.api.java.typeutils.runtime.StringArraySerializer;
 
 
 public class ArrayTypeInfo<T, C> extends TypeInformation<T> {
@@ -78,8 +79,12 @@ public class ArrayTypeInfo<T, C> extends TypeInformation<T> {
 		return false;
 	}
 	
+	@SuppressWarnings("unchecked")
 	@Override
 	public TypeSerializer<T> createSerializer() {
+		if (componentClass == String.class) {
+			return (TypeSerializer<T>) new StringArraySerializer();
+		}
 		throw new UnsupportedOperationException("Array serialization is currently not implemented.");
 	}
 	
