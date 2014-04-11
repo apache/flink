@@ -34,6 +34,12 @@ public class ObjectArrayTypeInfo<T, C> extends TypeInformation<T> {
 		this.componentType = componentType;
 		this.componentInfo = (TypeInformation<C>) TypeExtractor.createTypeInfo(componentType);
 	}
+	
+	private ObjectArrayTypeInfo(Type arrayType, Type componentType, TypeInformation<C> componentInfo) {
+		this.arrayType = arrayType;
+		this.componentType = componentType;
+		this.componentInfo = componentInfo;
+	}
 
 	// --------------------------------------------------------------------------------------------
 
@@ -96,15 +102,19 @@ public class ObjectArrayTypeInfo<T, C> extends TypeInformation<T> {
 
 	// --------------------------------------------------------------------------------------------
 
-	@SuppressWarnings("unchecked")
-	public static <T, C> ObjectArrayTypeInfo<T, C> getInfoFor(Type type) {
+	public static <T, C> ObjectArrayTypeInfo<T, C> getInfoFor(Type type, TypeInformation<C> componentInfo) {
 		// generic array type e.g. for Tuples
 		if (type instanceof GenericArrayType) {
 			GenericArrayType genericArray = (GenericArrayType) type;
-			return new ObjectArrayTypeInfo<T, C>(type, genericArray.getGenericComponentType());
+			return new ObjectArrayTypeInfo<T, C>(type, genericArray.getGenericComponentType(), componentInfo);
 		}
+		return getInfoFor(type);
+	}
+	
+	@SuppressWarnings("unchecked")
+	public static <T, C> ObjectArrayTypeInfo<T, C> getInfoFor(Type type) {
 		// class type e.g. for custom objects
-		else if (type instanceof Class<?> && ((Class<?>) type).isArray() && BasicTypeInfo.getInfoFor((Class<C>) type) == null) {
+		if (type instanceof Class<?> && ((Class<?>) type).isArray() && BasicTypeInfo.getInfoFor((Class<C>) type) == null) {
 			Class<C> array = (Class<C>) type;
 			return new ObjectArrayTypeInfo<T, C>(type, array.getComponentType());
 		}

@@ -16,7 +16,8 @@ package eu.stratosphere.api.java.type.extractor;
 
 import java.util.Iterator;
 
-import org.junit.Assert;
+import junit.framework.Assert;
+
 import org.junit.Test;
 
 import eu.stratosphere.api.java.functions.CoGroupFunction;
@@ -967,8 +968,16 @@ public class TypeExtractorTest {
 
 		Assert.assertFalse(ti.isBasicType());
 		Assert.assertFalse(ti.isTupleType());
-		Assert.assertTrue(ti instanceof BasicArrayTypeInfo);
-		Assert.assertEquals(BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO, ti);
+		
+		// Due to a Java 6 bug the classification can be slightly wrong
+		Assert.assertTrue(ti instanceof BasicArrayTypeInfo<?,?> || ti instanceof ObjectArrayTypeInfo<?,?>);
+		
+		if(ti instanceof BasicArrayTypeInfo<?,?>) {
+			Assert.assertEquals(BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO, ti);
+		}
+		else {
+			Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, ((ObjectArrayTypeInfo<?,?>) ti).getComponentInfo());
+		}		
 	}
 
 	@Test
@@ -1046,6 +1055,46 @@ public class TypeExtractorTest {
 		Assert.assertTrue(oati.getComponentInfo().isTupleType());
 		TupleTypeInfo<?> tti = (TupleTypeInfo<?>) oati.getComponentInfo();
 		Assert.assertEquals(BasicTypeInfo.BOOLEAN_TYPE_INFO, tti.getTypeAt(0));
+	}
+	
+	public class GenericArrayClass<T> extends MapFunction<String, T[]> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public T[] map(String value) throws Exception {
+			return null;
+		}		
+	}
+	
+	@Test
+	public void testParameterizedArrays() {
+		GenericArrayClass<Boolean> function = new GenericArrayClass<Boolean>(){
+			private static final long serialVersionUID = 1L;			
+		};
+		
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, null);
+		Assert.assertTrue(ti instanceof ObjectArrayTypeInfo<?,?>);
+		ObjectArrayTypeInfo<?, ?> oati = (ObjectArrayTypeInfo<?, ?>) ti;
+		Assert.assertEquals(BasicTypeInfo.BOOLEAN_TYPE_INFO, oati.getComponentInfo());		
+	}
+	
+	public class MyObject<T> {
+		public T myField;
+	}
+	
+	@Test
+	public void testParamertizedCustomObject() {
+		MapFunction<?, ?> function = new MapFunction<Boolean, MyObject<String>>() {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public MyObject<String> map(Boolean value) throws Exception {
+				return null;
+			}
+		};
+		
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, null);
+		Assert.assertTrue(ti instanceof GenericTypeInfo<?>);
 	}
 
 }

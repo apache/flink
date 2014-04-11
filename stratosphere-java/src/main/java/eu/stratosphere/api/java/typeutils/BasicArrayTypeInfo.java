@@ -120,5 +120,13 @@ public class BasicArrayTypeInfo<T, C> extends TypeInformation<T> {
 		TYPES.put(Float[].class, FLOAT_ARRAY_TYPE_INFO);
 		TYPES.put(Double[].class, DOUBLE_ARRAY_TYPE_INFO);
 		TYPES.put(Character[].class, CHAR_ARRAY_TYPE_INFO);
+		TYPES.put(boolean[].class, BOOLEAN_ARRAY_TYPE_INFO);
+		TYPES.put(byte[].class, BYTE_ARRAY_TYPE_INFO);
+		TYPES.put(short[].class, SHORT_ARRAY_TYPE_INFO);
+		TYPES.put(int[].class, INT_ARRAY_TYPE_INFO);
+		TYPES.put(long[].class, LONG_ARRAY_TYPE_INFO);
+		TYPES.put(float[].class, FLOAT_ARRAY_TYPE_INFO);
+		TYPES.put(double[].class, DOUBLE_ARRAY_TYPE_INFO);
+		TYPES.put(char[].class, CHAR_ARRAY_TYPE_INFO);
 	}
 }

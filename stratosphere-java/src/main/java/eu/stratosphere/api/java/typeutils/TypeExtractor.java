@@ -269,11 +269,21 @@ public class TypeExtractor {
 				}
 			}
 		}
-		// arrays with generics
+		// arrays with generics 
+		// (due to a Java 6 bug, it is possible that BasicArrayTypes also get classified as ObjectArrayTypes
+		// since the JVM classifies e.g. String[] as GenericArrayType instead of Class)
 		else if (t instanceof GenericArrayType) {
-			return ObjectArrayTypeInfo.getInfoFor(t);
+			GenericArrayType genericArray = (GenericArrayType) t;
+
+			TypeInformation<?> componentInfo = createTypeInfoWithTypeHierarchy(typeHierarchy, genericArray.getGenericComponentType(),
+					in1Type, in2Type);
+			return ObjectArrayTypeInfo.getInfoFor(t, componentInfo);
 		}
-		// no tuple, no TypeVariable, no generic array
+		// objects with generics are treated as raw type
+		else if (t instanceof ParameterizedType) {
+			return getForClass((Class<OUT>)((ParameterizedType) t).getRawType());
+		}
+		// no tuple, no TypeVariable, no generic type
 		else if (t instanceof Class) {
 			return getForClass((Class<OUT>) t);
 		}
