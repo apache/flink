@@ -102,11 +102,11 @@ public final class StringUtils {
 	}
 	
 	/**
-	 * Helper function to escape Strings for display in HTML pages
+	 * Helper function to escape Strings for display in HTML pages. The function replaces
+	 * certain characters by their HTML coded correspondent.
 	 * 
-	 * @param str
-	 * 	String to Escape
-	 * @return escaped String
+	 * @param str The string to escape.
+	 * @return The escaped string.
 	 */
 	public static String escapeHtml(String str) {
 		int len = str.length();
@@ -133,6 +133,8 @@ public final class StringUtils {
 				sb.append("&gt;");
 			else if (c == '<')
 				sb.append("&lt;");
+			else if (c == '&')
+				sb.append("&amp;");
 			else {
 				if (c < ' ') {
 					// Unreadable throw away
@@ -146,6 +148,15 @@ public final class StringUtils {
 	}
 	
 	
+	/**
+	 * This method calls {@link Object#toString()} on the given object, unless the
+	 * object is an array. In that case, it will use the {@link #arrayToString(Object)}
+	 * method to create a string representation of the array that includes all contained
+	 * elements.
+	 * 
+	 * @param o The object for which to create the string representation.
+	 * @return The string representation of the object.
+	 */
 	public static final String arrayAwareToString(Object o) {
 		if (o == null) {
 			return "null";
@@ -157,8 +168,19 @@ public final class StringUtils {
 		return o.toString();
 	}
 	
-	
+	/**
+	 * Returns a string representation of the given array. This method takes an Object
+	 * to allow also all types of primitive type arrays.
+	 * 
+	 * @param array The array to create a string representation for.
+	 * @return The string representation of the array.
+	 * @throws IllegalArgumentException If the given object is no array.
+	 */
 	public static final String arrayToString(Object array) {
+		if (array == null) {
+			throw new NullPointerException();
+		}
+		
 		if (array instanceof int[]) {
 			return Arrays.toString((int[]) array);
 		}
@@ -187,9 +209,22 @@ public final class StringUtils {
 			return Arrays.toString((short[]) array);
 		}
 		
-		return "<unknown array type>";
+		if (array.getClass().isArray()) {
+			return "<unknown array type>";
+		} else {
+			throw new IllegalArgumentException("The given argument is no array.");
+		}
 	}
 	
+	/**
+	 * Replaces control characters by their escape-coded version. For example,
+	 * if the string contains a line break character ('\n'), this character will
+	 * be replaced by the two characters backslash '\' and 'n'. As a consequence, the
+	 * resulting string will not contain any more control characters.
+	 * 
+	 * @param str The string in which to replace the control characters.
+	 * @return The string with the replaced characters.
+	 */
 	public static final String showControlCharacters(String str) {
 		int len = str.length();
 		StringBuilder sb = new StringBuilder();
@@ -226,7 +261,7 @@ public final class StringUtils {
 	 * 
 	 * @param rnd The random used to create the strings.
 	 * @param minLength The minimum string length.
-	 * @param maxLength The maximum string length.
+	 * @param maxLength The maximum string length (inclusive).
 	 * @return A random String.
 	 */
 	public static String getRandomString(Random rnd, int minLength, int maxLength) {
