@@ -264,8 +264,9 @@ public class TypeExtractor {
 					return typeInfo;
 				} else {
 					throw new InvalidTypesException("Type of TypeVariable '" + ((TypeVariable<?>) t).getName() + "' in '"
-							+ ((TypeVariable<?>) t).getGenericDeclaration()
-							+ "' could not be determined. This is most likely a type erasure problem.");
+							+ ((TypeVariable<?>) t).getGenericDeclaration() + "' could not be determined. " +
+							"The type extraction currently supports types with generic variables only in cases where " +
+							"all variables in the return type can be deduced from the input type(s).");
 				}
 			}
 		}

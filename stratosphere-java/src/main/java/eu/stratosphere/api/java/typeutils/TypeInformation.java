@@ -14,11 +14,7 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.typeutils;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
-
 
 public abstract class TypeInformation<T> {
 	
