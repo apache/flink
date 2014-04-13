@@ -17,11 +17,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
 
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.PrintStream;
 
@@ -42,15 +42,8 @@ public class TextInputFormatTest {
 		LogUtils.initializeDefaultConsoleLogger(Level.WARN);
 	}
 	
-	/**
-	 * The TextInputFormat seems to fail reading more than one record. I guess its
-	 * an off by one error.
-	 * 
-	 * The easiest workaround is to setParameter(TextInputFormat.CHARSET_NAME, "ASCII");
-	 * @throws IOException
-	 */
 	@Test
-	public void testPositionBug() {
+	public void testSimpleRead() {
 		final String FIRST = "First line";
 		final String SECOND = "Second line";
 		
@@ -77,16 +70,17 @@ public class TextInputFormatTest {
 			
 			String result = "";
 			
+			assertFalse(inputFormat.reachedEnd());
 			result = inputFormat.nextRecord("");
 			assertNotNull("Expecting first record here", result);
 			assertEquals(FIRST, result);
 			
+			assertFalse(inputFormat.reachedEnd());
 			result = inputFormat.nextRecord(result);
 			assertNotNull("Expecting second record here", result);
 			assertEquals(SECOND, result);
 			
-			result = inputFormat.nextRecord(result);
-			assertNull("The input file is over", result);
+			assertTrue(inputFormat.reachedEnd() || null == inputFormat.nextRecord(result));
 		}
 		catch (Throwable t) {
 			System.err.println("test failed with exception: " + t.getMessage());

@@ -19,27 +19,25 @@ import java.io.IOException;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.core.memory.DataInputView;
 import eu.stratosphere.core.memory.DataOutputView;
-import eu.stratosphere.types.StringValue;
-
 
 /**
- * A serializer for String arrays. Specialized for efficiency.
+ * A serializer for long arrays.
  */
-public class StringArraySerializer extends TypeSerializer<String[]>{
+public class LongPrimitiveArraySerializer extends TypeSerializer<long[]>{
 
 	private static final long serialVersionUID = 1L;
 	
-	private static final String[] EMPTY = new String[0];
+	private static final long[] EMPTY = new long[0];
 
 	@Override
-	public String[] createInstance() {
+	public long[] createInstance() {
 		return EMPTY;
 	}
 
 	@Override
-	public String[] copy(String[] from, String[] reuse) {
+	public long[] copy(long[] from, long[] reuse) {
 		if (reuse.length != from.length) {
-			reuse = new String[from.length];
+			reuse = new long[from.length];
 		}
 		System.arraycopy(from, 0, reuse, 0, from.length);
 		return reuse;
@@ -52,7 +50,7 @@ public class StringArraySerializer extends TypeSerializer<String[]>{
 
 
 	@Override
-	public void serialize(String[] record, DataOutputView target) throws IOException {
+	public void serialize(long[] record, DataOutputView target) throws IOException {
 		if (record == null) {
 			throw new IllegalArgumentException("The record must not be null.");
 		}
@@ -60,21 +58,21 @@ public class StringArraySerializer extends TypeSerializer<String[]>{
 		final int len = record.length;
 		target.writeInt(len);
 		for (int i = 0; i < len; i++) {
-			StringValue.writeString(record[i], target);
+			target.writeLong(record[i]);
 		}
 	}
 
 
 	@Override
-	public String[] deserialize(String[] reuse, DataInputView source) throws IOException {
+	public long[] deserialize(long[] reuse, DataInputView source) throws IOException {
 		final int len = source.readInt();
 		
 		if (reuse.length != len) {
-			reuse = new String[len];
+			reuse = new long[len];
 		}
 		
 		for (int i = 0; i < len; i++) {
-			reuse[i] = StringValue.readString(source);
+			reuse[i] = source.readLong();
 		}
 		
 		return reuse;
@@ -85,8 +83,6 @@ public class StringArraySerializer extends TypeSerializer<String[]>{
 		final int len = source.readInt();
 		target.writeInt(len);
 		
-		for (int i = 0; i < len; i++) {
-			StringValue.copyString(source, target);
-		}
+		target.write(source, len * 8);
 	}
 }

@@ -331,32 +331,11 @@ public class CsvInputFormatTest {
 			
 			try {
 				format.setFields(new int[] {8, 1, 3}, new Class<?>[] {Integer.class, Integer.class, Integer.class});
-				fail("Input sequence should have been rejexted.");
+				fail("Input sequence should have been rejected.");
 			}
 			catch (IllegalArgumentException e) {
 				// that is what we want
 			}
-			
-//			format.configure(new Configuration());
-//			format.open(split);
-//			
-//			Tuple3<Integer, Integer, Integer> result = new Tuple3<Integer, Integer, Integer>();
-//			
-//			result = format.nextRecord(result);
-//			assertNotNull(result);
-//			assertEquals(Integer.valueOf(999), result.f0);
-//			assertEquals(Integer.valueOf(222), result.f1);
-//			assertEquals(Integer.valueOf(444), result.f2);
-//			
-//			result = format.nextRecord(result);
-//			assertNotNull(result);
-//			assertEquals(Integer.valueOf(222), result.f0);
-//			assertEquals(Integer.valueOf(999), result.f1);
-//			assertEquals(Integer.valueOf(777), result.f2);
-//			
-//			result = format.nextRecord(result);
-//			assertNull(result);
-//			assertTrue(format.reachedEnd());
 		}
 		catch (Exception ex) {
 			fail("Test failed due to a " + ex.getClass().getName() + ": " + ex.getMessage());

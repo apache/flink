@@ -273,7 +273,11 @@ public abstract class SerializerTestBase<T> {
 	
 	private void deepEquals(String message, T should, T is) {
 		if (should.getClass().isArray()) {
-			assertArrayEquals(message, (Object[]) should, (Object[]) is);
+			if (should instanceof long[]) {
+				assertArrayEquals(message, (long[]) should, (long[]) is);
+			} else {
+				assertArrayEquals(message, (Object[]) should, (Object[]) is);
+			}
 		} else {
 			assertEquals(message,  should, is);
 		}
