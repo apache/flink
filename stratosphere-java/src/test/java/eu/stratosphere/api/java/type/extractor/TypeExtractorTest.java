@@ -949,16 +949,6 @@ public class TypeExtractorTest {
 			private static final long serialVersionUID = 1L;
 
 			@Override
-			public void combineFirst(Iterator<String> records, Collector<String> out) throws Exception {
-				// nothing to do
-			}
-
-			@Override
-			public void combineSecond(Iterator<String> records, Collector<String> out) throws Exception {
-				// nothing to do
-			}
-
-			@Override
 			public void coGroup(Iterator<String> first, Iterator<String> second, Collector<String[]> out) throws Exception {
 				// nothing to do
 			}
