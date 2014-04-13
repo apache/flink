@@ -23,15 +23,36 @@ package eu.stratosphere.api.java.tuple;
 
 import eu.stratosphere.util.StringUtils;
 
+/**
+ * A tuple with 1 fields. Tuples are strongly typed; each field may be of a separate type.
+ * The fields of the tuple can be accessed directly as public fields (f0, f1, ...) or via their position
+ * through the {@link #getField(int)} method. The tuple field positions start at zero.
+ * <p>
+ * Tuples are mutable types, meaning that their fields can be re-assigned. This allows functions that work
+ * with Tuples to reuse objects in order to reduce pressure on the garbage collector.
+ *
+ * @see Tuple
+ *
+ * @param <T0> The type of field 0
+ */
 @SuppressWarnings({"restriction"})
 public class Tuple1<T0> extends Tuple {
 
 	private static final long serialVersionUID = 1L;
 
+	/** Field 0 of the tuple. */
 	public T0 f0;
 
+	/**
+	 * Creates a new tuple where all fields are null.
+	 */
 	public Tuple1() {}
 
+	/**
+	 * Creates a new tuple and assigns the given values to the tuple's fields.
+	 *
+	 * @param value0 The value for field 0
+	 */
 	public Tuple1(T0 value0) {
 		this.f0 = value0;
 	}
@@ -47,6 +68,7 @@ public class Tuple1<T0> extends Tuple {
 			default: throw new IndexOutOfBoundsException(String.valueOf(pos));
 		}
 	}
+
 	@Override
 	@SuppressWarnings("unchecked")
 	public <T> void setField(T value, int pos) {
@@ -57,6 +79,12 @@ public class Tuple1<T0> extends Tuple {
 			default: throw new IndexOutOfBoundsException(String.valueOf(pos));
 		}
 	}
+
+	/**
+	 * Sets new values to all fields of the tuple.
+	 *
+	 * @param value0 The value for field 0
+	 */
 	public void setFields(T0 value0) {
 		this.f0 = value0;
 	}
@@ -66,6 +94,12 @@ public class Tuple1<T0> extends Tuple {
 	// standard utilities
 	// -------------------------------------------------------------------------------------------------
 
+	/**
+	 * Creates a string representation of the tuple in the form
+	 * (f0),
+	 * where the individual fields are the value returned by calling {@link Object#toString} on that field.
+	 * @return The string representation of the tuple.
+	 */
 	@Override
 	public String toString() {
 		return "(" + StringUtils.arrayAwareToString(this.f0)

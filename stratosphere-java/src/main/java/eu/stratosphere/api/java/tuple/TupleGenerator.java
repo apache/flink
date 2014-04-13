@@ -16,8 +16,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Scanner;
 
 import com.google.common.base.Charsets;
@@ -327,9 +325,22 @@ public class TupleGenerator {
 		w.println("import eu.stratosphere.util.StringUtils;");
 		w.println();
 
-		// class declaration
+		// class declaration and class comments
+		w.println("/**");
+		w.println(" * A tuple with " + numFields + " fields. Tuples are strongly typed; each field may be of a separate type.");
+		w.println(" * The fields of the tuple can be accessed directly as public fields (f0, f1, ...) or via their position");
+		w.println(" * through the {@link #getField(int)} method. The tuple field positions start at zero.");
+		w.println(" * <p>");
+		w.println(" * Tuples are mutable types, meaning that their fields can be re-assigned. This allows functions that work");
+		w.println(" * with Tuples to reuse objects in order to reduce pressure on the garbage collector.");
+		w.println(" *");
+		w.println(" * @see Tuple");
+		w.println(" *");
+		for (int i = 0; i < numFields; i++) {
+			w.println(" * @param <" + GEN_TYPE_PREFIX + i + "> The type of field " + i);
+		}
+		w.println(" */");
 		w.println("@SuppressWarnings({\"restriction\"})");
-		;
 		w.print("public class " + className + "<");
 		for (int i = 0; i < numFields; i++) {
 			if (i > 0) {
@@ -345,13 +356,24 @@ public class TupleGenerator {
 
 		// fields
 		for (int i = 0; i < numFields; i++) {
+			w.println("\t/** Field " + i + " of the tuple. */");
 			w.println("\tpublic " + GEN_TYPE_PREFIX + i + " f" + i + ';');
 		}
 		w.println();
 
 		// constructors
+		w.println("\t/**");
+		w.println("\t * Creates a new tuple where all fields are null.");
+		w.println("\t */");
 		w.println("\tpublic " + className + "() {}");
 		w.println();
+		w.println("\t/**");
+		w.println("\t * Creates a new tuple and assigns the given values to the tuple's fields.");
+		w.println("\t *");
+		for (int i = 0; i < numFields; i++) {
+			w.println("\t * @param value" + i + " The value for field " + i);
+		}
+		w.println("\t */");
 		w.print("\tpublic " + className + "(");
 		for (int i = 0; i < numFields; i++) {
 			if (i > 0) {
@@ -382,6 +404,7 @@ public class TupleGenerator {
 		w.println("\t\t\tdefault: throw new IndexOutOfBoundsException(String.valueOf(pos));");
 		w.println("\t\t}");
 		w.println("\t}");
+		w.println();
 
 		// accessor setter method
 		w.println("\t@Override");
@@ -396,8 +419,16 @@ public class TupleGenerator {
 		w.println("\t\t\tdefault: throw new IndexOutOfBoundsException(String.valueOf(pos));");
 		w.println("\t\t}");
 		w.println("\t}");
+		w.println();
 
 		// accessor setter method for all fields
+		w.println("\t/**");
+		w.println("\t * Sets new values to all fields of the tuple.");
+		w.println("\t *");
+		for (int i = 0; i < numFields; i++) {
+			w.println("\t * @param value" + i + " The value for field " + i);
+		}
+		w.println("\t */");
 		w.print("\tpublic void setFields(");
 		for (int i = 0; i < numFields; i++) {
 			if (i > 0) {
@@ -418,6 +449,16 @@ public class TupleGenerator {
 		w.println("\t// standard utilities");
 		w.println("\t// -------------------------------------------------------------------------------------------------");
 		w.println();
+		w.println("\t/**");
+		w.println("\t * Creates a string representation of the tuple in the form");
+		w.print("\t * (f0");
+		for (int i = 1; i < numFields; i++) {
+			w.print(", f" + i);
+		}
+		w.println("),");
+		w.println("\t * where the individual fields are the value returned by calling {@link Object#toString} on that field.");
+		w.println("\t * @return The string representation of the tuple.");
+		w.println("\t */");
 		w.println("\t@Override");
 		w.println("\tpublic String toString() {");
 		w.println("\t\treturn \"(\" + StringUtils.arrayAwareToString(this.f0)");
