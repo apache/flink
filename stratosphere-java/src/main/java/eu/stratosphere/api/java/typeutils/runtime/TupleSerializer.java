@@ -112,6 +112,6 @@ public final class TupleSerializer<T extends Tuple> extends TypeSerializer<T> {
 		TupleSerializer<?> otherTS = (TupleSerializer<?>) obj;
 		
 		return (otherTS.tupleClass == this.tupleClass) && 
-				Arrays.deepEquals(this.fieldSerializers,fieldSerializers);
+				Arrays.deepEquals(this.fieldSerializers, otherTS.fieldSerializers);
 	}
 }

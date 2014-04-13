@@ -55,7 +55,7 @@ object GlobalSchemaPrinter {
 
         val children = node match {
           case bi: BulkIteration => bi.getInputs().toList :+ bi.getNextPartialSolution()
-          case wi: DeltaIteration => wi.getInitialSolutionSet().toList ++ wi.getInitialWorkset().toList :+ wi.getSolutionSetDelta() :+ wi.getNextWorkset()
+          case wi: DeltaIteration => wi.getInitialSolutionSets().toList ++ wi.getInitialWorksets().toList :+ wi.getSolutionSetDelta() :+ wi.getNextWorkset()
           case si : SingleInputOperator[_] => si.getInputs().toList
           case di : DualInputOperator[_] => di.getFirstInputs().toList ++ di.getSecondInputs().toList
           case gds : GenericDataSink => gds.getInputs().toList

@@ -170,6 +170,49 @@ public abstract class Operator implements Visitable<Operator> {
 	}
 	
 	
+    /**
+     * Gets a single Operator and a list of operators and creates a cascade of unions of this inputs, if needed.
+     * If not needed there was only one operator as input, then this operator is returned.
+     * a
+     *  @return A cascade (or deep-right) tree with the operators of input1 and input2
+     */
+    public static Operator createUnionCascade(Operator input1, Operator...input2){
+    	// return cases where we don't need a union
+    	if(input2.length == 0){
+    		return input1;
+    	}else if(input2.length == 1 && input1 == null){
+    		return input2[0];
+    	}
+    	// Otherwise construct union cascade
+        Union lastUnion = new Union();
+        int i;
+        if(input2[0] == null){
+            throw new IllegalArgumentException("The input may not contain null elements.");
+        }
+        lastUnion.setFirstInput(input2[0]);
+            
+        if(input1 != null){
+        	lastUnion.setSecondInput(input1);
+            i = 1;
+        }else{
+        	if(input2[1] == null){
+        		throw new IllegalArgumentException("The input may not contain null elements.");
+        	}
+        	lastUnion.setSecondInput(input2[1]);
+            i = 2;
+        }
+        for(; i < input2.length; i++){
+        	Union tmpUnion = new Union();
+        	tmpUnion.setSecondInput(lastUnion);
+        	if(input2[i] == null){
+        		throw new IllegalArgumentException("The input may not contain null elements.");
+        	}
+        	tmpUnion.setFirstInput(input2[i]);
+        	lastUnion = tmpUnion;
+        }
+        return lastUnion;
+    }
+    
 	// --------------------------------------------------------------------------------------------
 	
 

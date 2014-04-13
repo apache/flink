@@ -490,9 +490,16 @@ public abstract class DataSet<T> {
 	public <R> CrossOperator.CrossOperatorSets<T, R> crossWithHuge(DataSet<R> other) {
 		return new CrossOperator.CrossOperatorSets<T, R>(this, other);
 	}
-	
-	public <R> UnionOperator<T> union(DataSet<T> input){
-		return new UnionOperator<T>(this, input);
+
+	/**
+	 * Union with an other {@link Tuple} {@link DataSet} which must be of the same type.
+	 * 
+	 * @param other The other DataSet which is appended to the current DataSet via union .
+	 * @return The result DataSet which is of the same type as the two inputs
+	 */
+
+	public UnionOperator<T> union(DataSet<T> other){
+		return new UnionOperator<T>(this, other);
 	}
 
 

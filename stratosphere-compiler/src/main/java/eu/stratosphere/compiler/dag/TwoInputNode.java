@@ -151,7 +151,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 
 
 	@Override
-	public void setInputs(Map<Operator, OptimizerNode> contractToNode) {
+	public void setInput(Map<Operator, OptimizerNode> contractToNode) {
 		// see if there is a hint that dictates which shipping strategy to use for BOTH inputs
 		final Configuration conf = getPactContract().getParameters();
 		ShipStrategyType preSet1 = null;
@@ -213,43 +213,37 @@ public abstract class TwoInputNode extends OptimizerNode {
 		// get the predecessors
 		DualInputOperator<?> contr = (DualInputOperator<?>) getPactContract();
 		
-		List<Operator> leftPreds = contr.getFirstInputs();
-		List<Operator> rightPreds = contr.getSecondInputs();
+		Operator leftPred = contr.getFirstInput();
+		Operator rightPred = contr.getSecondInput();
 		
 		OptimizerNode pred1;
 		PactConnection conn1;
-		if (leftPreds.size() == 0) {
+		if (leftPred == null) {
 			throw new CompilerException("Error: Node for '" + getPactContract().getName() + "' has no input set for first input.");
-		} else if (leftPreds.size() == 1) {
-			pred1 = contractToNode.get(leftPreds.get(0));
+		} else  {
+			pred1 = contractToNode.get(leftPred);
 			conn1 = new PactConnection(pred1, this);
 			if (preSet1 != null) {
 				conn1.setShipStrategy(preSet1);
 			}
-		} else {
-			pred1 = createdUnionCascade(leftPreds, contractToNode, preSet1);
-			conn1 = new PactConnection(pred1, this);
-			conn1.setShipStrategy(ShipStrategyType.FORWARD);
-		}
+		} 
+		
 		// create the connection and add it
 		this.input1 = conn1;
 		pred1.addOutgoingConnection(conn1);
 		
 		OptimizerNode pred2;
 		PactConnection conn2;
-		if (rightPreds.size() == 0) {
+		if (rightPred == null) {
 			throw new CompilerException("Error: Node for '" + getPactContract().getName() + "' has no input set for second input.");
-		} else if (rightPreds.size() == 1) {
-			pred2 = contractToNode.get(rightPreds.get(0));
+		} else {
+			pred2 = contractToNode.get(rightPred);
 			conn2 = new PactConnection(pred2, this);
 			if (preSet2 != null) {
 				conn2.setShipStrategy(preSet2);
 			}
-		} else {
-			pred2 = createdUnionCascade(rightPreds, contractToNode, preSet1);
-			conn2 = new PactConnection(pred2, this);
-			conn2.setShipStrategy(ShipStrategyType.FORWARD);
 		}
+		
 		// create the connection and add it
 		this.input2 = conn2;
 		pred2.addOutgoingConnection(conn2);

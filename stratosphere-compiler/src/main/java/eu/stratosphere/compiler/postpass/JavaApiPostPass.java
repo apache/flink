@@ -218,8 +218,8 @@ public class JavaApiPostPass implements OptimizerPostPass {
 			type = ((PlanDeltaIterationOperator<?, ?>) worksetPlaceHolder.getContainingWorksetIteration()).getReturnType();
 		}  else if (javaOp instanceof NoOpUnaryUdfOp) {
 			NoOpUnaryUdfOp op = (NoOpUnaryUdfOp) javaOp;
-			if(op.getInputs().get(0) instanceof JavaPlanNode<?>) { 
-				JavaPlanNode<?> javaNode = (JavaPlanNode<?>) op.getInputs().get(0);
+			if(op.getInput() instanceof JavaPlanNode<?>) { 
+				JavaPlanNode<?> javaNode = (JavaPlanNode<?>) op.getInput();
 				type = javaNode.getReturnType();
 			}
 		}else if(javaOp instanceof Union){

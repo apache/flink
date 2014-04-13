@@ -106,7 +106,7 @@ public class DataSourceNode extends OptimizerNode {
 	}
 
 	@Override
-	public void setInputs(Map<Operator, OptimizerNode> contractToNode) {}
+	public void setInput(Map<Operator, OptimizerNode> contractToNode) {}
 
 	@Override
 	protected void computeOperatorSpecificDefaultEstimates(DataStatistics statistics) {

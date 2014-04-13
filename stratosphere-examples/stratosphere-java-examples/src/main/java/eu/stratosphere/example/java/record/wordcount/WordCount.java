@@ -120,6 +120,7 @@ public class WordCount implements Program, ProgramDescription {
 			.input(mapper)
 			.name("Count Words")
 			.build();
+		
 		@SuppressWarnings("unchecked")
 		FileDataSink out = new FileDataSink(new CsvOutputFormat("\n", " ", StringValue.class, IntValue.class), output, reducer, "Word Counts");
 		

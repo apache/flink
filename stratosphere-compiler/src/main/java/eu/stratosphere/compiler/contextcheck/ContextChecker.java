@@ -14,7 +14,6 @@
 package eu.stratosphere.compiler.contextcheck;
 
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 import eu.stratosphere.api.common.InvalidProgramException;
@@ -101,7 +100,7 @@ public class ContextChecker implements Visitor<Operator> {
 	 *        DataSinkContract that is checked.
 	 */
 	private void checkDataSink(GenericDataSink dataSinkContract) {
-		Operator input = dataSinkContract.getInputs().get(0);
+		Operator input = dataSinkContract.getInput();
 		// check if input exists
 		if (input == null) {
 			throw new MissingChildException();
@@ -173,9 +172,9 @@ public class ContextChecker implements Visitor<Operator> {
 	 *        SingleInputOperator that is checked.
 	 */
 	private void checkSingleInputContract(SingleInputOperator<?> singleInputContract) {
-		List<Operator> input = singleInputContract.getInputs();
+		Operator input = singleInputContract.getInput();
 		// check if input exists
-		if (input.size() == 0) {
+		if (input == null) {
 			throw new MissingChildException();
 		}
 	}
@@ -188,10 +187,10 @@ public class ContextChecker implements Visitor<Operator> {
 	 *        DualInputOperator that is checked.
 	 */
 	private void checkDualInputContract(DualInputOperator<?> dualInputContract) {
-		List<Operator> input1 = dualInputContract.getFirstInputs();
-		List<Operator> input2 = dualInputContract.getSecondInputs();
+		Operator input1 = dualInputContract.getFirstInput();
+		Operator input2 = dualInputContract.getSecondInput();
 		// check if input exists
-		if (input1.size() == 0 || input2.size() == 0) {
+		if (input1 == null || input2 == null) {
 			throw new MissingChildException();
 		}
 	}

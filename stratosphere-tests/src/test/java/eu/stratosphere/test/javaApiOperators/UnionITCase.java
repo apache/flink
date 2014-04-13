@@ -51,7 +51,7 @@ public class UnionITCase extends JavaProgramTestBase {
 
 	@Override
 	protected void testProgram() throws Exception {
-		expectedResult = FilterProgs.runProgram(curProgId, resultPath);
+		expectedResult = UnionProgs.runProgram(curProgId, resultPath);
 	}
 	
 	@Override
@@ -73,7 +73,7 @@ public class UnionITCase extends JavaProgramTestBase {
 		return toParameterList(tConfigs);
 	}
 	
-	private static class FilterProgs {
+	private static class UnionProgs {
 
 		private static final String FULL_TUPLE_3_STRING = "1,1,Hi\n" +
 				"2,2,Hello\n" +

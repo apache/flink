@@ -109,8 +109,8 @@ class GlobalSchemaGenerator {
 
       case contract : DeltaIteration with DeltaIterationScalaOperator[_] => {
 //      case contract @ WorksetIterate4sContract(s0, ws0, deltaS, newWS, placeholderS, placeholderWS) => {
-        val s0 = contract.getInitialSolutionSet.get(0)
-        val ws0 = contract.getInitialWorkset.get(0)
+        val s0 = contract.getInitialSolutionSets.get(0)
+        val ws0 = contract.getInitialWorksets.get(0)
         val deltaS = contract.getSolutionSetDelta
         val newWS = contract.getNextWorkset
 

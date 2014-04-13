@@ -19,12 +19,27 @@ import eu.stratosphere.api.common.operators.Union;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.operators.translation.BinaryNodeTranslation;
 
+/**
+ * Operator for union of two data sets
+ * 
+ * @param <T> The type of the two input data sets and the Output dataSet 
+ */
 public class UnionOperator<T> extends TwoInputOperator<T, T, T, UnionOperator<T>> {
 
+	/**
+	 * Constructor just calls super constructor.
+	 * @param input1
+	 * @param input2
+	 */
 	public UnionOperator(DataSet<T> input1, DataSet<T> input2) {
 		super(input1, input2, input1.getType());
 	}
 	 
+	/**
+	 * Returns the BinaryNodeTranslation of the Union.
+	 * Just return a BinaryNodeTranslation holding a new common.operator Union.
+	 * The inputs of the union are automatically set by the {@link OperatorTranslation}.
+	 */
 	@Override
 	protected BinaryNodeTranslation translateToDataFlow() {
 		return new BinaryNodeTranslation(new Union());

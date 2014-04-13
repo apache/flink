@@ -18,10 +18,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import eu.stratosphere.api.common.functions.AbstractFunction;
-import eu.stratosphere.api.common.operators.DualInputOperator;
 import eu.stratosphere.api.common.operators.Union;
-import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.costs.CostEstimator;
@@ -49,35 +46,11 @@ public class BinaryUnionNode extends TwoInputNode {
 	public BinaryUnionNode(Union union){
 		super(union);
 	}
-	
-	public BinaryUnionNode(OptimizerNode pred1, OptimizerNode pred2) {
-		super(new UnionPlaceholderContract());
-		
-		this.input1 = new PactConnection(pred1, this);
-		this.input2 = new PactConnection(pred2, this);
-		
-		pred1.addOutgoingConnection(this.input1);
-		pred2.addOutgoingConnection(this.input2);
-	}
-	
-	public BinaryUnionNode(OptimizerNode pred1, OptimizerNode pred2, ShipStrategyType preSet) {
-		this(pred1, pred2);
-		
-		if (preSet != null) {
-			this.input1.setShipStrategy(preSet);
-			this.input2.setShipStrategy(preSet);
-		}
-	}
 
 	@Override
 	public String getName() {
 		return "Union";
 	}
-	
-	/*@Override
-	public void setInputs(Map<Operator, OptimizerNode> contractToNode) {
-		throw new UnsupportedOperationException();
-	}*/
 
 	@Override
 	protected List<OperatorDescriptorDual> getPossibleProperties() {
@@ -309,19 +282,5 @@ public class BinaryUnionNode extends TwoInputNode {
 				in1.estimatedNumRecords + in2.estimatedNumRecords : -1;
 		this.estimatedOutputSize = in1.estimatedOutputSize > 0 && in2.estimatedOutputSize > 0 ?
 			in1.estimatedOutputSize + in2.estimatedOutputSize : -1;
-	}
-	
-	// ------------------------------------------------------------------------
-	//  Mock classes that represents a contract without behavior.
-	// ------------------------------------------------------------------------
-	
-	private static final class MockStub extends AbstractFunction {
-		private static final long serialVersionUID = 1L;
-	}
-	
-	private static final class UnionPlaceholderContract extends DualInputOperator<MockStub> {
-		private UnionPlaceholderContract() {
-			super(new UserCodeClassWrapper<MockStub>(MockStub.class), "Union");
-		}
 	}
 }

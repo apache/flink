@@ -13,8 +13,6 @@
 
 package eu.stratosphere.api.common.operators.util;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -104,42 +102,6 @@ public class OperatorUtil {
 		throw new IllegalArgumentException("not supported");
 	}
 
-	/**
-	 * Returns a list of all inputs for the given {@link Operator}.<br>
-	 * Currently, the list can have 0, 1, or 2 elements.
-	 * 
-	 * @param contract
-	 *        the Operator whose inputs should be returned
-	 * @return all input contracts to this contract
-	 */
-	public static List<List<Operator>> getInputs(final Operator contract) {
-		ArrayList<List<Operator>> inputs = new ArrayList<List<Operator>>();
-
-		if (contract instanceof GenericDataSink)
-			inputs.add(new ArrayList<Operator>(((GenericDataSink) contract).getInputs()));
-		else if (contract instanceof SingleInputOperator)
-			inputs.add(new ArrayList<Operator>(((SingleInputOperator<?>) contract).getInputs()));
-		else if (contract instanceof DualInputOperator) {
-			inputs.add(new ArrayList<Operator>(((DualInputOperator<?>) contract).getFirstInputs()));
-			inputs.add(new ArrayList<Operator>(((DualInputOperator<?>) contract).getSecondInputs()));
-		}
-		return inputs;
-	}
-
-	public static List<Operator> getFlatInputs(final Operator contract) {
-		if (contract instanceof GenericDataSink)
-			return ((GenericDataSink) contract).getInputs();
-		if (contract instanceof SingleInputOperator)
-			return ((SingleInputOperator<?>) contract).getInputs();
-		if (contract instanceof DualInputOperator) {
-			ArrayList<Operator> inputs = new ArrayList<Operator>();
-			inputs.addAll(((DualInputOperator<?>) contract).getFirstInputs());
-			inputs.addAll(((DualInputOperator<?>) contract).getSecondInputs());
-			return inputs;
-		}
-
-		return new ArrayList<Operator>();
-	}
 
 	/**
 	 * Sets the inputs of the given {@link Operator}.<br>
@@ -165,21 +127,5 @@ public class OperatorUtil {
 			((DualInputOperator<?>) contract).setFirstInputs(inputs.get(0));
 			((DualInputOperator<?>) contract).setSecondInputs(inputs.get(1));
 		}
-	}
-
-	/**
-	 * Swaps two inputs of the given contract.
-	 * 
-	 * @param contract
-	 *        the contract
-	 * @param input1
-	 *        the first input index
-	 * @param input2
-	 *        the second input index
-	 */
-	public static void swapInputs(Operator contract, int input1, int input2) {
-		final List<List<Operator>> inputs = new ArrayList<List<Operator>>(getInputs(contract));
-		Collections.swap(inputs, input1, input2);
-		setInputs(contract, inputs);
 	}
 }

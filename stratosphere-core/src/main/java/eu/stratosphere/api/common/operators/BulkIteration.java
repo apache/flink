@@ -135,7 +135,7 @@ public class BulkIteration extends SingleInputOperator<AbstractFunction> impleme
 	 * @throws Exception
 	 */
 	public void validate() throws InvalidProgramException {
-		if (this.input == null || this.input.isEmpty()) {
+		if (this.input == null) {
 			throw new RuntimeException("Operator for initial partial solution is not set.");
 		}
 		if (this.iterationResult == null) {

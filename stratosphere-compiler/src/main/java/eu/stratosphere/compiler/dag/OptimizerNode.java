@@ -166,7 +166,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 * @param contractToNode
 	 *        The map to translate the contracts to their corresponding optimizer nodes.
 	 */
-	public abstract void setInputs(Map<Operator, OptimizerNode> contractToNode);
+	public abstract void setInput(Map<Operator, OptimizerNode> contractToNode);
 
 	/**
 	 * This function is for plan translation purposes. Upon invocation, this method creates a {@link PactConnection}
@@ -743,39 +743,6 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 */
 	public Set<FieldSet> getUniqueFields() {
 		return this.uniqueFields == null ? Collections.<FieldSet>emptySet() : this.uniqueFields;
-	}
-	
-	// --------------------------------------------------------------------------------------------
-	//  Miscellaneous
-	// --------------------------------------------------------------------------------------------
-	
-	public BinaryUnionNode createdUnionCascade(List<Operator> children, Map<Operator, OptimizerNode> contractToNode, ShipStrategyType preSet) {
-		if (children.size() < 2) {
-			throw new IllegalArgumentException();
-		}
-		
-		BinaryUnionNode lastUnion = null;
-		
-		for (int i = 1; i < children.size(); i++) {
-			if (i == 1) {
-				OptimizerNode in1 = contractToNode.get(children.get(0));
-				OptimizerNode in2 = contractToNode.get(children.get(1));
-				
-				lastUnion = new BinaryUnionNode(in1, in2, preSet);
-			} else {
-				OptimizerNode nextIn = contractToNode.get(children.get(i));
-				lastUnion = new BinaryUnionNode(lastUnion, nextIn);
-				lastUnion.getFirstIncomingConnection().setShipStrategy(ShipStrategyType.FORWARD);
-				if (preSet != null) {
-					lastUnion.getSecondIncomingConnection().setShipStrategy(preSet);
-				}
-			}
-			
-			lastUnion.setDegreeOfParallelism(getDegreeOfParallelism());
-			lastUnion.setSubtasksPerInstance(getSubtasksPerInstance());
-		}
-		
-		return lastUnion;
 	}
 	
 	// --------------------------------------------------------------------------------------------

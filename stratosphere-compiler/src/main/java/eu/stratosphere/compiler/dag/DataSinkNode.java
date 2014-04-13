@@ -31,7 +31,6 @@ import eu.stratosphere.compiler.dataproperties.RequestedLocalProperties;
 import eu.stratosphere.compiler.plan.Channel;
 import eu.stratosphere.compiler.plan.PlanNode;
 import eu.stratosphere.compiler.plan.SinkPlanNode;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.util.Visitor;
 
@@ -112,19 +111,15 @@ public class DataSinkNode extends OptimizerNode {
 	}
 
 	@Override
-	public void setInputs(Map<Operator, OptimizerNode> contractToNode) {
-		List<Operator> children = getPactContract().getInputs();
+	public void setInput(Map<Operator, OptimizerNode> contractToNode) {
+		Operator children = getPactContract().getInput();
 
 		final OptimizerNode pred;
 		final PactConnection conn;
-		if (children.size() == 1) {
-			pred = contractToNode.get(children.get(0));
-			conn = new PactConnection(pred, this);
-		} else {
-			pred = createdUnionCascade(children, contractToNode, null);
-			conn = new PactConnection(pred, this);
-			conn.setShipStrategy(ShipStrategyType.FORWARD);
-		}
+		
+		pred = contractToNode.get(children);
+		conn = new PactConnection(pred, this);
+			
 		// create the connection and add it
 		setInputConnection(conn);
 		pred.addOutgoingConnection(conn);

@@ -948,7 +948,7 @@ public class PactCompiler {
 			OptimizerNode n = this.con2node.get(c);
 
 			// first connect to the predecessors
-			n.setInputs(this.con2node);
+			n.setInput(this.con2node);
 			n.setBroadcastInputs(this.con2node);
 			
 			// if the node represents a bulk iteration, we recursively translate the data flow now

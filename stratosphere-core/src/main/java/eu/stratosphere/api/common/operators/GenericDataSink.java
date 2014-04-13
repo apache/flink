@@ -38,7 +38,7 @@ public class GenericDataSink extends Operator {
 	
 	protected final UserCodeWrapper<? extends OutputFormat<?>> formatWrapper;
 
-	private List<Operator> input = new ArrayList<Operator>();
+	private Operator input = null;
 
 	private Ordering localOrdering;
 	
@@ -201,8 +201,23 @@ public class GenericDataSink extends Operator {
 	 * 
 	 * @return the contract's input contract.
 	 */
-	public List<Operator> getInputs() {
+	public Operator getInput() {
 		return this.input;
+	}
+	
+	/**
+	 * Returns the input as list, or null, if none is set.
+	 * This function is here for compatibility=reasons of the old-java-API with the scala API
+	 * 
+	 * @return The contract's input contract.
+	 */
+	public List<Operator> getInputs() {
+		if(this.input == null){
+			return null;
+		}
+		ArrayList<Operator> inputs = new ArrayList<Operator>();
+		inputs.add(this.input);
+		return inputs;
 	}
 
 	/**
@@ -212,7 +227,7 @@ public class GenericDataSink extends Operator {
 	 */
 	public void addInput(Operator input) {
 		Preconditions.checkNotNull(input, "The input may not be null.");
-		this.input.add(input);
+		this.input = createUnionCascade(this.input, new Operator[]{ input });
 	}
 
 	/**
@@ -220,9 +235,9 @@ public class GenericDataSink extends Operator {
 	 * 
 	 * @param inputs The contracts will be set as input.
 	 */
-	public void addInputs(List<Operator> inputs) {
+	public void addInputs(List<? extends Operator> inputs) {
 		Preconditions.checkNotNull(inputs, "The inputs may not be null.");
-		this.input.addAll(inputs);
+		this.input = createUnionCascade(this.input, inputs.toArray(new Operator[inputs.size()]));
 	}
 
 	/**
@@ -233,8 +248,8 @@ public class GenericDataSink extends Operator {
 	 */
 	public void setInput(Operator input) {
 		Preconditions.checkNotNull(input, "The input may not be null.");
-		this.input.clear();
-		this.input.add(input);
+		this.input = null;
+		addInput(input);
 	}
 	
 	/**
@@ -243,10 +258,10 @@ public class GenericDataSink extends Operator {
 	 * 
 	 * @param inputs The contracts will be set as inputs.
 	 */
-	public void setInputs(List<? extends Operator> inputs) {
+	public void setInputs(List<Operator> inputs) {
 		Preconditions.checkNotNull(inputs, "The inputs may not be null.");
-		this.input.clear();
-		this.input.addAll(inputs);
+		this.input = null;
+		addInputs(inputs);
 	}
 	
 	/**
@@ -382,9 +397,7 @@ public class GenericDataSink extends Operator {
 	public void accept(Visitor<Operator> visitor) {
 		boolean descend = visitor.preVisit(this);
 		if (descend) {
-			for (Operator c : this.input) {
-				c.accept(visitor);
-			}
+			this.input.accept(visitor);
 			visitor.postVisit(this);
 		}
 	}

@@ -154,7 +154,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 	
 
 	@Override
-	public void setInputs(Map<Operator, OptimizerNode> contractToNode) throws CompilerException {
+	public void setInput(Map<Operator, OptimizerNode> contractToNode) throws CompilerException {
 		// see if an internal hint dictates the strategy to use
 		final Configuration conf = getPactContract().getParameters();
 		final String shipStrategy = conf.getString(PactCompiler.HINT_SHIP_STRATEGY, null);
@@ -177,23 +177,20 @@ public abstract class SingleInputNode extends OptimizerNode {
 		}
 		
 		// get the predecessor node
-		List<Operator> children = ((SingleInputOperator<?>) getPactContract()).getInputs();
+		Operator children = ((SingleInputOperator<?>) getPactContract()).getInput();
 		
 		OptimizerNode pred;
 		PactConnection conn;
-		if (children.size() == 0) {
-			throw new CompilerException("Error: Node for '" + getPactContract().getName() + "' has no inputs.");
-		} else if (children.size() == 1) {
-			pred = contractToNode.get(children.get(0));
+		if (children == null) {
+			throw new CompilerException("Error: Node for '" + getPactContract().getName() + "' has no input.");
+		} else {
+			pred = contractToNode.get(children);
 			conn = new PactConnection(pred, this);
 			if (preSet != null) {
 				conn.setShipStrategy(preSet);
 			}
-		} else {
-			pred = createdUnionCascade(children, contractToNode, preSet);
-			conn = new PactConnection(pred, this);
-			conn.setShipStrategy(ShipStrategyType.FORWARD);
 		}
+		
 		// create the connection and add it
 		setIncomingConnection(conn);
 		pred.addOutgoingConnection(conn);

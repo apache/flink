@@ -28,11 +28,11 @@ public abstract class DualInputOperator<T extends Function> extends AbstractUdfO
 	/**
 	 * The contract producing the first input.
 	 */
-	protected final List<Operator> input1 = new ArrayList<Operator>();
+	protected Operator input1 = null;
 	/**
 	 * The contract producing the second input.
 	 */
-	protected final List<Operator> input2 = new ArrayList<Operator>();
+	protected Operator input2 = null;
 
 	/**
 	 * The positions of the keys in the tuples of the first input.
@@ -90,8 +90,23 @@ public abstract class DualInputOperator<T extends Function> extends AbstractUdfO
 	 * 
 	 * @return The contract's first input.
 	 */
-	public List<Operator> getFirstInputs() {
+	public Operator getFirstInput() {
 		return this.input1;
+	}
+	
+	/**
+	 * Returns the first input as list, or null, if none is set.
+	 * This function is here for compatibility=reasons of the old-java-API with the scala API
+	 * 
+	 * @return The contract's first input contract as list.
+	 */
+	public List<Operator> getFirstInputs() {
+		if(this.input1 == null){
+			return null;
+		}
+		ArrayList<Operator> inputs = new ArrayList<Operator>();
+		inputs.add(this.input1);
+		return inputs;
 	}
 	
 	/**
@@ -99,22 +114,37 @@ public abstract class DualInputOperator<T extends Function> extends AbstractUdfO
 	 * 
 	 * @return The contract's second input.
 	 */
-	public List<Operator> getSecondInputs() {
+	public Operator getSecondInput() {
 		return this.input2;
+	}
+	
+	/**
+	 * Returns the second input as list, or null, if none is set.
+	 * This function is here for compatibility=reasons of the old-java-API with the scala API
+	 * 
+	 * @return The contract's second input contract as list
+	 */
+	public List<Operator> getSecondInputs() {
+		if(this.input2 == null){
+			return null;
+		}
+		ArrayList<Operator> inputs = new ArrayList<Operator>();
+		inputs.add(this.input2);
+		return inputs;
 	}
 	
 	/**
 	 * Removes all inputs from this contract's first input.
 	 */
-	public void clearFirstInputs() {
-		this.input1.clear();
+	public void clearFirstInput() {
+		this.input1 = null;
 	}
 	
 	/**
 	 * Removes all inputs from this contract's second input.
 	 */
-	public void clearSecondInputs() {
-		this.input2.clear();
+	public void clearSecondInput() {
+		this.input2 = null;
 	}
 
 	/**
@@ -123,13 +153,7 @@ public abstract class DualInputOperator<T extends Function> extends AbstractUdfO
 	 * @param input The contract will be set as the first input.
 	 */
 	public void addFirstInput(Operator ... input) {
-		for (Operator c : input) {
-			if (c == null) {
-				throw new IllegalArgumentException("The input may not contain null elements.");
-			} else {
-				this.input1.add(c);
-			}
-		}
+		this.input1 = Operator.createUnionCascade(this.input1, input);
 	}
 	
 	/**
@@ -138,13 +162,7 @@ public abstract class DualInputOperator<T extends Function> extends AbstractUdfO
 	 * @param input The contract will be set as the second input.
 	 */
 	public void addSecondInput(Operator ... input) {
-		for (Operator c : input) {
-			if (c == null) {
-				throw new IllegalArgumentException("The input may not contain null elements.");
-			} else {
-				this.input2.add(c);
-			}
-		}
+		this.input2 = Operator.createUnionCascade(this.input2, input);
 	}
 
 	/**
@@ -153,13 +171,7 @@ public abstract class DualInputOperator<T extends Function> extends AbstractUdfO
 	 * @param inputs The contracts that is connected as the first inputs.
 	 */
 	public void addFirstInputs(List<Operator> inputs) {
-		for (Operator c : inputs) {
-			if (c == null) {
-				throw new IllegalArgumentException("The input may not contain null elements.");
-			} else {
-				this.input1.add(c);
-			}
-		}
+		this.input1 = Operator.createUnionCascade(this.input1, inputs.toArray(new Operator[inputs.size()]));
 	}
 
 	/**
@@ -168,14 +180,7 @@ public abstract class DualInputOperator<T extends Function> extends AbstractUdfO
 	 * @param inputs The contracts that is connected as the second inputs.
 	 */
 	public void addSecondInputs(List<Operator> inputs) {
-		for (Operator c : inputs) {
-			if (c == null) {
-				throw new IllegalArgumentException("The input may not contain null elements.");
-			} else {
-				this.input2.add(c);
-			}
-		}
-	}
+		this.input2 = Operator.createUnionCascade(this.input2, inputs.toArray(new Operator[inputs.size()]));	}
 	
 	/**
 	 * Clears all previous connections and connects the first input to the task wrapped in this contract
@@ -183,8 +188,7 @@ public abstract class DualInputOperator<T extends Function> extends AbstractUdfO
 	 * @param input The contract that is connected as the first input.
 	 */
 	public void setFirstInput(Operator input) {
-		this.input1.clear();
-		addFirstInput(input);
+		this.input1 = input;
 	}
 
 	/**
@@ -193,8 +197,7 @@ public abstract class DualInputOperator<T extends Function> extends AbstractUdfO
 	 * @param input The contract that is connected as the second input.
 	 */
 	public void setSecondInput(Operator input) {
-		this.input2.clear();
-		addSecondInput(input);
+		this.input2 = input;
 	}
 	
 	/**
@@ -203,7 +206,7 @@ public abstract class DualInputOperator<T extends Function> extends AbstractUdfO
 	 * @param inputs The contracts that are connected as the first input.
 	 */
 	public void setFirstInput(Operator ... inputs) {
-		this.input1.clear();
+		this.input1 = null;
 		addFirstInput(inputs);
 	}
 
@@ -213,7 +216,7 @@ public abstract class DualInputOperator<T extends Function> extends AbstractUdfO
 	 * @param inputs The contracts that are connected as the second input.
 	 */
 	public void setSecondInput(Operator ... inputs) {
-		this.input2.clear();
+		this.input2 = null;
 		addSecondInput(inputs);
 	}
 	
@@ -223,7 +226,7 @@ public abstract class DualInputOperator<T extends Function> extends AbstractUdfO
 	 * @param inputs The contracts that are connected as the first inputs.
 	 */
 	public void setFirstInputs(List<Operator> inputs) {
-		this.input1.clear();
+		this.input1 = null;
 		addFirstInputs(inputs);
 	}
 
@@ -233,7 +236,7 @@ public abstract class DualInputOperator<T extends Function> extends AbstractUdfO
 	 * @param inputs The contracts that are connected as the second inputs.
 	 */
 	public void setSecondInputs(List<Operator> inputs) {
-		this.input2.clear();
+		this.input2 = null;
 		addSecondInputs(inputs);
 	}
 	
@@ -272,12 +275,8 @@ public abstract class DualInputOperator<T extends Function> extends AbstractUdfO
 	public void accept(Visitor<Operator> visitor) {
 		boolean descend = visitor.preVisit(this);
 		if (descend) {
-			for (Operator c : this.input1) {
-				c.accept(visitor);
-			}
-			for (Operator c : this.input2) {
-				c.accept(visitor);
-			}
+			this.input1.accept(visitor);
+			this.input2.accept(visitor);
 			for (Operator c : this.broadcastInputs.values()) {
 				c.accept(visitor);
 			}
