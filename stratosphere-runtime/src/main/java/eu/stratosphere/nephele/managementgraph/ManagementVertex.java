@@ -75,6 +75,11 @@ public final class ManagementVertex extends ManagementAttachment implements IORe
 	private final int indexInGroup;
 
 	/**
+	 * The error message when executionState is FAILED.
+	 */
+	private String optMessage;
+
+	/**
 	 * Constructs a new management vertex.
 	 * 
 	 * @param groupVertex
@@ -279,6 +284,14 @@ public final class ManagementVertex extends ManagementAttachment implements IORe
 	 */
 	public void setInstanceType(final String instanceType) {
 		this.instanceType = instanceType;
+	}
+
+	public void setOptMessage(final String optMessage) {
+		this.optMessage = optMessage;
+	}
+
+	public String getOptMessage() {
+		return this.optMessage;
 	}
 
 

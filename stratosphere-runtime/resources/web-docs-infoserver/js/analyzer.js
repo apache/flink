@@ -62,7 +62,7 @@ function analyzeTime(json, stacked) {
 		if (job.status == "FAILED") {
 			failed = "";
 			$.each(job.failednodes, function(j, failednode) {
-				failed += "<li>" + failednode.node + "</li>";
+				failed += "<li>" + failednode.node + "<br/>Error: " + failednode.message + "</li>";
 			});
 			$("#page-wrapper").append("<div class=\"panel panel-primary\"><div class=\"panel-heading\"><h3 class=\"panel-title\">Failed Nodes" +
 									 "</h3></div><div id=\"failednodes\" class=\"panel-body\">" +

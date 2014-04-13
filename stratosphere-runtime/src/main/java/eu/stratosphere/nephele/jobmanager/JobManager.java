@@ -624,6 +624,10 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			return;
 		}
 
+		if (executionState.getExecutionState() == ExecutionState.FAILED) {
+			LOG.error(executionState.getDescription());
+		}
+
 		final ExecutionGraph eg = this.scheduler.getExecutionGraphByID(executionState.getJobID());
 		if (eg == null) {
 			LOG.error("Cannot find execution graph for ID " + executionState.getJobID() + " to change state to "

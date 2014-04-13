@@ -117,7 +117,7 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 			final ExecutionStateChangeEvent executionStateChangeEvent = new ExecutionStateChangeEvent(timestamp,
 				vertexID.toManagementVertexID(), newExecutionState);
 
-			this.eventCollector.updateManagementGraph(jobID, executionStateChangeEvent);
+			this.eventCollector.updateManagementGraph(jobID, executionStateChangeEvent, optionalMessage);
 			this.eventCollector.addEvent(jobID, executionStateChangeEvent);
 		}
 
@@ -621,7 +621,7 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 	 * @param executionStateChangeEvent
 	 *        the event describing the changes in the execution state of the vertex
 	 */
-	private void updateManagementGraph(final JobID jobID, final ExecutionStateChangeEvent executionStateChangeEvent) {
+	private void updateManagementGraph(final JobID jobID, final ExecutionStateChangeEvent executionStateChangeEvent, String optionalMessage) {
 
 		synchronized (this.recentManagementGraphs) {
 
@@ -635,6 +635,9 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 			}
 
 			vertex.setExecutionState(executionStateChangeEvent.getNewExecutionState());
+			if (executionStateChangeEvent.getNewExecutionState() == ExecutionState.FAILED) {
+				vertex.setOptMessage(optionalMessage);
+			}
 		}
 	}
 	
