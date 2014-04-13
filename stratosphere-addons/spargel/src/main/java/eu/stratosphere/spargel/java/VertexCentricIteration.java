@@ -324,12 +324,6 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 		public void close() throws Exception {
 			this.vertexUpdateFunction.postSuperstep();
 		}
-
-		@Override
-		public void combineFirst(Iterator<Tuple2<VertexKey, Message>> records, Collector<Tuple2<VertexKey, Message>> out) {}
-
-		@Override
-		public void combineSecond(Iterator<Tuple2<VertexKey, VertexValue>> records, Collector<Tuple2<VertexKey, VertexValue>> out) {}
 	}
 	
 	/*
@@ -372,12 +366,6 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 		public void close() throws Exception {
 			this.messagingFunction.postSuperstep();
 		}
-
-		@Override
-		public void combineFirst(Iterator<Tuple2<VertexKey, VertexKey>> records, Collector<Tuple2<VertexKey, VertexKey>> out) {}
-		
-		@Override
-		public void combineSecond(Iterator<Tuple2<VertexKey, VertexValue>> records, Collector<Tuple2<VertexKey, VertexValue>> out) {}
 	}
 	
 	/*
@@ -420,12 +408,6 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 		public void close() throws Exception {
 			this.messagingFunction.postSuperstep();
 		}
-
-		@Override
-		public void combineFirst(Iterator<Tuple3<VertexKey, VertexKey, EdgeValue>> records, Collector<Tuple3<VertexKey, VertexKey, EdgeValue>> out) {}
-		
-		@Override
-		public void combineSecond(Iterator<Tuple2<VertexKey, VertexValue>> records, Collector<Tuple2<VertexKey, VertexValue>> out) {}
 	}
 	
 	// --------------------------------------------------------------------------------------------

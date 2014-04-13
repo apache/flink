@@ -67,8 +67,7 @@ public class PlanUnwrappingCoGroupOperator<I1, I2, OUT, K>
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public static final class TupleUnwrappingCoGrouper<I1, I2, OUT, K>
-		extends WrappingFunction<CoGroupFunction<I1, I2, OUT>>
+	public static final class TupleUnwrappingCoGrouper<I1, I2, OUT, K> extends WrappingFunction<CoGroupFunction<I1, I2, OUT>>
 		implements GenericCoGrouper<Tuple2<K, I1>, Tuple2<K, I2>, OUT>
 	{
 
@@ -80,36 +79,20 @@ public class PlanUnwrappingCoGroupOperator<I1, I2, OUT, K>
 
 
 		@Override
-		public void coGroup(Iterator<Tuple2<K, I1>> records1,
-				Iterator<Tuple2<K, I2>> records2,
-				Collector<OUT> out) throws Exception {
-			
+		public void coGroup(Iterator<Tuple2<K, I1>> records1, Iterator<Tuple2<K, I2>> records2, Collector<OUT> out) throws Exception {
 			this.wrappedFunction.coGroup(new UnwrappingKeyIterator<K, I1>(records1), new UnwrappingKeyIterator<K, I2>(records2), out);
-			
+		}
+
+
+		@Override
+		public Tuple2<K, I1> combineFirst(Iterator<Tuple2<K, I1>> records) throws Exception {
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
-		public void combineFirst(Iterator<Tuple2<K, I1>> records,
-				Collector<Tuple2<K, I1>> out) throws Exception {
-			
-			Tuple2<K, I1> firstTuple = records.next();
-			K key = firstTuple.getField(0);
-			I1 firstValue = firstTuple.getField(1);
-			this.wrappedFunction.combineFirst(new UnwrappingKeyIterator<K, I1>(records, firstValue), new UnwrappingKeyCollector<K, I1>(out, key));
-			
+		public Tuple2<K, I2> combineSecond(Iterator<Tuple2<K, I2>> records) throws Exception {
+			throw new UnsupportedOperationException();
 		}
-
-		@Override
-		public void combineSecond(Iterator<Tuple2<K, I2>> records,
-				Collector<Tuple2<K, I2>> out) throws Exception {
-			
-			Tuple2<K, I2> firstTuple = records.next();
-			K key = firstTuple.getField(0);
-			I2 firstValue = firstTuple.getField(1);
-			this.wrappedFunction.combineSecond(new UnwrappingKeyIterator<K, I2>(records, firstValue), new UnwrappingKeyCollector<K, I2>(out, key));
-			
-		}
-		
 	}
 	
 	public static class UnwrappingKeyIterator<K, I1> implements Iterator<I1> {
@@ -129,7 +112,7 @@ public class PlanUnwrappingCoGroupOperator<I1, I2, OUT, K>
 		
 		@Override
 		public boolean hasNext() {
-			return outerIterator.hasNext();
+			return firstValue != null || outerIterator.hasNext();
 		}
 
 		@Override
@@ -143,7 +126,7 @@ public class PlanUnwrappingCoGroupOperator<I1, I2, OUT, K>
 
 		@Override
 		public void remove() {
-			this.outerIterator.remove();
+			throw new UnsupportedOperationException();
 		}
 		
 	}

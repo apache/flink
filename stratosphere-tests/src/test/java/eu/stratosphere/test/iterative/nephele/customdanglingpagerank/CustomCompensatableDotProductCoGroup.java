@@ -121,8 +121,8 @@ public class CustomCompensatableDotProductCoGroup extends AbstractFunction imple
 	}
 
 	@Override
-	public void combineFirst(Iterator<VertexWithRankAndDangling> records, Collector<VertexWithRankAndDangling> out) {}
+	public VertexWithRankAndDangling combineFirst(Iterator<VertexWithRankAndDangling> records) { throw new UnsupportedOperationException(); }
 
 	@Override
-	public void combineSecond(Iterator<VertexWithRank> records, Collector<VertexWithRank> out) {}
+	public VertexWithRank combineSecond(Iterator<VertexWithRank> records) { throw new UnsupportedOperationException(); }
 }

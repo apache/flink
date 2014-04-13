@@ -32,6 +32,7 @@ import eu.stratosphere.api.java.typeutils.TypeInformation;
  *
  */
 public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT, CoGroupOperator<I1, I2, OUT>> {
+	
 	private final CoGroupFunction<I1, I2, OUT> function;
 
 	private final Keys<I1> keys1;

@@ -58,7 +58,7 @@ public abstract class CoGroupFunction extends AbstractFunction implements Generi
 	 *                   decide whether to retry the combiner execution.
 	 */
 	@Override
-	public void combineFirst(Iterator<Record> records, Collector<Record> out) throws Exception {
+	public Record combineFirst(Iterator<Record> records) throws Exception {
 		throw new UnsupportedOperationException();
 	}
 	
@@ -76,7 +76,7 @@ public abstract class CoGroupFunction extends AbstractFunction implements Generi
 	 *                   decide whether to retry the combiner execution.
 	 */
 	@Override
-	public void combineSecond(Iterator<Record> records, Collector<Record> out) throws Exception {
+	public Record combineSecond(Iterator<Record> records) throws Exception {
 		throw new UnsupportedOperationException();
 	}
 }

@@ -256,20 +256,6 @@ public class CoGroupITCase extends JavaProgramTestBase {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void combineFirst(
-				Iterator<Tuple5<Integer, Long, Integer, String, Long>> records,
-				Collector<Tuple5<Integer, Long, Integer, String, Long>> out)
-				throws Exception {
-		}
-
-		@Override
-		public void combineSecond(
-				Iterator<Tuple5<Integer, Long, Integer, String, Long>> records,
-				Collector<Tuple5<Integer, Long, Integer, String, Long>> out)
-				throws Exception {
-		}
-
-		@Override
 		public void coGroup(
 				Iterator<Tuple5<Integer, Long, Integer, String, Long>> first,
 				Iterator<Tuple5<Integer, Long, Integer, String, Long>> second,
@@ -299,16 +285,6 @@ public class CoGroupITCase extends JavaProgramTestBase {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void combineFirst(Iterator<CustomType> records,
-				Collector<CustomType> out) throws Exception {
-		}
-
-		@Override
-		public void combineSecond(Iterator<CustomType> records,
-				Collector<CustomType> out) throws Exception {
-		}
-
-		@Override
 		public void coGroup(Iterator<CustomType> first,
 				Iterator<CustomType> second, Collector<CustomType> out)
 				throws Exception {
@@ -335,18 +311,6 @@ public class CoGroupITCase extends JavaProgramTestBase {
 	public static class MixedCoGroup extends CoGroupFunction<Tuple5<Integer, Long, Integer, String, Long>, CustomType, Tuple2<Integer, Long>> {
 
 		private static final long serialVersionUID = 1L;
-
-		@Override
-		public void combineFirst(
-				Iterator<Tuple5<Integer, Long, Integer, String, Long>> records,
-				Collector<Tuple5<Integer, Long, Integer, String, Long>> out)
-				throws Exception {
-		}
-
-		@Override
-		public void combineSecond(Iterator<CustomType> records,
-				Collector<CustomType> out) throws Exception {
-		}
 
 		@Override
 		public void coGroup(
@@ -379,18 +343,6 @@ public class CoGroupITCase extends JavaProgramTestBase {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void combineFirst(
-				Iterator<Tuple3<Integer, Long, String>> records,
-				Collector<Tuple3<Integer, Long, String>> out) throws Exception {
-		}
-
-		@Override
-		public void combineSecond(
-				Iterator<Tuple3<Integer, Long, String>> records,
-				Collector<Tuple3<Integer, Long, String>> out) throws Exception {
-		}
-
-		@Override
 		public void coGroup(Iterator<Tuple3<Integer, Long, String>> first,
 				Iterator<Tuple3<Integer, Long, String>> second,
 				Collector<Tuple3<Integer, Long, String>> out) throws Exception {
@@ -406,20 +358,6 @@ public class CoGroupITCase extends JavaProgramTestBase {
 	public static class Tuple5ReturnRight extends CoGroupFunction<Tuple5<Integer, Long, Integer, String, Long>, Tuple5<Integer, Long, Integer, String, Long>, Tuple5<Integer, Long, Integer, String, Long>> {
 		
 		private static final long serialVersionUID = 1L;
-
-		@Override
-		public void combineFirst(
-				Iterator<Tuple5<Integer, Long, Integer, String, Long>> records,
-				Collector<Tuple5<Integer, Long, Integer, String, Long>> out)
-				throws Exception {
-		}
-
-		@Override
-		public void combineSecond(
-				Iterator<Tuple5<Integer, Long, Integer, String, Long>> records,
-				Collector<Tuple5<Integer, Long, Integer, String, Long>> out)
-				throws Exception {
-		}
 
 		@Override
 		public void coGroup(
@@ -444,20 +382,6 @@ public class CoGroupITCase extends JavaProgramTestBase {
 		private static final long serialVersionUID = 1L;
 		
 		private int broadcast = 42;
-
-		@Override
-		public void combineFirst(
-				Iterator<Tuple5<Integer, Long, Integer, String, Long>> records,
-				Collector<Tuple5<Integer, Long, Integer, String, Long>> out)
-				throws Exception {
-		}
-
-		@Override
-		public void combineSecond(
-				Iterator<Tuple5<Integer, Long, Integer, String, Long>> records,
-				Collector<Tuple5<Integer, Long, Integer, String, Long>> out)
-				throws Exception {
-		}
 		
 		@Override
 		public void open(Configuration config) {

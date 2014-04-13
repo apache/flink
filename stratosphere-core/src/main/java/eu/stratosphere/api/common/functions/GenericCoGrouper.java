@@ -22,7 +22,7 @@ public interface GenericCoGrouper<V1, V2, O> extends Function {
 	
 	public abstract void coGroup(Iterator<V1> records1, Iterator<V2> records2, Collector<O> out) throws Exception;
 	
-	public void combineFirst(Iterator<V1> records, Collector<V1> out) throws Exception;
+	public V1 combineFirst(Iterator<V1> records) throws Exception;
 	
-	public void combineSecond(Iterator<V2> records, Collector<V2> out) throws Exception;
+	public V2 combineSecond(Iterator<V2> records) throws Exception;
 }

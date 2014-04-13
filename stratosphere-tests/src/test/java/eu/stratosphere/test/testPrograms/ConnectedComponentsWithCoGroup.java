@@ -77,7 +77,7 @@ public class ConnectedComponentsWithCoGroup implements Program {
 		}
 		
 		@Override
-		public void combineFirst(Iterator<Record> records, Collector<Record> out) throws Exception {
+		public Record combineFirst(Iterator<Record> records) {
 			Record next = null;
 			long min = Long.MAX_VALUE;
 			while (records.hasNext()) {
@@ -87,7 +87,7 @@ public class ConnectedComponentsWithCoGroup implements Program {
 			
 			newComponentId.setValue(min);
 			next.setField(1, newComponentId);
-			out.collect(next);
+			return next;
 		}
 	}
 	

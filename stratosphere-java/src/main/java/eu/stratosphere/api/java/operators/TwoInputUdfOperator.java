@@ -18,11 +18,20 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
+import eu.stratosphere.api.common.operators.DualInputSemanticProperties;
 import eu.stratosphere.api.java.DataSet;
+import eu.stratosphere.api.java.functions.CoGroupFunction;
+import eu.stratosphere.api.java.functions.JoinFunction;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
 import eu.stratosphere.configuration.Configuration;
 
 /**
+ * The <tt>TwoInputUdfOperator</tt> is the base class of all binary operators that execute 
+ * user-defined functions (UDFs). The UDFs encapsulated by this operator are naturally UDFs that
+ * have two inputs (such as {@link JoinFunction} or {@link CoGroupFunction}).
+ * <p>
+ * This class encapsulates utilities for the UDFs, such as broadcast variables, parameterization 
+ * through configuration objects, and semantic properties.
  *
  * @param <IN1> The data type of the first input data set.
  * @param <IN2> The data type of the second input data set.
@@ -35,8 +44,18 @@ public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOp
 	
 	private Map<String, DataSet<?>> broadcastVariables;
 	
+	private DualInputSemanticProperties udfSemantics;
+	
 	// --------------------------------------------------------------------------------------------
 	
+	/**
+	 * Creates a new operators with the two given data sets as inputs. The given result type
+	 * describes the data type of the elements in the data set produced by the operator. 
+	 * 
+	 * @param input1 The data set for the first input.
+	 * @param input2 The data set for the second input.
+	 * @param resultType The type of the elements in the resulting data set.
+	 */
 	protected TwoInputUdfOperator(DataSet<IN1> input1, DataSet<IN2> input2, TypeInformation<OUT> resultType) {
 		super(input1, input2, resultType);
 	}
@@ -73,11 +92,30 @@ public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOp
 	
 	@Override
 	public Map<String, DataSet<?>> getBroadcastSets() {
-		return this.broadcastVariables == null ? Collections.<String, DataSet<?>>emptyMap() : this.broadcastVariables;
+		return this.broadcastVariables == null ?
+				Collections.<String, DataSet<?>>emptyMap() :
+				Collections.unmodifiableMap(this.broadcastVariables);
 	}
 	
 	@Override
 	public Configuration getParameters() {
 		return this.parameters;
+	}
+	
+	@Override
+	public DualInputSemanticProperties getSematicProperties() {
+		return this.udfSemantics;
+	}
+	
+	/**
+	 * Sets the semantic properties for the user-defined function (UDF). The semantic properties
+	 * define how fields of tuples and other objects are modified or preserved through this UDF.
+	 * The configured properties can be retrieved via {@link UdfOperator#getSematicProperties()}.
+	 * 
+	 * @param properties The semantic properties for the UDF.
+	 * @see UdfOperator#getSematicProperties()
+	 */
+	public void setSemanticProperties(DualInputSemanticProperties properties) {
+		this.udfSemantics = properties;
 	}
 }

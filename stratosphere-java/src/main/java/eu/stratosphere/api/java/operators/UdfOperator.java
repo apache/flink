@@ -16,25 +16,73 @@ package eu.stratosphere.api.java.operators;
 
 import java.util.Map;
 
+import eu.stratosphere.api.common.functions.AbstractFunction;
+import eu.stratosphere.api.common.functions.RuntimeContext;
+import eu.stratosphere.api.common.operators.SemanticProperties;
 import eu.stratosphere.api.java.DataSet;
+import eu.stratosphere.api.java.functions.CoGroupFunction;
+import eu.stratosphere.api.java.functions.MapFunction;
+import eu.stratosphere.api.java.functions.ReduceFunction;
 import eu.stratosphere.configuration.Configuration;
 
-
+/**
+ * This interface marks operators as operators that execute user-defined functions (UDFs), such as
+ * {@link MapFunction}, {@link ReduceFunction} or {@link CoGroupFunction}.
+ * The UDF operators stand in contrast to operators that execute built-in operations, like aggregations.
+ */
 public interface UdfOperator<O extends UdfOperator<O>> {
 	
 	// --------------------------------------------------------------------------------------------
 	// Accessors
 	// --------------------------------------------------------------------------------------------
 	
+	/**
+	 * Gets the configuration parameters that will be passed to the UDF's open method
+	 * {@link AbstractFunction#open(Configuration)}. The configuration is set via the {@link #withParameters(Configuration)}
+	 * method.
+	 * 
+	 * @return The configuration parameters for the UDF.
+	 */
 	Configuration getParameters();
 	
+	/**
+	 * Gets the broadcast sets (name and data set) that have been added to context of the UDF.
+	 * Broadcast sets are added to a UDF via the method {@link #withBroadcastSet(DataSet, String)}.
+	 * 
+	 * @return The broadcast data sets that have been added to this UDF.
+	 */
 	Map<String, DataSet<?>> getBroadcastSets();
+	
+	/**
+	 * Gets the semantic properties that have been set for the user-defined functions (UDF).
+	 * This method may return null, if no semantic properties have been set so far.
+	 * 
+	 * @return The semantic properties of the UDF.
+	 */
+	SemanticProperties getSematicProperties();
 	
 	// --------------------------------------------------------------------------------------------
 	// Fluent API methods
 	// --------------------------------------------------------------------------------------------
 	
+	/**
+	 * Sets the configuration parameters for the UDF. These are optional parameters that are passed
+	 * to the UDF in the {@link AbstractFunction#open(Configuration)} method.
+	 * 
+	 * @param parameters The configuration parameters for the UDF.
+	 * @return The operator itself, to allow chaining function calls.
+	 */
 	O withParameters(Configuration parameters);
 	 
+	/**
+	 * Adds a certain data set as a broadcast set to this operator. Broadcasted data sets are available at all
+	 * parallel instances of this operator. A broadcast data set is registered under a certain name, and can be
+	 * retrieved under that name from the operators runtime context via {@link RuntimeContext#getBroadcastVariable(String)}.
+	 * The runtime context itself is available in all UDFs via {@link AbstractFunction#getRuntimeContext()}.
+	 * 
+	 * @param data The data set to be broadcasted.
+	 * @param name The name under which the broadcast data set retrieved.
+	 * @return The operator itself, to allow chaining function calls.
+	 */
 	O withBroadcastSet(DataSet<?> data, String name);
 }
