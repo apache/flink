@@ -51,6 +51,8 @@ public class LocalExecutor extends PlanExecutor {
 	private int taskManagerRpcPort = -1;
 	
 	private int taskManagerDataPort = -1;
+
+	private int numTaskManager = 1;
 	
 	private String configDir;
 
@@ -59,10 +61,15 @@ public class LocalExecutor extends PlanExecutor {
 	private boolean defaultOverwriteFiles = DEFAULT_OVERWRITE;
 	
 	private boolean defaultAlwaysCreateDirectory = false;
-	
+
 	// --------------------------------------------------------------------------------------------
 	
 	public LocalExecutor() {
+		this(1);
+	}
+
+	public LocalExecutor(int numTaskManager){
+		this.numTaskManager = numTaskManager;
 		if (System.getProperty("log4j.configuration") == null) {
 			setLoggingLevel(Level.INFO);
 		}
@@ -153,7 +160,7 @@ public class LocalExecutor extends PlanExecutor {
 				nephele.setDefaultAlwaysCreateDirectory(defaultAlwaysCreateDirectory);
 				
 				// start it up
-				this.nephele.start();
+				this.nephele.start(numTaskManager);
 			} else {
 				throw new IllegalStateException("The local executor was already started.");
 			}

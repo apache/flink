@@ -48,8 +48,9 @@ public class WordCount {
 		final String input = args[0];
 		final String output = args[1];
 		
+//		final ExecutionEnvironment env = ExecutionEnvironment.createLocalDistributedEnvironment(2);
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		
+
 		DataSet<String> text = env.readTextFile(input);
 		
 		DataSet<Tuple2<String, Integer>> words = text.flatMap(new Tokenizer());

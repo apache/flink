@@ -437,6 +437,13 @@ public final class ConfigConstants {
 	 * The default path to the file containing the list of access privileged users and passwords.
 	 */
 	public static final String DEFAULT_WEB_ACCESS_FILE_PATH = null;
+
+	// ----------------------------- LocalExecution ----------------------------
+
+	/**
+	 * Sets the number of local task managers
+	 */
+	public static final String LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER = "localinstancemanager.numtaskmanager";
 	
 	
 	// ----------------------------- Deprecated --------------------------------
