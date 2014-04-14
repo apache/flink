@@ -441,14 +441,30 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T>{
 							}
 							return;
 						}
-					} catch (EOFException | IndexOutOfBoundsException e) {
+					} catch (EOFException e) {
 						// system is out of memory so we attempt to reclaim memory with a copy compact run
 						long newPointer;
 						try {
 							compactPartition(partition.getPartitionNumber());
 							// retry append
 							newPointer = this.partitions.get(partitionNumber).appendRecord(record);
-						} catch (IndexOutOfBoundsException | EOFException ex) {
+						} catch (EOFException ex) {
+							throw new RuntimeException("Memory ran out. Compaction failed. Message: " + ex.getMessage());
+						} catch (IndexOutOfBoundsException ex) {
+							throw new RuntimeException("Memory ran out. Compaction failed. Message: " + ex.getMessage());
+						}
+						bucket.putLong(pointerOffset, newPointer);
+						return;
+					} catch (IndexOutOfBoundsException e) {
+						// system is out of memory so we attempt to reclaim memory with a copy compact run
+						long newPointer;
+						try {
+							compactPartition(partition.getPartitionNumber());
+							// retry append
+							newPointer = this.partitions.get(partitionNumber).appendRecord(record);
+						} catch (EOFException ex) {
+							throw new RuntimeException("Memory ran out. Compaction failed. Message: " + ex.getMessage());
+						} catch (IndexOutOfBoundsException ex) {
 							throw new RuntimeException("Memory ran out. Compaction failed. Message: " + ex.getMessage());
 						}
 						bucket.putLong(pointerOffset, newPointer);
