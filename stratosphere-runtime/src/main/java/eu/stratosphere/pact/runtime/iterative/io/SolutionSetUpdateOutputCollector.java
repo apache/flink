@@ -41,32 +41,25 @@ public class SolutionSetUpdateOutputCollector<T> implements Collector<T> {
 	private final CompactingHashTable<T> solutionSet;
 	//private final MutableHashTable<T, T> solutionSet;
 	
-	CompactingHashTable<T>.HashTableProber<T> prober;
-
 	private T buildSideRecord;
 
-	public SolutionSetUpdateOutputCollector(CompactingHashTable<T> solutionSet, TypeSerializer<T> serializer, TypePairComparator<T, T> pairComparator) {
-		this(solutionSet, serializer, pairComparator, null);
+	public SolutionSetUpdateOutputCollector(CompactingHashTable<T> solutionSet, TypeSerializer<T> serializer) {
+		this(solutionSet, serializer, null);
 	}
 
-	@SuppressWarnings("unchecked")
-	public SolutionSetUpdateOutputCollector(CompactingHashTable<T> solutionSet, TypeSerializer<T> serializer, 
-			TypePairComparator<T, T> pairComparator, Collector<T> delegate) {
+	public SolutionSetUpdateOutputCollector(CompactingHashTable<T> solutionSet, TypeSerializer<T> serializer, Collector<T> delegate) {
 		this.solutionSet = solutionSet;
 		this.delegate = delegate;
 		this.buildSideRecord = serializer.createInstance();
-		this.prober = (CompactingHashTable<T>.HashTableProber<T>) solutionSet.getProber(solutionSet.getBuildSideComparator(), pairComparator);
 	}
 
 	@Override
 	public void collect(T record) {
 		try {
-			if (prober.getMatchFor(record, buildSideRecord)) {
-				solutionSet.insertOrReplaceRecord(record, buildSideRecord);
+			solutionSet.insertOrReplaceRecord(record, buildSideRecord);
 				if (delegate != null) {
 					delegate.collect(record);
 				}
-			}
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}

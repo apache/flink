@@ -17,8 +17,6 @@ import eu.stratosphere.api.common.aggregators.Aggregator;
 import eu.stratosphere.api.common.aggregators.LongSumAggregator;
 import eu.stratosphere.api.common.functions.Function;
 import eu.stratosphere.api.common.functions.IterationRuntimeContext;
-import eu.stratosphere.api.common.typeutils.TypePairComparator;
-import eu.stratosphere.api.common.typeutils.TypePairComparatorFactory;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
 import eu.stratosphere.core.memory.DataOutputView;
@@ -343,9 +341,7 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 			@SuppressWarnings("unchecked")
 			CompactingHashTable<OT> solutionSet = (CompactingHashTable<OT>) solutionSetBroker.get(brokerKey());
 			TypeSerializer<OT> serializer = getOutputSerializer();
-			TypePairComparatorFactory<OT, OT> factory = this.config.getPairComparatorFactory(getUserCodeClassLoader());// FIXME config seems to be broken this is a quick fix
-			TypePairComparator<OT, OT> pairComparator = factory.createComparator12(solutionSet.getBuildSideComparator(), solutionSet.getBuildSideComparator());
-			return new SolutionSetUpdateOutputCollector<OT>(solutionSet, serializer, pairComparator, delegate);
+			return new SolutionSetUpdateOutputCollector<OT>(solutionSet, serializer, delegate);
 		//}
 	}
 
