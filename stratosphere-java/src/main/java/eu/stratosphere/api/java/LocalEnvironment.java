@@ -61,6 +61,8 @@ public class LocalEnvironment extends ExecutionEnvironment {
 	public void setNumTaskManager(int numTaskManager){
 		this.numTaskManager = numTaskManager;
 	}
+
+	public int getNumTaskManager() { return this.numTaskManager; }
 	
 	public boolean isLoggingEnabled() {
 		return this.logging;
@@ -72,6 +74,7 @@ public class LocalEnvironment extends ExecutionEnvironment {
 
 	@Override
 	public String toString() {
-		return "Local Environment (DOP = " + (getDegreeOfParallelism() == -1 ? "default" : getDegreeOfParallelism()) + ") : " + getIdString();
+		return "Local Environment (DOP = " + (getDegreeOfParallelism() == -1 ? "default" : getDegreeOfParallelism())
+				+ "Number task manager = " + getNumTaskManager() + ") : " + getIdString();
 	}
 }

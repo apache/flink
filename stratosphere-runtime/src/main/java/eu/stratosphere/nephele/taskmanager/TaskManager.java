@@ -142,7 +142,7 @@ public class TaskManager implements TaskOperationProtocol {
 
 	private final IOManager ioManager;
 
-	private final HardwareDescription hardwareDescription;
+	private static HardwareDescription hardwareDescription = null;
 
 	private final Thread heartbeatThread;
 	
