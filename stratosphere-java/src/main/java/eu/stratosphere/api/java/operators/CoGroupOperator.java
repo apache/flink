@@ -14,6 +14,8 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.operators;
 
+import java.security.InvalidParameterException;
+
 import eu.stratosphere.api.common.InvalidProgramException;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.functions.CoGroupFunction;
@@ -23,6 +25,8 @@ import eu.stratosphere.api.java.operators.translation.KeyExtractingMapper;
 import eu.stratosphere.api.java.operators.translation.PlanCogroupOperator;
 import eu.stratosphere.api.java.operators.translation.PlanMapOperator;
 import eu.stratosphere.api.java.operators.translation.PlanUnwrappingCoGroupOperator;
+import eu.stratosphere.api.java.operators.translation.TupleKeyExtractingMapper;
+import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
 import eu.stratosphere.api.java.typeutils.TypeExtractor;
@@ -85,12 +89,38 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 				&& keys1.areCompatibale(keys2)
 			) {
 		
-		int[] logicalKeyPositions1 = keys1.computeLogicalKeyPositions();
-		int[] logicalKeyPositions2 = keys2.computeLogicalKeyPositions();
+			int[] logicalKeyPositions1 = keys1.computeLogicalKeyPositions();
+			int[] logicalKeyPositions2 = keys2.computeLogicalKeyPositions();
+			
+			return new BinaryNodeTranslation(
+					new PlanCogroupOperator<I1, I2, OUT>(function, logicalKeyPositions1, logicalKeyPositions2, 
+							name, getInput1Type(), getInput2Type(), getResultType()));
+		}
+		else if (keys1 instanceof Keys.FieldPositionKeys 
+				&& keys2 instanceof Keys.SelectorFunctionKeys
+				&& keys1.areCompatibale(keys2)
+			) {
 		
-		return new BinaryNodeTranslation(
-				new PlanCogroupOperator<I1, I2, OUT>(function, logicalKeyPositions1, logicalKeyPositions2, 
-						name, getInput1Type(), getInput2Type(), getResultType()));
+			int[] logicalKeyPositions1 = keys1.computeLogicalKeyPositions();
+			
+			@SuppressWarnings("unchecked")
+			Keys.SelectorFunctionKeys<I2, ?> selectorKeys2 = (Keys.SelectorFunctionKeys<I2, ?>) keys2;
+			
+			return translateSelectorFunctionCoGroupRight(logicalKeyPositions1, selectorKeys2, function, 
+					getInput1Type(), getInput2Type(), getResultType(), name);
+		}
+		else if (keys1 instanceof Keys.SelectorFunctionKeys
+				&& keys2 instanceof Keys.FieldPositionKeys 
+				&& keys1.areCompatibale(keys2)
+			) {
+			
+			@SuppressWarnings("unchecked")
+			Keys.SelectorFunctionKeys<I1, ?> selectorKeys1 = (Keys.SelectorFunctionKeys<I1, ?>) keys1;
+			
+			int[] logicalKeyPositions2 = keys2.computeLogicalKeyPositions();
+			
+			return translateSelectorFunctionCoGroupLeft(selectorKeys1, logicalKeyPositions2, function, 
+					getInput1Type(), getInput2Type(), getResultType(), name);
 		}
 		else {
 			throw new UnsupportedOperationException("Unrecognized or incompatible key types.");
@@ -116,6 +146,62 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 		final PlanMapOperator<I1, Tuple2<K, I1>> keyMapper1 = new PlanMapOperator<I1, Tuple2<K, I1>>(extractor1, "Key Extractor 1", inputType1, typeInfoWithKey1);
 		final PlanMapOperator<I2, Tuple2<K, I2>> keyMapper2 = new PlanMapOperator<I2, Tuple2<K, I2>>(extractor2, "Key Extractor 2", inputType2, typeInfoWithKey2);
 		final PlanUnwrappingCoGroupOperator<I1, I2, OUT, K> join = new PlanUnwrappingCoGroupOperator<I1, I2, OUT, K>(function, keys1, keys2, name, outputType, typeInfoWithKey1, typeInfoWithKey2);
+		
+		join.addFirstInput(keyMapper1);
+		join.addSecondInput(keyMapper2);
+		
+		return new BinaryNodeTranslation(keyMapper1, keyMapper2, join);
+	}
+	
+	private static <I1, I2, K, OUT> BinaryNodeTranslation translateSelectorFunctionCoGroupRight(
+			int[] logicalKeyPositions1, Keys.SelectorFunctionKeys<I2, ?> rawKeys2, 
+			CoGroupFunction<I1, I2, OUT> function, 
+			TypeInformation<I1> inputType1, TypeInformation<I2> inputType2, TypeInformation<OUT> outputType, String name)
+	{
+		if(!inputType1.isTupleType())
+			throw new InvalidParameterException("Should not happen.");
+		
+		@SuppressWarnings("unchecked")
+		final Keys.SelectorFunctionKeys<I2, K> keys2 = (Keys.SelectorFunctionKeys<I2, K>) rawKeys2;
+		
+		final TypeInformation<Tuple2<K, I1>> typeInfoWithKey1 = new TupleTypeInfo<Tuple2<K, I1>>(keys2.getKeyType(), inputType1); // assume same key, checked by Key.areCompatibale() before
+		final TypeInformation<Tuple2<K, I2>> typeInfoWithKey2 = new TupleTypeInfo<Tuple2<K, I2>>(keys2.getKeyType(), inputType2);
+		
+		final TupleKeyExtractingMapper<I1, K> extractor1 = new TupleKeyExtractingMapper<I1, K>(logicalKeyPositions1[0]);
+		final KeyExtractingMapper<I2, K> extractor2 = new KeyExtractingMapper<I2, K>(keys2.getKeyExtractor());
+		
+		final PlanMapOperator<I1, Tuple2<K, I1>> keyMapper1 = new PlanMapOperator<I1, Tuple2<K, I1>>(extractor1, "Key Extractor 1", inputType1, typeInfoWithKey1);
+		final PlanMapOperator<I2, Tuple2<K, I2>> keyMapper2 = new PlanMapOperator<I2, Tuple2<K, I2>>(extractor2, "Key Extractor 2", inputType2, typeInfoWithKey2);
+		
+		final PlanUnwrappingCoGroupOperator<I1, I2, OUT, K> join = new PlanUnwrappingCoGroupOperator<I1, I2, OUT, K>(function, logicalKeyPositions1, keys2, name, outputType, typeInfoWithKey1, typeInfoWithKey2);
+		
+		join.addFirstInput(keyMapper1);
+		join.addSecondInput(keyMapper2);
+		
+		return new BinaryNodeTranslation(keyMapper1, keyMapper2, join);
+	}
+	
+	private static <I1, I2, K, OUT> BinaryNodeTranslation translateSelectorFunctionCoGroupLeft(
+			Keys.SelectorFunctionKeys<I1, ?> rawKeys1, int[] logicalKeyPositions2,
+			CoGroupFunction<I1, I2, OUT> function, 
+			TypeInformation<I1> inputType1, TypeInformation<I2> inputType2, TypeInformation<OUT> outputType, String name)
+	{
+		if(!inputType2.isTupleType())
+			throw new InvalidParameterException("Should not happen.");
+		
+		@SuppressWarnings("unchecked")
+		final Keys.SelectorFunctionKeys<I1, K> keys1 = (Keys.SelectorFunctionKeys<I1, K>) rawKeys1;
+		
+		final TypeInformation<Tuple2<K, I1>> typeInfoWithKey1 = new TupleTypeInfo<Tuple2<K, I1>>(keys1.getKeyType(), inputType1); // assume same key, checked by Key.areCompatibale() before
+		final TypeInformation<Tuple2<K, I2>> typeInfoWithKey2 = new TupleTypeInfo<Tuple2<K, I2>>(keys1.getKeyType(), inputType2);
+		
+		final KeyExtractingMapper<I1, K> extractor1 = new KeyExtractingMapper<I1, K>(keys1.getKeyExtractor());
+		final TupleKeyExtractingMapper<I2, K> extractor2 = new TupleKeyExtractingMapper<I2, K>(logicalKeyPositions2[0]);
+		
+		final PlanMapOperator<I1, Tuple2<K, I1>> keyMapper1 = new PlanMapOperator<I1, Tuple2<K, I1>>(extractor1, "Key Extractor 1", inputType1, typeInfoWithKey1);
+		final PlanMapOperator<I2, Tuple2<K, I2>> keyMapper2 = new PlanMapOperator<I2, Tuple2<K, I2>>(extractor2, "Key Extractor 2", inputType2, typeInfoWithKey2);
+		
+		final PlanUnwrappingCoGroupOperator<I1, I2, OUT, K> join = new PlanUnwrappingCoGroupOperator<I1, I2, OUT, K>(function, keys1, logicalKeyPositions2, name, outputType, typeInfoWithKey1, typeInfoWithKey2);
 		
 		join.addFirstInput(keyMapper1);
 		join.addSecondInput(keyMapper2);

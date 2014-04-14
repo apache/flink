@@ -40,7 +40,7 @@ import eu.stratosphere.util.Collector;
 @RunWith(Parameterized.class)
 public class CoGroupITCase extends JavaProgramTestBase {
 	
-	private static int NUM_PROGRAMS = 5;
+	private static int NUM_PROGRAMS = 7;
 	
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -212,37 +212,66 @@ public class CoGroupITCase extends JavaProgramTestBase {
 						"4,60,55\n" +
 						"5,120,55\n";
 			}
-			// -> currently not supported
-//			case 6: {
-//				
-//				/*
-//				 * CoGroup on a tuple input with key field selector and a custom type input with key extractor
-//				 */
-//				
-//				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-//				
-//				DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.get5TupleDataSet(env);
-//				DataSet<CustomType> ds2 = CollectionDataSets.getCustomTypeDataSet(env);
-//				DataSet<Tuple2<Integer, Long>> coGroupDs = ds.coGroup(ds2).where(0).equalTo(new KeySelector<CustomType, Integer>() {
-//									private static final long serialVersionUID = 1L;
-//									@Override
-//									public Integer getKey(CustomType in) {
-//										return in.myInt;
-//									}
-//								}).with(new MixedCoGroup());
-//				
-//				coGroupDs.writeAsCsv(resultPath);
-//				env.execute();
-//				
-//				// return expected result
-//				return "1,0,test\n" +
-//						"2,6,test\n" +
-//						"3,27,test\n" +
-//						"4,67,test\n" +
-//						"5,120,test\n" +
-//						"6,105,test\n";
-//				
-//			}
+			case 6: {
+				
+				/*
+				 * CoGroup on a tuple input with key field selector and a custom type input with key extractor
+				 */
+				
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				
+				DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.get5TupleDataSet(env);
+				DataSet<CustomType> ds2 = CollectionDataSets.getCustomTypeDataSet(env);
+				DataSet<Tuple3<Integer, Long, String>> coGroupDs = ds.coGroup(ds2).where(0).equalTo(new KeySelector<CustomType, Integer>() {
+									private static final long serialVersionUID = 1L;
+									@Override
+									public Integer getKey(CustomType in) {
+										return in.myInt;
+									}
+								}).with(new MixedCoGroup());
+				
+				coGroupDs.writeAsCsv(resultPath);
+				env.execute();
+				
+				// return expected result
+				return "1,0,test\n" +
+						"2,6,test\n" +
+						"3,24,test\n" +
+						"4,60,test\n" +
+						"5,120,test\n" +
+						"6,105,test\n";
+				
+			}
+			case 7: {
+				
+				/*
+				 * CoGroup on a tuple input with key field selector and a custom type input with key extractor
+				 */
+				
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				
+				DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.get5TupleDataSet(env);
+				DataSet<CustomType> ds2 = CollectionDataSets.getCustomTypeDataSet(env);
+				DataSet<CustomType> coGroupDs = ds2.coGroup(ds).where(new KeySelector<CustomType, Integer>() {
+									private static final long serialVersionUID = 1L;
+									@Override
+									public Integer getKey(CustomType in) {
+										return in.myInt;
+									}
+								}).equalTo(0).with(new MixedCoGroup2());
+				
+				coGroupDs.writeAsText(resultPath);
+				env.execute();
+				
+				// return expected result
+				return "1,0,test\n" +
+						"2,6,test\n" +
+						"3,24,test\n" +
+						"4,60,test\n" +
+						"5,120,test\n" +
+						"6,105,test\n";
+				
+			}
 			default: 
 				throw new IllegalArgumentException("Invalid program id");
 			}
@@ -308,7 +337,7 @@ public class CoGroupITCase extends JavaProgramTestBase {
 		
 	}
 	
-	public static class MixedCoGroup extends CoGroupFunction<Tuple5<Integer, Long, Integer, String, Long>, CustomType, Tuple2<Integer, Long>> {
+	public static class MixedCoGroup extends CoGroupFunction<Tuple5<Integer, Long, Integer, String, Long>, CustomType, Tuple3<Integer, Long, String>> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -316,7 +345,7 @@ public class CoGroupITCase extends JavaProgramTestBase {
 		public void coGroup(
 				Iterator<Tuple5<Integer, Long, Integer, String, Long>> first,
 				Iterator<CustomType> second,
-				Collector<Tuple2<Integer, Long>> out) throws Exception {
+				Collector<Tuple3<Integer, Long, String>> out) throws Exception {
 			
 			long sum = 0;
 			int id = 0;
@@ -333,7 +362,36 @@ public class CoGroupITCase extends JavaProgramTestBase {
 				sum += element.myLong;
 			}
 			
-			out.collect(new Tuple2<Integer, Long>(id, sum));
+			out.collect(new Tuple3<Integer, Long, String>(id, sum, "test"));
+		}
+		
+	}
+	
+	public static class MixedCoGroup2 extends CoGroupFunction<CustomType, Tuple5<Integer, Long, Integer, String, Long>, CustomType> {
+
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public void coGroup(Iterator<CustomType> first,
+				Iterator<Tuple5<Integer, Long, Integer, String, Long>> second,
+				Collector<CustomType> out) throws Exception {
+			
+			CustomType o = new CustomType(0,0,"test");
+			
+			while(first.hasNext()) {
+				CustomType element = first.next();
+				o.myInt = element.myInt;
+				o.myLong += element.myLong;
+			}
+			
+			while(second.hasNext()) {
+				Tuple5<Integer, Long, Integer, String, Long> element = second.next();
+				o.myInt = element.f0;
+				o.myLong += element.f2;
+			}
+			
+			out.collect(o);
+			
 		}
 		
 	}
