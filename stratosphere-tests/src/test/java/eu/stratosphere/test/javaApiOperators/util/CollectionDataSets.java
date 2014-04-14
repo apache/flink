@@ -66,6 +66,18 @@ public class CollectionDataSets {
 		return env.fromCollection(data);
 	}
 	
+	public static DataSet<Tuple3<Integer, Long, String>> getSmall3TupleDataSet(ExecutionEnvironment env) {
+		
+		List<Tuple3<Integer, Long, String>> data = new ArrayList<Tuple3<Integer, Long, String>>();
+		data.add(new Tuple3<Integer, Long, String>(1,1l,"Hi"));
+		data.add(new Tuple3<Integer, Long, String>(2,2l,"Hello"));
+		data.add(new Tuple3<Integer, Long, String>(3,2l,"Hello world"));
+		
+		Collections.shuffle(data);
+		
+		return env.fromCollection(data);
+	}
+	
 	public static DataSet<Tuple5<Integer, Long, Integer, String, Long>> get5TupleDataSet(ExecutionEnvironment env) {
 		
 		List<Tuple5<Integer, Long, Integer, String, Long>> data = new ArrayList<Tuple5<Integer, Long, Integer, String, Long>>();
@@ -84,6 +96,27 @@ public class CollectionDataSets {
 		data.add(new Tuple5<Integer, Long,  Integer, String, Long>(5,13l,12,"IJK",3l));
 		data.add(new Tuple5<Integer, Long,  Integer, String, Long>(5,14l,13,"JKL",2l));
 		data.add(new Tuple5<Integer, Long,  Integer, String, Long>(5,15l,14,"KLM",2l));
+		
+		Collections.shuffle(data);
+		
+		TupleTypeInfo<Tuple5<Integer, Long,  Integer, String, Long>> type = new 
+				TupleTypeInfo<Tuple5<Integer, Long,  Integer, String, Long>>(
+						BasicTypeInfo.INT_TYPE_INFO,
+						BasicTypeInfo.LONG_TYPE_INFO,
+						BasicTypeInfo.INT_TYPE_INFO,
+						BasicTypeInfo.STRING_TYPE_INFO,
+						BasicTypeInfo.LONG_TYPE_INFO
+				);
+		
+		return env.fromCollection(data, type);
+	}
+	
+	public static DataSet<Tuple5<Integer, Long, Integer, String, Long>> getSmall5TupleDataSet(ExecutionEnvironment env) {
+		
+		List<Tuple5<Integer, Long, Integer, String, Long>> data = new ArrayList<Tuple5<Integer, Long, Integer, String, Long>>();
+		data.add(new Tuple5<Integer, Long,  Integer, String, Long>(1,1l,0,"Hallo",1l));
+		data.add(new Tuple5<Integer, Long,  Integer, String, Long>(2,2l,1,"Hallo Welt",2l));
+		data.add(new Tuple5<Integer, Long,  Integer, String, Long>(2,3l,2,"Hallo Welt wie",1l));
 		
 		Collections.shuffle(data);
 		
@@ -164,6 +197,19 @@ public class CollectionDataSets {
 		data.add(new CustomType(6,18l,"Comment#13"));
 		data.add(new CustomType(6,19l,"Comment#14"));
 		data.add(new CustomType(6,20l,"Comment#15"));
+		
+		Collections.shuffle(data);
+		
+		return env.fromCollection(data);
+		
+	}
+	
+	public static DataSet<CustomType> getSmallCustomTypeDataSet(ExecutionEnvironment env) {
+		
+		List<CustomType> data = new ArrayList<CustomType>();
+		data.add(new CustomType(1,0l,"Hi"));
+		data.add(new CustomType(2,1l,"Hello"));
+		data.add(new CustomType(2,2l,"Hello world"));
 		
 		Collections.shuffle(data);
 		
