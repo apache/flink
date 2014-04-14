@@ -34,7 +34,7 @@ import eu.stratosphere.test.util.JavaProgramTestBase;
 @RunWith(Parameterized.class)
 public class ProjectITCase extends JavaProgramTestBase {
 	
-	private static int NUM_PROGRAMS = 3; 
+	private static int NUM_PROGRAMS = 1; 
 	
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -109,64 +109,6 @@ public class ProjectITCase extends JavaProgramTestBase {
 						"JKL,2,13\n" +
 						"KLM,2,14\n";
 				
-			}
-			case 2: {
-				/*
-				 * Projection with field mask
-				 */
-				
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.get5TupleDataSet(env);
-				DataSet<Tuple3<Integer, String, Long>> projDs = ds.
-						project("TFFTT").types(Integer.class, String.class, Long.class);
-				projDs.writeAsCsv(resultPath);
-				
-				env.execute();
-				return "1,Hallo,1\n" +
-						"2,Hallo Welt,2\n" +
-						"2,Hallo Welt wie,1\n" +
-						"3,Hallo Welt wie gehts?,2\n" +
-						"3,ABC,2\n" +
-						"3,BCD,3\n" +
-						"4,CDE,2\n" +
-						"4,DEF,1\n" +
-						"4,EFG,1\n" +
-						"4,FGH,2\n" +
-						"5,GHI,1\n" +
-						"5,HIJ,3\n" +
-						"5,IJK,3\n" +
-						"5,JKL,2\n" +
-						"5,KLM,2\n";
-			}
-			case 3: {
-				/*
-				 * Projection with field flags
-				 */
-					
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.get5TupleDataSet(env);
-				DataSet<Tuple3<Integer, String, Long>> projDs = ds.
-						project(false, false, true, true, true).types(Integer.class, String.class, Long.class);
-				projDs.writeAsCsv(resultPath);
-				
-				env.execute();
-				return "0,Hallo,1\n" +
-						"1,Hallo Welt,2\n" +
-						"2,Hallo Welt wie,1\n" +
-						"3,Hallo Welt wie gehts?,2\n" +
-						"4,ABC,2\n" +
-						"5,BCD,3\n" +
-						"6,CDE,2\n" +
-						"7,DEF,1\n" +
-						"8,EFG,1\n" +
-						"9,FGH,2\n" +
-						"10,GHI,1\n" +
-						"11,HIJ,3\n" +
-						"12,IJK,3\n" +
-						"13,JKL,2\n" +
-						"14,KLM,2\n";
 			}
 			default: 
 				throw new IllegalArgumentException("Invalid program id");

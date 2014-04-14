@@ -96,14 +96,6 @@ public class ProjectOperator<IN, OUT extends Tuple>
 			this.fieldIndexes = fieldIndexes;
 		}
 		
-		public Projection(DataSet<T> ds, String fieldMask) {
-			this(ds, getFieldIndexesFromMask(fieldMask));
-		}
-		
-		public Projection(DataSet<T> ds, boolean[] fieldFlags) {
-			this(ds, getFieldIndexesFromFlags(fieldFlags));
-		}
-		
 		// --------------------------------------------------------------------------------------------	
 		// The following lines are generated.
 		// --------------------------------------------------------------------------------------------	
@@ -778,39 +770,6 @@ public class ProjectOperator<IN, OUT extends Tuple>
 			}
 			
 			return fieldTypes;
-		}
-		
-		private static int[] getFieldIndexesFromMask(String fieldMask) {
-			
-			int[] fieldIndexes = new int[fieldMask.length()];
-			int fieldCnt = 0;
-			
-			fieldMask = fieldMask.toUpperCase();
-			for (int i = 0; i < fieldMask.length(); i++) {
-				char c = fieldMask.charAt(i);
-				if (c == '1' || c == 'T') {
-					fieldIndexes[fieldCnt++] = i;
-				} else if (c != '0' && c != 'F') {
-					throw new IllegalArgumentException("Mask string may contain only '0' and '1'.");
-				}
-			}
-			fieldIndexes = Arrays.copyOf(fieldIndexes, fieldCnt);
-			
-			return fieldIndexes;
-		}
-		
-		private static int[] getFieldIndexesFromFlags(boolean[] fieldFlags) {
-			int[] fieldIndexes = new int[fieldFlags.length];
-			int fieldCnt = 0;
-			
-			for (int i = 0; i < fieldFlags.length; i++) {
-				if (fieldFlags[i]) {
-					fieldIndexes[fieldCnt++] = i;
-				}
-			}
-			fieldIndexes = Arrays.copyOf(fieldIndexes, fieldCnt);
-			
-			return fieldIndexes;
 		}
 		
 	}

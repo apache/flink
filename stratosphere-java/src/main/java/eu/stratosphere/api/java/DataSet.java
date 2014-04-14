@@ -186,50 +186,6 @@ public abstract class DataSet<T> {
 		return new Projection<T>(this, fieldIndexes);
 	}
 	
-	/**
-	 * Initiates a Project transformation on a {@link Tuple} {@link DataSet}.<br/>
-	 * <b>Note: Only Tuple DataSet can be projected.</b></br>
-	 * The transformation projects each Tuple of the DataSet onto a (sub)set of fields.</br>
-	 * This method returns a {@link Projection} on which {@link Projection#types()} needs to 
-	 *   be called to completed the transformation.
-	 * 
-	 * @param fieldMask The field mask indicates the fields of an input tuple that are retained ('1' or 'T') 
-	 * 					and that are removed ('0', 'F').
-	 * 				    The order of fields in the output tuple is the same as in the input tuple.
-	 * @return A Projection that needs to be converted into a {@link ProjectOperator} to complete the 
-	 *           Project transformation by calling {@link Projection#types()}.
-	 * 
-	 * @see Tuple
-	 * @see DataSet
-	 * @see Projection
-	 * @see ProjectOperator
-	 */
-	public Projection<T> project(String fieldMask) {
-		return new Projection<T>(this, fieldMask);
-	}
-	
-	/**
-	 * Initiates a Project transformation on a {@link Tuple} {@link DataSet}.<br/>
-	 * <b>Note: Only Tuple DataSets can be projected.</b></br>
-	 * The transformation projects each Tuple of the DataSet onto a (sub)set of fields.</br>
-	 * This method returns a {@link Projection} on which {@link Projection#types()} needs to 
-	 *   be called to completed the transformation.
-	 * 
-	 * @param fieldMask The field flags indicates which fields of an input tuple that are retained (true) 
-	 * 					and that are removed (false).
-	 * 				    The order of fields in the output tuple is the same as in the input tuple.
-	 * @return A Projection that needs to be converted into a {@link ProjectOperator} to complete the 
-	 *           Project transformation by calling {@link Projection#types()}.
-	 * 
-	 * @see Tuple
-	 * @see DataSet
-	 * @see Projection
-	 * @see ProjectOperator
-	 */
-	public Projection<T> project(boolean... fieldFlags) {
-		return new Projection<T>(this, fieldFlags);
-	}
-	
 	// --------------------------------------------------------------------------------------------
 	//  Non-grouped aggregations
 	// --------------------------------------------------------------------------------------------
