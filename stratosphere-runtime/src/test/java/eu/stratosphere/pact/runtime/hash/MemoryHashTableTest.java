@@ -32,6 +32,7 @@ import eu.stratosphere.pact.runtime.test.util.types.IntListPairComparator;
 import eu.stratosphere.pact.runtime.test.util.types.IntListSerializer;
 import eu.stratosphere.pact.runtime.test.util.types.IntPair;
 import eu.stratosphere.pact.runtime.test.util.types.IntPairComparator;
+import eu.stratosphere.pact.runtime.test.util.types.IntPairListPairComparator;
 import eu.stratosphere.pact.runtime.test.util.types.IntPairPairComparator;
 import eu.stratosphere.pact.runtime.test.util.types.IntPairSerializer;
 import eu.stratosphere.pact.runtime.test.util.types.StringPair;
@@ -67,6 +68,8 @@ public class MemoryHashTableTest {
 	private final TypeComparator<IntList> comparatorV = new IntListComparator();
 	
 	private final TypePairComparator<IntList, IntList> pairComparatorV = new IntListPairComparator();
+	
+	private final TypePairComparator<IntPair, IntList> pairComparatorPL =new IntPairListPairComparator();
 	
 	private final int SIZE = 80; //FIXME 75 triggers serialization bug in testVariableLengthBuildAndRetrieve
 	
@@ -144,6 +147,38 @@ public class MemoryHashTableTest {
 			assertEquals("Memory lost", NUM_MEM_PAGES, table.getFreeMemory().size());
 		}
 		catch (Exception e) {
+			e.printStackTrace();
+			fail("Error: " + e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testMultipleProbers() {
+		try {
+			final int NUM_MEM_PAGES = SIZE * NUM_LISTS / PAGE_SIZE;
+			final IntList[] lists = getRandomizedIntLists(NUM_LISTS, rnd);
+			final IntPair[] pairs = getRandomizedIntPairs(NUM_LISTS, rnd);
+			
+			AbstractMutableHashTable<IntList> table = new CompactingHashTable<IntList>(serializerV, comparatorV, getMemory(NUM_MEM_PAGES, PAGE_SIZE));
+			table.open();
+			for (int i = 0; i < NUM_LISTS; i++) {
+				table.insert(lists[i]);
+			}
+			
+			@SuppressWarnings("unchecked")
+			AbstractHashTableProber<IntList, IntList> listProber = (AbstractHashTableProber<IntList, IntList>) table.getProber(comparatorV, pairComparatorV);
+			
+			@SuppressWarnings("unchecked")
+			AbstractHashTableProber<IntPair, IntList> pairProber = (AbstractHashTableProber<IntPair, IntList>) table.getProber(comparator, pairComparatorPL);
+			
+			IntList target = new IntList();
+			for (int i = 0; i < NUM_LISTS; i++) {
+				assertTrue(pairProber.getMatchFor(pairs[i], target));
+				assertTrue(listProber.getMatchFor(lists[i], target));
+				assertArrayEquals(lists[i].getValue(), target.getValue());
+			}
+			
+		} catch (Exception e) {
 			e.printStackTrace();
 			fail("Error: " + e.getMessage());
 		}
