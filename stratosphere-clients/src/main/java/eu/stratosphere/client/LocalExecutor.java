@@ -52,8 +52,6 @@ public class LocalExecutor extends PlanExecutor {
 	
 	private int taskManagerDataPort = -1;
 
-	private int numTaskManager = 1;
-	
 	private String configDir;
 
 	private String hdfsConfigFile;
@@ -65,16 +63,11 @@ public class LocalExecutor extends PlanExecutor {
 	// --------------------------------------------------------------------------------------------
 	
 	public LocalExecutor() {
-		this(1);
-	}
-
-	public LocalExecutor(int numTaskManager){
-		this.numTaskManager = numTaskManager;
 		if (System.getProperty("log4j.configuration") == null) {
 			setLoggingLevel(Level.INFO);
 		}
 	}
-	
+
 	public int getJobManagerRpcPort() {
 		return jobManagerRpcPort;
 	}
@@ -160,7 +153,7 @@ public class LocalExecutor extends PlanExecutor {
 				nephele.setDefaultAlwaysCreateDirectory(defaultAlwaysCreateDirectory);
 				
 				// start it up
-				this.nephele.start(numTaskManager);
+				this.nephele.start();
 			} else {
 				throw new IllegalStateException("The local executor was already started.");
 			}

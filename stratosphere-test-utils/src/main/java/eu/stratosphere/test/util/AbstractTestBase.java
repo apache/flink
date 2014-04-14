@@ -30,6 +30,7 @@ import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
 
+import eu.stratosphere.api.java.ExecutionEnvironment;
 import eu.stratosphere.configuration.ConfigConstants;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.fs.FileSystem;

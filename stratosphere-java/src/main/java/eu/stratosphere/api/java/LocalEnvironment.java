@@ -26,15 +26,13 @@ public class LocalEnvironment extends ExecutionEnvironment {
 	
 	private boolean logging = false;
 
-	private int numTaskManager = 1;
-	
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
 		Plan p = createProgramPlan(jobName);
 		p.setDefaultParallelism(getDegreeOfParallelism());
 		registerCachedFiles(p);
 		
-		PlanExecutor executor = PlanExecutor.createLocalExecutor(numTaskManager);
+		PlanExecutor executor = PlanExecutor.createLocalExecutor();
 		initLogging();
 		return executor.executePlan(p);
 	}
@@ -45,7 +43,7 @@ public class LocalEnvironment extends ExecutionEnvironment {
 		p.setDefaultParallelism(getDegreeOfParallelism());
 		registerCachedFiles(p);
 		
-		PlanExecutor executor = PlanExecutor.createLocalExecutor(numTaskManager);
+		PlanExecutor executor = PlanExecutor.createLocalExecutor();
 		initLogging();
 		return executor.getOptimizerPlanAsJSON(p);
 	}
@@ -58,12 +56,6 @@ public class LocalEnvironment extends ExecutionEnvironment {
 		this.logging = false;
 	}
 
-	public void setNumTaskManager(int numTaskManager){
-		this.numTaskManager = numTaskManager;
-	}
-
-	public int getNumTaskManager() { return this.numTaskManager; }
-	
 	public boolean isLoggingEnabled() {
 		return this.logging;
 	}
@@ -75,6 +67,6 @@ public class LocalEnvironment extends ExecutionEnvironment {
 	@Override
 	public String toString() {
 		return "Local Environment (DOP = " + (getDegreeOfParallelism() == -1 ? "default" : getDegreeOfParallelism())
-				+ "Number task manager = " + getNumTaskManager() + ") : " + getIdString();
+				+ ") : " + getIdString();
 	}
 }

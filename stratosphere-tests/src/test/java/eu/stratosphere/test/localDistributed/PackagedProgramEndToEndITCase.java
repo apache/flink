@@ -17,15 +17,17 @@ import java.io.FileWriter;
 import java.net.URL;
 import java.util.Collections;
 
+import eu.stratosphere.client.minicluster.NepheleMiniCluster;
+import eu.stratosphere.configuration.ConfigConstants;
+import eu.stratosphere.configuration.Configuration;
 import org.junit.Assert;
 import org.junit.Test;
 
 import eu.stratosphere.client.RemoteExecutor;
-import eu.stratosphere.client.localDistributed.LocalDistributedExecutor;
 import eu.stratosphere.test.testdata.KMeansData;
 import eu.stratosphere.util.LogUtils;
 
-// When the API changes WordCountForTest needs to be rebuilt and the WordCountForTest.jar in resources needs
+// When the API changes KMeansForTest needs to be rebuilt and the KMeansForTest.jar in resources needs
 // to be replaced with the new one.
 
 public class PackagedProgramEndToEndITCase {
@@ -36,7 +38,7 @@ public class PackagedProgramEndToEndITCase {
 	
 	@Test
 	public void testEverything() {
-		LocalDistributedExecutor lde = new LocalDistributedExecutor();
+		NepheleMiniCluster cluster = new NepheleMiniCluster();
 		try {
 			// set up the files
 			File points = File.createTempFile("kmeans_points", ".in");
@@ -59,9 +61,10 @@ public class PackagedProgramEndToEndITCase {
 			String jarPath = jarFileURL.getFile();
 
 			// run WordCount
-
-			lde.start(2);
-			RemoteExecutor ex = new RemoteExecutor("localhost", 6498, Collections.<String>emptyList());
+			Configuration config = new Configuration();
+			config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 2);
+			cluster.start(config);
+			RemoteExecutor ex = new RemoteExecutor("localhost", 6498, new LinkedList<String>());
 
 			ex.executeJar(jarPath,
 					"eu.stratosphere.examples.scala.testing.KMeansForTest",
@@ -80,7 +83,7 @@ public class PackagedProgramEndToEndITCase {
 			Assert.fail(e.getMessage());
 		} finally {
 			try {
-				lde.stop();
+				cluster.stop();
 			} catch (Exception e) {
 				e.printStackTrace();
 				Assert.fail(e.getMessage());

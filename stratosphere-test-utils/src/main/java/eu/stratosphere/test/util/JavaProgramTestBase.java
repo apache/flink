@@ -111,6 +111,10 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
 			Assert.fail("Post-submit work caused an error: " + e.getMessage());
 		}
 	}
+
+	protected ExecutionEnvironment getExecutionEnvironment() {
+		return new TestEnvironment(this.executor, this.degreeOfParallelism);
+	}
 	
 	private static final class TestEnvironment extends ExecutionEnvironment {
 
@@ -131,7 +135,7 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
 				
 				NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
 				JobGraph jobGraph = jgg.compileJobGraph(op);
-				
+
 				JobClient client = this.executor.getJobClient(jobGraph);
 				client.setConsoleStreamForReporting(AbstractTestBase.getNullPrintStream());
 				JobExecutionResult result = client.submitJobAndWait();
