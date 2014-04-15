@@ -14,6 +14,8 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.operators;
 
+import java.security.InvalidParameterException;
+
 import eu.stratosphere.api.common.InvalidProgramException;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.functions.JoinFunction;
@@ -23,6 +25,7 @@ import eu.stratosphere.api.java.operators.translation.KeyExtractingMapper;
 import eu.stratosphere.api.java.operators.translation.PlanJoinOperator;
 import eu.stratosphere.api.java.operators.translation.PlanMapOperator;
 import eu.stratosphere.api.java.operators.translation.PlanUnwrappingJoinOperator;
+import eu.stratosphere.api.java.operators.translation.TupleKeyExtractingMapper;
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
 import eu.stratosphere.api.java.typeutils.TypeExtractor;
@@ -181,6 +184,32 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 						new PlanJoinOperator<I1, I2, OUT>(function, logicalKeyPositions1, logicalKeyPositions2, 
 								name, getInput1Type(), getInput2Type(), getResultType()));
 			}
+			else if (super.keys1 instanceof Keys.FieldPositionKeys 
+					&& super.keys2 instanceof Keys.SelectorFunctionKeys
+					&& super.keys1.areCompatibale(super.keys2)
+				) {
+			
+				int[] logicalKeyPositions1 = super.keys1.computeLogicalKeyPositions();
+				
+				@SuppressWarnings("unchecked")
+				Keys.SelectorFunctionKeys<I2, ?> selectorKeys2 = (Keys.SelectorFunctionKeys<I2, ?>) super.keys2;
+				
+				return translateSelectorFunctionJoinRight(logicalKeyPositions1, selectorKeys2, function, 
+						getInput1Type(), getInput2Type(), getResultType(), name);
+			}
+			else if (super.keys1 instanceof Keys.SelectorFunctionKeys
+					&& super.keys2 instanceof Keys.FieldPositionKeys 
+					&& super.keys1.areCompatibale(super.keys2)
+				) {
+				
+				@SuppressWarnings("unchecked")
+				Keys.SelectorFunctionKeys<I1, ?> selectorKeys1 = (Keys.SelectorFunctionKeys<I1, ?>) super.keys1;
+				
+				int[] logicalKeyPositions2 = super.keys2.computeLogicalKeyPositions();
+				
+				return translateSelectorFunctionJoinLeft(selectorKeys1, logicalKeyPositions2, function, 
+						getInput1Type(), getInput2Type(), getResultType(), name);
+			}
 			else {
 				throw new UnsupportedOperationException("Unrecognized or incompatible key types.");
 			}
@@ -205,6 +234,62 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			final PlanMapOperator<I1, Tuple2<K, I1>> keyMapper1 = new PlanMapOperator<I1, Tuple2<K, I1>>(extractor1, "Key Extractor 1", inputType1, typeInfoWithKey1);
 			final PlanMapOperator<I2, Tuple2<K, I2>> keyMapper2 = new PlanMapOperator<I2, Tuple2<K, I2>>(extractor2, "Key Extractor 2", inputType2, typeInfoWithKey2);
 			final PlanUnwrappingJoinOperator<I1, I2, OUT, K> join = new PlanUnwrappingJoinOperator<I1, I2, OUT, K>(function, keys1, keys2, name, outputType, typeInfoWithKey1, typeInfoWithKey2);
+			
+			join.addFirstInput(keyMapper1);
+			join.addSecondInput(keyMapper2);
+			
+			return new BinaryNodeTranslation(keyMapper1, keyMapper2, join);
+		}
+		
+		private static <I1, I2, K, OUT> BinaryNodeTranslation translateSelectorFunctionJoinRight(
+				int[] logicalKeyPositions1, Keys.SelectorFunctionKeys<I2, ?> rawKeys2, 
+				JoinFunction<I1, I2, OUT> function, 
+				TypeInformation<I1> inputType1, TypeInformation<I2> inputType2, TypeInformation<OUT> outputType, String name)
+		{
+			if(!inputType1.isTupleType())
+				throw new InvalidParameterException("Should not happen.");
+			
+			@SuppressWarnings("unchecked")
+			final Keys.SelectorFunctionKeys<I2, K> keys2 = (Keys.SelectorFunctionKeys<I2, K>) rawKeys2;
+			
+			final TypeInformation<Tuple2<K, I1>> typeInfoWithKey1 = new TupleTypeInfo<Tuple2<K, I1>>(keys2.getKeyType(), inputType1); // assume same key, checked by Key.areCompatibale() before
+			final TypeInformation<Tuple2<K, I2>> typeInfoWithKey2 = new TupleTypeInfo<Tuple2<K, I2>>(keys2.getKeyType(), inputType2);
+			
+			final TupleKeyExtractingMapper<I1, K> extractor1 = new TupleKeyExtractingMapper<I1, K>(logicalKeyPositions1[0]);
+			final KeyExtractingMapper<I2, K> extractor2 = new KeyExtractingMapper<I2, K>(keys2.getKeyExtractor());
+			
+			final PlanMapOperator<I1, Tuple2<K, I1>> keyMapper1 = new PlanMapOperator<I1, Tuple2<K, I1>>(extractor1, "Key Extractor 1", inputType1, typeInfoWithKey1);
+			final PlanMapOperator<I2, Tuple2<K, I2>> keyMapper2 = new PlanMapOperator<I2, Tuple2<K, I2>>(extractor2, "Key Extractor 2", inputType2, typeInfoWithKey2);
+			
+			final PlanUnwrappingJoinOperator<I1, I2, OUT, K> join = new PlanUnwrappingJoinOperator<I1, I2, OUT, K>(function, logicalKeyPositions1, keys2, name, outputType, typeInfoWithKey1, typeInfoWithKey2);
+			
+			join.addFirstInput(keyMapper1);
+			join.addSecondInput(keyMapper2);
+			
+			return new BinaryNodeTranslation(keyMapper1, keyMapper2, join);
+		}
+		
+		private static <I1, I2, K, OUT> BinaryNodeTranslation translateSelectorFunctionJoinLeft(
+				Keys.SelectorFunctionKeys<I1, ?> rawKeys1, int[] logicalKeyPositions2,
+				JoinFunction<I1, I2, OUT> function, 
+				TypeInformation<I1> inputType1, TypeInformation<I2> inputType2, TypeInformation<OUT> outputType, String name)
+		{
+			if(!inputType2.isTupleType())
+				throw new InvalidParameterException("Should not happen.");
+			
+			@SuppressWarnings("unchecked")
+			final Keys.SelectorFunctionKeys<I1, K> keys1 = (Keys.SelectorFunctionKeys<I1, K>) rawKeys1;
+			
+			final TypeInformation<Tuple2<K, I1>> typeInfoWithKey1 = new TupleTypeInfo<Tuple2<K, I1>>(keys1.getKeyType(), inputType1); // assume same key, checked by Key.areCompatibale() before
+			final TypeInformation<Tuple2<K, I2>> typeInfoWithKey2 = new TupleTypeInfo<Tuple2<K, I2>>(keys1.getKeyType(), inputType2);
+			
+			final KeyExtractingMapper<I1, K> extractor1 = new KeyExtractingMapper<I1, K>(keys1.getKeyExtractor());
+			final TupleKeyExtractingMapper<I2, K> extractor2 = new TupleKeyExtractingMapper<I2, K>(logicalKeyPositions2[0]);
+			
+			final PlanMapOperator<I1, Tuple2<K, I1>> keyMapper1 = new PlanMapOperator<I1, Tuple2<K, I1>>(extractor1, "Key Extractor 1", inputType1, typeInfoWithKey1);
+			final PlanMapOperator<I2, Tuple2<K, I2>> keyMapper2 = new PlanMapOperator<I2, Tuple2<K, I2>>(extractor2, "Key Extractor 2", inputType2, typeInfoWithKey2);
+			
+			final PlanUnwrappingJoinOperator<I1, I2, OUT, K> join = new PlanUnwrappingJoinOperator<I1, I2, OUT, K>(function, keys1, logicalKeyPositions2, name, outputType, typeInfoWithKey1, typeInfoWithKey2);
 			
 			join.addFirstInput(keyMapper1);
 			join.addSecondInput(keyMapper2);
@@ -332,8 +417,8 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			return new JoinOperatorSetsPredicate(new Keys.FieldPositionKeys<I1>(fields, input1.getType()));
 		}
 		
-		public <K extends Comparable<K>> KeyedJoinOperatorSetsPredicate<K> where(KeySelector<I1, K> keyExtractor) {
-			return new KeyedJoinOperatorSetsPredicate<K>(new Keys.SelectorFunctionKeys<I1, K>(keyExtractor, input1.getType()));
+		public <K extends Comparable<K>> JoinOperatorSetsPredicate where(KeySelector<I1, K> keyExtractor) {
+			return new JoinOperatorSetsPredicate(new Keys.SelectorFunctionKeys<I1, K>(keyExtractor, input1.getType()));
 		}
 		
 		public JoinOperatorSetsPredicate where(String keyExpression) {
@@ -366,6 +451,9 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 				return createJoinOperator(new Keys.ExpressionKeys<I2>(keyExpression, input2.getType()));
 			}
 			
+			public <K> DefaultJoin<I1, I2> equalTo(KeySelector<I2, K> keyExtractor) {
+				return createJoinOperator(new Keys.SelectorFunctionKeys<I2, K>(keyExtractor, input2.getType()));
+			}
 			
 			protected DefaultJoin<I1, I2> createJoinOperator(Keys<I2> keys2) {
 				if (keys2 == null)
@@ -380,16 +468,6 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 				}
 				
 				return new DefaultJoin<I1, I2>(input1, input2, keys1, keys2, joinHint);
-			}
-		}
-
-		public class KeyedJoinOperatorSetsPredicate<K extends Comparable<K>> extends JoinOperatorSetsPredicate {
-			private KeyedJoinOperatorSetsPredicate(Keys<I1> keys1) {
-			  super(keys1);
-			}
-
-			public DefaultJoin<I1, I2> equalTo(KeySelector<I2, K> keyExtractor) {
-				return createJoinOperator(new Keys.SelectorFunctionKeys<I2, K>(keyExtractor, input2.getType()));
 			}
 		}
 	}

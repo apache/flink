@@ -26,6 +26,7 @@ import org.junit.runners.Parameterized.Parameters;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.ExecutionEnvironment;
 import eu.stratosphere.api.java.functions.JoinFunction;
+import eu.stratosphere.api.java.functions.KeySelector;
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.api.java.tuple.Tuple3;
 import eu.stratosphere.api.java.tuple.Tuple5;
@@ -38,7 +39,7 @@ import eu.stratosphere.test.util.JavaProgramTestBase;
 @RunWith(Parameterized.class)
 public class JoinITCase extends JavaProgramTestBase {
 	
-	private static int NUM_PROGRAMS = 8;
+	private static int NUM_PROGRAMS = 9;
 	
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -285,8 +286,39 @@ public class JoinITCase extends JavaProgramTestBase {
 						"Hello,Hallo Welt,55\n" +
 						"Hello world,Hallo Welt,55\n";
 			}
-			// TODO: Activate once key type mixing has been implemented
-//			case 9: {
+			case 9: {
+			
+			/*
+			 * Join on a tuple input with key field selector and a custom type input with key extractor
+			 */
+			
+			final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+			DataSet<CustomType> ds1 = CollectionDataSets.getSmallCustomTypeDataSet(env);
+			DataSet<Tuple3<Integer, Long, String>> ds2 = CollectionDataSets.get3TupleDataSet(env);
+			DataSet<Tuple2<String, String>> joinDs = 
+					ds1.join(ds2)
+					   .where(new KeySelector<CustomType, Integer>() {
+								   @Override
+								   public Integer getKey(CustomType value) {
+									   return value.myInt;
+								   }
+							   }
+							   )
+					   .equalTo(0)
+					   .with(new CustT3Join());
+			
+			joinDs.writeAsCsv(resultPath);
+			env.execute();
+			
+			// return expected result
+			return "Hi,Hi\n" +
+					"Hello,Hello\n" +
+					"Hello world,Hello\n";
+			
+		}
+			// TODO: Activate once Avro Serializer supports copy()
+//			case 10: {
 //				
 //				/*
 //				 * Join on a tuple input with key field selector and a custom type input with key extractor
@@ -298,15 +330,12 @@ public class JoinITCase extends JavaProgramTestBase {
 //				DataSet<CustomType> ds2 = CollectionDataSets.getCustomTypeDataSet(env);
 //				DataSet<Tuple2<String, String>> joinDs = 
 //						ds1.join(ds2)
-//						   .where(1)
-//						   .equalTo(
-//								   new KeySelector<CustomType, Long>() {
+//						   .where(1).equalTo(new KeySelector<CustomType, Long>() {
 //									   @Override
 //									   public Long getKey(CustomType value) {
 //										   return value.myLong;
 //									   }
-//								   }
-//								   )
+//								   })
 //						   .with(new T3CustJoin());
 //				
 //				joinDs.writeAsCsv(resultPath);
@@ -317,38 +346,6 @@ public class JoinITCase extends JavaProgramTestBase {
 //						"Hello,Hello world\n" +
 //						"Hello world,Hello world\n";
 //						
-//			}
-			// TODO: Activate once key type mixing has been implemented
-//			case 10: {
-//				
-//				/*
-//				 * Join on a tuple input with key field selector and a custom type input with key extractor
-//				 */
-//				
-//				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-//
-//				DataSet<CustomType> ds1 = CollectionDataSets.getSmallCustomTypeDataSet(env);
-//				DataSet<Tuple3<Integer, Long, String>> ds2 = CollectionDataSets.get3TupleDataSet(env);
-//				DataSet<Tuple2<String, String>> joinDs = 
-//						ds1.join(ds2)
-//						   .where(new KeySelector<CustomType, Integer>() {
-//									   @Override
-//									   public Integer getKey(CustomType value) {
-//										   return value.myInt;
-//									   }
-//								   }
-//								   )
-//						   .equalTo(0)
-//						   .with(new CustT3Join());
-//				
-//				joinDs.writeAsCsv(resultPath);
-//				env.execute();
-//				
-//				// return expected result
-//				return "Hi,Hi\n" +
-//						"Hello,Hello\n" +
-//						"Hello world,Hello\n";
-//				
 //			}
 			// TODO: Activate once Avro Serializer supports copy()
 //			case 11: {

@@ -44,6 +44,28 @@ public class PlanUnwrappingJoinOperator<I1, I2, OUT, K>
 		this.inTypeWithKey2 = typeInfoWithKey2;
 	}
 	
+	public PlanUnwrappingJoinOperator(JoinFunction<I1, I2, OUT> udf, 
+			int[] key1, Keys.SelectorFunctionKeys<I2, K> key2, String name,
+			TypeInformation<OUT> type, TypeInformation<Tuple2<K, I1>> typeInfoWithKey1, TypeInformation<Tuple2<K, I2>> typeInfoWithKey2)
+	{
+		super(new TupleUnwrappingJoiner<I1, I2, OUT, K>(udf), new int[]{0}, key2.computeLogicalKeyPositions(), name);
+		this.outType = type;
+		
+		this.inTypeWithKey1 = typeInfoWithKey1;
+		this.inTypeWithKey2 = typeInfoWithKey2;
+	}
+	
+	public PlanUnwrappingJoinOperator(JoinFunction<I1, I2, OUT> udf, 
+			Keys.SelectorFunctionKeys<I1, K> key1, int[] key2, String name,
+			TypeInformation<OUT> type, TypeInformation<Tuple2<K, I1>> typeInfoWithKey1, TypeInformation<Tuple2<K, I2>> typeInfoWithKey2)
+	{
+		super(new TupleUnwrappingJoiner<I1, I2, OUT, K>(udf), key1.computeLogicalKeyPositions(), new int[]{0}, name);
+		this.outType = type;
+		
+		this.inTypeWithKey1 = typeInfoWithKey1;
+		this.inTypeWithKey2 = typeInfoWithKey2;
+	}
+	
 
 	@Override
 	public TypeInformation<OUT> getReturnType() {
