@@ -22,6 +22,7 @@ import eu.stratosphere.api.java.ExecutionEnvironment;
 import eu.stratosphere.api.java.operators.DataSource;
 import eu.stratosphere.api.java.tuple.*;
 import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
+import eu.stratosphere.api.java.typeutils.TypeExtractor;
 import eu.stratosphere.core.fs.Path;
 
 
@@ -136,6 +137,25 @@ public class CsvReader {
 	public CsvReader ignoreFirstLine() {
 		skipFirstLineAsHeader = true;
 		return this;
+	}
+	/**
+	 * Reads the CSV and returns a DataSet containing objects of the given class. 
+	 * @param targetClass The targeted class, needs to be a subclass of Tuple.
+	 * @return The DataSet containing the CSV data.
+	 */
+	public <T0 extends Tuple> DataSource<T0> tupleType(Class<T0> targetClass) {
+		@SuppressWarnings("unchecked")
+		TupleTypeInfo<T0> typeInfo = (TupleTypeInfo<T0>) TypeExtractor.createTypeInfo(targetClass);
+		CsvInputFormat<T0> inputFormat = new CsvInputFormat<T0>(path);
+		
+		@SuppressWarnings("rawtypes")
+		Class[] classes = new Class[typeInfo.getArity()];
+		for (int i = 0; i < typeInfo.getArity(); i++) {
+			classes[i] = typeInfo.getTypeAt(i).getTypeClass();
+		}
+		
+		configureInputFormat(inputFormat, classes);
+		return new DataSource<T0>(executionContext, inputFormat, typeInfo);
 	}
 	
 	// --------------------------------------------------------------------------------------------
