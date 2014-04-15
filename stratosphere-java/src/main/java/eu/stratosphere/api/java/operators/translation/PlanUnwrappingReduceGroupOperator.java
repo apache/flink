@@ -68,6 +68,7 @@ public class PlanUnwrappingReduceGroupOperator<IN, OUT, K> extends GroupReduceOp
 		
 		private TupleUnwrappingGroupReducer(GroupReduceFunction<IN, OUT> wrapped) {
 			super(wrapped);
+			this.iter = new TupleUnwrappingIterator<IN, K>();
 		}
 
 
