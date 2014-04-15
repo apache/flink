@@ -30,11 +30,12 @@ public final class DoubleComparator extends BasicTypeComparator<Double> {
 		super(ascending);
 	}
 
-	@Override
-	public int compare(DataInputView firstSource, DataInputView secondSource) throws IOException {
-		double l1 = firstSource.readDouble();
-		double l2 = secondSource.readDouble();
-		return (l1 < l2 ? -1 : (l1 > l2 ? 1 : 0));
+	@Override 
+	public int compare(DataInputView firstSource, DataInputView secondSource) throws IOException { 
+		double l1 = firstSource.readDouble(); 
+		double l2 = secondSource.readDouble(); 
+		int comp = (l1 < l2 ? -1 : (l1 > l2 ? 1 : 0)); 
+		return ascendingComparison ? comp : -comp; 
 	}
 
 

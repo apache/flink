@@ -34,7 +34,8 @@ public final class FloatComparator extends BasicTypeComparator<Float> {
 	public int compare(DataInputView firstSource, DataInputView secondSource) throws IOException {
 		float l1 = firstSource.readFloat();
 		float l2 = secondSource.readFloat();
-		return (l1 < l2 ? -1 : (l1 > l2 ? 1 : 0));
+		int comp = (l1 < l2 ? -1 : (l1 > l2 ? 1 : 0)); 
+		return ascendingComparison ? comp : -comp; 
 	}
 
 

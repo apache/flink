@@ -45,7 +45,8 @@ public final class StringComparator extends BasicTypeComparator<String> {
 	public int compare(DataInputView firstSource, DataInputView secondSource) throws IOException {
 		holder1.read(firstSource);
 		holder2.read(secondSource);
-		return holder1.compareTo(holder2);
+		int comp = holder1.compareTo(holder2); 
+		return ascendingComparison ? comp : -comp;
 	}
 
 

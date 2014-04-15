@@ -34,7 +34,8 @@ public final class BooleanComparator extends BasicTypeComparator<Boolean> {
 	public int compare(DataInputView firstSource, DataInputView secondSource) throws IOException {
 		final int fs = firstSource.readBoolean() ? 1 : 0;
 		final int ss = secondSource.readBoolean() ? 1 : 0;
-		return ss - fs;
+		int comp = ss - fs; 
+		return ascendingComparison ? comp : -comp; 
 	}
 
 

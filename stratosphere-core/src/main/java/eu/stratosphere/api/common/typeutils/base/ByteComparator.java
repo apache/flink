@@ -34,7 +34,8 @@ public final class ByteComparator extends BasicTypeComparator<Byte> {
 	public int compare(DataInputView firstSource, DataInputView secondSource) throws IOException {
 		byte b1 = firstSource.readByte();
 		byte b2 = secondSource.readByte();
-		return (b1 < b2 ? -1 : (b1 == b2 ? 0 : 1));
+		int comp = (b1 < b2 ? -1 : (b1 == b2 ? 0 : 1)); 
+		return ascendingComparison ? comp : -comp; 
 	}
 
 

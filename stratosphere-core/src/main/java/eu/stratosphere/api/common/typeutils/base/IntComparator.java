@@ -34,7 +34,8 @@ public final class IntComparator extends BasicTypeComparator<Integer> {
 	public int compare(DataInputView firstSource, DataInputView secondSource) throws IOException {
 		int i1 = firstSource.readInt();
 		int i2 = secondSource.readInt();
-		return (i1 < i2 ? -1 : (i1 == i2 ? 0 : 1));
+		int comp = (i1 < i2 ? -1 : (i1 == i2 ? 0 : 1)); 
+		return ascendingComparison ? comp : -comp; 
 	}
 
 

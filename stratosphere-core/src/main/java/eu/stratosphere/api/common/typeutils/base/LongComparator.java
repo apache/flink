@@ -34,7 +34,8 @@ public final class LongComparator extends BasicTypeComparator<Long> {
 	public int compare(DataInputView firstSource, DataInputView secondSource) throws IOException {
 		long l1 = firstSource.readLong();
 		long l2 = secondSource.readLong();
-		return (l1 < l2 ? -1 : (l1 == l2 ? 0 : 1));
+		int comp = (l1 < l2 ? -1 : (l1 == l2 ? 0 : 1)); 
+		return ascendingComparison ? comp : -comp;
 	}
 
 

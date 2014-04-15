@@ -34,7 +34,8 @@ public final class CharComparator extends BasicTypeComparator<Character> {
 	public int compare(DataInputView firstSource, DataInputView secondSource) throws IOException {
 		char c1 = firstSource.readChar();
 		char c2 = secondSource.readChar();
-		return (c1 < c2 ? -1 : (c1 == c2 ? 0 : 1));
+		int comp = (c1 < c2 ? -1 : (c1 == c2 ? 0 : 1)); 
+		return ascendingComparison ? comp : -comp; 
 	}
 
 	@Override
