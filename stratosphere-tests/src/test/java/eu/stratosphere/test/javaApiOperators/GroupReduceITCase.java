@@ -63,10 +63,7 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 	
 	@Override
 	protected void postSubmit() throws Exception {
-		if(expectedResult.substring(0, 6).equals("SORTED"))
-			compareResultsByLinesInMemoryWithStrictOrder(expectedResult.substring(6, expectedResult.length()), resultPath);
-		else
-			compareResultsByLinesInMemory(expectedResult, resultPath);
+		compareResultsByLinesInMemory(expectedResult, resultPath);
 	}
 	
 	@Parameters
@@ -148,20 +145,20 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 				env.setDegreeOfParallelism(1);
 				
 				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-				DataSet<Tuple2<Integer, Long>> reduceDs = ds.
-						groupBy(1).sortGroup(0,Order.ASCENDING).reduceGroup(new Tuple3GroupReduce());
+				DataSet<Tuple3<Integer, Long, String>> reduceDs = ds.
+						groupBy(1).sortGroup(2,Order.ASCENDING).reduceGroup(new Tuple3SortedGroupReduce());
 				
 				reduceDs.writeAsCsv(resultPath);
 				env.execute();
 				
 				// return expected result
-				return "SORTED1,1\n" +
-						"5,2\n" +
-						"15,3\n" +
-						"34,4\n" +
-						"65,5\n" +
-						"111,6\n";
-				
+				return "1,1,Hi\n" +
+						"5,2,Hello-Hello world\n" +
+						"15,3,Hello world, how are you?-I am fine.-Luke Skywalker\n" +
+						"34,4,Comment#1-Comment#2-Comment#3-Comment#4\n" +
+						"65,5,Comment#5-Comment#6-Comment#7-Comment#8-Comment#9\n" +
+						"111,6,Comment#10-Comment#11-Comment#12-Comment#13-Comment#14-Comment#15\n";
+								
 			}
 			case 4: {
 				/*
@@ -224,7 +221,7 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 			case 6: {
 				
 				/*
-				 * check correctness of all-groupreduce for tuples with key field selector
+				 * check correctness of all-groupreduce for tuples
 				 */
 
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -240,7 +237,7 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 			}
 			case 7: {
 				/*
-				 * check correctness of all-groupreduce for custom types with key extractor
+				 * check correctness of all-groupreduce for custom types
 				 */
 				
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -302,7 +299,8 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 						"13,2,Hi!\n" +
 						"23,2,Hi again!\n";
 			}
-			// descending sort not working
+			
+			// TODO: descending sort not working
 //			case 10: {
 //				
 //				/*
@@ -314,18 +312,18 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 //				
 //				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 //				DataSet<Tuple3<Integer, Long, String>> reduceDs = ds.
-//						groupBy(1).sortGroup(0,Order.DESCENDING).reduceGroup(new Tuple3SortedGroupReduce());
+//						groupBy(1).sortGroup(2,Order.DESCENDING).reduceGroup(new Tuple3SortedGroupReduce());
 //				
 //				reduceDs.writeAsCsv(resultPath);
 //				env.execute();
 //				
 //				// return expected result
-//				return "SORTED1,1,Hi\n" +
-//						"3,2,Hello world\n" +
-//						"2,2,Hello\n" +
-//						"6,3,Luke Skywalker\n" +
-//						"5,3,I am fine.\n" +
-//						"4,3,Hello world, how are you?\n";
+//				return "1,1,Hi\n" +
+//						"5,2,Hello world-Hello\n" +
+//						"15,3,Luke Skywalker-I am fine.-Hello world, how are you?\n" +
+//						"34,4,Comment#4-Comment#3-Comment#2-Comment#1\n" +
+//						"65,5,Comment#9-Comment#8-Comment#7-Comment#6-Comment#5\n" +
+//						"111,6,Comment#15-Comment#14-Comment#13-Comment#12-Comment#11-Comment#10\n";
 //				
 //			}
 			default: 
@@ -366,12 +364,20 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 		public void reduce(Iterator<Tuple3<Integer, Long, String>> values,
 				Collector<Tuple3<Integer, Long, String>> out) throws Exception {
 			
+			Tuple3<Integer, Long, String> t = values.next();
+			
+			int sum = t.f0;
+			long key = t.f1;
+			String concat = t.f2;
+			
 			while(values.hasNext()) {
-				Tuple3<Integer, Long, String> t = values.next();
+				t = values.next();
 				
-				if(t.f1 < 4)
-					out.collect(t);
+				sum += t.f0;
+				concat += "-"+t.f2;
 			}
+			
+			out.collect(new Tuple3<Integer, Long, String>(sum, key, concat));
 			
 		}
 	}
@@ -409,12 +415,15 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 				Collector<CustomType> out) throws Exception {
 			
 			CustomType o = new CustomType();
+			CustomType c = values.next();
+			
+			o.myString = "Hello!";
+			o.myInt = c.myInt;
+			o.myLong = c.myLong;
 			
 			while(values.hasNext()) {
-				CustomType c = values.next();
-				o.myInt = c.myInt;
+				c = values.next();
 				o.myLong += c.myLong;
-				o.myString = "Hello!";
 
 			}
 			
@@ -473,13 +482,17 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 				Collector<CustomType> out) throws Exception {
 
 			CustomType o = new CustomType();
+			CustomType c = values.next();
+			
+			o.myString = "Hello!";
+			o.myInt = c.myInt;
+			o.myLong = c.myLong;
+			
 			
 			while(values.hasNext()) {
-				CustomType c = values.next();
+				c = values.next();
 				o.myInt += c.myInt;
 				o.myLong += c.myLong;
-				o.myString = "Hello!";
-
 			}
 			
 			out.collect(o);
