@@ -20,7 +20,7 @@ import java.util.Map;
 import eu.stratosphere.types.Value;
 
 /**
- *
+ * A registry for iteration {@link Aggregator}s.
  */
 public class AggregatorRegistry {
 	
@@ -34,7 +34,7 @@ public class AggregatorRegistry {
 	
 	public void registerAggregator(String name, Class<? extends Aggregator<?>> aggregator) {
 		if (name == null || aggregator == null) {
-			throw new IllegalArgumentException("Name or aggregator must not be null");
+			throw new IllegalArgumentException("Name and aggregator must not be null");
 		}
 		if (this.registry.containsKey(name)) {
 			throw new RuntimeException("An aggregator is already registered under the given name.");
@@ -83,5 +83,11 @@ public class AggregatorRegistry {
 	
 	public Class<? extends ConvergenceCriterion<?>> getConvergenceCriterion() {
 		return this.convergenceCriterion;
+	}
+	
+	public void addAll(AggregatorRegistry registry) {
+		this.registry.putAll(registry.registry);
+		this.convergenceCriterion = registry.convergenceCriterion;
+		this.convergenceCriterionAggregatorName = registry.convergenceCriterionAggregatorName;
 	}
 }

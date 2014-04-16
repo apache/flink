@@ -74,7 +74,7 @@ public class DotProductCoGroup extends CoGroupFunction implements Serializable {
 
 		dampingFactor = (1d - BETA) / (double) numVertices;
 		
-		aggregator = (PageRankStatsAggregator) getIterationRuntimeContext().<PageRankStats>getIterationAggregator(AGGREGATOR_NAME);
+		aggregator = getIterationRuntimeContext().getIterationAggregator(AGGREGATOR_NAME);
 		
 		if (currentIteration == 1) {
 			danglingRankFactor = BETA * (double) numDanglingVertices / ((double) numVertices * (double) numVertices);

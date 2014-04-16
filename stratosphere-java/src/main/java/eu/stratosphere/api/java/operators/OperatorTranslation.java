@@ -136,7 +136,7 @@ public class OperatorTranslation {
 	}
 
 	private BulkIteration translateBulkIteration(IterativeResultDataSet<?> iterationEnd) {
-		PlanBulkIterationOperator iterationOperator = new PlanBulkIterationOperator("Unnamed Java Bulk Iteration", iterationEnd.getType());
+		PlanBulkIterationOperator iterationOperator = new PlanBulkIterationOperator("Bulk Iteration", iterationEnd.getType());
 		IterativeDataSet<?> iterationHead = iterationEnd.getIterationHead();
 
 		translated.put(iterationHead, iterationOperator.getPartialSolution());
@@ -145,6 +145,8 @@ public class OperatorTranslation {
 		iterationOperator.setNextPartialSolution(translatedBody);
 		iterationOperator.setMaximumNumberOfIterations(iterationHead.getMaxIterations());
 		iterationOperator.setInput(translate(iterationHead.getInput()));
+		
+		iterationOperator.getAggregators().addAll(iterationHead.getAggregators());
 
 		return iterationOperator;
 	}

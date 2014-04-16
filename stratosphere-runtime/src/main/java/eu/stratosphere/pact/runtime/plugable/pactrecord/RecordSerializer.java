@@ -24,8 +24,10 @@ import eu.stratosphere.types.Record;
 /**
  * Implementation of the (de)serialization and copying logic for the {@link Record}.
  */
-public final class RecordSerializer extends TypeSerializer<Record>
-{
+public final class RecordSerializer extends TypeSerializer<Record> {
+	
+	private static final long serialVersionUID = 1L;
+
 	private static final RecordSerializer INSTANCE = new RecordSerializer(); // singleton instance
 	
 	private static final int MAX_BIT = 0x80;	// byte where only the most significant bit is set

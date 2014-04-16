@@ -75,7 +75,7 @@ public abstract class MessagingFunction<VertexKey extends Key, VertexValue exten
 		return this.runtimeContext.getSuperstepNumber();
 	}
 	
-	public <T extends Value> Aggregator<T> getIterationAggregator(String name) {
+	public <T extends Aggregator<?>> T getIterationAggregator(String name) {
 		return this.runtimeContext.<T>getIterationAggregator(name);
 	}
 	

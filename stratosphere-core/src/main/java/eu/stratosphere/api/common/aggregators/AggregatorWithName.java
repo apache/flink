@@ -15,7 +15,7 @@ package eu.stratosphere.api.common.aggregators;
 import eu.stratosphere.types.Value;
 
 /**
- * Simple class describing an aggregator with the name it is registered under.
+ * Simple utility class holding an {@link Aggregator} with the name it is registered under.
  */
 public class AggregatorWithName<T extends Value> {
 
@@ -23,15 +23,31 @@ public class AggregatorWithName<T extends Value> {
 	
 	private final Class<? extends Aggregator<T>> aggregator;
 
+	/**
+	 * Creates a new instance for the given aggregator and name.
+	 * 
+	 * @param name The name that the aggregator is registered under.
+	 * @param aggregator The aggregator.
+	 */
 	public AggregatorWithName(String name, Class<Aggregator<T>> aggregator) {
 		this.name = name;
 		this.aggregator = aggregator;
 	}
 	
+	/**
+	 * Gets the name that the aggregator is registered under.
+	 * 
+	 * @return The name that the aggregator is registered under.
+	 */
 	public String getName() {
 		return name;
 	}
 	
+	/**
+	 * Gets the aggregator.
+	 * 
+	 * @return The aggregator.
+	 */
 	public Class<? extends Aggregator<T>> getAggregator() {
 		return aggregator;
 	}

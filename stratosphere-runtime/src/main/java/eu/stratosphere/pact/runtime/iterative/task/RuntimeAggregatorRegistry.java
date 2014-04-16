@@ -46,8 +46,8 @@ public class RuntimeAggregatorRegistry {
 	}
 	
 	@SuppressWarnings("unchecked")
-	public <T extends Value> Aggregator<T> getAggregator(String name) {
-		return (Aggregator<T>) this.aggregators.get(name);
+	public <T extends Aggregator<?>> T getAggregator(String name) {
+		return (T) this.aggregators.get(name);
 	}
 	
 	public Map<String, Aggregator<?>> getAllAggregators() {

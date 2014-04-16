@@ -142,7 +142,7 @@ public abstract class MessagingFunction<VertexKey extends Comparable<VertexKey>,
 	 * @param name The name of the aggregator.
 	 * @return The aggregator registered under this name, or null, if no aggregator was registered.
 	 */
-	public <T extends Value> Aggregator<T> getIterationAggregator(String name) {
+	public <T extends Aggregator<?>> T getIterationAggregator(String name) {
 		return this.runtimeContext.<T>getIterationAggregator(name);
 	}
 	

@@ -18,7 +18,6 @@ import eu.stratosphere.api.common.functions.IterationRuntimeContext;
 import eu.stratosphere.api.common.operators.BulkIteration;
 import eu.stratosphere.api.common.operators.BulkIteration.TerminationCriterionAggregator;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.types.LongValue;
 
 public class ChainedTerminationCriterionDriver<IT, OT> extends ChainedDriver<IT, OT> {
 	
@@ -28,7 +27,7 @@ public class ChainedTerminationCriterionDriver<IT, OT> extends ChainedDriver<IT,
 
 	@Override
 	public void setup(AbstractInvokable parent) {
-		agg = (TerminationCriterionAggregator) ((IterationRuntimeContext) getUdfRuntimeContext()).<LongValue>getIterationAggregator(BulkIteration.TERMINATION_CRITERION_AGGREGATOR_NAME);
+		agg = ((IterationRuntimeContext) getUdfRuntimeContext()).getIterationAggregator(BulkIteration.TERMINATION_CRITERION_AGGREGATOR_NAME);
 	}
 
 	@Override

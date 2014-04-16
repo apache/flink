@@ -51,7 +51,7 @@ public abstract class VertexUpdateFunction<VertexKey extends Key, VertexValue ex
 		return this.runtimeContext.getSuperstepNumber();
 	}
 	
-	public <T extends Value> Aggregator<T> getIterationAggregator(String name) {
+	public <T extends Aggregator<?>> T getIterationAggregator(String name) {
 		return this.runtimeContext.<T>getIterationAggregator(name);
 	}
 	

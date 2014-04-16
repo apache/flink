@@ -189,7 +189,7 @@ public class BulkIteration extends SingleInputOperator<AbstractFunction> impleme
 		
 		@Override
 		public void open(Configuration parameters) {
-			aggregator = (TerminationCriterionAggregator) getIterationRuntimeContext().<LongValue>getIterationAggregator(TERMINATION_CRITERION_AGGREGATOR_NAME);
+			aggregator = getIterationRuntimeContext().getIterationAggregator(TERMINATION_CRITERION_AGGREGATOR_NAME);
 		}
 		
 		@Override

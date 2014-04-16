@@ -152,7 +152,7 @@ public abstract class WrappingFunction<T extends AbstractFunction> extends Abstr
 		}
 
 		@Override
-		public <T extends Value> Aggregator<T> getIterationAggregator(String name) {
+		public <T extends Aggregator<?>> T getIterationAggregator(String name) {
 			return ((IterationRuntimeContext) context).<T>getIterationAggregator(name);
 		}
 

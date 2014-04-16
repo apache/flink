@@ -22,10 +22,8 @@ import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannel;
 import eu.stratosphere.pact.runtime.iterative.concurrent.SolutionSetUpdateBarrier;
 import eu.stratosphere.pact.runtime.iterative.concurrent.SolutionSetUpdateBarrierBroker;
 import eu.stratosphere.pact.runtime.iterative.io.WorksetUpdateOutputCollector;
-import eu.stratosphere.pact.runtime.shipping.RecordOutputCollector;
 import eu.stratosphere.pact.runtime.task.PactDriver;
 import eu.stratosphere.pact.runtime.task.PactTaskContext;
-import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 /**

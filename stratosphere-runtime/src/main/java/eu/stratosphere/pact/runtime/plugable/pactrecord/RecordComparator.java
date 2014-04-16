@@ -33,6 +33,8 @@ import eu.stratosphere.util.InstantiationUtil;
  */
 public final class RecordComparator extends TypeComparator<Record> {
 	
+	private static final long serialVersionUID = 1L;
+
 	/**
 	 * A sequence of prime numbers to be used for salting the computed hash values.
 	 * Based on some empirical evidence, we are using a 32-element subsequence of the  
