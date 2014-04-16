@@ -16,6 +16,7 @@ package eu.stratosphere.api.java.typeutils.runtime;
 
 import java.util.Random;
 
+import eu.stratosphere.api.common.typeutils.SerializerTestBase;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.util.StringUtils;
 
