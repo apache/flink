@@ -73,10 +73,6 @@ public class CrossITCase extends TestBase
 
 	private static final String CROSS_RIGHT_IN_4 = "4 4\n4 8\n";
 
-//	private static final String CROSS_RESULT = "2 0\n2 0\n2 1\n2 1\n3 1\n3 1\n3 3\n3 3\n4 2\n4 2\n5 3\n5 3\n"
-//			+ "3 -1\n3 -1\n3 0\n3 0\n4 0\n4 0\n4 2\n4 2\n5 1\n5 1\n6 2\n6 2\n"
-//			+ "4 -2\n4 -2\n4 -1\n4 -1\n5 -1\n5 -1\n6 0\n6 0\n" + "5 -3\n5 -3\n5 -2\n5 -2\n6 -2\n6 -2\n";
-	
 	private static final String CROSS_RESULT = "4 1\n4 1\n4 2\n4 2\n5 2\n5 2\n5 4\n5 4\n6 3\n6 3\n7 4\n7 4\n"
 		+ "5 0\n5 0\n5 1\n5 1\n6 1\n6 1\n6 3\n6 3\n7 2\n7 2\n8 3\n8 3\n"
 		+ "6 -1\n6 -1\n6 0\n6 0\n7 0\n7 0\n8 1\n8 1\n" + "7 -2\n7 -2\n7 -1\n7 -1\n8 -1\n8 -1\n";

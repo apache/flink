@@ -116,7 +116,7 @@ public class CrossITCase extends JavaProgramTestBase {
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				
 				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.getSmall3TupleDataSet(env);
-				DataSet<Tuple3<Integer, Long, String>> ds2 = CollectionDataSets.getSmall3TupleDataSet(env);
+				DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.getSmall5TupleDataSet(env);
 				DataSet<Tuple3<Integer, Long, String>> coGroupDs = ds.cross(ds2).with(new Tuple3ReturnLeft());
 				
 				coGroupDs.writeAsCsv(resultPath);
@@ -142,7 +142,7 @@ public class CrossITCase extends JavaProgramTestBase {
 				
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				
-				DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.getSmall5TupleDataSet(env);
+				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.getSmall3TupleDataSet(env);
 				DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.getSmall5TupleDataSet(env);
 				DataSet<Tuple5<Integer, Long, Integer, String, Long>> coGroupDs = ds.cross(ds2).with(new Tuple5ReturnRight());
 				
@@ -243,6 +243,7 @@ public class CrossITCase extends JavaProgramTestBase {
 						"4,Hallo Welt wieHallo Welt wie\n";
 				
 			}
+			// TODO Currently not working because AvroSerializer does not implement copy()
 //			case 7: {
 //				
 //				/*
@@ -269,6 +270,7 @@ public class CrossITCase extends JavaProgramTestBase {
 //						"4,3,Hallo Welt wieHallo Welt\n" +
 //						",44,Hallo Welt wieHallo Welt wie\n";
 //			}
+			// TODO Currently not working because AvroSerializer does not implement copy()
 //			case 8: {
 //				
 //				/*
@@ -348,26 +350,26 @@ public class CrossITCase extends JavaProgramTestBase {
 	}
 	
 	
-	public static class Tuple3ReturnLeft extends CrossFunction<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>> {
+	public static class Tuple3ReturnLeft extends CrossFunction<Tuple3<Integer, Long, String>, Tuple5<Integer, Long, Integer, String, Long>, Tuple3<Integer, Long, String>> {
 		
 		private static final long serialVersionUID = 1L;
 
 		@Override
 		public Tuple3<Integer, Long, String> cross(
 				Tuple3<Integer, Long, String> first,
-				Tuple3<Integer, Long, String> second) throws Exception {
+				Tuple5<Integer, Long, Integer, String, Long> second) throws Exception {
 
 			return first;
 		}
 	}
 	
-	public static class Tuple5ReturnRight extends CrossFunction<Tuple5<Integer, Long, Integer, String, Long>, Tuple5<Integer, Long, Integer, String, Long>, Tuple5<Integer, Long, Integer, String, Long>> {
+	public static class Tuple5ReturnRight extends CrossFunction<Tuple3<Integer, Long, String>, Tuple5<Integer, Long, Integer, String, Long>, Tuple5<Integer, Long, Integer, String, Long>> {
 		
 		private static final long serialVersionUID = 1L;
 
 		@Override
 		public Tuple5<Integer, Long, Integer, String, Long> cross(
-				Tuple5<Integer, Long, Integer, String, Long> first,
+				Tuple3<Integer, Long, String> first,
 				Tuple5<Integer, Long, Integer, String, Long> second)
 				throws Exception {
 			
