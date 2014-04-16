@@ -38,6 +38,7 @@ public class FloatParser extends FieldParser<Float> {
 			return (i == limit) ? limit : i+1;
 		}
 		catch (NumberFormatException e) {
+			setErrorState(ParseErrorState.NUMERIC_VALUE_FORMAT_ERROR);
 			return -1;
 		}
 	}

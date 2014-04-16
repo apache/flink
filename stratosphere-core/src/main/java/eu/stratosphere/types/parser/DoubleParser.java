@@ -18,6 +18,8 @@ package eu.stratosphere.types.parser;
  */
 public class DoubleParser extends FieldParser<Double> {
 	
+	private static final Double DOUBLE_INSTANCE = Double.valueOf(0.0);
+	
 	private double result;
 	
 	@Override
@@ -36,13 +38,14 @@ public class DoubleParser extends FieldParser<Double> {
 			return (i == limit) ? limit : i+1;
 		}
 		catch (NumberFormatException e) {
+			setErrorState(ParseErrorState.NUMERIC_VALUE_FORMAT_ERROR);
 			return -1;
 		}
 	}
 	
 	@Override
 	public Double createValue() {
-		return Double.valueOf(0.0);
+		return DOUBLE_INSTANCE;
 	}
 
 	@Override

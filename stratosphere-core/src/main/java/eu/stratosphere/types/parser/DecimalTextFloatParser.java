@@ -40,6 +40,7 @@ public class DecimalTextFloatParser extends FieldParser<FloatValue> {
 			return (i == limit) ? limit : i+1;
 		}
 		catch (NumberFormatException e) {
+			setErrorState(ParseErrorState.NUMERIC_VALUE_FORMAT_ERROR);
 			return -1;
 		}
 	}

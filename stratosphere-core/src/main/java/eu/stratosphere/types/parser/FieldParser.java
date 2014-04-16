@@ -26,18 +26,39 @@ import eu.stratosphere.types.StringValue;
 import eu.stratosphere.types.Value;
 
 /**
- * A FieldParser is used parse a field and fill a {@link Value} from a sequence of bytes.
+ * A FieldParser is used parse a field from a sequence of bytes. Fields occur in a byte sequence and are terminated
+ * by the end of the byte sequence or a delimiter.
+ * <p>
+ * The parsers do not throw exceptions in general, but set an error state. That way, they can be used in functions
+ * that ignore invalid lines, rather than failing on them.
  *
  * @param <T> The type that is parsed.
  */
 public abstract class FieldParser<T> {
 	
+	/**
+	 * An enumeration of different types of errors that may occur.
+	 */
 	public static enum ParseErrorState {
+		/** No error occurred. */
 		NONE,
+		
+		/** The domain of the numeric type is not large enough to hold the parsed value. */
 		NUMERIC_VALUE_OVERFLOW_UNDERFLOW,
+		
+		/** A stand-alone sign was encountered while parsing a numeric type. */
 		NUMERIC_VALUE_ORPHAN_SIGN,
+		
+		/** An illegal character was encountered while parsing a numeric type. */
 		NUMERIC_VALUE_ILLEGAL_CHARACTER,
+		
+		/** The field was not in a correct format for the numeric type. */
+		NUMERIC_VALUE_FORMAT_ERROR,
+		
+		/** A quoted string was not terminated until the line end. */
 		UNTERMINATED_QUOTED_STRING,
+		
+		/** The parser found characters between the end of the quoted string and the delimiter. */
 		UNQUOTED_CHARS_AFTER_QUOTED_STRING
 	}
 	
@@ -59,6 +80,13 @@ public abstract class FieldParser<T> {
 	 */
 	public abstract int parseField(byte[] bytes, int startPos, int limit, char delim, T reuse);
 	
+	/**
+	 * Gets the parsed field. This method returns the value parsed by the last successful invocation of
+	 * {@link #parseField(byte[], int, int, char, Object)}. It objects are mutable and reused, it will return
+	 * the object instance that was passed the the parse function.
+	 * 
+	 * @return The latest parsed field.
+	 */
 	public abstract T getLastResult();
 	
 	/**
@@ -68,12 +96,22 @@ public abstract class FieldParser<T> {
 	 */
 	public abstract T createValue();
 	
-	
-	
+	/**
+	 * Sets the error state of the parser. Called by subclasses of the parser to set the type of error
+	 * when failing a parse.
+	 * 
+	 * @param error The error state to set.
+	 */
 	protected void setErrorState(ParseErrorState error) {
 		this.errorState = error;
 	}
 	
+	/**
+	 * Gets the error state of the parser, as a value of the enumeration {@link ParseErrorState}.
+	 * If no error occurred, the error state will be {@link ParseErrorState#NONE}.
+	 * 
+	 * @return The current error state of the parser.
+	 */
 	public ParseErrorState getErrorState() {
 		return this.errorState;
 	}
@@ -82,6 +120,13 @@ public abstract class FieldParser<T> {
 	//  Mapping from types to parsers
 	// --------------------------------------------------------------------------------------------
 	
+	/**
+	 * Gets the parser for the type specified by the given class. Returns null, if no parser for that class
+	 * is known.
+	 * 
+	 * @param type The class of the type to get the parser for.
+	 * @return The parser for the given type, or null, if no such parser exists.
+	 */
 	public static <T> Class<FieldParser<T>> getParserForType(Class<T> type) {
 		Class<? extends FieldParser<?>> parser = PARSERS.get(type);
 		if (parser == null) {
