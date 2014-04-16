@@ -26,7 +26,6 @@ import eu.stratosphere.api.java.operators.translation.PlanCogroupOperator;
 import eu.stratosphere.api.java.operators.translation.PlanMapOperator;
 import eu.stratosphere.api.java.operators.translation.PlanUnwrappingCoGroupOperator;
 import eu.stratosphere.api.java.operators.translation.TupleKeyExtractingMapper;
-import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
 import eu.stratosphere.api.java.typeutils.TypeExtractor;

@@ -222,7 +222,7 @@ public class CoGroupITCase extends JavaProgramTestBase {
 				
 				DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.get5TupleDataSet(env);
 				DataSet<CustomType> ds2 = CollectionDataSets.getCustomTypeDataSet(env);
-				DataSet<Tuple3<Integer, Long, String>> coGroupDs = ds.coGroup(ds2).where(0).equalTo(new KeySelector<CustomType, Integer>() {
+				DataSet<Tuple3<Integer, Long, String>> coGroupDs = ds.coGroup(ds2).where(2).equalTo(new KeySelector<CustomType, Integer>() {
 									private static final long serialVersionUID = 1L;
 									@Override
 									public Integer getKey(CustomType in) {
@@ -234,13 +234,22 @@ public class CoGroupITCase extends JavaProgramTestBase {
 				env.execute();
 				
 				// return expected result
-				return "1,0,test\n" +
-						"2,6,test\n" +
-						"3,24,test\n" +
-						"4,60,test\n" +
-						"5,120,test\n" +
-						"6,105,test\n";
-				
+				return "0,1,test\n" +
+						"1,2,test\n" +
+						"2,5,test\n" +
+						"3,15,test\n" +
+						"4,33,test\n" +
+						"5,63,test\n" +
+						"6,109,test\n" +
+						"7,4,test\n" + 
+						"8,4,test\n" + 
+						"9,4,test\n" + 
+						"10,5,test\n" + 
+						"11,5,test\n" + 
+						"12,5,test\n" + 
+						"13,5,test\n" +
+						"14,5,test\n"; 
+						
 			}
 			case 7: {
 				
@@ -258,18 +267,27 @@ public class CoGroupITCase extends JavaProgramTestBase {
 									public Integer getKey(CustomType in) {
 										return in.myInt;
 									}
-								}).equalTo(0).with(new MixedCoGroup2());
+								}).equalTo(2).with(new MixedCoGroup2());
 				
 				coGroupDs.writeAsText(resultPath);
 				env.execute();
 				
 				// return expected result
-				return "1,0,test\n" +
-						"2,6,test\n" +
-						"3,24,test\n" +
-						"4,60,test\n" +
-						"5,120,test\n" +
-						"6,105,test\n";
+				return "0,1,test\n" +
+						"1,2,test\n" +
+						"2,5,test\n" +
+						"3,15,test\n" +
+						"4,33,test\n" +
+						"5,63,test\n" +
+						"6,109,test\n" +
+						"7,4,test\n" + 
+						"8,4,test\n" + 
+						"9,4,test\n" + 
+						"10,5,test\n" + 
+						"11,5,test\n" + 
+						"12,5,test\n" + 
+						"13,5,test\n" +
+						"14,5,test\n"; 
 				
 			}
 			default: 
@@ -352,8 +370,8 @@ public class CoGroupITCase extends JavaProgramTestBase {
 			
 			while(first.hasNext()) {
 				Tuple5<Integer, Long, Integer, String, Long> element = first.next();
-				sum += element.f2;
-				id = element.f0;
+				sum += element.f0;
+				id = element.f2;
 			}
 			
 			while(second.hasNext()) {
@@ -386,8 +404,8 @@ public class CoGroupITCase extends JavaProgramTestBase {
 			
 			while(second.hasNext()) {
 				Tuple5<Integer, Long, Integer, String, Long> element = second.next();
-				o.myInt = element.f0;
-				o.myLong += element.f2;
+				o.myInt = element.f2;
+				o.myLong += element.f0;
 			}
 			
 			out.collect(o);

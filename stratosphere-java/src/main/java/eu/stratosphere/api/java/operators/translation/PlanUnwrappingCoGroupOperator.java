@@ -50,7 +50,7 @@ public class PlanUnwrappingCoGroupOperator<I1, I2, OUT, K>
 			int[] key1, Keys.SelectorFunctionKeys<I2, K> key2, String name,
 			TypeInformation<OUT> type, TypeInformation<Tuple2<K, I1>> typeInfoWithKey1, TypeInformation<Tuple2<K, I2>> typeInfoWithKey2)
 	{
-		super(new TupleUnwrappingCoGrouper<I1, I2, OUT, K>(udf), key1, key2.computeLogicalKeyPositions(), name);
+		super(new TupleUnwrappingCoGrouper<I1, I2, OUT, K>(udf), new int[]{0}, key2.computeLogicalKeyPositions(), name);
 		this.outType = type;
 		
 		this.inTypeWithKey1 = typeInfoWithKey1;
@@ -61,7 +61,7 @@ public class PlanUnwrappingCoGroupOperator<I1, I2, OUT, K>
 			Keys.SelectorFunctionKeys<I1, K> key1, int[] key2, String name,
 			TypeInformation<OUT> type, TypeInformation<Tuple2<K, I1>> typeInfoWithKey1, TypeInformation<Tuple2<K, I2>> typeInfoWithKey2)
 	{
-		super(new TupleUnwrappingCoGrouper<I1, I2, OUT, K>(udf), key1.computeLogicalKeyPositions(), key2, name);
+		super(new TupleUnwrappingCoGrouper<I1, I2, OUT, K>(udf), key1.computeLogicalKeyPositions(), new int[]{0}, name);
 		this.outType = type;
 		
 		this.inTypeWithKey1 = typeInfoWithKey1;
@@ -110,34 +110,6 @@ public class PlanUnwrappingCoGroupOperator<I1, I2, OUT, K>
 			throw new UnsupportedOperationException();
 		}
 
-		@Override
-		public Tuple2<K, I2> combineSecond(Iterator<Tuple2<K, I2>> records) throws Exception {
-			throw new UnsupportedOperationException();
-		}
-	}
-	
-	public static final class TupleUnwrappingCoGrouperRight<I1, I2, OUT, K> extends WrappingFunction<CoGroupFunction<I1, I2, OUT>>
-	implements GenericCoGrouper<I1, Tuple2<K, I2>, OUT>
-	{
-	
-		private static final long serialVersionUID = 1L;
-		
-		private TupleUnwrappingCoGrouperRight(CoGroupFunction<I1, I2, OUT> wrapped) {
-			super(wrapped);
-		}
-	
-	
-		@Override
-		public void coGroup(Iterator<I1> records1, Iterator<Tuple2<K, I2>> records2, Collector<OUT> out) throws Exception {
-			this.wrappedFunction.coGroup(records1, new UnwrappingKeyIterator<K, I2>(records2), out);
-		}
-	
-	
-		@Override
-		public I1 combineFirst(Iterator<I1> records) throws Exception {
-			throw new UnsupportedOperationException();
-		}
-	
 		@Override
 		public Tuple2<K, I2> combineSecond(Iterator<Tuple2<K, I2>> records) throws Exception {
 			throw new UnsupportedOperationException();
