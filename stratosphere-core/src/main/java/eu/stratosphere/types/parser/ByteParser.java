@@ -65,4 +65,66 @@ public class ByteParser extends FieldParser<Byte> {
 	public Byte getLastResult() {
 		return Byte.valueOf(this.result);
 	}
+	
+	/**
+	 * Static utility to parse a field of type byte from a byte sequence that represents text characters
+	 * (such as when read from a file stream).
+	 * 
+	 * @param bytes The bytes containing the text data that should be parsed.
+	 * @param startPos The offset to start the parsing.
+	 * @param length The length of the byte sequence (counting from the offset).
+	 * 
+	 * @return The parsed value.
+	 * 
+	 * @throws NumberFormatException Thrown when the value cannot be parsed because the text represents not a correct number.
+	 */
+	public static final byte parseField(byte[] bytes, int startPos, int length) {
+		return parseField(bytes, startPos, length, (char) 0xffff);
+	}
+	
+	/**
+	 * Static utility to parse a field of type byte from a byte sequence that represents text characters
+	 * (such as when read from a file stream).
+	 * 
+	 * @param bytes The bytes containing the text data that should be parsed.
+	 * @param startPos The offset to start the parsing.
+	 * @param length The length of the byte sequence (counting from the offset).
+	 * @param delimiter The delimiter that terminates the field.
+	 * 
+	 * @return The parsed value.
+	 * 
+	 * @throws NumberFormatException Thrown when the value cannot be parsed because the text represents not a correct number.
+	 */
+	public static final byte parseField(byte[] bytes, int startPos, int length, char delimiter) {
+		if (length <= 0) {
+			throw new NumberFormatException("Invalid input: Empty string");
+		}
+		long val = 0;
+		boolean neg = false;
+		
+		if (bytes[startPos] == '-') {
+			neg = true;
+			startPos++;
+			length--;
+			if (length == 0 || bytes[startPos] == delimiter) {
+				throw new NumberFormatException("Orphaned minus sign.");
+			}
+		}
+		
+		for (; length > 0; startPos++, length--) {
+			if (bytes[startPos] == delimiter) {
+				return (byte) (neg ? -val : val);
+			}
+			if (bytes[startPos] < 48 || bytes[startPos] > 57) {
+				throw new NumberFormatException("Invalid character.");
+			}
+			val *= 10;
+			val += bytes[startPos] - 48;
+			
+			if (val > Byte.MAX_VALUE && (!neg || val > -Byte.MIN_VALUE)) {
+				throw new NumberFormatException("Value overflow/underflow");
+			}
+		}
+		return (byte) (neg ? -val : val);
+	}
 }

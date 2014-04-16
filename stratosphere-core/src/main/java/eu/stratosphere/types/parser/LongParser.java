@@ -85,8 +85,36 @@ public class LongParser extends FieldParser<Long> {
 		return Long.valueOf(this.result);
 	}
 	
+	/**
+	 * Static utility to parse a field of type long from a byte sequence that represents text characters
+	 * (such as when read from a file stream).
+	 * 
+	 * @param bytes The bytes containing the text data that should be parsed.
+	 * @param startPos The offset to start the parsing.
+	 * @param length The length of the byte sequence (counting from the offset).
+	 * 
+	 * @return The parsed value.
+	 * 
+	 * @throws NumberFormatException Thrown when the value cannot be parsed because the text represents not a correct number.
+	 */
+	public static final long parseField(byte[] bytes, int startPos, int length) {
+		return parseField(bytes, startPos, length, (char) 0xffff);
+	}
 	
-	public static final long parseField(byte[] bytes, int startPos, int length, char delim) {
+	/**
+	 * Static utility to parse a field of type long from a byte sequence that represents text characters
+	 * (such as when read from a file stream).
+	 * 
+	 * @param bytes The bytes containing the text data that should be parsed.
+	 * @param startPos The offset to start the parsing.
+	 * @param length The length of the byte sequence (counting from the offset).
+	 * @param delimiter The delimiter that terminates the field.
+	 * 
+	 * @return The parsed value.
+	 * 
+	 * @throws NumberFormatException Thrown when the value cannot be parsed because the text represents not a correct number.
+	 */
+	public static final long parseField(byte[] bytes, int startPos, int length, char delimiter) {
 		if (length <= 0) {
 			throw new NumberFormatException("Invalid input: Empty string");
 		}
@@ -97,20 +125,35 @@ public class LongParser extends FieldParser<Long> {
 			neg = true;
 			startPos++;
 			length--;
-			if (length == 0) {
+			if (length == 0 || bytes[startPos] == delimiter) {
 				throw new NumberFormatException("Orphaned minus sign.");
 			}
 		}
 		
 		for (; length > 0; startPos++, length--) {
-			if (bytes[startPos] == delim) {
+			if (bytes[startPos] == delimiter) {
 				return neg ? -val : val;
 			}
 			if (bytes[startPos] < 48 || bytes[startPos] > 57) {
-				throw new NumberFormatException();
+				throw new NumberFormatException("Invalid character.");
 			}
 			val *= 10;
 			val += bytes[startPos] - 48;
+			
+			// check for overflow / underflow
+			if (val < 0) {
+				// this is an overflow/underflow, unless we hit exactly the Long.MIN_VALUE
+				if (neg && val == Long.MIN_VALUE) {
+					if (length == 1 || bytes[startPos+1] == delimiter) {
+						return Long.MIN_VALUE;
+					} else {
+						throw new NumberFormatException("value overflow");
+					}
+				}
+				else {
+					throw new NumberFormatException("value overflow");
+				}
+			}
 		}
 		return neg ? -val : val;
 	}

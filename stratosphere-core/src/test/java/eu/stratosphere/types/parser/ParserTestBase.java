@@ -16,6 +16,9 @@ package eu.stratosphere.types.parser;
 
 import static org.junit.Assert.*;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+
 import org.junit.Test;
 
 
@@ -187,6 +190,78 @@ public abstract class ParserTestBase<T> {
 				// fail on the invalid part
 				pos = parser.parseField(bytes, pos, bytes.length, '%', value);
 				assertTrue("Parser accepted the invalid value " + invalid + ".", pos == -1);
+			}
+		}
+		catch (Exception e) {
+			System.err.println(e.getMessage());
+			e.printStackTrace();
+			fail("Test erroneous: " + e.getMessage());
+		}
+	}
+	
+	@Test
+	@SuppressWarnings("unchecked")
+	public void testStaticParseMethod() {
+		try {
+			Method parseMethod = null;
+			try {
+				parseMethod = getParser().getClass().getMethod("parseField", byte[].class, int.class, int.class, char.class);
+			}
+			catch (NoSuchMethodException e) {
+				return;
+			}
+			
+			String[] testValues = getValidTestValues();
+			T[] results = getValidTestResults();
+			
+			for (int i = 0; i < testValues.length; i++) {
+				
+				byte[] bytes = testValues[i].getBytes();
+				
+				
+				T result;
+				try {
+					result = (T) parseMethod.invoke(null, bytes, 0, bytes.length, '|');
+				}
+				catch (InvocationTargetException e) {
+					e.getTargetException().printStackTrace();
+					fail("Error while parsing: " + e.getTargetException().getMessage());
+					return;
+				}
+				assertEquals("Parser parsed wrong.", results[i], result);
+			}
+		}
+		catch (Exception e) {
+			System.err.println(e.getMessage());
+			e.printStackTrace();
+			fail("Test erroneous: " + e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testStaticParseMethodWithInvalidValues() {
+		try {
+			Method parseMethod = null;
+			try {
+				parseMethod = getParser().getClass().getMethod("parseField", byte[].class, int.class, int.class, char.class);
+			}
+			catch (NoSuchMethodException e) {
+				return;
+			}
+			
+			String[] testValues = getInvalidTestValues();
+			
+			for (int i = 0; i < testValues.length; i++) {
+				
+				byte[] bytes = testValues[i].getBytes();
+				
+				try {
+					parseMethod.invoke(null, bytes, 0, bytes.length, '|');
+					fail("Static parse method accepted invalid value");
+				}
+				catch (InvocationTargetException e) {
+					// that's it!
+				}
 			}
 		}
 		catch (Exception e) {
