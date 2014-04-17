@@ -27,16 +27,18 @@ import eu.stratosphere.api.java.record.io.CsvOutputFormat;
 import eu.stratosphere.api.java.record.operators.JoinOperator;
 import eu.stratosphere.api.java.record.operators.MapOperator;
 import eu.stratosphere.api.java.record.operators.ReduceOperator;
-import eu.stratosphere.example.java.record.connectedcomponents.WorksetConnectedComponents.DuplicateLongMap;
-import eu.stratosphere.example.java.record.connectedcomponents.WorksetConnectedComponents.MinimumComponentIDReduce;
-import eu.stratosphere.example.java.record.connectedcomponents.WorksetConnectedComponents.NeighborWithComponentIDJoin;
+import eu.stratosphere.test.testPrograms.WorksetConnectedComponents.DuplicateLongMap;
+import eu.stratosphere.test.testPrograms.WorksetConnectedComponents.MinimumComponentIDReduce;
+import eu.stratosphere.test.testPrograms.WorksetConnectedComponents.NeighborWithComponentIDJoin;
 import eu.stratosphere.test.testdata.ConnectedComponentsData;
 import eu.stratosphere.test.util.TestBase2;
 import eu.stratosphere.types.LongValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
-
+/**
+ * Tests a bug that prevented that the solution set can be on both sides of the match/cogroup function.
+ */
 public class ConnectedComponentsWithSolutionSetFirstITCase extends TestBase2 {
 	
 	private static final long SEED = 0xBADC0FFEEBEEFL;

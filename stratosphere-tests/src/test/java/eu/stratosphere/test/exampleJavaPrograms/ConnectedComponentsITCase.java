@@ -11,17 +11,15 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-package eu.stratosphere.test.iterative;
+package eu.stratosphere.test.exampleJavaPrograms;
 
 import java.io.BufferedReader;
 
-import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.test.testPrograms.WorksetConnectedComponents;
+import eu.stratosphere.example.java.graph.ConnectedComponents;
 import eu.stratosphere.test.testdata.ConnectedComponentsData;
-import eu.stratosphere.test.util.TestBase2;
+import eu.stratosphere.test.util.JavaProgramTestBase;
 
-
-public class ConnectedComponentsITCase extends TestBase2 {
+public class ConnectedComponentsITCase extends JavaProgramTestBase {
 	
 	private static final long SEED = 0xBADC0FFEEBEEFL;
 	
@@ -30,9 +28,9 @@ public class ConnectedComponentsITCase extends TestBase2 {
 	private static final int NUM_EDGES = 10000;
 
 	
-	protected String verticesPath;
-	protected String edgesPath;
-	protected String resultPath;
+	private String verticesPath;
+	private String edgesPath;
+	private String resultPath;
 	
 	
 	@Override
@@ -43,9 +41,8 @@ public class ConnectedComponentsITCase extends TestBase2 {
 	}
 	
 	@Override
-	protected Plan getTestJob() {
-		WorksetConnectedComponents cc = new WorksetConnectedComponents();
-		return cc.getPlan("4",  verticesPath, edgesPath, resultPath, "100");
+	protected void testProgram() throws Exception {
+		ConnectedComponents.main(verticesPath, edgesPath, resultPath, "100");
 	}
 
 	@Override

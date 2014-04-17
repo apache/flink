@@ -30,9 +30,7 @@ import java.util.List;
 
 public class WordCountWithCollectionITCase extends JavaProgramTestBase {
 
-	List<Tuple2<String, Integer>> resultsCollected = new ArrayList<Tuple2<String, Integer>>();
-
-
+	private final List<Tuple2<String, Integer>> resultsCollected = new ArrayList<Tuple2<String, Integer>>();
 
 	@Override
 	protected void postSubmit() throws Exception {
@@ -58,10 +56,7 @@ public class WordCountWithCollectionITCase extends JavaProgramTestBase {
 		DataSet<Tuple2<String, Integer>> words = text.flatMap(new WordCount.Tokenizer());
 		DataSet<Tuple2<String, Integer>> result = words.groupBy(0).aggregate(Aggregations.SUM, 1);
 
-		result.output(new LocalCollectionOutputFormat(resultsCollected));
+		result.output(new LocalCollectionOutputFormat<Tuple2<String, Integer>>(resultsCollected));
 		env.execute("Word Count Collection");
-
 	}
-
-
 }

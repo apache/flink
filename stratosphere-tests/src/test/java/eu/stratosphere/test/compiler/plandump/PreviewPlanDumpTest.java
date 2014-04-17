@@ -21,10 +21,13 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import eu.stratosphere.api.common.Plan;
+import eu.stratosphere.api.java.DataSet;
+import eu.stratosphere.api.java.ExecutionEnvironment;
+import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.dag.DataSinkNode;
 import eu.stratosphere.compiler.plandump.PlanJSONDumpGenerator;
-import eu.stratosphere.example.java.record.connectedcomponents.WorksetConnectedComponents;
+import eu.stratosphere.example.java.graph.ConnectedComponents;
 import eu.stratosphere.example.java.record.kmeans.KMeans;
 import eu.stratosphere.example.java.record.relational.TPCHQuery3;
 import eu.stratosphere.example.java.record.relational.WebLogAnalysis;
@@ -77,9 +80,18 @@ public class PreviewPlanDumpTest {
 	}
 	
 	@Test
-	public void dumpWorksetConnectedComponents() {
-		dump(new WorksetConnectedComponents().getPlan("4", IN_FILE, IN_FILE, OUT_FILE));
-		dump(new WorksetConnectedComponents().getPlan(NO_ARGS));
+	public void dumpConnectedComponents() {
+		// take the core program and create dummy sources and sinks around it
+		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
+		
+		DataSet<Long> vertices = env.fromElements(1L);
+		@SuppressWarnings("unchecked")
+		DataSet<Tuple2<Long, Long>> edges = env.fromElements(new Tuple2<Long, Long>(1l, 2l));
+		
+		ConnectedComponents.doConnectedComponents(vertices, edges, 10).print();
+		
+		Plan p = env.createProgramPlan();
+		dump(p);
 	}
 	
 	private void dump(Plan p) {

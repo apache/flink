@@ -30,12 +30,12 @@ import eu.stratosphere.api.java.record.operators.CoGroupOperator;
 import eu.stratosphere.api.java.record.operators.JoinOperator;
 import eu.stratosphere.api.java.record.operators.MapOperator;
 import eu.stratosphere.api.java.record.operators.CoGroupOperator.CombinableFirst;
+import eu.stratosphere.test.testPrograms.WorksetConnectedComponents.DuplicateLongMap;
+import eu.stratosphere.test.testPrograms.WorksetConnectedComponents.NeighborWithComponentIDJoin;
 import eu.stratosphere.types.LongValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
-import eu.stratosphere.example.java.record.connectedcomponents.WorksetConnectedComponents.DuplicateLongMap;
-import eu.stratosphere.example.java.record.connectedcomponents.WorksetConnectedComponents.NeighborWithComponentIDJoin;
 
 /**
  *

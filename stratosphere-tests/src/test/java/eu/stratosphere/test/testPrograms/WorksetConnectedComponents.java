@@ -11,7 +11,7 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-package eu.stratosphere.example.java.record.connectedcomponents;
+package eu.stratosphere.test.testPrograms;
 
 import java.io.Serializable;
 import java.util.Iterator;
