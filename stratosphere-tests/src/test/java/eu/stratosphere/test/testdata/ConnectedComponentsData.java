@@ -89,7 +89,7 @@ public class ConnectedComponentsData {
 		String line;
 		while ((line = result.readLine()) != null) {
 			String[] res = split.split(line);
-			Assert.assertEquals("Malfored result: Wrong number of tokens in line.", 2, res.length);
+			Assert.assertEquals("Malformed result: Wrong number of tokens in line.", 2, res.length);
 			try {
 				int vertex = Integer.parseInt(res[0]);
 				int component = Integer.parseInt(res[1]);

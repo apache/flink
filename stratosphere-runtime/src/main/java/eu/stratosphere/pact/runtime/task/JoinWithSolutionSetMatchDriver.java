@@ -14,8 +14,13 @@
 package eu.stratosphere.pact.runtime.task;
 
 import eu.stratosphere.api.common.functions.GenericJoiner;
+import eu.stratosphere.api.common.typeutils.TypeComparator;
+import eu.stratosphere.api.common.typeutils.TypeComparatorFactory;
+import eu.stratosphere.api.common.typeutils.TypePairComparator;
+import eu.stratosphere.api.common.typeutils.TypePairComparatorFactory;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
+import eu.stratosphere.pact.runtime.hash.CompactingHashTable;
 import eu.stratosphere.pact.runtime.hash.MutableHashTable;
 import eu.stratosphere.pact.runtime.iterative.concurrent.SolutionSetBroker;
 import eu.stratosphere.pact.runtime.iterative.task.AbstractIterativePactTask;
@@ -30,12 +35,15 @@ public abstract class JoinWithSolutionSetMatchDriver<IT1, IT2, OT> implements Re
 	
 	protected PactTaskContext<GenericJoiner<IT1, IT2, OT>, OT> taskContext;
 	
-	protected MutableHashTable<?, ?> hashTable;
+	protected CompactingHashTable<?> hashTable;
 	
 	private TypeSerializer<IT1> serializer1;
 	private TypeSerializer<IT2> serializer2;
-//	private TypeComparator<IT1> comparator1;
-//	private TypeComparator<IT2> comparator2;
+	private TypeComparator<IT1> comparator1;
+	private TypeComparator<IT2> comparator2;
+	
+	private TypePairComparator<IT1, IT2> comp12;
+	private TypePairComparator<IT2, IT1> comp21;
 	
 	private IT1 rec1;
 	private IT2 rec2;
@@ -92,19 +100,21 @@ public abstract class JoinWithSolutionSetMatchDriver<IT1, IT2, OT> implements Re
 		
 		int ssIndex = getSolutionSetInputIndex();
 		if (ssIndex == 0) {
+			TypeComparatorFactory<IT1> sComparatorFact1 = config.getDriverComparator(0, classLoader);//config.getSolutionSetComparator(classLoader);
+			TypeComparatorFactory<IT2> sComparatorFact2 = config.getDriverComparator(1, classLoader);
+			comparator1 = sComparatorFact1.createComparator();
+			comparator2 = sComparatorFact2.createComparator();
 			TypeSerializerFactory<IT1> sSerializerFact = config.getSolutionSetSerializer(classLoader);
-//			TypeComparatorFactory<IT1> sComparatorFact = config.getSolutionSetComparator(classLoader);
 			serializer1 = sSerializerFact.getSerializer();
-//			comparator1 = sComparatorFact.createComparator();
 			serializer2 = taskContext.getInputSerializer(0);
-//			comparator2 = taskContext.getInputComparator(0);
 		} else if (ssIndex == 1) {
+			TypeComparatorFactory<IT1> sComparatorFact1 = config.getDriverComparator(0, classLoader);
+			TypeComparatorFactory<IT2> sComparatorFact2 = config.getDriverComparator(1, classLoader);//config.getSolutionSetComparator(classLoader);
+			comparator1 = sComparatorFact1.createComparator();
+			comparator2 = sComparatorFact2.createComparator();
 			TypeSerializerFactory<IT2> sSerializerFact = config.getSolutionSetSerializer(classLoader);
-//			TypeComparatorFactory<IT2> sComparatorFact = config.getSolutionSetComparator(classLoader);
 			serializer1 = taskContext.getInputSerializer(0);
-//			comparator1 = taskContext.getInputComparator(0);
 			serializer2 = sSerializerFact.getSerializer();
-//			comparator2 = sComparatorFact.createComparator();
 		} else {
 			throw new Exception();
 		}
@@ -119,6 +129,9 @@ public abstract class JoinWithSolutionSetMatchDriver<IT1, IT2, OT> implements Re
 		} else {
 			throw new Exception("The task context of this driver is no iterative task context.");
 		}
+		TypePairComparatorFactory<IT1, IT2> factory = taskContext.getTaskConfig().getPairComparatorFactory(taskContext.getUserCodeClassLoader());
+		comp12 = factory.createComparator12(comparator1, comparator2);
+		comp21 = factory.createComparator21(comparator1, comparator2);
 	}
 
 	@Override
@@ -139,16 +152,18 @@ public abstract class JoinWithSolutionSetMatchDriver<IT1, IT2, OT> implements Re
 			IT2 probeSideRecord = rec2;
 			
 			@SuppressWarnings("unchecked")
-			final MutableHashTable<IT1, IT2> join = (MutableHashTable<IT1, IT2>) hashTable;
+			final CompactingHashTable<IT1> join = (CompactingHashTable<IT1>) hashTable;
 			final MutableObjectIterator<IT2> probeSideInput = taskContext.<IT2>getInput(0);
 			
+			@SuppressWarnings("unchecked")
+			final CompactingHashTable<IT1>.HashTableProber<IT2> prober = (CompactingHashTable<IT1>.HashTableProber<IT2>) join.getProber(comparator2, comp21);
 			while (this.running && ((probeSideRecord = probeSideInput.next(probeSideRecord)) != null)) {
-				final MutableHashTable.HashBucketIterator<IT1, IT2> bucket = join.getMatchesFor(probeSideRecord);
-				if ((buildSideRecord = bucket.next(buildSideRecord)) != null) {
+				//final MutableHashTable.HashBucketIterator<IT1, IT2> bucket = join.getMatchesFor(probeSideRecord);
+				if (prober.getMatchFor(probeSideRecord, buildSideRecord)) {
 					matchStub.join(buildSideRecord, probeSideRecord, collector);
 				} else {
 					// no match found, this is for now an error case
-					throwNoMatchFoundException(join, probeSideRecord);
+					throwNoMatchFoundException(join, probeSideRecord, comparator2);
 				}
 			}
 		} else if (getSolutionSetInputIndex() == 1) {
@@ -156,16 +171,18 @@ public abstract class JoinWithSolutionSetMatchDriver<IT1, IT2, OT> implements Re
 			IT1 probeSideRecord = rec1;
 			
 			@SuppressWarnings("unchecked")
-			final MutableHashTable<IT2, IT1> join = (MutableHashTable<IT2, IT1>) hashTable;
+			final CompactingHashTable<IT2> join = (CompactingHashTable<IT2>) hashTable;
 			final MutableObjectIterator<IT1> probeSideInput = taskContext.<IT1>getInput(0);
 			
+			@SuppressWarnings("unchecked")
+			final CompactingHashTable<IT2>.HashTableProber<IT1> prober = (CompactingHashTable<IT2>.HashTableProber<IT1>) join.getProber(comparator1, comp12);
 			while (this.running && ((probeSideRecord = probeSideInput.next(probeSideRecord)) != null)) {
-				final MutableHashTable.HashBucketIterator<IT2, IT1> bucket = join.getMatchesFor(probeSideRecord);
-				if ((buildSideRecord = bucket.next(buildSideRecord)) != null) {
+				//final MutableHashTable.HashBucketIterator<IT2, IT1> bucket = join.getMatchesFor(probeSideRecord);
+				if (prober.getMatchFor(probeSideRecord, buildSideRecord)) {
 					matchStub.join(probeSideRecord, buildSideRecord, collector);
 				} else {
 					// no match found, this is for now an error case
-					throwNoMatchFoundException(join, probeSideRecord);
+					throwNoMatchFoundException(join, probeSideRecord, comparator1);
 				}
 			}
 		} else {
@@ -177,6 +194,29 @@ public abstract class JoinWithSolutionSetMatchDriver<IT1, IT2, OT> implements Re
 		if (probeSideRecord instanceof Record) {
 			Record record = (Record) probeSideRecord;
 			RecordComparator comparator = (RecordComparator) join.getProbeSideComparator();
+
+			int[] keys = comparator.getKeyPositions();
+			Class<? extends Key>[] keyTypes = comparator.getKeyTypes();
+
+			StringBuilder str = new StringBuilder();
+			for (int i = 0; i < keys.length; i++) {
+				str.append(record.getField(keys[i], keyTypes[i]).toString());
+				str.append(" (field ");
+				str.append(keys[i]);
+				str.append(")");
+				str.append(i == keys.length-1 ? "" : ", ");
+			}
+
+			throw new RuntimeException("No match found in solution set for record with key " + str.toString());
+		}
+
+		throw new RuntimeException("No match found in solution set");
+	}
+	
+	private <PT> void throwNoMatchFoundException (CompactingHashTable<?> join, PT probeSideRecord, TypeComparator<?> probeSideComparator) {
+		if (probeSideRecord instanceof Record) {
+			Record record = (Record) probeSideRecord;
+			RecordComparator comparator = (RecordComparator) probeSideComparator;
 
 			int[] keys = comparator.getKeyPositions();
 			Class<? extends Key>[] keyTypes = comparator.getKeyTypes();
