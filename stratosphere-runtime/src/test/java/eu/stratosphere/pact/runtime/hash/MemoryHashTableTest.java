@@ -100,8 +100,7 @@ public class MemoryHashTableTest {
 				table.insert(pairs[i]);
 			}
 	
-			@SuppressWarnings("unchecked")
-			AbstractHashTableProber<IntPair, IntPair> prober = (CompactingHashTable<IntPair>.HashTableProber<IntPair>) table.getProber(comparator, pairComparator);
+			AbstractHashTableProber<IntPair, IntPair> prober = table.getProber(comparator, pairComparator);
 			IntPair target = new IntPair();
 			
 			for (int i = 0; i < NUM_PAIRS; i++) {
@@ -165,11 +164,9 @@ public class MemoryHashTableTest {
 				table.insert(lists[i]);
 			}
 			
-			@SuppressWarnings("unchecked")
-			AbstractHashTableProber<IntList, IntList> listProber = (AbstractHashTableProber<IntList, IntList>) table.getProber(comparatorV, pairComparatorV);
+			AbstractHashTableProber<IntList, IntList> listProber = table.getProber(comparatorV, pairComparatorV);
 			
-			@SuppressWarnings("unchecked")
-			AbstractHashTableProber<IntPair, IntList> pairProber = (AbstractHashTableProber<IntPair, IntList>) table.getProber(comparator, pairComparatorPL);
+			AbstractHashTableProber<IntPair, IntList> pairProber = table.getProber(comparator, pairComparatorPL);
 			
 			IntList target = new IntList();
 			for (int i = 0; i < NUM_LISTS; i++) {
@@ -198,13 +195,13 @@ public class MemoryHashTableTest {
 				try {
 					table.insert(lists[i]);
 				} catch (Exception e) {
-					System.out.println("index: " + i + " ");
+					//System.out.println("index: " + i + " ");
 					throw e;
 				}
 			}
-						
-			@SuppressWarnings("unchecked")
-			AbstractHashTableProber<IntList, IntList> prober = (CompactingHashTable<IntList>.HashTableProber<IntList>) table.getProber(comparatorV, pairComparatorV);
+
+
+			AbstractHashTableProber<IntList, IntList> prober = table.getProber(comparatorV, pairComparatorV);
 			IntList target = new IntList();
 			
 			for (int i = 0; i < NUM_LISTS; i++) {
@@ -247,9 +244,8 @@ public class MemoryHashTableTest {
 			for (int i = 0; i < NUM_LISTS; i++) {
 				table.insert(lists[i]);
 			}
-						
-			@SuppressWarnings("unchecked")
-			AbstractHashTableProber<IntList, IntList> prober = (CompactingHashTable<IntList>.HashTableProber<IntList>) table.getProber(comparatorV, pairComparatorV);
+
+			AbstractHashTableProber<IntList, IntList> prober = table.getProber(comparatorV, pairComparatorV);
 			IntList target = new IntList();
 			
 			for (int i = 0; i < NUM_LISTS; i++) {
@@ -298,9 +294,8 @@ public class MemoryHashTableTest {
 			for (int i = 0; i < NUM_LISTS; i++) {
 				table.insert(lists[i]);
 			}
-						
-			@SuppressWarnings("unchecked")
-			AbstractHashTableProber<IntList, IntList> prober = (CompactingHashTable<IntList>.HashTableProber<IntList>) table.getProber(comparatorV, pairComparatorV);
+			
+			AbstractHashTableProber<IntList, IntList> prober = table.getProber(comparatorV, pairComparatorV);
 			IntList target = new IntList();
 			
 			for (int i = 0; i < NUM_LISTS; i++) {
@@ -346,13 +341,13 @@ public class MemoryHashTableTest {
 
 			MutableObjectIterator<StringPair> updateTester = new UniformStringPairGenerator(NUM_PAIRS, 1, false);
 			
-			long start = 0L;
-			long end = 0L;
+			//long start = 0L;
+			//long end = 0L;
 			
-			long first = System.currentTimeMillis();
+			//long first = System.currentTimeMillis();
 			
-			System.out.println("Creating and filling CompactingHashMap...");
-			start = System.currentTimeMillis();
+			//System.out.println("Creating and filling CompactingHashMap...");
+			//start = System.currentTimeMillis();
 			AbstractMutableHashTable<StringPair> table = new CompactingHashTable<StringPair>(serializerS, comparatorS, getMemory(NUM_MEM_PAGES, PAGE_SIZE));
 			table.open();
 			
@@ -360,43 +355,43 @@ public class MemoryHashTableTest {
 			while(buildInput.next(target) != null) {
 				table.insert(target);
 			}
-			end = System.currentTimeMillis();
-			System.out.println("HashMap ready. Time: " + (end-start) + " ms");
+			//end = System.currentTimeMillis();
+			//System.out.println("HashMap ready. Time: " + (end-start) + " ms");
 			
-			System.out.println("Starting first probing run...");
-			start = System.currentTimeMillis();
-			@SuppressWarnings("unchecked")
-			AbstractHashTableProber<StringPair, StringPair> prober = (CompactingHashTable<StringPair>.HashTableProber<StringPair>)table.getProber(comparatorS, pairComparatorS);
+			//System.out.println("Starting first probing run...");
+			//start = System.currentTimeMillis();
+
+			AbstractHashTableProber<StringPair, StringPair> prober = table.getProber(comparatorS, pairComparatorS);
 			StringPair temp = new StringPair();
 			while(probeTester.next(target) != null) {
 				assertTrue(prober.getMatchFor(target, temp));
 				assertEquals(temp.getValue(), target.getValue());
 			}
-			end = System.currentTimeMillis();
-			System.out.println("Probing done. Time: " + (end-start) + " ms");
+			//end = System.currentTimeMillis();
+			//System.out.println("Probing done. Time: " + (end-start) + " ms");
 			
-			System.out.println("Starting update...");
-			start = System.currentTimeMillis();
+			//System.out.println("Starting update...");
+			//start = System.currentTimeMillis();
 			while(updater.next(target) != null) {
 				target.setValue(target.getValue());
 				table.insertOrReplaceRecord(target, temp);
 			}
-			end = System.currentTimeMillis();
-			System.out.println("Update done. Time: " + (end-start) + " ms");
+			//end = System.currentTimeMillis();
+			//System.out.println("Update done. Time: " + (end-start) + " ms");
 			
-			System.out.println("Starting second probing run...");
-			start = System.currentTimeMillis();
+			//System.out.println("Starting second probing run...");
+			//start = System.currentTimeMillis();
 			while (updateTester.next(target) != null) {
 				assertTrue(prober.getMatchFor(target, temp));
 				assertEquals(target.getValue(), temp.getValue());
 			}
-			end = System.currentTimeMillis();
-			System.out.println("Probing done. Time: " + (end-start) + " ms");
+			//end = System.currentTimeMillis();
+			//System.out.println("Probing done. Time: " + (end-start) + " ms");
 			
 			table.close();
 			
-			end = System.currentTimeMillis();
-			System.out.println("Overall time: " + (end-first) + " ms");
+			//end = System.currentTimeMillis();
+			//System.out.println("Overall time: " + (end-first) + " ms");
 			
 			assertEquals("Memory lost", NUM_MEM_PAGES, table.getFreeMemory().size());
 		}

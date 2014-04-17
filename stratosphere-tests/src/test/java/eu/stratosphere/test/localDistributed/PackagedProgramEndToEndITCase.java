@@ -15,7 +15,7 @@ package eu.stratosphere.test.localDistributed;
 import java.io.File;
 import java.io.FileWriter;
 import java.net.URL;
-import java.util.LinkedList;
+import java.util.Collections;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -61,7 +61,7 @@ public class PackagedProgramEndToEndITCase {
 			// run WordCount
 
 			lde.start(2);
-			RemoteExecutor ex = new RemoteExecutor("localhost", 6498, new LinkedList<String>());
+			RemoteExecutor ex = new RemoteExecutor("localhost", 6498, Collections.<String>emptyList());
 
 			ex.executeJar(jarPath,
 					"eu.stratosphere.examples.scala.testing.KMeansForTest",

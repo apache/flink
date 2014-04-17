@@ -34,7 +34,7 @@ import eu.stratosphere.pact.runtime.test.util.types.IntPairPairComparator;
 import eu.stratosphere.pact.runtime.test.util.types.IntPairSerializer;
 import eu.stratosphere.util.MutableObjectIterator;
 
-public class HashTablePerformanceComparisonTest {
+public class HashTablePerformanceComparison {
 		
 	private static final int PAGE_SIZE = 16 * 1024;
 	
@@ -83,8 +83,8 @@ public class HashTablePerformanceComparisonTest {
 			
 			System.out.println("Starting first probing run...");
 			start = System.currentTimeMillis();
-			@SuppressWarnings("unchecked")
-			AbstractHashTableProber<IntPair, IntPair> prober = (CompactingHashTable<IntPair>.HashTableProber<IntPair>)table.getProber(comparator, pairComparator);
+			
+			AbstractHashTableProber<IntPair, IntPair> prober = table.getProber(comparator, pairComparator);
 			IntPair temp = new IntPair();
 			while(probeTester.next(target) != null) {
 				assertTrue(prober.getMatchFor(target, temp));

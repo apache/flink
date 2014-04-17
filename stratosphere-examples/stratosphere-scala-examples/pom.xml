@@ -149,7 +149,7 @@
 						</configuration>
 					</execution>
 
-			<!--  Uncomment to rebuild the KMeansForTest jar 
+					<!--  Uncomment to rebuild the KMeansForTest jar
 					<execution>
 						<id>KMeansForTest</id>
 						<phase>package</phase>

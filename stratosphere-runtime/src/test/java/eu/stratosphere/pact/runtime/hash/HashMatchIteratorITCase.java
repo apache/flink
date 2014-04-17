@@ -56,7 +56,7 @@ import eu.stratosphere.types.Value;
 import eu.stratosphere.util.Collector;
 import eu.stratosphere.util.MutableObjectIterator;
 
-
+@SuppressWarnings("serial")
 public class HashMatchIteratorITCase {
 	
 	private static final int MEMORY_SIZE = 16000000;		// total memory
