@@ -34,7 +34,7 @@ public class LocalCollectionOutputFormat<T> implements OutputFormat<T>, InputTyp
 
 	private static final long serialVersionUID = 1L;
 
-	private static Map<Integer,Collection<?>> resultWrapper = new HashMap<Integer, Collection<?>>();   //since generic collection is not allowed to be static
+	private static Map<Integer,Collection<?>> RESULT_HOLDER = new HashMap<Integer, Collection<?>>();
 
 	private transient ArrayList<T> taskResult;
 
@@ -43,21 +43,22 @@ public class LocalCollectionOutputFormat<T> implements OutputFormat<T>, InputTyp
 	private int id;
 
 	public LocalCollectionOutputFormat(Collection<T> out) {
-		this.id = generateRandomId();
-		this.resultWrapper.put(this.id, out);
+		synchronized (RESULT_HOLDER) {
+			this.id = generateRandomId();
+			RESULT_HOLDER.put(this.id, out);
+		}
 	}
 
 	private int generateRandomId() {
 		int num = (int) (Math.random() * Integer.MAX_VALUE);
-		while (this.resultWrapper.containsKey(num)) {
+		while (RESULT_HOLDER.containsKey(num)) {
 			num = (int) (Math.random() * Integer.MAX_VALUE);
 		}
 		return num;
 	}
 
 	@Override
-	public void configure(Configuration parameters) {
-	}
+	public void configure(Configuration parameters) {}
 
 
 	@Override
@@ -75,9 +76,9 @@ public class LocalCollectionOutputFormat<T> implements OutputFormat<T>, InputTyp
 
 	@Override
 	public void close() throws IOException {
-		synchronized (this.resultWrapper) {
+		synchronized (RESULT_HOLDER) {
 			@SuppressWarnings("unchecked")
-			Collection<T> result = (Collection<T>) this.resultWrapper.get(this.id);
+			Collection<T> result = (Collection<T>) RESULT_HOLDER.get(this.id);
 			result.addAll(this.taskResult);
 		}
 	}
@@ -87,5 +88,4 @@ public class LocalCollectionOutputFormat<T> implements OutputFormat<T>, InputTyp
 	public void setInputType(TypeInformation<?> type) {
 		this.typeSerializer = (TypeSerializer<T>)type.createSerializer();
 	}
-
 }

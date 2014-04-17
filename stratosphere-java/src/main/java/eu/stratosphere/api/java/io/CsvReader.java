@@ -29,8 +29,6 @@ import eu.stratosphere.core.fs.Path;
  *
  */
 public class CsvReader {
-	
-	private static final int MAX_FIELDS = Tuple.MAX_ARITY;
 
 	private final Path path;
 	
@@ -39,9 +37,9 @@ public class CsvReader {
 	
 	private boolean[] includedMask;
 	
-	private String lineDelimiter = "\n";
+	private String lineDelimiter = CsvInputFormat.DEFAULT_LINE_DELIMITER;
 	
-	private char fieldDelimiter = ',';
+	private char fieldDelimiter = CsvInputFormat.DEFAULT_FIELD_DELIMITER;
 
 	private boolean skipFirstLineAsHeader = false;
 	
