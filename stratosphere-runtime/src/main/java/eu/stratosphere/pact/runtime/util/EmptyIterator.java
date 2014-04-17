@@ -16,10 +16,8 @@ package eu.stratosphere.pact.runtime.util;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-
 /**
  * An empty iterator that never returns anything.
- *
  */
 public final class EmptyIterator<E> implements Iterator<E> {
 
@@ -69,5 +67,4 @@ public final class EmptyIterator<E> implements Iterator<E> {
 	public void remove() {
 		throw new UnsupportedOperationException();
 	}
-	
 }
