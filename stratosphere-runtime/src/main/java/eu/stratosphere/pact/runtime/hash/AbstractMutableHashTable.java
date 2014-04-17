@@ -71,6 +71,13 @@ public abstract class AbstractMutableHashTable<T> {
 	
 	public abstract MutableObjectIterator<T> getEntryIterator();
 	
-	public abstract AbstractHashTableProber<?, T> getProber(TypeComparator<?> probeSideComparator, TypePairComparator<?, T> pairComparator);
+	/**
+	 * 
+	 * @param probeSideComparator
+	 * @param pairComparator
+	 * @param <PT> The type of the probe side.
+	 * @return
+	 */
+	public abstract <PT> AbstractHashTableProber<PT, T> getProber(TypeComparator<PT> probeSideComparator, TypePairComparator<PT, T> pairComparator);
 
 }

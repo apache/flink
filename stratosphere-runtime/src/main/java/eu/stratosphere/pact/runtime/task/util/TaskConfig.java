@@ -197,16 +197,6 @@ public class TaskConfig {
 	
 	private static final String ITERATION_SOLUTION_SET_COMPARATOR_PARAMETERS = "iterative.ss-comparator.params";
 	
-	private static final String ITERATION_SOLUTION_SET_PROBER_SERIALIZER = "iterative.ss-prober-serializer";
-	
-	private static final String ITERATION_SOLUTION_SET_PROBER_SERIALIZER_PARAMETERS = "iterative.ss-prober-serializer.params";
-	
-	private static final String ITERATION_SOLUTION_SET_PROBER_COMPARATOR = "iterative.ss-prober-comparator";
-	
-	private static final String ITERATION_SOLUTION_SET_PROBER_COMPARATOR_PARAMETERS = "iterative.ss-prober-comparator.params";
-	
-	private static final String ITERATION_SOLUTION_SET_PAIR_COMPARATOR = "iterative.ss-pair-comparator";
-	
 	private static final String ITERATION_SOLUTION_SET_UPDATE = "iterative.ss-update";
 	
 	private static final String ITERATION_SOLUTION_SET_UPDATE_SKIP_REPROBE = "iterative.ss-update-fast";
@@ -873,54 +863,6 @@ public class TaskConfig {
 	public <T> TypeComparatorFactory<T> getSolutionSetComparator(ClassLoader cl) {
 		return getTypeComparatorFactory(ITERATION_SOLUTION_SET_COMPARATOR,
 			ITERATION_SOLUTION_SET_COMPARATOR_PARAMETERS, cl);
-	}
-	
-	public void setSolutionSetProberSerializer(TypeSerializerFactory<?> factory) {
-		setTypeSerializerFactory(factory, ITERATION_SOLUTION_SET_PROBER_SERIALIZER,
-			ITERATION_SOLUTION_SET_PROBER_SERIALIZER_PARAMETERS);
-	}
-	
-	public <T> TypeSerializerFactory<T> getSolutionSetProberSerializer(ClassLoader cl) {
-		return getTypeSerializerFactory(ITERATION_SOLUTION_SET_PROBER_SERIALIZER,
-			ITERATION_SOLUTION_SET_PROBER_SERIALIZER_PARAMETERS, cl);
-	}
-	
-	public void setSolutionSetProberComparator(TypeComparatorFactory<?> factory) {
-		setTypeComparatorFactory(factory, ITERATION_SOLUTION_SET_PROBER_COMPARATOR,
-			ITERATION_SOLUTION_SET_PROBER_COMPARATOR_PARAMETERS);
-	}
-	
-	public <T> TypeComparatorFactory<T> getSolutionSetProberComparator(ClassLoader cl) {
-		return getTypeComparatorFactory(ITERATION_SOLUTION_SET_PROBER_COMPARATOR,
-			ITERATION_SOLUTION_SET_PROBER_COMPARATOR_PARAMETERS, cl);
-	}
-	
-	public void setSolutionSetPairComparator(TypePairComparatorFactory<?, ?> factory) {
-		final Class<?> clazz = factory.getClass();
-		InstantiationUtil.checkForInstantiation(clazz);
-		this.config.setString(ITERATION_SOLUTION_SET_PAIR_COMPARATOR, clazz.getName());
-	}
-			
-	public <T1, T2> TypePairComparatorFactory<T1, T2> getSolutionSetPairComparatorFactory(ClassLoader cl) {
-		final String className = this.config.getString(ITERATION_SOLUTION_SET_PAIR_COMPARATOR, null);
-		if (className == null) {
-			return null;
-		}
-		
-		@SuppressWarnings("unchecked")
-		final Class<TypePairComparatorFactory<T1, T2>> superClass = (Class<TypePairComparatorFactory<T1, T2>>) (Class<?>) TypePairComparatorFactory.class;
-		try {
-			final Class<? extends TypePairComparatorFactory<T1, T2>> clazz = Class.forName(className, true, cl).asSubclass(superClass);
-			return InstantiationUtil.instantiate(clazz, superClass);
-		}
-		catch (ClassNotFoundException cnfex) {
-			throw new RuntimeException("The class '" + className + "', noted in the configuration as " +
-				"pair comparator factory, could not be found. It is not part of the user code's class loader resources.");
-		}
-		catch (ClassCastException ccex) {
-			throw new CorruptConfigurationException("The class noted in the configuration as the pair comparator factory " +
-				"is no subclass of TypePairComparatorFactory.");
-		}
 	}
 
 	public void addIterationAggregator(String name, Class<? extends Aggregator<?>> aggregator) {

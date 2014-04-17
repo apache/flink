@@ -25,7 +25,6 @@ import java.util.NoSuchElementException;
 import eu.stratosphere.api.common.operators.util.FieldList;
 import eu.stratosphere.api.common.typeutils.TypeComparatorFactory;
 import eu.stratosphere.api.common.typeutils.TypePairComparatorFactory;
-import eu.stratosphere.compiler.costs.Costs;
 import eu.stratosphere.compiler.dag.OptimizerNode;
 import eu.stratosphere.compiler.dag.TwoInputNode;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;

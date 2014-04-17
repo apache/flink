@@ -287,8 +287,8 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 				numWriteBuffers = MIN_NUM_WRITE_BUFFERS;
 				if (minBuffers > numPagesTotal) {
 					maxNumFileHandles = numPagesTotal - MIN_NUM_WRITE_BUFFERS;
-					if (LOG.isWarnEnabled()) {
-						LOG.warn("Reducing maximal merge fan-in to " + maxNumFileHandles + " due to limited memory availability during merge");
+					if (LOG.isDebugEnabled()) {
+						LOG.debug("Reducing maximal merge fan-in to " + maxNumFileHandles + " due to limited memory availability during merge");
 					}
 				}
 			}

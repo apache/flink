@@ -369,9 +369,9 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T>{
 	}
 	
 	
-	@SuppressWarnings({ "unchecked", "rawtypes" })
-	public HashTableProber<?> getProber(TypeComparator<?> probeSideComparator, TypePairComparator<?, T> pairComparator) {
-		return new HashTableProber(probeSideComparator, pairComparator);
+	@Override
+	public <PT> HashTableProber<PT> getProber(TypeComparator<PT> probeSideComparator, TypePairComparator<PT, T> pairComparator) {
+		return new HashTableProber<PT>(probeSideComparator, pairComparator);
 	}
 	
 	/**
@@ -874,6 +874,7 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T>{
 	 * @param partition partition number
 	 * @throws IOException 
 	 */
+	@SuppressWarnings("unused")
 	private void fastCompactPartition(int partitionNumber) throws IOException {
 		// stop if no garbage exists
 		if(this.partitions.get(partitionNumber).isCompacted()) {
