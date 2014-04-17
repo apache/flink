@@ -18,20 +18,15 @@ import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.core.memory.DataInputView;
 import eu.stratosphere.core.memory.DataOutputView;
 
-
-/**
- *
- */
 public final class VertexWithRankSerializer extends TypeSerializer<VertexWithRank> {
 
+	private static final long serialVersionUID = 1L;
+	
 	@Override
 	public VertexWithRank createInstance() {
 		return new VertexWithRank();
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.generic.types.TypeSerializer#copy(java.lang.Object, java.lang.Object)
-	 */
 	@Override
 	public VertexWithRank copy(VertexWithRank from, VertexWithRank reuse) {
 		reuse.setVertexID(from.getVertexID());

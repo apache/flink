@@ -18,12 +18,10 @@ import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.core.memory.DataInputView;
 import eu.stratosphere.core.memory.DataOutputView;
 
-
-/**
- *
- */
 public final class VertexWithAdjacencyListSerializer extends TypeSerializer<VertexWithAdjacencyList> {
 
+	private static final long serialVersionUID = 1L;
+	
 	@Override
 	public VertexWithAdjacencyList createInstance() {
 		return new VertexWithAdjacencyList();
@@ -78,9 +76,6 @@ public final class VertexWithAdjacencyListSerializer extends TypeSerializer<Vert
 		return target;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.generic.types.TypeSerializer#copy(eu.stratosphere.nephele.services.memorymanager.DataInputView, eu.stratosphere.nephele.services.memorymanager.DataOutputView)
-	 */
 	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
 		target.write(source, 8);

@@ -19,11 +19,10 @@ import eu.stratosphere.core.memory.DataInputView;
 import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.core.memory.MemorySegment;
 
-/**
- *
- */
 public final class VertexWithRankAndDanglingComparator extends TypeComparator<VertexWithRankAndDangling> {
 
+	private static final long serialVersionUID = 1L;
+	
 	private long reference;
 	
 	@Override
