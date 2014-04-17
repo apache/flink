@@ -22,7 +22,7 @@ package eu.stratosphere.examples.scala.testing
 //import eu.stratosphere.api.scala.operators._
 //
 //
-//class KMeansForTest extends Program with ProgramDescription with Serializable {
+//class KMeansForTest extends Program with ProgramDescription {
 //
 //  override def getPlan(args: String*) = {
 //    getScalaPlan(args(0).toInt, args(1), args(2), args(3), args(4).toInt)
