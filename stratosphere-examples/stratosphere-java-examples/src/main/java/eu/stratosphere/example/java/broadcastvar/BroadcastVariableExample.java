@@ -38,7 +38,7 @@ public class BroadcastVariableExample {
 			// as a Collection<T> over the broadcasted data set (where T is the type of the broadcasted DataSet<T>).
 			Collection<String> broadcastedData = getRuntimeContext().getBroadcastVariable("toUppercase");
 
-			this.toUppercase = new HashSet(broadcastedData);
+			this.toUppercase = new HashSet<String>(broadcastedData);
 		}
 
 		@Override

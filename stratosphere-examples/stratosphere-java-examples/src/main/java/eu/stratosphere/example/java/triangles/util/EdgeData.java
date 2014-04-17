@@ -14,41 +14,24 @@
  **********************************************************************************************************************/
 package eu.stratosphere.example.java.triangles.util;
 
-import java.util.HashSet;
-import java.util.Set;
-
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.ExecutionEnvironment;
-import eu.stratosphere.api.java.typeutils.BasicTypeInfo;
-import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
 import eu.stratosphere.example.java.triangles.util.EdgeDataTypes.Edge;
 
 public class EdgeData {
 
 	public static DataSet<Edge> getDefaultEdgeDataSet(ExecutionEnvironment env) {
 		
-		Set<Edge> edgeData = new HashSet<Edge>();
-		
-		edgeData.add(new Edge(1, 2));
-		edgeData.add(new Edge(1, 3));
-		edgeData.add(new Edge(1, 4));
-		edgeData.add(new Edge(1, 5));
-		edgeData.add(new Edge(2, 3));
-		edgeData.add(new Edge(2, 5));
-		edgeData.add(new Edge(3, 4));
-		edgeData.add(new Edge(3, 7));
-		edgeData.add(new Edge(3, 8));
-		edgeData.add(new Edge(5, 6));
-		edgeData.add(new Edge(7, 8));
-				
-		TupleTypeInfo<Edge> edgeType = 
-				new TupleTypeInfo<Edge>(
-						Edge.class,
-						BasicTypeInfo.INT_TYPE_INFO,
-						BasicTypeInfo.INT_TYPE_INFO);
-		
-		return env.fromCollection(edgeData, edgeType);
-		
+		return env.fromElements(new Edge(1, 2),
+		                        new Edge(1, 3),
+		                        new Edge(1, 4),
+		                        new Edge(1, 5),
+		                        new Edge(2, 3),
+		                        new Edge(2, 5),
+		                        new Edge(3, 4),
+		                        new Edge(3, 7),
+		                        new Edge(3, 8),
+		                        new Edge(5, 6),
+		                        new Edge(7, 8));
 	}
-	
 }
