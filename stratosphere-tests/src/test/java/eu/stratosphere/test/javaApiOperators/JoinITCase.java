@@ -30,6 +30,7 @@ import eu.stratosphere.api.java.functions.KeySelector;
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.api.java.tuple.Tuple3;
 import eu.stratosphere.api.java.tuple.Tuple5;
+import eu.stratosphere.api.java.tuple.Tuple6;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.test.javaApiOperators.util.CollectionDataSets;
 import eu.stratosphere.test.javaApiOperators.util.CollectionDataSets.CustomType;
@@ -39,7 +40,7 @@ import eu.stratosphere.test.util.JavaProgramTestBase;
 @RunWith(Parameterized.class)
 public class JoinITCase extends JavaProgramTestBase {
 	
-	private static int NUM_PROGRAMS = 9;
+	private static int NUM_PROGRAMS = 11;
 	
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -316,9 +317,67 @@ public class JoinITCase extends JavaProgramTestBase {
 					"Hello,Hello\n" +
 					"Hello world,Hello\n";
 			
-		}
+			}
+			case 10: {
+				
+				/*
+				 * Project join on a tuple input 1
+				 */
+				
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				
+				DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.getSmall3TupleDataSet(env);
+				DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.get5TupleDataSet(env);
+				DataSet<Tuple6<String, Long, String, Integer, Long, Long>> joinDs = 
+						ds1.join(ds2)
+						   .where(1)
+						   .equalTo(1)
+						   .projectFirst(2,1)
+						   .projectSecond(3)
+						   .projectFirst(0)
+						   .projectSecond(4,1)
+						   .types(String.class, Long.class, String.class, Integer.class, Long.class, Long.class);
+				
+				joinDs.writeAsCsv(resultPath);
+				env.execute();
+				
+				// return expected result
+				return "Hi,1,Hallo,1,1,1\n" +
+						"Hello,2,Hallo Welt,2,2,2\n" +
+						"Hello world,2,Hallo Welt,3,2,2\n";
+				
+			}
+			case 11: {
+				
+				/*
+				 * Project join on a tuple input 2
+				 */
+				
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				
+				DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.getSmall3TupleDataSet(env);
+				DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.get5TupleDataSet(env);
+				DataSet<Tuple6<String, String, Long, Long, Long, Integer>> joinDs = 
+						ds1.join(ds2)
+						   .where(1)
+						   .equalTo(1)
+						   .projectSecond(3)
+						   .projectFirst(2,1)
+						   .projectSecond(4,1)
+						   .projectFirst(0)
+						   .types(String.class, String.class, Long.class, Long.class, Long.class, Integer.class);
+				
+				joinDs.writeAsCsv(resultPath);
+				env.execute();
+				
+				// return expected result
+				return "Hallo,Hi,1,1,1,1\n" +
+						"Hallo Welt,Hello,2,2,2,2\n" +
+						"Hallo Welt,Hello world,2,2,2,3\n";
+			}
+				
 			// TODO: Activate once Avro Serializer supports copy()
-//			case 10: {
+//			case 12: {
 //				
 //				/*
 //				 * Join on a tuple input with key field selector and a custom type input with key extractor
@@ -348,7 +407,7 @@ public class JoinITCase extends JavaProgramTestBase {
 //						
 //			}
 			// TODO: Activate once Avro Serializer supports copy()
-//			case 11: {
+//			case 13: {
 //				
 //				/*
 //				 * (Default) Join on two custom type inputs with key extractors
