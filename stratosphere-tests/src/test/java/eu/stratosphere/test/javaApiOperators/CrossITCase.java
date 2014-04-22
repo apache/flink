@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.LinkedList;
 
+import eu.stratosphere.api.java.tuple.Tuple6;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
@@ -37,7 +38,7 @@ import eu.stratosphere.test.util.JavaProgramTestBase;
 @RunWith(Parameterized.class)
 public class CrossITCase extends JavaProgramTestBase {
 	
-	private static int NUM_PROGRAMS = 6;
+	private static int NUM_PROGRAMS = 8;
 	
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -243,6 +244,70 @@ public class CrossITCase extends JavaProgramTestBase {
 						"4,Hallo Welt wieHallo Welt wie\n";
 				
 			}
+			case 7: {
+
+			/*
+			 * project cross on a tuple input 1
+			 */
+
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.getSmall3TupleDataSet(env);
+				DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.getSmall5TupleDataSet(env);
+				DataSet<Tuple6<String, Long, String, Integer, Long, Long>> coGroupDs = ds.cross(ds2)
+					.projectFirst(2, 1)
+					.projectSecond(3)
+					.projectFirst(0)
+					.projectSecond(4,1)
+					.types(String.class, Long.class, String.class, Integer.class, Long.class, Long.class);
+
+				coGroupDs.writeAsCsv(resultPath);
+				env.execute();
+
+				// return expected result
+				return "Hi,1,Hallo,1,1,1\n" +
+					"Hi,1,Hallo Welt,1,2,2\n" +
+					"Hi,1,Hallo Welt wie,1,1,3\n" +
+					"Hello,2,Hallo,2,1,1\n" +
+					"Hello,2,Hallo Welt,2,2,2\n" +
+					"Hello,2,Hallo Welt wie,2,1,3\n" +
+					"Hello world,2,Hallo,3,1,1\n" +
+					"Hello world,2,Hallo Welt,3,2,2\n" +
+					"Hello world,2,Hallo Welt wie,3,1,3\n";
+
+			}
+			case 8: {
+
+			/*
+			 * project cross on a tuple input 2
+			 */
+
+					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+					DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.getSmall3TupleDataSet(env);
+					DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.getSmall5TupleDataSet(env);
+					DataSet<Tuple6<String, String, Long, Long, Long,Integer>> coGroupDs = ds.cross(ds2)
+						.projectSecond(3)
+						.projectFirst(2, 1)
+						.projectSecond(4,1)
+						.projectFirst(0)
+						.types(String.class, String.class, Long.class, Long.class, Long.class, Integer.class);
+
+					coGroupDs.writeAsCsv(resultPath);
+					env.execute();
+
+					// return expected result
+					return "Hallo,Hi,1,1,1,1\n" +
+						"Hallo Welt,Hi,1,2,2,1\n" +
+						"Hallo Welt wie,Hi,1,1,3,1\n" +
+						"Hallo,Hello,2,1,1,2\n" +
+						"Hallo Welt,Hello,2,2,2,2\n" +
+						"Hallo Welt wie,Hello,2,1,3,2\n" +
+						"Hallo,Hello world,2,1,1,3\n" +
+						"Hallo Welt,Hello world,2,2,2,3\n" +
+						"Hallo Welt wie,Hello world,2,1,3,3\n";
+
+				}
 			// TODO Currently not working because AvroSerializer does not implement copy()
 //			case 7: {
 //				
