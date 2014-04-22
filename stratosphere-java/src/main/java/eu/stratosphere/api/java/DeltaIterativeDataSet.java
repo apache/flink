@@ -14,9 +14,9 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java;
 
+import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.java.operators.Keys;
 import eu.stratosphere.api.java.operators.TwoInputOperator;
-import eu.stratosphere.api.java.operators.translation.BinaryNodeTranslation;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
 
 /**
@@ -77,7 +77,7 @@ public class DeltaIterativeDataSet<ST, WT> extends TwoInputOperator<ST, WT, ST, 
 	// --------------------------------------------------------------------------------------------
 	
 	@Override
-	protected BinaryNodeTranslation translateToDataFlow() {
+	protected Operator translateToDataFlow(Operator input1, Operator input2) {
 		// All the translation magic happens when the iteration end is encountered.
 		throw new UnsupportedOperationException("This should never happen.");
 	}

@@ -16,9 +16,9 @@ package eu.stratosphere.api.java.operators;
 
 import java.util.Arrays;
 
+import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.operators.translation.PlanProjectOperator;
-import eu.stratosphere.api.java.operators.translation.UnaryNodeTranslation;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.api.java.tuple.Tuple10;
@@ -62,9 +62,15 @@ public class ProjectOperator<IN, OUT extends Tuple>
 	}
 
 	@Override
-	protected UnaryNodeTranslation translateToDataFlow() {
+	protected Operator translateToDataFlow(Operator input) {
+		
 		String name = getName() != null ? getName() : "Projection "+Arrays.toString(fields);
-		return new UnaryNodeTranslation(new PlanProjectOperator<IN, OUT>(fields, name, getInputType(), getResultType()));
+		// create operator
+		PlanProjectOperator<IN, OUT> ppo = new PlanProjectOperator<IN, OUT>(fields, name, getInputType(), getResultType());
+		// set input
+		ppo.setInput(input);
+		
+		return ppo;
 	}
 
 	

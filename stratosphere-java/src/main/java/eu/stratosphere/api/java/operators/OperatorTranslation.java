@@ -20,21 +20,19 @@ import java.util.List;
 import java.util.Map;
 
 import eu.stratosphere.api.common.operators.AbstractUdfOperator;
+import eu.stratosphere.api.common.operators.BulkIteration;
 import eu.stratosphere.api.common.operators.DeltaIteration;
 import eu.stratosphere.api.common.operators.GenericDataSink;
 import eu.stratosphere.api.common.operators.GenericDataSource;
 import eu.stratosphere.api.common.operators.Operator;
-import eu.stratosphere.api.common.operators.BulkIteration;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.DeltaIterativeDataSet;
 import eu.stratosphere.api.java.DeltaIterativeResultDataSet;
 import eu.stratosphere.api.java.IterativeDataSet;
 import eu.stratosphere.api.java.IterativeResultDataSet;
-import eu.stratosphere.api.java.operators.translation.BinaryNodeTranslation;
 import eu.stratosphere.api.java.operators.translation.JavaPlan;
 import eu.stratosphere.api.java.operators.translation.PlanBulkIterationOperator;
 import eu.stratosphere.api.java.operators.translation.PlanDeltaIterationOperator;
-import eu.stratosphere.api.java.operators.translation.UnaryNodeTranslation;
 
 
 /**
@@ -109,30 +107,23 @@ public class OperatorTranslation {
 		return source.translateToDataFlow();
 	}
 	
-	private eu.stratosphere.api.common.operators.SingleInputOperator<?> translateSingleOp(SingleInputOperator<?, ?, ?> op) {
-		// translate the operation itself
-		UnaryNodeTranslation translated = op.translateToDataFlow();
-
+	private Operator translateSingleOp(SingleInputOperator<?, ?, ?> op) {
+		
 		// translate and connect the input
 		Operator input = translate(op.getInput());
-		translated.setInput(input);
 		
-		return translated.getOutputOperator();
+		// translate the operation itself
+		return op.translateToDataFlow(input);
 	}
 	
-	private eu.stratosphere.api.common.operators.DualInputOperator<?> translateBinaryOp(TwoInputOperator<?, ?, ?, ?> op) {
-		// translate the operation itself
-		BinaryNodeTranslation translated = op.translateToDataFlow();
+	private Operator translateBinaryOp(TwoInputOperator<?, ?, ?, ?> op) {
 		
 		// translate its inputs
 		Operator input1 = translate(op.getInput1());
 		Operator input2 = translate(op.getInput2());
 		
-		// connect the inputs
-		translated.setInput1(input1);
-		translated.setInput2(input2);
-		
-		return translated.getOutputOperator();
+		// translate the operation itself
+		return op.translateToDataFlow(input1, input2);
 	}
 
 	private BulkIteration translateBulkIteration(IterativeResultDataSet<?> iterationEnd) {

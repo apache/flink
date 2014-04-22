@@ -24,7 +24,6 @@ import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.functions.CoGroupFunction;
 import eu.stratosphere.api.java.operators.CustomUnaryOperation;
 import eu.stratosphere.api.java.operators.TwoInputOperator;
-import eu.stratosphere.api.java.operators.translation.BinaryNodeTranslation;
 import eu.stratosphere.api.java.operators.translation.PlanCogroupOperator;
 import eu.stratosphere.api.java.operators.translation.PlanDeltaIterationOperator;
 import eu.stratosphere.api.java.tuple.Tuple;
@@ -456,7 +455,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 		}
 
 		@Override
-		protected BinaryNodeTranslation translateToDataFlow() {
+		protected Operator translateToDataFlow(Operator input1, Operator input2) {
 			
 			final String name = (getName() != null) ? getName() :
 					"Vertex-centric iteration (" + updateFunction + " | " + messagingFunction + ")";
@@ -489,21 +488,13 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 			iteration.setSolutionSetDelta(updater);
 			iteration.setNextWorkset(updater);
 			
-			// return a translation node that will assign the first input to the iteration (both initial solution set and workset)
-			// and that assigns the second input to the messenger function (as the edge input)
-			return new BinaryNodeTranslation(iteration) {
-				
-				@Override
-				public void setInput1(Operator op) {
-					iteration.setFirstInput(op);
-					iteration.setSecondInput(op);
-				}
-				
-				@Override
-				public void setInput2(Operator op) {
-					messenger.setFirstInput(op);
-				}
-			};
+			// set inputs
+			iteration.setFirstInput(input1);
+			iteration.setSecondInput(input1);
+			messenger.setFirstInput(input2);
+			
+			return iteration;
+			
 		}
 	}
 }

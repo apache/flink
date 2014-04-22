@@ -17,10 +17,10 @@ package eu.stratosphere.api.java.operators;
 import java.security.InvalidParameterException;
 
 import eu.stratosphere.api.common.InvalidProgramException;
+import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.functions.JoinFunction;
 import eu.stratosphere.api.java.functions.KeySelector;
-import eu.stratosphere.api.java.operators.translation.BinaryNodeTranslation;
 import eu.stratosphere.api.java.operators.translation.KeyExtractingMapper;
 import eu.stratosphere.api.java.operators.translation.PlanJoinOperator;
 import eu.stratosphere.api.java.operators.translation.PlanMapOperator;
@@ -122,7 +122,9 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		
 		private final JoinFunction<I1, I2, OUT> function;
 		
+		@SuppressWarnings("unused")
 		private boolean preserve1;
+		@SuppressWarnings("unused")
 		private boolean preserve2;
 		
 		protected EquiJoin(DataSet<I1> input1, DataSet<I2> input2, 
@@ -155,8 +157,8 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		}
 		
 		@Override
-		protected BinaryNodeTranslation translateToDataFlow() {
-
+		protected Operator translateToDataFlow(Operator input1, Operator input2) {
+			
 			String name = getName() != null ? getName() : function.getClass().getName();
 			
 			if (super.keys1 instanceof Keys.SelectorFunctionKeys 
@@ -168,8 +170,11 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 				@SuppressWarnings("unchecked")
 				Keys.SelectorFunctionKeys<I2, ?> selectorKeys2 = (Keys.SelectorFunctionKeys<I2, ?>) super.keys2;
 				
-				return translateSelectorFunctionJoin(selectorKeys1, selectorKeys2, function, 
-						getInput1Type(), getInput2Type(), getResultType(), name);
+				PlanUnwrappingJoinOperator<I1, I2, OUT, ?> po = 
+						translateSelectorFunctionJoin(selectorKeys1, selectorKeys2, function, 
+						getInput1Type(), getInput2Type(), getResultType(), name, input1, input2);
+				
+				return po;
 				
 			}
 			else if (super.keys1 instanceof Keys.FieldPositionKeys 
@@ -180,9 +185,15 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 				int[] logicalKeyPositions1 = super.keys1.computeLogicalKeyPositions();
 				int[] logicalKeyPositions2 = super.keys2.computeLogicalKeyPositions();
 				
-				return new BinaryNodeTranslation(
+				PlanJoinOperator<I1, I2, OUT> po =
 						new PlanJoinOperator<I1, I2, OUT>(function, logicalKeyPositions1, logicalKeyPositions2, 
-								name, getInput1Type(), getInput2Type(), getResultType()));
+								name, getInput1Type(), getInput2Type(), getResultType());
+				
+				// set inputs
+				po.setFirstInput(input1);
+				po.setSecondInput(input2);
+				
+				return po;
 			}
 			else if (super.keys1 instanceof Keys.FieldPositionKeys 
 					&& super.keys2 instanceof Keys.SelectorFunctionKeys
@@ -194,8 +205,14 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 				@SuppressWarnings("unchecked")
 				Keys.SelectorFunctionKeys<I2, ?> selectorKeys2 = (Keys.SelectorFunctionKeys<I2, ?>) super.keys2;
 				
-				return translateSelectorFunctionJoinRight(logicalKeyPositions1, selectorKeys2, function, 
-						getInput1Type(), getInput2Type(), getResultType(), name);
+				PlanUnwrappingJoinOperator<I1, I2, OUT, ?> po = 
+						translateSelectorFunctionJoinRight(logicalKeyPositions1, selectorKeys2, function, 
+						getInput1Type(), getInput2Type(), getResultType(), name, input1, input2);
+				
+				// set dop
+				po.setDegreeOfParallelism(this.getParallelism());
+				
+				return po;
 			}
 			else if (super.keys1 instanceof Keys.SelectorFunctionKeys
 					&& super.keys2 instanceof Keys.FieldPositionKeys 
@@ -207,18 +224,26 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 				
 				int[] logicalKeyPositions2 = super.keys2.computeLogicalKeyPositions();
 				
-				return translateSelectorFunctionJoinLeft(selectorKeys1, logicalKeyPositions2, function, 
-						getInput1Type(), getInput2Type(), getResultType(), name);
+				PlanUnwrappingJoinOperator<I1, I2, OUT, ?> po =
+						translateSelectorFunctionJoinLeft(selectorKeys1, logicalKeyPositions2, function, 
+						getInput1Type(), getInput2Type(), getResultType(), name, input1, input2);
+				
+				// set dop
+				po.setDegreeOfParallelism(this.getParallelism());
+				
+				return po;
 			}
 			else {
 				throw new UnsupportedOperationException("Unrecognized or incompatible key types.");
 			}
+			
 		}
 		
-		private static <I1, I2, K, OUT> BinaryNodeTranslation translateSelectorFunctionJoin(
+		private static <I1, I2, K, OUT> PlanUnwrappingJoinOperator<I1, I2, OUT, K> translateSelectorFunctionJoin(
 				Keys.SelectorFunctionKeys<I1, ?> rawKeys1, Keys.SelectorFunctionKeys<I2, ?> rawKeys2, 
 				JoinFunction<I1, I2, OUT> function, 
-				TypeInformation<I1> inputType1, TypeInformation<I2> inputType2, TypeInformation<OUT> outputType, String name)
+				TypeInformation<I1> inputType1, TypeInformation<I2> inputType2, TypeInformation<OUT> outputType, String name,
+				Operator input1, Operator input2)
 		{
 			@SuppressWarnings("unchecked")
 			final Keys.SelectorFunctionKeys<I1, K> keys1 = (Keys.SelectorFunctionKeys<I1, K>) rawKeys1;
@@ -238,13 +263,17 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			join.addFirstInput(keyMapper1);
 			join.addSecondInput(keyMapper2);
 			
-			return new BinaryNodeTranslation(keyMapper1, keyMapper2, join);
+			keyMapper1.setInput(input1);
+			keyMapper2.setInput(input2);
+			
+			return join;
 		}
 		
-		private static <I1, I2, K, OUT> BinaryNodeTranslation translateSelectorFunctionJoinRight(
+		private static <I1, I2, K, OUT> PlanUnwrappingJoinOperator<I1, I2, OUT, K> translateSelectorFunctionJoinRight(
 				int[] logicalKeyPositions1, Keys.SelectorFunctionKeys<I2, ?> rawKeys2, 
 				JoinFunction<I1, I2, OUT> function, 
-				TypeInformation<I1> inputType1, TypeInformation<I2> inputType2, TypeInformation<OUT> outputType, String name)
+				TypeInformation<I1> inputType1, TypeInformation<I2> inputType2, TypeInformation<OUT> outputType, String name,
+				Operator input1, Operator input2)
 		{
 			if(!inputType1.isTupleType())
 				throw new InvalidParameterException("Should not happen.");
@@ -266,13 +295,20 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			join.addFirstInput(keyMapper1);
 			join.addSecondInput(keyMapper2);
 			
-			return new BinaryNodeTranslation(keyMapper1, keyMapper2, join);
+			keyMapper1.setInput(input1);
+			keyMapper2.setInput(input2);
+			// set dop
+			keyMapper1.setDegreeOfParallelism(input1.getDegreeOfParallelism());
+			keyMapper2.setDegreeOfParallelism(input2.getDegreeOfParallelism());
+			
+			return join;
 		}
 		
-		private static <I1, I2, K, OUT> BinaryNodeTranslation translateSelectorFunctionJoinLeft(
+		private static <I1, I2, K, OUT> PlanUnwrappingJoinOperator<I1, I2, OUT, K> translateSelectorFunctionJoinLeft(
 				Keys.SelectorFunctionKeys<I1, ?> rawKeys1, int[] logicalKeyPositions2,
 				JoinFunction<I1, I2, OUT> function, 
-				TypeInformation<I1> inputType1, TypeInformation<I2> inputType2, TypeInformation<OUT> outputType, String name)
+				TypeInformation<I1> inputType1, TypeInformation<I2> inputType2, TypeInformation<OUT> outputType, String name,
+				Operator input1, Operator input2)
 		{
 			if(!inputType2.isTupleType())
 				throw new InvalidParameterException("Should not happen.");
@@ -294,7 +330,13 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			join.addFirstInput(keyMapper1);
 			join.addSecondInput(keyMapper2);
 			
-			return new BinaryNodeTranslation(keyMapper1, keyMapper2, join);
+			keyMapper1.setInput(input1);
+			keyMapper2.setInput(input2);
+			// set dop
+			keyMapper1.setDegreeOfParallelism(input1.getDegreeOfParallelism());
+			keyMapper2.setDegreeOfParallelism(input2.getDegreeOfParallelism());
+			
+			return join;
 		}
 	}
 	
@@ -332,8 +374,6 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 	}
 	
 
-	
-
 	private static final class LeftAntiJoin<I1, I2> extends JoinOperator<I1, I2, I1> {
 		
 		protected LeftAntiJoin(DataSet<I1> input1, DataSet<I2> input2, Keys<I1> keys1, Keys<I2> keys2, JoinHint hint) {
@@ -341,7 +381,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		}
 		
 		@Override
-		protected BinaryNodeTranslation translateToDataFlow() {
+		protected Operator translateToDataFlow(Operator input1, Operator input2) {
 			throw new UnsupportedOperationException("LeftAntiJoin operator currently not supported.");
 		}
 	}
@@ -353,7 +393,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		}
 		
 		@Override
-		protected BinaryNodeTranslation translateToDataFlow() {
+		protected Operator translateToDataFlow(Operator input1, Operator input2) {
 			throw new UnsupportedOperationException("RightAntiJoin operator currently not supported.");
 		}
 	}
@@ -365,7 +405,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		}
 		
 		@Override
-		protected BinaryNodeTranslation translateToDataFlow() {
+		protected Operator translateToDataFlow(Operator input1, Operator input2) {
 			// TODO: Runtime support required. Each left tuple may be returned only once.
 			// 	     Special exec strategy (runtime + optimizer) based on hash join required. 
 			// 		 Either no duplicates of right side in HT or left tuples removed from HT after first match.
@@ -380,7 +420,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		}
 		
 		@Override
-		protected BinaryNodeTranslation translateToDataFlow() {
+		protected Operator translateToDataFlow(Operator input1, Operator input2) {
 			// TODO: Runtime support required. Each right tuple may be returned only once.
 			// 	     Special exec strategy (runtime + optimizer) based on hash join required. 
 			// 		 Either no duplicates of left side in HT or right tuples removed from HT after first match.

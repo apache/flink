@@ -15,7 +15,6 @@
 package eu.stratosphere.api.java.operators;
 
 import eu.stratosphere.api.java.DataSet;
-import eu.stratosphere.api.java.operators.translation.UnaryNodeTranslation;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
 
 /**
@@ -41,6 +40,7 @@ public abstract class SingleInputOperator<IN, OUT, O extends SingleInputOperator
 		return this.input.getType();
 	}
 	
+	protected abstract eu.stratosphere.api.common.operators.Operator translateToDataFlow(
+			eu.stratosphere.api.common.operators.Operator input);
 	
-	protected abstract UnaryNodeTranslation translateToDataFlow();
 }

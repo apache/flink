@@ -14,10 +14,10 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.operators;
 
+import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.functions.FlatMapFunction;
 import eu.stratosphere.api.java.operators.translation.PlanFlatMapOperator;
-import eu.stratosphere.api.java.operators.translation.UnaryNodeTranslation;
 import eu.stratosphere.api.java.typeutils.TypeExtractor;
 
 /**
@@ -40,8 +40,14 @@ public class FlatMapOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT, Fl
 	}
 
 	@Override
-	protected UnaryNodeTranslation translateToDataFlow() {
+	protected Operator translateToDataFlow(Operator input) {
+		
 		String name = getName() != null ? getName() : function.getClass().getName();
-		return new UnaryNodeTranslation(new PlanFlatMapOperator<IN, OUT>(function, name, getInputType(), getResultType()));
+		// create operator
+		PlanFlatMapOperator<IN, OUT> pfmo = new PlanFlatMapOperator<IN, OUT>(function, name, getInputType(), getResultType());
+		// set input
+		pfmo.setInput(input);
+		
+		return pfmo;
 	}
 }

@@ -14,10 +14,10 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.operators;
 
+import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.functions.FilterFunction;
 import eu.stratosphere.api.java.operators.translation.PlanFilterOperator;
-import eu.stratosphere.api.java.operators.translation.UnaryNodeTranslation;
 
 /**
  *
@@ -37,10 +37,15 @@ public class FilterOperator<IN> extends SingleInputUdfOperator<IN, IN, FilterOpe
 		this.function = function;
 	}
 
-
 	@Override
-	protected UnaryNodeTranslation translateToDataFlow() {
+	protected Operator translateToDataFlow(Operator input) {
+		
 		String name = getName() != null ? getName() : function.getClass().getName();
-		return new UnaryNodeTranslation(new PlanFilterOperator<IN>(function, name, getInputType()));
+		// create operator
+		PlanFilterOperator<IN> pfo = new PlanFilterOperator<IN>(function, name, getInputType());
+		// set input
+		pfo.setInput(input);
+		
+		return pfo;
 	}
 }
