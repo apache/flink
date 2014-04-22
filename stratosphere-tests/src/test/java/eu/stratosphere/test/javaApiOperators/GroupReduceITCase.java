@@ -41,7 +41,7 @@ import eu.stratosphere.util.Collector;
 @RunWith(Parameterized.class)
 public class GroupReduceITCase extends JavaProgramTestBase {
 	
-	private static int NUM_PROGRAMS = 9;
+	private static int NUM_PROGRAMS = 11;
 	
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -299,7 +299,77 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 						"13,2,Hi!\n" +
 						"23,2,Hi again!\n";
 			}
-			
+			case 10: {
+				
+				/*
+				 * check correctness of groupReduce on custom type with key extractor and combine
+				 */
+				
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				
+				DataSet<CustomType> ds = CollectionDataSets.getCustomTypeDataSet(env);
+				DataSet<CustomType> reduceDs = ds.
+						groupBy(new KeySelector<CustomType, Integer>() {
+									private static final long serialVersionUID = 1L;
+									@Override
+									public Integer getKey(CustomType in) {
+										return in.myInt;
+									}
+								}).reduceGroup(new CustomTypeGroupReduceWithCombine());
+				
+				reduceDs.writeAsText(resultPath);
+				env.execute();
+				
+				// return expected result
+				return "1,0,test1\n" +
+						"2,3,test2\n" +
+						"3,12,test3\n" +
+						"4,30,test4\n" +
+						"5,60,test5\n" +
+						"6,105,test6\n";
+			}
+			case 11: {
+				
+				/*
+				 * check correctness of groupReduce on tuples with combine
+				 */
+				
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				env.setDegreeOfParallelism(2); // important because it determines how often the combiner is called
+				
+				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+				DataSet<Tuple2<Integer, String>> reduceDs = ds.
+						groupBy(1).reduceGroup(new Tuple3GroupReduceWithCombine());
+				
+				reduceDs.writeAsCsv(resultPath);
+				env.execute();
+				
+				// return expected result
+				return "1,test1\n" +
+						"5,test2\n" +
+						"15,test3\n" +
+						"34,test4\n" +
+						"65,test5\n" +
+						"111,test6\n";
+			}
+			// TODO: all-groupreduce with combine
+//			case 12: {
+//				
+//				/*
+//				 * check correctness of all-groupreduce for tuples with combine
+//				 */
+//
+//				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+//				
+//				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+//				DataSet<Tuple2<Integer, String>> reduceDs = ds.reduceGroup(new Tuple3GroupReduceWithCombine());
+//				
+//				reduceDs.writeAsCsv(resultPath);
+//				env.execute();
+//				
+//				// return expected result
+//				return "231,91,Hello World\n";
+//			}
 			// TODO: descending sort not working
 //			case 10: {
 //				
@@ -327,9 +397,8 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 //				
 //			}
 			default: 
-				throw new IllegalArgumentException("Invalid program id");
+			throw new IllegalArgumentException("Invalid program id");
 			}
-			
 		}
 	
 	}
@@ -533,4 +602,77 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 		}
 	}
 	
+	@eu.stratosphere.api.java.functions.GroupReduceFunction.Combinable
+	public static class Tuple3GroupReduceWithCombine extends GroupReduceFunction<Tuple3<Integer, Long, String>, Tuple2<Integer, String>> {
+		private static final long serialVersionUID = 1L;
+		
+		@Override
+		public void combine(Iterator<Tuple3<Integer, Long, String>> values, Collector<Tuple3<Integer, Long, String>> out) throws Exception {
+			
+			Tuple3<Integer, Long, String> o = new Tuple3<Integer, Long, String>(0, 0l, "");
+			
+			while(values.hasNext()) {
+				Tuple3<Integer, Long, String> t = values.next();
+				o.f0 += t.f0;
+				o.f1 = t.f1;
+				o.f2 = "test"+o.f1;
+			}
+			
+			out.collect(o);
+		}
+
+		@Override
+		public void reduce(Iterator<Tuple3<Integer, Long, String>> values,
+				Collector<Tuple2<Integer, String>> out) throws Exception {
+			
+			int i = 0;
+			String s = "";
+			
+			while(values.hasNext()) {
+				Tuple3<Integer, Long, String> t = values.next();
+				i += t.f0;
+				s = t.f2;
+			}
+			
+			out.collect(new Tuple2<Integer, String>(i, s));
+			
+		}
+	}
+	
+	@eu.stratosphere.api.java.functions.GroupReduceFunction.Combinable
+	public static class CustomTypeGroupReduceWithCombine extends GroupReduceFunction<CustomType, CustomType> {
+		private static final long serialVersionUID = 1L;
+		
+		@Override
+		public void combine(Iterator<CustomType> values, Collector<CustomType> out) throws Exception {
+			
+			CustomType o = new CustomType();
+			
+			while(values.hasNext()) {
+				CustomType c = values.next();
+				o.myInt = c.myInt;
+				o.myLong += c.myLong;
+				o.myString = "test"+c.myInt;
+			}
+			
+			out.collect(o);
+		}
+
+		@Override
+		public void reduce(Iterator<CustomType> values,
+				Collector<CustomType> out) throws Exception {
+			
+			CustomType o = new CustomType(0, 0, "");
+			
+			while(values.hasNext()) {
+				CustomType c = values.next();
+				o.myInt = c.myInt;
+				o.myLong += c.myLong;
+				o.myString = c.myString;
+			}
+			
+			out.collect(o);
+			
+		}
+	}
 }

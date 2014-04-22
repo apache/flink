@@ -17,6 +17,7 @@ package eu.stratosphere.api.java.operators.translation;
 import eu.stratosphere.api.common.functions.GenericGroupReduce;
 import eu.stratosphere.api.common.operators.base.GroupReduceOperatorBase;
 import eu.stratosphere.api.java.functions.GroupReduceFunction;
+import eu.stratosphere.api.java.functions.GroupReduceFunction.Combinable;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
 
 /**
@@ -38,8 +39,8 @@ public class PlanGroupReduceOperator<IN, OUT> extends GroupReduceOperatorBase<Ge
 		
 		this.inType = inputType;
 		this.outType = outputType;
+		super.setCombinable(getUserCodeWrapper().getUserCodeAnnotation(Combinable.class) != null);
 	}
-	
 	
 	@Override
 	public TypeInformation<OUT> getReturnType() {

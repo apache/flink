@@ -40,6 +40,7 @@ import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.CompilerPostPassException;
 import eu.stratosphere.compiler.plan.*;
 import eu.stratosphere.compiler.util.NoOpUnaryUdfOp;
+import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**
  * The post-optimizer plan traversal. This traversal fills in the API specific utilities (serializers and
@@ -205,7 +206,15 @@ public class JavaApiPostPass implements OptimizerPostPass {
 
 		TypeInformation<?> type = null;
 
-		if (javaOp instanceof JavaPlanNode<?>) {
+		if(javaOp instanceof PlanGroupReduceOperator && source.getDriverStrategy().equals(DriverStrategy.PARTIAL_GROUP)) {
+			PlanGroupReduceOperator<?, ?> groupNode = (PlanGroupReduceOperator<?, ?>) javaOp;
+			type = groupNode.getInputType();
+		}
+		else if(javaOp instanceof PlanUnwrappingReduceGroupOperator && source.getDriverStrategy().equals(DriverStrategy.PARTIAL_GROUP)) {
+			PlanUnwrappingReduceGroupOperator<?, ?, ?> groupNode = (PlanUnwrappingReduceGroupOperator<?, ?, ?>) javaOp;
+			type = groupNode.getInputType();
+		}
+		else if (javaOp instanceof JavaPlanNode<?>) {
 			JavaPlanNode<?> javaNode = (JavaPlanNode<?>) javaOp;
 			type = javaNode.getReturnType();
 		} else if (javaOp instanceof BulkIteration.PartialSolutionPlaceHolder) {
