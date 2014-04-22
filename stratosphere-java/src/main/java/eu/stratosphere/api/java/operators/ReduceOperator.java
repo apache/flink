@@ -74,6 +74,8 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 			PlanReduceOperator<IN> po = new PlanReduceOperator<IN>(function, new int[0], name, getInputType());
 			// set input
 			po.setInput(input);
+			// set dop
+			po.setDegreeOfParallelism(this.getParallelism());
 			
 			return po;			
 		}
@@ -85,6 +87,8 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 			Keys.SelectorFunctionKeys<IN, ?> selectorKeys = (Keys.SelectorFunctionKeys<IN, ?>) grouper.getKeys();
 			
 			PlanUnwrappingReduceOperator<IN, ?> po = translateSelectorFunctionReducer(selectorKeys, function, getInputType(), name, input);
+			// set dop
+			po.setDegreeOfParallelism(this.getParallelism());
 			
 			return po;
 		}
@@ -96,6 +100,8 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 			
 			// set input
 			po.setInput(input);
+			// set dop
+			po.setDegreeOfParallelism(this.getParallelism());
 			
 			return po;
 		}
@@ -123,6 +129,8 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 
 		reducer.setInput(mapper);
 		mapper.setInput(input);
+		// set dop
+		mapper.setDegreeOfParallelism(input.getDegreeOfParallelism());
 		
 		return reducer;
 	}

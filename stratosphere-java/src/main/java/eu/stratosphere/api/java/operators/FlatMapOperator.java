@@ -44,10 +44,18 @@ public class FlatMapOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT, Fl
 		
 		String name = getName() != null ? getName() : function.getClass().getName();
 		// create operator
-		PlanFlatMapOperator<IN, OUT> pfmo = new PlanFlatMapOperator<IN, OUT>(function, name, getInputType(), getResultType());
+		PlanFlatMapOperator<IN, OUT> po = new PlanFlatMapOperator<IN, OUT>(function, name, getInputType(), getResultType());
 		// set input
-		pfmo.setInput(input);
+		po.setInput(input);
+		// set dop
+		if(this.getParallelism() > 0) {
+			// use specified dop
+			po.setDegreeOfParallelism(this.getParallelism());
+		} else {
+			// if no dop has been specified, use dop of input operator to enable chaining
+			po.setDegreeOfParallelism(input.getDegreeOfParallelism());
+		}
 		
-		return pfmo;
+		return po;
 	}
 }

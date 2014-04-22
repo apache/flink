@@ -42,10 +42,18 @@ public class FilterOperator<IN> extends SingleInputUdfOperator<IN, IN, FilterOpe
 		
 		String name = getName() != null ? getName() : function.getClass().getName();
 		// create operator
-		PlanFilterOperator<IN> pfo = new PlanFilterOperator<IN>(function, name, getInputType());
+		PlanFilterOperator<IN> po = new PlanFilterOperator<IN>(function, name, getInputType());
 		// set input
-		pfo.setInput(input);
-		
-		return pfo;
+		po.setInput(input);
+		// set dop
+		if(this.getParallelism() > 0) {
+			// use specified dop
+			po.setDegreeOfParallelism(this.getParallelism());
+		} else {
+			// if no dop has been specified, use dop of input operator to enable chaining
+			po.setDegreeOfParallelism(input.getDegreeOfParallelism());
+		}
+				
+		return po;
 	}
 }

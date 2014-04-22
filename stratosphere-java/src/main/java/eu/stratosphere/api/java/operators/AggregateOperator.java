@@ -158,6 +158,8 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 					new PlanGroupReduceOperator<IN, IN>(function, new int[0], name, getInputType(), getResultType());
 			// set input
 			po.setInput(input);
+			// set dop
+			po.setDegreeOfParallelism(this.getParallelism());
 			
 			return po;
 		}
@@ -169,6 +171,8 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 					new PlanGroupReduceOperator<IN, IN>(function, logicalKeyPositions, name, getInputType(), getResultType());
 			// set input
 			po.setInput(input);
+			// set dop
+			po.setDegreeOfParallelism(this.getParallelism());
 			
 			return po;			
 		}

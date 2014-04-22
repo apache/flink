@@ -84,6 +84,9 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 					translateSelectorFunctionCoGroup(selectorKeys1, selectorKeys2, function, 
 					getInput1Type(), getInput2Type(), getResultType(), name, input1, input2);
 			
+			// set dop
+			po.setDegreeOfParallelism(this.getParallelism());
+			
 			return po;
 			
 		}
@@ -102,6 +105,8 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 			// set inputs
 			po.setFirstInput(input1);
 			po.setSecondInput(input2);
+			// set dop
+			po.setDegreeOfParallelism(this.getParallelism());
 			
 			return po;
 			
@@ -120,6 +125,9 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 					translateSelectorFunctionCoGroupRight(logicalKeyPositions1, selectorKeys2, function, 
 					getInput1Type(), getInput2Type(), getResultType(), name, input1, input2);
 			
+			// set dop
+			po.setDegreeOfParallelism(this.getParallelism());
+			
 			return po;
 		}
 		else if (keys1 instanceof Keys.SelectorFunctionKeys
@@ -135,6 +143,9 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 			PlanUnwrappingCoGroupOperator<I1, I2, OUT, ?> po =  
 					translateSelectorFunctionCoGroupLeft(selectorKeys1, logicalKeyPositions2, function, 
 					getInput1Type(), getInput2Type(), getResultType(), name, input1, input2);
+			
+			// set dop
+			po.setDegreeOfParallelism(this.getParallelism());
 			
 			return po;
 		}
@@ -170,6 +181,9 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 		
 		keyMapper1.setInput(input1);
 		keyMapper2.setInput(input2);
+		// set dop
+		keyMapper1.setDegreeOfParallelism(input1.getDegreeOfParallelism());
+		keyMapper2.setDegreeOfParallelism(input2.getDegreeOfParallelism());
 		
 		return cogroup;
 	}
@@ -202,6 +216,9 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 		
 		keyMapper1.setInput(input1);
 		keyMapper2.setInput(input2);
+		// set dop
+		keyMapper1.setDegreeOfParallelism(input1.getDegreeOfParallelism());
+		keyMapper2.setDegreeOfParallelism(input2.getDegreeOfParallelism());
 		
 		return cogroup;
 	}
@@ -234,6 +251,9 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 		
 		keyMapper1.setInput(input1);
 		keyMapper2.setInput(input2);
+		// set dop
+		keyMapper1.setDegreeOfParallelism(input1.getDegreeOfParallelism());
+		keyMapper2.setDegreeOfParallelism(input2.getDegreeOfParallelism());
 		
 		return cogroup;
 	}

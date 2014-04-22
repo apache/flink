@@ -23,7 +23,6 @@ import eu.stratosphere.api.common.operators.AbstractUdfOperator;
 import eu.stratosphere.api.common.operators.BulkIteration;
 import eu.stratosphere.api.common.operators.DeltaIteration;
 import eu.stratosphere.api.common.operators.GenericDataSink;
-import eu.stratosphere.api.common.operators.GenericDataSource;
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.DeltaIterativeDataSet;
@@ -56,13 +55,13 @@ public class OperatorTranslation {
 	
 	
 	private GenericDataSink translate(DataSink<?> sink) {
-		// translate the sink itself
-		GenericDataSink translatedSink = sink.translateToDataFlow();
 		
 		// translate the input recursively
 		Operator input = translate(sink.getDataSet());
-		translatedSink.setInput(input);
 		
+		// translate the sink itself and connect it to the input
+		GenericDataSink translatedSink = sink.translateToDataFlow(input);
+				
 		return translatedSink;
 	}
 	
@@ -77,13 +76,25 @@ public class OperatorTranslation {
 		Operator dataFlowOp;
 		
 		if (dataSet instanceof DataSource) {
-			dataFlowOp = translateSource((DataSource<?>) dataSet);
+			dataFlowOp = ((DataSource<?>) dataSet).translateToDataFlow();
 		}
 		else if (dataSet instanceof SingleInputOperator) {
-			dataFlowOp =  translateSingleOp((SingleInputOperator<?, ?, ?>) dataSet);
+			SingleInputOperator<?, ?, ?> op = (SingleInputOperator<?, ?, ?>) dataSet;
+			
+			// translate the input
+			Operator input = translate(op.getInput());
+			// translate the operation itself and connect it to the input
+			dataFlowOp = op.translateToDataFlow(input);
 		}
 		else if (dataSet instanceof TwoInputOperator) {
-			dataFlowOp =  translateBinaryOp((TwoInputOperator<?, ?, ?, ?>) dataSet);
+			TwoInputOperator<?, ?, ?, ?> op = (TwoInputOperator<?, ?, ?, ?>) dataSet;
+			
+			// translate its inputs
+			Operator input1 = translate(op.getInput1());
+			Operator input2 = translate(op.getInput2());
+			
+			// translate the operation itself and connect it to the inputs
+			dataFlowOp = op.translateToDataFlow(input1, input2);
 		}
 		else if (dataSet instanceof IterativeResultDataSet<?>) {
 			dataFlowOp = translateBulkIteration((IterativeResultDataSet<?>) dataSet);
@@ -103,29 +114,6 @@ public class OperatorTranslation {
 		return dataFlowOp;
 	}
 	
-	private GenericDataSource<?> translateSource(DataSource<?> source) {
-		return source.translateToDataFlow();
-	}
-	
-	private Operator translateSingleOp(SingleInputOperator<?, ?, ?> op) {
-		
-		// translate and connect the input
-		Operator input = translate(op.getInput());
-		
-		// translate the operation itself
-		return op.translateToDataFlow(input);
-	}
-	
-	private Operator translateBinaryOp(TwoInputOperator<?, ?, ?, ?> op) {
-		
-		// translate its inputs
-		Operator input1 = translate(op.getInput1());
-		Operator input2 = translate(op.getInput2());
-		
-		// translate the operation itself
-		return op.translateToDataFlow(input1, input2);
-	}
-
 	private BulkIteration translateBulkIteration(IterativeResultDataSet<?> iterationEnd) {
 		PlanBulkIterationOperator iterationOperator = new PlanBulkIterationOperator("Bulk Iteration", iterationEnd.getType());
 		IterativeDataSet<?> iterationHead = iterationEnd.getIterationHead();

@@ -69,6 +69,8 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		PlanProjectOperator<IN, OUT> ppo = new PlanProjectOperator<IN, OUT>(fields, name, getInputType(), getResultType());
 		// set input
 		ppo.setInput(input);
+		// set dop
+		ppo.setDegreeOfParallelism(this.getParallelism());
 		
 		return ppo;
 	}

@@ -47,6 +47,8 @@ public class CrossOperator<I1, I2, OUT>
 		// set inputs
 		po.setFirstInput(input1);
 		po.setSecondInput(input2);
+		// set dop
+		po.setDegreeOfParallelism(this.getParallelism());
 		
 		return po;
 	}

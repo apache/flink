@@ -86,6 +86,8 @@ public class ReduceGroupOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 					new PlanGroupReduceOperator<IN, OUT>(function, new int[0], name, getInputType(), getResultType());
 			// set input
 			po.setInput(input);
+			// set dop
+			po.setDegreeOfParallelism(this.getParallelism());
 			
 			return po;
 		}
@@ -98,6 +100,9 @@ public class ReduceGroupOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 			PlanUnwrappingReduceGroupOperator<IN, OUT, ?> po = 
 					translateSelectorFunctionReducer(selectorKeys, function, getInputType(),getResultType(), name, input);
 			
+			// set dop
+			po.setDegreeOfParallelism(this.getParallelism());
+			
 			return po;
 		}
 		else if (grouper.getKeys() instanceof Keys.FieldPositionKeys) {
@@ -108,6 +113,8 @@ public class ReduceGroupOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 			
 			// set input
 			po.setInput(input);
+			// set dop
+			po.setDegreeOfParallelism(this.getParallelism());
 			
 			// set group order
 			if(grouper.getGroupSortKeyPositions() != null) {
@@ -150,6 +157,8 @@ public class ReduceGroupOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 
 		reducer.setInput(mapper);
 		mapper.setInput(input);
+		// set dop
+		mapper.setDegreeOfParallelism(input.getDegreeOfParallelism());
 		
 		return reducer;
 	}
