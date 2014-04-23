@@ -199,9 +199,9 @@ public class CoGroupITCase extends TestBase {
 		FileDataSink output = new FileDataSink(new CoGroupOutFormat(), pathPrefix + "/result.txt");
 		output.setDegreeOfParallelism(1);
 
-		output.addInput(testCoGrouper);
-		testCoGrouper.addFirstInput(input_left);
-		testCoGrouper.addSecondInput(input_right);
+		output.setInput(testCoGrouper);
+		testCoGrouper.setFirstInput(input_left);
+		testCoGrouper.setSecondInput(input_right);
 
 		Plan plan = new Plan(output);
 

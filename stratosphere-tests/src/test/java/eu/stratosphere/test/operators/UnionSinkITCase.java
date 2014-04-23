@@ -13,14 +13,9 @@
 
 package eu.stratosphere.test.operators;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collection;
-import java.util.LinkedList;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
@@ -29,7 +24,6 @@ import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.operators.FileDataSink;
 import eu.stratosphere.api.common.operators.FileDataSource;
 import eu.stratosphere.api.java.record.functions.MapFunction;
-import eu.stratosphere.api.java.record.io.DelimitedInputFormat;
 import eu.stratosphere.api.java.record.operators.MapOperator;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;
@@ -39,27 +33,23 @@ import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.test.operators.io.ContractITCaseIOFormats.ContractITCaseInputFormat;
 import eu.stratosphere.test.operators.io.ContractITCaseIOFormats.ContractITCaseOutputFormat;
-import eu.stratosphere.test.util.TestBase;
+import eu.stratosphere.test.util.TestBase2;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
 
 @RunWith(Parameterized.class)
-public class UnionSinkITCase extends TestBase {
-	private static final Log LOG = LogFactory.getLog(UnionSinkITCase.class);
+public class UnionSinkITCase extends TestBase2 {
 	
-	public UnionSinkITCase(String clusterConfig, Configuration testConfig) {
-		super(testConfig, clusterConfig);
+	public UnionSinkITCase(Configuration testConfig) {
+		super(testConfig);
 	}
 
-	private static final String MAP_IN_1 = "1 1\n2 2\n2 8\n4 4\n4 4\n6 6\n7 7\n8 8\n";
-
-	private static final String MAP_IN_2 = "1 1\n2 2\n2 2\n4 4\n4 4\n6 3\n5 9\n8 8\n";
-
-	private static final String MAP_IN_3 = "1 1\n2 2\n2 2\n3 0\n4 4\n5 9\n7 7\n8 8\n";
-
-	private static final String MAP_IN_4 = "1 1\n9 1\n5 9\n4 4\n4 4\n6 6\n7 7\n8 8\n";
+	private static final String MAP_IN = "1 1\n2 2\n2 8\n4 4\n4 4\n6 6\n7 7\n8 8\n" +
+	                                     "1 1\n2 2\n2 2\n4 4\n4 4\n6 3\n5 9\n8 8\n" +
+	                                     "1 1\n2 2\n2 2\n3 0\n4 4\n5 9\n7 7\n8 8\n" +
+	                                     "1 1\n9 1\n5 9\n4 4\n4 4\n6 6\n7 7\n8 8\n";
 
 	private static final String MAP_RESULT = "1 11\n2 12\n4 14\n4 14\n1 11\n2 12\n2 12\n4 14\n4 14\n3 16\n1 11\n2 12\n2 12\n0 13\n4 14\n1 11\n4 14\n4 14\n";
 
@@ -68,27 +58,17 @@ public class UnionSinkITCase extends TestBase {
 	private static final String MAP_RESULT_TWICE = "1 11\n2 12\n4 14\n4 14\n1 11\n2 12\n2 12\n4 14\n4 14\n3 16\n1 11\n2 12\n2 12\n0 13\n4 14\n1 11\n4 14\n4 14\n" +
 												"1 11\n2 12\n4 14\n4 14\n1 11\n2 12\n2 12\n4 14\n4 14\n3 16\n1 11\n2 12\n2 12\n0 13\n4 14\n1 11\n4 14\n4 14\n";
 	
-	private static final String emptyInputFilePathPostfix = "/emptyInput";
+	private String textInput;
 	
-	private static final String inputFilePathPostfix = "/mapInput";
+	private String emptyInput;
+	
+	private String resultDir;
 	
 	@Override
 	protected void preSubmit() throws Exception {
-		String tempDir = getFilesystemProvider().getTempDirPath();
-		
-		getFilesystemProvider().createDir(tempDir + inputFilePathPostfix);
-		
-		getFilesystemProvider().createFile(tempDir+inputFilePathPostfix+"/UnionTest_1.txt", MAP_IN_1);
-		getFilesystemProvider().createFile(tempDir+inputFilePathPostfix+"/UnionTest_2.txt", MAP_IN_2);
-		getFilesystemProvider().createFile(tempDir+inputFilePathPostfix+"/UnionTest_3.txt", MAP_IN_3);
-		getFilesystemProvider().createFile(tempDir+inputFilePathPostfix+"/UnionTest_4.txt", MAP_IN_4);
-		
-		getFilesystemProvider().createDir(tempDir + emptyInputFilePathPostfix);
-		
-		getFilesystemProvider().createFile(tempDir+emptyInputFilePathPostfix+"/UnionTest_1.txt", "");
-		getFilesystemProvider().createFile(tempDir+emptyInputFilePathPostfix+"/UnionTest_2.txt", "");
-		getFilesystemProvider().createFile(tempDir+emptyInputFilePathPostfix+"/UnionTest_3.txt", "");
-		getFilesystemProvider().createFile(tempDir+emptyInputFilePathPostfix+"/UnionTest_4.txt", "");
+		textInput = createTempFile("textdata.txt", MAP_IN);
+		emptyInput = createTempFile("emptyfile.txt", "");
+		resultDir = getTempDirPath("result");
 	}
 
 	public static class TestMapper extends MapFunction implements Serializable {
@@ -102,8 +82,6 @@ public class UnionSinkITCase extends TestBase {
 			keyString = record.getField(0, keyString);
 			valueString = record.getField(1, valueString);
 			
-			if (LOG.isDebugEnabled())
-				LOG.debug("Processed: [" + keyString.toString() + "," + valueString.getValue() + "]");
 			
 			if (Integer.parseInt(keyString.toString()) + Integer.parseInt(valueString.toString()) < 10) {
 
@@ -112,44 +90,32 @@ public class UnionSinkITCase extends TestBase {
 				
 				out.collect(record);
 			}
-			
 		}
 	}
 
+	@SuppressWarnings("deprecation")
 	@Override
 	protected JobGraph getJobGraph() throws Exception {
-		String pathPrefix = getFilesystemProvider().getURIPrefix()+getFilesystemProvider().getTempDirPath();
 		
+		String path1 = config.getBoolean("input1PathHasData", false) ? textInput : emptyInput;
+		String path2 = config.getBoolean("input2PathHasData", false) ? textInput : emptyInput;
 		
-		FileDataSource input1 = new FileDataSource(
-			new ContractITCaseInputFormat(), pathPrefix + config.getString("UnionTest#Input1Path", ""));
-		DelimitedInputFormat.configureDelimitedFormat(input1)
-			.recordDelimiter('\n');
-		input1.setDegreeOfParallelism(config.getInteger("UnionTest#NoSubtasks", 1));
-		
-		FileDataSource input2 = new FileDataSource(
-				new ContractITCaseInputFormat(), pathPrefix + config.getString("UnionTest#Input2Path", ""));
-		DelimitedInputFormat.configureDelimitedFormat(input2)
-			.recordDelimiter('\n');
-		input2.setDegreeOfParallelism(config.getInteger("UnionTest#NoSubtasks", 1));
+		FileDataSource input1 = new FileDataSource(new ContractITCaseInputFormat(), path1);
+		FileDataSource input2 = new FileDataSource(new ContractITCaseInputFormat(), path2);
 		
 		MapOperator testMapper1 = MapOperator.builder(new TestMapper()).build();
-		testMapper1.setDegreeOfParallelism(config.getInteger("UnionTest#NoSubtasks", 1));
-		
 		MapOperator testMapper2 = MapOperator.builder(new TestMapper()).build();
-		testMapper2.setDegreeOfParallelism(config.getInteger("UnionTest#NoSubtasks", 1));
 
-		FileDataSink output = new FileDataSink(
-				new ContractITCaseOutputFormat(), pathPrefix + "/result.txt");
-		output.setDegreeOfParallelism(1);
+		FileDataSink output = new FileDataSink(new ContractITCaseOutputFormat(), resultDir);
 
-		testMapper1.addInput(input1);
-		testMapper2.addInput(input2);
+		testMapper1.setInput(input1);
+		testMapper2.setInput(input2);
 
 		output.addInput(testMapper1);
 		output.addInput(testMapper2);
 		
 		Plan plan = new Plan(output);
+		plan.setDefaultParallelism(4);
 
 		PactCompiler pc = new PactCompiler(new DataStatistics());
 		OptimizedPlan op = pc.compile(plan);
@@ -160,53 +126,41 @@ public class UnionSinkITCase extends TestBase {
 
 	@Override
 	protected void postSubmit() throws Exception {
-		String tempDir = getFilesystemProvider().getTempDirPath();
-		
-		compareResultsByLinesInMemory(config.getString("UnionTest#ExpectedResult", ""), tempDir+ "/result.txt");
-		
-		getFilesystemProvider().delete(tempDir+ "/result.txt", true);
-		getFilesystemProvider().delete(tempDir+ inputFilePathPostfix, true);
-		getFilesystemProvider().delete(tempDir+ emptyInputFilePathPostfix, true);
-		
+		String expectedResult = config.getString("UnionTest#ExpectedResult", null);
+		if (expectedResult == null) {
+			throw new Exception("Test corrupt, no expected return data set.");
+		}
+		compareResultsByLinesInMemory(expectedResult, resultDir);
 	}
 
 	@Parameters
-	public static Collection<Object[]> getConfigurations() throws FileNotFoundException, IOException {
-		LinkedList<Configuration> testConfigs = new LinkedList<Configuration>();
+	public static Collection<Object[]> getConfigurations() {
 
 		//second input empty
-		Configuration config = new Configuration();
-		config.setInteger("UnionTest#NoSubtasks", 4);
-		config.setString("UnionTest#ExpectedResult", MAP_RESULT);
-		config.setString("UnionTest#Input1Path", inputFilePathPostfix);
-		config.setString("UnionTest#Input2Path", emptyInputFilePathPostfix);
-		testConfigs.add(config);
+		Configuration config1 = new Configuration();
+		config1.setString("UnionTest#ExpectedResult", MAP_RESULT);
+		config1.setBoolean("input1PathHasData", true);
+		config1.setBoolean("input2PathHasData", false);
 		
 		
 		//first input empty
-		config = new Configuration();
-		config.setInteger("UnionTest#NoSubtasks", 4);
-		config.setString("UnionTest#ExpectedResult", MAP_RESULT);
-		config.setString("UnionTest#Input1Path", emptyInputFilePathPostfix);
-		config.setString("UnionTest#Input2Path", inputFilePathPostfix);
-		testConfigs.add(config);
+		Configuration config2 = new Configuration();
+		config2.setString("UnionTest#ExpectedResult", MAP_RESULT);
+		config2.setBoolean("input1PathHasData", false);
+		config2.setBoolean("input2PathHasData", true);
 		
 		//both inputs full
-		config = new Configuration();
-		config.setInteger("UnionTest#NoSubtasks", 4);
-		config.setString("UnionTest#ExpectedResult", MAP_RESULT_TWICE);
-		config.setString("UnionTest#Input1Path", inputFilePathPostfix);
-		config.setString("UnionTest#Input2Path", inputFilePathPostfix);
-		testConfigs.add(config);
+		Configuration config3 = new Configuration();
+		config3.setString("UnionTest#ExpectedResult", MAP_RESULT_TWICE);
+		config3.setBoolean("input1PathHasData", true);
+		config3.setBoolean("input2PathHasData", true);
 		
 		//both inputs empty
-		config = new Configuration();
-		config.setInteger("UnionTest#NoSubtasks", 4);
-		config.setString("UnionTest#ExpectedResult", EMPTY_MAP_RESULT);
-		config.setString("UnionTest#Input1Path", emptyInputFilePathPostfix);
-		config.setString("UnionTest#Input2Path", emptyInputFilePathPostfix);
-		testConfigs.add(config);
+		Configuration config4 = new Configuration();
+		config4.setString("UnionTest#ExpectedResult", EMPTY_MAP_RESULT);
+		config4.setBoolean("input1PathHasData", false);
+		config4.setBoolean("input2PathHasData", false);
 
-		return toParameterList(UnionSinkITCase.class, testConfigs);
+		return toParameterList(config1, config2, config3, config4);
 	}
 }

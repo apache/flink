@@ -67,9 +67,9 @@ public class TPCHQuery1 implements Program, ProgramDescription {
 			.name("groupyBy")
 			.build();
 		
-		lineItemFilter.addInput(lineItems);
-		groupByReturnFlag.addInput(lineItemFilter);
-		result.addInput(groupByReturnFlag);
+		lineItemFilter.setInput(lineItems);
+		groupByReturnFlag.setInput(lineItemFilter);
+		result.setInput(groupByReturnFlag);
 		
 		return new Plan(result, "TPC-H 1");
 	}

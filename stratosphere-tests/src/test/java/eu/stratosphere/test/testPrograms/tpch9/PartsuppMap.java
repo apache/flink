@@ -18,6 +18,7 @@ import eu.stratosphere.test.testPrograms.util.Tuple;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
+@SuppressWarnings("serial")
 public class PartsuppMap extends MapFunction {
 	
 	private Tuple inputTuple = new Tuple();

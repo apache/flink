@@ -132,7 +132,6 @@ public class GenericDataSink extends Operator {
 	 */
 	public GenericDataSink(Class<? extends OutputFormat<?>> f, String name) {
 		super(name);
-		
 		Preconditions.checkNotNull(f, "The OutputFormat class may not be null.");
 		this.formatWrapper = new UserCodeClassWrapper<OutputFormat<?>>(f);
 	}
@@ -253,8 +252,8 @@ public class GenericDataSink extends Operator {
 	 */
 	@Deprecated
 	public void addInput(Operator... inputs) {
-		Preconditions.checkNotNull(input, "The input may not be null.");
-		this.input = Operator.createUnionCascade(inputs);
+		Preconditions.checkNotNull(inputs, "The input may not be null.");
+		this.input = Operator.createUnionCascade(this.input, inputs);
 	}
 
 	/**

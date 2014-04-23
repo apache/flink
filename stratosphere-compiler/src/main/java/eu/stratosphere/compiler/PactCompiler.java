@@ -798,9 +798,9 @@ public class PactCompiler {
 
 		private GraphCreatingVisitor(GraphCreatingVisitor parent, boolean forceDOP, int maxMachines,
 									 int defaultParallelism, HashMap<Operator, OptimizerNode> closure) {
-			if(closure == null){
+			if (closure == null){
 				con2node = new HashMap<Operator, OptimizerNode>();
-			}else{
+			} else {
 				con2node = closure;
 			}
 			this.sources = new ArrayList<DataSourceNode>(4);
@@ -861,8 +861,8 @@ public class PactCompiler {
 			else if (c instanceof DeltaIteration) {
 				n = new WorksetIterationNode((DeltaIteration) c);
 			}
-			else if(c instanceof Union){
-				n = new BinaryUnionNode((Union)c);
+			else if (c instanceof Union){
+				n = new BinaryUnionNode((Union) c);
 			}
 			else if (c instanceof PartialSolutionPlaceHolder) {
 				final PartialSolutionPlaceHolder holder = (PartialSolutionPlaceHolder) c;

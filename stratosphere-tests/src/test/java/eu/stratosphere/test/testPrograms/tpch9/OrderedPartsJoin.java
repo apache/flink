@@ -19,8 +19,9 @@ import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
-public class OrderedPartsJoin extends JoinFunction
-{
+@SuppressWarnings("serial")
+public class OrderedPartsJoin extends JoinFunction {
+	
 	/**
 	 * Join "orders" and "lineitem" by "orderkey".
 	 * 

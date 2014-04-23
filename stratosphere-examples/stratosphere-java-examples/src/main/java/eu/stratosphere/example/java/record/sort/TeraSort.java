@@ -65,7 +65,7 @@ public final class TeraSort implements Program, ProgramDescription {
 		sink.setDegreeOfParallelism(numSubTasks);
 		sink.setGlobalOrder(new Ordering(0, TeraKey.class, Order.ASCENDING), new TeraDistribution());
 
-		sink.addInput(source);
+		sink.setInput(source);
 
 		return new Plan(sink, "TeraSort");
 	}

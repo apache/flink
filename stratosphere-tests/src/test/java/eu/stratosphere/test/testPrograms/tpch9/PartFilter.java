@@ -19,6 +19,7 @@ import eu.stratosphere.types.NullValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
+@SuppressWarnings("serial")
 public class PartFilter extends MapFunction {
 
 	private final Tuple inputTuple = new Tuple();

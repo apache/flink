@@ -169,9 +169,9 @@ public class CrossITCase extends TestBase
 				new ContractITCaseOutputFormat(), pathPrefix + "/result.txt");
 		output.setDegreeOfParallelism(1);
 
-		output.addInput(testCross);
-		testCross.addFirstInput(input_left);
-		testCross.addSecondInput(input_right);
+		output.setInput(testCross);
+		testCross.setFirstInput(input_left);
+		testCross.setSecondInput(input_right);
 
 		Plan plan = new Plan(output);
 

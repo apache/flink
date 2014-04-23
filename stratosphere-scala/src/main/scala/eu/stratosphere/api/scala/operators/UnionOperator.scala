@@ -26,12 +26,14 @@ import eu.stratosphere.util.Collector
 import eu.stratosphere.api.common.operators.Operator
 import eu.stratosphere.api.scala.analysis.UDF1
 import eu.stratosphere.api.scala.analysis.UDTSerializer
-import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.configuration.Configuration
 import eu.stratosphere.api.scala.ScalaOperator
 import eu.stratosphere.api.scala.analysis.UDF0
 import eu.stratosphere.api.scala.ScalaOperator
 import eu.stratosphere.api.scala.UnionScalaOperator
 import eu.stratosphere.api.scala.DataSet
+import eu.stratosphere.api.scala.analysis.UDF2
+import eu.stratosphere.api.common.operators.Union
 
 object UnionMacros {
 
@@ -46,27 +48,14 @@ object UnionMacros {
 
     val contract = reify {
 
-      val generatedStub = new MapFunction with Serializable {
-        val inputUDT = c.Expr[UDT[In]](createUdtIn).splice
-        val udf: UDF1[In, In] = new UDF1(inputUDT, inputUDT)
-
-        override def map(record: Record, out: Collector[Record]) = out.collect(record)
-      }
-
-      val firstInputs = c.prefix.splice.contract match {
-        case c : MapOperator with UnionScalaOperator[_] => c.getInputs().toList
-        case c => List(c)
-      }
-
-      val secondInputs = secondInput.splice.contract match {
-        case c : MapOperator with UnionScalaOperator[_] => c.getInputs().toList
-        case c => List(c)
-      }
-
-      val builder = MapOperator.builder(generatedStub).inputs(firstInputs ++ secondInputs)
+      val firstInOp = c.prefix.splice.contract;
+      val secondInOp = secondInput.splice.contract
       
-      val ret = new MapOperator(builder) with UnionScalaOperator[In] {
-        override def getUDF = generatedStub.udf
+      val ret = new Union(firstInOp, secondInOp) with UnionScalaOperator[In] {
+        private val inputUDT = c.Expr[UDT[In]](createUdtIn).splice
+        private val udf: UDF2[In, In, In] = new UDF2(inputUDT, inputUDT, inputUDT)
+        
+        override def getUDF = udf;
       }
       new DataSet(ret)
     }

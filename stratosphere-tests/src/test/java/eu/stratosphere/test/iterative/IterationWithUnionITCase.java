@@ -80,9 +80,7 @@ public class IterationWithUnionITCase extends TestBase2 {
 		iteration.setInput(initialInput);
 		iteration.setMaximumNumberOfIterations(2);
 
-//		MapOperator map1 = MapOperator.builder(new IdentityMapper()).input(iteration.getPartialSolution()).name("map1").build();
-		MapOperator map2 = MapOperator.builder(new IdentityMapper()).input(iteration.getPartialSolution()).name("map").build();
-		map2.addInput(iteration.getPartialSolution());
+		MapOperator map2 = MapOperator.builder(new IdentityMapper()).input(iteration.getPartialSolution(), iteration.getPartialSolution()).name("map").build();
 		
 		iteration.setNextPartialSolution(map2);
 

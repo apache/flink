@@ -124,12 +124,12 @@ object GlobalSchemaPrinter {
             )
           }
 
-          case UnionNode(udf, input) => {
+          case UnionNode(udf, leftInput, rightInput) => {
             printInfo(node, "Union",
               Seq(),
-              Seq(("", udf.inputFields)),
-              Seq(("", udf.getForwardIndexArrayFrom)),
-              Seq(("", udf.getDiscardIndexArray)),
+              Seq(("L", udf.leftInputFields), ("R", udf.rightInputFields)),
+              Seq(("L", udf.getLeftForwardIndexArrayFrom), ("R", udf.getRightForwardIndexArrayFrom)),
+              Seq(("L", udf.getLeftDiscardIndexArray), ("R", udf.getRightDiscardIndexArray)),
               udf.outputFields
             )
           }

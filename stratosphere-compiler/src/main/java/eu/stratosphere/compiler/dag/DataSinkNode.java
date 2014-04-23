@@ -42,32 +42,23 @@ public class DataSinkNode extends OptimizerNode {
 	protected PactConnection input;			// The input edge
 	
 	/**
-	 * Creates a new DataSinkNode for the given contract.
+	 * Creates a new DataSinkNode for the given sink operator.
 	 * 
-	 * @param pactContract The data sink contract object.
+	 * @param sink The data sink contract object.
 	 */
-	public DataSinkNode(GenericDataSink pactContract) {
-		super(pactContract);
+	public DataSinkNode(GenericDataSink sink) {
+		super(sink);
 	}
 
 	// --------------------------------------------------------------------------------------
 	
 	/**
-	 * Gets the <tt>PactConnection</tt> through which this node receives its input.
+	 * Gets the input of the sink.
 	 * 
 	 * @return The input connection.
 	 */
 	public PactConnection getInputConnection() {
 		return this.input;
-	}
-
-	/**
-	 * Sets the <tt>PactConnection</tt> through which this node receives its input.
-	 * 
-	 * @param conn The input connection to set.
-	 */
-	public void setInputConnection(PactConnection conn) {
-		this.input = conn;
 	}
 	
 	/**
@@ -121,7 +112,7 @@ public class DataSinkNode extends OptimizerNode {
 		conn = new PactConnection(pred, this);
 			
 		// create the connection and add it
-		setInputConnection(conn);
+		this.input = conn;
 		pred.addOutgoingConnection(conn);
 	}
 

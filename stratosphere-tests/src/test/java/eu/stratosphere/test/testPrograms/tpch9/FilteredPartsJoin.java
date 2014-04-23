@@ -21,7 +21,7 @@ import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
 
-
+@SuppressWarnings("serial")
 public class FilteredPartsJoin extends JoinFunction {
 	
 	private final IntPair partAndSupplierKey = new IntPair();

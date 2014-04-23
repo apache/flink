@@ -220,7 +220,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 		PactConnection conn1;
 		if (leftPred == null) {
 			throw new CompilerException("Error: Node for '" + getPactContract().getName() + "' has no input set for first input.");
-		} else  {
+		} else {
 			pred1 = contractToNode.get(leftPred);
 			conn1 = new PactConnection(pred1, this);
 			if (preSet1 != null) {

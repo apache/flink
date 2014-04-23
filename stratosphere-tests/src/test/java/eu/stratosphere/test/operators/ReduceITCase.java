@@ -143,8 +143,8 @@ public class ReduceITCase extends TestBase {
 				new ContractITCaseOutputFormat(), pathPrefix + "/result.txt");
 		output.setDegreeOfParallelism(1);
 
-		output.addInput(testReducer);
-		testReducer.addInput(input);
+		output.setInput(testReducer);
+		testReducer.setInput(input);
 
 		Plan plan = new Plan(output);
 

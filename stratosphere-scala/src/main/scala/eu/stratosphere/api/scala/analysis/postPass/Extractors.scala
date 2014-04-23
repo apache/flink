@@ -48,6 +48,7 @@ import eu.stratosphere.api.scala.analysis.UDF2
 import eu.stratosphere.api.scala.BulkIterationScalaOperator
 import eu.stratosphere.api.common.operators.BulkIteration
 import eu.stratosphere.api.scala.UnionScalaOperator
+import eu.stratosphere.api.common.operators.Union
 
 object Extractors {
 
@@ -123,9 +124,9 @@ object Extractors {
   }
   
   object UnionNode {
-    def unapply(node: OptimizerNode): Option[(UDF1[_, _], PactConnection)] = node match {
-      case node: CollectorMapNode => node.getPactContract match {
-        case contract: MapOperator with UnionScalaOperator[_] => Some((contract.getUDF, node.getIncomingConnection))
+    def unapply(node: OptimizerNode): Option[(UDF2[_, _, _], PactConnection, PactConnection)] = node match {
+      case node: BinaryUnionNode => node.getPactContract match {
+        case contract: Union with UnionScalaOperator[_] => Some((contract.getUDF, node.getFirstIncomingConnection(), node.getSecondIncomingConnection()))
         case _ => None
       }
       case _ => None

@@ -20,6 +20,7 @@ import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
 
+@SuppressWarnings("serial")
 public class PartJoin extends JoinFunction {
 	
 	private final Tuple partSuppValue = new Tuple();

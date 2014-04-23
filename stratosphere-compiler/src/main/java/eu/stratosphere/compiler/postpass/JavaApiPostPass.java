@@ -41,6 +41,10 @@ import eu.stratosphere.compiler.CompilerPostPassException;
 import eu.stratosphere.compiler.plan.*;
 import eu.stratosphere.compiler.util.NoOpUnaryUdfOp;
 
+/**
+ * The post-optimizer plan traversal. This traversal fills in the API specific utilities (serializers and
+ * comparators).
+ */
 public class JavaApiPostPass implements OptimizerPostPass {
 	
 	private final Set<PlanNode> alreadyDone = new HashSet<PlanNode>();

@@ -15,6 +15,8 @@ package eu.stratosphere.api.common.operators;
 
 import java.util.List;
 
+import org.apache.commons.lang3.Validate;
+
 import eu.stratosphere.api.common.io.FileOutputFormat;
 
 /**
@@ -110,6 +112,7 @@ public class FileDataSink extends GenericDataSink {
 	@Deprecated
 	public FileDataSink(FileOutputFormat<?> f, String filePath, List<Operator> input, String name) {
 		this(f, filePath, name);
+		Validate.notNull(input, "The input must not be null.");
 		setInput(Operator.createUnionCascade(input));
 	}
 	
@@ -191,6 +194,7 @@ public class FileDataSink extends GenericDataSink {
 	@Deprecated
 	public FileDataSink(Class<? extends FileOutputFormat<?>> f, String filePath, List<Operator> input, String name) {
 		this(f, filePath, name);
+		Validate.notNull(input, "The inputs must not be null.");
 		setInput(Operator.createUnionCascade(input));
 	}
 

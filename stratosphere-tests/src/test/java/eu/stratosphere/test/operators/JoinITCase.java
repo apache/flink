@@ -48,12 +48,12 @@ import eu.stratosphere.util.Collector;
 /**
  */
 @RunWith(Parameterized.class)
-public class MatchITCase extends TestBase
+public class JoinITCase extends TestBase
 
 {
-	private static final Log LOG = LogFactory.getLog(MatchITCase.class);
+	private static final Log LOG = LogFactory.getLog(JoinITCase.class);
 
-	public MatchITCase(String clusterConfig, Configuration testConfig) {
+	public JoinITCase(String clusterConfig, Configuration testConfig) {
 		super(testConfig, clusterConfig);
 	}
 
@@ -170,9 +170,9 @@ public class MatchITCase extends TestBase
 				new ContractITCaseOutputFormat(), pathPrefix + "/result.txt");
 		output.setDegreeOfParallelism(1);
 
-		output.addInput(testMatcher);
-		testMatcher.addFirstInput(input_left);
-		testMatcher.addSecondInput(input_right);
+		output.setInput(testMatcher);
+		testMatcher.setFirstInput(input_left);
+		testMatcher.setSecondInput(input_right);
 
 		Plan plan = new Plan(output);
 
@@ -218,7 +218,7 @@ public class MatchITCase extends TestBase
 			}
 		}
 
-		return toParameterList(MatchITCase.class, tConfigs);
+		return toParameterList(JoinITCase.class, tConfigs);
 	}
 
 }

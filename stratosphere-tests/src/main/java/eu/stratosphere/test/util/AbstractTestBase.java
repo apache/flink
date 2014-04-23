@@ -225,7 +225,7 @@ public abstract class AbstractTestBase {
 		String[] result = (String[]) list.toArray(new String[list.size()]);
 		Arrays.sort(result);
 		
-		String[] expected = expectedResultStr.split("\n");
+		String[] expected = expectedResultStr.isEmpty() ? new String[0] : expectedResultStr.split("\n");
 		Arrays.sort(expected);
 		
 		Assert.assertEquals("Different number of lines in expected and obtained result.", expected.length, result.length);

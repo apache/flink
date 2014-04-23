@@ -408,11 +408,11 @@ public class PairwiseSP implements Program, ProgramDescription {
 		FileDataSink result = new FileDataSink(new PathOutFormat(),output, "New Paths");
 		result.setDegreeOfParallelism(numSubTasks);
 
-		result.addInput(findShortestPaths);
-		findShortestPaths.addFirstInput(pathsInput);
-		findShortestPaths.addSecondInput(concatPaths);
-		concatPaths.addFirstInput(pathsInput);
-		concatPaths.addSecondInput(pathsInput);
+		result.setInput(findShortestPaths);
+		findShortestPaths.setFirstInput(pathsInput);
+		findShortestPaths.setSecondInput(concatPaths);
+		concatPaths.setFirstInput(pathsInput);
+		concatPaths.setSecondInput(pathsInput);
 
 		return new Plan(result, "Pairwise Shortest Paths");
 

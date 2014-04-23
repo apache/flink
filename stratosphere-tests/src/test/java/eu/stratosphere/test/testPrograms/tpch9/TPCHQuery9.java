@@ -60,7 +60,7 @@ import eu.stratosphere.types.IntValue;
  * <b>Attention:</b> The "order by" part is not implemented!
  * 
  */
-
+@SuppressWarnings("serial")
 public class TPCHQuery9 implements Program, ProgramDescription {
 	public final String ARGUMENTS = "dop partInputPath partSuppInputPath ordersInputPath lineItemInputPath supplierInputPath nationInputPath outputPath";
 
@@ -195,30 +195,30 @@ public class TPCHQuery9 implements Program, ProgramDescription {
 			.build();
 
 		/* Connect input filters: */
-		filterPart.addInput(partInput);
-		mapPartsupp.addInput(partSuppInput);
-		mapOrder.addInput(ordersInput);
-		mapLineItem.addInput(lineItemInput);
-		mapSupplier.addInput(supplierInput);
+		filterPart.setInput(partInput);
+		mapPartsupp.setInput(partSuppInput);
+		mapOrder.setInput(ordersInput);
+		mapLineItem.setInput(lineItemInput);
+		mapSupplier.setInput(supplierInput);
 
 		/* Connect equijoins: */
-		partsJoin.addFirstInput(filterPart);
-		partsJoin.addSecondInput(mapPartsupp);
-		orderedPartsJoin.addFirstInput(mapOrder);
-		orderedPartsJoin.addSecondInput(mapLineItem);
-		suppliersJoin.addFirstInput(mapSupplier);
-		suppliersJoin.addSecondInput(nationInput);
-		filteredPartsJoin.addFirstInput(partsJoin);
-		filteredPartsJoin.addSecondInput(orderedPartsJoin);
-		partListJoin.addFirstInput(filteredPartsJoin);
-		partListJoin.addSecondInput(suppliersJoin);
+		partsJoin.setFirstInput(filterPart);
+		partsJoin.setSecondInput(mapPartsupp);
+		orderedPartsJoin.setFirstInput(mapOrder);
+		orderedPartsJoin.setSecondInput(mapLineItem);
+		suppliersJoin.setFirstInput(mapSupplier);
+		suppliersJoin.setSecondInput(nationInput);
+		filteredPartsJoin.setFirstInput(partsJoin);
+		filteredPartsJoin.setSecondInput(orderedPartsJoin);
+		partListJoin.setFirstInput(filteredPartsJoin);
+		partListJoin.setSecondInput(suppliersJoin);
 
 		/* Connect aggregate: */
-		sumAmountAggregate.addInput(partListJoin);
+		sumAmountAggregate.setInput(partListJoin);
 
 		/* Connect sink: */
 		FileDataSink result = new FileDataSink(new StringIntPairStringDataOutFormat(), this.outputPath, "Results sink");
-		result.addInput(sumAmountAggregate);
+		result.setInput(sumAmountAggregate);
 
 		Plan p = new Plan(result, "TPC-H query 9");
 		p.setDefaultParallelism(this.degreeOfParallelism);

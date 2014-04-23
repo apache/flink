@@ -24,7 +24,7 @@ import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.util.Visitor;
 
 /**
- * 
+ * A union operation over multiple inputs (2 or more).
  */
 public class NAryUnionPlanNode extends PlanNode {
 	
@@ -83,6 +83,7 @@ public class NAryUnionPlanNode extends PlanNode {
 
 	@Override
 	public SourceAndDamReport hasDamOnPathDownTo(PlanNode source) {
+		// this node is used after the plan enumeration. consequently, this will never be invoked here
 		throw new UnsupportedOperationException();
 	}
 }

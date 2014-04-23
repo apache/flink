@@ -20,7 +20,8 @@ import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
 
-public class PartListJoin extends JoinFunction{
+@SuppressWarnings("serial")
+public class PartListJoin extends JoinFunction {
 
 	private final StringIntPair amountYearPair = new StringIntPair();
 	private final StringValue nationName = new StringValue();

@@ -82,10 +82,10 @@ public abstract class SingleInputNode extends OptimizerNode {
 		this.keys = null;
 	}
 	
-	protected SingleInputNode(SingleInputNode contractToCopy) {
-		super(contractToCopy);
+	protected SingleInputNode(SingleInputNode toCopy) {
+		super(toCopy);
 		
-		this.keys = contractToCopy.keys;
+		this.keys = toCopy.keys;
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -96,9 +96,9 @@ public abstract class SingleInputNode extends OptimizerNode {
 	}
 	
 	/**
-	 * Gets the <tt>PactConnection</tt> through which this node receives its input.
+	 * Gets the input of this operator.
 	 * 
-	 * @return The input connection.
+	 * @return The input.
 	 */
 	public PactConnection getIncomingConnection() {
 		return this.inConn;
@@ -199,8 +199,6 @@ public abstract class SingleInputNode extends OptimizerNode {
 	// --------------------------------------------------------------------------------------------
 	//                             Properties and Optimization
 	// --------------------------------------------------------------------------------------------
-	
-	
 	
 	protected abstract List<OperatorDescriptorSingle> getPossibleProperties();
 	

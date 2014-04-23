@@ -43,9 +43,9 @@ import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
 
 /**
- * Implementation of the TPC-H Query 4 as a PACT program.
- * 
+ * Implementation of the TPC-H Query 4 as a stratosphere program.
  */
+@SuppressWarnings("serial")
 public class TPCHQuery4 implements Program, ProgramDescription {
 
 	private static Logger LOGGER = Logger.getLogger(TPCHQuery4.class);
@@ -254,12 +254,12 @@ public class TPCHQuery4 implements Program, ProgramDescription {
 			.build();
 		aggregation.setDegreeOfParallelism(this.degreeOfParallelism);
 		
-		lineFilter.addInput(lineItems);
-		ordersFilter.addInput(orders);
-		join.addFirstInput(ordersFilter);
-		join.addSecondInput(lineFilter);
-		aggregation.addInput(join);
-		result.addInput(aggregation);
+		lineFilter.setInput(lineItems);
+		ordersFilter.setInput(orders);
+		join.setFirstInput(ordersFilter);
+		join.setSecondInput(lineFilter);
+		aggregation.setInput(join);
+		result.setInput(aggregation);
 		
 			
 		return new Plan(result, "TPC-H 4");

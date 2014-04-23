@@ -54,11 +54,11 @@ object GlobalSchemaPrinter {
       case false => {
 
         val children = node match {
-          case bi: BulkIteration => bi.getInputs().toList :+ bi.getNextPartialSolution()
-          case wi: DeltaIteration => wi.getInitialSolutionSets().toList ++ wi.getInitialWorksets().toList :+ wi.getSolutionSetDelta() :+ wi.getNextWorkset()
-          case si : SingleInputOperator[_] => si.getInputs().toList
-          case di : DualInputOperator[_] => di.getFirstInputs().toList ++ di.getSecondInputs().toList
-          case gds : GenericDataSink => gds.getInputs().toList
+          case bi: BulkIteration => List(bi.getInput()) :+ bi.getNextPartialSolution()
+          case wi: DeltaIteration => List(wi.getInitialSolutionSet()) :+ wi.getInitialWorkset() :+ wi.getSolutionSetDelta() :+ wi.getNextWorkset()
+          case si : SingleInputOperator[_] => List(si.getInput())
+          case di : DualInputOperator[_] => List(di.getFirstInput()) :+ di.getSecondInput()
+          case gds : GenericDataSink => List(gds.getInput())
           case _ => List()
         }
         val newVisited = children.foldLeft(visited + node)(printSchema)
@@ -129,12 +129,12 @@ object GlobalSchemaPrinter {
             )
           }
           
-          case UnionNode(udf, input) => {
+          case UnionNode(udf, leftInput, rightInput) => {
             printInfo(node, "Union",
               Seq(),
-              Seq(("", udf.inputFields)),
-              Seq(("", udf.getForwardIndexArrayFrom)),
-              Seq(("", udf.getDiscardIndexArray)),
+              Seq(("L", udf.leftInputFields), ("R", udf.rightInputFields)),
+              Seq(("L", udf.getLeftForwardIndexArrayFrom), ("R", udf.getRightForwardIndexArrayFrom)),
+              Seq(("L", udf.getLeftDiscardIndexArray), ("R", udf.getRightDiscardIndexArray)),
               udf.outputFields
             )
           }

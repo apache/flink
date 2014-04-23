@@ -40,9 +40,6 @@ public class BinaryUnionNode extends TwoInputNode {
 	
 	private Set<RequestedGlobalProperties> channelProps;
 
-	/* 
-	 * Constructor used by the new java API
-	 */
 	public BinaryUnionNode(Union union){
 		super(union);
 	}

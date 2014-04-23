@@ -18,8 +18,9 @@ import eu.stratosphere.test.testPrograms.util.Tuple;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
-public class LineItemMap extends MapFunction
-{
+@SuppressWarnings("serial")
+public class LineItemMap extends MapFunction {
+	
 	/**
 	 * Filter "lineitem".
 	 * 

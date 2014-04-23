@@ -116,6 +116,7 @@ public class UnionITCase extends TestBase {
 		}
 	}
 
+	@SuppressWarnings("deprecation")
 	@Override
 	protected JobGraph getJobGraph() throws Exception {
 		String pathPrefix = getFilesystemProvider().getURIPrefix()+getFilesystemProvider().getTempDirPath();
@@ -140,7 +141,7 @@ public class UnionITCase extends TestBase {
 				new ContractITCaseOutputFormat(), pathPrefix + "/result.txt");
 		output.setDegreeOfParallelism(1);
 
-		output.addInput(testMapper);
+		output.setInput(testMapper);
 
 		testMapper.addInput(input1);
 		testMapper.addInput(input2);

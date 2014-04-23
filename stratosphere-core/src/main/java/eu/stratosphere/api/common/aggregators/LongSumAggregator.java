@@ -31,6 +31,11 @@ public class LongSumAggregator implements Aggregator<LongValue> {
 		sum += element.getValue();
 	}
 	
+	/**
+	 * Adds the given value to the current aggregate.
+	 * 
+	 * @param value The value to add to the aggregate.
+	 */
 	public void aggregate(long value) {
 		sum += value;
 	}

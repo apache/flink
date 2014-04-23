@@ -16,7 +16,7 @@ import eu.stratosphere.types.DoubleValue;
 
 
 /**
- *
+ * An {@link Aggregator} that sums up {@link DoubleValue} values.
  */
 public class DoubleSumAggregator implements Aggregator<DoubleValue> {
 
@@ -34,6 +34,15 @@ public class DoubleSumAggregator implements Aggregator<DoubleValue> {
 		sum += element.getValue();
 	}
 
+	/**
+	 * Adds the given value to the current aggregate.
+	 * 
+	 * @param value The value to add to the aggregate.
+	 */
+	public void aggregate(double element) {
+		sum += element;
+	}
+	
 	@Override
 	public void reset() {
 		sum = 0;

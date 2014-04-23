@@ -32,4 +32,10 @@ public class Union extends DualInputOperator<AbstractFunction> {
 		// we pass it an AbstractFunction, because currently all operators expect some form of UDF
 		super(new UserCodeClassWrapper<AbstractFunction>(AbstractFunction.class), NAME);
 	}
+	
+	public Union(Operator input1, Operator input2) {
+		this();
+		setFirstInput(input1);
+		setSecondInput(input2);
+	}
 }

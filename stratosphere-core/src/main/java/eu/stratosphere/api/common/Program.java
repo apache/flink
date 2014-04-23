@@ -16,8 +16,8 @@ package eu.stratosphere.api.common;
 import java.io.Serializable;
 
 /**
- * Interface for classes that represent Stratosphere programs. The program creates the {@link Plan}, which is the
- * instance of the program that will be executed.l
+ * A Program represents and end-to-end Stratosphere program. The Program creates the {@link Plan}, which describes
+ * the data flow to be executed.
  */
 public interface Program extends Serializable {
 	

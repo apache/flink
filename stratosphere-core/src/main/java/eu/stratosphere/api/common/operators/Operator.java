@@ -204,7 +204,7 @@ public abstract class Operator implements Visitable<Operator> {
 	 */
 	public static Operator createUnionCascade(Operator input1, Operator... input2) {
 		// return cases where we don't need a union
-		if (input2.length == 0) {
+		if (input2 == null || input2.length == 0) {
 			return input1;
 		} else if (input2.length == 1 && input1 == null) {
 			return input2[0];
@@ -240,7 +240,6 @@ public abstract class Operator implements Visitable<Operator> {
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
 
 	@Override
 	public String toString() {

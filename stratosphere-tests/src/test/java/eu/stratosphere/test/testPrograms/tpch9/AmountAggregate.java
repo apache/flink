@@ -21,8 +21,9 @@ import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
 
-public class AmountAggregate extends ReduceFunction
-{
+@SuppressWarnings("serial")
+public class AmountAggregate extends ReduceFunction {
+	
 	private StringValue value = new StringValue();
 	
 	/**

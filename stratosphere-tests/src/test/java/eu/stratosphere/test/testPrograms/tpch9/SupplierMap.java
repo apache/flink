@@ -19,6 +19,7 @@ import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
+@SuppressWarnings("serial")
 public class SupplierMap extends MapFunction {
 	
 	private IntValue suppKey = new IntValue();

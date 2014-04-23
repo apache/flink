@@ -80,7 +80,7 @@ public class TPCHQueryAsterix implements Program, ProgramDescription {
 	}
 
 	/**
-	 * Reduce PACT implements the aggregation of the results. The 
+	 * Reduce implements the aggregation of the results. The 
 	 * Combinable annotation is set as the partial counts can be calculated
 	 * already in the combiner
 	 *
@@ -182,13 +182,12 @@ public class TPCHQueryAsterix implements Program, ProgramDescription {
 			.field(IntValue.class, 0)
 			.field(StringValue.class, 1);
 
-		// assemble the PACT plan
-		result.addInput(aggCO);
-		aggCO.addInput(joinCO);
-		joinCO.addFirstInput(orders);
-		joinCO.addSecondInput(customers);
+		// assemble the plan
+		result.setInput(aggCO);
+		aggCO.setInput(joinCO);
+		joinCO.setFirstInput(orders);
+		joinCO.setSecondInput(customers);
 
-		// return the PACT plan
 		return new Plan(result, "TPCH Asterix");
 	}
 

@@ -39,6 +39,7 @@ import eu.stratosphere.api.common.operators.DeltaIteration
 import eu.stratosphere.api.scala.DeltaIterationScalaOperator
 import eu.stratosphere.api.common.operators.GenericDataSink
 import eu.stratosphere.api.common.operators.base.MapOperatorBase
+import eu.stratosphere.api.common.operators.Union
 
 class GlobalSchemaGenerator {
 
@@ -71,7 +72,6 @@ class GlobalSchemaGenerator {
 
         val freePos1 = globalizeContract(contract4s, proxies, fixedOutputs, freePos)
 
-        eliminateNoOps(contract4s)
         contract4s.persistConfiguration(None)
 
         freePos1
@@ -85,7 +85,7 @@ class GlobalSchemaGenerator {
 
       case contract : FileDataSink with ScalaOperator[_] => {
         contract.getUDF.outputFields.setGlobalized()
-        globalizeContract(contract.getInputs().get(0), Seq(contract.getUDF.asInstanceOf[UDF1[_,_]].inputFields), proxies, None, freePos)
+        globalizeContract(contract.getInput(), Seq(contract.getUDF.asInstanceOf[UDF1[_,_]].inputFields), proxies, None, freePos)
       }
 
       case contract: GenericDataSource[_] with ScalaOperator[_] => {
@@ -93,7 +93,7 @@ class GlobalSchemaGenerator {
       }
 
       case contract : BulkIteration with BulkIterationScalaOperator[_] => {
-        val s0 = contract.getInputs().get(0)
+        val s0 = contract.getInput()
 
         val s0contract = proxies.getOrElse(s0, s0.asInstanceOf[Operator with ScalaOperator[_]])
         val newProxies = proxies + (contract.getPartialSolution() -> s0contract)
@@ -109,8 +109,8 @@ class GlobalSchemaGenerator {
 
       case contract : DeltaIteration with DeltaIterationScalaOperator[_] => {
 //      case contract @ WorksetIterate4sContract(s0, ws0, deltaS, newWS, placeholderS, placeholderWS) => {
-        val s0 = contract.getInitialSolutionSets.get(0)
-        val ws0 = contract.getInitialWorksets.get(0)
+        val s0 = contract.getInitialSolutionSet()
+        val ws0 = contract.getInitialWorkset()
         val deltaS = contract.getSolutionSetDelta
         val newWS = contract.getNextWorkset
 
@@ -130,38 +130,38 @@ class GlobalSchemaGenerator {
 
       case contract : CoGroupOperator with TwoInputKeyedScalaOperator[_, _, _] => {
 
-        val freePos1 = globalizeContract(contract.getFirstInputs().get(0), Seq(contract.getUDF.leftInputFields, contract.leftKey.inputFields), proxies, None, freePos)
-        val freePos2 = globalizeContract(contract.getSecondInputs().get(0), Seq(contract.getUDF.rightInputFields, contract.rightKey.inputFields), proxies, None, freePos1)
+        val freePos1 = globalizeContract(contract.getFirstInput(), Seq(contract.getUDF.leftInputFields, contract.leftKey.inputFields), proxies, None, freePos)
+        val freePos2 = globalizeContract(contract.getSecondInput(), Seq(contract.getUDF.rightInputFields, contract.rightKey.inputFields), proxies, None, freePos1)
 
         contract.getUDF.setOutputGlobalIndexes(freePos2, fixedOutputs)
       }
 
       case contract: CrossOperator with TwoInputScalaOperator[_, _, _] => {
 
-        val freePos1 = globalizeContract(contract.getFirstInputs().get(0), Seq(contract.getUDF.leftInputFields), proxies, None, freePos)
-        val freePos2 = globalizeContract(contract.getSecondInputs().get(0), Seq(contract.getUDF.rightInputFields), proxies, None, freePos1)
+        val freePos1 = globalizeContract(contract.getFirstInput(), Seq(contract.getUDF.leftInputFields), proxies, None, freePos)
+        val freePos2 = globalizeContract(contract.getSecondInput(), Seq(contract.getUDF.rightInputFields), proxies, None, freePos1)
 
         contract.getUDF.setOutputGlobalIndexes(freePos2, fixedOutputs)
       }
 
       case contract : JoinOperator with TwoInputKeyedScalaOperator[_, _, _] => {
 
-        val freePos1 = globalizeContract(contract.getFirstInputs().get(0), Seq(contract.getUDF.leftInputFields, contract.leftKey.inputFields), proxies, None, freePos)
-        val freePos2 = globalizeContract(contract.getSecondInputs().get(0), Seq(contract.getUDF.rightInputFields, contract.rightKey.inputFields), proxies, None, freePos1)
+        val freePos1 = globalizeContract(contract.getFirstInput(), Seq(contract.getUDF.leftInputFields, contract.leftKey.inputFields), proxies, None, freePos)
+        val freePos2 = globalizeContract(contract.getSecondInput(), Seq(contract.getUDF.rightInputFields, contract.rightKey.inputFields), proxies, None, freePos1)
 
         contract.getUDF.setOutputGlobalIndexes(freePos2, fixedOutputs)
       }
 
       case contract : MapOperatorBase[_] with OneInputScalaOperator[_, _] => {
 
-        val freePos1 = globalizeContract(contract.getInputs().get(0), Seq(contract.getUDF.inputFields), proxies, None, freePos)
+        val freePos1 = globalizeContract(contract.getInput(), Seq(contract.getUDF.inputFields), proxies, None, freePos)
 
         contract.getUDF.setOutputGlobalIndexes(freePos1, fixedOutputs)
       }
 
       case contract : ReduceOperator with OneInputKeyedScalaOperator[_, _] => {
 
-        val freePos1 = globalizeContract(contract.getInputs().get(0), Seq(contract.getUDF.inputFields, contract.key.inputFields), proxies, None, freePos)
+        val freePos1 = globalizeContract(contract.getInput(), Seq(contract.getUDF.inputFields, contract.key.inputFields), proxies, None, freePos)
 
         contract.getUDF.setOutputGlobalIndexes(freePos1, fixedOutputs)
       }
@@ -169,55 +169,18 @@ class GlobalSchemaGenerator {
       // for key-less (global) reducers
       case contract : ReduceOperator with OneInputScalaOperator[_, _] => {
 
-        val freePos1 = globalizeContract(contract.getInputs().get(0), Seq(contract.getUDF.inputFields), proxies, None, freePos)
+        val freePos1 = globalizeContract(contract.getInput(), Seq(contract.getUDF.inputFields), proxies, None, freePos)
 
         contract.getUDF.setOutputGlobalIndexes(freePos1, fixedOutputs)
       }
 
-      case contract : MapOperator with UnionScalaOperator[_] => {
-
-        // Determine where this contract's children should write their output 
-        val freePos1 = contract.getUDF.setOutputGlobalIndexes(freePos, fixedOutputs)
+      case contract : Union with UnionScalaOperator[_] => {
         
-        val inputs = contract.getInputs()
+        val freePos1 = globalizeContract(contract.getFirstInput(), Seq(contract.getUDF.leftInputFields), proxies, fixedOutputs, freePos)
+        val freePos2 = globalizeContract(contract.getSecondInput(), Seq(contract.getUDF.rightInputFields), proxies, fixedOutputs, freePos1)
 
-        // If an input hasn't yet allocated its output fields, then we can force them into 
-        // the expected position. Otherwise, the output fields must be physically copied.
-        for (idx <- 0 until inputs.size()) {
-          val input = inputs.get(idx)
-          val input4s = proxies.getOrElse(input, input.asInstanceOf[Operator with ScalaOperator[_]])
-
-          if (input4s.getUDF.outputFields.isGlobalized || input4s.getUDF.outputFields.exists(_.globalPos.isReference)) {
-//            inputs.set(idx, CopyOperator(input4s))
-//            throw new RuntimeException("Copy operator needed, not yet implemented properly.")
-          }
-        }
-
-        inputs.foldLeft(freePos1) { (freePos2, input) =>
-          globalizeContract(input, Seq(), proxies, Some(contract.getUDF.outputFields), freePos2)
-        }
+        contract.getUDF.setOutputGlobalIndexes(freePos2, fixedOutputs)
       }
-    }
-  }
-
-  private def eliminateNoOps(contract: Operator): Unit = {
-
-    def elim(children: JList[Operator]): Unit = {
-
-      val newChildren = children flatMap {
-        case c: MapOperator with UnionScalaOperator[_] => c.getInputs()
-        case child                         => List(child)
-      }
-
-      children.clear()
-      children.addAll(newChildren)
-    }
-
-    contract match {
-      case c: SingleInputOperator[_] => elim(c.getInputs())
-      case c: DualInputOperator[_]   => elim(c.getFirstInputs()); elim(c.getSecondInputs())
-      case c: GenericDataSink => elim(c.getInputs())
-      case _                         =>
     }
   }
 }

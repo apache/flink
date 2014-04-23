@@ -23,6 +23,7 @@ import eu.stratosphere.compiler.dag.OptimizerNode
 import eu.stratosphere.api.common.operators.AbstractUdfOperator
 import eu.stratosphere.api.scala.analysis.UDF0
 import eu.stratosphere.api.java.record.functions.FunctionAnnotation
+import eu.stratosphere.api.common.operators.Union
 
 trait ScalaOperator[T] { this: Operator =>
   def getUDF(): UDF[T]
@@ -72,10 +73,6 @@ trait ScalaOperator[T] { this: Operator =>
 trait NoOpScalaOperator[In, Out] extends ScalaOperator[Out] { this: Operator =>
 }
 
-trait UnionScalaOperator[In] extends NoOpScalaOperator[In, In] { this: Operator =>
-  override def getUDF(): UDF1[In, In]
-}
-
 trait HigherOrderScalaOperator[T] extends ScalaOperator[T] { this: Operator =>
   override def getUDF(): UDF0[T]
 }
@@ -93,6 +90,10 @@ trait OneInputScalaOperator[In, Out] extends ScalaOperator[Out] { this: Operator
 
 trait TwoInputScalaOperator[In1, In2, Out] extends ScalaOperator[Out] { this: Operator =>
   override def getUDF(): UDF2[In1, In2, Out]
+}
+
+trait UnionScalaOperator[In] extends TwoInputScalaOperator[In, In, In] { this: Union =>
+  override def getUDF(): UDF2[In, In, In]
 }
 
 trait OneInputKeyedScalaOperator[In, Out] extends OneInputScalaOperator[In, Out] { this: Operator =>

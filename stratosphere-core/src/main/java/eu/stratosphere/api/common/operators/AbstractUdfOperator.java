@@ -27,7 +27,7 @@ public abstract class AbstractUdfOperator<T extends Function> extends Operator {
 	/**
 	 * The object or class containing the user function.
 	 */
-	protected final UserCodeWrapper<T> udf;
+	protected final UserCodeWrapper<T> userFunction;
 	
 	/**
 	 * The extra inputs which parameterize the user function.
@@ -44,7 +44,7 @@ public abstract class AbstractUdfOperator<T extends Function> extends Operator {
 	 */
 	protected AbstractUdfOperator(UserCodeWrapper<T> function, String name) {
 		super(name);
-		this.udf = function;
+		this.userFunction = function;
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -62,7 +62,7 @@ public abstract class AbstractUdfOperator<T extends Function> extends Operator {
 	 */
 	@Override
 	public UserCodeWrapper<T> getUserCodeWrapper() {
-		return udf;
+		return userFunction;
 	}
 	
 	// --------------------------------------------------------------------------------------------

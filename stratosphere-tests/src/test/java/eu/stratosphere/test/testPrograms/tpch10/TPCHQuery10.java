@@ -38,10 +38,9 @@ import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
 
-/**
- */
-public class TPCHQuery10 implements Program, ProgramDescription
-{
+@SuppressWarnings("serial")
+public class TPCHQuery10 implements Program, ProgramDescription {
+	
 	// --------------------------------------------------------------------------------------------
 	//                         Local Filters and Projections
 	// --------------------------------------------------------------------------------------------
