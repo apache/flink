@@ -13,7 +13,6 @@
 
 package eu.stratosphere.api.common.operators;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import eu.stratosphere.api.common.functions.Function;
@@ -28,7 +27,7 @@ public abstract class SingleInputOperator<T extends Function> extends AbstractUd
 	/**
 	 * The input which produces the data consumed by this operator.
 	 */
-	protected Operator input = null;
+	protected Operator input;
 	
 	/**
 	 * The positions of the keys in the tuple.
@@ -69,76 +68,73 @@ public abstract class SingleInputOperator<T extends Function> extends AbstractUd
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Returns the input, or null, if none is set.
+	 * Returns the input operator or data source, or null, if none is set.
 	 * 
-	 * @return The contract's input contract.
+	 * @return This operator's input.
 	 */
 	public Operator getInput() {
 		return this.input;
 	}
 	
 	/**
-	 * Returns the input as list, or null, if none is set.
-	 * This function is here for compatibility=reasons of the old-java-API with the scala API
-	 * 
-	 * @return The contract's input contract.
-	 */
-	public List<Operator> getInputs() {
-		if(this.input == null){
-			return null;
-		}
-		ArrayList<Operator> inputs = new ArrayList<Operator>();
-		inputs.add(this.input);
-		return inputs;
-	}
-	
-	/**
-	 * Removes all inputs from this contract.
+	 * Removes all inputs.
 	 */
 	public void clearInputs() {
 		this.input = null;
 	}
+	
+	/**
+	 * Sets the given operator as the input to this operator.
+	 * 
+	 * @param input The operator to use as the input.
+	 */
+	public void setInput(Operator input) {
+		this.input = input;
+	}
+	
+	/**
+	 * Sets the input to the union of the given operators.
+	 * 
+	 * @param input The operator(s) that form the input.
+	 * @deprecated This method will be removed in future versions. Use the {@link Union} operator instead.
+	 */
+	@Deprecated
+	public void setInput(Operator ... input) {
+		this.input = Operator.createUnionCascade(null, input);
+	}
+	
+	/**
+	 * Sets the input to the union of the given operators.
+	 * 
+	 * @param inputs The operator(s) that form the input.
+	 * @deprecated This method will be removed in future versions. Use the {@link Union} operator instead.
+	 */
+	@Deprecated
+	public void setInputs(List<Operator> inputs) {
+		this.input = Operator.createUnionCascade(null, inputs.toArray(new Operator[inputs.size()]));
+	}
 
 	/**
-	 * Connects the input to the task wrapped in this contract
+	 * Adds to the input the union of the given operators.
 	 * 
-	 * @param input The contract will be set as input.
+	 * @param input The operator(s) that form the input.
+	 * @deprecated This method will be removed in future versions. Use the {@link Union} operator instead.
 	 */
+	@Deprecated
 	public void addInput(Operator ... input) {
 		this.input = Operator.createUnionCascade(this.input, input);
 	}
 	
 	/**
-	 * Connects the inputs to the task wrapped in this contract
+	 * Adds to the input the union of the given operators.
 	 * 
-	 * @param inputs The contracts will be set as input.
+	 * @param inputs The operator(s) that form the input.
+	 * @deprecated This method will be removed in future versions. Use the {@link Union} operator instead.
 	 */
+	@Deprecated
 	public void addInput(List<Operator> inputs) {
 		this.input = Operator.createUnionCascade(this.input, inputs.toArray(new Operator[inputs.size()]));
 	}
-
-	/**
-	 * Clears all previous connections and sets the given contract as
-	 * single input of this contract.
-	 * 
-	 * @param input The contract will be set as input.
-	 */
-	public void setInput(Operator ... input) {
-		this.input = null;
-		addInput(input);
-	}
-	
-	/**
-	 * Clears all previous connections and sets the given contracts as
-	 * inputs of this contract.
-	 * 
-	 * @param inputs The contracts will be set as inputs.
-	 */
-	public void setInputs(List<Operator> inputs) {
-		this.input = null;
-		addInput(inputs);
-	}
-	
 
 	// --------------------------------------------------------------------------------------------
 

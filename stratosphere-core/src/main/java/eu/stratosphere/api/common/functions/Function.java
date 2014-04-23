@@ -16,47 +16,32 @@ package eu.stratosphere.api.common.functions;
 import eu.stratosphere.configuration.Configuration;
 
 /**
- * Abstract stub class for all PACT stubs. PACT stubs must be overwritten to provide user implementations
- * for PACT programs.
+ * Base interface for all user-defined functions.
  */
 public interface Function {
 	
 	/**
-	 * Initialization method for the stub. It is called before the actual working methods 
-	 * (like <i>map</i> or <i>match</i>). This method should be used for configuration and 
-	 * initialization of the stub implementation.
+	 * Initialization method for the function. It is called before the actual working methods 
+	 * (like <i>map</i> or <i>join</i>) and thus suitable for one time setup work.
 	 * <p>
-	 * This method receives the parameters attached to the contract. Consider the following pseudo code example,
-	 * which realizes a parameterizable filter:
-	 * <code>
-	 * public Plan getPlan(String... args)
-	 * {
-	 *     MapContract mc = new MapContract(MyMapper.class, "My Mapper");
-	 *     mc.setDegreeOfParallelism(48);
-	 *     mc.getStubParameters().setString("foo", "bar");
-	 *     
-	 *      ...
-	 *      
-	 *      Plan plan = new Plan(...);
-	 *      return plan;
-	 * }
-	 * 
-	 * public class MyMapper extends MapStub {
+	 * The configuration object passed to the function can be used for configuration and initialization. The configuration
+	 * contains all parameters that were configured on the operation where the UDF was passed in the program composition.
+	 * <pre>
+	 * {@code
+	 * public class MyMapper extends FilterFunction<String> {
 	 * 
 	 *     private String searchString;
 	 *     
 	 *     public void open(Configuration parameters) {
-	 *         this.searchString = parameters.getString("foo", null);
-	 *         // searchString will be "bar" when job is started
+	 *         this.searchString = parameters.getString("foo");
 	 *     }
 	 *     
-	 *     public void map(Record record, Collector collector) {
-	 *         if ( record.getValue(0, StringValue.class).equals(this.searchString) ) {
-	 *             collector.emit(record);
-	 *         }
+	 *     public boolean filter(String value) {
+	 *         return value.equals(searchString);
 	 *     }
 	 * }
-	 * </code>
+	 * }
+	 * </pre>
 	 * <p>
 	 * By default, this method does nothing.
 	 * 
@@ -72,10 +57,10 @@ public interface Function {
 
 	/**
 	 * Teardown method for the user code. It is called after the last call to the main working methods
-	 * (e.g. <i>map</i> or <i>match</i>). It is called also when the task is aborted, in which case exceptions
-	 * thrown by this method are logged but ignored. 
+	 * (e.g. <i>map</i> or <i>join</i>). It is called also when the task is aborted, in which case exceptions
+	 * thrown by this method are ignored. 
 	 * <p>
-	 * This method should be used for clean up.
+	 * This method can be used for clean up work.
 	 * 
 	 * @throws Exception Implementations may forward exceptions, which are caught by the runtime. When the
 	 *                   runtime catches an exception, it aborts the task and lets the fail-over logic
@@ -92,7 +77,7 @@ public interface Function {
 	RuntimeContext getRuntimeContext();
 	
 	/**
-	 * Sets the stub's runtime context. Called by the framework when creating a parallel instance of the stub.
+	 * Sets the function's runtime context. Called by the framework when creating a parallel instance of the function.
 	 *  
 	 * @param t The runtime context.
 	 */

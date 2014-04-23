@@ -81,8 +81,14 @@ public class CoGroupOperator extends CoGroupOperatorBase<CoGroupFunction> implem
 	protected CoGroupOperator(Builder builder) {
 		super(builder.udf, builder.getKeyColumnsArray1(), builder.getKeyColumnsArray2(), builder.name);
 		this.keyTypes = builder.getKeyClassesArray();
-		setFirstInputs(builder.inputs1);
-		setSecondInputs(builder.inputs2);
+		
+		if (builder.inputs1 != null && !builder.inputs1.isEmpty()) {
+			setFirstInput(Operator.createUnionCascade(builder.inputs1));
+		}
+		if (builder.inputs2 != null && !builder.inputs2.isEmpty()) {
+			setSecondInput(Operator.createUnionCascade(builder.inputs2));
+		}
+		
 		setBroadcastVariables(builder.broadcastInputs);
 		setGroupOrderForInputOne(builder.secondaryOrder1);
 		setGroupOrderForInputTwo(builder.secondaryOrder2);

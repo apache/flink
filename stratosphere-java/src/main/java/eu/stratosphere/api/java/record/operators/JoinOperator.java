@@ -73,11 +73,16 @@ public class JoinOperator extends JoinOperatorBase<JoinFunction> implements Reco
 	 * @param builder
 	 */
 	protected JoinOperator(Builder builder) {
-		super(builder.udf, builder.getKeyColumnsArray1(),
-				builder.getKeyColumnsArray2(), builder.name);
+		super(builder.udf, builder.getKeyColumnsArray1(), builder.getKeyColumnsArray2(), builder.name);
 		this.keyTypes = builder.getKeyClassesArray();
-		setFirstInputs(builder.inputs1);
-		setSecondInputs(builder.inputs2);
+		
+		if (builder.inputs1 != null && !builder.inputs1.isEmpty()) {
+			setFirstInput(Operator.createUnionCascade(builder.inputs1));
+		}
+		if (builder.inputs2 != null && !builder.inputs2.isEmpty()) {
+			setSecondInput(Operator.createUnionCascade(builder.inputs2));
+		}
+		
 		setBroadcastVariables(builder.broadcastInputs);
 		setSemanticProperties(FunctionAnnotation.readDualConstantAnnotations(builder.udf));
 	}

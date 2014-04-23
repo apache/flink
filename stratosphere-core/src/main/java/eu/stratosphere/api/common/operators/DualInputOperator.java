@@ -13,7 +13,6 @@
 
 package eu.stratosphere.api.common.operators;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import eu.stratosphere.api.common.functions.Function;
@@ -21,18 +20,19 @@ import eu.stratosphere.api.common.operators.util.UserCodeWrapper;
 import eu.stratosphere.util.Visitor;
 
 /**
- * Abstract contract superclass for for all contracts that have two inputs, like "match" or "cross".
+ * Abstract operator superclass for for all operators that have two inputs, like "Join", "CoGroup", or "Cross".
  */
 public abstract class DualInputOperator<T extends Function> extends AbstractUdfOperator<T> {
 	
 	/**
-	 * The contract producing the first input.
+	 * The operator producing the first input.
 	 */
-	protected Operator input1 = null;
+	protected Operator input1;
+	
 	/**
-	 * The contract producing the second input.
+	 * The operator producing the second input.
 	 */
-	protected Operator input2 = null;
+	protected Operator input2;
 
 	/**
 	 * The positions of the keys in the tuples of the first input.
@@ -50,16 +50,12 @@ public abstract class DualInputOperator<T extends Function> extends AbstractUdfO
 	private DualInputSemanticProperties semanticProperties;
 	
 	// --------------------------------------------------------------------------------------------
-
-	public DualInputOperator() {
-		this(null, null);
-	}
 	
 	/**
 	 * Creates a new abstract dual-input Pact with the given name wrapping the given user function.
 	 * 
 	 * @param stub The class containing the user function.
-	 * @param name The given name for the Pact, used in plans, logs and progress messages.
+	 * @param name The given name for the operator, used in plans, logs and progress messages.
 	 */
 	protected DualInputOperator(UserCodeWrapper<T> stub, String name) {
 		super(stub, name);
@@ -68,13 +64,13 @@ public abstract class DualInputOperator<T extends Function> extends AbstractUdfO
 	}
 	
 	/**
-	 * Creates a new abstract dual-input Pact with the given name wrapping the given user function.
-	 * This constructor is specialized only for Pacts that require no keys for their processing.
+	 * Creates a new abstract dual-input operator with the given name wrapping the given user function.
+	 * This constructor is specialized only for operator that require no keys for their processing.
 	 * 
 	 * @param stub The object containing the user function.
 	 * @param keyPositions1 The positions of the fields in the first input that act as keys.
 	 * @param keyPositions2 The positions of the fields in the second input that act as keys.
-	 * @param name The given name for the Pact, used in plans, logs and progress messages.
+	 * @param name The given name for the operator, used in plans, logs and progress messages.
 	 */
 	protected DualInputOperator(UserCodeWrapper<T> stub, int[] keyPositions1, int[] keyPositions2, String name) {
 		super(stub, name);
@@ -95,21 +91,6 @@ public abstract class DualInputOperator<T extends Function> extends AbstractUdfO
 	}
 	
 	/**
-	 * Returns the first input as list, or null, if none is set.
-	 * This function is here for compatibility=reasons of the old-java-API with the scala API
-	 * 
-	 * @return The contract's first input contract as list.
-	 */
-	public List<Operator> getFirstInputs() {
-		if(this.input1 == null){
-			return null;
-		}
-		ArrayList<Operator> inputs = new ArrayList<Operator>();
-		inputs.add(this.input1);
-		return inputs;
-	}
-	
-	/**
 	 * Returns the second input, or null, if none is set.
 	 * 
 	 * @return The contract's second input.
@@ -119,68 +100,18 @@ public abstract class DualInputOperator<T extends Function> extends AbstractUdfO
 	}
 	
 	/**
-	 * Returns the second input as list, or null, if none is set.
-	 * This function is here for compatibility=reasons of the old-java-API with the scala API
-	 * 
-	 * @return The contract's second input contract as list
-	 */
-	public List<Operator> getSecondInputs() {
-		if(this.input2 == null){
-			return null;
-		}
-		ArrayList<Operator> inputs = new ArrayList<Operator>();
-		inputs.add(this.input2);
-		return inputs;
-	}
-	
-	/**
-	 * Removes all inputs from this contract's first input.
+	 * Clears this operator's first input.
 	 */
 	public void clearFirstInput() {
 		this.input1 = null;
 	}
 	
 	/**
-	 * Removes all inputs from this contract's second input.
+	 * Clears this operator's second input.
 	 */
 	public void clearSecondInput() {
 		this.input2 = null;
 	}
-
-	/**
-	 * Connects the first input to the task wrapped in this contract.
-	 * 
-	 * @param input The contract will be set as the first input.
-	 */
-	public void addFirstInput(Operator ... input) {
-		this.input1 = Operator.createUnionCascade(this.input1, input);
-	}
-	
-	/**
-	 * Connects the second input to the task wrapped in this contract.
-	 * 
-	 * @param input The contract will be set as the second input.
-	 */
-	public void addSecondInput(Operator ... input) {
-		this.input2 = Operator.createUnionCascade(this.input2, input);
-	}
-
-	/**
-	 * Connects the first inputs to the task wrapped in this contract
-	 * 
-	 * @param inputs The contracts that is connected as the first inputs.
-	 */
-	public void addFirstInputs(List<Operator> inputs) {
-		this.input1 = Operator.createUnionCascade(this.input1, inputs.toArray(new Operator[inputs.size()]));
-	}
-
-	/**
-	 * Connects the second inputs to the task wrapped in this contract
-	 * 
-	 * @param inputs The contracts that is connected as the second inputs.
-	 */
-	public void addSecondInputs(List<Operator> inputs) {
-		this.input2 = Operator.createUnionCascade(this.input2, inputs.toArray(new Operator[inputs.size()]));	}
 	
 	/**
 	 * Clears all previous connections and connects the first input to the task wrapped in this contract
@@ -201,43 +132,91 @@ public abstract class DualInputOperator<T extends Function> extends AbstractUdfO
 	}
 	
 	/**
-	 * Clears all previous connections and connects the first input to the task wrapped in this contract
+	 * Sets the first input to the union of the given operators.
 	 * 
-	 * @param inputs The contracts that are connected as the first input.
+	 * @param inputs The operator(s) that form the first input.
+	 * @deprecated This method will be removed in future versions. Use the {@link Union} operator instead.
 	 */
+	@Deprecated
 	public void setFirstInput(Operator ... inputs) {
-		this.input1 = null;
-		addFirstInput(inputs);
+		this.input1 = Operator.createUnionCascade(inputs);
 	}
 
 	/**
-	 * Clears all previous connections and connects the second input to the task wrapped in this contract
+	 * Sets the second input to the union of the given operators.
 	 * 
-	 * @param inputs The contracts that are connected as the second input.
+	 * @param inputs The operator(s) that form the second input.
+	 * @deprecated This method will be removed in future versions. Use the {@link Union} operator instead.
 	 */
+	@Deprecated
 	public void setSecondInput(Operator ... inputs) {
-		this.input2 = null;
-		addSecondInput(inputs);
+		this.input2 = Operator.createUnionCascade(inputs);
 	}
 	
 	/**
-	 * Clears all previous connections and connects the first inputs to the task wrapped in this contract
+	 * Sets the first input to the union of the given operators.
 	 * 
-	 * @param inputs The contracts that are connected as the first inputs.
+	 * @param inputs The operator(s) that form the first inputs.
+	 * @deprecated This method will be removed in future versions. Use the {@link Union} operator instead.
 	 */
+	@Deprecated
 	public void setFirstInputs(List<Operator> inputs) {
-		this.input1 = null;
-		addFirstInputs(inputs);
+		this.input1 = Operator.createUnionCascade(inputs);
 	}
 
 	/**
-	 * Clears all previous connections and connects the second inputs to the task wrapped in this contract
+	 * Sets the second input to the union of the given operators.
 	 * 
-	 * @param inputs The contracts that are connected as the second inputs.
+	 * @param inputs The operator(s) that form the second inputs.
+	 * @deprecated This method will be removed in future versions. Use the {@link Union} operator instead.
 	 */
+	@Deprecated
 	public void setSecondInputs(List<Operator> inputs) {
-		this.input2 = null;
-		addSecondInputs(inputs);
+		this.input2 = Operator.createUnionCascade(inputs);
+	}
+
+	/**
+	 * Add to the first input the union of the given operators.
+	 * 
+	 * @param input The operator(s) to be unioned with the first input.
+	 * @deprecated This method will be removed in future versions. Use the {@link Union} operator instead.
+	 */
+	@Deprecated
+	public void addFirstInput(Operator ... input) {
+		this.input1 = Operator.createUnionCascade(this.input1, input);
+	}
+	
+	/**
+	 * Add to the second input the union of the given operators.
+	 * 
+	 * @param input The operator(s) to be unioned with the second input.
+	 * @deprecated This method will be removed in future versions. Use the {@link Union} operator instead.
+	 */
+	@Deprecated
+	public void addSecondInput(Operator ... input) {
+		this.input2 = Operator.createUnionCascade(this.input2, input);
+	}
+
+	/**
+	 * Add to the first input the union of the given operators.
+	 * 
+	 * @param inputs The operator(s) to be unioned with the first input.
+	 * @deprecated This method will be removed in future versions. Use the {@link Union} operator instead.
+	 */
+	@Deprecated
+	public void addFirstInputs(List<Operator> inputs) {
+		this.input1 = Operator.createUnionCascade(this.input1, inputs.toArray(new Operator[inputs.size()]));
+	}
+
+	/**
+	 * Add to the second input the union of the given operators.
+	 * 
+	 * @param inputs The operator(s) to be unioned with the second input.
+	 * @deprecated This method will be removed in future versions. Use the {@link Union} operator instead.
+	 */
+	@Deprecated
+	public void addSecondInputs(List<Operator> inputs) {
+		this.input2 = Operator.createUnionCascade(this.input2, inputs.toArray(new Operator[inputs.size()]));
 	}
 	
 	// --------------------------------------------------------------------------------------------

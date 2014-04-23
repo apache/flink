@@ -13,7 +13,6 @@
 
 package eu.stratosphere.api.common.operators;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import com.google.common.base.Preconditions;
@@ -26,9 +25,8 @@ import eu.stratosphere.api.common.io.OutputFormat;
 import eu.stratosphere.util.Visitor;
 
 /**
- * Operator for nodes which act as data sinks, storing the data they receive somewhere instead of sending it to another
- * contract. The way the data is stored is handled by the {@link OutputFormat}.
- * 
+ * Operator for nodes that act as data sinks, storing the data they receive.
+ * The way the data is stored is handled by the {@link OutputFormat}.
  */
 public class GenericDataSink extends Operator {
 	
@@ -75,10 +73,10 @@ public class GenericDataSink extends Operator {
 	
 	/**
 	 * Creates a GenericDataSink with the provided {@link OutputFormat} implementation the default name.
-	 * It uses the given contract as its input.
+	 * It uses the given operator as its input.
 	 * 
 	 * @param f The {@link OutputFormat} implementation used to sink the data.
-	 * @param input The contract to use as the input.
+	 * @param input The operator to use as the input.
 	 */
 	public GenericDataSink(OutputFormat<?> f, Operator input) {
 		this(f, input, DEFAULT_NAME);
@@ -90,22 +88,24 @@ public class GenericDataSink extends Operator {
 	 * 
 	 * @param f The {@link OutputFormat} implementation used to sink the data.
 	 * @param input The contracts to use as the input.
+	 * @deprecated This method will be removed in future versions. Use the {@link Union} operator instead.
 	 */
+	@Deprecated
 	public GenericDataSink(OutputFormat<?> f, List<Operator> input) {
 		this(f, input, DEFAULT_NAME);
 	}
 
 	/**
 	 * Creates a GenericDataSink with the provided {@link OutputFormat} implementation and the given name.
-	 * It uses the given contract as its input.
+	 * It uses the given operator as its input.
 	 * 
 	 * @param f The {@link OutputFormat} implementation used to sink the data.
-	 * @param input The contract to use as the input.
+	 * @param input The operator to use as the input.
 	 * @param name The given name for the sink, used in plans, logs and progress messages.
 	 */
 	public GenericDataSink(OutputFormat<?> f, Operator input, String name) {
 		this(f, name);
-		addInput(input);
+		setInput(input);
 	}
 
 	/**
@@ -115,10 +115,12 @@ public class GenericDataSink extends Operator {
 	 * @param f The {@link OutputFormat} implementation used to sink the data.
 	 * @param input The contracts to use as the input.
 	 * @param name The given name for the sink, used in plans, logs and progress messages.
+	 * @deprecated This method will be removed in future versions. Use the {@link Union} operator instead.
 	 */
+	@Deprecated
 	public GenericDataSink(OutputFormat<?> f, List<Operator> input, String name) {
 		this(f, name);
-		addInputs(input);
+		setInputs(input);
 	}
 	
 	/**
@@ -148,10 +150,10 @@ public class GenericDataSink extends Operator {
 	
 	/**
 	 * Creates a GenericDataSink with the provided {@link OutputFormat} implementation the default name.
-	 * It uses the given contract as its input.
+	 * It uses the given operator as its input.
 	 * 
 	 * @param f The {@link OutputFormat} implementation used to sink the data.
-	 * @param input The contract to use as the input.
+	 * @param input The operator to use as the input.
 	 */
 	public GenericDataSink(Class<? extends OutputFormat<?>> f, Operator input) {
 		this(f, input, DEFAULT_NAME);
@@ -163,22 +165,24 @@ public class GenericDataSink extends Operator {
 	 * 
 	 * @param f The {@link OutputFormat} implementation used to sink the data.
 	 * @param input The contracts to use as the input.
+	 * @deprecated This method will be removed in future versions. Use the {@link Union} operator instead.
 	 */
+	@Deprecated
 	public GenericDataSink(Class<? extends OutputFormat<?>> f, List<Operator> input) {
 		this(f, input, DEFAULT_NAME);
 	}
 
 	/**
 	 * Creates a GenericDataSink with the provided {@link OutputFormat} implementation and the given name.
-	 * It uses the given contract as its input.
+	 * It uses the given operator as its input.
 	 * 
 	 * @param f The {@link OutputFormat} implementation used to sink the data.
-	 * @param input The contract to use as the input.
+	 * @param input The operator to use as the input.
 	 * @param name The given name for the sink, used in plans, logs and progress messages.
 	 */
 	public GenericDataSink(Class<? extends OutputFormat<?>> f, Operator input, String name) {
 		this(f, name);
-		addInput(input);
+		setInput(input);
 	}
 
 	/**
@@ -188,81 +192,84 @@ public class GenericDataSink extends Operator {
 	 * @param f The {@link OutputFormat} implementation used to sink the data.
 	 * @param input The contracts to use as the input.
 	 * @param name The given name for the sink, used in plans, logs and progress messages.
+	 * @deprecated This method will be removed in future versions. Use the {@link Union} operator instead.
 	 */
+	@Deprecated
 	public GenericDataSink(Class<? extends OutputFormat<?>> f, List<Operator> input, String name) {
 		this(f, name);
-		addInputs(input);
+		setInputs(input);
 	}
 
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * Returns the contract which acts as the input, or null, if none is set.
+	 * Returns this operator's input operator.
 	 * 
-	 * @return the contract's input contract.
+	 * @return This operator's input.
 	 */
 	public Operator getInput() {
 		return this.input;
 	}
 	
 	/**
-	 * Returns the input as list, or null, if none is set.
-	 * This function is here for compatibility=reasons of the old-java-API with the scala API
+	 * Sets the given operator as the input to this operator.
 	 * 
-	 * @return The contract's input contract.
+	 * @param input The operator to use as the input.
 	 */
-	public List<Operator> getInputs() {
-		if(this.input == null){
-			return null;
-		}
-		ArrayList<Operator> inputs = new ArrayList<Operator>();
-		inputs.add(this.input);
-		return inputs;
-	}
-
-	/**
-	 * Connects the input to the task wrapped in this contract.
-	 * 
-	 * @param input the contract's input contract
-	 */
-	public void addInput(Operator input) {
+	public void setInput(Operator input) {
 		Preconditions.checkNotNull(input, "The input may not be null.");
-		this.input = createUnionCascade(this.input, new Operator[]{ input });
+		this.input = input;
+	}
+	
+	/**
+	 * Sets the input to the union of the given operators.
+	 * 
+	 * @param inputs The operator(s) that form the input.
+	 * @deprecated This method will be removed in future versions. Use the {@link Union} operator instead.
+	 */
+	@Deprecated
+	public void setInputs(Operator... inputs) {
+		Preconditions.checkNotNull(inputs, "The inputs may not be null.");
+		this.input = Operator.createUnionCascade(inputs);
+	}
+	
+	/**
+	 * Sets the input to the union of the given operators.
+	 * 
+	 * @param inputs The operator(s) that form the input.
+	 * @deprecated This method will be removed in future versions. Use the {@link Union} operator instead.
+	 */
+	@Deprecated
+	public void setInputs(List<Operator> inputs) {
+		Preconditions.checkNotNull(inputs, "The inputs may not be null.");
+		this.input = Operator.createUnionCascade(inputs);
+	}
+	
+	/**
+	 * Adds to the input the union of the given operators.
+	 * 
+	 * @param input The operator(s) to be unioned with the input.
+	 * @deprecated This method will be removed in future versions. Use the {@link Union} operator instead.
+	 */
+	@Deprecated
+	public void addInput(Operator... inputs) {
+		Preconditions.checkNotNull(input, "The input may not be null.");
+		this.input = Operator.createUnionCascade(inputs);
 	}
 
 	/**
-	 * Connects the inputs to the task wrapped in this contract
+	 * Adds to the input the union of the given operators.
 	 * 
-	 * @param inputs The contracts will be set as input.
+	 * @param inputs The operator(s) to be unioned with the input.
+	 * @deprecated This method will be removed in future versions. Use the {@link Union} operator instead.
 	 */
+	@Deprecated
 	public void addInputs(List<? extends Operator> inputs) {
 		Preconditions.checkNotNull(inputs, "The inputs may not be null.");
 		this.input = createUnionCascade(this.input, inputs.toArray(new Operator[inputs.size()]));
 	}
 
-	/**
-	 * Clears all previous connections and sets the given contract as
-	 * single input of this contract.
-	 * 
-	 * @param input	The contract will be set as input.
-	 */
-	public void setInput(Operator input) {
-		Preconditions.checkNotNull(input, "The input may not be null.");
-		this.input = null;
-		addInput(input);
-	}
-	
-	/**
-	 * Clears all previous connections and sets the given contracts as
-	 * inputs of this contract.
-	 * 
-	 * @param inputs The contracts will be set as inputs.
-	 */
-	public void setInputs(List<Operator> inputs) {
-		Preconditions.checkNotNull(inputs, "The inputs may not be null.");
-		this.input = null;
-		addInputs(inputs);
-	}
+	// --------------------------------------------------------------------------------------------
 	
 	/**
 	 * Sets the order in which the sink must write its data. For any value other then <tt>NONE</tt>,
@@ -357,6 +364,8 @@ public class GenericDataSink extends Operator {
 	public DataDistribution getDataDistribution() {
 		return this.distribution;
 	}
+	
+	// --------------------------------------------------------------------------------------------
 	
 	/**
 	 * Gets the class describing this sinks output format.

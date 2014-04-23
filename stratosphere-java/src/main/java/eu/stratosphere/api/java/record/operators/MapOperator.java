@@ -63,7 +63,11 @@ public class MapOperator extends MapOperatorBase<MapFunction> implements RecordO
 	 */
 	protected MapOperator(Builder builder) {
 		super(builder.udf, builder.name);
-		setInputs(builder.inputs);
+		
+		if (builder.inputs != null && !builder.inputs.isEmpty()) {
+			setInput(Operator.createUnionCascade(builder.inputs));
+		}
+		
 		setBroadcastVariables(builder.broadcastInputs);
 		setSemanticProperties(FunctionAnnotation.readSingleConstantAnnotations(builder.udf));
 	}

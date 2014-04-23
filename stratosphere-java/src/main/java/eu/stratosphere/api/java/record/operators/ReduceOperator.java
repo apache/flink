@@ -96,7 +96,11 @@ public class ReduceOperator extends GroupReduceOperatorBase<ReduceFunction> impl
 	protected ReduceOperator(Builder builder) {
 		super(builder.udf, builder.getKeyColumnsArray(), builder.name);
 		this.keyTypes = builder.getKeyClassesArray();
-		setInputs(builder.inputs);
+		
+		if (builder.inputs != null && !builder.inputs.isEmpty()) {
+			setInput(Operator.createUnionCascade(builder.inputs));
+		}
+		
 		setGroupOrder(builder.secondaryOrder);
 		setBroadcastVariables(builder.broadcastInputs);
 		setSemanticProperties(FunctionAnnotation.readSingleConstantAnnotations(builder.udf));
