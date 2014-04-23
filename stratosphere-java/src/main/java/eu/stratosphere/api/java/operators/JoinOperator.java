@@ -457,10 +457,10 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			
 			protected DefaultJoin<I1, I2> createJoinOperator(Keys<I2> keys2) {
 				if (keys2 == null)
-					throw new NullPointerException();
+					throw new NullPointerException("The join keys may not be null.");
 				
 				if (keys2.isEmpty()) {
-					throw new InvalidProgramException("The join keys must not be empty.");
+					throw new InvalidProgramException("The join keys may not be empty.");
 				}
 				
 				if (!keys1.areCompatibale(keys2)) {

@@ -42,6 +42,7 @@ public class ConnectedComponents implements ProgramDescription {
 	public static void main(String... args) throws Exception {
 		if (args.length < 4) {
 			System.err.println("Parameters: <vertices-path> <edges-path> <result-path> <max-number-of-iterations>");
+			return;
 		}
 		
 		final int maxIterations = Integer.parseInt(args[3]);

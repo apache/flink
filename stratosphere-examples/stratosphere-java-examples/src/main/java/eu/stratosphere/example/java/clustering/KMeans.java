@@ -141,7 +141,7 @@ public class KMeans {
 
 		@Override
 		public Centroid map(Tuple3<Integer, Point, Long> value) {
-			return new Centroid(value.f0,  value.f1.div(value.f2));
+			return new Centroid(value.f0, value.f1.div(value.f2));
 		}
 	}
 	
