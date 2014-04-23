@@ -15,7 +15,7 @@
 package eu.stratosphere.api.java.operators.translation;
 
 import eu.stratosphere.api.common.functions.GenericFlatMap;
-import eu.stratosphere.api.common.operators.base.FlatMapOperatorBase;
+import eu.stratosphere.api.common.operators.base.FilterOperatorBase;
 import eu.stratosphere.api.java.functions.FilterFunction;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
 import eu.stratosphere.util.Collector;
@@ -23,7 +23,7 @@ import eu.stratosphere.util.Collector;
 /**
  *
  */
-public class PlanFilterOperator<T> extends FlatMapOperatorBase<GenericFlatMap<T, T>>
+public class PlanFilterOperator<T> extends FilterOperatorBase<GenericFlatMap<T, T>>
 	implements UnaryJavaPlanNode<T, T>
 {
 	private final TypeInformation<T> type;

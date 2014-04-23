@@ -40,6 +40,7 @@ import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.common.operators.Union;
 import eu.stratosphere.api.common.operators.base.CoGroupOperatorBase;
 import eu.stratosphere.api.common.operators.base.CrossOperatorBase;
+import eu.stratosphere.api.common.operators.base.FilterOperatorBase;
 import eu.stratosphere.api.common.operators.base.FlatMapOperatorBase;
 import eu.stratosphere.api.common.operators.base.GroupReduceOperatorBase;
 import eu.stratosphere.api.common.operators.base.JoinOperatorBase;
@@ -56,6 +57,7 @@ import eu.stratosphere.compiler.dag.CollectorMapNode;
 import eu.stratosphere.compiler.dag.CrossNode;
 import eu.stratosphere.compiler.dag.DataSinkNode;
 import eu.stratosphere.compiler.dag.DataSourceNode;
+import eu.stratosphere.compiler.dag.FilterNode;
 import eu.stratosphere.compiler.dag.FlatMapNode;
 import eu.stratosphere.compiler.dag.GroupReduceNode;
 import eu.stratosphere.compiler.dag.IterationNode;
@@ -839,6 +841,9 @@ public class PactCompiler {
 			}
 			else if (c instanceof FlatMapOperatorBase) {
 				n = new FlatMapNode((FlatMapOperatorBase<?>) c);
+			}
+			else if (c instanceof FilterOperatorBase) {
+				n = new FilterNode((FilterOperatorBase<?>) c);
 			}
 			else if (c instanceof ReduceOperatorBase) {
 				n = new ReduceNode((ReduceOperatorBase<?>) c);
