@@ -1549,7 +1549,9 @@ public class PactCompiler {
 			throw new CompilerException(e.getMessage());
 		}
 		catch (Throwable t) {
-			throw new CompilerException("Error while connecting to the job manager: " + t.getMessage(), t);
+			throw new CompilerException("Cannot connect to the JobManager to determine the available TaskManagers. "
+					+ "Check if the JobManager is running (using the web interface or log files). Reason: " + 
+				t.getMessage(), t);
 		}
 
 		// determine which type to run on

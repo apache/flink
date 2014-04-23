@@ -934,15 +934,15 @@ public class TaskManager implements TaskOperationProtocol {
 			final File f = new File(dir);
 
 			if (!f.exists()) {
-				throw new Exception("Temporary file directory #" + (i + 1) + " does not exist.");
+				throw new Exception("Temporary file directory '" + f.getAbsolutePath() + "' does not exist.");
 			}
 
 			if (!f.isDirectory()) {
-				throw new Exception("Temporary file directory #" + (i + 1) + " is not a directory.");
+				throw new Exception("Temporary file directory '" + f.getAbsolutePath() + "' is not a directory.");
 			}
 
 			if (!f.canWrite()) {
-				throw new Exception("Temporary file directory #" + (i + 1) + " is not writable.");
+				throw new Exception("Temporary file directory '" + f.getAbsolutePath() + "' is not writable.");
 			}
 		}
 	}

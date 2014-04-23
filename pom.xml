@@ -68,7 +68,7 @@
 			<scope>compile</scope>
 		</dependency>
 
-        <dependency>
+		<dependency>
 			<groupId>log4j</groupId>
 			<artifactId>log4j</artifactId>
 			<version>1.2.16</version>
@@ -234,64 +234,62 @@
 				</pluginManagement>
 			</build>
 		</profile>
-                <profile>
-                        <id>jdk8</id>
-                        <activation>
-                                <activeByDefault>false</activeByDefault>
-                                <jdk>1.8</jdk>
-                        </activation>
-                <build>
-                        <plugins>
-                                <plugin>
-                                        <groupId>org.apache.maven.plugins</groupId>
-                                        <artifactId>maven-javadoc-plugin</artifactId>
-                                        <version>2.9.1</version>
-                                        <configuration>
-                                                <quiet>true</quiet>
-                                        </configuration>
-                                        <executions>
-                                                <execution>
-                                                        <id>attach-javadocs</id>
-                                                        <goals>
-                                                                <goal>jar</goal>
-                                                        </goals>
-                                                        <configuration>
-                                                                 <additionalparam>-Xdoclint:none</additionalparam>
-                                                        </configuration>
-                                                </execution>
-                                        </executions>
-                                </plugin>
-                        </plugins>
-                </build>
-        </profile>
+		<profile>
+			<id>jdk8</id>
+				<activation>
+					<activeByDefault>false</activeByDefault>
+					<jdk>1.8</jdk>
+				</activation>
+				<build>
+					<plugins>
+						<plugin>
+							<groupId>org.apache.maven.plugins</groupId>
+							<artifactId>maven-javadoc-plugin</artifactId>
+							<version>2.9.1</version>
+							<configuration>
+								<quiet>true</quiet>
+							</configuration>
+							<executions>
+								<execution>
+									<id>attach-javadocs</id>
+									<goals>
+										<goal>jar</goal>
+									</goals>
+									<configuration>
+										<additionalparam>-Xdoclint:none</additionalparam>
+									</configuration>
+								</execution>
+							</executions>
+						</plugin>
+					</plugins>
+				</build>
+		</profile>
 	</profiles>
-
 
 	<dependencyManagement>
 		<!-- this section defines the module versions that are used if nothing else is specified. -->
 		<dependencies>	
-		<!-- Managed dependency required for HBase in pact-hbase  -->
-		<dependency>
-		<groupId>org.slf4j</groupId>
-		<artifactId>slf4j-api</artifactId>
-		<version>1.4.3</version>
-	  </dependency>
-	  <dependency>
-		<groupId>org.slf4j</groupId>
-		<artifactId>slf4j-log4j12</artifactId>
-		<version>1.4.3</version>
-	  </dependency>
-        <dependency>
-                <groupId>org.javassist</groupId>
-                <artifactId>javassist</artifactId>
-                <version>3.18.1-GA</version>
-        </dependency>
+			<!-- Managed dependency required for HBase in pact-hbase  -->
+			<dependency>
+				<groupId>org.slf4j</groupId>
+				<artifactId>slf4j-api</artifactId>
+				<version>1.4.3</version>
+			</dependency>
+			<dependency>
+				<groupId>org.slf4j</groupId>
+				<artifactId>slf4j-log4j12</artifactId>
+				<version>1.4.3</version>
+			</dependency>
+			<dependency>
+				<groupId>org.javassist</groupId>
+				<artifactId>javassist</artifactId>
+				<version>3.18.1-GA</version>
+			</dependency>
 		</dependencies>
 	</dependencyManagement>
 
 	<reporting>
 		<plugins>
-
 			<!-- execution of Unit Tests -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -319,43 +317,43 @@
 
 	<build>
 		<plugins>
-            <plugin>
-                <groupId>org.apache.rat</groupId>
-                <artifactId>apache-rat-plugin</artifactId>
-                <version>0.10</version>
-                <executions>
-                    <execution>
-                        <phase>verify</phase>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                    </execution>
-                </executions>
-                <configuration>
-                    <excludeSubProjects>false</excludeSubProjects>
-                    <numUnapprovedLicenses>0</numUnapprovedLicenses>
-                    <excludes>
-                        <!-- Additional files like .gitignore etc.-->
-                        <exclude>**/.*</exclude>
-                        <exclude>**/*.prefs</exclude>
-                        <!-- Resource files which have values. -->
-                        <exclude>**/resources/**</exclude>
-                        <!-- Configuration Files. -->
-                        <exclude>**/stratosphere-bin/conf/slaves</exclude>
-                        <!-- Administrative files in the main trunk. -->
-                        <exclude>README.md</exclude>
-                        <exclude>CHANGELOG</exclude>
-                        <exclude>**/*.creole</exclude>
-                        <exclude>CONTRIBUTORS</exclude>
-                        <!-- Build fiels -->
-                        <exclude>**/pom.xml</exclude>
-                        <exclude>**/pom.hadoop2.xml</exclude>
-                        <exclude>**/*.iml</exclude>
-                        <!-- Generated content -->
-                        <exclude>**/target/**</exclude>
-                    </excludes>
-                </configuration>
-            </plugin>
+			<plugin>
+				<groupId>org.apache.rat</groupId>
+				<artifactId>apache-rat-plugin</artifactId>
+				<version>0.10</version>
+				<executions>
+					<execution>
+						<phase>verify</phase>
+						<goals>
+							<goal>check</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<excludeSubProjects>false</excludeSubProjects>
+					<numUnapprovedLicenses>0</numUnapprovedLicenses>
+					<excludes>
+						<!-- Additional files like .gitignore etc.-->
+						<exclude>**/.*</exclude>
+						<exclude>**/*.prefs</exclude>
+						<!-- Resource files which have values. -->
+						<exclude>**/resources/**</exclude>
+						<!-- Configuration Files. -->
+						<exclude>**/stratosphere-bin/conf/slaves</exclude>
+						<!-- Administrative files in the main trunk. -->
+						<exclude>README.md</exclude>
+						<exclude>CHANGELOG</exclude>
+						<exclude>**/*.creole</exclude>
+						<exclude>CONTRIBUTORS</exclude>
+						<!-- Build fiels -->
+						<exclude>**/pom.xml</exclude>
+						<exclude>**/pom.hadoop2.xml</exclude>
+						<exclude>**/*.iml</exclude>
+						<!-- Generated content -->
+						<exclude>**/target/**</exclude>
+					</excludes>
+				</configuration>
+			</plugin>
 			<plugin>
 				<!-- just define the Java version to be used for compiling and plugins -->
 				<groupId>org.apache.maven.plugins</groupId>
@@ -440,8 +438,8 @@
 						<configuration>
 							<rules>
 								<requireMavenVersion>
-									<version>(,2.1.0),(2.1.0,2.2.0),(2.2.0,)</version>
-									<message>Maven 2.1.0 and 2.2.0 produce incorrect GPG signatures and checksums respectively.</message>
+									<!-- enforce at least mvn version 3.0.3 -->
+									<version>[3.0.3,)</version>
 								</requireMavenVersion>
 							</rules>
 						</configuration>
