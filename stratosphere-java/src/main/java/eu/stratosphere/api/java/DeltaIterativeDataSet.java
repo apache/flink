@@ -19,34 +19,63 @@ import eu.stratosphere.api.java.operators.TwoInputOperator;
 import eu.stratosphere.api.java.operators.translation.BinaryNodeTranslation;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
 
-public class DeltaIterativeDataSet<T, U> extends TwoInputOperator<T, U, T, DeltaIterativeDataSet<T, U>> {
+/**
+ * The DeltaIterativeDataSet represents the start of a delta iteration. It is created from the DataSet that 
+ * represents the initial solution set via the {@link DataSet#iterateDelta(DataSet, int, int)} method.
+ * 
+ * @param<ST> The data type of the solution set.
+ * @param<WT> The data type of the workset (the feedback data set).
+ *
+ * @see DataSet#iterateDelta(DataSet, int, int)
+ * @see DataSet#iterateDelta(DataSet, int, int[])
+ */
+public class DeltaIterativeDataSet<ST, WT> extends TwoInputOperator<ST, WT, ST, DeltaIterativeDataSet<ST, WT>> {
 	
-	private DeltaIterativeDataSet<T, U> solutionSetPlaceholder;
+	private DeltaIterativeDataSet<ST, WT> solutionSetPlaceholder;
 	
-	private Keys<T> keys ;
+	private Keys<ST> keys;
 	
 	private int maxIterations;
 
-	DeltaIterativeDataSet(ExecutionEnvironment context, TypeInformation<T> type, DataSet<T> solutionSet, DataSet<U> workset, Keys<T> keys, int maxIterations) {
+	DeltaIterativeDataSet(ExecutionEnvironment context, TypeInformation<ST> type, DataSet<ST> solutionSet, DataSet<WT> workset, Keys<ST> keys, int maxIterations) {
 		super(solutionSet, workset, type);
 		
-		solutionSetPlaceholder = new DeltaIterativeDataSet<T, U>(context, type, solutionSet, workset, true);
+		solutionSetPlaceholder = new DeltaIterativeDataSet<ST, WT>(context, type, solutionSet, workset, true);
 		this.keys = keys;
 		this.maxIterations = maxIterations;
 	}
 	
-	private DeltaIterativeDataSet(ExecutionEnvironment context, TypeInformation<T> type, DataSet<T> solutionSet, DataSet<U> workset, boolean placeholder) {
+	private DeltaIterativeDataSet(ExecutionEnvironment context, TypeInformation<ST> type, DataSet<ST> solutionSet, DataSet<WT> workset, boolean placeholder) {
 		super(solutionSet, workset, type);
 	}
 
-	public DataSet<T> closeWith(DataSet<T> solutionsetResult, DataSet<U> worksetResult) {
-		return new DeltaIterativeResultDataSet<T, U>(getExecutionEnvironment(), getType(), worksetResult.getType(), this, solutionSetPlaceholder, solutionsetResult, worksetResult, keys, maxIterations);
+	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * Closes the delta iteration. This method defines the end of the delta iteration's function.
+	 * 
+	 * @param solutionSetDelta The delta for the solution set. The delta will be merged into the solution set at the end of
+	 *                         each iteration.
+	 * @param newWorkset The new workset (feedback data set) that will be fed back to the next iteration.
+	 * @return The DataSet that represents the result of the iteration, after the computation has terminated.
+	 * 
+	 * @see DataSet#iterateDelta(DataSet, int, int)
+	 */
+	public DataSet<ST> closeWith(DataSet<ST> solutionSetDelta, DataSet<WT> newWorkset) {
+		return new DeltaIterativeResultDataSet<ST, WT>(getExecutionEnvironment(), getType(), newWorkset.getType(), this, solutionSetPlaceholder, solutionSetDelta, newWorkset, keys, maxIterations);
 	}
 	
-	public DataSet<T> getSolutionSet() {
+	/**
+	 * Gets the solution set of the delta iteration. The solution set represents the state that is kept across iterations.
+	 * 
+	 * @return The solution set of the delta iteration.
+	 */
+	public DataSet<ST> getSolutionSet() {
 		return solutionSetPlaceholder;
 	}
 
+	// --------------------------------------------------------------------------------------------
+	
 	@Override
 	protected BinaryNodeTranslation translateToDataFlow() {
 		// All the translation magic happens when the iteration end is encountered.

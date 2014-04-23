@@ -491,46 +491,104 @@ public abstract class DataSet<T> {
 		return new CrossOperator.CrossOperatorSets<T, R>(this, other);
 	}
 
-	/**
-	 * Union with an other {@link Tuple} {@link DataSet} which must be of the same type.
-	 * 
-	 * @param other The other DataSet which is appended to the current DataSet via union .
-	 * @return The result DataSet which is of the same type as the two inputs
-	 */
-
-	public UnionOperator<T> union(DataSet<T> other){
-		return new UnionOperator<T>(this, other);
-	}
-
-
 	// --------------------------------------------------------------------------------------------
 	//  Iterations
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Initiates an iteration with a specified number of maximum iterations. <br/>
-	 * The iteration needs to be closed by calling {@link IterativeDataSet#closeWith(DataSet)} with 
-	 * a DataSet that succeeds this DataSet. 
-	 * While iterating, the result of the DataSet with which the iteration is closed 
-	 * will be fed back to this point. 
-	 *  
-	 * @param maxIterations The maximum number of iterations.
-	 * @return An IterativeDataSet that needs to be closed by {@link IterativeDataSet#closeWith(DataSet)}.
+	 * Initiates an iterative part of the program that executes multiple times and feeds back data sets.
+	 * The iterative part needs to be closed by calling {@link IterativeDataSet#closeWith(DataSet)}. The data set
+	 * given to the {@code closeWith(DataSet)} method is the data set that will be fed back and used as the input
+	 * to the next iteration. The return value of the {@code closeWith(DataSet)} method is the resulting
+	 * data set after the iteration has terminated.
+	 * <p>
+	 * An example of an iterative computation is as follows:
+	 *
+	 * <pre>
+	 * {@code
+	 * DataSet<Double> input = ...;
 	 * 
-	 * @see IterativeDataSet
+	 * DataSet<Double> startOfIteration = input.iterate(10);
+	 * DataSet<Double> toBeFedBack = startOfIteration
+	 *                               .map(new MyMapper())
+	 *                               .groupBy(...).reduceGroup(new MyReducer());
+	 * DataSet<Double> result = startOfIteration.closeWith(toBeFedBack);
+	 * }
+	 * </pre>
+	 * <p>
+	 * The iteration has a maximum number of times that it executes. A dynamic termination can be realized by using a
+	 * termination criterion (see {@link IterativeDataSet#closeWith(DataSet, DataSet)}).
+	 * 
+	 * @param maxIterations The maximum number of times that the iteration is executed.
+	 * @return An IterativeDataSet that marks the start of the iterative part and needs to be closed by
+	 *         {@link IterativeDataSet#closeWith(DataSet)}.
+	 * 
+	 * @see eu.stratosphere.api.java.IterativeDataSet
 	 */
 	public IterativeDataSet<T> iterate(int maxIterations) {
 		return new IterativeDataSet<T>(getExecutionEnvironment(), getType(), this, maxIterations);
 	}
 	
 	/**
-	 * piped DataSet considered SolutionSet
-	 */	
+	 * Initiates a delta iteration. A delta iteration is similar to a regular iteration (as started by {@link #iterate(int)),
+	 * but maintains state across the individual iteration steps. The state is called the <i>solution set</i>, can be obtained
+	 * via {@link DeltaIterativeDataSet#getSolutionSet()}, and be accessed by joining (or CoGrouping) with it. The solution
+	 * set is updated by producing a delta for it, which is merged into the solution set at the end of each iteration step.
+	 * <p>
+	 * The delta iteration must be closed by calling {@link DeltaIterativeDataSet#closeWith(DataSet, DataSet)}. The two 
+	 * parameters are the delta for the solution set and the new workset (the data set that will be fed back).
+	 * The return value of the {@code closeWith(DataSet, DataSet)} method is the resulting
+	 * data set after the iteration has terminated. Delta iterations terminate when the feed back data set
+	 * (the workset) is empty. In addition, a maximum number of steps is given as a fall back termination guard.
+	 * <p>
+	 * Elements in the solution set are uniquely identified by a key. When merging the solution set delta, contained elements
+	 * with the same key are replaced.
+	 * <p>
+	 * <b>NOTE:</b> Delta iterations currently support only tuple valued data types. This restriction
+	 * will be removed in the future. The key is specified by the tuple position.
+	 * <p>
+	 * A code example for a delta iteration is as follows
+	 * <pre>
+	 * {@code
+	 * DeltaIterativeDataSet<Tuple2<Long, Long>, Tuple2<Long, Long>> iteration = 
+	 *                                                  initialState.iterateDelta(initialFeedbakSet, 100, 0);
+	 * 
+	 * DataSet<Tuple2<Long, Long>> delta = iteration.groupBy(0).aggregate(Aggregations.AVG, 1)
+	 *                                              .join(iteration.getSolutionSet()).where(0).equalTo(0)
+	 *                                              .flatMap(new ProjectAndFilter());
+	 *                                              
+	 * DataSet<Tuple2<Long, Long>> feedBack = delta.join(someOtherSet).where(...).equalTo(...).with(...);
+	 * 
+	 * // close the delta iteration (delta and new workset are identical)
+	 * DataSet<Tuple2<Long, Long>> result = iteration.closeWith(delta, feedBack);
+	 * }
+	 * </pre>
+	 * 
+	 * @param workset The initial version of the data set that is fed back to the next iteration step (the workset).
+	 * @param maxIterations The maximum number of iteration steps, as a fall back safeguard.
+	 * @param keyPosition The position of the tuple fields that is used as the key of the solution set.
+	 * 
+	 * @return The DeltaIterativeDataSet that marks the start of a delta iteration.
+	 * 
+	 * @see eu.stratosphere.api.java.DeltaIterativeDataSet
+	 */
 	public <R> DeltaIterativeDataSet<T, R> iterateDelta(DataSet<R> workset, int maxIterations, int keyPosition) {
 		return iterateDelta(workset, maxIterations, new int[] {keyPosition});
 	}
 	
-	public <R> DeltaIterativeDataSet<T, R> iterateDelta(DataSet<R> workset, int maxIterations, int [] keyPositions) {
+	/**
+	 * This method starts a delta iteration in the same way as {@link #iterateDelta(DataSet, int, int)}, but allows
+	 * to use multiple tuple fields as a composite key.
+	 * 
+	 * @param workset The initial version of the data set that is fed back to the next iteration step (the workset).
+	 * @param maxIterations The maximum number of iteration steps, as a fall back safeguard.
+	 * @param keyPosition The position of the tuple fields that is used as the key of the solution set.
+	 * 
+	 * @return The DeltaIterativeDataSet that marks the start of a delta iteration.
+	 * 
+	 * @see #iterateDelta(DataSet, int, int)
+	 */
+	public <R> DeltaIterativeDataSet<T, R> iterateDelta(DataSet<R> workset, int maxIterations, int[] keyPositions) {
 		Keys.FieldPositionKeys<T> keys = new Keys.FieldPositionKeys<T>(keyPositions, getType(), false);
 		return new DeltaIterativeDataSet<T, R>(getExecutionEnvironment(), getType(), this, workset, keys, maxIterations);
 	}
@@ -539,6 +597,7 @@ public abstract class DataSet<T> {
 	//  Custom Operators
 	// -------------------------------------------------------------------------------------------
 	
+
 	public <X> DataSet<X> runOperation(CustomUnaryOperation<T, X> operation) {
 		Validate.notNull(operation, "The custom operator must not be null.");
 		operation.setInput(this);
@@ -549,6 +608,16 @@ public abstract class DataSet<T> {
 	//  Union
 	// --------------------------------------------------------------------------------------------
 
+	/**
+	 * Creates a union of this DataSet with an other DataSet. The other DataSet must be of the same data type.
+	 * 
+	 * @param other The other DataSet which is unioned with the current DataSet.
+	 * @return The resulting DataSet.
+	 */
+	public UnionOperator<T> union(DataSet<T> other){
+		return new UnionOperator<T>(this, other);
+	}
+	
 	// --------------------------------------------------------------------------------------------
 	//  Top-K
 	// --------------------------------------------------------------------------------------------
@@ -686,7 +755,8 @@ public abstract class DataSet<T> {
 	// --------------------------------------------------------------------------------------------
 	
 	protected static void checkSameExecutionContext(DataSet<?> set1, DataSet<?> set2) {
-		if (set1.context != set2.context)
+		if (set1.context != set2.context) {
 			throw new IllegalArgumentException("The two inputs have different execution contexts.");
+		}
 	}
 }

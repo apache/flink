@@ -13,9 +13,6 @@
 
 package eu.stratosphere.api.common.operators;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import eu.stratosphere.api.common.aggregators.AggregatorRegistry;
 import eu.stratosphere.api.common.functions.AbstractFunction;
 import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
@@ -23,6 +20,20 @@ import eu.stratosphere.api.common.operators.util.UserCodeWrapper;
 import eu.stratosphere.util.Visitor;
 
 /**
+ * A DeltaIteration is similar to a {@link BulkIteration}, 
+ * but maintains state across the individual iteration steps. The state is called the <i>solution set</i>, can be obtained
+ * via {@link #getSolutionSet()}, and be accessed by joining (or CoGrouping) with it. The solution
+ * set is updated by producing a delta for it, which is merged into the solution set at the end of each iteration step.
+ * <p>
+ * The delta iteration must be closed by setting a delta for the solution set ({@link #setSolutionSetDelta(Operator)})
+ * and the new workset (the data set that will be fed back, {@link #setNextWorkset(Operator)}).
+ * The DeltaIteration itself represents the result after the iteration has terminated.
+ * Delta iterations terminate when the feed back data set (the workset) is empty.
+ * In addition, a maximum number of steps is given as a fall back termination guard.
+ * <p>
+ * Elements in the solution set are uniquely identified by a key. When merging the solution set delta, contained elements
+ * with the same key are replaced.
+ * <p>
  * This class is a subclass of {@code DualInputOperator}. The solution set is considered the first input, the
  * workset is considered the second input.
  */
@@ -160,20 +171,6 @@ public class DeltaIteration extends DualInputOperator<AbstractFunction> implemen
 	}
 	
 	/**
-	 * Returns the initial solution set input as list, or null, if none is set.
-	 * 
-	 * @return The iteration's initial solution set input as list.
-	 */
-	public List<Operator> getInitialSolutionSets() {
-		if(this.input1 == null){
-			return null;
-		}
-		ArrayList<Operator> inputs = new ArrayList<Operator>();
-		inputs.add(this.input1);
-		return inputs;
-	}
-	
-	/**
 	 * Returns the initial workset input, or null, if none is set.
 	 * 
 	 * @return The iteration's workset input.
@@ -181,28 +178,13 @@ public class DeltaIteration extends DualInputOperator<AbstractFunction> implemen
 	public Operator getInitialWorkset() {
 		return getSecondInput();
 	}
-
-	
-	/**
-	 * Returns the initial solution set input as list, or null, if none is set.
-	 * 
-	 * @return The iteration's initial solution set input as list.
-	 */
-	public List<Operator> getInitialWorksets() {
-		if(this.input1 == null){
-			return null;
-		}
-		ArrayList<Operator> inputs = new ArrayList<Operator>();
-		inputs.add(this.input1);
-		return inputs;
-	}
 	
 	/**
 	 * Sets the given input as the initial solution set.
 	 * 
 	 * @param input The contract to set the initial solution set.
 	 */
-	public void setInitialSolutionSet(Operator ... input) {
+	public void setInitialSolutionSet(Operator input) {
 		setFirstInput(input);
 	}
 	
@@ -211,62 +193,8 @@ public class DeltaIteration extends DualInputOperator<AbstractFunction> implemen
 	 * 
 	 * @param input The contract to set as the initial workset.
 	 */
-	public void setInitialWorkset(Operator ... input) {
+	public void setInitialWorkset(Operator input) {
 		setSecondInput(input);
-	}
-
-	/**
-	 * Sets the given inputs as the initial solution set.
-	 * 
-	 * @param inputs The contracts to set as the initial solution set.
-	 */
-	public void setInitialSolutionSet(List<Operator> inputs) {
-		setFirstInputs(inputs);
-	}
-
-	/**
-	 * Sets the given inputs as the initial workset.
-	 * 
-	 * @param inputs The contracts to set as the initial workset.
-	 */
-	public void setInitialWorkset(List<Operator> inputs) {
-		setSecondInputs(inputs);
-	}
-	
-	/**
-	 * Adds the given input to the initial solution set.
-	 * 
-	 * @param inputs The contract added to the initial solution set.
-	 */
-	public void addToInitialSolutionSet(Operator ... inputs) {
-		addFirstInput(inputs);
-	}
-	
-	/**
-	 * Adds the given input to the initial workset.
-	 * 
-	 * @param inputs The contract added to the initial workset.
-	 */
-	public void addToInitialWorkset(Operator ... inputs) {
-		addSecondInput(inputs);
-	}
-
-	/**
-	 * Adds the given inputs to the initial solution set.
-	 * 
-	 * @param inputs The contracts added to the initial solution set.
-	 */
-	public void addToInitialSolutionSet(List<Operator> inputs) {
-		addFirstInputs(inputs);
-	}
-
-	/**
-	 * Adds the given inputs to the initial workset.
-	 * 
-	 * @param inputs The contracts added to the initial workset.
-	 */
-	public void addToInitialWorkset(List<Operator> inputs) {
-		addSecondInputs(inputs);
 	}
 	
 	// --------------------------------------------------------------------------------------------
