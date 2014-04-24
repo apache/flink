@@ -104,7 +104,7 @@ public class Utils {
 		try {
 			 fileUrl = path.toURL();
 		} catch (MalformedURLException e) {
-			e.printStackTrace();
+			throw new RuntimeException("Erroneous config file path", e);
 		}
 		URL[] urls = {fileUrl};
 		ClassLoader cl = new URLClassLoader(urls, conf.getClassLoader());
@@ -120,6 +120,13 @@ public class Utils {
 	}
 	public static Configuration initializeYarnConfiguration() {
 		Configuration conf = new YarnConfiguration();
+		String configuredHadoopConfig = GlobalConfiguration.getString(ConfigConstants.PATH_HADOOP_CONFIG, null);
+		if(configuredHadoopConfig != null) {
+			LOG.info("Using hadoop configuration path from " + ConfigConstants.PATH_HADOOP_CONFIG + " setting.");
+			addPathToConfig(conf, new File(configuredHadoopConfig));
+			setDefaultConfValues(conf);
+			return conf;
+		}
 		String envs[] = { "YARN_CONF_DIR", "HADOOP_CONF_DIR", "HADOOP_CONF_PATH" };
 		for(int i = 0; i < envs.length; ++i) {
 			String confPath = System.getenv(envs[i]);

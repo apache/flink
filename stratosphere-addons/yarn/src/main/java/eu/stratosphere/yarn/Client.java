@@ -65,6 +65,7 @@ import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.apache.log4j.PatternLayout;
 
+import eu.stratosphere.client.CliFrontend;
 import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.configuration.GlobalConfiguration;
 
@@ -288,6 +289,12 @@ public class Client {
 	    // Create a local resource to point to the destination jar path 
 	    final FileSystem fs = FileSystem.get(conf);
 	    
+	    if(fs.getScheme().startsWith("file")) {
+	    	LOG.warn("The file system scheme is '" + fs.getScheme() + "'. This indicates that the "
+	    			+ "specified Hadoop configuration path is wrong and the sytem is using the default Hadoop configuration values."
+	    			+ "The Stratosphere YARN client needs to store its files in a distributed file system");
+	    }
+	    
 	    // Create yarnClient
 		final YarnClient yarnClient = YarnClient.createYarnClient();
 		yarnClient.init(conf);
@@ -452,9 +459,11 @@ public class Client {
 				System.err.println("Stratosphere JobManager is now running on "+appReport.getHost()+":"+jmPort);
 				System.err.println("JobManager Web Interface: "+appReport.getTrackingUrl());
 				// write jobmanager connect information
-				PrintWriter out = new PrintWriter(confDirPath+".yarn-jobmanager");
+				File addrFile = new File(confDirPath + CliFrontend.JOBMANAGER_ADDRESS_FILE);
+				PrintWriter out = new PrintWriter(addrFile);
 				out.println(appReport.getHost()+":"+jmPort);
 				out.close();
+				addrFile.setReadable(true, false); // readable for all.
 				told = true;
 			}
 			if(!told) {

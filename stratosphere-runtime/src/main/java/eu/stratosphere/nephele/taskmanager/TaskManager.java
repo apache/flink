@@ -104,6 +104,7 @@ public class TaskManager implements TaskOperationProtocol {
 	
 	private static final int IPC_HANDLER_COUNT = 1;
 	
+	public final static String ARG_CONF_DIR = "tempDir";
 	
 	private final JobManagerProtocol jobManager;
 
@@ -371,9 +372,16 @@ public class TaskManager implements TaskOperationProtocol {
 	public static void main(String[] args) throws IOException {
 		Option configDirOpt = OptionBuilder.withArgName("config directory").hasArg().withDescription(
 			"Specify configuration directory.").create("configDir");
+		// tempDir option is used by the YARN client.
+		Option tempDir = OptionBuilder.withArgName("temporary directory (overwrites configured option)")
+				.hasArg().withDescription(
+				"Specify temporary directory.").create(ARG_CONF_DIR);
 		configDirOpt.setRequired(true);
+		tempDir.setRequired(false);
 		Options options = new Options();
 		options.addOption(configDirOpt);
+		options.addOption(tempDir);
+		
 
 		CommandLineParser parser = new GnuParser();
 		CommandLine line = null;
@@ -385,10 +393,19 @@ public class TaskManager implements TaskOperationProtocol {
 		}
 
 		String configDir = line.getOptionValue(configDirOpt.getOpt(), null);
-		
+		String tempDirVal = line.getOptionValue(tempDir.getOpt(), null);
+
 		// First, try to load global configuration
 		GlobalConfiguration.loadConfiguration(configDir);
-
+		if(tempDirVal != null // the YARN TM runner has set a value for the temp dir
+				// the configuration does not contain a temp direcory
+				&& GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY, null) == null) {
+			Configuration c = GlobalConfiguration.getConfiguration();
+			c.setString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY, tempDirVal);
+			LOG.info("Setting temporary directory to "+tempDirVal);
+			GlobalConfiguration.includeConfiguration(c);
+		}
+		System.err.println("Configuration "+GlobalConfiguration.getConfiguration());
 		LOG.info("Current user "+UserGroupInformation.getCurrentUser().getShortUserName());
 		
 		// Create a new task manager object

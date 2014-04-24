@@ -105,6 +105,7 @@ public class CliFrontend {
 	private static final String ENV_CONFIG_DIRECTORY = "STRATOSPHERE_CONF_DIR";
 	private static final String CONFIG_DIRECTORY_FALLBACK_1 = "../conf";
 	private static final String CONFIG_DIRECTORY_FALLBACK_2 = "conf";
+	public static final String JOBMANAGER_ADDRESS_FILE = ".yarn-jobmanager";
 	
 
 	private CommandLineParser parser;
@@ -294,11 +295,11 @@ public class CliFrontend {
 		
 		// see if there is a file containing the jobManager address.
 		String loc = getConfigurationDirectory();
-		File jmAddressFile = new File(loc+"/.yarn-jobmanager");
+		File jmAddressFile = new File(loc + "/" + JOBMANAGER_ADDRESS_FILE);
 		if (jmAddressFile.exists()) {
 			try {
 				address = FileUtils.readFileToString(jmAddressFile).trim();
-				System.out.println("Found a .yarn-jobmanager file, using \""+address+"\" to connect to the JobManager");
+				System.out.println("Found a " + JOBMANAGER_ADDRESS_FILE + " file, using \""+address+"\" to connect to the JobManager");
 			} catch (IOException e) {}
 		}
 		
