@@ -30,6 +30,7 @@ import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.client.JobClient;
+import eu.stratosphere.nephele.instance.HardwareDescriptionFactory;
 import eu.stratosphere.nephele.instance.local.LocalTaskManagerThread;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobmanager.JobManager;
@@ -46,7 +47,7 @@ public class LocalDistributedExecutor extends PlanExecutor {
 	
 	private static final int JOB_MANAGER_RPC_PORT = 6498;
 
-	private static final int SLEEP_TIME = 100;
+	private static final int SLEEP_TIME = 50;
 
 	private static final int START_STOP_TIMEOUT = 2000;
 
@@ -54,53 +55,30 @@ public class LocalDistributedExecutor extends PlanExecutor {
 
 	private boolean running = false;
 
-	private JobManagerThread jobManagerThread;
+	private JobManager jobManager;
 
 	private List<LocalTaskManagerThread> taskManagerThreads = new ArrayList<LocalTaskManagerThread>();
 
-	public static class JobManagerThread extends Thread {
-		JobManager jm;
 
-		public JobManagerThread(JobManager jm) {
-			this.jm = jm;
-		}
-
-		@Override
-		public void run() {
-			this.jm.runTaskLoop();
-		}
-
-		public void shutDown() {
-			this.jm.shutdown();
-		}
-
-		public boolean isShutDown() {
-			return this.jm.isShutDown();
-		}
-	}
-
-	public synchronized void start(int numTaskMgr) throws InterruptedException {
+	public synchronized void start(int numTaskMgr) throws Exception {
 		if (this.running) {
 			return;
 		}
 		
+
+		// we need to down size the memory. determine the memory and divide it by the number of task managers
+		long javaMem = HardwareDescriptionFactory.extractFromSystem().getSizeOfFreeMemory();
+		javaMem /= numTaskMgr;
+		
+		// convert memory from bytes to megabytes
+		javaMem >>>= 20;
+		
 		Configuration conf = NepheleMiniCluster.getMiniclusterDefaultConfig(
-				JOB_MANAGER_RPC_PORT, 6500, 7501, null, true, true, false);
+				JOB_MANAGER_RPC_PORT, 6500, 7501, javaMem, null, false, true, false);
 		GlobalConfiguration.includeConfiguration(conf);
 			
 		// start job manager
-		JobManager jobManager;
-		try {
-			jobManager = new JobManager(ExecutionMode.CLUSTER);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			return;
-		}
-
-		this.jobManagerThread = new JobManagerThread(jobManager);
-		this.jobManagerThread.setDaemon(true);
-		this.jobManagerThread.start();
+		this.jobManager = new JobManager(ExecutionMode.CLUSTER);
 		
 		// start the task managers
 		for (int tm = 0; tm < numTaskMgr; tm++) {
@@ -115,8 +93,7 @@ public class LocalDistributedExecutor extends PlanExecutor {
 
 			GlobalConfiguration.includeConfiguration(tmConf);
 
-			LocalTaskManagerThread t = new LocalTaskManagerThread(
-					"LocalDistributedExecutor: LocalTaskManagerThread-#" + tm, numTaskMgr);
+			LocalTaskManagerThread t = new LocalTaskManagerThread("LocalDistributedExecutor: LocalTaskManagerThread-#" + tm);
 
 			t.start();
 			taskManagerThreads.add(t);
@@ -178,12 +155,10 @@ public class LocalDistributedExecutor extends PlanExecutor {
 		}
 
 		// 2. shut down job manager
-		this.jobManagerThread.shutDown();
-		this.jobManagerThread.interrupt();
-		this.jobManagerThread.join(START_STOP_TIMEOUT);
+		this.jobManager.shutdown();
 
 		for (int sleep = 0; sleep < START_STOP_TIMEOUT; sleep += SLEEP_TIME) {
-			if (this.jobManagerThread.isShutDown()) {
+			if (this.jobManager.isShutDown()) {
 				break;
 			}
 
@@ -191,12 +166,12 @@ public class LocalDistributedExecutor extends PlanExecutor {
 		}
 
 		try {
-			if (!this.jobManagerThread.isShutDown()) {
+			if (!this.jobManager.isShutDown()) {
 				throw new RuntimeException(String.format("Job manager shut down timed out (%d ms).", START_STOP_TIMEOUT));
 			}
 		} finally {
 			this.taskManagerThreads.clear();
-			this.jobManagerThread = null;
+			this.jobManager = null;
 			this.running = false;
 		}
 	}

@@ -24,10 +24,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
-import org.apache.log4j.ConsoleAppender;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-import org.apache.log4j.PatternLayout;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -53,7 +51,7 @@ import eu.stratosphere.nephele.taskmanager.TaskManager;
 import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTask;
 import eu.stratosphere.nephele.util.JarFileCreator;
 import eu.stratosphere.nephele.util.ServerTestUtils;
-import eu.stratosphere.util.StringUtils;
+import eu.stratosphere.util.LogUtils;
 
 /**
  * This test is intended to cover the basic functionality of the {@link JobManager}.
@@ -61,124 +59,47 @@ import eu.stratosphere.util.StringUtils;
 public class JobManagerITCase {
 
 	static {
-		// initialize loggers
-		Logger root = Logger.getRootLogger();
-		root.removeAllAppenders();
-		PatternLayout layout = new PatternLayout("%d{HH:mm:ss,SSS} %-5p %-60c %x - %m%n");
-		ConsoleAppender appender = new ConsoleAppender(layout, "System.err");
-		root.addAppender(appender);
-		root.setLevel(Level.WARN);
+		LogUtils.initializeDefaultTestConsoleLogger();
 	}
-	
 	
 	/**
 	 * The name of the test directory some tests read their input from.
 	 */
 	private static final String INPUT_DIRECTORY = "testDirectory";
 
-	private static JobManagerThread jobManagerThread = null;
-
 	private static Configuration configuration;
 
-	/**
-	 * This is an auxiliary class to run the job manager thread.
-	 */
-	private static final class JobManagerThread extends Thread {
-
-		/**
-		 * The job manager instance.
-		 */
-		private final JobManager jobManager;
-
-		/**
-		 * Constructs a new job manager thread.
-		 * 
-		 * @param jobManager
-		 *        the job manager to run in this thread.
-		 */
-		private JobManagerThread(JobManager jobManager) {
-			this.jobManager = jobManager;
-		}
-
-		/**
-		 * {@inheritDoc}
-		 */
-		@Override
-		public void run() {
-			// Run task loop
-			this.jobManager.runTaskLoop();
-
-			// Shut down
-			this.jobManager.shutdown();
-		}
-
-		/**
-		 * Checks whether the encapsulated job manager is completely shut down.
-		 * 
-		 * @return <code>true</code> if the encapsulated job manager is completely shut down, <code>false</code>
-		 *         otherwise
-		 */
-		public boolean isShutDown() {
-			return this.jobManager.isShutDown();
-		}
-	}
+	private static JobManager jobManager;
 
 	/**
-	 * Sets up Nephele in local mode.
+	 * Starts the JobManager in local mode.
 	 */
 	@BeforeClass
 	public static void startNephele() {
-
-		GlobalConfiguration.loadConfiguration(ServerTestUtils.getConfigDir());
-
-		if (jobManagerThread == null) {
-
-			// create the job manager
-			JobManager jobManager;
-
-			try {
-				jobManager = new JobManager(ExecutionMode.LOCAL);
-			}
-			catch (Exception e) {
-				e.printStackTrace();
-				fail(e.getMessage());
-				return;
-			}
-
+		try {
+			GlobalConfiguration.loadConfiguration(ServerTestUtils.getConfigDir());
+			
 			configuration = GlobalConfiguration.getConfiguration(new String[] { ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY });
-
-			// Start job manager thread
-			if (jobManager != null) {
-				jobManagerThread = new JobManagerThread(jobManager);
-				jobManagerThread.start();
-			}
+			
+			jobManager = new JobManager(ExecutionMode.LOCAL);
 
 			// Wait for the local task manager to arrive
-			try {
-				ServerTestUtils.waitForJobManagerToBecomeReady(jobManager);
-			} catch (Exception e) {
-				fail(StringUtils.stringifyException(e));
-			}
+			ServerTestUtils.waitForJobManagerToBecomeReady(jobManager);
+		}
+		catch (Exception e) {
+			System.err.println(e.getMessage());
+			e.printStackTrace();
+			fail("Could not start job manager: " + e.getMessage());
 		}
 	}
 
 	/**
-	 * Shuts Nephele down.
+	 * Stops the JobManager
 	 */
 	@AfterClass
 	public static void stopNephele() {
-
-		if (jobManagerThread != null) {
-			jobManagerThread.interrupt();
-
-			while (!jobManagerThread.isShutDown()) {
-				try {
-					Thread.sleep(100);
-				} catch (InterruptedException i) {
-					break;
-				}
-			}
-		}
+		jobManager.shutdown();
+		jobManager = null;
 	}
 	
 	/**

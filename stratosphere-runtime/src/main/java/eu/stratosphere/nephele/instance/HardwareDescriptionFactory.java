@@ -50,15 +50,7 @@ public class HardwareDescriptionFactory {
 	 * The regular expression used to extract the size of the physical memory
 	 * under Linux.
 	 */
-	private static final Pattern LINUX_MEMORY_REGEX = Pattern
-			.compile("^MemTotal:\\s*(\\d+)\\s+kB$");
-
-	/**
-	 * The fraction of free memory that goes into the memory manager by default.
-	 */
-	private static float RUNTIME_MEMORY_THRESHOLD = GlobalConfiguration.getFloat(
-		ConfigConstants.TASK_MANAGER_MEMORY_FRACTION_KEY, ConfigConstants.DEFAULT_MEMORY_MANAGER_MEMORY_FRACTION);
-
+	private static final Pattern LINUX_MEMORY_REGEX = Pattern.compile("^MemTotal:\\s*(\\d+)\\s+kB$");
 	
 	/**
 	 * Private constructor, so class cannot be instantiated.
@@ -73,25 +65,16 @@ public class HardwareDescriptionFactory {
 	 *         one value for the hardware description cannot be determined
 	 */
 	public static HardwareDescription extractFromSystem() {
-		return extractFromSystem(1);
-	}
-	
-	public static HardwareDescription extractFromSystem(final int taskManagersPerJVM) {
+		int numberOfCPUCores = Runtime.getRuntime().availableProcessors();
 
-		final int numberOfCPUCores = Runtime.getRuntime().availableProcessors();
-
-		final long sizeOfPhysicalMemory = getSizeOfPhysicalMemory();
+		long sizeOfPhysicalMemory = getSizeOfPhysicalMemory();
 		if (sizeOfPhysicalMemory < 0) {
-			return null;
+			sizeOfPhysicalMemory = 1;
 		}
 
-		final long sizeOfFreeMemory = getSizeOfFreeMemory() / taskManagersPerJVM;
-		if (sizeOfFreeMemory < 0) {
-			return null;
-		}
+		long sizeOfFreeMemory = getSizeOfFreeMemory();
 
-		return new HardwareDescription(numberOfCPUCores, sizeOfPhysicalMemory,
-				sizeOfFreeMemory);
+		return new HardwareDescription(numberOfCPUCores, sizeOfPhysicalMemory, sizeOfFreeMemory);
 	}
 
 	/**
@@ -119,8 +102,11 @@ public class HardwareDescriptionFactory {
 	 *         determined
 	 */
 	private static long getSizeOfFreeMemory() {
+		float fractionToUse = GlobalConfiguration.getFloat(
+			ConfigConstants.TASK_MANAGER_MEMORY_FRACTION_KEY, ConfigConstants.DEFAULT_MEMORY_MANAGER_MEMORY_FRACTION);
+		
 		Runtime r = Runtime.getRuntime();
-		return (long) (RUNTIME_MEMORY_THRESHOLD * (r.maxMemory() - r.totalMemory() + r.freeMemory()));
+		return (long) (fractionToUse * (r.maxMemory() - r.totalMemory() + r.freeMemory()));
 	}
 
 	/**

@@ -32,24 +32,8 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 
 
-/**
- * Default MemoryManager implementation giving hard memory guarantees. The implementation has the following properties:
- * <ul>
- * <li>arbitrary segment sizes (smaller than 2GB)</li>
- * <li>{@code allocate()} and {@code release()} calls in arbitrary order are supported</li>
- * <li>allocation data is stored in a dedicated structure</li>
- * <li>first-fit selection strategy</li>
- * <li>automatic re-integration of released segments</li>
- * </ul>
- * This implementation uses internal byte arrays to allocate the required memory and allows allocation sizes greater
- * than 2GB. Due to the fact that the length of a single java byte array is bounded by {@link #java.lang.Integer.MAX_VALUE} (2GB),
- * the manager works 2 dimensional byte array (i.e. with memory chunks). Please be aware that in order to keep the array
- * access methods in the {@link DefaultMemorySegment} fast and simple, the actual allocated memory segments must not
- * exceed 2GB and must be contained in a single memory chunk.
- * 
- */
-public class DefaultMemoryManager implements MemoryManager
-{
+public class DefaultMemoryManager implements MemoryManager {
+	
 	/**
 	 * The default memory page size. Currently set to 32 KiBytes.
 	 */
@@ -102,8 +86,7 @@ public class DefaultMemoryManager implements MemoryManager
 	 * @param memorySize The total size of the memory to be managed by this memory manager.
 	 * @param pageSize The size of the pages handed out by the memory manager.
 	 */
-	public DefaultMemoryManager(long memorySize, int pageSize)
-	{
+	public DefaultMemoryManager(long memorySize, int pageSize) {
 		// sanity checks
 		if (memorySize <= 0) {
 			throw new IllegalArgumentException("Size of total memory must be positive.");
@@ -143,8 +126,7 @@ public class DefaultMemoryManager implements MemoryManager
 
 
 	@Override
-	public void shutdown()
-	{
+	public void shutdown() {
 		// -------------------- BEGIN CRITICAL SECTION -------------------
 		synchronized (this.lock)
 		{
@@ -168,8 +150,7 @@ public class DefaultMemoryManager implements MemoryManager
 	}
 	
 
-	public boolean verifyEmpty()
-	{
+	public boolean verifyEmpty() {
 		synchronized (this.lock) {
 			return this.freeSegments.size() == this.totalNumPages;
 		}
@@ -179,9 +160,6 @@ public class DefaultMemoryManager implements MemoryManager
 	//                 MemoryManager interface implementation
 	// ------------------------------------------------------------------------
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.services.memorymanager.MemoryManager#allocatePages(eu.stratosphere.nephele.template.AbstractInvokable, int)
-	 */
 	@Override
 	public List<MemorySegment> allocatePages(AbstractInvokable owner, int numPages) throws MemoryAllocationException {
 		final ArrayList<MemorySegment> segs = new ArrayList<MemorySegment>(numPages);
@@ -189,9 +167,6 @@ public class DefaultMemoryManager implements MemoryManager
 		return segs;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.services.memorymanager.MemoryManager#allocatePages(eu.stratosphere.nephele.template.AbstractInvokable, java.util.List, int)
-	 */
 	@Override
 	public void allocatePages(AbstractInvokable owner, List<MemorySegment> target, int numPages)
 			throws MemoryAllocationException
@@ -238,8 +213,7 @@ public class DefaultMemoryManager implements MemoryManager
 	
 
 	@Override
-	public void release(MemorySegment segment)
-	{
+	public void release(MemorySegment segment) {
 		// check if segment is null or has already been freed
 		if (segment == null || segment.isFreed() || !(segment instanceof DefaultMemorySegment)) {
 			return;
@@ -343,8 +317,7 @@ public class DefaultMemoryManager implements MemoryManager
 
 
 	@Override
-	public void releaseAll(AbstractInvokable owner)
-	{
+	public void releaseAll(AbstractInvokable owner) {
 		// -------------------- BEGIN CRITICAL SECTION -------------------
 		synchronized (this.lock)
 		{
@@ -379,12 +352,10 @@ public class DefaultMemoryManager implements MemoryManager
 		return this.pageSize;
 	}
 
-
 	@Override
 	public int computeNumberOfPages(long numBytes) {
 		return getNumPages(numBytes);
 	}
-
 
 	@Override
 	public long roundDownToPageSizeMultiple(long numBytes) {
@@ -393,8 +364,7 @@ public class DefaultMemoryManager implements MemoryManager
 	
 	// ------------------------------------------------------------------------
 	
-	private final int getNumPages(long numBytes)
-	{
+	private final int getNumPages(long numBytes) {
 		if (numBytes < 0)
 			throw new IllegalArgumentException("The number of bytes to allocate must not be negative.");
 		

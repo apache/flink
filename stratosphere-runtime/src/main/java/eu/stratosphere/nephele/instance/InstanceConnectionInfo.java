@@ -32,27 +32,27 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 	/**
 	 * The network address the instance's task manager binds its sockets to.
 	 */
-	private InetAddress inetAddress = null;
+	private InetAddress inetAddress;
 
 	/**
 	 * The port the instance's task manager runs its IPC service on.
 	 */
-	private int ipcPort = 0;
+	private int ipcPort;
 
 	/**
 	 * The port the instance's task manager expects to receive transfer envelopes on.
 	 */
-	private int dataPort = 0;
+	private int dataPort;
 
 	/**
 	 * The host name of the instance.
 	 */
-	private String hostName = null;
+	private String hostName;
 
 	/**
 	 * The domain name of the instance.
 	 */
-	private String domainName = null;
+	private String domainName;
 
 	/**
 	 * Constructs a new instance connection info object. The constructor will attempt to retrieve the instance's
@@ -65,7 +65,7 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 	 * @param dataPort
 	 *        the port instance's task manager expects to receive transfer envelopes on
 	 */
-	public InstanceConnectionInfo(final InetAddress inetAddress, final int ipcPort, final int dataPort) {
+	public InstanceConnectionInfo(InetAddress inetAddress, int ipcPort, int dataPort) {
 
 		if (inetAddress == null) {
 			throw new IllegalArgumentException("Argument inetAddress must not be null");
@@ -147,8 +147,7 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 	/**
 	 * Constructs an empty {@link InstanceConnectionInfo} object.
 	 */
-	public InstanceConnectionInfo() {
-	}
+	public InstanceConnectionInfo() {}
 
 	/**
 	 * Returns the port instance's task manager runs its IPC service on.
@@ -156,7 +155,6 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 	 * @return the port instance's task manager runs its IPC service on
 	 */
 	public int getIPCPort() {
-
 		return this.ipcPort;
 	}
 
@@ -166,7 +164,6 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 	 * @return the port instance's task manager expects to receive transfer envelopes on
 	 */
 	public int getDataPort() {
-
 		return this.dataPort;
 	}
 
@@ -176,7 +173,6 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 	 * @return the network address the instance's task manager binds its sockets to
 	 */
 	public InetAddress getAddress() {
-
 		return this.inetAddress;
 	}
 
@@ -187,7 +183,6 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 	 * @return the host name of the instance
 	 */
 	public String getHostName() {
-
 		return this.hostName;
 	}
 
@@ -197,7 +192,6 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 	 * @return the domain name of the instance or <code>null</code> if the domain name could not be determined
 	 */
 	public String getDomainName() {
-
 		return this.domainName;
 	}
 
@@ -278,16 +272,13 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 
 	@Override
 	public int hashCode() {
-
 		return this.inetAddress.hashCode();
 	}
 
 
 	@Override
 	public int compareTo(final InstanceConnectionInfo o) {
-
-		return this.getAddress().getHostName()
-			.compareTo(((InstanceConnectionInfo) o).getAddress().getHostName());
+		return this.getAddress().getHostName().compareTo(((InstanceConnectionInfo) o).getAddress().getHostName());
 	}
 
 }

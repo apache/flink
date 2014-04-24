@@ -38,37 +38,43 @@ public class LocalInstanceManagerTest {
 	@Test
 	public void testInstanceTypeFromConfiguration() {
 
-		final String configDir = ServerTestUtils.getConfigDir();
-		if (configDir == null) {
-			fail("Cannot locate configuration directory");
-		}
-
-        GlobalConfiguration.loadConfiguration(configDir);
-        
-        
-		// start JobManager
-        ExecutionMode executionMode = ExecutionMode.LOCAL;
-        JobManager jm = new JobManager(executionMode);
-       
-		final TestInstanceListener testInstanceListener = new TestInstanceListener();
-
-		LocalInstanceManager lm = (LocalInstanceManager) jm.getInstanceManager(); // this is for sure, because I chose the local strategy
 		try {
-			lm.setInstanceListener(testInstanceListener);
+			final String configDir = ServerTestUtils.getConfigDir();
+			if (configDir == null) {
+				fail("Cannot locate configuration directory");
+			}
 
-			final InstanceType defaultInstanceType = lm.getDefaultInstanceType();
-			assertEquals("test", defaultInstanceType.getIdentifier());
-			assertEquals(4, defaultInstanceType.getNumberOfComputeUnits());
-			assertEquals(4, defaultInstanceType.getNumberOfCores());
-			assertEquals(1024, defaultInstanceType.getMemorySize());
-			assertEquals(160, defaultInstanceType.getDiskCapacity());
-			assertEquals(0, defaultInstanceType.getPricePerHour());
+			GlobalConfiguration.loadConfiguration(configDir);
 
-		} catch (Exception e) {
+			// start JobManager
+			ExecutionMode executionMode = ExecutionMode.LOCAL;
+			JobManager jm = new JobManager(executionMode);
+
+			final TestInstanceListener testInstanceListener = new TestInstanceListener();
+	
+			LocalInstanceManager lm = (LocalInstanceManager) jm.getInstanceManager(); // this is for sure, because I chose the local strategy
+			try {
+				lm.setInstanceListener(testInstanceListener);
+	
+				final InstanceType defaultInstanceType = lm.getDefaultInstanceType();
+				assertEquals("test", defaultInstanceType.getIdentifier());
+				assertEquals(4, defaultInstanceType.getNumberOfComputeUnits());
+				assertEquals(4, defaultInstanceType.getNumberOfCores());
+				assertEquals(1024, defaultInstanceType.getMemorySize());
+				assertEquals(160, defaultInstanceType.getDiskCapacity());
+				assertEquals(0, defaultInstanceType.getPricePerHour());
+	
+			} catch (Exception e) {
+				e.printStackTrace();
+				Assert.fail("Instantiation of LocalInstanceManager failed: " + e.getMessage());
+			} finally {
+				jm.shutdown();
+			}
+		}
+		catch (Exception e) {
+			System.err.println(e.getMessage());
 			e.printStackTrace();
-			Assert.fail("Instantiation of LocalInstanceManager failed: " + e.getMessage());
-		} finally {
-			jm.shutdown();
+			Assert.fail("Test caused an error: " + e.getMessage());
 		}
 	}
 }

@@ -15,7 +15,6 @@ package eu.stratosphere.nephele.jobmanager;
 
 /**
  * This class takes care of cleaning up when the job manager is closed.
- * 
  */
 public class JobManagerCleanUp extends Thread {
 
@@ -37,9 +36,7 @@ public class JobManagerCleanUp extends Thread {
 
 	@Override
 	public void run() {
-
 		// Shut down the job manager properly
 		this.jobManager.shutdown();
 	}
-
 }

@@ -13,12 +13,9 @@
 
 package eu.stratosphere.nephele.instance.cluster;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -27,8 +24,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -123,11 +118,6 @@ public class ClusterManager implements InstanceManager {
 	 * The key to retrieve the clean up interval from the configuration.
 	 */
 	private static final String CLEANUP_INTERVAL_KEY = "instancemanager.cluster.cleanupinterval";
-
-	/**
-	 * Regular expression to extract the IP and the instance type of a cluster instance from the slave file.
-	 */
-	private static final Pattern IP_TO_INSTANCE_TYPE_PATTERN = Pattern.compile("^(\\S+)\\s*(\\S*)\\s*$");
 
 	// ------------------------------------------------------------------------
 	// Fields
@@ -311,76 +301,12 @@ public class ClusterManager implements InstanceManager {
 		// load the network topology from the slave file
 		this.networkTopology = loadNetworkTopology();
 
-		// load IP to instance type mapping from slave file
-		loadIPToInstanceTypeMapping();
-
 		// look every BASEINTERVAL milliseconds for crashed hosts
 		final boolean runTimerAsDaemon = true;
 		new Timer(runTimerAsDaemon).schedule(cleanupStaleMachines, 1000, 1000);
 
 		// Load available instance types into the instance description list
 		updateInstaceTypeDescriptionMap();
-	}
-
-	/**
-	 * Reads the IP to instance type mapping from the slave file.
-	 */
-	private void loadIPToInstanceTypeMapping() {
-
-		final String configDir = GlobalConfiguration.getString(CONFIG_DIR_KEY, null);
-		if (configDir == null) {
-			LOG.error("Cannot find configuration directory to read IP to instance type mapping");
-			return;
-		}
-
-		final File slaveFile = new File(configDir + File.separator + SLAVE_FILE_NAME);
-		if (!slaveFile.exists()) {
-			LOG.error("Cannot access slave file to read IP to instance type mapping");
-			return;
-		}
-
-		try {
-
-			final BufferedReader input = new BufferedReader(new FileReader(slaveFile));
-
-			String line = null;
-
-			while ((line = input.readLine()) != null) {
-
-				final Matcher m = IP_TO_INSTANCE_TYPE_PATTERN.matcher(line);
-				if (!m.matches()) {
-					LOG.error("Entry does not match format: " + line);
-					continue;
-				}
-				InetAddress address = null;
-				String host = m.group(1);
-				try {
-					final int pos = host.lastIndexOf('/');
-					if (pos != -1) {
-						host = host.substring(pos + 1);
-					}
-					address = InetAddress.getByName(host);
-				} catch (UnknownHostException e) {
-					LOG.error("Cannot resolve " + host + " to a hostname/IP address", e);
-					continue;
-				}
-
-				InstanceType instanceType = null;
-				String instanceTypeName = m.group(2);
-				if (instanceTypeName != null && instanceTypeName.length() > 0) {
-
-					instanceType = getInstanceTypeByName(instanceTypeName);
-					if (instanceType != null) {
-						this.ipToInstanceTypeMapping.put(address, instanceType);
-					}
-				}
-			}
-
-			input.close();
-
-		} catch (IOException e) {
-			LOG.error("Cannot load IP to instance type mapping from file " + e);
-		}
 	}
 
 	/**
@@ -414,7 +340,7 @@ public class ClusterManager implements InstanceManager {
 		// Check if slave file exists
 		final String configDir = GlobalConfiguration.getString(CONFIG_DIR_KEY, null);
 		if (configDir == null) {
-			LOG.error("Cannot find configuration directory to load network topology, using flat topology instead");
+			LOG.info("Cannot find configuration directory to load network topology, using flat topology instead");
 			return NetworkTopology.createEmptyTopology();
 		}
 

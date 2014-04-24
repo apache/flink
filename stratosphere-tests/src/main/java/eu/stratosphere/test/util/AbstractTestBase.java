@@ -47,6 +47,8 @@ import eu.stratosphere.util.LogUtils;
 public abstract class AbstractTestBase {
 	
 	private static final int MINIMUM_HEAP_SIZE_MB = 192;
+	
+	private static final long TASK_MANAGER_MEMORY_SIZE = 96;
 
 	
 	protected final Configuration config;
@@ -79,7 +81,8 @@ public abstract class AbstractTestBase {
 	public void startCluster() throws Exception {
 		this.executor = new NepheleMiniCluster();
 		this.executor.setDefaultOverwriteFiles(true);
-		
+		this.executor.setLazyMemoryAllocation(true);
+		this.executor.setMemorySize(TASK_MANAGER_MEMORY_SIZE);
 		this.executor.start();
 	}
 
