@@ -85,6 +85,18 @@ public class MemoryHashTableTest {
 	private final TypePairComparator<StringPair, StringPair> pairComparatorS = new StringPairPairComparator();
 	
 	
+	
+	public void testDifferentProbers() {
+		final int NUM_MEM_PAGES = 32 * NUM_PAIRS / PAGE_SIZE;
+		
+		AbstractMutableHashTable<IntPair> table = new CompactingHashTable<IntPair>(serializer, comparator, getMemory(NUM_MEM_PAGES, PAGE_SIZE));
+		
+		AbstractHashTableProber<IntPair, IntPair> prober1 = table.getProber(comparator, pairComparator);
+		AbstractHashTableProber<IntPair, IntPair> prober2 = table.getProber(comparator, pairComparator);
+		
+		assertFalse(prober1 == prober2);
+	}
+	
 	@Test
 	public void testBuildAndRetrieve() {
 		
