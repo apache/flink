@@ -192,7 +192,6 @@ public class MemorySegment {
 	 * 
 	 * @param index The position at which the first byte will be read.
 	 * @param dst The memory into which the memory will be copied.
-	 * @return This view itself.
 	 * 
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or too large that the data between the 
 	 *                                   index and the memory segment end is not enough to fill the destination array.
@@ -207,7 +206,6 @@ public class MemorySegment {
 	 * 
 	 * @param index The index in the memory segment array, where the data is put.
 	 * @param src The source array to copy the data from.
-	 * @return This random access view itself.
 	 * 
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or too large such that the array 
 	 *                                   size exceed the amount of memory between the index and the memory
@@ -221,15 +219,10 @@ public class MemorySegment {
 	 * Bulk get method. Copies length memory from the specified position to the
 	 * destination memory, beginning at the given offset
 	 * 
-	 * @param index
-	 *        The position at which the first byte will be read.
-	 * @param dst
-	 *        The memory into which the memory will be copied.
-	 * @param offset
-	 *        The copying offset in the destination memory.
-	 * @param length
-	 *        The number of bytes to be copied.
-	 * @return This view itself.
+	 * @param index The position at which the first byte will be read.
+	 * @param dst The memory into which the memory will be copied.
+	 * @param offset The copying offset in the destination memory.
+	 * @param length The number of bytes to be copied.
 	 * 
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or too large that the requested number of 
 	 *                                   bytes exceed the amount of memory between the index and the memory
@@ -249,7 +242,6 @@ public class MemorySegment {
 	 * @param src The source array to copy the data from.
 	 * @param offset The offset in the source array where the copying is started.
 	 * @param length The number of bytes to copy.
-	 * @return This random access view itself.
 	 * 
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or too large such that the array 
 	 *                                   portion to copy exceed the amount of memory between the index and the memory
@@ -265,7 +257,7 @@ public class MemorySegment {
 	 * representation.
 	 * 
 	 * @param index The position from which the memory will be read.
-	 * @return The char value at the given position.
+	 * @return The boolean value at the given position.
 	 * 
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
 	 *                                   size minus 1.
@@ -280,7 +272,6 @@ public class MemorySegment {
 	 * 
 	 * @param index The position at which the memory will be written.
 	 * @param value The char value to be written.
-	 * @return This view itself.
 	 * 
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
 	 *                                   size minus 1.
@@ -310,7 +301,6 @@ public class MemorySegment {
 	 * 
 	 * @param index The position at which the memory will be written.
 	 * @param value The char value to be written.
-	 * @return This view itself.
 	 * 
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
 	 *                                   size minus 2.
@@ -807,7 +797,6 @@ public class MemorySegment {
 	 * 
 	 * @param index The position at which the memory will be written.
 	 * @param value The double value to be written.
-	 * @return This view itself.
 	 * 
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
 	 *                                   size minus 8.
