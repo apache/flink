@@ -25,7 +25,6 @@ import eu.stratosphere.compiler.operators.HashJoinBuildSecondProperties;
 import eu.stratosphere.compiler.operators.OperatorDescriptorDual;
 import eu.stratosphere.compiler.operators.SortMergeJoinDescriptor;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**
  * The Optimizer representation of a <i>Match</i> contract node.
@@ -91,19 +90,18 @@ public class MatchNode extends TwoInputNode {
 		}
 	}
 	
-	public void fixDriverStrategy(DriverStrategy strategy) {
-		if (strategy == DriverStrategy.MERGE) {
-			this.possibleProperties.clear();
-			this.possibleProperties.add(new SortMergeJoinDescriptor(this.keys1, this.keys2));
-		} else if (strategy == DriverStrategy.HYBRIDHASH_BUILD_FIRST) {
-			this.possibleProperties.clear();
-			this.possibleProperties.add(new HashJoinBuildFirstProperties(this.keys1, this.keys2));			
-		} else if (strategy == DriverStrategy.HYBRIDHASH_BUILD_SECOND) {
-			this.possibleProperties.clear();
-			this.possibleProperties.add(new HashJoinBuildSecondProperties(this.keys1, this.keys2));
+	public void makeJoinWithSolutionSet(int solutionsetInputIndex) {
+		OperatorDescriptorDual op;
+		if (solutionsetInputIndex == 0) {
+			op = new HashJoinBuildFirstProperties(this.keys1, this.keys2);
+		} else if (solutionsetInputIndex == 1) {
+			op = new HashJoinBuildSecondProperties(this.keys1, this.keys2);
 		} else {
-			throw new IllegalArgumentException("Incompatible driver strategy.");
+			throw new IllegalArgumentException();
 		}
+		
+		this.possibleProperties.clear();
+		this.possibleProperties.add(op);
 	}
 	
 	/**

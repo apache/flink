@@ -84,7 +84,6 @@ public class CoGroupNode extends TwoInputNode {
 		this.possibleProperties.add(op);
 	}
 
-
 	@Override
 	protected void computeOperatorSpecificDefaultEstimates(DataStatistics statistics) {
 		// for CoGroup, we currently make no reasonable default estimates

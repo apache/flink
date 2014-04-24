@@ -96,10 +96,11 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 	
 	public static final String MERGE_ITERATION_AUX_TASKS_KEY = "compiler.merge-iteration-aux";
 	
-	private static final boolean mergeIterationAuxTasks = GlobalConfiguration.getBoolean(
-		MERGE_ITERATION_AUX_TASKS_KEY, true);
+	private static final boolean mergeIterationAuxTasks = GlobalConfiguration.getBoolean(MERGE_ITERATION_AUX_TASKS_KEY, true);
 	
 	private static final Log LOG = LogFactory.getLog(NepheleJobGraphGenerator.class);
+	
+	private static final TaskInChain ALREADY_VISITED_PLACEHOLDER = new TaskInChain(null, null, null);
 	
 	// ------------------------------------------------------------------------
 
@@ -302,7 +303,36 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 				vertex = createBulkIterationHead((BulkPartialSolutionPlanNode) node);
 			}
 			else if (node instanceof SolutionSetPlanNode) {
-				// skip the solution set place holder. we create the head at the workset place holder
+				// this represents an access into the solution set index.
+				// we do not create a vertex for the solution set here (we create the head at the workset place holder)
+				
+				// we adjust the joins / cogroups that go into the solution set here
+				for (Channel c : node.getOutgoingChannels()) {
+					DualInputPlanNode target = (DualInputPlanNode) c.getTarget();
+					AbstractJobVertex accessingVertex = this.vertices.get(target);
+					TaskConfig conf = new TaskConfig(accessingVertex.getConfiguration());
+					int inputNum = c == target.getInput1() ? 0 : c == target.getInput2() ? 1 : -1;
+					
+					// sanity checks
+					if (inputNum == -1) {
+						throw new CompilerException();
+					}
+					
+					// adjust the driver
+					if (conf.getDriver().equals(MatchDriver.class)) {
+						conf.setDriver(inputNum == 0 ? JoinWithSolutionSetFirstDriver.class : JoinWithSolutionSetSecondDriver.class);
+					}
+					else if (conf.getDriver().equals(CoGroupDriver.class)) {
+						conf.setDriver(inputNum == 0 ? CoGroupWithSolutionSetFirstDriver.class : CoGroupWithSolutionSetSecondDriver.class);
+					}
+					else {
+						throw new CompilerException("Found join with solution set using incompatible operator (only Join/CoGroup are valid).");
+					}
+				}
+				
+				// make sure we do not visit this node again. for that, we add a 'already seen' entry into one of the sets
+				this.chainedTasks.put(node, ALREADY_VISITED_PLACEHOLDER);
+				
 				vertex = null;
 			}
 			else if (node instanceof WorksetPlanNode) {
@@ -374,7 +404,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			// skip data source node (they have no inputs)
 			// also, do nothing for union nodes, we connect them later when gathering the inputs for a task
 			// solution sets have no input. the initial solution set input is connected when the iteration node is in its postVisit
-			if (node instanceof SourcePlanNode || node instanceof NAryUnionPlanNode) {
+			if (node instanceof SourcePlanNode || node instanceof NAryUnionPlanNode || node instanceof SolutionSetPlanNode) {
 				return;
 			}
 			
@@ -400,38 +430,6 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 					translateChannel(wsNode.getInitialSolutionSetInput(), inputIndex, headVertex, headConfig, false);
 				}
 				
-				return;
-			} else if (node instanceof SolutionSetPlanNode) {
-				// this represents an access into the solution set index.
-				// add the necessary information to all nodes that access the index
-				if (node.getOutgoingChannels().size() != 1) {
-					throw new CompilerException("Currently, only one join with the solution set is allowed.");
-				}
-				
-				Channel c = node.getOutgoingChannels().get(0);
-				DualInputPlanNode target = (DualInputPlanNode) c.getTarget();
-				AbstractJobVertex accessingVertex = this.vertices.get(target);
-				TaskConfig conf = new TaskConfig(accessingVertex.getConfiguration());
-				int inputNum = c == target.getInput1() ? 0 : c == target.getInput2() ? 1 : -1;
-				
-				// sanity checks
-				if (inputNum == -1) {
-					throw new CompilerException();
-				}
-				
-				// adjust the driver
-				if (conf.getDriver().equals(MatchDriver.class)) {
-					conf.setDriver(inputNum == 0 ? JoinWithSolutionSetFirstDriver.class : JoinWithSolutionSetSecondDriver.class);
-				}
-				else if (conf.getDriver().equals(CoGroupDriver.class)) {
-					conf.setDriver(inputNum == 0 ? CoGroupWithSolutionSetFirstDriver.class : CoGroupWithSolutionSetSecondDriver.class);
-				}
-				else {
-					throw new CompilerException("Found join with solution set using incompatible operator (only Join/CoGroup are valid.");
-				}
-				
-				// set the serializer / comparator information
-				conf.setSolutionSetSerializer(((SolutionSetPlanNode) node).getContainingIterationNode().getSolutionSetSerializer());
 				return;
 			}
 			
@@ -726,6 +724,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			chaining = ds.getPushChainDriverClass() != null &&
 					!(pred instanceof NAryUnionPlanNode) &&	// first op after union is stand-alone, because union is merged
 					!(pred instanceof BulkPartialSolutionPlanNode) &&	// partial solution merges anyways
+					!(pred instanceof WorksetPlanNode) &&	// workset merges anyways
 					!(pred instanceof IterationPlanNode) && // cannot chain with iteration heads currently
 					inConn.getShipStrategy() == ShipStrategyType.FORWARD &&
 					inConn.getLocalStrategy() == LocalStrategy.NONE &&
@@ -748,7 +747,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			if (this.currentIteration != null && this.currentIteration instanceof BulkIterationPlanNode)
 			{
 				BulkIterationPlanNode wspn = (BulkIterationPlanNode) this.currentIteration;
-				if(node == wspn.getRootOfTerminationCriterion() && wspn.getRootOfStepFunction() == pred){
+				if (node == wspn.getRootOfTerminationCriterion() && wspn.getRootOfStepFunction() == pred){
 					chaining = false;
 				}else if(node.getOutgoingChannels().size() > 0 &&(wspn.getRootOfStepFunction() == pred ||
 						wspn.getRootOfTerminationCriterion() == pred)) {
