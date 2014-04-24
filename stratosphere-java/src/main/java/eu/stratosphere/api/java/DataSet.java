@@ -572,23 +572,7 @@ public abstract class DataSet<T> {
 	 * 
 	 * @see eu.stratosphere.api.java.DeltaIterativeDataSet
 	 */
-	public <R> DeltaIterativeDataSet<T, R> iterateDelta(DataSet<R> workset, int maxIterations, int keyPosition) {
-		return iterateDelta(workset, maxIterations, new int[] {keyPosition});
-	}
-	
-	/**
-	 * This method starts a delta iteration in the same way as {@link #iterateDelta(DataSet, int, int)}, but allows
-	 * to use multiple tuple fields as a composite key.
-	 * 
-	 * @param workset The initial version of the data set that is fed back to the next iteration step (the workset).
-	 * @param maxIterations The maximum number of iteration steps, as a fall back safeguard.
-	 * @param keyPosition The position of the tuple fields that is used as the key of the solution set.
-	 * 
-	 * @return The DeltaIterativeDataSet that marks the start of a delta iteration.
-	 * 
-	 * @see #iterateDelta(DataSet, int, int)
-	 */
-	public <R> DeltaIterativeDataSet<T, R> iterateDelta(DataSet<R> workset, int maxIterations, int[] keyPositions) {
+	public <R> DeltaIterativeDataSet<T, R> iterateDelta(DataSet<R> workset, int maxIterations, int... keyPositions) {
 		Keys.FieldPositionKeys<T> keys = new Keys.FieldPositionKeys<T>(keyPositions, getType(), false);
 		return new DeltaIterativeDataSet<T, R>(getExecutionEnvironment(), getType(), this, workset, keys, maxIterations);
 	}
