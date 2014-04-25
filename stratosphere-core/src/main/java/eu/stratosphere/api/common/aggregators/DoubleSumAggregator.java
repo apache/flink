@@ -39,8 +39,8 @@ public class DoubleSumAggregator implements Aggregator<DoubleValue> {
 	 * 
 	 * @param value The value to add to the aggregate.
 	 */
-	public void aggregate(double element) {
-		sum += element;
+	public void aggregate(double value) {
+		sum += value;
 	}
 	
 	@Override

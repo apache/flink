@@ -55,10 +55,7 @@ public interface Accumulator<V, R> extends IOReadableWritable, Serializable {
 	 * Used by system internally to merge the collected parts of an accumulator
 	 * at the end of the job.
 	 * 
-	 * @param other
-	 *            reference to accumulator to merge in
-	 * @return Reference to this (for efficiency), after data from other were
-	 *         merged in
+	 * @param other Reference to accumulator to merge in.
 	 */
 	void merge(Accumulator<V, R> other);
 

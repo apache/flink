@@ -247,7 +247,7 @@ public class GenericDataSink extends Operator {
 	/**
 	 * Adds to the input the union of the given operators.
 	 * 
-	 * @param input The operator(s) to be unioned with the input.
+	 * @param inputs The operator(s) to be unioned with the input.
 	 * @deprecated This method will be removed in future versions. Use the {@link Union} operator instead.
 	 */
 	@Deprecated

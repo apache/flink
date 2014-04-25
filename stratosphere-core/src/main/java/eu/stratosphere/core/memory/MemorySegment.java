@@ -84,11 +84,9 @@ public class MemorySegment {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * Creates a new memory segment of given size with the provided views.
+	 * Creates a new memory segment that represents the data in the given byte array.
 	 * 
-	 * @param size The size of the memory segment.
-	 * @param inputView The input view to use.
-	 * @param outputView The output view to use.
+	 * @param memory The byte array that holds the data.
 	 */
 	public MemorySegment(byte[] memory) {
 		this.memory = memory;
@@ -177,7 +175,6 @@ public class MemorySegment {
 	 * 
 	 * @param index The index at which the byte will be written.
 	 * @param b The byte value to be written.
-	 * @return This view itself.
 	 * 
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger or equal to the size of
 	 *                                   the memory segment.
@@ -904,7 +901,7 @@ public class MemorySegment {
 	 * this method will cause a {@link BufferUnderflowException}.
 	 * 
 	 * @param offset The position where the bytes are started to be written to in this memory segment.
-	 * @param target The ByteBuffer to copy the bytes from.
+	 * @param source The ByteBuffer to copy the bytes from.
 	 * @param numBytes The number of bytes to copy.
 	 * 
 	 * @throws IndexOutOfBoundsException If the offset is invalid, or the source buffer does not

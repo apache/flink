@@ -20,9 +20,8 @@ import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.util.Visitable;
 
 /**
-* Abstract base class for all Parallelization Contracts (PACTs).
-* A Pact receives one or multiple input sets of records (see {@link Record}). It partitions and combines them
-* into independent sets which are processed by user functions.
+* Abstract base class for all operators. An operator is a source, sink, or it applies an operation to
+* one or more inputs, producing a result.
 */
 public abstract class Operator implements Visitable<Operator> {
 	

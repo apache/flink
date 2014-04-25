@@ -340,8 +340,7 @@ public class Path implements IOReadableWritable, Serializable {
 	/**
 	 * Adds a suffix to the final name in the path.
 	 * 
-	 * @param the
-	 *        suffix to be added
+	 * @param suffix The suffix to be added
 	 * @return the new path including the suffix
 	 */
 	public Path suffix(String suffix) {

@@ -34,9 +34,9 @@ public enum OperatingSystem {
 	
 	/**
 	 * Gets the operating system that the JVM runs on from the java system properties.
-	 * this method returns {@link UNKNOWN}, if the operating system was not successfully determined.
+	 * this method returns <tt>UNKNOWN</tt>, if the operating system was not successfully determined.
 	 * 
-	 * @return The enum constant for the operating system, or {@link UNKNOWN}, if it was not possible to determine.
+	 * @return The enum constant for the operating system, or <tt>UNKNOWN</tt>, if it was not possible to determine.
 	 */
 	public static OperatingSystem getCurrentOperatingSystem() {
 		return os;

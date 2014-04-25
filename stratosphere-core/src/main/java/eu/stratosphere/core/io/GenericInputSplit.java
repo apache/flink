@@ -42,8 +42,8 @@ public class GenericInputSplit implements InputSplit {
 	/**
 	 * Creates a generic input split with the given split number.
 	 * 
-	 * @param number
-	 *        the number of the split
+	 * @param partitionNumber The number of the split's partition.
+	 * @param totalNumberOfPartitions The total number of the splits (partitions).
 	 */
 	public GenericInputSplit(int partitionNumber, int totalNumberOfPartitions) {
 		this.partitionNumber = partitionNumber;

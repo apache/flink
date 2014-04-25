@@ -311,11 +311,7 @@ public class StringRecord implements IOReadableWritable {
 		}
 	}
 
-	/**
-	 * serialize write this object to out length uses zero-compressed encoding
-	 * 
-	 * @see Writable#writeTo(DataOutput)
-	 */
+	@Override
 	public void write(final DataOutput out) throws IOException {
 		out.writeInt(this.length);
 		out.write(this.bytes, 0, this.length);

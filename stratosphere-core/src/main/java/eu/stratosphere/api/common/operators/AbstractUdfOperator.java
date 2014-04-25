@@ -99,9 +99,9 @@ public abstract class AbstractUdfOperator<T extends Function> extends Operator {
 	 * 
 	 * @param inputs The <name, root> pairs to be set as broadcast inputs.
 	 */
-	public void setBroadcastVariables(Map<String, Operator> roots) {
+	public void setBroadcastVariables(Map<String, Operator> inputs) {
 		this.broadcastInputs.clear();
-		this.broadcastInputs.putAll(roots);
+		this.broadcastInputs.putAll(inputs);
 	}
 	
 	// --------------------------------------------------------------------------------------------
