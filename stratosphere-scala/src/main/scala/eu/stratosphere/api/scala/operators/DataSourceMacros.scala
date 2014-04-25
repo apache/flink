@@ -350,7 +350,7 @@ object TextInputFormat {
 
         charSetName map { config.setString(JavaTextInputFormat.CHARSET_NAME, _) }
 
-        config.setInteger(JavaTextInputFormat.FIELD_POS, getUDF.outputFields(0).globalPos.getValue)
+        config.setInteger(JavaTextInputFormat.FIELD_POS, getUDF.outputFields(0).localPos)
       }
      // override val udt: UDT[String] = UDT.StringUDT
       val udf: UDF0[String] = new UDF0(UDT.StringUDT)

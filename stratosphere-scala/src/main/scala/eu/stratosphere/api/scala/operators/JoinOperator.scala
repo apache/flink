@@ -124,7 +124,8 @@ object JoinMacros {
       val builder = new NoKeyMatchBuilder(generatedStub).input1(leftInput).input2(rightInput)
 
       val leftKeyPositions = leftKeySelector.selectedFields.toIndexArray
-      val rightKeyPositions = leftKeySelector.selectedFields.toIndexArray
+      val rightKeyPositions = rightKeySelector.selectedFields.toIndexArray
+
       val keyTypes = generatedStub.leftInputUDT.getKeySet(leftKeyPositions)
       // global indexes haven't been computed yet...
       0 until keyTypes.size foreach { i => builder.keyField(keyTypes(i), leftKeyPositions(i), rightKeyPositions(i)) }
@@ -198,7 +199,7 @@ object JoinMacros {
       val builder = new NoKeyMatchBuilder(generatedStub).input1(leftInput).input2(rightInput)
 
       val leftKeyPositions = leftKeySelector.selectedFields.toIndexArray
-      val rightKeyPositions = leftKeySelector.selectedFields.toIndexArray
+      val rightKeyPositions = rightKeySelector.selectedFields.toIndexArray
       val keyTypes = generatedStub.leftInputUDT.getKeySet(leftKeyPositions)
       // global indexes haven't been computed yet...
       0 until keyTypes.size foreach { i => builder.keyField(keyTypes(i), leftKeyPositions(i), rightKeyPositions(i)) }
@@ -260,7 +261,7 @@ object JoinMacros {
       val builder = new NoKeyMatchBuilder(generatedStub).input1(leftInput).input2(rightInput)
 
       val leftKeyPositions = leftKeySelector.selectedFields.toIndexArray
-      val rightKeyPositions = leftKeySelector.selectedFields.toIndexArray
+      val rightKeyPositions = rightKeySelector.selectedFields.toIndexArray
       val keyTypes = generatedStub.leftInputUDT.getKeySet(leftKeyPositions)
       // global indexes haven't been computed yet...
       0 until keyTypes.size foreach { i => builder.keyField(keyTypes(i), leftKeyPositions(i), rightKeyPositions(i)) }

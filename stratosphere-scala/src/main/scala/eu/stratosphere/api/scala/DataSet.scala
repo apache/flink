@@ -21,7 +21,7 @@ import eu.stratosphere.api.scala.operators.JoinDataSet
 import eu.stratosphere.api.scala.operators.MapMacros
 import eu.stratosphere.api.scala.operators.KeyedDataSet
 import eu.stratosphere.api.scala.operators.ReduceMacros
-import eu.stratosphere.api.scala.operators.UnionMacros
+import eu.stratosphere.api.scala.operators.UnionOperator
 import eu.stratosphere.api.scala.operators.IterateMacros
 import eu.stratosphere.api.scala.operators.WorksetIterateMacros
 
@@ -43,7 +43,7 @@ class DataSet[T] (val contract: Operator with ScalaOperator[T]) {
   def reduceAll[Out](fun: Iterator[T] => Out) = macro ReduceMacros.globalReduceGroup[T, Out]
   def combinableReduceAll[Out](fun: Iterator[T] => Out) = macro ReduceMacros.combinableGlobalReduceGroup[T]
 
-  // def union(secondInput: DataSet[T]) = macro UnionMacros.impl[T]
+  def union(secondInput: DataSet[T]) = UnionOperator.impl[T](this, secondInput)
   
   def iterateWithDelta[DeltaItem](stepFunction: DataSet[T] => (DataSet[T], DataSet[DeltaItem])) = macro IterateMacros.iterateWithDelta[T, DeltaItem]
   def iterate(n: Int, stepFunction: DataSet[T] => DataSet[T])= macro IterateMacros.iterate[T]

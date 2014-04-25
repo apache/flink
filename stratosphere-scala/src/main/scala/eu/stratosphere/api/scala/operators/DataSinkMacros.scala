@@ -313,7 +313,7 @@ object CsvOutputFormat {
           fields foreach { field: InputField =>
             val tpe = getUDF.inputUDT.fieldTypes(field.localPos)
             config.setClass(JavaCsvOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + index, tpe)
-            config.setInteger(JavaCsvOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + index, field.globalPos.getValue)
+            config.setInteger(JavaCsvOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + index, field.localPos)
             index = index + 1
           }
 

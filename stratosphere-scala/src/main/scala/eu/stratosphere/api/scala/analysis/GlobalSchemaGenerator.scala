@@ -44,8 +44,9 @@ import eu.stratosphere.api.common.operators.Union
 class GlobalSchemaGenerator {
 
   def initGlobalSchema(sinks: Seq[Operator with ScalaOperator[_]]): Unit = {
-
-    sinks.foldLeft(0) { (freePos, contract) => globalizeContract(contract, Seq(), Map(), None, freePos) }
+    // don't do anything, we don't need global positions if we don't do reordering of operators
+    // FieldSet.toSerializerIndexArray returns local positions and ignores global positions
+    // sinks.foldLeft(0) { (freePos, contract) => globalizeContract(contract, Seq(), Map(), None, freePos) }
   }
 
   /**
