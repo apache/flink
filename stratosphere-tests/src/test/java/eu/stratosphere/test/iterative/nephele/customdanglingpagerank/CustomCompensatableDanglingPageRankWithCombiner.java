@@ -98,9 +98,9 @@ public class CustomCompensatableDanglingPageRankWithCombiner {
 		String adjacencyListInputPath = ""; //"file://" + PlayConstants.PLAY_DIR +
 //			"test-inputs/danglingpagerank/adjacencylists";
 		String outputPath =  Path.constructTestURI("stratosphere_iterations");
-		int minorConsumer = 25;
-		int matchMemory = 50;
-		int coGroupSortMemory = 50;
+		int minorConsumer = 2;
+		int matchMemory = 5;
+		int coGroupSortMemory = 5;
 		int numIterations = 25;
 		long numVertices = 5;
 		long numDanglingVertices = 1;

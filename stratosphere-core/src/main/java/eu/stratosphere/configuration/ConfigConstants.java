@@ -302,7 +302,7 @@ public final class ConfigConstants {
 	/**
 	 * The default fraction of the free memory allocated by the task manager's memory manager.
 	 */
-	public static final float DEFAULT_MEMORY_MANAGER_MEMORY_FRACTION = 0.8f;
+	public static final float DEFAULT_MEMORY_MANAGER_MEMORY_FRACTION = 0.7f;
 	
 	/**
 	 * The default setting for the memory manager lazy allocation feature.

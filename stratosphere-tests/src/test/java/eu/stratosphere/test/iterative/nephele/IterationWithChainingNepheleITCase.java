@@ -52,242 +52,246 @@ import java.util.Iterator;
  * <p/>
  * GitHub issue #123 reports a problem with chaining of tasks to iteration tails. The initial fix worked around the
  * issue by having the compiler *not* chain tasks to an iteration tail. The existing IterationWithChainingITCase only
- * tests this compiler behavior. The JobGraph and bypasses the compiler to test the original
- * chaining problem.
+ * tests this compiler behavior. The JobGraph and bypasses the compiler to test the original chaining problem.
  * <p/>
  * A chained mapper after the iteration tail (dummy reduce) increments the given input points in each iteration. The
  * final result will only be correct, if the chained mapper is successfully executed.
- *
+ * 
  * @link {eu.stratosphere.pact.test.iterative.IterationWithChainingITCase}
  * @link {https://github.com/stratosphere/stratosphere/issues/123}
  */
 @RunWith(Parameterized.class)
 public class IterationWithChainingNepheleITCase extends TestBase2 {
 
-    private static final String INPUT_STRING = "0|%d.25|\n" + "1|%d.25|\n";
+	private static final String INPUT_STRING = "0|%d.25|\n" + "1|%d.25|\n";
 
-    private String dataPath;
-    private String resultPath;
+	private String dataPath;
 
-    public IterationWithChainingNepheleITCase(Configuration config) {
-        super(config);
-    }
+	private String resultPath;
 
-    @Override
-    protected void preSubmit() throws Exception {
-        String initialInput = String.format(INPUT_STRING, 1, 2);
-        dataPath = createTempFile("data_points.txt", initialInput);
-        resultPath = getTempFilePath("result");
-    }
+	public IterationWithChainingNepheleITCase(Configuration config) {
+		super(config);
+	}
 
-    @Override
-    protected void postSubmit() throws Exception {
-        int maxIterations = config.getInteger("ChainedMapperNepheleITCase#MaxIterations", 1);
-        String result = String.format(INPUT_STRING, 1 + maxIterations, 2 + maxIterations);
-        compareResultsByLinesInMemory(result, resultPath);
-    }
+	@Override
+	protected void preSubmit() throws Exception {
+		String initialInput = String.format(INPUT_STRING, 1, 2);
+		dataPath = createTempFile("data_points.txt", initialInput);
+		resultPath = getTempFilePath("result");
+	}
 
-    @Parameterized.Parameters
-    public static Collection<Object[]> getConfigurations() {
-        Configuration config = new Configuration();
-        config.setInteger("ChainedMapperNepheleITCase#NoSubtasks", 2);
-        config.setInteger("ChainedMapperNepheleITCase#MaxIterations", 2);
-        return toParameterList(config);
-    }
+	@Override
+	protected void postSubmit() throws Exception {
+		int maxIterations = config.getInteger("ChainedMapperNepheleITCase#MaxIterations", 1);
+		String result = String.format(INPUT_STRING, 1 + maxIterations, 2 + maxIterations);
+		compareResultsByLinesInMemory(result, resultPath);
+	}
 
-    @Override
-    protected JobGraph getJobGraph() throws Exception {
-        int numSubTasks = config.getInteger("ChainedMapperNepheleITCase#NoSubtasks", 1);
-        int maxIterations = config.getInteger("ChainedMapperNepheleITCase#MaxIterations", 1);
+	@Parameterized.Parameters
+	public static Collection<Object[]> getConfigurations() {
+		Configuration config = new Configuration();
+		config.setInteger("ChainedMapperNepheleITCase#NoSubtasks", 2);
+		config.setInteger("ChainedMapperNepheleITCase#MaxIterations", 2);
+		return toParameterList(config);
+	}
 
-        return getTestJobGraph(dataPath, resultPath, numSubTasks, maxIterations);
-    }
+	@Override
+	protected JobGraph getJobGraph() throws Exception {
+		int numSubTasks = config.getInteger("ChainedMapperNepheleITCase#NoSubtasks", 1);
+		int maxIterations = config.getInteger("ChainedMapperNepheleITCase#MaxIterations", 1);
 
-    private JobGraph getTestJobGraph(String inputPath, String outputPath, int numSubTasks, int maxIterations)
-            throws JobGraphDefinitionException {
+		return getTestJobGraph(dataPath, resultPath, numSubTasks, maxIterations);
+	}
 
-        final JobGraph jobGraph = new JobGraph("Iteration Tail with Chaining");
+	private JobGraph getTestJobGraph(String inputPath, String outputPath, int numSubTasks, int maxIterations)
+			throws JobGraphDefinitionException {
 
-        final TypeSerializerFactory<Record> serializer = RecordSerializerFactory.get();
+		final JobGraph jobGraph = new JobGraph("Iteration Tail with Chaining");
 
-        @SuppressWarnings("unchecked")
+		final TypeSerializerFactory<Record> serializer = RecordSerializerFactory.get();
+
+		@SuppressWarnings("unchecked")
 		final TypeComparatorFactory<Record> comparator =
-                new RecordComparatorFactory(new int[]{0}, new Class[]{IntValue.class});
+			new RecordComparatorFactory(new int[] { 0 }, new Class[] { IntValue.class });
 
-        final long MEM_PER_CONSUMER = 10;
+		final long MEM_PER_CONSUMER = 2;
 
-        final int ITERATION_ID = 1;
+		final int ITERATION_ID = 1;
 
-        //--------------------------------------------------------------------------------------------------------------
-        // 1. VERTICES
-        //--------------------------------------------------------------------------------------------------------------
+		// --------------------------------------------------------------------------------------------------------------
+		// 1. VERTICES
+		// --------------------------------------------------------------------------------------------------------------
 
-        // - input -----------------------------------------------------------------------------------------------------
-        JobInputVertex input = JobGraphUtils.createInput(
-                new PointInFormat(), inputPath, "Input", jobGraph, numSubTasks, numSubTasks);
-        TaskConfig inputConfig = new TaskConfig(input.getConfiguration());
-        {
-            inputConfig.setOutputSerializer(serializer);
-            inputConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
-        }
+		// - input -----------------------------------------------------------------------------------------------------
+		JobInputVertex input = JobGraphUtils.createInput(
+			new PointInFormat(), inputPath, "Input", jobGraph, numSubTasks, numSubTasks);
+		TaskConfig inputConfig = new TaskConfig(input.getConfiguration());
+		{
+			inputConfig.setOutputSerializer(serializer);
+			inputConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
+		}
 
-        // - head ------------------------------------------------------------------------------------------------------
-        JobTaskVertex head = JobGraphUtils.createTask(
-                IterationHeadPactTask.class, "Iteration Head", jobGraph, numSubTasks, numSubTasks);
-        TaskConfig headConfig = new TaskConfig(head.getConfiguration());
-        {
-            headConfig.setIterationId(ITERATION_ID);
+		// - head ------------------------------------------------------------------------------------------------------
+		JobTaskVertex head = JobGraphUtils.createTask(
+			IterationHeadPactTask.class, "Iteration Head", jobGraph, numSubTasks, numSubTasks);
+		TaskConfig headConfig = new TaskConfig(head.getConfiguration());
+		{
+			headConfig.setIterationId(ITERATION_ID);
 
-            // input to iteration head
-            headConfig.addInputToGroup(0);
-            headConfig.setInputSerializer(serializer, 0);
-            headConfig.setInputLocalStrategy(0, LocalStrategy.NONE);
-            headConfig.setIterationHeadPartialSolutionOrWorksetInputIndex(0);
+			// input to iteration head
+			headConfig.addInputToGroup(0);
+			headConfig.setInputSerializer(serializer, 0);
+			headConfig.setInputLocalStrategy(0, LocalStrategy.NONE);
+			headConfig.setIterationHeadPartialSolutionOrWorksetInputIndex(0);
 
-            // output into iteration
-            headConfig.setOutputSerializer(serializer);
-            headConfig.addOutputShipStrategy(ShipStrategyType.PARTITION_HASH);
-            headConfig.setOutputComparator(comparator, 0);
+			// output into iteration
+			headConfig.setOutputSerializer(serializer);
+			headConfig.addOutputShipStrategy(ShipStrategyType.PARTITION_HASH);
+			headConfig.setOutputComparator(comparator, 0);
 
-            // final output
-            TaskConfig headFinalOutConfig = new TaskConfig(new Configuration());
-            headFinalOutConfig.setOutputSerializer(serializer);
-            headFinalOutConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
-            headConfig.setIterationHeadFinalOutputConfig(headFinalOutConfig);
+			// final output
+			TaskConfig headFinalOutConfig = new TaskConfig(new Configuration());
+			headFinalOutConfig.setOutputSerializer(serializer);
+			headFinalOutConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
+			headConfig.setIterationHeadFinalOutputConfig(headFinalOutConfig);
 
-            // the sync
-            headConfig.setIterationHeadIndexOfSyncOutput(2);
+			// the sync
+			headConfig.setIterationHeadIndexOfSyncOutput(2);
 
-            // driver
-            headConfig.setDriver(CollectorMapDriver.class);
-            headConfig.setDriverStrategy(DriverStrategy.COLLECTOR_MAP);
-            headConfig.setStubWrapper(new UserCodeClassWrapper<DummyMapper>(DummyMapper.class));
+			// driver
+			headConfig.setDriver(CollectorMapDriver.class);
+			headConfig.setDriverStrategy(DriverStrategy.COLLECTOR_MAP);
+			headConfig.setStubWrapper(new UserCodeClassWrapper<DummyMapper>(DummyMapper.class));
 
-            // back channel
-            headConfig.setBackChannelMemory(MEM_PER_CONSUMER * JobGraphUtils.MEGABYTE);
-        }
+			// back channel
+			headConfig.setBackChannelMemory(MEM_PER_CONSUMER * JobGraphUtils.MEGABYTE);
+		}
 
-        // - tail ------------------------------------------------------------------------------------------------------
-        JobTaskVertex tail = JobGraphUtils.createTask(
-                IterationTailPactTask.class, "Chained Iteration Tail", jobGraph, numSubTasks, numSubTasks);
-        TaskConfig tailConfig = new TaskConfig(tail.getConfiguration());
-        {
-            tailConfig.setIterationId(ITERATION_ID);
+		// - tail ------------------------------------------------------------------------------------------------------
+		JobTaskVertex tail = JobGraphUtils.createTask(
+			IterationTailPactTask.class, "Chained Iteration Tail", jobGraph, numSubTasks, numSubTasks);
+		TaskConfig tailConfig = new TaskConfig(tail.getConfiguration());
+		{
+			tailConfig.setIterationId(ITERATION_ID);
 
-            // inputs and driver
-            tailConfig.addInputToGroup(0);
-            tailConfig.setInputSerializer(serializer, 0);
+			// inputs and driver
+			tailConfig.addInputToGroup(0);
+			tailConfig.setInputSerializer(serializer, 0);
 
-            // output
-            tailConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
-            tailConfig.setOutputSerializer(serializer);
+			// output
+			tailConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
+			tailConfig.setOutputSerializer(serializer);
 
-            // the driver
-            tailConfig.setDriver(ReduceDriver.class);
-            tailConfig.setDriverStrategy(DriverStrategy.SORTED_GROUP);
-            tailConfig.setDriverComparator(comparator, 0);
-            tailConfig.setStubWrapper(new UserCodeClassWrapper<DummyReducer>(DummyReducer.class));
+			// the driver
+			tailConfig.setDriver(ReduceDriver.class);
+			tailConfig.setDriverStrategy(DriverStrategy.SORTED_GROUP);
+			tailConfig.setDriverComparator(comparator, 0);
+			tailConfig.setStubWrapper(new UserCodeClassWrapper<DummyReducer>(DummyReducer.class));
 
-            // chained mapper
-            TaskConfig chainedMapperConfig = new TaskConfig(new Configuration());
-            chainedMapperConfig.setDriverStrategy(DriverStrategy.COLLECTOR_MAP);
-            chainedMapperConfig.setStubWrapper(new UserCodeClassWrapper<IncrementCoordinatesMapper>(IncrementCoordinatesMapper.class));
+			// chained mapper
+			TaskConfig chainedMapperConfig = new TaskConfig(new Configuration());
+			chainedMapperConfig.setDriverStrategy(DriverStrategy.COLLECTOR_MAP);
+			chainedMapperConfig.setStubWrapper(new UserCodeClassWrapper<IncrementCoordinatesMapper>(
+				IncrementCoordinatesMapper.class));
 
-            chainedMapperConfig.setInputLocalStrategy(0, LocalStrategy.NONE);
-            chainedMapperConfig.setInputSerializer(serializer, 0);
+			chainedMapperConfig.setInputLocalStrategy(0, LocalStrategy.NONE);
+			chainedMapperConfig.setInputSerializer(serializer, 0);
 
-            chainedMapperConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
-            chainedMapperConfig.setOutputSerializer(serializer);
-            
-            chainedMapperConfig.setIsWorksetUpdate();
+			chainedMapperConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
+			chainedMapperConfig.setOutputSerializer(serializer);
 
-            tailConfig.addChainedTask(ChainedCollectorMapDriver.class, chainedMapperConfig, "Chained ID Mapper");
-        }
+			chainedMapperConfig.setIsWorksetUpdate();
 
-        // - output ----------------------------------------------------------------------------------------------------
-        JobOutputVertex output = JobGraphUtils.createFileOutput(jobGraph, "Output", numSubTasks, numSubTasks);
-        TaskConfig outputConfig = new TaskConfig(output.getConfiguration());
-        {
-            outputConfig.addInputToGroup(0);
-            outputConfig.setInputSerializer(serializer, 0);
+			tailConfig.addChainedTask(ChainedCollectorMapDriver.class, chainedMapperConfig, "Chained ID Mapper");
+		}
 
-            outputConfig.setStubWrapper(new UserCodeClassWrapper<PointOutFormat>(PointOutFormat.class));
-            outputConfig.setStubParameter(FileOutputFormat.FILE_PARAMETER_KEY, outputPath);
-        }
+		// - output ----------------------------------------------------------------------------------------------------
+		JobOutputVertex output = JobGraphUtils.createFileOutput(jobGraph, "Output", numSubTasks, numSubTasks);
+		TaskConfig outputConfig = new TaskConfig(output.getConfiguration());
+		{
+			outputConfig.addInputToGroup(0);
+			outputConfig.setInputSerializer(serializer, 0);
 
-        // - fake tail -------------------------------------------------------------------------------------------------
-        JobOutputVertex fakeTail = JobGraphUtils.createFakeOutput(jobGraph, "Fake Tail", numSubTasks, numSubTasks);
+			outputConfig.setStubWrapper(new UserCodeClassWrapper<PointOutFormat>(PointOutFormat.class));
+			outputConfig.setStubParameter(FileOutputFormat.FILE_PARAMETER_KEY, outputPath);
+		}
 
-        // - sync ------------------------------------------------------------------------------------------------------
-        JobOutputVertex sync = JobGraphUtils.createSync(jobGraph, numSubTasks);
-        TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());
-        syncConfig.setNumberOfIterations(maxIterations);
-        syncConfig.setIterationId(ITERATION_ID);
+		// - fake tail -------------------------------------------------------------------------------------------------
+		JobOutputVertex fakeTail = JobGraphUtils.createFakeOutput(jobGraph, "Fake Tail", numSubTasks, numSubTasks);
 
-        //--------------------------------------------------------------------------------------------------------------
-        // 2. EDGES
-        //--------------------------------------------------------------------------------------------------------------
-        JobGraphUtils.connect(input, head, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
+		// - sync ------------------------------------------------------------------------------------------------------
+		JobOutputVertex sync = JobGraphUtils.createSync(jobGraph, numSubTasks);
+		TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());
+		syncConfig.setNumberOfIterations(maxIterations);
+		syncConfig.setIterationId(ITERATION_ID);
 
-        JobGraphUtils.connect(head, tail, ChannelType.INMEMORY, DistributionPattern.BIPARTITE);
-        tailConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, numSubTasks);
+		// --------------------------------------------------------------------------------------------------------------
+		// 2. EDGES
+		// --------------------------------------------------------------------------------------------------------------
+		JobGraphUtils.connect(input, head, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
 
-        JobGraphUtils.connect(head, output, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
+		JobGraphUtils.connect(head, tail, ChannelType.INMEMORY, DistributionPattern.BIPARTITE);
+		tailConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, numSubTasks);
 
-        JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.POINTWISE);
+		JobGraphUtils.connect(head, output, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
 
-        JobGraphUtils.connect(tail, fakeTail, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
+		JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.POINTWISE);
 
-        //--------------------------------------------------------------------------------------------------------------
-        // 3. INSTANCE SHARING
-        //--------------------------------------------------------------------------------------------------------------
-        input.setVertexToShareInstancesWith(head);
+		JobGraphUtils.connect(tail, fakeTail, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
 
-        tail.setVertexToShareInstancesWith(head);
+		// --------------------------------------------------------------------------------------------------------------
+		// 3. INSTANCE SHARING
+		// --------------------------------------------------------------------------------------------------------------
+		input.setVertexToShareInstancesWith(head);
 
-        output.setVertexToShareInstancesWith(head);
+		tail.setVertexToShareInstancesWith(head);
 
-        sync.setVertexToShareInstancesWith(head);
+		output.setVertexToShareInstancesWith(head);
 
-        fakeTail.setVertexToShareInstancesWith(tail);
+		sync.setVertexToShareInstancesWith(head);
 
-        return jobGraph;
-    }
+		fakeTail.setVertexToShareInstancesWith(tail);
 
-    public static final class DummyMapper extends MapFunction {
+		return jobGraph;
+	}
+
+	public static final class DummyMapper extends MapFunction {
+
 		private static final long serialVersionUID = 1L;
 
 		@Override
-        public void map(Record rec, Collector<Record> out) {
-            out.collect(rec);
-        }
-    }
+		public void map(Record rec, Collector<Record> out) {
+			out.collect(rec);
+		}
+	}
 
-    public static final class DummyReducer extends ReduceFunction {
+	public static final class DummyReducer extends ReduceFunction {
+
 		private static final long serialVersionUID = 1L;
 
 		@Override
-        public void reduce(Iterator<Record> it, Collector<Record> out) {
-            while (it.hasNext()) {
-                out.collect(it.next());
-            }
-        }
-    }
+		public void reduce(Iterator<Record> it, Collector<Record> out) {
+			while (it.hasNext()) {
+				out.collect(it.next());
+			}
+		}
+	}
 
-    public static final class IncrementCoordinatesMapper extends MapFunction {
+	public static final class IncrementCoordinatesMapper extends MapFunction {
+
 		private static final long serialVersionUID = 1L;
 
 		@Override
-        public void map(Record rec, Collector<Record> out) {
-            CoordVector coord = rec.getField(1, CoordVector.class);
+		public void map(Record rec, Collector<Record> out) {
+			CoordVector coord = rec.getField(1, CoordVector.class);
 
-            double[] vector = coord.getCoordinates();
-            for (int i = 0; i < vector.length; i++) {
-                vector[i]++;
-            }
+			double[] vector = coord.getCoordinates();
+			for (int i = 0; i < vector.length; i++) {
+				vector[i]++;
+			}
 
-            rec.setField(1, coord);
-            out.collect(rec);
-        }
-    }
+			rec.setField(1, coord);
+			out.collect(rec);
+		}
+	}
 }

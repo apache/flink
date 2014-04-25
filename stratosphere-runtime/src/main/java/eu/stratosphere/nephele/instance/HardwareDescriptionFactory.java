@@ -106,7 +106,12 @@ public class HardwareDescriptionFactory {
 			ConfigConstants.TASK_MANAGER_MEMORY_FRACTION_KEY, ConfigConstants.DEFAULT_MEMORY_MANAGER_MEMORY_FRACTION);
 		
 		Runtime r = Runtime.getRuntime();
-		return (long) (fractionToUse * (r.maxMemory() - r.totalMemory() + r.freeMemory()));
+		long max = r.maxMemory();
+		long total = r.totalMemory();
+		long free = r.freeMemory();
+		
+		long available = max - total + free;
+		return (long) (fractionToUse * available);
 	}
 
 	/**

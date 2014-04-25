@@ -113,7 +113,7 @@ public class DefaultMemoryManager implements MemoryManager {
 		}
 		
 		// initialize the free segments and allocated segments tracking structures
-		this.freeSegments = new ArrayDeque<byte[]>();
+		this.freeSegments = new ArrayDeque<byte[]>(this.totalNumPages);
 		this.allocatedSegments = new HashMap<AbstractInvokable, Set<DefaultMemorySegment>>();
 
 		

@@ -13,18 +13,10 @@
 
 package eu.stratosphere.test.iterative.nephele;
 
-import java.util.Collection;
-
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
-
-import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.test.iterative.nephele.customdanglingpagerank.CustomCompensatableDanglingPageRank;
 import eu.stratosphere.test.util.TestBase2;
 
-@RunWith(Parameterized.class)
 public class DanglingPageRankNepheleITCase extends TestBase2 {
 	
 	public static final String TEST_VERTICES = "1\n" +
@@ -43,10 +35,6 @@ public class DanglingPageRankNepheleITCase extends TestBase2 {
 	protected String resultPath;
 
 	
-	public DanglingPageRankNepheleITCase(Configuration config) {
-		super(config);
-	}
-	
 	@Override
 	protected void preSubmit() throws Exception {
 		this.pagesWithRankPath = createTempFile("pagesWithRank", TEST_VERTICES);
@@ -63,9 +51,9 @@ public class DanglingPageRankNepheleITCase extends TestBase2 {
 			edgesPath,
 			resultPath,
 			"<none>",
+			"2",
 			"5",
-			"25",
-			"25",
+			"5",
 			"30",
 			"5",
 			"1",
@@ -75,11 +63,5 @@ public class DanglingPageRankNepheleITCase extends TestBase2 {
 		};
 		
 		return CustomCompensatableDanglingPageRank.getJobGraph(parameters);
-	}
-
-
-	@Parameters
-	public static Collection<Object[]> getConfigurations() {
-		return toParameterList(new Configuration());
 	}
 }

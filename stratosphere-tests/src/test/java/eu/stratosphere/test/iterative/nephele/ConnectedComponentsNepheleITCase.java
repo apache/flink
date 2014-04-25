@@ -80,7 +80,7 @@ public class ConnectedComponentsNepheleITCase extends TestBase2 {
 
 	private static final int ITERATION_ID = 1;
 
-	private static final long MEM_PER_CONSUMER = 10;
+	private static final long MEM_PER_CONSUMER = 3;
 
 	protected String verticesPath;
 

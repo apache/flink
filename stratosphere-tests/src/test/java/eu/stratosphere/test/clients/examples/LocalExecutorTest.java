@@ -44,7 +44,7 @@ public class LocalExecutorTest {
 			wc.getPlan("4", inFile.toURI().toString(), outFile.toURI().toString());
 			
 			LocalExecutor executor = new LocalExecutor();
-			LocalExecutor.setLoggingLevel(Level.ERROR);
+			LocalExecutor.setLoggingLevel(Level.WARN);
 			executor.setDefaultOverwriteFiles(true);
 			executor.start();
 			

@@ -332,7 +332,7 @@ public class TaskManager implements TaskOperationProtocol {
 	private int getAvailablePort() {
 		ServerSocket serverSocket = null;
 		int port = 0;
-		for(int i = 0; i < 50; i++){
+		for (int i = 0; i < 50; i++){
 			try {
 				serverSocket = new ServerSocket(0);
 				port = serverSocket.getLocalPort();
@@ -344,7 +344,7 @@ public class TaskManager implements TaskOperationProtocol {
 				LOG.debug("Unable to allocate port " + e.getMessage(), e);
 			}
 		}
-		if(!serverSocket.isClosed()) {
+		if (!serverSocket.isClosed()) {
 			try {
 				serverSocket.close();
 			} catch (IOException e) {
