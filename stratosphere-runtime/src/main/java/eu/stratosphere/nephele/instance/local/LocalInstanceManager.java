@@ -40,6 +40,7 @@ import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.instance.InstanceTypeDescriptionFactory;
 import eu.stratosphere.nephele.instance.InstanceTypeFactory;
 import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.taskmanager.TaskManager;
 import eu.stratosphere.nephele.topology.NetworkTopology;
 import eu.stratosphere.nephele.util.SerializableHashMap;
 
@@ -83,17 +84,17 @@ public class LocalInstanceManager implements InstanceManager {
 	/**
 	 * Stores if the local task manager is currently by a job.
 	 */
-	private AllocatedResource allocatedResource = null;
+	private AllocatedResource allocatedResource;
 
 	/**
 	 * The local instance encapsulating the task manager
 	 */
-	private LocalInstance localInstance = null;
+	private LocalInstance localInstance;
 
 	/**
 	 * The thread running the local task manager.
 	 */
-	private final LocalTaskManagerThread localTaskManagerThread;
+	private final TaskManager taskManager;
 
 	/**
 	 * The network topology the local instance is part of.
@@ -111,7 +112,7 @@ public class LocalInstanceManager implements InstanceManager {
 	 * @param configDir
 	 *        the path to the configuration directory
 	 */
-	public LocalInstanceManager() {
+	public LocalInstanceManager() throws Exception {
 
 		final Configuration config = GlobalConfiguration.getConfiguration();
 
@@ -134,8 +135,7 @@ public class LocalInstanceManager implements InstanceManager {
 
 		this.instanceTypeDescriptionMap = new SerializableHashMap<InstanceType, InstanceTypeDescription>();
 
-		this.localTaskManagerThread = new LocalTaskManagerThread("Local Taskmanager Heartbeat Loop");
-		this.localTaskManagerThread.start();
+		this.taskManager = new TaskManager();
 	}
 
 
@@ -146,7 +146,7 @@ public class LocalInstanceManager implements InstanceManager {
 
 
 	@Override
-	public InstanceType getInstanceTypeByName(final String instanceTypeName) {
+	public InstanceType getInstanceTypeByName(String instanceTypeName) {
 		if (this.defaultInstanceType.getIdentifier().equals(instanceTypeName)) {
 			return this.defaultInstanceType;
 		}
@@ -156,8 +156,8 @@ public class LocalInstanceManager implements InstanceManager {
 
 
 	@Override
-	public InstanceType getSuitableInstanceType(final int minNumComputeUnits, final int minNumCPUCores,
-			final int minMemorySize, final int minDiskCapacity, final int maxPricePerHour) {
+	public InstanceType getSuitableInstanceType(int minNumComputeUnits, int minNumCPUCores,
+			int minMemorySize, int minDiskCapacity, int maxPricePerHour) {
 
 		if (minNumComputeUnits > this.defaultInstanceType.getNumberOfComputeUnits()) {
 			return null;
@@ -184,10 +184,9 @@ public class LocalInstanceManager implements InstanceManager {
 
 
 	@Override
-	public void releaseAllocatedResource(final JobID jobID, final Configuration conf,
-			final AllocatedResource allocatedResource)
-			throws InstanceException {
-
+	public void releaseAllocatedResource(JobID jobID, Configuration conf, AllocatedResource allocatedResource)
+			throws InstanceException
+	{
 		synchronized (this.synchronizationObject) {
 
 			if (this.allocatedResource != null) {
@@ -225,8 +224,8 @@ public class LocalInstanceManager implements InstanceManager {
 	@Override
 	public void shutdown() {
 		// Stop the internal instance of the task manager
-		if (this.localTaskManagerThread != null) {
-			this.localTaskManagerThread.shutDown();
+		if (this.taskManager != null) {
+			this.taskManager.shutdown();
 		}
 		
 		// Clear the instance type description list

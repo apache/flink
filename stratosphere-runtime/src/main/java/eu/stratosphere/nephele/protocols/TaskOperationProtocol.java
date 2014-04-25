@@ -109,7 +109,7 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 	 * @throws IOException
 	 *         thrown if an error occurs while transmitting the request
 	 */
-	void logBufferUtilization() throws IOException;
+	void logBufferUtilization();
 
 	/**
 	 * Kills the task manager. This method is mainly intended to test and debug Nephele's fault tolerance mechanisms.

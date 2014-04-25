@@ -138,6 +138,7 @@ public class TaskManager implements TaskOperationProtocol {
 
 	private final HardwareDescription hardwareDescription;
 
+	private final Thread heartbeatThread;
 	
 	private final AtomicBoolean shutdownStarted = new AtomicBoolean(false);
 	
@@ -314,6 +315,16 @@ public class TaskManager implements TaskOperationProtocol {
 
 		this.ioManager = new IOManager(tmpDirPaths);
 		
+		this.heartbeatThread = new Thread() {
+			@Override
+			public void run() {
+				runHeartbeatLoop();
+			}
+		};
+		
+		this.heartbeatThread.setName("Heartbeat Thread");
+		this.heartbeatThread.start();
+		
 		// Add shutdown hook for clean up tasks
 		Runtime.getRuntime().addShutdownHook(new TaskManagerCleanUp(this));
 	}
@@ -375,25 +386,23 @@ public class TaskManager implements TaskOperationProtocol {
 		LOG.info("Current user "+UserGroupInformation.getCurrentUser().getShortUserName());
 		
 		// Create a new task manager object
-		TaskManager taskManager = null;
 		try {
-			taskManager = new TaskManager();
+			new TaskManager();
 		} catch (Exception e) {
 			LOG.fatal("Taskmanager startup failed: " + e.getMessage(), e);
 			System.exit(FAILURE_RETURN_CODE);
 		}
 		
-		// Run the main I/O loop
+		// park the main thread to keep the JVM alive
 		try {
-			taskManager.runHeartbeatLoop();
-		} catch (Exception e) {
-			LOG.fatal("Taskmanager heart beat loop failed: " + e.getMessage(), e);
-			System.exit(FAILURE_RETURN_CODE);
-		}
+			new Object().wait();
+		} catch (InterruptedException ex) {}
 	}
 
-	// This method is called by the TaskManagers main thread
-	public void runHeartbeatLoop() {
+	/**
+	 * This method send the periodic heartbeats.
+	 */
+	private void runHeartbeatLoop() {
 		final long interval = GlobalConfiguration.getInteger(
 						ConfigConstants.TASK_MANAGER_HEARTBEAT_INTERVAL_KEY,
 						ConfigConstants.DEFAULT_TASK_MANAGER_HEARTBEAT_INTERVAL);
@@ -404,7 +413,11 @@ public class TaskManager implements TaskOperationProtocol {
 				LOG.debug("heartbeat");
 				this.jobManager.sendHeartbeat(this.localInstanceConnectionInfo, this.hardwareDescription);
 			} catch (IOException e) {
-				LOG.error("Sending the heart beat caused an exception: " + e.getMessage(), e);
+				if (shutdownStarted.get()) {
+					break;
+				} else {
+					LOG.error("Sending the heart beat caused an exception: " + e.getMessage(), e);
+				}
 			}
 			
 			// sleep until the next heart beat
@@ -414,8 +427,6 @@ public class TaskManager implements TaskOperationProtocol {
 			catch (InterruptedException e) {
 				if (!shutdownStarted.get()) {
 					LOG.error("TaskManager heart beat loop was interrupted without shutdown.");
-				} else {
-					break;
 				}
 			}
 		}
@@ -823,6 +834,12 @@ public class TaskManager implements TaskOperationProtocol {
 		}
 
 		LOG.info("Shutting down TaskManager");
+		
+		// first, stop the heartbeat thread and wait for it to terminate
+		this.heartbeatThread.interrupt();
+		try {
+			this.heartbeatThread.join(1000);
+		} catch (InterruptedException e) {}
 
 		// Stop RPC proxy for the task manager
 		RPC.stopProxy(this.jobManager);
@@ -878,12 +895,12 @@ public class TaskManager implements TaskOperationProtocol {
 	 * 
 	 * @return <code>true</code> if the task manager has already been shut down, <code>false</code> otherwise
 	 */
-	public synchronized boolean isShutDown() {
+	public boolean isShutDown() {
 		return this.shutdownComplete;
 	}
 
 	@Override
-	public void logBufferUtilization() throws IOException {
+	public void logBufferUtilization() {
 		this.byteBufferedChannelManager.logBufferUtilization();
 	}
 
