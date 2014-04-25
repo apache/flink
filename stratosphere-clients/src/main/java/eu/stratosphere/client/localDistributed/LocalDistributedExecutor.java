@@ -68,6 +68,16 @@ public class LocalDistributedExecutor extends PlanExecutor {
 
 		// we need to down size the memory. determine the memory and divide it by the number of task managers
 		long javaMem = HardwareDescriptionFactory.extractFromSystem().getSizeOfFreeMemory();
+		
+		// at this time, we need to scale down the memory, because we cannot dedicate all free memory to the 
+		// memory manager. we have to account for the buffer pools as well, and the job manager#s data structures
+		long bufferMem = GlobalConfiguration.getLong(ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY,
+			ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_NUM_BUFFERS) * 
+			GlobalConfiguration.getLong(ConfigConstants.TASK_MANAGER_NETWORK_BUFFER_SIZE_KEY,
+				ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_BUFFER_SIZE);
+		
+		javaMem = (long) (0.8 * (javaMem - bufferMem));
+		
 		javaMem /= numTaskMgr;
 		
 		// convert memory from bytes to megabytes

@@ -48,7 +48,7 @@ public abstract class AbstractTestBase {
 	
 	private static final int MINIMUM_HEAP_SIZE_MB = 192;
 	
-	private static final long TASK_MANAGER_MEMORY_SIZE = 96;
+	private static final long TASK_MANAGER_MEMORY_SIZE = 80;
 
 	
 	protected final Configuration config;
