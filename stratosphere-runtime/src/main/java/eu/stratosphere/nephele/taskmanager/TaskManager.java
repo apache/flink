@@ -24,14 +24,17 @@ import java.net.SocketAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -46,9 +49,11 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.security.UserGroupInformation;
 
+import eu.stratosphere.api.common.cache.DistributedCache;
 import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.configuration.GlobalConfiguration;
+import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.nephele.deployment.TaskDeploymentDescriptor;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.execution.RuntimeEnvironment;
@@ -81,6 +86,7 @@ import eu.stratosphere.nephele.taskmanager.bytebuffered.InsufficientResourcesExc
 import eu.stratosphere.nephele.taskmanager.runtime.ExecutorThreadFactory;
 import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTask;
 import eu.stratosphere.nephele.util.SerializableArrayList;
+import eu.stratosphere.pact.runtime.cache.FileCache;
 import eu.stratosphere.util.StringUtils;
 
 /**
@@ -393,7 +399,7 @@ public class TaskManager implements TaskOperationProtocol {
 			System.exit(FAILURE_RETURN_CODE);
 		}
 		
-		// park the main thread to keep the JVM alive
+		// park the main thread to keep the JVM alive (all other threads may be daemon threads)
 		try {
 			new Object().wait();
 		} catch (InterruptedException ex) {}
