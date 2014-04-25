@@ -13,19 +13,19 @@
 
 package eu.stratosphere.nephele.instance.cluster;
 
-import java.io.File;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
+
 import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
-
-import static org.junit.Assert.*;
 
 import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.configuration.Configuration;
@@ -39,7 +39,6 @@ import eu.stratosphere.nephele.instance.InstanceException;
 import eu.stratosphere.nephele.instance.InstanceRequestMap;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
-import eu.stratosphere.nephele.instance.cluster.ClusterManager;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.util.LogUtils;
 
@@ -48,240 +47,105 @@ import eu.stratosphere.util.LogUtils;
  */
 public class ClusterManagerTest {
 
-	/**
-	 * The system property key to retrieve the user directory.
-	 */
-	private static final String USER_DIR_KEY = "user.dir";
-
-	/**
-	 * The directory containing the correct configuration file to be used during the tests.
-	 */
-	private static final String CORRECT_CONF_DIR = "/confs/clustermanager";
-
-	/**
-	 * The name of the small instance type.
-	 */
-	private static final String SMALL_INSTANCE_TYPE_NAME = "small";
-
-	/**
-	 * The name of the medium instance type.
-	 */
-	private static final String MEDIUM_INSTANCE_TYPE_NAME = "medium";
-
-	/**
-	 * The name of the large instance type.
-	 */
-	private static final String LARGE_INSTANCE_TYPE_NAME = "large";
-
-	/**
-	 * The maximum time to wait for instance arrivals in milliseconds.
-	 */
-	private static final long MAX_WAIT_TIME = 1000L;
-
-	/**
-	 * The clean up interval in milliseconds.
-	 */
-	private static final long CLEAN_UP_INTERVAL = 5000L;
-
-	/**
-	 * The directory the configuration directory is expected in when test are executed using Eclipse.
-	 */
-	private static final String ECLIPSE_PATH_EXTENSION = "/src/test/resources";
-
 	@BeforeClass
 	public static void initLogging() {
 		LogUtils.initializeDefaultTestConsoleLogger();
 	}
 	
 	
-	/**
-	 * This test covers the parsing of instance types from the configuration and the default instance type.
-	 */
 	@Test
-	public void testInstanceConfiguration() {
-
-		final String configDir = getConfigDir();
-		if (configDir == null) {
-			fail("Cannot find configuration directory for cluster manager test");
-		}
-
-		GlobalConfiguration.loadConfiguration(configDir);
-
-		final TestInstanceListener testInstanceListener = new TestInstanceListener();
-		final ClusterManager cm = new ClusterManager();
-		cm.setInstanceListener(testInstanceListener);
+	public void testInstanceRegistering() {
 		try {
+			ClusterManager cm = new ClusterManager();
+			TestInstanceListener testInstanceListener = new TestInstanceListener();
+			cm.setInstanceListener(testInstanceListener);
+			
+			
+			int ipcPort = ConfigConstants.DEFAULT_TASK_MANAGER_IPC_PORT;
+			int dataPort = ConfigConstants.DEFAULT_TASK_MANAGER_DATA_PORT;
 
-			final InstanceType defaultIT = cm.getDefaultInstanceType();
+			HardwareDescription hardwareDescription = HardwareDescriptionFactory.construct(2, 2L * 1024L * 1024L * 1024L,
+																				2L * 1024L * 1024L * 1024L);
 
-			assertNotNull(defaultIT);
-			assertEquals(SMALL_INSTANCE_TYPE_NAME, defaultIT.getIdentifier());
-			assertEquals(2, defaultIT.getNumberOfComputeUnits());
-			assertEquals(2, defaultIT.getNumberOfCores());
-			assertEquals(2048, defaultIT.getMemorySize());
-			assertEquals(10, defaultIT.getDiskCapacity());
-			assertEquals(10, defaultIT.getPricePerHour());
-
-			// Check number of different instance types available to cluster manager
-			final Map<InstanceType, InstanceTypeDescription> instanceTypeDescriptions = cm
-				.getMapOfAvailableInstanceTypes();
-			assertEquals(3, instanceTypeDescriptions.size());
-
-		} finally {
-			if (cm != null) {
-				cm.shutdown();
-			}
+			String hostname = "192.168.198.1";
+			InetAddress address = InetAddress.getByName("192.168.198.1");
+			
+			InstanceConnectionInfo ici1 = new InstanceConnectionInfo(address, hostname, null, ipcPort + 0, dataPort + 0);
+			InstanceConnectionInfo ici2 = new InstanceConnectionInfo(address, hostname, null, ipcPort + 15, dataPort + 15);
+			InstanceConnectionInfo ici3 = new InstanceConnectionInfo(address, hostname, null, ipcPort + 30, dataPort + 30);
+			
+			// register three instances
+			cm.reportHeartBeat(ici1, hardwareDescription);
+			cm.reportHeartBeat(ici2, hardwareDescription);
+			cm.reportHeartBeat(ici3, hardwareDescription);
+			
+			
+			Map<InstanceType, InstanceTypeDescription> instanceTypeDescriptions = cm.getMapOfAvailableInstanceTypes();
+			assertEquals(1, instanceTypeDescriptions.size());
+			
+			InstanceTypeDescription descr = instanceTypeDescriptions.entrySet().iterator().next().getValue();
+			
+			assertEquals(3, descr.getMaximumNumberOfAvailableInstances());
+			
+			cm.shutdown();
+		}
+		catch (Exception e) {
+			System.err.println(e.getMessage());
+			e.printStackTrace();
+			Assert.fail("Test erroneous: " + e.getMessage());
 		}
 	}
 
-	/**
-	 * This test covers the matching of instances to instance types It addresses the automatic matching through the
-	 * hardware description as well as user-defined instance type matching.
-	 */
-	@Test
-	public void testInstanceMatching() {
-
-		final String configDir = getConfigDir();
-		if (configDir == null) {
-			fail("Cannot find configuration directory for cluster manager test");
-		}
-
-		GlobalConfiguration.loadConfiguration(configDir);
-
-		final TestInstanceListener testInstanceListener = new TestInstanceListener();
-		final ClusterManager cm = new ClusterManager();
-		cm.setInstanceListener(testInstanceListener);
-
-		Map<InstanceType, InstanceTypeDescription> instanceTypeDescriptions = null;
-
-		try {
-
-			final int ipcPort = ConfigConstants.DEFAULT_TASK_MANAGER_IPC_PORT;
-			final int dataPort = ConfigConstants.DEFAULT_TASK_MANAGER_DATA_PORT;
-
-			HardwareDescription hardwareDescription = HardwareDescriptionFactory.construct(2,
-				2L * 1024L * 1024L * 1024L,
-				2L * 1024L * 1024L * 1024L);
-
-			String ipAddress = "192.168.198.1";
-			InstanceConnectionInfo ici = new InstanceConnectionInfo(InetAddress.getByName(ipAddress), ipAddress, null,
-				ipcPort, dataPort);
-
-			// Although the hardware description indicates an instance of type "small", the cluster manager is supposed
-			// to take the user-defined instance type "high"
-			cm.reportHeartBeat(ici, hardwareDescription);
-
-			instanceTypeDescriptions = cm.getMapOfAvailableInstanceTypes();
-			assertEquals(3, instanceTypeDescriptions.size());
-
-			Iterator<Map.Entry<InstanceType, InstanceTypeDescription>> it = instanceTypeDescriptions.entrySet()
-				.iterator();
-
-			while (it.hasNext()) {
-
-				final Map.Entry<InstanceType, InstanceTypeDescription> entry = it.next();
-
-				if (LARGE_INSTANCE_TYPE_NAME.equals(entry.getKey().getIdentifier())) {
-					assertEquals(1, entry.getValue().getMaximumNumberOfAvailableInstances());
-				} else if (MEDIUM_INSTANCE_TYPE_NAME.equals(entry.getKey().getIdentifier())) {
-					assertEquals(2, entry.getValue().getMaximumNumberOfAvailableInstances());
-				} else if (SMALL_INSTANCE_TYPE_NAME.equals(entry.getKey().getIdentifier())) {
-					assertEquals(4, entry.getValue().getMaximumNumberOfAvailableInstances());
-				} else {
-					fail("Unexpected instance type: " + entry.getKey());
-				}
-			}
-
-			// Now we add a second cluster instance which is expected to identified as of type "small" as a result of
-			// its hardware description
-			hardwareDescription = HardwareDescriptionFactory.construct(3, 2L * 1024L * 1024L * 1024L,
-				1024L * 1024L * 1024L);
-
-			ipAddress = "192.168.198.3";
-			ici = new InstanceConnectionInfo(InetAddress.getByName(ipAddress), ipAddress, null, ipcPort, dataPort);
-			cm.reportHeartBeat(ici, hardwareDescription);
-
-			instanceTypeDescriptions = cm.getMapOfAvailableInstanceTypes();
-
-			assertEquals(3, instanceTypeDescriptions.size());
-
-			it = instanceTypeDescriptions.entrySet().iterator();
-
-			while (it.hasNext()) {
-
-				final Map.Entry<InstanceType, InstanceTypeDescription> entry = it.next();
-
-				if (LARGE_INSTANCE_TYPE_NAME.equals(entry.getKey().getIdentifier())) {
-					assertEquals(1, entry.getValue().getMaximumNumberOfAvailableInstances());
-				} else if (MEDIUM_INSTANCE_TYPE_NAME.equals(entry.getKey().getIdentifier())) {
-					assertEquals(2, entry.getValue().getMaximumNumberOfAvailableInstances());
-				} else if (SMALL_INSTANCE_TYPE_NAME.equals(entry.getKey().getIdentifier())) {
-					assertEquals(5, entry.getValue().getMaximumNumberOfAvailableInstances());
-				} else {
-					fail("Unexpected instance type: " + entry.getKey());
-				}
-
-			}
-
-		} catch (UnknownHostException e) {
-			fail(e.getMessage());
-		} finally {
-			if (cm != null) {
-				cm.shutdown();
-			}
-		}
-	}
-
-	/**
-	 * This test checks the correctness of extracting instance types from the configuration, mapping IPs to instance
-	 * types from the slave file, instance slicing and allocation/deallocation.
-	 */
 	@Test
 	public void testAllocationDeallocation() {
-
-		final String configDir = getConfigDir();
-		if (configDir == null) {
-			fail("Cannot find configuration directory for cluster manager test");
-		}
-
-		GlobalConfiguration.loadConfiguration(configDir);
-		final TestInstanceListener testInstanceListener = new TestInstanceListener();
-		final ClusterManager cm = new ClusterManager();
-		cm.setInstanceListener(testInstanceListener);
-
 		try {
+			ClusterManager cm = new ClusterManager();
+			TestInstanceListener testInstanceListener = new TestInstanceListener();
+			cm.setInstanceListener(testInstanceListener);
+			
+			
+			int ipcPort = ConfigConstants.DEFAULT_TASK_MANAGER_IPC_PORT;
+			int dataPort = ConfigConstants.DEFAULT_TASK_MANAGER_DATA_PORT;
 
-			final String ipAddress = "192.168.198.1";
-			final InstanceConnectionInfo instanceConnectionInfo = new InstanceConnectionInfo(
-				InetAddress.getByName(ipAddress), ipAddress, null, 1234, 1235);
-			final HardwareDescription hardwareDescription = HardwareDescriptionFactory.construct(8,
-				8L * 1024L * 1024L * 1024L, 8L * 1024L * 1024L * 1024L);
-			cm.reportHeartBeat(instanceConnectionInfo, hardwareDescription);
+			HardwareDescription hardwareDescription = HardwareDescriptionFactory.construct(2, 2L * 1024L * 1024L * 1024L,
+																				2L * 1024L * 1024L * 1024L);
 
-			// now we should be able to request two instances of type small and one of type medium
-			final JobID jobID = new JobID();
-			final Configuration conf = new Configuration();
-
-			final InstanceRequestMap instanceRequestMap = new InstanceRequestMap();
-
-			instanceRequestMap.setNumberOfInstances(cm.getInstanceTypeByName(SMALL_INSTANCE_TYPE_NAME), 2);
-			instanceRequestMap.setNumberOfInstances(cm.getInstanceTypeByName(MEDIUM_INSTANCE_TYPE_NAME), 1);
-
-			try {
-				cm.requestInstance(jobID, conf, instanceRequestMap, null);
-			} catch (InstanceException ie) {
-				fail(ie.getMessage());
-			}
-
-			ClusterManagerTestUtils.waitForInstances(jobID, testInstanceListener, 3, MAX_WAIT_TIME);
-
-			final List<AllocatedResource> allocatedResources = testInstanceListener.getAllocatedResourcesForJob(jobID);
-			assertEquals(3, allocatedResources.size());
+			String hostname = "192.168.198.1";
+			InetAddress address = InetAddress.getByName("192.168.198.1");
+			
+			InstanceConnectionInfo ici1 = new InstanceConnectionInfo(address, hostname, null, ipcPort + 0, dataPort + 0);
+			InstanceConnectionInfo ici2 = new InstanceConnectionInfo(address, hostname, null, ipcPort + 15, dataPort + 15);
+			
+			// register three instances
+			cm.reportHeartBeat(ici1, hardwareDescription);
+			cm.reportHeartBeat(ici2, hardwareDescription);
+			
+			
+			Map<InstanceType, InstanceTypeDescription> instanceTypeDescriptions = cm.getMapOfAvailableInstanceTypes();
+			assertEquals(1, instanceTypeDescriptions.size());
+			
+			InstanceTypeDescription descr = instanceTypeDescriptions.entrySet().iterator().next().getValue();
+			
+			assertEquals(2, descr.getMaximumNumberOfAvailableInstances());
+			
+			
+			// allocate something
+			JobID jobID = new JobID();
+			Configuration conf = new Configuration();
+			InstanceRequestMap instanceRequestMap = new InstanceRequestMap();
+			instanceRequestMap.setNumberOfInstances(cm.getDefaultInstanceType(), 2);
+			cm.requestInstance(jobID, conf, instanceRequestMap, null);
+			
+			ClusterManagerTestUtils.waitForInstances(jobID, testInstanceListener, 3, 1000);
+			
+			List<AllocatedResource> allocatedResources = testInstanceListener.getAllocatedResourcesForJob(jobID);
+			assertEquals(2, allocatedResources.size());
+			
 			Iterator<AllocatedResource> it = allocatedResources.iterator();
-			final Set<AllocationID> allocationIDs = new HashSet<AllocationID>();
+			Set<AllocationID> allocationIDs = new HashSet<AllocationID>();
 			while (it.hasNext()) {
-				final AllocatedResource allocatedResource = it.next();
-				if (!LARGE_INSTANCE_TYPE_NAME.equals(allocatedResource.getInstance().getType().getIdentifier())) {
+				AllocatedResource allocatedResource = it.next();
+				if (ConfigConstants.DEFAULT_INSTANCE_TYPE.equals(allocatedResource.getInstance().getType().getIdentifier())) {
 					fail("Allocated unexpected instance of type "
 						+ allocatedResource.getInstance().getType().getIdentifier());
 				}
@@ -296,7 +160,7 @@ public class ClusterManagerTest {
 			// Try to allocate more resources which must result in an error
 			try {
 				InstanceRequestMap instancem = new InstanceRequestMap();
-				instancem.setNumberOfInstances(cm.getInstanceTypeByName(MEDIUM_INSTANCE_TYPE_NAME), 1);
+				instancem.setNumberOfInstances(cm.getDefaultInstanceType(), 1);
 				cm.requestInstance(jobID, conf, instancem, null);
 
 				fail("ClusterManager allowed to request more instances than actually available");
@@ -307,30 +171,24 @@ public class ClusterManagerTest {
 
 			// Release all allocated resources
 			it = allocatedResources.iterator();
-			try {
-				while (it.hasNext()) {
-					final AllocatedResource allocatedResource = it.next();
-					cm.releaseAllocatedResource(jobID, conf, allocatedResource);
-				}
-			} catch (InstanceException ie) {
-				fail(ie.getMessage());
+			while (it.hasNext()) {
+				final AllocatedResource allocatedResource = it.next();
+				cm.releaseAllocatedResource(jobID, conf, allocatedResource);
 			}
-
+			
 			// Now further allocations should be possible
-			try {
-				InstanceRequestMap instancem = new InstanceRequestMap();
-				instancem.setNumberOfInstances(cm.getInstanceTypeByName(LARGE_INSTANCE_TYPE_NAME), 1);
-				cm.requestInstance(jobID, conf, instancem, null);
-			} catch (InstanceException ie) {
-				fail(ie.getMessage());
-			}
-
-		} catch (UnknownHostException e) {
-			fail(e.getMessage());
-		} finally {
-			if (cm != null) {
-				cm.shutdown();
-			}
+			
+			InstanceRequestMap instancem = new InstanceRequestMap();
+			instancem.setNumberOfInstances(cm.getDefaultInstanceType(), 1);
+			cm.requestInstance(jobID, conf, instancem, null);
+			
+			
+			cm.shutdown();
+		}
+		catch (Exception e) {
+			System.err.println(e.getMessage());
+			e.printStackTrace();
+			Assert.fail("Test erroneous: " + e.getMessage());
 		}
 	}
 
@@ -339,75 +197,77 @@ public class ClusterManagerTest {
 	 */
 	@Test
 	public void testCleanUp() {
-
-		GlobalConfiguration.loadConfiguration(getConfigDir());
-
-		final TestInstanceListener testInstanceListener = new TestInstanceListener();
-		final ClusterManager cm = new ClusterManager();
-		cm.setInstanceListener(testInstanceListener);
-
 		try {
+			
+			final int CLEANUP_INTERVAL = 2;
+			
+			// configure a short cleanup interval
+			Configuration config = new Configuration();
+			config.setInteger("instancemanager.cluster.cleanupinterval", CLEANUP_INTERVAL);
+			GlobalConfiguration.includeConfiguration(config);
+			
+			ClusterManager cm = new ClusterManager();
+			TestInstanceListener testInstanceListener = new TestInstanceListener();
+			cm.setInstanceListener(testInstanceListener);
+			
+			
+			int ipcPort = ConfigConstants.DEFAULT_TASK_MANAGER_IPC_PORT;
+			int dataPort = ConfigConstants.DEFAULT_TASK_MANAGER_DATA_PORT;
 
-			final String ipAddress = "192.168.198.3";
-			final InstanceConnectionInfo instanceConnectionInfo = new InstanceConnectionInfo(
-				InetAddress.getByName(ipAddress), ipAddress, null, 1234, 1235);
-			final HardwareDescription hardwareDescription = HardwareDescriptionFactory.construct(8,
-				8L * 1024L * 1024L * 1024L, 8L * 1024L * 1024L * 1024L);
-			cm.reportHeartBeat(instanceConnectionInfo, hardwareDescription);
+			HardwareDescription hardwareDescription = HardwareDescriptionFactory.construct(2, 2L * 1024L * 1024L * 1024L,
+																				2L * 1024L * 1024L * 1024L);
 
-			final JobID jobID = new JobID();
-			final Configuration conf = new Configuration();
+			String hostname = "192.168.198.1";
+			InetAddress address = InetAddress.getByName("192.168.198.1");
+			
+			InstanceConnectionInfo ici1 = new InstanceConnectionInfo(address, hostname, null, ipcPort + 0, dataPort + 0);
+			InstanceConnectionInfo ici2 = new InstanceConnectionInfo(address, hostname, null, ipcPort + 15, dataPort + 15);
+			InstanceConnectionInfo ici3 = new InstanceConnectionInfo(address, hostname, null, ipcPort + 30, dataPort + 30);
+			
+			// register three instances
+			cm.reportHeartBeat(ici1, hardwareDescription);
+			cm.reportHeartBeat(ici2, hardwareDescription);
+			cm.reportHeartBeat(ici3, hardwareDescription);
+			
+			
+			Map<InstanceType, InstanceTypeDescription> instanceTypeDescriptions = cm.getMapOfAvailableInstanceTypes();
+			assertEquals(1, instanceTypeDescriptions.size());
+			
+			InstanceTypeDescription descr = instanceTypeDescriptions.entrySet().iterator().next().getValue();
+			assertEquals(3, descr.getMaximumNumberOfAvailableInstances());
+			
+			// request some instances
+			JobID jobID = new JobID();
+			Configuration conf = new Configuration();
 
-			try {
-
-				InstanceRequestMap instancem = new InstanceRequestMap();
-				instancem.setNumberOfInstances(cm.getInstanceTypeByName(LARGE_INSTANCE_TYPE_NAME), 1);
-				cm.requestInstance(jobID, conf, instancem, null);
-
-			} catch (InstanceException ie) {
-				fail(ie.getMessage());
-			}
-
-			ClusterManagerTestUtils.waitForInstances(jobID, testInstanceListener, 1, MAX_WAIT_TIME);
+			InstanceRequestMap instancem = new InstanceRequestMap();
+			instancem.setNumberOfInstances(cm.getDefaultInstanceType(), 1);
+			cm.requestInstance(jobID, conf, instancem, null);
+			
+			ClusterManagerTestUtils.waitForInstances(jobID, testInstanceListener, 1, 1000);
 			assertEquals(1, testInstanceListener.getNumberOfAllocatedResourcesForJob(jobID));
-
-			try {
-				Thread.sleep(CLEAN_UP_INTERVAL);
-			} catch (InterruptedException ie) {
-				fail(ie.getMessage());
-			}
-
-			ClusterManagerTestUtils.waitForInstances(jobID, testInstanceListener, 0, MAX_WAIT_TIME);
+			
+			// wait for the cleanup to kick in
+			Thread.sleep(2000 * CLEANUP_INTERVAL);
+			
+			// check that the instances are gone
+			ClusterManagerTestUtils.waitForInstances(jobID, testInstanceListener, 0, 1000);
 			assertEquals(0, testInstanceListener.getNumberOfAllocatedResourcesForJob(jobID));
-
-		} catch (UnknownHostException e) {
-			fail(e.getMessage());
-		} finally {
-			if (cm != null) {
-				cm.shutdown();
-			}
+			
+			
+			instanceTypeDescriptions = cm.getMapOfAvailableInstanceTypes();
+			assertEquals(1, instanceTypeDescriptions.size());
+			
+			descr = instanceTypeDescriptions.entrySet().iterator().next().getValue();
+			assertEquals(0, descr.getMaximumNumberOfAvailableInstances());
+			
+			cm.shutdown();
+		}
+		catch (Exception e) {
+			System.err.println(e.getMessage());
+			e.printStackTrace();
+			Assert.fail("Test erroneous: " + e.getMessage());
 		}
 	}
 
-	/**
-	 * Returns the directory containing the configuration files that shall be used for the test.
-	 * 
-	 * @return the directory containing the configuration files or <code>null</code> if the configuration directory
-	 *         could not be located
-	 */
-	private static String getConfigDir() {
-
-		// This is the correct path for Maven-based tests
-		String configDir = System.getProperty(USER_DIR_KEY) + CORRECT_CONF_DIR;
-		if (new File(configDir).exists()) {
-			return configDir;
-		}
-
-		configDir = System.getProperty(USER_DIR_KEY) + ECLIPSE_PATH_EXTENSION + CORRECT_CONF_DIR;
-		if (new File(configDir).exists()) {
-			return configDir;
-		}
-
-		return null;
-	}
 }

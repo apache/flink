@@ -13,8 +13,6 @@
 
 package eu.stratosphere.nephele.instance.cluster;
 
-import java.io.File;
-import java.io.IOException;
 import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -48,7 +46,6 @@ import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.topology.NetworkNode;
 import eu.stratosphere.nephele.topology.NetworkTopology;
 import eu.stratosphere.nephele.util.SerializableHashMap;
-import eu.stratosphere.util.StringUtils;
 
 /**
  * Instance Manager for a static cluster.
@@ -73,9 +70,6 @@ import eu.stratosphere.util.StringUtils;
  * actual hardware characteristics of the instance (compute node). The cluster manage will attempt to match the report
  * hardware characteristics with one of the configured instance types. Moreover, the cluster manager is capable of
  * partitioning larger instances (compute nodes) into smaller, less powerful instances.
- * <p>
- * This class is thread-safe.
- * 
  */
 public class ClusterManager implements InstanceManager {
 
@@ -89,30 +83,10 @@ public class ClusterManager implements InstanceManager {
 	private static final Log LOG = LogFactory.getLog(ClusterManager.class);
 
 	/**
-	 * The name of the file which contains the IP to instance type mapping.
-	 */
-	private static final String SLAVE_FILE_NAME = "slaves";
-
-	/**
-	 * The key to extract the configuration directory from the global configuration.
-	 */
-	private static final String CONFIG_DIR_KEY = "config.dir";
-
-	/**
 	 * Default duration after which a host is purged in case it did not send
 	 * a heart-beat message.
 	 */
 	private static final int DEFAULT_CLEANUP_INTERVAL = 2 * 60; // 2 min.
-
-	/**
-	 * The key prefix for the configuration parameters that define the different available instance types.
-	 */
-	private static final String INSTANCE_TYPE_PREFIX_KEY = "instancemanager.cluster.type.";
-
-	/**
-	 * The key to retrieve the index of the default instance type from the configuration.
-	 */
-	private static final String DEFAULT_INSTANCE_TYPE_INDEX_KEY = "instancemanager.cluster.defaulttype";
 
 	/**
 	 * The key to retrieve the clean up interval from the configuration.
@@ -123,6 +97,8 @@ public class ClusterManager implements InstanceManager {
 	// Fields
 	// ------------------------------------------------------------------------
 
+	private final Object lock = new Object();
+	
 	/**
 	 * Duration after which a host is purged in case it did not send a
 	 * heart-beat message.
@@ -182,6 +158,8 @@ public class ClusterManager implements InstanceManager {
 	 */
 	private final int[][] instanceAccommodationMatrix;
 
+	private boolean shutdown;
+	
 	/**
 	 * Periodic task that checks whether hosts have not sent their heart-beat
 	 * messages and purges the hosts in this case.
@@ -191,7 +169,7 @@ public class ClusterManager implements InstanceManager {
 		@Override
 		public void run() {
 
-			synchronized (ClusterManager.this) {
+			synchronized (ClusterManager.this.lock) {
 
 				final List<Map.Entry<InstanceConnectionInfo, ClusterInstance>> hostsToRemove =
 					new ArrayList<Map.Entry<InstanceConnectionInfo, ClusterInstance>>();
@@ -267,8 +245,10 @@ public class ClusterManager implements InstanceManager {
 		this.slicesOfJobs = new HashMap<JobID, List<AllocatedSlice>>();
 
 		// Load the instance type this cluster can offer
-		this.availableInstanceTypes = populateInstanceTypeArray();
-
+		this.defaultInstanceType = InstanceTypeFactory.constructFromDescription(ConfigConstants.DEFAULT_INSTANCE_TYPE);
+		
+		this.availableInstanceTypes = new InstanceType[] { this.defaultInstanceType };
+		
 		this.instanceAccommodationMatrix = calculateInstanceAccommodationMatrix();
 
 		this.instanceTypeDescriptionMap = new SerializableHashMap<InstanceType, InstanceTypeDescription>();
@@ -283,23 +263,10 @@ public class ClusterManager implements InstanceManager {
 
 		this.cleanUpInterval = tmpCleanUpInterval;
 
-		int tmpDefaultInstanceTypeIndex = GlobalConfiguration.getInteger(DEFAULT_INSTANCE_TYPE_INDEX_KEY,
-			ConfigConstants.DEFAULT_DEFAULT_INSTANCE_TYPE_INDEX);
-
-		if (tmpDefaultInstanceTypeIndex > this.availableInstanceTypes.length) {
-			LOG.warn("Incorrect index to for default instance type (" + tmpDefaultInstanceTypeIndex
-				+ "), switching to default index " + ConfigConstants.DEFAULT_DEFAULT_INSTANCE_TYPE_INDEX);
-
-			tmpDefaultInstanceTypeIndex = ConfigConstants.DEFAULT_DEFAULT_INSTANCE_TYPE_INDEX;
-		}
-
-		this.defaultInstanceType = this.availableInstanceTypes[tmpDefaultInstanceTypeIndex - 1];
-
 		// sort available instances by CPU core
 		sortAvailableInstancesByNumberOfCPUCores();
 
-		// load the network topology from the slave file
-		this.networkTopology = loadNetworkTopology();
+		this.networkTopology = NetworkTopology.createEmptyTopology();
 
 		// look every BASEINTERVAL milliseconds for crashed hosts
 		final boolean runTimerAsDaemon = true;
@@ -329,114 +296,37 @@ public class ClusterManager implements InstanceManager {
 		}
 	}
 
-	/**
-	 * Attempts to load the current network topology from the slave file. If locating or reading the slave file fails,
-	 * the method will return an empty network topology.
-	 * 
-	 * @return the network topology as read from the slave file
-	 */
-	private NetworkTopology loadNetworkTopology() {
-
-		// Check if slave file exists
-		final String configDir = GlobalConfiguration.getString(CONFIG_DIR_KEY, null);
-		if (configDir == null) {
-			LOG.info("Cannot find configuration directory to load network topology, using flat topology instead");
-			return NetworkTopology.createEmptyTopology();
-		}
-
-		final File slaveFile = new File(configDir + File.separator + SLAVE_FILE_NAME);
-		if (!slaveFile.exists()) {
-			LOG.error("Cannot access slave file to load network topology, using flat topology instead");
-			return NetworkTopology.createEmptyTopology();
-		}
-
-		try {
-			return NetworkTopology.fromFile(slaveFile);
-		} catch (IOException ioe) {
-			LOG.error("Error while loading the network topology: " + StringUtils.stringifyException(ioe));
-		}
-
-		return NetworkTopology.createEmptyTopology();
-	}
-
-
 	@Override
-	public synchronized void shutdown() {
-
-		final Iterator<ClusterInstance> it = this.registeredHosts.values().iterator();
-		while (it.hasNext()) {
-			it.next().destroyProxies();
-		}
-		this.registeredHosts.clear();
-
-		this.cleanupStaleMachines.cancel();
-	}
-
-	/**
-	 * Reads the instance types configured in the config file. Each instance type is defined by a key/value pair. The
-	 * format of the key is <code>instancemanager.cluster.type.X</code> where X is an ongoing integer number starting at
-	 * 1. The format of the value follows the pattern
-	 * "instancename,numComputeUnits,numCores,memorySize,diskCapacity,pricePerHour" (see {@link InstanceType}).
-	 * 
-	 * @return list of available instance types sorted by price (cheapest to
-	 *         most expensive)
-	 */
-	private InstanceType[] populateInstanceTypeArray() {
-
-		final List<InstanceType> instanceTypes = new ArrayList<InstanceType>();
-
-		// read instance types
-		int count = 1;
-		while (true) {
-
-			final String key = INSTANCE_TYPE_PREFIX_KEY + Integer.toString(count);
-			String descr = GlobalConfiguration.getString(key, null);
-
-			if (descr == null) {
-				if (count == 1) {
-					LOG.info("Configuration does not contain at least one definition for an instance type, "
-						+ "using default instance type: " + ConfigConstants.DEFAULT_INSTANCE_TYPE);
-
-					descr = ConfigConstants.DEFAULT_INSTANCE_TYPE;
-				} else {
-					break;
-				}
+	public void shutdown() {
+		synchronized (this.lock) {
+			if (this.shutdown) {
+				return;
 			}
-
-			// parse entry
-			try {
-				// if successful add new instance type
-				final InstanceType instanceType = InstanceTypeFactory.constructFromDescription(descr);
-				LOG.info("Loaded instance type " + instanceType.getIdentifier() + " from the configuration");
-				instanceTypes.add(instanceType);
-			} catch (Throwable t) {
-				LOG.error("Error parsing " + key + ":" + descr + ". Using default using default instance type: "
-					+ ConfigConstants.DEFAULT_INSTANCE_TYPE + " for instance type " + count + ".", t);
-
-				break;
+			
+			this.cleanupStaleMachines.cancel();
+			
+			Iterator<ClusterInstance> it = this.registeredHosts.values().iterator();
+			while (it.hasNext()) {
+				it.next().destroyProxies();
 			}
-
-			// Increase key index
-			++count;
+			this.registeredHosts.clear();
+			
+			this.shutdown = true;
 		}
-
-		return instanceTypes.toArray(new InstanceType[instanceTypes.size()]);
 	}
-
 
 	@Override
 	public InstanceType getDefaultInstanceType() {
-
 		return this.defaultInstanceType;
 	}
 
-
 	@Override
-	public InstanceType getInstanceTypeByName(final String instanceTypeName) {
-
-		for (InstanceType it : availableInstanceTypes) {
-			if (it.getIdentifier().equals(instanceTypeName)) {
-				return it;
+	public InstanceType getInstanceTypeByName(String instanceTypeName) {
+		synchronized (this.lock) {
+			for (InstanceType it : availableInstanceTypes) {
+				if (it.getIdentifier().equals(instanceTypeName)) {
+					return it;
+				}
 			}
 		}
 
@@ -445,48 +335,51 @@ public class ClusterManager implements InstanceManager {
 
 
 	@Override
-	public InstanceType getSuitableInstanceType(final int minNumComputeUnits, final int minNumCPUCores,
-			final int minMemorySize, final int minDiskCapacity, final int maxPricePerHour) {
-
+	public InstanceType getSuitableInstanceType(int minNumComputeUnits, int minNumCPUCores,
+			int minMemorySize, int minDiskCapacity, int maxPricePerHour)
+	{
 		// the instances are sorted by price -> the first instance that
 		// fulfills/ the requirements is suitable and the cheapest
 
-		for (InstanceType i : availableInstanceTypes) {
-			if (i.getNumberOfComputeUnits() >= minNumComputeUnits && i.getNumberOfCores() >= minNumCPUCores
-				&& i.getMemorySize() >= minMemorySize && i.getDiskCapacity() >= minDiskCapacity
-				&& i.getPricePerHour() <= maxPricePerHour) {
-				return i;
+		synchronized (this.lock) {
+			for (InstanceType i : availableInstanceTypes) {
+				if (i.getNumberOfComputeUnits() >= minNumComputeUnits && i.getNumberOfCores() >= minNumCPUCores
+					&& i.getMemorySize() >= minMemorySize && i.getDiskCapacity() >= minDiskCapacity
+					&& i.getPricePerHour() <= maxPricePerHour) {
+					return i;
+				}
 			}
 		}
-
 		return null;
 	}
 
 
 	@Override
-	public synchronized void releaseAllocatedResource(final JobID jobID, final Configuration conf,
-			final AllocatedResource allocatedResource) throws InstanceException {
+	public void releaseAllocatedResource(JobID jobID, Configuration conf,
+			AllocatedResource allocatedResource) throws InstanceException
+	{
+		synchronized (this.lock) {
+			// release the instance from the host
+			final ClusterInstance clusterInstance = (ClusterInstance) allocatedResource.getInstance();
+			final AllocatedSlice removedSlice = clusterInstance.removeAllocatedSlice(allocatedResource.getAllocationID());
 
-		// release the instance from the host
-		final ClusterInstance clusterInstance = (ClusterInstance) allocatedResource.getInstance();
-		final AllocatedSlice removedSlice = clusterInstance.removeAllocatedSlice(allocatedResource.getAllocationID());
+			// remove the local association between instance and job
+			final List<AllocatedSlice> slicesOfJob = this.slicesOfJobs.get(jobID);
+			if (slicesOfJob == null) {
+				LOG.error("Cannot find allocated slice to release allocated slice for job " + jobID);
+				return;
+			}
 
-		// remove the local association between instance and job
-		final List<AllocatedSlice> slicesOfJob = this.slicesOfJobs.get(jobID);
-		if (slicesOfJob == null) {
-			LOG.error("Cannot find allocated slice to release allocated slice for job " + jobID);
-			return;
+			slicesOfJob.remove(removedSlice);
+
+			// Clean up
+			if (slicesOfJob.isEmpty()) {
+				this.slicesOfJobs.remove(jobID);
+			}
+
+			// Check pending requests
+			checkPendingRequests();
 		}
-
-		slicesOfJob.remove(removedSlice);
-
-		// Clean up
-		if (slicesOfJob.isEmpty()) {
-			this.slicesOfJobs.remove(jobID);
-		}
-
-		// Check pending requests
-		checkPendingRequests();
 	}
 
 	/**
@@ -610,32 +503,33 @@ public class ClusterManager implements InstanceManager {
 
 
 	@Override
-	public synchronized void reportHeartBeat(final InstanceConnectionInfo instanceConnectionInfo,
-			final HardwareDescription hardwareDescription) {
+	public void reportHeartBeat(InstanceConnectionInfo instanceConnectionInfo, HardwareDescription hardwareDescription) {
 
-		ClusterInstance host = registeredHosts.get(instanceConnectionInfo);
-
-		// check whether we have discovered a new host
-		if (host == null) {
-			host = createNewHost(instanceConnectionInfo, hardwareDescription);
-
+		synchronized (this.lock) {
+			ClusterInstance host = registeredHosts.get(instanceConnectionInfo);
+	
+			// check whether we have discovered a new host
 			if (host == null) {
-				LOG.error("Could not create a new host object for incoming heart-beat. "
-					+ "Probably the configuration file is lacking some entries.");
-				return;
+				host = createNewHost(instanceConnectionInfo, hardwareDescription);
+	
+				if (host == null) {
+					LOG.error("Could not create a new host object for incoming heart-beat. "
+						+ "Probably the configuration file is lacking some entries.");
+					return;
+				}
+	
+				this.registeredHosts.put(instanceConnectionInfo, host);
+				LOG.info("New number of registered hosts is " + this.registeredHosts.size());
+	
+				// Update the list of instance type descriptions
+				updateInstaceTypeDescriptionMap();
+	
+				// Check if a pending request can be fulfilled by the new host
+				checkPendingRequests();
 			}
-
-			this.registeredHosts.put(instanceConnectionInfo, host);
-			LOG.info("New number of registered hosts is " + this.registeredHosts.size());
-
-			// Update the list of instance type descriptions
-			updateInstaceTypeDescriptionMap();
-
-			// Check if a pending request can be fulfilled by the new host
-			checkPendingRequests();
+			
+			host.reportHeartBeat();
 		}
-
-		host.reportHeartBeat();
 	}
 
 	/**
@@ -747,113 +641,114 @@ public class ClusterManager implements InstanceManager {
 
 
 	@Override
-	public synchronized void requestInstance(final JobID jobID, final Configuration conf,
-			final InstanceRequestMap instanceRequestMap,
-			final List<String> splitAffinityList) throws InstanceException {
-
+	public void requestInstance(JobID jobID, Configuration conf,  InstanceRequestMap instanceRequestMap, List<String> splitAffinityList)
+		throws InstanceException
+	{
 		final List<AllocatedSlice> newlyAllocatedSlicesOfJob = new ArrayList<AllocatedSlice>();
 		final Map<InstanceType, Integer> pendingRequests = new HashMap<InstanceType, Integer>();
 
-		// Iterate over all instance types
-		for (final Iterator<Map.Entry<InstanceType, Integer>> it = instanceRequestMap.getMaximumIterator(); it
-			.hasNext();) {
-
-			// Iterate over all requested instances of a specific type
-			final Map.Entry<InstanceType, Integer> entry = it.next();
-			final int maximumNumberOfInstances = entry.getValue().intValue();
-
-			for (int i = 0; i < maximumNumberOfInstances; i++) {
-
-				LOG.info("Trying to allocate instance of type " + entry.getKey().getIdentifier());
-
-				// TODO: Introduce topology awareness here
-				// TODO: Daniel: Code taken from AbstractScheduler..
-				final AllocatedSlice slice = getSliceOfType(jobID, entry.getKey());
-
-				if (slice == null) {
-					if (i < instanceRequestMap.getMinimumNumberOfInstances(entry.getKey())) {
-						// The request cannot be fulfilled, release the slices again and throw an exception
-						for (final AllocatedSlice sliceToRelease : newlyAllocatedSlicesOfJob) {
-							sliceToRelease.getHostingInstance().removeAllocatedSlice(sliceToRelease.getAllocationID());
-						}
-
-						// TODO: Remove previously allocated slices again
-						throw new InstanceException("Could not find a suitable instance");
-					} else {
-
-						// Remaining instances are pending
-						final int numberOfRemainingInstances = maximumNumberOfInstances - i;
-						if (numberOfRemainingInstances > 0) {
-
-							// Store the request for the missing instances
-							Integer val = pendingRequests.get(entry.getKey());
-							if (val == null) {
-								val = Integer.valueOf(0);
+		synchronized(this.lock) {
+			// Iterate over all instance types
+			for (Iterator<Map.Entry<InstanceType, Integer>> it = instanceRequestMap.getMaximumIterator(); it.hasNext();) {
+	
+				// Iterate over all requested instances of a specific type
+				final Map.Entry<InstanceType, Integer> entry = it.next();
+				final int maximumNumberOfInstances = entry.getValue().intValue();
+	
+				for (int i = 0; i < maximumNumberOfInstances; i++) {
+	
+					LOG.info("Trying to allocate instance of type " + entry.getKey().getIdentifier());
+					
+					final AllocatedSlice slice = getSliceOfType(jobID, entry.getKey());
+	
+					if (slice == null) {
+						if (i < instanceRequestMap.getMinimumNumberOfInstances(entry.getKey())) {
+							// The request cannot be fulfilled, release the slices again and throw an exception
+							for (final AllocatedSlice sliceToRelease : newlyAllocatedSlicesOfJob) {
+								sliceToRelease.getHostingInstance().removeAllocatedSlice(sliceToRelease.getAllocationID());
 							}
-							val = Integer.valueOf(val.intValue() + numberOfRemainingInstances);
-							pendingRequests.put(entry.getKey(), val);
+	
+							// TODO: Remove previously allocated slices again
+							throw new InstanceException("Could not find a suitable instance");
+						} else {
+	
+							// Remaining instances are pending
+							final int numberOfRemainingInstances = maximumNumberOfInstances - i;
+							if (numberOfRemainingInstances > 0) {
+	
+								// Store the request for the missing instances
+								Integer val = pendingRequests.get(entry.getKey());
+								if (val == null) {
+									val = Integer.valueOf(0);
+								}
+								val = Integer.valueOf(val.intValue() + numberOfRemainingInstances);
+								pendingRequests.put(entry.getKey(), val);
+							}
+	
+							break;
 						}
-
-						break;
 					}
+	
+					newlyAllocatedSlicesOfJob.add(slice);
 				}
-
-				newlyAllocatedSlicesOfJob.add(slice);
 			}
-		}
-
-		// The request could be processed successfully, so update internal bookkeeping.
-		List<AllocatedSlice> allAllocatedSlicesOfJob = this.slicesOfJobs.get(jobID);
-		if (allAllocatedSlicesOfJob == null) {
-			allAllocatedSlicesOfJob = new ArrayList<AllocatedSlice>();
-			this.slicesOfJobs.put(jobID, allAllocatedSlicesOfJob);
-		}
-		allAllocatedSlicesOfJob.addAll(newlyAllocatedSlicesOfJob);
-
-		PendingRequestsMap allPendingRequestsOfJob = this.pendingRequestsOfJob.get(jobID);
-		if (allPendingRequestsOfJob == null) {
-			allPendingRequestsOfJob = new PendingRequestsMap();
-			this.pendingRequestsOfJob.put(jobID, allPendingRequestsOfJob);
-		}
-		for (final Iterator<Map.Entry<InstanceType, Integer>> it = pendingRequests.entrySet().iterator(); it.hasNext();) {
-			final Map.Entry<InstanceType, Integer> entry = it.next();
-
-			allPendingRequestsOfJob.addRequest(entry.getKey(), entry.getValue().intValue());
-		}
-
-		// Finally, create the list of allocated resources for the scheduler
-		final List<AllocatedResource> allocatedResources = new ArrayList<AllocatedResource>();
-		for (final AllocatedSlice slice : newlyAllocatedSlicesOfJob) {
-			allocatedResources.add(new AllocatedResource(slice.getHostingInstance(), slice.getType(), slice
-				.getAllocationID()));
-		}
-
-		if (this.instanceListener != null) {
-			final ClusterInstanceNotifier clusterInstanceNotifier = new ClusterInstanceNotifier(
-				this.instanceListener, jobID, allocatedResources);
-			clusterInstanceNotifier.start();
+	
+			// The request could be processed successfully, so update internal bookkeeping.
+			List<AllocatedSlice> allAllocatedSlicesOfJob = this.slicesOfJobs.get(jobID);
+			if (allAllocatedSlicesOfJob == null) {
+				allAllocatedSlicesOfJob = new ArrayList<AllocatedSlice>();
+				this.slicesOfJobs.put(jobID, allAllocatedSlicesOfJob);
+			}
+			allAllocatedSlicesOfJob.addAll(newlyAllocatedSlicesOfJob);
+	
+			PendingRequestsMap allPendingRequestsOfJob = this.pendingRequestsOfJob.get(jobID);
+			if (allPendingRequestsOfJob == null) {
+				allPendingRequestsOfJob = new PendingRequestsMap();
+				this.pendingRequestsOfJob.put(jobID, allPendingRequestsOfJob);
+			}
+			for (final Iterator<Map.Entry<InstanceType, Integer>> it = pendingRequests.entrySet().iterator(); it.hasNext();) {
+				final Map.Entry<InstanceType, Integer> entry = it.next();
+	
+				allPendingRequestsOfJob.addRequest(entry.getKey(), entry.getValue().intValue());
+			}
+	
+			// Finally, create the list of allocated resources for the scheduler
+			final List<AllocatedResource> allocatedResources = new ArrayList<AllocatedResource>();
+			for (final AllocatedSlice slice : newlyAllocatedSlicesOfJob) {
+				allocatedResources.add(new AllocatedResource(slice.getHostingInstance(), slice.getType(), slice
+					.getAllocationID()));
+			}
+	
+			if (this.instanceListener != null) {
+				final ClusterInstanceNotifier clusterInstanceNotifier = new ClusterInstanceNotifier(
+					this.instanceListener, jobID, allocatedResources);
+				clusterInstanceNotifier.start();
+			}
 		}
 	}
 
 
 	@Override
-	public NetworkTopology getNetworkTopology(final JobID jobID) {
-
-		// TODO: Make topology job specific
+	public NetworkTopology getNetworkTopology(JobID jobID) {
 		return this.networkTopology;
 	}
 
 
 	@Override
-	public synchronized void setInstanceListener(final InstanceListener instanceListener) {
-		this.instanceListener = instanceListener;
+	public void setInstanceListener(InstanceListener instanceListener) {
+		synchronized (this.lock) {
+			this.instanceListener = instanceListener;
+		}
 	}
 
 
 	@Override
-	public synchronized Map<InstanceType, InstanceTypeDescription> getMapOfAvailableInstanceTypes() {
-
-		return this.instanceTypeDescriptionMap;
+	public Map<InstanceType, InstanceTypeDescription> getMapOfAvailableInstanceTypes() {
+		Map<InstanceType, InstanceTypeDescription> copyToReturn = new SerializableHashMap<InstanceType, InstanceTypeDescription>();
+		synchronized (this.lock) {
+			copyToReturn.putAll(this.instanceTypeDescriptionMap);
+		}
+		return copyToReturn;
 	}
 
 	/**
@@ -1004,7 +899,7 @@ public class ClusterManager implements InstanceManager {
 	 *        the index of the target instance type in the list of available instance types
 	 * @return the number of times the source type instance can be accommodated inside the target instance
 	 */
-	private int canBeAccommodated(final int sourceTypeIndex, final int targetTypeIndex) {
+	private int canBeAccommodated(int sourceTypeIndex, int targetTypeIndex) {
 
 		if (sourceTypeIndex >= this.availableInstanceTypes.length
 			|| targetTypeIndex >= this.availableInstanceTypes.length) {
@@ -1017,17 +912,18 @@ public class ClusterManager implements InstanceManager {
 
 
 	@Override
-	public synchronized AbstractInstance getInstanceByName(final String name) {
-
+	public AbstractInstance getInstanceByName(String name) {
 		if (name == null) {
 			throw new IllegalArgumentException("Argument name must not be null");
 		}
 
-		final Iterator<ClusterInstance> it = this.registeredHosts.values().iterator();
-		while (it.hasNext()) {
-			final AbstractInstance instance = it.next();
-			if (name.equals(instance.getName())) {
-				return instance;
+		synchronized (this.lock) {
+			final Iterator<ClusterInstance> it = this.registeredHosts.values().iterator();
+			while (it.hasNext()) {
+				final AbstractInstance instance = it.next();
+				if (name.equals(instance.getName())) {
+					return instance;
+				}
 			}
 		}
 
@@ -1036,10 +932,10 @@ public class ClusterManager implements InstanceManager {
 
 
 	@Override
-	public synchronized void cancelPendingRequests(final JobID jobID) {
-
-		// Simple remove the entire map
-		this.pendingRequestsOfJob.remove(jobID);
+	public void cancelPendingRequests(JobID jobID) {
+		synchronized (this.lock) {
+			this.pendingRequestsOfJob.remove(jobID);
+		}
 	}
 
 	@Override
