@@ -14,31 +14,39 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.common.typeutils.base;
 
+import java.util.Random;
+
 import eu.stratosphere.api.common.typeutils.SerializerTestBase;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 
 /**
  * A test for the {@link StringSerializer}.
  */
-public class StringSerializerTest extends SerializerTestBase<String> {
+public class ShortSerializerTest extends SerializerTestBase<Short> {
 	
 	@Override
-	protected TypeSerializer<String> createSerializer() {
-		return new StringSerializer();
+	protected TypeSerializer<Short> createSerializer() {
+		return new ShortSerializer();
 	}
 	
 	@Override
 	protected int getLength() {
-		return -1;
+		return 2;
 	}
 	
 	@Override
-	protected Class<String> getTypeClass() {
-		return String.class;
+	protected Class<Short> getTypeClass() {
+		return Short.class;
 	}
 	
 	@Override
-	protected String[] getTestData() {
-		return new String[] {"a", "", "bcd", "jbmbmner8 jhk hj \n \t üäßß@µ", "", "non-empty"};
+	protected Short[] getTestData() {
+		Random rnd = new Random(874597969123412341L);
+		int rndInt = rnd.nextInt(32767);
+		
+		return new Short[] {new Short((short) 0), new Short((short) 1), new Short((short) -1),
+							new Short((short) rndInt), new Short((short) -rndInt),
+							new Short((short) -32767), new Short((short) 32768)};
 	}
 }
+	

@@ -14,31 +14,37 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.common.typeutils.base;
 
+import java.util.Random;
+
 import eu.stratosphere.api.common.typeutils.SerializerTestBase;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
-
 /**
- * A test for the {@link StringSerializer}.
+ * A test for the {@link IntSerializerTest}.
  */
-public class StringSerializerTest extends SerializerTestBase<String> {
+public class IntSerializerTest extends SerializerTestBase<Integer> {
 	
 	@Override
-	protected TypeSerializer<String> createSerializer() {
-		return new StringSerializer();
+	protected TypeSerializer<Integer> createSerializer() {
+		return new IntSerializer();
 	}
 	
 	@Override
 	protected int getLength() {
-		return -1;
+		return 4;
 	}
 	
 	@Override
-	protected Class<String> getTypeClass() {
-		return String.class;
+	protected Class<Integer> getTypeClass() {
+		return Integer.class;
 	}
 	
 	@Override
-	protected String[] getTestData() {
-		return new String[] {"a", "", "bcd", "jbmbmner8 jhk hj \n \t üäßß@µ", "", "non-empty"};
+	protected Integer[] getTestData() {
+		Random rnd = new Random(874597969123412341L);
+		int rndInt = rnd.nextInt();
+		
+		return new Integer[] {new Integer(0), new Integer(1), new Integer(-1),
+							new Integer(Integer.MAX_VALUE), new Integer(Integer.MIN_VALUE),
+							new Integer(rndInt), new Integer(-rndInt)};
 	}
-}
+}	

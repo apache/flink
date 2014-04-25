@@ -14,31 +14,39 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.common.typeutils.base;
 
+import java.util.Random;
+
 import eu.stratosphere.api.common.typeutils.SerializerTestBase;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
-
 /**
- * A test for the {@link StringSerializer}.
+ * A test for the {@link FloatSerializerTest}.
  */
-public class StringSerializerTest extends SerializerTestBase<String> {
+public class FloatSerializerTest extends SerializerTestBase<Float> {
 	
 	@Override
-	protected TypeSerializer<String> createSerializer() {
-		return new StringSerializer();
+	protected TypeSerializer<Float> createSerializer() {
+		return new FloatSerializer();
 	}
 	
 	@Override
 	protected int getLength() {
-		return -1;
+		return 4;
 	}
 	
 	@Override
-	protected Class<String> getTypeClass() {
-		return String.class;
+	protected Class<Float> getTypeClass() {
+		return Float.class;
 	}
 	
 	@Override
-	protected String[] getTestData() {
-		return new String[] {"a", "", "bcd", "jbmbmner8 jhk hj \n \t üäßß@µ", "", "non-empty"};
+	protected Float[] getTestData() {
+		Random rnd = new Random(874597969123412341L);
+		float rndFloat = rnd.nextFloat() * Float.MAX_VALUE;
+		
+		return new Float[] {new Float(0), new Float(1), new Float(-1),
+							new Float(Float.MAX_VALUE), new Float(Float.MIN_VALUE),
+							new Float(rndFloat), new Float(-rndFloat),
+							new Float(Float.NaN),
+							new Float(Float.NEGATIVE_INFINITY), new Float(Float.POSITIVE_INFINITY)};
 	}
-}
+}	

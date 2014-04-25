@@ -14,31 +14,39 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.common.typeutils.base;
 
+import java.util.Random;
+
 import eu.stratosphere.api.common.typeutils.SerializerTestBase;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
-
 /**
- * A test for the {@link StringSerializer}.
+ * A test for the {@link DoubleSerializerTest}.
  */
-public class StringSerializerTest extends SerializerTestBase<String> {
+public class DoubleSerializerTest extends SerializerTestBase<Double> {
 	
 	@Override
-	protected TypeSerializer<String> createSerializer() {
-		return new StringSerializer();
+	protected TypeSerializer<Double> createSerializer() {
+		return new DoubleSerializer();
 	}
 	
 	@Override
 	protected int getLength() {
-		return -1;
+		return 8;
 	}
 	
 	@Override
-	protected Class<String> getTypeClass() {
-		return String.class;
+	protected Class<Double> getTypeClass() {
+		return Double.class;
 	}
 	
 	@Override
-	protected String[] getTestData() {
-		return new String[] {"a", "", "bcd", "jbmbmner8 jhk hj \n \t üäßß@µ", "", "non-empty"};
+	protected Double[] getTestData() {
+		Random rnd = new Random(874597969123412341L);
+		Double rndDouble = rnd.nextDouble() * Double.MAX_VALUE;
+		
+		return new Double[] {new Double(0), new Double(1), new Double(-1),
+							new Double(Double.MAX_VALUE), new Double(Double.MIN_VALUE),
+							new Double(rndDouble), new Double(-rndDouble),
+							new Double(Double.NaN),
+							new Double(Double.NEGATIVE_INFINITY), new Double(Double.POSITIVE_INFINITY)};
 	}
-}
+}	
