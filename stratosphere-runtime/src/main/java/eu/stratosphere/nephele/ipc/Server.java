@@ -949,10 +949,10 @@ public abstract class Server {
 					responder.doRespond(call);
 				} catch (InterruptedException e) {
 					if (running) { // unexpected -- log it
-						LOG.info(getName() + " caught: ", e);
+						LOG.error(getName() + " caught: ", e);
 					}
 				} catch (Exception e) {
-					LOG.info(getName() + " caught: ", e);
+					LOG.error(getName() + " caught: ", e);
 				}
 			}
 			LOG.debug(getName() + ": exiting");
