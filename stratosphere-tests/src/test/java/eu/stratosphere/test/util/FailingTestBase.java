@@ -13,37 +13,22 @@
 
 package eu.stratosphere.test.util;
 
+import junit.framework.Assert;
+
 import org.apache.log4j.Level;
 
-import junit.framework.Assert;
-import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.client.minicluster.NepheleMiniCluster;
 import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.client.JobExecutionException;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.test.util.minicluster.ClusterProvider;
 import eu.stratosphere.util.LogUtils;
 
 /**
  * Base class for integration tests which test whether the system recovers from failed executions.
- *
  */
-public abstract class FailingTestBase extends TestBase {
+public abstract class FailingTestBase extends TestBase2 {
 
-
-	public FailingTestBase(Configuration testConfig) {
-		super(testConfig);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 * 
-	 * @param config
-	 * @param clusterConfig
-	 */
-	public FailingTestBase(Configuration config, String clusterConfig) {
-		super(config,clusterConfig);
-		
-		// no logging here, since it would otherwise print all the purposeful user code errors to the test logs
+	public FailingTestBase() {
 		LogUtils.initializeDefaultConsoleLogger(Level.OFF);
 	}
 	
@@ -81,29 +66,44 @@ public abstract class FailingTestBase extends TestBase {
 	 */
 	@Override
 	public void testJob() throws Exception {
-		// pre-submit (initialize data for job)
-		preSubmit();
-
+		// pre-submit
+		try {
+			preSubmit();
+		}
+		catch (Exception e) {
+			System.err.println(e.getMessage());
+			e.printStackTrace();
+			Assert.fail("Pre-submit work caused an error: " + e.getMessage());
+		}
+		
 		// init submission thread
-		SubmissionThread st = new SubmissionThread(Thread.currentThread(), cluster, getFailingJobGraph(), getJobGraph());
+		SubmissionThread st = new SubmissionThread(Thread.currentThread(), this.executor, getFailingJobGraph(), getJobGraph());
 		// start submission thread
 		st.start();
 		
-		boolean successBeforeTimeout = false;
 		try {
 			// wait for timeout
 			Thread.sleep(getTimeout()*1000);
+			Assert.fail("Failing job and successful job did not fail.");
 		} catch(InterruptedException ie) {
-			// thread was interrupted by submission thread
-			// both first job was handled correctly, second job finished
-			successBeforeTimeout = true;
+			// will have happened if all works fine
 		}
 		
-		// assert that second job finished correctly
-		Assert.assertTrue("Jobs did not finish within timeout", successBeforeTimeout);
+		Exception cte = st.error;
+		if (cte != null) {
+			cte.printStackTrace();
+			Assert.fail("Task Canceling failed: " + cte.getMessage());
+		}
 		
-		// post-submit (check result of second job)
-		postSubmit();
+		// post-submit
+		try {
+			postSubmit();
+		}
+		catch (Exception e) {
+			System.err.println(e.getMessage());
+			e.printStackTrace();
+			Assert.fail("Post-submit work caused an error: " + e.getMessage());
+		}
 	}
 	
 	/**
@@ -114,24 +114,20 @@ public abstract class FailingTestBase extends TestBase {
 	private class SubmissionThread extends Thread {
 
 		// reference to the timeout thread
-		private Thread timeoutThread;
+		private final Thread timeoutThread;
 		// cluster to submit the job to.
-		private ClusterProvider cluster;
+		private final NepheleMiniCluster executor;
 		// job graph of the failing job (submitted first)
-		private JobGraph failingJob;
+		private final JobGraph failingJob;
 		// job graph of the working job (submitted after return from failing job)
-		private JobGraph job;
+		private final JobGraph job;
 		
-		/**
-		 * 
-		 * @param timeoutThread Reference to timeout thread
-		 * @param cluster       cluster to submit both jobs to
-		 * @param failingJob    job graph of the failing job (submitted first)
-		 * @param job           job graph of the working job (submitted after return from failing job)
-		 */
-		public SubmissionThread(Thread timeoutThread, ClusterProvider cluster, JobGraph failingJob, JobGraph job) {
+		private volatile Exception error;
+		
+
+		public SubmissionThread(Thread timeoutThread, NepheleMiniCluster executor, JobGraph failingJob, JobGraph job) {
 			this.timeoutThread = timeoutThread;
-			this.cluster = cluster;
+			this.executor = executor;
 			this.failingJob = failingJob;
 			this.job = job;
 		}
@@ -142,34 +138,31 @@ public abstract class FailingTestBase extends TestBase {
 		 */
 		@Override
 		public void run() {
-			boolean jobFailed = false;
 			try {
 				// submit failing job
-				final JobClient client = this.cluster.getJobClient(this.failingJob, getFailingJarFilePath());
+				JobClient client = this.executor.getJobClient(this.failingJob);
+				client.setConsoleStreamForReporting(getNullPrintStream());
 				client.submitJobAndWait();
+				
+				this.error = new Exception("The job did not fail.");
 			} catch(JobExecutionException jee) {
-				// check that job execution failed
-				jobFailed = true;
-			} catch(Exception e) {
-				Assert.fail(e.getMessage());
+				// as expected
+			} catch (Exception e) {
+				this.error = e;
 			}
 			
-			// assert that first job failed
-			Assert.assertTrue("First job must fail", jobFailed);
 			
 			try {
 				// submit working job
-				final JobClient client = this.cluster.getJobClient(this.job, getFailingJarFilePath());
+				JobClient client = this.executor.getJobClient(this.job);
+				client.setConsoleStreamForReporting(getNullPrintStream());
 				client.submitJobAndWait();
 			} catch (Exception e) {
-				// this job should not fail
-				Assert.fail(e.getMessage());
+				this.error = e;
 			}
 			
 			// interrupt timeout thread
 			timeoutThread.interrupt();
 		}
-		
 	}
-	
 }

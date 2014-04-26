@@ -13,36 +13,18 @@
 
 package eu.stratosphere.test.exampleRecordPrograms;
 
-import java.util.Collection;
-import java.util.LinkedList;
-
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
-
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.compiler.DataStatistics;
-import eu.stratosphere.compiler.PactCompiler;
-import eu.stratosphere.compiler.plan.OptimizedPlan;
-import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
-import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.example.java.record.relational.WebLogAnalysis;
-import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.test.util.TestBase;
+import eu.stratosphere.test.util.TestBase2;
 
-@RunWith(Parameterized.class)
-public class WebLogAnalysisITCase extends TestBase {
+public class WebLogAnalysisITCase extends TestBase2 {
 
-	private static final Log LOG = LogFactory.getLog(WebLogAnalysisITCase.class);
-	
-	protected String docsPath = null;
-	protected String ranksPath = null;
-	protected String visitsPath = null;
-	protected String resultPath = null;
+	protected String docsPath;
+	protected String ranksPath;
+	protected String visitsPath;
+	protected String resultPath;
 
-	String docs = 
+	private static final String docs = 
 		"url_10|volutpat magna quis consectetuer volutpat ad erat editors exerci oscillations euismod volutpat Lorem convectionullamcorper Lorem volutpat enim tation elit |\n" + 
 		"url_11|adipiscing enim diam ex tincidunt tincidunt nonummy volutpat minim euismod volutpat suscipit ex sed laoreet aliquip quis diam tincidunt wisi diam elit sed ut minim ad nonummy amet volutpat nostrud erat |\n" + 
 		"url_12|ut nostrud adipiscing adipiscing ipsum nonummy amet volutpat volutpat sit enim Ut amet |\n" + 
@@ -64,14 +46,14 @@ public class WebLogAnalysisITCase extends TestBase {
 		"url_28|laoreet sed editor dolor diam convection sed diam exerci laoreet oscillations consectetuer ullamcorper suscipit ut editors quis commodo editor veniam nibh ea diam ex magna ea elit sit sed nibh lobortis consectetuer erat erat sit minim ea ad ea nisl magna volutpat ut |\n" + 
 		"url_29|consectetuer convection amet diam erat euismod erat editor oscillations ipsum tation tation editors minim wisi tation quis adipiscing euismod nonummy erat ut diam suscipit tincidunt ut consectetuer Lorem editor sit quis euismod veniam tincidunt aliquam ut veniam adipiscing magna Ut ut dolore euismod minim veniam |";
 
-	String ranks = 
+	private static final String ranks = 
 		"77|url_10|51|\n" + "7|url_11|24|\n" + "19|url_12|28|\n" + "13|url_13|50|\n" + 
 		"81|url_14|41|\n" + "87|url_15|28|\n" + "78|url_16|29|\n" + "70|url_17|7|\n" + 
 		"91|url_18|38|\n" + "99|url_19|11|\n" + "37|url_20|46|\n" + "64|url_21|46|\n" + 
 		"25|url_22|14|\n" + "6|url_23|12|\n" + "87|url_24|39|\n" + "0|url_25|27|\n" + 
 		"97|url_26|27|\n" + "9|url_27|54|\n" + "59|url_28|41|\n" + "40|url_29|11|";
 
-	String visits = 
+	private static final String visits = 
 		"112.99.215.248|url_20|2011-5-1|0.12|Mozilla Firefox 3.1|de|de|Nothing special|124|\n" + "189.69.147.166|url_19|2009-8-2|0.12|Mozilla Firefox 3.1|de|de|Nothing special|124|\n" + 
 		"83.7.97.153|url_21|2010-3-20|0.12|Mozilla Firefox 3.1|de|de|Nothing special|124|\n" + "215.57.124.59|url_10|2008-1-26|0.12|Mozilla Firefox 3.1|de|de|Nothing special|124|\n" + 
 		"174.176.121.10|url_25|2007-12-17|0.12|Mozilla Firefox 3.1|de|de|Nothing special|124|\n" + "66.225.121.11|url_16|2007-10-8|0.12|Mozilla Firefox 3.1|de|de|Nothing special|124|\n" + 
@@ -164,108 +146,24 @@ public class WebLogAnalysisITCase extends TestBase {
 		"183.57.175.105|url_27|2007-8-13|0.12|Mozilla Firefox 3.1|de|de|Nothing special|124|\n" + "230.212.34.87|url_10|2010-12-21|0.12|Mozilla Firefox 3.1|de|de|Nothing special|124|\n" + 
 		"133.150.217.96|url_24|2012-7-27|0.12|Mozilla Firefox 3.1|de|de|Nothing special|124|\n" + "62.254.96.239|url_24|2011-5-15|0.12|Mozilla Firefox 3.1|de|de|Nothing special|124|";
 
-	String expected = "87|url_24|39\n" + "59|url_28|41\n";
-
-	public WebLogAnalysisITCase(Configuration config) {
-		super(config);
-	}
-
-	@Override
-	protected String getJarFilePath() {
-		return null;
-	}
+	private static final String expected = "87|url_24|39\n" + "59|url_28|41\n";
 
 	@Override
 	protected void preSubmit() throws Exception {
-		
-		docsPath   = getFilesystemProvider().getTempDirPath() + "/docs";
-		ranksPath  = getFilesystemProvider().getTempDirPath() + "/ranks";
-		visitsPath = getFilesystemProvider().getTempDirPath() + "/visits";
-		resultPath = getFilesystemProvider().getTempDirPath() + "/results"; 
-			
-		String[] splits = splitInputString(docs, '\n', 4);
-		getFilesystemProvider().createDir(docsPath);
-		for (int i = 0; i < splits.length; i++) {
-			getFilesystemProvider().createFile(docsPath + "/part_" + i + ".txt", splits[i]);
-			LOG.debug("Docs Part " + (i + 1) + ":\n>" + splits[i] + "<");
-		}
-
-		splits = splitInputString(ranks, '\n', 4);
-		getFilesystemProvider().createDir(ranksPath);
-		for (int i = 0; i < splits.length; i++) {
-			getFilesystemProvider().createFile(ranksPath + "/part_" + i + ".txt", splits[i]);
-			LOG.debug("Ranks Part " + (i + 1) + ":\n>" + splits[i] + "<");
-		}
-
-		splits = splitInputString(visits, '\n', 4);
-		getFilesystemProvider().createDir(visitsPath);
-		for (int i = 0; i < splits.length; i++) {
-			getFilesystemProvider().createFile(visitsPath + "/part_" + i + ".txt", splits[i]);
-			LOG.debug("Visits Part " + (i + 1) + ":\n>" + splits[i] + "<");
-		}
-
+		docsPath   = createTempFile("docs", docs);
+		ranksPath  = createTempFile("ranks", ranks);
+		visitsPath = createTempFile("visits", visits);
+		resultPath = getTempDirPath("results");
 	}
 
 	@Override
-	protected JobGraph getJobGraph() throws Exception {
-
+	protected Plan getTestJob() {
 		WebLogAnalysis relOLAP = new WebLogAnalysis();
-		Plan plan = relOLAP.getPlan(config.getString("WebLogAnalysisTest#NoSubtasks", "1"),
-			getFilesystemProvider().getURIPrefix()+docsPath, 
-			getFilesystemProvider().getURIPrefix()+ranksPath, 
-			getFilesystemProvider().getURIPrefix()+visitsPath, 
-			getFilesystemProvider().getURIPrefix()+resultPath);
-
-		PactCompiler pc = new PactCompiler(new DataStatistics());
-		OptimizedPlan op = pc.compile(plan);
-
-		NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
-		return jgg.compileJobGraph(op);
+		return relOLAP.getPlan("4", docsPath, ranksPath, visitsPath, resultPath);
 	}
 
 	@Override
 	protected void postSubmit() throws Exception {
-
-		// Test results
 		compareResultsByLinesInMemory(expected, resultPath);
-
-		// clean up hdfs
-		getFilesystemProvider().delete(docsPath, true);
-		getFilesystemProvider().delete(ranksPath, true);
-		getFilesystemProvider().delete(visitsPath, true);
-		getFilesystemProvider().delete(resultPath, true);
-		
 	}
-
-	@Parameters
-	public static Collection<Object[]> getConfigurations() {
-
-		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
-
-		Configuration config = new Configuration();
-		config.setInteger("WebLogAnalysisTest#NoSubtasks", 4);
-		tConfigs.add(config);
-
-		return toParameterList(tConfigs);
-	}
-
-	private String[] splitInputString(String inputString, char splitChar, int noSplits) {
-
-		String splitString = inputString.toString();
-		String[] splits = new String[noSplits];
-		int partitionSize = (splitString.length() / noSplits) - 2;
-
-		// split data file and copy parts
-		for (int i = 0; i < noSplits - 1; i++) {
-			int cutPos = splitString.indexOf(splitChar, (partitionSize < splitString.length() ? partitionSize
-				: (splitString.length() - 1)));
-			splits[i] = splitString.substring(0, cutPos) + "\n";
-			splitString = splitString.substring(cutPos + 1);
-		}
-		splits[noSplits - 1] = splitString;
-
-		return splits;
-
-	}
-
 }

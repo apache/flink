@@ -13,40 +13,14 @@
 
 package eu.stratosphere.test.exampleScalaPrograms;
 
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.compiler.DataStatistics;
-import eu.stratosphere.compiler.PactCompiler;
-import eu.stratosphere.compiler.plan.OptimizedPlan;
-import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
-import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.examples.scala.relational.WebLogAnalysis;
-import eu.stratosphere.nephele.jobgraph.JobGraph;
 
-@RunWith(Parameterized.class)
 public class WebLogAnalysisITCase extends eu.stratosphere.test.exampleRecordPrograms.WebLogAnalysisITCase {
 
-	public WebLogAnalysisITCase(Configuration config) {
-		super(config);
-	}
-
 	@Override
-	protected JobGraph getJobGraph() throws Exception {
-
+	protected Plan getTestJob() {
 		WebLogAnalysis webLogAnalysis = new WebLogAnalysis();
-		Plan plan = webLogAnalysis.getScalaPlan(
-				Integer.parseInt(config.getString("WebLogAnalysisTest#NoSubtasks", "1")),
-				getFilesystemProvider().getURIPrefix()+docsPath, 
-				getFilesystemProvider().getURIPrefix()+ranksPath, 
-				getFilesystemProvider().getURIPrefix()+visitsPath, 
-				getFilesystemProvider().getURIPrefix()+resultPath);
-
-		PactCompiler pc = new PactCompiler(new DataStatistics());
-		OptimizedPlan op = pc.compile(plan);
-
-		NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
-		return jgg.compileJobGraph(op);
+		return webLogAnalysis.getScalaPlan(4, docsPath, ranksPath, visitsPath, resultPath);
 	}
 }

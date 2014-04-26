@@ -13,37 +13,19 @@
 
 package eu.stratosphere.test.exampleRecordPrograms;
 
-import java.util.Collection;
-import java.util.LinkedList;
-
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
-
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.compiler.DataStatistics;
-import eu.stratosphere.compiler.PactCompiler;
-import eu.stratosphere.compiler.plan.OptimizedPlan;
-import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
-import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.test.testPrograms.tpch9.TPCHQuery9;
-import eu.stratosphere.test.util.TestBase;
+import eu.stratosphere.test.util.TestBase2;
 
-@RunWith(Parameterized.class)
-public class TPCHQuery9ITCase extends TestBase {
-
-	private static final Log LOG = LogFactory.getLog(TPCHQuery9ITCase.class);
+public class TPCHQuery9ITCase extends TestBase2 {
 	
-	private String partInputPath = null;
-	private String partSuppInputPath = null;
-	private String ordersInputPath = null;
-	private String lineItemInputPath = null;
-	private String supplierInputPath = null;
-	private String nationInputPath = null;
-	private String resultPath = null;
+	private String partInputPath;
+	private String partSuppInputPath;
+	private String ordersInputPath;
+	private String lineItemInputPath;
+	private String supplierInputPath;
+	private String nationInputPath;
+	private String resultPath;
 
 	private static final String PART = ""
 		+ "1|goldenrod lavender spring chocolate lace|Manufacturer#1|Brand#13|PROMO BURNISHED COPPER|7|JUMBO PKG|901.00|ly. slyly ironi|\n"
@@ -345,7 +327,7 @@ public class TPCHQuery9ITCase extends TestBase {
 		+ "23|UNITED KINGDOM|3|eans boost carefully special requests. accounts are. carefull|\n"
 		+ "24|UNITED STATES|1|y final packages. slow foxes cajole quickly. quickly silent platelets breach ironic accounts. unusual pinto be|\n";
 	
-	String EXPECTED_RESULT = ""
+	private static final String EXPECTED_RESULT = ""
 		+ "CHINA|1992|30814.46\n"
 		+ "CHINA|1993|30830.309\n"
 		+ "CHINA|1995|18476.965\n"
@@ -355,112 +337,33 @@ public class TPCHQuery9ITCase extends TestBase {
 		+ "IRAN|1996|9672.556\n";
 		
 
-	public TPCHQuery9ITCase(Configuration config) {
-		super(config);
-	}
-
 	@Override
 	protected void preSubmit() throws Exception {
-		
-		partInputPath = getFilesystemProvider().getTempDirPath() + "/part";
-		partSuppInputPath = getFilesystemProvider().getTempDirPath() + "/partSupp";
-		ordersInputPath = getFilesystemProvider().getTempDirPath() + "/orders";
-		lineItemInputPath = getFilesystemProvider().getTempDirPath() + "/lineItem";
-		supplierInputPath = getFilesystemProvider().getTempDirPath() + "/supplier";
-		nationInputPath = getFilesystemProvider().getTempDirPath() + "/nation";
-		resultPath = getFilesystemProvider().getTempDirPath() + "/result";
-
-		fillConfig(partInputPath, PART);
-		fillConfig(partSuppInputPath, PARTSUPP);
-		fillConfig(ordersInputPath, ORDERS);
-		fillConfig(lineItemInputPath, LINEITEM);
-		fillConfig(supplierInputPath, SUPPLIER);
-		fillConfig(nationInputPath, NATION);
-
+		partInputPath = createTempFile("part", PART);
+		partSuppInputPath = createTempFile("partSupp", PARTSUPP);
+		ordersInputPath = createTempFile("orders", ORDERS);
+		lineItemInputPath = createTempFile("lineItem", LINEITEM);
+		supplierInputPath = createTempFile("supplier", SUPPLIER);
+		nationInputPath = createTempFile("nation", NATION);
+		resultPath = getTempDirPath("result");
 	}
 
 	@Override
-	protected JobGraph getJobGraph() throws Exception {
-
+	protected Plan getTestJob() {
 		TPCHQuery9 tpch9 = new TPCHQuery9();
-		Plan plan = tpch9.getPlan(
-
-				config.getString("TPCHQuery9ITCase#NoSubtasks", "1"),
-				getFilesystemProvider().getURIPrefix()+partInputPath,
-				getFilesystemProvider().getURIPrefix()+partSuppInputPath,
-				getFilesystemProvider().getURIPrefix()+ordersInputPath,
-				getFilesystemProvider().getURIPrefix()+lineItemInputPath,
-				getFilesystemProvider().getURIPrefix()+supplierInputPath,
-				getFilesystemProvider().getURIPrefix()+nationInputPath,
-				getFilesystemProvider().getURIPrefix()+resultPath);
-
-		PactCompiler pc = new PactCompiler(new DataStatistics());
-		OptimizedPlan op = pc.compile(plan);
-
-		NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
-		return jgg.compileJobGraph(op);
+		return tpch9.getPlan(
+				"4",
+				partInputPath,
+				partSuppInputPath,
+				ordersInputPath,
+				lineItemInputPath,
+				supplierInputPath,
+				nationInputPath,
+				resultPath);
 	}
 
 	@Override
 	protected void postSubmit() throws Exception {
-
-		// Test results
 		compareResultsByLinesInMemory(EXPECTED_RESULT, resultPath);
-
 	}
-	
-	@Override
-	public void stopCluster() throws Exception {
-		// clean up hdfs
-		getFilesystemProvider().delete(partInputPath, true);
-		getFilesystemProvider().delete(partSuppInputPath, true);
-		getFilesystemProvider().delete(ordersInputPath, true);
-		getFilesystemProvider().delete(lineItemInputPath, true);
-		getFilesystemProvider().delete(supplierInputPath, true);
-		getFilesystemProvider().delete(nationInputPath, true);
-		getFilesystemProvider().delete(resultPath, true);
-		super.stopCluster();
-	}
-
-	@Parameters
-	public static Collection<Object[]> getConfigurations() {
-
-		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
-
-		Configuration config = new Configuration();
-
-		config.setInteger("TPCHQuery9ITCase#NoSubtasks", 4);
-		tConfigs.add(config);
-
-		return toParameterList(tConfigs);
-	}
-
-	private String[] splitInputString(String inputString, char splitChar, int noSplits) {
-
-		String splitString = inputString.toString();
-		String[] splits = new String[noSplits];
-		int partitionSize = (splitString.length() / noSplits) - 2;
-
-		// split data file and copy parts
-		for (int i = 0; i < noSplits - 1; i++) {
-			int cutPos = splitString.indexOf(splitChar, (partitionSize < splitString.length() ? partitionSize
-				: (splitString.length() - 1)));
-			splits[i] = splitString.substring(0, cutPos) + "\n";
-			splitString = splitString.substring(cutPos + 1);
-		}
-		splits[noSplits - 1] = splitString;
-
-		return splits;
-
-	}
-
-	private void fillConfig(String file, final String contents) throws Exception {
-		String[] splits = splitInputString(contents, '\n', 4);
-		getFilesystemProvider().createDir(file);
-		for (int i = 0; i < splits.length; i++) {
-			getFilesystemProvider().createFile(file + "/part_" + i + ".txt", splits[i]);
-			LOG.debug("Orders Part " + (i + 1) + ":\n>" + splits[i] + "<");
-		}
-	}
-
 }

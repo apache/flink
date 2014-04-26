@@ -13,37 +13,15 @@
 
 package eu.stratosphere.test.exampleRecordPrograms;
 
-import java.util.Collection;
-import java.util.LinkedList;
-
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
-
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.compiler.DataStatistics;
-import eu.stratosphere.compiler.PactCompiler;
-import eu.stratosphere.compiler.plan.OptimizedPlan;
-import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
-import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.test.testPrograms.tpch4.TPCHQuery4;
-import eu.stratosphere.test.util.TestBase;
+import eu.stratosphere.test.util.TestBase2;
 
-/**
- * 
- *
- */
-@RunWith(Parameterized.class)
-public class TPCHQuery4ITCase extends TestBase {
-
-	private static final Log LOG = LogFactory.getLog(TPCHQuery4ITCase.class);
+public class TPCHQuery4ITCase extends TestBase2 {
 	
-	private String ordersPath = null;
-	private String lineitemsPath = null;
-	private String resultPath = null;
+	private String ordersPath;
+	private String lineitemsPath;
+	private String resultPath ;
 
 	private final String ORDERS = "1|36901|O|173665.47|1996-01-02|5-LOW|Clerk#000000951|0|nstructions sleep furiously among |\n"
 		+ "2|78002|O|46929.18|1996-12-01|1-URGENT|Clerk#000000880|0| foxes. pending accounts at the pending, silent asymptot|\n"
@@ -64,7 +42,7 @@ public class TPCHQuery4ITCase extends TestBase {
 		+ "65|16252|P|110643.60|1995-03-18|1-URGENT|Clerk#000000632|0|ular requests are blithely pending orbits-- even requests against the deposit|\n"
 		+ "66|129200|F|103740.67|1994-01-20|5-LOW|Clerk#000000743|0|y pending requests integrate|\n";
 
-	String LINEITEMS = "1|155190|7706|1|17|21168.23|0.04|0.02|N|O|1996-03-13|1996-02-12|1996-03-22|DELIVER IN PERSON|TRUCK|egular courts above the|\n"
+	private static final String LINEITEMS = "1|155190|7706|1|17|21168.23|0.04|0.02|N|O|1996-03-13|1996-02-12|1996-03-22|DELIVER IN PERSON|TRUCK|egular courts above the|\n"
 		+ "1|67310|7311|2|36|45983.16|0.09|0.06|N|O|1996-04-12|1996-02-28|1996-04-20|TAKE BACK RETURN|MAIL|ly final dependencies: slyly bold |\n"
 		+ "1|63700|3701|3|8|13309.60|0.10|0.02|N|O|1996-01-29|1996-03-05|1996-01-31|TAKE BACK RETURN|REG AIR|riously. regular, express dep|\n"
 		+ "1|2132|4633|4|28|28955.64|0.09|0.06|N|O|1996-04-21|1996-03-30|1996-05-16|NONE|AIR|lites. fluffily even de|\n"
@@ -132,99 +110,23 @@ public class TPCHQuery4ITCase extends TestBase {
 		+ "67|40613|8126|5|23|35733.03|0.05|0.07|N|O|1997-04-19|1997-02-14|1997-05-06|DELIVER IN PERSON|REG AIR|ly regular deposit|\n"
 		+ "67|178306|824|6|29|40144.70|0.02|0.05|N|O|1997-01-25|1997-01-27|1997-01-27|DELIVER IN PERSON|FOB|ultipliers |\n";
 
-	String EXPECTED_RESULT = "1-URGENT|2|\n" + "3-MEDIUM|2|\n" + "4-NOT SPECIFIED|4|";
-
-	public TPCHQuery4ITCase(Configuration config) {
-		super(config);
-	}
+	private static final String EXPECTED_RESULT = "1-URGENT|2|\n" + "3-MEDIUM|2|\n" + "4-NOT SPECIFIED|4|";
 
 	@Override
 	protected void preSubmit() throws Exception {
-		
-		ordersPath = getFilesystemProvider().getTempDirPath() + "/orders";
-		lineitemsPath = getFilesystemProvider().getTempDirPath() + "/lineitems";
-		resultPath = getFilesystemProvider().getTempDirPath() + "/result";
-
-		String[] splits = splitInputString(ORDERS, '\n', 4);
-		getFilesystemProvider().createDir(ordersPath);
-		for (int i = 0; i < splits.length; i++) {
-			getFilesystemProvider().createFile(ordersPath + "/part_" + i + ".txt", splits[i]);
-			LOG.debug("Orders Part " + (i + 1) + ":\n>" + splits[i] + "<");
-		}
-
-		splits = splitInputString(LINEITEMS, '\n', 4);
-		getFilesystemProvider().createDir(lineitemsPath);
-		for (int i = 0; i < splits.length; i++) {
-			getFilesystemProvider().createFile(lineitemsPath + "/part_" + i + ".txt", splits[i]);
-			LOG.debug("Lineitems Part " + (i + 1) + ":\n>" + splits[i] + "<");
-		}
-
+		ordersPath = createTempFile("orders", ORDERS);
+		lineitemsPath = createTempFile("lineitems", LINEITEMS);
+		resultPath = getTempDirPath("result");
 	}
-
+	
 	@Override
-	protected JobGraph getJobGraph() throws Exception {
-
+	protected Plan getTestJob() {
 		TPCHQuery4 tpch4 = new TPCHQuery4();
-		Plan plan = tpch4.getPlan(
-				config.getString("TPCHQuery4Test#NoSubtasks", "1"), 
-				getFilesystemProvider().getURIPrefix()+ordersPath, 
-				getFilesystemProvider().getURIPrefix()+lineitemsPath, 
-				getFilesystemProvider().getURIPrefix()+resultPath);
-
-		PactCompiler pc = new PactCompiler(new DataStatistics());
-		OptimizedPlan op = pc.compile(plan);
-
-		NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
-		return jgg.compileJobGraph(op);
+		return tpch4.getPlan("4", ordersPath, lineitemsPath, resultPath);
 	}
 
 	@Override
 	protected void postSubmit() throws Exception {
-
-		// Test results
 		compareResultsByLinesInMemory(EXPECTED_RESULT, resultPath);
 	}
-	
-	@Override
-	public void stopCluster() throws Exception {
-		//must be done here instead of in postSubmit(), because in case of assertion failures 
-		//the deletes would not be performed
-		getFilesystemProvider().delete(ordersPath, true);
-		getFilesystemProvider().delete(lineitemsPath, true);
-		getFilesystemProvider().delete(resultPath, true);
-		super.stopCluster();
-	}
-	
-
-	@Parameters
-	public static Collection<Object[]> getConfigurations() {
-
-		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
-
-		Configuration config = new Configuration();
-		config.setInteger("TPCHQuery4Test#NoSubtasks", 4);
-		tConfigs.add(config);
-
-		return toParameterList(tConfigs);
-	}
-
-	private String[] splitInputString(String inputString, char splitChar, int noSplits) {
-
-		String splitString = inputString.toString();
-		String[] splits = new String[noSplits];
-		int partitionSize = (splitString.length() / noSplits) - 2;
-
-		// split data file and copy parts
-		for (int i = 0; i < noSplits - 1; i++) {
-			int cutPos = splitString.indexOf(splitChar, (partitionSize < splitString.length() ? partitionSize
-				: (splitString.length() - 1)));
-			splits[i] = splitString.substring(0, cutPos) + "\n";
-			splitString = splitString.substring(cutPos + 1);
-		}
-		splits[noSplits - 1] = splitString;
-
-		return splits;
-
-	}
-
 }

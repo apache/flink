@@ -13,35 +13,17 @@
 
 package eu.stratosphere.test.exampleRecordPrograms;
 
-import java.util.Collection;
-import java.util.LinkedList;
-
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
-
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.compiler.DataStatistics;
-import eu.stratosphere.compiler.PactCompiler;
-import eu.stratosphere.compiler.plan.OptimizedPlan;
-import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
-import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.test.testPrograms.TPCHQueryAsterix;
-import eu.stratosphere.test.util.TestBase;
+import eu.stratosphere.test.util.TestBase2;
 
-@RunWith(Parameterized.class)
-public class TPCHQueryAsterixITCase extends TestBase {
+public class TPCHQueryAsterixITCase extends TestBase2 {
 
-	private static final Log LOG = LogFactory.getLog(TPCHQueryAsterixITCase.class);
-	
-	private String ordersPath = null;
-	private String custPath = null;
-	private String resultPath = null;
+	private String ordersPath;
+	private String custPath;
+	private String resultPath;
 
-	private final String ORDERS = 
+	private static final String ORDERS = 
 		  "1|1|O|173665.47|1996-01-02|5-LOW|Clerk#000000951|0|nstructions sleep furiously among |\n"
 		+ "2|6|O|46929.18|1996-12-01|1-URGENT|Clerk#000000880|0| foxes. pending accounts at the pending, silent asymptot|\n"
 		+ "3|2|F|193846.25|1993-10-14|5-LOW|Clerk#000000955|0|sly final accounts boost. carefully regular ideas cajole carefully. depos|\n"
@@ -61,7 +43,7 @@ public class TPCHQueryAsterixITCase extends TestBase {
 		+ "65|2|P|110643.60|1995-03-18|1-URGENT|Clerk#000000632|0|ular requests are blithely pending orbits-- even requests against the deposit|\n"
 		+ "66|3|F|103740.67|1994-01-20|5-LOW|Clerk#000000743|0|y pending requests integrate|\n";
 
-	String CUSTOMERS = 
+	private static final String CUSTOMERS = 
 		"1|Customer#000000001|IVhzIApeRb ot,c,E|15|25-989-741-2988|711.56|BUILDING|to the even, regular platelets. regular, ironic epitaphs nag e|\n"+
 		"2|Customer#000000002|XSTf4,NCwDVaWNe6tEgvwfmRchLXak|13|23-768-687-3665|121.65|AUTOMOBILE|l accounts. blithely ironic theodolites integrate boldly: caref|\n"+
 		"3|Customer#000000003|MG9kdTD2WBHm|1|11-719-748-3364|7498.12|AUTOMOBILE| deposits eat slyly ironic, even instructions. express foxes detect slyly. blithely even accounts abov|\n"+
@@ -73,103 +55,29 @@ public class TPCHQueryAsterixITCase extends TestBase {
 		"9|Customer#000000009|xKiAFTjUsCuxfeleNqefumTrjS|8|18-338-906-3675|8324.07|FURNITURE|r theodolites according to the requests wake thinly excuses: pending requests haggle furiousl|\n"+
 		"10|Customer#000000010|6LrEaV6KR6PLVcgl2ArL Q3rqzLzcT1 v2|5|15-741-346-9870|2753.54|HOUSEHOLD|es regular deposits haggle. fur|\n";
 
-	String EXPECTED_RESULT = 
+	private static final String EXPECTED_RESULT = 
 		"7|BUILDING\n" +
 		"1|HOUSEHOLD\n" + 
 		"6|AUTOMOBILE\n" + 
 		"2|MACHINERY\n" +
 		"2|FURNITURE\n";
 
-	public TPCHQueryAsterixITCase(Configuration config) {
-		super(config);
-	}
 
 	@Override
 	protected void preSubmit() throws Exception {
-		
-		ordersPath = getFilesystemProvider().getTempDirPath() + "/orders";
-		custPath = getFilesystemProvider().getTempDirPath() + "/customers";
-		resultPath = getFilesystemProvider().getTempDirPath() + "/result";
-
-		String[] splits = splitInputString(ORDERS, '\n', 4);
-		getFilesystemProvider().createDir(ordersPath);
-		for (int i = 0; i < splits.length; i++) {
-			getFilesystemProvider().createFile(ordersPath + "/part_" + i + ".txt", splits[i]);
-			LOG.debug("Orders Part " + (i + 1) + ":\n>" + splits[i] + "<");
-		}
-
-		splits = splitInputString(CUSTOMERS, '\n', 4);
-		getFilesystemProvider().createDir(custPath);
-		for (int i = 0; i < splits.length; i++) {
-			getFilesystemProvider().createFile(custPath + "/part_" + i + ".txt", splits[i]);
-			LOG.debug("Customer Part " + (i + 1) + ":\n>" + splits[i] + "<");
-		}
-
+		ordersPath = createTempFile("orders", ORDERS);
+		custPath = createTempFile("customers", CUSTOMERS);
+		resultPath = getTempDirPath("result");
 	}
 
 	@Override
-	protected JobGraph getJobGraph() throws Exception {
-
+	protected Plan getTestJob() {
 		TPCHQueryAsterix tpchBench = new TPCHQueryAsterix();
-		Plan plan = tpchBench.getPlan(
-				config.getString("TPCHQueryAsterix#NoSubtasks", "1"), 
-				getFilesystemProvider().getURIPrefix()+ordersPath, 
-				getFilesystemProvider().getURIPrefix()+custPath, 
-				getFilesystemProvider().getURIPrefix()+resultPath);
-
-		PactCompiler pc = new PactCompiler(new DataStatistics());
-		OptimizedPlan op = pc.compile(plan);
-
-		NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
-		return jgg.compileJobGraph(op);
+		return tpchBench.getPlan("4", ordersPath, custPath, resultPath);
 	}
 
 	@Override
 	protected void postSubmit() throws Exception {
-
-		// Test results
 		compareResultsByLinesInMemory(EXPECTED_RESULT, resultPath);
-
 	}
-	
-	@Override
-	public void stopCluster() throws Exception {
-		getFilesystemProvider().delete(ordersPath, true);
-		getFilesystemProvider().delete(custPath, true);
-		getFilesystemProvider().delete(resultPath, true);
-		super.stopCluster();
-	}
-	
-
-	@Parameters
-	public static Collection<Object[]> getConfigurations() {
-
-		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
-
-		Configuration config = new Configuration();
-		config.setInteger("TPCHQueryAsterix#NoSubtasks", 4);
-		tConfigs.add(config);
-
-		return toParameterList(tConfigs);
-	}
-
-	private String[] splitInputString(String inputString, char splitChar, int noSplits) {
-
-		String splitString = inputString.toString();
-		String[] splits = new String[noSplits];
-		int partitionSize = (splitString.length() / noSplits) - 2;
-
-		// split data file and copy parts
-		for (int i = 0; i < noSplits - 1; i++) {
-			int cutPos = splitString.indexOf(splitChar, (partitionSize < splitString.length() ? partitionSize
-				: (splitString.length() - 1)));
-			splits[i] = splitString.substring(0, cutPos) + "\n";
-			splitString = splitString.substring(cutPos + 1);
-		}
-		splits[noSplits - 1] = splitString;
-
-		return splits;
-
-	}
-
 }
