@@ -49,6 +49,7 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 	public JobExecutionResult execute(String jobName) throws Exception {
 		Plan p = createProgramPlan(jobName);
 		p.setDefaultParallelism(getDegreeOfParallelism());
+		registerCachedFiles(p);
 		
 		PlanExecutor executor = PlanExecutor.createRemoteExecutor(host, port, jarFiles);
 		return executor.executePlan(p);
@@ -58,6 +59,7 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 	public String getExecutionPlan() throws Exception {
 		Plan p = createProgramPlan("unnamed");
 		p.setDefaultParallelism(getDegreeOfParallelism());
+		registerCachedFiles(p);
 		
 		PlanExecutor executor = PlanExecutor.createRemoteExecutor(host, port, jarFiles);
 		return executor.getOptimizerPlanAsJSON(p);

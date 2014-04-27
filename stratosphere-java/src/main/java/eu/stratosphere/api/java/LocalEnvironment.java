@@ -30,6 +30,7 @@ public class LocalEnvironment extends ExecutionEnvironment {
 	public JobExecutionResult execute(String jobName) throws Exception {
 		Plan p = createProgramPlan(jobName);
 		p.setDefaultParallelism(getDegreeOfParallelism());
+		registerCachedFiles(p);
 		
 		PlanExecutor executor = PlanExecutor.createLocalExecutor();
 		initLogging();
@@ -40,6 +41,7 @@ public class LocalEnvironment extends ExecutionEnvironment {
 	public String getExecutionPlan() throws Exception {
 		Plan p = createProgramPlan("unnamed job");
 		p.setDefaultParallelism(getDegreeOfParallelism());
+		registerCachedFiles(p);
 		
 		PlanExecutor executor = PlanExecutor.createLocalExecutor();
 		initLogging();

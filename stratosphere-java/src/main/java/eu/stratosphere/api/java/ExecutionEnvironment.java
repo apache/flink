@@ -14,6 +14,7 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -27,6 +28,7 @@ import org.apache.commons.lang3.Validate;
 
 import eu.stratosphere.api.common.InvalidProgramException;
 import eu.stratosphere.api.common.JobExecutionResult;
+import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.io.InputFormat;
 import eu.stratosphere.api.java.io.CollectionInputFormat;
 import eu.stratosphere.api.java.io.CsvReader;
@@ -38,6 +40,7 @@ import eu.stratosphere.api.java.operators.DataSink;
 import eu.stratosphere.api.java.operators.DataSource;
 import eu.stratosphere.api.java.operators.OperatorTranslation;
 import eu.stratosphere.api.java.operators.translation.JavaPlan;
+import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.api.java.typeutils.BasicTypeInfo;
 import eu.stratosphere.api.java.typeutils.ResultTypeQueryable;
 import eu.stratosphere.api.java.typeutils.TypeExtractor;
@@ -62,6 +65,8 @@ public abstract class ExecutionEnvironment {
 	private final List<DataSink<?>> sinks = new ArrayList<DataSink<?>>();
 	
 	private int degreeOfParallelism = -1;
+	
+	protected List<Tuple2<String, String>> cacheFile = new ArrayList<Tuple2<String, String>>();
 	
 	
 	// --------------------------------------------------------------------------------------------
@@ -252,6 +257,16 @@ public abstract class ExecutionEnvironment {
 	public abstract JobExecutionResult execute(String jobName) throws Exception;
 	
 	public abstract String getExecutionPlan() throws Exception;
+	
+	public void registerCachedFile(String filePath, String name){
+		this.cacheFile.add(new Tuple2<String, String>(filePath, name));
+	}
+	
+	protected void registerCachedFiles(Plan p) throws IOException {
+		for (Tuple2<String, String> entry : cacheFile) {
+			p.registerCachedFile(entry.f0, entry.f1);
+		}
+	}
 	
 	public JavaPlan createProgramPlan() {
 		return createProgramPlan(null);
