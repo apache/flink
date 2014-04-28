@@ -19,6 +19,7 @@ import java.util.Map;
 import org.apache.commons.lang3.Validate;
 
 import eu.stratosphere.api.common.aggregators.Aggregator;
+import eu.stratosphere.api.common.operators.DualInputSemanticProperties;
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.functions.CoGroupFunction;
@@ -484,6 +485,12 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 			
 			updater.setFirstInput(messenger);
 			updater.setSecondInput(iteration.getSolutionSet());
+			
+			// let the opertor know that we preserve the key field
+			DualInputSemanticProperties semanticProps = new DualInputSemanticProperties();
+			semanticProps.addForwardedField1(0, 0);
+			semanticProps.addForwardedField2(0, 0);
+			updater.setSemanticProperties(semanticProps);
 			
 			iteration.setSolutionSetDelta(updater);
 			iteration.setNextWorkset(updater);
