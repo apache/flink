@@ -265,8 +265,8 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			final PlanMapOperator<I2, Tuple2<K, I2>> keyMapper2 = new PlanMapOperator<I2, Tuple2<K, I2>>(extractor2, "Key Extractor 2", inputType2, typeInfoWithKey2);
 			final PlanUnwrappingJoinOperator<I1, I2, OUT, K> join = new PlanUnwrappingJoinOperator<I1, I2, OUT, K>(function, keys1, keys2, name, outputType, typeInfoWithKey1, typeInfoWithKey2);
 			
-			join.addFirstInput(keyMapper1);
-			join.addSecondInput(keyMapper2);
+			join.setFirstInput(keyMapper1);
+			join.setSecondInput(keyMapper2);
 			
 			keyMapper1.setInput(input1);
 			keyMapper2.setInput(input2);
@@ -300,8 +300,8 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			
 			final PlanUnwrappingJoinOperator<I1, I2, OUT, K> join = new PlanUnwrappingJoinOperator<I1, I2, OUT, K>(function, logicalKeyPositions1, keys2, name, outputType, typeInfoWithKey1, typeInfoWithKey2);
 			
-			join.addFirstInput(keyMapper1);
-			join.addSecondInput(keyMapper2);
+			join.setFirstInput(keyMapper1);
+			join.setSecondInput(keyMapper2);
 			
 			keyMapper1.setInput(input1);
 			keyMapper2.setInput(input2);
@@ -335,8 +335,8 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			
 			final PlanUnwrappingJoinOperator<I1, I2, OUT, K> join = new PlanUnwrappingJoinOperator<I1, I2, OUT, K>(function, keys1, logicalKeyPositions2, name, outputType, typeInfoWithKey1, typeInfoWithKey2);
 			
-			join.addFirstInput(keyMapper1);
-			join.addSecondInput(keyMapper2);
+			join.setFirstInput(keyMapper1);
+			join.setSecondInput(keyMapper2);
 			
 			keyMapper1.setInput(input1);
 			keyMapper2.setInput(input2);

@@ -42,7 +42,8 @@ public abstract class Operator<OUT, O extends Operator<OUT, O>> extends DataSet<
 	}
 
 	/**
-	 * Returns the name of the operator.
+	 * Returns the name of the operator. If no name has been set, it returns the name of the
+	 * operation, or the name of the class implementing the function of this operator.
 	 * 
 	 * @return The name of the operator.
 	 */
@@ -60,7 +61,9 @@ public abstract class Operator<OUT, O extends Operator<OUT, O>> extends DataSet<
 	}
 
 	/**
-	 * Sets the name of this operator.
+	 * Sets the name of this operator. This overrides the default name, which is either
+	 * a description of the (such as for example "Aggregate(1:SUM, 2:MIN)") or the name
+	 * the function or input/output format executeed by the operator.
 	 * 
 	 * @param newName The name for this operator.
 	 * @return The operator with a new name.

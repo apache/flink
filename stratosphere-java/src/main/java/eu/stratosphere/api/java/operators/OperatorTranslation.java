@@ -114,8 +114,8 @@ public class OperatorTranslation {
 		return dataFlowOp;
 	}
 	
-	private BulkIteration translateBulkIteration(IterativeResultDataSet<?> iterationEnd) {
-		PlanBulkIterationOperator iterationOperator = new PlanBulkIterationOperator("Bulk Iteration", iterationEnd.getType());
+	private <T> BulkIteration translateBulkIteration(IterativeResultDataSet<T> iterationEnd) {
+		PlanBulkIterationOperator<T> iterationOperator = new PlanBulkIterationOperator<T>("Bulk Iteration", iterationEnd.getType());
 		IterativeDataSet<?> iterationHead = iterationEnd.getIterationHead();
 
 		translated.put(iterationHead, iterationOperator.getPartialSolution());
@@ -130,8 +130,8 @@ public class OperatorTranslation {
 		return iterationOperator;
 	}
 	
-	private DeltaIteration translateDeltaIteration(DeltaIterativeResultDataSet<?, ?> iterationEnd) {
-		PlanDeltaIterationOperator iterationOperator = new PlanDeltaIterationOperator(iterationEnd.getKeyPositions(), "Unnamed Java Delta Iteration", iterationEnd.getType(), iterationEnd.getWorksetType()); // always assume 0 as key position?
+	private <D, W> DeltaIteration translateDeltaIteration(DeltaIterativeResultDataSet<D, W> iterationEnd) {
+		PlanDeltaIterationOperator<D, W> iterationOperator = new PlanDeltaIterationOperator<D, W>(iterationEnd.getKeyPositions(), "Unnamed Java Delta Iteration", iterationEnd.getType(), iterationEnd.getWorksetType()); // always assume 0 as key position?
 		iterationOperator.setMaximumNumberOfIterations(iterationEnd.getMaxIterations());
 		
 		DeltaIterativeDataSet<?, ?> iterationHead = iterationEnd.getIterationHead();

@@ -176,8 +176,8 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 		final PlanMapOperator<I2, Tuple2<K, I2>> keyMapper2 = new PlanMapOperator<I2, Tuple2<K, I2>>(extractor2, "Key Extractor 2", inputType2, typeInfoWithKey2);
 		final PlanUnwrappingCoGroupOperator<I1, I2, OUT, K> cogroup = new PlanUnwrappingCoGroupOperator<I1, I2, OUT, K>(function, keys1, keys2, name, outputType, typeInfoWithKey1, typeInfoWithKey2);
 		
-		cogroup.addFirstInput(keyMapper1);
-		cogroup.addSecondInput(keyMapper2);
+		cogroup.setFirstInput(keyMapper1);
+		cogroup.setSecondInput(keyMapper2);
 		
 		keyMapper1.setInput(input1);
 		keyMapper2.setInput(input2);
@@ -211,8 +211,8 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 		
 		final PlanUnwrappingCoGroupOperator<I1, I2, OUT, K> cogroup = new PlanUnwrappingCoGroupOperator<I1, I2, OUT, K>(function, logicalKeyPositions1, keys2, name, outputType, typeInfoWithKey1, typeInfoWithKey2);
 		
-		cogroup.addFirstInput(keyMapper1);
-		cogroup.addSecondInput(keyMapper2);
+		cogroup.setFirstInput(keyMapper1);
+		cogroup.setSecondInput(keyMapper2);
 		
 		keyMapper1.setInput(input1);
 		keyMapper2.setInput(input2);
@@ -246,8 +246,8 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 		
 		final PlanUnwrappingCoGroupOperator<I1, I2, OUT, K> cogroup = new PlanUnwrappingCoGroupOperator<I1, I2, OUT, K>(function, keys1, logicalKeyPositions2, name, outputType, typeInfoWithKey1, typeInfoWithKey2);
 		
-		cogroup.addFirstInput(keyMapper1);
-		cogroup.addSecondInput(keyMapper2);
+		cogroup.setFirstInput(keyMapper1);
+		cogroup.setSecondInput(keyMapper2);
 		
 		keyMapper1.setInput(input1);
 		keyMapper2.setInput(input2);
