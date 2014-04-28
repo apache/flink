@@ -140,13 +140,13 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 		this.numFileHandles = numFileHandles;
 	}
 
-	public void testDriver(PactDriver<S, Record> driver, Class<? extends S> stubClass) throws Exception {
+	@SuppressWarnings({"unchecked","rawtypes"})
+	public void testDriver(PactDriver driver, Class stubClass) throws Exception {
 		
 		this.driver = driver;
 		driver.setup(this);
 		
-		// instantiate the stub
-		this.stub = stubClass.newInstance();
+		this.stub = (S)stubClass.newInstance();
 		
 		// regular running logic
 		this.running = true;

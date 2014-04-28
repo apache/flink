@@ -50,7 +50,7 @@ import eu.stratosphere.pact.runtime.task.BuildSecondCachedMatchDriver;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.CollectorMapDriver;
 import eu.stratosphere.pact.runtime.task.JoinWithSolutionSetSecondDriver;
-import eu.stratosphere.pact.runtime.task.ReduceDriver;
+import eu.stratosphere.pact.runtime.task.GroupReduceDriver;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedCollectorMapDriver;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
@@ -304,7 +304,7 @@ public class ConnectedComponentsNepheleITCase extends RecordAPITestBase {
 			intermediateConfig.setOutputSerializer(serializer);
 			intermediateConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
 
-			intermediateConfig.setDriver(ReduceDriver.class);
+			intermediateConfig.setDriver(GroupReduceDriver.class);
 			intermediateConfig.setDriverStrategy(DriverStrategy.SORTED_GROUP);
 			intermediateConfig.setDriverComparator(comparator, 0);
 			intermediateConfig.setStubWrapper(

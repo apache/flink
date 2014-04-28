@@ -24,7 +24,7 @@ import java.util.Queue;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.api.common.functions.GenericGroupReduce;
+import eu.stratosphere.api.common.functions.GenericCombine;
 import eu.stratosphere.api.common.typeutils.TypeComparator;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
@@ -46,12 +46,14 @@ import eu.stratosphere.util.MutableObjectIterator;
 
 /**
  * The {@link CombiningUnilateralSortMerger} is part of a merge-sort implementation.
- * The {@link ReduceTask} requires a grouping of the incoming key-value pairs by key. Typically grouping is achieved by
+ * The {@link ReduceTask} requires a grouping of the incoming key-value pairs by key. 
+ * For a {@link GroupReduceFunction}  grouping is achieved by
  * determining a total order for the given set of pairs (sorting). Thereafter an iteration over the ordered set is
  * performed and each time the key changes the consecutive objects are united into a new group. Reducers have a combining feature
  * can reduce the data before it is written to disk. In order to implement a combining Reducer, the 
  * {@link eu.stratosphere.pact.ReduceFunction.stub.ReduceStub#combine(Key, Iterator, Collector)} method must be implemented and the ReduceFunction 
  * must be annotated with the {@link eu.stratosphere.api.java.record.operators.ReduceOperator.Combinable} annotation.
+ * For a {@link ReduceFuntion} the combine method can automatically call the reduce function without a combine annotation.
  * Conceptually, a merge sort with combining works as follows:
  * (1) Divide the unsorted list into n sublists of about 1/n the size. (2) Sort each sublist recursively by re-applying
  * merge sort. (3) Combine all tuples with the same key within a sublist (4) Merge the two sublists back into one sorted
@@ -72,7 +74,7 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 	 */
 	private static final Log LOG = LogFactory.getLog(CombiningUnilateralSortMerger.class);
 
-	private final GenericGroupReduce<E, ?> combineStub;	// the user code stub that does the combining
+	private final GenericCombine<E> combineStub;	// the user code stub that does the combining
 	
 	private Configuration udfConfig;
 	
@@ -103,7 +105,7 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 	 * @throws MemoryAllocationException Thrown, if not enough memory can be obtained from the memory manager to
 	 *                                   perform the sort.
 	 */
-	public CombiningUnilateralSortMerger(GenericGroupReduce<E, ?> combineStub, MemoryManager memoryManager, IOManager ioManager,
+	public CombiningUnilateralSortMerger(GenericCombine<E> combineStub, MemoryManager memoryManager, IOManager ioManager,
 			MutableObjectIterator<E> input, AbstractInvokable parentTask, 
 			TypeSerializerFactory<E> serializerFactory, TypeComparator<E> comparator,
 			long totalMemory, int maxNumFileHandles, float startSpillingFraction)
@@ -136,7 +138,7 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 	 * @throws MemoryAllocationException Thrown, if not enough memory can be obtained from the memory manager to
 	 *                                   perform the sort.
 	 */
-	public CombiningUnilateralSortMerger(GenericGroupReduce<E, ?> combineStub, MemoryManager memoryManager, IOManager ioManager,
+	public CombiningUnilateralSortMerger(GenericCombine<E> combineStub, MemoryManager memoryManager, IOManager ioManager,
 			MutableObjectIterator<E> input, AbstractInvokable parentTask, 
 			TypeSerializerFactory<E> serializerFactory, TypeComparator<E> comparator,
 			long totalMemory, int numSortBuffers, int maxNumFileHandles, 
@@ -257,7 +259,7 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 			
 			// ------------------- Spilling Phase ------------------------
 			
-			final GenericGroupReduce<E, ?> combineStub = CombiningUnilateralSortMerger.this.combineStub;
+			final GenericCombine<E> combineStub = CombiningUnilateralSortMerger.this.combineStub;
 			
 			// now that we are actually spilling, take the combiner, and open it
 			try {
@@ -469,7 +471,7 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 																			this.memManager.getPageSize());
 			
 			final WriterCollector<E> collector = new WriterCollector<E>(output, this.serializer);
-			final GenericGroupReduce<E, ?> combineStub = CombiningUnilateralSortMerger.this.combineStub;
+			final GenericCombine<E> combineStub = CombiningUnilateralSortMerger.this.combineStub;
 
 			// combine and write to disk
 			try {

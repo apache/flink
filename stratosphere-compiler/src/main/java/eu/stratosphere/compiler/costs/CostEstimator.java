@@ -160,13 +160,15 @@ public abstract class CostEstimator {
 		case FLAT_MAP:
 			
 		case ALL_GROUP:
-			// this operation does not do any actual grouping, since every element is in the same single group
+		case ALL_REDUCE:
+			// this operations does not do any actual grouping, since every element is in the same single group
 			
 		case CO_GROUP:
 		case SORTED_GROUP:
+		case SORTED_REDUCE:
 			// grouping or co-grouping over sorted streams for free
 			
-		case PARTIAL_GROUP:
+		case PARTIAL_GROUP_COMBINE:
 			// partial grouping is always local and main memory resident. we should add a relative cpu cost at some point
 		
 		case UNION:

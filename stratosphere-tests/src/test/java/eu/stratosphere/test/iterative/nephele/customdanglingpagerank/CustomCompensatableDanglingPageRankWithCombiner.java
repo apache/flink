@@ -223,7 +223,7 @@ public class CustomCompensatableDanglingPageRankWithCombiner {
 		TaskConfig combinerConfig = new TaskConfig(new Configuration());
 		combinerConfig.addInputToGroup(0);
 		combinerConfig.setInputSerializer(vertexWithRankSerializer, 0);
-		combinerConfig.setDriverStrategy(DriverStrategy.PARTIAL_GROUP);
+		combinerConfig.setDriverStrategy(DriverStrategy.PARTIAL_GROUP_COMBINE);
 		combinerConfig.setDriverComparator(vertexWithRankComparator, 0);
 		combinerConfig.setMemoryDriver(coGroupSortMemory * JobGraphUtils.MEGABYTE);
 		combinerConfig.setOutputSerializer(vertexWithRankSerializer);

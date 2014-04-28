@@ -131,7 +131,7 @@ public class IterativeKMeansTest extends CompilerTestBase {
 		assertTrue(combiner.getInput().isOnDynamicPath());
 		
 		assertEquals(LocalStrategy.NONE, combiner.getInput().getLocalStrategy());
-		assertEquals(DriverStrategy.PARTIAL_GROUP, combiner.getDriverStrategy());
+		assertEquals(DriverStrategy.PARTIAL_GROUP_COMBINE, combiner.getDriverStrategy());
 		assertNull(combiner.getInput().getLocalStrategyKeys());
 		assertNull(combiner.getInput().getLocalStrategySortOrder());
 		assertEquals(set0, combiner.getKeys());

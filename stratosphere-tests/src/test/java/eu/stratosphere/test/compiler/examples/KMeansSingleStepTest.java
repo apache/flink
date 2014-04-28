@@ -102,7 +102,7 @@ public class KMeansSingleStepTest extends CompilerTestBase {
 		Assert.assertNotNull(combiner);
 		assertEquals(ShipStrategyType.FORWARD, combiner.getInput().getShipStrategy());
 		assertEquals(LocalStrategy.NONE, combiner.getInput().getLocalStrategy());
-		assertEquals(DriverStrategy.PARTIAL_GROUP, combiner.getDriverStrategy());
+		assertEquals(DriverStrategy.PARTIAL_GROUP_COMBINE, combiner.getDriverStrategy());
 		assertNull(combiner.getInput().getLocalStrategyKeys());
 		assertNull(combiner.getInput().getLocalStrategySortOrder());
 		assertEquals(set0, combiner.getKeys());

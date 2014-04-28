@@ -18,10 +18,11 @@ import java.util.Iterator;
 
 import eu.stratosphere.api.common.functions.AbstractFunction;
 import eu.stratosphere.api.common.functions.GenericGroupReduce;
+import eu.stratosphere.api.common.functions.GenericReduce;
 import eu.stratosphere.util.Collector;
 
 
-public abstract class ReduceFunction<T> extends AbstractFunction implements GenericGroupReduce<T, T> {
+public abstract class ReduceFunction<T> extends AbstractFunction implements GenericReduce<T> {
 	
 	private static final long serialVersionUID = 1L;
 
@@ -41,9 +42,8 @@ public abstract class ReduceFunction<T> extends AbstractFunction implements Gene
 	*/
 	public abstract T reduce(T value1, T value2) throws Exception;
 	
-	
 	@Override
-	public final void reduce(Iterator<T> values, Collector<T> out) throws Exception {
+	public final void combine(Iterator<T> values, Collector<T> out) throws Exception {
 		T curr = values.next();
 		
 		while (values.hasNext()) {
@@ -51,10 +51,5 @@ public abstract class ReduceFunction<T> extends AbstractFunction implements Gene
 		}
 		
 		out.collect(curr);
-	}
-	
-	@Override
-	public final void combine(Iterator<T> values, Collector<T> out) throws Exception {
-		reduce(values, out);
 	}
 }

@@ -15,11 +15,10 @@ package eu.stratosphere.compiler.operators;
 import java.util.Collections;
 import java.util.List;
 
-import eu.stratosphere.api.common.operators.Order;
-import eu.stratosphere.api.common.operators.Ordering;
 import eu.stratosphere.api.common.operators.util.FieldSet;
 import eu.stratosphere.compiler.costs.Costs;
 import eu.stratosphere.compiler.dag.GroupReduceNode;
+import eu.stratosphere.compiler.dag.ReduceNode;
 import eu.stratosphere.compiler.dag.SingleInputNode;
 import eu.stratosphere.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.compiler.dataproperties.LocalProperties;
@@ -32,39 +31,15 @@ import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 
-public final class GroupWithPartialPreGroupProperties extends OperatorDescriptorSingle {
+public final class ReduceWithPartialPreGroupProperties extends OperatorDescriptorSingle {
 	
-	private final Ordering ordering;		// ordering that we need to use if an additional ordering is requested 
-	
-	
-	public GroupWithPartialPreGroupProperties(FieldSet keys) {
-		this(keys, null);
-	}
-	
-	public GroupWithPartialPreGroupProperties(FieldSet groupKeys, Ordering additionalOrderKeys) {
-		super(groupKeys);
-		
-		// if we have an additional ordering, construct the ordering to have primarily the grouping fields
-		if (additionalOrderKeys != null) {
-			this.ordering = new Ordering();
-			for (Integer key : this.keyList) {
-				this.ordering.appendOrdering(key, null, Order.ANY);
-			}
-		
-			// and next the additional order fields
-			for (int i = 0; i < additionalOrderKeys.getNumberOfFields(); i++) {
-				Integer field = additionalOrderKeys.getFieldNumber(i);
-				Order order = additionalOrderKeys.getOrder(i);
-				this.ordering.appendOrdering(field, additionalOrderKeys.getType(i), order);
-			}
-		} else {
-			this.ordering = null;
-		}
+	public ReduceWithPartialPreGroupProperties(FieldSet keys) {
+		super(keys);
 	}
 	
 	@Override
 	public DriverStrategy getStrategy() {
-		return DriverStrategy.SORTED_GROUP;
+		return DriverStrategy.SORTED_REDUCE;
 	}
 
 	@Override
@@ -77,13 +52,13 @@ public final class GroupWithPartialPreGroupProperties extends OperatorDescriptor
 				}
 				in.setLocalStrategy(LocalStrategy.COMBININGSORT, in.getLocalStrategyKeys(), in.getLocalStrategySortOrder());
 			}
-			return new SingleInputPlanNode(node, "Reduce("+node.getPactContract().getName()+")", in, DriverStrategy.SORTED_GROUP, this.keyList);
+			return new SingleInputPlanNode(node, "Reduce("+node.getPactContract().getName()+")", in, DriverStrategy.SORTED_REDUCE, this.keyList);
 		} else {
 			// non forward case. all local properties are killed anyways, so we can safely plug in a combiner
 			Channel toCombiner = new Channel(in.getSource());
 			toCombiner.setShipStrategy(ShipStrategyType.FORWARD);
 			// create an input node for combine with same DOP as input node
-			GroupReduceNode combinerNode = ((GroupReduceNode) node).getCombinerUtilityNode();
+			ReduceNode combinerNode = ((ReduceNode) node).getCombinerUtilityNode();
 			combinerNode.setDegreeOfParallelism(in.getSource().getDegreeOfParallelism());
 			combinerNode.setSubtasksPerInstance(in.getSource().getSubtasksPerInstance());
 			
@@ -94,7 +69,7 @@ public final class GroupWithPartialPreGroupProperties extends OperatorDescriptor
 			Channel toReducer = new Channel(combiner);
 			toReducer.setShipStrategy(in.getShipStrategy(), in.getShipStrategyKeys(), in.getShipStrategySortOrder());
 			toReducer.setLocalStrategy(LocalStrategy.COMBININGSORT, in.getLocalStrategyKeys(), in.getLocalStrategySortOrder());
-			return new SingleInputPlanNode(node, "Reduce("+node.getPactContract().getName()+")", toReducer, DriverStrategy.SORTED_GROUP, this.keyList);
+			return new SingleInputPlanNode(node, "Reduce("+node.getPactContract().getName()+")", toReducer, DriverStrategy.SORTED_REDUCE, this.keyList);
 		}
 	}
 
@@ -108,11 +83,7 @@ public final class GroupWithPartialPreGroupProperties extends OperatorDescriptor
 	@Override
 	protected List<RequestedLocalProperties> createPossibleLocalProperties() {
 		RequestedLocalProperties props = new RequestedLocalProperties();
-		if (this.ordering == null) {
-			props.setGroupedFields(this.keys);
-		} else {
-			props.setOrdering(this.ordering);
-		}
+		props.setGroupedFields(this.keys);
 		return Collections.singletonList(props);
 	}
 

@@ -7,7 +7,7 @@
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
- * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDTIONS OF ANY KIND, either express or implied. See the License for the
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
@@ -17,43 +17,41 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.api.common.functions.GenericGroupReduce;
-import eu.stratosphere.api.common.functions.GenericReduce;
 import eu.stratosphere.api.common.typeutils.TypeComparator;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
-import eu.stratosphere.pact.runtime.util.KeyGroupedIterator.ValuesIterator;
 import eu.stratosphere.util.Collector;
 import eu.stratosphere.util.MutableObjectIterator;
 
 /**
- * Reduce task which is executed by a Nephele task manager. The task has a
- * single input and one or multiple outputs. It is provided with a ReduceFunction
+ * GroupReduce task which is executed by a Nephele task manager. The task has a
+ * single input and one or multiple outputs. It is provided with a GroupReduceFunction
  * implementation.
  * <p>
- * The ReduceTask creates a iterator over all records from its input. The iterator returns all records grouped by their
- * key. The iterator is handed to the <code>reduce()</code> method of the ReduceFunction.
+ * The GroupReduceTask creates a iterator over all records from its input. The iterator returns all records grouped by their
+ * key. The iterator is handed to the <code>reduce()</code> method of the GroupReduceFunction.
  * 
  * @see GenericGroupReduce
  */
-public class ReduceDriver<T> implements PactDriver<GenericReduce<T>, T> {
+public class GroupReduceDriver<IT, OT> implements PactDriver<GenericGroupReduce<IT, OT>, OT> {
 	
-	private static final Log LOG = LogFactory.getLog(ReduceDriver.class);
+	private static final Log LOG = LogFactory.getLog(GroupReduceDriver.class);
 
-	private PactTaskContext<GenericReduce<T>, T> taskContext;
+	private PactTaskContext<GenericGroupReduce<IT, OT>, OT> taskContext;
 	
-	private MutableObjectIterator<T> input;
+	private MutableObjectIterator<IT> input;
 
-	private TypeSerializer<T> serializer;
+	private TypeSerializer<IT> serializer;
 
-	private TypeComparator<T> comparator;
+	private TypeComparator<IT> comparator;
 	
 	private volatile boolean running;
 
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void setup(PactTaskContext<GenericReduce<T>, T> context) {
+	public void setup(PactTaskContext<GenericGroupReduce<IT, OT>, OT> context) {
 		this.taskContext = context;
 		this.running = true;
 	}
@@ -64,9 +62,9 @@ public class ReduceDriver<T> implements PactDriver<GenericReduce<T>, T> {
 	}
 
 	@Override
-	public Class<GenericReduce<T>> getStubType() {
+	public Class<GenericGroupReduce<IT, OT>> getStubType() {
 		@SuppressWarnings("unchecked")
-		final Class<GenericReduce<T>> clazz = (Class<GenericReduce<T>>) (Class<?>) GenericReduce.class;
+		final Class<GenericGroupReduce<IT, OT>> clazz = (Class<GenericGroupReduce<IT, OT>>) (Class<?>) GenericGroupReduce.class;
 		return clazz;
 	}
 
@@ -80,38 +78,30 @@ public class ReduceDriver<T> implements PactDriver<GenericReduce<T>, T> {
 	@Override
 	public void prepare() throws Exception {
 		TaskConfig config = this.taskContext.getTaskConfig();
-		if (config.getDriverStrategy() != DriverStrategy.SORTED_REDUCE) {
-			throw new Exception("Unrecognized driver strategy for Reduce driver: " + config.getDriverStrategy().name());
+		if (config.getDriverStrategy() != DriverStrategy.SORTED_GROUP) {
+			throw new Exception("Unrecognized driver strategy for GroupReduce driver: " + config.getDriverStrategy().name());
 		}
-		this.serializer = this.taskContext.<IT>getInputSerializer(0).getSerializer();
+		this.serializer = this.taskContext.getInputSerializer(0);
 		this.comparator = this.taskContext.getInputComparator(0);
 		this.input = this.taskContext.getInput(0);
 	}
 
 	@Override
-	@SuppressWarnings({ "rawtypes", "unchecked" })
 	public void run() throws Exception {
 		if (LOG.isDebugEnabled()) {
-			LOG.debug(this.taskContext.formatLogString("Reducer preprocessing done. Running Reducer code."));
+			LOG.debug(this.taskContext.formatLogString("GroupReducer preprocessing done. Running GroupReducer code."));
 		}
 
-		final KeyGroupedIterator<T> iter = new KeyGroupedIterator<T>(this.input, this.serializer, this.comparator);
+		final KeyGroupedIterator<IT> iter = new KeyGroupedIterator<IT>(this.input, this.serializer, this.comparator);
 
 		// cache references on the stack
-		final GenericReduce<T> stub = this.taskContext.getStub();
-		final Collector<T> output = this.taskContext.getOutputCollector();
+		final GenericGroupReduce<IT, OT> stub = this.taskContext.getStub();
+		final Collector<OT> output = this.taskContext.getOutputCollector();
 
-		// run stub implementation, iterate over different keys
+		// run stub implementation
 		while (this.running && iter.nextKey()) {
-			ValuesIterator vIter = iter.getValues();
-			// Reduce everything together for this key
-			T curr = (T) vIter.next();
-			while(running & vIter.hasNext()){
-				curr = stub.reduce(curr, (T)vIter.next());
-			}
-			output.collect(curr);
+			stub.reduce(iter.getValues(), output);
 		}
-		
 	}
 
 	@Override

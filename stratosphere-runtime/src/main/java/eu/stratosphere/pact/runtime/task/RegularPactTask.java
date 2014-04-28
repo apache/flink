@@ -25,7 +25,7 @@ import eu.stratosphere.api.common.accumulators.Accumulator;
 import eu.stratosphere.api.common.accumulators.AccumulatorHelper;
 import eu.stratosphere.api.common.distributions.DataDistribution;
 import eu.stratosphere.api.common.functions.Function;
-import eu.stratosphere.api.common.functions.GenericGroupReduce;
+import eu.stratosphere.api.common.functions.GenericCombine;
 import eu.stratosphere.api.common.typeutils.TypeComparator;
 import eu.stratosphere.api.common.typeutils.TypeComparatorFactory;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
@@ -679,6 +679,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 			S stub = config.<S>getStubWrapper(this.userCodeClassLoader).getUserCodeObject(stubSuperClass, this.userCodeClassLoader);
 			// check if the class is a subclass, if the check is required
 			if (stubSuperClass != null && !stubSuperClass.isAssignableFrom(stub.getClass())) {
+				Thread.dumpStack();
 				throw new RuntimeException("The class '" + stub.getClass().getName() + "' is not a subclass of '" + 
 						stubSuperClass.getName() + "' as is required.");
 			}
@@ -960,16 +961,16 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 				// this still breaks a bit of the abstraction!
 				// we should have nested configurations for the local strategies to solve that
 				if (inputNum != 0) {
-					throw new IllegalStateException("Performing combining sort outside a reduce task!");
+					throw new IllegalStateException("Performing combining sort outside a (group)reduce task!");
 				}
 				
 				// instantiate ourselves a combiner. we should not use the stub, because the sort and the
-				// subsequent reduce would otherwise share it multi-threaded
+				// subsequent (group)reduce would otherwise share it multi-threaded
 				final S localStub;
 				try {
 					final Class<S> userCodeFunctionType = this.driver.getStubType();
 					// if the class is null, the driver has no user code 
-					if (userCodeFunctionType != null && GenericGroupReduce.class.isAssignableFrom(userCodeFunctionType)) {
+					if (userCodeFunctionType != null && GenericCombine.class.isAssignableFrom(userCodeFunctionType)) {
 						localStub = initStub(userCodeFunctionType);
 					} else {
 						throw new IllegalStateException("Performing combining sort outside a reduce task!");
@@ -981,7 +982,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 
 				@SuppressWarnings({ "rawtypes", "unchecked" })
 				CombiningUnilateralSortMerger<?> cSorter = new CombiningUnilateralSortMerger(
-					(GenericGroupReduce) localStub, getMemoryManager(), getIOManager(), this.inputIterators[inputNum], 
+					(GenericCombine) localStub, getMemoryManager(), getIOManager(), this.inputIterators[inputNum], 
 					this, this.inputSerializers[inputNum], getLocalStrategyComparator(inputNum),
 					this.config.getMemoryInput(inputNum), this.config.getFilehandlesInput(inputNum),
 					this.config.getSpillingThresholdInput(inputNum));

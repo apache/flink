@@ -183,7 +183,7 @@ public class IterationWithChainingNepheleITCase extends RecordAPITestBase {
 			tailConfig.setOutputSerializer(serializer);
 
 			// the driver
-			tailConfig.setDriver(ReduceDriver.class);
+			tailConfig.setDriver(GroupReduceDriver.class);
 			tailConfig.setDriverStrategy(DriverStrategy.SORTED_GROUP);
 			tailConfig.setDriverComparator(comparator, 0);
 			tailConfig.setStubWrapper(new UserCodeClassWrapper<DummyReducer>(DummyReducer.class));

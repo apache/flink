@@ -67,7 +67,7 @@ public class ReduceTaskTest extends DriverTestBase<GenericGroupReduce<Record, Re
 		try {
 			addInputSorted(new UniformRecordGenerator(keyCnt, valCnt, false), this.comparator.duplicate());
 			
-			ReduceDriver<Record, Record> testTask = new ReduceDriver<Record, Record>();
+			GroupReduceDriver<Record, Record> testTask = new GroupReduceDriver<Record, Record>();
 			
 			testDriver(testTask, MockReduceStub.class);
 		} catch (Exception e) {
@@ -94,7 +94,7 @@ public class ReduceTaskTest extends DriverTestBase<GenericGroupReduce<Record, Re
 		setOutput(this.outList);
 		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP);
 		
-		ReduceDriver<Record, Record> testTask = new ReduceDriver<Record, Record>();
+		GroupReduceDriver<Record, Record> testTask = new GroupReduceDriver<Record, Record>();
 		
 		try {
 			testDriver(testTask, MockReduceStub.class);
@@ -128,7 +128,7 @@ public class ReduceTaskTest extends DriverTestBase<GenericGroupReduce<Record, Re
 				getOwningNepheleTask(), RecordSerializerFactory.get(), this.comparator.duplicate(), this.perSortMem, 4, 0.8f);
 			addInput(sorter.getIterator());
 			
-			ReduceDriver<Record, Record> testTask = new ReduceDriver<Record, Record>();
+			GroupReduceDriver<Record, Record> testTask = new GroupReduceDriver<Record, Record>();
 		
 			testDriver(testTask, MockCombiningReduceStub.class);
 		} catch (Exception e) {
@@ -165,7 +165,7 @@ public class ReduceTaskTest extends DriverTestBase<GenericGroupReduce<Record, Re
 		setOutput(this.outList);
 		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP);
 		
-		ReduceDriver<Record, Record> testTask = new ReduceDriver<Record, Record>();
+		GroupReduceDriver<Record, Record> testTask = new GroupReduceDriver<Record, Record>();
 		
 		try {
 			testDriver(testTask, MockFailingReduceStub.class);
@@ -187,7 +187,7 @@ public class ReduceTaskTest extends DriverTestBase<GenericGroupReduce<Record, Re
 		setOutput(new NirvanaOutputList());
 		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP);
 		
-		final ReduceDriver<Record, Record> testTask = new ReduceDriver<Record, Record>();
+		final GroupReduceDriver<Record, Record> testTask = new GroupReduceDriver<Record, Record>();
 		
 		try {
 			addInputSorted(new DelayingInfinitiveInputIterator(100), this.comparator.duplicate());
@@ -235,7 +235,7 @@ public class ReduceTaskTest extends DriverTestBase<GenericGroupReduce<Record, Re
 		setOutput(new NirvanaOutputList());
 		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP);
 		
-		final ReduceDriver<Record, Record> testTask = new ReduceDriver<Record, Record>();
+		final GroupReduceDriver<Record, Record> testTask = new GroupReduceDriver<Record, Record>();
 		
 		final AtomicBoolean success = new AtomicBoolean(false);
 		

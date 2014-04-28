@@ -19,7 +19,7 @@ import eu.stratosphere.util.Collector;
 
 
 
-public interface GenericGroupReduce<T, O> extends Function {
+public interface GenericGroupReduce<T, O> extends GenericCombine<T> {
 	
 	void reduce(Iterator<T> records, Collector<O> out) throws Exception;
 

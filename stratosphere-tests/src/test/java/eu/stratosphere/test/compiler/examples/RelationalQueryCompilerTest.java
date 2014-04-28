@@ -232,7 +232,7 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 		Assert.assertEquals(DriverStrategy.SORTED_GROUP, reducer.getDriverStrategy());
 		Assert.assertEquals(DriverStrategy.NONE, sink.getDriverStrategy());
 		if (combiner != null) {
-			Assert.assertEquals(DriverStrategy.PARTIAL_GROUP, combiner.getDriverStrategy());
+			Assert.assertEquals(DriverStrategy.PARTIAL_GROUP_COMBINE, combiner.getDriverStrategy());
 			Assert.assertEquals(LocalStrategy.NONE, combiner.getInput().getLocalStrategy());
 		}
 	}

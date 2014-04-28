@@ -43,7 +43,7 @@ import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.CollectorMapDriver;
 import eu.stratosphere.pact.runtime.task.NoOpDriver;
-import eu.stratosphere.pact.runtime.task.ReduceDriver;
+import eu.stratosphere.pact.runtime.task.GroupReduceDriver;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedCollectorMapDriver;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
@@ -227,7 +227,7 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 		tailConfig.setIsWorksetUpdate();
 		
 		// inputs and driver
-		tailConfig.setDriver(ReduceDriver.class);
+		tailConfig.setDriver(GroupReduceDriver.class);
 		tailConfig.setDriverStrategy(DriverStrategy.SORTED_GROUP);
 		tailConfig.addInputToGroup(0);
 		tailConfig.setInputSerializer(inputSerializer, 0);		

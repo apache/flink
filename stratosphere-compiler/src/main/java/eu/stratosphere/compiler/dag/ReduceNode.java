@@ -18,9 +18,9 @@ import java.util.List;
 
 import eu.stratosphere.api.common.operators.base.ReduceOperatorBase;
 import eu.stratosphere.compiler.DataStatistics;
-import eu.stratosphere.compiler.operators.AllGroupWithPartialPreGroupProperties;
-import eu.stratosphere.compiler.operators.GroupWithPartialPreGroupProperties;
+import eu.stratosphere.compiler.operators.AllReduceWithPartialPreGroupProperties;
 import eu.stratosphere.compiler.operators.OperatorDescriptorSingle;
+import eu.stratosphere.compiler.operators.ReduceWithPartialPreGroupProperties;
 
 /**
  * The Optimizer representation of a <i>Reduce</i> operator.
@@ -59,8 +59,8 @@ public class ReduceNode extends SingleInputNode {
 	@Override
 	protected List<OperatorDescriptorSingle> getPossibleProperties() {
 		OperatorDescriptorSingle props = this.keys == null ?
-			new AllGroupWithPartialPreGroupProperties() :
-			new GroupWithPartialPreGroupProperties(this.keys);
+			new AllReduceWithPartialPreGroupProperties() :
+			new ReduceWithPartialPreGroupProperties(this.keys);
 		
 			return Collections.singletonList(props);
 	}

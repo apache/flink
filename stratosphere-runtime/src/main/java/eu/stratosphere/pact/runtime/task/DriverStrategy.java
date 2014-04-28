@@ -38,12 +38,16 @@ public enum DriverStrategy {
 	MAP(MapDriver.class, ChainedMapDriver.class, PIPELINED, false),
 	// the flat mapper
 	FLAT_MAP(FlatMapDriver.class, ChainedFlatMapDriver.class, PIPELINED, false),
-	// grouping the inputs
-	SORTED_GROUP(ReduceDriver.class, null, PIPELINED, true),
+	// grouping the inputs and apply the GroupReduce function
+	SORTED_GROUP(GroupReduceDriver.class, null, PIPELINED, true),
+	// grouping the inputs and apply the Reduce Function
+	SORTED_REDUCE(ReduceDriver.class, null, PIPELINED, true),
 	// partially grouping inputs (best effort resulting possibly in duplicates --> combiner)
-	PARTIAL_GROUP(CombineDriver.class, SynchronousChainedCombineDriver.class, MATERIALIZING, true),
-	// group everything together into one group
-	ALL_GROUP(AllReduceDriver.class, null, PIPELINED, false),
+	PARTIAL_GROUP_COMBINE(CombineDriver.class, SynchronousChainedCombineDriver.class, MATERIALIZING, true),
+	// group everything together into one group and apply the GroupReduce function
+	ALL_GROUP(AllGroupReduceDriver.class, null, PIPELINED, false),
+	// group everything together into one group and apply the Reduce function
+	ALL_REDUCE(AllReduceDriver.class, null, PIPELINED, false),
 	// already grouped input, within a key values are crossed in a nested loop fashion
 	GROUP_SELF_NESTEDLOOP(null, null, PIPELINED, true),	// Note: Self-Match currently inactive
 	// both inputs are merged, but materialized to the side for block-nested-loop-join among values with equal key

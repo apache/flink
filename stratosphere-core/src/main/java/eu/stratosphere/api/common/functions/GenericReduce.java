@@ -13,8 +13,14 @@
 
 package eu.stratosphere.api.common.functions;
 
+import java.util.Iterator;
 
-public interface GenericReduce<T> extends Function {
+import eu.stratosphere.util.Collector;
+
+
+public interface GenericReduce<T> extends GenericCombine<T> {
 	
 	T reduce(T value1, T value2) throws Exception;
+	
+	void combine(Iterator<T> iter, Collector<T> collector) throws Exception;
 }

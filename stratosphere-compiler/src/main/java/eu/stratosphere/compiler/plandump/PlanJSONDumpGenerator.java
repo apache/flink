@@ -232,7 +232,7 @@ public class PlanJSONDumpGenerator {
 		
 		String name = n.getName();
 		if (name.equals("Reduce") && (node instanceof SingleInputPlanNode) && 
-				((SingleInputPlanNode) node).getDriverStrategy() == DriverStrategy.PARTIAL_GROUP) {
+				((SingleInputPlanNode) node).getDriverStrategy() == DriverStrategy.PARTIAL_GROUP_COMBINE) {
 			name = "Combine";
 		}
 		
@@ -404,7 +404,7 @@ public class PlanJSONDumpGenerator {
 			case FLAT_MAP:
 				locString = "Map";
 				break;
-			case PARTIAL_GROUP:
+			case PARTIAL_GROUP_COMBINE:
 				locString = "Ordered Partial Grouping";
 				break;
 			case SORTED_GROUP:
