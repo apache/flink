@@ -34,6 +34,8 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 
 /**
@@ -133,7 +135,11 @@ public class DistributedCacheTest extends RecordAPITestBase {
 	@Override
 	protected Plan getTestJob() {
 		Plan plan =  getPlan(1 , textPath, resultPath);
-		plan.registerCachedFile(cachePath, "cache_test");
+		try {
+			plan.registerCachedFile(cachePath, "cache_test");
+		} catch (IOException ex) {
+			throw new RuntimeException(ex);
+		}		
 		return plan;
 	}
 
